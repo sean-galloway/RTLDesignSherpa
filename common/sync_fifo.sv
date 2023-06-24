@@ -1,67 +1,80 @@
 `include "macro_inc.svh"
 `timescale 1ns / 1ps
 
-// Paramerized Synchronous FIFO
-module SyncClockCrossingFifo #(parameter DATA_WIDTH = 8, parameter DEPTH = 27)
-(
-    input  wire        clk_in,
-    input  wire        rst_n,
-    input  wire        wr_en,
-    input  wire [DATA_WIDTH-1:0] wr_data,
-    output wire        wr_full,
-    input  wire        rd_en,
-    output wire [DATA_WIDTH-1:0] rd_data,
-    output wire        rd_empty
+// Paramerized Synchronous FIFO -- This work for non-powers of two depths
+// Note: the ports are the same as the AsyncFifo on for ease of instantiation
+/ Paramerized Synchronous FIFO -- This only works for power of two depths
+module SyncFifo#(
+        parameter DATA_WIDTH = 8,
+        parameter DEPTH = 16
+    ) (
+    // clocks and resets
+    input	wire	            wr_clk, wr_rst_n, rd_clk, rd_rst_n,
+    // wr_clk domain
+    input	wire	            write,
+	input	wire	[DW-1:0]	wr_data,
+	output	reg			        wr_full,
+    // rd_clk domain
+	input	wire			    read,
+	output	wire	[DW-1:0]	rd_data,
+	output	reg			        rd_empty,
 );
-    reg [DATA_WIDTH-1:0] mem [0:DEPTH-1];
-    reg [$clog2(DEPTH)-1:0] wr_ptr_reg;
-    reg [$clog2(DEPTH)-1:0] rd_ptr_reg;
-    reg [$clog2(DEPTH)-1:0] wr_ptr_next;
-    reg [$clog2(DEPTH)-1:0] rd_ptr_next;
-    reg wr_full_reg;
-    reg rd_empty_reg;
 
-    always @(posedge clk_in or negedge rst_n) begin
-        if (~rst_n) begin
-            wr_ptr_reg <= 0;
-            rd_ptr_reg <= 0;
-            wr_full_reg <= 0;
-            rd_empty_reg <= 1;
-        end else begin
-            wr_ptr_reg <= wr_ptr_next;
-            rd_ptr_reg <= rd_ptr_next;
-            wr_full_reg <= wr_full_reg & ~wr_en | (wr_ptr_reg == DEPTH-1) & wr_en;
-            rd_empty_reg <= rd_empty_reg & ~rd_en | (rd_ptr_reg == wr_ptr_reg) & rd_en;
-        end
-    end
+	localparam	DW = DATA_WIDTH,
+			    D  = DEPTH
+                AW = $clog2(DEPTH);
 
-    always @(posedge clk_in or negedge rst_n) begin
-        if (~rst_n) begin
-            wr_ptr_next <= 0;
-            rd_ptr_next <= 0;
-        end else begin
-            wr_ptr_next <= wr_ptr_reg;
-            rd_ptr_next <= rd_ptr_reg;
-            if (wr_en & ~wr_full_reg)
-                wr_ptr_next <= (wr_ptr_reg + 1) % DEPTH;
-            if (rd_en & ~rd_empty_reg)
-                rd_ptr_next <= (rd_ptr_reg + 1) % DEPTH;
-        end
-    end
+    // local wires
+	wire	[AW-1:0]	wr_addr, rd_addr;
+	reg	    [AW:0]	    wr_ptr_bin,      rd_ptr_bin;
+    wire    [AW:0]      wr_ptr_bin_next, rd_ptr_bin_next;
+    wire                wr_rollover,     rd_rollover;
+    integer             count;
 
-    always @(posedge clk_in or negedge rst_n) begin
-        if (~rst_n) begin
-            mem <= '0;
-        end else begin
-            if (wr_en & ~wr_full_reg)
-                mem[wr_ptr_reg] <= wr_data;
-            if (rd_en & ~rd_empty_reg)
-                rd_data <= mem[rd_ptr_reg];
-        end
-    end
+    // The flop storage
+	reg	    [DW-1:0]	mem	[0:((1<<AW)-1)];
 
-    assign wr_full = wr_full_reg;
-    assign rd_empty = rd_empty_reg;
+    /////////////////////////////////////////////////////////////////////////
+    // Count Handling: this isn't actually needed;
+    // it is a short cut until I figure out how to get around it.
+    count_next =    (read && write)      ? count :
+                    (read && ~rd_full)   ? count-1 :
+                    (write && ~ wr_full) ? (count+1) : count;
+    `DFF_ARN(count, count_next,  wr_clk, wr_rst_n)
+
+    /////////////////////////////////////////////////////////////////////////
+    // Write Domain Logic
+    wr_rollover = (D == wr_ptr_bin[AW-1:0]);
+    wr_ptr_bin_next =   (write && wr_rollover) ? {{wr_ptr_bin[AW]+1},{AW-1}{1'b0}} :
+                        (write && ~wr_full)    ? wr_ptr_bin + 'b1 :
+                        wr_ptr_bin;
+    `DFF_ARN(wr_ptr_bin,  wr_ptr_bin_next,  wr_clk, wr_rst_n)
+
+    assign	wr_addr = wr_ptr_bin[AW-1:0];
+
+	// Write to the FIFO on a clock
+	always @(posedge wr_clk)
+        if ((write)&&(!wr_full))
+            mem[wr_addr] <= wr_data;
+
+    // Full logic; this will be an XOR of the extra bit when I get time to validate
+`   wr_full = count == D;
+
+    /////////////////////////////////////////////////////////////////////////
+    // Read Domain Logic
+    rd_rollover = (D == rd_ptr_bin[AW-1:0]);
+    rd_ptr_bin_next =   (read && rd_rollover) ? {{rd_ptr_bin[AW]+1},{AW-1}{1'b0}} :
+                        (read && ~rd_empty)   ? rd_ptr_bin + 'b1 :
+                        rd_ptr_bin;
+    `DFF_ARN(rd_ptr_bin,  rd_ptr_bin_next,  rd_clk, rd_rst_n)
+
+    assign	rd_addr = rd_ptr_bin[AW-1:0];
+
+	// Read from the memory--a clockless read here, clocked by the
+	// rd_ptr_bin FLOP
+	assign	rd_data = mem[rd_addr];
+
+    // Empty logic; this will be an XOR of the extra bit when I get time to validate
+`   rd_empty = count == 0;
 
 endmodule
-

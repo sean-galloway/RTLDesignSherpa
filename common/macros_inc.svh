@@ -3,7 +3,9 @@
 
     // Glitch Free Flop with the number of flops as a parameter,
     // it uses FLOP_COUNT number of flops in the chain
-    `define GLITCH_FREEN_DFF_ARN(q, d, clk_in, rst_n, FLOP_COUNT)               \
+    // instance sample:
+    // `GLITCH_FREE_N_DFF_ARN( , , , ,N)
+    `define GLITCH_FREE_N_DFF_ARN(q, d, clk_in, rst_n, FLOP_COUNT)\
     parameter FLOP_COUNT = FLOP_COUNT;                           \
     reg [FLOP_COUNT-1:0] flop_out_reg;                           \
     always @(posedge clk_in or negedge rst_n) begin              \
@@ -29,6 +31,8 @@
 
 
     // D flip-flop w/ async reset_n
+    // instance sample:
+    // `DFF_ARN( , , , )
     `define DFF_ARN(q, d, clk, rst_n)             \
     always_ff @(posedge clk, negedge rst_n) begin \
         if (!rst_n) q <= '0;                      \
