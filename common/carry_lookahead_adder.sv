@@ -1,4 +1,4 @@
-// Parameterized CLa
+// Parameterized CLA
 module carry_lookahead_adder #(parameter N = 4) (
     input [N-1:0] a,
     input [N-1:0] b,
