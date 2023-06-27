@@ -3,8 +3,8 @@
 
 // Paramerized Synchronous FIFO -- This work for non-powers of two depths
 // Note: the ports are the same as the AsyncFifo on for ease of instantiation
-/ Paramerized Synchronous FIFO -- This only works for power of two depths
-module SyncFifo#(
+// Paramerized Synchronous FIFO -- This only works for power of two depths
+module sync_fifo#(
         parameter DATA_WIDTH = 8,
         parameter DEPTH = 16
     ) (

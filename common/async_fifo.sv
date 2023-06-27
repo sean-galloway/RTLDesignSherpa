@@ -2,7 +2,7 @@
 `timescale 1ns / 1ps
 
 // Paramerized Asynchronous FIFO -- This only works for power of two depths
-module AsyncFifo#(
+module async_fifo#(
         parameter DATA_WIDTH = 8,
         parameter DEPTH = 16,
         parameter N_FLOP_CROSS = 2,
@@ -79,8 +79,7 @@ module AsyncFifo#(
 	// Calculate the next read address,
 	assign	rd_ptr_bin_next  = rd_ptr_bin + { {(AW){1'b0}}, ((read)&&(!rd_empty)) };
 	// and the next Gray code version associated with it
-	assign	rd_ptr_gray_next = (rd_ptr_bin_ne    /////////////////////////////////////////////////////////////////////////
-xt >> 1) ^ rd_ptr_bin_next;
+	assign	rd_ptr_gray_next = (rd_ptr_bin_next >> 1) ^ rd_ptr_bin_next;
 
 	// Register these two values, the read address and the Gray code version
 	// of it, on the next read clock
@@ -91,7 +90,7 @@ xt >> 1) ^ rd_ptr_bin_next;
 	assign	rd_addr = rd_ptr_bin[AW-1:0];
 
 	// Determine if we'll be empty on the next clock
-	assign	rd_empty_next = (rd_ptr_gray_next == rq2_wr_ptr_gray);
+	assign	rd_empty_next = (rd_ptr_gray_next == rq2_wr_ptr_gray); // TODO: Explain why this is different from the full equation
 
     `DFF_ARN(rd_empty, rd_empty_next, rd_clk, rd_rst_n)
 
