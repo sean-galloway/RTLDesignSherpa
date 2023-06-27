@@ -161,3 +161,4 @@ cython_debug/
 
 # RTL Related Ignore
 .*Orig.*
+.*junk.*
