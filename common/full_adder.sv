@@ -1,3 +1,4 @@
+// Simple Full Adder implemented
 module full_adder(
     input  a,
     input  b,
