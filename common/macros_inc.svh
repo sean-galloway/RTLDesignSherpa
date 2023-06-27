@@ -5,10 +5,10 @@
     // it uses FLOP_COUNT number of flops in the chain
     // instance sample:
     // `GLITCH_FREE_N_DFF_ARN( , , , ,N)
-    `define GLITCH_FREE_N_DFF_ARN(q, d, clk_in, rst_n, FLOP_COUNT)\
+    `define GLITCH_FREE_N_DFF_ARN(q, d, clk rst_n, FLOP_COUNT)\
     parameter FLOP_COUNT = FLOP_COUNT;                           \
     reg [FLOP_COUNT-1:0] flop_out_reg;                           \
-    always @(posedge clk_in or negedge rst_n) begin              \
+    always @(posedge clk or negedge rst_n) begin              \
         if (!rst_n)                                              \
             flop_out_reg[0] <= 1'b0;                             \
         else                                                     \
@@ -17,7 +17,7 @@
     generate                                                     \
         genvar i;                                                \
         for (i = 1; i < FLOP_COUNT; i = i + 1) begin : FLOP_LOOP \
-            always @(posedge clk_in or negedge rst_n) begin      \
+            always @(posedge clk or negedge rst_n) begin      \
                 if (!rst_n)                                      \
                     flop_out_reg[i] <= 1'b0;                     \
                 else                                             \

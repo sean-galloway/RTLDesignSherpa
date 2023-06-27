@@ -40,7 +40,7 @@ module sync_fifo#(
     count_next =    (read && write)      ? count :
                     (read && ~rd_full)   ? count-1 :
                     (write && ~ wr_full) ? (count+1) : count;
-    `DFF_ARN(count, count_next,  wr_clk, wr_rst_n)
+    `DFF_ARN(.d(count), .d(count_next),  .clk(wr_clk) .rst_n(wr_rst_n))
 
     /////////////////////////////////////////////////////////////////////////
     // Write Domain Logic
@@ -48,7 +48,7 @@ module sync_fifo#(
     wr_ptr_bin_next =   (write && wr_rollover) ? {{wr_ptr_bin[AW]+1},{AW-1}{1'b0}} :
                         (write && ~wr_full)    ? wr_ptr_bin + 'b1 :
                         wr_ptr_bin;
-    `DFF_ARN(wr_ptr_bin,  wr_ptr_bin_next,  wr_clk, wr_rst_n)
+    `DFF_ARN(.d(wr_ptr_bin),  .d(wr_ptr_bin_next),  .clk(wr_clk), .rst_n(wr_rst_n))
 
     assign	wr_addr = wr_ptr_bin[AW-1:0];
 
@@ -66,7 +66,7 @@ module sync_fifo#(
     rd_ptr_bin_next =   (read && rd_rollover) ? {{rd_ptr_bin[AW]+1},{AW-1}{1'b0}} :
                         (read && ~rd_empty)   ? rd_ptr_bin + 'b1 :
                         rd_ptr_bin;
-    `DFF_ARN(rd_ptr_bin,  rd_ptr_bin_next,  rd_clk, rd_rst_n)
+    `DFF_ARN(.d(rd_ptr_bin),  .d(rd_ptr_bin_next),  .clk(rd_clk), .rst_n(rd_rst_n))
 
     assign	rd_addr = rd_ptr_bin[AW-1:0];
 
