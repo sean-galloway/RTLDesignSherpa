@@ -8,7 +8,7 @@ module carry_lookahead_adder #(parameter N = 4) (
 );
 
     wire [N-1:0] p, g;
-    wire [N:0] c;
+    wire [N:0]   c;
 
     // Generate and propagate signals
     genvar i;
