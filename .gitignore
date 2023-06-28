@@ -160,5 +160,6 @@ cython_debug/
 #.idea/
 
 # RTL Related Ignore
-.*Orig.*
-.*junk.*
+common/Orig/*
+junk\.*
+pipe_stage.sv
