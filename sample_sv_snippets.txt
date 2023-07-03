@@ -1,0 +1,78 @@
+ Verilog Arithmetic Operators:
+    Operator	Description
+    a + b	   a plus b
+    a - b	   a minus b
+    a * b	   a multiplied by b
+    a / b	   a divided by b
+    a % b	   a modulo b
+    a ** b	a to the power of b
+
+    Verilog Relational Operators:
+    Operator	Description
+    a < b	   a less than b
+    a > b	   a greater than b
+    a <= b	a less than or equal to b
+    a >= b	a greater than or equal to b
+
+    Verilog Equality Operators:
+    Operator	Description
+    a === b	a equal to b, including x and z
+    a !== b	a not equal to b, including x and z
+    a == b	a equal to b, result can be unknown
+    a != b	a not equal to b, result can be unknown
+
+    Verilog Logical Operators:
+    Operator	Description
+    a && b	evaluates to true if a and b are true
+    a || b	evaluates to true if a or b are true
+    !a	      Converts non-zero value to zero, and vice versa
+
+    Verilog Bitwise Operators:
+    Operator	Type
+    ~         Not
+    &	      And
+    ~&	      Nand
+    |	      Or
+    ~|	      Nor
+    ^	      Xor
+    ~^	      Xnor
+
+    Verilog Shift Operators:
+    <<      data_shift = data >> 8; // shift right 8 times
+    >>      data_shift = data << 4; // shift left four time
+
+Reduction Operators: Generally, used in combinational control logic:
+    logic [3:0] sel;
+    logic       any_sel_hi;
+    logic       all_sel_hi;
+    logic       sel_parity;
+
+    any_sel_hi = |sel; // any_sel_hi = sel[3] | sel[2] | sel[1] | sel[0];
+    all_sel_hi = &sel; // all_sel_hi = sel[3] & sel[2] & sel[1] & sel[0];
+    sel_parity = ^sel; // sel_parity = sel[3] ^ sel[2] ^ sel[1] ^ sel[0];
+
+    inv_sel_parity = ~^sel; //inv_sel_parity =  ~(sel[3] ^ sel[2] ^ sel[1] ^ sel[0]);
+
+    inv_any_sel_hi = ~|sel; //inv_any_sel_hi = ~(sel[3] | sel[2] | sel[1] | sel[0]);
+
+    inv_all_sel_hi = ~&sel; //inv_all_sel_hi = ~(sel[3] & sel[2] & sel[1] & sel[0]);
+
+// Case Mux
+module mux( input       [1:0] a, b, c,
+                        [1:0] sel,
+            output reg  [2:0] out);
+
+    always @(a, b, c, sel) begin
+        case(sel)
+            2'b00:  out = a;
+            2'b01:  out = b;
+            2'b10:  begin // an example of multi-lines in a case
+                        out[2] = c[2];
+                        out[1] = c[1];
+                        out[0] = c[0];
+                    end
+            default: out = 0;
+        endcase
+    end
+
+endmodule

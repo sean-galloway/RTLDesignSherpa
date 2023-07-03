@@ -2,18 +2,17 @@
 `timescale 1ns / 1ps
 
 // Paramerized Synchronous FIFO -- This works for all depths of the FIFO
-// Note: the ports are the same as the AsyncFifo on for ease of instantiation
 module sync_fifo#(
         parameter DATA_WIDTH = 8,
         parameter DEPTH = 16
     ) (
     // clocks and resets
-    input	wire	            wr_clk, wr_rst_n, rd_clk, rd_rst_n,
-    // wr_clk domain
+    input	wire	            clk, rst_n,
+    // clk domain
     input	wire	            write,
 	input	wire	[DW-1:0]	wr_data,
 	output	reg			        wr_full,
-    // rd_clk domain
+    // clk domain
 	input	wire			    read,
 	output	wire	[DW-1:0]	rd_data,
 	output	reg			        rd_empty,
@@ -40,7 +39,7 @@ module sync_fifo#(
     // count_next =    (read && write)      ? count :
     //                 (read && ~rd_full)   ? count-1 :
     //                 (write && ~ wr_full) ? (count+1) : count;
-    // `DFF_ARN(.d(count), .d(count_next),  .clk(wr_clk) .rst_n(wr_rst_n))
+    // `DFF_ARN(.d(count), .d(count_next),  .clk(clk) .rst_n(rst_n))
 
     /////////////////////////////////////////////////////////////////////////
     // XOR the two upper bits of the pointers to for use in the full/empty eqns
@@ -52,12 +51,12 @@ module sync_fifo#(
     assign wr_ptr_bin_next =    (write && ~wr_full && wr_rollover) ? {{wr_ptr_bin[AW]+1},{AW-1}{1'b0}} :
                                 (write && ~wr_full)                ? wr_ptr_bin + 'b1 :
                                 wr_ptr_bin;
-    `DFF_ARN(.d(wr_ptr_bin),  .d(wr_ptr_bin_next),  .clk(wr_clk), .rst_n(wr_rst_n))
+    `DFF_ARN(.d(wr_ptr_bin),  .d(wr_ptr_bin_next),  .clk(clk), .rst_n(rst_n))
 
     assign	wr_addr = wr_ptr_bin[AW-1:0];
 
 	// Write to the FIFO on a clock
-	always @(posedge wr_clk)
+	always @(posedge clk)
         if ((write)&&(!wr_full))
             mem[wr_addr] <= wr_data;
 
@@ -73,7 +72,7 @@ module sync_fifo#(
     assign rd_ptr_bin_next =    (read && ~rd_empty && rd_rollover) ? {{rd_ptr_bin[AW]+1},{AW-1}{1'b0}} :
                                 (read && ~rd_empty)                ? rd_ptr_bin + 'b1 :
                                 rd_ptr_bin;
-    `DFF_ARN(.d(rd_ptr_bin),  .d(rd_ptr_bin_next),  .clk(rd_clk), .rst_n(rd_rst_n))
+    `DFF_ARN(.d(rd_ptr_bin),  .d(rd_ptr_bin_next),  .clk(clk), .rst_n(rst_n))
 
     assign	rd_addr = rd_ptr_bin[AW-1:0];
 
