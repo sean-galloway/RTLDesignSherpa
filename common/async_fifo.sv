@@ -1,13 +1,13 @@
-`include "common/macros_inc.svh"
+`include "macros_inc.svh"
 `timescale 1ns / 1ps
 
 // Paramerized Asynchronous FIFO -- This only works for power of two depths
 module async_fifo#(
-        parameter DATA_WIDTH = 8,
-        parameter DEPTH = 16,
-        parameter N_FLOP_CROSS = 2,
-        parameter NEXT_WR_FULL = 1,       // TODO: Need to *_next equations for pessimism
-        parameter NEXT_RD_FULL = 1        // TODO: Need to *_next equations for pessimism
+        parameter DATA_WIDTH    = 8,
+        parameter DEPTH         = 16,
+        parameter N_FLOP_CROSS  = 2,
+        parameter NEXT_WR_FULL  = 1,       // TODO: Need to *_next equations for pessimism
+        parameter NEXT_RD_EMPTY = 1        // TODO: Need to *_next equations for pessimism
     ) (
     // clocks and resets
     input	wire	            wr_clk, wr_rst_n, rd_clk, rd_rst_n,
