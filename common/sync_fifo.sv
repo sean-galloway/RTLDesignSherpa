@@ -20,7 +20,8 @@ module sync_fifo#(
 
 	localparam	DW = DATA_WIDTH,
 			    D  = DEPTH,
-                AW = $clog2(DEPTH)+1;
+                AW = $clog2(DEPTH)+1,
+                AWp1 = AW+1;
 
     // local wires
 	wire	[AW-1:0]	wr_addr, rd_addr;
@@ -39,10 +40,11 @@ module sync_fifo#(
     /////////////////////////////////////////////////////////////////////////
     // Write Domain Logic
     assign wr_rollover =        (D == wr_ptr_bin[AW-1:0]);
-    assign wr_ptr_bin_next =    (write && ~wr_full && wr_rollover) ? {{wr_ptr_bin[AW]+1},{AW-1}{1'b0}} :
-                                (write && ~wr_full)                ? wr_ptr_bin + 'b1 :
-                                wr_ptr_bin;
-    `DFF_ARN #(WIDTH=DW) (.d(wr_ptr_bin),  .d(wr_ptr_bin_next),  .clk(clk), .rst_n(rst_n));
+    assign wr_ptr_bin_next = wr_ptr_bin;
+    // assign wr_ptr_bin_next =    (write && ~wr_full && wr_rollover) ? {{wr_ptr_bin[AW]+1},{AW-1}{1'b0}} :
+    //                             (write && ~wr_full)                ? wr_ptr_bin + 'b1 :
+    //                             wr_ptr_bin;
+    // `DFF_ARN #(WIDTH=AWp1) wr_ptr_flop (.q(wr_ptr_bin), .d(wr_ptr_bin_next), .clk(clk), .rst_n(rst_n));
 
     assign	wr_addr = wr_ptr_bin[AW-1:0];
 
@@ -52,17 +54,18 @@ module sync_fifo#(
             mem[wr_addr] <= wr_data;
 
     // Full logic; this will be an XOR of the extra bit when I get time to validate
-    assign wr_full = (ptr_xor && (wr_addr == read_addr));
+    // assign wr_full = (ptr_xor && (wr_addr == read_addr));
 
     // Read Domain Logic
 
     /////////////////////////////////////////////////////////////////////////
     // Read Domain Logic
     assign rd_rollover =        (D == rd_ptr_bin[AW-1:0]);
-    assign rd_ptr_bin_next =    (read && ~rd_empty && rd_rollover) ? {{rd_ptr_bin[AW]+1},{AW-1}{1'b0}} :
-                                (read && ~rd_empty)                ? rd_ptr_bin + 'b1 :
-                                rd_ptr_bin;
-    `DFF_ARN #(WIDTH=DW) (.d(rd_ptr_bin),  .d(rd_ptr_bin_next),  .clk(clk), .rst_n(rst_n));
+    assign rd_ptr_bin_next = rd_ptr_bin;
+    // assign rd_ptr_bin_next =    (read && ~rd_empty && rd_rollover) ? {{rd_ptr_bin[AW]+1},{AW-1}{1'b0}} :
+    //                             (read && ~rd_empty)                ? rd_ptr_bin + 'b1 :
+    //                             rd_ptr_bin;
+    // `DFF_ARN #(WIDTH=AWp1) rd_ptr_flop (.q(rd_ptr_bin), .d(rd_ptr_bin_next), .clk(clk), .rst_n(rst_n));
 
     assign rd_addr = rd_ptr_bin[AW-1:0];
 
