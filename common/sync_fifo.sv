@@ -15,11 +15,11 @@ module sync_fifo#(
     // clk domain
 	input	wire			    read,
 	output	wire	[DW-1:0]	rd_data,
-	output	reg			        rd_empty,
+	output	reg			        rd_empty
 );
 
 	localparam	DW = DATA_WIDTH,
-			    D  = DEPTH
+			    D  = DEPTH,
                 AW = $clog2(DEPTH)+1;
 
     // local wires
@@ -33,15 +33,6 @@ module sync_fifo#(
 	reg	    [DW-1:0]	mem	[0:((1<<AW)-1)];
 
     /////////////////////////////////////////////////////////////////////////
-    // TODO: Remove the count flops, use the high bit of the ptr's
-    // Count Handling: this isn't actually needed;
-    // it is a short cut until I figure out how to get around it.
-    // count_next =    (read && write)      ? count :
-    //                 (read && ~rd_full)   ? count-1 :
-    //                 (write && ~ wr_full) ? (count+1) : count;
-    // `DFF_ARN(.d(count), .d(count_next),  .clk(clk) .rst_n(rst_n))
-
-    /////////////////////////////////////////////////////////////////////////
     // XOR the two upper bits of the pointers to for use in the full/empty eqns
     assign ptr_xor = write_ptr_bin[AW] ^ read_ptr_bin[AW];
 
@@ -51,7 +42,7 @@ module sync_fifo#(
     assign wr_ptr_bin_next =    (write && ~wr_full && wr_rollover) ? {{wr_ptr_bin[AW]+1},{AW-1}{1'b0}} :
                                 (write && ~wr_full)                ? wr_ptr_bin + 'b1 :
                                 wr_ptr_bin;
-    `DFF_ARN(.d(wr_ptr_bin),  .d(wr_ptr_bin_next),  .clk(clk), .rst_n(rst_n))
+    `DFF_ARN #(WIDTH=DW) (.d(wr_ptr_bin),  .d(wr_ptr_bin_next),  .clk(clk), .rst_n(rst_n));
 
     assign	wr_addr = wr_ptr_bin[AW-1:0];
 
@@ -61,7 +52,6 @@ module sync_fifo#(
             mem[wr_addr] <= wr_data;
 
     // Full logic; this will be an XOR of the extra bit when I get time to validate
-`   // assign wr_full = count == D;
     assign wr_full = (ptr_xor && (wr_addr == read_addr));
 
     // Read Domain Logic
@@ -72,16 +62,13 @@ module sync_fifo#(
     assign rd_ptr_bin_next =    (read && ~rd_empty && rd_rollover) ? {{rd_ptr_bin[AW]+1},{AW-1}{1'b0}} :
                                 (read && ~rd_empty)                ? rd_ptr_bin + 'b1 :
                                 rd_ptr_bin;
-    `DFF_ARN(.d(rd_ptr_bin),  .d(rd_ptr_bin_next),  .clk(clk), .rst_n(rst_n))
+    `DFF_ARN #(WIDTH=DW) (.d(rd_ptr_bin),  .d(rd_ptr_bin_next),  .clk(clk), .rst_n(rst_n));
 
-    assign	rd_addr = rd_ptr_bin[AW-1:0];
+    assign rd_addr = rd_ptr_bin[AW-1:0];
 
-	// Read from the memory--a clockless read here, clocked by the
-	// rd_ptr_bin FLOP
 	assign	rd_data = mem[rd_addr];
 
     // Empty logic; this will be an XOR of the extra bit when I get time to validate
-`   // rd_empty = count == 0;
     assign rd_empty = (~ptr_xor && (rd_addr == write_addr));
 
 endmodule
