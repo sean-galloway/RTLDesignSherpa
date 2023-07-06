@@ -85,22 +85,22 @@ module sync_fifo#(
     // Empty logic; this will be an XOR of the extra bit when I get time to validate
     assign rd_empty = (!ptr_xor && (rd_addr == wr_addr));
 
-// synopsys translate_off
-always @(posedge clk)
-begin
-    if ((write && wr_full) == 1'b1)
-        $display("Error: write while fifo full");
-end
+    // synopsys translate_off
+    always @(posedge clk)
+    begin
+        if ((write && wr_full) == 1'b1)
+            $timeformat(-9, 3, " ns", 10); $display("Error: write while fifo full, %t", $time);
+    end
 
-always @(posedge clk)
-begin
-    if ((read && rd_empty) == 1'b1)
-        $display("Error: read while fifo empty");
-end
+    always @(posedge clk)
+    begin
+        if ((read && rd_empty) == 1'b1)
+            $timeformat(-9, 3, " ns", 10); $display("Error: read while fifo empty, %t", $time);
+    end
 
-initial begin
-    $dumpfile("dump.vcd");
-    $dumpvars(0, sync_fifo);
-end
-// synopsys translate_on
+    initial begin
+        $dumpfile("dump.vcd");
+        $dumpvars(0, sync_fifo);
+    end
+    // synopsys translate_on
 endmodule

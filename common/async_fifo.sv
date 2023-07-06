@@ -25,13 +25,15 @@ module async_fifo#(
 	output  reg                 rd_almost_empty
 );
 
-	localparam	DW = DATA_WIDTH,
-			    D  = DEPTH,
-                AW = $clog2(DEPTH),
-                N  = N_FLOP_CROSS,
-				AFULL = ALMOST_WR_MARGIN,
+	localparam	DW     = DATA_WIDTH,
+			    D      = DEPTH,
+                AW     = $clog2(DEPTH),
+                N      = N_FLOP_CROSS,
+				AFULL  = ALMOST_WR_MARGIN,
 				AEMPTY = ALMOST_RD_MARGIN,
-				ZERO = {AW-1{1'b0}};
+				AFT    = D - AFULL,
+				AET    = AEMPTY,
+				ZERO   = {AW-1{1'b0}};
 
     // local wires
 	logic	[AW-1:0]	wr_addr, rd_addr;
@@ -77,9 +79,13 @@ module async_fifo#(
 		else           wr_ptr_gray <= wr_ptr_gray_next;
 	end
 
-	wire  [AW:0] almost_full_threshold = {!wr_ptr_bin[AW], (D-wdom_rd_ptr_bin[AW-1:0]-AFULL)};
-	assign	     wr_full               = (wr_ptr_gray == {~wdom_rd_ptr_gray[AW:AW-1], wdom_rd_ptr_gray[AW-2:0]});
-	assign	     wr_almost_full        = (wr_ptr_bin  == almost_full_threshold);
+	assign         wr_full            = (wr_ptr_gray == {~wdom_rd_ptr_gray[AW:AW-1], wdom_rd_ptr_gray[AW-2:0]});
+	wire  [1:0]    almost_full_select = {wr_ptr_bin[AW], wdom_rd_ptr_bin[AW]};
+	wire  [AW-1:0] almost_full_count  = (almost_full_select == 2'b00) ? {wr_ptr_bin[AW-1:0]-wdom_rd_ptr_bin[AW-1:0]} :
+										(almost_full_select == 2'b10) ? {(D-wdom_rd_ptr_bin[AW-1:0])-wr_ptr_bin[AW-1:0]} :
+										(almost_full_select == 2'b01) ? {(D-wdom_rd_ptr_bin[AW-1:0])-wr_ptr_bin[AW-1:0]} :
+										{wr_ptr_bin[AW-1:0]-wdom_rd_ptr_bin[AW-1:0]};
+	assign	       wr_almost_full     = almost_full_count >= AFT;
 
 	// Write to the Memory on a clock
 	always @(posedge wr_clk)
@@ -119,9 +125,13 @@ module async_fifo#(
 	assign	rd_addr = rd_ptr_bin[AW-1:0];
 
 	// Determine if we'll be empty on the next clock
-	wire  [AW:0] almost_empty_threshold = {rd_ptr_bin[AW], {D-rdom_wr_ptr_bin[AW-1]-AEMPTY}};
-	assign	     rd_empty               = (rd_ptr_gray == rdom_wr_ptr_gray);
-	assign       rd_almost_empty        = (rd_ptr_bin == almost_empty_threshold);
+	assign	      rd_empty            = (rd_ptr_gray == rdom_wr_ptr_gray);
+	wire [1:0]    almost_empty_select = {rdom_wr_ptr_bin[AW], rd_ptr_bin[AW]};
+	wire [AW:0]   almost_empty_count  = (almost_empty_select == 2'b00) ? {rdom_wr_ptr_bin-rd_ptr_bin} :
+									    (almost_empty_select == 2'b10) ? {rdom_wr_ptr_bin-rd_ptr_bin} :
+										(almost_empty_select == 2'b01) ? {(D-rd_ptr_bin-rdom_wr_ptr_bin)} :
+										{rdom_wr_ptr_bin-rd_ptr_bin};
+	assign	       rd_almost_empty      = (almost_empty_count>0) ? almost_empty_count <= AET : 'b0;
 
 	// Read from the memory--a clockless read here, clocked by the next
 	// read FLOP in the next processing stage (somewhere else)
