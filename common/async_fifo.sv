@@ -8,8 +8,8 @@ module async_fifo#(
         parameter DATA_WIDTH       = 8,
         parameter DEPTH            = 16,
         parameter N_FLOP_CROSS     = 2,
-        parameter ALMOST_WR_MARGIN = 1,       // TODO: Need to *_next equations for pessimism
-        parameter ALMOST_RD_MARGIN = 1        // TODO: Need to *_next equations for pessimism
+        parameter ALMOST_WR_MARGIN = 1,
+        parameter ALMOST_RD_MARGIN = 1
     ) (
     // clocks and resets
     input	wire	            wr_clk, wr_rst_n, rd_clk, rd_rst_n,
@@ -29,8 +29,8 @@ module async_fifo#(
 			    D  = DEPTH,
                 AW = $clog2(DEPTH),
                 N  = N_FLOP_CROSS,
-				AL_WR = ALMOST_WR_MARGIN,
-				AL_RD = ALMOST_RD_MARGIN,
+				AFULL = ALMOST_WR_MARGIN,
+				AEMPTY = ALMOST_RD_MARGIN,
 				ZERO = {AW-1{1'b0}};
 
     // local wires
@@ -77,8 +77,9 @@ module async_fifo#(
 		else           wr_ptr_gray <= wr_ptr_gray_next;
 	end
 
-	assign	wr_full        = (wr_ptr_gray == {~wdom_rd_ptr_gray[AW:AW-1], wdom_rd_ptr_gray[AW-2:0]});
-	assign	wr_almost_full = 1'b0;
+	wire  [AW:0] almost_full_threshold = {!wr_ptr_bin[AW], (D-wdom_rd_ptr_bin[AW-1:0]-AFULL)};
+	assign	     wr_full               = (wr_ptr_gray == {~wdom_rd_ptr_gray[AW:AW-1], wdom_rd_ptr_gray[AW-2:0]});
+	assign	     wr_almost_full        = (wr_ptr_bin  == almost_full_threshold);
 
 	// Write to the Memory on a clock
 	always @(posedge wr_clk)
@@ -118,30 +119,31 @@ module async_fifo#(
 	assign	rd_addr = rd_ptr_bin[AW-1:0];
 
 	// Determine if we'll be empty on the next clock
-	assign	rd_empty = (rd_ptr_gray == rdom_wr_ptr_gray); // TODO: Explain why this is different from the full equation
-	assign  rd_almost_empty = 1'b0;
+	wire  [AW:0] almost_empty_threshold = {rd_ptr_bin[AW], {D-rdom_wr_ptr_bin[AW-1]-AEMPTY}};
+	assign	     rd_empty               = (rd_ptr_gray == rdom_wr_ptr_gray);
+	assign       rd_almost_empty        = (rd_ptr_bin == almost_empty_threshold);
 
 	// Read from the memory--a clockless read here, clocked by the next
 	// read FLOP in the next processing stage (somewhere else)
 	assign	rd_data = mem[rd_addr];
 
-// synopsys translate_off
-always @(posedge wr_clk)
-begin
-    if ((write && wr_full) == 1'b1)
-        $display("Error: write while fifo full");
-end
+	// synopsys translate_off
+	always @(posedge wr_clk)
+	begin
+		if ((write && wr_full) == 1'b1)
+			$timeformat(-9, 3, " ns", 10); $display("Error: write while fifo full, %t", $time);
+	end
 
-always @(posedge rd_clk)
-begin
-    if ((read && rd_empty) == 1'b1)
-        $display("Error: read while fifo empty");
-end
+	always @(posedge rd_clk)
+	begin
+		if ((read && rd_empty) == 1'b1)
+			$timeformat(-9, 3, " ns", 10); $display("Error: read while fifo empty, %t", $time);
+	end
 
-initial begin
-    $dumpfile("dump.vcd");
-    $dumpvars(0, async_fifo);
-end
-// synopsys translate_on
+	initial begin
+		$dumpfile("dump.vcd");
+		$dumpvars(0, async_fifo);
+	end
+	// synopsys translate_on
 
 endmodule
