@@ -88,14 +88,16 @@ module sync_fifo#(
     // synopsys translate_off
     always @(posedge clk)
     begin
-        if ((write && wr_full) == 1'b1)
+        if ((write && wr_full) == 1'b1) begin
             $timeformat(-9, 3, " ns", 10); $display("Error: write while fifo full, %t", $time);
+        end
     end
 
     always @(posedge clk)
     begin
-        if ((read && rd_empty) == 1'b1)
+        if ((read && rd_empty) == 1'b1) begin
             $timeformat(-9, 3, " ns", 10); $display("Error: read while fifo empty, %t", $time);
+        end
     end
 
     initial begin
