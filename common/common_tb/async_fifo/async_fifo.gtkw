@@ -1,0 +1,39 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Thu Jul  6 08:54:02 2023
+[*]
+[dumpfile] "/home/sean/github/RTL_Design_Projects/common/common_tb/async_fifo/dump.vcd"
+[dumpfile_mtime] "Thu Jul  6 08:53:06 2023"
+[dumpfile_size] 8617
+[savefile] "/home/sean/github/RTL_Design_Projects/common/common_tb/async_fifo/async_fifo.gtkw"
+[timestart] 37600
+[size] 1986 600
+[pos] -1 -1
+*-16.863827 640000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 233
+[signals_width] 283
+[sst_expanded] 1
+[sst_vpaned_height] 144
+@28
+async_fifo.wr_clk
+async_fifo.wr_rst_n
+async_fifo.write
+async_fifo.wr_full
+async_fifo.wr_addr[2:0]
+@22
+async_fifo.wr_ptr_bin[3:0]
+async_fifo.wr_ptr_gray_next[3:0]
+async_fifo.wr_ptr_gray[3:0]
+@28
+async_fifo.rd_clk
+async_fifo.rd_rst_n
+async_fifo.read
+async_fifo.rd_empty
+async_fifo.rd_addr[2:0]
+@22
+async_fifo.rd_ptr_bin[3:0]
+async_fifo.rd_ptr_gray[3:0]
+async_fifo.wr_ptr_gray[3:0]
+async_fifo.rdom_wr_ptr_gray[3:0]
+[pattern_trace] 1
+[pattern_trace] 0

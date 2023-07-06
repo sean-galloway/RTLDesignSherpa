@@ -2,7 +2,11 @@ CWD=$(shell pwd)
 COCOTB_REDUCED_LOG_FMT = True
 SIM ?= icarus
 VERILOG_INCLUDE_DIRS = $(CWD)/../../../common
-VERILOG_SOURCES =$(CWD)/../../../common/async_fifo.sv
+VERILOG_SOURCES = \
+					$(CWD)/../../../common/bin2gray.sv \
+					$(CWD)/../../../common/gray2bin.sv \
+					$(CWD)/../../../common/glitch_free_n_dff_arn.sv \
+					$(CWD)/../../../common/async_fifo.sv
 
 DUT = async_fifo
 MODULE = testbench

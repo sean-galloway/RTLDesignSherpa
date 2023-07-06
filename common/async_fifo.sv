@@ -1,5 +1,5 @@
 `timescale 1ns / 1ps
-`include "glitch_free_n_dff_arn.sv"
+//`include "./glitch_free_n_dff_arn.sv"
 // `include "gray2bin.sv"
 // `include "bin2gray.sv"
 
@@ -52,33 +52,33 @@ module async_fifo#(
 	// Cross clock domains
 	//
 	// Cross the Read Gray pointer into the write clock domain
-	glitch_free_n_dff_arn # (.FLOP_COUNT (2), .WIDTH (AW))
+	glitch_free_n_dff_arn # (.FLOP_COUNT (2), .WIDTH (AW+1))
 		rd_ptr_gray_cross_inst (.q(wdom_rd_ptr_gray), .d(rd_ptr_gray), .clk(wr_clk), .rst_n(wr_rst_n));
 
 	// convert the gray rd ptr to binary
-	gray2bin #(.WIDTH(AW)) rd_ptr_gray2bin_inst (.binary(wdom_rd_ptr_bin), .gray(wdom_rd_ptr_gray));
+	gray2bin #(.WIDTH(AW+1)) rd_ptr_gray2bin_inst (.binary(wdom_rd_ptr_bin), .gray(wdom_rd_ptr_gray));
 
 	// Calculate the next write address, and the next graycode pointer.
-	assign	wr_ptr_bin_next  = wr_ptr_bin + { {{AW}{1'b0}}, ((write) && (~wr_full)) };
+	assign	wr_ptr_bin_next  = wr_ptr_bin + { {{AW}{1'b0}}, ((write) && (!wr_full)) };
 
-	bin2gray #(.WIDTH(AW)) wr_ptr_gray_inst (.binary(wr_ptr_bin_next), .gray(wr_ptr_gray_next));
+	bin2gray #(.WIDTH(AW+1)) wr_ptr_gray_inst (.binary(wr_ptr_bin_next), .gray(wr_ptr_gray_next));
 
 	assign	wr_addr = wr_ptr_bin[AW-1:0];
 
 	// Register these two values--the address and its Gray code
 	// representation
 	always @ (posedge wr_clk, negedge wr_rst_n) begin
-		if (!wr_rst_N) wr_ptr_bin <= 'b0;
+		if (!wr_rst_n) wr_ptr_bin <= 'b0;
 		else           wr_ptr_bin <= wr_ptr_bin_next;
 	end
 
 	always @ (posedge wr_clk, negedge wr_rst_n) begin
-		if (!wr_rst_N) wr_ptr_gray <= 'b0;
+		if (!wr_rst_n) wr_ptr_gray <= 'b0;
 		else           wr_ptr_gray <= wr_ptr_gray_next;
 	end
 
-	assign	wr_full        = (wr_ptr_gray_next == {~wq_rd_ptr_gray[AW:AW-1], wdom_rd_ptr_gray[AW-2:0]});
-	assign	wr_almost_full = (wr_ptr_bin_next <= ({~wdom_rd_ptr_bin[AW:AW-1], wdom_rd_ptr_bin[AW-2:0]})+AL_WR);
+	assign	wr_full        = (wr_ptr_gray == {~wdom_rd_ptr_gray[AW:AW-1], wdom_rd_ptr_gray[AW-2:0]});
+	assign	wr_almost_full = 1'b0;
 
 	// Write to the Memory on a clock
 	always @(posedge wr_clk)
@@ -91,16 +91,16 @@ module async_fifo#(
 	// Cross clock domains
 	//
 	// Cross the Write Gray pointer into the read clock domain
-	glitch_free_n_dff_arn #(.FLOP_COUNT(2), .WIDTH(AW))
+	glitch_free_n_dff_arn #(.FLOP_COUNT(2), .WIDTH(AW+1))
         wr_ptr_gray_cross_inst (.q(rdom_wr_ptr_gray), .d(wr_ptr_gray), .clk(rd_clk), .rst_n(rd_rst_n));
 
 	// convert the gray rd ptr to binary
-	gray2bin #(.WIDTH(AW)) wr_ptr_gray2bin_inst (.binary(rdom_wr_ptr_bin), .gray(rdom_wr_ptr_gray));
+	gray2bin #(.WIDTH(AW+1)) wr_ptr_gray2bin_inst (.binary(rdom_wr_ptr_bin), .gray(rdom_wr_ptr_gray));
 
 	// Calculate the next read address,
 	assign	rd_ptr_bin_next  = rd_ptr_bin + (read & !rd_empty);
 
-	bin2gray #(.WIDTH(AW)) rd_ptr_gray_inst (.binary(rd_ptr_bin_next), .gray(rd_ptr_gray_next));
+	bin2gray #(.WIDTH(AW+1)) rd_ptr_gray_inst (.binary(rd_ptr_bin_next), .gray(rd_ptr_gray_next));
 
 	// Register these two values, the read address and the Gray code version
 	// of it, on the next read clock
@@ -111,22 +111,37 @@ module async_fifo#(
 
 	always @(posedge rd_clk, negedge rd_rst_n) begin
 		if (!rd_rst_n) rd_ptr_gray <= 'b0;
-		else           rd_ptr_gray <= rd_ptr_rd_ptr_gray_nextbin_next;
+		else           rd_ptr_gray <= rd_ptr_gray_next;
 	end
 
 	// Memory read address Gray code and pointer calculation
 	assign	rd_addr = rd_ptr_bin[AW-1:0];
 
 	// Determine if we'll be empty on the next clock
-	assign	rd_empty_next = (rd_ptr_gray_next == rdom_wr_ptr_gray); // TODO: Explain why this is different from the full equation
-
-	always @(posedge rd_clk, negedge rd_rst_n) begin
-		if (!rd_rst_n) rd_empty <= 'b0;
-		else           rd_empty <= rd_empty_next;
-	end
+	assign	rd_empty = (rd_ptr_gray == rdom_wr_ptr_gray); // TODO: Explain why this is different from the full equation
+	assign  rd_almost_empty = 1'b0;
 
 	// Read from the memory--a clockless read here, clocked by the next
 	// read FLOP in the next processing stage (somewhere else)
 	assign	rd_data = mem[rd_addr];
+
+// synopsys translate_off
+always @(posedge wr_clk)
+begin
+    if ((write && wr_full) == 1'b1)
+        $display("Error: write while fifo full");
+end
+
+always @(posedge rd_clk)
+begin
+    if ((read && rd_empty) == 1'b1)
+        $display("Error: read while fifo empty");
+end
+
+initial begin
+    $dumpfile("dump.vcd");
+    $dumpvars(0, async_fifo);
+end
+// synopsys translate_on
 
 endmodule

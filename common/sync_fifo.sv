@@ -26,7 +26,7 @@ module sync_fifo#(
 	logic	[AW-1:0]	wr_addr, rd_addr;
 	logic	[AW:0]	    wr_ptr_bin,      rd_ptr_bin;
     logic   [AW:0]      wr_ptr_bin_next, rd_ptr_bin_next;
-    logic               wr_rollover,     rd_rollover, pointer_xor;
+    logic               wr_rollover,     rd_rollover, ptr_xor;
 
     // The flop storage
 	logic	    [DW-1:0]	mem	[0:((1<<AW)-1)];

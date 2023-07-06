@@ -1,0 +1,38 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Wed Jul  5 20:07:05 2023
+[*]
+[dumpfile] "/home/sean/github/RTL_Design_Projects/common/common_tb/sync_fifo/dump.vcd"
+[dumpfile_mtime] "Wed Jul  5 19:57:08 2023"
+[dumpfile_size] 2388
+[savefile] "/home/sean/github/RTL_Design_Projects/common/common_tb/sync_fifo/fifo_sigs.gtkw"
+[timestart] 0
+[size] 2114 599
+[pos] 12 539
+*-16.438566 39500 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 233
+[signals_width] 263
+[sst_expanded] 1
+[sst_vpaned_height] 144
+@28
+sync_fifo.clk
+sync_fifo.write
+@22
+sync_fifo.wr_data[4:0]
+@28
+sync_fifo.wr_full
+sync_fifo.wr_rollover
+sync_fifo.wr_addr[1:0]
+sync_fifo.wr_ptr_bin[2:0]
+sync_fifo.wr_ptr_bin_next[2:0]
+sync_fifo.ptr_xor
+sync_fifo.read
+@22
+sync_fifo.rd_data[4:0]
+@28
+sync_fifo.rd_empty
+sync_fifo.rd_ptr_bin[2:0]
+@29
+sync_fifo.rd_rollover
+[pattern_trace] 1
+[pattern_trace] 0

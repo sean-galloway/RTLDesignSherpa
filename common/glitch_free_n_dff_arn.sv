@@ -8,28 +8,24 @@ module glitch_free_n_dff_arn  #(parameter FLOP_COUNT = 2,
             input  wire             clk, rst_n
         );
 
-    logic [FLOP_COUNT-1:0] flop_out_reg [0:WIDTH-1];
+    localparam FC = FLOP_COUNT;
+
+    logic [WIDTH-1:0] q0, q1, q2, q3;
 
     always @(posedge clk or negedge rst_n) begin
-        if (!rst_n)
-            flop_out_reg[0] <= '0;
-        else
-            flop_out_reg[0] <= (d);
-    end
-
-    generate
-        genvar i;
-        for (i = 1; i < FLOP_COUNT; i = i + 1) begin : FLOP_LOOP
-            always @(posedge clk or negedge rst_n) begin
-                if (!rst_n)
-                    flop_out_reg[i] <= '0;
-                else
-                    flop_out_reg[i] <= flop_out_reg[i-1];
-            end
+        if (!rst_n) begin
+            q0 <= 'b0;
+            q1 <= 'b0;
+            q2 <= 'b0;
+            q3 <= 'b0;
+        end else begin
+            q0 <= d;
+            q1 <= q0;
+            q2 <= q1;
+            q3 <= q2;
         end
-    endgenerate
-
-    always @* begin
-        assign q = flop_out_reg[FLOP_COUNT-1];
     end
+
+    assign q = (FC==4) ? q3 : (FC==3) ? q2 : (FC==2) ? q1 : q0;
+
 endmodule
