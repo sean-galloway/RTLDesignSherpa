@@ -7417,8 +7417,17 @@
 
 	// A list of directory paths to use while Icarus Verilog linting.
 	"verilog.linting.iverilog.includePath": [
-        "-I/common/"
+        "-I/home/sean/github/RTL_Design_Projects/common/"
     ],
+	// A list of directory paths to use while Icarus Verilog linting.
+	"iverilog.includePath": [
+        "/home/sean/github/RTL_Design_Projects/common/"
+    ],
+	// A list of directory paths to use while Icarus Verilog linting.
+	"iverilog.args": [
+        "-I/home/sean/github/RTL_Design_Projects/common/"
+    ],
+	"verilog.linter": "iverilog -Wall -g2005-sv -I/common/ -t null -",
 
 	// If enabled, Icarus Verilog will be run at the file location for linting. Else it will be run at workspace folder. Disabled by default.
 	"verilog.linting.iverilog.runAtFileLocation": false,
@@ -7481,7 +7490,7 @@
 	"verilog.linting.xvlog.includePath": [],
 
 	// Ctags
-	" verilog.ctags.path": "C:/ProgramData/chocolatey/lib/universal-ctags/tools",
+	// " verilog.ctags.path": "C:/ProgramData/chocolatey/lib/universal-ctags/tools",
 
 	// Path to custom docstring template (overrides docstringFormat). Path can be absolute or relative to the project root.
 	"autoDocstring.customTemplatePath": "",
@@ -7634,5 +7643,6 @@
 
 	// If the file path within the output channel not clickable, set this to true to toggle the path patten between `<path>#<line>` and `<path>:<line>:<column>`
 	"todohighlight.toggleURI": false,
+	"inlineChat.mode": "livePreview",
 
 }
