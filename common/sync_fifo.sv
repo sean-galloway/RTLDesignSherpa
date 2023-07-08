@@ -3,7 +3,9 @@
 // Paramerized Synchronous FIFO -- This works for all depths of the FIFO
 module sync_fifo#(
         parameter DATA_WIDTH = 4,
-        parameter DEPTH = 4
+        parameter DEPTH = 4,
+        parameter ALMOST_WR_MARGIN = 1,
+        parameter ALMOST_RD_MARGIN = 1
     ) (
     // clocks and resets
     input	wire	            clk, rst_n,
@@ -11,16 +13,22 @@ module sync_fifo#(
     input	wire	            write,
 	input	wire	[DW-1:0]	wr_data,
 	output	reg			        wr_full,
+    output  reg                 wr_almost_full,
     // clk domain
 	input	wire			    read,
 	output	wire	[DW-1:0]	rd_data,
-	output	reg			        rd_empty
+	output	reg			        rd_empty,
+    output  reg                 rd_almost_empty
 );
 
-	localparam	DW = DATA_WIDTH,
-			    D  = DEPTH,
-                AW = $clog2(DEPTH),
-                ZERO = {AW{1'b0}};
+	localparam	DW     = DATA_WIDTH,
+			    D      = DEPTH,
+                AW     = $clog2(DEPTH),
+				AFULL  = ALMOST_WR_MARGIN,
+				AEMPTY = ALMOST_RD_MARGIN,
+                AFT    = D - AFULL,
+				AET    = AEMPTY,
+                ZERO   = {AW{1'b0}};
 
     // local wires
 	logic	[AW-1:0]	wr_addr, rd_addr;
@@ -61,6 +69,12 @@ module sync_fifo#(
 
     // Full logic; this will be an XOR of the extra bit when I get time to validate
     assign wr_full = (ptr_xor && (wr_addr == rd_addr));
+	wire  [1:0]    almost_full_select = {wr_ptr_bin[AW], rd_ptr_bin[AW]};
+	wire  [AW-1:0] almost_full_count  = (almost_full_select == 2'b00) ? {wr_ptr_bin[AW-1:0]-rd_ptr_bin[AW-1:0]} :
+										(almost_full_select == 2'b10) ? {(D-rd_ptr_bin[AW-1:0])-wr_ptr_bin[AW-1:0]} :
+										(almost_full_select == 2'b01) ? {(D-rd_ptr_bin[AW-1:0])-wr_ptr_bin[AW-1:0]} :
+										{wr_ptr_bin[AW-1:0]-rd_ptr_bin[AW-1:0]};
+	assign	       wr_almost_full     = almost_full_count >= AFT;
 
     /////////////////////////////////////////////////////////////////////////
     // Read Domain Logic
@@ -84,6 +98,12 @@ module sync_fifo#(
 
     // Empty logic; this will be an XOR of the extra bit when I get time to validate
     assign rd_empty = (!ptr_xor && (rd_addr == wr_addr));
+	wire [1:0]    almost_empty_select = {wr_ptr_bin[AW], rd_ptr_bin[AW]};
+	wire [AW:0]   almost_empty_count  = (almost_empty_select == 2'b00) ? {wr_ptr_bin-rd_ptr_bin} :
+									    (almost_empty_select == 2'b10) ? {wr_ptr_bin-rd_ptr_bin} :
+										(almost_empty_select == 2'b01) ? {(D-rd_ptr_bin-wr_ptr_bin)} :
+										{wr_ptr_bin-rd_ptr_bin};
+	assign	       rd_almost_empty      = (almost_empty_count>0) ? almost_empty_count <= AET : 'b0;
 
     // synopsys translate_off
     always @(posedge clk)
