@@ -10,11 +10,11 @@ module load_clear_counter #(parameter MAX=32) (
     localparam SIZE = $clog2(MAX);
 
     always @(posedge clk, negedge rst_n) begin
-        if (!rst_n) count <= {SIZE{1'b0}};
-        else if (clear) count <= {SIZE{1'b0}};
+        if (!rst_n) count <= 'b0;
+        else if (clear) count <= 'b0;
         else if (load)  count <= loadval;
         else if (increment) begin
-            count <= (count == MAX) ? {SIZE{1'b0}} : count + 'b1;
+            count <= (count == MAX) ? 'b0 : count + 'b1;
         end
     end
 endmodule
