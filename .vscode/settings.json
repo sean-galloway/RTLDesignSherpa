@@ -7634,5 +7634,6 @@
 
 	// If the file path within the output channel not clickable, set this to true to toggle the path patten between `<path>#<line>` and `<path>:<line>:<column>`
 	"todohighlight.toggleURI": false,
+	"inlineChat.mode": "livePreview",
 
 }
