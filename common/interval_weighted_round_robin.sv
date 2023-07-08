@@ -1,22 +1,22 @@
 `timescale 1ns / 1ps
 
 module interval_weighted_round_robin #(
-    parameter N=4, // Agents
+    parameter N=4,  // Agents
     parameter W=32, // Windows
     parameter CONFIG_WIDTH=4 // Config Width
 ) (
-    input clk,
-    input rst_n,
-    input [N-1:0] request,
-    input [N*CONFIG_WIDTH-1:0] cfg_reg,
-    output reg [N-1:0] grant
+    input                      clk,
+    input                      rst_n,
+    input [N-1:0]              request,
+    input [W*CONFIG_WIDTH-1:0] cfg_reg,
+    output reg [N-1:0]         grant
 );
 
     reg [N-1:0] pri;
     reg [N-1:0] round_robin_counter;
     reg [N-1:0] valid_request;
     reg [W-1:0] window_count;
-    reg [CONFIG_WIDTH-1:0] window_config;
+    reg [N-1:0] window_config;
     reg grant_set;
     reg grant_pulse;
 
@@ -49,35 +49,35 @@ module interval_weighted_round_robin #(
             grant_pulse <= 0;
         end
         else begin
-        if (request !== 0) begin
-            valid_request <= request;
-            pri <= valid_request & ~grant_set;
+            if (request !== 0) begin
+                valid_request <= request;
+                pri <= valid_request & ~grant_set;
 
-            if (window_count >= W)
-                window_count <= 0;
-            else
-                window_count <= window_count + 1;
+                round_robin_counter <= round_robin_counter + 1;
 
-            round_robin_counter <= round_robin_counter + 1;
+                if (round_robin_counter >= N)
+                    round_robin_counter <= 0;
 
-            if (round_robin_counter >= N)
-                round_robin_counter <= 0;
-        end
-
-        grant_set <= 0;
-        if (valid_request !== 0) begin
-            if (pri === 0) begin
-                grant_set <= 1;
-                pri <= valid_request & ~(1 << round_robin_counter);
+                if (window_count >= W)
+                    window_count <= 0;
+                else
+                    window_count <= window_count + 1;
             end
-        end
 
-        if (grant_set) begin
-            grant_pulse <= 1;
-        end
-        else begin
-            grant_pulse <= 0;
-        end
+            grant_set <= 0;
+            if (valid_request !== 0) begin
+                if (pri === 0 && window_config[round_robin_counter]) begin
+                    grant_set <= 1;
+                    pri <= valid_request;
+                end
+            end
+
+            if (grant_set) begin
+                grant_pulse <= 1;
+            end
+            else begin
+                grant_pulse <= 0;
+            end
         end
     end
 
@@ -96,4 +96,3 @@ module interval_weighted_round_robin #(
     end
 
 endmodule
-

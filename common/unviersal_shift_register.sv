@@ -15,16 +15,23 @@ module universal_shift_reg #(parameter WIDTH=4)
     output                 s_left_dout,  // serial left data out
     output                 s_right_dout  // serial right data out
 );
+
+    logic [WIDTH-1:0] p_dout_d;
+
+    always @(*) begin
+        case(select)
+            2'h1: p_dout <= {s_right_din,p_dout[WIDTH-1:1]}; // Right Shift
+            2'h2: p_dout <= {p_dout[2:0],s_left_din};        // Left Shift
+            2'h3: p_dout <= p_din;                           // Parallel in - Parallel out
+            default: p_dout <= p_dout;                       // Do nothing
+        endcase
+    end
+
     always @(posedge clk or negedge rst_n) begin
-        if(!rst_n) p_dout <= 0;
-        else begin
-            case(select)
-                2'h1: p_dout <= {s_right_din,p_dout[WIDTH-1:1]}; // Right Shift
-                2'h2: p_dout <= {p_dout[2:0],s_left_din};        // Left Shift
-                2'h3: p_dout <= p_din;                           // Parallel in - Parallel out
-                default: p_dout <= p_dout;                       // Do nothing
-            endcase
-        end
+        if(!rst_n)
+            p_dout <= 0;
+        else
+            p_dout <= p_dout_d;
     end
 
     assign s_left_dout = p_dout[0];
