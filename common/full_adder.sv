@@ -1,3 +1,5 @@
+`timescale 1ns / 1ps
+
 // Simple Full Adder implemented
 module full_adder(
     input  a,
