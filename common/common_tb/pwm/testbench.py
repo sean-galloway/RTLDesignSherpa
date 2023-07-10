@@ -29,4 +29,4 @@ async def test_fifo(dut):
     await Timer(20, units="ns")
     dut.start.value = 0
 
-    await Timer(500, units="ns")
+    await Timer(2500, units="ns")
