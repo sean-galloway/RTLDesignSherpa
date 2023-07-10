@@ -21,7 +21,8 @@ sync_fifo
     .DATA_WIDTH       (8),
     .DEPTH            (16),
     .ALMOST_WR_MARGIN (1),
-    .ALMOST_RD_MARGIN (1)
+    .ALMOST_RD_MARGIN (1),
+    .INSTANCE_NAME("u_sync_fifo_A")
 )
 u_sync_fifo_A (
     .clk             (clk),
@@ -41,7 +42,8 @@ sync_fifo
     .DATA_WIDTH       (8),
     .DEPTH            (8),
     .ALMOST_WR_MARGIN (1),
-    .ALMOST_RD_MARGIN (1)
+    .ALMOST_RD_MARGIN (1),
+    .INSTANCE_NAME("u_sync_fifo_B")
 )
 u_sync_fifo_B (
     .clk             (clk),
@@ -61,7 +63,8 @@ sync_fifo
     .DATA_WIDTH       (8),
     .DEPTH            (4),
     .ALMOST_WR_MARGIN (1),
-    .ALMOST_RD_MARGIN (1)
+    .ALMOST_RD_MARGIN (1),
+    .INSTANCE_NAME("u_sync_fifo_C")
 )
 u_sync_fifo_C (
     .clk             (clk),
@@ -81,7 +84,8 @@ sync_fifo
     .DATA_WIDTH       (8),
     .DEPTH            (4),
     .ALMOST_WR_MARGIN (1),
-    .ALMOST_RD_MARGIN (1)
+    .ALMOST_RD_MARGIN (1),
+    .INSTANCE_NAME("u_sync_fifo_D")
 )
 u_sync_fifo_D (
     .clk             (clk),
@@ -138,7 +142,8 @@ sync_fifo
     .DATA_WIDTH       (8),
     .DEPTH            (4),
     .ALMOST_WR_MARGIN (1),
-    .ALMOST_RD_MARGIN (1)
+    .ALMOST_RD_MARGIN (1),
+    .INSTANCE_NAME("u_sync_fifo_E")
 )
 u_sync_fifo_E (
     .clk             (clk),
@@ -154,6 +159,10 @@ u_sync_fifo_E (
 );
 
 assign read_E = !rd_empty_E;
+// always @(posedge clk or negedge rst_n) begin
+//     if (!rst_n) read_E <= 'b0;
+//     else        read_E <= !rd_empty_E;
+// end
 
 // synopsys translate_off
 initial begin

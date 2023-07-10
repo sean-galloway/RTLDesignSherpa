@@ -7,6 +7,7 @@ VERILOG_SOURCES =\
 					$(CWD)/../../../common/round_robin_arbiter.sv \
 					$(CWD)/../../../common/pwm.sv \
 					$(CWD)/../../../common/load_clear_counter.sv \
+					$(CWD)/../../../common/priority_encoder_enable.sv \
 					$(CWD)/round_robin_wrapper.sv
 DUT = round_robin_wrapper
 MODULE = testbench

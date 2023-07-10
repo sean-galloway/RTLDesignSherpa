@@ -9,7 +9,8 @@ module async_fifo#(
         parameter DEPTH            = 16,
         parameter N_FLOP_CROSS     = 2,
         parameter ALMOST_WR_MARGIN = 1,
-        parameter ALMOST_RD_MARGIN = 1
+        parameter ALMOST_RD_MARGIN = 1,
+		parameter INSTANCE_NAME    = "junk"
     ) (
     // clocks and resets
     input	wire	            wr_clk, wr_rst_n, rd_clk, rd_rst_n,
@@ -141,14 +142,14 @@ module async_fifo#(
 	always @(posedge wr_clk)
 	begin
 		if (!wr_rst_n && ((write && wr_full) == 1'b1)) begin
-				$timeformat(-9, 3, " ns", 10); $display("Error: write while fifo full, %t", $time);
+				$timeformat(-9, 3, " ns", 10); $display("Error: %s write while fifo full, %t", INSTANCE_NAME, $time);
 			end
 	end
 
 	always @(posedge rd_clk)
 	begin
 		if (!wr_rst_n && ((read && rd_empty) == 1'b1)) begin
-			$timeformat(-9, 3, " ns", 10); $display("Error: read while fifo empty, %t", $time);
+			$timeformat(-9, 3, " ns", 10); $display("Error: %s read while fifo empty, %t", INSTANCE_NAME, $time);
 		end
 	end
 

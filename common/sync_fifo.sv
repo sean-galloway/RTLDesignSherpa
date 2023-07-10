@@ -5,7 +5,8 @@ module sync_fifo#(
         parameter DATA_WIDTH = 4,
         parameter DEPTH = 4,
         parameter ALMOST_WR_MARGIN = 1,
-        parameter ALMOST_RD_MARGIN = 1
+        parameter ALMOST_RD_MARGIN = 1,
+        parameter INSTANCE_NAME = "junk"
     ) (
     // clocks and resets
     input	wire	            clk, rst_n,
@@ -109,14 +110,14 @@ module sync_fifo#(
     always @(posedge clk)
     begin
         if ((write && wr_full) == 1'b1) begin
-            $timeformat(-9, 3, " ns", 10); $display("Error: write while fifo full, %t", $time);
+            $timeformat(-9, 3, " ns", 10); $display("Error: %s write while fifo full, %t", INSTANCE_NAME, $time);
         end
     end
 
     always @(posedge clk)
     begin
         if ((read && rd_empty) == 1'b1) begin
-            $timeformat(-9, 3, " ns", 10); $display("Error: read while fifo empty, %t", $time);
+            $timeformat(-9, 3, " ns", 10); $display("Error: %s read while fifo empty, %t", INSTANCE_NAME, $time);
         end
     end
 
