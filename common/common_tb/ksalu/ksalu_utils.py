@@ -5,15 +5,47 @@ import enum
 import logging
 import pyuvm
 
+# The is the Kitchensink ALU. It has multiple adders, multipliers, etc, to test out a whole bunch of lower level collateral.
+
+# #### The OPS enumeration
+
+# Figure 4: The operation enumeration
+@enum.unique
+class Ops(enum.IntEnum):
+    """Legal ops for the KSALU"""
+    ADD = 1
+    AND = 2
+    XOR = 3
+    MUL = 4
+
+
+# #### The alu_prediction function
+
+# Figure 5: The prediction function for the scoreboard
+def alu_prediction(A, B, op):
+    """Python model of the KSALU"""
+    assert isinstance(op, Ops), "The KSALU op must be of type Ops"
+    if op == Ops.ADD:
+        result = A + B
+    elif op == Ops.AND:
+        result = A & B
+    elif op == Ops.XOR:
+        result = A ^ B
+    elif op == Ops.MUL:
+        result = A * B
+    return result
+
 
 # #### The logger
+
+# Figure 6: Setting up logging using the logger variable
 logging.basicConfig(level=logging.NOTSET)
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
 
 # ### Reading a signal value
-# get_int() converts a bus to an integer
+# Figure 6: get_int() converts a bus to an integer
 # turning a value of x or z to 0
 def get_int(signal):
     try:
@@ -23,28 +55,35 @@ def get_int(signal):
     return int_val
 
 
-# The fifo singleton
-class TinyAluBfm(metaclass=pyuvm.Singleton):
+# ## The KSALUBfm singleton
+# ### Initializing the KSALUBfm object
+
+
+# Figure 3: Initializing the KSALUBfm singleton
+class KSALUBfm(metaclass=pyuvm.Singleton):
     def __init__(self):
         self.dut = cocotb.top
-        self.driver_queue = Queue(maxsize=0)
-        self.mon_queue = Queue(maxsize=0)
+        self.cmd_driver_queue = Queue(maxsize=1)
+        self.cmd_mon_queue = Queue(maxsize=0)
+        self.result_mon_queue = Queue(maxsize=0)
 
 # ### The reset coroutine
+
+# Figure 4: Centralizing the reset function
     async def reset(self):
         await FallingEdge(self.dut.clk)
-        self.dut.rst_n.value = 0
-        self.dut.write.value = 0
-        self.dut.read.value = 0
-        self.dut.wr_data.value = 0
+        self.dut.reset_n.value = 0
+        self.dut.A.value = 0
+        self.dut.B.value = 0
+        self.dut.op.value = 0
         await FallingEdge(self.dut.clk)
-        self.dut.rst_n.value = 1
+        self.dut.reset_n.value = 1
         await FallingEdge(self.dut.clk)
 
 # ## The communication coroutines
 # #### result_mon()
 
-# Monitoring the result bus
+# Figure 6: Monitoring the result bus
     async def result_mon(self):
         prev_done = 0
         while True:
@@ -80,7 +119,7 @@ class TinyAluBfm(metaclass=pyuvm.Singleton):
             await FallingEdge(self.dut.clk)
             st = get_int(self.dut.start)
             dn = get_int(self.dut.done)
-# Figure 9: Driving commands to the TinyALU when
+# Figure 9: Driving commands to the KSALU when
 # start and done are 0
             if st == 0 and dn == 0:
                 try:
