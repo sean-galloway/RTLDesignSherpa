@@ -1,65 +1,136 @@
 `timescale 1ns / 1ps
 
-module round_robin_arbiter #(parameter N=4) (
-    input              clk,
-    input              rst_n,
-    input      [N-1:0] request,
-    output reg [N-1:0] grant
-);
+module round_robin_arbiter#(parameter CLIENTS=16)
+    (
+        input logic clk,
+        input logic rst_n,
 
-    reg [N-1:0] pri;
-    reg [N-1:0] round_robin_counter;
-    reg [N-1:0] valid_request;
-    reg grant_set;
-    reg grant_pulse;
+        input logic [CLIENTS-1:0] req,
+        output logic [CLIENTS-1:0] gnt
+    );
 
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            pri <= 0;
-            round_robin_counter <= 0;
-            valid_request <= 0;
-            grant_set <= 0;
-            grant_pulse <= 0;
-        end
-        else begin
-            if (request !== 0) begin
-                valid_request <= request;
-                pri <= valid_request & ~grant_set;
-                round_robin_counter <= round_robin_counter + 1;
-                if (round_robin_counter >= N)
-                    round_robin_counter <= 0;
-            end
+// =======================================================================
+// Declarations & Parameters
 
-            grant_set <= 0;
-            if (valid_request !== 0) begin
-                if (pri !== 0 && valid_request[round_robin_counter]) begin
-                    grant_set <= 1;
-                    pri <= valid_request & ~(1 << round_robin_counter);
+    logic [CLIENTS-1:0] mask;
+    logic [CLIENTS-1:0] win_mask_only;
+    logic [15:0] req_location;
+    logic [15:0] reqm_location;
+    logic vld_ffs_req;
+    logic vld_ffs_reqm;
+
+    logic [CLIENTS-1:0] req_masked;
+    logic [CLIENTS-1:0] req_win_mask;
+
+    logic [15:0] winner;
+    logic win_vld;
+
+// =======================================================================
+// Logic
+
+    assign req_masked = req & mask;
+    assign req_win_mask = req & win_mask_only;
+
+// find first set bit in both request and masked request; priority shifts
+// down the bit vector, but returns to the to of the bit vector when no
+// lower bits are set
+
+    assign {vld_ffs_req, req_location} = ffs(req_win_mask);
+    assign {vld_ffs_reqm, reqm_location} = ffs(req_masked);
+
+// determine the winner--either the masked version (because a lower-priority
+// request was set) or the unmasked version (because we started over from
+// the top)
+
+    always_comb
+        begin
+            if (vld_ffs_reqm)
+                begin
+                    winner = reqm_location;
+                    win_vld = 1'b1;
                 end
+
+            else if (vld_ffs_req)
+                begin
+                    winner = req_location;
+                    win_vld = 1'b1;
+                end
+
+            else
+                begin
+                    winner = 16'd0;
+                    win_vld = 1'b0;
+                end
+        end
+
+// Register:  win_mask_only
+//
+// When considering the upper part of the vector for the start-over
+// case, we still need to mask off the bit that just won so we don't
+// grant to it twice in a row.
+
+    always_ff @(posedge clk)
+        if (!rst_n)
+            win_mask_only <= '0;
+
+        else if (win_vld)
+            win_mask_only <= ~({(CLIENTS-1)'('d0), 1'b1} << winner);
+
+        else
+            win_mask_only <= {CLIENTS{1'b1}};
+
+// Register:  mask
+//
+// The mask depends on the previous winner.
+
+    always_ff @(posedge clk)
+        if (!rst_n)
+            mask <= '0;
+
+        else
+            mask <= ({(CLIENTS-1)'('d0), 1'b1} << winner)-1'b1;
+
+// Register:  gnt
+//
+// Priority is given to lower bits i.e., those getting a gnt when using
+// the mask vector.  If no lower bits are set, the unmasked request result
+// is used.
+
+    always_ff @(posedge clk)
+        if (!rst_n)
+            gnt <= '0;
+
+        else if (win_vld)
+            begin
+                gnt <= '0;
+                gnt[winner] <= 1'b1;
             end
 
-            if (grant_set) begin
-                grant_pulse <= 1;
-            end
-            else begin
-                grant_pulse <= 0;
-            end
-        end
-    end
+        else
+            gnt <= '0;
 
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            grant <= 0;
-        end
-        else begin
-            if (grant_pulse) begin
-                grant <= 1 << round_robin_counter;
-            end
-            else begin
-                grant <= 0;
-            end
-        end
-    end
+// =======================================================================
+// Function
 
+// Function:  ffs
+//
+// Returns the first set bit starting with the most-significant bit.
+// Format for return is { vld, location[ 15:0 ] }
+
+    function automatic logic [16:0] ffs(input logic [CLIENTS-1:0] vector);
+        logic vld;
+        logic [15:0] location;
+
+        vld = 1'b0;
+        location = 16'hffff;
+
+        for (int i = 0; i < CLIENTS; i++)
+            if (vector[i] == 1'b1)
+                begin
+                    vld = 1'b1;
+                    location = i[15:0];
+                end
+
+        return ({vld, location});
+    endfunction
 endmodule
-
