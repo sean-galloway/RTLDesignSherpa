@@ -32,7 +32,7 @@ module round_robin_arbiter #(parameter N=4) (
 
             grant_set <= 0;
             if (valid_request !== 0) begin
-                if (pri !== 0) begin  // Modified condition to grant next request
+                if (pri !== 0 && valid_request[round_robin_counter]) begin
                     grant_set <= 1;
                     pri <= valid_request & ~(1 << round_robin_counter);
                 end
@@ -62,3 +62,4 @@ module round_robin_arbiter #(parameter N=4) (
     end
 
 endmodule
+
