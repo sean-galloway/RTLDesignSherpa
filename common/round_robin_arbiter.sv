@@ -26,13 +26,13 @@ module round_robin_arbiter #(parameter N=4) (
                 valid_request <= request;
                 pri <= valid_request & ~grant_set;
                 round_robin_counter <= round_robin_counter + 1;
-                if (round_robin_counter >= N || pri === 0)
+                if (round_robin_counter >= N)
                     round_robin_counter <= 0;
             end
 
             grant_set <= 0;
             if (valid_request !== 0) begin
-                if (pri !== 0) begin
+                if (pri !== 0) begin  // Modified condition to grant next request
                     grant_set <= 1;
                     pri <= valid_request & ~(1 << round_robin_counter);
                 end
