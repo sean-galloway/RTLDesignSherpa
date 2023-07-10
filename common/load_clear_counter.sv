@@ -20,5 +20,5 @@ module load_clear_counter #(parameter MAX=32) (
     end
 
     assign done = count == 'b0;
-    
+
 endmodule

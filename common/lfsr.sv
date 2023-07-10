@@ -1,13 +1,13 @@
 `timescale 1ns / 1ps
 
-module LFSR #(
-    parameter N = 5,        // LFSR width
-    parameter [N-1:0] TAPS  // Taps to XNor; see the attached pdf for the proper taps to use
-) (
+module lfsr #(
+    parameter N = 5       // LFSR width
+)(
     input wire         clk, rst_n,
     input wire         enable,
     input wire         seed_load,
     input wire [N-1:0] seed_data,
+    input wire [N-1:0] taps,        // Taps to XNor; see the attached pdf for the proper taps to use
     output reg [N-1:0] lfsr_data,
     output reg         lfsr_done
 );
@@ -32,10 +32,10 @@ module LFSR #(
     end
 
     always @(posedge clk) begin
-        xnor_out <= ~^(lfsr_reg & TAPS);
+        xnor_out <= ~^(lfsr_reg & taps);
     end
 
     assign lfsr_data = lfsr_reg;
-    assign lfsr_done = (r_LFSR[N:1] == seed_data) ? 1'b1 : 1'b0;
+    assign lfsr_done = (lfsr_reg[N:1] == seed_data) ? 1'b1 : 1'b0;
 
 endmodule
