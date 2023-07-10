@@ -17,11 +17,12 @@ These are all parameterized.
 ### Miscellaneous
 These are all parameterized.
 * decoder.sv 
+* priority_encoder_enable.sv 
 * leading_one_trailing_one.sv 
 * lfsr_table.pdf 
-* lfsr.sv -- this is parameterized, one of the paramters is a vector called TAPS. Put a one in position where a tap is needed. Refer to the lfsr_table.pdf for more information.
+* lfsr.sv -- one of the inputs is a vector called taps. Put a one in position where a xnor tap is needed. Refer to the lfsr_table.pdf for more information.
 * load_clear_counter.sv 
-* priority_encoder_enable.sv 
+* pwm.sv
 * reverse_vector.sv 
 * unviersal_shift_register.sv 
 
@@ -32,7 +33,7 @@ These are all parameterized.
 * full_subtractor.sv 
 * ripple_carry_adder.sv 
 * ripple_carry_subtractor.sv 
+* carry_lookahead_adder.sv 
 * array_multipler.sv 
 * booths_multiplier.sv 
-* carry_lookahead_adder.sv 
 * wallis_tree_multiplier.sv
