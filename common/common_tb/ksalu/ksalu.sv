@@ -11,18 +11,17 @@ module ksalu(
 
 load_clear_counter 
 #(
-    .MAX  (MAX  ),
-    .SIZE (SIZE )
+    .MAX  (MAX)
 )
 u_load_clear_counter(
-    .clk       (clk       ),
-    .rst_n     (rst_n     ),
-    .clear     (clear     ),
+    .clk       (clk),
+    .rst_n     (rst_n),
+    .clear     (clear),
     .increment (increment ),
-    .load      (load      ),
-    .loadval   (loadval   ),
-    .count     (count     ),
-    .done      (done      )
+    .load      (load),
+    .loadval   (loadval),
+    .count     (count),
+    .done      (done)
 );
 
 

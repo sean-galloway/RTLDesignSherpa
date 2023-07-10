@@ -87,6 +87,7 @@ module pwm #(
         endcase
     end
 
+    // flops for state, repeat, and done
     always @(posedge clk, negedge rst_n) begin
         if (!rst_n) begin
             current_state <= IDLE;
@@ -100,19 +101,26 @@ module pwm #(
         end
     end
 
+    // Load/Clear Counter Instance
     load_clear_counter 
     #(
-        .MAX  (MAX  )
+        .MAX  (MAX)
     )
     u_load_clear_counter(
-        .clk       (clk       ),
-        .rst_n     (rst_n     ),
-        .clear     ('b0          ),
-        .increment (increment_lcc ),
-        .load      (load_lcc   ),
+        .clk       (clk),
+        .rst_n     (rst_n),
+        .clear     ('b0),
+        .increment (increment_lcc),
+        .load      (load_lcc),
         .loadval   (loadval_lcc),
-        .count     (count      ),
-        .done      (done_lcc   )
+        .count     (count),
+        .done      (done_lcc)
     );
-    
+
+	// synopsys translate_off
+	initial begin
+		$dumpfile("dump.vcd");
+		$dumpvars(0, async_fifo);
+	end
+	// synopsys translate_on
 endmodule
