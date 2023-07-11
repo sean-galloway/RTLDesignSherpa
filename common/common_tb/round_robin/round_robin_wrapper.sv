@@ -121,17 +121,34 @@ assign read_B = grant[1];
 assign read_C = grant[2];
 assign read_D = grant[3];
 
-assign request = (pwm_sig)? {4'b0000} : {!rd_empty_D, !rd_empty_C, !rd_empty_B, !rd_empty_A};
+assign req_A = !rd_empty_A;
+assign req_B = !rd_empty_B;
+assign req_C = !rd_empty_C;
+assign req_D = !rd_empty_D;
+
+assign req_A_mask = !rd_empty_A && !rd_almost_empty_A;
+assign req_B_mask = !rd_empty_B && !rd_almost_empty_B;
+assign req_C_mask = !rd_empty_C && !rd_almost_empty_C;
+assign req_D_mask = !rd_empty_D && !rd_almost_empty_D;
+logic [3:0] req_orig;
+logic [3:0] req_mask;
+
+always_comb begin
+    req_orig = {req_D, req_C, req_B, req_A};
+    req_mask = {req_D_mask, req_C_mask, req_B_mask, req_A_mask};
+end
+
+assign request = (pwm_sig)? {4'b0000} : ($countones(req_orig)>1) ? req_orig : req_mask;
 
 round_robin_arbiter
 #(
-    .N (4)
+    .CLIENTS (4)
 )
 u_round_robin_arbiter(
     .clk     (clk),
     .rst_n   (rst_n),
-    .request (request),
-    .grant   (grant)
+    .req     (request),
+    .gnt     (grant)
 );
 
 assign wr_data_E = grant[3] ? rd_data_D : grant[2] ? rd_data_C : grant[1] ? rd_data_B : rd_data_A;
