@@ -7359,7 +7359,7 @@
 	"C_Cpp.vcpkg.enabled": true,
 
 	// A path to the installation of Universal Ctags.
-	"verilog.ctags.path": "none",
+	"verilog.ctags.path": "C:/ProgramData/chocolatey/bin/ctags.exe",
 
 	// [Experimental] Add custom arguments to iStyle Verilog Formatter for formatting.
 	"verilog.formatting.iStyleVerilogFormatter.arguments": "",
