@@ -1,14 +1,12 @@
 `timescale 1ns / 1ps
 
-module pwm #(
-    parameter MAX = 16
-    )(
-    input                         clk, rst_n,
-    input [$clog2(MAX)-1:0]       high_count, low_count,
-    input [$clog2(MAX)-1:0]       repeat_count,
-    input                         start,
-    output reg                    done, pwm_sig,
-    output reg [$clog2(MAX)-1:0]  count
+module pwm #(parameter MAX = 16)(
+    input                           clk, rst_n,
+    input [$clog2(MAX)-1:0]         high_count, low_count,
+    input [$clog2(MAX)-1:0]         repeat_count,
+    input                           start,
+    output logic                    done, pwm_sig,
+    output logic [$clog2(MAX)-1:0]  count
 );
 
     // Enum the States
@@ -149,4 +147,4 @@ module pwm #(
 		$dumpvars(0, pwm);
 	end
 	// synopsys translate_on
-endmodule
+endmodule : pwm

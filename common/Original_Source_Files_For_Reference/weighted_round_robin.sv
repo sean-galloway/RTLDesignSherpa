@@ -1,25 +1,24 @@
-`timescale 1ns / 1ps
-// I got the originl design from here:
 // https://chipress.online/2019/06/23/weighted-round-robin-arbiter/
-// I've made a bunch of changes since then, not all are tracked in git.
-module weighted_round_robin
-#(  parameter MAX_THRESH = 8,
-    parameter CLIENTS = 8)
+
+module wrr_arb
+#( parameter MAX_THRE = 8)
 (
-    input  logic                                       clk,
-    input  logic                                       rst_n,
-    input  logic [CLIENTS-1:0][$clog2(MAX_THRESH)-1:0] max_thresh,
-    input  logic [CLIENTS-1:0]                         req,
-    output logic [CLIENTS-1:0]                         grant
+    input                           clk,
+    input                           rst_n,
+
+    input [$clog2(MAX_THRE+1)-1:0]  max_thre,
+
+    input [2:0]                     req,
+    
+    output logic [2:0]              grant
 );
 
-    // Define the combi signal and flops
-    logic [CLIENTS-1:0][$clog2(MAX_THRESH+1)-1:0]     crd_cnt;
-    logic [CLIENTS-1:0][$clog2(MAX_THRESH+1)-1:0]     crd_cnt_next;
-    logic [CLIENTS-1:0][$clog2(MAX_THRESH+1)-1:0]     crd_cnt_incr;
+    logic [2:0][$clog2(MAX_THRE+1)-1:0]     crd_cnt;
+    logic [2:0][$clog2(MAX_THRE+1)-1:0]     crd_cnt_next;
+    logic [2:0][$clog2(MAX_THRE+1)-1:0]     crd_cnt_incr;
 
-    logic [CLIENTS-1:0] has_crd;
-    logic [CLIENTS-1:0] mask_req;
+    logic [2:0] has_crd;
+    logic [2:0] mask_req;
 
     logic replenish;
 
@@ -28,14 +27,13 @@ module weighted_round_robin
 
     genvar i;
     generate
-        for (i = 0; i < CLIENTS; i = i + 1) begin
+        for (i = 0; i < 3; i = i + 1) begin
             assign crd_cnt_incr[i] = crd_cnt[i] + 1'b1;
-            assign has_crd[i] = (crd_cnt_incr[i] <= max_thresh[i]);
+            assign has_crd[i] = (crd_cnt_incr[i] <= max_thre);
 
             // credit mask logic generates masked version of requests
             assign mask_req[i] = (has_crd[i] | replenish) & req[i];
 
-            // next credit counter value
             // next credit counter value
             always_comb begin
                 crd_cnt_next[i] = crd_cnt[i];
@@ -58,6 +56,7 @@ module weighted_round_robin
     endgenerate
 
     // the masked version of requests will be fed into normal round robin arbiter
-    rrb_arb #(CLIENTS) u_rrb_arb (.clk, .rst_n, .req(mask_req), .grant(grant));
+    rrb_arb u_rrb_arb (.clk, .rst_n, .req(mask_req), .grant);
 
-endmodule: weighted_round_robin
+endmodule: wrr_arb
+共

@@ -14,4 +14,4 @@ module bin2gray #(parameter WIDTH=4) (
 
     assign gray[WIDTH-1] = binary[WIDTH-1];
 
-endmodule
+endmodule : bin2gray

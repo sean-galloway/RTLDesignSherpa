@@ -11,4 +11,5 @@ module gray2bin #(parameter WIDTH=4) (
             assign binary[i] = ^(gray >> i);
         end
     endgenerate
-endmodule
+
+endmodule : gray2bin

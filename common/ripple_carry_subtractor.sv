@@ -14,4 +14,5 @@ module ripple_carry_subtractor #(parameter SIZE = 4) (
             full_subtractor fs(.a(a[i]), .b(b[i]), .b_in(b_out[i-1]), .d(d[i]), .b_out(b_out[i]));
         end
     endgenerate
-endmodule
+
+endmodule : ripple_carry_subtractor

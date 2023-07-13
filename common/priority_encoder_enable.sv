@@ -9,7 +9,7 @@ module priority_encoder_enable #(parameter WIDTH = 8)(
     reg [WIDTH-1:0] priority_levels;
     reg found;
 
-    always @* begin
+    always_comb begin
         if (enable == 0) begin // Disable priority encoding
             encoded_output = {$clog2(WIDTH){1'b0}};
         end
@@ -29,4 +29,4 @@ module priority_encoder_enable #(parameter WIDTH = 8)(
         end
     end
 
-endmodule
+endmodule : priority_encoder_enable

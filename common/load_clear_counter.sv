@@ -1,16 +1,16 @@
 `timescale 1ns / 1ps
 
 module load_clear_counter #(parameter MAX=32) (
-    input  wire                   clk, rst_n,
-    input  wire                   clear, increment, load,
-    input  wire [$clog2(MAX)-1:0] loadval,                  // this loads the match value for ending the counter
-    output reg  [$clog2(MAX)-1:0] count,
-    output reg                    done
+    input                          clk, rst_n,
+    input                          clear, increment, load,
+    input        [$clog2(MAX)-1:0] loadval,                  // this loads the match value for ending the counter
+    output logic [$clog2(MAX)-1:0] count,
+    output logic                   done
 );
 
-    reg [$clog2(MAX)-1:0] match_val;
+    logic [$clog2(MAX)-1:0] match_val;
 
-    always @(posedge clk, negedge rst_n) begin
+    always_ff @(posedge clk, negedge rst_n) begin
         if (!rst_n) count <= 'b0;
         else if (clear) count <= 'b0;
         else if (load)  match_val <= loadval;
@@ -21,4 +21,4 @@ module load_clear_counter #(parameter MAX=32) (
 
     assign done = (count == match_val);
 
-endmodule
+endmodule : load_clear_counter

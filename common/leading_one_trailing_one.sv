@@ -20,4 +20,4 @@ module leading_one_trailing_one #(parameter N=8) (
         end
     end
 
-endmodule
+endmodule : leading_one_trailing_one

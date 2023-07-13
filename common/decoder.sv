@@ -5,10 +5,9 @@ module decoder #(
     parameter N=2**M // Number of output bits)
 )(
     input  [M-1:0] encoded,
-    output [N-1:0] data)
-;
+    output [N-1:0] data);
 
-  assign data = 0;  // Initialize the output
+    assign data = 0;  // Initialize the output
 
     genvar i;
     generate
@@ -17,4 +16,4 @@ module decoder #(
         end
     endgenerate
 
-endmodule
+endmodule : decoder

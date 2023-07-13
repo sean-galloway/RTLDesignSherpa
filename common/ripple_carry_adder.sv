@@ -14,4 +14,5 @@ module ripple_carry_adder #(parameter SIZE = 4) (
             full_adder fa(.a(a[i]), .b(b[i]), .c_in(c_out[i-1]), .sum(sum[i]), .c_out(c_out[i]));
         end
     endgenerate
-endmodule
+
+endmodule : ripple_carry_adder

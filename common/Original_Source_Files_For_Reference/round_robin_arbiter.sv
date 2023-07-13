@@ -1,14 +1,11 @@
-`timescale 1ns / 1ps
-
-// Mostly based on code from this github:
 // https://github.com/gsw73/ffs_arbiter/blob/master/design.sv
-// I made a couple of tweaks myself to make it more efficient if only one agent is requesting
-module round_robin_arbiter #(parameter CLIENTS=16)
+
+module ffs_arbiter#(parameter CLIENTS=16)
     (
         input logic clk,
         input logic rst_n,
 
-        input  logic [CLIENTS-1:0] req,
+        input logic [CLIENTS-1:0] req,
         output logic [CLIENTS-1:0] gnt
     );
 
@@ -32,7 +29,7 @@ module round_robin_arbiter #(parameter CLIENTS=16)
 // Logic
 
     assign req_masked = req & mask;
-    assign req_win_mask = ($countones(req) > 1) ? (req & win_mask_only) : req;  // only look at the req's if there is only one
+    assign req_win_mask = req & win_mask_only;
 
 // find first set bit in both request and masked request; priority shifts
 // down the bit vector, but returns to the to of the bit vector when no
@@ -72,7 +69,7 @@ module round_robin_arbiter #(parameter CLIENTS=16)
 // case, we still need to mask off the bit that just won so we don't
 // grant to it twice in a row.
 
-    always_ff @(posedge clk, negedge rst_n)
+    always_ff @(posedge clk)
         if (!rst_n)
             win_mask_only <= '0;
 
@@ -86,7 +83,7 @@ module round_robin_arbiter #(parameter CLIENTS=16)
 //
 // The mask depends on the previous winner.
 
-    always_ff @(posedge clk, negedge rst_n)
+    always_ff @(posedge clk)
         if (!rst_n)
             mask <= '0;
 
@@ -99,7 +96,7 @@ module round_robin_arbiter #(parameter CLIENTS=16)
 // the mask vector.  If no lower bits are set, the unmasked request result
 // is used.
 
-    always_ff @(posedge clk, negedge rst_n)
+    always_ff @(posedge clk)
         if (!rst_n)
             gnt <= '0;
 
@@ -116,7 +113,7 @@ module round_robin_arbiter #(parameter CLIENTS=16)
 // Function
 
 // Function:  ffs
-// TODO: replace with leading one/trailing one module.
+//
 // Returns the first set bit starting with the most-significant bit.
 // Format for return is { vld, location[ 15:0 ] }
 
@@ -136,5 +133,4 @@ module round_robin_arbiter #(parameter CLIENTS=16)
 
         return ({vld, location});
     endfunction
-
-endmodule : round_robin_arbiter
+endmodule

@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module BoothMultiplier #(parameter N=4) (
+module booths_multiplier #(parameter N=4) (
     input signed [N-1:0] a,
     input signed [N-1:0] b,
     output signed [2*N-1:0] product
@@ -36,4 +36,4 @@ module BoothMultiplier #(parameter N=4) (
         end
     endgenerate
 
-endmodule
+endmodule : booths_multiplier
