@@ -6,7 +6,7 @@ My goal is to use all free tools in this project, but also prepare folks to work
     - Note: I have a dedicated VM for verilog work that has only the tools required. I tried using a common environment with some of my data analysis work, but some tools conflicted and I couldn't find a clean solution. I will create a YouTube video on how to create the VM and quickly install the minimal set of tools required to get you coding and linked to GitHub.
 - Python 3.10, there is a requirements.txt included. This may evolve over time.
 - VSCode a great free IDE for Python and Verilog. Since this is Verilog and Python focused, I only use these Extensions (if you use VSCode for other puposes, I would not recommend sync'ing your extensions. I saw conflicts where perfectly fine RTL code was throwing lint errors.)
-- Here are the extions I use, these may evolve over time: ctags, GitLens, Makefile Tools, Pylance, Python, SystemVerilog0Language Support, TerosHDL, TODO Highlight, Verilog-HDL/SystemVerilog/BlueSpec SystemVerilog.
+    - Here are the extions I use, these may evolve over time: ctags, GitLens, Makefile Tools, Pylance, Python, SystemVerilog0Language Support, TerosHDL, TODO Highlight, Verilog-HDL/SystemVerilog/BlueSpec SystemVerilog.
 - Icarus verilog; this is a nice free verilog simultor. It outputs messages and a vcd file.
 - GTKWave - this is very good at viewing the vcd files. I will try to have a <block_name>.gktw file for each testbench so one can see the signals that I think are important and how I've structured them.
 - Within Python here are the main usages:
