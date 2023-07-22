@@ -1,8 +1,11 @@
 `timescale 1ns / 1ps
 
-module ksalu(
+module ksalu
+#(
+  parameter DW = 8  // Width of input and output data
+) (
     input         clk, rst_n,
-    input [7:0]   a, b,
+    input [DW-1:0]   a, b,
     input [3:0]   op,
     input         start,
     output        done,
@@ -17,7 +20,7 @@ u_load_clear_counter(
     .clk       (clk),
     .rst_n     (rst_n),
     .clear     (clear),
-    .increment (increment ),
+    .increment (increment),
     .load      (load),
     .loadval   (loadval),
     .count     (count),
