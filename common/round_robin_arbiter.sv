@@ -116,7 +116,7 @@ module round_robin_arbiter #(parameter CLIENTS=16)
 // Function
 
 // Function:  ffs
-//
+// TODO: replace with leading one/trailing one module.
 // Returns the first set bit starting with the most-significant bit.
 // Format for return is { vld, location[ 15:0 ] }
 
@@ -136,4 +136,5 @@ module round_robin_arbiter #(parameter CLIENTS=16)
 
         return ({vld, location});
     endfunction
-endmodule
+
+endmodule : round_robin_arbiter

@@ -33,4 +33,4 @@ module carry_lookahead_adder #(parameter N = 4) (
     // assign carry-out
     assign c_out = c[N];
 
-endmodule
+endmodule : carry_lookahead_adder

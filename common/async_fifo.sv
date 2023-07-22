@@ -10,7 +10,7 @@ module async_fifo#(
         parameter N_FLOP_CROSS     = 2,
         parameter ALMOST_WR_MARGIN = 1,
         parameter ALMOST_RD_MARGIN = 1,
-		parameter INSTANCE_NAME    = "junk"
+		parameter INSTANCE_NAME    = "DEADF1F0"
     ) (
     // clocks and resets
     input	wire	            wr_clk, wr_rst_n, rd_clk, rd_rst_n,
@@ -70,12 +70,12 @@ module async_fifo#(
 
 	// Register these two values--the address and its Gray code
 	// representation
-	always @ (posedge wr_clk, negedge wr_rst_n) begin
+	always_ff @(posedge wr_clk, negedge wr_rst_n) begin
 		if (!wr_rst_n) wr_ptr_bin <= 'b0;
 		else           wr_ptr_bin <= wr_ptr_bin_next;
 	end
 
-	always @ (posedge wr_clk, negedge wr_rst_n) begin
+	always_ff @(posedge wr_clk, negedge wr_rst_n) begin
 		if (!wr_rst_n) wr_ptr_gray <= 'b0;
 		else           wr_ptr_gray <= wr_ptr_gray_next;
 	end
@@ -89,7 +89,7 @@ module async_fifo#(
 	assign	       wr_almost_full     = almost_full_count >= AFT;
 
 	// Write to the Memory on a clock
-	always @(posedge wr_clk)
+	always_ff @(posedge wr_clk)
         if ((write)&&(!wr_full))
             mem[wr_addr] <= wr_data;
 
@@ -112,12 +112,12 @@ module async_fifo#(
 
 	// Register these two values, the read address and the Gray code version
 	// of it, on the next read clock
-	always @(posedge rd_clk, negedge rd_rst_n) begin
+	always_ff @(posedge rd_clk, negedge rd_rst_n) begin
 		if (!rd_rst_n) rd_ptr_bin <= 'b0;
 		else           rd_ptr_bin <= rd_ptr_bin_next;
 	end
 
-	always @(posedge rd_clk, negedge rd_rst_n) begin
+	always_ff @(posedge rd_clk, negedge rd_rst_n) begin
 		if (!rd_rst_n) rd_ptr_gray <= 'b0;
 		else           rd_ptr_gray <= rd_ptr_gray_next;
 	end
@@ -138,6 +138,7 @@ module async_fifo#(
 	// read FLOP in the next processing stage (somewhere else)
 	assign	rd_data = mem[rd_addr];
 
+	// Error checking and debug stuff
 	// synopsys translate_off
 	always @(posedge wr_clk)
 	begin
@@ -159,4 +160,4 @@ module async_fifo#(
 	end
 	// synopsys translate_on
 
-endmodule
+endmodule : async_fifo

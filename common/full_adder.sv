@@ -12,4 +12,4 @@ module full_adder(
     assign sum = a ^ b ^ c_in;                  // XOR gate for sum output
     assign c_out = (a & b) | (c_in & (a ^ b));  // OR gate for carry output
 
-endmodule
+endmodule : full_adder

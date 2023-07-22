@@ -15,7 +15,7 @@ module lfsr #(
     reg [N-1:0] lfsr_reg;
     reg xnor_out;
 
-    always @(posedge clk or negedge rst_n) begin
+    always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             lfsr_reg <= 0;
         end
@@ -31,11 +31,11 @@ module lfsr #(
         end
     end
 
-    always @(posedge clk) begin
+    always_ff @(posedge clk) begin
         xnor_out <= ~^(lfsr_reg & taps);
     end
 
     assign lfsr_data = lfsr_reg;
     assign lfsr_done = (lfsr_reg[N:1] == seed_data) ? 1'b1 : 1'b0;
 
-endmodule
+endmodule : lfsr

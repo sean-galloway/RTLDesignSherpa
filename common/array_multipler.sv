@@ -33,4 +33,4 @@ module array_multipler #(parameter N=4) (
         end
     endgenerate
 
-endmodule
+endmodule : array_multipler

@@ -4,6 +4,9 @@ SIM ?= icarus
 VERILOG_INCLUDE_DIRS = $(CWD)/../../../common
 VERILOG_SOURCES =\
 					$(CWD)/../../../common/sync_fifo.sv \
+					$(CWD)/../../../common/rrb_arb.sv \
+					$(CWD)/../../../common/fixed_prio_arb.sv \
+					$(CWD)/../../../common/weighted_round_robin.sv \
 					$(CWD)/../../../common/round_robin_arbiter.sv \
 					$(CWD)/../../../common/pwm.sv \
 					$(CWD)/../../../common/load_clear_counter.sv \

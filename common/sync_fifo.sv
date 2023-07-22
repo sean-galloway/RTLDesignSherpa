@@ -6,7 +6,7 @@ module sync_fifo#(
         parameter DEPTH = 4,
         parameter ALMOST_WR_MARGIN = 1,
         parameter ALMOST_RD_MARGIN = 1,
-        parameter INSTANCE_NAME = "junk"
+        parameter INSTANCE_NAME = "DEADF1F0"
     ) (
     // clocks and resets
     input	wire	            clk, rst_n,
@@ -126,4 +126,4 @@ module sync_fifo#(
         $dumpvars(0, sync_fifo);
     end
     // synopsys translate_on
-endmodule
+endmodule : sync_fifo

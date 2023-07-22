@@ -37,4 +37,4 @@ module wallis_tree_multiplier #(parameter N=4) (
         end
     endgenerate
 
-endmodule
+endmodule : wallis_tree_multiplier
