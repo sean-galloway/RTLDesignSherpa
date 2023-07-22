@@ -168,3 +168,5 @@ dump.vcd
 results.xml
 cmds.f
 sim.vvp
+.tags
+.vscode/
