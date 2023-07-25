@@ -16,7 +16,7 @@ module pwm #(parameter WIDTH=8)(
 
     assign count_met = (count == period-1);
     assign counting = (start && !done);
-    assign done_repeat = (repeat_count != 'b0) && (repeat_value == repeat_count - 1);
+    assign done_repeat = (repeat_count != 'b0) && (repeat_value == repeat_count);
     assign done = done_repeat;
 
     // count handling
