@@ -11,7 +11,7 @@ async def test_fifo(dut):
     dut.start.value = 0
     dut.duty.value = 0
     dut.period.value = 0
-    dut.repeat.value = 0
+    dut.repeat_count.value = 0
 
     cocotb.start_soon(Clock(dut.clk, 10, units="ns").start())
 
@@ -25,7 +25,7 @@ async def test_fifo(dut):
     dut.start.value = 1
     dut.duty.value = 7
     dut.period.value = 17
-    dut.repeat.value = 5
+    dut.repeat_count.value = 5
 
     await Timer(20, units="ns")
 
