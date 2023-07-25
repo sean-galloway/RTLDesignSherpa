@@ -28,7 +28,7 @@ async def test_fifo(dut):
 
     dut.start_pwm.value = 1
     await Timer(20, units="ns")
-    dut.start_pwm.value = 0
+    # dut.start_pwm.value = 0
 
     for i in range(16):
         dut.write_A.value = 1
