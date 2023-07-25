@@ -182,11 +182,11 @@ assign read_E = !rd_empty_E;
 //     else        read_E <= !rd_empty_E;
 // end
 
-// synopsys translate_off					$(CWD)/../../../common/weighted_round_robin.sv \
-
+// synopsys translate_off
 initial begin
     $dumpfile("dump.vcd");
     $dumpvars(0, round_robin_wrapper);
 end
 // synopsys translate_on
+
 endmodule
