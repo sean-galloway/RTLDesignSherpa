@@ -100,20 +100,19 @@ u_sync_fifo_D (
     .rd_almost_empty (rd_almost_empty_D)
 );
 
-pwm
+pwm 
 #(
-    .MAX            (2048)
+    .WIDTH (11)
 )
 u_pwm(
     .clk          (clk),
     .rst_n        (rst_n),
-    .high_count   (11'h07F),
-    .low_count    (11'h10),
-    .repeat_count (11'b0 ),
     .start        (start_pwm),
+    .duty         (11'h07F),
+    .period       (11'h7FF),
+    .repeat_count (11'h001),
     .done         (done),
-    .pwm_sig      (pwm_sig),
-    .count        (count)
+    .pwm_sig      (pwm_sig)
 );
 
 assign read_A = grant[0];

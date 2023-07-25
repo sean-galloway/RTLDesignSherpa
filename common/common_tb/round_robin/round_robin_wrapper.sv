@@ -105,8 +105,8 @@ pwm
     .WIDTH (11)
 )
 u_pwm(
-    .clk          (clk          ),
-    .rst_n        (rst_n        ),
+    .clk          (clk),
+    .rst_n        (rst_n),
     .start        (start_pwm),
     .duty         (11'h07F),
     .period       (11'h7FF),
