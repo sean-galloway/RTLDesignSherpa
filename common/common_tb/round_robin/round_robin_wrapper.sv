@@ -114,7 +114,6 @@ u_pwm(
     .pwm_sig (pwm_sig )
 );
 
-
 assign read_A = grant[0];
 assign read_B = grant[1];
 assign read_C = grant[2];
