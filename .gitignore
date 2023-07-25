@@ -169,4 +169,5 @@ results.xml
 cmds.f
 sim.vvp
 .vscode/
-tags
+*.bkp
+*.dtmp

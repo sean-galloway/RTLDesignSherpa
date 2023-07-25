@@ -3,15 +3,15 @@ COCOTB_REDUCED_LOG_FMT = True
 SIM ?= icarus
 VERILOG_INCLUDE_DIRS = $(CWD)/../../../common
 VERILOG_SOURCES =\
-					$(CWD)/../../../common/sync_fifo.sv \
-					$(CWD)/../../../common/rrb_arb.sv \
-					$(CWD)/../../../common/fixed_prio_arb.sv \
-					$(CWD)/../../../common/weighted_round_robin.sv \
-					$(CWD)/../../../common/round_robin_arbiter.sv \
-					$(CWD)/../../../common/pwm.sv \
-					$(CWD)/../../../common/load_clear_counter.sv \
-					$(CWD)/../../../common/priority_encoder_enable.sv \
-					$(CWD)/round_robin_wrapper.sv
+					../../../common/sync_fifo.sv \
+					../../../common/rrb_arb.sv \
+					../../../common/fixed_prio_arb.sv \
+					../../../common/weighted_round_robin.sv \
+					../../../common/round_robin_arbiter.sv \
+					../../../common/pwm.sv \
+					../../../common/load_clear_counter.sv \
+					../../../common/priority_encoder_enable.sv \
+					round_robin_wrapper.sv
 DUT = round_robin_wrapper
 MODULE = testbench
 TOPLEVEL = $(DUT)

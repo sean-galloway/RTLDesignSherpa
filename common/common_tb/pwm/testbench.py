@@ -8,10 +8,9 @@ import cocotb
 async def test_fifo(dut):
     q1 = queue.Queue()
 
-    dut.high_count.value = 0
-    dut.low_count.value = 0
+    dut.duty.value = 0
+    dut.period.value = 0
     dut.repeat_count.value = 0
-    dut.start.value = 0
 
     cocotb.start_soon(Clock(dut.clk, 10, units="ns").start())
 
@@ -22,11 +21,8 @@ async def test_fifo(dut):
 
     await Timer(5, units="ns")
 
-    dut.high_count.value = 16
-    dut.low_count.value = 8
-    dut.repeat_count.value = 4
-    dut.start.value = 1
+    dut.duty.value = 7
+    dut.period.value = 17
     await Timer(20, units="ns")
-    dut.start.value = 0
 
     await Timer(2500, units="ns")
