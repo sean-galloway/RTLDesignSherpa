@@ -105,13 +105,14 @@ pwm
     .WIDTH (11)
 )
 u_pwm(
-    .clk     (clk),
-    .rst_n   (rst_n),
-    .start   (start_pwm),
-    .duty    (11'h07F),
-    .period  (11'h7FF),
-    .done    (done),
-    .pwm_sig (pwm_sig )
+    .clk          (clk          ),
+    .rst_n        (rst_n        ),
+    .start        (start_pwm),
+    .duty         (11'h07F),
+    .period       (11'h7FF),
+    .repeat_count (11'h001),
+    .done         (done),
+    .pwm_sig      (pwm_sig)
 );
 
 assign read_A = grant[0];
