@@ -20,8 +20,7 @@ module pwm #(parameter WIDTH=8)(
         else pwm_sig = 0;
     end
 
-    // synopsys translate_off
-
+// synopsys translate_off
 initial begin
     $dumpfile("dump.vcd");
     $dumpvars(0, round_robin_wrapper);
