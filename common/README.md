@@ -12,15 +12,22 @@ Arguably, the math related ones aren't useful other than to study.
 ### Arbiters
 These are all parameterized.
 * round_robin_arbiter.sv 
-* interval_weighted_round_robin.sv 
+* weighted_round_robin.sv 
+* fixed_prio_arbiter.sv
+* rrb_arb.sv
 
 ### Miscellaneous
 These are all parameterized.
+* bin_to_bcd.sv
+* hex_to_7seg.sv
+* clock_divider.sv
+* clock_pulse.sv
+* debounce.sv -- for debouncing buttons and switches
 * decoder.sv 
+* encoder.sv
 * priority_encoder_enable.sv 
 * leading_one_trailing_one.sv 
-* lfsr_table.pdf 
-* lfsr.sv -- one of the inputs is a vector called taps. Put a one in position where a xnor tap is needed. Refer to the lfsr_table.pdf for more information.
+* lfsr.sv -- one of the inputs is a vector called taps. Put a one in position where a xnor tap is needed. Refer to the lfsr_table.pdf in the docs area for more information.
 * load_clear_counter.sv 
 * pwm.sv
 * reverse_vector.sv 
@@ -33,7 +40,12 @@ These are all parameterized.
 * full_subtractor.sv 
 * ripple_carry_adder.sv 
 * ripple_carry_subtractor.sv 
-* carry_lookahead_adder.sv 
+* carry_lookahead_adder.sv
+* carry_lookahead_subtractor.sv 
 * array_multipler.sv 
 * booths_multiplier.sv 
 * wallis_tree_multiplier.sv
+* reciprocal_divider.sv
+* sft_divider.sv
+
+
