@@ -36,7 +36,6 @@ module weighted_round_robin
             assign mask_req[i] = (has_crd[i] | replenish) & req[i];
 
             // next credit counter value
-            // next credit counter value
             always_comb begin
                 crd_cnt_next[i] = crd_cnt[i];
                 if (replenish)

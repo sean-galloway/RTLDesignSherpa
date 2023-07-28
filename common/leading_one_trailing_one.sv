@@ -7,7 +7,7 @@ module leading_one_trailing_one #(parameter N=8) (
     output reg all_zeroes
 );
 
-    always @(*) begin
+    always_comb begin
         if (data === 0) begin
             leadingone = $clog2(N);
             trailingone = $clog2(N);

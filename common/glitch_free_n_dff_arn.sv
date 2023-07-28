@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module glitch_free_n_dff_arn #( parameter FLOP_COUNT = 2,
+module glitch_free_n_dff_arn #( parameter FLOP_COUNT = 3,
                                 parameter WIDTH = 4)
 (
     input wire clk, rst_n,
@@ -10,7 +10,7 @@ module glitch_free_n_dff_arn #( parameter FLOP_COUNT = 2,
 
     localparam FC = FLOP_COUNT;
 
-    logic [WIDTH-1:0] q_array[FC];
+    logic [WIDTH-1:0] q_array [0:FC-1];
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin

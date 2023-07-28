@@ -19,6 +19,8 @@ module BarrelShifter #(
     logic signed [WIDTH-1:0] signed_data;
     logic [WIDTH-1:0] shifted_data;
 
+    assign signed_data = $signed(data_in);
+
     always_comb begin
         casez (ctrl)
             3'b000: shifted_data = data_in;                              // No shift
@@ -26,20 +28,12 @@ module BarrelShifter #(
             3'b011: shifted_data = {data_in[WIDTH-1-shift_amount:0], data_in[WIDTH-1:WIDTH-shift_amount]}; // Logical Right Shift (wrap)
             3'b100: shifted_data = data_in << shift_amount;              // Logical Left Shift (no wrap)
             3'b110: shifted_data = {data_in[shift_amount-1:0], data_in[WIDTH-1:shift_amount]}; // Logical Left Shift (wrap)
-            3'b010: begin  // Arithmetic Right Shift
-                signed_data = $signed(data_in);
-                shifted_data = signed_data >> shift_amount;
-            end
-            default: shifted_data = data_in;                              // Default: No shift
+            3'b010: shifted_data = signed_data >> shift_amount;          // Arithmetic Right Shift
+            default: shifted_data = data_in;                             // Default: No shift
         endcase
     end
 
     // For arithmetic right shift, convert back to unsigned after shifting
-    always_comb begin
-        if (ctrl == 3'b010)
-            data_out = $unsigned(shifted_data);
-        else
-            data_out = shifted_data;
-    end
+    assign data_out = (ctrl == 3'b010) ? $unsigned(shifted_data) : shifted_data;
 
 endmodule

@@ -31,8 +31,9 @@ module lfsr #(
         end
     end
 
-    always_ff @(posedge clk) begin
-        xnor_out <= ~^(lfsr_reg & taps);
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) xnor_out <= 'b0;
+        else        xnor_out <= ~^(lfsr_reg & taps);
     end
 
     assign lfsr_data = lfsr_reg;

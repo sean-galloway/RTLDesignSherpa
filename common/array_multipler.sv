@@ -27,9 +27,9 @@ module array_multipler #(parameter N=4) (
 
     generate
         genvar k;
-        assign Product = {partial_products[0][N-1]};
+        assign product = {partial_products[0][N-1]};
         for (k = 1; k < N; k = k + 1) begin : CONCAT_GEN
-            assign Product = {Product, partial_products[k][N-k-1]};
+            assign product = {product, partial_products[k][N-k-1]};
         end
     endgenerate
 

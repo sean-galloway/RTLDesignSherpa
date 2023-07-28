@@ -11,7 +11,7 @@ module load_clear_counter #(parameter MAX=32) (
     logic [$clog2(MAX)-1:0] match_val;
 
     always_ff @(posedge clk, negedge rst_n) begin
-        if (!rst_n) count <= 'b0;
+        if (!rst_n)     count <= 'b0;
         else if (clear) count <= 'b0;
         else if (load)  match_val <= loadval;
         else if (increment) begin

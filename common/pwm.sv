@@ -32,7 +32,7 @@ module pwm #(parameter WIDTH=8)(
         else if  (counting && count_met) repeat_value <= repeat_value + 'b1;
     end
 
-    // pwm signal hangling
+    // pwm signal handling
     always_comb begin
         if (count < duty && !done) pwm_sig = 1;
         else pwm_sig = 0;

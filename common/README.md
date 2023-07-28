@@ -3,10 +3,10 @@ These are some fairly random, but somewhat useful set of basic verilog functions
 Arguably, the math related ones aren't useful other than to study.
 ----------------------------------------------------------------
 ### Fifo Related Files
+* sync_fifo.sv 
 * bin2gray.sv 
 * gray2bin.sv 
 * glitch_free_n_dff_arn.sv 
-* sync_fifo.sv 
 * async_fifo.sv 
 
 ### Arbiters
@@ -18,6 +18,7 @@ These are all parameterized.
 
 ### Miscellaneous
 These are all parameterized.
+* barrel_shifter.sv
 * bin_to_bcd.sv
 * hex_to_7seg.sv
 * clock_divider.sv
