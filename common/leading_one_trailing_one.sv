@@ -6,23 +6,24 @@ module leading_one_trailing_one #(parameter N=8) (
     output logic [N-1:0]       leadingone_vector,
     output logic [$clog2(N):0] trailingone,
     output logic [N-1:0]       trailingone_vector,
-    output logic               all_zeroes
+    output logic               all_zeroes,
+    output logic               valid
 );
 
-    function integer ffs(input logic [31:0] value);
-        for (int i = 0; i < 32; i++) begin
+    function integer ffs(input logic [N-1:0] value);
+        for (int i = 0; i < N; i++) begin
             if (value[i] == 1'b1)
                 return i + 1; // Add 1 to get a 1-based index
         end
         return 0; // Return 0 if no set bit is found
     endfunction
 
-    function integer clz(input logic [31:0] value);
-        for (int i = 31; i >= 0; i--) begin
+    function integer clz(input logic [N-1:0] value);
+        for (int i = N-1; i >= 0; i--) begin
             if (value[i] == 1'b1)
                 return i;
         end
-        return 32; // Return 32 if all bits are zeros
+        return N; // Return N if all bits are zeros
     endfunction
 
     always_comb begin
@@ -32,8 +33,8 @@ module leading_one_trailing_one #(parameter N=8) (
             all_zeroes = 1;
         end
         else begin
-            leadingone = $clog2(N) - clz(data);
-            trailingone = ffs(data);
+            leadingone = $clog2(N) - clz(data);     // TODO: replace with $clz when it is supported
+            trailingone = ffs(data);                // TODO: replace with $ffs when it is supported
             all_zeroes = 0;
         end
     end
@@ -44,6 +45,8 @@ module leading_one_trailing_one #(parameter N=8) (
         trailingone_vector = '0;
         trailingone_vector[trailingone - 1] = 1'b1; // Subtract 1 to convert to 0-based index
     end
+
+    assign valid = !all_zeroes;
 
 endmodule : leading_one_trailing_one
 

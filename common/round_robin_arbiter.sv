@@ -14,11 +14,12 @@ module round_robin_arbiter #(parameter CLIENTS=16)
 
 // =======================================================================
 // Declarations & Parameters
+    localparam  N = 16;
 
     logic [CLIENTS-1:0] mask;
     logic [CLIENTS-1:0] win_mask_only;
-    logic [15:0] req_location;
-    logic [15:0] reqm_location;
+    logic [N-1:0] req_location;
+    logic [N-1:0] reqm_location;
     logic vld_ffs_req;
     logic vld_ffs_reqm;
 
@@ -42,7 +43,7 @@ module round_robin_arbiter #(parameter CLIENTS=16)
     // assign {vld_ffs_reqm, reqm_location} = ffs(req_masked);
 
     leading_one_trailing_one 
-    #(.N (CLIENTS))
+    #(.N (N))
     u_req_leading_one_trailing_one(
     	.data               (req_win_mask),
         .leadingone         (),
@@ -54,7 +55,7 @@ module round_robin_arbiter #(parameter CLIENTS=16)
     );
 
     leading_one_trailing_one 
-    #(.N (CLIENTS))
+    #(.N (N))
     u_reqm_leading_one_trailing_one(
     	.data               (reqm_win_mask),
         .leadingone         (),
