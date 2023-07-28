@@ -23,9 +23,11 @@ These are all parameterized.
 * hex_to_7seg.sv
 * clock_divider.sv
 * clock_pulse.sv
+* count_leading_zeros.sv -- the free tools don't seem to support the $clz function
 * debounce.sv -- for debouncing buttons and switches
 * decoder.sv 
 * encoder.sv
+* find_first_set.sv -- the free tools don't seem to support the $ffs function
 * priority_encoder_enable.sv 
 * leading_one_trailing_one.sv 
 * lfsr.sv -- one of the inputs is a vector called taps. Put a one in position where a xnor tap is needed. Refer to the lfsr_table.pdf in the docs area for more information.
