@@ -3,17 +3,17 @@
 module BarrelShifter #(
     parameter int WIDTH = 8
 ) (
-    input logic [WIDTH-1:0] data_in,                // Input data
-    input logic [2:0] ctrl,                         // Control signal (3-bit)
-                                                    // 000 No shift
-                                                    // 001 Logical Right Shift (no wrap)
-                                                    // 010 Arithmetic Right Shift
-                                                    // 011 Logical Right Shift (wrap)
-                                                    // 100 Logical Left Shift (no wrap)
-                                                    // 110 Logical Left Shift (wrap)
+    input logic [WIDTH-1:0] data_in,                 // Input data
+    input logic [2:0] ctrl,                          // Control signal (3-bit)
+                                                     // 000 No shift
+                                                     // 001 Logical Right Shift (no wrap)
+                                                     // 010 Arithmetic Right Shift
+                                                     // 011 Logical Right Shift (wrap)
+                                                     // 100 Logical Left Shift (no wrap)
+                                                     // 110 Logical Left Shift (wrap)
     
-    input logic [($clog2(WIDTH)-1):0] shift_amount, // Shift amount (number of positions to shift)
-    output logic [WIDTH-1:0] data_out               // Output data
+    input logic  [($clog2(WIDTH)-1):0] shift_amount, // Shift amount (number of positions to shift)
+    output logic [WIDTH-1:0] data_out                // Output data
 );
 
     logic signed [WIDTH-1:0] signed_data;
