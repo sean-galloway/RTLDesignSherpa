@@ -1,7 +1,4 @@
 `timescale 1ns / 1ps
-//`include "./glitch_free_n_dff_arn.sv"
-// `include "gray2bin.sv"
-// `include "bin2gray.sv"
 
 // Paramerized Asynchronous FIFO -- This only works for power of two depths
 module async_fifo#(
