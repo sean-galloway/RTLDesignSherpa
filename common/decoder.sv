@@ -11,7 +11,7 @@ module decoder #(
 
     genvar i;
     generate
-        for (i = 0; i < N; i = i + 1) begin : DECODER_LOOP
+        for (i = 0; i < N; i++) begin : DECODER_LOOP
             assign data[i] = (encoded == i) ? 1'b1 : 1'b0;
         end
     endgenerate

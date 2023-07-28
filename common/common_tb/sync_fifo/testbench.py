@@ -28,7 +28,7 @@ async def test_fifo(dut):
             dut.wr_data.value = i
             q1.put(i) # this will add item from 0 to depth to the queue
             await Timer(10, units="ns")
-            i = i + 1
+            i++
 
         dut.write.value = 0
 

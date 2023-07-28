@@ -2,8 +2,8 @@
 
 module clock_divider #(
     parameter int N = 4,                           // Number of output clocks
-    parameter int COUNTER_WIDTH = 8,               // Width of the counter
-    parameter int PICKOFF_BITS [N] = '{1, 2, 3, 4} // the pick off points for the divided clock
+    parameter [16*N-1:0] PICKOFF_BITS = {16'd4, 16'd5, 16'd6, 16'd7}, // the pick off points for the divided clock
+    parameter int COUNTER_WIDTH = 8                // Width of the counter
 ) (
     input  logic         clk,                      // Input clock signal
     input  logic         rst_n,                    // Active low reset signal
@@ -21,7 +21,7 @@ module clock_divider #(
 
     always_comb begin
         for (int i = 0; i < N; i++)
-            divided_clk_out[i] = (divider_counters[PICKOFF_BITS[i]]);
+            divided_clk_out[i] = (divider_counters[$unsigned(PICKOFF_BITS[i])]);
     end
 
 endmodule : clock_divider

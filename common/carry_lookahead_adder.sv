@@ -13,7 +13,7 @@ module carry_lookahead_adder #(parameter N = 4) (
     // Generate and propagate signals
     generate
         genvar i;
-        for (i = 0; i < N; i = i + 1) begin
+        for (i = 0; i < N; i++) begin
             assign g[i] = a[i] & b[i];
             assign p[i] = a[i] | b[i];
         end
@@ -22,14 +22,14 @@ module carry_lookahead_adder #(parameter N = 4) (
     // Calculate carry bits
     assign c[0] = c_in;
     generate
-        for (i = 1; i <= N; i = i + 1) begin
+        for (i = 1; i <= N; i++) begin
             assign c[i] = g[i-1] | (p[i-1] & c[i-1]);
         end
     endgenerate
 
     // Calculate sum bits
     generate
-        for (i = 0; i < N; i = i + 1) begin
+        for (i = 0; i < N; i++) begin
             assign sum[i] = a[i] ^ b[i] ^ c[i];
         end
     endgenerate

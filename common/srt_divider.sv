@@ -3,10 +3,10 @@
 module srt_divider #(
   parameter DW = 16  // Width of input and output data
 ) (
-    input logic clk,           // Clock input
-    input logic rst_n,         // Asynchronous active-low reset
-    input logic [DW-1:0] dividend,
-    input logic [DW-1:0] divisor,
+    input  logic clk,           // Clock input
+    input  logic rst_n,         // Asynchronous active-low reset
+    input  logic [DW-1:0] dividend,
+    input  logic [DW-1:0] divisor,
     output logic [DW-1:0] quotient,
     output logic [DW-1:0] remainder
 );

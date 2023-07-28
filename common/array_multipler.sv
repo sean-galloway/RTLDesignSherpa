@@ -11,8 +11,8 @@ module array_multipler #(parameter N=4) (
 
     genvar i, j;
     generate
-        for (i = 0; i < N; i = i + 1) begin : ROW_GEN
-            for (j = 0; j < N; j = j + 1) begin : COL_GEN
+        for (i = 0; i < N; i++) begin : ROW_GEN
+            for (j = 0; j < N; j++) begin : COL_GEN
                 if (i >= j) begin
                     if (j == 0) begin
                         half_adder HA(.a(a[i]), .b(b[j]), .sum(partial_products[i][j]), .c_out()/*carry*/);
@@ -28,7 +28,7 @@ module array_multipler #(parameter N=4) (
     generate
         genvar k;
         assign product = {partial_products[0][N-1]};
-        for (k = 1; k < N; k = k + 1) begin : CONCAT_GEN
+        for (k = 1; k < N; k++) begin : CONCAT_GEN
             assign product = {product, partial_products[k][N-k-1]};
         end
     endgenerate

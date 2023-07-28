@@ -26,7 +26,7 @@ module rrb_arb
         else
         begin
             mask <= {CLIENTS{1'b0}};
-            for (int i = 0; i < CLIENTS; i = i + 1)
+            for (int i = 0; i < CLIENTS; i++)
             begin
                 if (grant[i])
                     mask[i] <= 1'b1;

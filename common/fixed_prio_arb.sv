@@ -15,7 +15,7 @@ module fixed_prio_arb #(parameter CLIENTS = 8)
     always_comb begin
         grant = {CLIENTS{1'b0}};
         found = 1'b0;
-        for (int i = 0; i < CLIENTS; i = i + 1) begin
+        for (int i = 0; i < CLIENTS; i++) begin
             if (req[i] && !found) begin
                 grant[i] = 1'b1;
                 found = 1'b1;

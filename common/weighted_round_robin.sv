@@ -28,7 +28,7 @@ module weighted_round_robin
 
     genvar i;
     generate
-        for (i = 0; i < CLIENTS; i = i + 1) begin
+        for (i = 0; i < CLIENTS; i++) begin
             assign crd_cnt_incr[i] = crd_cnt[i] + 1'b1;
             assign has_crd[i] = (crd_cnt_incr[i] <= max_thresh[i]);
 

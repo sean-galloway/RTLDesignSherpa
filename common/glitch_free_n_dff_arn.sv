@@ -14,11 +14,11 @@ module glitch_free_n_dff_arn #( parameter FLOP_COUNT = 3,
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            for (int i = 0; i < FC; i = i + 1)
+            for (int i = 0; i < FC; i++)
                 q_array[i] <= 'b0;
         end else begin
             q_array[0] <= d;
-            for (int i = 1; i < FC; i = i + 1)
+            for (int i = 1; i < FC; i++)
                 q_array[i] <= q_array[i-1];
         end
     end

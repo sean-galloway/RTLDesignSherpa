@@ -18,12 +18,12 @@ module universal_shift_reg #(parameter WIDTH=4)
 
     logic [WIDTH-1:0] p_dout_d;
 
-    alwayw_comb begin
+    always_comb begin
         case(select)
-            2'h1: p_dout <= {s_right_din,p_dout[WIDTH-1:1]}; // Right Shift
-            2'h2: p_dout <= {p_dout[2:0],s_left_din};        // Left Shift
-            2'h3: p_dout <= p_din;                           // Parallel in - Parallel out
-            default: p_dout <= p_dout;                       // Do nothing
+            2'h1: p_dout_d <= {s_right_din,p_dout[WIDTH-1:1]}; // Right Shift
+            2'h2: p_dout_d <= {p_dout[2:0],s_left_din};        // Left Shift
+            2'h3: p_dout_d <= p_din;                           // Parallel in - Parallel out
+            default: p_dout_d <= p_dout;                       // Do nothing
         endcase
     end
 

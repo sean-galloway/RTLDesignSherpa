@@ -20,7 +20,7 @@ module priority_encoder_enable #(parameter WIDTH = 8)(
     
             priority_levels = '0; // Initialize priority_levels to all zeroes
     
-            for (integer i = 0; i < WIDTH; i = i + 1) begin
+            for (integer i = 0; i < WIDTH; i++) begin
                 if (priority_in[i] == 1) begin
                     priority_levels[i] = 1;
                     found = 1;

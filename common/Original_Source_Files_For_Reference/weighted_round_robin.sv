@@ -27,7 +27,7 @@ module wrr_arb
 
     genvar i;
     generate
-        for (i = 0; i < 3; i = i + 1) begin
+        for (i = 0; i < 3; i++) begin
             assign crd_cnt_incr[i] = crd_cnt[i] + 1'b1;
             assign has_crd[i] = (crd_cnt_incr[i] <= max_thre);
 

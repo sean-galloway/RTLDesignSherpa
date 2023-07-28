@@ -38,33 +38,55 @@ module round_robin_arbiter #(parameter CLIENTS=16)
 // down the bit vector, but returns to the to of the bit vector when no
 // lower bits are set
 
-    assign {vld_ffs_req, req_location} = ffs(req_win_mask);
-    assign {vld_ffs_reqm, reqm_location} = ffs(req_masked);
+    // assign {vld_ffs_req, req_location} = ffs(req_win_mask);
+    // assign {vld_ffs_reqm, reqm_location} = ffs(req_masked);
+
+    leading_one_trailing_one 
+    #(.N (CLIENTS))
+    u_req_leading_one_trailing_one(
+    	.data               (req_win_mask),
+        .leadingone         (),
+        .leadingone_vector  (req_location),
+        .trailingone        (),
+        .trailingone_vector (),
+        .all_zeroes         (),
+        .valid              (vld_ffs_req)
+    );
+
+    leading_one_trailing_one 
+    #(.N (CLIENTS))
+    u_reqm_leading_one_trailing_one(
+    	.data               (reqm_win_mask),
+        .leadingone         (),
+        .leadingone_vector  (reqm_location),
+        .trailingone        (),
+        .trailingone_vector (),
+        .all_zeroes         (),
+        .valid              (vld_ffs_reqm)
+    );
+    
 
 // determine the winner--either the masked version (because a lower-priority
 // request was set) or the unmasked version (because we started over from
 // the top)
 
-    always_comb
-        begin
-            if (vld_ffs_reqm)
-                begin
-                    winner = reqm_location;
-                    win_vld = 1'b1;
-                end
-
-            else if (vld_ffs_req)
-                begin
-                    winner = req_location;
-                    win_vld = 1'b1;
-                end
-
-            else
-                begin
-                    winner = 16'd0;
-                    win_vld = 1'b0;
-                end
-        end
+    always_comb begin
+        if (vld_ffs_reqm)
+            begin
+                winner = reqm_location;
+                win_vld = 1'b1;
+            end
+        else if (vld_ffs_req)
+            begin
+                winner = req_location;
+                win_vld = 1'b1;
+            end
+        else
+            begin
+                winner = 16'd0;
+                win_vld = 1'b0;
+            end
+    end
 
 // Register:  win_mask_only
 //
@@ -75,10 +97,8 @@ module round_robin_arbiter #(parameter CLIENTS=16)
     always_ff @(posedge clk, negedge rst_n)
         if (!rst_n)
             win_mask_only <= '0;
-
         else if (win_vld)
             win_mask_only <= ~({(CLIENTS-1)'('d0), 1'b1} << winner);
-
         else
             win_mask_only <= {CLIENTS{1'b1}};
 
@@ -89,7 +109,6 @@ module round_robin_arbiter #(parameter CLIENTS=16)
     always_ff @(posedge clk, negedge rst_n)
         if (!rst_n)
             mask <= '0;
-
         else
             mask <= ({(CLIENTS-1)'('d0), 1'b1} << winner)-1'b1;
 
@@ -102,13 +121,11 @@ module round_robin_arbiter #(parameter CLIENTS=16)
     always_ff @(posedge clk, negedge rst_n)
         if (!rst_n)
             gnt <= '0;
-
         else if (win_vld)
             begin
                 gnt <= '0;
                 gnt[winner] <= 1'b1;
             end
-
         else
             gnt <= '0;
 
@@ -120,21 +137,21 @@ module round_robin_arbiter #(parameter CLIENTS=16)
 // Returns the first set bit starting with the most-significant bit.
 // Format for return is { vld, location[ 15:0 ] }
 
-    function automatic logic [16:0] ffs(input logic [CLIENTS-1:0] vector);
-        logic vld;
-        logic [15:0] location;
+    // function automatic logic [16:0] ffs(input logic [CLIENTS-1:0] vector);
+    //     logic vld;
+    //     logic [15:0] location;
 
-        vld = 1'b0;
-        location = 16'hffff;
+    //     vld = 1'b0;
+    //     location = 16'hffff;
 
-        for (int i = 0; i < CLIENTS; i++)
-            if (vector[i] == 1'b1)
-                begin
-                    vld = 1'b1;
-                    location = i[15:0];
-                end
+    //     for (int i = 0; i < CLIENTS; i++)
+    //         if (vector[i] == 1'b1)
+    //             begin
+    //                 vld = 1'b1;
+    //                 location = i[15:0];
+    //             end
 
-        return ({vld, location});
-    endfunction
+    //     return {vld, location};
+    // endfunction
 
 endmodule : round_robin_arbiter

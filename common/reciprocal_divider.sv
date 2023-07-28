@@ -11,7 +11,7 @@ module reciprocal_divider #(
 
     localparam DW = DATA_WIDTH;
     localparam DI = DIV_ITERATIONS; // DIV_ITERATIONS will improve the accuracy of the reciprocal, 
-                                        // but it will also increase the complexity and area of the design.
+                                    // but it will also increase the complexity and area of the design.
 
     logic          signed_quotient;
     logic [DW-1:0] remainder;
@@ -23,13 +23,18 @@ module reciprocal_divider #(
 
         // Perform Newton-Raphson iteration for refining the reciprocal value
         for (int i = 0; i < DI; i++) begin
-            reciprocal = reciprocal - ((reciprocal * divisor) >> DATA_WIDTH);
+            reciprocal = reciprocal - ((reciprocal * divisor) >> DW);
         end
 
         // Perform division using the reciprocal value
-        signed_quotient = dividend[DW-1] ^ divisor[DW-1]; // Determine the sign of the quotient
         remainder = dividend * reciprocal; // Perform the division
-        quotient = remainder >> (2*DW); // Right shift to get the quotient
+        signed_quotient = dividend[DW-1] ^ divisor[DW-1]; // Determine the sign of the quotient
+
+        // Adjust the quotient based on the sign
+        if (signed_quotient)
+            quotient = -remainder >> (2*DW); // Negative quotient
+        else
+            quotient = remainder >> (2*DW); // Positive quotient
     end
 
 endmodule
