@@ -18,20 +18,20 @@ module round_robin_arbiter #(parameter CLIENTS=16)
 
     logic [CLIENTS-1:0] mask;
     logic [CLIENTS-1:0] win_mask_only;
-    logic [N-1:0] req_location;
-    logic [N-1:0] reqm_location;
+    logic [16-1:0] req_location;
+    logic [16-1:0] reqm_location;
     logic vld_ffs_req;
     logic vld_ffs_reqm;
 
-    logic [N-1:0] req_location_sg;
-    logic [N-1:0] reqm_location_sg;
+    logic [16-1:0] req_location_sg;
+    logic [16-1:0] reqm_location_sg;
     logic vld_ffs_req_sg;
     logic vld_ffs_reqm_sg;
 
     logic [CLIENTS-1:0] req_masked;
     logic [CLIENTS-1:0] req_win_mask;
 
-    logic [N-1:0] winner;
+    logic [16-1:0] winner;
     logic win_vld;
 
     // =======================================================================
