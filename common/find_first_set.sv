@@ -7,16 +7,18 @@ module find_first_set
     output logic [$clog2(WIDTH)-1:0] first_set_index
 );
 
-    genvar i;
-    generate
-        for (i = 0; i < WIDTH; i++) begin
-            if (i == 0) begin
-                assign first_set_index = data[i] ? i : '1; // Set to i if data[i] is 1, otherwise '1
-            end
-            else begin
-                assign first_set_index = (!first_set_index[WIDTH-1:i+1] & data[i]) ? i : first_set_index;
-            end
-        end
-    endgenerate
+    function automatic logic [$clog2(WIDTH)-1:0] ffs(input logic [WIDTH-1:0] vector);
+        logic [$clog2(WIDTH)-1:0] location;
+
+        location = '{>>{$clog2(WIDTH){1}}};
+
+        for (int i = 0; i < CLIENTS; i++)
+            if (vector[i] == 1'b1)
+                location = i[15:0];
+
+        return {location};
+    endfunction
+
+    first_set_index = ffs(data);
 
 endmodule : find_first_set
