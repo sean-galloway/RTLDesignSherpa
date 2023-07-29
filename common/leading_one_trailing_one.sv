@@ -17,37 +17,32 @@ module leading_one_trailing_one #(parameter WIDTH=8) (
 
     find_first_set #(.WIDTH(WIDTH))
     u_find_first_set(
-        .data            (data),
-        .first_set_index (first_set_index)
+        .data   (data),
+        .index  (leadingone)
     );
 
-    count_leading_zeros #(.WIDTH(WIDTH))
-    u_count_leading_zeros(
-        .data                (data),
-        .leading_zeros_count (leading_zeros_count)
+    find_last_set #(.WIDTH(WIDTH))
+    u_find_last_set (
+        .data  (data),
+        .index (trailingone)
     );
-
-    always_comb begin
-        if (data === 0) begin
-            leadingone = N;
-            trailingone = N;
-            all_zeroes = 1;
-        end
-        else begin
-            leadingone = N - 1 - leading_zeros_count; // $clog2(N) - $clz(data);
-            trailingone = first_set_index; // $ffs(data);
-            all_zeroes = 0;
-        end
-    end
 
     always_comb begin
         leadingone_vector = '0;
-        leadingone_vector[leadingone - 1] = 1'b1; // Subtract 1 to convert to 0-based index
+        leadingone_vector[leadingone - 1] = 1'b1;   // Subtract 1 to convert to 0-based index
         trailingone_vector = '0;
         trailingone_vector[trailingone - 1] = 1'b1; // Subtract 1 to convert to 0-based index
     end
 
-    assign valid = !all_zeroes;
+    assign all_zeroes = !(&data);
+    assign valid      = |data;
+
+	// synopsys translate_off
+	initial begin
+		$dumpfile("dump.vcd");
+		$dumpvars(0, leading_one_trailing_one);
+	end
+	// synopsys translate_on
 
 endmodule : leading_one_trailing_one
 
