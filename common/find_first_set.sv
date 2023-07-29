@@ -7,16 +7,16 @@ module find_first_set
     output logic [$clog2(WIDTH)-1:0] first_set_index
 );
 
-    integer i;
-
-    always_comb begin
-        first_set_index = 0; // Default value if no set bit is found
-
+    genvar i;
+    generate
         for (i = 0; i < WIDTH; i++) begin
-            if (data[i] == 1'b1) begin
-                first_set_index = i + 1; // Add 1 to get a 1-based index
+            if (i == 0) begin
+                assign first_set_index = data[i] ? i : '1; // Set to i if data[i] is 1, otherwise '1
+            end
+            else begin
+                assign first_set_index = (!first_set_index[WIDTH-1:i+1] & data[i]) ? i : first_set_index;
             end
         end
-    end
+    endgenerate
 
 endmodule : find_first_set
