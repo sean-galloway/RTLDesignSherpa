@@ -48,7 +48,7 @@ module round_robin_arbiter #(parameter CLIENTS=16)
     assign {vld_ffs_reqm, reqm_location} = ffs(req_masked);
 
     leading_one_trailing_one 
-    #(.WIDTH (N))
+    #(.WIDTH (CLIENTS))
     u_req_leading_one_trailing_one(
     	.data               (req_win_mask),
         .leadingone         (),
@@ -60,7 +60,7 @@ module round_robin_arbiter #(parameter CLIENTS=16)
     );
 
     leading_one_trailing_one 
-    #(.WIDTH (N))
+    #(.WIDTH (CLIENTS))
     u_reqm_leading_one_trailing_one(
     	.data               (req_masked),
         .leadingone         (),

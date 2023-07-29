@@ -2,15 +2,15 @@
 
 module leading_one_trailing_one #(parameter WIDTH=8) (
     input  logic [WIDTH-1:0]           data,
-    output logic [$clog2(WIDTH)-1:0]   leadingone,
+    output logic [$clog2(WIDTH):0]     leadingone,
     output logic [WIDTH-1:0]           leadingone_vector,
-    output logic [$clog2(WIDTH)-1:0]   trailingone,
+    output logic [$clog2(WIDTH):0]     trailingone,
     output logic [WIDTH-1:0]           trailingone_vector,
     output logic                       all_zeroes,
     output logic                       valid
 );
 
-    localparam  N = $clog2(WIDTH);
+    localparam  N = $clog2(WIDTH)+1;
 
     logic [N-1:0] first_set_index;
     logic [N-1:0] leading_zeros_count;

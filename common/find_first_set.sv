@@ -14,7 +14,7 @@ module find_first_set
 
         location = {{N{1'b1}}};
 
-        for (int i = 0; i < CLIENTS; i++)
+        for (int i = 0; i < WIDTH; i++)
             if (vector[i] == 1'b1)
                 location = i[N-1:0];
 
