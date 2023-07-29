@@ -3,35 +3,35 @@
 // Mostly based on code from this github:
 // https://github.com/gsw73/ffs_arbiter/blob/master/design.sv
 // I made a couple of tweaks myself to make it more efficient if only one agent is requesting
-module round_robin_arbiter #(parameter CLIENTS=16)
-    (
-        input  logic               clk,
-        input  logic               rst_n,
+module round_robin_arbiter #(parameter CLIENTS = 16)
+(
+    input  logic               clk,
+    input  logic               rst_n,
 
-        input  logic [CLIENTS-1:0] req,
-        output logic [CLIENTS-1:0] gnt
-    );
+    input  logic [CLIENTS-1:0] req,
+    output logic [CLIENTS-1:0] gnt
+);
 
     // =======================================================================
     // Declarations & Parameters
-    localparam  N = $clog2(CLIENTS)+1;
+    localparam N = $clog2(CLIENTS) + 1;
 
     logic [CLIENTS-1:0] mask;
     logic [CLIENTS-1:0] win_mask_only;
-    logic [16-1:0] req_location;
-    logic [16-1:0] reqm_location;
+    logic [N-1:0] req_location;
+    logic [N-1:0] reqm_location;
     logic vld_ffs_req;
     logic vld_ffs_reqm;
 
-    logic [16-1:0] req_location_sg;
-    logic [16-1:0] reqm_location_sg;
+    logic [N-1:0] req_location_sg;
+    logic [N-1:0] reqm_location_sg;
     logic vld_ffs_req_sg;
     logic vld_ffs_reqm_sg;
 
     logic [CLIENTS-1:0] req_masked;
     logic [CLIENTS-1:0] req_win_mask;
 
-    logic [16-1:0] winner;
+    logic [N-1:0] winner;
     logic win_vld;
 
     // =======================================================================
@@ -41,36 +41,31 @@ module round_robin_arbiter #(parameter CLIENTS=16)
     assign req_win_mask = ($countones(req) > 1) ? (req & win_mask_only) : req;  // only look at the req's if there is only one
 
     // find first set bit in both request and masked request; priority shifts
-    // down the bit vector, but returns to the to of the bit vector when no
+    // down the bit vector, but returns to the top of the bit vector when no
     // lower bits are set
-
-    assign {vld_ffs_req, req_location} = ffs(req_win_mask);
-    assign {vld_ffs_reqm, reqm_location} = ffs(req_masked);
-
-    leading_one_trailing_one 
+    leading_one_trailing_one
     #(.WIDTH (CLIENTS))
     u_req_leading_one_trailing_one(
-    	.data               (req_win_mask),
+        .data               (req_win_mask),
         .leadingone         (),
-        .leadingone_vector  (req_location_sg),
-        .trailingone        (),
+        .leadingone_vector  (),
+        .trailingone        (req_location),
         .trailingone_vector (),
         .all_zeroes         (),
-        .valid              (vld_ffs_req_sg)
+        .valid              (vld_ffs_req)
     );
 
-    leading_one_trailing_one 
+    leading_one_trailing_one
     #(.WIDTH (CLIENTS))
     u_reqm_leading_one_trailing_one(
-    	.data               (req_masked),
+        .data               (req_masked),
         .leadingone         (),
-        .leadingone_vector  (reqm_location_sg),
-        .trailingone        (),
+        .leadingone_vector  (),
+        .trailingone        (reqm_location),
         .trailingone_vector (),
         .all_zeroes         (),
-        .valid              (vld_ffs_reqm_sg)
+        .valid              (vld_ffs_reqm)
     );
-    
 
     // determine the winner--either the masked version (because a lower-priority
     // request was set) or the unmasked version (because we started over from
@@ -88,7 +83,7 @@ module round_robin_arbiter #(parameter CLIENTS=16)
             end
         else
             begin
-                winner = 16'd0;
+                winner = {{N{1'b0}}};
                 win_vld = 1'b0;
             end
     end
@@ -113,7 +108,7 @@ module round_robin_arbiter #(parameter CLIENTS=16)
         if (!rst_n)
             mask <= '0;
         else
-            mask <= ({(CLIENTS-1)'('d0), 1'b1} << winner)-1'b1;
+            mask <= ({(CLIENTS-1)'('d0), 1'b1} << winner) - 1'b1;
 
     // Register:  gnt
     //
@@ -130,30 +125,5 @@ module round_robin_arbiter #(parameter CLIENTS=16)
             end
         else
             gnt <= '0;
-
-    // =======================================================================
-    // Function
-
-    // Function:  ffs
-    // TODO: replace with leading one/trailing one module.
-    // Returns the first set bit starting with the most-significant bit.
-    // Format for return is { vld, location[ 15:0 ] }
-
-    function automatic logic [16:0] ffs(input logic [CLIENTS-1:0] vector);
-        logic vld;
-        logic [15:0] location;
-
-        vld = 1'b0;
-        location = 16'hffff;
-
-        for (int i = 0; i < CLIENTS; i++)
-            if (vector[i] == 1'b1)
-                begin
-                    vld = 1'b1;
-                    location = i[15:0];
-                end
-
-        return {vld, location};
-    endfunction
 
 endmodule : round_robin_arbiter
