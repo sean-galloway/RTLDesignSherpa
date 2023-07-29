@@ -21,6 +21,6 @@ module find_first_set
         return {location};
     endfunction
 
-    first_set_index = ffs(data);
+    assign first_set_index = ffs(data);
 
 endmodule : find_first_set
