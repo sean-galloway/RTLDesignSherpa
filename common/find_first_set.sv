@@ -4,10 +4,10 @@ module find_first_set
 #(parameter      int WIDTH = 32)
 (
     input  logic [WIDTH-1:0]         data,
-    output logic [$clog2(WIDTH)-1:0] first_set_index
+    output logic [$clog2(WIDTH):0] first_set_index
 );
 
-    localparam int N = $clog2(WIDTH);
+    localparam int N = $clog2(WIDTH)+1;
 
     function automatic logic [N-1:0] ffs(input logic [WIDTH-1:0] vector);
         logic [N-1:0] location;
