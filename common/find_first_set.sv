@@ -7,12 +7,12 @@ module find_first_set
     output logic [$clog2(WIDTH)-1:0] first_set_index
 );
 
-    localparameter int N = $clog2(WIDTH);
+    localparam int N = $clog2(WIDTH);
 
     function automatic logic [N-1:0] ffs(input logic [WIDTH-1:0] vector);
         logic [N-1:0] location;
 
-        location = '{N{1'b1}};
+        location = {{N{1'b1}}};
 
         for (int i = 0; i < CLIENTS; i++)
             if (vector[i] == 1'b1)
