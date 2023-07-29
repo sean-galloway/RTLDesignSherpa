@@ -23,4 +23,14 @@ module find_first_set
 
     assign index = ffs(data);
 
+    // always_comb begin
+    //     index = N-1; // Default value if no bit is set
+
+    //     for (int i = WIDTH - 1; i >= 0; i--) begin
+    //         if (data[i] == 1'b1) begin
+    //             index = i;
+    //         end
+    //     end
+    // end
+
 endmodule : find_first_set

@@ -23,4 +23,15 @@ module find_last_set
 
     assign index = fls(data);
 
+
+    // always_comb begin
+    //     index = N-1; // Default value if no bit is set
+
+    //     for (int i = 0; i < WIDTH; i++) begin
+    //         if (data[i] == 1'b1) begin
+    //             index = i;
+    //         end
+    //     end
+    // end
+
 endmodule : find_last_set

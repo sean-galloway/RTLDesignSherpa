@@ -171,3 +171,4 @@ sim.vvp
 .vscode/
 *.bkp
 *.dtmp
+reports/common/lint/

@@ -6,17 +6,17 @@ module weighted_round_robin
 #(  parameter MAX_THRESH = 8,
     parameter CLIENTS = 8)
 (
-    input  logic                                       clk,
-    input  logic                                       rst_n,
-    input  logic [CLIENTS-1:0][$clog2(MAX_THRESH)-1:0] max_thresh,
-    input  logic [CLIENTS-1:0]                         req,
-    output logic [CLIENTS-1:0]                         grant
+    input  logic                                        clk,
+    input  logic                                        rst_n,
+    input  logic [CLIENTS-1:0] [$clog2(MAX_THRESH)-1:0] max_thresh,
+    input  logic [CLIENTS-1:0]                          req,
+    output logic [CLIENTS-1:0]                          grant
 );
 
     // Define the combi signal and flops
-    logic [CLIENTS-1:0][$clog2(MAX_THRESH+1)-1:0]     crd_cnt;
-    logic [CLIENTS-1:0][$clog2(MAX_THRESH+1)-1:0]     crd_cnt_next;
-    logic [CLIENTS-1:0][$clog2(MAX_THRESH+1)-1:0]     crd_cnt_incr;
+    logic [CLIENTS-1:0] [$clog2(MAX_THRESH+1)-1:0]     crd_cnt;
+    logic [CLIENTS-1:0] [$clog2(MAX_THRESH+1)-1:0]     crd_cnt_next;
+    logic [CLIENTS-1:0] [$clog2(MAX_THRESH+1)-1:0]     crd_cnt_incr;
 
     logic [CLIENTS-1:0] has_crd;
     logic [CLIENTS-1:0] mask_req;
