@@ -34,7 +34,7 @@ module leading_one_trailing_one #(parameter WIDTH=8) (
             all_zeroes = 1;
         end
         else begin
-            leadingone = N - leading_zeros_count; // $clog2(N) - $clz(data);
+            leadingone = N - 1 - leading_zeros_count; // $clog2(N) - $clz(data);
             trailingone = first_set_index; // $ffs(data);
             all_zeroes = 0;
         end
