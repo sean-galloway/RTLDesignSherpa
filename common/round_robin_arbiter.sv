@@ -14,7 +14,7 @@ module round_robin_arbiter #(parameter CLIENTS=16)
 
     // =======================================================================
     // Declarations & Parameters
-    localparam  N = $clog2(CLIENTS);
+    localparam  N = $clog2(CLIENTS)+1;
 
     logic [CLIENTS-1:0] mask;
     logic [CLIENTS-1:0] win_mask_only;
