@@ -35,12 +35,12 @@ module barrel_shifter #(
     // Select the shifted value
     always_comb begin
         case (ctrl)
-            3'b000: data_out = data_in; // No shift
-            3'b001: data_out = (shift_amount_mod) ? data_in >>> shift_amount : data_in; // Logical Right Shift (no wrap)
-            3'b100: data_out = (shift_amount_mod) ? data_in << shift_amount : data_in; // Logical Left Shift (no wrap)
-            3'b010: data_out = $signed(data_in) >>> shift_amount_mod; // Arithmetic Right Shift
-            3'b011: data_out = array_rs[shift_amount_mod]; // riight shift wrap
-            3'b110: data_out = array_ls[shift_amount_mod]; // left shift wrap
+            3'b000:  data_out = data_in; // No shift
+            3'b001:  data_out = (shift_amount_mod) ? data_in >>> shift_amount : data_in; // Logical Right Shift (no wrap)
+            3'b100:  data_out = (shift_amount_mod) ? data_in << shift_amount : data_in; // Logical Left Shift (no wrap)
+            3'b010:  data_out = $signed(data_in) >>> shift_amount_mod; // Arithmetic Right Shift
+            3'b011:  data_out = array_rs[shift_amount_mod]; // riight shift wrap
+            3'b110:  data_out = array_ls[shift_amount_mod]; // left shift wrap
             default: data_out = data_in; // Default: No shift
         endcase
     end
