@@ -57,11 +57,11 @@ async def test_fifo(dut):
     hex_val = 0x1
     # Walk single 1, low to high
     for i in range(16):
-        hex_val = hex_val * 2
         print(f'Part 4: i={i}, hex={hex_val}')
         dec_val = int(hex_val)
         dut.data.value = dec_val
         await Timer(20, units="ns")
+        hex_val = hex_val * 2
 
     await Timer(200, units="ns")
 

@@ -2,6 +2,7 @@
 // I got the originl design from here:
 // https://chipress.online/2019/06/23/weighted-round-robin-arbiter/
 // I've made a bunch of changes since then, not all are tracked in git individually.
+// mada a number of tweaks to make arbitration more even and performant.
 module weighted_round_robin
 #(  parameter MAX_THRESH = 8,
     parameter CLIENTS = 8)

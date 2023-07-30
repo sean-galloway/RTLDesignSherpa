@@ -1,0 +1,26 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Sun Jul 30 03:56:58 2023
+[*]
+[dumpfile] "/home/sean/github/RTL_Design_Projects/common/common_tb/leading_one_trailing_one/dump.vcd"
+[dumpfile_mtime] "Sun Jul 30 03:55:03 2023"
+[dumpfile_size] 10730
+[savefile] "/home/sean/github/RTL_Design_Projects/common/common_tb/leading_one_trailing_one/debug.gtkw"
+[timestart] 109700
+[size] 3118 1216
+[pos] -1 -1
+*-14.428009 222100 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 233
+[signals_width] 222
+[sst_expanded] 1
+[sst_vpaned_height] 358
+@22
+leading_one_trailing_one.data[15:0]
+leading_one_trailing_one.leadingone[4:0]
+leading_one_trailing_one.leadingone_vector[15:0]
+leading_one_trailing_one.trailingone[4:0]
+leading_one_trailing_one.trailingone_vector[15:0]
+@28
+leading_one_trailing_one.valid
+[pattern_trace] 1
+[pattern_trace] 0
