@@ -1,0 +1,27 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Sun Jul 30 06:34:29 2023
+[*]
+[dumpfile] "/home/sean/github/RTL_Design_Projects/common/common_tb/barrel_shifter/dump.vcd"
+[dumpfile_mtime] "Sun Jul 30 06:29:55 2023"
+[dumpfile_size] 6977
+[savefile] "/home/sean/github/RTL_Design_Projects/common/common_tb/barrel_shifter/debug.gtkw"
+[timestart] 4326900
+[size] 2413 1246
+[pos] -1 -1
+*-15.870712 4660000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 233
+[signals_width] 285
+[sst_expanded] 1
+[sst_vpaned_height] 369
+@28
+barrel_shifter.ctrl[2:0]
+@22
+barrel_shifter.shift_amount[4:0]
+barrel_shifter.data_in[15:0]
+@23
+barrel_shifter.data_out[15:0]
+@22
+barrel_shifter.data_in_double[31:0]
+[pattern_trace] 1
+[pattern_trace] 0
