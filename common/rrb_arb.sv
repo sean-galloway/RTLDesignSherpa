@@ -7,9 +7,10 @@
 module rrb_arb
 #(  parameter CLIENTS = 8)
 (
-    input                     clk,
-    input                     rst_n,
-    input [CLIENTS-1:0]       req,
+    input  logic               clk,
+    input  logic               rst_n,
+    input  logic [CLIENTS-1:0] req,
+    input  logic               replenish,
     output logic [CLIENTS-1:0] grant
 );
 
@@ -17,6 +18,7 @@ module rrb_arb
     logic [CLIENTS-1:0] mask_req;
     logic [CLIENTS-1:0] raw_grant;
     logic [CLIENTS-1:0] mask_grant;
+    logic               select_raw;
     
     // mask update logic
     always_ff @(posedge clk or negedge rst_n)
@@ -37,13 +39,14 @@ module rrb_arb
     // masked requests
     assign mask_req = req & mask;
 
-    // grant for raw requests in case mask == 3'b000
+    // grant for raw requests in case mask == 'b0
     fixed_prio_arb #(CLIENTS) u_arb_raw  (.req(req), .grant(raw_grant));
     
-    // grant for masked requests in case mask != 3'b000
+    // grant for masked requests in case mask != 'b0
     fixed_prio_arb #(CLIENTS) u_arb_mask (.req(mask_req), .grant(mask_grant));
 
     // final grant
-    assign grant = (mask_req == {CLIENTS{1'b0}}) ? raw_grant : mask_grant;
+    assign select_raw = replenish || (mask_req == {CLIENTS{1'b0}});
+    assign grant = select_raw ? raw_grant : mask_grant;
 
 endmodule: rrb_arb

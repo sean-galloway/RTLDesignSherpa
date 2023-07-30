@@ -137,7 +137,7 @@ always_comb begin
     req_mask = {req_D_mask, req_C_mask, req_B_mask, req_A_mask};
 end
 
-assign request = (pwm_sig)? {4'b0000} : ($countones(req_orig)>1) ? req_orig : req_mask;
+assign request = ($countones(req_orig)>1) ? req_orig : req_mask;
 
 weighted_round_robin
 #(
@@ -147,8 +147,9 @@ weighted_round_robin
 weighted_round_robin_inst (
     .clk             (clk),
     .rst_n           (rst_n),
-    .max_thresh      ({4'b0100,4'b0011, 4'b0010, 4'b0001}),
+    .max_thresh      ({4'b0101,4'b0011, 4'b0010, 4'b0001}),
     .req             (request),
+    .block_arb       (pwm_sig),
     .grant           (grant)
 );
 

@@ -12,7 +12,7 @@ Arguably, the math related ones aren't useful other than to study.
 ### Arbiters
 These are all parameterized.
 * round_robin_arbiter.sv 
-* weighted_round_robin.sv 
+* weighted_round_robin.sv --> this is a good all around choice, just set the weights to all 1 for a simple round robin 
 * fixed_prio_arbiter.sv
 * rrb_arb.sv
 

@@ -7,6 +7,7 @@ module round_robin_arbiter #(parameter CLIENTS = 16)
 (
     input  logic               clk,
     input  logic               rst_n,
+    input  logic               block_arb,
 
     input  logic [CLIENTS-1:0] req,
     output logic [CLIENTS-1:0] gnt
@@ -16,6 +17,7 @@ module round_robin_arbiter #(parameter CLIENTS = 16)
     // Declarations & Parameters
     localparam N = $clog2(CLIENTS) + 1;
 
+    logic [CLIENTS-1:0] req_post;
     logic [CLIENTS-1:0] mask;
     logic [CLIENTS-1:0] win_mask_only;
     logic [N-1:0]       req_location;
@@ -31,8 +33,9 @@ module round_robin_arbiter #(parameter CLIENTS = 16)
 
     // =======================================================================
     // Logic
-    assign req_masked = req & mask;
-    assign req_win_mask = ($countones(req) > 1) ? (req & win_mask_only) : req;  // only look at the req's if there is only one
+    assign req_post = (block_arb) ? 'b0 : req;
+    assign req_masked = req_post & mask;
+    assign req_win_mask = ($countones(req) > 1) ? (req_post & win_mask_only) : req_post;  // only look at the req's if there is only one
 
     // find highest set bit in both request and masked request; priority shifts
     // down the bit vector, but returns to the top of the bit vector when no

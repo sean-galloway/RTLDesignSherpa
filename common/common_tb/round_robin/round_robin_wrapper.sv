@@ -137,17 +137,18 @@ always_comb begin
     req_mask = {req_D_mask, req_C_mask, req_B_mask, req_A_mask};
 end
 
-assign request = (pwm_sig)? {4'b0000} : ($countones(req_orig)>1) ? req_orig : req_mask;
+assign request = ($countones(req_orig)>1) ? req_orig : req_mask;
 
 round_robin_arbiter
 #(
     .CLIENTS (4)
 )
 u_round_robin_arbiter(
-    .clk     (clk),
-    .rst_n   (rst_n),
-    .req     (request),
-    .gnt     (grant)
+    .clk       (clk),
+    .rst_n     (rst_n),
+    .req       (request),
+    .block_arb (pwm_sig),
+    .gnt       (grant)
 );
 
 assign wr_data_E = grant[3] ? rd_data_D : grant[2] ? rd_data_C : grant[1] ? rd_data_B : rd_data_A;
