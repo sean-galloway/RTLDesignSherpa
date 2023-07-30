@@ -66,6 +66,7 @@ module bin_to_bcd #(
         end
     end
 
+    // Next State for the FSM and wire versions of the various control signals
     always_comb begin
 
         w_SM_Main = r_SM_Main;
