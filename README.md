@@ -9,10 +9,22 @@ My goal is to use all free tools in this project, but also prepare folks to work
     - Here are the extensions I use, these may evolve over time: ctags, GitLens, Makefile Tools, Pylance, Python, SystemVerilog0Language Support, TerosHDL, TODO Highlight, Verilog-HDL/SystemVerilog/BlueSpec SystemVerilog, Code Spell Checker.
 - Icarus verilog; this is a nice free verilog simulator. It outputs messages and a vcd file.
 - GTKWave - this is very good at viewing the vcd files. I will try to have a <block_name>.gktw file for each testbench so one can see the signals that I think are important and how I've structured them.
+- verible - for linting and style checking
 - Within Python here are the main usages:
     - Automation where required. I haven't used it yet, but I'm sure I will.
     - CocoTB- this links Python to Icarus verilog runs. I have a makefile with each testbench. The commands I use are: make clean then I just run make
     - PyUVM, this is a port of the UVM standard from SystemVerilog to Python. Everyone in the industry uses UVM. I plan to have a robust UVM Testbench for each block that I design. I'm learning the UVM vernacular myself so, this is a process.
     - LogiSim- I'm using this in Windows. I will try to have a LogiSim version for each of the common files. It may get to be too much as the projects get bigger. I'm new to LogiSim, so this will be a process.
     - Draw.io- I'm using this in windows. I plan to mostly use this for the UML diagrams for the testbenches. I'm used to Visio, so it will be a learning curve getting productive with this tool.
+
+# Style Guide
+This is not the place for this, but I am documenting it for myself while I sort out the various documentation resources. These rules are short and simple to keep them easy to be adhered to Note: some naming convention documents are 30+ pages long. For this forum, I want to keep it simple. You can follow (or not) if you like. Be aware some of the tools that I have developed key off of the naming convention.
+- Module names are snake case
+- Signal names a snake case
+- Parameter names are all caps
+- Input ports all begin with i_ or iw_. It is assumed all inputs come directly from flops. In the rare cases where that does not occur, the iw_ signifier is used (w meaning wire.)
+- Output ports all begin with o_ or ow_. It is assumed all outputs come directly from flops. In the rare cases where that does not occur, the ow_ signifier is used (w meaning wire.)
+- All register signals (flops) start with r_.
+- All wire signals start with w_.
+Note: I was not going to have a strict naming convention. I started exploring automation to create wavedrom diagrams from the existing vcd and gktw files. I want to put a phase of 0.2 on flopped signals (to represent tCO), and 0.8 on wire signals to show artificially large propagation delays. Without the naming convention, none of this can be automated by one person working on a side project like this.
 
