@@ -67,21 +67,16 @@ module sync_fifo#(
     end
 
 	/////////////////////////////////////////////////////////////////////////
-    // Full logic
+    // Full and Empty signals
     assign ow_wr_full = (w_ptr_xor && (r_wr_ptr_bin[AW-1:0] == r_rd_ptr_bin[AW-1:0]));
+    assign ow_rd_empty = (!w_ptr_xor && (r_rd_ptr_bin[AW-1:0] == r_wr_ptr_bin[AW-1:0]));
 
 	/////////////////////////////////////////////////////////////////////////
-    // Almost full logic
+    // Almost Full/Empty logic
     assign w_almost_full_count = (w_ptr_xor) ?  {(D - r_rd_ptr_bin[AW-1:0]) - r_wr_ptr_bin[AW-1:0]} : 
                                                 {r_wr_ptr_bin[AW-1:0] - r_rd_ptr_bin[AW-1:0]};
     assign ow_wr_almost_full = w_almost_full_count >= AFT;
 
-	/////////////////////////////////////////////////////////////////////////
-    // Empty logic
-    assign ow_rd_empty = (!w_ptr_xor && (r_rd_ptr_bin[AW-1:0] == r_wr_ptr_bin[AW-1:0]));
-
-	/////////////////////////////////////////////////////////////////////////
-    // Almost empty logic
     assign w_almost_empty_count = (w_ptr_xor) ? {(D - r_rd_ptr_bin[AW-1:0]) - r_wr_ptr_bin[AW-1:0]} : 
                                                 {r_wr_ptr_bin[AW-1:0] - r_rd_ptr_bin[AW-1:0]};
     assign ow_rd_almost_empty = (w_almost_empty_count > 0) ? w_almost_empty_count <= AET : 'b0;

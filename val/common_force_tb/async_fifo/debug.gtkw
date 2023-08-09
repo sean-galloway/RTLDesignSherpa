@@ -1,0 +1,56 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Sat Aug  5 16:05:36 2023
+[*]
+[dumpfile] "/home/sean/github/RTL_Design_Projects/common/common_force_tb/async_fifo/dump.vcd"
+[dumpfile_mtime] "Sat Aug  5 15:58:10 2023"
+[dumpfile_size] 54827
+[savefile] "/home/sean/github/RTL_Design_Projects/common/common_force_tb/async_fifo/debug.gtkw"
+[timestart] 0
+[size] 2422 1015
+[pos] -1 -1
+*-17.202055 520000 80000 260000 520000 880000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[markername] AWrite Start
+[markername] BWrite End
+[markername] CRead Start
+[markername] DRead End
+[treeopen] async_fifo.
+[sst_width] 233
+[signals_width] 268
+[sst_expanded] 1
+[sst_vpaned_height] 294
+@200
+-Write Port
+-sample_rate=10ns
+@28
+async_fifo.i_wr_clk
+async_fifo.i_write
+@22
+async_fifo.i_wr_data[7:0]
+@28
+async_fifo.ow_wr_full
+@29
+async_fifo.ow_wr_almost_full
+@22
+async_fifo.r_wr_ptr_bin[3:0]
+async_fifo.w_wdom_rd_ptr_bin[3:0]
+async_fifo.r_wr_ptr_gray[3:0]
+async_fifo.r_wdom_rd_ptr_gray[3:0]
+@200
+-Read Port
+-sample_rate=20ns
+@28
+async_fifo.i_rd_clk
+async_fifo.i_read
+@22
+async_fifo.ow_rd_data[7:0]
+@28
+async_fifo.ow_rd_empty
+async_fifo.ow_rd_almost_empty
+@22
+async_fifo.r_rd_ptr_bin[3:0]
+async_fifo.w_rdom_wr_ptr_bin[3:0]
+async_fifo.r_rd_ptr_gray[3:0]
+async_fifo.r_rdom_wr_ptr_gray[3:0]
+[pattern_trace] 1
+[pattern_trace] 0

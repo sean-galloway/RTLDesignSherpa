@@ -175,3 +175,4 @@ reports/common/lint/
 ./vcd2wavedrom
 known_good/
 junk
+vcd2wavedrom
