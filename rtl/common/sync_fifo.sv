@@ -1,5 +1,6 @@
 `timescale 1ns / 1ps
 
+// Parameterized Synchronous FIFO -- This works with any depth
 module sync_fifo#(
         parameter DATA_WIDTH = 4,
         parameter DEPTH = 4,

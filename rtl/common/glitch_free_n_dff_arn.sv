@@ -24,6 +24,6 @@ module glitch_free_n_dff_arn #( parameter FLOP_COUNT = 3,
         end
     end
 
-    assign o_q = r_q_array[FC-1];
+    assign #1 o_q = r_q_array[FC-1];
 
 endmodule : glitch_free_n_dff_arn

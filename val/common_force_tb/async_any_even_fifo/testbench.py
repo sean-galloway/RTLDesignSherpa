@@ -16,7 +16,7 @@ async def write_fifo(dut, data, delay_between_writes=0):
 
     while data_sent != data_len:
         idx = data_sent
-        dut._log.info(f"Got Falling Edge of i_wr_clk (Iteration {idx}). Checking if FIFO full...")
+        # dut._log.info(f"Got Falling Edge of i_wr_clk (Iteration {idx}). Checking if FIFO full...")
 
         while dut.ow_wr_full.value == 0 and (data_sent != data_len):
             value = data[data_sent]
@@ -36,7 +36,7 @@ async def write_fifo(dut, data, delay_between_writes=0):
                 dut._log.error("Timeout during write!")
                 return
 
-        dut._log.info(f"FIFO is full. Waiting for next clock cycle (Iteration {idx})...")
+        # dut._log.info(f"FIFO is full. Waiting for next clock cycle (Iteration {idx})...")
         dut.i_write.value = 0
         dut.i_wr_data.value = 0
         await FallingEdge(dut.i_wr_clk)
@@ -109,7 +109,7 @@ async def fifo_test(dut):
     dut.i_rd_rst_n.value = 1
 
     width = 8
-    depth = 8
+    depth = 10
     iterations = 100
     delay_between_iterations = 20
 
