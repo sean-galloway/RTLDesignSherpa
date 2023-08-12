@@ -8,15 +8,15 @@ module sync_fifo#(
         parameter ALMOST_RD_MARGIN = 1,
         parameter INSTANCE_NAME = "DEADF1F0"
     ) (
-    input wire i_clk, i_rst_n,
-    input wire i_write,
-    input wire [DATA_WIDTH-1:0] i_wr_data,
-    output reg ow_wr_full,
-    output reg ow_wr_almost_full,
-    input wire i_read,
-    output wire [DATA_WIDTH-1:0] ow_rd_data,
-    output reg ow_rd_empty,
-    output reg ow_rd_almost_empty
+    input  logic                  i_clk, i_rst_n,
+    input  logic                  i_write,
+    input  logic [DATA_WIDTH-1:0] i_wr_data,
+    output logic                  ow_wr_full,
+    output logic                  ow_wr_almost_full,
+    input  logic                  i_read,
+    output logic [DATA_WIDTH-1:0] ow_rd_data,
+    output logic                  ow_rd_empty,
+    output logic                  ow_rd_almost_empty
 );
 
     localparam DW = DATA_WIDTH;
@@ -28,7 +28,7 @@ module sync_fifo#(
     localparam AET = AEMPTY;
 
 	/////////////////////////////////////////////////////////////////////////
-    // local wires/register signals
+    // local logics/register signals
     logic [AW-1:0] r_wr_addr, r_rd_addr, r_pre_wr_addr;
     logic [AW:0]   r_wr_ptr_bin, r_rd_ptr_bin;
     logic          w_ptr_xor;
@@ -86,7 +86,7 @@ module sync_fifo#(
     // error checking
     // synopsys translate_off
     // Generate a version of the memory for waveforms
-    wire [(DW*DEPTH)-1:0] flat_r_mem;
+    logic [(DW*DEPTH)-1:0] flat_r_mem;
     genvar i;
     generate
         for (i = 0; i < DEPTH; i = i+1)

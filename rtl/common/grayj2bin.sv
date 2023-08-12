@@ -41,13 +41,4 @@ module grayj2bin #(parameter JCW=10, parameter WIDTH=4, parameter INSTANCE_NAME=
     assign ow_binary[WIDTH-1]   = i_gray[JCW-1];  // Wrap bit
     assign ow_binary[WIDTH-2:0] = binary[WIDTH-2:0];
 
-    // always_ff @(posedge i_clk or negedge i_rst_n) begin
-    //     if (!i_rst_n)
-    //         ow_binary <= 'b0;
-    //     else begin
-    //         ow_binary[WIDTH-1]   <= i_gray[JCW-1];  // Wrap bit
-    //         ow_binary[WIDTH-2:0] <= binary[WIDTH-2:0];
-    //     end
-    // end
-
 endmodule : grayj2bin

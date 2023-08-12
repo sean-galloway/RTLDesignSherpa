@@ -10,17 +10,17 @@ module async_any_even_fifo #(
     parameter INSTANCE_NAME = "DEADF1F0"
 )(
     // clocks and resets
-    input wire i_wr_clk, i_wr_rst_n, i_rd_clk, i_rd_rst_n,
+    input logic i_wr_clk, i_wr_rst_n, i_rd_clk, i_rd_rst_n,
     // i_wr_clk domain
-    input wire i_write,
-    input wire [DATA_WIDTH-1:0] i_wr_data,
-    output reg ow_wr_full,
-    output reg ow_wr_almost_full,
+    input logic i_write,
+    input logic [DATA_WIDTH-1:0] i_wr_data,
+    output logic ow_wr_full,
+    output logic ow_wr_almost_full,
     // i_rd_clk domain
-    input wire i_read,
-    output wire [DATA_WIDTH-1:0] ow_rd_data,
-    output reg ow_rd_empty,
-    output reg ow_rd_almost_empty
+    input logic i_read,
+    output logic [DATA_WIDTH-1:0] ow_rd_data,
+    output logic ow_rd_empty,
+    output logic ow_rd_almost_empty
 );
 
     localparam DW = DATA_WIDTH;
@@ -34,7 +34,7 @@ module async_any_even_fifo #(
     localparam AET = AEMPTY;
 
 	/////////////////////////////////////////////////////////////////////////
-    // local wires
+    // local logics
     logic [AW-1:0]   r_wr_addr, r_rd_addr;
 
     logic [JCW-1:0]  r_wr_ptr_gray, r_wdom_rd_ptr_gray, r_rd_ptr_gray, r_rdom_wr_ptr_gray; // these are all based on the Johnson Counter
@@ -43,7 +43,7 @@ module async_any_even_fifo #(
 	logic [AW-1:0]   w_almost_full_count,  w_almost_empty_count;
     logic            w_wdom_ptr_xor, w_rdom_ptr_xor;
 
-    // The flop storage registers
+    // The flop storage logicisters
     logic [DW-1:0] r_mem [0:((1<<AW)-1)];
 
 	/////////////////////////////////////////////////////////////////////////
@@ -120,7 +120,7 @@ module async_any_even_fifo #(
 	/////////////////////////////////////////////////////////////////////////
     // Error checking and debug stuff
     // synopsys translate_off
-    wire [(DW*DEPTH)-1:0] flat_r_mem;
+    logic [(DW*DEPTH)-1:0] flat_r_mem;
     genvar i;
     generate
         for (i = 0; i < DEPTH; i = i+1)

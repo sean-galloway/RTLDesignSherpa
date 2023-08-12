@@ -1,7 +1,7 @@
 CWD=$(shell pwd)
 COCOTB_REDUCED_LOG_FMT = True
 SIM ?= icarus
-SIM_ARGS=-v -l log.txt
+SIM_ARGS=-v 
 
 VERILOG_INCLUDE_DIRS = $(CWD)/../../../rtl/common
 VERILOG_SOURCES = \
