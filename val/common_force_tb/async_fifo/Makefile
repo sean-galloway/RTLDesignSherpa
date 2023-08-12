@@ -5,8 +5,7 @@ SIM_ARGS=-v
 
 VERILOG_INCLUDE_DIRS = $(CWD)/../../../rtl/common
 VERILOG_SOURCES = \
-					$(CWD)/../../../rtl/common/counter_bin.sv \
-					$(CWD)/../../../rtl/common/counter_gray.sv \
+					$(CWD)/../../../rtl/common/counter_bingray.sv \
 					$(CWD)/../../../rtl/common/gray2bin.sv \
 					$(CWD)/../../../rtl/common/glitch_free_n_dff_arn.sv \
 					$(CWD)/../../../rtl/common/async_fifo.sv

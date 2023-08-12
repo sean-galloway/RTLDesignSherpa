@@ -39,7 +39,6 @@ module async_fifo #(
     logic [AW:0]   r_wr_ptr_gray, r_wdom_rd_ptr_gray, r_rd_ptr_gray, r_rdom_wr_ptr_gray;
     logic [AW:0]   r_wr_ptr_bin,  w_wdom_rd_ptr_bin,  r_rd_ptr_bin,  w_rdom_wr_ptr_bin;
 
-	logic [1:0]    w_almost_full_select, w_almost_empty_select;
 	logic [AW-1:0] w_almost_full_count,  w_almost_empty_count;
     logic          w_wdom_ptr_xor, w_rdom_ptr_xor;
 
@@ -47,23 +46,13 @@ module async_fifo #(
     logic [DW-1:0] r_mem [0:((1<<AW)-1)];
 
 	/////////////////////////////////////////////////////////////////////////
-    // Instantiate the binary counters for write and read pointers
-    counter_bin #(.WIDTH(AW+1)) wr_ptr_counter_bin (
-        .i_clk(i_wr_clk), .i_rst_n(i_wr_rst_n), .i_enable(i_write && !ow_wr_full), .o_counter_bin(r_wr_ptr_bin)
+    // Instantiate the bin and gray counters for write and read pointers
+    counter_bingray #(.WIDTH(AW+1)) wr_ptr_counter_gray (
+        .i_clk(i_wr_clk), .i_rst_n(i_wr_rst_n), .i_enable(i_write && !ow_wr_full), .o_counter_bin(r_wr_ptr_bin), .o_counter_gray(r_wr_ptr_gray)
     );
 
-    counter_bin #(.WIDTH(AW+1)) rd_ptr_counter_bin (
-        .i_clk(i_rd_clk), .i_rst_n(i_rd_rst_n), .i_enable(i_read && !ow_rd_empty), .o_counter_bin(r_rd_ptr_bin)
-    );
-
-	/////////////////////////////////////////////////////////////////////////
-    // Instantiate the gray counters for write and read pointers
-    counter_gray #(.WIDTH(AW+1)) wr_ptr_counter_gray (
-        .i_clk(i_wr_clk), .i_rst_n(i_wr_rst_n), .i_enable(i_write && !ow_wr_full), .o_counter_gray(r_wr_ptr_gray)
-    );
-
-    counter_gray #(.WIDTH(AW+1)) rd_ptr_counter_gray (
-        .i_clk(i_rd_clk), .i_rst_n(i_rd_rst_n), .i_enable(i_read && !ow_rd_empty), .o_counter_gray(r_rd_ptr_gray)
+    counter_bingray #(.WIDTH(AW+1)) rd_ptr_counter_gray (
+        .i_clk(i_rd_clk), .i_rst_n(i_rd_rst_n), .i_enable(i_read && !ow_rd_empty), .o_counter_bin(r_rd_ptr_bin), .o_counter_gray(r_rd_ptr_gray)
     );
 
 	/////////////////////////////////////////////////////////////////////////
