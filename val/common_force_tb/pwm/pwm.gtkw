@@ -1,0 +1,53 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Mon Jul 10 11:15:01 2023
+[*]
+[dumpfile] "/home/sean/github/RTL_Design_Projects/common/common_tb/pwm/dump.vcd"
+[dumpfile_mtime] "Mon Jul 10 06:56:53 2023"
+[dumpfile_size] 9830
+[savefile] "/home/sean/github/RTL_Design_Projects/common/common_tb/pwm/pwm.gtkw"
+[timestart] 0
+[size] 2076 833
+[pos] -1 -1
+*-15.306004 70000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] pwm.
+[sst_width] 233
+[signals_width] 210
+[sst_expanded] 1
+[sst_vpaned_height] 227
+@28
+pwm.clk
+pwm.rst_n
+pwm.start
+pwm.done_lcc_re
+pwm.pwm_sig
+@22
+pwm.high_count[4:0]
+pwm.low_count[4:0]
+@28
+pwm.done
+pwm.done_d
+@22
+pwm.repeat_count[4:0]
+pwm.repeated_q[4:0]
+@100000028
+pwm.current_state[4:0]
+@22
+pwm.repeated_q[4:0]
+pwm.repeated_d[4:0]
+@200
+-LCC
+@28
+pwm.u_load_clear_counter.clk
+pwm.u_load_clear_counter.rst_n
+pwm.u_load_clear_counter.load
+@22
+pwm.u_load_clear_counter.loadval[4:0]
+pwm.u_load_clear_counter.match_val[4:0]
+@28
+pwm.u_load_clear_counter.increment
+pwm.u_load_clear_counter.done
+@23
+pwm.u_load_clear_counter.count[4:0]
+[pattern_trace] 1
+[pattern_trace] 0
