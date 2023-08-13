@@ -1,7 +1,7 @@
 CWD=$(shell pwd)
 COCOTB_REDUCED_LOG_FMT = True
 SIM ?= icarus
-VERILOG_INCLUDE_DIRS = $(CWD)/../../../common
+VERILOG_INCLUDE_DIRS = $(CWD)/../../../rtl/common
 VERILOG_SOURCES =\
 					../../../rtl/common/barrel_shifter.sv
 DUT = barrel_shifter

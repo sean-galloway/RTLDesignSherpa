@@ -1,14 +1,14 @@
 `timescale 1ns / 1ps
 
 module leading_one_trailing_one #(parameter WIDTH=8, parameter INSTANCE_NAME="") (
-    input  logic [WIDTH-1:0]           data,
-    output logic [$clog2(WIDTH):0]     leadingone,
-    output logic [WIDTH-1:0]           leadingone_vector,
-    output logic [$clog2(WIDTH):0]     trailingone,
-    output logic [WIDTH-1:0]           trailingone_vector,
-    output logic                       all_zeroes,
-    output logic                       all_ones,
-    output logic                       valid
+    input  logic [WIDTH-1:0]           i_data,
+    output logic [$clog2(WIDTH):0]     ow_leadingone,
+    output logic [WIDTH-1:0]           ow_leadingone_vector,
+    output logic [$clog2(WIDTH):0]     ow_trailingone,
+    output logic [WIDTH-1:0]           ow_trailingone_vector,
+    output logic                       ow_all_zeroes,
+    output logic                       ow_all_ones,
+    output logic                       ow_valid
 );
 
     localparam  N = $clog2(WIDTH)+1;
@@ -18,26 +18,26 @@ module leading_one_trailing_one #(parameter WIDTH=8, parameter INSTANCE_NAME="")
 
     find_first_set #(.WIDTH(WIDTH), .INSTANCE_NAME(INSTANCE_NAME))
     u_find_first_set(
-        .data   (data),
-        .index  (leadingone)
+        .i_data    (i_data),
+        .ow_index  (ow_leadingone)
     );
 
     find_last_set #(.WIDTH(WIDTH), .INSTANCE_NAME(INSTANCE_NAME))
     u_find_last_set (
-        .data  (data),
-        .index (trailingone)
+        .i_data   (i_data),
+        .ow_index (ow_trailingone)
     );
 
     always_comb begin
-        leadingone_vector = '0;
-        leadingone_vector[leadingone - 1] = 1'b1;   // Subtract 1 to convert to 0-based index
-        trailingone_vector = '0;
-        trailingone_vector[trailingone - 1] = 1'b1; // Subtract 1 to convert to 0-based index
+        ow_leadingone_vector = '0;
+        ow_leadingone_vector[ow_leadingone - 1] = 1'b1;   // Subtract 1 to convert to 0-based index
+        ow_trailingone_vector = '0;
+        ow_trailingone_vector[ow_trailingone - 1] = 1'b1; // Subtract 1 to convert to 0-based index
     end
 
-    assign all_ones   = &data;
-    assign all_zeroes = ~(|data);
-    assign valid      = |data;
+    assign ow_all_ones   = &i_data;
+    assign ow_all_zeroes = ~(|i_data);
+    assign ow_valid      = |i_data;
 
 	// synopsys translate_off
 	// initial begin

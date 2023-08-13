@@ -1,16 +1,17 @@
 `timescale 1ns / 1ps
 
 module grayj2bin #(parameter JCW=10, parameter WIDTH=4, parameter INSTANCE_NAME="") (
-    input wire i_clk,
-    input wire i_rst_n,
-    input  logic [JCW-1:0] i_gray,    // Width is DEPTH
+    input  logic             i_clk,
+    input  logic             i_rst_n,
+    input  logic [JCW-1:0]   i_gray,    // Width is DEPTH
     output logic [WIDTH-1:0] ow_binary  // Including the wrap bit
 );
 
     localparam  N = $clog2(JCW)+1;
 
-    logic [N-1:0]      leadingone, trailingone;
-    logic [WIDTH-1:0]  binary;
+    logic [N-1:0]      w_leadingone, w_trailingone;
+    logic [WIDTH-1:0]  w_binary;
+    logic              w_all_zeroes, w_all_ones, w_valid;
 
     leading_one_trailing_one 
     #(
@@ -18,27 +19,27 @@ module grayj2bin #(parameter JCW=10, parameter WIDTH=4, parameter INSTANCE_NAME=
         .INSTANCE_NAME(INSTANCE_NAME)
     )
     u_leading_one_trailing_one(
-        .data               (i_gray             ),
-        .leadingone         (leadingone         ),
-        .leadingone_vector  (  ),
-        .trailingone        (trailingone        ),
-        .trailingone_vector ( ),
-        .all_zeroes         (all_zeroes         ),
-        .all_ones           (all_ones           ),
-        .valid              (valid              )
+        .i_data                (i_gray             ),
+        .ow_leadingone         (w_leadingone         ),
+        .ow_leadingone_vector  (  ),
+        .ow_trailingone        (w_trailingone        ),
+        .ow_trailingone_vector ( ),
+        .ow_all_zeroes         (w_all_zeroes         ),
+        .ow_all_ones           (w_all_ones           ),
+        .ow_valid              (w_valid              )
     );
 
     always_comb begin
-        if (all_zeroes || all_ones) 
-            binary = {WIDTH-1{1'b0}};
+        if (w_all_zeroes || w_all_ones) 
+            w_binary = {WIDTH-1{1'b0}};
         else if (i_gray[JCW-1] == 1'b1)
-            binary = leadingone;
+            w_binary = w_leadingone;
         else begin
-            binary = trailingone + 1;
+            w_binary = w_trailingone + 1;
         end
     end
 
     assign ow_binary[WIDTH-1]   = i_gray[JCW-1];  // Wrap bit
-    assign ow_binary[WIDTH-2:0] = binary[WIDTH-2:0];
+    assign ow_binary[WIDTH-2:0] = w_binary[WIDTH-2:0];
 
 endmodule : grayj2bin

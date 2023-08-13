@@ -32,8 +32,8 @@
 module find_first_set
 #(parameter      int WIDTH = 32, parameter INSTANCE_NAME="")
 (
-    input  logic [WIDTH-1:0]         data,
-    output logic [$clog2(WIDTH):0]   index
+    input  logic [WIDTH-1:0]         i_data,
+    output logic [$clog2(WIDTH):0]   ow_index
 );
 
     localparam int N = $clog2(WIDTH)+1;
@@ -54,7 +54,7 @@ module find_first_set
     endfunction
 
     always_comb begin
-        index = find_set_index(data);
+        ow_index = find_set_index(i_data);
         // $display("FFS: %s, %h, %t", INSTANCE_NAME, data, $time);
     end
 
