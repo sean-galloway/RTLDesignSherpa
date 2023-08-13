@@ -16,15 +16,15 @@ logic        pwm_sig, done;
 logic [10:0] count;
 logic [N-1:0]  request, grant;
 
-sync_fifo
+fifo_sync
 #(
     .DATA_WIDTH       (8),
     .DEPTH            (16),
     .ALMOST_WR_MARGIN (1),
     .ALMOST_RD_MARGIN (1),
-    .INSTANCE_NAME("u_sync_fifo_A")
+    .INSTANCE_NAME("u_fifo_sync_A")
 )
-u_sync_fifo_A (
+u_fifo_sync_A (
     .i_clk              (i_clk),
     .i_rst_n            (i_rst_n),
     .i_write            (i_write_A),
@@ -37,15 +37,15 @@ u_sync_fifo_A (
     .ow_rd_almost_empty (ow_rd_almost_empty_A)
 );
 
-sync_fifo
+fifo_sync
 #(
     .DATA_WIDTH       (8),
     .DEPTH            (8),
     .ALMOST_WR_MARGIN (1),
     .ALMOST_RD_MARGIN (1),
-    .INSTANCE_NAME("u_sync_fifo_B")
+    .INSTANCE_NAME("u_fifo_sync_B")
 )
-u_sync_fifo_B (
+u_fifo_sync_B (
     .i_clk              (i_clk),
     .i_rst_n            (i_rst_n),
     .i_write            (i_write_B),
@@ -58,15 +58,15 @@ u_sync_fifo_B (
     .ow_rd_almost_empty (ow_rd_almost_empty_B)
 );
 
-sync_fifo
+fifo_sync
 #(
     .DATA_WIDTH       (8),
     .DEPTH            (4),
     .ALMOST_WR_MARGIN (1),
     .ALMOST_RD_MARGIN (1),
-    .INSTANCE_NAME("u_sync_fifo_C")
+    .INSTANCE_NAME("u_fifo_sync_C")
 )
-u_sync_fifo_C (
+u_fifo_sync_C (
     .i_clk              (i_clk),
     .i_rst_n            (i_rst_n),
     .i_write            (i_write_C),
@@ -79,15 +79,15 @@ u_sync_fifo_C (
     .ow_rd_almost_empty (ow_rd_almost_empty_C)
 );
 
-sync_fifo
+fifo_sync
 #(
     .DATA_WIDTH       (8),
     .DEPTH            (4),
     .ALMOST_WR_MARGIN (1),
     .ALMOST_RD_MARGIN (1),
-    .INSTANCE_NAME("u_sync_fifo_D")
+    .INSTANCE_NAME("u_fifo_sync_D")
 )
-u_sync_fifo_D (
+u_fifo_sync_D (
     .i_clk              (i_clk),
     .i_rst_n            (i_rst_n),
     .i_write            (i_write_D),
@@ -139,11 +139,11 @@ end
 
 assign request = ($countones(req_orig)>1) ? req_orig : req_mask;
 
-round_robin_arbiter
+arbiter_round_robin
 #(
     .CLIENTS (4)
 )
-u_round_robin_arbiter(
+u_arbiter_round_robin (
     .i_clk       (i_clk),
     .i_rst_n     (i_rst_n),
     .i_req       (request),
@@ -154,15 +154,15 @@ u_round_robin_arbiter(
 assign i_wr_data_E = grant[3] ? ow_rd_data_D : grant[2] ? ow_rd_data_C : grant[1] ? ow_rd_data_B : ow_rd_data_A;
 assign i_write_E = |grant;
 
-sync_fifo
+fifo_sync
 #(
     .DATA_WIDTH       (8),
     .DEPTH            (4),
     .ALMOST_WR_MARGIN (1),
     .ALMOST_RD_MARGIN (1),
-    .INSTANCE_NAME("u_sync_fifo_E")
+    .INSTANCE_NAME("u_fifo_sync_E")
 )
-u_sync_fifo_E (
+u_fifo_sync_E (
     .i_clk              (i_clk),
     .i_rst_n            (i_rst_n),
     .i_write            (i_write_E),

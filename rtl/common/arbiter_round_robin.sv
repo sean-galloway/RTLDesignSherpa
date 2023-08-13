@@ -3,7 +3,7 @@
 // Mostly based on code from this github:
 // https://github.com/gsw73/ffs_arbiter/blob/master/design.sv
 // I made a couple of tweaks myself to make it more efficient if only one agent is requesting
-module round_robin_arbiter #(parameter CLIENTS = 16)
+module arbiter_round_robin #(parameter CLIENTS = 16)
 (
     input  logic               i_clk,
     input  logic               i_rst_n,
@@ -122,4 +122,4 @@ module round_robin_arbiter #(parameter CLIENTS = 16)
         else
             o_gnt <= '0;
 
-endmodule : round_robin_arbiter
+endmodule : arbiter_round_robin

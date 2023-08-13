@@ -4,11 +4,11 @@ SIM ?= icarus
 VERILOG_INCLUDE_DIRS = $(CWD)/../../../rtl/common
 VERILOG_SOURCES =\
 					../../../rtl/common/counter_bin.sv \
-					../../../rtl/common/sync_fifo.sv \
+					../../../rtl/common/fifo_sync.sv \
 					../../../rtl/common/find_first_set.sv \
 					../../../rtl/common/find_last_set.sv \
 					../../../rtl/common/leading_one_trailing_one.sv \
-					../../../rtl/common/round_robin_arbiter.sv \
+					../../../rtl/common/arbiter_round_robin.sv \
 					../../../rtl/common/pwm.sv \
 					round_robin_wrapper.sv
 DUT = round_robin_wrapper
