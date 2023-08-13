@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 // Paramerized Asynchronous FIFO -- This only works for power of two depths
-module async_fifo #(
+module fifo_async #(
     parameter DATA_WIDTH = 8,
     parameter DEPTH = 16,
     parameter N_FLOP_CROSS = 2,
@@ -132,8 +132,8 @@ module async_fifo #(
 
     initial begin
         $dumpfile("dump.vcd");
-        $dumpvars(0, async_fifo);
+        $dumpvars(0, fifo_async);
     end
     // synopsys translate_on
 
-endmodule : async_fifo
+endmodule : fifo_async

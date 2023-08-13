@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 // Parameterized Synchronous FIFO -- This works with any depth
-module sync_fifo#(
+module fifo_sync #(
         parameter DATA_WIDTH = 4,
         parameter DEPTH = 4,
         parameter ALMOST_WR_MARGIN = 1,
@@ -111,8 +111,8 @@ module sync_fifo#(
 
     initial begin
         $dumpfile("dump.vcd");
-        $dumpvars(0, sync_fifo);
+        $dumpvars(0, fifo_sync);
     end
     // synopsys translate_on
 
-endmodule : sync_fifo
+endmodule : fifo_sync

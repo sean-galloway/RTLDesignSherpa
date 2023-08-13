@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 // Paramerized Asynchronous FIFO -- This works for any even depth
-module async_any_even_fifo #(
+module fifo_async_any_even #(
     parameter DATA_WIDTH = 8,
     parameter DEPTH = 10,
     parameter N_FLOP_CROSS = 2,
@@ -143,8 +143,8 @@ module async_any_even_fifo #(
 
     initial begin
         $dumpfile("dump.vcd");
-        $dumpvars(0, async_any_even_fifo);
+        $dumpvars(0, fifo_async_any_even);
     end
     // // synopsys translate_on
 
-endmodule : async_any_even_fifo
+endmodule : fifo_async_any_even
