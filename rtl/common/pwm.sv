@@ -1,11 +1,11 @@
 `timescale 1ns / 1ps
 
 module pwm #(parameter WIDTH=8)(
-    input                     i_clk, i_rst_n,   // clock and reset
-    input                     i_start,          // i_start the pwm
-    input [WIDTH-1:0]         i_duty,           // max count for keeping PWM high
-    input [WIDTH-1:0]         i_period,         // max total count
-    input [WIDTH-1:0]         i_repeat_count,   // repeat the counter
+    input  logic              i_clk, i_rst_n,   // clock and reset
+    input  logic              i_start,          // i_start the pwm
+    input  logic [WIDTH-1:0]  i_duty,           // max count for keeping PWM high
+    input  logic [WIDTH-1:0]  i_period,         // max total count
+    input  logic [WIDTH-1:0]  i_repeat_count,   // repeat the counter
     output logic              ow_done,
     output logic              o_pmw             // done and the pwm signal
 );
