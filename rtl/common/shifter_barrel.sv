@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module barrel_shifter #(
+module shifter_barrel #(
     parameter int WIDTH = 8
 ) (
     input logic [WIDTH-1:0]             i_data,         // Input data
@@ -48,9 +48,9 @@ module barrel_shifter #(
 	// synopsys translate_off
 	initial begin
 		$dumpfile("dump.vcd");
-		$dumpvars(0, barrel_shifter);
+		$dumpvars(0, shifter_barrel);
 	end
 	// synopsys translate_on
 
-endmodule : barrel_shifter
+endmodule : shifter_barrel
 

@@ -2,16 +2,13 @@ CWD=$(shell pwd)
 COCOTB_REDUCED_LOG_FMT = True
 SIM ?= icarus
 VERILOG_INCLUDE_DIRS = $(CWD)/../../../rtl/common
-VERILOG_SOURCES = \
-					$(CWD)/../../../rtl/common/counter_bin.sv \
-					$(CWD)/../../../rtl/common/sync_fifo.sv
-
-DUT = sync_fifo
+VERILOG_SOURCES =\
+					../../../rtl/common/shifter_barrel.sv
+DUT = shifter_barrel
 MODULE = testbench
 TOPLEVEL = $(DUT)
 
-COMPILE_ARGS += -P $(DUT).DEPTH=4
-COMPILE_ARGS += -P $(DUT).DATA_WIDTH=8
+COMPILE_ARGS += -P $(DUT).WIDTH=16
 
 TOPLEVEL_LANG := verilog
 COCOTB_HDL_TIMEUNIT=1ns
