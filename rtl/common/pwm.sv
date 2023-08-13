@@ -7,7 +7,7 @@ module pwm #(parameter WIDTH=8)(
     input  logic [WIDTH-1:0]  i_period,         // max total count
     input  logic [WIDTH-1:0]  i_repeat_count,   // repeat the counter
     output logic              ow_done,
-    output logic              o_pmw             // done and the pwm signal
+    output logic              o_pwm             // done and the pwm signal
 );
 
     logic [WIDTH-1:0] r_count;
@@ -34,8 +34,8 @@ module pwm #(parameter WIDTH=8)(
 
     // pwm signal handling
     always_comb begin
-        if (r_count < i_duty && !ow_done) o_pmw = 1;
-        else o_pmw = 0;
+        if (r_count < i_duty && !ow_done) o_pwm = 1;
+        else o_pwm = 0;
     end
 
 // synopsys translate_off

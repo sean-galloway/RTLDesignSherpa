@@ -1,0 +1,39 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Sat Jul 29 16:03:36 2023
+[*]
+[dumpfile] "/home/sean/github/RTL_Design_Projects/common/common_tb/round_robin/dump.vcd"
+[dumpfile_mtime] "Sat Jul 29 14:34:02 2023"
+[dumpfile_size] 47409
+[savefile] "/home/sean/github/RTL_Design_Projects/common/common_tb/round_robin/debug.gtkw"
+[timestart] 1145900
+[size] 2030 681
+[pos] -1 -1
+*-15.481815 1310000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] round_robin_wrapper.
+[sst_width] 341
+[signals_width] 271
+[sst_expanded] 1
+[sst_vpaned_height] 286
+@22
+round_robin_wrapper.u_round_robin_arbiter.req[3:0]
+round_robin_wrapper.u_round_robin_arbiter.gnt[3:0]
+round_robin_wrapper.u_round_robin_arbiter.req_win_mask[3:0]
+round_robin_wrapper.u_round_robin_arbiter.req_masked[3:0]
+@28
+round_robin_wrapper.u_round_robin_arbiter.vld_ffs_req
+round_robin_wrapper.u_round_robin_arbiter.vld_ffs_req_sg
+round_robin_wrapper.u_round_robin_arbiter.vld_ffs_reqm
+round_robin_wrapper.u_round_robin_arbiter.vld_ffs_reqm_sg
+@22
+round_robin_wrapper.u_round_robin_arbiter.req_win_mask[3:0]
+round_robin_wrapper.u_round_robin_arbiter.win_mask_only[3:0]
+@29
+round_robin_wrapper.u_round_robin_arbiter.win_vld
+@22
+round_robin_wrapper.u_round_robin_arbiter.req_location[15:0]
+round_robin_wrapper.u_round_robin_arbiter.req_location_sg[15:0]
+round_robin_wrapper.u_round_robin_arbiter.reqm_location[15:0]
+round_robin_wrapper.u_round_robin_arbiter.reqm_location_sg[15:0]
+[pattern_trace] 1
+[pattern_trace] 0
