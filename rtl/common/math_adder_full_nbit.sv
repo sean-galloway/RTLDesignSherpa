@@ -8,9 +8,9 @@ module math_adder_full_nbit #(parameter N=4) (
     output logic           ow_c           // Final carry-out
     );
 
-    logic [N:0] c;  // array for internal carries
+    logic [N:0] w_c;  // array for internal carries
 
-    assign c[0] = i_c;  // Initialize the first carry input
+    assign w_c[0] = i_c;  // Initialize the first carry input
 
     genvar i;
     generate
@@ -18,13 +18,13 @@ module math_adder_full_nbit #(parameter N=4) (
             math_adder_full fa(
                 .i_a(i_a[i]),
                 .i_b(i_b[i]),
-                .i_c(c[i]),
+                .i_c(w_c[i]),
                 .ow_sum(ow_sum[i]),
-                .ow_c(c[i+1])
+                .ow_c(w_c[i+1])
             );
         end
     endgenerate
 
-    assign ow_c = c[N]; // output the final carry
+    assign ow_c = w_c[N]; // output the final carry
 
 endmodule : math_adder_full_nbit
