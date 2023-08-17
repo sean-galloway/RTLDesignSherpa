@@ -1,3 +1,6 @@
+`timescale 1ns / 1ps
+
+
 module math_adder_ripple_carry #(parameter N = 4) (
     input  logic [N-1:0]  i_a, i_b,
     input  logic          i_c,
