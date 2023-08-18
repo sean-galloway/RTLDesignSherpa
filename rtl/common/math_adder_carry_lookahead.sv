@@ -1,3 +1,5 @@
+`timescale 1ns / 1ps
+
 // Parameterized CLA
 module math_adder_carry_lookahead #(parameter N = 4) (
     input  logic [N-1:0] i_a,
@@ -36,5 +38,20 @@ module math_adder_carry_lookahead #(parameter N = 4) (
 
     // assign carry-out
     assign ow_c = w_c[N];
-
+    
+`ifdef DEBUG
+    initial begin
+        #10;  // Wait for 10 time units to let values settle.
+        $display("---------------------");
+        $display("----- CLA Debug -----");
+        $display("i_a: %b", i_a);
+        $display("i_b: %b", i_b);
+        $display("i_c: %b", i_c);
+        $display("w_p: %b", w_p);
+        $display("w_g: %b", w_g);
+        $display("ow_sum: %b", ow_sum);
+        $display("ow_c: %b", ow_c);
+        $display("---------------------");
+    end
+`endif
 endmodule : math_adder_carry_lookahead
