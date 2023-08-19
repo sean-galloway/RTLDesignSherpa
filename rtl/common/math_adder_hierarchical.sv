@@ -1,5 +1,6 @@
 `timescale 1ns / 1ps
 
+// Makes a tree of CLA's, C (the count of numbers) is padded to the next power of 2 with 0's
 module math_adder_hierarchical #(
     parameter N = 16,
     parameter C = 10
@@ -21,7 +22,6 @@ module math_adder_hierarchical #(
         for (genvar k = 0; k < C_PADDED; k=k+1) begin : gen_loop
             assign w_intermediate_sums[0][k] = (k < C) ? i_numbers[k] : '0;
             assign w_c[0][k] = 1'b0;
-
         end
     endgenerate
 

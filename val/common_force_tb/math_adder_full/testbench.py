@@ -1,30 +1,35 @@
 import cocotb
+import itertools
 from cocotb.triggers import Timer
 from cocotb.result import TestFailure
 
 @cocotb.test()
-async def test_full_adder(dut):
-    """ Test the full adder for all possible input combinations """
+def full_adder_test(dut):
+    """Test for full adder."""
     
-    # Define the expected results for all input combinations in the format:
-    # (i_a, i_b, i_c) -> (ow_sum, ow_c)
-    expected_results = {
-        (0, 0, 0): (0, 0),
-        (0, 0, 1): (1, 0),
-        (0, 1, 0): (1, 0),
-        (0, 1, 1): (0, 1),
-        (1, 0, 0): (1, 0),
-        (1, 0, 1): (0, 1),
-        (1, 1, 0): (0, 1),
-        (1, 1, 1): (1, 1)
-    }
+    for i, j, k in itertools.product(range(2), range(2), range(2)):
+        dut.i_a.value = i
+        dut.i_b.value = j
+        dut.i_c.value = k
 
-    for inputs, expected_output in expected_results.items():
-        dut.i_a.value = inputs[0]
-        dut.i_b.value = inputs[1]
-        dut.i_c.value = inputs[2]
+        yield Timer(1, units="ns")
 
-        await Timer(1, units='ns')  # wait for the combinatorial logic to settle
+        sum_result = int(dut.ow_sum.value)
+        expected_sum = i ^ j ^ k
 
-        if (dut.ow_sum.value, dut.ow_c.value) != expected_output:
-            raise TestFailure(f"For inputs {inputs}, expected output was {expected_output} but got {(dut.ow_sum.value, dut.ow_c.value)}")
+        carry_result = int(dut.ow_c.value)
+        expected_carry = (i & j) | (i & k) | (j & k)
+
+        if sum_result != expected_sum:
+            raise TestFailure(
+                f"Mismatch detected! Inputs: {i} {j} {k}. Expected sum: {expected_sum}, Got: {sum_result}"
+            )
+
+        if carry_result != expected_carry:
+            raise TestFailure(
+                f"Mismatch detected! Inputs: {i} {j} {k}. Expected carry: {expected_carry}, Got: {carry_result}"
+            )
+
+    yield Timer(1, units="ns")
+    print("All tests passed!")
+
