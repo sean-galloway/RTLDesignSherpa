@@ -122,4 +122,11 @@ module arbiter_round_robin #(parameter CLIENTS = 16)
         else
             o_gnt <= '0;
 
+    // synopsys translate_off
+    initial begin
+        $dumpfile("dump.vcd");
+        $dumpvars(0, arbiter_round_robin);
+    end
+    // synopsys translate_on
+
 endmodule : arbiter_round_robin
