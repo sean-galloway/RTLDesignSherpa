@@ -21,8 +21,8 @@ def multiplier_wallace_tree_32_test(dut):
     max_val = 2**N
     for _ in range(10000):
     # for a, b in itertools.product(range(max_val), range(max_val)):
-        a = random.randint(0, max_val)
-        b = random.randint(0, max_val)
+        a = random.randint(0, max_val-1)
+        b = random.randint(0, max_val-1)
         dut.i_multiplier.value = a
         dut.i_multiplicand.value = b
 
