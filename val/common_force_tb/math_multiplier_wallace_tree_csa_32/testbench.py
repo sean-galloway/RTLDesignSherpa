@@ -27,7 +27,7 @@ def multiplier_wallace_tree_csa_32_test(dut):
         dut.i_multiplicand.value = b
 
         yield Timer(10, units='ns')
-        print(f"Multiplier: {dut.i_multiplier.value}, Multiplicand: {dut.i_multiplicand.value}")
+        # print(f"Multiplier: {dut.i_multiplier.value}, Multiplicand: {dut.i_multiplicand.value}")
 
         result = dut.ow_product.value.integer
         expected_result = a * b
