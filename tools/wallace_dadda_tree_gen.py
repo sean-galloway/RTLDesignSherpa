@@ -212,9 +212,7 @@ def _generate_tree_helper(f, multiplier_type, N, name):
 
     bit_groups = generate_partial_products(N, f)
     if multiplier_type == "dad":
-        print("Before:", bit_groups[1])
         dadda_reduction(bit_groups, N, f)
-        print("After:", bit_groups[1])
     else:
         wallace_reduction(bit_groups, N, f, multiplier_type)
 
