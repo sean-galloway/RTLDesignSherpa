@@ -6,7 +6,7 @@ module math_adder_carry_lookahead #(parameter N = 4) (
     input  logic [N-1:0] i_b,
     input  logic         i_c,
     output logic [N-1:0] ow_sum,
-    output logic         ow_c
+    output logic         ow_carry
 );
 
     wire [N-1:0] w_p, w_g;
@@ -37,7 +37,7 @@ module math_adder_carry_lookahead #(parameter N = 4) (
     endgenerate
 
     // assign carry-out
-    assign ow_c = w_c[N];
+    assign ow_carry = w_c[N];
     
 `ifdef DEBUG
     initial begin
@@ -50,7 +50,7 @@ module math_adder_carry_lookahead #(parameter N = 4) (
         $display("w_p: %b", w_p);
         $display("w_g: %b", w_g);
         $display("ow_sum: %b", ow_sum);
-        $display("ow_c: %b", ow_c);
+        $display("ow_c: %b", ow_carry);
         $display("---------------------");
     end
 `endif

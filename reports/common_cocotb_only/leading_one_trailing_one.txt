@@ -1,0 +1,88 @@
+rm -f results.xml
+make -f Makefile results.xml
+make[1]: Entering directory '/home/sean/github/RTL_Design_Projects/val/common_cocotb_only/leading_one_trailing_one'
+rm -f results.xml
+MODULE=testbench TESTCASE= TOPLEVEL=leading_one_trailing_one TOPLEVEL_LANG=verilog \
+         /usr/bin/vvp -M /home/sean/github/RTL_Design_Projects/.venv/lib/python3.10/site-packages/cocotb/libs -m libcocotbvpi_icarus   sim_build/sim.vvp 
+     -.--ns INFO     gpi                                ..mbed/gpi_embed.cpp:105  in set_program_name_in_venv        Using Python virtual environment interpreter at /home/sean/github/RTL_Design_Projects/.venv/bin/python
+     -.--ns INFO     gpi                                ../gpi/GpiCommon.cpp:101  in gpi_print_registered_impl       VPI registered
+     0.00ns INFO     cocotb                             Running on Icarus Verilog version 11.0 (stable)
+     0.00ns INFO     cocotb                             Running tests with cocotb v1.8.0 from /home/sean/github/RTL_Design_Projects/.venv/lib/python3.10/site-packages/cocotb
+     0.00ns INFO     cocotb                             Seeding Python random module with 1693594307
+     0.00ns INFO     cocotb.regression                  Found test testbench.test_fifo
+     0.00ns INFO     cocotb.regression                  running test_fifo (1/1)
+Part 1: i=16, hex=65535
+Part 1: i=15, hex=32767
+Part 1: i=14, hex=16383
+Part 1: i=13, hex=8191
+Part 1: i=12, hex=4095
+Part 1: i=11, hex=2047
+Part 1: i=10, hex=1023
+Part 1: i=9, hex=511
+Part 1: i=8, hex=255
+Part 1: i=7, hex=127
+Part 1: i=6, hex=63
+Part 1: i=5, hex=31
+Part 1: i=4, hex=15
+Part 1: i=3, hex=7
+Part 1: i=2, hex=3
+Part 1: i=1, hex=1
+Part 1: i=0, hex=0
+Part 2: i=15, hex=32768
+Part 2: i=14, hex=49152
+Part 2: i=13, hex=57344
+Part 2: i=12, hex=61440
+Part 2: i=11, hex=63488
+Part 2: i=10, hex=64512
+Part 2: i=9, hex=65024
+Part 2: i=8, hex=65280
+Part 2: i=7, hex=65408
+Part 2: i=6, hex=65472
+Part 2: i=5, hex=65504
+Part 2: i=4, hex=65520
+Part 2: i=3, hex=65528
+Part 2: i=2, hex=65532
+Part 2: i=1, hex=65534
+Part 2: i=0, hex=65535
+Part 3: i=0, hex=65534
+Part 3: i=1, hex=65532
+Part 3: i=2, hex=65528
+Part 3: i=3, hex=65520
+Part 3: i=4, hex=65504
+Part 3: i=5, hex=65472
+Part 3: i=6, hex=65408
+Part 3: i=7, hex=65280
+Part 3: i=8, hex=65024
+Part 3: i=9, hex=64512
+Part 3: i=10, hex=63488
+Part 3: i=11, hex=61440
+Part 3: i=12, hex=57344
+Part 3: i=13, hex=49152
+Part 3: i=14, hex=32768
+Part 3: i=15, hex=0
+Part 4: i=0, hex=1
+Part 4: i=1, hex=2
+Part 4: i=2, hex=4
+Part 4: i=3, hex=8
+Part 4: i=4, hex=16
+Part 4: i=5, hex=32
+Part 4: i=6, hex=64
+Part 4: i=7, hex=128
+Part 4: i=8, hex=256
+Part 4: i=9, hex=512
+Part 4: i=10, hex=1024
+Part 4: i=11, hex=2048
+Part 4: i=12, hex=4096
+Part 4: i=13, hex=8192
+Part 4: i=14, hex=16384
+Part 4: i=15, hex=32768
+  2400.00ns INFO     cocotb.regression                  test_fifo passed
+  2400.00ns INFO     cocotb.regression                  **************************************************************************************
+                                                        ** TEST                          STATUS  SIM TIME (ns)  REAL TIME (s)  RATIO (ns/s) **
+                                                        **************************************************************************************
+                                                        ** testbench.test_fifo            PASS        2400.00           0.00     537875.17  **
+                                                        **************************************************************************************
+                                                        ** TESTS=1 PASS=1 FAIL=0 SKIP=0               2400.00           0.03      93866.47  **
+                                                        **************************************************************************************
+                                                        
+make[1]: Leaving directory '/home/sean/github/RTL_Design_Projects/val/common_cocotb_only/leading_one_trailing_one'

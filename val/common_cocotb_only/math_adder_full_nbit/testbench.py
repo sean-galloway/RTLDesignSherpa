@@ -19,9 +19,9 @@ def adder_test(dut, a, b, c_in):
         raise TestFailure(
             f"Mismatch detected! i_a={dut.i_a}, i_b={dut.i_b}, c_in={c_in}, Expected sum={sum_result & 15}, Got={dut.ow_sum.value}"
         )
-    if dut.ow_c.value.integer != ((sum_result >> 4) & 0x1): # Carry result
+    if dut.ow_carry.value.integer != ((sum_result >> 4) & 0x1): # Carry result
         raise TestFailure(
-            f"Mismatch detected! i_a={dut.i_a}, i_b={dut.i_b}, c_in={c_in}, Expected carry={sum_result >> 4 & 1}, Got={dut.ow_c.value}"
+            f"Mismatch detected! i_a={dut.i_a}, i_b={dut.i_b}, c_in={c_in}, Expected carry={sum_result >> 4 & 1}, Got={dut.ow_carry.value}"
         )
 
 @cocotb.coroutine

@@ -22,7 +22,7 @@ async def basic_test(dut):
         expected_carry = sum_abc // 2
 
         assert dut.ow_sum.value == expected_sum, f"Expected {expected_sum}, but got {dut.ow_sum.value}"
-        assert dut.ow_c.value == expected_carry, f"Expected {expected_carry}, but got {dut.ow_c.value}"
+        assert dut.ow_carry.value == expected_carry, f"Expected {expected_carry}, but got {dut.ow_carry.value}"
 
 tf = TestFactory(basic_test)
 tf.generate_tests()

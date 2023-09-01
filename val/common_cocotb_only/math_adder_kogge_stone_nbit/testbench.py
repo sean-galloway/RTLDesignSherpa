@@ -19,7 +19,7 @@ async def exhaustive_test(dut):
 
         # Python-based reference computation for sum and carry
         expected_sum = a + b
-        expected_carry = (a & b) << 1
+        expected_carry_out = 1 if expected_sum >= 2**N else 0
 
         # Use modulo to wrap around sum for N bits
         expected_sum = expected_sum % (2**N)
@@ -28,8 +28,8 @@ async def exhaustive_test(dut):
         assert dut.ow_sum.value == expected_sum
 
         # Ensure the final carry is correct
-        final_carry = 1 if expected_carry >= (2**N) else 0
-        assert dut.ow_c.value == final_carry
+        assert dut.ow_carry.value == expected_carry_out
+
 
 tf = TestFactory(exhaustive_test)
 tf.generate_tests()

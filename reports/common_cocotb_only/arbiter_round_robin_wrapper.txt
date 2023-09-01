@@ -1,0 +1,105 @@
+rm -f results.xml
+make -f Makefile results.xml
+make[1]: Entering directory '/home/sean/github/RTL_Design_Projects/val/common_cocotb_only/arbiter_round_robin_wrapper'
+rm -f results.xml
+MODULE=testbench TESTCASE= TOPLEVEL=round_robin_wrapper TOPLEVEL_LANG=verilog \
+         /usr/bin/vvp -M /home/sean/github/RTL_Design_Projects/.venv/lib/python3.10/site-packages/cocotb/libs -m libcocotbvpi_icarus   sim_build/sim.vvp 
+     -.--ns INFO     gpi                                ..mbed/gpi_embed.cpp:105  in set_program_name_in_venv        Using Python virtual environment interpreter at /home/sean/github/RTL_Design_Projects/.venv/bin/python
+     -.--ns INFO     gpi                                ../gpi/GpiCommon.cpp:101  in gpi_print_registered_impl       VPI registered
+     0.00ns INFO     cocotb                             Running on Icarus Verilog version 11.0 (stable)
+     0.00ns INFO     cocotb                             Running tests with cocotb v1.8.0 from /home/sean/github/RTL_Design_Projects/.venv/lib/python3.10/site-packages/cocotb
+     0.00ns INFO     cocotb                             Seeding Python random module with 1693594245
+     0.00ns INFO     cocotb.regression                  Found test testbench.test_fifo
+     0.00ns INFO     cocotb.regression                  running test_fifo (1/1)
+VCD info: dumpfile dump.vcd opened for output.
+VCD warning: ../../../rtl/common/fifo_sync.sv:113: $dumpfile called after $dumpvars started,
+                                                   using existing file (dump.vcd).
+VCD warning: ../../../rtl/common/fifo_sync.sv:113: $dumpfile called after $dumpvars started,
+                                                   using existing file (dump.vcd).
+VCD warning: ../../../rtl/common/fifo_sync.sv:113: $dumpfile called after $dumpvars started,
+                                                   using existing file (dump.vcd).
+VCD warning: ../../../rtl/common/pwm.sv:43: $dumpfile called after $dumpvars started,
+                                            using existing file (dump.vcd).
+VCD warning: ../../../rtl/common/arbiter_round_robin.sv:127: $dumpfile called after $dumpvars started,
+                                                             using existing file (dump.vcd).
+VCD warning: ../../../rtl/common/fifo_sync.sv:113: $dumpfile called after $dumpvars started,
+                                                   using existing file (dump.vcd).
+VCD warning: round_robin_wrapper.sv:186: $dumpfile called after $dumpvars started,
+                                         using existing file (dump.vcd).
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_arbiter_round_robin.
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_arbiter_round_robin.u_req_leading_one_trailing_one.
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_arbiter_round_robin.u_req_leading_one_trailing_one.u_find_first_set.
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_arbiter_round_robin.u_req_leading_one_trailing_one.u_find_first_set.find_set_index.
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_arbiter_round_robin.u_req_leading_one_trailing_one.u_find_first_set.find_set_index.$ivl_for_loop0.
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_arbiter_round_robin.u_req_leading_one_trailing_one.u_find_last_set.
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_arbiter_round_robin.u_req_leading_one_trailing_one.u_find_last_set.find_last_set_index.
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_arbiter_round_robin.u_req_leading_one_trailing_one.u_find_last_set.find_last_set_index.$ivl_for_loop1.
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_arbiter_round_robin.u_reqm_leading_one_trailing_one.
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_arbiter_round_robin.u_reqm_leading_one_trailing_one.u_find_first_set.
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_arbiter_round_robin.u_reqm_leading_one_trailing_one.u_find_first_set.find_set_index.
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_arbiter_round_robin.u_reqm_leading_one_trailing_one.u_find_first_set.find_set_index.$ivl_for_loop0.
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_arbiter_round_robin.u_reqm_leading_one_trailing_one.u_find_last_set.
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_arbiter_round_robin.u_reqm_leading_one_trailing_one.u_find_last_set.find_last_set_index.
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_arbiter_round_robin.u_reqm_leading_one_trailing_one.u_find_last_set.find_last_set_index.$ivl_for_loop1.
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_A.
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_A.flatten_memory[0].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_A.flatten_memory[1].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_A.flatten_memory[2].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_A.flatten_memory[3].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_A.flatten_memory[4].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_A.flatten_memory[5].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_A.flatten_memory[6].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_A.flatten_memory[7].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_A.flatten_memory[8].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_A.flatten_memory[9].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_A.flatten_memory[10].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_A.flatten_memory[11].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_A.flatten_memory[12].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_A.flatten_memory[13].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_A.flatten_memory[14].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_A.flatten_memory[15].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_A.read_counter.
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_A.write_counter.
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_B.
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_B.flatten_memory[0].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_B.flatten_memory[1].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_B.flatten_memory[2].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_B.flatten_memory[3].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_B.flatten_memory[4].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_B.flatten_memory[5].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_B.flatten_memory[6].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_B.flatten_memory[7].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_B.read_counter.
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_B.write_counter.
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_C.
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_C.flatten_memory[0].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_C.flatten_memory[1].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_C.flatten_memory[2].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_C.flatten_memory[3].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_C.read_counter.
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_C.write_counter.
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_D.
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_D.flatten_memory[0].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_D.flatten_memory[1].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_D.flatten_memory[2].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_D.flatten_memory[3].
+VCD   5235.00ns INFO     cocotb.regression                  test_fifo passed
+  5235.00ns INFO     cocotb.regression                  **************************************************************************************
+                                                        ** TEST                          STATUS  SIM TIME (ns)  REAL TIME (s)  RATIO (ns/s) **
+                                                        **************************************************************************************
+                                                        ** testbench.test_fifo            PASS        5235.00           0.03     187729.23  **
+                                                        **************************************************************************************
+                                                        ** TESTS=1 PASS=1 FAIL=0 SKIP=0               5235.00           0.05     100355.06  **
+                                                        **************************************************************************************
+                                                        
+warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_D.read_counter.
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_D.write_counter.
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_E.
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_E.flatten_memory[0].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_E.flatten_memory[1].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_E.flatten_memory[2].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_E.flatten_memory[3].
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_E.read_counter.
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_fifo_sync_E.write_counter.
+VCD warning: ignoring signals in previously scanned scope round_robin_wrapper.u_pwm.
+make[1]: Leaving directory '/home/sean/github/RTL_Design_Projects/val/common_cocotb_only/arbiter_round_robin_wrapper'

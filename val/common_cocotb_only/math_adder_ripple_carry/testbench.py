@@ -24,6 +24,6 @@ async def test_cla_4bit(dut):
             # Mask to get only N-bits for the sum
             expected_sum &= (2**N) - 1
 
-            if int(dut.ow_sum) != expected_sum or int(dut.ow_c) != expected_carry:
+            if int(dut.ow_sum) != expected_sum or int(dut.ow_carry) != expected_carry:
                 raise TestFailure(
-                    f"For i_a={i_a}, i_b={i_b}, and i_c={i_c}, expected sum was {expected_sum} and carry out was {expected_carry} but got sum={(dut.ow_sum.value)} and carry out={dut.ow_c.value}")
+                    f"For i_a={i_a}, i_b={i_b}, and i_c={i_c}, expected sum was {expected_sum} and carry out was {expected_carry} but got sum={(dut.ow_sum.value)} and carry out={dut.ow_carry.value}")

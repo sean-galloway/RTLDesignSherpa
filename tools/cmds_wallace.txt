@@ -1,0 +1,7 @@
+python wallace_dadda_tree_gen.py -t wfa  -n 8
+python wallace_dadda_tree_gen.py -t wfa  -n 16
+python wallace_dadda_tree_gen.py -t wfa  -n 32
+python wallace_dadda_tree_gen.py -t wcsa -n 8
+python wallace_dadda_tree_gen.py -t wcsa -n 16
+python wallace_dadda_tree_gen.py -t wcsa -n 32
+mv *.sv ../rtl/common/.

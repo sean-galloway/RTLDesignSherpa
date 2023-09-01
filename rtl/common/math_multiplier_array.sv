@@ -19,7 +19,7 @@ module math_multiplier_array #(parameter N=4) (
             .i_b(i_a & {N{i_b[1]}}),
             .i_c(1'b0),
             .ow_sum(w_sum[N-1:0]),
-            .ow_c(w_o_c[0])
+            .ow_carry(w_o_c[0])
         );
         
     assign ow_product[1:0] = {w_sum[0], w_and[0]};
@@ -36,7 +36,7 @@ module math_multiplier_array #(parameter N=4) (
                     .i_b(i_a & {N{i_b[i]}}),
                     .i_c(1'b0),
                     .ow_sum(w_sum[N*i-1:N*(i-1)]),
-                    .ow_c(w_o_c[i-1])
+                    .ow_carry(w_o_c[i-1])
                 );
                 
             assign ow_product[i] = w_sum[N*(i-1)];
@@ -51,7 +51,7 @@ module math_multiplier_array #(parameter N=4) (
             .i_b(i_a & {N{i_b[N-1]}}),
             .i_c(1'b0),
             .ow_sum(w_sum[N*(N-1)-1:N*(N-2)]),
-            .ow_c(w_o_c[N-2])
+            .ow_carry(w_o_c[N-2])
         );
     
     assign ow_product[N*2-1:N*2-N-1] = {w_o_c[N-2], w_sum[N*(N-1)-1:N*(N-2)]};

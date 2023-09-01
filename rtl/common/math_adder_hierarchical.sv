@@ -34,7 +34,7 @@ module math_adder_hierarchical #(
                     .i_b(w_intermediate_sums[stage][i + 1]),
                     .i_c((stage == 0) ? 1'b0: (i == 0) ? 1'b0 : w_c[stage][i]),
                     .ow_sum(w_intermediate_sums[stage + 1][i/2]),
-                    .ow_c(w_c[stage+1][i/2])
+                    .ow_carry(w_c[stage+1][i/2])
                 );
             end
         end

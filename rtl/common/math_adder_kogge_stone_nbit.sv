@@ -4,7 +4,7 @@ module math_adder_kogge_stone_nbit #(parameter N=4) (
     input  logic [N-1:0] i_a,
     input  logic [N-1:0] i_b,
     output logic [N-1:0] ow_sum,
-    output logic         ow_c
+    output logic         ow_carry
 );
 
     // Step 1: Generate and Propagate terms
@@ -25,9 +25,27 @@ module math_adder_kogge_stone_nbit #(parameter N=4) (
     endgenerate
 
     // Step 3: Sum Calculation
-    assign ow_sum = i_a ^ i_b ^ w_C;
+    generate
+        for (i = 0; i < N; i = i + 1) begin : GEN_SUM
+            if (i == 0) begin
+                assign ow_sum[i] = i_a[i] ^ i_b[i];
+            end else begin
+                assign ow_sum[i] = i_a[i] ^ i_b[i] ^ w_C[i-1];
+            end
+        end
+    endgenerate
+    
 
     // The final carry out
-    assign ow_c = w_C[N-1];
+    assign ow_carry = w_C[N-1];
+
+    // Debug purposes
+    // synopsys translate_off
+    initial begin
+        $dumpfile("dump.vcd");
+        $dumpvars(0, math_adder_kogge_stone_nbit);
+    end
+    // synopsys translate_off
+
 
 endmodule : math_adder_kogge_stone_nbit

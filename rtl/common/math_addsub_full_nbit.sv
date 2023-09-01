@@ -5,7 +5,7 @@ module math_addsub_full_nbit #(parameter N=4) (
     input  logic [N-1:0]   i_b,
     input  logic           i_c,           // 0 for add, 1 for subtract
     output logic [N-1:0]   ow_sum,
-    output logic           ow_c           // Final carry-out
+    output logic           ow_carry       // Final carry-out
     );
 
     logic [N:0]   w_c;   // array for internal carries
@@ -27,12 +27,12 @@ module math_addsub_full_nbit #(parameter N=4) (
                 .i_b     (w_ip[i]),
                 .i_c     (w_c[i]),
                 .ow_sum  (ow_sum[i]),
-                .ow_c    (w_c[i+1])
+                .ow_carry(w_c[i+1])
             );
         end
     endgenerate
 
-    assign ow_c = w_c[N]; // output the final carry or borrow
+    assign ow_carry = w_c[N]; // output the final carry or borrow
 
     // synopsys translate_off
     initial begin

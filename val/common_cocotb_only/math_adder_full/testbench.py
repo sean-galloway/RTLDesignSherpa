@@ -17,7 +17,7 @@ def full_adder_test(dut):
         sum_result = int(dut.ow_sum.value)
         expected_sum = i ^ j ^ k
 
-        carry_result = int(dut.ow_c.value)
+        carry_result = int(dut.ow_carry.value)
         expected_carry = (i & j) | (i & k) | (j & k)
 
         if sum_result != expected_sum:

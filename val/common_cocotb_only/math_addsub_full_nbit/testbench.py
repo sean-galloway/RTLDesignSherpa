@@ -31,8 +31,8 @@ def addsub_dut_test(dut, a, b, cin, max_val):
     # Check results
     if dut.ow_sum.value.integer != expected_sum:
         raise TestFailure(f"For inputs {a} and {b} with carry-in {cin}, expected sum was {expected_sum} but got {dut.ow_sum.value.integer}")
-    if dut.ow_c.value != expected_c:
-        raise TestFailure(f"For inputs {a} and {b} with carry-in {cin}, expected carry/borrow was {expected_c} but got {dut.ow_c.value}")
+    if dut.ow_carry.value != expected_c:
+        raise TestFailure(f"For inputs {a} and {b} with carry-in {cin}, expected carry/borrow was {expected_c} but got {dut.ow_carry.value}")
 
 
 @cocotb.test()
