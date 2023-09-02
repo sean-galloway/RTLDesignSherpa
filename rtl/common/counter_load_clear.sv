@@ -8,19 +8,19 @@ module counter_load_clear #(parameter MAX=32) (
     output logic                   ow_done
 );
 
-    logic [$clog2(MAX)-1:0] r_match_val;
+logic [$clog2(MAX)-1:0] r_match_val;
+logic [$clog2(MAX)-1:0] r_next_count;
+
+    assign r_next_count = (i_clear == 1'b1) ? 'b0 : (o_count == r_match_val) ? 'b0 : o_count + 'b1;
 
     always_ff @(posedge i_clk or negedge i_rst_n) begin
-        if (!rst_n) begin
+        if (!i_rst_n) begin
             o_count <= 'b0;
             r_match_val <= 'b0;
         end else begin
-            if (i_clear)
-                o_count <= 'b0;
-            else if (i_load)
+            if (i_load)
                 r_match_val <= i_loadval;
-            else if (i_increment)
-                o_count <= (o_count == r_match_val) ? 'b0 : o_count + 'b1;
+            o_count <= r_next_count;
         end
     end
 

@@ -32,8 +32,8 @@ module shifter_lfsr #(
     end
 
     always_ff @(posedge i_clk or negedge i_rst_n) begin
-        if (!rst_n) r_xnor_out <= 'b0;
-        else        r_xnor_out <= ~^(r_lfsr_reg & i_taps);
+        if (!i_rst_n) r_xnor_out <= 'b0;
+        else          r_xnor_out <= ~^(r_lfsr_reg & i_taps);
     end
 
     assign o_lfsr_data = r_lfsr_reg;

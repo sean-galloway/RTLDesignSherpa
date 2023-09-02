@@ -1,2 +1,0 @@
-make[1]: *** No rule to make target '/home/sean/github/RTL_Design_Projects/val/common_cocotb_only/math_multiplier_dadda_tree_only/../../../rtl/common/math_multiplier_dadda_tree_only.sv', needed by 'sim_build/sim.vvp'.  Stop.
-make: *** [/home/sean/github/RTL_Design_Projects/.venv/lib/python3.10/site-packages/cocotb/share/makefiles/Makefile.inc:40: sim] Error 2

@@ -145,6 +145,6 @@ module fifo_async_any_even #(
         $dumpfile("dump.vcd");
         $dumpvars(0, fifo_async_any_even);
     end
-    // // synopsys translate_on
+    // synopsys translate_on
 
 endmodule : fifo_async_any_even

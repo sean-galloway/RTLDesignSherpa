@@ -7,7 +7,7 @@ module encoder #(
     output logic [$clog2(N)-1:0] o_out
 );
     always_comb begin
-        out = 0;
+        o_out = 0;
         for (int i = 0; i < N; i++) begin
             if (i_in[i])
                 o_out = i;
