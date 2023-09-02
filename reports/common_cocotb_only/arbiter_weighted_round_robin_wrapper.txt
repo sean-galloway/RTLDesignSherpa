@@ -1,6 +1,8 @@
 rm -f results.xml
 make -f Makefile results.xml
 make[1]: Entering directory '/home/sean/github/RTL_Design_Projects/val/common_cocotb_only/arbiter_weighted_round_robin_wrapper'
+mkdir -p sim_build
+/usr/bin/iverilog -o sim_build/sim.vvp -D COCOTB_SIM=1 -s weighted_round_robin_wrapper -P weighted_round_robin_wrapper.N=4 -f sim_build/cmds.f -g2012  -I/home/sean/github/RTL_Design_Projects/val/common_cocotb_only/arbiter_weighted_round_robin_wrapper/../../../rtl/common  /home/sean/github/RTL_Design_Projects/val/common_cocotb_only/arbiter_weighted_round_robin_wrapper/../../../rtl/common/counter_bin.sv /home/sean/github/RTL_Design_Projects/val/common_cocotb_only/arbiter_weighted_round_robin_wrapper/../../../rtl/common/fifo_sync.sv /home/sean/github/RTL_Design_Projects/val/common_cocotb_only/arbiter_weighted_round_robin_wrapper/../../../rtl/common/arbiter_fixed_priority.sv /home/sean/github/RTL_Design_Projects/val/common_cocotb_only/arbiter_weighted_round_robin_wrapper/../../../rtl/common/arbiter_round_robin_subinst.sv /home/sean/github/RTL_Design_Projects/val/common_cocotb_only/arbiter_weighted_round_robin_wrapper/../../../rtl/common/arbiter_weighted_round_robin.sv /home/sean/github/RTL_Design_Projects/val/common_cocotb_only/arbiter_weighted_round_robin_wrapper/../../../rtl/common/pwm.sv /home/sean/github/RTL_Design_Projects/val/common_cocotb_only/arbiter_weighted_round_robin_wrapper/weighted_round_robin_wrapper.sv
 rm -f results.xml
 MODULE=testbench TESTCASE= TOPLEVEL=weighted_round_robin_wrapper TOPLEVEL_LANG=verilog \
          /usr/bin/vvp -M /home/sean/github/RTL_Design_Projects/.venv/lib/python3.10/site-packages/cocotb/libs -m libcocotbvpi_icarus   sim_build/sim.vvp 
@@ -8,23 +10,23 @@ MODULE=testbench TESTCASE= TOPLEVEL=weighted_round_robin_wrapper TOPLEVEL_LANG=v
      -.--ns INFO     gpi                                ../gpi/GpiCommon.cpp:101  in gpi_print_registered_impl       VPI registered
      0.00ns INFO     cocotb                             Running on Icarus Verilog version 11.0 (stable)
      0.00ns INFO     cocotb                             Running tests with cocotb v1.8.0 from /home/sean/github/RTL_Design_Projects/.venv/lib/python3.10/site-packages/cocotb
-     0.00ns INFO     cocotb                             Seeding Python random module with 1693594273
+     0.00ns INFO     cocotb                             Seeding Python random module with 1693629191
      0.00ns INFO     cocotb.regression                  Found test testbench.test_fifo
      0.00ns INFO     cocotb.regression                  running test_fifo (1/1)
 VCD info: dumpfile dump.vcd opened for output.
-VCD warning: /home/sean/github/RTL_Design_Projects/val/common_f $dumpfile called after $dumpvars started,
+VCD warning: /home/sean/github/RTL_Design_Projects/val/common_c $dumpfile called after $dumpvars started,
                                                                 using existing file (dump.vcd).
-VCD warning: /home/sean/github/RTL_Design_Projects/val/common_f $dumpfile called after $dumpvars started,
+VCD warning: /home/sean/github/RTL_Design_Projects/val/common_c $dumpfile called after $dumpvars started,
                                                                 using existing file (dump.vcd).
-VCD warning: /home/sean/github/RTL_Design_Projects/val/common_f $dumpfile called after $dumpvars started,
+VCD warning: /home/sean/github/RTL_Design_Projects/val/common_c $dumpfile called after $dumpvars started,
                                                                 using existing file (dump.vcd).
-VCD warning: /home/sean/github/RTL_Design_Projects/val/common_f $dumpfile called after $dumpvars started,
+VCD warning: /home/sean/github/RTL_Design_Projects/val/common_c $dumpfile called after $dumpvars started,
                                                                 using existing file (dump.vcd).
-VCD warning: /home/sean/github/RTL_Design_Projects/val/common_f $dumpfile called after $dumpvars started,
+VCD warning: /home/sean/github/RTL_Design_Projects/val/common_c $dumpfile called after $dumpvars started,
                                                                 using existing file (dump.vcd).
-VCD warning: /home/sean/github/RTL_Design_Projects/val/common_f $dumpfile called after $dumpvars started,
+VCD warning: /home/sean/github/RTL_Design_Projects/val/common_c $dumpfile called after $dumpvars started,
                                                                 using existing file (dump.vcd).
-VCD warning: /home/sean/github/RTL_Design_Projects/val/common_f $dumpfile called after $dumpvars started,
+VCD warning: /home/sean/github/RTL_Design_Projects/val/common_c $dumpfile called after $dumpvars started,
                                                                 using existing file (dump.vcd).
 VCD warning: ignoring signals in previously scanned scope weighted_round_robin_wrapper.u_fifo_sync_A.
 VCD warning: ignoring signals in previously scanned scope weighted_round_robin_wrapper.u_fifo_sync_A.flatten_memory[0].
@@ -87,9 +89,9 @@ VCD warning: ignoring signals in  2405.00ns INFO     cocotb.regression          
   2405.00ns INFO     cocotb.regression                  **************************************************************************************
                                                         ** TEST                          STATUS  SIM TIME (ns)  REAL TIME (s)  RATIO (ns/s) **
                                                         **************************************************************************************
-                                                        ** testbench.test_fifo            PASS        2405.00           0.03      91094.10  **
+                                                        ** testbench.test_fifo            PASS        2405.00           0.02      97952.12  **
                                                         **************************************************************************************
-                                                        ** TESTS=1 PASS=1 FAIL=0 SKIP=0               2405.00           0.05      47531.85  **
+                                                        ** TESTS=1 PASS=1 FAIL=0 SKIP=0               2405.00           0.05      48982.01  **
                                                         **************************************************************************************
                                                         
  previously scanned scope weighted_round_robin_wrapper.weighted_round_robin_inst.u_rrb_arb.

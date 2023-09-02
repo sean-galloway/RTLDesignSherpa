@@ -161,8 +161,8 @@ def generate_final_addition(bit_groups, N, f):
     for bit in range(2*N):
         formatted_bit = str(bit).zfill(max_digits_bit)
 
-        sum_name = f"ow_sum_{formatted_bit}"
-        carry_name = f"ow_carry_{formatted_bit}"
+        sum_name = f"of_sum_{formatted_bit}"
+        carry_name = f"of_carry_{formatted_bit}"
         variables = bit_groups.get(bit, [])
         f.write(f"wire {sum_name}, {carry_name};\n")
 
@@ -203,7 +203,7 @@ def generate_final_assignments(N, f):
 
     for i in range(2 * N):
         formatted_idx = str(i).zfill(max_digits)
-        f.write(f"assign ow_product[{str(i).rjust(max_digits)}] = ow_sum_{formatted_idx};\n")
+        f.write(f"assign ow_product[{str(i).rjust(max_digits)}] = of_sum_{formatted_idx};\n")
 
     f.write("\n")
 
@@ -224,7 +224,7 @@ def generate_tree(N, multiplier_type, use_booth):
     filename =f'{name}.sv'
     with open(filename, 'w') as f:
         _generate_tree_helper(f, multiplier_type, N, name, use_booth)
-    print(f"{title} multiplier for N={N_idx} using {multiplier_type} generated and saved as '{filename}'.")
+    print(f"{title} multiplier for N={NN_idx} using {multiplier_type} generated and saved as '{filename}'.")
 
 
 def _generate_tree_helper(f, multiplier_type, N, name, use_booth):
