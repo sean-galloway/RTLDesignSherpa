@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module math_multiplier_dadda_tree_8 (
+module math_multiplier_dadda_tree_008 (
     input  [7:0] i_multiplier,
     input  [7:0] i_multiplicand,
     output [15:0] ow_product
@@ -220,8 +220,8 @@ assign ow_product[15] = ow_sum_15;
     // synopsys translate_off
     initial begin
         $dumpfile("dump.vcd");
-        $dumpvars(0, math_multiplier_dadda_tree_8);
+        $dumpvars(0, math_multiplier_dadda_tree_008);
     end
-    // synopsys translate_off
+    // synopsys translate_on
         
-endmodule : math_multiplier_dadda_tree_8
+endmodule : math_multiplier_dadda_tree_008

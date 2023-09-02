@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module math_multiplier_wallace_tree_csa_16 (
+module math_multiplier_wallace_tree_csa_016 (
     input  [15:0] i_multiplier,
     input  [15:0] i_multiplicand,
     output [31:0] ow_product
@@ -883,8 +883,8 @@ assign ow_product[31] = ow_sum_31;
     // synopsys translate_off
     initial begin
         $dumpfile("dump.vcd");
-        $dumpvars(0, math_multiplier_wallace_tree_csa_16);
+        $dumpvars(0, math_multiplier_wallace_tree_csa_016);
     end
-    // synopsys translate_off
+    // synopsys translate_on
         
-endmodule : math_multiplier_wallace_tree_csa_16
+endmodule : math_multiplier_wallace_tree_csa_016
