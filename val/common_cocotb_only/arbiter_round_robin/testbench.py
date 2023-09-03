@@ -33,8 +33,10 @@ async def run_test(dut):
     for i in range(num_clients - 1):
         dut.i_req.value = (1 << i) | (1 << (i + 1))
         await FallingEdge(dut.i_clk)
-        assert (dut.o_gnt.value.integer == (1 << i) or 
-                dut.o_gnt.value.integer == (1 << (i + 1))), f"Expected either o_gnt[{i}] or o_gnt[{i + 1}] to be high"
+        assert dut.o_gnt.value.integer in [
+            1 << i,
+            1 << (i + 1),
+        ], f"Expected either o_gnt[{i}] or o_gnt[{i + 1}] to be high"
 
     # Test with all clients requesting
     dut.i_req <= (1 << num_clients) - 1  # All bits set

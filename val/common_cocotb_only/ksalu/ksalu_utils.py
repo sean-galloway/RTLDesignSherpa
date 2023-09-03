@@ -144,13 +144,11 @@ class KSALUBfm(metaclass=pyuvm.Singleton):
 
 # Figure 12: The get_cmd() coroutine returns the next command
     async def get_cmd(self):
-        cmd = await self.cmd_mon_queue.get()
-        return cmd
+        return await self.cmd_mon_queue.get()
 
 # Figure 13: The get_result() coroutine returns the next result
     async def get_result(self):
-        result = await self.result_mon_queue.get()
-        return result
+        return await self.result_mon_queue.get()
 
 # Figure 14: send_op puts the command into the command Queue
     async def send_op(self, aa, bb, op):

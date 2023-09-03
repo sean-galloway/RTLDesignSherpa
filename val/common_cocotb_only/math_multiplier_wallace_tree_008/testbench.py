@@ -7,9 +7,7 @@ from cocotb.triggers import Timer
 import random
 
 def binary_to_hex(binary_str):
-    hex_value = hex(int(binary_str, 2))[2:]
-    # print(f'binary to hex: {binary_str=}  {hex_value=}')
-    return hex_value
+    return hex(int(binary_str, 2))[2:]
 
 @cocotb.coroutine
 def init_test(dut):

@@ -29,18 +29,17 @@ class RequestAgent:
     def drive_request(self):
         while True:
             yield FallingEdge(self.dut.i_clk)
-            
+
             if self.queue:
                 next_val = self.queue.popleft()
                 self.dut.i_req[self.index].value = next_val
-            else:
-                if random.random() < 0.75:  # 75% chance to drive a request
-                    self.dut.i_req[self.index].value = 1
-                    # Sometimes keep request asserted after being granted, or not
-                    stay_asserted = [1] * random.randint(1, 4)
-                    self.queue.extend(stay_asserted if random.random() > 0.5 else [0])
-                else:  # 25% chance to not drive request
-                    self.dut.i_req[self.index].value = 0
+            elif random.random() < 0.75:  # 75% chance to drive a request
+                self.dut.i_req[self.index].value = 1
+                # Sometimes keep request asserted after being granted, or not
+                stay_asserted = [1] * random.randint(1, 4)
+                self.queue.extend(stay_asserted if random.random() > 0.5 else [0])
+            else:  # 25% chance to not drive request
+                self.dut.i_req[self.index].value = 0
 
 
 @cocotb.coroutine
@@ -52,7 +51,9 @@ def do_arbitration_and_check(dut, num_arbitrations):
         requested = dut.i_req.value.integer
 
         if granted & requested != granted:
-            raise TestFailure("Granted client(s) %s not in requested client(s) %s" % (bin(granted), bin(requested)))
+            raise TestFailure(
+                f"Granted client(s) {bin(granted)} not in requested client(s) {bin(requested)}"
+            )
 
 @cocotb.coroutine
 def drive_reqs_to_zero_and_wait(dut, num_cycles):
