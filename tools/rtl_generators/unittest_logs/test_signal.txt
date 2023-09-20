@@ -1,0 +1,26 @@
+# ==============================================================
+# test_signal_create_port_string_01
+# --------------------------------------------------------------
+input  logic                                 clk,
+input  logic                                 enable,
+input  logic                                 is_signed,
+input  logic                                 enacc,
+input  logic                                 sub_nadd,
+input  logic                                 selacc,
+input  logic                                 resetrs0,
+input  logic [31:0]                          rs0,
+input  logic [31:0]                          rs1,
+input  logic [31:0]                          imm,
+input  logic                                 mulmux,
+input  logic                                 selop0,
+input  logic                                 selop1,
+input  logic [1:0][(shorten_pipeline-1)*4:0] selshift  [(add_extra_instr-1):0],
+input  logic [1:0]                           cmode,
+input  logic [2:0]                           opcode1,
+input  logic [2:0]                           opcode2,
+output logic                                 out_en,
+output logic [31:0]                          out
+
+# ==============================================================
+
+
