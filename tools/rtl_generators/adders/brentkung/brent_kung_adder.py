@@ -1,17 +1,29 @@
-import verilog as verilog
+from rtl_generators.verilog.module import Module
 
 from .bitwise_pg_logic import BitwisePGLogic as BitwisePGLogic
 from .group_pg_logic import GroupPGLogic as GroupPGLogic
 from .sum_logic import SumLogic as SumLogic
 
 
-class BrentKungAdder:
-    module_name = 'math_adder_brent_kung'
+class BrentKungAdder(Module):
+    module_str = 'math_adder_brent_kung'
+    param_str = 'parameter N=8'
+    port_str = '''
+    input  logic [N-1:0] i_a,
+    input  logic [N-1:0] i_b,
+    input  logic         i_c,
+    output logic [N-1:0] ow_sum,
+    output logic         ow_carry
+    '''
 
-    def __init__(self, bitwidth):
-        self.bitwidth = bitwidth
-        self.buswidth = bitwidth
-        self.unique = False
+    def __init__(self, buswidth):
+        super().__init__(module_name=self.module_str)
+        self.ports.add_port_string(self.port_str)
+        self.params.add_param_string(self.param_str)
+        self.buswidth = buswidth
+        self.module_name = f'{self.module_name}_{str(self.buswidth).zfill(3)}'
+        self.params.set_param_value('N', self.buswidth)
+
 
 
     def bitwise_pg_logic_inputs(self):
@@ -58,95 +70,66 @@ class BrentKungAdder:
             prev_ports.append(conname)
         return prev_wires
 
-    def add_module(self, m, module, module_name, param, instance_name, inputs, outputs, top_ports, wires):
-        instance = module.instantiation(module_name=module_name, param=param, instance_name=instance_name, inputs=inputs, outputs=outputs)
+    def add_module(self, m, instance_name, inputs, outputs, top_ports, wires):
+        instance = m.instantiate(instance_name=instance_name, inputs=inputs, outputs=outputs)
 
-        m.instruction(instance)
+        self.instruction(instance)
 
         wires = self.add_new_wires(top_ports, wires, inputs)
         wires = self.add_new_wires(top_ports, wires, outputs)
 
-        return m, wires
+        return wires
 
-    def verilog(self, file_path, file_name):
+    def verilog(self, file_path):
         # sourcery skip: extract-duplicate-method
-        mod_name = f'{self.module_name}_{str(self.buswidth).zfill(3)}'
-        m = verilog.Module(mod_name, buswidth=self.buswidth, unique=False)
-        # Inputs
-        m.input('i_a', '[N-1:0]')
-        m.input('i_b', '[N-1:0]')
-        m.input('i_c', '')
-        # Outputs
-        m.output('ow_sum', '[N-1:0]')
-        m.output('ow_carry', '')
+
         top_ports = ['i_a', 'i_b', 'i_c', 'ow_sum', 'ow_carry']
         wires = []
 
+        mod = BitwisePGLogic(buswidth=self.buswidth)
+        mod.params.set_param_value('N', 'N')
+        wires = self.add_module(m=mod,
+                                    instance_name="BitwisePGLogic_inst",
+                                    inputs=self.bitwise_pg_logic_inputs(),
+                                    outputs=self.bitwise_pg_logic_outputs(),
+                                    top_ports=top_ports,
+                                    wires=wires)
 
-        mod_name = BitwisePGLogic.module_name
-        m, wires = self.add_module(m=m,
-                                   module=BitwisePGLogic(self.bitwidth),
-                                   module_name=mod_name,
-                                   param='#(.N(N))',
-                                   instance_name="BitwisePGLogic_inst",
-                                   inputs=self.bitwise_pg_logic_inputs(),
-                                   outputs=self.bitwise_pg_logic_outputs(),
-                                   top_ports=top_ports,
-                                   wires=wires)
+        mod = GroupPGLogic(buswidth=self.buswidth)
+        mod.params.set_param_value('N', 'N')
+        wires = self.add_module(m=mod,
+                                    instance_name="GroupPGLogic_inst",
+                                    inputs=self.group_pg_logic_inputs(),
+                                    outputs=self.group_pg_logic_outputs(),
+                                    top_ports=top_ports,
+                                    wires=wires)
 
+        mod = SumLogic(buswidth=self.buswidth)
+        mod.params.set_param_value('N', 'N')
+        wires = self.add_module(m=mod,
+                                    instance_name="SumLogic_inst",
+                                    inputs=self.sum_logic_inputs(),
+                                    outputs=self.sum_logic_outputs(),
+                                    top_ports=top_ports,
+                                    wires=wires)
 
-        mod_name = f'{GroupPGLogic.module_name}_{str(self.buswidth).zfill(3)}'
-        m, wires = self.add_module(m=m,
-                                   module=GroupPGLogic(self.bitwidth),
-                                   module_name=mod_name,
-                                   param='#(.N(N))',
-                                   instance_name="GroupPGLogic_inst",
-                                   inputs=self.group_pg_logic_inputs(),
-                                   outputs=self.group_pg_logic_outputs(),
-                                   top_ports=top_ports,
-                                   wires=wires)
-
-
-        mod_name = SumLogic.module_name
-        m, wires = self.add_module(m=m,
-                                   module=SumLogic(self.bitwidth),
-                                   module_name=mod_name,
-                                   param='#(.N(N))',
-                                   instance_name="SumLogic_inst",
-                                   inputs=self.sum_logic_inputs(),
-                                   outputs=self.sum_logic_outputs(),
-                                   top_ports=top_ports,
-                                   wires=wires)
-
-        mod_name = f'{self.module_name}_{str(self.buswidth).zfill(3)}'
-        m.instruction('// synopsys translate_off')
-        m.instruction('initial begin')
-        m.instruction('    $dumpfile("dump.vcd");')
-        m.instruction(f'    $dumpvars(0, {mod_name});')
-        m.instruction('end')
-        m.instruction('// synopsys translate_on')
-        m.instruction('')
+        self.instruction('// synopsys translate_off')
+        self.instruction('initial begin')
+        self.instruction('    $dumpfile("dump.vcd");')
+        self.instruction(f'    $dumpvars(0, {self.module_name});')
+        self.instruction('end')
+        self.instruction('// synopsys translate_on')
+        self.instruction('')
 
         # Wires
         # ports = [verilog.Module(BrentKungAdder).inputs, verilog.Module(BrentKungAdder).outputs]
         for wire in wires:
             wire_name = wire['connector']
             wire_type = wire['type']
-            m.wire(wire_name, wire_type)
+            self.wire(wire_name, wire_type)
 
-        m.start()
+        self.start()
 
-        m.end()
+        self.end()
 
-        m.write(file_path, file_name)
-
-    def instantiation(self, mod_name, instance_name, inputs, outputs):
-        """
-            inputs: dict{ port: ? , connector: ?}
-            outputs: dict{ port: ? , connector: ?}
-        """
-        return verilog.Module.instantiate(module_name=mod_name,
-                                          param='#(.N(N))',
-                                          instance_name=instance_name,
-                                          inputs=inputs,
-                                          outputs=outputs)
+        self.write(file_path, f'{self.module_name}.sv')

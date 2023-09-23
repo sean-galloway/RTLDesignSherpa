@@ -1,4 +1,4 @@
-module math_adder_brent_kung_pg (
+module math_adder_brent_kung_pg(
     input  logic  i_a,
     input  logic  i_b,
     output logic  ow_g,

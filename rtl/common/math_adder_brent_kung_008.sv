@@ -1,4 +1,4 @@
-module math_adder_brent_kung_008 #(parameter N=8)(
+module math_adder_brent_kung_008 #(parameter   N = 8)(
     input  logic [N-1:0] i_a,
     input  logic [N-1:0] i_b,
     input  logic         i_c,

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from verilog.verilog_parser import ParserHelper
+from rtl_generators.verilog.verilog_parser import ParserHelper
 from typing import Tuple
 
 
@@ -38,7 +38,7 @@ class Param(object):
 
     def _convert_paramrec_list(self, rec_list):
         for rec in rec_list:
-            paramrec = Param._convert_paramrec(rec)
+            paramrec = self._convert_paramrec(rec)
             found, idx = self._found_name(paramrec.name)
             if found:
                 current = self.paramrec_list[idx]
@@ -61,28 +61,58 @@ class Param(object):
                             rec['compilerDirective'])
 
 
+    def __get_max_lengths(self):
+        max_type = 0
+        max_packed = 0
+        max_name = 0
+        for paramrec in self.paramrec_list:  # Iterate through the list
+            if len(paramrec.sig_type) > max_type:
+                max_type = len(paramrec.sig_type)
+            if len(paramrec.packed) > max_packed:
+                max_packed = len(paramrec.packed)
+            if len(paramrec.name) > max_name:
+                max_name = len(paramrec.name)
+        return (max_type, max_packed, max_name)
+
+
+
+    def set_param_value(self, param, value):
+        for paramrec in self.paramrec_list:
+            if paramrec.name == param:
+                paramrec.value = value
+                break
+
+
     def add_param_string(self, signal_str):
-        paramrec_list = ParserHelper.parsePortsList(signal_str)
+        signal_str = ParserHelper.cleanString(signal_str)
+        paramrec_list = ParserHelper.parseParametersList(signal_str)
         self._convert_paramrec_list(paramrec_list)
         return self.paramrec_list
 
 
     def create_param_string(self) -> str:
-        longest_type = 0
-        for paramrec in [self.paramrec_list]:  # Iterate through the list
-            if len(paramrec.type) > longest_type:
-                longest_type = len(paramrec.type)
-
-        comma = ','
-        ports = ''
+        (max_type, max_packed, max_name) = self.__get_max_lengths()
+        param_str = ''
+        comma = ',\n'
         last = len(self.paramrec_list)
         for idx, paramrec in enumerate(self.paramrec_list):
-            sig_type = paramrec.type
-            if len(paramrec.type) < longest_type:
-                sig_type += ' ' * (longest_type - len(sig_type))
             if idx == last -1:
                 comma = ''
-            ports += f'{paramrec.direction} {sig_type} {paramrec.packed} {paramrec.name} {paramrec.unpacked} {comma}\n'
+            sig_type = ParserHelper.padRight(paramrec.sig_type, max_type)
+            packed = ParserHelper.padRight(paramrec.packed, max_packed)            
+            if len(paramrec.unpacked) == 0:
+                name = paramrec.name
+                param_str += f'parameter {sig_type} {packed} {name} = {paramrec.value}{comma}'
+            else:
+                name = ParserHelper.padRight(paramrec.name, max_name)
+                param_str += f'parameter {sig_type} {packed} {name} {paramrec.unpacked}  = {paramrec.value}{comma}'
 
-        return ports
+        return param_str
+
+    def create_param_instance(self) -> str:
+        ret_list = [
+            f'.{paramrec.name}({paramrec.value})'
+            for paramrec in self.paramrec_list
+        ]
+        return ','.join(ret_list)
             

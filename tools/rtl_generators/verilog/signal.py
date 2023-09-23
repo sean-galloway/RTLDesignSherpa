@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from verilog.verilog_parser import ParserHelper
+from rtl_generators.verilog.verilog_parser import ParserHelper
 from typing import Tuple
 
 
@@ -93,24 +93,25 @@ class Signal(object):
     def create_wire_string(self) -> str:
         (_, max_type, max_packed, max_name) = self.__get_max_lengths()
 
-        return_str = ''
+        wire_str = ''
         for sigrec in self.sigrec_list:  # Iterate through the list
             sig_type = ParserHelper.padRight(sigrec.sig_type, max_type)
             packed = ParserHelper.padRight(sigrec.packed, max_packed)
             if len(sigrec.unpacked) == 0:
                 name = sigrec.name
+                wire_str += f'{sig_type} {packed} {name};\n'
             else:
                 name = ParserHelper.padRight(sigrec.name, max_name)
-            return_str += f'{sig_type} {packed} {name} {sigrec.unpacked};\n'
+                wire_str += f'{sig_type} {packed} {name} {sigrec.unpacked};\n'
 
-        return return_str
+        return wire_str
 
 
     def create_port_string(self) -> str:
         (max_dir, max_type, max_packed, max_name) = self.__get_max_lengths()
 
         comma = ','
-        ports = ''
+        port_str = ''
         last = len(self.sigrec_list)
         for idx, sigrec in enumerate(self.sigrec_list):
             if idx == last -1:
@@ -120,10 +121,10 @@ class Signal(object):
             packed = ParserHelper.padRight(sigrec.packed, max_packed)
             if len(sigrec.unpacked) == 0:
                 name = sigrec.name
-                ports += f'{sig_dir} {sig_type} {packed} {name}{comma}\n'
+                port_str += f'    {sig_dir} {sig_type} {packed} {name}{comma}\n'
             else:
                 name = ParserHelper.padRight(sigrec.name, max_name)
-                ports += f'{sig_dir} {sig_type} {packed} {name} {sigrec.unpacked}{comma}\n'
+                port_str += f'    {sig_dir} {sig_type} {packed} {name} {sigrec.unpacked}{comma}\n'
 
-        return ports
+        return port_str
             

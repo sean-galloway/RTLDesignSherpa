@@ -1,17 +1,37 @@
-from optparse import OptionParser
+from rtl_generators.adders.brentkung.pg import PG as PG
+from rtl_generators.adders.brentkung.bitwise_pg_logic import BitwisePGLogic as BitwisePGLogic
+from rtl_generators.adders.brentkung.group_pg_logic import GroupPGLogic as GroupPGLogic
+from rtl_generators.adders.brentkung.sum_logic import SumLogic as SumLogic
+from rtl_generators.adders.brentkung.brent_kung_adder import BrentKungAdder as BrentKungAdder
+from rtl_generators.adders.brentkung.black import Black
+from rtl_generators.adders.brentkung.gray import Gray
 
 
-def create_matrix_2d(row, col, default_val='x'):
-    return [[default_val] * col for _ in range(row)]
+def write_module(file_path, module):
+    file_name = f"{module.module_name}.v"
+    module.verilog(file_path=file_path)
+    print(f'"{file_name}"')
 
 
-def get_args():
-    parser = OptionParser()
+def write_bk(file_path, bitwidth):
+    print('Generated:')
+    # Write BlackBlock.v
+    write_module(file_path, Black())
 
-    parser.add_option('--path', dest='path', default=0., type='string', help='Output files path')
-    parser.add_option('--adder-type', dest='adder_type', default='brent_kung', type='string', help="Adder Type")
-    parser.add_option('--bitwidth', dest='bitwidth', default=16, type='int', help='Adder Bitwidth')
+    # Write GrayBlock.v
+    write_module(file_path, Gray())
 
-    (options, args) = parser.parse_args()
-    return options
+    # Write PG.v
+    write_module(file_path, PG())
 
+    # Write BitwisePGLogic.v
+    write_module(file_path, BitwisePGLogic(bitwidth))
+
+    # Write GroupPGLogic.v
+    write_module(file_path, GroupPGLogic(bitwidth))
+
+    # Write SumLogic.v
+    write_module(file_path, SumLogic(bitwidth))
+
+    # Write BrentKungAdder
+    write_module(file_path, BrentKungAdder(bitwidth))

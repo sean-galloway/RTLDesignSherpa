@@ -1,4 +1,4 @@
-module math_adder_brent_kung_sum #(parameter N=8)(
+module math_adder_brent_kung_sum #(parameter   N = 8)(
     input  logic [N:0]   i_p,
     input  logic [N:0]   i_gg,
     output logic [N-1:0] ow_sum,

@@ -1,38 +1,44 @@
-import re
-from signal import Signal, Param
+
+from .signal import Signal
+from .param import Param
 
 class Module(object):
-    def __init__(self, module_name, buswidth=None, unique= True):
+    def __init__(self, module_name='', instance_name=''):
         self.start_instructions = []
         self.instructions = []
         self.end_instructions = []
         self.module_name = module_name
-        self.param_list = Param()
+        self.instance_name = instance_name
+        self.params = Param()
         self.ports = Signal()
-        self.wires = Signal()
-        self.unique = unique
+        self.wires = []
 
 
     def add_port_string(self, ports: str):
         self.ports(ports)
     
 
-    def add_wire_string(self, wires: str):
-        self.wires(wires)
+    def wire(self, name, _type):
+        self.wires.append({'name':name, 'type':_type})
 
 
     def start(self):
-        param = f'#(parameter N={self.buswidth})' if self.unique is False else ''
         mod_name = self.module_name
 
-        module = f'module {mod_name} {param}(\n'
+        if len(self.params.paramrec_list) > 0:
+            params = self.params.create_param_string()
+            param_str = f'#({params})' 
+            module = f'module {mod_name} {param_str}(\n'
+        else:
+            module = f'module {mod_name}(\n'
+
         module += self.ports.create_port_string()
 
         module += ');\n'
         self.start_instructions.append(module)
 
-        wires = self.wires.create_wire_string()
-        self.start_instructions.append(wires)
+        for wire in self.wires:
+            self.start_instructions.append(f"logic {wire['type']} {wire['name']};")
 
 
     def end(self):
@@ -62,8 +68,7 @@ class Module(object):
         return '\n'.join(self.instructions)
 
 
-    @staticmethod
-    def instantiate(module_name, param, instance_name, inputs, outputs):
+    def instantiate(self, instance_name, inputs, outputs):
         """
             inputs: [dict{ port: ? , connector: ?}]
             outputs: [dict{ port: ? , connector: ?}]
@@ -73,8 +78,12 @@ class Module(object):
         ports = ['.{port}({connector})'.format(
             port=port['port'], connector=port['connector']) for port in ports]
         ports = ','.join(ports)
-
-        return f'{module_name} {param} {instance_name}({ports});'
+        param = self.params.create_param_instance()
+        return (
+            f'{self.module_name} #({param}) {instance_name}({ports});'
+            if len(self.params.paramrec_list) > 0
+            else f'{self.module_name} {instance_name}({ports});'
+        )
 
 
     @staticmethod

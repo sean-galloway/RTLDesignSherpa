@@ -172,10 +172,10 @@ sim.vvp
 *.bkp
 *.dtmp
 reports/common/lint/
-./vcd2wavedrom
 known_good/
 junk
 vcd2wavedrom
 IcarusIssue*
 reports/*
 tools/OLD_SCRIPTS/
+tools/vcd2wavedrom

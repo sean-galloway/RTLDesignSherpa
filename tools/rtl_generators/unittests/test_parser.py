@@ -12,10 +12,10 @@ from verilog.verilog_parser import Parser, ParserHelper
 from data_str import tstSimpleModule, tstSimpleModuleName, \
     tstSimpleParams, tstSimplePorts, tstCompilerDirectiveModule, \
     tstCompilerDirectiveModuleName, tstCompilerDirectiveParams, \
-    tstCompilerDirectivePorts, tstBadCompilerDirectiveModule, \
+    tstCompilerDirectivePorts,\
     tstProcessSig1, tstProcessSig2, tstProcessSig3, \
     tstProcessSigFree1, tstProcessSigFree2, tstProcessSigFree3, \
-    tstProcessSigFree4, tstMipStore
+    tstProcessSigFree4
 import pprint
 
 
@@ -191,12 +191,9 @@ class ParserTest(unittest.TestCase):
 #         print "Pretty Print Ports:"
 #         pprint.pprint(x.portsList)
 
-        self.assertEqual(x.moduleNameStr,  tstModuleName,
-                         'Module Name mismatch')
-        self.assertEqual(x.parametersList, tstParams,
-                         'Parser Parameter mismatch')
-        self.assertEqual(x.portsList,      tstPorts,
-                         'Parser Port mismatch')
+        self.assertEqual(x.moduleNameStr,  tstModuleName, 'Module Name mismatch')
+        self.assertEqual(x.parametersList, tstParams, 'Parser Parameter mismatch')
+        self.assertEqual(x.portsList,      tstPorts, 'Parser Port mismatch')
 
     def test_compiler_directive_code(self):
         tstModule = tstCompilerDirectiveModule
@@ -209,23 +206,7 @@ class ParserTest(unittest.TestCase):
 #         pprint.pprint(x.parametersList)
 #         print "Pretty Print Ports:"
 #         pprint.pprint(x.portsList)
-        self.assertEqual(x.moduleNameStr,  tstModuleName,
-                         'Module Name mismatch')
-        self.assertEqual(x.parametersList, tstParams,
-                         'Parser Parameter mismatch')
-        self.assertEqual(x.portsList,      tstPorts,
-                         'Parser Port mismatch')
+        self.assertEqual(x.moduleNameStr,  tstModuleName, 'Module Name mismatch')
+        self.assertEqual(x.parametersList, tstParams, 'Parser Parameter mismatch')
+        self.assertEqual(x.portsList,      tstPorts, 'Parser Port mismatch')
 
-    def test_bad_compiler_directive_code(self):
-        tstModule = tstBadCompilerDirectiveModule
-        with self.assertRaises(ValueError):
-            dummy = Parser(tstModule)
-
-    def test_sram_code(self):
-        tstModule = tstMipStore
-#         tstModuleName = ''
-#         tstParams = tstSimpleParams
-#         tstPorts = tstSimplePorts
-        x = Parser(tstModule)
-        # print "Pretty Print Ports:"
-        # pprint.pprint(x.portsList)

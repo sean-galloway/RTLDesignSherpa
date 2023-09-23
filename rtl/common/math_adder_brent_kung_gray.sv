@@ -1,4 +1,4 @@
-module math_adder_brent_kung_gray (
+module math_adder_brent_kung_gray(
     input  logic  i_g,
     input  logic  i_p,
     input  logic  i_g_km1,

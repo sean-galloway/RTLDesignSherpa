@@ -1,23 +1,38 @@
 import math
-import utils as utils
-import adders.blocks as blocks
-import verilog as verilog
+from rtl_generators.verilog.module import Module
+from .black import Black
+from .gray import Gray
 
 
-class GroupPGLogic:
-    module_name = 'math_adder_brent_kung_grouppg'
+def create_matrix_2d(row, col, default_val='x'):
+    return [[default_val] * col for _ in range(row)]
 
-    def __init__(self, bitwidth):
-        self.buswidth = bitwidth
-        self.bitwidth = bitwidth+1
+class GroupPGLogic(Module):
+    module_str = 'math_adder_brent_kung_grouppg'
+    param_str = 'parameter N=8'
+    port_str = '''
+    input  logic [N:0] i_p,
+    input  logic [N:0] i_g,
+    output logic [N:0] ow_gg,
+    output logic [N:0] ow_pp
+    '''
+
+
+    def __init__(self, buswidth):
+        super().__init__(module_name=self.module_str)
+        self.ports.add_port_string(self.port_str)
+        self.params.add_param_string(self.param_str)
+        self.buswidth = buswidth
+        self.bitwidth = buswidth+1
+        self.params.set_param_value('N', self.buswidth)
         self.block_matrix = self.generate_block_matrix()
         self.row, self.col = len(self.block_matrix), len(self.block_matrix[0])
-        self.unique = False
+        self.module_name = f'{self.module_name}_{str(self.buswidth).zfill(3)}'
 
 
     def generate_block_matrix(self):
         height = int(2*math.log2(self.bitwidth) - 1)
-        bmatrix = utils.create_matrix_2d(height, self.bitwidth, default_val=('|', None))
+        bmatrix = create_matrix_2d(height, self.bitwidth, default_val=('|', None))
 
         # Upside
         pow2 = 1
@@ -67,17 +82,6 @@ class GroupPGLogic:
             j = i - math.pow(2, height - 1 - row)
         return arg2.format(int(i), j)
 
-    def inputs(self):
-        return self.in_out_helper('i_p', 'i_g')
-
-    def outputs(self):
-        return self.in_out_helper('ow_pp', 'ow_gg')
-
-    # TODO Rename this here and in `inputs` and `outputs`
-    def in_out_helper(self, arg0, arg1):
-        Ps = arg0
-        Gs = arg1
-        return Gs, Ps
 
     def input_i_j(self, r, c):
         height = self.height()
@@ -118,10 +122,10 @@ class GroupPGLogic:
         else:
             g_km1 = f'G_{in2_i}_{in2_j}'
             p_km1 = f'P_{in2_i}_{in2_j}'
-        _g_i_k = verilog.Module.in_connector('i_g', gik)
-        _p_i_k = verilog.Module.in_connector('i_p', pik)
-        _g_km1_j = verilog.Module.in_connector('i_g_km1', g_km1)
-        _p_km1_j = verilog.Module.in_connector('i_p_km1', p_km1)
+        _g_i_k = Module.in_connector('i_g', gik)
+        _p_i_k = Module.in_connector('i_p', pik)
+        _g_km1_j = Module.in_connector('i_g_km1', g_km1)
+        _p_km1_j = Module.in_connector('i_p_km1', p_km1)
 
         # Outputs
         out_i, out_j = self.output_i_j(r, c)
@@ -131,8 +135,8 @@ class GroupPGLogic:
         else:
             gij = f'G_{out_i}_{out_j}'
             pij = f'P_{out_i}_{out_j}'
-        _g_i_j = verilog.Module.out_connector('ow_g', gij)
-        _p_i_j = verilog.Module.out_connector('ow_p', pij)
+        _g_i_j = Module.out_connector('ow_g', gij)
+        _p_i_j = Module.out_connector('ow_p', pij)
 
         inputs = [_g_i_k, _p_i_k, _g_km1_j, _p_km1_j]
         outputs = [_g_i_j, _p_i_j]
@@ -145,7 +149,9 @@ class GroupPGLogic:
         else:
             wires = [input['connector'] for input in inputs] + [output['connector'] for output in outputs]
         j = int(j.split('.')[0])
-        return wires, blocks.BlackBlock.instantiation(instance_name=f'black_block_{i}_{j}', inputs=inputs, outputs=outputs)
+        b = Black()
+        b_str = b.instantiate(instance_name=f'black_block_{i}_{j}', inputs=inputs, outputs=outputs)
+        return wires, b_str
 
     def gray_block(self, r, c, block_in):
         # print('---------------- Gray Block ----------------')
@@ -168,14 +174,14 @@ class GroupPGLogic:
             g_km1 = f'ow_gg[{in2_i}]'
         else:
             f'G_{in2_i}_{in2_j}'
-        _g_i_k = verilog.Module.in_connector('i_g', gik)
-        _p_i_k = verilog.Module.in_connector('i_p', pik)
-        _g_km1_j = verilog.Module.in_connector('i_g_km1', g_km1)
+        _g_i_k = Module.in_connector('i_g', gik)
+        _p_i_k = Module.in_connector('i_p', pik)
+        _g_km1_j = Module.in_connector('i_g_km1', g_km1)
 
         # Outputs
         out_i, out_j = self.output_i_j(r, c)
         gij = f'ow_gg[{out_i}]' if out_j == 0 else f'G_{out_i}_{out_j}'
-        _g_i_j = verilog.Module.out_connector('ow_g', gij)
+        _g_i_j = Module.out_connector('ow_g', gij)
 
         inputs = [_g_i_k, _p_i_k, _g_km1_j]
         outputs = [_g_i_j]
@@ -188,20 +194,13 @@ class GroupPGLogic:
         else:
             wires = [input['connector'] for input in inputs] + [output['connector'] for output in outputs]
         j = int(j.split('.')[0])
-        return wires, blocks.GrayBlock.instantiation(instance_name=f'gray_block_{i}_{j}', inputs=inputs, outputs=outputs)
+        g = Gray()
+        g_str = g.instantiate(instance_name=f'gray_block_{i}_{j}', inputs=inputs, outputs=outputs)
+        return wires, g_str
 
 
-    def verilog(self, file_path, file_name):  # sourcery skip: low-code-quality
-        mod_name = f'{self.module_name}_{str(self.buswidth).zfill(3)}'
-        m = verilog.Module(mod_name, buswidth=self.buswidth, unique=False)
-        m.input('i_p', '[N:0]')
-        m.input('i_g', '[N:0]')
-        m.output('ow_gg', '[N:0]')
-        m.output('ow_pp', '[N:0]')
-
+    def verilog(self, file_path):  # sourcery skip: low-code-quality
         all_wires = []
-        input_Gs, input_Ps = self.inputs()
-        output_Gs, output_Ps = self.outputs()
         for r in range(self.row):
             for c in range(self.col):
                 block_type, block_in = self.block_matrix[r][c]
@@ -217,7 +216,7 @@ class GroupPGLogic:
                         if wire not in all_wires:
                             all_wires.append(wire)
 
-                    m.instruction(new_block)
+                    self.instruction(new_block)
 
                 elif block_type in ['Buffer', '|']:
                     continue
@@ -226,27 +225,17 @@ class GroupPGLogic:
 
         for wire in all_wires:
             wire_min = wire.split('[')[0]
-            if wire_min in (input_Gs + input_Ps + output_Gs + output_Ps):
+            if wire_min in ('i_g', 'i_p', 'ow_gg', 'ow_pp'):
                 continue
             i, j = wire.split('_')[-2], wire.split('_')[-1]
-            m.wire(wire, '')
+            self.wire(wire, '')
 
-        m.instruction('assign ow_gg[0] = i_g[0];')
-        m.instruction('assign ow_pp[0] = i_p[0];')
+        self.instruction('assign ow_gg[0] = i_g[0];')
+        self.instruction('assign ow_pp[0] = i_p[0];')
 
-        m.start()
+        self.start()
 
-        m.end()
+        self.end()
 
-        m.write(file_path, file_name)
+        self.write(file_path, f'{self.module_name}.sv')
 
-    def instantiation(self, module_name, param, instance_name, inputs, outputs):
-        """
-            inputs: dict{ port: ? , connector: ?}
-            outputs: dict{ port: ? , connector: ?}
-        """
-        return verilog.Module.instantiate(module_name=module_name,
-                                          param=param,
-                                          instance_name=instance_name,
-                                          inputs=inputs,
-                                          outputs=outputs)
