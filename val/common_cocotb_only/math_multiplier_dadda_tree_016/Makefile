@@ -6,6 +6,8 @@ VERILOG_SOURCES = \
 					$(CWD)/../../../rtl/common/math_adder_half.sv \
 					$(CWD)/../../../rtl/common/math_adder_full.sv \
 					$(CWD)/../../../rtl/common/math_adder_carry_save.sv \
+					$(CWD)/../../../rtl/common/math_multiplier_partial_products.sv \
+					$(CWD)/../../../rtl/common/math_multiplier_dadda_reduction_016.sv\
 					$(CWD)/../../../rtl/common/math_multiplier_dadda_tree_016.sv 
 
 DUT = math_multiplier_dadda_tree_016
@@ -13,7 +15,7 @@ MODULE = testbench
 TOPLEVEL = $(DUT)
 
 #COMPILE_ARGS += -P $(DUT).N=32
-#COMPILE_ARGS += -DDEBUG
+COMPILE_ARGS += -pmath_multiplier_dadda_tree_016.sv-line=1
 
 
 TOPLEVEL_LANG := verilog

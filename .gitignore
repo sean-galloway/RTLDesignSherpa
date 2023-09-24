@@ -174,7 +174,6 @@ sim.vvp
 reports/common/lint/
 known_good/
 junk
-vcd2wavedrom
 IcarusIssue*
 reports/*
 tools/OLD_SCRIPTS/

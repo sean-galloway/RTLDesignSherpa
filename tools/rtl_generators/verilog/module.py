@@ -28,9 +28,9 @@ class Module(object):
         if len(self.params.paramrec_list) > 0:
             params = self.params.create_param_string()
             param_str = f'#({params})' 
-            module = f'module {mod_name} {param_str}(\n'
+            module = f'`timescale 1ns / 1ps\n\nmodule {mod_name} {param_str}(\n'
         else:
-            module = f'module {mod_name}(\n'
+            module = f'`timescale 1ns / 1ps\n\nmodule {mod_name}(\n'
 
         module += self.ports.create_port_string()
 

@@ -1,3 +1,5 @@
+`timescale 1ns / 1ps
+
 module math_adder_brent_kung_sum #(parameter   N = 8)(
     input  logic [N:0]   i_p,
     input  logic [N:0]   i_gg,

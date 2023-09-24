@@ -1,3 +1,5 @@
+`timescale 1ns / 1ps
+
 module math_adder_brent_kung_grouppg_016 #(parameter   N = 16)(
     input  logic [N:0] i_p,
     input  logic [N:0] i_g,

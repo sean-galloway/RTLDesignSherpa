@@ -1,37 +1,37 @@
-from rtl_generators.adders.brentkung.pg import PG as PG
-from rtl_generators.adders.brentkung.bitwise_pg_logic import BitwisePGLogic as BitwisePGLogic
-from rtl_generators.adders.brentkung.group_pg_logic import GroupPGLogic as GroupPGLogic
-from rtl_generators.adders.brentkung.sum_logic import SumLogic as SumLogic
-from rtl_generators.adders.brentkung.brent_kung_adder import BrentKungAdder as BrentKungAdder
+from rtl_generators.adders.brentkung.pg import PG
+from rtl_generators.adders.brentkung.bitwise_pg_logic import BitwisePGLogic
+from rtl_generators.adders.brentkung.group_pg_logic import GroupPGLogic
+from rtl_generators.adders.brentkung.sum_logic import SumLogic
+from rtl_generators.adders.brentkung.brent_kung_adder import BrentKungAdder
 from rtl_generators.adders.brentkung.black import Black
 from rtl_generators.adders.brentkung.gray import Gray
 
+from rtl_generators.multipliers.dadda_multiplier import DaddaTree
+from rtl_generators.multipliers.wallace_multiplier import WallaceTree
+
 
 def write_module(file_path, module):
-    file_name = f"{module.module_name}.v"
+    file_name = f"{module.module_name}.sv"
     module.verilog(file_path=file_path)
     print(f'"{file_name}"')
 
 
-def write_bk(file_path, bitwidth):
+def write_dadda(file_path, buswidth):
     print('Generated:')
-    # Write BlackBlock.v
+    write_module(file_path, DaddaTree(buswidth))
+
+
+def write_wallace(file_path, type, buswidth):
+    print('Generated:')
+    write_module(file_path, WallaceTree(type, buswidth))
+
+
+def write_bk(file_path, buswidth):
+    print('Generated:')
     write_module(file_path, Black())
-
-    # Write GrayBlock.v
     write_module(file_path, Gray())
-
-    # Write PG.v
     write_module(file_path, PG())
-
-    # Write BitwisePGLogic.v
-    write_module(file_path, BitwisePGLogic(bitwidth))
-
-    # Write GroupPGLogic.v
-    write_module(file_path, GroupPGLogic(bitwidth))
-
-    # Write SumLogic.v
-    write_module(file_path, SumLogic(bitwidth))
-
-    # Write BrentKungAdder
-    write_module(file_path, BrentKungAdder(bitwidth))
+    write_module(file_path, BitwisePGLogic(buswidth))
+    write_module(file_path, GroupPGLogic(buswidth))
+    write_module(file_path, SumLogic(buswidth))
+    write_module(file_path, BrentKungAdder(buswidth))

@@ -1,3 +1,5 @@
+`timescale 1ns / 1ps
+
 module math_subtractor_carry_lookahead #(
     parameter N = 4  // Width of input and output data
 ) (

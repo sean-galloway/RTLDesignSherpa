@@ -1,3 +1,5 @@
+`timescale 1ns / 1ps
+
 module math_adder_brent_kung_black(
     input  logic  i_g,
     input  logic  i_p,

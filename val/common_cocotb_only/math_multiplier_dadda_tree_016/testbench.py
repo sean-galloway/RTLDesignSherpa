@@ -6,6 +6,11 @@ from cocotb.clock import Clock
 from cocotb.triggers import Timer
 import random
 
+
+def binary_to_hex(binary_str):
+    return hex(int(binary_str, 2))[2:]
+
+
 @cocotb.coroutine
 def init_test(dut):
     dut.i_multiplier.value = 0
@@ -27,7 +32,10 @@ def multiplier_dadda_tree_016_test(dut):
         dut.i_multiplicand.value = b
 
         yield Timer(10, units='ns')
-        # print(f"Multiplier: {dut.i_multiplier.value}, Multiplicand: {dut.i_multiplicand.value}")
+        multiplier_hex = binary_to_hex(dut.i_multiplier.value.binstr)
+        multiplicand_hex = binary_to_hex(dut.i_multiplicand.value.binstr)
+        product_hex = binary_to_hex(dut.ow_product.value.binstr)
+        print(f"Multiplier: {multiplier_hex}, Multiplicand: {multiplicand_hex}, Product: {product_hex}")
 
         result = dut.ow_product.value.integer
         expected_result = a * b
