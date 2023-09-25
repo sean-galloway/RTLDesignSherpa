@@ -1034,12 +1034,12 @@ wire w_pp_31_31 = i_multiplier[31] & i_multiplicand[31];
 
 // Partial products reduction using Wallace tree
 wire w_sum_01_02, w_carry_01_02;
-math_adder_half HA_01_02(.i_a(w_pp_00_01), .i_b(w_pp_01_00), .ow_sum(w_sum_01_02), .ow_carry(w_carry_01_02));
+math_adder_half       HA_01_02(.i_a(w_pp_00_01), .i_b(w_pp_01_00), .ow_sum(w_sum_01_02), .ow_carry(w_carry_01_02));
 wire w_sum_02_04, w_carry_02_04;
 
 math_adder_carry_save CSA_02_04(.i_a(w_pp_00_02), .i_b(w_pp_01_01), .i_c(w_pp_02_00), .ow_sum(w_sum_02_04), .ow_carry(w_carry_02_04));
 wire w_sum_02_02, w_carry_02_02;
-math_adder_half HA_02_02(.i_a(w_carry_01_02), .i_b(w_sum_02_04), .ow_sum(w_sum_02_02), .ow_carry(w_carry_02_02));
+math_adder_half       HA_02_02(.i_a(w_carry_01_02), .i_b(w_sum_02_04), .ow_sum(w_sum_02_02), .ow_carry(w_carry_02_02));
 wire w_sum_03_06, w_carry_03_06;
 
 math_adder_carry_save CSA_03_06(.i_a(w_pp_00_03), .i_b(w_pp_01_02), .i_c(w_pp_02_01), .ow_sum(w_sum_03_06), .ow_carry(w_carry_03_06));
@@ -1047,7 +1047,7 @@ wire w_sum_03_04, w_carry_03_04;
 
 math_adder_carry_save CSA_03_04(.i_a(w_pp_03_00), .i_b(w_carry_02_04), .i_c(w_carry_02_02), .ow_sum(w_sum_03_04), .ow_carry(w_carry_03_04));
 wire w_sum_03_02, w_carry_03_02;
-math_adder_half HA_03_02(.i_a(w_sum_03_06), .i_b(w_sum_03_04), .ow_sum(w_sum_03_02), .ow_carry(w_carry_03_02));
+math_adder_half       HA_03_02(.i_a(w_sum_03_06), .i_b(w_sum_03_04), .ow_sum(w_sum_03_02), .ow_carry(w_carry_03_02));
 wire w_sum_04_08, w_carry_04_08;
 
 math_adder_carry_save CSA_04_08(.i_a(w_pp_00_04), .i_b(w_pp_01_03), .i_c(w_pp_02_02), .ow_sum(w_sum_04_08), .ow_carry(w_carry_04_08));
@@ -1058,7 +1058,7 @@ wire w_sum_04_04, w_carry_04_04;
 
 math_adder_carry_save CSA_04_04(.i_a(w_carry_03_04), .i_b(w_carry_03_02), .i_c(w_sum_04_08), .ow_sum(w_sum_04_04), .ow_carry(w_carry_04_04));
 wire w_sum_04_02, w_carry_04_02;
-math_adder_half HA_04_02(.i_a(w_sum_04_06), .i_b(w_sum_04_04), .ow_sum(w_sum_04_02), .ow_carry(w_carry_04_02));
+math_adder_half       HA_04_02(.i_a(w_sum_04_06), .i_b(w_sum_04_04), .ow_sum(w_sum_04_02), .ow_carry(w_carry_04_02));
 wire w_sum_05_10, w_carry_05_10;
 
 math_adder_carry_save CSA_05_10(.i_a(w_pp_00_05), .i_b(w_pp_01_04), .i_c(w_pp_02_03), .ow_sum(w_sum_05_10), .ow_carry(w_carry_05_10));
@@ -1072,7 +1072,7 @@ wire w_sum_05_04, w_carry_05_04;
 
 math_adder_carry_save CSA_05_04(.i_a(w_carry_04_02), .i_b(w_sum_05_10), .i_c(w_sum_05_08), .ow_sum(w_sum_05_04), .ow_carry(w_carry_05_04));
 wire w_sum_05_02, w_carry_05_02;
-math_adder_half HA_05_02(.i_a(w_sum_05_06), .i_b(w_sum_05_04), .ow_sum(w_sum_05_02), .ow_carry(w_carry_05_02));
+math_adder_half       HA_05_02(.i_a(w_sum_05_06), .i_b(w_sum_05_04), .ow_sum(w_sum_05_02), .ow_carry(w_carry_05_02));
 wire w_sum_06_12, w_carry_06_12;
 
 math_adder_carry_save CSA_06_12(.i_a(w_pp_00_06), .i_b(w_pp_01_05), .i_c(w_pp_02_04), .ow_sum(w_sum_06_12), .ow_carry(w_carry_06_12));
@@ -1089,7 +1089,7 @@ wire w_sum_06_04, w_carry_06_04;
 
 math_adder_carry_save CSA_06_04(.i_a(w_sum_06_12), .i_b(w_sum_06_10), .i_c(w_sum_06_08), .ow_sum(w_sum_06_04), .ow_carry(w_carry_06_04));
 wire w_sum_06_02, w_carry_06_02;
-math_adder_half HA_06_02(.i_a(w_sum_06_06), .i_b(w_sum_06_04), .ow_sum(w_sum_06_02), .ow_carry(w_carry_06_02));
+math_adder_half       HA_06_02(.i_a(w_sum_06_06), .i_b(w_sum_06_04), .ow_sum(w_sum_06_02), .ow_carry(w_carry_06_02));
 wire w_sum_07_14, w_carry_07_14;
 
 math_adder_carry_save CSA_07_14(.i_a(w_pp_00_07), .i_b(w_pp_01_06), .i_c(w_pp_02_05), .ow_sum(w_sum_07_14), .ow_carry(w_carry_07_14));
@@ -1109,7 +1109,7 @@ wire w_sum_07_04, w_carry_07_04;
 
 math_adder_carry_save CSA_07_04(.i_a(w_sum_07_12), .i_b(w_sum_07_10), .i_c(w_sum_07_08), .ow_sum(w_sum_07_04), .ow_carry(w_carry_07_04));
 wire w_sum_07_02, w_carry_07_02;
-math_adder_half HA_07_02(.i_a(w_sum_07_06), .i_b(w_sum_07_04), .ow_sum(w_sum_07_02), .ow_carry(w_carry_07_02));
+math_adder_half       HA_07_02(.i_a(w_sum_07_06), .i_b(w_sum_07_04), .ow_sum(w_sum_07_02), .ow_carry(w_carry_07_02));
 wire w_sum_08_16, w_carry_08_16;
 
 math_adder_carry_save CSA_08_16(.i_a(w_pp_00_08), .i_b(w_pp_01_07), .i_c(w_pp_02_06), .ow_sum(w_sum_08_16), .ow_carry(w_carry_08_16));
@@ -1132,7 +1132,7 @@ wire w_sum_08_04, w_carry_08_04;
 
 math_adder_carry_save CSA_08_04(.i_a(w_sum_08_12), .i_b(w_sum_08_10), .i_c(w_sum_08_08), .ow_sum(w_sum_08_04), .ow_carry(w_carry_08_04));
 wire w_sum_08_02, w_carry_08_02;
-math_adder_half HA_08_02(.i_a(w_sum_08_06), .i_b(w_sum_08_04), .ow_sum(w_sum_08_02), .ow_carry(w_carry_08_02));
+math_adder_half       HA_08_02(.i_a(w_sum_08_06), .i_b(w_sum_08_04), .ow_sum(w_sum_08_02), .ow_carry(w_carry_08_02));
 wire w_sum_09_18, w_carry_09_18;
 
 math_adder_carry_save CSA_09_18(.i_a(w_pp_00_09), .i_b(w_pp_01_08), .i_c(w_pp_02_07), .ow_sum(w_sum_09_18), .ow_carry(w_carry_09_18));
@@ -1158,7 +1158,7 @@ wire w_sum_09_04, w_carry_09_04;
 
 math_adder_carry_save CSA_09_04(.i_a(w_sum_09_12), .i_b(w_sum_09_10), .i_c(w_sum_09_08), .ow_sum(w_sum_09_04), .ow_carry(w_carry_09_04));
 wire w_sum_09_02, w_carry_09_02;
-math_adder_half HA_09_02(.i_a(w_sum_09_06), .i_b(w_sum_09_04), .ow_sum(w_sum_09_02), .ow_carry(w_carry_09_02));
+math_adder_half       HA_09_02(.i_a(w_sum_09_06), .i_b(w_sum_09_04), .ow_sum(w_sum_09_02), .ow_carry(w_carry_09_02));
 wire w_sum_10_20, w_carry_10_20;
 
 math_adder_carry_save CSA_10_20(.i_a(w_pp_00_10), .i_b(w_pp_01_09), .i_c(w_pp_02_08), .ow_sum(w_sum_10_20), .ow_carry(w_carry_10_20));
@@ -1187,7 +1187,7 @@ wire w_sum_10_04, w_carry_10_04;
 
 math_adder_carry_save CSA_10_04(.i_a(w_sum_10_12), .i_b(w_sum_10_10), .i_c(w_sum_10_08), .ow_sum(w_sum_10_04), .ow_carry(w_carry_10_04));
 wire w_sum_10_02, w_carry_10_02;
-math_adder_half HA_10_02(.i_a(w_sum_10_06), .i_b(w_sum_10_04), .ow_sum(w_sum_10_02), .ow_carry(w_carry_10_02));
+math_adder_half       HA_10_02(.i_a(w_sum_10_06), .i_b(w_sum_10_04), .ow_sum(w_sum_10_02), .ow_carry(w_carry_10_02));
 wire w_sum_11_22, w_carry_11_22;
 
 math_adder_carry_save CSA_11_22(.i_a(w_pp_00_11), .i_b(w_pp_01_10), .i_c(w_pp_02_09), .ow_sum(w_sum_11_22), .ow_carry(w_carry_11_22));
@@ -1219,7 +1219,7 @@ wire w_sum_11_04, w_carry_11_04;
 
 math_adder_carry_save CSA_11_04(.i_a(w_sum_11_12), .i_b(w_sum_11_10), .i_c(w_sum_11_08), .ow_sum(w_sum_11_04), .ow_carry(w_carry_11_04));
 wire w_sum_11_02, w_carry_11_02;
-math_adder_half HA_11_02(.i_a(w_sum_11_06), .i_b(w_sum_11_04), .ow_sum(w_sum_11_02), .ow_carry(w_carry_11_02));
+math_adder_half       HA_11_02(.i_a(w_sum_11_06), .i_b(w_sum_11_04), .ow_sum(w_sum_11_02), .ow_carry(w_carry_11_02));
 wire w_sum_12_24, w_carry_12_24;
 
 math_adder_carry_save CSA_12_24(.i_a(w_pp_00_12), .i_b(w_pp_01_11), .i_c(w_pp_02_10), .ow_sum(w_sum_12_24), .ow_carry(w_carry_12_24));
@@ -1254,7 +1254,7 @@ wire w_sum_12_04, w_carry_12_04;
 
 math_adder_carry_save CSA_12_04(.i_a(w_sum_12_12), .i_b(w_sum_12_10), .i_c(w_sum_12_08), .ow_sum(w_sum_12_04), .ow_carry(w_carry_12_04));
 wire w_sum_12_02, w_carry_12_02;
-math_adder_half HA_12_02(.i_a(w_sum_12_06), .i_b(w_sum_12_04), .ow_sum(w_sum_12_02), .ow_carry(w_carry_12_02));
+math_adder_half       HA_12_02(.i_a(w_sum_12_06), .i_b(w_sum_12_04), .ow_sum(w_sum_12_02), .ow_carry(w_carry_12_02));
 wire w_sum_13_26, w_carry_13_26;
 
 math_adder_carry_save CSA_13_26(.i_a(w_pp_00_13), .i_b(w_pp_01_12), .i_c(w_pp_02_11), .ow_sum(w_sum_13_26), .ow_carry(w_carry_13_26));
@@ -1292,7 +1292,7 @@ wire w_sum_13_04, w_carry_13_04;
 
 math_adder_carry_save CSA_13_04(.i_a(w_sum_13_12), .i_b(w_sum_13_10), .i_c(w_sum_13_08), .ow_sum(w_sum_13_04), .ow_carry(w_carry_13_04));
 wire w_sum_13_02, w_carry_13_02;
-math_adder_half HA_13_02(.i_a(w_sum_13_06), .i_b(w_sum_13_04), .ow_sum(w_sum_13_02), .ow_carry(w_carry_13_02));
+math_adder_half       HA_13_02(.i_a(w_sum_13_06), .i_b(w_sum_13_04), .ow_sum(w_sum_13_02), .ow_carry(w_carry_13_02));
 wire w_sum_14_28, w_carry_14_28;
 
 math_adder_carry_save CSA_14_28(.i_a(w_pp_00_14), .i_b(w_pp_01_13), .i_c(w_pp_02_12), .ow_sum(w_sum_14_28), .ow_carry(w_carry_14_28));
@@ -1333,7 +1333,7 @@ wire w_sum_14_04, w_carry_14_04;
 
 math_adder_carry_save CSA_14_04(.i_a(w_sum_14_12), .i_b(w_sum_14_10), .i_c(w_sum_14_08), .ow_sum(w_sum_14_04), .ow_carry(w_carry_14_04));
 wire w_sum_14_02, w_carry_14_02;
-math_adder_half HA_14_02(.i_a(w_sum_14_06), .i_b(w_sum_14_04), .ow_sum(w_sum_14_02), .ow_carry(w_carry_14_02));
+math_adder_half       HA_14_02(.i_a(w_sum_14_06), .i_b(w_sum_14_04), .ow_sum(w_sum_14_02), .ow_carry(w_carry_14_02));
 wire w_sum_15_30, w_carry_15_30;
 
 math_adder_carry_save CSA_15_30(.i_a(w_pp_00_15), .i_b(w_pp_01_14), .i_c(w_pp_02_13), .ow_sum(w_sum_15_30), .ow_carry(w_carry_15_30));
@@ -1377,7 +1377,7 @@ wire w_sum_15_04, w_carry_15_04;
 
 math_adder_carry_save CSA_15_04(.i_a(w_sum_15_12), .i_b(w_sum_15_10), .i_c(w_sum_15_08), .ow_sum(w_sum_15_04), .ow_carry(w_carry_15_04));
 wire w_sum_15_02, w_carry_15_02;
-math_adder_half HA_15_02(.i_a(w_sum_15_06), .i_b(w_sum_15_04), .ow_sum(w_sum_15_02), .ow_carry(w_carry_15_02));
+math_adder_half       HA_15_02(.i_a(w_sum_15_06), .i_b(w_sum_15_04), .ow_sum(w_sum_15_02), .ow_carry(w_carry_15_02));
 wire w_sum_16_32, w_carry_16_32;
 
 math_adder_carry_save CSA_16_32(.i_a(w_pp_00_16), .i_b(w_pp_01_15), .i_c(w_pp_02_14), .ow_sum(w_sum_16_32), .ow_carry(w_carry_16_32));
@@ -1424,7 +1424,7 @@ wire w_sum_16_04, w_carry_16_04;
 
 math_adder_carry_save CSA_16_04(.i_a(w_sum_16_12), .i_b(w_sum_16_10), .i_c(w_sum_16_08), .ow_sum(w_sum_16_04), .ow_carry(w_carry_16_04));
 wire w_sum_16_02, w_carry_16_02;
-math_adder_half HA_16_02(.i_a(w_sum_16_06), .i_b(w_sum_16_04), .ow_sum(w_sum_16_02), .ow_carry(w_carry_16_02));
+math_adder_half       HA_16_02(.i_a(w_sum_16_06), .i_b(w_sum_16_04), .ow_sum(w_sum_16_02), .ow_carry(w_carry_16_02));
 wire w_sum_17_34, w_carry_17_34;
 
 math_adder_carry_save CSA_17_34(.i_a(w_pp_00_17), .i_b(w_pp_01_16), .i_c(w_pp_02_15), .ow_sum(w_sum_17_34), .ow_carry(w_carry_17_34));
@@ -1474,7 +1474,7 @@ wire w_sum_17_04, w_carry_17_04;
 
 math_adder_carry_save CSA_17_04(.i_a(w_sum_17_12), .i_b(w_sum_17_10), .i_c(w_sum_17_08), .ow_sum(w_sum_17_04), .ow_carry(w_carry_17_04));
 wire w_sum_17_02, w_carry_17_02;
-math_adder_half HA_17_02(.i_a(w_sum_17_06), .i_b(w_sum_17_04), .ow_sum(w_sum_17_02), .ow_carry(w_carry_17_02));
+math_adder_half       HA_17_02(.i_a(w_sum_17_06), .i_b(w_sum_17_04), .ow_sum(w_sum_17_02), .ow_carry(w_carry_17_02));
 wire w_sum_18_36, w_carry_18_36;
 
 math_adder_carry_save CSA_18_36(.i_a(w_pp_00_18), .i_b(w_pp_01_17), .i_c(w_pp_02_16), .ow_sum(w_sum_18_36), .ow_carry(w_carry_18_36));
@@ -1527,7 +1527,7 @@ wire w_sum_18_04, w_carry_18_04;
 
 math_adder_carry_save CSA_18_04(.i_a(w_sum_18_12), .i_b(w_sum_18_10), .i_c(w_sum_18_08), .ow_sum(w_sum_18_04), .ow_carry(w_carry_18_04));
 wire w_sum_18_02, w_carry_18_02;
-math_adder_half HA_18_02(.i_a(w_sum_18_06), .i_b(w_sum_18_04), .ow_sum(w_sum_18_02), .ow_carry(w_carry_18_02));
+math_adder_half       HA_18_02(.i_a(w_sum_18_06), .i_b(w_sum_18_04), .ow_sum(w_sum_18_02), .ow_carry(w_carry_18_02));
 wire w_sum_19_38, w_carry_19_38;
 
 math_adder_carry_save CSA_19_38(.i_a(w_pp_00_19), .i_b(w_pp_01_18), .i_c(w_pp_02_17), .ow_sum(w_sum_19_38), .ow_carry(w_carry_19_38));
@@ -1583,7 +1583,7 @@ wire w_sum_19_04, w_carry_19_04;
 
 math_adder_carry_save CSA_19_04(.i_a(w_sum_19_12), .i_b(w_sum_19_10), .i_c(w_sum_19_08), .ow_sum(w_sum_19_04), .ow_carry(w_carry_19_04));
 wire w_sum_19_02, w_carry_19_02;
-math_adder_half HA_19_02(.i_a(w_sum_19_06), .i_b(w_sum_19_04), .ow_sum(w_sum_19_02), .ow_carry(w_carry_19_02));
+math_adder_half       HA_19_02(.i_a(w_sum_19_06), .i_b(w_sum_19_04), .ow_sum(w_sum_19_02), .ow_carry(w_carry_19_02));
 wire w_sum_20_40, w_carry_20_40;
 
 math_adder_carry_save CSA_20_40(.i_a(w_pp_00_20), .i_b(w_pp_01_19), .i_c(w_pp_02_18), .ow_sum(w_sum_20_40), .ow_carry(w_carry_20_40));
@@ -1642,7 +1642,7 @@ wire w_sum_20_04, w_carry_20_04;
 
 math_adder_carry_save CSA_20_04(.i_a(w_sum_20_12), .i_b(w_sum_20_10), .i_c(w_sum_20_08), .ow_sum(w_sum_20_04), .ow_carry(w_carry_20_04));
 wire w_sum_20_02, w_carry_20_02;
-math_adder_half HA_20_02(.i_a(w_sum_20_06), .i_b(w_sum_20_04), .ow_sum(w_sum_20_02), .ow_carry(w_carry_20_02));
+math_adder_half       HA_20_02(.i_a(w_sum_20_06), .i_b(w_sum_20_04), .ow_sum(w_sum_20_02), .ow_carry(w_carry_20_02));
 wire w_sum_21_42, w_carry_21_42;
 
 math_adder_carry_save CSA_21_42(.i_a(w_pp_00_21), .i_b(w_pp_01_20), .i_c(w_pp_02_19), .ow_sum(w_sum_21_42), .ow_carry(w_carry_21_42));
@@ -1704,7 +1704,7 @@ wire w_sum_21_04, w_carry_21_04;
 
 math_adder_carry_save CSA_21_04(.i_a(w_sum_21_12), .i_b(w_sum_21_10), .i_c(w_sum_21_08), .ow_sum(w_sum_21_04), .ow_carry(w_carry_21_04));
 wire w_sum_21_02, w_carry_21_02;
-math_adder_half HA_21_02(.i_a(w_sum_21_06), .i_b(w_sum_21_04), .ow_sum(w_sum_21_02), .ow_carry(w_carry_21_02));
+math_adder_half       HA_21_02(.i_a(w_sum_21_06), .i_b(w_sum_21_04), .ow_sum(w_sum_21_02), .ow_carry(w_carry_21_02));
 wire w_sum_22_44, w_carry_22_44;
 
 math_adder_carry_save CSA_22_44(.i_a(w_pp_00_22), .i_b(w_pp_01_21), .i_c(w_pp_02_20), .ow_sum(w_sum_22_44), .ow_carry(w_carry_22_44));
@@ -1769,7 +1769,7 @@ wire w_sum_22_04, w_carry_22_04;
 
 math_adder_carry_save CSA_22_04(.i_a(w_sum_22_12), .i_b(w_sum_22_10), .i_c(w_sum_22_08), .ow_sum(w_sum_22_04), .ow_carry(w_carry_22_04));
 wire w_sum_22_02, w_carry_22_02;
-math_adder_half HA_22_02(.i_a(w_sum_22_06), .i_b(w_sum_22_04), .ow_sum(w_sum_22_02), .ow_carry(w_carry_22_02));
+math_adder_half       HA_22_02(.i_a(w_sum_22_06), .i_b(w_sum_22_04), .ow_sum(w_sum_22_02), .ow_carry(w_carry_22_02));
 wire w_sum_23_46, w_carry_23_46;
 
 math_adder_carry_save CSA_23_46(.i_a(w_pp_00_23), .i_b(w_pp_01_22), .i_c(w_pp_02_21), .ow_sum(w_sum_23_46), .ow_carry(w_carry_23_46));
@@ -1837,7 +1837,7 @@ wire w_sum_23_04, w_carry_23_04;
 
 math_adder_carry_save CSA_23_04(.i_a(w_sum_23_12), .i_b(w_sum_23_10), .i_c(w_sum_23_08), .ow_sum(w_sum_23_04), .ow_carry(w_carry_23_04));
 wire w_sum_23_02, w_carry_23_02;
-math_adder_half HA_23_02(.i_a(w_sum_23_06), .i_b(w_sum_23_04), .ow_sum(w_sum_23_02), .ow_carry(w_carry_23_02));
+math_adder_half       HA_23_02(.i_a(w_sum_23_06), .i_b(w_sum_23_04), .ow_sum(w_sum_23_02), .ow_carry(w_carry_23_02));
 wire w_sum_24_48, w_carry_24_48;
 
 math_adder_carry_save CSA_24_48(.i_a(w_pp_00_24), .i_b(w_pp_01_23), .i_c(w_pp_02_22), .ow_sum(w_sum_24_48), .ow_carry(w_carry_24_48));
@@ -1908,7 +1908,7 @@ wire w_sum_24_04, w_carry_24_04;
 
 math_adder_carry_save CSA_24_04(.i_a(w_sum_24_12), .i_b(w_sum_24_10), .i_c(w_sum_24_08), .ow_sum(w_sum_24_04), .ow_carry(w_carry_24_04));
 wire w_sum_24_02, w_carry_24_02;
-math_adder_half HA_24_02(.i_a(w_sum_24_06), .i_b(w_sum_24_04), .ow_sum(w_sum_24_02), .ow_carry(w_carry_24_02));
+math_adder_half       HA_24_02(.i_a(w_sum_24_06), .i_b(w_sum_24_04), .ow_sum(w_sum_24_02), .ow_carry(w_carry_24_02));
 wire w_sum_25_50, w_carry_25_50;
 
 math_adder_carry_save CSA_25_50(.i_a(w_pp_00_25), .i_b(w_pp_01_24), .i_c(w_pp_02_23), .ow_sum(w_sum_25_50), .ow_carry(w_carry_25_50));
@@ -1982,7 +1982,7 @@ wire w_sum_25_04, w_carry_25_04;
 
 math_adder_carry_save CSA_25_04(.i_a(w_sum_25_12), .i_b(w_sum_25_10), .i_c(w_sum_25_08), .ow_sum(w_sum_25_04), .ow_carry(w_carry_25_04));
 wire w_sum_25_02, w_carry_25_02;
-math_adder_half HA_25_02(.i_a(w_sum_25_06), .i_b(w_sum_25_04), .ow_sum(w_sum_25_02), .ow_carry(w_carry_25_02));
+math_adder_half       HA_25_02(.i_a(w_sum_25_06), .i_b(w_sum_25_04), .ow_sum(w_sum_25_02), .ow_carry(w_carry_25_02));
 wire w_sum_26_52, w_carry_26_52;
 
 math_adder_carry_save CSA_26_52(.i_a(w_pp_00_26), .i_b(w_pp_01_25), .i_c(w_pp_02_24), .ow_sum(w_sum_26_52), .ow_carry(w_carry_26_52));
@@ -2059,7 +2059,7 @@ wire w_sum_26_04, w_carry_26_04;
 
 math_adder_carry_save CSA_26_04(.i_a(w_sum_26_12), .i_b(w_sum_26_10), .i_c(w_sum_26_08), .ow_sum(w_sum_26_04), .ow_carry(w_carry_26_04));
 wire w_sum_26_02, w_carry_26_02;
-math_adder_half HA_26_02(.i_a(w_sum_26_06), .i_b(w_sum_26_04), .ow_sum(w_sum_26_02), .ow_carry(w_carry_26_02));
+math_adder_half       HA_26_02(.i_a(w_sum_26_06), .i_b(w_sum_26_04), .ow_sum(w_sum_26_02), .ow_carry(w_carry_26_02));
 wire w_sum_27_54, w_carry_27_54;
 
 math_adder_carry_save CSA_27_54(.i_a(w_pp_00_27), .i_b(w_pp_01_26), .i_c(w_pp_02_25), .ow_sum(w_sum_27_54), .ow_carry(w_carry_27_54));
@@ -2139,7 +2139,7 @@ wire w_sum_27_04, w_carry_27_04;
 
 math_adder_carry_save CSA_27_04(.i_a(w_sum_27_12), .i_b(w_sum_27_10), .i_c(w_sum_27_08), .ow_sum(w_sum_27_04), .ow_carry(w_carry_27_04));
 wire w_sum_27_02, w_carry_27_02;
-math_adder_half HA_27_02(.i_a(w_sum_27_06), .i_b(w_sum_27_04), .ow_sum(w_sum_27_02), .ow_carry(w_carry_27_02));
+math_adder_half       HA_27_02(.i_a(w_sum_27_06), .i_b(w_sum_27_04), .ow_sum(w_sum_27_02), .ow_carry(w_carry_27_02));
 wire w_sum_28_56, w_carry_28_56;
 
 math_adder_carry_save CSA_28_56(.i_a(w_pp_00_28), .i_b(w_pp_01_27), .i_c(w_pp_02_26), .ow_sum(w_sum_28_56), .ow_carry(w_carry_28_56));
@@ -2222,7 +2222,7 @@ wire w_sum_28_04, w_carry_28_04;
 
 math_adder_carry_save CSA_28_04(.i_a(w_sum_28_12), .i_b(w_sum_28_10), .i_c(w_sum_28_08), .ow_sum(w_sum_28_04), .ow_carry(w_carry_28_04));
 wire w_sum_28_02, w_carry_28_02;
-math_adder_half HA_28_02(.i_a(w_sum_28_06), .i_b(w_sum_28_04), .ow_sum(w_sum_28_02), .ow_carry(w_carry_28_02));
+math_adder_half       HA_28_02(.i_a(w_sum_28_06), .i_b(w_sum_28_04), .ow_sum(w_sum_28_02), .ow_carry(w_carry_28_02));
 wire w_sum_29_58, w_carry_29_58;
 
 math_adder_carry_save CSA_29_58(.i_a(w_pp_00_29), .i_b(w_pp_01_28), .i_c(w_pp_02_27), .ow_sum(w_sum_29_58), .ow_carry(w_carry_29_58));
@@ -2308,7 +2308,7 @@ wire w_sum_29_04, w_carry_29_04;
 
 math_adder_carry_save CSA_29_04(.i_a(w_sum_29_12), .i_b(w_sum_29_10), .i_c(w_sum_29_08), .ow_sum(w_sum_29_04), .ow_carry(w_carry_29_04));
 wire w_sum_29_02, w_carry_29_02;
-math_adder_half HA_29_02(.i_a(w_sum_29_06), .i_b(w_sum_29_04), .ow_sum(w_sum_29_02), .ow_carry(w_carry_29_02));
+math_adder_half       HA_29_02(.i_a(w_sum_29_06), .i_b(w_sum_29_04), .ow_sum(w_sum_29_02), .ow_carry(w_carry_29_02));
 wire w_sum_30_60, w_carry_30_60;
 
 math_adder_carry_save CSA_30_60(.i_a(w_pp_00_30), .i_b(w_pp_01_29), .i_c(w_pp_02_28), .ow_sum(w_sum_30_60), .ow_carry(w_carry_30_60));
@@ -2397,7 +2397,7 @@ wire w_sum_30_04, w_carry_30_04;
 
 math_adder_carry_save CSA_30_04(.i_a(w_sum_30_12), .i_b(w_sum_30_10), .i_c(w_sum_30_08), .ow_sum(w_sum_30_04), .ow_carry(w_carry_30_04));
 wire w_sum_30_02, w_carry_30_02;
-math_adder_half HA_30_02(.i_a(w_sum_30_06), .i_b(w_sum_30_04), .ow_sum(w_sum_30_02), .ow_carry(w_carry_30_02));
+math_adder_half       HA_30_02(.i_a(w_sum_30_06), .i_b(w_sum_30_04), .ow_sum(w_sum_30_02), .ow_carry(w_carry_30_02));
 wire w_sum_31_62, w_carry_31_62;
 
 math_adder_carry_save CSA_31_62(.i_a(w_pp_00_31), .i_b(w_pp_01_30), .i_c(w_pp_02_29), .ow_sum(w_sum_31_62), .ow_carry(w_carry_31_62));
@@ -2489,7 +2489,7 @@ wire w_sum_31_04, w_carry_31_04;
 
 math_adder_carry_save CSA_31_04(.i_a(w_sum_31_12), .i_b(w_sum_31_10), .i_c(w_sum_31_08), .ow_sum(w_sum_31_04), .ow_carry(w_carry_31_04));
 wire w_sum_31_02, w_carry_31_02;
-math_adder_half HA_31_02(.i_a(w_sum_31_06), .i_b(w_sum_31_04), .ow_sum(w_sum_31_02), .ow_carry(w_carry_31_02));
+math_adder_half       HA_31_02(.i_a(w_sum_31_06), .i_b(w_sum_31_04), .ow_sum(w_sum_31_02), .ow_carry(w_carry_31_02));
 wire w_sum_32_62, w_carry_32_62;
 
 math_adder_carry_save CSA_32_62(.i_a(w_pp_01_31), .i_b(w_pp_02_30), .i_c(w_pp_03_29), .ow_sum(w_sum_32_62), .ow_carry(w_carry_32_62));
@@ -2581,7 +2581,7 @@ wire w_sum_32_04, w_carry_32_04;
 
 math_adder_carry_save CSA_32_04(.i_a(w_sum_32_12), .i_b(w_sum_32_10), .i_c(w_sum_32_08), .ow_sum(w_sum_32_04), .ow_carry(w_carry_32_04));
 wire w_sum_32_02, w_carry_32_02;
-math_adder_half HA_32_02(.i_a(w_sum_32_06), .i_b(w_sum_32_04), .ow_sum(w_sum_32_02), .ow_carry(w_carry_32_02));
+math_adder_half       HA_32_02(.i_a(w_sum_32_06), .i_b(w_sum_32_04), .ow_sum(w_sum_32_02), .ow_carry(w_carry_32_02));
 wire w_sum_33_61, w_carry_33_61;
 
 math_adder_carry_save CSA_33_61(.i_a(w_pp_02_31), .i_b(w_pp_03_30), .i_c(w_pp_04_29), .ow_sum(w_sum_33_61), .ow_carry(w_carry_33_61));
@@ -3978,84 +3978,147 @@ wire w_sum_62_03, w_carry_62_03;
 
 math_adder_carry_save CSA_62_03(.i_a(w_pp_31_31), .i_b(w_carry_61_05), .i_c(w_carry_61_03), .ow_sum(w_sum_62_03), .ow_carry(w_carry_62_03));
 
-// // Final addition stage
-assign w_sum_00 = w_pp_00_00;
-assign w_sum_01 = w_sum_01_02;
-assign w_sum_02 = w_sum_02_02;
-assign w_sum_03 = w_sum_03_02;
-assign w_sum_04 = w_sum_04_02;
-assign w_sum_05 = w_sum_05_02;
-assign w_sum_06 = w_sum_06_02;
-assign w_sum_07 = w_sum_07_02;
-assign w_sum_08 = w_sum_08_02;
-assign w_sum_09 = w_sum_09_02;
-assign w_sum_10 = w_sum_10_02;
-assign w_sum_11 = w_sum_11_02;
-assign w_sum_12 = w_sum_12_02;
-assign w_sum_13 = w_sum_13_02;
-assign w_sum_14 = w_sum_14_02;
-assign w_sum_15 = w_sum_15_02;
-assign w_sum_16 = w_sum_16_02;
-assign w_sum_17 = w_sum_17_02;
-assign w_sum_18 = w_sum_18_02;
-assign w_sum_19 = w_sum_19_02;
-assign w_sum_20 = w_sum_20_02;
-assign w_sum_21 = w_sum_21_02;
-assign w_sum_22 = w_sum_22_02;
-assign w_sum_23 = w_sum_23_02;
-assign w_sum_24 = w_sum_24_02;
-assign w_sum_25 = w_sum_25_02;
-assign w_sum_26 = w_sum_26_02;
-assign w_sum_27 = w_sum_27_02;
-assign w_sum_28 = w_sum_28_02;
-assign w_sum_29 = w_sum_29_02;
-assign w_sum_30 = w_sum_30_02;
-assign w_sum_31 = w_sum_31_02;
-assign w_sum_32 = w_sum_32_02;
-assign w_sum_33 = w_sum_33_03;
-assign w_sum_34 = w_sum_34_03;
-assign w_sum_35 = w_sum_35_03;
-assign w_sum_36 = w_sum_36_03;
-assign w_sum_37 = w_sum_37_03;
-assign w_sum_38 = w_sum_38_03;
-assign w_sum_39 = w_sum_39_03;
-assign w_sum_40 = w_sum_40_03;
-assign w_sum_41 = w_sum_41_03;
-assign w_sum_42 = w_sum_42_03;
-assign w_sum_43 = w_sum_43_03;
-assign w_sum_44 = w_sum_44_03;
-assign w_sum_45 = w_sum_45_03;
-assign w_sum_46 = w_sum_46_03;
-assign w_sum_47 = w_sum_47_03;
-assign w_sum_48 = w_sum_48_03;
-assign w_sum_49 = w_sum_49_03;
-assign w_sum_50 = w_sum_50_03;
-assign w_sum_51 = w_sum_51_03;
-assign w_sum_52 = w_sum_52_03;
-assign w_sum_53 = w_sum_53_03;
-assign w_sum_54 = w_sum_54_03;
-assign w_sum_55 = w_sum_55_03;
-assign w_sum_56 = w_sum_56_03;
-assign w_sum_57 = w_sum_57_03;
-assign w_sum_58 = w_sum_58_03;
-assign w_sum_59 = w_sum_59_03;
-assign w_sum_60 = w_sum_60_03;
-assign w_sum_61 = w_sum_61_03;
-assign w_sum_62 = w_sum_62_03;
-assign w_sum_63 = w_carry_62_03;
+// Final addition stage
+wire w_sum_00 = w_pp_00_00;
+wire w_carry_00 = 1'b0;
+wire w_sum_01 = w_sum_01_02;
+wire w_carry_01 = 1'b0;
+wire w_sum_02 = w_sum_02_02;
+wire w_carry_02 = 1'b0;
+wire w_sum_03 = w_sum_03_02;
+wire w_carry_03 = 1'b0;
+wire w_sum_04 = w_sum_04_02;
+wire w_carry_04 = 1'b0;
+wire w_sum_05 = w_sum_05_02;
+wire w_carry_05 = 1'b0;
+wire w_sum_06 = w_sum_06_02;
+wire w_carry_06 = 1'b0;
+wire w_sum_07 = w_sum_07_02;
+wire w_carry_07 = 1'b0;
+wire w_sum_08 = w_sum_08_02;
+wire w_carry_08 = 1'b0;
+wire w_sum_09 = w_sum_09_02;
+wire w_carry_09 = 1'b0;
+wire w_sum_10 = w_sum_10_02;
+wire w_carry_10 = 1'b0;
+wire w_sum_11 = w_sum_11_02;
+wire w_carry_11 = 1'b0;
+wire w_sum_12 = w_sum_12_02;
+wire w_carry_12 = 1'b0;
+wire w_sum_13 = w_sum_13_02;
+wire w_carry_13 = 1'b0;
+wire w_sum_14 = w_sum_14_02;
+wire w_carry_14 = 1'b0;
+wire w_sum_15 = w_sum_15_02;
+wire w_carry_15 = 1'b0;
+wire w_sum_16 = w_sum_16_02;
+wire w_carry_16 = 1'b0;
+wire w_sum_17 = w_sum_17_02;
+wire w_carry_17 = 1'b0;
+wire w_sum_18 = w_sum_18_02;
+wire w_carry_18 = 1'b0;
+wire w_sum_19 = w_sum_19_02;
+wire w_carry_19 = 1'b0;
+wire w_sum_20 = w_sum_20_02;
+wire w_carry_20 = 1'b0;
+wire w_sum_21 = w_sum_21_02;
+wire w_carry_21 = 1'b0;
+wire w_sum_22 = w_sum_22_02;
+wire w_carry_22 = 1'b0;
+wire w_sum_23 = w_sum_23_02;
+wire w_carry_23 = 1'b0;
+wire w_sum_24 = w_sum_24_02;
+wire w_carry_24 = 1'b0;
+wire w_sum_25 = w_sum_25_02;
+wire w_carry_25 = 1'b0;
+wire w_sum_26 = w_sum_26_02;
+wire w_carry_26 = 1'b0;
+wire w_sum_27 = w_sum_27_02;
+wire w_carry_27 = 1'b0;
+wire w_sum_28 = w_sum_28_02;
+wire w_carry_28 = 1'b0;
+wire w_sum_29 = w_sum_29_02;
+wire w_carry_29 = 1'b0;
+wire w_sum_30 = w_sum_30_02;
+wire w_carry_30 = 1'b0;
+wire w_sum_31 = w_sum_31_02;
+wire w_carry_31 = 1'b0;
+wire w_sum_32 = w_sum_32_02;
+wire w_carry_32 = 1'b0;
+wire w_sum_33 = w_sum_33_03;
+wire w_carry_33 = 1'b0;
+wire w_sum_34 = w_sum_34_03;
+wire w_carry_34 = 1'b0;
+wire w_sum_35 = w_sum_35_03;
+wire w_carry_35 = 1'b0;
+wire w_sum_36 = w_sum_36_03;
+wire w_carry_36 = 1'b0;
+wire w_sum_37 = w_sum_37_03;
+wire w_carry_37 = 1'b0;
+wire w_sum_38 = w_sum_38_03;
+wire w_carry_38 = 1'b0;
+wire w_sum_39 = w_sum_39_03;
+wire w_carry_39 = 1'b0;
+wire w_sum_40 = w_sum_40_03;
+wire w_carry_40 = 1'b0;
+wire w_sum_41 = w_sum_41_03;
+wire w_carry_41 = 1'b0;
+wire w_sum_42 = w_sum_42_03;
+wire w_carry_42 = 1'b0;
+wire w_sum_43 = w_sum_43_03;
+wire w_carry_43 = 1'b0;
+wire w_sum_44 = w_sum_44_03;
+wire w_carry_44 = 1'b0;
+wire w_sum_45 = w_sum_45_03;
+wire w_carry_45 = 1'b0;
+wire w_sum_46 = w_sum_46_03;
+wire w_carry_46 = 1'b0;
+wire w_sum_47 = w_sum_47_03;
+wire w_carry_47 = 1'b0;
+wire w_sum_48 = w_sum_48_03;
+wire w_carry_48 = 1'b0;
+wire w_sum_49 = w_sum_49_03;
+wire w_carry_49 = 1'b0;
+wire w_sum_50 = w_sum_50_03;
+wire w_carry_50 = 1'b0;
+wire w_sum_51 = w_sum_51_03;
+wire w_carry_51 = 1'b0;
+wire w_sum_52 = w_sum_52_03;
+wire w_carry_52 = 1'b0;
+wire w_sum_53 = w_sum_53_03;
+wire w_carry_53 = 1'b0;
+wire w_sum_54 = w_sum_54_03;
+wire w_carry_54 = 1'b0;
+wire w_sum_55 = w_sum_55_03;
+wire w_carry_55 = 1'b0;
+wire w_sum_56 = w_sum_56_03;
+wire w_carry_56 = 1'b0;
+wire w_sum_57 = w_sum_57_03;
+wire w_carry_57 = 1'b0;
+wire w_sum_58 = w_sum_58_03;
+wire w_carry_58 = 1'b0;
+wire w_sum_59 = w_sum_59_03;
+wire w_carry_59 = 1'b0;
+wire w_sum_60 = w_sum_60_03;
+wire w_carry_60 = 1'b0;
+wire w_sum_61 = w_sum_61_03;
+wire w_carry_61 = 1'b0;
+wire w_sum_62 = w_sum_62_03;
+wire w_carry_62 = 1'b0;
+wire w_sum_63 = w_carry_62_03;
+wire w_carry_63 = 1'b0;
 
 // Final product assignment
-
-assign ow_product[0] = w_sum_00;
-assign ow_product[1] = w_sum_01;
-assign ow_product[2] = w_sum_02;
-assign ow_product[3] = w_sum_03;
-assign ow_product[4] = w_sum_04;
-assign ow_product[5] = w_sum_05;
-assign ow_product[6] = w_sum_06;
-assign ow_product[7] = w_sum_07;
-assign ow_product[8] = w_sum_08;
-assign ow_product[9] = w_sum_09;
+assign ow_product[ 0] = w_sum_00;
+assign ow_product[ 1] = w_sum_01;
+assign ow_product[ 2] = w_sum_02;
+assign ow_product[ 3] = w_sum_03;
+assign ow_product[ 4] = w_sum_04;
+assign ow_product[ 5] = w_sum_05;
+assign ow_product[ 6] = w_sum_06;
+assign ow_product[ 7] = w_sum_07;
+assign ow_product[ 8] = w_sum_08;
+assign ow_product[ 9] = w_sum_09;
 assign ow_product[10] = w_sum_10;
 assign ow_product[11] = w_sum_11;
 assign ow_product[12] = w_sum_12;

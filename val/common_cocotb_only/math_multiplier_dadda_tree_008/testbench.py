@@ -8,7 +8,9 @@ import random
 
 
 def binary_to_hex(binary_str):
-    return hex(int(binary_str, 2))[2:]
+    hex_str = hex(int(binary_str, 2))[2:]
+    print(f'{hex_str=}')
+    return 
 
 
 @cocotb.coroutine
