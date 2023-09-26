@@ -18,22 +18,37 @@ module math_multiplier_booths #(
 
     assign inv_i_a = ~i_a + 1'b1;
 
-    always_comb begin
-        w_select[0] = {i_b[1],i_b[0],1'b0};
+    // Assuming that the parameters are declared as before
+    logic [N:0]     w_encoded_result[Nd2-1:0];  // Outputs from Booth's encoders
+    logic [2:0]     w_select[Nd2-1:0];
+    integer         i,j;
 
+    // Create the Booth Group Selects
+    always_comb begin
+        // Populate the 3-bit groups for Booth's encoding
+        w_select[0] = {i_b[1],i_b[0],1'b0};
         for(i=1; i<Nd2; i=i+1)
             w_select[i] = {i_b[2*i+1],i_b[2*i],i_b[2*i-1]};
+    end
 
+    // Instantiate Nd2 Booth encoders
+    genvar k;
+    generate
+        for (k=0; k<Nd2; k=k+1) begin : booth_encoder_gen
+            math_multiplier_booth_radix_4_encoder #(.N(N)) booth_encoder_inst (
+                .i_booth_group      (w_select[k]),
+                .i_multiplier       (i_a),
+                .i_neg_multiplier   (inv_i_a),
+                .ow_booth_out       (w_encoded_result[k])
+            );
+        end
+    endgenerate
+
+    // Do the final shifting of the results
+    always_comb begin
+        // Shift the partial products
         for(i=0; i<Nd2; i=i+1) begin
-            case(w_select[i])
-                3'b001 , 3'b010 : w_MxS[i] = {i_a[N-1],i_a};
-                3'b011 :          w_MxS[i] = {i_a,1'b0};
-                3'b100 :          w_MxS[i] = {inv_i_a[N-1:0],1'b0};
-                3'b101 , 3'b110 : w_MxS[i] = inv_i_a;
-                default : w_MxS[i] = 0;
-            endcase
-            w_shift_MxS[i] = $signed(w_MxS[i]);
-
+            w_shift_MxS[i] = $signed(w_encoded_result[i]);  // Use the output from Booth's encoder
             for(j=0; j<i; j=j+1) begin
                 w_shift_MxS[i] = {w_shift_MxS[i],2'b00}; 
             end
