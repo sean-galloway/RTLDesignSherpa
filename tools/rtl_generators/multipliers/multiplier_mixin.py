@@ -71,13 +71,13 @@ class MultiplierMixin():
         max_digits = len(str(N - 1))
         self.comment('Partial Products using Booth Radix-4')
 
-        for i in range(0, N_padded, 3):
+        for i in range(N_padded):
             formatted_i = str(i).zfill(max_digits)
             self.instruction(f'wire [2:0] booth_group_{formatted_i} = multiplier_padded[{i+2}:{i}];')
             self.instruction(f'wire [1:0] booth_encoded_{formatted_i};')
             self.instruction(f'math_multiplier_booth_radix_4_encoder booth_encoder_{formatted_i} (.booth_group(booth_group_{formatted_i}), .booth_encoded(booth_encoded_{formatted_i}));')
 
-        for i, j in itertools.product(range(0, N_padded, 3), range(N)):
+        for i, j in itertools.product(range(N_padded), range(N)):
             formatted_i = str(i).zfill(max_digits)
             formatted_j = str(j).zfill(max_digits)
             self.instruction(f'wire w_pp_{formatted_i}_{formatted_j} = booth_encoded_{formatted_i} * i_multiplicand[{j:2}];')
