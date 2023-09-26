@@ -7,7 +7,7 @@ class MultiplierMixin():
 
     def partial_products(self, N):
         '''
-        Generates partial products for a Dadda multiplier.
+        Generates partial products for a Dadda/Wallce multiplier.
 
         This method generates partial products for a Dadda multiplier by populating bit groups based on the given buswidth.
 
@@ -57,19 +57,23 @@ class MultiplierMixin():
         partial_products = multiplier.partial_products()
         print(partial_products)
         ```
-
         '''
-        N_padded = N + N % 3
-        max_idx = 2 * N + (N // 3)  # Maximum index possible after Dadda reduction
+        N_padded = N + N % 3  # Pad N to be divisible by 3
+        max_idx = 2 * N + (N // 3)  # Maximum index possible after Booth encoding
         bit_groups = {i: [] for i in range(max_idx)}  # Initialize up to maximum index
+        
+        # Pad the multiplier and its 2's complement to be divisible by 3
+        self.instruction(f"wire [{N_padded-1}:0] multiplier_padded = {{{{N_padded - N{{1'b0}}}}, i_multiplier}};")
+        padding = f"{N_padded - N}{{1'b0}}"
+        self.instruction(f'wire [{N_padded-1}:0] multiplier_padded = {{ {padding}, i_multiplier }};')
 
-
+        
         max_digits = len(str(N - 1))
         self.comment('Partial Products using Booth Radix-4')
 
         for i in range(0, N_padded, 3):
             formatted_i = str(i).zfill(max_digits)
-            self.instruction(f'wire [2:0] booth_group_{formatted_i} = i_multiplier[{i+2}:{i}];')
+            self.instruction(f'wire [2:0] booth_group_{formatted_i} = multiplier_padded[{i+2}:{i}];')
             self.instruction(f'wire [1:0] booth_encoded_{formatted_i};')
             self.instruction(f'math_multiplier_booth_radix_4_encoder booth_encoder_{formatted_i} (.booth_group(booth_group_{formatted_i}), .booth_encoded(booth_encoded_{formatted_i}));')
 
