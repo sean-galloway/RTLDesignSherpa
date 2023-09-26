@@ -10,6 +10,7 @@ module math_multiplier_booths #(
 );
 
     logic [2:0]     w_select[Nd2-1:0];
+    logic [N:0]     w_encoded_result[Nd2-1:0];  // Outputs from Booth's encoders
     logic [N:0]     w_MxS[Nd2-1:0];
     logic [2*N-1:0] w_shift_MxS[Nd2-1:0];
 
@@ -17,11 +18,6 @@ module math_multiplier_booths #(
     integer         i,j;
 
     assign inv_i_a = ~i_a + 1'b1;
-
-    // Assuming that the parameters are declared as before
-    logic [N:0]     w_encoded_result[Nd2-1:0];  // Outputs from Booth's encoders
-    logic [2:0]     w_select[Nd2-1:0];
-    integer         i,j;
 
     // Create the Booth Group Selects
     always_comb begin

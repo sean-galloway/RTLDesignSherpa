@@ -5,6 +5,7 @@ VERILOG_INCLUDE_DIRS = $(CWD)/../../../rtl/common
 VERILOG_SOURCES = \
 					$(CWD)/../../../rtl/common/math_adder_carry_lookahead.sv \
 					$(CWD)/../../../rtl/common/math_adder_hierarchical.sv \
+					$(CWD)/../../../rtl/common/math_multiplier_booth_radix_4_encoder.sv \
 					$(CWD)/../../../rtl/common/math_multiplier_booths.sv
 
 DUT = math_multiplier_booths
