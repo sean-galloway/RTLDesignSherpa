@@ -104,7 +104,7 @@ async def fifo_test(dut):
     cocotb.start_soon(Clock(dut.i_wr_clk, 10, units="ns").start())
     cocotb.start_soon(Clock(dut.i_rd_clk, 15, units="ns").start())
 
-    await Timer(30, units="ns")
+    await Timer(300, units="ns")
     dut.i_wr_rst_n.value = 1
     dut.i_rd_rst_n.value = 1
 

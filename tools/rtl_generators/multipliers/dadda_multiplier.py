@@ -6,7 +6,7 @@ from .multiplier_mixin import MultiplierMixin
 
 class DaddaTree(Module, MultiplierMixin):
     module_str = 'math_multiplier_dadda_tree'
-    param_str = 'parameter N=8'
+    param_str = 'parameter int N=8'
     port_str = '''
     input  [N-1:0]    i_multiplier,
     input  [N-1:0]    i_multiplicand,

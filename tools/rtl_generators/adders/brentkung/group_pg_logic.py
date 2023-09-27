@@ -9,7 +9,7 @@ def create_matrix_2d(row, col, default_val='x'):
 
 class GroupPGLogic(Module):
     module_str = 'math_adder_brent_kung_grouppg'
-    param_str = 'parameter N=8'
+    param_str = 'parameter int N=8'
     port_str = '''
     input  logic [N:0] i_p,
     input  logic [N:0] i_g,

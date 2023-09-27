@@ -9,7 +9,7 @@ module math_adder_carry_save (
     output ow_carry
 );
 
-    assign ow_sum   = i_a ^ i_b ^ i_c;                    // XOR gate for sum output
+    assign ow_sum   = i_a ^ i_b ^ i_c;  // XOR gate for sum output
     assign ow_carry = i_a & i_b | i_a & i_c | i_b & i_c;  // OR gate for carry output
 
 endmodule : math_adder_carry_save

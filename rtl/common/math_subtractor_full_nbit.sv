@@ -1,10 +1,12 @@
 `timescale 1ns / 1ps
 
-module math_subtractor_full_nbit #(parameter N=4) (
-    input  logic [N-1:0] i_a, 
-    input  logic [N-1:0] i_b, 
-    input  logic         i_b_in, 
-    output logic [N-1:0] ow_d, 
+module math_subtractor_full_nbit #(
+    parameter int N = 4
+) (
+    input  logic [N-1:0] i_a,
+    input  logic [N-1:0] i_b,
+    input  logic         i_b_in,
+    output logic [N-1:0] ow_d,
     output logic         ow_b
 );
 
@@ -15,7 +17,7 @@ module math_subtractor_full_nbit #(parameter N=4) (
 
     genvar i;
     generate
-        for (i = 0; i < N; i=i+1) begin: subtractor_loop
+        for (i = 0; i < N; i = i + 1) begin : gen_subtractor_loop
             math_subtractor_full full_sub (
                 .i_a(i_a[i]),
                 .i_b(i_b[i]),
@@ -24,7 +26,7 @@ module math_subtractor_full_nbit #(parameter N=4) (
                 .ow_b(w_b_out[i])
             );
 
-            if (i < N-1) assign w_b_in[i+1] = w_b_out[i];
+            if (i < N - 1) assign w_b_in[i+1] = w_b_out[i];
         end
     endgenerate
 

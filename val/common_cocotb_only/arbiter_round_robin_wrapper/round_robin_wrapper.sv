@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module round_robin_wrapper #(parameter N=4) (
+module round_robin_wrapper #(parameter int N=4) (
     input              i_clk,
     input              i_rst_n,
     input              i_write_A, i_write_B, i_write_C, i_write_D, start_pwm,
@@ -100,7 +100,7 @@ u_fifo_sync_D (
     .ow_rd_almost_empty (ow_rd_almost_empty_D)
 );
 
-pwm 
+pwm
 #(
     .WIDTH (11)
 )
@@ -151,7 +151,9 @@ u_arbiter_round_robin (
     .o_gnt       (grant)
 );
 
-assign i_wr_data_E = grant[3] ? ow_rd_data_D : grant[2] ? ow_rd_data_C : grant[1] ? ow_rd_data_B : ow_rd_data_A;
+assign i_wr_data_E = grant[3] ? ow_rd_data_D :
+                        grant[2] ? ow_rd_data_C :
+                        grant[1] ? ow_rd_data_B : ow_rd_data_A;
 assign i_write_E = |grant;
 
 fifo_sync

@@ -2,7 +2,7 @@
 
 module ksalu
 #(
-  parameter DW = 8  // Width of input and output data
+  parameter int DW = 8  // Width of input and output data
 ) (
     input  logic            clk, rst_n,
     input  logic [DW-1:0]   a, b,
@@ -16,9 +16,9 @@ module ksalu
 
     // Local Flops and Signals
     logic            counting;
-    logic            clear, increment; 
+    logic            clear, increment;
     logic [3:0]      count, count_end, count_end_d;
-    logic            counting, done
+    logic            counting, done;
 
     // handle all of the combi logical operations
     assign clear = start;
@@ -35,20 +35,20 @@ module ksalu
         if (!rst_n) begin
             counting <= 'b0;
             count_end <= 'b0;
+        end
         else
             if (start) begin
                 counting <= 1'b1;
                 count_end <= count_end_d;
             end
             else if (done) begin
-                counting = 'b0;
-                count_end = 'b0;    
+                counting <= 'b0;
+                count_end <= 'b0;
             end
         end
-    end
-            
+
     // Main counter to delay the done signal
-    load_clear_counter 
+    load_clear_counter
     #(
         .MAX  (15)
     )
@@ -63,7 +63,7 @@ module ksalu
         .done      ()
     );
 
-    ripple_carry_adder 
+    ripple_carry_adder
     #(
         .SIZE (SIZE )
     )

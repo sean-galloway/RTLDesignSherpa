@@ -7,7 +7,7 @@ from .sum_logic import SumLogic as SumLogic
 
 class BrentKungAdder(Module):
     module_str = 'math_adder_brent_kung'
-    param_str = 'parameter N=8'
+    param_str = 'parameter int N=8'
     port_str = '''
     input  logic [N-1:0] i_a,
     input  logic [N-1:0] i_b,

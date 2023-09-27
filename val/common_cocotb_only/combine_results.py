@@ -51,11 +51,11 @@ def main():
 
     for fname in find_all("results.xml", args.directory):
         if args.debug:
-            print("Reading file %s" % fname)
+            print(f"Reading file {fname}")
         tree = ET.parse(fname)
         for ts in tree.iter("testsuite"):
             if args.debug:
-                print("Ts name : {}, package : {}".format(ts.get('name'), ts.get('package')))
+                print(f"Ts name : {ts.get('name')}, package : {ts.get('package')}")
             use_element = None
             for existing in result:
                 if existing.get('name') == ts.get('name') and existing.get('package') == ts.get('package'):
@@ -78,10 +78,12 @@ def main():
         testsuite_count += 1
         for testcase in testsuite.iter('testcase'):
             testcase_count += 1
-            for failure in testcase.iter('failure'):
+            for _ in testcase.iter('failure'):
                 if args.set_rc:
                     rc = 1
-                print("Failure in testsuite: '{}' classname: '{}' testcase: '{}' with parameters '{}'".format(testsuite.get('name'), testcase.get('classname'), testcase.get('name'), testsuite.get('package')))
+                print(
+                    f"Failure in testsuite: '{testsuite.get('name')}' classname: '{testcase.get('classname')}' testcase: '{testcase.get('name')}' with parameters '{testsuite.get('package')}'"
+                )
                 if os.getenv('GITHUB_ACTIONS') is not None:
                     # Get test file relative to root of repo
                     repo_root = os.path.commonprefix([os.path.abspath(testcase.get('file')), os.path.abspath(__file__)])

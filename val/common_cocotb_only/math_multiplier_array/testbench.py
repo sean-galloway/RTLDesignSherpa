@@ -10,8 +10,8 @@ def exhaustive_test(dut):
     width_out = 2*N  # Width of the product
 
     for i, j in itertools.product(range(2**N), range(2**N)):
-        dut.i_a.value = i
-        dut.i_b.value = j
+        dut.i_multiplier.value = i
+        dut.i_multiplicand.value = j
 
         # Wait a little for the output to be stable
         # We're assuming combinatorial logic, so a small delay is enough

@@ -7,7 +7,7 @@ from .multiplier_mixin import MultiplierMixin
 
 class WallaceTree(Module, MultiplierMixin):
     module_str = 'math_multiplier_wallace_tree'
-    param_str = 'parameter N=8'
+    param_str = 'parameter int N=8'
     port_str = '''
     input  [N-1:0]    i_multiplier,
     input  [N-1:0]    i_multiplicand,

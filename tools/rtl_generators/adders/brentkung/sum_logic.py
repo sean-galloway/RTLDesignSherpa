@@ -16,7 +16,7 @@ from verilog.module import Module
 
 class SumLogic(Module):
     module_str = 'math_adder_brent_kung_sum'
-    param_str = 'parameter N=8'
+    param_str = 'parameter int N=8'
     port_str = '''
     input  logic [N:0]   i_p,
     input  logic [N:0]   i_gg,
