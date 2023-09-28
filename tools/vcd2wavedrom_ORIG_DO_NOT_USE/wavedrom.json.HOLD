@@ -1,0 +1,83 @@
+{
+    "signal": [
+        {
+            "name": "encoder_8b_10b_testbench.s_clk_int",
+            "wave": "P.........",
+            "data": []
+        },
+        {
+            "name": "encoder_8b_10b_testbench.s_rst_int",
+            "wave": "01........",
+            "data": [],
+            "phase": 0.9
+        },
+        {
+            "name": "encoder_8b_10b_testbench.s_rd_in_int",
+            "wave": "=..=......",
+            "data": [
+                "RD-",
+                "RD+"
+            ],
+            "phase": 0.9
+        },
+        {
+            "name": "encoder_8b_10b_testbench.s_datain_int",
+            "wave": "x======...",
+            "data": [
+                "BC",
+                "C5",
+                "BC",
+                "C5",
+                "BC",
+                "C5"
+            ],
+            "phase": 0.9
+        },
+        {
+            "name": "encoder_8b_10b_testbench.s_datain_k_int",
+            "wave": "x101010...",
+            "data": [],
+            "phase": 0.9
+        },
+        {
+            "name": "encoder_8b_10b_testbench.s_datain_valid_int",
+            "wave": "x1...0....",
+            "data": [],
+            "phase": 0.9
+        },
+        {
+            "name": "encoder_8b_10b_testbench.s_dataout_int",
+            "wave": "=====.....",
+            "data": [
+                "00",
+                "17C",
+                "1A5",
+                "283",
+                "1A5"
+            ]
+        },
+        {
+            "name": "encoder_8b_10b_testbench.s_dataout_valid_int",
+            "wave": "01...0....",
+            "data": []
+        },
+        {
+            "name": "encoder_8b_10b_testbench.s_dataout_kerr_int",
+            "wave": "0.........",
+            "data": []
+        },
+        {
+            "name": "encoder_8b_10b_testbench.s_rd_out_int",
+            "wave": "====......",
+            "data": [
+                "RD-",
+                "RD+",
+                "RD-",
+                "RD+"
+            ]
+        }
+    ],
+    "config": {
+        "hscale": 1
+    }
+}

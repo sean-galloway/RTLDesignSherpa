@@ -4,7 +4,13 @@ from cocotb.result import TestFailure
 from collections import deque
 from cocotb.clock import Clock
 
+import os
+seed = int(os.environ.get('SEED'))
+
 import random
+random.seed(seed)
+
+
 
 @cocotb.coroutine
 def reset_dut(dut):
@@ -31,7 +37,7 @@ class RequestAgent:
             yield FallingEdge(self.dut.i_clk)
             
             if self.queue:
-                next_val = self.queue.popleft()
+                next_val = self.queue.pop()
                 self.dut.i_req[self.index].value = next_val
             else:
                 if random.random() < 0.75:  # 75% chance to drive a request

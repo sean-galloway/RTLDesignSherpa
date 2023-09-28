@@ -1,4 +1,10 @@
+import os
+seed = int(os.environ.get('SEED'))
+
 import random
+random.seed(seed)
+
+
 import cocotb
 from cocotb.triggers import FallingEdge, Timer
 from cocotb.result import TestFailure

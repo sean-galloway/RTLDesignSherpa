@@ -1,7 +1,13 @@
 import cocotb
 from cocotb.triggers import Timer
 from cocotb.regression import TestFactory
+import os
+seed = int(os.environ.get('SEED'))
+
 import random
+random.seed(seed)
+
+
 
 N = 16
 C = 6

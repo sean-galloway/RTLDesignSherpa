@@ -4,7 +4,13 @@ from cocotb.regression import TestFactory
 from cocotb.triggers import RisingEdge
 from cocotb.clock import Clock
 from cocotb.triggers import Timer
+import os
+seed = int(os.environ.get('SEED'))
+
 import random
+random.seed(seed)
+
+
 
 def binary_to_hex(binary_str):
     hex_value = hex(int(binary_str, 2))[2:]

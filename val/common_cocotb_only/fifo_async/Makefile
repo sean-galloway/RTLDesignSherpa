@@ -3,12 +3,12 @@ COCOTB_REDUCED_LOG_FMT = True
 SIM ?= icarus
 SIM_ARGS=-v
 
-VERILOG_INCLUDE_DIRS = $(CWD)/../../../rtl/common
+VERILOG_INCLUDE_DIRS = $(REPO_ROOT)/rtl/common
 VERILOG_SOURCES = \
-					$(CWD)/../../../rtl/common/counter_bingray.sv \
-					$(CWD)/../../../rtl/common/gray2bin.sv \
-					$(CWD)/../../../rtl/common/glitch_free_n_dff_arn.sv \
-					$(CWD)/../../../rtl/common/fifo_async.sv
+					$(REPO_ROOT)/rtl/common/counter_bingray.sv \
+					$(REPO_ROOT)/rtl/common/gray2bin.sv \
+					$(REPO_ROOT)/rtl/common/glitch_free_n_dff_arn.sv \
+					$(REPO_ROOT)/rtl/common/fifo_async.sv
 
 DUT = fifo_async
 MODULE = testbench
@@ -25,3 +25,4 @@ COCOTB_HDL_TIMEPRECISION=1ps
 include $(shell cocotb-config --makefiles)/Makefile.sim
 include ../cleanall.mk
 WAVES=1
+export SEED=1234

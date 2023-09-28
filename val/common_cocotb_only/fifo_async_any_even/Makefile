@@ -3,16 +3,16 @@ COCOTB_REDUCED_LOG_FMT = True
 SIM ?= icarus
 SIM_ARGS=-v 
 
-VERILOG_INCLUDE_DIRS = $(CWD)/../../../rtl/common
+VERILOG_INCLUDE_DIRS = $(REPO_ROOT)/rtl/common
 VERILOG_SOURCES = \
-					$(CWD)/../../../rtl/common/find_first_set.sv \
-					$(CWD)/../../../rtl/common/find_last_set.sv \
-					$(CWD)/../../../rtl/common/leading_one_trailing_one.sv \
-					$(CWD)/../../../rtl/common/counter_bin.sv \
-					$(CWD)/../../../rtl/common/counter_johnson.sv \
-					$(CWD)/../../../rtl/common/grayj2bin.sv \
-					$(CWD)/../../../rtl/common/glitch_free_n_dff_arn.sv \
-					$(CWD)/../../../rtl/common/fifo_async_any_even.sv
+					$(REPO_ROOT)/rtl/common/find_first_set.sv \
+					$(REPO_ROOT)/rtl/common/find_last_set.sv \
+					$(REPO_ROOT)/rtl/common/leading_one_trailing_one.sv \
+					$(REPO_ROOT)/rtl/common/counter_bin.sv \
+					$(REPO_ROOT)/rtl/common/counter_johnson.sv \
+					$(REPO_ROOT)/rtl/common/grayj2bin.sv \
+					$(REPO_ROOT)/rtl/common/glitch_free_n_dff_arn.sv \
+					$(REPO_ROOT)/rtl/common/fifo_async_any_even.sv
 
 DUT = fifo_async_any_even
 MODULE = testbench
@@ -29,3 +29,4 @@ COCOTB_HDL_TIMEPRECISION=1ps
 include $(shell cocotb-config --makefiles)/Makefile.sim
 include ../cleanall.mk
 WAVES=1
+export SEED=1234

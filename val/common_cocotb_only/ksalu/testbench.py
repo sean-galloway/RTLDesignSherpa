@@ -1,7 +1,13 @@
 import cocotb
 import pyuvm
 from pyuvm import *
+import os
+seed = int(os.environ.get('SEED'))
+
 import random
+random.seed(seed)
+
+
 from pathlib import Path
 import sys
 # All testbenches use tinyalu_utils, so store it in a central

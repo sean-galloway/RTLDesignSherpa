@@ -1,0 +1,45 @@
+{
+    "signal": {
+        "encoder_8b_10b_testbench.s_rst_int": {
+            "phase": 0.9
+        },
+        "encoder_8b_10b_testbench.s_datain_int": {
+            "phase": 0.9
+        },
+        "encoder_8b_10b_testbench.s_datain_k_int": {
+            "phase": 0.9
+        },
+        "encoder_8b_10b_testbench.s_datain_valid_int": {
+            "phase": 0.9
+        },
+        "encoder_8b_10b_testbench.s_rd_in_int": {
+            "phase": 0.9
+        }
+    },
+    "filter": [
+        "encoder_8b_10b_testbench.s_clk_int",
+        "encoder_8b_10b_testbench.s_rst_int",
+        "encoder_8b_10b_testbench.s_rd_in_int",
+        "encoder_8b_10b_testbench.s_datain_int",
+        "encoder_8b_10b_testbench.s_datain_k_int",
+        "encoder_8b_10b_testbench.s_datain_valid_int",
+        "encoder_8b_10b_testbench.s_dataout_int",
+        "encoder_8b_10b_testbench.s_dataout_valid_int",
+        "encoder_8b_10b_testbench.s_dataout_kerr_int",
+        "encoder_8b_10b_testbench.s_rd_out_int"
+    ],
+    "replace": {
+        "encoder_8b_10b_testbench.s_rd_in_int": {
+            "1": "RD+",
+            "2": "RD-"
+        },
+        "encoder_8b_10b_testbench.s_rd_out_int": {
+            "1": "RD+",
+            "2": "RD-"
+        }
+    },
+    "offset": 5,
+    "samplerate": 10,
+    "clocks": ["encoder_8b_10b_testbench.s_clk_int"],
+    "maxtime": 100
+}

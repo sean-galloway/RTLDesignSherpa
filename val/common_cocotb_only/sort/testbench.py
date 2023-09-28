@@ -5,7 +5,13 @@ from cocotb.triggers import RisingEdge, FallingEdge
 from cocotb.binary import BinaryValue
 from cocotb.clock import Clock
 
+import os
+seed = int(os.environ.get('SEED'))
+
 import random
+random.seed(seed)
+
+
 
 NUM_VALS = 10
 SIZE = 16

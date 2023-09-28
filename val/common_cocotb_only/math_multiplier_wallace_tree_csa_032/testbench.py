@@ -4,7 +4,13 @@ from cocotb.regression import TestFactory
 from cocotb.triggers import RisingEdge
 from cocotb.clock import Clock
 from cocotb.triggers import Timer
+import os
+seed = int(os.environ.get('SEED'))
+
 import random
+random.seed(seed)
+
+
 
 @cocotb.coroutine
 def init_test(dut):

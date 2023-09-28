@@ -2,7 +2,13 @@ import cocotb
 import itertools
 from cocotb.regression import TestFactory
 from cocotb.result import TestFailure
+import os
+seed = int(os.environ.get('SEED'))
+
 import random
+random.seed(seed)
+
+
 
 @cocotb.coroutine
 def run_test(dut):

@@ -1,11 +1,11 @@
 CWD=$(shell pwd)
 COCOTB_REDUCED_LOG_FMT = True
 SIM ?= icarus
-VERILOG_INCLUDE_DIRS = $(CWD)/../../../rtl/common
+VERILOG_INCLUDE_DIRS = $(REPO_ROOT)/rtl/common
 VERILOG_SOURCES =\
-					$(CWD)/../../../rtl/common/arbiter_fixed_priority.sv \
-					$(CWD)/../../../rtl/common/arbiter_round_robin_subinst.sv \
-					$(CWD)/../../../rtl/common/arbiter_weighted_round_robin.sv
+					$(REPO_ROOT)/rtl/common/arbiter_fixed_priority.sv \
+					$(REPO_ROOT)/rtl/common/arbiter_round_robin_subinst.sv \
+					$(REPO_ROOT)/rtl/common/arbiter_weighted_round_robin.sv
 
 DUT = arbiter_weighted_round_robin
 MODULE = testbench
@@ -20,3 +20,4 @@ COCOTB_HDL_TIMEPRECISION=1ps
 include $(shell cocotb-config --makefiles)/Makefile.sim
 include ../cleanall.mk
 WAVES=1
+export SEED=1234
