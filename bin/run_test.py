@@ -15,7 +15,7 @@ if __name__ == '__main__':
         python run_test.py --test my_test --tag my_tag --seed 1234 --params N=8,M=16
 
     Test List Example:
-        python run_test_wrapper.py --testlist my_test_list --tag my_tag
+        python run_test.py --testlist my_test_list --tag my_tag
 ''')
     
     # Define command-line options

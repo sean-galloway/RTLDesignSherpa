@@ -11,8 +11,8 @@ from .REMatcher import REMatcher
 
 
 class RunTest(object):
-    '''
-        Represents a test runner that runs a list of tests and reports the regression test results.
+    """
+        Represents a test runner that runs a test and reports the regression test results.
 
         Args:
             test (str): The name of the test.
@@ -36,9 +36,10 @@ class RunTest(object):
         Example:
             ```python
             instance = RunTest(test="my_test", test_list="test_list", tag="runtest", seed="12345", params={"param1": "value1", "param2": "value2"})
-            instance.run_test_list()
+            instance.run_test()
             ```
-    '''
+    """
+
 
     def __init__(self, test=None, test_list=None, tag='runtest', seed=None, params=None):
         # Save the current directory
@@ -48,15 +49,23 @@ class RunTest(object):
         self.repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
         self.env = os.environ.copy()
         self.env['REPO_ROOT'] = self.repo_root
+        self.tag = tag
+        self.test = test
+
         print(f'    REPO_ROOT={self.repo_root}')
         config_file = f'{self.repo_root}/bin/config.json'
         with open(config_file, 'r') as f:
             self.config_dct = json.load(f)
         self.test_list = test_list
-        self.tag = tag
-        self.test = test
-        self.seed = 1234 if seed is None else seed
-        self.params = {} if params is None else params
+        makefile_path = f'{test}/Makefile'
+
+        if test and (params is None) and (seed is None):
+            self.seed, self.params = self._parse_makefile(makefile_path)
+            print(f'----Using {self.seed=} and {self.params=} from the golden test')
+        else:
+            self.seed = seed
+            self.params = params
+
         self.regression_dir = f'{self.repo_root}/regression/{tag}'
         self.regression_dir = RunTest.get_unique_dir_name(self.regression_dir)
 
@@ -67,17 +76,72 @@ class RunTest(object):
         shutil.copy(cleanall, self.regression_dir)
 
 
+    @staticmethod
+    def _parse_makefile(makefile_path):
+        """
+            Parses a Makefile and extracts the seed and parameters.
+
+            Args:
+                makefile_path (str): The path to the Makefile.
+
+            Returns:
+                tuple: A tuple containing the seed (str) and parameters (dict).
+
+            Example:
+                ```python
+                makefile_path = "Makefile"
+                seed, params = parse_makefile(makefile_path)
+                print(seed)  # Output: "12345"
+                print(params)  # Output: {"param1": "value1", "param2": "value2"}
+                ```
+        """
+        seed = None
+        params = {}
+
+        with open(makefile_path, 'r') as f:
+            for line in f:
+                line = line.strip()
+
+                if seed_match := re.search(r'export SEED\s*=\s*(\d+)', line):
+                    seed = seed_match[1]
+
+                if param_match := re.search(r'COMPILE_ARGS\s*\+=\s*(.*)', line):
+                    param_line = param_match[1]
+                    individual_params = param_line.split("-P")
+                    for param in individual_params:
+                        if not param:
+                            continue
+                        param = param.strip()
+                        key_value = param.split("=")
+                        if len(key_value) == 2:
+                            key, value = key_value
+                            params[key.strip()] = value.strip()
+
+        return seed, params
+
     def run_test(self):
+        '''
+        Runs a test and reports the regression test results.
+
+        Args:
+            self
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            instance = RunTest()
+            instance.run_test()
+            ```
+        '''
         self._ready_run_area()
         test_path = self.test
         test = test_path.split('/')[-1]
         if len(test) == 0:
             test = test_path.split('/')[-2]
-        print(f'    {test}')
-        seed = self.seed     # Default to None if 'seed' is not in dict
-        params = self.params # Default to empty dict if 'param' is not in dict
 
-        pass_or_fail = self.run_make(self.repo_root, test, test_path, self.regression_dir, self.env, seed, params)
+        pass_or_fail = self.run_make(self.repo_root, test, test_path, self.regression_dir, self.env, self.seed, self.params)
         fail_list = []
         fail_count = 0
         if pass_or_fail is False:
@@ -262,9 +326,9 @@ class RunTest(object):
         with open(makefile_path, 'r') as f:
             lines = f.readlines()
             for line in lines:
-                if "COMPILE_ARGS" in line:
+                if "COMPILE_ARGS" in line and not params:
                     continue
-                if "export SEED" in line:
+                if "export SEED" in line and not seed:
                     continue
 
                 new_lines.append(line)
