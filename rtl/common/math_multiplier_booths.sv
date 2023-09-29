@@ -9,11 +9,11 @@ module math_multiplier_booths #(
     output logic signed [2*N-1:0] ow_product
 );
 
-    logic [    2:0] w_select         [0:Nd2-1]; // verilog_lint: waive unpacked-dimensions-range-ordering
-    logic [    N:0] w_MxS            [0:Nd2-1]; // verilog_lint: waive unpacked-dimensions-range-ordering
-    logic [2*N-1:0] w_shift_MxS      [0:Nd2-1]; // verilog_lint: waive unpacked-dimensions-range-ordering
+    logic [2:0] w_select[0:Nd2-1];  // verilog_lint: waive unpacked-dimensions-range-ordering
+    logic [N:0] w_MxS[0:Nd2-1];  // verilog_lint: waive unpacked-dimensions-range-ordering
+    logic [2*N-1:0] w_shift_MxS[0:Nd2-1];  // verilog_lint: waive unpacked-dimensions-range-ordering
 
-    logic [    N:0] inv_i_multiplier;
+    logic [N:0] inv_i_multiplier;
     integer i, j;
 
     assign inv_i_multiplier = ~i_multiplier + 1'b1;

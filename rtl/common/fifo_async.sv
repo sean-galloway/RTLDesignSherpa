@@ -7,7 +7,7 @@ module fifo_async #(
     parameter int N_FLOP_CROSS = 2,
     parameter int ALMOST_WR_MARGIN = 1,
     parameter int ALMOST_RD_MARGIN = 1,
-    parameter     INSTANCE_NAME = "DEADF1F0" // verilog_lint: waive explicit-parameter-storage-type
+    parameter INSTANCE_NAME = "DEADF1F0"  // verilog_lint: waive explicit-parameter-storage-type
 ) (
     // clocks and resets
     input  logic                  i_wr_clk,
@@ -46,7 +46,7 @@ module fifo_async #(
     logic w_wdom_ptr_xor, w_rdom_ptr_xor;
 
     // The flop storage logicisters
-    logic [DW-1:0] r_mem [0:((1<<AW)-1)]; // verilog_lint: waive unpacked-dimensions-range-ordering
+    logic [DW-1:0] r_mem[0:((1<<AW)-1)];  // verilog_lint: waive unpacked-dimensions-range-ordering
 
     /////////////////////////////////////////////////////////////////////////
     // Instantiate the bin and gray counters for write and read pointers

@@ -51,7 +51,7 @@ module fifo_async_any_even #(
     logic w_wdom_ptr_xor, w_rdom_ptr_xor;
 
     // The flop storage registers
-    logic [DW-1:0] r_mem [0:((1<<AW)-1)]; // verilog_lint: waive unpacked-dimensions-range-ordering
+    logic [DW-1:0] r_mem[0:((1<<AW)-1)];  // verilog_lint: waive unpacked-dimensions-range-ordering
 
     /////////////////////////////////////////////////////////////////////////
     // Instantiate the binary counters for write and read pointers

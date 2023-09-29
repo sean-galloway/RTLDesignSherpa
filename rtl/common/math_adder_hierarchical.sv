@@ -5,7 +5,7 @@ module math_adder_hierarchical #(
     parameter int N = 16,
     parameter int C = 10
 ) (
-    input  logic [N-1:0] i_numbers[0:C-1], // verilog_lint: waive unpacked-dimensions-range-ordering
+    input logic [N-1:0] i_numbers[0:C-1],  // verilog_lint: waive unpacked-dimensions-range-ordering
     output logic [N-1:0] ow_sum
 );
 
@@ -13,7 +13,7 @@ module math_adder_hierarchical #(
     localparam int Stages = $clog2(CPadded);
 
     logic [N-1:0] w_intermediate_sums [0:Stages+1][0:CPadded]; // verilog_lint: waive unpacked-dimensions-range-ordering
-    logic         w_c                 [0:Stages+1][0:CPadded]; // verilog_lint: waive unpacked-dimensions-range-ordering
+    logic w_c[0:Stages+1][0:CPadded];  // verilog_lint: waive unpacked-dimensions-range-ordering
 
     genvar i, stage;
 

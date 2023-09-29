@@ -6,5 +6,7 @@
     "test_lists": {
                 "level0": "val/testlists/level0.json"
                 },
-    "make_clean" : "val/common_cocotb_only/cleanall.mk"
+    "make_clean" : "val/common_cocotb_only/cleanall.mk",
+    "lint_reports": {"lint":"./reports/lint/", "verible":"./reports/verible/"}
+    
 }

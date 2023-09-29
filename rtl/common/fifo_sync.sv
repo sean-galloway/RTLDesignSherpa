@@ -6,7 +6,7 @@ module fifo_sync #(
     parameter int DEPTH = 4,
     parameter int ALMOST_WR_MARGIN = 1,
     parameter int ALMOST_RD_MARGIN = 1,
-    parameter INSTANCE_NAME = "DEADF1F0" // verilog_lint: waive explicit-parameter-storage-type
+    parameter INSTANCE_NAME = "DEADF1F0"  // verilog_lint: waive explicit-parameter-storage-type
 ) (
     input  logic                  i_clk,
     i_rst_n,
@@ -36,7 +36,7 @@ module fifo_sync #(
     logic [AW-1:0] w_almost_full_count, w_almost_empty_count;
 
     // The flop storage
-    logic [DW-1:0] r_mem [0:((1<<AW)-1)]; // verilog_lint: waive unpacked-dimensions-range-ordering
+    logic [DW-1:0] r_mem[0:((1<<AW)-1)];  // verilog_lint: waive unpacked-dimensions-range-ordering
 
     /////////////////////////////////////////////////////////////////////////
     // Write counter
