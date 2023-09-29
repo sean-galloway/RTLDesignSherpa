@@ -19,6 +19,25 @@ class TestList(object):
 
 
     def generate_run_test_commands(self, test_name_substring):
+        """
+        Generates a list of commands for running tests based on a given test name substring.
+
+        Args:
+            self: The instance of the class.
+
+            test_name_substring (str): The substring to search for in the full test names.
+
+        Returns:
+            List[str]: A list of commands for running tests that match the given test name substring.
+
+        Example:
+            ```python
+            test_name_substring = "arbiter"
+            commands = generate_run_test_commands(test_name_substring)
+            for cmd in commands:
+                print(cmd)
+            ```
+        """
         # Load the configuration file
         repo_root = self.repo_root
         with open(os.path.join(repo_root, "bin/config.json"), 'r') as f:
