@@ -1,4 +1,15 @@
 # RTL_Design_Projects
+
+A couple notes for the folks that have been grabbing code. I am almost done with the basic common code; there are a few dividers left. I got sucked into the rabbit hole of adder and multipliers. Here are  the next few things on my list:
+- Get an automated WaveDrom flow working. This will provide graphs for the GitHub pages documentation. I will need to perform pretty major surgery on the vcd2wavedrom script as I want to be able to group the signals. The grouping will come from tags in the debug.gtkw files.
+- Figure out GitHub pages and how to incorporate WaveDrom. I know it can be done, I don't know how, though.
+- Once I have GitHub pages up, I want to have one page that is a KanBan type page listing what is IP and what is coming up. This is more for myself than anything else.
+- Document all open source tools used with links. This will take a bit.
+- Document my homebrew tools.
+- Document all or a major cross-section of the common blocks, including theory and waveforms.
+- Start on the FPro Book
+- When I'm bored go through the common tests and make them less "brittle." I was learning as I was going with cocotb. I eventually got my tests fairly robust. Most are very brittle and break if one changes any of the parameters in the RTL from what the golden test uses.
+
 This Repo is intended to show the progress I make as I venture into experimenting with FPGA's and  RTL Design experiments. I also hope to instill in others industry standard (or maybe better) practices. My goal is to start folks off learning basic Python, SystemVerilog and the UVM methodology and slowly progress to designing their own RiscVI32 microprocessor, IO Sub-system, AMBA fabric, and possibly some Tensor Processing Units for inference experiments with the intent of loading this onto an appropriate FPGA. All of the code in the repo is considered to be a jumping off point. I fully expect and encourage others to make the code their own; like make personal async fifo's and possibly do it better than mine. (If you do, I'll post it here and make sure you get the proper credit.)
 
 My goal is to use all free tools in this project, but also prepare folks to work in the industry. These are the tools I am using (note, this may get updated):
