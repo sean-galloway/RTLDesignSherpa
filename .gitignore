@@ -176,6 +176,6 @@ known_good/
 junk
 IcarusIssue*
 reports/*
-tools/OLD_SCRIPTS/
-tools/vcd2wavedrom
+bin/OLD_SCRIPTS/
 val/common_cocotb_only_HOLD/*
+regression/*

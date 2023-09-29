@@ -5,6 +5,7 @@ seed = int(os.environ.get('SEED'))
 
 import random
 random.seed(seed)
+print(f'seed changed to {seed}')
 
 
 from cocotb.regression import TestFactory
@@ -24,8 +25,8 @@ def run_test(dut, a, b, c_in):
     
     if ow_sum != expected_sum or ow_carry != expected_carry:
         raise cocotb.result.TestFailure(f"Input: a={a}, b={b}, c_in={c_in}\n"
-                                       f"Expected: sum={expected_sum}, carry={expected_carry}\n"
-                                       f"Got: sum={ow_sum}, carry={ow_carry}")
+                                        f"Expected: sum={expected_sum}, carry={expected_carry}\n"
+                                        f"Got: sum={ow_sum}, carry={ow_carry}")
 
 @cocotb.coroutine
 def run_tb(dut):

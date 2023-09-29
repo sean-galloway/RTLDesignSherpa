@@ -1,0 +1,273 @@
+[
+    {
+        "test": "val/common_cocotb_only/arbiter_round_robin",
+        "seed": "1234",
+        "param": {
+            "CLIENTS": "6"
+        }
+    },
+    {
+        "test": "val/common_cocotb_only/arbiter_round_robin_wrapper",
+        "seed": "1234",
+        "param": {
+            "N": "4"
+        }
+    },
+    {
+        "test": "val/common_cocotb_only/arbiter_weighted_round_robin",
+        "seed": "1234",
+        "param": {
+            "CLIENTS": "5",
+            "MAX_THRESH": "15"
+        }
+    },
+    {
+        "test": "val/common_cocotb_only/arbiter_weighted_round_robin_wrapper",
+        "seed": "1234",
+        "param": {
+            "N": "4"
+        }
+    },
+    {
+        "test": "val/common_cocotb_only/bin_to_bcd",
+        "seed": "1234",
+        "param": {
+            "WIDTH": "14",
+            "DIGITS": "5"
+        }
+    },
+    {
+        "test": "val/common_cocotb_only/fifo_async",
+        "seed": "1234",
+        "param": {
+            "DEPTH": "8",
+            "DATA_WIDTH": "8",
+            "ALMOST_WR_MARGIN": "2",
+            "ALMOST_RD_MARGIN": "2"
+        }
+    },
+    {
+        "test": "val/common_cocotb_only/fifo_async_any_even",
+        "seed": "1234",
+        "param": {
+            "DEPTH": "10",
+            "DATA_WIDTH": "8",
+            "ALMOST_WR_MARGIN": "2",
+            "ALMOST_RD_MARGIN": "2"
+        }
+    },
+    {
+        "test": "val/common_cocotb_only/fifo_sync",
+        "seed": "1234",
+        "param": {
+            "DEPTH": "4",
+            "DATA_WIDTH": "8"
+        }
+    },
+    {
+        "test": "val/common_cocotb_only/leading_one_trailing_one",
+        "seed": "1234",
+        "param": {
+            "WIDTH": "16"
+        }
+    },
+    {
+        "test": "val/common_cocotb_only/math_adder_brent_kung_008",
+        "seed": "1234",
+        "param": {}
+    },
+    {
+        "test": "val/common_cocotb_only/math_adder_brent_kung_016",
+        "seed": "1234",
+        "param": {}
+    },
+    {
+        "test": "val/common_cocotb_only/math_adder_brent_kung_032",
+        "seed": "1234",
+        "param": {}
+    },
+    {
+        "test": "val/common_cocotb_only/math_adder_carry_lookahead",
+        "seed": "1234",
+        "param": {
+            "N": "4"
+        }
+    },
+    {
+        "test": "val/common_cocotb_only/math_adder_carry_save",
+        "seed": "1234",
+        "param": {}
+    },
+    {
+        "test": "val/common_cocotb_only/math_adder_carry_save_nbit",
+        "seed": "1234",
+        "param": {
+            "N": "4"
+        }
+    },
+    {
+        "test": "val/common_cocotb_only/math_adder_full",
+        "seed": "1234",
+        "param": {}
+    },
+    {
+        "test": "val/common_cocotb_only/math_adder_full_nbit",
+        "seed": "1234",
+        "param": {
+            "N": "4"
+        }
+    },
+    {
+        "test": "val/common_cocotb_only/math_adder_half",
+        "seed": "1234",
+        "param": {}
+    },
+    {
+        "test": "val/common_cocotb_only/math_adder_hierarchical",
+        "seed": "1234",
+        "param": {
+            "N": "16",
+            "C": "6"
+        }
+    },
+    {
+        "test": "val/common_cocotb_only/math_adder_kogge_stone_nbit",
+        "seed": "1234",
+        "param": {
+            "N": "4"
+        }
+    },
+    {
+        "test": "val/common_cocotb_only/math_adder_ripple_carry",
+        "seed": "1234",
+        "param": {
+            "N": "4"
+        }
+    },
+    {
+        "test": "val/common_cocotb_only/math_addsub_full_nbit",
+        "seed": "1234",
+        "param": {
+            "N": "8"
+        }
+    },
+    {
+        "test": "val/common_cocotb_only/math_multiplier_array",
+        "seed": "1234",
+        "param": {
+            "N": "8"
+        }
+    },
+    {
+        "test": "val/common_cocotb_only/math_multiplier_booths",
+        "seed": "1234",
+        "param": {
+            "N": "8"
+        }
+    },
+    {
+        "test": "val/common_cocotb_only/math_multiplier_carry_lookahead",
+        "seed": "1234",
+        "param": {
+            "N": "8"
+        }
+    },
+    {
+        "test": "val/common_cocotb_only/math_multiplier_dadda_tree_008",
+        "seed": "1234",
+        "param": {}
+    },
+    {
+        "test": "val/common_cocotb_only/math_multiplier_dadda_tree_016",
+        "seed": "1234",
+        "param": {}
+    },
+    {
+        "test": "val/common_cocotb_only/math_multiplier_dadda_tree_032",
+        "seed": "1234",
+        "param": {}
+    },
+    {
+        "test": "val/common_cocotb_only/math_multiplier_wallace_tree_008",
+        "seed": "1234",
+        "param": {}
+    },
+    {
+        "test": "val/common_cocotb_only/math_multiplier_wallace_tree_016",
+        "seed": "1234",
+        "param": {}
+    },
+    {
+        "test": "val/common_cocotb_only/math_multiplier_wallace_tree_032",
+        "seed": "1234",
+        "param": {}
+    },
+    {
+        "test": "val/common_cocotb_only/math_multiplier_wallace_tree_csa_008",
+        "seed": "1234",
+        "param": {}
+    },
+    {
+        "test": "val/common_cocotb_only/math_multiplier_wallace_tree_csa_016",
+        "seed": "1234",
+        "param": {}
+    },
+    {
+        "test": "val/common_cocotb_only/math_multiplier_wallace_tree_csa_032",
+        "seed": "1234",
+        "param": {}
+    },
+    {
+        "test": "val/common_cocotb_only/math_subtractor_carry_lookahead",
+        "seed": "1234",
+        "param": {
+            "N": "4"
+        }
+    },
+    {
+        "test": "val/common_cocotb_only/math_subtractor_full",
+        "seed": "1234",
+        "param": {}
+    },
+    {
+        "test": "val/common_cocotb_only/math_subtractor_full_nbit",
+        "seed": "1234",
+        "param": {
+            "N": "4"
+        }
+    },
+    {
+        "test": "val/common_cocotb_only/math_subtractor_half",
+        "seed": "1234",
+        "param": {}
+    },
+    {
+        "test": "val/common_cocotb_only/math_subtractor_ripple_carry",
+        "seed": "1234",
+        "param": {
+            "N": "4"
+        }
+    },
+    {
+        "test": "val/common_cocotb_only/pwm",
+        "seed": "1234",
+        "param": {
+            "WIDTH": "16"
+        }
+    },
+    {
+        "test": "val/common_cocotb_only/shifter_barrel",
+        "seed": "1234",
+        "param": {
+            "WIDTH": "16"
+        }
+    },
+    {
+        "test": "val/common_cocotb_only/sort",
+        "seed": "1234",
+        "param": {
+            "NUM_VALS": "10",
+            "SIZE": "16"
+        }
+    }
+]

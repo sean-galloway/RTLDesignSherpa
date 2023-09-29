@@ -7,6 +7,10 @@ seed = int(os.environ.get('SEED'))
 
 import random
 random.seed(seed)
+print(f'seed changed to {seed}')
+
+
+
 
 
 

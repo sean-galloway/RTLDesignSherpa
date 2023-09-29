@@ -7,7 +7,7 @@ class MultiplierMixin():
 
     def partial_products(self, N):
         '''
-        Generates partial products for a Dadda/Wallce multiplier.
+        Generates partial products for a Dadda/Wallace multiplier.
 
         This method generates partial products for a Dadda multiplier by populating bit groups based on the given buswidth.
 

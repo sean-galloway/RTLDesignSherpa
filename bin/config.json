@@ -1,0 +1,10 @@
+{
+    "rtl_dirs": [
+                    "rtl/common", 
+                    "rtl/xilinx"
+                ],
+    "test_lists": {
+                "level0": "val/testlists/level0.json"
+                },
+    "make_clean" : "val/common_cocotb_only/cleanall.mk"
+}
