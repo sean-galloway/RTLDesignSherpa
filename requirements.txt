@@ -44,7 +44,7 @@ stack-data==0.6.2
 svgwrite==1.4.3
 teroshdl==2.1.2
 tomli==2.0.1
-tornado==6.3.2
+tornado==6.3.3
 traitlets==5.9.0
 vcd2wavedrom @ file:///home/sean/github/vcd2wavedrom
 vcdvcd==2.3.3
