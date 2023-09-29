@@ -152,16 +152,3 @@ alias ll='ls -ltr '
 
 # alias pip='/usr/bin/anaconda3_2303/bin/pip'
 # alias pip3='/usr/bin/anaconda3_2303/bin/pip3'
-
-##############################################################################
-## this is a sequence of directory stack commands, kind of like pushd/popd 
-## only a little easier to use
-###############################################################################
-# clear out dir info
-set pdl=
-# add directory to a stack
-alias pd='set cwd=$pwd;  set  pdl="$pdl $cwd"; pwd'
-# list dirs
-alias ld='echo $pdl | perl -pe "s/ /\n/g"'
-# change dirs, interactive... enter the index number
-alias cdi='echo $pdl | perl -pe "s/ /\n/g"; echo -n index:; set pdi=$<; chdir $pdl[$pdi]; pwd'
