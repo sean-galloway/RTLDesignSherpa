@@ -34,7 +34,7 @@ if __name__ == '__main__':
     # Instantiate RunTest class
     if args.test:
         run_test_obj = RunTest(test=args.test, tag=args.tag, seed=args.seed, params=params)
-        # Add logic to run single test if needed
+        run_test_obj.run_test()
     elif args.testlist:
         run_test_obj = RunTest(test_list=args.testlist, tag=args.tag)
         run_test_obj.run_test_list()

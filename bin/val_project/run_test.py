@@ -55,8 +55,8 @@ class RunTest(object):
         self.test_list = test_list
         self.tag = tag
         self.test = test
-        self.seed = seed
-        self.params = params
+        self.seed = 1234 if seed is None else seed
+        self.params = {} if params is None else params
         self.regression_dir = f'{self.repo_root}/regression/{tag}'
         self.regression_dir = RunTest.get_unique_dir_name(self.regression_dir)
 
@@ -65,6 +65,28 @@ class RunTest(object):
         os.mkdir(self.regression_dir)
         cleanall = f'{self.repo_root}/{self.config_dct["make_clean"]}'
         shutil.copy(cleanall, self.regression_dir)
+
+
+    def run_test(self):
+        self._ready_run_area()
+        test_path = self.test
+        test = test_path.split('/')[-1]
+        if len(test) == 0:
+            test = test_path.split('/')[-2]
+        print(f'    {test}')
+        seed = self.seed     # Default to None if 'seed' is not in dict
+        params = self.params # Default to empty dict if 'param' is not in dict
+
+        pass_or_fail = self.run_make(self.repo_root, test, test_path, self.regression_dir, self.env, seed, params)
+        fail_list = []
+        fail_count = 0
+        if pass_or_fail is False:
+            fail_count += 1
+            fail_list.append(test)
+
+        self.report_regression(+1, fail_count, fail_list)
+        # Change back to the original directory
+        os.chdir(self.original_directory)
 
 
     def run_test_list(self):
@@ -240,18 +262,20 @@ class RunTest(object):
         with open(makefile_path, 'r') as f:
             lines = f.readlines()
             for line in lines:
-                if "COMPILE_ARGS" in line and "export SEED" not in line and not params:
+                if "COMPILE_ARGS" in line:
                     continue
-                
-                if "export SEED" in line and seed is not None:
-                    line = f"export SEED={seed}\n"
+                if "export SEED" in line:
+                    continue
 
                 new_lines.append(line)
-            
+
+        if seed is not None:
+            new_lines.append(f"export SEED={seed}\n")
+
         if params:
             param_str = " ".join([f"-P $(DUT).{k}={v}" for k, v in params.items()])
             new_lines.append(f"COMPILE_ARGS += {param_str}\n")
-        
+
         with open(makefile_path, 'w') as f:
             f.writelines(new_lines)
 
