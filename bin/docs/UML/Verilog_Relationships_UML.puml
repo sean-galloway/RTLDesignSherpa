@@ -1,0 +1,15 @@
+@startuml Verilog-Classes
+!include Module_UML.puml
+!include ParserHelper_UML.puml
+!include Signal_UML.puml
+!include Param_UML.puml
+
+ParserHelper --> Signal
+ParserHelper --> Param
+Signal --> SignalRecord
+Param --> ParameterRecord
+Module --> Param
+Module --> Signal
+Module --> ParserHelper
+
+@enduml

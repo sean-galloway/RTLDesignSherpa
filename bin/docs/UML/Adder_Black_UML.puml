@@ -1,0 +1,10 @@
+@startuml Black
+!include Module_UML.puml
+
+class Black {
+  + Black()
+  + verilog(file_path: str): void
+}
+
+Black --|> Module
+@enduml
