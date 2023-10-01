@@ -1,6 +1,7 @@
 import os
 from os import listdir
 from os.path import isdir, join, exists
+from pathlib import Path
 import shutil
 import glob
 import subprocess
@@ -71,7 +72,8 @@ class RunTest(object):
 
 
     def _ready_run_area(self):
-        os.mkdir(self.regression_dir)
+        Path(self.regression_dir).mkdir(parents=True, exist_ok=True)
+        # os.mkdir(self.regression_dir)
         cleanall = f'{self.repo_root}/{self.config_dct["make_clean"]}'
         shutil.copy(cleanall, self.regression_dir)
 
