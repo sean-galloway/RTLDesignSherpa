@@ -4,9 +4,9 @@ class PG--><g id="elem_PG"><rect codeLine="3" fill="#F1F1F1" height="80.5938" id
 class BitwisePGLogic--><g id="elem_BitwisePGLogic"><rect codeLine="4" fill="#F1F1F1" height="80.5938" id="BitwisePGLogic" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="230" x="91" y="7"/><ellipse cx="149.25" cy="23" fill="#ADD1B2" rx="11" ry="11" style="stroke:#181818;stroke-width:1.0;"/><path d="M152.2188,28.6406 Q151.6406,28.9375 151,29.0781 Q150.3594,29.2344 149.6563,29.2344 Q147.1563,29.2344 145.8281,27.5938 Q144.5156,25.9375 144.5156,22.8125 Q144.5156,19.6875 145.8281,18.0313 Q147.1563,16.375 149.6563,16.375 Q150.3594,16.375 151,16.5313 Q151.6563,16.6875 152.2188,16.9844 L152.2188,19.7031 Q151.5938,19.125 151,18.8594 Q150.4063,18.5781 149.7813,18.5781 Q148.4375,18.5781 147.75,19.6563 Q147.0625,20.7188 147.0625,22.8125 Q147.0625,24.9063 147.75,25.9844 Q148.4375,27.0469 149.7813,27.0469 Q150.4063,27.0469 151,26.7813 Q151.5938,26.5 152.2188,25.9219 L152.2188,28.6406 Z " fill="#000000"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="105" x="169.75" y="27.8467">BitwisePGLogic</text><line style="stroke:#181818;stroke-width:0.5;" x1="92" x2="320" y1="39" y2="39"/><line style="stroke:#181818;stroke-width:0.5;" x1="92" x2="320" y1="47" y2="47"/><ellipse cx="102" cy="60.6484" fill="#84BE84" rx="3" ry="3" style="stroke:#038048;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="204" x="111" y="63.9951">BitwisePGLogic(buswidth: int)</text><ellipse cx="102" cy="76.9453" fill="#84BE84" rx="3" ry="3" style="stroke:#038048;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="176" x="111" y="80.292">verilog(file_path: str): void</text></g><!--MD5=[8492c3ebab75a5258ed75422cb6dcc17]
 link PG to Module--><g id="link_PG_Module"><path codeLine="8" d="M316.7,246.22 C312.36,258.28 307.26,272.47 301.72,287.86 " fill="none" id="PG-to-Module" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="none" points="308.26,290.35,294.9,306.8,295.09,285.61,308.26,290.35" style="stroke:#181818;stroke-width:1.0;"/></g><!--MD5=[4f83008b24b3e18c671753220646e024]
 link BitwisePGLogic to Module--><g id="link_BitwisePGLogic_Module"><path codeLine="9" d="M207.27,88.23 C208.58,128.11 210.74,191.32 213,246 C213.55,259.24 214.13,272.87 214.73,286.61 " fill="none" id="BitwisePGLogic-to-Module" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="none" points="221.73,286.5,215.63,306.79,207.75,287.12,221.73,286.5" style="stroke:#181818;stroke-width:1.0;"/></g><!--MD5=[61cc98ee5387257dad8d39ee727eb429]
-link BitwisePGLogic to PG--><g id="link_BitwisePGLogic_PG"><path codeLine="10" d="M237.87,88.27 C255.57,110.36 277.63,137.9 295.84,160.62 " fill="none" id="BitwisePGLogic-to-PG" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="#181818" points="299.19,164.8,296.6785,155.2768,296.0613,160.8998,290.4382,160.2827,299.19,164.8" style="stroke:#181818;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="30" x="273" y="131.0669">uses</text></g><!--MD5=[21c9e8a019da52c5e2891ae7a9e0af39]
-@startuml BitwisePGLogic
-!include Module_UML.puml
+link BitwisePGLogic to PG--><g id="link_BitwisePGLogic_PG"><path codeLine="10" d="M237.87,88.27 C255.57,110.36 277.63,137.9 295.84,160.62 " fill="none" id="BitwisePGLogic-to-PG" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="#181818" points="299.19,164.8,296.6785,155.2768,296.0613,160.8998,290.4382,160.2827,299.19,164.8" style="stroke:#181818;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="30" x="273" y="131.0669">uses</text></g><!--MD5=[a97c10d05ab1355c30eda6ccdcb610ad]
+@startuml Adder_BitwisePGLogic
+!include verilog_Module_UML.puml
 !include Adder_PG_UML.puml
 
 class BitwisePGLogic {
@@ -19,7 +19,7 @@ BitwisePGLogic - -> PG: uses
 
 @enduml
 
-@startuml BitwisePGLogic
+@startuml Adder_BitwisePGLogic
 
 class Module {
   - start_instructions: list

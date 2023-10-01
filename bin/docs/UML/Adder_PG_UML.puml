@@ -1,5 +1,5 @@
-@startuml PG
-!include Module_UML.puml
+@startuml Adder_PG
+!include verilog_Module_UML.puml
 
 class PG {
   + PG()

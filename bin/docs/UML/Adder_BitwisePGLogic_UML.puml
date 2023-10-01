@@ -1,5 +1,5 @@
-@startuml BitwisePGLogic
-!include Module_UML.puml
+@startuml Adder_BitwisePGLogic
+!include verilog_Module_UML.puml
 !include Adder_PG_UML.puml
 
 class BitwisePGLogic {

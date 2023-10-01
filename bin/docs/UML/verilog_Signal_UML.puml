@@ -1,4 +1,4 @@
-@startuml Signal
+@startuml verilog_Signal
 
 class SignalRecord {
   - interface: bool

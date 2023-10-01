@@ -1,5 +1,5 @@
-@startuml GroupPGLogic
-!include Module_UML.puml
+@startuml Adder_GroupPGLogic
+!include verilog_Module_UML.puml
 !include Adder_Black_UML.puml
 !include Adder_Gray_UML.puml
 

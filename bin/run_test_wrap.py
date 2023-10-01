@@ -1,5 +1,5 @@
 import argparse
-from val_project.run_test import RunTest
+from project_automation.run_test import RunTest
 
 def parse_params(param_str):
     param_dict = {}

@@ -1,4 +1,4 @@
-@startuml ParserHelperTop
+@startuml verilog_ParserHelperTop
 
 class ParserHelper {
   + parsePortsList(signal_str: str): list

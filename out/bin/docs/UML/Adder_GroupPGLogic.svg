@@ -7,9 +7,9 @@ link Black to Module--><g id="link_Black_Module"><path codeLine="8" d="M225,392.
 link Gray to Module--><g id="link_Gray_Module"><path codeLine="8" d="M430.04,392.22 C419.64,405.14 407.28,420.49 393.87,437.16 " fill="none" id="Gray-to-Module" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="none" points="399.28,441.61,381.28,452.8,388.37,432.83,399.28,441.61" style="stroke:#181818;stroke-width:1.0;"/></g><!--MD5=[b42ada8a4f8232bed48a4c6a9be2a31d]
 link GroupPGLogic to Module--><g id="link_GroupPGLogic_Module"><path codeLine="19" d="M140.19,234.09 C126.1,258.3 113.61,284.59 106,311 C94.5,350.95 97.23,393.08 107.51,433.48 " fill="none" id="GroupPGLogic-to-Module" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="none" points="114.28,431.69,113.04,452.84,100.82,435.53,114.28,431.69" style="stroke:#181818;stroke-width:1.0;"/></g><!--MD5=[3728fd606d21a0bedae975c5595c750d]
 link GroupPGLogic to Black--><g id="link_GroupPGLogic_Black"><path codeLine="20" d="M225,234.32 C225,259.72 225,285.22 225,305.84 " fill="none" id="GroupPGLogic-to-Black" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="#181818" points="225,310.97,229,301.97,225,305.97,221,301.97,225,310.97" style="stroke:#181818;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="32" x="226" y="277.0669">Uses</text></g><!--MD5=[47f31c495e3356bce9e9c745c62b263e]
-link GroupPGLogic to Gray--><g id="link_GroupPGLogic_Gray"><path codeLine="21" d="M341.76,234.32 C368.71,260.36 395.78,286.52 417.4,307.4 " fill="none" id="GroupPGLogic-to-Gray" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="#181818" points="421.09,310.97,417.3879,301.8434,417.4908,307.4993,411.8349,307.6022,421.09,310.97" style="stroke:#181818;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="32" x="386" y="277.0669">Uses</text></g><!--MD5=[4d3f4b21b35f6febd5e68d4891bf1ae5]
-@startuml GroupPGLogic
-!include Module_UML.puml
+link GroupPGLogic to Gray--><g id="link_GroupPGLogic_Gray"><path codeLine="21" d="M341.76,234.32 C368.71,260.36 395.78,286.52 417.4,307.4 " fill="none" id="GroupPGLogic-to-Gray" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="#181818" points="421.09,310.97,417.3879,301.8434,417.4908,307.4993,411.8349,307.6022,421.09,310.97" style="stroke:#181818;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="32" x="386" y="277.0669">Uses</text></g><!--MD5=[cdcca40ac93c096d53a355de885347b0]
+@startuml Adder_GroupPGLogic
+!include verilog_Module_UML.puml
 !include Adder_Black_UML.puml
 !include Adder_Gray_UML.puml
 
@@ -33,7 +33,7 @@ GroupPGLogic - -> Gray: Uses
 
 @enduml
 
-@startuml GroupPGLogic
+@startuml Adder_GroupPGLogic
 
 class Module {
   - start_instructions: list

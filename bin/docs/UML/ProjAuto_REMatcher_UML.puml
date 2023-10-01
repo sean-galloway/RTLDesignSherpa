@@ -1,4 +1,4 @@
-@startuml REMatcherClass
+@startuml ProjAuto_REMatcherClass
 
 class REMatcher {
   - matchstring: str

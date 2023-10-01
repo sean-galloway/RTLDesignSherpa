@@ -1,5 +1,5 @@
 import argparse
-from val_project.lint import Lint
+from project_automation.lint import Lint
 
 def main():
     parser = argparse.ArgumentParser(description="Lint and format Verilog files.")

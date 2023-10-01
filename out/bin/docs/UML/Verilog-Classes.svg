@@ -13,12 +13,12 @@ link ParserHelper to Signal--><g id="link_ParserHelper_Signal"><path codeLine="6
 link ParserHelper to Param--><g id="link_ParserHelper_Param"><path codeLine="7" d="M457.85,586.1 C472.45,603.35 488.77,622.63 505.18,642.01 " fill="none" id="ParserHelper-to-Param" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="#181818" points="508.46,645.88,505.6985,636.4262,505.2296,642.0636,499.5923,641.5948,508.46,645.88" style="stroke:#181818;stroke-width:1.0;"/></g><!--MD5=[48ef3548163fd35053fd79f4921cbab9]
 link Module to Param--><g id="link_Module_Param"><path codeLine="10" d="M542.89,397.05 C553.24,416.72 562.53,436.87 570,457 C591.58,515.18 602.06,583.2 607.06,640.68 " fill="none" id="Module-to-Param" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="#181818" points="607.49,645.86,610.731,636.5597,607.076,640.8772,602.7585,637.2221,607.49,645.86" style="stroke:#181818;stroke-width:1.0;"/></g><!--MD5=[b932099c87a0ee66303ce9b0b8712df9]
 link Module to Signal--><g id="link_Module_Signal"><path codeLine="11" d="M265.65,397.26 C255.19,416.88 245.72,436.97 238,457 C214.51,517.95 202.28,589.8 195.91,648.97 " fill="none" id="Module-to-Signal" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="#181818" points="195.35,654.29,200.2549,645.7494,195.8645,649.3165,192.2973,644.9262,195.35,654.29" style="stroke:#181818;stroke-width:1.0;"/></g><!--MD5=[8f384a68fe36781dcc0558536dcd49ba]
-link Module to ParserHelper--><g id="link_Module_ParserHelper"><path codeLine="12" d="M404,397.29 C404,416.54 404,435.06 404,451.62 " fill="none" id="Module-to-ParserHelper" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="#181818" points="404,456.7,408,447.7,404,451.7,400,447.7,404,456.7" style="stroke:#181818;stroke-width:1.0;"/></g><!--MD5=[0ada58a906452e4919e15e1f2cd3211c]
+link Module to ParserHelper--><g id="link_Module_ParserHelper"><path codeLine="12" d="M404,397.29 C404,416.54 404,435.06 404,451.62 " fill="none" id="Module-to-ParserHelper" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="#181818" points="404,456.7,408,447.7,404,451.7,400,447.7,404,456.7" style="stroke:#181818;stroke-width:1.0;"/></g><!--MD5=[f8a0cb67b4b1afd681287578f01a1677]
 @startuml Verilog-Classes
-!include Module_UML.puml
-!include ParserHelper_UML.puml
-!include Signal_UML.puml
-!include Param_UML.puml
+!include verilog_Module_UML.puml
+!include verilog_ParserHelper_UML.puml
+!include verilog_Signal_UML.puml
+!include verilog_Param_UML.puml
 
 ParserHelper - -> Signal
 ParserHelper - -> Param

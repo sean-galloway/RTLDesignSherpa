@@ -1,4 +1,4 @@
-@startuml Param
+@startuml verilog_Param
 
 class ParameterRecord {
   - sig_type: str

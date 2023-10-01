@@ -1,5 +1,5 @@
-@startuml TestListClass
-!include REMatcher_UML.puml
+@startuml ProjAuto_TestListClass
+!include ProjAuto_REMatcher_UML.puml
 
 class TestList {
   - original_directory: str

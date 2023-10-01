@@ -1,5 +1,5 @@
-@startuml LintClass
-!include REMatcher_UML.puml
+@startuml ProjAuto_LintClass
+!include ProjAuto_REMatcher_UML.puml
 
 class Lint {
   - original_directory: str

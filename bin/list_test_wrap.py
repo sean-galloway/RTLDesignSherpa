@@ -1,5 +1,5 @@
 import argparse
-from val_project.list_test import TestList  # Assuming your class is at val_project/test_list.py
+from project_automation.list_test import TestList  # Assuming your class is at val_project/test_list.py
 
 def main():
     parser = argparse.ArgumentParser(description='Test List Wrapper')

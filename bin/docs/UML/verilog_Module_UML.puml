@@ -1,4 +1,4 @@
-@startuml Module
+@startuml verilog_Module
 
 class Module {
   - start_instructions: list

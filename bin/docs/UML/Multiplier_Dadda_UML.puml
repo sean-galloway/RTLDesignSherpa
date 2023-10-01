@@ -1,5 +1,5 @@
-@startuml DaddaTree
-!include Module_UML.puml
+@startuml Multiplier_DaddaTree
+!include verilog_Module_UML.puml
 !include Multiplier_Mixin_UML.puml
 
 class DaddaTree {

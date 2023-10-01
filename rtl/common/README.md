@@ -24,7 +24,7 @@ These are some random but valuable sets of essential Verilog functions. The file
 
 ## Math Related Functions
 
-I am still determining how useful these will be. I have a set of FPGA experiments planned to test different theories.
+I am still determining how useful these will be. I have a set of FPGA experiments planned to test different theories. If nothing else, they might prove useful when it comes time to create an ALU.
 
     math_adder_brent_kung_008.sv
     math_adder_brent_kung_016.sv
