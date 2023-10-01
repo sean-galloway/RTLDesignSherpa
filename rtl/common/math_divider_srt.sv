@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module srt_divider #(
+module math_divider_srt #(
     parameter int DW = 16  // Width of input and output data
 ) (
     input  logic          clk,       // Clock input
@@ -57,4 +57,4 @@ module srt_divider #(
         remainder = A_reg[DW-1:0];
     end
 
-endmodule
+endmodule : math_divider_srt

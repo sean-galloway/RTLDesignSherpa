@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module reciprocal_divider #(
+module math_divider_reciprocal #(
     parameter int DATA_WIDTH     = 16,  // Width of input and output data
     parameter int DIV_ITERATIONS = 8    // Number of iterations for reciprocal approximation
 ) (
@@ -36,4 +36,4 @@ module reciprocal_divider #(
         else quotient = remainder >> (2 * DW);  // Positive quotient
     end
 
-endmodule
+endmodule : math_divider_reciprocal
