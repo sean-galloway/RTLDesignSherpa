@@ -277,7 +277,7 @@ end
 assign next_write_ptr = (write_en && !fifo_full) ? (write_ptr + 1) : write_ptr;
 assign next_read_ptr = (read_en && !fifo_empty) ? (read_ptr + 1) : read_ptr;
 
-// Write and Read Data Logic
+// Write FIFO Logic
 always_ff @(posedge clk) begin
     if (write_en && !fifo_full) begin
         memory[next_write_ptr[2:0]] <= data_in;
