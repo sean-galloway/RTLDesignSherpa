@@ -1,5 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
+import contextlib
 import sys
 import os
 import argparse
@@ -229,17 +230,13 @@ class VCD2Wavedrom:
                     continue
                 digit = '.'
                 value = None
-                try:
+                with contextlib.suppress(Exception):
                     value = int(j[1])
                     value = format(int(j[1], 2), 'X')
-                except:
-                    pass
                 if value is None:
-                    try:
+                    with contextlib.suppress(Exception):
                         value = float(j[1])
                         value = "{:.3e}".format(float(j[1]))
-                    except:
-                        pass
                 if value is None:
                     value = j[1]
                 if isbus or vcd_dict_types[wave] == 'string':

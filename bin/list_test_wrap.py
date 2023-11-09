@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import argparse
 from project_automation.list_test import TestList  # Assuming your class is at val_project/test_list.py
 

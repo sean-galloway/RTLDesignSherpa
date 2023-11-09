@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 from optparse import OptionParser
 import math
 from rtl_generators.utils import write_bk, write_dadda, write_wallace

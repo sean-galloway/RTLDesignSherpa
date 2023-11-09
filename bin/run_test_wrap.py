@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import argparse
 from project_automation.run_test import RunTest
 
