@@ -10,7 +10,7 @@ The class has two main methods:
 
 **Note**: The `REMatcher` class is dependent on the `re` module from Python's standard library.
 
-**File Location**: `./bin/project_automation/REMatcher.py`.
+**File Location**: `project_automation/REMatcher.py`.
 
 **Command Line Options**: This class is not designed to be executed directly from the command line but utilized as part of a larger Python project.
 

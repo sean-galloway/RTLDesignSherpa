@@ -6,12 +6,12 @@ This document will evolve as more scripts are added, showing the most common use
 
 ## lint_wrap.py
 
-The `lint_wrap` script located at `./bin/lint_wrap.py` is designed to lint and format Verilog files using supporting functions encapsulated in a `Lint` class. This script acts as a command-line interface (CLI) utility for code maintenance purposes. The utility offers the options:
+The `lint_wrap` script located at `lint_wrap.py` is designed to lint and format Verilog files using supporting functions encapsulated in a `Lint` class. This script acts as a command-line interface (CLI) utility for code maintenance purposes. The utility offers the options:
 
 ```sh
-bin/lint_wrap.py --format
-bin/lint_wrap.py --lint
-bin/lint_wrap.py --format --lint
+lint_wrap.py --format
+lint_wrap.py --lint
+lint_wrap.py --format --lint
 ```
 
 The format option uses verible format to ensure all of the code follows a convention. The lint option actually runs verible lint. Verible issues can be waived like this:
@@ -27,7 +27,7 @@ The following code provides the functionality of a wrapper script to work with t
 Find test commands using a partial test name:
 
 ```sh
-bin/list_test_wrap.py --find "add"
+list_test_wrap.py --find "add"
 ```
 
 output:
@@ -52,7 +52,7 @@ python run_test_wrap.py --test val/common_cocotb_only/math_addsub_full_nbit --ta
 Generate a JSON list of tests specifying a path and output file name (for each bin of tests, level0, level1, etc, there is an associated in ./val/testlists/level0.json. These json files contain the parameters and the seed used for the test. This is hard to grab manually.):
 
 ```sh
-bin/list_test_wrap.py --list "level0.json" --path "val/common_cocotb_only/"
+list_test_wrap.py --list "level0.json" --path "val/common_cocotb_only/"
 ```
 
 Here is an example of the json file:
@@ -78,10 +78,10 @@ Examples:
 
 ```sh
 # run one test
-bin/run_test_wrap.py --test val/common_cocotb_only/arbiter_round_robin --tag 122423 --seed 1234 --params CLIENTS=6
+run_test_wrap.py --test val/common_cocotb_only/arbiter_round_robin --tag 122423 --seed 1234 --params CLIENTS=6
 
 # run level0
-bin/run_test_wrap.py --testlist level0 --tag 122423
+run_test_wrap.py --testlist level0 --tag 122423
 ```
 
 For the level0 regression, a directory called regression is created at the repo_root level. Inside of this is another directory called "tag" to hold all of this run together.
@@ -107,7 +107,7 @@ type='brent_kung'
 # Bitwidth
 buswidth=8
 
-bin/math_generate.py --type $type --path $out_path --buswidth $buswidth
+math_generate.py --type $type --path $out_path --buswidth $buswidth
 ```
 
 ---

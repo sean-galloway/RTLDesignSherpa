@@ -1,6 +1,6 @@
 # signal
 
-The `signal` module, located at `./bin/rtl_generators/verilog/signal.py`, is responsible for parsing, manipulating, and generating Verilog signal declaration strings. It relies on `ParserHelper` from `rtl_generators.verilog.verilog_parser` for parsing and formatting utility functions. Here's a detailed breakdown of the module:
+The `signal` module, located at `rtl_generators/verilog/signal.py`, is responsible for parsing, manipulating, and generating Verilog signal declaration strings. It relies on `ParserHelper` from `rtl_generators.verilog.verilog_parser` for parsing and formatting utility functions. Here's a detailed breakdown of the module:
 ![Signal UML](../../images_scripts_uml/verilog_Signal.svg)
 
 This module consists of a `SignalRecord` data class holding signal information and a `Signal` class managing a list of `SignalRecord` instances. The `Signal` class includes methods to add new signal strings, generate wire declarations, and create port strings for a Verilog module.

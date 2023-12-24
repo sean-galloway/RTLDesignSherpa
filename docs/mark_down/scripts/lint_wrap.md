@@ -1,6 +1,6 @@
 # lint_wrap
 
-The `lint_wrap` script located at `./bin/lint_wrap.py` is designed to lint and format Verilog files using supporting functions encapsulated in a `Lint` class. This script acts as a command-line interface (CLI) utility for code maintenance purposes. The utility offers the option to either format the code, perform linting, or do both depending on the passed command-line arguments.
+The `lint_wrap` script located at `lint_wrap.py` is designed to lint and format Verilog files using supporting functions encapsulated in a `Lint` class. This script acts as a command-line interface (CLI) utility for code maintenance purposes. The utility offers the option to either format the code, perform linting, or do both depending on the passed command-line arguments.
 ![Lint Wrap UML](../../images_scripts_uml/bin_lint_wrap.svg)
 
 ## Usage
@@ -34,9 +34,9 @@ The main function of the script performs the following steps:
 To run this script, navigate to the directory containing `lint_wrap.py` and use one of the following command-line syntaxes depending on your requirements:
 
 ```sh
-bin/lint_wrap.py --format
-bin/lint_wrap.py --lint
-bin/lint_wrap.py --format --lint
+lint_wrap.py --format
+lint_wrap.py --lint
+lint_wrap.py --format --lint
 ```
 
 Please ensure to replace `python3` with your specific Python version command if it differs.

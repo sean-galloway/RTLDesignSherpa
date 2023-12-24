@@ -35,13 +35,13 @@ To use this script, you would use the command line to pass the appropriate argum
 Find test commands using a partial test name:
 
 ```sh
-bin/list_test_wrap.py --find "partial_test_name"
+list_test_wrap.py --find "partial_test_name"
 ```
 
 Generate a JSON list of tests specifying a path and output file name:
 
 ```sh
-bin/list_test_wrap.py --list "level0.json" --path "val/common_cocotb_only/""
+list_test_wrap.py --list "level0.json" --path "val/common_cocotb_only/""
 ```
 
 ---

@@ -1,6 +1,6 @@
 # pg
 
-The `pg` module is specified in the file located at `./bin/rtl_generators/adders/brentkung/pg.py`. This module is implemented in Python and is part of a set of tools for generating Verilog code, particularly for arithmetic operations like addition using a Brent-Kung adder structure.
+The `pg` module is specified in the file located at `rtl_generators/adders/brentkung/pg.py`. This module is implemented in Python and is part of a set of tools for generating Verilog code, particularly for arithmetic operations like addition using a Brent-Kung adder structure.
 ![PG UML](../../images_scripts_uml/Adder_PG.svg)
 
 ## Overview

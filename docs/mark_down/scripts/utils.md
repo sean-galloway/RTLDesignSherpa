@@ -1,6 +1,6 @@
 # utils
 
-The `utils` module is located at `./bin/rtl_generators/utils/utils.py` and includes several important functions and classes that relate to the generation of Verilog code for various hardware components. This module notably imports several classes that correspond to components of parallel prefix adders such as Brent-Kung adders (PG, BitwisePGLogic, GroupPGLogic, SumLogic, BrentKungAdder, Black, Gray) and also multipliers like Dadda and Wallace tree multipliers (DaddaTree, WallaceTree).
+The `utils` module is located at `rtl_generators/utils/utils.py` and includes several important functions and classes that relate to the generation of Verilog code for various hardware components. This module notably imports several classes that correspond to components of parallel prefix adders such as Brent-Kung adders (PG, BitwisePGLogic, GroupPGLogic, SumLogic, BrentKungAdder, Black, Gray) and also multipliers like Dadda and Wallace tree multipliers (DaddaTree, WallaceTree).
 
 ## Function `write_module(file_path, module)`
 

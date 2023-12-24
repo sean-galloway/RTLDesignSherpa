@@ -1,6 +1,6 @@
 # math_generate
 
-This script is a command-line Python program located at `./bin/math_generate.py`. It is designed to generate RTL modules for different types of adders with a certain bitwidth.
+This script is a command-line Python program located at `math_generate.py`. It is designed to generate RTL modules for different types of adders with a certain bitwidth.
 
 ## Command Line Options
 
@@ -23,7 +23,7 @@ Two blank lines are included here to indicate the end of the markdown for the `m
 
 ## Example Command
 
-All of the various options are listed in the bin/math_generate.sh file. Here is one of them:
+All of the various options are listed in the math_generate.sh file. Here is one of them:
 
 ```bash
 out_path='./math_outputs/bk_08'
@@ -42,7 +42,7 @@ type='brent_kung'
 # Bitwidth
 buswidth=8
 
-bin/math_generate.py --type $type --path $out_path --buswidth $buswidth
+math_generate.py --type $type --path $out_path --buswidth $buswidth
 ```
 
 ---

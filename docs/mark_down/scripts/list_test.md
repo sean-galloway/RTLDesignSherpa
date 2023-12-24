@@ -1,6 +1,6 @@
 # list_test
 
-The `list_test` module located at `./bin/project_automation/list_test.py` provides functionalities centered around the management and execution of test lists within a given repository. The code assumes a standard directory structure and utilities such as `git` and `make` for interaction with the test environment and files.
+The `list_test` module located at `project_automation/list_test.py` provides functionalities centered around the management and execution of test lists within a given repository. The code assumes a standard directory structure and utilities such as `git` and `make` for interaction with the test environment and files.
 
 ![TestList UML](../../images_scripts_uml/ProjAuto_TestListClass.svg)
 

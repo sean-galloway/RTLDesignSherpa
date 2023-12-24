@@ -68,6 +68,7 @@ if [ -n "${BASH:-}" -o -n "${ZSH_VERSION:-}" ] ; then
     hash -r 2> /dev/null
 fi
 
+export PATH=bin/:$PATH
 export PYTHONPATH=bin/:$PYTHONPATH
 export PYTHONPATH=bin/rtl_generators:$PYTHONPATH
 export PYTHONPATH=bin/val_project:$PYTHONPATH

@@ -1,6 +1,6 @@
 # run_test
 
-`run_test.py` is a Python script responsible for automating the process of running tests and reporting regression test results in a project. This script is part of the `./bin/project_automation` directory and works primarily with regression testing. Below is the detailed documentation of the script.
+`run_test.py` is a Python script responsible for automating the process of running tests and reporting regression test results in a project. This script is part of the `project_automation` directory and works primarily with regression testing. Below is the detailed documentation of the script.
 ![Run Test UML](../../images_scripts_uml/ProjAuto_RunTestClass.svg)
 
 ## RunTest Class
@@ -69,7 +69,7 @@ Run the module as a script with the necessary command line options. It can execu
 
 ## Required External Files
 
-- `./bin/config.json`: Contains project-wide configuration options.
+- `config.json`: Contains project-wide configuration options.
 - Test list JSON file: Defines which tests to run and their parameters, if running a list of tests.
 
 ---
