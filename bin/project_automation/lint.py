@@ -9,13 +9,49 @@ from .REMatcher import REMatcher
 
 
 class Lint(object):
+    """
+    A class for performing linting and formatting operations on RTL code.
+
+    Args:
+        None
+
+    Attributes:
+        original_directory (str): The current directory.
+        repo_root (str): The root directory of the Git repository.
+        env (dict): The environment variables.
+        config_dct (dict): The configuration dictionary.
+
+    Methods:
+        run_verible_format: Runs the Verible code formatter on the RTL code.
+        run_lint: Runs linting operations on the RTL code.
+        _run_verible_single: Runs the Verible linter on a single RTL file.
+        _run_lint_single: Runs the Yosys linter on a single RTL file.
+        _delete_files_in_directory: Deletes all files in a directory.
+    """
 
     def __init__(self):
         # Save the current directory
         self.original_directory = os.getcwd()
         # get the repo root
         print('Finding REPO_ROOT')
-        self.repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
+
+        try:
+            # Run the 'git rev-parse --show-toplevel' command to get the root directory
+            result = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
+            self.repo_root = result.strip()
+            print(f"The root directory of the Git repository is: {self.repo_root}")
+        except subprocess.CalledProcessError:
+            print("Not a valid Git repository or an error occurred.")
+
+        full_path = f'{self.repo_root}/reports/lint/'
+        if not os.path.exists(full_path):
+            # If it doesn't exist, create it
+            os.makedirs(full_path)
+        full_path = f'{self.repo_root}/reports/verible/'
+        if not os.path.exists(full_path):
+            # If it doesn't exist, create it
+            os.makedirs(full_path)
+
         self.env = os.environ.copy()
         self.env['REPO_ROOT'] = self.repo_root
         print(f'    REPO_ROOT={self.repo_root}')

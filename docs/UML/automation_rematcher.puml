@@ -1,0 +1,15 @@
+@startuml ProjectAutomation_REMatcher
+class REMatcher {
+    - matchstring : str
+    - rematch
+
+    + __init__(matchstring : str)
+    + match(regexp : str) : bool
+    + group(i : int) : str
+
+    note right of REMatcher
+        A utility class for matching regex patterns and
+        retrieving matches. Similar to Perl's regex matching.
+    end note
+}
+@enduml

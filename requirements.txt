@@ -2,7 +2,6 @@ anytree==2.9.0
 appdirs==1.4.4
 asttokens==2.2.1
 backcall==0.2.0
-china-dictatorship==0.0.74
 click==8.1.4
 cocotb==1.8.0
 colorama==0.4.6
@@ -46,8 +45,6 @@ teroshdl==2.1.2
 tomli==2.0.1
 tornado==6.3.3
 traitlets==5.9.0
-vcd2wavedrom @ file:///home/sean/github/vcd2wavedrom
-vcdvcd==2.3.3
 vsg==3.15.0
 vunit-hdl==4.7.0
 wasmtime==10.0.0

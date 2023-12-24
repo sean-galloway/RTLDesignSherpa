@@ -96,8 +96,9 @@ class TestList(object):
 
         test_list = []
         repo_root = self.repo_root
-
+        print(f'{path=}')
         for dir_name in next(os.walk(path))[1]:
+            print(f'{dir_name=}')
             test_path = os.path.join(path, dir_name)
 
             # Calculate the relative path after the repo root

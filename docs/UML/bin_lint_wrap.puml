@@ -1,0 +1,15 @@
+@startuml bin_lint_wrap
+start
+
+:Parse command-line arguments;
+
+if (Argument --format) then (yes)
+    :Run Verible format;
+endif
+
+if (Argument --lint) then (yes)
+    :Run lint function;
+endif
+
+stop
+@enduml
