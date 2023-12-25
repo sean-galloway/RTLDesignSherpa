@@ -1,11 +1,13 @@
 # RTL_Design_Projects
 
-A couple of notes for the folks that have been grabbing code. I am almost done with the basic common code; there are a few dividers left. I got sucked into the rabbit hole of adder and multipliers. Here are  the next few things on my list:
+A couple of notes for the folks that have been grabbing code. I am almost done with the basic common code; there are a few dividers left. I got sucked into the rabbit hole of adders and multipliers. Here are  the next few things on my list:
 
-- Get an automated WaveDrom flow working. This will provide graphs for the GitHub pages documentation. I will need to perform pretty major surgery on the vcd2wavedrom script as I want to be able to group the signals. The grouping will come from tags in the debug.gtkw files.
+To see the state of the current scripts check out this area: [Scripts Index](docs/mark_down/scripts/index.md)
+
+- Get an automated WaveDrom flow working. This will provide graphs for the GitHub page documentation. I will need to perform pretty major surgery on the vcd2wavedrom script as I want to be able to group the signals. The grouping will come from tags in the debug.gtkw files.
 - Figure out GitHub pages and how to incorporate WaveDrom. I know it can be done, I don't know how, though.
 - Once I have GitHub pages up, I want to have one page that is a KanBan type page listing what is IP and what is coming up. This is more for myself than anything else.
-- Document all open source tools used with links. This will take a bit.
+Document all open-source tools used with links. This will take a bit.
 - Document my homebrew tools.
 - Document all or a major cross-section of the common blocks, including theory and waveforms.
 - Start on the FPro Book
