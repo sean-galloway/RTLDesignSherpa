@@ -3,6 +3,7 @@
 ## Overview
 
 The `lint` class in `project_automation/lint.py` is designed to perform linting and formatting on RTL (Register Transfer Level) code, specifically Verilog files, using a variety of tools such as Verible and Yosys. The class ensures that the code follows certain style guidelines and checks for typical coding mistakes.
+
 ![Lint UML](../../images_scripts_uml/ProjAuto_LintClass.svg)
 
 ## Class: Lint
@@ -53,7 +54,7 @@ No direct command-line options are implemented for the class methods as they see
 
 ## Usage
 
-The `Lint` class and its methods are likely intended to be invoked within a larger project automation system, possibly from a script that sets up the necessary environment and calls the appropriate methods based on project needs.
+The `Lint` class and its methods are likely intended to be invoked within a larger project automation system, from a script that sets up the necessary environment and calls the appropriate methods based on project needs.
 
 ---
 

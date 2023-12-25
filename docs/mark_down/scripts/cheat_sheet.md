@@ -4,7 +4,7 @@ The main scripts take care of the command line parsing and simply instantiate th
 
 This document will evolve as more scripts are added, showing the most common use cases for the scripts.
 
-## lint_wrap.py
+## [lint_wrap.py](lint_wrap.md)
 
 The `lint_wrap` script located at `lint_wrap.py` is designed to lint and format Verilog files using supporting functions encapsulated in a `Lint` class. This script acts as a command-line interface (CLI) utility for code maintenance purposes. The utility offers the options:
 
@@ -20,11 +20,11 @@ The format option uses verible format to ensure all of the code follows a conven
     parameter INSTANCE_NAME = "DEADF1F0"  // verilog_lint: waive explicit-parameter-storage-type
 ```
 
-## list_test_wrap.py
+## [list_test_wrap.py](list_test_wrap.md)
 
 The following code provides the functionality of a wrapper script to work with test lists in a Python project. It is designed to perform operations related to test management, specifically finding test commands and generating a JSON file list of tests.
 
-Find test commands using a partial test name:
+Find test commands using a sumulationpartial test name:
 
 ```sh
 list_test_wrap.py --find "add"
@@ -71,7 +71,7 @@ Here is an example of the json file:
 }
 ```
 
-## run_test_wrap.py
+## [run_test_wrap.py](run_test_wrap.md)
 
 The following Python script, `run_test_wrap.py`, is a wrapper used to execute one or multiple tests within a testing framework by leveraging the functionality provided by the `RunTest` class from the `project_automation.run_test` module. It does this by using the levelX.json file to know the parameters and the seed.
 Examples:
@@ -86,7 +86,7 @@ run_test_wrap.py --testlist level0 --tag 122423
 
 For the level0 regression, a directory called regression is created at the repo_root level. Inside of this is another directory called "tag" to hold all of this run together.
 
-## math_generate.py
+## [math_generate.py](math_generate.md)
 
 This generates the various kinds of math structures: BrentKung, Wallace, Dadda. Here is an example of a BrentKung:
 
@@ -108,6 +108,19 @@ type='brent_kung'
 buswidth=8
 
 math_generate.py --type $type --path $out_path --buswidth $buswidth
+```
+
+## [vcd2wavedrom2.py](vcd2wavedrom2.md)
+
+This generates wavedrom files based on a vcd file and a gtkw file. The gtkw file provides the signal selection, grouping and ordering as well as adding hierarchical labels to the signals.
+
+```sh
+# Step 0: cd to the area with the simulation
+# Step 1: Create the config file
+REPO_ROOT/bin/vcd2wavedrom2.py -i dump.vcd -m config.json
+
+# Step 2: Generate the wavedrom file
+python3 $REPO_ROOT/bin/vcd2wavedrom2.py -i dump.vcd -g debug.gtkw -c config.json  -o wavedrom.json
 ```
 
 ---

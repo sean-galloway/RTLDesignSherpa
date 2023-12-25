@@ -1,6 +1,7 @@
 # Dadda multiplier
 
 The Dadda multiplier is an efficient implementation of a digital multiplier based on a Dadda Tree reduction algorithm. This Python-based RTL generator creates a parameterized Verilog module that multiplies two binary numbers using the Dadda reduction technique.
+
 ![Dadda UML](../../images_scripts_uml/Multiplier_DaddaTree.svg)
 
 ## Overview

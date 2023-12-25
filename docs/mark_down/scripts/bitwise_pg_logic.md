@@ -1,6 +1,7 @@
 # bitwise_pg_logic
 
 This is part of the python code that creates adders/multipliers.
+
 ![Bitwise PG UML](../../images_scripts_uml/Adder_BitwisePGLogic.svg)
 
 ## Inputs/Outputs

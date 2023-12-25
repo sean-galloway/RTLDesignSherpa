@@ -5,6 +5,7 @@
 The `BrentKungAdder` class is a Verilog module generator, derived from a base `Module` class, which implements the Brent-Kung parallel-prefix adder architecture. This adder is known for its good performance in terms of logic depth and area efficiency, making it suitable for various arithmetic applications. The Python class provided allows for the automatic generation of the Verilog source code for such an adder with a specified bit width.
 
 The class contains methods to define input and output signals, instantiate other required modules (e.g., `BitwisePGLogic`, `GroupPGLogic`, `SumLogic`), interconnect them, and generate the complete Verilog code with the appropriate module instances and connections.
+
 ![Brent Kung UML](../../images_scripts_uml/Adder_Brent_Kung_Diagram.svg)
 
 ### Inputs

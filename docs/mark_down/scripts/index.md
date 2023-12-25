@@ -8,6 +8,7 @@ If one wants to look further into the main script, follow these links:
 * [Run Lint](lint_wrap.md)
 * [Run Tests](run_test_wrap.md)
 * [Generate Verilog for some adders and multipliers](math_generate.md)
+* [vcd2wavedrom2](vcd2wavedrom2.md)
 
 ## Primary Use Classes
 

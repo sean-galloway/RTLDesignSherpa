@@ -165,7 +165,7 @@ class VCD2Wavedrom2:
         return buses
 
 
-    def auto_config_waves(self, vcd_dict):  # sourcery skip: low-code-quality
+    def auto_config_waves(self, vcd_dict):    # sourcery skip: low-code-quality
         """
         Automatically configures the waveform settings based on the VCD file.
     
@@ -216,17 +216,19 @@ class VCD2Wavedrom2:
 
             for tidx in range(2, len(wave_points)):
                 tmpDiff = wave_points[tidx][0] - wave_points[tidx - 1][0]
-                if (wave_points[tidx - 1][0] >= startTime):
-                    if wave_points[tidx - 1][0] >= startTime and (((minDiffTime < 0) or (tmpDiff < minDiffTime)) and (tmpDiff > 0)):
-                        minDiffTime = tmpDiff
+                if (
+                    wave_points[tidx - 1][0] >= startTime
+                    and (minDiffTime < 0 or tmpDiff < minDiffTime)
+                    and tmpDiff > 0
+                ):
+                    minDiffTime = tmpDiff
 
         # Corner case
         if minDiffTime < 0:
             for tidx in range(1, len(wave_points)):
                 tmpDiff = wave_points[tidx][0] - wave_points[tidx - 1][0]
-                if (wave_points[tidx - 1][0] >= startTime):
-                    if wave_points[tidx - 1][0] >= startTime and (((minDiffTime < 0) or (tmpDiff < minDiffTime)) and (tmpDiff > 0)):
-                        minDiffTime = tmpDiff
+                if wave_points[tidx - 1][0] >= startTime and ((minDiffTime < 0 or tmpDiff < minDiffTime) and tmpDiff > 0):
+                    minDiffTime = tmpDiff
 
         # 1st loop to refine minDiffTime for async design or multiple async clocks
         tmpRatio = 1
@@ -240,7 +242,7 @@ class VCD2Wavedrom2:
 
         minDiffTime = minDiffTime / tmpRatio
         startTime = syncTime - \
-                        ceil((syncTime - startTime) / minDiffTime) * minDiffTime
+                                ceil((syncTime - startTime) / minDiffTime) * minDiffTime
 
         # 2nd loop to apply rounding
         tmpReal = 0
@@ -639,7 +641,7 @@ class VCD2Wavedrom2:
         """
         Order per config and add extra user parameters
         """
-        pp.pprint(f'Pre:{signal_rec_dict=}')
+        # pp.pprint(f'Pre:{signal_rec_dict=}')
         drom = self.build_wave_drom_structure(result_structure, signal_rec_dict)
         if 'hscale' in self.config:
             drom['config']['hscale'] = self.config['hscale']

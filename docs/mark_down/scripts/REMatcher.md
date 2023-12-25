@@ -1,6 +1,7 @@
 # REMatcher
 
 This code defines a `REMatcher` class in Python for simplifying the use of regular expressions by providing an easy-to-use interface for matching strings and retrieving parts of the match. It is useful as it abstracts the complexity of Python's `re` module and makes regex operations more akin to how Perl handles them.
+
 ![REMatcher UML](../../images_scripts_uml/ProjAuto_REMatcherClass.svg)
 
 The class has two main methods:

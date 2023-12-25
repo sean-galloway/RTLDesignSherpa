@@ -1,6 +1,7 @@
 # Black
 
 The `Black` class is a Python module found at `rtl_generators/adders/brentkung/black.py`. It inherits from the `Module` class in `rtl_generators.verilog.module`. Its purpose is to generate Verilog code for a specific component used in Brent-Kung adder circuits, which is primarily used to compute the generate (`g`) and propagate (`p`) signals at each stage of the adder.
+
 ![Black UML](../../images_scripts_uml/Adder_Black.svg)
 
 ## Code Documentation
