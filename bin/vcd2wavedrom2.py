@@ -495,7 +495,7 @@ class VCD2Wavedrom2:
     
         """
         cycles_string =  ' '.join(str(i) for i in range(1, max_cycles+1))
-        wave_drom_structure = {'signal': [ {'name':'Cycles', 'wave':'='*max_cycles, 'data':cycles_string }]}
+        wave_drom_structure = {'signal': [{'name':'Cycles', 'wave':'='*max_cycles, 'data':cycles_string }], 'config':{'hscale': 1}}
     
         def process_group(group, wave_drom_list):
             """
@@ -544,7 +544,109 @@ class VCD2Wavedrom2:
                         wave_drom_structure['signal'].extend(new_group_content)
     
         return wave_drom_structure
+
+    def remove_grouped_signals(self, buses, vcd_dict):
+        """Removes signals that have been grouped into buses from vcd_dict.
+
+        Args:
+            buses (dict): The dictionary of buses.
+            vcd_dict (dict): The dictionary containing the VCD waveforms.
+        """
+        for bus in buses:
+            pattern = re.compile((((f"^{re.escape(bus)}" + "\\") + self.bit_open) + ".*"))
+            vcd_dict_keys = list(vcd_dict.keys())  # Create a static list of keys to iterate over
+            for wave in vcd_dict_keys:
+                if pattern.match(wave) is not None:
+                    del vcd_dict[wave]
+
+
     
+    def create_signal_records(self, vcd_dict, vcd_dict_types):
+        """Creates waveform records for the remaining signals in vcd_dict."""
+        signal_rec_dict = {}
+        for wave in vcd_dict:
+            if not self.includewave(wave):
+                continue
+            signal_rec = self.create_waveform_record(wave, vcd_dict[wave], vcd_dict_types)
+            signal_rec_dict[wave] = signal_rec
+        return signal_rec_dict
+    
+    
+    def create_waveform_record(self, wave, waveform_data, vcd_dict_types):
+        """Creates a waveform record for a single signal."""
+        signal_suffix = wave.split('.')[-1]
+        phase = self.determine_phase(signal_suffix)
+        signal_rec = {'name': wave, 'wave': '', 'data': [], 'phase': phase}
+    
+        lastval = ''
+        isbus = self.busregex2.match(wave) is not None or vcd_dict_types[wave] == 'bus'
+        lastval = ''
+        for j in waveform_data:
+            if not self.samplenow(j[0]):
+                continue
+            digit, value = self.process_signal_value(signal_rec, j, isbus, lastval, wave)
+            signal_rec['wave'] += digit
+            lastval = j[1]
+        return signal_rec
+
+
+    def determine_phase(self, signal_suffix):
+        """Determines the phase based on the signal suffix."""
+        if signal_suffix.startswith(('i_', 'r_', 'o_')):
+            return 0.2
+        elif signal_suffix.startswith(('w_', 'iw_', 'ow_')):
+            return 0.8
+        elif 'clk' in signal_suffix:
+            return 0
+        return 0.5
+
+
+    def process_signal_value(self, signal_rec, j, isbus, lastval, wave_type):
+        """Processes a value of the waveform."""
+        digit = '.'
+        value = None
+        with contextlib.suppress(Exception):
+            value = int(j[1])
+            value = format(int(j[1], 2), 'X')
+        if value is None:
+            with contextlib.suppress(Exception):
+                value = float(j[1])
+                value = "{:.3e}".format(float(j[1]))
+        if value is None:
+            value = j[1]
+        if isbus or wave_type == 'string':
+            if lastval != j[1]:
+                digit = '='
+                if 'x' not in j[1]:
+                    signal_rec['data'].append(value)
+                else:
+                    digit = 'x'
+        else:
+            j = (j[0], self.clockvalue(wave_type, j[1]))
+            if lastval != j[1]:
+                digit = j[1]
+        lastval = j[1]
+
+        return digit, value
+
+
+    def finalize_wave_drom_structure(self, result_structure, signal_rec_dict):
+        """Finalizes the WaveDrom structure by determining max cycles and applying configuration.
+    
+        Args:
+            result_structure (list): The structure of groups and signals.
+            signal_rec_dict (dict): Dictionary of signal records.
+    
+        Returns:
+            dict: The finalized WaveDrom structure.
+        """
+        max_cycles = max(len(signal_rec['wave']) for signal_rec in signal_rec_dict.values())
+        drom = self.build_wave_drom_structure(result_structure, signal_rec_dict, max_cycles)
+
+        if 'hscale' in self.config:
+            drom['config']['hscale'] = self.config['hscale']
+
+        return drom
 
     def dump_wavedrom(self, vcd_dict, vcd_dict_types, timescale, result_structure):
         """
@@ -561,70 +663,17 @@ class VCD2Wavedrom2:
     
         """
 
-        drom = {'signal': [], 'config': {'hscale': 1}}
         slots = int(self.config['maxtime']/timescale)
         buses = self.group_buses(vcd_dict, slots)
-        signal_rec_dict = {}
         """
         Replace old signals that were grouped
         """
-        for bus in buses:
-            pattern = re.compile((((f"^{re.escape(bus)}" + "\\") + self.bit_open) + ".*"))
-            for wave in list(vcd_dict.keys()):
-                if pattern.match(wave) is not None:
-                    del vcd_dict[wave]
+        self.remove_grouped_signals(buses, vcd_dict)
+
         """
         Create waveforms for the rest of the signals
         """
-        idromsig = 0
-        #pp.pprint(f'{vcd_dict=}')
-        for wave in vcd_dict:
-            if not self.includewave(wave):
-                continue
-            # Extract the final part of the signal name after the last '.'
-            signal_suffix = wave.split('.')[-1]
-
-            # Determine the phase based on the prefix
-            phase = 0.2 if signal_suffix.startswith(('i_', 'r_', 'o_')) else 0.8 if signal_suffix.startswith(('w_', 'iw_', 'ow_')) else 0.5
-            if 'clk' in signal_suffix:
-                phase = 0 
-            signal_rec = {
-                'name': wave,
-                'wave': '',
-                'data': [],
-                'phase': phase
-            }
-            lastval = ''
-            isbus = self.busregex2.match(wave) is not None or vcd_dict_types[wave] == 'bus'
-            for j in vcd_dict[wave]:
-                if not self.samplenow(j[0]):
-                    continue
-                digit = '.'
-                value = None
-                with contextlib.suppress(Exception):
-                    value = int(j[1])
-                    value = format(int(j[1], 2), 'X')
-                if value is None:
-                    with contextlib.suppress(Exception):
-                        value = float(j[1])
-                        value = "{:.3e}".format(float(j[1]))
-                if value is None:
-                    value = j[1]
-                if isbus or vcd_dict_types[wave] == 'string':
-                    if lastval != j[1]:
-                        digit = '='
-                        if 'x' not in j[1]:
-                            signal_rec['data'].append(value)
-                        else:
-                            digit = 'x'
-                else:
-                    j = (j[0], self.clockvalue(wave, j[1]))
-                    if lastval != j[1]:
-                        digit = j[1]
-                signal_rec['wave'] += digit
-                signal_rec_dict[wave] = signal_rec
-                lastval = j[1]
-            idromsig += 1
+        signal_rec_dict = self.create_signal_records(vcd_dict, vcd_dict_types)
 
         """
         Insert buses waveforms
@@ -639,16 +688,8 @@ class VCD2Wavedrom2:
         Order per config and add extra user parameters
         """
         # pp.pprint(f'Pre:{signal_rec_dict=}')
-        max_cycles = 0
-        for key in signal_rec_dict:
-            signal_rec = signal_rec_dict[key]
-            if len(signal_rec['wave']) > max_cycles:
-                max_cycles = len(signal_rec['wave'])
-        drom = self.build_wave_drom_structure(result_structure, signal_rec_dict, max_cycles)
-        if 'hscale' in self.config:
-            drom['config']['hscale'] = self.config['hscale']
+        return self.finalize_wave_drom_structure(result_structure, signal_rec_dict)
 
-        return drom
 
     def execute(self, auto, group_structure):
         """
@@ -703,6 +744,7 @@ def main(argv):
             --top: Only output the top level signals
             -m, --makeconfig: Generate config file from VCD file
             -g, --gtkw: Path to gtkw file for signal grouping
+            -n, --name: name of waveform
 
     Returns:
         None
@@ -710,27 +752,21 @@ def main(argv):
     """
 
     parser = argparse.ArgumentParser(description='Transform VCD to wavedrom')
-    parser.add_argument('-i', '--input', dest='input', 
-        help="Input VCD file", required=True)
-    parser.add_argument('-o', '--output', dest='output', 
-        help="Output Wavedrom file")
-    parser.add_argument('-c', '--config', dest='configfile',
-        help="Config file")
-    parser.add_argument('-r', '--samplerate', dest='samplerate', type=int,
-        help="Sample rate of wavedrom")
-    parser.add_argument('-t', '--maxtime', dest='maxtime', type=int,
-        help="Length of time for wavedrom")
-    parser.add_argument('-f', '--offset', dest='offset', type=int,
-        help="Time offset from start of VCD")
-    parser.add_argument('-z', '--hscale', dest='hscale', type=int,
-        help="Horizontal scale")
-    parser.add_argument('--top', dest='top', action="store_true", default=False,
-        help="Only output the top level signals")
-    parser.add_argument('-m', '--makeconfig', dest='makeconfig', 
-                    help="Generate config file from VCD file", metavar='CONFIGFILE')
-    parser.add_argument('-g', '--gtkw', dest='gtkw', 
-                        help="Path to gtkw file for signal grouping", metavar='FILE')
-    
+    parser.add_argument('-i', '--input', dest='input', help="Input VCD file", required=True)
+    parser.add_argument('-o', '--output', dest='output', help="Output Wavedrom file")
+    parser.add_argument('-c', '--config', dest='configfile', help="Config file")
+    parser.add_argument('-r', '--samplerate', dest='samplerate', type=int, help="Sample rate of wavedrom")
+    parser.add_argument('-t', '--maxtime', dest='maxtime', type=int, help="Length of time for wavedrom")
+    parser.add_argument('-f', '--offset', dest='offset', type=int, help="Time offset from start of VCD")
+    parser.add_argument('-z', '--hscale', dest='hscale', type=int, help="Horizontal scale")
+    parser.add_argument('--top', dest='top', action="store_true", default=False, help="Only output the top level signals")
+    parser.add_argument('-m', '--makeconfig', dest='makeconfig', help="Generate config file from VCD file", metavar='CONFIGFILE')
+    parser.add_argument('-g', '--gtkw', dest='gtkw', help="Path to gtkw file for signal grouping", metavar='FILE')
+# TODO: need to add these in
+    parser.add_argument('-n', '--name', dest='name', help="The title for the waveform")
+    parser.add_argument('-l', '--line', action='store_true', help='Enable or disable line option')
+
+
     args = parser.parse_args(argv)
     args.input = os.path.abspath(os.path.join(os.getcwd(), args.input))
 
