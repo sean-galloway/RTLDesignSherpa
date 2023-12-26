@@ -9,7 +9,7 @@
             "name": "fifo_async.i_wr_clk",
             "wave": "P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0P0",
             "data": [],
-            "phase": 0
+            "phase": 0.2
         },
         [
             "Write Port",
@@ -111,7 +111,7 @@
             "name": "fifo_async.i_rd_clk",
             "wave": "P.0P.0P.0P.0P.0P.0P.0P.0P.0P.0P.0P.0P.0P.0P.0P.0P.0P.0P.0P.0P.0P.0P.0P.0P.0P.0P.0P.0P.0P.0P.0P.0P.0P",
             "data": [],
-            "phase": 0
+            "phase": 0.2
         },
         [
             "Read Port",

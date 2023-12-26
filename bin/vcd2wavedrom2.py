@@ -74,8 +74,10 @@ class VCD2Wavedrom2:
     bit_open = None
     bit_close = None
 
+
     def __init__(self, config):
         self.config = config
+
 
     def replacevalue(self, wave, strval):
         """
@@ -95,27 +97,11 @@ class VCD2Wavedrom2:
             return self.config['replace'][wave][strval]
         return strval
 
-    def group_buses(self, vcd_dict, slots):
-        """
-        Groups the waveforms into buses based on the bus naming conventions.
-    
-        Args:
-            vcd_dict (dict): The dictionary containing the VCD waveforms.
-            slots (int): The number of time slots.
-    
-        Returns:
-            dict: A dictionary representing the grouped buses, where each bus contains the bus name, waveform, and data.
-    
-        """
-    
+
+    def extract_bus_names_and_widths(self, vcd_dict):
         buses = {}
         buswidth = {}
-        global bit_open
-        global bit_close
 
-        """
-        Extract bus name and width
-        """
         for wave in vcd_dict:
             result = self.busregex.match(wave)
             if result is not None and len(result.groups()) == 4:
@@ -125,44 +111,50 @@ class VCD2Wavedrom2:
                 self.bit_close = ']' if self.bit_open == '[' else ')'
                 if name not in buses:
                     buses[name] = {
-                            'name': name,
-                            'wave': '',
-                            'data': []
+                        'name': name,
+                        'wave': '',
+                        'data': []
                     }
-                    buswidth[name] = 0
-                if pos > buswidth[name]:
-                    buswidth[name] = pos
+                buswidth[name] = max(buswidth.get(name, 0), pos)
+        
+        return buses, buswidth
 
-        """
-        Create hex from bits
-        """
+
+    def create_hex_from_bits(self, buses, buswidth, vcd_dict, slots):
         for wave in buses:
             for slot in range(slots):
                 if not self.samplenow(slot):
                     continue
-                byte = 0
-                strval = ''
-                for bit in range(buswidth[wave]+1):
+                byte, strval = 0, ''
+                for bit in range(buswidth[wave] + 1):
                     if bit % 8 == 0 and bit != 0:
-                        strval = format(byte, 'X')+strval
+                        strval = format(byte, 'X') + strval
                         byte = 0
-                    val = vcd_dict[wave+self.bit_open+str(bit)+self.bit_close][slot][1]
+                    val = vcd_dict[wave + self.bit_open + str(bit) + self.bit_close][slot][1]
                     if val not in ['0', '1']:
                         byte = -1
                         break
-                    byte += pow(2, bit % 8) * int(val)
-                strval = format(byte, 'X')+strval
-                if byte == -1:
-                    buses[wave]['wave'] += 'x'
-                else:
-                    strval = self.replacevalue(wave, strval)
-                    if len(buses[wave]['data']) > 0 and \
-                                buses[wave]['data'][-1] == strval:
-                        buses[wave]['wave'] += '.'
-                    else:
-                        buses[wave]['wave'] += '='
-                        buses[wave]['data'].append(strval)
+                    byte += (2 ** (bit % 8)) * int(val)
+                strval = format(byte, 'X') + strval
+                self.update_bus_waveform(buses[wave], strval)
         return buses
+
+
+    def update_bus_waveform(self, bus, strval):
+        if strval == -1:
+            bus['wave'] += 'x'
+        else:
+            strval = self.replacevalue(bus['name'], strval)
+            if bus['data'] and bus['data'][-1] == strval:
+                bus['wave'] += '.'
+            else:
+                bus['wave'] += '='
+                bus['data'].append(strval)
+
+
+    def group_buses(self, vcd_dict, slots):
+        buses, buswidth = self.extract_bus_names_and_widths(vcd_dict)
+        return self.create_hex_from_bits(buses, buswidth, vcd_dict, slots)
 
 
     def auto_config_waves(self, vcd_dict):    # sourcery skip: low-code-quality
@@ -261,6 +253,7 @@ class VCD2Wavedrom2:
 
         return 1
 
+
     def homogenize_waves(self, vcd_dict, timescale):
         """
         Homogenizes the waveforms by adding missing samples and adjusting the time scale.
@@ -355,6 +348,7 @@ class VCD2Wavedrom2:
         if wavename in self.config['signal']:
             wave.update(self.config['signal'][wavename])
 
+
     @staticmethod
     def find_max_time_in_vcd(vcd):
         """
@@ -380,6 +374,7 @@ class VCD2Wavedrom2:
                 max_time = max(max_time, time)
 
         return max_time
+
 
     def generate_config(self, output_config_file):
         """
@@ -437,6 +432,7 @@ class VCD2Wavedrom2:
         with open(output_config_file, 'w') as outfile:
             json.dump(config, outfile, indent=4)
     
+
     def parse_gtkw_file(self, gtkw_file):
         """
         Parses a GTKWave save file and returns the structure of groups and signals.
@@ -590,7 +586,8 @@ class VCD2Wavedrom2:
 
             # Determine the phase based on the prefix
             phase = 0.2 if signal_suffix.startswith(('i_', 'r_', 'o_')) else 0.8 if signal_suffix.startswith(('w_', 'iw_', 'ow_')) else 0.5
-
+            if 'clk' in signal_suffix:
+                phase = 0 
             signal_rec = {
                 'name': wave,
                 'wave': '',
