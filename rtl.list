@@ -25,10 +25,14 @@ rtl/common/gray2bin.sv
 rtl/common/grayj2bin.sv
 rtl/common/hex_to_7seg.sv
 rtl/common/leading_one_trailing_one.sv
+rtl/common/math_adder_brent_kung_008.sv
+rtl/common/math_adder_brent_kung_016.sv
 rtl/common/math_adder_brent_kung_032.sv
 rtl/common/math_adder_brent_kung_bitwisepg.sv
 rtl/common/math_adder_brent_kung_black.sv
 rtl/common/math_adder_brent_kung_gray.sv
+rtl/common/math_adder_brent_kung_grouppg_008.sv
+rtl/common/math_adder_brent_kung_grouppg_016.sv
 rtl/common/math_adder_brent_kung_grouppg_032.sv
 rtl/common/math_adder_brent_kung_pg.sv
 rtl/common/math_adder_brent_kung_sum.sv
@@ -49,8 +53,14 @@ rtl/common/math_multiplier_array.sv
 rtl/common/math_multiplier_booth_radix_4_encoder.sv
 rtl/common/math_multiplier_booths.sv
 rtl/common/math_multiplier_carry_lookahead.sv
+rtl/common/math_multiplier_dadda_tree_008.sv
+rtl/common/math_multiplier_dadda_tree_016.sv
 rtl/common/math_multiplier_dadda_tree_032.sv
+rtl/common/math_multiplier_wallace_tree_008.sv
+rtl/common/math_multiplier_wallace_tree_016.sv
 rtl/common/math_multiplier_wallace_tree_032.sv
+rtl/common/math_multiplier_wallace_tree_csa_008.sv
+rtl/common/math_multiplier_wallace_tree_csa_016.sv
 rtl/common/math_multiplier_wallace_tree_csa_032.sv
 rtl/common/math_subtractor_carry_lookahead.sv
 rtl/common/math_subtractor_full_nbit.sv
@@ -58,7 +68,6 @@ rtl/common/math_subtractor_full.sv
 rtl/common/math_subtractor_half.sv
 rtl/common/math_subtractor_ripple_carry.sv
 rtl/common/pwm.sv
-rtl/common/README.md
 rtl/common/reverse_vector.sv
 rtl/common/shifter_barrel.sv
 rtl/common/shifter_lfsr.sv
