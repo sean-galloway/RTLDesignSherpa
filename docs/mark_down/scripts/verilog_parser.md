@@ -73,7 +73,7 @@ The `Parser` class performs higher-level parsing functions, utilizing the `Parse
 - **__parseImportList()**  
   Stub method intended to return a list of import packages.
 
-- **__init__(moduleString)**  
+- **init__(moduleString)**  
   The constructor where the main parsing occurs. It processes a string representing a module declaration in Verilog and extracts the module's name, parameters, ports, and import statements.
 
 - **getModuleName()**  

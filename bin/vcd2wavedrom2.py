@@ -486,7 +486,7 @@ class VCD2Wavedrom2:
     
         return result_structure
 
-    def build_wave_drom_structure(self, result_structure, signal_rec_dict):
+    def build_wave_drom_structure(self, result_structure, signal_rec_dict, max_cycles):
         """
         Builds the WaveDrom structure based on the group structure and signal records.
     
@@ -498,8 +498,8 @@ class VCD2Wavedrom2:
             dict: The WaveDrom structure representing the grouped signals.
     
         """
-    
-        wave_drom_structure = {'signal': []}
+        cycles_string =  ' '.join(str(i) for i in range(1, max_cycles+1))
+        wave_drom_structure = {'signal': [ {'name':'Cycles', 'wave':'='*max_cycles, 'data':cycles_string }]}
     
         def process_group(group, wave_drom_list):
             """
@@ -642,7 +642,12 @@ class VCD2Wavedrom2:
         Order per config and add extra user parameters
         """
         # pp.pprint(f'Pre:{signal_rec_dict=}')
-        drom = self.build_wave_drom_structure(result_structure, signal_rec_dict)
+        max_cycles = 0
+        for key in signal_rec_dict:
+            signal_rec = signal_rec_dict[key]
+            if len(signal_rec['wave']) > max_cycles:
+                max_cycles = len(signal_rec['wave'])
+        drom = self.build_wave_drom_structure(result_structure, signal_rec_dict, max_cycles)
         if 'hscale' in self.config:
             drom['config']['hscale'] = self.config['hscale']
 

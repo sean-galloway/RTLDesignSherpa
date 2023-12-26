@@ -2,7 +2,7 @@
 
 This area contains all of the descriptions of the python scripts. If you only want to know how to run the four main scripts, check out the [Cheat Sheet](./cheat_sheet.md)
 
-If one wants to look further into the main script, follow these links:
+If one wants to look further into the main scripts, follow these links:
 
 * [Test List Creator](list_test_wrap.md)
 * [Run Lint](lint_wrap.md)
