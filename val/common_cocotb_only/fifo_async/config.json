@@ -53,6 +53,8 @@
         "fifo_async.ow_rd_data[7:0]",
         "fifo_async.rd_ptr_counter_gray.w_counter_bin[3:0]"
     ],
+    "name":"my wave",
+    "tick":1,
     "replace": {},
     "offset": 5,
     "samplerate": 5000,

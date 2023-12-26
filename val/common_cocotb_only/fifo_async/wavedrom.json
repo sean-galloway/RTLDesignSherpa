@@ -1,4 +1,8 @@
 {
+    "head": {
+        "text": "my wave",
+        "tick": 1
+    },
     "signal": [
         {
             "name": "Cycles",

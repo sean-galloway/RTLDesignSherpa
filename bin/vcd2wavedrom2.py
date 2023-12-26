@@ -14,60 +14,62 @@ from vcdvcd.vcdvcd import VCDVCD
 from math import floor, ceil
 
 class VCD2Wavedrom2:
-    """
+    '''usage: vcd2wavedrom2.py [-h] -i INPUT [-o OUTPUT] [-c CONFIGFILE] [-r SAMPLERATE] [-t MAXTIME] [-f OFFSET] [-z HSCALE] [--top] [-m CONFIGFILE] [-g FILE] [-n NAME] [-l]
+
+    Transform VCD to wavedrom
+
+    options:
+    -h, --help        show this help message and exit
+    -i INPUT, --input INPUT
+                    Input VCD file
+    -o OUTPUT, --output OUTPUT
+                    Output Wavedrom file
+    -c CONFIGFILE, --config CONFIGFILE
+                    Config file
+    -r SAMPLERATE, --samplerate SAMPLERATE
+                    Sample rate of wavedrom
+    -t MAXTIME, --maxtime MAXTIME
+                    Length of time for wavedrom
+    -f OFFSET, --offset OFFSET
+                    Time offset from start of VCD
+    -z HSCALE, --hscale HSCALE
+                    Horizontal scale
+    --top             Only output the top level signals
+    -m CONFIGFILE, --makeconfig CONFIGFILE
+                    Generate config file from VCD file
+    -g FILE, --gtkw FILE  Path to gtkw file for signal grouping
+    -n NAME, --name NAME  The title for the waveform
+    -l, --line        Enable or disable line option
+
     Converts VCD (Value Change Dump) files to WaveDrom JSON format.
-
-    Args:
-        config (dict): The configuration settings for the conversion.
-
-    Methods:
-        __init__(self, config):
-            Initializes the VCD2Wavedrom2 instance with the given configuration.
-
-        replacevalue(self, wave, strval):
-            Replaces the value of a waveform based on the configuration settings.
-
-        group_buses(self, vcd_dict, slots):
-            Groups the waveforms into buses based on the bus naming conventions.
-
-        auto_config_waves(self, vcd_dict):
-            Automatically configures the waveform settings based on the VCD file.
-
-        homogenize_waves(self, vcd_dict, timescale):
-            Homogenizes the waveforms by adding missing samples and adjusting the time scale.
-
-        includewave(self, wave):
-            Checks if a waveform should be included based on the configuration settings.
-
-        clockvalue(self, wave, digit):
-            Returns the clock value for a waveform digit based on the configuration settings.
-
-        samplenow(self, tick):
-            Checks if a sample should be taken at the given tick based on the configuration settings.
-
-        appendconfig(self, wave):
-            Appends additional configuration settings to a waveform.
-
-        find_max_time_in_vcd(vcd):
-            Finds the maximum time value in the VCD file.
-
-        generate_config(self, output_config_file):
-            Generates a configuration file based on the VCD file.
-
-        parse_gtkw_file(self, gtkw_file):
-            Parses a GTKWave save file and returns the structure of groups and signals.
-
-        build_wave_drom_structure(self, result_structure, signal_rec_dict):
-            Builds the WaveDrom structure based on the group structure and signal records.
-
-        dump_wavedrom(self, vcd_dict, vcd_dict_types, timescale, result_structure):
-            Dumps the WaveDrom JSON structure based on the VCD data and configuration settings.
-
-        execute(self, auto, group_structure):
-            Executes the VCD to WaveDrom conversion process.
-
-    """
-
+    
+    **Methods**
+    
+    - `__init__(self, config)`: Initializes the VCD2Wavedrom2 instance with the given configuration.
+    - `replacevalue(self, wave, strval)`: Replaces the value of a waveform based on the configuration settings.
+    - `extract_bus_names_and_widths(self, vcd_dict)`: Extracts bus names and widths from the VCD dictionary.
+    - `create_hex_from_bits(self, buses, buswidth, vcd_dict, slots)`: Creates hexadecimal values from bus bits.
+    - `update_bus_waveform(self, bus, strval)`: Updates the waveform of a bus with a new value.
+    - `group_buses(self, vcd_dict, slots)`: Groups the waveforms into buses based on the bus naming conventions.
+    - `auto_config_waves(self, vcd_dict)`: Automatically configures the waveform settings based on the VCD file.
+    - `homogenize_waves(self, vcd_dict, timescale)`: Homogenizes the waveforms by adding missing samples and adjusting the time scale.
+    - `includewave(self, wave)`: Checks if a waveform should be included based on the configuration settings.
+    - `clockvalue(self, wave, digit)`: Returns the clock value for a waveform digit based on the configuration settings.
+    - `samplenow(self, tick)`: Checks if a sample should be taken at the given tick based on the configuration settings.
+    - `appendconfig(self, wave)`: Appends additional configuration settings to a waveform.
+    - `find_max_time_in_vcd(vcd)`: Finds the maximum time value in the VCD file.
+    - `generate_config(self, output_config_file)`: Generates a configuration file based on the VCD file.
+    - `parse_gtkw_file(self, gtkw_file)`: Parses a GTKWave save file and returns the structure of groups and signals.
+    - `build_wave_drom_structure(self, result_structure, signal_rec_dict, max_cycles)`: Builds the WaveDrom structure based on the group structure and signal records.
+    - `remove_grouped_signals(self, buses, vcd_dict)`: Removes signals that have been grouped into buses from the VCD dictionary.
+    - `create_signal_records(self, vcd_dict, vcd_dict_types)`: Creates waveform records for the remaining signals in the VCD dictionary.
+    - `create_waveform_record(self, wave, waveform_data, vcd_dict_types)`: Creates a waveform record for a single signal.
+    - `determine_phase(self, signal_suffix)`: Determines the phase based on the signal suffix.
+    - `process_signal_value(self, signal_rec, j, isbus, lastval, wave_type)`: Processes a value of the waveform.
+    - `finalize_wave_drom_structure(self, result_structure, signal_rec_dict)`: Finalizes the WaveDrom structure by determining max cycles and applying configuration.
+    - `dump_wavedrom(self, vcd_dict, vcd_dict_types, timescale, result_structure)`: Dumps the WaveDrom JSON structure based on the VCD data and configuration settings.
+    - `execute(self, auto, group_structure)`: Executes the VCD to WaveDrom conversion process.
+    '''
     busregex = re.compile(r'(.+)(\[|\()(\d+)(\]|\))')
     busregex2 = re.compile(r'(.+)\[(\d):(\d)\]')
     config = {}
@@ -421,6 +423,8 @@ class VCD2Wavedrom2:
         config = {
             "signal": {},
             "filter": list(signals),
+            "name": "The waveform title",
+            "tick": 1,
             "replace": {},
             "offset": 5,
             "samplerate": sample_rate,
@@ -495,8 +499,10 @@ class VCD2Wavedrom2:
     
         """
         cycles_string =  ' '.join(str(i) for i in range(1, max_cycles+1))
-        wave_drom_structure = {'signal': [{'name':'Cycles', 'wave':'='*max_cycles, 'data':cycles_string }], 'config':{'hscale': 1}}
-    
+        header = '' 
+        wave_drom_structure = { 'head':{'text':self.config['name'], 'tick':self.config['tick']}, 'signal': [{'name':'Cycles', 'wave':'='*max_cycles, 'data':cycles_string }], 'config':{'hscale': 1}}
+
+
         def process_group(group, wave_drom_list):
             """
             Processes a group and adds its signals to the WaveDrom list.
@@ -560,7 +566,6 @@ class VCD2Wavedrom2:
                     del vcd_dict[wave]
 
 
-    
     def create_signal_records(self, vcd_dict, vcd_dict_types):
         """Creates waveform records for the remaining signals in vcd_dict."""
         signal_rec_dict = {}
@@ -789,11 +794,15 @@ def main(argv):
     if args.samplerate is not None:
         config['samplerate'] = args.samplerate
     if args.maxtime is not None:
-        config['maxtime'] = args.maxtime 
+        config['maxtime'] = args.maxtime
     if args.offset is not None:
         config['offset'] = args.offset
     if args.hscale is not None:
         config['hscale'] = args.hscale
+    if args.name is not None:
+        config['name'] = args.name
+    if args.line is True:
+        config['tick'] = 1
 
     if args.makeconfig:
         vcd = VCD2Wavedrom2(config)
