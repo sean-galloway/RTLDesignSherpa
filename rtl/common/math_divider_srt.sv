@@ -1,60 +1,91 @@
 `timescale 1ns / 1ps
 
-module math_divider_srt #(
-    parameter int DW = 16  // Width of input and output data
-) (
-    input  logic          clk,       // Clock input
-    input  logic          rst_n,     // Asynchronous active-low reset
-    input  logic [DW-1:0] dividend,
-    input  logic [DW-1:0] divisor,
-    output logic [DW-1:0] quotient,
-    output logic [DW-1:0] remainder
+// Based on code from: https://projectf.io/posts/division-in-verilog/
+// Heavily modified for naming conventions
+module math_divider_srt #(parameter int DATA_WIDTH=16) (
+    input  logic i_clk,
+    input  logic i_rst_b,
+    input  logic i_start,
+    output logic o_busy,
+    output logic o_done,
+    output logic o_valid,
+    output logic o_dbz,
+    input  logic [DATA_WIDTH-1:0] i_dividend,
+    input  logic [DATA_WIDTH-1:0] i_divisor,
+    output logic [DATA_WIDTH-1:0] o_quotient,
+    output logic [DATA_WIDTH-1:0] o_remainder
 );
 
-    logic [DW-1:0] quotient_reg;
-    logic [DW-1:0] remainder_reg;
-    logic [  DW:0] divisor_reg;
-    logic [  DW:0] A_reg;
-    logic [  DW:0] M_reg;
+logic [DATA_WIDTH-1:0] r_divisor;
+logic [DATA_WIDTH-1:0] r_quo, w_quo_next;
+logic [DATA_WIDTH:0]   r_acc, w_acc_next;
+logic [$clog2(DATA_WIDTH)-1:0] r_i;
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            quotient_reg <= 0;
-            remainder_reg <= 0;
-            divisor_reg <= {1'b0, divisor};
-            A_reg <= 0;
-            M_reg <= 0;
-        end else begin
-            quotient_reg <= quotient_reg;
-            remainder_reg <= remainder_reg;
-            divisor_reg <= divisor_reg;
-            A_reg <= A_reg;
-            M_reg <= M_reg;
-        end
+always_comb begin
+    if (r_acc >= {1'b0, r_divisor}) begin
+        w_acc_next = r_acc - r_divisor;
+        {w_acc_next, w_quo_next} = {w_acc_next[DATA_WIDTH-1:0], r_quo, 1'b1};
+    end else begin
+        {w_acc_next, w_quo_next} = {r_acc, r_quo} << 1;
     end
+end
 
-    always_comb begin
-        // Calculate the initial values for the SRT algorithm
-        A_reg = dividend;
-        M_reg = divisor_reg;
-
-        // Main SRT division loop
-        for (int i = 0; i < DW; i++) begin
-            if (A_reg[DW*2:DW+1] >= divisor_reg[DW-1:0]) begin
-                quotient_reg[DW-1-i] = 1;
-                A_reg = A_reg - divisor_reg;
+always_ff @(posedge i_clk) begin
+    if (i_rst_b == 1'b0) begin
+        // Reset state
+        o_busy      <= 0;
+        o_done      <= 0;
+        o_valid     <= 0;
+        o_dbz       <= 0;
+        o_quotient  <= 0;
+        o_remainder <= 0;
+        r_i         <= 0;
+        // $display("Reset: Time = %0t", $time);
+    end else begin
+        o_done  <= 0;
+        if (i_start) begin
+            // Start division
+            o_valid <= 0;
+            r_i     <= 0;
+            if (i_divisor == 0) begin
+                // Handle divide by zero
+                o_busy <= 0;
+                o_done <= 1;
+                o_dbz  <= 1;
+                // $display("Divide by zero: Time = %0t", $time);
             end else begin
-                quotient_reg[DW-1-i] = 0;
+                // Initialize division
+                o_busy        <= 1;
+                o_dbz         <= 0;
+                r_divisor     <= i_divisor;
+                {r_acc, r_quo} <= {{DATA_WIDTH{1'b0}}, i_dividend, 1'b0};
+                // $display("Start Division: Dividend = %0d, Divisor = %0d, Time = %0t", i_dividend, i_divisor, $time);
             end
-
-            // Perform the SRT shift
-            A_reg = A_reg << 1;
-            divisor_reg = divisor_reg >> 1;
+        end else if (o_busy) begin
+            // Division in progress
+            if (r_i == DATA_WIDTH-1) begin
+                // Division complete
+                o_busy      <= 0;
+                o_done      <= 1;
+                o_valid     <= 1;
+                o_quotient  <= w_quo_next;
+                o_remainder <= w_acc_next[DATA_WIDTH:1];
+                // $display("Division Complete: Quotient = %0d, Remainder = %0d, Time = %0t", o_quotient, o_remainder, $time);
+            end else begin
+                // Next iteration
+                r_i   <= r_i + 1;
+                r_acc <= w_acc_next;
+                r_quo <= w_quo_next;
+                // $display("Iteration %0d: Acc = %0d, Quo = %0d, Time = %0t", r_i, r_acc, r_quo, $time);
+            end
         end
-
-        // Output the quotient and remainder
-        quotient  = quotient_reg;
-        remainder = A_reg[DW-1:0];
     end
+end
 
+// synopsys translate_off
+initial begin
+    $dumpfile("dump.vcd");
+    $dumpvars(0, math_divider_srt);
+end
+// synopsys translate_on
 endmodule : math_divider_srt
