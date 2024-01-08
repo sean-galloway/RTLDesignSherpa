@@ -16,6 +16,8 @@ Document all open-source tools used with links. This will take a bit.
 This Repo is intended to show the progress I make as I venture into experimenting with FPGA's and I also hope to instill in others industry standard (or maybe better) practices. My goal is to start folks off learning basic Python, SystemVerilog and the UVM methodology and slowly progress to designing their own RiscVI32 microprocessor, IO Sub-system, AMBA fabric, and possibly some Tensor Processing Units for inference experiments with the intent of loading this onto an appropriate FPGA. All of the code in the repo is considered to be a jumping-off point. I fully expect and encourage others to make the code their own; like make personal async fifo's and possibly do it better than mine. (If you do, I'll post it here and make sure you get the proper credit.)
 
 My goal is to use all free tools in this project, but also prepare folks to work in the industry. These are the tools I am using (note this may get updated):
+[Scripts Index](docs/mark_down/scripts/index.md)
+[RTL Index](docs/mark_down/rtl/index.md)
 
 - I am working mostly in a VM Linux-Ubuntu shell on a Windows 11 machine. From what I have seen in the industry, one will spend most of their time in Linux. I have included my .aliases file that works in bash. I don't have a whole lot, but they have been battle-tested over the years.
   - Note: I have a dedicated VM for verilog work that has only the tools required. I tried using a shared environment with some of my data analysis work, but some tools conflicted, and I couldn't find a clean solution. I will create a YouTube video on making the VM and quickly install the minimal tools required to get you coding and linked to GitHub.
