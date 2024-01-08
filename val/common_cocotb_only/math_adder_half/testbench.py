@@ -19,7 +19,7 @@ async def test_half_adder(dut):
         dut.i_a.value = inputs[0]
         dut.i_b.value = inputs[1]
 
-        await Timer(1, units='ns')  # wait for the combinational logic to settle
+        await Timer(1, units='ns')  # wait for the combinatorial logic to settle
 
         if (dut.ow_sum.value, dut.ow_carry.value) != expected_output:
             raise TestFailure(f"For inputs {inputs}, expected output was {expected_output} but got {(dut.ow_sum.value, dut.ow_carry.value)}")

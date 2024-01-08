@@ -110,8 +110,8 @@ module fifo_async #(
 
     /////////////////////////////////////////////////////////////////////////
     // XOR the two upper bits of the pointers to for use in the full/empty equations
-    assign #1 w_wdom_ptr_xor = r_wr_ptr_bin[AW] ^ w_wdom_rd_ptr_bin[AW];
-    assign #1 w_rdom_ptr_xor = r_rd_ptr_bin[AW] ^ w_rdom_wr_ptr_bin[AW];
+    assign #DEL w_wdom_ptr_xor = r_wr_ptr_bin[AW] ^ w_wdom_rd_ptr_bin[AW];
+    assign #DEL w_rdom_ptr_xor = r_rd_ptr_bin[AW] ^ w_rdom_wr_ptr_bin[AW];
 
     /////////////////////////////////////////////////////////////////////////
     // assign read/write addresses

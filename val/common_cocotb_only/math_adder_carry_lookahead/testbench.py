@@ -15,7 +15,7 @@ async def test_cla_4bit(dut):
             dut.i_b.value = i_b
             dut.i_c.value = i_c
 
-            await Timer(1, units='ns')  # wait for the combinational logic to settle
+            await Timer(1, units='ns')  # wait for the combinatorial logic to settle
 
             # Expected sum and carry out
             expected_sum = i_a + i_b + i_c

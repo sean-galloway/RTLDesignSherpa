@@ -4,7 +4,7 @@ module shifter_lfsr #(
     parameter int N = 5  // LFSR width
 ) (
     input wire i_clk,
-    i_rst_n,
+    input wire i_rst_n,
     input wire i_enable,
     input wire i_seed_load,
     input wire [N-1:0] i_seed_data,
@@ -22,7 +22,7 @@ module shifter_lfsr #(
         end else begin
             if (i_enable) begin
                 if (i_seed_load) begin
-                    r_lfsr_reg <= seed_data;
+                    r_lfsr_reg <= i_seed_data;
                 end else begin
                     r_lfsr_reg <= {r_lfsr_reg[N-2:0], r_xnor_out};
                 end

@@ -3,7 +3,8 @@
 // A parameterized synchronizer
 module glitch_free_n_dff_arn #(
     parameter int FLOP_COUNT = 3,
-    parameter int WIDTH = 4
+    parameter int WIDTH = 4,
+    parameter int DEL = 1
 ) (
     input wire i_clk,
     i_rst_n,
@@ -31,8 +32,8 @@ module glitch_free_n_dff_arn #(
         end
     end
 
-    // Output assignment with 1 time unit delay
-    assign #1 o_q = r_q_array[FC-1];
+    // Output assignment with DEL time unit delay
+    assign #DEL o_q = r_q_array[FC-1];
 
     wire [(DW*FC)-1:0] flat_r_q;
     genvar i;

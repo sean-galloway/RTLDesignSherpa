@@ -125,7 +125,7 @@ module MooreFSM_4State // verilog_lint: waive module-filename
     input wire reset,      // Reset input
     output wire state0,    // State 0 output
     output wire state1,    // State 1 output
-    output wire state2    // State 2 output
+    output wire state2     // State 2 output
 );
 
 // Define FSM states as parameters
@@ -171,16 +171,65 @@ end
 
 endmodule : MooreFSM_4State
 
+module MooreFSM_4State_OneHot (
+    input wire clk,
+    input wire reset,
+    output wire state0,
+    output wire state1,
+    output wire state2
+);
+
+    // Define FSM states with one-hot encoding
+    typedef enum logic [3:0] {
+        S0 = 4'b0001,
+        S1 = 4'b0010,
+        S2 = 4'b0100,
+        S3 = 4'b1000
+    } state_t;
+
+    // Define FSM state register
+    state_t state;
+
+    // State transition and output logic
+    always_ff @(posedge clk or posedge reset) begin
+        if (reset) begin
+            state <= S0; // Reset to initial state
+        end else begin
+            state0 <= 1'b0;
+            state1 <= 1'b0;
+            state2 <= 1'b0;
+            case (state)
+                S0: begin
+                    state <= S1;
+                    state0 <= 1'b1;
+                end
+                S1: begin
+                    state <= S2;
+                    state1 <= 1'b1;
+                end
+                S2: begin
+                    state <= S3;
+                    state2 <= 1'b1;
+                end
+                S3: state <= S0;
+                default: state <= S0; // Default to initial state
+            endcase
+        end
+    end
+
+endmodule : MooreFSM_4State_OneHot
+
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Mealy FSM, less Common, Glitchy
 module MealyFSM_4State // verilog_lint: waive module-filename
 (
-    input wire clk,        // Clock input
-    input wire reset,      // Reset input
-    input wire input_signal, // Input to the FSM
-    output wire state0,    // State 0 output
-    output wire state1,    // State 1 output
-    output wire state2    // State 2 output
+    input  wire clk,          // Clock input
+    input  wire reset,        // Reset input
+    input  wire input_signal, // Input to the FSM
+    output wire state0,       // State 0 output
+    output wire state1,       // State 1 output
+    output wire state2        // State 2 output
 );
 
 // Define FSM states as parameters
@@ -202,37 +251,28 @@ always @(posedge clk or posedge reset) begin
 end
 
 // Next state and output logic
-always @(current_state, input_signal) begin
+always_comb begin
+    state0 = 1'b0;
+    state1 = 1'b0;
+    state2 = 1'b0;
     case (current_state)
         S0: begin
             next_state = input_signal ? S1 : S0;
-            state0 = 1'b0;
-            state1 = 1'b0;
-            state2 = 1'b0;
         end
         S1: begin
             next_state = input_signal ? S2 : S0;
             state0 = 1'b1;
-            state1 = 1'b0;
-            state2 = 1'b0;
         end
         S2: begin
             next_state = input_signal ? S3 : S0;
-            state0 = 1'b0;
             state1 = 1'b1;
-            state2 = 1'b0;
         end
         S3: begin
             next_state = input_signal ? S0 : S0;
-            state0 = 1'b0;
-            state1 = 1'b0;
             state2 = 1'b1;
         end
         default: begin
             next_state = S0;
-            state0 = 1'b0;
-            state1 = 1'b0;
-            state2 = 1'b0;
         end
     endcase
 end
@@ -241,6 +281,7 @@ endmodule
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Simple FIFO
+// more than simple, childishly simple (since there is minimal read adn write pointer handling), but instructive
 module SyncFIFO_8Deep ( // verilog_lint: waive module-filename
     input  wire       clk,        // Clock input
     input  wire       reset_n,    // Reset input
@@ -254,28 +295,28 @@ module SyncFIFO_8Deep ( // verilog_lint: waive module-filename
 
 parameter int DEPTH = 8; // Depth of the FIFO
 
-reg [7:0] memory [0:DEPTH-1]; // verilog_lint: waive unpacked-dimensions-range-ordering
-reg [3:0] write_ptr, read_ptr;
+reg  [7:0] memory [0:DEPTH-1]; // verilog_lint: waive unpacked-dimensions-range-ordering
+reg  [3:0] write_ptr, read_ptr;
 wire [3:0] next_write_ptr, next_read_ptr;
-wire fifo_empty, fifo_full;
+wire       fifo_empty, fifo_full;
 
 // Synchronous FIFO logic
 assign fifo_empty = (write_ptr == read_ptr);
-assign fifo_full = ((next_write_ptr == next_read_ptr) && write_en);
+assign fifo_full  = ((next_write_ptr == next_read_ptr) && write_en);
 
 always_ff @(posedge clk or negedge reset) begin
     if (!reset_n) begin
         write_ptr <= 4'b0000;
-        read_ptr <= 4'b0000;
+        read_ptr  <= 4'b0000;
     end else begin
         write_ptr <= next_write_ptr;
-        read_ptr <= next_read_ptr;
+        read_ptr  <= next_read_ptr;
     end
 end
 
 // Write and Read Pointer Logic
-assign next_write_ptr = (write_en && !fifo_full) ? (write_ptr + 1) : write_ptr;
-assign next_read_ptr = (read_en && !fifo_empty) ? (read_ptr + 1) : read_ptr;
+assign next_write_ptr = (write_en && !fifo_full)  ? (write_ptr + 1) : write_ptr;
+assign next_read_ptr  = (read_en  && !fifo_empty) ? (read_ptr  + 1) : read_ptr;
 
 // Write FIFO Logic
 always_ff @(posedge clk) begin
@@ -285,7 +326,7 @@ always_ff @(posedge clk) begin
 end
 
 assign empty = fifo_empty;
-assign full = fifo_full;
+assign full  = fifo_full;
 
 assign data_out = (read_en && !fifo_empty) ? memory[read_ptr[2:0]] : 8'b0;
 

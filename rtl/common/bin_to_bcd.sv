@@ -3,6 +3,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 // File Downloaded from http://www.nandland.com
 // lots and lots of fixes needed to get this clean and working
+// This is coded differently than the original and the FSM for the Moore Machine
+// In the Example code in the repo root, but some tools have fewer problems with it
 ///////////////////////////////////////////////////////////////////////////////
 module bin_to_bcd #(
     parameter int WIDTH  = 8,
@@ -17,16 +19,16 @@ module bin_to_bcd #(
 );
 
     // Define the FSM states
-    parameter logic [2:0] S_IDLE = 3'b000;
-    parameter logic [2:0] S_SHIFT = 3'b001;
-    parameter logic [2:0] S_CHECK_SHIFT_INDEX = 3'b010;
-    parameter logic [2:0] S_ADD = 3'b011;
-    parameter logic [2:0] S_CHECK_DIGIT_INDEX = 3'b100;
-    parameter logic [2:0] S_BCD_DONE = 3'b101;
+    parameter logic [5:0] S_IDLE =              6'b000001;
+    parameter logic [5:0] S_SHIFT =             6'b000010;
+    parameter logic [5:0] S_CHECK_SHIFT_INDEX = 6'b000100;
+    parameter logic [5:0] S_ADD =               6'b001000;
+    parameter logic [5:0] S_CHECK_DIGIT_INDEX = 6'b010000;
+    parameter logic [5:0] S_BCD_DONE =          6'b100000;
 
     // FSM present and next state
-    logic [2:0] r_SM_Main;
-    logic [2:0] w_SM_Main;
+    logic [5:0] r_SM_Main;
+    logic [5:0] w_SM_Main;
 
     // The vector that contains the output BCD
     logic [DIGITS*4-1:0] r_BCD, w_BCD;
