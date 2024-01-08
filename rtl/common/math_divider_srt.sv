@@ -30,8 +30,8 @@ always_comb begin
     end
 end
 
-always_ff @(posedge i_clk) begin
-    if (i_rst_b == 1'b0) begin
+always_ff @(posedge i_clk, negedge i_rst_b) begin
+    if (!i_rst_b) begin
         // Reset state
         o_busy      <= 0;
         o_done      <= 0;
