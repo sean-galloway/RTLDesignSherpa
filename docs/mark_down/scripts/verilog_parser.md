@@ -10,56 +10,73 @@ This class includes several static methods used throughout the parsing process, 
 
 ### Methods
 
-- **processSignalFreeform(strVal, pDir, pType)**  
-  Processes a freeform string of code and extracts a list of signal records.
+- **processSignalFreeform(strVal, pDir, pType)**
 
-- **processSignal(strVal, pDir, pType)**  
-  Processes a textual representation of a signal, returning a signal record dictionary.
+Processes a freeform string of code and extracts a list of signal records.
 
-- **isNumber(strVal)**  
-  Determines if the provided string represents a number.
+- **processSignal(strVal, pDir, pType)**
 
-- **getLeftRight(strVal)**  
-  Parses a SystemVerilog array range and returns the left and right bounds.
+Processes a textual representation of a signal, returning a signal record dictionary.
 
-- **getMax(strValA, strValB)**  
-  Returns the maximum value between two strings, preferring non-numeric strings.
+- **isNumber(strVal)**
 
-- **getMin(strValA, strValB)**  
-  Returns the minimum value between two strings, preferring non-numeric strings.
+Determines if the provided string represents a number.
 
-- **arrayMerge(strValA, strValB, strName)**  
-  Merges two array ranges into a single range string.
+- **getLeftRight(strVal)**
 
-- **isRange(strVal)**  
-  Checks if the string represents a SystemVerilog range.
+Parses a SystemVerilog array range and returns the left and right bounds.
 
-- **isInterface(strVal)**  
-  Determines if the string represents an interface in module port definitions.
+- **getMax(strValA, strValB)**
 
-- **getArrays(strVal)**  
-  Extracts SystemVerilog array range(s) from a string.
+Returns the maximum value between two strings, preferring non-numeric strings.
 
-- **removeArrays(strVal)**  
-  Removes array range(s) from a string.
+- **getMin(strValA, strValB)**
 
-- **padRight(strVal, maxLen)**  
-  Pads the string to the right to reach a specified maximum length.
+Returns the minimum value between two strings, preferring non-numeric strings.
 
-- **getNameAndType(strVal)**  
-  Splits a string into a type and name, useful for parsing port and parameter declarations.
+- **arrayMerge(strValA, strValB, strName)**
 
-- **removeMultiLineComments(strVal)**  
-  Removes multiline comments from a string.
+Merges two array ranges into a single range string.
 
-- **cleanString(string)**  
-  Cleans a string for parsing, which involves eliminating comments, flattening, and removing extraneous characters.
+- **isRange(strVal)**
 
-- **parsePortsList(portStr)**  
-  Parses a list of ports from a string and returns a detailed list of dictionaries for each port.
+Check if the string represents a SystemVerilog range.
 
-- **parseParametersList(paramStr)**  
-  Parses a list of parameters from a string and returns a detailed list of dictionaries for each parameter.
+- **isInterface(strVal)**
+
+Determines if the string represents an interface in module port definitions.
+
+- **getArrays(strVal)**
+
+Extracts SystemVerilog array range(s) from a string.
+
+- **removeArrays(strVal)**
+
+Removes array range(s) from a string.
+
+- **padRight(strVal, maxLen)**
+
+Pads spaces to the right of the string to reach a specified maximum length.
+
+- **getNameAndType(strVal)**
+
+Splits a string into a type and name, which is helpful for parsing port and parameter declarations.
+
+- **removeMultiLineComments(strVal)**
+
+Removes multiline comments from a string.
+
+- **cleanString(string)**
+
+Cleans a string for parsing, which involves eliminating comments, flattening, and removing extraneous characters.
+
+- **parsePortsList(portStr)**
+
+Parses a list of ports from a string and returns a detailed list of dictionaries for each port.
+
+- **parseParametersList(paramStr)**
+
+Parses a list of parameters from a string and returns a detailed list of dictionaries for each parameter.
 
 ## Parser
 
@@ -67,29 +84,48 @@ The `Parser` class performs higher-level parsing functions, utilizing the `Parse
 
 ### Methods, Parser
 
-- **__parseBlock(strVal)**  
-  Internal method for parsing a block of code enclosed in parentheses.
+- **__parseBlock(strVal)**
 
-- **__parseImportList()**  
-  Stub method intended to return a list of import packages.
+Internal method for parsing a block of code enclosed in parentheses.
 
-- **init__(moduleString)**  
-  The constructor where the main parsing occurs. It processes a string representing a module declaration in Verilog and extracts the module's name, parameters, ports, and import statements.
+- **__parseImportList()**
 
-- **getModuleName()**  
-  Returns the module's name.
+The stub method returns a list of import packages.
 
-- **getParametersList()**  
-  Returns a list of parsed parameters.
+- **init__(moduleString)**
 
-- **getPortsList()**  
-  Returns a list of parsed ports.
+The constructor where the main parsing occurs. It processes a string representing a module declaration in Verilog and extracts the module's name, parameters, ports, and import statements.
 
-- **getImportList()**  
-  Returns a list of parsed import packages.
+- **getModuleName()**
+
+Returns the module's name.
+
+- **getParametersList()**
+
+Returns a list of parsed parameters.
+
+- **getPortsList()**
+
+Returns a list of parsed ports.
+
+- **getImportList()**
+
+Returns a list of parsed import packages.
 
 This module helps Verilog developers analyze and manipulate Verilog code by providing detailed breakdowns of module structures, parameters, and ports, simplifying the process of generating representation or for further code analysis.
 
 ---
 
+## Block Hierarchy and Links
+
+- [Module Class](module.md)
+- [Parser Helper Class](verilog_parser.md)
+- [Signal Class](signal.md)
+- [Parameter Class](param.md)
+- [Utils](utils.md)
+
+---
+
 [Back to Scripts Index](index.md)
+
+---

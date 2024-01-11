@@ -1,22 +1,21 @@
 # Style Guide
 
-The first thing I want to mention is the naming convention. These files are all named very artificially. I did this so that I could find groups of similar functions easier. These rules are short and straightforward to keep them easy to be adhered to Note: some naming convention documents are 30+ pages long. For this forum, I want to keep it simple. You can follow (or not) if you like. Be aware of some of the tools I have developed from the naming convention.
+The first thing I want to mention is the naming convention. These files are all named very artificially. I did this so that I could find groups of similar functions easier. These rules are short and straightforward to keep them accessible to be adhered to Note: some naming convention documents are 30+ pages long. For this forum, I want to keep it simple. You can follow (or not) if you like. Be aware of some of the tools I have developed from the naming convention.
 
 ## The Naming Conventions
 
 - Module names are snake case
 - Signal names a snake case
-- Parameter names are all caps
-- Input ports all begin with i_or iw_. It is assumed all inputs come directly from flops. In the rare cases where that does not occur, the iw_ signifier is used (w meaning wire.)
-- Output ports all begin with o or ow_. It is assumed all outputs come directly from flops. In the rare cases where that does not occur, the ow_ signifier is used (w meaning wire.)
+- Parameter names are in all caps
+- Input ports all begin with i_signal or iw_signal. i_signal derives from a flop; iw_signal derives from a wire.
+- Output ports all begin with o_signal or ow_signal. o_signal derives from a flop; ow_signal derives from a wire.
 - All register signals (flops) start with r_.
 - All wire signals start with w_.
-Note: I was not going to have a strict naming convention. I started exploring automation to create wavedrom diagrams from the existing vcd and gktw files. I want to put a phase of 0.2 on flopped signals (representing tCO), and 0.8 on wire signals to show artificially significant propagation delays. Without the naming convention, none of this can be automated by someone working on a side project like this.
+Note: I was not going to have a strict naming convention. I started exploring automation to create wavedrom diagrams from the existing vcd and gktw files. I want to put a phase of 0.2 on flopped signals (representing tCO) and 0.8 on wire signals to show artificially significant propagation delays. Without the naming convention and automation, none of this is possible for someone working on a side project like this.
 
----Here is an example fifo using always_ff and always_comb
+---Here is an example of a FIFO using always_ff and always_comb
 
 ```verilog
-
 module fifo_async #(
     parameter int DATA_WIDTH = 8,
     parameter int DEPTH = 16,
@@ -44,21 +43,13 @@ module fifo_async #(
 ```
 
 **This example illustrates the bulk of the port-level naming conventions described above.
-Below is an example that illustrates a mix of wired and registers being declared. Note: they all use the logic type, then the "r_" and "w_" are helpful in knowing how the signal is used**
+Below is an example that illustrates a mix of wired and registered names declared. Note: they all use the logic type, then the "r_" and "w_" conventions to help with the signal usage.
+
+*Coding Convention recommended
+
+In this code base, I have eschewed the usage of macros. They only seem to be used in particular groups in certain companies. Through internal studies that I can't directly cite, Macros simulate ~10% faster than using always_ff structures. So, there is a strong argument for their usage. I'll show two examples of an 8-bit fifo, one with only always_ff and always_comb and one using macros.
 
 ```verilog
-    /////////////////////////////////////////////////////////////////////////
-    // local logics
-    logic [AW-1:0] r_wr_addr, r_rd_addr;
-
-    logic [AW:0] r_wr_ptr_gray, r_wdom_rd_ptr_gray, r_rd_ptr_gray, r_rdom_wr_ptr_gray;
-    logic [AW:0] r_wr_ptr_bin,  w_wdom_rd_ptr_bin,  r_rd_ptr_bin,  w_rdom_wr_ptr_bin;
-```
-
-### Coding Convention, recommended
-
-In this code base, I have eschewed the usage of macros. They only seem to be used in certain groups in certain companies. Macros have been shown, through internal studies that I can't directly cite, to simulate ~10% faster that using always_ff structures. So, there is a strong argument for why they should be used. I'll show two examples of an 8-bit fifo, one with only always_ff and always_comb and one using macros.
-
 // Fifo without Macros:
 `timescale 1ns / 1ps
 
@@ -124,11 +115,13 @@ always_comb begin
 end
 
 endmodule
+```
 
 ---
 
 ### Coding Convention, structural, using macros
 
+```verilog
 // Macro Definitions (this would come from an include file)
 // D Flip-Flop Macro
 `define DFF(D, Q, CLK, RST_N) \
@@ -199,10 +192,11 @@ module simple_fifo #(
     `DFF(rd_data_next, rd_data, clk, rst_n)
 
 endmodule
+```
 
 ---
 
-I greatly prefer the second coding style. It is very structural and it is close to the gates one is synthesizing. Also, it is very easy to write a script for parse the code and find the number of flops and muxes in the code. For most cases, if we only count the flops and muxes, we will get very close to what the finial synthesis gate count will tell us. However, I recognize that not everyone is a fan. In some organizations, this coding style is strictly forbidden. So, in the spirit of appealing to the greater masses, I have stuck to the former coding style.
+I prefer the second coding style. It is very structural and close to the gates one is synthesizing. Also, it is straightforward to write a script to parse the code and find the number of flops and muxes in the code. In most cases, if we only count the flops and muxes, we will get very close to what the final synthesis gate count will tell us. However, I recognize that not everyone is a fan. In some organizations, this coding style is strictly forbidden. So, I have stuck to the former coding style to appeal to the greater masses.
 
 ---
 [Return to Index](index.md)

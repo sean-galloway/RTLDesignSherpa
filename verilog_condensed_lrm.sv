@@ -258,18 +258,18 @@ always_comb begin
     case (current_state)
         S0: begin
             next_state = input_signal ? S1 : S0;
+            state0 = 1'b1;
         end
         S1: begin
             next_state = input_signal ? S2 : S0;
-            state0 = 1'b1;
+            state1 = 1'b1;
         end
         S2: begin
             next_state = input_signal ? S3 : S0;
-            state1 = 1'b1;
+            state2 = 1'b1;
         end
         S3: begin
             next_state = input_signal ? S0 : S0;
-            state2 = 1'b1;
         end
         default: begin
             next_state = S0;

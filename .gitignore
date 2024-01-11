@@ -180,6 +180,7 @@ reports/*
 bin/OLD_SCRIPTS/
 val/common_cocotb_only_HOLD/*
 regression/*
+docs/mark_down/scripts/OLD/*
 
 # Jekyll
 _site/
