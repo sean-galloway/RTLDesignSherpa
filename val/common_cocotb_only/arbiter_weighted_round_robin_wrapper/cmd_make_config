@@ -1,0 +1,1 @@
+python3 $REPO_ROOT/bin/vcd2wavedrom2.py -i dump.vcd -m config.json -hl u_weighted_round_robin

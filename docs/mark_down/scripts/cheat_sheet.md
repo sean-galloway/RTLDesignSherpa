@@ -6,7 +6,7 @@ This document will evolve as more scripts get added, showing the most common use
 
 ## [lint_wrap.py](lint_wrap.md)
 
-The `lint_wrap` script at `lint_wrap.py` purpose is to lint and format Verilog files using supporting functions encapsulated in a `Lint` class. This script acts as a command-line interface (CLI) utility for code maintenance. The utility offers the following options:
+The `lint_wrap` script at `lint_wrap.py` is to lint and format Verilog files using supporting functions encapsulated in a `Lint` class. This script acts as a command-line interface (CLI) utility for code maintenance. The utility offers the following options:
 
 ```sh
 
@@ -170,11 +170,16 @@ This script generates wavedrom files based on vcd and gtkw files. The gtkw file 
 
 # Step 1: Create the config file
 
-REPO_ROOT/bin/vcd2wavedrom2.py -i dump.vcd -m config.json
+python3 $REPO_ROOT/bin/vcd2wavedrom2.py -i dump.vcd -m config.json     # This will grab all of the signals in the vcd
+
+python3 $REPO_ROOT/bin/vcd2wavedrom2.py -i dump.vcd -m config.json -hl u_weighted_round_robin -f "1290ns" -t "1320ns"   # the -hl specifies a hierarchy to grab from the vcd; one or more may be passed in
+
+# Step 1.5: Update the config file. One may want to remove or reorganize the signals. One may also want to put all of the units into something consistent, like ns.
 
 # Step 2: Generate the wavedrom file
 
-python3 $REPO_ROOT/bin/vcd2wavedrom2.py -i dump.vcd -g debug.gtkw -c config.json -o wavedrom.json
+python3 $REPO_ROOT/bin/vcd2wavedrom2.py -i dump.vcd -g debug.gtkw -c config.json -o wavedrom.json    # this is a basic command line, all of the hard stuff is done when making the config file
+
 
 ```
 

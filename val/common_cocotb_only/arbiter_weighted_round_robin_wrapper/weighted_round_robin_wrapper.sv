@@ -19,7 +19,7 @@ logic [N-1:0]  request, grant;
 fifo_sync
 #(
     .DATA_WIDTH       (8),
-    .DEPTH            (16),
+    .DEPTH            (40),
     .ALMOST_WR_MARGIN (1),
     .ALMOST_RD_MARGIN (1),
     .INSTANCE_NAME("u_fifo_sync_A")
@@ -40,7 +40,7 @@ u_fifo_sync_A (
 fifo_sync
 #(
     .DATA_WIDTH       (8),
-    .DEPTH            (8),
+    .DEPTH            (24),
     .ALMOST_WR_MARGIN (1),
     .ALMOST_RD_MARGIN (1),
     .INSTANCE_NAME("u_fifo_sync_B")
@@ -61,7 +61,7 @@ u_fifo_sync_B (
 fifo_sync
 #(
     .DATA_WIDTH       (8),
-    .DEPTH            (4),
+    .DEPTH            (12),
     .ALMOST_WR_MARGIN (1),
     .ALMOST_RD_MARGIN (1),
     .INSTANCE_NAME("u_fifo_sync_C")
@@ -81,8 +81,8 @@ u_fifo_sync_C (
 
 fifo_sync
 #(
-    .DATA_WIDTH       (8),
-    .DEPTH            (4),
+    .DATA_WIDTH       (4),
+    .DEPTH            (6),
     .ALMOST_WR_MARGIN (1),
     .ALMOST_RD_MARGIN (1),
     .INSTANCE_NAME("u_fifo_sync_D")
@@ -102,7 +102,8 @@ u_fifo_sync_D (
 
 pwm
 #(
-    .WIDTH (11)
+    .WIDTH (11),
+    .CHANNELS (1)
 )
 u_pwm(
     .i_clk          (i_clk),
@@ -141,13 +142,13 @@ assign request = ($countones(req_orig)>1) ? req_orig : req_mask;
 
 arbiter_weighted_round_robin
 #(
-    .MAX_THRESH(16),
+    .MAX_THRESH(15),
     .CLIENTS   (4)
 )
-weighted_round_robin_inst (
+u_weighted_round_robin (
     .i_clk             (i_clk),
     .i_rst_n           (i_rst_n),
-    .i_max_thresh      ({4'b0101,4'b0011, 4'b0010, 4'b0001}),
+    .i_max_thresh      ({4'b0110, 4'b0100, 4'b0010, 4'b0001}),
     .i_req             (request),
     .i_block_arb       (pwm_sig),
     .ow_grant          (grant)

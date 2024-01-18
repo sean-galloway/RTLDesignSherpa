@@ -5,7 +5,7 @@
 // I've made a few tweaks and clean up items; I parameterized it.
 
 module arbiter_fixed_priority #(
-    parameter int CLIENTS = 8
+    parameter int CLIENTS = 4
 ) (
     input        [CLIENTS-1:0] i_req,
     output logic [CLIENTS-1:0] ow_grant

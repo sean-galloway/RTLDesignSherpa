@@ -102,7 +102,8 @@ u_fifo_sync_D (
 
 pwm
 #(
-    .WIDTH (11)
+    .WIDTH (11),
+    .CHANNELS (1)
 )
 u_pwm(
     .i_clk          (i_clk),

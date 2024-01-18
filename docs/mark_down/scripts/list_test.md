@@ -38,15 +38,15 @@ Generates and prints a list of commands to run tests that include a given substr
 
 #### Internal Functionality, generate_run_test_commands, generate_run_test_commands
 
-1\. The method reads a configuration JSON file defining various test list levels.
+1. The method reads a configuration JSON file defining various test list levels.
 
-2\. It iterates over each level and reads the corresponding test list JSON file.
+2. It iterates over each level and reads the corresponding test list JSON file.
 
-3\. For each test in the list, the method checks if the `test_name_substring` is part of the test's name.
+3. For each test in the list, the method checks if the `test_name_substring` is part of the test's name.
 
-4\. If a test matches, it constructs a command string with the test's name, a default tag (`my_tag`), an optional seed, and any additional parameters specified.
+4. If a test matches, it constructs a command string with the test's name, a default tag (`my_tag`), an optional seed, and any additional parameters specified.
 
-5\. It appends the command string to a list of commands and prints them out at the end.
+5. It appends the command string to a list of commands and prints them out at the end.
 
 #### Example Usage, generate_run_test_commands
 

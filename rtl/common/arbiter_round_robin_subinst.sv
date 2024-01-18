@@ -5,7 +5,7 @@
 // I've made a few tweaks and clean up items; I parameterized it.
 
 module arbiter_round_robin_subinst #(
-    parameter int CLIENTS = 8
+    parameter int CLIENTS = 4
 ) (
     input  logic               i_clk,
     input  logic               i_rst_n,

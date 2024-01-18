@@ -99,7 +99,7 @@ module fifo_async_any_even #(
     /////////////////////////////////////////////////////////////////////////
     // Instantiate the clock crossing modules
     glitch_free_n_dff_arn #(
-        .FLOP_COUNT(2),
+        .FLOP_COUNT(N_FLOP_CROSS),
         .WIDTH(JCW)
     ) rd_ptr_gray_cross_inst (
         .o_q(r_wdom_rd_ptr_gray),
@@ -121,7 +121,7 @@ module fifo_async_any_even #(
     );
 
     glitch_free_n_dff_arn #(
-        .FLOP_COUNT(2),
+        .FLOP_COUNT(N_FLOP_CROSS),
         .WIDTH(JCW)
     ) wr_ptr_gray_cross_inst (
         .o_q(r_rdom_wr_ptr_gray),
