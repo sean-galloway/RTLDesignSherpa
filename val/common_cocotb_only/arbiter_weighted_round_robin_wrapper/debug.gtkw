@@ -1,45 +1,45 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sat Jan 13 20:39:44 2024
+[*] Fri Jan 19 05:52:08 2024
 [*]
 [dumpfile] "/home/sean/github/RTLDesignSherpa/val/common_cocotb_only/arbiter_weighted_round_robin_wrapper/dump.vcd"
-[dumpfile_mtime] "Sat Jan 13 14:47:44 2024"
-[dumpfile_size] 73208
+[dumpfile_mtime] "Thu Jan 18 22:49:19 2024"
+[dumpfile_size] 73296
 [savefile] "/home/sean/github/RTLDesignSherpa/val/common_cocotb_only/arbiter_weighted_round_robin_wrapper/debug.gtkw"
-[timestart] 1015900
-[size] 2659 818
-[pos] 5 1
-*-16.209377 1310000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[timestart] 1590500
+[size] 2346 725
+[pos] -1 6
+*-15.411844 1770000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] weighted_round_robin_wrapper.
+[treeopen] weighted_round_robin_wrapper.u_pwm.
+[treeopen] weighted_round_robin_wrapper.u_weighted_round_robin.
+[treeopen] weighted_round_robin_wrapper.u_weighted_round_robin.u_rrb_arb.
 [sst_width] 323
-[signals_width] 214
+[signals_width] 327
 [sst_expanded] 1
-[sst_vpaned_height] 221
+[sst_vpaned_height] 291
 @28
-weighted_round_robin_wrapper.i_clk
-weighted_round_robin_wrapper.i_rst_n
-weighted_round_robin_wrapper.pwm_sig
-weighted_round_robin_wrapper.i_write_A
-weighted_round_robin_wrapper.i_write_B
-weighted_round_robin_wrapper.i_write_C
-weighted_round_robin_wrapper.i_write_D
+weighted_round_robin_wrapper.u_weighted_round_robin.u_rrb_arb.i_clk
+weighted_round_robin_wrapper.u_weighted_round_robin.u_rrb_arb.i_rst_n
+weighted_round_robin_wrapper.u_weighted_round_robin.u_rrb_arb.i_replenish
 @22
-weighted_round_robin_wrapper.ow_rd_data_A[7:0]
-weighted_round_robin_wrapper.ow_rd_data_B[7:0]
-weighted_round_robin_wrapper.ow_rd_data_C[7:0]
-weighted_round_robin_wrapper.ow_rd_data_D[7:0]
+weighted_round_robin_wrapper.u_weighted_round_robin.u_rrb_arb.i_req[3:0]
+weighted_round_robin_wrapper.u_weighted_round_robin.u_rrb_arb.ow_grant[3:0]
+weighted_round_robin_wrapper.u_weighted_round_robin.u_rrb_arb.r_mask[3:0]
 @28
-weighted_round_robin_wrapper.i_read_A
-weighted_round_robin_wrapper.i_read_B
-weighted_round_robin_wrapper.i_read_C
-weighted_round_robin_wrapper.i_read_D
-weighted_round_robin_wrapper.i_read_E
+weighted_round_robin_wrapper.u_weighted_round_robin.u_rrb_arb.w_select_raw
 @22
-weighted_round_robin_wrapper.request[3:0]
-weighted_round_robin_wrapper.grant[3:0]
+weighted_round_robin_wrapper.u_weighted_round_robin.u_arb_raw.ow_grant[3:0]
+weighted_round_robin_wrapper.u_weighted_round_robin.u_rrb_arb.u_arb_mask.ow_grant[3:0]
 @28
-weighted_round_robin_wrapper.i_write_E
+weighted_round_robin_wrapper.u_pwm.o_pwm
+weighted_round_robin_wrapper.u_pwm.gen_channel[0].w_count_met
+@200
+-u_arb_raw
 @22
-weighted_round_robin_wrapper.ow_rd_data_E[7:0]
+weighted_round_robin_wrapper.u_weighted_round_robin.u_arb_raw.i_req[3:0]
+weighted_round_robin_wrapper.u_weighted_round_robin.u_arb_raw.ow_grant[3:0]
+@23
+weighted_round_robin_wrapper.u_weighted_round_robin.r_crd_cnt[15:0]
 [pattern_trace] 1
 [pattern_trace] 0

@@ -1,0 +1,105 @@
+{
+    "head": {
+        "text": "Begin Arbitration, all queues full",
+        "tock": 1
+    },
+    "signal": [
+        {
+            "name": "weighted_round_robin_wrapper.u_weighted_round_robin.i_clk",
+            "wave": "ppppppppppppppppp|ppppppppppppp",
+            "data": [],
+            "phase": 0,
+            "period": 1.0
+        },
+        {
+            "name": "weighted_round_robin_wrapper.u_weighted_round_robin.i_rst_n",
+            "wave": "1................|.............",
+            "data": [],
+            "phase": 0
+        },
+        {
+            "name": "weighted_round_robin_wrapper.u_weighted_round_robin.i_block_arb",
+            "wave": "1.0..............|.............",
+            "data": [],
+            "phase": 0
+        },
+        {
+            "name": "weighted_round_robin_wrapper.u_weighted_round_robin.i_max_thresh[15:0]",
+            "wave": "=................|.............",
+            "data": [
+                "6421"
+            ],
+            "phase": 0
+        },
+        {
+            "name": "weighted_round_robin_wrapper.u_weighted_round_robin.i_req[3:0]",
+            "wave": "=..............=.|=.......=....",
+            "data": [
+                "F",
+                "7",
+                "3",
+                "1"
+            ],
+            "phase": 0
+        },
+        {
+            "name": "weighted_round_robin_wrapper.u_weighted_round_robin.ow_grant[3:0]",
+            "wave": "=.==.=...=.....==|..==.==.=....",
+            "data": [
+                "0",
+                "1",
+                "2",
+                "4",
+                "8",
+                "1",
+                "2",
+                "1",
+                "2",
+                "1",
+                "2",
+                "1"
+            ],
+            "phase": 0
+        },
+        {
+            "name": "weighted_round_robin_wrapper.u_weighted_round_robin.r_crd_cnt[15:0]",
+            "wave": "=..==============|.=========...",
+            "data": [
+                "0",
+                "1",
+                "11",
+                "21",
+                "121",
+                "221",
+                "321",
+                "421",
+                "1421",
+                "2421",
+                "3421",
+                "4421",
+                "5421",
+                "6421",
+                "1",
+                "11",
+                "21",
+                "1",
+                "11",
+                "21",
+                "1",
+                "11",
+                "21",
+                "1"
+            ],
+            "phase": 0
+        },
+        {
+            "name": "weighted_round_robin_wrapper.u_weighted_round_robin.w_replenish",
+            "wave": "0..............10|..10.10.1....",
+            "data": [],
+            "phase": 0
+        }
+    ],
+    "config": {
+        "hscale": 1
+    }
+}

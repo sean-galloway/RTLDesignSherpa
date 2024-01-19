@@ -10,10 +10,10 @@
         "weighted_round_robin_wrapper.u_weighted_round_robin.r_crd_cnt[15:0]",
         "weighted_round_robin_wrapper.u_weighted_round_robin.w_replenish"
     ],
-    "name": "End Arbitration, on agents 0/1 left, no gaps in grant",
+    "name": "Begin Arbitration, all queues full",
     "tock": 1,
     "replace": {},
-    "samplerate": "5ns",
+    "samplerate": "10ns",
     "clocks": [
         {
             "name": "weighted_round_robin_wrapper.u_weighted_round_robin.i_clk",
@@ -21,10 +21,9 @@
             "period": "10ns"
         }
     ],
-    "starttime": ["1770ns"],
-    "endtime": ["1900ns"],
+    "starttime": ["1290ns", "1770ns"],
+    "endtime": ["1460ns", "1900ns"],
     "phase_clk": 0,
     "phase_reg": 0,
     "phase_wir": 0
-
 }

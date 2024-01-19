@@ -16,6 +16,9 @@ module arbiter_weighted_round_robin #(
     output logic [CLIENTS-1:0]                         ow_grant
 );
 
+    // Define a local parameter
+    localparam int MTW = MAX_THRESH_WIDTH;
+
     // Define the combi signal and flops
     logic [(CLIENTS*MAX_THRESH_WIDTH)-1:0] r_crd_cnt;
     logic [(CLIENTS*MAX_THRESH_WIDTH)-1:0] w_crd_cnt_next;
@@ -36,32 +39,31 @@ module arbiter_weighted_round_robin #(
     generate
         for (i = 0; i < CLIENTS; i++) begin : gen_credit_mgt
             // Calculate start and end indices for each client in the flattened array
-            localparam int StartIdx =  i      * MAX_THRESH_WIDTH;
-            localparam int EndIdx   = (i + 1) * MAX_THRESH_WIDTH - 1;
+            localparam int EndIdx = (i + 1) * MTW - 1;
 
-            assign w_crd_cnt_incr[EndIdx:StartIdx] = r_crd_cnt[EndIdx:StartIdx] + 1'b1;
+            assign w_crd_cnt_incr[EndIdx -: MTW] = r_crd_cnt[EndIdx -: MTW] + 1'b1;
             assign w_has_crd[i] =
-                        (w_crd_cnt_incr[EndIdx:StartIdx] <= i_max_thresh[EndIdx:StartIdx]);
+                        (w_crd_cnt_incr[EndIdx -: MTW] <= i_max_thresh[EndIdx -: MTW]);
 
             // credit mask logic generates masked version of requests
             assign w_mask_req[i] = (w_has_crd[i] | w_replenish) & w_req_post[i];
 
             // next credit counter value
             always_comb begin
-                w_crd_cnt_next[EndIdx:StartIdx] = r_crd_cnt[EndIdx:StartIdx];
+                w_crd_cnt_next[EndIdx -: MTW] = r_crd_cnt[EndIdx -: MTW];
                 if (w_replenish)
-                    if (ow_grant[i]) w_crd_cnt_next[EndIdx:StartIdx] = 1;
-                    else w_crd_cnt_next[EndIdx:StartIdx] = 0;
+                    if (ow_grant[i]) w_crd_cnt_next[EndIdx -: MTW] = 1;
+                    else w_crd_cnt_next[EndIdx -: MTW] = 0;
                 else if (ow_grant[i])
-                    w_crd_cnt_next[EndIdx:StartIdx] = w_crd_cnt_incr[EndIdx:StartIdx];
+                    w_crd_cnt_next[EndIdx -: MTW] = w_crd_cnt_incr[EndIdx -: MTW];
             end
 
             // only update the credit counters when replenish or being granted
             always_ff @(posedge i_clk or negedge i_rst_n) begin
-                if (~i_rst_n) r_crd_cnt[EndIdx:StartIdx] <= '0;
+                if (~i_rst_n) r_crd_cnt[EndIdx -: MTW] <= '0;
                 else if (w_replenish || (ow_grant[i] && w_has_crd[i]))
                     // Only update when granted and has credits
-                    r_crd_cnt[EndIdx:StartIdx] <= w_crd_cnt_next[EndIdx:StartIdx];
+                    r_crd_cnt[EndIdx -: MTW] <= w_crd_cnt_next[EndIdx -: MTW];
             end
         end
     endgenerate

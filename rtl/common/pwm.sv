@@ -18,7 +18,6 @@ module pwm #(
     genvar i;
     generate
         for (i = 0; i < CHANNELS; i++) begin : gen_channel
-            localparam int StartIdx = i * WIDTH;
             localparam int EndIdx = (i + 1) * WIDTH - 1;
 
             logic [WIDTH-1:0] r_count;

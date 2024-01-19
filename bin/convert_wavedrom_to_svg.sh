@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Directory containing WaveDrom JSON files
-SOURCE_DIR="/home/sean/github/RTLDesignSherpa/docs/wavedrom_files"
+SOURCE_DIR=$REPO_ROOT/docs/mark_down/rtl/_wavedrom
 
 # Output directory for SVG files
-OUTPUT_DIR="/home/sean/github/RTLDesignSherpa/docs/images_rtl_svg"
+OUTPUT_DIR=$REPO_ROOT/docs/mark_down/rtl/_wavedrom_svg
 
 # Create output directory if it doesn't exist
 mkdir -p "$OUTPUT_DIR"

@@ -13,7 +13,6 @@
     "name": "Begin Arbitration, all queues full",
     "tock": 1,
     "replace": {},
-    "offset": "1290ns",
     "samplerate": "5ns",
     "clocks": [
         {
@@ -22,5 +21,10 @@
             "period": "10ns"
         }
     ],
-    "maxtime": "1460ns"
+    "starttime": ["1290ns"],
+    "endtime": ["1460ns"],
+    "phase_clk": 0,
+    "phase_reg": 0,
+    "phase_wir": 0
+
 }

@@ -1,0 +1,57 @@
+{
+    "signal": {},
+    "filter": [
+        "weighted_round_robin_wrapper.u_fifo_sync_A.flat_r_mem[319:0]",
+        "weighted_round_robin_wrapper.u_fifo_sync_A.i_clk",
+        "weighted_round_robin_wrapper.u_fifo_sync_A.i_read",
+        "weighted_round_robin_wrapper.u_fifo_sync_A.i_rst_n",
+        "weighted_round_robin_wrapper.u_fifo_sync_A.i_wr_data[7:0]",
+        "weighted_round_robin_wrapper.u_fifo_sync_A.i_write",
+        "weighted_round_robin_wrapper.u_fifo_sync_A.ow_rd_almost_empty",
+        "weighted_round_robin_wrapper.u_fifo_sync_A.ow_rd_data[7:0]",
+        "weighted_round_robin_wrapper.u_fifo_sync_A.ow_rd_empty",
+        "weighted_round_robin_wrapper.u_fifo_sync_A.ow_wr_almost_full",
+        "weighted_round_robin_wrapper.u_fifo_sync_A.ow_wr_full",
+        "weighted_round_robin_wrapper.u_fifo_sync_A.r_rd_addr[5:0]",
+        "weighted_round_robin_wrapper.u_fifo_sync_A.r_rd_ptr_bin[6:0]",
+        "weighted_round_robin_wrapper.u_fifo_sync_A.r_wr_addr[5:0]",
+        "weighted_round_robin_wrapper.u_fifo_sync_A.r_wr_ptr_bin[6:0]",
+        "weighted_round_robin_wrapper.u_fifo_sync_A.w_almost_empty_count[5:0]",
+        "weighted_round_robin_wrapper.u_fifo_sync_A.w_almost_full_count[5:0]",
+        "weighted_round_robin_wrapper.u_fifo_sync_A.w_ptr_xor",
+        "weighted_round_robin_wrapper.u_fifo_sync_A.read_counter.i_clk",
+        "weighted_round_robin_wrapper.u_fifo_sync_A.read_counter.i_enable",
+        "weighted_round_robin_wrapper.u_fifo_sync_A.read_counter.i_rst_n",
+        "weighted_round_robin_wrapper.u_fifo_sync_A.read_counter.o_counter_bin[6:0]",
+        "weighted_round_robin_wrapper.u_fifo_sync_A.write_counter.i_clk",
+        "weighted_round_robin_wrapper.u_fifo_sync_A.write_counter.i_enable",
+        "weighted_round_robin_wrapper.u_fifo_sync_A.write_counter.i_rst_n",
+        "weighted_round_robin_wrapper.u_fifo_sync_A.write_counter.o_counter_bin[6:0]"
+    ],
+    "name": "The waveform title",
+    "tock": 1,
+    "replace": {},
+    "samplerate": "10ns",
+    "clocks": [
+        {
+            "name": "weighted_round_robin_wrapper.u_fifo_sync_A.i_clk",
+            "char": "p",
+            "period": "10ns"
+        },
+        {
+            "name": "weighted_round_robin_wrapper.u_fifo_sync_A.read_counter.i_clk",
+            "char": "p",
+            "period": "10ns"
+        },
+        {
+            "name": "weighted_round_robin_wrapper.u_fifo_sync_A.write_counter.i_clk",
+            "char": "p",
+            "period": "10ns"
+        }
+    ],
+    "starttime": "[5ns]",
+    "endtime": "[2865ns]",
+    "phase_clk": 0,
+    "phase_reg": 0,
+    "phase_wir": 0
+}
