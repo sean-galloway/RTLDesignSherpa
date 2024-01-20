@@ -7,7 +7,7 @@
     "name": "End Arbitration, Combiniatorial Arbiter",
     "tock": 1,
     "replace": {},
-    "samplerate": "5ns",
+    "samplerate": "10ns",
     "clocks": [],
     "starttime": ["1770ns"],
     "endtime": ["1900ns"],

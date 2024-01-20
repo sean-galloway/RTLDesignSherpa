@@ -9,23 +9,23 @@
             "wave": "ppppppppppppppppp",
             "data": [],
             "phase": 0,
-            "period": 2.0
+            "period": 1.0
         },
         {
             "name": "u_weighted_round_robin.i_rst_n",
-            "wave": "1.................................",
+            "wave": "1................",
             "data": [],
             "phase": 0
         },
         {
             "name": "u_weighted_round_robin.i_block_arb",
-            "wave": "1..0..............................",
+            "wave": "1.0..............",
             "data": [],
             "phase": 0
         },
         {
             "name": "u_weighted_round_robin.i_max_thresh[15:0]",
-            "wave": "=.................................",
+            "wave": "=................",
             "data": [
                 "6421"
             ],
@@ -33,7 +33,7 @@
         },
         {
             "name": "u_weighted_round_robin.i_req[3:0]",
-            "wave": "=............................=....",
+            "wave": "=..............=.",
             "data": [
                 "F",
                 "7"
@@ -42,7 +42,7 @@
         },
         {
             "name": "u_weighted_round_robin.ow_grant[3:0]",
-            "wave": "=..=.=...=.......=...........=.=..",
+            "wave": "=.==.=...=.....==",
             "data": [
                 "0",
                 "1",
@@ -56,7 +56,7 @@
         },
         {
             "name": "u_weighted_round_robin.r_crd_cnt[15:0]",
-            "wave": "=....=.=.=.=.=.=.=.=.=.=.=.=.=.=.=",
+            "wave": "=..==============",
             "data": [
                 "0",
                 "1",
@@ -72,14 +72,13 @@
                 "4421",
                 "5421",
                 "6421",
-                "1",
-                "11"
+                "1"
             ],
             "phase": 0
         },
         {
             "name": "u_weighted_round_robin.w_replenish",
-            "wave": "0............................1.0..",
+            "wave": "0..............10",
             "data": [],
             "phase": 0
         }

@@ -1,104 +1,23 @@
-#!/usr/bin/python3
-
-import contextlib
+from v2wconfig import V2WConfig
 import sys
-import os
-import argparse
+import contextlib
 import json
 import re
-from collections import defaultdict
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
-
-from vcdvcd.vcdvcd import VCDVCD
-
-from math import floor, ceil
-
-import pint
 import pstats
 import cProfile
 
-cmn_unit = '1ns'
-cmn_base = 'ns'
-
-def convert_timescale_to_cmn_units(value, current_timescale, cmn_unit, cmn_base):
-    """
-    Converts a value from one timescale to another.
-
-    Args:
-        value: The value to be converted.
-        current_timescale: The current timescale of the value (e.g., 'ns', 'us', 'ms').
-        cmn_unit: The unit of the new timescale (e.g., 'ps', 'ns', 'us').
-        cmn_base: The base value of the new timescale (e.g., 's', 'ms', 'us').
-
-    Returns:
-        str: The converted value in the new timescale with the specified base.
-
-    """
-    ureg = pint.UnitRegistry()
-
-    # Extract the unit part from the current timescale
-    current_unit = re.findall(r'[a-zA-Z]+', current_timescale)[0]
-
-    # Convert the value to the current timescale unit
-    value_in_current_units = value * ureg(current_unit)
-
-    return f'{round(value_in_current_units.to(ureg(cmn_unit)).magnitude)}{cmn_base}'
-
-
-def calculate_sampling_points(vcd_timescale, target_interval, endtime):
-    """
-    Calculates the sampling points for a given VCD timescale, target interval, and end time.
-
-    Args:
-        vcd_timescale: The timescale of the VCD file (e.g., '1ns', '10ps').
-        target_interval: The desired interval between sampling points (e.g., '100ps', '1ns').
-        endtime: The end time of the waveform (e.g., '1us', '10ms').
-
-    Returns:
-        list: A list of sampling points, represented as integers.
-
-    """
-    ureg = pint.UnitRegistry()
-
-    # Convert timescale, interval, and endtime to seconds
-    timescale_sec = ureg(vcd_timescale).to(ureg.second).magnitude
-    interval_sec = ureg(target_interval).to(ureg.second).magnitude
-    endtime_sec = ureg(endtime).to(ureg.second).magnitude
-
-    # Calculate the number of sample points
-    num_points = int(endtime_sec / interval_sec)
-
-    return [int(i * interval_sec / timescale_sec) for i in range(num_points + 1)]
-
 
 class VCD2Wavedrom2:
-    """
-    A class for converting VCD (Value Change Dump) files to WaveDrom JSON format.
-
-    Args:
-        config (dict): The configuration settings for the conversion.
-
-    """
-    busregex = re.compile(r'(.+?)(?:\[\d+(:\d+)?\]|\(\d+\))$')
-    busregex2 = re.compile(r'(.+)\[(\d):(\d)\]')
-    config = {}
-    bit_open = None
-    bit_close = None
+    busregex = re.compile(r'(.+)\[(\d):(\d)\]')
 
 
-    def __init__(self, config):
-        """
-        Initializes the VCD2Wavedrom2 object with the provided configuration settings.
-
-        Args:
-            config (dict): The configuration settings for the conversion.
-
-        Returns:
-            None
-
-        """
-        self.config = config
+    def __init__(self, argv):
+        self.v2wconfig = V2WConfig(argv)
+        self.config = self.v2wconfig.config
+        self.converter = self.v2wconfig.converter
+        self.vcd = self.v2wconfig.vcd
 
 
     @staticmethod
@@ -125,59 +44,6 @@ class VCD2Wavedrom2:
                 max_time = max(max_time, time)
 
         return max_time
-
-    @staticmethod
-    def group_and_sort_signals(signals, hierarchy_list):
-        """
-        Groups and sorts the signals based on the provided hierarchy list.
-
-        Args:
-            signals (list): The list of signals to be grouped and sorted.
-            hierarchy_list (list): The list of hierarchy names to group the signals.
-
-        Returns:
-            list: The sorted and grouped list of signals.
-
-        """
-        # List to hold signals with their hierarchy depth
-        signals_with_depth = []
-
-        for signal in signals:
-            if len(hierarchy_list) == 0:
-                # If no hierarchies are provided, use hierarchy depth 0 for all signals
-                signals_with_depth.append((0, signal))
-            else:
-                for hierarchy in hierarchy_list:
-                    if hierarchy in signal:
-                        # Determine hierarchy depth by counting the number of periods in the signal
-                        hierarchy_depth = signal.count('.')
-                        signals_with_depth.append((hierarchy_depth, signal))
-                        break  # Break if the signal matches one of the hierarchies
-
-        # Sort the signals first by hierarchy depth, then alphabetically
-        signals_with_depth.sort(key=lambda x: (x[0], x[1]))
-
-        # Extract sorted signals
-        return [signal for depth, signal in signals_with_depth]
-
-
-    def replacevalue(self, wave, strval):
-        """
-        Replaces the value of a waveform based on the configuration settings.
-    
-        Args:
-            wave (str): The name of the waveform.
-            strval (str): The original value of the waveform.
-    
-        Returns:
-            str: The replaced value of the waveform, if a replacement is defined in the configuration settings. Otherwise, returns the original value.
-    
-        """
-    
-        if 'replace' in self.config and \
-                        wave in self.config['replace'] and strval in self.config['replace'][wave]:
-            return self.config['replace'][wave][strval]
-        return strval
 
 
     def homogenize_waves(self, vcd_dict, sample_points):
@@ -246,115 +112,9 @@ class VCD2Wavedrom2:
         endtime_in_common = self.config["endtime_in_common"][sample_window]
         # Perform the check
         return (tick - starttime_in_common) >= 0 and \
-                (tick- starttime_in_common) % samplerate_in_common == 0 and \
+                (tick - starttime_in_common) % samplerate_in_common == 0 and \
                 (tick < endtime_in_common)
 
-
-    def loop_and_find_sigs_clks(self, vcd, signals, clocks, clock_periods, timescale, base_unit, cmn_unit, cmn_base):
-        """
-        Loops through the VCD data and extracts signals, clocks, and the maximum time.
-
-        Args:
-            vcd (dict): The VCD data.
-            signals (set): The set to store the extracted signals.
-            clocks (set): The set to store the extracted clocks.
-            clock_periods (dict): The dictionary to store the clock periods.
-            timescale (str): The timescale of the VCD file.
-            base_unit (str): The base unit of the timescale.
-            cmn_unit (str): The common unit to convert the clock period to.
-            cmn_base (str): The base unit of the common unit.
-
-        Returns:
-            tuple: A tuple containing the maximum time value found in the VCD data and the fastest clock period.
-
-        """
-        max_time = 0
-        fastest_clock_period = float('inf')
-        for signal in vcd:
-            if signal != '$end':
-                for sig in vcd[signal].references:
-                    # signals.add(vcd[signal].references[0])
-                    if '$' in sig:
-                        continue
-                    signals.add(sig)
-
-                    # Identify clocks and determine slowest clock rate
-                    if sig.endswith('clk'):
-                        clocks.add(sig)
-                        tv_pairs = vcd[signal].tv
-                        if len(tv_pairs) > 1:
-                            clock_period = tv_pairs[1][0] - tv_pairs[0][0]
-                            fastest_clock_period = min(fastest_clock_period, clock_period)
-                            cmn_clock_period = convert_timescale_to_cmn_units(2*fastest_clock_period, timescale, cmn_unit, cmn_base)
-                            if sig not in clock_periods:
-                                clock_periods[sig] = cmn_clock_period
-
-                # Update max time
-                last_tv_pair = vcd[signal].tv[-1]
-                max_time = max(max_time, last_tv_pair[0])
-        return (max_time, fastest_clock_period)
-
-
-    def generate_config(self, output_config_file):
-        """
-        Generates a configuration file based on the VCD file.
-
-        Args:
-            output_config_file (str): The path to the output configuration file.
-
-        Returns:
-            None
-
-        """
-
-        # Load VCD file
-        vcd = VCDVCD(vcd_string=self.config['input_text'])
-        timescale = f"{int(vcd.timescale['magnitude'])}{vcd.timescale['unit']}"
-        base_unit = vcd.timescale['unit']
-        vcd = vcd.data
-        # Initialize variables
-        signals = set()
-        clocks = set()
-        clock_periods = {}
-
-        (max_time, fastest_clock_period) = self.loop_and_find_sigs_clks(vcd, signals, clocks, clock_periods, timescale, base_unit, cmn_unit, cmn_base)
-
-        # Adjust sample rate based on slowest clock (if clocks were found)
-        sample_rate = fastest_clock_period * self.config['both'] if clocks else 1
-        print(f'{fastest_clock_period=} {self.config["both"]=}')
-
-        # Get the final list of sorted and grouped signals
-        signals_final = self.group_and_sort_signals(signals, self.config['hierarchy_list'])
-        clocks_final = self.group_and_sort_signals(list(clocks), self.config['hierarchy_list'])
-
-        # Convert samplerate and endtime to the new unit
-        samplerate_conv = convert_timescale_to_cmn_units(sample_rate, timescale, cmn_unit, cmn_base)
-        endtime_conv = convert_timescale_to_cmn_units(max_time, timescale, cmn_unit, cmn_base)
-        if 'endtime' in self.config:
-            endtime_conv = self.config['endtime']
-        name = self.config['name'] if 'name' in self.config else "The waveform title"
-        clocks = [{'name': name, 'char': 'p', 'period': clock_periods[name]} for name in clocks_final]
-
-        # Generate configuration dictionary
-        config = {
-            "signal": {},
-            "filter": list(signals_final),
-            "name": f'{name}',
-            "tock": 1,
-            "replace": {},
-            "samplerate": f'{samplerate_conv}',
-            "clocks": clocks,
-            "starttime": f"[{self.config['starttime']}]",
-            "endtime": f'[{endtime_conv}]',
-            "phase_clk": 0,
-            "phase_reg": 0,
-            "phase_wir": 0
-        }
-
-        # Write configuration to file
-        with open(output_config_file, 'w') as outfile:
-            json.dump(config, outfile, indent=4)
-    
 
     def parse_gtkw_file(self, gtkw_file):
         """
@@ -366,8 +126,6 @@ class VCD2Wavedrom2:
         Returns:
             list: A list representing the structure of groups and signals, where each group contains a label, signals, and level.
         """
-
-        # Initialize with a dummy root group to handle ungrouped signals and groups
         group_structure = {'label': None, 'signals': [], 'level': 0, 'subgroups': []}
         group_stack = [group_structure]
 
@@ -377,27 +135,30 @@ class VCD2Wavedrom2:
                 if line.startswith('@') or line.startswith('*') or line.startswith('['):
                     continue  # Skip markers and settings
 
-                if line.startswith('-'):
-                    # Determine the level of hierarchy
+                if line.startswith('-+'):
+                    up_levels = line.count('+')
+                    while up_levels > 0 and len(group_stack) > 1:
+                        group_stack.pop()
+                        up_levels -= 1
+                    group = group_stack[-1]
+
+                elif line.startswith('-'):
                     level = line.count('-')
                     label = line[level:].strip()
                     new_group = {'label': label, 'signals': [], 'level': level, 'subgroups': []}
 
-                    # Pop groups from the stack until we're at the correct level
                     while group_stack and group_stack[-1]['level'] >= level:
                         group_stack.pop()
 
-                    # Append the new group to its parent
                     group_stack[-1]['subgroups'].append(new_group)
-
-                    # Push the new group onto the stack
                     group_stack.append(new_group)
 
+
                 elif line:
-                    # Add signals to the group at the top of the stack
                     group_stack[-1]['signals'].append(line)
 
-        return [group_structure]  # Return the entire structure including the dummy root group
+        return [group_structure]
+
 
 
     def build_wave_drom_structure(self, group_structure, signal_rec_dict):
@@ -573,7 +334,7 @@ class VCD2Wavedrom2:
         """
         signal_rec = {'name': wave, 'wave': '', 'data': [], 'phase': phase}
         lastval = ''
-        isbus = self.busregex2.match(wave) is not None or vcd_dict_types[wave] == 'bus'
+        isbus = self.busregex.match(wave) is not None or vcd_dict_types[wave] == 'bus'
         prev_sample_window = None
 
         for sample_point in sample_points:
@@ -596,7 +357,6 @@ class VCD2Wavedrom2:
             # Append '|' if transitioning to a new sample window
             if sample_window != prev_sample_window and prev_sample_window is not None:
                 signal_rec['wave'] += '|'
-                # print(f'Moving to a new window: {sample_window}')
 
             # Update the previous sample window
             prev_sample_window = sample_window
@@ -627,15 +387,16 @@ class VCD2Wavedrom2:
         """
         signal_suffix = wave.split('.')[-1]
         phase = self.determine_phase(signal_suffix)
-        
+
         (clock_signal, period_wd, char) = self.wave_is_a_clock(wave)
 
-        if clock_signal:
-            signal_rec = self.process_clk_signal(wave, phase, period_wd, char)
-        else:
-            signal_rec = self.process_signal(wave, phase, waveform_data, vcd_dict_types, sample_points)
-
-        return signal_rec
+        return (
+            self.process_clk_signal(wave, phase, period_wd, char)
+            if clock_signal
+            else self.process_signal(
+                wave, phase, waveform_data, vcd_dict_types, sample_points
+            )
+        )
 
 
     def determine_phase(self, signal):
@@ -732,14 +493,14 @@ class VCD2Wavedrom2:
     
         """
 
-        vcd = VCDVCD(vcd_string=self.config['input_text'])
+        vcd = self.v2wconfig.vcd
         timescale = f"{int(vcd.timescale['magnitude'])}{vcd.timescale['unit']}"
         self.config['timescale'] = timescale
         ts_unit = f"{vcd.timescale['unit']}"
         self.config['ts_unit'] = ts_unit
 
         # get the sample rate and endtime in the vcd timescale format
-        ureg = pint.UnitRegistry()
+        ureg = self.converter.ureg
         samplerate = self.config.get('samplerate', self.config['timescale'])
         self.config['samplerate_in_common'] = int(ureg(samplerate).to(ureg(ts_unit)).magnitude)
 
@@ -777,108 +538,31 @@ class VCD2Wavedrom2:
 
         # Example usage
         target_interval = self.config['samplerate']
+        # print(f'{target_interval=}')
 
         # Calculate the sample points
-        sample_points = calculate_sampling_points(timescale, target_interval, f'{max_time}{ts_unit}')
-        # pp.pprint(f'{sample_points=}')
+        sample_points = self.converter.calculate_sampling_points(
+            timescale, target_interval, f'{max_time}{ts_unit}')
         vcd_dict_homogenized = self.homogenize_waves(vcd_dict, sample_points)
-        # pp.pprint(f'{vcd_dict_homogenized=}')
-        return self.dump_wavedrom(vcd_dict_homogenized, vcd_dict_types, sample_points, group_structure)
+        return self.dump_wavedrom(
+            vcd_dict_homogenized, vcd_dict_types, sample_points, group_structure)
 
 def main(argv):
-    """
-    The main entry point of the VCD to WaveDrom conversion process.
-
-    Args:
-        argv (list): The command line arguments.
-            -i, --input: Input VCD file
-            -o, --output: Output Wavedrom file
-            -c, --config: Config file
-            -r, --samplerate: Sample rate of wavedrom
-            -s, --starttime: Time starttime from start of VCD
-            -e, --endtime: Length of time for wavedrom
-            -z, --hscale: Horizontal scale
-            -t, --top: Only output the top level signals
-            -b, --both: sample on both edges of the clock
-            -m, --makeconfig: Generate config file from VCD file
-            -g, --gtkw: Path to gtkw file for signal grouping
-            -n, --name: name of waveform
-            -hl, --hierarchy-list: used for creating the original config file. 
-                    It will take one or more options to filter the signals on
-
-    Returns:
-        None
-
-    """
-
-    parser = argparse.ArgumentParser(description='Transform VCD to wavedrom')
-    parser.add_argument('-i', '--input', dest='input', help="Input VCD file", required=True)
-    parser.add_argument('-o', '--output', dest='output', help="Output Wavedrom file")
-    parser.add_argument('-c', '--config', dest='configfile', help="Config file")
-    parser.add_argument('-r', '--samplerate', dest='samplerate', type=int, help="Sample rate of wavedrom")
-    parser.add_argument('-s', '--starttime', dest='starttime', nargs='+', help="List of start times from the VCD in the form of Xxs, e.g., 1000ns")
-    parser.add_argument('-e', '--endtime', dest='endtime', nargs='+', help="List of end times from the VCD in the form of Xxs, e.g., 1230ns")
-    parser.add_argument('-z', '--hscale', dest='hscale', type=int, help="Horizontal scale")
-    parser.add_argument('-t', '--top', dest='top', action="store_true", default=False, help="Only output the top level signals")
-    parser.add_argument('-b', '--both', dest='both', action="store_true", default=False, help="Sample the data on both edges fo the clocks")
-    parser.add_argument('-m', '--makeconfig', dest='makeconfig', help="Generate config file from VCD file", metavar='CONFIGFILE')
-    parser.add_argument('-g', '--gtkw', dest='gtkw', help="Path to gtkw file for signal grouping", metavar='FILE')
-    parser.add_argument('-n', '--name', dest='name', help="The title for the waveform")
-    parser.add_argument('-hl', '--hierarchy-list', dest='hierarchy_list', nargs='+', help="Hierarchy list", metavar='HIERARCHY')
-    # Add the -p and --profile options
-    parser.add_argument('-p', '--profile', type=str, help='Path to the profile file')
-
-    args = parser.parse_args(argv)
-    args.input = os.path.abspath(os.path.join(os.getcwd(), args.input))
 
     # Create a profiler object
     profiler = cProfile.Profile()
 
-    config = {}
-
-    if args.configfile:
-        with open(args.configfile) as json_file:
-            config |= json.load(json_file)
-
-    config['input'] = args.input
-    try:
-        with open(args.input, 'r') as f:
-            config['input_text'] = f.read()
-    except FileNotFoundError:
-        print(f'ERROR: File {args.input} not found!')
-        exit(1)
-
-    config['output'] = args.output
-    config['top'] = args.top
-    if args.samplerate is not None:
-        config['samplerate'] = args.samplerate
-    if args.endtime is not None:
-        config['endtime'] = args.endtime
-    if args.starttime is not None:
-        config['starttime'] = args.starttime
-    config['hscale'] = args.hscale if args.hscale is not None else 1
-    if args.name is not None:
-        config['name'] = args.name
-    if args.hierarchy_list:
-        config['hierarchy_list'] = args.hierarchy_list
-    elif 'hierarchy_list' not in config:
-        config['hierarchy_list'] = []
-    config['both'] = 1 if args.both is True else 2
-    if args.makeconfig:
-        config['starttime'] = args.starttime if args.starttime is not None else "5ns"
-        vcd = VCD2Wavedrom2(config)
-        vcd.generate_config(args.makeconfig)
-        exit(1)
-
     # Run the main function with profiling ================================>
     profiler.enable()
 
-    vcd = VCD2Wavedrom2(config)
-    group_structure = vcd.parse_gtkw_file(args.gtkw) if args.gtkw else [{'label':None, 'signals':config['filter'], 'level':0}]
+    vcd = VCD2Wavedrom2(argv)
+    # pp.pprint(f'{vcd.config=}')
+    group_structure = vcd.parse_gtkw_file(vcd.config['gtkw']) if 'gtkw' in vcd.config else [{'label':None, 'signals':vcd.config['filter'], 'level':0}]
+    # pp.pprint(f'{group_structure=}')
     drom = vcd.execute(group_structure)
     # Print the result
-    if config['output'] is not None:
-        f = open(config['output'], 'w')
+    if vcd.config['output'] is not None:
+        f = open(vcd.config['output'], 'w')
         f.write(json.dumps(drom, indent=4))
     else:
         print(json.dumps(drom, indent=4))
@@ -886,8 +570,8 @@ def main(argv):
     # Stop the profiler ================================>
     profiler.disable()
 
-    if args.profile:
-        with open(args.profile, 'w') as profile_file:
+    if 'profile' in vcd.config:
+        with open(vcd.config['profile'], 'w') as profile_file:
             # Create a pstats.Stats object from the saved data
             stats = pstats.Stats(profiler, stream=profile_file)
             # Sort the stats by which takes the most time and save to the same file

@@ -12,7 +12,7 @@ If one wants to look further into the main scripts, follow these links:
 
 * [Generate Verilog for some adders and multipliers](math_generate.md)
 
-* [vcd2wavedrom2](vcd2wavedrom2.md)
+* [VCD to Wavedrom 2](vcd2wavedrom2.md)
 
 ## Primary Use Classes
 

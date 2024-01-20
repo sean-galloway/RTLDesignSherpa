@@ -1,172 +1,102 @@
-# VCD2Wavedrom2
+# VCD2Wavedrom2 Class Description
 
 ## Overview
 
-`VCD2Wavedrom2` is a Python script for converting VCD (Value Change Dump) files to WaveDrom JSON format. It provides a range of features to process VCD files, group waveforms into buses, automatically configure waveform settings, and generate WaveDrom-compatible JSON data.
+`VCD2Wavedrom2` is a class designed for converting Value Change Dump (VCD) data into WaveDrom format. It provides methods for processing and generating WaveDrom JSON based on VCD data, handling configuration and command-line arguments.
 
-## Features
-
-- Converts VCD files to WaveDrom format.
-
-- Supports automatic configuration based on VCD file content.
-
-- Group's waveforms into buses.
-
-- Homogenizes waveforms by adding missing samples.
-
-- Provides options for manual configuration through command-line arguments.
-
-- Parses GTKWave save files for advanced signal grouping.
-
-## Usage
-
-```sh
-
-vcd2wavedrom2.py [-h] -i INPUT [-o OUTPUT] [-c CONFIGFILE]
-
-[-r SAMPLERATE] [-t MAXTIME] [-f OFFSET] [-z HSCALE]
-
-[--top] [-m MAKECONFIG] [-g GTKW]
-
-```
-
-### Arguments
-
-- `-i, --input`: Path to the input VCD file.
-
-- `-o, --output`: Path for the output Wavedrom JSON file.
-
-- `-c, --config`: Path to a JSON configuration file.
-
-- `-r, --samplerate`: Sample rate of WaveDrom.
-
-- `-t, --maxtime`: Maximum length of time for WaveDrom.
-
-- `-f, --offset`: Time offset from the start of the VCD.
-
-- `-z, --hscale`: Horizontal scale for WaveDrom.
-
-- `--top`: Flag to only output top-level signals.
-
-- `-m, --makeconfig`: Generate a configuration file from the VCD file.
-
-- `-g, --gtkw`: Path to a GTKWave save file for signal grouping.
-
-#### --config Usage
-
-Use the --config option to create a baseline config.json file from the vcd. This option will include all signals, correctly associate the clocks, and assign the sample time to the slowest clock. Once created, one may manually adjust the JSON file.
-
-#### GTKW Usage
-
-If you need to have hierarchical labels on the left-hand side of the wavedrom, create a dump.gtkw like this:
-
-```python
-
-fifo_async.i_wr_clk
-
--Write Port
-
-fifo_async.i_write
-
-@22
-
---Write Data
-
-fifo_async.i_wr_data[7:0]
-
-@28
-
-fifo_async.ow_wr_full
-
-@29
-
-&&
-
-fifo_async.ow_wr_almost_full
-
-```
-
-The -Write Port creates the first level of the title. The --Write Data is the second level within the -Write Port. The && takes the hierarch back to the top, and ow_wr_almost_full has no associated label.
+![VCD to Wavedrom 2](../../images_scripts_uml/VCD2Wavedrom2.svg)
 
 ## Methods
 
-### `__init__(self, config)`
+### `__init__(self, argv)`
 
-Initializes the VCD2Wavedrom2 instance with configuration settings.
+Constructor that initializes the `VCD2Wavedrom2` instance with command-line arguments. It sets up configuration and VCD processing utilities.
 
-### `replacevalue(self, wave, strval)`
+### `find_max_time_in_vcd(self, vcd)`
 
-Replaces the value of a waveform based on configuration settings.
+Finds the maximum time value in the provided VCD data.
 
-### `group_buses(self, vcd_dict, slots)`
+### `homogenize_waves(self, vcd_dict, sample_points)`
 
-Groups waveforms into buses based on naming conventions.
-
-### `auto_config_waves(self, vcd_dict)`
-
-Automatically configures waveform settings based on the VCD file.
-
-### `homogenize_waves(self, vcd_dict, timescale)`
-
-Homogenizes waveforms by adding missing samples and adjusting the time scale.
+Homogenizes waveforms by adding missing samples and adjusting the timescale.
 
 ### `includewave(self, wave)`
 
-Check to include a waveform based on configuration settings.
+Determines whether to include a waveform signal based on configuration settings.
 
-### `clockvalue(self, wave, digit)`
+### `samplenow(self, tick, sample_window)`
 
-Returns the clock value for a waveform digit based on configuration settings.
-
-### `samplenow(self, tick)`
-
-Based on configuration settings, check when to take a sample.q
-
-### `appendconfig(self, wave)`
-
-Appends configuration settings to a waveform.
-
-### `find_max_time_in_vcd(vcd)`
-
-Finds the maximum time value in the VCD file.
-
-### `generate_config(self, output_config_file)`
-
-Generates a configuration file based on the VCD file.
+Decide when to take a sample based on configuration.
 
 ### `parse_gtkw_file(self, gtkw_file)`
 
-Parses a GTKWave save file and returns the structure of groups and signals.
+Parses a GTKWave save file to determine the structure of groups and signals.
 
-### `build_wave_drom_structure(self, result_structure, signal_rec_dict)`
+### `build_wave_drom_structure(self, group_structure, signal_rec_dict)`
 
-Builds the WaveDrom structure based on the group structure and signal records.
+Builds the WaveDrom JSON structure based on groups and signal records.
 
-### `dump_wavedrom(self, vcd_dict, vcd_dict_types, timescale, result_structure)`
+### `create_signal_records(self, vcd_dict, vcd_dict_types, sample_points)`
+
+Creates waveform records for signals in the VCD dictionary.
+
+### `find_closest_data_point(self, sample_points, waveform_data)`
+
+Finds the closest data point for each sample point in the waveform data.
+
+### `wave_is_a_clock(self, wave)`
+
+Determines if the given waveform is a clock signal.
+
+### `process_clk_signal(self, wave, phase, period_wd, char)`
+
+Processes a clock signal and creates a waveform record.
+
+### `process_signal(self, wave, phase, waveform_data, vcd_dict_types, sample_points)`
+
+Processes a signal and creates a waveform record.
+
+### `create_waveform_record(self, wave, waveform_data, vcd_dict_types, sample_points)`
+
+Creates a waveform record for a single signal.
+
+### `determine_phase(self, signal)`
+
+Determines the phase based on the signal suffix.
+
+### `process_signal_value(self, signal_rec, j, isbus, lastval, wave_type)`
+
+Processes the value of a waveform.
+
+### `finalize_wave_drom_structure(self, group_structure, signal_rec_dict)`
+
+Finalizes the WaveDrom structure by determining max cycles and applying configuration.
+
+### `dump_wavedrom(self, vcd_dict, vcd_dict_types, sample_points, group_structure)`
 
 Dumps the WaveDrom JSON structure based on the VCD data and configuration settings.
 
-### `execute(self, auto, group_structure)`
+### `execute(self, group_structure)`
 
 Executes the VCD to WaveDrom conversion process.
 
-## Example Usage
+## Dependencies
 
-Run the script from the command line with the desired options. For example:
+- `V2WConfig`: Handles configuration and processing for VCD to WaveDrom conversion.
+- `VCDVCD`: Provides utilities for VCD file handling.
+- `Converter`: Used for converting units and timescales.
 
-```sh
+## Usage
 
-# Step 0: cd to the area with the simulation
+This class is typically used by initializing it with command-line arguments, parsing the necessary files, and executing the conversion process to produce WaveDrom-compatible JSON output.
 
-# Step 1: Create the config file
+---
 
-python3 \$REPO_ROOT/bin/vcd2wavedrom2.py -i dump.vcd -m config.json
+## Block Hierarchy and Links
 
-# Step 2: Generate the wavedrom file
-
-python3 \$REPO_ROOT/bin/vcd2wavedrom2.py -i dump.vcd -g debug.gtkw -c config.json -o wavedrom.json
-
-```
+- [VCD to Wavedrom 2](vcd2wavedrom2.md)
+- [V2W Converter](v2wconvert.md)
+- [V2W Config](v2wconfig.md)
 
 ---
 

@@ -6,7 +6,7 @@
     "signal": [
         {
             "name": "u_weighted_round_robin.u_rrb_arb.u_arb_raw.i_req[3:0]",
-            "wave": "=..=.=...=.......=...........=.=..",
+            "wave": "=.==.=...=.....==",
             "data": [
                 "0",
                 "F",
@@ -20,7 +20,7 @@
         },
         {
             "name": "u_weighted_round_robin.u_rrb_arb.u_arb_raw.ow_grant[3:0]",
-            "wave": "=..=.=...=.......=...........=.=..",
+            "wave": "=.==.=...=.....==",
             "data": [
                 "0",
                 "1",

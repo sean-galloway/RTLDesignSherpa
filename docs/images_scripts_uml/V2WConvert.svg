@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentStyleType="text/css" height="284px" preserveAspectRatio="none" style="width:725px;height:284px;background:#FFFFFF;" version="1.1" viewBox="0 0 725 284" width="725px" zoomAndPan="magnify"><defs/><g><!--MD5=[e09d57fb07e510e69aeb3a38c1463f7a]
+class V2WConvert--><g id="elem_V2WConvert"><rect codeLine="2" fill="#F1F1F1" height="162.0781" id="V2WConvert" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="711" x="7" y="7"/><ellipse cx="315.75" cy="23" fill="#ADD1B2" rx="11" ry="11" style="stroke:#181818;stroke-width:1.0;"/><path d="M318.7188,28.6406 Q318.1406,28.9375 317.5,29.0781 Q316.8594,29.2344 316.1563,29.2344 Q313.6563,29.2344 312.3281,27.5938 Q311.0156,25.9375 311.0156,22.8125 Q311.0156,19.6875 312.3281,18.0313 Q313.6563,16.375 316.1563,16.375 Q316.8594,16.375 317.5,16.5313 Q318.1563,16.6875 318.7188,16.9844 L318.7188,19.7031 Q318.0938,19.125 317.5,18.8594 Q316.9063,18.5781 316.2813,18.5781 Q314.9375,18.5781 314.25,19.6563 Q313.5625,20.7188 313.5625,22.8125 Q313.5625,24.9063 314.25,25.9844 Q314.9375,27.0469 316.2813,27.0469 Q316.9063,27.0469 317.5,26.7813 Q318.0938,26.5 318.7188,25.9219 L318.7188,28.6406 Z " fill="#000000"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="85" x="336.25" y="27.8467">V2WConvert</text><line style="stroke:#181818;stroke-width:0.5;" x1="8" x2="717" y1="39" y2="39"/><rect fill="none" height="6" style="stroke:#C82930;stroke-width:1.0;" width="6" x="15" y="49.6484"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="90" x="27" y="55.9951">cmn_unit: str</text><rect fill="none" height="6" style="stroke:#C82930;stroke-width:1.0;" width="6" x="15" y="65.9453"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="98" x="27" y="72.292">cmn_base: str</text><rect fill="none" height="6" style="stroke:#C82930;stroke-width:1.0;" width="6" x="15" y="82.2422"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="124" x="27" y="88.5889">ureg: UnitRegistry</text><line style="stroke:#181818;stroke-width:0.5;" x1="8" x2="717" y1="95.8906" y2="95.8906"/><ellipse cx="18" cy="109.5391" fill="#84BE84" rx="3" ry="3" style="stroke:#038048;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="58" x="27" y="112.8857">__init__()</text><ellipse cx="18" cy="125.8359" fill="#84BE84" rx="3" ry="3" style="stroke:#038048;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="685" x="27" y="129.1826">convert_timescale_to_cmn_units(value: int, current_timescale: str, cmn_unit: str, cmn_base: str): str</text><ellipse cx="18" cy="142.1328" fill="#84BE84" rx="3" ry="3" style="stroke:#038048;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="566" x="27" y="145.4795">calculate_sampling_points(vcd_timescale: str, target_interval: str, endtime: str): list</text><rect fill="#F24D5C" height="6" style="stroke:#C82930;stroke-width:1.0;" width="6" x="15" y="155.4297"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="364" x="27" y="161.7764">_convert_to_magnitude(time_base: str, units: str): int</text></g><!--MD5=[a82044a48e0df163fb877a0fcc908a96]
+class UnitRegistry--><g id="elem_UnitRegistry"><rect fill="#F1F1F1" height="48" id="UnitRegistry" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="115" x="305" y="229"/><ellipse cx="320" cy="245" fill="#ADD1B2" rx="11" ry="11" style="stroke:#181818;stroke-width:1.0;"/><path d="M322.9688,250.6406 Q322.3906,250.9375 321.75,251.0781 Q321.1094,251.2344 320.4063,251.2344 Q317.9063,251.2344 316.5781,249.5938 Q315.2656,247.9375 315.2656,244.8125 Q315.2656,241.6875 316.5781,240.0313 Q317.9063,238.375 320.4063,238.375 Q321.1094,238.375 321.75,238.5313 Q322.4063,238.6875 322.9688,238.9844 L322.9688,241.7031 Q322.3438,241.125 321.75,240.8594 Q321.1563,240.5781 320.5313,240.5781 Q319.1875,240.5781 318.5,241.6563 Q317.8125,242.7188 317.8125,244.8125 Q317.8125,246.9063 318.5,247.9844 Q319.1875,249.0469 320.5313,249.0469 Q321.1563,249.0469 321.75,248.7813 Q322.3438,248.5 322.9688,247.9219 L322.9688,250.6406 Z " fill="#000000"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="83" x="334" y="249.8467">UnitRegistry</text><line style="stroke:#181818;stroke-width:0.5;" x1="306" x2="419" y1="261" y2="261"/><line style="stroke:#181818;stroke-width:0.5;" x1="306" x2="419" y1="269" y2="269"/></g><!--MD5=[aa9da4873eccfd6533cf43afe1947541]
+link V2WConvert to UnitRegistry--><g id="link_V2WConvert_UnitRegistry"><path codeLine="13" d="M362.5,169.07 C362.5,188.74 362.5,208.53 362.5,223.84 " fill="none" id="V2WConvert-to-UnitRegistry" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="#181818" points="362.5,228.85,366.5,219.85,362.5,223.85,358.5,219.85,362.5,228.85" style="stroke:#181818;stroke-width:1.0;"/></g><!--MD5=[ce5981b7213b39d1e9e214cc09af871b]
+@startuml V2WConvert
+
+class V2WConvert {
+    - cmn_unit: str
+    - cmn_base: str
+    - ureg: UnitRegistry
+
+    + __init__()
+    + convert_timescale_to_cmn_units(value: int, current_timescale: str, cmn_unit: str, cmn_base: str): str
+    + calculate_sampling_points(vcd_timescale: str, target_interval: str, endtime: str): list
+    - _convert_to_magnitude(time_base: str, units: str): int
+}
+
+V2WConvert - -> UnitRegistry
+
+@enduml
+
+PlantUML version 1.2022.7(Mon Aug 22 10:01:30 PDT 2022)
+(GPL source distribution)
+Java Runtime: OpenJDK Runtime Environment
+JVM: OpenJDK 64-Bit Server VM
+Default Encoding: UTF-8
+Language: en
+Country: US
+--></g></svg>

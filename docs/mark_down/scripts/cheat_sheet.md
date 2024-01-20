@@ -164,24 +164,118 @@ math_generate.py --type \$type --path \$out_path --buswidth \$buswidth
 
 This script generates wavedrom files based on vcd and gtkw files. The gtkw file provides the signal selection, grouping and ordering, and adding hierarchical labels to the signals.
 
+
+### Step 0: cd to the area with the simulation
+
+### Step 1: Create the config file
+
 ```sh
+python3 $REPO_ROOT/bin/vcd2wavedrom2/vcd2wavedrom2.py -i dump.vcd -m config.json     # This will grab all of the signals in the vcd
 
-# Step 0: cd to the area with the simulation
+python3 $REPO_ROOT/bin/vcd2wavedrom2/vcd2wavedrom2.py -i dump.vcd -m config.json -hl u_weighted_round_robin -s "1290ns" -e "1320ns"
+# the -hl specifies a hierarchy to grab from the vcd; one or more may be passed in the -s/-e also specify the start and end times for the waveform.
+```
 
-# Step 1: Create the config file
+Here is what the configuration JSON file looks like when created. Adjust the signal order to your liking. Ideally, the sample rate should match the clock period.
 
-python3 $REPO_ROOT/bin/vcd2wavedrom2.py -i dump.vcd -m config.json     # This will grab all of the signals in the vcd
-
-python3 $REPO_ROOT/bin/vcd2wavedrom2.py -i dump.vcd -m config.json -hl u_weighted_round_robin -f "1290ns" -t "1320ns"   # the -hl specifies a hierarchy to grab from the vcd; one or more may be passed in
-
-# Step 1.5: Update the config file. One may want to remove or reorganize the signals. One may also want to put all of the units into something consistent, like ns.
-
-# Step 2: Generate the wavedrom file
-
-python3 $REPO_ROOT/bin/vcd2wavedrom2.py -i dump.vcd -g debug.gtkw -c config.json -o wavedrom.json    # this is a basic command line, all of the hard stuff is done when making the config file
-
+```json
+{
+    "filter": [
+        "u_fifo_sync_A.i_clk",
+        "u_fifo_sync_A.i_read",
+        "u_fifo_sync_A.i_rst_n",
+        "u_fifo_sync_A.i_wr_data[7:0]",
+        "u_fifo_sync_A.i_write",
+        "u_fifo_sync_A.ow_rd_almost_empty",
+        "u_fifo_sync_A.ow_rd_data[7:0]",
+        "u_fifo_sync_A.ow_rd_empty",
+        "u_fifo_sync_A.ow_wr_almost_full",
+        "u_fifo_sync_A.ow_wr_full",
+        "u_fifo_sync_A.r_rd_addr[5:0]",
+        "u_fifo_sync_A.r_rd_ptr_bin[6:0]",
+        "u_fifo_sync_A.r_wr_addr[5:0]",
+        "u_fifo_sync_A.r_wr_ptr_bin[6:0]",
+        "u_fifo_sync_A.w_almost_empty_count[5:0]",
+        "u_fifo_sync_A.w_almost_full_count[5:0]",
+        "u_fifo_sync_A.w_ptr_xor",
+        "u_fifo_sync_A.read_counter.i_enable",
+        "u_fifo_sync_A.read_counter.i_rst_n",
+        "u_fifo_sync_A.read_counter.o_counter_bin[6:0]",
+        "u_fifo_sync_A.write_counter.i_enable",
+        "u_fifo_sync_A.write_counter.i_rst_n",
+        "u_fifo_sync_A.write_counter.o_counter_bin[6:0]"
+    ],
+    "name": "Fifo Behavior",
+    "tock": 1,
+    "samplerate": "10ns",
+    "clocks": [
+        {
+            "name": "u_fifo_sync_A.i_clk",
+            "char": "p",
+            "period": "10ns"
+        }
+    ],
+    "starttime": ["1290ns", "1770ns"],
+    "endtime": ["1460ns", "1900ns"],
+    "phase_clk": 0,
+    "phase_reg": 0,
+    "phase_wir": 0
+}
 
 ```
+
+Fields:
+
+* filter: Filters for the signals used.
+* name: The waveform title.
+* tock: the number to start the "tock" value. Tock is a number in the middle of a clock period for reference.
+* samplerate: The frequency the signals are sampled and homogenized from the VCD file.
+* clocks: The clocks, the character to use, e.g., pPnN, and the calculated clock period from the VCD.
+* starttime: a list of times in ns/ps used to draw a portion of the waveform.
+* endtime: a list of times in ns/ps used to draw a portion of the waveform.
+* phase_*: optional phase adjustments for signal types.
+
+### Step 1.25: Update the config file. One may want to remove or reorganize the signals. One may also want to put the units into something consistent, like ns.
+
+### Step 1.5: Update the *.gtkw file if desired. The gtkw file adds hierarchy to the signals listed. Below is a sample gtkw file for FIFO listed above:
+
+```python
+weighted_round_robin_wrapper.u_fifo_sync_A.i_clk
+weighted_round_robin_wrapper.u_fifo_sync_A.i_rst_n
+-Write Interface
+weighted_round_robin_wrapper.u_fifo_sync_A.i_write
+weighted_round_robin_wrapper.u_fifo_sync_A.i_wr_data[7:0]
+--ptr
+weighted_round_robin_wrapper.u_fifo_sync_A.write_counter.o_counter_bin[6:0]
+weighted_round_robin_wrapper.u_fifo_sync_A.ow_wr_almost_full
+weighted_round_robin_wrapper.u_fifo_sync_A.ow_wr_full
+-Read Interface
+weighted_round_robin_wrapper.u_fifo_sync_A.i_read
+weighted_round_robin_wrapper.u_fifo_sync_A.ow_rd_data[7:0]
+--ptr
+weighted_round_robin_wrapper.u_fifo_sync_A.read_counter.o_counter_bin[6:0]
+weighted_round_robin_wrapper.u_fifo_sync_A.ow_rd_almost_empty
+weighted_round_robin_wrapper.u_fifo_sync_A.ow_rd_empty
+
+```
+
+Notice signals have -Write/Read Interface and ptr markings. By default, GTKWave adds a '-' in front of comment lines in the gtkw file. To add more hierarchy levels, add more '-' when adding comments to the waveform or edit the gtkw file afterward. Note: there may be many signals in the configuration JSON. However, only those signals used in the GTKW file (when using this option) appear in the final wavedrom.
+
+### Step 2: Generate the wavedrom file
+
+Here is the command to generate the FIFO waveform.
+
+```sh
+python3 $REPO_ROOT/bin/vcd2wavedrom2/vcd2wavedrom2.py -i dump.vcd -c config_fifo.json -o wavedrom_fifo_start_end.json -g fifo.gtkw
+perl -pi -e 's/weighted_round_robin_wrapper.//' wavedrom_fifo_start_end.json
+
+```
+
+There are two commands shown here. The first one makes the wavedrom file (wavedrom_fifo_start_end.json), and the second line removes an extra level of hierarchy from the signal names to make them easier to read.
+
+Here is what the final product looks like:
+
+![FIFO Wavedrom](../rtl/_wavedrom_svg/wavedrom_fifo_start_end.svg)
 
 ---
 
