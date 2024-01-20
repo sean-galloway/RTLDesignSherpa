@@ -192,3 +192,4 @@ _site/
 vendor/
 openai/
 *.ipynb
+*OLD.md
