@@ -1,0 +1,65 @@
+{
+    "filter": [
+        "round_robin_wrapper.u_arbiter_round_robin.i_block_arb",
+        "round_robin_wrapper.u_arbiter_round_robin.i_clk",
+        "round_robin_wrapper.u_arbiter_round_robin.i_req[3:0]",
+        "round_robin_wrapper.u_arbiter_round_robin.i_rst_n",
+        "round_robin_wrapper.u_arbiter_round_robin.o_gnt[3:0]",
+        "round_robin_wrapper.u_arbiter_round_robin.r_mask[3:0]",
+        "round_robin_wrapper.u_arbiter_round_robin.r_win_mask_only[3:0]",
+        "round_robin_wrapper.u_arbiter_round_robin.w_req_location[2:0]",
+        "round_robin_wrapper.u_arbiter_round_robin.w_req_masked[3:0]",
+        "round_robin_wrapper.u_arbiter_round_robin.w_req_post[3:0]",
+        "round_robin_wrapper.u_arbiter_round_robin.w_req_win_mask[3:0]",
+        "round_robin_wrapper.u_arbiter_round_robin.w_reqm_location[2:0]",
+        "round_robin_wrapper.u_arbiter_round_robin.w_vld_ffs_req",
+        "round_robin_wrapper.u_arbiter_round_robin.w_vld_ffs_reqm",
+        "round_robin_wrapper.u_arbiter_round_robin.w_win_vld",
+        "round_robin_wrapper.u_arbiter_round_robin.w_winner[2:0]",
+        "round_robin_wrapper.u_arbiter_round_robin.u_req_leading_one_trailing_one.i_data[3:0]",
+        "round_robin_wrapper.u_arbiter_round_robin.u_req_leading_one_trailing_one.ow_all_ones",
+        "round_robin_wrapper.u_arbiter_round_robin.u_req_leading_one_trailing_one.ow_all_zeroes",
+        "round_robin_wrapper.u_arbiter_round_robin.u_req_leading_one_trailing_one.ow_leadingone[2:0]",
+        "round_robin_wrapper.u_arbiter_round_robin.u_req_leading_one_trailing_one.ow_leadingone_vector[3:0]",
+        "round_robin_wrapper.u_arbiter_round_robin.u_req_leading_one_trailing_one.ow_trailingone[2:0]",
+        "round_robin_wrapper.u_arbiter_round_robin.u_req_leading_one_trailing_one.ow_trailingone_vector[3:0]",
+        "round_robin_wrapper.u_arbiter_round_robin.u_req_leading_one_trailing_one.ow_valid",
+        "round_robin_wrapper.u_arbiter_round_robin.u_reqm_leading_one_trailing_one.i_data[3:0]",
+        "round_robin_wrapper.u_arbiter_round_robin.u_reqm_leading_one_trailing_one.ow_all_ones",
+        "round_robin_wrapper.u_arbiter_round_robin.u_reqm_leading_one_trailing_one.ow_all_zeroes",
+        "round_robin_wrapper.u_arbiter_round_robin.u_reqm_leading_one_trailing_one.ow_leadingone[2:0]",
+        "round_robin_wrapper.u_arbiter_round_robin.u_reqm_leading_one_trailing_one.ow_leadingone_vector[3:0]",
+        "round_robin_wrapper.u_arbiter_round_robin.u_reqm_leading_one_trailing_one.ow_trailingone[2:0]",
+        "round_robin_wrapper.u_arbiter_round_robin.u_reqm_leading_one_trailing_one.ow_trailingone_vector[3:0]",
+        "round_robin_wrapper.u_arbiter_round_robin.u_reqm_leading_one_trailing_one.ow_valid",
+        "round_robin_wrapper.u_arbiter_round_robin.u_req_leading_one_trailing_one.u_find_first_set.i_data[3:0]",
+        "round_robin_wrapper.u_arbiter_round_robin.u_req_leading_one_trailing_one.u_find_first_set.ow_index[2:0]",
+        "round_robin_wrapper.u_arbiter_round_robin.u_req_leading_one_trailing_one.u_find_last_set.i_data[3:0]",
+        "round_robin_wrapper.u_arbiter_round_robin.u_req_leading_one_trailing_one.u_find_last_set.ow_index[2:0]",
+        "round_robin_wrapper.u_arbiter_round_robin.u_reqm_leading_one_trailing_one.u_find_first_set.i_data[3:0]",
+        "round_robin_wrapper.u_arbiter_round_robin.u_reqm_leading_one_trailing_one.u_find_first_set.ow_index[2:0]",
+        "round_robin_wrapper.u_arbiter_round_robin.u_reqm_leading_one_trailing_one.u_find_last_set.i_data[3:0]",
+        "round_robin_wrapper.u_arbiter_round_robin.u_reqm_leading_one_trailing_one.u_find_last_set.ow_index[2:0]"
+    ],
+    "name": "Simple Round Robin Arbiter",
+    "tock": 1,
+    "samplerate": "10ns",
+    "clocks": [
+        {
+            "name": "round_robin_wrapper.u_arbiter_round_robin.i_clk",
+            "char": "p",
+            "period": "10ns"
+        }
+    ],
+    "starttime": [
+        "1300ns",
+        "1500ns"
+    ],
+    "endtime": [
+        "1410ns",
+        "1660ns"
+    ],
+    "phase_clk": 0,
+    "phase_reg": 0,
+    "phase_wir": 0
+}

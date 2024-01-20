@@ -4,7 +4,7 @@
 // https://github.com/gsw73/ffs_arbiter/blob/master/design.sv
 // I made a couple of tweaks myself to make it more efficient if only one agent is requesting
 module arbiter_round_robin #(
-    parameter int CLIENTS = 16
+    parameter int CLIENTS = 4
 ) (
     input logic i_clk,
     input logic i_rst_n,

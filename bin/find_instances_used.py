@@ -15,7 +15,7 @@ def parse_makefile(makefile_path, verilog_files):
 
     used_paths = {}
     if match:
-        sources_block = match.group(1)
+        sources_block = match[1]
         for line in sources_block.splitlines():
             line = line.strip().replace('\\', '').replace('$(REPO_ROOT)/rtl/common/', '').strip()
             for vf in verilog_files:

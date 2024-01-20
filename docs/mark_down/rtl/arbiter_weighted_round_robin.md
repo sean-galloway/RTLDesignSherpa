@@ -60,13 +60,23 @@ The internal logic includes counters for managing each client's credits, functio
 
 ### Implementation Details
 
-The arbiter tracks each client's credit counters (`r_crd_cnt`). Credit counters decrease as the associated client receives service, and when a client has no remaining credits, it cannot receive access until its credit replenishing.
+The arbiter tracks each client's credit counters (`r_crd_cnt`). Credit counters increase as the associated client receives service, and when a client has no remaining credits, it cannot receive access until its credit is replenished.
 
 The credit replenishment (`w_replenish`) occurs when no asserted requests have credits left. A round-robin sub-instance (`u_rrb_arb`) makes grant decisions based on masked requests (`w_mask_req`) reflecting the current credit status.
 
+## Waveforms
+
+![WRR Start](./_wavedrom_svg/wavedrom_wrr_u_weighted_round_robin_start.svg)
+
+All requests are pegged high in this start portion of the weighted round-robin. The signal r_crd_cnt adds one to each agent's count as granted. The grant will remain asserted while the request is active and the agent has credits available. In cycle 16, the credits for all agents are consumed, so replenish asserts.
+
+![WRR Start](./_wavedrom_svg/wavedrom_wrr_u_weighted_round_robin_end.svg)
+
+In this waveform, only agents zero and one assert a request. These agents have very few credit counts (1 and 2, respectively.) Notice the replenish signal toggles more frequently.
+
 ## Diagram, assuming four clients
 
-![Fixed Priority Arbiter Diagram](./_svg/arbiter_weighted_round_robin.svg)
+![Weight Round Arbiter Diagram](./_svg/arbiter_weighted_round_robin.svg)
 
 ### Additional Information
 

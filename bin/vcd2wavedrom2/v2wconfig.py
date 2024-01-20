@@ -126,7 +126,6 @@ class V2WConfig:
         # Make the config if needed
         if args.makeconfig:
             self.config['makeconfig'] = args.makeconfig
-            self.config['starttime'] = args.starttime if args.starttime is not None else "5ns"
             self.generate_config()
             exit(1)
         if args.profile:
@@ -170,12 +169,17 @@ class V2WConfig:
             sample_rate, timescale, self.converter.cmn_unit, self.converter.cmn_base)
         endtime_conv = self.converter.convert_timescale_to_cmn_units(
             max_time, timescale, self.converter.cmn_unit, self.converter.cmn_base)
+        if 'starttime' in self.config:
+            starttime_list = self.config['starttime']
+        else:
+            starttime_list = ["5ns"]
         if 'endtime' in self.config:
-            endtime_conv = self.config['endtime']
+            endtime_list = self.config['endtime']
+        else:
+            endtime_list = [endtime_conv]
+
         name = self.config['name'] if 'name' in self.config else "The waveform title"
         clocks = [{'name': name, 'char': 'p', 'period': clock_periods[name]} for name in clocks_final]
-        starttime = [self.config['starttime']]
-        endtime = [endtime_conv]
         
         # Generate configuration dictionary
         config = {
@@ -184,8 +188,8 @@ class V2WConfig:
             "tock": 1,
             "samplerate": f'{samplerate_conv}',
             "clocks": clocks,
-            "starttime": starttime,
-            "endtime": endtime,
+            "starttime": starttime_list,
+            "endtime": endtime_list,
             "phase_clk": 0,
             "phase_reg": 0,
             "phase_wir": 0

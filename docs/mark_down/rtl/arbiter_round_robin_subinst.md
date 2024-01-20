@@ -55,11 +55,20 @@ The arbiter works round-robin, ensuring that client access starvation does not o
 
 To include and use this module within a larger Verilog project, ensure to instantiate it correctly and provide a fixed priority arbiter named `arbiter_fixed_priority`. The specifics of the `arbiter_fixed_priority` are not detailed here, and this module must be defined elsewhere in the design.
 
+## Waveforms
+
+![Arb Fixed Start](./_wavedrom_svg/wavedrom_u_rrb_arb_start.svg)
+
+In this waveform, we notice ow_grant cycles from agent 0 to agent 3, each with more extended grant periods. The grant periods 1, 2, 4, and 6 clocks respectively. Notice that the grant remains asserted even through switching agents.
+
+![Arb Fixed End](./_wavedrom_svg/wavedrom_u_rrb_arb_end.svg)
+
+The second waveform shows switching between agent 0 and agent 1. Notice replenish happens more often. Eventually, when only agent 0 has a request and it only has one credit, replenish remains stuck at one.
+
 ## Diagram, assuming four clients
 
 ![Arbiter Round Robin Sub-Instance Diagram](./_svg/arbiter_round_robin_subinst.svg)
 
-- Note: I have no idea why yoyosys created the mux, flop, and pink inverter in the upper right-hand corner. They aren't even implied in the RTL.
 
 ## Usage Example
 

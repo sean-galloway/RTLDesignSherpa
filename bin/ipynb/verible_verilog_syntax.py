@@ -49,7 +49,7 @@ class _TreeIteratorBase:
                         reverse_children: bool = False):
         self.tree = tree
         self.reverse_children = reverse_children
-        self.filter_ = filter_ if filter_ else lambda n: True
+        self.filter_ = filter_ or (lambda n: True)
 
     def __iter__(self) -> Iterable["Node"]:
         yield from self._iter_tree(self.tree)

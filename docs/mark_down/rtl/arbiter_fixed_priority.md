@@ -20,6 +20,14 @@
 
 4. Once granted (`w_found` is '1'), no other grants will be issued during that cycle, ensuring only one client has access.
 
+## Waveforms
+
+![Arb Fixed Start](./_wavedrom_svg/wavedrom_u_rrb_arb_raw_start.svg)
+In this waveform, all of the requests are asserted at the beginning. The requests get granted from bit 0 to bit N. We can see the lower bits, incrementally get masked out.
+
+![Arb Fixed End](./_wavedrom_svg/wavedrom_u_rrb_arb_raw_end.svg)
+In this waveform, only req0 and req1 are asserting in the end. We see the arbiter ping back and for between the two, depending on their credit allowance.
+
 ## Diagram, assuming four clients
 
 ![Fixed Priority Arbiter Diagram](./_svg/arbiter_fixed_priority.svg)

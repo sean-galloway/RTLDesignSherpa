@@ -1,0 +1,115 @@
+{
+    "head": {
+        "text": "Simple Round Robin Arbiter",
+        "tock": 1
+    },
+    "signal": [
+        {
+            "name": "u_arbiter_round_robin.i_clk",
+            "wave": "ppppppppppp|pppppppppppppppp",
+            "data": [],
+            "phase": 0,
+            "period": 1.0
+        },
+        {
+            "name": "u_arbiter_round_robin.i_rst_n",
+            "wave": "1..........|................",
+            "data": [],
+            "phase": 0
+        },
+        [
+            "Interface",
+            {
+                "name": "u_arbiter_round_robin.i_block_arb",
+                "wave": "1.0........|................",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "u_arbiter_round_robin.i_req[3:0]",
+                "wave": "=..........|=.....=.......=.",
+                "data": [
+                    "F",
+                    "3",
+                    "1",
+                    "0"
+                ],
+                "phase": 0
+            },
+            {
+                "name": "u_arbiter_round_robin.o_gnt[3:0]",
+                "wave": "=..========|.======........=",
+                "data": [
+                    "0",
+                    "8",
+                    "4",
+                    "2",
+                    "1",
+                    "8",
+                    "4",
+                    "2",
+                    "1",
+                    "2",
+                    "1",
+                    "2",
+                    "1",
+                    "2",
+                    "1",
+                    "0"
+                ],
+                "phase": 0
+            }
+        ],
+        [
+            "Internals",
+            {
+                "name": "u_arbiter_round_robin.r_mask[3:0]",
+                "wave": "=..========|.======.........",
+                "data": [
+                    "0",
+                    "7",
+                    "3",
+                    "1",
+                    "0",
+                    "7",
+                    "3",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0"
+                ],
+                "phase": 0
+            },
+            {
+                "name": "u_arbiter_round_robin.w_winner[2:0]",
+                "wave": "=.=========|======..........",
+                "data": [
+                    "0",
+                    "3",
+                    "2",
+                    "1",
+                    "0",
+                    "3",
+                    "2",
+                    "1",
+                    "0",
+                    "3",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0"
+                ],
+                "phase": 0
+            }
+        ]
+    ],
+    "config": {
+        "hscale": 1
+    }
+}
