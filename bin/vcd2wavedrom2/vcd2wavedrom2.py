@@ -16,6 +16,7 @@ class VCD2Wavedrom2:
     def __init__(self, argv):
         self.v2wconfig = V2WConfig(argv)
         self.config = self.v2wconfig.config
+        self.enum_dict = self.v2wconfig.enum_dict
         self.converter = self.v2wconfig.converter
         self.vcd = self.v2wconfig.vcd
 
@@ -173,10 +174,11 @@ class VCD2Wavedrom2:
             dict: The WaveDrom structure representing the waveforms.
 
         """
+        hscale = 1 if 'hscale' not in self.config else self.config['hscale']
         wave_drom_structure = {
             'head': {'text': self.config['name'], 'tock': self.config['tock']},
             'signal': [],
-            'config': {'hscale': self.config['hscale']}
+            'config': {'hscale': hscale}
         }
 
         def process_group(group):
@@ -192,7 +194,7 @@ class VCD2Wavedrom2:
 
             """
             group_content = []
-            
+
             for signal in group['signals']:
                 signal_data = signal_rec_dict.get(signal, {'name': signal, 'wave': 'x'})
                 group_content.append(signal_data)
@@ -426,8 +428,17 @@ class VCD2Wavedrom2:
         if isbus or wave_type == 'string':
             if lastval != j[1]:
                 digit = '='
+                value_replace = value
+                sig = signal_rec['name']
+                if sig in self.enum_dict:
+                    # pp.pprint(f'{self.enum_dict[sig]=}')
+                    value_str = str(value)
+                    if value_str in self.enum_dict[sig]:
+                        value_replace = self.enum_dict[sig][value_str]
+                    else:
+                        print(f'Error: tried to replace enum signal ({sig}) for value ({value_str}), but it is not in the list')
                 if 'x' not in j[1]:
-                    signal_rec['data'].append(value)
+                    signal_rec['data'].append(value_replace)
                 else:
                     digit = 'x'
         else:
@@ -541,9 +552,13 @@ class VCD2Wavedrom2:
         # print(f'{target_interval=}')
 
         # Calculate the sample points
+        # pp.pprint(f"{self.config['starttime']}")
+        # pp.pprint(f"{self.config['endtime']}")
         sample_points = self.converter.calculate_sampling_points(
-            timescale, target_interval, f'{max_time}{ts_unit}')
+            timescale, target_interval, self.config['starttime'], self.config['endtime'])
+        # pp.pprint(f'{sample_points=}')
         vcd_dict_homogenized = self.homogenize_waves(vcd_dict, sample_points)
+        # pp.pprint(f'{vcd_dict_homogenized=}')
         return self.dump_wavedrom(
             vcd_dict_homogenized, vcd_dict_types, sample_points, group_structure)
 

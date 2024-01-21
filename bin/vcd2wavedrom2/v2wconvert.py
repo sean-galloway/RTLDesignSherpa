@@ -37,27 +37,32 @@ class V2WConvert:
         return f'{round(value_in_current_units.to(ureg(cmn_unit)).magnitude)}{cmn_base}'
 
 
-    def calculate_sampling_points(self, vcd_timescale, target_interval, endtime):
+    def calculate_sampling_points(self, vcd_timescale, target_interval, starttime_windows, endtime_windows):
         """
-        Calculates the sampling points for a given VCD timescale, target interval, and end time.
+        Calculates the sampling points for given VCD timescale and target interval, only within specified time windows.
 
         Args:
             vcd_timescale: The timescale of the VCD file (e.g., '1ns', '10ps').
             target_interval: The desired interval between sampling points (e.g., '100ps', '1ns').
-            endtime: The end time of the waveform (e.g., '1us', '10ms').
+            starttime_windows: List of start times for sampling windows.
+            endtime_windows: List of end times for sampling windows.
 
         Returns:
-            list: A list of sampling points, represented as integers.
-
+            list: A list of unique and sorted sampling points, represented as integers.
         """
-        # Convert timescale, interval, and endtime to seconds
-        timescale_sec = self._convert_to_magnitude(vcd_timescale, '1s')
-        interval_sec = self._convert_to_magnitude(target_interval, '1s')
-        endtime_sec = self._convert_to_magnitude(endtime, '1s')
-        # Calculate the number of sample points
-        num_points = int(endtime_sec / interval_sec)
+        interval_ts = self._convert_to_magnitude(target_interval, vcd_timescale)
 
-        return [int(i * interval_sec / timescale_sec) for i in range(num_points + 1)]
+        sampling_points = set()
+
+        for start_time, end_time in zip(starttime_windows, endtime_windows):
+            start_ts = self._convert_to_magnitude(start_time, vcd_timescale)
+            # add one more on so that the range works
+            end_ts = self._convert_to_magnitude(end_time, vcd_timescale) + interval_ts
+
+            window_points = list(range(start_ts, end_ts, interval_ts))
+            sampling_points.update(window_points)
+
+        return sorted(sampling_points)
 
     
     def _convert_to_magnitude(self, time_base, units):
@@ -73,4 +78,4 @@ class V2WConvert:
 
         """
         ureg = self.ureg
-        return ureg(time_base).to(ureg(units)).magnitude
+        return round(ureg(time_base).to(ureg(units)).magnitude)

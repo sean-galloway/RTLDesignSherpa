@@ -9,6 +9,7 @@ class V2WConfig:
 
     def __init__(self, argv):
         self.config = {}
+        self.enum_dict = {}
         self.converter = V2WConvert()
         self.vcd = None
         self.argparse(argv)
@@ -94,6 +95,8 @@ class V2WConfig:
         if args.configfile:
             with open(args.configfile) as json_file:
                 self.config |= json.load(json_file)
+            if 'enum_list' in self.config and len(self.config['enum_list']) > 0:
+                self.enum_dict = {item['name']: item['enum'] for item in self.config['enum_list']}
 
         self.config['input'] = args.input
         try:
@@ -111,7 +114,8 @@ class V2WConfig:
             self.config['endtime'] = args.endtime
         if args.starttime is not None:
             self.config['starttime'] = args.starttime
-        self.config['hscale'] = args.hscale if args.hscale is not None else 1
+        if args.hscale is not None:
+            self.config['hscale'] = args.hscale
         if args.gtkw:
             self.config['gtkw'] = args.gtkw
         if args.name is not None:
@@ -180,19 +184,22 @@ class V2WConfig:
 
         name = self.config['name'] if 'name' in self.config else "The waveform title"
         clocks = [{'name': name, 'char': 'p', 'period': clock_periods[name]} for name in clocks_final]
-        
+        hscale = 1 if 'hscale' not in self.config else self.config['hscale']
+
         # Generate configuration dictionary
         config = {
             "filter": list(signals_final),
             "name": f'{name}',
             "tock": 1,
             "samplerate": f'{samplerate_conv}',
+            "hscale": hscale,
             "clocks": clocks,
             "starttime": starttime_list,
             "endtime": endtime_list,
             "phase_clk": 0,
             "phase_reg": 0,
-            "phase_wir": 0
+            "phase_wir": 0,
+            "enum_list": []
         }
 
         # Write configuration to file

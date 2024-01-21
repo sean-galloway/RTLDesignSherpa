@@ -1,0 +1,44 @@
+{
+    "filter": [
+        "bin_to_bcd.i_binary[7:0]",
+        "bin_to_bcd.i_clk",
+        "bin_to_bcd.i_rst_n",
+        "bin_to_bcd.i_start",
+        "bin_to_bcd.o_bcd[11:0]",
+        "bin_to_bcd.o_done",
+        "bin_to_bcd.r_bcd[11:0]",
+        "bin_to_bcd.r_binary[7:0]",
+        "bin_to_bcd.r_digit_index[1:0]",
+        "bin_to_bcd.r_dv",
+        "bin_to_bcd.r_fsm_main[5:0]",
+        "bin_to_bcd.r_loop_count[7:0]",
+        "bin_to_bcd.w_bcd_digit[3:0]"
+    ],
+    "name": "Binary to BCD FSM",
+    "tock": 1,
+    "hscale": 2,
+    "samplerate": "10ns",
+    "clocks": [
+        {
+            "name": "bin_to_bcd.i_clk",
+            "char": "p",
+            "period": "10ns"
+        }
+    ],
+    "starttime": [
+        "115940ns"
+    ],
+    "endtime": [
+        "116130ns"
+    ],
+    "phase_clk": 0,
+    "phase_reg": 0,
+    "phase_wir": 0,
+    "enum_list" : [{"name":"bin_to_bcd.r_fsm_main[5:0]", 
+                    "enum":{"1" :"IDLE", 
+                            "2" :"SHIFT",
+                            "4" :"CK_S_IDX",
+                            "8" :"ADD", 
+                            "10":"CK_D_IDX",
+                            "20":"BCD_DONE"}}]
+}

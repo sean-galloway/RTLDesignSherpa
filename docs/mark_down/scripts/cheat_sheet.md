@@ -208,6 +208,7 @@ Here is what the configuration JSON file looks like when created. Adjust the sig
     "name": "Fifo Behavior",
     "tock": 1,
     "samplerate": "10ns",
+    "hscale": 1,
     "clocks": [
         {
             "name": "u_fifo_sync_A.i_clk",
@@ -230,10 +231,12 @@ Fields:
 * name: The waveform title.
 * tock: the number to start the "tock" value. Tock is a number in the middle of a clock period for reference.
 * samplerate: The frequency the signals are sampled and homogenized from the VCD file.
+* hscale: The horizontal scale for this drawing.
 * clocks: The clocks, the character to use, e.g., pPnN, and the calculated clock period from the VCD.
 * starttime: a list of times in ns/ps used to draw a portion of the waveform.
 * endtime: a list of times in ns/ps used to draw a portion of the waveform.
 * phase_*: optional phase adjustments for signal types.
+* enum_list: shown below, this lets one enumerate the FSM state names
 
 ### Step 1.25: Update the config file. One may want to remove or reorganize the signals. One may also want to put the units into something consistent, like ns.
 
@@ -276,6 +279,57 @@ There are two commands shown here. The first one makes the wavedrom file (wavedr
 Here is what the final product looks like:
 
 ![FIFO Wavedrom](../rtl/_wavedrom_svg/wavedrom_fifo_start_end.svg)
+
+
+### An Enumerated FSM example
+
+Here is the JSON file for an enumerated FSM:
+
+```json
+{
+    "filter": [
+        "bin_to_bcd.i_binary[7:0]",
+        "bin_to_bcd.i_clk",
+        "bin_to_bcd.i_rst_n",
+        "bin_to_bcd.i_start",
+        "bin_to_bcd.o_bcd[11:0]",
+        "bin_to_bcd.o_done",
+        "bin_to_bcd.r_fsm_main[5:0]"
+    ],
+    "name": "Binary to BCD FSM",
+    "tock": 1,
+    "samplerate": "10ns",
+    "hscale": 2,
+    "clocks": [
+        {
+            "name": "bin_to_bcd.i_clk",
+            "char": "p",
+            "period": "10ns"
+        }
+    ],
+    "starttime": [
+        "115940ns"
+    ],
+    "endtime": [
+        "116130ns"
+    ],
+    "phase_clk": 0,
+    "phase_reg": 0,
+    "phase_wir": 0,
+    "enum_list" : [{"name":"bin_to_bcd.r_fsm_main[5:0]", 
+                    "enum":{"1" :"IDLE", 
+                            "2" :"SHIFT",
+                            "4" :"CK_S_IDX",
+                            "8" :"ADD", 
+                            "10":"CK_D_IDX",
+                            "20":"BCD_DONE"}}]
+}
+
+```
+
+The enum_list is a list of dictionaries. So, more than one FSM could be enumerated this way.
+
+![Binary to BCD Enum Wavedrom](../rtl/_wavedrom_svg/wavedrom_binary_to_bcd_enum.svg)
 
 ---
 
