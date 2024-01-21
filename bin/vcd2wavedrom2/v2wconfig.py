@@ -171,6 +171,8 @@ class V2WConfig:
         # Convert samplerate and endtime to the new unit
         samplerate_conv = self.converter.convert_timescale_to_cmn_units(
             sample_rate, timescale, self.converter.cmn_unit, self.converter.cmn_base)
+        if samplerate_conv == '0ns':
+            samplerate_conv = '10ns'
         endtime_conv = self.converter.convert_timescale_to_cmn_units(
             max_time, timescale, self.converter.cmn_unit, self.converter.cmn_base)
         if 'starttime' in self.config:

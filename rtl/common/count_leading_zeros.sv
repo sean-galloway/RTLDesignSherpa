@@ -1,46 +1,42 @@
 `timescale 1ns / 1ps
 
-// Taken from StackExchange:
-// https://electronics.stackexchange.com/questions/196914/verilog-synthesize-high-speed-leading-zero-count
-module count_leading_zeros (
-    i_data,
-    ow_leading_zeros_count
+module count_leading_zeros #(
+    parameter int WIDTH         = 32,
+    parameter     INSTANCE_NAME = "CLZ"  // verilog_lint: waive explicit-parameter-storage-type
+) (
+    input  logic [      WIDTH-1:0] i_data,
+    output logic [$clog2(WIDTH):0] ow_count_leading_zeros
 );
-    parameter int WIDTH = 32;
-    localparam int DoutWidth = $clog2(WIDTH) + 1;
-    localparam int DoutLRWidth = DoutWidth - 1;
-    input [WIDTH-1:0] i_data;
 
-    output [DoutWidth-1:0] ow_leading_zeros_count;
+    localparam int N = $clog2(WIDTH) + 1;
 
-    wire [DoutLRWidth-1:0] w_leading_zeros_count_r;
-    wire [DoutLRWidth-1:0] w_leading_zeros_count_l;
-
-    wire [WIDTH/2-1:0] w_data_r;
-    wire [WIDTH/2-1:0] w_data_l;
-
-    generate
-        if (WIDTH == 2)
-            assign ow_leading_zeros_count = (data == 2'b00) ? 'd2 : (data == 2'b01) ? 'd1 : 0;
-        else begin : gen_find_leading_zeroes
-            assign w_data_l = data[WIDTH-1:WIDTH/2];
-            assign w_data_r = data[WIDTH/2-1:0];
-            count_leading_zeros #(WIDTH / 2) u_nv_clz_l (
-                .i_data(w_data_l),
-                .ow_leading_zeros_count(w_leading_zeros_count_l)
-            );
-            count_leading_zeros #(WIDTH / 2) u_nv_clz_r (
-                .i_data(w_data_r),
-                .ow_leading_zeros_count(w_leading_zeros_count_r)
-            );
-            assign ow_leading_zeros_count = (~w_leading_zeros_count_l[DoutLRWidth-1]) ?
-                                                {w_leading_zeros_count_l [DoutLRWidth-1] &
-                                                    w_leading_zeros_count_r [DoutLRWidth-1],
-                                                    1'b0, w_leading_zeros_count_l[DoutLRWidth-2:0]}:
-                                                {w_leading_zeros_count_l [DoutLRWidth-1] &
-                                                    w_leading_zeros_count_r [DoutLRWidth-1],
-                                                    ~w_leading_zeros_count_r[DoutLRWidth-1],
-                                                    w_leading_zeros_count_r[DoutLRWidth-2:0]};
+    function automatic [$clog2(WIDTH):0] count_leading_zeros_func;
+        input [WIDTH-1:0] input_data;
+        logic found;
+        begin
+            count_leading_zeros_func = 0;  // Initialize to zero
+            found = 1'b0;
+            for (int i = 0; i < WIDTH; i++) begin
+                if (!input_data[i] && !found) begin
+                    count_leading_zeros_func += 1;
+                end else begin
+                    found = 1'b1; // Stop counting when the first '1' is found
+                end
+            end
         end
-    endgenerate
-endmodule
+    endfunction
+
+
+    always_comb begin
+        ow_count_leading_zeros = count_leading_zeros_func(i_data);
+        $display("CLZ: %h, %h, %t", i_data, ow_count_leading_zeros, $time);
+    end
+
+    // synopsys translate_off
+    initial begin
+        $dumpfile("dump.vcd");
+        $dumpvars(0, count_leading_zeros);
+    end
+    // synopsys translate_on
+
+endmodule : count_leading_zeros
