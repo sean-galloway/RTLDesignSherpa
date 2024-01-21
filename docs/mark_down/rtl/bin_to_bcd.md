@@ -6,7 +6,7 @@ The `bin_to_bcd` module converts a binary number to its Binary-Coded Decimal (BC
 
 `rtl/common/bin_to_bcd.sv`
 
-This SystemVerilog source file can be found at `rtl/common/bin_to_bcd.sv`.
+This SystemVerilog source file is at `rtl/common/bin_to_bcd.sv`.
 
 ### Parameters
 
@@ -22,7 +22,7 @@ This SystemVerilog source file can be found at `rtl/common/bin_to_bcd.sv`.
 
 - `i_start`: A signal to start the conversion process.
 
-- `i_binary`: The input binary number to be converted with width defined by `WIDTH`.
+- `i_binary`: The input binary number to convert with width defined by `WIDTH`.
 
 - `o_bcd`: The output BCD number with a width of `DIGITS`×4.
 
@@ -32,7 +32,7 @@ This SystemVerilog source file can be found at `rtl/common/bin_to_bcd.sv`.
 
 - `S_SHIFT`: A state to shift the binary number and BCD digits.
 
-- `S_CHECK_SHIFT_INDEX`: State to check if all binary bits are shifted.
+- `S_CHECK_SHIFT_INDEX`: State to check for bit shift completion.
 
 - `S_ADD`: State to add 3 to BCD digits if necessary.
 
@@ -52,7 +52,7 @@ This SystemVerilog source file can be found at `rtl/common/bin_to_bcd.sv`.
 
 - Checks individual BCD digits and adds 3 to each digit > 4.
 
-- Signals `o_done` when conversion is done.
+- Signals `o_done` when conversion completes.
 
 ### Waveform
 
@@ -62,9 +62,9 @@ Unfortunately, the FSM is not enumerated. We can see it moving through multiple 
 
 ### Usage
 
-When using the `bin_to_bcd` module, an instance can be created and provided with the binary number to convert. The `i_start` signal is used to initiate the conversion process. Once the conversion is done, the output will be held on `o_bcd`, and the completion of the conversion is indicated with the `o_done` signal.
+When using the `bin_to_bcd` module, an instance can be created and provided with the binary number to convert. The `i_start` signal initiates the conversion process. Once the conversion finishes, the output appears on `o_bcd`, and the completion of the conversion and the `o_done` signal asserts.
 
-This conversion mechanism allows you to convert binary numbers to their human-readable BCD counterparts, often useful for displaying the number on hardware like seven-segment displays. Remember to correctly handle reset (`i_rst_n`) to avoid undefined behavior.
+This conversion mechanism allows you to convert binary numbers to their human-readable BCD counterparts, often helpful in displaying the number on hardware like seven-segment displays. Remember to handle reset (i_rst_n) to avoid undefined behavior correctly.
 
 ### Example Instantiation
 
@@ -96,7 +96,7 @@ bin_to_bcd #(
 
 This example assumes that there are signals in the environment (`clk`, `rst_n`, `start_conversion`, `binary_input`) for controlling the bin_to_bcd block's operation.
 
-Note that proper synchronization must be considered when interfacing with this module, especially regarding the `i_start` signal, the input binary data, and the handling of the `o_done` signal. Additionally, `i_rst_n` should be asserted to ensure the FSM starts in the `S_IDLE` state upon power-up or whenever a reset is required.
+Note: ensure proper synchronization when interfacing with this module, especially regarding the `i_start` signal, the input binary data, and the handling of the `o_done` signal. Additionally, `i_rst_n` should assert to ensure the FSM starts in the `S_IDLE` state upon power-up or whenever a reset is required.
 
 Remember to instantiate this module with a suitable clock rate so that the conversion process completes within the required time frame for the given application.
 

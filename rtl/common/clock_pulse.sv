@@ -5,17 +5,31 @@ module clock_pulse #(
 ) (
     input  logic i_clk,    // Input clock signal
     input  logic i_rst_n,  // Input reset signal
-    output logic ow_pulse  // Output pulse signal
+    output logic o_pulse   // Output pulse signal
 );
 
     logic [WIDTH-1:0] r_counter;
 
     always_ff @(posedge i_clk or negedge i_rst_n) begin
-        if (!i_rst_n) r_counter <= 'b0;
-        else if (r_counter < WIDTH) r_counter <= r_counter + 1;
-        else r_counter <= 0;
+        if (!i_rst_n) begin
+            r_counter <= 'b0;
+            o_pulse <= 'b0;
+        end
+        else begin
+            if (r_counter < WIDTH - 1)
+                r_counter <= r_counter + 1;
+            else
+                r_counter <= 0;
+
+            o_pulse <= (r_counter == WIDTH - 1);
+        end
     end
 
-    assign ow_pulse = (counter == WIDTH - 1);
+    // synopsys translate_off
+    initial begin
+        $dumpfile("dump.vcd");
+        $dumpvars(0, clock_pulse);
+    end
+    // synopsys translate_on
 
 endmodule : clock_pulse

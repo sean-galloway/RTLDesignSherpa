@@ -1,0 +1,21 @@
+{
+    "filter": [
+        "bin2gray.i_binary[7:0]",
+        "bin2gray.ow_gray[7:0]"
+    ],
+    "name": "Binary to Gray",
+    "tock": 1,
+    "samplerate": "10ns",
+    "hscale": 1,
+    "clocks": [],
+    "starttime": [
+        "0ns"
+    ],
+    "endtime": [
+        "250ns"
+    ],
+    "phase_clk": 0,
+    "phase_reg": 0,
+    "phase_wir": 0,
+    "enum_list": []
+}

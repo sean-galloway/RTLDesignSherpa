@@ -1,0 +1,29 @@
+{
+    "filter": [
+        "clock_pulse.i_clk",
+        "clock_pulse.i_rst_n",
+        "clock_pulse.o_pulse",
+        "clock_pulse.r_counter[9:0]"
+    ],
+    "name": "Clock Pulse",
+    "tock": 1,
+    "samplerate": "10ns",
+    "hscale": 1,
+    "clocks": [
+        {
+            "name": "clock_pulse.i_clk",
+            "char": "p",
+            "period": "10ns"
+        }
+    ],
+    "starttime": [
+        "0ns"
+    ],
+    "endtime": [
+        "250ns"
+    ],
+    "phase_clk": 0,
+    "phase_reg": 0,
+    "phase_wir": 0,
+    "enum_list": []
+}
