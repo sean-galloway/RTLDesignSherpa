@@ -2,6 +2,7 @@
 
 // Parameterized Synchronous FIFO -- This works with any depth
 module fifo_sync #(
+    parameter int DEL = 1,
     parameter int DATA_WIDTH = 4,
     parameter int DEPTH = 4,
     parameter int ALMOST_WR_MARGIN = 1,
@@ -12,28 +13,23 @@ module fifo_sync #(
     i_rst_n,
     input  logic                  i_write,
     input  logic [DATA_WIDTH-1:0] i_wr_data,
-    output logic                  ow_wr_full,
-    output logic                  ow_wr_almost_full,
+    output logic                  o_wr_full,
+    output logic                  o_wr_almost_full,
     input  logic                  i_read,
     output logic [DATA_WIDTH-1:0] ow_rd_data,
-    output logic                  ow_rd_empty,
-    output logic                  ow_rd_almost_empty
+    output logic                  o_rd_empty,
+    output logic                  o_rd_almost_empty
 );
 
     localparam int DW = DATA_WIDTH;
     localparam int D = DEPTH;
     localparam int AW = $clog2(DEPTH);
-    localparam int AFULL = ALMOST_WR_MARGIN;
-    localparam int AEMPTY = ALMOST_RD_MARGIN;
-    localparam int AFT = D - AFULL;
-    localparam int AET = AEMPTY;
 
     /////////////////////////////////////////////////////////////////////////
     // local logics/register signals
-    logic [AW-1:0] r_wr_addr, r_rd_addr, r_pre_wr_addr;
-    logic [AW:0] r_wr_ptr_bin, r_rd_ptr_bin;
-    logic w_ptr_xor;
-    logic [AW-1:0] w_almost_full_count, w_almost_empty_count;
+    logic [AW-1:0] r_wr_addr, r_rd_addr;
+    logic [AW:0]   r_wr_ptr_bin,      r_rd_ptr_bin;
+    logic [AW:0]   w_wr_ptr_bin_next, w_rd_ptr_bin_next;
 
     // The flop storage
     logic [DW-1:0] r_mem[0:((1<<AW)-1)];  // verilog_lint: waive unpacked-dimensions-range-ordering
@@ -43,11 +39,12 @@ module fifo_sync #(
     counter_bin #(
         .WIDTH(AW + 1),
         .MAX  (D)
-    ) write_counter (
+    ) write_pointer_inst (
         .i_clk(i_clk),
         .i_rst_n(i_rst_n),
-        .i_enable(i_write && !ow_wr_full),
-        .o_counter_bin(r_wr_ptr_bin)
+        .i_enable(i_write && !o_wr_full),
+        .o_counter_bin(r_wr_ptr_bin),
+        .ow_counter_bin_next(w_wr_ptr_bin_next)
     );
 
     /////////////////////////////////////////////////////////////////////////
@@ -55,16 +52,36 @@ module fifo_sync #(
     counter_bin #(
         .WIDTH(AW + 1),
         .MAX  (D)
-    ) read_counter (
+    ) read_pointer_inst (
         .i_clk(i_clk),
         .i_rst_n(i_rst_n),
-        .i_enable(i_read && !ow_rd_empty),
-        .o_counter_bin(r_rd_ptr_bin)
+        .i_enable(i_read && !o_rd_empty),
+        .o_counter_bin(r_rd_ptr_bin),
+        .ow_counter_bin_next(w_rd_ptr_bin_next)
     );
 
     /////////////////////////////////////////////////////////////////////////
-    // XOR the two upper bits of the pointers to for use in the full/empty equations
-    assign w_ptr_xor  = r_wr_ptr_bin[AW] ^ r_rd_ptr_bin[AW];
+    // Generate the Full/Empty signals
+    fifo_control #(
+        .DEL(DEL),
+        .DEPTH(D),
+        .ADDR_WIDTH(AW),
+        .ALMOST_RD_MARGIN(ALMOST_RD_MARGIN),
+        .ALMOST_WR_MARGIN(ALMOST_WR_MARGIN)
+    ) fifo_control_inst (
+        .i_wr_clk           (i_clk),
+        .i_wr_rst_n         (i_rst_n),
+        .i_rd_clk           (i_clk),
+        .i_rd_rst_n         (i_rst_n),
+        .iw_wr_ptr_bin      (w_wr_ptr_bin_next),
+        .iw_wdom_rd_ptr_bin (w_rd_ptr_bin_next),
+        .iw_rd_ptr_bin      (w_rd_ptr_bin_next),
+        .iw_rdom_wr_ptr_bin (w_wr_ptr_bin_next),
+        .o_wr_full          (o_wr_full),
+        .o_wr_almost_full   (o_wr_almost_full),
+        .o_rd_empty         (o_rd_empty),
+        .o_rd_almost_empty  (o_rd_almost_empty)
+    );
 
     /////////////////////////////////////////////////////////////////////////
     // Get the write/read address to the memory
@@ -74,27 +91,10 @@ module fifo_sync #(
     assign ow_rd_data = r_mem[r_rd_addr];
 
     always_ff @(posedge i_clk) begin
-        if (i_write && !ow_wr_full) begin
+        if (i_write && !o_wr_full) begin
             r_mem[r_wr_addr] <= i_wr_data;
         end
     end
-
-    /////////////////////////////////////////////////////////////////////////
-    // Full and Empty signals
-    assign ow_wr_full = (w_ptr_xor && (r_wr_ptr_bin[AW-1:0] == r_rd_ptr_bin[AW-1:0]));
-    assign ow_rd_empty = (!w_ptr_xor && (r_rd_ptr_bin[AW-1:0] == r_wr_ptr_bin[AW-1:0]));
-
-    /////////////////////////////////////////////////////////////////////////
-    // Almost Full/Empty logic
-    assign w_almost_full_count = (w_ptr_xor) ?
-                        {(D - r_rd_ptr_bin[AW-1:0]) - r_wr_ptr_bin[AW-1:0]} :
-                        {r_wr_ptr_bin[AW-1:0] - r_rd_ptr_bin[AW-1:0]};
-    assign ow_wr_almost_full = w_almost_full_count >= AFT;
-
-    assign w_almost_empty_count = (w_ptr_xor) ?
-                        {(D - r_rd_ptr_bin[AW-1:0]) - r_wr_ptr_bin[AW-1:0]} :
-                        {r_wr_ptr_bin[AW-1:0] - r_rd_ptr_bin[AW-1:0]};
-    assign ow_rd_almost_empty = (w_almost_empty_count > 0) ? w_almost_empty_count <= AET : 'b0;
 
     /////////////////////////////////////////////////////////////////////////
     // error checking
@@ -109,14 +109,14 @@ module fifo_sync #(
     endgenerate
 
     always @(posedge i_clk) begin
-        if ((i_write && ow_wr_full) == 1'b1) begin
+        if ((i_write && o_wr_full) == 1'b1) begin
             $timeformat(-9, 3, " ns", 10);
             $display("Error: %s write while fifo full, %t", INSTANCE_NAME, $time);
         end
     end
 
     always @(posedge i_clk) begin
-        if ((i_read && ow_rd_empty) == 1'b1) begin
+        if ((i_read && o_rd_empty) == 1'b1) begin
             $timeformat(-9, 3, " ns", 10);
             $display("Error: %s read while fifo empty, %t", INSTANCE_NAME, $time);
         end

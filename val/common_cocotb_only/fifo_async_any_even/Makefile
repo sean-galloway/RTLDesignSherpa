@@ -12,6 +12,7 @@ VERILOG_SOURCES = \
 					$(REPO_ROOT)/rtl/common/counter_johnson.sv \
 					$(REPO_ROOT)/rtl/common/grayj2bin.sv \
 					$(REPO_ROOT)/rtl/common/glitch_free_n_dff_arn.sv \
+					$(REPO_ROOT)/rtl/common/fifo_control.sv \
 					$(REPO_ROOT)/rtl/common/fifo_async_any_even.sv
 
 DUT = fifo_async_any_even

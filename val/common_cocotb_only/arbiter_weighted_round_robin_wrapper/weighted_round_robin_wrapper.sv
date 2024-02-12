@@ -5,7 +5,7 @@ module weighted_round_robin_wrapper #(parameter int N=4) (
     input              i_rst_n,
     input              i_write_A, i_write_B, i_write_C, i_write_D, start_pwm,
     input [7:0]        i_wr_data_A, i_wr_data_B, i_wr_data_C, i_wr_data_D, ow_rd_data_E,
-    output reg         ow_wr_full_A, ow_wr_full_B, ow_wr_full_C, ow_wr_full_D,
+    output reg         o_wr_full_A, o_wr_full_B, o_wr_full_C, o_wr_full_D,
     output reg         i_read_E
 );
 
@@ -29,12 +29,12 @@ u_fifo_sync_A (
     .i_rst_n            (i_rst_n),
     .i_write            (i_write_A),
     .i_wr_data          (i_wr_data_A),
-    .ow_wr_full         (ow_wr_full_A),
-    .ow_wr_almost_full  (ow_wr_almost_full_A),
+    .o_wr_full         (o_wr_full_A),
+    .o_wr_almost_full  (o_wr_almost_full_A),
     .i_read             (i_read_A),
     .ow_rd_data         (ow_rd_data_A),
-    .ow_rd_empty        (ow_rd_empty_A),
-    .ow_rd_almost_empty (ow_rd_almost_empty_A)
+    .o_rd_empty        (o_rd_empty_A),
+    .o_rd_almost_empty (o_rd_almost_empty_A)
 );
 
 fifo_sync
@@ -50,12 +50,12 @@ u_fifo_sync_B (
     .i_rst_n            (i_rst_n),
     .i_write            (i_write_B),
     .i_wr_data          (i_wr_data_B),
-    .ow_wr_full         (ow_wr_full_B),
-    .ow_wr_almost_full  (ow_wr_almost_full_B),
+    .o_wr_full         (o_wr_full_B),
+    .o_wr_almost_full  (o_wr_almost_full_B),
     .i_read             (i_read_B),
     .ow_rd_data         (ow_rd_data_B),
-    .ow_rd_empty        (ow_rd_empty_B),
-    .ow_rd_almost_empty (ow_rd_almost_empty_B)
+    .o_rd_empty        (o_rd_empty_B),
+    .o_rd_almost_empty (o_rd_almost_empty_B)
 );
 
 fifo_sync
@@ -71,12 +71,12 @@ u_fifo_sync_C (
     .i_rst_n            (i_rst_n),
     .i_write            (i_write_C),
     .i_wr_data          (i_wr_data_C),
-    .ow_wr_full         (ow_wr_full_C),
-    .ow_wr_almost_full  (ow_wr_almost_full_C),
+    .o_wr_full         (o_wr_full_C),
+    .o_wr_almost_full  (o_wr_almost_full_C),
     .i_read             (i_read_C),
     .ow_rd_data         (ow_rd_data_C),
-    .ow_rd_empty        (ow_rd_empty_C),
-    .ow_rd_almost_empty (ow_rd_almost_empty_C)
+    .o_rd_empty        (o_rd_empty_C),
+    .o_rd_almost_empty (o_rd_almost_empty_C)
 );
 
 fifo_sync
@@ -92,12 +92,12 @@ u_fifo_sync_D (
     .i_rst_n            (i_rst_n),
     .i_write            (i_write_D),
     .i_wr_data          (i_wr_data_D),
-    .ow_wr_full         (ow_wr_full_D),
-    .ow_wr_almost_full  (ow_wr_almost_full_D),
+    .o_wr_full         (o_wr_full_D),
+    .o_wr_almost_full  (o_wr_almost_full_D),
     .i_read             (i_read_D),
     .ow_rd_data         (ow_rd_data_D),
-    .ow_rd_empty        (ow_rd_empty_D),
-    .ow_rd_almost_empty (ow_rd_almost_empty_D)
+    .o_rd_empty        (o_rd_empty_D),
+    .o_rd_almost_empty (o_rd_almost_empty_D)
 );
 
 pwm
@@ -121,15 +121,15 @@ assign i_read_B = grant[1];
 assign i_read_C = grant[2];
 assign i_read_D = grant[3];
 
-assign req_A = !ow_rd_empty_A;
-assign req_B = !ow_rd_empty_B;
-assign req_C = !ow_rd_empty_C;
-assign req_D = !ow_rd_empty_D;
+assign req_A = !o_rd_empty_A;
+assign req_B = !o_rd_empty_B;
+assign req_C = !o_rd_empty_C;
+assign req_D = !o_rd_empty_D;
 
-assign req_A_mask = !ow_rd_empty_A && !ow_rd_almost_empty_A;
-assign req_B_mask = !ow_rd_empty_B && !ow_rd_almost_empty_B;
-assign req_C_mask = !ow_rd_empty_C && !ow_rd_almost_empty_C;
-assign req_D_mask = !ow_rd_empty_D && !ow_rd_almost_empty_D;
+assign req_A_mask = !o_rd_empty_A && !o_rd_almost_empty_A;
+assign req_B_mask = !o_rd_empty_B && !o_rd_almost_empty_B;
+assign req_C_mask = !o_rd_empty_C && !o_rd_almost_empty_C;
+assign req_D_mask = !o_rd_empty_D && !o_rd_almost_empty_D;
 logic [3:0] req_orig;
 logic [3:0] req_mask;
 
@@ -172,18 +172,18 @@ u_fifo_sync_E (
     .i_rst_n            (i_rst_n),
     .i_write            (i_write_E),
     .i_wr_data          (i_wr_data_E),
-    .ow_wr_full         (ow_wr_full_E),
-    .ow_wr_almost_full  (ow_wr_almost_full_E),
+    .o_wr_full         (o_wr_full_E),
+    .o_wr_almost_full  (o_wr_almost_full_E),
     .i_read             (i_read_E),
     .ow_rd_data         (ow_rd_data_E),
-    .ow_rd_empty        (ow_rd_empty_E),
-    .ow_rd_almost_empty (ow_rd_almost_empty_E)
+    .o_rd_empty        (o_rd_empty_E),
+    .o_rd_almost_empty (o_rd_almost_empty_E)
 );
 
-assign i_read_E = !ow_rd_empty_E;
+assign i_read_E = !o_rd_empty_E;
 // always @(posedge i_clk or negedge i_rst_n) begin
 //     if (!i_rst_n) i_read_E <= 'b0;
-//     else        i_read_E <= !ow_rd_empty_E;
+//     else        i_read_E <= !o_rd_empty_E;
 // end
 
 // synopsys translate_off

@@ -18,13 +18,13 @@ module fifo_async_any_even #(
     // i_wr_clk domain
     input wire i_write,
     input wire [DATA_WIDTH-1:0] i_wr_data,
-    output reg ow_wr_full,
-    output reg ow_wr_almost_full,
+    output reg o_wr_full,
+    output reg o_wr_almost_full,
     // i_rd_clk domain
     input wire i_read,
     output wire [DATA_WIDTH-1:0] ow_rd_data,
-    output reg ow_rd_empty,
-    output reg ow_rd_almost_empty
+    output reg o_rd_empty,
+    output reg o_rd_almost_empty
 );
 
     localparam int DW = DATA_WIDTH;
@@ -32,24 +32,15 @@ module fifo_async_any_even #(
     localparam int AW = $clog2(DEPTH);
     localparam int JCW = D;  // Johnson Counter Width
     localparam int N = N_FLOP_CROSS;
-    localparam int AFULL = ALMOST_WR_MARGIN;
-    localparam int AEMPTY = ALMOST_RD_MARGIN;
-    localparam int AFT = D - AFULL;
-    localparam int AET = AEMPTY;
 
     /////////////////////////////////////////////////////////////////////////
     // local wires
     logic [AW-1:0] r_wr_addr, r_rd_addr;
 
-    logic [JCW-1:0]
-        r_wr_ptr_gray,
-        r_wdom_rd_ptr_gray,
-        r_rd_ptr_gray,
-        r_rdom_wr_ptr_gray;  // these are all based on the Johnson Counter
-    logic [AW:0] r_wr_ptr_bin, w_wdom_rd_ptr_bin, r_rd_ptr_bin, w_rdom_wr_ptr_bin;
-
-    logic [AW-1:0] w_almost_full_count, w_almost_empty_count;
-    logic w_wdom_ptr_xor, w_rdom_ptr_xor;
+    logic [JCW-1:0] r_wr_ptr_gray, r_wdom_rd_ptr_gray,
+                    r_rd_ptr_gray, r_rdom_wr_ptr_gray;  // these are all based on the Johnson Counter
+    logic [AW:0]    r_wr_ptr_bin, w_wdom_rd_ptr_bin, r_rd_ptr_bin, w_rdom_wr_ptr_bin;
+    logic [AW:0]    w_wr_ptr_bin_next, w_rd_ptr_bin_next;
 
     // The flop storage registers
     logic [DW-1:0] r_mem[0:((1<<AW)-1)];  // verilog_lint: waive unpacked-dimensions-range-ordering
@@ -62,7 +53,8 @@ module fifo_async_any_even #(
     ) wr_ptr_counter_bin (
         .i_clk(i_wr_clk),
         .i_rst_n(i_wr_rst_n),
-        .i_enable(i_write && !ow_wr_full),
+        .i_enable(i_write && !o_wr_full),
+        .ow_counter_bin_next(w_wr_ptr_bin_next),
         .o_counter_bin(r_wr_ptr_bin)
     );
 
@@ -72,7 +64,8 @@ module fifo_async_any_even #(
     ) rd_ptr_counter_bin (
         .i_clk(i_rd_clk),
         .i_rst_n(i_rd_rst_n),
-        .i_enable(i_read && !ow_rd_empty),
+        .i_enable(i_read && !o_rd_empty),
+        .ow_counter_bin_next(w_rd_ptr_bin_next),
         .o_counter_bin(r_rd_ptr_bin)
     );
 
@@ -83,7 +76,7 @@ module fifo_async_any_even #(
     ) wr_ptr_counter_gray (
         .i_clk(i_wr_clk),
         .i_rst_n(i_wr_rst_n),
-        .i_enable(i_write && !ow_wr_full),
+        .i_enable(i_write && !o_wr_full),
         .o_counter_gray(r_wr_ptr_gray)
     );
 
@@ -92,7 +85,7 @@ module fifo_async_any_even #(
     ) rd_ptr_counter_gray (
         .i_clk(i_rd_clk),
         .i_rst_n(i_rd_rst_n),
-        .i_enable(i_read && !ow_rd_empty),
+        .i_enable(i_read && !o_rd_empty),
         .o_counter_gray(r_rd_ptr_gray)
     );
 
@@ -143,11 +136,6 @@ module fifo_async_any_even #(
     );
 
     /////////////////////////////////////////////////////////////////////////
-    // XOR the two upper bits of the pointers to for use in the full/empty equations
-    assign #DEL w_wdom_ptr_xor = r_wr_ptr_bin[AW] ^ w_wdom_rd_ptr_bin[AW];
-    assign #DEL w_rdom_ptr_xor = r_rd_ptr_bin[AW] ^ w_rdom_wr_ptr_bin[AW];
-
-    /////////////////////////////////////////////////////////////////////////
     // assign read/write addresses
     assign r_wr_addr = r_wr_ptr_bin[AW-1:0];
     assign r_rd_addr = r_rd_ptr_bin[AW-1:0];
@@ -155,7 +143,7 @@ module fifo_async_any_even #(
     /////////////////////////////////////////////////////////////////////////
     // Memory Flops
     always_ff @(posedge i_wr_clk) begin
-        if (i_write && !ow_wr_full) r_mem[r_wr_addr] <= i_wr_data;
+        if (i_write && !o_wr_full) r_mem[r_wr_addr] <= i_wr_data;
     end
 
     /////////////////////////////////////////////////////////////////////////
@@ -163,22 +151,27 @@ module fifo_async_any_even #(
     assign ow_rd_data = r_mem[r_rd_addr];
 
     /////////////////////////////////////////////////////////////////////////
-    // Full and Empty signals
-    assign ow_wr_full = (w_wdom_ptr_xor && (r_wr_ptr_bin[AW-1:0] == w_wdom_rd_ptr_bin[AW-1:0]));
-
-    assign ow_rd_empty = (!w_rdom_ptr_xor && (r_rd_ptr_bin[AW-1:0] == w_rdom_wr_ptr_bin[AW-1:0]));
-
-    /////////////////////////////////////////////////////////////////////////
-    // Almost Full/Empty logic
-    assign w_almost_full_count = (w_wdom_ptr_xor) ?
-                        {(D - w_wdom_rd_ptr_bin[AW-1:0]) - r_wr_ptr_bin[AW-1:0]} :
-                        {r_wr_ptr_bin[AW-1:0] - w_wdom_rd_ptr_bin[AW-1:0]};
-    assign ow_wr_almost_full = w_almost_full_count >= AFT;
-
-    assign w_almost_empty_count = (w_rdom_ptr_xor) ?
-                        {(D - r_rd_ptr_bin[AW-1:0]) - w_rdom_wr_ptr_bin[AW-1:0]} :
-                        {w_rdom_wr_ptr_bin[AW-1:0] - r_rd_ptr_bin[AW-1:0]};
-    assign ow_rd_almost_empty = (w_almost_empty_count > 0) ? w_almost_empty_count <= AET : 'b0;
+    // Generate the Full/Empty signals
+    fifo_control #(
+        .DEL(DEL),
+        .DEPTH(D),
+        .ADDR_WIDTH(AW),
+        .ALMOST_RD_MARGIN(ALMOST_RD_MARGIN),
+        .ALMOST_WR_MARGIN(ALMOST_WR_MARGIN)
+    ) fifo_control_inst (
+        .i_wr_clk           (i_wr_clk),
+        .i_wr_rst_n         (i_wr_rst_n),
+        .i_rd_clk           (i_rd_clk),
+        .i_rd_rst_n         (i_rd_rst_n),
+        .iw_wr_ptr_bin      (w_wr_ptr_bin_next),
+        .iw_wdom_rd_ptr_bin (w_wdom_rd_ptr_bin),
+        .iw_rd_ptr_bin      (w_rd_ptr_bin_next),
+        .iw_rdom_wr_ptr_bin (w_rdom_wr_ptr_bin),
+        .o_wr_full          (o_wr_full),
+        .o_wr_almost_full   (o_wr_almost_full),
+        .o_rd_empty         (o_rd_empty),
+        .o_rd_almost_empty  (o_rd_almost_empty)
+    );
 
     /////////////////////////////////////////////////////////////////////////
     // Error checking and debug stuff
@@ -192,14 +185,14 @@ module fifo_async_any_even #(
     endgenerate
 
     always @(posedge i_wr_clk) begin
-        if (!i_wr_rst_n && (i_write && ow_wr_full) == 1'b1) begin
+        if (!i_wr_rst_n && (i_write && o_wr_full) == 1'b1) begin
             $timeformat(-9, 3, " ns", 10);
             $display("Error: %s write while fifo full, %t", INSTANCE_NAME, $time);
         end
     end
 
     always @(posedge i_rd_clk) begin
-        if (!i_wr_rst_n && (i_read && ow_rd_empty) == 1'b1) begin
+        if (!i_wr_rst_n && (i_read && o_rd_empty) == 1'b1) begin
             $timeformat(-9, 3, " ns", 10);
             $display("Error: %s read while fifo empty, %t", INSTANCE_NAME, $time);
         end

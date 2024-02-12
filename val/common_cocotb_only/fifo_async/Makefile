@@ -8,6 +8,7 @@ VERILOG_SOURCES = \
 					$(REPO_ROOT)/rtl/common/counter_bingray.sv \
 					$(REPO_ROOT)/rtl/common/gray2bin.sv \
 					$(REPO_ROOT)/rtl/common/glitch_free_n_dff_arn.sv \
+					$(REPO_ROOT)/rtl/common/fifo_control.sv \
 					$(REPO_ROOT)/rtl/common/fifo_async.sv
 
 DUT = fifo_async

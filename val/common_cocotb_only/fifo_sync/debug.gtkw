@@ -27,8 +27,8 @@ sync_fifo.i_write
 @22
 sync_fifo.i_wr_data[4:0]
 @28
-sync_fifo.ow_wr_full
-sync_fifo.ow_wr_almost_full
+sync_fifo.o_wr_full
+sync_fifo.o_wr_almost_full
 sync_fifo.r_wr_ptr_bin[2:0]
 @200
 -Read Port
@@ -37,8 +37,8 @@ sync_fifo.i_read
 @22
 sync_fifo.ow_rd_data[4:0]
 @28
-sync_fifo.ow_rd_empty
-sync_fifo.ow_rd_almost_empty
+sync_fifo.o_rd_empty
+sync_fifo.o_rd_almost_empty
 sync_fifo.r_rd_ptr_bin[2:0]
 [pattern_trace] 1
 [pattern_trace] 0

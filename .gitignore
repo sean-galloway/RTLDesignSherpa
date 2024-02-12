@@ -193,3 +193,4 @@ vendor/
 openai/
 *.ipynb
 *OLD.md
+profile.txt
