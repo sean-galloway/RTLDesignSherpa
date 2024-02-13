@@ -36,9 +36,9 @@ module fifo_async_any_even #(
     /////////////////////////////////////////////////////////////////////////
     // local wires
     logic [AW-1:0] r_wr_addr, r_rd_addr;
-
+    // these are all based on the Johnson Counter
     logic [JCW-1:0] r_wr_ptr_gray, r_wdom_rd_ptr_gray,
-                    r_rd_ptr_gray, r_rdom_wr_ptr_gray;  // these are all based on the Johnson Counter
+                    r_rd_ptr_gray, r_rdom_wr_ptr_gray;
     logic [AW:0]    r_wr_ptr_bin, w_wdom_rd_ptr_bin, r_rd_ptr_bin, w_rdom_wr_ptr_bin;
     logic [AW:0]    w_wr_ptr_bin_next, w_rd_ptr_bin_next;
 
