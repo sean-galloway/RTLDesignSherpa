@@ -99,8 +99,9 @@ endmodule : reduction_ops
 module case_mux // verilog_lint: waive module-filename
 (
     input  logic [2:0] a, b, c,
-            input  logic [1:0] sel,
-            output logic [2:0] out);
+    input  logic [1:0] sel,
+    output logic [2:0] out
+);
 
     always_comb begin
         case (sel)
@@ -121,11 +122,11 @@ endmodule : case_mux
 // Moore FSM, the commonly used type, not glitchy
 module MooreFSM_4State // verilog_lint: waive module-filename
 (
-    input wire clk,        // Clock input
-    input wire reset,      // Reset input
-    output wire state0,    // State 0 output
-    output wire state1,    // State 1 output
-    output wire state2     // State 2 output
+    input  logic clk,       // Clock input
+    input  logic reset,     // Reset input
+    output logic state0,    // State 0 output
+    output logic state1,    // State 1 output
+    output logic state2     // State 2 output
 );
 
 // Define FSM states as parameters
@@ -172,11 +173,11 @@ end
 endmodule : MooreFSM_4State
 
 module MooreFSM_4State_OneHot (
-    input wire clk,
-    input wire reset,
-    output wire state0,
-    output wire state1,
-    output wire state2
+    input  logic clk,
+    input  logic reset,
+    output logic state0,
+    output logic state1,
+    output logic state2
 );
 
     // Define FSM states with one-hot encoding
@@ -224,12 +225,12 @@ endmodule : MooreFSM_4State_OneHot
 // Mealy FSM, less Common, Glitchy
 module MealyFSM_4State // verilog_lint: waive module-filename
 (
-    input  wire clk,          // Clock input
-    input  wire reset,        // Reset input
-    input  wire input_signal, // Input to the FSM
-    output wire state0,       // State 0 output
-    output wire state1,       // State 1 output
-    output wire state2        // State 2 output
+    input  logic clk,          // Clock input
+    input  logic reset,        // Reset input
+    input  logic input_signal, // Input to the FSM
+    output logic state0,       // State 0 output
+    output logic state1,       // State 1 output
+    output logic state2        // State 2 output
 );
 
 // Define FSM states as parameters
@@ -239,7 +240,7 @@ parameter logic [1:0] S2 = 2'b10;
 parameter logic [1:0] S3 = 2'b11;
 
 // Define FSM state registers
-reg [1:0] current_state, next_state;
+logic [1:0] current_state, next_state;
 
 // State transition logic
 always @(posedge clk or posedge reset) begin
@@ -283,26 +284,26 @@ endmodule
 // Simple FIFO
 // more than simple, childishly simple (since there is minimal read adn write pointer handling), but instructive
 module SyncFIFO_8Deep ( // verilog_lint: waive module-filename
-    input  wire       clk,        // Clock input
-    input  wire       reset_n,    // Reset input
-    input  wire       write_en,   // Write enable input
-    input  wire       read_en,    // Read enable input
-    input  wire [7:0] data_in,    // Data input (8 bits)
-    output wire [7:0] data_out,   // Data output (8 bits)
-    output wire       empty,      // Empty flag (FIFO is empty)
-    output wire       full        // Full flag (FIFO is full)
+    input  logic       clk,        // Clock input
+    input  logic       reset_n,    // Reset input
+    input  logic       write_en,   // Write enable input
+    input  logic       read_en,    // Read enable input
+    input  logic [7:0] data_in,    // Data input (8 bits)
+    output logic [7:0] data_out,   // Data output (8 bits)
+    output logic       empty,      // Empty flag (FIFO is empty)
+    output logic       full        // Full flag (FIFO is full)
 );
 
 parameter int DEPTH = 8; // Depth of the FIFO
 
-reg  [7:0] memory [0:DEPTH-1]; // verilog_lint: waive unpacked-dimensions-range-ordering
-reg  [3:0] write_ptr, read_ptr;
-wire [3:0] next_write_ptr, next_read_ptr;
-wire       fifo_empty, fifo_full;
+logic [7:0] memory [0:DEPTH-1]; // verilog_lint: waive unpacked-dimensions-range-ordering
+logic [3:0] write_ptr, read_ptr;
+logic [3:0] next_write_ptr, next_read_ptr;
+logic       fifo_empty, fifo_full;
 
 // Synchronous FIFO logic
 assign fifo_empty = (write_ptr == read_ptr);
-assign fifo_full  = ((next_write_ptr == next_read_ptr) && write_en);
+assign fifo_full  = (write_ptr[3] ^ read_ptr[3]) && (write_ptr[2:0] == read_ptr[2:0]);
 
 always_ff @(posedge clk or negedge reset) begin
     if (!reset_n) begin
