@@ -110,12 +110,6 @@ The weighted round-robin arbiter presented here is a flexible solution for manag
 
 ---
 
-## Usage in tests
-
-- TBD
-
----
-
 [Return to Index](index.md)
 
 ---
