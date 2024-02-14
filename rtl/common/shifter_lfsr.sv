@@ -96,4 +96,11 @@ module shifter_lfsr #(
     assign o_lfsr_data  = r_lfsr;
     assign ow_lfsr_done = (r_lfsr[N:1] == i_seed_data) ? 1'b1 : 1'b0;
 
+    // Synopsys translate_off
+    initial begin
+        $dumpfile("dump.vcd");
+        $dumpvars(0, pwm);
+    end
+    // Synopsys translate_on
+
 endmodule : shifter_lfsr

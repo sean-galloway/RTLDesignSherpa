@@ -62,7 +62,7 @@ module fifo_control #(
 
     /////////////////////////////////////////////////////////////////////////
     // Empty Signals
-    assign w_rd_empty_d = (!w_rdom_ptr_xor && 
+    assign w_rd_empty_d = (!w_rdom_ptr_xor &&
                             (iw_rd_ptr_bin[AW-1:0] == iw_rdom_wr_ptr_bin[AW-1:0]));
     assign w_almost_empty_count = (w_rdom_ptr_xor) ?
                         {(D - iw_rd_ptr_bin[AW-1:0]) - iw_rdom_wr_ptr_bin[AW-1:0]} :

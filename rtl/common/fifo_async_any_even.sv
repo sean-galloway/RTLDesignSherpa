@@ -105,7 +105,7 @@ module fifo_async_any_even #(
     grayj2bin #(
         .JCW(JCW),
         .WIDTH(AW + 1),
-        .INSTANCE_NAME("rd_ptr_gray2bin_inst")
+        .INSTANCE_NAME("rd_ptr_johnson2bin_inst")
     ) rd_ptr_gray2bin_inst (
         .ow_binary(w_wdom_rd_ptr_bin),
         .i_gray(r_wdom_rd_ptr_gray),

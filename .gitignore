@@ -194,3 +194,4 @@ openai/
 *.ipynb
 *OLD.md
 profile.txt
+bin_OLD/
