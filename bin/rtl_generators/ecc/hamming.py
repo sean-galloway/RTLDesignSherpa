@@ -2,7 +2,7 @@ from rtl_generators.verilog.module import Module
 
 
 class Hamming(Module):
-    module_str = 'ecc_hamming'
+    module_str = 'dataint_ecc_hamming'
     param_str = 'parameter int N=8, parameter int ECC=3'
 
 
@@ -41,7 +41,7 @@ class Hamming(Module):
 
 
 class HammingEncode(Hamming):
-    module_str = 'ecc_hamming_encode'
+    module_str = 'dataint_ecc_hamming_encode'
     port_str = '''
     input   logic [N-1:0]   i_data,
     output  logic [ECC-1:0] o_ecc
@@ -85,7 +85,7 @@ class HammingEncode(Hamming):
 
 
 class HammingDecode(Hamming):
-    module_str = 'ecc_hamming_decode'
+    module_str = 'dataint_ecc_hamming_decode'
     port_str = '''
     input   logic [N-1:0]   i_data,
     input   logic [ECC-1:0] i_ecc,

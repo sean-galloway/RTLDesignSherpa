@@ -12,15 +12,15 @@ else
 fi
 rm -f $out_path/*
 
-# Adder Type
+# ECC Type
 type='hamming'
 
-# Bitwidth
+# Bus width
 buswidth=8
 
 python ecc_generate.py --type $type --path $out_path --buswidth $buswidth
 
-# Bitwidth
+# Bus width
 buswidth=32
 
 python ecc_generate.py --type $type --path $out_path --buswidth $buswidth

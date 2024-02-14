@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module ecc_hamming_encode_032 #(parameter int  N = 32,
+module dataint_ecc_hamming_encode_032 #(parameter int  N = 32,
 parameter int  ECC = 6)(
     input  logic [N-1:0]   i_data,
     output logic [ECC-1:0] o_ecc
@@ -18,7 +18,7 @@ assign o_ecc[5] = i_data[5] ^ i_data[4] ^ i_data[3] ^ i_data[2] ^ i_data[1] ^ i_
 // synopsys translate_off
 initial begin
     $dumpfile("dump.vcd");
-    $dumpvars(0, ecc_hamming_encode_032);
+    $dumpvars(0, dataint_ecc_hamming_encode_032);
 end
 // synopsys translate_on
 

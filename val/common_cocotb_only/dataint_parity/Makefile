@@ -3,8 +3,8 @@ COCOTB_REDUCED_LOG_FMT = True
 SIM ?= icarus
 VERILOG_INCLUDE_DIRS = $(REPO_ROOT)/rtl/common
 VERILOG_SOURCES =\
-					$(REPO_ROOT)/rtl/common/ecc_parity.sv
-DUT = ecc_parity
+					$(REPO_ROOT)/rtl/common/dataint_parity.sv
+DUT = dataint_parity
 MODULE = testbench
 TOPLEVEL = $(DUT)
 
