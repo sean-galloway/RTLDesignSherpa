@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 // a generic parity generator
-module parity #(
+module ecc_parity #(
     parameter int CHUNKS = 4, // Number of Chunks to check parity
     parameter int WIDTH  = 32  // Total Width of the Data
 ) (
@@ -33,8 +33,8 @@ module parity #(
     // Synopsys translate_off
     initial begin
         $dumpfile("dump.vcd");
-        $dumpvars(0, parity);
+        $dumpvars(0, ecc_parity);
     end
     // Synopsys translate_on
 
-endmodule : parity
+endmodule : ecc_parity
