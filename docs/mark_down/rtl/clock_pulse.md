@@ -12,7 +12,7 @@ This Verilog module generates a periodic pulse waveform with a width defined by 
 
 - `input logic i_rst_n`: The active-low asynchronous reset input. When driven low, it resets the internal counter to zero.
 
-- `output logic ow_pulse`: The output pulse signal. Upon meeting the pulse condition, this signal will be high for a single `i_clk` period.
+- `output logic ow_pulse`: The output pulse signal. Upon meeting the pulse condition, the ow_pulse signal is high for a single `i_clk` period.
 
 ## Internal Signals
 
@@ -25,7 +25,7 @@ This Verilog module generates a periodic pulse waveform with a width defined by 
 ## Waveform
 
 ![Clock Pulse Wave](./_wavedrom_svg/wavedrom_clock_pulse.svg)
-In this waveform, the pulse occurs every 10 clocks. The pulse signal comes directly from a flop for maximal stability.
+In this waveform, the pulse occurs every ten clocks. The pulse signal comes directly from a flop for maximal stability.
 
 ## Functionality
 
