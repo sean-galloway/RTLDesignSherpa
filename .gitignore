@@ -193,5 +193,5 @@ vendor/
 openai/
 *.ipynb
 *OLD.md
-profile.txt
 bin_OLD/
+profile.txt
