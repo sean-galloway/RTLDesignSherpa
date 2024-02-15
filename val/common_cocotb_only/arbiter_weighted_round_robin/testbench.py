@@ -1,13 +1,8 @@
 import cocotb
 from cocotb.triggers import RisingEdge, FallingEdge, Timer
 from cocotb.clock import Clock
-import random
 import os
-
-# Use the seed for reproducibility
-seed = int(os.environ.get('SEED', '0'))
-random.seed(seed)
-print(f'seed changed to {seed}')
+import random
 
 async def reset_dut(dut):
     """Reset the DUT."""
@@ -62,6 +57,10 @@ async def drive_reqs_to_zero_and_wait(dut, num_cycles):
 @cocotb.test()
 async def weighted_round_robin_test(dut):
     """Test for weighted_round_robin_wrapper."""
+    # Use the seed for reproducibility
+    seed = int(os.environ.get('SEED', '0'))
+    random.seed(seed)
+    print(f'seed changed to {seed}')
     cocotb.start_soon(Clock(dut.i_clk, 10, units="ns").start())
 
     await reset_dut(dut)

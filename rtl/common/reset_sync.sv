@@ -5,7 +5,8 @@ module reset_sync #(
     parameter int N_FLOP_CROSS = 3
 ) (
     // clocks and resets
-    input  logic i_clk, i_rst_n,
+    input  logic i_clk,
+    i_rst_n,
     output logic o_sync_rst_n
 );
 

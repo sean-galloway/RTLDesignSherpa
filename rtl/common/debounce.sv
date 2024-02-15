@@ -12,8 +12,8 @@ module debounce #(
     output logic [N-1:0] o_button      // Debounced output signals
 );
 
-    logic [DEBOUNCE_DELAY-1:0] r_shift_regs[N-1]; // Shift registers for each button
-    logic [N-1:0]              w_debounced_signals;
+    logic [DEBOUNCE_DELAY-1:0] r_shift_regs        [N-1];  // Shift registers for each button
+    logic [             N-1:0] w_debounced_signals;
 
     // Debounce logic for each button
     always_ff @(posedge i_clk or negedge i_rst_n) begin
@@ -23,8 +23,9 @@ module debounce #(
             end
         end else if (i_long_tick) begin
             for (int i = 0; i < N; i++) begin
-                r_shift_regs[i] <= {r_shift_regs[i][DEBOUNCE_DELAY-2:0],
-                                    PRESSED_STATE ? i_button[i] : ~i_button[i]};
+                r_shift_regs[i] <= {
+                    r_shift_regs[i][DEBOUNCE_DELAY-2:0], PRESSED_STATE ? i_button[i] : ~i_button[i]
+                };
             end
         end
     end

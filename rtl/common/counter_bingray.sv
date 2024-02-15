@@ -14,7 +14,7 @@ module counter_bingray #(
 
     logic [WIDTH-1:0] w_counter_bin, w_counter_gray;
 
-    assign w_counter_bin  = i_enable ? (o_counter_bin + 1) : o_counter_bin;
+    assign w_counter_bin = i_enable ? (o_counter_bin + 1) : o_counter_bin;
     assign w_counter_gray = w_counter_bin ^ (w_counter_bin >> 1);
     assign ow_counter_bin_next = w_counter_bin;
 

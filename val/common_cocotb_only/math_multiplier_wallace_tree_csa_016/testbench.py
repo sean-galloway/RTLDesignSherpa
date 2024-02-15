@@ -5,15 +5,7 @@ from cocotb.triggers import RisingEdge
 from cocotb.clock import Clock
 from cocotb.triggers import Timer
 import os
-seed = int(os.environ.get('SEED'))
-
 import random
-random.seed(seed)
-print(f'seed changed to {seed}')
-
-
-
-
 
 
 @cocotb.coroutine
@@ -24,7 +16,11 @@ def init_test(dut):
 
 @cocotb.test()
 def multiplier_wallace_tree_csa_16_test(dut): 
-
+    # Use the seed for reproducibility
+    seed = int(os.environ.get('SEED', '0'))
+    random.seed(seed)
+    print(f'seed changed to {seed}')
+    
     yield init_test(dut)
 
     N = 16

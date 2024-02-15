@@ -1,6 +1,7 @@
 import cocotb
 from cocotb.triggers import Timer
 from cocotb.binary import BinaryValue
+import os
 import random
 
 def calculate_ecc_32(data):
@@ -18,6 +19,10 @@ def calculate_ecc_32(data):
 @cocotb.test()
 async def hamming_encode_32_test(dut):
     """Test the 32-bit Hamming code encoder with a subset of inputs."""
+    # Use the seed for reproducibility
+    seed = int(os.environ.get('SEED', '0'))
+    random.seed(seed)
+    print(f'seed changed to {seed}')
     length = 32
     # Generate some data
     walk_1_through_0s = [1 << i for i in range(length)]

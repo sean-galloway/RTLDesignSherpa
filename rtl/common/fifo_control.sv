@@ -10,19 +10,19 @@ module fifo_control #(
     parameter INSTANCE_NAME = "DEADF1F0"  // verilog_lint: waive explicit-parameter-storage-type
 ) (
     // clocks and resets
-    input  logic                    i_wr_clk,
-                                    i_wr_rst_n,
-                                    i_rd_clk,
-                                    i_rd_rst_n,
+    input  logic        i_wr_clk,
+    i_wr_rst_n,
+    i_rd_clk,
+    i_rd_rst_n,
     // Pointers
-    input  logic [AW:0]             iw_wr_ptr_bin,
-    input  logic [AW:0]             iw_wdom_rd_ptr_bin,
-    input  logic [AW:0]             iw_rd_ptr_bin,
-    input  logic [AW:0]             iw_rdom_wr_ptr_bin,
-    output logic                    o_wr_full,
-    output logic                    o_wr_almost_full,
-    output logic                    o_rd_empty,
-    output logic                    o_rd_almost_empty
+    input  logic [AW:0] iw_wr_ptr_bin,
+    input  logic [AW:0] iw_wdom_rd_ptr_bin,
+    input  logic [AW:0] iw_rd_ptr_bin,
+    input  logic [AW:0] iw_rdom_wr_ptr_bin,
+    output logic        o_wr_full,
+    output logic        o_wr_almost_full,
+    output logic        o_rd_empty,
+    output logic        o_rd_almost_empty
 );
 
     localparam int D = DEPTH;
@@ -32,10 +32,10 @@ module fifo_control #(
     localparam int AFT = D - AFULL;
     localparam int AET = AEMPTY;
 
-    logic           w_ptr_xor;
-    logic           w_wr_full_d, w_wr_almost_full_d;
-    logic           w_rd_empty_d, w_rd_almost_empty_d;
-    logic [AW-1:0]  w_almost_full_count, w_almost_empty_count;
+    logic w_ptr_xor;
+    logic w_wr_full_d, w_wr_almost_full_d;
+    logic w_rd_empty_d, w_rd_almost_empty_d;
+    logic [AW-1:0] w_almost_full_count, w_almost_empty_count;
 
     /////////////////////////////////////////////////////////////////////////
     // XOR the two upper bits of the pointers to for use in the full/empty equations

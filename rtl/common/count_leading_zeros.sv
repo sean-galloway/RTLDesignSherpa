@@ -20,7 +20,7 @@ module count_leading_zeros #(
                 if (!input_data[i] && !found) begin
                     count_leading_zeros_func += 1;
                 end else begin
-                    found = 1'b1; // Stop counting when the first '1' is found
+                    found = 1'b1;  // Stop counting when the first '1' is found
                 end
             end
         end

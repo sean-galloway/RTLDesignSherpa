@@ -1,7 +1,9 @@
 import cocotb
 from cocotb.triggers import FallingEdge, Timer
 from cocotb.clock import Clock
+import os
 import random
+
 
 # Utility function to run an LFSR test with given parameters
 async def run_lfsr_test(dut, seed_value, taps, N):
@@ -64,4 +66,8 @@ async def schedule_tests(dut):
 # Entry point for the cocotb test
 @cocotb.test()
 async def dynamic_lfsr_tests(dut):
+    # Use the seed for reproducibility
+    seed = int(os.environ.get('SEED', '0'))
+    random.seed(seed)
+    print(f'seed changed to {seed}')
     await schedule_tests(dut)

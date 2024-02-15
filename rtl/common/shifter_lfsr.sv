@@ -57,10 +57,10 @@ module shifter_lfsr #(
     input  logic         i_enable,
     input  logic         i_seed_load,
     input  logic [N-1:0] i_seed_data,
-    input  logic [11:0]  i_tap0, // These are the TAP points, set to 0 if not used
-    input  logic [11:0]  i_tap1,
-    input  logic [11:0]  i_tap2,
-    input  logic [11:0]  i_tap3,
+    input  logic [ 11:0] i_tap0,       // These are the TAP points, set to 0 if not used
+    input  logic [ 11:0] i_tap1,
+    input  logic [ 11:0] i_tap2,
+    input  logic [ 11:0] i_tap3,
     output logic [N-1:0] o_lfsr_data,
     output logic         ow_lfsr_done
 );
@@ -91,7 +91,7 @@ module shifter_lfsr #(
         end
     end
 
-    assign w_xnor_out = ~^(r_lfsr[N:1] & w_taps[N:1]);
+    assign w_xnor_out   = ~^(r_lfsr[N:1] & w_taps[N:1]);
 
     assign o_lfsr_data  = r_lfsr;
     assign ow_lfsr_done = (r_lfsr[N:1] == i_seed_data) ? 1'b1 : 1'b0;
@@ -99,7 +99,7 @@ module shifter_lfsr #(
     // Synopsys translate_off
     initial begin
         $dumpfile("dump.vcd");
-        $dumpvars(0, pwm);
+        $dumpvars(0, shifter_lfsr);
     end
     // Synopsys translate_on
 

@@ -5,17 +5,7 @@ from cocotb.triggers import RisingEdge
 from cocotb.clock import Clock
 from cocotb.triggers import Timer
 import os
-seed = int(os.environ.get('SEED'))
-
 import random
-random.seed(seed)
-print(f'seed changed to {seed}')
-
-
-
-
-
-
 
 def binary_to_hex(binary_str):
     hex_str = hex(int(binary_str, 2))[2:]
@@ -31,6 +21,10 @@ def init_test(dut):
 
 @cocotb.test()
 def multiplier_dadda_tree_008_test(dut): 
+    # Use the seed for reproducibility
+    seed = int(os.environ.get('SEED', '0'))
+    random.seed(seed)
+    print(f'seed changed to {seed}')
 
     yield init_test(dut)
 

@@ -17,15 +17,15 @@ module bin_to_bcd #(
 );
 
     typedef enum logic [5:0] {
-        IDLE              = 6'b000001,
-        SHIFT             = 6'b000010,
-        CK_S_IDX          = 6'b000100,
-        ADD               = 6'b001000,
-        CK_D_IDX          = 6'b010000,
-        BCD_DONE          = 6'b100000
+        IDLE     = 6'b000001,
+        SHIFT    = 6'b000010,
+        CK_S_IDX = 6'b000100,
+        ADD      = 6'b001000,
+        CK_D_IDX = 6'b010000,
+        BCD_DONE = 6'b100000
     } fsm_state_t;
 
-    fsm_state_t r_fsm_main ;
+    fsm_state_t r_fsm_main;
 
     // The vector that contains the output BCD
     logic [DIGITS*4-1:0] r_bcd;
@@ -41,8 +41,8 @@ module bin_to_bcd #(
     localparam int MaxDigits = 256;
     logic [$clog2(MaxDigits)-1:0] r_loop_count;
 
-    logic [3:0]  w_bcd_digit;
-    logic        r_dv;
+    logic [                  3:0] w_bcd_digit;
+    logic                         r_dv;
 
     // flop all of the registers
     always_ff @(posedge i_clk or negedge i_rst_n) begin
@@ -58,76 +58,59 @@ module bin_to_bcd #(
             // Next State for the FSM and wire versions of the various control signal
             case (r_fsm_main)
                 // Stay in this state until i_start comes along
-                IDLE :
-                    begin
-                        if (i_start == 1'b1)
-                            begin
-                                r_binary  <= i_binary;
-                                r_fsm_main <= SHIFT;
-                                r_bcd     <= 0;
-                            end
-                        else
-                            r_fsm_main <= IDLE;
-                    end
+                IDLE: begin
+                    if (i_start == 1'b1) begin
+                        r_binary   <= i_binary;
+                        r_fsm_main <= SHIFT;
+                        r_bcd      <= 0;
+                    end else r_fsm_main <= IDLE;
+                end
 
                 // Always shift the BCD Vector until we have shifted all bits through
                 // Shift the most significant bit of r_binary into r_bcd lowest bit.
-                SHIFT :
-                    begin
-                        r_bcd     <= r_bcd << 1;
-                        r_bcd[0]  <= r_binary[WIDTH-1];
-                        r_binary  <= r_binary << 1;
-                        r_fsm_main <= CK_S_IDX;
-                    end
+                SHIFT: begin
+                    r_bcd      <= r_bcd << 1;
+                    r_bcd[0]   <= r_binary[WIDTH-1];
+                    r_binary   <= r_binary << 1;
+                    r_fsm_main <= CK_S_IDX;
+                end
 
                 // Check if we are done with shifting in r_binary vector
-                CK_S_IDX :
-                begin
-                    if (r_loop_count == WIDTH-1)
-                        begin
-                            r_loop_count <= 0;
-                            r_fsm_main    <= BCD_DONE;
-                        end
-                    else
-                        begin
-                            r_loop_count <= r_loop_count + 1;
-                            r_fsm_main    <= ADD;
-                        end
+                CK_S_IDX: begin
+                    if (r_loop_count == WIDTH - 1) begin
+                        r_loop_count <= 0;
+                        r_fsm_main   <= BCD_DONE;
+                    end else begin
+                        r_loop_count <= r_loop_count + 1;
+                        r_fsm_main   <= ADD;
+                    end
                 end
 
                 // Break down each BCD Digit individually. Check them one-by-one to
                 // see if they are greater than 4. If they are, increment by 3.
                 // Put the result back into r_bcd Vector.
-                ADD :
-                    begin
-                        if ( w_bcd_digit > 4)
-                            r_bcd[(r_digit_index*4)+:4] <=  w_bcd_digit + 3;
-                        r_fsm_main <= CK_D_IDX;
-                    end
+                ADD: begin
+                    if (w_bcd_digit > 4) r_bcd[(r_digit_index*4)+:4] <= w_bcd_digit + 3;
+                    r_fsm_main <= CK_D_IDX;
+                end
 
                 // Check if we are done incrementing all of the BCD Digits
-                CK_D_IDX :
-                    begin
-                        if (r_digit_index == DIGITS-1)
-                            begin
-                                r_digit_index <= 0;
-                                r_fsm_main     <= SHIFT;
-                            end
-                        else
-                            begin
-                                r_digit_index <= r_digit_index + 1;
-                                r_fsm_main     <= ADD;
-                            end
+                CK_D_IDX: begin
+                    if (r_digit_index == DIGITS - 1) begin
+                        r_digit_index <= 0;
+                        r_fsm_main    <= SHIFT;
+                    end else begin
+                        r_digit_index <= r_digit_index + 1;
+                        r_fsm_main    <= ADD;
                     end
+                end
 
-                BCD_DONE :
-                    begin
-                        r_dv      <= 1'b1;
-                        r_fsm_main <= IDLE;
-                    end
-
-                default :
+                BCD_DONE: begin
+                    r_dv       <= 1'b1;
                     r_fsm_main <= IDLE;
+                end
+
+                default: r_fsm_main <= IDLE;
             endcase
         end
     end
@@ -135,7 +118,7 @@ module bin_to_bcd #(
 
     assign w_bcd_digit = r_bcd[r_digit_index*4+:4];
 
-    assign o_bcd  = r_bcd;
+    assign o_bcd = r_bcd;
     assign o_done = r_dv;
 
     // synopsys translate_off

@@ -37,10 +37,9 @@ module fifo_async_any_even #(
     // local wires
     logic [AW-1:0] r_wr_addr, r_rd_addr;
     // these are all based on the Johnson Counter
-    logic [JCW-1:0] r_wr_ptr_gray, r_wdom_rd_ptr_gray,
-                    r_rd_ptr_gray, r_rdom_wr_ptr_gray;
-    logic [AW:0]    r_wr_ptr_bin, w_wdom_rd_ptr_bin, r_rd_ptr_bin, w_rdom_wr_ptr_bin;
-    logic [AW:0]    w_wr_ptr_bin_next, w_rd_ptr_bin_next;
+    logic [JCW-1:0] r_wr_ptr_gray, r_wdom_rd_ptr_gray, r_rd_ptr_gray, r_rdom_wr_ptr_gray;
+    logic [AW:0] r_wr_ptr_bin, w_wdom_rd_ptr_bin, r_rd_ptr_bin, w_rdom_wr_ptr_bin;
+    logic [AW:0] w_wr_ptr_bin_next, w_rd_ptr_bin_next;
 
     // The flop storage registers
     logic [DW-1:0] r_mem[0:((1<<AW)-1)];  // verilog_lint: waive unpacked-dimensions-range-ordering
@@ -159,18 +158,18 @@ module fifo_async_any_even #(
         .ALMOST_RD_MARGIN(ALMOST_RD_MARGIN),
         .ALMOST_WR_MARGIN(ALMOST_WR_MARGIN)
     ) fifo_control_inst (
-        .i_wr_clk           (i_wr_clk),
-        .i_wr_rst_n         (i_wr_rst_n),
-        .i_rd_clk           (i_rd_clk),
-        .i_rd_rst_n         (i_rd_rst_n),
-        .iw_wr_ptr_bin      (w_wr_ptr_bin_next),
-        .iw_wdom_rd_ptr_bin (w_wdom_rd_ptr_bin),
-        .iw_rd_ptr_bin      (w_rd_ptr_bin_next),
-        .iw_rdom_wr_ptr_bin (w_rdom_wr_ptr_bin),
-        .o_wr_full          (o_wr_full),
-        .o_wr_almost_full   (o_wr_almost_full),
-        .o_rd_empty         (o_rd_empty),
-        .o_rd_almost_empty  (o_rd_almost_empty)
+        .i_wr_clk          (i_wr_clk),
+        .i_wr_rst_n        (i_wr_rst_n),
+        .i_rd_clk          (i_rd_clk),
+        .i_rd_rst_n        (i_rd_rst_n),
+        .iw_wr_ptr_bin     (w_wr_ptr_bin_next),
+        .iw_wdom_rd_ptr_bin(w_wdom_rd_ptr_bin),
+        .iw_rd_ptr_bin     (w_rd_ptr_bin_next),
+        .iw_rdom_wr_ptr_bin(w_rdom_wr_ptr_bin),
+        .o_wr_full         (o_wr_full),
+        .o_wr_almost_full  (o_wr_almost_full),
+        .o_rd_empty        (o_rd_empty),
+        .o_rd_almost_empty (o_rd_almost_empty)
     );
 
     /////////////////////////////////////////////////////////////////////////

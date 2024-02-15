@@ -3,20 +3,16 @@ import itertools
 from cocotb.regression import TestFactory
 from cocotb.result import TestFailure
 import os
-seed = int(os.environ.get('SEED'))
-
 import random
-random.seed(seed)
-print(f'seed changed to {seed}')
-
-
-
-
-
 
 @cocotb.coroutine
 def run_test(dut):
     """Run test for 4-bit subtraction with borrow-in"""
+    # Use the seed for reproducibility
+    seed = int(os.environ.get('SEED', '0'))
+    random.seed(seed)
+    print(f'seed changed to {seed}')
+
     N=2**4
     for i, j in itertools.product(range(N), range(N)):
         for b_in in [0, 1]:  # Test both cases of i_b_in: 0 and 1

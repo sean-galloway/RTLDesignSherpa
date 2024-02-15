@@ -2,16 +2,7 @@ import cocotb
 from cocotb.triggers import Timer
 from cocotb.regression import TestFactory
 import os
-seed = int(os.environ.get('SEED'))
-
 import random
-random.seed(seed)
-print(f'seed changed to {seed}')
-
-
-
-
-
 
 N = 16
 C = 6
@@ -41,4 +32,8 @@ def adder_test(dut):
 
 @cocotb.test()
 def run_test(dut):
+    # Use the seed for reproducibility
+    seed = int(os.environ.get('SEED', '0'))
+    random.seed(seed)
+    print(f'seed changed to {seed}')
     yield adder_test(dut)

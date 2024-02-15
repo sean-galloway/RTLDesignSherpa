@@ -3,8 +3,9 @@
 module counter #(
     parameter int MAX = 32767
 ) (
-    input  logic  i_clk, i_rst_n,
-    output logic  ow_tick
+    input  logic i_clk,
+    i_rst_n,
+    output logic ow_tick
 );
 
     logic [$clog2(MAX)-1:0] r_count;

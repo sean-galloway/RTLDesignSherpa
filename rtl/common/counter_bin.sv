@@ -20,8 +20,7 @@ module counter_bin #(
         if (i_enable)
             if (o_counter_bin[WIDTH-2:0] == MAX - 1)
                 ow_counter_bin_next = {~o_counter_bin[WIDTH-1], {(WIDTH - 1) {1'b0}}};
-            else
-                ow_counter_bin_next = o_counter_bin + 1;
+            else ow_counter_bin_next = o_counter_bin + 1;
         else begin
             ow_counter_bin_next = o_counter_bin;
         end
@@ -29,10 +28,8 @@ module counter_bin #(
 
     // Flop stage for the counter
     always_ff @(posedge i_clk or negedge i_rst_n) begin
-        if (!i_rst_n)
-            o_counter_bin <= 'b0;
-        else
-            o_counter_bin <= ow_counter_bin_next;
+        if (!i_rst_n) o_counter_bin <= 'b0;
+        else o_counter_bin <= ow_counter_bin_next;
     end
 
 endmodule : counter_bin

@@ -1,18 +1,8 @@
 import cocotb
-import itertools
-import os
-seed = int(os.environ.get('SEED'))
-
-import random
-random.seed(seed)
-print(f'seed changed to {seed}')
-
-
-
-
-
 from cocotb.regression import TestFactory
 from cocotb.triggers import Timer
+import os
+import random
 
 @cocotb.coroutine
 def run_test(dut, a, b, c_in):
@@ -43,6 +33,10 @@ def run_tb(dut):
 
 @cocotb.coroutine
 def run_simulation(dut):
+    # Use the seed for reproducibility
+    seed = int(os.environ.get('SEED', '0'))
+    random.seed(seed)
+    print(f'seed changed to {seed}')
     yield run_tb(dut)
 
 factory = TestFactory(run_simulation)

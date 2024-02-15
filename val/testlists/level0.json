@@ -29,11 +29,82 @@
         }
     },
     {
+        "test": "val/common_cocotb_only/bin2gray",
+        "seed": "1234",
+        "param": {
+            "WIDTH": "8"
+        }
+    },
+    {
         "test": "val/common_cocotb_only/bin_to_bcd",
         "seed": "1234",
         "param": {
-            "WIDTH": "14",
-            "DIGITS": "5"
+            "WIDTH": "8",
+            "DIGITS": "3"
+        }
+    },
+    {
+        "test": "val/common_cocotb_only/clock_divider",
+        "seed": "1234",
+        "param": {}
+    },
+    {
+        "test": "val/common_cocotb_only/clock_pulse",
+        "seed": "1234",
+        "param": {}
+    },
+    {
+        "test": "val/common_cocotb_only/count_leading_zeros",
+        "seed": "1234",
+        "param": {
+            "WIDTH": "16"
+        }
+    },
+    {
+        "test": "val/common_cocotb_only/dataint_checksum",
+        "seed": "1234",
+        "param": {
+            "WIDTH": "8"
+        }
+    },
+    {
+        "test": "val/common_cocotb_only/dataint_ecc_hamming_decode_008",
+        "seed": "1234",
+        "param": {
+            "N": "8",
+            "ECC": "4"
+        }
+    },
+    {
+        "test": "val/common_cocotb_only/dataint_ecc_hamming_decode_032",
+        "seed": "1234",
+        "param": {
+            "N": "32",
+            "ECC": "6"
+        }
+    },
+    {
+        "test": "val/common_cocotb_only/dataint_ecc_hamming_encode_008",
+        "seed": "1234",
+        "param": {
+            "N": "8",
+            "ECC": "4"
+        }
+    },
+    {
+        "test": "val/common_cocotb_only/dataint_ecc_hamming_encode_032",
+        "seed": "1234",
+        "param": {
+            "N": "32",
+            "ECC": "6"
+        }
+    },
+    {
+        "test": "val/common_cocotb_only/dataint_parity",
+        "seed": "1234",
+        "param": {
+            "CHUNKS": "3",
+            "WIDTH": "10"
         }
     },
     {
@@ -152,6 +223,13 @@
         }
     },
     {
+        "test": "val/common_cocotb_only/math_divider_srt",
+        "seed": "1234",
+        "param": {
+            "DATA_WIDTH": "4"
+        }
+    },
+    {
         "test": "val/common_cocotb_only/math_multiplier_array",
         "seed": "1234",
         "param": {
@@ -260,6 +338,13 @@
         "seed": "1234",
         "param": {
             "WIDTH": "16"
+        }
+    },
+    {
+        "test": "val/common_cocotb_only/shifter_lfsr",
+        "seed": "1234",
+        "param": {
+            "N": "8"
         }
     },
     {

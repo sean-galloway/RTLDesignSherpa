@@ -13,13 +13,10 @@ module clock_pulse #(
     always_ff @(posedge i_clk or negedge i_rst_n) begin
         if (!i_rst_n) begin
             r_counter <= 'b0;
-            o_pulse <= 'b0;
-        end
-        else begin
-            if (r_counter < WIDTH - 1)
-                r_counter <= r_counter + 1;
-            else
-                r_counter <= 0;
+            o_pulse   <= 'b0;
+        end else begin
+            if (r_counter < WIDTH - 1) r_counter <= r_counter + 1;
+            else r_counter <= 0;
 
             o_pulse <= (r_counter == WIDTH - 1);
         end

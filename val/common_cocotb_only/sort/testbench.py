@@ -4,17 +4,8 @@ import cocotb
 from cocotb.triggers import RisingEdge, FallingEdge
 from cocotb.binary import BinaryValue
 from cocotb.clock import Clock
-
 import os
-seed = int(os.environ.get('SEED'))
-
 import random
-random.seed(seed)
-print(f'seed changed to {seed}')
-
-
-
-
 
 
 NUM_VALS = 10
@@ -22,6 +13,11 @@ SIZE = 16
 
 @cocotb.test()
 async def sort_test(dut):
+    # Use the seed for reproducibility
+    seed = int(os.environ.get('SEED', '0'))
+    random.seed(seed)
+    print(f'seed changed to {seed}')
+
     dut._log.info("Running test...")
 
     dut.i_data.value = 0

@@ -4,15 +4,7 @@ from cocotb.triggers import Timer
 from cocotb.regression import TestFactory
 from cocotb.result import TestFailure
 import os
-seed = int(os.environ.get('SEED'))
-
 import random
-random.seed(seed)
-print(f'seed changed to {seed}')
-
-
-
-
 
 
 @cocotb.coroutine
@@ -36,6 +28,11 @@ def adder_test(dut, a, b, c_in):
 
 @cocotb.coroutine
 def run_test(dut):
+    # Use the seed for reproducibility
+    seed = int(os.environ.get('SEED', '0'))
+    random.seed(seed)
+    print(f'seed changed to {seed}')
+
     N=4**2
     for a, b, c_in in itertools.product(range(N), range(N), range(2)):
         yield adder_test(dut, a, b, c_in)

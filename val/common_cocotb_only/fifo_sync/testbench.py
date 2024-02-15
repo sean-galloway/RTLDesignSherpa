@@ -1,18 +1,9 @@
-import os
-seed = int(os.environ.get('SEED'))
-
-import random
-random.seed(seed)
-print(f'seed changed to {seed}')
-
-
-
-
-
 import cocotb
 from cocotb.triggers import FallingEdge, Timer
 from cocotb.result import TestFailure
 from cocotb.clock import Clock
+import os
+import random
 
 TIMEOUT_CYCLES = 1000  # Adjust as necessary
 
@@ -107,6 +98,11 @@ async def delayed_read_fifo(dut, delay, expected_data_length, delay_between_read
 
 @cocotb.test()
 async def fifo_test(dut):
+    # Use the seed for reproducibility
+    seed = int(os.environ.get('SEED', '0'))
+    random.seed(seed)
+    print(f'seed changed to {seed}')
+
     dut.i_write.value = 0
     dut.i_read.value = 0
     dut.i_wr_data.value = 0

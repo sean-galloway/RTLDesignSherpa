@@ -1,5 +1,6 @@
 import cocotb
 from cocotb.triggers import Timer
+import os
 import random
 
 # A function to generate ECC for given data, mirroring your encoder's functionality.
@@ -16,6 +17,10 @@ def generate_ecc(data):
 @cocotb.test()
 async def test_hamming_decode_repair(dut):
     """Test Hamming code decoding and repair for all data inputs with correct ECC."""
+    # Use the seed for reproducibility
+    seed = int(os.environ.get('SEED', '0'))
+    random.seed(seed)
+    print(f'seed changed to {seed}')
     for data_value in range(256):  # 2^8 possible data inputs
         data_bin = format(data_value, '032b')
         data_list = [int(bit) for bit in data_bin[::-1]] 
