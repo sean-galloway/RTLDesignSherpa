@@ -57,7 +57,7 @@ class HammingEncode(Hamming):
         self.comment('Hamming ECC Generation')
         for i in range(self.ecc_bits):
             start = False
-            ecc_line = f'assign o_ecc[{i}] = '
+            ecc_line = f'assign o_ecc[{self.ecc_bits-i-1}] = '
             for j in range(self.ecc_bits, self.total_bits):
                 if self.matrix[j] & (1 << i):
                     if start is True:
@@ -102,7 +102,7 @@ class HammingDecode(Hamming):
 
     def generate_syndrome(self):
         self.comment('Syndrome')
-        self.instruction('logic [EDC-1:0] w_syndrome;')
+        self.instruction('logic [ECC-1:0] w_syndrome;')
         for i in range(self.ecc_bits):
             syndrome_line = f'assign w_syndrome[{i}] = '
             start = False
