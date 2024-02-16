@@ -27,7 +27,7 @@ module dataint_crc #(
     ////////////////////////////////////////////////////////////////////////////
     // Reflect input data if REFLECTED_INPUT is enabled
     generate
-    genvar i, j;
+    genvar i, j, idx;
     if (REFLECTED_INPUT) begin : gen_reflect_inputs
         for(i = 0; i < CHUNKS; i = i + 1)
             for(j = 0; j < 8; j = j + 1)
@@ -44,7 +44,7 @@ module dataint_crc #(
     //     be in little endian format and no gaps of byte enables be present (like
     //     1011 or 1101 for example)
     always_comb begin
-        selected_cascade_output = CRC_POLY_INITIAL; // Default to initial value
+        w_selected_cascade_output = CRC_POLY_INITIAL; // Default to initial value
         for (int i = 0; i < CHUNKS; i++) begin
             if (i_cascade_sel[i]) begin
                 w_selected_cascade_output = w_cascade[i];
@@ -58,36 +58,38 @@ module dataint_crc #(
         else if (i_load_crc_start)
             r_crc_value <= CRC_POLY_INITIAL;  // Reset the CRC to the initial value
         else if (i_load_from_cascade)
-            r_crc_value <= selected_cascade_output; // Use pre-selected output
+            r_crc_value <= w_selected_cascade_output; // Use pre-selected output
     end
 
     ////////////////////////////////////////////////////////////////////////////
     // Generate dataint_xor_shift_cascades dynamically based on DATA_WIDTH
-    dataint_xor_shift_cascade #(.CRC_WIDTH(CRC_WIDTH))
-    dataint_xor_shift_cascade_0 (
-        .i_stage_input(w_crc_value),
-        .i_poly(w_poly),
-        .i_data_input(w_block_data[0]),
-        .o_stage_output(w_cascade[0])
-    );
-
     generate
-    for (i = 1; i < Chunks; i = i + 1) begin : gen_xor_shift_blocks
-            dataint_xor_shift_cascade #(.CRC_WIDTH(CRC_WIDTH))
-            dataint_xor_shift_cascade (
-                .i_stage_input(w_cascade[i-1]),
-                .i_poly(w_poly),
-                .i_data_input(w_block_data[i]),
-                .o_stage_output(w_cascade[i])
-            );
+        for (i = 1; i < CHUNKS; i = i + 1) begin : gen_xor_shift_cascade
+            if (i==0) begin : gen_xor_cascade_0
+                dataint_crc_xor_shift_cascade #(.CRC_WIDTH(CRC_WIDTH))
+                dataint_crc_xor_shift_cascade_0 (
+                    .i_block_input(w_crc_value),
+                    .i_poly(w_poly),
+                    .i_data_input(w_block_data[i]),
+                    .o_block_output(w_cascade[i])
+                );
+            end else begin : gen_xor_cascade_N
+                dataint_crc_xor_shift_cascade #(.CRC_WIDTH(CRC_WIDTH))
+                dataint_crc_xor_shift_cascade_N (
+                    .i_block_input(w_cascade[i-1]),
+                    .i_poly(w_poly),
+                    .i_data_input(w_block_data[i]),
+                    .o_block_output(w_cascade[i])
+                );
+            end
         end
     endgenerate
 
     ////////////////////////////////////////////////////////////////////////////
     // CRC logic, reflections, and output muxing as before, adjusted for new generate blocks
     generate if (REFLECTED_OUTPUT == 1) begin : gen_reflect_result
-        for(index = 0; index < CRC_WIDTH; index = index + 1)
-            assign w_result[index] = r_crc_value[(CRC_WIDTH-1)-index];
+        for(idx = 0; idx < CRC_WIDTH; idx = idx + 1)
+            assign w_result[idx] = r_crc_value[(CRC_WIDTH-1)-idx];
         end else
             assign w_result = r_crc_value;
     endgenerate
@@ -104,4 +106,4 @@ module dataint_crc #(
             o_crc <= w_result_xor;
     end
 
-endmodule
+endmodule : dataint_crc
