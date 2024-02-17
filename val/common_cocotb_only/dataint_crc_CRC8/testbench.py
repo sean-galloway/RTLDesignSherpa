@@ -32,6 +32,18 @@ async def test_crc_basic(dut):
     print(f'    XOR_OUTPUT:       {hex(xor_output)}')
     print('-------------------------------------------')
 
+    test_data = [
+        (0x12, 0x7E),
+        (0x0, 0x00),
+        (0x1, 0x07),
+        (0x2, 0x0E),
+        (0x4, 0x1C),
+        (0x8, 0x38),
+        (0x10, 0x70),
+        (0x20, 0xE0),
+        (0x40, 0xC7),
+        (0x80, 0x89)
+    ]
 
     # Reset
     dut.i_rst_n.value = 0
@@ -46,28 +58,27 @@ async def test_crc_basic(dut):
     for _ in range(5):
         await FallingEdge(dut.i_clk)  
 
-    # Test 1: Load initial CRC value and check
-    dut.i_load_crc_start.value = 1
-    await FallingEdge(dut.i_clk)  
-    dut.i_load_crc_start.value = 0
-    assert dut.o_crc.value == crc_poly_initial, "CRC initial value incorrect"
+    for data, expected_crc in test_data:
+        # Test 1: Load initial CRC value and check
+        dut.i_load_crc_start.value = 1
+        await FallingEdge(dut.i_clk)  
+        dut.i_load_crc_start.value = 0
+        assert dut.o_crc.value == crc_poly_initial, "CRC initial value incorrect"
 
-    # Test 2: Load data and validate CRC calculation
-    # This step depends on having a known input-output pair for validation
-    test_data = 0x12345678
-    expected_crc = 0x4A090E98
-    dut.i_data.value = test_data
-    await FallingEdge(dut.i_clk)  
-    # dut.i_load_from_cascade.value = 1
-    # dut.i_cascade_sel.value = 8
-    # await FallingEdge(dut.i_clk)  
-    # dut.i_load_from_cascade.value = 0
-    await FallingEdge(dut.i_clk)  
+        # Test 2: Load data and validate CRC calculation
+        # This step depends on having a known input-output pair for validation
+        dut.i_data.value = data
+        dut.i_load_from_cascade.value = 1
+        dut.i_cascade_sel.value = 1
+        await FallingEdge(dut.i_clk)
+        dut.i_data.value = 0
+        dut.i_load_from_cascade.value = 0
+        dut.i_cascade_sel.value = 0
+        await FallingEdge(dut.i_clk)  
 
-    # Verify the CRC output matches the expected value
-    # Note: You may need to adjust this depending on when the CRC output is valid
-    actual_crc = dut.o_crc.value
-    print(f'test_data={hex(test_data)}   expected_crc={hex(expected_crc)}  actual_crc={hex(actual_crc)}')
-    assert actual_crc == expected_crc, f"Unexpected CRC result: expected {hex(expected_crc)} --> found {hex(dut.o_crc.value)}"
+        # Verify the CRC output matches the expected value
+        # Note: You may need to adjust this depending on when the CRC output is valid
+        actual_crc = dut.o_crc.value
+        print(f'test_data={hex(data)}   expected_crc={hex(expected_crc)}  actual_crc={hex(actual_crc)}')
+        assert actual_crc == expected_crc, f"Unexpected CRC result: expected {hex(expected_crc)} --> found {hex(dut.o_crc.value)}"
 
-    # Further tests can be added here to cover more scenarios and data patterns

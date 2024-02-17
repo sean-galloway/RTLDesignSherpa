@@ -25,7 +25,7 @@ module reset_sync #(
     // synopsys translate_off
     initial begin
         $dumpfile("dump.vcd");
-        $dumpvars(0, fifo_async_any_even);
+        $dumpvars(0, reset_sync);
     end
     // synopsys translate_on
 

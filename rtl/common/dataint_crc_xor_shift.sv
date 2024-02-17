@@ -8,12 +8,19 @@ module dataint_crc_xor_shift #(
     input  [CRC_WIDTH-1:0] i_stage_input,
     input  [CRC_WIDTH-1:0] i_poly,
     input                  i_new_bit,
-    output [CRC_WIDTH-1:0] o_stage_output
+    output [CRC_WIDTH-1:0] ow_stage_output
 );
 
-    assign o_stage_output[0] = i_new_bit ^ i_stage_input[CRC_WIDTH-1];
-    assign o_stage_output[CRC_WIDTH-1:1] = i_stage_input[CRC_WIDTH-2:0] ^
-                                        ({CRC_WIDTH-1{o_stage_output[0]}} & i_poly[CRC_WIDTH-1:1]);
+    assign ow_stage_output[0] = i_new_bit ^ i_stage_input[CRC_WIDTH-1];
+    assign ow_stage_output[CRC_WIDTH-1:1] = i_stage_input[CRC_WIDTH-2:0] ^
+                                        ({CRC_WIDTH-1{ow_stage_output[0]}} & i_poly[CRC_WIDTH-1:1]);
+
+    // // synopsys translate_off
+    // initial begin
+    //     $dumpfile("dump.vcd");
+    //     $dumpvars(0, dataint_crc_xor_shift);
+    // end
+    // // synopsys translate_on
 
 endmodule : dataint_crc_xor_shift
 
