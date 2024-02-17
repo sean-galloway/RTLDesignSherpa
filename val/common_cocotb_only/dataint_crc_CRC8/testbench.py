@@ -3,6 +3,15 @@ from cocotb.triggers import RisingEdge, FallingEdge, ClockCycles
 from cocotb.clock import Clock
 import os
 import random
+from crccheck.crc import CrcBase
+
+class MyCustomCrc(CrcBase):
+    _width = 8
+    _poly = 0x07
+    _initvalue = 0x00
+    _reflect_input = False
+    _reflect_output = False
+    _finalxor = 0x00
 
 @cocotb.test()
 async def test_crc_basic(dut):
@@ -14,6 +23,7 @@ async def test_crc_basic(dut):
 
     clock = Clock(dut.i_clk, 10, units="ns")  # Create a 100MHz clock
     cocotb.start_soon(clock.start())  # Start the clock
+    # Gather the settings from the Parameters to verify them
     data_width = int(dut.DATA_WIDTH)
     chunks = int(dut.CHUNKS)
     crc_poly = int(dut.CRC_POLY) & 0xFFFFFFFF
@@ -45,6 +55,15 @@ async def test_crc_basic(dut):
         (0x80, 0x89)
     ]
 
+    # add some random values to the list
+    for _ in range(100):
+        data = random.randint(0x00,0xFF)
+        data_bytes = data.to_bytes(1, 'little')
+        ecc = MyCustomCrc.calc(data_bytes)
+        print(f'data generation: {data:X} {data_bytes=} {ecc:X}')
+        test_data.append((data, ecc))
+    
+    ##########################################################################
     # Reset
     dut.i_rst_n.value = 0
     # Initialize inputs
@@ -79,6 +98,5 @@ async def test_crc_basic(dut):
         # Verify the CRC output matches the expected value
         # Note: You may need to adjust this depending on when the CRC output is valid
         actual_crc = dut.o_crc.value
-        print(f'test_data={hex(data)}   expected_crc={hex(expected_crc)}  actual_crc={hex(actual_crc)}')
+        print(f'test_data={hex(data)[2:].zfill(2)}   expected_crc={hex(expected_crc)[2:].zfill(2)}  actual_crc={hex(actual_crc)[2:].zfill(2)}')
         assert actual_crc == expected_crc, f"Unexpected CRC result: expected {hex(expected_crc)} --> found {hex(dut.o_crc.value)}"
-
