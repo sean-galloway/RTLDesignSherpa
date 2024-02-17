@@ -41,38 +41,57 @@ async def test_crc_basic(dut):
     print(f'    CRC_WIDTH:  {crc_width}')
     print(f'    POLY:       0x{hex(crc_poly)[2:].zfill(crc_width // 4)}')
     print(f'    POLY_INIT:  0x{hex(crc_poly_initial)[2:].zfill(crc_width // 4)}')
-    print(f'    REFIN:      {reflected_input}')
     print(f'    REFOUT:     {reflected_output}')
     print(f'    XOROUT:     0x{hex(xor_output)[2:].zfill(crc_width // 4)}')
     print('-------------------------------------------')
 
-    test_values = [
-        0x12,
-        0x00,
-        0x01,
-        0x02,
-        0x04,
-        0x08,
-        0x10,
-        0x20,
-        0x40,
-        0x80
-    ]
-
+    test_values = [ 0x12345678,
+                    0x00000000,
+                    0x00000001,
+                    0x00000002,
+                    0x00000004,
+                    0x00000008,
+                    0x00000010,
+                    0x00000020,
+                    0x00000040,
+                    0x00000080,
+                    0x00000100,
+                    0x00000200,
+                    0x00000400,
+                    0x00000800,
+                    0x00001000,
+                    0x00002000,
+                    0x00004000,
+                    0x00008000,
+                    0x00010000,
+                    0x00020000,
+                    0x00040000,
+                    0x00080000,
+                    0x00100000,
+                    0x00200000,
+                    0x00400000,
+                    0x00800000,
+                    0x01000000,
+                    0x02000000,
+                    0x04000000,
+                    0x08000000,
+                    0x10000000,
+                    0x20000000,
+                    0x40000000,
+                    0x80000000]
     test_data = []
     for data in test_values:
-        data_bytes = data.to_bytes(2, 'little')
+        data_bytes = data.to_bytes(chunks, 'little')
         ecc = MyCustomCrc.calc(data_bytes)
         test_data.append((data, ecc))
 
     # add some random values to the list
     for _ in range(100):
         data = random.randint(0x00,0xFFFFFFFF)
-        data_bytes = data.to_bytes(2, 'little')
+        data_bytes = data.to_bytes(chunks, 'little')
         ecc = MyCustomCrc.calc(data_bytes)
-        print(f'-----> data={data:0x}  {data_bytes=} ecc={ecc:0x}')
         test_data.append((data, ecc))
-    
+
     ##########################################################################
     # Reset
     dut.i_rst_n.value = 0
@@ -82,7 +101,7 @@ async def test_crc_basic(dut):
     dut.i_cascade_sel.value = 0
     dut.i_data.value = 0
     for _ in range(5):
-        await FallingEdge(dut.i_clk)    
+        await FallingEdge(dut.i_clk)
     dut.i_rst_n.value = 1
     for _ in range(5):
         await FallingEdge(dut.i_clk)  
@@ -98,7 +117,7 @@ async def test_crc_basic(dut):
         # This step depends on having a known input-output pair for validation
         dut.i_data.value = data
         dut.i_load_from_cascade.value = 1
-        dut.i_cascade_sel.value = 1
+        dut.i_cascade_sel.value = 0x8
         await FallingEdge(dut.i_clk)
         dut.i_data.value = 0
         dut.i_load_from_cascade.value = 0

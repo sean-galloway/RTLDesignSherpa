@@ -46,33 +46,37 @@ async def test_crc_basic(dut):
     print(f'    XOROUT:     0x{hex(xor_output)[2:].zfill(crc_width // 4)}')
     print('-------------------------------------------')
 
-    test_values = [
-        0x12,
-        0x00,
-        0x01,
-        0x02,
-        0x04,
-        0x08,
-        0x10,
-        0x20,
-        0x40,
-        0x80
-    ]
-
+    test_values = [ 0x1234,
+                    0x0000,
+                    0x0001,
+                    0x0002,
+                    0x0004,
+                    0x0008,
+                    0x0010,
+                    0x0020,
+                    0x0040,
+                    0x0080,
+                    0x0100,
+                    0x0200,
+                    0x0400,
+                    0x0800,
+                    0x1000,
+                    0x2000,
+                    0x4000,
+                    0x8000]
     test_data = []
     for data in test_values:
-        data_bytes = data.to_bytes(2, 'little')
+        data_bytes = data.to_bytes(chunks, 'little')
         ecc = MyCustomCrc.calc(data_bytes)
         test_data.append((data, ecc))
 
     # add some random values to the list
     for _ in range(100):
-        data = random.randint(0x00,0xFFFFFFFF)
-        data_bytes = data.to_bytes(2, 'little')
+        data = random.randint(0x00,0xFFFF)
+        data_bytes = data.to_bytes(chunks, 'little')
         ecc = MyCustomCrc.calc(data_bytes)
-        print(f'-----> data={data:0x}  {data_bytes=} ecc={ecc:0x}')
         test_data.append((data, ecc))
-    
+
     ##########################################################################
     # Reset
     dut.i_rst_n.value = 0
@@ -82,7 +86,7 @@ async def test_crc_basic(dut):
     dut.i_cascade_sel.value = 0
     dut.i_data.value = 0
     for _ in range(5):
-        await FallingEdge(dut.i_clk)    
+        await FallingEdge(dut.i_clk)
     dut.i_rst_n.value = 1
     for _ in range(5):
         await FallingEdge(dut.i_clk)  
@@ -98,7 +102,7 @@ async def test_crc_basic(dut):
         # This step depends on having a known input-output pair for validation
         dut.i_data.value = data
         dut.i_load_from_cascade.value = 1
-        dut.i_cascade_sel.value = 1
+        dut.i_cascade_sel.value = 0x2
         await FallingEdge(dut.i_clk)
         dut.i_data.value = 0
         dut.i_load_from_cascade.value = 0

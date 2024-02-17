@@ -5,11 +5,11 @@ module dataint_crc #(
     parameter int                      DATA_WIDTH = 32,  // Adjustable data width
     parameter int                      CHUNKS = DATA_WIDTH / 8,
     parameter int                      CRC_WIDTH = 32,   // CRC polynomial width
-    parameter logic [CRC_WIDTH-1:0]    CRC_POLY = 32'h04C11DB7,
-    parameter logic [CRC_WIDTH-1:0]    CRC_POLY_INITIAL = 32'hFFFFFFFF,
-    parameter int                      REFLECTED_INPUT = 1,
-    parameter int                      REFLECTED_OUTPUT = 1,
-    parameter logic [CRC_WIDTH-1:0]    XOR_OUTPUT = 32'hFFFFFFFF
+    parameter logic [CRC_WIDTH-1:0]    POLY = 32'h04C11DB7,
+    parameter logic [CRC_WIDTH-1:0]    POLY_INIT = 32'hFFFFFFFF,
+    parameter int                      REFIN = 1,
+    parameter int                      REFOUT = 1,
+    parameter logic [CRC_WIDTH-1:0]    XOROUT = 32'hFFFFFFFF
 )(
     input  logic                       i_clk, i_rst_n,
     input  logic                       i_load_crc_start,
@@ -22,19 +22,19 @@ module dataint_crc #(
     localparam int DW = DATA_WIDTH;
     localparam int CH = CHUNKS;
 
-    logic [CW-1:0] r_crc_value = CRC_POLY_INITIAL;
-    logic [CW-1:0] w_poly = CRC_POLY;
+    logic [CW-1:0] r_crc_value = POLY_INIT;
+    logic [CW-1:0] w_poly = POLY;
     logic [7:0]    w_block_data [0:CH-1]; // verilog_lint: waive unpacked-dimensions-range-ordering
     logic [CW-1:0] w_cascade    [0:CH-1]; // verilog_lint: waive unpacked-dimensions-range-ordering
     logic [CW-1:0] w_result, w_result_xor, w_selected_cascade_output, xor_output;
 
-    assign xor_output = XOR_OUTPUT;
+    assign xor_output = XOROUT;
 
     ////////////////////////////////////////////////////////////////////////////
-    // Reflect input data if REFLECTED_INPUT is enabled
+    // Reflect input data if REFIN is enabled
     generate
     genvar i, j, idx;
-    if (REFLECTED_INPUT) begin : gen_reflect_inputs
+    if (REFIN) begin : gen_reflect_inputs
         for(i = 0; i < CH; i = i + 1)
             for(j = 0; j < 8; j = j + 1)
                 assign w_block_data[i][j] = i_data[i*8+7-j];
@@ -45,12 +45,9 @@ module dataint_crc #(
     endgenerate
 
     ////////////////////////////////////////////////////////////////////////////
-    // Control for the registered events.  It assumes that either 8, 16, 24, or 32
-    //     bit data is being written using byte enables.  It is important that the data
-    //     be in little endian format and no gaps of byte enables be present (like
-    //     1011 or 1101 for example)
+    // Select the correct drop off point for the cascade depending on the length of data
     always_comb begin
-        w_selected_cascade_output = CRC_POLY_INITIAL; // Default to initial value
+        w_selected_cascade_output = POLY_INIT; // Default to initial value
         for (int i = 0; i < CH; i++) begin
             if (i_cascade_sel[i]) begin
                 w_selected_cascade_output = w_cascade[i];
@@ -62,7 +59,7 @@ module dataint_crc #(
         if (~i_rst_n)
             r_crc_value <= 'b0;
         else if (i_load_crc_start)
-            r_crc_value <= CRC_POLY_INITIAL;  // Reset the CRC to the initial value
+            r_crc_value <= POLY_INIT;  // Reset the CRC to the initial value
         else if (i_load_from_cascade)
             r_crc_value <= w_selected_cascade_output; // Use pre-selected output
     end
@@ -93,7 +90,7 @@ module dataint_crc #(
 
     ////////////////////////////////////////////////////////////////////////////
     // CRC logic, reflections, and output muxing as before, adjusted for new generate blocks
-    generate if (REFLECTED_OUTPUT == 1) begin : gen_reflect_result
+    generate if (REFOUT == 1) begin : gen_reflect_result
         for(idx = 0; idx < CW; idx = idx + 1)
             assign w_result[idx] = r_crc_value[(CW-1)-idx];
         end else
@@ -109,7 +106,7 @@ module dataint_crc #(
         if (~i_rst_n)
             o_crc <= 'b0;
         else if (i_load_crc_start)
-            o_crc <= CRC_POLY_INITIAL;  // Reset the CRC to the initial value
+            o_crc <= POLY_INIT;  // Reset the CRC to the initial value
         else
             o_crc <= w_result_xor;
     end

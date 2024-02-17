@@ -17,8 +17,8 @@ wire [(CRC_WIDTH-1):0] w_cascade [0:7]; // verilog_lint: waive unpacked-dimensio
 // Generate loop for XOR_Shift blocks
 genvar i;
 generate
-    for (i = 0; i < 8; i = i + 1) begin : gen_xor_shift
-        if (i == 0) begin : gen_xor_shift_group0
+    for (i = 0; i < 8; i = i + 1) begin : gen_xor_shift_cascade
+        if (i == 0) begin : gen_xor_shift_0
             // For the first block, use i_block_input as the stage_input
             dataint_crc_xor_shift #(.CRC_WIDTH(CRC_WIDTH)) dataint_crc_xor_shift (
                 .i_stage_input(i_block_input),
@@ -26,7 +26,7 @@ generate
                 .i_new_bit(i_data_input[7-i]),
                 .ow_stage_output(w_cascade[i])
             );
-        end else begin : gen_xor_shift_group_N
+        end else begin : gen_xor_shift_N
             // For subsequent blocks, chain the output of the previous block
             dataint_crc_xor_shift #(.CRC_WIDTH(CRC_WIDTH)) dataint_crc_xor_shift (
                 .i_stage_input(w_cascade[i-1]),
