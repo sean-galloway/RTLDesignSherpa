@@ -2,7 +2,7 @@
 
 // Generic CRC Block
 // ------------------------------------------------------------------------------------------
-// |     Algorithm      | CRC_WIDTH |    Poly    |    Init    | RefIn | RefOut |   XorOut   |
+// |     Algorithm      | CRC_WIDTH |    POLY    | POLY_INIT  | REFIN | REFOUT |   XOROUT   |
 // |--------------------|-----------|------------|------------|-------|--------|------------|
 // | CRC-8              |         8 | 0x07       | 0x00       |     0 |      0 | 0x00       |
 // | CRC-8/CDMA2000     |         8 | 0x9B       | 0xFF       |     0 |      0 | 0x00       |
