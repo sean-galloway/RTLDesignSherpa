@@ -1,6 +1,0 @@
-for file in rtl/common/*.sv; do
-  # Your commands here. Use $file to refer to the current file.
-  echo "Processing $file"
-  verible-verilog-format $file -inplace --indentation_spaces 4
-done
-

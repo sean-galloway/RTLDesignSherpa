@@ -1,3 +1,0 @@
-# update the format for all files
-verible-verilog-format file.sv -inplace --indentation_spaces 4
-

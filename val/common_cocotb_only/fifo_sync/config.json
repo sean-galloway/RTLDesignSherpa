@@ -1,0 +1,39 @@
+{
+    "filter": [
+        "fifo_sync.i_clk",
+        "fifo_sync.i_read",
+        "fifo_sync.i_rst_n",
+        "fifo_sync.i_wr_data[7:0]",
+        "fifo_sync.i_write",
+        "fifo_sync.o_rd_almost_empty",
+        "fifo_sync.o_rd_empty",
+        "fifo_sync.o_wr_almost_full",
+        "fifo_sync.o_wr_full",
+        "fifo_sync.ow_rd_data[7:0]",
+        "fifo_sync.r_rd_addr[1:0]",
+        "fifo_sync.r_rd_ptr_bin[2:0]",
+        "fifo_sync.r_wr_addr[1:0]",
+        "fifo_sync.r_wr_ptr_bin[2:0]"
+    ],
+    "name": "Synchronous FIFO",
+    "tock": 1,
+    "samplerate": "10ns",
+    "hscale": 1,
+    "clocks": [
+        {
+            "name": "fifo_sync.i_clk",
+            "char": "p",
+            "period": "10ns"
+        }
+    ],
+    "starttime": [
+        "5ns"
+    ],
+    "endtime": [
+        "400ns"
+    ],
+    "phase_clk": 0,
+    "phase_reg": 0,
+    "phase_wir": 0,
+    "enum_list": []
+}

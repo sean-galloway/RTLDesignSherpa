@@ -1,0 +1,37 @@
+{
+    "filter": [
+        "fifo_async_div2.i_wr_clk",
+        "fifo_async_div2.i_wr_data[7:0]",
+        "fifo_async_div2.i_wr_rst_n",
+        "fifo_async_div2.i_write",
+        "fifo_async_div2.o_wr_almost_full",
+        "fifo_async_div2.o_wr_full",
+        "fifo_async_div2.r_wdom_rd_ptr_gray[9:0]",
+        "fifo_async_div2.r_wr_addr[3:0]",
+        "fifo_async_div2.r_wr_ptr_bin[4:0]",
+        "fifo_async_div2.r_wr_ptr_gray[9:0]",
+        "fifo_async_div2.w_wdom_rd_ptr_bin[4:0]",
+        "fifo_async_div2.w_wr_ptr_bin_next[4:0]"
+    ],
+    "name": "Asynch FIFO, div by 2, Write Domain",
+    "tock": 1,
+    "samplerate": "10ns",
+    "hscale": 1,
+    "clocks": [
+        {
+            "name": "fifo_async_div2.i_wr_clk",
+            "char": "p",
+            "period": "10ns"
+        }
+    ],
+    "starttime": [
+        "41640ns"
+    ],
+    "endtime": [
+        "42525ns"
+    ],
+    "phase_clk": 0,
+    "phase_reg": 0,
+    "phase_wir": 0,
+    "enum_list": []
+}

@@ -64,6 +64,16 @@ The `fifo_async` module implements a parameterized asynchronous FIFO (First-In, 
 
 - The initial block for dumping waveforms during simulation for debugging purposes.
 
+## Simulation Overview
+
+The write domain and the read domain are broken up into separate waveforms since their clock domains are different.
+![High-Level Simulation](./_wavedrom_svg/wavedrom_fifo_async_write.svg)
+In cycle 23 the fifo is full. As it gets drained more items are added to it. The critical item to mention is the pointers. There are two sets binary and gray. The gray pointers only have one bit changing each clock to minimize the likeliness of metastability when the pointer goes through a clock crossing.
+
+![High-Level Simulation](./_wavedrom_svg/wavedrom_fifo_async_read.svg)
+On the read side, we see the binary pointer starts at 0x0 and wraps back around to 0x0. Through these increments, the gray pointer increments also, but in such a way that only one bit changes at a time.
+The gray pointers for the write and read domain each pass through glitch-free synchronized flops, they are converted to binary on the other side and used for comparisons.
+
 ## Simulation Notes
 
 - The module includes test code disabled during synthesis (`synopsys translate_off` / `synopsys translate_on`). This includes error displays and VCD dumping, which can only be used to debug the FIFO's behavior in a simulated environment.

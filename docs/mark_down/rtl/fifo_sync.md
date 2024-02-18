@@ -44,6 +44,12 @@ The FIFO uses an internal memory array to store data and Binary Counters for tra
 
 The FIFO stores data when `i_write` is asserted and `ow_wr_full` is not signaled. Data is read when `i_read` is asserted and `ow_rd_empty` is not indicated. "Almost full" and "almost empty" signals provide a margin-based indication for near-full or near-empty conditions suitable for flow control.
 
+### Simulation Overview
+
+![High-Level Simulation](./_wavedrom_svg/wavedrom_fifo_sync.svg)
+
+This is a simple 4-deep fifo. In cycle 18, we see it going full after the fourth write. In cycle 19, reads start happening and the read pointers increment from 0-7. There is an extra bit at the top of the read-and-write pointers to indicate a rollover. In cycle 18 there are back-to-back reads, emptying the fifo. Notice after eight reads and writes, the pointers roll back over to zeros.
+
 ## Error Checking
 
 In debug/translational-off blocks, the FIFO reports errors (like write attempts when full or read attempts when empty) along with the instance name for easier debugging. It also includes dumping signals into a `.vcd` file for waveform analysis.

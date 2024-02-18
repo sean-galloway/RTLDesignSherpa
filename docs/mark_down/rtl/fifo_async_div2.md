@@ -64,6 +64,16 @@ This module implements an asynchronous FIFO (First-In-First-Out) memory structur
 
 - Stores data in a synchronous memory array, sized according to `DEPTH`.
 
+## Simulation Overview
+
+The write domain and the read domain are broken up into separate waveforms since their clock domains are different.
+![High-Level Simulation](./_wavedrom_svg/wavedrom_fifo_async_div2_write.svg)
+In cycle 15 the fifo is full. As it gets drained more items are added to it. The critical item to mention is the pointers. There are two sets binary and gray. The gray pointers only have one bit changing each clock to minimize the likeliness of metastability when the pointer goes through a clock crossing. Note: these are not the traditional Gray pointers. These use a Johnson counter; a one gets shifted into the lower bit until the whole pointer is ones, then a zero gets loaded into the lowest bit until it is all zeroes again.
+
+![High-Level Simulation](./_wavedrom_svg/wavedrom_fifo_async_div2_read.svg)
+On the read side, we see the binary pointer starts at 0x0 and wraps back around to 0x0. Through these increments, the gray pointer increments also, but in such a way that only one bit changes at a time.
+The gray pointers for the write and read domain each pass through glitch-free synchronized flops, they are converted to binary on the other side and used for comparisons.
+
 ## Clock Domain Crossing
 
 The module safely transfers the fill level indicators across clock domains by using Johnson counter encoding and glitch-free DFF chains. An additional binary encoding is used internally.

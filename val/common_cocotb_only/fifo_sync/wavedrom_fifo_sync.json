@@ -1,0 +1,140 @@
+{
+    "head": {
+        "text": "Synchronous FIFO",
+        "tock": 1
+    },
+    "signal": [
+        {
+            "name": "fifo_sync.i_clk",
+            "wave": "ppppppppppppppppppppppppppppppppppppppp",
+            "data": [],
+            "phase": 0,
+            "period": 1.0
+        },
+        {
+            "name": "fifo_sync.i_rst_n",
+            "wave": "0.1.....................................",
+            "data": [],
+            "phase": 0
+        },
+        [
+            "Write Interface",
+            {
+                "name": "fifo_sync.i_write",
+                "wave": "0...10..10..10..10..10..10..10..10......",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "fifo_sync.i_wr_data[7:0]",
+                "wave": "=...=...=...=...=...=...=...=...=...=...",
+                "data": [
+                    "0",
+                    "E1",
+                    "3B",
+                    "3",
+                    "2E",
+                    "11",
+                    "2A",
+                    "32",
+                    "B5",
+                    "0"
+                ],
+                "phase": 0
+            },
+            [
+                "ptr",
+                {
+                    "name": "fifo_sync.r_wr_ptr_bin[2:0]",
+                    "wave": "=....=...=...=...=...=...=...=...=......",
+                    "data": [
+                        "0",
+                        "1",
+                        "2",
+                        "3",
+                        "4",
+                        "5",
+                        "6",
+                        "7",
+                        "0"
+                    ],
+                    "phase": 0
+                },
+                {
+                    "name": "fifo_sync.o_wr_almost_full",
+                    "wave": "0............1...010....................",
+                    "data": [],
+                    "phase": 0
+                },
+                {
+                    "name": "fifo_sync.o_wr_full",
+                    "wave": "0................10.....................",
+                    "data": [],
+                    "phase": 0
+                }
+            ]
+        ],
+        [
+            "Read Interface",
+            {
+                "name": "fifo_sync.i_read",
+                "wave": "0................1....0..10..10..10.....",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "fifo_sync.ow_rd_data[7:0]",
+                "wave": "x....=............=====..==..==..==.....",
+                "data": [
+                    "E1",
+                    "3B",
+                    "3",
+                    "2E",
+                    "11",
+                    "3B",
+                    "2A",
+                    "3",
+                    "32",
+                    "2E",
+                    "B5",
+                    "11"
+                ],
+                "phase": 0
+            },
+            [
+                "ptr",
+                {
+                    "name": "fifo_sync.r_rd_ptr_bin[2:0]",
+                    "wave": "=.................=====...=...=...=.....",
+                    "data": [
+                        "0",
+                        "1",
+                        "2",
+                        "3",
+                        "4",
+                        "5",
+                        "6",
+                        "7",
+                        "0"
+                    ],
+                    "phase": 0
+                },
+                {
+                    "name": "fifo_sync.o_rd_almost_empty",
+                    "wave": "0....1...0..........1.0..10..10..10.....",
+                    "data": [],
+                    "phase": 0
+                },
+                {
+                    "name": "fifo_sync.o_rd_empty",
+                    "wave": "0.1..0................1..01..01..01.....",
+                    "data": [],
+                    "phase": 0
+                }
+            ]
+        ]
+    ],
+    "config": {
+        "hscale": 1
+    }
+}

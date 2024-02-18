@@ -1,5 +1,5 @@
 import cocotb
-from cocotb.triggers import FallingEdge, Timer
+from cocotb.triggers import RisingEdge, RisingEdge, Timer
 from cocotb.result import TestFailure
 from cocotb.clock import Clock
 import os
@@ -11,14 +11,14 @@ TIMEOUT_CYCLES = 1000  # Adjust as necessary
 async def write_fifo(dut, data, delay_between_writes=0):
     dut._log.info("Entering write_fifo...")
     dut.i_write.value = 0
-    await FallingEdge(dut.i_clk)
+    await RisingEdge(dut.i_clk)
     data_len = len(data)
     data_sent = 0
     timeout_counter = 0
 
     while data_sent != data_len:
         idx = data_sent
-        dut._log.info(f"Got Falling Edge of i_clk (Iteration {idx}). Checking if FIFO full...")
+        dut._log.info(f"Got Rising Edge of i_clk (Iteration {idx}). Checking if FIFO full...")
 
         while dut.o_wr_full.value == 0 and (data_sent != data_len):
             value = data[data_sent]
@@ -26,13 +26,14 @@ async def write_fifo(dut, data, delay_between_writes=0):
             dut.i_write.value = 1
             dut.i_wr_data.value = value
             data_sent += 1
-            await FallingEdge(dut.i_clk)
+            await RisingEdge(dut.i_clk)
+            await Timer(100, units='ps')  # Adding a 100 ps delay
             dut._log.info(f"Writing data {hex(value)} to FIFO (Iteration {idx})...")
 
             for _ in range(delay_between_writes):
                 dut.i_write.value = 0
                 dut.i_write.value = 0
-                await FallingEdge(dut.i_clk)
+                await RisingEdge(dut.i_clk)
             timeout_counter += 1
             if timeout_counter >= TIMEOUT_CYCLES:
                 dut._log.error("Timeout during write!")
@@ -41,11 +42,12 @@ async def write_fifo(dut, data, delay_between_writes=0):
         dut._log.info(f"FIFO is full. Waiting for next clock cycle (Iteration {idx})...")
         dut.i_write.value = 0
         dut.i_wr_data.value = 0
-        await FallingEdge(dut.i_clk)
+        await RisingEdge(dut.i_clk)
+        await Timer(100, units='ps')  # Adding a 100 ps delay
 
     dut.i_write.value = 0
     dut.i_wr_data.value = 0
-    await FallingEdge(dut.i_clk)
+    await RisingEdge(dut.i_clk)
     dut._log.info("Exiting write_fifo...")
 
 
@@ -56,14 +58,15 @@ async def delayed_read_fifo(dut, delay, expected_data_length, delay_between_read
 
     timeout_counter = 0
     while dut.o_wr_full.value != 1:
-        await FallingEdge(dut.i_clk)
+        await RisingEdge(dut.i_clk)
+        await Timer(100, units='ps')  # Adding a 100 ps delay
         timeout_counter += 1
         if timeout_counter >= TIMEOUT_CYCLES:
             dut._log.error("Timeout waiting for FIFO to fill!")
             return
 
     for _ in range(delay):
-        await FallingEdge(dut.i_clk)
+        await RisingEdge(dut.i_clk)
 
     data_read = 0
     timeout_counter = 0
@@ -71,7 +74,8 @@ async def delayed_read_fifo(dut, delay, expected_data_length, delay_between_read
     while data_read != expected_data_length:
         if dut.o_rd_empty.value == 1:
             dut.i_read.value = 0
-            await FallingEdge(dut.i_clk)
+            await RisingEdge(dut.i_clk)
+            await Timer(100, units='ps')  # Adding a 100 ps delay
             dut._log.info(f"FIFO Empty: waiting for more data (Iteration {data_read})")    
             continue
 
@@ -79,12 +83,13 @@ async def delayed_read_fifo(dut, delay, expected_data_length, delay_between_read
         read_data = int(dut.ow_rd_data.value)
         read_values.append(read_data)
         data_read += 1
-        await FallingEdge(dut.i_clk)
+        await RisingEdge(dut.i_clk)
+        await Timer(100, units='ps')  # Adding a 100 ps delay
         dut._log.info(f"Read data from FIFO: {hex(read_data)} (Iteration {data_read})")
 
         for _ in range(delay_between_reads):
             dut.i_read.value = 0
-            await FallingEdge(dut.i_clk)
+            await RisingEdge(dut.i_clk)
 
         timeout_counter += 1
         if timeout_counter >= TIMEOUT_CYCLES:
@@ -130,4 +135,4 @@ async def fifo_test(dut):
             raise TestFailure(f"Data mismatch. Written: {data}, Read: {read_values}")
 
         for _ in range(delay_between_iterations):
-            await FallingEdge(dut.i_clk)
+            await RisingEdge(dut.i_clk)

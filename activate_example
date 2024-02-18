@@ -43,6 +43,7 @@ export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"
 PATH="$VIRTUAL_ENV/bin:$PATH"
+PATH="$VIRTUAL_ENV/bin/vcd2wavedrom2:$PATH"
 export PATH
 
 # unset PYTHONHOME if set
@@ -68,9 +69,12 @@ if [ -n "${BASH:-}" -o -n "${ZSH_VERSION:-}" ] ; then
     hash -r 2> /dev/null
 fi
 
-export PATH=bin/:$PATH
-export PYTHONPATH=bin/:$PYTHONPATH
-export PYTHONPATH=bin/rtl_generators:$PYTHONPATH
-export PYTHONPATH=bin/val_project:$PYTHONPATH
 REPO_ROOT=$(git rev-parse --show-toplevel)
 export REPO_ROOT=$REPO_ROOT
+export PATH=$REPO_ROOT/bin/:$PATH
+export PATH=$REPO_ROOT/bin/vcd2wavedrom2/:$PATH
+export PYTHONPATH=$REPO_ROOT/bin/:$PYTHONPATH
+export PYTHONPATH=$REPO_ROOT/bin/rtl_generators/:$PYTHONPATH
+export PYTHONPATH=$REPO_ROOT/bin/val_project/:$PYTHONPATH
+export PYTHONPATH=$REPO_ROOT/bin/vcd2wavedrom2/:$PYTHONPATH
+export PYTHONPATH=$REPO_ROOT/bin/testing/:$PYTHONPATH

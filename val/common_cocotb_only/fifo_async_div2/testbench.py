@@ -18,7 +18,7 @@ async def write_fifo(dut, data, delay_between_writes=0):
 
     while data_sent != data_len:
         idx = data_sent
-        dut._log.info(f"Got Rising Edge of i_wr_clk (Iteration {idx}). Checking if FIFO full...")
+        # dut._log.info(f"Got Rising Edge of i_wr_clk (Iteration {idx}). Checking if FIFO full...")
 
         while dut.o_wr_full.value == 0 and (data_sent != data_len):
             value = data[data_sent]
@@ -33,13 +33,14 @@ async def write_fifo(dut, data, delay_between_writes=0):
 
             for _ in range(delay_between_writes):
                 await RisingEdge(dut.i_wr_clk)
+                await Timer(100, units='ps')  # Adding a 100 ps delay
 
             timeout_counter += 1
             if timeout_counter >= TIMEOUT_CYCLES:
                 dut._log.error("Timeout during write!")
                 return
 
-        dut._log.info(f"FIFO is full. Waiting for next clock cycle (Iteration {idx})...")
+        # dut._log.info(f"FIFO is full. Waiting for next clock cycle (Iteration {idx})...")
         dut.i_write.value = 0
         dut.i_wr_data.value = 0
         await RisingEdge(dut.i_wr_clk)
@@ -68,6 +69,7 @@ async def delayed_read_fifo(dut, delay, expected_data_length, delay_between_read
 
     for _ in range(delay):
         await RisingEdge(dut.i_rd_clk)
+        await Timer(100, units='ps')  # Adding a 100 ps delay
 
     data_read = 0
     timeout_counter = 0
@@ -90,6 +92,7 @@ async def delayed_read_fifo(dut, delay, expected_data_length, delay_between_read
 
         for _ in range(delay_between_reads):
             await RisingEdge(dut.i_rd_clk)
+            await Timer(100, units='ps')  # Adding a 100 ps delay
 
         timeout_counter += 1
         if timeout_counter >= TIMEOUT_CYCLES:
@@ -117,12 +120,12 @@ async def fifo_test(dut):
     cocotb.start_soon(Clock(dut.i_wr_clk, 10, units="ns").start())
     cocotb.start_soon(Clock(dut.i_rd_clk, 15, units="ns").start())
 
-    await Timer(30, units="ns")
+    await Timer(300, units="ns")
     dut.i_wr_rst_n.value = 1
     dut.i_rd_rst_n.value = 1
 
     width = 8
-    depth = 8
+    depth = 10
     iterations = 100
     delay_between_iterations = 20
 
@@ -141,3 +144,4 @@ async def fifo_test(dut):
 
         for _ in range(delay_between_iterations):
             await RisingEdge(dut.i_rd_clk)
+            await Timer(100, units='ps')  # Adding a 100 ps delay
