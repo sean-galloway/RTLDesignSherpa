@@ -24,17 +24,17 @@ The `fifo_sync` module is a parameterized synchronous FIFO (First-In, First-Out)
 
 - **i_wr_data**: Data input to write to the FIFO.
 
-- **ow_wr_full**: Output signal indicating if the FIFO is full.
+- **o_wr_full**: Output signal indicating if the FIFO is full.
 
-- **ow_wr_almost_full**: Output signal indicating if the FIFO is almost full.
+- **o_wr_almost_full**: Output signal indicating if the FIFO is almost full.
 
 - **i_read**: Read enable signal. When high, data can be read from the FIFO.
 
 - **ow_rd_data**: Data output from the FIFO.
 
-- **ow_rd_empty**: Output signal indicating if the FIFO is empty.
+- **o_rd_empty**: Output signal indicating if the FIFO is empty.
 
-- **ow_rd_almost_empty**: Output signal indicating if the FIFO is almost empty.
+- **o_rd_almost_empty**: Output signal indicating if the FIFO is almost empty.
 
 ## Internal Design
 
@@ -50,6 +50,14 @@ In debug/translational-off blocks, the FIFO reports errors (like write attempts 
 
 ---
 
+## Block Hierarchy and Links
+
+- [Fifo async](fifo_async.md)
+- [Fifo full/empty control](fifo_control.md)
+- [Binary Counter](counter_bingray.md)
+
+---
+
 [Return to Index](index.md)
 
-----------
+---

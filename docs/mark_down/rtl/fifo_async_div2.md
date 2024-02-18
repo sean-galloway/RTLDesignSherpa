@@ -1,4 +1,4 @@
-# fifo_async_any_even
+# fifo_async_div2
 
 This module implements an asynchronous FIFO (First-In-First-Out) memory structure that operates on separate read and write clock domains, making it suitable for cross-clock-domain data transfers. It has been parametrized to work with any even depth and provides full, almost full, empty, and almost empty flags. Note: it does not use the traditional Gray counter for the crossing. It uses a Johnson counter, which is also a “unit-distance” code.
 
@@ -8,11 +8,11 @@ This module implements an asynchronous FIFO (First-In-First-Out) memory structur
 
 - `i_wr_clk` (input): Write domain clock
 
-- `i_wr_rst_n` (input): Active-low reset for write domain
+- `i_wr_rst_n` (input): Active-low reset for the write clock domain
 
 - `i_rd_clk` (input): Read domain clock
 
-- `i_rd_rst_n` (input): Active-low reset for read domain
+- `i_rd_rst_n` (input): Active-low reset for the read clock domain
 
 - **Write Domain:**
 
@@ -20,9 +20,9 @@ This module implements an asynchronous FIFO (First-In-First-Out) memory structur
 
 - `i_wr_data` (input): Data input for write operations, with the width defined by `DATA_WIDTH`
 
-- `ow_wr_full` (output): Indicates when FIFO is full, preventing further write operations
+- `o_wr_full` (output): Indicates when FIFO is full, preventing further write operations
 
-- `ow_wr_almost_full` (output): Flags when FIFO is almost full
+- `o_wr_almost_full` (output): Flags when FIFO is almost full
 
 - **Read Domain:**
 
@@ -30,9 +30,9 @@ This module implements an asynchronous FIFO (First-In-First-Out) memory structur
 
 - `ow_rd_data` (output): Data output for read operations, with the width matching `DATA_WIDTH`
 
-- `ow_rd_empty` (output): Flags when FIFO is empty, preventing further read operations
+- `o_rd_empty` (output): Flags when FIFO is empty, preventing further read operations
 
-- `ow_rd_almost_empty` (output): Indicates when FIFO is almost empty
+- `o_rd_almost_empty` (output): Indicates when FIFO is almost empty
 
 ## Parameters
 
@@ -76,6 +76,20 @@ The module safely transfers the fill level indicators across clock domains by us
 
 ---
 
+## Block Hierarchy and Links
+
+- [Fifo async div by 2](fifo_async_div2.md)
+- [Fifo full/empty control](fifo_control.md)
+- [Glitch free N-flop](glitch_free_n_dff_arn.md)
+- [Johnson to Binary](grayj2bin.md)
+- [Johnson Counter](counter_johnson.md)
+- [Binary Counter](counter_bin.md)
+- [Find the leading one and the trailing one](leading_one_trailing_one.md)
+- [Find the first set](find_last_set.md)
+- [Find the last set](find_first_set.md)
+
+---
+
 [Return to Index](index.md)
 
-----------
+---

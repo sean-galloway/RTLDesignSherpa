@@ -118,7 +118,7 @@
         }
     },
     {
-        "test": "val/common_cocotb_only/fifo_async_any_even",
+        "test": "val/common_cocotb_only/fifo_async_div2",
         "seed": "1234",
         "param": {
             "DEPTH": "10",

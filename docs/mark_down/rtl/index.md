@@ -134,7 +134,7 @@ Note: I have usually made significant changes, primarily for performance reasons
 
 - [clock_pulse](clock_pulse.md)
 
-- [pwm](pwm.md)
+- [PWM](pwm.md)
 
 15\. Arbiters
 
@@ -146,8 +146,14 @@ Note: I have usually made significant changes, primarily for performance reasons
 
 - [arbiter_fixed_priority](arbiter_fixed_priority.md)
 
+16\. FIFOs
+
+- [Synchronous](fifo_sync.md)
+- [Asynchronous](fifo_async.md)
+- [Asynchronous div by 2](fifo_async_div2.md)
+
 ---
 
 [Back to Readme](../../../README.md)
 
-----------
+---

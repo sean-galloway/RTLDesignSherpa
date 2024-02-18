@@ -13,9 +13,9 @@ VERILOG_SOURCES = \
 					$(REPO_ROOT)/rtl/common/grayj2bin.sv \
 					$(REPO_ROOT)/rtl/common/glitch_free_n_dff_arn.sv \
 					$(REPO_ROOT)/rtl/common/fifo_control.sv \
-					$(REPO_ROOT)/rtl/common/fifo_async_any_even.sv
+					$(REPO_ROOT)/rtl/common/fifo_async_div2.sv
 
-DUT = fifo_async_any_even
+DUT = fifo_async_div2
 MODULE = testbench
 TOPLEVEL = $(DUT)
 
