@@ -1,0 +1,39 @@
+@startuml verilog_ECC_Hamming
+
+class Hamming {
+    - module_str : string
+    - param_str : string
+    - buswidth : int
+    - ecc_bits : int
+    - total_bits : int
+    - module_name : string
+    - matrix : int[]
+    - syndrome : int[]
+    
+    + {static} main()
+    + __init__(buswidth: int)
+    + __generate_syndrome_list()
+}
+
+class HammingEncode {
+    - port_str : string
+    
+    + __init__(buswidth: int)
+    + generate_ecc()
+    + verilog(file_path: string)
+}
+
+class HammingDecode {
+    - port_str : string
+    
+    + __init__(buswidth: int)
+    + generate_syndrome()
+    + generate_data_repair()
+    + verilog(file_path: string)
+}
+
+Module <|-- Hamming
+Hamming <|-- HammingEncode
+Hamming <|-- HammingDecode
+
+@enduml

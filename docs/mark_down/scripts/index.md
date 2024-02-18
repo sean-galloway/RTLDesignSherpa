@@ -12,6 +12,8 @@ If one wants to look further into the main scripts, follow these links:
 
 * [Generate Verilog for some adders and multipliers](math_generate.md)
 
+* [Generate Verilog for Hamming encoders and decoders](ecc_generate.md)
+
 * [VCD to Wavedrom 2](vcd2wavedrom2.md)
 
 ## Primary Use Classes
@@ -25,6 +27,10 @@ These are the main workhorse classes:
 * [RunTest](run_test.md)
 
 * [REMatcher](REMatcher.md)
+
+## ECC Classes
+
+* [Hamming Encode/Decode Generator](ecc_hamming.md)
 
 ## Main Math Classes
 

@@ -2,11 +2,34 @@ from rtl_generators.verilog.module import Module
 
 
 class Hamming(Module):
+    """A Base class to generate Hamming code for error detection and correction.
+
+    This class generates a Hamming code based on the provided buswidth, calculating the necessary ECC bits and total bits for the code.
+
+    Args:
+        buswidth: The width of the data bus.
+
+    Returns:
+        None
+
+    Examples:
+        hamming = Hamming(8)
+    """
     module_str = 'dataint_ecc_hamming'
     param_str = 'parameter int N=8, parameter int ECC=3'
 
 
     def __init__(self, buswidth):
+        """Initialize the Hamming class with the provided buswidth.
+
+        This method calculates the necessary ECC bits and total bits for the Hamming code based on the buswidth.
+
+        Args:
+            buswidth: The width of the data bus.
+
+        Returns:
+            None
+        """
         Module.__init__(self, module_name=self.module_str)
         self.ports.add_port_string(self.port_str)
         self.params.add_param_string(self.param_str)
@@ -25,6 +48,16 @@ class Hamming(Module):
 
 
     def __generate_syndrome_list(self):
+        """Generate the syndrome list for the Hamming code.
+
+        This method generates the syndrome list used for error detection and correction in the Hamming code.
+
+        Args:
+            None
+
+        Returns:
+            None
+        """
         j = 1
         for i in range(self.total_bits):
             self.matrix[i] = j
@@ -41,6 +74,16 @@ class Hamming(Module):
 
 
 class HammingEncode(Hamming):
+    """A class for encoding data using Hamming code.
+
+    This class extends the Hamming class to encode data using Hamming code and generate error correction codes.
+
+    Args:
+        buswidth: The width of the data bus.
+
+    Returns:
+        None
+    """
     module_str = 'dataint_ecc_hamming_encode'
     port_str = '''
     input   logic [N-1:0]   i_data,
@@ -54,6 +97,16 @@ class HammingEncode(Hamming):
 
 
     def generate_ecc(self):
+        """Generate error correction codes using Hamming code.
+
+        This function generates error correction codes based on the provided data and Hamming code parameters.
+
+        Args:
+            None
+
+        Returns:
+            None
+        """
         self.comment('Hamming ECC Generation')
         for i in range(self.ecc_bits):
             start = False
@@ -85,6 +138,16 @@ class HammingEncode(Hamming):
 
 
 class HammingDecode(Hamming):
+    """A class for decoding data using Hamming code.
+
+    This class extends the Hamming class to decode data using Hamming code, detect errors, and repair data if possible.
+
+    Args:
+        buswidth: The width of the data bus.
+
+    Returns:
+        None
+    """
     module_str = 'dataint_ecc_hamming_decode'
     port_str = '''
     input   logic [N-1:0]   i_data,
@@ -101,6 +164,16 @@ class HammingDecode(Hamming):
 
 
     def generate_syndrome(self):
+        """Generate the syndrome for error detection in Hamming code.
+
+        This function generates the syndrome used to detect errors in the received data based on the Hamming code parameters.
+
+        Args:
+            None
+
+        Returns:
+            None
+        """
         self.comment('Syndrome')
         self.instruction('logic [ECC-1:0] w_syndrome;')
         for i in range(self.ecc_bits):
@@ -158,4 +231,3 @@ class HammingDecode(Hamming):
         self.start()
         self.end()
         self.write(file_path, f'{self.module_name}.sv')
-
