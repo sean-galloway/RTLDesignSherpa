@@ -2,7 +2,29 @@ from crc import Calculator, Configuration
 import random
 
 class CRCTesting():
+    """A class for testing CRC functionality.
+
+    This class is used to test CRC functionality by generating test data based on the provided settings and calculating checksums.
+
+    Args:
+        dut: The design under test.
+        rnd_count: The number of random values to generate for testing.
+
+    Returns:
+        None
+    """
     def __init__(self, dut, rnd_count):
+        """Initialize the CRCTesting class.
+
+        This method initializes the CRCTesting class by setting up the necessary parameters for testing CRC functionality.
+
+        Args:
+            dut: The design under test.
+            rnd_count: The number of random values to generate for testing.
+
+        Returns:
+            None
+        """
         self.dut = dut
         # Gather the settings from the Parameters to verify them
         self.data_width = int(dut.DATA_WIDTH)
@@ -30,6 +52,15 @@ class CRCTesting():
 
 
     def print_settings(self):
+        """Print the settings of the CRCTesting class.
+
+        This method prints out the settings related to data width, chunks, CRC width, polynomial, initial polynomial value, input reflection, output reflection, and XOR output for CRC testing.
+
+        Args:
+            None
+        Returns:
+            None
+        """
         print('-------------------------------------------')
         print('Settings:')
         print(f'    DATA_WIDTH: {self.data_width}')
@@ -44,6 +75,16 @@ class CRCTesting():
 
 
     def generate_test_data(self):
+        """Generate test data for CRC testing.
+
+        This method generates test data for CRC testing based on the configured settings and calculates checksums for the generated data.
+
+        Args:
+            None
+
+        Returns:
+            None
+        """
         walk_1_through_0s = [1 << i for i in range(self.data_width)]
         all_ones = 2**self.data_width - 1
         walk_0_through_1s = [all_ones ^ (1 << i) for i in range(self.data_width)]
@@ -62,5 +103,3 @@ class CRCTesting():
             ecc = self.calculator.checksum(data_bytes)
             print(f'Data Generation: {data_bytes=} {ecc=}')
             self.test_data.append((data, ecc))
-
-
