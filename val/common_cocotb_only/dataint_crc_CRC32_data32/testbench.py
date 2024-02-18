@@ -3,26 +3,7 @@ from cocotb.triggers import RisingEdge, FallingEdge, ClockCycles
 from cocotb.clock import Clock
 import os
 import random
-# from crccheck.crc import CrcBase
-
-# class MyCustomCrc(CrcBase):
-#     _width = 32
-#     _poly = 0x04C11DB7
-#     _initvalue = 0xFFFFFFFF
-#     _reflect_input = True
-#     _reflect_output = True
-#     _finalxor = 0xFFFFFFFF
-
-from crc import Calculator, Configuration
-
-mycfg = Configuration(
-    width=32,
-    polynomial=0x04C11DB7,
-    init_value=0xFFFFFFFF,
-    final_xor_value=0xFFFFFFFF,
-    reverse_input=True,
-    reverse_output=True
-)
+from crc_testing import CRCTesting
 
 @cocotb.test()
 async def test_crc_basic(dut):
@@ -34,75 +15,10 @@ async def test_crc_basic(dut):
 
     clock = Clock(dut.i_clk, 10, units="ns")  # Create a 100MHz clock
     cocotb.start_soon(clock.start())  # Start the clock
-    # Gather the settings from the Parameters to verify them
-    data_width = int(dut.DATA_WIDTH)
-    chunks = int(dut.CHUNKS)
-    d_nybbles = chunks // 2
-    crc_width = int(dut.CRC_WIDTH)
-    nybbles = crc_width // 4
-    crc_poly = int(dut.POLY) & 0xFFFFFFFF
-    crc_poly_initial = int(dut.POLY_INIT) & 0xFFFFFFFF
-    reflected_input = int(dut.REFIN)
-    reflected_output = int(dut.REFOUT)
-    xor_output = int(dut.XOROUT) & 0xFFFFFFFF
-    print('-------------------------------------------')
-    print('Settings:')
-    print(f'    DATA_WIDTH: {data_width}')
-    print(f'    CHUNKS:     {chunks}')
-    print(f'    CRC_WIDTH:  {crc_width}')
-    print(f'    POLY:       0x{hex(crc_poly)[2:].zfill(crc_width // 4)}')
-    print(f'    POLY_INIT:  0x{hex(crc_poly_initial)[2:].zfill(crc_width // 4)}')
-    print(f'    REFIN:      {reflected_input}')
-    print(f'    REFOUT:     {reflected_output}')
-    print(f'    XOROUT:     0x{hex(xor_output)[2:].zfill(crc_width // 4)}')
-    print('-------------------------------------------')
 
-    test_values = [ 0x12345678,
-                    0x00000000,
-                    0x00000001,
-                    0x00000002,
-                    0x00000004,
-                    0x00000008,
-                    0x00000010,
-                    0x00000020,
-                    0x00000040,
-                    0x00000080,
-                    0x00000100,
-                    0x00000200,
-                    0x00000400,
-                    0x00000800,
-                    0x00001000,
-                    0x00002000,
-                    0x00004000,
-                    0x00008000,
-                    0x00010000,
-                    0x00020000,
-                    0x00040000,
-                    0x00080000,
-                    0x00100000,
-                    0x00200000,
-                    0x00400000,
-                    0x00800000,
-                    0x01000000,
-                    0x02000000,
-                    0x04000000,
-                    0x08000000,
-                    0x10000000,
-                    0x20000000,
-                    0x40000000,
-                    0x80000000]
-    test_data = []
-    for data in test_values:
-        data_bytes = data.to_bytes(chunks, 'little')
-        ecc = MyCustomCrc.calc(data_bytes)
-        test_data.append((data, ecc))
-
-    # add some random values to the list
-    for _ in range(100):
-        data = random.randint(0x00,0xFFFFFFFF)
-        data_bytes = data.to_bytes(chunks, 'little')
-        ecc = MyCustomCrc.calc(data_bytes)
-        test_data.append((data, ecc))
+    crctest = CRCTesting(dut, 100)
+    crctest.print_settings()
+    crctest.generate_test_data()
 
     ##########################################################################
     # Reset
@@ -118,12 +34,12 @@ async def test_crc_basic(dut):
     for _ in range(5):
         await FallingEdge(dut.i_clk)  
 
-    for data, expected_crc in test_data:
+    for data, expected_crc in crctest.test_data:
         # Test 1: Load initial CRC value and check
         dut.i_load_crc_start.value = 1
         await FallingEdge(dut.i_clk)  
         dut.i_load_crc_start.value = 0
-        assert dut.o_crc.value == crc_poly_initial, "CRC initial value incorrect"
+        assert dut.o_crc.value == crctest.crc_poly_initial, "CRC initial value incorrect"
 
         # Test 2: Load data and validate CRC calculation
         # This step depends on having a known input-output pair for validation
@@ -139,6 +55,6 @@ async def test_crc_basic(dut):
         # Verify the CRC output matches the expected value
         # Note: You may need to adjust this depending on when the CRC output is valid
         actual_crc = dut.o_crc.value
-        print(f'test_data=0x{hex(data)[2:].zfill(d_nybbles)}   expected_crc=0x{hex(expected_crc)[2:].zfill(nybbles)}  actual_crc=0x{hex(actual_crc)[2:].zfill(nybbles)}')
-        assert actual_crc == expected_crc, f"Unexpected CRC result: data=0x{hex(data)[2:].zfill(d_nybbles)}  expected {hex(expected_crc)} --> found {hex(dut.o_crc.value)}"
+        print(f'test_data=0x{hex(data)[2:].zfill(crctest.d_nybbles)}   expected_crc=0x{hex(expected_crc)[2:].zfill(crctest.nybbles)}  actual_crc=0x{hex(actual_crc)[2:].zfill(crctest.nybbles)}')
+        assert actual_crc == expected_crc, f"Unexpected CRC result: data=0x{hex(data)[2:].zfill(crctest.d_nybbles)}  expected {hex(expected_crc)} --> found {hex(dut.o_crc.value)}"
 
