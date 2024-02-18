@@ -52,4 +52,4 @@ This Verilog module implements a parameterizable Linear Feedback Shift Register 
 
 [Return to Index](index.md)
 
-----------
+---

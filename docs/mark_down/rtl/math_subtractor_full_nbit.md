@@ -40,4 +40,4 @@ The code block uses the `generate for` loop to create a subtractor for each bit,
 
 [Return to Index](index.md)
 
-----------
+---

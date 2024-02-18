@@ -36,4 +36,4 @@ This Verilog module implements an `N`-bit ripple carry adder. This digital circu
 
 [Return to Index](index.md)
 
-----------
+---

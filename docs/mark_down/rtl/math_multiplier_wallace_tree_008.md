@@ -34,4 +34,4 @@ The internal workings of the module involve the following steps:
 
 [Return to Index](index.md)
 
-----------
+---

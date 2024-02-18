@@ -28,4 +28,4 @@ The module `math_adder_brent_kung_pg` generates the propagate (P) and generate (
 
 [Return to Index](index.md)
 
-----------
+---

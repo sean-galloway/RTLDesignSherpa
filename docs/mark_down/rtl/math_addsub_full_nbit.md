@@ -46,4 +46,4 @@ This Verilog module performs either addition or subtraction on two N-bit binary 
 
 [Return to Index](index.md)
 
-----------
+---

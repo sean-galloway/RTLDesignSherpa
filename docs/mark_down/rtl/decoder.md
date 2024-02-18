@@ -46,4 +46,4 @@ This example would instantiate a decoder with three input bits and eight output 
 
 [Return to Index](index.md)
 
-----------
+---

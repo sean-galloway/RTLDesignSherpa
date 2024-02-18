@@ -46,4 +46,4 @@ This code represents a Verilog module part of an adder circuit using the Brent-K
 
 [Return to Index](index.md)
 
-----------
+---

@@ -48,4 +48,4 @@ The `glitch_free_n_dff_arn` suits digital designs requiring clean, glitch-free s
 
 [Return to Index](index.md)
 
-----------
+---

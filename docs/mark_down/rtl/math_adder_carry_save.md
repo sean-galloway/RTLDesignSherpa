@@ -24,4 +24,4 @@ The Carry Save Adder inputs three binary values and computes their sum and carry
 
 [Return to Index](index.md)
 
-----------
+---

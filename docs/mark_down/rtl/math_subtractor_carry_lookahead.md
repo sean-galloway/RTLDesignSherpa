@@ -38,4 +38,4 @@ This Verilog module implements a subtractor with a carry-lookahead feature to im
 
 [Return to Index](index.md)
 
-----------
+---

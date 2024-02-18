@@ -42,4 +42,4 @@ The Math Divider SRT is a synthesized Verilog module that handles division using
 
 [Return to Index](index.md)
 
-----------
+---

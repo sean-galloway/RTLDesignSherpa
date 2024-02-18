@@ -52,4 +52,4 @@ counter_johnson #(
 
 [Return to Index](index.md)
 
-----------
+---

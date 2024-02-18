@@ -36,4 +36,4 @@ This Verilog module implements a bubble sort algorithm for sorting `NUM_VALS` va
 
 [Return to Index](index.md)
 
-----------
+---

@@ -32,4 +32,4 @@ Note that this module assumes the existence of the `math_adder_full_nbit` module
 
 [Return to Index](index.md)
 
-----------
+---

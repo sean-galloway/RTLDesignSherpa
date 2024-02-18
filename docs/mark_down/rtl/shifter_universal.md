@@ -58,4 +58,4 @@ The `shifter_universal` module is a parameterized shift register capable of perf
 
 [Return to Index](index.md)
 
-----------
+---

@@ -28,4 +28,4 @@ However, during simulation, the commented-out `\$display` statement in the alway
 
 [Return to Index](index.md)
 
-----------
+---

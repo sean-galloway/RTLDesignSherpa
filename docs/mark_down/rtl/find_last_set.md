@@ -74,4 +74,4 @@ A commented-out `\$display` statement illustrates how one might use the `INSTANC
 
 [Return to Index](index.md)
 
-----------
+---

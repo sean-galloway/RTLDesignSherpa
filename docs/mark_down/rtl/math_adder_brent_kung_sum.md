@@ -48,4 +48,4 @@ To use this module, instantiate it in your Verilog code and connect the input/ou
 
 [Return to Index](index.md)
 
-----------
+---

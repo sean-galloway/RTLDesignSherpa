@@ -34,4 +34,4 @@ The `gray2bin` module does not rely on any external files or modules, assuming t
 
 [Return to Index](index.md)
 
-----------
+---

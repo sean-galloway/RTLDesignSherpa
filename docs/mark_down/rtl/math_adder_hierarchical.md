@@ -44,4 +44,4 @@ When `DEBUG` is defined:
 
 [Return to Index](index.md)
 
-----------
+---

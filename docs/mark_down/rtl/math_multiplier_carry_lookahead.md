@@ -44,4 +44,4 @@ The `math_multiplier_carry_lookahead` module implements a binary multiplier usin
 
 [Return to Index](index.md)
 
-----------
+---

@@ -40,4 +40,4 @@ The module instantiates `math_adder_full` within the generate block which sugges
 
 [Return to Index](index.md)
 
-----------
+---

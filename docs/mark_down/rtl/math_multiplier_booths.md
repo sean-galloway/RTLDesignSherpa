@@ -52,4 +52,4 @@ Booth's multiplier algorithm is used in computer architecture to multiply binary
 
 [Return to Index](index.md)
 
-----------
+---

@@ -22,7 +22,7 @@ The `shifter_barrel` module is a hardware component written in SystemVerilog tha
 
 | `i_ctrl` Value | Operation | Description |
 
-| -------------- | ----------------------------- | --------------------------------------------------------- |
+| ------- | ----------------------------- | --------------------------------------------------------- |
 
 | 000 | No Shift | Output data equals input data (no shift). |
 
@@ -46,4 +46,4 @@ The `shifter_barrel` module is a hardware component written in SystemVerilog tha
 
 [Return to Index](index.md)
 
-----------
+---

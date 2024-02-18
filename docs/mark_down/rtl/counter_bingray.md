@@ -46,4 +46,4 @@ For further integration into larger designs like asynchronous FIFOs, use the Gra
 
 [Return to Index](index.md)
 
-----------
+---

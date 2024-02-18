@@ -34,4 +34,4 @@ A Wallace Tree multiplier is a hardware implementation that multiplies binary nu
 
 [Return to Index](index.md)
 
-----------
+---

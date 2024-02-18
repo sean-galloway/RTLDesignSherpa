@@ -42,4 +42,4 @@ The module performs priority encoding on the `i_priority` input when `i_enable` 
 
 [Return to Index](index.md)
 
-----------
+---

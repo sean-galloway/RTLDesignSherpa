@@ -38,4 +38,4 @@ This module is typically instantiated inside a larger design and connected to ot
 
 [Return to Index](index.md)
 
-----------
+---

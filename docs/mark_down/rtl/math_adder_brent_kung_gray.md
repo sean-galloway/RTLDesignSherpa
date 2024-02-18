@@ -30,4 +30,4 @@ No command line options are needed as this is a hardware module definition writt
 
 [Return to Index](index.md)
 
-----------
+---

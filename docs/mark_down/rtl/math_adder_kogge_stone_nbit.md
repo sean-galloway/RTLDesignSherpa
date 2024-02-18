@@ -40,4 +40,4 @@ The `math_adder_kogge_stone_nbit` module implements an N-bit Kogge-Stone adder, 
 
 [Return to Index](index.md)
 
-----------
+---

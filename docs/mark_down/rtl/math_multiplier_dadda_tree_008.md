@@ -40,4 +40,4 @@ This module requires several instances of `math_adder_half` and `math_adder_carr
 
 [Return to Index](index.md)
 
-----------
+---

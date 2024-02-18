@@ -36,4 +36,4 @@ The `math_adder_carry_save_nbit` is an essential building block in arithmetic ci
 
 [Return to Index](index.md)
 
-----------
+---

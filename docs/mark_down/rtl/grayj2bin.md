@@ -60,4 +60,4 @@ Lastly, the separated signals from `w_binary` are concatenated with the "wrap bi
 
 [Return to Index](index.md)
 
-----------
+---

@@ -40,4 +40,4 @@ The `always_comb` block implements the Booth encoding selection logic, which cal
 
 [Return to Index](index.md)
 
-----------
+---

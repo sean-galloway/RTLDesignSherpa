@@ -34,4 +34,4 @@ This module does not have parameters or settings and can be instantiated as-is. 
 
 [Return to Index](index.md)
 
-----------
+---

@@ -44,4 +44,4 @@ The `math_subtractor_full` module referenced in this build should exist and be c
 
 [Return to Index](index.md)
 
-----------
+---

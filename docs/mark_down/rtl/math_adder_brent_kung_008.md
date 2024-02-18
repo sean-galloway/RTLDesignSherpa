@@ -56,4 +56,4 @@ To properly use this module, make sure that the following files/modules are incl
 
 [Return to Index](index.md)
 
-----------
+---

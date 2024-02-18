@@ -36,4 +36,4 @@ The `timescale` directive is set to 1 nanosecond for the time unit and one picos
 
 [Return to Index](index.md)
 
-----------
+---

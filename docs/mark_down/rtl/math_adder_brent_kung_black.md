@@ -48,4 +48,4 @@ This module is usually instantiated within a larger Brent-Kung adder circuit whe
 
 [Return to Index](index.md)
 
-----------
+---

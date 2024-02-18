@@ -44,4 +44,4 @@ This module provides a table-based approach to encoding a group of three bits fo
 
 [Return to Index](index.md)
 
-----------
+---

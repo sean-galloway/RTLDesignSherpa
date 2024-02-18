@@ -30,4 +30,4 @@ This half-adder can be instantiated within a larger design to perform bit-wise a
 
 [Return to Index](index.md)
 
-----------
+---

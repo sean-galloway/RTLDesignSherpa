@@ -42,4 +42,4 @@ When using the `math_adder_brent_kung_bitwisepg` in a project, the module should
 
 [Return to Index](index.md)
 
-----------
+---

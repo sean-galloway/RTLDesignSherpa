@@ -28,4 +28,4 @@ The code describes an encoder that converts an N-bit input signal to an index va
 
 [Return to Index](index.md)
 
-----------
+---

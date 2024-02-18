@@ -22,4 +22,4 @@ The `hex_to_7seg` module is a Verilog code snippet that converts a 4-bit hexadec
 
 [Return to Index](index.md)
 
-----------
+---
