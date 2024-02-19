@@ -17,7 +17,7 @@ The script ensures that a valid ECC type is selected and that the bus width is g
 Running the script with the following options:
 
 ```bash
-python3 ecc_wrapper.py --path /output/path --type hamming --buswidth 16
+python3 bin/ecc_wrapper.py --path /output/path --type hamming --buswidth 16
 ```
 
 ---

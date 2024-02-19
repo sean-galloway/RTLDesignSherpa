@@ -116,7 +116,6 @@ Note: I have usually made significant changes, primarily for performance reasons
 
   - [find_first_set](find_first_set.md)
 
-
 10\. Counters
 
 - [counter](counter.md)

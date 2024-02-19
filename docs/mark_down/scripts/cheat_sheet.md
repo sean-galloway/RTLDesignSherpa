@@ -50,24 +50,6 @@ python3 bin/run_test_wrap.py --test val/common_level0/math_adder_brent_kung_032 
 
 python3 bin/run_test_wrap.py --test val/common_level0/math_adder_carry_lookahead --tag my_tag --seed 1234 --params N=4
 
-python3 bin/run_test_wrap.py --test val/common_level0/math_adder_carry_save --tag my_tag --seed 1234
-
-python3 bin/run_test_wrap.py --test val/common_level0/math_adder_carry_save_nbit --tag my_tag --seed 1234 --params N=4
-
-python3 bin/run_test_wrap.py --test val/common_level0/math_adder_full --tag my_tag --seed 1234
-
-python3 bin/run_test_wrap.py --test val/common_level0/math_adder_full_nbit --tag my_tag --seed 1234 --params N=4
-
-python3 bin/run_test_wrap.py --test val/common_level0/math_adder_half --tag my_tag --seed 1234
-
-python3 bin/run_test_wrap.py --test val/common_level0/math_adder_hierarchical --tag my_tag --seed 1234 --params N=16,C=6
-
-python3 bin/run_test_wrap.py --test val/common_level0/math_adder_kogge_stone_nbit --tag my_tag --seed 1234 --params N=4
-
-python3 bin/run_test_wrap.py --test val/common_level0/math_adder_ripple_carry --tag my_tag --seed 1234 --params N=4
-
-python3 bin/run_test_wrap.py --test val/common_level0/math_addsub_full_nbit --tag my_tag --seed 1234 --params N=8
-
 ```
 
 Generate a JSON list of tests specifying a path and output file name (for each bin of tests, level0, level1, etc., there is an associated in ./val/testlists/level0.json. These JSON files contain the parameters and the seed used for the test. Creating the JSON list with the information from the makefile is hard to grab manually.):
@@ -159,6 +141,14 @@ buswidth=8
 python3 bin/math_generate.py --type \$type --path \$out_path --buswidth \$buswidth
 
 ```
+
+## [ecc_generate.py](math_generate.md)
+
+This script generates Hamming encoders and decoders.
+
+``sh
+python bin/ecc_generate.py --type hamming --path $REPO_ROOT/rtl/common/ --buswidth 32
+``
 
 ## [vcd2wavedrom2.py](vcd2wavedrom2.md)
 
