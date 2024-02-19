@@ -5,6 +5,11 @@ import os
 import random
 from crc_testing import CRCTesting
 
+def find_highest_byte_enable(data_width):
+    # Calculate the number of bytes - 1 to find the highest byte position
+    highest_byte_position = (data_width // 8) - 1
+    return 1 << highest_byte_position
+
 @cocotb.test()
 async def test_crc_basic(dut):
     """ Test the CRC calculation for a basic input """
@@ -45,7 +50,7 @@ async def test_crc_basic(dut):
         # This step depends on having a known input-output pair for validation
         dut.i_data.value = data
         dut.i_load_from_cascade.value = 1
-        dut.i_cascade_sel.value = crctest.chunks
+        dut.i_cascade_sel.value = find_highest_byte_enable(crctest.data_width)
         await FallingEdge(dut.i_clk)
         dut.i_data.value = 0
         dut.i_load_from_cascade.value = 0

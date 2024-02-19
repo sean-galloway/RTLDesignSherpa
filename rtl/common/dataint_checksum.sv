@@ -1,5 +1,6 @@
 `timescale 1ns / 1ps
 
+// Generic Checksum Module
 module dataint_checksum #(
     parameter int WIDTH = 8
 ) (

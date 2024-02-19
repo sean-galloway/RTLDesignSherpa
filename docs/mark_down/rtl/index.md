@@ -78,11 +78,17 @@ Note: I have usually made significant changes, primarily for performance reasons
 
 7\. Encoder and Decoders
 
+- [decoder](decoder.md)
+
 - [encoder](encoder.md)
 
 - [encoder_priority_enable](encoder_priority_enable.md)
 
 - [hex_to_7seg](hex_to_7seg.md)
+
+- [Binary to BCD](bin_to_bcd.md)
+
+- [gray2bin](bin2gray.md)
 
 - [gray2bin](gray2bin.md)
 
@@ -96,13 +102,26 @@ Note: I have usually made significant changes, primarily for performance reasons
 
 - [glitch_free_n_dff_arn](glitch_free_n_dff_arn.md)
 
+- [Reset Synchronizer](reset_sync.md)
+
 9\. Set Finders
 
-- [find_last_set](find_last_set.md)
+- [count leading zeros](count_leading_zeros.md)
 
-- [find_first_set](find_first_set.md)
+- [leading_one_trailing_one](leading_one_trailing_one.md)
+
+  Sub-Blocks
+
+  - [find_last_set](find_last_set.md)
+
+  - [find_first_set](find_first_set.md)
+
 
 10\. Counters
+
+- [counter](counter.md)
+
+- [counter load/clear](counter_load_clear.md)
 
 - [counter_bin](counter_bin.md)
 
@@ -122,7 +141,7 @@ Note: I have usually made significant changes, primarily for performance reasons
 
 - [shifter_lfsr](shifter_lfsr.md)
 
-- [Shifter_Universal](Shifter_Universal.md)
+- [Shifter_Universal](shifter_universal.md)
 
 13\. Debounce Circuit
 
@@ -149,8 +168,42 @@ Note: I have usually made significant changes, primarily for performance reasons
 16\. FIFOs
 
 - [Synchronous](fifo_sync.md)
+
 - [Asynchronous](fifo_async.md)
+
 - [Asynchronous div by 2](fifo_async_div2.md)
+
+  Sub-Blocks
+
+  - [Binary Counter](counter_bin.md)
+
+  - [Binary and Gray Counter](counter_bingray.md)
+
+  - [Johnson Counter](counter_johnson.md)
+  
+  - [FIFO Control, for empty/full, used for sync and async blocks](fifo_control.md)
+
+  - [Gray to Binary](gray2bin.md)
+
+  - [Johnson to Binary](grayj2bin.md)
+
+17\. Data Integrity
+
+- [Parity](dataint_parity.md)
+
+- [Checksum](dataint_checksum.md)
+
+- [CRC](dataint_crc.md)
+
+  Sub-Blocks
+
+  - [CRC XOR Cascade](dataint_crc_xor_shift_cascade.md)
+
+  - [CRC XOR Shift](dataint_crc_xor_shift.md)
+
+- [Hamming ECC Encode](dataint_ecc_hamming_encode_008.md)
+
+- [Hamming ECC Decode](dataint_ecc_hamming_decode_008.md)
 
 ---
 

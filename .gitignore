@@ -191,7 +191,7 @@ _site/
 .bundle/
 vendor/
 openai/
-*.ipynb
+ipynb/
 *OLD.md
 bin_OLD/
 profile.txt

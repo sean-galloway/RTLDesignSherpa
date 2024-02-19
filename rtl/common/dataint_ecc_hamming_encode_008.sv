@@ -1,5 +1,6 @@
 `timescale 1ns / 1ps
 
+// Hamming Encode module
 module dataint_ecc_hamming_encode_008 #(
     parameter int N   = 8,
     parameter int ECC = 4
