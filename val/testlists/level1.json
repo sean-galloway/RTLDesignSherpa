@@ -1,0 +1,16 @@
+[
+    {
+        "test": "val/common_level1/arbiter_round_robin_wrapper",
+        "seed": "1234",
+        "param": {
+            "N": "4"
+        }
+    },
+    {
+        "test": "val/common_level1/arbiter_weighted_round_robin_wrapper",
+        "seed": "1234",
+        "param": {
+            "N": "4"
+        }
+    }
+]

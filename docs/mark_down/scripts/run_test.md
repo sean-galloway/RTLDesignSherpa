@@ -22,13 +22,15 @@ The `RunTest` class encapsulates all the necessary details and methods to run in
 
 - `params`: Custom parameters that may impact the test run. This option is usually only used for one test or a group of tests operating on one set of logic since the parameters may conflict if multiple RTL logic gets tested simultaneously.
 
+- `randomize`: A flag to choose to randomize the seeds on this regression.
+
 Upon initialization, it sets up the testing environment by determining the repository root, copying necessary configuration files, and creating a unique directory for test results.
 
 #### Example of Initialization
 
 ```python
 
-instance = RunTest(test="my_test", test_list="test_list", tag="runtest", seed="12345", params={"param1": "value1", "param2": "value2"})
+instance = RunTest(test="my_test", test_list="test_list", tag="runtest", seed="12345", params={"param1": "value1", "param2": "value2"}, randomize=False)
 
 ```
 

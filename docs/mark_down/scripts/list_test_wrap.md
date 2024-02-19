@@ -10,6 +10,25 @@ The following code provides the functionality of a wrapper script to work with t
 
 3. Calls the TestList class with the correct options
 
+### Usage to find a test
+
+To use this script, you would use the command line to pass the appropriate arguments. For example:
+
+Find test commands using a partial test name:
+
+```sh
+list_test_wrap.py --find "partial_test_name"
+
+```
+
+### Usage to generate a JSON list of tests specifying a path and output file name
+
+```sh
+python3 bin/list_test_wrap.py --list val/testlists/level0.json --path val/common_level0/
+python3 bin/list_test_wrap.py --list val/testlists/level1.json --path val/common_level1/
+
+```
+
 ### Inputs/Outputs
 
 #### Command Line Arguments
@@ -39,26 +58,6 @@ The following code provides the functionality of a wrapper script to work with t
 - The `if _*name*_ == '**main**':` construct ensures that `main()` is called only when the script is executed directly and not when imported as a module.
 
 - The `generate_run_test_commands` and `create_json_file_from_dirs` methods functionality depends on their implementation within the `TestList` class, which is not shown here.
-
-### Usage
-
-To use this script, you would use the command line to pass the appropriate arguments. For example:
-
-Find test commands using a partial test name:
-
-```sh
-
-list_test_wrap.py --find "partial_test_name"
-
-```
-
-Generate a JSON list of tests specifying a path and output file name:
-
-```sh
-
-list_test_wrap.py --list "level0.json" --path "val/common_cocotb_only/""
-
-```
 
 ---
 

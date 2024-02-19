@@ -178,7 +178,7 @@ junk
 IcarusIssue*
 reports/*
 bin/OLD_SCRIPTS/
-val/common_cocotb_only_HOLD/*
+val/common_level0_HOLD/*
 regression/*
 docs/mark_down/scripts/OLD/*
 

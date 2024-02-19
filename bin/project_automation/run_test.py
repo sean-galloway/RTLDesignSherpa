@@ -7,7 +7,7 @@ import glob
 import subprocess
 import re
 import json
-import contextlib
+import random
 from .REMatcher import REMatcher
 
 
@@ -21,6 +21,7 @@ class RunTest(object):
             tag (str): The tag for the regression test.
             seed (str): The seed value for the tests.
             params (dict): The custom parameters for the tests.
+            randomize (Boolean): A flag to randomize the seed for this test
 
         Attributes:
             original_directory (str): The original working directory.
@@ -42,7 +43,7 @@ class RunTest(object):
     """
 
 
-    def __init__(self, test=None, test_list=None, tag='runtest', seed=None, params=None):
+    def __init__(self, test=None, test_list=None, tag='runtest', seed=None, params=None, randomize=False):
         # Save the current directory
         self.original_directory = os.getcwd()
         # get the repo root
@@ -52,6 +53,7 @@ class RunTest(object):
         self.env['REPO_ROOT'] = self.repo_root
         self.tag = tag
         self.test = test
+        self.randomize = randomize
 
         print(f'    REPO_ROOT={self.repo_root}')
         config_file = f'{self.repo_root}/bin/config.json'
@@ -193,8 +195,11 @@ class RunTest(object):
                 test = test_path.split('/')[-2]
             print(f'    {test}')
 
-            seed = test_entry.get('seed', 1234)   # Default to None if 'seed' is not in dict
+            seed = test_entry.get('seed', 1234)   # Default to 1234 if 'seed' is not in dict
             params = test_entry.get('param', {})  # Default to empty dict if 'param' is not in dict
+
+            if self.randomize:
+                seed = random.randint(0, 0xFFFFFFFF)
 
             pass_or_fail = self.run_make(self.repo_root, test, test_path, self.regression_dir, self.env, seed, params)
             if pass_or_fail is False:

@@ -10,7 +10,7 @@ This script runs from the command line with various parameters to control the ex
 
 ```python
 
-python run_test_wrap.py --test my_test --tag my_tag --seed 1234 --params N=8,M=16
+python bin/run_test_wrap.py --test my_test --tag my_tag --seed 1234 --params N=8,M=16
 
 ```
 
@@ -18,7 +18,16 @@ python run_test_wrap.py --test my_test --tag my_tag --seed 1234 --params N=8,M=1
 
 ```python
 
-python run_test_wrap.py --testlist my_test_list --tag my_tag
+python bin/run_test_wrap.py --testlist my_test_list --tag my_tag
+
+```
+
+### Usage to run a Level 0 regression, with and without randomization
+
+```sh
+python3 bin/run_test_wrap.py --testlist level0 --tag 20240218
+
+python3 bin/run_test_wrap.py --testlist level0 --tag 20240218_rand --randomize
 
 ```
 
@@ -34,6 +43,8 @@ python run_test_wrap.py --testlist my_test_list --tag my_tag
 
 - `--params` \<type=str>: A string of comma-separated key-value pairs passed as test parameters in the format `key1=value1,key2=value2,...`, default is `None`.
 
+- `--randomize` \<type=Boolean>: A simple flag to indicate to use of random seeds on the regression; default is `False`.
+
 ## Internal Functionality
 
 The Python script begins by importing the required modules and defining the `parse_params` function:
@@ -46,7 +57,7 @@ The Python script begins by importing the required modules and defining the `par
 
 Next, the script checks if executed as the main program. If so, it parses command-line arguments:
 
-1. An instance of `ArgumentParser` from the `argparse` module initialized with script.
+1. An instance of `ArgumentParser` from the `argparse` module initialized with the script.
 
 2. Command-line arguments are added for `--test`, `--testlist`, `--tag`, `--seed`, and `--params`.
 

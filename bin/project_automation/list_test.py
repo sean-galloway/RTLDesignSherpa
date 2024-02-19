@@ -117,7 +117,7 @@ class TestList(object):
                         if re.match(r"^\s*#", line):
                             continue  # Skip comments
 
-                        compile_args_match = re.findall(r'-P\s*\$\(DUT\)\.(\w+)=(\w+)', line)
+                        compile_args_match = re.findall(r'-P\s*\$\(DUT\)\.(\w+)=(\S+)', line)
                         for param, value in compile_args_match:
                             param_dict[param] = value
 

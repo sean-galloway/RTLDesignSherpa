@@ -10,11 +10,11 @@ The `lint_wrap` script at `lint_wrap.py` is to lint and format Verilog files usi
 
 ```sh
 
-lint_wrap.py --format
+python3 bin/lint_wrap.py --format
 
-lint_wrap.py --lint
+python3 bin/lint_wrap.py --lint
 
-lint_wrap.py --format --lint
+python3/lint_wrap.py --format --lint
 
 ```
 
@@ -42,31 +42,31 @@ Output:
 
 ```sh
 
-python run_test_wrap.py --test val/common_cocotb_only/math_adder_brent_kung_008 --tag my_tag --seed 1234
+python3 bin/run_test_wrap.py --test val/common_level0/math_adder_brent_kung_008 --tag my_tag --seed 1234
 
-python run_test_wrap.py --test val/common_cocotb_only/math_adder_brent_kung_016 --tag my_tag --seed 1234
+python3 bin/run_test_wrap.py --test val/common_level0/math_adder_brent_kung_016 --tag my_tag --seed 1234
 
-python run_test_wrap.py --test val/common_cocotb_only/math_adder_brent_kung_032 --tag my_tag --seed 1234
+python3 bin/run_test_wrap.py --test val/common_level0/math_adder_brent_kung_032 --tag my_tag --seed 1234
 
-python run_test_wrap.py --test val/common_cocotb_only/math_adder_carry_lookahead --tag my_tag --seed 1234 --params N=4
+python3 bin/run_test_wrap.py --test val/common_level0/math_adder_carry_lookahead --tag my_tag --seed 1234 --params N=4
 
-python run_test_wrap.py --test val/common_cocotb_only/math_adder_carry_save --tag my_tag --seed 1234
+python3 bin/run_test_wrap.py --test val/common_level0/math_adder_carry_save --tag my_tag --seed 1234
 
-python run_test_wrap.py --test val/common_cocotb_only/math_adder_carry_save_nbit --tag my_tag --seed 1234 --params N=4
+python3 bin/run_test_wrap.py --test val/common_level0/math_adder_carry_save_nbit --tag my_tag --seed 1234 --params N=4
 
-python run_test_wrap.py --test val/common_cocotb_only/math_adder_full --tag my_tag --seed 1234
+python3 bin/run_test_wrap.py --test val/common_level0/math_adder_full --tag my_tag --seed 1234
 
-python run_test_wrap.py --test val/common_cocotb_only/math_adder_full_nbit --tag my_tag --seed 1234 --params N=4
+python3 bin/run_test_wrap.py --test val/common_level0/math_adder_full_nbit --tag my_tag --seed 1234 --params N=4
 
-python run_test_wrap.py --test val/common_cocotb_only/math_adder_half --tag my_tag --seed 1234
+python3 bin/run_test_wrap.py --test val/common_level0/math_adder_half --tag my_tag --seed 1234
 
-python run_test_wrap.py --test val/common_cocotb_only/math_adder_hierarchical --tag my_tag --seed 1234 --params N=16,C=6
+python3 bin/run_test_wrap.py --test val/common_level0/math_adder_hierarchical --tag my_tag --seed 1234 --params N=16,C=6
 
-python run_test_wrap.py --test val/common_cocotb_only/math_adder_kogge_stone_nbit --tag my_tag --seed 1234 --params N=4
+python3 bin/run_test_wrap.py --test val/common_level0/math_adder_kogge_stone_nbit --tag my_tag --seed 1234 --params N=4
 
-python run_test_wrap.py --test val/common_cocotb_only/math_adder_ripple_carry --tag my_tag --seed 1234 --params N=4
+python3 bin/run_test_wrap.py --test val/common_level0/math_adder_ripple_carry --tag my_tag --seed 1234 --params N=4
 
-python run_test_wrap.py --test val/common_cocotb_only/math_addsub_full_nbit --tag my_tag --seed 1234 --params N=8
+python3 bin/run_test_wrap.py --test val/common_level0/math_addsub_full_nbit --tag my_tag --seed 1234 --params N=8
 
 ```
 
@@ -74,7 +74,7 @@ Generate a JSON list of tests specifying a path and output file name (for each b
 
 ```sh
 
-list_test_wrap.py --list "level0.json" --path "val/common_cocotb_only/"
+python3 bin/list_test_wrap.py --list "level0.json" --path "val/common_level0/"
 
 ```
 
@@ -98,7 +98,7 @@ Here is an example of the JSON file:
 
 },
 
-"make_clean" : "val/common_cocotb_only/cleanall.mk",
+"make_clean" : "val/common_level0/cleanall.mk",
 
 "lint_reports": {"lint":"./reports/lint/", "verible":"./reports/verible/"}
 
@@ -116,11 +116,11 @@ Examples:
 
 # run one test
 
-run_test_wrap.py --test val/common_cocotb_only/arbiter_round_robin --tag 122423 --seed 1234 --params CLIENTS=6
+python3 bin/run_test_wrap.py --test val/common_level0/arbiter_round_robin --tag 122423 --seed 1234 --params CLIENTS=6
 
 # run level0
 
-run_test_wrap.py --testlist level0 --tag 122423
+python3 bin/run_test_wrap.py --testlist level0 --tag 122423
 
 ```
 
@@ -156,14 +156,13 @@ type='brent_kung'
 
 buswidth=8
 
-math_generate.py --type \$type --path \$out_path --buswidth \$buswidth
+python3 bin/math_generate.py --type \$type --path \$out_path --buswidth \$buswidth
 
 ```
 
 ## [vcd2wavedrom2.py](vcd2wavedrom2.md)
 
 This script generates wavedrom files based on vcd and gtkw files. The gtkw file provides the signal selection, grouping and ordering, and adding hierarchical labels to the signals.
-
 
 ### Step 0: cd to the area with the simulation
 
@@ -186,11 +185,11 @@ Here is what the configuration JSON file looks like when created. Adjust the sig
         "u_fifo_sync_A.i_rst_n",
         "u_fifo_sync_A.i_wr_data[7:0]",
         "u_fifo_sync_A.i_write",
-        "u_fifo_sync_A.ow_rd_almost_empty",
+        "u_fifo_sync_A.o_rd_almost_empty",
         "u_fifo_sync_A.ow_rd_data[7:0]",
-        "u_fifo_sync_A.ow_rd_empty",
-        "u_fifo_sync_A.ow_wr_almost_full",
-        "u_fifo_sync_A.ow_wr_full",
+        "u_fifo_sync_A.o_rd_empty",
+        "u_fifo_sync_A.o_wr_almost_full",
+        "u_fifo_sync_A.o_wr_full",
         "u_fifo_sync_A.r_rd_addr[5:0]",
         "u_fifo_sync_A.r_rd_ptr_bin[6:0]",
         "u_fifo_sync_A.r_wr_addr[5:0]",
@@ -227,20 +226,23 @@ Here is what the configuration JSON file looks like when created. Adjust the sig
 
 Fields:
 
-* filter: Filters for the signals used.
-* name: The waveform title.
-* tock: the number to start the "tock" value. Tock is a number in the middle of a clock period for reference.
-* samplerate: The frequency the signals are sampled and homogenized from the VCD file.
+* samplerate: The frequency of the signals is sampled and homogenized from the VCD file.
+
 * hscale: The horizontal scale for this drawing.
+
 * clocks: The clocks, the character to use, e.g., pPnN, and the calculated clock period from the VCD.
+
 * starttime: a list of times in ns/ps used to draw a portion of the waveform.
+
 * endtime: a list of times in ns/ps used to draw a portion of the waveform.
+
 * phase_*: optional phase adjustments for signal types.
+
 * enum_list: shown below, this lets one enumerate the FSM state names
 
-### Step 1.25: Update the config file. One may want to remove or reorganize the signals. One may also want to put the units into something consistent, like ns.
+### Step 1.25: Update the config file. One may want to remove or reorganize the signals. One may also want to put the units into something consistent, like ns
 
-### Step 1.5: Update the *.gtkw file if desired. The gtkw file adds hierarchy to the signals listed. Below is a sample gtkw file for FIFO listed above:
+### Step 1.5: Update the *.gtkw file if desired. The gtkw file adds hierarchy to the signals listed. Below is a sample gtkw file for FIFO listed above
 
 ```python
 weighted_round_robin_wrapper.u_fifo_sync_A.i_clk
@@ -250,15 +252,15 @@ weighted_round_robin_wrapper.u_fifo_sync_A.i_write
 weighted_round_robin_wrapper.u_fifo_sync_A.i_wr_data[7:0]
 --ptr
 weighted_round_robin_wrapper.u_fifo_sync_A.write_counter.o_counter_bin[6:0]
-weighted_round_robin_wrapper.u_fifo_sync_A.ow_wr_almost_full
-weighted_round_robin_wrapper.u_fifo_sync_A.ow_wr_full
+weighted_round_robin_wrapper.u_fifo_sync_A.o_wr_almost_full
+weighted_round_robin_wrapper.u_fifo_sync_A.o_wr_full
 -Read Interface
 weighted_round_robin_wrapper.u_fifo_sync_A.i_read
 weighted_round_robin_wrapper.u_fifo_sync_A.ow_rd_data[7:0]
 --ptr
 weighted_round_robin_wrapper.u_fifo_sync_A.read_counter.o_counter_bin[6:0]
-weighted_round_robin_wrapper.u_fifo_sync_A.ow_rd_almost_empty
-weighted_round_robin_wrapper.u_fifo_sync_A.ow_rd_empty
+weighted_round_robin_wrapper.u_fifo_sync_A.o_rd_almost_empty
+weighted_round_robin_wrapper.u_fifo_sync_A.o_rd_empty
 
 ```
 

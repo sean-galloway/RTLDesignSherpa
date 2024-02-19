@@ -23,7 +23,7 @@ def parse_makefile(makefile_path, verilog_files):
                 if vf_basename in line:
                     if vf_basename not in used_paths:
                         used_paths[vf_basename] = []
-                    used_paths[vf_basename].append(makefile_path.replace('Makefile', '').replace('$(REPO_ROOT)/val/common_cocotb_only/', ''))
+                    used_paths[vf_basename].append(makefile_path.replace('Makefile', '').replace('$(REPO_ROOT)/val/common_level0/', ''))
     return used_paths
 
 def list_sv_files(path):

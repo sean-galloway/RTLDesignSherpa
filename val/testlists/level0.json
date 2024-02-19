@@ -1,20 +1,13 @@
 [
     {
-        "test": "val/common_cocotb_only/arbiter_round_robin",
+        "test": "val/common_level0/arbiter_round_robin",
         "seed": "1234",
         "param": {
             "CLIENTS": "6"
         }
     },
     {
-        "test": "val/common_cocotb_only/arbiter_round_robin_wrapper",
-        "seed": "1234",
-        "param": {
-            "N": "4"
-        }
-    },
-    {
-        "test": "val/common_cocotb_only/arbiter_weighted_round_robin",
+        "test": "val/common_level0/arbiter_weighted_round_robin",
         "seed": "1234",
         "param": {
             "CLIENTS": "5",
@@ -22,21 +15,14 @@
         }
     },
     {
-        "test": "val/common_cocotb_only/arbiter_weighted_round_robin_wrapper",
-        "seed": "1234",
-        "param": {
-            "N": "4"
-        }
-    },
-    {
-        "test": "val/common_cocotb_only/bin2gray",
+        "test": "val/common_level0/bin2gray",
         "seed": "1234",
         "param": {
             "WIDTH": "8"
         }
     },
     {
-        "test": "val/common_cocotb_only/bin_to_bcd",
+        "test": "val/common_level0/bin_to_bcd",
         "seed": "1234",
         "param": {
             "WIDTH": "8",
@@ -44,31 +30,121 @@
         }
     },
     {
-        "test": "val/common_cocotb_only/clock_divider",
+        "test": "val/common_level0/clock_divider",
         "seed": "1234",
         "param": {}
     },
     {
-        "test": "val/common_cocotb_only/clock_pulse",
+        "test": "val/common_level0/clock_pulse",
         "seed": "1234",
         "param": {}
     },
     {
-        "test": "val/common_cocotb_only/count_leading_zeros",
+        "test": "val/common_level0/count_leading_zeros",
         "seed": "1234",
         "param": {
             "WIDTH": "16"
         }
     },
     {
-        "test": "val/common_cocotb_only/dataint_checksum",
+        "test": "val/common_level0/dataint_checksum",
         "seed": "1234",
         "param": {
             "WIDTH": "8"
         }
     },
     {
-        "test": "val/common_cocotb_only/dataint_ecc_hamming_decode_008",
+        "test": "val/common_level0/dataint_crc_CRC16_data16",
+        "seed": "1234",
+        "param": {
+            "DATA_WIDTH": "16",
+            "CRC_WIDTH": "16",
+            "REFIN": "1",
+            "REFOUT": "1"
+        }
+    },
+    {
+        "test": "val/common_level0/dataint_crc_CRC16_data32",
+        "seed": "1234",
+        "param": {
+            "DATA_WIDTH": "32",
+            "CRC_WIDTH": "16",
+            "REFIN": "1",
+            "REFOUT": "1"
+        }
+    },
+    {
+        "test": "val/common_level0/dataint_crc_CRC16_data8",
+        "seed": "1234",
+        "param": {
+            "DATA_WIDTH": "8",
+            "CRC_WIDTH": "16",
+            "REFIN": "1",
+            "REFOUT": "1"
+        }
+    },
+    {
+        "test": "val/common_level0/dataint_crc_CRC32_data16",
+        "seed": "1234",
+        "param": {
+            "DATA_WIDTH": "16",
+            "CRC_WIDTH": "32",
+            "REFIN": "1",
+            "REFOUT": "1"
+        }
+    },
+    {
+        "test": "val/common_level0/dataint_crc_CRC32_data32",
+        "seed": "1234",
+        "param": {
+            "DATA_WIDTH": "32",
+            "CRC_WIDTH": "32",
+            "REFIN": "1",
+            "REFOUT": "1"
+        }
+    },
+    {
+        "test": "val/common_level0/dataint_crc_CRC32_data8",
+        "seed": "1234",
+        "param": {
+            "DATA_WIDTH": "8",
+            "CRC_WIDTH": "32",
+            "REFIN": "1",
+            "REFOUT": "1"
+        }
+    },
+    {
+        "test": "val/common_level0/dataint_crc_CRC8_data16",
+        "seed": "1234",
+        "param": {
+            "DATA_WIDTH": "16",
+            "CRC_WIDTH": "8",
+            "REFIN": "0",
+            "REFOUT": "0"
+        }
+    },
+    {
+        "test": "val/common_level0/dataint_crc_CRC8_data32",
+        "seed": "1234",
+        "param": {
+            "DATA_WIDTH": "32",
+            "CRC_WIDTH": "8",
+            "REFIN": "0",
+            "REFOUT": "0"
+        }
+    },
+    {
+        "test": "val/common_level0/dataint_crc_CRC8_data8",
+        "seed": "1234",
+        "param": {
+            "DATA_WIDTH": "8",
+            "CRC_WIDTH": "8",
+            "REFIN": "0",
+            "REFOUT": "0"
+        }
+    },
+    {
+        "test": "val/common_level0/dataint_ecc_hamming_decode_008",
         "seed": "1234",
         "param": {
             "N": "8",
@@ -76,7 +152,7 @@
         }
     },
     {
-        "test": "val/common_cocotb_only/dataint_ecc_hamming_decode_032",
+        "test": "val/common_level0/dataint_ecc_hamming_decode_032",
         "seed": "1234",
         "param": {
             "N": "32",
@@ -84,7 +160,7 @@
         }
     },
     {
-        "test": "val/common_cocotb_only/dataint_ecc_hamming_encode_008",
+        "test": "val/common_level0/dataint_ecc_hamming_encode_008",
         "seed": "1234",
         "param": {
             "N": "8",
@@ -92,7 +168,7 @@
         }
     },
     {
-        "test": "val/common_cocotb_only/dataint_ecc_hamming_encode_032",
+        "test": "val/common_level0/dataint_ecc_hamming_encode_032",
         "seed": "1234",
         "param": {
             "N": "32",
@@ -100,7 +176,7 @@
         }
     },
     {
-        "test": "val/common_cocotb_only/dataint_parity",
+        "test": "val/common_level0/dataint_parity",
         "seed": "1234",
         "param": {
             "CHUNKS": "3",
@@ -108,7 +184,7 @@
         }
     },
     {
-        "test": "val/common_cocotb_only/fifo_async",
+        "test": "val/common_level0/fifo_async",
         "seed": "1234",
         "param": {
             "DEPTH": "8",
@@ -118,7 +194,7 @@
         }
     },
     {
-        "test": "val/common_cocotb_only/fifo_async_div2",
+        "test": "val/common_level0/fifo_async_div2",
         "seed": "1234",
         "param": {
             "DEPTH": "10",
@@ -128,7 +204,7 @@
         }
     },
     {
-        "test": "val/common_cocotb_only/fifo_sync",
+        "test": "val/common_level0/fifo_sync",
         "seed": "1234",
         "param": {
             "DEPTH": "4",
@@ -136,65 +212,65 @@
         }
     },
     {
-        "test": "val/common_cocotb_only/leading_one_trailing_one",
+        "test": "val/common_level0/leading_one_trailing_one",
         "seed": "1234",
         "param": {
             "WIDTH": "16"
         }
     },
     {
-        "test": "val/common_cocotb_only/math_adder_brent_kung_008",
+        "test": "val/common_level0/math_adder_brent_kung_008",
         "seed": "1234",
         "param": {}
     },
     {
-        "test": "val/common_cocotb_only/math_adder_brent_kung_016",
+        "test": "val/common_level0/math_adder_brent_kung_016",
         "seed": "1234",
         "param": {}
     },
     {
-        "test": "val/common_cocotb_only/math_adder_brent_kung_032",
+        "test": "val/common_level0/math_adder_brent_kung_032",
         "seed": "1234",
         "param": {}
     },
     {
-        "test": "val/common_cocotb_only/math_adder_carry_lookahead",
+        "test": "val/common_level0/math_adder_carry_lookahead",
         "seed": "1234",
         "param": {
             "N": "4"
         }
     },
     {
-        "test": "val/common_cocotb_only/math_adder_carry_save",
+        "test": "val/common_level0/math_adder_carry_save",
         "seed": "1234",
         "param": {}
     },
     {
-        "test": "val/common_cocotb_only/math_adder_carry_save_nbit",
+        "test": "val/common_level0/math_adder_carry_save_nbit",
         "seed": "1234",
         "param": {
             "N": "4"
         }
     },
     {
-        "test": "val/common_cocotb_only/math_adder_full",
+        "test": "val/common_level0/math_adder_full",
         "seed": "1234",
         "param": {}
     },
     {
-        "test": "val/common_cocotb_only/math_adder_full_nbit",
+        "test": "val/common_level0/math_adder_full_nbit",
         "seed": "1234",
         "param": {
             "N": "4"
         }
     },
     {
-        "test": "val/common_cocotb_only/math_adder_half",
+        "test": "val/common_level0/math_adder_half",
         "seed": "1234",
         "param": {}
     },
     {
-        "test": "val/common_cocotb_only/math_adder_hierarchical",
+        "test": "val/common_level0/math_adder_hierarchical",
         "seed": "1234",
         "param": {
             "N": "16",
@@ -202,153 +278,153 @@
         }
     },
     {
-        "test": "val/common_cocotb_only/math_adder_kogge_stone_nbit",
+        "test": "val/common_level0/math_adder_kogge_stone_nbit",
         "seed": "1234",
         "param": {
             "N": "4"
         }
     },
     {
-        "test": "val/common_cocotb_only/math_adder_ripple_carry",
+        "test": "val/common_level0/math_adder_ripple_carry",
         "seed": "1234",
         "param": {
             "N": "4"
         }
     },
     {
-        "test": "val/common_cocotb_only/math_addsub_full_nbit",
+        "test": "val/common_level0/math_addsub_full_nbit",
         "seed": "1234",
         "param": {
             "N": "8"
         }
     },
     {
-        "test": "val/common_cocotb_only/math_divider_srt",
+        "test": "val/common_level0/math_divider_srt",
         "seed": "1234",
         "param": {
             "DATA_WIDTH": "4"
         }
     },
     {
-        "test": "val/common_cocotb_only/math_multiplier_array",
+        "test": "val/common_level0/math_multiplier_array",
         "seed": "1234",
         "param": {
             "N": "8"
         }
     },
     {
-        "test": "val/common_cocotb_only/math_multiplier_booths",
+        "test": "val/common_level0/math_multiplier_booths",
         "seed": "1234",
         "param": {
             "N": "8"
         }
     },
     {
-        "test": "val/common_cocotb_only/math_multiplier_carry_lookahead",
+        "test": "val/common_level0/math_multiplier_carry_lookahead",
         "seed": "1234",
         "param": {
             "N": "8"
         }
     },
     {
-        "test": "val/common_cocotb_only/math_multiplier_dadda_tree_008",
+        "test": "val/common_level0/math_multiplier_dadda_tree_008",
         "seed": "1234",
         "param": {}
     },
     {
-        "test": "val/common_cocotb_only/math_multiplier_dadda_tree_016",
+        "test": "val/common_level0/math_multiplier_dadda_tree_016",
         "seed": "1234",
         "param": {}
     },
     {
-        "test": "val/common_cocotb_only/math_multiplier_dadda_tree_032",
+        "test": "val/common_level0/math_multiplier_dadda_tree_032",
         "seed": "1234",
         "param": {}
     },
     {
-        "test": "val/common_cocotb_only/math_multiplier_wallace_tree_008",
+        "test": "val/common_level0/math_multiplier_wallace_tree_008",
         "seed": "1234",
         "param": {}
     },
     {
-        "test": "val/common_cocotb_only/math_multiplier_wallace_tree_016",
+        "test": "val/common_level0/math_multiplier_wallace_tree_016",
         "seed": "1234",
         "param": {}
     },
     {
-        "test": "val/common_cocotb_only/math_multiplier_wallace_tree_032",
+        "test": "val/common_level0/math_multiplier_wallace_tree_032",
         "seed": "1234",
         "param": {}
     },
     {
-        "test": "val/common_cocotb_only/math_multiplier_wallace_tree_csa_008",
+        "test": "val/common_level0/math_multiplier_wallace_tree_csa_008",
         "seed": "1234",
         "param": {}
     },
     {
-        "test": "val/common_cocotb_only/math_multiplier_wallace_tree_csa_016",
+        "test": "val/common_level0/math_multiplier_wallace_tree_csa_016",
         "seed": "1234",
         "param": {}
     },
     {
-        "test": "val/common_cocotb_only/math_multiplier_wallace_tree_csa_032",
+        "test": "val/common_level0/math_multiplier_wallace_tree_csa_032",
         "seed": "1234",
         "param": {}
     },
     {
-        "test": "val/common_cocotb_only/math_subtractor_carry_lookahead",
+        "test": "val/common_level0/math_subtractor_carry_lookahead",
         "seed": "1234",
         "param": {
             "N": "4"
         }
     },
     {
-        "test": "val/common_cocotb_only/math_subtractor_full",
+        "test": "val/common_level0/math_subtractor_full",
         "seed": "1234",
         "param": {}
     },
     {
-        "test": "val/common_cocotb_only/math_subtractor_full_nbit",
+        "test": "val/common_level0/math_subtractor_full_nbit",
         "seed": "1234",
         "param": {
             "N": "4"
         }
     },
     {
-        "test": "val/common_cocotb_only/math_subtractor_half",
+        "test": "val/common_level0/math_subtractor_half",
         "seed": "1234",
         "param": {}
     },
     {
-        "test": "val/common_cocotb_only/math_subtractor_ripple_carry",
+        "test": "val/common_level0/math_subtractor_ripple_carry",
         "seed": "1234",
         "param": {
             "N": "4"
         }
     },
     {
-        "test": "val/common_cocotb_only/pwm",
+        "test": "val/common_level0/pwm",
         "seed": "1234",
         "param": {
             "WIDTH": "16"
         }
     },
     {
-        "test": "val/common_cocotb_only/shifter_barrel",
+        "test": "val/common_level0/shifter_barrel",
         "seed": "1234",
         "param": {
             "WIDTH": "16"
         }
     },
     {
-        "test": "val/common_cocotb_only/shifter_lfsr",
+        "test": "val/common_level0/shifter_lfsr",
         "seed": "1234",
         "param": {
             "N": "8"
         }
     },
     {
-        "test": "val/common_cocotb_only/sort",
+        "test": "val/common_level0/sort",
         "seed": "1234",
         "param": {
             "NUM_VALS": "10",

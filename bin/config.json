@@ -4,9 +4,11 @@
                     "rtl/xilinx"
                 ],
     "test_lists": {
-                "level0": "val/testlists/level0.json"
-                },
-    "make_clean" : "val/common_cocotb_only/cleanall.mk",
+        "level0":     "val/testlists/level0.json",
+        "level0_CRC": "val/testlists/level0_CRC.json",
+        "level1":     "val/testlists/level1.json"
+    },
+    "make_clean" : "val/common_level0/cleanall.mk",
     "lint_reports": {"lint":"./reports/lint/", "verible":"./reports/verible/"}
     
 }

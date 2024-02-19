@@ -26,6 +26,7 @@ if __name__ == '__main__':
     parser.add_argument('--tag', type=str, help='Tag string for the run', default='runtest')
     parser.add_argument('--seed', type=str, help='Seed value for the test', default=None)
     parser.add_argument('--params', type=str, help='Comma-separated test parameters in the format key1=value1,key2=value2,...', default=None)
+    parser.add_argument('--randomize', action='store_true', dest='randomize', default=False, help='Enable randomization, usually only meaningful for running regressions')
 
     # Parse command-line arguments
     args = parser.parse_args()
@@ -38,7 +39,7 @@ if __name__ == '__main__':
         run_test_obj = RunTest(test=args.test, tag=args.tag, seed=args.seed, params=params)
         run_test_obj.run_test()
     elif args.testlist:
-        run_test_obj = RunTest(test_list=args.testlist, tag=args.tag)
+        run_test_obj = RunTest(test_list=args.testlist, tag=args.tag, randomize=args.randomize)
         run_test_obj.run_test_list()
     else:
         print("Either --test or --testlist must be provided.")
