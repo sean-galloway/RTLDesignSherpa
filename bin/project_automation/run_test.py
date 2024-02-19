@@ -43,7 +43,7 @@ class RunTest(object):
     """
 
 
-    def __init__(self, test=None, test_list=None, tag='runtest', seed=None, params=None, randomize=False):
+    def __init__(self, test=None, test_list=None, tag='runtest', seed=None, params=None, randomize=False, short_name=True):
         # Save the current directory
         self.original_directory = os.getcwd()
         # get the repo root
@@ -54,6 +54,7 @@ class RunTest(object):
         self.tag = tag
         self.test = test
         self.randomize = randomize
+        self.short_name = short_name
 
         print(f'    REPO_ROOT={self.repo_root}')
         config_file = f'{self.repo_root}/bin/config.json'
@@ -145,7 +146,7 @@ class RunTest(object):
         if len(test) == 0:
             test = test_path.split('/')[-2]
 
-        pass_or_fail = self.run_make(self.repo_root, test, test_path, self.regression_dir, self.env, self.seed, self.params)
+        pass_or_fail = self.run_make(self.repo_root, test, test_path, self.regression_dir, self.env, self.seed, self.params, self.short_name)
         fail_list = []
         fail_count = 0
         if pass_or_fail is False:
@@ -201,7 +202,7 @@ class RunTest(object):
             if self.randomize:
                 seed = random.randint(0, 0xFFFFFFFF)
 
-            pass_or_fail = self.run_make(self.repo_root, test, test_path, self.regression_dir, self.env, seed, params)
+            pass_or_fail = self.run_make(self.repo_root, test, test_path, self.regression_dir, self.env, seed, params, self.short_name)
             if pass_or_fail is False:
                 fail_count += 1
                 fail_list.append(test)
@@ -352,7 +353,7 @@ class RunTest(object):
 
 
     @staticmethod
-    def run_make(repo_root: str, test: str, base_test_path: str, path_out: str, env, seed: str, params: dict):
+    def run_make(repo_root: str, test: str, base_test_path: str, path_out: str, env, seed: str, params: dict, short_name: bool):
         '''
         Runs a make command for a specific test with custom parameters.
 
@@ -387,8 +388,9 @@ class RunTest(object):
         '''
         # Build a custom folder name based on the seed and parameters
         folder_suffix = f"seed_{seed}"
-        for param, value in params.items():
-            folder_suffix += f"_{param}_{value}"
+        if not short_name:
+            for param, value in params.items():
+                folder_suffix += f"_{param}_{value}"
         
         # Combine the test name and custom folder suffix
         custom_test_folder = f"{test}_{folder_suffix}"

@@ -25,9 +25,9 @@ python bin/run_test_wrap.py --testlist my_test_list --tag my_tag
 ### Usage to run a Level 0 regression, with and without randomization
 
 ```sh
-python3 bin/run_test_wrap.py --testlist level0 --tag 20240218
+python3 bin/run_test_wrap.py --testlist level0 --tag 20240218 --short_name
 
-python3 bin/run_test_wrap.py --testlist level0 --tag 20240218_rand --randomize
+python3 bin/run_test_wrap.py --testlist level0 --tag 20240218_rand --randomize --short_name
 
 ```
 
@@ -44,6 +44,8 @@ python3 bin/run_test_wrap.py --testlist level0 --tag 20240218_rand --randomize
 - `--params` \<type=str>: A string of comma-separated key-value pairs passed as test parameters in the format `key1=value1,key2=value2,...`, default is `None`.
 
 - `--randomize` \<type=Boolean>: A simple flag to indicate to use of random seeds on the regression; default is `False`.
+
+- `--short_name` \<type=Boolean>: A simple flag to indicate to use of test name that only has the seed as an extension default is `True`.
 
 ## Internal Functionality
 

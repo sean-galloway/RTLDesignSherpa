@@ -24,6 +24,8 @@ The `RunTest` class encapsulates all the necessary details and methods to run in
 
 - `randomize`: A flag to choose to randomize the seeds on this regression.
 
+- `short_name`: A flag to choose to regression test name that only includes the seed value
+
 Upon initialization, it sets up the testing environment by determining the repository root, copying necessary configuration files, and creating a unique directory for test results.
 
 #### Example of Initialization

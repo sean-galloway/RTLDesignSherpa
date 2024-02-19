@@ -45,7 +45,7 @@ async def test_crc_basic(dut):
         # This step depends on having a known input-output pair for validation
         dut.i_data.value = data
         dut.i_load_from_cascade.value = 1
-        dut.i_cascade_sel.value = 1
+        dut.i_cascade_sel.value = crctest.chunks
         await FallingEdge(dut.i_clk)
         dut.i_data.value = 0
         dut.i_load_from_cascade.value = 0
