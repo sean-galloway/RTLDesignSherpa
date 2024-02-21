@@ -15,7 +15,7 @@ class RunTest(object):
     """
         Represents a test runner that runs a test and reports the regression test results.
 
-        Args:
+        Args:COMPILE_ARGS += -P $(DUT).POLY="64'h42F0E1EBA9EA3693"
             test (str): The name of the test.
             test_list (str): The name of the test list.
             tag (str): The tag for the regression test.
@@ -115,6 +115,7 @@ class RunTest(object):
                     individual_params = param_line.split("-P")
                     for param in individual_params:
                         if not param:
+                            print(f'found matching param for COMPILE_ARGS: {param}')
                             continue
                         param = param.strip()
                         key_value = param.split("=")
@@ -191,7 +192,10 @@ class RunTest(object):
         print('Running tests')
         for test_count, test_entry in enumerate(test_list_json):
             test_path = test_entry['test']
-            test = test_path.split('/')[-1]
+            if 'test_name' in test_entry:
+                test = test_entry['test_name']
+            else:
+                test = test_path.split('/')[-1]
             if len(test) == 0:
                 test = test_path.split('/')[-2]
             print(f'    {test}')
@@ -207,7 +211,7 @@ class RunTest(object):
                 fail_count += 1
                 fail_list.append(test)
 
-        self.report_regression(test_count+1, fail_count, fail_list)
+        self.report_regression(test_count, fail_count, fail_list)
         # Change back to the original directory
         os.chdir(self.original_directory)
 
@@ -237,10 +241,10 @@ class RunTest(object):
         ======================================================================
         Test Count = {test_count+1}        Failures = {fail_count}
         ======================================================================
-        Failure List:
-        '''
+        Failure List:\n'''
+        
         for item in fail_list:
-            report_str += f'    {item}\n'
+            report_str += f'            {item}\n'
         print(report_str)
         with open(f'{self.regression_dir}/report.txt', 'w') as file:
             file.write(report_str)
@@ -270,6 +274,56 @@ class RunTest(object):
             new_name = f'{base_name}.{counter}'
             counter += 1
         return new_name
+
+
+    @staticmethod
+    def extract_hex_from_string(s):
+        """
+        Extracts and returns a hexadecimal value from a string if found.
+
+        Args:
+            s (str): The input string to extract the hexadecimal value from.
+
+        Returns:
+            int or None: The extracted hexadecimal value as an integer, or None if not found.
+
+        Examples:
+            extract_hex_from_string("'h1A")  # Output: 26
+        """
+        if match := re.search(r"'h([0-9A-Fa-f]+)", s):
+            return int(match[1], 16)
+        print(f"Warning: Unexpected format for input string: {s}")
+        return None
+
+
+    @staticmethod
+    def create_params_int(original_dict):
+        """
+        Converts string values in a dictionary to integers if possible, otherwise extracts hex values.
+
+        Args:
+            original_dict (dict): The original dictionary containing string values to convert.
+
+        Returns:
+            dict: A new dictionary with string values converted to integers or extracted hex values.
+
+        Examples:
+            original_dict = {'a': '123', "b": "8'hFF", 'c': '64'h0F0F0F0F0F0F0F0F'}
+            create_params_int(original_dict)
+            # Output: {'a': 123, 'b': 255}
+        """
+        params_int = {}
+        for key, value in original_dict.items():
+            if value.isdigit():  # Check if value is an integer
+                params_int[key] = int(value)
+            else:
+                converted_value = RunTest.extract_hex_from_string(value)
+                if converted_value is not None:
+                    params_int[key] = converted_value
+                else:
+                    print(f"Warning: Unexpected value format for key '{key}': {value}")
+
+        return params_int
 
 
     @staticmethod
@@ -331,22 +385,34 @@ class RunTest(object):
             ```
         '''
         new_lines = []
+        compile_args_pattern = r"\s*COMPILE_ARGS\s*\+=\s+-P \$\(DUT\)\.(\S+)\s*=.*"
+        param_pattern = r"\s*export\s+(\S+)\s*=.*"
         with open(makefile_path, 'r') as f:
             lines = f.readlines()
+
             for line in lines:
-                if "COMPILE_ARGS" in line and not params:
+                match = re.match(compile_args_pattern, line)
+                if match and match[1] in params:
                     continue
-                if "export SEED" in line and not seed:
+                if "export SEED" in line and seed:
+                    continue
+                match = re.match(param_pattern, line)
+                if match and match[1] in params:
                     continue
 
                 new_lines.append(line)
-
+        new_lines.append('\n# Programmed Parameters\n')
         if seed is not None:
             new_lines.append(f"export SEED={seed}\n")
 
+        params_int = RunTest.create_params_int(params)
         if params:
-            param_str = " ".join([f"-P $(DUT).{k}={v}" for k, v in params.items()])
-            new_lines.append(f"COMPILE_ARGS += {param_str}\n")
+            formatted_params = [f"export {key}={int(value)}" for key, value in params_int.items()]
+            param_export_string = "\n".join(formatted_params)
+            new_lines.extend((param_export_string, '\n'))
+            param_str = ''.join([f"COMPILE_ARGS += -P $(DUT).{k}={v}\n" for k, v in params.items()])
+            #new_lines.append(f"COMPILE_ARGS += {param_str}\n")
+            new_lines.append(param_str)
 
         with open(makefile_path, 'w') as f:
             f.writelines(new_lines)
@@ -429,6 +495,8 @@ class RunTest(object):
 
             # print("Command executed successfully. Output saved to:", output_file)
             pass_or_fail = RunTest.process_results(output_file)
+            if pass_or_fail is False:
+                print(f'    {test} failed <-------------------------')
 
         except subprocess.CalledProcessError as e:
             print(f'Error with {test=}')

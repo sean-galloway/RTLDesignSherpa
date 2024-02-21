@@ -1,4 +1,5 @@
 from crc import Calculator, Configuration
+import os
 import random
 
 class CRCTesting():
@@ -25,18 +26,25 @@ class CRCTesting():
         Returns:
             None
         """
-        self.dut = dut
         # Gather the settings from the Parameters to verify them
-        self.data_width = int(dut.DATA_WIDTH)
-        self.chunks = int(dut.CHUNKS)
+        self.data_width = int(os.environ.get('DATA_WIDTH', '0'))
+        self.chunks = int(dut.CHUNKS.value)
         self.d_nybbles = self.chunks // 2
-        self.crc_width = int(dut.CRC_WIDTH)
+        self.crc_width = int(os.environ.get('CRC_WIDTH', '0'))
         self.nybbles = self.crc_width // 4
-        self.crc_poly = int(dut.POLY) & 0xFFFFFFFF
-        self.crc_poly_initial = int(dut.POLY_INIT) & 0xFFFFFFFF
-        self.reflected_input = int(dut.REFIN)
-        self.reflected_output = int(dut.REFOUT)
-        self.xor_output = int(dut.XOROUT) & 0xFFFFFFFF
+        mask = "F" * self.nybbles
+        self.crc_poly = int(os.environ.get('POLY', '0')) & int(mask, 16)
+
+        # print(f'------------------------------>{self.nybbles=}')
+        # print(f'------------------------------>{self.crc_poly=}')
+        # print(f'------------------------------>{hex(self.crc_poly)=}')
+        # print(f'------------------------------>{int(mask, 16)=}')
+        # print(f'------------------------------>{hex(int(mask, 16))=}')
+        
+        self.crc_poly_initial = int(os.environ.get('POLY_INIT', '0')) & int(mask, 16)
+        self.reflected_input = int(os.environ.get('REFIN', '0'))
+        self.reflected_output = int(os.environ.get('REFOUT', '0'))
+        self.xor_output = int(os.environ.get('XOROUT', '0')) & int(mask, 16)
         self.rnd_count = rnd_count
         self.test_values = []
         self.test_data = []
@@ -93,7 +101,7 @@ class CRCTesting():
         for data in self.test_values:
             data_bytes = data.to_bytes(self.chunks, 'little')
             ecc = self.calculator.checksum(data_bytes)
-            print(f'Data Generation: {data_bytes=} {ecc=}')
+            # print(f'Data Generation: {data_bytes=} {ecc=}')
             self.test_data.append((data, ecc))
 
         # add some random values to the list
@@ -101,5 +109,5 @@ class CRCTesting():
             data = random.randint(0x00, all_ones)
             data_bytes = data.to_bytes(self.chunks, 'little')
             ecc = self.calculator.checksum(data_bytes)
-            print(f'Data Generation: {data_bytes=} {ecc=}')
+            # print(f'Data Generation: {data_bytes=} {ecc=}')
             self.test_data.append((data, ecc))

@@ -103,8 +103,9 @@ class TestList(object):
 
             # Calculate the relative path after the repo root
             test_name = os.path.relpath(test_path, repo_root)
-
             test_dict = {"test": test_name}
+            test = test_name.split('/')[-2]
+            test_dict["test_name"] = test
             param_dict = {}
 
             # Read the Makefile

@@ -1,0 +1,16 @@
+[
+    {
+        "test": "val/common_level0/dataint_crc/",
+        "test_name": "CRC-08",
+        "seed": "1234",
+        "param": {
+            "DATA_WIDTH": "8",
+            "CRC_WIDTH": "8",
+            "POLY": "\"8'h07\"",
+            "POLY_INIT": "\"8'h00\"",
+            "REFIN": "0",
+            "REFOUT": "0",
+            "XOROUT": "\"8'h00\""
+        }
+    }
+]

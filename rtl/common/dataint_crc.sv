@@ -51,26 +51,25 @@
 // | CRC-32D            |        32 | 32'hA833982B         | 32'hFFFFFFFF         |     1 |      1 | 32'hFFFFFFFF         |
 // | CRC-32Q            |        32 | 32'h814141AB         | 32'h00000000         |     0 |      0 | 32'h00000000         |
 // ------------------------------------------------------------------------------------------------------------------------
-// | CRC-40_GSM         |        40 | 40'h4820009          | 40'h000000000        |     0 |      0 | 40'hFFFFFFFFFF       |
+// | CRC-40_GSM         |        40 | 40'h4820009          | 40'h0000000000       |     0 |      0 | 40'hFFFFFFFFFF       |
 // ------------------------------------------------------------------------------------------------------------------------
-// | CRC-64_ECMA-182    |        64 | 64'h42F0E1EBA9EA3693 | 64'h00000000000000   |     0 |      0 | 64'h00000000         |
+// | CRC-64_ECMA-182    |        64 | 64'h42F0E1EBA9EA3693 | 64'h0000000000000000 |     0 |      0 | 64'h0000000000000000 |
 // | CRC-64_GO-ISO      |        64 | 64'h000000000000001B | 64'hFFFFFFFFFFFFFFFF |     1 |      1 | 64'hFFFFFFFFFFFFFFFF |
-// | CRC-64_MS          |        64 | 64'h259C84CBA6426349 | 64'hFFFFFFFFFFFFFFFF |     1 |      1 | 64'h00000000000000   |
-// | CRC-64_REDIS       |        64 | 64'hAD93D23594C935A9 | 64'h00000000000000   |     1 |      1 | 64'h00000000000000   |
+// | CRC-64_MS          |        64 | 64'h259C84CBA6426349 | 64'hFFFFFFFFFFFFFFFF |     1 |      1 | 64'h0000000000000000 |
+// | CRC-64_REDIS       |        64 | 64'hAD93D23594C935A9 | 64'h0000000000000000 |     1 |      1 | 64'h0000000000000000 |
 // | CRC-64_WE          |        64 | 64'h42F0E1EBA9EA3693 | 64'hFFFFFFFFFFFFFFFF |     0 |      0 | 64'hFFFFFFFFFFFFFFFF |
 // | CRC-64_XZ          |        64 | 64'h42F0E1EBA9EA3693 | 64'hFFFFFFFFFFFFFFFF |     1 |      1 | 64'hFFFFFFFFFFFFFFFF |
-
 // ------------------------------------------------------------------------------------------------------------------------
 
 module dataint_crc #(
-    parameter int                      DATA_WIDTH = 32,  // Adjustable data width
+    parameter int                      DATA_WIDTH = 64,  // Adjustable data width
     parameter int                      CHUNKS = DATA_WIDTH / 8,
-    parameter int                      CRC_WIDTH = 32,   // CRC polynomial width
-    parameter logic [CRC_WIDTH-1:0]    POLY = 32'h04C11DB7,
-    parameter logic [CRC_WIDTH-1:0]    POLY_INIT = 32'hFFFFFFFF,
+    parameter int                      CRC_WIDTH = 64,   // CRC polynomial width
+    parameter logic [CRC_WIDTH-1:0]    POLY = 64'h42F0E1EBA9EA3693,
+    parameter logic [CRC_WIDTH-1:0]    POLY_INIT = 64'hFFFFFFFFFFFFFFFF,
     parameter int                      REFIN = 1,
     parameter int                      REFOUT = 1,
-    parameter logic [CRC_WIDTH-1:0]    XOROUT = 32'hFFFFFFFF
+    parameter logic [CRC_WIDTH-1:0]    XOROUT = 64'hFFFFFFFFFFFFFFFF
 )(
     input  logic                       i_clk, i_rst_n,
     input  logic                       i_load_crc_start,
@@ -87,9 +86,42 @@ module dataint_crc #(
     logic [CW-1:0] w_poly = POLY;
     logic [7:0]    w_block_data [0:CH-1]; // verilog_lint: waive unpacked-dimensions-range-ordering
     logic [CW-1:0] w_cascade    [0:CH-1]; // verilog_lint: waive unpacked-dimensions-range-ordering
-    logic [CW-1:0] w_result, w_result_xor, w_selected_cascade_output, xor_output;
+    logic [CW-1:0] w_result, w_result_xor, w_selected_cascade_output;
 
-    assign xor_output = XOROUT;
+    initial begin
+        // Display parameters when simulation starts
+        $display("-------------------------------------------");
+        $display("dataint_crc parameter settings:");
+        $display("    DATA_WIDTH: %d",DATA_WIDTH);
+        $display("    CHUNKS:     %d",CHUNKS);
+        case (CW)
+            8:  $display("    POLY:           %h",          POLY[7:0]);
+            16: $display("    POLY:           %h",          POLY[15:0]);
+            32: $display("    POLY:           %h_%h",       POLY[31:16], POLY[15:0]);
+            40: $display("    POLY:           %h_%h",       POLY[39:24], POLY[23:0]); // Adjusted for 40-bit
+            64: $display("    POLY:           %h_%h_%h_%h", POLY[63:48], POLY[47:32], POLY[31:16], POLY[15:0]);
+            default: $display("Unsupported width.");
+        endcase
+        case (CW)
+            8:  $display("    POLY_INIT:      %h",          POLY_INIT[7:0]);
+            16: $display("    POLY_INIT:      %h",          POLY_INIT[15:0]);
+            32: $display("    POLY_INIT:      %h_%h",       POLY_INIT[31:16], POLY_INIT[15:0]);
+            40: $display("    POLY_INIT:      %h_%h",       POLY_INIT[39:24], POLY_INIT[23:0]); // Adjusted for 40-bit
+            64: $display("    POLY_INIT:      %h_%h_%h_%h", POLY_INIT[63:48], POLY_INIT[47:32], POLY_INIT[31:16], POLY_INIT[15:0]);
+            default: $display("Unsupported width.");
+        endcase
+        $display("    REFIN:      %d",REFIN);
+        $display("    REFOUT:     %d",REFOUT);
+        case (CW)
+            8:  $display("    XOROUT:         %h",          XOROUT[7:0]);
+            16: $display("    XOROUT:         %h",          XOROUT[15:0]);
+            32: $display("    XOROUT:         %h_%h",       XOROUT[31:16], XOROUT[15:0]);
+            40: $display("    XOROUT:         %h_%h",       XOROUT[39:24], XOROUT[23:0]); // Adjusted for 40-bit
+            64: $display("    XOROUT:         %h_%h_%h_%h", XOROUT[63:48], XOROUT[47:32], XOROUT[31:16], XOROUT[15:0]);
+            default: $display("Unsupported width.");
+        endcase
+        $display("-------------------------------------------");
+    end
 
     ////////////////////////////////////////////////////////////////////////////
     // Reflect input data if REFIN is enabled
@@ -159,7 +191,7 @@ module dataint_crc #(
     endgenerate
 
     // The final xor'd output
-    assign w_result_xor = w_result ^ xor_output;
+    assign w_result_xor = w_result ^ XOROUT;
 
     ////////////////////////////////////////////////////////////////////////////
     // flop the output path
