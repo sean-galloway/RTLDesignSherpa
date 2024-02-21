@@ -79,12 +79,14 @@ endgenerate
 generate
     assign w_taps = 'b0;
     for (i=0; i < TAP_COUNT; i++) begin : gen_split_taps
-        assign w_taps[w_tap_positions[i]] = i_taps[i*WIDTH +: WIDTH];
+        if (w_tap_positions[i] > 0)
+            assign w_taps[w_tap_positions[i]] = 1'b1;
     end
 endgenerate
 
 // Calculate feedback by XORing tapped bits
 assign w_feedback   = ~^(r_lfsr[WIDTH:1] & w_taps[WIDTH:1]);
+
 // observe when the lfsr has looped back
 assign ow_lfsr_done = (r_lfsr[WIDTH:1] == i_seed_data) ? 1'b1 : 1'b0;
 
