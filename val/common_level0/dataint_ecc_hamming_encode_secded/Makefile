@@ -3,13 +3,12 @@ COCOTB_REDUCED_LOG_FMT = True
 SIM ?= icarus
 VERILOG_INCLUDE_DIRS = $(REPO_ROOT)/rtl/common
 VERILOG_SOURCES =\
-					$(REPO_ROOT)/rtl/common/dataint_ecc_hamming_encode_008.sv
-DUT = dataint_ecc_hamming_encode_008
+					$(REPO_ROOT)/rtl/common/dataint_ecc_hamming_encode_secded.sv
+DUT = dataint_ecc_hamming_encode_secded
 MODULE = testbench
 TOPLEVEL = $(DUT)
 
-COMPILE_ARGS += -P $(DUT).N=8
-COMPILE_ARGS += -P $(DUT).ECC=4
+COMPILE_ARGS += -P $(DUT).WIDTH=8
 
 TOPLEVEL_LANG := verilog
 COCOTB_HDL_TIMEUNIT=1ns
@@ -18,3 +17,4 @@ include $(shell cocotb-config --makefiles)/Makefile.sim
 include ../cleanall.mk
 WAVES=1
 export SEED=1234
+export WIDTH=8
