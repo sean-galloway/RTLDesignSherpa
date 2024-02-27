@@ -63,52 +63,55 @@ module shifter_lfsr #(
     output logic                       ow_lfsr_done   // the lfsr has wrapped around to the seed
 );
 
-logic [WIDTH:0]   w_taps;
-logic [WIDTH:1]   r_lfsr;
-logic             w_feedback;
-logic [WIDTH-1:0] w_tap_positions [0:TAP_COUNT-1]; // verilog_lint: waive unpacked-dimensions-range-ordering
+    logic [WIDTH:0]   w_taps;
+    logic [WIDTH:1]   r_lfsr;
+    logic             w_feedback;
+    logic [WIDTH-1:0] w_tap_positions [0:TAP_COUNT-1]; // verilog_lint: waive unpacked-dimensions-range-ordering
 
-// Split concatenated tap positions into separate groups for each tap
-genvar i;
-generate
-    for (i = 0; i < TAP_COUNT; i++) begin : gen_split_taps
-        assign w_tap_positions[i] = i_taps[i*WIDTH +: WIDTH];
-    end
-endgenerate
+    ////////////////////////////////////////////////////////////////////////////
+    // Split concatenated tap positions into separate groups for each tap
+    genvar i;
+    generate
+        for (i = 0; i < TAP_COUNT; i++) begin : gen_split_taps
+            assign w_tap_positions[i] = i_taps[i*WIDTH +: WIDTH];
+        end
+    endgenerate
 
-generate
-    assign w_taps = 'b0;
-    for (i=0; i < TAP_COUNT; i++) begin : gen_split_taps
-        if (w_tap_positions[i] > 0)
-            assign w_taps[w_tap_positions[i]] = 1'b1;
-    end
-endgenerate
+    generate
+        assign w_taps = 'b0;
+        for (i=0; i < TAP_COUNT; i++) begin : gen_split_taps
+            if (w_tap_positions[i] > 0)
+                assign w_taps[w_tap_positions[i]] = 1'b1;
+        end
+    endgenerate
 
-// Calculate feedback by XORing tapped bits
-assign w_feedback   = ~^(r_lfsr[WIDTH:1] & w_taps[WIDTH:1]);
+    ////////////////////////////////////////////////////////////////////////////
+    // Calculate feedback by XORing tapped bits
+    assign w_feedback   = ~^(r_lfsr[WIDTH:1] & w_taps[WIDTH:1]);
 
-// observe when the lfsr has looped back
-assign ow_lfsr_done = (r_lfsr[WIDTH:1] == i_seed_data) ? 1'b1 : 1'b0;
+    ////////////////////////////////////////////////////////////////////////////
+    // observe when the lfsr has looped back
+    assign ow_lfsr_done = (r_lfsr[WIDTH:1] == i_seed_data) ? 1'b1 : 1'b0;
 
-always_ff @(posedge i_clk or negedge i_rst_n) begin
-    if (!i_rst_n) begin
-        o_lfsr_outfsr <= 0;
-    end else begin
-        if (i_enable) begin
-            if (i_seed_load)
-                o_lfsr_out <= i_seed_data;
-            else begin
-                o_lfsr_out <= {r_lfsr[N-1:1], w_feedback};
+    always_ff @(posedge i_clk or negedge i_rst_n) begin
+        if (!i_rst_n) begin
+            o_lfsr_outfsr <= 0;
+        end else begin
+            if (i_enable) begin
+                if (i_seed_load)
+                    o_lfsr_out <= i_seed_data;
+                else begin
+                    o_lfsr_out <= {r_lfsr[N-1:1], w_feedback};
+                end
             end
         end
     end
-end
 
-// Synopsys translate_off
-initial begin
-    $dumpfile("dump.vcd");
-    $dumpvars(0, shifter_lfsr);
-end
-// Synopsys translate_on
+    // Synopsys translate_off
+    initial begin
+        $dumpfile("dump.vcd");
+        $dumpvars(0, shifter_lfsr);
+    end
+    // Synopsys translate_on
 
 endmodule : shifter_lfsr

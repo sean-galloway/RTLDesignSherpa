@@ -88,36 +88,40 @@ module dataint_crc #(
     logic [CW-1:0] w_cascade    [0:CH-1]; // verilog_lint: waive unpacked-dimensions-range-ordering
     logic [CW-1:0] w_result, w_result_xor, w_selected_cascade_output;
 
+    ////////////////////////////////////////////////////////////////////////////
+    // Display parameters when simulation starts
     initial begin
-        // Display parameters when simulation starts
         $display("-------------------------------------------");
         $display("dataint_crc parameter settings:");
         $display("    DATA_WIDTH: %d",DATA_WIDTH);
         $display("    CHUNKS:     %d",CHUNKS);
         case (CW)
-            8:  $display("    POLY:           %h",          POLY[7:0]);
-            16: $display("    POLY:           %h",          POLY[15:0]);
-            32: $display("    POLY:           %h_%h",       POLY[31:16], POLY[15:0]);
-            40: $display("    POLY:           %h_%h",       POLY[39:24], POLY[23:0]); // Adjusted for 40-bit
-            64: $display("    POLY:           %h_%h_%h_%h", POLY[63:48], POLY[47:32], POLY[31:16], POLY[15:0]);
+            8:  $display("    POLY:           %h",           POLY[7:0]);
+            16: $display("    POLY:           %h",           POLY[15:0]);
+            32: $display("    POLY:           %h_%h",       {POLY[31:16], POLY[15:0]});
+            40: $display("    POLY:           %h_%h",       {POLY[39:24], POLY[23:0]});
+            64: $display("    POLY:           %h_%h_%h_%h", {POLY[63:48], POLY[47:32],
+                                                             POLY[31:16], POLY[15:0]});
             default: $display("Unsupported width.");
         endcase
         case (CW)
-            8:  $display("    POLY_INIT:      %h",          POLY_INIT[7:0]);
-            16: $display("    POLY_INIT:      %h",          POLY_INIT[15:0]);
-            32: $display("    POLY_INIT:      %h_%h",       POLY_INIT[31:16], POLY_INIT[15:0]);
-            40: $display("    POLY_INIT:      %h_%h",       POLY_INIT[39:24], POLY_INIT[23:0]); // Adjusted for 40-bit
-            64: $display("    POLY_INIT:      %h_%h_%h_%h", POLY_INIT[63:48], POLY_INIT[47:32], POLY_INIT[31:16], POLY_INIT[15:0]);
+            8:  $display("    POLY_INIT:      %h",           POLY_INIT[7:0]);
+            16: $display("    POLY_INIT:      %h",           POLY_INIT[15:0]);
+            32: $display("    POLY_INIT:      %h_%h",       {POLY_INIT[31:16], POLY_INIT[15:0]});
+            40: $display("    POLY_INIT:      %h_%h",       {POLY_INIT[39:24], POLY_INIT[23:0]});
+            64: $display("    POLY_INIT:      %h_%h_%h_%h", {POLY_INIT[63:48], POLY_INIT[47:32],
+                                                             POLY_INIT[31:16], POLY_INIT[15:0]});
             default: $display("Unsupported width.");
         endcase
         $display("    REFIN:      %d",REFIN);
         $display("    REFOUT:     %d",REFOUT);
         case (CW)
-            8:  $display("    XOROUT:         %h",          XOROUT[7:0]);
-            16: $display("    XOROUT:         %h",          XOROUT[15:0]);
-            32: $display("    XOROUT:         %h_%h",       XOROUT[31:16], XOROUT[15:0]);
-            40: $display("    XOROUT:         %h_%h",       XOROUT[39:24], XOROUT[23:0]); // Adjusted for 40-bit
-            64: $display("    XOROUT:         %h_%h_%h_%h", XOROUT[63:48], XOROUT[47:32], XOROUT[31:16], XOROUT[15:0]);
+            8:  $display("    XOROUT:         %h",           XOROUT[7:0]);
+            16: $display("    XOROUT:         %h",           XOROUT[15:0]);
+            32: $display("    XOROUT:         %h_%h",       {XOROUT[31:16], XOROUT[15:0]});
+            40: $display("    XOROUT:         %h_%h",       {XOROUT[39:24], XOROUT[23:0]});
+            64: $display("    XOROUT:         %h_%h_%h_%h", {XOROUT[63:48], XOROUT[47:32],
+                                                             XOROUT[31:16], XOROUT[15:0]});
             default: $display("Unsupported width.");
         endcase
         $display("-------------------------------------------");

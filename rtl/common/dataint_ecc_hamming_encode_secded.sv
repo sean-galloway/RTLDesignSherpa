@@ -1,10 +1,11 @@
 `timescale 1ns / 1ps
 
 // Hamming Encode SECDEC module
-module dataint_ecc_hamming_encode_secded #(parameter int WIDTH = 4) (
-        input  logic [WIDTH-1:0]      i_data,
-        output logic [TotalWidth-1:0] ow_encoded_data
-    );
+module dataint_ecc_hamming_encode_secded #(parameter int WIDTH = 4, parameter int DEBUG = 0
+) (
+    input  logic [WIDTH-1:0]      i_data,
+    output logic [TotalWidth-1:0] ow_encoded_data
+);
     localparam int ParityBits = $clog2(WIDTH + $clog2(WIDTH) + 1);
     localparam int TotalWidth = WIDTH + ParityBits + 1; // Including the SECDED bit
 
@@ -19,6 +20,7 @@ module dataint_ecc_hamming_encode_secded #(parameter int WIDTH = 4) (
         $display("-------------------------------------------");
     end
 
+    ////////////////////////////////////////////////////////////////////////////
     // Function to calculate the bit position for data insertion
     function automatic integer bit_position(input integer k);
         integer j, pos;
@@ -29,9 +31,11 @@ module dataint_ecc_hamming_encode_secded #(parameter int WIDTH = 4) (
             end
             bit_position = pos - 1; // Convert back to 0-based index
         end
-        $display("bit_position for data bit %d is %d", k, bit_position);
+        if (DEBUG)
+            $display("bit_position for data bit %d is %d", k, bit_position);
     endfunction
 
+    ////////////////////////////////////////////////////////////////////////////
     // Function to get a bit mask for the bits covered by a given parity bit
     function automatic [TotalWidth-1:0] get_covered_bits(input integer parity_bit);
         integer j;
@@ -41,9 +45,11 @@ module dataint_ecc_hamming_encode_secded #(parameter int WIDTH = 4) (
                 if (((j+1) >> parity_bit) & 1) get_covered_bits[j] = 1'b1;
             end
         end
-        $display("get_covered_bits for parity bit %d is %b", parity_bit, get_covered_bits);
+        if (DEBUG)
+            $display("get_covered_bits for parity bit %d is %b", parity_bit, get_covered_bits);
     endfunction
 
+    ////////////////////////////////////////////////////////////////////////////
     // Insert data bits and calculate parity bits
     integer i;
     integer parity_pos;
@@ -61,12 +67,14 @@ module dataint_ecc_hamming_encode_secded #(parameter int WIDTH = 4) (
         // Calculate parity bits
         for (i = 0; i < ParityBits; i = i + 1) begin
             parity_pos = 2**i;
-            $display("Calculate Parity Bits, parity bit position: %d", parity_pos);
+            if (DEBUG)
+                $display("Calculate Parity Bits, parity bit position: %d", parity_pos);
             w_data_with_parity[parity_pos] = 1'b0; // Initialize to 0
             w_covered_bits = get_covered_bits(i);
             for (bit_index = 0; bit_index < TotalWidth; bit_index = bit_index + 1) begin
                 if (w_covered_bits[bit_index]) begin
-                    w_data_with_parity[parity_pos] = w_data_with_parity[parity_pos] ^ w_data_with_parity[bit_index];
+                    w_data_with_parity[parity_pos] =
+                        w_data_with_parity[parity_pos] ^ w_data_with_parity[bit_index];
                 end
             end
         end

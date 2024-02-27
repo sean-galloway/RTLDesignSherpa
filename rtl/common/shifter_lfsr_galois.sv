@@ -26,6 +26,7 @@ generate
     end
 endgenerate
 
+integer j;
 always @(posedge i_clk or negedge i_rst_n) begin
     if (!i_rst_in) begin
         // Reset LFSR to a non-zero value
@@ -36,11 +37,11 @@ always @(posedge i_clk or negedge i_rst_n) begin
         else begin
             // Update LFSR state
             o_lfsr_out <= {o_lfsr_out[WIDTH-2:0], o_lfsr_out[WIDTH-1]};
-            for (i = 0; i < TAP_COUNT; i++) begin
+            for (j = 0; j < TAP_COUNT; j++) begin
                 // XOR with feedback bit if the tap is active
-                if (w_tap_positions[i] > 0) begin
-                    o_lfsr_out[w_tap_positions[i]-1] <=
-                            o_lfsr_out[WIDTH-1] ^ o_lfsr_out[w_tap_positions[i]-1];
+                if (w_tap_positions[j] > 0) begin
+                    o_lfsr_out[w_tap_positions[j]-1] <=
+                            o_lfsr_out[WIDTH-1] ^ o_lfsr_out[w_tap_positions[j]-1];
                 end
             end
         end

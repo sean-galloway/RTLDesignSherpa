@@ -1,83 +1,153 @@
 `timescale 1ns / 1ps
 
+// Hamming Decode SECDEC module
 module dataint_ecc_hamming_decode_secded #(
-    parameter int WIDTH = 4
+    parameter int WIDTH = 4, parameter int DEBUG = 1
 ) (
+    input logic i_clk,
+    i_rst_n,
+    input  logic                       i_enable,
     input  logic [WIDTH+ParityBits:0]  i_hamming_data,
-    output logic [WIDTH-1:0]           ow_data,
-    output logic                       ow_error_detected,
-    output logic                       ow_double_error_detected
+    output logic [WIDTH-1:0]           o_data,
+    output logic                       o_error_detected,
+    output logic                       o_double_error_detected
 );
     localparam int ParityBits = $clog2(WIDTH + $clog2(WIDTH) + 1);
     localparam int TotalWidth = WIDTH + ParityBits + 1;
+
     // local wires
-    logic [ParityBits:0]   w_syndrome;
-    logic [TotalWidth-1:0] w_data_with_parity;
+    logic [ParityBits-1:0] w_syndrome;
+    logic [ParityBits-1:0] w_syndrome_in;
+    logic [ParityBits-1:0] w_syndrome_0_based;
+    logic [TotalWidth-1:0] r_data_with_parity;
     logic                  w_overall_parity;
+    logic                  w_overall_parity_in;
 
-    // Check parity bits
-    genvar i;
-    generate
-        for (i = 0; i < ParityBits; i = i + 1) begin : gen_parity_check
-            assign w_syndrome[i] = ^(i_hamming_data & get_covered_bits(i));
+    initial begin
+        $display("-------------------------------------------");
+        $display("Data Width   %d", WIDTH);
+        $display("Parity Bits  %d", ParityBits);
+        $display("Total Width  %d", TotalWidth);
+        $display("-------------------------------------------");
+    end
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Function to calculate the bit position for data extraction
+    function automatic integer bit_position(input integer k);
+        integer j, pos;
+        begin
+            pos = k + 1; // Start at k+1 to account for the parity bit at position 0
+            for (j = 0; j < ParityBits; j = j + 1) begin
+                if (pos >= (2**j)) pos = pos + 1;
+            end
+            bit_position = pos - 1; // Convert to 0-based index
         end
-    endgenerate
+        // if (DEBUG)
+        //     $display("Bit position for data bit %d: %d", k, bit_position);
+    endfunction
 
-    // Check overall parity
-    assign w_overall_parity = ^i_hamming_data[0:TotalWidth-2];
+    ////////////////////////////////////////////////////////////////////////////
+    // Function to get a bit mask for the bits covered by a given parity bit
+    function automatic [TotalWidth-1:0] get_covered_bits(input integer parity_bit);
+        integer j;
+        begin
+            get_covered_bits = 0;
+            for (j = 0; j < TotalWidth-1; j = j + 1) begin
+                // Check if the k-th bit position is covered by the parity_bit
+                if (((j + 1) >> parity_bit) & 1) get_covered_bits[j] = 1'b1;
+            end
+        end
+        if (DEBUG)
+            $display("get_covered_bits for parity bit %d is %b", parity_bit, get_covered_bits);
+    endfunction
 
-    // Calculate syndrome for double error detection
-    assign w_syndrome[ParityBits] = w_overall_parity ^ i_hamming_data[TotalWidth-1];
-
-    // Correct the data if there is a single-bit error
-    integer j;
-    always_comb begin
-        w_data_with_parity = i_hamming_data;
-        if (w_syndrome != 0 && w_syndrome != {ParityBits{1'b1}}) begin
-            // Single-bit error detected and corrected
-            w_data_with_parity[w_syndrome] = ~w_data_with_parity[w_syndrome];
-            ow_error_detected = 1'b1;
-            ow_double_error_detected = 1'b0;
-        end else if (w_syndrome == {ParityBits{1'b1}}) begin
-            // Double-bit error detected
-            ow_error_detected = 1'b1;
-            ow_double_error_detected = 1'b1;
+    ////////////////////////////////////////////////////////////////////////////
+    // Check parity bits
+    integer i;
+    integer bit_index;
+    integer parity_pos;
+    logic [TotalWidth-1:0] w_covered_bits;
+    always_comb begin : create_syndrome_covered_bits
+        if (i_enable) begin
+            for (i = 0; i < ParityBits; i = i + 1) begin
+                parity_pos = (2**i)-1;
+                w_syndrome_in[i] = i_hamming_data[parity_pos];
+                w_syndrome[i] = 1'b0;
+                w_covered_bits = get_covered_bits(i);
+                for (bit_index = 0; bit_index < TotalWidth; bit_index = bit_index + 1) begin
+                    if (w_covered_bits[bit_index]) begin
+                        w_syndrome[i] = w_syndrome[i] ^ i_hamming_data[bit_index];
+                    end
+                end
+            end
         end else begin
-            // No error detected
-            ow_error_detected = 1'b0;
-            ow_double_error_detected = 1'b0;
+            w_syndrome = 'b0;
+        end
+    end
+    assign w_syndrome_0_based = (w_syndrome - 1);
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Check overall parity
+    always_comb begin : check_overall_parity
+        if (i_enable) begin
+            w_overall_parity = ^i_hamming_data[TotalWidth-2:0];
+            w_overall_parity_in = i_hamming_data[TotalWidth-1];
+            if (DEBUG) begin
+                $display("-------------> i_hamming_data[TotalWidth-1:0]: %b",
+                i_hamming_data[TotalWidth-1:0]);
+                $display("Input Overall parity and Syndrome: %b %b",
+                            w_overall_parity_in, w_syndrome_in);
+                $display("Calc  Overall parity and Syndrome: %b %b",
+                            w_overall_parity, w_syndrome);
+            end
+        end else begin
+            w_overall_parity = 'b0;
         end
     end
 
+    ////////////////////////////////////////////////////////////////////////////
+    // Correct the data if there is a single-bit error
+    always_ff @(posedge i_clk or negedge i_rst_n)
+    begin : correct_the_data_and_flag_errors_output_data
+        if (!i_rst_n) begin
+            r_data_with_parity      <= 'b0;
+            o_error_detected        <= 'b0;
+            o_double_error_detected <= 'b0;
+        end else if (i_enable) begin
+            r_data_with_parity      <= i_hamming_data;
+            $display("-------------------------> r_data_with_parity: %b", r_data_with_parity);
+            o_error_detected        <= 'b0;
+            o_double_error_detected <= 'b0;
+            if ((w_overall_parity != w_overall_parity_in) &&
+                (w_syndrome != {ParityBits{1'b1}})) begin
+                // Single-bit error detected and corrected
+                r_data_with_parity[w_syndrome_0_based] <= ~i_hamming_data[w_syndrome_0_based];
+                o_error_detected <= 1'b1;
+                $display("Single-bit error detected and corrected at position: %d",
+                    w_syndrome_0_based);
+                $display("-------------------------> r_data_with_parity: %b", r_data_with_parity);
+            end else if ((w_overall_parity == w_overall_parity_in) &&
+                    (w_syndrome == {ParityBits{1'b1}})) begin
+                // Double-bit error detected
+                o_error_detected <= 1'b1;
+                o_double_error_detected <= 1'b1;
+                $display("Double-bit error detected.");
+            end else begin
+                // No error detected
+                $display("No error detected.");
+            end
+        end
+    end
+
+    ////////////////////////////////////////////////////////////////////////////
     // Extract the corrected data
+    genvar j;
     generate
-        for (j = 0; j < WIDTH; j = j + 1) begin : gen_data_extract
-            assign ow_data[j] = w_data_with_parity[bit_position(j)];
+        for (j = 0; j < WIDTH; j = j + 1) begin : gen_block
+            assign o_data[j] = r_data_with_parity[bit_position(j)];
         end
     endgenerate
 
-    // Function to get a bit mask for the bits covered by a given parity bit
-    function automatic [TotalWidth-1:0] gen_get_covered_bits(input integer parity_bit);
-        integer k;
-        begin
-            get_covered_bits = 0;
-            for (k = 0; k < TotalWidth-1; k = k + 1) begin // Exclude the SECDED bit itself
-                if (k[parity_bit] == 1'b1) get_covered_bits[k] = 1'b1;
-            end
-        end
-    endfunction
-
-    // Function to calculate the bit position for data extraction
-    function automatic integer bit_position(input integer k);
-        integer l, pos;
-        begin
-            pos = k + 1; // Adjust for the SECDED bit
-            for (l = 0; l < ParityBits; l = l + 1) begin
-                if (k >= 2**l) pos = pos + 1;
-            end
-            bit_position = pos;
-        end
-    endfunction
 
     // synopsys translate_off
     initial begin

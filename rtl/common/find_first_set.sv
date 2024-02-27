@@ -10,11 +10,11 @@ module find_first_set #(
 
     localparam int N = $clog2(WIDTH) + 1;
 
-    function automatic [$clog2(WIDTH):0] find_set_index;
+    function automatic [N-1:0] find_set_index;
         input [WIDTH-1:0] input_data;
         logic found;
         begin
-            find_set_index = {$clog2(WIDTH) + 1{1'b0}};  // Default value if no bit is set
+            find_set_index = {N{1'b0}};  // Default value if no bit is set
             found = 1'b0;
             for (int i = 0; i < WIDTH && !found; i++) begin
                 if (input_data[i]) begin

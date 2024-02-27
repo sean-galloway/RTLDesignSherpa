@@ -15,6 +15,7 @@ module glitch_free_n_dff_arn #(
     localparam int FC = FLOP_COUNT;
     localparam int DW = WIDTH;
 
+    ////////////////////////////////////////////////////////////////////////////
     // Packed array to hold the states
     logic [FC-1:0][WIDTH-1:0] r_q_array;
 
@@ -32,6 +33,7 @@ module glitch_free_n_dff_arn #(
         end
     end
 
+    ////////////////////////////////////////////////////////////////////////////
     // Output assignment with DEL time unit delay
     assign #DEL o_q = r_q_array[FC-1];
 

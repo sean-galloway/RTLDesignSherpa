@@ -38,9 +38,15 @@ def check_hamming_encoded_data(encoded_data):
 @cocotb.test()
 async def hamming_encode_test(dut):
     """Test the Hamming code encoder with exhaustive or random inputs."""
+    # Use the seed for reproducibility
+    seed = int(os.environ.get('SEED', '0'))
+    random.seed(seed)
+    print(f'seed changed to {seed}')
+
     width = int(os.environ.get('WIDTH', '0'))
     parity_bits = dut.ParityBits
     total_width = dut.TotalWidth
+
     max_value = 2**width
     if max_value < 2049:
         test_data = range(max_value)
@@ -59,9 +65,9 @@ async def hamming_encode_test(dut):
         ow_encoded_data = dut.ow_encoded_data.value
         print(f'{ow_encoded_data=} <----------------------------------')
         # Convert to binary string, ensuring it's in '0' and '1'. Use binstr attribute for direct binary string representation.
-        binary_str = ow_encoded_data.binstr
+        encoded_data = ow_encoded_data.binstr
         # Convert the binary string to a list of integers (0 or 1), where the first element is the LSB and the last is the MSB.
-        encoded_data_list = [int(bit) for bit in reversed(binary_str)]
+        encoded_data_list = [int(bit) for bit in reversed(encoded_data)]
 
         # Check encoded data
         (pass_or_fail, expected, msg) = check_hamming_encoded_data(encoded_data_list)

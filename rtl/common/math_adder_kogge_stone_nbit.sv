@@ -9,6 +9,7 @@ module math_adder_kogge_stone_nbit #(
     output logic         ow_carry
 );
 
+    ////////////////////////////////////////////////////////////////////////////
     // Step 1: Generate and Propagate terms
     logic [N-1:0] w_G, w_P;
     genvar i;
@@ -17,6 +18,7 @@ module math_adder_kogge_stone_nbit #(
         assign w_P[i] = i_a[i] | i_b[i];
     end
 
+    ////////////////////////////////////////////////////////////////////////////
     // Step 2: Parallel Prefix Computation using Kogge-Stone
     logic [N-1:0] w_C;  // Array to store carry for each bit
     assign w_C[0] = w_G[0];  // Initial carry is the first generate signal
@@ -26,6 +28,7 @@ module math_adder_kogge_stone_nbit #(
         end
     endgenerate
 
+    ////////////////////////////////////////////////////////////////////////////
     // Step 3: Sum Calculation
     generate
         for (i = 0; i < N; i = i + 1) begin : gen_sum
@@ -38,6 +41,7 @@ module math_adder_kogge_stone_nbit #(
     endgenerate
 
 
+    ////////////////////////////////////////////////////////////////////////////
     // The final carry out
     assign ow_carry = w_C[N-1];
 
@@ -47,7 +51,7 @@ module math_adder_kogge_stone_nbit #(
         $dumpfile("dump.vcd");
         $dumpvars(0, math_adder_kogge_stone_nbit);
     end
-    // synopsys translate_off
+    // synopsys translate_on
 
 
 endmodule : math_adder_kogge_stone_nbit

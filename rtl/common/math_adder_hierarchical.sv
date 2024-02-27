@@ -5,7 +5,7 @@ module math_adder_hierarchical #(
     parameter int N = 16,
     parameter int C = 10
 ) (
-    input logic [N-1:0] i_numbers[0:C-1],  // verilog_lint: waive unpacked-dimensions-range-ordering
+    input  logic [N-1:0] i_numbers[0:C-1],  // verilog_lint: waive unpacked-dimensions-range-ordering
     output logic [N-1:0] ow_sum
 );
 
@@ -17,6 +17,7 @@ module math_adder_hierarchical #(
 
     genvar i, stage;
 
+    ////////////////////////////////////////////////////////////////////////////
     // Initialize first stage with input numbers, and pad with zeros if necessary
     generate
         for (genvar k = 0; k < CPadded; k = k + 1) begin : gen_loop
@@ -25,6 +26,7 @@ module math_adder_hierarchical #(
         end
     endgenerate
 
+    ////////////////////////////////////////////////////////////////////////////
     // Stages of addition
     generate
         for (stage = 0; stage < Stages; stage = stage + 1) begin : gen_cla_outer
