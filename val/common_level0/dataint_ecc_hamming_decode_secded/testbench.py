@@ -83,7 +83,7 @@ def hamming_decode_secded(data_width, parity_bits, total_width, data, corrupt_ve
     # Detect and correct errors
     error_detected = 0
     double_error_detected = 0
-    if (overall_parity != encoded_data[secded_pos]) and (syndrome < total_width):
+    if (overall_parity != corrupted_data[secded_pos]) and (syndrome < total_width):
         # Single-bit error detected and corrected
         error_detected = 1
         corrupted_data[syndrome - 1] ^= 1  # Flip the corrupted bit
@@ -152,8 +152,7 @@ def hamming_encode(data, corruption_vector, data_width, parity_bits, total_width
 def generate_known_data(data, total_width, test_data):
     c_vec = [0]*total_width
     test_data.append((data, c_vec))    
-    # test single bit in all locations for data F's
-    for i in range(total_width-1): # TODO: update to check the secded bit flip
+    for i in range(total_width):
         c_vec = [0]*total_width
         c_vec[i] = 1
         test_data.append((data, c_vec))
@@ -181,7 +180,7 @@ def generate_test_data(width, total_width, count_small=2, count_big=2048, seed=1
 
     # Define the constraints and weights for the corruption vector
     constraints = [(0, 0), (1, 1), (2, 2), (3, 3)]
-    weights = [0.4, 0.2, 0.0, 0.0]
+    weights = [0.6, 0.2, 0.2, 0.0]
 
     # define the test data
     max_value = 2**width

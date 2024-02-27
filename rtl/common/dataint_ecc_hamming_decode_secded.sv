@@ -42,8 +42,6 @@ module dataint_ecc_hamming_decode_secded #(
             end
             bit_position = pos - 1; // Convert to 0-based index
         end
-        // if (DEBUG)
-        //     $display("Bit position for data bit %d: %d", k, bit_position);
     endfunction
 
     ////////////////////////////////////////////////////////////////////////////
@@ -70,15 +68,13 @@ module dataint_ecc_hamming_decode_secded #(
     always_comb begin : create_syndrome_covered_bits
         if (i_enable) begin
             for (i = 0; i < ParityBits; i = i + 1) begin
-                parity_pos = (2**i)-1;
+                parity_pos       = (2**i)-1;
                 w_syndrome_in[i] = i_hamming_data[parity_pos];
-                w_syndrome[i] = 1'b0;
-                w_covered_bits = get_covered_bits(i);
-                for (bit_index = 0; bit_index < TotalWidth; bit_index = bit_index + 1) begin
-                    if (w_covered_bits[bit_index]) begin
+                w_syndrome[i]    = 1'b0;
+                w_covered_bits   = get_covered_bits(i);
+                for (bit_index = 0; bit_index < TotalWidth; bit_index = bit_index + 1)
+                    if (w_covered_bits[bit_index])
                         w_syndrome[i] = w_syndrome[i] ^ i_hamming_data[bit_index];
-                    end
-                end
             end
         end else begin
             w_syndrome = 'b0;
@@ -90,8 +86,8 @@ module dataint_ecc_hamming_decode_secded #(
     // Check overall parity
     always_comb begin : check_overall_parity
         if (i_enable) begin
-            w_overall_parity = ^i_hamming_data[TotalWidth-2:0];
-            w_overall_parity_in = i_hamming_data[TotalWidth-1];
+            w_overall_parity    = ^i_hamming_data[TotalWidth-2:0];
+            w_overall_parity_in =  i_hamming_data[TotalWidth-1];
             if (DEBUG) begin
                 $display("-------------> i_hamming_data[TotalWidth-1:0]: %b",
                 i_hamming_data[TotalWidth-1:0]);
@@ -115,7 +111,6 @@ module dataint_ecc_hamming_decode_secded #(
             o_double_error_detected <= 'b0;
         end else if (i_enable) begin
             r_data_with_parity      <= i_hamming_data;
-            $display("-------------------------> r_data_with_parity: %b", r_data_with_parity);
             o_error_detected        <= 'b0;
             o_double_error_detected <= 'b0;
             if ((w_overall_parity != w_overall_parity_in) &&
@@ -125,7 +120,6 @@ module dataint_ecc_hamming_decode_secded #(
                 o_error_detected <= 1'b1;
                 $display("Single-bit error detected and corrected at position: %d",
                     w_syndrome_0_based);
-                $display("-------------------------> r_data_with_parity: %b", r_data_with_parity);
             end else if ((w_overall_parity == w_overall_parity_in) &&
                     (w_syndrome == {ParityBits{1'b1}})) begin
                 // Double-bit error detected
@@ -147,7 +141,6 @@ module dataint_ecc_hamming_decode_secded #(
             assign o_data[j] = r_data_with_parity[bit_position(j)];
         end
     endgenerate
-
 
     // synopsys translate_off
     initial begin
