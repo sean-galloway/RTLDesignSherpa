@@ -128,6 +128,8 @@ Note: I have usually made significant changes, primarily for performance reasons
 
 - [counter_bingray](counter_bingray.md)
 
+- [counter_ring](counter_ring.md)
+
 11\. Sorting and Reversing
 
 - [sort](sort.md)

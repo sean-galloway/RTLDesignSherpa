@@ -1,4 +1,4 @@
-# Counter Module Overview
+# counter
 
 ## Module Name
 
