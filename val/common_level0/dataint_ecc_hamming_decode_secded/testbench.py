@@ -3,6 +3,7 @@ from cocotb.triggers import RisingEdge, Timer
 from cocotb.clock import Clock
 import os
 import random
+import copy
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
 from ConstrainedRandom import ConstrainedRandom
@@ -32,6 +33,13 @@ def hamming_decode_secded(data_width, parity_bits, total_width, data, corrupt_ve
                 bits_list[index] = 1
         return bits_list
 
+    dpmap = ['d'] * total_width
+    for i in range(parity_bits):
+        dpmap[(2**i)-1] = 'P'
+    dpmap[-1] = 'O'
+    dpmap_str = ''.join(reversed(dpmap))
+    print(f'----------------------------------> dpmap_str: {dpmap_str}')
+
     # Encode the data with parity bits
     encoded_data = [0] * total_width
     for i, bit in enumerate(data):
@@ -59,6 +67,8 @@ def hamming_decode_secded(data_width, parity_bits, total_width, data, corrupt_ve
 
     # Apply the corrupt vector to simulate errors
     corrupted_data = [encoded_data[i] ^ corrupt_vector[i] for i in range(total_width)]
+    corrupted_data_hold = copy.deepcopy(corrupted_data)
+    corrupted_data_str = ''.join(str(bit) for bit in reversed(corrupted_data_hold))
 
     # Calculate the syndrome
     syndrome = 0
@@ -66,14 +76,13 @@ def hamming_decode_secded(data_width, parity_bits, total_width, data, corrupt_ve
         covered_bits = get_covered_bits(i)
         par = (sum(corrupted_data[pos] for pos in covered_bits) % 2)
         syndrome |= par << i
-        print(f'{i=} {syndrome=}')
 
-    # print the encoded_data
+    # print the encoded_data    
     overall_parity = sum(corrupted_data[:-1]) % 2
     corrupted_data_str = ''.join(str(bit) for bit in reversed(corrupted_data))
     print(f'-------hds---------------> corrupted_data_str: {corrupted_data_str}')
 
-    # print(f'hds: {syndrome=} {type(syndrome)=}')
+    print(f'hds: {overall_parity=} {corrupted_data[secded_pos]=} {syndrome=} ')
 
     # Check the overall parity using the SECDED bit
     # overall_parity = corrupted_data[-1]
@@ -87,7 +96,7 @@ def hamming_decode_secded(data_width, parity_bits, total_width, data, corrupt_ve
         # Single-bit error detected and corrected
         error_detected = 1
         corrupted_data[syndrome - 1] ^= 1  # Flip the corrupted bit
-    elif (overall_parity == encoded_data[secded_pos]) and (syndrome == ((2**parity_bits)-1)):
+    elif (overall_parity == corrupted_data[secded_pos]) and (syndrome > 0):
         # Double-bit error detected
         error_detected = 1
         double_error_detected = 1
@@ -95,59 +104,22 @@ def hamming_decode_secded(data_width, parity_bits, total_width, data, corrupt_ve
     # Extract the corrected data
     corrected_data = [corrupted_data[bit_position(i)] for i in range(data_width)]
 
-    return corrected_data, error_detected, double_error_detected
+    return corrected_data, error_detected, double_error_detected, corrupted_data_hold
 
 
-def hamming_encode(data, corruption_vector, data_width, parity_bits, total_width):
-    corruption_vector_str = ''.join(str(bit) for bit in reversed(corruption_vector))
-    print(f'----------------------> corruption_vector_str: {corruption_vector_str}')
+def generate_permutations(total_bits):
+    permutations = []  # To store the permutations
+    for i in range(total_bits):
+        for j in range(i + 1, total_bits):
+            # Create a list of 'total_bits' zeros
+            vector = [0] * total_bits
+            # Set two positions to 1
+            vector[i] = 1
+            vector[j] = 1
+            # Add the vector to the list of permutations
+            permutations.append(vector)
+    return permutations
 
-    # Calculate the positions of the parity bits
-    parity_positions = [2 ** i - 1 for i in range(parity_bits)]
-    dpmap = ['d'] * total_width
-    for i in parity_positions:
-        dpmap[i] = 'P'
-    dpmap[-1] = 'P'
-    dpmap_str = ''.join(reversed(dpmap))
-    print(f'----------------------------------> dpmap_str: {dpmap_str}')
-
-    # Initialize the encoded data with zeros
-    encoded_data = [0] * total_width
-
-    # Copy the data bits to the encoded data
-    data_index = 0
-    for i in range(total_width - 1):
-        if i not in parity_positions:
-            encoded_data[i] = data[data_index]
-            data_index += 1
-
-    # Calculate the parity bits
-    for i in range(parity_bits):
-        parity = 0
-        for j in range(total_width):
-            if (j + 1) & (2 ** i):
-                parity ^= encoded_data[j]
-        encoded_data[parity_positions[i]] = parity
-
-    # Calculate the total parity
-    total_parity = 0
-    for i in range(total_width - 1):
-        total_parity ^= encoded_data[i]
-
-    # Add the total parity to the last position of the encoded data
-    encoded_data[-1] = total_parity
-    encoded_data_str = ''.join(str(bit) for bit in reversed(encoded_data))
-    print(f'---------------------------> encoded_data_str: {encoded_data_str} uncorrupted')
-
-    # Apply the corruption vector
-    for i in range(total_width):
-        if corruption_vector[i]:
-            encoded_data[i] ^= 1
-
-    encoded_data_str = ''.join(str(bit) for bit in reversed(encoded_data))
-    print(f'---------------------------> encoded_data_str: {encoded_data_str} corrupted')
-
-    return encoded_data
 
 def generate_known_data(data, total_width, test_data):
     c_vec = [0]*total_width
@@ -156,10 +128,12 @@ def generate_known_data(data, total_width, test_data):
         c_vec = [0]*total_width
         c_vec[i] = 1
         test_data.append((data, c_vec))
+    for c_vec in generate_permutations(total_width):
+        test_data.append((data, c_vec))
 
 
-def generate_test_data(width, total_width, count_small=2, count_big=2048, seed=1234):
-    print(f'{width=} {total_width=} {count_small=} {count_big=} {seed=}')
+def generate_test_data(width, total_width, count_small=2, count_big=2048):
+    print(f'{width=} {total_width=} {count_small=} {count_big=}')
 
     test_data = []
     data = 0
@@ -180,7 +154,7 @@ def generate_test_data(width, total_width, count_small=2, count_big=2048, seed=1
 
     # Define the constraints and weights for the corruption vector
     constraints = [(0, 0), (1, 1), (2, 2), (3, 3)]
-    weights = [0.6, 0.2, 0.2, 0.0]
+    weights = [6, 2, 2, 0]
 
     # define the test data
     max_value = 2**width
@@ -195,16 +169,15 @@ def generate_test_data(width, total_width, count_small=2, count_big=2048, seed=1
     rand_corruption = []
     for _ in range(rand_count):
         # Create a ConstrainedRandom object with the constraints and weights
-        crand = ConstrainedRandom(constraints, weights, seed)
+        crand = ConstrainedRandom(constraints, weights)
 
-        # Not corrupting the parity bit for now!!!! TODO
         # Generate a random corruption vector with a specified number of ones
         num_ones = crand.next()  # Get the number of ones from the ConstrainedRandom object
-        corrupt_vector = [1] * num_ones + [0] * (total_width - num_ones - 1)
+        print(f'{num_ones=}')
+        corrupt_vector = [1] * num_ones + [0] * (total_width - num_ones)
 
         # Shuffle the vector to randomize the positions of the ones
         random.shuffle(corrupt_vector)
-        corrupt_vector.append(0)
         rand_corruption.append(corrupt_vector)
 
     rand_data = list(zip(data_value, rand_corruption))
@@ -219,7 +192,7 @@ async def test_hamming_decode_repair(dut):
     dut.i_enable.value = 0
     dut.i_hamming_data.value = 0
 
-    clock = Clock(dut.i_clk, 10, units="ns")  # Create a 100MHz clock
+    clock = Clock(dut.i_clk, 10, units="ns")  # Create a 500MHz clock
     cocotb.start_soon(clock.start())  # Start the clock
 
     # Use the seed for reproducibility
@@ -231,7 +204,7 @@ async def test_hamming_decode_repair(dut):
     parity_bits = int(dut.ParityBits)
     total_width = int(dut.TotalWidth)
 
-    test_data = generate_test_data(width, total_width, count_small=2, count_big=2048, seed=seed)
+    test_data = generate_test_data(width, total_width, count_small=2**width, count_big=2048)
     print('------------------------------------------------------')
     for data_value, corrupt_vector in test_data:
         data_bin = format(data_value, f'0{width}b')
@@ -242,7 +215,7 @@ async def test_hamming_decode_repair(dut):
     # de-assert reset
     for _ in range(5):
         await RisingEdge(dut.i_clk) 
-        await Timer(100, units='ps')  # Adding a 100 ps delay   
+        await Timer(500, units='ps')  # Adding a 500 ps delay   
     dut.i_rst_n.value = 1
 
     for data_value, corrupt_vector in test_data:
@@ -254,10 +227,12 @@ async def test_hamming_decode_repair(dut):
         data_list = [int(bit) for bit in reversed(data_bin)]
 
         # Flip the bits in data_list according to corrupt_vector
-        corrupted_data_list = hamming_encode(data_list, corrupt_vector, width, parity_bits, total_width)
+        # corrupted_data_list = hamming_encode(data_list, corrupt_vector, width, parity_bits, total_width)
+        (expected_data, expected_error_detected, expected_double_error_detected, corrupted_data_list) = hamming_decode_secded(width, parity_bits, total_width, data_list, corrupt_vector)
 
         # Convert the corrupted_data_list to an integer
         corrupted_data_str = ''.join(str(bit) for bit in reversed(corrupted_data_list))
+        print(f'---------------------->  input corrupt_vector: {corrupted_data_str}')
         corrupted_data_int = int(corrupted_data_str, 2)
 
         # Apply the data and corruption vector to the DUT
@@ -265,7 +240,7 @@ async def test_hamming_decode_repair(dut):
         dut.i_enable.value= 1
 
         await RisingEdge(dut.i_clk)
-        await Timer(100, units='ps')  # Adding a 100 ps delay
+        await Timer(500, units='ps')  # Adding a 500 ps delay
 
         # Sample the output signals
         output_data = dut.o_data.value.integer
@@ -276,12 +251,12 @@ async def test_hamming_decode_repair(dut):
         dut.i_hamming_data.value = 0
         dut.i_enable.value= 0
         await RisingEdge(dut.i_clk)
-        await Timer(100, units='ps')  # Adding a 100 ps delay
+        await Timer(500, units='ps')  # Adding a 500 ps delay
 
         output_data_bin = format(output_data, f'0{width}b')
 
         # Calculate the expected values
-        (expected_data, expected_error_detected, expected_double_error_detected) = hamming_decode_secded(width, parity_bits, total_width, data_list, corrupt_vector)
+        # (expected_data, expected_error_detected, expected_double_error_detected) = hamming_decode_secded(width, parity_bits, total_width, data_list, corrupt_vector)
 
         # Convert the list of bits to a string and then to an integer
         expected_data_int = int(''.join(str(bit) for bit in reversed(expected_data)), 2)

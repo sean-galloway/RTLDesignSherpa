@@ -7,14 +7,13 @@ import random
 # logger.setLevel(logging.DEBUG)
 
 class ConstrainedRandom():
-    def __init__(self, constraints, weights, seed=None, is_integer=True):
+    def __init__(self, constraints, weights, is_integer=True):
         if len(constraints) != len(weights):
             raise ValueError("Constraints and weights must have the same length")
 
         self.constraints = constraints
         self.weights = weights
-        self.seed = seed if seed is not None else int(time.time())
-        self.random_generator = random.Random(self.seed)
+        self.random_generator = random.Random()
         self.is_integer = is_integer
 
 
