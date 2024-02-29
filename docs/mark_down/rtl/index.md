@@ -140,6 +140,10 @@ Note: I have usually made significant changes, primarily for performance reasons
 
 - [shifter_lfsr](shifter_lfsr.md)
 
+- [shifter_lfsr_fibonacci](shifter_lfsr_fibonacci.md)
+
+- [shifter_lfsr_galois](shifter_lfsr_galois.md)
+
 - [Shifter_Universal](shifter_universal.md)
 
 13\. Debounce Circuit
