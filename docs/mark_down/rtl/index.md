@@ -200,9 +200,9 @@ Note: I have usually made significant changes, primarily for performance reasons
 
   - [CRC XOR Shift](dataint_crc_xor_shift.md)
 
-- [Hamming ECC Encode](dataint_ecc_hamming_encode_008.md)
+- [Hamming ECC Encode](dataint_ecc_hamming_encode_secded.md)
 
-- [Hamming ECC Decode](dataint_ecc_hamming_decode_008.md)
+- [Hamming ECC Decode](dataint_ecc_hamming_decode_secded.md)
 
 ---
 
