@@ -28,10 +28,6 @@ These are the main workhorse classes:
 
 * [REMatcher](REMatcher.md)
 
-## ECC Classes
-
-* [Hamming Encode/Decode Generator](ecc_hamming.md)
-
 ## Main Math Classes
 
 These are the main instances of the different math classes created in Python to generate the underlying system verilog.
