@@ -51,7 +51,7 @@ async def schedule_tests(dut):
     N = len(dut.i_seed_data)
     # Define your tests here, for example:
     bin_str = ''.join(format(num, '012b') for num in (8, 6, 5, 4))
-    # print(f'{bin_str=}')
+    print(f'{bin_str=}')
     seeds_and_taps = [
         (random.getrandbits(N), int(bin_str,2))
     ]

@@ -3,8 +3,8 @@ COCOTB_REDUCED_LOG_FMT = True
 SIM ?= icarus
 VERILOG_INCLUDE_DIRS = $(REPO_ROOT)/rtl/common
 VERILOG_SOURCES =\
-					$(REPO_ROOT)/rtl/common/shifter_lfsr.sv
-DUT = shifter_lfsr
+					$(REPO_ROOT)/rtl/common/shifter_lfsr_fibonacci.sv
+DUT = shifter_lfsr_fibonacci
 MODULE = testbench
 TOPLEVEL = $(DUT)
 
@@ -16,4 +16,4 @@ COCOTB_HDL_TIMEPRECISION=1ps
 include $(shell cocotb-config --makefiles)/Makefile.sim
 include ../cleanall.mk
 WAVES=1
-export SEED=8574389393
+export SEED=1234

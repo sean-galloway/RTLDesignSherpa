@@ -51,6 +51,7 @@
 // a generic Xor-Shift LFSR
 module shifter_lfsr #(
     parameter int WIDTH = 8,                   // Width of the LFSR
+    parameter int TAP_INDEX_WIDTH = 12,
     parameter int TAP_COUNT = 4                // Number of taps
 ) (
     input  logic                       i_clk,
@@ -58,32 +59,30 @@ module shifter_lfsr #(
     input  logic                       i_enable,      // enable the lfsr
     input  logic                       i_seed_load,   // enable the seed for the lfsr
     input  logic [WIDTH-1:0]           i_seed_data,   // seed value
-    input  logic [TAP_COUNT*WIDTH-1:0] i_taps,        // Concatenated tap positions
+    input  logic [TAP_COUNT*TIW-1:0] i_taps,        // Concatenated tap positions
     output logic [WIDTH-1:0]           o_lfsr_out,    // LFSR output
     output logic                       ow_lfsr_done   // the lfsr has wrapped around to the seed
 );
-
+    localparam  int   TIW = TAP_INDEX_WIDTH;
     logic [WIDTH:0]   w_taps;
-    logic [WIDTH:1]   r_lfsr;
+    logic [WIDTH:0]   r_lfsr;
     logic             w_feedback;
-    logic [WIDTH-1:0] w_tap_positions [0:TAP_COUNT-1]; // verilog_lint: waive unpacked-dimensions-range-ordering
+    logic [12-1:0]    w_tap_positions [0:TAP_COUNT-1]; // verilog_lint: waive unpacked-dimensions-range-ordering
 
     ////////////////////////////////////////////////////////////////////////////
     // Split concatenated tap positions into separate groups for each tap
-    genvar i;
-    generate
-        for (i = 0; i < TAP_COUNT; i++) begin : gen_split_taps
-            assign w_tap_positions[i] = i_taps[i*WIDTH +: WIDTH];
-        end
-    endgenerate
+    integer i;
+    always_comb begin
+    for (i = 0; i < TAP_COUNT; i++)
+        w_tap_positions[i] = i_taps[i*TIW +:TIW];
+    end
 
-    generate
-        assign w_taps = 'b0;
-        for (i=0; i < TAP_COUNT; i++) begin : gen_split_taps
+    always_comb begin
+        w_taps = 'b0;
+        for (i=0; i < TAP_COUNT; i++)
             if (w_tap_positions[i] > 0)
-                assign w_taps[w_tap_positions[i]] = 1'b1;
-        end
-    endgenerate
+                w_taps[w_tap_positions[i]] = 1'b1;
+    end
 
     ////////////////////////////////////////////////////////////////////////////
     // Calculate feedback by XORing tapped bits
@@ -91,21 +90,23 @@ module shifter_lfsr #(
 
     ////////////////////////////////////////////////////////////////////////////
     // observe when the lfsr has looped back
-    assign ow_lfsr_done = (r_lfsr[WIDTH:1] == i_seed_data) ? 1'b1 : 1'b0;
+    assign ow_lfsr_done = (o_lfsr_out[WIDTH:1] == i_seed_data) ? 1'b1 : 1'b0;
 
     always_ff @(posedge i_clk or negedge i_rst_n) begin
         if (!i_rst_n) begin
-            o_lfsr_outfsr <= 0;
+            r_lfsr <= 0;
         end else begin
             if (i_enable) begin
                 if (i_seed_load)
-                    o_lfsr_out <= i_seed_data;
+                    r_lfsr <= i_seed_data;
                 else begin
-                    o_lfsr_out <= {r_lfsr[N-1:1], w_feedback};
+                    r_lfsr <= {r_lfsr[WIDTH:1], w_feedback};
                 end
             end
         end
     end
+
+    assign o_lfsr_out = r_lfsr;
 
     // Synopsys translate_off
     initial begin
