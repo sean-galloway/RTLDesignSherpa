@@ -1,7 +1,7 @@
 [
     {
         "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_007",
+        "test_name": "dataint_ecc_hamming_encode_secded_dw_007",
         "seed": "1234",
         "param": {
             "WIDTH": "7"
@@ -9,7 +9,7 @@
     },
     {
         "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_007",
+        "test_name": "dataint_ecc_hamming_decode_secded_dw_007",
         "seed": "1234",
         "param": {
             "WIDTH": "7"
@@ -17,7 +17,7 @@
     },
     {
         "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_008",
+        "test_name": "dataint_ecc_hamming_encode_secded_dw_008",
         "seed": "1234",
         "param": {
             "WIDTH": "8"
@@ -25,7 +25,7 @@
     },
     {
         "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_008",
+        "test_name": "dataint_ecc_hamming_decode_secded_dw_008",
         "seed": "1234",
         "param": {
             "WIDTH": "8"
@@ -33,7 +33,7 @@
     },
     {
         "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_015",
+        "test_name": "dataint_ecc_hamming_encode_secded_dw_015",
         "seed": "1234",
         "param": {
             "WIDTH": "15"
@@ -41,7 +41,7 @@
     },
     {
         "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_015",
+        "test_name": "dataint_ecc_hamming_decode_secded_dw_015",
         "seed": "1234",
         "param": {
             "WIDTH": "15"
@@ -49,7 +49,7 @@
     },
     {
         "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_016",
+        "test_name": "dataint_ecc_hamming_encode_secded_dw_016",
         "seed": "1234",
         "param": {
             "WIDTH": "16"
@@ -57,7 +57,7 @@
     },
     {
         "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_016",
+        "test_name": "dataint_ecc_hamming_decode_secded_dw_016",
         "seed": "1234",
         "param": {
             "WIDTH": "16"
@@ -65,7 +65,7 @@
     },
     {
         "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_031",
+        "test_name": "dataint_ecc_hamming_encode_secded_dw_031",
         "seed": "1234",
         "param": {
             "WIDTH": "31"
@@ -73,7 +73,7 @@
     },
     {
         "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_031",
+        "test_name": "dataint_ecc_hamming_decode_secded_dw_031",
         "seed": "1234",
         "param": {
             "WIDTH": "31"
@@ -81,7 +81,7 @@
     },
     {
         "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_032",
+        "test_name": "dataint_ecc_hamming_encode_secded_dw_032",
         "seed": "1234",
         "param": {
             "WIDTH": "32"
@@ -89,7 +89,7 @@
     },
     {
         "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_032",
+        "test_name": "dataint_ecc_hamming_decode_secded_dw_032",
         "seed": "1234",
         "param": {
             "WIDTH": "32"
@@ -97,7 +97,7 @@
     },
     {
         "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_063",
+        "test_name": "dataint_ecc_hamming_encode_secded_dw_063",
         "seed": "1234",
         "param": {
             "WIDTH": "63"
@@ -105,7 +105,7 @@
     },
     {
         "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_063",
+        "test_name": "dataint_ecc_hamming_decode_secded_dw_063",
         "seed": "1234",
         "param": {
             "WIDTH": "63"
@@ -113,7 +113,7 @@
     },
     {
         "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_064",
+        "test_name": "dataint_ecc_hamming_encode_secded_dw_064",
         "seed": "1234",
         "param": {
             "WIDTH": "64"
@@ -121,903 +121,7 @@
     },
     {
         "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_064",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "64"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_007",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "7"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_007",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "7"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_008",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "8"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_008",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "8"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_015",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "15"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_015",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "15"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_016",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "16"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_016",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "16"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_031",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "31"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_031",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "31"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_032",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "32"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_032",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "32"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_063",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "63"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_063",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "63"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_064",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "64"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_064",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "64"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_007",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "7"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_007",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "7"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_008",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "8"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_008",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "8"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_015",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "15"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_015",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "15"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_016",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "16"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_016",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "16"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_031",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "31"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_031",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "31"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_032",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "32"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_032",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "32"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_063",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "63"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_063",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "63"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_064",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "64"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_064",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "64"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_007",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "7"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_007",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "7"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_008",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "8"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_008",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "8"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_015",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "15"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_015",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "15"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_016",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "16"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_016",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "16"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_031",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "31"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_031",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "31"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_032",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "32"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_032",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "32"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_063",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "63"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_063",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "63"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_064",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "64"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_064",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "64"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_007",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "7"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_007",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "7"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_008",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "8"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_008",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "8"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_015",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "15"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_015",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "15"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_016",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "16"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_016",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "16"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_031",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "31"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_031",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "31"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_032",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "32"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_032",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "32"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_063",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "63"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_063",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "63"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_064",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "64"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_064",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "64"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_007",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "7"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_007",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "7"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_008",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "8"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_008",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "8"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_015",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "15"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_015",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "15"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_016",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "16"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_016",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "16"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_031",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "31"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_031",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "31"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_032",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "32"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_032",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "32"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_063",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "63"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_063",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "63"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_064",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "64"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_064",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "64"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_007",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "7"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_007",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "7"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_008",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "8"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_008",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "8"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_015",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "15"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_015",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "15"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_016",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "16"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_016",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "16"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_031",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "31"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_031",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "31"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_032",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "32"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_032",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "32"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_063",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "63"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_063",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "63"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_064",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "64"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_064",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "64"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_007",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "7"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_007",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "7"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_008",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "8"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_008",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "8"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_015",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "15"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_015",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "15"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_016",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "16"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_016",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "16"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_031",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "31"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_031",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "31"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_032",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "32"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_032",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "32"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_063",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "63"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_063",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "63"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_encode_secded/",
-        "test_name": "dataint_ecc_hamming_encode_secded_dw_dw_064",
-        "seed": "1234",
-        "param": {
-            "WIDTH": "64"
-        }
-    },
-    {
-        "test": "val/common_level0/dataint_ecc_hamming_decode_secded/",
-        "test_name": "dataint_ecc_hamming_decode_secded_dw_dw_064",
+        "test_name": "dataint_ecc_hamming_decode_secded_dw_064",
         "seed": "1234",
         "param": {
             "WIDTH": "64"
