@@ -20,7 +20,7 @@ The ring counter is a simple, cyclic counter that iterates through a series of b
 At reset (`i_rst_n` is low), the ring counter initializes to a state where the least significant bit is set high (e.g., `0001` for a 4-bit counter). When enabled (`i_enable` is high), the ring counter advances its state on each rising edge of the clock:
 
 1. The single high bit rotates right through the counter's bit positions.
-2. When the high bit reaches the LSB, it wraps around to the MSB in the next cycle.
+2. When the high bit reaches the LSB, it wraps around the MSB in the next cycle.
 
 For example, in a 4-bit ring counter, the sequence of states would be `0001`, `1000`, `0100`, `0010`, and then back to `0001`.
 
