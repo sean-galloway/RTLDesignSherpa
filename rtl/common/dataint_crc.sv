@@ -129,16 +129,19 @@ module dataint_crc #(
 
     ////////////////////////////////////////////////////////////////////////////
     // Reflect input data if REFIN is enabled
-    generate
     genvar i, j, idx;
-    if (REFIN) begin : gen_reflect_inputs
-        for(i = 0; i < CH; i = i + 1)
-            for(j = 0; j < 8; j = j + 1)
-                assign w_block_data[i][j] = i_data[i*8+7-j];
-    end else begin : gen_direct_assign_inputs
-        for(i = 0; i < CH; i = i + 1)
-            assign w_block_data[i] = i_data[i*8+:8];
-    end
+    generate
+        if (REFIN) begin : gen_reflect_inputs
+            for (genvar i = 0; i < CH; i = i + 1) begin : gen_ch_reflect
+                for (genvar j = 0; j < 8; j = j + 1) begin : gen_bit_reflect
+                    assign w_block_data[i][j] = i_data[i*8+7-j];
+                end
+            end
+        end else begin : gen_direct_assign_inputs
+            for (genvar i = 0; i < CH; i = i + 1) begin : gen_ch_direct
+                assign w_block_data[i] = i_data[i*8+:8];
+            end
+        end
     endgenerate
 
     ////////////////////////////////////////////////////////////////////////////

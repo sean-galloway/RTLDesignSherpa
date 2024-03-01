@@ -139,17 +139,7 @@ type='brent_kung'
 buswidth=8
 
 python3 bin/math_generate.py --type \$type --path \$out_path --buswidth \$buswidth
-
 ```
-
-## [ecc_generate.py](math_generate.md)
-
-This script generates Hamming encoders and decoders.
-
-``sh
-python bin/ecc_generate.py --type hamming --path $REPO_ROOT/rtl/common/ --buswidth 32
-``
-
 ## [vcd2wavedrom2.py](vcd2wavedrom2.md)
 
 This script generates wavedrom files based on vcd and gtkw files. The gtkw file provides the signal selection, grouping and ordering, and adding hierarchical labels to the signals.
