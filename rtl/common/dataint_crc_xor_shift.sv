@@ -17,7 +17,7 @@ module dataint_crc_xor_shift #(
 
     // // synopsys translate_off
     // initial begin
-    //     $dumpfile("dump.vcd");
+    //     $dumpfile("waves.vcd");
     //     $dumpvars(0, dataint_crc_xor_shift);
     // end
     // // synopsys translate_on

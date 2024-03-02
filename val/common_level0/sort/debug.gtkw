@@ -2,7 +2,7 @@
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
 [*] Tue Aug  1 22:46:57 2023
 [*]
-[dumpfile] "/home/sean/github/RTL_Design_Projects/common/common_force_tb/barrel_shifter/dump.vcd"
+[dumpfile] "/home/sean/github/RTL_Design_Projects/common/common_force_tb/barrel_shifter/waves.vcd"
 [dumpfile_mtime] "Tue Aug  1 22:32:07 2023"
 [dumpfile_size] 6982
 [savefile] "/home/sean/github/RTL_Design_Projects/common/common_force_tb/barrel_shifter/debug.gtkw"

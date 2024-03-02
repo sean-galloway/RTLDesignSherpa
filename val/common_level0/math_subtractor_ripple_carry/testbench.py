@@ -23,3 +23,7 @@ async def test_subtractor(dut):
             if int(dut.ow_difference.value) != expected_difference or int(dut.ow_carry_out.value) != expected_carry_out:
                 raise TestFailure(f"For i_a={i_a}, i_b={i_b}, i_borrow_in={i_borrow_in}, expected difference was {expected_difference} and carry out was {expected_carry_out} but got difference={dut.ow_difference.value} and carry out={dut.ow_carry_out.value}")
 
+
+from cocotb.regression import TestFactory
+tf = TestFactory(test_subtractor)
+tf.generate_tests()

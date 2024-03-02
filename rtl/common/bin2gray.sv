@@ -18,7 +18,7 @@ module bin2gray #(
 
     // synopsys translate_off
     initial begin
-        $dumpfile("dump.vcd");
+        $dumpfile("waves.vcd");
         $dumpvars(0, bin2gray);
     end
     // synopsys translate_on

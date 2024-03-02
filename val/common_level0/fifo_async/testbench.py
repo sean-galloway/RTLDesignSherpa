@@ -141,3 +141,7 @@ async def fifo_test(dut):
 
         for _ in range(delay_between_iterations):
             await RisingEdge(dut.i_rd_clk)
+
+from cocotb.regression import TestFactory
+tf = TestFactory(fifo_test)
+tf.generate_tests()

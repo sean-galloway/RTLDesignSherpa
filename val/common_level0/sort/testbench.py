@@ -52,3 +52,7 @@ async def sort_test(dut):
         assert sorted_data_out == sorted(data_in, reverse=True), "Mismatch! Expected {} but got {}".format(sorted(data_in, reverse=True), sorted_data_out)
 
     dut._log.info("All tests passed!")
+
+from cocotb.regression import TestFactory
+tf = TestFactory(sort_test)
+tf.generate_tests()

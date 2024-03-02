@@ -24,7 +24,7 @@ module reset_sync #(
 
     // synopsys translate_off
     initial begin
-        $dumpfile("dump.vcd");
+        $dumpfile("waves.vcd");
         $dumpvars(0, reset_sync);
     end
     // synopsys translate_on

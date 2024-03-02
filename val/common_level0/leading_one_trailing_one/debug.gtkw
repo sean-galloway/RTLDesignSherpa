@@ -2,7 +2,7 @@
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
 [*] Sun Jul 30 03:56:58 2023
 [*]
-[dumpfile] "/home/sean/github/RTL_Design_Projects/common/common_tb/leading_one_trailing_one/dump.vcd"
+[dumpfile] "/home/sean/github/RTL_Design_Projects/common/common_tb/leading_one_trailing_one/waves.vcd"
 [dumpfile_mtime] "Sun Jul 30 03:55:03 2023"
 [dumpfile_size] 10730
 [savefile] "/home/sean/github/RTL_Design_Projects/common/common_tb/leading_one_trailing_one/debug.gtkw"

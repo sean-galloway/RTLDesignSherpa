@@ -165,8 +165,8 @@ common/Orig/*
 junk\.*
 pipe_stage.sv
 dump.tim
-dump.vcd
-results.xml
+waves.vcd
+*results.xml
 cmds.f
 sim.vvp
 .vscode/

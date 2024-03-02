@@ -2,7 +2,7 @@
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
 [*] Sat Aug  5 05:05:47 2023
 [*]
-[dumpfile] "/home/sean/github/RTL_Design_Projects/common/common_force_tb/sync_fifo/dump.vcd"
+[dumpfile] "/home/sean/github/RTL_Design_Projects/common/common_force_tb/sync_fifo/waves.vcd"
 [dumpfile_mtime] "Sat Aug  5 05:05:01 2023"
 [dumpfile_size] 5372
 [savefile] "/home/sean/github/RTL_Design_Projects/common/common_force_tb/sync_fifo/debug.gtkw"

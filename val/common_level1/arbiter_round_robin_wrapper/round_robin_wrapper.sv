@@ -186,7 +186,7 @@ assign i_read_E = !o_rd_empty_E;
 
 // synopsys translate_off
 initial begin
-    $dumpfile("dump.vcd");
+    $dumpfile("waves.vcd");
     $dumpvars(0, round_robin_wrapper);
 end
 // synopsys translate_on

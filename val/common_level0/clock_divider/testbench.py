@@ -28,3 +28,7 @@ async def test_clock_divider(dut):
     await Timer(4 * toggle_period, units='ns')
 
     dut._log.info("Waited for sufficient time for 4 toggles of o_divided_clk[3].")
+
+from cocotb.regression import TestFactory
+tf = TestFactory(test_clock_divider)
+tf.generate_tests()

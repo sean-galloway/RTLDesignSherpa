@@ -77,7 +77,7 @@ module arbiter_weighted_round_robin #(
 
     // synopsys translate_off
     initial begin
-        $dumpfile("dump.vcd");
+        $dumpfile("waves.vcd");
         $dumpvars(0, arbiter_weighted_round_robin);
     end
     // synopsys translate_on

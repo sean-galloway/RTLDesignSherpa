@@ -149,9 +149,9 @@ This script generates wavedrom files based on vcd and gtkw files. The gtkw file 
 ### Step 1: Create the config file
 
 ```sh
-python3 $REPO_ROOT/bin/vcd2wavedrom2/vcd2wavedrom2.py -i dump.vcd -m config.json     # This will grab all of the signals in the vcd
+python3 $REPO_ROOT/bin/vcd2wavedrom2/vcd2wavedrom2.py -i waves.vcd -m config.json     # This will grab all of the signals in the vcd
 
-python3 $REPO_ROOT/bin/vcd2wavedrom2/vcd2wavedrom2.py -i dump.vcd -m config.json -hl u_weighted_round_robin -s "1290ns" -e "1320ns"
+python3 $REPO_ROOT/bin/vcd2wavedrom2/vcd2wavedrom2.py -i waves.vcd -m config.json -hl u_weighted_round_robin -s "1290ns" -e "1320ns"
 # the -hl specifies a hierarchy to grab from the vcd; one or more may be passed in the -s/-e also specify the start and end times for the waveform.
 ```
 
@@ -251,7 +251,7 @@ Notice signals have -Write/Read Interface and ptr markings. By default, GTKWave 
 Here is the command to generate the FIFO waveform.
 
 ```sh
-python3 $REPO_ROOT/bin/vcd2wavedrom2/vcd2wavedrom2.py -i dump.vcd -c config_fifo.json -o wavedrom_fifo_start_end.json -g fifo.gtkw
+python3 $REPO_ROOT/bin/vcd2wavedrom2/vcd2wavedrom2.py -i waves.vcd -c config_fifo.json -o wavedrom_fifo_start_end.json -g fifo.gtkw
 perl -pi -e 's/weighted_round_robin_wrapper.//' wavedrom_fifo_start_end.json
 
 ```

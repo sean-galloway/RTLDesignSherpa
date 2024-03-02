@@ -67,7 +67,7 @@ module math_adder_hierarchical #(
     end
     // VCD dumping for simulation
     initial begin
-        $dumpfile("dump.vcd");
+        $dumpfile("waves.vcd");
         $dumpvars(0, math_adder_hierarchical);
     end
 `endif

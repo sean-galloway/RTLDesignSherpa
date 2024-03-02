@@ -62,6 +62,7 @@
 // ------------------------------------------------------------------------------------------------------------------------
 
 module dataint_crc #(
+    parameter ALGO_NAME = "DEADF1F0", // verilog_lint: waive explicit-parameter-storage-type
     parameter int                      DATA_WIDTH = 64,  // Adjustable data width
     parameter int                      CHUNKS = DATA_WIDTH / 8,
     parameter int                      CRC_WIDTH = 64,   // CRC polynomial width
@@ -231,7 +232,7 @@ module dataint_crc #(
 
     // synopsys translate_off
     initial begin
-        $dumpfile("dump.vcd");
+        $dumpfile("waves.vcd");
         $dumpvars(0, dataint_crc);
     end
     // synopsys translate_on

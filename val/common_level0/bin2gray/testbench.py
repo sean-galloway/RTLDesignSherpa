@@ -29,3 +29,7 @@ async def bin2gray_test(dut):
             assert num_changes == 1, f"Error at {i}: more than one bit changed from {bin(last_gray)} to {bin(current_gray)}"
 
         last_gray = current_gray
+
+from cocotb.regression import TestFactory
+tf = TestFactory(bin2gray_test)
+tf.generate_tests()

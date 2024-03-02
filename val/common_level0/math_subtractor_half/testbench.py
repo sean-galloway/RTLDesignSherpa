@@ -18,3 +18,7 @@ async def test_half_subtractor(dut):
 
             if int(dut.o_d.value) != expected_difference or int(dut.o_b.value) != expected_borrow:
                 raise TestFailure(f"For i_a={i_a}, i_b={i_b}, expected o_d was {expected_difference} and o_b was {expected_borrow} but got o_d={dut.o_d.value} and o_b={dut.o_b.value}")
+
+from cocotb.regression import TestFactory
+tf = TestFactory(test_half_subtractor)
+tf.generate_tests()

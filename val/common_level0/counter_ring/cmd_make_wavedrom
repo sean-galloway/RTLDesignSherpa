@@ -1,2 +1,2 @@
-python3 $REPO_ROOT/bin/vcd2wavedrom2/vcd2wavedrom2.py -i dump.vcd -c config.json -o wavedrom_count_leading_zeros.json 
+python3 $REPO_ROOT/bin/vcd2wavedrom2/vcd2wavedrom2.py -i waves.vcd -c config.json -o wavedrom_count_leading_zeros.json 
 # perl -pi -e 's/round_robin_wrapper.//' wavedrom_round_robin_start_end.json

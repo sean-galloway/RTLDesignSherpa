@@ -24,7 +24,7 @@ module counter_ring #(
 
     // Synopsys translate_off
     initial begin
-        $dumpfile("dump.vcd");
+        $dumpfile("waves.vcd");
         $dumpvars(0, counter_ring);
     end
     // Synopsys translate_on

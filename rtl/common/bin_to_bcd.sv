@@ -123,7 +123,7 @@ module bin_to_bcd #(
 
     // synopsys translate_off
     initial begin
-        $dumpfile("dump.vcd");
+        $dumpfile("waves.vcd");
         $dumpvars(0, bin_to_bcd);
     end
     // synopsys translate_on

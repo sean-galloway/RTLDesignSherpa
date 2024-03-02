@@ -33,3 +33,7 @@ def full_adder_test(dut):
     yield Timer(1, units="ns")
     print("All tests passed!")
 
+
+from cocotb.regression import TestFactory
+tf = TestFactory(full_adder_test)
+tf.generate_tests()

@@ -88,7 +88,7 @@ module dataint_ecc_hamming_encode_secded #(parameter int WIDTH = 4, parameter in
 
     // synopsys translate_off
     initial begin
-        $dumpfile("dump.vcd");
+        $dumpfile("waves.vcd");
         $dumpvars(0, dataint_ecc_hamming_encode_secded);
     end
     // synopsys translate_on

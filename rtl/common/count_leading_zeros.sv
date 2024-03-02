@@ -34,7 +34,7 @@ module count_leading_zeros #(
 
     // synopsys translate_off
     initial begin
-        $dumpfile("dump.vcd");
+        $dumpfile("waves.vcd");
         $dumpvars(0, count_leading_zeros);
     end
     // synopsys translate_on

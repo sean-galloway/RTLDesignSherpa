@@ -2,7 +2,7 @@
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
 [*] Sat Jul 29 16:03:36 2023
 [*]
-[dumpfile] "/home/sean/github/RTL_Design_Projects/common/common_tb/round_robin/dump.vcd"
+[dumpfile] "/home/sean/github/RTL_Design_Projects/common/common_tb/round_robin/waves.vcd"
 [dumpfile_mtime] "Sat Jul 29 14:34:02 2023"
 [dumpfile_size] 47409
 [savefile] "/home/sean/github/RTL_Design_Projects/common/common_tb/round_robin/debug.gtkw"

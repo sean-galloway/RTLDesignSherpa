@@ -48,7 +48,7 @@ module math_adder_kogge_stone_nbit #(
     // Debug purposes
     // synopsys translate_off
     initial begin
-        $dumpfile("dump.vcd");
+        $dumpfile("waves.vcd");
         $dumpvars(0, math_adder_kogge_stone_nbit);
     end
     // synopsys translate_on

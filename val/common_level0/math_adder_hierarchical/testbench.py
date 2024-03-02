@@ -37,3 +37,7 @@ def run_test(dut):
     random.seed(seed)
     print(f'seed changed to {seed}')
     yield adder_test(dut)
+
+from cocotb.regression import TestFactory
+tf = TestFactory(run_test)
+tf.generate_tests()

@@ -30,3 +30,6 @@ async def test_fifo(dut):
     await Timer(20, units="ns")
 
     await Timer(2500, units="ns")
+from cocotb.regression import TestFactory
+tf = TestFactory(test_fifo)
+tf.generate_tests()

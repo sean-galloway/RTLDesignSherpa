@@ -2,7 +2,7 @@
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
 [*] Sat Jan 13 02:35:53 2024
 [*]
-[dumpfile] "/home/sean/github/RTLDesignSherpa/val/common_level0/arbiter_weighted_round_robin/dump.vcd"
+[dumpfile] "/home/sean/github/RTLDesignSherpa/val/common_level0/arbiter_weighted_round_robin/waves.vcd"
 [dumpfile_mtime] "Sat Jan 13 02:32:45 2024"
 [dumpfile_size] 3880310
 [savefile] "/home/sean/github/RTLDesignSherpa/val/common_level0/arbiter_weighted_round_robin/debug.gtkw"

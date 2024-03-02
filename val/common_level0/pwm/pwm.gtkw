@@ -2,7 +2,7 @@
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
 [*] Mon Jul 10 11:15:01 2023
 [*]
-[dumpfile] "/home/sean/github/RTL_Design_Projects/common/common_tb/pwm/dump.vcd"
+[dumpfile] "/home/sean/github/RTL_Design_Projects/common/common_tb/pwm/waves.vcd"
 [dumpfile_mtime] "Mon Jul 10 06:56:53 2023"
 [dumpfile_size] 9830
 [savefile] "/home/sean/github/RTL_Design_Projects/common/common_tb/pwm/pwm.gtkw"

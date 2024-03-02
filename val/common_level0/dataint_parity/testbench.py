@@ -72,3 +72,7 @@ async def parity_master_test(dut):
             await check_parity(dut, WIDTH, CHUNKS, CHUNK_SIZE, EXTRA_BITS, LAST_CHUNK_SIZE, data, parity, parity_type)
 
                 # Add any additional checks or logic as needed
+
+from cocotb.regression import TestFactory
+tf = TestFactory(parity_master_test)
+tf.generate_tests()

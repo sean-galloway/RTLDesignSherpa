@@ -55,7 +55,7 @@ module pwm #(
 
     // Synopsys translate_off
     initial begin
-        $dumpfile("dump.vcd");
+        $dumpfile("waves.vcd");
         $dumpvars(0, pwm);
     end
     // Synopsys translate_on

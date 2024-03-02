@@ -115,7 +115,7 @@ class BrentKungAdder(Module):
 
         self.instruction('// synopsys translate_off')
         self.instruction('initial begin')
-        self.instruction('    $dumpfile("dump.vcd");')
+        self.instruction('    $dumpfile("waves.vcd");')
         self.instruction(f'    $dumpvars(0, {self.module_name});')
         self.instruction('end')
         self.instruction('// synopsys translate_on')

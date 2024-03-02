@@ -47,7 +47,7 @@ module shifter_lfsr_fibonacci #(
 
     // Synopsys translate_off
     initial begin
-        $dumpfile("dump.vcd");
+        $dumpfile("waves.vcd");
         $dumpvars(0, shifter_lfsr_fibonacci);
     end
     // Synopsys translate_on

@@ -283,3 +283,7 @@ async def test_hamming_decode_repair(dut):
         ), f"Expected double_error_detected to be {expected_double_error_detected}, but found {expected_double_error_detected}"
 
     dut.i_enable.value= 0
+
+from cocotb.regression import TestFactory
+tf = TestFactory(test_hamming_decode_repair)
+tf.generate_tests()

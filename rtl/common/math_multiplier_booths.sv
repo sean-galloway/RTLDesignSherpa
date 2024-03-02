@@ -64,7 +64,7 @@ module math_multiplier_booths #(
 `endif
     // synopsys translate_off
     initial begin
-        $dumpfile("dump.vcd");
+        $dumpfile("waves.vcd");
         $dumpvars(0, math_multiplier_booths);
     end
     // synopsys translate_on

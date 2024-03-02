@@ -10099,7 +10099,7 @@ module math_multiplier_wallace_tree_032 #(
 
     // synopsys translate_off
     initial begin
-        $dumpfile("dump.vcd");
+        $dumpfile("waves.vcd");
         $dumpvars(0, math_multiplier_wallace_tree_032);
     end
     // synopsys translate_on

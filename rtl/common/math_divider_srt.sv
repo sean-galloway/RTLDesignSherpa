@@ -86,7 +86,7 @@ module math_divider_srt #(
 
     // synopsys translate_off
     initial begin
-        $dumpfile("dump.vcd");
+        $dumpfile("waves.vcd");
         $dumpvars(0, math_divider_srt);
     end
     // synopsys translate_on

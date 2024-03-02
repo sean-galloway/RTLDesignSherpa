@@ -52,7 +52,7 @@ module shifter_barrel #(
 
     // synopsys translate_off
     initial begin
-        $dumpfile("dump.vcd");
+        $dumpfile("waves.vcd");
         $dumpvars(0, shifter_barrel);
     end
     // synopsys translate_on

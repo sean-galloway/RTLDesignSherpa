@@ -74,3 +74,7 @@ async def hamming_encode_test(dut):
         
         # Verify the ECC bits match the expected values
         assert pass_or_fail == True, f"Mismatch for encoded data {data_value:x}: expected {expected:x}, got {encoded_data:x} Message: {msg}"
+
+from cocotb.regression import TestFactory
+tf = TestFactory(hamming_encode_test)
+tf.generate_tests()

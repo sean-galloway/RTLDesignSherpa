@@ -123,7 +123,7 @@ module fifo_sync #(
     end
 
     initial begin
-        $dumpfile("dump.vcd");
+        $dumpfile("waves.vcd");
         $dumpvars(0, fifo_sync);
     end
     // synopsys translate_on

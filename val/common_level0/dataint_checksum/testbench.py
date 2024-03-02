@@ -65,3 +65,7 @@ async def checksum_test(dut):
         # Allow some time between bursts
         for _ in range(10):
             await FallingEdge(dut.i_clk)
+
+from cocotb.regression import TestFactory
+tf = TestFactory(checksum_test)
+tf.generate_tests()

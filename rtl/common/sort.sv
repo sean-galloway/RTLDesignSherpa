@@ -48,7 +48,7 @@ module sort #(
 
     // synopsys translate_off
     initial begin
-        $dumpfile("dump.vcd");
+        $dumpfile("waves.vcd");
         $dumpvars(0, sort);
     end
     // synopsys translate_on

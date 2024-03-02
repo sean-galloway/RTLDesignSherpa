@@ -198,7 +198,7 @@ module fifo_async_div2 #(
     end
 
     initial begin
-        $dumpfile("dump.vcd");
+        $dumpfile("waves.vcd");
         $dumpvars(0, fifo_async_div2);
     end
     // synopsys translate_on

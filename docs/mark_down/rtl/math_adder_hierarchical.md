@@ -38,7 +38,7 @@ When `DEBUG` is defined:
 
 - **Carry Signal Flattening**: The carry signals throughout the addition process are flattened.
 
-- **VCD Dumping**: Waveform data dumping is enabled for simulation purposes, writing to a file named `dump.vcd`.
+- **VCD Dumping**: Waveform data dumping is enabled for simulation purposes, writing to a file named `waves.vcd`.
 
 ---
 

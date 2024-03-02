@@ -22,3 +22,7 @@ async def test_clock_divider(dut):
     # Assuming you know the toggle rate, for example, if it toggles every 400ns
     toggle_period = 1200  # Replace with the correct period in ns
     await Timer(4 * toggle_period, units='ns')
+
+from cocotb.regression import TestFactory
+tf = TestFactory(test_clock_divider)
+tf.generate_tests()

@@ -27,3 +27,7 @@ async def test_count_leading_zeros(dut):
     assert dut.ow_count_leading_zeros.value == width, f"Expected {width} leading zeros, got {dut.ow_leading_zeros_count.value}"
 
     dut._log.info("Test completed successfully")
+
+from cocotb.regression import TestFactory
+tf = TestFactory(test_count_leading_zeros)
+tf.generate_tests()

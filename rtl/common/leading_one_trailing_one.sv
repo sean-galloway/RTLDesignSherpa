@@ -48,7 +48,7 @@ module leading_one_trailing_one #(
 
     // synopsys translate_off
     // initial begin
-    // $dumpfile("dump.vcd")
+    // $dumpfile("waves.vcd")
     // $dumpvars(0, leading_one_trailing_one);
     // end
     // synopsys translate_on

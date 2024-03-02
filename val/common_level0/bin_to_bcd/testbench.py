@@ -51,3 +51,7 @@ async def bin_to_bcd_test(dut):
 
         # Wait a clock cycle before the next test iteration
         await RisingEdge(dut.i_clk)
+
+from cocotb.regression import TestFactory
+tf = TestFactory(bin_to_bcd_test)
+tf.generate_tests()

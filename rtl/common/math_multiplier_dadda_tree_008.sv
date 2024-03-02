@@ -571,7 +571,7 @@ module math_multiplier_dadda_tree_008 #(
 
     // synopsys translate_off
     initial begin
-        $dumpfile("dump.vcd");
+        $dumpfile("waves.vcd");
         $dumpvars(0, math_multiplier_dadda_tree_008);
     end
     // synopsys translate_on

@@ -32,7 +32,7 @@ module dataint_parity #(
 
     // Synopsys translate_off
     initial begin
-        $dumpfile("dump.vcd");
+        $dumpfile("waves.vcd");
         $dumpvars(0, dataint_parity);
     end
     // Synopsys translate_on

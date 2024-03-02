@@ -24,7 +24,7 @@ module dataint_checksum #(
 
     // synopsys translate_off
     initial begin
-        $dumpfile("dump.vcd");
+        $dumpfile("waves.vcd");
         $dumpvars(0, dataint_checksum);
     end
     // synopsys translate_on

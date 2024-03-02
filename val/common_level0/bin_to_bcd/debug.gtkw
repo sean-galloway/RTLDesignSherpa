@@ -2,7 +2,7 @@
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
 [*] Sat Jan 20 18:21:51 2024
 [*]
-[dumpfile] "/home/sean/github/RTLDesignSherpa/val/common_level0/bin_to_bcd/dump.vcd"
+[dumpfile] "/home/sean/github/RTLDesignSherpa/val/common_level0/bin_to_bcd/waves.vcd"
 [dumpfile_mtime] "Sat Jan 20 18:14:15 2024"
 [dumpfile_size] 694943
 [savefile] "/home/sean/github/RTLDesignSherpa/val/common_level0/bin_to_bcd/debug.gtkw"

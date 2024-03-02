@@ -39,7 +39,7 @@ module math_adder_brent_kung_032 #(
     );
     // synopsys translate_off
     initial begin
-        $dumpfile("dump.vcd");
+        $dumpfile("waves.vcd");
         $dumpvars(0, math_adder_brent_kung_032);
     end
     // synopsys translate_on
