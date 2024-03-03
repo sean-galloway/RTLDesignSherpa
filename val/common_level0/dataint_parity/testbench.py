@@ -72,7 +72,5 @@ async def parity_master_test(dut):
             # Call the sub-function to perform the test with the current set of values
             await check_parity(dut, WIDTH, CHUNKS, CHUNK_SIZE, EXTRA_BITS, LAST_CHUNK_SIZE, data, parity, parity_type)
 
-                # Add any additional checks or logic as needed
-
 tf = TestFactory(parity_master_test)
 tf.generate_tests()
