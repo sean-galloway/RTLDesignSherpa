@@ -1,5 +1,6 @@
 import cocotb
 from cocotb.triggers import Timer
+from cocotb.regression import TestFactory
 
 @cocotb.test()
 async def test_count_leading_zeros(dut):
@@ -28,6 +29,5 @@ async def test_count_leading_zeros(dut):
 
     dut._log.info("Test completed successfully")
 
-from cocotb.regression import TestFactory
 tf = TestFactory(test_count_leading_zeros)
 tf.generate_tests()

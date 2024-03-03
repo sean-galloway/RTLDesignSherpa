@@ -1,6 +1,7 @@
 import cocotb
 from cocotb.triggers import FallingEdge, Timer
 from cocotb.clock import Clock
+from cocotb.regression import TestFactory
 import os
 import random
 
@@ -68,6 +69,5 @@ async def dynamic_lfsr_tests(dut):
     print(f'seed changed to {seed}')
     await schedule_tests(dut)
 
-from cocotb.regression import TestFactory
 tf = TestFactory(dynamic_lfsr_tests)
 tf.generate_tests()

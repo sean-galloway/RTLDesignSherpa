@@ -1,6 +1,7 @@
 import cocotb
 from cocotb.triggers import RisingEdge, FallingEdge
 from cocotb.clock import Clock
+from cocotb.regression import TestFactory
 
 # Function to convert binary to BCD for verification
 def binary_to_bcd(decimal_val, digit_count):
@@ -52,6 +53,5 @@ async def bin_to_bcd_test(dut):
         # Wait a clock cycle before the next test iteration
         await RisingEdge(dut.i_clk)
 
-from cocotb.regression import TestFactory
 tf = TestFactory(bin_to_bcd_test)
 tf.generate_tests()

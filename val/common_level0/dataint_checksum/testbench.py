@@ -1,6 +1,7 @@
 import cocotb
 from cocotb.triggers import FallingEdge, Timer
 from cocotb.clock import Clock
+from cocotb.regression import TestFactory
 import os
 import random
 
@@ -66,6 +67,5 @@ async def checksum_test(dut):
         for _ in range(10):
             await FallingEdge(dut.i_clk)
 
-from cocotb.regression import TestFactory
 tf = TestFactory(checksum_test)
 tf.generate_tests()

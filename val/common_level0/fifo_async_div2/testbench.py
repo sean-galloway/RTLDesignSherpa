@@ -2,6 +2,7 @@ import cocotb
 from cocotb.triggers import RisingEdge, Timer
 from cocotb.result import TestFailure
 from cocotb.clock import Clock
+from cocotb.regression import TestFactory
 import os
 import random
 
@@ -146,6 +147,5 @@ async def fifo_test(dut):
             await RisingEdge(dut.i_rd_clk)
             await Timer(100, units='ps')  # Adding a 100 ps delay
 
-from cocotb.regression import TestFactory
 tf = TestFactory(fifo_test)
 tf.generate_tests()

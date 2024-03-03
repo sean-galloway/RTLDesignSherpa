@@ -1,6 +1,7 @@
 import cocotb
 from cocotb.triggers import Timer
 from cocotb.binary import BinaryValue
+from cocotb.regression import TestFactory
 
 def binary_to_gray(bin_val):
     """Convert a binary value to its Gray code equivalent."""
@@ -30,6 +31,5 @@ async def bin2gray_test(dut):
 
         last_gray = current_gray
 
-from cocotb.regression import TestFactory
 tf = TestFactory(bin2gray_test)
 tf.generate_tests()

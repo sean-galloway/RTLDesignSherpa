@@ -1,6 +1,7 @@
 import cocotb
 from cocotb.triggers import RisingEdge, FallingEdge, Timer
 from cocotb.clock import Clock
+from cocotb.regression import TestFactory
 import os
 import random
 
@@ -100,6 +101,5 @@ async def weighted_round_robin_test(dut):
 
         await Timer(100, units='ns')  # Wait for 100ns between random threshold stages
 
-from cocotb.regression import TestFactory
 tf = TestFactory(weighted_round_robin_test)
 tf.generate_tests()

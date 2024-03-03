@@ -2,6 +2,7 @@ import cocotb
 import itertools
 from cocotb.triggers import Timer
 from cocotb.result import TestFailure
+from cocotb.regression import TestFactory
 
 @cocotb.coroutine
 def addsub_dut_test(dut, a, b, cin, max_val):
@@ -52,6 +53,5 @@ def run_test(dut):
         for i, j in itertools.product(range(max_val), range(max_val)):
             yield addsub_dut_test(dut, i, j, cin, max_val)
 
-from cocotb.regression import TestFactory
 tf = TestFactory(run_test)
 tf.generate_tests()

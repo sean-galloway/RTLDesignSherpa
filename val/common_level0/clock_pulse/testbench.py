@@ -1,6 +1,7 @@
 import cocotb
 from cocotb.triggers import Timer
 from cocotb.clock import Clock
+from cocotb.regression import TestFactory
 
 async def reset_dut(rst_n, duration, clk_period):
     rst_n.value = 0
@@ -23,6 +24,5 @@ async def test_clock_divider(dut):
     toggle_period = 1200  # Replace with the correct period in ns
     await Timer(4 * toggle_period, units='ns')
 
-from cocotb.regression import TestFactory
 tf = TestFactory(test_clock_divider)
 tf.generate_tests()

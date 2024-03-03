@@ -1,6 +1,7 @@
 import cocotb
 from cocotb.triggers import Timer
 from cocotb.result import TestFailure
+from cocotb.regression import TestFactory
 
 @cocotb.test()
 async def test_half_adder(dut):
@@ -24,6 +25,5 @@ async def test_half_adder(dut):
         if (dut.ow_sum.value, dut.ow_carry.value) != expected_output:
             raise TestFailure(f"For inputs {inputs}, expected output was {expected_output} but got {(dut.ow_sum.value, dut.ow_carry.value)}")
 
-from cocotb.regression import TestFactory
 tf = TestFactory(test_half_adder)
 tf.generate_tests()

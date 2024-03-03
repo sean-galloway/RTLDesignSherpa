@@ -2,6 +2,7 @@ import cocotb
 import itertools
 from cocotb.triggers import Timer
 from cocotb.result import TestFailure
+from cocotb.regression import TestFactory
 
 @cocotb.test()
 async def test_cla_4bit(dut):
@@ -28,6 +29,5 @@ async def test_cla_4bit(dut):
                 raise TestFailure(
                     f"For i_a={i_a}, i_b={i_b}, and i_c={i_c}, expected sum was {expected_sum} and carry out was {expected_carry} but got sum={(dut.ow_sum.value)} and carry out={dut.ow_carry.value}")
 
-from cocotb.regression import TestFactory
 tf = TestFactory(test_cla_4bit)
 tf.generate_tests()

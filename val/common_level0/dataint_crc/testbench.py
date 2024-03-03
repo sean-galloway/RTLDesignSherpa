@@ -1,6 +1,7 @@
 import cocotb
 from cocotb.triggers import RisingEdge, FallingEdge, ClockCycles, Timer
 from cocotb.clock import Clock
+from cocotb.regression import TestFactory
 import os
 import random
 from crc_testing import CRCTesting
@@ -68,6 +69,5 @@ async def test_crc_basic(dut):
         print(f'test_data=0x{hex(data)[2:].zfill(crctest.d_nybbles)}   expected_crc=0x{hex(expected_crc)[2:].zfill(crctest.nybbles)}  actual_crc=0x{hex(actual_crc)[2:].zfill(crctest.nybbles)}')
         assert hex(actual_crc) == hex(expected_crc), f"Unexpected CRC result: data=0x{hex(data)[2:].zfill(crctest.d_nybbles)}  expected {hex(expected_crc)} --> found {hex(dut.o_crc.value)}"
 
-from cocotb.regression import TestFactory
 tf = TestFactory(test_crc_basic)
 tf.generate_tests()

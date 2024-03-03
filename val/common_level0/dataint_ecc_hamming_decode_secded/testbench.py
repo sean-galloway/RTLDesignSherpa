@@ -1,6 +1,7 @@
 import cocotb
 from cocotb.triggers import RisingEdge, Timer
 from cocotb.clock import Clock
+from cocotb.regression import TestFactory
 import os
 import random
 import copy
@@ -284,6 +285,5 @@ async def test_hamming_decode_repair(dut):
 
     dut.i_enable.value= 0
 
-from cocotb.regression import TestFactory
 tf = TestFactory(test_hamming_decode_repair)
 tf.generate_tests()

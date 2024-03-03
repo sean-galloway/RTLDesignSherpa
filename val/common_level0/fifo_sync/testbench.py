@@ -4,6 +4,7 @@ from cocotb.result import TestFailure
 from cocotb.clock import Clock
 import os
 import random
+from cocotb.regression import TestFactory
 
 TIMEOUT_CYCLES = 1000  # Adjust as necessary
 
@@ -137,6 +138,5 @@ async def fifo_test(dut):
         for _ in range(delay_between_iterations):
             await RisingEdge(dut.i_clk)
 
-from cocotb.regression import TestFactory
 tf = TestFactory(fifo_test)
 tf.generate_tests()

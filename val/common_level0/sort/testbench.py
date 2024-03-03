@@ -4,6 +4,7 @@ import cocotb
 from cocotb.triggers import RisingEdge, FallingEdge
 from cocotb.binary import BinaryValue
 from cocotb.clock import Clock
+from cocotb.regression import TestFactory
 import os
 import random
 
@@ -53,6 +54,5 @@ async def sort_test(dut):
 
     dut._log.info("All tests passed!")
 
-from cocotb.regression import TestFactory
 tf = TestFactory(sort_test)
 tf.generate_tests()

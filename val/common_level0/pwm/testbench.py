@@ -1,8 +1,9 @@
 
 import queue
+import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import Timer
-import cocotb
+from cocotb.regression import TestFactory
 
 @cocotb.test()
 async def test_fifo(dut):
@@ -30,6 +31,6 @@ async def test_fifo(dut):
     await Timer(20, units="ns")
 
     await Timer(2500, units="ns")
-from cocotb.regression import TestFactory
+
 tf = TestFactory(test_fifo)
 tf.generate_tests()
