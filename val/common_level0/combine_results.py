@@ -5,6 +5,7 @@ every test simulation.
 """
 
 import os
+import subprocess
 import sys
 import argparse
 from xml.etree import ElementTree as ET

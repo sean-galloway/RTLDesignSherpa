@@ -3,6 +3,21 @@ from cocotb.triggers import RisingEdge, FallingEdge
 from cocotb.clock import Clock
 from cocotb.regression import TestFactory
 
+import pytest
+from cocotb_test.simulator import run
+import logging
+log = logging.getLogger('cocotb_log_bin_to_bcd')
+log.setLevel(logging.DEBUG)
+# Create a file handler that logs even debug messages
+fh = logging.FileHandler('cocotb_log_bin_to_bcd.log')
+fh.setLevel(logging.DEBUG)
+# Create a formatter and add it to the handler
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+# Add the handler to the logger
+log.addHandler(fh)
+
+
 # Function to convert binary to BCD for verification
 def binary_to_bcd(decimal_val, digit_count):
     # Format the decimal value as a BCD string

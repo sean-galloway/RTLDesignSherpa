@@ -2,6 +2,7 @@ import cocotb
 from cocotb.triggers import RisingEdge, FallingEdge, ClockCycles, Timer
 from cocotb.clock import Clock
 import os
+import subprocess
 import random
 from crc_testing import CRCTesting
 

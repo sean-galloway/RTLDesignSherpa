@@ -3,7 +3,23 @@ from cocotb.triggers import FallingEdge, Timer
 from cocotb.clock import Clock
 from cocotb.regression import TestFactory
 import os
+import subprocess
 import random
+
+import pytest
+from cocotb_test.simulator import run
+import logging
+log = logging.getLogger('cocotb_log_shifter_lfsr_fibonacci')
+log.setLevel(logging.DEBUG)
+# Create a file handler that logs even debug messages
+fh = logging.FileHandler('cocotb_log_shifter_lfsr_fibonacci.log')
+fh.setLevel(logging.DEBUG)
+# Create a formatter and add it to the handler
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+# Add the handler to the logger
+log.addHandler(fh)
+
 
 
 # Utility function to run an LFSR test with given parameters
@@ -39,13 +55,13 @@ async def run_lfsr_test(dut, seed_value, taps, N):
         cycle_count += 1
         # Limit to prevent infinite loops, adjust as necessary
         if cycle_count > 2**N:  
-            print("Failed to loop back to the initial seed within a reasonable number of cycles.")
+            log.info("Failed to loop back to the initial seed within a reasonable number of cycles.")
             break
 
     dut.i_enable.value = 0  # Disable LFSR
     
     # Reporting
-    print(f"For seed={seed_value:0{N}b} and taps={taps}, it took {cycle_count} cycles to repeat.")
+    log.info(f"For seed={seed_value:0{N}b} and taps={taps}, it took {cycle_count} cycles to repeat.")
 
 # Master function to generate and schedule tests based on parameters
 async def schedule_tests(dut):
@@ -66,7 +82,7 @@ async def dynamic_lfsr_tests(dut):
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
-    print(f'seed changed to {seed}')
+    log.info(f'seed changed to {seed}')
     await schedule_tests(dut)
 
 tf = TestFactory(dynamic_lfsr_tests)

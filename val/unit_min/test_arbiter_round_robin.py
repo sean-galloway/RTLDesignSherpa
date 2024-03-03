@@ -2,12 +2,6 @@ import cocotb
 from cocotb.triggers import FallingEdge
 from cocotb.regression import TestFactory
 from cocotb.clock import Clock
-import os
-from cocotb_test.simulator import run
-import logging
-import pytest
-log = logging.getLogger('cocotb_log_arbiter_round_robin')
-log.setLevel(logging.DEBUG)
 
 @cocotb.coroutine
 async def reset_dut(dut):
@@ -61,9 +55,7 @@ async def arbiter_round_robin_test(dut):
 tf = TestFactory(arbiter_round_robin_test)
 tf.generate_tests()
 
-
-tf = TestFactory(arbiter_round_robin_test)
-tf.generate_tests()
+from cocotb_test.simulator import run
 repo_root = os.environ.get('REPO_ROOT')
 tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the test(current) directory in which this test.py file is placed
 rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hdl folder where .v files are placed

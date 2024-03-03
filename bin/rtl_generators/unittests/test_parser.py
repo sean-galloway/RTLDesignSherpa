@@ -1,5 +1,6 @@
 import sys
 import os
+import subprocess
 
 # Get the directory containing verilog_parser.py
 module_dir = os.path.abspath("/home/sean/github/RTL_Design_Projects/tools/rtl_generators/")

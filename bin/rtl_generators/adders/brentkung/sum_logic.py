@@ -1,5 +1,6 @@
 import sys
 import os
+import subprocess
 import io
 
 base_path = '/home/sean/github/RTL_Design_Projects/tools/rtl_generators/'

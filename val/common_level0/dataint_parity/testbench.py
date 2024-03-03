@@ -4,6 +4,21 @@ from cocotb.triggers import Timer
 from cocotb.binary import BinaryValue
 from cocotb.regression import TestFactory
 
+import pytest
+from cocotb_test.simulator import run
+import logging
+log = logging.getLogger('cocotb_log_dataint_parity')
+log.setLevel(logging.DEBUG)
+# Create a file handler that logs even debug messages
+fh = logging.FileHandler('cocotb_log_dataint_parity.log')
+fh.setLevel(logging.DEBUG)
+# Create a formatter and add it to the handler
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+# Add the handler to the logger
+log.addHandler(fh)
+
+
 async def check_parity(dut, WIDTH, CHUNKS, CHUNK_SIZE, EXTRA_BITS, LAST_CHUNK_SIZE, data, parity, parity_type):
     """
     Apply data, parity, and parity type to the DUT,
@@ -55,7 +70,7 @@ async def parity_master_test(dut):
     for i in range(CHUNKS):
         chunk_start = i * CHUNK_SIZE
         chunk_end = WIDTH-1 if (i == CHUNKS-1) else chunk_start + CHUNK_SIZE - 1
-        print(f'Chunk {i} --> {chunk_end}:{chunk_start}')
+        log.info(f'Chunk {i} --> {chunk_end}:{chunk_start}')
 
     # Start the clock (if necessary for your DUT)
     # cocotb.start_soon(Clock(dut.i_clk, 10, units="ns").start())

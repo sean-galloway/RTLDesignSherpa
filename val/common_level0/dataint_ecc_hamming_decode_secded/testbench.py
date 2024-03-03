@@ -3,11 +3,27 @@ from cocotb.triggers import RisingEdge, Timer
 from cocotb.clock import Clock
 from cocotb.regression import TestFactory
 import os
+import subprocess
 import random
 import copy
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
 from ConstrainedRandom import ConstrainedRandom
+
+import pytest
+from cocotb_test.simulator import run
+import logging
+log = logging.getLogger('cocotb_log_dataint_ecc_hamming_decode_secded')
+log.setLevel(logging.DEBUG)
+# Create a file handler that logs even debug messages
+fh = logging.FileHandler('cocotb_log_dataint_ecc_hamming_decode_secded.log')
+fh.setLevel(logging.DEBUG)
+# Create a formatter and add it to the handler
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+# Add the handler to the logger
+log.addHandler(fh)
+
 
 def hamming_decode_secded(data_width, parity_bits, total_width, data, corrupt_vector):
     # Calculate the position for the SECDED bit, which is the last bit
@@ -39,7 +55,7 @@ def hamming_decode_secded(data_width, parity_bits, total_width, data, corrupt_ve
         dpmap[(2**i)-1] = 'P'
     dpmap[-1] = 'O'
     dpmap_str = ''.join(reversed(dpmap))
-    print(f'----------------------------------> dpmap_str: {dpmap_str}')
+    log.info(f'----------------------------------> dpmap_str: {dpmap_str}')
 
     # Encode the data with parity bits
     encoded_data = [0] * total_width
@@ -56,7 +72,7 @@ def hamming_decode_secded(data_width, parity_bits, total_width, data, corrupt_ve
         # print(f'{covered_bits=}')
         covered_bits_vec = get_covered_bits_list(covered_bits, total_width)
         covered_bits_str = ''.join(str(bit) for bit in reversed(covered_bits_vec))
-        print(f'-------hds------------> covered_bits_str: {i} is {covered_bits_str}')        
+        log.info(f'-------hds------------> covered_bits_str: {i} is {covered_bits_str}')        
         encoded_data[(2**i)-1] = sum(encoded_data[pos] for pos in covered_bits) % 2
 
     # Calculate the SECDED bit (overall parity bit)
@@ -64,7 +80,7 @@ def hamming_decode_secded(data_width, parity_bits, total_width, data, corrupt_ve
 
     # print the encoded_data
     encoded_data_str = ''.join(str(bit) for bit in reversed(encoded_data))
-    print(f'-------hds-----------------> encoded_data_str: {encoded_data_str}')
+    log.info(f'-------hds-----------------> encoded_data_str: {encoded_data_str}')
 
     # Apply the corrupt vector to simulate errors
     corrupted_data = [encoded_data[i] ^ corrupt_vector[i] for i in range(total_width)]
@@ -81,14 +97,14 @@ def hamming_decode_secded(data_width, parity_bits, total_width, data, corrupt_ve
     # print the encoded_data    
     overall_parity = sum(corrupted_data[:-1]) % 2
     corrupted_data_str = ''.join(str(bit) for bit in reversed(corrupted_data))
-    print(f'-------hds---------------> corrupted_data_str: {corrupted_data_str}')
+    log.info(f'-------hds---------------> corrupted_data_str: {corrupted_data_str}')
 
-    print(f'hds: {overall_parity=} {corrupted_data[secded_pos]=} {syndrome=} ')
+    log.info(f'hds: {overall_parity=} {corrupted_data[secded_pos]=} {syndrome=} ')
 
     # Check the overall parity using the SECDED bit
     # overall_parity = corrupted_data[-1]
     syndrome_bin = format(syndrome, f'0{parity_bits}b')
-    print(f'Expected overall parity and syndrome: {overall_parity} {syndrome_bin}')
+    log.info(f'Expected overall parity and syndrome: {overall_parity} {syndrome_bin}')
 
     # Detect and correct errors
     error_detected = 0
@@ -134,7 +150,7 @@ def generate_known_data(data, total_width, test_data):
 
 
 def generate_test_data(width, total_width, count_small=2, count_big=2048):
-    print(f'{width=} {total_width=} {count_small=} {count_big=}')
+    log.info(f'{width=} {total_width=} {count_small=} {count_big=}')
 
     test_data = []
     data = 0
@@ -174,7 +190,7 @@ def generate_test_data(width, total_width, count_small=2, count_big=2048):
 
         # Generate a random corruption vector with a specified number of ones
         num_ones = crand.next()  # Get the number of ones from the ConstrainedRandom object
-        print(f'{num_ones=}')
+        log.info(f'{num_ones=}')
         corrupt_vector = [1] * num_ones + [0] * (total_width - num_ones)
 
         # Shuffle the vector to randomize the positions of the ones
@@ -199,19 +215,19 @@ async def test_hamming_decode_repair(dut):
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
-    print(f'seed changed to {seed}')
+    log.info(f'seed changed to {seed}')
 
     width = int(os.environ.get('WIDTH', '0'))
     parity_bits = int(dut.ParityBits)
     total_width = int(dut.TotalWidth)
 
     test_data = generate_test_data(width, total_width, count_small=2**width, count_big=2048)
-    print('------------------------------------------------------')
+    log.info('------------------------------------------------------')
     for data_value, corrupt_vector in test_data:
         data_bin = format(data_value, f'0{width}b')
         corrupted_vector_str = ''.join(str(bit) for bit in reversed(corrupt_vector))
-        print(f'data: {data_bin}   corrupt_vector: {corrupted_vector_str}')
-    print('------------------------------------------------------')
+        log.info(f'data: {data_bin}   corrupt_vector: {corrupted_vector_str}')
+    log.info('------------------------------------------------------')
 
     # de-assert reset
     for _ in range(5):
@@ -222,9 +238,9 @@ async def test_hamming_decode_repair(dut):
     for data_value, corrupt_vector in test_data:
         data_bin = format(data_value, f'0{width}b')
         corrupted_vector_str = ''.join(str(bit) for bit in reversed(corrupt_vector))
-        print(f'------------> data: {data_bin}   corrupt_vector: {corrupted_vector_str}')
+        log.info(f'------------> data: {data_bin}   corrupt_vector: {corrupted_vector_str}')
         inject_count = corrupt_vector.count(1)
-        print(f'-------------------> Error Count: {inject_count}')
+        log.info(f'-------------------> Error Count: {inject_count}')
         data_list = [int(bit) for bit in reversed(data_bin)]
 
         # Flip the bits in data_list according to corrupt_vector
@@ -233,7 +249,7 @@ async def test_hamming_decode_repair(dut):
 
         # Convert the corrupted_data_list to an integer
         corrupted_data_str = ''.join(str(bit) for bit in reversed(corrupted_data_list))
-        print(f'---------------------->  input corrupt_vector: {corrupted_data_str}')
+        log.info(f'---------------------->  input corrupt_vector: {corrupted_data_str}')
         corrupted_data_int = int(corrupted_data_str, 2)
 
         # Apply the data and corruption vector to the DUT
@@ -262,8 +278,8 @@ async def test_hamming_decode_repair(dut):
         # Convert the list of bits to a string and then to an integer
         expected_data_int = int(''.join(str(bit) for bit in reversed(expected_data)), 2)
         expected_data_bin = format(expected_data_int, f'0{width}b')
-        print(f'Found:    data={output_data_bin} s={error_detected} d={double_error_detected}')
-        print(f'Expected: data={expected_data_bin} s={expected_error_detected} d={expected_double_error_detected}')
+        log.info(f'Found:    data={output_data_bin} s={error_detected} d={double_error_detected}')
+        log.info(f'Expected: data={expected_data_bin} s={expected_error_detected} d={expected_double_error_detected}')
 
         if (output_data != expected_data_int) or \
                 (error_detected != expected_error_detected) or \
@@ -272,9 +288,9 @@ async def test_hamming_decode_repair(dut):
         else:
             pf = 'PASS'
 
-        print('======================================================================')
-        print(f'   {pf}: data={data_bin}   corrupt_vector={corrupted_vector_str}')
-        print('======================================================================')
+        log.info('======================================================================')
+        log.info(f'   {pf}: data={data_bin}   corrupt_vector={corrupted_vector_str}')
+        log.info('======================================================================')
 
         # Assert the results
         assert output_data == expected_data_int, f"Expected data {expected_data_int}, but found {output_data}"

@@ -5,7 +5,23 @@ from cocotb.triggers import RisingEdge
 from cocotb.clock import Clock
 from cocotb.triggers import Timer
 import os
+import subprocess
 import random
+
+import pytest
+from cocotb_test.simulator import run
+import logging
+log = logging.getLogger('cocotb_log_math_multiplier_wallace_tree_008')
+log.setLevel(logging.DEBUG)
+# Create a file handler that logs even debug messages
+fh = logging.FileHandler('cocotb_log_math_multiplier_wallace_tree_008.log')
+fh.setLevel(logging.DEBUG)
+# Create a formatter and add it to the handler
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+# Add the handler to the logger
+log.addHandler(fh)
+
 
 def binary_to_hex(binary_str):
     return hex(int(binary_str, 2))[2:]
@@ -21,7 +37,7 @@ def multiplier_wallace_tree_008_test(dut):
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
-    print(f'seed changed to {seed}')
+    log.info(f'seed changed to {seed}')
 
     yield init_test(dut)
 
@@ -37,7 +53,7 @@ def multiplier_wallace_tree_008_test(dut):
         multiplier_hex = binary_to_hex(dut.i_multiplier.value.binstr)
         multiplicand_hex = binary_to_hex(dut.i_multiplicand.value.binstr)
         product_hex = binary_to_hex(dut.ow_product.value.binstr)
-        print(f"Multiplier: {multiplier_hex}, Multiplicand: {multiplicand_hex}, Product: {product_hex}")
+        log.info(f"Multiplier: {multiplier_hex}, Multiplicand: {multiplicand_hex}, Product: {product_hex}")
 
         result = dut.ow_product.value.integer
         expected_result = a * b

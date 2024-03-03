@@ -3,6 +3,21 @@ from cocotb.triggers import Timer
 from cocotb.binary import BinaryValue
 from cocotb.regression import TestFactory
 
+import pytest
+from cocotb_test.simulator import run
+import logging
+log = logging.getLogger('cocotb_log_bin2gray')
+log.setLevel(logging.DEBUG)
+# Create a file handler that logs even debug messages
+fh = logging.FileHandler('cocotb_log_bin2gray.log')
+fh.setLevel(logging.DEBUG)
+# Create a formatter and add it to the handler
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+# Add the handler to the logger
+log.addHandler(fh)
+
+
 def binary_to_gray(bin_val):
     """Convert a binary value to its Gray code equivalent."""
     return bin_val ^ (bin_val >> 1)

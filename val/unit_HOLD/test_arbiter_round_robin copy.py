@@ -3,6 +3,7 @@ from cocotb.triggers import FallingEdge
 from cocotb.regression import TestFactory
 from cocotb.clock import Clock
 import os
+import subprocess
 from cocotb_test.simulator import run
 import logging
 import pytest

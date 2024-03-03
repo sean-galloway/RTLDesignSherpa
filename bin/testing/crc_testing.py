@@ -1,5 +1,6 @@
 from crc import Calculator, Configuration
 import os
+import subprocess
 import random
 
 class CRCTesting():

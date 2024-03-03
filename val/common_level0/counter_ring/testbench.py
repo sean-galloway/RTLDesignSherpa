@@ -3,6 +3,22 @@ from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge
 from cocotb.regression import TestFactory
 import os
+import subprocess
+
+import pytest
+from cocotb_test.simulator import run
+import logging
+log = logging.getLogger('cocotb_log_counter_ring')
+log.setLevel(logging.DEBUG)
+# Create a file handler that logs even debug messages
+fh = logging.FileHandler('cocotb_log_counter_ring.log')
+fh.setLevel(logging.DEBUG)
+# Create a formatter and add it to the handler
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+# Add the handler to the logger
+log.addHandler(fh)
+
 
 @cocotb.coroutine
 @cocotb.coroutine
@@ -36,7 +52,7 @@ def test_ring_counter(dut, width):
 
 # Pass the width parameter from the Makefile to the test
 width = int(os.getenv("WIDTH", "4"))  # Default to 4 if not specified
-print(f"Testing with WIDTH={width}")
+log.info(f"Testing with WIDTH={width}")
 tf = TestFactory(test_ring_counter)
 tf.add_option("width", [width])
 tf.generate_tests()

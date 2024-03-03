@@ -5,6 +5,21 @@ from cocotb.regression import TestFactory
 from cocotb.decorators import coroutine
 from cocotb.clock import Clock
 
+import pytest
+from cocotb_test.simulator import run
+import logging
+log = logging.getLogger('cocotb_log_math_divider_srt')
+log.setLevel(logging.DEBUG)
+# Create a file handler that logs even debug messages
+fh = logging.FileHandler('cocotb_log_math_divider_srt.log')
+fh.setLevel(logging.DEBUG)
+# Create a formatter and add it to the handler
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+# Add the handler to the logger
+log.addHandler(fh)
+
+
 @cocotb.coroutine
 async def test_divider(dut, dividend, divisor):
     """ Test the divider with specific dividend and divisor values. """
@@ -34,7 +49,7 @@ async def test_divider(dut, dividend, divisor):
         # await NextTimeStep()  # Move to the next time step where writes are allowed
         loop_counter += 1
         if loop_counter > 500:
-            print("Reached 500 iterations, ending simulation")
+            log.info("Reached 500 iterations, ending simulation")
             cocotb.simulator.finish()  # End the simulation
         if dut.o_done.value:
             break
@@ -61,7 +76,7 @@ async def run_test(dut):
     for dividend, divisor in itertools.product(range(max_value + 1), range(max_value + 1)):
         await test_divider(dut, dividend, divisor)
         if divisor % 5 == 0:
-            print(f'{dividend=} {divisor=}')
+            log.info(f'{dividend=} {divisor=}')
 
 
 factory = TestFactory(run_test)

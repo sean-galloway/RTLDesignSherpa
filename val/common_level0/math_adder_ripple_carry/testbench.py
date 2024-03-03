@@ -3,6 +3,21 @@ import itertools
 from cocotb.triggers import Timer
 from cocotb.result import TestFailure
 
+import pytest
+from cocotb_test.simulator import run
+import logging
+log = logging.getLogger('cocotb_log_math_adder_ripple_carry')
+log.setLevel(logging.DEBUG)
+# Create a file handler that logs even debug messages
+fh = logging.FileHandler('cocotb_log_math_adder_ripple_carry.log')
+fh.setLevel(logging.DEBUG)
+# Create a formatter and add it to the handler
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+# Add the handler to the logger
+log.addHandler(fh)
+
+
 @cocotb.test()
 async def test_cla_4bit(dut):
     """ Test the 4-bit ripple carry adder for all possible input combinations """

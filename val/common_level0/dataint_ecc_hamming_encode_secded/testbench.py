@@ -2,7 +2,23 @@ import cocotb
 from cocotb.triggers import Timer
 from cocotb.regression import TestFactory
 import os
+import subprocess
 import random
+
+import pytest
+from cocotb_test.simulator import run
+import logging
+log = logging.getLogger('cocotb_log_dataint_ecc_hamming_encode_secded')
+log.setLevel(logging.DEBUG)
+# Create a file handler that logs even debug messages
+fh = logging.FileHandler('cocotb_log_dataint_ecc_hamming_encode_secded.log')
+fh.setLevel(logging.DEBUG)
+# Create a formatter and add it to the handler
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+# Add the handler to the logger
+log.addHandler(fh)
+
 
 def check_hamming_encoded_data(encoded_data):
     # Calculate the number of parity bits
@@ -42,7 +58,7 @@ async def hamming_encode_test(dut):
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
-    print(f'seed changed to {seed}')
+    log.info(f'seed changed to {seed}')
 
     width = int(os.environ.get('WIDTH', '0'))
     parity_bits = dut.ParityBits
@@ -57,14 +73,14 @@ async def hamming_encode_test(dut):
         # Apply the test case to the DUT inputs
         dut.i_data.value = data_value
         data_value_bin = format(data_value, f'0{width}b')
-        print(f'i_data={data_value_bin} <----------------------------------')
+        log.info(f'i_data={data_value_bin} <----------------------------------')
 
         # Wait for the combinatorial logic to settle
         await Timer(5, units='ns')
         
         # Convert the DUT ECC output to a list of integers for easy comparison
         ow_encoded_data = dut.ow_encoded_data.value
-        print(f'{ow_encoded_data=} <----------------------------------')
+        log.info(f'{ow_encoded_data=} <----------------------------------')
         # Convert to binary string, ensuring it's in '0' and '1'. Use binstr attribute for direct binary string representation.
         encoded_data = ow_encoded_data.binstr
         # Convert the binary string to a list of integers (0 or 1), where the first element is the LSB and the last is the MSB.

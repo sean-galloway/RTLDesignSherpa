@@ -5,7 +5,23 @@ from cocotb.triggers import RisingEdge
 from cocotb.clock import Clock
 from cocotb.triggers import Timer
 import os
+import subprocess
 import random
+
+import pytest
+from cocotb_test.simulator import run
+import logging
+log = logging.getLogger('cocotb_log_math_multiplier_wallace_tree_016')
+log.setLevel(logging.DEBUG)
+# Create a file handler that logs even debug messages
+fh = logging.FileHandler('cocotb_log_math_multiplier_wallace_tree_016.log')
+fh.setLevel(logging.DEBUG)
+# Create a formatter and add it to the handler
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+# Add the handler to the logger
+log.addHandler(fh)
+
 
 @cocotb.coroutine
 def init_test(dut):
@@ -18,7 +34,7 @@ def multiplier_wallace_tree_016_test(dut):
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
-    print(f'seed changed to {seed}')
+    log.info(f'seed changed to {seed}')
 
     yield init_test(dut)
 

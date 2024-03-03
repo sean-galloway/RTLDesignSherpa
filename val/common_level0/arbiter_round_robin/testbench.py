@@ -3,6 +3,21 @@ from cocotb.clock import Clock
 from cocotb.triggers import FallingEdge, RisingEdge, Timer
 from cocotb.regression import TestFactory
 
+import pytest
+from cocotb_test.simulator import run
+import logging
+log = logging.getLogger('cocotb_log_arbiter_round_robin')
+log.setLevel(logging.DEBUG)
+# Create a file handler that logs even debug messages
+fh = logging.FileHandler('cocotb_log_arbiter_round_robin.log')
+fh.setLevel(logging.DEBUG)
+# Create a formatter and add it to the handler
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+# Add the handler to the logger
+log.addHandler(fh)
+
+
 
 @cocotb.coroutine
 async def reset_dut(dut):
@@ -19,7 +34,7 @@ async def run_test(dut):
     """Run the test on the DUT"""
 
     num_clients = len(dut.i_req)
-    print(f"Detected {num_clients} clients based on the i_req width.")
+    log.info(f"Detected {num_clients} clients based on the i_req width.")
 
     # Reset the DUT
     await reset_dut(dut)

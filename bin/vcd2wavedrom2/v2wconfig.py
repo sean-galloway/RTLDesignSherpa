@@ -1,4 +1,5 @@
 import os
+import subprocess
 import argparse
 import json
 from vcdvcd.vcdvcd import VCDVCD

@@ -3,7 +3,23 @@ from cocotb.triggers import FallingEdge, Timer
 from cocotb.clock import Clock
 from cocotb.regression import TestFactory
 import os
+import subprocess
 import random
+
+import pytest
+from cocotb_test.simulator import run
+import logging
+log = logging.getLogger('cocotb_log_dataint_checksum')
+log.setLevel(logging.DEBUG)
+# Create a file handler that logs even debug messages
+fh = logging.FileHandler('cocotb_log_dataint_checksum.log')
+fh.setLevel(logging.DEBUG)
+# Create a formatter and add it to the handler
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+# Add the handler to the logger
+log.addHandler(fh)
+
 
 @cocotb.test()
 async def checksum_test(dut):
@@ -11,11 +27,11 @@ async def checksum_test(dut):
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
-    print(f'seed changed to {seed}')
+    log.info(f'seed changed to {seed}')
     WIDTH = int(dut.WIDTH.value)
     mask = (1 << WIDTH)-1
     max_value = 2**WIDTH - 1
-    print(f'{max_value=} {mask=}')
+    log.info(f'{max_value=} {mask=}')
     
     cocotb.start_soon(Clock(dut.i_clk, 10, units="ns").start())  # Start the clock
     # Reset the module
@@ -51,9 +67,9 @@ async def checksum_test(dut):
         await FallingEdge(dut.i_clk)  # Wait for one more clock cycle for the last addition
         actual_chksum = int(dut.o_chksum.value)
         expected_chksum = total & mask
-        print(f'{total=:x} {actual_chksum=:x} {expected_chksum=:x}')
+        log.info(f'{total=:x} {actual_chksum=:x} {expected_chksum=:x}')
         hex_values = ' '.join(f"{num:x}" for num in total_list)
-        print(f'{hex_values=}')
+        log.info(f'{hex_values=}')
         assert actual_chksum == expected_chksum, f"Checksum mismatch: expected {expected_chksum}, got {actual_chksum}"
 
         # Assert i_reset for two clocks while i_valid is 0

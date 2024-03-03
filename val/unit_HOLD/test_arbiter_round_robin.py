@@ -6,6 +6,7 @@ from cocotb_test.simulator import run
 import logging
 import pytest
 import os
+import subprocess
 
 @cocotb.coroutine
 async def reset_dut(dut):

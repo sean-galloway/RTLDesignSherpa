@@ -3,6 +3,21 @@ import itertools
 from cocotb.regression import TestFactory
 from cocotb.triggers import Timer
 
+import pytest
+from cocotb_test.simulator import run
+import logging
+log = logging.getLogger('cocotb_log_math_adder_kogge_stone_nbit')
+log.setLevel(logging.DEBUG)
+# Create a file handler that logs even debug messages
+fh = logging.FileHandler('cocotb_log_math_adder_kogge_stone_nbit.log')
+fh.setLevel(logging.DEBUG)
+# Create a formatter and add it to the handler
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+# Add the handler to the logger
+log.addHandler(fh)
+
+
 @cocotb.test()
 async def exhaustive_test(dut):
     """Test for N-bit math_adder_kogge_stone"""
