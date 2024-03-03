@@ -12,14 +12,6 @@ module dataint_ecc_hamming_encode_secded #(parameter int WIDTH = 4, parameter in
     // local wires
     logic [TotalWidth-1:0] w_data_with_parity;
 
-    initial begin
-        $display("-------------------------------------------");
-        $display("Data Width   %d", WIDTH);
-        $display("Parity Bits  %d", ParityBits);
-        $display("Total Width  %d", TotalWidth);
-        $display("-------------------------------------------");
-    end
-
     ////////////////////////////////////////////////////////////////////////////
     // Function to calculate the bit position for data insertion
     function automatic integer bit_position(input integer k);
@@ -66,7 +58,7 @@ module dataint_ecc_hamming_encode_secded #(parameter int WIDTH = 4, parameter in
 
         // Calculate parity bits
         for (i = 0; i < ParityBits; i = i + 1) begin
-            parity_pos = 2**i;
+            parity_pos = (2**i)-1;
             if (DEBUG)
                 $display("Calculate Parity Bits, parity bit position: %d", parity_pos);
             w_data_with_parity[parity_pos] = 1'b0; // Initialize to 0

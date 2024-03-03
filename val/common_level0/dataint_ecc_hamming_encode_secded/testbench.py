@@ -20,36 +20,63 @@ fh.setFormatter(formatter)
 log.addHandler(fh)
 
 
-def check_hamming_encoded_data(encoded_data):
-    # Calculate the number of parity bits
-    parity_bits = len([bit for bit in encoded_data if bit == '1'])
-    data_length = len(encoded_data) - parity_bits
+def hamming_encode_secded(data_width, parity_bits, total_width, data):
+    # Calculate the position for the SECDED bit, which is the last bit
+    secded_pos = total_width - 1
 
-    # Function to calculate parity for a given set of positions
-    def calculate_parity(bits, positions):
-        return sum(bits[pos] for pos in positions if pos < len(bits)) % 2
+    # Function to calculate the bit position for data insertion
+    def bit_position(k):
+        pos = k + 1  # Start at k+1 to account for the parity bit at position 0
+        for j in range(parity_bits):
+            if pos >= (2**j):
+                pos += 1
+        return pos - 1  # Convert back to 0-based index
 
-    # Determine the positions of the parity bits
-    parity_positions = [2**i for i in range(parity_bits)]
+    # Function to get a bit mask for the bits covered by a given parity bit
+    def get_covered_bits(parity_bit):
+        return [i for i in range(total_width-1) if (i+1) & (1 << parity_bit)]
 
-    # Check the parity for each parity bit
-    error_detected = False
-    error_list = []
-    for parity_pos in parity_positions:
-        # Calculate the parity for the current group
-        group_positions = [i for i in range(len(encoded_data)) if (i+1) & parity_pos]
-        parity = calculate_parity(encoded_data, group_positions)
+    def get_covered_bits_list(covered_bits, total_width):
+        # Initialize a list of zeros with length equal to total_width
+        bits_list = [0] * total_width
+        # Set positions specified in covered_bits to 1
+        for index in covered_bits:
+            if index < total_width:  # Ensure index is within the range
+                bits_list[index] = 1
+        return bits_list
 
-        # If parity does not match, add the bit to the error list
-        if parity != encoded_data[parity_pos - 1]:
-            error_detected = True
-            error_list.append(parity_pos)
+    dpmap = ['d'] * total_width
+    for i in range(parity_bits):
+        dpmap[(2**i)-1] = 'P'
+    dpmap[-1] = 'O'
+    dpmap_str = ''.join(reversed(dpmap))
+    log.info(f'----------------------------------> dpmap_str: {dpmap_str}')
 
-    # Determine if there is an error and its type
-    if error_detected:
-        return (False, encoded_data, f"Error detected in parity bit {error_list}")
-    else:
-        return (True, encoded_data, "No error detected")
+    # Encode the data with parity bits
+    encoded_data = [0] * total_width
+    for i, bit in enumerate(data):
+        encoded_data[bit_position(i)] = bit
+    
+    # print the encoded_data
+    encoded_data_str = ''.join(str(bit) for bit in reversed(encoded_data))
+    # print(f'-------hds-----------------> encoded_data_str: {encoded_data_str} pre-parity')
+
+    # Calculate parity bits for the encoded data
+    for i in range(parity_bits):
+        covered_bits = get_covered_bits(i)
+        # print(f'{covered_bits=}')
+        covered_bits_vec = get_covered_bits_list(covered_bits, total_width)
+        covered_bits_str = ''.join(str(bit) for bit in reversed(covered_bits_vec))
+        log.info(f'-------hds------------> covered_bits_str: {i} is {covered_bits_str}')        
+        encoded_data[(2**i)-1] = sum(encoded_data[pos] for pos in covered_bits) % 2
+
+    # Calculate the SECDED bit (overall parity bit)
+    encoded_data[secded_pos] = sum(encoded_data[:-1]) % 2
+
+    # print the encoded_data
+    encoded_data_str = ''.join(str(bit) for bit in reversed(encoded_data))
+    log.info(f'-------hds-----------------> encoded_data_str: {encoded_data_str}')
+    return encoded_data_str
 
 
 @cocotb.test()
@@ -60,11 +87,16 @@ async def hamming_encode_test(dut):
     random.seed(seed)
     log.info(f'seed changed to {seed}')
 
-    width = int(os.environ.get('WIDTH', '0'))
-    parity_bits = dut.ParityBits
-    total_width = dut.TotalWidth
-
-    max_value = 2**width
+    data_width = int(os.environ.get('WIDTH', '0'))
+    parity_bits = int(dut.ParityBits)
+    total_width = int(dut.TotalWidth)
+    log.info("-------------------------------------------")
+    log.info(f"Data Width   {data_width}")
+    log.info(f"Parity Bits  {parity_bits}")
+    log.info(f"Total Width  {total_width}")
+    log.info("-------------------------------------------")
+    
+    max_value = 2**data_width
     if max_value < 2049:
         test_data = range(max_value)
     else:
@@ -72,25 +104,24 @@ async def hamming_encode_test(dut):
     for data_value in test_data:
         # Apply the test case to the DUT inputs
         dut.i_data.value = data_value
-        data_value_bin = format(data_value, f'0{width}b')
+        data_value_bin = format(data_value, f'0{data_width}b')
+        data_list = [int(bit) for bit in reversed(data_value_bin)]
         log.info(f'i_data={data_value_bin} <----------------------------------')
 
         # Wait for the combinatorial logic to settle
         await Timer(5, units='ns')
         
         # Convert the DUT ECC output to a list of integers for easy comparison
-        ow_encoded_data = dut.ow_encoded_data.value
-        log.info(f'{ow_encoded_data=} <----------------------------------')
-        # Convert to binary string, ensuring it's in '0' and '1'. Use binstr attribute for direct binary string representation.
-        encoded_data = ow_encoded_data.binstr
-        # Convert the binary string to a list of integers (0 or 1), where the first element is the LSB and the last is the MSB.
-        encoded_data_list = [int(bit) for bit in reversed(encoded_data)]
+        ow_encoded_data = dut.ow_encoded_data.value.integer
+        output_data_bin = format(ow_encoded_data, f'0{total_width}b')
+
+        log.info(f'{output_data_bin=} {len(output_data_bin)=}<----------------------------------')
 
         # Check encoded data
-        (pass_or_fail, expected, msg) = check_hamming_encoded_data(encoded_data_list)
+        expected_data_str = hamming_encode_secded(data_width, parity_bits, total_width, data_list)
         
         # Verify the ECC bits match the expected values
-        assert pass_or_fail == True, f"Mismatch for encoded data {data_value:x}: expected {expected:x}, got {encoded_data:x} Message: {msg}"
+        assert output_data_bin == expected_data_str, f"Mismatch for data value {output_data_bin} expected {expected_data_str}"
 
 tf = TestFactory(hamming_encode_test)
 tf.generate_tests()
