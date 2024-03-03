@@ -1,2 +1,0 @@
-python3 $REPO_ROOT/bin/vcd2wavedrom2/vcd2wavedrom2.py -i waves.vcd -c config.json -o wavedrom_fifo_sync.json -g fifo.gtkw
-

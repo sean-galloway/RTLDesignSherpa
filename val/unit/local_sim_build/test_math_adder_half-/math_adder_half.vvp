@@ -1,0 +1,41 @@
+#! /usr/bin/vvp
+:ivl_version "11.0 (stable)";
+:ivl_delay_selection "TYPICAL";
+:vpi_time_precision - 12;
+:vpi_module "/usr/lib/x86_64-linux-gnu/ivl/system.vpi";
+:vpi_module "/usr/lib/x86_64-linux-gnu/ivl/vhdl_sys.vpi";
+:vpi_module "/usr/lib/x86_64-linux-gnu/ivl/vhdl_textio.vpi";
+:vpi_module "/usr/lib/x86_64-linux-gnu/ivl/v2005_math.vpi";
+:vpi_module "/usr/lib/x86_64-linux-gnu/ivl/va_math.vpi";
+:vpi_module "/usr/lib/x86_64-linux-gnu/ivl/v2009.vpi";
+S_0x562dafbc5d90 .scope package, "$unit" "$unit" 2 1;
+ .timescale 0 0;
+S_0x562dafbc5f20 .scope module, "math_adder_half" "math_adder_half" 3 3;
+ .timescale -9 -12;
+    .port_info 0 /INPUT 1 "i_a";
+    .port_info 1 /INPUT 1 "i_b";
+    .port_info 2 /OUTPUT 1 "ow_sum";
+    .port_info 3 /OUTPUT 1 "ow_carry";
+o0x7ff1bc698018 .functor BUFZ 1, C4<z>; HiZ drive
+o0x7ff1bc698048 .functor BUFZ 1, C4<z>; HiZ drive
+L_0x562dafc0e9f0 .functor XOR 1, o0x7ff1bc698018, o0x7ff1bc698048, C4<0>, C4<0>;
+L_0x562dafc0eae0 .functor AND 1, o0x7ff1bc698018, o0x7ff1bc698048, C4<1>, C4<1>;
+v0x562dafbff7a0_0 .net "i_a", 0 0, o0x7ff1bc698018;  0 drivers
+v0x562dafc0e720_0 .net "i_b", 0 0, o0x7ff1bc698048;  0 drivers
+v0x562dafc0e7e0_0 .net "ow_carry", 0 0, L_0x562dafc0eae0;  1 drivers
+v0x562dafc0e880_0 .net "ow_sum", 0 0, L_0x562dafc0e9f0;  1 drivers
+S_0x562dafbff610 .scope module, "iverilog_dump" "iverilog_dump" 4 1;
+ .timescale -9 -12;
+    .scope S_0x562dafbff610;
+T_0 ;
+    %vpi_call/w 4 3 "$dumpfile", "math_adder_half.fst" {0 0 0};
+    %vpi_call/w 4 4 "$dumpvars", 32'sb00000000000000000000000000000000, S_0x562dafbc5f20 {0 0 0};
+    %end;
+    .thread T_0;
+# The file index is used to find the file name in the following table.
+:file_names 5;
+    "N/A";
+    "<interactive>";
+    "-";
+    "/home/sean/github/RTLDesignSherpa/rtl/common/math_adder_half.sv";
+    "/home/sean/github/RTLDesignSherpa/val/unit/local_sim_build/test_math_adder_half-/iverilog_dump.v";

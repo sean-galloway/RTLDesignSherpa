@@ -2,6 +2,7 @@ from crc import Calculator, Configuration
 import os
 import subprocess
 import random
+import logging
 
 class CRCTesting():
     """A class for testing CRC functionality.
@@ -28,24 +29,18 @@ class CRCTesting():
             None
         """
         # Gather the settings from the Parameters to verify them
-        self.data_width = int(os.environ.get('DATA_WIDTH', '0'))
-        self.chunks = int(dut.CHUNKS.value)
+        self.log = logging.getLogger('cocotb_log_dataint_crc')
+        self.data_width = self.convert_to_int(os.environ.get('PARAM_DATA_WIDTH', '0'))
+        self.chunks = self.convert_to_int(dut.CHUNKS.value)
         self.d_nybbles = self.chunks // 2
-        self.crc_width = int(os.environ.get('CRC_WIDTH', '0'))
+        self.crc_width = self.convert_to_int(os.environ.get('PARAM_CRC_WIDTH', '0'))
         self.nybbles = self.crc_width // 4
         mask = "F" * self.nybbles
-        self.crc_poly = int(os.environ.get('POLY', '0')) & int(mask, 16)
-
-        # print(f'------------------------------>{self.nybbles=}')
-        # print(f'------------------------------>{self.crc_poly=}')
-        # print(f'------------------------------>{hex(self.crc_poly)=}')
-        # print(f'------------------------------>{int(mask, 16)=}')
-        # print(f'------------------------------>{hex(int(mask, 16))=}')
-        
-        self.crc_poly_initial = int(os.environ.get('POLY_INIT', '0')) & int(mask, 16)
-        self.reflected_input = int(os.environ.get('REFIN', '0'))
-        self.reflected_output = int(os.environ.get('REFOUT', '0'))
-        self.xor_output = int(os.environ.get('XOROUT', '0')) & int(mask, 16)
+        self.crc_poly = self.convert_to_int(os.environ.get('PARAM_POLY', '0')) & int(mask, 16)
+        self.crc_poly_initial = self.convert_to_int(os.environ.get('PARAM_POLY_INIT', '0')) & int(mask, 16)
+        self.reflected_input = self.convert_to_int(os.environ.get('PARAM_REFIN', '0'))
+        self.reflected_output = self.convert_to_int(os.environ.get('PARAM_REFOUT', '0'))
+        self.xor_output = self.convert_to_int(os.environ.get('PARAM_XOROUT', '0')) & int(mask, 16)
         self.rnd_count = rnd_count
         self.test_values = []
         self.test_data = []
@@ -60,27 +55,49 @@ class CRCTesting():
         self.calculator = Calculator(self.cfg)
 
 
-    def print_settings(self):
-        """Print the settings of the CRCTesting class.
+    @staticmethod
+    def convert_to_int(value):
+        """
+        Convert a value to an integer. If the value is already an integer, return it.
+        If it is a hexadecimal string in the format "8'hXX", convert and return as an integer.
 
-        This method prints out the settings related to data width, chunks, CRC width, polynomial, initial polynomial value, input reflection, output reflection, and XOR output for CRC testing.
+        :param value: An integer or a string representing the hex value.
+        :return: The integer value.
+        """
+        if isinstance(value, int):
+            return value
+        elif isinstance(value, str) and "'h" in value:
+            try:
+                # Extract the hexadecimal part after "h"
+                _, hex_value = value.split("'h")
+                return int(hex_value, 16)
+            except ValueError:
+                raise ValueError(f"Invalid hexadecimal input: {value}")
+        else:
+            return int(value)
+
+
+    def print_settings(self):
+        """self.log.info the settings of the CRCTesting class.
+
+        This method self.log.infos out the settings related to data width, chunks, CRC width, polynomial, initial polynomial value, input reflection, output reflection, and XOR output for CRC testing.
 
         Args:
             None
         Returns:
             None
         """
-        print('-------------------------------------------')
-        print('Settings:')
-        print(f'    DATA_WIDTH: {self.data_width}')
-        print(f'    CHUNKS:     {self.chunks}')
-        print(f'    CRC_WIDTH:  {self.crc_width}')
-        print(f'    POLY:       0x{hex(self.crc_poly)[2:].zfill(self.crc_width // 4)}')
-        print(f'    POLY_INIT:  0x{hex(self.crc_poly_initial)[2:].zfill(self.crc_width // 4)}')
-        print(f'    REFIN:      {self.reflected_input}')
-        print(f'    REFOUT:     {self.reflected_output}')
-        print(f'    XOROUT:     0x{hex(self.xor_output)[2:].zfill(self.crc_width // 4)}')
-        print('-------------------------------------------')
+        self.log.info('-------------------------------------------')
+        self.log.info('Settings:')
+        self.log.info(f'    DATA_WIDTH: {self.data_width}')
+        self.log.info(f'    CHUNKS:     {self.chunks}')
+        self.log.info(f'    CRC_WIDTH:  {self.crc_width}')
+        self.log.info(f'    POLY:       0x{hex(self.crc_poly)[2:].zfill(self.crc_width // 4)}')
+        self.log.info(f'    POLY_INIT:  0x{hex(self.crc_poly_initial)[2:].zfill(self.crc_width // 4)}')
+        self.log.info(f'    REFIN:      {self.reflected_input}')
+        self.log.info(f'    REFOUT:     {self.reflected_output}')
+        self.log.info(f'    XOROUT:     0x{hex(self.xor_output)[2:].zfill(self.crc_width // 4)}')
+        self.log.info('-------------------------------------------')
 
 
     def generate_test_data(self):
@@ -102,7 +119,7 @@ class CRCTesting():
         for data in self.test_values:
             data_bytes = data.to_bytes(self.chunks, 'little')
             ecc = self.calculator.checksum(data_bytes)
-            # print(f'Data Generation: {data_bytes=} {ecc=}')
+            # self.log.info(f'Data Generation: {data_bytes=} {ecc=}')
             self.test_data.append((data, ecc))
 
         # add some random values to the list
@@ -110,5 +127,5 @@ class CRCTesting():
             data = random.randint(0x00, all_ones)
             data_bytes = data.to_bytes(self.chunks, 'little')
             ecc = self.calculator.checksum(data_bytes)
-            # print(f'Data Generation: {data_bytes=} {ecc=}')
+            # self.log.info(f'Data Generation: {data_bytes=} {ecc=}')
             self.test_data.append((data, ecc))

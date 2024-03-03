@@ -1,1 +1,0 @@
-python3 $REPO_ROOT/bin/vcd2wavedrom2/vcd2wavedrom2.py -i waves.vcd -m config.json -n "Binary to Gray" -s "0ns" -e "250ns"

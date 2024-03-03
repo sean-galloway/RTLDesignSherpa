@@ -1,1 +1,0 @@
-python3 $REPO_ROOT/bin/vcd2wavedrom2/vcd2wavedrom2.py -i waves.vcd -m config.json -hl u_arbiter_round_robin -s "1300ns" "1500ns" -e "1410ns" "1660ns" -n "Simple Round Robin Arbiter"

@@ -25,11 +25,7 @@ module dataint_ecc_hamming_decode_secded #(
 
     initial begin
         if (DEBUG) begin
-            $display("-------------------------------------------");
-            $display("Data Width   %d", WIDTH);
-            $display("Parity Bits  %d", ParityBits);
-            $display("Total Width  %d", TotalWidth);
-            $display("-------------------------------------------");
+
         end
     end
 

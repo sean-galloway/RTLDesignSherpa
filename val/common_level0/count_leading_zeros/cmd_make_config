@@ -1,1 +1,0 @@
-python3 $REPO_ROOT/bin/vcd2wavedrom2/vcd2wavedrom2.py -i waves.vcd -m config.json -n "Count Leading Zeros" -s "105ns" -e "285ns"

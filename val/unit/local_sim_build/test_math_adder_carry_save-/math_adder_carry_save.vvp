@@ -1,0 +1,54 @@
+#! /usr/bin/vvp
+:ivl_version "11.0 (stable)";
+:ivl_delay_selection "TYPICAL";
+:vpi_time_precision - 12;
+:vpi_module "/usr/lib/x86_64-linux-gnu/ivl/system.vpi";
+:vpi_module "/usr/lib/x86_64-linux-gnu/ivl/vhdl_sys.vpi";
+:vpi_module "/usr/lib/x86_64-linux-gnu/ivl/vhdl_textio.vpi";
+:vpi_module "/usr/lib/x86_64-linux-gnu/ivl/v2005_math.vpi";
+:vpi_module "/usr/lib/x86_64-linux-gnu/ivl/va_math.vpi";
+:vpi_module "/usr/lib/x86_64-linux-gnu/ivl/v2009.vpi";
+S_0x55627950ad90 .scope package, "$unit" "$unit" 2 1;
+ .timescale 0 0;
+S_0x55627950af20 .scope module, "math_adder_carry_save" "math_adder_carry_save" 3 4;
+ .timescale -9 -12;
+    .port_info 0 /INPUT 1 "i_a";
+    .port_info 1 /INPUT 1 "i_b";
+    .port_info 2 /INPUT 1 "i_c";
+    .port_info 3 /OUTPUT 1 "ow_sum";
+    .port_info 4 /OUTPUT 1 "ow_carry";
+o0x7f97a619f108 .functor BUFZ 1, C4<z>; HiZ drive
+o0x7f97a619f138 .functor BUFZ 1, C4<z>; HiZ drive
+L_0x556279555d70 .functor XOR 1, o0x7f97a619f108, o0x7f97a619f138, C4<0>, C4<0>;
+o0x7f97a619f168 .functor BUFZ 1, C4<z>; HiZ drive
+L_0x556279555e00 .functor XOR 1, L_0x556279555d70, o0x7f97a619f168, C4<0>, C4<0>;
+L_0x556279555ea0 .functor AND 1, o0x7f97a619f108, o0x7f97a619f138, C4<1>, C4<1>;
+L_0x556279555fe0 .functor AND 1, o0x7f97a619f108, o0x7f97a619f168, C4<1>, C4<1>;
+L_0x5562795560d0 .functor OR 1, L_0x556279555ea0, L_0x556279555fe0, C4<0>, C4<0>;
+L_0x5562795561e0 .functor AND 1, o0x7f97a619f138, o0x7f97a619f168, C4<1>, C4<1>;
+L_0x556279556290 .functor OR 1, L_0x5562795560d0, L_0x5562795561e0, C4<0>, C4<0>;
+v0x556279544e70_0 .net *"_ivl_0", 0 0, L_0x556279555d70;  1 drivers
+v0x556279555560_0 .net *"_ivl_10", 0 0, L_0x5562795561e0;  1 drivers
+v0x556279555640_0 .net *"_ivl_4", 0 0, L_0x556279555ea0;  1 drivers
+v0x556279555700_0 .net *"_ivl_6", 0 0, L_0x556279555fe0;  1 drivers
+v0x5562795557e0_0 .net *"_ivl_8", 0 0, L_0x5562795560d0;  1 drivers
+v0x556279555910_0 .net "i_a", 0 0, o0x7f97a619f108;  0 drivers
+v0x5562795559d0_0 .net "i_b", 0 0, o0x7f97a619f138;  0 drivers
+v0x556279555a90_0 .net "i_c", 0 0, o0x7f97a619f168;  0 drivers
+v0x556279555b50_0 .net "ow_carry", 0 0, L_0x556279556290;  1 drivers
+v0x556279555c10_0 .net "ow_sum", 0 0, L_0x556279555e00;  1 drivers
+S_0x556279544ce0 .scope module, "iverilog_dump" "iverilog_dump" 4 1;
+ .timescale -9 -12;
+    .scope S_0x556279544ce0;
+T_0 ;
+    %vpi_call/w 4 3 "$dumpfile", "math_adder_carry_save.fst" {0 0 0};
+    %vpi_call/w 4 4 "$dumpvars", 32'sb00000000000000000000000000000000, S_0x55627950af20 {0 0 0};
+    %end;
+    .thread T_0;
+# The file index is used to find the file name in the following table.
+:file_names 5;
+    "N/A";
+    "<interactive>";
+    "-";
+    "/home/sean/github/RTLDesignSherpa/rtl/common/math_adder_carry_save.sv";
+    "/home/sean/github/RTLDesignSherpa/val/unit/local_sim_build/test_math_adder_carry_save-/iverilog_dump.v";
