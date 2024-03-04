@@ -64,14 +64,14 @@ tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the te
 rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hdl folder where .v files are placed
 
 @pytest.mark.parametrize("n", [4])
-def test_math_multiplier_carry_lookahead(request, n):
-    dut_name = "math_multiplier_carry_lookahead"
+def test_math_multiplier_carry_save(request, n):
+    dut_name = "math_multiplier_carry_save"
     module = os.path.splitext(os.path.basename(__file__))[0]  # The name of this file
-    toplevel = "math_multiplier_carry_lookahead"   
+    toplevel = "math_multiplier_carry_save"   
 
     verilog_sources = [
-        os.path.join(rtl_dir, "math_adder_carry_lookahead.sv"),
-        os.path.join(rtl_dir, "math_multiplier_carry_lookahead.sv"),
+        os.path.join(rtl_dir, "math_multiplier_basic_cell.sv"),
+        os.path.join(rtl_dir, "math_multiplier_carry_save.sv"),
     ]
     parameters = {'N':n, }
 
