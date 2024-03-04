@@ -118,7 +118,7 @@ module fifo_async #(
 
     // Flop stage for the flopped data
     always_ff @(posedge i_rd_clk or negedge i_rd_rst_n) begin
-        if (!i_rst_n) o_rd_data <= 'b0;
+        if (!i_rd_rst_n) o_rd_data <= 'b0;
         else o_rd_data <= r_mem[r_rd_addr];
     end
 
