@@ -29,7 +29,7 @@ module math_multiplier_array #(
     // Iterative full adders
     genvar i;
     generate
-        for (i = 2; i < N - 1; i = i + 1) begin : gen_full_adder
+        for (i = 2; i < N - 1; i++) begin : gen_full_adder
             math_adder_full_nbit #(
                 .N(N)
             ) fa_i (

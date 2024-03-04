@@ -16,7 +16,7 @@ module math_adder_full_nbit #(
 
     genvar i;
     generate
-        for (i = 0; i < N; i = i + 1) begin : gen_full_adders
+        for (i = 0; i < N; i++) begin : gen_full_adders
             math_adder_full fa (
                 .i_a(i_a[i]),
                 .i_b(i_b[i]),

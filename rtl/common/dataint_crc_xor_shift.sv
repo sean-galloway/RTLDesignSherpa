@@ -4,7 +4,7 @@
 // performs CRC manipulations on a single bit
 module dataint_crc_xor_shift #(
     parameter int CRC_WIDTH = 32
-)(
+) (
     input  [CRC_WIDTH-1:0] i_stage_input,
     input  [CRC_WIDTH-1:0] i_poly,
     input                  i_new_bit,

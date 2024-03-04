@@ -5,7 +5,7 @@ module math_adder_hierarchical #(
     parameter int N = 16,
     parameter int C = 10
 ) (
-    input  logic [N-1:0] i_numbers[0:C-1],  // verilog_lint: waive unpacked-dimensions-range-ordering
+    input logic [N-1:0] i_numbers [0:C-1],  // verilog_lint: waive unpacked-dimensions-range-ordering
     output logic [N-1:0] ow_sum
 );
 
@@ -20,7 +20,7 @@ module math_adder_hierarchical #(
     ////////////////////////////////////////////////////////////////////////////
     // Initialize first stage with input numbers, and pad with zeros if necessary
     generate
-        for (genvar k = 0; k < CPadded; k = k + 1) begin : gen_loop
+        for (genvar k = 0; k < CPadded; k++) begin : gen_loop
             assign w_intermediate_sums[0][k] = (k < C) ? i_numbers[k] : '0;
             assign w_c[0][k] = 1'b0;
         end
@@ -48,20 +48,20 @@ module math_adder_hierarchical #(
 `ifdef DEBUG
     // Debug signals
     logic [(N*C)-1:0] flat_i_numbers;
-    for (i = 0; i < C; i = i + 1) begin : gen_flat_numbers
+    for (i = 0; i < C; i++) begin : gen_flat_numbers
         assign flat_i_numbers[i*N+:N] = i_numbers[i];
     end
 
     logic [(N*(Stages+1)*CPadded)-1:0] flat_intermediate_sums;
     for (stage = 0; stage < Stages; stage = stage + 1) begin : gen_flat_sums_outer
-        for (i = 0; i < CPadded; i = i + 1) begin : gen_flat_sums
+        for (i = 0; i < CPadded; i++) begin : gen_flat_sums
             assign flat_intermediate_sums[(stage*CPadded+i)*N+:N] = w_intermediate_sums[stage][i];
         end
     end
 
     logic [((Stages+1)*CPadded)-1:0] flat_w_c;
     for (stage = 0; stage < Stages; stage = stage + 1) begin : gen_flat_carry_outer
-        for (i = 0; i < CPadded; i = i + 1) begin : gen_flat_carry
+        for (i = 0; i < CPadded; i++) begin : gen_flat_carry
             assign flat_w_c[(stage*CPadded)+i] = w_c[stage][i];
         end
     end

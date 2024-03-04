@@ -41,19 +41,4 @@ module math_adder_carry_lookahead #(
     // assign carry-out
     assign ow_carry = w_c[N];
 
-`ifdef DEBUG
-    initial begin
-        #10;  // Wait for 10 time units to let values settle.
-        $display("---------------------");
-        $display("----- CLA Debug -----");
-        $display("i_a: %b", i_a);
-        $display("i_b: %b", i_b);
-        $display("i_c: %b", i_c);
-        $display("w_p: %b", w_p);
-        $display("w_g: %b", w_g);
-        $display("ow_sum: %b", ow_sum);
-        $display("ow_c: %b", ow_carry);
-        $display("---------------------");
-    end
-`endif
 endmodule : math_adder_carry_lookahead

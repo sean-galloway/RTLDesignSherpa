@@ -15,7 +15,7 @@ module math_addsub_full_nbit #(
 
     genvar i;
     generate
-        for (i = 0; i < N; i = i + 1) begin : gen_xor
+        for (i = 0; i < N; i++) begin : gen_xor
             assign w_ip[i] = i_b[i] ^ i_c;
         end
     endgenerate
@@ -23,7 +23,7 @@ module math_addsub_full_nbit #(
     assign w_c[0] = i_c;
 
     generate
-        for (i = 0; i < N; i = i + 1) begin : gen_full_adders
+        for (i = 0; i < N; i++) begin : gen_full_adders
             math_adder_full fa (
                 .i_a     (i_a[i]),
                 .i_b     (w_ip[i]),

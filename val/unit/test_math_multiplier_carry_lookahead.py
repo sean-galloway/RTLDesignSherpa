@@ -46,9 +46,14 @@ async def exhaustive_test(dut):
         await Timer(1, units='ns')  # Adding a 100 ps delay
 
         expected = i * j
+        expected_hex = hex(expected)
+
         found = dut.ow_product.value.integer
-        log.info(f'{max_val=} {i=} {j=} {expected=} {found=}')
-        assert expected == found, f"For inputs {i} and {j}, expected output was {expected} but got {found}"
+        found_hex = hex(found)
+        i_hex = hex(i)
+        j_hex = hex(j)
+        log.info(f'{max_val=} {i_hex=} {j_hex=} {expected_hex=} {found_hex=}')
+        assert expected_hex == found_hex, f"For inputs {i_hex} and {j_hex}, expected output was {expected_hex} but got {found_hex}"
 
 factory = TestFactory(exhaustive_test)
 factory.generate_tests()
@@ -58,15 +63,15 @@ repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).str
 tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the test(current) directory in which this test.py file is placed
 rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hdl folder where .v files are placed
 
-@pytest.mark.parametrize("n", [8])
+@pytest.mark.parametrize("n", [4])
 def test_math_multiplier_carry_lookahead(request, n):
     dut_name = "math_multiplier_carry_lookahead"
     module = os.path.splitext(os.path.basename(__file__))[0]  # The name of this file
     toplevel = "math_multiplier_carry_lookahead"   
 
     verilog_sources = [
+        os.path.join(rtl_dir, "math_adder_carry_lookahead.sv"),
         os.path.join(rtl_dir, "math_multiplier_carry_lookahead.sv"),
-
     ]
     parameters = {'N':n, }
 

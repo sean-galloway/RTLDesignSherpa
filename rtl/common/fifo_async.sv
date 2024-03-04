@@ -23,6 +23,7 @@ module fifo_async #(
     // i_rd_clk domain
     input  logic                  i_read,
     output logic [DATA_WIDTH-1:0] ow_rd_data,
+    output logic [DATA_WIDTH-1:0] o_rd_data,
     output logic                  o_rd_empty,
     output logic                  o_rd_almost_empty
 );
@@ -115,6 +116,12 @@ module fifo_async #(
         if (i_write && !o_wr_full) r_mem[r_wr_addr] <= i_wr_data;
     end
 
+    // Flop stage for the flopped data
+    always_ff @(posedge i_rd_clk or negedge i_rd_rst_n) begin
+        if (!i_rst_n) o_rd_data <= 'b0;
+        else o_rd_data <= r_mem[r_rd_addr];
+    end
+
     /////////////////////////////////////////////////////////////////////////
     // Read Port
     assign ow_rd_data = r_mem[r_rd_addr];
@@ -148,7 +155,7 @@ module fifo_async #(
     logic [(DW*DEPTH)-1:0] flat_r_mem;
     genvar i;
     generate
-        for (i = 0; i < DEPTH; i = i + 1) begin : gen_flatten_memory
+        for (i = 0; i < DEPTH; i++) begin : gen_flatten_memory
             assign flat_r_mem[i*DW+:DW] = r_mem[i];
         end
     endgenerate

@@ -12,7 +12,7 @@ module math_adder_brent_kung_sum #(
     // Loop over bits
     genvar k;
     generate
-        for (k = 0; k < N; k = k + 1) begin : gen_loop
+        for (k = 0; k < N; k++) begin : gen_loop
             assign ow_sum[k] = i_gg[k] ^ i_p[k+1];
         end
     endgenerate

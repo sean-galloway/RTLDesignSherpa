@@ -40,7 +40,7 @@ module glitch_free_n_dff_arn #(
     wire [(DW*FC)-1:0] flat_r_q;
     genvar i;
     generate
-        for (i = 0; i < FC; i = i + 1) begin : gen_flatten_memory
+        for (i = 0; i < FC; i++) begin : gen_flatten_memory
             assign flat_r_q[i*DW+:DW] = r_q_array[i];
         end
     endgenerate

@@ -17,7 +17,7 @@ module math_subtractor_full_nbit #(
 
     genvar i;
     generate
-        for (i = 0; i < N; i = i + 1) begin : gen_subtractor_loop
+        for (i = 0; i < N; i++) begin : gen_subtractor_loop
             math_subtractor_full full_sub (
                 .i_a(i_a[i]),
                 .i_b(i_b[i]),

@@ -17,6 +17,7 @@ module fifo_sync #(
     output logic                  o_wr_almost_full,
     input  logic                  i_read,
     output logic [DATA_WIDTH-1:0] ow_rd_data,
+    output logic [DATA_WIDTH-1:0] o_rd_data,
     output logic                  o_rd_empty,
     output logic                  o_rd_almost_empty
 );
@@ -96,6 +97,12 @@ module fifo_sync #(
         end
     end
 
+    // Flop stage for the flopped data
+    always_ff @(posedge i_clk or negedge i_rst_n) begin
+        if (!i_rst_n) o_rd_data <= 'b0;
+        else o_rd_data <= r_mem[r_rd_addr];
+    end
+
     /////////////////////////////////////////////////////////////////////////
     // error checking
     // synopsys translate_off
@@ -103,7 +110,7 @@ module fifo_sync #(
     logic [(DW*DEPTH)-1:0] flat_r_mem;
     genvar i;
     generate
-        for (i = 0; i < DEPTH; i = i + 1) begin : gen_flatten_memory
+        for (i = 0; i < DEPTH; i++) begin : gen_flatten_memory
             assign flat_r_mem[i*DW+:DW] = r_mem[i];
         end
     endgenerate

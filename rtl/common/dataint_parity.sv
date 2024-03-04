@@ -17,7 +17,7 @@ module dataint_parity #(
 
     genvar i;
     generate
-        for (i = 0; i < CHUNKS; i = i + 1) begin : gen_parity
+        for (i = 0; i < CHUNKS; i++) begin : gen_parity
             // Bounds are calculated statically for each iteration of the loop
             localparam int LowerBound = i * ChunkSize;
             localparam int UpperBound = (i < CHUNKS - 1) ? ((i + 1) * ChunkSize) - 1 : WIDTH - 1;

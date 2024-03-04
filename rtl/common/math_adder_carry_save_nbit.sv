@@ -12,7 +12,7 @@ module math_adder_carry_save_nbit #(
 
     genvar i;
     generate
-        for (i = 0; i < N; i = i + 1) begin : gen_carry_save
+        for (i = 0; i < N; i++) begin : gen_carry_save
             // Sum
             assign ow_sum[i]   = i_a[i] ^ i_b[i] ^ i_c[i];
 

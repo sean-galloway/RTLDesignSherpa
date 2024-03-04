@@ -13,7 +13,7 @@ module math_adder_brent_kung_bitwisepg #(
     // Loop over bits
     genvar k;
     generate
-        for (k = 0; k < N; k = k + 1) begin : gen_loop
+        for (k = 0; k < N; k++) begin : gen_loop
             math_adder_brent_kung_pg PG_Bit (
                 .i_a (i_a[k]),
                 .i_b (i_b[k]),

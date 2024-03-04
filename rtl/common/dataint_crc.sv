@@ -62,22 +62,23 @@
 // ------------------------------------------------------------------------------------------------------------------------
 
 module dataint_crc #(
-    parameter ALGO_NAME = "DEADF1F0", // verilog_lint: waive explicit-parameter-storage-type
-    parameter int                      DATA_WIDTH = 64,  // Adjustable data width
-    parameter int                      CHUNKS = DATA_WIDTH / 8,
-    parameter int                      CRC_WIDTH = 64,   // CRC polynomial width
-    parameter logic [CRC_WIDTH-1:0]    POLY = 64'h42F0E1EBA9EA3693,
-    parameter logic [CRC_WIDTH-1:0]    POLY_INIT = 64'hFFFFFFFFFFFFFFFF,
-    parameter int                      REFIN = 1,
-    parameter int                      REFOUT = 1,
-    parameter logic [CRC_WIDTH-1:0]    XOROUT = 64'hFFFFFFFFFFFFFFFF
-)(
-    input  logic                       i_clk, i_rst_n,
-    input  logic                       i_load_crc_start,
-    input  logic                       i_load_from_cascade,
-    input  logic [CHUNKS-1:0]          i_cascade_sel, // one hot encoded
-    input  logic [DATA_WIDTH-1:0]      i_data,
-    output logic [CRC_WIDTH-1:0]       o_crc
+    parameter ALGO_NAME = "DEADF1F0",  // verilog_lint: waive explicit-parameter-storage-type
+    parameter int DATA_WIDTH = 64,  // Adjustable data width
+    parameter int CHUNKS = DATA_WIDTH / 8,
+    parameter int CRC_WIDTH = 64,  // CRC polynomial width
+    parameter logic [CRC_WIDTH-1:0] POLY = 64'h42F0E1EBA9EA3693,
+    parameter logic [CRC_WIDTH-1:0] POLY_INIT = 64'hFFFFFFFFFFFFFFFF,
+    parameter int REFIN = 1,
+    parameter int REFOUT = 1,
+    parameter logic [CRC_WIDTH-1:0] XOROUT = 64'hFFFFFFFFFFFFFFFF
+) (
+    input  logic                  i_clk,
+    i_rst_n,
+    input  logic                  i_load_crc_start,
+    input  logic                  i_load_from_cascade,
+    input  logic [    CHUNKS-1:0] i_cascade_sel,        // one hot encoded
+    input  logic [DATA_WIDTH-1:0] i_data,
+    output logic [ CRC_WIDTH-1:0] o_crc
 );
     localparam int CW = CRC_WIDTH;
     localparam int DW = DATA_WIDTH;
@@ -85,61 +86,22 @@ module dataint_crc #(
 
     logic [CW-1:0] r_crc_value = POLY_INIT;
     logic [CW-1:0] w_poly = POLY;
-    logic [7:0]    w_block_data [0:CH-1]; // verilog_lint: waive unpacked-dimensions-range-ordering
-    logic [CW-1:0] w_cascade    [0:CH-1]; // verilog_lint: waive unpacked-dimensions-range-ordering
+    logic [7:0] w_block_data[0:CH-1];  // verilog_lint: waive unpacked-dimensions-range-ordering
+    logic [CW-1:0] w_cascade[0:CH-1];  // verilog_lint: waive unpacked-dimensions-range-ordering
     logic [CW-1:0] w_result, w_result_xor, w_selected_cascade_output;
-
-    ////////////////////////////////////////////////////////////////////////////
-    // Display parameters when simulation starts
-    initial begin
-        $display("-------------------------------------------");
-        $display("dataint_crc parameter settings:");
-        $display("    DATA_WIDTH: %d",DATA_WIDTH);
-        $display("    CHUNKS:     %d",CHUNKS);
-        case (CW)
-            8:  $display("    POLY:           %h",           POLY[7:0]);
-            16: $display("    POLY:           %h",           POLY[15:0]);
-            32: $display("    POLY:           %h_%h",       {POLY[31:16], POLY[15:0]});
-            40: $display("    POLY:           %h_%h",       {POLY[39:24], POLY[23:0]});
-            64: $display("    POLY:           %h_%h_%h_%h", {POLY[63:48], POLY[47:32],
-                                                             POLY[31:16], POLY[15:0]});
-            default: $display("Unsupported width.");
-        endcase
-        case (CW)
-            8:  $display("    POLY_INIT:      %h",           POLY_INIT[7:0]);
-            16: $display("    POLY_INIT:      %h",           POLY_INIT[15:0]);
-            32: $display("    POLY_INIT:      %h_%h",       {POLY_INIT[31:16], POLY_INIT[15:0]});
-            40: $display("    POLY_INIT:      %h_%h",       {POLY_INIT[39:24], POLY_INIT[23:0]});
-            64: $display("    POLY_INIT:      %h_%h_%h_%h", {POLY_INIT[63:48], POLY_INIT[47:32],
-                                                             POLY_INIT[31:16], POLY_INIT[15:0]});
-            default: $display("Unsupported width.");
-        endcase
-        $display("    REFIN:      %d",REFIN);
-        $display("    REFOUT:     %d",REFOUT);
-        case (CW)
-            8:  $display("    XOROUT:         %h",           XOROUT[7:0]);
-            16: $display("    XOROUT:         %h",           XOROUT[15:0]);
-            32: $display("    XOROUT:         %h_%h",       {XOROUT[31:16], XOROUT[15:0]});
-            40: $display("    XOROUT:         %h_%h",       {XOROUT[39:24], XOROUT[23:0]});
-            64: $display("    XOROUT:         %h_%h_%h_%h", {XOROUT[63:48], XOROUT[47:32],
-                                                             XOROUT[31:16], XOROUT[15:0]});
-            default: $display("Unsupported width.");
-        endcase
-        $display("-------------------------------------------");
-    end
 
     ////////////////////////////////////////////////////////////////////////////
     // Reflect input data if REFIN is enabled
     genvar i, j, idx;
     generate
         if (REFIN) begin : gen_reflect_inputs
-            for (genvar i = 0; i < CH; i = i + 1) begin : gen_ch_reflect
-                for (genvar j = 0; j < 8; j = j + 1) begin : gen_bit_reflect
+            for (genvar i = 0; i < CH; i++) begin : gen_ch_reflect
+                for (genvar j = 0; j < 8; j++) begin : gen_bit_reflect
                     assign w_block_data[i][j] = i_data[i*8+7-j];
                 end
             end
         end else begin : gen_direct_assign_inputs
-            for (genvar i = 0; i < CH; i = i + 1) begin : gen_ch_direct
+            for (genvar i = 0; i < CH; i++) begin : gen_ch_direct
                 assign w_block_data[i] = i_data[i*8+:8];
             end
         end
@@ -148,7 +110,7 @@ module dataint_crc #(
     ////////////////////////////////////////////////////////////////////////////
     // Select the correct drop off point for the cascade depending on the length of data
     always_comb begin
-        w_selected_cascade_output = POLY_INIT; // Default to initial value
+        w_selected_cascade_output = POLY_INIT;  // Default to initial value
         for (int i = 0; i < CH; i++) begin
             if (i_cascade_sel[i]) begin
                 w_selected_cascade_output = w_cascade[i];
@@ -157,29 +119,29 @@ module dataint_crc #(
     end
 
     always_ff @(posedge i_clk or negedge i_rst_n) begin
-        if (~i_rst_n)
-            r_crc_value <= 'b0;
-        else if (i_load_crc_start)
-            r_crc_value <= POLY_INIT;  // Reset the CRC to the initial value
+        if (~i_rst_n) r_crc_value <= 'b0;
+        else if (i_load_crc_start) r_crc_value <= POLY_INIT;  // Reset the CRC to the initial value
         else if (i_load_from_cascade)
-            r_crc_value <= w_selected_cascade_output; // Use pre-selected output
+            r_crc_value <= w_selected_cascade_output;  // Use pre-selected output
     end
 
     ////////////////////////////////////////////////////////////////////////////
     // Generate dataint_xor_shift_cascades dynamically based on DATA_WIDTH
     generate
-        for (i = 0; i < CH; i = i + 1) begin : gen_xor_shift_cascade
-            if (i==0) begin : gen_xor_cascade_0
-                dataint_crc_xor_shift_cascade #(.CRC_WIDTH(CRC_WIDTH))
-                dataint_crc_xor_shift_cascade_0 (
+        for (i = 0; i < CH; i++) begin : gen_xor_shift_cascade
+            if (i == 0) begin : gen_xor_cascade_0
+                dataint_crc_xor_shift_cascade #(
+                    .CRC_WIDTH(CRC_WIDTH)
+                ) dataint_crc_xor_shift_cascade_0 (
                     .i_block_input(r_crc_value),
                     .i_poly(w_poly),
                     .i_data_input(w_block_data[i]),
                     .ow_block_output(w_cascade[i])
                 );
             end else begin : gen_xor_cascade_N
-                dataint_crc_xor_shift_cascade #(.CRC_WIDTH(CRC_WIDTH))
-                dataint_crc_xor_shift_cascade_N (
+                dataint_crc_xor_shift_cascade #(
+                    .CRC_WIDTH(CRC_WIDTH)
+                ) dataint_crc_xor_shift_cascade_N (
                     .i_block_input(w_cascade[i-1]),
                     .i_poly(w_poly),
                     .i_data_input(w_block_data[i]),
@@ -191,11 +153,10 @@ module dataint_crc #(
 
     ////////////////////////////////////////////////////////////////////////////
     // CRC logic, reflections, and output muxing as before, adjusted for new generate blocks
-    generate if (REFOUT == 1) begin : gen_reflect_result
-        for(idx = 0; idx < CW; idx = idx + 1)
-            assign w_result[idx] = r_crc_value[(CW-1)-idx];
-        end else
-            assign w_result = r_crc_value;
+    generate
+        if (REFOUT == 1) begin : gen_reflect_result
+            for (idx = 0; idx < CW; idx = idx + 1) assign w_result[idx] = r_crc_value[(CW-1)-idx];
+        end else assign w_result = r_crc_value;
     endgenerate
 
     // The final xor'd output
@@ -204,12 +165,9 @@ module dataint_crc #(
     ////////////////////////////////////////////////////////////////////////////
     // flop the output path
     always_ff @(posedge i_clk or negedge i_rst_n) begin
-        if (~i_rst_n)
-            o_crc <= 'b0;
-        else if (i_load_crc_start)
-            o_crc <= POLY_INIT;  // Reset the CRC to the initial value
-        else
-            o_crc <= w_result_xor;
+        if (~i_rst_n) o_crc <= 'b0;
+        else if (i_load_crc_start) o_crc <= POLY_INIT;  // Reset the CRC to the initial value
+        else o_crc <= w_result_xor;
     end
 
     /////////////////////////////////////////////////////////////////////////
@@ -218,14 +176,14 @@ module dataint_crc #(
     // Generate a version of the memory for waveforms
     logic [(CH*8)-1:0] flat_w_block_data;
     generate
-        for (i = 0; i < CH; i = i + 1) begin : gen_flatten_w_block_data
+        for (i = 0; i < CH; i++) begin : gen_flatten_w_block_data
             assign flat_w_block_data[i*8+:8] = w_block_data[i];
         end
     endgenerate
 
     logic [(CW*CH)-1:0] flat_w_cascade;
     generate
-        for (i = 0; i < CH; i = i + 1) begin : gen_flatten_w_cascade
+        for (i = 0; i < CH; i++) begin : gen_flatten_w_cascade
             assign flat_w_cascade[i*CW+:CW] = w_cascade[i];
         end
     endgenerate

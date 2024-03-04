@@ -49,14 +49,14 @@ def run_test(dut):
         for b_in in [0, 1]:  # Test both cases of i_b_in: 0 and 1
             dut._log.info(f"Testing subtraction: {i} - {j} with borrow-in {b_in}")
 
-            dut.i_a <= i
-            dut.i_b <= j
-            dut.i_b_in <= b_in
+            dut.i_a.value = i
+            dut.i_b.value = j
+            dut.i_b_in.value = b_in
 
             yield cocotb.triggers.Timer(1)  # Wait a very short time for the combinatorial logic to settle
 
             # Expected result considering the borrow-in
-            expected_result = (i - j - b_in) & 0xF  # Keep only the 4 least-significant bits
+            expected_result = (i - j - b_in) & mask  # Keep only the 4 least-significant bits
 
             # Expected borrow-out
             expected_borrow = 1 if (i - b_in) < j else 0
