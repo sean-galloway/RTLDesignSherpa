@@ -7,22 +7,25 @@ import subprocess
 import pytest
 from cocotb_test.simulator import run
 import logging
-log = logging.getLogger('cocotb_log_math_adder_kogge_stone_nbit')
-log.setLevel(logging.DEBUG)
-# Create a file handler that logs even debug messages
-fh = logging.FileHandler('cocotb_log_math_adder_kogge_stone_nbit.log')
-fh.setLevel(logging.DEBUG)
-# Create a formatter and add it to the handler
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh.setFormatter(formatter)
-# Add the handler to the logger
-log.addHandler(fh)
+
+def configure_logging(dut_name, log_file_path):
+    log = logging.getLogger(f'cocotb_log_{dut_name}')
+    log.setLevel(logging.DEBUG)
+    fh = logging.FileHandler(log_file_path)
+    fh.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    log.addHandler(fh)
+    return log
 
 
 @cocotb.test()
 async def exhaustive_test(dut):
     """Test for N-bit math_adder_kogge_stone"""
-
+    # Now that we know where the sim_build directory is, configure logging
+    log_path = os.environ.get('LOG_PATH')
+    dut_name = os.environ.get('DUT')
+    log = configure_logging(dut_name, log_path)
     # Detect N dynamically
     N = len(dut.i_a)
 
@@ -57,7 +60,7 @@ rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hd
 
 @pytest.mark.parametrize("n", [(4,)])
 def test_math_adder_kogge_stone_nbit(request, n):
-    dut = "math_adder_kogge_stone_nbit"
+    dut_name = "math_adder_kogge_stone_nbit"
     module = os.path.splitext(os.path.basename(__file__))[0]  # The name of this file
     toplevel = "math_adder_kogge_stone_nbit"   
 
@@ -71,9 +74,12 @@ def test_math_adder_kogge_stone_nbit(request, n):
 
     # sourcery skip: no-conditionals-in-tests
     if request.config.getoption("--regression"):
-        sim_build = os.path.join('regression_area', 'sim_build', request.node.name.replace('[', '-').replace(']', ''))
+        sim_build = os.path.join(repo_root, 'val', 'unit', 'regression_area', 'sim_build', request.node.name.replace('[', '-').replace(']', ''))
     else:
-        sim_build = os.path.join('local_sim_build', request.node.name.replace('[', '-').replace(']', ''))
+        sim_build = os.path.join(repo_root, 'val', 'unit', 'local_sim_build', request.node.name.replace('[', '-').replace(']', ''))
+
+    extra_env['LOG_PATH'] = os.path.join(str(sim_build), f'cocotb_log_{dut_name}.log')
+    extra_env['DUT'] = dut_name
 
     run(
         python_search=[tests_dir],  # where to search for all the python test files

@@ -1,6 +1,6 @@
 import cocotb
 from cocotb.triggers import RisingEdge, Timer
-from cocotb.result import TestFailure
+
 from cocotb.clock import Clock
 from cocotb.regression import TestFactory
 import os
@@ -10,16 +10,16 @@ import random
 import pytest
 from cocotb_test.simulator import run
 import logging
-log = logging.getLogger('cocotb_log_fifo_async_div2')
-log.setLevel(logging.DEBUG)
-# Create a file handler that logs even debug messages
-fh = logging.FileHandler('cocotb_log_fifo_async_div2.log')
-fh.setLevel(logging.DEBUG)
-# Create a formatter and add it to the handler
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh.setFormatter(formatter)
-# Add the handler to the logger
-log.addHandler(fh)
+
+def configure_logging(dut_name, log_file_path):
+    log = logging.getLogger(f'cocotb_log_{dut_name}')
+    log.setLevel(logging.DEBUG)
+    fh = logging.FileHandler(log_file_path)
+    fh.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    log.addHandler(fh)
+    return log
 
 
 TIMEOUT_CYCLES = 1000  # Adjust as necessary
@@ -124,6 +124,10 @@ async def delayed_read_fifo(dut, delay, expected_data_length, delay_between_read
 @cocotb.test()
 async def fifo_test(dut):
     # Use the seed for reproducibility
+    # Now that we know where the sim_build directory is, configure logging
+    log_path = os.environ.get('LOG_PATH')
+    dut_name = os.environ.get('DUT')
+    log = configure_logging(dut_name, log_path)
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
     log.info(f'seed changed to {seed}')
@@ -154,10 +158,10 @@ async def fifo_test(dut):
         read2read_delay = random.randint(0, 2)
         read_values = await delayed_read_fifo(dut, read_delay, len(data), read2read_delay)
 
-        if data != read_values:
-            hex_data = [hex(num) for num in data]
-            hex_read_data = [hex(num) for num in read_values]
-            raise TestFailure(f"Data mismatch. \nWritten: {hex_data} \n   Read: {hex_read_data}")
+        hex_data = [hex(num) for num in data]
+        hex_read_data = [hex(num) for num in read_values]
+        assert data == read_values, f"Data mismatch. Written: {hex_data}, Read: {hex_read_data}"
+
 
         for _ in range(delay_between_iterations):
             await RisingEdge(dut.i_rd_clk)
@@ -172,7 +176,7 @@ rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hd
 
 @pytest.mark.parametrize("depth, data_width, almost_wr_margin, almost_rd_margin", [(10, 8, 2, 2)])
 def test_fifo_async_div2(request, depth, data_width, almost_wr_margin, almost_rd_margin):
-    dut = "fifo_async_div2"
+    dut_name = "fifo_async_div2"
     module = os.path.splitext(os.path.basename(__file__))[0]  # The name of this file
     toplevel = "fifo_async_div2"   
 
@@ -194,9 +198,12 @@ def test_fifo_async_div2(request, depth, data_width, almost_wr_margin, almost_rd
 
     # sourcery skip: no-conditionals-in-tests
     if request.config.getoption("--regression"):
-        sim_build = os.path.join('regression_area', 'sim_build', request.node.name.replace('[', '-').replace(']', ''))
+        sim_build = os.path.join(repo_root, 'val', 'unit', 'regression_area', 'sim_build', request.node.name.replace('[', '-').replace(']', ''))
     else:
-        sim_build = os.path.join('local_sim_build', request.node.name.replace('[', '-').replace(']', ''))
+        sim_build = os.path.join(repo_root, 'val', 'unit', 'local_sim_build', request.node.name.replace('[', '-').replace(']', ''))
+
+    extra_env['LOG_PATH'] = os.path.join(str(sim_build), f'cocotb_log_{dut_name}.log')
+    extra_env['DUT'] = dut_name
 
     run(
         python_search=[tests_dir],  # where to search for all the python test files

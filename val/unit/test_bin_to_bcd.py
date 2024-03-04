@@ -7,16 +7,16 @@ import subprocess
 import pytest
 from cocotb_test.simulator import run
 import logging
-log = logging.getLogger('cocotb_log_bin_to_bcd')
-log.setLevel(logging.DEBUG)
-# Create a file handler that logs even debug messages
-fh = logging.FileHandler('cocotb_log_bin_to_bcd.log')
-fh.setLevel(logging.DEBUG)
-# Create a formatter and add it to the handler
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh.setFormatter(formatter)
-# Add the handler to the logger
-log.addHandler(fh)
+
+def configure_logging(dut_name, log_file_path):
+    log = logging.getLogger(f'cocotb_log_{dut_name}')
+    log.setLevel(logging.DEBUG)
+    fh = logging.FileHandler(log_file_path)
+    fh.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    log.addHandler(fh)
+    return log
 
 
 # Function to convert binary to BCD for verification
@@ -27,6 +27,10 @@ def binary_to_bcd(decimal_val, digit_count):
 
 @cocotb.test()
 async def bin_to_bcd_test(dut):
+    # Now that we know where the sim_build directory is, configure logging
+    log_path = os.environ.get('LOG_PATH')
+    dut_name = os.environ.get('DUT')
+    log = configure_logging(dut_name, log_path)
     # Start a clock
     clock = Clock(dut.i_clk, 10, units="ns")  # Adjust the timing as necessary
     cocotb.start_soon(clock.start())
@@ -61,10 +65,10 @@ async def bin_to_bcd_test(dut):
         
         # Verify the output
         expected_bcd = binary_to_bcd(i, DIGITS*4)
+        msg = f"Error: Binary={bin(i)}, Expected BCD={expected_bcd}, Module BCD={int(dut.o_bcd.value)}"
+        assert int(dut.o_bcd.value) == expected_bcd, msg
         if int(dut.o_bcd.value) != expected_bcd:
-            error_message = f"Error: Binary={bin(i)}, Expected BCD={expected_bcd}, Module BCD={int(dut.o_bcd.value)}"
-            dut._log.error(error_message)
-            raise ValueError(error_message)
+            log.error(msg)
 
         # Wait a clock cycle before the next test iteration
         await RisingEdge(dut.i_clk)
@@ -78,7 +82,7 @@ rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hd
 
 @pytest.mark.parametrize("width", [(8,)])
 def test_bin_to_bcd(request, width):
-    dut = "bin_to_bcd"
+    dut_name = "bin_to_bcd"
     module = os.path.splitext(os.path.basename(__file__))[0]  # The name of this file
     toplevel = "bin_to_bcd"   
 
@@ -92,9 +96,12 @@ def test_bin_to_bcd(request, width):
 
     # sourcery skip: no-conditionals-in-tests
     if request.config.getoption("--regression"):
-        sim_build = os.path.join('regression_area', 'sim_build', request.node.name.replace('[', '-').replace(']', ''))
+        sim_build = os.path.join(repo_root, 'val', 'unit', 'regression_area', 'sim_build', request.node.name.replace('[', '-').replace(']', ''))
     else:
-        sim_build = os.path.join('local_sim_build', request.node.name.replace('[', '-').replace(']', ''))
+        sim_build = os.path.join(repo_root, 'val', 'unit', 'local_sim_build', request.node.name.replace('[', '-').replace(']', ''))
+
+    extra_env['LOG_PATH'] = os.path.join(str(sim_build), f'cocotb_log_{dut_name}.log')
+    extra_env['DUT'] = dut_name
 
     run(
         python_search=[tests_dir],  # where to search for all the python test files

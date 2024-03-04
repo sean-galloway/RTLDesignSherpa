@@ -117,9 +117,12 @@ def test_arbiter_weighted_round_robin_wrapper(request, n):
 
     # sourcery skip: no-conditionals-in-tests
     if request.config.getoption("--regression"):
-        sim_build = os.path.join('regression_area', 'sim_build', request.node.name.replace('[', '-').replace(']', ''))
+        sim_build = os.path.join(repo_root, 'val', 'unit', 'regression_area', 'sim_build', request.node.name.replace('[', '-').replace(']', ''))
     else:
-        sim_build = os.path.join('local_sim_build', request.node.name.replace('[', '-').replace(']', ''))
+        sim_build = os.path.join(repo_root, 'val', 'unit', 'local_sim_build', request.node.name.replace('[', '-').replace(']', ''))
+
+    extra_env['LOG_PATH'] = os.path.join(str(sim_build), f'cocotb_log_{dut_name}.log')
+    extra_env['DUT'] = dut_name
 
     run(
         python_search=[tests_dir],  # where to search for all the python test files

@@ -8,45 +8,48 @@ import subprocess
 import pytest
 from cocotb_test.simulator import run
 import logging
-log = logging.getLogger('cocotb_log_counter_ring')
-log.setLevel(logging.DEBUG)
-# Create a file handler that logs even debug messages
-fh = logging.FileHandler('cocotb_log_counter_ring.log')
-fh.setLevel(logging.DEBUG)
-# Create a formatter and add it to the handler
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh.setFormatter(formatter)
-# Add the handler to the logger
-log.addHandler(fh)
+
+def configure_logging(dut_name, log_file_path):
+    log = logging.getLogger(f'cocotb_log_{dut_name}')
+    log.setLevel(logging.DEBUG)
+    fh = logging.FileHandler(log_file_path)
+    fh.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    log.addHandler(fh)
+    return log
 
 
-@cocotb.coroutine
-@cocotb.coroutine
-def ring_counter_test(dut, width):
+@cocotb.test
+async def ring_counter_test(dut, width):
+    # Now that we know where the sim_build directory is, configure logging
+    log_path = os.environ.get('LOG_PATH')
+    dut_name = os.environ.get('DUT')
+    log = configure_logging(dut_name, log_path)
     cocotb.fork(Clock(dut.i_clk, 10, units='ns').start())
 
     # Reset the counter
     dut.i_rst_n.value = 0
     dut.i_enable.value = 0
-    yield RisingEdge(dut.i_clk)
+    await RisingEdge(dut.i_clk)
 
     dut.i_rst_n.value = 1
-    yield RisingEdge(dut.i_clk)
+    await RisingEdge(dut.i_clk)
 
     # Activate the counter
     dut.i_enable.value = 1
-    yield RisingEdge(dut.i_clk)
+    await RisingEdge(dut.i_clk)
 
     # Iterate over each bit position starting from MSB to LSB
     for i in range(width):
-        yield RisingEdge(dut.i_clk)
+        await RisingEdge(dut.i_clk)
         actual_state = int(dut.o_ring_out.value)
         # Expected '1' should move right with each iteration
         expected_state = 1 << (width - 1 - i)
         assert actual_state == expected_state, f"Counter state mismatch at {i} expected: {expected_state:0{width}b} got: {actual_state:0{width}b}"
 
     # After a complete cycle, check if the counter wraps correctly
-    yield RisingEdge(dut.i_clk)
+    await RisingEdge(dut.i_clk)
     # At this point, the '1' should have rotated back to the MSB
     assert int(dut.o_ring_out.value) == 1 << (width - 1), "Counter did not wrap correctly to the initial state."
 
@@ -64,7 +67,7 @@ rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hd
 
 @pytest.mark.parametrize("width", [(16,)])
 def test_counter_ring(request, width):
-    dut = "counter_ring"
+    dut_name = "counter_ring"
     module = os.path.splitext(os.path.basename(__file__))[0]  # The name of this file
     toplevel = "counter_ring"   
 
@@ -78,9 +81,12 @@ def test_counter_ring(request, width):
 
     # sourcery skip: no-conditionals-in-tests
     if request.config.getoption("--regression"):
-        sim_build = os.path.join('regression_area', 'sim_build', request.node.name.replace('[', '-').replace(']', ''))
+        sim_build = os.path.join(repo_root, 'val', 'unit', 'regression_area', 'sim_build', request.node.name.replace('[', '-').replace(']', ''))
     else:
-        sim_build = os.path.join('local_sim_build', request.node.name.replace('[', '-').replace(']', ''))
+        sim_build = os.path.join(repo_root, 'val', 'unit', 'local_sim_build', request.node.name.replace('[', '-').replace(']', ''))
+
+    extra_env['LOG_PATH'] = os.path.join(str(sim_build), f'cocotb_log_{dut_name}.log')
+    extra_env['DUT'] = dut_name
 
     run(
         python_search=[tests_dir],  # where to search for all the python test files

@@ -32,7 +32,7 @@ module math_multiplier_booths #(
                 3'b101, 3'b110: w_MxS[i] = inv_i_multiplier;
                 default:        w_MxS[i] = 0;
             endcase
-            w_shift_MxS[i] = $signed(w_MxS[i]);
+            w_shift_MxS[i] = w_MxS[i];
 
             for (j = 0; j < i; j = j + 1) begin
                 w_shift_MxS[i] = {w_shift_MxS[i], 2'b00};
@@ -49,19 +49,6 @@ module math_multiplier_booths #(
         .ow_sum   (ow_product)
     );
 
-`ifdef DEBUG
-    initial begin
-        #1;  // Wait for 10 time units to let values settle.
-        $display("------------------------");
-        $display("----- Booths Debug -----");
-        $display("N: %d", N);
-        $display("Nd2: %d", Nd2);
-        $display("i_multiplier: %b", i_multiplier);
-        $display("i_multiplicand: %b", i_multiplicand);
-        $display("prod: %b", ow_product);
-        $display("------------------------");
-    end
-`endif
     // synopsys translate_off
     initial begin
         $dumpfile("waves.vcd");

@@ -11,60 +11,54 @@ import random
 import pytest
 from cocotb_test.simulator import run
 import logging
-log = logging.getLogger('cocotb_log_math_multiplier_wallace_tree_032')
-log.setLevel(logging.DEBUG)
-# Create a file handler that logs even debug messages
-fh = logging.FileHandler('cocotb_log_math_multiplier_wallace_tree_032.log')
-fh.setLevel(logging.DEBUG)
-# Create a formatter and add it to the handler
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh.setFormatter(formatter)
-# Add the handler to the logger
-log.addHandler(fh)
 
+def configure_logging(dut_name, log_file_path):
+    log = logging.getLogger(f'cocotb_log_{dut_name}')
+    log.setLevel(logging.DEBUG)
+    fh = logging.FileHandler(log_file_path)
+    fh.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    log.addHandler(fh)
+    return log
 
-@cocotb.coroutine
-def init_test(dut):
-    dut.i_multiplier.value = 0
-    dut.i_multiplicand.value = 0
-    yield Timer(1, units='ns')
 
 @cocotb.test()
-def multiplier_wallace_tree_032_test(dut): 
-    # Use the seed for reproducibility
-    seed = int(os.environ.get('SEED', '0'))
-    random.seed(seed)
-    log.info(f'seed changed to {seed}')
-
-    yield init_test(dut)
-
-    N = 32
+async def exhaustive_test(dut):
+    N = int(os.environ.get('PARAM_N', '0'))
     max_val = 2**N
-    for _ in range(10000):
-    # for a, b in itertools.product(range(max_val), range(max_val)):
-        a = random.randint(0, max_val-1)
-        b = random.randint(0, max_val-1)
-        dut.i_multiplier.value = a
-        dut.i_multiplicand.value = b
+    if N == 4:
+        i_list = range(max_val)
+        j_list = range(max_val)
+    else:
+        count = 128
+        i_list = [random.randint(0, max_val-1) for _ in range(count)]
+        j_list = [random.randint(0, max_val-1) for _ in range(count)]
 
-        yield Timer(10, units='ns')
-        # print(f"Multiplier: {dut.i_multiplier.value}, Multiplicand: {dut.i_multiplicand.value}")
+    for i, j in zip(i_list, j_list):
+        dut.i_multiplier.value = i
+        dut.i_multiplicand.value = j
 
-        result = dut.ow_product.value.integer
-        expected_result = a * b
-        assert result == expected_result, f"Multiplication of {a} and {b} yielded {result}, expected {expected_result}"
+        # Wait a little for the output to be stable
+        # We're assuming combinatorial logic, so a small delay is enough
+        await Timer(1, units='ns')  # Adding a 100 ps delay
 
-tf = TestFactory(multiplier_wallace_tree_032_test)
-tf.generate_tests()
+        expected = i * j
+        found = dut.ow_product.value.integer
+        log.info(f'{max_val=} {i=} {j=} {expected=} {found=}')
+        assert expected == found, f"For inputs {i} and {j}, expected output was {expected} but got {found}"
+
+factory = TestFactory(exhaustive_test)
+factory.generate_tests()
 
 
 repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
 tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the test(current) directory in which this test.py file is placed
 rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hdl folder where .v files are placed
 
-@pytest.mark.parametrize("n", [(32,)])
+@pytest.mark.parametrize("n", [32])
 def test_math_multiplier_wallace_tree_032(request, n):
-    dut = "math_multiplier_wallace_tree_032"
+    dut_name = "math_multiplier_wallace_tree_032"
     module = os.path.splitext(os.path.basename(__file__))[0]  # The name of this file
     toplevel = "math_multiplier_wallace_tree_032"   
 
@@ -80,9 +74,12 @@ def test_math_multiplier_wallace_tree_032(request, n):
 
     # sourcery skip: no-conditionals-in-tests
     if request.config.getoption("--regression"):
-        sim_build = os.path.join('regression_area', 'sim_build', request.node.name.replace('[', '-').replace(']', ''))
+        sim_build = os.path.join(repo_root, 'val', 'unit', 'regression_area', 'sim_build', request.node.name.replace('[', '-').replace(']', ''))
     else:
-        sim_build = os.path.join('local_sim_build', request.node.name.replace('[', '-').replace(']', ''))
+        sim_build = os.path.join(repo_root, 'val', 'unit', 'local_sim_build', request.node.name.replace('[', '-').replace(']', ''))
+
+    extra_env['LOG_PATH'] = os.path.join(str(sim_build), f'cocotb_log_{dut_name}.log')
+    extra_env['DUT'] = dut_name
 
     run(
         python_search=[tests_dir],  # where to search for all the python test files

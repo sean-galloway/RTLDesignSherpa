@@ -13,16 +13,16 @@ from ConstrainedRandom import ConstrainedRandom
 import pytest
 from cocotb_test.simulator import run
 import logging
-log = logging.getLogger('cocotb_log_dataint_ecc_hamming_decode_secded')
-log.setLevel(logging.DEBUG)
-# Create a file handler that logs even debug messages
-fh = logging.FileHandler('cocotb_log_dataint_ecc_hamming_decode_secded.log')
-fh.setLevel(logging.DEBUG)
-# Create a formatter and add it to the handler
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh.setFormatter(formatter)
-# Add the handler to the logger
-log.addHandler(fh)
+
+def configure_logging(dut_name, log_file_path):
+    log = logging.getLogger(f'cocotb_log_{dut_name}')
+    log.setLevel(logging.DEBUG)
+    fh = logging.FileHandler(log_file_path)
+    fh.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    log.addHandler(fh)
+    return log
 
 
 def hamming_decode_secded(data_width, parity_bits, total_width, data, corrupt_vector):
@@ -204,6 +204,10 @@ def generate_test_data(width, total_width, count_small=2, count_big=2048):
 @cocotb.test()
 async def hamming_decode_repair_test(dut):
     """Test Hamming code decoding and repair with exhaustive or random inputs."""
+    # Now that we know where the sim_build directory is, configure logging
+    log_path = os.environ.get('LOG_PATH')
+    dut_name = os.environ.get('DUT')
+    log = configure_logging(dut_name, log_path)
     # assert reset, put known values on inputs
     dut.i_rst_n.value = 0
     dut.i_enable.value = 0
@@ -316,7 +320,7 @@ rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hd
 
 @pytest.mark.parametrize("width", [8])
 def test_dataint_ecc_hamming_decode_secded(request, width):
-    dut = "dataint_ecc_hamming_decode_secded"
+    dut_name = "dataint_ecc_hamming_decode_secded"
     module = os.path.splitext(os.path.basename(__file__))[0]  # The name of this file
     toplevel = "dataint_ecc_hamming_decode_secded"   
 
@@ -330,9 +334,12 @@ def test_dataint_ecc_hamming_decode_secded(request, width):
 
     # sourcery skip: no-conditionals-in-tests
     if request.config.getoption("--regression"):
-        sim_build = os.path.join('regression_area', 'sim_build', request.node.name.replace('[', '-').replace(']', ''))
+        sim_build = os.path.join(repo_root, 'val', 'unit', 'regression_area', 'sim_build', request.node.name.replace('[', '-').replace(']', ''))
     else:
-        sim_build = os.path.join('local_sim_build', request.node.name.replace('[', '-').replace(']', ''))
+        sim_build = os.path.join(repo_root, 'val', 'unit', 'local_sim_build', request.node.name.replace('[', '-').replace(']', ''))
+
+    extra_env['LOG_PATH'] = os.path.join(str(sim_build), f'cocotb_log_{dut_name}.log')
+    extra_env['DUT'] = dut_name
 
     run(
         python_search=[tests_dir],  # where to search for all the python test files

@@ -9,16 +9,16 @@ import subprocess
 import pytest
 from cocotb_test.simulator import run
 import logging
-log = logging.getLogger('cocotb_log_math_adder_brent_kung_016')
-log.setLevel(logging.DEBUG)
-# Create a file handler that logs even debug messages
-fh = logging.FileHandler('cocotb_log_math_adder_brent_kung_016.log')
-fh.setLevel(logging.DEBUG)
-# Create a formatter and add it to the handler
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh.setFormatter(formatter)
-# Add the handler to the logger
-log.addHandler(fh)
+
+def configure_logging(dut_name, log_file_path):
+    log = logging.getLogger(f'cocotb_log_{dut_name}')
+    log.setLevel(logging.DEBUG)
+    fh = logging.FileHandler(log_file_path)
+    fh.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    log.addHandler(fh)
+    return log
 
 
 @cocotb.coroutine
@@ -33,10 +33,8 @@ def run_test(dut, a, b, c_in):
     expected_sum = (a + b + c_in) & ((1 << width) - 1)
     expected_carry = int(a + b + c_in > ((1 << width) - 1))
     
-    if ow_sum != expected_sum or ow_carry != expected_carry:
-        raise cocotb.result.TestFailure(f"Input: a={a}, b={b}, c_in={c_in}\n"
-                                       f"Expected: sum={expected_sum}, carry={expected_carry}\n"
-                                       f"Got: sum={ow_sum}, carry={ow_carry}")
+    assert (ow_sum == expected_sum) and (ow_carry == expected_carry), f"Input: a={a}, b={b}, c_in={c_in}\nExpected: sum={expected_sum}, carry={expected_carry}\nGot: sum={ow_sum}, carry={ow_carry}"
+
 
 @cocotb.coroutine
 def run_tb(dut):
@@ -50,6 +48,10 @@ def run_tb(dut):
 
 @cocotb.coroutine
 def run_simulation(dut):
+    # Now that we know where the sim_build directory is, configure logging
+    log_path = os.environ.get('LOG_PATH')
+    dut_name = os.environ.get('DUT')
+    log = configure_logging(dut_name, log_path)
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
@@ -66,7 +68,7 @@ rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hd
 
 @pytest.mark.parametrize("", [()])
 def test_math_adder_brent_kung_016(request, ):
-    dut = "math_adder_brent_kung_016"
+    dut_name = "math_adder_brent_kung_016"
     module = os.path.splitext(os.path.basename(__file__))[0]  # The name of this file
     toplevel = "math_adder_brent_kung_016"   
 
@@ -86,9 +88,12 @@ def test_math_adder_brent_kung_016(request, ):
 
     # sourcery skip: no-conditionals-in-tests
     if request.config.getoption("--regression"):
-        sim_build = os.path.join('regression_area', 'sim_build', request.node.name.replace('[', '-').replace(']', ''))
+        sim_build = os.path.join(repo_root, 'val', 'unit', 'regression_area', 'sim_build', request.node.name.replace('[', '-').replace(']', ''))
     else:
-        sim_build = os.path.join('local_sim_build', request.node.name.replace('[', '-').replace(']', ''))
+        sim_build = os.path.join(repo_root, 'val', 'unit', 'local_sim_build', request.node.name.replace('[', '-').replace(']', ''))
+
+    extra_env['LOG_PATH'] = os.path.join(str(sim_build), f'cocotb_log_{dut_name}.log')
+    extra_env['DUT'] = dut_name
 
     run(
         python_search=[tests_dir],  # where to search for all the python test files
