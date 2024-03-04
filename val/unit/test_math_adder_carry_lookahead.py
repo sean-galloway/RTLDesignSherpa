@@ -43,7 +43,7 @@ async def cla_4bit_test(dut):
             # Mask to get only N-bits for the sum
             expected_sum &= (2**N) - 1
 
-            assert (int(dut.ow_sum) == expected_sum) and (int(dut.ow_carry) != expected_carry),\
+            assert (int(dut.ow_sum) == expected_sum) and (int(dut.ow_carry) == expected_carry),\
                 f"For i_a={i_a}, i_b={i_b}, and i_c={i_c}, expected sum was {expected_sum} and carry out was {expected_carry} but got sum={(dut.ow_sum.value)} and carry out={dut.ow_carry.value}"
 
 tf = TestFactory(cla_4bit_test)
@@ -53,7 +53,7 @@ repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).str
 tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the test(current) directory in which this test.py file is placed
 rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hdl folder where .v files are placed
 
-@pytest.mark.parametrize("n", [(4,)])
+@pytest.mark.parametrize("n", [4])
 def test_math_adder_carry_lookahead(request, n):
     dut_name = "math_adder_carry_lookahead"
     module = os.path.splitext(os.path.basename(__file__))[0]  # The name of this file

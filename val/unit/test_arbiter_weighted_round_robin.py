@@ -35,7 +35,7 @@ class RequestAgent:
     """A simple agent for handling request signals."""
 
     def __init__(self, dut, index):
-        self.dut_name = dut
+        self.dut = dut
         self.index = index
         self.queue = []
 

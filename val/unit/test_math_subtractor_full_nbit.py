@@ -34,8 +34,18 @@ def run_test(dut):
     random.seed(seed)
     log.info(f'seed changed to {seed}')
 
-    N=2**4
-    for i, j in itertools.product(range(N), range(N)):
+    N = int(os.environ.get('PARAM_N', '0'))
+    max_val = 2**N
+    mask = max_val - 1
+    if N == 4:
+        i_list = range(max_val)
+        j_list = range(max_val)
+    else:
+        count = 128
+        i_list = [random.randint(0, max_val-1) for _ in range(count)]
+        j_list = [random.randint(0, max_val-1) for _ in range(count)]
+
+    for i, j in zip(i_list, j_list):
         for b_in in [0, 1]:  # Test both cases of i_b_in: 0 and 1
             dut._log.info(f"Testing subtraction: {i} - {j} with borrow-in {b_in}")
 
@@ -66,7 +76,7 @@ repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).str
 tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the test(current) directory in which this test.py file is placed
 rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hdl folder where .v files are placed
 
-@pytest.mark.parametrize("n", [(4,)])
+@pytest.mark.parametrize("n", [4,8])
 def test_math_subtractor_full_nbit(request, n):
     dut_name = "math_subtractor_full_nbit"
     module = os.path.splitext(os.path.basename(__file__))[0]  # The name of this file

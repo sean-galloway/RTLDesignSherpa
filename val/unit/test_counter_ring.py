@@ -20,12 +20,15 @@ def configure_logging(dut_name, log_file_path):
     return log
 
 
-@cocotb.test
-async def ring_counter_test(dut, width):
+@cocotb.test()
+async def ring_counter_test(dut):
     # Now that we know where the sim_build directory is, configure logging
     log_path = os.environ.get('LOG_PATH')
     dut_name = os.environ.get('DUT')
     log = configure_logging(dut_name, log_path)
+    # Pass the width parameter from the Makefile to the test
+    width = int(os.getenv("PARAM_WIDTH"))
+    log.info(f"Testing with WIDTH={width}")
     cocotb.fork(Clock(dut.i_clk, 10, units='ns').start())
 
     # Reset the counter
@@ -53,11 +56,8 @@ async def ring_counter_test(dut, width):
     # At this point, the '1' should have rotated back to the MSB
     assert int(dut.o_ring_out.value) == 1 << (width - 1), "Counter did not wrap correctly to the initial state."
 
-# Pass the width parameter from the Makefile to the test
-width = int(os.getenv("WIDTH", "4"))  # Default to 4 if not specified
-log.info(f"Testing with WIDTH={width}")
+
 tf = TestFactory(ring_counter_test)
-tf.add_option("width", [width])
 tf.generate_tests()
 
 
@@ -65,7 +65,7 @@ repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).str
 tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the test(current) directory in which this test.py file is placed
 rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hdl folder where .v files are placed
 
-@pytest.mark.parametrize("width", [(16,)])
+@pytest.mark.parametrize("width", [4, 8, 16, 32])
 def test_counter_ring(request, width):
     dut_name = "counter_ring"
     module = os.path.splitext(os.path.basename(__file__))[0]  # The name of this file
@@ -73,7 +73,6 @@ def test_counter_ring(request, width):
 
     verilog_sources = [
         os.path.join(rtl_dir, "counter_ring.sv"),
-
     ]
     parameters = {'WIDTH':width, }
 

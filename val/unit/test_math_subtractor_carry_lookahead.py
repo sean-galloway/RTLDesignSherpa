@@ -4,6 +4,7 @@ from cocotb.triggers import Timer
 from cocotb.regression import TestFactory
 import itertools
 import os
+import random
 import subprocess
 import pytest
 from cocotb_test.simulator import run
@@ -27,10 +28,18 @@ async def subtractor_test(dut):
     log_path = os.environ.get('LOG_PATH')
     dut_name = os.environ.get('DUT')
     log = configure_logging(dut_name, log_path)
-    N = 4
-    width_mask = (1 << N) - 1
+    N = int(os.environ.get('PARAM_N', '0'))
+    max_val = 2**N
+    mask = max_val - 1
+    if N == 4:
+        i_list = range(max_val)
+        j_list = range(max_val)
+    else:
+        count = 128
+        i_list = [random.randint(0, max_val-1) for _ in range(count)]
+        j_list = [random.randint(0, max_val-1) for _ in range(count)]
 
-    for i_a, i_b in itertools.product(range(2**N), repeat=2):
+    for i_a, i_b in zip(i_list, j_list):
         for i_borrow_in in range(2):
             dut.i_a.value = i_a
             dut.i_b.value = i_b
@@ -38,7 +47,7 @@ async def subtractor_test(dut):
 
             await Timer(1, units='ns')
 
-            expected_difference = (i_a - i_b - i_borrow_in) & width_mask
+            expected_difference = (i_a - i_b - i_borrow_in) & mask
             expected_carry_out = 1 if (i_a - i_b - i_borrow_in) < 0 else 0
 
             assert (int(dut.ow_difference.value) == expected_difference) and (int(dut.ow_carry_out.value) == expected_carry_out),\
@@ -52,7 +61,7 @@ repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).str
 tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the test(current) directory in which this test.py file is placed
 rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hdl folder where .v files are placed
 
-@pytest.mark.parametrize("n", [(4,)])
+@pytest.mark.parametrize("n", [4,8])
 def test_math_subtractor_carry_lookahead(request, n):
     dut_name = "math_subtractor_carry_lookahead"
     module = os.path.splitext(os.path.basename(__file__))[0]  # The name of this file

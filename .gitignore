@@ -195,3 +195,5 @@ ipynb/
 *OLD.md
 bin_OLD/
 profile.txt
+local_sim_build/
+regression/

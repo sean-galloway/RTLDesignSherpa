@@ -20,7 +20,7 @@ def configure_logging(dut_name, log_file_path):
     return log
 
 
-def hamming_encode_secded(data_width, parity_bits, total_width, data):
+def hamming_encode_secded(data_width, parity_bits, total_width, data, log):
     # Calculate the position for the SECDED bit, which is the last bit
     secded_pos = total_width - 1
 
@@ -122,7 +122,7 @@ async def hamming_encode_test(dut):
         log.info(f'{output_data_bin=} {len(output_data_bin)=}<----------------------------------')
 
         # Check encoded data
-        expected_data_str = hamming_encode_secded(data_width, parity_bits, total_width, data_list)
+        expected_data_str = hamming_encode_secded(data_width, parity_bits, total_width, data_list, log)
         
         # Verify the ECC bits match the expected values
         assert output_data_bin == expected_data_str, f"Mismatch for data value {output_data_bin} expected {expected_data_str}"

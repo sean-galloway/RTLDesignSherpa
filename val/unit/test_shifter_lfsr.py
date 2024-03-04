@@ -78,7 +78,7 @@ async def schedule_tests(dut, log):
 
 # Entry point for the cocotb test
 @cocotb.test()
-async def dynamic_lfsr_tests(dut, log):
+async def dynamic_lfsr_tests(dut):
     # Now that we know where the sim_build directory is, configure logging
     log_path = os.environ.get('LOG_PATH')
     dut_name = os.environ.get('DUT')
