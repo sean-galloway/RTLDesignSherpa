@@ -25,7 +25,7 @@ def configure_logging(dut_name, log_file_path):
     return log
 
 
-def hamming_decode_secded(data_width, parity_bits, total_width, data, corrupt_vector):
+def hamming_decode_secded(log, data_width, parity_bits, total_width, data, corrupt_vector):
     # Calculate the position for the SECDED bit, which is the last bit
     secded_pos = total_width - 1
 
@@ -149,7 +149,7 @@ def generate_known_data(data, total_width, test_data):
         test_data.append((data, c_vec))
 
 
-def generate_test_data(width, total_width, count_small=2, count_big=2048):
+def generate_test_data(log, width, total_width, count_small=2, count_big=2048):
     log.info(f'{width=} {total_width=} {count_small=} {count_big=}')
 
     test_data = []
@@ -231,7 +231,7 @@ async def hamming_decode_repair_test(dut):
     log.info(f'Total Width  {total_width}')
     log.info('-------------------------------------------')
     
-    test_data = generate_test_data(width, total_width, count_small=2**width, count_big=2048)
+    test_data = generate_test_data(log, width, total_width, count_small=2**width, count_big=2048)
     log.info('------------------------------------------------------')
     for data_value, corrupt_vector in test_data:
         data_bin = format(data_value, f'0{width}b')
@@ -255,7 +255,7 @@ async def hamming_decode_repair_test(dut):
 
         # Flip the bits in data_list according to corrupt_vector
         # corrupted_data_list = hamming_encode(data_list, corrupt_vector, width, parity_bits, total_width)
-        (expected_data, expected_error_detected, expected_double_error_detected, corrupted_data_list) = hamming_decode_secded(width, parity_bits, total_width, data_list, corrupt_vector)
+        (expected_data, expected_error_detected, expected_double_error_detected, corrupted_data_list) = hamming_decode_secded(log, width, parity_bits, total_width, data_list, corrupt_vector)
 
         # Convert the corrupted_data_list to an integer
         corrupted_data_str = ''.join(str(bit) for bit in reversed(corrupted_data_list))
@@ -318,7 +318,7 @@ repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).str
 tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the test(current) directory in which this test.py file is placed
 rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hdl folder where .v files are placed
 
-@pytest.mark.parametrize("width", [8])
+@pytest.mark.parametrize("width", [7, 8, 15, 16, 31, 32])
 def test_dataint_ecc_hamming_decode_secded(request, width):
     dut_name = "dataint_ecc_hamming_decode_secded"
     module = os.path.splitext(os.path.basename(__file__))[0]  # The name of this file

@@ -134,7 +134,7 @@ repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).str
 tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the test(current) directory in which this test.py file is placed
 rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hdl folder where .v files are placed
 
-@pytest.mark.parametrize("width", [(8,)])
+@pytest.mark.parametrize("width", [7, 8, 15, 16, 31, 32])
 def test_dataint_ecc_hamming_encode_secded(request, width):
     dut_name = "dataint_ecc_hamming_encode_secded"
     module = os.path.splitext(os.path.basename(__file__))[0]  # The name of this file
