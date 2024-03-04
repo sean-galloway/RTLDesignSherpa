@@ -22,7 +22,10 @@ def configure_logging(dut_name, log_file_path):
 @cocotb.test()
 async def half_subtractor_test(dut):
     """ Test for half subtractor """
-
+    # Now that we know where the sim_build directory is, configure logging
+    log_path = os.environ.get('LOG_PATH')
+    dut_name = os.environ.get('DUT')
+    log = configure_logging(dut_name, log_path)
     for i_a in [0, 1]:
         for i_b in [0, 1]:
             dut.i_a.value = i_a
@@ -33,8 +36,8 @@ async def half_subtractor_test(dut):
             expected_difference = i_a ^ i_b
             expected_borrow = 1 if i_a < i_b else 0
 
-            if int(dut.o_d.value) != expected_difference or int(dut.o_b.value) != expected_borrow:
-                raise TestFailure(f"For i_a={i_a}, i_b={i_b}, expected o_d was {expected_difference} and o_b was {expected_borrow} but got o_d={dut.o_d.value} and o_b={dut.o_b.value}")
+            assert int(dut.o_d.value) == expected_difference and int(dut.o_b.value) == expected_borrow,\
+                f"For i_a={i_a}, i_b={i_b}, expected o_d was {expected_difference} and o_b was {expected_borrow} but got o_d={dut.o_d.value} and o_b={dut.o_b.value}"
 
 tf = TestFactory(half_subtractor_test)
 tf.generate_tests()

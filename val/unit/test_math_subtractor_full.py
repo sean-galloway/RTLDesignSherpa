@@ -21,7 +21,10 @@ def configure_logging(dut_name, log_file_path):
 @cocotb.test()
 async def full_subtractor_test(dut):
     """ Test for full subtractor """
-
+    # Now that we know where the sim_build directory is, configure logging
+    log_path = os.environ.get('LOG_PATH')
+    dut_name = os.environ.get('DUT')
+    log = configure_logging(dut_name, log_path)
     for i_a in [0, 1]:
         for i_b in [0, 1]:
             for i_b_in in [0, 1]:
@@ -34,8 +37,8 @@ async def full_subtractor_test(dut):
                 expected_difference = (i_a - i_b - i_b_in) % 2
                 expected_borrow = 1 if i_a < (i_b + i_b_in) else 0
 
-                if int(dut.ow_d.value) != expected_difference or int(dut.ow_b.value) != expected_borrow:
-                    raise TestFailure(f"For i_a={i_a}, i_b={i_b}, i_b_in={i_b_in}, expected ow_d was {expected_difference} and ow_b was {expected_borrow} but got ow_d={(dut.ow_d.value)} and ow_b={dut.ow_b.value}")
+                assert int(dut.ow_d.value) == expected_difference and int(dut.ow_b.value) == expected_borrow,\
+                    f"For i_a={i_a}, i_b={i_b}, i_b_in={i_b_in}, expected ow_d was {expected_difference} and ow_b was {expected_borrow} but got ow_d={(dut.ow_d.value)} and ow_b={dut.ow_b.value}"
 
 from cocotb.regression import TestFactory
 tf = TestFactory(full_subtractor_test)

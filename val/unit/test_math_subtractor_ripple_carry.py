@@ -23,6 +23,10 @@ def configure_logging(dut_name, log_file_path):
 @cocotb.test()
 async def subtractor_test(dut):
     """ Test for 4-bit ripple carry subtractor """
+    # Now that we know where the sim_build directory is, configure logging
+    log_path = os.environ.get('LOG_PATH')
+    dut_name = os.environ.get('DUT')
+    log = configure_logging(dut_name, log_path)
     N = 4
     width_mask = (1 << N) - 1
 
@@ -37,8 +41,8 @@ async def subtractor_test(dut):
             expected_difference = (i_a - i_b - i_borrow_in) & width_mask
             expected_carry_out = 1 if (i_a - i_b - i_borrow_in) < 0 else 0
 
-            if int(dut.ow_difference.value) != expected_difference or int(dut.ow_carry_out.value) != expected_carry_out:
-                raise TestFailure(f"For i_a={i_a}, i_b={i_b}, i_borrow_in={i_borrow_in}, expected difference was {expected_difference} and carry out was {expected_carry_out} but got difference={dut.ow_difference.value} and carry out={dut.ow_carry_out.value}")
+            assert int(dut.ow_difference.value) == expected_difference and int(dut.ow_carry_out.value) == expected_carry_out,\
+                f"For i_a={i_a}, i_b={i_b}, i_borrow_in={i_borrow_in}, expected difference was {expected_difference} and carry out was {expected_carry_out} but got difference={dut.ow_difference.value} and carry out={dut.ow_carry_out.value}"
 
 
 tf = TestFactory(subtractor_test)

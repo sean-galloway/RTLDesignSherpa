@@ -23,7 +23,7 @@ def configure_logging(dut_name, log_file_path):
 
 
 # Utility function to run an LFSR test with given parameters
-async def run_lfsr_test(dut, seed_value, taps, N):
+async def run_lfsr_test(dut, seed_value, taps, N, log):
     clock = Clock(dut.i_clk, 10, units="ns")
     cocotb.start_soon(clock.start())
 
@@ -64,7 +64,7 @@ async def run_lfsr_test(dut, seed_value, taps, N):
     log.info(f"For seed={seed_value:0{N}b} and taps={taps}, it took {cycle_count} cycles to repeat.")
 
 # Master function to generate and schedule tests based on parameters
-async def schedule_tests(dut):
+async def schedule_tests(dut, log):
     N = len(dut.i_seed_data)
     # Define your tests here, for example:
     bin_str = ''.join(format(num, '012b') for num in (8, 6, 5, 4))
@@ -74,16 +74,20 @@ async def schedule_tests(dut):
     ]
 
     for seed, taps in seeds_and_taps:
-        await run_lfsr_test(dut, seed, taps, N)
+        await run_lfsr_test(dut, seed, taps, N, log)
 
 # Entry point for the cocotb test
 @cocotb.test()
-async def dynamic_lfsr_tests(dut):
+async def dynamic_lfsr_tests(dut, log):
+    # Now that we know where the sim_build directory is, configure logging
+    log_path = os.environ.get('LOG_PATH')
+    dut_name = os.environ.get('DUT')
+    log = configure_logging(dut_name, log_path)
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
     log.info(f'seed changed to {seed}')
-    await schedule_tests(dut)
+    await schedule_tests(dut, log)
 
 tf = TestFactory(dynamic_lfsr_tests)
 tf.generate_tests()

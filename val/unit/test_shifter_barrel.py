@@ -22,7 +22,11 @@ def configure_logging(dut_name, log_file_path):
 
 @cocotb.test()
 async def barrel_test(dut):
-
+    # Now that we know where the sim_build directory is, configure logging
+    log_path = os.environ.get('LOG_PATH')
+    dut_name = os.environ.get('DUT')
+    log = configure_logging(dut_name, log_path)
+    
     dut.i_data.value = 0xFFFF
     dut.i_shift_amount.value = 1
     dut.i_ctrl.value = 0x0

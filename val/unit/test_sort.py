@@ -31,6 +31,10 @@ SIZE = 16
 @cocotb.test()
 async def sort_test(dut):
     # Use the seed for reproducibility
+    # Now that we know where the sim_build directory is, configure logging
+    log_path = os.environ.get('LOG_PATH')
+    dut_name = os.environ.get('DUT')
+    log = configure_logging(dut_name, log_path)
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
     log.info(f'seed changed to {seed}')

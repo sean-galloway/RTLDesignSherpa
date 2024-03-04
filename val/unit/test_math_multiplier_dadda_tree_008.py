@@ -23,6 +23,10 @@ def configure_logging(dut_name, log_file_path):
 
 @cocotb.test()
 async def exhaustive_test(dut):
+    # Now that we know where the sim_build directory is, configure logging
+    log_path = os.environ.get('LOG_PATH')
+    dut_name = os.environ.get('DUT')
+    log = configure_logging(dut_name, log_path)
     N = int(os.environ.get('PARAM_N', '0'))
     max_val = 2**N
     if N == 4:

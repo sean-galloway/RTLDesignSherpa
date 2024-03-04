@@ -22,7 +22,7 @@ def configure_logging(dut_name, log_file_path):
 
 
 @cocotb.coroutine
-async def divider_test(dut, dividend, divisor):
+async def divider_test(dut, dividend, divisor, log):
     """ Test the divider with specific dividend and divisor values. """
 
     # Reset
@@ -71,11 +71,15 @@ async def divider_test(dut, dividend, divisor):
 @cocotb.coroutine
 async def run_test(dut):
     """ Run tests with different dividend and divisor pairs. """
+    # Now that we know where the sim_build directory is, configure logging
+    log_path = os.environ.get('LOG_PATH')
+    dut_name = os.environ.get('DUT')
+    log = configure_logging(dut_name, log_path)
     DATA_WIDTH = len(dut.i_dividend)
     max_value = 2**DATA_WIDTH - 1
 
     for dividend, divisor in itertools.product(range(max_value + 1), range(max_value + 1)):
-        await divider_test(dut, dividend, divisor)
+        await divider_test(dut, dividend, divisor, log)
         if divisor % 5 == 0:
             log.info(f'{dividend=} {divisor=}')
 

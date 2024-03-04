@@ -25,6 +25,10 @@ def configure_logging(dut_name, log_file_path):
 @cocotb.coroutine
 def run_test(dut):
     """Run test for 4-bit subtraction with borrow-in"""
+    # Now that we know where the sim_build directory is, configure logging
+    log_path = os.environ.get('LOG_PATH')
+    dut_name = os.environ.get('DUT')
+    log = configure_logging(dut_name, log_path)
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
@@ -47,11 +51,11 @@ def run_test(dut):
             # Expected borrow-out
             expected_borrow = 1 if (i - b_in) < j else 0
 
-            if dut.ow_d.value != expected_result:
-                raise TestFailure(f"For inputs {i}, {j} and borrow-in {b_in}, expected output was {expected_result} but got {dut.ow_d.value}")
+            assert dut.ow_d.value == expected_result,\
+                f"For inputs {i}, {j} and borrow-in {b_in}, expected output was {expected_result} but got {dut.ow_d.value}"
 
-            if dut.ow_b.value != expected_borrow:
-                raise TestFailure(f"For inputs {i}, {j} and borrow-in {b_in}, expected borrow-out was {expected_borrow} but got {dut.ow_b.value}")
+            assert dut.ow_b.value == expected_borrow,\
+                f"For inputs {i}, {j} and borrow-in {b_in}, expected borrow-out was {expected_borrow} but got {dut.ow_b.value}"
 
 # Create the test
 factory = TestFactory(run_test)

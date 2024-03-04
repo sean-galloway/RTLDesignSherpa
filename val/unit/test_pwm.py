@@ -22,7 +22,11 @@ def configure_logging(dut_name, log_file_path):
 
 
 @cocotb.test()
-async def fifo_test(dut):
+async def pwm_test(dut):
+    # Now that we know where the sim_build directory is, configure logging
+    log_path = os.environ.get('LOG_PATH')
+    dut_name = os.environ.get('DUT')
+    log = configure_logging(dut_name, log_path)
     q1 = queue.Queue()
 
     dut.i_start.value = 0
@@ -48,7 +52,7 @@ async def fifo_test(dut):
 
     await Timer(2500, units="ns")
 
-tf = TestFactory(fifo_test)
+tf = TestFactory(pwm_test)
 tf.generate_tests()
 
 repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
