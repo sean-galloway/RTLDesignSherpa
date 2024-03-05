@@ -28,6 +28,7 @@ module math_multiplier_booth_radix_4 #(
     logic [N:0]     w_encoded_values   [0:M-1]; // verilog_lint: waive unpacked-dimensions-range-ordering
     logic [N-1:0]   w_neg_multiplicand;
     logic [2*N-1:0] w_partial_products [0:M-1]; // verilog_lint: waive unpacked-dimensions-range-ordering
+    logic [2*N-1:0] w_product;
 
     // Booth encoding and partial product generation
     genvar i;
@@ -53,26 +54,16 @@ module math_multiplier_booth_radix_4 #(
                     w_partial_products[i] = {{(2*N-N-1){1'b0}}, w_encoded_values[i]} << (2*i);
                 end
             end
-
-            always_comb begin
-                // debug display
-                $display("-----------------------------------------------------------------------");
-                $display("     i_multiplier          = %h", i_multiplier);
-                $display("     i_multiplicand        = %h", i_multiplicand);
-                $display("     i                     = %d", i);
-                $display("     w_booth_group         = %d", w_booth_group);
-                $display("     i_multiplicand        = %h", i_multiplicand);
-                $display("     w_encoded_values[i]   = %h", w_encoded_values[i]);
-                $display("     w_partial_products[i] = %h", w_partial_products[i]);
-                $display("-----------------------------------------------------------------------");
-            end
         end
     endgenerate
 
-    math_adder_hierarchical #(.N(2*N), .C(M)) adder_hierarchy (
-        .i_numbers(w_partial_products),
-        .ow_sum   (ow_product)
-    );
+    integer j;
+    always_comb begin
+        ow_product = 'b0;
+        for (j=0; j<M; j++) begin
+            ow_product = ow_product + w_partial_products[j];
+        end
+    end
 
 endmodule : math_multiplier_booth_radix_4
 

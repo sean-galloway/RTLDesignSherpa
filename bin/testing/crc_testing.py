@@ -71,8 +71,8 @@ class CRCTesting():
                 # Extract the hexadecimal part after "h"
                 _, hex_value = value.split("'h")
                 return int(hex_value, 16)
-            except ValueError:
-                raise ValueError(f"Invalid hexadecimal input: {value}")
+            except ValueError as e:
+                raise ValueError(f"Invalid hexadecimal input: {value}") from e
         else:
             return int(value)
 

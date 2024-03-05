@@ -51,8 +51,17 @@ async def exhaustive_test(dut):
 
             expected = i * j
             found = dut.ow_product.value.integer
-            log.info(f'{max_val=} {i=} {j=} {expected=} {found=}')
-            assert expected == found, f"For inputs {hex(i)} and {hex(j)}, expected output was {hex(expected)} but got {hex(found)}"
+            w_partial_products_list = dut.w_partial_products.value
+            w_partial_products_dec_list = [int(str(binary), 2) for binary in w_partial_products_list]
+            i_numbers_list = dut.adder_hierarchy.i_numbers.value
+            i_numbers_dec_list = [int(str(binary), 2) for binary in i_numbers_list]
+
+            # log.info(f'{max_val=} {i=} {j=} {expected=} {found=}')
+            assert expected == found, f"For inputs {hex(i)} and {hex(j)}, expected output was {hex(expected)} but got {hex(found)}\n"+\
+                f"{sum(w_partial_products_dec_list)} {w_partial_products_dec_list}\n"+\
+                f"{sum(i_numbers_dec_list)} {i_numbers_dec_list}\n"+\
+                f"{found=}\n"+\
+                f"{expected=}"
 
 
 # factory = TestFactory(exhaustive_test)
@@ -62,7 +71,7 @@ repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).str
 tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the test(current) directory in which this test.py file is placed
 rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hdl folder where .v files are placed
 
-@pytest.mark.parametrize("n", [4, 16, 32])
+@pytest.mark.parametrize("n", [4, 8, 16, 32])
 def test_math_multiplier_booth_radix_4(request, n):
     dut_name = "math_multiplier_booth_radix_4"   
     module = os.path.splitext(os.path.basename(__file__))[0]  # The name of this file
