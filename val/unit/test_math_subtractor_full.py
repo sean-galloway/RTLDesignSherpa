@@ -40,9 +40,9 @@ async def full_subtractor_test(dut):
                 assert int(dut.ow_d.value) == expected_difference and int(dut.ow_b.value) == expected_borrow,\
                     f"For i_a={i_a}, i_b={i_b}, i_b_in={i_b_in}, expected ow_d was {expected_difference} and ow_b was {expected_borrow} but got ow_d={(dut.ow_d.value)} and ow_b={dut.ow_b.value}"
 
-from cocotb.regression import TestFactory
-tf = TestFactory(full_subtractor_test)
-tf.generate_tests()
+# from cocotb.regression import TestFactory
+# tf = TestFactory(full_subtractor_test)
+# tf.generate_tests()
 
 repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
 tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the test(current) directory in which this test.py file is placed

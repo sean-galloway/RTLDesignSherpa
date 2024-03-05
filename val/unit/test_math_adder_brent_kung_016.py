@@ -1,5 +1,5 @@
 import cocotb
-from cocotb.regression import TestFactory
+# from cocotb.regression import TestFactory
 from cocotb.triggers import Timer
 import os
 import subprocess
@@ -58,8 +58,8 @@ def run_simulation(dut):
     log.info(f'seed changed to {seed}')
     yield run_tb(dut)
 
-factory = TestFactory(run_simulation)
-factory.generate_tests()
+# factory = TestFactory(run_simulation)
+# factory.generate_tests()
 
 
 repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')

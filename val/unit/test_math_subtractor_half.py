@@ -1,7 +1,7 @@
 import cocotb
 from cocotb.triggers import Timer
 
-from cocotb.regression import TestFactory
+# from cocotb.regression import TestFactory
 import os
 import subprocess
 import pytest
@@ -39,8 +39,8 @@ async def half_subtractor_test(dut):
             assert int(dut.o_d.value) == expected_difference and int(dut.o_b.value) == expected_borrow,\
                 f"For i_a={i_a}, i_b={i_b}, expected o_d was {expected_difference} and o_b was {expected_borrow} but got o_d={dut.o_d.value} and o_b={dut.o_b.value}"
 
-tf = TestFactory(half_subtractor_test)
-tf.generate_tests()
+# tf = TestFactory(half_subtractor_test)
+# tf.generate_tests()
 
 repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
 tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the test(current) directory in which this test.py file is placed

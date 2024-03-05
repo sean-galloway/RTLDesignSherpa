@@ -1,7 +1,7 @@
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge
-from cocotb.regression import TestFactory
+# from cocotb.regression import TestFactory
 import os
 import subprocess
 
@@ -57,8 +57,8 @@ async def ring_counter_test(dut):
     assert int(dut.o_ring_out.value) == 1 << (width - 1), "Counter did not wrap correctly to the initial state."
 
 
-tf = TestFactory(ring_counter_test)
-tf.generate_tests()
+# tf = TestFactory(ring_counter_test)
+# tf.generate_tests()
 
 
 repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')

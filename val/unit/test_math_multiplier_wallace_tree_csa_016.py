@@ -1,6 +1,6 @@
 import cocotb
 import itertools
-from cocotb.regression import TestFactory
+# from cocotb.regression import TestFactory
 from cocotb.triggers import RisingEdge
 from cocotb.clock import Clock
 from cocotb.triggers import Timer
@@ -52,8 +52,8 @@ async def exhaustive_test(dut):
         log.info(f'{max_val=} {i=} {j=} {expected=} {found=}')
         assert expected == found, f"For inputs {i} and {j}, expected output was {expected} but got {found}"
 
-factory = TestFactory(exhaustive_test)
-factory.generate_tests()
+# factory = TestFactory(exhaustive_test)
+# factory.generate_tests()
 
 repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
 tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the test(current) directory in which this test.py file is placed

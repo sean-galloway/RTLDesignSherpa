@@ -1,6 +1,6 @@
 import cocotb
 import itertools
-from cocotb.regression import TestFactory
+# from cocotb.regression import TestFactory
 
 import os
 import subprocess
@@ -68,8 +68,8 @@ def run_test(dut):
                 f"For inputs {i}, {j} and borrow-in {b_in}, expected borrow-out was {expected_borrow} but got {dut.ow_b.value}"
 
 # Create the test
-factory = TestFactory(run_test)
-factory.generate_tests()
+# factory = TestFactory(run_test)
+# factory.generate_tests()
 
 
 repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')

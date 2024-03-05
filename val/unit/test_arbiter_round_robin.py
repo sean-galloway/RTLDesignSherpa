@@ -1,7 +1,7 @@
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import FallingEdge, RisingEdge, Timer
-from cocotb.regression import TestFactory
+# from cocotb.regression import TestFactory
 import os
 import subprocess
 import pytest
@@ -72,8 +72,8 @@ async def arbiter_round_robin_test(dut):
 
     await run_test(dut)
 
-tf = TestFactory(arbiter_round_robin_test)
-tf.generate_tests()
+# tf = TestFactory(arbiter_round_robin_test)
+# tf.generate_tests()
 
 
 repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')

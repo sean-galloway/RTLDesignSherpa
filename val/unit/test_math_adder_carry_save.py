@@ -1,6 +1,6 @@
 import cocotb
 import itertools
-from cocotb.regression import TestFactory
+# from cocotb.regression import TestFactory
 import os
 import subprocess
 import pytest
@@ -44,8 +44,8 @@ async def basic_test(dut):
         assert dut.ow_sum.value == expected_sum, f"Expected {expected_sum}, but got {dut.ow_sum.value}"
         assert dut.ow_carry.value == expected_carry, f"Expected {expected_carry}, but got {dut.ow_carry.value}"
 
-tf = TestFactory(basic_test)
-tf.generate_tests()
+# tf = TestFactory(basic_test)
+# tf.generate_tests()
 
 
 repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')

@@ -1,7 +1,7 @@
 import cocotb
 from cocotb.triggers import FallingEdge, Timer
 from cocotb.clock import Clock
-from cocotb.regression import TestFactory
+# from cocotb.regression import TestFactory
 import os
 import subprocess
 import random
@@ -87,8 +87,8 @@ async def checksum_test(dut):
         for _ in range(10):
             await FallingEdge(dut.i_clk)
 
-tf = TestFactory(checksum_test)
-tf.generate_tests()
+# tf = TestFactory(checksum_test)
+# tf.generate_tests()
 
 repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
 tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the test(current) directory in which this test.py file is placed

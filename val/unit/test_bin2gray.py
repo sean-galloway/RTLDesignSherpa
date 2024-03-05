@@ -1,7 +1,7 @@
 import cocotb
 from cocotb.triggers import Timer
 from cocotb.binary import BinaryValue
-from cocotb.regression import TestFactory
+# from cocotb.regression import TestFactory
 import os
 import subprocess
 import pytest
@@ -51,8 +51,8 @@ async def bin2gray_test(dut):
 
         last_gray = current_gray
 
-tf = TestFactory(bin2gray_test)
-tf.generate_tests()
+# tf = TestFactory(bin2gray_test)
+# tf.generate_tests()
 
 repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
 tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the test(current) directory in which this test.py file is placed

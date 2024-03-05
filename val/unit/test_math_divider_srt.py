@@ -1,7 +1,7 @@
 import cocotb
 import itertools
 from cocotb.triggers import RisingEdge, ReadOnly, Timer, NextTimeStep
-from cocotb.regression import TestFactory
+# from cocotb.regression import TestFactory
 from cocotb.decorators import coroutine
 from cocotb.clock import Clock
 import os
@@ -84,8 +84,8 @@ async def run_test(dut):
             log.info(f'{dividend=} {divisor=}')
 
 
-factory = TestFactory(run_test)
-factory.generate_tests()
+# factory = TestFactory(run_test)
+# factory.generate_tests()
 
 
 repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')

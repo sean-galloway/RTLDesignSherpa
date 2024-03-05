@@ -1,12 +1,17 @@
 import cocotb
 import itertools
+from cocotb.triggers import RisingEdge, Timer
 # from cocotb.regression import TestFactory
-from cocotb.triggers import Timer
+from cocotb.clock import Clock
+
 import os
+import random
 import subprocess
 import pytest
 from cocotb_test.simulator import run
 import logging
+from pathlib import Path
+
 
 def configure_logging(dut_name, log_file_path):
     log = logging.getLogger(f'cocotb_log_{dut_name}')
@@ -18,59 +23,59 @@ def configure_logging(dut_name, log_file_path):
     log.addHandler(fh)
     return log
 
-
-@cocotb.coroutine
-def run_test(dut, a, b, c_in):
-    dut.i_a.value = a
-    dut.i_b.value = b
-    dut.i_c.value = c_in
-    yield Timer(1)  # Adjust the delay if necessary
-    ow_sum = int(dut.ow_sum.value)
-    ow_carry = int(dut.ow_carry.value)
-    expected_sum = (a + b + c_in) & 0xFF
-    expected_carry = int(a + b + c_in > 0xFF)
-    
-    assert (ow_sum == expected_sum) and (ow_carry == expected_carry), f"Input: a={a}, b={b}, c_in={c_in}\nExpected: sum={expected_sum}, carry={expected_carry}\nGot: sum={ow_sum}, carry={ow_carry}"
-
-@cocotb.coroutine
-def run_tb(dut):
-    N = 2**8
-    for a, b, c_in in itertools.product(range(N), range(N), range(2)):
-        yield run_test(dut, a, b, c_in)
-
-@cocotb.coroutine
-def run_simulation(dut):
+@cocotb.test()
+async def exhaustive_test(dut):
     # Now that we know where the sim_build directory is, configure logging
     log_path = os.environ.get('LOG_PATH')
     dut_name = os.environ.get('DUT')
     log = configure_logging(dut_name, log_path)
-    yield run_tb(dut)
+    N = int(os.environ.get('PARAM_N', '0'))
+    max_val = 2**(N-1) # only keep the numbers positive
+    if N == 4:
+        i_list = list(range(max_val))
+        j_list = list(range(max_val))
+    else:
+        count = 128
+        i_list = [random.randint(0, max_val-1) for _ in range(count)]
+        j_list = [random.randint(0, max_val-1) for _ in range(count)]
+    dut.i_multiplier.value = 0
+    dut.i_multiplicand.value = 0
 
-# factory = TestFactory(run_simulation)
+    for i in i_list:
+        for j in j_list:
+            dut.i_multiplier.value = i
+            dut.i_multiplicand.value = j
+
+            # Wait a little for the output to be stable
+            await Timer(1, units='ns')  # Adding a 100 ps delay
+
+            expected = i * j
+            found = dut.ow_product.value.integer
+            log.info(f'{max_val=} {i=} {j=} {expected=} {found=}')
+            assert expected == found, f"For inputs {hex(i)} and {hex(j)}, expected output was {hex(expected)} but got {hex(found)}"
+
+
+# factory = TestFactory(exhaustive_test)
 # factory.generate_tests()
-
 
 repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
 tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the test(current) directory in which this test.py file is placed
 rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hdl folder where .v files are placed
 
-@pytest.mark.parametrize("", [()])
-def test_math_adder_brent_kung_008(request, ):
-    dut_name = "math_adder_brent_kung_008"
+@pytest.mark.parametrize("n", [4])
+def test_math_multiplier_booth_radix_4(request, n):
+    dut_name = "math_multiplier_booth_radix_4"   
     module = os.path.splitext(os.path.basename(__file__))[0]  # The name of this file
-    toplevel = "math_adder_brent_kung_008"   
+    toplevel = "math_multiplier_booth_radix_4"   
 
     verilog_sources = [
-        os.path.join(rtl_dir, "math_adder_brent_kung_pg.sv"),
-        os.path.join(rtl_dir, "math_adder_brent_kung_black.sv"),
-        os.path.join(rtl_dir, "math_adder_brent_kung_gray.sv"),
-        os.path.join(rtl_dir, "math_adder_brent_kung_bitwisepg.sv"),
-        os.path.join(rtl_dir, "math_adder_brent_kung_grouppg_008.sv"),
-        os.path.join(rtl_dir, "math_adder_brent_kung_sum.sv"),
-        os.path.join(rtl_dir, "math_adder_brent_kung_008.sv"),
-
+        os.path.join(rtl_dir, "math_adder_carry_lookahead.sv"),
+        os.path.join(rtl_dir, "math_adder_hierarchical.sv"),
+        os.path.join(rtl_dir, "math_multiplier_booth_radix_4_encoder.sv"),
+        os.path.join(rtl_dir, "math_multiplier_booth_radix_4.sv"),
     ]
-    parameters = { }
+
+    parameters = {'N':n, }
 
     extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
 

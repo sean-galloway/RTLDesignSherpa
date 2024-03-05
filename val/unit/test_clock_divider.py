@@ -1,7 +1,7 @@
 import cocotb
 from cocotb.triggers import Timer
 from cocotb.clock import Clock
-from cocotb.regression import TestFactory
+# from cocotb.regression import TestFactory
 import os
 import subprocess
 import pytest
@@ -50,8 +50,8 @@ async def clock_divider_test(dut):
 
     dut._log.info("Waited for sufficient time for 4 toggles of o_divided_clk[3].")
 
-tf = TestFactory(clock_divider_test)
-tf.generate_tests()
+# tf = TestFactory(clock_divider_test)
+# tf.generate_tests()
 
 repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
 tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the test(current) directory in which this test.py file is placed

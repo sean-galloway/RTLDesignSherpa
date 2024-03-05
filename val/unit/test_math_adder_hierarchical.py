@@ -1,6 +1,6 @@
 import cocotb
 from cocotb.triggers import Timer
-from cocotb.regression import TestFactory
+# from cocotb.regression import TestFactory
 import os
 import subprocess
 import random
@@ -59,8 +59,8 @@ def run_test(dut):
     log.info(f'seed changed to {seed}')
     yield adder_test(dut)
 
-tf = TestFactory(run_test)
-tf.generate_tests()
+# tf = TestFactory(run_test)
+# tf.generate_tests()
 
 repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
 tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the test(current) directory in which this test.py file is placed

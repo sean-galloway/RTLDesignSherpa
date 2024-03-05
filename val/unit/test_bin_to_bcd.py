@@ -1,7 +1,7 @@
 import cocotb
 from cocotb.triggers import RisingEdge, FallingEdge
 from cocotb.clock import Clock
-from cocotb.regression import TestFactory
+# from cocotb.regression import TestFactory
 import os
 import subprocess
 import pytest
@@ -73,8 +73,8 @@ async def bin_to_bcd_test(dut):
         # Wait a clock cycle before the next test iteration
         await RisingEdge(dut.i_clk)
 
-tf = TestFactory(bin_to_bcd_test)
-tf.generate_tests()
+# tf = TestFactory(bin_to_bcd_test)
+# tf.generate_tests()
 
 repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
 tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the test(current) directory in which this test.py file is placed

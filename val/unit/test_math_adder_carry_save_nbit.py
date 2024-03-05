@@ -1,5 +1,5 @@
 import cocotb
-from cocotb.regression import TestFactory
+# from cocotb.regression import TestFactory
 from cocotb.triggers import Timer
 import os
 import random
@@ -63,8 +63,8 @@ async def exhaustive_test(dut):
         assert dut.ow_sum.value == int("".join(str(bit) for bit in reversed(expected_sum)), 2)
         assert dut.ow_carry.value == int("".join(str(bit) for bit in reversed(expected_carry)), 2)
 
-tf = TestFactory(exhaustive_test)
-tf.generate_tests()
+# tf = TestFactory(exhaustive_test)
+# tf.generate_tests()
 
 
 repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')

@@ -48,9 +48,9 @@ def full_adder_test(dut):
     log.info("All tests passed!")
 
 
-from cocotb.regression import TestFactory
-tf = TestFactory(full_adder_test)
-tf.generate_tests()
+# from cocotb.regression import TestFactory
+# tf = TestFactory(full_adder_test)
+# tf.generate_tests()
 
 repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
 tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the test(current) directory in which this test.py file is placed

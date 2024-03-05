@@ -1,8 +1,8 @@
 import cocotb
 import itertools
 from cocotb.triggers import Timer
-from cocotb.regression import TestFactory
-
+# from cocotb.regression import TestFactory
+import itertools
 import os
 import random
 import subprocess
@@ -22,53 +22,62 @@ def configure_logging(dut_name, log_file_path):
     log.addHandler(fh)
     return log
 
+# Function to calculate the expected output with correct sign extension
+def calculate_expected_output(booth_group, multiplicand, N):
+    mask = (2**(N+1) - 1)
+    msb = (multiplicand >> (N - 1)) & 1  # Extract the MSB for sign extension
+
+    if booth_group in [0b000, 0b111]:
+        return 0
+    elif booth_group in [0b001, 0b010]:
+        return (multiplicand & mask) | (msb << N)
+    elif booth_group == 0b011:
+        return ((multiplicand << 1) & mask) | (msb << N)
+    elif booth_group == 0b100:
+        return ((~(multiplicand << 1)) + 1) & mask
+    elif booth_group in [0b101, 0b110]:
+        return ((~(multiplicand | (msb << N))) + 1) & mask
+    else:
+        return 0  # Should not reach here
+
 @cocotb.test()
 async def exhaustive_test(dut):
-    # Now that we know where the sim_build directory is, configure logging
+    """ Test the Booth encoder with all possible input combinations for a given N. """
+    N = int(os.environ.get('PARAM_N', '8'))  # Default to 8 if not set
     log_path = os.environ.get('LOG_PATH')
     dut_name = os.environ.get('DUT')
     log = configure_logging(dut_name, log_path)
-    N = int(os.environ.get('PARAM_N', '0'))
     max_val = 2**N
-    if N == 4:
-        i_list = range(max_val)
-        j_list = range(max_val)
-    else:
-        count = 128
-        i_list = [random.randint(0, max_val-1) for _ in range(count)]
-        j_list = [random.randint(0, max_val-1) for _ in range(count)]
+    for booth_group, multiplicand in itertools.product(range(8), range(max_val)):
+        # Set the inputs
+        dut.i_booth_group.value = booth_group
+        dut.i_multiplicand.value = multiplicand
+        log.info(f'{booth_group=}   {hex(multiplicand)}')
 
-    for i, j in zip(i_list, j_list):
-        dut.i_multiplier.value = i
-        dut.i_multiplicand.value = j
+        # Wait for combinational logic to settle
+        await Timer(1, units='ns')
 
-        # Wait a little for the output to be stable
-        # We're assuming combinatorial logic, so a small delay is enough
-        await Timer(1, units='ns')  # Adding a 100 ps delay
+        # Calculate the expected output
+        expected = calculate_expected_output(booth_group, multiplicand, N)
 
-        expected = i * j
-        found = dut.ow_product.value.integer
-        log.info(f'{max_val=} {i=} {j=} {expected=} {found=}')
-        assert expected == found, f"For inputs {i} and {j}, expected output was {expected} but got {found}"
-
-factory = TestFactory(exhaustive_test)
-factory.generate_tests()
+        # Check the output
+        found = int(dut.ow_booth_out.value)
+        assert found == expected, f"Failed: booth_group={booth_group} multiplicand={hex(multiplicand)} expected={hex(expected)} got={hex(found)}"
+# factory = TestFactory(exhaustive_test)
+# factory.generate_tests()
 
 repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
 tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the test(current) directory in which this test.py file is placed
 rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hdl folder where .v files are placed
 
 @pytest.mark.parametrize("n", [4, 8])
-def test_math_multiplier_booths(request, n):
-    dut_name = "math_multiplier_booths"   
+def test_math_multiplier_booth_radix_4_encoder(request, n):
+    dut_name = "math_multiplier_booth_radix_4_encoder"   
     module = os.path.splitext(os.path.basename(__file__))[0]  # The name of this file
-    toplevel = "math_multiplier_booths"   
+    toplevel = "math_multiplier_booth_radix_4_encoder"   
 
     verilog_sources = [
-        os.path.join(rtl_dir, "math_adder_carry_lookahead.sv"),
-        os.path.join(rtl_dir, "math_adder_hierarchical.sv"),
-        os.path.join(rtl_dir, "math_multiplier_booths.sv"),
-
+        os.path.join(rtl_dir, "math_multiplier_booth_radix_4_encoder.sv"),
     ]
     parameters = {'N':n, }
 

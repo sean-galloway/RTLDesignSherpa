@@ -1,7 +1,7 @@
 import cocotb
 import itertools
 from cocotb.triggers import Timer
-from cocotb.regression import TestFactory
+# from cocotb.regression import TestFactory
 import os
 import subprocess
 import pytest
@@ -46,8 +46,8 @@ async def cla_4bit_test(dut):
             assert (int(dut.ow_sum) == expected_sum) and (int(dut.ow_carry) == expected_carry),\
                 f"For i_a={i_a}, i_b={i_b}, and i_c={i_c}, expected sum was {expected_sum} and carry out was {expected_carry} but got sum={(dut.ow_sum.value)} and carry out={dut.ow_carry.value}"
 
-tf = TestFactory(cla_4bit_test)
-tf.generate_tests()
+# tf = TestFactory(cla_4bit_test)
+# tf.generate_tests()
 
 repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
 tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the test(current) directory in which this test.py file is placed
