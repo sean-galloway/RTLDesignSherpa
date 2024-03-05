@@ -62,7 +62,7 @@ repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).str
 tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the test(current) directory in which this test.py file is placed
 rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hdl folder where .v files are placed
 
-@pytest.mark.parametrize("n", [4])
+@pytest.mark.parametrize("n", [4, 16, 32])
 def test_math_multiplier_booth_radix_4(request, n):
     dut_name = "math_multiplier_booth_radix_4"   
     module = os.path.splitext(os.path.basename(__file__))[0]  # The name of this file
