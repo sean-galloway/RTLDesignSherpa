@@ -9136,12 +9136,4 @@ module math_multiplier_dadda_tree_032 #(
     assign ow_product[62] = w_sum_62;
     assign ow_product[63] = w_sum_63;
 
-
-    // synopsys translate_off
-    initial begin
-        $dumpfile("waves.vcd");
-        $dumpvars(0, math_multiplier_dadda_tree_032);
-    end
-    // synopsys translate_on
-
 endmodule

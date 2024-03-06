@@ -29,11 +29,4 @@ module clock_divider #(
         end
     endgenerate
 
-    // synopsys translate_off
-    initial begin
-        $dumpfile("waves.vcd");
-        $dumpvars(0, clock_divider);
-    end
-    // synopsys translate_on
-
 endmodule : clock_divider

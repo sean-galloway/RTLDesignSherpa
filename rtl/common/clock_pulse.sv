@@ -22,11 +22,4 @@ module clock_pulse #(
         end
     end
 
-    // synopsys translate_off
-    initial begin
-        $dumpfile("waves.vcd");
-        $dumpvars(0, clock_pulse);
-    end
-    // synopsys translate_on
-
 endmodule : clock_pulse

@@ -75,11 +75,4 @@ module arbiter_weighted_round_robin #(
         .ow_grant(ow_grant)
     );
 
-    // synopsys translate_off
-    initial begin
-        $dumpfile("waves.vcd");
-        $dumpvars(0, arbiter_weighted_round_robin);
-    end
-    // synopsys translate_on
-
 endmodule : arbiter_weighted_round_robin

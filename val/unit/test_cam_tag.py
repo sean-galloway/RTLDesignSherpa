@@ -60,9 +60,6 @@ def test_cam_tag(request, n, depth):
     toplevel = "cam_tag"   
 
     verilog_sources = [
-        os.path.join(rtl_dir, "find_first_set.sv"),
-        os.path.join(rtl_dir, "find_last_set.sv"),
-        os.path.join(rtl_dir, "leading_one_trailing_one.sv"),
         os.path.join(rtl_dir, "cam_tag.sv"),
     ]
     parameters = {'N':n,'DEPTH':depth}

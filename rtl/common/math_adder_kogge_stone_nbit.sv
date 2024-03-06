@@ -46,12 +46,6 @@ module math_adder_kogge_stone_nbit #(
     assign ow_carry = w_C[N-1];
 
     // Debug purposes
-    // synopsys translate_off
-    initial begin
-        $dumpfile("waves.vcd");
-        $dumpvars(0, math_adder_kogge_stone_nbit);
-    end
-    // synopsys translate_on
 
 
 endmodule : math_adder_kogge_stone_nbit

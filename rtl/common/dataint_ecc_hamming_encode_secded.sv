@@ -78,11 +78,4 @@ module dataint_ecc_hamming_encode_secded #(
         ow_encoded_data = w_data_with_parity;
     end
 
-    // synopsys translate_off
-    initial begin
-        $dumpfile("waves.vcd");
-        $dumpvars(0, dataint_ecc_hamming_encode_secded);
-    end
-    // synopsys translate_on
-
 endmodule : dataint_ecc_hamming_encode_secded

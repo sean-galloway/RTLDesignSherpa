@@ -31,10 +31,6 @@ module dataint_parity #(
     endgenerate
 
     // Synopsys translate_off
-    initial begin
-        $dumpfile("waves.vcd");
-        $dumpvars(0, dataint_parity);
-    end
     // Synopsys translate_on
 
 endmodule : dataint_parity

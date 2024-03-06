@@ -22,11 +22,4 @@ module dataint_checksum #(
 
     assign o_chksum = r_count;
 
-    // synopsys translate_off
-    initial begin
-        $dumpfile("waves.vcd");
-        $dumpvars(0, dataint_checksum);
-    end
-    // synopsys translate_on
-
 endmodule : dataint_checksum

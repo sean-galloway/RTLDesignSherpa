@@ -112,11 +112,4 @@ module arbiter_round_robin #(
             o_gnt[w_winner] <= 1'b1;
         end else o_gnt <= '0;
 
-    // synopsys translate_off
-    initial begin
-        $dumpfile("waves.vcd");
-        $dumpvars(0, arbiter_round_robin);
-    end
-    // synopsys translate_on
-
 endmodule : arbiter_round_robin

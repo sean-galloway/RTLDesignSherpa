@@ -50,12 +50,5 @@ module shifter_barrel #(
         endcase
     end
 
-    // synopsys translate_off
-    initial begin
-        $dumpfile("waves.vcd");
-        $dumpvars(0, shifter_barrel);
-    end
-    // synopsys translate_on
-
 endmodule : shifter_barrel
 

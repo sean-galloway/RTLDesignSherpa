@@ -45,11 +45,4 @@ module sort #(
             w_sorted_bus[i*SIZE+:SIZE] = w_array[i+1];
         end
     end
-
-    // synopsys translate_off
-    initial begin
-        $dumpfile("waves.vcd");
-        $dumpvars(0, sort);
-    end
-    // synopsys translate_on
 endmodule

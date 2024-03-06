@@ -22,11 +22,4 @@ module reset_sync #(
         .i_rst_n(i_rst_n)
     );
 
-    // synopsys translate_off
-    initial begin
-        $dumpfile("waves.vcd");
-        $dumpvars(0, reset_sync);
-    end
-    // synopsys translate_on
-
 endmodule : reset_sync

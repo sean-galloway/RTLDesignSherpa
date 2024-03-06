@@ -150,11 +150,4 @@ module dataint_ecc_hamming_decode_secded #(
         end
     endgenerate
 
-    // synopsys translate_off
-    initial begin
-        $dumpfile("waves.vcd");
-        $dumpvars(0, dataint_ecc_hamming_decode_secded);
-    end
-    // synopsys translate_on
-
 endmodule : dataint_ecc_hamming_decode_secded

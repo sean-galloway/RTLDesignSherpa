@@ -121,11 +121,4 @@ module bin_to_bcd #(
     assign o_bcd = r_bcd;
     assign o_done = r_dv;
 
-    // synopsys translate_off
-    initial begin
-        $dumpfile("waves.vcd");
-        $dumpvars(0, bin_to_bcd);
-    end
-    // synopsys translate_on
-
 endmodule : bin_to_bcd

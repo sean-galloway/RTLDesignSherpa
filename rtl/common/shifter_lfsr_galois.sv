@@ -53,10 +53,6 @@ module shifter_lfsr_galois #(
     end
 
     // Synopsys translate_off
-    initial begin
-        $dumpfile("waves.vcd");
-        $dumpvars(0, shifter_lfsr_galois);
-    end
     // Synopsys translate_on
 
 endmodule : shifter_lfsr_galois

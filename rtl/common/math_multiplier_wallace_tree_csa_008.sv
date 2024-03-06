@@ -616,12 +616,4 @@ module math_multiplier_wallace_tree_csa_008 #(
     assign ow_product[14] = w_sum_14;
     assign ow_product[15] = w_sum_15;
 
-
-    // synopsys translate_off
-    initial begin
-        $dumpfile("waves.vcd");
-        $dumpvars(0, math_multiplier_wallace_tree_csa_008);
-    end
-    // synopsys translate_on
-
 endmodule

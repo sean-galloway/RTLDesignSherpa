@@ -36,11 +36,4 @@ module math_addsub_full_nbit #(
 
     assign ow_carry = w_c[N];  // output the final carry or borrow
 
-    // synopsys translate_off
-    initial begin
-        $dumpfile("waves.vcd");
-        $dumpvars(0, math_addsub_full_nbit);
-    end
-    // synopsys translate_on
-
 endmodule : math_addsub_full_nbit

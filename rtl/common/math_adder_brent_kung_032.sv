@@ -37,11 +37,5 @@ module math_adder_brent_kung_032 #(
         .ow_sum(ow_sum),
         .ow_carry(ow_carry)
     );
-    // synopsys translate_off
-    initial begin
-        $dumpfile("waves.vcd");
-        $dumpvars(0, math_adder_brent_kung_032);
-    end
-    // synopsys translate_on
 
 endmodule

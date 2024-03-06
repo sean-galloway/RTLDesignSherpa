@@ -106,10 +106,6 @@ module shifter_lfsr #(
     assign o_lfsr_out = r_lfsr;
 
     // Synopsys translate_off
-    initial begin
-        $dumpfile("waves.vcd");
-        $dumpvars(0, shifter_lfsr);
-    end
     // Synopsys translate_on
 
 endmodule : shifter_lfsr

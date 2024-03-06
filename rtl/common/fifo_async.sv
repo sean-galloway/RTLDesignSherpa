@@ -173,11 +173,6 @@ module fifo_async #(
             $display("Error: %s read while fifo empty, %t", INSTANCE_NAME, $time);
         end
     end
-
-    initial begin
-        $dumpfile("waves.vcd");
-        $dumpvars(0, fifo_async);
-    end
     // synopsys translate_on
 
 endmodule : fifo_async

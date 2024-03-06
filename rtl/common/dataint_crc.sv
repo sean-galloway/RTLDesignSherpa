@@ -128,11 +128,4 @@ module dataint_crc #(
         end
     endgenerate
 
-    // synopsys translate_off
-    initial begin
-        $dumpfile("waves.vcd");
-        $dumpvars(0, dataint_crc);
-    end
-    // synopsys translate_on
-
 endmodule : dataint_crc

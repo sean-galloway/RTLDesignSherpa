@@ -32,11 +32,4 @@ module count_leading_zeros #(
         $display("CLZ: %h, %h, %t", i_data, ow_count_leading_zeros, $time);
     end
 
-    // synopsys translate_off
-    initial begin
-        $dumpfile("waves.vcd");
-        $dumpvars(0, count_leading_zeros);
-    end
-    // synopsys translate_on
-
 endmodule : count_leading_zeros

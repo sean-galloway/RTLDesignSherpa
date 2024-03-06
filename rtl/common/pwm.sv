@@ -54,10 +54,6 @@ module pwm #(
     endgenerate
 
     // Synopsys translate_off
-    initial begin
-        $dumpfile("waves.vcd");
-        $dumpvars(0, pwm);
-    end
     // Synopsys translate_on
 
 endmodule : pwm

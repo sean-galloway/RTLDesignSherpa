@@ -16,11 +16,4 @@ module bin2gray #(
 
     assign ow_gray[WIDTH-1] = i_binary[WIDTH-1];
 
-    // synopsys translate_off
-    initial begin
-        $dumpfile("waves.vcd");
-        $dumpvars(0, bin2gray);
-    end
-    // synopsys translate_on
-
 endmodule : bin2gray
