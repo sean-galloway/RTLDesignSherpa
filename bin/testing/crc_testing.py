@@ -4,11 +4,9 @@ from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, FallingEdge, ClockCycles, Timer
 from crc import Calculator, Configuration
 import os
-import subprocess
 import random
-import logging
 
-class CRCTesting(TBBase):
+class CRCTB(TBBase):
     """A class for testing CRC functionality.
 
     This class is used to test CRC functionality by generating test data based on the provided settings and calculating checksums.
@@ -70,27 +68,6 @@ class CRCTesting(TBBase):
     def deassert_reset(self):
         self.dut.i_rst_n.value = 1
 
-
-    @staticmethod
-    def convert_to_int(value):
-        """
-        Convert a value to an integer. If the value is already an integer, return it.
-        If it is a hexadecimal string in the format "8'hXX", convert and return as an integer.
-
-        :param value: An integer or a string representing the hex value.
-        :return: The integer value.
-        """
-        if isinstance(value, int):
-            return value
-        elif isinstance(value, str) and "'h" in value:
-            try:
-                # Extract the hexadecimal part after "h"
-                _, hex_value = value.split("'h")
-                return int(hex_value, 16)
-            except ValueError as e:
-                raise ValueError(f"Invalid hexadecimal input: {value}") from e
-        else:
-            return int(value)
 
     @staticmethod
     def find_highest_byte_enable(data_width):

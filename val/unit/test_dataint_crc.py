@@ -1,7 +1,7 @@
 import cocotb
 import os
 import subprocess
-from crc_testing import CRCTesting, crc_parameters
+from crc_testing import CRCTB, crc_parameters
 import pytest
 from cocotb_test.simulator import run
 import logging
@@ -11,13 +11,12 @@ import random
 @cocotb.test()
 async def crc_basic_test(dut):
     """ Test the CRC calculation for a basic input """
-    tb = CRCTesting(dut, 100)
+    tb = CRCTB(dut, 100)
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
     tb.log.info(f'seed changed to {seed}')
     tb.print_settings()
-    tb.generate_test_data()
 
     tb.start_clock('i_clk', 10, 'ns')
     tb.assert_reset()
