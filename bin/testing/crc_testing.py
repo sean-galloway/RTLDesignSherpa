@@ -57,16 +57,21 @@ class CRCTB(TBBase):
         self.calculator = Calculator(self.cfg)
 
 
-    def assert_reset(self):
-        self.dut.i_rst_n.value = 0
+    async def clear_interface(self):
         self.dut.i_load_crc_start.value = 0
         self.dut.i_load_from_cascade.value = 0
         self.dut.i_cascade_sel.value = 0
         self.dut.i_data.value = 0
 
 
-    def deassert_reset(self):
+    async def assert_reset(self):
+        self.dut.i_rst_n.value = 0
+        self.clear_interface()
+
+
+    async def deassert_reset(self):
         self.dut.i_rst_n.value = 1
+        self.log.info("Reset complete.")
 
 
     @staticmethod
@@ -130,11 +135,11 @@ class CRCTB(TBBase):
             self.test_data.append((data, ecc))
 
 
-    async def test_loop(self):
+    async def main_loop(self):
         for data, expected_crc in self.test_data:
             # Test 1: Load initial CRC value and check
             self.dut.i_load_crc_start.value = 1
-            self.wait_clocks('i_clk',1)
+            await self.wait_clocks('i_clk',1)
             self.dut.i_load_crc_start.value = 0
             assert self.dut.o_crc.value == self.crc_poly_initial, "CRC initial value incorrect"
 
@@ -143,11 +148,11 @@ class CRCTB(TBBase):
             self.dut.i_data.value = data
             self.dut.i_load_from_cascade.value = 1
             self.dut.i_cascade_sel.value = self.find_highest_byte_enable(self.data_width)
-            self.wait_clocks('i_clk',1)
+            await self.wait_clocks('i_clk',1)
             self.dut.i_data.value = 0
             self.dut.i_load_from_cascade.value = 0
             self.dut.i_cascade_sel.value = 0
-            self.wait_clocks('i_clk',1)
+            await self.wait_clocks('i_clk',1)
             # Verify the CRC output matches the expected value
             # Note: You may need to adjust this depending on when the CRC output is valid
             found_crc = self.dut.o_crc.value
