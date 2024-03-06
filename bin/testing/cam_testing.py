@@ -48,7 +48,7 @@ class CamTB(TBBase):
 
     async def assert_reset(self):
         self.dut.i_rst_n.value = 0
-        self.clear_interface()
+        await self.clear_interface()
 
 
     async def deassert_reset(self):
