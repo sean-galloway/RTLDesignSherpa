@@ -6,15 +6,18 @@ from cocotb.triggers import RisingEdge, FallingEdge, ClockCycles, Timer
 from cocotb.clock import Clock
 import logging
 
-class TBBase():
+class TBBase(object):
 
     def __init__(self, dut):
         self.dut = dut
         self.log_path = os.environ.get('LOG_PATH')
         self.dut_name = os.environ.get('DUT')
-        self.log = self.configure_logging(self.dut_name, self.log_path)
+        self.log = self.configure_logging()
 
     def assert_reset(self):
+        pass
+
+    def deassert_reset(self):
         pass
 
     def start_clock(self, clk_name, freq=10, units='ns'):
@@ -31,11 +34,10 @@ class TBBase():
     async def wait_time(self, delay=100, units='ps'):
         await Timer(delay, units=units)
 
-    @staticmethod
-    def configure_logging(dut_name, log_file_path):
-        log = logging.getLogger(f'cocotb_log_{dut_name}')
+    def configure_logging(self):
+        log = logging.getLogger(f'cocotb_log_{self.dut_name}')
         log.setLevel(logging.DEBUG)
-        fh = logging.FileHandler(log_file_path)
+        fh = logging.FileHandler(self.log_path)
         fh.setLevel(logging.DEBUG)
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         fh.setFormatter(formatter)

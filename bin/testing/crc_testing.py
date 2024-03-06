@@ -1,10 +1,14 @@
+from TBBase import TBBase
+import cocotb
+from cocotb.clock import Clock
+from cocotb.triggers import RisingEdge, FallingEdge, ClockCycles, Timer
 from crc import Calculator, Configuration
 import os
 import subprocess
 import random
 import logging
 
-class CRCTesting():
+class CRCTesting(TBBase):
     """A class for testing CRC functionality.
 
     This class is used to test CRC functionality by generating test data based on the provided settings and calculating checksums.
@@ -28,8 +32,8 @@ class CRCTesting():
         Returns:
             None
         """
+        TBBase.__init__(self, dut)
         # Gather the settings from the Parameters to verify them
-        self.log = logging.getLogger('cocotb_log_dataint_crc')
         self.data_width = self.convert_to_int(os.environ.get('PARAM_DATA_WIDTH', '0'))
         self.chunks = self.convert_to_int(dut.CHUNKS.value)
         self.d_nybbles = self.chunks // 2
@@ -55,6 +59,18 @@ class CRCTesting():
         self.calculator = Calculator(self.cfg)
 
 
+    def assert_reset(self):
+        self.dut.i_rst_n.value = 0
+        self.dut.i_load_crc_start.value = 0
+        self.dut.i_load_from_cascade.value = 0
+        self.dut.i_cascade_sel.value = 0
+        self.dut.i_data.value = 0
+
+
+    def deassert_reset(self):
+        self.dut.i_rst_n.value = 1
+
+
     @staticmethod
     def convert_to_int(value):
         """
@@ -75,6 +91,12 @@ class CRCTesting():
                 raise ValueError(f"Invalid hexadecimal input: {value}") from e
         else:
             return int(value)
+
+    @staticmethod
+    def find_highest_byte_enable(data_width):
+        # Calculate the number of bytes - 1 to find the highest byte position
+        highest_byte_position = (data_width // 8) - 1
+        return 1 << highest_byte_position
 
 
     def print_settings(self):
@@ -129,6 +151,31 @@ class CRCTesting():
             ecc = self.calculator.checksum(data_bytes)
             # self.log.info(f'Data Generation: {data_bytes=} {ecc=}')
             self.test_data.append((data, ecc))
+
+
+    async def test_loop(self):
+        for data, expected_crc in self.test_data:
+            # Test 1: Load initial CRC value and check
+            self.dut.i_load_crc_start.value = 1
+            self.wait_clocks('i_clk',1)
+            self.dut.i_load_crc_start.value = 0
+            assert self.dut.o_crc.value == self.crc_poly_initial, "CRC initial value incorrect"
+
+            # Test 2: Load data and validate CRC calculation
+            # This step depends on having a known input-output pair for validation
+            self.dut.i_data.value = data
+            self.dut.i_load_from_cascade.value = 1
+            self.dut.i_cascade_sel.value = self.find_highest_byte_enable(self.data_width)
+            self.wait_clocks('i_clk',1)
+            self.dut.i_data.value = 0
+            self.dut.i_load_from_cascade.value = 0
+            self.dut.i_cascade_sel.value = 0
+            self.wait_clocks('i_clk',1)
+            # Verify the CRC output matches the expected value
+            # Note: You may need to adjust this depending on when the CRC output is valid
+            found_crc = self.dut.o_crc.value
+            self.log.info(f'test_data=0x{hex(data)[2:].zfill(self.d_nybbles)}   expected_crc=0x{hex(expected_crc)[2:].zfill(self.nybbles)}  actual_crc=0x{hex(found_crc)[2:].zfill(self.nybbles)}')
+            assert hex(found_crc) == hex(expected_crc), f"Unexpected CRC result: data=0x{hex(data)[2:].zfill(self.d_nybbles)}  expected {hex(expected_crc)} --> found {hex(found_crc)}"
 
 
 crc_parameters = [
