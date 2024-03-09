@@ -1,6 +1,4 @@
 import os
-import random
-import ConstrainedRandom
 import cocotb
 from cocotb.triggers import RisingEdge, FallingEdge, ClockCycles, Timer
 from cocotb.clock import Clock
@@ -128,6 +126,25 @@ class TBBase(object):
         else:
             return int(value)
 
+
+    @staticmethod
+    def hex_format(value, max_value):
+        """
+        Format an integer value as a hexadecimal string with leading zeros.
+
+        Args:
+            value (int): The integer value to format.
+            max_value (int): The maximum value to determine the width of the hexadecimal string.
+
+        Returns:
+            str: The formatted hexadecimal string.
+
+        Examples:
+            hex_format(10, 255) returns '0A'
+        """
+        # Calculate the number of hexadecimal digits needed
+        hex_width = (max_value.bit_length() + 3) // 4  # Round up division by 4
+        return format(value, f'0{hex_width}X')
 
     @staticmethod
     def generate_alternating_ones(N):

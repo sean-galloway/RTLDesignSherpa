@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 module math_multiplier_carry_save #(
-    parameter N = 4
+    parameter int N = 4
 ) (
     input  logic [  N-1:0] i_multiplier,
     input  logic [  N-1:0] i_multiplicand,

@@ -127,5 +127,6 @@ module dataint_crc #(
             assign flat_w_cascade[i*CW+:CW] = w_cascade[i];
         end
     endgenerate
+    // synopsys translate_on
 
 endmodule : dataint_crc

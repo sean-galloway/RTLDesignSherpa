@@ -26,9 +26,7 @@ module math_multiplier_booth_radix_4 #(
 
     localparam int M = (N + 1) / 2;  // Number of Booth-encoded groups for radix-4
     logic [N:0]     w_encoded_values   [0:M-1]; // verilog_lint: waive unpacked-dimensions-range-ordering
-    logic [N-1:0]   w_neg_multiplicand;
     logic [2*N-1:0] w_partial_products [0:M-1]; // verilog_lint: waive unpacked-dimensions-range-ordering
-    logic [2*N-1:0] w_product;
 
     // Booth encoding and partial product generation
     genvar i;
@@ -66,4 +64,3 @@ module math_multiplier_booth_radix_4 #(
     end
 
 endmodule : math_multiplier_booth_radix_4
-

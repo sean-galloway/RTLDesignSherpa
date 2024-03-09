@@ -6,9 +6,11 @@ module cam_tag #(
 )(
     input  logic               i_clk,
     input  logic               i_rst_n,
-    input  logic [N-1:0]       i_tag_in,
+    input  logic [N-1:0]       i_tag_in_status,
     input  logic               i_mark_valid,
+    input  logic [N-1:0]       i_tag_in_valid,
     input  logic               i_mark_invalid,
+    input  logic [N-1:0]       i_tag_in_invalid,
     output logic               ow_tags_empty,
     output logic               ow_tags_full,
     output logic               ow_tag_status
@@ -17,26 +19,33 @@ module cam_tag #(
     logic [N-1:0]     r_tag_array [0:DEPTH-1]; // verilog_lint: waive unpacked-dimensions-range-ordering
     logic [DEPTH-1:0] r_valid;
 
-    integer i, w_next_loc, w_match_loc;
+    integer i, w_next_valid_loc, w_match_loc, w_match_invalid_loc;
 
     ///////////////////////////////////////////////////////////////////////////
     // Find the next open slot
     always_comb begin
-        w_next_loc = -1;
+        w_next_valid_loc = -1;
         for (i=DEPTH-1; i >= 0; i--)
             if (r_valid[i] == 1'b0)
-                w_next_loc = i;
+                w_next_valid_loc = i;
     end
 
     ///////////////////////////////////////////////////////////////////////////
-    // Find the index of the matching item
+    // Find the index of the matching valid item
     always_comb begin
         w_match_loc = -1;  // Default value indicating 'no match'
-        for (i = 0; i < DEPTH; i++) begin
-            if (r_valid[i] == 1'b1 && i_tag_in == r_tag_array[i]) begin
+        for (i = 0; i < DEPTH; i++)
+            if (r_valid[i] == 1'b1 && i_tag_in_status == r_tag_array[i])
                 w_match_loc = i;
-            end
-        end
+    end
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Find the index of the matching invalid item
+    always_comb begin
+        w_match_invalid_loc = -1;  // Default value indicating 'no match'
+        for (i = 0; i < DEPTH; i++)
+            if (r_valid[i] == 1'b1 && i_tag_in_invalid == r_tag_array[i])
+                w_match_invalid_loc = i;
     end
 
     ///////////////////////////////////////////////////////////////////////////
@@ -49,11 +58,11 @@ module cam_tag #(
             end
         end else begin
             if (i_mark_valid && !ow_tags_full) begin
-                r_tag_array[w_next_loc] <= i_tag_in;
-                r_valid[w_next_loc] <= 1'b1;
+                r_tag_array[w_next_valid_loc] <= i_tag_in_valid;
+                r_valid[w_next_valid_loc] <= 1'b1;
             end else if (i_mark_invalid) begin
-                r_tag_array[w_match_loc] <= 'b0;
-                r_valid[w_match_loc] <= 1'b0;
+                r_tag_array[w_match_invalid_loc] <= 'b0;
+                r_valid[w_match_invalid_loc] <= 1'b0;
             end
         end
     end

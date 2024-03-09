@@ -41,7 +41,9 @@ class CamTB(TBBase):
 
 
     async def clear_interface(self):
-        self.dut.i_tag_in.value = 0
+        self.dut.i_tag_in_status.value = 0
+        self.dut.i_tag_in_valid.value = 0
+        self.dut.i_tag_in_invalid.value = 0
         self.dut.i_mark_valid.value = 0
         self.dut.i_mark_invalid.value = 0
 
@@ -74,24 +76,24 @@ class CamTB(TBBase):
 
     async def mark_one_valid(self, tag_value):
         self.log.info(f"Marking Valid {hex(tag_value)}")
-        self.dut.i_tag_in.value = tag_value
+        self.dut.i_tag_in_valid.value = tag_value
         self.dut.i_mark_valid.value = 1
         await self.wait_clocks('i_clk', 1)
-        self.dut.i_tag_in.value = 0
+        self.dut.i_tag_in_valid.value = 0
         self.dut.i_mark_valid.value = 0
 
 
     async def mark_one_invalid(self, tag_value):
         self.log.info(f"Marking Valid {hex(tag_value)}")
-        self.dut.i_tag_in.value = tag_value
+        self.dut.i_tag_in_invalid.value = tag_value
         self.dut.i_mark_invalid.value = 1
         await self.wait_clocks('i_clk', 1)
-        self.dut.i_tag_in.value = 0
+        self.dut.i_tag_in_invalid.value = 0
         self.dut.i_mark_invalid.value = 0
 
 
     async def check_tag(self, tag_value, check):
-        self.dut.i_tag_in.value = tag_value
+        self.dut.i_tag_in_status.value = tag_value
         await self.wait_clocks('i_clk', 1)
         found = self.dut.ow_tag_status
         if check == 1:
