@@ -7,167 +7,26 @@ import subprocess
 import random
 
 import pytest
+from fifo_axi_sync_testing import FIFOAXISyncTB
 from cocotb_test.simulator import run
-import logging
-
-def configure_logging(dut_name, log_file_path):
-    log = logging.getLogger(f'cocotb_log_{dut_name}')
-    log.setLevel(logging.DEBUG)
-    fh = logging.FileHandler(log_file_path)
-    fh.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    fh.setFormatter(formatter)
-    log.addHandler(fh)
-    return log
-
-
-TIMEOUT_CYCLES = 1000  # Adjust as necessary
-
-@cocotb.coroutine
-async def write_fifo(dut, data, delay_between_writes=0):
-    dut._log.info("Entering write_fifo...")
-    dut.i_wr_valid.value = 0
-    await RisingEdge(dut.i_clk)
-    await Timer(100, units='ps')  # Adding a 100 ps delay
-
-    data_len = len(data)
-    data_sent = 0
-    timeout_counter = 0
-
-    while data_sent != data_len:
-        idx = data_sent
-        dut._log.info(f"Got Rising Edge of i_clk (Iteration {idx}). Checking if FIFO full...")
-
-        while dut.o_wr_ready.value == 1 and (data_sent != data_len):
-            value = data[data_sent]
-            idx = data_sent
-            dut.i_wr_valid.value = 1
-            dut.i_wr_data.value = value
-            data_sent += 1
-            await RisingEdge(dut.i_clk)
-            await Timer(100, units='ps')  # Adding a 100 ps delay
-            dut._log.info(f"Writing data {hex(value)} to FIFO (Iteration {idx})...")
-            dut.i_wr_valid.value = 0
-
-            for _ in range(delay_between_writes):
-                await RisingEdge(dut.i_clk)
-                await Timer(100, units='ps')  # Adding a 100 ps delay
-
-            timeout_counter += 1
-            if timeout_counter >= TIMEOUT_CYCLES:
-                dut._log.error("Timeout during write!")
-                return
-
-        dut._log.info(f"FIFO is full. Waiting for next clock cycle (Iteration {idx})...")
-        dut.i_wr_valid.value = 0
-        dut.i_wr_data.value = 0
-        await RisingEdge(dut.i_clk)
-        await Timer(100, units='ps')  # Adding a 100 ps delay
-
-    dut.i_wr_valid.value = 0
-    dut.i_wr_data.value = 0
-    await RisingEdge(dut.i_clk)
-    await Timer(100, units='ps')  # Adding a 100 ps delay
-    dut._log.info("Exiting write_fifo...")
-
-
-@cocotb.coroutine
-async def delayed_read_fifo(dut, delay, expected_data_length, delay_between_reads=0):
-    dut._log.info(f"Entering delayed_read_fifo with delay {delay}...")
-    read_values = []
-
-    timeout_counter = 0
-    while dut.o_rd_valid.value == 1:
-        await RisingEdge(dut.i_clk)
-        await Timer(100, units='ps')  # Adding a 100 ps delay
-        timeout_counter += 1
-        if timeout_counter >= TIMEOUT_CYCLES:
-            dut._log.error("Timeout waiting for FIFO to fill!")
-            return
-
-    for _ in range(delay):
-        await RisingEdge(dut.i_clk)
-        await Timer(100, units='ps')  # Adding a 100 ps delay
-
-    data_read = 0
-    timeout_counter = 0
-
-    while data_read != expected_data_length:
-        if dut.o_rd_valid.value == 0:
-            dut.i_rd_ready.value = 0
-            await RisingEdge(dut.i_clk)
-            await Timer(100, units='ps')  # Adding a 100 ps delay
-            dut._log.info(f"FIFO Empty: waiting for more data (Iteration {data_read})")    
-            continue
-
-        dut.i_rd_ready.value = 1
-        read_data = int(dut.ow_rd_data.value)
-        read_values.append(read_data)
-        data_read += 1
-        await RisingEdge(dut.i_clk)
-        await Timer(100, units='ps')  # Adding a 100 ps delay
-        dut._log.info(f"Read data from FIFO: {hex(read_data)} (Iteration {data_read})")
-
-        for _ in range(delay_between_reads):
-            dut.i_rd_ready.value = 0
-            await RisingEdge(dut.i_clk)
-            await Timer(100, units='ps')  # Adding a 100 ps delay
-
-        timeout_counter += 1
-        if timeout_counter >= TIMEOUT_CYCLES:
-            dut._log.error("Timeout during read!")
-            return
-
-    dut.i_rd_ready.value = 0
-    dut._log.info("Exiting delayed_read_fifo...")
-    return read_values
 
 
 @cocotb.test()
 async def fifo_test(dut):
+    '''Test the FIFO as thoroughly as possible'''
+    tb = FIFOAXISyncTB(dut)
     # Use the seed for reproducibility
-    log_path = os.environ.get('LOG_PATH')
-    dut_name = os.environ.get('DUT')
-    log = configure_logging(dut_name, log_path)
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
-    log.info(f'seed changed to {seed}')
+    tb.log.info(f'seed changed to {seed}')
+    await tb.start_clock('i_clk', 10, 'ns')
+    await tb.assert_reset()
+    await tb.wait_clocks('i_clk', 5)
+    await tb.deassert_reset()
+    await tb.wait_clocks('i_clk', 5)
+    tb.log.info("Starting test...")
+    await tb.main_loop(100, 200)
 
-    dut.i_wr_valid.value = 0
-    dut.i_wr_data.value = 0
-    dut.i_rd_ready.value = 0
-    dut.i_rst_n.value = 0
-
-    cocotb.start_soon(Clock(dut.i_clk, 10, units="ns").start())
-    for _ in range(5):
-        await RisingEdge(dut.i_clk)
-        await Timer(100, units='ps')  # Adding a 100 ps delay
-
-        dut.i_rst_n.value = 1
-
-    width = int(os.environ.get('PARAM_DATA_WIDTH', '0'))
-    depth = int(os.environ.get('PARAM_DEPTH', '0'))
-    iterations = 100
-    delay_between_iterations = 20
-
-    for _ in range(iterations):
-        data = [random.randint(0, (1 << width) - 1) for _ in range(2*depth)]
-        write_delay = random.randint(0, 10)
-        cocotb.start_soon(write_fifo(dut, data, write_delay))
-        read_delay = random.randint(0, 10)
-        read2read_delay = random.randint(0, 2)
-        read_values = await delayed_read_fifo(dut, read_delay, len(data), read2read_delay)
-
-        hex_data = [hex(num) for num in data]
-        hex_read_data = [hex(num) for num in read_values]
-        assert data == read_values, f"Data mismatch. Written: {hex_data}, Read: {hex_read_data}"
-
-        for _ in range(delay_between_iterations):
-            await RisingEdge(dut.i_clk)
-            await Timer(100, units='ps')  # Adding a 100 ps delay
-
-# tf = TestFactory(fifo_test)
-# tf.generate_tests()
 
 repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
 tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the test(current) directory in which this test.py file is placed

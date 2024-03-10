@@ -7,7 +7,7 @@ import os
 import random
 from ConstrainedRandom import ConstrainedRandom
 
-class FIFOASyncTB(TBBase):
+class FIFOAXIASyncTB(TBBase):
 
     def __init__(self, dut):
         TBBase.__init__(self, dut)
@@ -24,9 +24,9 @@ class FIFOASyncTB(TBBase):
 
 
     async def clear_interface(self):
-        self.dut.i_write.value = 0
-        self.dut.i_read.value = 0
+        self.dut.i_wr_valid.value = 0
         self.dut.i_wr_data.value = 0
+        self.dut.i_rd_ready.value = 0
 
 
     async def assert_reset(self):
@@ -58,7 +58,7 @@ class FIFOASyncTB(TBBase):
         self.log.info("Entering read_fifo with delay...")
         read_values = []
         timeout_counter = 0
-        while self.dut.o_wr_full.value != 1:
+        while self.dut.o_rd_valid.value == 0:
             await self.wait_clocks('i_rd_clk',1)
             timeout_counter += 1
             if timeout_counter >= self.TIMEOUT_CYCLES:
@@ -73,13 +73,13 @@ class FIFOASyncTB(TBBase):
         timeout_counter = 0
 
         while data_read != expected_data_length:
-            if self.dut.o_rd_empty.value == 1:
-                self.dut.i_read.value = 0
+            if self.dut.o_rd_valid.value == 0:
+                self.dut.i_rd_ready.value = 0
                 await self.wait_clocks('i_rd_clk',1)
                 self.log.info(f"FIFO Empty: waiting for more data (Iteration {data_read})")    
                 continue
 
-            self.dut.i_read.value = 1
+            self.dut.i_rd_ready.value = 1
             read_data = int(self.dut.ow_rd_data.value)
             read_values.append(read_data)
             data_read += 1
@@ -87,7 +87,7 @@ class FIFOASyncTB(TBBase):
             self.log.info(f"Read data from FIFO: {hex(read_data)} (Iteration {data_read})")
 
             delay = self.read_crand.next()
-            self.dut.i_read.value = 0
+            self.dut.i_rd_ready.value = 0
             await self.wait_clocks('i_rd_clk', delay)
 
             timeout_counter += 1
@@ -95,14 +95,14 @@ class FIFOASyncTB(TBBase):
                 self.log.error("Timeout during read!")
                 return
 
-        self.dut.i_read.value = 0
+        self.dut.i_rd_ready.value = 0
         self.log.info("Exiting delayed_read_fifo...")
         return read_values
 
 
     async def write_fifo(self, data):
         self.log.info("Entering write_fifo...")
-        self.dut.i_write.value = 0
+        self.dut.i_wr_valid.value = 0
         await self.wait_clocks('i_wr_clk',1)      
         data_len = len(data)
         data_sent = 0
@@ -112,16 +112,16 @@ class FIFOASyncTB(TBBase):
             idx = data_sent
             self.log.info(f"Got Rising Edge of i_wr_clk (Iteration {idx}). Checking if FIFO full...")
 
-            while self.dut.o_wr_full.value == 0 and (data_sent != data_len):
+            while self.dut.o_wr_ready.value == 1 and (data_sent != data_len):
                 value = data[data_sent]
                 idx = data_sent
-                self.dut.i_write.value = 1
+                self.dut.i_wr_valid.value = 1
                 self.dut.i_wr_data.value = value
                 data_sent += 1
                 await self.wait_clocks('i_wr_clk',1)
                 self.log.info(f"Writing data {hex(value)} to FIFO (Iteration {idx})...")
 
-                self.dut.i_write.value = 0
+                self.dut.i_wr_valid.value = 0
                 delay = self.write_crand.next()
                 await self.wait_clocks('i_wr_clk', delay)
 
@@ -131,11 +131,11 @@ class FIFOASyncTB(TBBase):
                     return
 
             self.log.info(f"FIFO is full. Waiting for next clock cycle (Iteration {idx})...")
-            self.dut.i_write.value = 0
+            self.dut.i_wr_valid.value = 0
             self.dut.i_wr_data.value = 0
             await self.wait_clocks('i_wr_clk',1)
 
-        self.dut.i_write.value = 0
+        self.dut.i_wr_valid.value = 0
         self.dut.i_wr_data.value = 0
         await self.wait_clocks('i_wr_clk',1)
 
