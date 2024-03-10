@@ -8,13 +8,13 @@ import pytest
 from cocotb_test.simulator import run
 import logging
 import random
-from cam_testing import CamTB
+from buffer_blocking_reorder_testing import BufferBlockingReorderTB
 
 
 @cocotb.test()
 async def basic_test(dut):
-    '''Test the CAM as thoroughly as possible'''
-    tb = CamTB(dut)
+    '''Test the ROB as thoroughly as possible'''
+    tb = BufferBlockingReorderTB(dut)
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
@@ -31,46 +31,40 @@ async def basic_test(dut):
     tb.check_empty()   # should start off empty
     tb.check_not_full() # should not be full either
 
-    # Test Cases for one entry
-    tag = tb.generate_alternating_ones(tb.N)
-    tag_invert = tb.invert_bits(tag, tb.N)
-    await tb.mark_one_valid(tag)
-    tb.check_not_empty()
-    tb.check_not_full()
-    await tb.check_tag(tag, 1) # make sure it is true
-    await tb.check_tag(tag_invert, 0) # make sure it is false
-    await tb.mark_one_invalid(tag_invert)  # should be illegal
-    await tb.check_tag(tag, 1) # make sure it is true
-    await tb.check_tag(tag_invert, 0) # make sure it is false
-    await tb.mark_one_invalid(tag)  # clear it out
-    tb.check_empty()   # should start off empty
-    tb.check_not_full() # should not be full either
-    await tb.main_loop()
+    # Start the randomize_ready method in parallel without waiting for it to complete
+    cocotb.start_soon(tb.randomize_ready(duration_ns=100000))
 
+    for _ in range(tb.DEPTH):
+        await tb.add_rnd_pkt()
+    interval = random.randint(10, 100)
+    await tb.wait_clocks('i_clk', interval)
+    await tb.add_rnd_pkt_after_full_clears()
     tb.log.info("Test completed successfully.")
 
 repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
 tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the test(current) directory in which this test.py file is placed
 rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hdl folder where .v files are placed
 
-@pytest.mark.parametrize("n, depth", [(8, 16), (4, 8), (8, 32), (8, 64)])
-def test_cam_tag(request, n, depth):
-    dut_name = "cam_tag"
+@pytest.mark.parametrize("tag_width, addr_width, data_width, count_width, timer_width, depth", [(8, 16, 16, 3, 4, 16)])
+def test_reorder_buffer(request, tag_width, addr_width, data_width, count_width, timer_width, depth):
+    dut_name = "buffer_blocking_reorder"
     module = os.path.splitext(os.path.basename(__file__))[0]  # The name of this file
-    toplevel = "cam_tag"   
+    toplevel = dut_name  
 
     verilog_sources = [
-        os.path.join(rtl_dir, "cam_tag.sv"),
+        os.path.join(rtl_dir, f"{dut_name}.sv"),
     ]
-    parameters = {'N':n,'DEPTH':depth}
+
+    parameters = {'TAG_WIDTH':tag_width, 'ADDR_WIDTH':addr_width, 'DATA_WIDTH':data_width, 
+                    'COUNT_WIDTH':count_width, 'TIMER_WIDTH':timer_width, 'DEPTH':depth}
 
     extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
 
     # sourcery skip: no-conditionals-in-tests
     if request.config.getoption("--regression"):
-        sim_build = os.path.join(repo_root, 'val', 'unit', 'regression_area', 'sim_build', request.node.name.replace('[', '-').replace(']', ''))
+        sim_build = os.path.join(repo_root, 'val', 'unit_common', 'regression_area', 'sim_build', request.node.name.replace('[', '-').replace(']', ''))
     else:
-        sim_build = os.path.join(repo_root, 'val', 'unit', 'local_sim_build', request.node.name.replace('[', '-').replace(']', ''))
+        sim_build = os.path.join(repo_root, 'val', 'unit_common', 'local_sim_build', request.node.name.replace('[', '-').replace(']', ''))
 
     extra_env['LOG_PATH'] = os.path.join(str(sim_build), f'cocotb_log_{dut_name}.log')
     extra_env['DUT'] = dut_name
