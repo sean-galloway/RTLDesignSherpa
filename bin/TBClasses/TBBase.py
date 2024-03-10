@@ -55,8 +55,8 @@ class TBBase(object):
             await start_clock('clk', freq=20, units='ps')
         """
         clk_signal = getattr(self.dut, clk_name)
-        clock = Clock(clk_signal, freq, units=units)
-        cocotb.start_soon(clock.start())
+        cocotb.start_soon(Clock(clk_signal, freq, units=units).start())
+        await Timer(100, units='ps')
 
     async def wait_clocks(self, clk_name, count=1, delay=100, units='ps'):
         """

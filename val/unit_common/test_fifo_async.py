@@ -31,19 +31,15 @@ repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).str
 tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the test(current) directory in which this test.py file is placed
 rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hdl folder where .v files are placed
 
-@pytest.mark.parametrize("depth, data_width", [(4, 8), (6, 8), (10, 8)])
+@pytest.mark.parametrize("depth, data_width", [(4, 8), (8, 8), (16, 8)])
 def test_fifo_async(request, depth, data_width):
-    dut_name = "fifo_async_div2"
+    dut_name = "fifo_async"
     module = os.path.splitext(os.path.basename(__file__))[0]  # The name of this file
     toplevel = dut_name
 
     verilog_sources = [
-        os.path.join(rtl_dir, "find_first_set.sv"),
-        os.path.join(rtl_dir, "find_last_set.sv"),
-        os.path.join(rtl_dir, "leading_one_trailing_one.sv"),
-        os.path.join(rtl_dir, "counter_bin.sv"),
-        os.path.join(rtl_dir, "counter_johnson.sv"),
-        os.path.join(rtl_dir, "grayj2bin.sv"),
+        os.path.join(rtl_dir, "counter_bingray.sv"),
+        os.path.join(rtl_dir, "gray2bin.sv"),
         os.path.join(rtl_dir, "glitch_free_n_dff_arn.sv"),
         os.path.join(rtl_dir, "fifo_control.sv"),
         os.path.join(rtl_dir, f"{dut_name}.sv"),
