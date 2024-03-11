@@ -1,28 +1,25 @@
 import cocotb
+import itertools
+from cocotb.triggers import Timer
 import os
 import subprocess
 import pytest
-from crc_testing import CRCTB, crc_parameters
+from adder_testing import AdderTB
 from cocotb_test.simulator import run
 import random
 
 
 @cocotb.test()
-async def crc_basic_test(dut):
-    """ Test the CRC calculation for a basic input Across 250 Configurations"""
-    tb = CRCTB(dut, 100)
+async def adder_test(dut):
+    """ Test the adder fairly completely"""
+    tb = AdderTB(dut)
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
     tb.log.info(f'seed changed to {seed}')
     tb.print_settings()
-    tb.generate_test_data()
-
-    await tb.start_clock('i_clk', 10, 'ns')
-    await tb.assert_reset()
-    await tb.wait_clocks('i_clk', 5)
-    await tb.deassert_reset()
-    await tb.wait_clocks('i_clk', 5)
+    await tb.clear_interface()
+    await tb.wait_time(1, 'ns')
     await tb.main_loop()
 
 
@@ -30,19 +27,17 @@ repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).str
 tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the test(current) directory in which this test.py file is placed
 rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hdl folder where .v files are placed
 
-# @pytest.mark.parametrize("algo_name, data_width, crc_width, poly, poly_init, refin, refout, xorout", [('CRC-08', 8, '8', "8'h07", "8'h00", '0', '0', "8'h00")])
-@pytest.mark.parametrize("algo_name, data_width, crc_width, poly, poly_init, refin, refout, xorout", crc_parameters)
-def test_dataint_crc(request, algo_name, data_width, crc_width, poly, poly_init, refin, refout, xorout):
-    dut_name = "dataint_crc"
+@pytest.mark.parametrize("", [()])
+def test_math_adder_full(request, ):
+    dut_name = "math_adder_full"
     module = os.path.splitext(os.path.basename(__file__))[0]  # The name of this file
-    toplevel = "dataint_crc"   
+    toplevel = "math_adder_full"   
 
     verilog_sources = [
-        os.path.join(rtl_dir, "dataint_crc_xor_shift.sv"),
-        os.path.join(rtl_dir, "dataint_crc_xor_shift_cascade.sv"),
-        os.path.join(rtl_dir, "dataint_crc.sv"),
+        os.path.join(rtl_dir, "math_adder_full.sv"),
+
     ]
-    parameters = {'ALGO_NAME':algo_name,'DATA_WIDTH':data_width,'CRC_WIDTH':crc_width,'POLY':poly,'POLY_INIT':poly_init,'REFIN':refin,'REFOUT':refout,'XOROUT':xorout, }
+    parameters = {'N':1}
 
     extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
 
