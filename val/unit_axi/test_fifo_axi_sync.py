@@ -45,6 +45,7 @@ def test_fifo_axi_sync(request, depth, data_width):
         os.path.join(rtl_axi_dir, f"{dut_name}.sv"),
 
     ]
+    includes = []
     parameters = {"DATA_WIDTH":data_width, 'DEPTH':depth}
 
     extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
@@ -61,6 +62,7 @@ def test_fifo_axi_sync(request, depth, data_width):
     run(
         python_search=[tests_dir],  # where to search for all the python test files
         verilog_sources=verilog_sources,
+        includes=includes,
         toplevel=toplevel,
         module=module,
         parameters=parameters,

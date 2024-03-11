@@ -55,6 +55,7 @@ def test_reorder_buffer(request, tag_width, addr_width, data_width, count_width,
         os.path.join(rtl_dir, f"{dut_name}.sv"),
     ]
 
+    includes = []
     parameters = {'TAG_WIDTH':tag_width, 'ADDR_WIDTH':addr_width, 'DATA_WIDTH':data_width, 
                     'COUNT_WIDTH':count_width, 'TIMER_WIDTH':timer_width, 'DEPTH':depth}
 
@@ -72,6 +73,7 @@ def test_reorder_buffer(request, tag_width, addr_width, data_width, count_width,
     run(
         python_search=[tests_dir],  # where to search for all the python test files
         verilog_sources=verilog_sources,
+        includes=includes,
         toplevel=toplevel,
         module=module,
         parameters=parameters,

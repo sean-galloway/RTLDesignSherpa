@@ -8,56 +8,62 @@ import os
 import subprocess
 import pytest
 from cocotb_test.simulator import run
-import logging
+from TBBase import TBBase
 
-def configure_logging(dut_name, log_file_path):
-    log = logging.getLogger(f'cocotb_log_{dut_name}')
-    log.setLevel(logging.DEBUG)
-    fh = logging.FileHandler(log_file_path)
-    fh.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    fh.setFormatter(formatter)
-    log.addHandler(fh)
-    return log
 
-@cocotb.coroutine
-def adder_test(dut):
+class AddHierTB(TBBase):
+    
+    def __init__(self, dut):
+        TBBase.__init__(self, dut)
+        self.N = self.convert_to_int(os.environ.get('PARAM_N', '0'))
+        self.C = self.convert_to_int(os.environ.get('PARAM_C', '0'))
+        self.max_val = 2**(self.N)
+        self.max_value_N = 2**self.N
+
+
+    async def clear_interface(self):
+        for i in range(self.C):
+            self.dut.i_numbers[i] = 0
+
+
+    def print_settings(self):
+        self.log.info('-------------------------------------------')
+        self.log.info('Settings:')
+        self.log.info(f'    N:     {self.N}')
+        self.log.info('-------------------------------------------')
+
+
+    async def main_loop(self, count=256):
+        for _ in range(100):
+            # Create and drive random numbers
+            input_data = [random.randint(0, self.max_val) for _ in range(self.C)]
+            for i, val in enumerate(input_data):
+                self.dut.i_numbers[i].value = val
+            
+            # Calculate expected sum
+            expected_sum = sum(input_data)
+            expected_sum = (expected_sum % self.max_value_N)
+
+            await self.wait_time(2, 'ns')
+            
+            # Check the result
+            assert int(self.dut.ow_sum) == expected_sum,\
+                f"Mismatch detected: Expected {expected_sum}, got {int(self.dut.ow_sum)}, list={input_data}"
+
+
+@cocotb.test
+async def adder_test(dut):
     """ Test math_adder_hierarchical with random values """
-    N = int(os.environ.get('PARAM_N'))
-    C = int(os.environ.get('PARAM_C'))
-    max_val = 2**(N-3)
-    max_value_N = 2**N
-    for _ in range(100):
-        # Create and drive random numbers
-        input_data = [random.randint(0, max_val) for _ in range(C)]
-        for i, val in enumerate(input_data):
-            dut.i_numbers[i].value = val
-        
-        # Calculate expected sum
-        expected_sum = sum(input_data)
-        expected_sum = (expected_sum % max_value_N)
-
-        # Wait for 10 ns (or adjust this based on your design's needs)
-        yield Timer(10, units="ns")
-        
-        # Check the result
-        assert int(dut.ow_sum) == expected_sum,\
-            f"Mismatch detected: Expected {expected_sum}, got {int(dut.ow_sum)}, list={input_data}"
-
-@cocotb.test()
-def run_test(dut):
-    # Now that we know where the sim_build directory is, configure logging
-    log_path = os.environ.get('LOG_PATH')
-    dut_name = os.environ.get('DUT')
-    log = configure_logging(dut_name, log_path)
+    tb = AddHierTB(dut)
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
-    log.info(f'seed changed to {seed}')
-    yield adder_test(dut)
+    tb.log.info(f'seed changed to {seed}')
+    tb.print_settings()
+    await tb.clear_interface()
+    await tb.wait_time(2, 'ns')
+    await tb.main_loop()
 
-# tf = TestFactory(run_test)
-# tf.generate_tests()
 
 repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
 tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the test(current) directory in which this test.py file is placed
@@ -73,6 +79,7 @@ def test_math_adder_hierarchical(request, n, c):
         os.path.join(rtl_dir, "math_adder_carry_lookahead.sv"),
         os.path.join(rtl_dir, "math_adder_hierarchical.sv"),
     ]
+    includes = []
     parameters = {'N':n,'C':c, }
 
     extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
@@ -89,6 +96,7 @@ def test_math_adder_hierarchical(request, n, c):
     run(
         python_search=[tests_dir],  # where to search for all the python test files
         verilog_sources=verilog_sources,
+        includes=includes,
         toplevel=toplevel,
         module=module,
         parameters=parameters,

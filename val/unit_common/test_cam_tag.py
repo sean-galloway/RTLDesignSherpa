@@ -62,6 +62,7 @@ def test_cam_tag(request, n, depth):
     verilog_sources = [
         os.path.join(rtl_dir, "cam_tag.sv"),
     ]
+    includes = []
     parameters = {'N':n,'DEPTH':depth}
 
     extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
@@ -78,6 +79,7 @@ def test_cam_tag(request, n, depth):
     run(
         python_search=[tests_dir],  # where to search for all the python test files
         verilog_sources=verilog_sources,
+        includes=includes,
         toplevel=toplevel,
         module=module,
         parameters=parameters,

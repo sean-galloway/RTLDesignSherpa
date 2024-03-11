@@ -37,6 +37,7 @@ def test_math_adder_carry_save_nbit(request, n):
     verilog_sources = [
         os.path.join(rtl_dir, "math_adder_carry_save_nbit.sv"),
     ]
+    includes = []
     parameters = {'N':n, }
 
     extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
@@ -53,6 +54,7 @@ def test_math_adder_carry_save_nbit(request, n):
     run(
         python_search=[tests_dir],  # where to search for all the python test files
         verilog_sources=verilog_sources,
+        includes=includes,
         toplevel=toplevel,
         module=module,
         parameters=parameters,

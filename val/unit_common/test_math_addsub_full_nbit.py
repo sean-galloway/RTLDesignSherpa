@@ -7,73 +7,83 @@ import os
 import subprocess
 import pytest
 from cocotb_test.simulator import run
-import logging
 import random
+from TBBase import TBBase
 
-def configure_logging(dut_name, log_file_path):
-    log = logging.getLogger(f'cocotb_log_{dut_name}')
-    log.setLevel(logging.DEBUG)
-    fh = logging.FileHandler(log_file_path)
-    fh.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    fh.setFormatter(formatter)
-    log.addHandler(fh)
-    return log
+
+class AddSubTB(TBBase):
+    
+    def __init__(self, dut):
+        TBBase.__init__(self, dut)
+        self.N = self.convert_to_int(os.environ.get('PARAM_N', '0'))
+        self.max_val = 2**self.N
+
+
+    async def clear_interface(self):
+        self.dut.i_a.value = 0
+        self.dut.i_b.value = 0
+        self.dut.i_c.value = 0
+
+
+    def print_settings(self):
+        self.log.info('-------------------------------------------')
+        self.log.info('Settings:')
+        self.log.info(f'    N:     {self.N}')
+        self.log.info('-------------------------------------------')
+
+
+    async def main_loop(self, count=256):
+        if self.max_val < count:
+            a_list = list(range(self.max_val))
+            b_list = list(range(self.max_val))
+        else:
+            a_list = [random.randint(0, self.max_val) for _ in range(count)]
+            b_list = [random.randint(0, self.max_val) for _ in range(count)]
+
+        # Test the adder/subtractor
+        for a, b, cin in itertools.product(a_list, b_list, range(2)):
+
+            # Apply test inputs
+            self.dut.i_a.value = a
+            self.dut.i_b.value = b
+            self.dut.i_c.value = cin
+
+            # Wait for a simulation time to ensure values propagate
+            await self.wait_time(2, 'ns')
+
+            # Check if the operation is addition or subtraction
+            if cin == 0:
+                expected_sum = a + b
+                expected_c = 1 if expected_sum >= (self.max_val) else 0
+                expected_sum = expected_sum % (self.max_val)
+            else:
+                expected_sum = a - b
+                if expected_sum < 0:
+                    expected_sum += (self.max_val)
+                    expected_c = 0
+                else:
+                    expected_c = 1
+            found = self.dut.ow_sum.value.integer
+            self.log.info(f'{self.max_val=} {a=} {b=} {cin=} {expected_sum=} {found=}')
+            # Check results
+            assert self.dut.ow_sum.value.integer == expected_sum,\
+                f"For inputs {a} and {b} with carry-in {cin}, expected sum was {expected_sum} but got {self.dut.ow_sum.value.integer}"
+            assert self.dut.ow_carry.value == expected_c,\
+                f"For inputs {a} and {b} with carry-in {cin}, expected carry/borrow was {expected_c} but got {self.dut.ow_carry.value}"
 
 
 @cocotb.test()
 async def addsub_dut_test(dut):
     """Test logic for a specific set of input values."""
-    # Now that we know where the sim_build directory is, configure logging
-    log_path = os.environ.get('LOG_PATH')
-    dut_name = os.environ.get('DUT')
-    log = configure_logging(dut_name, log_path)
-    # Initialize the DUT inputs
-    dut.i_a.value = 0
-    dut.i_b.value = 0
-    dut.i_c.value = 0
-    # Wait for a simulation time to ensure values propagate
-    await Timer(2, units='ns')
-
-    N = int(os.environ.get('PARAM_N', '0'))
-    max_val = 2**N
-    if max_val <= 256:
-        a_list = list(range(max_val))
-        b_list = list(range(max_val))
-    else:
-        count = 256
-        a_list = [random.randint(0, max_val) for _ in range(count)]
-        b_list = [random.randint(0, max_val) for _ in range(count)]
-    # Test the adder/subtractor
-    for a, b, cin in itertools.product(a_list, b_list, range(2)):
-
-        # Apply test inputs
-        dut.i_a.value = a
-        dut.i_b.value = b
-        dut.i_c.value = cin
-
-        # Wait for a simulation time to ensure values propagate
-        await Timer(2, units='ns')
-
-        # Check if the operation is addition or subtraction
-        if cin == 0:
-            expected_sum = a + b
-            expected_c = 1 if expected_sum >= (max_val) else 0
-            expected_sum = expected_sum % (max_val)
-        else:
-            expected_sum = a - b
-            if expected_sum < 0:
-                expected_sum += (max_val)
-                expected_c = 0
-            else:
-                expected_c = 1
-        found = dut.ow_sum.value.integer
-        log.info(f'{max_val=} {a=} {b=} {cin=} {expected_sum=} {found=}')
-        # Check results
-        assert dut.ow_sum.value.integer == expected_sum,\
-            f"For inputs {a} and {b} with carry-in {cin}, expected sum was {expected_sum} but got {dut.ow_sum.value.integer}"
-        assert dut.ow_carry.value == expected_c,\
-            f"For inputs {a} and {b} with carry-in {cin}, expected carry/borrow was {expected_c} but got {dut.ow_carry.value}"
+    tb = AddSubTB(dut)
+    # Use the seed for reproducibility
+    seed = int(os.environ.get('SEED', '0'))
+    random.seed(seed)
+    tb.log.info(f'seed changed to {seed}')
+    tb.print_settings()
+    await tb.clear_interface()
+    await tb.wait_time(2, 'ns')
+    await tb.main_loop()
 
 
 repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
@@ -89,8 +99,8 @@ def test_math_addsub_full_nbit(request, n):
     verilog_sources = [
         os.path.join(rtl_dir, "math_adder_full.sv"),
         os.path.join(rtl_dir, "math_addsub_full_nbit.sv"),
-
     ]
+    includes = []
     parameters = {'N':n, }
 
     extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
@@ -107,6 +117,7 @@ def test_math_addsub_full_nbit(request, n):
     run(
         python_search=[tests_dir],  # where to search for all the python test files
         verilog_sources=verilog_sources,
+        includes=includes,
         toplevel=toplevel,
         module=module,
         parameters=parameters,

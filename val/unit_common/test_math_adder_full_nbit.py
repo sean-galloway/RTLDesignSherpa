@@ -43,6 +43,7 @@ def test_math_adder_full_nbit(request, n):
         os.path.join(rtl_dir, "math_adder_full_nbit.sv"),
 
     ]
+    includes = []
     parameters = {'N':n, }
     print(f'N:{parameters["N"]}')
 
@@ -60,6 +61,7 @@ def test_math_adder_full_nbit(request, n):
     run(
         python_search=[tests_dir],  # where to search for all the python test files
         verilog_sources=verilog_sources,
+        includes=includes,
         toplevel=toplevel,
         module=module,
         parameters=parameters,

@@ -44,6 +44,7 @@ def test_math_adder_brent_kung_016(request, ):
         os.path.join(rtl_dir, "math_adder_brent_kung_016.sv"),
 
     ]
+    includes = []
     parameters = {'N':16}
 
     extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
@@ -60,6 +61,7 @@ def test_math_adder_brent_kung_016(request, ):
     run(
         python_search=[tests_dir],  # where to search for all the python test files
         verilog_sources=verilog_sources,
+        includes=includes,
         toplevel=toplevel,
         module=module,
         parameters=parameters,

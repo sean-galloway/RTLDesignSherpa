@@ -111,6 +111,7 @@ def test_arbiter_weighted_round_robin_wrapper(request, n):
         os.path.join(rtl_int_dir, "weighted_round_robin_wrapper.sv"),
 
     ]
+    includes = []
     parameters = {'N':n, }
 
     extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
@@ -127,6 +128,7 @@ def test_arbiter_weighted_round_robin_wrapper(request, n):
     run(
         python_search=[tests_dir],  # where to search for all the python test files
         verilog_sources=verilog_sources,
+        includes=includes,
         toplevel=toplevel,
         module=module,
         parameters=parameters,

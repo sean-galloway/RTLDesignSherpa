@@ -41,6 +41,7 @@ def test_fifo_sync(request, depth, data_width):
         os.path.join(rtl_dir, "fifo_control.sv"),
         os.path.join(rtl_dir, f"{dut_name}.sv"),
     ]
+    includes = []
     parameters = {'DEPTH':depth,'DATA_WIDTH':data_width, }
 
     extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
@@ -57,6 +58,7 @@ def test_fifo_sync(request, depth, data_width):
     run(
         python_search=[tests_dir],  # where to search for all the python test files
         verilog_sources=verilog_sources,
+        includes=includes,
         toplevel=toplevel,
         module=module,
         parameters=parameters,

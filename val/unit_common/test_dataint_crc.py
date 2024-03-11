@@ -42,6 +42,7 @@ def test_dataint_crc(request, algo_name, data_width, crc_width, poly, poly_init,
         os.path.join(rtl_dir, "dataint_crc_xor_shift_cascade.sv"),
         os.path.join(rtl_dir, "dataint_crc.sv"),
     ]
+    includes = []
     parameters = {'ALGO_NAME':algo_name,'DATA_WIDTH':data_width,'CRC_WIDTH':crc_width,'POLY':poly,'POLY_INIT':poly_init,'REFIN':refin,'REFOUT':refout,'XOROUT':xorout, }
 
     extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
@@ -58,6 +59,7 @@ def test_dataint_crc(request, algo_name, data_width, crc_width, poly, poly_init,
     run(
         python_search=[tests_dir],  # where to search for all the python test files
         verilog_sources=verilog_sources,
+        includes=includes,
         toplevel=toplevel,
         module=module,
         parameters=parameters,
