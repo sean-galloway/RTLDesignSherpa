@@ -4,6 +4,15 @@ The main scripts handle the command line parsing and instantiate the underlying 
 
 This document will evolve as more scripts get added, showing the most common use cases for the scripts.
 
+## CocoTB Testing with pytest
+
+The tests for the rtl/* areas are all in val/unit_*. Most of the tests are parameterized to test many different configurations.
+To run all of one of the tests in unit_* areas, cd to that area and type:
+`pytest`
+
+if you want to run one test type:
+`pytest <test name>`
+
 ## [lint_wrap.py](lint_wrap.md)
 
 The `lint_wrap` script at `lint_wrap.py` is to lint and format Verilog files using supporting functions encapsulated in a `Lint` class. This script acts as a command-line interface (CLI) utility for code maintenance. The utility offers the following options:
@@ -25,88 +34,6 @@ The format option uses a verible format to ensure all code follows a convention.
 parameter INSTANCE_NAME = "DEADF1F0" // verilog_lint: waive explicit-parameter-storage-type
 
 ```
-
-## [list_test_wrap.py](list_test_wrap.md)
-
-The following code provides the functionality of a wrapper script to work with test lists in a Python project. It is designed to perform operations related to test management, specifically finding test commands and generating a JSON file list of tests.
-
-Find test commands using a simulation partial test name:
-
-```sh
-
-list_test_wrap.py --find "add"
-
-```
-
-Output:
-
-```sh
-
-python3 bin/run_test_wrap.py --test val/common_level0/math_adder_brent_kung_008 --tag my_tag --seed 1234
-
-python3 bin/run_test_wrap.py --test val/common_level0/math_adder_brent_kung_016 --tag my_tag --seed 1234
-
-python3 bin/run_test_wrap.py --test val/common_level0/math_adder_brent_kung_032 --tag my_tag --seed 1234
-
-python3 bin/run_test_wrap.py --test val/common_level0/math_adder_carry_lookahead --tag my_tag --seed 1234 --params N=4
-
-```
-
-Generate a JSON list of tests specifying a path and output file name (for each bin of tests, level0, level1, etc., there is an associated in ./val/testlists/level0.json. These JSON files contain the parameters and the seed used for the test. Creating the JSON list with the information from the makefile is hard to grab manually.):
-
-```sh
-
-python3 bin/list_test_wrap.py --list "level0.json" --path "val/common_level0/"
-
-```
-
-Here is an example of the JSON file:
-
-```python
-
-{
-
-"rtl_dirs": [
-
-"rtl/common",
-
-"rtl/xilinx"
-
-],
-
-"test_lists": {
-
-"level0": "val/testlists/level0.json"
-
-},
-
-"make_clean" : "val/common_level0/cleanall.mk",
-
-"lint_reports": {"lint":"./reports/lint/", "verible":"./reports/verible/"}
-
-}
-
-```
-
-## [run_test_wrap.py](run_test_wrap.md)
-
-The following Python script, `run_test_wrap.py`, is a wrapper used to execute one or multiple tests within a testing framework by leveraging the functionality provided by the `RunTest` class from the `project_automation.run_test` module. It uses the levelX.json file to know the parameters and the seed.
-
-Examples:
-
-```sh
-
-# run one test
-
-python3 bin/run_test_wrap.py --test val/common_level0/arbiter_round_robin --tag 122423 --seed 1234 --params CLIENTS=6
-
-# run level0
-
-python3 bin/run_test_wrap.py --testlist level0 --tag 122423
-
-```
-
-The script creates a regression directory for the level0 regression, the repo_root level. Inside this is another directory called "tag" to hold all this run together.
 
 ## [math_generate.py](math_generate.md)
 

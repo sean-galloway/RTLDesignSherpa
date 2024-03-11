@@ -4,11 +4,7 @@ This area contains all of the descriptions of the Python scripts. If you only wa
 
 If one wants to look further into the main scripts, follow these links:
 
-* [Test List Creator](list_test_wrap.md)
-
 * [Run Lint](lint_wrap.md)
-
-* [Run Tests](run_test_wrap.md)
 
 * [Generate Verilog for some adders and multipliers](math_generate.md)
 
@@ -21,10 +17,6 @@ If one wants to look further into the main scripts, follow these links:
 These are the main workhorse classes:
 
 * [Lint](lint.md)
-
-* [TestList](list_test.md)
-
-* [RunTest](run_test.md)
 
 * [REMatcher](REMatcher.md)
 
@@ -67,5 +59,9 @@ These are the main instances of the different math classes created in Python to 
 * [Utils](utils.md)
 
 * [Sum](sum_logic.md)
+
+---
+
+[Back to Readme](../../../README.md)
 
 ---

@@ -26,9 +26,9 @@ Here are the items that are coming next:
 -   Create UVM versions of all the CocoTB tests. I want to learn more about UVM and use it in practice. UVM tests are the Gold Standard in the industry if used correctly.
 -   The next mega-task is starting on the FPro Book. This is where the real fun begins as we see our RTL work in silicon. Along with FPro examples, I’ll mix some of my own just for fun to see buttons break if we don’t de-bounce them, see how badly done async crossings can have weird behavior, etc.
 
-To see the state of the current scripts documentation, check out this area: [Scripts Doc Index](file:///C:\Users\Sean%20Galloway\OneDrive\Documents\rtldesignsherpa_mark_down\docs\mark_down\scripts\index.md)
+To see the state of the current scripts documentation, check out this area: [Scripts Doc Index](docs/mark_down/scripts/index.md)
 
-To see the state of the current RTL documentation, check out this area: [RTL Doc Index](file:///C:\Users\Sean%20Galloway\OneDrive\Documents\rtldesignsherpa_mark_down\docs\mark_down\rtl\index.md)
+To see the state of the current RTL documentation, check out this area: [RTL Doc Index](docs/mark_down/rtl/index.md)
 
 ## Here is some quick info on my setup
 
