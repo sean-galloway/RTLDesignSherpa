@@ -9,8 +9,8 @@ module fifo_axi_sync #(
     parameter int ALMOST_RD_MARGIN = 1,
     parameter INSTANCE_NAME = "DEADF1F0"  // verilog_lint: waive explicit-parameter-storage-type
 ) (
-    input  logic      i_clk,
-    i_rst_n,
+    input  logic            i_axi_aclk,
+    input  logic            i_axi_aresetn,
     input  logic            i_wr_valid,
     output logic            o_wr_ready,   // not full
     input  logic [DW-1:0]   i_wr_data,
@@ -42,8 +42,8 @@ module fifo_axi_sync #(
         .WIDTH(AW + 1),
         .MAX  (D)
     ) write_pointer_inst (
-        .i_clk(i_clk),
-        .i_rst_n(i_rst_n),
+        .i_clk(i_axi_aclk),
+        .i_rst_n(i_axi_aresetn),
         .i_enable(w_write && !r_wr_full),
         .o_counter_bin(r_wr_ptr_bin),
         .ow_counter_bin_next(w_wr_ptr_bin_next)
@@ -56,8 +56,8 @@ module fifo_axi_sync #(
         .WIDTH(AW + 1),
         .MAX  (D)
     ) read_pointer_inst (
-        .i_clk(i_clk),
-        .i_rst_n(i_rst_n),
+        .i_clk(i_axi_aclk),
+        .i_rst_n(i_axi_aresetn),
         .i_enable(w_read && !r_rd_empty),
         .o_counter_bin(r_rd_ptr_bin),
         .ow_counter_bin_next(w_rd_ptr_bin_next)
@@ -72,10 +72,10 @@ module fifo_axi_sync #(
         .ALMOST_RD_MARGIN(ALMOST_RD_MARGIN),
         .ALMOST_WR_MARGIN(ALMOST_WR_MARGIN)
     ) fifo_control_inst (
-        .i_wr_clk          (i_clk),
-        .i_wr_rst_n        (i_rst_n),
-        .i_rd_clk          (i_clk),
-        .i_rd_rst_n        (i_rst_n),
+        .i_wr_clk          (i_axi_aclk),
+        .i_wr_rst_n        (i_axi_aresetn),
+        .i_rd_clk          (i_axi_aclk),
+        .i_rd_rst_n        (i_axi_aresetn),
         .iw_wr_ptr_bin     (w_wr_ptr_bin_next),
         .iw_wdom_rd_ptr_bin(w_rd_ptr_bin_next),
         .iw_rd_ptr_bin     (w_rd_ptr_bin_next),
@@ -96,15 +96,15 @@ module fifo_axi_sync #(
     assign r_rd_addr  = r_rd_ptr_bin[AW-1:0];
     assign ow_rd_data = r_mem[r_rd_addr];
 
-    always_ff @(posedge i_clk) begin
+    always_ff @(posedge i_axi_aclk) begin
         if (w_write && !r_wr_full) begin
             r_mem[r_wr_addr] <= i_wr_data;
         end
     end
 
     // Flop stage for the flopped data
-    always_ff @(posedge i_clk or negedge i_rst_n) begin
-        if (!i_rst_n) o_rd_data <= 'b0;
+    always_ff @(posedge i_axi_aclk or negedge i_axi_aresetn) begin
+        if (!i_axi_aresetn) o_rd_data <= 'b0;
         else o_rd_data <= r_mem[r_rd_addr];
     end
 
@@ -120,14 +120,14 @@ module fifo_axi_sync #(
         end
     endgenerate
 
-    always @(posedge i_clk) begin
+    always @(posedge i_axi_aclk) begin
         if ((w_write && r_wr_full) == 1'b1) begin
             $timeformat(-9, 3, " ns", 10);
             $display("Error: %s write while fifo full, %t", INSTANCE_NAME, $time);
         end
     end
 
-    always @(posedge i_clk) begin
+    always @(posedge i_axi_aclk) begin
         if ((w_read && r_rd_empty) == 1'b1) begin
             $timeformat(-9, 3, " ns", 10);
             $display("Error: %s read while fifo empty, %t", INSTANCE_NAME, $time);

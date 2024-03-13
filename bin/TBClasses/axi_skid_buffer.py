@@ -7,13 +7,12 @@ import os
 import random
 from ConstrainedRandom import ConstrainedRandom
 
-class FIFOAXISyncTB(TBBase):
-
-    def __init__(self, dut):
-        TBBase.__init__(self, dut)
-        # Gather the settings from the Parameters to verify them
-        self.DEPTH = self.convert_to_int(os.environ.get('PARAM_DEPTH', '0'))
+class AXISkidBufferTB(TBBase):
+    def __init__(self, dut, enable_empty_bypass=0):
+        super().__init__(dut)
+        self.BYPASS = self.convert_to_int(os.environ.get('PARAM_ENABLE_EMPTY_BYPASS', '0'))
         self.DATA_WIDTH = self.convert_to_int(os.environ.get('PARAM_DATA_WIDTH', '0'))
+        self.DEPTH = self.convert_to_int(os.environ.get('PARAM_DEPTH', '0'))
         self.TIMEOUT_CYCLES = 100
         read_constraints = [(0, 1), (2, 8), (9,20)]
         read_weights = [5,2,1]
@@ -47,12 +46,12 @@ class FIFOAXISyncTB(TBBase):
             pause_duration = 100  # Clock cycles to pause after count transfers
 
             # Start concurrent read and write operations
-            write_to_fifo = cocotb.start_soon(self.write_fifo(data, transfer_count, pause_duration))
-            read_from_fifo = cocotb.start_soon(self.read_fifo(transfer_count, pause_duration))
+            write_skid = cocotb.start_soon(self.write_fifo(data, transfer_count, pause_duration))
+            read_skid = cocotb.start_soon(self.read_fifo(transfer_count, pause_duration))
 
             # Wait for both operations to complete and compare results
-            await write_to_fifo
-            read_data = await read_from_fifo
+            await write_skid
+            read_data = await read_skid
 
             hex_data = [hex(num) for num in data]
             hex_read_data = [hex(num) for num in read_data]
@@ -93,7 +92,7 @@ class FIFOAXISyncTB(TBBase):
                 # If o_ready is high and i_valid is high, increment data_sent
                 data_sent += 1
                 current_time_ns = get_sim_time('ns')
-                self.log.info(f"Writing data to fifo: {hex(data[idx])} pkt={data_sent:3} @ {current_time_ns}ns")
+                self.log.info(f"Writing data to skid: {hex(data[idx])} pkt={data_sent:3} @ {current_time_ns}ns")
                 await self.wait_clocks('i_axi_aclk', 1)
             else:
                 self.log.info(f'---> i_wr_valid remains de-asserted for {crand} cycles')
@@ -133,11 +132,11 @@ class FIFOAXISyncTB(TBBase):
                     if timeout_counter >= self.TIMEOUT_CYCLES:
                         self.log.error("Timeout during read, waiting for o_rd_valid to assert")
                         return  read_values # Exit the method on timeout
-                read_data = int(self.dut.ow_rd_data.value)
+                read_data = int(self.dut.o_rd_data.value)
                 read_values.append(read_data)
                 data_read += 1
                 current_time_ns = get_sim_time('ns')
-                self.log.info(f"Read data from fifo:  {hex(read_data)} pkt={data_read:3} @ {current_time_ns}ns")
+                self.log.info(f"Read data from skid:  {hex(read_data)} pkt={data_read:3} @ {current_time_ns}ns")
                 await self.wait_clocks('i_axi_aclk', 1)
             else:
                 self.log.info(f'---> i_rd_ready remains de-asserted for {crand} cycles')

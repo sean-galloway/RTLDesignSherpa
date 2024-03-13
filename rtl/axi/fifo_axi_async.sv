@@ -11,10 +11,10 @@ module fifo_axi_async #(
     parameter INSTANCE_NAME = "DEADF1F0"  // verilog_lint: waive explicit-parameter-storage-type
 ) (
     // clocks and resets
-    input  logic            i_wr_clk,
-                            i_wr_rst_n,
-                            i_rd_clk,
-                            i_rd_rst_n,
+    input  logic            i_axi_wr_aclk,
+                            i_axi_wr_aresetn,
+                            i_axi_rd_aclk,
+                            i_axi_rd_aresetn,
     input  logic            i_wr_valid,
     output logic            o_wr_ready,   // not full
     input  logic [DW-1:0]   i_wr_data,
@@ -49,8 +49,8 @@ module fifo_axi_async #(
         .MAX  (D),
         .WIDTH(AW + 1)
     ) wr_ptr_counter_bin (
-        .i_clk(i_wr_clk),
-        .i_rst_n(i_wr_rst_n),
+        .i_clk(i_axi_wr_aclk),
+        .i_rst_n(i_axi_wr_aresetn),
         .i_enable(w_write && !r_wr_full),
         .ow_counter_bin_next(w_wr_ptr_bin_next),
         .o_counter_bin(r_wr_ptr_bin)
@@ -61,8 +61,8 @@ module fifo_axi_async #(
         .MAX  (D),
         .WIDTH(AW + 1)
     ) rd_ptr_counter_bin (
-        .i_clk(i_rd_clk),
-        .i_rst_n(i_rd_rst_n),
+        .i_clk(i_axi_rd_aclk),
+        .i_rst_n(i_axi_rd_aresetn),
         .i_enable(w_read && !r_rd_empty),
         .ow_counter_bin_next(w_rd_ptr_bin_next),
         .o_counter_bin(r_rd_ptr_bin)
@@ -73,8 +73,8 @@ module fifo_axi_async #(
     counter_johnson #(
         .WIDTH(JCW)
     ) wr_ptr_counter_gray (
-        .i_clk(i_wr_clk),
-        .i_rst_n(i_wr_rst_n),
+        .i_clk(i_axi_wr_aclk),
+        .i_rst_n(i_axi_wr_aresetn),
         .i_enable(w_write && !r_wr_full),
         .o_counter_gray(r_wr_ptr_gray)
     );
@@ -82,8 +82,8 @@ module fifo_axi_async #(
     counter_johnson #(
         .WIDTH(JCW)
     ) rd_ptr_counter_gray (
-        .i_clk(i_rd_clk),
-        .i_rst_n(i_rd_rst_n),
+        .i_clk(i_axi_rd_aclk),
+        .i_rst_n(i_axi_rd_aresetn),
         .i_enable(w_read && !r_rd_empty),
         .o_counter_gray(r_rd_ptr_gray)
     );
@@ -96,8 +96,8 @@ module fifo_axi_async #(
     ) rd_ptr_gray_cross_inst (
         .o_q(r_wdom_rd_ptr_gray),
         .i_d(r_rd_ptr_gray),
-        .i_clk(i_wr_clk),
-        .i_rst_n(i_wr_rst_n)
+        .i_clk(i_axi_wr_aclk),
+        .i_rst_n(i_axi_wr_aresetn)
     );
 
     // convert the gray rd ptr to binary
@@ -108,8 +108,8 @@ module fifo_axi_async #(
     ) rd_ptr_gray2bin_inst (
         .ow_binary(w_wdom_rd_ptr_bin),
         .i_gray(r_wdom_rd_ptr_gray),
-        .i_clk(i_wr_clk),
-        .i_rst_n(i_wr_rst_n)
+        .i_clk(i_axi_wr_aclk),
+        .i_rst_n(i_axi_wr_aresetn)
     );
 
     glitch_free_n_dff_arn #(
@@ -118,8 +118,8 @@ module fifo_axi_async #(
     ) wr_ptr_gray_cross_inst (
         .o_q(r_rdom_wr_ptr_gray),
         .i_d(r_wr_ptr_gray),
-        .i_clk(i_rd_clk),
-        .i_rst_n(i_rd_rst_n)
+        .i_clk(i_axi_rd_aclk),
+        .i_rst_n(i_axi_rd_aresetn)
     );
 
     // convert the gray wr ptr to binary
@@ -130,8 +130,8 @@ module fifo_axi_async #(
     ) wr_ptr_gray2bin_inst (
         .ow_binary(w_rdom_wr_ptr_bin),
         .i_gray(r_rdom_wr_ptr_gray),
-        .i_clk(i_rd_clk),
-        .i_rst_n(i_rd_rst_n)
+        .i_clk(i_axi_rd_aclk),
+        .i_rst_n(i_axi_rd_aresetn)
     );
 
     /////////////////////////////////////////////////////////////////////////
@@ -141,13 +141,13 @@ module fifo_axi_async #(
 
     /////////////////////////////////////////////////////////////////////////
     // Memory Flops
-    always_ff @(posedge i_wr_clk) begin
+    always_ff @(posedge i_axi_wr_aclk) begin
         if (w_write && !r_wr_full) r_mem[r_wr_addr] <= i_wr_data;
     end
 
     // Flop stage for the flopped data
-    always_ff @(posedge i_rd_clk or negedge i_rd_rst_n) begin
-        if (!i_rd_rst_n) o_rd_data <= 'b0;
+    always_ff @(posedge i_axi_rd_aclk or negedge i_axi_rd_aresetn) begin
+        if (!i_axi_rd_aresetn) o_rd_data <= 'b0;
         else o_rd_data <= r_mem[r_rd_addr];
     end
 
@@ -164,10 +164,10 @@ module fifo_axi_async #(
         .ALMOST_RD_MARGIN(ALMOST_RD_MARGIN),
         .ALMOST_WR_MARGIN(ALMOST_WR_MARGIN)
     ) fifo_control_inst (
-        .i_wr_clk          (i_wr_clk),
-        .i_wr_rst_n        (i_wr_rst_n),
-        .i_rd_clk          (i_rd_clk),
-        .i_rd_rst_n        (i_rd_rst_n),
+        .i_wr_clk          (i_axi_wr_aclk),
+        .i_wr_rst_n        (i_axi_wr_aresetn),
+        .i_rd_clk          (i_axi_rd_aclk),
+        .i_rd_rst_n        (i_axi_rd_aresetn),
         .iw_wr_ptr_bin     (w_wr_ptr_bin_next),
         .iw_wdom_rd_ptr_bin(w_wdom_rd_ptr_bin),
         .iw_rd_ptr_bin     (w_rd_ptr_bin_next),
@@ -192,15 +192,15 @@ module fifo_axi_async #(
         end
     endgenerate
 
-    always @(posedge i_wr_clk) begin
-        if (!i_wr_rst_n && (w_write && r_wr_full) == 1'b1) begin
+    always @(posedge i_axi_wr_aclk) begin
+        if (!i_axi_wr_aresetn && (w_write && r_wr_full) == 1'b1) begin
             $timeformat(-9, 3, " ns", 10);
             $display("Error: %s write while fifo full, %t", INSTANCE_NAME, $time);
         end
     end
 
-    always @(posedge i_rd_clk) begin
-        if (!i_wr_rst_n && (w_read && r_rd_empty) == 1'b1) begin
+    always @(posedge i_axi_rd_aclk) begin
+        if (!i_axi_wr_aresetn && (w_read && r_rd_empty) == 1'b1) begin
             $timeformat(-9, 3, " ns", 10);
             $display("Error: %s read while fifo empty, %t", INSTANCE_NAME, $time);
         end
