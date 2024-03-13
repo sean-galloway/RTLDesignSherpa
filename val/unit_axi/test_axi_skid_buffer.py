@@ -33,8 +33,8 @@ tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the te
 rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hdl folder where .v files are placed
 rtl_axi_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'axi')) #path to hdl folder where .v files are placed
 
-@pytest.mark.parametrize("enable_bypass, depth, data_width", [(0, 2, 8)])
-def test_fifo_axi_sync(request, enable_bypass, depth, data_width):
+@pytest.mark.parametrize("enable_bypass, depth, data_width", [(0, 2, 8), (1, 2, 8)])
+def test_skid_buffer(request, enable_bypass, depth, data_width):
     dut_name = "axi_skid_buffer"
     module = os.path.splitext(os.path.basename(__file__))[0]  # The name of this file
     toplevel = dut_name

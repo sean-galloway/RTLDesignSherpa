@@ -39,7 +39,7 @@ module axi_skid_buffer #(
                 o_wr_ready     = 'b1;
                 w_wr_data      = 'b0;
                 w_rd_ready     = 'b0;
-                o_rd_valid     = 'b1;
+                o_rd_valid     = i_wr_valid;
                 o_rd_data      = i_wr_data;
                 w_bypass_taken = 'b1;
 

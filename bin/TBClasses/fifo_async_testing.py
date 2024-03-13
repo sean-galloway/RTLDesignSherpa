@@ -47,8 +47,8 @@ class FIFOASyncTB(TBBase):
             cocotb.start_soon(self.write_fifo(data))
             read_values = await self.read_fifo(len(data))
 
-            hex_data = [hex(num) for num in data]
-            hex_read_data = [hex(num) for num in read_values]
+            hex_data = [format(num, '02x') for num in data]
+            hex_read_data = [format(num, '02x') for num in read_values]
             assert data == read_values, f"Data mismatch. Written: {hex_data}, Read: {hex_read_data}"
 
             await self.wait_clocks('i_rd_clk', delay_clks_after)

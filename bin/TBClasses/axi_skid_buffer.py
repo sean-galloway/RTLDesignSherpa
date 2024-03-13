@@ -53,8 +53,10 @@ class AXISkidBufferTB(TBBase):
             await write_skid
             read_data = await read_skid
 
-            hex_data = [hex(num) for num in data]
-            hex_read_data = [hex(num) for num in read_data]
+            hex_data = [format(num, '02x') for num in data]
+            hex_read_data = [format(num, '02x') for num in read_data]
+            self.log.info(f'Written: {hex_data}')
+            self.log.info(f'Read:    {hex_read_data}')
             assert data[:transfer_count] == read_data, f"Data mismatch. Written: {hex_data}, Read: {hex_read_data}"
 
             await self.wait_clocks('i_axi_aclk', delay_clks_after)
@@ -62,7 +64,7 @@ class AXISkidBufferTB(TBBase):
 
     async def write_fifo(self, data, count, pause_duration):
         self.log.info("Entering write_fifo with constrained random behavior...")
-        hex_data = [hex(num) for num in data]
+        hex_data = [format(num, '02x') for num in data]
         self.log.info(f'Attempting to write {count=} packets: {len(data)=} {hex_data=}')
         self.dut.i_wr_valid.value = 0
         data_sent = 0

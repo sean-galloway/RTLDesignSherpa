@@ -56,8 +56,8 @@ class FIFOAXIASyncTB(TBBase):
             await write_to_fifo
             read_data = await read_from_fifo
 
-            hex_data = [hex(num) for num in data]
-            hex_read_data = [hex(num) for num in read_data]
+            hex_data = [format(num, '02x') for num in data]
+            hex_read_data = [format(num, '02x') for num in read_data]
             assert data[:transfer_count] == read_data, f"Data mismatch.\nWritten: {hex_data}\nRead:    {hex_read_data}"
 
             await self.wait_clocks('i_axi_rd_aclk', delay_clks_after)
@@ -66,7 +66,7 @@ class FIFOAXIASyncTB(TBBase):
     async def write_fifo(self, data, count, pause_duration):
         await self.wait_clocks('i_axi_wr_aclk', 1)
         self.log.info("Entering write_fifo with constrained random behavior...")
-        hex_data = [hex(num) for num in data]
+        hex_data = [format(num, '02x') for num in data]
         self.log.info(f'Attempting to write {count=} packets: {len(data)=}\n{hex_data=}')
         self.dut.i_wr_valid.value = 0
         data_sent = 0
@@ -153,7 +153,7 @@ class FIFOAXIASyncTB(TBBase):
             timeout_counter = 0
 
         await self.wait_clocks('i_axi_rd_aclk',pause_duration)
-        hex_data = [hex(num) for num in read_values]
+        hex_data = [format(num, '02x') for num in read_values]
         self.log.info(f'Exiting read after receiving {data_read} packets\n{hex_data}')
 
         return read_values
