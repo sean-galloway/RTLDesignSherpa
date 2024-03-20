@@ -52,7 +52,4 @@ module shifter_lfsr_galois #(
         end
     end
 
-    // Synopsys translate_off
-    // Synopsys translate_on
-
 endmodule : shifter_lfsr_galois

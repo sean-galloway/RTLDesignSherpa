@@ -144,7 +144,7 @@ class TBBase(object):
         """
         # Calculate the number of hexadecimal digits needed
         hex_width = (max_value.bit_length() + 3) // 4  # Round up division by 4
-        return format(value, f'0{hex_width}X')
+        return format(int(value), f'0{hex_width}X')
 
     @staticmethod
     def generate_alternating_ones(N):
