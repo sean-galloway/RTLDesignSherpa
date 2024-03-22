@@ -1,0 +1,10 @@
+@startuml Adder_Gray
+!include verilog_Module_UML.puml
+
+class Gray {
+  + Gray()
+  + verilog(file_path: str): void
+}
+
+Gray --|> Module
+@enduml

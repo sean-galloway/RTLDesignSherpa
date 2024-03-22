@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentStyleType="text/css" height="150px" preserveAspectRatio="none" style="width:318px;height:150px;background:#FFFFFF;" version="1.1" viewBox="0 0 318 150" width="318px" zoomAndPan="magnify"><defs/><g><!--MD5=[e019d1a64a56e503b1e3a49267f1beab]
+class ParserHelper--><g id="elem_ParserHelper"><rect codeLine="2" fill="#F1F1F1" height="129.4844" id="ParserHelper" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="297" x="7" y="7"/><ellipse cx="106.75" cy="23" fill="#ADD1B2" rx="11" ry="11" style="stroke:#181818;stroke-width:1.0;"/><path d="M109.7188,28.6406 Q109.1406,28.9375 108.5,29.0781 Q107.8594,29.2344 107.1563,29.2344 Q104.6563,29.2344 103.3281,27.5938 Q102.0156,25.9375 102.0156,22.8125 Q102.0156,19.6875 103.3281,18.0313 Q104.6563,16.375 107.1563,16.375 Q107.8594,16.375 108.5,16.5313 Q109.1563,16.6875 109.7188,16.9844 L109.7188,19.7031 Q109.0938,19.125 108.5,18.8594 Q107.9063,18.5781 107.2813,18.5781 Q105.9375,18.5781 105.25,19.6563 Q104.5625,20.7188 104.5625,22.8125 Q104.5625,24.9063 105.25,25.9844 Q105.9375,27.0469 107.2813,27.0469 Q107.9063,27.0469 108.5,26.7813 Q109.0938,26.5 109.7188,25.9219 L109.7188,28.6406 Z " fill="#000000"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="89" x="127.25" y="27.8467">ParserHelper</text><line style="stroke:#181818;stroke-width:0.5;" x1="8" x2="303" y1="39" y2="39"/><line style="stroke:#181818;stroke-width:0.5;" x1="8" x2="303" y1="47" y2="47"/><ellipse cx="18" cy="60.6484" fill="#84BE84" rx="3" ry="3" style="stroke:#038048;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="228" x="27" y="63.9951">parsePortsList(signal_str: str): list</text><ellipse cx="18" cy="76.9453" fill="#84BE84" rx="3" ry="3" style="stroke:#038048;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="271" x="27" y="80.292">parseParametersList(signal_str: str): list</text><ellipse cx="18" cy="93.2422" fill="#84BE84" rx="3" ry="3" style="stroke:#038048;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="206" x="27" y="96.5889">cleanString(signal_str: str): str</text><ellipse cx="18" cy="109.5391" fill="#84BE84" rx="3" ry="3" style="stroke:#038048;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="255" x="27" y="112.8857">arrayMerge(current: str, new: str): str</text><ellipse cx="18" cy="125.8359" fill="#84BE84" rx="3" ry="3" style="stroke:#038048;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="243" x="27" y="129.1826">padRight(string: str, length: int): str</text></g><!--MD5=[5a1c555d2ca08c5d91963292f0819167]
+@startuml verilog_ParserHelperTop
+
+class ParserHelper {
+  + parsePortsList(signal_str: str): list
+  + parseParametersList(signal_str: str): list
+  + cleanString(signal_str: str): str
+  + arrayMerge(current: str, new: str): str
+  + padRight(string: str, length: int): str
+}
+
+@enduml
+
+PlantUML version 1.2022.7(Mon Aug 22 10:01:30 PDT 2022)
+(GPL source distribution)
+Java Runtime: OpenJDK Runtime Environment
+JVM: OpenJDK 64-Bit Server VM
+Default Encoding: UTF-8
+Language: en
+Country: US
+--></g></svg>

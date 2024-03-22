@@ -1,0 +1,33 @@
+@startuml verilog_Signal
+
+class SignalRecord {
+  - interface: bool
+  - sig_type: str
+  - direction: str
+  - name: str
+  - packed: str
+  - unpacked: str
+  - compilerDirectiveSig: str
+  - compilerDirective: str
+  - drivers: int
+  - receivers: int
+}
+
+class Signal {
+  - sigrec_list: list[SignalRecord]
+
+  + __init__(signal_str: str = '')
+  + __repr__(): list[SignalRecord]
+  - _found_name(name: str): tuple[bool, int]
+  - _convert_sigrec_list(rec_list: list): void
+  - _convert_sigrec(rec): SignalRecord
+  - __get_max_lengths(): tuple[int, int, int, int]
+  + add_port_string(signal_str: str): list[SignalRecord]
+  + create_wire_string(): str
+  + create_port_string(): str
+  + __str__(): str
+}
+
+Signal --|> SignalRecord
+
+@enduml

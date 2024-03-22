@@ -1,0 +1,108 @@
+{
+    "head": {
+        "text": "Binary to BCD FSM",
+        "tock": 1
+    },
+    "signal": [
+        {
+            "name": "bin_to_bcd.i_clk",
+            "wave": "ppppppppppppppppppp",
+            "data": [],
+            "phase": 0,
+            "period": 1.0
+        },
+        {
+            "name": "bin_to_bcd.i_rst_n",
+            "wave": "1..................",
+            "data": [],
+            "phase": 0
+        },
+        {
+            "name": "bin_to_bcd.i_start",
+            "wave": "010................",
+            "data": [],
+            "phase": 0
+        },
+        {
+            "name": "bin_to_bcd.i_binary[7:0]",
+            "wave": "==.................",
+            "data": [
+                "BD",
+                "BE"
+            ],
+            "phase": 0
+        },
+        {
+            "name": "bin_to_bcd.o_done",
+            "wave": "10.................",
+            "data": [],
+            "phase": 0
+        },
+        {
+            "name": "bin_to_bcd.o_bcd[11:0]",
+            "wave": "=.==.......=.......",
+            "data": [
+                "189",
+                "0",
+                "1",
+                "2"
+            ],
+            "phase": 0
+        },
+        [
+            "Internals",
+            {
+                "name": "bin_to_bcd.r_fsm_main[5:0]",
+                "wave": "=.=================",
+                "data": [
+                    "IDLE",
+                    "SHIFT",
+                    "CK_S_IDX",
+                    "ADD",
+                    "CK_D_IDX",
+                    "ADD",
+                    "CK_D_IDX",
+                    "ADD",
+                    "CK_D_IDX",
+                    "SHIFT",
+                    "CK_S_IDX",
+                    "ADD",
+                    "CK_D_IDX",
+                    "ADD",
+                    "CK_D_IDX",
+                    "ADD",
+                    "CK_D_IDX",
+                    "SHIFT"
+                ],
+                "phase": 0
+            },
+            {
+                "name": "bin_to_bcd.r_digit_index[1:0]",
+                "wave": "=.....=.=.=...=.=.=",
+                "data": [
+                    "0",
+                    "1",
+                    "2",
+                    "0",
+                    "1",
+                    "2",
+                    "0"
+                ],
+                "phase": 0
+            },
+            {
+                "name": "bin_to_bcd.r_loop_count[7:0]",
+                "wave": "=...=.......=......",
+                "data": [
+                    "0",
+                    "1",
+                    "2"
+                ],
+                "phase": 0
+            }
+        ]
+    ],
+    "config": {
+        "hscale": 2
+    }
+}

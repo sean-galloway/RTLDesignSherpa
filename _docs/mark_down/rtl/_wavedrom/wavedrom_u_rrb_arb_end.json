@@ -1,0 +1,147 @@
+{
+    "head": {
+        "text": "End Arbitration, Weighted Round Robin Arbiter, Internals, ",
+        "tock": 1
+    },
+    "signal": [
+        {
+            "name": "u_weighted_round_robin.u_rrb_arb.i_clk",
+            "wave": "ppppppppppppp",
+            "data": [],
+            "phase": 0,
+            "period": 1.0
+        },
+        {
+            "name": "u_weighted_round_robin.u_rrb_arb.i_rst_n",
+            "wave": "1............",
+            "data": [],
+            "phase": 0
+        },
+        {
+            "name": "u_weighted_round_robin.u_rrb_arb.i_replenish",
+            "wave": "0.10.10.1....",
+            "data": [],
+            "phase": 0
+        },
+        {
+            "name": "u_weighted_round_robin.u_rrb_arb.i_req[3:0]",
+            "wave": "=.==.==.=....",
+            "data": [
+                "2",
+                "3",
+                "2",
+                "3",
+                "2",
+                "1"
+            ],
+            "phase": 0
+        },
+        {
+            "name": "u_weighted_round_robin.u_rrb_arb.ow_grant[3:0]",
+            "wave": "=.==.==.=....",
+            "data": [
+                "2",
+                "1",
+                "2",
+                "1",
+                "2",
+                "1"
+            ],
+            "phase": 0
+        },
+        {
+            "name": "u_weighted_round_robin.u_rrb_arb.r_mask[3:0]",
+            "wave": "==.==.==.=...",
+            "data": [
+                "1",
+                "2",
+                "1",
+                "2",
+                "1",
+                "2",
+                "1"
+            ],
+            "phase": 0
+        },
+        {
+            "name": "u_weighted_round_robin.u_rrb_arb.w_mask_grant[3:0]",
+            "wave": "==.==.====...",
+            "data": [
+                "0",
+                "2",
+                "0",
+                "2",
+                "0",
+                "2",
+                "0",
+                "1"
+            ],
+            "phase": 0
+        },
+        {
+            "name": "u_weighted_round_robin.u_rrb_arb.w_mask_req[3:0]",
+            "wave": "==.==.====...",
+            "data": [
+                "0",
+                "2",
+                "0",
+                "2",
+                "0",
+                "2",
+                "0",
+                "1"
+            ],
+            "phase": 0
+        },
+        {
+            "name": "u_weighted_round_robin.u_rrb_arb.w_raw_grant[3:0]",
+            "wave": "=.==.==.=....",
+            "data": [
+                "2",
+                "1",
+                "2",
+                "1",
+                "2",
+                "1"
+            ],
+            "phase": 0
+        },
+        {
+            "name": "u_weighted_round_robin.u_rrb_arb.w_select_raw",
+            "wave": "101.01.01....",
+            "data": [],
+            "phase": 0
+        },
+        {
+            "name": "u_weighted_round_robin.u_rrb_arb.u_arb_raw.ow_grant[3:0]",
+            "wave": "=.==.==.=....",
+            "data": [
+                "2",
+                "1",
+                "2",
+                "1",
+                "2",
+                "1"
+            ],
+            "phase": 0
+        },
+        {
+            "name": "u_weighted_round_robin.u_rrb_arb.u_arb_mask.ow_grant[3:0]",
+            "wave": "==.==.====...",
+            "data": [
+                "0",
+                "2",
+                "0",
+                "2",
+                "0",
+                "2",
+                "0",
+                "1"
+            ],
+            "phase": 0
+        }
+    ],
+    "config": {
+        "hscale": 1
+    }
+}

@@ -1,0 +1,11 @@
+@startuml ProjAuto_REMatcherClass
+
+class REMatcher {
+  - matchstring: str
+  - rematch: Match
+  + __init__(matchstring: str)
+  + match(regexp: str): bool
+  + group(i: int): str
+}
+
+@enduml

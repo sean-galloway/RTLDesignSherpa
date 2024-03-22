@@ -1,0 +1,28 @@
+@startuml verilog_Module
+
+class Module {
+  - start_instructions: list
+  - instructions: list
+  - end_instructions: list
+  - module_name: str
+  - instance_name: str
+  - params: Param
+  - ports: Signal
+  - wires: list
+
+  + __init__(module_name: str = '', instance_name: str = '')
+  + add_port_string(ports: str): void
+  + wire(name: str, _type: str): void
+  + start(): void
+  + end(): void
+  + stmt_assign(lhs: str, rhs: str): void
+  + instruction(instruction: str): void
+  + comment(c: str): void
+  + write(file_path: str, filename: str): void
+  + instantiate(instance_name: str, inputs: list, outputs: list): str
+  + __str__(): str
+  + in_connector(port: str, connector: str): dict
+  + out_connector(port: str, connector: str): dict
+}
+
+@enduml

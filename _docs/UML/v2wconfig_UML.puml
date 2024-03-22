@@ -1,0 +1,19 @@
+@startuml V2WConfig
+!include v2wconvert_UML.puml
+
+class V2WConfig {
+    - config: dict
+    - converter: V2WConvert
+    - vcd: VCDVCD
+
+    + __init__(argv: list)
+    + group_and_sort_signals(signals: list): list
+    + argparse(argv: list)
+    + generate_config()
+    + loop_and_find_sigs_clks(vcd: dict, signals: set, clocks: set, clock_periods: dict, timescale: str, base_unit: str, cmn_unit: str, cmn_base: str): tuple
+}
+
+V2WConfig --> V2WConvert
+V2WConfig --> VCDVCD
+
+@enduml

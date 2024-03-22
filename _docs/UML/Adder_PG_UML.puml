@@ -1,0 +1,11 @@
+@startuml Adder_PG
+!include verilog_Module_UML.puml
+
+class PG {
+  + PG()
+  + verilog(file_path: str): void
+}
+
+PG --|> Module
+
+@enduml

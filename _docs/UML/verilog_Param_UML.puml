@@ -1,0 +1,31 @@
+@startuml verilog_Param
+
+class ParameterRecord {
+  - sig_type: str
+  - name: str
+  - value: str
+  - packed: str
+  - unpacked: str
+  - compilerDirectiveSig: str
+  - compilerDirective: str
+}
+
+class Param {
+  - paramrec_list: list[ParameterRecord]
+
+  + __init__(signal_str: str = '')
+  + __repr__(): list[ParameterRecord]
+  - _found_name(name: str): tuple[bool, int]
+  - _convert_paramrec_list(rec_list: list): void
+  - _convert_paramrec(rec): ParameterRecord
+  - __get_max_lengths(): tuple[int, int, int]
+  + set_param_value(param: str, value: str): void
+  + add_param_string(signal_str: str): list[ParameterRecord]
+  + create_param_string(): str
+  + create_param_instance(): str
+  + __str__(): str
+}
+
+Param --|> ParameterRecord
+
+@enduml

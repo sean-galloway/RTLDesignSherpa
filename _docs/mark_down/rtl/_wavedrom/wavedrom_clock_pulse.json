@@ -1,0 +1,61 @@
+{
+    "head": {
+        "text": "Clock Pulse",
+        "tock": 1
+    },
+    "signal": [
+        {
+            "name": "clock_pulse.i_clk",
+            "wave": "ppppppppppppppppppppppppp",
+            "data": [],
+            "phase": 0,
+            "period": 1.0
+        },
+        {
+            "name": "clock_pulse.i_rst_n",
+            "wave": "x1.......................",
+            "data": [],
+            "phase": 0
+        },
+        {
+            "name": "clock_pulse.o_pulse",
+            "wave": "x0.........10........10..",
+            "data": [],
+            "phase": 0
+        },
+        {
+            "name": "clock_pulse.r_counter[9:0]",
+            "wave": "x========================",
+            "data": [
+                "0",
+                "1",
+                "2",
+                "3",
+                "4",
+                "5",
+                "6",
+                "7",
+                "8",
+                "9",
+                "0",
+                "1",
+                "2",
+                "3",
+                "4",
+                "5",
+                "6",
+                "7",
+                "8",
+                "9",
+                "0",
+                "1",
+                "2",
+                "3"
+            ],
+            "phase": 0
+        }
+    ],
+    "config": {
+        "hscale": 1
+    }
+}
