@@ -1,0 +1,24 @@
+@startuml Adder_GroupPGLogic
+!include verilog_Module_UML.puml
+!include Adder_Black_UML.puml
+!include Adder_Gray_UML.puml
+
+class GroupPGLogic {
+  + GroupPGLogic(buswidth: int)
+  + generate_block_matrix(): list[list]
+  + height(): int
+  + p_i_j(i: int, row: int): str
+  + g_i_j(i: int, row: int): str
+  + naming_wired(row: int, i: int, arg2: str): str
+  + input_i_j(r: int, c: int): tuple[int, int]
+  + output_i_j(r: int, c: int): tuple[int, int]
+  + black_block(r: int, c: int, block_in: int): tuple[list[str], str]
+  + gray_block(r: int, c: int, block_in: int): tuple[list[str], str]
+  + verilog(file_path: str): void
+}
+
+GroupPGLogic --|> Module
+GroupPGLogic --> Black: Uses
+GroupPGLogic --> Gray: Uses
+
+@enduml

@@ -1,0 +1,13 @@
+@startuml Adder_BitwisePGLogic
+!include verilog_Module_UML.puml
+!include Adder_PG_UML.puml
+
+class BitwisePGLogic {
+  + BitwisePGLogic(buswidth: int)
+  + verilog(file_path: str): void
+}
+
+BitwisePGLogic --|> Module
+BitwisePGLogic --> PG: uses
+
+@enduml

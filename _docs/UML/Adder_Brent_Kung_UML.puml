@@ -1,0 +1,28 @@
+@startuml Adder_Brent_Kung_Diagram
+!include verilog_Module_UML.puml
+!include Adder_BitwisePGLogic_UML.puml
+!include Adder_Black_UML.puml
+!include Adder_Gray_UML.puml
+!include Adder_GroupPGLogic_UML.puml
+!include Adder_PG_UML.puml
+!include Adder_Sum_UML.puml
+
+class BrentKungAdder {
+  + BrentKungAdder(buswidth: int)
+  + bitwise_pg_logic_inputs(): list
+  + bitwise_pg_logic_outputs(): list
+  + group_pg_logic_inputs(): list
+  + group_pg_logic_outputs(): list
+  + sum_logic_inputs(): list
+  + sum_logic_outputs(): list
+  + add_new_wires(top_ports: list, prev_wires: list, new_wires: list): list
+  + add_module(m: Module, instance_name: str, inputs: list, outputs: list, top_ports: list, wires: list): list
+  + verilog(file_path: str): void
+}
+
+BrentKungAdder --|> Module
+BrentKungAdder --> BitwisePGLogic: Uses
+BrentKungAdder --> GroupPGLogic: Uses
+BrentKungAdder --> SumLogic: Uses
+
+@enduml

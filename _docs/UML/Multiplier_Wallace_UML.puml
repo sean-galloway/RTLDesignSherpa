@@ -1,0 +1,19 @@
+@startuml Multiplier_WallaceTree
+!include verilog_Module_UML.puml
+!include Multiplier_Mixin_UML.puml
+
+class WallaceTree {
+  - module_str: str
+  - param_str: str
+  - port_str: str
+  - buswidth: int
+  - type: str
+  + __init__(type: str, buswidth: int)
+  + wallace_reduction(bit_groups: Dict[int, List[str]], type: str, N: int) : Dict[int, List[str]]
+  + verilog(file_path: str)
+}
+
+WallaceTree --|> Module
+WallaceTree --|> MultiplierMixin
+
+@enduml

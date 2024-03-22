@@ -1,0 +1,11 @@
+@startuml verilog_ParserHelperTop
+
+class ParserHelper {
+  + parsePortsList(signal_str: str): list
+  + parseParametersList(signal_str: str): list
+  + cleanString(signal_str: str): str
+  + arrayMerge(current: str, new: str): str
+  + padRight(string: str, length: int): str
+}
+
+@enduml

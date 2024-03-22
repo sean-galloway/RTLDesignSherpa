@@ -1,0 +1,105 @@
+{
+    "head": {
+        "text": "Fifo Behavior",
+        "tock": 1
+    },
+    "signal": [
+        {
+            "name": "u_fifo_sync_A.i_clk",
+            "wave": "ppppppppppppppppp|ppppppppppppp",
+            "data": [],
+            "phase": 0,
+            "period": 1.0
+        },
+        {
+            "name": "u_fifo_sync_A.i_rst_n",
+            "wave": "1................|.............",
+            "data": [],
+            "phase": 0
+        },
+        [
+            "Write Interface",
+            {
+                "name": "u_fifo_sync_A.i_write",
+                "wave": "0................|.............",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "u_fifo_sync_A.i_wr_data[7:0]",
+                "wave": "=................|.............",
+                "data": [
+                    "C7"
+                ],
+                "phase": 0
+            },
+            [
+                "ptr",
+                {
+                    "name": "u_fifo_sync_A.write_counter.o_counter_bin[6:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "u_fifo_sync_A.o_wr_almost_full",
+                    "wave": "1...............0|.............",
+                    "data": [],
+                    "phase": 0
+                },
+                {
+                    "name": "u_fifo_sync_A.o_wr_full",
+                    "wave": "1..0.............|.............",
+                    "data": [],
+                    "phase": 0
+                }
+            ]
+        ],
+        [
+            "Read Interface",
+            {
+                "name": "u_fifo_sync_A.i_read",
+                "wave": "0.10...........10|..10.10.1....",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "u_fifo_sync_A.ow_rd_data[7:0]",
+                "wave": "=..=............=|=..=..=..====",
+                "data": [
+                    "A0",
+                    "A1",
+                    "A2",
+                    "AA",
+                    "AB",
+                    "AC",
+                    "AD",
+                    "AE",
+                    "AF",
+                    "B0"
+                ],
+                "phase": 0
+            },
+            [
+                "ptr",
+                {
+                    "name": "u_fifo_sync_A.read_counter.o_counter_bin[6:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "u_fifo_sync_A.o_rd_almost_empty",
+                    "wave": "0................|.............",
+                    "data": [],
+                    "phase": 0
+                },
+                {
+                    "name": "u_fifo_sync_A.o_rd_empty",
+                    "wave": "0................|.............",
+                    "data": [],
+                    "phase": 0
+                }
+            ]
+        ]
+    ],
+    "config": {
+        "hscale": 1
+    }
+}

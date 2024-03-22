@@ -1,0 +1,14 @@
+@startuml ProjAuto_TestListClass
+!include ProjAuto_REMatcher_UML.puml
+
+class TestList {
+  - original_directory: str
+  - repo_root: str
+  - env: dict
+  + __init__()
+  + generate_run_test_commands(test_name_substring: str): List[str]
+  + create_json_file_from_dirs(path: str, json_file_name: str): None
+}
+
+TestList --> REMatcher: uses
+@enduml

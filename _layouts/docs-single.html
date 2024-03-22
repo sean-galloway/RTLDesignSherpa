@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+  {% include head.html %}
+
+  <body>
+    <!-- ======= Header ======= -->
+    {% include header.html %}
+    <!-- End Header -->
+
+    <main id="main">
+      <!-- ======= About Section ======= -->
+      <section id="article" class="article pt-5 mt-5">
+        <div class="container pt-5" data-aos="fade-up">
+          <div class="row justify-content-center">
+            <div class="col-xl-9 col-lg-11 col-md-12">
+              <div class="row justify-content-center list">
+                <div class="col-md-12 title text-center">
+                  <h2>Our Articles</h2>
+                </div>
+                {% assign sorted_docs = site.docs | sort: 'date' | reverse %}
+                <!---->
+                {% for post in sorted_docs %}
+                <!---->
+                <div class="col-md-2">
+                  <p>{{ post.date | date: "%d %b %Y" }}</p>
+                </div>
+                <div class="col-md-7">
+                  <h2>
+                    <a href="{{ post.url }}">{{ post.title }}</a>
+                  </h2>
+                </div>
+                <div class="col-md-3">
+                  {% for category in post.categories %}
+                  <a class="category">{{ category }}</a>
+                  {% endfor %}
+                </div>
+                <!---->
+                <hr />
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <!-- End About Section -->
+    </main>
+    <!-- End #main -->
+
+    <!-- ======= Footer ======= -->
+    <footer id="footer">
+      <div class="container d-md-flex py-4">
+        <div class="me-md-auto text-center text-md-start">
+          <div class="copyright">
+            &copy; Copyright <strong><span>RTL Design Sherpa</span></strong
+            >. All Rights Reserved
+          </div>
+        </div>
+      </div>
+    </footer>
+    <!-- End Footer -->
+
+    <div id="preloader"></div>
+
+    <!-- plugs JS Files -->
+    <script src="/assets/plugs/purecounter/purecounter.js"></script>
+    <script src="/assets/plugs/aos/aos.js"></script>
+    <script src="/assets/plugs/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="/assets/plugs/glightbox/js/glightbox.min.js"></script>
+    <script src="/assets/plugs/isotope-layout/isotope.pkgd.min.js"></script>
+    <script src="/assets/plugs/swiper/swiper-bundle.min.js"></script>
+
+    <!-- Template Main JS File -->
+    <script src="/assets/js/main.js"></script>
+  </body>
+</html>

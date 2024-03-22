@@ -1,0 +1,16 @@
+@startuml V2WConvert
+
+class V2WConvert {
+    - cmn_unit: str
+    - cmn_base: str
+    - ureg: UnitRegistry
+
+    + __init__()
+    + convert_timescale_to_cmn_units(value: int, current_timescale: str, cmn_unit: str, cmn_base: str): str
+    + calculate_sampling_points(vcd_timescale: str, target_interval: str, endtime: str): list
+    - _convert_to_magnitude(time_base: str, units: str): int
+}
+
+V2WConvert --> UnitRegistry
+
+@enduml

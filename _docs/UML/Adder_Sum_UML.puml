@@ -1,0 +1,11 @@
+@startuml Adder_SumLogic
+!include verilog_Module_UML.puml
+
+class SumLogic {
+  + SumLogic(buswidth: int)
+  + verilog(file_path: str): void
+}
+
+SumLogic --|> Module
+
+@enduml

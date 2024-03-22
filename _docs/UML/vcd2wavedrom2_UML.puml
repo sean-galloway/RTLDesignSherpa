@@ -1,0 +1,36 @@
+@startuml VCD2Wavedrom2
+!include v2wconvert_UML.puml
+!include v2wconfig_UML.puml
+
+class VCD2Wavedrom2 {
+    - busregex: Regex
+    - v2wconfig: V2WConfig
+    - config: dict
+    - converter: Converter
+    - vcd: VCDVCD
+
+    + __init__(argv: list)
+    + find_max_time_in_vcd(vcd: dict): int
+    + homogenize_waves(vcd_dict: dict, sample_points: list): dict
+    + includewave(wave: str): bool
+    + samplenow(tick: int, sample_window: str): bool
+    + parse_gtkw_file(gtkw_file: str): list
+    + build_wave_drom_structure(group_structure: list, signal_rec_dict: dict): dict
+    + create_signal_records(vcd_dict: dict, vcd_dict_types: dict, sample_points: list): dict
+    + find_closest_data_point(sample_points: list, waveform_data: list): Generator
+    + wave_is_a_clock(wave: str): tuple
+    + process_clk_signal(wave: str, phase: int, period_wd: str, char: str): dict
+    + process_signal(wave: str, phase: int, waveform_data: list, vcd_dict_types: dict, sample_points: list): dict
+    + create_waveform_record(wave: str, waveform_data: list, vcd_dict_types: dict, sample_points: list): dict
+    + determine_phase(signal: str): int
+    + process_signal_value(signal_rec: dict, j: tuple, isbus: bool, lastval: str, wave_type: str): tuple
+    + finalize_wave_drom_structure(group_structure: list, signal_rec_dict: dict): dict
+    + dump_wavedrom(vcd_dict: dict, vcd_dict_types: dict, sample_points: list, group_structure: list): dict
+    + execute(group_structure: list): dict
+}
+
+VCD2Wavedrom2 --> V2WConfig
+VCD2Wavedrom2 --> Converter
+VCD2Wavedrom2 --> VCDVCD
+
+@enduml

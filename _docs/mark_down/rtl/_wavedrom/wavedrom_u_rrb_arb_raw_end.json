@@ -1,0 +1,37 @@
+{
+    "head": {
+        "text": "End Arbitration, Combiniatorial Arbiter",
+        "tock": 1
+    },
+    "signal": [
+        {
+            "name": "u_weighted_round_robin.u_rrb_arb.u_arb_raw.i_req[3:0]",
+            "wave": "=.==.==.=....",
+            "data": [
+                "2",
+                "3",
+                "2",
+                "3",
+                "2",
+                "1"
+            ],
+            "phase": 0
+        },
+        {
+            "name": "u_weighted_round_robin.u_rrb_arb.u_arb_raw.ow_grant[3:0]",
+            "wave": "=.==.==.=....",
+            "data": [
+                "2",
+                "1",
+                "2",
+                "1",
+                "2",
+                "1"
+            ],
+            "phase": 0
+        }
+    ],
+    "config": {
+        "hscale": 1
+    }
+}
