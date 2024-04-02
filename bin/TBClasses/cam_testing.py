@@ -39,6 +39,29 @@ class CamTB(TBBase):
         self.check_empty()
         self.check_not_full()
 
+    async def main_loop_sb(self):
+        self.log.info("Main Test")
+        tag_list = [random.randint(0x00, self.max_val) for _ in range(self.DEPTH)]
+        self.log.info(f'{tag_list=}')
+        for tag in tag_list:
+            await self.mark_one_valid(tag)
+        self.check_not_empty()
+        # self.check_full()
+        random.shuffle(tag_list)
+        tag = tag_list.pop()
+        await self.mark_one_invalid(tag)
+        self.check_not_empty()
+        self.check_not_full()
+        await self.mark_one_valid(tag)
+        # self.check_full()
+        tag_list.append(tag)
+        for tag in tag_list:
+            await self.mark_one_invalid(tag)
+        self.clear_interface()
+        await self.wait_clocks('i_clk', 1)
+        self.check_empty()
+        self.check_not_full()
+
 
     async def clear_interface(self):
         self.dut.i_tag_in_status.value = 0
