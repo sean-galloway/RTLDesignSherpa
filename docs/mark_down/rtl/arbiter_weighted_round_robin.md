@@ -92,10 +92,6 @@ The module includes an initial block to handle waveform dumping for simulation p
 
 - The arbiter operates synchronously with the clock signal `i_clk`.
 
-### Simulation and Debugging
-
-In the given code, signals for debugging and simulation (`synopsys translate_off`, `\$dumpfile`, `\$dumpvars`, `synopsys translate_on`) are intended to be used with simulation tools.
-
 ### Conclusion
 
 The weighted round-robin arbiter presented here is a flexible solution for managing competing resource requests. It can be customized to fit various use cases and ensures fair distribution of access based on pre-defined weights.

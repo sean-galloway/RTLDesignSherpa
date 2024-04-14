@@ -103,15 +103,6 @@ class WallaceTree(Module, MultiplierMixin):
         self.generate_final_addition(bit_groups,N)
         self.generate_final_assignments(N)
 
-        self.instruction('')
-        self.instruction('// synopsys translate_off')
-        self.instruction('initial begin')
-        self.instruction('    $dumpfile("waves.vcd");')
-        self.instruction(f'    $dumpvars(0, {self.module_name});')
-        self.instruction('end')
-        self.instruction('// synopsys translate_on')
-        self.instruction('')
-
         self.start()
 
         self.end()

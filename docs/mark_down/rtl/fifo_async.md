@@ -74,10 +74,6 @@ In cycle 23 the fifo is full. As it gets drained more items are added to it. The
 On the read side, we see the binary pointer starts at 0x0 and wraps back around to 0x0. Through these increments, the gray pointer increments also, but in such a way that only one-bit changes at a time.
 The gray pointers for the write and read domain each pass through glitch-free synchronized flops, they are converted to binary on the other side and used for comparisons.
 
-## Simulation Notes
-
-- The module includes test code disabled during synthesis (`synopsys translate_off` / `synopsys translate_on`). This includes error displays and VCD dumping, which can only be used to debug the FIFO's behavior in a simulated environment.
-
 ### Usage Considerations
 
 - The `fifo_async` module must operate in a system with proper reset synchronization to ensure a safe and reliable reset of both write and read domains.

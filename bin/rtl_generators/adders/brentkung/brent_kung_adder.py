@@ -113,14 +113,6 @@ class BrentKungAdder(Module):
                                     top_ports=top_ports,
                                     wires=wires)
 
-        self.instruction('// synopsys translate_off')
-        self.instruction('initial begin')
-        self.instruction('    $dumpfile("waves.vcd");')
-        self.instruction(f'    $dumpvars(0, {self.module_name});')
-        self.instruction('end')
-        self.instruction('// synopsys translate_on')
-        self.instruction('')
-
         # Wires
         # ports = [verilog.Module(BrentKungAdder).inputs, verilog.Module(BrentKungAdder).outputs]
         for wire in wires:

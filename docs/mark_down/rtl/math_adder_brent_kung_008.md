@@ -34,10 +34,6 @@ This module implements an `N`-bit Brent-Kung adder. The Brent-Kung adder is a pa
 
 - `math_adder_brent_kung_sum`: Compute the final sum and carry based on propagate and group generate signals.
 
-## Simulation-specific Constructs
-
-- The `\$dumpfile` and `\$dumpvars` system calls are used for waveform dumping during simulation, which is not synthesized to actual hardware and is enclosed within synthesis-off directives `// synopsys translate_off` and `// synopsys translate_on`.
-
 ## Usage Notes
 
 - To instantiate this module, you must provide a parameter `N`, the operation width, specify the input operands `i_a` and `i_b`, and, if needed, initialize the carry input `i_c`. Then connect the `ow_sum` and `ow_carry` to receive the result of the addition.

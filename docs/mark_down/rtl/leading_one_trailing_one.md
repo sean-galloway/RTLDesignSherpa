@@ -38,10 +38,6 @@ The submodules determine the positions of the leading and trailing ones. These p
 
 The module also indicates whether all the bits in the input data are set (`ow_all_ones`) or cleared (`ow_all_zeroes`) and whether the input data has at least one set bit (`ow_valid`).
 
-### Debugging Provisions
-
-There are commented-out lines for waveform dumping when performing simulations. These lines are wrapped in directives to exclude them during synthesis `// synopsys translate_off` ... `// synopsys translate_on`.
-
 ---
 
 [Return to Index](index.md)

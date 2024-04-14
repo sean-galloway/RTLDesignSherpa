@@ -58,8 +58,6 @@ else r_mask \<= ({(CLIENTS - 1)'('d0), 1'b1} \<\< w_winner) - 1'b1;
 
 ```
 
-- The module also includes simulation constructs enclosed within `synopsys translate_off` and `synopsys translate_on` to initialize the waveform dump in `waves.vcd` for debugging purposes.
-
 ### Synthesis Considerations
 
 - The initial block with `\$dumpfile` and `\$dumpvars` is specifically for simulation and will not be synthesized. It is commonly wrapped in translation directives, so synthesis tools ignore this block.
