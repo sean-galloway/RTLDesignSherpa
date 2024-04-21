@@ -116,8 +116,8 @@ module cache_plru_mesi #(
     logic [TagWidth-1:0]  r_tag_array [0:DEPTH-1];          // verilog_lint: waive unpacked-dimensions-range-ordering
     logic [DW-1:0]        r_data_array [0:DEPTH-1][0:A-1];  // verilog_lint: waive unpacked-dimensions-range-ordering
     logic [DM-1:0]        r_dm_array [0:DEPTH-1][0:A-1];    // verilog_lint: waive unpacked-dimensions-range-ordering
-    logic [DEPTH-1:0]     r_valid_array;
-    logic [DEPTH-1:0]     r_dirty_array;
+    logic [DEPTH-1:0]     r_valid_array [0:A-1];            // verilog_lint: waive unpacked-dimensions-range-ordering
+    logic [DEPTH-1:0]     r_dirty_array [0:A-1];            // verilog_lint: waive unpacked-dimensions-range-ordering
     logic [A-2:0]         r_plru_bits [0:S-1];              // verilog_lint: waive unpacked-dimensions-range-ordering
     logic [1:0]           r_state_array [0:DEPTH-1][0:A-1]; // verilog_lint: waive unpacked-dimensions-range-ordering
 
@@ -130,9 +130,6 @@ module cache_plru_mesi #(
     wire [TagWidth-1:0]    w_snoop_tag;
     wire [IndexWidth-1:0]  w_snoop_index;
     wire [OffsetWidth-1:0] w_snoop_offset;
-    wire [TagWidth-1:0]    w_c2c_tag;
-    wire [IndexWidth-1:0]  w_c2c_index;
-    wire [OffsetWidth-1:0] w_c2c_offset;
 
     // Internal signals for FIFO operation
     logic r_sysbusin_valid, r_sysbusin_ready, r_sysbusin_op_rdxwr;
@@ -279,14 +276,10 @@ module cache_plru_mesi #(
     assign w_snoop_tag = r_snoop_addr[AW-1:AW-TagWidth];
     assign w_snoop_index = r_snoop_addr[AW-TagWidth-1:AW-TagWidth-IndexWidth];
     assign w_snoop_offset = r_snoop_addr[AW-TagWidth-IndexWidth-1:AW-TagWidth-IndexWidth-OffsetWidth];
-    assign w_c2c_tag = r_c2c_addr[AW-1:AW-TagWidth];
-    assign w_c2c_index = r_c2c_addr[AW-TagWidth-1:AW-TagWidth-IndexWidth];
-    assign w_c2c_offset = r_c2c_addr[AW-TagWidth-IndexWidth-1:AW-TagWidth-IndexWidth-OffsetWidth];
 
     wire [A-1:0] w_sysbusin_way_hit;
     wire [A-1:0] w_memin_way_hit;
     wire [A-1:0] w_snoop_way_hit;
-    wire [A-1:0] w_c2c_way_hit;
     assign       o_sysbusin_hit = |w_sysbusin_way_hit;
     assign       o_snoop_hit = |w_snoop_way_hit;
     logic [$clog2(A)-1:0] new_way = get_plru_way(r_plru_bits[w_sysbusin_index]);
@@ -298,12 +291,11 @@ module cache_plru_mesi #(
             assign w_sysbusin_way_hit[i] = r_valid_array[w_sysbusin_index*A+i] && (r_tag_array[w_sysbusin_index*A+i] == w_sysbusin_tag);
             assign w_memin_way_hit[i] = r_valid_array[w_memin_index*A+i] && (r_tag_array[w_memin_index*A+i] == w_memin_tag);
             assign w_snoop_way_hit[i] = r_valid_array[w_snoop_index*A+i] && (r_tag_array[w_snoop_index*A+i] == w_snoop_tag);
-            assign w_c2c_way_hit[i] = r_valid_array[w_c2c_index*A+i] && (r_tag_array[w_c2c_index*A+i] == w_c2c_tag);
         end
     endgenerate
 
     integer j, k;
-    always @(posedge i_clk or negedge i_rst_n) begin
+    always_ff @(posedge i_clk or negedge i_rst_n) begin
         if (~i_rst_n) begin
             for (j = 0; j < DEPTH; j++) begin
                 r_valid_array[j] <= 1'b0;
@@ -319,49 +311,27 @@ module cache_plru_mesi #(
                     r_dm_array[j][k] <= {DM{1'b0}};
                 end
             end
-            for (j = 0; j < A; j = j + 1) begin
-                r_c2c_snp_pending_array[j] <= {DEPTH{1'b0}};
-            end
-            r_c2c_snp_current_way <= {$clog2(A){1'b0}};
-            r_c2c_snp_current_addr <= {AW{1'b0}};
-            o_c2c_snp_valid <= 1'b0;
-            o_c2c_snp_addr <= {AW{1'b0}};
-            o_c2c_snp_data <= {DW{1'b0}};
-            r_memin_valid <= 'b0;
-            r_memin_op_rdxwr <= 'b0;
-            r_memin_addr <= 'b0;
-            r_memin_data <= 'b0;
-            r_memin_dm <= 'b0;
-            r_memout_valid <= 'b0;
-            r_memout_op_rdxwr <= 'b0;
-            r_memout_addr <= 'b0;
-            r_memout_data <= 'b0;
-            r_memout_dm <= 'b0;
-            r_snoop_valid <= 'b0;
-            r_snoop_addr <= 'b0;
-            r_snoop_cmd <= 'b0;
-            r_fifo_c2c_snp_valid <= 'b0;
-            r_c2c_snp_addr <= 'b0;
-            r_c2c_snp_data <= 'b0;
-            r_c2c_snp_dm <= 'b0;
-        end else begin
-            r_sysbusin_ready <= 1'b0;
-            r_sysbusout_valid <= 1'b0;
-            o_memin_ready <= 1'b0;
             r_memout_valid <= 1'b0;
+            r_memout_op_rdxwr <= 1'b0;
+            r_memout_addr <= {AW{1'b0}};
+            r_memout_data <= {DW{1'b0}};
+            r_memout_dm <= {DM{1'b0}};
+            r_fifo_c2c_snp_valid <= 1'b0;
+            r_c2c_snp_addr <= {AW{1'b0}};
+            r_c2c_snp_data <= {DW{1'b0}};
+            r_c2c_snp_dm <= {DM{1'b0}};
+        end else begin
             //////////////////////////////////////////////////////////////////////////////////////////////////////////////
             // Read request handling
             if (r_sysbusin_valid && !r_sysbusin_op_rdxwr) begin
-                if (o_hit) begin
+                if (o_sysbusin_hit) begin
                     // Read hit
-                    o_sysbusout_valid <= 1'b1;
+                    r_sysbusin_ready <= 1'b1;
+                    r_sysbusout_valid <= 1'b1;
                     r_sysbusout_op_rdxwr <= 'b0;
                     r_sysbusout_addr <= r_sysbusin_addr;
-                    r_sysbusout_data <= r_data_array[w_sysbusin_index*A+w_way_hit][w_sysbusin_offset*DW+:DW];
-                    r_sysbusout_dm <= r_dm_array[w_sysbusin_index*A+w_way_hit][w_sysbusin_offset*DM+:DM];
-                    r_sysbusin_ready <= 1'b1;
-                    // Update PLRU bits for the accessed set
-                    r_plru_bits[w_index] <= update_plru(r_plru_bits[w_index], w_way_hit);
+                    r_sysbusout_data <= r_data_array[w_sysbusin_index][w_sysbusin_way_hit][w_sysbusin_offset*DW/8 +: DW/8];
+                    r_sysbusout_dm <= r_dm_array[w_sysbusin_index][w_sysbusin_way_hit][w_sysbusin_offset +: DM];
                 end else begin
                     // Read miss, send a read to the memout interface
                     if (r_memout_ready && !r_read_fifo_full) begin
@@ -379,31 +349,34 @@ module cache_plru_mesi #(
                 end
             end else begin
                 r_sysbusin_ready <= 1'b0;
-                o_sysbusout_valid <= 1'b0;
+                r_sysbusout_valid <= 1'b0;
                 r_read_fifo_wr_en <= 1'b0;
             end
             //////////////////////////////////////////////////////////////////////////////////////////////////////////////
             // Handle memory input (read response)
-            if (i_memin_valid && i_sysbusout_ready && !i_memin_op_rdxwr && !r_read_queue_empty) begin
+            if (i_memin_valid && r_sysbusout_ready && !i_memin_op_rdxwr && !r_read_fifo_empty) begin
                 // Get the allocated way from the side queue
                 logic [$clog2(A)-1:0] allocated_way;
                 allocated_way <= r_read_fifo_rd_data;
                 // Update the cache entry with the received data
-                r_tag_array[w_memin_index*A+allocated_way] <= w_memin_tag;
-                r_data_array[w_memin_index*A+allocated_way] <= i_memin_data;
-                r_valid_array[w_memin_index*A+allocated_way] <= 1'b1;
-                r_State_array[w_imemin_ndex*A+allocated_way] <= StateE;
+                r_tag_array[w_memin_index][allocated_way] <= w_memin_tag;
+                for (int i = 0; i < A; i++) begin
+                    r_data_array[w_memin_index][w_memin_way_hit][i*DW +: DW] <= i_memin_data[i*DW +: DW];
+                end
+                r_valid_array[w_memin_index][allocated_way] <= 1'b1;
+                r_state_array[w_memin_index][allocated_way] <= StateE;
                 // Provide the read data on the sysbus output
-                o_sysbusout_valid <= 1'b1;
-                o_sysbusout_data <= i_memin_data;
+                r_sysbusout_valid <= 1'b1;
+                r_sysbusout_op_rdxwr <= 'b0;
+                r_sysbusout_addr <= i_memin_addr;
+                r_sysbusout_data <= i_memin_data;
+                r_sysbusout_dm <= i_memin_dm;
                 // Update PLRU bits for the allocated way
-                r_plru_bits[w_index] <= update_plru(r_plru_bits[w_index], allocated_way);
+                r_plru_bits[w_sysbusin_index] <= update_plru(r_plru_bits[w_sysbusin_index], allocated_way);
                 // Remove the allocated way from the side queue
-                r_read_queue_rd_en <= 1'b1;
-                o_memin_ready <= 1'b1;
+                r_read_fifo_rd_en <= 1'b1;
             end else begin
-                r_read_queue_rd_en <= 1'b0;
-                o_memin_ready <= 1'b0;
+                r_read_fifo_rd_en <= 1'b0;
             end
             //////////////////////////////////////////////////////////////////////////////////////////////////////////////
             // Write request handling
@@ -415,13 +388,13 @@ module cache_plru_mesi #(
                             // Update the cache data and byte enables
                             for (int j = 0; j < DM; j++) begin
                                 if (r_sysbusin_dm[j]) begin
-                                    r_data_array[w_sysbusin_index*A+i][w_sysbusin_offset*DW+j*8+:8] <= r_sysbusin_data[j*8+:8];
-                                    r_dm_array[w_sysbusin_index*A+i][w_sysbusin_offset*DM+j] <= 1'b1;
+                                    r_data_array[w_sysbusin_index][w_sysbusin_way_hit][w_sysbusin_offset*DW+j*8+:8] <= r_sysbusin_data[j*8+:8];
+                                    r_dm_array[w_sysbusin_index][w_sysbusin_way_hit][w_sysbusin_offset*DM+j] <= 1'b1;
                                 end
                             end
                             // Update the cache line state and dirty bit
-                            r_state_array[w_sysbusin_index*A+i] <= StateM;
-                            r_dirty_array[w_sysbusin_index*A+i] <= 1'b1;
+                            r_state_array[w_sysbusin_index][i] <= StateM;
+                            r_dirty_array[w_sysbusin_index][i] <= 1'b1;
                             // Update PLRU bits for the accessed set
                             r_plru_bits[w_sysbusin_index] <= update_plru(r_plru_bits[w_sysbusin_index], i);
                         end
@@ -436,8 +409,10 @@ module cache_plru_mesi #(
                             r_memout_valid <= 1'b1;
                             r_memout_op_rdxwr <= 1'b1;
                             r_memout_addr <= {r_tag_array[w_sysbusin_index*A+evict_way], w_sysbusin_index, {OffsetWidth{1'b0}}};
-                            r_memout_data <= r_data_array[w_sysbusin_index*A+evict_way];
-                            r_memout_dm <= r_dm_array[w_sysbusin_index*A+evict_way];
+                            for (int i = 0; i < A; i++) begin
+                                r_memout_data[i*DW +: DW] <= r_data_array[w_sysbusin_index][evict_way][i*DW +: DW];
+                                r_memout_dm[i*DM +: DM] <= r_dm_array[w_sysbusin_index][evict_way][i*DM +: DM];
+                            end
                             r_dirty_array[w_sysbusin_index*A+evict_way] <= 1'b0;
                             r_sysbusin_ready <= 1'b1;
                         end else begin
@@ -450,15 +425,15 @@ module cache_plru_mesi #(
                     r_tag_array[w_sysbusin_index*A+evict_way] <= w_sysbusin_tag;
                     for (int j = 0; j < DM; j++) begin
                         if (r_sysbusin_dm[j]) begin
-                            r_data_array[w_sysbusin_index*A+evict_way][w_sysbusin_offset*DW+j*8+:8] <= r_sysbusin_data[j*8+:8];
-                            r_dm_array[w_sysbusin_index*A+evict_way][w_sysbusin_offset*DM+j] <= 1'b1;
+                            r_data_array[w_sysbusin_index][evict_way][w_sysbusin_offset*DW+j*8+:8] <= r_sysbusin_data[j*8+:8];
+                            r_dm_array[w_sysbusin_index][evict_way][w_sysbusin_offset*DM+j] <= 1'b1;
                         end else begin
-                            r_dm_array[w_sysbusin_index*A+evict_way][w_sysbusin_offset*DM+j] <= 1'b0;
+                            r_dm_array[w_sysbusin_index][evict_way][w_sysbusin_offset*DM+j] <= 1'b0;
                         end
                     end
-                    r_valid_array[w_sysbusin_index*A+evict_way] <= 1'b1;
-                    r_dirty_array[w_sysbusin_index*A+evict_way] <= 1'b1;
-                    r_state_array[w_sysbusin_index*A+evict_way] <= StateM;
+                    r_valid_array[w_sysbusin_index][evict_way] <= 1'b1;
+                    r_dirty_array[w_sysbusin_index][evict_way] <= 1'b1;
+                    r_state_array[w_sysbusin_index][evict_way] <= StateM;
                     // Update PLRU bits for the allocated way
                     r_plru_bits[w_sysbusin_index] <= update_plru(r_plru_bits[w_sysbusin_index], evict_way);
                 end
@@ -475,26 +450,30 @@ module cache_plru_mesi #(
                         // Snoop read request
                         if (o_snoop_hit) begin
                             // Snoop hit
-                            o_snoop_data <= r_data_array[w_snoop_index*A+w_snoop_way_hit];
+                            for (int i = 0; i < A; i++) begin
+                                o_snoop_data[i*DW +: DW] <= r_data_array[w_snoop_index][w_snoop_way_hit][i*DW +: DW];
+                            end
                             o_snoop_dirty <= r_dirty_array[w_snoop_index*A+w_snoop_way_hit];
-                            if (r_state_array[w_snoop_index*A+w_snoop_way_hit] == StateM ||
-                                r_state_array[w_snoop_index*A+w_snoop_way_hit] == StateE) begin
+                            if (r_state_array[w_snoop_index][w_snoop_way_hit] == StateM ||
+                                r_state_array[w_snoop_index][w_snoop_way_hit] == StateE) begin
                                 // If the cache line is in the Modified or Exclusive state, initiate a C2C snoop transfer
                                 if (r_fifo_c2c_snp_ready) begin
                                     r_fifo_c2c_snp_valid <= 1'b1;
                                     r_snoop_ready <= 1'b1;
-                                    r_c2c_snp_addr <= {r_tag_array[w_snoop_index*A+w_snoop_way_hit], w_snoop_index, {OffsetWidth{1'b0}}};
-                                    r_c2c_snp_data <= r_data_array[w_snoop_index*A+w_snoop_way_hit];
-                                    r_c2c_snp_dm <= r_dm_array[w_snoop_index*A+w_snoop_way_hit];
+                                    r_c2c_snp_addr <= {r_tag_array[w_snoop_index][w_snoop_way_hit], w_snoop_index, {OffsetWidth{1'b0}}};
+                                    for (int i = 0; i < A; i++) begin
+                                        r_c2c_snp_data[i*DW +: DW] <= r_data_array[w_snoop_index][w_snoop_way_hit][i*DW +: DW];
+                                        r_c2c_snp_dm[i*DM +: DM] <= r_dm_array[w_snoop_index][w_snoop_way_hit][i*DM +: DM];
+                                    end
                                 end else begin
                                     // If the c2c_snp queue is not ready, wait for it to become ready
                                     r_snoop_ready <= 1'b0;
                                 end
                                 r_snoop_ready <= 1'b1;
                             end
-                            if (r_state_array[w_snoop_index*A+w_snoop_way_hit] == StateM) begin
+                            if (r_state_array[w_snoop_index][w_snoop_way_hit] == StateM) begin
                                 // If the cache line is in the Modified state, transition to Shared state
-                                r_state_array[w_snoop_index*A+w_snoop_way_hit] <= StateS;
+                                r_state_array[w_snoop_index][w_snoop_way_hit] <= StateS;
                             end
                         end else begin
                             // Snoop miss
@@ -506,17 +485,21 @@ module cache_plru_mesi #(
                         // Snoop read-for-ownership request
                         if (o_snoop_hit) begin
                             // Snoop hit
-                            o_snoop_data <= r_data_array[w_snoop_index*A+w_snoop_way_hit];
-                            o_snoop_dirty <= r_dirty_array[w_snoop_index*A+w_snoop_way_hit];
-                            if (r_dirty_array[w_snoop_index*A+w_snoop_way_hit]) begin
+                            for (int i = 0; i < A; i++) begin
+                                o_snoop_data[i*DW +: DW] <= r_data_array[w_snoop_index][w_snoop_way_hit][i*DW +: DW];
+                            end
+                            o_snoop_dirty <= r_dirty_array[w_snoop_index][w_snoop_way_hit];
+                            if (r_dirty_array[w_snoop_index][w_snoop_way_hit]) begin
                                 // If the cache line is dirty, write it back to memory
                                 if (r_memout_ready) begin
                                     r_snoop_ready <= 1'b1;
                                     r_memout_valid <= 1'b1;
                                     r_memout_op_rdxwr <= 1'b1;
-                                    r_memout_addr <= {r_tag_array[w_snoop_index*A+w_snoop_way_hit], w_snoop_index, {OffsetWidth{1'b0}}};
-                                    r_memout_data <= r_data_array[w_snoop_index*A+w_snoop_way_hit];
-                                    r_memout_dm <= r_dm_array[w_snoop_index*A+w_snoop_way_hit];
+                                    r_memout_addr <= {r_tag_array[w_snoop_index][w_snoop_way_hit], w_snoop_index, {OffsetWidth{1'b0}}};
+                                    for (int i = 0; i < A; i++) begin
+                                        r_memout_data[i*DW +: DW] <= r_data_array[w_snoop_index][w_snoop_way_hit][i*DW +: DW];
+                                        r_memout_dm[i*DM +: DM] <= r_dm_array[w_snoop_index][w_snoop_way_hit][i*DM +: DM];
+                                    end
                                     r_dirty_array[w_snoop_index*A+w_snoop_way_hit] <= 1'b0;
                                 end else begin
                                     // If the memory output interface is not ready, wait for it to become ready
@@ -524,10 +507,8 @@ module cache_plru_mesi #(
                                 end
                             end
                             // Invalidate the cache line
-                            r_valid_array[w_snoop_index*A+w_snoop_way_hit] <= 1'b0;
-                            r_dirty_array[w_snoop_index*A+w_snoop_way_hit] <= 1'b0;
-                            r_dm_array[w_snoop_index*A+w_snoop_way_hit] <= 'b0;
-                            r_state_array[w_snoop_index*A+w_snoop_way_hit] <= StateI;
+                            r_valid_array[w_snoop_index][w_snoop_way_hit] <= 1'b0;
+                            r_state_array[w_snoop_index][w_snoop_way_hit] <= StateI;
                         end else begin
                             // Snoop miss
                             o_snoop_data <= {DW{1'b0}};
@@ -544,18 +525,20 @@ module cache_plru_mesi #(
                                     r_snoop_ready <= 1'b1;
                                     r_memout_valid <= 1'b1;
                                     r_memout_op_rdxwr <= 1'b1;
-                                    r_memout_addr <= {r_tag_array[w_snoop_index*A+w_snoop_way_hit], w_snoop_index, {OffsetWidth{1'b0}}};
-                                    r_memout_data <= r_data_array[w_snoop_index*A+w_snoop_way_hit];
-                                    r_memout_dm <= r_dm_array[w_snoop_index*A+w_snoop_way_hit];
-                                    r_dirty_array[w_snoop_index*A+w_snoop_way_hit] <= 1'b0;
+                                    r_memout_addr <= {r_tag_array[w_snoop_index][w_snoop_way_hit], w_snoop_index, {OffsetWidth{1'b0}}};
+                                    for (int i = 0; i < A; i++) begin
+                                        r_memout_data[i*DW +: DW] <= r_data_array[w_snoop_index][w_snoop_way_hit][i*DW +: DW];
+                                        r_memout_dm[i*DM +: DM] <= r_dm_array[w_snoop_index][w_snoop_way_hit][i*DM +: DM];
+                                    end
+                                    r_dirty_array[w_snoop_index][w_snoop_way_hit] <= 1'b0;
                                 end else begin
                                     // If the memory output interface is not ready, wait for it to become ready
                                     r_snoop_ready <= 1'b0;
                                 end
                             end
                             // Invalidate the cache line
-                            r_valid_array[w_snoop_index*A+w_snoop_way_hit] <= 1'b0;
-                            r_state_array[w_snoop_index*A+w_snoop_way_hit] <= StateI;
+                            r_valid_array[w_snoop_index][w_snoop_way_hit] <= 1'b0;
+                            r_state_array[w_snoop_index][w_snoop_way_hit] <= StateI;
                         end
                     end
                     default: begin
@@ -564,11 +547,7 @@ module cache_plru_mesi #(
                     end
                 endcase
             end
-            //////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
         end
-
     end
 
 endmodule : cache_plru_mesi
