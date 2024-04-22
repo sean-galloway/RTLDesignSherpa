@@ -79,30 +79,35 @@ class CTCacheMESI(TBBase):
         await self.wait_clocks('i_clk', 50)
 
     async def drive_sysbus(self, operation_done_event):
+        # sourcery skip: low-code-quality
         """Randomly perform read/write operations on the sysbus interface."""
         write_constraints = [(0, 20), (21, 60), (61, 90), (91, 100)]
         write_weights = [10, 20, 15, 1]
         crand_write = ConstrainedRandom(write_constraints, write_weights)
+
         delay_constraints = [(0, 2), (3, 10), (11, 20), (21, 30)]
         delay_weights = [5, 10, 5, 1]
         crand_delay = ConstrainedRandom(delay_constraints, delay_weights)
 
         num_operations = self.num_ops
-
+        count = 0
         for _ in range(num_operations):
             op_type = random.choice(['read', 'write'])
+            self.log.info(f'sysbus: {count=} {op_type=}')
+            count += 1
 
             if op_type == 'write' and crand_write.next() > 50:  # Adjust the threshold as needed
                 wr_addr = random.randint(0, self.max_val_aw)
                 wr_data = random.randint(0, self.max_val_dw)
                 wr_dm = random.randint(0, self.max_val_dm)
+
                 self.dut.i_sysbusin_valid.value = 1
                 self.dut.i_sysbusin_op_rdxwr.value = 1
                 self.dut.i_sysbusin_addr.value = wr_addr
                 self.dut.i_sysbusin_data.value = wr_data
                 self.dut.i_sysbusin_dm.value = wr_dm
-                await self.wait_clocks('i_clk', 1)
 
+                await self.wait_clocks('i_clk', 1)
                 while not self.dut.o_sysbusin_ready.value:
                     await self.wait_clocks('i_clk', 1)
 
@@ -115,32 +120,34 @@ class CTCacheMESI(TBBase):
                 self.log.info(f'Write: Addr: {addr_hex} Data: {wr_data_hex} DM: {wr_dm_hex} Time: {current_time_ns}')
                 self.data_memory[addr_hex] = wr_data_hex  # Store the written data in the dictionary
 
-            elif op_type == 'read':
+            else:  # op_type == 'read'
                 rd_addr = random.randint(0, self.max_val_aw)
+
                 self.dut.i_sysbusin_valid.value = 1
                 self.dut.i_sysbusin_op_rdxwr.value = 0
                 self.dut.i_sysbusin_addr.value = rd_addr
                 self.dut.i_sysbusin_data.value = 0
                 self.dut.i_sysbusin_dm.value = 0
-                await self.wait_clocks('i_clk', 1)
 
+                await self.wait_clocks('i_clk', 1)
                 while not self.dut.o_sysbusin_ready.value:
                     await self.wait_clocks('i_clk', 1)
 
                 self.dut.i_sysbusin_valid.value = 0
                 self.address_queue.put_nowait(rd_addr)  # Add the read address to the queue
+
                 self.dut.i_sysbusout_ready.value = 1
                 await self.wait_clocks('i_clk', 1)
-
                 while not self.dut.o_sysbusout_valid.value:
                     await self.wait_clocks('i_clk', 1)
-                
+
                 self.dut.i_sysbusout_ready.value = 0
+
                 rd_data = self.dut.o_sysbusout_data.value
                 addr_hex = self.hex_format(rd_addr, self.max_val_aw)
                 rd_data_hex = self.hex_format(rd_data, self.max_val_dw)
                 current_time_ns = get_sim_time('ns')
-                self.log.info(f'Read: Addr: {addr_hex} Data: {rd_data_hex} Expected: {self.hex_format(expected_data, self.max_val)} Time: {current_time_ns}')
+                self.log.info(f'Read: Addr: {addr_hex} Data: {rd_data_hex} Time: {current_time_ns}')
 
             await self.wait_clocks('i_clk', crand_delay.next())
 

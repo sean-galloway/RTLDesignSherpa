@@ -1,0 +1,76 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Mon Apr 22 04:13:50 2024
+[*]
+[dumpfile] "/home/sean/github/RTLDesignSherpa/val/unit_common/local_sim_build/test_cache_plru_mesi-64-4-32-32/waves.vcd"
+[dumpfile_mtime] "Mon Apr 22 03:58:30 2024"
+[dumpfile_size] 58804
+[savefile] "/home/sean/github/RTLDesignSherpa/val/unit_common/cache_plru_mesi.gtkw"
+[timestart] 0
+[size] 1873 1147
+[pos] -1 -1
+*-15.681881 150000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] cache_plru_mesi.
+[sst_width] 308
+[signals_width] 296
+[sst_expanded] 1
+[sst_vpaned_height] 515
+@28
+cache_plru_mesi.i_clk
+cache_plru_mesi.i_rst_n
+cache_plru_mesi.i_sysbusin_valid
+cache_plru_mesi.o_sysbusin_ready
+cache_plru_mesi.i_sysbusin_op_rdxwr
+@22
+cache_plru_mesi.i_sysbusin_addr[31:0]
+cache_plru_mesi.i_sysbusin_data[31:0]
+cache_plru_mesi.i_sysbusin_dm[3:0]
+@28
+cache_plru_mesi.o_sysbusin_hit
+cache_plru_mesi.i_sysbusout_ready
+cache_plru_mesi.o_sysbusout_valid
+cache_plru_mesi.o_sysbusout_op_rdxwr
+@22
+cache_plru_mesi.o_sysbusout_addr[31:0]
+cache_plru_mesi.o_sysbusout_data[31:0]
+cache_plru_mesi.o_sysbusout_dm[3:0]
+@28
+cache_plru_mesi.i_memin_valid
+cache_plru_mesi.o_memin_ready
+cache_plru_mesi.i_memin_op_rdxwr
+@22
+cache_plru_mesi.i_memin_addr[31:0]
+cache_plru_mesi.i_memin_data[31:0]
+cache_plru_mesi.i_memin_dm[3:0]
+@28
+cache_plru_mesi.o_memout_valid
+cache_plru_mesi.i_memout_ready
+cache_plru_mesi.o_memout_op_rdxwr
+@22
+cache_plru_mesi.o_memout_addr[31:0]
+cache_plru_mesi.o_memout_data[31:0]
+cache_plru_mesi.o_memout_dm[3:0]
+@28
+cache_plru_mesi.i_snoop_valid
+cache_plru_mesi.o_snoop_ready
+@22
+cache_plru_mesi.i_snoop_addr[31:0]
+cache_plru_mesi.i_snoop_cmd[3:0]
+@28
+cache_plru_mesi.o_c2c_snp_valid
+cache_plru_mesi.i_c2c_snp_ready
+@22
+cache_plru_mesi.o_c2c_snp_addr[31:0]
+cache_plru_mesi.o_c2c_snp_data[31:0]
+cache_plru_mesi.o_c2c_snp_dm[3:0]
+@28
+cache_plru_mesi.r_sysbusin_valid
+cache_plru_mesi.r_sysbusin_ready
+cache_plru_mesi.r_sysbusin_op_rdxwr
+@22
+cache_plru_mesi.r_sysbusin_addr[31:0]
+cache_plru_mesi.r_sysbusin_data[31:0]
+@23
+cache_plru_mesi.r_sysbusin_dm[3:0]
+[pattern_trace] 1
+[pattern_trace] 0

@@ -288,20 +288,21 @@ module cache_plru_mesi #(
     genvar i;
     generate
         for (i = 0; i < A; i = i + 1) begin : gen_way_hit
-            assign w_sysbusin_way_hit[i] = r_valid_array[w_sysbusin_index*A+i] && (r_tag_array[w_sysbusin_index*A+i] == w_sysbusin_tag);
-            assign w_memin_way_hit[i] = r_valid_array[w_memin_index*A+i] && (r_tag_array[w_memin_index*A+i] == w_memin_tag);
-            assign w_snoop_way_hit[i] = r_valid_array[w_snoop_index*A+i] && (r_tag_array[w_snoop_index*A+i] == w_snoop_tag);
+            assign w_sysbusin_way_hit[i] = r_sysbusin_valid && r_valid_array[w_sysbusin_index*A+i] && (r_tag_array[w_sysbusin_index*A+i] == w_sysbusin_tag);
+            assign w_memin_way_hit[i] = r_memin_valid && r_valid_array[w_memin_index*A+i] && (r_tag_array[w_memin_index*A+i] == w_memin_tag);
+            assign w_snoop_way_hit[i] = r_snoop_valid && r_valid_array[w_snoop_index*A+i] && (r_tag_array[w_snoop_index*A+i] == w_snoop_tag);
         end
     endgenerate
 
     integer j, k;
     always_ff @(posedge i_clk or negedge i_rst_n) begin
         if (~i_rst_n) begin
-            for (j = 0; j < DEPTH; j++) begin
-                r_valid_array[j] <= 1'b0;
-                r_dirty_array[j] <= 1'b0;
-                r_tag_array[j] <= {TagWidth{1'b0}};
+            for (int j = 0; j < A; j++) begin
+                r_valid_array[j] <= {DEPTH{1'b0}};
+                r_dirty_array[j] <= {DEPTH{1'b0}};
             end
+            for (int j = 0; j < DEPTH; j++)
+                r_tag_array[j] <= {TagWidth{1'b0}};
             for (j = 0; j < S; j = j + 1) begin
                 r_plru_bits[j] <= {A-1{1'b0}};
             end
@@ -549,5 +550,26 @@ module cache_plru_mesi #(
             end
         end
     end
+
+    /////////////////////////////////////////////////////////////////////////
+    // error checking
+    // synopsys translate_off
+    // Generate a version of the memory for waveforms
+    logic [(TagWidth*DEPTH)-1:0] flat_r_tag_array;
+    logic [(A*DEPTH)-1:0] flat_r_valid_array;
+    logic [(A*DEPTH)-1:0] flat_r_dirty_array;
+    generate
+        for (i = 0; i < DEPTH; i++) begin : gen_flatten_tag_array
+            assign flat_r_tag_array[i*TagWidth+:TagWidth] = r_tag_array[i];
+        end
+        for (i = 0; i < A; i++) begin
+            assign flat_r_valid_array[i*DEPTH+:DEPTH] = r_valid_array[i];
+            assign flat_r_dirty_array[i*DEPTH+:DEPTH] = r_dirty_array[i];
+        end
+    endgenerate
+
+
+    // synopsys translate_on
+
 
 endmodule : cache_plru_mesi

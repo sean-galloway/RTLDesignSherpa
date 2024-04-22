@@ -71,7 +71,7 @@ module fifo_control #(
 
     always_ff @(posedge i_rd_clk, negedge i_rd_rst_n) begin
         if (!i_rd_rst_n) begin
-            o_rd_empty <= 'b0;
+            o_rd_empty <= 'b1;
             o_rd_almost_empty <= 'b0;
         end else begin
             o_rd_empty <= w_rd_empty_d;
