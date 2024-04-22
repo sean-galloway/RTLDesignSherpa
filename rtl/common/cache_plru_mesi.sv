@@ -148,7 +148,7 @@ module cache_plru_mesi #(
         .i_wr_data      ({i_sysbusin_op_rdxwr, i_sysbusin_addr, i_sysbusin_data, i_sysbusin_dm}),
         .o_rd_valid     (r_sysbusin_valid),
         .i_rd_ready     (r_sysbusin_ready),
-        .o_rd_data      ({r_sysbusin_op_rdxwr, r_sysbusin_addr, r_sysbusin_data, r_sysbusin_dm})
+        .ow_rd_data     ({r_sysbusin_op_rdxwr, r_sysbusin_addr, r_sysbusin_data, r_sysbusin_dm})
     );
 
     // Internal signals for FIFO operation
@@ -168,7 +168,7 @@ module cache_plru_mesi #(
         .i_wr_data      ({r_sysbusout_op_rdxwr, r_sysbusout_addr, r_sysbusout_data, r_sysbusout_dm}),
         .o_rd_valid     (o_sysbusout_valid),
         .i_rd_ready     (i_sysbusout_ready),
-        .o_rd_data      ({o_sysbusout_op_rdxwr, o_sysbusout_addr, o_sysbusout_data, o_sysbusout_dm})
+        .ow_rd_data     ({o_sysbusout_op_rdxwr, o_sysbusout_addr, o_sysbusout_data, o_sysbusout_dm})
     );
 
     // Internal signals for FIFO operation
@@ -188,7 +188,7 @@ module cache_plru_mesi #(
         .i_wr_data      ({i_memin_op_rdxwr, i_memin_addr, i_memin_data, i_memin_dm}),
         .o_rd_valid     (r_memin_valid),
         .i_rd_ready     (r_memin_ready),
-        .o_rd_data      ({r_memin_op_rdxwr, r_memin_addr, r_memin_data, r_memin_dm})
+        .ow_rd_data     ({r_memin_op_rdxwr, r_memin_addr, r_memin_data, r_memin_dm})
     );
 
     // Internal signals for FIFO operation
@@ -208,7 +208,7 @@ module cache_plru_mesi #(
         .i_wr_data      ({r_memout_op_rdxwr, r_memout_addr, r_memout_data, r_memout_dm}),
         .o_rd_valid     (o_memout_valid),
         .i_rd_ready     (i_memout_ready),
-        .o_rd_data      ({o_memout_op_rdxwr, o_memout_addr, o_memout_data, o_memout_dm})
+        .ow_rd_data     ({o_memout_op_rdxwr, o_memout_addr, o_memout_data, o_memout_dm})
     );
 
     // Internal signals for FIFO operation
@@ -227,7 +227,7 @@ module cache_plru_mesi #(
         .i_wr_data      ({i_snoop_addr, i_snoop_cmd}),
         .o_rd_valid     (r_snoop_valid),
         .i_rd_ready     (r_snoop_ready),
-        .o_rd_data      ({r_snoop_addr, r_snoop_cmd})
+        .ow_rd_data     ({r_snoop_addr, r_snoop_cmd})
     );
 
     // Internal signals for c2c snoop FIFO operation
@@ -247,7 +247,7 @@ module cache_plru_mesi #(
         .i_wr_data      ({r_c2c_snp_addr, r_c2c_snp_data, r_c2c_snp_dm}),
         .i_rd_ready     (i_c2c_snp_ready),
         .o_rd_valid     (o_c2c_snp_valid),
-        .o_rd_data      ({o_c2c_snp_addr, o_c2c_snp_data, o_c2c_snp_dm})
+        .ow_rd_data     ({o_c2c_snp_addr, o_c2c_snp_data, o_c2c_snp_dm})
     );
 
     // Side queue for reads that are sent to the memory
@@ -262,7 +262,7 @@ module cache_plru_mesi #(
         .i_write      (r_read_fifo_wr_en),
         .i_wr_data    (r_allocated_way),
         .i_read       (r_read_fifo_rd_en),
-        .o_rd_data    (r_read_fifo_rd_data),
+        .ow_rd_data   (r_read_fifo_rd_data),
         .o_wr_full    (r_read_fifo_full),
         .o_rd_empty   (r_read_fifo_empty)
     );

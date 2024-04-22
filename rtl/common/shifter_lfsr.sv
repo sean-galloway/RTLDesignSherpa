@@ -91,21 +91,18 @@ module shifter_lfsr #(
     assign ow_lfsr_done = (o_lfsr_out[WIDTH:1] == i_seed_data) ? 1'b1 : 1'b0;
 
     always_ff @(posedge i_clk or negedge i_rst_n) begin
-        if (!i_rst_n) begin
+        if (~i_rst_n) begin
             r_lfsr <= 0;
         end else begin
             if (i_enable) begin
                 if (i_seed_load) r_lfsr <= i_seed_data;
                 else begin
-                    r_lfsr <= {r_lfsr[WIDTH:1], w_feedback};
+                    r_lfsr <= {r_lfsr[WIDTH-1:0], w_feedback};
                 end
             end
         end
     end
 
     assign o_lfsr_out = r_lfsr;
-
-    // Synopsys translate_off
-    // Synopsys translate_on
 
 endmodule : shifter_lfsr
