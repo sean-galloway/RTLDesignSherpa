@@ -1,5 +1,5 @@
 import cocotb
-from cocotb.triggers import FallingEdge, Timer, Event
+from cocotb.triggers import FallingEdge, Timer, Event, RisingEdge
 from cocotb.clock import Clock
 from cocotb.queue import Queue
 from cocotb.utils import get_sim_time
@@ -11,7 +11,7 @@ from cocotb_test.simulator import run
 from TBBase import TBBase
 from ConstrainedRandom import ConstrainedRandom
 
-class CTCachePLRUMESI(TBBase):
+class CTCacheMESI(TBBase):
     def __init__(self, dut):
         TBBase.__init__(self, dut)
         self.DEPTH = self.convert_to_int(os.environ.get('PARAM_DEPTH', '0'))
@@ -19,7 +19,9 @@ class CTCachePLRUMESI(TBBase):
         self.DW = self.convert_to_int(os.environ.get('PARAM_DW', '0'))
         self.AW = self.convert_to_int(os.environ.get('PARAM_AW', '0'))
         self.LINE_SIZE = self.DW // 8
-        self.max_val = (2 ** self.AW) - 1
+        self.max_val_aw = (2 ** self.AW) - 1
+        self.max_val_dw = (2 ** self.DW) - 1
+        self.max_val_dm = (2 ** self.LINE_SIZE) - 1
         self.data_memory = {}  # Dictionary to store written data
         self.address_queue = Queue()  # Queue to store addresses for read operations
         self.num_ops = 1000
@@ -30,13 +32,17 @@ class CTCachePLRUMESI(TBBase):
         self.dut.i_sysbusin_addr.value = 0
         self.dut.i_sysbusin_data.value = 0
         self.dut.i_sysbusin_dm.value = 0
+        self.dut.i_sysbusout_ready = 0
+        self.dut.i_memin_valid.value = 0
+        self.dut.i_memin_op_rdxwr.value = 0
+        self.dut.i_memin_addr.value = 0
+        self.dut.i_memin_data.value = 0
+        self.dut.i_memin_dm.value = 0
+        self.dut.i_memout_ready = 0
         self.dut.i_snoop_valid.value = 0
         self.dut.i_snoop_cmd.value = 0
         self.dut.i_snoop_addr.value = 0
-        self.dut.i_c2c_valid.value = 0
-        self.dut.i_c2c_addr.value = 0
-        self.dut.i_c2c_data.value = 0
-        self.dut.i_c2c_dm.value = 0
+        self.dut.i_c2c_snp_ready = 0
         self.log.info('Clearing interface done.')
 
     async def assert_reset(self):
@@ -62,10 +68,9 @@ class CTCachePLRUMESI(TBBase):
         operation_done_event = Event()
 
         # Start the concurrent processes
-        cocotb.start_soon(self.drive_writes(operation_done_event))
-        cocotb.start_soon(self.drive_reads(operation_done_event))
+        cocotb.start_soon(self.drive_sysbus(operation_done_event))
+        cocotb.start_soon(self.drive_membus(operation_done_event))
         cocotb.start_soon(self.drive_snoop(operation_done_event))
-        cocotb.start_soon(self.drive_c2c(operation_done_event))
 
         # Wait for the operations to complete
         await operation_done_event.wait()
@@ -73,8 +78,8 @@ class CTCachePLRUMESI(TBBase):
         # Run after the run
         await self.wait_clocks('i_clk', 50)
 
-    async def drive_writes(self, operation_done_event):
-        """Randomly perform write operations and add addresses to the queue."""
+    async def drive_sysbus(self, operation_done_event):
+        """Randomly perform read/write operations on the sysbus interface."""
         write_constraints = [(0, 20), (21, 60), (61, 90), (91, 100)]
         write_weights = [10, 20, 15, 1]
         crand_write = ConstrainedRandom(write_constraints, write_weights)
@@ -85,67 +90,98 @@ class CTCachePLRUMESI(TBBase):
         num_operations = self.num_ops
 
         for _ in range(num_operations):
-            if crand_write.next() > 50:  # Adjust the threshold as needed
-                wr_addr = random.randint(0, self.max_val)
-                wr_data = random.randint(0, 2 ** self.DW - 1)
-                wr_dm = random.randint(0, 2 ** self.LINE_SIZE - 1)
-                self.dut.i_sysbusin_addr.value = wr_addr
+            op_type = random.choice(['read', 'write'])
+
+            if op_type == 'write' and crand_write.next() > 50:  # Adjust the threshold as needed
+                wr_addr = random.randint(0, self.max_val_aw)
+                wr_data = random.randint(0, self.max_val_dw)
+                wr_dm = random.randint(0, self.max_val_dm)
                 self.dut.i_sysbusin_valid.value = 1
                 self.dut.i_sysbusin_op_rdxwr.value = 1
+                self.dut.i_sysbusin_addr.value = wr_addr
                 self.dut.i_sysbusin_data.value = wr_data
                 self.dut.i_sysbusin_dm.value = wr_dm
                 await self.wait_clocks('i_clk', 1)
-                is_hit = self.dut.o_sysbusin_hit.value
-                addr_hex = self.hex_format(wr_addr, self.max_val)
-                wr_data_hex = self.hex_format(wr_data, self.max_val)
-                wr_dm_hex = self.hex_format(wr_dm, self.max_val)
-                current_time_ns = get_sim_time('ns')
-                self.log.info(f'Write: Addr: {addr_hex} Data: {wr_data_hex} DM: {wr_dm_hex} Hit: {is_hit} Time: {current_time_ns}')
+
+                while not self.dut.o_sysbusin_ready.value:
+                    await self.wait_clocks('i_clk', 1)
+
                 self.dut.i_sysbusin_valid.value = 0
+
+                addr_hex = self.hex_format(wr_addr, self.max_val_aw)
+                wr_data_hex = self.hex_format(wr_data, self.max_val_dw)
+                wr_dm_hex = self.hex_format(wr_dm, self.max_val_dm)
+                current_time_ns = get_sim_time('ns')
+                self.log.info(f'Write: Addr: {addr_hex} Data: {wr_data_hex} DM: {wr_dm_hex} Time: {current_time_ns}')
+                self.data_memory[addr_hex] = wr_data_hex  # Store the written data in the dictionary
+
+            elif op_type == 'read':
+                rd_addr = random.randint(0, self.max_val_aw)
+                self.dut.i_sysbusin_valid.value = 1
                 self.dut.i_sysbusin_op_rdxwr.value = 0
+                self.dut.i_sysbusin_addr.value = rd_addr
                 self.dut.i_sysbusin_data.value = 0
                 self.dut.i_sysbusin_dm.value = 0
-                self.address_queue.put_nowait(wr_addr)  # Add the written address to the queue
-                self.data_memory[wr_addr] = wr_data  # Store the written data in the dictionary
+                await self.wait_clocks('i_clk', 1)
 
-            await self.wait_clocks('i_clk', crand_delay.next())
-
-        operation_done_event.set()
-
-    async def drive_reads(self, operation_done_event):
-        """Randomly perform read operations using addresses from the queue."""
-        read_constraints = [(0, 10), (11, 50), (51, 80), (81, 100)]
-        read_weights = [5, 10, 20, 1]
-        crand_read = ConstrainedRandom(read_constraints, read_weights)
-        delay_constraints = [(0, 2), (3, 10), (11, 20), (21, 30)]
-        delay_weights = [5, 10, 5, 1]
-        crand_delay = ConstrainedRandom(delay_constraints, delay_weights)
-
-        num_operations = self.num_ops
-
-        for _ in range(num_operations):
-            if crand_read.next() > 50:  # Adjust the threshold as needed
-                if not self.address_queue.empty():
-                    rd_addr = self.address_queue.get_nowait()
-                    self.dut.i_sysbusin_addr.value = rd_addr
-                    self.dut.i_sysbusin_valid.value = 1
-                    self.dut.i_sysbusin_op_rdxwr.value = 0
+                while not self.dut.o_sysbusin_ready.value:
                     await self.wait_clocks('i_clk', 1)
-                    is_hit = self.dut.o_sysbusin_hit.value
-                    rd_data = self.dut.o_sysbusout_data.value
-                    addr_hex = self.hex_format(rd_addr, self.max_val)
-                    rd_data_hex = self.hex_format(rd_data, self.max_val)
-                    current_time_ns = get_sim_time('ns')
-                    expected_data = self.data_memory.get(rd_addr, 0)  # Get the expected data from the dictionary
-                    self.log.info(f'Read: Addr: {addr_hex} Data: {rd_data_hex} Expected: {self.hex_format(expected_data, self.max_val)} Hit: {is_hit} Time: {current_time_ns}')
-                    if expected_data != rd_data:
-                        self.log.error(f"Error: Read data mismatch for address {addr_hex}. Expected: {self.hex_format(expected_data, self.max_val)}, Actual: {rd_data_hex}")
-                    self.dut.i_sysbusin_valid.value = 0
-                    self.dut.i_sysbusin_op_rdxwr.value = 0
+
+                self.dut.i_sysbusin_valid.value = 0
+                self.address_queue.put_nowait(rd_addr)  # Add the read address to the queue
+                self.dut.i_sysbusout_ready.value = 1
+                await self.wait_clocks('i_clk', 1)
+
+                while not self.dut.o_sysbusout_valid.value:
+                    await self.wait_clocks('i_clk', 1)
+                
+                self.dut.i_sysbusout_ready.value = 0
+                rd_data = self.dut.o_sysbusout_data.value
+                addr_hex = self.hex_format(rd_addr, self.max_val_aw)
+                rd_data_hex = self.hex_format(rd_data, self.max_val_dw)
+                current_time_ns = get_sim_time('ns')
+                self.log.info(f'Read: Addr: {addr_hex} Data: {rd_data_hex} Expected: {self.hex_format(expected_data, self.max_val)} Time: {current_time_ns}')
 
             await self.wait_clocks('i_clk', crand_delay.next())
 
         operation_done_event.set()
+
+    async def drive_membus(self, operation_done_event):
+        """Handle requests on the membus interface."""
+
+        while True:
+            await self.wait_clocks('i_clk', 1)
+
+            if self.dut.o_memout_valid.value:
+                self.dut.i_memout_ready.value = 1
+                await self.wait_clocks('i_clk', 1)
+                op_type = 'write' if self.dut.o_memout_op_rdxwr.value else 'read'
+                addr = self.dut.o_memout_addr.value
+                addr_hex = self.hex_format(addr, self.max_val_aw)
+
+                if op_type == 'write':
+                    data = self.dut.o_memout_data.value
+                    self.data_memory[addr] = data  # Store the written data in the dictionary
+                    addr_hex = self.hex_format(addr, self.max_val_aw)
+                    data_hex = self.hex_format(data, self.max_val_dw)
+                    current_time_ns = get_sim_time('ns')
+                    self.log.info(f'Mem Write: Addr: {addr_hex} Data: {data_hex} Time: {current_time_ns}')
+                else:
+                    data = self.data_memory.get(addr_hex, 0)  # Get the read data from the dictionary
+                    self.dut.i_memin_valid.value = 1
+                    self.dut.i_memin_op_rdxwr.value = 0
+                    self.dut.i_memin_addr.value = addr
+                    self.dut.i_memin_data.value = data
+
+                    while not self.dut.o_memin_ready.value:
+                        await self.wait_clocks('i_clk', 1)
+
+                    self.dut.i_memin_valid.value = 0
+
+                    addr_hex = self.hex_format(addr, self.max_val_aw)
+                    data_hex = self.hex_format(data, self.max_val_dw)
+                    current_time_ns = get_sim_time('ns')
+                    self.log.info(f'Mem Read: Addr: {addr_hex} Data: {data_hex} Time: {current_time_ns}')
 
     async def drive_snoop(self, operation_done_event):
         """Randomly perform snoop operations."""
@@ -161,64 +197,41 @@ class CTCachePLRUMESI(TBBase):
         for _ in range(num_operations):
             if crand_snoop.next() > 50:  # Adjust the threshold as needed
                 if random.random() < 0.2:  # 20% chance of generating a guaranteed miss
-                    snoop_addr = random.randint(0, self.max_val)  # Generate a random address
+                    snoop_addr = random.randint(0, self.max_val_aw)  # Generate a random address
                     while snoop_addr in self.data_memory:  # Ensure the address is not in the data_memory
-                        snoop_addr = random.randint(0, self.max_val)
+                        snoop_addr = random.randint(0, self.max_val_dw)
                 elif self.address_queue.empty():
-                    snoop_addr = random.randint(0, self.max_val)  # Generate a random address if the queue is empty
-
+                    snoop_addr = random.randint(0, self.max_val_aw)  # Generate a random address if the queue is empty
                 else:
                     snoop_addr = self.address_queue.get_nowait()  # Use an address from the queue
+
                 snoop_cmd = random.choices([0, 1, 2], weights=[6, 3, 1])[0]  # Adjust the weights as needed
                 self.dut.i_snoop_addr.value = snoop_addr
                 self.dut.i_snoop_valid.value = 1
                 self.dut.i_snoop_cmd.value = snoop_cmd
+
                 await self.wait_clocks('i_clk', 1)
+
+                while not self.dut.o_snoop_ready.value:
+                    await self.wait_clocks('i_clk', 1)
+
+                self.dut.i_snoop_valid.value = 0
+
                 is_hit = self.dut.o_snoop_hit.value
                 is_dirty = self.dut.o_snoop_dirty.value
                 snoop_data = self.dut.o_snoop_data.value
-                addr_hex = self.hex_format(snoop_addr, self.max_val)
-                snoop_data_hex = self.hex_format(snoop_data, self.max_val) if is_hit else 'x' * (self.DW // 4)
+                addr_hex = self.hex_format(snoop_addr, self.max_val_aw)
+                snoop_data_hex = self.hex_format(snoop_data, self.max_val_dw) if is_hit else 'x' * (self.DW // 4)
                 current_time_ns = get_sim_time('ns')
                 self.log.info(f'Snoop: Addr: {addr_hex} Cmd: {snoop_cmd} Data: {snoop_data_hex} Hit: {is_hit} Dirty: {is_dirty} Time: {current_time_ns}')
-                self.dut.i_snoop_valid.value = 0
-                self.dut.i_snoop_cmd.value = 0
-                self.dut.i_snoop_addr.value = 0
 
-            await self.wait_clocks('i_clk', crand_delay.next())
-
-        operation_done_event.set()
-
-    async def drive_c2c(self, operation_done_event):
-        """Randomly perform cache-to-cache operations."""
-        c2c_constraints = [(0, 60), (61, 90), (91, 100)]
-        c2c_weights = [30, 15, 1]
-        crand_c2c = ConstrainedRandom(c2c_constraints, c2c_weights)
-        delay_constraints = [(0, 2), (3, 10), (11, 20), (21, 30)]
-        delay_weights = [5, 10, 5, 1]
-        crand_delay = ConstrainedRandom(delay_constraints, delay_weights)
-
-        num_operations = self.num_ops
-
-        for _ in range(num_operations):
-            if crand_c2c.next() > 50:  # Adjust the threshold as needed
-                if not self.address_queue.empty():
-                    c2c_addr = self.address_queue.get_nowait()  # Use an address from the queue
-                    c2c_data = random.randint(0, 2 ** self.DW - 1)
-                    c2c_dm = random.randint(0, 2 ** self.LINE_SIZE - 1)
-                    self.dut.i_c2c_addr.value = c2c_addr
-                    self.dut.i_c2c_valid.value = 1
-                    self.dut.i_c2c_data.value = c2c_data
-                    self.dut.i_c2c_dm.value = c2c_dm
-                    await self.wait_clocks('i_clk', 1)
-                    addr_hex = self.hex_format(c2c_addr, self.max_val)
-                    c2c_data_hex = self.hex_format(c2c_data, self.max_val)
-                    c2c_dm_hex = self.hex_format(c2c_dm, self.max_val)
-                    current_time_ns = get_sim_time('ns')
-                    self.log.info(f'C2C: Addr: {addr_hex} Data: {c2c_data_hex} DM: {c2c_dm_hex} Time: {current_time_ns}')
-                    self.dut.i_c2c_valid.value = 0
-                    self.dut.i_c2c_data.value = 0
-                    self.dut.i_c2c_dm.value = 0
+                if snoop_cmd == 0 and is_hit:
+                    await RisingEdge(self.dut.o_c2c_snp_valid)
+                    while not self.dut.i_c2c_snp_ready.value:
+                        await self.wait_clocks('i_clk', 1)
+                    c2c_data = self.dut.o_c2c_snp_data.value
+                    c2c_data_hex = self.hex_format(c2c_data, self.max_val_aw)
+                    self.log.info(f'C2C Transfer: Addr: {addr_hex} Data: {c2c_data_hex} Time: {current_time_ns}')
 
             await self.wait_clocks('i_clk', crand_delay.next())
 
@@ -226,9 +239,9 @@ class CTCachePLRUMESI(TBBase):
 
 
 @cocotb.test()
-async def cache_plru_mesi_test(dut):
-    """Test the MESI PLRU cache"""
-    tb = CTCachePLRUMESI(dut)
+async def cache_mesi_test(dut):
+    """Test the MESI cache"""
+    tb = CTCacheMESI(dut)
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)

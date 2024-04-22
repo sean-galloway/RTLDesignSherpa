@@ -22,7 +22,7 @@ module cache_plru_mesi #(
     // sysbus output for return read return data
     output logic                 o_sysbusout_valid,    // sysbus output transfer valid
     input  logic                 i_sysbusout_ready,    // sysbus output transfer ready
-    output logic                 o_sysbusin_op_rdxwr,  // sysbus output transfer operation
+    output logic                 o_sysbusout_op_rdxwr, // sysbus output transfer operation
     output logic [AW-1:0]        o_sysbusout_addr,     // sysbus output transfer address
     output logic [DW-1:0]        o_sysbusout_data,     // sysbus output transfer data
     output logic [DM-1:0]        o_sysbusout_dm,       // sysbus output transfer dm
@@ -38,7 +38,7 @@ module cache_plru_mesi #(
     // Memory output; for getting the read data or for evicting dirty entries
     output logic                 o_memout_valid,    // memory output transfer valid
     input  logic                 i_memout_ready,    // memory output transfer ready
-    output logic                 o_memin_op_rdxwr,  // memory output transfer operation
+    output logic                 o_memout_op_rdxwr,  // memory output transfer operation
     output logic [AW-1:0]        o_memout_addr,     // memory output transfer address
     output logic [DW-1:0]        o_memout_data,     // memory output transfer data
     output logic [DM-1:0]        o_memout_dm,       // memory output transfer dm
@@ -47,7 +47,7 @@ module cache_plru_mesi #(
 
     // Snoop port
     input  logic                 i_snoop_valid, // Valid snoop request
-    output logic                 i_snoop_ready, // snoop transfer ready
+    output logic                 o_snoop_ready, // snoop transfer ready
     input  logic [AW-1:0]        i_snoop_addr,  // Snooped address
     input  logic [3:0]           i_snoop_cmd,   // Snoop command (e.g., read, write, invalidate)
 
