@@ -67,7 +67,7 @@ module shifter_lfsr #(
     logic [WIDTH:0] w_taps;
     logic [WIDTH:0] r_lfsr;
     logic w_feedback;
-    logic [12-1:0]    w_tap_positions [0:TAP_COUNT-1]; // verilog_lint: waive unpacked-dimensions-range-ordering
+    logic [TIW-1:0]    w_tap_positions [0:TAP_COUNT-1]; // verilog_lint: waive unpacked-dimensions-range-ordering
 
     ////////////////////////////////////////////////////////////////////////////
     // Split concatenated tap positions into separate groups for each tap
@@ -83,7 +83,7 @@ module shifter_lfsr #(
     end
 
     ////////////////////////////////////////////////////////////////////////////
-    // Calculate feedback by XORing tapped bits
+    // Calculate feedback by XNORing tapped bits
     assign w_feedback   = ~^(r_lfsr[WIDTH:1] & w_taps[WIDTH:1]);
 
     ////////////////////////////////////////////////////////////////////////////
