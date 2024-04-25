@@ -130,11 +130,11 @@ module axi_slave
     );
 
     logic           r_write_ip, w_write_xfer;
-    logic [AW-1:0]  w_curr_addr, w_next_addr, r_addr;
+    logic [AW-1:0]  w_curr_wr_addr, w_next_wr_addr, r_wr_addr;
 
     // assign interface sigs to the write port
     assign o_wr_pkt_valid = r_axi_awvalid && r_axi_wvalid && r_axi_bready;
-    assign o_wr_pkt_addr  = w_curr_addr;
+    assign o_wr_pkt_addr  = w_curr_wr_addr;
     assign o_wr_pkt_data  = r_axi_wdata;
     assign o_wr_pkt_strb  = r_axi_wstrb;
     assign r_axi_awready  = o_wr_pkt_valid && i_wr_pkt_ready && r_axi_wlast && r_axi_bready;
@@ -143,18 +143,19 @@ module axi_slave
     assign r_axi_bid      = r_axi_awid;
     assign r_axi_bresp    = 2'b00; // add more later if needed
     assign r_axi_buser    = r_axi_awuser;
-    assign w_write_xfer = o_wr_pkt_valid && i_wr_pkt_ready;
-    assign w_curr_addr = (r_write_ip) ? r_addr : r_axi_awaddr;
+
+    assign w_write_xfer   = o_wr_pkt_valid && i_wr_pkt_ready;
+    assign w_curr_wr_addr = (r_write_ip) ? r_wr_addr : r_axi_awaddr;
 
     always_ff @(posedge s_axi_aclk or negedge s_axi_aresetn) begin
         if (~s_axi_aresetn) begin
             r_write_ip <= 'b0;
-            r_addr <= 'b0;
+            r_wr_addr <= 'b0;
         end else begin
             if (r_write_ip) // clear when getting the command packet
                 if (r_axi_awvalid && r_axi_awready) r_write_ip <= 'b0;
             else if (w_write_xfer)  r_write_ip <= 'b1;
-            if (w_write_xfer) r_addr <= w_next_addr;
+            if (w_write_xfer) r_wr_addr <= w_next_wr_addr;
         end
     end
 
@@ -164,7 +165,7 @@ module axi_slave
         .i_size              (r_axi_awsize),
         .i_burst             (r_axi_awburst),
         .i_len               (r_axi_awlen),
-        .ow_next_addr        (w_next_addr)
+        .ow_next_addr        (w_next_wr_addr)
     );
 
     ///////////////////////////////////////////////////////////////////////////////////////////
@@ -233,6 +234,49 @@ module axi_slave
         .o_rd_data                ({r_axi_arid,r_axi_araddr,r_axi_arlen,r_axi_arsize,r_axi_arburst,
                                     r_axi_arlock,r_axi_arcache,r_axi_arprot,r_axi_arqos,
                                     r_axi_arregion,r_axi_aruser})
+    );
+
+    // assign interface sigs to the read ports
+    assign o_rd_pkt_valid    = r_axi_awvalid && r_axi_rready;
+    assign o_rd_pkt_addr     = w_curr_wr_addr;
+    assign o_rdret_pkt_ready = r_axi_rready;
+    assign r_axi_rid         = r_axi_arid;
+    assign r_axi_rdata       = i_rdret_pkt_data;
+    assign r_axi_rresp       = 2'b00;
+    assign r_axi_rlast       = r_read_ip && w_read_xfer && (r_rd_len == 8'h01);
+    assign r_axi_ruser       = r_axi_aruser;
+    assign r_axi_arready     = r_axi_rlast;
+
+    assign w_read_xfer    = o_rd_pkt_valid && i_rd_pkt_ready;
+    assign w_curr_rd_addr = (r_read_ip) ? r_rd_addr : r_axi_araddr;
+
+    logic           r_read_ip, w_read_xfer;
+    logic [AW-1:0]  w_curr_rd_addr, w_next_rd_addr, r_rd_addr;
+    logic [7:0]     r_rd_len;
+
+
+    always_ff @(posedge s_axi_aclk or negedge s_axi_aresetn) begin
+        if (~s_axi_aresetn) begin
+            r_read_ip <= 'b0;
+            r_rd_addr <= 'b0;
+            r_rd_len  <= 'b0;
+        end else begin
+            if (r_read_ip) // clear when getting the command packet
+                if (r_axi_arvalid && r_axi_arready) r_read_ip <= 'b0;
+            else if (w_read_xfer)                   r_read_ip <= 'b1;
+            if (~r_read_ip)                         r_rd_len  <= r_axi_arlen + 'b1;
+            if (r_read_ip && w_read_xfer)           r_rd_len  <= r_rd_len - 'b1;
+            if (w_read_xfer)                        r_rd_addr <= w_next_rd_addr;
+        end
+    end
+
+    // Address Generation
+    axi_gen_addr #(.AW(AW),.DW(DW),.LEN(8)) inst_rd_addr_gen (
+        .i_curr_addr         (w_curr_rd_addr),
+        .i_size              (r_axi_arsize),
+        .i_burst             (r_axi_arburst),
+        .i_len               (r_axi_arlen),
+        .ow_next_addr        (w_next_rd_addr)
     );
 
     ///////////////////////////////////////////////////////////////////////////////////////////
