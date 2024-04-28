@@ -1,15 +1,15 @@
 `timescale 1ns / 1ps
-`include "axi_params.svh"
+//`include "axi_params.svh"
 
 // Generic Slave module to prove out maximal performance
 module axi_slave
-// #(
-//     parameter int AXI_ID_WIDTH      = 4,
-//     parameter int AXI_ADDR_WIDTH    = 32,
-//     parameter int AXI_DATA_WIDTH    = 32,
-//     parameter int AXI_USER_WIDTH    = 1,
-//     parameter int AXI_WSTRB_WIDTH   = AXI_DATA_WIDTH / 8
-// )
+#(
+    parameter int AXI_ID_WIDTH      = 8,
+    parameter int AXI_ADDR_WIDTH    = 32,
+    parameter int AXI_DATA_WIDTH    = 32,
+    parameter int AXI_USER_WIDTH    = 1,
+    parameter int AXI_WSTRB_WIDTH   = AXI_DATA_WIDTH / 8
+)
 (
     // Global Clock and Reset
     input  logic s_axi_aclk,
