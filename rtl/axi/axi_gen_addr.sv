@@ -6,11 +6,11 @@ module axi_gen_addr
     parameter int DW = 32,
     parameter int LEN = 8
 )(
-    input logic [AW-1:0] i_curr_addr,
-    input logic [2:0] i_size,
-    input logic [1:0] i_burst,
-    input logic [LEN-1:0] i_len,
-    output logic [AW-1:0] ow_next_addr
+    input  logic [AW-1:0]  i_curr_addr,
+    input  logic [2:0]     i_size,
+    input  logic [1:0]     i_burst,
+    input  logic [LEN-1:0] i_len,
+    output logic [AW-1:0]  ow_next_addr
 );
 
 logic [AW-1:0] increment;

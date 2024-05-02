@@ -252,7 +252,7 @@ module axi_slave
     logic [AW-1:0]  w_curr_rd_addr, w_next_rd_addr, r_rd_addr;
     logic [7:0]     r_rd_len;
 
-    assign o_rd_pkt_valid    = r_axi_arvalid && r_axi_rready;
+    assign o_rd_pkt_valid    = r_axi_arvalid && r_axi_rready && ~r_axi_rlast;
     assign o_rd_pkt_addr     = w_curr_rd_addr;
     assign o_rdret_pkt_ready = r_axi_rready;
     assign r_axi_rid         = r_axi_arid;
@@ -299,8 +299,6 @@ module axi_slave
 
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Read data channel (R)
-
-
     axi_skid_buffer #(.DATA_WIDTH(RSize)) inst_r_phase (
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),

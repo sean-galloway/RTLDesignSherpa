@@ -1,20 +1,22 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Thu May  2 01:13:56 2024
+[*] Thu May  2 19:41:01 2024
 [*]
 [dumpfile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/local_sim_build/test_axi-8-32-32-1/waves.vcd"
-[dumpfile_mtime] "Thu May  2 00:07:14 2024"
-[dumpfile_size] 1387839
+[dumpfile_mtime] "Thu May  2 18:05:44 2024"
+[dumpfile_size] 784371
 [savefile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/axi_slave.gtkw"
-[timestart] 133649900
-[size] 2678 1213
+[timestart] 0
+[size] 1958 1461
 [pos] -1 -1
-*-16.634293 134182000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-14.545771 26000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] axi_slave.
 [sst_width] 233
 [signals_width] 304
 [sst_expanded] 1
-[sst_vpaned_height] 682
+[sst_vpaned_height] 826
+@28
+axi_slave.inst_ar_phase.i_axi_aclk
 @200
 -Write Command
 @28
@@ -60,7 +62,6 @@ axi_slave.s_axi_araddr[31:0]
 axi_slave.s_axi_arburst[1:0]
 @22
 axi_slave.s_axi_arlen[7:0]
-@23
 axi_slave.s_axi_arid[7:0]
 @200
 -Read Response
@@ -74,11 +75,23 @@ axi_slave.s_axi_rid[7:0]
 axi_slave.s_axi_rlast
 @200
 -Ram Interface
+-Ram Write
+@28
+axi_slave.o_wr_pkt_valid
+axi_slave.i_wr_pkt_ready
+@22
+axi_slave.o_wr_pkt_addr[31:0]
+axi_slave.o_wr_pkt_data[31:0]
+axi_slave.o_wr_pkt_strb[3:0]
+@200
+-Ram Read
 @28
 axi_slave.o_rd_pkt_valid
 axi_slave.i_rd_pkt_ready
 @22
 axi_slave.o_rd_pkt_addr[31:0]
+@200
+-Ram Read Return
 @28
 axi_slave.o_rdret_pkt_ready
 axi_slave.i_rdret_pkt_valid
@@ -119,12 +132,7 @@ axi_slave.i_rdret_pkt_data[31:0]
 (31)axi_slave.i_rdret_pkt_data[31:0]
 @1401200
 -group_end
-@28
-axi_slave.inst_ar_phase.i_rd_ready
-axi_slave.inst_ar_phase.o_rd_valid
-axi_slave.inst_ar_phase.o_wr_ready
-axi_slave.inst_ar_phase.i_wr_valid
-axi_slave.inst_ar_phase.i_axi_aclk
-axi_slave.inst_ar_phase.i_axi_aresetn
+@201
+-Internal Signals
 [pattern_trace] 1
 [pattern_trace] 0

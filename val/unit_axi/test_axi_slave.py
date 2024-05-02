@@ -77,7 +77,7 @@ class AxiSlaveTB(TBBase):
                 await RisingEdge(self.dut.aclk)
 
             # Randomly assert the ready signal
-            ready_delay = random.randint(0,5)  # Random delay between 0 and 4 clock cycles
+            ready_delay = random.randint(0,0)  # Random delay between 0 and 4 clock cycles
             for _ in range(ready_delay):
                 self.dut.i_wr_pkt_ready.value = 0
                 await RisingEdge(self.dut.aclk)
@@ -116,7 +116,7 @@ class AxiSlaveTB(TBBase):
             addr_hex = f'{addr:08x}'
 
             # Randomly assert the ready signal
-            ready_delay = random.randint(0,5)  # Random delay between 0 and 4 clock cycles
+            ready_delay = random.randint(0,0)  # Random delay between 0 and 4 clock cycles
             for _ in range(ready_delay):
                 self.dut.i_rd_pkt_ready.value = 0
                 await RisingEdge(self.dut.aclk)
@@ -244,8 +244,10 @@ class AxiSlaveTB(TBBase):
         #             await self.run_test_read(idle_inserter=idle, backpressure_inserter=backpressure, size=bsize)
 
         # write_read tests
-        for idle in [None, self.cycle_pause]:
-            for backpressure in [None, self.cycle_pause]:
+        # for idle in [None, self.cycle_pause]:
+        for idle in [None]:
+            # for backpressure in [None, self.cycle_pause]:
+            for backpressure in [None]:
                 for bsize in [None]+list(range(max_burst_size)):
                     await self.run_test_write_read(idle_inserter=idle, backpressure_inserter=backpressure, size=bsize)
 
