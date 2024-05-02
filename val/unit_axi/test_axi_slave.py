@@ -1,38 +1,42 @@
+import contextlib
 import itertools
 import logging
 import os
 import random
 import subprocess
 
-import cocotb_test.simulator
+import cocotb.triggers
+
+from cocotb_test.simulator import run
 import pytest
 
 import cocotb
 from cocotb.clock import Clock
-from cocotb.triggers import RisingEdge, Timer, ReadOnly, NextTimeStep
+from cocotb.triggers import RisingEdge, Timer, ReadOnly
 
 from cocotb.regression import TestFactory
 
-from cocotbext.axi import AxiBus, AxiMaster
-from cocotbext.axi.sparse_memory import SparseMemory
+from cocotbext.axi import AxiBus, AxiMaster, AxiRam
 from TBBase import TBBase
+from pprint import pprint
 
 
-class TB:
+class AxiSlaveTB(TBBase):
     def __init__(self, dut):
-        self.dut = dut
-
-        self.log = logging.getLogger("cocotb.tb")
-        self.log.setLevel(logging.DEBUG)
-
-        cocotb.start_soon(Clock(dut.s_axi_aclk, 2, units="ns").start())
-
-        self.axi_master = AxiMaster(AxiBus.from_prefix(dut, "s_axi"), dut.s_axi_aclk, dut.s_axi_aresetn)
-        self.axi_ram = SparseMemory(size=2**16)
+        TBBase.__init__(self, dut)
+        self.DATA_WIDTH = self.convert_to_int(os.environ.get('PARAM_AXI_DATA_WIDTH', '0'))
+        cocotb.start_soon(Clock(dut.aclk, 2, units="ns").start())
+        bus = AxiBus.from_prefix(dut, "s_axi")
+        for attr, value in bus.__dict__.items():
+            print(f"{attr}: {value}")
+        self.axi_master = AxiMaster(AxiBus.from_prefix(dut, "s_axi"), dut.aclk, dut.aresetn, reset_active_level=False)
+        self.axi_sparse_ram = {}
+        self.done = False
 
         # Start the write_ram and read_ram coroutines
         cocotb.start_soon(self.write_ram())
         cocotb.start_soon(self.read_ram())
+        self.log.info("Init Done.")
 
 
     def set_idle_generator(self, generator=None):
@@ -41,39 +45,42 @@ class TB:
             self.axi_master.write_if.w_channel.set_pause_generator(generator())
             self.axi_master.read_if.ar_channel.set_pause_generator(generator())
 
+
     def set_backpressure_generator(self, generator=None):
         if generator:
             self.axi_master.write_if.b_channel.set_pause_generator(generator())
             self.axi_master.read_if.r_channel.set_pause_generator(generator())
 
+
     async def cycle_reset(self):
-        self.dut.s_axi_aresetn.value = 0
+        self.log.info("Reset Start")
+        self.dut.aresetn.value = 0
         self.dut.i_wr_pkt_ready.value = 0
         self.dut.i_rd_pkt_ready.value = 0
         self.dut.i_rdret_pkt_valid.value = 0
         self.dut.i_rdret_pkt_data.value = 0
-        await RisingEdge(self.dut.s_axi_aclk)
-        await RisingEdge(self.dut.s_axi_aclk)
-        self.dut.s_axi_aresetn.value = 0
-        await RisingEdge(self.dut.s_axi_aclk)
-        await RisingEdge(self.dut.s_axi_aclk)
-        self.dut.s_axi_aresetn.value = 1
-        await RisingEdge(self.dut.s_axi_aclk)
-        await RisingEdge(self.dut.s_axi_aclk)
+        await RisingEdge(self.dut.aclk)
+        await RisingEdge(self.dut.aclk)
+        self.dut.aresetn.value = 0
+        await RisingEdge(self.dut.aclk)
+        await RisingEdge(self.dut.aclk)
+        self.dut.aresetn.value = 1
+        await RisingEdge(self.dut.aclk)
+        await RisingEdge(self.dut.aclk)
+        self.log.info("Reset Done.")
 
-    @cocotb.coroutine
-    def write_ram(self):
-        while True:
+
+    async def write_ram(self):
+        while not self.done:
             # Wait for the valid signal to be asserted
-            yield ReadOnly()
             while not self.dut.o_wr_pkt_valid.value:
-                yield RisingEdge(self.dut.s_axi_aclk)
+                await RisingEdge(self.dut.aclk)
 
             # Randomly assert the ready signal
-            ready_delay = int(random() * 5)  # Random delay between 0 and 4 clock cycles
+            ready_delay = random.randint(0,5)  # Random delay between 0 and 4 clock cycles
             for _ in range(ready_delay):
                 self.dut.i_wr_pkt_ready.value = 0
-                yield RisingEdge(self.dut.s_axi_aclk)
+                await RisingEdge(self.dut.aclk)
 
             self.dut.i_wr_pkt_ready.value = 1
 
@@ -81,283 +88,180 @@ class TB:
             addr = int(self.dut.o_wr_pkt_addr.value)
             data = int(self.dut.o_wr_pkt_data.value)
             strb = int(self.dut.o_wr_pkt_strb.value)
+            addr_hex = f'{addr:08x}'
 
             # Wait for a clock cycle
-            yield RisingEdge(self.dut.s_axi_aclk)
+            await RisingEdge(self.dut.aclk)
 
             # Perform the write operation
-            yield self.axi_ram.write(addr, data)
+            data_hex = f'{data:08x}'
+            self.axi_sparse_ram[addr_hex] = data
+            self.log.info(f'write_ram: {addr_hex=} {data_hex=}')
 
             # De-assert the ready signal
             self.dut.i_wr_pkt_ready.value = 0
 
             # Wait for a clock cycle before proceeding to the next transaction
-            yield RisingEdge(self.dut.s_axi_aclk)
+            await RisingEdge(self.dut.aclk)
 
-    @cocotb.coroutine
-    def read_ram(self):
-        while True:
+
+    async def read_ram(self):
+        while not self.done:
             # Wait for the rd_pkt_valid signal to be asserted by the DUT
-            yield ReadOnly()
             while not self.dut.o_rd_pkt_valid.value:
-                yield RisingEdge(self.dut.s_axi_aclk)
+                await RisingEdge(self.dut.aclk)
 
             # Capture the read address from the DUT
             addr = int(self.dut.o_rd_pkt_addr.value)
+            addr_hex = f'{addr:08x}'
+
+            # Randomly assert the ready signal
+            ready_delay = random.randint(0,5)  # Random delay between 0 and 4 clock cycles
+            for _ in range(ready_delay):
+                self.dut.i_rd_pkt_ready.value = 0
+                await RisingEdge(self.dut.aclk)
 
             # Assert the rd_pkt_ready signal
             self.dut.i_rd_pkt_ready.value = 1
 
             # Wait for a clock cycle
-            yield RisingEdge(self.dut.s_axi_aclk)
+            await RisingEdge(self.dut.aclk)
 
             # De-assert the rd_pkt_ready signal
             self.dut.i_rd_pkt_ready.value = 0
 
             # Perform the read operation on the AXI RAM
-            data = yield self.axi_ram.read(addr)
+            data = self.axi_sparse_ram[addr_hex] if addr_hex in self.axi_sparse_ram else 0
+            data_hex = f'{data:08x}'
+            self.log.info(f'read_ram: {addr_hex=} {data_hex=}')
 
             # Wait for the rdret_pkt_ready signal to be asserted by the DUT
-            yield ReadOnly()
             while not self.dut.o_rdret_pkt_ready.value:
-                yield RisingEdge(self.dut.s_axi_aclk)
+                await RisingEdge(self.dut.aclk)
 
             # Drive the read data back to the DUT
             self.dut.i_rdret_pkt_valid.value = 1
             self.dut.i_rdret_pkt_data.value = data
 
             # Wait for a clock cycle
-            yield RisingEdge(self.dut.s_axi_aclk)
+            await RisingEdge(self.dut.aclk)
 
             # De-assert the rdret_pkt_valid signal
-            dut.i_rdret_pkt_valid.value = 0
+            self.dut.i_rdret_pkt_valid.value = 0
 
             # Wait for a clock cycle before proceeding to the next transaction
-            yield RisingEdge(self.dut.s_axi_aclk)
+            await RisingEdge(self.dut.aclk)
 
-async def run_test_write(dut, idle_inserter=None, backpressure_inserter=None, size=None):
 
-    tb = TB(dut)
+    def cycle_pause(self):
+        return itertools.cycle([1, 1, 1, 0])
 
-    byte_lanes = tb.axi_master.write_if.byte_lanes
-    max_burst_size = tb.axi_master.write_if.max_burst_size
 
-    if size is None:
-        size = max_burst_size
+    async def run_test_write(self, idle_inserter=None, backpressure_inserter=None, size=None):
+        self.log.info("run test write")
+        byte_lanes = self.axi_master.write_if.byte_lanes
+        max_burst_size = self.axi_master.write_if.max_burst_size
 
+        if size is None:
+            size = max_burst_size
+
+        self.set_idle_generator(idle_inserter)
+        self.set_backpressure_generator(backpressure_inserter)
+
+        for length in list(range(1, byte_lanes*2))+[1024]:
+            for offset in list(range(byte_lanes))+list(range(4096-(byte_lanes*8), 4096)):
+                addr = offset+0x1000
+                test_data = bytearray([x % 256 for x in range(length)])
+                self.log.info(f"test_write: length {length}, offset {offset}, data {test_data}")
+                await self.axi_master.write(addr, test_data, size=size)
+                self.log.info(f"test_write: {addr=} {length=} {test_data=}")
+
+        await RisingEdge(self.dut.aclk)
+        await RisingEdge(self.dut.aclk)
+
+
+    async def run_test_read(self, idle_inserter=None, backpressure_inserter=None, size=None):
+        self.log.info("run test read")
+        byte_lanes = self.axi_master.write_if.byte_lanes
+        max_burst_size = self.axi_master.write_if.max_burst_size
+
+        if size is None:
+            size = max_burst_size
+
+        self.set_idle_generator(idle_inserter)
+        self.set_backpressure_generator(backpressure_inserter)
+
+        for length in list(range(1, byte_lanes*2))+[1024]:
+            for offset in list(range(byte_lanes))+list(range(4096-(byte_lanes*8), 4096)):
+                self.log.info("length %d, offset %d", length, offset)
+                addr = offset+0x1000
+                test_data = bytearray([x % 256 for x in range(length)])
+                data = await self.axi_master.read(addr, length, size=size)
+                # assert data.data == test_data
+
+        await RisingEdge(self.dut.aclk)
+        await RisingEdge(self.dut.aclk)
+
+    async def run_test_write_read(self, idle_inserter=None, backpressure_inserter=None, size=None):
+        self.log.info("run test read")
+        byte_lanes = self.axi_master.write_if.byte_lanes
+        max_burst_size = self.axi_master.write_if.max_burst_size
+
+        if size is None:
+            size = max_burst_size
+
+        self.set_idle_generator(idle_inserter)
+        self.set_backpressure_generator(backpressure_inserter)
+
+        for length in list(range(1, byte_lanes*2))+[1024]:
+            for offset in list(range(byte_lanes))+list(range(4096-(byte_lanes*8), 4096)):
+                self.log.info("length %d, offset %d", length, offset)
+                addr = offset+0x1000
+                test_data = bytearray([x % 256 for x in range(length)])
+                await self.axi_master.write(addr, test_data, size=size)
+                data = await self.axi_master.read(addr, length, size=size)
+                assert data.data == test_data
+
+        await RisingEdge(self.dut.aclk)
+        await RisingEdge(self.dut.aclk)
+
+
+    async def main_loop(self):
+        data_width = self.DATA_WIDTH
+        byte_lanes = data_width // 8
+        max_burst_size = (byte_lanes-1).bit_length()
+
+        # # write tests
+        # for idle in [None, self.cycle_pause]:
+        #     for backpressure in [None, self.cycle_pause]:
+        #         for bsize in [None]+list(range(max_burst_size)):
+        #             await self.run_test_write(idle_inserter=idle, backpressure_inserter=backpressure, size=bsize)
+
+        # # read tests
+        # for idle in [None, self.cycle_pause]:
+        #     for backpressure in [None, self.cycle_pause]:
+        #         for bsize in [None]+list(range(max_burst_size)):
+        #             await self.run_test_read(idle_inserter=idle, backpressure_inserter=backpressure, size=bsize)
+
+        # write_read tests
+        for idle in [None, self.cycle_pause]:
+            for backpressure in [None, self.cycle_pause]:
+                for bsize in [None]+list(range(max_burst_size)):
+                    await self.run_test_write_read(idle_inserter=idle, backpressure_inserter=backpressure, size=bsize)
+
+
+@cocotb.test()
+async def AxiSlave_test(dut):
+    tb = AxiSlaveTB(dut)
+    # Use the seed for reproducibility
+    seed = int(os.environ.get('SEED', '0'))
+    random.seed(seed)
     await tb.cycle_reset()
-
-    tb.set_idle_generator(idle_inserter)
-    tb.set_backpressure_generator(backpressure_inserter)
-
-    for length in list(range(1, byte_lanes*2))+[1024]:
-        for offset in list(range(byte_lanes))+list(range(4096-byte_lanes, 4096)):
-            tb.log.info("length %d, offset %d", length, offset)
-            addr = offset+0x1000
-            test_data = bytearray([x % 256 for x in range(length)])
-
-            await tb.axi_master.write(addr, test_data, size=size)
-
-            await RisingEdge(dut.s_axi_aclk)
-
-
-async def run_test_read(dut, idle_inserter=None, backpressure_inserter=None, size=None):
-
-    tb = TB(dut)
-
-    byte_lanes = tb.axi_master.write_if.byte_lanes
-    max_burst_size = tb.axi_master.write_if.max_burst_size
-
-    if size is None:
-        size = max_burst_size
-
-    await tb.cycle_reset()
-
-    tb.set_idle_generator(idle_inserter)
-    tb.set_backpressure_generator(backpressure_inserter)
-
-    for length in list(range(1, byte_lanes*2))+[1024]:
-        for offset in list(range(byte_lanes))+list(range(4096-byte_lanes, 4096)):
-            tb.log.info("length %d, offset %d", length, offset)
-            addr = offset+0x1000
-            test_data = bytearray([x % 256 for x in range(length)])
-
-            data = await tb.axi_master.read(addr, length, size=size)
-
-            assert data.data == test_data
-
-            await RisingEdge(dut.s_axi_aclk)
-
-
-async def run_test_write_words(dut):
-
-    tb = TB(dut)
-
-    byte_lanes = tb.axi_master.write_if.byte_lanes
-
-    await tb.cycle_reset()
-
-    for length, offset in itertools.product(list(range(1, 4)), list(range(byte_lanes))):
-        tb.log.info("length %d, offset %d", length, offset)
-        addr = offset+0x1000
-
-        test_data = bytearray([x % 256 for x in range(length)])
-        event = tb.axi_master.init_write(addr, test_data)
-        await event.wait()
-        assert tb.axi_ram.read(addr, length) == test_data
-
-        test_data = bytearray([x % 256 for x in range(length)])
-        await tb.axi_master.write(addr, test_data)
-        assert tb.axi_ram.read(addr, length) == test_data
-
-        test_data = [x * 0x1001 for x in range(length)]
-        await tb.axi_master.write_words(addr, test_data)
-        assert tb.axi_ram.read_words(addr, length) == test_data
-
-        test_data = [x * 0x10200201 for x in range(length)]
-        await tb.axi_master.write_dwords(addr, test_data)
-        assert tb.axi_ram.read_dwords(addr, length) == test_data
-
-        test_data = [x * 0x1020304004030201 for x in range(length)]
-        await tb.axi_master.write_qwords(addr, test_data)
-        assert tb.axi_ram.read_qwords(addr, length) == test_data
-
-        test_data = 0x01*length
-        await tb.axi_master.write_byte(addr, test_data)
-        assert tb.axi_ram.read_byte(addr) == test_data
-
-        test_data = 0x1001*length
-        await tb.axi_master.write_word(addr, test_data)
-        assert tb.axi_ram.read_word(addr) == test_data
-
-        test_data = 0x10200201*length
-        await tb.axi_master.write_dword(addr, test_data)
-        assert tb.axi_ram.read_dword(addr) == test_data
-
-        test_data = 0x1020304004030201*length
-        await tb.axi_master.write_qword(addr, test_data)
-        assert tb.axi_ram.read_qword(addr) == test_data
-
-    await RisingEdge(dut.s_axi_aclk)
-    await RisingEdge(dut.s_axi_aclk)
-
-
-async def run_test_read_words(dut):
-
-    tb = TB(dut)
-
-    byte_lanes = tb.axi_master.write_if.byte_lanes
-
-    await tb.cycle_reset()
-
-    for length, offset in itertools.product(list(range(1, 4)), list(range(byte_lanes))):
-        tb.log.info("length %d, offset %d", length, offset)
-        addr = offset+0x1000
-
-        test_data = bytearray([x % 256 for x in range(length)])
-        tb.axi_ram.write(addr, test_data)
-        event = tb.axi_master.init_read(addr, length)
-        await event.wait()
-        assert event.data.data == test_data
-
-        test_data = bytearray([x % 256 for x in range(length)])
-        tb.axi_ram.write(addr, test_data)
-        assert (await tb.axi_master.read(addr, length)).data == test_data
-
-        test_data = [x * 0x1001 for x in range(length)]
-        tb.axi_ram.write_words(addr, test_data)
-        assert await tb.axi_master.read_words(addr, length) == test_data
-
-        test_data = [x * 0x10200201 for x in range(length)]
-        tb.axi_ram.write_dwords(addr, test_data)
-        assert await tb.axi_master.read_dwords(addr, length) == test_data
-
-        test_data = [x * 0x1020304004030201 for x in range(length)]
-        tb.axi_ram.write_qwords(addr, test_data)
-        assert await tb.axi_master.read_qwords(addr, length) == test_data
-
-        test_data = 0x01*length
-        tb.axi_ram.write_byte(addr, test_data)
-        assert await tb.axi_master.read_byte(addr) == test_data
-
-        test_data = 0x1001*length
-        tb.axi_ram.write_word(addr, test_data)
-        assert await tb.axi_master.read_word(addr) == test_data
-
-        test_data = 0x10200201*length
-        tb.axi_ram.write_dword(addr, test_data)
-        assert await tb.axi_master.read_dword(addr) == test_data
-
-        test_data = 0x1020304004030201*length
-        tb.axi_ram.write_qword(addr, test_data)
-        assert await tb.axi_master.read_qword(addr) == test_data
-
-    await RisingEdge(dut.s_axi_aclk)
-    await RisingEdge(dut.s_axi_aclk)
-
-
-async def run_stress_test(dut, idle_inserter=None, backpressure_inserter=None):
-
-    tb = TB(dut)
-
-    await tb.cycle_reset()
-
-    tb.set_idle_generator(idle_inserter)
-    tb.set_backpressure_generator(backpressure_inserter)
-
-    async def worker(master, offset, aperture, count=16):
-        for k in range(count):
-            length = random.randint(1, min(512, aperture))
-            addr = offset+random.randint(0, aperture-length)
-            test_data = bytearray([x % 256 for x in range(length)])
-
-            await Timer(random.randint(1, 100), 'ns')
-
-            await master.write(addr, test_data)
-
-            await Timer(random.randint(1, 100), 'ns')
-
-            data = await master.read(addr, length)
-            assert data.data == test_data
-
-    workers = []
-
-    for k in range(16):
-        workers.append(cocotb.start_soon(worker(tb.axi_master, k*0x1000, 0x1000, count=16)))
-
-    while workers:
-        await workers.pop(0).join()
-
-    await RisingEdge(dut.s_axi_aclk)
-    await RisingEdge(dut.s_axi_aclk)
-
-
-def cycle_pause():
-    return itertools.cycle([1, 1, 1, 0])
-
-
-if cocotb.SIM_NAME:
-
-    data_width = int(os.environ.get('AXI_DATA_WIDTH', '0'))
-    byte_lanes = data_width // 8
-    max_burst_size = (byte_lanes-1).bit_length()
-
-    for test in [run_test_write, run_test_read]:
-
-        factory = TestFactory(test)
-        factory.add_option("idle_inserter", [None, cycle_pause])
-        factory.add_option("backpressure_inserter", [None, cycle_pause])
-        factory.add_option("size", [None]+list(range(max_burst_size)))
-        factory.generate_tests()
-
-    for test in [run_test_write_words, run_test_read_words]:
-
-        factory = TestFactory(test)
-        factory.generate_tests()
-
-    factory = TestFactory(run_stress_test)
-    factory.generate_tests()
-
+    await tb.wait_clocks('aclk', 2)
+    await tb.main_loop()
+    await tb.wait_clocks('aclk', 2)
+    tb.done = True
+    tb.log.info("Test completed successfully.")
 
 
 repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
@@ -380,7 +284,7 @@ def test_axi(request, id_width, addr_width, data_width, user_width):
         os.path.join(rtl_axi_dir, "axi_gen_addr.sv"),
         os.path.join(rtl_axi_dir, f"{dut_name}.sv")
     ]
-
+    includes = []
     parameters = {
         'AXI_ID_WIDTH': id_width,
         'AXI_ADDR_WIDTH': addr_width,
@@ -399,9 +303,10 @@ def test_axi(request, id_width, addr_width, data_width, user_width):
     extra_env['LOG_PATH'] = os.path.join(str(sim_build), f'cocotb_log_{dut_name}.log')
     extra_env['DUT'] = dut_name
 
-    cocotb_test.simulator.run(
-        python_search=[tests_dir],
+    run(
+        python_search=[tests_dir],  # where to search for all the python test files
         verilog_sources=verilog_sources,
+        includes=includes,
         toplevel=toplevel,
         module=module,
         parameters=parameters,

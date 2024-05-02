@@ -29,6 +29,12 @@ class AxiGenAddr_TB(TBBase):
         self.dut.i_burst.value = 0
         self.dut.i_len.value = 0
 
+
+    @staticmethod
+    def clog2(val):
+        return (val - 1).bit_length()
+
+
     async def main_loop(self, seed):
         # Define the test scenarios
         test_scenarios = [
@@ -124,19 +130,17 @@ class AxiGenAddr_TB(TBBase):
                     await self.wait_time(10, 'ns')
 
                     # Calculate the expected next address
-                    num_bytes = self.dw // 8
-                    increment = num_bytes << size
+                    increment = 1 << size
+                    wrap_mask = (1 << (size + self.clog2(len_val + 1))) - 1
+                    aligned_addr = (curr_addr + increment) & ~(increment - 1)
+                    wrap_addr = (curr_addr & ~wrap_mask) | (aligned_addr & wrap_mask)
 
                     if burst == 0:  # FIXED burst
                         expected_next_addr = curr_addr
                     elif burst == 1:  # INCR burst
                         expected_next_addr = curr_addr + increment
                     else:  # WRAP burst
-                        wrap_boundary = (curr_addr & ~(increment - 1)) + (len_val << size)
-                        if (curr_addr + increment) >= wrap_boundary:
-                            expected_next_addr = wrap_boundary - increment
-                        else:
-                            expected_next_addr = curr_addr + increment
+                        expected_next_addr = wrap_addr
 
                     # Check the actual next address against the expected value
                     actual_next_addr = self.dut.ow_next_addr.value
@@ -156,7 +160,7 @@ class AxiGenAddr_TB(TBBase):
                 base_address += 0x10000
 
 @cocotb.test()
-async def lfsr_test(dut):
+async def axi_addr_gen_test(dut):
     tb = AxiGenAddr_TB(dut)
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))

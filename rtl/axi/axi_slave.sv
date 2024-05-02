@@ -12,8 +12,8 @@ module axi_slave
 )
 (
     // Global Clock and Reset
-    input  logic s_axi_aclk,
-    input  logic s_axi_aresetn,
+    input  logic aclk,
+    input  logic aresetn,
 
     // Write address channel (AW)
     input  logic [AXI_ID_WIDTH-1:0]    s_axi_awid,
@@ -31,7 +31,6 @@ module axi_slave
     output logic                       s_axi_awready,
 
     // Write data channel (W)
-    input  logic [AXI_ID_WIDTH-1:0]    s_axi_wid,
     input  logic [AXI_DATA_WIDTH-1:0]  s_axi_wdata,
     input  logic [AXI_WSTRB_WIDTH-1:0] s_axi_wstrb,
     input  logic                       s_axi_wlast,
@@ -90,11 +89,11 @@ module axi_slave
 
     localparam int AW       = AXI_ADDR_WIDTH;
     localparam int DW       = AXI_DATA_WIDTH;
-    localparam int IW       = AXI_USER_WIDTH;
+    localparam int IW       = AXI_ID_WIDTH;
     localparam int SW       = AXI_WSTRB_WIDTH;
     localparam int UW       = AXI_USER_WIDTH;
     localparam int AWSize   = IW+AW+8+3+2+1+4+3+4+4+UW;
-    localparam int WSize    = IW+DW+SW+1+UW;
+    localparam int WSize    = DW+SW+1+UW;
     localparam int BSize    = IW+2+UW;
     localparam int ARSize   = IW+AW+8+3+2+1+4+3+4+4+UW;
     localparam int RSize    = IW+DW+2+1+UW;
@@ -115,8 +114,8 @@ module axi_slave
     logic                       r_axi_awvalid;
     logic                       r_axi_awready;
     axi_skid_buffer #(.DATA_WIDTH(AWSize)) inst_aw_phase (
-        .i_axi_aclk               (s_axi_aclk),
-        .i_axi_aresetn            (s_axi_aresetn),
+        .i_axi_aclk               (aclk),
+        .i_axi_aresetn            (aresetn),
         .i_wr_valid               (s_axi_awvalid),
         .o_wr_ready               (s_axi_awready),
         .i_wr_data                ({s_axi_awid,s_axi_awaddr,s_axi_awlen,s_axi_awsize,s_axi_awburst,
@@ -129,7 +128,7 @@ module axi_slave
                                     r_axi_awregion,r_axi_awuser})
     );
 
-    logic           r_write_ip, w_write_xfer;
+    logic           r_write_ip, w_write_xfer, w_write_done;
     logic [AW-1:0]  w_curr_wr_addr, w_next_wr_addr, r_wr_addr;
 
     // assign interface sigs to the write port
@@ -139,29 +138,30 @@ module axi_slave
     assign o_wr_pkt_strb  = r_axi_wstrb;
     assign r_axi_awready  = o_wr_pkt_valid && i_wr_pkt_ready && r_axi_wlast && r_axi_bready;
     assign r_axi_wready   = o_wr_pkt_valid && i_wr_pkt_ready && r_axi_bready;
-    assign r_axi_bvalid   = r_axi_awready;
-    assign r_axi_bid      = r_axi_awid;
-    assign r_axi_bresp    = 2'b00; // add more later if needed
-    assign r_axi_buser    = r_axi_awuser;
-
     assign w_write_xfer   = o_wr_pkt_valid && i_wr_pkt_ready;
+    assign w_write_done   = r_axi_awvalid && r_axi_awready;
     assign w_curr_wr_addr = (r_write_ip) ? r_wr_addr : r_axi_awaddr;
 
-    always_ff @(posedge s_axi_aclk or negedge s_axi_aresetn) begin
-        if (~s_axi_aresetn) begin
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (~aresetn) begin
             r_write_ip <= 'b0;
             r_wr_addr <= 'b0;
         end else begin
-            if (r_write_ip) // clear when getting the command packet
-                if (r_axi_awvalid && r_axi_awready) r_write_ip <= 'b0;
-            else if (w_write_xfer)  r_write_ip <= 'b1;
-            if (w_write_xfer) r_wr_addr <= w_next_wr_addr;
+            if (w_write_xfer && ~w_write_done) begin
+                r_write_ip <= 1'b1;
+            end
+            if (w_write_done) begin
+                r_write_ip <= 'b0;
+            end
+            if (w_write_xfer) begin
+                r_wr_addr <= w_next_wr_addr;
+            end
         end
     end
 
     // Address Generation
     axi_gen_addr #(.AW(AW),.DW(DW),.LEN(8)) inst_wr_addr_gen (
-        .i_curr_addr         (w_curr_addr),
+        .i_curr_addr         (w_curr_wr_addr),
         .i_size              (r_axi_awsize),
         .i_burst             (r_axi_awburst),
         .i_len               (r_axi_awlen),
@@ -170,7 +170,6 @@ module axi_slave
 
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Write data channel (W)
-    logic [AXI_ID_WIDTH-1:0]    r_axi_wid;
     logic [AXI_DATA_WIDTH-1:0]  r_axi_wdata;
     logic [AXI_WSTRB_WIDTH-1:0] r_axi_wstrb;
     logic                       r_axi_wlast;
@@ -178,14 +177,14 @@ module axi_slave
     logic                       r_axi_wvalid;
     logic                       r_axi_wready;
     axi_skid_buffer #(.DATA_WIDTH(WSize)) inst_w_phase (
-        .i_axi_aclk               (s_axi_aclk),
-        .i_axi_aresetn            (s_axi_aresetn),
+        .i_axi_aclk               (aclk),
+        .i_axi_aresetn            (aresetn),
         .i_wr_valid               (s_axi_wvalid),
         .o_wr_ready               (s_axi_wready),
-        .i_wr_data                ({s_axi_wid,s_axi_wdata,s_axi_wstrb,s_axi_wlast,s_axi_wuser}),
+        .i_wr_data                ({s_axi_wdata,s_axi_wstrb,s_axi_wlast,s_axi_wuser}),
         .o_rd_valid               (r_axi_wvalid),
         .i_rd_ready               (r_axi_wready),
-        .o_rd_data                ({r_axi_wid,r_axi_wdata,r_axi_wstrb,r_axi_wlast,r_axi_wuser})
+        .o_rd_data                ({r_axi_wdata,r_axi_wstrb,r_axi_wlast,r_axi_wuser})
     );
 
     ///////////////////////////////////////////////////////////////////////////////////////////
@@ -195,9 +194,13 @@ module axi_slave
     logic [AXI_USER_WIDTH-1:0]  r_axi_buser;
     logic                       r_axi_bvalid;
     logic                       r_axi_bready;
+    assign r_axi_bvalid   = r_axi_awready;
+    assign r_axi_bid      = r_axi_awid;
+    assign r_axi_bresp    = 2'b00; // add more later if needed
+    assign r_axi_buser    = r_axi_awuser;
     axi_skid_buffer #(.DATA_WIDTH(BSize)) inst_b_phase (
-        .i_axi_aclk               (s_axi_aclk),
-        .i_axi_aresetn            (s_axi_aresetn),
+        .i_axi_aclk               (aclk),
+        .i_axi_aresetn            (aresetn),
         .i_wr_valid               (r_axi_bvalid),
         .o_wr_ready               (r_axi_bready),
         .i_wr_data                ({r_axi_bid,r_axi_bresp,r_axi_buser}),
@@ -222,8 +225,8 @@ module axi_slave
     logic                       r_axi_arvalid;
     logic                       r_axi_arready;
     axi_skid_buffer #(.DATA_WIDTH(ARSize)) inst_ar_phase (
-        .i_axi_aclk               (s_axi_aclk),
-        .i_axi_aresetn            (s_axi_aresetn),
+        .i_axi_aclk               (aclk),
+        .i_axi_aresetn            (aresetn),
         .i_wr_valid               (s_axi_arvalid),
         .o_wr_ready               (s_axi_arready),
         .i_wr_data                ({s_axi_arid,s_axi_araddr,s_axi_arlen,s_axi_arsize,s_axi_arburst,
@@ -236,37 +239,52 @@ module axi_slave
                                     r_axi_arregion,r_axi_aruser})
     );
 
+    logic [AXI_ID_WIDTH-1:0]    r_axi_rid;
+    logic [AXI_DATA_WIDTH-1:0]  r_axi_rdata;
+    logic [1:0]                 r_axi_rresp;
+    logic                       r_axi_rlast;
+    logic [AXI_USER_WIDTH-1:0]  r_axi_ruser;
+    logic                       r_axi_rvalid;
+    logic                       r_axi_rready;
+
     // assign interface sigs to the read ports
-    assign o_rd_pkt_valid    = r_axi_awvalid && r_axi_rready;
-    assign o_rd_pkt_addr     = w_curr_wr_addr;
+    logic           r_read_ip, w_read_xfer, w_readret_xfer;
+    logic [AW-1:0]  w_curr_rd_addr, w_next_rd_addr, r_rd_addr;
+    logic [7:0]     r_rd_len;
+
+    assign o_rd_pkt_valid    = r_axi_arvalid && r_axi_rready;
+    assign o_rd_pkt_addr     = w_curr_rd_addr;
     assign o_rdret_pkt_ready = r_axi_rready;
     assign r_axi_rid         = r_axi_arid;
     assign r_axi_rdata       = i_rdret_pkt_data;
     assign r_axi_rresp       = 2'b00;
-    assign r_axi_rlast       = r_read_ip && w_read_xfer && (r_rd_len == 8'h01);
+    assign r_axi_rlast       = r_read_ip && w_readret_xfer && (r_rd_len == 8'h00);
     assign r_axi_ruser       = r_axi_aruser;
+    assign r_axi_rvalid      = i_rdret_pkt_valid;
     assign r_axi_arready     = r_axi_rlast;
 
     assign w_read_xfer    = o_rd_pkt_valid && i_rd_pkt_ready;
+    assign w_readret_xfer = i_rdret_pkt_valid && o_rdret_pkt_ready;
     assign w_curr_rd_addr = (r_read_ip) ? r_rd_addr : r_axi_araddr;
 
-    logic           r_read_ip, w_read_xfer;
-    logic [AW-1:0]  w_curr_rd_addr, w_next_rd_addr, r_rd_addr;
-    logic [7:0]     r_rd_len;
-
-
-    always_ff @(posedge s_axi_aclk or negedge s_axi_aresetn) begin
-        if (~s_axi_aresetn) begin
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (~aresetn) begin
             r_read_ip <= 'b0;
             r_rd_addr <= 'b0;
-            r_rd_len  <= 'b0;
+            r_rd_len <= 'b0;
         end else begin
-            if (r_read_ip) // clear when getting the command packet
-                if (r_axi_arvalid && r_axi_arready) r_read_ip <= 'b0;
-            else if (w_read_xfer)                   r_read_ip <= 'b1;
-            if (~r_read_ip)                         r_rd_len  <= r_axi_arlen + 'b1;
-            if (r_read_ip && w_read_xfer)           r_rd_len  <= r_rd_len - 'b1;
-            if (w_read_xfer)                        r_rd_addr <= w_next_rd_addr;
+            if (w_read_xfer) begin
+                r_read_ip <= 'b1;
+                r_rd_addr <= w_next_rd_addr;
+                if (~r_read_ip) begin
+                    r_rd_len <= r_axi_arlen;
+                end else begin
+                    r_rd_len <= r_rd_len - 'b1;
+                end
+            end
+            if (r_read_ip && r_axi_arvalid && r_axi_arready) begin
+                r_read_ip <= 'b0;
+            end
         end
     end
 
@@ -281,16 +299,11 @@ module axi_slave
 
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Read data channel (R)
-    logic [AXI_ID_WIDTH-1:0]    r_axi_rid;
-    logic [AXI_DATA_WIDTH-1:0]  r_axi_rdata;
-    logic [1:0]                 r_axi_rresp;
-    logic                       r_axi_rlast;
-    logic [AXI_USER_WIDTH-1:0]  r_axi_ruser;
-    logic                       r_axi_rvalid;
-    logic                       r_axi_rready;
+
+
     axi_skid_buffer #(.DATA_WIDTH(RSize)) inst_r_phase (
-        .i_axi_aclk               (s_axi_aclk),
-        .i_axi_aresetn            (s_axi_aresetn),
+        .i_axi_aclk               (aclk),
+        .i_axi_aresetn            (aresetn),
         .i_wr_valid               (r_axi_rvalid),
         .o_wr_ready               (r_axi_rready),
         .i_wr_data                ({r_axi_rid,r_axi_rdata,r_axi_rresp,r_axi_rlast,r_axi_ruser}),
