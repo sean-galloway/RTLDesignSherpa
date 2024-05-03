@@ -188,5 +188,4 @@ module axi_slave_async_stub
         .o_rd_data                ({s_axi_rid,s_axi_rdata,s_axi_rresp,s_axi_rlast,s_axi_ruser})
     );
 
-
 endmodule : axi_slave_async_stub

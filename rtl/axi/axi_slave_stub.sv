@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 //`include "axi_params.svh"
 
-// Generic Slave module to prove out maximal performance
+// Generic Slave stub
 module axi_slave_stub
 #(
     parameter int AXI_ID_WIDTH      = 8,
@@ -175,6 +175,5 @@ module axi_slave_stub
         .i_rd_ready               (s_axi_rready),
         .o_rd_data                ({s_axi_rid,s_axi_rdata,s_axi_rresp,s_axi_rlast,s_axi_ruser})
     );
-
 
 endmodule : axi_slave_stub
