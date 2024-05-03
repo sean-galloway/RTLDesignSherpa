@@ -86,21 +86,21 @@ module axi2apb_shim #(
     localparam int unsigned RSize  = IW+DW+2+1+UW;
 
     // Internal signals
-    logic [AWSize-1:0]         r_axi_aw_pkt;
-    logic                      r_axi_awvalid;
-    logic                      r_axi_awready;
-    logic [WSize-1:0]          r_axi_w_pkt;
-    logic                      r_axi_wvalid;
-    logic                      r_axi_wready;
-    logic [BSize-1:0]          r_axi_b_pkt;
-    logic                      r_axi_bvalid;
-    logic                      r_axi_bready;
-    logic [ARSize-1:0]         r_axi_ar_pkt;
-    logic                      r_axi_arvalid;
-    logic                      r_axi_arready;
-    logic [RSize-1:0]          r_axi_r_pkt;
-    logic                      r_axi_rvalid;
-    logic                      r_axi_rready;
+    logic [AWSize-1:0]         r_s_axi_aw_pkt;
+    logic                      r_s_axi_awvalid;
+    logic                      r_s_axi_awready;
+    logic [WSize-1:0]          r_s_axi_w_pkt;
+    logic                      r_s_axi_wvalid;
+    logic                      r_s_axi_wready;
+    logic [BSize-1:0]          r_s_axi_b_pkt;
+    logic                      r_s_axi_bvalid;
+    logic                      r_s_axi_bready;
+    logic [ARSize-1:0]         r_s_axi_ar_pkt;
+    logic                      r_s_axi_arvalid;
+    logic                      r_s_axi_arready;
+    logic [RSize-1:0]          r_s_axi_r_pkt;
+    logic                      r_s_axi_rvalid;
+    logic                      r_s_axi_rready;
 
     // Instantiate the axi_slave_stub
     axi_slave_stub #(
@@ -162,85 +162,86 @@ module axi2apb_shim #(
         .s_axi_rready   (s_axi_rready),
         // Stub Outputs/Inputs
         // AW interface
-        .r_axi_awvalid  (r_axi_awvalid),
-        .r_axi_awready  (r_axi_awready),
-        .r_axi_aw_pkt   (r_axi_aw_pkt),
+        .r_s_axi_awvalid  (r_s_axi_awvalid),
+        .r_s_axi_awready  (r_s_axi_awready),
+        .r_s_axi_aw_pkt   (r_s_axi_aw_pkt),
         // W interface
-        .r_axi_wvalid   (r_axi_wvalid),
-        .r_axi_wready   (r_axi_wready),
-        .r_axi_w_pkt    (r_axi_w_pkt),
+        .r_s_axi_wvalid   (r_s_axi_wvalid),
+        .r_s_axi_wready   (r_s_axi_wready),
+        .r_s_axi_w_pkt    (r_s_axi_w_pkt),
         // B interface
-        .r_axi_bvalid   (r_axi_bvalid),
-        .r_axi_bready   (r_axi_bready),
-        .r_axi_b_pkt    (r_axi_b_pkt),
+        .r_s_axi_bvalid   (r_s_axi_bvalid),
+        .r_s_axi_bready   (r_s_axi_bready),
+        .r_s_axi_b_pkt    (r_s_axi_b_pkt),
         // AR interface
-        .r_axi_arvalid  (r_axi_arvalid),
-        .r_axi_arready  (r_axi_arready),
-        .r_axi_ar_pkt   (r_axi_ar_pkt),
+        .r_s_axi_arvalid  (r_s_axi_arvalid),
+        .r_s_axi_arready  (r_s_axi_arready),
+        .r_s_axi_ar_pkt   (r_s_axi_ar_pkt),
         // R interface
-        .r_axi_rvalid   (r_axi_rvalid),
-        .r_axi_rready   (r_axi_rready),
-        .r_axi_r_pkt    (r_axi_r_pkt)
+        .r_s_axi_rvalid   (r_s_axi_rvalid),
+        .r_s_axi_rready   (r_s_axi_rready),
+        .r_s_axi_r_pkt    (r_s_axi_r_pkt)
     );
 
 
     // Extract signals from AW packet
-    logic [IW-1:0]     r_axi_awid;
-    logic [AW-1:0]     r_axi_awaddr;
-    logic [7:0]        r_axi_awlen;
-    logic [2:0]        r_axi_awsize;
-    logic [1:0]        r_axi_awburst;
-    logic              r_axi_awlock;
-    logic [3:0]        r_axi_awcache;
-    logic [2:0]        r_axi_awprot;
-    logic [3:0]        r_axi_awqos;
-    logic [3:0]        r_axi_awregion;
-    logic [UW-1:0]     r_axi_awuser;
+    logic [IW-1:0]     r_s_axi_awid;
+    logic [AW-1:0]     r_s_axi_awaddr;
+    logic [7:0]        r_s_axi_awlen;
+    logic [2:0]        r_s_axi_awsize;
+    logic [1:0]        r_s_axi_awburst;
+    logic              r_s_axi_awlock;
+    logic [3:0]        r_s_axi_awcache;
+    logic [2:0]        r_s_axi_awprot;
+    logic [3:0]        r_s_axi_awqos;
+    logic [3:0]        r_s_axi_awregion;
+    logic [UW-1:0]     r_s_axi_awuser;
 
-    assign {r_axi_awid, r_axi_awaddr, r_axi_awlen, r_axi_awsize, r_axi_awburst,
-            r_axi_awlock, r_axi_awcache, r_axi_awprot, r_axi_awqos,
-            r_axi_awregion, r_axi_awuser} = r_axi_aw_pkt;
+    assign {r_s_axi_awid, r_s_axi_awaddr, r_s_axi_awlen, r_s_axi_awsize, r_s_axi_awburst,
+            r_s_axi_awlock, r_s_axi_awcache, r_s_axi_awprot, r_s_axi_awqos,
+            r_s_axi_awregion, r_s_axi_awuser} = r_s_axi_aw_pkt;
 
     // Extract signals from W packet
-    logic [DW-1:0]     r_axi_wdata;
-    logic [SW-1:0]     r_axi_wstrb;
-    logic              r_axi_wlast;
-    logic [UW-1:0]     r_axi_wuser;
+    logic [DW-1:0]     r_s_axi_wdata;
+    logic [SW-1:0]     r_s_axi_wstrb;
+    logic              r_s_axi_wlast;
+    logic [UW-1:0]     r_s_axi_wuser;
 
-    assign {r_axi_wdata, r_axi_wstrb, r_axi_wlast, r_axi_wuser} = r_axi_w_pkt;
+    assign {r_s_axi_wdata, r_s_axi_wstrb, r_s_axi_wlast, r_s_axi_wuser} = r_s_axi_w_pkt;
 
     // Extract signals from B packet
-    logic [IW-1:0]     r_axi_bid;
-    logic [1:0]        r_axi_bresp;
-    logic [UW-1:0]     r_axi_buser;
+    logic [IW-1:0]     r_s_axi_bid;
+    logic [1:0]        r_s_axi_bresp;
+    logic [UW-1:0]     r_s_axi_buser;
 
-    assign {r_axi_bid, r_axi_bresp, r_axi_buser} = r_axi_b_pkt;
+    assign {r_s_axi_bid, r_s_axi_bresp, r_s_axi_buser} = r_s_axi_b_pkt;
 
     // Extract signals from AR packet
-    logic [IW-1:0]     r_axi_arid;
-    logic [AW-1:0]     r_axi_araddr;
-    logic [7:0]        r_axi_arlen;
-    logic [2:0]        r_axi_arsize;
-    logic [1:0]        r_axi_arburst;
-    logic              r_axi_arlock;
-    logic [3:0]        r_axi_arcache;
-    logic [2:0]        r_axi_arprot;
-    logic [3:0]        r_axi_arqos;
-    logic [3:0]        r_axi_arregion;
-    logic [UW-1:0]     r_axi_aruser;
+    logic [IW-1:0]     r_s_axi_arid;
+    logic [AW-1:0]     r_s_axi_araddr;
+    logic [7:0]        r_s_axi_arlen;
+    logic [2:0]        r_s_axi_arsize;
+    logic [1:0]        r_s_axi_arburst;
+    logic              r_s_axi_arlock;
+    logic [3:0]        r_s_axi_arcache;
+    logic [2:0]        r_s_axi_arprot;
+    logic [3:0]        r_s_axi_arqos;
+    logic [3:0]        r_s_axi_arregion;
+    logic [UW-1:0]     r_s_axi_aruser;
 
-    assign {r_axi_arid, r_axi_araddr, r_axi_arlen, r_axi_arsize, r_axi_arburst,
-            r_axi_arlock, r_axi_arcache, r_axi_arprot, r_axi_arqos,
-            r_axi_arregion, r_axi_aruser} = r_axi_ar_pkt;
+    assign {r_s_axi_arid, r_s_axi_araddr, r_s_axi_arlen, r_s_axi_arsize, r_s_axi_arburst,
+            r_s_axi_arlock, r_s_axi_arcache, r_s_axi_arprot, r_s_axi_arqos,
+            r_s_axi_arregion, r_s_axi_aruser} = r_s_axi_ar_pkt;
 
     // Extract signals from R packet
-    logic [IW-1:0]     r_axi_rid;
-    logic [DW-1:0]     r_axi_rdata;
-    logic [1:0]        r_axi_rresp;
-    logic              r_axi_rlast;
-    logic [UW-1:0]     r_axi_ruser;
+    logic [IW-1:0]     r_s_axi_rid;
+    logic [DW-1:0]     r_s_axi_rdata;
+    logic [1:0]        r_s_axi_rresp;
+    logic              r_s_axi_rlast;
+    logic [UW-1:0]     r_s_axi_ruser;
 
-    assign {r_axi_rid, r_axi_rdata, r_axi_rresp, r_axi_rlast, r_axi_ruser} = r_axi_r_pkt;
+    assign {r_s_axi_rid, r_s_axi_rdata, r_s_axi_rresp, r_s_axi_rlast, r_s_axi_ruser} = r_s_axi_r_pkt;
+
 
     // Optimized APB FSM
     typedef enum logic [2:0] {
@@ -249,68 +250,68 @@ module axi2apb_shim #(
         WRITE = 3'b100
     } apb_state_t;
 
-    apb_state_t apb_state, apb_next_state;
+    apb_state_t r_apb_state, w_apb_next_state;
 
     logic [APBAW-1:0] r_paddr;
-    logic             sample_RDATA;
-    logic [DW-1:0]    RDATA_Q;
+    logic             w_sample_RDATA;
+    logic [DW-1:0]    r_RDATA;
 
     always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
-            apb_state <= IDLE;
-            RDATA_Q   <= '0;
+            r_apb_state <= IDLE;
+            r_RDATA   <= '0;
             r_paddr   <= 'b0;
         end else begin
-            apb_state <= apb_next_state;
+            r_apb_state <= w_apb_next_state;
 
-            if (sample_RDATA)
-                RDATA_Q <= PRDATA;
+            if (w_sample_RDATA)
+                r_RDATA <= PRDATA;
 
-            if (apb_next_state == READ) begin
-                r_paddr <= r_axi_araddr;
-            end else if (apb_next_state == WRITE) begin
-                r_paddr <= r_axi_awaddr;
+            if (w_apb_next_state == READ) begin
+                r_paddr <= r_s_axi_araddr;
+            end else if (w_apb_next_state == WRITE) begin
+                r_paddr <= r_s_axi_awaddr;
             end
         end
     end
 
     always_comb begin
-        apb_next_state = apb_state;
-        PSEL           = 1'b0;
-        PENABLE        = 1'b0;
-        PWRITE         = 1'b0;
-        PADDR          = r_paddr;
-        PWDATA         = r_axi_w_pkt[DW-1:0];
-        sample_RDATA   = 1'b0;
-        r_axi_awready  = 1'b0;
-        r_axi_wready   = 1'b0;
-        r_axi_arready  = 1'b0;
-        r_axi_rvalid   = 1'b0;
-        r_axi_bvalid   = 1'b0;
+        w_apb_next_state = r_apb_state;
+        PSEL             = 1'b0;
+        PENABLE          = 1'b0;
+        PWRITE           = 1'b0;
+        PADDR            = r_paddr;
+        PWDATA           = r_s_axi_w_pkt[DW-1:0];
+        w_sample_RDATA   = 1'b0;
+        r_s_axi_awready  = 1'b0;
+        r_s_axi_wready   = 1'b0;
+        r_s_axi_arready  = 1'b0;
+        r_s_axi_rvalid   = 1'b0;
+        r_s_axi_bvalid   = 1'b0;
 
-        case (apb_state)
+        case (r_apb_state)
             IDLE: begin
-                if (r_axi_arvalid) begin
-                    apb_next_state = READ;
-                    PSEL           = 1'b1;
-                    r_axi_arready  = 1'b1;
-                end else if (r_axi_awvalid && r_axi_wvalid) begin
-                    apb_next_state = WRITE;
-                    PSEL           = 1'b1;
-                    PWRITE         = 1'b1;
-                    r_axi_awready  = 1'b1;
-                    r_axi_wready   = 1'b1;
+                if (r_s_axi_arvalid) begin
+                    w_apb_next_state   = READ;
+                    PSEL             = 1'b1;
+                    r_s_axi_arready  = 1'b1;
+                end else if (r_s_axi_awvalid && r_s_axi_wvalid) begin
+                    w_apb_next_state = WRITE;
+                    PSEL             = 1'b1;
+                    PWRITE           = 1'b1;
+                    r_s_axi_awready  = 1'b1;
+                    r_s_axi_wready   = 1'b1;
                 end
             end
 
             READ: begin
                 PSEL         = 1'b1;
                 PENABLE      = 1'b1;
-                sample_RDATA = 1'b1;
+                w_sample_RDATA = 1'b1;
 
                 if (PREADY) begin
-                    apb_next_state = IDLE;
-                    r_axi_rvalid   = 1'b1;
+                    w_apb_next_state = IDLE;
+                    r_s_axi_rvalid   = 1'b1;
                 end
             end
 
@@ -320,17 +321,17 @@ module axi2apb_shim #(
                 PWRITE  = 1'b1;
 
                 if (PREADY) begin
-                    apb_next_state = IDLE;
-                    r_axi_bvalid   = 1'b1;
+                    w_apb_next_state = IDLE;
+                    r_s_axi_bvalid   = 1'b1;
                 end
             end
 
-            default: apb_next_state = IDLE;
+            default: w_apb_next_state = IDLE;
         endcase
     end
 
     // Assign output signals
-    assign r_axi_r_pkt  = {r_axi_arid, RDATA_Q, PSLVERR ? 2'b10 : 2'b00, 1'b1, {UW{1'b0}}};
-    assign r_axi_b_pkt  = {r_axi_awid, PSLVERR ? 2'b10 : 2'b00, {UW{1'b0}}};
+    assign r_s_axi_r_pkt  = {r_s_axi_arid, r_RDATA, PSLVERR ? 2'b10 : 2'b00, 1'b1, {UW{1'b0}}};
+    assign r_s_axi_b_pkt  = {r_s_axi_awid, PSLVERR ? 2'b10 : 2'b00, {UW{1'b0}}};
 
 endmodule : axi2apb_shim

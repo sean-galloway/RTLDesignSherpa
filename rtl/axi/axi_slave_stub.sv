@@ -71,29 +71,29 @@ module axi_slave_stub
 
     // Stub Outputs/Inputs
     // AW interface
-    output  logic                       r_axi_awvalid,
-    input   logic                       r_axi_awready,
-    output  logic [AWSize-1:0]          r_axi_aw_pkt,
+    output  logic                      r_s_axi_awvalid,
+    input   logic                      r_s_axi_awready,
+    output  logic [AWSize-1:0]         r_s_axi_aw_pkt,
 
     // W interface
-    output  logic                       r_axi_wvalid,
-    input   logic                       r_axi_wready,
-    output  logic [WSize-1:0]           r_axi_w_pkt,
+    output  logic                      r_s_axi_wvalid,
+    input   logic                      r_s_axi_wready,
+    output  logic [WSize-1:0]          r_s_axi_w_pkt,
 
     // B interface
-    input   logic                       r_axi_bvalid,
-    output  logic                       r_axi_bready,
-    input   logic [BSize-1:0]           r_axi_b_pkt,
+    input   logic                      r_s_axi_bvalid,
+    output  logic                      r_s_axi_bready,
+    input   logic [BSize-1:0]          r_s_axi_b_pkt,
 
     // AR interface
-    output  logic                       r_axi_arvalid,
-    input   logic                       r_axi_arready,
-    output  logic [ARsize-1:0]          r_axi_ar_pkt,
+    output  logic                      r_s_axi_arvalid,
+    input   logic                      r_s_axi_arready,
+    output  logic [ARsize-1:0]         r_s_axi_ar_pkt,
 
     // R interface
-    input   logic                       r_axi_rvalid,
-    output  logic                       r_axi_rready,
-    input   logic [RSize-1:0]           r_axi_r_pkt
+    input   logic                      r_s_axi_rvalid,
+    output  logic                      r_s_axi_rready,
+    input   logic [RSize-1:0]          r_s_axi_r_pkt
 );
 
     localparam int AW       = AXI_ADDR_WIDTH;
@@ -117,9 +117,9 @@ module axi_slave_stub
         .i_wr_data                ({s_axi_awid,s_axi_awaddr,s_axi_awlen,s_axi_awsize,s_axi_awburst,
                                     s_axi_awlock,s_axi_awcache,s_axi_awprot,s_axi_awqos,
                                     s_axi_awregion,s_axi_awuser}),
-        .o_rd_valid               (r_axi_awvalid),
-        .i_rd_ready               (r_axi_awready),
-        .o_rd_data                (r_axi_aw_pkt)
+        .o_rd_valid               (r_s_axi_awvalid),
+        .i_rd_ready               (r_s_axi_awready),
+        .o_rd_data                (r_s_axi_aw_pkt)
     );
 
     ///////////////////////////////////////////////////////////////////////////////////////////
@@ -130,9 +130,9 @@ module axi_slave_stub
         .i_wr_valid               (s_axi_wvalid),
         .o_wr_ready               (s_axi_wready),
         .i_wr_data                ({s_axi_wdata,s_axi_wstrb,s_axi_wlast,s_axi_wuser}),
-        .o_rd_valid               (r_axi_wvalid),
-        .i_rd_ready               (r_axi_wready),
-        .o_rd_data                (r_axi_w_pkt)
+        .o_rd_valid               (r_s_axi_wvalid),
+        .i_rd_ready               (r_s_axi_wready),
+        .o_rd_data                (r_s_axi_w_pkt)
     );
 
     ///////////////////////////////////////////////////////////////////////////////////////////
@@ -140,9 +140,9 @@ module axi_slave_stub
     axi_skid_buffer #(.DATA_WIDTH(BSize)) inst_b_phase (
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
-        .i_wr_valid               (r_axi_bvalid),
-        .o_wr_ready               (r_axi_bready),
-        .i_wr_data                (r_axi_b_pkt),
+        .i_wr_valid               (r_s_axi_bvalid),
+        .o_wr_ready               (r_s_axi_bready),
+        .i_wr_data                (r_s_axi_b_pkt),
         .o_rd_valid               (s_axi_bvalid),
         .i_rd_ready               (s_axi_bready),
         .o_rd_data                ({s_axi_bid,s_axi_bresp,s_axi_buser})
@@ -158,9 +158,9 @@ module axi_slave_stub
         .i_wr_data                ({s_axi_arid,s_axi_araddr,s_axi_arlen,s_axi_arsize,s_axi_arburst,
                                     s_axi_arlock,s_axi_arcache,s_axi_arprot,s_axi_arqos,
                                     s_axi_arregion,s_axi_aruser}),
-        .o_rd_valid               (r_axi_arvalid),
-        .i_rd_ready               (r_axi_arready),
-        .o_rd_data                (r_axi_ar_pkt)
+        .o_rd_valid               (r_s_axi_arvalid),
+        .i_rd_ready               (r_s_axi_arready),
+        .o_rd_data                (r_s_axi_ar_pkt)
     );
 
     ///////////////////////////////////////////////////////////////////////////////////////////
@@ -168,9 +168,9 @@ module axi_slave_stub
     axi_skid_buffer #(.DATA_WIDTH(RSize)) inst_r_phase (
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
-        .i_wr_valid               (r_axi_rvalid),
-        .o_wr_ready               (r_axi_rready),
-        .i_wr_data                (r_axi_r_pkt),
+        .i_wr_valid               (r_s_axi_rvalid),
+        .o_wr_ready               (r_s_axi_rready),
+        .i_wr_data                (r_s_axi_r_pkt),
         .o_rd_valid               (s_axi_rvalid),
         .i_rd_ready               (s_axi_rready),
         .o_rd_data                ({s_axi_rid,s_axi_rdata,s_axi_rresp,s_axi_rlast,s_axi_ruser})
