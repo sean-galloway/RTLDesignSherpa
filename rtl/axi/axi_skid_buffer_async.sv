@@ -7,10 +7,10 @@ module axi_skid_buffer_async #(
     parameter int ENABLE_EMPTY_BYPASS = 0 // go combinatorially around the fifo if empty
 ) (
     // Global Clock and Reset
-    input  logic            i_axi_wr_aclk,
-                            i_axi_wr_aresetn,
-                            i_axi_rd_aclk,
-                            i_axi_rd_aresetn,
+    input  logic          i_axi_wr_aclk,
+    input  logic          i_axi_wr_aresetn,
+    input  logic          i_axi_rd_aclk,
+    input  logic          i_axi_rd_aresetn,
 
     // input side
     input  logic          i_wr_valid,

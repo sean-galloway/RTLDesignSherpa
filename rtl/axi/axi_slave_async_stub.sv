@@ -2,7 +2,7 @@
 //`include "axi_params.svh"
 
 // Generic Slave module to prove out maximal performance
-module axi_slave_stub
+module axi_slave_async_stub
 #(
     parameter int AXI_ID_WIDTH      = 8,
     parameter int AXI_ADDR_WIDTH    = 32,
@@ -12,8 +12,10 @@ module axi_slave_stub
 )
 (
     // Global Clock and Reset
-    input  logic aclk,
-    input  logic aresetn,
+    input  logic                       i_axi_wr_aclk,
+    input  logic                       i_axi_wr_aresetn,
+    input  logic                       i_axi_rd_aclk,
+    input  logic                       i_axi_rd_aresetn,
 
     // Write address channel (AW)
     input  logic [AXI_ID_WIDTH-1:0]    s_axi_awid,
@@ -109,9 +111,11 @@ module axi_slave_stub
 
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Write address channel (AW)
-    axi_skid_buffer #(.DATA_WIDTH(AWSize)) inst_aw_phase (
-        .i_axi_aclk               (aclk),
-        .i_axi_aresetn            (aresetn),
+    axi_skid_buffer_async #(.DATA_WIDTH(AWSize)) inst_aw_phase (
+        .i_axi_wr_aclk            (i_axi_wr_aclk),
+        .i_axi_wr_aresetn         (i_axi_wr_aresetn),
+        .i_axi_rd_aclk            (i_axi_rd_aclk),
+        .i_axi_rd_aresetn         (i_axi_rd_aresetn),
         .i_wr_valid               (s_axi_awvalid),
         .o_wr_ready               (s_axi_awready),
         .i_wr_data                ({s_axi_awid,s_axi_awaddr,s_axi_awlen,s_axi_awsize,s_axi_awburst,
@@ -125,8 +129,10 @@ module axi_slave_stub
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Write data channel (W)
     axi_skid_buffer #(.DATA_WIDTH(WSize)) inst_w_phase (
-        .i_axi_aclk               (aclk),
-        .i_axi_aresetn            (aresetn),
+        .i_axi_wr_aclk            (i_axi_wr_aclk),
+        .i_axi_wr_aresetn         (i_axi_wr_aresetn),
+        .i_axi_rd_aclk            (i_axi_rd_aclk),
+        .i_axi_rd_aresetn         (i_axi_rd_aresetn),
         .i_wr_valid               (s_axi_wvalid),
         .o_wr_ready               (s_axi_wready),
         .i_wr_data                ({s_axi_wdata,s_axi_wstrb,s_axi_wlast,s_axi_wuser}),
@@ -138,8 +144,10 @@ module axi_slave_stub
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Write response channel (B)
     axi_skid_buffer #(.DATA_WIDTH(BSize)) inst_b_phase (
-        .i_axi_aclk               (aclk),
-        .i_axi_aresetn            (aresetn),
+        .i_axi_wr_aclk            (i_axi_wr_aclk),
+        .i_axi_wr_aresetn         (i_axi_wr_aresetn),
+        .i_axi_rd_aclk            (i_axi_rd_aclk),
+        .i_axi_rd_aresetn         (i_axi_rd_aresetn),
         .i_wr_valid               (r_axi_bvalid),
         .o_wr_ready               (r_axi_bready),
         .i_wr_data                (r_axi_b_pkt),
@@ -151,8 +159,10 @@ module axi_slave_stub
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Read address channel (AR)
     axi_skid_buffer #(.DATA_WIDTH(ARSize)) inst_ar_phase (
-        .i_axi_aclk               (aclk),
-        .i_axi_aresetn            (aresetn),
+        .i_axi_wr_aclk            (i_axi_wr_aclk),
+        .i_axi_wr_aresetn         (i_axi_wr_aresetn),
+        .i_axi_rd_aclk            (i_axi_rd_aclk),
+        .i_axi_rd_aresetn         (i_axi_rd_aresetn),
         .i_wr_valid               (s_axi_arvalid),
         .o_wr_ready               (s_axi_arready),
         .i_wr_data                ({s_axi_arid,s_axi_araddr,s_axi_arlen,s_axi_arsize,s_axi_arburst,
@@ -166,8 +176,10 @@ module axi_slave_stub
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Read data channel (R)
     axi_skid_buffer #(.DATA_WIDTH(RSize)) inst_r_phase (
-        .i_axi_aclk               (aclk),
-        .i_axi_aresetn            (aresetn),
+        .i_axi_wr_aclk            (i_axi_wr_aclk),
+        .i_axi_wr_aresetn         (i_axi_wr_aresetn),
+        .i_axi_rd_aclk            (i_axi_rd_aclk),
+        .i_axi_rd_aresetn         (i_axi_rd_aresetn),
         .i_wr_valid               (r_axi_rvalid),
         .o_wr_ready               (r_axi_rready),
         .i_wr_data                (r_axi_r_pkt),
@@ -177,4 +189,4 @@ module axi_slave_stub
     );
 
 
-endmodule : axi_slave_stub
+endmodule : axi_slave_async_stub
