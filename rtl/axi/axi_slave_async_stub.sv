@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 //`include "axi_params.svh"
 
-// Generic Slave module to prove out maximal performance
+// Generic Slave async stub
 module axi_slave_async_stub
 #(
     parameter int AXI_ID_WIDTH      = 8,
