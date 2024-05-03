@@ -231,23 +231,21 @@ class AxiSlaveTB(TBBase):
         byte_lanes = data_width // 8
         max_burst_size = (byte_lanes-1).bit_length()
 
-        # # write tests
-        # for idle in [None, self.cycle_pause]:
-        #     for backpressure in [None, self.cycle_pause]:
-        #         for bsize in [None]+list(range(max_burst_size)):
-        #             await self.run_test_write(idle_inserter=idle, backpressure_inserter=backpressure, size=bsize)
+        # write tests
+        for idle in [None, self.cycle_pause]:
+            for backpressure in [None, self.cycle_pause]:
+                for bsize in [None]+list(range(max_burst_size)):
+                    await self.run_test_write(idle_inserter=idle, backpressure_inserter=backpressure, size=bsize)
 
-        # # read tests
-        # for idle in [None, self.cycle_pause]:
-        #     for backpressure in [None, self.cycle_pause]:
-        #         for bsize in [None]+list(range(max_burst_size)):
-        #             await self.run_test_read(idle_inserter=idle, backpressure_inserter=backpressure, size=bsize)
+        # read tests
+        for idle in [None, self.cycle_pause]:
+            for backpressure in [None, self.cycle_pause]:
+                for bsize in [None]+list(range(max_burst_size)):
+                    await self.run_test_read(idle_inserter=idle, backpressure_inserter=backpressure, size=bsize)
 
         # write_read tests
-        # for idle in [None, self.cycle_pause]:
-        for idle in [None]:
-            # for backpressure in [None, self.cycle_pause]:
-            for backpressure in [None]:
+        for idle in [None, self.cycle_pause]:
+            for backpressure in [None, self.cycle_pause]:
                 for bsize in [None]+list(range(max_burst_size)):
                     await self.run_test_write_read(idle_inserter=idle, backpressure_inserter=backpressure, size=bsize)
 
