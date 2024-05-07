@@ -26,7 +26,7 @@ find-libpython==0.3.0
 h11==0.14.0
 httpcore==1.0.2
 httpx==0.25.2
-idna==3.6
+idna==3.7
 iniconfig==2.0.0
 ipykernel==6.25.0
 ipython==8.14.0
