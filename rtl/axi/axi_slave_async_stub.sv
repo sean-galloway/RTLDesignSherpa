@@ -90,7 +90,7 @@ module axi_slave_async_stub
     // AR interface
     output  logic                      r_s_axi_arvalid,
     input   logic                      r_s_axi_arready,
-    output  logic [ARsize-1:0]         r_s_axi_ar_pkt,
+    output  logic [ARSize-1:0]         r_s_axi_ar_pkt,
 
     // R interface
     input   logic                      r_s_axi_rvalid,

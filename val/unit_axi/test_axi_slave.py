@@ -27,9 +27,7 @@ class AxiSlaveTB(TBBase):
         self.DATA_WIDTH = self.convert_to_int(os.environ.get('PARAM_AXI_DATA_WIDTH', '0'))
         cocotb.start_soon(Clock(dut.aclk, 2, units="ns").start())
         bus = AxiBus.from_prefix(dut, "s_axi")
-        for attr, value in bus.__dict__.items():
-            print(f"{attr}: {value}")
-        self.axi_master = AxiMaster(AxiBus.from_prefix(dut, "s_axi"), dut.aclk, dut.aresetn, reset_active_level=False)
+        self.axi_master = AxiMaster(bus, dut.aclk, dut.aresetn, reset_active_level=False)
         self.axi_sparse_ram = {}
         self.done = False
 
