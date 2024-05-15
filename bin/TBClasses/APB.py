@@ -35,15 +35,15 @@ class APBBase(TBBase):
         self.clock = clock
         if signal_names is None:
             self.signal_name = {
-                "PSEL": f"{name}_PSEL",
-                "PWRITE": f"{name}_PWRITE",
+                "PSEL":    f"{name}_PSEL",
+                "PWRITE":  f"{name}_PWRITE",
                 "PENABLE": f"{name}_PENABLE",
-                "PADDR": f"{name}_PADDR",
-                "PWDATA": f"{name}_PWDATA",
-                "PRDATA": f"{name}_PRDATA",
-                "PREADY": f"{name}_PREADY",
+                "PADDR":   f"{name}_PADDR",
+                "PWDATA":  f"{name}_PWDATA",
+                "PRDATA":  f"{name}_PRDATA",
+                "PREADY":  f"{name}_PREADY",
                 "PSLVERR": f"{name}_PSLVERR",
-                "PSTRB": f"{name}_PSTRB"
+                "PSTRB":   f"{name}_PSTRB"
             }
         else:
             self.signal_name = signal_names
@@ -56,6 +56,7 @@ class APBBase(TBBase):
         self.data_bits = self.get_width(self.signal_name['PWDATA'])
         self.strb_bits = self.get_width(self.signal_name['PSTRB']) if self.PSTRB_present else 0
 
+
     def check_signals(self):
         if missing_signals := [
             signal_name
@@ -64,6 +65,7 @@ class APBBase(TBBase):
         ]:
             raise AttributeError(f"The following signals are missing from the DUT: {', '.join(missing_signals)}")
         self.log.info('APB Check Signals passes')
+
 
     @staticmethod
     def set_constrained_random(passed_constraints, passed_weights):
@@ -74,6 +76,7 @@ class APBBase(TBBase):
             local_constraints = passed_constraints
             local_weights = passed_weights
         return ConstrainedRandom(local_constraints, local_weights)
+
 
     def get_width(self, signal_name):
         width = 0
@@ -89,20 +92,25 @@ class APBBase(TBBase):
             self.log.info(f"Signal '{signal_name}' not found on the DUT.")
         return width
 
+
     def bus(self, name):
         return getattr(self.dut, self.signal_name[name])
 
+
 class APBMonitor(APBBase):
-    def __init__(self, dut, name, clock):
+    def __init__(self, dut, name, clock, addr_mask=None):
         APBBase.__init__(self, dut, name, clock)
+        self.addr_mask = addr_mask if addr_mask is not None else (2 ** self.address_bits) - 1
         self.log.debug(f'Starting APBMonitor - {name}')
         self.transaction_queue = Queue[APBTransaction]()
+
 
     def print(self, transaction):
         self.log.info('-' * 120)
         self.log.info(f'{self.name} - APB Transaction - Started at {transaction.start_time} ns')
-        self.log.info(f'  Direction: {transaction.direction}')
-        self.log.info(f'  Address:   0x{transaction.address:08x}')
+        self.log.info(f'  Direction:  {transaction.direction}')
+        self.log.info(f'  Address:    0x{transaction.address:08x}')
+        self.log.info(f'  Word Index: 0d{transaction.word_index:04d}')
 
         if transaction.data is None:
             self.log.info('  NO DATA YET!')
@@ -116,13 +124,16 @@ class APBMonitor(APBBase):
             self.log.info('')
         self.log.info('-' * 120)
 
+
     async def monitor(self):
         await self.wait_clocks(self.clock, 1)
         while True:
             start_time = get_sim_time('ns')
-            if self.bus('PSEL').value.integer and self.bus('PENABLE').value.integer and self.bus('PREADY').value.integer:
+            if self.bus('PSEL').value.integer and \
+                    self.bus('PENABLE').value.integer and \
+                    self.bus('PREADY').value.integer:
                 address = self.bus('PADDR').value.integer
-                word_index = int((address % (2 ** self.address_bits - 1)) / 4)
+                word_index = (address & self.addr_mask) // self.strb_bits
                 direction = pwrite[self.bus('PWRITE').value.integer]
                 error = self.bus('PSLVERR').value.integer if self.PSLVERR_present else 0
 
@@ -135,27 +146,31 @@ class APBMonitor(APBBase):
 
                 transaction = APBTransaction(start_time, direction, address, word_index, data, strb, error)
                 self.transaction_queue.put_nowait(transaction)
-                # self.print(transaction)
+                self.print(transaction)
 
             await self.wait_clocks(self.clock, 1)
 
 
 class APBSlave(APBBase):
     def __init__(self, dut, name, clock, registers=None,
-                    idle_constraints=None, idle_weights=None,
-                    delay_constraints=None, delay_weights=None,
+                    ready_constraints=None, ready_weights=None,
                     error_constraints=None, error_weights=None,
                     addr_mask=None, debug=False):
         APBBase.__init__(self, dut, name, clock, True)
         self.log.info('Starting APBSlave')
         self.registers_init = registers
         self.registers = registers
-        self.idle_crand = self.set_constrained_random(idle_constraints, idle_weights)
-        self.reply_crand = self.set_constrained_random(delay_constraints, delay_weights)
+        self.ready_crand = self.set_constrained_random(ready_constraints, ready_weights)
         self.error_crand = self.set_constrained_random(error_constraints, error_weights)
         self.addr_mask = addr_mask if addr_mask is not None else (2 ** self.address_bits) - 1
         self.debug = debug
         self.transaction_queue = Queue[APBTransaction]()
+
+
+    def update_constraints(self, ready_constraints=None, ready_weights=None,
+                            error_constraints=None, error_weights=None):
+        self.ready_crand = self.set_constrained_random(ready_constraints, ready_weights)
+        self.error_crand = self.set_constrained_random(error_constraints, error_weights)
 
 
     def dump_registers(self):
@@ -178,20 +193,25 @@ class APBSlave(APBBase):
         self.registers = self.registers_init
 
     async def driver(self):
+        self.bus('PREADY').value = 0
         while True:
-            self.bus('PREADY').value = 0
-            await self.wait_clocks(self.clock, 1)
+            # self.bus('PREADY').value = 0
+            # await self.wait_clocks(self.clock, 1)
 
             if self.bus('PSEL').value.integer:
                 address = self.bus('PADDR').value.integer
                 word_index = (address & self.addr_mask) // self.strb_bits
                 start_time = get_sim_time('ns')
 
-                rand_delay = self.reply_crand.next()
+                rand_delay = self.ready_crand.next()
                 count = 0
+                self.log.debug(f'APB Driver-{self.name}: {rand_delay=}')
                 while rand_delay != count:
+                    self.bus('PREADY').value = 0
                     await self.wait_clocks(self.clock, 1)
                     count += 1
+
+                self.bus('PREADY').value = 1
 
                 if slv_error := self.error_crand.next():
                     if self.PSLVERR_present:
@@ -207,7 +227,7 @@ class APBSlave(APBBase):
                     if self.debug:
                         self.log.debug(f'APB {self.name} - WRITE -{start_time}')
                         self.log.debug(f'  Address:    0x{address:08x}')
-                        self.log.debug(f'  Word Index: 0x{word_index:08x}')
+                        self.log.debug(f'  Word Index: 0d{word_index:04d}')
                         self.log.debug(f'  Data:       0x{pwdata:0{int(self.data_bits/4)}X}')
                         if self.PSTRB_present:
                             self.log.info(f'  Strb:        0b{strobes:0{self.strb_bits}b}')
@@ -231,12 +251,12 @@ class APBSlave(APBBase):
                     if self.debug:
                         self.log.debug(f'APB {self.name} - READ -{start_time}')
                         self.log.debug(f'  Address:    0x{address:08x}')
-                        self.log.debug(f'  Word Index: 0x{word_index:08x}')
+                        self.log.debug(f'  Word Index: 0d{word_index:04d}')
                         self.log.debug(f'  Data:       0x{prdata:0{int(self.data_bits/4)}X}')
                         if self.PSTRB_present:
                             self.log.info(f'  Strb:        0b{strobes:0{self.strb_bits}b}')
 
                     transaction = APBTransaction(start_time, 'READ', address, word_index, prdata, 0, 0)
                 self.transaction_queue.put_nowait(transaction)
-                self.bus('PREADY').value = 1
-                await self.wait_clocks(self.clock, 1)
+
+            await self.wait_clocks(self.clock, 1) # pushed out a tab

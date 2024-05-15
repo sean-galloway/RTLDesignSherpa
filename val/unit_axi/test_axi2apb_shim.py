@@ -42,11 +42,12 @@ class Axi2ApbTB(TBBase):
         self.axi_master = AxiMaster(bus, dut.aclk, dut.aresetn, reset_active_level=False)   
         self.registers = 32        
         self.slave_register = list(range(self.registers))
-        self.log.debug(f'{self.slave_register=}')
-        self.apb_slave = APBSlave(dut, 'm_apb', 'aclk', registers=self.slave_register, debug=True)
+        self.log.debug(f'{self.slave_register=}')    
+        self.apb_slave = APBSlave(dut, 'm_apb', 'aclk', registers=self.slave_register)
         self.apb_monitor = APBMonitor(dut, 'm_apb', 'aclk')
         self.log.info("Axi2ApbTB Init Done.")
         self.log.info("Axi2ApbTB Init Done.")
+        self.main_loop_count = 0
 
 
     def set_idle_generator(self, generator=None):
@@ -151,6 +152,13 @@ class Axi2ApbTB(TBBase):
 
 
     async def main_loop(self):
+        self.main_loop_count += 1
+        self.log.info(f"main_loop called {self.main_loop_count} times")
+        ready_constraints = [(0, 2), (3, 8), (9,20)]
+        ready_weights = [15,2,1]        
+        error_constraints = [(0, 0), (1, 1)]
+        error_weights = [1,0]
+
         max_burst_size = 1
         cocotb.start_soon(self.apb_monitor.monitor())
         cocotb.start_soon(self.apb_slave.driver())
@@ -167,6 +175,16 @@ class Axi2ApbTB(TBBase):
         #             await self.run_test_read(idle_inserter=idle, backpressure_inserter=backpressure, size=bsize)
 
         # write_read tests
+        self.apb_slave.update_constraints() # set all to fast and no errors
+        for idle in [None, self.cycle_pause]:
+            for backpressure in [None, self.cycle_pause]:
+                for bsize in [None]+list(range(max_burst_size)):
+                    await self.run_test_write_read(idle_inserter=idle, backpressure_inserter=backpressure, size=bsize)
+
+        self.apb_slave.update_constraints(ready_constraints=ready_constraints,
+                                            ready_weights=ready_weights,
+                                            error_constraints=None,
+                                            error_weights=None) # set all to fast and no errors
         for idle in [None, self.cycle_pause]:
             for backpressure in [None, self.cycle_pause]:
                 for bsize in [None]+list(range(max_burst_size)):
