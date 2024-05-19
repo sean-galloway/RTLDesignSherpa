@@ -1,0 +1,75 @@
+============================= test session starts ==============================
+platform linux -- Python 3.10.12, pytest-7.4.0, pluggy-1.2.0 -- /home/sean/github/RTLDesignSherpa/.venv/bin/python
+cachedir: .pytest_cache
+Using --randomly-seed=2736622329
+rootdir: /home/sean/github/RTLDesignSherpa
+configfile: tox.ini
+plugins: order-1.2.0, cocotb-test-0.2.5, randomly-3.15.0, split-0.8.2, anyio-4.2.0, xdist-3.5.0
+collecting ... collected 1 item
+
+test_axi2apb_shim.py::test_axi2abp_shim[8-32-32-1-12-32] FAILED          [100%]
+
+=================================== FAILURES ===================================
+______________________ test_axi2abp_shim[8-32-32-1-12-32] ______________________
+
+request = <FixtureRequest for <Function test_axi2abp_shim[8-32-32-1-12-32]>>
+id_width = 8, addr_width = 32, data_width = 32, user_width = 1
+apb_addr_width = 12, apb_data_width = 32
+
+    @pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,32,1,12,32),])
+    def test_axi2abp_shim(request, id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width):
+        dut_name = "axi2apb_shim"
+        module = os.path.splitext(os.path.basename(__file__))[0]
+        toplevel = dut_name
+    
+        verilog_sources = [
+            os.path.join(rtl_dir, "counter_bin.sv"),
+            os.path.join(rtl_dir, "fifo_control.sv"),
+            os.path.join(rtl_axi_dir, "fifo_axi_sync.sv"),
+            os.path.join(rtl_axi_dir, "axi_skid_buffer.sv"),
+            os.path.join(rtl_axi_dir, "axi_gen_addr.sv"),
+            os.path.join(rtl_axi_dir, "axi_slave_stub.sv"),
+            os.path.join(rtl_axi_dir, f"{dut_name}.sv")
+        ]
+        includes = []
+        parameters = {
+            'AXI_ID_WIDTH':   id_width,
+            'AXI_ADDR_WIDTH': addr_width,
+            'AXI_DATA_WIDTH': data_width,
+            'AXI_USER_WIDTH': user_width,
+            'APB_ADDR_WIDTH': apb_addr_width,
+            'APB_DATA_WIDTH': apb_data_width,
+        }
+    
+        extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
+    
+        # sourcery skip: no-conditionals-in-tests
+        if request.config.getoption("--regression"):
+            sim_build = os.path.join(repo_root, 'val', 'unit_axi', 'regression_area', 'sim_build', request.node.name.replace('[', '-').replace(']', ''))
+        else:
+            sim_build = os.path.join(repo_root, 'val', 'unit_axi', 'local_sim_build', request.node.name.replace('[', '-').replace(']', ''))
+    
+        extra_env['LOG_PATH'] = os.path.join(str(sim_build), f'cocotb_log_{dut_name}.log')
+        extra_env['DUT'] = dut_name
+    
+>       run(
+            python_search=[tests_dir],  # where to search for all the python test files
+            verilog_sources=verilog_sources,
+            includes=includes,
+            toplevel=toplevel,
+            module=module,
+            parameters=parameters,
+            sim_build=sim_build,
+            extra_env=extra_env,
+            waves=True,
+        )
+E       SystemExit: Process iverilog terminated with error 2
+
+test_axi2apb_shim.py:252: SystemExit
+------------------------------ Captured log call -------------------------------
+INFO     cocotb:simulator.py:334 Running command: iverilog -o /home/sean/github/RTLDesignSherpa/val/unit_axi/local_sim_build/test_axi2abp_shim-8-32-32-1-12-32/axi2apb_shim.vvp -D COCOTB_SIM=1 -g2012 -s axi2apb_shim -Paxi2apb_shim.AXI_ID_WIDTH=8 -Paxi2apb_shim.AXI_ADDR_WIDTH=32 -Paxi2apb_shim.AXI_DATA_WIDTH=32 -Paxi2apb_shim.AXI_USER_WIDTH=1 -Paxi2apb_shim.APB_ADDR_WIDTH=12 -Paxi2apb_shim.APB_DATA_WIDTH=32 -s iverilog_dump /home/sean/github/RTLDesignSherpa/rtl/common/counter_bin.sv /home/sean/github/RTLDesignSherpa/rtl/common/fifo_control.sv /home/sean/github/RTLDesignSherpa/rtl/axi/fifo_axi_sync.sv /home/sean/github/RTLDesignSherpa/rtl/axi/axi_skid_buffer.sv /home/sean/github/RTLDesignSherpa/rtl/axi/axi_gen_addr.sv /home/sean/github/RTLDesignSherpa/rtl/axi/axi_slave_stub.sv /home/sean/github/RTLDesignSherpa/rtl/axi/axi2apb_shim.sv /home/sean/github/RTLDesignSherpa/val/unit_axi/local_sim_build/test_axi2abp_shim-8-32-32-1-12-32/iverilog_dump.v
+ERROR    cocotb:simulator.py:305 /home/sean/github/RTLDesignSherpa/rtl/axi/axi_gen_addr.sv:17: syntax error
+ERROR    cocotb:simulator.py:305 /home/sean/github/RTLDesignSherpa/rtl/axi/axi_gen_addr.sv:17: error: Invalid module instantiation
+=========================== short test summary info ============================
+FAILED test_axi2apb_shim.py::test_axi2abp_shim[8-32-32-1-12-32] - SystemExit:...
+============================== 1 failed in 0.09s ===============================

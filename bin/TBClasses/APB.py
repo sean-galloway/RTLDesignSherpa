@@ -155,11 +155,12 @@ class APBSlave(APBBase):
     def __init__(self, dut, name, clock, registers=None,
                     ready_constraints=None, ready_weights=None,
                     error_constraints=None, error_weights=None,
-                    addr_mask=None, debug=False):
+                    addr_mask=None, debug=False, error_overflow=False):
         APBBase.__init__(self, dut, name, clock, True)
         self.log.info('Starting APBSlave')
         self.registers_init = registers
         self.registers = registers
+        self.error_overflow = error_overflow
         self.ready_crand = self.set_constrained_random(ready_constraints, ready_weights)
         self.error_crand = self.set_constrained_random(error_constraints, error_weights)
         self.addr_mask = addr_mask if addr_mask is not None else (2 ** self.address_bits) - 1
@@ -194,18 +195,18 @@ class APBSlave(APBBase):
 
     async def driver(self):
         self.bus('PREADY').value = 0
-        while True:
-            # self.bus('PREADY').value = 0
-            # await self.wait_clocks(self.clock, 1)
 
+        while True:
             if self.bus('PSEL').value.integer:
                 address = self.bus('PADDR').value.integer
                 word_index = (address & self.addr_mask) // self.strb_bits
-                start_time = get_sim_time('ns')
 
+                start_time = get_sim_time('ns')
                 rand_delay = self.ready_crand.next()
                 count = 0
+
                 self.log.debug(f'APB Driver-{self.name}: {rand_delay=}')
+
                 while rand_delay != count:
                     self.bus('PREADY').value = 0
                     await self.wait_clocks(self.clock, 1)
@@ -217,6 +218,7 @@ class APBSlave(APBBase):
                     if self.PSLVERR_present:
                         self.bus('PSLVERR').value = 1
                     transaction = APBTransaction(start_time, 'ERROR', address, word_index, 0, 0, 1)
+
                 elif self.bus('PWRITE').value.integer:  # Write transaction
                     while not self.bus('PENABLE').value.integer:
                         await self.wait_clocks(self.clock, 1)
@@ -226,23 +228,42 @@ class APBSlave(APBBase):
 
                     if self.debug:
                         self.log.debug(f'APB {self.name} - WRITE -{start_time}')
-                        self.log.debug(f'  Address:    0x{address:08x}')
-                        self.log.debug(f'  Word Index: 0d{word_index:04d}')
-                        self.log.debug(f'  Data:       0x{pwdata:0{int(self.data_bits/4)}X}')
+                        self.log.debug(f' Address: 0x{address:08x}')
+                        self.log.debug(f' Word Index: 0d{word_index:04d}')
+                        self.log.debug(f' Data: 0x{pwdata:0{int(self.data_bits/4)}X}')
                         if self.PSTRB_present:
-                            self.log.info(f'  Strb:        0b{strobes:0{self.strb_bits}b}')
+                            self.log.info(f' Strb: 0b{strobes:0{self.strb_bits}b}')
+
+                    if word_index >= len(self.registers):
+                        if self.error_overflow:
+                            self.log.error(f'APB {self.name} - Write overflow: {word_index}')
+                            self.bus('PSLVERR').value = 1
+                        else:
+                            self.log.warning(f'APB {self.name} - Write overflow: {word_index}')
+                            # Extend the self.registers array to accommodate the overflow
+                            self.registers.extend([0] * (word_index - len(self.registers) + 1))
 
                     for i in range(self.strb_bits):
                         if (strobes >> i) & 1:
                             byte_offset = i * 8
                             byte_mask = 0xFF << byte_offset
-
                             self.registers[word_index] &= ~byte_mask
                             self.registers[word_index] |= (pwdata & byte_mask)
 
                     transaction = APBTransaction(start_time, 'WRITE', address, word_index, pwdata, strobes, 0)
+
                 else:  # Read transaction
-                    prdata = self.registers[word_index]
+                    if word_index >= len(self.registers):
+                        if self.error_overflow:
+                            self.log.error(f'APB {self.name} - Read overflow: {word_index}')
+                            self.bus('PSLVERR').value = 1
+                            prdata = 0
+                        else:
+                            self.log.warning(f'APB {self.name} - Read overflow: {word_index}')
+                            prdata = 0
+                    else:
+                        prdata = self.registers[word_index]
+
                     self.bus('PRDATA').value = prdata
 
                     while not self.bus('PENABLE').value.integer:
@@ -250,13 +271,14 @@ class APBSlave(APBBase):
 
                     if self.debug:
                         self.log.debug(f'APB {self.name} - READ -{start_time}')
-                        self.log.debug(f'  Address:    0x{address:08x}')
-                        self.log.debug(f'  Word Index: 0d{word_index:04d}')
-                        self.log.debug(f'  Data:       0x{prdata:0{int(self.data_bits/4)}X}')
+                        self.log.debug(f' Address: 0x{address:08x}')
+                        self.log.debug(f' Word Index: 0d{word_index:04d}')
+                        self.log.debug(f' Data: 0x{prdata:0{int(self.data_bits/4)}X}')
                         if self.PSTRB_present:
-                            self.log.info(f'  Strb:        0b{strobes:0{self.strb_bits}b}')
+                            self.log.info(f' Strb: 0b{strobes:0{self.strb_bits}b}')
 
                     transaction = APBTransaction(start_time, 'READ', address, word_index, prdata, 0, 0)
+
                 self.transaction_queue.put_nowait(transaction)
 
-            await self.wait_clocks(self.clock, 1) # pushed out a tab
+            await self.wait_clocks(self.clock, 1)

@@ -36,11 +36,12 @@ class Axi2ApbTB(TBBase):
         TBBase.__init__(self, dut)
         self.log.info('Starting Axi2ApbTB')
         self.DATA_WIDTH = self.convert_to_int(os.environ.get('PARAM_AXI_DATA_WIDTH', '0'))        
+        self.APB_DATA_WIDTH = self.convert_to_int(os.environ.get('PARAM_APB_DATA_WIDTH', '0'))        
         cocotb.start_soon(Clock(dut.aclk, 2, units="ns").start())
                 
         bus = AxiBus.from_prefix(dut, "s_axi")
         self.axi_master = AxiMaster(bus, dut.aclk, dut.aresetn, reset_active_level=False)   
-        self.registers = 32        
+        self.registers = int(32*(self.DATA_WIDTH/self.APB_DATA_WIDTH)) 
         self.slave_register = list(range(self.registers))
         self.log.debug(f'{self.slave_register=}')    
         self.apb_slave = APBSlave(dut, 'm_apb', 'aclk', registers=self.slave_register)
@@ -86,7 +87,7 @@ class Axi2ApbTB(TBBase):
         # sourcery skip: move-assign
         self.log.info(f'run test write: {size=}')
         max_burst_size = self.axi_master.write_if.max_burst_size
-        length = self.registers
+        length = int(self.registers/(self.DATA_WIDTH/self.APB_DATA_WIDTH))
 
         if size is None:
             size = max_burst_size
@@ -108,7 +109,7 @@ class Axi2ApbTB(TBBase):
         # sourcery skip: move-assign
         self.log.info(f'run test read: {size=}')
         max_burst_size = self.axi_master.write_if.max_burst_size
-        length = self.registers
+        length = int(self.registers/(self.DATA_WIDTH/self.APB_DATA_WIDTH))
 
         if size is None:
             size = max_burst_size
@@ -130,10 +131,10 @@ class Axi2ApbTB(TBBase):
         # sourcery skip: move-assign
         self.log.info(f'run test write/read: {size=}')
         max_burst_size = self.axi_master.write_if.max_burst_size
-        length = self.registers
+        length = int(self.registers/(self.DATA_WIDTH/self.APB_DATA_WIDTH))
 
         if size is None:
-            size = max_burst_size
+            size = int(max_burst_size / (self.DATA_WIDTH/self.APB_DATA_WIDTH))
 
         self.set_idle_generator(idle_inserter)
         self.set_backpressure_generator(backpressure_inserter)
@@ -159,7 +160,7 @@ class Axi2ApbTB(TBBase):
         error_constraints = [(0, 0), (1, 1)]
         error_weights = [1,0]
 
-        max_burst_size = 1
+        max_burst_size = self.axi_master.write_if.max_burst_size
         cocotb.start_soon(self.apb_monitor.monitor())
         cocotb.start_soon(self.apb_slave.driver())
         # write tests
@@ -211,7 +212,7 @@ rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hd
 rtl_axi_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'axi')) #path to hdl folder where .v files are placed
 
 
-@pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,32,1,12,32)])
+@pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,32,1,12,32),(8,32,64,1,12,32),(8,32,128,1,12,32),(8,32,64,1,12,8)])
 def test_axi2abp_shim(request, id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width):
     dut_name = "axi2apb_shim"
     module = os.path.splitext(os.path.basename(__file__))[0]

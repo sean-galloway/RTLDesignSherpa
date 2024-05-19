@@ -6,29 +6,29 @@ Initially, this site was only a playground for me to do things I was told at wor
 
 Here are items I’ve recently done:
 
--   Full documentation with UMLs for all the Python code, even code that wasn’t originally mine, but I hacked on a lot to add new features.
--   Word-only documentation for the RTL blocks.
--   A Cheat Sheet showing how to use the primary scripts, all in one place.
--   Finished the divider, the last of the original batch of blocks I wanted to do and have folks see.
--   Did a massive rewrite on vcd2wavedrom and added some valuable features, so automating wavedrom files from regression should be easy.
--   I’ve figured out the issue with GitHub Pages; I have dummy content as proof of concept.
+-Full documentation with UMLs for all the Python code, even code that wasn’t originally mine, but I hacked on a lot to add new features.
+-Word-only documentation for the RTL blocks.
+-A Cheat Sheet showing how to use the primary scripts, all in one place.
+-Finished the divider, the last of the original batch of blocks I wanted to do and have folks see.
+-Did a massive rewrite on vcd2wavedrom and added some valuable features, so automating wavedrom files from regression should be easy.
+-I’ve figured out the issue with GitHub Pages; I have dummy content as proof of concept.
 
 Here are the items that are coming next:
 
--   Waveforms, walk-throughs, and block diagrams for all the RTL blocks by themselves
--   Waveforms, walk-throughs, and block diagrams for all the CocoTB tests.
--   I just found a terrific book on doing math with RTL (adder, subtractors, multipliers and dividers, all integer and floating point), so I might sink back into that rabbit hole again if there are many new blocks I want to add to the randomly chosen arithmetic blocks I have already created. I will likely want some select floating point versions as that is a big gap currently.
--   I’ll make this more apparent when I document the CocoTB stuff. These are not my proudest moments. These are the kinds of tests one writes to check code when they have 5,000 lines of RTL that need to be ready at noon on Friday, and it’s 5 pm on Thursday, and you haven’t been able to start coding yet due to other commitments. You want to turn in your code but don’t want validation to find many stupid bugs. I love it when validation finds hard bugs when there are unexpected interactions between FSMs. However, it gets annoying when fixing a bug takes 1/100 of the time it takes to deal with Jira (or whatever bug tool is being used). Some folks wear super buggy code as a badge of honor. To them, it means what they are doing is hard. Many managers, Fellows, and VPs see it the same way. I have never been in that camp.
--   Make the CocoTB tests less brittle. For some tests, the testbench breaks if the parameters change to a different but legal value. I’ve learned a lot more about CocoTB since then. This bothers me, and I’m super embarrassed about it.
--   Once the documentation is clean, I’ll publish it to GitHub Pages. It’ll be the same content as in the repo, just in a prettier form.
--   Get a Kanban-type page going on GitHub Pages. Once I have this, I can point to it in the README instead of listing stuff that maybe no one cares about.
--   I want to publish how I did my Linux setup to help others save time.
--   Create UVM versions of all the CocoTB tests. I want to learn more about UVM and use it in practice. UVM tests are the Gold Standard in the industry if used correctly.
--   The next mega-task is starting on the FPro Book. This is where the real fun begins as we see our RTL work in silicon. Along with FPro examples, I’ll mix some of my own just for fun to see buttons break if we don’t de-bounce them, see how badly done async crossings can have weird behavior, etc.
+-Waveforms, walk-throughs, and block diagrams for all the RTL blocks by themselves
+-Waveforms, walk-throughs, and block diagrams for all the CocoTB tests.
+-I just found a terrific book on doing math with RTL (adder, subtractors, multipliers and dividers, all integer and floating point), so I might sink back into that rabbit hole again if there are many new blocks I want to add to the randomly chosen arithmetic blocks I have already created. I will likely want some select floating point versions as that is a big gap currently.
+-I’ll make this more apparent when I document the CocoTB stuff. These are not my proudest moments. These are the kinds of tests one writes to check code when they have 5,000 lines of RTL that need to be ready at noon on Friday, and it’s 5 pm on Thursday, and you haven’t been able to start coding yet due to other commitments. You want to turn in your code but don’t want validation to find many stupid bugs. I love it when validation finds hard bugs when there are unexpected interactions between FSMs. However, it gets annoying when fixing a bug takes 1/100 of the time it takes to deal with Jira (or whatever bug tool is being used). Some folks wear super buggy code as a badge of honor. To them, it means what they are doing is hard. Many managers, Fellows, and VPs see it the same way. I have never been in that camp.
+-Make the CocoTB tests less brittle. For some tests, the testbench breaks if the parameters change to a different but legal value. I’ve learned a lot more about CocoTB since then. This bothers me, and I’m super embarrassed about it.
+-Once the documentation is clean, I’ll publish it to GitHub Pages. It’ll be the same content as in the repo, just in a prettier form.
+-Get a Kanban-type page going on GitHub Pages. Once I have this, I can point to it in the README instead of listing stuff that maybe no one cares about.
+-I want to publish how I did my Linux setup to help others save time.
+-Create UVM versions of all the CocoTB tests. I want to learn more about UVM and use it in practice. UVM tests are the Gold Standard in the industry if used correctly.
+-The next mega-task is starting on the FPro Book. This is where the real fun begins as we see our RTL work in silicon. Along with FPro examples, I’ll mix some of my own just for fun to see buttons break if we don’t de-bounce them, see how badly done async crossings can have weird behavior, etc.
 
-To see the state of the current scripts documentation, check out this area: [Scripts Doc Index](docs/mark_down/scripts/index.md)
+To see the state of the current scripts documentation, check out this area: [Scripts Doc Index](docs/mark_down/Scripts/index.md)
 
-To see the state of the current RTL documentation, check out this area: [RTL Doc Index](docs/mark_down/rtl/index.md)
+To see the state of the current RTL documentation, check out this area: [RTL Doc Index](docs/mark_down/CommonRTL/index.md)
 
 ## Here is some quick info on my setup
 

@@ -2,8 +2,9 @@
 
 module axi_gen_addr
 #(
-    parameter int AW = 32,
-    parameter int DW = 32,
+    parameter int AW  = 32,
+    parameter int DW  = 32,
+    parameter int ODW = 32, // ouptput data width
     parameter int LEN = 8
 )(
     input  logic [AW-1:0]  i_curr_addr,
@@ -13,14 +14,23 @@ module axi_gen_addr
     output logic [AW-1:0]  ow_next_addr
 );
 
+localparam int ODWBYTES = ODW / 8;
+
+logic [AW-1:0] increment_pre;
 logic [AW-1:0] increment;
 logic [AW-1:0] wrap_mask;
 logic [AW-1:0] aligned_addr;
 logic [AW-1:0] wrap_addr;
 
+
 always_comb begin
-    // calculate the increment
-    increment = (1 << i_size);
+    // calculate the increment; scale the increment if there is a difference between the two data widths
+    increment_pre = (1 << i_size);
+    increment     = increment_pre;
+    if (DW != ODW) begin
+        if (increment_pre > ODWBYTES)
+            increment = ODWBYTES;
+    end
 
     // Calculate the wrap mask based on i_size and i_len
     wrap_mask = (1 << (i_size + $clog2(i_len + 1))) - 1;

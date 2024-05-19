@@ -13,6 +13,7 @@ class AxiGenAddr_TB(TBBase):
         TBBase.__init__(self, dut)
         self.aw = self.convert_to_int(os.environ.get('PARAM_AW', '0'))
         self.dw = self.convert_to_int(os.environ.get('PARAM_DW', '0'))
+        self.odw = self.convert_to_int(os.environ.get('PARAM_ODW', '0'))
         self.len_sz = self.convert_to_int(os.environ.get('PARAM_LEN_SZ', '0'))
 
     def print_settings(self):
@@ -20,6 +21,7 @@ class AxiGenAddr_TB(TBBase):
         self.log.info('Settings:')
         self.log.info(f'    AW:     {self.aw}')
         self.log.info(f'    DW:     {self.dw}')
+        self.log.info(f'    ODW:    {self.odw}')
         self.log.info(f'    LEN_SZ: {self.len_sz}')
         self.log.info('-------------------------------------------')
 
@@ -130,7 +132,7 @@ class AxiGenAddr_TB(TBBase):
                     await self.wait_time(10, 'ns')
 
                     # Calculate the expected next address
-                    increment = 1 << size
+                    increment = int((1 << size) / (self.dw//self.odw))
                     wrap_mask = (1 << (size + self.clog2(len_val + 1))) - 1
                     aligned_addr = (curr_addr + increment) & ~(increment - 1)
                     wrap_addr = (curr_addr & ~wrap_mask) | (aligned_addr & wrap_mask)
@@ -179,8 +181,8 @@ tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the te
 rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hdl folder where .v files are placed
 rtl_axi_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'axi')) #path to hdl folder where .v files are placed
 
-@pytest.mark.parametrize("aw, dw, len_sz", [(32, 32, 8)])
-def test_axi_gen_addr(request, aw, dw, len_sz):
+@pytest.mark.parametrize("aw, dw, odw, len_sz", [(32, 32, 32, 8), (32, 32, 8, 8)])
+def test_axi_gen_addr(request, aw, dw, odw, len_sz):
     dut_name = "axi_gen_addr"
     module = os.path.splitext(os.path.basename(__file__))[0]  # The name of this file
     toplevel = dut_name
@@ -189,7 +191,7 @@ def test_axi_gen_addr(request, aw, dw, len_sz):
         os.path.join(rtl_axi_dir, f"{dut_name}.sv"),
     ]
     includes = []
-    parameters = {"AW":aw, "DW":dw, 'LEN':len_sz}
+    parameters = {"AW":aw, "DW":dw, 'LEN':len_sz, "ODW":odw}
 
     extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
 

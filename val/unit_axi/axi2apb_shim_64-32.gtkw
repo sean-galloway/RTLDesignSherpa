@@ -1,11 +1,11 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sun May 19 16:56:02 2024
+[*] Sun May 19 16:56:33 2024
 [*]
 [dumpfile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/local_sim_build/test_axi2abp_shim-8-32-64-1-12-32/waves.vcd"
 [dumpfile_mtime] "Sun May 19 16:54:37 2024"
 [dumpfile_size] 9552
-[savefile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/axi2apb_shim.gtkw"
+[savefile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/axi2apb_shim_64-32.gtkw"
 [timestart] 0
 [size] 3113 1364
 [pos] -1 -1
@@ -39,7 +39,7 @@ axi2apb_shim.s_axi_awid[7:0]
 axi2apb_shim.s_axi_wvalid
 axi2apb_shim.s_axi_wready
 @22
-axi2apb_shim.s_axi_wdata[31:0]
+axi2apb_shim.s_axi_wdata[63:0]
 @28
 axi2apb_shim.s_axi_wlast
 @200
@@ -69,7 +69,7 @@ axi2apb_shim.s_axi_arid[7:0]
 axi2apb_shim.s_axi_rvalid
 axi2apb_shim.s_axi_rready
 @23
-axi2apb_shim.s_axi_rdata[31:0]
+axi2apb_shim.s_axi_rdata[63:0]
 @22
 axi2apb_shim.s_axi_rid[7:0]
 @28
