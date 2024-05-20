@@ -33,20 +33,17 @@ tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the te
 rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hdl folder where .v files are placed
 rtl_axi_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'axi')) #path to hdl folder where .v files are placed
 
-@pytest.mark.parametrize("enable_bypass, depth, data_width", [(0, 2, 8), (1, 2, 8)])
-def test_skid_buffer(request, enable_bypass, depth, data_width):
+@pytest.mark.parametrize("data_width", [(8)])
+def test_skid_buffer(request, data_width):
     dut_name = "axi_skid_buffer"
     module = os.path.splitext(os.path.basename(__file__))[0]  # The name of this file
     toplevel = dut_name
 
     verilog_sources = [
-        os.path.join(rtl_dir, "counter_bin.sv"),
-        os.path.join(rtl_dir, "fifo_control.sv"),
-        os.path.join(rtl_axi_dir, "fifo_axi_sync.sv"),
         os.path.join(rtl_axi_dir, f"{dut_name}.sv"),
     ]
     includes = []
-    parameters = {"ENABLE_EMPTY_BYPASS":enable_bypass, "DATA_WIDTH":data_width, 'DEPTH':depth}
+    parameters = {"DATA_WIDTH":data_width}
 
     extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
 

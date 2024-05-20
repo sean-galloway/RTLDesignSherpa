@@ -1,10 +1,8 @@
 `timescale 1ns / 1ps
 
-// Generic Slave module to prove out maximal performance
+// AXI Skid buffer where all ports are driven or received by a flop
 module axi_skid_buffer #(
-    parameter int DATA_WIDTH          = 32,
-    parameter int DEPTH               = 2,
-    parameter int ENABLE_EMPTY_BYPASS = 0 // go combinatorially around the fifo if empty
+    parameter int DATA_WIDTH = 32
 ) (
     // Global Clock and Reset
     input  logic          i_axi_aclk,
@@ -23,47 +21,78 @@ module axi_skid_buffer #(
 
     localparam int DW = DATA_WIDTH;
 
-    logic            w_wr_valid;
-    logic            w_wr_ready;   // not full
-    logic [DW-1:0]   w_wr_data;
-    logic            w_rd_ready;
-    logic            w_rd_valid;   // not empty
-    logic [DW-1:0]   w_rd_data;
-    logic            w_bypass_taken;
+    logic           r_wr_ready;
+    logic           r_rd_valid;
+    logic           w_wr_xfer;
+    logic           w_rd_xfer;
+    logic [1:0]     r_data_count;
+    logic [DW-1:0]  r_data, r_skid_data;
 
-    always_comb begin
-        w_bypass_taken = 0;
-        if ((ENABLE_EMPTY_BYPASS) &&
-            (~w_rd_valid && i_rd_ready)) begin // fifo empty and ready to receive, go around it
-                w_wr_valid     = 'b0;
-                o_wr_ready     = 'b1;
-                w_wr_data      = 'b0;
-                w_rd_ready     = 'b0;
-                o_rd_valid     = i_wr_valid;
-                o_rd_data      = i_wr_data;
-                w_bypass_taken = 'b1;
+    assign w_wr_xfer = i_wr_valid & o_wr_ready;
+    assign w_rd_xfer = o_rd_valid & i_rd_ready;
 
-        end else begin  // not enabled at all, just connect up the queue
-            w_wr_valid = i_wr_valid;
-            w_wr_data  = i_wr_data;
-            o_wr_ready = w_wr_ready;
+    always_ff @(posedge i_axi_aclk or negedge i_axi_aresetn) begin
+        if (~i_axi_aresetn) begin
+            r_wr_ready <= 'b0;
+            r_rd_valid <= 'b0;
+        end else begin
+            r_wr_ready <= (r_data_count == 2'b00) ? 1'b1:
+                            (r_data_count == 2'b01) ? ~w_wr_xfer : r_wr_ready;
 
-            o_rd_valid = w_rd_valid;
-            w_rd_ready = i_rd_ready;
-            o_rd_data  = w_rd_data;
+            case (r_data_count)
+                2'b00: r_rd_valid <= w_wr_xfer;
+                2'b01: begin
+                    if (w_wr_xfer)
+                        r_rd_valid <= 1'b1;
+                    else if (~w_wr_xfer & w_rd_xfer)
+                        r_rd_valid <= 1'b0;
+                    else
+                        r_rd_valid <= r_rd_valid;
+                end
+                2'b10: r_rd_valid <= 1'b1;
+                default: r_rd_valid <= r_rd_valid;
+            endcase
         end
     end
 
-    fifo_axi_sync #(.DEL(1), .DATA_WIDTH(DW), .DEPTH(DEPTH)) skid_fifo_inst (
-        .i_axi_aclk    (i_axi_aclk),
-        .i_axi_aresetn (i_axi_aresetn),
-        .i_wr_valid    (w_wr_valid),
-        .o_wr_ready    (w_wr_ready),   // not full
-        .i_wr_data     (w_wr_data),
-        .i_rd_ready    (w_rd_ready),
-        .o_rd_valid    (w_rd_valid),   // not empty
-        .ow_rd_data    (w_rd_data),
-        .o_rd_data     ()
-    );
+    always_ff @(posedge i_axi_aclk or negedge i_axi_aresetn) begin
+        if (~i_axi_aresetn) begin
+            r_data_count <= 'b0;
+        end else begin
+            if (w_wr_xfer & w_rd_xfer)
+                r_data_count <= r_data_count;
+            else if (w_wr_xfer)
+                r_data_count <= r_data_count + 2'b01;
+            else if (w_rd_xfer)
+                r_data_count <= r_data_count - 2'b01;
+        end
+    end
+
+    always_ff @(posedge i_axi_aclk or negedge i_axi_aresetn) begin
+        if (~i_axi_aresetn) begin
+            r_data <= 'b0;
+        end else begin
+            case (r_data_count)
+                2'b00: r_data <= i_wr_data;
+                2'b01: r_data <= (w_rd_xfer) ? i_wr_data   : r_skid_data;
+                2'b10: r_data <= (w_rd_xfer) ? r_skid_data : r_data;
+                default: r_data <= r_data;
+            endcase
+        end
+    end
+
+    always_ff @(posedge i_axi_aclk or negedge i_axi_aresetn) begin
+        if (~i_axi_aresetn) begin
+            r_skid_data <= 'b0;
+        end else begin
+            if (w_wr_xfer) begin
+                r_skid_data  <= i_wr_data;
+            end
+        end
+    end
+
+    assign o_wr_ready = r_wr_ready;
+    assign o_rd_valid = r_rd_valid;
+    assign o_rd_data  = r_data;
 
 endmodule : axi_skid_buffer

@@ -1,0 +1,138 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Thu May  2 19:41:01 2024
+[*]
+[dumpfile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/local_sim_build/test_axi-8-32-32-1/waves.vcd"
+[dumpfile_mtime] "Thu May  2 18:05:44 2024"
+[dumpfile_size] 784371
+[savefile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/axi_slave.gtkw"
+[timestart] 0
+[size] 1958 1461
+[pos] -1 -1
+*-14.545771 26000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi_slave.
+[sst_width] 233
+[signals_width] 304
+[sst_expanded] 1
+[sst_vpaned_height] 826
+@28
+axi_slave.inst_ar_phase.i_axi_aclk
+@200
+-Write Command
+@28
+axi_slave.s_axi_awvalid
+axi_slave.s_axi_awready
+@22
+axi_slave.s_axi_awaddr[31:0]
+@28
+axi_slave.s_axi_awburst[1:0]
+@22
+axi_slave.s_axi_awlen[7:0]
+@28
+axi_slave.s_axi_awsize[2:0]
+@22
+axi_slave.s_axi_awid[7:0]
+@200
+-Write Data
+@28
+axi_slave.s_axi_wvalid
+axi_slave.s_axi_wready
+@22
+axi_slave.s_axi_wdata[31:0]
+axi_slave.s_axi_wstrb[3:0]
+@28
+axi_slave.s_axi_wlast
+@200
+-Write Response
+@28
+axi_slave.s_axi_bvalid
+axi_slave.s_axi_bready
+@22
+axi_slave.s_axi_bid[7:0]
+@28
+axi_slave.s_axi_bresp[1:0]
+@200
+-Read Command
+@28
+axi_slave.s_axi_arvalid
+axi_slave.s_axi_arready
+@22
+axi_slave.s_axi_araddr[31:0]
+@28
+axi_slave.s_axi_arburst[1:0]
+@22
+axi_slave.s_axi_arlen[7:0]
+axi_slave.s_axi_arid[7:0]
+@200
+-Read Response
+@28
+axi_slave.s_axi_rvalid
+axi_slave.s_axi_rready
+@22
+axi_slave.s_axi_rdata[31:0]
+axi_slave.s_axi_rid[7:0]
+@28
+axi_slave.s_axi_rlast
+@200
+-Ram Interface
+-Ram Write
+@28
+axi_slave.o_wr_pkt_valid
+axi_slave.i_wr_pkt_ready
+@22
+axi_slave.o_wr_pkt_addr[31:0]
+axi_slave.o_wr_pkt_data[31:0]
+axi_slave.o_wr_pkt_strb[3:0]
+@200
+-Ram Read
+@28
+axi_slave.o_rd_pkt_valid
+axi_slave.i_rd_pkt_ready
+@22
+axi_slave.o_rd_pkt_addr[31:0]
+@200
+-Ram Read Return
+@28
+axi_slave.o_rdret_pkt_ready
+axi_slave.i_rdret_pkt_valid
+@c00022
+axi_slave.i_rdret_pkt_data[31:0]
+@28
+(0)axi_slave.i_rdret_pkt_data[31:0]
+(1)axi_slave.i_rdret_pkt_data[31:0]
+(2)axi_slave.i_rdret_pkt_data[31:0]
+(3)axi_slave.i_rdret_pkt_data[31:0]
+(4)axi_slave.i_rdret_pkt_data[31:0]
+(5)axi_slave.i_rdret_pkt_data[31:0]
+(6)axi_slave.i_rdret_pkt_data[31:0]
+(7)axi_slave.i_rdret_pkt_data[31:0]
+(8)axi_slave.i_rdret_pkt_data[31:0]
+(9)axi_slave.i_rdret_pkt_data[31:0]
+(10)axi_slave.i_rdret_pkt_data[31:0]
+(11)axi_slave.i_rdret_pkt_data[31:0]
+(12)axi_slave.i_rdret_pkt_data[31:0]
+(13)axi_slave.i_rdret_pkt_data[31:0]
+(14)axi_slave.i_rdret_pkt_data[31:0]
+(15)axi_slave.i_rdret_pkt_data[31:0]
+(16)axi_slave.i_rdret_pkt_data[31:0]
+(17)axi_slave.i_rdret_pkt_data[31:0]
+(18)axi_slave.i_rdret_pkt_data[31:0]
+(19)axi_slave.i_rdret_pkt_data[31:0]
+(20)axi_slave.i_rdret_pkt_data[31:0]
+(21)axi_slave.i_rdret_pkt_data[31:0]
+(22)axi_slave.i_rdret_pkt_data[31:0]
+(23)axi_slave.i_rdret_pkt_data[31:0]
+(24)axi_slave.i_rdret_pkt_data[31:0]
+(25)axi_slave.i_rdret_pkt_data[31:0]
+(26)axi_slave.i_rdret_pkt_data[31:0]
+(27)axi_slave.i_rdret_pkt_data[31:0]
+(28)axi_slave.i_rdret_pkt_data[31:0]
+(29)axi_slave.i_rdret_pkt_data[31:0]
+(30)axi_slave.i_rdret_pkt_data[31:0]
+(31)axi_slave.i_rdret_pkt_data[31:0]
+@1401200
+-group_end
+@201
+-Internal Signals
+[pattern_trace] 1
+[pattern_trace] 0

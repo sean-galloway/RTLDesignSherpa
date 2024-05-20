@@ -8,11 +8,10 @@ import random
 from ConstrainedRandom import ConstrainedRandom
 
 class AXISkidBufferTB(TBBase):
-    def __init__(self, dut, enable_empty_bypass=0):
+    def __init__(self, dut):
         super().__init__(dut)
-        self.BYPASS = self.convert_to_int(os.environ.get('PARAM_ENABLE_EMPTY_BYPASS', '0'))
         self.DATA_WIDTH = self.convert_to_int(os.environ.get('PARAM_DATA_WIDTH', '0'))
-        self.DEPTH = self.convert_to_int(os.environ.get('PARAM_DEPTH', '0'))
+        self.DEPTH = 2
         self.TIMEOUT_CYCLES = 100
         read_constraints = [(0, 1), (2, 8), (9,20)]
         read_weights = [5,2,1]

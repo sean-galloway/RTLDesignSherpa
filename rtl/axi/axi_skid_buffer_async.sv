@@ -1,10 +1,11 @@
 `timescale 1ns / 1ps
 
-// Generic Slave module to prove out maximal performance
+// AXI Skid buffer where all ports are driven or received by a flop
 module axi_skid_buffer_async #(
-    parameter int DATA_WIDTH          = 32,
-    parameter int DEPTH               = 2,
-    parameter int ENABLE_EMPTY_BYPASS = 0 // go combinatorially around the fifo if empty
+    parameter int DATA_WIDTH    = 32,
+    parameter int DEPTH         = 2,
+    parameter int N_FLOP_CROSS  = 2,
+    parameter     INSTANCE_NAME = "DEADF1F0"  // verilog_lint: waive explicit-parameter-storage-type
 ) (
     // Global Clock and Reset
     input  logic          i_axi_wr_aclk,
@@ -25,49 +26,45 @@ module axi_skid_buffer_async #(
 
     localparam int DW = DATA_WIDTH;
 
-    logic            w_wr_valid;
-    logic            w_wr_ready;   // not full
-    logic [DW-1:0]   w_wr_data;
-    logic            w_rd_ready;
-    logic            w_rd_valid;   // not empty
-    logic [DW-1:0]   w_rd_data;
-    logic            w_bypass_taken;
+    logic           r_xfer_valid;
+    logic           r_xfer_ready;
+    logic [DW-1:0]  r_xfer_data;
 
-    always_comb begin
-        w_bypass_taken = 0;
-        if ((ENABLE_EMPTY_BYPASS) &&
-            (~w_rd_valid && i_rd_ready)) begin // fifo empty and ready to receive, go around it
-                w_wr_valid     = 'b0;
-                o_wr_ready     = 'b1;
-                w_wr_data      = 'b0;
-                w_rd_ready     = 'b0;
-                o_rd_valid     = i_wr_valid;
-                o_rd_data      = i_wr_data;
-                w_bypass_taken = 'b1;
+    // Instantiate the axi_skid_buffer module
+    axi_skid_buffer #(
+        .DATA_WIDTH(DW)
+    ) inst_skid_buffer (
+        .i_axi_aclk   (i_axi_wr_aclk),
+        .i_axi_aresetn(i_axi_wr_aresetn),
+        .i_wr_valid   (i_wr_valid),
+        .o_wr_ready   (o_wr_ready),
+        .i_wr_data    (i_wr_data),
+        .o_rd_valid   (r_xfer_valid),
+        .i_rd_ready   (r_xfer_ready),
+        .o_rd_data    (r_xfer_data)
+    );
 
-        end else begin  // not enabled at all, just connect up the queue
-            w_wr_valid = i_wr_valid;
-            w_wr_data  = i_wr_data;
-            o_wr_ready = w_wr_ready;
-
-            o_rd_valid = w_rd_valid;
-            w_rd_ready = i_rd_ready;
-            o_rd_data  = w_rd_data;
-        end
-    end
-
-    fifo_axi_async #(.DEL(1), .DATA_WIDTH(DW), .DEPTH(DEPTH)) skid_fifo_inst (
-        .i_axi_wr_aclk    (i_axi_wr_aclk),
-        .i_axi_wr_aresetn (i_axi_wr_aresetn),
-        .i_axi_rd_aclk    (i_axi_rd_aclk),
-        .i_axi_rd_aresetn (i_axi_rd_aresetn),
-        .i_wr_valid       (w_wr_valid),
-        .o_wr_ready       (w_wr_ready),   // not full
-        .i_wr_data        (w_wr_data),
-        .i_rd_ready       (w_rd_ready),
-        .o_rd_valid       (w_rd_valid),   // not empty
-        .ow_rd_data       (w_rd_data),
-        .o_rd_data        ()
+    // Instantiate the fifo_axi_async module
+    fifo_axi_async #(
+        .DEL(1),
+        .DATA_WIDTH(DW),
+        .DEPTH(DEPTH),
+        .N_FLOP_CROSS(N_FLOP_CROSS),
+        .ALMOST_WR_MARGIN(1),
+        .ALMOST_RD_MARGIN(1),
+        .INSTANCE_NAME(INSTANCE_NAME)
+    ) inst_fifo_axi_async (
+        .i_axi_wr_aclk   (i_axi_wr_aclk),
+        .i_axi_wr_aresetn(i_axi_wr_aresetn),
+        .i_axi_rd_aclk   (i_axi_rd_aclk),
+        .i_axi_rd_aresetn(i_axi_rd_aresetn),
+        .i_wr_valid      (r_xfer_valid),
+        .o_wr_ready      (r_xfer_ready),
+        .i_wr_data       (r_xfer_data),
+        .i_rd_ready      (i_rd_ready),
+        .o_rd_valid      (o_rd_valid),
+        .ow_rd_data      (o_rd_data),
+        .o_rd_data       ()
     );
 
 endmodule : axi_skid_buffer_async
