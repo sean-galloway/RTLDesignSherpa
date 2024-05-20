@@ -18,9 +18,9 @@ module shifter_lfsr_galois #(
 
     localparam int TIW = TAP_INDEX_WIDTH;
 
-    logic [WIDTH:0]   r_lfsr;
-    logic [TIW-1:0]   w_tap_positions [0:TAP_COUNT-1];  // verilog_lint: waive unpacked-dimensions-range-ordering
-    logic             w_feedback;
+    logic [WIDTH-1:0]  r_lfsr;
+    logic [TIW-1:0]    w_tap_positions [0:TAP_COUNT-1];  // verilog_lint: waive unpacked-dimensions-range-ordering
+    logic              w_feedback;
 
     ////////////////////////////////////////////////////////////////////////////
     // Split concatenated tap positions into separate groups for each tap
@@ -39,7 +39,7 @@ module shifter_lfsr_galois #(
 
         for (int j = 0; j < TAP_COUNT; j++) begin
             if (w_tap_positions[j] > 0) begin
-                w_feedback ^= r_lfsr[w_tap_positions[j]];
+                w_feedback ^= r_lfsr[w_tap_positions[j]-1];
             end
         end
     end
@@ -52,7 +52,7 @@ module shifter_lfsr_galois #(
             if (i_seed_load) begin
                 r_lfsr <= i_seed_data;
             end else begin
-                r_lfsr <= {w_feedback, r_lfsr[WIDTH:1]};
+                r_lfsr <= {w_feedback, r_lfsr[WIDTH-1:1]};
             end
         end
     end

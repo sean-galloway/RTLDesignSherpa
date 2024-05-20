@@ -65,22 +65,24 @@ class LFSR_TB(TBBase):
         # Run the LFSR for a specific number of cycles and check the output
         num_cycles = 100
         expected_lfsr_output = seed  # Initialize with the seed value
+
         for _ in range(num_cycles):
             lfsr_output = self.dut.o_lfsr_out.value
             lfsr_output_hex = hex(lfsr_output)
-            expected_hex = hex(expected_lfsr_output & self.max_val)
+            expected_hex = hex(expected_lfsr_output)
             lfsr_done = self.dut.ow_lfsr_done.value
-            self.log.info(f"LFSR Output: {lfsr_output_hex}, Expected: {expected_hex}")
+            self.log.info(f"LFSR Output: {lfsr_output_hex}, Expected: {expected_hex}, LFSR Done: {lfsr_done}")
 
             # Check if the LFSR output matches the expected value
-            assert lfsr_output_hex == expected_hex, f"LFSR output mismatch: Expected {expected_hex}, Got {lfsr_output_hex}"
+            assert lfsr_output == expected_lfsr_output, f"LFSR output mismatch: Expected {expected_hex}, Got {lfsr_output_hex}"
+
             await self.wait_clocks('i_clk', 1)
 
             # Update the expected LFSR output for the next cycle
             feedback = 0
             for tap in self.taps:
-                feedback ^= (expected_lfsr_output >> tap) & 1
-            expected_lfsr_output = ((expected_lfsr_output << 1) | feedback) & ((1 << self.total_width) - 1)
+                feedback ^= (expected_lfsr_output >> (tap - 1)) & 1
+            expected_lfsr_output = ((expected_lfsr_output << 1) | feedback) & self.max_val
 
 
 @cocotb.test()
