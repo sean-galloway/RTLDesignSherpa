@@ -132,7 +132,12 @@ class AxiGenAddr_TB(TBBase):
                     await self.wait_time(10, 'ns')
 
                     # Calculate the expected next address
-                    increment = int((1 << size) / (self.dw//self.odw))
+                    increment_pre = int(1 << size)
+                    odw_bytes = self.odw // 8
+                    if self.odw == self.dw:
+                        increment = increment_pre
+                    else:
+                        increment = min(increment_pre, odw_bytes)
                     wrap_mask = (1 << (size + self.clog2(len_val + 1))) - 1
                     aligned_addr = (curr_addr + increment) & ~(increment - 1)
                     wrap_addr = (curr_addr & ~wrap_mask) | (aligned_addr & wrap_mask)
@@ -146,7 +151,6 @@ class AxiGenAddr_TB(TBBase):
 
                     # Check the actual next address against the expected value
                     actual_next_addr = self.dut.ow_next_addr.value
-                    assert actual_next_addr == expected_next_addr, f"Error: Expected next address {hex(expected_next_addr)}, but got {hex(actual_next_addr)}"
 
                     # Print the test case information
                     self.log.info(f"Test Case: {scenario['name']}_{location['name']}_SIZE_{size}_LEN_{len_val}")
@@ -156,6 +160,7 @@ class AxiGenAddr_TB(TBBase):
                     self.log.info(f"  Length: {len_val}")
                     self.log.info(f"  Expected Next Address: {hex(expected_next_addr)}")
                     self.log.info(f"  Actual Next Address: {hex(actual_next_addr)}")
+                    assert actual_next_addr == expected_next_addr, f"Error: Expected next address {hex(expected_next_addr)}, but got {hex(actual_next_addr)}"
                     self.log.info("  Test Passed\n")
 
                 # Increment the base address for the next iteration

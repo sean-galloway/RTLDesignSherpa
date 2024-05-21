@@ -76,6 +76,7 @@ module axi2apb_shim #(
     output logic                          m_apb_PWRITE,
     output logic [APB_DATA_WIDTH-1:0]     m_apb_PWDATA,
     output logic [APB_WSTRB_WIDTH-1:0]    m_apb_PSTRB,
+    output logic [2:0]                    m_apb_PPROT,
 
     // APB Master Interface (Inputs)
     input  logic [APB_DATA_WIDTH-1:0]     m_apb_PRDATA,
@@ -83,22 +84,20 @@ module axi2apb_shim #(
     input  logic                          m_apb_PSLVERR
 );
 
-    localparam int AW    = AXI_ADDR_WIDTH;
-    localparam int DW    = AXI_DATA_WIDTH;
-    localparam int IW    = AXI_ID_WIDTH;
-    localparam int UW    = AXI_USER_WIDTH;
-    localparam int SW    = AXI_DATA_WIDTH / 8;
-    localparam int APBAW = APB_ADDR_WIDTH;
-    localparam int APBDW = APB_DATA_WIDTH;
-    localparam int APBSW = APB_DATA_WIDTH / 8;
-
+    localparam int AW           = AXI_ADDR_WIDTH;
+    localparam int DW           = AXI_DATA_WIDTH;
+    localparam int IW           = AXI_ID_WIDTH;
+    localparam int UW           = AXI_USER_WIDTH;
+    localparam int SW           = AXI_DATA_WIDTH / 8;
+    localparam int APBAW        = APB_ADDR_WIDTH;
+    localparam int APBDW        = APB_DATA_WIDTH;
+    localparam int APBSW        = APB_DATA_WIDTH / 8;
     localparam int AXI2APBRATIO = DW / APBDW;
-
-    localparam int AWSize = IW+AW+8+3+2+1+4+3+4+4+UW;
-    localparam int WSize  = DW+SW+1+UW;
-    localparam int BSize  = IW+2+UW;
-    localparam int ARSize = IW+AW+8+3+2+1+4+3+4+4+UW;
-    localparam int RSize  = IW+DW+2+1+UW;
+    localparam int AWSize       = IW+AW+8+3+2+1+4+3+4+4+UW;
+    localparam int WSize        = DW+SW+1+UW;
+    localparam int BSize        = IW+2+UW;
+    localparam int ARSize       = IW+AW+8+3+2+1+4+3+4+4+UW;
+    localparam int RSize        = IW+DW+2+1+UW;
 
     // Internal signals
     logic [AWSize-1:0]         r_s_axi_aw_pkt;
@@ -118,84 +117,84 @@ module axi2apb_shim #(
     logic                      r_s_axi_rready;
 
     // Instantiate the axi_slave_stub
-    axi_slave_stub #(
-        .AXI_ID_WIDTH   (IW),
-        .AXI_ADDR_WIDTH (AW),
-        .AXI_DATA_WIDTH (DW),
-        .AXI_USER_WIDTH (UW)
-    ) axi_slave_stub_inst (
-        .aclk         (aclk),
-        .aresetn      (aresetn),
-        // Write address channel (AW)
-        .s_axi_awid     (s_axi_awid),
-        .s_axi_awaddr   (s_axi_awaddr),
-        .s_axi_awlen    (s_axi_awlen),
-        .s_axi_awsize   (s_axi_awsize),
-        .s_axi_awburst  (s_axi_awburst),
-        .s_axi_awlock   (s_axi_awlock),
-        .s_axi_awcache  (s_axi_awcache),
-        .s_axi_awprot   (s_axi_awprot),
-        .s_axi_awqos    (s_axi_awqos),
-        .s_axi_awregion (s_axi_awregion),
-        .s_axi_awuser   (s_axi_awuser),
-        .s_axi_awvalid  (s_axi_awvalid),
-        .s_axi_awready  (s_axi_awready),
-        // Write data channel (W)
-        .s_axi_wdata    (s_axi_wdata),
-        .s_axi_wstrb    (s_axi_wstrb),
-        .s_axi_wlast    (s_axi_wlast),
-        .s_axi_wuser    (s_axi_wuser),
-        .s_axi_wvalid   (s_axi_wvalid),
-        .s_axi_wready   (s_axi_wready),
+    axi_slave_stub #                   (
+        .AXI_ID_WIDTH             (IW),
+        .AXI_ADDR_WIDTH           (AW),
+        .AXI_DATA_WIDTH           (DW),
+        .AXI_USER_WIDTH           (UW)
+    ) axi_slave_stub_inst         (
+        .aclk                     (aclk),
+        .aresetn                  (aresetn),
+        // Write address channel  (AW)
+        .s_axi_awid               (s_axi_awid),
+        .s_axi_awaddr             (s_axi_awaddr),
+        .s_axi_awlen              (s_axi_awlen),
+        .s_axi_awsize             (s_axi_awsize),
+        .s_axi_awburst            (s_axi_awburst),
+        .s_axi_awlock             (s_axi_awlock),
+        .s_axi_awcache            (s_axi_awcache),
+        .s_axi_awprot             (s_axi_awprot),
+        .s_axi_awqos              (s_axi_awqos),
+        .s_axi_awregion           (s_axi_awregion),
+        .s_axi_awuser             (s_axi_awuser),
+        .s_axi_awvalid            (s_axi_awvalid),
+        .s_axi_awready            (s_axi_awready),
+        // Write data channel     (W)
+        .s_axi_wdata              (s_axi_wdata),
+        .s_axi_wstrb              (s_axi_wstrb),
+        .s_axi_wlast              (s_axi_wlast),
+        .s_axi_wuser              (s_axi_wuser),
+        .s_axi_wvalid             (s_axi_wvalid),
+        .s_axi_wready             (s_axi_wready),
         // Write response channel (B)
-        .s_axi_bid      (s_axi_bid),
-        .s_axi_bresp    (s_axi_bresp),
-        .s_axi_buser    (s_axi_buser),
-        .s_axi_bvalid   (s_axi_bvalid),
-        .s_axi_bready   (s_axi_bready),
-        // Read address channel (AR)
-        .s_axi_arid     (s_axi_arid),
-        .s_axi_araddr   (s_axi_araddr),
-        .s_axi_arlen    (s_axi_arlen),
-        .s_axi_arsize   (s_axi_arsize),
-        .s_axi_arburst  (s_axi_arburst),
-        .s_axi_arlock   (s_axi_arlock),
-        .s_axi_arcache  (s_axi_arcache),
-        .s_axi_arprot   (s_axi_arprot),
-        .s_axi_arqos    (s_axi_arqos),
-        .s_axi_arregion (s_axi_arregion),
-        .s_axi_aruser   (s_axi_aruser),
-        .s_axi_arvalid  (s_axi_arvalid),
-        .s_axi_arready  (s_axi_arready),
-        // Read data channel (R)
-        .s_axi_rid      (s_axi_rid),
-        .s_axi_rdata    (s_axi_rdata),
-        .s_axi_rresp    (s_axi_rresp),
-        .s_axi_rlast    (s_axi_rlast),
-        .s_axi_ruser    (s_axi_ruser),
-        .s_axi_rvalid   (s_axi_rvalid),
-        .s_axi_rready   (s_axi_rready),
+        .s_axi_bid                (s_axi_bid),
+        .s_axi_bresp              (s_axi_bresp),
+        .s_axi_buser              (s_axi_buser),
+        .s_axi_bvalid             (s_axi_bvalid),
+        .s_axi_bready             (s_axi_bready),
+        // Read address channel   (AR)
+        .s_axi_arid               (s_axi_arid),
+        .s_axi_araddr             (s_axi_araddr),
+        .s_axi_arlen              (s_axi_arlen),
+        .s_axi_arsize             (s_axi_arsize),
+        .s_axi_arburst            (s_axi_arburst),
+        .s_axi_arlock             (s_axi_arlock),
+        .s_axi_arcache            (s_axi_arcache),
+        .s_axi_arprot             (s_axi_arprot),
+        .s_axi_arqos              (s_axi_arqos),
+        .s_axi_arregion           (s_axi_arregion),
+        .s_axi_aruser             (s_axi_aruser),
+        .s_axi_arvalid            (s_axi_arvalid),
+        .s_axi_arready            (s_axi_arready),
+        // Read data channel      (R)
+        .s_axi_rid                (s_axi_rid),
+        .s_axi_rdata              (s_axi_rdata),
+        .s_axi_rresp              (s_axi_rresp),
+        .s_axi_rlast              (s_axi_rlast),
+        .s_axi_ruser              (s_axi_ruser),
+        .s_axi_rvalid             (s_axi_rvalid),
+        .s_axi_rready             (s_axi_rready),
         // Stub Outputs/Inputs
         // AW interface
-        .r_s_axi_awvalid  (r_s_axi_awvalid),
-        .r_s_axi_awready  (r_s_axi_awready),
-        .r_s_axi_aw_pkt   (r_s_axi_aw_pkt),
+        .r_s_axi_awvalid          (r_s_axi_awvalid),
+        .r_s_axi_awready          (r_s_axi_awready),
+        .r_s_axi_aw_pkt           (r_s_axi_aw_pkt),
         // W interface
-        .r_s_axi_wvalid   (r_s_axi_wvalid),
-        .r_s_axi_wready   (r_s_axi_wready),
-        .r_s_axi_w_pkt    (r_s_axi_w_pkt),
+        .r_s_axi_wvalid           (r_s_axi_wvalid),
+        .r_s_axi_wready           (r_s_axi_wready),
+        .r_s_axi_w_pkt            (r_s_axi_w_pkt),
         // B interface
-        .r_s_axi_bvalid   (r_s_axi_bvalid),
-        .r_s_axi_bready   (r_s_axi_bready),
-        .r_s_axi_b_pkt    (r_s_axi_b_pkt),
+        .r_s_axi_bvalid           (r_s_axi_bvalid),
+        .r_s_axi_bready           (r_s_axi_bready),
+        .r_s_axi_b_pkt            (r_s_axi_b_pkt),
         // AR interface
-        .r_s_axi_arvalid  (r_s_axi_arvalid),
-        .r_s_axi_arready  (r_s_axi_arready),
-        .r_s_axi_ar_pkt   (r_s_axi_ar_pkt),
+        .r_s_axi_arvalid          (r_s_axi_arvalid),
+        .r_s_axi_arready          (r_s_axi_arready),
+        .r_s_axi_ar_pkt           (r_s_axi_ar_pkt),
         // R interface
-        .r_s_axi_rvalid   (r_s_axi_rvalid),
-        .r_s_axi_rready   (r_s_axi_rready),
-        .r_s_axi_r_pkt    (r_s_axi_r_pkt)
+        .r_s_axi_rvalid           (r_s_axi_rvalid),
+        .r_s_axi_rready           (r_s_axi_rready),
+        .r_s_axi_r_pkt            (r_s_axi_r_pkt)
     );
 
     // Extract signals from AW packet
@@ -264,37 +263,38 @@ module axi2apb_shim #(
     logic [APBAW-1:0] r_m_apb_PADDR;
 
     axi_gen_addr #(
-        .AW(APBAW),
-        .DW(DW),
-        .ODW(APBDW),
-        .LEN(8)
-    ) axi_gen_addr_read (
-        .i_curr_addr(r_m_apb_PADDR),
-        .i_size(r_s_axi_arsize),
-        .i_burst(r_s_axi_arburst),
-        .i_len(r_s_axi_arlen),
-        .ow_next_addr(w_next_addr_read)
+        .AW              (APBAW),
+        .DW              (DW),
+        .ODW             (APBDW),
+        .LEN             (8)
+    ) axi_gen_addr_read  (
+        .i_curr_addr     (r_m_apb_PADDR),
+        .i_size          (r_s_axi_arsize),
+        .i_burst         (r_s_axi_arburst),
+        .i_len           (r_s_axi_arlen),
+        .ow_next_addr    (w_next_addr_read)
     );
 
-    axi_gen_addr #(
-        .AW(APBAW),
-        .DW(DW),
-        .ODW(APBDW),
-        .LEN(8)
+    axi_gen_addr #       (
+        .AW              (APBAW),
+        .DW              (DW),
+        .ODW             (APBDW),
+        .LEN             (8)
     ) axi_gen_addr_write (
-        .i_curr_addr(r_m_apb_PADDR),
-        .i_size(r_s_axi_awsize),
-        .i_burst(r_s_axi_awburst),
-        .i_len(r_s_axi_awlen),
-        .ow_next_addr(w_next_addr_write)
+        .i_curr_addr     (r_m_apb_PADDR),
+        .i_size          (r_s_axi_awsize),
+        .i_burst         (r_s_axi_awburst),
+        .i_len           (r_s_axi_awlen),
+        .ow_next_addr    (w_next_addr_write)
     );
 
     // Burst counter
-    logic [7:0] r_burst_count, w_burst_count;
+    logic [7:0]                      r_burst_count, w_burst_count;
     // Data shift register and pointer
     logic [DW-1:0] r_axi_data_shift, w_axi_data_shift;
     logic [$clog2(AXI2APBRATIO)-1:0] r_axi_data_pointer, w_axi_data_pointer;
-    int axi2abpration = AXI2APBRATIO;
+    logic                            w_rlast;
+    int                              axi2abpratio = AXI2APBRATIO;
 
     // Optimized APB FSM
     typedef enum logic [2:0] {
@@ -309,7 +309,7 @@ module axi2apb_shim #(
         if (~aresetn) begin
             r_apb_state        <= IDLE;
             r_m_apb_PADDR      <= 'b0;
-            r_burst_count      <= 8'b0;
+            r_burst_count      <= 'b0;
             r_axi_data_shift   <= 'b0;
             r_axi_data_pointer <= 'b0;
         end else begin
@@ -332,19 +332,19 @@ module axi2apb_shim #(
                 r_burst_count <= w_burst_count;
 
                 if ((r_apb_state == READ) && m_apb_PREADY) begin
-                    if (AXI2APBRATIO == 1) begin
+                    if (axi2abpratio == 1) begin
                         r_axi_data_shift <= m_apb_PRDATA;
                     end else begin
                         r_axi_data_shift[r_axi_data_pointer*APBDW +: APBDW] <= m_apb_PRDATA;
                         r_axi_data_pointer <= r_axi_data_pointer + 1;
-                        if (r_axi_data_pointer == AXI2APBRATIO-1) begin
+                        if (r_axi_data_pointer == axi2abpratio-1) begin
                             r_axi_data_pointer <= 'b0;
                         end
                     end
                 end else if ((r_apb_state == WRITE) && m_apb_PREADY) begin
-                    if (AXI2APBRATIO != 1) begin
+                    if (axi2abpratio != 1) begin
                         r_axi_data_pointer <= r_axi_data_pointer + 1;
-                        if (r_axi_data_pointer == AXI2APBRATIO-1) begin
+                        if (r_axi_data_pointer == axi2abpratio-1) begin
                             r_axi_data_pointer <= 'b0;
                         end
                     end
@@ -353,16 +353,15 @@ module axi2apb_shim #(
         end
     end
 
-    logic w_rlast;
-
     always_comb begin
         w_apb_next_state   = r_apb_state;
         w_next_addr        = r_m_apb_PADDR;
         m_apb_PSEL         = 1'b0;
         m_apb_PENABLE      = 1'b0;
         m_apb_PWRITE       = 1'b0;
-        m_apb_PWDATA       = (AXI2APBRATIO == 1) ? r_s_axi_wdata : r_s_axi_wdata[r_axi_data_pointer*APBDW +: APBDW];
-        m_apb_PSTRB        = (AXI2APBRATIO == 1) ? r_s_axi_wstrb : r_s_axi_wstrb[r_axi_data_pointer*APBSW +: APBSW];
+        m_apb_PWDATA       = (axi2abpratio == 1) ? r_s_axi_wdata : r_s_axi_wdata[r_axi_data_pointer*APBDW +: APBDW];
+        m_apb_PSTRB        = (axi2abpratio == 1) ? r_s_axi_wstrb : r_s_axi_wstrb[r_axi_data_pointer*APBSW +: APBSW];
+        m_apb_PPROT        = (r_apb_state == READ) ? r_s_axi_arprot : r_s_axi_awprot;
         r_s_axi_awready    = 1'b0;
         r_s_axi_wready     = 1'b0;
         r_s_axi_arready    = 1'b0;
@@ -393,7 +392,7 @@ module axi2apb_shim #(
                 if (r_s_axi_rready) begin
                     m_apb_PENABLE = 1'b1;
                     if (m_apb_PREADY) begin
-                        if (AXI2APBRATIO == 1) begin
+                        if (axi2abpratio == 1) begin
                             if (r_burst_count == 0) begin
                                 w_apb_next_state = IDLE;
                                 r_s_axi_arready  = 1'b1;
@@ -405,7 +404,7 @@ module axi2apb_shim #(
                         end else begin
                             w_axi_data_pointer = r_axi_data_pointer + 1;
                             w_axi_data_shift[r_axi_data_pointer*APBDW +: APBDW] = m_apb_PRDATA;
-                            if (r_axi_data_pointer == AXI2APBRATIO-1) begin
+                            if (r_axi_data_pointer == axi2abpratio-1) begin
                                 w_axi_data_pointer = 'b0;
                                 if (r_burst_count == 0) begin
                                     w_apb_next_state = IDLE;
@@ -429,7 +428,7 @@ module axi2apb_shim #(
                     if (r_s_axi_bready) begin
                         m_apb_PENABLE = 1'b1;
                         if (m_apb_PREADY) begin
-                            if (AXI2APBRATIO == 1) begin
+                            if (axi2abpratio == 1) begin
                                 if (r_burst_count == 0) begin
                                     w_apb_next_state = IDLE;
                                     r_s_axi_bvalid   = 1'b1;
@@ -440,7 +439,7 @@ module axi2apb_shim #(
                                     r_s_axi_wready   = 1'b1;
                                 end
                             end else begin
-                                if (r_axi_data_pointer == AXI2APBRATIO-1) begin
+                                if (r_axi_data_pointer == axi2abpratio-1) begin
                                     if (r_burst_count == 0) begin
                                         w_apb_next_state   = IDLE;
                                         r_s_axi_bvalid     = 1'b1;
@@ -466,7 +465,7 @@ module axi2apb_shim #(
     end
 
     // Assign output signals
-    assign r_s_axi_r_pkt    = {r_s_axi_arid, (AXI2APBRATIO == 1) ? m_apb_PRDATA : w_axi_data_shift,
+    assign r_s_axi_r_pkt    = {r_s_axi_arid, (axi2abpratio == 1) ? m_apb_PRDATA : w_axi_data_shift,
                                 m_apb_PSLVERR ? 2'b10 : 2'b00, w_rlast,
                                 r_s_axi_aruser};
     assign r_r_s_axi_b_pkt  = {r_s_axi_awid, m_apb_PSLVERR ? 2'b10 : 2'b00, r_s_axi_awuser};

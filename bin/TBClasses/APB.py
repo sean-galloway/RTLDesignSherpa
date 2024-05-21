@@ -24,6 +24,7 @@ class APBTransaction:
     word_index: int
     data: int
     strb: int
+    prot: int
     error: int
 
 
@@ -36,6 +37,7 @@ class APBBase(TBBase):
         if signal_names is None:
             self.signal_name = {
                 "PSEL":    f"{name}_PSEL",
+                "PPROT":   f"{name}_PPROT",
                 "PWRITE":  f"{name}_PWRITE",
                 "PENABLE": f"{name}_PENABLE",
                 "PADDR":   f"{name}_PADDR",
@@ -47,7 +49,7 @@ class APBBase(TBBase):
             }
         else:
             self.signal_name = signal_names
-        self.optional_signals = ["PSLVERR", "PSTRB"]
+        self.optional_signals = ["PSLVERR", "PSTRB", "PPROT"]
         for signal in self.optional_signals:
             setattr(self, f"{signal}_present", hasattr(self.dut, self.signal_name[signal]))
         if check_signals:
@@ -118,6 +120,8 @@ class APBMonitor(APBBase):
             self.log.info(f'  Data:      0x{transaction.data:0{int(self.data_bits/4)}X}')
             if self.PSTRB_present:
                 self.log.info(f'  Strb:      0b{transaction.strb:0{self.strb_bits}b}')
+            if self.PPROT_present:
+                self.log.info(f'  Prot:      0b{transaction.prot:03b}')
 
         if transaction.error:
             self.log.info('  TRANSACTION ENDED IN ERROR!')
@@ -140,11 +144,13 @@ class APBMonitor(APBBase):
                 if direction == 'READ':
                     data = self.bus('PRDATA').value.integer
                     strb = (2**self.strb_bits)-1
+                    prot = 0
                 else:
                     data = self.bus('PWDATA').value.integer
                     strb = self.bus('PSTRB').value.integer if self.PSTRB_present else 0
+                    prot = self.bus('PPROT').value.integer if self.PPROT_present else 0
 
-                transaction = APBTransaction(start_time, direction, address, word_index, data, strb, error)
+                transaction = APBTransaction(start_time, direction, address, word_index, data, strb, prot, error)
                 self.transaction_queue.put_nowait(transaction)
                 self.print(transaction)
 
@@ -213,11 +219,12 @@ class APBSlave(APBBase):
                     count += 1
 
                 self.bus('PREADY').value = 1
+                prot = self.bus('PPROT').value.integer if self.PPROT_present else 0
 
                 if slv_error := self.error_crand.next():
                     if self.PSLVERR_present:
                         self.bus('PSLVERR').value = 1
-                    transaction = APBTransaction(start_time, 'ERROR', address, word_index, 0, 0, 1)
+                    transaction = APBTransaction(start_time, 'ERROR', address, word_index, 0, 0, prot, 1)
 
                 elif self.bus('PWRITE').value.integer:  # Write transaction
                     while not self.bus('PENABLE').value.integer:
@@ -250,17 +257,16 @@ class APBSlave(APBBase):
                             self.registers[word_index] &= ~byte_mask
                             self.registers[word_index] |= (pwdata & byte_mask)
 
-                    transaction = APBTransaction(start_time, 'WRITE', address, word_index, pwdata, strobes, 0)
+                    transaction = APBTransaction(start_time, 'WRITE', address, word_index, pwdata, strobes, prot, 0)
 
                 else:  # Read transaction
                     if word_index >= len(self.registers):
                         if self.error_overflow:
                             self.log.error(f'APB {self.name} - Read overflow: {word_index}')
                             self.bus('PSLVERR').value = 1
-                            prdata = 0
                         else:
                             self.log.warning(f'APB {self.name} - Read overflow: {word_index}')
-                            prdata = 0
+                        prdata = 0
                     else:
                         prdata = self.registers[word_index]
 
@@ -277,8 +283,49 @@ class APBSlave(APBBase):
                         if self.PSTRB_present:
                             self.log.info(f' Strb: 0b{strobes:0{self.strb_bits}b}')
 
-                    transaction = APBTransaction(start_time, 'READ', address, word_index, prdata, 0, 0)
+                    transaction = APBTransaction(start_time, 'READ', address, word_index, prdata, 0, prot, 0)
 
                 self.transaction_queue.put_nowait(transaction)
 
             await self.wait_clocks(self.clock, 1)
+
+
+class APBCommandPacket:
+    def __init__(self, data_width, addr_width, strb_width):
+        self.data_width = data_width
+        self.addr_width = addr_width
+        self.strb_width = strb_width
+
+        self.pwrite = random.randint(0, 1)
+        self.pprot = random.randint(0, 7)  # Assuming 3-bit pprot
+        self.pstrb = random.randint(0, (1 << strb_width) - 1)
+        self.paddr = random.randint(0, (1 << addr_width) - 1)
+        self.pwdata = random.randint(0, (1 << data_width) - 1)
+
+
+    def pack_cmd_packet(self):
+        cmd_packet = (self.pwrite << (self.addr_width + self.data_width + self.strb_width + 3)) | \
+                     (self.pprot << (self.addr_width + self.data_width + self.strb_width)) | \
+                     (self.pstrb << (self.addr_width + self.data_width)) | \
+                     (self.paddr << self.data_width) | \
+                     self.pwdata
+        return cmd_packet
+
+
+class APBCommandGenerator():
+    def __init__(self, dw, aw, sw):
+        self.data_bits = dw
+        self.address_bits = aw
+        self.strb_bits = sw
+
+
+    def generate_write_cmd(self):
+        cmd_packet = APBCommandPacket(self.data_bits, self.address_bits, self.strb_bits)
+        cmd_packet.pwrite = 1  # Set pwrite to 1 for write command
+        return cmd_packet.pack_cmd_packet()
+
+
+    def generate_read_cmd(self):
+        cmd_packet = APBCommandPacket(self.data_bits, self.address_bits, self.strb_bits)
+        cmd_packet.pwrite = 0  # Set pwrite to 0 for read command
+        return cmd_packet.pack_cmd_packet()

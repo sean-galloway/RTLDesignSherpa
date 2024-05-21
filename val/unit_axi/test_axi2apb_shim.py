@@ -44,9 +44,8 @@ class Axi2ApbTB(TBBase):
         self.registers = int(32*(self.DATA_WIDTH/self.APB_DATA_WIDTH)) 
         self.slave_register = list(range(self.registers))
         self.log.debug(f'{self.slave_register=}')    
-        self.apb_slave = APBSlave(dut, 'm_apb', 'aclk', registers=self.slave_register)
         self.apb_monitor = APBMonitor(dut, 'm_apb', 'aclk')
-        self.log.info("Axi2ApbTB Init Done.")
+        self.apb_slave = APBSlave(dut, 'm_apb', 'aclk', registers=self.slave_register)
         self.log.info("Axi2ApbTB Init Done.")
         self.main_loop_count = 0
 
