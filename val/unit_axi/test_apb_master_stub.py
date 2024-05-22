@@ -43,19 +43,48 @@ class APBMasterStub_TB(TBBase):
         cocotb.start_soon(self.apb_slave.driver())
 
         # Test write operations
-        for _ in range(10):
+        for i in range(10):
+            print(f'Write Loop {i}')
             cmd_packet = self.cmd_generator.generate_write_cmd()
+            expected_pwrite = cmd_packet >> (self.ADDR_WIDTH + self.DATA_WIDTH + self.STRB_WIDTH + 3)
+            expected_pprot = (cmd_packet >> (self.ADDR_WIDTH + self.DATA_WIDTH + self.STRB_WIDTH)) & 0x7
+            expected_strb = (cmd_packet >> (self.ADDR_WIDTH + self.DATA_WIDTH)) & ((1 << self.STRB_WIDTH) - 1)
+            expected_addr = (cmd_packet >> self.DATA_WIDTH) & ((1 << self.ADDR_WIDTH) - 1)
+            expected_data = cmd_packet & ((1 << self.DATA_WIDTH) - 1)
+            expected_pwrite = "WRITE" if expected_pwrite == 1 else "READ"
+            print('debug0')
             self.dut.i_cmd_valid.value = 1
             self.dut.i_cmd_data.value = cmd_packet
             await RisingEdge(self.dut.aclk)
+            print('debug1')
+        
             while not self.dut.o_cmd_ready.value:
                 await RisingEdge(self.dut.aclk)
             self.dut.i_cmd_valid.value = 0
+            self.dut.i_cmd_data.value = 0
             await RisingEdge(self.dut.aclk)
+            print('debug2')
+
+            # Wait for the transaction to be processed by the APBSlave
+            transaction = await self.apb_slave.transaction_queue.get()
+            assert transaction.address == expected_addr, f"Address mismatch: Expected {expected_addr:08x}, Actual {transaction.address:08x}"
+            assert transaction.data == expected_data, f"Data mismatch: Expected {expected_data:08x}, Actual {transaction.data:08x}"
+            assert transaction.direction == expected_pwrite, f"Write/Read mismatch: Expected {expected_pwrite}, Actual {transaction.direction}"
+            assert transaction.prot == expected_pprot, f"PPROT mismatch: Expected {expected_pprot}, Actual {transaction.prot}"
+            self.apb_slave.dump_registers()
 
         # Test read operations
-        for _ in range(10):
+        for i in range(10):
+            print(f'Read Loop {i}')
             cmd_packet = self.cmd_generator.generate_read_cmd()
+            expected_pwrite = cmd_packet >> (self.ADDR_WIDTH + self.DATA_WIDTH + self.STRB_WIDTH + 3)
+            expected_pprot = (cmd_packet >> (self.ADDR_WIDTH + self.DATA_WIDTH + self.STRB_WIDTH)) & 0x7
+            expected_strb = (cmd_packet >> (self.ADDR_WIDTH + self.DATA_WIDTH)) & ((1 << self.STRB_WIDTH) - 1)
+            expected_addr = (cmd_packet >> self.DATA_WIDTH) & ((1 << self.ADDR_WIDTH) - 1)
+            word_index = (expected_addr) // self.STRB_WIDTH
+            expected_data = self.apb_slave.registers[word_index]
+            expected_pwrite = "WRITE" if expected_pwrite == 1 else "READ"
+
             self.dut.i_cmd_valid.value = 1
             self.dut.i_cmd_data.value = cmd_packet
             await RisingEdge(self.dut.aclk)
@@ -64,16 +93,33 @@ class APBMasterStub_TB(TBBase):
             self.dut.i_cmd_valid.value = 0
             await RisingEdge(self.dut.aclk)
 
+            self.dut.r_rsp_ready.value = 1
             while not self.dut.o_rsp_valid.value:
                 await RisingEdge(self.dut.aclk)
-            rsp_data = self.dut.o_rsp_data.value
-            # Verify the response data
+
+            # Wait for the transaction to be processed by the APBSlave
+            transaction = await self.apb_slave.transaction_queue.get()
+            assert transaction.address == expected_addr, f"Address mismatch: Expected {expected_addr:08x}, Actual {transaction.address:08x}"
+            assert transaction.direction == expected_pwrite, f"Write/Read mismatch: Expected {expected_pwrite}, Actual {transaction.direction}"
+            assert transaction.prot == expected_pprot, f"PPROT mismatch: Expected {expected_pprot}, Actual {transaction.prot}"
+            # assert transaction.error == expected_pslverr, f"PSLVERR mismatch: Expected {expected_pslverr}, Actual {transaction.error}"
+            assert transaction.data == expected_data, f"Data mismatch: Expected {expected_data:08x}, Actual {transaction.data:08x}"
+
             await RisingEdge(self.dut.aclk)
+            self.dut.i_rsp_ready.value = 0
 
         # Test back-to-back read and write operations
-        for _ in range(10):
+        for i in range(10):
+            print(f'Write Read Loop {i}')
             # Write operation
             cmd_packet = self.cmd_generator.generate_write_cmd()
+            expected_pwrite = cmd_packet >> (self.ADDR_WIDTH + self.DATA_WIDTH + self.STRB_WIDTH + 3)
+            expected_pprot = (cmd_packet >> (self.ADDR_WIDTH + self.DATA_WIDTH + self.STRB_WIDTH)) & 0x7
+            expected_strb = (cmd_packet >> (self.ADDR_WIDTH + self.DATA_WIDTH)) & ((1 << self.STRB_WIDTH) - 1)
+            expected_addr = (cmd_packet >> self.DATA_WIDTH) & ((1 << self.ADDR_WIDTH) - 1)
+            expected_data = cmd_packet & ((1 << self.DATA_WIDTH) - 1)
+            expected_pwrite = "WRITE" if expected_pwrite == 1 else "READ"
+
             self.dut.i_cmd_valid.value = 1
             self.dut.i_cmd_data.value = cmd_packet
             await RisingEdge(self.dut.aclk)
@@ -81,12 +127,29 @@ class APBMasterStub_TB(TBBase):
                 await RisingEdge(self.dut.aclk)
             self.dut.i_cmd_valid.value = 0
             await RisingEdge(self.dut.aclk)
+
+            # Wait for the write transaction to be processed by the APBSlave
+            transaction = await self.apb_slave.transaction_queue.get()
+            assert transaction.address == expected_addr, f"Address mismatch: Expected {expected_addr:08x}, Actual {transaction.address:08x}"
+            assert transaction.data == expected_data, f"Data mismatch: Expected {expected_data:08x}, Actual {transaction.data:08x}"
+            assert transaction.direction == expected_pwrite, f"Write/Read mismatch: Expected {expected_pwrite}, Actual {transaction.direction}"
+            assert transaction.prot == expected_pprot, f"PPROT mismatch: Expected {expected_pprot}, Actual {transaction.prot}"
 
             # Read operation
             cmd_packet = self.cmd_generator.generate_read_cmd()
+            expected_pwrite = cmd_packet >> (self.ADDR_WIDTH + self.DATA_WIDTH + self.STRB_WIDTH + 3)
+            expected_pprot = (cmd_packet >> (self.ADDR_WIDTH + self.DATA_WIDTH + self.STRB_WIDTH)) & 0x7
+            expected_strb = (cmd_packet >> (self.ADDR_WIDTH + self.DATA_WIDTH)) & ((1 << self.STRB_WIDTH) - 1)
+            expected_addr = (cmd_packet >> self.DATA_WIDTH) & ((1 << self.ADDR_WIDTH) - 1)
+            expected_pwrite = "WRITE" if expected_pwrite == 1 else "READ"
+            word_index = (expected_addr) // self.STRB_WIDTH
+            expected_data = self.apb_slave.registers[word_index]
+
             self.dut.i_cmd_valid.value = 1
             self.dut.i_cmd_data.value = cmd_packet
             await RisingEdge(self.dut.aclk)
+            self.dut.i_rsp_ready.value = 1
+
             while not self.dut.o_cmd_ready.value:
                 await RisingEdge(self.dut.aclk)
             self.dut.i_cmd_valid.value = 0
@@ -94,9 +157,18 @@ class APBMasterStub_TB(TBBase):
 
             while not self.dut.o_rsp_valid.value:
                 await RisingEdge(self.dut.aclk)
-            rsp_data = self.dut.o_rsp_data.value
-            # Verify the response data
+
+            # Wait for the read transaction to be processed by the APBSlave
+            transaction = await self.apb_slave.transaction_queue.get()
+            assert transaction.address == expected_addr, f"Address mismatch: Expected {expected_addr:08x}, Actual {transaction.address:08x}"
+            assert transaction.data == expected_data, f"Data mismatch: Expected {expected_data:08x}, Actual {transaction.data:08x}"
+            assert transaction.direction == expected_pwrite, f"Write/Read mismatch: Expected {expected_pwrite}, Actual {transaction.direction}"
+            assert transaction.prot == expected_pprot, f"PPROT mismatch: Expected {expected_pprot}, Actual {transaction.prot}"
+            # assert transaction.error == expected_pslverr, f"PSLVERR mismatch: Expected {expected_pslverr}, Actual {transaction.error}"
+
             await RisingEdge(self.dut.aclk)
+            self.dut.i_rsp_ready.value = 0
+
 
 @cocotb.test()
 async def apb_master_stub_test(dut):

@@ -10,6 +10,8 @@ import os
 import random
 from ConstrainedRandom import ConstrainedRandom
 from dataclasses import dataclass
+from collections import deque
+
 
 
 # define the PWRITE mapping
@@ -184,7 +186,7 @@ class APBSlave(APBBase):
         self.log.info(f"APB Slave {self.name} - Register Dump:")
         self.log.info("-" * 40)
         for i, value in enumerate(self.registers):
-            addr = i * 4
+            addr = i * self.strb_bits
             self.log.info(f"Register {i:2}: Address 0x{addr:08X} - Value 0x{value:0{self.data_bits//4}X}")
         self.log.info("-" * 40)
 
@@ -290,20 +292,154 @@ class APBSlave(APBBase):
             await self.wait_clocks(self.clock, 1)
 
 
+class APBMaster(APBBase):
+    def __init__(self, dut, name, clock, registers=None,
+                 ready_constraints=None, ready_weights=None,
+                 error_constraints=None, error_weights=None,
+                 addr_mask=None, debug=False, error_overflow=False):
+        APBBase.__init__(self, dut, name, clock, False)
+        self.log.info('Starting APBMaster')
+        self.registers_init = registers
+        self.registers = registers
+        self.error_overflow = error_overflow
+        self.ready_crand = self.set_constrained_random(ready_constraints, ready_weights)
+        self.error_crand = self.set_constrained_random(error_constraints, error_weights)
+        self.addr_mask = addr_mask if addr_mask is not None else (2 ** self.address_bits) - 1
+        self.debug = debug
+        self.transaction_queue = deque()
+
+    def update_constraints(self, ready_constraints=None, ready_weights=None,
+                           error_constraints=None, error_weights=None):
+        self.ready_crand = self.set_constrained_random(ready_constraints, ready_weights)
+        self.error_crand = self.set_constrained_random(error_constraints, error_weights)
+
+    def dump_registers(self):
+        self.log.info(f"APB Master {self.name} - Register Dump:")
+        self.log.info("-" * 40)
+        for i, value in enumerate(self.registers):
+            addr = i * self.strb_bits
+            self.log.info(f"Register {i:2}: Address 0x{addr:08X} - Value 0x{value:0{self.data_bits//4}X}")
+        self.log.info("-" * 40)
+
+    async def reset_bus(self):
+        self.log.info(f'Resetting APB Bus {self.name}')
+        self.bus('PSEL').value = 0
+        self.bus('PENABLE').value = 0
+        self.bus('PWRITE').value = 0
+        self.bus('PADDR').value = 0
+        self.bus('PWDATA').value = 0
+        if self.PSTRB_present:
+            self.bus('PSTRB').value = 0
+        if self.PPROT_present:
+            self.bus('PPROT').value = 0
+
+    def reset_registers(self):
+        self.registers = self.registers_init
+
+    async def driver(self):
+        while True:
+            if self.transaction_queue:
+                transaction = self.transaction_queue.popleft()
+                address = transaction.paddr & self.addr_mask
+                word_index = (address // self.strb_bits)
+
+                start_time = transaction.start_time
+                rand_delay = self.ready_crand.next()
+                count = 0
+
+                self.log.debug(f'APB Master-{self.name}: {rand_delay=}')
+
+                while rand_delay != count:
+                    self.bus('PSEL').value = 0
+                    await self.wait_clocks(self.clock, 1)
+                    count += 1
+
+                self.bus('PSEL').value = 1
+                self.bus('PADDR').value = address
+                self.bus('PPROT').value = transaction.pprot if self.PPROT_present else 0
+
+                if transaction.pwrite:  # Write transaction
+                    self.bus('PWRITE').value = 1
+                    self.bus('PWDATA').value = transaction.pwdata
+                    if self.PSTRB_present:
+                        self.bus('PSTRB').value = transaction.pstrb
+
+                    while not self.bus('PREADY').value.integer:
+                        await self.wait_clocks(self.clock, 1)
+
+                    self.bus('PENABLE').value = 1
+
+                    while self.bus('PENABLE').value.integer:
+                        await self.wait_clocks(self.clock, 1)
+
+                    self.bus('PENABLE').value = 0
+
+                    if self.debug:
+                        self.log.debug(f'APB {self.name} - WRITE -{start_time}')
+                        self.log.debug(f' Address: 0x{address:08x}')
+                        self.log.debug(f' Word Index: 0d{word_index:04d}')
+                        self.log.debug(f' Data: 0x{transaction.pwdata:0{int(self.data_bits/4)}X}')
+                        if self.PSTRB_present:
+                            self.log.debug(f' Strb: 0b{transaction.pstrb:0{self.strb_bits}b}')
+
+                else:  # Read transaction
+                    self.bus('PWRITE').value = 0
+
+                    while not self.bus('PREADY').value.integer:
+                        await self.wait_clocks(self.clock, 1)
+
+                    self.bus('PENABLE').value = 1
+
+                    while self.bus('PENABLE').value.integer:
+                        await self.wait_clocks(self.clock, 1)
+
+                    self.bus('PENABLE').value = 0
+
+                    prdata = self.bus('PRDATA').value.integer
+                    pslverr = self.bus('PSLVERR').value.integer if self.PSLVERR_present else 0
+
+                    if self.debug:
+                        self.log.debug(f'APB {self.name} - READ -{start_time}')
+                        self.log.debug(f' Address: 0x{address:08x}')
+                        self.log.debug(f' Word Index: 0d{word_index:04d}')
+                        self.log.debug(f' Data: 0x{prdata:0{int(self.data_bits/4)}X}')
+                        if self.PSLVERR_present:
+                            self.log.debug(f' PSLVERR: {pslverr}')
+
+                    if word_index >= len(self.registers):
+                        if self.error_overflow:
+                            self.log.error(f'APB {self.name} - Read overflow: {word_index}')
+                        else:
+                            self.log.warning(f'APB {self.name} - Read overflow: {word_index}')
+                            # Extend the self.registers array to accommodate the overflow
+                            self.registers.extend([0] * (word_index - len(self.registers) + 1))
+
+                    self.registers[word_index] = prdata
+
+            await self.wait_clocks(self.clock, 1)
+
+
 class APBCommandPacket:
     def __init__(self, data_width, addr_width, strb_width):
         self.data_width = data_width
         self.addr_width = addr_width
         self.strb_width = strb_width
 
-        self.pwrite = random.randint(0, 1)
-        self.pprot = random.randint(0, 7)  # Assuming 3-bit pprot
-        self.pstrb = random.randint(0, (1 << strb_width) - 1)
-        self.paddr = random.randint(0, (1 << addr_width) - 1)
-        self.pwdata = random.randint(0, (1 << data_width) - 1)
+        self.pwrite  = random.randint(0, 1)
+        self.paddr   = random.randint(0, (1 << 5) - 1)
+        self.pwdata  = random.randint(0, (1 << data_width) - 1)
+        self.prdata  = random.randint(0, (1 << data_width) - 1)
+        self.pstrb   = random.randint(0, (1 << strb_width) - 1)
+        self.pprot   = random.randint(0, 7)  # Assuming 3-bit pprot
+        self.pslverr = 0
 
 
     def pack_cmd_packet(self):
+        print('------------------------------------------------------')
+        print(f' Write: {self.pwrite=}')
+        print(f' Addr:  0x{self.paddr:08x}')
+        print(f' Data:  0x{self.pwdata:08x}')
+        print(f' Prot:  0x{self.pprot:x}')
         cmd_packet = (self.pwrite << (self.addr_width + self.data_width + self.strb_width + 3)) | \
                      (self.pprot << (self.addr_width + self.data_width + self.strb_width)) | \
                      (self.pstrb << (self.addr_width + self.data_width)) | \
@@ -320,12 +456,14 @@ class APBCommandGenerator():
 
 
     def generate_write_cmd(self):
+        print('generate_write_cmd')
         cmd_packet = APBCommandPacket(self.data_bits, self.address_bits, self.strb_bits)
         cmd_packet.pwrite = 1  # Set pwrite to 1 for write command
         return cmd_packet.pack_cmd_packet()
 
 
     def generate_read_cmd(self):
+        print('generate_read_cmd')
         cmd_packet = APBCommandPacket(self.data_bits, self.address_bits, self.strb_bits)
         cmd_packet.pwrite = 0  # Set pwrite to 0 for read command
         return cmd_packet.pack_cmd_packet()
