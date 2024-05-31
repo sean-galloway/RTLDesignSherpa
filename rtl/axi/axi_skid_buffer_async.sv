@@ -44,8 +44,8 @@ module axi_skid_buffer_async #(
         .o_rd_data    (r_xfer_data)
     );
 
-    // Instantiate the fifo_axi_async module
-    fifo_axi_async #(
+    // Instantiate the axi_fifo_async module
+    axi_fifo_async #(
         .DEL(1),
         .DATA_WIDTH(DW),
         .DEPTH(DEPTH),
@@ -53,7 +53,7 @@ module axi_skid_buffer_async #(
         .ALMOST_WR_MARGIN(1),
         .ALMOST_RD_MARGIN(1),
         .INSTANCE_NAME(INSTANCE_NAME)
-    ) inst_fifo_axi_async (
+    ) inst_axi_fifo_async (
         .i_axi_wr_aclk   (i_axi_wr_aclk),
         .i_axi_wr_aresetn(i_axi_wr_aresetn),
         .i_axi_rd_aclk   (i_axi_rd_aclk),

@@ -8,29 +8,29 @@ module apb_master_stub #(
     parameter int RESP_PACKET_WIDTH = DATA_WIDTH + 2 // data, resp
 ) (
     // Clock and Reset
-    input  logic                        aclk,
-    input  logic                        aresetn,
+    input  logic                         aclk,
+    input  logic                         aresetn,
 
     // APB interface
-    output logic                        m_apb_PSEL,
-    output logic                        m_apb_PENABLE,
-    output logic [ADDR_WIDTH-1:0]       m_apb_PADDR,
-    output logic                        m_apb_PWRITE,
-    output logic [DATA_WIDTH-1:0]       m_apb_PWDATA,
-    output logic [STRB_WIDTH-1:0]       m_apb_PSTRB,
-    output logic [2:0]                  m_apb_PPROT,
-    input  logic [DATA_WIDTH-1:0]       m_apb_PRDATA,
-    input  logic                        m_apb_PSLVERR,
-    input  logic                        m_apb_PREADY,
+    output logic                         m_apb_PSEL,
+    output logic                         m_apb_PENABLE,
+    output logic [ADDR_WIDTH-1:0]        m_apb_PADDR,
+    output logic                         m_apb_PWRITE,
+    output logic [DATA_WIDTH-1:0]        m_apb_PWDATA,
+    output logic [STRB_WIDTH-1:0]        m_apb_PSTRB,
+    output logic [2:0]                   m_apb_PPROT,
+    input  logic [DATA_WIDTH-1:0]        m_apb_PRDATA,
+    input  logic                         m_apb_PSLVERR,
+    input  logic                         m_apb_PREADY,
 
     // Command Packet
-    input  logic                        i_cmd_valid,
-    output logic                        o_cmd_ready,
-    input  logic [CMD_PACKET_WIDTH-1:0] i_cmd_data,
+    input  logic                         i_cmd_valid,
+    output logic                         o_cmd_ready,
+    input  logic [CMD_PACKET_WIDTH-1:0]  i_cmd_data,
 
-    // AXI read interface
-    output logic                        o_rsp_valid,
-    input  logic                        i_rsp_ready,
+    // Read Return interface
+    output logic                         o_rsp_valid,
+    input  logic                         i_rsp_ready,
     output logic [RESP_PACKET_WIDTH-1:0] o_rsp_data
 );
 
@@ -99,12 +99,11 @@ module apb_master_stub #(
         .o_rd_data      (o_rsp_data)
     );
 
-
     // APB FSM
     typedef enum logic [2:0] {
-        IDLE      = 3'b001,
-        READ_DATA = 3'b010,
-        WRITE_DATA= 3'b100
+        IDLE  = 3'b001,
+        READ  = 3'b010,
+        WRITE = 3'b100
     } apb_state_t;
 
     apb_state_t r_apb_state, w_apb_next_state;
@@ -141,14 +140,14 @@ module apb_master_stub #(
                     m_apb_PSEL   = 1'b1;
                     r_cmd_ready  = 1'b1;
                     if (r_cmd_pwrite) begin
-                        w_apb_next_state = WRITE_DATA;
+                        w_apb_next_state = WRITE;
                     end else begin
-                        w_apb_next_state = READ_DATA;
+                        w_apb_next_state = READ;
                     end
                 end
             end
 
-            READ_DATA: begin
+            READ: begin
                 m_apb_PSEL    = 1'b1;
                 m_apb_PENABLE = 1'b1;
                 if (m_apb_PREADY) begin
@@ -156,9 +155,9 @@ module apb_master_stub #(
                     if (r_cmd_valid) begin
                         r_cmd_ready = 1'b1;
                         if (re_cmd_pwrite) begin
-                            w_apb_next_state = WRITE_DATA;
+                            w_apb_next_state = WRITE;
                         end else begin
-                            w_apb_next_state = READ_DATA;
+                            w_apb_next_state = READ;
                         end
                     end else begin
                         w_apb_next_state = IDLE;
@@ -166,16 +165,16 @@ module apb_master_stub #(
                 end
             end
 
-            WRITE_DATA: begin
+            WRITE: begin
                 m_apb_PSEL    = 1'b1;
                 m_apb_PENABLE = 1'b1;
                 if (m_apb_PREADY) begin
                     if (r_cmd_valid) begin
                         r_cmd_ready = 1'b1;
                         if (re_cmd_pwrite) begin
-                            w_apb_next_state = WRITE_DATA;
+                            w_apb_next_state = WRITE;
                         end else begin
-                            w_apb_next_state = READ_DATA;
+                            w_apb_next_state = READ;
                         end
                     end else begin
                         w_apb_next_state = IDLE;

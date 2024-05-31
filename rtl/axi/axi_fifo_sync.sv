@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 // Parameterized Synchronous FIFO -- This works with any depth
-module fifo_axi_sync #(
+module axi_fifo_sync #(
     parameter int DEL = 1,
     parameter int DATA_WIDTH = 4,
     parameter int DEPTH = 4,
@@ -135,4 +135,4 @@ module fifo_axi_sync #(
     end
     // synopsys translate_on
 
-endmodule : fifo_axi_sync
+endmodule : axi_fifo_sync

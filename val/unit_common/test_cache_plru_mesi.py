@@ -276,7 +276,7 @@ def test_cache_plru_mesi(request, depth, a, dw, aw):
     verilog_sources = [
         os.path.join(rtl_dir, "counter_bin.sv"),
         os.path.join(rtl_dir, "fifo_control.sv"),
-        os.path.join(axi_rtl_dir, "fifo_axi_sync.sv"),
+        os.path.join(axi_rtl_dir, "axi_fifo_sync.sv"),
         os.path.join(rtl_dir, "fifo_sync.sv"),
         os.path.join(rtl_dir, f"{dut_name}.sv"),
     ]

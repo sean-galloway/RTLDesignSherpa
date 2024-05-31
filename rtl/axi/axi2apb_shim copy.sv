@@ -257,37 +257,35 @@ module axi2apb_shim #(
     assign {r_s_axi_rid, r_s_axi_rdata, r_s_axi_rresp, r_s_axi_rlast, r_s_axi_ruser} = r_s_axi_r_pkt;
 
     // Instantiate the axi_gen_addr module
+    logic [APBAW-1:0] w_next_addr_read;
+    logic [APBAW-1:0] w_next_addr_write;
     logic [APBAW-1:0] w_next_addr;
-    logic [APBAW-1:0] w_next_addr_gen;
-    logic [APBAW-1:0] r_apb_paddr;
-    logic [2:0]       r_axi_size;
-    logic [1:0]       r_axi_burst;
-    logic [7:0]       r_axi_len;
-
-    // APB FSM
-    typedef enum logic [2:0] {
-        IDLE   = 3'b001,
-        READ   = 3'b010,
-        WRITE  = 3'b100
-    } apb_state_t;
-
-    apb_state_t r_apb_state, w_apb_next_state;
-
-    assign r_axi_size  = (r_apb_state == READ) ? r_s_axi_arsize : r_s_axi_awsize;
-    assign r_axi_burst = (r_apb_state == READ) ? r_s_axi_arburst : r_s_axi_awburst;
-    assign r_axi_len   = (r_apb_state == READ) ? r_s_axi_arlen : r_s_axi_awlen;
+    logic [APBAW-1:0] r_m_apb_PADDR;
 
     axi_gen_addr #(
         .AW              (APBAW),
         .DW              (DW),
         .ODW             (APBDW),
         .LEN             (8)
-    ) axi_gen_addr_common  (
-        .i_curr_addr     (r_apb_paddr),
-        .i_size          (r_axi_size),
-        .i_burst         (r_axi_burst),
-        .i_len           (r_axi_len),
-        .ow_next_addr    (w_next_addr_gen)
+    ) axi_gen_addr_read  (
+        .i_curr_addr     (r_m_apb_PADDR),
+        .i_size          (r_s_axi_arsize),
+        .i_burst         (r_s_axi_arburst),
+        .i_len           (r_s_axi_arlen),
+        .ow_next_addr    (w_next_addr_read)
+    );
+
+    axi_gen_addr #       (
+        .AW              (APBAW),
+        .DW              (DW),
+        .ODW             (APBDW),
+        .LEN             (8)
+    ) axi_gen_addr_write (
+        .i_curr_addr     (r_m_apb_PADDR),
+        .i_size          (r_s_axi_awsize),
+        .i_burst         (r_s_axi_awburst),
+        .i_len           (r_s_axi_awlen),
+        .ow_next_addr    (w_next_addr_write)
     );
 
     // Burst counter
@@ -298,11 +296,19 @@ module axi2apb_shim #(
     logic                            w_rlast;
     int                              axi2abpratio = AXI2APBRATIO;
 
+    // Optimized APB FSM
+    typedef enum logic [2:0] {
+        IDLE   = 3'b001,
+        READ   = 3'b010,
+        WRITE  = 3'b100
+    } apb_state_t;
+
+    apb_state_t r_apb_state, w_apb_next_state;
 
     always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             r_apb_state        <= IDLE;
-            r_apb_paddr      <= 'b0;
+            r_m_apb_PADDR      <= 'b0;
             r_burst_count      <= 'b0;
             r_axi_data_shift   <= 'b0;
             r_axi_data_pointer <= 'b0;
@@ -311,18 +317,18 @@ module axi2apb_shim #(
             r_axi_data_pointer <= w_axi_data_pointer;
 
             if ((r_apb_state == IDLE) && (w_apb_next_state == READ)) begin
-                r_apb_paddr        <= r_s_axi_araddr;
+                r_m_apb_PADDR      <= r_s_axi_araddr;
                 r_burst_count      <= r_s_axi_arlen;
                 r_axi_data_pointer <= 'b0;
                 r_axi_data_shift   <= 'b0;
             end else if ((r_apb_state == IDLE) && (w_apb_next_state == WRITE)) begin
-                r_apb_paddr        <= r_s_axi_awaddr;
+                r_m_apb_PADDR      <= r_s_axi_awaddr;
                 r_burst_count      <= r_s_axi_awlen;
                 r_axi_data_pointer <= 'b0;
             end
 
             if (m_apb_PENABLE) begin
-                r_apb_paddr <= w_next_addr;
+                r_m_apb_PADDR <= w_next_addr;
                 r_burst_count <= w_burst_count;
 
                 if ((r_apb_state == READ) && m_apb_PREADY) begin
@@ -349,7 +355,7 @@ module axi2apb_shim #(
 
     always_comb begin
         w_apb_next_state   = r_apb_state;
-        w_next_addr        = r_apb_paddr;
+        w_next_addr        = r_m_apb_PADDR;
         m_apb_PSEL         = 1'b0;
         m_apb_PENABLE      = 1'b0;
         m_apb_PWRITE       = 1'b0;
@@ -362,7 +368,7 @@ module axi2apb_shim #(
         r_s_axi_rvalid     = 1'b0;
         r_s_axi_bvalid     = 1'b0;
         w_burst_count      = r_burst_count;
-        m_apb_PADDR        = r_apb_paddr;
+        m_apb_PADDR        = r_m_apb_PADDR;
         w_axi_data_pointer = r_axi_data_pointer;
         w_axi_data_shift   = r_axi_data_shift;
         w_rlast            = 'b0;
@@ -410,7 +416,7 @@ module axi2apb_shim #(
                                 r_s_axi_rvalid = 1'b1;
                             end
                         end
-                        w_next_addr = w_next_addr_gen;
+                        w_next_addr = w_next_addr_read;
                     end
                 end
             end
@@ -448,7 +454,7 @@ module axi2apb_shim #(
                                     w_axi_data_pointer = r_axi_data_pointer + 1;
                                 end
                             end
-                            w_next_addr = w_next_addr_gen;
+                            w_next_addr = w_next_addr_write;
                         end
                     end
                 end

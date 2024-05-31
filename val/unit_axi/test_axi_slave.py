@@ -277,7 +277,7 @@ def test_axi(request, id_width, addr_width, data_width, user_width):
     verilog_sources = [
         os.path.join(rtl_dir, "counter_bin.sv"),
         os.path.join(rtl_dir, "fifo_control.sv"),
-        os.path.join(rtl_axi_dir, "fifo_axi_sync.sv"),
+        os.path.join(rtl_axi_dir, "axi_fifo_sync.sv"),
         os.path.join(rtl_axi_dir, "axi_skid_buffer.sv"),
         os.path.join(rtl_axi_dir, "axi_gen_addr.sv"),
         os.path.join(rtl_axi_dir, f"{dut_name}.sv")

@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 // Paramerized Asynchronous FIFO -- This works for any even depth
-module fifo_axi_async #(
+module axi_fifo_async #(
     parameter int DEL = 1,
     parameter int DATA_WIDTH = 8,
     parameter int DEPTH = 10,
@@ -207,4 +207,4 @@ module fifo_axi_async #(
     end
     // synopsys translate_on
 
-endmodule : fifo_axi_async
+endmodule : axi_fifo_async

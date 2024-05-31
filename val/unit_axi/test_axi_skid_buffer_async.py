@@ -49,7 +49,7 @@ def test_skid_buffer_async(request, data_width):
         os.path.join(rtl_dir, "grayj2bin.sv"),
         os.path.join(rtl_dir, "glitch_free_n_dff_arn.sv"),
         os.path.join(rtl_dir, "fifo_control.sv"),
-        os.path.join(rtl_axi_dir, "fifo_axi_async.sv"),
+        os.path.join(rtl_axi_dir, "axi_fifo_async.sv"),
         os.path.join(rtl_axi_dir, "axi_skid_buffer.sv"),
         os.path.join(rtl_axi_dir, f"{dut_name}.sv"),
     ]
