@@ -30,6 +30,85 @@ class APBTransaction:
     error: int
 
 
+class MemoryModel:
+    def __init__(self, num_lines, bytes_per_line, log, preset_values=None):
+        self.num_lines = num_lines
+        self.bytes_per_line = bytes_per_line
+        self.size = num_lines * bytes_per_line
+        self.log = log
+
+        if preset_values:
+            if len(preset_values) != self.size:
+                raise ValueError("Preset values length must match the total memory size")
+            self.mem = bytearray(preset_values)
+            self.preset_values = bytearray(preset_values)
+        else:
+            self.mem = bytearray(self.size)
+            self.preset_values = bytearray(self.size)
+        
+    def write(self, address, data, strobe):
+        if not isinstance(data, bytearray):
+            raise TypeError("Data must be a bytearray")
+
+        start = address
+        data_len = len(data)
+        end = start + len(data)
+
+        # Check for memory overflow
+        if end > self.size:
+            raise ValueError("Write exceeds memory bounds")
+
+        # Ensure the data and strobe lengths match
+        if data_len * 8 < strobe.bit_length():
+            raise ValueError("Data length does not match strobe length")
+
+        # Format the address and data as hexadecimal for debugging
+        hex_address = f"0x{address:08X}"
+        hex_data = [f"0x{byte:02X}" for byte in data]
+
+        self.log.debug(f"Writing to memory: address={hex_address}, data={hex_data}, strobe={strobe:08b}")
+
+        # Write data to memory based on strobe
+        for i in range(data_len):
+            target_address = start + i
+            if strobe & (1 << i):
+                self.mem[target_address] = data[i]
+                self.log.debug(f"Writing byte: mem[{target_address:08X}] = {data[i]:02X}")
+
+    def read(self, address, length):
+        line = address // self.bytes_per_line
+        offset = address % self.bytes_per_line
+        return self.mem[line * self.bytes_per_line + offset:line * self.bytes_per_line + offset + length]
+
+    def reset(self, to_preset=False):
+        self.mem = bytearray(self.preset_values) if to_preset else bytearray(self.size)
+
+    def expand(self, additional_lines):
+        additional_size = additional_lines * self.bytes_per_line
+        self.mem.extend([0] * additional_size)
+        self.preset_values.extend([0] * additional_size)
+        self.num_lines += additional_lines
+        self.size += additional_size
+
+    def dump(self):
+        mem_dump = "-" * 60 + '\n'
+        for i in range(self.num_lines):
+            addr = i * self.bytes_per_line
+            line_data = self.mem[addr:addr + self.bytes_per_line]
+            value = int.from_bytes(line_data, byteorder='little')
+            mem_dump += f"Register {i:2}: Address 0x{addr:08X} - Value 0x{value:0{self.bytes_per_line * 2}X}\n"
+        mem_dump += "-" * 60 + '\n'
+        return mem_dump
+
+    def integer_to_bytearray(self, value, byte_length=None):
+        if byte_length is None:
+            byte_length = (value.bit_length() + 7) // 8
+        return bytearray(value.to_bytes(byte_length, byteorder='little'))
+
+    def bytearray_to_integer(self, byte_array):
+        return int.from_bytes(byte_array, byteorder='little')
+
+
 class APBBase(TBBase):
     def __init__(self, dut, name, clock, check_signals=False, signal_names=None):
         TBBase.__init__(self, dut)
@@ -119,11 +198,11 @@ class APBMonitor(APBBase):
         if transaction.data is None:
             self.log.info('  NO DATA YET!')
         else:
-            self.log.info(f'  Data:      0x{transaction.data:0{int(self.data_bits/4)}X}')
+            self.log.info(f'  Data:       0x{transaction.data:0{int(self.data_bits/4)}X}')
             if self.PSTRB_present:
-                self.log.info(f'  Strb:      0b{transaction.strb:0{self.strb_bits}b}')
+                self.log.info(f'  Strb:       0b{transaction.strb:0{self.strb_bits}b}')
             if self.PPROT_present:
-                self.log.info(f'  Prot:      0b{transaction.prot:03b}')
+                self.log.info(f'  Prot:       0b{transaction.prot:03b}')
 
         if transaction.error:
             self.log.info('  TRANSACTION ENDED IN ERROR!')
@@ -166,14 +245,17 @@ class APBSlave(APBBase):
                     addr_mask=None, debug=False, error_overflow=False):
         APBBase.__init__(self, dut, name, clock, True)
         self.log.info('Starting APBSlave')
-        self.registers_init = registers
-        self.registers = registers
+        bytes_per_line = self.strb_bits
+        self.num_lines = len(registers) // bytes_per_line
+        self.mem = MemoryModel(num_lines=self.num_lines, bytes_per_line=bytes_per_line, log=self.log, preset_values=registers)
+        self.log.info(self.mem.dump())
         self.error_overflow = error_overflow
         self.ready_crand = self.set_constrained_random(ready_constraints, ready_weights)
         self.error_crand = self.set_constrained_random(error_constraints, error_weights)
         self.addr_mask = addr_mask if addr_mask is not None else (2 ** self.address_bits) - 1
         self.debug = debug
         self.transaction_queue = Queue[APBTransaction]()
+        self.log.info('APBSlave init done')
 
 
     def update_constraints(self, ready_constraints=None, ready_weights=None,
@@ -184,11 +266,7 @@ class APBSlave(APBBase):
 
     def dump_registers(self):
         self.log.info(f"APB Slave {self.name} - Register Dump:")
-        self.log.info("-" * 40)
-        for i, value in enumerate(self.registers):
-            addr = i * self.strb_bits
-            self.log.info(f"Register {i:2}: Address 0x{addr:08X} - Value 0x{value:0{self.data_bits//4}X}")
-        self.log.info("-" * 40)
+        self.log.info(self.mem.dump())
 
 
     async def reset_bus(self):
@@ -199,7 +277,7 @@ class APBSlave(APBBase):
             self.bus('PSLVERR').value = 0
 
     def reset_registers(self):
-        self.registers = self.registers_init
+        self.mem.reset(to_preset=True)
 
     async def driver(self):
         self.bus('PREADY').value = 0
@@ -243,26 +321,24 @@ class APBSlave(APBBase):
                         if self.PSTRB_present:
                             self.log.info(f' Strb: 0b{strobes:0{self.strb_bits}b}')
 
-                    if word_index >= len(self.registers):
+                    if word_index+2 >= self.num_lines:
                         if self.error_overflow:
                             self.log.error(f'APB {self.name} - Write overflow: {word_index}')
                             self.bus('PSLVERR').value = 1
                         else:
                             self.log.warning(f'APB {self.name} - Write overflow: {word_index}')
-                            # Extend the self.registers array to accommodate the overflow
-                            self.registers.extend([0] * (word_index - len(self.registers) + 1))
+                            # Extend the self.mem array to accommodate the overflow
+                            self.mem.expand(5)
+                            self.num_lines += 5
 
-                    for i in range(self.strb_bits):
-                        if (strobes >> i) & 1:
-                            byte_offset = i * 8
-                            byte_mask = 0xFF << byte_offset
-                            self.registers[word_index] &= ~byte_mask
-                            self.registers[word_index] |= (pwdata & byte_mask)
+                    self.log.debug(f'{word_index=} {self.num_lines=}')
+                    pwdata_ba = self.mem.integer_to_bytearray(pwdata, self.strb_bits)
+                    self.mem.write(address, pwdata_ba, strobes)
 
                     transaction = APBTransaction(start_time, 'WRITE', address, word_index, pwdata, strobes, prot, 0)
 
                 else:  # Read transaction
-                    if word_index >= len(self.registers):
+                    if word_index >= self.num_lines:
                         if self.error_overflow:
                             self.log.error(f'APB {self.name} - Read overflow: {word_index}')
                             self.bus('PSLVERR').value = 1
@@ -270,7 +346,8 @@ class APBSlave(APBBase):
                             self.log.warning(f'APB {self.name} - Read overflow: {word_index}')
                         prdata = 0
                     else:
-                        prdata = self.registers[word_index]
+                        prdata_ba = self.mem.read(address, self.strb_bits)
+                        prdata = self.mem.bytearray_to_integer(prdata_ba)
 
                     self.bus('PRDATA').value = prdata
 
@@ -292,131 +369,130 @@ class APBSlave(APBBase):
             await self.wait_clocks(self.clock, 1)
 
 
-class APBMaster(APBBase):
-    def __init__(self, dut, name, clock, registers=None,
-                 ready_constraints=None, ready_weights=None,
-                 error_constraints=None, error_weights=None,
-                 addr_mask=None, debug=False, error_overflow=False):
-        APBBase.__init__(self, dut, name, clock, False)
-        self.log.info('Starting APBMaster')
-        self.registers_init = registers
-        self.registers = registers
-        self.error_overflow = error_overflow
-        self.ready_crand = self.set_constrained_random(ready_constraints, ready_weights)
-        self.error_crand = self.set_constrained_random(error_constraints, error_weights)
-        self.addr_mask = addr_mask if addr_mask is not None else (2 ** self.address_bits) - 1
-        self.debug = debug
-        self.transaction_queue = deque()
+# class APBMaster(APBBase):
+#     def __init__(self, dut, name, clock, registers=None,
+#                  ready_constraints=None, ready_weights=None,
+#                  error_constraints=None, error_weights=None,
+#                  addr_mask=None, debug=False, error_overflow=False):
+#         APBBase.__init__(self, dut, name, clock, False)
+#         self.log.info('Starting APBMaster')
+#         bytes_per_line = self.strb_bits
+#         self.num_lines = len(registers) // bytes
+#         self.mem = MemoryModel(num_lines=self.num_lines, bytes_per_line=bytes_per_line, preset_values=registers)
+#         self.error_overflow = error_overflow
+#         self.ready_crand = self.set_constrained_random(ready_constraints, ready_weights)
+#         self.error_crand = self.set_constrained_random(error_constraints, error_weights)
+#         self.addr_mask = addr_mask if addr_mask is not None else (2 ** self.address_bits) - 1
+#         self.debug = debug
+#         self.transaction_queue = deque()
 
-    def update_constraints(self, ready_constraints=None, ready_weights=None,
-                           error_constraints=None, error_weights=None):
-        self.ready_crand = self.set_constrained_random(ready_constraints, ready_weights)
-        self.error_crand = self.set_constrained_random(error_constraints, error_weights)
+#     def update_constraints(self, ready_constraints=None, ready_weights=None,
+#                            error_constraints=None, error_weights=None):
+#         self.ready_crand = self.set_constrained_random(ready_constraints, ready_weights)
+#         self.error_crand = self.set_constrained_random(error_constraints, error_weights)
 
-    def dump_registers(self):
-        self.log.info(f"APB Master {self.name} - Register Dump:")
-        self.log.info("-" * 40)
-        for i, value in enumerate(self.registers):
-            addr = i * self.strb_bits
-            self.log.info(f"Register {i:2}: Address 0x{addr:08X} - Value 0x{value:0{self.data_bits//4}X}")
-        self.log.info("-" * 40)
+#     def dump_registers(self):
+#         self.log.info(f"APB Master {self.name} - Register Dump:")
+#         self.log.info(self.mem.dump())
 
-    async def reset_bus(self):
-        self.log.info(f'Resetting APB Bus {self.name}')
-        self.bus('PSEL').value = 0
-        self.bus('PENABLE').value = 0
-        self.bus('PWRITE').value = 0
-        self.bus('PADDR').value = 0
-        self.bus('PWDATA').value = 0
-        if self.PSTRB_present:
-            self.bus('PSTRB').value = 0
-        if self.PPROT_present:
-            self.bus('PPROT').value = 0
+#     async def reset_bus(self):
+#         self.log.info(f'Resetting APB Bus {self.name}')
+#         self.bus('PSEL').value = 0
+#         self.bus('PENABLE').value = 0
+#         self.bus('PWRITE').value = 0
+#         self.bus('PADDR').value = 0
+#         self.bus('PWDATA').value = 0
+#         if self.PSTRB_present:
+#             self.bus('PSTRB').value = 0
+#         if self.PPROT_present:
+#             self.bus('PPROT').value = 0
 
-    def reset_registers(self):
-        self.registers = self.registers_init
+#     def reset_registers(self):
+#         self.mem.reset(to_preset=True)
 
-    async def driver(self):
-        while True:
-            if self.transaction_queue:
-                transaction = self.transaction_queue.popleft()
-                address = transaction.paddr & self.addr_mask
-                word_index = (address // self.strb_bits)
+#     async def driver(self):
+#         while True:
+#             if self.transaction_queue:
+#                 transaction = self.transaction_queue.popleft()
+#                 address = transaction.paddr & self.addr_mask
+#                 word_index = (address // self.strb_bits)
 
-                start_time = transaction.start_time
-                rand_delay = self.ready_crand.next()
-                count = 0
+#                 start_time = transaction.start_time
+#                 rand_delay = self.ready_crand.next()
+#                 count = 0
 
-                self.log.debug(f'APB Master-{self.name}: {rand_delay=}')
+#                 self.log.debug(f'APB Master-{self.name}: {rand_delay=}')
 
-                while rand_delay != count:
-                    self.bus('PSEL').value = 0
-                    await self.wait_clocks(self.clock, 1)
-                    count += 1
+#                 while rand_delay != count:
+#                     self.bus('PSEL').value = 0
+#                     await self.wait_clocks(self.clock, 1)
+#                     count += 1
 
-                self.bus('PSEL').value = 1
-                self.bus('PADDR').value = address
-                self.bus('PPROT').value = transaction.pprot if self.PPROT_present else 0
+#                 self.bus('PSEL').value = 1
+#                 self.bus('PADDR').value = address
+#                 self.bus('PPROT').value = transaction.pprot if self.PPROT_present else 0
 
-                if transaction.pwrite:  # Write transaction
-                    self.bus('PWRITE').value = 1
-                    self.bus('PWDATA').value = transaction.pwdata
-                    if self.PSTRB_present:
-                        self.bus('PSTRB').value = transaction.pstrb
+#                 if transaction.pwrite:  # Write transaction
+#                     self.bus('PWRITE').value = 1
+#                     self.bus('PWDATA').value = transaction.pwdata
+#                     if self.PSTRB_present:
+#                         self.bus('PSTRB').value = transaction.pstrb
 
-                    while not self.bus('PREADY').value.integer:
-                        await self.wait_clocks(self.clock, 1)
+#                     while not self.bus('PREADY').value.integer:
+#                         await self.wait_clocks(self.clock, 1)
 
-                    self.bus('PENABLE').value = 1
+#                     self.bus('PENABLE').value = 1
 
-                    while self.bus('PENABLE').value.integer:
-                        await self.wait_clocks(self.clock, 1)
+#                     while self.bus('PENABLE').value.integer:
+#                         await self.wait_clocks(self.clock, 1)
 
-                    self.bus('PENABLE').value = 0
+#                     self.bus('PENABLE').value = 0
 
-                    if self.debug:
-                        self.log.debug(f'APB {self.name} - WRITE -{start_time}')
-                        self.log.debug(f' Address: 0x{address:08x}')
-                        self.log.debug(f' Word Index: 0d{word_index:04d}')
-                        self.log.debug(f' Data: 0x{transaction.pwdata:0{int(self.data_bits/4)}X}')
-                        if self.PSTRB_present:
-                            self.log.debug(f' Strb: 0b{transaction.pstrb:0{self.strb_bits}b}')
+#                     if self.debug:
+#                         self.log.debug(f'APB {self.name} - WRITE -{start_time}')
+#                         self.log.debug(f' Address: 0x{address:08x}')
+#                         self.log.debug(f' Word Index: 0d{word_index:04d}')
+#                         self.log.debug(f' Data: 0x{transaction.pwdata:0{int(self.data_bits/4)}X}')
+#                         if self.PSTRB_present:
+#                             self.log.debug(f' Strb: 0b{transaction.pstrb:0{self.strb_bits}b}')
 
-                else:  # Read transaction
-                    self.bus('PWRITE').value = 0
+#                 else:  # Read transaction
+#                     self.bus('PWRITE').value = 0
 
-                    while not self.bus('PREADY').value.integer:
-                        await self.wait_clocks(self.clock, 1)
+#                     while not self.bus('PREADY').value.integer:
+#                         await self.wait_clocks(self.clock, 1)
 
-                    self.bus('PENABLE').value = 1
+#                     self.bus('PENABLE').value = 1
 
-                    while self.bus('PENABLE').value.integer:
-                        await self.wait_clocks(self.clock, 1)
+#                     while self.bus('PENABLE').value.integer:
+#                         await self.wait_clocks(self.clock, 1)
 
-                    self.bus('PENABLE').value = 0
+#                     self.bus('PENABLE').value = 0
 
-                    prdata = self.bus('PRDATA').value.integer
-                    pslverr = self.bus('PSLVERR').value.integer if self.PSLVERR_present else 0
+#                     prdata = self.bus('PRDATA').value.integer
+#                     pslverr = self.bus('PSLVERR').value.integer if self.PSLVERR_present else 0
 
-                    if self.debug:
-                        self.log.debug(f'APB {self.name} - READ -{start_time}')
-                        self.log.debug(f' Address: 0x{address:08x}')
-                        self.log.debug(f' Word Index: 0d{word_index:04d}')
-                        self.log.debug(f' Data: 0x{prdata:0{int(self.data_bits/4)}X}')
-                        if self.PSLVERR_present:
-                            self.log.debug(f' PSLVERR: {pslverr}')
+#                     if self.debug:
+#                         self.log.debug(f'APB {self.name} - READ -{start_time}')
+#                         self.log.debug(f' Address: 0x{address:08x}')
+#                         self.log.debug(f' Word Index: 0d{word_index:04d}')
+#                         self.log.debug(f' Data: 0x{prdata:0{int(self.data_bits/4)}X}')
+#                         if self.PSLVERR_present:
+#                             self.log.debug(f' PSLVERR: {pslverr}')
 
-                    if word_index >= len(self.registers):
-                        if self.error_overflow:
-                            self.log.error(f'APB {self.name} - Read overflow: {word_index}')
-                        else:
-                            self.log.warning(f'APB {self.name} - Read overflow: {word_index}')
-                            # Extend the self.registers array to accommodate the overflow
-                            self.registers.extend([0] * (word_index - len(self.registers) + 1))
+#                     if word_index >= self.num_lines:
+#                         if self.error_overflow:
+#                             self.log.error(f'APB {self.name} - Read overflow: {word_index}')
+#                         else:
+#                             self.log.warning(f'APB {self.name} - Read overflow: {word_index}')
+#                             # Extend the self.mem to accommodate the overflow
+#                             self.mem.expand(5)
+#                             self.num_lines += 5
 
-                    self.registers[word_index] = prdata
+#                     strobes = (2**self.strb_bits)-1
+#                     self.mem.write(word_index, prdata, strobes)
 
-            await self.wait_clocks(self.clock, 1)
+#             await self.wait_clocks(self.clock, 1)
 
 
 class APBCommandPacket:

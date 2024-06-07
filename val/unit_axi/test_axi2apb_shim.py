@@ -31,6 +31,49 @@ from TBBase import TBBase
 from APB import APBMonitor, APBSlave, APBBase
 
 
+def convert_to_bytearray(data):
+    """
+    Convert the input data to a bytearray if it's not already one.
+    
+    Parameters:
+    data (Any): The data to convert to a bytearray.
+
+    Returns:
+    bytearray: The converted bytearray.
+    """
+    if isinstance(data, bytearray):
+        return data
+    elif isinstance(data, (bytes, list)):
+        return bytearray(data)
+    else:
+        raise TypeError("Input data must be a bytearray, bytes, or list of integers")
+
+
+def bytearray_to_hex_strings(bytearrays):
+    """
+    Convert a list of bytearray values into hex strings.
+    
+    Parameters:
+    bytearrays (list of bytearray): The list of bytearray values to convert.
+
+    Returns:
+    list of str: The list of hex strings.
+    """
+    return [bytearray_to_hex(ba) for ba in bytearrays]
+
+def bytearray_to_hex(bytearray_value):
+    """
+    Convert a single bytearray to a hex string.
+    
+    Parameters:
+    bytearray_value (bytearray): The bytearray to convert.
+
+    Returns:
+    str: The hex string.
+    """
+    return ''.join(f'{byte:02X}, ' for byte in bytearray_value)
+
+
 class Axi2ApbTB(TBBase):
     def __init__(self, dut):
         TBBase.__init__(self, dut)
@@ -38,7 +81,6 @@ class Axi2ApbTB(TBBase):
         self.DATA_WIDTH = self.convert_to_int(os.environ.get('PARAM_AXI_DATA_WIDTH', '0'))        
         self.APB_DATA_WIDTH = self.convert_to_int(os.environ.get('PARAM_APB_DATA_WIDTH', '0'))        
         cocotb.start_soon(Clock(dut.aclk, 2, units="ns").start())
-                
         bus = AxiBus.from_prefix(dut, "s_axi")
         self.axi_master = AxiMaster(bus, dut.aclk, dut.aresetn, reset_active_level=False)   
         self.registers = int(32*(self.DATA_WIDTH/self.APB_DATA_WIDTH)) 
@@ -67,14 +109,11 @@ class Axi2ApbTB(TBBase):
         self.log.info("Reset Start")
         self.dut.aresetn.value = 0
         await self.apb_slave.reset_bus()
-        await RisingEdge(self.dut.aclk)
-        await RisingEdge(self.dut.aclk)
+        await self.wait_clocks('aclk', 2)
         self.dut.aresetn.value = 0
-        await RisingEdge(self.dut.aclk)
-        await RisingEdge(self.dut.aclk)
+        await self.wait_clocks('aclk', 2)
         self.dut.aresetn.value = 1
-        await RisingEdge(self.dut.aclk)
-        await RisingEdge(self.dut.aclk)
+        await self.wait_clocks('aclk', 2)
         self.log.info("Reset Done.")
 
 
@@ -100,8 +139,7 @@ class Axi2ApbTB(TBBase):
             self.log.info(f"run_test_write(AXI): offset {addr}, size {size}, data {[f'{x:02X}' for x in test_data]}")
             await self.axi_master.write(addr, test_data, size=size)
 
-        await RisingEdge(self.dut.aclk)
-        await RisingEdge(self.dut.aclk)
+        await self.wait_clocks('aclk', 2)
 
 
     async def run_test_read(self, idle_inserter=None, backpressure_inserter=None, size=None):
@@ -122,8 +160,7 @@ class Axi2ApbTB(TBBase):
             data = await self.axi_master.read(addr, length, size=size)
             self.log.info(f"run_test_read(AXI): offset {addr}, size {size}, length {length} data {[f'{x:02X}' for x in test_data]}")
 
-        await RisingEdge(self.dut.aclk)
-        await RisingEdge(self.dut.aclk)
+        await self.wait_clocks('aclk', 2)
 
 
     async def run_test_write_read(self, idle_inserter=None, backpressure_inserter=None, size=None):
@@ -133,7 +170,8 @@ class Axi2ApbTB(TBBase):
         length = int(self.registers/(self.DATA_WIDTH/self.APB_DATA_WIDTH))
 
         if size is None:
-            size = int(max_burst_size / (self.DATA_WIDTH/self.APB_DATA_WIDTH))
+            # size = int(max_burst_size / (self.DATA_WIDTH/self.APB_DATA_WIDTH))
+            size = max_burst_size
 
         self.set_idle_generator(idle_inserter)
         self.set_backpressure_generator(backpressure_inserter)
@@ -142,13 +180,22 @@ class Axi2ApbTB(TBBase):
             test_data = bytearray([x % 256 for x in range(length)])
             self.log.info(f"run_test_write/write(AXI-wr): offset {addr}, size {size}, data {[f'{x:02X}' for x in test_data]}")
             await self.axi_master.write(addr, test_data, size=size)
+            await self.wait_clocks('aclk', 100)
             self.apb_slave.dump_registers()
             data = await self.axi_master.read(addr, length, size=size)
             self.log.info(f"run_test_write/read(AXI-rd): offset {addr}, size {size}, length {length} data {[f'{x:02X}' for x in test_data]}")
+            data_ba = convert_to_bytearray(data.data)
+            # self.log.debug(f'{data_ba=}')
+            data_in_hex = bytearray_to_hex_strings([data_ba])
+            self.log.info(f'Read  Data: {data_in_hex}')
+            data_bk_ba = convert_to_bytearray(test_data)
+            # self.log.debug(f'{data_bk_ba=}')
+            data_bk_hex = bytearray_to_hex_strings([data_bk_ba])
+            self.log.info(f'Write Data: {data_bk_hex}')
             assert data.data == test_data
+            await self.wait_clocks('aclk', 100)
 
-        await RisingEdge(self.dut.aclk)
-        await RisingEdge(self.dut.aclk)
+        await self.wait_clocks('aclk', 2)
 
 
     async def main_loop(self):
@@ -211,8 +258,18 @@ rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hd
 rtl_axi_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'axi')) #path to hdl folder where .v files are placed
 
 
-# @pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,32,1,12,32),(8,32,64,1,12,32),(8,32,128,1,12,32),(8,32,64,1,12,8)])
-@pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,32,1,12,32)])
+
+
+
+
+
+
+
+# @pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,64,1,12,32)])
+# @pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,32,1,12,32)])
+# @pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,128,1,12,32)])
+# @pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,64,1,12,8)])
+@pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,32,1,12,32),(8,32,64,1,12,32),(8,32,128,1,12,32),(8,32,64,1,12,8)])
 def test_axi2abp_shim(request, id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width):
     dut_name = "axi2apb_shim"
     module = os.path.splitext(os.path.basename(__file__))[0]

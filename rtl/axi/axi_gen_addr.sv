@@ -11,7 +11,8 @@ module axi_gen_addr
     input  logic [2:0]     i_size,
     input  logic [1:0]     i_burst,
     input  logic [LEN-1:0] i_len,
-    output logic [AW-1:0]  ow_next_addr
+    output logic [AW-1:0]  ow_next_addr,
+    output logic [AW-1:0]  ow_next_addr_align
 );
 
 localparam int ODWBYTES = ODW / 8;
@@ -50,5 +51,9 @@ always_comb begin
         default: ow_next_addr = i_curr_addr + increment; // Default to INCR burst
     endcase
 end
+
+// Calculate the aligned address
+wire [AW-1:0] w_alignment_mask = ODWBYTES - 1;
+assign ow_next_addr_align = ow_next_addr & ~w_alignment_mask;
 
 endmodule : axi_gen_addr
