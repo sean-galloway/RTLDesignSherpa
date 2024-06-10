@@ -31,5 +31,3 @@ class ConstrainedRandom():
             return self.random_generator.randint(min_value, max_value)
         else:
             return self.random_generator.uniform(min_value, max_value)
-
-

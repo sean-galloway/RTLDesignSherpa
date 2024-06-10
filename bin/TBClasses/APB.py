@@ -12,8 +12,6 @@ from ConstrainedRandom import ConstrainedRandom
 from dataclasses import dataclass
 from collections import deque
 
-
-
 # define the PWRITE mapping
 pwrite = ['READ', 'WRITE']
 
@@ -21,6 +19,7 @@ pwrite = ['READ', 'WRITE']
 @dataclass
 class APBTransaction:
     start_time: int
+    count: int
     direction: str
     address: int
     word_index: int
@@ -140,6 +139,17 @@ class APBBase(TBBase):
         self.strb_bits = self.get_width(self.signal_name['PSTRB']) if self.PSTRB_present else 0
 
 
+    @staticmethod
+    def set_constrained_random(passed_constraints, passed_weights):
+        if passed_constraints is None:
+            local_constraints = [(0, 0)]
+            local_weights = [1]
+        else:
+            local_constraints = passed_constraints
+            local_weights = passed_weights
+        return ConstrainedRandom(local_constraints, local_weights)
+
+
     def check_signals(self):
         if missing_signals := [
             signal_name
@@ -185,15 +195,16 @@ class APBMonitor(APBBase):
         APBBase.__init__(self, dut, name, clock)
         self.addr_mask = addr_mask if addr_mask is not None else (2 ** self.address_bits) - 1
         self.log.debug(f'Starting APBMonitor - {name}')
-        self.transaction_queue = Queue[APBTransaction]()
+        self.transaction_queue = Queue()
+        self.count = 0
 
 
     def print(self, transaction):
         self.log.info('-' * 120)
         self.log.info(f'{self.name} - APB Transaction - Started at {transaction.start_time} ns')
+        self.log.info(f'  Count:      {transaction.count}')
         self.log.info(f'  Direction:  {transaction.direction}')
         self.log.info(f'  Address:    0x{transaction.address:08x}')
-        self.log.info(f'  Word Index: 0d{transaction.word_index:04d}')
 
         if transaction.data is None:
             self.log.info('  NO DATA YET!')
@@ -224,14 +235,12 @@ class APBMonitor(APBBase):
 
                 if direction == 'READ':
                     data = self.bus('PRDATA').value.integer
-                    strb = (2**self.strb_bits)-1
-                    prot = 0
                 else:
                     data = self.bus('PWDATA').value.integer
-                    strb = self.bus('PSTRB').value.integer if self.PSTRB_present else 0
-                    prot = self.bus('PPROT').value.integer if self.PPROT_present else 0
-
-                transaction = APBTransaction(start_time, direction, address, word_index, data, strb, prot, error)
+                strb = self.bus('PSTRB').value.integer if self.PSTRB_present else 0
+                prot = self.bus('PPROT').value.integer if self.PPROT_present else 0
+                self.count += 1
+                transaction = APBTransaction(start_time, self.count, direction, address, word_index, data, strb, prot, error)
                 self.transaction_queue.put_nowait(transaction)
                 self.print(transaction)
 
@@ -239,12 +248,12 @@ class APBMonitor(APBBase):
 
 
 class APBSlave(APBBase):
+
     def __init__(self, dut, name, clock, registers=None,
                     ready_constraints=None, ready_weights=None,
                     error_constraints=None, error_weights=None,
                     addr_mask=None, debug=False, error_overflow=False):
         APBBase.__init__(self, dut, name, clock, True)
-        self.log.info('Starting APBSlave')
         bytes_per_line = self.strb_bits
         self.num_lines = len(registers) // bytes_per_line
         self.mem = MemoryModel(num_lines=self.num_lines, bytes_per_line=bytes_per_line, log=self.log, preset_values=registers)
@@ -254,8 +263,8 @@ class APBSlave(APBBase):
         self.error_crand = self.set_constrained_random(error_constraints, error_weights)
         self.addr_mask = addr_mask if addr_mask is not None else (2 ** self.address_bits) - 1
         self.debug = debug
-        self.transaction_queue = Queue[APBTransaction]()
-        self.log.info('APBSlave init done')
+        self.transaction_queue = Queue()
+        self.count = 0
 
 
     def update_constraints(self, ready_constraints=None, ready_weights=None,
@@ -279,6 +288,7 @@ class APBSlave(APBBase):
     def reset_registers(self):
         self.mem.reset(to_preset=True)
 
+
     async def driver(self):
         self.bus('PREADY').value = 0
 
@@ -291,7 +301,7 @@ class APBSlave(APBBase):
                 rand_delay = self.ready_crand.next()
                 count = 0
 
-                self.log.debug(f'APB Driver-{self.name}: {rand_delay=}')
+                self.log.debug(f'APB Slave Driver-{self.name}: {rand_delay=}')
 
                 while rand_delay != count:
                     self.bus('PREADY').value = 0
@@ -300,7 +310,7 @@ class APBSlave(APBBase):
 
                 self.bus('PREADY').value = 1
                 prot = self.bus('PPROT').value.integer if self.PPROT_present else 0
-
+                self.count += 1
                 if slv_error := self.error_crand.next():
                     if self.PSLVERR_present:
                         self.bus('PSLVERR').value = 1
@@ -335,7 +345,7 @@ class APBSlave(APBBase):
                     pwdata_ba = self.mem.integer_to_bytearray(pwdata, self.strb_bits)
                     self.mem.write(address, pwdata_ba, strobes)
 
-                    transaction = APBTransaction(start_time, 'WRITE', address, word_index, pwdata, strobes, prot, 0)
+                    transaction = APBTransaction(start_time, self.count, 'WRITE', address, word_index, pwdata, strobes, prot, 0)
 
                 else:  # Read transaction
                     if word_index >= self.num_lines:
@@ -362,11 +372,123 @@ class APBSlave(APBBase):
                         if self.PSTRB_present:
                             self.log.info(f' Strb: 0b{strobes:0{self.strb_bits}b}')
 
-                    transaction = APBTransaction(start_time, 'READ', address, word_index, prdata, 0, prot, 0)
+                    transaction = APBTransaction(start_time, self.count, 'READ', address, word_index, prdata, 0, prot, 0)
 
                 self.transaction_queue.put_nowait(transaction)
 
             await self.wait_clocks(self.clock, 1)
+
+
+class APBCommandPacket:
+    def __init__(self, data_width, addr_width, strb_width, log=None,
+                    pwrite_constraints=None, pwrite_weights=None,
+                    paddr_constraints=None, paddr_weights=None,
+                    pprot_constraints=None, pprot_weights=None):
+        self.start_time = 0
+        self.data_width = data_width
+        self.addr_width = addr_width
+        self.strb_width = strb_width
+        self.addr_mask  = (strb_width - 1)
+        self.log = log
+        self.count = 0
+
+        # Create the ConstrainedRandom objects
+        self.pwrite_crand = self.set_constrained_random(pwrite_constraints, pwrite_weights)
+        self.paddr_crand = self.set_constrained_random(paddr_constraints, paddr_weights)
+        self.pprot_crand = self.set_constrained_random(pprot_constraints, pprot_weights)
+
+        self.pwrite  = self.pwrite_crand.next() if pwrite_constraints else random.randint(0, 1)
+        self.direction = 'WRITE' if self.pwrite else 'READ'
+        self.paddr   = self.paddr_crand.next() if paddr_constraints else random.randint(0, (1 << addr_width) - 1)
+        self.paddr   = self.paddr & ~self.addr_mask
+        self.pwdata  = random.randint(0, (1 << data_width) - 1)
+        self.prdata  = 0  # PRDATA is typically read, not written by master
+        self.pstrb   = random.randint(0, (1 << strb_width) - 1)
+        self.pprot   = self.pprot_crand.next() if pprot_constraints else random.randint(0, 7)  # Assuming 3-bit PPROT
+        self.pslverr = 0  # PSLVERR is typically set by the slave
+
+
+    def log_packet(self):
+            self.log.info(f"APBCommandPacket - start_time: {self.start_time}\n"+ 
+                            f"                        count: {self.count}\n"+
+                            f"                    direction: {self.direction}\n"+
+                            f"                        paddr:  0x{self.paddr:08X}\n"+
+                            f"                       pwdata:  0x{self.pwdata:0{self.data_width // 4}X}\n"+
+                            f"                        pstrb:  0x{self.pstrb:X}\n"
+                            f"                        pprot:  {self.pprot}\n"+
+                            f"                      pslverr:  {self.pslverr}\n")
+
+
+    @staticmethod
+    def set_constrained_random(passed_constraints, passed_weights):
+        if passed_constraints is None:
+            local_constraints = [(0, 0)]
+            local_weights = [1]
+        else:
+            local_constraints = passed_constraints
+            local_weights = passed_weights
+        return ConstrainedRandom(local_constraints, local_weights)
+
+
+    def pack_cmd_packet(self):
+        """
+        Pack the command packet into a single integer.
+        """
+        return (
+            (self.pwrite << (self.addr_width + self.data_width + self.strb_width + 3)) |
+            (self.pprot << (self.addr_width + self.data_width + self.strb_width)) |
+            (self.pstrb << (self.addr_width + self.data_width)) |
+            (self.paddr << self.data_width) |
+            self.pwdata
+        )
+
+
+    def unpack_cmd_packet(self, packed_packet):
+        """
+        Unpack a packed command packet into its components.
+        """
+        self.pwrite = (packed_packet >> (self.addr_width + self.data_width + self.strb_width + 3)) & 0x1
+        self.pprot = (packed_packet >> (self.addr_width + self.data_width + self.strb_width)) & 0x7
+        self.pstrb = (packed_packet >> (self.addr_width + self.data_width)) & ((1 << self.strb_width) - 1)
+        self.paddr = (packed_packet >> self.data_width) & ((1 << self.addr_width) - 1)
+        self.pwdata = packed_packet & ((1 << self.data_width) - 1)
+
+
+    def __str__(self):
+        """
+        Return a string representation of the command packet for debugging.
+        """
+        return (
+            f"APB Command Packet:\n"
+            f"  PWRITE : {self.pwrite}\n"
+            f"  PADDR  : 0x{self.paddr:08X}\n"
+            f"  PWDATA : 0x{self.pwdata:0{self.data_width // 4}X}\n"
+            f"  PSTRB  : 0b{self.pstrb:0{self.strb_width}b}\n"
+            f"  PPROT  : 0b{self.pprot:03b}\n"
+            f"  PSLVERR: {self.pslverr}\n"
+        )
+
+
+class APBCommandGenerator():
+    def __init__(self, dw, aw, sw):
+        self.data_bits = dw
+        self.address_bits = aw
+        self.strb_bits = sw
+
+
+    def generate_write_cmd(self):
+        return self.generate_cmd(1)
+
+
+    def generate_read_cmd(self):
+        return self.generate_cmd(0)
+
+    def generate_cmd(self, arg0):
+        cmd_packet = APBCommandPacket(
+            self.data_bits, self.address_bits, self.strb_bits
+        )
+        cmd_packet.pwrite = arg0
+        return cmd_packet.pack_cmd_packet()
 
 
 # class APBMaster(APBBase):
@@ -493,53 +615,3 @@ class APBSlave(APBBase):
 #                     self.mem.write(word_index, prdata, strobes)
 
 #             await self.wait_clocks(self.clock, 1)
-
-
-class APBCommandPacket:
-    def __init__(self, data_width, addr_width, strb_width):
-        self.data_width = data_width
-        self.addr_width = addr_width
-        self.strb_width = strb_width
-
-        self.pwrite  = random.randint(0, 1)
-        self.paddr   = random.randint(0, (1 << 5) - 1)
-        self.pwdata  = random.randint(0, (1 << data_width) - 1)
-        self.prdata  = random.randint(0, (1 << data_width) - 1)
-        self.pstrb   = random.randint(0, (1 << strb_width) - 1)
-        self.pprot   = random.randint(0, 7)  # Assuming 3-bit pprot
-        self.pslverr = 0
-
-
-    def pack_cmd_packet(self):
-        print('------------------------------------------------------')
-        print(f' Write: {self.pwrite=}')
-        print(f' Addr:  0x{self.paddr:08x}')
-        print(f' Data:  0x{self.pwdata:08x}')
-        print(f' Prot:  0x{self.pprot:x}')
-        cmd_packet = (self.pwrite << (self.addr_width + self.data_width + self.strb_width + 3)) | \
-                     (self.pprot << (self.addr_width + self.data_width + self.strb_width)) | \
-                     (self.pstrb << (self.addr_width + self.data_width)) | \
-                     (self.paddr << self.data_width) | \
-                     self.pwdata
-        return cmd_packet
-
-
-class APBCommandGenerator():
-    def __init__(self, dw, aw, sw):
-        self.data_bits = dw
-        self.address_bits = aw
-        self.strb_bits = sw
-
-
-    def generate_write_cmd(self):
-        print('generate_write_cmd')
-        cmd_packet = APBCommandPacket(self.data_bits, self.address_bits, self.strb_bits)
-        cmd_packet.pwrite = 1  # Set pwrite to 1 for write command
-        return cmd_packet.pack_cmd_packet()
-
-
-    def generate_read_cmd(self):
-        print('generate_read_cmd')
-        cmd_packet = APBCommandPacket(self.data_bits, self.address_bits, self.strb_bits)
-        cmd_packet.pwrite = 0  # Set pwrite to 0 for read command
-        return cmd_packet.pack_cmd_packet()

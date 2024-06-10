@@ -1,14 +1,11 @@
 `timescale 1ns / 1ps
 
-module apb_master_stub #(
-    parameter int CMD_DEPTH         = 4,
-    parameter int RSP_DEPTH         = 4,
-    parameter int DATA_WIDTH        = 32,
-    parameter int ADDR_WIDTH        = 32,
-    parameter int STRB_WIDTH        = DATA_WIDTH / 8,
-    parameter int CMD_PACKET_WIDTH  = ADDR_WIDTH + DATA_WIDTH + STRB_WIDTH + 4,
-                                        // addr, data, strb, prot, pwrite
-    parameter int RESP_PACKET_WIDTH = DATA_WIDTH + 1 // data, resp
+module apb_master_stub_skid #(
+    parameter int DATA_WIDTH    = 32,
+    parameter int ADDR_WIDTH    = 32,
+    parameter int STRB_WIDTH    = DATA_WIDTH / 8,
+    parameter int CMD_PACKET_WIDTH = ADDR_WIDTH + DATA_WIDTH + STRB_WIDTH + 4, // addr, data, strb, prot, pwrite
+    parameter int RESP_PACKET_WIDTH = DATA_WIDTH + 2 // data, resp
 ) (
     // Clock and Reset
     input  logic                         aclk,
@@ -47,7 +44,6 @@ module apb_master_stub #(
     logic                r_cmd_valid;
     logic                r_cmd_ready;
     logic [CPW-1:0]      r_cmd_data;
-
     // Register to store current command packet
     logic [CPW-1:0]      r_curr_cmd_pkt;
     logic                r_curr_cmd_valid;
@@ -65,13 +61,12 @@ module apb_master_stub #(
     logic                re_cmd_pwrite;
 
     assign {re_cmd_pwrite, re_cmd_pprot, re_cmd_pstrb, re_cmd_paddr, re_cmd_pwdata} = r_cmd_data;
-    assign {r_cmd_pwrite, r_cmd_pprot, r_cmd_pstrb, r_cmd_paddr, r_cmd_pwdata} =
-                (r_apb_state == IDLE) ? r_cmd_data : r_curr_cmd_pkt;
+    assign {r_cmd_pwrite, r_cmd_pprot, r_cmd_pstrb, r_cmd_paddr, r_cmd_pwdata} = (r_apb_state == IDLE) ?
+                                    r_cmd_data : r_curr_cmd_pkt;
 
-    axi_fifo_sync #(
-        .DATA_WIDTH(CPW),
-        .DEPTH(CMD_DEPTH)
-    ) cmd_fifo_inst (
+    axi_skid_buffer #(
+        .DATA_WIDTH(CPW)
+    ) cmd_skid_buffer_inst (
         .i_axi_aclk     (aclk),
         .i_axi_aresetn  (aresetn),
         .i_wr_valid     (i_cmd_valid),
@@ -79,7 +74,7 @@ module apb_master_stub #(
         .i_wr_data      (i_cmd_data),
         .o_rd_valid     (r_cmd_valid),
         .i_rd_ready     (r_cmd_ready),
-        .ow_rd_data     (r_cmd_data)
+        .o_rd_data      (r_cmd_data)
     );
 
     // Extract response packet signals
@@ -87,14 +82,13 @@ module apb_master_stub #(
     logic                r_rsp_ready;
     logic [RPW-1:0]      r_rsp_data;
     logic [DW-1:0]       r_rsp_prdata;
-    logic                r_rsp_pslverr;
+    logic [1:0]          r_rsp_pslverr;
 
     assign r_rsp_data = {r_rsp_pslverr, r_rsp_prdata};
 
-    axi_fifo_sync #(
-        .DATA_WIDTH(RPW),
-        .DEPTH(RSP_DEPTH)
-    ) resp_fifo_inst (
+    axi_skid_buffer #(
+        .DATA_WIDTH(RPW)
+    ) resp_skid_buffer_inst (
         .i_axi_aclk     (aclk),
         .i_axi_aresetn  (aresetn),
         .i_wr_valid     (r_rsp_valid),
@@ -102,7 +96,7 @@ module apb_master_stub #(
         .i_wr_data      (r_rsp_data),
         .o_rd_valid     (o_rsp_valid),
         .i_rd_ready     (i_rsp_ready),
-        .ow_rd_data     (o_rsp_data)
+        .o_rd_data      (o_rsp_data)
     );
 
     // APB FSM
