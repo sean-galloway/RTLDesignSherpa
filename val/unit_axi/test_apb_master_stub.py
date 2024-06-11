@@ -22,7 +22,6 @@ class APBMasterStub_TB(TBBase):
         self.CMD_PACKET_WIDTH = self.ADDR_WIDTH + self.DATA_WIDTH + self.STRB_WIDTH + 4  # addr, data, strb, prot, pwrite
         self.RESP_PACKET_WIDTH = self.DATA_WIDTH + 2  # data, resp
         self.registers = 32 * self.STRB_WIDTH
-        self.clog2_registers = math.ceil(math.log2(self.registers))
         self.slave_register = list(range(self.registers))
         apb_slave_ready_constraints = [(0,1), (2, 5), (6,10)]
         apb_slave_ready_weights     = [5, 2, 1]

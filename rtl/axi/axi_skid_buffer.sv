@@ -16,6 +16,7 @@ module axi_skid_buffer #(
     // output side
     output logic          o_rd_valid,
     input  logic          i_rd_ready,
+    output logic [1:0]    o_rd_count,
     output logic [DW-1:0] o_rd_data
 );
 
@@ -94,5 +95,6 @@ module axi_skid_buffer #(
     assign o_wr_ready = r_wr_ready;
     assign o_rd_valid = r_rd_valid;
     assign o_rd_data  = r_data;
+    assign o_rd_count = r_data_count;
 
 endmodule : axi_skid_buffer
