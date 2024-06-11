@@ -26,18 +26,18 @@ class APBMasterStub_TB(TBBase):
         self.slave_register = list(range(self.registers))
         apb_slave_ready_constraints = [(0,1), (2, 5), (6,10)]
         apb_slave_ready_weights     = [5, 2, 1]
-        # apb_slave_error_constraints = [(0, 0), (1, 1)]
-        # apb_slave_error_weights     = [10, 1]
+        apb_slave_error_constraints = [(0, 0), (1, 1)]
+        apb_slave_error_weights     = [10, 1]
         # apb_slave_ready_constraints = None
         # apb_slave_ready_weights     = None
-        apb_slave_error_constraints = None
-        apb_slave_error_weights     = None
+        # apb_slave_error_constraints = None
+        # apb_slave_error_weights     = None
         self.apb_monitor = APBMonitor(dut, 'm_apb', 'aclk')
         self.apb_slave = APBSlave(dut, 'm_apb', 'aclk', registers=self.slave_register,
-                                  ready_constraints=apb_slave_ready_constraints,
-                                  ready_weights=apb_slave_ready_weights,
-                                  error_constraints=apb_slave_error_constraints,
-                                  error_weights=apb_slave_error_weights)
+                                    ready_constraints=apb_slave_ready_constraints,
+                                    ready_weights=apb_slave_ready_weights,
+                                    error_constraints=apb_slave_error_constraints,
+                                    error_weights=apb_slave_error_weights)
         self.cmd_queue = Queue()
 
         # Constrained random settings for command generation

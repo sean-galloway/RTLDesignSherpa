@@ -228,10 +228,10 @@ class APBMonitor(APBBase):
                     self.bus('PENABLE').value.integer and \
                     self.bus('PREADY').value.integer:
                 start_time = get_sim_time('ns')
-                address = self.bus('PADDR').value.integer
+                address    = self.bus('PADDR').value.integer
                 word_index = (address & self.addr_mask) // self.strb_bits
-                direction = pwrite[self.bus('PWRITE').value.integer]
-                error = self.bus('PSLVERR').value.integer if self.PSLVERR_present else 0
+                direction  = pwrite[self.bus('PWRITE').value.integer]
+                error      = self.bus('PSLVERR').value.integer if self.PSLVERR_present else 0
 
                 if direction == 'READ':
                     data = self.bus('PRDATA').value.integer
@@ -252,16 +252,17 @@ class APBSlave(APBBase):
                     error_constraints=None, error_weights=None,
                     addr_mask=None, debug=False, error_overflow=False):
         APBBase.__init__(self, dut, name, clock, True)
-        bytes_per_line = self.strb_bits
-        self.num_lines = len(registers) // bytes_per_line
-        self.mem = MemoryModel(num_lines=self.num_lines, bytes_per_line=bytes_per_line, log=self.log, preset_values=registers)
-        self.log.info(self.mem.dump())
+        self.num_lines      = len(registers) // self.strb_bits
+        self.addr_mask      = addr_mask if addr_mask is not None else (2 ** self.address_bits) - 1
+        self.debug          = debug
+        self.count          = 0
         self.error_overflow = error_overflow
-        self.ready_crand = self.set_constrained_random(ready_constraints, ready_weights)
-        self.error_crand = self.set_constrained_random(error_constraints, error_weights)
-        self.addr_mask = addr_mask if addr_mask is not None else (2 ** self.address_bits) - 1
-        self.debug = debug
-        self.count = 0
+        # Create the memory model
+        self.mem = MemoryModel(num_lines=self.num_lines, bytes_per_line=self.strb_bits, log=self.log, preset_values=registers)
+        self.log.info(self.mem.dump())
+        # set the constrained random objects
+        self.ready_crand    = self.set_constrained_random(ready_constraints, ready_weights)
+        self.error_crand    = self.set_constrained_random(error_constraints, error_weights)
 
 
     def update_constraints(self, ready_constraints=None, ready_weights=None,
@@ -282,6 +283,7 @@ class APBSlave(APBBase):
         if self.PSLVERR_present:
             self.bus('PSLVERR').value = 0
 
+
     def reset_registers(self):
         self.mem.reset(to_preset=True)
 
@@ -290,6 +292,9 @@ class APBSlave(APBBase):
         self.bus('PREADY').value = 0
 
         while True:
+            if self.PSLVERR_present:
+                self.bus('PSLVERR').value = 0
+
             if self.bus('PSEL').value.integer:
                 rand_delay = self.ready_crand.next()
                 self.log.debug(f'APB Slave Driver-{self.name}: {rand_delay=}')
@@ -322,7 +327,6 @@ class APBSlave(APBBase):
                 if slv_error := self.error_crand.next():
                     if self.PSLVERR_present:
                         self.bus('PSLVERR').value = 1
-                    transaction = APBTransaction(start_time, 'ERROR', address, word_index, 0, 0, prot, 1)
 
                 elif self.bus('PWRITE').value.integer:  # Write transaction
                     strobes = self.bus('PSTRB').value.integer if self.PSTRB_present else (1 << self.strb_bits) - 1
