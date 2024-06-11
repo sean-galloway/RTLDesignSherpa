@@ -42,12 +42,14 @@ module apb_master_stub #(
     localparam int SW  = STRB_WIDTH;
     localparam int CPW = CMD_PACKET_WIDTH;
     localparam int RPW = RESP_PACKET_WIDTH;
+    localparam int CAW = $clog2(CMD_DEPTH);
 
     // Load command packet signals
     logic                r_cmd_valid;
     logic                r_cmd_ready;
     logic [CPW-1:0]      r_cmd_data;
     logic [CPW-1:0]      r_cmd_data_zeroes;
+    logic [CAW-1:0]      w_cmd_count;
 
     logic [DW-1:0]       r_cmd_pwdata;
     logic [AW-1:0]       r_cmd_paddr;
@@ -68,6 +70,7 @@ module apb_master_stub #(
         .i_wr_valid     (i_cmd_valid),
         .o_wr_ready     (o_cmd_ready),
         .i_wr_data      (i_cmd_data),
+        .ow_count       (w_cmd_count),
         .o_rd_valid     (r_cmd_valid),
         .i_rd_ready     (r_cmd_ready),
         .ow_rd_data     (r_cmd_data)
@@ -140,7 +143,7 @@ module apb_master_stub #(
                     m_apb_PENABLE = 1'b1;
                     r_cmd_ready = 1'b1;
                     r_rsp_valid = 1'b1;
-                    w_apb_next_state = IDLE;
+                    w_apb_next_state = IDLE; // TODO: loop back to active if there is >1 item in cmdQ
                 end
             end
 

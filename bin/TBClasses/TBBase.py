@@ -92,6 +92,25 @@ class TBBase(metaclass=Singleton):
             await Timer(delay, units=units)
 
 
+    async def wait_falling_clocks(self, clk_name, count=1, delay=100, units='ps'):
+        """
+        Waits for a specified number of rising edges on the clock signal.
+
+        Args:
+            clk_name (str): The name of the clock signal.
+            count (int, optional): The number of rising edges to wait for. Defaults to 1.
+            delay (int, optional): The delay between each rising edge. Defaults to 100.
+            units (str, optional): The units of the delay. Defaults to 'ps'.
+
+        Returns:
+            None
+        """
+        clk_signal = getattr(self.dut, clk_name)
+        for _ in range(count):
+            await FallingEdge(clk_signal)
+            await Timer(delay, units=units)
+
+
     async def wait_time(self, delay=100, units='ps'):
         """
         Waits for a specified amount of time.

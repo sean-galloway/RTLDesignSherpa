@@ -15,6 +15,7 @@ module axi_fifo_sync #(
     output logic            o_wr_ready,   // not full
     input  logic [DW-1:0]   i_wr_data,
     input  logic            i_rd_ready,
+    output logic [AW-1:0]   ow_count,
     output logic            o_rd_valid,   // not empty
     output logic [DW-1:0]   ow_rd_data,
     output logic [DW-1:0]   o_rd_data
@@ -80,6 +81,7 @@ module axi_fifo_sync #(
         .iw_wdom_rd_ptr_bin(w_rd_ptr_bin_next),
         .iw_rd_ptr_bin     (w_rd_ptr_bin_next),
         .iw_rdom_wr_ptr_bin(w_wr_ptr_bin_next),
+        .ow_count          (ow_count),
         .o_wr_full         (r_wr_full),
         .o_wr_almost_full  (r_wr_almost_full),
         .o_rd_empty        (r_rd_empty),

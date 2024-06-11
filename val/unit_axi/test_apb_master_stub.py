@@ -21,17 +21,28 @@ class APBMasterStub_TB(TBBase):
         self.STRB_WIDTH = self.DATA_WIDTH // 8
         self.CMD_PACKET_WIDTH = self.ADDR_WIDTH + self.DATA_WIDTH + self.STRB_WIDTH + 4  # addr, data, strb, prot, pwrite
         self.RESP_PACKET_WIDTH = self.DATA_WIDTH + 2  # data, resp
-        cocotb.start_soon(Clock(dut.aclk, 2, units="ns").start())
         self.registers = 32 * self.STRB_WIDTH
         self.clog2_registers = math.ceil(math.log2(self.registers))
         self.slave_register = list(range(self.registers))
+        apb_slave_ready_constraints = [(0,1), (2, 5), (6,10)]
+        apb_slave_ready_weights     = [5, 2, 1]
+        # apb_slave_error_constraints = [(0, 0), (1, 1)]
+        # apb_slave_error_weights     = [10, 1]
+        # apb_slave_ready_constraints = None
+        # apb_slave_ready_weights     = None
+        apb_slave_error_constraints = None
+        apb_slave_error_weights     = None
         self.apb_monitor = APBMonitor(dut, 'm_apb', 'aclk')
-        self.apb_slave = APBSlave(dut, 'm_apb', 'aclk', registers=self.slave_register)
+        self.apb_slave = APBSlave(dut, 'm_apb', 'aclk', registers=self.slave_register,
+                                  ready_constraints=apb_slave_ready_constraints,
+                                  ready_weights=apb_slave_ready_weights,
+                                  error_constraints=apb_slave_error_constraints,
+                                  error_weights=apb_slave_error_weights)
         self.cmd_queue = Queue()
 
         # Constrained random settings for command generation
         self.pwrite_constraints = [(0, 0), (1, 1)]
-        self.pwrite_weights     = [1, 0]
+        self.pwrite_weights     = [1, 1]
         min_high = (4  * self.STRB_WIDTH)-1
         max_low  = (4  * self.STRB_WIDTH)
         max_high = (32 * self.STRB_WIDTH)-1
@@ -43,6 +54,7 @@ class APBMasterStub_TB(TBBase):
         # Constrained random settings for response generation
         self.cmd_valid_crand = ConstrainedRandom([(0, 0), (1, 1), (2, 10)], [5, 2, 1])
         self.rsp_ready_crand = ConstrainedRandom([(0, 0), (1, 1), (2, 10)], [5, 2, 1])
+
 
     async def reset_dut(self):
         self.log.debug('Starting reset_dut')
@@ -56,15 +68,16 @@ class APBMasterStub_TB(TBBase):
         await self.wait_clocks('aclk', 2)
         self.log.debug('Ending reset_dut')
 
+
     async def response_handler(self):
         response_count = 0
         while True:
             self.dut.i_rsp_ready.value = 0
-            rand_delay = self.rsp_ready_crand.next()
-            for _ in range(rand_delay):
-                await self.wait_clocks('aclk', 1)
-            self.dut.i_rsp_ready.value = 1
             if self.dut.o_rsp_valid.value:
+                rand_delay = self.rsp_ready_crand.next()
+                for _ in range(rand_delay):
+                    await self.wait_clocks('aclk', 1)
+                self.dut.i_rsp_ready.value = 1
                 response_count += 1
                 self.log.debug(f'{response_count=}')
                 cmd_packet = self.cmd_queue.get_nowait()
@@ -106,17 +119,15 @@ class APBMasterStub_TB(TBBase):
         self.log.debug('Starting main_loop completed start driver')
 
         # Randomly mixed read/write operations
-        for i in range(20):
+        for i in range(200):
             self.log.debug(f'Mixed Loop {i}')
             rand_delay = self.cmd_valid_crand.next()
+            self.log.debug(f'main_loop: {rand_delay=}')
             self.dut.i_cmd_valid.value = 0
             for _ in range(rand_delay):
                 await self.wait_clocks('aclk', 1)
 
             self.dut.i_cmd_valid.value = 1
-            while not self.dut.o_cmd_ready.value:
-                await self.wait_clocks('aclk', 1)
-
             cmd_packet = APBCommandPacket(
                 data_width         = self.DATA_WIDTH,
                 addr_width         = self.ADDR_WIDTH,
@@ -134,10 +145,16 @@ class APBMasterStub_TB(TBBase):
             cmd_packet.log_packet()
 
             self.dut.i_cmd_data.value = cmd_packet.pack_cmd_packet()
+
+            while not self.dut.o_cmd_ready.value:
+                self.log.debug('waiting for o_cmd_ready')
+                await self.wait_clocks('aclk', 1)
+
+            self.log.debug('waiting for rising edge')
             await self.wait_clocks('aclk', 1)
+            self.log.debug('done with rising edge')
 
             self.cmd_queue.put_nowait(cmd_packet)
-
             self.apb_slave.dump_registers()
 
         self.dut.i_cmd_valid.value = 0
@@ -149,8 +166,10 @@ async def apb_master_stub_test(dut):
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
+    await tb.start_clock('aclk', 10, 'ns')
     await tb.reset_dut()
     await tb.main_loop()
+    # await tb.wait_clocks('aclk', 50)
     tb.log.info("Test completed successfully.")
 
 repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
