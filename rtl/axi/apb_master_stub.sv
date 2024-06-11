@@ -143,7 +143,10 @@ module apb_master_stub #(
                     m_apb_PENABLE = 1'b1;
                     r_cmd_ready = 1'b1;
                     r_rsp_valid = 1'b1;
-                    w_apb_next_state = IDLE; // TODO: loop back to active if there is >1 item in cmdQ
+                    if (w_cmd_count > 1)
+                        w_apb_next_state = ACTIVE;
+                    else
+                        w_apb_next_state = IDLE;
                 end
             end
 
