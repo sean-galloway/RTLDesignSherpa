@@ -3,6 +3,7 @@ import cocotb
 from cocotb.triggers import RisingEdge, FallingEdge, ClockCycles, Timer
 from cocotb.clock import Clock
 import logging
+from logging.handlers import RotatingFileHandler
 
 
 class Singleton(type):

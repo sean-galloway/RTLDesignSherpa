@@ -1,14 +1,14 @@
 `timescale 1ns / 1ps
 
 module apb_master_stub #(
-    parameter int CMD_DEPTH         = 4,
-    parameter int RSP_DEPTH         = 4,
+    parameter int CMD_DEPTH         = 6,
+    parameter int RSP_DEPTH         = 6,
     parameter int DATA_WIDTH        = 32,
     parameter int ADDR_WIDTH        = 32,
     parameter int STRB_WIDTH        = DATA_WIDTH / 8,
-    parameter int CMD_PACKET_WIDTH  = ADDR_WIDTH + DATA_WIDTH + STRB_WIDTH + 4,
-                                        // addr, data, strb, prot, pwrite
-    parameter int RESP_PACKET_WIDTH = DATA_WIDTH + 1 // data, resp
+    parameter int CMD_PACKET_WIDTH  = ADDR_WIDTH + DATA_WIDTH + STRB_WIDTH + 3 + 1 + 1 + 1,
+                                        // addr, data, strb, prot, pwrite, first, last
+    parameter int RESP_PACKET_WIDTH = DATA_WIDTH + 1 + 1 +  1 // data, pslverr, first, last
 ) (
     // Clock and Reset
     input  logic                         aclk,
@@ -46,7 +46,7 @@ module apb_master_stub #(
 
     // Load command packet signals
     logic                r_cmd_valid;
-    logic                r_cmd_ready;
+    logic                w_cmd_ready;
     logic [CPW-1:0]      r_cmd_data;
     logic [CPW-1:0]      r_cmd_data_zeroes;
     logic [CAW-1:0]      w_cmd_count;
@@ -56,10 +56,12 @@ module apb_master_stub #(
     logic [SW-1:0]       r_cmd_pstrb;
     logic [2:0]          r_cmd_pprot;
     logic                r_cmd_pwrite;
+    logic                r_cmd_first;
+    logic                r_cmd_last;
 
     assign r_cmd_data_zeroes = 'b0;
-    assign {r_cmd_pwrite, r_cmd_pprot, r_cmd_pstrb, r_cmd_paddr, r_cmd_pwdata} =
-                r_cmd_valid ? r_cmd_data : r_cmd_data_zeroes;
+    assign {r_cmd_last, r_cmd_first, r_cmd_pwrite, r_cmd_pprot, r_cmd_pstrb, r_cmd_paddr,
+            r_cmd_pwdata} = r_cmd_valid ? r_cmd_data : r_cmd_data_zeroes;
 
     axi_fifo_sync #(
         .DATA_WIDTH(CPW),
@@ -72,18 +74,18 @@ module apb_master_stub #(
         .i_wr_data      (i_cmd_data),
         .ow_count       (w_cmd_count),
         .o_rd_valid     (r_cmd_valid),
-        .i_rd_ready     (r_cmd_ready),
+        .i_rd_ready     (w_cmd_ready),
         .ow_rd_data     (r_cmd_data)
     );
 
     // Extract response packet signals
-    logic                r_rsp_valid;
+    logic                w_rsp_valid;
     logic                r_rsp_ready;
     logic [RPW-1:0]      r_rsp_data;
-    logic [DW-1:0]       r_rsp_prdata;
-    logic                r_rsp_pslverr;
+    logic [DW-1:0]       w_rsp_prdata;
+    logic                w_rsp_pslverr;
 
-    assign r_rsp_data = {r_rsp_pslverr, r_rsp_prdata};
+    assign r_rsp_data = {r_cmd_last, r_cmd_first, w_rsp_pslverr, w_rsp_prdata};
 
     axi_fifo_sync #(
         .DATA_WIDTH(RPW),
@@ -91,7 +93,7 @@ module apb_master_stub #(
     ) resp_fifo_inst (
         .i_axi_aclk     (aclk),
         .i_axi_aresetn  (aresetn),
-        .i_wr_valid     (r_rsp_valid),
+        .i_wr_valid     (w_rsp_valid),
         .o_wr_ready     (r_rsp_ready),
         .i_wr_data      (r_rsp_data),
         .o_rd_valid     (o_rsp_valid),
@@ -124,10 +126,10 @@ module apb_master_stub #(
         m_apb_PWDATA       = r_cmd_pwdata;
         m_apb_PSTRB        = r_cmd_pstrb;
         m_apb_PPROT        = r_cmd_pprot;
-        r_cmd_ready        = 1'b0;
-        r_rsp_valid        = 1'b0;
-        r_rsp_prdata       = m_apb_PRDATA;
-        r_rsp_pslverr      = m_apb_PSLVERR;
+        w_cmd_ready        = 1'b0;
+        w_rsp_valid        = 1'b0;
+        w_rsp_prdata       = m_apb_PRDATA;
+        w_rsp_pslverr      = m_apb_PSLVERR;
 
         case (r_apb_state)
             IDLE: begin
@@ -141,8 +143,8 @@ module apb_master_stub #(
                 m_apb_PSEL = 1'b1;
                 if (m_apb_PREADY && r_rsp_ready) begin
                     m_apb_PENABLE = 1'b1;
-                    r_cmd_ready = 1'b1;
-                    r_rsp_valid = 1'b1;
+                    w_cmd_ready   = 1'b1;
+                    w_rsp_valid   = 1'b1;
                     if (w_cmd_count > 1)
                         w_apb_next_state = ACTIVE;
                     else

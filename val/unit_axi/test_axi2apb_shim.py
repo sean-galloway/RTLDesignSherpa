@@ -28,7 +28,7 @@ from cocotbext.axi import AxiBus, AxiMaster
 # import cocotbext.apb as apb
 from pprint import pprint
 from TBBase import TBBase
-from APB import APBMonitor, APBSlave, APBBase
+from APB import APBMonitor, APBSlave
 
 
 def convert_to_bytearray(data):
@@ -78,18 +78,18 @@ class Axi2ApbTB(TBBase):
     def __init__(self, dut):
         TBBase.__init__(self, dut)
         self.log.info('Starting Axi2ApbTB')
-        self.DATA_WIDTH = self.convert_to_int(os.environ.get('PARAM_AXI_DATA_WIDTH', '0'))        
-        self.APB_DATA_WIDTH = self.convert_to_int(os.environ.get('PARAM_APB_DATA_WIDTH', '0'))        
-        cocotb.start_soon(Clock(dut.aclk, 2, units="ns").start())
-        bus = AxiBus.from_prefix(dut, "s_axi")
-        self.axi_master = AxiMaster(bus, dut.aclk, dut.aresetn, reset_active_level=False)   
-        self.registers = int(32*(self.DATA_WIDTH/self.APB_DATA_WIDTH)) 
-        self.slave_register = list(range(self.registers))
-        self.log.debug(f'{self.slave_register=}')    
-        self.apb_monitor = APBMonitor(dut, 'm_apb', 'aclk')
-        self.apb_slave = APBSlave(dut, 'm_apb', 'aclk', registers=self.slave_register)
-        self.log.info("Axi2ApbTB Init Done.")
+        self.DATA_WIDTH      = self.convert_to_int(os.environ.get('PARAM_AXI_DATA_WIDTH', '0'))        
+        self.APB_DATA_WIDTH  = self.convert_to_int(os.environ.get('PARAM_APB_DATA_WIDTH', '0'))
+        self.strb_bits       = self.DATA_WIDTH // 8
+        self.debug           = False
+        bus                  = AxiBus.from_prefix(dut, "s_axi")
+        self.axi_master      = AxiMaster(bus, dut.aclk, dut.aresetn, reset_active_level=False)   
+        self.registers       = 32 * self.strb_bits
+        self.slave_register  = list(range(self.registers))
+        self.apb_monitor     = APBMonitor(dut, 'm_apb', 'aclk', addr_mask=None, debug=self.debug)
+        self.apb_slave       = APBSlave(dut, 'm_apb', 'aclk', registers=self.slave_register, addr_mask=None, debug=self.debug)
         self.main_loop_count = 0
+        self.log.info("Axi2ApbTB Init Done.")
 
 
     def set_idle_generator(self, generator=None):
@@ -110,8 +110,6 @@ class Axi2ApbTB(TBBase):
         self.dut.aresetn.value = 0
         await self.apb_slave.reset_bus()
         await self.wait_clocks('aclk', 2)
-        self.dut.aresetn.value = 0
-        await self.wait_clocks('aclk', 2)
         self.dut.aresetn.value = 1
         await self.wait_clocks('aclk', 2)
         self.log.info("Reset Done.")
@@ -119,48 +117,6 @@ class Axi2ApbTB(TBBase):
 
     def cycle_pause(self):
         return itertools.cycle([1, 1, 1, 0])
-
-
-    async def run_test_write(self, idle_inserter=None, backpressure_inserter=None, size=None):
-        # sourcery skip: move-assign
-        self.log.info(f'run test write: {size=}')
-        max_burst_size = self.axi_master.write_if.max_burst_size
-        length = int(self.registers/(self.DATA_WIDTH/self.APB_DATA_WIDTH))
-
-        if size is None:
-            size = max_burst_size
-            self.log.info(f'      override: {size=}')
-
-        self.set_idle_generator(idle_inserter)
-        self.set_backpressure_generator(backpressure_inserter)
-
-        for addr in range(length):
-            test_data = bytearray([x % 256 for x in range(length)])
-            self.log.info(f"run_test_write(AXI): offset {addr}, size {size}, data {[f'{x:02X}' for x in test_data]}")
-            await self.axi_master.write(addr, test_data, size=size)
-
-        await self.wait_clocks('aclk', 2)
-
-
-    async def run_test_read(self, idle_inserter=None, backpressure_inserter=None, size=None):
-        # sourcery skip: move-assign
-        self.log.info(f'run test read: {size=}')
-        max_burst_size = self.axi_master.write_if.max_burst_size
-        length = int(self.registers/(self.DATA_WIDTH/self.APB_DATA_WIDTH))
-
-        if size is None:
-            size = max_burst_size
-            self.log.info(f'      override: {size=}')
-
-        self.set_idle_generator(idle_inserter)
-        self.set_backpressure_generator(backpressure_inserter)
-
-        for addr in range(length):
-            test_data = bytearray([x % 256 for x in range(length)])
-            data = await self.axi_master.read(addr, length, size=size)
-            self.log.info(f"run_test_read(AXI): offset {addr}, size {size}, length {length} data {[f'{x:02X}' for x in test_data]}")
-
-        await self.wait_clocks('aclk', 2)
 
 
     async def run_test_write_read(self, idle_inserter=None, backpressure_inserter=None, size=None):
@@ -181,7 +137,8 @@ class Axi2ApbTB(TBBase):
             self.log.info(f"run_test_write/write(AXI-wr): offset {addr}, size {size}, data {[f'{x:02X}' for x in test_data]}")
             await self.axi_master.write(addr, test_data, size=size)
             await self.wait_clocks('aclk', 100)
-            self.apb_slave.dump_registers()
+            if self.debug:
+                self.apb_slave.dump_registers()
             data = await self.axi_master.read(addr, length, size=size)
             self.log.info(f"run_test_write/read(AXI-rd): offset {addr}, size {size}, length {length} data {[f'{x:02X}' for x in test_data]}")
             data_ba = convert_to_bytearray(data.data)
@@ -209,29 +166,18 @@ class Axi2ApbTB(TBBase):
         max_burst_size = self.axi_master.write_if.max_burst_size
         cocotb.start_soon(self.apb_monitor.monitor())
         cocotb.start_soon(self.apb_slave.driver())
-        # write tests
-        # for idle in [None, self.cycle_pause]:
-        #     for backpressure in [None, self.cycle_pause]:
-        #         for bsize in [None]+list(range(max_burst_size)):
-        #             await self.run_test_write(idle_inserter=idle, backpressure_inserter=backpressure, size=bsize)
-
-        # read tests
-        # for idle in [None, self.cycle_pause]:
-        #     for backpressure in [None, self.cycle_pause]:
-        #         for bsize in [None]+list(range(max_burst_size)):
-        #             await self.run_test_read(idle_inserter=idle, backpressure_inserter=backpressure, size=bsize)
 
         # write_read tests
-        self.apb_slave.update_constraints() # set all to fast and no errors
-        for idle in [None, self.cycle_pause]:
-            for backpressure in [None, self.cycle_pause]:
-                for bsize in [None]+list(range(max_burst_size)):
-                    await self.run_test_write_read(idle_inserter=idle, backpressure_inserter=backpressure, size=bsize)
+        # self.apb_slave.update_constraints() # set all to fast and no errors
+        # for idle in [None, self.cycle_pause]:
+        #     for backpressure in [None, self.cycle_pause]:
+        #         for bsize in [None]+list(range(max_burst_size)):
+        #             await self.run_test_write_read(idle_inserter=idle, backpressure_inserter=backpressure, size=bsize)
 
         self.apb_slave.update_constraints(ready_constraints=ready_constraints,
                                             ready_weights=ready_weights,
                                             error_constraints=None,
-                                            error_weights=None) # set all to fast and no errors
+                                            error_weights=None) # set all to slow and no errors
         for idle in [None, self.cycle_pause]:
             for backpressure in [None, self.cycle_pause]:
                 for bsize in [None]+list(range(max_burst_size)):
@@ -241,6 +187,7 @@ class Axi2ApbTB(TBBase):
 @cocotb.test()
 async def axi2apb_shim_test(dut):
     tb = Axi2ApbTB(dut)
+    cocotb.start_soon(Clock(dut.aclk, 2, units="ns").start())
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
@@ -258,26 +205,20 @@ rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hd
 rtl_axi_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'axi')) #path to hdl folder where .v files are placed
 
 
-
-
-
-
-
-
-
-# @pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,32,1,12,32),(8,32,64,1,12,32),(8,32,128,1,12,32),(8,32,64,1,12,8)])
-# @pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,64,1,12,32)])
-# @pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,128,1,12,32)])
+# @pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,32,1,12,32)])
 # @pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,64,1,12,8)])
-@pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,32,1,12,32)])
+# @pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,64,1,12,32)])
+# @pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,32,1,12,32),(8,32,64,1,12,32),(8,32,128,1,12,32),(8,32,64,1,12,8)])
+# @pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,128,1,12,32)])
+@pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,8,1,12,8),(8,32,16,1,12,8),(8,32,32,1,12,8),(8,32,64,1,12,8)])
 def test_axi2abp_shim(request, id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width):
     dut_name = "axi2apb_shim"
     module = os.path.splitext(os.path.basename(__file__))[0]
     toplevel = dut_name
 
     verilog_sources = [
-        os.path.join(rtl_dir, "counter_bin.sv"),
-        os.path.join(rtl_dir, "fifo_control.sv"),
+        os.path.join(rtl_dir,     "counter_bin.sv"),
+        os.path.join(rtl_dir,     "fifo_control.sv"),
         os.path.join(rtl_axi_dir, "axi_fifo_sync.sv"),
         os.path.join(rtl_axi_dir, "axi_skid_buffer.sv"),
         os.path.join(rtl_axi_dir, "axi_gen_addr.sv"),

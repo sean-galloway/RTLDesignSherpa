@@ -1,10 +1,11 @@
 class MemoryModel:
 
-    def __init__(self, num_lines, bytes_per_line, log, preset_values=None):
+    def __init__(self, num_lines, bytes_per_line, log, preset_values=None, debug=None):
         self.num_lines = num_lines
         self.bytes_per_line = bytes_per_line
         self.size = num_lines * bytes_per_line
         self.log = log
+        self.debug = debug
 
         if preset_values:
             if len(preset_values) != self.size:
@@ -43,7 +44,8 @@ class MemoryModel:
             target_address = start + i
             if strobe & (1 << i):
                 self.mem[target_address] = data[i]
-                self.log.debug(f"Writing byte: mem[{target_address:08X}] = {data[i]:02X}")
+                if self.debug:
+                    self.log.debug(f"Writing byte: mem[{target_address:08X}] = {data[i]:02X}")
 
 
     def read(self, address, length):

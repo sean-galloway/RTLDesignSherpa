@@ -113,12 +113,13 @@ class APBBase(TBBase):
 
 
 class APBMonitor(APBBase):
-    def __init__(self, dut, name, clock, addr_mask=None):
+    def __init__(self, dut, name, clock, addr_mask=None, debug=None):
         APBBase.__init__(self, dut, name, clock)
         self.addr_mask = addr_mask if addr_mask is not None else (2 ** self.address_bits) - 1
         self.log.debug(f'Starting APBMonitor - {name}')
         self.transaction_queue = Queue()
         self.count = 0
+        self.debug = debug
 
 
     def print(self, transaction):
@@ -164,7 +165,8 @@ class APBMonitor(APBBase):
                 self.count += 1
                 transaction = APBTransaction(start_time, self.count, direction, address, word_index, data, strb, prot, error)
                 self.transaction_queue.put_nowait(transaction)
-                self.print(transaction)
+                if self.debug:
+                    self.print(transaction)
 
 
 class APBSlave(APBBase):
@@ -212,8 +214,14 @@ class APBSlave(APBBase):
 
     async def driver(self):
         self.bus('PREADY').value = 0
+        self.bus('PRDATA').value = 0
+        if self.PSLVERR_present:
+            self.bus('PSLVERR').value = 0
 
         while True:
+            await self.wait_clocks(self.clock, 1)
+            self.bus('PREADY').value = 0
+            self.bus('PRDATA').value = 0
             if self.PSLVERR_present:
                 self.bus('PSLVERR').value = 0
 
@@ -225,14 +233,16 @@ class APBSlave(APBBase):
                     await self.wait_clocks(self.clock, 1)
 
                 self.bus('PREADY').value = 1
-                self.wait_time(200, 'ps')
+                await self.wait_time(200, 'ps')
                 while not self.bus('PENABLE').value.integer:
+                    # c = self.count + 1
+                    # start_time =  get_sim_time('ns')
+                    # self.log.debug(f'APB-Slave waiting for penable cycle: {c} sim time={start_time}ns')
                     await self.wait_clocks(self.clock, 1)
 
                 address    =  self.bus('PADDR').value.integer
                 word_index =  (address &  self.addr_mask) // self.strb_bits
-                prot       =  self.bus('PPROT').value.integer if self.PPROT_present else 0
-                start_time =  get_sim_time('ns')
+                # prot       =  self.bus('PPROT').value.integer if self.PPROT_present else 0
                 self.count += 1
 
                 if word_index >= self.num_lines:
@@ -240,7 +250,7 @@ class APBSlave(APBBase):
                         self.log.error(f'APB {self.name} - Memory overflow error: {word_index}')
                         self.bus('PSLVERR').value = 1
                     else:
-                        expand = word_index - self.num_lines
+                        expand = word_index - self.num_lines + 10
                         self.log.warning(f'APB {self.name} - Memory overflow: {self.num_lines=} {word_index=}')
                         # Extend the self.mem array to accommodate the overflow
                         self.mem.expand(expand)
@@ -250,9 +260,9 @@ class APBSlave(APBBase):
                     if self.PSLVERR_present:
                         self.bus('PSLVERR').value = 1
 
-                elif self.bus('PWRITE').value.integer:  # Write transaction
-                    strobes = self.bus('PSTRB').value.integer if self.PSTRB_present else (1 << self.strb_bits) - 1
-                    pwdata = self.bus('PWDATA').value.integer
+                if self.bus('PWRITE').value.integer:  # Write transaction
+                    strobes   = self.bus('PSTRB').value.integer if self.PSTRB_present else (1 << self.strb_bits) - 1
+                    pwdata    = self.bus('PWDATA').value.integer
                     pwdata_ba = self.mem.integer_to_bytearray(pwdata, self.strb_bits)
                     self.mem.write(address, pwdata_ba, strobes)
 
@@ -261,8 +271,6 @@ class APBSlave(APBBase):
                     prdata = self.mem.bytearray_to_integer(prdata_ba)
 
                     self.bus('PRDATA').value = prdata
-
-            await self.wait_clocks(self.clock, 1)
 
 
 class APBCommandPacket:
@@ -368,6 +376,7 @@ class APBCommandGenerator():
 
     def generate_read_cmd(self):
         return self.generate_cmd(0)
+
 
     def generate_cmd(self, arg0):
         cmd_packet = APBCommandPacket(
