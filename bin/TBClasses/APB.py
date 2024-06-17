@@ -123,25 +123,25 @@ class APBMonitor(APBBase):
 
 
     def print(self, transaction):
-        self.log.info('-' * 120)
-        self.log.info(f'{self.name} - APB Transaction - Started at {transaction.start_time} ns')
-        self.log.info(f'  Count:      {transaction.count}')
-        self.log.info(f'  Direction:  {transaction.direction}')
-        self.log.info(f'  Address:    0x{transaction.address:08x}')
+        self.log.debug('-' * 120)
+        self.log.debug(f'{self.name} - APB Transaction - Started at {transaction.start_time} ns')
+        self.log.debug(f'  Count:      {transaction.count}')
+        self.log.debug(f'  Direction:  {transaction.direction}')
+        self.log.debug(f'  Address:    0x{transaction.address:08x}')
 
         if transaction.data is None:
-            self.log.info('  NO DATA YET!')
+            self.log.debug('  NO DATA YET!')
         else:
-            self.log.info(f'  Data:       0x{transaction.data:0{int(self.data_bits/4)}X}')
+            self.log.debug(f'  Data:       0x{transaction.data:0{int(self.data_bits/4)}X}')
             if self.PSTRB_present:
-                self.log.info(f'  Strb:       0b{transaction.strb:0{self.strb_bits}b}')
+                self.log.debug(f'  Strb:       0b{transaction.strb:0{self.strb_bits}b}')
             if self.PPROT_present:
-                self.log.info(f'  Prot:       0b{transaction.prot:03b}')
+                self.log.debug(f'  Prot:       0b{transaction.prot:03b}')
 
         if transaction.error:
-            self.log.info('  TRANSACTION ENDED IN ERROR!')
-            self.log.info('')
-        self.log.info('-' * 120)
+            self.log.debug('  TRANSACTION ENDED IN ERROR!')
+            self.log.debug('')
+        self.log.debug('-' * 120)
 
 
     async def monitor(self):
@@ -165,8 +165,7 @@ class APBMonitor(APBBase):
                 self.count += 1
                 transaction = APBTransaction(start_time, self.count, direction, address, word_index, data, strb, prot, error)
                 self.transaction_queue.put_nowait(transaction)
-                if self.debug:
-                    self.print(transaction)
+                self.print(transaction)
 
 
 class APBSlave(APBBase):
@@ -183,7 +182,7 @@ class APBSlave(APBBase):
         self.error_overflow = error_overflow
         # Create the memory model
         self.mem = MemoryModel(num_lines=self.num_lines, bytes_per_line=self.strb_bits, log=self.log, preset_values=registers)
-        self.log.info(self.mem.dump())
+        self.log.debug(self.mem.dump())
         # set the constrained random objects
         self.ready_crand    = self.set_constrained_random(ready_constraints, ready_weights)
         self.error_crand    = self.set_constrained_random(error_constraints, error_weights)
@@ -303,7 +302,7 @@ class APBCommandPacket:
 
 
     def log_packet(self):
-            self.log.info(f"APBCommandPacket - start_time: {self.start_time}\n"+ 
+            self.log.debug(f"APBCommandPacket - start_time: {self.start_time}\n"+ 
                             f"                        count: {self.count}\n"+
                             f"                    direction: {self.direction}\n"+
                             f"                        paddr:  0x{self.paddr:08X}\n"+
@@ -392,7 +391,7 @@ class APBCommandGenerator():
 #                  error_constraints=None, error_weights=None,
 #                  addr_mask=None, debug=False, error_overflow=False):
 #         APBBase.__init__(self, dut, name, clock, False)
-#         self.log.info('Starting APBMaster')
+#         self.log.debug('Starting APBMaster')
 #         bytes_per_line = self.strb_bits
 #         self.num_lines = len(registers) // bytes
 #         self.mem = MemoryModel(num_lines=self.num_lines, bytes_per_line=bytes_per_line, preset_values=registers)
@@ -409,11 +408,11 @@ class APBCommandGenerator():
 #         self.error_crand = self.set_constrained_random(error_constraints, error_weights)
 
 #     def dump_registers(self):
-#         self.log.info(f"APB Master {self.name} - Register Dump:")
-#         self.log.info(self.mem.dump())
+#         self.log.debug(f"APB Master {self.name} - Register Dump:")
+#         self.log.debug(self.mem.dump())
 
 #     async def reset_bus(self):
-#         self.log.info(f'Resetting APB Bus {self.name}')
+#         self.log.debug(f'Resetting APB Bus {self.name}')
 #         self.bus('PSEL').value = 0
 #         self.bus('PENABLE').value = 0
 #         self.bus('PWRITE').value = 0

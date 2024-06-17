@@ -44,8 +44,7 @@ class MemoryModel:
             target_address = start + i
             if strobe & (1 << i):
                 self.mem[target_address] = data[i]
-                if self.debug:
-                    self.log.debug(f"Writing byte: mem[{target_address:08X}] = {data[i]:02X}")
+                self.log.debug(f"Writing byte: mem[{target_address:08X}] = {data[i]:02X}")
 
 
     def read(self, address, length):

@@ -77,8 +77,9 @@ def bytearray_to_hex(bytearray_value):
 class Axi2ApbTB(TBBase):
     def __init__(self, dut):
         TBBase.__init__(self, dut)
+        self.log = self.configure_logging(level=logging.WARN)
         self.log.info('Starting Axi2ApbTB')
-        self.DATA_WIDTH      = self.convert_to_int(os.environ.get('PARAM_AXI_DATA_WIDTH', '0'))        
+        self.DATA_WIDTH      = self.convert_to_int(os.environ.get('PARAM_AXI_DATA_WIDTH', '0'))      
         self.APB_DATA_WIDTH  = self.convert_to_int(os.environ.get('PARAM_APB_DATA_WIDTH', '0'))
         self.strb_bits       = self.DATA_WIDTH // 8
         self.debug           = False
@@ -206,10 +207,6 @@ rtl_axi_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'axi')) #path to h
 
 
 # @pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,32,1,12,32)])
-# @pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,64,1,12,8)])
-# @pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,64,1,12,32)])
-# @pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,32,1,12,32),(8,32,64,1,12,32),(8,32,128,1,12,32),(8,32,64,1,12,8)])
-# @pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,128,1,12,32)])
 @pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,8,1,12,8),(8,32,16,1,12,8),(8,32,32,1,12,8),(8,32,64,1,12,8)])
 def test_axi2abp_shim(request, id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width):
     dut_name = "axi2apb_shim"
@@ -223,6 +220,7 @@ def test_axi2abp_shim(request, id_width, addr_width, data_width, user_width, apb
         os.path.join(rtl_axi_dir, "axi_skid_buffer.sv"),
         os.path.join(rtl_axi_dir, "axi_gen_addr.sv"),
         os.path.join(rtl_axi_dir, "axi_slave_stub.sv"),
+        os.path.join(rtl_axi_dir, "axi2apb_convert.sv"),
         os.path.join(rtl_axi_dir, "apb_master_stub.sv"),
         os.path.join(rtl_axi_dir, f"{dut_name}.sv")
     ]

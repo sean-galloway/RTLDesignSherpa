@@ -34,6 +34,7 @@ class TBBase(metaclass=Singleton):
 
     Inverts the bits of a number up to position N.
     """
+    default_log_level = logging.DEBUG  # Class attribute for default log level
 
     def __init__(self, dut):
         """
@@ -43,7 +44,7 @@ class TBBase(metaclass=Singleton):
         self.log_path = os.environ.get('LOG_PATH')
         self.dut_name = os.environ.get('DUT')
         self.log_count = 0
-        self.log = self.configure_logging()
+        self.log = self.configure_logging(level=TBBase.default_log_level)
 
 
     def assert_reset(self):
@@ -126,7 +127,7 @@ class TBBase(metaclass=Singleton):
         await Timer(delay, units=units)
 
 
-    def configure_logging(self):
+    def configure_logging(self, level=logging.DEBUG):
         """
         Configures logging for the testbench.
 
@@ -136,7 +137,7 @@ class TBBase(metaclass=Singleton):
         log = logging.getLogger(f'cocotb_log_{self.dut_name}')
         if not getattr(log, 'handler_set', None):
             self.log_count += 1
-            log.setLevel(logging.DEBUG)
+            log.setLevel(level)
             fh = logging.FileHandler(self.log_path)
             fh.setLevel(logging.DEBUG)
             formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
