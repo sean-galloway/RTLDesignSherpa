@@ -4,6 +4,12 @@
 // Generic Slave stub
 module axi_slave_stub
 #(
+    parameter int SKID4_AW          = 0,
+    parameter int SKID4_W           = 1,
+    parameter int SKID4_B           = 0,
+    parameter int SKID4_AR          = 0,
+    parameter int SKID4_R           = 1,
+
     parameter int AXI_ID_WIDTH      = 8,
     parameter int AXI_ADDR_WIDTH    = 32,
     parameter int AXI_DATA_WIDTH    = 32,
@@ -73,7 +79,7 @@ module axi_slave_stub
     // AW interface
     output  logic                      r_s_axi_awvalid,
     input   logic                      r_s_axi_awready,
-    output  logic [1:0]                r_s_axi_aw_count,
+    output  logic [2:0]                r_s_axi_aw_count,
     output  logic [AWSize-1:0]         r_s_axi_aw_pkt,
 
     // W interface
@@ -89,7 +95,7 @@ module axi_slave_stub
     // AR interface
     output  logic                      r_s_axi_arvalid,
     input   logic                      r_s_axi_arready,
-    output  logic [1:0]                r_s_axi_ar_count,
+    output  logic [2:0]                r_s_axi_ar_count,
     output  logic [ARSize-1:0]         r_s_axi_ar_pkt,
 
     // R interface
@@ -111,7 +117,7 @@ module axi_slave_stub
 
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Write address channel (AW)
-    axi_skid_buffer #(.DATA_WIDTH(AWSize)) inst_aw_phase (
+    axi_skid_buffer #(.SKID4(SKID4_AW), .DATA_WIDTH(AWSize)) inst_aw_phase (
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
         .i_wr_valid               (s_axi_awvalid),
@@ -127,7 +133,7 @@ module axi_slave_stub
 
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Write data channel (W)
-    axi_skid_buffer #(.DATA_WIDTH(WSize)) inst_w_phase (
+    axi_skid_buffer #(.SKID4(SKID4_W), .DATA_WIDTH(WSize)) inst_w_phase (
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
         .i_wr_valid               (s_axi_wvalid),
@@ -140,7 +146,7 @@ module axi_slave_stub
 
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Write response channel (B)
-    axi_skid_buffer #(.DATA_WIDTH(BSize)) inst_b_phase (
+    axi_skid_buffer #(.SKID4(SKID4_B), .DATA_WIDTH(BSize)) inst_b_phase (
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
         .i_wr_valid               (r_s_axi_bvalid),
@@ -153,7 +159,7 @@ module axi_slave_stub
 
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Read address channel (AR)
-    axi_skid_buffer #(.DATA_WIDTH(ARSize)) inst_ar_phase (
+    axi_skid_buffer #(.SKID4(SKID4_AR), .DATA_WIDTH(ARSize)) inst_ar_phase (
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
         .i_wr_valid               (s_axi_arvalid),
@@ -169,7 +175,7 @@ module axi_slave_stub
 
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Read data channel (R)
-    axi_skid_buffer #(.DATA_WIDTH(RSize)) inst_r_phase (
+    axi_skid_buffer #(.SKID4(SKID4_R), .DATA_WIDTH(RSize)) inst_r_phase (
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
         .i_wr_valid               (r_s_axi_rvalid),

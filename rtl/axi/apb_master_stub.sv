@@ -145,7 +145,7 @@ module apb_master_stub #(
                     m_apb_PENABLE = 1'b1;
                     w_cmd_ready   = 1'b1;
                     w_rsp_valid   = 1'b1;
-                    if (w_cmd_count > 1)
+                    if (w_cmd_count > 0)
                         w_apb_next_state = ACTIVE;
                     else
                         w_apb_next_state = IDLE;

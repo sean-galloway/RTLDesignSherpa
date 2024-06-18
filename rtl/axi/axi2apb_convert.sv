@@ -132,17 +132,6 @@ module axi2apb_convert #(
 
     assign w_data_zeros = 'b0;
 
-    axi_fifo_sync #(.DATA_WIDTH(SideSize), .DEPTH(SIDE_DEPTH)) inst_side_fifo (
-        .i_axi_aclk               (aclk),
-        .i_axi_aresetn            (aresetn),
-        .i_wr_valid               (w_side_in_valid),
-        .o_wr_ready               (r_side_in_ready),
-        .i_wr_data                (r_side_in_data),
-        .o_rd_valid               (r_side_out_valid),
-        .i_rd_ready               (w_side_out_ready),
-        .ow_rd_data               (r_side_out_data)
-    );
-
     // APB Master Packet signals
     logic                          w_apb_cmd_pkt_last;
     logic                          w_apb_cmd_pkt_first;
@@ -310,8 +299,7 @@ module axi2apb_convert #(
         w_apb_next_state           = r_apb_state;
         w_rsp_next_state           = r_rsp_state;
         w_next_addr                = r_apb_paddr;
-        w_pslverr                  = (r_rsp_valid) ?
-                                        (r_apb_rsp_pkt_pslverr ? 2'b10 : 2'b00) : 2'b00;
+        w_pslverr                  = (r_rsp_valid) ? r_apb_rsp_pkt_pslverr : 1'b0;
         w_cmd_valid                = 1'b0;
         w_side_in_valid            = 1'b0;
         w_apb_cmd_pkt_pwrite       = 1'b0;
@@ -432,5 +420,17 @@ module axi2apb_convert #(
             default: w_apb_next_state = IDLE;
         endcase
     end
+
+    // Instantiate the side queue
+    axi_fifo_sync #(.DATA_WIDTH(SideSize), .DEPTH(SIDE_DEPTH)) inst_side_fifo (
+        .i_axi_aclk               (aclk),
+        .i_axi_aresetn            (aresetn),
+        .i_wr_valid               (w_side_in_valid),
+        .o_wr_ready               (r_side_in_ready),
+        .i_wr_data                (r_side_in_data),
+        .o_rd_valid               (r_side_out_valid),
+        .i_rd_ready               (w_side_out_ready),
+        .ow_rd_data               (r_side_out_data)
+    );
 
 endmodule : axi2apb_convert

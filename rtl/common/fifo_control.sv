@@ -69,9 +69,9 @@ module fifo_control #(
                         {(D - iw_rd_ptr_bin[AW-1:0]) - iw_rdom_wr_ptr_bin[AW-1:0]} :
                         {iw_rdom_wr_ptr_bin[AW-1:0] - iw_rd_ptr_bin[AW-1:0]};
     assign w_rd_almost_empty_d = (w_almost_empty_count > 0) ? w_almost_empty_count <= AET : 'b0;
-    assign ow_count           = (w_rdom_ptr_xor) ?
-                                    (iw_rd_ptr_bin[AW-1:0] - iw_rdom_wr_ptr_bin[AW-1:0]) :
-                                    (iw_rdom_wr_ptr_bin[AW-1:0] - iw_rd_ptr_bin[AW-1:0]);
+    assign ow_count = (w_rdom_ptr_xor) ?
+                        (D + iw_rd_ptr_bin[AW-1:0] - iw_rdom_wr_ptr_bin[AW-1:0]) :
+                        (iw_rd_ptr_bin[AW-1:0] - iw_rdom_wr_ptr_bin[AW-1:0]);
 
     always_ff @(posedge i_rd_clk, negedge i_rd_rst_n) begin
         if (!i_rd_rst_n) begin

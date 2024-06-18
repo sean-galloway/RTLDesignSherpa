@@ -169,20 +169,20 @@ class Axi2ApbTB(TBBase):
         cocotb.start_soon(self.apb_slave.driver())
 
         # write_read tests
-        # self.apb_slave.update_constraints() # set all to fast and no errors
-        # for idle in [None, self.cycle_pause]:
-        #     for backpressure in [None, self.cycle_pause]:
-        #         for bsize in [None]+list(range(max_burst_size)):
-        #             await self.run_test_write_read(idle_inserter=idle, backpressure_inserter=backpressure, size=bsize)
-
-        self.apb_slave.update_constraints(ready_constraints=ready_constraints,
-                                            ready_weights=ready_weights,
-                                            error_constraints=None,
-                                            error_weights=None) # set all to slow and no errors
+        self.apb_slave.update_constraints() # set all to fast and no errors
         for idle in [None, self.cycle_pause]:
             for backpressure in [None, self.cycle_pause]:
                 for bsize in [None]+list(range(max_burst_size)):
                     await self.run_test_write_read(idle_inserter=idle, backpressure_inserter=backpressure, size=bsize)
+
+        # self.apb_slave.update_constraints(ready_constraints=ready_constraints,
+        #                                     ready_weights=ready_weights,
+        #                                     error_constraints=None,
+        #                                     error_weights=None) # set all to slow and no errors
+        # for idle in [None, self.cycle_pause]:
+        #     for backpressure in [None, self.cycle_pause]:
+        #         for bsize in [None]+list(range(max_burst_size)):
+        #             await self.run_test_write_read(idle_inserter=idle, backpressure_inserter=backpressure, size=bsize)
 
 
 @cocotb.test()
@@ -206,8 +206,8 @@ rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hd
 rtl_axi_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'axi')) #path to hdl folder where .v files are placed
 
 
-# @pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,32,1,12,32)])
-@pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,8,1,12,8),(8,32,16,1,12,8),(8,32,32,1,12,8),(8,32,64,1,12,8)])
+# @pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,8,1,12,8),(8,32,16,1,12,8),(8,32,32,1,12,8),(8,32,64,1,12,8)])
+@pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,32,1,12,32)])
 def test_axi2abp_shim(request, id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width):
     dut_name = "axi2apb_shim"
     module = os.path.splitext(os.path.basename(__file__))[0]

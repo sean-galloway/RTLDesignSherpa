@@ -1,6 +1,11 @@
 `timescale 1ns / 1ps
 
 module axi2apb_shim #(
+    parameter int SKID4_AW          = 0,
+    parameter int SKID4_W           = 1,
+    parameter int SKID4_B           = 0,
+    parameter int SKID4_AR          = 0,
+    parameter int SKID4_R           = 1,
     parameter int SIDE_DEPTH        = 6,
     parameter int APB_CMD_DEPTH     = 6,
     parameter int APB_RSP_DEPTH     = 8,
@@ -107,7 +112,7 @@ module axi2apb_shim #(
 
     // AXI Skid interface signals
     logic [AWSize-1:0]         r_s_axi_aw_pkt;
-    logic [1:0]                r_s_axi_aw_count;
+    logic [2:0]                r_s_axi_aw_count;
     logic                      r_s_axi_awvalid;
     logic                      w_s_axi_awready;
     logic [WSize-1:0]          r_s_axi_w_pkt;
@@ -117,7 +122,7 @@ module axi2apb_shim #(
     logic                      w_s_axi_bvalid;
     logic                      r_s_axi_bready;
     logic [ARSize-1:0]         r_s_axi_ar_pkt;
-    logic [1:0]                r_s_axi_ar_count;
+    logic [2:0]                r_s_axi_ar_count;
     logic                      r_s_axi_arvalid;
     logic                      w_s_axi_arready;
     logic [RSize-1:0]          r_s_axi_r_pkt;
@@ -137,6 +142,11 @@ module axi2apb_shim #(
 
     // Instantiate the axi_slave_stub
     axi_slave_stub #                   (
+        .SKID4_AW                 (SKID4_AW),
+        .SKID4_W                  (SKID4_W),
+        .SKID4_B                  (SKID4_B),
+        .SKID4_AR                 (SKID4_AR),
+        .SKID4_R                  (SKID4_R),
         .AXI_ID_WIDTH             (IW),
         .AXI_ADDR_WIDTH           (AW),
         .AXI_DATA_WIDTH           (DW),

@@ -1,0 +1,59 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Tue Jun 18 04:58:47 2024
+[*]
+[dumpfile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/local_sim_build/test_skid_buffer-8-1/waves.vcd"
+[dumpfile_mtime] "Tue Jun 18 04:56:37 2024"
+[dumpfile_size] 21474
+[savefile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/GTKW/axi_skid_buffer.gtkw"
+[timestart] 6686000
+[size] 2805 1120
+[pos] -1 -1
+*-19.933701 12410000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 233
+[signals_width] 237
+[sst_expanded] 1
+[sst_vpaned_height] 688
+@28
+axi_skid_buffer.i_axi_aclk
+axi_skid_buffer.i_axi_aresetn
+@800029
+axi_skid_buffer.r_data_count[2:0]
+@29
+(0)axi_skid_buffer.r_data_count[2:0]
+(1)axi_skid_buffer.r_data_count[2:0]
+(2)axi_skid_buffer.r_data_count[2:0]
+@1001201
+-group_end
+@200
+-write
+@28
+axi_skid_buffer.i_wr_valid
+axi_skid_buffer.o_wr_ready
+@22
+axi_skid_buffer.i_wr_data[7:0]
+@200
+-read
+@28
+axi_skid_buffer.o_rd_valid
+axi_skid_buffer.i_rd_ready
+@22
+axi_skid_buffer.o_rd_data[7:0]
+@200
+-internal
+@22
+axi_skid_buffer.r_data[7:0]
+axi_skid_buffer.r_skid_data1[7:0]
+@28
+axi_skid_buffer.r_rd_valid
+axi_skid_buffer.r_wr_ready
+axi_skid_buffer.w_rd_xfer
+axi_skid_buffer.w_wr_xfer
+axi_skid_buffer.w_no_xfer
+@22
+axi_skid_buffer.r_data[7:0]
+axi_skid_buffer.r_skid_data1[7:0]
+axi_skid_buffer.r_skid_data2[7:0]
+axi_skid_buffer.r_skid_data3[7:0]
+[pattern_trace] 1
+[pattern_trace] 0
