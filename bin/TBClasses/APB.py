@@ -65,7 +65,7 @@ class APBCycle:
 
 
     def __str__(self):
-        return  'APB Cycle\n'+\
+        return  '\nAPB Cycle\n'+\
                 f"start_time: {self.start_time}\n"+\
                 f"count:      {self.count}\n"+\
                 f"direction:  {self.direction}\n"+\
@@ -75,6 +75,20 @@ class APBCycle:
                 f"prdata:     0x{self.prdata:08X}\n"+\
                 f"pprot:      0x{self.pprot:04X}\n"+\
                 f"pslverr:    {self.pslverr}\n"
+
+
+    def formatted(self, addr_width, data_width, strb_width):
+        return  '\nAPB Cycle\n'+\
+                f"start_time: {self.start_time}\n"+\
+                f"count:      {self.count}\n"+\
+                f"direction:  {self.direction}\n"+\
+                f"paddr:      0x{self.paddr:0{int(addr_width/4)}X}\n"+\
+                f"pwdata:     0x{self.pwdata:0{int(data_width/4)}X}\n"+\
+                f"pstrb:      0x{self.pstrb:0{strb_width}b}\n" +\
+                f"prdata:     0x{self.prdata:0{int(data_width/4)}X}\n"+\
+                f"pprot:      0x{self.pprot:04X}\n"+\
+                f"pslverr:    {self.pslverr}\n"
+
 
 class APBTransaction(Randomized):
     def __init__(self, data_width, addr_width, strb_width,
@@ -131,7 +145,7 @@ class APBTransaction(Randomized):
         self.add_rand("first",  [0, 1])
         self.add_rand("pwrite", [0, 1])
         self.add_rand("paddr",  list(range(2**10)))
-        self.add_rand("pstrb",  list(range(16)))
+        self.add_rand("pstrb",  list(range(2**strb_width)))
         self.add_rand("pprot",  list(range(8)))
 
 
@@ -185,72 +199,61 @@ class APBTransaction(Randomized):
         """
         Return a string representation of the command packet for debugging.
         """
-        return (f'{self.cycle}')
+        return (f'{self.cycle.formatted(self.addr_width, self.data_width, self.strb_width)}')
 
 
-# class APBMonitor(BusMonitor):
-#     def __init__(self, entity, name, clock, signals=None, bus_width=32, debug=False, **kwargs):
+class APBMonitor(BusMonitor):
+    def __init__(self, entity, name, clock, signals=None, bus_width=32, addr_width=12, **kwargs):
 
-#         if signals:
-#             self._signals = signals
-#         else:
-#             self._signals = apb_signals
-#             self._optional_signals = apb_optional_signals
+        if signals:
+            self._signals = signals
+        else:
+            self._signals = apb_signals
+            self._optional_signals = apb_optional_signals
 
-#         self.count = 0
-#         self.bus_width = bus_width
-#         self.transaction_queue = Queue()
-#         self.debug = debug
-#         BusMonitor.__init__(self, entity, name, clock, **kwargs)
-#         self.clock = clock
-#         self.bus_width = bus_width
-
-
-#     def print(self, transaction):
-#         self.log.debug('-' * 120)
-#         self.log.debug(f'{self.name} - APB Transaction - Started at {transaction.start_time} ns')
-#         self.log.debug(f'  Count:      {transaction.count}')
-#         self.log.debug(f'  Direction:  {transaction.direction}')
-#         self.log.debug(f'  Address:    0x{transaction.address:08x}')
-
-#         if transaction.data is None:
-#             self.log.debug('  NO DATA YET!')
-#         else:
-#             self.log.debug(f'  Data:       0x{transaction.data:0{int(self.data_bits/4)}X}')
-#             if 'PSTRB' in self.bus:
-#                 self.log.debug(f'  Strb:       0b{transaction.strb:0{self.strb_bits}b}')
-#             if 'PPROT' in self.bus:
-#                 self.log.debug(f'  Prot:       0b{transaction.prot:03b}')
-
-#         if transaction.error:
-#             self.log.debug('  TRANSACTION ENDED IN ERROR!')
-#             self.log.debug('')
-#         self.log.debug('-' * 120)
+        self.count = 0
+        self.bus_width = bus_width
+        BusMonitor.__init__(self, entity, name, clock, **kwargs)
+        self.clock = clock
+        self.bus_width = bus_width
+        self.addr_width = addr_width
+        self.strb_width = bus_width // 8
 
 
-#     async def _monitor_recv(self):
-#         while True:
-#             await FallingEdge(self.clock, 1)
-#             if self.bus.PSEL.value.integer and \
-#                     self.PENABLE.value.integer and \
-#                     self.PREADY.value.integer:
-#                 start_time = get_sim_time('ns')
-#                 address    = self.bus.PADDR.value.integer
-#                 direction  = pwrite[self.busPWRITE.value.integer]
-#                 error      = self.bus.PSLVERR.value.integer if 'PSLVERR' in self.bus else 0
+    def is_signal_present(self, signal_name):
+            return hasattr(self, signal_name)
 
-#                 if direction == 'READ':
-#                     data = self.busPRDATA.value.integer
-#                 else:
-#                     data = self.bus.PWDATA.value.integer
-#                 strb = self.bus.PSTRB.value.integer if 'PSTRB' in self.bus else 0
-#                 prot = self.bus.PPROT.value.integer if 'PPROT' in self.bus else 0
-#                 self.count += 1
-#                 transaction = APBCycle(start_time, self.count, direction, address, data, strb, prot, error)
-#                 # signal to the callback
-#                 self._recv(transaction)
-#                 # self.print(transaction)
 
+    def print(self, transaction):
+        self.log.debug('-' * 120)
+        self.log.debug(f'{self.name} - APB Transaction')
+        self.log.debug(transaction.formatted(self.addr_width, self.bus_width, self.strb_width))
+        self.log.debug('-' * 120)
+
+
+    async def _monitor_recv(self):
+        while True:
+            await FallingEdge(self.clock)
+            if self.bus.PSEL.value.integer and \
+                    self.bus.PENABLE.value.integer and \
+                    self.bus.PREADY.value.integer:
+                start_time = get_sim_time('ns')
+                address    = self.bus.PADDR.value.integer
+                direction  = pwrite[self.bus.PWRITE.value.integer]
+                loc_pwrite = self.bus.PWRITE.value.integer
+                error      = self.bus.PSLVERR.value.integer if self.is_signal_present('PSLVERR') else 0
+
+                if direction == 'READ':
+                    data = self.bus.PRDATA.value.integer
+                else:
+                    data = self.bus.PWDATA.value.integer
+                strb = self.bus.PSTRB.value.integer if self.is_signal_present('PSTRB') else 0
+                prot = self.bus.PPROT.value.integer if self.is_signal_present('PPROT') else 0
+                self.count += 1
+                transaction = APBCycle(start_time, self.count, direction, loc_pwrite, address, data, strb, data, prot, error)
+                # signal to the callback
+                self._recv(transaction)
+                self.print(transaction)
 
 
 class APBBase(TBBase):
@@ -335,46 +338,45 @@ class APBBase(TBBase):
         return getattr(self.dut, self.signal_name[name])
 
 
-class APBMonitor(APBBase):
-    def __init__(self, dut, name, clock, addr_mask=None, debug=None):
-        APBBase.__init__(self, dut, name, clock)
-        self.addr_mask = addr_mask if addr_mask is not None else (2 ** self.address_bits) - 1
-        self.log.debug(f'Starting APBMonitor - {name}')
-        self.transaction_queue = Queue()
-        self.count = 0
-        self.debug = debug
+# class APBMonitor(APBBase):
+#     def __init__(self, dut, name, clock, addr_mask=None, debug=None):
+#         APBBase.__init__(self, dut, name, clock)
+#         self.addr_mask = addr_mask if addr_mask is not None else (2 ** self.address_bits) - 1
+#         self.log.debug(f'Starting APBMonitor - {name}')
+#         self.transaction_queue = Queue()
+#         self.count = 0
+#         self.debug = debug
 
 
-    def print(self, transaction):
-        self.log.debug('-' * 120)
-        self.log.debug(f'{self.name} - APB Transaction')
-        self.log.debug(transaction)
-        self.log.debug('-' * 120)
+#     def print(self, transaction):
+#         self.log.debug('-' * 120)
+#         self.log.debug(f'{self.name} - APB Transaction')
+#         self.log.debug(transaction)
+#         self.log.debug('-' * 120)
 
 
-    async def monitor(self):
-        while True:
-            await self.wait_falling_clocks(self.clock, 1)
-            if self.bus('PSEL').value.integer and \
-                    self.bus('PENABLE').value.integer and \
-                    self.bus('PREADY').value.integer:
-                start_time = get_sim_time('ns')
-                address    = self.bus('PADDR').value.integer
-                direction  = pwrite[self.bus('PWRITE').value.integer]
-                pwrt       = self.bus('PWRITE').value.integer
-                error      = self.bus('PSLVERR').value.integer if self.PSLVERR_present else 0
+#     async def monitor(self):
+#         while True:
+#             await self.wait_falling_clocks(self.clock, 1)
+#             if self.bus('PSEL').value.integer and \
+#                     self.bus('PENABLE').value.integer and \
+#                     self.bus('PREADY').value.integer:
+#                 start_time = get_sim_time('ns')
+#                 address    = self.bus('PADDR').value.integer
+#                 direction  = pwrite[self.bus('PWRITE').value.integer]
+#                 pwrt       = self.bus('PWRITE').value.integer
+#                 error      = self.bus('PSLVERR').value.integer if self.PSLVERR_present else 0
 
-                if direction == 'READ':
-                    data = self.bus('PRDATA').value.integer
-                else:
-                    data = self.bus('PWDATA').value.integer
-                strb = self.bus('PSTRB').value.integer if self.PSTRB_present else 0
-                prot = self.bus('PPROT').value.integer if self.PPROT_present else 0
-                self.count += 1
-                transaction = APBCycle(start_time, self.count, direction, pwrt, address, data, strb, data, prot, error)
-                self.transaction_queue.put_nowait(transaction)
-                self.print(transaction)
-
+#                 if direction == 'READ':
+#                     data = self.bus('PRDATA').value.integer
+#                 else:
+#                     data = self.bus('PWDATA').value.integer
+#                 strb = self.bus('PSTRB').value.integer if self.PSTRB_present else 0
+#                 prot = self.bus('PPROT').value.integer if self.PPROT_present else 0
+#                 self.count += 1
+#                 transaction = APBCycle(start_time, self.count, direction, pwrt, address, data, strb, data, prot, error)
+#                 self.transaction_queue.put_nowait(transaction)
+#                 self.print(transaction)
 
 
 class APBSlave(APBBase):

@@ -73,7 +73,7 @@ class MemoryModel:
             value = int.from_bytes(line_data, byteorder='little')
             mem_dump += f"Register {i:2}: Address 0x{addr:08X} - Value 0x{value:0{self.bytes_per_line * 2}X}\n"
         mem_dump += "-" * 60 + '\n'
-        return mem_dump
+        return '\n'+mem_dump
 
 
     def integer_to_bytearray(self, value, byte_length=None):
