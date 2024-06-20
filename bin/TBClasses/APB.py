@@ -338,46 +338,6 @@ class APBBase(TBBase):
         return getattr(self.dut, self.signal_name[name])
 
 
-# class APBMonitor(APBBase):
-#     def __init__(self, dut, name, clock, addr_mask=None, debug=None):
-#         APBBase.__init__(self, dut, name, clock)
-#         self.addr_mask = addr_mask if addr_mask is not None else (2 ** self.address_bits) - 1
-#         self.log.debug(f'Starting APBMonitor - {name}')
-#         self.transaction_queue = Queue()
-#         self.count = 0
-#         self.debug = debug
-
-
-#     def print(self, transaction):
-#         self.log.debug('-' * 120)
-#         self.log.debug(f'{self.name} - APB Transaction')
-#         self.log.debug(transaction)
-#         self.log.debug('-' * 120)
-
-
-#     async def monitor(self):
-#         while True:
-#             await self.wait_falling_clocks(self.clock, 1)
-#             if self.bus('PSEL').value.integer and \
-#                     self.bus('PENABLE').value.integer and \
-#                     self.bus('PREADY').value.integer:
-#                 start_time = get_sim_time('ns')
-#                 address    = self.bus('PADDR').value.integer
-#                 direction  = pwrite[self.bus('PWRITE').value.integer]
-#                 pwrt       = self.bus('PWRITE').value.integer
-#                 error      = self.bus('PSLVERR').value.integer if self.PSLVERR_present else 0
-
-#                 if direction == 'READ':
-#                     data = self.bus('PRDATA').value.integer
-#                 else:
-#                     data = self.bus('PWDATA').value.integer
-#                 strb = self.bus('PSTRB').value.integer if self.PSTRB_present else 0
-#                 prot = self.bus('PPROT').value.integer if self.PPROT_present else 0
-#                 self.count += 1
-#                 transaction = APBCycle(start_time, self.count, direction, pwrt, address, data, strb, data, prot, error)
-#                 self.transaction_queue.put_nowait(transaction)
-#                 self.print(transaction)
-
 
 class APBSlave(APBBase):
 

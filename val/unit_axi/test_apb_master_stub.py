@@ -108,7 +108,6 @@ class APBMasterStub_TB(TBBase):
 
     async def main_loop(self):
         self.log.debug('Starting main_loop')
-        # cocotb.start_soon(self.apb_monitor.monitor()) # sean
         self.log.debug('Starting main_loop start response_handler')
         cocotb.start_soon(self.response_handler())
         self.log.debug('Starting main_loop start driver')
