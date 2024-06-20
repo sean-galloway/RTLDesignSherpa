@@ -25,7 +25,7 @@ async def fifo_test(dut):
     await tb.deassert_reset()
     await tb.wait_clocks('i_axi_aclk', 5)
     tb.log.info("Starting test...")
-    await tb.main_loop(100, 20)
+    await tb.main_loop(1000, 20)
 
 
 repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
@@ -33,8 +33,7 @@ tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the te
 rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hdl folder where .v files are placed
 rtl_axi_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'axi')) #path to hdl folder where .v files are placed
 
-# @pytest.mark.parametrize("data_width, skid4", [(8,0), (8,1)])
-@pytest.mark.parametrize("data_width, skid4", [(8,1)])
+@pytest.mark.parametrize("data_width, skid4", [(8,0), (8,1)])
 def test_skid_buffer(request, data_width, skid4):
     dut_name = "axi_skid_buffer"
     module = os.path.splitext(os.path.basename(__file__))[0]  # The name of this file

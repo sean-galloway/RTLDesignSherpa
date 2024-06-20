@@ -13,11 +13,11 @@ class AXISkidBufferTB(TBBase):
         self.DATA_WIDTH = self.convert_to_int(os.environ.get('PARAM_DATA_WIDTH', '0'))
         self.DEPTH = 2
         self.TIMEOUT_CYCLES = 100
-        read_constraints = [(0, 1), (2, 8), (9,20)]
+        read_constraints = [(0, 1), (2, 8), (9,30)]
         read_weights = [5,2,1]
         self.read_crand = ConstrainedRandom(read_constraints, read_weights)
-        write_constraints = [(0, 0), (1, 8), (9,15)]
-        write_weights = [5,1,1]
+        write_constraints = [(0, 0), (1, 8), (9,20)]
+        write_weights = [5,2,1]
         self.write_crand = ConstrainedRandom(write_constraints, write_weights)
 
 

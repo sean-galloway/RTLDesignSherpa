@@ -11,7 +11,7 @@ import pytest
 from cocotb_test.simulator import run
 from TBBase import TBBase
 from ConstrainedRandom import ConstrainedRandom
-from APB import APBMonitor, APBSlave, APBCommandPacket
+from APB import APBCycle, APBTransaction, APBMonitor, APBSlave
 
 class APBMasterStub_TB(TBBase):
     def __init__(self, dut):
@@ -26,7 +26,7 @@ class APBMasterStub_TB(TBBase):
         apb_slave_ready_constraints = [(0,1), (2, 5), (6,10)]
         apb_slave_ready_weights     = [5, 2, 1]
         apb_slave_error_constraints = [(0, 0), (1, 1)]
-        apb_slave_error_weights     = [10, 1]
+        apb_slave_error_weights     = [10, 0]
         # apb_slave_ready_constraints = None
         # apb_slave_ready_weights     = None
         # apb_slave_error_constraints = None
@@ -40,15 +40,23 @@ class APBMasterStub_TB(TBBase):
         self.cmd_queue = Queue()
 
         # Constrained random settings for command generation
-        self.pwrite_constraints = [(0, 0), (1, 1)]
-        self.pwrite_weights     = [1, 1]
-        min_high = (4  * self.STRB_WIDTH)-1
-        max_low  = (4  * self.STRB_WIDTH)
-        max_high = (32 * self.STRB_WIDTH)-1
-        self.paddr_constraints  = [(0, min_high), (max_low, max_high)]
-        self.paddr_weights      = [3, 1]
-        self.pprot_constraints  = [(0, 0), (1, 7)]
-        self.pprot_weights      = [4, 1]
+        addr_min_hi = (4  * self.STRB_WIDTH)-1
+        addr_max_lo = (4  * self.STRB_WIDTH)
+        addr_max_hi = (32 * self.STRB_WIDTH)-1
+        self.apb_cmd_constraints = {
+            'last':   ([(0, 0), (1, 1)],
+                        [1, 1]),
+            'first':  ([(0, 0), (1, 1)],
+                        [1, 1]),
+            'pwrite': ([(0, 0), (1, 1)],
+                        [1, 1]),
+            'paddr':  ([(0, addr_min_hi), (addr_max_lo, addr_max_hi)],
+                        [4, 1]),
+            'pstrb':  ([(15, 15), (0, 14)],
+                        [4, 1]),
+            'pprot':  ([(0, 0), (1, 7)],
+                        [4, 1])
+        }
 
         # Constrained random settings for response generation
         self.cmd_valid_crand = ConstrainedRandom([(0, 0), (1, 1), (2, 10)], [5, 2, 1])
@@ -80,30 +88,18 @@ class APBMasterStub_TB(TBBase):
                 response_count += 1
                 self.log.debug(f'{response_count=}')
                 cmd_packet = self.cmd_queue.get_nowait()
-                transaction = self.apb_monitor.transaction_queue.get_nowait()
+                mon_packet = self.apb_monitor.transaction_queue.get_nowait()
                 response = self.dut.o_rsp_data.value.integer
 
                 # Un-bundling the response
                 response_pslverr = (response >> self.DATA_WIDTH) & 0x1
                 response_prdata = response & ((1 << self.DATA_WIDTH) - 1)
-
-                self.log.debug('Command Queue Command:')
-                cmd_packet.log_packet()
-                self.log.debug('Transaction Removed:')
-                self.apb_monitor.print(transaction)
-                assert transaction.direction == cmd_packet.direction, \
-                    f"Direction mismatch: Expected {cmd_packet.direction}, Actual {transaction.direction}"
-                assert transaction.address == cmd_packet.paddr, \
-                    f"Address mismatch: Expected 0x{cmd_packet.paddr:08X}, Actual 0x{transaction.address:08X}"
-                assert transaction.prot == cmd_packet.pprot, \
-                    f"PPROT mismatch: Expected {cmd_packet.pprot}, Actual {transaction.prot}"
-                assert transaction.error == response_pslverr, \
-                    f"PSLVERR mismatch: Expected {response_pslverr}, Actual {transaction.error}"
-
-                if transaction.direction == "READ":
-                    expected_data = transaction.data
-                    assert response_prdata == expected_data, \
-                        f"Data mismatch: Expected 0x{expected_data:08X}, Got 0x{response_prdata:08X}"
+                cmd_packet.pslverr = response_pslverr
+                if cmd_packet.direction == 'READ':
+                    cmd_packet.prdata = response_prdata
+                assert cmd_packet == mon_packet, \
+                    f'cmd_packet:\n{cmd_packet}\n' +\
+                    f'mon_packet:\n{mon_packet}\n'
 
             await self.wait_clocks('aclk', 1)
 
@@ -116,7 +112,12 @@ class APBMasterStub_TB(TBBase):
         self.log.debug('Starting main_loop start driver')
         cocotb.start_soon(self.apb_slave.driver())
         self.log.debug('Starting main_loop completed start driver')
-
+        cmd_packet = APBTransaction(
+                data_width         = self.DATA_WIDTH,
+                addr_width         = self.ADDR_WIDTH,
+                strb_width         = self.STRB_WIDTH,
+                constraints        = self.apb_cmd_constraints
+        )
         # Randomly mixed read/write operations
         for i in range(200):
             self.log.debug(f'Mixed Loop {i}')
@@ -127,21 +128,11 @@ class APBMasterStub_TB(TBBase):
                 await self.wait_clocks('aclk', 1)
 
             self.dut.i_cmd_valid.value = 1
-            cmd_packet = APBCommandPacket(
-                data_width         = self.DATA_WIDTH,
-                addr_width         = self.ADDR_WIDTH,
-                strb_width         = self.STRB_WIDTH,
-                log                = self.log,
-                pwrite_constraints = self.pwrite_constraints,
-                pwrite_weights     = self.pwrite_weights,
-                paddr_constraints  = self.paddr_constraints,
-                paddr_weights      = self.paddr_weights,
-                pprot_constraints  = self.pprot_constraints,
-                pprot_weights      = self.pprot_weights
-            )
-            cmd_packet.start_time = get_sim_time('ns')
-            cmd_packet.count = i+1
-            cmd_packet.log_packet()
+
+            transaction = cmd_packet.set_constrained_random()
+            transaction.start_time = get_sim_time('ns')
+            transaction.count = i+1
+            self.log.debug(transaction)
 
             self.dut.i_cmd_data.value = cmd_packet.pack_cmd_packet()
 
@@ -153,7 +144,7 @@ class APBMasterStub_TB(TBBase):
             await self.wait_clocks('aclk', 1)
             self.log.debug('done with rising edge')
 
-            self.cmd_queue.put_nowait(cmd_packet)
+            self.cmd_queue.put_nowait(transaction)
             self.apb_slave.dump_registers()
 
         self.dut.i_cmd_valid.value = 0
