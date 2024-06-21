@@ -1,47 +1,73 @@
-# FIFO Control Block Description
+# fifo_control
 
-The `fifo_control` module implements the control logic for a parameterized synchronous or asynchronous FIFO (First-In, First-Out) queue. It is designed to operate with any FIFO depth. The control block manages full and empty flags, as well as almost full and almost empty conditions, facilitating robust data handling and flow control between independent read and write domains.
+## Overview
+
+This document provides a summary of the `fifo_control` module implemented in SystemVerilog. The module is designed to manage the control signals for a parameterized asynchronous FIFO (First-In-First-Out) buffer. This module handles depth adjustments, full and almost full conditions for writing and empty and almost empty conditions for reading.
+
+## Functionality
+
+The `fifo_control` module performs several key operations to manage the status of the FIFO buffer:
+
+1. **Full Signal Generation**: Determines when the FIFO buffer is full based on write pointers.
+2. **Almost Full Signal Generation**: Indicates when the FIFO buffer is nearing full capacity.
+3. **Empty Signal Generation**: Detects when the FIFO buffer is empty based on read pointers.
+4. **Almost Empty Signal Generation**: Indicates when the FIFO buffer is close to empty.
+5. **Count Signal Generation**: Provides a count of the items currently stored in the FIFO.
 
 ## Parameters
 
-- `DEL` (Default: 1): Delay for internal signals, useful for timing adjustments.
-- `ADDR_WIDTH` (Default: 3): The width of the address bus, determining the FIFO's depth as `2^ADDR_WIDTH`.
-- `DEPTH` (Default: 16): The total number of entries in the FIFO.
-- `ALMOST_WR_MARGIN` (Default: 1): Margin entries before the FIFO signals "almost full".
-- `ALMOST_RD_MARGIN` (Default: 1): Margin entries before the FIFO signals "almost empty".
-- `INSTANCE_NAME` (Default: "DEADF1F0"): Optional parameter for instance identification, not directly used in the logic.
+The module is parameterized to allow customization of various aspects:
+
+- `DEL`: Delay for signal assignments.
+- `ADDR_WIDTH`: Width of the address pointers.
+- `DEPTH`: Depth of the FIFO, which must be a power of two.
+- `ALMOST_WR_MARGIN`: Margin for the almost full condition.
+- `ALMOST_RD_MARGIN`: Margin for the almost empty condition.
+- `INSTANCE_NAME`: A custom name for the instance.
 
 ## Ports
 
-- Clocks and Resets:
-  - `i_wr_clk`: Write domain clock.
-  - `i_wr_rst_n`: Active low reset for the write domain.
-  - `i_rd_clk`: Read domain clock.
-  - `i_rd_rst_n`: Active low reset for the read domain.
-- Pointers:
-  - `iw_wr_ptr_bin`: Binary write pointer from the write domain.
-  - `iw_wdom_rd_ptr_bin`: Binary read pointer as seen from the write domain.
-  - `iw_rd_ptr_bin`: Binary read pointer from the read domain.
-  - `iw_rdom_wr_ptr_bin`: Binary write pointer as seen from the read domain.
-- Status Flags:
-  - `o_wr_full`: Indicates the FIFO is full.
-  - `o_wr_almost_full`: Indicates the FIFO is almost full.
-  - `o_rd_empty`: Indicates the FIFO is empty.
-  - `o_rd_almost_empty`: Indicates the FIFO is almost empty.
+### Input Ports
 
-### Internal Functionality
+- **Clocks and Resets**
+  - `i_wr_clk`: Write clock.
+  - `i_wr_rst_n`: Write reset (active low).
+  - `i_rd_clk`: Read clock.
+  - `i_rd_rst_n`: Read reset (active low).
 
-1. **Pointer XOR Logic**: Utilizes the MSB of the binary pointers to generate XOR results for full and empty detection logic.
-2. **Full and Almost Full Detection**:
-   - Full condition is detected when the write domain's pointer MSB XOR with the read domain's pointer MSB (as seen from the write domain) is true, and their lower bits match.
-   - Almost full condition is calculated based on the difference between the write and read pointers, taking into account the FIFO depth and the specified almost full margin.
-3. **Empty and Almost Empty Detection**:
-   - an empty condition is detected when the read domain's pointer MSB XOR with the write domain's pointer MSB (as seen from the read domain) is false, and their lower bits match.
-   - almost empty condition is calculated similarly to almost full, using the almost empty margin.
+- **Pointers**
+  - `iw_wr_ptr_bin`: Binary write pointer.
+  - `iw_wdom_rd_ptr_bin`: Write domain read pointer (binary).
+  - `iw_rd_ptr_bin`: Binary read pointer.
+  - `iw_rdom_wr_ptr_bin`: Read domain write pointer (binary).
 
-### Usage
+### Output Ports
 
-This module is intended for use in systems where asynchronous read and write operations need to be managed for data integrity and flow control. It is especially useful in applications requiring buffer management between different clock domains or data processing stages.
+- **Status**
+  - `ow_count`: Current count of items in the FIFO.
+  - `o_wr_full`: Full status for the write operations.
+  - `o_wr_almost_full`: Almost full status for the write operations.
+  - `o_rd_empty`: Empty status for the read operations.
+  - `o_rd_almost_empty`: Almost empty status for the read operations.
+
+## Internal Logic
+
+### Full and Almost Full Signal Generation
+
+- **XOR Pointers**: The upper bits of the read and write pointers are XORed to assist in the full/empty conditions.
+- **Full Detection**: A full condition is detected when the most significant XORed bits and the lower address bits of the write and read pointers match.
+- **Almost Full Calculation**: The difference in the pointers determines if the FIFO is almost full.
+
+### Empty and Almost Empty Signal Generation
+
+- **Empty Detection**: An empty condition is detected when the XORed most significant bits are zero and the lower address bits match.
+- **Almost Empty Calculation**: The difference in the pointers determines if the FIFO is almost empty.
+- **Count Calculation**: Determines the current number of items in the FIFO.
+
+### Sequential Logic
+
+- **Write Clock Domain**: Updates `o_wr_full` and `o_wr_almost_full` at the positive edge of the write clock or a negative edge of the write reset.
+- **Read Clock Domain**: Updates `o_rd_empty` and `o_rd_almost_empty` at the positive edge of the read clock or a negative edge of the read reset.
 
 ---
 
