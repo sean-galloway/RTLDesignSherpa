@@ -29,6 +29,7 @@ from cocotbext.axi import AxiBus, AxiMaster
 from pprint import pprint
 from TBBase import TBBase
 from APB import APBMonitor, APBSlave
+from DelayRandomizer import DelayRandomizer
 
 
 def convert_to_bytearray(data):
@@ -77,18 +78,26 @@ def bytearray_to_hex(bytearray_value):
 class Axi2ApbTB(TBBase):
     def __init__(self, dut):
         TBBase.__init__(self, dut)
-        self.log = self.configure_logging(level=logging.WARN)
+        self.log = self.configure_logging(level=logging.DEBUG)
         self.log.info('Starting Axi2ApbTB')
         self.DATA_WIDTH      = self.convert_to_int(os.environ.get('PARAM_AXI_DATA_WIDTH', '0'))      
+        self.APB_ADDR_WIDTH  = self.convert_to_int(os.environ.get('PARAM_APB_ADDR_WIDTH', '0'))
         self.APB_DATA_WIDTH  = self.convert_to_int(os.environ.get('PARAM_APB_DATA_WIDTH', '0'))
         self.strb_bits       = self.DATA_WIDTH // 8
-        self.debug           = False
+        self.debug           = True
         bus                  = AxiBus.from_prefix(dut, "s_axi")
         self.axi_master      = AxiMaster(bus, dut.aclk, dut.aresetn, reset_active_level=False)   
         self.registers       = 32 * self.strb_bits
         self.slave_register  = list(range(self.registers))
-        self.apb_monitor     = APBMonitor(dut, 'm_apb', 'aclk', addr_mask=None, debug=self.debug)
-        self.apb_slave       = APBSlave(dut, 'm_apb', 'aclk', registers=self.slave_register, addr_mask=None, debug=self.debug)
+        apb_slv_constraints  = {
+                'ready': ([[0, 0], [1, 5], [6, 10]], [5, 3, 1]),
+                'error': ([[0, 0], [1, 1]], [10, 0]),
+        }
+        self.apb_monitor     = APBMonitor(dut, 'm_apb', dut.aclk,
+                                            bus_width=self.APB_DATA_WIDTH, addr_width=self.APB_ADDR_WIDTH)
+        self.apb_slave       = APBSlave(dut, 'm_apb', dut.aclk, registers=self.slave_register,
+                                            bus_width=self.APB_DATA_WIDTH, addr_width=self.APB_ADDR_WIDTH,
+                                            constraints=apb_slv_constraints)
         self.main_loop_count = 0
         self.log.info("Axi2ApbTB Init Done.")
 
@@ -140,16 +149,18 @@ class Axi2ApbTB(TBBase):
             await self.wait_clocks('aclk', 100)
             if self.debug:
                 self.apb_slave.dump_registers()
+
             data = await self.axi_master.read(addr, length, size=size)
             self.log.info(f"run_test_write/read(AXI-rd): offset {addr}, size {size}, length {length} data {[f'{x:02X}' for x in test_data]}")
+
             data_ba = convert_to_bytearray(data.data)
-            # self.log.debug(f'{data_ba=}')
             data_in_hex = bytearray_to_hex_strings([data_ba])
             self.log.info(f'Read  Data: {data_in_hex}')
+
             data_bk_ba = convert_to_bytearray(test_data)
-            # self.log.debug(f'{data_bk_ba=}')
             data_bk_hex = bytearray_to_hex_strings([data_bk_ba])
             self.log.info(f'Write Data: {data_bk_hex}')
+
             assert data.data == test_data
             await self.wait_clocks('aclk', 100)
 
@@ -159,26 +170,25 @@ class Axi2ApbTB(TBBase):
     async def main_loop(self):
         self.main_loop_count += 1
         self.log.info(f"main_loop called {self.main_loop_count} times")
-        ready_constraints = [(0, 2), (3, 8), (9,20)]
-        ready_weights = [15,2,1]        
-        error_constraints = [(0, 0), (1, 1)]
-        error_weights = [1,0]
 
         max_burst_size = self.axi_master.write_if.max_burst_size
-        cocotb.start_soon(self.apb_monitor.monitor())
-        cocotb.start_soon(self.apb_slave.driver())
 
         # write_read tests
-        self.apb_slave.update_constraints() # set all to fast and no errors
+        apb_slv_constraints = {
+                'ready': ([[0, 0], [1, 5], [6, 10]], [5, 0, 0]),
+                'error': ([[0, 0], [1, 1]], [10, 0]),
+        }
+        self.apb_slave.delay_crand = DelayRandomizer(apb_slv_constraints)
         for idle in [None, self.cycle_pause]:
             for backpressure in [None, self.cycle_pause]:
                 for bsize in [None]+list(range(max_burst_size)):
                     await self.run_test_write_read(idle_inserter=idle, backpressure_inserter=backpressure, size=bsize)
 
-        self.apb_slave.update_constraints(ready_constraints=ready_constraints,
-                                            ready_weights=ready_weights,
-                                            error_constraints=None,
-                                            error_weights=None) # set all to slow and no errors
+        apb_slv_constraints = {
+                'ready': ([[0, 0], [1, 5], [6, 10]], [3, 3, 1]),
+                'error': ([[0, 0], [1, 1]], [10, 0]),
+        }
+        self.apb_slave.delay_crand = DelayRandomizer(apb_slv_constraints)
         for idle in [None, self.cycle_pause]:
             for backpressure in [None, self.cycle_pause]:
                 for bsize in [None]+list(range(max_burst_size)):

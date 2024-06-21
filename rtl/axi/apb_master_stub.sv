@@ -123,7 +123,7 @@ module apb_master_stub #(
         m_apb_PENABLE      = 1'b0;
         m_apb_PADDR        = r_cmd_paddr;
         m_apb_PWRITE       = r_cmd_pwrite;
-        m_apb_PWDATA       = r_cmd_pwdata;
+        m_apb_PWDATA       = r_cmd_pwrite ? r_cmd_pwdata : 'b0;
         m_apb_PSTRB        = r_cmd_pstrb;
         m_apb_PPROT        = r_cmd_pprot;
         w_cmd_ready        = 1'b0;

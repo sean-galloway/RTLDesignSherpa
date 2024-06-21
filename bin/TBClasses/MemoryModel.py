@@ -71,7 +71,7 @@ class MemoryModel:
             addr = i * self.bytes_per_line
             line_data = self.mem[addr:addr + self.bytes_per_line]
             value = int.from_bytes(line_data, byteorder='little')
-            mem_dump += f"Register {i:2}: Address 0x{addr:08X} - Value 0x{value:0{self.bytes_per_line * 2}X}\n"
+            mem_dump += f"Register {i:4}: Address 0x{addr:08X} - Value 0x{value:0{self.bytes_per_line * 2}X}\n"
         mem_dump += "-" * 60 + '\n'
         return '\n'+mem_dump
 

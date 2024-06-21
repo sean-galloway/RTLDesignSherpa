@@ -10,6 +10,7 @@ import math
 import pytest
 from cocotb_test.simulator import run
 from TBBase import TBBase
+from DelayRandomizer import DelayRandomizer
 from ConstrainedRandom import ConstrainedRandom
 from APB import APBTransaction, APBMonitor, APBSlave
 
@@ -23,21 +24,14 @@ class APBMasterStub_TB(TBBase):
         self.RESP_PACKET_WIDTH = self.DATA_WIDTH + 2  # data, resp
         self.registers = 32 * self.STRB_WIDTH
         self.slave_register = list(range(self.registers))
-        apb_slave_ready_constraints = [(0,1), (2, 5), (6,10)]
-        apb_slave_ready_weights     = [5, 2, 1]
-        apb_slave_error_constraints = [(0, 0), (1, 1)]
-        apb_slave_error_weights     = [10, 0]
-        # apb_slave_ready_constraints = None
-        # apb_slave_ready_weights     = None
-        # apb_slave_error_constraints = None
-        # apb_slave_error_weights     = None
-        # self.apb_monitor = APBMonitor(dut, 'm_apb', 'aclk') # sean
+        apb_slv_constraints = {
+                'ready': ([[0, 0], [1, 5], [6, 10]], [5, 0, 0]),
+                'error': ([[0, 0], [1, 1]], [10, 0]),
+        }
         self.apb_monitor = APBMonitor(dut, 'm_apb', dut.aclk, bus_width=self.DATA_WIDTH, addr_width=self.ADDR_WIDTH)
-        self.apb_slave = APBSlave(dut, 'm_apb', 'aclk', registers=self.slave_register,
-                                    ready_constraints=apb_slave_ready_constraints,
-                                    ready_weights=apb_slave_ready_weights,
-                                    error_constraints=apb_slave_error_constraints,
-                                    error_weights=apb_slave_error_weights)
+        self.apb_slave   = APBSlave(dut, 'm_apb', dut.aclk, registers=self.slave_register,
+                                    bus_width=self.DATA_WIDTH, addr_width=self.ADDR_WIDTH,
+                                    constraints=apb_slv_constraints)
         self.cmd_queue = Queue()
 
         # Constrained random settings for command generation
@@ -60,8 +54,8 @@ class APBMasterStub_TB(TBBase):
         }
 
         # Constrained random settings for response generation
-        self.cmd_valid_crand = ConstrainedRandom([(0, 0), (1, 1), (2, 10)], [5, 2, 1])
-        self.rsp_ready_crand = ConstrainedRandom([(0, 0), (1, 1), (2, 10)], [5, 2, 1])
+        self.cmd_valid_crand = ConstrainedRandom([(0, 0), (1, 1), (2, 10)], [5, 0, 0])
+        self.rsp_ready_crand = ConstrainedRandom([(0, 0), (1, 1), (2, 10)], [5, 0, 0])
 
 
     async def reset_dut(self):
@@ -89,7 +83,6 @@ class APBMasterStub_TB(TBBase):
                 response_count += 1
                 self.log.debug(f'{response_count=}')
                 cmd_packet = self.cmd_queue.get_nowait()
-                # mon_packet = self.apb_monitor.transaction_queue.get_nowait() # sean
                 mon_packet = self.apb_monitor._recvQ.popleft()
                 response = self.dut.o_rsp_data.value.integer
 
@@ -110,9 +103,6 @@ class APBMasterStub_TB(TBBase):
         self.log.debug('Starting main_loop')
         self.log.debug('Starting main_loop start response_handler')
         cocotb.start_soon(self.response_handler())
-        self.log.debug('Starting main_loop start driver')
-        cocotb.start_soon(self.apb_slave.driver())
-        self.log.debug('Starting main_loop completed start driver')
         cmd_packet = APBTransaction(
                 data_width         = self.DATA_WIDTH,
                 addr_width         = self.ADDR_WIDTH,
@@ -120,6 +110,11 @@ class APBMasterStub_TB(TBBase):
                 constraints        = self.apb_cmd_constraints
         )
         # Randomly mixed read/write operations
+        apb_slv_constraints = {
+                'ready': ([[0, 0], [1, 5], [6, 10]], [5, 0, 0]),
+                'error': ([[0, 0], [1, 1]], [10, 0]),
+        }
+        self.apb_slave.delay_crand = DelayRandomizer(apb_slv_constraints)
         for i in range(200):
             self.log.debug(f'Mixed Loop {i}')
             rand_delay = self.cmd_valid_crand.next()
@@ -133,7 +128,46 @@ class APBMasterStub_TB(TBBase):
             transaction = cmd_packet.set_constrained_random()
             transaction.start_time = get_sim_time('ns')
             transaction.count = i+1
-            self.log.debug(transaction.formatted(self.ADDR_WIDTH, self.DATA_WIDTH, self.STRB_WIDTH))
+            lines = transaction.formatted(self.ADDR_WIDTH, self.DATA_WIDTH, self.STRB_WIDTH).splitlines()
+            for line in lines:
+                self.log.debug(line)
+
+            self.dut.i_cmd_data.value = cmd_packet.pack_cmd_packet()
+
+            while not self.dut.o_cmd_ready.value:
+                self.log.debug('waiting for o_cmd_ready')
+                await self.wait_clocks('aclk', 1)
+
+            await self.wait_clocks('aclk', 1)
+
+            self.cmd_queue.put_nowait(transaction)
+            self.apb_slave.dump_registers()
+
+        self.dut.i_cmd_valid.value = 0
+        await self.wait_clocks('aclk', 50)
+
+        # Randomly mixed read/write operations
+        apb_slv_constraints = {
+                'ready': ([[0, 0], [1, 5], [6, 10]], [3, 3, 1]),
+                'error': ([[0, 0], [1, 1]], [10, 0]),
+        }
+        self.apb_slave.delay_crand = DelayRandomizer(apb_slv_constraints)
+        for i in range(200):
+            self.log.debug(f'Mixed Loop {i}')
+            rand_delay = self.cmd_valid_crand.next()
+            self.log.debug(f'main_loop: {rand_delay=}')
+            self.dut.i_cmd_valid.value = 0
+            for _ in range(rand_delay):
+                await self.wait_clocks('aclk', 1)
+
+            self.dut.i_cmd_valid.value = 1
+
+            transaction = cmd_packet.set_constrained_random()
+            transaction.start_time = get_sim_time('ns')
+            transaction.count = i+1
+            lines = transaction.formatted(self.ADDR_WIDTH, self.DATA_WIDTH, self.STRB_WIDTH).splitlines()
+            for line in lines:
+                self.log.debug(line)
 
             self.dut.i_cmd_data.value = cmd_packet.pack_cmd_packet()
 
