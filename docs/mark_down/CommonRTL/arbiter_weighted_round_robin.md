@@ -1,68 +1,60 @@
 # arbiter_weighted_round_robin
 
-The `arbiter_weighted_round_robin` module is a Verilog implementation of a weighted round-robin arbiter for managing access requests from multiple clients. It assigns access to clients based on a maximum threshold that determines the amount of service each client receives. This arbiter is helpful in situations where different clients need to be serviced fairly but with different priority levels.
+This SystemVerilog module implements a **Weighted Round Robin Arbiter**. The design ensures fair resource allocation among multiple clients based on defined weights, even under heavy contention. Round-robin arbitration guarantees each client receives service in a cyclic order, while weights adjust the frequency of service.
 
-## Code Documentation
+## Functionality
 
-```verilog
+- **Weighted Fairness:** Each client has a credit system that represents its weight. More credits mean higher priority for receiving grants.
+- **Credit Replenishment:** Credits are replenished when no requests have associated credits, ensuring continual operation.
+- **Round Robin Integration:** Uses a round-robin algorithm to resolve which client gets the grant when multiple requests are pending.
+- **Request Blocking:** The system supports a mechanism to block arbitration for all clients simultaneously.
+- **Acknowledgment** Handling:**** Incorporates an optional mechanism for acknowledgment of grants before credit updates (`WAIT_GNT_ACK`).
 
-`timescale 1ns / 1ps
+## Operations
 
-module arbiter_weighted_round_robin #(
+### Parameters
 
-parameter int MAX_THRESH = 8,
+- `MAX_THRESH`: Maximum threshold for credits.
+- `MAX_THRESH_WIDTH`: Bit-width for representing the maximum threshold.
+- `CLIENTS`: Number of clients competing for arbitration.
+- `WAIT_GNT_ACK`: Flag for enabling wait for grant acknowledgment before credit update.
 
-parameter int CLIENTS = 8
+### Inputs and Outputs
 
-) (
+- **Inputs**
+    - `i_clk`: Clock signal.
+    - `i_rst_n`: Reset signal (active low).
+    - `i_block_arb`: Signal to block arbitration.
+    - `i_max_thresh`: Maximum thresholds for each client in a flattened array.
+    - `i_req`: Request signals from clients.
+    - `i_gnt_ack`: Acknowledgment signals for grants.
 
-input logic i_clk,
+- **Outputs**
+    - `ow_gnt_valid`: Grant validity signal.
+    - `ow_gnt`: Grant signals for clients.
+    - `ow_gnt_id`: Grant ID for the granted client.
 
-input logic i_rst_n,
+### Logic Descriptions
 
-input logic [(CLIENTS*MAX_THRESH_WIDTH)-1:0] i_max_thresh, // Rather than having many ports for the threshold, there is one that is many bits wide.
+1. **Initialization and Declarations**
+    - Local parameters and signals for credit management and request handling are initialized.
+    - Comb and flip-flop signals are defined for operations.
 
-input logic [CLIENTS-1:0] i_req,
+2. **Combinational Logic**
+    - Generates masked requests based on available credits and block arbitration signal.
+    - Determines when to replenish credits.
 
-input logic i_block_arb, // This is a feature I like to add to my arbiters; it backs up the system, then when it is unblocked, one can get very complex, but deterministic behavior. This enables one to hit very hard bugs deep in the system.
+3. **Credit Management Per Client**
+    - Calculates credit increments.
+    - Updates credit counters based on grants and replenishment conditions.
+    - Generates masked requests ensuring only valid requests depending on credit availability are considered.
 
-output logic [CLIENTS-1:0] ow_grant
+4. **Round Robin Arbitration**
+    - Masked requests are fed into the round-robin arbiter submodule.
+    - Determines the granted client following round-robin logic.
 
-);
-
-```
-
-This module has the following parameters and ports:
-
-- **Parameters:**
-
-- `MAX_THRESH`: The maximum threshold weight for any client.
-
-- `CLIENTS`: The number of clients for arbitration.
-
-- **Input Ports:**
-
-- `i_clk`: The system clock.
-
-- `i_rst_n`: The active-low reset signal.
-
-- `i_max_thresh`: Array of maximum thresholds for each client. Its width is `CLIENTS` * log2 of `MAX_THRESH`.
-
-- `i_req`: A signal where each bit corresponds to a client's request.
-
-- `i_block_arb`: Input to block the arbiter from making new grants (e.g., during special operations).
-
-- **Output Ports:**
-
-- `ow_grant`: Grants output for each client. Each bit corresponds to a grant for the associated client.
-
-The internal logic includes counters for managing each client's credits, functions determining when to replenish credits, and mask requests based on available credits. The module uses a generate statement to create logic for each client.
-
-### Implementation Details
-
-The arbiter tracks each client's credit counters (`r_crd_cnt`). Credit counters increase as the associated client receives service, and when a client has no remaining credits, it cannot receive access until its credit is replenished.
-
-The credit replenishment (`w_replenish`) occurs when no asserted requests have credits left. A round-robin sub-instance (`u_rrb_arb`) makes grant decisions based on masked requests (`w_mask_req`) reflecting the current credit status.
+5. **Grant Identification**
+    - Converts one-hot grant signal to an index to identify the granted client.
 
 ## Waveforms
 
@@ -73,24 +65,6 @@ All requests are pegged high in this start portion of the weighted round-robin. 
 ![WRR Start](./_wavedrom_svg/wavedrom_wrr_u_weighted_round_robin_end.svg)
 
 In this waveform, only agents zero and one assert a request. These agents have very few credit counts (1 and 2, respectively.) Notice the replenish signal toggles more frequently.
-
-## Diagram, assuming four clients
-
-![Weight Round Arbiter Diagram](./_svg/arbiter_weighted_round_robin.svg)
-
-### Additional Information
-
-The module includes an initial block to handle waveform dumping for simulation purposes with tools that support `\$dumpfile` and `\$dumpvars`.
-
-### Usage Notes
-
-- Instantiate with specific `MAX_THRESH` and `CLIENTS` values as required for your design.
-
-- Connect clients' request lines (`i_req`) to the arbiter.
-
-- Connect `ow_grant` to the elements controlled based on the arbiter's decision.
-
-- The arbiter operates synchronously with the clock signal `i_clk`.
 
 ### Conclusion
 

@@ -1,36 +1,54 @@
 # arbiter_round_robin
 
-The `arbiter_round_robin` module implements a round-robin arbitration scheme to manage requests from multiple clients. Based on the round-robin arbitration logic, it outputs a grant signal to only one client at a time. The module provides fairness by rotating priority among the clients with each cycle.
+## Overview
+
+The `arbiter_round_robin` module is a round-robin arbiter implemented in SystemVerilog. It manages multiple clients' requests and grants access to one client at a time in a rotating manner. It ensures fair and orderly access to shared resources by cycling through clients in a fixed order.
 
 ## Parameters
 
-- `CLIENTS`: The number of client signals to arbitrate. This integer parameter determines the size of the request and grant vectors.
+- `CLIENTS` (integer, default: 4): Number of clients requesting access.
+- `WAIT_GNT_ACK` (integer, default: 0): If set to 1, the arbiter waits for acknowledgment of grant before proceeding to the next client.
 
 ## Ports
 
-- `i_clk`: Input clock signal.
+### Inputs
 
-- `i_rst_n`: Active-low reset signal.
+- `i_clk` (logic): Clock signal.
+- `i_rst_n` (logic): Active-low reset signal.
+- `i_block_arb` (logic): Block arbiter signal.
+- `i_req` (logic [CLIENTS-1:0]): Request signals from clients.
+- `i_gnt_ack` (logic [CLIENTS-1:0]): Grant acknowledgment signals from clients.
 
-- `i_block_arb`: Input signal to block arbitration when high.
+### Outputs
 
-- `i_req`: Input request vector from clients, where each bit corresponds to a request signal from a client.
+- `o_gnt_valid` (logic): Indicates a valid grant is output.
+- `o_gnt` (logic [CLIENTS-1:0]): One-hot grant signals to the clients.
+- `o_gnt_id` (logic [N-1:0]): Grant ID indicating which client was granted access.
 
-- `o_gnt`: Output grant vector to clients, where only one bit will be set to indicate the granted client.
+## Functionality
 
-## Internal Logic Description
+The module implements a fair round-robin arbitration scheme. It cycles through client requests and grants access to one client while ensuring that no client gets consecutive grants unless there are no other requests.
 
-The module comprises registers and combinatorial logic sections performing the following functions:
+- **Request Masking:** Masks are used to handle priority and ensure fair access.
+- **Leading and Trailing One Detection:** Determines the highest priority request using `leading_one_trailing_one` instances.
+- **Winner Selection Logic:** Determines which client request wins the arbitration.
+- **Grant Outputs:** Sets the grant outputs based on the arbiter decision.
 
-- **Request Masking**: Request signals (`i_req`) get masked to ignore already serviced clients and only to consider new requests or requests not granted in the current cycle.
+### Detailed Operations
 
-- **Leading/Trailing One Detection**: Utilizing a sub-module called `leading_one_trailing_one`, the module detects the highest and lowest priority requests from the masked and unmasked request vectors.
+1. **Request Handling:**
+   - Requests are masked if arbitration is blocked (`i_block_arb`).
+   - Requests are masked with previously stored masks to avoid double granting.
 
-- **Winner Selection**: The winner (granted client) is selected based on the valid request signals. If a valid request is found in the masked request signals, it takes precedence; otherwise, the unmasked winner is selected.
+2. **Winner Determination:**
+   - Uses `leading_one_trailing_one` to find the highest priority request.
+   - Chooses between masked and unmasked requests based on validity.
 
-- **Winner Masking**: The `r_mask` register is updated based on the current winner to ensure the priority shifts correctly for the next cycle.
+3. **Mask Updates:**
+   - Updates internal masks when a client is granted access to ensure fair rotation.
 
-- **Grant Register**: The `o_gnt` register is updated to reflect the grant signal for the winner.
+4. **Grant Output:**
+   - Sets the grant signals and valid signals based on the selected winner.
 
 ## Waveforms
 
@@ -41,36 +59,6 @@ All requests are pegged high in this start portion of the weighted round-robin. 
 ## Diagram, assuming four clients
 
 ![Fixed Priority Arbiter Diagram](./_svg/arbiter_round_robin.svg)
-
-### Code Snippets
-
-```verilog
-
-// Register: r_mask
-
-// The r_mask depends on the previous winner.
-
-always_ff @(posedge i_clk or negedge i_rst_n)
-
-if (!i_rst_n) r_mask \<= '0;
-
-else r_mask \<= ({(CLIENTS - 1)'('d0), 1'b1} \<\< w_winner) - 1'b1;
-
-```
-
-### Synthesis Considerations
-
-- The initial block with `\$dumpfile` and `\$dumpvars` is specifically for simulation and will not be synthesized. It is commonly wrapped in translation directives, so synthesis tools ignore this block.
-
-## Usage
-
-To use the `arbiter_round_robin` module, instantiate it in your RTL design, parameterize the `CLIENTS` as required, and connect the inputs and outputs to your system's clock, reset, request, and grant lines, respectively.
-
-## Additional Notes
-
-This documentation assumes familiarity with Verilog and round-robin arbitration concepts. The module may depend on submodules like `leading_one_trailing_one`, which are not included in this documentation but would need to be defined elsewhere in the project.
-
----
 
 ---
 

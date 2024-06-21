@@ -1,59 +1,92 @@
 # arbiter_round_robin_subinst
 
-This documentation is for the `arbiter_round_robin_subinst` block, which is part of a round-robin arbiter module described in a SystemVerilog file typically located at `rtl/common/arbiter_round_robin_subinst.sv`. The original concept is from an online source, [Chipress](https://chipress.online/2019/06/23/round-robin-arbiter-the-wrong-design-and-the-right-design/), with modifications to parameterize the design and introduce bug fixes and performance enhancements to the original code.
+## Overview
 
-## Code Description
+This SystemVerilog module implements a parameterized round-robin arbiter, which is used to manage access to a shared resource among multiple clients. The design ensures that each client gets fair access according to a round-robin scheduling algorithm.
 
-The `arbiter_round_robin_subinst` is a parameterized module taking the following inputs and output:
+## Functionality
 
-### Inputs
+The core functionality of the `arbiter_round_robin_subinst` module can be summarized as follows:
 
-- `i_clk`: Clock input that synchronizes the arbiter's operation.
+- **Client Arbitration**: It selects one of the multiple client requests based on a round-robin strategy.
+- **Request Masking**: It uses a masking technique to manage client requests that have already been given access.
+- **Grant Signals**: It generates grant signals to indicate which client has been granted access.
+- **Replenish Control**: It can handle a replenish signal to reset the masking and start a new round of arbitration.
 
-- `i_rst_n`: Active low reset signal used to reset the internal state of the arbiter.
+## Parameters
 
-- `i_req: A CLIENTS-bit-wide bus representing requests from various clients.
+- `CLIENTS`: Number of clients requesting access.
+- `WAIT_GNT_ACK`: Control to wait for grant acknowledgment.
 
-- `i_replenish`: A control signal determining the arbiter's prioritization behavior.
+## Ports
 
-### Outputs
+- `i_clk`: Clock signal input.
+- `i_rst_n`: Active-low reset signal input.
+- `i_req`: Input requests from clients.
+- `i_replenish`: Replenish control signal input.
+- `ow_grant`: Output grant signals for each client.
+- `i_gnt_ack`: Input acknowledgment signals from clients.
 
-- `ow_grant: A CLIENTS-bit-wide bus produces the grant output for the client's requests.
+## Internal Signals
 
-### Parameters
+- `r_mask`: Register to mask clients that have already been granted access.
+- `w_mask_req`: Masked request signal.
+- `w_raw_grant`, `w_mask_grant`: Raw and masked grant signals.
+- `w_select_raw`: Control signal to select between raw and masked grants.
 
-- `CLIENTS`: The number of clients to be supported by the arbiter.
+## Operations
 
-### Internals
+### Mask Update Logic
 
-- `r_mask`: A register holding the mask state determines clients' priority based on previous grants.
+The mask update logic runs on every clock edge and ensures that only clients which have not been granted access or have acknowledged the grant can modify the output grant (`ow_grant`).
 
-- `w_mask_req`: The masked request results from `i_req` ANDed with `r_mask`.
+```verilog
+always_ff @(posedge i_clk or negedge i_rst_n) begin
+    if (~i_rst_n)
+        r_mask <= {CLIENTS{1'b1}};
+    else begin
+        r_mask <= {CLIENTS{1'b0}};
+        for (int i = 0; i < CLIENTS; i++) begin
+            if (ow_grant[i])
+                if (~WAIT_GNT_ACK || i_gnt_ack[i])
+                    r_mask[i] <= 1'b1;
+        end
+    end
+end
+```
 
-- `w_raw_grant`: Wire to hold the grant output if not masked.
+### Masked Requests
 
-- `w_mask_grant`: Wire to hold the grant output influenced by the `r_mask`.
+Requests are masked using the `r_mask` register to generate `w_mask_req`.
 
-- `w_select_raw`: A wire used to select between `w_raw_grant` and `w_mask_grant`.
+```verilog
+assign w_mask_req = i_req & r_mask;
+```
 
-The arbiter works round-robin, ensuring that client access starvation does not occur. It uses a fixed priority arbiter (not provided in the code snippet) that must be included in the design using the module name `arbiter_fixed_priority`. The module has two instantiations of `arbiter_fixed_priority`: one for raw requests and another for masked requests, where the mask prioritizes previously ungranted requests.
+### Grant Signals
 
-### Functionality
+Two fixed-priority arbiters generate raw and masked grants. The final grant is chosen based on the `w_select_raw` signal.
 
-1. The module updates a mask register at every positive clock edge or on a reset. It sets all mask bits to '1' if reset is active. Their corresponding bits in the mask register are set for previously granted clients (`ow_grant` is high).
+```verilog
+arbiter_fixed_priority #(CLIENTS) u_arb_raw (
+    .i_req(i_req),
+    .ow_grant(w_raw_grant)
+);
 
-2. The arbiter computes masked requests by ANDing the incoming requests with the mask.
+arbiter_fixed_priority #(CLIENTS) u_arb_mask (
+    .i_req(w_mask_req),
+    .ow_grant(w_mask_grant)
+);
+```
 
-3. Two instances of the `arbiter_fixed_priority` arbiters are used:
+### Grant Selection
 
-    - `u_arb_raw` processes the raw input requests.
-    - `u_arb_mask` processes the masked requests.
+The final grant is determined by whether the mask needs to be replenished or if all masked requests are zero, in which case, a raw grant is provided.
 
-4. The final grant signal `ow_grant` is determined by the `w_select_raw` wire. If replenishment (`i_replenish`) is requested or all masked requests are '0', the raw grant output from `u_arb_raw` is selected; otherwise, the masked grant output from `u_arb_mask` is selected.
-
-5. This round-robin implementation ensures that each client gets a fair chance of being serviced, and the arbitration is modified based on previous grants, which influences the prioritization of future requests.
-
-To include and use this module within a larger Verilog project, ensure to instantiate it correctly and provide a fixed priority arbiter named `arbiter_fixed_priority`. The specifics of the `arbiter_fixed_priority` are not detailed here, and this module must be defined elsewhere in the design.
+```verilog
+assign w_select_raw = i_replenish || (w_mask_req == {CLIENTS{1'b0}});
+assign ow_grant = w_select_raw ? w_raw_grant : w_mask_grant;
+```
 
 ## Waveforms
 
@@ -65,38 +98,9 @@ In this waveform, we notice ow_grant cycles from agent 0 to agent 3, each with m
 
 The second waveform shows switching between agent 0 and agent 1. Notice replenish happens more often. Eventually, when only agent 0 has a request and it only has one credit, replenish remains stuck at one.
 
-## Diagram, assuming four clients
+## Usage
 
-![Arbiter Round Robin Sub-Instance Diagram](./_svg/arbiter_round_robin_subinst.svg)
-
-
-## Usage Example
-
-```verilog
-
-arbiter_round_robin_subinst #(
-
-.CLIENTS(8)
-
-) arbiter_instance (
-
-.i_clk(clk),
-
-.i_rst_n(rst_n),
-
-.i_req(req_signals),
-
-.i_replenish(replenish),
-
-.ow_grant(grant_signals)
-
-);
-
-```
-
-Replace the constants and signal names with those appropriate for your design context.
-
----
+This module can be instantiated in a SystemVerilog design where multiple clients need managed access to a shared resource. Users can set the number of clients and specify whether to wait for grant acknowledgment. It is expected that it is a sub-block of the weight round robin arbiter.
 
 ## Block Hierarchy and Links
 

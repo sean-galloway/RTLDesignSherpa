@@ -1,9 +1,5 @@
 `timescale 1ns / 1ps
 
-// I got this design from:
-// https://chipress.online/?s=fixed_prio_arb
-// I've made a few tweaks and clean up items; I parameterized it.
-
 module arbiter_fixed_priority #(
     parameter int CLIENTS = 4
 ) (
