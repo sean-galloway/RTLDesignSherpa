@@ -18,6 +18,17 @@ class ArbiterTB(TBBase):
         self.CLIENTS = int(dut.CLIENTS)
         self.WAIT_GNT_ACK = int(dut.WAIT_GNT_ACK)
         self.pending_reqs = [0] * self.CLIENTS
+        thresholds, values = self.generate_and_shift(self.CLIENTS)
+        self.log.debug(f'Threshold Final: {thresholds}    Value List: {values}')
+        self.dut.i_max_thresh.value = thresholds
+
+
+    def generate_and_shift(self, n):
+        values = [random.randint(1, 15) for _ in range(n)]  # Generate N values between 1 and 15
+        result = 0
+        for value in values:
+            result = (result << 4) | value  # Shift and concatenate
+        return result, values
 
 
     async def clear_interface(self):
@@ -56,12 +67,13 @@ class ArbiterTB(TBBase):
     async def check_grants(self):
         while True:
             await self.wait_clocks('i_clk', 1)
-            if self.dut.o_gnt_valid.value == 1:
-                grant_id = int(self.dut.o_gnt_id.value)
+            if self.dut.ow_gnt_valid.value == 1:
+                await self.wait_time(400, 'ps')
+                grant_id = int(self.dut.ow_gnt_id.value)
                 expected_gnt = (1 << grant_id)
                 self.log.debug(f'Current req: {self.dut.i_req.value}')
-                assert self.dut.o_gnt.value == expected_gnt, f"Expected grant: {expected_gnt}, got: {int(self.dut.o_gnt.value)}"
-                assert self.dut.i_req.value & self.dut.o_gnt.value, "Grant should be in response to a request"
+                assert self.dut.ow_gnt.value == expected_gnt, f"Expected grant: {expected_gnt}, got: {int(self.dut.ow_gnt.value)}"
+                assert self.dut.i_req.value & self.dut.ow_gnt.value, "Grant should be in response to a request"
                 self.log.debug(f'Clearing bit {grant_id}')
                 self.log.debug(f'   before: {self.pending_reqs}')
                 self.pending_reqs[grant_id] = 0  # Clear the request once granted
@@ -73,8 +85,8 @@ class ArbiterTB(TBBase):
     async def handle_grant_ack(self):
         while True:
             await RisingEdge(self.dut.i_clk)
-            if self.WAIT_GNT_ACK == 1 and self.dut.o_gnt_valid.value == 1:
-                grant_id = self.dut.o_gnt_id.value
+            if self.WAIT_GNT_ACK == 1 and self.dut.ow_gnt_valid.value == 1:
+                grant_id = self.dut.ow_gnt_id.value
                 grant_ack_delay = self.random_delay()
                 for _ in range(grant_ack_delay):
                     await self.wait_clocks('i_clk', 1)
@@ -94,8 +106,8 @@ class ArbiterTB(TBBase):
 
 
 @cocotb.test()
-async def arbiter_round_robin_test(dut):
-    """Test the round-robin arbiter"""
+async def arbiter_weighted_round_robin_test(dut):
+    """Test the weighted round-robin arbiter"""
     tb = ArbiterTB(dut)
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
@@ -115,15 +127,14 @@ rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hd
 
 # @pytest.mark.parametrize("clients, wait_ack", [(6, 0)])
 @pytest.mark.parametrize("clients, wait_ack", [(6, 0), (4, 1)])
-def test_arbiter_round_robin(request, clients, wait_ack):
-    dut_name = "arbiter_round_robin"
+def test_arbiter_weighted_round_robin(request, clients, wait_ack):
+    dut_name = "arbiter_weighted_round_robin"
     module = os.path.splitext(os.path.basename(__file__))[0]  # The name of this file
     toplevel = dut_name   
 
     verilog_sources = [
-        os.path.join(rtl_dir, "find_first_set.sv"),
-        os.path.join(rtl_dir, "find_last_set.sv"),
-        os.path.join(rtl_dir, "leading_one_trailing_one.sv"),
+        os.path.join(rtl_dir, "arbiter_fixed_priority.sv"),
+        os.path.join(rtl_dir, "arbiter_round_robin_subinst.sv"),
         os.path.join(rtl_dir, f"{dut_name}.sv"),
 
     ]

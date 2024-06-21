@@ -21,7 +21,7 @@ fh.setFormatter(formatter)
 log.addHandler(fh)
 
 @cocotb.test()
-async def test_fifo(dut):
+async def arbiter_round_robin_test(dut):
 
     dut.i_write_A.value = 0
     dut.i_wr_data_A.value = 0
@@ -141,7 +141,7 @@ rtl_int_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'integration')) #p
 
 @pytest.mark.parametrize("n", [(4,)])
 def test_arbiter_round_robin_wrapper(request, n):
-    dut = "round_robin_wrapper"
+    dut_name = "round_robin_wrapper"
     module = os.path.splitext(os.path.basename(__file__))[0]  # The name of this file
     toplevel = "round_robin_wrapper"   
 
@@ -154,8 +154,7 @@ def test_arbiter_round_robin_wrapper(request, n):
         os.path.join(rtl_dir, "leading_one_trailing_one.sv"),
         os.path.join(rtl_dir, "arbiter_round_robin.sv"),
         os.path.join(rtl_dir, "pwm.sv"),
-        os.path.join(rtl_int_dir, "round_robin_wrapper.sv"),
-
+        os.path.join(rtl_int_dir, f"{dut_name}.sv"),
     ]
     includes = []
     parameters = {'N':n, }
@@ -164,9 +163,9 @@ def test_arbiter_round_robin_wrapper(request, n):
 
     # sourcery skip: no-conditionals-in-tests
     if request.config.getoption("--regression"):
-        sim_build = os.path.join(repo_root, 'val', 'unit', 'regression_area', 'sim_build', request.node.name.replace('[', '-').replace(']', ''))
+        sim_build = os.path.join(repo_root, 'val', 'integration', 'regression_area', 'sim_build', request.node.name.replace('[', '-').replace(']', ''))
     else:
-        sim_build = os.path.join(repo_root, 'val', 'unit', 'local_sim_build', request.node.name.replace('[', '-').replace(']', ''))
+        sim_build = os.path.join(repo_root, 'val', 'integration', 'local_sim_build', request.node.name.replace('[', '-').replace(']', ''))
 
     extra_env['LOG_PATH'] = os.path.join(str(sim_build), f'cocotb_log_{dut_name}.log')
     extra_env['DUT'] = dut_name

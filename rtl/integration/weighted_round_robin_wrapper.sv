@@ -14,6 +14,7 @@ logic [7:0]  ow_rd_data_A, ow_rd_data_B, ow_rd_data_C, ow_rd_data_D;
 logic [7:0]  i_wr_data_E;
 logic        pwm_sig, done;
 logic [10:0] count;
+logic          grant_valid;
 logic [N-1:0]  request, grant;
 
 fifo_sync
@@ -142,6 +143,7 @@ assign request = ($countones(req_orig)>1) ? req_orig : req_mask;
 
 arbiter_weighted_round_robin
 #(
+    .WAIT_GNT_ACK(0),
     .MAX_THRESH(15),
     .CLIENTS   (4)
 )
@@ -151,7 +153,9 @@ u_weighted_round_robin (
     .i_max_thresh      ({4'b0110, 4'b0100, 4'b0010, 4'b0001}),
     .i_req             (request),
     .i_block_arb       (pwm_sig),
-    .ow_grant          (grant)
+    .ow_gnt_valid      (grant_valid),
+    .ow_gnt            (grant),
+    .i_gnt_ack         ('0)
 );
 
 assign i_wr_data_E = grant[3] ? ow_rd_data_D :

@@ -4,32 +4,38 @@
 // I've made a bunch of changes since then, not all are tracked in git individually.
 // mada a number of tweaks to make arbitration more even and performant.
 module arbiter_weighted_round_robin #(
-    parameter int MAX_THRESH = 4,
+    parameter int MAX_THRESH = 16,
     parameter int MAX_THRESH_WIDTH = $clog2(MAX_THRESH),
-    parameter int CLIENTS = 4
+    parameter int CLIENTS = 4,
+    parameter int WAIT_GNT_ACK = 0
 ) (
-    input  logic                                  i_clk,
-    input  logic                                  i_rst_n,
-    input  logic [(CLIENTS*MAX_THRESH_WIDTH)-1:0] i_max_thresh,
-    input  logic [                   CLIENTS-1:0] i_req,
-    input  logic                                  i_block_arb,
-    output logic [                   CLIENTS-1:0] ow_grant
+    input  logic              i_clk,
+    input  logic              i_rst_n,
+    input  logic              i_block_arb,
+    input  logic [CXMTW-1:0]  i_max_thresh,
+    input  logic [C-1:0]      i_req,
+    output logic              ow_gnt_valid,
+    output logic [C-1:0]      ow_gnt,
+    output logic [N-1:0]      ow_gnt_id,
+    input  logic [C-1:0]      i_gnt_ack
 );
 
-    // Define a local parameter
+    // =======================================================================
+    // Declarations & Parameters
+    localparam int C = CLIENTS;
+    localparam int N = $clog2(CLIENTS) + 1;
     localparam int MTW = MAX_THRESH_WIDTH;
+    localparam int CXMTW = CLIENTS*MAX_THRESH_WIDTH;
 
     // Define the combi signal and flops
-    logic [(CLIENTS*MAX_THRESH_WIDTH)-1:0] r_crd_cnt;
-    logic [(CLIENTS*MAX_THRESH_WIDTH)-1:0] w_crd_cnt_next;
-    logic [(CLIENTS*MAX_THRESH_WIDTH)-1:0] w_crd_cnt_incr;
+    logic [CXMTW-1:0] r_crd_cnt;
+    logic [CXMTW-1:0] w_crd_cnt_next;
+    logic [CXMTW-1:0] w_crd_cnt_incr;
+    logic [C-1:0]     w_has_crd;
+    logic [C-1:0]     w_mask_req;
+    logic             w_replenish;
+    logic [C-1:0]     w_req_post;
 
-    logic [                   CLIENTS-1:0] w_has_crd;
-    logic [                   CLIENTS-1:0] w_mask_req;
-
-    logic                                  w_replenish;
-
-    logic [                   CLIENTS-1:0] w_req_post;
     assign w_req_post  = (i_block_arb) ? 'b0 : i_req;
 
     // when none of the asserted requests have credits, replenish all credit counters
@@ -51,17 +57,18 @@ module arbiter_weighted_round_robin #(
             always_comb begin
                 w_crd_cnt_next[EndIdx-:MTW] = r_crd_cnt[EndIdx-:MTW];
                 if (w_replenish)
-                    if (ow_grant[i]) w_crd_cnt_next[EndIdx-:MTW] = 1;
+                    if (ow_gnt[i]) w_crd_cnt_next[EndIdx-:MTW] = 1;
                     else w_crd_cnt_next[EndIdx-:MTW] = 0;
-                else if (ow_grant[i]) w_crd_cnt_next[EndIdx-:MTW] = w_crd_cnt_incr[EndIdx-:MTW];
+                else if (ow_gnt[i]) w_crd_cnt_next[EndIdx-:MTW] = w_crd_cnt_incr[EndIdx-:MTW];
             end
 
             // only update the credit counters when replenish or being granted
             always_ff @(posedge i_clk or negedge i_rst_n) begin
                 if (~i_rst_n) r_crd_cnt[EndIdx-:MTW] <= '0;
-                else if (w_replenish || (ow_grant[i] && w_has_crd[i]))
-                    // Only update when granted and has credits
-                    r_crd_cnt[EndIdx-:MTW] <= w_crd_cnt_next[EndIdx-:MTW];
+                else if (w_replenish || (ow_gnt[i] && w_has_crd[i]))
+                    if ((~WAIT_GNT_ACK) || (i_gnt_ack[i]))
+                        // Only update when granted and has credits
+                        r_crd_cnt[EndIdx-:MTW] <= w_crd_cnt_next[EndIdx-:MTW];
             end
         end
     endgenerate
@@ -72,7 +79,20 @@ module arbiter_weighted_round_robin #(
         .i_rst_n,
         .i_req(w_mask_req),
         .i_replenish(w_replenish),
-        .ow_grant(ow_grant)
+        .ow_grant(ow_gnt),
+        .i_gnt_ack(i_gnt_ack)
     );
+
+    // Iterate over the one-hot bus to find the set bit
+    always_comb begin
+        ow_gnt_id = '0;  // Default value, can be used to indicate an error
+        for (int i = 0; i < C; i++) begin
+            if (ow_gnt[i]) begin
+                ow_gnt_id = i;
+            end
+        end
+    end
+
+    assign ow_gnt_valid = |ow_gnt;
 
 endmodule : arbiter_weighted_round_robin
