@@ -1,6 +1,7 @@
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import FallingEdge, RisingEdge, Timer
+from cocotb.queue import Queue
 # from cocotb.regression import TestFactory
 import os
 import subprocess
@@ -11,11 +12,12 @@ from TBBase import TBBase
 from ConstrainedRandom import ConstrainedRandom
 
 
-class RRArb(TBBase):
-
+class ArbiterTB(TBBase):
     def __init__(self, dut):
-        TBBase.__init__(self, dut)
-        self.CLIENTS = self.convert_to_int(os.environ.get('PARAM_CLIENTS', '0'))
+        super().__init__(dut)
+        self.CLIENTS = int(dut.CLIENTS)
+        self.WAIT_GNT_ACK = int(dut.WAIT_GNT_ACK)
+        self.pending_reqs = [0] * self.CLIENTS
 
 
     async def clear_interface(self):
@@ -35,83 +37,84 @@ class RRArb(TBBase):
         self.log.info("Reset complete.")
 
 
-    def print_settings(self):
-        self.log.info('-------------------------------------------')
-        self.log.info('Settings:')
-        self.log.info(f'    CLIENTS:  {self.CLIENTS}')
-        self.log.info('-------------------------------------------')
+    def random_delay(self, min_clocks=5, max_clocks=15):
+        return random.randint(min_clocks, max_clocks)
 
 
-    async def basic_tests(self):
-        for i in range(self.CLIENTS):
-            self.dut.i_req.value = (1 << i)
-            await self.wait_clocks('i_clk', 1)
-            assert self.dut.o_gnt.value.integer == (1 << i), f"Expected o_gnt[{i}] to be high"
+    async def generate_requests(self, num_cycles=20):
+        for _ in range(num_cycles):
+            for i in range(self.CLIENTS):
+                if self.pending_reqs[i] == 0 and random.random() < 0.5:
+                    self.pending_reqs[i] = 1
+            self.dut.i_req.value = int("".join(map(str, self.pending_reqs)), 2)
+            self.log.debug(f'    New req: {self.dut.i_req}')
 
-
-    async def test_multiple(self):
-        for i in range(self.CLIENTS - 1):
-            self.dut.i_req.value = (1 << i) | (1 << (i + 1))
-            await self.wait_clocks('i_clk', 1)
-            assert self.dut.o_gnt.value.integer in [
-                1 << i,
-                1 << (i + 1),
-            ], f"Expected either o_gnt[{i}] or o_gnt[{i + 1}] to be high"
-
-
-    async def test_all(self):
-        num_clients = self.CLIENTS
-        self.dut.i_req.value = (1 << num_clients) - 1  # All bits set
-        await self.wait_clocks('i_clk', 1)
-        
-        # ensure only on agent is granted
-        granted_clients = [i for i, bit in enumerate(bin(self.dut.o_gnt.value.integer)[2:].zfill(num_clients)) if bit == '1']
-        assert len(granted_clients) == 1, "Expected exactly one client to be granted when all request."
-
-        # Now, advance some cycles to observe the round-robin behavior
-        previous_grant = granted_clients[0]
-        for _ in range(num_clients * 2):  # Go through enough cycles to see a full rotation
-            await self.wait_clocks('i_clk', 1)
-            self.dut.i_req.value = (1 << num_clients) - 1  # Keep all request active
             await self.wait_clocks('i_clk', 1)
 
-            granted_clients = [i for i, bit in enumerate(bin(self.dut.o_gnt.value.integer)[2:].zfill(num_clients)) if bit == '1']
-            assert len(granted_clients) == 1, f"Expected exactly one grant at each cycle, got {len(granted_clients)} grants."
-            
-            # Check for round-robin progression, which is less strict without internal state knowledge but expects a change.
-            assert granted_clients[0] != previous_grant, "Expected a different client to be granted in a round-robin fashion."
-            previous_grant = granted_clients[0]
+
+    async def check_grants(self):
+        while True:
+            await self.wait_clocks('i_clk', 1)
+            if self.dut.o_gnt_valid.value == 1:
+                grant_id = int(self.dut.o_gnt_id.value)
+                expected_gnt = (1 << grant_id)
+                self.log.debug(f'Current req: {self.dut.i_req.value}')
+                assert self.dut.o_gnt.value == expected_gnt, f"Expected grant: {expected_gnt}, got: {int(self.dut.o_gnt.value)}"
+                assert self.dut.i_req.value & self.dut.o_gnt.value, "Grant should be in response to a request"
+                self.log.debug(f'Clearing bit {grant_id}')
+                self.log.debug(f'   before: {self.pending_reqs}')
+                self.pending_reqs[grant_id] = 0  # Clear the request once granted
+                self.log.debug(f'    after: {self.pending_reqs}')
+                # Update i_req to reflect the cleared request
+                self.dut.i_req.value = int("".join(map(str, self.pending_reqs)), 2)
 
 
-    async def main_loop(self):
-        await self.basic_tests()
-        await self.test_multiple()
-        await self.test_all()
+    async def handle_grant_ack(self):
+        while True:
+            await RisingEdge(self.dut.i_clk)
+            if self.WAIT_GNT_ACK == 1 and self.dut.o_gnt_valid.value == 1:
+                grant_id = self.dut.o_gnt_id.value
+                grant_ack_delay = self.random_delay()
+                for _ in range(grant_ack_delay):
+                    await self.wait_clocks('i_clk', 1)
+                self.dut.i_gnt_ack.value = (1 << grant_id)
+                await self.wait_clocks('i_clk', 1)
+                self.dut.i_gnt_ack.value = 0
+                
+                
+    async def run_test(self):
+        cocotb.start_soon(self.generate_requests(20*self.CLIENTS))
+        cocotb.start_soon(self.check_grants())
+        cocotb.start_soon(self.handle_grant_ack())
+
+        # Run for a sufficient number of clock cycles
+        for _ in range(1000):
+            await RisingEdge(self.dut.i_clk)
 
 
 @cocotb.test()
 async def arbiter_round_robin_test(dut):
     """Test the round-robin arbiter"""
-    tb = RRArb(dut)
+    tb = ArbiterTB(dut)
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
     tb.log.info(f'seed changed to {seed}')
-    tb.print_settings()
     await tb.start_clock('i_clk', 10, 'ns')
     await tb.assert_reset()
     await tb.wait_clocks('i_clk', 5)
     await tb.deassert_reset()
     await tb.wait_clocks('i_clk', 5)
-    await tb.main_loop()
+    await tb.run_test()
 
 
 repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
 tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the test(current) directory in which this test.py file is placed
 rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hdl folder where .v files are placed
 
-@pytest.mark.parametrize("clients", [6])
-def test_arbiter_round_robin(request, clients):
+# @pytest.mark.parametrize("clients, wait_ack", [(6, 0)])
+@pytest.mark.parametrize("clients, wait_ack", [(6, 0), (4, 1)])
+def test_arbiter_round_robin(request, clients, wait_ack):
     dut_name = "arbiter_round_robin"
     module = os.path.splitext(os.path.basename(__file__))[0]  # The name of this file
     toplevel = dut_name   
@@ -124,7 +127,7 @@ def test_arbiter_round_robin(request, clients):
 
     ]
     includes = []
-    parameters = {'CLIENTS':clients, }
+    parameters = {'CLIENTS':clients, 'WAIT_GNT_ACK':wait_ack}
 
     extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
 

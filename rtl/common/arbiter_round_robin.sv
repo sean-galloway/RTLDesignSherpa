@@ -1,17 +1,18 @@
 `timescale 1ns / 1ps
 
-// Mostly based on code from this github:
-// https://github.com/gsw73/ffs_arbiter/blob/master/design.sv
-// I made a couple of tweaks myself to make it more efficient if only one agent is requesting
 module arbiter_round_robin #(
-    parameter int CLIENTS = 4
+    parameter int CLIENTS      = 4,
+    parameter int WAIT_GNT_ACK = 0
 ) (
     input logic i_clk,
     input logic i_rst_n,
     input logic i_block_arb,
 
-    input  logic [CLIENTS-1:0] i_req,
-    output logic [CLIENTS-1:0] o_gnt
+    input  logic [CLIENTS-1:0]  i_req,
+    output logic                o_gnt_valid,
+    output logic [CLIENTS-1:0]  o_gnt,
+    output logic [N-1:0]        o_gnt_id,
+    input  logic [CLIENTS-1:0]  i_gnt_ack
 );
 
     // =======================================================================
@@ -34,9 +35,7 @@ module arbiter_round_robin #(
     // Logic
     assign w_req_post = (i_block_arb) ? 'b0 : i_req;
     assign w_req_masked = w_req_post & r_mask;
-    assign w_req_win_mask = ($countones(
-            i_req
-        ) > 1) ? (w_req_post & r_win_mask_only) :
+    assign w_req_win_mask = ($countones(i_req) > 1) ? (w_req_post & r_win_mask_only) :
             w_req_post;  // only look at the req's if there is only one
 
     // find highest set bit in both request and masked request; priority shifts
@@ -90,15 +89,18 @@ module arbiter_round_robin #(
     // grant to it twice in a row.
     always_ff @(posedge i_clk or negedge i_rst_n)
         if (!i_rst_n) r_win_mask_only <= '0;
-        else if (w_win_vld) r_win_mask_only <= ~({(CLIENTS - 1)'('d0), 1'b1} << w_winner);
-        else r_win_mask_only <= {CLIENTS{1'b1}};
+        else if (w_win_vld && (WAIT_GNT_ACK == 0 || i_gnt_ack[w_winner]))
+            r_win_mask_only <= ~({(CLIENTS - 1)'('d0), 1'b1} << w_winner);
+        else
+            r_win_mask_only <= {CLIENTS{1'b1}};
 
     // Register:  r_mask
     //
     // The r_mask depends on the previous winner.
     always_ff @(posedge i_clk or negedge i_rst_n)
         if (!i_rst_n) r_mask <= '0;
-        else r_mask <= ({(CLIENTS - 1)'('d0), 1'b1} << w_winner) - 1'b1;
+        else if (w_win_vld && (WAIT_GNT_ACK == 0 || i_gnt_ack[w_winner]))
+            r_mask <= ({(CLIENTS - 1)'('d0), 1'b1} << w_winner) - 1'b1;
 
     // Register:  o_gnt
     //
@@ -106,10 +108,19 @@ module arbiter_round_robin #(
     // the mask vector.  If no lower bits are set, the unmasked request result
     // is used.
     always_ff @(posedge i_clk or negedge i_rst_n)
-        if (!i_rst_n) o_gnt <= '0;
-        else if (w_win_vld) begin
-            o_gnt <= '0;
+        if (!i_rst_n) begin
+            o_gnt       <= '0;
+            o_gnt_id    <= '0;
+            o_gnt_valid <= '0;
+        end else if (w_win_vld) begin
+            o_gnt           <= '0;
             o_gnt[w_winner] <= 1'b1;
-        end else o_gnt <= '0;
+            o_gnt_id        <= w_winner[$clog2(CLIENTS)-1:0];
+            o_gnt_valid     <= '1;
+        end else begin
+            o_gnt       <= '0;
+            o_gnt_id    <= '0;
+            o_gnt_valid <= '0;
+        end
 
 endmodule : arbiter_round_robin
