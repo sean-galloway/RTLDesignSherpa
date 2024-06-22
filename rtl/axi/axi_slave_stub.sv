@@ -77,31 +77,31 @@ module axi_slave_stub
 
     // Stub Outputs/Inputs
     // AW interface
-    output  logic                      r_s_axi_awvalid,
-    input   logic                      r_s_axi_awready,
-    output  logic [2:0]                r_s_axi_aw_count,
-    output  logic [AWSize-1:0]         r_s_axi_aw_pkt,
+    output logic                       r_s_axi_awvalid,
+    input  logic                       r_s_axi_awready,
+    output logic [2:0]                 r_s_axi_aw_count,
+    output logic [AWSize-1:0]          r_s_axi_aw_pkt,
 
     // W interface
-    output  logic                      r_s_axi_wvalid,
-    input   logic                      r_s_axi_wready,
-    output  logic [WSize-1:0]          r_s_axi_w_pkt,
+    output logic                       r_s_axi_wvalid,
+    input  logic                       r_s_axi_wready,
+    output logic [WSize-1:0]           r_s_axi_w_pkt,
 
     // B interface
-    input   logic                      r_s_axi_bvalid,
-    output  logic                      r_s_axi_bready,
-    input   logic [BSize-1:0]          r_s_axi_b_pkt,
+    input  logic                       r_s_axi_bvalid,
+    output logic                       r_s_axi_bready,
+    input  logic [BSize-1:0]           r_s_axi_b_pkt,
 
     // AR interface
-    output  logic                      r_s_axi_arvalid,
-    input   logic                      r_s_axi_arready,
-    output  logic [2:0]                r_s_axi_ar_count,
-    output  logic [ARSize-1:0]         r_s_axi_ar_pkt,
+    output logic                       r_s_axi_arvalid,
+    input  logic                       r_s_axi_arready,
+    output logic [2:0]                 r_s_axi_ar_count,
+    output logic [ARSize-1:0]          r_s_axi_ar_pkt,
 
     // R interface
-    input   logic                      r_s_axi_rvalid,
-    output  logic                      r_s_axi_rready,
-    input   logic [RSize-1:0]          r_s_axi_r_pkt
+    input  logic                       r_s_axi_rvalid,
+    output logic                       r_s_axi_rready,
+    input  logic [RSize-1:0]           r_s_axi_r_pkt
 );
 
     localparam int AW       = AXI_ADDR_WIDTH;

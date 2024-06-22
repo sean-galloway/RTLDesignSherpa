@@ -92,7 +92,7 @@ async def arbiter_weighted_round_robin_test(dut):
 repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
 tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the test(current) directory in which this test.py file is placed
 rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hdl folder where .v files are placed
-rtl_int_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'integration')) #path to hdl folder where .v files are placed
+rtl_int_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'integ_common')) #path to hdl folder where .v files are placed
 
 @pytest.mark.parametrize("n", [(4,)])
 def test_arbiter_weighted_round_robin_wrapper(request, n):
@@ -118,9 +118,9 @@ def test_arbiter_weighted_round_robin_wrapper(request, n):
 
     # sourcery skip: no-conditionals-in-tests
     if request.config.getoption("--regression"):
-        sim_build = os.path.join(repo_root, 'val', 'integration', 'regression_area', 'sim_build', request.node.name.replace('[', '-').replace(']', ''))
+        sim_build = os.path.join(repo_root, 'val', 'integ_common', 'regression_area', 'sim_build', request.node.name.replace('[', '-').replace(']', ''))
     else:
-        sim_build = os.path.join(repo_root, 'val', 'integration', 'local_sim_build', request.node.name.replace('[', '-').replace(']', ''))
+        sim_build = os.path.join(repo_root, 'val', 'integ_common', 'local_sim_build', request.node.name.replace('[', '-').replace(']', ''))
 
     extra_env['LOG_PATH'] = os.path.join(str(sim_build), f'cocotb_log_{dut_name}.log')
     extra_env['DUT'] = dut_name

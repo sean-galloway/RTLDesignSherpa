@@ -4,6 +4,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, FallingEdge, ClockCycles, Timer
 from cocotb.handle import SimHandleBase
 from cocotb_bus.monitors import BusMonitor
+from cocotb_bus.drivers import BusDriver
 from cocotb.utils import get_sim_time
 from cocotb.queue import Queue
 from cocotb.result import TestFailure
@@ -146,7 +147,7 @@ class APBTransaction(Randomized):
         self.add_rand("last",   [0, 1])
         self.add_rand("first",  [0, 1])
         self.add_rand("pwrite", [0, 1])
-        self.add_rand("paddr",  list(range(2**10)))
+        self.add_rand("paddr",  list(range(2**12)))
         self.add_rand("pstrb",  list(range(2**strb_width)))
         self.add_rand("pprot",  list(range(8)))
 
@@ -280,6 +281,7 @@ class APBSlave(BusMonitor):
         else:
             self.constraints = constraints
         BusMonitor.__init__(self, entity, name, clock, **kwargs)
+        self.clock          = clock
         self.addr_width     = addr_width
         self.bus_width      = bus_width
         self.strb_bits      = bus_width // 8
@@ -290,7 +292,7 @@ class APBSlave(BusMonitor):
         self.error_overflow = error_overflow
         # Create the memory model
         self.mem = MemoryModel(num_lines=self.num_lines, bytes_per_line=self.strb_bits, log=self.entity._log, preset_values=registers)
-        self.clock = clock
+        self._sentQ = deque()
 
         # initialise all outputs to zero
         self.bus.PRDATA.setimmediatevalue(0)
@@ -367,9 +369,146 @@ class APBSlave(BusMonitor):
                     strobes   = self.bus.PSTRB.value.integer if self.is_signal_present('PSTRB') else (1 << self.strb_bits) - 1
                     pwdata    = self.bus.PWDATA.value.integer
                     pwdata_ba = self.mem.integer_to_bytearray(pwdata, self.strb_bits)
-                    self.mem.write(address, pwdata_ba, strobes)
+                    self.mem.write(address & 0xFFF, pwdata_ba, strobes)
 
                 else:  # Read transaction
-                    prdata_ba = self.mem.read(address, self.strb_bits)
+                    prdata_ba = self.mem.read(address & 0xFFF, self.strb_bits)
                     prdata = self.mem.bytearray_to_integer(prdata_ba)
                     self.bus.PRDATA.value = prdata
+
+
+class APBMaster(BusDriver):
+
+    def __init__(self, entity, name, clock, signals=None,
+                    bus_width=32, addr_width=12, constraints=None,
+                    **kwargs):
+        if signals:
+            self._signals = signals
+        else:
+            self._signals = apb_signals
+            self._optional_signals = apb_optional_signals
+        if constraints is None:
+            self.constraints = {
+                'psel':    ([[0, 0], [1, 5], [6, 10]], [5, 2, 1]),
+                'penable': ([[0, 0], [1, 2]], [4, 1]),
+            }
+        else:
+            self.constraints = constraints
+        BusDriver.__init__(self, entity, name, clock, **kwargs)
+        self.clock          = clock
+        self.addr_width     = addr_width
+        self.bus_width      = bus_width
+        self.strb_bits      = bus_width // 8
+        self.addr_mask      = (2**self.strb_bits - 1)
+        self.delay_crand    = DelayRandomizer(self.constraints)
+
+        # initialise all outputs to zero
+        self.bus.PADDR.setimmediatevalue(0)
+        self.bus.PWRITE.setimmediatevalue(0)
+        self.bus.PSEL.setimmediatevalue(0)
+        self.bus.PENABLE.setimmediatevalue(0)
+        self.bus.PWDATA.setimmediatevalue(0)
+        if self.is_signal_present('PSTRB'):
+            self.bus.PSTRB.setimmediatevalue(0)
+
+
+    def is_signal_present(self, signal_name):
+        return hasattr(self.bus, signal_name)
+
+
+    def reset_bus(self):
+        # initialise the transmit queue
+        self.transmit_queue     = deque()
+        self.transmit_coroutine = 0
+        self.bus.PSEL.value     = 0
+        self.bus.PENABLE.value  = 0
+        self.bus.PWRITE.value   = 0
+        self.bus.PADDR.value    = 0
+        self.bus.PWDATA.value   = 0
+        if self.is_signal_present('PSTRB'):
+            self.bus.PSTRB.value = 0
+
+
+    async def busy_send(self, transaction):
+        '''
+            Provide a send method that waits for the transaction to complete.
+        '''
+        await self.send(transaction)
+        while (self.transfer_busy):
+            await RisingEdge(self.clock)
+
+
+    async def _driver_send(self, transaction, sync=True, hold=False, **kwargs):
+        '''
+            Append a new transaction to be transmitted
+        '''
+
+        # add new transaction
+        self.transmit_queue.append(transaction)
+
+        # launch new transmit pipeline coroutine if aren't holding for and the
+        #   the coroutine isn't already running.
+        #   If it is running it will just collect the transactions in the
+        #   queue once it gets to them.
+        if not hold and not self.transmit_coroutine:
+            self.transmit_coroutine = cocotb.fork(self._transmit_pipeline())
+
+
+    async def _transmit_pipeline(self):
+
+        # default values
+        self.transfer_busy = True
+
+        # while there's data in the queue keep transmitting
+        while len(self.transmit_queue):
+            # clear out the bus
+            self.bus.PSEL.value     = 0
+            self.bus.PENABLE.value  = 0
+            self.bus.PWRITE.value   = 0
+            self.bus.PADDR.value    = 0
+            self.bus.PWDATA.value   = 0
+            if self.is_signal_present('PSTRB'):
+                self.bus.PSTRB.value = 0
+
+            rand_dict = self.delay_crand.set_constrained_random()
+            psel_delay = rand_dict['psel']
+            penable_delay = rand_dict['penable']
+
+            transaction = self.transmit_queue.popleft()
+            transaction.start_time = cocotb.utils.get_sim_time('ns')
+
+            while psel_delay > 0:
+                psel_delay -= 1
+                await RisingEdge(self.clock)
+
+            self.bus.PSEL.value   = 0
+            self.bus.PWRITE.value = transaction.pwrite
+            self.bus.PADDR.value  = transaction.address
+            if self.is_signal_present('PSTRB'):
+                self.bus.PSTRB.value = transaction.pstrb
+            if transaction.pwrite:
+                self.bus.PWDATA.value   =  transaction.pwdata
+            
+            await RisingEdge(self.clock)
+            await Timer(200, units='ps')
+
+            while penable_delay > 0:
+                penable_delay -= 1
+                await RisingEdge(self.clock)
+            
+            self.bus.PENABLE.value  = 1
+            await Timer(200, units='ps')
+
+            while not self.bus.PREADY.value:
+                await RisingEdge(self.clock)
+                await Timer(200, units='ps')
+            
+            # check if the slave is asserting an error
+            if self.bus.PSLVERR.value:
+                transaction.error = True
+
+            # if this is a read we should sample the data
+            if transaction.direction == 'READ':
+                transaction.data = self.bus.PRDATA.value
+
+            self._sentQ.append(transaction)

@@ -1,0 +1,11 @@
+{
+  "FILE": "./apb_xbar_wrap.sv",
+  "M": 3,
+  "S": 5,
+  "ADDR_WIDTH": 32,
+  "DATA_WIDTH": 32,
+  "SLAVE_ENABLE": [1, 1, 1, 1, 1],
+  "SLAVE_ADDR_BASE":  [0,    4096,  8192, 12288, 16384],
+  "SLAVE_ADDR_LIMIT": [4095, 8191, 12287, 16383, 20479],
+  "THRESHOLDS": [4, 4, 4, 4, 4]
+}
