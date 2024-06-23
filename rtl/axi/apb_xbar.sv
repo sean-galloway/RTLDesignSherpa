@@ -71,7 +71,7 @@ module apb_xbar #(
             end
         end
     endgenerate
-/*
+
     // Instantiate arbiters for each slave
     // need to choose betweeen all of the masters assuming
     // they are all doing a cycle to the same slave at once
@@ -132,5 +132,5 @@ module apb_xbar #(
             end
         end
     endgenerate
-*/
+
 endmodule : apb_xbar
