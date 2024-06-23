@@ -20,9 +20,15 @@ def generate_wrapper(json_file):
     sv_code = """
 `timescale 1ns / 1ps
 
-module apb_xbar_wrap (
-    input  logic                 clk,
-    input  logic                 rst_n,
+module apb_xbar_wrap #(
+    parameter int M = 2,
+    parameter int S = 4,
+    parameter int ADDR_WIDTH = 32,
+    parameter int DATA_WIDTH = 32,
+    parameter int STRB_WIDTH = DATA_WIDTH/8
+) (
+    input  logic                 aclk,
+    input  logic                 aresetn,
 """
 
     # Generate master interfaces
@@ -64,49 +70,61 @@ module apb_xbar_wrap (
 
 """
     # Instantiate the apb_xbar module
-    AW = ADDR_WIDTH 
+    AW = ADDR_WIDTH
+    slave_enable_str = f"""{{{', '.join(f"1'b{sen}" for sen in SLAVE_ENABLE)}}}"""
+    slave_addr_base_str = f"""{{{', '.join(f"{AW}'h{addr:X}" for addr in SLAVE_ADDR_BASE)}}}"""
+    slave_addr_limit_str = f"""{{{', '.join(f"{AW}'h{addr:X}" for addr in SLAVE_ADDR_LIMIT)}}}"""
     sv_code += f"""
     apb_xbar #(
         .M({M}),
         .S({S}),
         .ADDR_WIDTH({ADDR_WIDTH}),
-        .DATA_WIDTH({DATA_WIDTH}),
-        .STRB_WIDTH({STRB_WIDTH}),
+        .DATA_WIDTH({DATA_WIDTH})
     ) apb_xbar_inst (
-        .clk(clk),
-        .rst_n(rst_n),
-        .SLAVE_ENABLE({SLAVE_ENABLE}),
-        .SLAVE_ADDR_BASE('{ {', '.join(f"{AW}'h{addr:X}" for addr in SLAVE_ADDR_BASE)}}),
-        .SLAVE_ADDR_LIMIT('{ {', '.join(f"{AW}'h{addr:X}" for addr in SLAVE_ADDR_LIMIT)}}),
-        .THRESHOLDS('{ {', '.join(f"4'h{t:X}" for t in THRESHOLDS)}})
+        .aclk                (aclk),
+        .aresetn             (aresetn),
+        .SLAVE_ENABLE        ({slave_enable_str}),
+        .SLAVE_ADDR_BASE     ({slave_addr_base_str}),
+        .SLAVE_ADDR_LIMIT    ({slave_addr_limit_str}),
+        .THRESHOLDS          ({4*len(THRESHOLDS)}'h{''.join(f"{t:X}" for t in THRESHOLDS)}),
 """
 
     # Connect master interfaces
-    for i in range(M):
-        sv_code += f"""
-        .m_apb_psel[{i}]     (m{i}_apb_psel),
-        .m_apb_penable[{i}]  (m{i}_apb_penable),
-        .m_apb_pwrite[{i}]   (m{i}_apb_pwrite),
-        .m_apb_paddr[{i}]    (m{i}_apb_paddr),
-        .m_apb_pwdata[{i}]   (m{i}_apb_pwdata),
-        .m_apb_pstrb[{i}]    (m{i}_apb_pstrb),
-        .m_apb_pready[{i}]   (m{i}_apb_pready),
-        .m_apb_prdata[{i}]   (m{i}_apb_prdata),
-        .m_apb_pslverr[{i}]  (m{i}_apb_pslverr),
+    sig_list = ['psel', 'penable', 'pwrite', 'paddr', 'pwdata', 'pstrb', 'pready', 'prdata', 'pslverr']
+    m_apb_dict = {
+        sig: '{'
+        + ', '.join(f"m{i}_apb_{sig}" for i in range(M - 1, -1, -1))
+        + '}'
+        for sig in sig_list
+    }
+    sv_code += f"""
+        .m_apb_psel     ({m_apb_dict['psel']}),
+        .m_apb_penable  ({m_apb_dict['penable']}),
+        .m_apb_pwrite   ({m_apb_dict['pwrite']}),
+        .m_apb_paddr    ({m_apb_dict['paddr']}),
+        .m_apb_pwdata   ({m_apb_dict['pwdata']}),
+        .m_apb_pstrb    ({m_apb_dict['pstrb']}),
+        .m_apb_pready   ({m_apb_dict['pready']}),
+        .m_apb_prdata   ({m_apb_dict['prdata']}),
+        .m_apb_pslverr  ({m_apb_dict['pslverr']}),
 """
 
-    # Connect slave interfaces
-    for i in range(S):
-        sv_code += f"""
-        .s_apb_psel[{i}]    (s{i}_apb_psel),
-        .s_apb_penable[{i}] (s{i}_apb_penable),
-        .s_apb_pwrite[{i}]  (s{i}_apb_pwrite),
-        .s_apb_paddr[{i}]   (s{i}_apb_paddr),
-        .s_apb_pwdata[{i}]  (s{i}_apb_pwdata),
-        .s_apb_pstrb[{i}]   (s{i}_apb_pstrb),
-        .s_apb_pready[{i}]  (s{i}_apb_pready),
-        .s_apb_prdata[{i}]  (s{i}_apb_prdata),
-        .s_apb_pslverr[{i}] (s{i}_apb_pslverr),
+    s_apb_dict = {
+        sig: '{'
+        + ', '.join(f"s{i}_apb_{sig}" for i in range(S - 1, -1, -1))
+        + '}'
+        for sig in sig_list
+    }
+    sv_code += f"""
+        .s_apb_psel    ({s_apb_dict['psel']}),
+        .s_apb_penable ({s_apb_dict['penable']}),
+        .s_apb_pwrite  ({s_apb_dict['pwrite']}),
+        .s_apb_paddr   ({s_apb_dict['paddr']}),
+        .s_apb_pwdata  ({s_apb_dict['pwdata']}),
+        .s_apb_pstrb   ({s_apb_dict['pstrb']}),
+        .s_apb_pready  ({s_apb_dict['pready']}),
+        .s_apb_prdata  ({s_apb_dict['prdata']}),
+        .s_apb_pslverr ({s_apb_dict['pslverr']}),
 """
 
     # Remove trailing comma and newline, and close the module instantiation

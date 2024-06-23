@@ -241,7 +241,8 @@ class APBMonitor(BusMonitor):
     async def _monitor_recv(self):
         while True:
             await FallingEdge(self.clock)
-            if self.bus.PSEL.value.integer and \
+            if self.bus.PSEL.value.is_resolvable and \
+                    self.bus.PSEL.value.integer and \
                     self.bus.PENABLE.value.integer and \
                     self.bus.PREADY.value.integer:
                 start_time = get_sim_time('ns')
@@ -330,7 +331,7 @@ class APBSlave(BusMonitor):
             if self.is_signal_present('PSLVERR'):
                 self.bus.PSLVERR.value = 0
 
-            if self.bus.PSEL.value.integer:
+            if  self.bus.PSEL.value.is_resolvable and self.bus.PSEL.value.integer:
                 rand_dict = self.delay_crand.set_constrained_random()
                 ready_delay = rand_dict['ready']
                 slv_error = rand_dict['error']

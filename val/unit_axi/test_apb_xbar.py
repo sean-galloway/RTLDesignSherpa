@@ -17,14 +17,15 @@ from APB import APBTransaction, APBMonitor, APBSlave, APBMaster
 class APBXbar_TB(TBBase):
     def __init__(self, dut):
         TBBase.__init__(self, dut)
-        self.M = 5
-        self.S = 3
-        self.ADDR_WIDTH = 32
-        self.DATA_WIDTH = 32
-        self.STRB_WIDTH = 8
-        self.SLAVE_ENABLE = [1, 1, 1, 1, 1]
-        self.SLAVE_ADDR_BASE  = [  0x0, 0x1000, 0x2000, 0x3000, 0x4000] 
+        self.M = self.convert_to_int(os.environ.get('PARAM_M', '0'))
+        self.S = self.convert_to_int(os.environ.get('PARAM_S', '0'))
+        self.ADDR_WIDTH = self.convert_to_int(os.environ.get('PARAM_ADDR_WIDTH', '0'))
+        self.DATA_WIDTH = self.convert_to_int(os.environ.get('PARAM_DATA_WIDTH', '0'))
+        self.STRB_WIDTH = self.convert_to_int(os.environ.get('PARAM_STRB_WIDTH', '0'))
+        self.SLAVE_ENABLE = [1, 1, 1, 1, 1] 
+        self.SLAVE_ADDR_BASE =  [0x000, 0x1000, 0x2000, 0x3000, 0x4000]
         self.SLAVE_ADDR_LIMIT = [0xFFF, 0x1FFF, 0x2FFF, 0x3FFF, 0x4FFF]
+        self.THRESHOLDS = [4, 4, 4]
 
         self.registers = 32 * self.STRB_WIDTH
         self.slave_register = list(range(self.registers))
@@ -57,7 +58,7 @@ class APBXbar_TB(TBBase):
         }
         self.apb_master = []
         for i in range(self.M):
-            master   = APBSlave(dut, f'm{i}_apb', dut.aclk,
+            master   = APBMaster(dut, f'm{i}_apb', dut.aclk,
                                     bus_width=self.DATA_WIDTH, addr_width=self.ADDR_WIDTH,
                                     constraints=apb_mst_constraints)
             self.apb_master.append(master)
@@ -94,19 +95,39 @@ rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common'))
 rtl_axi_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'axi/'))
 rtl_integ_axi_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'integ_axi/apb_xbar'))
 
-@pytest.mark.parametrize()
-def test_apb_xbar_wrap(request):
+@pytest.mark.parametrize("m, s, addr_width, data_width", 
+    [
+        (
+            3,                   # m
+            5,                   # s
+            32,                  # addr_width
+            32,                  # data_width
+        )
+    ])
+def test_apb_xbar_wrap(request, m, s, addr_width, data_width):
     dut_name = "apb_xbar_wrap"
     module = os.path.splitext(os.path.basename(__file__))[0]
     toplevel = dut_name
 
     verilog_sources = [
+        os.path.join(rtl_dir, "arbiter_fixed_priority.sv"),
+        os.path.join(rtl_dir, "arbiter_round_robin_subinst.sv"),
+        os.path.join(rtl_dir, "arbiter_weighted_round_robin.sv"),
         os.path.join(rtl_axi_dir, "apb_xbar.sv"),
         os.path.join(rtl_integ_axi_dir, f"{dut_name}.sv")
     ]
     includes = []
 
+    print("M:               ", m)
+    print("S:               ", s)
+    print("ADDR_WIDTH:      ", addr_width)
+    print("DATA_WIDTH:      ", data_width)
+
     parameters = {
+        'M':                m,
+        'S':                s,
+        'ADDR_WIDTH':       addr_width,
+        'DATA_WIDTH':       data_width
     }
 
     extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
