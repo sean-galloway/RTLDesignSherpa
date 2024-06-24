@@ -1,0 +1,135 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Sun Jun 23 20:39:42 2024
+[*]
+[dumpfile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/local_sim_build/test_apb_xbar_wrap-3-5-32-32/waves.vcd"
+[dumpfile_mtime] "Sun Jun 23 14:23:51 2024"
+[dumpfile_size] 3374
+[savefile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/GTKW/axi_xbar_3m_5s.gtkw"
+[timestart] 0
+[size] 2149 1742
+[pos] -1 -1
+*-16.443554 100000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] apb_xbar_wrap.
+[treeopen] apb_xbar_wrap.apb_xbar_inst.
+[treeopen] apb_xbar_wrap.apb_xbar_inst.gen_decoder[0].
+[treeopen] apb_xbar_wrap.apb_xbar_inst.gen_master_sel[0].
+[sst_width] 315
+[signals_width] 569
+[sst_expanded] 1
+[sst_vpaned_height] 540
+@28
+apb_xbar_wrap.aclk
+apb_xbar_wrap.aresetn
+@200
+-Master 0
+@28
+apb_xbar_wrap.m0_apb_psel
+apb_xbar_wrap.m0_apb_penable
+apb_xbar_wrap.m0_apb_pready
+apb_xbar_wrap.m0_apb_pwrite
+apb_xbar_wrap.m0_apb_pprot[2:0]
+@22
+apb_xbar_wrap.m0_apb_paddr[31:0]
+@28
+apb_xbar_wrap.m0_apb_pslverr
+@200
+-Slave 0
+@28
+apb_xbar_wrap.s0_apb_psel
+apb_xbar_wrap.s0_apb_penable
+apb_xbar_wrap.s0_apb_pready
+apb_xbar_wrap.s0_apb_pwrite
+apb_xbar_wrap.s0_apb_pprot[2:0]
+@22
+apb_xbar_wrap.s0_apb_paddr[31:0]
+apb_xbar_wrap.s0_apb_pwdata[31:0]
+apb_xbar_wrap.s0_apb_pstrb[3:0]
+apb_xbar_wrap.s0_apb_prdata[31:0]
+@28
+apb_xbar_wrap.s0_apb_pslverr
+@200
+-Slave 1
+@28
+apb_xbar_wrap.s1_apb_psel
+apb_xbar_wrap.s1_apb_penable
+apb_xbar_wrap.s1_apb_pready
+apb_xbar_wrap.s1_apb_pwrite
+apb_xbar_wrap.s1_apb_pprot[2:0]
+@22
+apb_xbar_wrap.s1_apb_paddr[31:0]
+apb_xbar_wrap.s1_apb_pwdata[31:0]
+apb_xbar_wrap.s1_apb_pstrb[3:0]
+apb_xbar_wrap.s1_apb_prdata[31:0]
+@28
+apb_xbar_wrap.s1_apb_pslverr
+@200
+-Slave 2
+@28
+apb_xbar_wrap.s2_apb_psel
+apb_xbar_wrap.s2_apb_penable
+apb_xbar_wrap.s2_apb_pready
+apb_xbar_wrap.s2_apb_pwrite
+apb_xbar_wrap.s2_apb_pprot[2:0]
+@22
+apb_xbar_wrap.s2_apb_paddr[31:0]
+apb_xbar_wrap.s2_apb_pwdata[31:0]
+apb_xbar_wrap.s2_apb_pstrb[3:0]
+apb_xbar_wrap.s2_apb_prdata[31:0]
+@28
+apb_xbar_wrap.s2_apb_pslverr
+@200
+-Slave 3
+@28
+apb_xbar_wrap.s3_apb_psel
+apb_xbar_wrap.s3_apb_penable
+apb_xbar_wrap.s3_apb_pready
+apb_xbar_wrap.s3_apb_pwrite
+apb_xbar_wrap.s3_apb_pprot[2:0]
+@22
+apb_xbar_wrap.s3_apb_paddr[31:0]
+apb_xbar_wrap.s3_apb_pwdata[31:0]
+apb_xbar_wrap.s3_apb_pstrb[3:0]
+apb_xbar_wrap.s3_apb_prdata[31:0]
+@28
+apb_xbar_wrap.s3_apb_pslverr
+@200
+-Slave 4
+@28
+apb_xbar_wrap.s4_apb_psel
+apb_xbar_wrap.s4_apb_penable
+apb_xbar_wrap.s4_apb_pready
+apb_xbar_wrap.s4_apb_pwrite
+apb_xbar_wrap.s4_apb_pprot[2:0]
+@22
+apb_xbar_wrap.s4_apb_paddr[31:0]
+apb_xbar_wrap.s4_apb_pwdata[31:0]
+apb_xbar_wrap.s4_apb_pstrb[3:0]
+apb_xbar_wrap.s4_apb_prdata[31:0]
+@28
+apb_xbar_wrap.s4_apb_pslverr
+@200
+-Internals
+@22
+apb_xbar_wrap.apb_xbar_inst.slave_sel[14:0]
+apb_xbar_wrap.apb_xbar_inst.arb_gnt_valid[4:0]
+apb_xbar_wrap.apb_xbar_inst.arb_gnt_id[14:0]
+apb_xbar_wrap.apb_xbar_inst.arb_gnt[14:0]
+@c00022
+apb_xbar_wrap.apb_xbar_inst.r_s_apb_pready[4:0]
+@28
+(0)apb_xbar_wrap.apb_xbar_inst.r_s_apb_pready[4:0]
+(1)apb_xbar_wrap.apb_xbar_inst.r_s_apb_pready[4:0]
+(2)apb_xbar_wrap.apb_xbar_inst.r_s_apb_pready[4:0]
+(3)apb_xbar_wrap.apb_xbar_inst.r_s_apb_pready[4:0]
+(4)apb_xbar_wrap.apb_xbar_inst.r_s_apb_pready[4:0]
+@1401200
+-group_end
+@28
+apb_xbar_wrap.m0_apb_pready
+apb_xbar_wrap.m1_apb_pready
+apb_xbar_wrap.m2_apb_pready
+@23
+apb_xbar_wrap.apb_xbar_inst.s_apb_pready[4:0]
+[pattern_trace] 1
+[pattern_trace] 0

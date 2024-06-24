@@ -21,7 +21,7 @@ class APBXbar_TB(TBBase):
         self.S = self.convert_to_int(os.environ.get('PARAM_S', '0'))
         self.ADDR_WIDTH = self.convert_to_int(os.environ.get('PARAM_ADDR_WIDTH', '0'))
         self.DATA_WIDTH = self.convert_to_int(os.environ.get('PARAM_DATA_WIDTH', '0'))
-        self.STRB_WIDTH = self.convert_to_int(os.environ.get('PARAM_STRB_WIDTH', '0'))
+        self.STRB_WIDTH = self.DATA_WIDTH // 8
         self.SLAVE_ENABLE = [1, 1, 1, 1, 1] 
         self.SLAVE_ADDR_BASE =  [0x000, 0x1000, 0x2000, 0x3000, 0x4000]
         self.SLAVE_ADDR_LIMIT = [0xFFF, 0x1FFF, 0x2FFF, 0x3FFF, 0x4FFF]
@@ -62,19 +62,58 @@ class APBXbar_TB(TBBase):
                                     bus_width=self.DATA_WIDTH, addr_width=self.ADDR_WIDTH,
                                     constraints=apb_mst_constraints)
             self.apb_master.append(master)
+        # Set up some standard test variables
+        self.addresses = [ 
+                        0x0000, 0x0800, 0x0FFC,
+                        0x1000, 0x1800, 0x1FFC,
+                        0x2000, 0x2800, 0x2FFC,
+                        0x3000, 0x3800, 0x3FFC,
+                        0x4000, 0x4800, 0x4FFC
+                    ]
+        self.addr_min_hi = (4  * self.STRB_WIDTH)-1
+        self.addr_max_lo = (4  * self.STRB_WIDTH)
+        self.addr_max_hi = (32 * self.STRB_WIDTH)-1
 
 
     async def reset_dut(self):
         self.log.debug('Starting reset_dut')
         self.dut.aresetn.value = 0
-        for i in range(self.M):
-            self.apb_master[i].reset_bus()
-        for i in range(self.S):
-            self.apb_slave[i].reset_bus()
+        for m in self.apb_master:
+            await m.reset_bus()
+        for s in self.apb_slave:
+            await s.reset_bus()
         await self.wait_clocks('aclk', 2)
         self.dut.aresetn.value = 1
         await self.wait_clocks('aclk', 2)
         self.log.debug('Ending reset_dut')
+
+
+    async def write_single_master_test(self):
+        self.log.info('Starting write single master test')
+        # force all writes
+        constraints = {
+            'last':   ([(0, 0), (1, 1)], [1, 1]),
+            'first':  ([(0, 0), (1, 1)], [1, 1]),
+            'pwrite': ([(0, 0), (1, 1)], [0, 1]),
+            'paddr':  ([(0, self.addr_min_hi), (self.addr_max_lo, self.addr_max_hi)], [4, 1]),
+            'pstrb':  ([(15, 15), (0, 14)], [4, 1]),
+            'pprot':  ([(0, 0), (1, 1), (2, 2)], [1, 1, 1])
+        }
+        transaction_cls = APBTransaction(self.DATA_WIDTH, self.ADDR_WIDTH, self.STRB_WIDTH, constraints)
+
+        for m, master in enumerate(self.apb_master):
+            for address in self.addresses:
+                transaction = transaction_cls.set_constrained_random()
+                transaction.pwrite = 1
+                self.log.info(f'Sending write from master {m} to {address:08X}')
+                transaction.paddr = address
+                transaction.pprot = m
+                await master.send(transaction)
+                await self.wait_clocks('aclk', 1)
+
+
+    async def main_loop(self):
+        await self.write_single_master_test()
 
 
 @cocotb.test()
@@ -85,7 +124,7 @@ async def apb_xbar_wrap_test(dut):
     random.seed(seed)
     await tb.start_clock('aclk', 10, 'ns')
     await tb.reset_dut()
-    # await tb.main_loop()
+    await tb.main_loop()
     await tb.wait_clocks('aclk', 50)
     tb.log.info("Test completed successfully.")
 

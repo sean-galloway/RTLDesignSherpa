@@ -15,6 +15,10 @@ def generate_wrapper(json_file):
     SLAVE_ADDR_BASE = params["SLAVE_ADDR_BASE"]
     SLAVE_ADDR_LIMIT = params["SLAVE_ADDR_LIMIT"]
     THRESHOLDS = params["THRESHOLDS"]
+    SLAVE_ENABLE.reverse()
+    SLAVE_ADDR_BASE.reverse()
+    SLAVE_ADDR_LIMIT.reverse()
+    THRESHOLDS.reverse()
 
     # Generate SystemVerilog code
     sv_code = """
@@ -37,11 +41,12 @@ module apb_xbar_wrap #(
     input  logic                 m{i}_apb_psel,
     input  logic                 m{i}_apb_penable,
     input  logic                 m{i}_apb_pwrite,
+    input  logic [2:0]           m{i}_apb_pprot,
     input  logic [AW-1:0]        m{i}_apb_paddr,
-    input  logic [DW:0]          m{i}_apb_pwdata,
-    input  logic [SW:0]          m{i}_apb_pstrb,
+    input  logic [DW-1:0]        m{i}_apb_pwdata,
+    input  logic [SW-1:0]        m{i}_apb_pstrb,
     output logic                 m{i}_apb_pready,
-    output logic [DW:0]          m{i}_apb_prdata,
+    output logic [DW-1:0]        m{i}_apb_prdata,
     output logic                 m{i}_apb_pslverr,
 """
 
@@ -51,6 +56,7 @@ module apb_xbar_wrap #(
     output logic                 s{i}_apb_psel,
     output logic                 s{i}_apb_penable,
     output logic                 s{i}_apb_pwrite,
+    output logic [2:0]           s{i}_apb_pprot,
     output logic [AW-1:0]        s{i}_apb_paddr,
     output logic [DW-1:0]        s{i}_apb_pwdata,
     output logic [SW-1:0]        s{i}_apb_pstrb,
@@ -90,24 +96,16 @@ module apb_xbar_wrap #(
 """
 
     # Connect master interfaces
-    sig_list = ['psel', 'penable', 'pwrite', 'paddr', 'pwdata', 'pstrb', 'pready', 'prdata', 'pslverr']
+    sig_list = ['psel', 'penable', 'pwrite', 'pprot', 'paddr', 'pwdata', 'pstrb', 'pready', 'prdata', 'pslverr']
     m_apb_dict = {
         sig: '{'
         + ', '.join(f"m{i}_apb_{sig}" for i in range(M - 1, -1, -1))
         + '}'
         for sig in sig_list
     }
-    sv_code += f"""
-        .m_apb_psel     ({m_apb_dict['psel']}),
-        .m_apb_penable  ({m_apb_dict['penable']}),
-        .m_apb_pwrite   ({m_apb_dict['pwrite']}),
-        .m_apb_paddr    ({m_apb_dict['paddr']}),
-        .m_apb_pwdata   ({m_apb_dict['pwdata']}),
-        .m_apb_pstrb    ({m_apb_dict['pstrb']}),
-        .m_apb_pready   ({m_apb_dict['pready']}),
-        .m_apb_prdata   ({m_apb_dict['prdata']}),
-        .m_apb_pslverr  ({m_apb_dict['pslverr']}),
-"""
+    for sig in sig_list:
+        pad = 9 - len(sig)
+        sv_code += f"        .m_apb_{sig}" + " "*pad + f"({m_apb_dict[sig]}),\n"
 
     s_apb_dict = {
         sig: '{'
@@ -115,17 +113,9 @@ module apb_xbar_wrap #(
         + '}'
         for sig in sig_list
     }
-    sv_code += f"""
-        .s_apb_psel    ({s_apb_dict['psel']}),
-        .s_apb_penable ({s_apb_dict['penable']}),
-        .s_apb_pwrite  ({s_apb_dict['pwrite']}),
-        .s_apb_paddr   ({s_apb_dict['paddr']}),
-        .s_apb_pwdata  ({s_apb_dict['pwdata']}),
-        .s_apb_pstrb   ({s_apb_dict['pstrb']}),
-        .s_apb_pready  ({s_apb_dict['pready']}),
-        .s_apb_prdata  ({s_apb_dict['prdata']}),
-        .s_apb_pslverr ({s_apb_dict['pslverr']}),
-"""
+    for sig in sig_list:
+        pad = 9 - len(sig)
+        sv_code += f"        .s_apb_{sig}" + " "*pad + f"({s_apb_dict[sig]}),\n"
 
     # Remove trailing comma and newline, and close the module instantiation
     sv_code = sv_code.rstrip(",\n") + "\n    );\n\nendmodule : apb_xbar_wrap\n"

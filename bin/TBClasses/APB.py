@@ -154,6 +154,7 @@ class APBTransaction(Randomized):
 
     def apply_constraints(self):
         for signal, (bins, weights) in self.constraints.items():
+            print(f'{signal=} {bins=} {weights=}')
             choice = random.choices(bins, weights)[0]
             value = random.randint(choice[0], choice[1])
             setattr(self, signal, value)
@@ -209,10 +210,12 @@ class APBMonitor(BusMonitor):
     def __init__(self, entity, name, clock, signals=None,
                  bus_width=32, addr_width=12, **kwargs):
 
+        # flag = False
         if signals:
             self._signals = signals
         else:
-            self._signals = apb_signals
+            flag = True
+            self._signals = apb_signals + apb_optional_signals
             self._optional_signals = apb_optional_signals
 
         self.count = 0
@@ -223,6 +226,9 @@ class APBMonitor(BusMonitor):
         self.bus_width = bus_width
         self.addr_width = addr_width
         self.strb_width = bus_width // 8
+        # if flag: 
+        #     self.entity._log.warn(f'Monitor {name} setting default signals')
+        # self.entity._log.warn(f'Monitor {name} {dir(self.bus)}')
 
 
     def is_signal_present(self, signal_name):
@@ -272,7 +278,7 @@ class APBSlave(BusMonitor):
         if signals:
             self._signals = signals
         else:
-            self._signals = apb_signals
+            self._signals = apb_signals + apb_optional_signals
             self._optional_signals = apb_optional_signals
         if constraints is None:
             self.constraints = {
@@ -293,13 +299,16 @@ class APBSlave(BusMonitor):
         self.error_overflow = error_overflow
         # Create the memory model
         self.mem = MemoryModel(num_lines=self.num_lines, bytes_per_line=self.strb_bits, log=self.entity._log, preset_values=registers)
-        self._sentQ = deque()
+        self.sentQ = deque()
 
         # initialise all outputs to zero
         self.bus.PRDATA.setimmediatevalue(0)
         self.bus.PREADY.setimmediatevalue(0)
         if self.is_signal_present('PSLVERR'):
             self.bus.PSLVERR.setimmediatevalue(0)
+        self.entity._log.warn(f'Slave {name} {dir(self.bus)}')
+        self.entity._log.warn(f'Slave {name} PADDR {dir(self.bus.PADDR)}')
+        self.entity._log.warn(f'Slave {name} PPROT {dir(self.bus.PPROT)}')
 
 
     def is_signal_present(self, signal_name):
@@ -386,7 +395,7 @@ class APBMaster(BusDriver):
         if signals:
             self._signals = signals
         else:
-            self._signals = apb_signals
+            self._signals = apb_signals + apb_optional_signals
             self._optional_signals = apb_optional_signals
         if constraints is None:
             self.constraints = {
@@ -402,7 +411,7 @@ class APBMaster(BusDriver):
         self.strb_bits      = bus_width // 8
         self.addr_mask      = (2**self.strb_bits - 1)
         self.delay_crand    = DelayRandomizer(self.constraints)
-
+        self.sentQ = deque()
         # initialise all outputs to zero
         self.bus.PADDR.setimmediatevalue(0)
         self.bus.PWRITE.setimmediatevalue(0)
@@ -411,13 +420,15 @@ class APBMaster(BusDriver):
         self.bus.PWDATA.setimmediatevalue(0)
         if self.is_signal_present('PSTRB'):
             self.bus.PSTRB.setimmediatevalue(0)
+        # self.entity._log.warn(f'Master {name} {dir(self.bus)}')
+        self.transmit_queue = deque()
 
 
     def is_signal_present(self, signal_name):
         return hasattr(self.bus, signal_name)
 
 
-    def reset_bus(self):
+    async def reset_bus(self):
         # initialise the transmit queue
         self.transmit_queue     = deque()
         self.transmit_coroutine = 0
@@ -428,6 +439,8 @@ class APBMaster(BusDriver):
         self.bus.PWDATA.value   = 0
         if self.is_signal_present('PSTRB'):
             self.bus.PSTRB.value = 0
+        if self.is_signal_present('PPROT'):
+            self.bus.PPROT.value    = 0
 
 
     async def busy_send(self, transaction):
@@ -446,6 +459,7 @@ class APBMaster(BusDriver):
 
         # add new transaction
         self.transmit_queue.append(transaction)
+        self.entity._log.warn(f'Adding to the transmit_queue: {transaction}')
 
         # launch new transmit pipeline coroutine if aren't holding for and the
         #   the coroutine isn't already running.
@@ -466,6 +480,7 @@ class APBMaster(BusDriver):
             self.bus.PSEL.value     = 0
             self.bus.PENABLE.value  = 0
             self.bus.PWRITE.value   = 0
+            self.bus.PPROT.value    = 0
             self.bus.PADDR.value    = 0
             self.bus.PWDATA.value   = 0
             if self.is_signal_present('PSTRB'):
@@ -482,9 +497,10 @@ class APBMaster(BusDriver):
                 psel_delay -= 1
                 await RisingEdge(self.clock)
 
-            self.bus.PSEL.value   = 0
+            self.bus.PSEL.value   = 1
             self.bus.PWRITE.value = transaction.pwrite
-            self.bus.PADDR.value  = transaction.address
+            self.bus.PPROT.value  = transaction.pprot
+            self.bus.PADDR.value  = transaction.paddr
             if self.is_signal_present('PSTRB'):
                 self.bus.PSTRB.value = transaction.pstrb
             if transaction.pwrite:
@@ -505,11 +521,24 @@ class APBMaster(BusDriver):
                 await Timer(200, units='ps')
             
             # check if the slave is asserting an error
-            if self.bus.PSLVERR.value:
+            if self.is_signal_present('PSLVERR') and self.bus.PSLVERR.value:
                 transaction.error = True
 
             # if this is a read we should sample the data
             if transaction.direction == 'READ':
                 transaction.data = self.bus.PRDATA.value
 
-            self._sentQ.append(transaction)
+            self.sentQ.append(transaction)
+            await RisingEdge(self.clock)
+
+        self.transfer_busy = True
+        # clear out the bus
+        self.bus.PSEL.value     = 0
+        self.bus.PENABLE.value  = 0
+        self.bus.PWRITE.value   = 0
+        self.bus.PPROT.value    = 0
+        self.bus.PADDR.value    = 0
+        self.bus.PWDATA.value   = 0
+        if self.is_signal_present('PSTRB'):
+            self.bus.PSTRB.value = 0
+
