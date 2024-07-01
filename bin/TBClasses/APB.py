@@ -208,7 +208,7 @@ class APBTransaction(Randomized):
 
 class APBMonitor(BusMonitor):
     def __init__(self, entity, name, clock, signals=None,
-                 bus_width=32, addr_width=12, **kwargs):
+                 bus_width=32, addr_width=12, log=None, **kwargs):
 
         # flag = False
         if signals:
@@ -223,12 +223,13 @@ class APBMonitor(BusMonitor):
         BusMonitor.__init__(self, entity, name, clock, **kwargs)
         self.clock = clock
         self.name = name
+        self.log = log or self.entity._log
         self.bus_width = bus_width
         self.addr_width = addr_width
         self.strb_width = bus_width // 8
         # if flag: 
-        #     self.entity._log.warn(f'Monitor {name} setting default signals')
-        # self.entity._log.warn(f'Monitor {name} {dir(self.bus)}')
+        #     self.log.warn(f'Monitor {name} setting default signals')
+        # self.log.warn(f'Monitor {name} {dir(self.bus)}')
 
 
     def is_signal_present(self, signal_name):
@@ -236,12 +237,12 @@ class APBMonitor(BusMonitor):
 
 
     def print(self, transaction):
-        self.entity._log.debug('-' * 120)
-        self.entity._log.debug(f'{self.name} - APB Transaction')
+        self.log.debug('-' * 120)
+        self.log.debug(f'{self.name} - APB Transaction')
         lines = transaction.formatted(self.addr_width, self.bus_width, self.strb_width).splitlines()
         for line in lines:
-            self.entity._log.debug(line)
-        self.entity._log.debug('-' * 120)
+            self.log.debug(line)
+        self.log.debug('-' * 120)
 
 
     async def _monitor_recv(self):
@@ -274,7 +275,7 @@ class APBSlave(BusMonitor):
 
     def __init__(self, entity, name, clock, registers, signals=None,
                     bus_width=32, addr_width=12, constraints=None,
-                    error_overflow=False, **kwargs):
+                    log=None, error_overflow=False, **kwargs):
         if signals:
             self._signals = signals
         else:
@@ -289,6 +290,7 @@ class APBSlave(BusMonitor):
             self.constraints = constraints
         BusMonitor.__init__(self, entity, name, clock, **kwargs)
         self.clock          = clock
+        self.log = log or self.entity._log
         self.addr_width     = addr_width
         self.bus_width      = bus_width
         self.strb_bits      = bus_width // 8
@@ -298,7 +300,7 @@ class APBSlave(BusMonitor):
         self.count          = 0
         self.error_overflow = error_overflow
         # Create the memory model
-        self.mem = MemoryModel(num_lines=self.num_lines, bytes_per_line=self.strb_bits, log=self.entity._log, preset_values=registers)
+        self.mem = MemoryModel(num_lines=self.num_lines, bytes_per_line=self.strb_bits, log=self.log, preset_values=registers)
         self.sentQ = deque()
 
         # initialise all outputs to zero
@@ -306,9 +308,9 @@ class APBSlave(BusMonitor):
         self.bus.PREADY.setimmediatevalue(0)
         if self.is_signal_present('PSLVERR'):
             self.bus.PSLVERR.setimmediatevalue(0)
-        self.entity._log.warn(f'Slave {name} {dir(self.bus)}')
-        self.entity._log.warn(f'Slave {name} PADDR {dir(self.bus.PADDR)}')
-        self.entity._log.warn(f'Slave {name} PPROT {dir(self.bus.PPROT)}')
+        self.log.warn(f'Slave {name} {dir(self.bus)}')
+        self.log.warn(f'Slave {name} PADDR {dir(self.bus.PADDR)}')
+        self.log.warn(f'Slave {name} PPROT {dir(self.bus.PPROT)}')
 
 
     def is_signal_present(self, signal_name):
@@ -316,12 +318,12 @@ class APBSlave(BusMonitor):
 
 
     def dump_registers(self):
-        self.entity._log.info(f"APB Slave {self.name} - Register Dump:")
-        self.entity._log.info(self.mem.dump())
+        self.log.info(f"APB Slave {self.name} - Register Dump:")
+        self.log.info(self.mem.dump())
 
 
     async def reset_bus(self):
-        self.entity._log.info(f'Resetting APB Bus {self.name}')
+        self.log.info(f'Resetting APB Bus {self.name}')
         self.bus.PRDATA.value = 0
         self.bus.PREADY.value = 0
         if self.is_signal_present('PSLVERR'):
@@ -344,7 +346,7 @@ class APBSlave(BusMonitor):
                 rand_dict = self.delay_crand.set_constrained_random()
                 ready_delay = rand_dict['ready']
                 slv_error = rand_dict['error']
-                self.entity._log.warning(f'APB Slave Driver-{self.name}: {ready_delay=}')
+                self.log.warning(f'APB Slave Driver-{self.name}: {ready_delay=}')
                 for _ in range(ready_delay):
                     await RisingEdge(self.clock)
 
@@ -352,7 +354,7 @@ class APBSlave(BusMonitor):
                 await Timer(200, units='ps')
                 while not self.bus.PENABLE.value.integer:
                     start_time = get_sim_time('ns')
-                    self.entity._log.warning(f'Waiting for penable @ {start_time}')
+                    self.log.warning(f'Waiting for penable @ {start_time}')
                     await RisingEdge(self.clock)
                     await Timer(200, units='ps')
 
@@ -363,11 +365,11 @@ class APBSlave(BusMonitor):
 
                 if word_index >= self.num_lines:
                     if self.error_overflow:
-                        self.entity._log.error(f'APB {self.name} - Memory overflow error: {word_index}')
+                        self.log.error(f'APB {self.name} - Memory overflow error: {word_index}')
                         self.bus.PSLVERR.value = 1
                     else:
                         expand = word_index - self.num_lines + 10
-                        self.entity._log.warning(f'APB {self.name} - Memory overflow: {self.num_lines=} {word_index=}')
+                        self.log.warning(f'APB {self.name} - Memory overflow: {self.num_lines=} {word_index=}')
                         # Extend the self.mem array to accommodate the overflow
                         self.mem.expand(expand)
                         self.num_lines += expand
@@ -391,7 +393,7 @@ class APBMaster(BusDriver):
 
     def __init__(self, entity, name, clock, signals=None,
                     bus_width=32, addr_width=12, constraints=None,
-                    **kwargs):
+                    log=None, **kwargs):
         if signals:
             self._signals = signals
         else:
@@ -406,6 +408,7 @@ class APBMaster(BusDriver):
             self.constraints = constraints
         BusDriver.__init__(self, entity, name, clock, **kwargs)
         self.clock          = clock
+        self.log = log or self.entity._log
         self.addr_width     = addr_width
         self.bus_width      = bus_width
         self.strb_bits      = bus_width // 8
@@ -420,7 +423,7 @@ class APBMaster(BusDriver):
         self.bus.PWDATA.setimmediatevalue(0)
         if self.is_signal_present('PSTRB'):
             self.bus.PSTRB.setimmediatevalue(0)
-        # self.entity._log.warn(f'Master {name} {dir(self.bus)}')
+        # self.log.warn(f'Master {name} {dir(self.bus)}')
         self.transmit_queue = deque()
 
 
@@ -459,7 +462,7 @@ class APBMaster(BusDriver):
 
         # add new transaction
         self.transmit_queue.append(transaction)
-        self.entity._log.warn(f'Adding to the transmit_queue: {transaction}')
+        self.log.warn(f'Adding to the transmit_queue: {transaction}')
 
         # launch new transmit pipeline coroutine if aren't holding for and the
         #   the coroutine isn't already running.

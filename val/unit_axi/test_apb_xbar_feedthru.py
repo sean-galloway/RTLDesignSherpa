@@ -117,7 +117,7 @@ class APBXbar_TB(TBBase):
 
 
 @cocotb.test()
-async def apb_xbar_wrap_test(dut):
+async def apb_xbar_feedthru_wrap_test(dut):
     tb = APBXbar_TB(dut)
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
@@ -137,22 +137,18 @@ rtl_integ_axi_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'integ_axi/a
 @pytest.mark.parametrize("m, s, addr_width, data_width", 
     [
         (
-            3,                   # m
-            5,                   # s
+            1,                   # m
+            1,                   # s
             32,                  # addr_width
             32,                  # data_width
         )
     ])
-def test_apb_xbar_wrap(request, m, s, addr_width, data_width):
-    dut_name = "apb_xbar_m10_s10_wrap"
+def test_apb_xbar_feedthru_wrap(request, m, s, addr_width, data_width):
+    dut_name = "apb_xbar_wrap_m1_s1_feedthru"
     module = os.path.splitext(os.path.basename(__file__))[0]
     toplevel = dut_name
 
     verilog_sources = [
-        os.path.join(rtl_dir, "arbiter_fixed_priority.sv"),
-        os.path.join(rtl_dir, "arbiter_round_robin_subinst.sv"),
-        os.path.join(rtl_dir, "arbiter_weighted_round_robin.sv"),
-        os.path.join(rtl_axi_dir, "apb_xbar.sv"),
         os.path.join(rtl_integ_axi_dir, f"{dut_name}.sv")
     ]
     includes = []

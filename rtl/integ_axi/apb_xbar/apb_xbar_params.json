@@ -1,12 +1,12 @@
 {
-  "FILE": "./apb_xbar_wrap.sv",
-  "M": 3,
-  "S": 5,
+  "FILE": "./apb_xbar_wrap_m10_s10.sv",
+  "M": 10,
+  "S": 10,
   "ADDR_WIDTH": 32,
   "DATA_WIDTH": 32,
-  "SLAVE_ENABLE": [1, 1, 1, 1, 1],
-  "SLAVE_ADDR_BASE":  [0,    4096,  8192, 12288, 16384],
-  "SLAVE_ADDR_LIMIT": [4095, 8191, 12287, 16383, 20479],
+  "SLAVE_ENABLE": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+  "SLAVE_ADDR_BASE":  ["0x0000", "0x1000", "0x2000", "0x3000", "0x4000", "0x5000", "0x6000", "0x7000", "0x8000", "0x9000"],
+  "SLAVE_ADDR_LIMIT": ["0x0FFF", "0x1FFF", "0x2FFF", "0x3FFF", "0x4FFF", "0x5FFF", "0x6FFF", "0x7FFF", "0x8FFF", "0x9FFF"],
   "MAX_THRESHOLD": 16,
-  "THRESHOLDS": [4, 4, 4]
+  "THRESHOLDS": [4, 4, 4, 4, 4, 4, 4, 4, 4, 4]
 }

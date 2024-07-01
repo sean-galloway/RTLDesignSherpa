@@ -10,10 +10,9 @@ def generate_wrapper(json_file):
     M = params["M"]
     ADDR_WIDTH = params["ADDR_WIDTH"]
     DATA_WIDTH = params["DATA_WIDTH"]
-    STRB_WIDTH = DATA_WIDTH // 8
     SLAVE_ENABLE = params["SLAVE_ENABLE"]
-    SLAVE_ADDR_BASE = params["SLAVE_ADDR_BASE"]
-    SLAVE_ADDR_LIMIT = params["SLAVE_ADDR_LIMIT"]
+    SLAVE_ADDR_BASE  = [int(addr, 16) for addr in params["SLAVE_ADDR_BASE"]]
+    SLAVE_ADDR_LIMIT = [int(addr, 16) for addr in params["SLAVE_ADDR_LIMIT"]]
     THRESHOLDS = params["THRESHOLDS"]
     SLAVE_ENABLE.reverse()
     SLAVE_ADDR_BASE.reverse()
@@ -21,15 +20,15 @@ def generate_wrapper(json_file):
     THRESHOLDS.reverse()
 
     # Generate SystemVerilog code
-    sv_code = """
+    sv_code = f"""
 `timescale 1ns / 1ps
 
-module apb_xbar_wrap #(
-    parameter int M = 2,
-    parameter int S = 4,
-    parameter int ADDR_WIDTH = 32,
-    parameter int DATA_WIDTH = 32,
-    parameter int STRB_WIDTH = DATA_WIDTH/8
+module apb_xbar_wrap_m{M}_s{S} #(
+    parameter int M = {M},
+    parameter int S = {S},
+    parameter int ADDR_WIDTH = {ADDR_WIDTH},
+    parameter int DATA_WIDTH = {DATA_WIDTH},
+    parameter int STRB_WIDTH = {DATA_WIDTH}/8
 ) (
     input  logic                 aclk,
     input  logic                 aresetn,
@@ -118,7 +117,7 @@ module apb_xbar_wrap #(
         sv_code += f"        .s_apb_{sig}" + " "*pad + f"({s_apb_dict[sig]}),\n"
 
     # Remove trailing comma and newline, and close the module instantiation
-    sv_code = sv_code.rstrip(",\n") + "\n    );\n\nendmodule : apb_xbar_wrap\n"
+    sv_code = sv_code.rstrip(",\n") + f"\n    );\n\nendmodule : apb_xbar_wrap_m{M}_s{S}\n"
 
     return FILE, sv_code
 
