@@ -23,7 +23,7 @@ module apb_xbar #(
     // Slave address limit
     input  logic [S][ADDR_WIDTH-1:0]     SLAVE_ADDR_LIMIT,
     // Thresholds for the Weighted Round Robin Arbiter
-    input  logic [MAX_THRESH-1:0]        THRESHOLDS,
+    input  logic [MXMTW-1:0]             THRESHOLDS,
 
     // Master interfaces - These are from the APB master
     input  logic [M-1:0]                 m_apb_psel,
@@ -98,7 +98,6 @@ module apb_xbar #(
     logic [S-1:0]                arb_gnt_valid;
     logic [S-1:0][M-1:0]         arb_gnt;
     logic [S-1:0][$clog2(M):0]   arb_gnt_id;
-    logic [$clog2(M):0]          arb_slv_id [0:$clog2(S)-1]; // verilog_lint: waive unpacked-dimensions-range-ordering
     logic [M-1:0]                arb_gnt_ack;
 
     // assert the gnt_ack
@@ -152,6 +151,7 @@ module apb_xbar #(
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     // Master interface
+    logic [$clog2(S):0]          arb_slv_id [0:$clog2(M)]; // verilog_lint: waive unpacked-dimensions-range-ordering
     generate
         // First create the mapping from Master to the Slave
         for (genvar m_ssel = 0; m_ssel < M; m_ssel++) begin : gen_slave_id

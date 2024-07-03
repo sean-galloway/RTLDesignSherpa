@@ -1,5 +1,6 @@
 {
     "rtl_dirs": [
+                    "rtl/axi", 
                     "rtl/common", 
                     "rtl/xilinx"
                 ],
