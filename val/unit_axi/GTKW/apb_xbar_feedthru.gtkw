@@ -1,0 +1,56 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Wed Jul  3 04:22:24 2024
+[*]
+[dumpfile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/local_sim_build/test_apb_xbar_feedthru_wrap-1-1-32-32/waves.vcd"
+[dumpfile_mtime] "Wed Jul  3 04:20:23 2024"
+[dumpfile_size] 904
+[savefile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/GTKW/apb_xbar_feedthru.gtkw"
+[timestart] 900
+[size] 2248 1226
+[pos] -1 -1
+*-15.638948 210000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 233
+[signals_width] 327
+[sst_expanded] 1
+[sst_vpaned_height] 362
+@28
+apb_xbar_wrap_m1_s1_feedthru.aclk
+@200
+-Master
+@28
+apb_xbar_wrap_m1_s1_feedthru.m0_apb_psel
+apb_xbar_wrap_m1_s1_feedthru.m0_apb_penable
+apb_xbar_wrap_m1_s1_feedthru.m0_apb_pready
+apb_xbar_wrap_m1_s1_feedthru.m0_apb_pwrite
+@22
+apb_xbar_wrap_m1_s1_feedthru.m0_apb_paddr[31:0]
+@28
+apb_xbar_wrap_m1_s1_feedthru.m0_apb_pprot[2:0]
+@22
+apb_xbar_wrap_m1_s1_feedthru.m0_apb_prdata[31:0]
+@23
+apb_xbar_wrap_m1_s1_feedthru.m0_apb_pwdata[31:0]
+@22
+apb_xbar_wrap_m1_s1_feedthru.m0_apb_pstrb[3:0]
+@28
+apb_xbar_wrap_m1_s1_feedthru.m0_apb_pslverr
+@200
+-slave
+@28
+apb_xbar_wrap_m1_s1_feedthru.s0_apb_psel
+apb_xbar_wrap_m1_s1_feedthru.s0_apb_penable
+apb_xbar_wrap_m1_s1_feedthru.s0_apb_pready
+apb_xbar_wrap_m1_s1_feedthru.s0_apb_pwrite
+@22
+apb_xbar_wrap_m1_s1_feedthru.s0_apb_paddr[31:0]
+@28
+apb_xbar_wrap_m1_s1_feedthru.s0_apb_pprot[2:0]
+@22
+apb_xbar_wrap_m1_s1_feedthru.s0_apb_prdata[31:0]
+apb_xbar_wrap_m1_s1_feedthru.s0_apb_pwdata[31:0]
+apb_xbar_wrap_m1_s1_feedthru.s0_apb_pstrb[3:0]
+@28
+apb_xbar_wrap_m1_s1_feedthru.s0_apb_pslverr
+[pattern_trace] 1
+[pattern_trace] 0

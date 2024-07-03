@@ -49,6 +49,7 @@ class APBCycle:
     pprot: int
     pslverr: int
 
+
     def __eq__(self, other):
         if not isinstance(other, APBCycle):
             return NotImplemented
@@ -228,8 +229,8 @@ class APBMonitor(BusMonitor):
         self.addr_width = addr_width
         self.strb_width = bus_width // 8
         # if flag: 
-        #     self.log.warn(f'Monitor {name} setting default signals')
-        # self.log.warn(f'Monitor {name} {dir(self.bus)}')
+        #     self.log.warning(f'Monitor {name} setting default signals')
+        # self.log.warning(f'Monitor {name} {dir(self.bus)}')
 
 
     def is_signal_present(self, signal_name):
@@ -308,9 +309,9 @@ class APBSlave(BusMonitor):
         self.bus.PREADY.setimmediatevalue(0)
         if self.is_signal_present('PSLVERR'):
             self.bus.PSLVERR.setimmediatevalue(0)
-        self.log.warn(f'Slave {name} {dir(self.bus)}')
-        self.log.warn(f'Slave {name} PADDR {dir(self.bus.PADDR)}')
-        self.log.warn(f'Slave {name} PPROT {dir(self.bus.PPROT)}')
+        self.log.warning(f'Slave {name} {dir(self.bus)}')
+        self.log.warning(f'Slave {name} PADDR {dir(self.bus.PADDR)}')
+        self.log.warning(f'Slave {name} PPROT {dir(self.bus.PPROT)}')
 
 
     def is_signal_present(self, signal_name):
@@ -342,6 +343,7 @@ class APBSlave(BusMonitor):
             if self.is_signal_present('PSLVERR'):
                 self.bus.PSLVERR.value = 0
 
+            await Timer(200, units='ps')
             if  self.bus.PSEL.value.is_resolvable and self.bus.PSEL.value.integer:
                 rand_dict = self.delay_crand.set_constrained_random()
                 ready_delay = rand_dict['ready']
@@ -423,7 +425,7 @@ class APBMaster(BusDriver):
         self.bus.PWDATA.setimmediatevalue(0)
         if self.is_signal_present('PSTRB'):
             self.bus.PSTRB.setimmediatevalue(0)
-        # self.log.warn(f'Master {name} {dir(self.bus)}')
+        # self.log.warning(f'Master {name} {dir(self.bus)}')
         self.transmit_queue = deque()
 
 
@@ -462,14 +464,14 @@ class APBMaster(BusDriver):
 
         # add new transaction
         self.transmit_queue.append(transaction)
-        self.log.warn(f'Adding to the transmit_queue: {transaction}')
+        self.log.warning(f'Adding to the transmit_queue: {transaction}')
 
         # launch new transmit pipeline coroutine if aren't holding for and the
         #   the coroutine isn't already running.
         #   If it is running it will just collect the transactions in the
         #   queue once it gets to them.
         if not hold and not self.transmit_coroutine:
-            self.transmit_coroutine = cocotb.fork(self._transmit_pipeline())
+            self.transmit_coroutine = cocotb.start_soon(self._transmit_pipeline())
 
 
     async def _transmit_pipeline(self):
@@ -534,8 +536,8 @@ class APBMaster(BusDriver):
             self.sentQ.append(transaction)
             await RisingEdge(self.clock)
 
-        self.transfer_busy = True
         # clear out the bus
+        self.transfer_busy      = False
         self.bus.PSEL.value     = 0
         self.bus.PENABLE.value  = 0
         self.bus.PWRITE.value   = 0
@@ -544,4 +546,3 @@ class APBMaster(BusDriver):
         self.bus.PWDATA.value   = 0
         if self.is_signal_present('PSTRB'):
             self.bus.PSTRB.value = 0
-
