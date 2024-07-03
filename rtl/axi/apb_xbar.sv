@@ -142,7 +142,7 @@ module apb_xbar #(
                 s_apb_pprot[s_mux]   = arb_gnt_valid[s_mux] ? m_apb_pprot[mst_id] : '0;
                 s_apb_paddr[s_mux]   = arb_gnt_valid[s_mux] ? m_apb_paddr[mst_id] : '0;
                 s_apb_pwdata[s_mux]  = arb_gnt_valid[s_mux] ? m_apb_pwdata[mst_id] : '0;
-                s_apb_pstrb[s_mux]   = arb_gnt_valid[s_mux] ? m_apb_pstrb[mst_id] : '1;
+                s_apb_pstrb[s_mux]   = arb_gnt_valid[s_mux] ? m_apb_pstrb[mst_id] : '0;
 
                 $fdisplay(file, "Master Sel: mst_id=%0d s_mux=%0d @%0t ns",
                                 mst_id, s_mux, $realtime / 1e3);
