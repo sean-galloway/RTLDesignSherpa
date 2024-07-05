@@ -118,6 +118,8 @@ class APBXbar_TB(TBBase):
             apb_cycle (APBCycle): The APBCycle transaction to be routed.
         """
         for idx, (addr_start, addr_end) in enumerate(self.addr_decode):
+            if idx == self.S:
+                break
             if addr_start <= apb_cycle.paddr <= addr_end:
                 self.expectQ_list[idx].append(apb_cycle)
                 self.log.info(f'Transaction with address {apb_cycle.paddr:08X} routed to expectQ[{idx}]')
@@ -195,7 +197,7 @@ class APBXbar_TB(TBBase):
     
         for m, master in enumerate(self.apb_master):
             for idx, address in enumerate(self.addresses):
-                if idx == 3*self.S:
+                if idx == self.S * 3:
                     break
                 transaction = transaction_cls.set_constrained_random()
                 transaction.pwrite = 1
@@ -231,7 +233,7 @@ class APBXbar_TB(TBBase):
     
         for m, master in enumerate(self.apb_master):
             for idx, address in enumerate(self.addresses):
-                if idx == 3*self.S:
+                if idx == self.S * 3:
                     break
                 transaction = transaction_cls.set_constrained_random()
                 transaction.pwrite = 0
@@ -252,9 +254,44 @@ class APBXbar_TB(TBBase):
         self.compare_expect_and_recv_queues()
 
 
+    async def write_read_multi_master_test(self, count=100):
+        self.log.info('Starting write read multi master test')
+        # force all writes
+        constraints = {
+            'last':   ([(0, 0), (1, 1)], [1, 1]),
+            'first':  ([(0, 0), (1, 1)], [1, 1]),
+            'pwrite': ([(0, 0), (1, 1)], [1, 1]),
+            'paddr':  ([(0, self.addr_min_hi), (self.addr_max_lo, self.addr_max_hi)], [4, 1]),
+            'pstrb':  ([(15, 15), (0, 14)], [4, 1]),
+            'pprot':  ([(0, 0), (1, 1), (2, 2)], [1, 1, 1])
+        }
+        transaction_cls = APBTransaction(self.DATA_WIDTH, self.ADDR_WIDTH, self.STRB_WIDTH, constraints)
+    
+        for _ in range(count):
+            transaction = transaction_cls.set_constrained_random()
+            transaction.paddr = self.addresses[random.randrange(self.S*3)]
+            m = random.randrange(self.M)
+            transaction.pprot = m
+            await self.apb_master[m].send(transaction)
+            self.route_transaction_to_expectq(transaction)
+            await self.wait_clocks('aclk', 1)
+            
+        await self.wait_clocks('aclk', 100)
+        for m in range(self.M):
+            # Wait for the master's transaction queue to be empty
+            self.log.debug(f'Waiting for transaction queue of master {m} to empty...')
+            master = self.apb_master[m]
+            await self.wait_for_queue_empty(master, timeout=10000)
+            self.log.debug(f'Transaction queue of master {m} is now empty.')
+
+        self.log.info('Checking routing of all transactions')
+        self.compare_expect_and_recv_queues()
+
+
     async def main_loop(self):
         await self.write_single_master_test()
         await self.read_single_master_test()
+        await self.write_read_multi_master_test(count=100)
 
 
 @cocotb.test()

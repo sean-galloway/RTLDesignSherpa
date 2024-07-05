@@ -148,7 +148,6 @@ module apb_xbar #(
     generate
         for (genvar m_demux = 0; m_demux < M; m_demux++) begin : gen_demux
             always_comb begin
-                logic [$clog2(S)-1:0] slv_id;
                 m_apb_pready[m_demux]  = 1'b0;  // default value
                 m_apb_prdata[m_demux]  = '0;    // default value
                 m_apb_pslverr[m_demux] = 1'b0;  // default value

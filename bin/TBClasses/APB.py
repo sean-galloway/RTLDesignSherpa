@@ -249,9 +249,11 @@ class APBMonitor(BusMonitor):
     async def _monitor_recv(self):
         while True:
             await FallingEdge(self.clock)
+            await Timer(200, units='ps')
             if self.bus.PSEL.value.is_resolvable and \
                     self.bus.PSEL.value.integer and \
                     self.bus.PENABLE.value.integer and \
+                    self.bus.PREADY.value.is_resolvable and \
                     self.bus.PREADY.value.integer:
                 start_time = get_sim_time('ns')
                 address    = self.bus.PADDR.value.integer
