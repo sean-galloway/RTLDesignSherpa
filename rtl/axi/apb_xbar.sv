@@ -57,35 +57,19 @@ module apb_xbar #(
     localparam int MTW   = $clog2(MAX_THRESH);
     localparam int MXMTW = M * MTW;
 
-    integer file;
-
-    initial begin
-        // Open the file
-        file = $fopen("debug_log.txt", "w");
-
-        // Check if the file was opened successfully
-        if (file == 0) begin
-            $display("Error: Could not open file.");
-            $finish;
-        end
-    end
-
     ////////////////////////////////////////////////////////////////////////////////////////////////
     // Address decoding logic
-    logic [S-1:0][M-1:0] slave_sel;
-    logic [S-1:0][$clog2(M)-1:0] slave_sel_mst_id;
+    logic [S-1:0][M-1:0]             slave_sel;
 
     generate
         for (genvar s_dec = 0; s_dec < S; s_dec++) begin : gen_decoder
             always_comb begin
-                slave_sel_mst_id[s_dec] = '0;
                 for (int m_dec = 0; m_dec < M; m_dec++) begin
                     slave_sel[s_dec][m_dec] = 1'b0;
                     if (m_apb_psel[m_dec] && SLAVE_ENABLE[s_dec] &&
                             (m_apb_paddr[m_dec] >= SLAVE_ADDR_BASE[s_dec]) &&
                             (m_apb_paddr[m_dec] <= SLAVE_ADDR_LIMIT[s_dec])) begin
                         slave_sel[s_dec][m_dec] = 1'b1;
-                        slave_sel_mst_id[s_dec] = m_dec;
                     end
                 end
             end
@@ -94,7 +78,6 @@ module apb_xbar #(
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     // Instantiate arbiters for each slave
-    logic [S-1:0][M-1:0]         arb_req;
     logic [S-1:0]                arb_gnt_valid;
     logic [S-1:0][M-1:0]         arb_gnt;
     logic [S-1:0][$clog2(M):0]   arb_gnt_id;
@@ -133,8 +116,8 @@ module apb_xbar #(
     generate
         for (genvar s_mux = 0; s_mux < S; s_mux++) begin : gen_slave_mux
             always_comb begin
-                logic [$clog2(M)-1:0] mst_id;
-                mst_id = slave_sel_mst_id[s_mux];
+                logic [$clog2(M):0] mst_id;
+                mst_id = arb_gnt_id[s_mux];
                 s_apb_psel[s_mux]    = arb_gnt_valid[s_mux] ? arb_gnt[s_mux][mst_id] : 1'b0;
                 s_apb_penable[s_mux] = arb_gnt_valid[s_mux] ? m_apb_penable[mst_id] : 1'b0;
                 s_apb_pwrite[s_mux]  = arb_gnt_valid[s_mux] ? m_apb_pwrite[mst_id] : 1'b0;
@@ -142,26 +125,21 @@ module apb_xbar #(
                 s_apb_paddr[s_mux]   = arb_gnt_valid[s_mux] ? m_apb_paddr[mst_id] : '0;
                 s_apb_pwdata[s_mux]  = arb_gnt_valid[s_mux] ? m_apb_pwdata[mst_id] : '0;
                 s_apb_pstrb[s_mux]   = arb_gnt_valid[s_mux] ? m_apb_pstrb[mst_id] : '0;
-
-                $fdisplay(file, "Master Sel: mst_id=%0d s_mux=%0d @%0t ns",
-                                mst_id, s_mux, $realtime / 1e3);
             end
         end
     endgenerate
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     // Master interface
-    logic [$clog2(S):0]          arb_slv_id [0:$clog2(M)]; // verilog_lint: waive unpacked-dimensions-range-ordering
+    // Declare the new array with swapped dimensions
+    logic [M-1:0][S-1:0] arb_gnt_mst;
+
+    // Generate block to swap indices
     generate
-        // First create the mapping from Master to the Slave
-        for (genvar m_ssel = 0; m_ssel < M; m_ssel++) begin : gen_slave_id
-            for (genvar s_ssel = 0; s_ssel < S; s_ssel++) begin : gen_slave_id_inner
+        for (genvar m = 0; m < M; m++) begin : gen_arb_gnt_mst_m
+            for (genvar s = 0; s < S; s++) begin : gen_arb_gnt_mst_s
                 always_comb begin
-                    if (s_ssel == 0)
-                        arb_slv_id[m_ssel] = '0;
-                    if (arb_gnt[s_ssel][m_ssel]) begin
-                        arb_slv_id[m_ssel] = s_ssel;
-                    end
+                    arb_gnt_mst[m][s] = arb_gnt[s][m];
                 end
             end
         end
@@ -171,12 +149,16 @@ module apb_xbar #(
         for (genvar m_demux = 0; m_demux < M; m_demux++) begin : gen_demux
             always_comb begin
                 logic [$clog2(S)-1:0] slv_id;
-                slv_id = arb_slv_id[m_demux];
-                m_apb_pready[m_demux]  = s_apb_pready[slv_id];
-                m_apb_prdata[m_demux]  = s_apb_prdata[slv_id];
-                m_apb_pslverr[m_demux] = s_apb_pslverr[slv_id];
-                $fdisplay(file, "Master Demux: slv_id=%0d m_demux=%0d @%0t ns",
-                            slv_id, m_demux, $realtime / 1e3);
+                m_apb_pready[m_demux]  = 1'b0;  // default value
+                m_apb_prdata[m_demux]  = '0;    // default value
+                m_apb_pslverr[m_demux] = 1'b0;  // default value
+                for (int s_demux = 0; s_demux < S; s_demux++) begin
+                    if (arb_gnt_mst[m_demux][s_demux]) begin
+                        m_apb_pready[m_demux]  = s_apb_pready[s_demux];
+                        m_apb_prdata[m_demux]  = s_apb_prdata[s_demux];
+                        m_apb_pslverr[m_demux] = s_apb_pslverr[s_demux];
+                    end
+                end
             end
         end
     endgenerate

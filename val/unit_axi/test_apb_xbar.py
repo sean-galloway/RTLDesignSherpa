@@ -51,7 +51,7 @@ class APBXbar_TB(TBBase):
         for i in range(self.S):
             slave   = APBSlave(dut, f's{i}_apb', dut.aclk, registers=self.slave_register,
                                     bus_width=self.DATA_WIDTH, addr_width=self.ADDR_WIDTH,
-                                    constraints=apb_slv_constraints)
+                                    constraints=apb_slv_constraints, log=self.log)
             self.apb_slave.append(slave)
         
         apb_mst_constraints = {
@@ -254,7 +254,7 @@ class APBXbar_TB(TBBase):
 
     async def main_loop(self):
         await self.write_single_master_test()
-        # await self.read_single_master_test()
+        await self.read_single_master_test()
 
 
 @cocotb.test()

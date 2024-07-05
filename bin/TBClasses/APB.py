@@ -344,7 +344,7 @@ class APBSlave(BusMonitor):
                 self.bus.PSLVERR.value = 0
 
             await Timer(200, units='ps')
-            if  self.bus.PSEL.value.is_resolvable and self.bus.PSEL.value.integer:
+            if self.bus.PSEL.value.is_resolvable and self.bus.PSEL.value.integer:
                 rand_dict = self.delay_crand.set_constrained_random()
                 ready_delay = rand_dict['ready']
                 slv_error = rand_dict['error']
