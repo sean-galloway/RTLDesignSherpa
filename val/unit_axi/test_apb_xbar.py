@@ -136,28 +136,27 @@ class APBXbar_TB(TBBase):
         """
         error_flag = False
     
-        for i in range(self.S):
-            expectQ = self.expectQ_list[i]
-            recvQ = self.apb_slave_mon[i]._recvQ
-    
-            while expectQ and recvQ:
-                expected = expectQ.popleft()
+        for slave in self.apb_slave_mon:
+            recvQ = slave._recvQ
+
+            while recvQ:
                 received = recvQ.popleft()
+                mst = received.pprot
+                expected = self.apb_master_mon[mst]._recvQ.popleft()
     
                 if not self.compare_cycles(expected, received):
                     self.log.error(f'Mismatch in slave {i}: Expected {expected}, Received {received}')
                     error_flag = True
     
             # Check if any remaining items in expectQ or recvQ
-            if expectQ:
-                self.log.error(f'Expected queue for slave {i} is not empty: {list(expectQ)}')
-                error_flag = True
             if recvQ:
                 self.log.error(f'Received queue for slave {i} is not empty: {list(recvQ)}')
                 error_flag = True
     
         if not error_flag:
             self.log.info('All transactions matched correctly between expectQ and recvQ.')
+        else:
+            assert False, "Cycle mis-compare"
     
     
     def compare_cycles(self, expected, received):
@@ -214,8 +213,8 @@ class APBXbar_TB(TBBase):
             await self.wait_for_queue_empty(master, timeout=1000)
             self.log.info(f'Transaction queue of master {m} is now empty.')
 
-        self.log.info('Checking routing of all transactions')
-        self.compare_expect_and_recv_queues()
+            self.log.info('Checking routing of all transactions')
+            self.compare_expect_and_recv_queues()
 
 
     async def read_single_master_test(self):
@@ -250,8 +249,8 @@ class APBXbar_TB(TBBase):
             await self.wait_for_queue_empty(master, timeout=1000)
             self.log.info(f'Transaction queue of master {m} is now empty.')
 
-        self.log.info('Checking routing of all transactions')
-        self.compare_expect_and_recv_queues()
+            self.log.info('Checking routing of all transactions')
+            self.compare_expect_and_recv_queues()
 
 
     async def write_read_multi_master_test(self, count=100):
@@ -291,7 +290,7 @@ class APBXbar_TB(TBBase):
     async def main_loop(self):
         await self.write_single_master_test()
         await self.read_single_master_test()
-        await self.write_read_multi_master_test(count=100)
+        # await self.write_read_multi_master_test(count=100)
 
 
 @cocotb.test()

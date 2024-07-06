@@ -118,7 +118,7 @@ module apb_xbar #(
             always_comb begin
                 logic [$clog2(M):0] mst_id;
                 mst_id = arb_gnt_id[s_mux];
-                s_apb_psel[s_mux]    = arb_gnt_valid[s_mux] ? arb_gnt[s_mux][mst_id] : 1'b0;
+                s_apb_psel[s_mux]    = arb_gnt_valid[s_mux] ? m_apb_psel[mst_id] : 1'b0;
                 s_apb_penable[s_mux] = arb_gnt_valid[s_mux] ? m_apb_penable[mst_id] : 1'b0;
                 s_apb_pwrite[s_mux]  = arb_gnt_valid[s_mux] ? m_apb_pwrite[mst_id] : 1'b0;
                 s_apb_pprot[s_mux]   = arb_gnt_valid[s_mux] ? m_apb_pprot[mst_id] : '0;
