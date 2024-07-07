@@ -77,9 +77,6 @@ class APBXbar_TB(TBBase):
                         [0x8000, 0x8FFC],
                         [0x9000, 0x9FFC]
                     ]
-        self.expectQ_list = []
-        for _ in range(self.S):
-            self.expectQ_list.append(deque())
         self.addresses = [ 
                         0x0000, 0x0800, 0x0FFC,
                         0x1000, 0x1800, 0x1FFC,
@@ -110,55 +107,65 @@ class APBXbar_TB(TBBase):
         self.log.debug('Ending reset_dut')
 
 
-    def route_transaction_to_expectq(self, apb_cycle):
-        """
-        Route the APBCycle transaction to the correct expectQ based on the addr_decode ranges.
-    
-        Args:
-            apb_cycle (APBCycle): The APBCycle transaction to be routed.
-        """
-        for idx, (addr_start, addr_end) in enumerate(self.addr_decode):
-            if idx == self.S:
-                break
-            if addr_start <= apb_cycle.paddr <= addr_end:
-                self.expectQ_list[idx].append(apb_cycle)
-                self.log.info(f'Transaction with address {apb_cycle.paddr:08X} routed to expectQ[{idx}]')
-                return
-    
-        self.log.warning(f'Transaction with address {apb_cycle.paddr:08X} does not match any addr_decode range')
-
-
     def compare_expect_and_recv_queues(self):
         """
         Compare all items in the expectQ_list to the _recvQ of each APBMonitor.
-        Flag an error if there are any cycles remaining in any of the queues after
-        all expects are checked against the received.
+        Loop through all the slave queues until they are empty, 
+        picking the transaction with the earliest start_time.
         """
         error_flag = False
     
-        for slave in self.apb_slave_mon:
-            recvQ = slave._recvQ
+        def get_earliest_transaction():
+            earliest_slave_idx = -1
+            earliest_transaction = None
+    
+            for idx, slave in enumerate(self.apb_slave_mon):
+                if slave._recvQ:
+                    current_transaction = slave._recvQ[0]
+                    if earliest_transaction is None or current_transaction.start_time < earliest_transaction.start_time:
+                        earliest_transaction = current_transaction
+                        earliest_slave_idx = idx
+            
+            return earliest_slave_idx, earliest_transaction
+    
+        while any(slave._recvQ for slave in self.apb_slave_mon):
+            earliest_slave_idx, earliest_transaction = get_earliest_transaction()
+    
+            if earliest_slave_idx == -1:
+                break
+    
+            slave = self.apb_slave_mon[earliest_slave_idx]
+            received = slave._recvQ.popleft()
+            mst = received.pprot
+    
+            if not self.apb_master_mon[mst]._recvQ:
+                self.log.error(f"Master {mst}'s queue is empty when expecting a transaction for comparison.")
+                error_flag = True
+                continue
+    
+            expected = self.apb_master_mon[mst]._recvQ.popleft()
+    
+            if not self.compare_cycles(expected, received):
+                self.log.error(f'Mismatch in slave {earliest_slave_idx}: Expected {expected}, Received {received}')
+                error_flag = True
+    
+        # Check if any remaining items in expectQ or recvQ
+        for idx, slave in enumerate(self.apb_slave_mon):
+            if slave._recvQ:
+                self.log.error(f'Slave queue for slave {idx} is not empty: {list(slave._recvQ)}')
+                error_flag = True
 
-            while recvQ:
-                received = recvQ.popleft()
-                mst = received.pprot
-                expected = self.apb_master_mon[mst]._recvQ.popleft()
-    
-                if not self.compare_cycles(expected, received):
-                    self.log.error(f'Mismatch in slave {i}: Expected {expected}, Received {received}')
-                    error_flag = True
-    
-            # Check if any remaining items in expectQ or recvQ
-            if recvQ:
-                self.log.error(f'Received queue for slave {i} is not empty: {list(recvQ)}')
+        for idx, master in enumerate(self.apb_master_mon):
+            if master._recvQ:
+                self.log.error(f'Master queue for slave {idx} is not empty: {list(master._recvQ)}')
                 error_flag = True
     
         if not error_flag:
             self.log.info('All transactions matched correctly between expectQ and recvQ.')
         else:
             assert False, "Cycle mis-compare"
-    
-    
+
+
     def compare_cycles(self, expected, received):
         """
         Compare two APBCycle objects.
@@ -198,14 +205,15 @@ class APBXbar_TB(TBBase):
             for idx, address in enumerate(self.addresses):
                 if idx == self.S * 3:
                     break
+                start_time = get_sim_time('ns')
                 transaction = transaction_cls.set_constrained_random()
                 transaction.pwrite = 1
                 transaction.direction = "WRITE"
+                transaction.start_time = start_time
                 self.log.info(f'Sending write from master {m} to {address:08X}')
                 transaction.paddr = address
                 transaction.pprot = m
                 await master.send(transaction)
-                self.route_transaction_to_expectq(transaction)
                 await self.wait_clocks('aclk', 1)
             
             # Wait for the master's transaction queue to be empty
@@ -215,6 +223,7 @@ class APBXbar_TB(TBBase):
 
             self.log.info('Checking routing of all transactions')
             self.compare_expect_and_recv_queues()
+            await self.wait_clocks('aclk', 50)
 
 
     async def read_single_master_test(self):
@@ -234,14 +243,15 @@ class APBXbar_TB(TBBase):
             for idx, address in enumerate(self.addresses):
                 if idx == self.S * 3:
                     break
+                start_time = get_sim_time('ns')
                 transaction = transaction_cls.set_constrained_random()
                 transaction.pwrite = 0
                 transaction.direction = "READ"
                 self.log.info(f'Sending read from master {m} to {address:08X}')
                 transaction.paddr = address
                 transaction.pprot = m
+                transaction.start_time = start_time
                 await master.send(transaction)
-                self.route_transaction_to_expectq(transaction)
                 await self.wait_clocks('aclk', 1)
             
             # Wait for the master's transaction queue to be empty
@@ -251,6 +261,7 @@ class APBXbar_TB(TBBase):
 
             self.log.info('Checking routing of all transactions')
             self.compare_expect_and_recv_queues()
+            await self.wait_clocks('aclk', 50)
 
 
     async def write_read_multi_master_test(self, count=100):
@@ -266,13 +277,17 @@ class APBXbar_TB(TBBase):
         }
         transaction_cls = APBTransaction(self.DATA_WIDTH, self.ADDR_WIDTH, self.STRB_WIDTH, constraints)
     
-        for _ in range(count):
+        for idx in range(count):
+            # if idx == 10:
+            #     break
+            self.log.debug(f'multi cycle={idx}')
             transaction = transaction_cls.set_constrained_random()
             transaction.paddr = self.addresses[random.randrange(self.S*3)]
             m = random.randrange(self.M)
             transaction.pprot = m
+            self.log.debug(f'master={m} multi cycle={idx}')
+            self.log.debug(f'apb cycle from multi:\n{transaction}')
             await self.apb_master[m].send(transaction)
-            self.route_transaction_to_expectq(transaction)
             await self.wait_clocks('aclk', 1)
             
         await self.wait_clocks('aclk', 100)
@@ -284,13 +299,13 @@ class APBXbar_TB(TBBase):
             self.log.debug(f'Transaction queue of master {m} is now empty.')
 
         self.log.info('Checking routing of all transactions')
-        self.compare_expect_and_recv_queues()
+        # self.compare_expect_and_recv_queues()
 
 
     async def main_loop(self):
         await self.write_single_master_test()
         await self.read_single_master_test()
-        # await self.write_read_multi_master_test(count=100)
+        await self.write_read_multi_master_test(count=100)
 
 
 @cocotb.test()

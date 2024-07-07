@@ -1,11 +1,12 @@
 `timescale 1ns / 1ps
 
 module apb_slave_stub #(
+    parameter int SKID4         = 1,
     parameter int DATA_WIDTH    = 32,
     parameter int ADDR_WIDTH    = 32,
     parameter int STRB_WIDTH    = DATA_WIDTH / 8,
     parameter int CMD_PACKET_WIDTH = ADDR_WIDTH + DATA_WIDTH + STRB_WIDTH + 4, // addr, data, strb, prot, pwrite
-    parameter int RESP_PACKET_WIDTH = DATA_WIDTH + 2 // data, resp
+    parameter int RESP_PACKET_WIDTH = DATA_WIDTH + 1 // data, resp
 ) (
     // Clock and Reset
     input  logic                        aclk,
@@ -53,6 +54,7 @@ module apb_slave_stub #(
     assign r_cmd_data = {r_cmd_pwrite, r_cmd_pprot, r_cmd_pstrb, r_cmd_paddr, r_cmd_pwdata};
 
     axi_skid_buffer #(
+        .SKID4(SKID4),
         .DATA_WIDTH(CPW)
     ) resp_skid_buffer_inst (
         .i_axi_aclk     (aclk),
@@ -71,11 +73,12 @@ module apb_slave_stub #(
     logic                r_rsp_ready;
     logic [RPW]          r_rsp_data;
     logic [DW-1:0]       r_rsp_prdata;
-    logic [1:0]          r_rsp_pslverr;
+    logic                r_rsp_pslverr;
 
     assign {r_rsp_pslverr, r_rsp_prdata} = r_rsp_data;
 
     axi_skid_buffer #(
+        .SKID4(SKID4),
         .DATA_WIDTH(RPW)
     ) resp_skid_buffer_inst (
         .i_axi_aclk     (aclk),
@@ -89,10 +92,9 @@ module apb_slave_stub #(
     );
 
     // APB FSM
-    typedef enum logic [2:0] {
-        IDLE      = 3'b001,
-        READ_DATA = 3'b010,
-        WRITE_DATA= 3'b100
+    typedef enum logic [1:0] {
+        IDLE      = 2'b01,
+        XFER_DATA = 2'b10
     } apb_state_t;
 
     apb_state_t r_apb_state, w_apb_next_state;
@@ -122,30 +124,18 @@ module apb_slave_stub #(
 
         case (r_apb_state)
             IDLE: begin
-                if (s_apb_PSEL & s_apb_PENABLE) begin
-                    if (apb_pwrite) begin
-                        w_apb_next_state = WRITE_DATA;
-                    end else begin
-                        w_apb_next_state = READ_DATA;
-                    end
+                if (s_apb_PSEL && s_apb_PENABLE && r_cmd_ready) begin
+                    r_cmd_valid      = 1'b1;
+                    w_apb_next_state = XFER_DATA;
                 end
             end
 
-            READ_DATA: begin
-                s_apb_PREADY = r_cmd_ready; // Assert apb_pready based on i_cmd_ready
-                if (r_rsp_valid & r_cmd_ready) begin
+            XFER_DATA: begin
+                if (r_rsp_valid) begin
+                    s_apb_PREADY     = 1'b1;
                     s_apb_PRDATA     = r_rsp_prdata;
                     s_apb_PSLVERR    = r_rsp_pslverr;
-                    r_cmd_valid      = 1'b1;
                     r_rsp_ready      = 1'b1;
-                    w_apb_next_state = IDLE;
-                end
-            end
-
-            WRITE_DATA: begin
-                s_apb_PREADY = r_cmd_ready; // Assert apb_pready based on r_cmd_ready
-                if (r_cmd_ready) begin
-                    r_cmd_valid      = 1'b1;
                     w_apb_next_state = IDLE;
                 end
             end

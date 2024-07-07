@@ -499,6 +499,7 @@ class APBMaster(BusDriver):
 
             transaction = self.transmit_queue.popleft()
             transaction.start_time = cocotb.utils.get_sim_time('ns')
+            self.log.warning(f'APB Master {self.name} attempting to transmit:\n{transaction}')
 
             while psel_delay > 0:
                 psel_delay -= 1

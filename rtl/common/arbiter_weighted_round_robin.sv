@@ -23,7 +23,7 @@ module arbiter_weighted_round_robin #(
     // =======================================================================
     // Declarations & Parameters
     localparam int C = CLIENTS;
-    localparam int N = $clog2(CLIENTS) + 1;
+    localparam int N = $clog2(CLIENTS);
     localparam int MTW = MAX_THRESH_WIDTH;
     localparam int CXMTW = CLIENTS*MAX_THRESH_WIDTH;
 
