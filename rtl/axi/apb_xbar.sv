@@ -23,9 +23,9 @@ module apb_xbar #(
     input  logic [S][ADDR_WIDTH-1:0]     SLAVE_ADDR_BASE,
     // Slave address limit
     input  logic [S][ADDR_WIDTH-1:0]     SLAVE_ADDR_LIMIT,
-    // Thresholds for the Weighted Round Robin Arbiter
-    input  logic [SXMTW-1:0]             SLV_THRESHOLDS,
+    // Thresholds for the Weighted Round Robin Arbiters
     input  logic [MXMTW-1:0]             MST_THRESHOLDS,
+    input  logic [SXMTW-1:0]             SLV_THRESHOLDS,
 
     // Master interfaces - These are from the APB master
     input  logic [M-1:0]                 m_apb_psel,
@@ -79,6 +79,7 @@ module apb_xbar #(
 
     logic [M-1:0]                     r_slv_rsp_valid;
     logic [M-1:0]                     r_slv_rsp_ready;
+    logic [M-1:0][SLVRPW-1:0]         r_slv_rsp_data;
     logic [M-1:0][DATA_WIDTH-1:0]     r_slv_rsp_prdata;
     logic [M-1:0]                     r_slv_rsp_pslverr;
 
@@ -129,7 +130,7 @@ module apb_xbar #(
                 .o_cmd_data       (r_slv_cmd_data[m_port]),  // used
                 .i_rsp_valid      (r_slv_rsp_valid[m_port]), // used
                 .o_rsp_ready      (r_slv_rsp_ready[m_port]), // used
-                .i_rsp_data       (r_slv_rsb_data[m_port])   // used
+                .i_rsp_data       (r_slv_rsp_data[m_port])   // used
             );
 
             arbiter_weighted_round_robin #(
@@ -226,7 +227,7 @@ module apb_xbar #(
             // Instantiate axi_fifo_sync
             axi_fifo_sync #(
                 .DEL(1),
-                .DATA_WIDTH      (DATA_WIDTH),
+                .DATA_WIDTH      (MID),
                 .DEPTH           (4),
                 .ALMOST_WR_MARGIN(1),
                 .ALMOST_RD_MARGIN(1),
@@ -237,7 +238,6 @@ module apb_xbar #(
                 .i_wr_valid   (r_mst_side_wr_valid[s_port]), // used
                 .o_wr_ready   (r_mst_side_wr_ready[s_port]), // used
                 .i_wr_data    (r_mst_side_wr_data[s_port]),  // used
-                .ow_count     (r_mst_side_count[s_port]),    // not needed
                 .o_rd_valid   (r_mst_side_rd_valid[s_port]), // used
                 .i_rd_ready   (r_mst_side_rd_ready[s_port]), // used
                 .ow_rd_data   (r_mst_side_rd_data[s_port])   // used
@@ -301,7 +301,7 @@ module apb_xbar #(
                 r_mst_cmd_data[s_mux]      = 'b0;
                 r_mst_side_wr_valid[s_mux] = 'b0;
                 r_mst_side_wr_data[s_mux]  = 'b0;
-                for (int m_mux = 0; m_mux < M; m_mux++)
+                for (int m_mux = 0; m_mux < M; m_mux++) begin
                     if (r_mst_cmd_ready[s_mux] && r_mst_side_wr_ready[s_mux] &&
                             mst_arb_gnt[s_mux][m_mux] && mst_arb_gnt_valid[s_mux]) begin
 
@@ -313,9 +313,10 @@ module apb_xbar #(
                         r_mst_side_wr_data[s_mux] = mst_arb_gnt_id[s_mux];
                     end
 
-                    if (slv_arb_valid[s_mux] && slv_arb_gnt[s_mux][m_mux]) begin
+                    if (slv_arb_gnt_valid[m_mux] && slv_arb_gnt[s_mux][m_mux]) begin
                         r_mst_side_rd_ready[s_mux] = 1'b1;
                     end
+                end
             end
         end
     endgenerate
@@ -326,7 +327,7 @@ module apb_xbar #(
         for (genvar m_slv_demux = 0; m_slv_demux < M; m_slv_demux++) begin : gen_slv_demux
             always_comb begin
                 r_slv_cmd_ready[m_slv_demux] = 'b0;
-                for (int s_slv_arb = 0; s_slv_arb < S; s_slv_arb++) begin : gen_slv_demux_inner
+                for (int s_slv_demux = 0; s_slv_demux < S; s_slv_demux++) begin : gen_slv_demux_inner
                     if (mst_arb_gnt_swap[m_slv_demux][s_slv_demux])
                         r_slv_cmd_ready[m_slv_demux] = 'b1;
                 end
@@ -340,8 +341,8 @@ module apb_xbar #(
             for (genvar s_slv_arb = 0; s_slv_arb < S; s_slv_arb++) begin : gen_slv_arb_inner
                 always_comb begin
                     slave_sel[m_slv_arb][s_slv_arb] = 'b0;
-                    if (r_mst_side_rd_valid[s_demux] && r_mst_side_rd_data == m_demux &&
-                            r_slv_rsp_ready[m_demux] && r_mst_rsp_valid) begin
+                    if (r_mst_side_rd_valid[s_slv_arb] && r_mst_side_rd_data == m_slv_arb &&
+                            r_slv_rsp_ready[m_slv_arb] && r_mst_rsp_valid[s_slv_arb]) begin
                         slave_sel[m_slv_arb][s_slv_arb] = 1'b1;
                     end
                 end
@@ -351,15 +352,15 @@ module apb_xbar #(
 
     // de-mux the master interface's respnses back to the apb_slaes
     generate
-        for (genvar s_demux = 0; s_demux < S; s_demux++) begin : gen_demux
+        for (genvar m_demux = 0; m_demux < M; m_demux++) begin : gen_demux
             always_comb begin
                 r_slv_rsp_valid[m_demux]  = 1'b0;
                 r_slv_rsp_data[m_demux]  = '0;
-                for (int m_demux = 0; m_demux < M; m_demux++) begin
-                    if (slv_arb_gnt_swap[s_demux][m_demux] && slv_arb_gnt_valid[m_demux]) begin
+                for (int s_demux = 0; s_demux < S; s_demux++) begin
+                    if (slv_arb_gnt[m_demux][s_demux] && slv_arb_gnt_valid[m_demux]) begin
                         r_slv_rsp_valid[m_demux] = 1'b1;
-                        r_slv_rsp_data[m_demux]  = {w_mst_rsp_pslverr[s_port],
-                                                        w_mst_rsp_prdata[s_port]};
+                        r_slv_rsp_data[m_demux]  = {w_mst_rsp_pslverr[s_demux],
+                                                        w_mst_rsp_prdata[s_demux]};
                     end
                 end
             end

@@ -13,11 +13,13 @@ def generate_wrapper(json_file):
     SLAVE_ENABLE = params["SLAVE_ENABLE"]
     SLAVE_ADDR_BASE  = [int(addr, 16) for addr in params["SLAVE_ADDR_BASE"]]
     SLAVE_ADDR_LIMIT = [int(addr, 16) for addr in params["SLAVE_ADDR_LIMIT"]]
-    THRESHOLDS = params["THRESHOLDS"]
+    MST_THRESHOLDS = params["MST_THRESHOLDS"]
+    SLV_THRESHOLDS = params["SLV_THRESHOLDS"]
     SLAVE_ENABLE.reverse()
     SLAVE_ADDR_BASE.reverse()
     SLAVE_ADDR_LIMIT.reverse()
-    THRESHOLDS.reverse()
+    MST_THRESHOLDS.reverse()
+    SLV_THRESHOLDS.reverse()
 
     # Generate SystemVerilog code
     sv_code = f"""
@@ -91,7 +93,8 @@ module apb_xbar_wrap_m{M}_s{S} #(
         .SLAVE_ENABLE        ({slave_enable_str}),
         .SLAVE_ADDR_BASE     ({slave_addr_base_str}),
         .SLAVE_ADDR_LIMIT    ({slave_addr_limit_str}),
-        .THRESHOLDS          ({4*len(THRESHOLDS)}'h{''.join(f"{t:X}" for t in THRESHOLDS)}),
+        .MST_THRESHOLDS      ({4*len(MST_THRESHOLDS)}'h{''.join(f"{t:X}" for t in MST_THRESHOLDS)}),
+        .SLV_THRESHOLDS      ({4*len(SLV_THRESHOLDS)}'h{''.join(f"{t:X}" for t in SLV_THRESHOLDS)}),
 """
 
     # Connect master interfaces

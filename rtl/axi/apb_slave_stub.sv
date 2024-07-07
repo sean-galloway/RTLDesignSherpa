@@ -44,7 +44,7 @@ module apb_slave_stub #(
     // Load command packet signals
     logic                r_cmd_valid;
     logic                r_cmd_ready;
-    logic [RPW]          r_cmd_data;
+    logic [CPW-1:0]      r_cmd_data;
     logic [DW-1:0]       r_cmd_pwdata;
     logic [AW-1:0]       r_cmd_paddr;
     logic [SW-1:0]       r_cmd_pstrb;
@@ -71,7 +71,7 @@ module apb_slave_stub #(
     // Extract response packet signals
     logic                r_rsp_valid;
     logic                r_rsp_ready;
-    logic [RPW]          r_rsp_data;
+    logic [RPW-1:0]      r_rsp_data;
     logic [DW-1:0]       r_rsp_prdata;
     logic                r_rsp_pslverr;
 
@@ -112,8 +112,6 @@ module apb_slave_stub #(
         s_apb_PREADY       = 1'b0;
         s_apb_PSLVERR      = 1'b0;
         s_apb_PRDATA       = 'b0;
-        o_cmd_valid        = 1'b0;
-        o_rsp_ready        = 1'b0;
         r_cmd_paddr        = s_apb_PADDR;
         r_cmd_pwrite       = s_apb_PWRITE;
         r_cmd_pwdata       = s_apb_PWDATA;

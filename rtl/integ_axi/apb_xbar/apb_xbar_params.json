@@ -8,5 +8,6 @@
   "SLAVE_ADDR_BASE":  ["0x0000", "0x1000", "0x2000", "0x3000", "0x4000", "0x5000", "0x6000", "0x7000", "0x8000", "0x9000"],
   "SLAVE_ADDR_LIMIT": ["0x0FFF", "0x1FFF", "0x2FFF", "0x3FFF", "0x4FFF", "0x5FFF", "0x6FFF", "0x7FFF", "0x8FFF", "0x9FFF"],
   "MAX_THRESHOLD": 16,
-  "THRESHOLDS": [4, 4, 4, 4, 4, 4, 4, 4, 4, 4]
+  "MST_THRESHOLDS": [4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
+  "SLV_THRESHOLDS": [4, 4, 4, 4, 4, 4, 4, 4, 4, 4]
 }
