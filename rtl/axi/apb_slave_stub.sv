@@ -56,7 +56,7 @@ module apb_slave_stub #(
     axi_skid_buffer #(
         .SKID4(SKID4),
         .DATA_WIDTH(CPW)
-    ) resp_skid_buffer_inst (
+    ) cmd_skid_buffer_inst (
         .i_axi_aclk     (aclk),
         .i_axi_aresetn  (aresetn),
         .i_wr_valid     (r_cmd_valid),

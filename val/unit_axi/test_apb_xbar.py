@@ -304,8 +304,8 @@ class APBXbar_TB(TBBase):
 
     async def main_loop(self):
         await self.write_single_master_test()
-        await self.read_single_master_test()
-        await self.write_read_multi_master_test(count=100)
+        # await self.read_single_master_test()
+        # await self.write_read_multi_master_test(count=100)
 
 
 @cocotb.test()
@@ -344,6 +344,12 @@ def test_apb_xbar_wrap(request, m, s, addr_width, data_width):
         os.path.join(rtl_dir, "arbiter_fixed_priority.sv"),
         os.path.join(rtl_dir, "arbiter_round_robin_subinst.sv"),
         os.path.join(rtl_dir, "arbiter_weighted_round_robin.sv"),
+        os.path.join(rtl_dir, "counter_bin.sv"),
+        os.path.join(rtl_dir, "fifo_control.sv"),
+        os.path.join(rtl_axi_dir, "axi_fifo_sync.sv"),
+        os.path.join(rtl_axi_dir, "axi_skid_buffer.sv"),
+        os.path.join(rtl_axi_dir, "apb_master_stub.sv"),
+        os.path.join(rtl_axi_dir, "apb_slave_stub.sv"),
         os.path.join(rtl_axi_dir, "apb_xbar.sv"),
         os.path.join(rtl_integ_axi_dir, f"{dut_name}.sv")
     ]

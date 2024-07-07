@@ -11,7 +11,8 @@ module apb_xbar #(
     parameter int DATA_WIDTH = 32,
     // Strobe width
     parameter int STRB_WIDTH = DATA_WIDTH/8,
-    parameter int MAX_THRESH = 16
+    parameter int MAX_THRESH = 16,
+    parameter int SKID4      = 1
 ) (
     input  logic                         aclk,
     input  logic                         aresetn,
@@ -200,7 +201,7 @@ module apb_xbar #(
             apb_master_stub #(
                 .DATA_WIDTH     (DATA_WIDTH),
                 .ADDR_WIDTH     (ADDR_WIDTH),
-                .STRB_WIDTH     (STRB_WIDTH),
+                .STRB_WIDTH     (STRB_WIDTH)
             ) u_apb_master_stub (
                 .aclk           (aclk),
                 .aresetn        (aresetn),
@@ -325,7 +326,7 @@ module apb_xbar #(
         for (genvar m_slv_demux = 0; m_slv_demux < M; m_slv_demux++) begin : gen_slv_demux
             always_comb begin
                 r_slv_cmd_ready[m_slv_demux] = 'b0;
-                for (int s_slv_arb = 0; s_dslv_arb < S; s_slv_arb++) begin : gen_slv_demux_inner
+                for (int s_slv_arb = 0; s_slv_arb < S; s_slv_arb++) begin : gen_slv_demux_inner
                     if (mst_arb_gnt_swap[m_slv_demux][s_slv_demux])
                         r_slv_cmd_ready[m_slv_demux] = 'b1;
                 end
@@ -336,7 +337,7 @@ module apb_xbar #(
     // Generate the select signals for the slave arbiter
     generate
         for (genvar m_slv_arb = 0; m_slv_arb < M; m_slv_arb++) begin : gen_slv_arb
-            for (genvar s_slv_arb = 0; s_dslv_arb < S; s_slv_arb++) begin : gen_slv_arb_inner
+            for (genvar s_slv_arb = 0; s_slv_arb < S; s_slv_arb++) begin : gen_slv_arb_inner
                 always_comb begin
                     slave_sel[m_slv_arb][s_slv_arb] = 'b0;
                     if (r_mst_side_rd_valid[s_demux] && r_mst_side_rd_data == m_demux &&
