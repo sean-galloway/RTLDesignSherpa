@@ -359,8 +359,8 @@ module apb_xbar #(
                 for (int s_demux = 0; s_demux < S; s_demux++) begin
                     if (slv_arb_gnt[m_demux][s_demux] && slv_arb_gnt_valid[m_demux]) begin
                         r_slv_rsp_valid[m_demux] = 1'b1;
-                        r_slv_rsp_data[m_demux]  = {w_mst_rsp_pslverr[s_demux],
-                                                        w_mst_rsp_prdata[s_demux]};
+                        r_slv_rsp_data[m_demux]  = {r_mst_rsp_pslverr[s_demux],
+                                                        r_mst_rsp_prdata[s_demux]};
                     end
                 end
             end
