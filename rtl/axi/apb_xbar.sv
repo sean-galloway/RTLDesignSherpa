@@ -225,13 +225,9 @@ module apb_xbar #(
             );
 
             // Instantiate axi_fifo_sync
-            axi_fifo_sync #(
-                .DEL(1),
-                .DATA_WIDTH      (MID),
-                .DEPTH           (4),
-                .ALMOST_WR_MARGIN(1),
-                .ALMOST_RD_MARGIN(1),
-                .INSTANCE_NAME   ("SIDEQ")
+            axi_skid_buffer #(
+                .SKID4        (1),
+                .DATA_WIDTH   (MID)
             ) side_queue_inst (
                 .i_axi_aclk   (aclk),
                 .i_axi_aresetn(aresetn),
@@ -240,14 +236,14 @@ module apb_xbar #(
                 .i_wr_data    (r_mst_side_wr_data[s_port]),  // used
                 .o_rd_valid   (r_mst_side_rd_valid[s_port]), // used
                 .i_rd_ready   (r_mst_side_rd_ready[s_port]), // used
-                .ow_rd_data   (r_mst_side_rd_data[s_port])   // used
+                .o_rd_data    (r_mst_side_rd_data[s_port])   // used
             );
 
             arbiter_weighted_round_robin #(
                 .MAX_THRESH  (16),
                 .CLIENTS     (M),
                 .WAIT_GNT_ACK(1)
-            ) master_arbiter_inst   (
+            ) master_arbiter_inst (
                 .i_clk       (aclk),
                 .i_rst_n     (aresetn),
                 .i_block_arb (1'b0),
@@ -261,6 +257,18 @@ module apb_xbar #(
 
         end
     endgenerate
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    // assert the gnt_acks
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (~aresetn) begin
+            mst_arb_gnt_ack   <= '0;
+            slv_arb_gnt_ack   <= '0;
+        end else begin
+            mst_arb_gnt_ack <= r_mst_cmd_valid & r_mst_cmd_ready;
+            slv_arb_gnt_ack <= r_slv_rsp_valid & r_slv_rsp_ready;
+        end
+    end
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     // Address decoding logic
@@ -280,16 +288,24 @@ module apb_xbar #(
     endgenerate
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
-    // assert the gnt_acks
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (~aresetn) begin
-            mst_arb_gnt_ack   <= '0;
-            slv_arb_gnt_ack   <= '0;
-        end else begin
-            mst_arb_gnt_ack <= r_mst_cmd_valid & r_mst_cmd_ready;
-            slv_arb_gnt_ack <= r_slv_rsp_valid & r_slv_rsp_ready;
+    // Generate the select signals for the slave arbiter
+    // This sends response information back to the slave stubs
+    generate
+        for (genvar m_slv_arb = 0; m_slv_arb < M; m_slv_arb++) begin : gen_slv_arb
+            for (genvar s_slv_arb = 0; s_slv_arb < S; s_slv_arb++) begin : gen_slv_arb_inner
+                always_comb begin
+                    slave_sel[m_slv_arb][s_slv_arb] = 'b0;
+                    if (r_mst_side_rd_valid[s_slv_arb] &&
+                            r_mst_side_rd_data[s_slv_arb] == m_slv_arb &&
+                            r_slv_rsp_ready[m_slv_arb] &&
+                            r_mst_rsp_valid[s_slv_arb]) begin
+                        slave_sel[m_slv_arb][s_slv_arb] = 1'b1;
+                    end
+                end
+            end
         end
-    end
+    endgenerate
+
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     // Master interface multiplexing
@@ -297,6 +313,7 @@ module apb_xbar #(
         for (genvar s_mux = 0; s_mux < S; s_mux++) begin : gen_slave_mux
             always_comb begin
                 r_mst_side_rd_ready[s_mux] = 'b0;
+                r_mst_rsp_ready[s_mux]     = 'b0;
                 r_mst_cmd_valid[s_mux]     = 'b0;
                 r_mst_cmd_data[s_mux]      = 'b0;
                 r_mst_side_wr_valid[s_mux] = 'b0;
@@ -313,8 +330,9 @@ module apb_xbar #(
                         r_mst_side_wr_data[s_mux] = mst_arb_gnt_id[s_mux];
                     end
 
-                    if (slv_arb_gnt_valid[m_mux] && slv_arb_gnt[s_mux][m_mux]) begin
+                    if (slv_arb_gnt_valid[m_mux] && slv_arb_gnt_swap[s_mux][m_mux]) begin
                         r_mst_side_rd_ready[s_mux] = 1'b1;
+                        r_mst_rsp_ready[s_mux]     = 1'b1;
                     end
                 end
             end
@@ -330,23 +348,6 @@ module apb_xbar #(
                 for (int s_slv_demux = 0; s_slv_demux < S; s_slv_demux++) begin : gen_slv_demux_inner
                     if (mst_arb_gnt_swap[m_slv_demux][s_slv_demux])
                         r_slv_cmd_ready[m_slv_demux] = 'b1;
-                end
-            end
-        end
-    endgenerate
-
-    // Generate the select signals for the slave arbiter
-    generate
-        for (genvar m_slv_arb = 0; m_slv_arb < M; m_slv_arb++) begin : gen_slv_arb
-            for (genvar s_slv_arb = 0; s_slv_arb < S; s_slv_arb++) begin : gen_slv_arb_inner
-                always_comb begin
-                    slave_sel[m_slv_arb][s_slv_arb] = 'b0;
-                    if (r_mst_side_rd_valid[s_slv_arb] &&
-                            r_mst_side_rd_data[s_slv_arb] == m_slv_arb &&
-                            r_slv_rsp_ready[m_slv_arb] &&
-                            r_mst_rsp_valid[s_slv_arb]) begin
-                        slave_sel[m_slv_arb][s_slv_arb] = 1'b1;
-                    end
                 end
             end
         end
