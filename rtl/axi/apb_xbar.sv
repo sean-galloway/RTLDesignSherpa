@@ -341,8 +341,10 @@ module apb_xbar #(
             for (genvar s_slv_arb = 0; s_slv_arb < S; s_slv_arb++) begin : gen_slv_arb_inner
                 always_comb begin
                     slave_sel[m_slv_arb][s_slv_arb] = 'b0;
-                    if (r_mst_side_rd_valid[s_slv_arb] && r_mst_side_rd_data == m_slv_arb &&
-                            r_slv_rsp_ready[m_slv_arb] && r_mst_rsp_valid[s_slv_arb]) begin
+                    if (r_mst_side_rd_valid[s_slv_arb] &&
+                            r_mst_side_rd_data[s_slv_arb] == m_slv_arb &&
+                            r_slv_rsp_ready[m_slv_arb] &&
+                            r_mst_rsp_valid[s_slv_arb]) begin
                         slave_sel[m_slv_arb][s_slv_arb] = 1'b1;
                     end
                 end
@@ -350,7 +352,7 @@ module apb_xbar #(
         end
     endgenerate
 
-    // de-mux the master interface's respnses back to the apb_slaes
+    // de-mux the master interface's respnses back to the apb_slaves
     generate
         for (genvar m_demux = 0; m_demux < M; m_demux++) begin : gen_demux
             always_comb begin
