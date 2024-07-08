@@ -114,6 +114,12 @@ class APBXbar_TB(TBBase):
         picking the transaction with the earliest start_time.
         """
         error_flag = False
+
+        self.log.debug('compare_expect_and_recv_queues')
+        for idx, master in enumerate(self.apb_master_mon):
+            self.log.debug(f'Master {idx} has {len(master._recvQ)} items')
+        for idx, slave in enumerate(self.apb_slave_mon):
+            self.log.debug(f'Slave {idx} has {len(slave._recvQ)} items')
     
         def get_earliest_transaction():
             earliest_slave_idx = -1
@@ -218,7 +224,7 @@ class APBXbar_TB(TBBase):
             
             # Wait for the master's transaction queue to be empty
             self.log.info(f'Waiting for transaction queue of master {m} to empty...')
-            await self.wait_for_queue_empty(master, timeout=1000)
+            await self.wait_for_queue_empty(master, timeout=10000)
             self.log.info(f'Transaction queue of master {m} is now empty.')
 
             self.log.info('Checking routing of all transactions')
@@ -256,7 +262,7 @@ class APBXbar_TB(TBBase):
             
             # Wait for the master's transaction queue to be empty
             self.log.info(f'Waiting for transaction queue of master {m} to empty...')
-            await self.wait_for_queue_empty(master, timeout=1000)
+            await self.wait_for_queue_empty(master, timeout=10000)
             self.log.info(f'Transaction queue of master {m} is now empty.')
 
             self.log.info('Checking routing of all transactions')
@@ -304,7 +310,7 @@ class APBXbar_TB(TBBase):
 
     async def main_loop(self):
         await self.write_single_master_test()
-        # await self.read_single_master_test()
+        await self.read_single_master_test()
         # await self.write_read_multi_master_test(count=100)
 
 

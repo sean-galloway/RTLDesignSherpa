@@ -66,6 +66,16 @@ module apb_xbar #(
     localparam int MSTCPW = AW + DW + SW + 6;
     localparam int MSTRPW = DW + 3;
 
+    integer file;
+
+    initial begin
+        file = $fopen("debug_log.txt", "w");
+        if (file == 0) begin
+            $display("Error: could not open file.");
+            $finish;
+        end
+    end
+
     ////////////////////////////////////////////////////////////////////////////////////////////////
     // Internal signals for Slave command and response packets
     logic [M-1:0]                     r_slv_cmd_valid;
@@ -105,7 +115,7 @@ module apb_xbar #(
         for (genvar m_port = 0; m_port < M; m_port++) begin : gen_apb_slave_stubs
 
             assign {r_slv_cmd_pwrite[m_port], r_slv_cmd_pprot[m_port], r_slv_cmd_pstrb[m_port],
-                        r_slv_cmd_paddr[m_port], r_slv_cmd_pwdata[m_port]} = r_slv_cmd_data;
+                        r_slv_cmd_paddr[m_port], r_slv_cmd_pwdata[m_port]} = r_slv_cmd_data[m_port];
 
             apb_slave_stub #(
                 .SKID4            (SKID4),
@@ -369,5 +379,33 @@ module apb_xbar #(
             end
         end
     endgenerate
+
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    // signal dumps
+    initial begin
+        forever begin
+            @(negedge aclk);
+            for (int s_loop=0; s_loop<S; s_loop++) begin
+                $fdisplay(file, "Master Arbiter outputs @ %0t", $realtime/1e3);
+                $fdisplay(file, "s_loop=%0d mst_arb_gnt_valid=%0b mst_arb_gnt=%0b mst_arb_gnt_id=%0d",
+                        s_loop, mst_arb_gnt_valid[s_loop], mst_arb_gnt[s_loop], mst_arb_gnt_id[s_loop]);
+            end
+            for (int s_loop=0; s_loop<S; s_loop++) begin
+                $fdisplay(file, "Master Decode @ %0t: s_loop=%0d master_sel=%0b",
+                    $realtime/1e3, s_loop, master_sel[s_loop]);
+            end
+
+            for (int m_loop=0; m_loop<M; m_loop++) begin
+                $fdisplay(file, "Slave Arbiter outputs @ %0t", $realtime/1e3);
+                $fdisplay(file, "m_loop=%0d slv_arb_gnt_valid=%0b slv_arb_gnt=%0b slv_arb_gnt_id=%0d",
+                        m_loop, slv_arb_gnt_valid[m_loop], slv_arb_gnt[m_loop], slv_arb_gnt_id[m_loop]);
+            end
+            for (int m_loop=0; m_loop<M; m_loop++) begin
+                $fdisplay(file, "Slave Decode @ %0t: m_loop=%0d slave_sel=%0b",
+                    $realtime/1e3, m_loop, slave_sel[m_loop]);
+            end
+        end
+    end
 
 endmodule : apb_xbar
