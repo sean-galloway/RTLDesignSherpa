@@ -207,7 +207,7 @@ module apb_xbar #(
         for (genvar s_port = 0; s_port < S; s_port++) begin : gen_apb_master_stubs
 
             assign {r_mst_rsp_last[s_port], r_mst_rsp_first[s_port],
-                    r_mst_rsp_pslverr[s_port], r_mst_rsp_prdata[s_port]} = r_mst_rsp_ready[s_port];
+                    r_mst_rsp_pslverr[s_port], r_mst_rsp_prdata[s_port]} = r_mst_rsp_data[s_port];
 
             apb_master_stub #(
                 .DATA_WIDTH     (DATA_WIDTH),
