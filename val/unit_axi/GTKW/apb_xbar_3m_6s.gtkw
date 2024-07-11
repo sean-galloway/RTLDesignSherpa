@@ -1,26 +1,45 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sun Jun 23 20:39:42 2024
+[*] Wed Jul 10 07:36:16 2024
 [*]
-[dumpfile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/local_sim_build/test_apb_xbar_wrap_m10_s10-3-5-32-32/waves.vcd"
-[dumpfile_mtime] "Sun Jun 23 14:23:51 2024"
-[dumpfile_size] 3374
-[savefile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/GTKW/axi_xbar_3m_5s.gtkw"
-[timestart] 0
-[size] 2149 1742
+[dumpfile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/local_sim_build/test_apb_xbar_wrap-3-6-32-32/waves.vcd"
+[dumpfile_mtime] "Wed Jul 10 07:15:31 2024"
+[dumpfile_size] 141065
+[savefile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/GTKW/apb_xbar_3m_6s.gtkw"
+[timestart] 16371300
+[size] 3138 1739
 [pos] -1 -1
-*-16.443554 100000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.464787 17400000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] apb_xbar_wrap_m10_s10.
 [treeopen] apb_xbar_wrap_m10_s10.apb_xbar_inst.
+[treeopen] apb_xbar_wrap_m10_s10.apb_xbar_inst.gen_apb_slave_stubs[0].
+[treeopen] apb_xbar_wrap_m10_s10.apb_xbar_inst.gen_apb_slave_stubs[1].
+[treeopen] apb_xbar_wrap_m10_s10.apb_xbar_inst.gen_apb_slave_stubs[2].
 [treeopen] apb_xbar_wrap_m10_s10.apb_xbar_inst.gen_decoder[0].
-[treeopen] apb_xbar_wrap_m10_s10.apb_xbar_inst.gen_master_sel[0].
 [sst_width] 315
-[signals_width] 569
+[signals_width] 367
 [sst_expanded] 1
-[sst_vpaned_height] 540
+[sst_vpaned_height] 1373
 @28
 apb_xbar_wrap_m10_s10.aclk
 apb_xbar_wrap_m10_s10.aresetn
+@22
+apb_xbar_wrap_m10_s10.apb_xbar_inst.r_slv_cmd_valid[9:0]
+apb_xbar_wrap_m10_s10.apb_xbar_inst.r_slv_cmd_ready[9:0]
+apb_xbar_wrap_m10_s10.apb_xbar_inst.r_mst_cmd_valid[9:0]
+apb_xbar_wrap_m10_s10.apb_xbar_inst.r_mst_cmd_ready[9:0]
+apb_xbar_wrap_m10_s10.apb_xbar_inst.r_mst_rsp_valid[9:0]
+apb_xbar_wrap_m10_s10.apb_xbar_inst.r_mst_rsp_ready[9:0]
+apb_xbar_wrap_m10_s10.apb_xbar_inst.r_mst_side_wr_valid[9:0]
+apb_xbar_wrap_m10_s10.apb_xbar_inst.r_mst_side_wr_ready[9:0]
+apb_xbar_wrap_m10_s10.apb_xbar_inst.r_mst_side_rd_valid[9:0]
+apb_xbar_wrap_m10_s10.apb_xbar_inst.r_mst_side_rd_ready[9:0]
+apb_xbar_wrap_m10_s10.apb_xbar_inst.r_slv_rsp_valid[9:0]
+apb_xbar_wrap_m10_s10.apb_xbar_inst.r_slv_rsp_ready[9:0]
+@23
+apb_xbar_wrap_m10_s10.apb_xbar_inst.mst_arb_gnt_valid[9:0]
+@22
+apb_xbar_wrap_m10_s10.apb_xbar_inst.slv_arb_gnt_valid[9:0]
 @200
 -Master 0
 @28
@@ -33,6 +52,12 @@ apb_xbar_wrap_m10_s10.m0_apb_pprot[2:0]
 apb_xbar_wrap_m10_s10.m0_apb_paddr[31:0]
 @28
 apb_xbar_wrap_m10_s10.m0_apb_pslverr
+apb_xbar_wrap_m10_s10.apb_xbar_inst.gen_apb_slave_stubs[0].u_apb_slave_stub.r_cmd_valid
+apb_xbar_wrap_m10_s10.apb_xbar_inst.gen_apb_slave_stubs[0].u_apb_slave_stub.r_cmd_ready
+@22
+apb_xbar_wrap_m10_s10.apb_xbar_inst.gen_apb_slave_stubs[0].u_apb_slave_stub.r_cmd_paddr[31:0]
+@28
+apb_xbar_wrap_m10_s10.apb_xbar_inst.gen_apb_slave_stubs[0].u_apb_slave_stub.o_cmd_valid
 @200
 -Master 1
 @28
@@ -45,6 +70,11 @@ apb_xbar_wrap_m10_s10.m1_apb_pprot[2:0]
 apb_xbar_wrap_m10_s10.m1_apb_paddr[31:0]
 @28
 apb_xbar_wrap_m10_s10.m1_apb_pslverr
+apb_xbar_wrap_m10_s10.apb_xbar_inst.gen_apb_slave_stubs[1].u_apb_slave_stub.r_cmd_valid
+apb_xbar_wrap_m10_s10.apb_xbar_inst.gen_apb_slave_stubs[1].u_apb_slave_stub.r_cmd_ready
+apb_xbar_wrap_m10_s10.apb_xbar_inst.gen_apb_slave_stubs[1].u_apb_slave_stub.o_cmd_valid
+@22
+apb_xbar_wrap_m10_s10.apb_xbar_inst.gen_apb_slave_stubs[1].u_apb_slave_stub.r_cmd_paddr[31:0]
 @200
 -Master 2
 @28
@@ -57,6 +87,12 @@ apb_xbar_wrap_m10_s10.m2_apb_pprot[2:0]
 apb_xbar_wrap_m10_s10.m2_apb_paddr[31:0]
 @28
 apb_xbar_wrap_m10_s10.m2_apb_pslverr
+apb_xbar_wrap_m10_s10.apb_xbar_inst.gen_apb_slave_stubs[2].u_apb_slave_stub.r_cmd_valid
+apb_xbar_wrap_m10_s10.apb_xbar_inst.gen_apb_slave_stubs[2].u_apb_slave_stub.r_cmd_ready
+@22
+apb_xbar_wrap_m10_s10.apb_xbar_inst.gen_apb_slave_stubs[2].u_apb_slave_stub.r_cmd_paddr[31:0]
+@28
+apb_xbar_wrap_m10_s10.apb_xbar_inst.gen_apb_slave_stubs[2].u_apb_slave_stub.o_cmd_valid
 @200
 -Slave 0
 @28
@@ -133,27 +169,21 @@ apb_xbar_wrap_m10_s10.s4_apb_prdata[31:0]
 @28
 apb_xbar_wrap_m10_s10.s4_apb_pslverr
 @200
--Internals
+-Slave 5
+@28
+apb_xbar_wrap_m10_s10.s5_apb_psel
+apb_xbar_wrap_m10_s10.s5_apb_penable
+apb_xbar_wrap_m10_s10.s5_apb_pready
+apb_xbar_wrap_m10_s10.s5_apb_pwrite
+apb_xbar_wrap_m10_s10.s5_apb_pprot[2:0]
 @22
-apb_xbar_wrap_m10_s10.apb_xbar_inst.slave_sel[14:0]
-apb_xbar_wrap_m10_s10.apb_xbar_inst.arb_gnt_valid[4:0]
-apb_xbar_wrap_m10_s10.apb_xbar_inst.arb_gnt_id[14:0]
-apb_xbar_wrap_m10_s10.apb_xbar_inst.arb_gnt[14:0]
-@c00022
-apb_xbar_wrap_m10_s10.apb_xbar_inst.r_s_apb_pready[4:0]
+apb_xbar_wrap_m10_s10.s5_apb_paddr[31:0]
+apb_xbar_wrap_m10_s10.s5_apb_pwdata[31:0]
+apb_xbar_wrap_m10_s10.s5_apb_pstrb[3:0]
+apb_xbar_wrap_m10_s10.s5_apb_prdata[31:0]
 @28
-(0)apb_xbar_wrap_m10_s10.apb_xbar_inst.r_s_apb_pready[4:0]
-(1)apb_xbar_wrap_m10_s10.apb_xbar_inst.r_s_apb_pready[4:0]
-(2)apb_xbar_wrap_m10_s10.apb_xbar_inst.r_s_apb_pready[4:0]
-(3)apb_xbar_wrap_m10_s10.apb_xbar_inst.r_s_apb_pready[4:0]
-(4)apb_xbar_wrap_m10_s10.apb_xbar_inst.r_s_apb_pready[4:0]
-@1401200
--group_end
-@28
-apb_xbar_wrap_m10_s10.m0_apb_pready
-apb_xbar_wrap_m10_s10.m1_apb_pready
-apb_xbar_wrap_m10_s10.m2_apb_pready
-@23
-apb_xbar_wrap_m10_s10.apb_xbar_inst.s_apb_pready[4:0]
+apb_xbar_wrap_m10_s10.s5_apb_pslverr
+@200
+-Internals
 [pattern_trace] 1
 [pattern_trace] 0

@@ -15,15 +15,15 @@ module fifo_control #(
     i_rd_clk,
     i_rd_rst_n,
     // Pointers
-    input  logic [AW:0]   iw_wr_ptr_bin,
-    input  logic [AW:0]   iw_wdom_rd_ptr_bin,
-    input  logic [AW:0]   iw_rd_ptr_bin,
-    input  logic [AW:0]   iw_rdom_wr_ptr_bin,
-    output logic [AW-1:0] ow_count,
-    output logic          o_wr_full,
-    output logic          o_wr_almost_full,
-    output logic          o_rd_empty,
-    output logic          o_rd_almost_empty
+    input  logic [ADDR_WIDTH-1:0]   iw_wr_ptr_bin,
+    input  logic [ADDR_WIDTH-1:0]   iw_wdom_rd_ptr_bin,
+    input  logic [ADDR_WIDTH-1:0]   iw_rd_ptr_bin,
+    input  logic [ADDR_WIDTH-1:0]   iw_rdom_wr_ptr_bin,
+    output logic [ADDR_WIDTH-2:0]   ow_count,
+    output logic                    o_wr_full,
+    output logic                    o_wr_almost_full,
+    output logic                    o_rd_empty,
+    output logic                    o_rd_almost_empty
 );
 
     localparam int D = DEPTH;

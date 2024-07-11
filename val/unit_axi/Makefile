@@ -1,6 +1,7 @@
 CWD=$(shell pwd)
 COCOTB_REDUCED_LOG_FMT = True
-SIM ?= icarus
+# SIM ?= icarus
+SIM ?= verilator
 VERILOG_INCLUDE_DIRS = $(REPO_ROOT)/rtl/common
 
 TOPLEVEL_LANG := verilog

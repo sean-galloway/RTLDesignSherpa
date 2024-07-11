@@ -1,0 +1,18 @@
+read_verilog -sv -defer /home/sean/github/RTLDesignSherpa/rtl/common/arbiter_fixed_priority.sv
+read_verilog -sv -defer /home/sean/github/RTLDesignSherpa/rtl/common/arbiter_round_robin_subinst.sv
+read_verilog -sv -defer /home/sean/github/RTLDesignSherpa/rtl/common/arbiter_weighted_round_robin.sv
+read_verilog -sv -defer /home/sean/github/RTLDesignSherpa/rtl/common/counter_bin.sv
+read_verilog -sv -defer /home/sean/github/RTLDesignSherpa/rtl/common/fifo_control.sv
+read_verilog -sv -defer /home/sean/github/RTLDesignSherpa/rtl/axi/axi_fifo_sync.sv
+read_verilog -sv -defer /home/sean/github/RTLDesignSherpa/rtl/axi/axi_skid_buffer.sv
+read_verilog -sv -defer /home/sean/github/RTLDesignSherpa/rtl/axi/apb_master_stub.sv
+read_verilog -sv -defer /home/sean/github/RTLDesignSherpa/rtl/axi/apb_slave_stub.sv
+read_verilog -sv -defer /home/sean/github/RTLDesignSherpa/rtl/axi/apb_xbar.sv
+hierarchy -check -top apb_xbar
+opt_expr
+opt_clean
+check
+opt -nodffe -nosdff
+fsm
+opt
+read_verilog -sv        /home/sean/github/RTLDesignSherpa/rtl/integ_axi/apb_xbar/apb_xbar_wrap_m10_s10.sv

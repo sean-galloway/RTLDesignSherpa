@@ -2,9 +2,9 @@
 
 module apb_xbar #(
     // Number of APB masters (from the master))
-    parameter int M = 2,
+    parameter int M = 3,
     // Number of APB slaves (to the dest)
-    parameter int S = 4,
+    parameter int S = 6,
     // Address width
     parameter int ADDR_WIDTH = 32,
     // Data widthMAX_THRESH_WIDTH
@@ -20,9 +20,9 @@ module apb_xbar #(
     // Slave enable for addr decoding
     input  logic [S-1:0]                 SLAVE_ENABLE,
     // Slave address base
-    input  logic [S][ADDR_WIDTH-1:0]     SLAVE_ADDR_BASE,
+    input  logic [S-1:0][ADDR_WIDTH-1:0] SLAVE_ADDR_BASE,
     // Slave address limit
-    input  logic [S][ADDR_WIDTH-1:0]     SLAVE_ADDR_LIMIT,
+    input  logic [S-1:0][ADDR_WIDTH-1:0] SLAVE_ADDR_LIMIT,
     // Thresholds for the Weighted Round Robin Arbiters
     input  logic [MXMTW-1:0]             MST_THRESHOLDS,
     input  logic [SXMTW-1:0]             SLV_THRESHOLDS,
@@ -202,7 +202,6 @@ module apb_xbar #(
         end
     endgenerate
 
-
     generate
         for (genvar s_port = 0; s_port < S; s_port++) begin : gen_apb_master_stubs
 
@@ -302,8 +301,8 @@ module apb_xbar #(
     // This sends response information back to the slave stubs
     generate
         for (genvar m_slv_arb = 0; m_slv_arb < M; m_slv_arb++) begin : gen_slv_arb
-            for (genvar s_slv_arb = 0; s_slv_arb < S; s_slv_arb++) begin : gen_slv_arb_inner
-                always_comb begin
+            always_comb begin
+                for (int s_slv_arb = 0; s_slv_arb < S; s_slv_arb++) begin : gen_slv_arb_inner
                     slave_sel[m_slv_arb][s_slv_arb] = 'b0;
                     if (r_mst_side_rd_valid[s_slv_arb] &&
                             r_mst_side_rd_data[s_slv_arb] == m_slv_arb &&
@@ -386,26 +385,48 @@ module apb_xbar #(
     initial begin
         forever begin
             @(negedge aclk);
-            for (int s_loop=0; s_loop<S; s_loop++) begin
-                $fdisplay(file, "Master Arbiter outputs @ %0t", $realtime/1e3);
-                $fdisplay(file, "s_loop=%0d mst_arb_gnt_valid=%0b mst_arb_gnt=%0b mst_arb_gnt_id=%0d",
-                        s_loop, mst_arb_gnt_valid[s_loop], mst_arb_gnt[s_loop], mst_arb_gnt_id[s_loop]);
+            $fdisplay(file, "==================================================================================================");
+            for (int m_loop=0; m_loop<3; m_loop++) begin
+                $fdisplay(file, "Slave Interface @ %0t m_loop=%0d m_apb_penable=%0b m_apb_pready=%0b m_apb_paddr=%0h m_apb_psel=%0b",
+                    $realtime/1e3, m_loop, m_apb_penable[m_loop], m_apb_pready[m_loop], m_apb_paddr[m_loop], m_apb_psel[m_loop]);
             end
-            for (int s_loop=0; s_loop<S; s_loop++) begin
-                $fdisplay(file, "Master Decode @ %0t: s_loop=%0d master_sel=%0b",
-                    $realtime/1e3, s_loop, master_sel[s_loop]);
+            for (int m_loop=0; m_loop<3; m_loop++) begin
+                $fdisplay(file, "Slave Queues @ %0t: m_loop=%0d r_slv_cmd_valid=%0b r_slv_cmd_ready=%0b r_slv_cmd_paddr=%0h r_slv_rsp_valid=%0b r_slv_rsp_ready=%0b",
+                    $realtime/1e3, m_loop, r_slv_cmd_valid[m_loop], r_slv_cmd_ready[m_loop], r_slv_cmd_paddr[m_loop], r_slv_rsp_valid[m_loop], r_slv_rsp_ready[m_loop]);
             end
-
-            for (int m_loop=0; m_loop<M; m_loop++) begin
-                $fdisplay(file, "Slave Arbiter outputs @ %0t", $realtime/1e3);
-                $fdisplay(file, "m_loop=%0d slv_arb_gnt_valid=%0b slv_arb_gnt=%0b slv_arb_gnt_id=%0d",
-                        m_loop, slv_arb_gnt_valid[m_loop], slv_arb_gnt[m_loop], slv_arb_gnt_id[m_loop]);
+            for (int m_loop=0; m_loop<3; m_loop++) begin
+                $fdisplay(file, "Slave Arb @ %0t: m_loop=%0d slv_arb_gnt_valid=%0b slv_arb_gnt=%0b slv_arb_gnt_ack=%0b slv_arb_gnt_id=%0d",
+                    $realtime/1e3, m_loop, slv_arb_gnt_valid[m_loop], slv_arb_gnt[m_loop], slv_arb_gnt_ack[m_loop], slv_arb_gnt_id[m_loop]);
             end
-            for (int m_loop=0; m_loop<M; m_loop++) begin
+            for (int m_loop=0; m_loop<3; m_loop++) begin
                 $fdisplay(file, "Slave Decode @ %0t: m_loop=%0d slave_sel=%0b",
                     $realtime/1e3, m_loop, slave_sel[m_loop]);
             end
+
+            $fdisplay(file, "--------------------------------------------------------------------------------------------------");
+            for (int s_loop=0; s_loop<6; s_loop++) begin
+                $fdisplay(file, "Master Interface @ %0t s_loop=%0d s_apb_penable=%0b s_apb_pready=%0b s_apb_paddr=%0h s_apb_psel=%0b",
+                    $realtime/1e3, s_loop, s_apb_penable[s_loop], s_apb_pready[s_loop], s_apb_paddr[s_loop], s_apb_psel[s_loop]);
+            end
+            for (int s_loop=0; s_loop<6; s_loop++) begin
+                $fdisplay(file, "Master Arb @ %0t: s_loop=%0d mst_arb_gnt_valid=%0b mst_arb_gnt=%0b mst_arb_gnt_ack=%0b mst_arb_gnt_id=%0d",
+                    $realtime/1e3, s_loop, mst_arb_gnt_valid[s_loop], mst_arb_gnt[s_loop], mst_arb_gnt_ack[s_loop], mst_arb_gnt_id[s_loop]);
+            end
+            for (int s_loop=0; s_loop<6; s_loop++) begin
+                $fdisplay(file, "Master Decode @ %0t: s_loop=%0d master_sel=%0b",
+                    $realtime/1e3, s_loop, master_sel[s_loop]);
+            end
+            for (int s_loop=0; s_loop<6; s_loop++) begin
+                $fdisplay(file, "Master Queues @ %0t: s_loop=%0d r_mst_cmd_valid=%0b r_mst_cmd_ready=%0b r_mst_rsp_valid=%0b r_mst_rsp_ready=%0b r_mst_side_wr_valid=%b r_mst_side_wr_ready=%0b r_mst_side_rd_valid=%b r_mst_side_rd_ready=%0b ",
+                    $realtime/1e3, s_loop, r_mst_cmd_valid[s_loop], r_mst_cmd_ready[s_loop], r_mst_rsp_valid[s_loop], r_mst_rsp_ready[s_loop],
+                    r_mst_side_wr_valid[s_loop], r_mst_side_wr_ready[s_loop], r_mst_side_rd_valid[s_loop], r_mst_side_rd_ready[s_loop]);
+            end
+
         end
     end
+
+    // initial begin
+    //     #28149 $finish;
+    // end
 
 endmodule : apb_xbar

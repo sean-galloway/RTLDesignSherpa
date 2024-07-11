@@ -24,10 +24,6 @@ class APBXbar_TB(TBBase):
         self.ADDR_WIDTH = self.convert_to_int(os.environ.get('PARAM_ADDR_WIDTH', '0'))
         self.DATA_WIDTH = self.convert_to_int(os.environ.get('PARAM_DATA_WIDTH', '0'))
         self.STRB_WIDTH = self.DATA_WIDTH // 8
-        self.SLAVE_ENABLE = [1, 1, 1, 1, 1] 
-        self.SLAVE_ADDR_BASE =  [0x000, 0x1000, 0x2000, 0x3000, 0x4000]
-        self.SLAVE_ADDR_LIMIT = [0xFFF, 0x1FFF, 0x2FFF, 0x3FFF, 0x4FFF]
-        self.THRESHOLDS = [4, 4, 4]
 
         self.registers = 32 * self.STRB_WIDTH
         self.slave_register = list(range(self.registers))
@@ -44,9 +40,13 @@ class APBXbar_TB(TBBase):
 
         # Create the Slaves
         apb_slv_constraints = {
-                'ready': ([[0, 0], [1, 5], [6, 10]], [5, 3, 1]),
+                'ready': ([[0, 0], [1, 5], [6, 10]], [5, 0, 0]),
                 'error': ([[0, 0], [1, 1]], [10, 0]),
         }
+        # apb_slv_constraints = {
+        #         'ready': ([[0, 0], [1, 5], [6, 10]], [5, 3, 1]),
+        #         'error': ([[0, 0], [1, 1]], [10, 0]),
+        # }
         self.apb_slave = []
         for i in range(self.S):
             slave   = APBSlave(dut, f's{i}_apb', dut.aclk, registers=self.slave_register,
@@ -55,9 +55,13 @@ class APBXbar_TB(TBBase):
             self.apb_slave.append(slave)
         
         apb_mst_constraints = {
-            'psel':    ([[0, 0], [1, 5], [6, 10]], [5, 2, 1]),
-            'penable': ([[0, 0], [1, 2]], [4, 1]),
+            'psel':    ([[0, 0], [1, 5], [6, 10]], [5, 0, 0]),
+            'penable': ([[0, 0], [1, 2], [3, 5]], [0, 3, 1]),
         }
+        # apb_mst_constraints = {
+        #     'psel':    ([[0, 0], [1, 5], [6, 10]], [5, 2, 1]),
+        #     'penable': ([[0, 0], [1, 2]], [4, 1]),
+        # }
         self.apb_master = []
         for i in range(self.M):
             master   = APBMaster(dut, f'm{i}_apb', dut.aclk,
@@ -232,6 +236,43 @@ class APBXbar_TB(TBBase):
             await self.wait_clocks('aclk', 50)
 
 
+    async def write_all_masters_different_slaves_test(self):
+        self.log.info('Starting write single master test')
+        # force all writes
+        constraints = {
+            'last':   ([(0, 0), (1, 1)], [1, 1]),
+            'first':  ([(0, 0), (1, 1)], [1, 1]),
+            'pwrite': ([(0, 0), (1, 1)], [0, 1]),
+            'paddr':  ([(0, self.addr_min_hi), (self.addr_max_lo, self.addr_max_hi)], [4, 1]),
+            'pstrb':  ([(15, 15), (0, 14)], [4, 1]),
+            'pprot':  ([(0, 0), (1, 1), (2, 2)], [1, 1, 1])
+        }
+        transaction_cls = APBTransaction(self.DATA_WIDTH, self.ADDR_WIDTH, self.STRB_WIDTH, constraints)
+        rpt_address = self.addresses[:self.S*3] * 10
+        for idx in range(self.S*3):
+            for m, master in enumerate(self.apb_master):
+                start_time = get_sim_time('ns')
+                transaction = transaction_cls.set_constrained_random()
+                transaction.pwrite = 1
+                transaction.direction = "WRITE"
+                transaction.start_time = start_time
+                address = rpt_address[idx+m*3]
+                self.log.info(f'Sending write from master {m} to {address:08X}')
+                transaction.paddr = address
+                transaction.pprot = m
+                await master.send(transaction)
+
+        # Wait for the master's transaction queue to be empty
+        for m, master in enumerate(self.apb_master):
+            self.log.info(f'Waiting for transaction queue of master {m} to empty...')
+            await self.wait_for_queue_empty(master, timeout=100000)
+            self.log.info(f'Transaction queue of master {m} is now empty.')
+
+        self.log.info('Checking routing of all transactions')
+        self.compare_expect_and_recv_queues()
+        await self.wait_clocks('aclk', 50)
+
+
     async def read_single_master_test(self):
         self.log.info('Starting write single master test')
         # force all writes
@@ -250,6 +291,53 @@ class APBXbar_TB(TBBase):
                 if idx == self.S * 3:
                     break
                 start_time = get_sim_time('ns')
+                transaction = transaction_cls.set_constrained_random()
+                transaction.pwrite = 0
+                transaction.direction = "READ"
+                self.log.info(f'Sending read from master {m} to {address:08X}')
+                transaction.paddr = address
+                transaction.pprot = m
+                transaction.start_time = start_time
+                await master.send(transaction)
+                await self.wait_clocks('aclk', 1)
+            
+            # Wait for the master's transaction queue to be empty
+            self.log.info(f'Waiting for transaction queue of master {m} to empty...')
+            await self.wait_for_queue_empty(master, timeout=10000)
+            self.log.info(f'Transaction queue of master {m} is now empty.')
+
+            self.log.info('Checking routing of all transactions')
+            self.compare_expect_and_recv_queues()
+            await self.wait_clocks('aclk', 50)
+
+
+    async def write_read_single_master_test(self):
+        self.log.info('Starting write single master test')
+        # force all writes
+        constraints = {
+            'last':   ([(0, 0), (1, 1)], [1, 1]),
+            'first':  ([(0, 0), (1, 1)], [1, 1]),
+            'pwrite': ([(0, 0), (1, 1)], [0, 1]),
+            'paddr':  ([(0, self.addr_min_hi), (self.addr_max_lo, self.addr_max_hi)], [4, 1]),
+            'pstrb':  ([(15, 15), (0, 14)], [4, 1]),
+            'pprot':  ([(0, 0), (1, 1), (2, 2)], [1, 1, 1])
+        }
+        transaction_cls = APBTransaction(self.DATA_WIDTH, self.ADDR_WIDTH, self.STRB_WIDTH, constraints)
+    
+        for m, master in enumerate(self.apb_master):
+            for idx, address in enumerate(self.addresses):
+                if idx == self.S * 3:
+                    break
+                start_time = get_sim_time('ns')
+                transaction = transaction_cls.set_constrained_random()
+                transaction.pwrite = 1
+                transaction.direction = "WRITE"
+                self.log.info(f'Sending write from master {m} to {address:08X}')
+                transaction.paddr = address
+                transaction.pprot = m
+                transaction.start_time = start_time
+                await master.send(transaction)
+                await self.wait_clocks('aclk', 1)
                 transaction = transaction_cls.set_constrained_random()
                 transaction.pwrite = 0
                 transaction.direction = "READ"
@@ -310,8 +398,10 @@ class APBXbar_TB(TBBase):
 
     async def main_loop(self):
         await self.write_single_master_test()
+        await self.write_all_masters_different_slaves_test()
         await self.read_single_master_test()
-        # await self.write_read_multi_master_test(count=100)
+        await self.write_read_single_master_test()
+        await self.write_read_multi_master_test(count=100)
 
 
 @cocotb.test()
@@ -336,7 +426,7 @@ rtl_integ_axi_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'integ_axi/a
     [
         (
             3,                   # m
-            5,                   # s
+            6,                   # s
             32,                  # addr_width
             32,                  # data_width
         )

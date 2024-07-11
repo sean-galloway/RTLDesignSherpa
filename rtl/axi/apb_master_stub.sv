@@ -141,14 +141,16 @@ module apb_master_stub #(
 
             ACTIVE: begin
                 m_apb_PSEL = 1'b1;
-                if (m_apb_PREADY && r_rsp_ready) begin
+                if (r_rsp_ready) begin
                     m_apb_PENABLE = 1'b1;
-                    w_cmd_ready   = 1'b1;
-                    w_rsp_valid   = 1'b1;
-                    if (w_cmd_count > 0)
-                        w_apb_next_state = ACTIVE;
-                    else
-                        w_apb_next_state = IDLE;
+                    if (m_apb_PREADY) begin
+                        w_cmd_ready   = 1'b1;
+                        w_rsp_valid   = 1'b1;
+                        if (w_cmd_count > 0)
+                            w_apb_next_state = ACTIVE;
+                        else
+                            w_apb_next_state = IDLE;
+                    end
                 end
             end
 

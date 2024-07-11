@@ -358,7 +358,7 @@ class APBSlave(BusMonitor):
                 await Timer(200, units='ps')
                 while not self.bus.PENABLE.value.integer:
                     start_time = get_sim_time('ns')
-                    self.log.warning(f'Waiting for penable @ {start_time}')
+                    self.log.warning(f'APB Slave Driver-{self.name} Waiting for penable @ {start_time}')
                     await RisingEdge(self.clock)
                     await Timer(200, units='ps')
 
@@ -500,6 +500,7 @@ class APBMaster(BusDriver):
             transaction = self.transmit_queue.popleft()
             transaction.start_time = cocotb.utils.get_sim_time('ns')
             self.log.warning(f'APB Master {self.name} attempting to transmit:\n{transaction}')
+            self.log.warning(f'APB Master {self.name} {psel_delay=}')
 
             while psel_delay > 0:
                 psel_delay -= 1
