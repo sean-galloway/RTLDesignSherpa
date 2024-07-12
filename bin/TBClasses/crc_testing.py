@@ -62,6 +62,9 @@ class CRCTB(TBBase):
         self.dut.i_load_from_cascade.value = 0
         self.dut.i_cascade_sel.value = 0
         self.dut.i_data.value = 0
+        self.dut.POLY.value = self.crc_poly
+        self.dut.POLY_INIT.value = self.crc_poly_initial
+        self.dut.XOROUT.value = self.xor_output
 
 
     async def assert_reset(self):

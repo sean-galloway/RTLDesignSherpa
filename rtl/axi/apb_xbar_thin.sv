@@ -11,7 +11,13 @@ module apb_xbar_thin #(
     parameter int DATA_WIDTH = 32,
     // Strobe width
     parameter int STRB_WIDTH = DATA_WIDTH/8,
-    parameter int MAX_THRESH = 16
+    parameter int MAX_THRESH = 16,
+    // local abbreviations
+    parameter int DW    = DATA_WIDTH,
+    parameter int AW    = ADDR_WIDTH,
+    parameter int SW    = STRB_WIDTH,
+    parameter int MTW   = $clog2(MAX_THRESH),
+    parameter int MXMTW = M * MTW
 ) (
     input  logic                         aclk,
     input  logic                         aresetn,
@@ -49,13 +55,6 @@ module apb_xbar_thin #(
     input  logic [S-1:0][DATA_WIDTH-1:0] s_apb_prdata,
     input  logic [S-1:0]                 s_apb_pslverr
 );
-
-    // local abbreviations
-    localparam int DW    = DATA_WIDTH;
-    localparam int AW    = ADDR_WIDTH;
-    localparam int SW    = STRB_WIDTH;
-    localparam int MTW   = $clog2(MAX_THRESH);
-    localparam int MXMTW = M * MTW;
 
     integer file;
 

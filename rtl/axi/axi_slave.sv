@@ -8,7 +8,18 @@ module axi_slave
     parameter int AXI_ADDR_WIDTH    = 32,
     parameter int AXI_DATA_WIDTH    = 32,
     parameter int AXI_USER_WIDTH    = 1,
-    parameter int AXI_WSTRB_WIDTH   = AXI_DATA_WIDTH / 8
+    parameter int AXI_WSTRB_WIDTH   = AXI_DATA_WIDTH / 8,
+    // Short and calculated params
+    parameter int AW       = AXI_ADDR_WIDTH,
+    parameter int DW       = AXI_DATA_WIDTH,
+    parameter int IW       = AXI_ID_WIDTH,
+    parameter int SW       = AXI_WSTRB_WIDTH,
+    parameter int UW       = AXI_USER_WIDTH,
+    parameter int AWSize   = IW+AW+8+3+2+1+4+3+4+4+UW,
+    parameter int WSize    = DW+SW+1+UW,
+    parameter int BSize    = IW+2+UW,
+    parameter int ARSize   = IW+AW+8+3+2+1+4+3+4+4+UW,
+    parameter int RSize    = IW+DW+2+1+UW
 )
 (
     // Global Clock and Reset
@@ -87,17 +98,6 @@ module axi_slave
     input   logic [AXI_DATA_WIDTH-1:0]  i_rdret_pkt_data
 );
 
-    localparam int AW       = AXI_ADDR_WIDTH;
-    localparam int DW       = AXI_DATA_WIDTH;
-    localparam int IW       = AXI_ID_WIDTH;
-    localparam int SW       = AXI_WSTRB_WIDTH;
-    localparam int UW       = AXI_USER_WIDTH;
-    localparam int AWSize   = IW+AW+8+3+2+1+4+3+4+4+UW;
-    localparam int WSize    = DW+SW+1+UW;
-    localparam int BSize    = IW+2+UW;
-    localparam int ARSize   = IW+AW+8+3+2+1+4+3+4+4+UW;
-    localparam int RSize    = IW+DW+2+1+UW;
-
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Write address channel (AW)
     logic [AXI_ID_WIDTH-1:0]    r_axi_awid;
@@ -128,8 +128,39 @@ module axi_slave
                                     r_axi_awregion,r_axi_awuser})
     );
 
-    logic           r_write_ip, w_write_xfer, w_write_done;
-    logic [AW-1:0]  w_curr_wr_addr, w_next_wr_addr, r_wr_addr;
+    logic                       r_write_ip, w_write_xfer, w_write_done;
+    logic [AW-1:0]              w_curr_wr_addr, w_next_wr_addr, r_wr_addr;
+    logic [AXI_DATA_WIDTH-1:0]  r_axi_wdata;
+    logic [AXI_WSTRB_WIDTH-1:0] r_axi_wstrb;
+    logic                       r_axi_wlast;
+    logic [AXI_USER_WIDTH-1:0]  r_axi_wuser;
+    logic                       r_axi_wvalid;
+    logic                       r_axi_wready;
+    logic [AXI_ID_WIDTH-1:0]    r_axi_bid;
+    logic [1:0]                 r_axi_bresp;
+    logic [AXI_USER_WIDTH-1:0]  r_axi_buser;
+    logic                       r_axi_bvalid;
+    logic                       r_axi_bready;
+    logic [AXI_ID_WIDTH-1:0]    r_axi_arid;
+    logic [AXI_ADDR_WIDTH-1:0]  r_axi_araddr;
+    logic [7:0]                 r_axi_arlen;
+    logic [2:0]                 r_axi_arsize;
+    logic [1:0]                 r_axi_arburst;
+    logic                       r_axi_arlock;
+    logic [3:0]                 r_axi_arcache;
+    logic [2:0]                 r_axi_arprot;
+    logic [3:0]                 r_axi_arqos;
+    logic [3:0]                 r_axi_arregion;
+    logic [AXI_USER_WIDTH-1:0]  r_axi_aruser;
+    logic                       r_axi_arvalid;
+    logic                       r_axi_arready;
+    logic [AXI_ID_WIDTH-1:0]    r_axi_rid;
+    logic [AXI_DATA_WIDTH-1:0]  r_axi_rdata;
+    logic [1:0]                 r_axi_rresp;
+    logic                       r_axi_rlast;
+    logic [AXI_USER_WIDTH-1:0]  r_axi_ruser;
+    logic                       r_axi_rvalid;
+    logic                       r_axi_rready;
 
     // assign interface sigs to the write port
     assign o_wr_pkt_valid = r_axi_awvalid && r_axi_wvalid && r_axi_bready;
@@ -170,12 +201,6 @@ module axi_slave
 
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Write data channel (W)
-    logic [AXI_DATA_WIDTH-1:0]  r_axi_wdata;
-    logic [AXI_WSTRB_WIDTH-1:0] r_axi_wstrb;
-    logic                       r_axi_wlast;
-    logic [AXI_USER_WIDTH-1:0]  r_axi_wuser;
-    logic                       r_axi_wvalid;
-    logic                       r_axi_wready;
     axi_skid_buffer #(.DATA_WIDTH(WSize)) inst_w_phase (
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
@@ -189,11 +214,6 @@ module axi_slave
 
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Write response channel (B)
-    logic [AXI_ID_WIDTH-1:0]    r_axi_bid;
-    logic [1:0]                 r_axi_bresp;
-    logic [AXI_USER_WIDTH-1:0]  r_axi_buser;
-    logic                       r_axi_bvalid;
-    logic                       r_axi_bready;
     assign r_axi_bvalid   = r_axi_awready;
     assign r_axi_bid      = r_axi_awid;
     assign r_axi_bresp    = 2'b00; // add more later if needed
@@ -211,19 +231,6 @@ module axi_slave
 
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Read address channel (AR)
-    logic [AXI_ID_WIDTH-1:0]    r_axi_arid;
-    logic [AXI_ADDR_WIDTH-1:0]  r_axi_araddr;
-    logic [7:0]                 r_axi_arlen;
-    logic [2:0]                 r_axi_arsize;
-    logic [1:0]                 r_axi_arburst;
-    logic                       r_axi_arlock;
-    logic [3:0]                 r_axi_arcache;
-    logic [2:0]                 r_axi_arprot;
-    logic [3:0]                 r_axi_arqos;
-    logic [3:0]                 r_axi_arregion;
-    logic [AXI_USER_WIDTH-1:0]  r_axi_aruser;
-    logic                       r_axi_arvalid;
-    logic                       r_axi_arready;
     axi_skid_buffer #(.DATA_WIDTH(ARSize)) inst_ar_phase (
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
@@ -238,14 +245,6 @@ module axi_slave
                                     r_axi_arlock,r_axi_arcache,r_axi_arprot,r_axi_arqos,
                                     r_axi_arregion,r_axi_aruser})
     );
-
-    logic [AXI_ID_WIDTH-1:0]    r_axi_rid;
-    logic [AXI_DATA_WIDTH-1:0]  r_axi_rdata;
-    logic [1:0]                 r_axi_rresp;
-    logic                       r_axi_rlast;
-    logic [AXI_USER_WIDTH-1:0]  r_axi_ruser;
-    logic                       r_axi_rvalid;
-    logic                       r_axi_rready;
 
     // assign interface sigs to the read ports
     logic           r_read_ip, w_read_xfer, w_readret_xfer;

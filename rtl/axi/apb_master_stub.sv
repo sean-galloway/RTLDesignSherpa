@@ -8,7 +8,14 @@ module apb_master_stub #(
     parameter int STRB_WIDTH        = DATA_WIDTH / 8,
     parameter int CMD_PACKET_WIDTH  = ADDR_WIDTH + DATA_WIDTH + STRB_WIDTH + 3 + 1 + 1 + 1,
                                         // addr, data, strb, prot, pwrite, first, last
-    parameter int RESP_PACKET_WIDTH = DATA_WIDTH + 1 + 1 +  1 // data, pslverr, first, last
+    parameter int RESP_PACKET_WIDTH = DATA_WIDTH + 1 + 1 +  1, // data, pslverr, first, last
+    // Short Parameters
+    parameter int DW  = DATA_WIDTH,
+    parameter int AW  = ADDR_WIDTH,
+    parameter int SW  = STRB_WIDTH,
+    parameter int CPW = CMD_PACKET_WIDTH,
+    parameter int RPW = RESP_PACKET_WIDTH,
+    parameter int CAW = $clog2(CMD_DEPTH)
 ) (
     // Clock and Reset
     input  logic                         aclk,
@@ -36,13 +43,6 @@ module apb_master_stub #(
     input  logic                         i_rsp_ready,
     output logic [RESP_PACKET_WIDTH-1:0] o_rsp_data
 );
-
-    localparam int DW  = DATA_WIDTH;
-    localparam int AW  = ADDR_WIDTH;
-    localparam int SW  = STRB_WIDTH;
-    localparam int CPW = CMD_PACKET_WIDTH;
-    localparam int RPW = RESP_PACKET_WIDTH;
-    localparam int CAW = $clog2(CMD_DEPTH);
 
     // Load command packet signals
     logic                r_cmd_valid;

@@ -7,7 +7,10 @@ module axi_fifo_sync #(
     parameter int DEPTH = 4,
     parameter int ALMOST_WR_MARGIN = 1,
     parameter int ALMOST_RD_MARGIN = 1,
-    parameter INSTANCE_NAME = "DEADF1F0"  // verilog_lint: waive explicit-parameter-storage-type
+    parameter INSTANCE_NAME = "DEADF1F0",  // verilog_lint: waive explicit-parameter-storage-type
+    parameter int DW = DATA_WIDTH,
+    parameter int D = DEPTH,
+    parameter int AW = $clog2(DEPTH)
 ) (
     input  logic            i_axi_aclk,
     input  logic            i_axi_aresetn,
@@ -21,9 +24,6 @@ module axi_fifo_sync #(
     output logic [DW-1:0]   o_rd_data
 );
 
-    localparam int DW = DATA_WIDTH;
-    localparam int D = DEPTH;
-    localparam int AW = $clog2(DEPTH);
 
     /////////////////////////////////////////////////////////////////////////
     // local logics/register signals

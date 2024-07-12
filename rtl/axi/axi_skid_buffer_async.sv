@@ -5,7 +5,8 @@ module axi_skid_buffer_async #(
     parameter int DATA_WIDTH    = 32,
     parameter int DEPTH         = 2,
     parameter int N_FLOP_CROSS  = 2,
-    parameter     INSTANCE_NAME = "DEADF1F0"  // verilog_lint: waive explicit-parameter-storage-type
+    parameter     INSTANCE_NAME = "DEADF1F0",  // verilog_lint: waive explicit-parameter-storage-type
+    parameter int DW = DATA_WIDTH
 ) (
     // Global Clock and Reset
     input  logic          i_axi_wr_aclk,
@@ -23,8 +24,6 @@ module axi_skid_buffer_async #(
     input  logic          i_rd_ready,
     output logic [DW-1:0] o_rd_data
 );
-
-    localparam int DW = DATA_WIDTH;
 
     logic           r_xfer_valid;
     logic           r_xfer_ready;

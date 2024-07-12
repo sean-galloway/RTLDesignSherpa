@@ -12,7 +12,20 @@ module apb_xbar #(
     // Strobe width
     parameter int STRB_WIDTH = DATA_WIDTH/8,
     parameter int MAX_THRESH = 16,
-    parameter int SKID4      = 1
+    parameter int SKID4      = 1,
+    // local abbreviations
+    parameter int DW     = DATA_WIDTH,
+    parameter int AW     = ADDR_WIDTH,
+    parameter int SW     = STRB_WIDTH,
+    parameter int MID    = $clog2(M),
+    parameter int SID    = $clog2(S),
+    parameter int MTW    = $clog2(MAX_THRESH),
+    parameter int MXMTW  = M * MTW,
+    parameter int SXMTW  = S * MTW,
+    parameter int SLVCPW = AW + DW + SW + 4,
+    parameter int SLVRPW = DW + 1,
+    parameter int MSTCPW = AW + DW + SW + 6,
+    parameter int MSTRPW = DW + 3
 ) (
     input  logic                         aclk,
     input  logic                         aresetn,
@@ -51,20 +64,6 @@ module apb_xbar #(
     input  logic [S-1:0][DATA_WIDTH-1:0] s_apb_prdata,
     input  logic [S-1:0]                 s_apb_pslverr
 );
-
-    // local abbreviations
-    localparam int DW     = DATA_WIDTH;
-    localparam int AW     = ADDR_WIDTH;
-    localparam int SW     = STRB_WIDTH;
-    localparam int MID    = $clog2(M);
-    localparam int SID    = $clog2(S);
-    localparam int MTW    = $clog2(MAX_THRESH);
-    localparam int MXMTW  = M * MTW;
-    localparam int SXMTW  = S * MTW;
-    localparam int SLVCPW = AW + DW + SW + 4;
-    localparam int SLVRPW = DW + 1;
-    localparam int MSTCPW = AW + DW + SW + 6;
-    localparam int MSTRPW = DW + 3;
 
     integer file;
 

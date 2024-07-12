@@ -3,7 +3,8 @@
 // AXI Skid buffer where all ports are driven or received by a flop
 module axi_skid_buffer #(
     parameter int DATA_WIDTH = 32,
-    parameter int SKID4 = 0
+    parameter int SKID4 = 0,
+    parameter int DW = DATA_WIDTH
 ) (
     // Global Clock and Reset
     input  logic          i_axi_aclk,
@@ -20,9 +21,6 @@ module axi_skid_buffer #(
     output logic [2:0]    o_rd_count,
     output logic [DW-1:0] o_rd_data
 );
-
-    localparam int DW = DATA_WIDTH;
-
     logic           r_wr_ready;
     logic           r_rd_valid;
     logic           w_wr_xfer;

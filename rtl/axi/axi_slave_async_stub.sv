@@ -8,7 +8,18 @@ module axi_slave_async_stub
     parameter int AXI_ADDR_WIDTH    = 32,
     parameter int AXI_DATA_WIDTH    = 32,
     parameter int AXI_USER_WIDTH    = 1,
-    parameter int AXI_WSTRB_WIDTH   = AXI_DATA_WIDTH / 8
+    parameter int AXI_WSTRB_WIDTH   = AXI_DATA_WIDTH / 8,
+    // short and calculated params
+    parameter int AW       = AXI_ADDR_WIDTH,
+    parameter int DW       = AXI_DATA_WIDTH,
+    parameter int IW       = AXI_ID_WIDTH,
+    parameter int SW       = AXI_WSTRB_WIDTH,
+    parameter int UW       = AXI_USER_WIDTH,
+    parameter int AWSize   = IW+AW+8+3+2+1+4+3+4+4+UW,
+    parameter int WSize    = DW+SW+1+UW,
+    parameter int BSize    = IW+2+UW,
+    parameter int ARSize   = IW+AW+8+3+2+1+4+3+4+4+UW,
+    parameter int RSize    = IW+DW+2+1+UW
 )
 (
     // Global Clock and Reset
@@ -97,17 +108,6 @@ module axi_slave_async_stub
     output  logic                      r_s_axi_rready,
     input   logic [RSize-1:0]          r_s_axi_r_pkt
 );
-
-    localparam int AW       = AXI_ADDR_WIDTH;
-    localparam int DW       = AXI_DATA_WIDTH;
-    localparam int IW       = AXI_ID_WIDTH;
-    localparam int SW       = AXI_WSTRB_WIDTH;
-    localparam int UW       = AXI_USER_WIDTH;
-    localparam int AWSize   = IW+AW+8+3+2+1+4+3+4+4+UW;
-    localparam int WSize    = DW+SW+1+UW;
-    localparam int BSize    = IW+2+UW;
-    localparam int ARSize   = IW+AW+8+3+2+1+4+3+4+4+UW;
-    localparam int RSize    = IW+DW+2+1+UW;
 
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Write address channel (AW)

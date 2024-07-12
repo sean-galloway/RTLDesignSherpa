@@ -8,7 +8,12 @@ module axi_fifo_async #(
     parameter int N_FLOP_CROSS = 2,
     parameter int ALMOST_WR_MARGIN = 1,
     parameter int ALMOST_RD_MARGIN = 1,
-    parameter INSTANCE_NAME = "DEADF1F0"  // verilog_lint: waive explicit-parameter-storage-type
+    parameter INSTANCE_NAME = "DEADF1F0",  // verilog_lint: waive explicit-parameter-storage-type
+    parameter int DW = DATA_WIDTH,
+    parameter int D = DEPTH,
+    parameter int AW = $clog2(DEPTH),
+    parameter int JCW = D,  // Johnson Counter Width
+    parameter int N = N_FLOP_CROSS
 ) (
     // clocks and resets
     input  logic            i_axi_wr_aclk,
@@ -23,12 +28,6 @@ module axi_fifo_async #(
     output logic [DW-1:0]   ow_rd_data,
     output logic [DW-1:0]   o_rd_data
     );
-
-    localparam int DW = DATA_WIDTH;
-    localparam int D = DEPTH;
-    localparam int AW = $clog2(DEPTH);
-    localparam int JCW = D;  // Johnson Counter Width
-    localparam int N = N_FLOP_CROSS;
 
     /////////////////////////////////////////////////////////////////////////
     // local wires

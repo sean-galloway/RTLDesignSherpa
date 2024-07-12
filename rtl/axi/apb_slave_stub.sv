@@ -6,7 +6,13 @@ module apb_slave_stub #(
     parameter int ADDR_WIDTH    = 32,
     parameter int STRB_WIDTH    = DATA_WIDTH / 8,
     parameter int CMD_PACKET_WIDTH = ADDR_WIDTH + DATA_WIDTH + STRB_WIDTH + 4, // addr, data, strb, prot, pwrite
-    parameter int RESP_PACKET_WIDTH = DATA_WIDTH + 1 // data, resp
+    parameter int RESP_PACKET_WIDTH = DATA_WIDTH + 1, // data, resp
+    // Short Parameters
+    parameter int DW  = DATA_WIDTH,
+    parameter int AW  = ADDR_WIDTH,
+    parameter int SW  = STRB_WIDTH,
+    parameter int CPW = CMD_PACKET_WIDTH,
+    parameter int RPW = RESP_PACKET_WIDTH
 ) (
     // Clock and Reset
     input  logic                        aclk,
@@ -34,12 +40,6 @@ module apb_slave_stub #(
     output logic                        o_rsp_ready,
     input  logic [RPW-1:0]              i_rsp_data
 );
-
-    localparam int DW  = DATA_WIDTH;
-    localparam int AW  = ADDR_WIDTH;
-    localparam int SW  = STRB_WIDTH;
-    localparam int CPW = CMD_PACKET_WIDTH;
-    localparam int RPW = RESP_PACKET_WIDTH;
 
     // Load command packet signals
     logic                r_cmd_valid;

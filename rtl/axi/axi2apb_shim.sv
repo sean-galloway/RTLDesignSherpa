@@ -16,7 +16,25 @@ module axi2apb_shim #(
     parameter int APB_ADDR_WIDTH    = 32,
     parameter int APB_DATA_WIDTH    = 32,
     parameter int AXI_WSTRB_WIDTH   = AXI_DATA_WIDTH / 8,
-    parameter int APB_WSTRB_WIDTH   = APB_DATA_WIDTH / 8
+    parameter int APB_WSTRB_WIDTH   = APB_DATA_WIDTH / 8,
+    // Declare parameters for short-hand notation
+    parameter int AW                = AXI_ADDR_WIDTH,
+    parameter int DW                = AXI_DATA_WIDTH,
+    parameter int IW                = AXI_ID_WIDTH,
+    parameter int UW                = AXI_USER_WIDTH,
+    parameter int SW                = AXI_DATA_WIDTH / 8,
+    parameter int APBAW             = APB_ADDR_WIDTH,
+    parameter int APBDW             = APB_DATA_WIDTH,
+    parameter int APBSW             = APB_DATA_WIDTH / 8,
+    parameter int AXI2APBRATIO      = DW / APBDW,
+    parameter int AWSize            = IW+AW+8+3+2+1+4+3+4+4+UW,
+    parameter int WSize             = DW+SW+1+UW,
+    parameter int BSize             = IW+2+UW,
+    parameter int ARSize            = IW+AW+8+3+2+1+4+3+4+4+UW,
+    parameter int RSize             = IW+DW+2+1+UW,
+    parameter int APBCmdWidth       = APBAW + APBDW + APBSW + 3 + 1 + 1 + 1,
+    parameter int APBRspWidth       = APBDW + 1 + 1 + 1,
+    parameter int SideSize          = 1+IW+2+1+UW
 ) (
     // Clock and Reset
     input  logic                          aclk,
@@ -90,25 +108,6 @@ module axi2apb_shim #(
     input  logic                          m_apb_PREADY,
     input  logic                          m_apb_PSLVERR
 );
-
-    // Declare parameters for short-hand notation
-    localparam int AW                = AXI_ADDR_WIDTH;
-    localparam int DW                = AXI_DATA_WIDTH;
-    localparam int IW                = AXI_ID_WIDTH;
-    localparam int UW                = AXI_USER_WIDTH;
-    localparam int SW                = AXI_DATA_WIDTH / 8;
-    localparam int APBAW             = APB_ADDR_WIDTH;
-    localparam int APBDW             = APB_DATA_WIDTH;
-    localparam int APBSW             = APB_DATA_WIDTH / 8;
-    localparam int AXI2APBRATIO      = DW / APBDW;
-    localparam int AWSize            = IW+AW+8+3+2+1+4+3+4+4+UW;
-    localparam int WSize             = DW+SW+1+UW;
-    localparam int BSize             = IW+2+UW;
-    localparam int ARSize            = IW+AW+8+3+2+1+4+3+4+4+UW;
-    localparam int RSize             = IW+DW+2+1+UW;
-    localparam int APBCmdWidth       = APBAW + APBDW + APBSW + 3 + 1 + 1 + 1;
-    localparam int APBRspWidth       = APBDW + 1 + 1 + 1;
-    localparam int SideSize          = 1+IW+2+1+UW;
 
     // AXI Skid interface signals
     logic [AWSize-1:0]         r_s_axi_aw_pkt;
