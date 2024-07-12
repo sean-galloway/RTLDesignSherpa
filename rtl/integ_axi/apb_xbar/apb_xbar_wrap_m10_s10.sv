@@ -6,7 +6,10 @@ module apb_xbar_wrap_m10_s10 #(
     parameter int S = 10,
     parameter int ADDR_WIDTH = 32,
     parameter int DATA_WIDTH = 32,
-    parameter int STRB_WIDTH = 32/8
+    parameter int STRB_WIDTH = 32/8,
+    parameter int DW  = DATA_WIDTH,
+    parameter int AW  = ADDR_WIDTH,
+    parameter int SW  = STRB_WIDTH
 ) (
     input  logic                 aclk,
     input  logic                 aresetn,
@@ -231,12 +234,6 @@ module apb_xbar_wrap_m10_s10 #(
     input  logic [DW-1:0]        s9_apb_prdata,
     input  logic                 s9_apb_pslverr
 );
-
-
-    localparam int DW  = DATA_WIDTH;
-    localparam int AW  = ADDR_WIDTH;
-    localparam int SW  = STRB_WIDTH;
-
 
     apb_xbar #(
         .M(10),

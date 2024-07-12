@@ -30,7 +30,11 @@ module apb_xbar_wrap_m{M}_s{S} #(
     parameter int S = {S},
     parameter int ADDR_WIDTH = {ADDR_WIDTH},
     parameter int DATA_WIDTH = {DATA_WIDTH},
-    parameter int STRB_WIDTH = {DATA_WIDTH}/8
+    parameter int STRB_WIDTH = {DATA_WIDTH}/8,
+    // short params
+    parameter int DW  = DATA_WIDTH,
+    parameter int AW  = ADDR_WIDTH,
+    parameter int SW  = STRB_WIDTH
 ) (
     input  logic                 aclk,
     input  logic                 aresetn,
@@ -71,9 +75,6 @@ module apb_xbar_wrap_m{M}_s{S} #(
 
     # Add in the abbreviations
     sv_code += """
-    localparam int DW  = DATA_WIDTH;
-    localparam int AW  = ADDR_WIDTH;
-    localparam int SW  = STRB_WIDTH;
 
 """
     # Instantiate the apb_xbar module
