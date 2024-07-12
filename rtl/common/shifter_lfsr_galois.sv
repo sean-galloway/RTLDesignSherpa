@@ -4,7 +4,8 @@
 module shifter_lfsr_galois #(
     parameter int WIDTH = 8,           // Width of the LFSR
     parameter int TAP_INDEX_WIDTH = 12,
-    parameter int TAP_COUNT = 4         // Number of taps
+    parameter int TAP_COUNT = 4,        // Number of taps
+    parameter int TIW = TAP_INDEX_WIDTH
 ) (
     input  logic                     i_clk,
     input  logic                     i_rst_n,
@@ -15,8 +16,6 @@ module shifter_lfsr_galois #(
     output logic [     WIDTH-1:0]    o_lfsr_out,   // LFSR output
     output logic                     ow_lfsr_done  // the lfsr has wrapped around to the seed
 );
-
-    localparam int TIW = TAP_INDEX_WIDTH;
 
     logic [WIDTH-1:0]  r_lfsr;
     logic [TIW-1:0]    w_tap_positions [0:TAP_COUNT-1];  // verilog_lint: waive unpacked-dimensions-range-ordering

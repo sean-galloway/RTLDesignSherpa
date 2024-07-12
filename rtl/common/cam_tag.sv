@@ -20,13 +20,13 @@ module cam_tag #(
     logic [N-1:0]     r_tag_array [0:DEPTH-1]; // verilog_lint: waive unpacked-dimensions-range-ordering
     logic [DEPTH-1:0] r_valid;
 
-    integer i, w_next_valid_loc, w_match_loc, w_match_invalid_loc;
+    integer w_next_valid_loc, w_match_loc, w_match_invalid_loc;
 
     ///////////////////////////////////////////////////////////////////////////
     // Find the next open slot
     always_comb begin
         w_next_valid_loc = -1;
-        for (i=DEPTH-1; i >= 0; i--)
+        for (int i=DEPTH-1; i >= 0; i--)
             if (r_valid[i] == 1'b0)
                 w_next_valid_loc = i;
     end
@@ -35,7 +35,7 @@ module cam_tag #(
     // Find the index of the matching valid item
     always_comb begin
         w_match_loc = -1;  // Default value indicating 'no match'
-        for (i = 0; i < DEPTH; i++)
+        for (int i = 0; i < DEPTH; i++)
             if (r_valid[i] == 1'b1 && i_tag_in_status == r_tag_array[i])
                 w_match_loc = i;
     end
@@ -44,7 +44,7 @@ module cam_tag #(
     // Find the index of the matching invalid item
     always_comb begin
         w_match_invalid_loc = -1;  // Default value indicating 'no match'
-        for (i = 0; i < DEPTH; i++)
+        for (int i = 0; i < DEPTH; i++)
             if (r_valid[i] == 1'b1 && i_tag_in_invalid == r_tag_array[i])
                 w_match_invalid_loc = i;
     end
@@ -54,7 +54,7 @@ module cam_tag #(
     always_ff @(posedge i_clk or negedge i_rst_n) begin
         if (!i_rst_n) begin
             r_valid <= 'b0;
-            for (i = 0; i < DEPTH; i++) begin
+            for (int i = 0; i < DEPTH; i++) begin
                 r_tag_array[i] <= 'b0;
             end
         end else begin

@@ -10,16 +10,16 @@ module fifo_control #(
     parameter INSTANCE_NAME = "DEADF1F0"  // verilog_lint: waive explicit-parameter-storage-type
 ) (
     // clocks and resets
-    input  logic        i_wr_clk,
-    i_wr_rst_n,
-    i_rd_clk,
-    i_rd_rst_n,
+    input  logic                    i_wr_clk,
+                                    i_wr_rst_n,
+                                    i_rd_clk,
+                                    i_rd_rst_n,
     // Pointers
-    input  logic [ADDR_WIDTH-1:0]   iw_wr_ptr_bin,
-    input  logic [ADDR_WIDTH-1:0]   iw_wdom_rd_ptr_bin,
-    input  logic [ADDR_WIDTH-1:0]   iw_rd_ptr_bin,
-    input  logic [ADDR_WIDTH-1:0]   iw_rdom_wr_ptr_bin,
-    output logic [ADDR_WIDTH-2:0]   ow_count,
+    input  logic [ADDR_WIDTH:0]     iw_wr_ptr_bin,
+    input  logic [ADDR_WIDTH:0]     iw_wdom_rd_ptr_bin,
+    input  logic [ADDR_WIDTH:0]     iw_rd_ptr_bin,
+    input  logic [ADDR_WIDTH:0]     iw_rdom_wr_ptr_bin,
+    output logic [ADDR_WIDTH-1:0]   ow_count,
     output logic                    o_wr_full,
     output logic                    o_wr_almost_full,
     output logic                    o_rd_empty,
@@ -64,7 +64,7 @@ module fifo_control #(
     /////////////////////////////////////////////////////////////////////////
     // Empty Signals
     assign w_rd_empty_d = (!w_rdom_ptr_xor &&
-                            (iw_rd_ptr_bin[AW-1:0] == iw_rdom_wr_ptr_bin[AW-1:0]));
+                            (iw_rd_ptr_bin[AW:0] == iw_rdom_wr_ptr_bin[AW:0]));
     assign w_almost_empty_count = (w_rdom_ptr_xor) ?
                         {(D - iw_rd_ptr_bin[AW-1:0]) - iw_rdom_wr_ptr_bin[AW-1:0]} :
                         {iw_rdom_wr_ptr_bin[AW-1:0] - iw_rd_ptr_bin[AW-1:0]};

@@ -2,7 +2,9 @@
 
 module arbiter_round_robin #(
     parameter int CLIENTS      = 4,
-    parameter int WAIT_GNT_ACK = 0
+    parameter int WAIT_GNT_ACK = 0,
+    // Abbreviation
+    parameter int N = $clog2(CLIENTS)
 ) (
     input logic i_clk,
     input logic i_rst_n,
@@ -16,9 +18,6 @@ module arbiter_round_robin #(
 );
 
     // =======================================================================
-    // Declarations & Parameters
-    localparam int N = $clog2(CLIENTS) + 1;
-
     logic [CLIENTS-1:0] r_mask;
     logic [CLIENTS-1:0] r_win_mask_only;
     logic [CLIENTS-1:0] w_req_post;

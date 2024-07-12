@@ -44,11 +44,4 @@ module dataint_crc_xor_shift_cascade #(
 
     assign ow_block_output = w_cascade[7];
 
-    // // synopsys translate_off
-    // initial begin
-    //     $dumpfile("waves.vcd");
-    //     $dumpvars(0, dataint_crc_xor_shift_cascade);
-    // end
-    // // synopsys translate_on
-
 endmodule : dataint_crc_xor_shift_cascade

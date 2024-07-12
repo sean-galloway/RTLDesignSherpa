@@ -3,30 +3,30 @@
 // Generic CRC Block
 module dataint_crc #(
     parameter ALGO_NAME = "DEADF1F0",  // verilog_lint: waive explicit-parameter-storage-type
-    parameter int DATA_WIDTH = 64,  // Adjustable data width
+    parameter int DATA_WIDTH = 64,     // Adjustable data width
     parameter int CHUNKS = DATA_WIDTH / 8,
-    parameter int CRC_WIDTH = 64,  // CRC polynomial width
-    parameter logic [CRC_WIDTH-1:0] POLY = 64'h42F0E1EBA9EA3693,
-    parameter logic [CRC_WIDTH-1:0] POLY_INIT = 64'hFFFFFFFFFFFFFFFF,
+    parameter int CRC_WIDTH = 64,      // CRC polynomial width
     parameter int REFIN = 1,
     parameter int REFOUT = 1,
-    parameter logic [CRC_WIDTH-1:0] XOROUT = 64'hFFFFFFFFFFFFFFFF
+    parameter int CW = CRC_WIDTH,
+    parameter int DW = DATA_WIDTH,
+    parameter int CH = CHUNKS
 ) (
+    input  logic [CRC_WIDTH-1:0]  POLY,
+    input  logic [CRC_WIDTH-1:0]  POLY_INIT,
+    input  logic [CRC_WIDTH-1:0]  XOROUT,
     input  logic                  i_clk,
-    i_rst_n,
+    input  logic                  i_rst_n,
     input  logic                  i_load_crc_start,
     input  logic                  i_load_from_cascade,
     input  logic [    CHUNKS-1:0] i_cascade_sel,        // one hot encoded
     input  logic [DATA_WIDTH-1:0] i_data,
     output logic [ CRC_WIDTH-1:0] o_crc
 );
-    localparam int CW = CRC_WIDTH;
-    localparam int DW = DATA_WIDTH;
-    localparam int CH = CHUNKS;
 
     logic [CW-1:0] r_crc_value = POLY_INIT;
     logic [CW-1:0] w_poly = POLY;
-    logic [7:0] w_block_data[0:CH-1];  // verilog_lint: waive unpacked-dimensions-range-ordering
+    logic [7:0]    w_block_data[0:CH-1];  // verilog_lint: waive unpacked-dimensions-range-ordering
     logic [CW-1:0] w_cascade[0:CH-1];  // verilog_lint: waive unpacked-dimensions-range-ordering
     logic [CW-1:0] w_result, w_result_xor, w_selected_cascade_output;
 

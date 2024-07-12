@@ -173,6 +173,7 @@ module fifo_async_div2 #(
         .iw_wdom_rd_ptr_bin(w_wdom_rd_ptr_bin),
         .iw_rd_ptr_bin     (w_rd_ptr_bin_next),
         .iw_rdom_wr_ptr_bin(w_rdom_wr_ptr_bin),
+        .ow_count          (),
         .o_wr_full         (o_wr_full),
         .o_wr_almost_full  (o_wr_almost_full),
         .o_rd_empty        (o_rd_empty),

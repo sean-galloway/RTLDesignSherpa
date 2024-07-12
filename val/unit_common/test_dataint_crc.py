@@ -30,8 +30,8 @@ repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).str
 tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the test(current) directory in which this test.py file is placed
 rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hdl folder where .v files are placed
 
-# @pytest.mark.parametrize("algo_name, data_width, crc_width, poly, poly_init, refin, refout, xorout", [('CRC-08', 8, '8', "8'h07", "8'h00", '0', '0', "8'h00")])
-@pytest.mark.parametrize("algo_name, data_width, crc_width, poly, poly_init, refin, refout, xorout", crc_parameters)
+# @pytest.mark.parametrize("algo_name, data_width, crc_width, poly, poly_init, refin, refout, xorout", crc_parameters)
+@pytest.mark.parametrize("algo_name, data_width, crc_width, poly, poly_init, refin, refout, xorout", [('CRC-08', 8, 8, "8'h07", "8'h00", 0, 0, "8'h00")])
 def test_dataint_crc(request, algo_name, data_width, crc_width, poly, poly_init, refin, refout, xorout):
     dut_name = "dataint_crc"
     module = os.path.splitext(os.path.basename(__file__))[0]  # The name of this file
@@ -43,9 +43,17 @@ def test_dataint_crc(request, algo_name, data_width, crc_width, poly, poly_init,
         os.path.join(rtl_dir, "dataint_crc.sv"),
     ]
     includes = []
-    parameters = {'ALGO_NAME':algo_name,'DATA_WIDTH':data_width,'CRC_WIDTH':crc_width,'POLY':poly,'POLY_INIT':poly_init,'REFIN':refin,'REFOUT':refout,'XOROUT':xorout, }
+    parameters = {'ALGO_NAME':algo_name,
+                    'DATA_WIDTH':data_width,
+                    'CRC_WIDTH':crc_width,
+                    'REFIN':refin,
+                    'REFOUT':refout,
+                    }
 
     extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
+    extra_env['PARAM_POLY'] = poly
+    extra_env['PARAM_POLY_INIT'] = poly_init
+    extra_env['PARAM_XOROUT'] = xorout
 
     # sourcery skip: no-conditionals-in-tests
     if request.config.getoption("--regression"):

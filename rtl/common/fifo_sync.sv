@@ -7,7 +7,10 @@ module fifo_sync #(
     parameter int DEPTH = 4,
     parameter int ALMOST_WR_MARGIN = 1,
     parameter int ALMOST_RD_MARGIN = 1,
-    parameter INSTANCE_NAME = "DEADF1F0"  // verilog_lint: waive explicit-parameter-storage-type
+    parameter INSTANCE_NAME = "DEADF1F0",  // verilog_lint: waive explicit-parameter-storage-type
+    parameter int DW = DATA_WIDTH,
+    parameter int D = DEPTH,
+    parameter int AW = $clog2(DEPTH)
 ) (
     input  logic                  i_clk,
     i_rst_n,
@@ -21,10 +24,6 @@ module fifo_sync #(
     output logic                  o_rd_empty,
     output logic                  o_rd_almost_empty
 );
-
-    localparam int DW = DATA_WIDTH;
-    localparam int D = DEPTH;
-    localparam int AW = $clog2(DEPTH);
 
     /////////////////////////////////////////////////////////////////////////
     // local logics/register signals
@@ -78,6 +77,8 @@ module fifo_sync #(
         .iw_wdom_rd_ptr_bin(w_rd_ptr_bin_next),
         .iw_rd_ptr_bin     (w_rd_ptr_bin_next),
         .iw_rdom_wr_ptr_bin(w_wr_ptr_bin_next),
+        
+        .ow_count          (),
         .o_wr_full         (o_wr_full),
         .o_wr_almost_full  (o_wr_almost_full),
         .o_rd_empty        (o_rd_empty),

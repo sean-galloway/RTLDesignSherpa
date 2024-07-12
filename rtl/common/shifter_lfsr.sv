@@ -52,7 +52,8 @@
 module shifter_lfsr #(
     parameter int WIDTH           = 8,   // Width of the LFSR
     parameter int TAP_INDEX_WIDTH = 12,
-    parameter int TAP_COUNT       = 4    // Number of taps
+    parameter int TAP_COUNT       = 4,   // Number of taps
+    parameter int TIW = TAP_INDEX_WIDTH
 ) (
     input  logic                     i_clk,
     input  logic                     i_rst_n,
@@ -63,7 +64,6 @@ module shifter_lfsr #(
     output logic [        WIDTH-1:0] o_lfsr_out,   // LFSR output
     output logic                     ow_lfsr_done  // the lfsr has wrapped around to the seed
 );
-    localparam int TIW = TAP_INDEX_WIDTH;
     logic [WIDTH-1:0] w_taps;
     logic [WIDTH-1:0] r_lfsr;
     logic w_feedback;
@@ -71,14 +71,13 @@ module shifter_lfsr #(
 
     ////////////////////////////////////////////////////////////////////////////
     // Split concatenated tap positions into separate groups for each tap
-    integer i;
     always_comb begin
-        for (i = 0; i < TAP_COUNT; i++) w_tap_positions[i] = i_taps[i*TIW+:TIW];
+        for (int i = 0; i < TAP_COUNT; i++) w_tap_positions[i] = i_taps[i*TIW+:TIW];
     end
 
     always_comb begin
         w_taps = 'b0;
-        for (i = 0; i < TAP_COUNT; i++)
+        for (int i = 0; i < TAP_COUNT; i++)
             if (w_tap_positions[i] > 0) w_taps[w_tap_positions[i]-1'b1] = 1'b1;
     end
 

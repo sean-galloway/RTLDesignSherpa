@@ -7,7 +7,13 @@ module arbiter_weighted_round_robin #(
     parameter int MAX_THRESH = 16,
     parameter int MAX_THRESH_WIDTH = $clog2(MAX_THRESH),
     parameter int CLIENTS = 4,
-    parameter int WAIT_GNT_ACK = 0
+    parameter int WAIT_GNT_ACK = 0,
+    // Short Parameters
+    parameter int C = CLIENTS, 
+    parameter int N = $clog2(CLIENTS), 
+    parameter int MTW = MAX_THRESH_WIDTH, 
+    parameter int CXMTW = CLIENTS*MAX_THRESH_WIDTH
+
 ) (
     input  logic              i_clk,
     input  logic              i_rst_n,
@@ -21,11 +27,7 @@ module arbiter_weighted_round_robin #(
 );
 
     // =======================================================================
-    // Declarations & Parameters
-    localparam int C = CLIENTS;
-    localparam int N = $clog2(CLIENTS);
-    localparam int MTW = MAX_THRESH_WIDTH;
-    localparam int CXMTW = CLIENTS*MAX_THRESH_WIDTH;
+
 
     // Define the combi signal and flops
     logic [CXMTW-1:0] r_crd_cnt;

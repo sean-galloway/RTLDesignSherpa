@@ -15,12 +15,5 @@ module dataint_crc_xor_shift #(
     assign ow_stage_output[CRC_WIDTH-1:1] = i_stage_input[CRC_WIDTH-2:0] ^
                                         ({CRC_WIDTH-1{ow_stage_output[0]}} & i_poly[CRC_WIDTH-1:1]);
 
-    // // synopsys translate_off
-    // initial begin
-    //     $dumpfile("waves.vcd");
-    //     $dumpvars(0, dataint_crc_xor_shift);
-    // end
-    // // synopsys translate_on
-
 endmodule : dataint_crc_xor_shift
 

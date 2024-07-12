@@ -126,10 +126,10 @@ def test_shifter_lfsr_galois(request, width, tap_index_width, tap_count, taps):
         os.path.join(rtl_dir, f"{dut_name}.sv"),
     ]
     includes = []
-    parameters = {'WIDTH': width, 'TAP_INDEX_WIDTH': tap_index_width, 'TAP_COUNT': tap_count, 'TAPS':taps}
+    parameters = {'WIDTH': width, 'TAP_INDEX_WIDTH': tap_index_width, 'TAP_COUNT': tap_count}
 
     extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
-
+    extra_env['PARAM_TAPS'] = f'{taps}'
     if request.config.getoption("--regression"):
         sim_build = os.path.join(repo_root, 'val', 'unit_common', 'regression_area', 'sim_build', request.node.name.replace('[', '-').replace(']', ''))
     else:

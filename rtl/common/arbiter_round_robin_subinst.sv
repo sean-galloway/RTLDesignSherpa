@@ -6,7 +6,8 @@
 
 module arbiter_round_robin_subinst #(
     parameter int CLIENTS = 4,
-    parameter int WAIT_GNT_ACK = 0
+    parameter int WAIT_GNT_ACK = 0,
+    parameter int C = CLIENTS
 ) (
     input  logic         i_clk,
     input  logic         i_rst_n,
@@ -14,10 +15,7 @@ module arbiter_round_robin_subinst #(
     input  logic         i_replenish,
     output logic [C-1:0] ow_grant,
     input  logic [C-1:0] i_gnt_ack
-
 );
-
-    localparam int C = CLIENTS;
 
     logic [C-1:0] r_mask;
     logic [C-1:0] w_mask_req;

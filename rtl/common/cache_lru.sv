@@ -6,7 +6,12 @@ module cache_lru #(
     parameter int DW = 32,          // Data width in bits
     parameter int AW = 32,          // Address width in bits
     parameter int LINE_SIZE = DW/8, // Line size in bytes
-    parameter int LRU_WIDTH = 3     // Width of LRU counter (log2(A) in most cases)
+    parameter int LRU_WIDTH = 3,    // Width of LRU counter (log2(A) in most cases)
+    // Abbreviations and Calculations
+    parameter int S = 2**$clog2(DEPTH/A),
+    parameter int TagWidth = AW - $clog2(DEPTH) - $clog2(LINE_SIZE),
+    parameter int IndexWidth = $clog2(S),
+    parameter int OffsetWidth = $clog2(LINE_SIZE)
 )(
     input  logic                 i_clk,
     input  logic                 i_rst_n,
@@ -29,11 +34,6 @@ module cache_lru #(
     output logic                 o_snoop_dirty, // Snooped data is dirty
     output logic [DW-1:0]        o_snoop_data   // Snooped data
 );
-
-    localparam int S = 2**$clog2(DEPTH/A);
-    localparam int TagWidth = AW - $clog2(DEPTH) - $clog2(LINE_SIZE);
-    localparam int IndexWidth = $clog2(S);
-    localparam int OffsetWidth = $clog2(LINE_SIZE);
 
     logic [TagWidth-1:0]  r_tag_array [0:DEPTH-1];   // verilog_lint: waive unpacked-dimensions-range-ordering
     logic [DW-1:0] r_data_array [0:DEPTH-1][0:A-1];  // verilog_lint: waive unpacked-dimensions-range-ordering
