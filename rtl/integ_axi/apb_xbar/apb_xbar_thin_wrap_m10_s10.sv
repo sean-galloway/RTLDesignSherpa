@@ -246,6 +246,8 @@ module apb_xbar_thin_wrap_m10_s10 #(
         .SLAVE_ENABLE        ({1'b1, 1'b1, 1'b1, 1'b1, 1'b1, 1'b1, 1'b1, 1'b1, 1'b1, 1'b1}),
         .SLAVE_ADDR_BASE     ({32'h9000, 32'h8000, 32'h7000, 32'h6000, 32'h5000, 32'h4000, 32'h3000, 32'h2000, 32'h1000, 32'h0}),
         .SLAVE_ADDR_LIMIT    ({32'h9FFF, 32'h8FFF, 32'h7FFF, 32'h6FFF, 32'h5FFF, 32'h4FFF, 32'h3FFF, 32'h2FFF, 32'h1FFF, 32'hFFF}),
+        // .SLAVE_ADDR_BASE     ({32'h0, 32'h1000, 32'h2000, 32'h3000, 32'h4000, 32'h5000, 32'h6000, 32'h7000, 32'h8000, 32'h9000}),
+        // .SLAVE_ADDR_LIMIT    ({32'hFFF, 32'h1FFF, 32'h2FFF, 32'h3FFF, 32'h4FFF, 32'h5FFF, 32'h6FFF, 32'h7FFF, 32'h8FFF, 32'h9FFF}),
         .THRESHOLDS          (40'h4444444444),
         .m_apb_psel     ({m9_apb_psel, m8_apb_psel, m7_apb_psel, m6_apb_psel, m5_apb_psel, m4_apb_psel, m3_apb_psel, m2_apb_psel, m1_apb_psel, m0_apb_psel}),
         .m_apb_penable  ({m9_apb_penable, m8_apb_penable, m7_apb_penable, m6_apb_penable, m5_apb_penable, m4_apb_penable, m3_apb_penable, m2_apb_penable, m1_apb_penable, m0_apb_penable}),

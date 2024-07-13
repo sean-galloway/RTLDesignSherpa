@@ -25,9 +25,9 @@ module apb_xbar_thin #(
     // Slave enable for addr decoding
     input  logic [S-1:0]                 SLAVE_ENABLE,
     // Slave address base
-    input  logic [S][ADDR_WIDTH-1:0]     SLAVE_ADDR_BASE,
+    input  logic [S-1:0][ADDR_WIDTH-1:0] SLAVE_ADDR_BASE,
     // Slave address limit
-    input  logic [S][ADDR_WIDTH-1:0]     SLAVE_ADDR_LIMIT,
+    input  logic [S-1:0][ADDR_WIDTH-1:0] SLAVE_ADDR_LIMIT,
     // Thresholds for the Weighted Round Robin Arbiter
     input  logic [MXMTW-1:0]             THRESHOLDS,
 
@@ -68,17 +68,18 @@ module apb_xbar_thin #(
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     // Address decoding logic
-    logic [S-1:0][M-1:0]             slave_sel;
+    logic [S-1:0][M-1:0]             master_sel;
 
     generate
         for (genvar s_dec = 0; s_dec < S; s_dec++) begin : gen_decoder
             always_comb begin
                 for (int m_dec = 0; m_dec < M; m_dec++) begin
-                    slave_sel[s_dec][m_dec] = 1'b0;
+                    master_sel[s_dec][m_dec] = 1'b0;
                     if (m_apb_psel[m_dec] && SLAVE_ENABLE[s_dec] &&
                             (m_apb_paddr[m_dec] >= SLAVE_ADDR_BASE[s_dec]) &&
                             (m_apb_paddr[m_dec] <= SLAVE_ADDR_LIMIT[s_dec])) begin
-                        slave_sel[s_dec][m_dec] = 1'b1;
+                        master_sel[s_dec][m_dec] = 1'b1;
+                        $fdisplay(file, "Decode: Time=%0t s_dec=%0h m_dec=%0h", $realtime/1e3, s_dec, m_dec);
                     end
                 end
             end
@@ -111,7 +112,7 @@ module apb_xbar_thin #(
                 .i_rst_n     (aresetn),
                 .i_block_arb (1'b0),
                 .i_max_thresh(THRESHOLDS),
-                .i_req       (slave_sel[s_arb]),
+                .i_req       (master_sel[s_arb]),
                 .ow_gnt_valid(arb_gnt_valid[s_arb]),
                 .ow_gnt      (arb_gnt[s_arb]),
                 .ow_gnt_id   (arb_gnt_id[s_arb]),

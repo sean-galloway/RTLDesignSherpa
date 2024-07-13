@@ -393,7 +393,7 @@ class APBXbar_TB(TBBase):
             self.log.debug(f'Transaction queue of master {m} is now empty.')
 
         self.log.info('Checking routing of all transactions')
-        # self.compare_expect_and_recv_queues()
+        self.compare_expect_and_recv_queues()
 
 
     async def main_loop(self):

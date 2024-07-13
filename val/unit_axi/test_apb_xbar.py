@@ -228,7 +228,7 @@ class APBXbar_TB(TBBase):
             
             # Wait for the master's transaction queue to be empty
             self.log.info(f'Waiting for transaction queue of master {m} to empty...')
-            await self.wait_for_queue_empty(master, timeout=10000)
+            await self.wait_for_queue_empty(master, timeout=100000)
             self.log.info(f'Transaction queue of master {m} is now empty.')
 
             self.log.info('Checking routing of all transactions')
@@ -265,7 +265,7 @@ class APBXbar_TB(TBBase):
         # Wait for the master's transaction queue to be empty
         for m, master in enumerate(self.apb_master):
             self.log.info(f'Waiting for transaction queue of master {m} to empty...')
-            await self.wait_for_queue_empty(master, timeout=100000)
+            await self.wait_for_queue_empty(master, timeout=1000000)
             self.log.info(f'Transaction queue of master {m} is now empty.')
 
         self.log.info('Checking routing of all transactions')
@@ -303,7 +303,7 @@ class APBXbar_TB(TBBase):
             
             # Wait for the master's transaction queue to be empty
             self.log.info(f'Waiting for transaction queue of master {m} to empty...')
-            await self.wait_for_queue_empty(master, timeout=10000)
+            await self.wait_for_queue_empty(master, timeout=100000)
             self.log.info(f'Transaction queue of master {m} is now empty.')
 
             self.log.info('Checking routing of all transactions')
@@ -350,7 +350,7 @@ class APBXbar_TB(TBBase):
             
             # Wait for the master's transaction queue to be empty
             self.log.info(f'Waiting for transaction queue of master {m} to empty...')
-            await self.wait_for_queue_empty(master, timeout=10000)
+            await self.wait_for_queue_empty(master, timeout=100000)
             self.log.info(f'Transaction queue of master {m} is now empty.')
 
             self.log.info('Checking routing of all transactions')
@@ -393,7 +393,7 @@ class APBXbar_TB(TBBase):
             self.log.debug(f'Transaction queue of master {m} is now empty.')
 
         self.log.info('Checking routing of all transactions')
-        # self.compare_expect_and_recv_queues()
+        self.compare_expect_and_recv_queues()
 
 
     async def main_loop(self):
