@@ -473,6 +473,6 @@ def test_apb_xbar_thin(request, m, s, addr_width, data_width):
         parameters=parameters,
         sim_build=sim_build,
         extra_env=extra_env,
-        extra_args=['+lini=TFIPC-L'],
+        # extra_args=['+lini=TFIPC-L'],
         waves=True,
     )
