@@ -523,11 +523,11 @@ class APBMaster(BusDriver):
                 await RisingEdge(self.clock)
             
             self.bus.PENABLE.value  = 1
-            await Timer(200, units='ps')
+            await FallingEdge(self.clock)
 
             while not self.bus.PREADY.value:
-                await RisingEdge(self.clock)
-                await Timer(200, units='ps')
+                await FallingEdge(self.clock)
+                self.log.warning(f'APB Master {self.name} waiting for PREADY')
             
             # check if the slave is asserting an error
             if self.is_signal_present('PSLVERR') and self.bus.PSLVERR.value:

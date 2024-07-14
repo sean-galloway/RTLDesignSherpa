@@ -98,7 +98,7 @@ module apb_xbar_thin #(
         if (~aresetn)
             arb_gnt_ack <= '0;
         else
-            arb_gnt_ack <= m_apb_pready & m_apb_penable;
+            arb_gnt_ack <= m_apb_pready & m_apb_penable & m_apb_penable;
     end
 
     generate
