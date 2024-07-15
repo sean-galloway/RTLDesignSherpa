@@ -20,7 +20,6 @@ module axi_skid_buffer #(
     output logic          o_rd_valid,
     input  logic          i_rd_ready,
     output logic [3:0]    o_rd_count,
-    output logic [3:0]    o_rd_count,
     output logic [DW-1:0] o_rd_data
 );
 
