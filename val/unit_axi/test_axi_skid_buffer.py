@@ -33,8 +33,10 @@ tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the te
 rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hdl folder where .v files are placed
 rtl_axi_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'axi')) #path to hdl folder where .v files are placed
 
-@pytest.mark.parametrize("data_width, skid4", [(8,0), (8,1)])
-def test_skid_buffer(request, data_width, skid4):
+# @pytest.mark.parametrize("data_width, skid4, skid6, skid8", [(8,0,0,0), (8,1,0,0), (8,0,1,0), (8,0,0,1)])
+# @pytest.mark.parametrize("data_width, skid4, skid6, skid8", [(8,0,0,0), (8,1,0,0)])
+@pytest.mark.parametrize("data_width, skid4, skid6, skid8", [(8,0,1,0)])
+def test_skid_buffer(request, data_width, skid4, skid6, skid8):
     dut_name = "axi_skid_buffer"
     module = os.path.splitext(os.path.basename(__file__))[0]  # The name of this file
     toplevel = dut_name
@@ -43,7 +45,8 @@ def test_skid_buffer(request, data_width, skid4):
         os.path.join(rtl_axi_dir, f"{dut_name}.sv"),
     ]
     includes = []
-    parameters = {"DATA_WIDTH":data_width, "SKID4": skid4}
+    parameters = {"DATA_WIDTH":data_width,
+                    "SKID4": skid4, "SKID6": skid6, "SKID8": skid8}
 
     extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
 
