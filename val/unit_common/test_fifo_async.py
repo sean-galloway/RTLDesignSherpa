@@ -66,7 +66,6 @@ def test_fifo_async(request, depth, data_width):
         module=module,
         parameters=parameters,
         sim_build=sim_build,
-        extra_args=['+lint=TFIPC-L'],
         extra_env=extra_env,
         waves=True,
     )

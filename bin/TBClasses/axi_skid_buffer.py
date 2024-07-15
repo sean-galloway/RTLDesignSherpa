@@ -11,7 +11,7 @@ class AXISkidBufferTB(TBBase):
     def __init__(self, dut):
         super().__init__(dut)
         self.DATA_WIDTH = self.convert_to_int(os.environ.get('PARAM_DATA_WIDTH', '0'))
-        self.DEPTH = 2
+        self.SKID_DEPTH = self.convert_to_int(os.environ.get('PARAM_SKID_DEPTH', '0'))
         self.TIMEOUT_CYCLES = 100
         read_constraints = [(0, 1), (2, 8), (9,30)]
         read_weights = [5,2,1]
@@ -37,26 +37,45 @@ class AXISkidBufferTB(TBBase):
         self.log.info("Reset complete.")
 
 
+    async def simple_incremental_loops(self, delay_clks_after):
+        data = list(range(1, self.SKID_DEPTH + 1))
+        for i in range(self.SKID_DEPTH):
+            sent_data = data[:i+1]
+            await self.write_fifo(sent_data, i+1, 10)
+            read_data = await self.read_fifo(i+1, 10)
+            hex_sent_data = [format(num, '02x') for num in sent_data]
+            hex_read_data = [format(num, '02x') for num in read_data]
+            self.log.info(f'Written: {hex_sent_data}')
+            self.log.info(f'Read:    {hex_read_data}')
+            assert hex_sent_data == hex_read_data, f"Data mismatch. Written: {hex_sent_data}, Read: {hex_read_data}"
+            await self.wait_clocks('i_axi_aclk', delay_clks_after)
+            self.clear_interface()
+            self.assert_reset()
+            await self.wait_clocks('i_axi_aclk', delay_clks_after)
+            self.deassert_reset()
+            await self.wait_clocks('i_axi_aclk', delay_clks_after)
+
+
     async def main_loop(self, iterations, delay_clks_after):
         for _ in range(iterations):
             # Define the test parameters
-            transfer_count = self.DEPTH*5
-            data = [random.randint(0, (1 << self.DATA_WIDTH) - 1) for _ in range(transfer_count)]
+            transfer_count = self.SKID_DEPTH*5
+            sent_data = [random.randint(0, (1 << self.DATA_WIDTH) - 1) for _ in range(transfer_count)]
             pause_duration = 100  # Clock cycles to pause after count transfers
 
             # Start concurrent read and write operations
-            write_skid = cocotb.start_soon(self.write_fifo(data, transfer_count, pause_duration))
+            write_skid = cocotb.start_soon(self.write_fifo(sent_data, transfer_count, pause_duration))
             read_skid = cocotb.start_soon(self.read_fifo(transfer_count, pause_duration))
 
             # Wait for both operations to complete and compare results
             await write_skid
             read_data = await read_skid
 
-            hex_data = [format(num, '02x') for num in data]
+            hex_sent_data = [format(num, '02x') for num in sent_data]
             hex_read_data = [format(num, '02x') for num in read_data]
-            self.log.info(f'Written: {hex_data}')
+            self.log.info(f'Written: {hex_sent_data}')
             self.log.info(f'Read:    {hex_read_data}')
-            assert data[:transfer_count] == read_data, f"Data mismatch. Written: {hex_data}, Read: {hex_read_data}"
+            assert hex_sent_data == hex_read_data, f"Data mismatch. Written: {hex_sent_data}, Read: {hex_read_data}"
 
             await self.wait_clocks('i_axi_aclk', delay_clks_after)
 
@@ -71,6 +90,7 @@ class AXISkidBufferTB(TBBase):
         while data_sent < count:
             # Generate random behavior based on constrained random
             crand = self.write_crand.next()
+            timeout_counter = 0
 
             # Prepare the data and assert i_valid if crand permits
             if crand == 0:

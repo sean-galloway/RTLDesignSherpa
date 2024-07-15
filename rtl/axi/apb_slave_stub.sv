@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 module apb_slave_stub #(
-    parameter int SKID4         = 1,
+    parameter int SKID_DEPTH    = 4,
     parameter int DATA_WIDTH    = 32,
     parameter int ADDR_WIDTH    = 32,
     parameter int STRB_WIDTH    = DATA_WIDTH / 8,
@@ -54,7 +54,7 @@ module apb_slave_stub #(
     assign r_cmd_data = {r_cmd_pwrite, r_cmd_pprot, r_cmd_pstrb, r_cmd_paddr, r_cmd_pwdata};
 
     axi_skid_buffer #(
-        .SKID4(SKID4),
+        .SKID_DEPTH(SKID_DEPTH),
         .DATA_WIDTH(CPW)
     ) cmd_skid_buffer_inst (
         .i_axi_aclk     (aclk),
@@ -78,7 +78,7 @@ module apb_slave_stub #(
     assign {r_rsp_pslverr, r_rsp_prdata} = r_rsp_data;
 
     axi_skid_buffer #(
-        .SKID4(SKID4),
+        .SKID_DEPTH(SKID_DEPTH),
         .DATA_WIDTH(RPW)
     ) resp_skid_buffer_inst (
         .i_axi_aclk     (aclk),
