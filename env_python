@@ -11,4 +11,3 @@ export PYTHONPATH=$REPO_ROOT/bin/vcd2wavedrom2/:$PYTHONPATH
 export PYTHONPATH=$REPO_ROOT/bin/TBClasses/:$PYTHONPATH
 export PYTHONPATH=$REPO_ROOT/bin/rtl_generators/axi/:$PYTHONPATH
 
-export SIM=vcs
