@@ -113,75 +113,123 @@ module axi_master_stub
     output logic [RSize-1:0]           r_m_axi_r_pkt
 );
 
-    ///////////////////////////////////////////////////////////////////////////////////////////
+axi_master_wr_stub #(
+    .SKID_DEPTH_AW       (SKID_DEPTH_AW),
+    .SKID_DEPTH_W        (SKID_DEPTH_W),
+    .SKID_DEPTH_B        (SKID_DEPTH_B),
+    .AXI_ID_WIDTH        (AXI_ID_WIDTH),
+    .AXI_ADDR_WIDTH      (AXI_ADDR_WIDTH),
+    .AXI_DATA_WIDTH      (AXI_DATA_WIDTH),
+    .AXI_USER_WIDTH      (AXI_USER_WIDTH),
+    .AXI_WSTRB_WIDTH     (AXI_DATA_WIDTH/8),
+    // Short and aclculated params
+    .AW                  (AXI_ADDR_WIDTH),
+    .DW                  (AXI_DATA_WIDTH),
+    .IW                  (AXI_ID_WIDTH),
+    .SW                  (AXI_WSTRB_WIDTH),
+    .UW                  (AXI_USER_WIDTH),
+    .AWSize              (IW+AW+8+3+2+1+4+3+4+4+UW),
+    .WSize               (DW+SW+1+UW),
+    .BSize               (IW+2+UW)
+) u_axi_master_wr_stub (
+    // Global Clock and Reset
+    .aclk                (aclk),
+    .aresetn             (aresetn),
     // Write address channel (AW)
-    axi_skid_buffer #(.SKID_DEPTH(SKID_DEPTH_AW), .DATA_WIDTH(AWSize)) inst_aw_phase (
-        .i_axi_aclk               (aclk),
-        .i_axi_aresetn            (aresetn),
-        .i_wr_valid               (r_m_axi_awvalid),
-        .o_wr_ready               (r_m_axi_awready),
-        .i_wr_data                (r_m_axi_aw_pkt),
-        .o_rd_valid               (m_axi_awvalid),
-        .i_rd_ready               (m_axi_awready),
-        .o_rd_count               (r_m_axi_aw_count),
-        .o_rd_data                ({m_axi_awid,m_axi_awaddr,m_axi_awlen,m_axi_awsize,m_axi_awburst,
-                                    m_axi_awlock,m_axi_awcache,m_axi_awprot,m_axi_awqos,
-                                    m_axi_awregion,m_axi_awuser})
-    );
-
-    ///////////////////////////////////////////////////////////////////////////////////////////
+    .m_axi_awid          (m_axi_awid),
+    .m_axi_awaddr        (m_axi_awaddr),
+    .m_axi_awlen         (m_axi_awlen),
+    .m_axi_awsize        (m_axi_awsize),
+    .m_axi_awburst       (m_axi_awburst),
+    .m_axi_awlock        (m_axi_awlock),
+    .m_axi_awcache       (m_axi_awcache),
+    .m_axi_awprot        (m_axi_awprot),
+    .m_axi_awqos         (m_axi_awqos),
+    .m_axi_awregion      (m_axi_awregion),
+    .m_axi_awuser        (m_axi_awuser),
+    .m_axi_awvalid       (m_axi_awvalid),
+    .m_axi_awready       (m_axi_awready),
     // Write data channel (W)
-    axi_skid_buffer #(.SKID_DEPTH(SKID_DEPTH_W), .DATA_WIDTH(WSize)) inst_w_phase (
-        .i_axi_aclk               (aclk),
-        .i_axi_aresetn            (aresetn),
-        .i_wr_valid               (r_m_axi_wvalid),
-        .o_wr_ready               (r_m_axi_wready),
-        .i_wr_data                (r_m_axi_w_pkt),
-        .o_rd_valid               (m_axi_wvalid),
-        .i_rd_ready               (m_axi_wready),
-        .o_rd_data                ({m_axi_wdata,m_axi_wstrb,m_axi_wlast,m_axi_wuser})
-    );
-
-    ///////////////////////////////////////////////////////////////////////////////////////////
+    .m_axi_wdata         (m_axi_wdata),
+    .m_axi_wstrb         (m_axi_wstrb),
+    .m_axi_wlast         (m_axi_wlast),
+    .m_axi_wuser         (m_axi_wuser),
+    .m_axi_wvalid        (m_axi_wvalid),
+    .m_axi_wready        (m_axi_wready),
     // Write response channel (B)
-    axi_skid_buffer #(.SKID_DEPTH(SKID_DEPTH_B), .DATA_WIDTH(BSize)) inst_b_phase (
-        .i_axi_aclk               (aclk),
-        .i_axi_aresetn            (aresetn),
-        .i_wr_valid               (m_axi_bvalid),
-        .o_wr_ready               (m_axi_bready),
-        .i_wr_data                ({m_axi_bid,m_axi_bresp,m_axi_buser}),
-        .o_rd_valid               (r_m_axi_bvalid),
-        .i_rd_ready               (r_m_axi_bready),
-        .o_rd_data                (r_m_axi_b_pkt)
-    );
+    .m_axi_bid           (m_axi_bid),
+    .m_axi_bresp         (m_axi_bresp),
+    .m_axi_buser         (m_axi_buser),
+    .m_axi_bvalid        (m_axi_bvalid),
+    .m_axi_bready        (m_axi_bready),
+    // Stub Outputs/Inputs
+    // AW interface
+    .r_m_axi_awvalid     (r_m_axi_awvalid),
+    .r_m_axi_awready     (r_m_axi_awready),
+    .r_m_axi_aw_count    (r_m_axi_aw_count),
+    .r_m_axi_aw_pkt      (r_m_axi_aw_pkt),
+    // W interface
+    .r_m_axi_wvalid      (r_m_axi_wvalid),
+    .r_m_axi_wready      (r_m_axi_wready),
+    .r_m_axi_w_pkt       (r_m_axi_w_pkt),
+    // B interface
+    .r_m_axi_bvalid      (r_m_axi_bvalid),
+    .r_m_axi_bready      (r_m_axi_bready),
+    .r_m_axi_b_pkt       (r_m_axi_b_pkt)
+);
 
-    ///////////////////////////////////////////////////////////////////////////////////////////
+axi_master_rd_stub #(
+    .SKID_DEPTH_AR       (SKID_DEPTH_AR),
+    .SKID_DEPTH_R        (SKID_DEPTH_R),
+    .AXI_ID_WIDTH        (AXI_ID_WIDTH),
+    .AXI_ADDR_WIDTH      (AXI_ADDR_WIDTH),
+    .AXI_DATA_WIDTH      (AXI_DATA_WIDTH),
+    .AXI_USER_WIDTH      (AXI_USER_WIDTH),
+    .AXI_WSTRB_WIDTH     (AXI_DATA_WIDTH/8),
+    // Short and aclculated params
+    .AW                  (AXI_ADDR_WIDTH),
+    .DW                  (AXI_DATA_WIDTH),
+    .IW                  (AXI_ID_WIDTH),
+    .SW                  (AXI_WSTRB_WIDTH),
+    .UW                  (AXI_USER_WIDTH),
+    .ARSize              (IW+AW+8+3+2+1+4+3+4+4+UW),
+    .RSize               (IW+DW+2+1+UW)
+) u_axi_master_rd_stub (
+    // Global Clock and Reset
+    .aclk                (aclk),
+    .aresetn             (aresetn),
     // Read address channel (AR)
-    axi_skid_buffer #(.SKID_DEPTH(SKID_DEPTH_AR), .DATA_WIDTH(ARSize)) inst_ar_phase (
-        .i_axi_aclk               (aclk),
-        .i_axi_aresetn            (aresetn),
-        .i_wr_valid               (m_axi_arvalid),
-        .o_wr_ready               (m_axi_arready),
-        .i_wr_data                ({m_axi_arid,m_axi_araddr,m_axi_arlen,m_axi_arsize,m_axi_arburst,
-                                    m_axi_arlock,m_axi_arcache,m_axi_arprot,m_axi_arqos,
-                                    m_axi_arregion,m_axi_aruser}),
-        .o_rd_valid               (r_m_axi_arvalid),
-        .i_rd_ready               (r_m_axi_arready),
-        .o_rd_count               (r_m_axi_ar_count),
-        .o_rd_data                (r_m_axi_ar_pkt)
-    );
-
-    ///////////////////////////////////////////////////////////////////////////////////////////
+    .m_axi_arid          (m_axi_arid),
+    .m_axi_araddr        (m_axi_araddr),
+    .m_axi_arlen         (m_axi_arlen),
+    .m_axi_arsize        (m_axi_arsize),
+    .m_axi_arburst       (m_axi_arburst),
+    .m_axi_arlock        (m_axi_arlock),
+    .m_axi_arcache       (m_axi_arcache),
+    .m_axi_arprot        (m_axi_arprot),
+    .m_axi_arqos         (m_axi_arqos),
+    .m_axi_arregion      (m_axi_arregion),
+    .m_axi_aruser        (m_axi_aruser),
+    .m_axi_arvalid       (m_axi_arvalid),
+    .m_axi_arready       (m_axi_arready),
     // Read data channel (R)
-    axi_skid_buffer #(.SKID_DEPTH(SKID_DEPTH_R), .DATA_WIDTH(RSize)) inst_r_phase (
-        .i_axi_aclk               (aclk),
-        .i_axi_aresetn            (aresetn),
-        .i_wr_valid               (r_m_axi_rvalid),
-        .o_wr_ready               (r_m_axi_rready),
-        .i_wr_data                (r_m_axi_r_pkt),
-        .o_rd_valid               (m_axi_rvalid),
-        .i_rd_ready               (m_axi_rready),
-        .o_rd_data                ({m_axi_rid,m_axi_rdata,m_axi_rresp,m_axi_rlast,m_axi_ruser})
-    );
+    .m_axi_rid           (m_axi_rid),
+    .m_axi_rdata         (m_axi_rdata),
+    .m_axi_rresp         (m_axi_rresp),
+    .m_axi_rlast         (m_axi_rlast),
+    .m_axi_ruser         (m_axi_ruser),
+    .m_axi_rvalid        (m_axi_rvalid),
+    .m_axi_rready        (m_axi_rready),
+    // Stub Outputs/Inputs
+    // AR interface
+    .r_m_axi_arvalid     (r_m_axi_arvalid),
+    .r_m_axi_arready     (r_m_axi_arready),
+    .r_m_axi_ar_count    (r_m_axi_ar_count),
+    .r_m_axi_ar_pkt      (r_m_axi_ar_pkt),
+    // R interface
+    .r_m_axi_rvalid      (r_m_axi_rvalid),
+    .r_m_axi_rready      (r_m_axi_rready),
+    .r_m_axi_r_pkt       (r_m_axi_r_pkt)
+);
 
 endmodule : axi_master_stub
