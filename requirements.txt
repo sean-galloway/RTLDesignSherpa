@@ -5,7 +5,7 @@ appdirs==1.4.4
 asttokens==2.2.1
 backcall==0.2.0
 bitarray==2.9.2
-certifi==2023.11.17
+certifi==2024.7.4
 charset-normalizer==3.3.2
 click==8.1.4
 cocotb==1.8.0
