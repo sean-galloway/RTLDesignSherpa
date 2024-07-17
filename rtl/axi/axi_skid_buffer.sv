@@ -23,10 +23,13 @@ module axi_skid_buffer #(
     output logic [DW-1:0] o_rd_data
 );
 
-    logic [BW-1:0]        r_data;
-    logic [3:0]           r_data_count;
-    logic                 w_wr_xfer;
-    logic                 w_rd_xfer;
+    localparam ZERO_WIDTH = BW-DW;
+    
+    logic [BW-1:0]         r_data;
+    logic [3:0]            r_data_count;
+    logic                  w_wr_xfer;
+    logic                  w_rd_xfer;
+    logic [ZERO_WIDTH-1:0] zeros;
 
     assign w_wr_xfer = i_wr_valid & o_wr_ready;
     assign w_rd_xfer = o_rd_valid & i_rd_ready;
@@ -42,11 +45,11 @@ module axi_skid_buffer #(
                 r_data_count <= r_data_count + 1;
             end else if (~w_wr_xfer & w_rd_xfer) begin
                 // Shift out old data
-                r_data <= {'b0, r_data[BUF_WIDTH-1:DW]};
+                r_data <= {zeros, r_data[BUF_WIDTH-1:DW]};
                 r_data_count <= r_data_count - 1;
             end else if (w_wr_xfer & w_rd_xfer) begin
                 // Shift in new data and shift out old data
-                r_data <= {'b0, r_data[BUF_WIDTH-1:DW]};
+                r_data <= {zeros, r_data[BUF_WIDTH-1:DW]};
                 r_data[(DW * (r_data_count - 1)) +: DW] <= i_wr_data;
             end
         end
