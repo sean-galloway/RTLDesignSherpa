@@ -24,11 +24,13 @@ module dataint_crc #(
     output logic [ CRC_WIDTH-1:0] o_crc
 );
 
-    logic [CW-1:0] r_crc_value = POLY_INIT;
-    logic [CW-1:0] w_poly = POLY;
+    logic [CW-1:0] r_crc_value;
+    logic [CW-1:0] w_poly;
     logic [7:0]    w_block_data[0:CH-1];  // verilog_lint: waive unpacked-dimensions-range-ordering
     logic [CW-1:0] w_cascade[0:CH-1];  // verilog_lint: waive unpacked-dimensions-range-ordering
     logic [CW-1:0] w_result, w_result_xor, w_selected_cascade_output;
+
+    assign w_poly = POLY;
 
     ////////////////////////////////////////////////////////////////////////////
     // Reflect input data if REFIN is enabled
@@ -59,7 +61,7 @@ module dataint_crc #(
     end
 
     always_ff @(posedge i_clk or negedge i_rst_n) begin
-        if (~i_rst_n) r_crc_value <= 'b0;
+        if (~i_rst_n) r_crc_value <= POLY_INIT;
         else if (i_load_crc_start) r_crc_value <= POLY_INIT;  // Reset the CRC to the initial value
         else if (i_load_from_cascade)
             r_crc_value <= w_selected_cascade_output;  // Use pre-selected output

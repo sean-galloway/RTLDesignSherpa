@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module math_adder_half (
+module math_adder_half #(parameter int N=1)(
     input  logic i_a,
     input  logic i_b,
     output logic ow_sum,

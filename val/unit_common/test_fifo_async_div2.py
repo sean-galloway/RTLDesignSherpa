@@ -72,5 +72,5 @@ def test_fifo_async_div2(request, depth, data_width):
         sim_build=sim_build,
         extra_env=extra_env,
         waves=True,
-        extra_args=["+vcdplusfile+simulation.vpd", "+vcdpluson=0"] 
+        # extra_args=["+vcdplusfile+simulation.vpd", "+vcdpluson=0"] 
     )

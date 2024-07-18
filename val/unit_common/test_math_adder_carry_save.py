@@ -38,7 +38,7 @@ def test_math_adder_carry_save(request, ):
 
     ]
     includes = []
-    parameters = {'N':1, }
+    parameters = {}
 
     extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
 

@@ -13,7 +13,7 @@ class AdderTB(TBBase):
     def __init__(self, dut):
         TBBase.__init__(self, dut)
         # Gather the settings from the Parameters to verify them
-        self.N = self.convert_to_int(os.environ.get('PARAM_N', '0'))
+        self.N = self.convert_to_int(os.environ.get('PARAM_N', '1'))
         self.max_val = (2**self.N)
         self.mask = self.max_val - 1
 
@@ -67,6 +67,7 @@ class AdderTB(TBBase):
 
     async def main_loop_carry_save(self, count=256):
         self.log.info("Main Test")
+        self.log.debug(f'{count=}')
         c_list = [0, 1]
         if self.max_val < count:
             a_list = list(range(self.max_val))
@@ -93,8 +94,12 @@ class AdderTB(TBBase):
                 expected_sum[i] = a_bit ^ b_bit ^ c_bit
                 expected_carry[i] = (a_bit & b_bit) | (a_bit & c_bit) | (b_bit & c_bit)
 
+            # self.log.debug(f'{expected_sum=}')
+            # self.log.debug(f'{expected_carry=}')
+
             expected_sum = int("".join(str(bit) for bit in reversed(expected_sum)), 2)
             expected_carry = int("".join(str(bit) for bit in reversed(expected_carry)), 2)
+
             ow_sum = int(self.dut.ow_sum.value)
             ow_carry = int(self.dut.ow_carry.value)
             
