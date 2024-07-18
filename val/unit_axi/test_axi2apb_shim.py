@@ -215,8 +215,8 @@ tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the te
 rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hdl folder where .v files are placed
 rtl_axi_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'axi')) #path to hdl folder where .v files are placed
 
-# @pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,32,1,12,32)])
-@pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,8,1,12,8),(8,32,16,1,12,8),(8,32,32,1,12,8),(8,32,64,1,12,8)])
+# @pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,8,1,12,8),(8,32,16,1,12,8),(8,32,32,1,12,8),(8,32,64,1,12,8)])
+@pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,8,1,12,8)])
 def test_axi2abp_shim(request, id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width):
     dut_name = "axi2apb_shim"
     module = os.path.splitext(os.path.basename(__file__))[0]

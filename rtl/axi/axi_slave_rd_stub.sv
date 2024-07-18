@@ -54,7 +54,7 @@ module axi_slave_rd_stub
     // AR interface
     output logic                       r_s_axi_arvalid,
     input  logic                       r_s_axi_arready,
-    output logic [2:0]                 r_s_axi_ar_count,
+    output logic [3:0]                 r_s_axi_ar_count,
     output logic [ARSize-1:0]          r_s_axi_ar_pkt,
 
     // R interface

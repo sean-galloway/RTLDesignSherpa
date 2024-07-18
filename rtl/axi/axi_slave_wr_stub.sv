@@ -61,7 +61,7 @@ module axi_slave_wr_stub
     // AW interface
     output logic                       r_s_axi_awvalid,
     input  logic                       r_s_axi_awready,
-    output logic [2:0]                 r_s_axi_aw_count,
+    output logic [3:0]                 r_s_axi_aw_count,
     output logic [AWSize-1:0]          r_s_axi_aw_pkt,
 
     // W interface

@@ -234,7 +234,7 @@ module apb_xbar #(
 
             // Instantiate axi_fifo_sync
             axi_skid_buffer #(
-                .SKID_DEPTH        (1),
+                .SKID_DEPTH   (SKID_DEPTH),
                 .DATA_WIDTH   (MID)
             ) side_queue_inst (
                 .i_axi_aclk   (aclk),

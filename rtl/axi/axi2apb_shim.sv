@@ -110,23 +110,23 @@ module axi2apb_shim #(
 );
 
     // AXI Skid interface signals
-    logic [AWSize-1:0]         r_s_axi_aw_pkt;
-    logic [2:0]                r_s_axi_aw_count;
-    logic                      r_s_axi_awvalid;
-    logic                      w_s_axi_awready;
-    logic [WSize-1:0]          r_s_axi_w_pkt;
-    logic                      r_s_axi_wvalid;
-    logic                      w_s_axi_wready;
-    logic [BSize-1:0]          r_s_axi_b_pkt;
-    logic                      w_s_axi_bvalid;
-    logic                      r_s_axi_bready;
-    logic [ARSize-1:0]         r_s_axi_ar_pkt;
-    logic [2:0]                r_s_axi_ar_count;
-    logic                      r_s_axi_arvalid;
-    logic                      w_s_axi_arready;
-    logic [RSize-1:0]          r_s_axi_r_pkt;
-    logic                      w_s_axi_rvalid;
-    logic                      r_s_axi_rready;
+    logic [AWSize-1:0]                r_s_axi_aw_pkt;
+    logic [3:0]                       r_s_axi_aw_count;
+    logic                             r_s_axi_awvalid;
+    logic                             w_s_axi_awready;
+    logic [WSize-1:0]                 r_s_axi_w_pkt;
+    logic                             r_s_axi_wvalid;
+    logic                             w_s_axi_wready;
+    logic [BSize-1:0]                 r_s_axi_b_pkt;
+    logic                             w_s_axi_bvalid;
+    logic                             r_s_axi_bready;
+    logic [ARSize-1:0]                r_s_axi_ar_pkt;
+    logic [3:0]                       r_s_axi_ar_count;
+    logic                             r_s_axi_arvalid;
+    logic                             w_s_axi_arready;
+    logic [RSize-1:0]                 r_s_axi_r_pkt;
+    logic                             w_s_axi_rvalid;
+    logic                             r_s_axi_rready;
 
     // APB Master Interface
     // Command Packet
@@ -141,11 +141,11 @@ module axi2apb_shim #(
 
     // Instantiate the axi_slave_stub
     axi_slave_stub #                   (
-        .SKID_DEPTH_AW                 (SKID_DEPTH_AW),
-        .SKID_DEPTH_W                  (SKID_DEPTH_W),
-        .SKID_DEPTH_B                  (SKID_DEPTH_B),
-        .SKID_DEPTH_AR                 (SKID_DEPTH_AR),
-        .SKID_DEPTH_R                  (SKID_DEPTH_R),
+        .SKID_DEPTH_AW            (SKID_DEPTH_AW),
+        .SKID_DEPTH_W             (SKID_DEPTH_W),
+        .SKID_DEPTH_B             (SKID_DEPTH_B),
+        .SKID_DEPTH_AR            (SKID_DEPTH_AR),
+        .SKID_DEPTH_R             (SKID_DEPTH_R),
         .AXI_ID_WIDTH             (IW),
         .AXI_ADDR_WIDTH           (AW),
         .AXI_DATA_WIDTH           (DW),

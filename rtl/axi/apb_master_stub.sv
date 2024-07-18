@@ -63,9 +63,9 @@ module apb_master_stub #(
     assign {r_cmd_last, r_cmd_first, r_cmd_pwrite, r_cmd_pprot, r_cmd_pstrb, r_cmd_paddr,
             r_cmd_pwdata} = r_cmd_valid ? r_cmd_data : r_cmd_data_zeroes;
 
-    axi_fifo_sync #(
+    axi_skid_buffer #(
         .DATA_WIDTH(CPW),
-        .DEPTH(CMD_DEPTH)
+        .SKID_DEPTH(CMD_DEPTH)
     ) cmd_fifo_inst (
         .i_axi_aclk     (aclk),
         .i_axi_aresetn  (aresetn),
@@ -75,7 +75,7 @@ module apb_master_stub #(
         .ow_count       (w_cmd_count),
         .o_rd_valid     (r_cmd_valid),
         .i_rd_ready     (w_cmd_ready),
-        .ow_rd_data     (r_cmd_data)
+        .o_rd_data      (r_cmd_data)
     );
 
     // Extract response packet signals
@@ -87,9 +87,9 @@ module apb_master_stub #(
 
     assign r_rsp_data = {r_cmd_last, r_cmd_first, w_rsp_pslverr, w_rsp_prdata};
 
-    axi_fifo_sync #(
+    axi_skid_buffer #(
         .DATA_WIDTH(RPW),
-        .DEPTH(RSP_DEPTH)
+        .SKID_DEPTH(RSP_DEPTH)
     ) resp_fifo_inst (
         .i_axi_aclk     (aclk),
         .i_axi_aresetn  (aresetn),
@@ -98,7 +98,7 @@ module apb_master_stub #(
         .i_wr_data      (r_rsp_data),
         .o_rd_valid     (o_rsp_valid),
         .i_rd_ready     (i_rsp_ready),
-        .ow_rd_data     (o_rsp_data)
+        .o_rd_data      (o_rsp_data)
     );
 
     // APB FSM
@@ -146,7 +146,7 @@ module apb_master_stub #(
                     if (m_apb_PREADY) begin
                         w_cmd_ready   = 1'b1;
                         w_rsp_valid   = 1'b1;
-                        if (w_cmd_count > 0)
+                        if (w_cmd_count > 1)
                             w_apb_next_state = ACTIVE;
                         else
                             w_apb_next_state = IDLE;

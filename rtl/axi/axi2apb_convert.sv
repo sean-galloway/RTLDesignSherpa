@@ -305,7 +305,8 @@ module axi2apb_convert #(
         w_apb_cmd_pkt_pwrite       = 1'b0;
         w_apb_cmd_pkt_pwdata       = (axi2abpratio == 1)    ? r_s_axi_wdata  :
                                         r_s_axi_wdata[r_axi_wr_data_pointer*APBDW +: APBDW];
-        w_apb_cmd_pkt_pstrb        = (axi2abpratio == 1)    ? r_s_axi_wstrb  :
+        w_apb_cmd_pkt_pstrb        = (w_apb_cmd_pkt_pwrite == 1'b0) ? {SW{1'b1}} :
+                                        (axi2abpratio == 1) ? r_s_axi_wstrb  :
                                         r_s_axi_wstrb[r_axi_wr_data_pointer*APBSW +: APBSW];
         w_apb_cmd_pkt_pprot        = (r_apb_state  == READ) ? r_s_axi_arprot : r_s_axi_awprot;
         w_apb_cmd_pkt_paddr        = r_apb_paddr & ~w_alignment_mask;

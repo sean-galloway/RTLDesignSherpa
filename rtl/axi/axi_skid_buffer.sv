@@ -17,19 +17,18 @@ module axi_skid_buffer #(
     input  logic [DW-1:0] i_wr_data,
 
     // output side
+    output logic [3:0]    ow_count,
     output logic          o_rd_valid,
     input  logic          i_rd_ready,
     output logic [3:0]    o_rd_count,
     output logic [DW-1:0] o_rd_data
 );
 
-    localparam ZERO_WIDTH = BW-DW;
-    
     logic [BW-1:0]         r_data;
     logic [3:0]            r_data_count;
     logic                  w_wr_xfer;
     logic                  w_rd_xfer;
-    logic [ZERO_WIDTH-1:0] zeros;
+    logic [DW-1:0]         zeros;
 
     assign w_wr_xfer = i_wr_valid & o_wr_ready;
     assign w_rd_xfer = o_rd_valid & i_rd_ready;
@@ -70,7 +69,8 @@ module axi_skid_buffer #(
         end
     end
 
-    assign o_rd_data = r_data[DW-1:0]; // Output the lowest DW bits
+    assign o_rd_data  = r_data[DW-1:0]; // Output the lowest DW bits
     assign o_rd_count = r_data_count;
+    assign ow_count   = r_data_count;
 
 endmodule : axi_skid_buffer
