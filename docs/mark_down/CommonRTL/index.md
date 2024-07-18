@@ -23,7 +23,6 @@ Note: I have usually made significant changes, primarily for performance reasons
 - [math_adder_carry_save_nbit](math_adder_carry_save_nbit.md)
 - [math_adder_full_nbit](math_adder_full_nbit.md)
 - [math_addsub_full_nbit](math_addsub_full_nbit.md)
-- [math_adder_hierarchical](math_adder_hierarchical.md)
 - [math_subtractor_full_nbit](math_subtractor_full_nbit.md)
 
 3\. Brent-Kung Adder Series
