@@ -3,6 +3,7 @@ export REPO_ROOT=$REPO_ROOT
 export PATH=$REPO_ROOT/bin/:$PATH
 export PATH=$REPO_ROOT/bin/vcd2wavedrom2/:$PATH
 export PATH=$REPO_ROOT/bin/rtl_generators/axi/:$PATH
+export PATH=$REPO_ROOT/venv/bin/yowasp-yosys:$PATH
 
 export PYTHONPATH=$REPO_ROOT/bin/:$PYTHONPATH
 export PYTHONPATH=$REPO_ROOT/bin/rtl_generators/:$PYTHONPATH
