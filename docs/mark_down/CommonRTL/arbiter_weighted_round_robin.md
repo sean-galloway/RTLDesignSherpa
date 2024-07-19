@@ -22,17 +22,17 @@ This SystemVerilog module implements a **Weighted Round Robin Arbiter**. The des
 ### Inputs and Outputs
 
 - **Inputs**
-    - `i_clk`: Clock signal.
-    - `i_rst_n`: Reset signal (active low).
-    - `i_block_arb`: Signal to block arbitration.
-    - `i_max_thresh`: Maximum thresholds for each client in a flattened array.
-    - `i_req`: Request signals from clients.
-    - `i_gnt_ack`: Acknowledgment signals for grants.
+  - `i_clk`: Clock signal.
+  - `i_rst_n`: Reset signal (active low).
+  - `i_block_arb`: Signal to block arbitration.
+  - `i_max_thresh`: Maximum thresholds for each client in a flattened array.
+  - `i_req`: Request signals from clients.
+  - `i_gnt_ack`: Acknowledgment signals for grants.
 
 - **Outputs**
-    - `ow_gnt_valid`: Grant validity signal.
-    - `ow_gnt`: Grant signals for clients.
-    - `ow_gnt_id`: Grant ID for the granted client.
+  - `ow_gnt_valid`: Grant validity signal.
+  - `ow_gnt`: Grant signals for clients.
+  - `ow_gnt_id`: Grant ID for the granted client.
 
 ### Logic Descriptions
 

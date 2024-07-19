@@ -192,7 +192,6 @@ _site/
 .bundle/
 vendor/
 openai/
-ipynb/
 *OLD.md
 bin_OLD/
 profile.txt
