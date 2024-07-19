@@ -36,7 +36,7 @@ The `axi_master_stub` module instantiates two submodules, `axi_master_wr_stub` a
 
 The `axi_master_stub` serves as a placeholder for an actual AXI master in a simulation or testing environment, where the full implementation of an AXI master is not needed or is under development.
 
-The module doesn't include the actual logic for handling AXI transactions but forwards signals between the interfaces and submodules. This allows simulation of AXI signal behaviors and interactions with slave devices, making it a valuable tool for early testing of AXI-compliant hardware without requiring a fully implemented AXI master. 
+The module doesn't include the actual logic for handling AXI transactions but forwards signals between the interfaces and submodules. This allows simulation of AXI signal behaviors and interactions with slave devices, making it a valuable tool for early testing of AXI-compliant hardware without requiring a fully implemented AXI master.
 
 The stub can be extended to include additional logic for specific testing scenarios, such as injecting errors, monitoring transactions, or providing feedback for coverage analysis.
 
