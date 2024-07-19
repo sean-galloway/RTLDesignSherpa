@@ -1,1 +1,19 @@
-rtl/common/cam_tag.sv
+apb_master_stub,rtl/axi/apb_master_stub.sv
+apb_slave_stub,rtl/axi/apb_slave_stub.sv
+apb_xbar,rtl/axi/apb_xbar.sv
+apb_xbar_thin,rtl/axi/apb_xbar_thin.sv
+axi2apb_convert,rtl/axi/axi2apb_convert.sv
+axi2apb_shim,rtl/axi/axi2apb_shim.sv
+axi_fifo_async,rtl/axi/axi_fifo_async.sv
+axi_fifo_sync,rtl/axi/axi_fifo_sync.sv
+axi_gen_addr,rtl/axi/axi_gen_addr.sv
+axi_master_rd_stub,rtl/axi/axi_master_rd_stub.sv
+axi_master_stub ,rtl/axi/axi_master_stub .sv
+axi_master_wr_stub,rtl/axi/axi_master_wr_stub.sv
+axi_skid_buffer_async,rtl/axi/axi_skid_buffer_async.sv
+axi_skid_buffer,rtl/axi/axi_skid_buffer.sv
+axi_slave_async_stub,rtl/axi/axi_slave_async_stub.sv
+axi_slave_rd_stub,rtl/axi/axi_slave_rd_stub.sv
+axi_slave_stub,rtl/axi/axi_slave_stub.sv
+axi_slave,rtl/axi/axi_slave.sv
+axi_slave_wr_stub,rtl/axi/axi_slave_wr_stub.sv
