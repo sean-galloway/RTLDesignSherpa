@@ -96,7 +96,7 @@ module cache_plru_mesi #(
         return way;
     endfunction
 
-    function automatic logic [A-2:0] update_plru(logic [A-2:0] plru_bits, logic [$clog2(A)-1:0] accessed_way);
+    function automatic logic [A-2:0] update_plru(logic [A-2:0] plru_bits, logic [$clog2(A)-1:0] accessed_way); // verilog_lint: waive line-length
         // Create a temporary copy of the PLRU bits
         logic [A-2:0] updated_plru_bits = plru_bits;
 
@@ -165,7 +165,7 @@ module cache_plru_mesi #(
         .i_axi_aresetn  (i_rst_n),
         .i_wr_valid     (r_sysbusout_valid),
         .o_wr_ready     (r_sysbusout_ready),
-        .i_wr_data      ({r_sysbusout_op_rdxwr, r_sysbusout_addr, r_sysbusout_data, r_sysbusout_dm}),
+        .i_wr_data      ({r_sysbusout_op_rdxwr, r_sysbusout_addr, r_sysbusout_data, r_sysbusout_dm}), // verilog_lint: waive line-length
         .o_rd_valid     (o_sysbusout_valid),
         .i_rd_ready     (i_sysbusout_ready),
         .ow_rd_data     ({o_sysbusout_op_rdxwr, o_sysbusout_addr, o_sysbusout_data, o_sysbusout_dm})
@@ -269,13 +269,13 @@ module cache_plru_mesi #(
 
     assign w_sysbusin_tag = r_sysbusin_addr[AW-1:AW-TagWidth];
     assign w_sysbusin_index = r_sysbusin_addr[AW-TagWidth-1:AW-TagWidth-IndexWidth];
-    assign w_sysbusin_offset = r_sysbusin_addr[AW-TagWidth-IndexWidth-1:AW-TagWidth-IndexWidth-OffsetWidth];
+    assign w_sysbusin_offset = r_sysbusin_addr[AW-TagWidth-IndexWidth-1:AW-TagWidth-IndexWidth-OffsetWidth]; // verilog_lint: waive line-length
     assign w_memin_tag = r_memin_addr[AW-1:AW-TagWidth];
     assign w_memin_index = r_memin_addr[AW-TagWidth-1:AW-TagWidth-IndexWidth];
-    assign w_memin_offset = r_memin_addr[AW-TagWidth-IndexWidth-1:AW-TagWidth-IndexWidth-OffsetWidth];
+    assign w_memin_offset = r_memin_addr[AW-TagWidth-IndexWidth-1:AW-TagWidth-IndexWidth-OffsetWidth]; // verilog_lint: waive line-length
     assign w_snoop_tag = r_snoop_addr[AW-1:AW-TagWidth];
     assign w_snoop_index = r_snoop_addr[AW-TagWidth-1:AW-TagWidth-IndexWidth];
-    assign w_snoop_offset = r_snoop_addr[AW-TagWidth-IndexWidth-1:AW-TagWidth-IndexWidth-OffsetWidth];
+    assign w_snoop_offset = r_snoop_addr[AW-TagWidth-IndexWidth-1:AW-TagWidth-IndexWidth-OffsetWidth]; // verilog_lint: waive line-length
 
     wire [A-1:0] w_sysbusin_way_hit;
     wire [A-1:0] w_memin_way_hit;
@@ -288,9 +288,9 @@ module cache_plru_mesi #(
     genvar i;
     generate
         for (i = 0; i < A; i = i + 1) begin : gen_way_hit
-            assign w_sysbusin_way_hit[i] = r_sysbusin_valid && r_valid_array[w_sysbusin_index*A+i] && (r_tag_array[w_sysbusin_index*A+i] == w_sysbusin_tag);
-            assign w_memin_way_hit[i] = r_memin_valid && r_valid_array[w_memin_index*A+i] && (r_tag_array[w_memin_index*A+i] == w_memin_tag);
-            assign w_snoop_way_hit[i] = r_snoop_valid && r_valid_array[w_snoop_index*A+i] && (r_tag_array[w_snoop_index*A+i] == w_snoop_tag);
+            assign w_sysbusin_way_hit[i] = r_sysbusin_valid && r_valid_array[w_sysbusin_index*A+i] && (r_tag_array[w_sysbusin_index*A+i] == w_sysbusin_tag); // verilog_lint: waive line-length
+            assign w_memin_way_hit[i] = r_memin_valid && r_valid_array[w_memin_index*A+i] && (r_tag_array[w_memin_index*A+i] == w_memin_tag); // verilog_lint: waive line-length
+            assign w_snoop_way_hit[i] = r_snoop_valid && r_valid_array[w_snoop_index*A+i] && (r_tag_array[w_snoop_index*A+i] == w_snoop_tag); // verilog_lint: waive line-length
         end
     endgenerate
 
@@ -331,8 +331,8 @@ module cache_plru_mesi #(
                     r_sysbusout_valid <= 1'b1;
                     r_sysbusout_op_rdxwr <= 'b0;
                     r_sysbusout_addr <= r_sysbusin_addr;
-                    r_sysbusout_data <= r_data_array[w_sysbusin_index][w_sysbusin_way_hit][w_sysbusin_offset*DW/8 +: DW/8];
-                    r_sysbusout_dm <= r_dm_array[w_sysbusin_index][w_sysbusin_way_hit][w_sysbusin_offset +: DM];
+                    r_sysbusout_data <= r_data_array[w_sysbusin_index][w_sysbusin_way_hit][w_sysbusin_offset*DW/8 +: DW/8]; // verilog_lint: waive line-length
+                    r_sysbusout_dm <= r_dm_array[w_sysbusin_index][w_sysbusin_way_hit][w_sysbusin_offset +: DM]; // verilog_lint: waive line-length
                 end else begin
                     // Read miss, send a read to the memout interface
                     if (r_memout_ready && !r_read_fifo_full) begin
@@ -362,7 +362,7 @@ module cache_plru_mesi #(
                 // Update the cache entry with the received data
                 r_tag_array[w_memin_index][allocated_way] <= w_memin_tag;
                 for (int i = 0; i < A; i++) begin
-                    r_data_array[w_memin_index][w_memin_way_hit][i*DW +: DW] <= i_memin_data[i*DW +: DW];
+                    r_data_array[w_memin_index][w_memin_way_hit][i*DW +: DW] <= i_memin_data[i*DW +: DW]; // verilog_lint: waive line-length
                 end
                 r_valid_array[w_memin_index][allocated_way] <= 1'b1;
                 r_state_array[w_memin_index][allocated_way] <= StateE;
@@ -373,7 +373,7 @@ module cache_plru_mesi #(
                 r_sysbusout_data <= i_memin_data;
                 r_sysbusout_dm <= i_memin_dm;
                 // Update PLRU bits for the allocated way
-                r_plru_bits[w_sysbusin_index] <= update_plru(r_plru_bits[w_sysbusin_index], allocated_way);
+                r_plru_bits[w_sysbusin_index] <= update_plru(r_plru_bits[w_sysbusin_index], allocated_way); // verilog_lint: waive line-length
                 // Remove the allocated way from the side queue
                 r_read_fifo_rd_en <= 1'b1;
             end else begin
@@ -389,15 +389,15 @@ module cache_plru_mesi #(
                             // Update the cache data and byte enables
                             for (int j = 0; j < DM; j++) begin
                                 if (r_sysbusin_dm[j]) begin
-                                    r_data_array[w_sysbusin_index][w_sysbusin_way_hit][w_sysbusin_offset*DW+j*8+:8] <= r_sysbusin_data[j*8+:8];
-                                    r_dm_array[w_sysbusin_index][w_sysbusin_way_hit][w_sysbusin_offset*DM+j] <= 1'b1;
+                                    r_data_array[w_sysbusin_index][w_sysbusin_way_hit][w_sysbusin_offset*DW+j*8+:8] <= r_sysbusin_data[j*8+:8]; // verilog_lint: waive line-length
+                                    r_dm_array[w_sysbusin_index][w_sysbusin_way_hit][w_sysbusin_offset*DM+j] <= 1'b1; // verilog_lint: waive line-length
                                 end
                             end
                             // Update the cache line state and dirty bit
                             r_state_array[w_sysbusin_index][i] <= StateM;
                             r_dirty_array[w_sysbusin_index][i] <= 1'b1;
                             // Update PLRU bits for the accessed set
-                            r_plru_bits[w_sysbusin_index] <= update_plru(r_plru_bits[w_sysbusin_index], i);
+                            r_plru_bits[w_sysbusin_index] <= update_plru(r_plru_bits[w_sysbusin_index], i); // verilog_lint: waive line-length
                         end
                     end
                     r_sysbusin_ready <= 1'b1;
@@ -409,10 +409,10 @@ module cache_plru_mesi #(
                         if (r_memout_ready) begin
                             r_memout_valid <= 1'b1;
                             r_memout_op_rdxwr <= 1'b1;
-                            r_memout_addr <= {r_tag_array[w_sysbusin_index*A+evict_way], w_sysbusin_index, {OffsetWidth{1'b0}}};
+                            r_memout_addr <= {r_tag_array[w_sysbusin_index*A+evict_way], w_sysbusin_index, {OffsetWidth{1'b0}}}; // verilog_lint: waive line-length
                             for (int i = 0; i < A; i++) begin
-                                r_memout_data[i*DW +: DW] <= r_data_array[w_sysbusin_index][evict_way][i*DW +: DW];
-                                r_memout_dm[i*DM +: DM] <= r_dm_array[w_sysbusin_index][evict_way][i*DM +: DM];
+                                r_memout_data[i*DW +: DW] <= r_data_array[w_sysbusin_index][evict_way][i*DW +: DW]; // verilog_lint: waive line-length
+                                r_memout_dm[i*DM +: DM] <= r_dm_array[w_sysbusin_index][evict_way][i*DM +: DM]; // verilog_lint: waive line-length
                             end
                             r_dirty_array[w_sysbusin_index*A+evict_way] <= 1'b0;
                             r_sysbusin_ready <= 1'b1;
@@ -426,7 +426,7 @@ module cache_plru_mesi #(
                     r_tag_array[w_sysbusin_index*A+evict_way] <= w_sysbusin_tag;
                     for (int j = 0; j < DM; j++) begin
                         if (r_sysbusin_dm[j]) begin
-                            r_data_array[w_sysbusin_index][evict_way][w_sysbusin_offset*DW+j*8+:8] <= r_sysbusin_data[j*8+:8];
+                            r_data_array[w_sysbusin_index][evict_way][w_sysbusin_offset*DW+j*8+:8] <= r_sysbusin_data[j*8+:8]; // verilog_lint: waive line-length
                             r_dm_array[w_sysbusin_index][evict_way][w_sysbusin_offset*DM+j] <= 1'b1;
                         end else begin
                             r_dm_array[w_sysbusin_index][evict_way][w_sysbusin_offset*DM+j] <= 1'b0;
@@ -436,7 +436,7 @@ module cache_plru_mesi #(
                     r_dirty_array[w_sysbusin_index][evict_way] <= 1'b1;
                     r_state_array[w_sysbusin_index][evict_way] <= StateM;
                     // Update PLRU bits for the allocated way
-                    r_plru_bits[w_sysbusin_index] <= update_plru(r_plru_bits[w_sysbusin_index], evict_way);
+                    r_plru_bits[w_sysbusin_index] <= update_plru(r_plru_bits[w_sysbusin_index], evict_way); // verilog_lint: waive line-length
                 end
             end else begin
                 r_sysbusin_ready <= 1'b0;
@@ -452,7 +452,7 @@ module cache_plru_mesi #(
                         if (o_snoop_hit) begin
                             // Snoop hit
                             for (int i = 0; i < A; i++) begin
-                                o_snoop_data[i*DW +: DW] <= r_data_array[w_snoop_index][w_snoop_way_hit][i*DW +: DW];
+                                o_snoop_data[i*DW +: DW] <= r_data_array[w_snoop_index][w_snoop_way_hit][i*DW +: DW]; // verilog_lint: waive line-length
                             end
                             o_snoop_dirty <= r_dirty_array[w_snoop_index*A+w_snoop_way_hit];
                             if (r_state_array[w_snoop_index][w_snoop_way_hit] == StateM ||
@@ -461,10 +461,10 @@ module cache_plru_mesi #(
                                 if (r_fifo_c2c_snp_ready) begin
                                     r_fifo_c2c_snp_valid <= 1'b1;
                                     r_snoop_ready <= 1'b1;
-                                    r_c2c_snp_addr <= {r_tag_array[w_snoop_index][w_snoop_way_hit], w_snoop_index, {OffsetWidth{1'b0}}};
+                                    r_c2c_snp_addr <= {r_tag_array[w_snoop_index][w_snoop_way_hit], w_snoop_index, {OffsetWidth{1'b0}}}; // verilog_lint: waive line-length
                                     for (int i = 0; i < A; i++) begin
-                                        r_c2c_snp_data[i*DW +: DW] <= r_data_array[w_snoop_index][w_snoop_way_hit][i*DW +: DW];
-                                        r_c2c_snp_dm[i*DM +: DM] <= r_dm_array[w_snoop_index][w_snoop_way_hit][i*DM +: DM];
+                                        r_c2c_snp_data[i*DW +: DW] <= r_data_array[w_snoop_index][w_snoop_way_hit][i*DW +: DW]; // verilog_lint: waive line-length
+                                        r_c2c_snp_dm[i*DM +: DM] <= r_dm_array[w_snoop_index][w_snoop_way_hit][i*DM +: DM]; // verilog_lint: waive line-length
                                     end
                                 end else begin
                                     // If the c2c_snp queue is not ready, wait for it to become ready
@@ -487,7 +487,7 @@ module cache_plru_mesi #(
                         if (o_snoop_hit) begin
                             // Snoop hit
                             for (int i = 0; i < A; i++) begin
-                                o_snoop_data[i*DW +: DW] <= r_data_array[w_snoop_index][w_snoop_way_hit][i*DW +: DW];
+                                o_snoop_data[i*DW +: DW] <= r_data_array[w_snoop_index][w_snoop_way_hit][i*DW +: DW]; // verilog_lint: waive line-length
                             end
                             o_snoop_dirty <= r_dirty_array[w_snoop_index][w_snoop_way_hit];
                             if (r_dirty_array[w_snoop_index][w_snoop_way_hit]) begin
@@ -496,10 +496,10 @@ module cache_plru_mesi #(
                                     r_snoop_ready <= 1'b1;
                                     r_memout_valid <= 1'b1;
                                     r_memout_op_rdxwr <= 1'b1;
-                                    r_memout_addr <= {r_tag_array[w_snoop_index][w_snoop_way_hit], w_snoop_index, {OffsetWidth{1'b0}}};
+                                    r_memout_addr <= {r_tag_array[w_snoop_index][w_snoop_way_hit], w_snoop_index, {OffsetWidth{1'b0}}}; // verilog_lint: waive line-length
                                     for (int i = 0; i < A; i++) begin
-                                        r_memout_data[i*DW +: DW] <= r_data_array[w_snoop_index][w_snoop_way_hit][i*DW +: DW];
-                                        r_memout_dm[i*DM +: DM] <= r_dm_array[w_snoop_index][w_snoop_way_hit][i*DM +: DM];
+                                        r_memout_data[i*DW +: DW] <= r_data_array[w_snoop_index][w_snoop_way_hit][i*DW +: DW]; // verilog_lint: waive line-length
+                                        r_memout_dm[i*DM +: DM] <= r_dm_array[w_snoop_index][w_snoop_way_hit][i*DM +: DM]; // verilog_lint: waive line-length
                                     end
                                     r_dirty_array[w_snoop_index*A+w_snoop_way_hit] <= 1'b0;
                                 end else begin
@@ -526,10 +526,10 @@ module cache_plru_mesi #(
                                     r_snoop_ready <= 1'b1;
                                     r_memout_valid <= 1'b1;
                                     r_memout_op_rdxwr <= 1'b1;
-                                    r_memout_addr <= {r_tag_array[w_snoop_index][w_snoop_way_hit], w_snoop_index, {OffsetWidth{1'b0}}};
+                                    r_memout_addr <= {r_tag_array[w_snoop_index][w_snoop_way_hit], w_snoop_index, {OffsetWidth{1'b0}}}; // verilog_lint: waive line-length
                                     for (int i = 0; i < A; i++) begin
-                                        r_memout_data[i*DW +: DW] <= r_data_array[w_snoop_index][w_snoop_way_hit][i*DW +: DW];
-                                        r_memout_dm[i*DM +: DM] <= r_dm_array[w_snoop_index][w_snoop_way_hit][i*DM +: DM];
+                                        r_memout_data[i*DW +: DW] <= r_data_array[w_snoop_index][w_snoop_way_hit][i*DW +: DW]; // verilog_lint: waive line-length
+                                        r_memout_dm[i*DM +: DM] <= r_dm_array[w_snoop_index][w_snoop_way_hit][i*DM +: DM]; // verilog_lint: waive line-length
                                     end
                                     r_dirty_array[w_snoop_index][w_snoop_way_hit] <= 1'b0;
                                 end else begin
@@ -567,9 +567,6 @@ module cache_plru_mesi #(
             assign flat_r_dirty_array[i*DEPTH+:DEPTH] = r_dirty_array[i];
         end
     endgenerate
-
-
     // synopsys translate_on
-
 
 endmodule : cache_plru_mesi

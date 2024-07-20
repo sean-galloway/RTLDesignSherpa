@@ -44,7 +44,7 @@ module shifter_lfsr_fibonacci #(
 
     always_ff @(posedge i_clk or posedge i_rst_n) begin
         if (~i_rst_n) begin
-            r_lfsr <= {WIDTH{1'b0}};  // initialization to all 0's
+            r_lfsr <= 'b0;  // initialization to all 0's
         end else begin
             if (i_enable) begin
                 if (i_seed_load) r_lfsr <= i_seed_data;

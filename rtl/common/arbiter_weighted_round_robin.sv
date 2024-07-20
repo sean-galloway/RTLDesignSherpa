@@ -9,9 +9,9 @@ module arbiter_weighted_round_robin #(
     parameter int CLIENTS = 4,
     parameter int WAIT_GNT_ACK = 0,
     // Short Parameters
-    parameter int C = CLIENTS, 
-    parameter int N = $clog2(CLIENTS), 
-    parameter int MTW = MAX_THRESH_WIDTH, 
+    parameter int C = CLIENTS,
+    parameter int N = $clog2(CLIENTS),
+    parameter int MTW = MAX_THRESH_WIDTH,
     parameter int CXMTW = CLIENTS*MAX_THRESH_WIDTH
 
 ) (

@@ -65,8 +65,8 @@ module cache_lru #(
     genvar i;
     generate
         for (i = 0; i < A; i = i + 1) begin : gen_way_hit
-            assign w_rd_way_hit[i] = r_valid_array[w_rd_index*A+i] && (r_tag_array[w_rd_index*A+i] == w_rd_tag);
-            assign w_wr_way_hit[i] = r_valid_array[w_wr_index*A+i] && (r_tag_array[w_wr_index*A+i] == w_wr_tag);
+            assign w_rd_way_hit[i] = r_valid_array[w_rd_index*A+i] && (r_tag_array[w_rd_index*A+i] == w_rd_tag); // verilog_lint: waive line-length
+            assign w_wr_way_hit[i] = r_valid_array[w_wr_index*A+i] && (r_tag_array[w_wr_index*A+i] == w_wr_tag); // verilog_lint: waive line-length
         end
     endgenerate
 
@@ -84,7 +84,7 @@ module cache_lru #(
                 end
             end
         end else begin
-// Handle snoop requests
+            // Handle snoop requests
             if (i_snoop_valid) begin
                 logic [IndexWidth-1:0] snoop_index;
                 logic [TagWidth-1:0] snoop_tag;
@@ -98,7 +98,7 @@ module cache_lru #(
                 case (i_snoop_cmd)
                     4'b0000: begin // Snoop read
                         for (j = 0; j < A; j = j + 1) begin
-                            if (r_valid_array[snoop_index*A+j] && (r_tag_array[snoop_index*A+j] == snoop_tag)) begin
+                            if (r_valid_array[snoop_index*A+j] && (r_tag_array[snoop_index*A+j] == snoop_tag)) begin // verilog_lint: waive line-length
                                 o_snoop_hit = 1'b1;
                                 o_snoop_data = r_data_array[snoop_index][j];
                                 o_snoop_dirty = r_dirty_array[snoop_index*A+j];
@@ -106,7 +106,7 @@ module cache_lru #(
                                 r_lru_bits[snoop_index][j] = {LRU_WIDTH{1'b1}};
                                 for (int k = 0; k < A; k++) begin
                                     if (k != j) begin
-                                        r_lru_bits[snoop_index][k] <= (r_lru_bits[snoop_index][k] == {LRU_WIDTH{1'b1}}) ? r_lru_bits[snoop_index][k] : r_lru_bits[snoop_index][k] + 1;
+                                        r_lru_bits[snoop_index][k] <= (r_lru_bits[snoop_index][k] == {LRU_WIDTH{1'b1}}) ? r_lru_bits[snoop_index][k] : r_lru_bits[snoop_index][k] + 1; // verilog_lint: waive line-length
                                     end
                                 end
                             end
@@ -117,7 +117,7 @@ module cache_lru #(
                         o_snoop_dirty = 1'b0;
                         o_snoop_data = {DW{1'b0}};
                         for (j = 0; j < A; j = j + 1) begin
-                            if (r_valid_array[snoop_index*A+j] && (r_tag_array[snoop_index*A+j] == snoop_tag)) begin
+                            if (r_valid_array[snoop_index*A+j] && (r_tag_array[snoop_index*A+j] == snoop_tag)) begin // verilog_lint: waive line-length
                                 o_snoop_hit = 1'b1;
                                 o_snoop_data = r_data_array[snoop_index][j];
                                 o_snoop_dirty = r_dirty_array[snoop_index*A+j];
@@ -127,7 +127,7 @@ module cache_lru #(
                                 r_lru_bits[snoop_index][j] = {LRU_WIDTH{1'b1}};
                                 for (int k = 0; k < A; k++) begin
                                     if (k != j) begin
-                                        r_lru_bits[snoop_index][k] <= (r_lru_bits[snoop_index][k] == {LRU_WIDTH{1'b1}}) ? r_lru_bits[snoop_index][k] : r_lru_bits[snoop_index][k] + 1;
+                                        r_lru_bits[snoop_index][k] <= (r_lru_bits[snoop_index][k] == {LRU_WIDTH{1'b1}}) ? r_lru_bits[snoop_index][k] : r_lru_bits[snoop_index][k] + 1; // verilog_lint: waive line-length
                                     end
                                 end
                             end
@@ -135,14 +135,14 @@ module cache_lru #(
                     end
                     4'b0010: begin // Snoop invalidate
                         for (j = 0; j < A; j = j + 1) begin
-                            if (r_valid_array[snoop_index*A+j] && (r_tag_array[snoop_index*A+j] == snoop_tag)) begin
+                            if (r_valid_array[snoop_index*A+j] && (r_tag_array[snoop_index*A+j] == snoop_tag)) begin // verilog_lint: waive line-length
                                 // Invalidate the cache line
                                 r_valid_array[snoop_index*A+j] <= 1'b0;
                                 // Update LRU bits for the invalidated way
                                 r_lru_bits[snoop_index][j] = {LRU_WIDTH{1'b1}};
                                 for (int k = 0; k < A; k++) begin
                                     if (k != j) begin
-                                        r_lru_bits[snoop_index][k] <= (r_lru_bits[snoop_index][k] == {LRU_WIDTH{1'b1}}) ? r_lru_bits[snoop_index][k] : r_lru_bits[snoop_index][k] + 1;
+                                        r_lru_bits[snoop_index][k] <= (r_lru_bits[snoop_index][k] == {LRU_WIDTH{1'b1}}) ? r_lru_bits[snoop_index][k] : r_lru_bits[snoop_index][k] + 1; // verilog_lint: waive line-length
                                     end
                                 end
                             end
@@ -170,10 +170,10 @@ module cache_lru #(
                     for (j = 0; j < A; j = j + 1) begin
                         if (w_rd_way_hit[j]) begin
                             o_rd_data <= r_data_array[w_rd_index][j][DW-1:DW-LINE_SIZE*8];
-                            o_rd_data[LINE_SIZE*8-1:0] <= r_data_array[w_rd_index][j][LINE_SIZE*8-1:0] >> {w_rd_offset, {OffsetWidth{1'b0}}};
+                            o_rd_data[LINE_SIZE*8-1:0] <= r_data_array[w_rd_index][j][LINE_SIZE*8-1:0] >> {w_rd_offset, {OffsetWidth{1'b0}}}; // verilog_lint: waive line-length
                             r_lru_bits[w_rd_index][j] <= 0;
                         end else begin
-                            r_lru_bits[w_rd_index][j] <= (r_lru_bits[w_rd_index][j] == {LRU_WIDTH{1'b1}}) ? r_lru_bits[w_rd_index][j] : r_lru_bits[w_rd_index][j] + 1;
+                            r_lru_bits[w_rd_index][j] <= (r_lru_bits[w_rd_index][j] == {LRU_WIDTH{1'b1}}) ? r_lru_bits[w_rd_index][j] : r_lru_bits[w_rd_index][j] + 1; // verilog_lint: waive line-length
                         end
                     end
                 end else begin
@@ -188,7 +188,7 @@ module cache_lru #(
                             r_dirty_array[w_rd_index*A+j] <= 1'b0;
                             r_lru_bits[w_rd_index][j] <= 0;
                         end else begin
-                            r_lru_bits[w_rd_index][j] <= (r_lru_bits[w_rd_index][j] == {LRU_WIDTH{1'b1}}) ? r_lru_bits[w_rd_index][j] : r_lru_bits[w_rd_index][j] + 1;
+                            r_lru_bits[w_rd_index][j] <= (r_lru_bits[w_rd_index][j] == {LRU_WIDTH{1'b1}}) ? r_lru_bits[w_rd_index][j] : r_lru_bits[w_rd_index][j] + 1; // verilog_lint: waive line-length
                         end
                     end
 
@@ -196,7 +196,7 @@ module cache_lru #(
                         logic [LRU_WIDTH-1:0] w_lru_way;
                         w_lru_way = r_lru_bits[w_rd_index][0];
                         for (j = 1; j < A; j = j + 1) begin
-                            w_lru_way = (w_lru_way > r_lru_bits[w_rd_index][j]) ? w_lru_way : r_lru_bits[w_rd_index][j];
+                            w_lru_way = (w_lru_way > r_lru_bits[w_rd_index][j]) ? w_lru_way : r_lru_bits[w_rd_index][j]; // verilog_lint: waive line-length
                         end
 
                         for (j = 0; j < A; j = j + 1) begin
@@ -224,13 +224,13 @@ module cache_lru #(
                 if (o_wr_hit) begin
                     for (j = 0; j < A; j = j + 1) begin
                         if (w_wr_way_hit[j]) begin
-                            r_data_array[w_wr_index][j][DW-1:DW-LINE_SIZE*8] <= r_data_array[w_wr_index][j][DW-1:DW-LINE_SIZE*8];
-                            r_data_array[w_wr_index][j][LINE_SIZE*8-1:0] <= (r_data_array[w_wr_index][j][LINE_SIZE*8-1:0] & ~({{LINE_SIZE*8-OffsetWidth{1'b1}}, {OffsetWidth{1'b0}}} << w_wr_offset)) |
-                                                                              ((i_wr_data << {w_wr_offset, {OffsetWidth{1'b0}}}) & ({{LINE_SIZE{i_wr_dm}}, {LINE_SIZE*8-LINE_SIZE{1'b0}}}));
+                            r_data_array[w_wr_index][j][DW-1:DW-LINE_SIZE*8] <= r_data_array[w_wr_index][j][DW-1:DW-LINE_SIZE*8]; // verilog_lint: waive line-length
+                            r_data_array[w_wr_index][j][LINE_SIZE*8-1:0] <= (r_data_array[w_wr_index][j][LINE_SIZE*8-1:0] & ~({{LINE_SIZE*8-OffsetWidth{1'b1}}, {OffsetWidth{1'b0}}} << w_wr_offset)) | // verilog_lint: waive line-length
+                                                                              ((i_wr_data << {w_wr_offset, {OffsetWidth{1'b0}}}) & ({{LINE_SIZE{i_wr_dm}}, {LINE_SIZE*8-LINE_SIZE{1'b0}}})); // verilog_lint: waive line-length
                             r_dirty_array[w_wr_index*A+j] <= 1'b1;
                             r_lru_bits[w_wr_index][j] <= 0;
                         end else begin
-                            r_lru_bits[w_wr_index][j] <= (r_lru_bits[w_wr_index][j] == {LRU_WIDTH{1'b1}}) ? r_lru_bits[w_wr_index][j] : r_lru_bits[w_wr_index][j] + 1;
+                            r_lru_bits[w_wr_index][j] <= (r_lru_bits[w_wr_index][j] == {LRU_WIDTH{1'b1}}) ? r_lru_bits[w_wr_index][j] : r_lru_bits[w_wr_index][j] + 1; // verilog_lint: waive line-length
                         end
                     end
                 end else begin
@@ -239,14 +239,14 @@ module cache_lru #(
 
                     for (j = 0; j < A; j = j + 1) begin
                         if (w_empty_way[j] && !w_found) begin
-                            r_data_array[w_wr_index][j] <= (i_wr_data << {w_wr_offset, {OffsetWidth{1'b0}}}) & ({{LINE_SIZE{i_wr_dm}}, {LINE_SIZE*8-LINE_SIZE{1'b0}}});
+                            r_data_array[w_wr_index][j] <= (i_wr_data << {w_wr_offset, {OffsetWidth{1'b0}}}) & ({{LINE_SIZE{i_wr_dm}}, {LINE_SIZE*8-LINE_SIZE{1'b0}}}); // verilog_lint: waive line-length
                             r_tag_array[w_wr_index*A+j] <= w_wr_tag;
                             r_valid_array[w_wr_index*A+j] <= 1'b1;
                             r_dirty_array[w_wr_index*A+j] <= 1'b1;
                             r_lru_bits[w_wr_index][j] <= 0;
                             w_found = 1'b1;
                         end else if (!w_found) begin
-                            r_lru_bits[w_wr_index][j] <= (r_lru_bits[w_wr_index][j] == {LRU_WIDTH{1'b1}}) ? r_lru_bits[w_wr_index][j] : r_lru_bits[w_wr_index][j] + 1;
+                            r_lru_bits[w_wr_index][j] <= (r_lru_bits[w_wr_index][j] == {LRU_WIDTH{1'b1}}) ? r_lru_bits[w_wr_index][j] : r_lru_bits[w_wr_index][j] + 1; // verilog_lint: waive line-length
                         end
                     end
 
@@ -254,12 +254,12 @@ module cache_lru #(
                         logic [LRU_WIDTH-1:0] w_lru_way;
                         w_lru_way = r_lru_bits[w_wr_index][0];
                         for (j = 1; j < A; j = j + 1) begin
-                            w_lru_way = (w_lru_way > r_lru_bits[w_wr_index][j]) ? w_lru_way : r_lru_bits[w_wr_index][j];
+                            w_lru_way = (w_lru_way > r_lru_bits[w_wr_index][j]) ? w_lru_way : r_lru_bits[w_wr_index][j]; // verilog_lint: waive line-length
                         end
 
                         for (j = 0; j < A; j = j + 1) begin
                             if (r_lru_bits[w_wr_index][j] == w_lru_way) begin
-                                r_data_array[w_wr_index][j] <= (i_wr_data << {w_wr_offset, {OffsetWidth{1'b0}}}) & ({{LINE_SIZE{i_wr_dm}}, {LINE_SIZE*8-LINE_SIZE{1'b0}}});
+                                r_data_array[w_wr_index][j] <= (i_wr_data << {w_wr_offset, {OffsetWidth{1'b0}}}) & ({{LINE_SIZE{i_wr_dm}}, {LINE_SIZE*8-LINE_SIZE{1'b0}}}); // verilog_lint: waive line-length
                                 r_tag_array[w_wr_index*A+j] <= w_wr_tag;
                                 r_valid_array[w_wr_index*A+j] <= 1'b1;
                                 r_dirty_array[w_wr_index*A+j] <= 1'b1;

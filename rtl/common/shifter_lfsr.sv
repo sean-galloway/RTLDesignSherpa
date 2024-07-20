@@ -91,7 +91,7 @@ module shifter_lfsr #(
 
     always_ff @(posedge i_clk or negedge i_rst_n) begin
         if (~i_rst_n) begin
-            r_lfsr <= 0;
+            r_lfsr <= 'b0;
         end else begin
             if (i_enable) begin
                 if (i_seed_load) r_lfsr <= i_seed_data;

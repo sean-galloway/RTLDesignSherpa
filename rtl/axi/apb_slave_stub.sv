@@ -5,7 +5,7 @@ module apb_slave_stub #(
     parameter int DATA_WIDTH    = 32,
     parameter int ADDR_WIDTH    = 32,
     parameter int STRB_WIDTH    = DATA_WIDTH / 8,
-    parameter int CMD_PACKET_WIDTH = ADDR_WIDTH + DATA_WIDTH + STRB_WIDTH + 4, // addr, data, strb, prot, pwrite
+    parameter int CMD_PACKET_WIDTH = ADDR_WIDTH + DATA_WIDTH + STRB_WIDTH + 4, // verilog_lint: waive line-length
     parameter int RESP_PACKET_WIDTH = DATA_WIDTH + 1, // data, resp
     // Short Parameters
     parameter int DW  = DATA_WIDTH,

@@ -64,8 +64,8 @@ module cache_plru #(
     genvar i;
     generate
         for (i = 0; i < A; i = i + 1) begin : gen_way_hit
-            assign w_rd_way_hit[i] = r_valid_array[w_rd_index*A+i] && (r_tag_array[w_rd_index*A+i] == w_rd_tag);
-            assign w_wr_way_hit[i] = r_valid_array[w_wr_index*A+i] && (r_tag_array[w_wr_index*A+i] == w_wr_tag);
+            assign w_rd_way_hit[i] = r_valid_array[w_rd_index*A+i] && (r_tag_array[w_rd_index*A+i] == w_rd_tag); // verilog_lint: waive line-length
+            assign w_wr_way_hit[i] = r_valid_array[w_wr_index*A+i] && (r_tag_array[w_wr_index*A+i] == w_wr_tag); // verilog_lint: waive line-length
         end
     endgenerate
 
@@ -96,7 +96,7 @@ module cache_plru #(
                 case (i_snoop_cmd)
                     4'b0000: begin // Snoop read
                         for (j = 0; j < A; j = j + 1) begin
-                            if (r_valid_array[snoop_index*A+j] && (r_tag_array[snoop_index*A+j] == snoop_tag)) begin
+                            if (r_valid_array[snoop_index*A+j] && (r_tag_array[snoop_index*A+j] == snoop_tag)) begin // verilog_lint: waive line-length
                                 o_snoop_hit = 1'b1;
                                 o_snoop_data = r_data_array[snoop_index][j];
                                 o_snoop_dirty = r_dirty_array[snoop_index*A+j];
@@ -116,7 +116,7 @@ module cache_plru #(
                         o_snoop_dirty = 1'b0;
                         o_snoop_data = {DW{1'b0}};
                         for (j = 0; j < A; j = j + 1) begin
-                            if (r_valid_array[snoop_index*A+j] && (r_tag_array[snoop_index*A+j] == snoop_tag)) begin
+                            if (r_valid_array[snoop_index*A+j] && (r_tag_array[snoop_index*A+j] == snoop_tag)) begin // verilog_lint: waive line-length
                                 o_snoop_hit = 1'b1;
                                 o_snoop_data = r_data_array[snoop_index][j];
                                 o_snoop_dirty = r_dirty_array[snoop_index*A+j];
@@ -127,7 +127,7 @@ module cache_plru #(
                     end
                     4'b0010: begin // Snoop invalidate
                         for (j = 0; j < A; j = j + 1) begin
-                            if (r_valid_array[snoop_index*A+j] && (r_tag_array[snoop_index*A+j] == snoop_tag)) begin
+                            if (r_valid_array[snoop_index*A+j] && (r_tag_array[snoop_index*A+j] == snoop_tag)) begin // verilog_lint: waive line-length
                                 // Invalidate the cache line
                                 r_valid_array[snoop_index*A+j] <= 1'b0;
                             end
@@ -145,7 +145,7 @@ module cache_plru #(
                     for (j = 0; j < A; j = j + 1) begin
                         if (w_rd_way_hit[j]) begin
                             o_rd_data <= r_data_array[w_rd_index][j][DW-1:DW-LINE_SIZE*8];
-                            o_rd_data[LINE_SIZE*8-1:0] <= r_data_array[w_rd_index][j][LINE_SIZE*8-1:0] >> {w_rd_offset, {OffsetWidth{1'b0}}};
+                            o_rd_data[LINE_SIZE*8-1:0] <= r_data_array[w_rd_index][j][LINE_SIZE*8-1:0] >> {w_rd_offset, {OffsetWidth{1'b0}}}; // verilog_lint: waive line-length
 
                             // Update PLRU bits for the hit way
                             for (int i = 0; i < A-1; i++) begin
@@ -197,9 +197,9 @@ module cache_plru #(
                 if (o_wr_hit) begin
                     for (j = 0; j < A; j = j + 1) begin
                         if (w_wr_way_hit[j]) begin
-                            r_data_array[w_wr_index][j][DW-1:DW-LINE_SIZE*8] <= r_data_array[w_wr_index][j][DW-1:DW-LINE_SIZE*8];
-                            r_data_array[w_wr_index][j][LINE_SIZE*8-1:0] <= (r_data_array[w_wr_index][j][LINE_SIZE*8-1:0] & ~({{LINE_SIZE*8-OffsetWidth{1'b1}}, {OffsetWidth{1'b0}}} << w_wr_offset)) |
-                                                                              ((i_wr_data << {w_wr_offset, {OffsetWidth{1'b0}}}) & ({{LINE_SIZE{i_wr_dm}}, {LINE_SIZE*8-LINE_SIZE{1'b0}}}));
+                            r_data_array[w_wr_index][j][DW-1:DW-LINE_SIZE*8] <= r_data_array[w_wr_index][j][DW-1:DW-LINE_SIZE*8]; // verilog_lint: waive line-length
+                            r_data_array[w_wr_index][j][LINE_SIZE*8-1:0] <= (r_data_array[w_wr_index][j][LINE_SIZE*8-1:0] & ~({{LINE_SIZE*8-OffsetWidth{1'b1}}, {OffsetWidth{1'b0}}} << w_wr_offset)) | // verilog_lint: waive line-length
+                                                                              ((i_wr_data << {w_wr_offset, {OffsetWidth{1'b0}}}) & ({{LINE_SIZE{i_wr_dm}}, {LINE_SIZE*8-LINE_SIZE{1'b0}}})); // verilog_lint: waive line-length
                             r_dirty_array[w_wr_index*A+j] <= 1'b1;
 
                             // Update PLRU bits for the hit way
@@ -225,7 +225,7 @@ module cache_plru #(
 
                     for (j = 0; j < A; j = j + 1) begin
                         if (w_victim_way[j] && !w_found) begin
-                            r_data_array[w_wr_index][j] <= (i_wr_data << {w_wr_offset, {OffsetWidth{1'b0}}}) & ({{LINE_SIZE{i_wr_dm}}, {LINE_SIZE*8-LINE_SIZE{1'b0}}});
+                            r_data_array[w_wr_index][j] <= (i_wr_data << {w_wr_offset, {OffsetWidth{1'b0}}}) & ({{LINE_SIZE{i_wr_dm}}, {LINE_SIZE*8-LINE_SIZE{1'b0}}}); // verilog_lint: waive line-length
                             r_tag_array[w_wr_index*A+j] <= w_wr_tag;
                             r_valid_array[w_wr_index*A+j] <= 1'b1;
                             r_dirty_array[w_wr_index*A+j] <= 1'b1;
