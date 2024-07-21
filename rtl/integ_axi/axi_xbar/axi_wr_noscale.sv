@@ -139,8 +139,8 @@ module axi_wr_noscale
         .IW                     (IW),
         .SW                     (SSW),
         .UW                     (UW),
-        .AWSize                 (AWSize),
-        .WSize                  (WSize),
+        .AWSize                 (SAWSize),
+        .WSize                  (SWSize),
         .BSize                  (BSize)
     ) axi_slave_wr_stub_inst (
         .aclk                   (aclk),
@@ -199,13 +199,13 @@ module axi_wr_noscale
         .AXI_WSTRB_WIDTH     (AXI_MST_WSTRB_WIDTH),
         // Short and aclculated params
         .AW                  (AXI_ADDR_WIDTH),
-        .DW                  (AXI_DATA_WIDTH),
+        .DW                  (AXI_MST_DATA_WIDTH),
         .IW                  (AXI_ID_WIDTH),
-        .SW                  (AXI_WSTRB_WIDTH),
+        .SW                  (AXI_MST_WSTRB_WIDTH),
         .UW                  (AXI_USER_WIDTH),
-        .AWSize              (IW+AW+8+3+2+1+4+3+4+4+UW),
-        .WSize               (DW+SW+1+UW),
-        .BSize               (IW+2+UW)
+        .AWSize              (MAWSize),
+        .WSize               (MWSize),
+        .BSize               (BSize)
     ) u_axi_master_wr_stub (
         // Global Clock and Reset
         .aclk                (aclk),

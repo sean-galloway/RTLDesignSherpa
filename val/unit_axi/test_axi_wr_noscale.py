@@ -223,16 +223,9 @@ def test_axi2abp_shim(request, id_width, addr_width, data_width, user_width, apb
     toplevel = dut_name
 
     verilog_sources = [
-        os.path.join(rtl_dir,     "counter_bin.sv"),
-        os.path.join(rtl_dir,     "fifo_control.sv"),
-        os.path.join(rtl_axi_dir, "axi_fifo_sync.sv"),
         os.path.join(rtl_axi_dir, "axi_skid_buffer.sv"),
-        os.path.join(rtl_axi_dir, "axi_gen_addr.sv"),
-        os.path.join(rtl_axi_dir, "axi_slave_rd_stub.sv"),
         os.path.join(rtl_axi_dir, "axi_slave_wr_stub.sv"),
-        os.path.join(rtl_axi_dir, "axi_slave_stub.sv"),
-        os.path.join(rtl_axi_dir, "axi2apb_convert.sv"),
-        os.path.join(rtl_axi_dir, "apb_master_stub.sv"),
+        os.path.join(rtl_axi_dir, "axi_master_wr_stub.sv"),
         os.path.join(rtl_axi_dir, f"{dut_name}.sv")
     ]
     includes = []

@@ -56,11 +56,7 @@ def test_axi_fifo_async(request, depth, data_width, almost_wr_margin, almost_rd_
     parameters = {'DEPTH':depth,'DATA_WIDTH':data_width,'ALMOST_WR_MARGIN':almost_wr_margin,'ALMOST_RD_MARGIN':almost_rd_margin, }
     extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
 
-    # sourcery skip: no-conditionals-in-tests
-    if request.config.getoption("--regression"):
-        sim_build = os.path.join(repo_root, 'val', 'unit_axi', 'regression_area', 'sim_build', request.node.name.replace('[', '-').replace(']', ''))
-    else:
-        sim_build = os.path.join(repo_root, 'val', 'unit_axi', 'local_sim_build', request.node.name.replace('[', '-').replace(']', ''))
+    sim_build = os.path.join(repo_root, 'val', 'unit_axi', 'local_sim_build', request.node.name.replace('[', '-').replace(']', ''))
 
     extra_env['LOG_PATH'] = os.path.join(str(sim_build), f'cocotb_log_{dut_name}.log')
     extra_env['DUT'] = dut_name

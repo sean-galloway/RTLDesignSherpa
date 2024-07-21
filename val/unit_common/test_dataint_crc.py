@@ -55,11 +55,7 @@ def test_dataint_crc(request, algo_name, data_width, crc_width, poly, poly_init,
     extra_env['PARAM_POLY_INIT'] = poly_init
     extra_env['PARAM_XOROUT'] = xorout
 
-    # sourcery skip: no-conditionals-in-tests
-    if request.config.getoption("--regression"):
-        sim_build = os.path.join(repo_root, 'val', 'unit_common', 'regression_area', 'sim_build', request.node.name.replace('[', '-').replace(']', ''))
-    else:
-        sim_build = os.path.join(repo_root, 'val', 'unit_common', 'local_sim_build', request.node.name.replace('[', '-').replace(']', ''))
+    sim_build = os.path.join(repo_root, 'val', 'unit_common', 'local_sim_build', request.node.name.replace('[', '-').replace(']', ''))
 
     extra_env['LOG_PATH'] = os.path.join(str(sim_build), f'cocotb_log_{dut_name}.log')
     extra_env['DUT'] = dut_name

@@ -117,23 +117,22 @@ class CTCache(TBBase):
         num_operations = self.num_ops
 
         for _ in range(num_operations):
-            if crand_read.next() > 50:  # Adjust the threshold as needed
-                if not self.address_queue.empty():
-                    rd_addr = self.address_queue.get_nowait()
-                    self.dut.i_rd_addr.value = rd_addr
-                    self.dut.i_rd.value = 1
-                    await Timer(100, units='ps')
-                    await self.wait_clocks('i_clk', 1)
-                    is_hit = self.dut.o_rd_hit.value
-                    rd_data = self.dut.o_rd_data.value
-                    addr_hex = self.hex_format(rd_addr, self.max_val)
-                    rd_data_hex = self.hex_format(rd_data, self.max_val)
-                    current_time_ns = get_sim_time('ns')
-                    expected_data = self.data_memory.get(rd_addr, 0)  # Get the expected data from the dictionary
-                    self.log.info(f'Read: Addr: {addr_hex} Data: {rd_data_hex} Expected: {self.hex_format(expected_data, self.max_val)} Hit: {is_hit} Time: {current_time_ns}')
-                    if expected_data != rd_data:
-                        self.log.error(f"Error: Read data mismatch for address {addr_hex}. Expected: {self.hex_format(expected_data, self.max_val)}, Actual: {rd_data_hex}")
-                    self.dut.i_rd.value = 0
+            if crand_read.next() > 50 and not self.address_queue.empty():
+                rd_addr = self.address_queue.get_nowait()
+                self.dut.i_rd_addr.value = rd_addr
+                self.dut.i_rd.value = 1
+                await Timer(100, units='ps')
+                await self.wait_clocks('i_clk', 1)
+                is_hit = self.dut.o_rd_hit.value
+                rd_data = self.dut.o_rd_data.value
+                addr_hex = self.hex_format(rd_addr, self.max_val)
+                rd_data_hex = self.hex_format(rd_data, self.max_val)
+                current_time_ns = get_sim_time('ns')
+                expected_data = self.data_memory.get(rd_addr, 0)  # Get the expected data from the dictionary
+                self.log.info(f'Read: Addr: {addr_hex} Data: {rd_data_hex} Expected: {self.hex_format(expected_data, self.max_val)} Hit: {is_hit} Time: {current_time_ns}')
+                if expected_data != rd_data:
+                    self.log.error(f"Error: Read data mismatch for address {addr_hex}. Expected: {self.hex_format(expected_data, self.max_val)}, Actual: {rd_data_hex}")
+                self.dut.i_rd.value = 0
 
             await self.wait_clocks('i_clk', crand_delay.next())
 
@@ -216,10 +215,7 @@ def test_cache(request, depth, a, dw, aw):
 
     extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
 
-    if request.config.getoption("--regression"):
-        sim_build = os.path.join(repo_root, 'val', 'unit_common', 'regression_area', 'sim_build', request.node.name.replace('[', '-').replace(']', ''))
-    else:
-        sim_build = os.path.join(repo_root, 'val', 'unit_common', 'local_sim_build', request.node.name.replace('[', '-').replace(']', ''))
+    sim_build = os.path.join(repo_root, 'val', 'unit_common', 'local_sim_build', request.node.name.replace('[', '-').replace(']', ''))
 
     extra_env['LOG_PATH'] = os.path.join(str(sim_build), f'cocotb_log_{dut_name}.log')
     extra_env['DUT'] = dut_name
