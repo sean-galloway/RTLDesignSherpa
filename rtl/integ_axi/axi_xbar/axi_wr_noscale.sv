@@ -56,6 +56,13 @@ module axi_wr_noscale
     input  logic                           s_axi_wvalid,
     output logic                           s_axi_wready,
 
+    // Write response channel (B)
+    output logic [AXI_ID_WIDTH-1:0]        s_axi_bid,
+    output logic [1:0]                     s_axi_bresp,
+    output logic [AXI_USER_WIDTH-1:0]      s_axi_buser,
+    output logic                           s_axi_bvalid,
+    input  logic                           s_axi_bready,
+
     // Write address channel (AW)
     output logic [AXI_ID_WIDTH-1:0]        m_axi_awid,
     output logic [AXI_ADDR_WIDTH-1:0]      m_axi_awaddr,
@@ -77,7 +84,14 @@ module axi_wr_noscale
     output logic                           m_axi_wlast,
     output logic [AXI_USER_WIDTH-1:0]      m_axi_wuser,
     output logic                           m_axi_wvalid,
-    input  logic                           m_axi_wready
+    input  logic                           m_axi_wready,
+
+    // Write response channel (B)
+    input  logic [AXI_ID_WIDTH-1:0]        m_axi_bid,
+    input  logic [1:0]                     m_axi_bresp,
+    input  logic [AXI_USER_WIDTH-1:0]      m_axi_buser,
+    input  logic                           m_axi_bvalid,
+    output logic                           m_axi_bready
 );
 
     logic                       r_s_axi_awvalid;
@@ -98,7 +112,7 @@ module axi_wr_noscale
     // AW interface
     logic                       r_m_axi_awvalid;
     logic                       r_m_axi_awready;
-    logic [2:0]                 r_m_axi_aw_count;
+    logic [3:0]                 r_m_axi_aw_count;
     logic [MAWSize-1:0]         r_m_axi_aw_pkt;
 
     // W interface

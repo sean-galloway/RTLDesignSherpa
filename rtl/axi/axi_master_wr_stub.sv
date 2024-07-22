@@ -60,7 +60,7 @@ module axi_master_wr_stub
     // AW interface
     input  logic                       r_m_axi_awvalid,
     output logic                       r_m_axi_awready,
-    output logic [2:0]                 r_m_axi_aw_count,
+    output logic [3:0]                 r_m_axi_aw_count,
     input  logic [AWSize-1:0]          r_m_axi_aw_pkt,
 
     // W interface

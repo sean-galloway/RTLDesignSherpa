@@ -30,6 +30,7 @@ module axi_skid_buffer #(
     logic                  w_rd_xfer;
     logic [DW-1:0]         zeros;
 
+    assign zeros     = 'b0;
     assign w_wr_xfer = i_wr_valid & o_wr_ready;
     assign w_rd_xfer = o_rd_valid & i_rd_ready;
 

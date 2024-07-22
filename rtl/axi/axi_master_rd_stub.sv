@@ -52,7 +52,7 @@ module axi_master_rd_stub
     // AR interface
     input  logic                       r_m_axi_arvalid,
     output logic                       r_m_axi_arready,
-    input  logic [2:0]                 r_m_axi_ar_count,
+    input  logic [3:0]                 r_m_axi_ar_count,
     input  logic [ARSize-1:0]          r_m_axi_ar_pkt,
 
     // R interface
