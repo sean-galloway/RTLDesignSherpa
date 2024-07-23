@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module axi_wr_noscale
+module axi_wr_upscale
 #(
     parameter int SKID_DEPTH_AW          = 2,
     parameter int SKID_DEPTH_W           = 4,
@@ -99,10 +99,32 @@ module axi_wr_noscale
     logic [3:0]                 r_s_axi_aw_count;
     logic [SAWSize-1:0]         r_s_axi_aw_pkt;
 
+    logic [AXI_ADDR_WIDTH-1:0]  r_s_axi_awaddr;
+    logic [7:0]                 r_s_axi_awlen;
+    logic [2:0]                 r_s_axi_awsize;
+    logic [1:0]                 r_s_axi_awburst;
+    logic                       r_s_axi_awlock;
+    logic [3:0]                 r_s_axi_awcache;
+    logic [2:0]                 r_s_axi_awprot;
+    logic [3:0]                 r_s_axi_awqos;
+    logic [3:0]                 r_s_axi_awregion;
+    logic [AXI_USER_WIDTH-1:0]  r_s_axi_awuser;
+
+    assign {r_s_axi_awid,r_s_axi_awaddr,r_s_axi_awlen,r_s_axi_awsize,r_s_axi_awburst,
+                r_s_axi_awlock,r_s_axi_awcache,r_s_axi_awprot,r_s_axi_awqos,
+                r_s_axi_awregion,r_s_axi_awuser} = r_a_axi_aw_pkt;
+
     // W interface
-    logic                       r_s_axi_wvalid;
-    logic                       r_s_axi_wready;
-    logic [SWSize-1:0]          r_s_axi_w_pkt;
+    logic                           r_s_axi_wvalid;
+    logic                           r_s_axi_wready;
+    logic [SWSize-1:0]              r_s_axi_w_pkt;
+
+    logic [AXI_SLV_DATA_WIDTH-1:0]  r_s_axi_wdata;
+    logic [AXI_SLV_WSTRB_WIDTH-1:0] r_s_axi_wstrb;
+    logic                           r_s_axi_wlast;
+    logic [AXI_USER_WIDTH-1:0]      r_s_axi_wuser;
+
+    assign {r_s_axi_wdata,r_s_axi_wstrb,r_s_axi_wlast,r_s_axi_wuser} = r_s_axi_w_pkt;
 
     // B interface
     logic                       r_s_axi_bvalid;
@@ -115,10 +137,27 @@ module axi_wr_noscale
     logic [3:0]                 r_m_axi_aw_count;
     logic [MAWSize-1:0]         r_m_axi_aw_pkt;
 
+    logic [AXI_ID_WIDTH-1:0]    r_m_axi_awid;
+    logic [AXI_ADDR_WIDTH-1:0]  r_m_axi_awaddr;
+    logic [7:0]                 r_m_axi_awlen;
+    logic [2:0]                 r_m_axi_awsize;
+    logic [1:0]                 r_m_axi_awburst;
+    logic                       r_m_axi_awlock;
+    logic [3:0]                 r_m_axi_awcache;
+    logic [2:0]                 r_m_axi_awprot;
+    logic [3:0]                 r_m_axi_awqos;
+    logic [3:0]                 r_m_axi_awregion;
+    logic [AXI_USER_WIDTH-1:0]  r_m_axi_awuser;
+
     // W interface
-    logic                       r_m_axi_wvalid;
-    logic                       r_m_axi_wready;
-    logic [MWSize-1:0]          r_m_axi_w_pkt;
+    logic                           r_m_axi_wvalid;
+    logic                           r_m_axi_wready;
+    logic [MWSize-1:0]              r_m_axi_w_pkt;
+
+    logic [AXI_MST_DATA_WIDTH-1:0]  r_m_axi_wdata;
+    logic [AXI_MST_WSTRB_WIDTH-1:0] r_m_axi_wstrb;
+    logic                           r_m_axi_wlast;
+    logic [AXI_USER_WIDTH-1:0]      r_m_axi_wuser;
 
     // B interface
     logic                       r_m_axi_bvalid;
@@ -249,4 +288,4 @@ module axi_wr_noscale
         .r_m_axi_b_pkt       (r_m_axi_b_pkt)
     );
 
-endmodule : axi_wr_noscale
+endmodule : axi_wr_upscale
