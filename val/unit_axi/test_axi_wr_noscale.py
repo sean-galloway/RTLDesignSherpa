@@ -129,7 +129,7 @@ class Axi2AxiTB(TBBase):
         # sourcery skip: move-assign
         self.log.info(f'run test write/read: {size=}')
         max_burst_size = self.axi_master.max_burst_size
-        length = self.cycle_count
+        length = self.cycle_count * self.mst_strb_bits
 
         if size is None:
             size = max_burst_size
@@ -142,7 +142,12 @@ class Axi2AxiTB(TBBase):
             self.log.info(f"run_test_write/write(AXI-wr): offset {addr}, size {size}, data {[f'{x:02X}' for x in test_data]}")
             await self.axi_master.write(addr, test_data, size=size)
             await self.wait_clocks('aclk', 10)
-
+            actual_data = self.axi_ram.read(addr, length)
+            test_data_hex = bytearray_to_hex_strings([test_data])
+            actual_data_hex = bytearray_to_hex_strings([actual_data])
+            self.log.debug(f'{test_data_hex=}')
+            self.log.debug(f'{actual_data_hex=}')
+            assert test_data_hex == actual_data_hex
         await self.wait_clocks('aclk', 2)
 
 
@@ -180,8 +185,7 @@ rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hd
 rtl_axi_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'axi')) #path to hdl folder where .v files are placed
 rtl_integ_axi_dir = os.path.abspath(os.path.join(repo_root, 'rtl', 'integ_axi', 'axi_xbar')) #path to hdl folder where .v files are placed
 
-# @pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width", [(8,32,8,1,12,8),(8,32,16,1,12,8),(8,32,32,1,12,8),(8,32,64,1,12,8)])
-@pytest.mark.parametrize("id_width, addr_width, mst_data_width, slv_data_width, user_width ", [(8,32,32,32,1)])
+@pytest.mark.parametrize("id_width, addr_width, mst_data_width, slv_data_width, user_width ", [(8,32,32,32,1), (8,32,64,64,1), (8,32,128,128,1), (8,32,256,256,1)])
 def test_axi_wr_noscale(request, id_width, addr_width, mst_data_width, slv_data_width, user_width ):
     dut_name = "axi_wr_noscale"
     module = os.path.splitext(os.path.basename(__file__))[0]
