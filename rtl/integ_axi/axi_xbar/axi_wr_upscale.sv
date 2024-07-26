@@ -95,9 +95,9 @@ module axi_wr_upscale
 );
 
     // Data and Strobe Size values
-    localparam int DataRatio = AXI_SLV_DATA_WIDTH / AXI_MST_DATA_WIDTH;
-    localparam int DataDiff  = AXI_SLV_DATA_WIDTH - AXI_MST_DATA_WIDTH;
-    localparam int StrbDiff  = AXI_SLV_WSTRB_WIDTH - AXI_MST_WSTRB_WIDTH;
+    localparam int DataRatio = AXI_MST_DATA_WIDTH / AXI_SLV_DATA_WIDTH;
+    localparam int DataDiff  = AXI_MST_DATA_WIDTH - AXI_SLV_DATA_WIDTH;
+    localparam int StrbDiff  = AXI_MST_WSTRB_WIDTH - AXI_SLV_WSTRB_WIDTH;
 
     logic                       r_s_axi_awvalid;
     logic                       r_s_axi_awready;
@@ -292,10 +292,9 @@ module axi_wr_upscale
     );
 
     // Transfer FSM
-    typedef enum logic [2:0] {
-        IDLE    = 3'b001,
-        SIMPLE  = 3'b010,
-        COMBINE = 3'b100
+    typedef enum logic [1:0] {
+        IDLE    = 2'b01,
+        COMBINE = 2'b10
     } xfer_state_t;
     xfer_state_t r_xfer_state, w_xfer_next_state;
 
@@ -304,11 +303,11 @@ module axi_wr_upscale
     logic [9:0]       w_xfer_size_bytes;
 
     // Data and Strobe accumulator
-    logic [MDW-1:0]  r_data_accum, w_data_accum;
-    logic [MSW-1:0]  r_strb_accum, w_strb_accum;
-    logic [7:0]      r_accum_count_dn, w_accum_count_dn;
-    logic [7:0]      r_accum_count_up, w_accum_count_up;
-    logic [2:0]      r_awsize, w_awsize;
+    logic [MDW-SDW-1:0]  r_data_accum, w_data_accum;
+    logic [MSW-SSW-1:0]  r_strb_accum, w_strb_accum;
+    logic [7:0]          r_accum_count_dn, w_accum_count_dn;
+    logic [7:0]          r_accum_count_up, w_accum_count_up;
+    logic [2:0]          r_awsize, w_awsize;
 
     // Size calculation
     assign w_xfer_size_bytes = (1 << r_s_axi_awsize);
@@ -345,7 +344,7 @@ module axi_wr_upscale
         w_xfer_next_state        = r_xfer_state;
         w_accum_count_dn         = r_accum_count_dn;
         w_accum_count_up         = r_accum_count_up;
-        w_awsize                 = (w_xfer_next_state != IDLE) ? r_s_axi_awsize : r_awsize;
+        w_awsize                 = r_awsize;
         w_data_accum             = r_data_accum;
         w_strb_accum             = r_strb_accum;
         r_s_axi_awready          = 1'b0;
@@ -362,51 +361,41 @@ module axi_wr_upscale
         r_m_axi_awqos            = r_s_axi_awqos;
         r_m_axi_awregion         = r_s_axi_awregion;
         r_m_axi_awuser           = r_s_axi_awuser;
-        r_m_axi_wdata            = (r_xfer_state == SIMPLE) ? {{DataDiff{1'b0}}, r_s_axi_wdata} :
-                                        {r_s_axi_wdata, r_data_accum};
-        r_m_axi_wstrb            = (r_xfer_state == SIMPLE) ? {{StrbDiff{1'b0}}, r_s_axi_wstrb} :
-                                        {r_s_axi_wstrb, r_strb_accum};
-        r_m_axi_wlast            = r_s_axi_wlast;
+        r_m_axi_wdata            = {r_s_axi_wdata, r_data_accum};
+        r_m_axi_wstrb            = {r_s_axi_wstrb, r_strb_accum};
         r_m_axi_wuser            = r_s_axi_wuser;
+        r_m_axi_wlast            = 1'b0;
+        r_s_axi_awready          = 1'b0;
+        r_s_axi_wready           = 1'b0;
+        r_m_axi_awvalid          = 1'b0;
+        r_m_axi_wvalid           = 1'b0;
 
         case (r_xfer_state)
             IDLE: begin
                 if (r_s_axi_awvalid && r_m_axi_awready) begin
-                    r_m_axi_awvalid  = 1'b1;
-                    r_s_axi_awready  = 1'b1;
-                    w_length_count   = r_s_axi_awlen;
-                    w_accum_count_dn = DataRatio;
-                    w_accum_count_up = 'b0;
-                    w_data_accum     = 'b0;
-                    w_strb_accum     = 'b0;
-                    if (w_xfer_size_bytes <= AXI_MST_DATA_WIDTH) begin
-                        w_xfer_next_state = SIMPLE;
-                    end else begin
-                        w_xfer_next_state = COMBINE;
-                    end
-                end
-            end
-            SIMPLE: begin
-                if (r_s_axi_wvalid && r_m_axi_wready) begin
-                    r_m_axi_wvalid = 1'b1;
-                    r_s_axi_wready = 1'b1;
-                    if (r_s_axi_wlast) begin
-                        w_xfer_next_state = IDLE;
-                    end
+                    r_m_axi_awvalid   = 1'b1;
+                    r_s_axi_awready   = 1'b1;
+                    w_awsize          = r_s_axi_awsize;
+                    w_length_count    = r_s_axi_awlen;
+                    w_accum_count_dn  = DataRatio;
+                    w_accum_count_up  = 'b0;
+                    w_data_accum      = 'b0;
+                    w_strb_accum      = 'b0;
+                    w_xfer_next_state = COMBINE;
                 end
             end
             COMBINE: begin
                 if (r_s_axi_wvalid && r_m_axi_wready) begin
-                    w_length_count = r_length_count-1;
+                    w_length_count   = r_length_count-1;
                     w_accum_count_dn = r_accum_count_dn-1;
                     w_accum_count_up = r_accum_count_up+1;
                     if (r_accum_count_dn == 0) begin
                         r_m_axi_wvalid = 1'b1;
                         r_s_axi_wready = 1'b1;
-                        if (w_length_count == 0) begin
+                        if (r_length_count == 0) begin
                             r_m_axi_wlast     = 1'b1;
                             w_xfer_next_state = IDLE;
-                            if (r_length_count * (AXI_SLV_DATA_WIDTH/8) < AXI_MST_DATA_WIDTH/8) begin
+                            if ((r_length_count * AXI_SLV_WSTRB_WIDTH) < AXI_MST_WSTRB_WIDTH) begin
                                 w_accum_count_dn = r_length_count;
                             end else begin
                                 w_accum_count_dn = DataRatio;

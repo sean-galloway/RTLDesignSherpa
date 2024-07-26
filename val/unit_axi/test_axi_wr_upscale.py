@@ -78,7 +78,6 @@ def bytearray_to_hex(bytearray_value):
 class Axi2AxiTB(TBBase):
     def __init__(self, dut):
         TBBase.__init__(self, dut)
-        self.log = self.configure_logging(level=logging.DEBUG)
         self.log.info('Starting Axi2AxiTB')
         self.MST_DATA_WIDTH   = self.convert_to_int(os.environ.get('PARAM_AXI_MST_DATA_WIDTH', '0'))
         self.SLV_DATA_WIDTH   = self.convert_to_int(os.environ.get('PARAM_AXI_SLV_DATA_WIDTH', '0'))
@@ -186,7 +185,7 @@ rtl_axi_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'axi')) #path to h
 rtl_integ_axi_dir = os.path.abspath(os.path.join(repo_root, 'rtl', 'integ_axi', 'axi_xbar')) #path to hdl folder where .v files are placed
 
 # @pytest.mark.parametrize("id_width, addr_width, mst_data_width, slv_data_width, user_width ", [(8,32,32,32,1), (8,32,64,64,1), (8,32,128,128,1), (8,32,256,256,1)])
-@pytest.mark.parametrize("id_width, addr_width, mst_data_width, slv_data_width, user_width ", [(8,32,32,64,1)])
+@pytest.mark.parametrize("id_width, addr_width, slv_data_width, mst_data_width, user_width ", [(8,32,32,64,1)])
 def test_axi_wr_noscale(request, id_width, addr_width, mst_data_width, slv_data_width, user_width ):
     dut_name = "axi_wr_upscale"
     module = os.path.splitext(os.path.basename(__file__))[0]
