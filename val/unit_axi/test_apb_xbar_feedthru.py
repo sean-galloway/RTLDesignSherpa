@@ -12,7 +12,8 @@ from cocotb_test.simulator import run
 from TBBase import TBBase
 from DelayRandomizer import DelayRandomizer
 from ConstrainedRandom import ConstrainedRandom
-from APB import APBTransaction, APBMonitor, APBSlave, APBMaster
+from APB import APBMonitor, APBSlave, APBMaster
+from APBTransactionExtra import APBTransactionExtra as APBTransaction
 from collections import deque
 
 class APBXbar_TB(TBBase):

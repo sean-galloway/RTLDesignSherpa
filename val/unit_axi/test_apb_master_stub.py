@@ -13,6 +13,7 @@ from TBBase import TBBase
 from DelayRandomizer import DelayRandomizer
 from ConstrainedRandom import ConstrainedRandom
 from APB import APBTransaction, APBMonitor, APBSlave
+from APBTransactionExtra import APBTransactionExtra as APBTransaction
 
 class APBMasterStub_TB(TBBase):
     def __init__(self, dut):
