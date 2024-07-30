@@ -394,7 +394,7 @@ class APBSlave(BusMonitor):
         if signals:
             self._signals = signals
         else:
-            self._signals = apb_signals
+            self._signals = apb_signals + apb_optional_signals
             self._optional_signals = apb_optional_signals
         if constraints is None:
             self.constraints = {
@@ -417,6 +417,12 @@ class APBSlave(BusMonitor):
         # Create the memory model
         self.mem = MemoryModel(num_lines=self.num_lines, bytes_per_line=self.strb_bits, log=self.log, preset_values=registers)
         self.sentQ = deque()
+
+        for sig in apb_optional_signals:
+            if self.is_signal_present(sig):
+                self.log.debug(f'slave present: {sig}')
+            else:
+                self.log.debug(f'slave not present: {sig}')
 
         # initialise all outputs to zero
         self.bus.PRDATA.setimmediatevalue(0)
@@ -526,14 +532,6 @@ class APBMaster(BusDriver):
             self.constraints = constraints
         BusDriver.__init__(self, entity, name, clock, **kwargs)
         self.log = log or self.entity._log
-        # Print the attributes of the bus object
-        self.log.debug("APB Master Bus object attributes:")
-        for attribute in dir(self.bus):
-            try:
-                value = getattr(self.bus, attribute)
-                self.log.debug(f"{attribute}: {value}")
-            except AttributeError:
-                self.log.debug(f"{attribute}: <unreadable>")
         self.clock          = clock
         self.addr_width     = addr_width
         self.bus_width      = bus_width
@@ -541,6 +539,11 @@ class APBMaster(BusDriver):
         self.addr_mask      = (2**self.strb_bits - 1)
         self.delay_crand    = DelayRandomizer(self.constraints)
         self.sentQ = deque()
+        for sig in apb_optional_signals:
+            if self.is_signal_present(sig):
+                self.log.debug(f'master present: {sig}')
+            else:
+                self.log.debug(f'master not present: {sig}')
         # initialise all outputs to zero
         self.bus.PADDR.setimmediatevalue(0)
         self.bus.PWRITE.setimmediatevalue(0)
