@@ -11,7 +11,7 @@ module axi_master_wr_stub
     parameter int AXI_DATA_WIDTH    = 32,
     parameter int AXI_USER_WIDTH    = 1,
     parameter int AXI_WSTRB_WIDTH   = AXI_DATA_WIDTH / 8,
-    // Short and aclculated params
+    // Short params and calculations
     parameter int AW       = AXI_ADDR_WIDTH,
     parameter int DW       = AXI_DATA_WIDTH,
     parameter int IW       = AXI_ID_WIDTH,
@@ -60,7 +60,7 @@ module axi_master_wr_stub
     // AW interface
     input  logic                       r_m_axi_awvalid,
     output logic                       r_m_axi_awready,
-    output logic [2:0]                 r_m_axi_aw_count,
+    output logic [3:0]                 r_m_axi_aw_count,
     input  logic [AWSize-1:0]          r_m_axi_aw_pkt,
 
     // W interface

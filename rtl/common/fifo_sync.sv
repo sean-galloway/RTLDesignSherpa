@@ -77,7 +77,6 @@ module fifo_sync #(
         .iw_wdom_rd_ptr_bin(w_rd_ptr_bin_next),
         .iw_rd_ptr_bin     (w_rd_ptr_bin_next),
         .iw_rdom_wr_ptr_bin(w_wr_ptr_bin_next),
-        
         .ow_count          (),
         .o_wr_full         (o_wr_full),
         .o_wr_almost_full  (o_wr_almost_full),

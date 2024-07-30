@@ -130,10 +130,8 @@ def test_shifter_lfsr_galois(request, width, tap_index_width, tap_count, taps):
 
     extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
     extra_env['PARAM_TAPS'] = f'{taps}'
-    if request.config.getoption("--regression"):
-        sim_build = os.path.join(repo_root, 'val', 'unit_common', 'regression_area', 'sim_build', request.node.name.replace('[', '-').replace(']', ''))
-    else:
-        sim_build = os.path.join(repo_root, 'val', 'unit_common', 'local_sim_build', request.node.name.replace('[', '-').replace(']', ''))
+
+    sim_build = os.path.join(repo_root, 'val', 'unit_common', 'local_sim_build', request.node.name.replace('[', '-').replace(']', ''))
 
     extra_env['LOG_PATH'] = os.path.join(str(sim_build), f'cocotb_log_{dut_name}.log')
     extra_env['DUT'] = dut_name

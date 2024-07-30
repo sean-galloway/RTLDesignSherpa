@@ -30,6 +30,7 @@ module axi_skid_buffer #(
     logic                  w_rd_xfer;
     logic [DW-1:0]         zeros;
 
+    assign zeros     = 'b0;
     assign w_wr_xfer = i_wr_valid & o_wr_ready;
     assign w_rd_xfer = o_rd_valid & i_rd_ready;
 
@@ -59,11 +60,11 @@ module axi_skid_buffer #(
             o_wr_ready <= 1'b0;
             o_rd_valid <= 1'b0;
         end else begin
-            o_wr_ready <= (r_data_count <= SKID_DEPTH-2) || 
+            o_wr_ready <= (r_data_count <= SKID_DEPTH-2) ||
                             (r_data_count == SKID_DEPTH-1 && (~w_wr_xfer || w_rd_xfer)) ||
                             (r_data_count == SKID_DEPTH && w_rd_xfer);
 
-            o_rd_valid <= (r_data_count >= 2) || 
+            o_rd_valid <= (r_data_count >= 2) ||
                             (r_data_count == 4'b0001 && (~w_rd_xfer || w_wr_xfer)) ||
                             (r_data_count == 4'b0000 && w_wr_xfer);
         end

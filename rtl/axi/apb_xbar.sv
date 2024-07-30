@@ -65,6 +65,7 @@ module apb_xbar #(
     input  logic [S-1:0]                 s_apb_pslverr
 );
 
+    // synopsys translate_off
     integer file;
 
     initial begin
@@ -74,6 +75,7 @@ module apb_xbar #(
             $finish;
         end
     end
+    // synopsys translate_on
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     // Internal signals for Slave command and response packets
@@ -353,7 +355,7 @@ module apb_xbar #(
         for (genvar m_slv_demux = 0; m_slv_demux < M; m_slv_demux++) begin : gen_slv_demux
             always_comb begin
                 r_slv_cmd_ready[m_slv_demux] = 'b0;
-                for (int s_slv_demux = 0; s_slv_demux < S; s_slv_demux++) begin : gen_slv_demux_inner
+                for (int s_slv_demux = 0; s_slv_demux < S; s_slv_demux++) begin : gen_slv_demux_inner // verilog_lint: waive line-length
                     if (mst_arb_gnt_swap[m_slv_demux][s_slv_demux])
                         r_slv_cmd_ready[m_slv_demux] = 'b1;
                 end
@@ -378,47 +380,47 @@ module apb_xbar #(
         end
     endgenerate
 
-
+    // synopsys translate_off
     ////////////////////////////////////////////////////////////////////////////////////////////////
     // signal dumps
     initial begin
         forever begin
             @(negedge aclk);
-            $fdisplay(file, "==================================================================================================");
+            $fdisplay(file, "=================================================================================================="); // verilog_lint: waive line-length
             for (int m_loop=0; m_loop<3; m_loop++) begin
-                $fdisplay(file, "Slave Interface @ %0t m_loop=%0d m_apb_penable=%0b m_apb_pready=%0b m_apb_paddr=%0h m_apb_psel=%0b",
-                    $realtime/1e3, m_loop, m_apb_penable[m_loop], m_apb_pready[m_loop], m_apb_paddr[m_loop], m_apb_psel[m_loop]);
+                $fdisplay(file, "Slave Interface @ %0t m_loop=%0d m_apb_penable=%0b m_apb_pready=%0b m_apb_paddr=%0h m_apb_psel=%0b", // verilog_lint: waive line-length
+                    $realtime/1e3, m_loop, m_apb_penable[m_loop], m_apb_pready[m_loop], m_apb_paddr[m_loop], m_apb_psel[m_loop]); // verilog_lint: waive line-length
             end
             for (int m_loop=0; m_loop<3; m_loop++) begin
-                $fdisplay(file, "Slave Queues @ %0t: m_loop=%0d r_slv_cmd_valid=%0b r_slv_cmd_ready=%0b r_slv_cmd_paddr=%0h r_slv_rsp_valid=%0b r_slv_rsp_ready=%0b",
-                    $realtime/1e3, m_loop, r_slv_cmd_valid[m_loop], r_slv_cmd_ready[m_loop], r_slv_cmd_paddr[m_loop], r_slv_rsp_valid[m_loop], r_slv_rsp_ready[m_loop]);
+                $fdisplay(file, "Slave Queues @ %0t: m_loop=%0d r_slv_cmd_valid=%0b r_slv_cmd_ready=%0b r_slv_cmd_paddr=%0h r_slv_rsp_valid=%0b r_slv_rsp_ready=%0b", // verilog_lint: waive line-length
+                    $realtime/1e3, m_loop, r_slv_cmd_valid[m_loop], r_slv_cmd_ready[m_loop], r_slv_cmd_paddr[m_loop], r_slv_rsp_valid[m_loop], r_slv_rsp_ready[m_loop]); // verilog_lint: waive line-length
             end
             for (int m_loop=0; m_loop<3; m_loop++) begin
-                $fdisplay(file, "Slave Arb @ %0t: m_loop=%0d slv_arb_gnt_valid=%0b slv_arb_gnt=%0b slv_arb_gnt_ack=%0b slv_arb_gnt_id=%0d",
-                    $realtime/1e3, m_loop, slv_arb_gnt_valid[m_loop], slv_arb_gnt[m_loop], slv_arb_gnt_ack[m_loop], slv_arb_gnt_id[m_loop]);
+                $fdisplay(file, "Slave Arb @ %0t: m_loop=%0d slv_arb_gnt_valid=%0b slv_arb_gnt=%0b slv_arb_gnt_ack=%0b slv_arb_gnt_id=%0d", // verilog_lint: waive line-length
+                    $realtime/1e3, m_loop, slv_arb_gnt_valid[m_loop], slv_arb_gnt[m_loop], slv_arb_gnt_ack[m_loop], slv_arb_gnt_id[m_loop]); // verilog_lint: waive line-length
             end
             for (int m_loop=0; m_loop<3; m_loop++) begin
                 $fdisplay(file, "Slave Decode @ %0t: m_loop=%0d slave_sel=%0b",
                     $realtime/1e3, m_loop, slave_sel[m_loop]);
             end
 
-            $fdisplay(file, "--------------------------------------------------------------------------------------------------");
+            $fdisplay(file, "--------------------------------------------------------------------------------------------------"); // verilog_lint: waive line-length
             for (int s_loop=0; s_loop<6; s_loop++) begin
-                $fdisplay(file, "Master Interface @ %0t s_loop=%0d s_apb_penable=%0b s_apb_pready=%0b s_apb_paddr=%0h s_apb_psel=%0b",
-                    $realtime/1e3, s_loop, s_apb_penable[s_loop], s_apb_pready[s_loop], s_apb_paddr[s_loop], s_apb_psel[s_loop]);
+                $fdisplay(file, "Master Interface @ %0t s_loop=%0d s_apb_penable=%0b s_apb_pready=%0b s_apb_paddr=%0h s_apb_psel=%0b", // verilog_lint: waive line-length
+                    $realtime/1e3, s_loop, s_apb_penable[s_loop], s_apb_pready[s_loop], s_apb_paddr[s_loop], s_apb_psel[s_loop]); // verilog_lint: waive line-length
             end
             for (int s_loop=0; s_loop<6; s_loop++) begin
-                $fdisplay(file, "Master Arb @ %0t: s_loop=%0d mst_arb_gnt_valid=%0b mst_arb_gnt=%0b mst_arb_gnt_ack=%0b mst_arb_gnt_id=%0d",
-                    $realtime/1e3, s_loop, mst_arb_gnt_valid[s_loop], mst_arb_gnt[s_loop], mst_arb_gnt_ack[s_loop], mst_arb_gnt_id[s_loop]);
+                $fdisplay(file, "Master Arb @ %0t: s_loop=%0d mst_arb_gnt_valid=%0b mst_arb_gnt=%0b mst_arb_gnt_ack=%0b mst_arb_gnt_id=%0d", // verilog_lint: waive line-length
+                    $realtime/1e3, s_loop, mst_arb_gnt_valid[s_loop], mst_arb_gnt[s_loop], mst_arb_gnt_ack[s_loop], mst_arb_gnt_id[s_loop]); // verilog_lint: waive line-length
             end
             for (int s_loop=0; s_loop<6; s_loop++) begin
                 $fdisplay(file, "Master Decode @ %0t: s_loop=%0d master_sel=%0b",
                     $realtime/1e3, s_loop, master_sel[s_loop]);
             end
             for (int s_loop=0; s_loop<6; s_loop++) begin
-                $fdisplay(file, "Master Queues @ %0t: s_loop=%0d r_mst_cmd_valid=%0b r_mst_cmd_ready=%0b r_mst_rsp_valid=%0b r_mst_rsp_ready=%0b r_mst_side_wr_valid=%b r_mst_side_wr_ready=%0b r_mst_side_rd_valid=%b r_mst_side_rd_ready=%0b ",
-                    $realtime/1e3, s_loop, r_mst_cmd_valid[s_loop], r_mst_cmd_ready[s_loop], r_mst_rsp_valid[s_loop], r_mst_rsp_ready[s_loop],
-                    r_mst_side_wr_valid[s_loop], r_mst_side_wr_ready[s_loop], r_mst_side_rd_valid[s_loop], r_mst_side_rd_ready[s_loop]);
+                $fdisplay(file, "Master Queues @ %0t: s_loop=%0d r_mst_cmd_valid=%0b r_mst_cmd_ready=%0b r_mst_rsp_valid=%0b r_mst_rsp_ready=%0b r_mst_side_wr_valid=%b r_mst_side_wr_ready=%0b r_mst_side_rd_valid=%b r_mst_side_rd_ready=%0b ", // verilog_lint: waive line-length
+                    $realtime/1e3, s_loop, r_mst_cmd_valid[s_loop], r_mst_cmd_ready[s_loop], r_mst_rsp_valid[s_loop], r_mst_rsp_ready[s_loop], // verilog_lint: waive line-length
+                    r_mst_side_wr_valid[s_loop], r_mst_side_wr_ready[s_loop], r_mst_side_rd_valid[s_loop], r_mst_side_rd_ready[s_loop]); // verilog_lint: waive line-length
             end
 
         end
@@ -427,5 +429,6 @@ module apb_xbar #(
     // initial begin
     //     #28149 $finish;
     // end
+    // synopsys translate_on
 
 endmodule : apb_xbar

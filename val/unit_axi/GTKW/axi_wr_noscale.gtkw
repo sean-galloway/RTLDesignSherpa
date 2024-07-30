@@ -1,0 +1,108 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Jul 22 10:08:27 2024
+[*]
+[dumpfile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/local_sim_build/test_axi_wr_noscale-8-32-32-32-1/axi_wr_noscale.fst"
+[dumpfile_mtime] "Mon Jul 22 09:41:57 2024"
+[dumpfile_size] 76885
+[savefile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/GTKW/axi_wr_noscale.gtkw"
+[timestart] 17489920
+[size] 1986 1318
+[pos] -1 -1
+*-14.164475 17550000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi_wr_noscale.
+[sst_width] 278
+[signals_width] 250
+[sst_expanded] 1
+[sst_vpaned_height] 407
+@200
+-Master Side
+-AW Master
+@28
+axi_wr_noscale.s_axi_awvalid
+axi_wr_noscale.s_axi_awready
+@22
+axi_wr_noscale.s_axi_awid[7:0]
+axi_wr_noscale.s_axi_awaddr[31:0]
+@28
+axi_wr_noscale.s_axi_awsize[2:0]
+axi_wr_noscale.s_axi_awburst[1:0]
+@22
+axi_wr_noscale.s_axi_awcache[3:0]
+axi_wr_noscale.s_axi_awlen[7:0]
+@28
+axi_wr_noscale.s_axi_awlock
+axi_wr_noscale.s_axi_awprot[2:0]
+@22
+axi_wr_noscale.s_axi_awqos[3:0]
+axi_wr_noscale.s_axi_awregion[3:0]
+@28
+axi_wr_noscale.s_axi_awuser
+@200
+-W master
+@28
+axi_wr_noscale.s_axi_wvalid
+axi_wr_noscale.s_axi_wready
+@22
+axi_wr_noscale.s_axi_wdata[31:0]
+@28
+axi_wr_noscale.s_axi_wlast
+axi_wr_noscale.s_axi_wuser
+@23
+axi_wr_noscale.s_axi_wstrb[3:0]
+@200
+-B Master
+@28
+axi_wr_noscale.s_axi_bvalid
+axi_wr_noscale.s_axi_bready
+@22
+axi_wr_noscale.s_axi_bid[7:0]
+@28
+axi_wr_noscale.s_axi_bresp[1:0]
+axi_wr_noscale.s_axi_buser
+@200
+-slave side
+-AW Slave
+@28
+axi_wr_noscale.m_axi_awvalid
+axi_wr_noscale.m_axi_awready
+@22
+axi_wr_noscale.m_axi_awaddr[31:0]
+@28
+axi_wr_noscale.m_axi_awsize[2:0]
+axi_wr_noscale.m_axi_awburst[1:0]
+@22
+axi_wr_noscale.m_axi_awcache[3:0]
+axi_wr_noscale.m_axi_awid[7:0]
+axi_wr_noscale.m_axi_awlen[7:0]
+@28
+axi_wr_noscale.m_axi_awlock
+axi_wr_noscale.m_axi_awprot[2:0]
+@22
+axi_wr_noscale.m_axi_awqos[3:0]
+axi_wr_noscale.m_axi_awregion[3:0]
+@28
+axi_wr_noscale.m_axi_awuser
+@200
+-W Slave
+@28
+axi_wr_noscale.m_axi_wvalid
+axi_wr_noscale.m_axi_wready
+@22
+axi_wr_noscale.m_axi_wdata[31:0]
+@28
+axi_wr_noscale.m_axi_wlast
+@22
+axi_wr_noscale.m_axi_wstrb[3:0]
+@200
+-B Slave
+@28
+axi_wr_noscale.m_axi_bvalid
+axi_wr_noscale.m_axi_bready
+axi_wr_noscale.m_axi_bresp[1:0]
+axi_wr_noscale.m_axi_buser
+axi_wr_noscale.m_axi_wuser
+@22
+axi_wr_noscale.m_axi_bid[7:0]
+[pattern_trace] 1
+[pattern_trace] 0

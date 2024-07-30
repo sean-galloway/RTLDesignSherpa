@@ -56,6 +56,7 @@ module apb_xbar_thin #(
     input  logic [S-1:0]                 s_apb_pslverr
 );
 
+    // synopsys translate_off
     integer file;
 
     initial begin
@@ -65,6 +66,7 @@ module apb_xbar_thin #(
             $finish;
         end
     end
+    // synopsys translate_on
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     // Address decoding logic
@@ -79,7 +81,9 @@ module apb_xbar_thin #(
                             (m_apb_paddr[m_dec] >= SLAVE_ADDR_BASE[s_dec]) &&
                             (m_apb_paddr[m_dec] <= SLAVE_ADDR_LIMIT[s_dec])) begin
                         master_sel[s_dec][m_dec] = 1'b1;
-                        $fdisplay(file, "Decode: Time=%0t s_dec=%0h m_dec=%0h", $realtime/1e3, s_dec, m_dec);
+    // synopsys translate_off
+                        $fdisplay(file, "Decode: Time=%0t s_dec=%0h m_dec=%0h", $realtime/1e3, s_dec, m_dec); // verilog_lint: waive line-length
+    // synopsys translate_on
                     end
                 end
             end
@@ -121,6 +125,7 @@ module apb_xbar_thin #(
         end
     endgenerate
 
+    // synopsys translate_off
     always_comb begin
         for (int s_loop=0; s_loop<S; s_loop++) begin
             $fdisplay(file, "Arbiter outputs @ %0t", $realtime/1e3);
@@ -132,14 +137,15 @@ module apb_xbar_thin #(
 
     always_comb begin
         for (int m_loop=0; m_loop<M; m_loop++) begin
-            $fdisplay(file, "Time=%0t m_loop=%0d: psel=%0b penable=%0b pready=%0b pwrite=%0b pprot=%0h paddr=%0h pwdata=%0h pstrb=%0h",
+            $fdisplay(file, "Time=%0t m_loop=%0d: psel=%0b penable=%0b pready=%0b pwrite=%0b pprot=%0h paddr=%0h pwdata=%0h pstrb=%0h", // verilog_lint: waive line-length
                     $realtime/1e3, m_loop,
-                    m_apb_psel[m_loop], m_apb_pready[m_loop], m_apb_penable[m_loop], m_apb_pwrite[m_loop],
+                    m_apb_psel[m_loop], m_apb_pready[m_loop], m_apb_penable[m_loop], m_apb_pwrite[m_loop], // verilog_lint: waive line-length
                     m_apb_pprot[m_loop], m_apb_paddr[m_loop], m_apb_pwdata[m_loop],
                     m_apb_pstrb[m_loop]);
 
         end
     end
+    // synopsys translate_on
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     // Slave interface multiplexing
@@ -155,8 +161,10 @@ module apb_xbar_thin #(
                 s_apb_paddr[s_mux]   = arb_gnt_valid[s_mux] ? m_apb_paddr[mst_id] : '0;
                 s_apb_pwdata[s_mux]  = arb_gnt_valid[s_mux] ? m_apb_pwdata[mst_id] : '0;
                 s_apb_pstrb[s_mux]   = arb_gnt_valid[s_mux] ? m_apb_pstrb[mst_id] : '0;
+    // synopsys translate_off
                 $fdisplay(file, "Master Sel: mst_id=%0d s_mux=%0d arb_gnt_valid=%0b @ %0t ns",
                     mst_id, s_mux, arb_gnt_valid, $realtime / 1e3);
+    // synopsys translate_on
 //                $fdisplay(file, "m_apb_psel=%0b m_apb_penable=%0b m_apb_pwrite=%0b m_apb_pprot=%0h m_apb_paddr=%0h m_apb_pwdata=%0h m_apb_pstrb=%0h",
 //                    m_apb_psel[mst_id], m_apb_penable[mst_id], m_apb_pwrite[mst_id], m_apb_pprot[mst_id], m_apb_paddr[mst_id], m_apb_pwdata[mst_id], m_apb_pstrb[mst_id]);
             end
@@ -190,8 +198,10 @@ module apb_xbar_thin #(
                         m_apb_pready[m_demux]  = s_apb_pready[s_demux];
                         m_apb_prdata[m_demux]  = s_apb_prdata[s_demux];
                         m_apb_pslverr[m_demux] = s_apb_pslverr[s_demux];
+    // synopsys translate_off
                         $fdisplay(file, "DeMux Sel: m_demux=%0d s_demux=%0d @ %0t ns",
                             m_demux, s_demux, $realtime / 1e3);
+    // synopsys translate_on
                     end
                 end
             end
