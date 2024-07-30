@@ -15,9 +15,12 @@ import random
 from ConstrainedRandom import ConstrainedRandom
 from MemoryModel import MemoryModel
 from DelayRandomizer import DelayRandomizer
-from dataclasses import dataclass
+import json
+from dataclasses import dataclass, field
+from typing import List
 from collections import deque
 import copy
+
 
 # define the PWRITE mapping
 pwrite = ['READ', 'WRITE']
@@ -94,6 +97,150 @@ class APBCycle:
                 f"pslverr:    {self.pslverr}\n"
 
 
+class RegisterMap:
+    def __init__(self, filename, apb_data_width, apb_addr_width, start_address):
+        self.registers = self._load_registers(filename)
+        self.current_state = self._initialize_state()
+        self.write_storage = {}
+        self.apb_data_width = apb_data_width
+        self.apb_addr_width = apb_addr_width
+        self.start_address = start_address
+        self.addr_mask = (1 << apb_addr_width) - 1
+        self.data_mask = (1 << apb_data_width) - 1
+        self.bytes_per_word = apb_data_width // 8
+
+
+    def _load_registers(self, filename):
+        with open(filename, 'r') as f:
+            return json.load(f)
+
+
+    def _initialize_state(self):
+        return {
+            reg_name: (
+                [int(reg_info['default'], 16)] * int(reg_info['count'])
+                if 'count' in reg_info
+                else int(reg_info['default'], 16)
+            )
+            for reg_name, reg_info in self.registers.items()
+        }
+
+
+    def get_register_field_map(self):
+        register_field_map = {}
+        for register_name, register_info in self.registers.items():
+            fields = [field for field in register_info.keys() if register_info[field]['type'] == 'field']
+            register_field_map[register_name] = fields
+        return register_field_map
+
+
+    def get_register_offset_map(self):
+        return {reg_name: int(reg_info['offset'], 16) for reg_name, reg_info in self.registers.items()}
+
+
+    def get_combined_register_map(self):
+        field_map = self.get_register_field_map()
+        offset_map = self.get_register_offset_map()
+        return {
+            reg: {'fields': field_map[reg], 'offset': offset}
+            for reg, offset in offset_map.items()
+        }
+
+
+    def write(self, register, field, value):
+        if register not in self.registers:
+            raise ValueError(f"Register {register} not found")
+        if field not in self.registers[register]:
+            raise ValueError(f"Field {field} not found in register {register}")
+        
+        reg_info = self.registers[register]
+        field_info = reg_info[field]
+        
+        mask = self._create_mask(field_info['offset'])
+        field_width = self._get_field_width(field_info['offset'])
+        
+        num_words = (field_width + self.apb_data_width - 1) // self.apb_data_width
+        
+        if 'count' in reg_info:
+            if register not in self.write_storage:
+                self.write_storage[register] = [None] * int(reg_info['count'])
+            for i in range(int(reg_info['count'])):
+                if self.write_storage[register][i] is None:
+                    self.write_storage[register][i] = self.current_state[register][i]
+                for j in range(num_words):
+                    word_mask = mask & self.data_mask
+                    word_value = (value >> (j * self.apb_data_width)) & self.data_mask
+                    self.write_storage[register][i+j] = (self.write_storage[register][i+j] & ~word_mask) | (word_value & word_mask)
+                    mask >>= self.apb_data_width
+        else:
+            if register not in self.write_storage:
+                self.write_storage[register] = [self.current_state[register]] * num_words
+            for j in range(num_words):
+                word_mask = mask & self.data_mask
+                word_value = (value >> (j * self.apb_data_width)) & self.data_mask
+                self.write_storage[register][j] = (self.write_storage[register][j] & ~word_mask) | (word_value & word_mask)
+                mask >>= self.apb_data_width
+
+
+    def _create_mask(self, offset):
+        if ':' not in offset:
+            return 1 << int(offset)
+        high, low = map(int, offset.split(':'))
+        return ((1 << (high - low + 1)) - 1) << low
+
+
+    def _get_field_width(self, offset):
+        if ':' not in offset:
+            return 1
+        high, low = map(int, offset.split(':'))
+        return high - low + 1
+
+
+    def generate_apb_cycles(self) -> List[APBCycle]:
+        apb_cycles = []
+        for register, value in self.write_storage.items():
+            reg_info = self.registers[register]
+            base_address = (self.start_address + int(reg_info['address'], 16)) & self.addr_mask
+            for i, v in enumerate(value):
+                if (
+                    isinstance(value, list)
+                    and v is not None
+                    or not isinstance(value, list)
+                ):
+                    address = (base_address + i * self.bytes_per_word) & self.addr_mask
+                    apb_cycles.append(APBCycle(
+                        start_time=0,  # You might want to set this appropriately
+                        count=i,
+                        direction='WRITE',
+                        pwrite=1,
+                        paddr=address,
+                        pwdata=v,
+                        pstrb=(1 << (self.bytes_per_word)) - 1,  # Full write strobe
+                        prdata=0,
+                        pprot=0,
+                        pslverr=0
+                    ))
+        self._update_current_state()
+        self.write_storage.clear()
+
+        return apb_cycles
+
+
+    def _update_current_state(self):
+        for register, value in self.write_storage.items():
+            if isinstance(self.current_state[register], list):
+                for i, v in enumerate(value):
+                    if v is not None:
+                        self.current_state[register][i] = v
+            else:
+                self.current_state[register] = value[0]  # Take the first word for non-array registers
+
+# Usage example:
+# reg_map = RegisterMap('registers.json', apb_data_width=32, apb_addr_width=24, start_address=0x7F0000)
+# reg_map.write('descr_map', 'descr_data', 0xFFFFFFFFFFFFFFFF)  # 64-bit write
+# apb_cycles = reg_map.generate_apb_cycles()
+
+
 class APBTransaction(Randomized):
     def __init__(self, data_width, addr_width, strb_width,
                     constraints=None):
@@ -109,10 +256,6 @@ class APBTransaction(Randomized):
             addr_max_lo = (4  * self.STRB_WIDTH)
             addr_max_hi = (32 * self.STRB_WIDTH)-1
             self.constraints = {
-                'last':   ([(0, 0), (1, 1)],
-                            [1, 1]),
-                'first':  ([(0, 0), (1, 1)],
-                            [1, 1]),
                 'pwrite': ([(0, 0), (1, 1)],
                             [1, 1]),
                 'paddr':  ([(0, addr_min_hi), (addr_max_lo, addr_max_hi)],
@@ -125,8 +268,6 @@ class APBTransaction(Randomized):
         else:
             self.constraints = constraints
 
-        self.last = 0
-        self.first = 0
         self.pwrite = 0
         self.paddr = 0
         self.pstrb = 0
@@ -145,8 +286,6 @@ class APBTransaction(Randomized):
         )
 
         # Adding randomized signals with full ranges
-        self.add_rand("last",   [0, 1])
-        self.add_rand("first",  [0, 1])
         self.add_rand("pwrite", [0, 1])
         self.add_rand("paddr",  list(range(2**12)))
         self.add_rand("pstrb",  list(range(2**strb_width)))
@@ -170,34 +309,6 @@ class APBTransaction(Randomized):
         self.cycle.pstrb     = self.pstrb
         self.cycle.pwdata    = random.randint(0, (1 << self.data_width) - 1)
         return copy.copy(self.cycle)
-
-
-    def pack_cmd_packet(self):
-        """
-        Pack the command packet into a single integer.
-        """
-        return (
-            (self.last         << (self.addr_width + self.data_width + self.strb_width + 5)) |
-            (self.first        << (self.addr_width + self.data_width + self.strb_width + 4)) |
-            (self.cycle.pwrite << (self.addr_width + self.data_width + self.strb_width + 3)) |
-            (self.cycle.pprot  << (self.addr_width + self.data_width + self.strb_width)) |
-            (self.cycle.pstrb  << (self.addr_width + self.data_width)) |
-            (self.cycle.paddr  << self.data_width) |
-            self.cycle.pwdata
-        )
-
-
-    def unpack_cmd_packet(self, packed_packet):
-        """
-        Unpack a packed command packet into its components.
-        """
-        self.last         = (packed_packet >> (self.addr_width + self.data_width + self.strb_width + 5)) & 0x1
-        self.first        = (packed_packet >> (self.addr_width + self.data_width + self.strb_width + 4)) & 0x1
-        self.cycle.pwrite = (packed_packet >> (self.addr_width + self.data_width + self.strb_width + 3)) & 0x1
-        self.cycle.pprot  = (packed_packet >> (self.addr_width + self.data_width + self.strb_width)) & 0x7
-        self.cycle.pstrb  = (packed_packet >> (self.addr_width + self.data_width)) & ((1 << self.strb_width) - 1)
-        self.cycle.paddr  = (packed_packet >> self.data_width) & ((1 << self.addr_width) - 1)
-        self.cycle.pwdata = packed_packet & ((1 << self.data_width) - 1)
 
 
     def __str__(self):
@@ -234,7 +345,8 @@ class APBMonitor(BusMonitor):
 
 
     def is_signal_present(self, signal_name):
-        return hasattr(self.bus, signal_name)
+        # Check if the bus has the attribute and that it is not None
+        return hasattr(self.bus, signal_name) and getattr(self.bus, signal_name) is not None
 
 
     def print(self, transaction):
@@ -282,7 +394,7 @@ class APBSlave(BusMonitor):
         if signals:
             self._signals = signals
         else:
-            self._signals = apb_signals + apb_optional_signals
+            self._signals = apb_signals
             self._optional_signals = apb_optional_signals
         if constraints is None:
             self.constraints = {
@@ -313,11 +425,13 @@ class APBSlave(BusMonitor):
             self.bus.PSLVERR.setimmediatevalue(0)
         self.log.warning(f'Slave {name} {dir(self.bus)}')
         self.log.warning(f'Slave {name} PADDR {dir(self.bus.PADDR)}')
-        self.log.warning(f'Slave {name} PPROT {dir(self.bus.PPROT)}')
+        if self.is_signal_present('PPROT'):
+            self.log.warning(f'Slave {name} PPROT {dir(self.bus.PPROT)}')
 
 
     def is_signal_present(self, signal_name):
-        return hasattr(self.bus, signal_name)
+        # Check if the bus has the attribute and that it is not None
+        return hasattr(self.bus, signal_name) and getattr(self.bus, signal_name) is not None
 
 
     def dump_registers(self):
@@ -411,8 +525,16 @@ class APBMaster(BusDriver):
         else:
             self.constraints = constraints
         BusDriver.__init__(self, entity, name, clock, **kwargs)
-        self.clock          = clock
         self.log = log or self.entity._log
+        # Print the attributes of the bus object
+        self.log.debug("APB Master Bus object attributes:")
+        for attribute in dir(self.bus):
+            try:
+                value = getattr(self.bus, attribute)
+                self.log.debug(f"{attribute}: {value}")
+            except AttributeError:
+                self.log.debug(f"{attribute}: <unreadable>")
+        self.clock          = clock
         self.addr_width     = addr_width
         self.bus_width      = bus_width
         self.strb_bits      = bus_width // 8
@@ -432,7 +554,8 @@ class APBMaster(BusDriver):
 
 
     def is_signal_present(self, signal_name):
-        return hasattr(self.bus, signal_name)
+        # Check if the bus has the attribute and that it is not None
+        return hasattr(self.bus, signal_name) and getattr(self.bus, signal_name) is not None
 
 
     async def reset_bus(self):
@@ -487,9 +610,10 @@ class APBMaster(BusDriver):
             self.bus.PSEL.value     = 0
             self.bus.PENABLE.value  = 0
             self.bus.PWRITE.value   = 0
-            self.bus.PPROT.value    = 0
             self.bus.PADDR.value    = 0
             self.bus.PWDATA.value   = 0
+            if self.is_signal_present('PPROT'):
+                self.bus.PPROT.value = 0
             if self.is_signal_present('PSTRB'):
                 self.bus.PSTRB.value = 0
 
@@ -508,8 +632,9 @@ class APBMaster(BusDriver):
 
             self.bus.PSEL.value   = 1
             self.bus.PWRITE.value = transaction.pwrite
-            self.bus.PPROT.value  = transaction.pprot
             self.bus.PADDR.value  = transaction.paddr
+            if self.is_signal_present('PPROT'):
+                self.bus.PPROT.value  = transaction.pprot
             if self.is_signal_present('PSTRB'):
                 self.bus.PSTRB.value = transaction.pstrb
             if transaction.pwrite:
@@ -545,8 +670,9 @@ class APBMaster(BusDriver):
         self.bus.PSEL.value     = 0
         self.bus.PENABLE.value  = 0
         self.bus.PWRITE.value   = 0
-        self.bus.PPROT.value    = 0
         self.bus.PADDR.value    = 0
         self.bus.PWDATA.value   = 0
+        if self.is_signal_present('PPROT'):
+            self.bus.PPROT.value    = 0
         if self.is_signal_present('PSTRB'):
             self.bus.PSTRB.value = 0
