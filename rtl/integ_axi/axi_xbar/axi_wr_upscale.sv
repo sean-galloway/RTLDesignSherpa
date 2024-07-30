@@ -390,8 +390,10 @@ module axi_wr_upscale
                     w_accum_count_dn = r_accum_count_dn-1;
                     w_accum_count_up = r_accum_count_up+1;
                     if (r_accum_count_dn == 0) begin
-                        r_m_axi_wvalid = 1'b1;
-                        r_s_axi_wready = 1'b1;
+                        r_m_axi_wvalid   = 1'b1;
+                        r_s_axi_wready   = 1'b1;
+                        w_accum_count_dn = DataRatio;
+                        w_accum_count_up = 'b0;
                         if (r_length_count == 0) begin
                             r_m_axi_wlast     = 1'b1;
                             w_xfer_next_state = IDLE;
@@ -401,10 +403,6 @@ module axi_wr_upscale
                                 w_accum_count_dn = DataRatio;
                             end
                         end
-                    end else begin
-                        w_accum_count_dn = r_accum_count_dn-1;
-                        w_accum_count_up = r_accum_count_up+1;
-                        r_s_axi_wready = 1'b1;
                     end
                 end
             end

@@ -1,20 +1,20 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Wed Jul 24 18:04:20 2024
+[*] Fri Jul 26 08:01:39 2024
 [*]
 [dumpfile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/local_sim_build/test_axi_wr_noscale-8-32-32-64-1/axi_wr_upscale.fst"
-[dumpfile_mtime] "Wed Jul 24 16:49:15 2024"
-[dumpfile_size] 3369
+[dumpfile_mtime] "Fri Jul 26 07:14:13 2024"
+[dumpfile_size] 12564
 [savefile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/GTKW/axi_wr_upscale.gtkw"
 [timestart] 0
-[size] 1582 1226
+[size] 1582 1450
 [pos] -1 -1
-*-14.164475 17550000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-13.047805 22000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] axi_wr_upscale.
 [sst_width] 278
-[signals_width] 250
+[signals_width] 340
 [sst_expanded] 1
-[sst_vpaned_height] 817
+[sst_vpaned_height] 986
 @200
 -Master Side
 @28
@@ -46,6 +46,9 @@ axi_wr_upscale.s_axi_awuser
 @28
 axi_wr_upscale.s_axi_wvalid
 axi_wr_upscale.s_axi_wready
+@22
+axi_wr_upscale.r_s_axi_wdata[63:0]
+@28
 axi_wr_upscale.s_axi_wlast
 axi_wr_upscale.s_axi_wuser
 @200
@@ -86,6 +89,22 @@ axi_wr_upscale.m_axi_awuser
 @28
 axi_wr_upscale.m_axi_wvalid
 axi_wr_upscale.m_axi_wready
+@22
+axi_wr_upscale.m_axi_wdata[63:0]
+@c00022
+axi_wr_upscale.m_axi_wstrb[7:0]
+@28
+(0)axi_wr_upscale.m_axi_wstrb[7:0]
+(1)axi_wr_upscale.m_axi_wstrb[7:0]
+(2)axi_wr_upscale.m_axi_wstrb[7:0]
+(3)axi_wr_upscale.m_axi_wstrb[7:0]
+(4)axi_wr_upscale.m_axi_wstrb[7:0]
+(5)axi_wr_upscale.m_axi_wstrb[7:0]
+(6)axi_wr_upscale.m_axi_wstrb[7:0]
+(7)axi_wr_upscale.m_axi_wstrb[7:0]
+@1401200
+-group_end
+@28
 axi_wr_upscale.m_axi_wlast
 @200
 -B Slave
@@ -99,6 +118,12 @@ axi_wr_upscale.m_axi_wuser
 axi_wr_upscale.m_axi_bid[7:0]
 @200
 -Internals
+@22
+axi_wr_upscale.r_accum_count_dn[7:0]
+axi_wr_upscale.r_accum_count_up[7:0]
+@23
+axi_wr_upscale.r_length_count[7:0]
+@200
 -slave queues
 @28
 axi_wr_upscale.r_s_axi_awvalid
@@ -106,7 +131,6 @@ axi_wr_upscale.r_s_axi_awready
 axi_wr_upscale.r_s_axi_wvalid
 axi_wr_upscale.r_s_axi_wready
 axi_wr_upscale.r_s_axi_bvalid
-@29
 axi_wr_upscale.r_s_axi_bready
 @200
 -master queues
