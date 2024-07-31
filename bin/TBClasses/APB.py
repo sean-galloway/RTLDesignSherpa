@@ -15,11 +15,12 @@ import random
 from ConstrainedRandom import ConstrainedRandom
 from MemoryModel import MemoryModel
 from DelayRandomizer import DelayRandomizer
-import json
-from dataclasses import dataclass, field
-from typing import List
+import importlib.util
+from dataclasses import dataclass
+from typing import List, Dict
 from collections import deque
 import copy
+import pprint
 
 
 # define the PWRITE mapping
@@ -71,174 +72,43 @@ class APBCycle:
                 self.pslverr == other.pslverr)
 
 
+    def _format_data(self, src, data, data_width):
+        if isinstance(data, int):
+            # Format prdata as an integer if it is resolvable
+            return f"{src}:     0x{data:0{int(data_width / 4)}X}\n"
+        else:
+            # Format prdata as a binary string if it contains 'X' values
+            return f"{src}:     {data}\n"
+
+
     def __str__(self):
+        prdata = self._format_data('prdata', self.prdata, 32)
+        pwdata = self._format_data('pwdata', self.pwdata, 32)
         return  '\nAPB Cycle\n'+\
                 f"start_time: {self.start_time}\n"+\
                 f"count:      {self.count}\n"+\
                 f"direction:  {self.direction}\n"+\
                 f"paddr:      0x{self.paddr:08X}\n"+\
-                f"pwdata:     0x{self.pwdata:08X}\n"+\
+                pwdata +\
                 f"pstrb:      0x{self.pstrb:08b}\n" +\
-                f"prdata:     0x{self.prdata:08X}\n"+\
+                prdata +\
                 f"pprot:      0x{self.pprot:04X}\n"+\
                 f"pslverr:    {self.pslverr}\n"
 
 
     def formatted(self, addr_width, data_width, strb_width):
+        prdata = self._format_data('prdata', self.prdata, data_width)
+        pwdata = self._format_data('pwdata', self.pwdata, data_width)
         return  '\nAPB Cycle\n'+\
                 f"start_time: {self.start_time}\n"+\
                 f"count:      {self.count}\n"+\
                 f"direction:  {self.direction}\n"+\
                 f"paddr:      0x{self.paddr:0{int(addr_width/4)}X}\n"+\
-                f"pwdata:     0x{self.pwdata:0{int(data_width/4)}X}\n"+\
+                pwdata +\
                 f"pstrb:      0x{self.pstrb:0{strb_width}b}\n" +\
-                f"prdata:     0x{self.prdata:0{int(data_width/4)}X}\n"+\
+                prdata +\
                 f"pprot:      0x{self.pprot:04X}\n"+\
                 f"pslverr:    {self.pslverr}\n"
-
-
-class RegisterMap:
-    def __init__(self, filename, apb_data_width, apb_addr_width, start_address):
-        self.registers = self._load_registers(filename)
-        self.current_state = self._initialize_state()
-        self.write_storage = {}
-        self.apb_data_width = apb_data_width
-        self.apb_addr_width = apb_addr_width
-        self.start_address = start_address
-        self.addr_mask = (1 << apb_addr_width) - 1
-        self.data_mask = (1 << apb_data_width) - 1
-        self.bytes_per_word = apb_data_width // 8
-
-
-    def _load_registers(self, filename):
-        with open(filename, 'r') as f:
-            return json.load(f)
-
-
-    def _initialize_state(self):
-        return {
-            reg_name: (
-                [int(reg_info['default'], 16)] * int(reg_info['count'])
-                if 'count' in reg_info
-                else int(reg_info['default'], 16)
-            )
-            for reg_name, reg_info in self.registers.items()
-        }
-
-
-    def get_register_field_map(self):
-        register_field_map = {}
-        for register_name, register_info in self.registers.items():
-            fields = [field for field in register_info.keys() if register_info[field]['type'] == 'field']
-            register_field_map[register_name] = fields
-        return register_field_map
-
-
-    def get_register_offset_map(self):
-        return {reg_name: int(reg_info['offset'], 16) for reg_name, reg_info in self.registers.items()}
-
-
-    def get_combined_register_map(self):
-        field_map = self.get_register_field_map()
-        offset_map = self.get_register_offset_map()
-        return {
-            reg: {'fields': field_map[reg], 'offset': offset}
-            for reg, offset in offset_map.items()
-        }
-
-
-    def write(self, register, field, value):
-        if register not in self.registers:
-            raise ValueError(f"Register {register} not found")
-        if field not in self.registers[register]:
-            raise ValueError(f"Field {field} not found in register {register}")
-        
-        reg_info = self.registers[register]
-        field_info = reg_info[field]
-        
-        mask = self._create_mask(field_info['offset'])
-        field_width = self._get_field_width(field_info['offset'])
-        
-        num_words = (field_width + self.apb_data_width - 1) // self.apb_data_width
-        
-        if 'count' in reg_info:
-            if register not in self.write_storage:
-                self.write_storage[register] = [None] * int(reg_info['count'])
-            for i in range(int(reg_info['count'])):
-                if self.write_storage[register][i] is None:
-                    self.write_storage[register][i] = self.current_state[register][i]
-                for j in range(num_words):
-                    word_mask = mask & self.data_mask
-                    word_value = (value >> (j * self.apb_data_width)) & self.data_mask
-                    self.write_storage[register][i+j] = (self.write_storage[register][i+j] & ~word_mask) | (word_value & word_mask)
-                    mask >>= self.apb_data_width
-        else:
-            if register not in self.write_storage:
-                self.write_storage[register] = [self.current_state[register]] * num_words
-            for j in range(num_words):
-                word_mask = mask & self.data_mask
-                word_value = (value >> (j * self.apb_data_width)) & self.data_mask
-                self.write_storage[register][j] = (self.write_storage[register][j] & ~word_mask) | (word_value & word_mask)
-                mask >>= self.apb_data_width
-
-
-    def _create_mask(self, offset):
-        if ':' not in offset:
-            return 1 << int(offset)
-        high, low = map(int, offset.split(':'))
-        return ((1 << (high - low + 1)) - 1) << low
-
-
-    def _get_field_width(self, offset):
-        if ':' not in offset:
-            return 1
-        high, low = map(int, offset.split(':'))
-        return high - low + 1
-
-
-    def generate_apb_cycles(self) -> List[APBCycle]:
-        apb_cycles = []
-        for register, value in self.write_storage.items():
-            reg_info = self.registers[register]
-            base_address = (self.start_address + int(reg_info['address'], 16)) & self.addr_mask
-            for i, v in enumerate(value):
-                if (
-                    isinstance(value, list)
-                    and v is not None
-                    or not isinstance(value, list)
-                ):
-                    address = (base_address + i * self.bytes_per_word) & self.addr_mask
-                    apb_cycles.append(APBCycle(
-                        start_time=0,  # You might want to set this appropriately
-                        count=i,
-                        direction='WRITE',
-                        pwrite=1,
-                        paddr=address,
-                        pwdata=v,
-                        pstrb=(1 << (self.bytes_per_word)) - 1,  # Full write strobe
-                        prdata=0,
-                        pprot=0,
-                        pslverr=0
-                    ))
-        self._update_current_state()
-        self.write_storage.clear()
-
-        return apb_cycles
-
-
-    def _update_current_state(self):
-        for register, value in self.write_storage.items():
-            if isinstance(self.current_state[register], list):
-                for i, v in enumerate(value):
-                    if v is not None:
-                        self.current_state[register][i] = v
-            else:
-                self.current_state[register] = value[0]  # Take the first word for non-array registers
-
-# Usage example:
-# reg_map = RegisterMap('registers.json', apb_data_width=32, apb_addr_width=24, start_address=0x7F0000)
-# reg_map.write('descr_map', 'descr_data', 0xFFFFFFFFFFFFFFFF)  # 64-bit write
-# apb_cycles = reg_map.generate_apb_cycles()
 
 
 class APBTransaction(Randomized):
@@ -374,7 +244,10 @@ class APBMonitor(BusMonitor):
                 error      = self.bus.PSLVERR.value.integer if self.is_signal_present('PSLVERR') else 0
 
                 if direction == 'READ':
-                    data = self.bus.PRDATA.value.integer
+                    if self.bus.PRDATA.value.is_resolvable:
+                        data = self.bus.PRDATA.value.integer
+                    else:
+                        data = self.bus.PRDATA.value
                 else:
                     data = self.bus.PWDATA.value.integer
                 strb = self.bus.PSTRB.value.integer if self.is_signal_present('PSTRB') else 0
@@ -417,12 +290,6 @@ class APBSlave(BusMonitor):
         # Create the memory model
         self.mem = MemoryModel(num_lines=self.num_lines, bytes_per_line=self.strb_bits, log=self.log, preset_values=registers)
         self.sentQ = deque()
-
-        for sig in apb_optional_signals:
-            if self.is_signal_present(sig):
-                self.log.debug(f'slave present: {sig}')
-            else:
-                self.log.debug(f'slave not present: {sig}')
 
         # initialise all outputs to zero
         self.bus.PRDATA.setimmediatevalue(0)
@@ -539,11 +406,6 @@ class APBMaster(BusDriver):
         self.addr_mask      = (2**self.strb_bits - 1)
         self.delay_crand    = DelayRandomizer(self.constraints)
         self.sentQ = deque()
-        for sig in apb_optional_signals:
-            if self.is_signal_present(sig):
-                self.log.debug(f'master present: {sig}')
-            else:
-                self.log.debug(f'master not present: {sig}')
         # initialise all outputs to zero
         self.bus.PADDR.setimmediatevalue(0)
         self.bus.PWRITE.setimmediatevalue(0)
@@ -663,7 +525,10 @@ class APBMaster(BusDriver):
 
             # if this is a read we should sample the data
             if transaction.direction == 'READ':
-                transaction.data = self.bus.PRDATA.value
+                if self.bus.PRDATA.value.is_resolvable:
+                    transaction.data = self.bus.PRDATA.value.integer
+                else:
+                    transaction.data = self.bus.PRDATA.value
 
             self.sentQ.append(transaction)
             await RisingEdge(self.clock)
