@@ -58,6 +58,94 @@ To see the state of the current RTL documentation, check out this area: [RTL Doc
 
 - PlantUML- I used this for all of the UML diagrams. The syntax is very clean, and I love that it is also hierarchical (one can include other files)
 
-- Draw.io- I'm using this in Windows. I plan to use this for the UML diagrams for the testbenches mostly. I'm used to Visio, so getting productive with this tool will be a learning curve.
+### Instructions to, hopefully, painlessly replicate my environment
+
+- Get a virtual maching software (VMWare, or any other, I use Oracle VirtualBox)
+-- The VM will need at least 4GB of memory and 20GB of disk space. More of each is always better
+-- I use Ubuntu for the Linux image. The instructions below assume that. An LLM could probably adapt the instructions for other distribuitons.
+-- In Linux, do these itmes (download and install or use the sudo commands):
+    # Vscode:
+    Install thru Ubuntu UI
+
+    # Icarus:
+    sudo apt-get install build-essential autoconf gpref flex bison
+    sudo apt install iverilog
+
+    # Verilator:
+    sudo apt-get install verilator
+
+    # Ctags:
+    sudo snap install universal-ctags 
+    Update the ctags path in the vscode preferences
+
+    # Git:
+    sudo apt install git
+
+    # Vim:
+    sudo apt install vim
+
+    # Tkdiff:
+    sudo apt install tkdiff
+
+    # Make:
+    sudo apt install make
+
+    # GTKWave:
+    sudo apt-get install gtkwave
+    sudo apt-get install libcanberra-gtk-module libcanberra-gtk3-module
+
+    # GraphViz (needed for PlantUML):
+    sudo apt install graphviz
+
+    # Java (needed for PlantUML):
+    sudo apt install default-jre
+
+    # Wavedrom-cli:
+    sudo apt update
+    sudo apt install nodejs npm
+    sudo npm install -g wavedrom-cli
+
+    # Ruby and Jekyll:
+    sudo apt-get install ruby-full build-essential zlib1g-dev
+    gem install jekyll bundler
+
+    # Scala-CLI:
+    curl -sSLf https://scala-cli.virtuslab.org/get | sh
+
+    # Verible:
+    download the latest version:
+    Releases · chipsalliance/verible (github.com)
+    tar xvzf verible-v0.0-3430-g060bde0f-Ubuntu-20.04-focal-x86_64.tar.gz 
+    sudo mv  verible-v0.0-3430-g060bde0f /usr/bin/verible-v0.0-3430-g060bde0f/
+
+-- Once all is installed, make a github directory, cd into it and clone the repo:
+mkdir github
+cd github
+git clone https://github.com/sean-galloway/RTLDesignSherpa.git
+
+you now need to create a virtual environment for python with something like this command:
+cd into the RTLDesignSherpa area
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+now you need to add the python dependencies that are local source this seperately or add it to the activate command:
+source env_python
+
+## Starter Reading List
+
+For the designs in the rtl/common area the inspiration for the choices come mostlyu from these two books:
+
+- Advanced FPGA Design by Steve Kilts
+- Synthesis of Arithmetic Circuits by Deschamps, Bioul, Sutter
+
+Note: all of my circuits are my own design or are based off of credited code. For the most part, my designs are an order of magnitude more complex than circuits in books like these. For example the CRC circuit from one of the books is very simple and will not work on any of the standards. The one I have is validated across about 300 standards. The adders, subtractors, multipliers and dividers are alos more complex and based on fairly recent research. However, I have never built these full-time for production. I am certain most any folks with ALU experience would laugh at how simplistic they are. I learned a lot building them, though.
+
+Try code out and learn through experience. To test the RTL cd into the val/unit_common area and run this command:
+pytest test_shifter_lfsr.py
+to run all of the tests in one of the areas type:
+pytest
+
+All of the tests use the pytest and cocotb flows. There are many tutorials out there for these. If you look through my tests, you might find that they all follow the same formula. Try things out and have fun!
 
 ----------
