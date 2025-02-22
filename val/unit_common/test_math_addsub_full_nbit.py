@@ -8,7 +8,7 @@ import subprocess
 import pytest
 from cocotb_test.simulator import run
 import random
-from TBBase import TBBase
+from TBClasses.TBBase import TBBase
 
 
 class AddSubTB(TBBase):

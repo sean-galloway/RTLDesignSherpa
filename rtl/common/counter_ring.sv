@@ -12,7 +12,7 @@ module counter_ring #(
 
     // On reset, initialize the ring counter to have the first bit set and all others clear.
     // When enabled, rotate the bits to the right in each clock cycle.
-    always @(posedge i_clk or negedge i_rst_n) begin
+    always_ff @(posedge i_clk or negedge i_rst_n) begin
         if (!i_rst_n) begin
             o_ring_out <= 'b1;  // This should set the LSB, which is '1'
         end else if (i_enable) begin

@@ -6,7 +6,7 @@ import subprocess
 import random
 import pytest
 from cocotb_test.simulator import run
-from TBBase import TBBase
+from TBClasses.TBBase import TBBase
 
 
 class CheckSumTB(TBBase):

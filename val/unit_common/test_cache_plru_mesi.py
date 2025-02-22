@@ -8,8 +8,8 @@ import subprocess
 import random
 import pytest
 from cocotb_test.simulator import run
-from TBBase import TBBase
-from ConstrainedRandom import ConstrainedRandom
+from TBClasses.TBBase import TBBase
+from TBClasses.ConstrainedRandom import ConstrainedRandom
 
 class CTCacheMESI(TBBase):
     def __init__(self, dut):

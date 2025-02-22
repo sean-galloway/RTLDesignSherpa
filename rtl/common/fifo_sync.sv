@@ -115,14 +115,14 @@ module fifo_sync #(
         end
     endgenerate
 
-    always @(posedge i_clk) begin
+    always_ff @(posedge i_clk) begin
         if ((i_write && o_wr_full) == 1'b1) begin
             $timeformat(-9, 3, " ns", 10);
             $display("Error: %s write while fifo full, %t", INSTANCE_NAME, $time);
         end
     end
 
-    always @(posedge i_clk) begin
+    always_ff @(posedge i_clk) begin
         if ((i_read && o_rd_empty) == 1'b1) begin
             $timeformat(-9, 3, " ns", 10);
             $display("Error: %s read while fifo empty, %t", INSTANCE_NAME, $time);

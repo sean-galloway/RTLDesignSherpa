@@ -70,7 +70,7 @@ module cache_plru #(
     endgenerate
 
     integer j;
-    always @(posedge i_clk or negedge i_rst_n) begin
+    always_ff @(posedge i_clk or negedge i_rst_n) begin
         if (~i_rst_n) begin
             for (j = 0; j < DEPTH; j = j + 1) begin
                 r_valid_array[j] <= 1'b0;

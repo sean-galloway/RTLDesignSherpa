@@ -12,7 +12,7 @@ module reset_sync #(
 
     logic [N-1:0] r_sync_reg = {N{1'b0}};
 
-    always @(posedge clk or negedge i_rst_n) begin
+    always_ff @(posedge clk or negedge i_rst_n) begin
         if (i_rst_n) begin
             r_sync_reg <= {N{1'b0}};
         end else begin

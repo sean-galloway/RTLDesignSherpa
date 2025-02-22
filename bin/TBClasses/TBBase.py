@@ -66,10 +66,10 @@ class TBBase(metaclass=Singleton):
 
         Returns:
             None
-
         Examples:
             await start_clock('clk', freq=20, units='ps')
         """
+        print(f'Starting clock: {clk_name} period = {freq}{units}')
         clk_signal = getattr(self.dut, clk_name)
         cocotb.start_soon(Clock(clk_signal, freq, units=units).start())
         await Timer(100, units='ps')
