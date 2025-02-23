@@ -38,7 +38,6 @@ class ClockGateCtrlTB(TBBase):
         self.dut.i_cfg_idle_count.value = self.max_count
         self.last_idle_count = self.max_count
         self.dut.i_wakeup.value = 0
-        self.dut.i_sleep.value = 0
         self.log.info('Assert reset done.')
         await self.wait_clocks('clk_in', 10)
 
@@ -59,30 +58,28 @@ class ClockGateCtrlTB(TBBase):
                 "Clock should be gated but was enabled"
 
     async def systematic_enable_test(self):
-        """Test all combinations of sleep and wake with cfg_enable=1"""
+        """Test all combinations of wake with cfg_enable=1"""
         self.log.info("Starting systematic enable test")
         self.dut.i_cfg_cg_enable.value = 1
-        self.dut.i_cfg_idle_count.value = self.max_count  # Set max count to focus on wake/sleep
+        self.dut.i_cfg_idle_count.value = self.max_count  # Set max count to focus on wake
 
-        # Test all combinations of sleep and wake
-        for sleep, wake in product([0, 1], repeat=2):
-            self.log.info(f"Testing sleep={sleep}, wake={wake}")
-            self.dut.i_sleep.value = sleep
+        # Test all combinations of wake
+        for wake in range(2):
+            self.log.info(f"Testing wake={wake}")
             self.dut.i_wakeup.value = wake
             
-            # Clock should be enabled if wake=1 or sleep=0
-            expected_enabled = (wake == 1 or sleep == 0)
+            # Clock should be enabled if wake=1
+            expected_enabled = (wake == 1)
             await self.verify_clock_gating(30, expected_enabled)
 
-    async def concurrent_sleep_wake_test(self):
-        """Test concurrent assertion of sleep and wake signals"""
-        self.log.info("Starting concurrent sleep/wake test")
+    async def concurrent_wake_test(self):
+        """Test concurrent assertion of wake signals"""
+        self.log.info("Starting concurrent wake test")
         count = self.max_count
         self.dut.i_cfg_cg_enable.value = 1
         self.dut.i_cfg_idle_count.value = count  # Use smaller count for this test
 
         # Test concurrent assertion
-        self.dut.i_sleep.value = 1
         self.dut.i_wakeup.value = 1
         await self.verify_clock_gating(count, True)  # Wake should dominate
 
@@ -108,7 +105,6 @@ class ClockGateCtrlTB(TBBase):
             self.dut.i_wakeup.value = 1
             await self.wait_clocks('clk_in', 2)
             self.dut.i_wakeup.value = 0
-            self.dut.i_sleep.value = 1
 
             # Verify clock runs for exactly count cycles
             await self.verify_clock_gating(count, True)
@@ -128,7 +124,6 @@ class ClockGateCtrlTB(TBBase):
             self.dut.i_wakeup.value = 1
             await self.wait_clocks('clk_in', 2)
             self.dut.i_wakeup.value = 0
-            self.dut.i_sleep.value = 1
             
             # Wait until just before the test point
             await self.wait_clocks('clk_in', timeout_value + offset - 1)
@@ -139,7 +134,6 @@ class ClockGateCtrlTB(TBBase):
             
             # Cleanup
             self.dut.i_wakeup.value = 0
-            self.dut.i_sleep.value = 0
             await self.wait_clocks('clk_in', 5)
 
     async def edge_case_test(self):
@@ -153,19 +147,16 @@ class ClockGateCtrlTB(TBBase):
         self.dut.i_wakeup.value = 1
         await self.wait_clocks('clk_in', 2)
         self.dut.i_wakeup.value = 0
-        self.dut.i_sleep.value = 1
         await self.verify_clock_gating(5, False)  # Should gate immediately
         
-        # Test 2: Rapid sleep/wake toggles with minimum idle count
+        # Test 2: Rapid wake toggles with minimum idle count
         self.log.info("Testing rapid toggles with min idle count")
         self.dut.i_cfg_idle_count.value = 1
         for _ in range(5):
             self.dut.i_wakeup.value = 1
             await self.wait_clocks('clk_in', 1)
             self.dut.i_wakeup.value = 0
-            self.dut.i_sleep.value = 1
             await self.wait_clocks('clk_in', 1)
-            self.dut.i_sleep.value = 0
             await self.wait_clocks('clk_in', 1)
 
     async def monitor_clock_output(self):
@@ -188,9 +179,9 @@ class ClockGateCtrlTB(TBBase):
         # Start clock monitoring
         cocotb.start_soon(self.monitor_clock_output())
         
-        # Test Case 1: Basic Wake/Sleep
-        self.log.info("Test Case 1: Basic Wake/Sleep Transition")
-        await self.basic_wake_sleep_test()
+        # Test Case 1: Basic Wake
+        self.log.info("Test Case 1: Basic Wake Transition")
+        await self.basic_wake_test()
         
         # Test Case 2: Idle Counter Behavior
         self.log.info("Test Case 2: Idle Counter Operation")
@@ -204,8 +195,8 @@ class ClockGateCtrlTB(TBBase):
         self.log.info("Test Case 4: Global Enable/Disable")
         await self.global_enable_test()
 
-    async def basic_wake_sleep_test(self):
-        """Test basic wake and sleep transitions"""
+    async def basic_wake_test(self):
+        """Test basic wake transitions"""
         # Enable clock gating
         self.dut.i_cfg_cg_enable.value = 1
         
@@ -213,15 +204,11 @@ class ClockGateCtrlTB(TBBase):
         self.dut.i_wakeup.value = 1
         await self.wait_clocks('clk_in', 5)
         self.dut.i_wakeup.value = 0
-        
-        # Sleep with idle count
         idle_count = self.idle_count_gen.next()
         self.dut.i_cfg_idle_count.value = idle_count
-        self.dut.i_sleep.value = 1
         
         # Wait for idle count to expire
         await self.wait_clocks('clk_in', idle_count + 2)
-        self.dut.i_sleep.value = 0
 
     async def idle_counter_test(self):
         """Test idle counter behavior with various values"""
@@ -236,16 +223,14 @@ class ClockGateCtrlTB(TBBase):
             
             await self.wait_clocks('clk_in', 2)
             self.dut.i_wakeup.value = 0
-            self.dut.i_sleep.value = 1
             
             # Wait for counter expiration
             await self.wait_clocks('clk_in', idle_count + 2)
-            self.dut.i_sleep.value = 0
             
             await self.wait_clocks('clk_in', 5)
 
     async def quick_toggle_test(self):
-        """Test rapid toggling of wake/sleep signals"""
+        """Test rapid toggling of wake signals"""
         self.dut.i_cfg_cg_enable.value = 1
         idle_count = 4  # Use a fixed small value for quick toggle test
         self.dut.i_cfg_idle_count.value = idle_count
@@ -254,16 +239,13 @@ class ClockGateCtrlTB(TBBase):
             self.dut.i_wakeup.value = 1
             await self.wait_clocks('clk_in', 2)
             self.dut.i_wakeup.value = 0
-            self.dut.i_sleep.value = 1
             await self.wait_clocks('clk_in', 2)
-            self.dut.i_sleep.value = 0
             await self.wait_clocks('clk_in', 1)
 
     async def global_enable_test(self):
         """Test global enable/disable functionality"""
         # Disable clock gating
         self.dut.i_cfg_cg_enable.value = 0
-        self.dut.i_sleep.value = 1
         await self.wait_clocks('clk_in', 10)
         
         # Enable clock gating
@@ -271,12 +253,11 @@ class ClockGateCtrlTB(TBBase):
         await self.wait_clocks('clk_in', 10)
         
         # Verify clock is gated
-        self.dut.i_sleep.value = 0
 
     async def run_test(self):
         # Run systematic tests first
         await self.systematic_enable_test()
-        await self.concurrent_sleep_wake_test()
+        await self.concurrent_wake_test()
         await self.systematic_counter_test()
         await self.counter_timeout_sweep_test()
         await self.edge_case_test()

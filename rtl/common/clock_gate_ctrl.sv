@@ -1,4 +1,4 @@
-
+`timescale 1ns / 1ps
 
 module clock_gate_ctrl #(
     parameter int N = 4  // Default width of idle counter
@@ -9,7 +9,6 @@ module clock_gate_ctrl #(
     input logic          i_cfg_cg_enable,  // Global clock gate enable
     input logic  [N-1:0] i_cfg_idle_count, // Idle countdown value
     input logic          i_wakeup,         // Signal to wake up the block
-    input logic          i_sleep,          // Signal to enter sleep mode
 
     // Outputs
     output logic         clk_out,
@@ -24,7 +23,7 @@ module clock_gate_ctrl #(
     logic         w_begin_clock_gating;
 
     // Counter is active when sleep is asserted but wakeup is not
-    assign w_counter_active = ~i_wakeup & i_sleep;
+    assign w_counter_active = ~i_wakeup;
 
     // Idle counter logic
     always_ff @(posedge clk_in or negedge aresetn) begin
