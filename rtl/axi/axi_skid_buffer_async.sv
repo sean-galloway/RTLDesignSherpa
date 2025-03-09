@@ -22,6 +22,7 @@ module axi_skid_buffer_async #(
     // output side
     output logic          o_rd_valid,
     input  logic          i_rd_ready,
+    output logic [DW-1:0] ow_rd_data,
     output logic [DW-1:0] o_rd_data
 );
 
@@ -62,8 +63,8 @@ module axi_skid_buffer_async #(
         .i_wr_data       (r_xfer_data),
         .i_rd_ready      (i_rd_ready),
         .o_rd_valid      (o_rd_valid),
-        .ow_rd_data      (o_rd_data),
-        .o_rd_data       ()
+        .ow_rd_data      (ow_rd_data),
+        .o_rd_data       (o_rd_data)
     );
 
 endmodule : axi_skid_buffer_async

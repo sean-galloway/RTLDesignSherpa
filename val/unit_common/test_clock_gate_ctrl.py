@@ -4,8 +4,8 @@ import os
 import subprocess
 import pytest
 from cocotb_test.simulator import run
-from TBClasses.TBBase import TBBase
-from TBClasses.ConstrainedRandom import ConstrainedRandom
+from TBClasses.tbbase import TBBase
+from Components.constrained_random import ConstrainedRandom
 from itertools import product
 
 
@@ -32,16 +32,16 @@ class ClockGateCtrlTB(TBBase):
         )
 
 
-    async def assert_reset(self):
+    def assert_reset(self):
         self.dut.aresetn.value = 0
         self.dut.i_cfg_cg_enable.value = 0
-        self.dut.i_cfg_idle_count.value = self.max_count
+        self.dut.i_cfg_cg_idle_count.value = self.max_count
         self.last_idle_count = self.max_count
         self.dut.i_wakeup.value = 0
         self.log.info('Assert reset done.')
         await self.wait_clocks('clk_in', 10)
 
-    async def deassert_reset(self):
+    def deassert_reset(self):
         await self.wait_clocks('clk_in', 2)
         self.dut.aresetn.value = 1
         self.log.info("Reset complete.")
@@ -61,11 +61,12 @@ class ClockGateCtrlTB(TBBase):
         """Test all combinations of wake with cfg_enable=1"""
         self.log.info("Starting systematic enable test")
         self.dut.i_cfg_cg_enable.value = 1
-        self.dut.i_cfg_idle_count.value = self.max_count  # Set max count to focus on wake
+        self.dut.i_cfg_cg_idle_count.value = self.max_count  # Set max count to focus on wake
 
         # Test all combinations of wake
         for wake in range(2):
-            self.log.info(f"Testing wake={wake}")
+            msg = f"Testing wake={wake}"
+            self.log.info(msg)
             self.dut.i_wakeup.value = wake
             
             # Clock should be enabled if wake=1
@@ -77,7 +78,7 @@ class ClockGateCtrlTB(TBBase):
         self.log.info("Starting concurrent wake test")
         count = self.max_count
         self.dut.i_cfg_cg_enable.value = 1
-        self.dut.i_cfg_idle_count.value = count  # Use smaller count for this test
+        self.dut.i_cfg_cg_idle_count.value = count  # Use smaller count for this test
 
         # Test concurrent assertion
         self.dut.i_wakeup.value = 1
@@ -99,8 +100,9 @@ class ClockGateCtrlTB(TBBase):
         ]
 
         for count in test_values:
-            self.log.info(f"Testing idle count: {count}")
-            self.dut.i_cfg_idle_count.value = count
+            msg = f"Testing idle count: {count}"
+            self.log.info(msg)
+            self.dut.i_cfg_cg_idle_count.value = count
             self.last_idle_count = count
             self.dut.i_wakeup.value = 1
             await self.wait_clocks('clk_in', 2)
@@ -115,11 +117,12 @@ class ClockGateCtrlTB(TBBase):
         self.log.info("Starting counter timeout sweep test")
         self.dut.i_cfg_cg_enable.value = 1
         timeout_value = self.max_count  # Use fixed timeout for sweep test
-        self.dut.i_cfg_idle_count.value = timeout_value
+        self.dut.i_cfg_cg_idle_count.value = timeout_value
         
         # Test wakeup assertions from -5 to +5 cycles around timeout
         for offset in range(-5, 6):
-            self.log.info(f"Testing wakeup at timeout {offset:+d} cycles")
+            msg = f"Testing wakeup at timeout {offset:+d} cycles"
+            self.log.info(msg)
             # Start countdown
             self.dut.i_wakeup.value = 1
             await self.wait_clocks('clk_in', 2)
@@ -143,7 +146,7 @@ class ClockGateCtrlTB(TBBase):
         # Test 1: Zero idle count behavior
         self.log.info("Testing zero idle count")
         self.dut.i_cfg_cg_enable.value = 1
-        self.dut.i_cfg_idle_count.value = 0
+        self.dut.i_cfg_cg_idle_count.value = 0
         self.dut.i_wakeup.value = 1
         await self.wait_clocks('clk_in', 2)
         self.dut.i_wakeup.value = 0
@@ -151,7 +154,7 @@ class ClockGateCtrlTB(TBBase):
         
         # Test 2: Rapid wake toggles with minimum idle count
         self.log.info("Testing rapid toggles with min idle count")
-        self.dut.i_cfg_idle_count.value = 1
+        self.dut.i_cfg_cg_idle_count.value = 1
         for _ in range(5):
             self.dut.i_wakeup.value = 1
             await self.wait_clocks('clk_in', 1)
@@ -170,7 +173,8 @@ class ClockGateCtrlTB(TBBase):
             
             if prev_clk != curr_clk:
                 edges_count += 1
-                self.log.debug(f"Clock output changed to {curr_clk} at {edges_count}")
+                msg = f"Clock output changed to {curr_clk} at {edges_count}"
+                self.log.debug(msg)
             
             prev_clk = curr_clk
 
@@ -205,7 +209,7 @@ class ClockGateCtrlTB(TBBase):
         await self.wait_clocks('clk_in', 5)
         self.dut.i_wakeup.value = 0
         idle_count = self.idle_count_gen.next()
-        self.dut.i_cfg_idle_count.value = idle_count
+        self.dut.i_cfg_cg_idle_count.value = idle_count
         
         # Wait for idle count to expire
         await self.wait_clocks('clk_in', idle_count + 2)
@@ -214,11 +218,12 @@ class ClockGateCtrlTB(TBBase):
         """Test idle counter behavior with various values"""
         for _ in range(3):  # Test with 3 different random values
             idle_count = self.idle_count_gen.next()
-            self.log.info(f"Testing idle count: {idle_count}")
+            msg = f"Testing idle count: {idle_count}"
+            self.log.info(msg)
             
             # Set up test conditions
             self.dut.i_cfg_cg_enable.value = 1
-            self.dut.i_cfg_idle_count.value = idle_count
+            self.dut.i_cfg_cg_idle_count.value = idle_count
             self.dut.i_wakeup.value = 1
             
             await self.wait_clocks('clk_in', 2)
@@ -233,7 +238,7 @@ class ClockGateCtrlTB(TBBase):
         """Test rapid toggling of wake signals"""
         self.dut.i_cfg_cg_enable.value = 1
         idle_count = 4  # Use a fixed small value for quick toggle test
-        self.dut.i_cfg_idle_count.value = idle_count
+        self.dut.i_cfg_cg_idle_count.value = idle_count
         
         for _ in range(5):  # Do 5 quick toggles
             self.dut.i_wakeup.value = 1
@@ -265,20 +270,21 @@ class ClockGateCtrlTB(TBBase):
         # Run original randomized tests
         await self.check_gating_behavior()
 
-@cocotb.test()
+@cocotb.test(timeout_time=1, timeout_unit="ms")
 async def clock_gate_ctrl_test(dut):
     """Test the clock gate control block"""
     tb = ClockGateCtrlTB(dut)
     
     # Set random seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
-    tb.log.info(f'Using seed: {seed}')
+    msg = f'Using seed: {seed}'
+    tb.log.info(msg)
     
     # Start clock and initialize
     await tb.start_clock('clk_in', 10, 'ns')
-    await tb.assert_reset()
+    tb.assert_reset()
     await tb.wait_clocks('clk_in', 5)
-    await tb.deassert_reset()
+    tb.deassert_reset()
     await tb.wait_clocks('clk_in', 5)
     
     # Run the test

@@ -8,14 +8,15 @@ from cocotb_test.simulator import run
 import random
 
 
-@cocotb.test()
+@cocotb.test(timeout_time=1, timeout_unit="ms")
 async def adder_test(dut):
     """ Test the adder fairly completely"""
     tb = AdderTB(dut)
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
-    tb.log.info(f'seed changed to {seed}')
+    msg = f'seed changed to {seed}'
+    tb.log.info(msg)
     tb.print_settings()
     dut.i_a = 0
     dut.i_b = 0

@@ -11,20 +11,21 @@ import random
 from cam_testing import CamTB
 
 
-@cocotb.test()
+@cocotb.test(timeout_time=1, timeout_unit="ms")
 async def basic_test(dut):
     '''Test the CAM as thoroughly as possible'''
     tb = CamTB(dut)
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
-    tb.log.info(f'seed changed to {seed}')
+    msg = f'seed changed to {seed}'
+    tb.log.info(msg)
     # TB Setup and reset sequence
     tb.print_settings()
     await tb.start_clock('i_clk', 10, 'ns')
-    await tb.assert_reset()
+    tb.assert_reset()
     await tb.wait_clocks('i_clk', 5)
-    await tb.deassert_reset()
+    tb.deassert_reset()
     await tb.wait_clocks('i_clk', 5)
     tb.log.info("Starting test...")
 

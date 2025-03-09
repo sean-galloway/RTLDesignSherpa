@@ -1,0 +1,116 @@
+On branch main
+Your branch is ahead of 'origin/main' by 1 commit.
+  (use "git push" to publish your local commits)
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	deleted:    rtl/axi/axi_slave_rd_stub.sv
+	deleted:    rtl/axi/axi_slave_stub.sv
+	deleted:    rtl/axi/axi_slave_wr_stub.sv
+	deleted:    rtl/axi/include/amba_error_pkg.sv
+	deleted:    rtl/axi/include/apb_pkg.sv
+	deleted:    rtl/axi/include/axi_pkg.sv
+	deleted:    rtl/axi/include/bus_types.svh
+
+Changes not staged for commit:
+  (use "git add/rm <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	deleted:    bin/TBClasses/AAA_test.ipynb
+	deleted:    bin/TBClasses/APB.py
+	deleted:    bin/TBClasses/APBTransactionExtra.py
+	deleted:    bin/TBClasses/ConstrainedRandom.py
+	deleted:    bin/TBClasses/DelayRandomizer.py
+	deleted:    bin/TBClasses/MemoryModel.py
+	deleted:    bin/TBClasses/RegisterMap.py
+	deleted:    bin/TBClasses/TBBase.py
+	modified:   bin/TBClasses/__init__.py
+	modified:   bin/TBClasses/adder_testing.py
+	modified:   bin/TBClasses/axi_fifo_async_testing.py
+	modified:   bin/TBClasses/axi_fifo_sync_testing.py
+	deleted:    bin/TBClasses/axi_skid_buffer.py
+	modified:   bin/TBClasses/axi_skid_buffer_async.py
+	modified:   bin/TBClasses/cam_testing.py
+	modified:   bin/TBClasses/crc_testing.py
+	modified:   bin/TBClasses/fifo_async_testing.py
+	modified:   bin/TBClasses/fifo_sync_testing.py
+	modified:   rtl/axi/apb_xbar.sv
+	modified:   rtl/axi/axi2apb_shim.sv
+	modified:   rtl/axi/axi_clock_gate_ctrl.sv
+	modified:   rtl/axi/axi_skid_buffer.sv
+	modified:   rtl/axi/axi_skid_buffer_async.sv
+	modified:   rtl/common/clock_gate_ctrl.sv
+	deleted:    val/unit_axi/Makefile
+	modified:   val/unit_axi/conftest.py
+	deleted:    val/unit_axi/test_apb_master_stub.py
+	deleted:    val/unit_axi/test_apb_xbar.py
+	deleted:    val/unit_axi/test_apb_xbar_feedthru.py
+	deleted:    val/unit_axi/test_apb_xbar_thin.py
+	deleted:    val/unit_axi/test_axi2apb_shim.py
+	deleted:    val/unit_axi/test_axi_clock_gate_ctrl.py
+	deleted:    val/unit_axi/test_axi_fifo_async.py
+	modified:   val/unit_axi/test_axi_fifo_sync.py
+	deleted:    val/unit_axi/test_axi_gen_addr.py
+	modified:   val/unit_axi/test_axi_skid_buffer.py
+	modified:   val/unit_axi/test_axi_skid_buffer_async.py
+	deleted:    val/unit_axi/test_axi_slave.py
+	deleted:    val/unit_common/Makefile
+	modified:   val/unit_common/test_arbiter_round_robin.py
+	modified:   val/unit_common/test_arbiter_weighted_round_robin.py
+	modified:   val/unit_common/test_cache_lru.py
+	modified:   val/unit_common/test_cache_plru.py
+	modified:   val/unit_common/test_cache_plru_mesi.py
+	modified:   val/unit_common/test_cam_tag.py
+	modified:   val/unit_common/test_clock_gate_ctrl.py
+	modified:   val/unit_common/test_dataint_checksum.py
+	modified:   val/unit_common/test_dataint_crc.py
+	modified:   val/unit_common/test_fifo_async.py
+	modified:   val/unit_common/test_fifo_async_div2.py
+	modified:   val/unit_common/test_fifo_sync.py
+	modified:   val/unit_common/test_math_adder_brent_kung_008.py
+	modified:   val/unit_common/test_math_adder_brent_kung_016.py
+	modified:   val/unit_common/test_math_adder_brent_kung_032.py
+	modified:   val/unit_common/test_math_adder_carry_lookahead.py
+	modified:   val/unit_common/test_math_adder_carry_save.py
+	modified:   val/unit_common/test_math_adder_carry_save_nbit.py
+	modified:   val/unit_common/test_math_adder_full.py
+	modified:   val/unit_common/test_math_adder_full_nbit.py
+	modified:   val/unit_common/test_math_adder_half.py
+	modified:   val/unit_common/test_math_adder_kogge_stone_nbit.py
+	modified:   val/unit_common/test_math_adder_ripple_carry.py
+	modified:   val/unit_common/test_math_addsub_full_nbit.py
+	modified:   val/unit_common/test_shifter_lfsr.py
+	modified:   val/unit_common/test_shifter_lfsr_fibonacci.py
+	modified:   val/unit_common/test_shifter_lfsr_galois.py
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	bin/Components/
+	bin/FileFolderFunctions/
+	bin/TBClasses/gaxi_buffer.py
+	bin/TBClasses/gen_regslice.py
+	bin/TBClasses/logs/
+	bin/TBClasses/tbbase.py
+	bin/TBClasses/utilities.py
+	bin/__init__.py
+	bin/cmd_cleanup.sh
+	bin/search_and_replace_directory.py
+	bin/vcd2wavedrom2/demo1.json
+	bin/wavedrom_user/
+	converted
+	design_cocotb/
+	pyfix.py
+	pyproject.toml
+	rtl/axi/REWORK/
+	rtl/axi/apb_master.sv
+	rtl/axi/apb_slave.sv
+	rtl/axi/apb_slave_cg.sv
+	rtl/axi/includes/
+	status.txt
+	val/unit_axi/FIX_TESTS/
+	val/unit_axi/FIX_TESTS_ADDENDUM/
+	val/unit_axi/GTKW/apb_slave.gtkw
+	val/unit_axi/logs/
+	val/unit_axi/test_apb_slave.py
+	val/unit_common/cmd_run_all.sh
+	val/unit_common/report.txt
+

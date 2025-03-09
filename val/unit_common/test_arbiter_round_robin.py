@@ -1,15 +1,11 @@
-import cocotb
-from cocotb.clock import Clock
-from cocotb.triggers import FallingEdge, RisingEdge, Timer
-from cocotb.queue import Queue
-# from cocotb.regression import TestFactory
 import os
 import subprocess
-import pytest
 import random
+import cocotb
+from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
-from TBClasses.TBBase import TBBase
-from TBClasses.ConstrainedRandom import ConstrainedRandom
+import pytest
+from TBClasses.tbbase import TBBase
 
 
 class ArbiterTB(TBBase):
@@ -20,20 +16,20 @@ class ArbiterTB(TBBase):
         self.pending_reqs = [0] * self.CLIENTS
 
 
-    async def clear_interface(self):
+    def clear_interface(self):
         self.dut.i_block_arb.value = 0
         self.dut.i_req.value = 0
         self.dut.i_gnt_ack.value = 0
         self.log.info('Clearing interface done.')
 
 
-    async def assert_reset(self):
+    def assert_reset(self):
         self.dut.i_rst_n.value = 0
-        await self.clear_interface()
+        self.clear_interface()
         self.log.info('Assert reset done.')
 
 
-    async def deassert_reset(self):
+    def deassert_reset(self):
         self.dut.i_rst_n.value = 1
         self.log.info("Reset complete.")
 
@@ -48,7 +44,8 @@ class ArbiterTB(TBBase):
                 if self.pending_reqs[i] == 0 and random.random() < 0.5:
                     self.pending_reqs[i] = 1
             self.dut.i_req.value = int("".join(map(str, self.pending_reqs)), 2)
-            self.log.debug(f'    New req: {self.dut.i_req}')
+            msg = f'    New req: {self.dut.i_req}'
+            self.log.debug(msg)
 
             await self.wait_clocks('i_clk', 1)
 
@@ -59,13 +56,17 @@ class ArbiterTB(TBBase):
             if self.dut.o_gnt_valid.value == 1:
                 grant_id = int(self.dut.o_gnt_id.value)
                 expected_gnt = (1 << grant_id)
-                self.log.debug(f'Current req: {self.dut.i_req.value}')
+                msg = f'Current req: {self.dut.i_req.value}'
+                self.log.debug(msg)
                 assert self.dut.o_gnt.value == expected_gnt, f"Expected grant: {expected_gnt}, got: {int(self.dut.o_gnt.value)}"
                 assert self.dut.i_req.value & self.dut.o_gnt.value, "Grant should be in response to a request"
-                self.log.debug(f'Clearing bit {grant_id}')
-                self.log.debug(f'   before: {self.pending_reqs}')
+                msg = f'Clearing bit {grant_id}'
+                self.log.debug(msg)
+                msg = f'   before: {self.pending_reqs}'
+                self.log.debug(msg)
                 self.pending_reqs[grant_id] = 0  # Clear the request once granted
-                self.log.debug(f'    after: {self.pending_reqs}')
+                msg = f'    after: {self.pending_reqs}'
+                self.log.debug(msg)
                 # Update i_req to reflect the cleared request
                 self.dut.i_req.value = int("".join(map(str, self.pending_reqs)), 2)
 
@@ -93,18 +94,19 @@ class ArbiterTB(TBBase):
             await RisingEdge(self.dut.i_clk)
 
 
-@cocotb.test()
+@cocotb.test(timeout_time=1, timeout_unit="ms")
 async def arbiter_round_robin_test(dut):
     """Test the round-robin arbiter"""
     tb = ArbiterTB(dut)
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
-    tb.log.info(f'seed changed to {seed}')
+    msg = f'seed changed to {seed}'
+    tb.log.info(msg)
     await tb.start_clock('i_clk', 10, 'ns')
-    await tb.assert_reset()
+    tb.assert_reset()
     await tb.wait_clocks('i_clk', 5)
-    await tb.deassert_reset()
+    tb.deassert_reset()
     await tb.wait_clocks('i_clk', 5)
     await tb.run_test()
 

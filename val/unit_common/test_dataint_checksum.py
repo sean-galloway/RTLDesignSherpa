@@ -6,7 +6,7 @@ import subprocess
 import random
 import pytest
 from cocotb_test.simulator import run
-from TBClasses.TBBase import TBBase
+from TBClasses.tbbase import TBBase
 
 
 class CheckSumTB(TBBase):
@@ -16,20 +16,21 @@ class CheckSumTB(TBBase):
         self.WIDTH = self.convert_to_int(os.environ.get('PARAM_WIDTH', '0'))
         self.max_value = 2**self.WIDTH-1
         self.mask = (1 << self.WIDTH)-1
-        self.log.info(f'{self.max_value=}')
+        msg = f'{self.max_value=}'
+        self.log.info(msg)
 
-    async def clear_interface(self):
+    def clear_interface(self):
         self.dut.i_reset.value = 0
         self.dut.i_valid.value = 0
         self.dut.i_data.value = 0
 
 
-    async def assert_reset(self):
+    def assert_reset(self):
         self.dut.i_rst_n.value = 0
         self.clear_interface()
 
 
-    async def deassert_reset(self):
+    def deassert_reset(self):
         self.dut.i_rst_n.value = 1
         self.log.info("Reset complete.")
 
@@ -37,7 +38,8 @@ class CheckSumTB(TBBase):
     def print_settings(self):
         self.log.info('-------------------------------------------')
         self.log.info('Settings:')
-        self.log.info(f'    WIDTH:  {self.WIDTH}')
+        msg = f'    WIDTH:  {self.WIDTH}'
+        self.log.info(msg)
         self.log.info('-------------------------------------------')
 
     async def main_loop(self, count=100):
@@ -63,9 +65,11 @@ class CheckSumTB(TBBase):
             await self.wait_clocks('i_clk',1)            
             actual_chksum = int(self.dut.o_chksum.value)
             expected_chksum = total & self.mask
-            self.log.info(f'{total=:x} {actual_chksum=:x} {expected_chksum=:x}')
+            msg = f'{total=:x} {actual_chksum=:x} {expected_chksum=:x}'
+            self.log.info(msg)
             hex_values = ' '.join(f"{num:x}" for num in total_list)
-            self.log.info(f'{hex_values=}')
+            msg = f'{hex_values=}'
+            self.log.info(msg)
             assert actual_chksum == expected_chksum, f"Checksum mismatch: expected {expected_chksum}, got {actual_chksum} {total_list=}"
 
             # Assert i_reset for two clocks while i_valid is 0
@@ -75,19 +79,20 @@ class CheckSumTB(TBBase):
             await self.wait_clocks('i_clk',20)
 
 
-@cocotb.test()
+@cocotb.test(timeout_time=1, timeout_unit="ms")
 async def checksum_test(dut):
     """Test the checksum module with random data bursts."""
     tb = CheckSumTB(dut)
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
-    tb.log.info(f'seed changed to {seed}')
+    msg = f'seed changed to {seed}'
+    tb.log.info(msg)
     tb.print_settings()
     await tb.start_clock('i_clk', 10, 'ns')
-    await tb.assert_reset()
+    tb.assert_reset()
     await tb.wait_clocks('i_clk', 5)
-    await tb.deassert_reset()
+    tb.deassert_reset()
     await tb.wait_clocks('i_clk', 5)
     await tb.main_loop()
 

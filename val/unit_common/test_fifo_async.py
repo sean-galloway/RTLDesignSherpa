@@ -9,19 +9,20 @@ from fifo_async_testing import FIFOASyncTB
 from cocotb_test.simulator import run
 
 
-@cocotb.test()
+@cocotb.test(timeout_time=1, timeout_unit="ms")
 async def fifo_test(dut):
     '''Test the FIFO as thoroughly as possible'''
     tb = FIFOASyncTB(dut)
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
-    tb.log.info(f'seed changed to {seed}')
+    msg = f'seed changed to {seed}'
+    tb.log.info(msg)
     await tb.start_clock('i_wr_clk', 10, 'ns')
     await tb.start_clock('i_rd_clk', 15, 'ns')
-    await tb.assert_reset()
+    tb.assert_reset()
     await tb.wait_clocks('i_rd_clk', 5)
-    await tb.deassert_reset()
+    tb.deassert_reset()
     await tb.wait_clocks('i_rd_clk', 5)
     tb.log.info("Starting test...")
     await tb.main_loop(100, 200)

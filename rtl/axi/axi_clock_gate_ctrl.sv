@@ -9,7 +9,7 @@ module axi_clock_gate_ctrl #(
 
     // Configuration Interface
     input  logic                    i_cfg_cg_enable,     // Global clock gate enable
-    input  logic [N-1:0]            i_cfg_idle_count,    // Idle countdown value
+    input  logic [N-1:0]            i_cfg_cg_idle_count,    // Idle countdown value
 
     // Activity Monitoring
     input  logic                    i_user_valid,        // Any user-side valid signal
@@ -22,25 +22,31 @@ module axi_clock_gate_ctrl #(
 );
 
     // Internal signals
-    logic w_wakeup;
-
-    // Generate idle signal when all buffers are empty
+    logic r_wakeup;
 
     // Combine activity signals
-    assign w_wakeup = i_user_valid || i_axi_valid;
-    assign o_idle = ~w_wakeup;
+    // flop the wakeup signal
+    always_ff @(posedge clk_in or negedge aresetn) begin
+        if (!aresetn)
+            r_wakeup <= 'h1;
+        else
+            r_wakeup <= i_user_valid || i_axi_valid;
+    end
+
+    // Generate idle signal when no activity
+    assign o_idle = ~r_wakeup;
 
     // Instantiate the base clock gate control
     clock_gate_ctrl #(
         .N(N)
     ) u_clock_gate_ctrl (
-        .clk_in           (clk_in),
-        .aresetn          (aresetn),
-        .i_cfg_cg_enable  (i_cfg_cg_enable),
-        .i_cfg_idle_count (i_cfg_idle_count),
-        .i_wakeup         (w_wakeup),
-        .clk_out          (clk_out),
-        .o_gating         (o_gating)
+        .clk_in              (clk_in),
+        .aresetn             (aresetn),
+        .i_cfg_cg_enable     (i_cfg_cg_enable),
+        .i_cfg_cg_idle_count (i_cfg_cg_idle_count),
+        .i_wakeup            (w_wakeup),
+        .clk_out             (clk_out),
+        .o_gating            (o_gating)
     );
 
 endmodule : axi_clock_gate_ctrl

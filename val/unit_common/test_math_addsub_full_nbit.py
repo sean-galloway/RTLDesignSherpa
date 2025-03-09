@@ -8,7 +8,7 @@ import subprocess
 import pytest
 from cocotb_test.simulator import run
 import random
-from TBClasses.TBBase import TBBase
+from TBClasses.tbbase import TBBase
 
 
 class AddSubTB(TBBase):
@@ -19,7 +19,7 @@ class AddSubTB(TBBase):
         self.max_val = 2**self.N
 
 
-    async def clear_interface(self):
+    def clear_interface(self):
         self.dut.i_a.value = 0
         self.dut.i_b.value = 0
         self.dut.i_c.value = 0
@@ -28,7 +28,8 @@ class AddSubTB(TBBase):
     def print_settings(self):
         self.log.info('-------------------------------------------')
         self.log.info('Settings:')
-        self.log.info(f'    N:     {self.N}')
+        msg = f'    N:     {self.N}'
+        self.log.info(msg)
         self.log.info('-------------------------------------------')
 
 
@@ -64,7 +65,8 @@ class AddSubTB(TBBase):
                 else:
                     expected_c = 1
             found = self.dut.ow_sum.value.integer
-            self.log.info(f'{self.max_val=} {a=} {b=} {cin=} {expected_sum=} {found=}')
+            msg = f'{self.max_val=} {a=} {b=} {cin=} {expected_sum=} {found=}'
+            self.log.info(msg)
             # Check results
             assert self.dut.ow_sum.value.integer == expected_sum,\
                 f"For inputs {a} and {b} with carry-in {cin}, expected sum was {expected_sum} but got {self.dut.ow_sum.value.integer}"
@@ -72,16 +74,17 @@ class AddSubTB(TBBase):
                 f"For inputs {a} and {b} with carry-in {cin}, expected carry/borrow was {expected_c} but got {self.dut.ow_carry.value}"
 
 
-@cocotb.test()
+@cocotb.test(timeout_time=1, timeout_unit="ms")
 async def addsub_dut_test(dut):
     """Test logic for a specific set of input values."""
     tb = AddSubTB(dut)
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
-    tb.log.info(f'seed changed to {seed}')
+    msg = f'seed changed to {seed}'
+    tb.log.info(msg)
     tb.print_settings()
-    await tb.clear_interface()
+    tb.clear_interface()
     await tb.wait_time(2, 'ns')
     await tb.main_loop()
 

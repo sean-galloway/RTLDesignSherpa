@@ -7,21 +7,22 @@ from cocotb_test.simulator import run
 import random
 
 
-@cocotb.test()
+@cocotb.test(timeout_time=1, timeout_unit="ms")
 async def crc_basic_test(dut):
     """ Test the CRC calculation for a basic input Across 250 Configurations"""
     tb = CRCTB(dut, 100)
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
-    tb.log.info(f'seed changed to {seed}')
+    msg = f'seed changed to {seed}'
+    tb.log.info(msg)
     tb.print_settings()
     tb.generate_test_data()
 
     await tb.start_clock('i_clk', 10, 'ns')
-    await tb.assert_reset()
+    tb.assert_reset()
     await tb.wait_clocks('i_clk', 5)
-    await tb.deassert_reset()
+    tb.deassert_reset()
     await tb.wait_clocks('i_clk', 5)
     await tb.main_loop()
 

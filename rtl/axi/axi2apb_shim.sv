@@ -1,11 +1,11 @@
 `timescale 1ns / 1ps
 
 module axi2apb_shim #(
-    parameter int SKID_DEPTH_AW     = 2,
-    parameter int SKID_DEPTH_W      = 4,
-    parameter int SKID_DEPTH_B      = 2,
-    parameter int SKID_DEPTH_AR     = 2,
-    parameter int SKID_DEPTH_R      = 4,
+    parameter int DEPTH_AW     = 2,
+    parameter int DEPTH_W      = 4,
+    parameter int DEPTH_B      = 2,
+    parameter int DEPTH_AR     = 2,
+    parameter int DEPTH_R      = 4,
     parameter int SIDE_DEPTH        = 4,
     parameter int APB_CMD_DEPTH     = 4,
     parameter int APB_RSP_DEPTH     = 4,
@@ -141,11 +141,11 @@ module axi2apb_shim #(
 
     // Instantiate the axi_slave_stub
     axi_slave_stub #                   (
-        .SKID_DEPTH_AW            (SKID_DEPTH_AW),
-        .SKID_DEPTH_W             (SKID_DEPTH_W),
-        .SKID_DEPTH_B             (SKID_DEPTH_B),
-        .SKID_DEPTH_AR            (SKID_DEPTH_AR),
-        .SKID_DEPTH_R             (SKID_DEPTH_R),
+        .DEPTH_AW            (DEPTH_AW),
+        .DEPTH_W             (DEPTH_W),
+        .DEPTH_B             (DEPTH_B),
+        .DEPTH_AR            (DEPTH_AR),
+        .DEPTH_R             (DEPTH_R),
         .AXI_ID_WIDTH             (IW),
         .AXI_ADDR_WIDTH           (AW),
         .AXI_DATA_WIDTH           (DW),

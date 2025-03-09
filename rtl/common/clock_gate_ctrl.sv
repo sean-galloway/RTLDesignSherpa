@@ -1,14 +1,15 @@
 `timescale 1ns / 1ps
 
 module clock_gate_ctrl #(
-    parameter int N = 4  // Default width of idle counter
+    parameter int IDLE_CNTR_WIDTH = 4, // Default width of idle counter
+    parameter int N = IDLE_CNTR_WIDTH
 ) (
     // Inputs
     input logic          clk_in,
     input logic          aresetn,
-    input logic          i_cfg_cg_enable,  // Global clock gate enable
-    input logic  [N-1:0] i_cfg_idle_count, // Idle countdown value
-    input logic          i_wakeup,         // Signal to wake up the block
+    input logic          i_cfg_cg_enable,     // Global clock gate enable
+    input logic  [N-1:0] i_cfg_cg_idle_count, // Idle countdown value
+    input logic          i_wakeup,            // Signal to wake up the block
 
     // Outputs
     output logic         clk_out,
@@ -31,7 +32,7 @@ module clock_gate_ctrl #(
             r_idle_counter <= 'h0;
         else
             if (i_wakeup || ~i_cfg_cg_enable) begin
-                r_idle_counter <= i_cfg_idle_count;
+                r_idle_counter <= i_cfg_cg_idle_count;
             end else if (w_counter_active && r_idle_counter != 'h0) begin
                 r_idle_counter <= r_idle_counter - 1'b1;
         end

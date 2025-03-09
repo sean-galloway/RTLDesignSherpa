@@ -8,8 +8,8 @@ import subprocess
 import random
 import pytest
 from cocotb_test.simulator import run
-from TBClasses.TBBase import TBBase
-from TBClasses.ConstrainedRandom import ConstrainedRandom
+from TBClasses.tbbase import TBBase
+from Components.constrained_random import ConstrainedRandom
 
 class CTCacheMESI(TBBase):
     def __init__(self, dut):
@@ -26,7 +26,7 @@ class CTCacheMESI(TBBase):
         self.address_queue = Queue()  # Queue to store addresses for read operations
         self.num_ops = 1000
 
-    async def clear_interface(self):
+    def clear_interface(self):
         self.dut.i_sysbusin_valid.value = 0
         self.dut.i_sysbusin_op_rdxwr.value = 0
         self.dut.i_sysbusin_addr.value = 0
@@ -45,22 +45,26 @@ class CTCacheMESI(TBBase):
         self.dut.i_c2c_snp_ready = 0
         self.log.info('Clearing interface done.')
 
-    async def assert_reset(self):
+    def assert_reset(self):
         self.dut.i_rst_n.value = 0
         await self.clear_interface()
         self.log.info('Assert reset done.')
 
-    async def deassert_reset(self):
+    def deassert_reset(self):
         self.dut.i_rst_n.value = 1
         self.log.info("Reset complete.")
 
     def print_settings(self):
         self.log.info('-------------------------------------------')
         self.log.info('Settings:')
-        self.log.info(f'    DEPTH: {self.DEPTH}')
-        self.log.info(f'    A:     {self.A}')
-        self.log.info(f'    DW:    {self.DW}')
-        self.log.info(f'    AW:    {self.AW}')
+        msg = f'    DEPTH: {self.DEPTH}'
+        self.log.info(msg)
+        msg = f'    A:     {self.A}'
+        self.log.info(msg)
+        msg = f'    DW:    {self.DW}'
+        self.log.info(msg)
+        msg = f'    AW:    {self.AW}'
+        self.log.info(msg)
         self.log.info('-------------------------------------------')
 
     async def main_loop(self, count=100):
@@ -93,7 +97,8 @@ class CTCacheMESI(TBBase):
         count = 0
         for _ in range(num_operations):
             op_type = random.choice(['read', 'write'])
-            self.log.info(f'sysbus: {count=} {op_type=}')
+            msg = f'sysbus: {count=} {op_type=}'
+            self.log.info(msg)
             count += 1
 
             if op_type == 'write' and crand_write.next() > 50:  # Adjust the threshold as needed
@@ -117,7 +122,8 @@ class CTCacheMESI(TBBase):
                 wr_data_hex = self.hex_format(wr_data, self.max_val_dw)
                 wr_dm_hex = self.hex_format(wr_dm, self.max_val_dm)
                 current_time_ns = get_sim_time('ns')
-                self.log.info(f'Write: Addr: {addr_hex} Data: {wr_data_hex} DM: {wr_dm_hex} Time: {current_time_ns}')
+                msg = f'Write: Addr: {addr_hex} Data: {wr_data_hex} DM: {wr_dm_hex} Time: {current_time_ns}'
+                self.log.info(msg)
                 self.data_memory[addr_hex] = wr_data_hex  # Store the written data in the dictionary
 
             else:  # op_type == 'read'
@@ -147,7 +153,8 @@ class CTCacheMESI(TBBase):
                 addr_hex = self.hex_format(rd_addr, self.max_val_aw)
                 rd_data_hex = self.hex_format(rd_data, self.max_val_dw)
                 current_time_ns = get_sim_time('ns')
-                self.log.info(f'Read: Addr: {addr_hex} Data: {rd_data_hex} Time: {current_time_ns}')
+                msg = f'Read: Addr: {addr_hex} Data: {rd_data_hex} Time: {current_time_ns}'
+                self.log.info(msg)
 
             await self.wait_clocks('i_clk', crand_delay.next())
 
@@ -172,7 +179,8 @@ class CTCacheMESI(TBBase):
                     addr_hex = self.hex_format(addr, self.max_val_aw)
                     data_hex = self.hex_format(data, self.max_val_dw)
                     current_time_ns = get_sim_time('ns')
-                    self.log.info(f'Mem Write: Addr: {addr_hex} Data: {data_hex} Time: {current_time_ns}')
+                    msg = f'Mem Write: Addr: {addr_hex} Data: {data_hex} Time: {current_time_ns}'
+                    self.log.info(msg)
                 else:
                     data = self.data_memory.get(addr_hex, 0)  # Get the read data from the dictionary
                     self.dut.i_memin_valid.value = 1
@@ -188,7 +196,8 @@ class CTCacheMESI(TBBase):
                     addr_hex = self.hex_format(addr, self.max_val_aw)
                     data_hex = self.hex_format(data, self.max_val_dw)
                     current_time_ns = get_sim_time('ns')
-                    self.log.info(f'Mem Read: Addr: {addr_hex} Data: {data_hex} Time: {current_time_ns}')
+                    msg = f'Mem Read: Addr: {addr_hex} Data: {data_hex} Time: {current_time_ns}'
+                    self.log.info(msg)
 
     async def drive_snoop(self, operation_done_event):
         """Randomly perform snoop operations."""
@@ -230,7 +239,8 @@ class CTCacheMESI(TBBase):
                 addr_hex = self.hex_format(snoop_addr, self.max_val_aw)
                 snoop_data_hex = self.hex_format(snoop_data, self.max_val_dw) if is_hit else 'x' * (self.DW // 4)
                 current_time_ns = get_sim_time('ns')
-                self.log.info(f'Snoop: Addr: {addr_hex} Cmd: {snoop_cmd} Data: {snoop_data_hex} Hit: {is_hit} Dirty: {is_dirty} Time: {current_time_ns}')
+                msg = f'Snoop: Addr: {addr_hex} Cmd: {snoop_cmd} Data: {snoop_data_hex} Hit: {is_hit} Dirty: {is_dirty} Time: {current_time_ns}'
+                self.log.info(msg)
 
                 if snoop_cmd == 0 and is_hit:
                     await RisingEdge(self.dut.o_c2c_snp_valid)
@@ -238,26 +248,28 @@ class CTCacheMESI(TBBase):
                         await self.wait_clocks('i_clk', 1)
                     c2c_data = self.dut.o_c2c_snp_data.value
                     c2c_data_hex = self.hex_format(c2c_data, self.max_val_aw)
-                    self.log.info(f'C2C Transfer: Addr: {addr_hex} Data: {c2c_data_hex} Time: {current_time_ns}')
+                    msg = f'C2C Transfer: Addr: {addr_hex} Data: {c2c_data_hex} Time: {current_time_ns}'
+                    self.log.info(msg)
 
             await self.wait_clocks('i_clk', crand_delay.next())
 
         operation_done_event.set()
 
 
-@cocotb.test()
+@cocotb.test(timeout_time=1, timeout_unit="ms")
 async def cache_mesi_test(dut):
     """Test the MESI cache"""
     tb = CTCacheMESI(dut)
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
-    tb.log.info(f'seed changed to {seed}')
+    msg = f'seed changed to {seed}'
+    tb.log.info(msg)
     tb.print_settings()
     await tb.start_clock('i_clk', 10, 'ns')
-    await tb.assert_reset()
+    tb.assert_reset()
     await tb.wait_clocks('i_clk', 5)
-    await tb.deassert_reset()
+    tb.deassert_reset()
     await tb.wait_clocks('i_clk', 5)
     await tb.main_loop()
 

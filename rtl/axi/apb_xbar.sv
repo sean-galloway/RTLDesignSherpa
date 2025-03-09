@@ -12,7 +12,7 @@ module apb_xbar #(
     // Strobe width
     parameter int STRB_WIDTH = DATA_WIDTH/8,
     parameter int MAX_THRESH = 16,
-    parameter int SKID_DEPTH = 4,
+    parameter int DEPTH = 4,
     // local abbreviations
     parameter int DW     = DATA_WIDTH,
     parameter int AW     = ADDR_WIDTH,
@@ -119,7 +119,7 @@ module apb_xbar #(
                         r_slv_cmd_paddr[m_port], r_slv_cmd_pwdata[m_port]} = r_slv_cmd_data[m_port];
 
             apb_slave_stub #(
-                .SKID_DEPTH       (SKID_DEPTH),
+                .DEPTH       (DEPTH),
                 .DATA_WIDTH       (DATA_WIDTH),
                 .ADDR_WIDTH       (ADDR_WIDTH),
                 .STRB_WIDTH       (STRB_WIDTH)
@@ -236,7 +236,7 @@ module apb_xbar #(
 
             // Instantiate axi_fifo_sync
             axi_skid_buffer #(
-                .SKID_DEPTH   (SKID_DEPTH),
+                .DEPTH   (DEPTH),
                 .DATA_WIDTH   (MID)
             ) side_queue_inst (
                 .i_axi_aclk   (aclk),

@@ -1,0 +1,79 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Thu Feb 27 11:02:17 2025
+[*]
+[dumpfile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/local_sim_build/test_apb_slave-32-32-2-4/apb_slave.fst"
+[dumpfile_mtime] "Thu Feb 27 10:55:40 2025"
+[dumpfile_size] 2405
+[savefile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/GTKW/apb_slave.gtkw"
+[timestart] 77700
+[size] 3096 1044
+[pos] -1 -1
+*-15.404322 250000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] apb_slave.
+[sst_width] 278
+[signals_width] 275
+[sst_expanded] 1
+[sst_vpaned_height] 312
+@28
+apb_slave.i_cfg_cg_enable
+@22
+apb_slave.i_cfg_cg_idle_count[3:0]
+@28
+apb_slave.cg_pclk
+apb_slave.pclk
+apb_slave.o_apb_clock_gating
+apb_slave.presetn
+apb_slave.s_apb_PSEL
+apb_slave.s_apb_PENABLE
+apb_slave.s_apb_PREADY
+apb_slave.s_apb_PWRITE
+@22
+apb_slave.s_apb_PADDR[31:0]
+apb_slave.s_apb_PWDATA[31:0]
+@28
+apb_slave.s_apb_PPROT[2:0]
+@22
+apb_slave.s_apb_PRDATA[31:0]
+apb_slave.s_apb_PSTRB[3:0]
+@28
+apb_slave.s_apb_PSLVERR
+@200
+-internals
+@22
+apb_slave.r_cmd_count[3:0]
+apb_slave.r_rsp_count[3:0]
+@28
+apb_slave.r_apb_state[2:0]
+apb_slave.r_wakeup
+@200
+-cmd skid
+@22
+apb_slave.cmd_skid_buffer_inst.ow_count[3:0]
+@28
+apb_slave.cmd_skid_buffer_inst.i_wr_valid
+apb_slave.cmd_skid_buffer_inst.o_wr_ready
+apb_slave.cmd_skid_buffer_inst.o_rd_valid
+apb_slave.cmd_skid_buffer_inst.i_rd_ready
+apb_slave.o_cmd_pwrite
+@22
+apb_slave.o_cmd_paddr[31:0]
+apb_slave.o_cmd_pwdata[31:0]
+apb_slave.o_cmd_pstrb[3:0]
+@29
+apb_slave.o_cmd_pprot[2:0]
+@200
+-rsp skid
+@22
+apb_slave.resp_skid_buffer_inst.ow_count[3:0]
+@28
+apb_slave.resp_skid_buffer_inst.i_wr_valid
+apb_slave.resp_skid_buffer_inst.o_wr_ready
+apb_slave.resp_skid_buffer_inst.o_rd_valid
+apb_slave.resp_skid_buffer_inst.i_rd_ready
+@22
+apb_slave.i_rsp_prdata[31:0]
+@28
+apb_slave.i_rsp_pslverr
+[pattern_trace] 1
+[pattern_trace] 0

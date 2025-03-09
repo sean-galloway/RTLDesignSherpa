@@ -8,8 +8,8 @@ import subprocess
 import random
 import pytest
 from cocotb_test.simulator import run
-from TBClasses.TBBase import TBBase
-from TBClasses.ConstrainedRandom import ConstrainedRandom
+from TBClasses.tbbase import TBBase
+from Components.constrained_random import ConstrainedRandom
 
 class CTCache(TBBase):
     def __init__(self, dut):
@@ -24,7 +24,7 @@ class CTCache(TBBase):
         self.address_queue = Queue()  # Queue to store addresses for read operations
         self.num_ops = 1000
 
-    async def clear_interface(self):
+    def clear_interface(self):
         self.dut.i_rd.value = 0
         self.dut.i_wr.value = 0
         self.dut.i_wr_data.value = 0
@@ -34,22 +34,26 @@ class CTCache(TBBase):
         self.dut.i_snoop_addr.value = 0
         self.log.info('Clearing interface done.')
 
-    async def assert_reset(self):
+    def assert_reset(self):
         self.dut.i_rst_n.value = 0
         await self.clear_interface()
         self.log.info('Assert reset done.')
 
-    async def deassert_reset(self):
+    def deassert_reset(self):
         self.dut.i_rst_n.value = 1
         self.log.info("Reset complete.")
 
     def print_settings(self):
         self.log.info('-------------------------------------------')
         self.log.info('Settings:')
-        self.log.info(f'    DEPTH: {self.DEPTH}')
-        self.log.info(f'    A:     {self.A}')
-        self.log.info(f'    DW:    {self.DW}')
-        self.log.info(f'    AW:    {self.AW}')
+        msg = f'    DEPTH: {self.DEPTH}'
+        self.log.info(msg)
+        msg = f'    A:     {self.A}'
+        self.log.info(msg)
+        msg = f'    DW:    {self.DW}'
+        self.log.info(msg)
+        msg = f'    AW:    {self.AW}'
+        self.log.info(msg)
         self.log.info('-------------------------------------------')
 
     async def main_loop(self, count=100):
@@ -94,7 +98,8 @@ class CTCache(TBBase):
                 wr_data_hex = self.hex_format(wr_data, self.max_val)
                 wr_dm_hex = self.hex_format(wr_dm, self.max_val)
                 current_time_ns = get_sim_time('ns')
-                self.log.info(f'Write: Addr: {addr_hex} Data: {wr_data_hex} DM: {wr_dm_hex} Hit: {is_hit} Time: {current_time_ns}')
+                msg = f'Write: Addr: {addr_hex} Data: {wr_data_hex} DM: {wr_dm_hex} Hit: {is_hit} Time: {current_time_ns}'
+                self.log.info(msg)
                 self.dut.i_wr.value = 0
                 self.dut.i_wr_data.value = 0
                 self.dut.i_wr_dm.value = 0
@@ -117,23 +122,24 @@ class CTCache(TBBase):
         num_operations = self.num_ops
 
         for _ in range(num_operations):
-            if crand_read.next() > 50:  # Adjust the threshold as needed
-                if not self.address_queue.empty():
-                    rd_addr = self.address_queue.get_nowait()
-                    self.dut.i_rd_addr.value = rd_addr
-                    self.dut.i_rd.value = 1
-                    await Timer(100, units='ps')
-                    await self.wait_clocks('i_clk', 1)
-                    is_hit = self.dut.o_rd_hit.value
-                    rd_data = self.dut.o_rd_data.value
-                    addr_hex = self.hex_format(rd_addr, self.max_val)
-                    rd_data_hex = self.hex_format(rd_data, self.max_val)
-                    current_time_ns = get_sim_time('ns')
-                    expected_data = self.data_memory.get(rd_addr, 0)  # Get the expected data from the dictionary
-                    self.log.info(f'Read: Addr: {addr_hex} Data: {rd_data_hex} Expected: {self.hex_format(expected_data, self.max_val)} Hit: {is_hit} Time: {current_time_ns}')
-                    if expected_data != rd_data:
-                        self.log.error(f"Error: Read data mismatch for address {addr_hex}. Expected: {self.hex_format(expected_data, self.max_val)}, Actual: {rd_data_hex}")
-                    self.dut.i_rd.value = 0
+            if crand_read.next() > 50 and not self.address_queue.empty():
+                rd_addr = self.address_queue.get_nowait()
+                self.dut.i_rd_addr.value = rd_addr
+                self.dut.i_rd.value = 1
+                await Timer(100, units='ps')
+                await self.wait_clocks('i_clk', 1)
+                is_hit = self.dut.o_rd_hit.value
+                rd_data = self.dut.o_rd_data.value
+                addr_hex = self.hex_format(rd_addr, self.max_val)
+                rd_data_hex = self.hex_format(rd_data, self.max_val)
+                current_time_ns = get_sim_time('ns')
+                expected_data = self.data_memory.get(rd_addr, 0)  # Get the expected data from the dictionary
+                msg = f'Read: Addr: {addr_hex} Data: {rd_data_hex} Expected: {self.hex_format(expected_data, self.max_val)} Hit: {is_hit} Time: {current_time_ns}'
+                self.log.info(msg)
+                if expected_data != rd_data:
+                    msg = f"Error: Read data mismatch for address {addr_hex}. Expected: {self.hex_format(expected_data, self.max_val)}, Actual: {rd_data_hex}"
+                    self.log.error(msg)
+                self.dut.i_rd.value = 0
 
             await self.wait_clocks('i_clk', crand_delay.next())
 
@@ -173,7 +179,8 @@ class CTCache(TBBase):
                 addr_hex = self.hex_format(snoop_addr, self.max_val)
                 snoop_data_hex = self.hex_format(snoop_data, self.max_val) if is_hit else 'x' * (self.DW // 4)
                 current_time_ns = get_sim_time('ns')
-                self.log.info(f'Snoop: Addr: {addr_hex} Cmd: {snoop_cmd} Data: {snoop_data_hex} Hit: {is_hit} Dirty: {is_dirty} Time: {current_time_ns}')
+                msg = f'Snoop: Addr: {addr_hex} Cmd: {snoop_cmd} Data: {snoop_data_hex} Hit: {is_hit} Dirty: {is_dirty} Time: {current_time_ns}'
+                self.log.info(msg)
                 self.dut.i_snoop_valid.value = 0
                 self.dut.i_snoop_cmd.value = 0
                 self.dut.i_snoop_addr.value = 0
@@ -182,19 +189,20 @@ class CTCache(TBBase):
 
         operation_done_event.set()
 
-@cocotb.test()
+@cocotb.test(timeout_time=1, timeout_unit="ms")
 async def cache_test(dut):
     """Test the cache"""
     tb = CTCache(dut)
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
-    tb.log.info(f'seed changed to {seed}')
+    msg = f'seed changed to {seed}'
+    tb.log.info(msg)
     tb.print_settings()
     await tb.start_clock('i_clk', 10, 'ns')
-    await tb.assert_reset()
+    tb.assert_reset()
     await tb.wait_clocks('i_clk', 5)
-    await tb.deassert_reset()
+    tb.deassert_reset()
     await tb.wait_clocks('i_clk', 5)
     await tb.main_loop()
 

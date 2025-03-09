@@ -6,7 +6,7 @@ import os
 import subprocess
 import pytest
 from cocotb_test.simulator import run
-from TBClasses.TBBase import TBBase
+from TBClasses.tbbase import TBBase
 
 class LFSR_TB(TBBase):
     def __init__(self, dut):
@@ -21,23 +21,27 @@ class LFSR_TB(TBBase):
     def print_settings(self):
         self.log.info('-------------------------------------------')
         self.log.info('Settings:')
-        self.log.info(f'    WIDTH: {self.width}')
-        self.log.info(f'    TIW:   {self.tap_index_width}')
-        self.log.info(f'    TC:    {self.tap_count}')
-        self.log.info(f'    TAPS:  {self.taps}')
+        msg = f'    WIDTH: {self.width}'
+        self.log.info(msg)
+        msg = f'    TIW:   {self.tap_index_width}'
+        self.log.info(msg)
+        msg = f'    TC:    {self.tap_count}'
+        self.log.info(msg)
+        msg = f'    TAPS:  {self.taps}'
+        self.log.info(msg)
         self.log.info('-------------------------------------------')
 
-    async def clear_interface(self):
+    def clear_interface(self):
         self.dut.i_enable.value = 0
         self.dut.i_seed_load.value = 0
         self.dut.i_seed_data.value = 0
 
-    async def assert_reset(self):
+    def assert_reset(self):
         self.dut.i_rst_n.value = 0
         await self.clear_interface()
         self.log.info('Assert reset done.')
 
-    async def deassert_reset(self):
+    def deassert_reset(self):
         self.dut.i_rst_n.value = 1
         self.log.info("Reset complete.")
 
@@ -70,7 +74,8 @@ class LFSR_TB(TBBase):
             lfsr_output_hex = hex(lfsr_output)
             expected_hex = hex(expected_lfsr_output)
             lfsr_done = self.dut.ow_lfsr_done.value
-            self.log.info(f"LFSR Output: {lfsr_output_hex}, Expected: {expected_hex}, LFSR Done: {lfsr_done}")
+            msg = f"LFSR Output: {lfsr_output_hex}, Expected: {expected_hex}, LFSR Done: {lfsr_done}"
+            self.log.info(msg)
 
             # Check if the LFSR output matches the expected value
             assert lfsr_output == expected_lfsr_output, f"LFSR output mismatch: Expected {expected_hex}, Got {lfsr_output_hex}"
@@ -84,18 +89,19 @@ class LFSR_TB(TBBase):
             feedback = ~feedback & 1
             expected_lfsr_output = ((expected_lfsr_output << 1) | feedback) & self.max_val
 
-@cocotb.test()
+@cocotb.test(timeout_time=1, timeout_unit="ms")
 async def lfsr_test(dut):
     tb = LFSR_TB(dut)
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
-    tb.log.info(f'seed changed to {seed}')
+    msg = f'seed changed to {seed}'
+    tb.log.info(msg)
     tb.print_settings()
     await tb.start_clock('i_clk', 10, 'ns')
-    await tb.assert_reset()
+    tb.assert_reset()
     await tb.wait_clocks('i_clk', 5)
-    await tb.deassert_reset()
+    tb.deassert_reset()
     await tb.wait_clocks('i_clk', 5)
     await tb.set_taps()
     seed = random.randint(0, tb.max_val)
