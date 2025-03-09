@@ -30,12 +30,13 @@ async def fifo_test(dut):
 
 def generate_width_depth_mode_params():
     widths = [8]
-    depths = [2, 4, 6, 8]
-    modes = ['mux', 'flopped']
+    depths = [2, 4, 6, 8, 10]
+    modes = ['fifo_mux', 'fifo_flop']
     return list(product(widths, depths, modes))
 
 params = generate_width_depth_mode_params()
 
+# @pytest.mark.parametrize("data_width, depth, mode", [(8, 4, 'fifo_flop')])
 @pytest.mark.parametrize("data_width, depth, mode", params)
 def test_axi_fifo_sync(request, data_width, depth, mode):
 

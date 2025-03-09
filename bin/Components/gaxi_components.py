@@ -365,8 +365,8 @@ class GAXISlave(BusMonitor):
             memory_model: Optional MemoryModel instance for reading/writing data
             memory_fields: Dictionary mapping memory fields to packet field names
             log: Logger instance
-            mode: Operating mode ('normal', 'mux', 'flopped'). In 'mux' mode, use 
-                    'ow_rd_data' instead of 'o_rd_data'. In 'flopped' mode, capture 
+            mode: Operating mode ('normal', 'fifo_mux', 'fifo_flop'). In 'fifo_mux' mode, use 
+                    'ow_rd_data' instead of 'o_rd_data'. In 'fifo_flop' mode, capture 
                     read data one clock cycle after o_rd_valid asserts.
             **kwargs: Additional arguments to pass to BusMonitor
         """
@@ -377,8 +377,8 @@ class GAXISlave(BusMonitor):
         # Use default signals if none provided, adjust for mode
         if signals:
             self._signals = signals
-        elif mode == 'mux':
-            # Use multiplexed data signal in 'mux' mode
+        elif mode == 'fifo_mux':
+            # Use multiplexed data signal in 'fifo_mux' mode
             self._signals = ['o_rd_valid', 'i_rd_ready', 'ow_rd_data']
         else:
             self._signals = gaxi_slave_signals
@@ -511,8 +511,8 @@ class GAXISlave(BusMonitor):
         Monitor for incoming transactions (read channel).
         Modes:
             - 'normal': capture data at valid/ready handshake (default behavior).
-            - 'mux': use ow_rd_data for data capture (timing same as normal).
-            - 'flopped': capture data one clock after handshake; data is held if not ready.
+            - 'fifo_mux': use ow_rd_data for data capture (timing same as normal).
+            - 'fifo_flop': capture data one clock after handshake; data is held if not ready.
         """
         try:
             last_packet = None
@@ -548,16 +548,16 @@ class GAXISlave(BusMonitor):
                     packet = self.packet_class(self.field_config)
                     packet.start_time = current_time
 
-                    if self.mode != 'flopped':
+                    if self.mode != 'fifo_flop':
                         # Immediate capture (normal and mux modes)
                         # Select appropriate data signal based on mode
-                        if self.mode == 'mux' and hasattr(self.bus, 'ow_rd_data'):
+                        if self.mode == 'fifo_mux' and hasattr(self.bus, 'ow_rd_data'):
                             data_val = int(self.bus.ow_rd_data.value)
                         else:
                             data_val = int(self.bus.o_rd_data.value)
                         self._finish_packet(current_time,  packet, data_val)
                     else:
-                        # 'flopped' mode: note handshake time, defer data capture
+                        # 'fifo_flop' mode: note handshake time, defer data capture
                         last_xfer = True
                         last_packet = packet
                 # Deassert ready on the rising edge (prepare for next cycle or delay)
@@ -596,15 +596,15 @@ class GAXIMonitor(BusMonitor):
             packet_class: Class to use for creating packets
             timeout_cycles: Maximum cycles to wait before timeout
             log: Logger instance
-            mode: Operating mode ('normal', 'mux', 'flopped'). In 'mux' mode (slave side),
-                    use 'ow_rd_data' instead of 'o_rd_data'. In 'flopped' mode, capture data
+            mode: Operating mode ('normal', 'fifo_mux', 'fifo_flop'). In 'fifo_mux' mode (slave side),
+                    use 'ow_rd_data' instead of 'o_rd_data'. In 'fifo_flop' mode, capture data
                     one clock after valid/ready handshake.
             **kwargs: Additional arguments to pass to BusMonitor
         """
         # Determine default signal set based on master/slave and mode
         if signals:
             self._signals = signals
-        elif is_slave and mode == 'mux':
+        elif is_slave and mode == 'fifo_mux':
             # In mux mode (slave side), use multiplexed read data signal
             self._signals = ['o_rd_valid', 'i_rd_ready', 'ow_rd_data']
         else:
@@ -632,7 +632,7 @@ class GAXIMonitor(BusMonitor):
         if is_slave:
             self.valid_signal = self.bus.o_rd_valid
             self.ready_signal = self.bus.i_rd_ready
-            if mode == 'mux' and hasattr(self.bus, 'ow_rd_data'):
+            if mode == 'fifo_mux' and hasattr(self.bus, 'ow_rd_data'):
                 self.data_signal = self.bus.ow_rd_data
             else:
                 self.data_signal = self.bus.o_rd_data
@@ -659,7 +659,7 @@ class GAXIMonitor(BusMonitor):
     async def _monitor_recv(self):
         """
         Monitor for GAXI transactions following valid/ready handshakes.
-        In 'flopped' mode, data capture is performed one cycle after the handshake occurs.
+        In 'fifo_flop' mode, data capture is performed one cycle after the handshake occurs.
         """
         try:
             last_packet = None
@@ -690,13 +690,13 @@ class GAXIMonitor(BusMonitor):
                     packet = self.packet_class(self.field_config)
                     packet.start_time = current_time
 
-                    if self.mode != 'flopped':
+                    if self.mode != 'fifo_flop':
                         # Immediate capture (normal and mux modes)
                         # Select appropriate data signal based on mode
                         data_val = int(self.data_signal.value)
                         self._finish_packet(current_time,  packet, data_val)
                     else:
-                        # 'flopped' mode: note handshake time, defer data capture
+                        # 'fifo_flop' mode: note handshake time, defer data capture
                         last_xfer = True
                         last_packet = packet
 

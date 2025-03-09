@@ -198,3 +198,5 @@ profile.txt
 local_sim_build/
 regression/
 junk_*
+logs/
+*.log
