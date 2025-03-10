@@ -200,3 +200,5 @@ regression/
 junk_*
 logs/
 *.log
+rtl/axi/REWORK/*
+val/unit_axi/FIX_TESTS*

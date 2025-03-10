@@ -1,6 +1,4 @@
 import os
-import subprocess
-import pprint
 import random
 from collections import deque
 
@@ -10,19 +8,19 @@ from cocotb.utils import get_sim_time
 from cocotb_test.simulator import run
 
 from Components.memory_model import MemoryModel
-from Components.delay_randomizer import DelayRandomizer
-from Components.constrained_random import ConstrainedRandom
-from Components.apb import TestConfig, APBCycle, APBMonitor, APBMaster
-from Components.apb_transaction_extra import APBTransactionExtra as APBTransaction
+from Components.flex_randomizer import FlexRandomizer
+from Components.apb import APBSequence, APBCycle, APBTransaction, APBMonitor, APBMaster
 from TBClasses.tbbase import TBBase
+from TBClasses.utilities import get_paths, create_view_cmd
+
 
 class APBSlaveTB(TBBase):
     def __init__(self, dut):
         TBBase.__init__(self, dut)
-        self.ADDR_WIDTH = self.convert_to_int(os.environ.get('PARAM_ADDR_WIDTH', '32'))
-        self.DATA_WIDTH = self.convert_to_int(os.environ.get('PARAM_DATA_WIDTH', '32'))
+        self.ADDR_WIDTH = self.convert_to_int(os.environ.get('TEST_ADDR_WIDTH', '32'))
+        self.DATA_WIDTH = self.convert_to_int(os.environ.get('TEST_DATA_WIDTH', '32'))
         self.STRB_WIDTH = self.DATA_WIDTH // 8
-        self.IDLE_CNTR_WIDTH = self.convert_to_int(os.environ.get('PARAM_IDLE_CNTR_WIDTH', '4'))
+        self.IDLE_CNTR_WIDTH = self.convert_to_int(os.environ.get('TEST_IDLE_CNTR_WIDTH', '4'))
         self.done = False
         # Number of registers to test
         self.registers = 64
@@ -44,52 +42,28 @@ class APBSlaveTB(TBBase):
             addr_width=self.ADDR_WIDTH, 
             log=self.log
         )
-        
+
         # Create the APB Master
-        apb_mst_constraints = {
+        self.apb_master_randomizer = FlexRandomizer({
             'psel':    ([[0, 0], [1, 5], [6, 10]], [5, 3, 1]),
             'penable': ([[0, 0], [1, 3]], [3, 1]),
-        }
+        })
         self.apb_master = APBMaster(
-            dut, 
+            dut,
+            'APB Master',
             's_apb', 
             dut.pclk,
             bus_width=self.DATA_WIDTH, 
             addr_width=self.ADDR_WIDTH,
-            constraints=apb_mst_constraints
+            randomizer=self.apb_master_randomizer
         )
 
-        # Setup constrained random generators
-        self.idle_count_gen = ConstrainedRandom(
-            constraints=[(0, 2**self.IDLE_CNTR_WIDTH - 1)],
-            weights=[1],
-            is_integer=True
-        )
-        
-        self.wait_cycles_gen = ConstrainedRandom(
-            constraints=[(1, 10), (20, 30)],
-            weights=[8, 2],
-            is_integer=True
-        )
-        
-        self.cmd_delay_cycles = ConstrainedRandom(
-            constraints=[(0, 1), (2, 5)],
-            weights=[3, 1],
-            is_integer=True
-        )
+        self.other_randomizer = FlexRandomizer({
+            'cmd_delay': ([(0, 1), (2, 5)], [3, 1]),
+            'rsp_delay': ([(0, 1), (2, 5)], [3, 1]),
+            'slv_error': ([(0, 0), (1, 1)], [9, 1]),
+        })
 
-        self.rsp_delay_cycles = ConstrainedRandom(
-            constraints=[(0, 1), (2, 5)],
-            weights=[3, 1],
-            is_integer=True
-        )
-
-        self.slverr = ConstrainedRandom(
-            constraints=[(0, 0), (1, 1)],
-            weights=[9, 1],  # 10% chance of error response
-            is_integer=True
-        )
-        
         # Initialize queues for monitoring and verification
         self.apb_monitor_queue = deque()
         self.cmd_interface_queue = deque()
@@ -153,10 +127,12 @@ class APBSlaveTB(TBBase):
 
     async def cmd_rsp_interface(self, use_rand=False):
         # sourcery skip: move-assign
-        if use_rand: 
-            crand = self.cmd_delay_cycles.next()
-            rrand = self.rsp_delay_cycles.next()
-            slverr = self.slverr.next()
+        if use_rand:
+            rand_dict = self.other_randomizer.next()
+            self.log.debug(f'{rand_dict=}')
+            crand  = rand_dict['cmd_delay']
+            rrand  = rand_dict['rsp_delay']
+            slverr = rand_dict['slv_error']
         else:
             crand = 0
             rrand = 0
@@ -194,9 +170,7 @@ class APBSlaveTB(TBBase):
                 pslverr=slverr,
         )
         # wait for cmd delay
-        while crand > 0:
-            crand -= 1
-            await self.wait_clocks('pclk', 1)
+        await self.wait_clocks('pclk', crand)
     
         # accept the command
         self.dut.i_cmd_ready.value = 1
@@ -204,9 +178,7 @@ class APBSlaveTB(TBBase):
         self.dut.i_cmd_ready.value = 0
     
         # wait for rsp delay
-        while rrand > 0:
-            rrand -= 1
-            await self.wait_clocks('pclk', 1)
+        await self.wait_clocks('pclk', rrand)
     
         # give the response
         self.dut.i_rsp_valid.value = 1
@@ -263,7 +235,7 @@ class APBSlaveTB(TBBase):
     
         # Create a plain transaction
         xmit_transaction_cls = APBTransaction(self.DATA_WIDTH, self.ADDR_WIDTH, self.STRB_WIDTH)
-        xmit_transaction = xmit_transaction_cls.set_constrained_random()
+        xmit_transaction = xmit_transaction_cls.next()
 
         # Set transaction fields directly
         xmit_transaction.pwrite = 1 if is_write else 0
@@ -304,7 +276,7 @@ class APBSlaveTB(TBBase):
         # Verify the cmd/rsp cycle matches what was monitored by APB monitor
         return await self.verify_cmd_rsp_against_apb_monitor(cmd_rsp_cycle)
 
-    async def run_apb_test(self, config: TestConfig, num_transactions: int = None):
+    async def run_apb_test(self, config: APBSequence, num_transactions: int = None):
         """
         Run APB test according to the configuration
         
@@ -316,32 +288,19 @@ class APBSlaveTB(TBBase):
             List of transaction results
         """
         # Save original constraints to restore later
-        save_master_constraints = None
-        save_cmd_delay = None
-        save_rsp_delay = None
+        save_master_randomizer = None
+        save_other_randomizer = None
 
         # Apply custom timing constraints if provided
-        if config.master_constraints:
-            save_master_constraints = self.apb_master.constraints
-            self.apb_master.crand = DelayRandomizer(config.master_constraints)
-            self.apb_master.constraints = config.master_constraints
-        
-        if config.cmd_delay_constraint:
-            save_cmd_delay = self.cmd_delay_cycles
-            self.cmd_delay_cycles = ConstrainedRandom(
-                constraints=[config.cmd_delay_constraint[0]],
-                weights=[config.cmd_delay_constraint[1]],
-                is_integer=True
-            )
-        
-        if config.rsp_delay_constraint:
-            save_rsp_delay = self.rsp_delay_cycles
-            self.rsp_delay_cycles = ConstrainedRandom(
-                constraints=[config.rsp_delay_constraint[0]],
-                weights=[config.rsp_delay_constraint[1]],
-                is_integer=True
-            )
-        
+        if config.master_randomizer:
+            save_master_randomizer = self.apb_master_randomizer
+            self.apb_master_randomizer = config.master_randomizer
+            self.apb_master.set_randomizer(self.apb_master_randomizer)
+
+        if config.other_randomizer:
+            save_other_randomizer = self.other_randomizer
+            self.other_randomizer = config.other_randomizer
+            
         # Reset iterators
         config.reset_iterators()
         
@@ -390,16 +349,13 @@ class APBSlaveTB(TBBase):
         
         finally:
             # Restore original constraints
-            if save_master_constraints:
-                self.apb_master.constraints = save_master_constraints
-                self.apb_master.crand = DelayRandomizer(self.apb_master.constraints)
+            if save_master_randomizer:
+                self.apb_master_randomizer = save_master_randomizer
+                self.apb_master.set_randomizer(self.apb_master_randomizer)
             
-            if save_cmd_delay:
-                self.cmd_delay_cycles = save_cmd_delay
-                
-            if save_rsp_delay:
-                self.rsp_delay_cycles = save_rsp_delay
-        
+            if save_other_randomizer:
+                self.other_randomizer = save_other_randomizer
+
         return results
 
     # Test methods using predefined configurations
@@ -430,7 +386,7 @@ class APBSlaveTB(TBBase):
         # Delays between transactions
         delays = [5] * (len(pwrite_seq) - 1)
         
-        return TestConfig(
+        return APBSequence(
             name="basic",
             pwrite_seq=pwrite_seq,
             addr_seq=addr_seq,
@@ -467,22 +423,26 @@ class APBSlaveTB(TBBase):
         # No delays for burst mode
         delays = [0] * (len(pwrite_seq) - 1)
         
-        return TestConfig(
+        return APBSequence(
             name="burst",
             pwrite_seq=pwrite_seq,
             addr_seq=addr_seq,
             data_seq=data_seq,
             strb_seq=strb_seq,
             inter_cycle_delays=delays,
-            master_constraints={
+            master_randomizer=FlexRandomizer({
                 'psel':    ([[0, 0], [1, 5], [6, 10]], [1, 0, 0]),
                 'penable': ([[0, 0], [1, 3]], [3, 0]),
-            },
-            cmd_delay_constraint=((0, 0), 1),
-            rsp_delay_constraint=((0, 0), 1)
+            }),
+            other_randomizer=FlexRandomizer({
+                'cmd_delay': ([(0, 1), (2, 5)], [3, 1]),
+                'rsp_delay': ([[0, 1], [2, 5], [6, 10]], [5, 2, 1]),
+                'slv_error': ([[0, 0], [1, 1]], [10, 0]),
+            })
         )
-    
+
     def _create_strobe_config(self):
+        # sourcery skip: merge-list-append, move-assign-in-block
         """Create configuration for strobe test"""
         # Test patterns for strobes
         test_data = [0xFFFFFFFF, 0x12345678, 0xAABBCCDD, 0x99887766, 0x55443322, 0xA5A5A5A5, 0x5A5A5A5A]
@@ -515,7 +475,7 @@ class APBSlaveTB(TBBase):
         # Short delays between transactions
         delays = [3] * (len(pwrite_seq) - 1)
         
-        return TestConfig(
+        return APBSequence(
             name="strobe",
             pwrite_seq=pwrite_seq,
             addr_seq=addr_seq,
@@ -528,13 +488,13 @@ class APBSlaveTB(TBBase):
         """Create configuration for stress test"""
         # Reset memory for clean start
         self.mem.reset()
-        
+
         # Create sequences
         pwrite_seq = []
         addr_seq = []
         data_seq = []
         strb_seq = []
-        
+
         # Set up a variety of addresses, data values, and strobes
         addr_range = [i * 4 for i in range(self.registers)]
         data_range = [random.randint(0, 2**self.DATA_WIDTH - 1) for _ in range(20)]
@@ -543,27 +503,27 @@ class APBSlaveTB(TBBase):
             0x1, 0x2, 0x4, 0x8,      # Individual bytes
             0x3, 0x5, 0x9, 0x6, 0xA, 0xC  # Various combinations
         ]
-        
+
         # Random mix of writes and reads
         # First add some writes to ensure we have data
-        for _ in range(min(20, num_transactions // 5)):
-            pwrite_seq.append(True)
-        
+        pwrite_seq.extend(True for _ in range(min(20, num_transactions // 5)))
+
         # Then add random mix of reads and writes
         write_probability = 0.7  # 70% writes
-        for _ in range(num_transactions - len(pwrite_seq)):
-            pwrite_seq.append(random.random() < write_probability)
-        
+        pwrite_seq.extend(
+            random.random() < write_probability
+            for _ in range(num_transactions - len(pwrite_seq))
+        )
         # Fill address, data, and strobe sequences
         # These will be sampled from rather than iterated through
         addr_seq = addr_range
         data_seq = data_range
         strb_seq = strobe_range
-        
+
         # Random delays
         delay_range = list(range(6))  # 0-5 cycle delays
-        
-        return TestConfig(
+
+        return APBSequence(
             name="stress",
             pwrite_seq=pwrite_seq,
             addr_seq=addr_seq,
@@ -668,62 +628,83 @@ async def apb_slave_test(dut):
     print("Verified that response interface signals match APB bus signals for reads")
 
 
-@pytest.mark.parametrize("addr_width, data_width, skid_depth", 
+@pytest.mark.parametrize("addr_width, data_width, depth", 
     [
         (
             32,  # addr_width
             32,  # data_width
-            2,   # skid_width
+            2,   # depth
         )
     ])
-def test_apb_slave(request, addr_width, data_width, skid_depth):
+def test_apb_slave(request, addr_width, data_width, depth):
+
+    # get all of the directory and module information
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common', 'rtl_axi': 'rtl/axi'})
+
     dut_name = "apb_slave"
-    module = os.path.splitext(os.path.basename(__file__))[0]
     toplevel = dut_name
 
-    # Get repository root and directories
-    repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
-    tests_dir = os.path.abspath(os.path.dirname(__file__))
-    rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl', 'common'))
-    rtl_axi_dir = os.path.abspath(os.path.join(repo_root, 'rtl', 'axi'))
-    amba_includes_dir = os.path.join(rtl_axi_dir, "includes")
-
     verilog_sources = [
-        os.path.join(rtl_axi_dir, "axi_skid_buffer.sv"),
-        os.path.join(rtl_axi_dir, "apb_slave.sv")
+        os.path.join(rtl_dict['rtl_axi'], "axi_skid_buffer.sv"),
+        os.path.join(rtl_dict['rtl_axi'], "apb_slave.sv")
     ]
 
-    includes = [
-        amba_includes_dir
-    ]
+    # create a human readable test identifier
+    aw_str = TBBase.format_dec(addr_width, 3)
+    dw_str = TBBase.format_dec(data_width, 3)
+    d_str = TBBase.format_dec(depth, 3)
+    test_name_plus_params = f"test_{dut_name}_aw{aw_str}_dw{dw_str}_d{d_str}"
+    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
-    print(f'    {addr_width=}')
-    print(f'    {data_width=}')
-    print(f'    {skid_depth=}')
+    # use it int he simbuild path
+    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
 
-    parameters = {
-        'ADDR_WIDTH':       addr_width,
-        'DATA_WIDTH':       data_width,
-        'SKID_DEPTH':       skid_depth,
+    # Make sim_build directory
+    os.makedirs(sim_build, exist_ok=True)
+
+    # get the logs and results into one area
+    os.makedirs(log_dir, exist_ok=True)
+    results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
+
+    includes = []
+
+    # RTL parameters
+    rtl_parameters = {k.upper(): str(v) for k, v in locals().items() if k in ["addr_width", "data_width", "depth"]}
+
+
+    # Environment variables
+    extra_env = {
+        'DUT': dut_name,
+        'LOG_PATH': log_path,
+        'COCOTB_LOG_LEVEL': 'INFO',
+        # 'COCOTB_LOG_LEVEL': 'DEBUG',
+        'COCOTB_RESULTS_FILE': results_path,
+        'SEED': str(random.randint(0, 100000))
     }
 
-    extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
+    # Add test parameters; these are passed t the environment, but not the RTL
+    extra_env['TEST_ADDR_WIDTH'] = str(addr_width)
+    extra_env['TEST_DATA_WIDTH'] = str(data_width)
+    extra_env['TEST_DEPTH'] = str(depth)
     
-    sim_build = os.path.join(repo_root, 'val', 'unit_axi', 'local_sim_build', 
-                            request.node.name.replace('[', '-').replace(']', ''))
+    cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
-    extra_env['LOG_PATH'] = os.path.join(str(sim_build), f'cocotb_log_{dut_name}.log')
-    extra_env['DUT'] = dut_name
-    extra_env['SEED'] = '42'  # Fixed seed for reproducibility
-
-    run(
-        python_search=[tests_dir],
-        verilog_sources=verilog_sources,
-        includes=includes,
-        toplevel=toplevel,
-        module=module,
-        parameters=parameters,
-        sim_build=sim_build,
-        extra_env=extra_env,
-        waves=True
-    )
+    try:
+        run(
+            python_search=[tests_dir],  # where to search for all the python test files
+            verilog_sources=verilog_sources,
+            includes=includes,
+            toplevel=toplevel,
+            module=module,
+            parameters=rtl_parameters,
+            sim_build=sim_build,
+            extra_env=extra_env,
+            waves=True,
+            keep_files=True
+        )
+    except Exception as e:
+        # If the test fails, make sure logs are preserved
+        print(f"Test failed: {str(e)}")
+        print(f"Logs preserved at: {log_path}")
+        print(f"To view the Waveforms run this command: {cmd_filename}")
+        raise  # Re-raise exception to indicate failure
