@@ -71,7 +71,7 @@ class APBTransactionExtra(Randomized):
             setattr(self, signal, value)
 
 
-    def set_constrained_random(self):
+    def next(self):
         self.randomize()
         self.apply_constraints()
         self.cycle.paddr     = self.paddr & ~self.addr_mask

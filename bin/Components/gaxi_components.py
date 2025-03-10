@@ -7,7 +7,7 @@ from cocotb_bus.monitors import BusMonitor
 from cocotb.triggers import RisingEdge, FallingEdge, Timer
 from cocotb.utils import get_sim_time
 
-from .delay_randomizer import DelayRandomizer
+from .flex_randomizer import FlexRandomizer
 from Components.gaxi_packet import GAXIPacket
 from Components.debug_object import print_object_details
 
@@ -44,7 +44,7 @@ class GAXIMaster(BusDriver):
             field_config: Field configuration for packets
             packet_class: Class to use for creating packets
             timeout_cycles: Maximum cycles to wait before timeout
-            randomizer: DelayRandomizer instance for randomizing timing
+            randomizer: FlexRandomizer instance for randomizing timing
             memory_model: Optional MemoryModel instance for reading/writing data
             memory_fields: Dictionary mapping memory fields to packet field names
             log: Logger instance
@@ -63,11 +63,11 @@ class GAXIMaster(BusDriver):
 
         # Set up randomizer
         if randomizer is None:
-            self.randomizer = DelayRandomizer(gaxi_master_default_constraints)
+            self.randomizer = FlexRandomizer(gaxi_master_default_constraints)
         else:
             self.randomizer = randomizer
 
-        if not isinstance(self.randomizer, DelayRandomizer):
+        if not isinstance(self.randomizer, FlexRandomizer):
             raise ValueError(f"Master ({self.title}) self.randomizer is not properly initialized!")
 
         # Set up memory model integration
@@ -106,7 +106,7 @@ class GAXIMaster(BusDriver):
         Swap the current randomizer with a new one.
         
         Args:
-            randomizer: New DelayRandomizer instance
+            randomizer: New FlexRandomizer instance
         """
         self.randomizer = randomizer
         self.log.info(f"Set new randomizer for Master({self.title})")
@@ -361,7 +361,7 @@ class GAXISlave(BusMonitor):
             field_config: Field configuration for packets
             packet_class: Class to use for creating packets
             timeout_cycles: Maximum cycles to wait before timeout
-            randomizer: DelayRandomizer instance for randomizing timing
+            randomizer: FlexRandomizer instance for randomizing timing
             memory_model: Optional MemoryModel instance for reading/writing data
             memory_fields: Dictionary mapping memory fields to packet field names
             log: Logger instance
@@ -394,10 +394,10 @@ class GAXISlave(BusMonitor):
 
         # Set up randomizer
         if randomizer is None:
-            self.randomizer = DelayRandomizer(gaxi_slave_default_constraints)
+            self.randomizer = FlexRandomizer(gaxi_slave_default_constraints)
         else:
             self.randomizer = randomizer
-        if not isinstance(self.randomizer, DelayRandomizer):
+        if not isinstance(self.randomizer, FlexRandomizer):
             raise ValueError(f"Slave ({self.title}) self.randomizer is not properly initialized!")
 
         # Set up memory model integration
@@ -433,7 +433,7 @@ class GAXISlave(BusMonitor):
         Swap the current randomizer with a new one.
 
         Args:
-            randomizer: New DelayRandomizer instance
+            randomizer: New FlexRandomizer instance
         """
         self.randomizer = randomizer
         self.log.info(f"Slave({self.title}) Set new randomizer for {self.title}")

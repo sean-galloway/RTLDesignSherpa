@@ -1,3 +1,6 @@
+'''Generic Memory Model Class used by the various components - NumPy version'''
+import numpy as np
+
 class MemoryModel:
 
     def __init__(self, num_lines, bytes_per_line, log, preset_values=None, debug=None):
@@ -10,11 +13,12 @@ class MemoryModel:
         if preset_values:
             if len(preset_values) != self.size:
                 raise ValueError("Preset values length must match the total memory size")
-            self.mem = bytearray(preset_values)
-            self.preset_values = bytearray(preset_values)
+            # Convert bytearray to numpy array
+            self.mem = np.frombuffer(bytearray(preset_values), dtype=np.uint8).copy()
+            self.preset_values = np.frombuffer(bytearray(preset_values), dtype=np.uint8).copy()
         else:
-            self.mem = bytearray(self.size)
-            self.preset_values = bytearray(self.size)
+            self.mem = np.zeros(self.size, dtype=np.uint8)
+            self.preset_values = np.zeros(self.size, dtype=np.uint8)
 
 
     def write(self, address, data, strobe):
@@ -39,28 +43,42 @@ class MemoryModel:
 
         self.log.debug(f"Writing to memory: address={hex_address}, data={hex_data}, strobe={strobe:08b}")
 
-        # Write data to memory based on strobe
+        # Convert bytearray to numpy array
+        data_np = np.frombuffer(data, dtype=np.uint8)
+        
+        # Create a mask array from the strobe
+        mask = np.zeros(data_len, dtype=bool)
         for i in range(data_len):
-            target_address = start + i
             if strobe & (1 << i):
-                self.mem[target_address] = data[i]
-                self.log.debug(f"Writing byte: mem[{target_address:08X}] = {data[i]:02X}")
+                mask[i] = True
+                if self.debug:
+                    self.log.debug(f"Writing byte: mem[{start+i:08X}] = {data_np[i]:02X}")
+        
+        # Apply the masked write operation in one vectorized operation
+        if np.any(mask):
+            indices = np.arange(start, start + data_len)[mask]
+            self.mem[indices] = data_np[mask]
 
 
     def read(self, address, length):
         line = address // self.bytes_per_line
         offset = address % self.bytes_per_line
-        return self.mem[line * self.bytes_per_line + offset:line * self.bytes_per_line + offset + length]
+        # Convert back to bytearray to maintain API compatibility
+        return bytearray(self.mem[line * self.bytes_per_line + offset:line * self.bytes_per_line + offset + length])
 
 
     def reset(self, to_preset=False):
-        self.mem = bytearray(self.preset_values) if to_preset else bytearray(self.size)
+        if to_preset:
+            self.mem = self.preset_values.copy()
+        else:
+            self.mem = np.zeros(self.size, dtype=np.uint8)
 
 
     def expand(self, additional_lines):
         additional_size = additional_lines * self.bytes_per_line
-        self.mem.extend([0] * additional_size)
-        self.preset_values.extend([0] * additional_size)
+        # Use numpy's append for more efficient expansion
+        self.mem = np.append(self.mem, np.zeros(additional_size, dtype=np.uint8))
+        self.preset_values = np.append(self.preset_values, np.zeros(additional_size, dtype=np.uint8))
         self.num_lines += additional_lines
         self.size += additional_size
 
@@ -69,17 +87,12 @@ class MemoryModel:
         mem_dump = "-" * 60 + '\n'
         for i in range(self.num_lines):
             addr = i * self.bytes_per_line
-            line_data = self.mem[addr:addr + self.bytes_per_line]
+            # Slice the numpy array and convert to bytes for consistent behavior
+            line_data = bytes(self.mem[addr:addr + self.bytes_per_line])
             value = int.from_bytes(line_data, byteorder='little')
             mem_dump += f"Register {i:4}: Address 0x{addr:08X} - Value 0x{value:0{self.bytes_per_line * 2}X}\n"
         mem_dump += "-" * 60 + '\n'
         return '\n'+mem_dump
-
-
-    # def integer_to_bytearray(self, value, byte_length=None):
-    #     if byte_length is None:
-    #         byte_length = (value.bit_length() + 7) // 8
-    #     return bytearray(value.to_bytes(byte_length, byteorder='little'))
 
 
     def integer_to_bytearray(self, value, byte_length=None):
@@ -104,6 +117,7 @@ class MemoryModel:
 
         # Perform the conversion
         return bytearray(value.to_bytes(byte_length, byteorder='little'))
+
 
     def bytearray_to_integer(self, byte_array):
         return int.from_bytes(byte_array, byteorder='little')

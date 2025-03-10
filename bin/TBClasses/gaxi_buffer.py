@@ -3,7 +3,7 @@ import os
 
 from TBClasses.tbbase import TBBase
 from Components.constrained_random import ConstrainedRandom
-from Components.delay_randomizer import DelayRandomizer
+from Components.flex_randomizer import FlexRandomizer
 
 from Components.gaxi_packet import GAXIPacket
 from Components.gaxi_components import GAXIMaster, GAXISlave, GAXIMonitor
@@ -58,7 +58,7 @@ class GaxiBufferTB(TBBase):
         }
 
         # Create randomizers using the existing ConstrainedRandom classes
-        # We'll convert these to DelayRandomizer format for the GAXI components
+        # We'll convert these to FlexRandomizer format for the GAXI components
         read_constraints = [(0, 1), (2, 8), (9, 30)]
         read_weights = [5, 2, 1]
         self.read_crand = ConstrainedRandom(read_constraints, read_weights)
@@ -81,12 +81,12 @@ class GaxiBufferTB(TBBase):
             'ready_delay': ([[0, 0], [1, 8], [9, 30]], [5, 0, 0])
         }
 
-        self.write_randomizer = DelayRandomizer(self.write_delay_constraints_fast)
-        if not isinstance(self.write_randomizer, DelayRandomizer):
+        self.write_randomizer = FlexRandomizer(self.write_delay_constraints_fast)
+        if not isinstance(self.write_randomizer, FlexRandomizer):
             raise ValueError("self.read_randomizer is not properly initialized!")
 
-        self.read_randomizer = DelayRandomizer(self.read_delay_constraints_fast)
-        if not isinstance(self.read_randomizer, DelayRandomizer):
+        self.read_randomizer = FlexRandomizer(self.read_delay_constraints_fast)
+        if not isinstance(self.read_randomizer, FlexRandomizer):
             raise ValueError("self.read_randomizer is not properly initialized!")
 
         # Create BFM components
@@ -182,11 +182,11 @@ class GaxiBufferTB(TBBase):
         # Choose the type of randomizer
         self.log.info(f'simple_incremental_loops({count=}, {use_fast=}, {delay_clks_after=}')
         if use_fast:
-            self.write_randomizer = DelayRandomizer(self.write_delay_constraints_fast)
-            self.read_randomizer = DelayRandomizer(self.read_delay_constraints_fast)
+            self.write_randomizer = FlexRandomizer(self.write_delay_constraints_fast)
+            self.read_randomizer = FlexRandomizer(self.read_delay_constraints_fast)
         else:
-            self.write_randomizer = DelayRandomizer(self.write_delay_constraints_constrained)
-            self.read_randomizer = DelayRandomizer(self.read_delay_constraints_constrained)
+            self.write_randomizer = FlexRandomizer(self.write_delay_constraints_constrained)
+            self.read_randomizer = FlexRandomizer(self.read_delay_constraints_constrained)
         
         self.write_master.set_randomizer(self.write_randomizer)
         self.read_slave.set_randomizer(self.read_randomizer)
