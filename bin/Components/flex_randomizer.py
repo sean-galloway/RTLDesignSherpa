@@ -31,6 +31,7 @@ class FlexRandomizer(Randomized):
         self.sequences = {}
         self.generators = {}
         self.object_bins = {}  # For tracking which fields use object bins rather than integer ranges
+        self._rand_fields = []  # Track randomized fields
         
         # Initialize attributes for each delay
         for delay_name, constraint in self.constraints.items():
@@ -54,13 +55,38 @@ class FlexRandomizer(Randomized):
                     self.object_bins[delay_name] = constraint
                 else:
                     # Standard constrained random with numeric ranges - (bins, weights)
-                    self.add_rand(delay_name, self._get_full_range(constraint[0]))
+                    self._add_rand_field(delay_name, self._get_full_range(constraint[0]))
             elif callable(constraint):
                 # Function-based generator
                 self.generators[delay_name] = constraint
             else:
                 # Sequence for looping - convert to deque for efficient rotation
                 self.sequences[delay_name] = deque(constraint)
+    
+    def _add_rand_field(self, name, rand_range):
+        """Add a field to randomization and track it in our internal list.
+        
+        Args:
+            name (str): Name of the field to randomize
+            rand_range: Range of values for randomization
+        """
+        # Add to cocotb_coverage randomization
+        self.add_rand(name, rand_range)
+        
+        # Track in our internal list
+        if name not in self._rand_fields:
+            self._rand_fields.append(name)
+    
+    def is_rand(self, name):
+        """Check if a field is already set for randomization.
+        
+        Args:
+            name (str): Name of the field to check.
+            
+        Returns:
+            bool: True if the field is randomized, False otherwise.
+        """
+        return name in self._rand_fields
     
     def _get_full_range(self, bins):
         """Generate a full range of values from a list of bins.
@@ -151,6 +177,10 @@ class FlexRandomizer(Randomized):
         # Remove from other types if present
         if delay_name in self.generators:
             del self.generators[delay_name]
+        
+        # Remove from randomized fields if present
+        if delay_name in self._rand_fields:
+            self._rand_fields.remove(delay_name)
     
     def set_generator(self, delay_name: str, generator: Callable):
         """Set a generator function for a specific delay.
@@ -166,6 +196,10 @@ class FlexRandomizer(Randomized):
         # Remove from other types if present
         if delay_name in self.sequences:
             del self.sequences[delay_name]
+        
+        # Remove from randomized fields if present
+        if delay_name in self._rand_fields:
+            self._rand_fields.remove(delay_name)
     
     def reset_to_random(self, delay_name: str):
         """Reset a delay back to using constrained random values.
@@ -200,7 +234,7 @@ class FlexRandomizer(Randomized):
                 self.object_bins[delay_name] = constraint
             elif not self.is_rand(delay_name):
                 # Standard constrained random with numeric ranges
-                self.add_rand(delay_name, self._get_full_range(constraint[0]))
+                self._add_rand_field(delay_name, self._get_full_range(constraint[0]))
 
 
 ##############################################################################
