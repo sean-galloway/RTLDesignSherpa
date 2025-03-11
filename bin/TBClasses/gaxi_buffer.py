@@ -89,12 +89,13 @@ class GaxiBufferTB(TBBase):
         if not isinstance(self.read_randomizer, FlexRandomizer):
             raise ValueError("self.read_randomizer is not properly initialized!")
 
-        # Create BFM components
+        # Create BFM components - add signal_map=None to explicitly use standard mode
         self.write_master = GAXIMaster(
             dut, 'write_master', '', self.wr_clk,
             field_config=self.field_config,
             randomizer=self.write_randomizer,
             timeout_cycles=self.TIMEOUT_CYCLES,
+            signal_map=None,  # Explicitly specify standard mode
             log=self.log
         )
 
@@ -104,6 +105,7 @@ class GaxiBufferTB(TBBase):
             field_config=self.field_config,
             randomizer=self.read_randomizer,
             timeout_cycles=self.TIMEOUT_CYCLES,
+            signal_map=None,  # Explicitly specify standard mode
             log=self.log
         )
 
@@ -111,6 +113,7 @@ class GaxiBufferTB(TBBase):
             dut, 'Write monitor', '', self.wr_clk,
             field_config=self.field_config,
             is_slave=False,
+            signal_map=None,  # Explicitly specify standard mode
             log=self.log
         )
 
@@ -119,6 +122,7 @@ class GaxiBufferTB(TBBase):
             mode=self.TEST_MODE,
             field_config=self.field_config,
             is_slave=True,
+            signal_map=None,  # Explicitly specify standard mode
             log=self.log
         )
 
