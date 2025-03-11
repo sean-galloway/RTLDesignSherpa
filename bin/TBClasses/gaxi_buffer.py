@@ -16,7 +16,7 @@ class GaxiBufferTB(TBBase):
         super().__init__(dut)
         self.TEST_DEPTH = self.convert_to_int(os.environ.get('TEST_DEPTH', '0'))
         self.TEST_WIDTH = self.convert_to_int(os.environ.get('TEST_WIDTH', '0'))
-        self.TEST_MODE = os.environ.get('TEST_MODE', 'normal')
+        self.TEST_MODE = os.environ.get('TEST_MODE', 'skid')
         self.TEST_CLK_WR = self.convert_to_int(os.environ.get('TEST_CLK_WR', '10'))
         self.TEST_CLK_RD = self.convert_to_int(os.environ.get('TEST_CLK_RD', '10'))
 

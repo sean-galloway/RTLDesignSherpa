@@ -1,8 +1,7 @@
 """Updated GAXI Components with support for multiple data signals"""
 
-from collections import deque
-
 import cocotb
+from collections import deque
 from cocotb_bus.drivers import BusDriver
 from cocotb_bus.monitors import BusMonitor
 from cocotb.triggers import RisingEdge, FallingEdge, Timer
@@ -383,8 +382,8 @@ class GAXIMaster(BusDriver):
             transaction = self.transmit_queue.popleft()
             transaction.start_time = get_sim_time('ns')
             self.log.debug(f"Master({self.title}) Processing transaction, remaining: "
-                           f"{len(self.transmit_queue)} at {transaction.start_time}ns\n"
-                           f"transaction={transaction.formatted(compact=True)}")
+                            f"{len(self.transmit_queue)} at {transaction.start_time}ns\n"
+                            f"transaction={transaction.formatted(compact=True)}")
 
             # Apply any configured delay before asserting valid
             delay_dict = self.randomizer.next()
@@ -550,7 +549,7 @@ class GAXISlave(BusMonitor):
     def __init__(self, dut, title, prefix, clock, signals=None,
                     field_config=None, packet_class=GAXIPacket, timeout_cycles=1000,
                     randomizer=None, memory_model=None, memory_fields=None,
-                    log=None, mode='normal', signal_map=None, **kwargs):
+                    log=None, mode='skid', signal_map=None, **kwargs):
         """
         Initialize the GAXI slave.
 
@@ -567,7 +566,7 @@ class GAXISlave(BusMonitor):
             memory_model: Optional MemoryModel instance for reading/writing data
             memory_fields: Dictionary mapping memory fields to packet field names
             log: Logger instance
-            mode: Operating mode ('normal', 'fifo_mux', 'fifo_flop')
+            mode: Operating mode ('skid', 'fifo_mux', 'fifo_flop')
                     In 'fifo_mux' mode, use 'ow_rd_data' instead of 'o_rd_data'.
                     In 'fifo_flop' mode, capture read data one clock cycle after o_rd_valid asserts.
             signal_map: Dictionary mapping GAXI signals to DUT signals
@@ -576,6 +575,11 @@ class GAXISlave(BusMonitor):
                 If provided, enables multi-signal mode for field data
             **kwargs: Additional arguments to pass to BusMonitor
         """
+        # Validate mode parameter
+        valid_modes = ['skid', 'fifo_mux', 'fifo_flop']
+        if mode not in valid_modes:
+            raise ValueError(f"Invalid mode '{mode}' for Slave ({title}). Mode must be one of: {', '.join(valid_modes)}")
+    
         # Store title and log early for debug logging
         self.title = title
         log.debug(f"GAXISlave init for '{title}': randomizer={randomizer}, mode={mode}")
@@ -584,7 +588,16 @@ class GAXISlave(BusMonitor):
         self.use_multi_signal = signal_map is not None
         self.signal_map = signal_map
 
-        if self.use_multi_signal:
+        if not self.use_multi_signal:
+            # Standard mode - use default or provided signals
+            if signals:
+                self._signals = signals
+            elif mode == 'fifo_mux':
+                # Use multiplexed data signal in 'fifo_mux' mode
+                self._signals = ['o_rd_valid', 'i_rd_ready', 'ow_rd_data']
+            else:
+                self._signals = gaxi_slave_signals
+        else:
             # Multi-signal mode - only include valid/ready in _signals
             self._signals = []
 
@@ -601,13 +614,6 @@ class GAXISlave(BusMonitor):
 
             # Field data signals will be handled separately
 
-        elif signals:
-            self._signals = signals
-        elif mode == 'fifo_mux':
-            # Use multiplexed data signal in 'fifo_mux' mode
-            self._signals = ['o_rd_valid', 'i_rd_ready', 'ow_rd_data']
-        else:
-            self._signals = gaxi_slave_signals
         self._optional_signals = []
 
         # Set up remaining parameters
@@ -755,16 +761,18 @@ class GAXISlave(BusMonitor):
             current_time: Current simulation time
             packet: The packet to finish
             data_dict: Dictionary of field data (for multi-signal mode)
-                        or single 'data' value (for standard mode)
+                       or single 'data' value (for standard mode)
         """
         if self.use_multi_signal:
             # Multi-signal mode: data is already in correct fields
             if data_dict:
                 for field_name, value in data_dict.items():
                     setattr(packet, field_name, value)
-        elif data_dict and 'data' in data_dict:
-            fifo_data = {'data': data_dict['data']}
-            packet.unpack_from_fifo(fifo_data)
+        else:
+            # Standard mode: unpack data from single value
+            if data_dict and 'data' in data_dict:
+                fifo_data = {'data': data_dict['data']}
+                packet.unpack_from_fifo(fifo_data)
 
         # Apply memory model data, if applicable
         if self.memory_model and self.memory_fields:
@@ -779,59 +787,6 @@ class GAXISlave(BusMonitor):
         self.log.debug(f"Slave({self.title}) Transaction received at {packet.end_time}ns: {packet.formatted(compact=True)}")
         self._recv(packet)  # trigger callbacks
 
-    def _finish_last_pkt(self, current_time, last_xfer, last_packet):
-        # Check if last transfer is pending (fifo_flop mode)
-        if last_xfer:
-            packet = last_packet
-
-            if self.use_multi_signal:
-                # Multi-signal mode: collect data from field signals
-                data_dict = {}
-                for field_name, dut_signal_name in self.field_signals.items():
-                    if hasattr(self.bus, dut_signal_name):
-                        signal = getattr(self.bus, dut_signal_name)
-                        if signal.value.is_resolvable:
-                            data_dict[field_name] = int(signal.value)
-
-                self._finish_packet(current_time, packet, data_dict)
-            else:
-                # Standard mode
-                data_val = int(self.bus.o_rd_data.value)
-                self._finish_packet(current_time, packet, {'data': data_val})
-
-    def _check_valid_assertion(self, current_time,last_packet, last_xfer):
-        # Check for valid assertion
-        if self.bus.o_rd_valid.value == 1:
-            # Create a new packet
-            packet = self.packet_class(self.field_config)
-            packet.start_time = current_time
-
-            if self.mode == 'fifo_flop':
-                # 'fifo_flop' mode: note handshake time, defer data capture to next cycle
-                last_xfer = True
-                last_packet = packet
-
-            elif self.use_multi_signal:
-                # Multi-signal mode: collect data from field signals
-                data_dict = {}
-                for field_name, dut_signal_name in self.field_signals.items():
-                    if hasattr(self.bus, dut_signal_name):
-                        signal = getattr(self.bus, dut_signal_name)
-                        if signal.value.is_resolvable:
-                            data_dict[field_name] = int(signal.value)
-
-                self._finish_packet(current_time, packet, data_dict)
-            else:
-                    # Standard mode
-                data_val = (
-                    int(self.bus.ow_rd_data.value)
-                    if self.mode == 'fifo_mux'
-                    and hasattr(self.bus, 'ow_rd_data')
-                    else int(self.bus.o_rd_data.value)
-                )
-                self._finish_packet(current_time, packet, {'data': data_val})
-        return last_packet, last_xfer
-
     async def _monitor_recv(self):
         """
         Monitor for incoming transactions (read channel).
@@ -844,8 +799,27 @@ class GAXISlave(BusMonitor):
             while True:
                 # Wait a brief moment for signal stability
                 await Timer(200, units='ps')
+
                 current_time = get_sim_time('ns')
-                self._finish_last_pkt(current_time, last_xfer, last_packet)
+
+                # Check if last transfer is pending (fifo_flop mode)
+                if last_xfer:
+                    packet = last_packet
+
+                    if self.use_multi_signal:
+                        # Multi-signal mode: collect data from field signals
+                        data_dict = {}
+                        for field_name, dut_signal_name in self.field_signals.items():
+                            if hasattr(self.bus, dut_signal_name):
+                                signal = getattr(self.bus, dut_signal_name)
+                                if signal.value.is_resolvable:
+                                    data_dict[field_name] = int(signal.value)
+
+                        self._finish_packet(current_time, packet, data_dict)
+                    else:
+                        # Standard mode
+                        data_val = int(self.bus.o_rd_data.value)
+                        self._finish_packet(current_time, packet, {'data': data_val})
 
                 # Always clear the last transfer here
                 last_xfer = False
@@ -865,7 +839,35 @@ class GAXISlave(BusMonitor):
                 await FallingEdge(self.clock)
 
                 # Check for valid assertion
-                last_packet, last_xfer = self._check_valid_assertion(current_time,last_packet, last_xfer)
+                if self.bus.o_rd_valid.value == 1:
+                    # Create a new packet
+                    packet = self.packet_class(self.field_config)
+                    packet.start_time = current_time
+
+                    if self.mode != 'fifo_flop':
+                        # Immediate capture (skid and mux modes)
+                        if self.use_multi_signal:
+                            # Multi-signal mode: collect data from field signals
+                            data_dict = {}
+                            for field_name, dut_signal_name in self.field_signals.items():
+                                if hasattr(self.bus, dut_signal_name):
+                                    signal = getattr(self.bus, dut_signal_name)
+                                    if signal.value.is_resolvable:
+                                        data_dict[field_name] = int(signal.value)
+
+                            self._finish_packet(current_time, packet, data_dict)
+                        else:
+                            # Standard mode
+                            if self.mode == 'fifo_mux' and hasattr(self.bus, 'ow_rd_data'):
+                                data_val = int(self.bus.ow_rd_data.value)
+                            else:
+                                data_val = int(self.bus.o_rd_data.value)
+
+                            self._finish_packet(current_time, packet, {'data': data_val})
+                    else:
+                        # 'fifo_flop' mode: note handshake time, defer data capture to next cycle
+                        last_xfer = True
+                        last_packet = packet
 
                 # Deassert ready on the rising edge (prepare for next cycle or delay)
                 await RisingEdge(self.clock)
@@ -892,7 +894,7 @@ class GAXIMonitor(BusMonitor):
     """
     def __init__(self, dut, title, prefix, clock, signals=None, is_slave=False,
                     field_config=None, packet_class=GAXIPacket, timeout_cycles=1000,
-                    log=None, mode='normal', signal_map=None, **kwargs):
+                    log=None, mode='skid', signal_map=None, **kwargs):
         """
         Initialize the GAXI bus monitor.
 
@@ -907,7 +909,7 @@ class GAXIMonitor(BusMonitor):
             packet_class: Class to use for creating packets
             timeout_cycles: Maximum cycles to wait before timeout
             log: Logger instance
-            mode: Operating mode ('normal', 'fifo_mux', 'fifo_flop')
+            mode: Operating mode ('skid', 'fifo_mux', 'fifo_flop')
                     In 'fifo_mux' mode (slave side), use 'ow_rd_data' instead of 'o_rd_data'.
                     In 'fifo_flop' mode, capture data one clock after valid/ready handshake.
             signal_map: Dictionary mapping GAXI signals to DUT signals
@@ -917,12 +919,25 @@ class GAXIMonitor(BusMonitor):
                 If provided, enables multi-signal mode for field data
             **kwargs: Additional arguments to pass to BusMonitor
         """
+        # Validate mode parameter
+        valid_modes = ['skid', 'fifo_mux', 'fifo_flop']
+        if mode not in valid_modes:
+            raise ValueError(f"Invalid mode '{mode}' for Slave ({title}). Mode must be one of: {', '.join(valid_modes)}")
+
         # Determine if we're using multi-signal mode
         self.use_multi_signal = signal_map is not None
         self.signal_map = signal_map
 
         # Default signal sets based on is_slave and mode
-        if self.use_multi_signal:
+        if not self.use_multi_signal:
+            if signals:
+                self._signals = signals
+            elif is_slave and mode == 'fifo_mux':
+                # In mux mode (slave side), use multiplexed read data signal
+                self._signals = ['o_rd_valid', 'i_rd_ready', 'ow_rd_data']
+            else:
+                self._signals = gaxi_slave_signals if is_slave else gaxi_master_signals
+        else:
             # Multi-signal mode - only include valid/ready in _signals
             self._signals = []
 
@@ -950,13 +965,6 @@ class GAXIMonitor(BusMonitor):
                 else:
                     self._signals.append('o_wr_ready')
 
-        elif signals:
-            self._signals = signals
-        elif is_slave and mode == 'fifo_mux':
-            # In mux mode (slave side), use multiplexed read data signal
-            self._signals = ['o_rd_valid', 'i_rd_ready', 'ow_rd_data']
-        else:
-            self._signals = gaxi_slave_signals if is_slave else gaxi_master_signals
         self._optional_signals = []
 
         # Initialize base BusMonitor (don't auto-start monitoring)
@@ -1057,74 +1065,24 @@ class GAXIMonitor(BusMonitor):
             current_time: Current simulation time
             packet: The packet to finish
             data_dict: Dictionary of field data (for multi-signal mode)
-                        or single 'data' value (for standard mode)
+                       or single 'data' value (for standard mode)
         """
         if self.use_multi_signal:
             # Multi-signal mode: data is already in correct fields
             if data_dict:
                 for field_name, value in data_dict.items():
                     setattr(packet, field_name, value)
-        elif data_dict and 'data' in data_dict:
-            fifo_data = {'data': data_dict['data']}
-            packet.unpack_from_fifo(fifo_data)
+        else:
+            # Standard mode: unpack data from single value
+            if data_dict and 'data' in data_dict:
+                fifo_data = {'data': data_dict['data']}
+                packet.unpack_from_fifo(fifo_data)
 
         # Record completion time and store packet
         packet.end_time = current_time
         self.observed_queue.append(packet)
         self.log.debug(f"Monitor({self.title}) Transaction received at {packet.end_time}ns: {packet.formatted(compact=True)}")
         self._recv(packet)  # trigger callbacks
-
-    def _finish_last_packet(self, current_time, last_packet, last_xfer):
-        # Check if last transfer is pending (fifo_flop mode)
-        if last_xfer:
-            packet = last_packet
-
-            if self.use_multi_signal:
-                # Multi-signal mode: collect data from field signals
-                data_dict = {}
-                for field_name, dut_signal_name in self.field_signals.items():
-                    if hasattr(self.bus, dut_signal_name):
-                        signal = getattr(self.bus, dut_signal_name)
-                        if signal.value.is_resolvable:
-                            data_dict[field_name] = int(signal.value)
-
-                self._finish_packet(current_time, packet, data_dict)
-            else:
-                # Standard mode
-                data_val = int(self.data_signal.value)
-                self._finish_packet(current_time, packet, {'data': data_val})
-
-    def _check_valid_assertion(self, current_time, last_packet, last_xfer):
-        # Check for a valid handshake on this cycle
-        if (self.valid_signal.value.is_resolvable and
-                self.ready_signal.value.is_resolvable and
-                self.valid_signal.value.integer == 1 and
-                self.ready_signal.value.integer == 1):
-
-            # Create a new packet
-            packet = self.packet_class(self.field_config)
-            packet.start_time = current_time
-
-            if self.mode == 'fifo_flop':
-                # 'fifo_flop' mode: note handshake time, defer data capture to next cycle
-                last_xfer = True
-                last_packet = packet
-
-            elif self.use_multi_signal:
-                # Multi-signal mode: collect data from field signals
-                data_dict = {}
-                for field_name, dut_signal_name in self.field_signals.items():
-                    if hasattr(self.bus, dut_signal_name):
-                        signal = getattr(self.bus, dut_signal_name)
-                        if signal.value.is_resolvable:
-                            data_dict[field_name] = int(signal.value)
-
-                self._finish_packet(current_time, packet, data_dict)
-            else:
-                # Standard mode
-                data_val = int(self.data_signal.value)
-                self._finish_packet(current_time, packet, {'data': data_val})
-        return last_packet, last_xfer
 
     async def _monitor_recv(self):
         """
@@ -1142,14 +1100,58 @@ class GAXIMonitor(BusMonitor):
                 # Wait a brief moment for signal stability
                 await Timer(200, units='ps')
 
-                # finish last packet
-                self._finish_last_packet(current_time, last_packet, last_xfer)
+                # Check if last transfer is pending (fifo_flop mode)
+                if last_xfer:
+                    packet = last_packet
+
+                    if self.use_multi_signal:
+                        # Multi-signal mode: collect data from field signals
+                        data_dict = {}
+                        for field_name, dut_signal_name in self.field_signals.items():
+                            if hasattr(self.bus, dut_signal_name):
+                                signal = getattr(self.bus, dut_signal_name)
+                                if signal.value.is_resolvable:
+                                    data_dict[field_name] = int(signal.value)
+
+                        self._finish_packet(current_time, packet, data_dict)
+                    else:
+                        # Standard mode
+                        data_val = int(self.data_signal.value)
+                        self._finish_packet(current_time, packet, {'data': data_val})
 
                 # Always clear the last transfer here
                 last_xfer = False
 
                 # Check for a valid handshake on this cycle
-                last_packet, last_xfer = self._check_valid_assertion(current_time, last_packet, last_xfer)
+                if (self.valid_signal.value.is_resolvable and
+                        self.ready_signal.value.is_resolvable and
+                        self.valid_signal.value.integer == 1 and
+                        self.ready_signal.value.integer == 1):
+
+                    # Create a new packet
+                    packet = self.packet_class(self.field_config)
+                    packet.start_time = current_time
+
+                    if self.mode != 'fifo_flop':
+                        # Immediate capture (skid and mux modes)
+                        if self.use_multi_signal:
+                            # Multi-signal mode: collect data from field signals
+                            data_dict = {}
+                            for field_name, dut_signal_name in self.field_signals.items():
+                                if hasattr(self.bus, dut_signal_name):
+                                    signal = getattr(self.bus, dut_signal_name)
+                                    if signal.value.is_resolvable:
+                                        data_dict[field_name] = int(signal.value)
+
+                            self._finish_packet(current_time, packet, data_dict)
+                        else:
+                            # Standard mode
+                            data_val = int(self.data_signal.value)
+                            self._finish_packet(current_time, packet, {'data': data_val})
+                    else:
+                        # 'fifo_flop' mode: note handshake time, defer data capture to next cycle
+                        last_xfer = True
+                        last_packet = packet
 
         except Exception as e:
             self.log.error(f"Exception in _monitor_recv: {str(e)}")

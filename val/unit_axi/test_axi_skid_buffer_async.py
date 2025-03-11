@@ -44,7 +44,7 @@ async def fifo_test(dut):
 def generate_test_params():
     widths = [8]
     depths = [2, 4, 6, 8]
-    modes = ["mux", "delay"]
+    modes = ["fifo_mux", "fifo_flop"]
     clk_pairs = [(10, 15), (15, 10)]  # Clock write/read variations
 
     # Generate all permutations
@@ -57,6 +57,7 @@ def generate_test_params():
 
 params = generate_test_params()
 
+# @pytest.mark.parametrize("data_width, depth, mode, clk_wr, clk_rd", [(8, 2, "fifo_mux", 10, 15)])
 @pytest.mark.parametrize("data_width, depth, mode, clk_wr, clk_rd", params)
 def test_skid_buffer_async(request, data_width, depth, mode, clk_wr, clk_rd):
     # get all of the directory and module information
@@ -104,8 +105,8 @@ def test_skid_buffer_async(request, data_width, depth, mode, clk_wr, clk_rd):
     extra_env = {
         'DUT': dut_name,
         'LOG_PATH': log_path,
-        'COCOTB_LOG_LEVEL': 'INFO',
-        # 'COCOTB_LOG_LEVEL': 'DEBUG',
+        # 'COCOTB_LOG_LEVEL': 'INFO',
+        'COCOTB_LOG_LEVEL': 'DEBUG',
         'COCOTB_RESULTS_FILE': results_path,
         'SEED': str(random.randint(0, 100000))
     }
