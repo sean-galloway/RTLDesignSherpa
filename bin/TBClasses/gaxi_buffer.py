@@ -143,18 +143,36 @@ class GaxiBufferTB(TBBase):
         self.rd_rstn.value = 1
         self.log.info("Reset complete.")
 
-    def compare_packets(self, msg):
+    def compare_packets(self, msg, expected_count):
         """
         Compare packets captured by wr_monitor and rd_monitor.
         Logs any mismatches without stopping the test and updates self.total_errors.
         Returns two lists of hex string data for the written and read packets (for logging).
         """
         # 1. Ensure the number of packets in both monitors are the same
-        if len(self.wr_monitor.observed_queue) != len(self.rd_monitor.observed_queue):
+        wr_mon_count = len(self.wr_monitor.observed_queue)
+        rd_mon_count = len(self.rd_monitor.observed_queue)
+        if wr_mon_count != rd_mon_count:
             self.log.error(
                 f"Packet count mismatch: "
-                f"{len(self.wr_monitor.observed_queue)} sent vs "
-                f"{len(self.rd_monitor.observed_queue)} received"
+                f"{len(wr_mon_count)} sent vs "
+                f"{len(rd_mon_count)} received"
+            )
+            self.total_errors += 1
+
+        if expected_count != wr_mon_count:
+            self.log.error(
+                f"Packet count mismatch on Write Monitor: "
+                f"{wr_mon_count} sent vs "
+                f"{expected_count} expected"
+            )
+            self.total_errors += 1
+
+        if expected_count != rd_mon_count:
+            self.log.error(
+                f"Packet count mismatch on Read Monitor: "
+                f"{rd_mon_count} received vs "
+                f"{expected_count} expected"
             )
             self.total_errors += 1
 
@@ -218,6 +236,6 @@ class GaxiBufferTB(TBBase):
             await self.wait_clocks(self.wr_clk_name, 1)
         await self.wait_clocks(self.wr_clk_name, delay_clks_after)
 
-        self.compare_packets("Simple Incremental Loops")
+        self.compare_packets("Simple Incremental Loops", count)
 
         assert self.total_errors == 0, f'Simple Incremental Loops found {self.total_errors} Errors'

@@ -9,7 +9,7 @@ from TBClasses.gaxi_buffer import GaxiBufferTB
 from TBClasses.utilities import get_paths, create_view_cmd
 
 
-@cocotb.test(timeout_time=1, timeout_unit="ms")
+@cocotb.test(timeout_time=500, timeout_unit="us")
 async def fifo_test(dut):
     '''Test the Skid Buffer as thoroughly as possible'''
     tb = GaxiBufferTB(
@@ -57,8 +57,8 @@ def generate_test_params():
 
 params = generate_test_params()
 
-# @pytest.mark.parametrize("data_width, depth, mode, clk_wr, clk_rd", [(8, 2, "fifo_mux", 10, 15)])
-@pytest.mark.parametrize("data_width, depth, mode, clk_wr, clk_rd", params)
+# @pytest.mark.parametrize("data_width, depth, mode, clk_wr, clk_rd", params)
+@pytest.mark.parametrize("data_width, depth, mode, clk_wr, clk_rd", [(8, 2, "fifo_flop", 10, 15), (8, 2, "fifo_mux", 10, 15)])
 def test_skid_buffer_async(request, data_width, depth, mode, clk_wr, clk_rd):
     # get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common', 'rtl_axi': 'rtl/axi'})

@@ -522,9 +522,9 @@ def demonstrate_object_bins():
     return flex_rand
 
 
-
 def main():  # sourcery skip: extract-duplicate-method
     """Run all the demonstration functions."""
+    print("===========================================")
     print("FLEXRANDOMIZER COMPREHENSIVE USAGE EXAMPLES")
     print("===========================================")
     
