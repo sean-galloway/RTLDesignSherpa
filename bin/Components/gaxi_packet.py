@@ -1,3 +1,5 @@
+from Components.debug_object import print_object_details
+
 class GAXIPacket:
     """
     Highly configurable packet class for AXI protocol transactions.
@@ -92,7 +94,7 @@ class GAXIPacket:
         for field_name, value in kwargs.items():
             if field_name in self.fields:
                 self.fields[field_name] = value
-    
+
     def __getattr__(self, name):
         """
         Support direct attribute access for fields.
@@ -163,7 +165,8 @@ class GAXIPacket:
     def expand_from_fifo(self, value, field_name):
         """
         Expand a FIFO value to its full field representation by left-shifting.
-        For example, if addr[31:5] in FIFO is 0x91A2B3, this returns 0x12345678 (shifted left by 5).
+        For example, if addr[31:5] in FIFO is 0x91A2B3, this returns 0x12345660 (shifted left by 5).
+        Note that the lowest 5 bits will be zeros due to the shifting process.
         
         Args:
             value: The FIFO field value
@@ -249,6 +252,10 @@ class GAXIPacket:
         display_width = config.get('display_width', 0)
         active_bits = config.get('active_bits', None)
 
+        # Check for undefined values
+        if value == -1:
+            return "X/Z"  # Indicate undefined value
+            
         # Calculate appropriate width based on bits or display_width
         if display_width > 0:
             # Use explicit display width if provided
@@ -309,7 +316,7 @@ class GAXIPacket:
 
             # If this is a partial field, also show the FIFO value
             active_bits = config.get('active_bits', None)
-            if active_bits and active_bits[1] > 0:
+            if active_bits and active_bits[1] > 0 and value != -1:  # Skip FIFO display for X/Z values
                 fifo_value = self.shift_for_fifo(value, field_name)
                 fifo_formatted = self._format_field(field_name, fifo_value)
                 result.append(f"  {' ' * max_desc_len}  FIFO: {fifo_formatted}")
@@ -344,7 +351,7 @@ class GAXIPacket:
         fields = []
         for field_name, config in self.field_config.items():
             value = self.fields[field_name]
-            if show_fifo:
+            if show_fifo and value != -1:  # Skip FIFO calculation for X/Z values
                 value = self.shift_for_fifo(value, field_name)
             formatted_value = self._format_field(field_name, value)
             fields.append(f"{field_name}={formatted_value}")
@@ -353,29 +360,65 @@ class GAXIPacket:
     def __eq__(self, other):
         """
         Compare packets for equality, skipping fields in skip_compare_fields.
+        Also checks for undefined values (X/Z), which are typically represented as -1.
         
         Args:
             other: Another packet to compare with
             
         Returns:
-            True if all non-skipped fields match, False otherwise
+            True if all non-skipped fields match and have defined values, False otherwise
         """
         if not isinstance(other, GAXIPacket):
             return NotImplemented
         
-        # Compare all fields except those in skip_compare_fields
-        for field_name, value in self.fields.items():
+        # Compare all non-skipped fields
+        for field_name in self.field_config:
+            # Skip fields that are configured to be skipped during comparison
             if field_name in self.skip_compare_fields:
-                continue  # Skip comparing this field
+                continue
                 
-            if field_name not in other.fields or other.fields[field_name] != value:
+            # Check if field exists in both packets
+            if field_name not in self.fields or field_name not in other.fields:
+                return False
+                
+            self_value = self.fields[field_name]
+            other_value = other.fields[field_name]
+            
+            # Check for undefined values (X/Z represented as -1 in simulation)
+            if self_value == -1 or other_value == -1:
+                return False  # Undefined values should cause comparison to fail
+                
+            # Check if values match
+            if self_value != other_value:
                 return False
         
         return True
 
 
 # Example usage demonstrating master and slave workflow with comparison
+# For test tracking
+test_results = []
+test_count = 0
+passed_count = 0
+
+# Example usage demonstrating master and slave workflow with comparison
 if __name__ == "__main__":
+    def run_test(description, test_func, expected_result):
+        global test_count, passed_count
+        test_count += 1
+        result = test_func()
+        passed = (result == expected_result)
+        if passed:
+            passed_count += 1
+            status = "PASS"
+        else:
+            status = "FAIL"
+        test_results.append(f"Test {test_count}: {description} - {status}")
+        print(f"{status}: {description}")
+        print(f"  Expected: {expected_result}")
+        print(f"  Actual:   {result}")
+        return passed
+    
     # 1. Define field configuration once
     field_config = {
         'addr': {
@@ -404,8 +447,9 @@ if __name__ == "__main__":
         }
     }
     
-    print("MASTER SIDE:")
-    # 2. In master: Create packet with full values, specifying fields to skip during comparison
+    print("\n===== GAXI Packet Class Tests =====\n")
+    
+    # Test 1: Basic packet creation
     master_packet = GAXIPacket(
         field_config, 
         skip_compare_fields=['metadata', 'start_time', 'end_time'],
@@ -413,52 +457,91 @@ if __name__ == "__main__":
         data=0xABCD1234,
         metadata=0xAA
     )
-    print(master_packet)
     
-    # Set timing info
-    master_packet.start_time = 100
-    master_packet.end_time = 150
+    run_test("Packet creation with correct field values", 
+                lambda: master_packet.addr == 0x12345678 and master_packet.data == 0xABCD1234,
+                True)
     
-    # Pack for FIFO transmission
+    # Test 2: FIFO packing/unpacking
     fifo_data = master_packet.pack_for_fifo()
-    print(f"\nPacked for FIFO transmission: {fifo_data}")
-    print(f"  addr: 0x{fifo_data['addr']:X} (shifted right by 5 bits)")
-    print(f"  data: 0x{fifo_data['data']:X}")
-    print(f"  metadata: 0x{fifo_data['metadata']:X}")
     
-    print("\nSLAVE SIDE:")
-    # 3. In slave: Unpack from FIFO to get full field values
-    # Note: Using the same skip_compare_fields configuration
+    # Test that addr field gets correctly shifted for FIFO (right shift by 5)
+    run_test("Address field shifting for FIFO", 
+                lambda: fifo_data['addr'] == (0x12345678 >> 5),
+                True)
+    
+    # Create slave packet and test unpacking
     slave_packet = GAXIPacket(
         field_config,
         skip_compare_fields=['metadata', 'start_time', 'end_time']
     )
     slave_packet.unpack_from_fifo(fifo_data)
     
-    # Set different timing info and metadata
+    # Test 3: FIFO unpacking - should restore original values for data
+    # Note: For addr, we expect the bottom 5 bits to be lost due to shifting
+    run_test("FIFO unpacking correctly restores data (addr loses lowest 5 bits)", 
+                lambda: slave_packet.data == master_packet.data and (
+                        slave_packet.addr == (master_packet.addr & ~0x1F)
+                    ),
+                True)
+    
+    # Test 4: Packet comparison - should be equal when non-compared fields differ
+    slave_packet.metadata = 0xBB  # Different from master
     slave_packet.start_time = 200
     slave_packet.end_time = 250
-    slave_packet.metadata = 0xBB  # Different from master
     
-    print(slave_packet)
+    # Fix addr to original value (to bypass the shift loss issue)
+    slave_packet.addr = master_packet.addr
     
-    # Verify that the non-skipped field values match between master and slave
-    print("\nVERIFICATION:")
-    print(f"Master addr: 0x{master_packet.addr:X}")
-    print(f"Slave addr:  0x{slave_packet.addr:X}")
+    run_test("Equality comparison skips fields in skip_compare_fields", 
+                lambda: master_packet == slave_packet,
+                True)
     
-    print(f"Master data: 0x{master_packet.data:X}")
-    print(f"Slave data:  0x{slave_packet.data:X}")
+    # Test 5: Packet comparison - should be unequal when compared fields differ
+    slave_packet.data = 0x99887766  # Change a non-skipped field
     
-    print(f"Master metadata: 0x{master_packet.metadata:X}")
-    print(f"Slave metadata:  0x{slave_packet.metadata:X}")
+    run_test("Equality comparison detects difference in compared fields", 
+                lambda: master_packet == slave_packet,
+                False)
     
-    print(f"Master start_time: {master_packet.start_time}")
-    print(f"Slave start_time:  {slave_packet.start_time}")
+    # Test 6: X/Z values handling in equality comparison
+    master_packet.data = -1  # Simulate X/Z value
     
-    # Compare packets (should be equal because we're skipping metadata and timing)
-    print(f"\nPackets equal despite different metadata and timing: {master_packet == slave_packet}")
+    run_test("Equality comparison properly handles X/Z values", 
+                lambda: master_packet == slave_packet,
+                False)
     
-    # Change a non-skipped field
-    slave_packet.data = 0x99887766
-    print(f"Packets equal after changing data: {master_packet == slave_packet}")
+    # Test 7: String formatting with X/Z values
+    formatted = master_packet.formatted(compact=True)
+    
+    run_test("String formatting properly shows X/Z values", 
+                lambda: "data=X/Z" in formatted,
+                True)
+    
+    # Test 8: Edge case - all fields have X/Z values
+    edge_packet = GAXIPacket(field_config)
+    edge_packet.addr = -1
+    edge_packet.data = -1
+    
+    run_test("Packets with all X/Z values are handled correctly", 
+                lambda: edge_packet != master_packet,
+                True)
+    
+    # Test 9: Field access API
+    run_test("Direct field attribute access works", 
+                lambda: master_packet.addr == master_packet.fields['addr'],
+                True)
+        
+    # Summary of test results
+    print("\n===== Test Results =====")
+    for result in test_results:
+        print(result)
+    
+    print(f"\nPassed {passed_count} of {test_count} tests ({(passed_count/test_count)*100:.1f}%)")
+    
+    if passed_count == test_count:
+        print("\nALL TESTS PASSED! ✅")
+        exit(0)  # Success exit code
+    else:
+        print("\nSOME TESTS FAILED! ❌")
+        exit(1)  # Error exit code

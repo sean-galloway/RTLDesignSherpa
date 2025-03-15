@@ -41,7 +41,7 @@ def get_object_details(obj):
     return result
 
 
-def print_object_details(obj, log, name="Object", max_value_length=100):
+def print_object_details(obj, log, name="Object", max_value_length=500):
     """
     Prints formatted details of all attributes of the given object.
     
@@ -66,3 +66,10 @@ def print_object_details(obj, log, name="Object", max_value_length=100):
         log.debug(f"{attr_name}: {info['type']} = {value_str}")
     
     log.debug("-" * 80)
+
+
+def print_dict_to_log(name, d, log, prefix=""):
+    """Print dictionary to logger with each key on its own line"""
+    msg = f"\n=== {name} Details ===\n"
+    lines = [f"{prefix}::{key}: {value}" for key, value in d.items()]
+    log.debug(f'{msg}' + "\n".join(lines))

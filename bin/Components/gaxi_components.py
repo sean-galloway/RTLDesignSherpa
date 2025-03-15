@@ -1,4 +1,5 @@
 """Updated GAXI Master/Slave/Monitor Components with required and optional signal support"""
+import pprint
 
 import cocotb
 from collections import deque
@@ -9,7 +10,7 @@ from cocotb.utils import get_sim_time
 
 from .flex_randomizer import FlexRandomizer
 from Components.gaxi_packet import GAXIPacket
-from Components.debug_object import print_object_details
+from Components.debug_object import print_object_details, print_dict_to_log
 
 
 # Standard signal names for GAXI Master components
@@ -70,12 +71,17 @@ class GAXIMaster(BusDriver):
         self.signal_map = signal_map or {}
         self.optional_signal_map = optional_signal_map or {}
 
+        msg_multi = None
         # Use standard signals if in standard mode and no signals provided
         if not self.use_multi_signal:
             self._signals = signals or gaxi_master_signals
         else:
             # In multi-signal mode, we need at least valid/ready in the base _signals
-            self.log.debug(f'Master({title}) multi-signal model')
+            msg_multi = (f'Master({title}) multi-signal model')
+            msg_multi += f'{signal_map=}\n'
+            msg_multi += f'{optional_signal_map=}\n'
+            msg_multi += f'{field_config=}\n'
+
             self._signals = []
 
             # Add valid/ready signals from signal_map if provided
@@ -125,6 +131,10 @@ class GAXIMaster(BusDriver):
         # Initialize parent class
         BusDriver.__init__(self, dut, prefix, clock, **kwargs)
         self.log = log or self._log
+        if msg_multi is not None:
+            self.log.debug(msg_multi)
+            print_object_details(self, self.log, f"GAXI Master '{self.title}' INIT")
+            print_object_details(self.bus, self.log, f"GAXI Master BUS'{self.title}' INIT")
 
         # Initialize queues
         self.transmit_queue = deque()
@@ -164,10 +174,6 @@ class GAXIMaster(BusDriver):
         for field_name in self.field_config.keys():
             # Create the signal name for this field in the signal map
             field_signal_name = f'i_wr_data_{field_name}'
-
-            # Skip 'data' field in multi-signal mode if we have multiple fields
-            if field_name == 'data' and len(self.field_config) > 1:
-                continue
 
             # Check required signal map first
             if field_signal_name in self.signal_map:
@@ -373,9 +379,6 @@ class GAXIMaster(BusDriver):
             if self.use_multi_signal:
                 # Multi-signal mode: drive individual field signals
                 for field_name, field_value in transaction.fields.items():
-                    # Skip 'data' field in multi-signal mode (it's split into individual fields)
-                    if field_name == 'data' and len(self.field_config) > 1:
-                        continue
 
                     # If we have a mapping for this field
                     if field_name in self.field_signals:
@@ -600,7 +603,10 @@ class GAXISlave(BusMonitor):
         msg_multi = None
         if self.use_multi_signal:
             # Multi-signal mode - only include valid/ready in _signals
-            msg_multi = f'Slave({self.title}) multi-signal model'
+            msg_multi = f'Slave({self.title}) multi-signal model\n'
+            msg_multi += f'{signal_map=}\n'
+            msg_multi += f'{optional_signal_map=}\n'
+            msg_multi += f'{field_config=}\n'
             self._signals = []
 
             # Add required signals valid/ready
@@ -609,9 +615,11 @@ class GAXISlave(BusMonitor):
                 if sig_name in self.signal_map:
                     # Map to DUT signal name
                     self._signals.append(self.signal_map[sig_name])
+                    msg_multi += f'Adding {sig_name=} == {self.signal_map[sig_name]=}\n'
                 else:
                     # Use default name
                     self._signals.append(sig_name)
+                    msg_multi += f'Adding {sig_name=}\n'
 
         elif signals:
             self._signals = signals
@@ -620,6 +628,7 @@ class GAXISlave(BusMonitor):
             self._signals = ['o_rd_valid', 'i_rd_ready', 'ow_rd_data']
         else:
             self._signals = gaxi_slave_signals
+
 
         # Set up optional signals
         self._optional_signals = []
@@ -660,8 +669,11 @@ class GAXISlave(BusMonitor):
         BusMonitor.__init__(self, dut, prefix, clock, callback=None, event=None, **kwargs)
         self.log = log or self._log
         self.log.debug(f"GAXISlave init for '{title}': randomizer={randomizer}, mode={mode}")
+        self.log.debug(f"GAXISlave init for '{title}': _signals={self._signals}")
         if msg_multi is not None:
             self.log.debug(msg_multi)
+            print_object_details(self, self.log, f"GAXI Slave '{self.title}' INIT")
+            print_object_details(self.bus, self.log, f"GAXI Slave BUS'{self.title}' INIT")
 
 
         # Create a mapping of field names to DUT signals for multi-signal mode
@@ -691,9 +703,6 @@ class GAXISlave(BusMonitor):
         """Initialize and verify signals in multi-signal mode."""
         # Check field signal mappings
         for field_name in self.field_config.keys():
-            # Skip 'data' field in multi-signal mode (it's split into individual fields)
-            if field_name == 'data' and len(self.field_config) > 1:
-                continue
 
             field_signal_name = f'o_rd_data_{field_name}'
 
@@ -851,8 +860,7 @@ class GAXISlave(BusMonitor):
         for field_name, dut_signal_name in self.field_signals.items():
             if hasattr(self.bus, dut_signal_name):
                 signal = getattr(self.bus, dut_signal_name)
-                if signal.value.is_resolvable:
-                    data_dict[field_name] = int(signal.value)
+                data_dict[field_name] = int(signal.value) if signal.value.is_resolvable else -1
         return data_dict
 
     def _get_data_value(self):
@@ -866,7 +874,7 @@ class GAXISlave(BusMonitor):
         if 'i_rd_ready' in self.signal_map:
             ready_signal = self.signal_map['i_rd_ready']
             if hasattr(self.bus, ready_signal):
-                getattr(self.bus, ready_signal).value = 0
+                getattr(self.bus, ready_signal).value = value
         else:
             self.bus.i_rd_ready.value = value
 
@@ -1096,6 +1104,8 @@ class GAXIMonitor(BusMonitor):
         if log:
             self.log.info(f"GAXIMonitor initialized for {title} (mode: {mode}, {'multi-signal' if self.use_multi_signal else 'standard'})")
             print_object_details(self, self.log, f"GAXI Monitor '{self.title}' INIT")
+            print_object_details(self.field_config, self.log, f"GAXI Monitor Field Config'{self.title}' INIT")
+            print_object_details(self.field_signals, self.log, f"GAXI Monitor Field Signals'{self.title}' INIT")
 
 
     def _initialize_multi_signal_mode(self):
@@ -1125,9 +1135,6 @@ class GAXIMonitor(BusMonitor):
 
         # Map field signals
         for field_name in self.field_config.keys():
-            # Skip 'data' field in multi-signal mode if we have multiple fields
-            if field_name == 'data' and len(self.field_config) > 1:
-                continue
 
             # Create the signal name for this field
             field_signal_name = f'{data_prefix}{field_name}'
@@ -1224,13 +1231,32 @@ class GAXIMonitor(BusMonitor):
         self._recv(packet)  # trigger callbacks
 
     def _get_data_dict(self):
-        # Multi-signal mode: collect data from field signals
+        """
+        Collect data from field signals and properly handle X/Z values.
+        
+        Returns:
+            Dictionary of field values with X/Z values represented as -1
+        """
+        print_dict_to_log(f"GAXI Monitor Field Siggnals({self.title}), recv_phase2:", self.field_signals, self.log, "field_signals")
         data_dict = {}
         for field_name, dut_signal_name in self.field_signals.items():
             if hasattr(self.bus, dut_signal_name):
                 signal = getattr(self.bus, dut_signal_name)
+
+                # Log the actual signal value and its resolvability
+                self.log.debug(f"Signal {dut_signal_name} value: {signal.value}, resolvable: {signal.value.is_resolvable}")
+
+                # Check if signal has a valid value
                 if signal.value.is_resolvable:
                     data_dict[field_name] = int(signal.value)
+                else:
+                    # Signal is X or Z, represent it as -1
+                    self.log.warning(f"Field {field_name} has X/Z value")
+                    data_dict[field_name] = -1
+            else:
+                # Signal not found - could be optional or missing
+                self.log.debug(f"Signal {dut_signal_name} not found on DUT")
+        
         return data_dict
 
     async def _recv_phase1(self, current_time, last_packet, last_xfer):
@@ -1252,8 +1278,13 @@ class GAXIMonitor(BusMonitor):
                 data_dict = self._get_data_dict()
                 self._finish_packet(current_time, packet, data_dict)
             else:
-                # Standard mode
-                data_val = int(self.data_signal.value)
+                # Standard mode - check if data signal is X/Z
+                if self.data_signal.value.is_resolvable:
+                    data_val = int(self.data_signal.value)
+                else:
+                    self.log.warning("Data signal has X/Z value")
+                    data_val = -1  # Represent X/Z as -1
+                
                 self._finish_packet(current_time, packet, {'data': data_val})
                 
         return current_time
@@ -1274,6 +1305,9 @@ class GAXIMonitor(BusMonitor):
 
         # Create a new packet
         packet = self.packet_class(self.field_config)
+        print_dict_to_log(f"GAXI Monitor Packet Field Config({self.title}), recv_phase2:", packet.field_config, self.log, "field_config")
+        print_dict_to_log(f"GAXI Monitor Packet Fields({self.title}), recv_phase2:", packet.fields, self.log, "fields")
+
         packet.start_time = current_time
 
         if self.mode == 'fifo_flop':
@@ -1282,11 +1316,17 @@ class GAXIMonitor(BusMonitor):
             last_packet = packet
         elif self.use_multi_signal:
             # Multi-signal mode: collect data from field signals
+
             data_dict = self._get_data_dict()
             self._finish_packet(current_time, packet, data_dict)
         else:
-            # Standard mode
-            data_val = int(self.data_signal.value)
+            # Standard mode - check if data signal is X/Z
+            if self.data_signal.value.is_resolvable:
+                data_val = int(self.data_signal.value)
+            else:
+                self.log.warning("Data signal has X/Z value")
+                data_val = -1  # Represent X/Z as -1
+            
             self._finish_packet(current_time, packet, {'data': data_val})
 
         return last_packet, last_xfer

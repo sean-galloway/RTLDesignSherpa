@@ -1,0 +1,37 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Wed Mar 12 06:43:30 2025
+[*]
+[dumpfile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/local_sim_build/test_skid_buffer_async_w008_d002_fifo_mux_clkwr10_clkrd15/axi_skid_buffer_async.fst"
+[dumpfile_mtime] "Wed Mar 12 06:21:19 2025"
+[dumpfile_size] 26803
+[savefile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/GTKW/axi_skid_buffer_async.gtkw"
+[timestart] 0
+[size] 1963 1137
+[pos] -1 -1
+*-21.806303 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi_skid_buffer_async.
+[sst_width] 278
+[signals_width] 150
+[sst_expanded] 1
+[sst_vpaned_height] 344
+@200
+-write
+@28
+axi_skid_buffer_async.i_axi_wr_aclk
+axi_skid_buffer_async.i_wr_valid
+axi_skid_buffer_async.o_wr_ready
+@22
+axi_skid_buffer_async.i_wr_data[7:0]
+@200
+-read
+@28
+axi_skid_buffer_async.i_axi_rd_aclk
+axi_skid_buffer_async.o_rd_valid
+axi_skid_buffer_async.i_rd_ready
+@23
+axi_skid_buffer_async.ow_rd_data[7:0]
+@22
+axi_skid_buffer_async.o_rd_data[7:0]
+[pattern_trace] 1
+[pattern_trace] 0
