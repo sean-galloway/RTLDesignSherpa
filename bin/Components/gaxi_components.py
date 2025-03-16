@@ -133,8 +133,8 @@ class GAXIMaster(BusDriver):
         self.log = log or self._log
         if msg_multi is not None:
             self.log.debug(msg_multi)
-            print_object_details(self, self.log, f"GAXI Master '{self.title}' INIT")
-            print_object_details(self.bus, self.log, f"GAXI Master BUS'{self.title}' INIT")
+            # print_object_details(self, self.log, f"GAXI Master '{self.title}' INIT")
+            # print_object_details(self.bus, self.log, f"GAXI Master BUS'{self.title}' INIT")
 
         # Initialize queues
         self.transmit_queue = deque()
@@ -156,7 +156,7 @@ class GAXIMaster(BusDriver):
 
         # Debug output
         self.log.info(f"GAXIMaster initialized for {title} in {'multi-signal' if self.use_multi_signal else 'standard'} mode")
-        print_object_details(self, self.log, f"GAXI Master '{self.title}' INIT")
+        # print_object_details(self, self.log, f"GAXI Master '{self.title}' INIT")
 
     def _initialize_multi_signal_mode(self):
         """Initialize signals in multi-signal mode with fallback to defaults for optional signals."""
@@ -187,7 +187,7 @@ class GAXIMaster(BusDriver):
                 
             # If no mapping exists and we have a 'data' field, use standard data signal
             elif field_name == 'data' and hasattr(self.bus, 'i_wr_data'):
-                self.log.debug(f"Using standard data signal for field '{field_name}'")
+                # self.log.debug(f"Using standard data signal for field '{field_name}'")
                 self.field_signals[field_name] = 'i_wr_data'
                 self.bus.i_wr_data.setimmediatevalue(0)
                 
@@ -205,7 +205,7 @@ class GAXIMaster(BusDriver):
             # Initialize with default value from field config
             default_value = self.field_config[field_name].get('default', 0)
             getattr(self.bus, dut_signal_name).setimmediatevalue(default_value)
-            self.log.debug(f"Registered signal '{dut_signal_name}' for field '{field_name}'")
+            # self.log.debug(f"Registered signal '{dut_signal_name}' for field '{field_name}'")
         elif required:
             # Signal is required but not found
             raise ValueError(f"Required signal '{dut_signal_name}' for field '{field_name}' not found on DUT")
@@ -492,14 +492,15 @@ class GAXIMaster(BusDriver):
         """
         self.log.debug(f'Master({self.title}): Transmit pipeline started, queue length: {len(self.transmit_queue)}')
         self.transfer_busy = True
+        await RisingEdge(self.clock)
 
         while len(self.transmit_queue):
             # Get next transaction from the queue
             transaction = self.transmit_queue.popleft()
             transaction.start_time = get_sim_time('ns')
-            self.log.debug(f"Master({self.title}) Processing transaction, remaining: "
-                            f"{len(self.transmit_queue)} at {transaction.start_time}ns "
-                            f"transaction={transaction.formatted(compact=True)}")
+            # self.log.debug(f"Master({self.title}) Processing transaction, remaining: "
+            #                 f"{len(self.transmit_queue)} at {transaction.start_time}ns "
+            #                 f"transaction={transaction.formatted(compact=True)}")
 
             # xmit phase 1 - apply delay
             await self._xmit_phase1()
@@ -672,8 +673,8 @@ class GAXISlave(BusMonitor):
         self.log.debug(f"GAXISlave init for '{title}': _signals={self._signals}")
         if msg_multi is not None:
             self.log.debug(msg_multi)
-            print_object_details(self, self.log, f"GAXI Slave '{self.title}' INIT")
-            print_object_details(self.bus, self.log, f"GAXI Slave BUS'{self.title}' INIT")
+            # print_object_details(self, self.log, f"GAXI Slave '{self.title}' INIT")
+            # print_object_details(self.bus, self.log, f"GAXI Slave BUS'{self.title}' INIT")
 
 
         # Create a mapping of field names to DUT signals for multi-signal mode
@@ -697,7 +698,7 @@ class GAXISlave(BusMonitor):
         # Debug output
         if log:
             self.log.info(f"GAXISlave initialized for {self.title} in mode '{self.mode}', {'multi-signal' if self.use_multi_signal else 'standard'}")
-            print_object_details(self, self.log, f"GAXI Slave '{self.title}' INIT")
+            # print_object_details(self, self.log, f"GAXI Slave '{self.title}' INIT")
 
     def _initialize_multi_signal_mode(self):
         """Initialize and verify signals in multi-signal mode."""
@@ -727,7 +728,7 @@ class GAXISlave(BusMonitor):
                     data_signal = 'o_rd_data'
                     
                 if data_signal:
-                    self.log.debug(f"Using standard data signal '{data_signal}' for field '{field_name}'")
+                    # self.log.debug(f"Using standard data signal '{data_signal}' for field '{field_name}'")
                     self.field_signals[field_name] = data_signal
                 else:
                     self.log.warning(f"No suitable data signal found for field '{field_name}'")
@@ -740,7 +741,7 @@ class GAXISlave(BusMonitor):
         if hasattr(self.bus, dut_signal_name):
             # Store the mapping
             self.field_signals[field_name] = dut_signal_name
-            self.log.debug(f"Registered signal '{dut_signal_name}' for field '{field_name}'")
+            # self.log.debug(f"Registered signal '{dut_signal_name}' for field '{field_name}'")
         elif required:
             # Signal is required but not found
             raise ValueError(f"Required signal '{dut_signal_name}' for field '{field_name}' not found on DUT")
@@ -1103,10 +1104,14 @@ class GAXIMonitor(BusMonitor):
         # Debug output
         if log:
             self.log.info(f"GAXIMonitor initialized for {title} (mode: {mode}, {'multi-signal' if self.use_multi_signal else 'standard'})")
-            print_object_details(self, self.log, f"GAXI Monitor '{self.title}' INIT")
-            print_object_details(self.field_config, self.log, f"GAXI Monitor Field Config'{self.title}' INIT")
-            print_object_details(self.field_signals, self.log, f"GAXI Monitor Field Signals'{self.title}' INIT")
+            # print_object_details(self, self.log, f"GAXI Monitor '{self.title}' INIT")
+            # print_object_details(self.field_config, self.log, f"GAXI Monitor Field Config'{self.title}' INIT")
+            # print_object_details(self.field_signals, self.log, f"GAXI Monitor Field Signals'{self.title}' INIT")
 
+    def clear_queue(self):
+        """Clear the observed transactions queue after scoreboard validation."""
+        self.observed_queue.clear()
+        self.log.info(f"GAXIMonitor ({self.title}): Observed queue cleared after scoreboard check.")
 
     def _initialize_multi_signal_mode(self):
         """Initialize signal mappings for multi-signal mode with fallback to standard signals."""
@@ -1160,7 +1165,7 @@ class GAXIMonitor(BusMonitor):
                     data_signal = 'i_wr_data'
 
                 if data_signal:
-                    self.log.debug(f"Using standard data signal '{data_signal}' for field '{field_name}'")
+                    # self.log.debug(f"Using standard data signal '{data_signal}' for field '{field_name}'")
                     self.field_signals[field_name] = data_signal
                     # Store for easy access
                     self.data_signal = getattr(self.bus, data_signal)
@@ -1175,7 +1180,7 @@ class GAXIMonitor(BusMonitor):
         if hasattr(self.bus, dut_signal_name):
             # Store the mapping
             self.field_signals[field_name] = dut_signal_name
-            self.log.debug(f"Registered signal '{dut_signal_name}' for field '{field_name}'")
+            # self.log.debug(f"Registered signal '{dut_signal_name}' for field '{field_name}'")
             
             # Store standard data signal for easy access
             if field_name == 'data':
@@ -1237,14 +1242,14 @@ class GAXIMonitor(BusMonitor):
         Returns:
             Dictionary of field values with X/Z values represented as -1
         """
-        print_dict_to_log(f"GAXI Monitor Field Siggnals({self.title}), recv_phase2:", self.field_signals, self.log, "field_signals")
+        # print_dict_to_log(f"GAXI Monitor Field Siggnals({self.title}), recv_phase2:", self.field_signals, self.log, "field_signals")
         data_dict = {}
         for field_name, dut_signal_name in self.field_signals.items():
             if hasattr(self.bus, dut_signal_name):
                 signal = getattr(self.bus, dut_signal_name)
 
                 # Log the actual signal value and its resolvability
-                self.log.debug(f"Signal {dut_signal_name} value: {signal.value}, resolvable: {signal.value.is_resolvable}")
+                # self.log.debug(f"Signal {dut_signal_name} value: {signal.value}, resolvable: {signal.value.is_resolvable}")
 
                 # Check if signal has a valid value
                 if signal.value.is_resolvable:
@@ -1305,8 +1310,8 @@ class GAXIMonitor(BusMonitor):
 
         # Create a new packet
         packet = self.packet_class(self.field_config)
-        print_dict_to_log(f"GAXI Monitor Packet Field Config({self.title}), recv_phase2:", packet.field_config, self.log, "field_config")
-        print_dict_to_log(f"GAXI Monitor Packet Fields({self.title}), recv_phase2:", packet.fields, self.log, "fields")
+        # print_dict_to_log(f"GAXI Monitor Packet Field Config({self.title}), recv_phase2:", packet.field_config, self.log, "field_config")
+        # print_dict_to_log(f"GAXI Monitor Packet Fields({self.title}), recv_phase2:", packet.fields, self.log, "fields")
 
         packet.start_time = current_time
 

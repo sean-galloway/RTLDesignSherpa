@@ -24,7 +24,7 @@ if [[ -z "$LOG_FILE" || ! -f "$LOG_FILE" ]]; then
 fi
 
 # Extract transactions and store in respective files
-egrep "write_master.*Processing transaction," "$LOG_FILE" | sed 's/.*DEBUG//' > wr_fail.txt
+egrep "write_master.*Transaction completed" "$LOG_FILE" | sed 's/.*DEBUG//' > wr_fail.txt
 egrep "Write monitor.*Transaction received"   "$LOG_FILE" | sed 's/.*DEBUG//' > wr_mon_fail.txt
 egrep "Read monitor.*Transaction received"    "$LOG_FILE" | sed 's/.*DEBUG//' > rd_mon_fail.txt
 egrep "read_slave.*Transaction received"      "$LOG_FILE" | sed 's/.*DEBUG//' > rd_fail.txt
