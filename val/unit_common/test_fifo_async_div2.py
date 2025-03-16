@@ -1,11 +1,9 @@
-import cocotb
-from cocotb.triggers import RisingEdge, Timer
-from cocotb.clock import Clock
 import os
 import subprocess
 import random
 import pytest
-from fifo_async_testing import FIFOASyncTB
+import cocotb
+from CocoTBFramework.TBClasses.fifo_async_testing import FIFOASyncTB
 from cocotb_test.simulator import run
 
 

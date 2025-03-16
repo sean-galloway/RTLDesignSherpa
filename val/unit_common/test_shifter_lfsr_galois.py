@@ -1,12 +1,10 @@
-import cocotb
-from cocotb.triggers import FallingEdge, Timer
-from cocotb.clock import Clock
-import random
 import os
+import random
 import subprocess
 import pytest
+import cocotb
 from cocotb_test.simulator import run
-from TBClasses.tbbase import TBBase
+from CocoTBFramework.TBClasses.tbbase import TBBase
 
 class LFSR_TB(TBBase):
     def __init__(self, dut):
@@ -40,7 +38,7 @@ class LFSR_TB(TBBase):
 
     def assert_reset(self):
         self.dut.i_rst_n.value = 0
-        await self.clear_interface()
+        self.clear_interface()
         self.log.info('Assert reset done.')
 
     def deassert_reset(self):

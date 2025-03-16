@@ -1,15 +1,15 @@
-import cocotb
-from cocotb.triggers import FallingEdge, Timer, Event
-from cocotb.clock import Clock
-from cocotb.queue import Queue
-from cocotb.utils import get_sim_time
 import os
 import subprocess
 import random
 import pytest
+
+import cocotb
+from cocotb.triggers import Timer, Event
+from cocotb.queue import Queue
+from cocotb.utils import get_sim_time
 from cocotb_test.simulator import run
-from TBClasses.tbbase import TBBase
-from Components.constrained_random import ConstrainedRandom
+from CocoTBFramework.TBClasses.tbbase import TBBase
+from CocoTBFramework.Components.constrained_random import ConstrainedRandom
 
 class CTCache(TBBase):
     def __init__(self, dut):
@@ -36,7 +36,7 @@ class CTCache(TBBase):
 
     def assert_reset(self):
         self.dut.i_rst_n.value = 0
-        await self.clear_interface()
+        self.clear_interface()
         self.log.info('Assert reset done.')
 
     def deassert_reset(self):

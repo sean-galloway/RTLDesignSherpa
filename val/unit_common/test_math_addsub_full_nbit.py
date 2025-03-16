@@ -1,14 +1,11 @@
-import cocotb
-import itertools
-from cocotb.triggers import Timer
-
-# from cocotb.regression import TestFactory
 import os
+import itertools
+import random
 import subprocess
 import pytest
+import cocotb
 from cocotb_test.simulator import run
-import random
-from TBClasses.tbbase import TBBase
+from CocoTBFramework.TBClasses.tbbase import TBBase
 
 
 class AddSubTB(TBBase):

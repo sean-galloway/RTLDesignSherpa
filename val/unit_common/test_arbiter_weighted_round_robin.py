@@ -1,15 +1,12 @@
-import cocotb
-from cocotb.clock import Clock
-from cocotb.triggers import FallingEdge, RisingEdge, Timer
-from cocotb.queue import Queue
-# from cocotb.regression import TestFactory
 import os
 import subprocess
-import pytest
 import random
+import pytest
+import cocotb
+from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
-from TBClasses.tbbase import TBBase
-from Components.constrained_random import ConstrainedRandom
+from CocoTBFramework.TBClasses.tbbase import TBBase
+from CocoTBFramework.Components.constrained_random import ConstrainedRandom
 
 
 class ArbiterTB(TBBase):
@@ -41,7 +38,7 @@ class ArbiterTB(TBBase):
 
     def assert_reset(self):
         self.dut.i_rst_n.value = 0
-        await self.clear_interface()
+        self.clear_interface()
         self.log.info('Assert reset done.')
 
 

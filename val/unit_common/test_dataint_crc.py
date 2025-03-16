@@ -1,10 +1,10 @@
-import cocotb
 import os
 import subprocess
-import pytest
-from crc_testing import CRCTB, crc_parameters
-from cocotb_test.simulator import run
 import random
+import pytest
+import cocotb
+from cocotb_test.simulator import run
+from CocoTBFramework.TBClasses.crc_testing import CRCTB, crc_parameters
 
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
@@ -21,9 +21,9 @@ async def crc_basic_test(dut):
 
     await tb.start_clock('i_clk', 10, 'ns')
     tb.assert_reset()
-    await tb.wait_clocks('i_clk', 5)
+    await tb.wait_clocks('i_clk', 10)
     tb.deassert_reset()
-    await tb.wait_clocks('i_clk', 5)
+    await tb.wait_clocks('i_clk', 10)
     await tb.main_loop()
 
 

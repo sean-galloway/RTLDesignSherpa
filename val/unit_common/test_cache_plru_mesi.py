@@ -1,15 +1,15 @@
+import os
+import subprocess
+import random
+import pytest
 import cocotb
 from cocotb.triggers import FallingEdge, Timer, Event, RisingEdge
 from cocotb.clock import Clock
 from cocotb.queue import Queue
 from cocotb.utils import get_sim_time
-import os
-import subprocess
-import random
-import pytest
 from cocotb_test.simulator import run
-from TBClasses.tbbase import TBBase
-from Components.constrained_random import ConstrainedRandom
+from CocoTBFramework.TBClasses.tbbase import TBBase
+from CocoTBFramework.Components.constrained_random import ConstrainedRandom
 
 class CTCacheMESI(TBBase):
     def __init__(self, dut):
@@ -47,7 +47,7 @@ class CTCacheMESI(TBBase):
 
     def assert_reset(self):
         self.dut.i_rst_n.value = 0
-        await self.clear_interface()
+        self.clear_interface()
         self.log.info('Assert reset done.')
 
     def deassert_reset(self):
@@ -288,7 +288,7 @@ def test_cache_plru_mesi(request, depth, a, dw, aw):
     verilog_sources = [
         os.path.join(rtl_dir, "counter_bin.sv"),
         os.path.join(rtl_dir, "fifo_control.sv"),
-        os.path.join(axi_rtl_dir, "axi_fifo_sync.sv"),
+        os.path.join(axi_rtl_dir, "gaxi_fifo_sync.sv"),
         os.path.join(rtl_dir, "fifo_sync.sv"),
         os.path.join(rtl_dir, f"{dut_name}.sv"),
     ]

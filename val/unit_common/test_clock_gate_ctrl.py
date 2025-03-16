@@ -1,12 +1,10 @@
-import cocotb
-from cocotb.triggers import Timer
 import os
 import subprocess
 import pytest
+import cocotb
 from cocotb_test.simulator import run
-from TBClasses.tbbase import TBBase
-from Components.constrained_random import ConstrainedRandom
-from itertools import product
+from CocoTBFramework.TBClasses.tbbase import TBBase
+from CocoTBFramework.Components.constrained_random import ConstrainedRandom
 
 
 class ClockGateCtrlTB(TBBase):
@@ -39,13 +37,10 @@ class ClockGateCtrlTB(TBBase):
         self.last_idle_count = self.max_count
         self.dut.i_wakeup.value = 0
         self.log.info('Assert reset done.')
-        await self.wait_clocks('clk_in', 10)
 
     def deassert_reset(self):
-        await self.wait_clocks('clk_in', 2)
         self.dut.aresetn.value = 1
         self.log.info("Reset complete.")
-        await self.wait_clocks('clk_in', 10)
 
     async def verify_clock_gating(self, cycles, expected_enabled):
         """Verify clock gating behavior for specified cycles"""

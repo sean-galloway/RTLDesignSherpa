@@ -5,7 +5,7 @@ import cocotb
 from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
 import pytest
-from TBClasses.tbbase import TBBase
+from CocoTBFramework.TBClasses.tbbase import TBBase
 
 
 class ArbiterTB(TBBase):

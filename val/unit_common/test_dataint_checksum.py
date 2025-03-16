@@ -1,12 +1,10 @@
-import cocotb
-from cocotb.triggers import FallingEdge, Timer
-from cocotb.clock import Clock
 import os
 import subprocess
 import random
 import pytest
+import cocotb
 from cocotb_test.simulator import run
-from TBClasses.tbbase import TBBase
+from CocoTBFramework.TBClasses.tbbase import TBBase
 
 
 class CheckSumTB(TBBase):

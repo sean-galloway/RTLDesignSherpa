@@ -6,8 +6,8 @@ from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
-from TBClasses.gaxi_basic_all_buffer import GaxiBasicBufferAllTB
-from TBClasses.utilities import get_paths, create_view_cmd
+from CocoTBFramework.TBClasses.gaxi_basic_all_buffer import GaxiBasicBufferAllTB
+from CocoTBFramework.TBClasses.utilities import get_paths, create_view_cmd
 
 
 @dataclass
@@ -40,7 +40,7 @@ class BufferTestParams:
                 self.ctrl_width = 3
                 
         # For standard buffer, ensure mode is set correctly
-        if self.buffer_type == 'standard' and self.dut_name == 'axi_skid_buffer':
+        if self.buffer_type == 'standard' and self.dut_name == 'gaxi_skid_buffer':
             # Skid buffer always uses 'skid' mode
             self.mode = 'skid'
             
@@ -51,7 +51,7 @@ class BufferTestParams:
 
 @cocotb.test(timeout_time=2, timeout_unit="ms")
 async def buffer_test(dut):
-    """Universal test for all AXI buffer types"""
+    """Universal test for all GAXI buffer types"""
     # Determine buffer type and other parameters from environment
     buffer_type = os.environ.get('BUFFER_TYPE', 'standard')
     is_async = ('async' in os.environ.get('DUT', '').lower()) or (buffer_type == 'async')
@@ -103,7 +103,7 @@ def generate_standard_buffer_params():
     # Skid buffer tests
     params.extend(
         BufferTestParams(
-            dut_name="axi_skid_buffer",
+            dut_name="gaxi_skid_buffer",
             buffer_type="standard",
             data_width=width,
             depth=depth,
@@ -114,7 +114,7 @@ def generate_standard_buffer_params():
     # FIFO tests
     params.extend(
         BufferTestParams(
-            dut_name="axi_fifo_sync",
+            dut_name="gaxi_fifo_sync",
             buffer_type="standard",
             data_width=width,
             depth=depth,
@@ -133,7 +133,7 @@ def generate_multi_buffer_params():
     # Multi-signal skid buffer tests
     params.extend(
         BufferTestParams(
-            dut_name="axi_skid_buffer_multi",
+            dut_name="gaxi_skid_buffer_multi",
             buffer_type="multi",
             addr_width=addr_width,
             ctrl_width=ctrl_width,
@@ -146,7 +146,7 @@ def generate_multi_buffer_params():
     # Multi-signal FIFO tests
     params.extend(
         BufferTestParams(
-            dut_name="axi_fifo_sync_multi",
+            dut_name="gaxi_fifo_sync_multi",
             buffer_type="multi",
             addr_width=addr_width,
             ctrl_width=ctrl_width,
@@ -167,7 +167,7 @@ def generate_field_buffer_params():
     # Field-based FIFO tests - standard FIFO used with multi-field mapping
     params.extend(
         BufferTestParams(
-            dut_name="axi_fifo_sync",  # Uses standard FIFO with field mapping
+            dut_name="gaxi_fifo_sync",  # Uses standard FIFO with field mapping
             buffer_type="field",
             addr_width=addr_width,
             ctrl_width=ctrl_width,
@@ -188,7 +188,7 @@ def generate_async_buffer_params():
     # Async FIFO tests
     params.extend(
         BufferTestParams(
-            dut_name="axi_fifo_async",
+            dut_name="gaxi_fifo_async",
             buffer_type="async",
             data_width=width,
             depth=depth,
@@ -204,7 +204,7 @@ def generate_async_buffer_params():
     # Async skid buffer tests
     params.extend(
         BufferTestParams(
-            dut_name="axi_skid_buffer_async",
+            dut_name="gaxi_skid_buffer_async",
             buffer_type="async",
             data_width=width,
             depth=depth,
@@ -284,10 +284,10 @@ test_params = generate_all_test_params(
 
 # Use a single specific test configuration for focused debugging
 # uncomment this line and comment the test_params above for quick debugging
-# test_params = [BufferTestParams(dut_name='axi_skid_buffer', buffer_type='standard', data_width=8, depth=2, short_test=True)]
+# test_params = [BufferTestParams(dut_name='gaxi_skid_buffer', buffer_type='standard', data_width=8, depth=2, short_test=True)]
 
 @pytest.mark.parametrize("params", test_params)
-def test_axi_buffer(request, params):
+def test_gaxi_buffer(request, params):
     """Universal parametrized test for all AXI buffer types"""
     # Get paths for the test
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -348,29 +348,29 @@ def test_axi_buffer(request, params):
 def get_verilog_sources(rtl_dict, dut_name):
     """Get the Verilog source files needed for the specified DUT"""
 
-    if dut_name == 'axi_skid_buffer':
+    if dut_name == 'gaxi_skid_buffer':
         return [
             os.path.join(rtl_dict['rtl_axi'], f"{dut_name}.sv"),
         ]
-    elif dut_name == 'axi_skid_buffer_multi':
+    elif dut_name == 'gaxi_skid_buffer_multi':
         return [
-            os.path.join(rtl_dict['rtl_axi'], "axi_skid_buffer.sv"),
+            os.path.join(rtl_dict['rtl_axi'], "gaxi_skid_buffer.sv"),
             os.path.join(rtl_dict['rtl_axi'], f"{dut_name}.sv"),
         ]
-    elif dut_name == 'axi_fifo_sync':
-        return [
-            os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
-            os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
-            os.path.join(rtl_dict['rtl_axi'], f"{dut_name}.sv"),
-        ]
-    elif dut_name == 'axi_fifo_sync_multi':
+    elif dut_name == 'gaxi_fifo_sync':
         return [
             os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
             os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
-            os.path.join(rtl_dict['rtl_axi'], "axi_fifo_sync.sv"),
             os.path.join(rtl_dict['rtl_axi'], f"{dut_name}.sv"),
         ]
-    elif dut_name == 'axi_skid_buffer_async':
+    elif dut_name == 'gaxi_fifo_sync_multi':
+        return [
+            os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
+            os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
+            os.path.join(rtl_dict['rtl_axi'], "gaxi_fifo_sync.sv"),
+            os.path.join(rtl_dict['rtl_axi'], f"{dut_name}.sv"),
+        ]
+    elif dut_name == 'gaxi_skid_buffer_async':
         return [
             os.path.join(rtl_dict['rtl_cmn'], "find_first_set.sv"),
             os.path.join(rtl_dict['rtl_cmn'], "find_last_set.sv"),
@@ -380,11 +380,11 @@ def get_verilog_sources(rtl_dict, dut_name):
             os.path.join(rtl_dict['rtl_cmn'], "grayj2bin.sv"),
             os.path.join(rtl_dict['rtl_cmn'], "glitch_free_n_dff_arn.sv"),
             os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
-            os.path.join(rtl_dict['rtl_axi'], "axi_fifo_async.sv"),
-            os.path.join(rtl_dict['rtl_axi'], "axi_skid_buffer.sv"),
+            os.path.join(rtl_dict['rtl_axi'], "gaxi_fifo_async.sv"),
+            os.path.join(rtl_dict['rtl_axi'], "gaxi_skid_buffer.sv"),
             os.path.join(rtl_dict['rtl_axi'], f"{dut_name}.sv"),
         ]
-    elif dut_name == 'axi_fifo_async':
+    elif dut_name == 'gaxi_fifo_async':
         return [
             os.path.join(rtl_dict['rtl_cmn'], "find_first_set.sv"),
             os.path.join(rtl_dict['rtl_cmn'], "find_last_set.sv"),
@@ -415,7 +415,7 @@ def create_test_name(params):
     if params.buffer_type in ['multi', 'field']:
         test_name += f"_aw{params.addr_width:03d}_cw{params.ctrl_width:03d}"
         
-    if params.dut_name.startswith('axi_fifo'):
+    if params.dut_name.startswith('gaxi_fifo'):
         test_name += f"_{params.mode}"
         
     if params.buffer_type == 'async' or 'async' in params.dut_name:

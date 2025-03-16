@@ -1,11 +1,11 @@
-import cocotb
-from cocotb.triggers import RisingEdge, Timer
-from cocotb.clock import Clock
 import os
 import subprocess
 import random
 import pytest
-from fifo_async_testing import FIFOASyncTB
+import cocotb
+from cocotb.triggers import RisingEdge, Timer
+from cocotb.clock import Clock
+from CocoTBFramework.TBClasses.fifo_async_testing import FIFOASyncTB
 from cocotb_test.simulator import run
 
 
@@ -21,9 +21,9 @@ async def fifo_test(dut):
     await tb.start_clock('i_wr_clk', 10, 'ns')
     await tb.start_clock('i_rd_clk', 15, 'ns')
     tb.assert_reset()
-    await tb.wait_clocks('i_rd_clk', 5)
+    await tb.wait_clocks('i_rd_clk', 10)
     tb.deassert_reset()
-    await tb.wait_clocks('i_rd_clk', 5)
+    await tb.wait_clocks('i_rd_clk', 10)
     tb.log.info("Starting test...")
     await tb.main_loop(100, 200)
 

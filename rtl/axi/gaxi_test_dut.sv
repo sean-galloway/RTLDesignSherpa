@@ -117,4 +117,5 @@
     assign o_rd_data_data = (test_mode == 2 && handshake_occurred) ? data_flop_reg : data_reg;
     assign o_rd_ctrl = (test_mode == 2 && handshake_occurred) ? ctrl_flop_reg : ctrl_reg;
 
-endmodule
+endmodule : gaxi_test_dut
+

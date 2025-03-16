@@ -1,14 +1,10 @@
-import cocotb
-from cocotb.triggers import RisingEdge, FallingEdge, ClockCycles, Timer
-from cocotb.clock import Clock
-import random
 import os
+import random
 import subprocess
 import pytest
+import cocotb
 from cocotb_test.simulator import run
-import logging
-import random
-from cam_testing import CamTB
+from CocoTBFramework.TBClasses.cam_testing import CamTB
 
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
@@ -24,9 +20,9 @@ async def basic_test(dut):
     tb.print_settings()
     await tb.start_clock('i_clk', 10, 'ns')
     tb.assert_reset()
-    await tb.wait_clocks('i_clk', 5)
+    await tb.wait_clocks('i_clk', 10)
     tb.deassert_reset()
-    await tb.wait_clocks('i_clk', 5)
+    await tb.wait_clocks('i_clk', 10)
     tb.log.info("Starting test...")
 
     tb.check_empty()   # should start off empty

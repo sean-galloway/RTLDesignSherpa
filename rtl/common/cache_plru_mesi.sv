@@ -136,7 +136,7 @@ module cache_plru_mesi #(
     logic [AW-1:0]   r_sysbusin_addr;
     logic [DW-1:0]   r_sysbusin_data;
     logic [DM-1:0]   r_sysbusin_dm;    // Instantiate the sysbusor in FIFO
-    axi_fifo_sync #(
+    gaxi_fifo_sync #(
         .DATA_WIDTH(1+AW+DW+DM),
         .DEPTH(4),    // Depth of FIFO
         .DEL(1)       // Delay parameter for the FIFO
@@ -156,7 +156,7 @@ module cache_plru_mesi #(
     logic [AW-1:0]   r_sysbusout_addr;
     logic [DW-1:0]   r_sysbusout_data;
     logic [DM-1:0]   r_sysbusout_dm;    // Instantiate the sysbusor in FIFO
-    axi_fifo_sync #(
+    gaxi_fifo_sync #(
         .DATA_WIDTH(1+AW+DW+DM),
         .DEPTH(4),   // Depth of FIFO
         .DEL(1)       // Delay parameter for the FIFO
@@ -176,7 +176,7 @@ module cache_plru_mesi #(
     logic [AW-1:0]   r_memin_addr;
     logic [DW-1:0]   r_memin_data;
     logic [DM-1:0]   r_memin_dm;    // Instantiate the memor in FIFO
-    axi_fifo_sync #(
+    gaxi_fifo_sync #(
         .DATA_WIDTH(1+AW+DW+DM),
         .DEPTH(4),   // Depth of FIFO
         .DEL(1)       // Delay parameter for the FIFO
@@ -196,7 +196,7 @@ module cache_plru_mesi #(
     logic [AW-1:0]   r_memout_addr;
     logic [DW-1:0]   r_memout_data;
     logic [DM-1:0]   r_memout_dm;    // Instantiate the memor in FIFO
-    axi_fifo_sync #(
+    gaxi_fifo_sync #(
         .DATA_WIDTH(1+AW+DW+DM),
         .DEPTH(4),   // Depth of FIFO
         .DEL(1)       // Delay parameter for the FIFO
@@ -215,7 +215,7 @@ module cache_plru_mesi #(
     logic r_snoop_valid, r_snoop_ready;
     logic [AW-1:0]   r_snoop_addr;
     logic [3:0]      r_snoop_cmd;
-    axi_fifo_sync #(
+    gaxi_fifo_sync #(
         .DATA_WIDTH(AW+4),
         .DEPTH(4),   // Depth of FIFO
         .DEL(1)       // Delay parameter for the FIFO
@@ -235,7 +235,7 @@ module cache_plru_mesi #(
     logic [AW-1:0]   r_c2c_snp_addr;
     logic [DW-1:0]   r_c2c_snp_data;
     logic [DM-1:0]   r_c2c_snp_dm;
-    axi_fifo_sync #(
+    gaxi_fifo_sync #(
         .DATA_WIDTH(AW+DW+DM),
         .DEPTH(4),   // Depth of FIFO
         .DEL(1)       // Delay parameter for the FIFO

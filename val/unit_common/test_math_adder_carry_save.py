@@ -1,12 +1,10 @@
-import cocotb
-import itertools
-# from cocotb.regression import TestFactory
 import os
+import random
 import subprocess
 import pytest
-from adder_testing import AdderTB
+import cocotb
+from CocoTBFramework.TBClasses.adder_testing import AdderTB
 from cocotb_test.simulator import run
-import random
 
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
