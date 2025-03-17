@@ -446,7 +446,7 @@ module cache_plru_mesi #(
             r_snoop_ready <= 1'b1;
             r_fifo_c2c_snp_valid <= 1'b0;
             if (r_snoop_valid) begin
-                case (r_snoop_cmd)
+                casez (r_snoop_cmd)
                     CmdSnpRead: begin
                         // Snoop read request
                         if (o_snoop_hit) begin
@@ -562,7 +562,7 @@ module cache_plru_mesi #(
         for (i = 0; i < DEPTH; i++) begin : gen_flatten_tag_array
             assign flat_r_tag_array[i*TagWidth+:TagWidth] = r_tag_array[i];
         end
-        for (i = 0; i < A; i++) begin
+        for (i = 0; i < A; i++) begin : gen_flatten_valid_dirty
             assign flat_r_valid_array[i*DEPTH+:DEPTH] = r_valid_array[i];
             assign flat_r_dirty_array[i*DEPTH+:DEPTH] = r_dirty_array[i];
         end

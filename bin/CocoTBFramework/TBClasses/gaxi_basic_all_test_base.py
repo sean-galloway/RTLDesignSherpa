@@ -7,6 +7,7 @@ import random
 from CocoTBFramework.TBClasses.tbbase import TBBase
 from CocoTBFramework.Components.flex_randomizer import FlexRandomizer
 from CocoTBFramework.Components.gaxi.gaxi_packet import GAXIPacket
+from CocoTBFramework.Scoreboards.gaxi_scoreboard import GAXIScoreboard
 
 
 @dataclass
@@ -214,6 +215,9 @@ class GAXIBasicTestBase(TBBase):
         self.field_mode = field_mode
         self.field_config = self._create_field_config()
 
+        # Create the scoreboard
+        self.scoreboard = GAXIScoreboard(f"{self.__class__.__name__} Scoreboard", self.field_config, self.log)
+        
         # Set up error tracking
         self.total_errors = 0
 
@@ -287,10 +291,20 @@ class GAXIBasicTestBase(TBBase):
     def _wr_monitor_callback(self, transaction):
         """Callback for write monitor"""
         self.log.debug(f"Write monitor captured: {transaction.formatted(compact=True)}")
+        # Add to scoreboard expected queue
+        self.scoreboard.add_expected(transaction)
 
     def _rd_monitor_callback(self, transaction):
         """Callback for read monitor"""
         self.log.debug(f"Read monitor captured: {transaction.formatted(compact=True)}")
+        # Add to scoreboard actual queue
+        self.scoreboard.add_actual(transaction)
+
+    def _get_monitor_counts(self):
+        """Get packet counts from monitors"""
+        wr_mon_count = len(self.wr_monitor.observed_queue) if hasattr(self.wr_monitor, 'observed_queue') else 0
+        rd_mon_count = len(self.rd_monitor.observed_queue) if hasattr(self.rd_monitor, 'observed_queue') else 0
+        return wr_mon_count, rd_mon_count
 
     def compare_results(self, expected_count, msg=''):
         """
@@ -298,116 +312,29 @@ class GAXIBasicTestBase(TBBase):
 
         Args:
             expected_count: Expected number of transactions
-
-        Returns:
-            Number of errors found
-        """
-        # Use compare_packets for all comparisons
-        self.log.debug(f'Compare Results for {msg}')
-        errors = self.compare_packets(f"Test Results for {msg}", expected_count)
-        if errors == 0:
-            self.log.debug(f'Compare Results for {msg} PASSED')
-        else:
-            self.log.debug(f'Compare Results for {msg} FAILED with {errors} errors')
-        return errors
-
-    def _get_monitor_counts(self):
-        wr_mon_count = len(self.wr_monitor.observed_queue) if hasattr(self.wr_monitor, 'observed_queue') else 0
-        rd_mon_count = len(self.rd_monitor.observed_queue) if hasattr(self.rd_monitor, 'observed_queue') else 0
-        return wr_mon_count, rd_mon_count
-
-    def compare_packets(self, msg, expected_count):
-        """
-        Method for comparing packets captured by monitors.
-
-        Args:
             msg: Message prefix for logs
-            expected_count: Expected number of transactions
 
         Returns:
             Number of errors found
         """
         # Check packet counts
-        # wr_mon_count = len(self.wr_monitor.observed_queue) if hasattr(self.wr_monitor, 'observed_queue') else 0
-        # rd_mon_count = len(self.rd_monitor.observed_queue) if hasattr(self.rd_monitor, 'observed_queue') else 0
         wr_mon_count, rd_mon_count = self._get_monitor_counts()
-        errors = 0
-        self.log.debug(f'Compare Packets for {msg} {expected_count=} {wr_mon_count=} {rd_mon_count=}')
-
-        # Store references to queues for safety
-        wr_queue = None
-        rd_queue = None
-
-        if hasattr(self.wr_monitor, 'observed_queue'):
-            # Make a copy of the queue to avoid modifying the original
-            wr_queue = self.wr_monitor.observed_queue
-
-        if hasattr(self.rd_monitor, 'observed_queue'):
-            # Make a copy of the queue to avoid modifying the original
-            rd_queue = self.rd_monitor.observed_queue
-
-        if wr_mon_count != rd_mon_count:
-            self.log.error(
-                f"{msg}: Packet count mismatch: "
-                f"{wr_mon_count} sent vs "
-                f"{rd_mon_count} received"
-            )
-            errors += 1
-            self.total_errors += 1
-
-        if expected_count != wr_mon_count:
-            self.log.error(
-                f"{msg}: Packet count mismatch on Write Monitor: "
-                f"{wr_mon_count} sent vs "
-                f"{expected_count} expected"
-            )
-            errors += 1
-            self.total_errors += 1
-
-        if expected_count != rd_mon_count:
-            self.log.error(
-                f"{msg}: Packet count mismatch on Read Monitor: "
-                f"{rd_mon_count} received vs "
-                f"{expected_count} expected"
-            )
-            errors += 1
-            self.total_errors += 1
-
-        # Compare packets if we have both queues
-        if wr_queue and rd_queue:
-            # Compare as many packets as we can
-            while wr_queue and rd_queue:
-                wr_pkt = wr_queue.popleft()
-                rd_pkt = rd_queue.popleft()
-
-                # Compare the two packets
-                if wr_pkt != rd_pkt:
-                    self.log.error(
-                        f"{msg}: Packet mismatch – WR: {wr_pkt.formatted(compact=True)} "
-                        f"vs RD: {rd_pkt.formatted(compact=True)}"
-                    )
-                    errors += 1
-                    self.total_errors += 1
-
-            # Log any leftover packets
-            while wr_queue:
-                pkt = wr_queue.popleft()
-                self.log.error(f"{msg}: Unmatched extra packet in WR monitor: {pkt.formatted(compact=True)}")
-                errors += 1
-                self.total_errors += 1
-
-            while rd_queue:
-                pkt = rd_queue.popleft()
-                self.log.error(f"{msg}: Unmatched extra packet in RD monitor: {pkt.formatted(compact=True)}")
-                errors += 1
-                self.total_errors += 1
-        elif not wr_queue and not rd_queue:
-            self.log.warning(f"{msg}: Both monitor queues unavailable, skipping packet comparison")
-        elif not wr_queue:
-            self.log.warning(f"{msg}: Write monitor queue unavailable, skipping packet comparison")
+        self.log.debug(f'Compare Results for {msg} (expected={expected_count}, write={wr_mon_count}, read={rd_mon_count})')
+        
+        # Run scoreboard check
+        errors = self.scoreboard.report()
+        
+        # Log result
+        if errors == 0:
+            self.log.debug(f'Compare Results for {msg} PASSED')
         else:
-            self.log.warning(f"{msg}: Read monitor queue unavailable, skipping packet comparison")
-
+            self.log.debug(f'Compare Results for {msg} FAILED with {errors} errors')
+            # Update total error count
+            self.total_errors += errors
+            
+        # Clear scoreboard for next test
+        self.scoreboard.clear()
+        
         return errors
 
     def set_randomizer_mode(self, mode='fast', write_only=False, read_only=False):
@@ -466,6 +393,9 @@ class GAXIBasicTestBase(TBBase):
             await self.wait_clocks(self.rd_clk_name, 10)
         else:
             await self.wait_clocks(self.wr_clk_name, 10)
+            
+        # Clear scoreboard after reset
+        self.scoreboard.clear()
 
     async def send_packets(self, packets):
         """
@@ -809,11 +739,12 @@ class GAXIBasicTestBase(TBBase):
         # Compare results for full test
         full_errors = self.compare_results(count, 'full_empty_test, part 1')
 
-        # Reset monitors and error count for empty test
+        # Reset monitors and clear scoreboard for empty test
         if hasattr(self.wr_monitor, 'observed_queue'):
             self.wr_monitor.observed_queue.clear()
         if hasattr(self.rd_monitor, 'observed_queue'):
             self.rd_monitor.observed_queue.clear()
+        self.scoreboard.clear()
         self.total_errors = 0
 
         # Step 2: Slow producer, fast consumer to create empty condition
@@ -857,6 +788,7 @@ class GAXIBasicTestBase(TBBase):
         # Report overall results
         total_errors = full_errors + empty_errors
         assert total_errors == 0, f'Full/Empty Test found {total_errors} errors ({full_errors} in full test, {empty_errors} in empty test)'
+
 
     async def addr_ctrl_data_crossing_test(self, count, delay_clks_after=20):
         """
@@ -1237,3 +1169,4 @@ class GAXIBasicTestBase(TBBase):
 
         # Final assertion
         assert self.total_errors == 0, f'Clock Ratio Test found {self.total_errors} Errors'
+

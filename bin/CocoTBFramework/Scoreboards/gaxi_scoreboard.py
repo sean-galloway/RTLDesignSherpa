@@ -1,6 +1,6 @@
 """GAXI Scoreboard for verifying GAXI transactions"""
-from CocoTBFramework.Componentsgaxi_packet import GAXIPacket
-from .scoreboard_base import BaseScoreboard
+from CocoTBFramework.Components.gaxi.gaxi_packet import GAXIPacket
+from .base_scoreboard import BaseScoreboard
 
 
 class GAXIScoreboard(BaseScoreboard):
@@ -21,7 +21,6 @@ class GAXIScoreboard(BaseScoreboard):
             
         # Use the built-in comparison in GAXIPacket
         return expected == actual
-    
     def _log_mismatch(self, expected, actual):
         """Enhanced mismatch logging for GAXI packets"""
         if self.log:
@@ -31,11 +30,10 @@ class GAXIScoreboard(BaseScoreboard):
             
             # Detailed field comparison
             for field_name in self.field_config:
-                if field_name in expected.fields and field_name in actual.fields:
-                    if expected.fields[field_name] != actual.fields[field_name]:
-                        exp_val = expected.fields[field_name]
-                        act_val = actual.fields[field_name]
-                        self.log.error(f"  Field '{field_name}' mismatch: expected=0x{exp_val:X}, actual=0x{act_val:X}")
+                if field_name in expected.fields and field_name in actual.fields and expected.fields[field_name] != actual.fields[field_name]:
+                    exp_val = expected.fields[field_name]
+                    act_val = actual.fields[field_name]
+                    self.log.error(f"  Field '{field_name}' mismatch: expected=0x{exp_val:X}, actual=0x{act_val:X}")
 
 
 class TransformScoreboard(BaseScoreboard):

@@ -44,7 +44,7 @@ always_comb begin
 end
 
 always_comb begin
-    case (i_burst)
+    casez (i_burst)
         2'b00: ow_next_addr = i_curr_addr;               // FIXED burst
         2'b01: ow_next_addr = i_curr_addr + increment;   // INCR burst
         2'b10: ow_next_addr = wrap_addr;                 // WRAP burst

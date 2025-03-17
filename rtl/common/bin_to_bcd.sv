@@ -56,7 +56,7 @@ module bin_to_bcd #(
         end else begin
             r_dv <= 1'b0;
             // Next State for the FSM and wire versions of the various control signal
-            case (r_fsm_main)
+            casez (r_fsm_main)
                 // Stay in this state until i_start comes along
                 IDLE: begin
                     if (i_start == 1'b1) begin

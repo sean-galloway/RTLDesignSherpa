@@ -21,7 +21,7 @@ module shifter_universal #(
     logic [WIDTH-1:0] w_pdata;
 
     always_comb begin
-        case (i_select)
+        casez (i_select)
             2'h1:    w_pdata = {i_sdata_rt, o_pdata[WIDTH-1:1]};  // Right Shift
             2'h2:    w_pdata = {o_pdata[2:0], i_sdata_lt};  // Left Shift
             2'h3:    w_pdata = i_pdata;  // Parallel in - Parallel out

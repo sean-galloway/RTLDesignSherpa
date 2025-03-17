@@ -125,7 +125,7 @@ module apb_slave #(
             r_cmd_valid   <= 1'b0;
             r_rsp_ready   <= 1'b0;
 
-            case (r_apb_state)
+            casez (r_apb_state)
 
                 IDLE: begin
                     if (s_apb_PSEL && s_apb_PENABLE && r_cmd_ready) begin

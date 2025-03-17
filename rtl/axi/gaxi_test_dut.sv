@@ -8,8 +8,8 @@
  */
 
  module gaxi_test_dut #(
-    parameter DATA_WIDTH = 32,
-    parameter CTRL_WIDTH = 8
+    parameter int DATA_WIDTH = 32,
+    parameter int CTRL_WIDTH = 8
 ) (
     input  wire                     clk,
     input  wire                     rst_n,

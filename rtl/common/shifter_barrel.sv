@@ -34,7 +34,7 @@ module shifter_barrel #(
 
     // Select the shifted value
     always_comb begin
-        case (i_ctrl)
+        casez (i_ctrl)
             3'b000: ow_data_out = i_data;  // No shift
             3'b001:  // Logical Right Shift (no wrap)
             ow_data_out = (shift_amount_mod) ? i_data >>> i_shift_amount : i_data;

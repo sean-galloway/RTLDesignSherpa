@@ -93,7 +93,7 @@ module cache_plru #(
                 o_snoop_dirty = 1'b0;
                 o_snoop_data = {DW{1'b0}};
 
-                case (i_snoop_cmd)
+                casez (i_snoop_cmd)
                     4'b0000: begin // Snoop read
                         for (j = 0; j < A; j = j + 1) begin
                             if (r_valid_array[snoop_index*A+j] && (r_tag_array[snoop_index*A+j] == snoop_tag)) begin // verilog_lint: waive line-length

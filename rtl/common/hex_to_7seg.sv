@@ -6,7 +6,7 @@ module hex_to_7seg (
 );
 
     always_comb begin
-        case (i_hex)
+        casez (i_hex)
             4'h0: ow_seg = 7'b1000000;  // Hex 0: 0b1000000 (segment a-g: 0000001)
             4'h1: ow_seg = 7'b1111001;  // Hex 1: 0b1111001 (segment a-g: 0111111)
             4'h2: ow_seg = 7'b0100100;  // Hex 2: 0b0100100 (segment a-g: 0010010)

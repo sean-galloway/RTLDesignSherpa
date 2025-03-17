@@ -325,7 +325,7 @@ module axi2apb_convert #(
         w_rsp_ready                = 1'b0;
         w_burst_count              = r_burst_count;
 
-        case (r_rsp_state)
+        casez (r_rsp_state)
             RSP_IDLE: begin
                 if (r_rsp_valid && r_apb_rsp_pkt_first) begin
                     w_rsp_next_state = RSP_ACTIVE;
@@ -357,7 +357,7 @@ module axi2apb_convert #(
             default: w_rsp_next_state = RSP_IDLE;
         endcase
 
-        case (r_apb_state)
+        casez (r_apb_state)
             IDLE: begin
                 if (~r_side_out_valid) // let the last command sequence clear out before the next
                     if (r_s_axi_awvalid && r_s_axi_wvalid) begin

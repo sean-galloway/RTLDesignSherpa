@@ -156,7 +156,7 @@ module apb_master #(
         w_rsp_prdata       = m_apb_PRDATA;
         w_rsp_pslverr      = m_apb_PSLVERR;
 
-        case (r_apb_state)
+        casez (r_apb_state)
             IDLE: begin
                 if (r_cmd_valid) begin
                     m_apb_PSEL       = 1'b1;

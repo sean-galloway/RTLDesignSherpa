@@ -1,6 +1,7 @@
 """Unified GAXI Buffer Testbench for all buffer types including async designs"""
 from CocoTBFramework.Components.gaxi.gaxi_components import GAXIMaster, GAXISlave, GAXIMonitor
 from CocoTBFramework.TBClasses.gaxi_basic_all_test_base import GAXIBasicTestBase, TestConfig
+from CocoTBFramework.Scoreboards.gaxi_scoreboard import GAXIScoreboard
 
 
 class GaxiBasicBufferAllTB(GAXIBasicTestBase):
@@ -63,12 +64,12 @@ class GaxiBasicBufferAllTB(GAXIBasicTestBase):
         if self.wr_monitor:
             self.wr_monitor.add_callback(self._wr_monitor_callback)
         else:
-            self.log.warning("Write monitor not initialized, packet comparison will not work properly")
+            self.log.warning("Write monitor not initialized, scoreboard will not work properly")
             
         if self.rd_monitor:
             self.rd_monitor.add_callback(self._rd_monitor_callback)
         else:
-            self.log.warning("Read monitor not initialized, packet comparison will not work properly")
+            self.log.warning("Read monitor not initialized, scoreboard will not work properly")
         
         self.log.info(f"GaxiBufferAllTB initialized for buffer type: {buffer_type}, mode: {self.config.mode}")
         self.log.info(f"  - Async: {self.is_async}")
@@ -78,14 +79,14 @@ class GaxiBasicBufferAllTB(GAXIBasicTestBase):
     def _wr_monitor_callback(self, transaction):
         """Callback for write monitor"""
         self.log.debug(f"Write monitor captured: {transaction.formatted(compact=True)}")
-        # Pass to parent class callback for packet comparison
-        super()._wr_monitor_callback(transaction)
+        # Add to scoreboard expected queue
+        self.scoreboard.add_expected(transaction)
 
     def _rd_monitor_callback(self, transaction):
         """Callback for read monitor"""
         self.log.debug(f"Read monitor captured: {transaction.formatted(compact=True)}")
-        # Pass to parent class callback for packet comparison
-        super()._rd_monitor_callback(transaction)
+        # Add to scoreboard actual queue
+        self.scoreboard.add_actual(transaction)
 
     def _setup_bfm_components(self):
         """Set up BFM components based on clock and signal configuration"""
@@ -374,8 +375,6 @@ class GaxiBasicBufferAllTB(GAXIBasicTestBase):
         # Full/empty buffer test
         await self.full_empty_test()
 
-        # Buffer-specific tests
-
         # Field-specific tests
         if self.field_mode == 'multi':
             count_field = 20 if short_test else 50
@@ -397,3 +396,5 @@ class GaxiBasicBufferAllTB(GAXIBasicTestBase):
             await self.async_cdc_test(count=count_cdc)
 
         self.log.info("Comprehensive test suite completed successfully")
+        self.log.info(f"Total errors: {self.total_errors}")
+        assert self.total_errors == 0, f"Test suite failed with {self.total_errors} errors"

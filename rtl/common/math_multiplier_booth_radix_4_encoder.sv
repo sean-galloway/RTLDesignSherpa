@@ -8,7 +8,7 @@ module math_multiplier_booth_radix_4_encoder #(
 );
 
     always_comb begin
-        case (i_booth_group)
+        casez (i_booth_group)
             3'b000:  ow_booth_out =  {N+1{1'b0}};
             3'b001:  ow_booth_out =  {i_multiplicand[N-1], i_multiplicand};
             3'b010:  ow_booth_out =  {i_multiplicand[N-1], i_multiplicand};
