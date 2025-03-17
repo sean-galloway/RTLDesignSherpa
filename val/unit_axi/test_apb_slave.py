@@ -8,10 +8,10 @@ from cocotb.utils import get_sim_time
 from cocotb_test.simulator import run
 
 from CocoTBFramework.Componentsmemory_model import MemoryModel
-from CocoTBFramework.Components.flex_randomizer import FlexRandomizer
+from CocoTBFramework.components.flex_randomizer import FlexRandomizer
 from CocoTBFramework.Componentsapb import APBSequence, APBCycle, APBTransaction, APBMonitor, APBMaster
-from CocoTBFramework.TBClasses.tbbase import TBBase
-from CocoTBFramework.TBClasses.utilities import get_paths, create_view_cmd
+from CocoTBFramework.tbclasses.tbbase import TBBase
+from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 
 
 class APBSlaveTB(TBBase):

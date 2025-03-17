@@ -4,7 +4,7 @@ import random
 import pytest
 import cocotb
 from cocotb_test.simulator import run
-from CocoTBFramework.TBClasses.crc_testing import CRCTB, crc_parameters
+from CocoTBFramework.tbclasses.crc_testing import CRCTB, crc_parameters
 
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")

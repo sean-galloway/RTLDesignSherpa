@@ -3,7 +3,7 @@ import subprocess
 import random
 import pytest
 import cocotb
-from CocoTBFramework.TBClasses.fifo_async_testing import FIFOASyncTB
+from CocoTBFramework.tbclasses.fifo_async_testing import FIFOASyncTB
 from cocotb_test.simulator import run
 
 

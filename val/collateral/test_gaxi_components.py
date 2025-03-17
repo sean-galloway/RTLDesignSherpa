@@ -14,10 +14,10 @@ import random
 import pytest
 from pathlib import Path
 from cocotb_test.simulator import run
-from CocoTBFramework.TBClasses.utilities import get_paths, create_view_cmd
+from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 
 # Import the TEST_MODE_MAP from the GAXITestbench
-from CocoTBFramework.TBClasses.gaxi_components_tb import TEST_MODE_MAP
+from CocoTBFramework.tbclasses.gaxi_components_tb import TEST_MODE_MAP
 
 # All possible test modes (combinations of signal and handshake modes)
 ALL_TEST_MODES = [

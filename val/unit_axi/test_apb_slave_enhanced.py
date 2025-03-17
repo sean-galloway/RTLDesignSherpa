@@ -7,45 +7,44 @@ to GAXI master/slave components.
 """
 import os
 import random
+import pytest
 import cocotb
-from cocotb.triggers import RisingEdge, FallingEdge, Timer
-from cocotb.utils import get_sim_time
 from cocotb_test.simulator import run
 
-from CocoTBFramework.TBClasses.tbbase import TBBase
-from CocoTBFramework.TBClasses.utilities import get_paths, create_view_cmd
+from CocoTBFramework.tbclasses.tbbase import TBBase
+from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 
-from CocoTBFramework.Components.flex_randomizer import FlexRandomizer
-from CocoTBFramework.Components.memory_model import MemoryModel
+from CocoTBFramework.components.flex_randomizer import FlexRandomizer
+from CocoTBFramework.components.memory_model import MemoryModel
 
 # Import APB components
-from CocoTBFramework.Components.apb import (
+from CocoTBFramework.components.apb.apb import (
     APBSequence, APBCycle, APBTransaction, APBMonitor, APBMaster
 )
-from CocoTBFramework.Components.apb_factories import (
+from CocoTBFramework.components.apb.apb_factories import (
     create_apb_master, create_apb_monitor, create_apb_sequence
 )
 
 # Import GAXI components
-from CocoTBFramework.Components.gaxi_packet import GAXIPacket
-from CocoTBFramework.Components.gaxi_sequence import GAXISequence
-from CocoTBFramework.Components.gaxi_factories import (
+from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
+from CocoTBFramework.components.gaxi.gaxi_sequence import GAXISequence
+from CocoTBFramework.components.gaxi.gaxi_factories import (
     create_gaxi_master, create_gaxi_slave, create_gaxi_monitor,
     create_gaxi_scoreboard, create_gaxi_components,
     get_command_response_field_config
 )
 
 # Import enhanced components
-from CocoTBFramework.Components.gaxi_enhancements import (
+from CocoTBFramework.components.gaxi.gaxi_enhancements import (
     EnhancedGAXIMaster, EnhancedGAXISlave, GAXICommandHandler
 )
 
 # Import transformers and scoreboards
-from CocoTBFramework.Components.apb_gaxi_transformer import (
+from CocoTBFramework.scoreboards.Transformers.apb_gaxi_transformer import (
     APBtoGAXITransformer, create_apb_gaxi_adapters
 )
-from Scoreboards.apb_gaxi_scoreboard import APBGAXIScoreboard
-from Scoreboards.gaxi_scoreboard import GAXIScoreboard
+from CocoTBFramework.scoreboards.apb_gaxi_scoreboard import APBGAXIScoreboard
+from CocoTBFramework.scoreboards.gaxi_scoreboard import GAXIScoreboard
 
 
 class APBSlaveEnhancedTB(TBBase):
@@ -522,6 +521,7 @@ class APBSlaveEnhancedTB(TBBase):
         return result and scoreboard_result
     
     async def run_test(self):
+        # sourcery skip: merge-dict-assign, move-assign-in-block
         """Main test executor."""
         try:
             results = {}

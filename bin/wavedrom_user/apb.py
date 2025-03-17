@@ -5,7 +5,7 @@ from cocotb.triggers import RisingEdge, FallingEdge, Timer
 from cocotb.clock import Clock
 
 # Import wavedrom utilities
-from CocoTBFramework.TBClasses.wavedrom_utils import (
+from CocoTBFramework.tbclasses.wavedrom_utils import (
     EdgeType, ArrowStyle, SignalEvent, SignalRelation,
     WaveformContainer, ScenarioConfig, CommonGroups
 )

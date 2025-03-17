@@ -6,8 +6,8 @@ from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
-from CocoTBFramework.TBClasses.gaxi_basic_all_buffer import GaxiBasicBufferAllTB
-from CocoTBFramework.TBClasses.utilities import get_paths, create_view_cmd
+from CocoTBFramework.tbclasses.gaxi_basic_all_buffer import GaxiBasicBufferAllTB
+from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 
 
 @dataclass

@@ -4,9 +4,9 @@ from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
-from CocoTBFramework.TBClasses.tbbase import TBBase
-from CocoTBFramework.TBClasses.gaxi_buffer_multi import GaxiMultiBufferTB
-from CocoTBFramework.TBClasses.utilities import get_paths, create_view_cmd
+from CocoTBFramework.tbclasses.tbbase import TBBase
+from CocoTBFramework.tbclasses.gaxi_buffer_multi import GaxiMultiBufferTB
+from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")

@@ -1,8 +1,20 @@
 [tool.pylint]
-max-line-length = 120  # Increase line length limit
+max-line-length = 160  # Increase line length limit
 disable = [
-    "E1120",  # Suppress cocotb decorator issue
     "C0114",  # Missing module docstring
+    "C0115",  # Missing module docstring
     "C0116",  # Missing function docstring
+    "C0302",  # Too many lines in module
+    "E1101",  # Instance of 'XXX' has no 'x' member
+    "E1120",  # Suppress cocotb decorator issue
+    "R0902",  # Too many public methods
+    "R0903",  # Too few public methods
+    "R0912",  # Too many branches
+    "R0913",  # Too many arguments
+    "R0914",  # Too many local variables
+    "R0915",  # Too many statements
+    "R0917",  # Too many positional arguments
+    "W0718",  # Catching too general exception Exception
+
 ]
 

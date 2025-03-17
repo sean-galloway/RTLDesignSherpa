@@ -4,7 +4,7 @@ import subprocess
 import pytest
 import cocotb
 from cocotb_test.simulator import run
-from CocoTBFramework.TBClasses.tbbase import TBBase
+from CocoTBFramework.tbclasses.tbbase import TBBase
 
 class LFSR_TB(TBBase):
     def __init__(self, dut):

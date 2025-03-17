@@ -8,8 +8,8 @@ from cocotb.triggers import Timer, Event
 from cocotb.queue import Queue
 from cocotb.utils import get_sim_time
 from cocotb_test.simulator import run
-from CocoTBFramework.TBClasses.tbbase import TBBase
-from CocoTBFramework.Components.constrained_random import ConstrainedRandom
+from CocoTBFramework.tbclasses.tbbase import TBBase
+from CocoTBFramework.components.constrained_random import ConstrainedRandom
 
 class CTCache(TBBase):
     def __init__(self, dut):

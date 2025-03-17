@@ -4,7 +4,7 @@ import random
 import pytest
 import cocotb
 from cocotb_test.simulator import run
-from CocoTBFramework.TBClasses.tbbase import TBBase
+from CocoTBFramework.tbclasses.tbbase import TBBase
 
 
 class CheckSumTB(TBBase):

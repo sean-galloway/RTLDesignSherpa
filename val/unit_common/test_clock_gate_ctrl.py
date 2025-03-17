@@ -3,8 +3,8 @@ import subprocess
 import pytest
 import cocotb
 from cocotb_test.simulator import run
-from CocoTBFramework.TBClasses.tbbase import TBBase
-from CocoTBFramework.Components.constrained_random import ConstrainedRandom
+from CocoTBFramework.tbclasses.tbbase import TBBase
+from CocoTBFramework.components.constrained_random import ConstrainedRandom
 
 
 class ClockGateCtrlTB(TBBase):

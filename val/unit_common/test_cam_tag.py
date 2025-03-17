@@ -4,7 +4,7 @@ import subprocess
 import pytest
 import cocotb
 from cocotb_test.simulator import run
-from CocoTBFramework.TBClasses.cam_testing import CamTB
+from CocoTBFramework.tbclasses.cam_testing import CamTB
 
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
