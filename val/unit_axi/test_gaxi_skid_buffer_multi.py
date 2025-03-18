@@ -39,7 +39,7 @@ def generate_params():
 params = generate_params()
 
 # Single test configuration for initial debugging
-# @pytest.mark.parametrize("data_width, depth, mode, addr_width", [(8, 2, 'skid', 4)])
+# @pytest.mark.parametrize("addr_width, ctrl_width, data_width, depth, mode", [(8, 3, 8, 2, 'skid',)])
 @pytest.mark.parametrize("addr_width, ctrl_width, data_width, depth, mode", params)
 def test_axi_skid_buffer_multi(request, addr_width, ctrl_width, data_width, depth, mode):
     # Get all of the directory and module information
@@ -85,8 +85,8 @@ def test_axi_skid_buffer_multi(request, addr_width, ctrl_width, data_width, dept
     extra_env = {
         'DUT': dut_name,
         'LOG_PATH': log_path,
-        'COCOTB_LOG_LEVEL': 'INFO',
-        # 'COCOTB_LOG_LEVEL': 'DEBUG',
+        # 'COCOTB_LOG_LEVEL': 'INFO',
+        'COCOTB_LOG_LEVEL': 'DEBUG',
         'COCOTB_RESULTS_FILE': results_path,
         'SEED': str(random.randint(0, 100000))
     }

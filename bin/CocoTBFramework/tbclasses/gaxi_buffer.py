@@ -96,7 +96,7 @@ class GaxiBufferTB(TBBase):
             randomizer=self.write_randomizer,
             timeout_cycles=self.TIMEOUT_CYCLES,
             signal_map=None,  # Explicitly specify standard mode
-            log=self.log
+            log=self.log,
         )
 
         self.read_slave = GAXISlave(

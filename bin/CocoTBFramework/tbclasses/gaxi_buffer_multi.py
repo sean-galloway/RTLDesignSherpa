@@ -109,35 +109,35 @@ class GaxiMultiBufferTB(TBBase):
         # Set up signal mappings for multi-signal mode
         # Required signals (valid/ready) for master
         master_signal_map = {
-            'i_wr_valid': 'i_wr_valid',
-            'o_wr_ready': 'o_wr_ready'
+            'm2s_valid': 'i_wr_valid',
+            's2m_ready': 'o_wr_ready'
         }
 
         # Optional signals (data fields) for master
         master_optional_map = {
-            'i_wr_data_addr': 'i_wr_addr',
-            'i_wr_data_ctrl': 'i_wr_ctrl',
-            'i_wr_data_data': 'i_wr_data'
+            'm2s_pkt_addr': 'i_wr_addr',
+            'm2s_pkt_ctrl': 'i_wr_ctrl',
+            'm2s_pkt_data': 'i_wr_data'
         }
 
         # Required signals (valid/ready) for slave
         slave_signal_map = {
-            'o_rd_valid': 'o_rd_valid',
-            'i_rd_ready': 'i_rd_ready'
+            'm2s_valid': 'o_rd_valid',
+            's2m_ready': 'i_rd_ready'
         }
 
         # Optional signals (data fields) for slave
         slave_optional_map = {
-            'o_rd_data_addr': 'o_rd_addr',
-            'o_rd_data_ctrl': 'o_rd_ctrl',
-            'o_rd_data_data': 'o_rd_data'
+            'm2s_pkt_addr': 'o_rd_addr',
+            'm2s_pkt_ctrl': 'o_rd_ctrl',
+            'm2s_pkt_data': 'o_rd_data'
         }
 
         # For fifo_mux mode, we also need to map to ow_rd_* signals
         if self.TEST_MODE == 'fifo_mux':
-            slave_optional_map['o_rd_data_addr'] = 'ow_rd_addr'
-            slave_optional_map['o_rd_data_ctrl'] = 'ow_rd_ctrl'
-            slave_optional_map['o_rd_data_data'] = 'ow_rd_data'
+            slave_optional_map['m2s_pkt_addr'] = 'ow_rd_addr'
+            slave_optional_map['m2s_pkt_ctrl'] = 'ow_rd_ctrl'
+            slave_optional_map['m2s_pkt_data'] = 'ow_rd_data'
 
         # Create BFM components - use multi-signal mode with signal maps
         self.write_master = GAXIMaster(
@@ -147,7 +147,8 @@ class GaxiMultiBufferTB(TBBase):
             timeout_cycles=self.TIMEOUT_CYCLES,
             signal_map=master_signal_map,
             optional_signal_map=master_optional_map,
-            log=self.log
+            log=self.log,
+            multi_sig=True
         )
 
         self.read_slave = GAXISlave(
@@ -158,7 +159,8 @@ class GaxiMultiBufferTB(TBBase):
             timeout_cycles=self.TIMEOUT_CYCLES,
             signal_map=slave_signal_map,
             optional_signal_map=slave_optional_map,
-            log=self.log
+            log=self.log,
+            multi_sig=True
         )
 
         # Set up monitors
@@ -168,7 +170,8 @@ class GaxiMultiBufferTB(TBBase):
             is_slave=False,
             signal_map=master_signal_map,
             optional_signal_map=master_optional_map,
-            log=self.log
+            log=self.log,
+            multi_sig=True
         )
 
         self.rd_monitor = GAXIMonitor(
@@ -178,7 +181,8 @@ class GaxiMultiBufferTB(TBBase):
             is_slave=True,
             signal_map=slave_signal_map,
             optional_signal_map=slave_optional_map,
-            log=self.log
+            log=self.log,
+            multi_sig=True
         )
 
     async def clear_interface(self):

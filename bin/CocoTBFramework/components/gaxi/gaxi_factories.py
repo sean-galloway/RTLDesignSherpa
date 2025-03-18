@@ -64,9 +64,9 @@ COMMAND_FIELD_CONFIG = {
 
 
 def create_gaxi_master(dut, title, prefix, clock, field_config=None,
-                       randomizer=None, enhanced=False, memory_model=None,
-                       memory_fields=None, log=None, signal_map=None,
-                       optional_signal_map=None):
+                        randomizer=None, enhanced=False, memory_model=None,
+                        memory_fields=None, log=None, signal_map=None,
+                        optional_signal_map=None):
     """
     Create a GAXI Master component with configuration.
 
@@ -219,8 +219,8 @@ def create_gaxi_scoreboard(name, field_config=None, log=None):
 
 
 def create_gaxi_components(dut, clock, title_prefix="", field_config=None,
-                           enhanced=False, memory_model=None, log=None,
-                           mode='skid', signal_map=None, optional_signal_map=None):
+                            enhanced=False, memory_model=None, log=None,
+                            mode='skid', signal_map=None, optional_signal_map=None):
     """
     Create a complete set of GAXI components (master, slave, monitors, scoreboard).
 

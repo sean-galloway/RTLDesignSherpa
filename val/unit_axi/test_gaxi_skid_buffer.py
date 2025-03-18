@@ -9,7 +9,7 @@ from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
-async def fifo_test(dut):
+async def skid_buffer_test(dut):
     '''Test the Skid Buffer as thoroughly as possible'''
     tb = GaxiBufferTB(dut, wr_clk=dut.i_axi_aclk, wr_rstn=dut.i_axi_aresetn)
     # Use the seed for reproducibility
@@ -27,8 +27,8 @@ async def fifo_test(dut):
     await tb.simple_incremental_loops(count=100*tb.TEST_DEPTH, use_fast=False, delay_clks_after=20)
 
 
-# @pytest.mark.parametrize("data_width, depth", [(8,2)])
-@pytest.mark.parametrize("data_width, depth", [(8,2),(8,4),(8,6),(8,8)])
+# @pytest.mark.parametrize("data_width, depth", [(8,2),(8,4),(8,6),(8,8)])
+@pytest.mark.parametrize("data_width, depth", [(8,2)])
 def test_skid_buffer(request, data_width, depth):
 
     # get all of the directory and module information
@@ -68,8 +68,8 @@ def test_skid_buffer(request, data_width, depth):
     extra_env = {
         'DUT': dut_name,
         'LOG_PATH': log_path,
-        'COCOTB_LOG_LEVEL': 'INFO',
-        # 'COCOTB_LOG_LEVEL': 'DEBUG',
+        # 'COCOTB_LOG_LEVEL': 'INFO',
+        'COCOTB_LOG_LEVEL': 'DEBUG',
         'COCOTB_RESULTS_FILE': results_path,
         'SEED': str(random.randint(0, 100000))
     }

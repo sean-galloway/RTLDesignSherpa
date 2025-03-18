@@ -17,6 +17,8 @@ from CocoTBFramework.components.apb.apb_factories import (
     create_apb_scoreboard, create_apb_components,
     create_apb_transformer
 )
+from CocoTBFramework.components.apb.apb_factories import create_apb_sequence
+
 from CocoTBFramework.components.memory_model import MemoryModel
 from CocoTBFramework.components.gaxi.gaxi_sequence import GAXISequence
 from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
@@ -224,7 +226,6 @@ class APBGAXIIntegrationTest:
         Returns:
             Test results
         """
-        from CocoTBFramework.components.apb_factories import create_apb_sequence
 
         # Create APB sequence
         sequence = create_apb_sequence(
