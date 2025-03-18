@@ -472,7 +472,7 @@ class GAXIMaster(BusDriver):
         delay_dict = self.randomizer.next()
         valid_delay = delay_dict.get('valid_delay', 0)
         if valid_delay > 0:
-            self.log.debug(f"Master({self.title}) Delaying valid assertion for {valid_delay} cycles")
+            # self.log.debug(f"Master({self.title}) Delaying valid assertion for {valid_delay} cycles")
 
             # Deassert wr_valid
             self._assign_valid_value(value=0)
@@ -670,7 +670,7 @@ class GAXISlave(BusMonitor):
             msg_multi += f'{signal_map=}\n'
             msg_multi += f'{optional_signal_map=}\n'
             msg_multi += f'{field_config=}\n'
-            
+
             # Use the mapped signal names for required signals
             self._signals = [self.valid_dut_name, self.ready_dut_name]
         else:
@@ -924,7 +924,7 @@ class GAXISlave(BusMonitor):
         delay_cfg = self.randomizer.next()
         ready_delay = delay_cfg.get('ready_delay', 0)
         if ready_delay > 0:
-            self.log.debug(f"Slave({self.title}) Delaying ready assertion for {ready_delay} cycles")
+            # self.log.debug(f"Slave({self.title}) Delaying ready assertion for {ready_delay} cycles")
 
             # Deassert ready during delay
             self._set_rd_ready(0)
@@ -1058,7 +1058,7 @@ class GAXIMonitor(BusMonitor):
 
         # Determine if we're using multi-signal mode
         self.use_multi_signal = multi_sig
-        
+
         # Assign the signal maps
         if is_slave:
             self.signal_map = signal_map or slave_signal_map
@@ -1101,7 +1101,7 @@ class GAXIMonitor(BusMonitor):
             self._optional_signals.extend(
                 dut_name for _, dut_name in self.optional_signal_map.items()
             )
-            
+
         # Initialize base BusMonitor (don't auto-start monitoring)
         BusMonitor.__init__(self, dut, prefix, clock, callback=None, event=None, **kwargs)
         self.log = log or self._log
@@ -1134,7 +1134,7 @@ class GAXIMonitor(BusMonitor):
 
         if self.use_multi_signal:
             self._initialize_multi_signal_mode()
-            
+
         # Debug output
         self.log.info(f"GAXIMonitor initialized for {title} in mode '{mode}', {'multi-signal' if self.use_multi_signal else 'standard'}")
         # print_object_details(self, self.log, f"GAXI Monitor '{self.title}' INIT")

@@ -57,7 +57,7 @@ module apb_slave #(
     assign r_cmd_data_in = { s_apb_PWRITE, s_apb_PPROT, s_apb_PSTRB, s_apb_PADDR, s_apb_PWDATA};
     assign {o_cmd_pwrite, o_cmd_pprot, o_cmd_pstrb, o_cmd_paddr, o_cmd_pwdata} = r_cmd_data_out;
 
-    axi_skid_buffer #(
+    gaxi_skid_buffer #(
         .DEPTH(DEPTH),
         .DATA_WIDTH(CPW)
     ) cmd_skid_buffer_inst (
@@ -84,7 +84,7 @@ module apb_slave #(
     assign {r_rsp_pslverr, r_rsp_prdata} = r_rsp_data_out;
     assign r_rsp_data_in = {i_rsp_pslverr, i_rsp_prdata};
 
-    axi_skid_buffer #(
+    gaxi_skid_buffer #(
         .DEPTH(DEPTH),
         .DATA_WIDTH(RPW)
     ) resp_skid_buffer_inst (

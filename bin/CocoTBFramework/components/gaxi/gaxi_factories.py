@@ -4,7 +4,7 @@ Factory functions for creating and configuring GAXI components
 from CocoTBFramework.components.gaxi.gaxi_components import GAXIMaster, GAXISlave, GAXIMonitor
 from CocoTBFramework.components.memory_model import MemoryModel
 from CocoTBFramework.components.gaxi.gaxi_enhancements import EnhancedGAXIMaster, EnhancedGAXISlave
-from scoreboards.gaxi_scoreboard import GAXIScoreboard
+from CocoTBFramework.scoreboards.gaxi_scoreboard import GAXIScoreboard
 
 # Default field configuration for GAXI components
 DEFAULT_FIELD_CONFIG = {
@@ -18,55 +18,11 @@ DEFAULT_FIELD_CONFIG = {
     }
 }
 
-# Command-response field configuration for GAXI components
-COMMAND_FIELD_CONFIG = {
-    'cmd': {
-        'bits': 1,
-        'default': 0,
-        'format': 'bin',
-        'display_width': 1,
-        'active_bits': (0, 0),
-        'description': 'Command (0=Read, 1=Write)'
-    },
-    'addr': {
-        'bits': 32,
-        'default': 0,
-        'format': 'hex',
-        'display_width': 8,
-        'active_bits': (31, 0),
-        'description': 'Address'
-    },
-    'data': {
-        'bits': 32,
-        'default': 0,
-        'format': 'hex',
-        'display_width': 8,
-        'active_bits': (31, 0),
-        'description': 'Data'
-    },
-    'strb': {
-        'bits': 4,
-        'default': 0xF,
-        'format': 'bin',
-        'display_width': 4,
-        'active_bits': (3, 0),
-        'description': 'Byte strobe'
-    },
-    'ack': {
-        'bits': 1,
-        'default': 0,
-        'format': 'bin',
-        'display_width': 1,
-        'active_bits': (0, 0),
-        'description': 'Acknowledge'
-    }
-}
-
 
 def create_gaxi_master(dut, title, prefix, clock, field_config=None,
                         randomizer=None, enhanced=False, memory_model=None,
                         memory_fields=None, log=None, signal_map=None,
-                        optional_signal_map=None):
+                        optional_signal_map=None, multi_sig=False):
     """
     Create a GAXI Master component with configuration.
 
@@ -102,7 +58,8 @@ def create_gaxi_master(dut, title, prefix, clock, field_config=None,
         memory_fields=memory_fields,
         log=log,
         signal_map=signal_map,
-        optional_signal_map=optional_signal_map
+        optional_signal_map=optional_signal_map,
+        multi_sig=multi_sig
     )
 
     # Create enhanced master if requested
@@ -112,7 +69,7 @@ def create_gaxi_master(dut, title, prefix, clock, field_config=None,
 def create_gaxi_slave(dut, title, prefix, clock, field_config=None,
                         randomizer=None, enhanced=False, memory_model=None,
                         memory_fields=None, log=None, mode='skid',
-                        signal_map=None, optional_signal_map=None):
+                        signal_map=None, optional_signal_map=None, multi_sig=False):
     """
     Create a GAXI Slave component with configuration.
 
@@ -150,7 +107,8 @@ def create_gaxi_slave(dut, title, prefix, clock, field_config=None,
         log=log,
         mode=mode,
         signal_map=signal_map,
-        optional_signal_map=optional_signal_map
+        optional_signal_map=optional_signal_map,
+        multi_sig=multi_sig
     )
 
     # Create enhanced slave if requested
@@ -162,7 +120,7 @@ def create_gaxi_slave(dut, title, prefix, clock, field_config=None,
 
 def create_gaxi_monitor(dut, title, prefix, clock, field_config=None,
                         is_slave=False, log=None, mode='skid',
-                        signal_map=None, optional_signal_map=None):
+                        signal_map=None, optional_signal_map=None, multi_sig=False):
     """
     Create a GAXI Monitor component with configuration.
 
@@ -195,7 +153,8 @@ def create_gaxi_monitor(dut, title, prefix, clock, field_config=None,
         log=log,
         mode=mode,
         signal_map=signal_map,
-        optional_signal_map=optional_signal_map
+        optional_signal_map=optional_signal_map,
+        multi_sig=multi_sig
     )
 
 
@@ -220,7 +179,7 @@ def create_gaxi_scoreboard(name, field_config=None, log=None):
 
 def create_gaxi_components(dut, clock, title_prefix="", field_config=None,
                             enhanced=False, memory_model=None, log=None,
-                            mode='skid', signal_map=None, optional_signal_map=None):
+                            mode='skid', signal_map=None, optional_signal_map=None, multi_sig=False):
     """
     Create a complete set of GAXI components (master, slave, monitors, scoreboard).
 
@@ -261,7 +220,8 @@ def create_gaxi_components(dut, clock, title_prefix="", field_config=None,
         memory_model=memory_model,
         log=log,
         signal_map=signal_map,
-        optional_signal_map=optional_signal_map
+        optional_signal_map=optional_signal_map,
+        multi_sig=multi_sig
     )
 
     slave = create_gaxi_slave(
@@ -272,7 +232,8 @@ def create_gaxi_components(dut, clock, title_prefix="", field_config=None,
         log=log,
         mode=mode,
         signal_map=signal_map,
-        optional_signal_map=optional_signal_map
+        optional_signal_map=optional_signal_map,
+        multi_sig=multi_sig
     )
 
     master_monitor = create_gaxi_monitor(
@@ -282,7 +243,8 @@ def create_gaxi_components(dut, clock, title_prefix="", field_config=None,
         log=log,
         mode=mode,
         signal_map=signal_map,
-        optional_signal_map=optional_signal_map
+        optional_signal_map=optional_signal_map,
+        multi_sig=multi_sig
     )
 
     slave_monitor = create_gaxi_monitor(
@@ -292,7 +254,8 @@ def create_gaxi_components(dut, clock, title_prefix="", field_config=None,
         log=log,
         mode=mode,
         signal_map=signal_map,
-        optional_signal_map=optional_signal_map
+        optional_signal_map=optional_signal_map,
+        multi_sig=multi_sig
     )
 
     scoreboard = create_gaxi_scoreboard(
@@ -316,7 +279,7 @@ def create_gaxi_components(dut, clock, title_prefix="", field_config=None,
     }
 
 
-def get_command_response_field_config(addr_width=32, data_width=32):
+def get_default_field_config(data_width=32):
     """
     Get field configuration for command-response protocol.
 
@@ -328,18 +291,11 @@ def get_command_response_field_config(addr_width=32, data_width=32):
         Field configuration dictionary for command-response protocol
     """
     # Copy base configuration
-    config = COMMAND_FIELD_CONFIG.copy()
+    config = DEFAULT_FIELD_CONFIG.copy()
 
     # Update widths
-    config['addr']['bits'] = addr_width
-    config['addr']['active_bits'] = (addr_width-1, 0)
 
     config['data']['bits'] = data_width
     config['data']['active_bits'] = (data_width-1, 0)
-
-    # Update strobe width
-    strb_width = data_width // 8
-    config['strb']['bits'] = strb_width
-    config['strb']['active_bits'] = (strb_width-1, 0)
 
     return config

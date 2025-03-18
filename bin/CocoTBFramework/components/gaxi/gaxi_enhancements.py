@@ -301,126 +301,102 @@ class EnhancedGAXISlave:
             await Timer(10, units='ns')
 
 
-class GAXICommandHandler:
+class GAXICommandHandler_APBSlave:
     """
-    Command Handler for APB slave command/response to GAXI interfaces
-
+    Simplified Command Handler for APB slave command/response interfaces
+    
     This component:
-    1. Monitors APB slave command interface
-    2. Generates GAXI transactions from commands
-    3. Collects GAXI slave responses
-    4. Drives APB slave response interface
+    1. Takes packets from the GAXI command slave
+    2. Creates appropriate response packets
+    3. Sends them through the GAXI response master
     """
 
-    def __init__(self, dut, gaxi_master, gaxi_slave, field_config=None, log=None):
+    def __init__(self, gaxi_master, gaxi_slave, cmd_field_config=None, rsp_field_config=None, log=None):
         """
-        Initialize GAXI command handler.
+        Initialize GAXI command handler for APB slave.
 
         Args:
-            dut: Device under test (for accessing command/response signals)
-            gaxi_master: GAXIMaster or EnhancedGAXIMaster instance
-            gaxi_slave: GAXISlave or EnhancedGAXISlave instance
-            field_config: Field configuration for GAXI packets
+            gaxi_master: GAXI response master for sending responses
+            gaxi_slave: GAXI command slave for receiving commands
+            cmd_field_config: Field configuration for command packets
+            rsp_field_config: Field configuration for response packets
             log: Logger instance
         """
-        self.dut = dut
         self.gaxi_master = gaxi_master
         self.gaxi_slave = gaxi_slave
-        self.log = log or getattr(dut, '_log', None)
+        self.log = log or gaxi_master.log
 
-        # Get field config from master if not provided
-        self.field_config = field_config or gaxi_master.field_config
-        self.packet_class = GAXIPacket  # Default packet class
+        # Store field configurations
+        self.cmd_field_config = cmd_field_config or gaxi_slave.field_config
+        self.rsp_field_config = rsp_field_config or gaxi_master.field_config
+        
+        # Import GAXIPacket here to avoid circular imports
+        from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
+        self.packet_class = GAXIPacket
 
-        # Command/response tasks
-        self.cmd_task = None
-        self.rsp_task = None
+        # Task handle
+        self.processor_task = None
         self.running = False
+        
+        # Memory interface for read operations
+        self.memory_model = gaxi_slave.memory_model
+        
+        # Response packet mapping
+        self.data_field_name = 'data'
+        self.err_field_name = 'err' if 'err' in self.rsp_field_config else 'ack'
 
     async def start(self):
-        """Start command handler tasks."""
+        """Start command handler processor task."""
         if not self.running:
             self.running = True
-            self.cmd_task = cocotb.start_soon(self._monitor_cmd_interface())
-            self.rsp_task = cocotb.start_soon(self._monitor_rsp_interface())
-            self.log.info("GAXICommandHandler: Started")
+            self.processor_task = cocotb.start_soon(self._process_commands())
+            self.log.info("GAXICommandHandler_APBSlave: Started")
 
     async def stop(self):
-        """Stop command handler tasks."""
+        """Stop command handler processor task."""
         self.running = False
-        await Timer(10, units='ns')  # Allow tasks to complete
-        self.cmd_task = None
-        self.rsp_task = None
-        self.log.info("GAXICommandHandler: Stopped")
+        await Timer(10, units='ns')  # Allow task to complete
+        self.processor_task = None
+        self.log.info("GAXICommandHandler_APBSlave: Stopped")
 
-    async def _monitor_cmd_interface(self):
+    async def _process_commands(self):
         """
-        Monitor APB slave command interface and generate GAXI transactions.
+        Process command packets from the GAXI slave and send responses 
+        through the GAXI master.
         """
+        clock = self.gaxi_slave.clock
+        
         while self.running:
-            # Wait for command valid signal
-            while not self.dut.o_cmd_valid.value and self.running:
-                await RisingEdge(self.dut.pclk)
-
-            if not self.running:
-                break
-
-            # Capture command details
-            pwrite = int(self.dut.o_cmd_pwrite.value)
-            paddr = int(self.dut.o_cmd_paddr.value)
-            pwdata = int(self.dut.o_cmd_pwdata.value)
-            pstrb = int(self.dut.o_cmd_pstrb.value) if hasattr(self.dut, 'o_cmd_pstrb') else 0xFF
-
-            # Create and send GAXI packet
-            packet = self.packet_class(self.field_config)
-            packet.cmd = pwrite  # 1=Write, 0=Read
-            packet.addr = paddr
-
-            if pwrite:  # Write command
-                packet.data = pwdata
-                if 'strb' in self.field_config:
-                    packet.strb = pstrb
-                self.log.info(f"Command: WRITE addr=0x{paddr:08X}, data=0x{pwdata:08X}")
-            else:  # Read command
-                self.log.info(f"Command: READ addr=0x{paddr:08X}")
-
-            # Send through GAXI master
-            await self.gaxi_master.send(packet)
-
-            # Assert command ready to acknowledge
-            self.dut.i_cmd_ready.value = 1
-            await RisingEdge(self.dut.pclk)
-            self.dut.i_cmd_ready.value = 0
-
-    async def _monitor_rsp_interface(self):
-        """
-        Monitor GAXI slave responses and drive APB slave response interface.
-        """
-        while self.running:
-            # Wait for data in slave received queue
-            while not self.gaxi_slave.received_queue and self.running:
-                await RisingEdge(self.dut.pclk)
-
-            if not self.running:
-                break
-
-            # Get response packet
-            packet = self.gaxi_slave.received_queue.popleft()
-
-            # Drive response interface
-            self.dut.i_rsp_valid.value = 1
-            self.dut.i_rsp_prdata.value = packet.data
-            self.dut.i_rsp_pslverr.value = 0  # No error by default
-
-            self.log.info(f"Response: data=0x{packet.data:08X}")
-
-            # Wait for ready acknowledgement
-            while not self.dut.o_rsp_ready.value and self.running:
-                await RisingEdge(self.dut.pclk)
-
-            if not self.running:
-                break
-
-            # Deassert valid
-            await RisingEdge(self.dut.pclk)
-            self.dut.i_rsp_valid.value = 0
+            # Check if we have a command packet from the slave
+            if self.gaxi_slave.received_queue:
+                # Get the command packet
+                cmd_packet = self.gaxi_slave.received_queue.popleft()
+                
+                # Create response packet using response field config
+                rsp_packet = self.packet_class(self.rsp_field_config)
+                
+                # For reads, ensure we use data from memory if available
+                if hasattr(cmd_packet, 'cmd') and cmd_packet.cmd == 0:  # Read
+                    if self.memory_model:
+                        # Read from memory to ensure consistent data
+                        addr = cmd_packet.addr
+                        data_bytes = self.memory_model.read(addr & 0xFFF, self.memory_model.bytes_per_line)
+                        read_data = self.memory_model.bytearray_to_integer(data_bytes)
+                        setattr(rsp_packet, self.data_field_name, read_data)
+                        self.log.debug(f"Response using memory data for READ: addr=0x{addr:08X}, data=0x{read_data:08X}")
+                    else:
+                        # If no memory model, use data from command packet
+                        setattr(rsp_packet, self.data_field_name, cmd_packet.data)
+                else:  # Write
+                    setattr(rsp_packet, self.data_field_name, cmd_packet.data)
+                
+                # Set error flag (usually 0)
+                setattr(rsp_packet, self.err_field_name, 0)
+                
+                # Send through GAXI response master
+                await self.gaxi_master.send(rsp_packet)
+                
+                self.log.info(f"Processed command and sent response: data=0x{getattr(rsp_packet, self.data_field_name):08X}")
+            
+            # Wait a clock cycle before checking again
+            await RisingEdge(clock)

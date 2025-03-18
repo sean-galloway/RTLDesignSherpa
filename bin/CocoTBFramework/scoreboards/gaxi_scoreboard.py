@@ -21,6 +21,7 @@ class GAXIScoreboard(BaseScoreboard):
 
         # Use the built-in comparison in GAXIPacket
         return expected == actual
+
     def _log_mismatch(self, expected, actual):
         """Enhanced mismatch logging for GAXI packets"""
         if self.log:
@@ -88,7 +89,7 @@ class GAXItoMemoryAdapter:
             'strb': 'strb'
         }
 
-    def write_to_memory(self, packet):
+    def write_to_memory(self, packet):  # sourcery skip: extract-method
         """
         Write packet data to memory model.
 
@@ -127,7 +128,7 @@ class GAXItoMemoryAdapter:
                 self.log.error(f"Error writing to memory: {e}")
             return False
 
-    def read_from_memory(self, packet):
+    def read_from_memory(self, packet):  # sourcery skip: extract-method
         """
         Read data from memory model based on packet address.
 

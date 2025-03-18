@@ -95,7 +95,7 @@ def create_apb_slave(dut, title, prefix, clock, addr_width=32, data_width=32,
     )
 
 
-def create_apb_monitor(dut, title, clock, addr_width=32, data_width=32, log=None):
+def create_apb_monitor(dut, title, prefix, clock, addr_width=32, data_width=32, log=None):
     """
     Create an APB Monitor component with configuration.
 
@@ -116,6 +116,7 @@ def create_apb_monitor(dut, title, clock, addr_width=32, data_width=32, log=None
     return APBMonitor(
         dut,
         title,
+        prefix,
         clock,
         bus_width=data_width,
         addr_width=addr_width,

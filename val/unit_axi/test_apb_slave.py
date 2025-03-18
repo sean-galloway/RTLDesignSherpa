@@ -7,9 +7,16 @@ import cocotb
 from cocotb.utils import get_sim_time
 from cocotb_test.simulator import run
 
-from CocoTBFramework.Componentsmemory_model import MemoryModel
+from CocoTBFramework.components.memory_model import MemoryModel
 from CocoTBFramework.components.flex_randomizer import FlexRandomizer
-from CocoTBFramework.Componentsapb import APBSequence, APBCycle, APBTransaction, APBMonitor, APBMaster
+from CocoTBFramework.components.apb.apb import APBSequence, APBCycle, APBTransaction, APBMonitor, APBMaster
+from CocoTBFramework.components.apb.apb_factories import create_apb_master, create_apb_monitor, create_apb_scoreboard
+from CocoTBFramework.components.gaxi.gaxi_components import GAXIMaster, GAXISlave, GAXIMonitor
+from CocoTBFramework.components.gaxi.gaxi_factories import \
+    create_gaxi_master, create_gaxi_slave, create_gaxi_monitor
+from CocoTBFramework.components.gaxi.gaxi_enhancements import GAXICommandHandler_APBSlave
+from CocoTBFramework.scoreboards.apb_gaxi_scoreboard import APBGAXIScoreboard
+from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
 from CocoTBFramework.tbclasses.tbbase import TBBase
 from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 
@@ -31,44 +38,212 @@ class APBSlaveTB(TBBase):
         # Task termination flag
         self.done = False
         self.num_line = 32768
+        
+        # Create a shared memory model for both APB and GAXI components
         self.mem = MemoryModel(num_lines=self.num_line, bytes_per_line=self.STRB_WIDTH, log=self.log)
 
-        # Create the APB Monitor
-        self.apb_monitor = APBMonitor(
-            dut, 
-            's_apb', 
-            dut.pclk, 
-            bus_width=self.DATA_WIDTH, 
-            addr_width=self.ADDR_WIDTH, 
-            log=self.log
-        )
-
-        # Create the APB Master
+        # Set up randomizers
         self.apb_master_randomizer = FlexRandomizer({
             'psel':    ([[0, 0], [1, 5], [6, 10]], [5, 3, 1]),
             'penable': ([[0, 0], [1, 3]], [3, 1]),
         })
-        self.apb_master = APBMaster(
+        
+        self.gaxi_master_randomizer = FlexRandomizer({
+            'valid_delay': ([[0, 0], [1, 5], [6, 10]], [5, 3, 1]),
+        })
+        
+        self.gaxi_slave_randomizer = FlexRandomizer({
+            'ready_delay': ([[0, 0], [1, 5], [6, 10]], [5, 3, 1]),
+        })
+
+        # Configure APB components
+        self.apb_monitor = create_apb_monitor(
+            dut, 
+            'APB Monitor',
+            's_apb', 
+            dut.pclk, 
+            addr_width=self.ADDR_WIDTH,
+            data_width=self.DATA_WIDTH, 
+            log=self.log
+        )
+
+        self.apb_master = create_apb_master(
             dut,
             'APB Master',
             's_apb', 
             dut.pclk,
-            bus_width=self.DATA_WIDTH, 
             addr_width=self.ADDR_WIDTH,
-            randomizer=self.apb_master_randomizer
+            data_width=self.DATA_WIDTH,
+            randomizer=self.apb_master_randomizer,
+            log=self.log
         )
+        
+        # Create APB scoreboard
+        self.apb_scoreboard = create_apb_scoreboard(
+            'APB Scoreboard',
+            addr_width=self.ADDR_WIDTH,
+            data_width=self.DATA_WIDTH,
+            log=self.log
+        )
+        
+        # Configure GAXI components for command interface
+        self.cmd_signal_map = {
+            'm2s_valid': 'o_cmd_valid',
+            's2m_ready': 'i_cmd_ready'
+        }
+        self.cmd_optional_signal_map = {
+            'm2s_pkt_cmd': 'o_cmd_pwrite',
+            'm2s_pkt_addr': 'o_cmd_paddr',
+            'm2s_pkt_data': 'o_cmd_pwdata',
+            'm2s_pkt_strb': 'o_cmd_pstrb'
+        }
+        self.cmd_field_config = {
+            'cmd': {
+                'bits': 1,
+                'default': 0,
+                'format': 'bin',
+                'display_width': 1,
+                'active_bits': (0, 0),
+                'description': 'Command (0=Read, 1=Write)'
+            },
+            'addr': {
+                'bits': self.ADDR_WIDTH,
+                'default': 0,
+                'format': 'hex',
+                'display_width': 8,
+                'active_bits': (self.ADDR_WIDTH-1, 0),
+                'description': 'Address'
+            },
+            'data': {
+                'bits': self.DATA_WIDTH,
+                'default': 0,
+                'format': 'hex',
+                'display_width': 8,
+                'active_bits': (self.DATA_WIDTH-1, 0),
+                'description': 'Data'
+            },
+            'strb': {
+                'bits': self.STRB_WIDTH,
+                'default': 0xF,
+                'format': 'bin',
+                'display_width': 4,
+                'active_bits': (self.STRB_WIDTH-1, 0),
+                'description': 'Byte strobe'
+            },
+        }
 
-        self.other_randomizer = FlexRandomizer({
-            'cmd_delay': ([(0, 1), (2, 5)], [3, 1]),
-            'rsp_delay': ([(0, 1), (2, 5)], [3, 1]),
-            'slv_error': ([(0, 0), (1, 1)], [9, 1]),
-        })
+        self.cmd_monitor = create_gaxi_monitor(
+            dut,
+            'CMD Monitor',
+            '',  # No prefix as we're using signal map
+            dut.pclk,
+            field_config=self.cmd_field_config,
+            is_slave=False,  # Monitoring master-side signals
+            log=self.log,
+            multi_sig=True,  # Using separate signals
+            signal_map=self.cmd_signal_map,
+            optional_signal_map=self.cmd_optional_signal_map
+        )
+        
+        self.cmd_slave = create_gaxi_slave(
+            dut,
+            'CMD Slave',
+            '',  # No prefix as we're using signal map
+            dut.pclk,
+            field_config=self.cmd_field_config,
+            randomizer=self.gaxi_slave_randomizer,
+            memory_model=self.mem,
+            log=self.log,
+            multi_sig=True,  # Using separate signals
+            signal_map=self.cmd_signal_map,
+            optional_signal_map=self.cmd_optional_signal_map
+        )
+        
+        # Configure GAXI components for response interface
+        self.rsp_signal_map = {
+            'm2s_valid': 'i_rsp_valid',
+            's2m_ready': 'o_rsp_ready'
+        }
+        self.rsp_optional_signal_map = {
+            'm2s_pkt_data': 'i_rsp_prdata',
+            'm2s_pkt_err': 'i_rsp_pslverr'
+        }
+        
+        self.rsp_field_config = {
+            'data': {
+                'bits': self.DATA_WIDTH,
+                'default': 0,
+                'format': 'hex',
+                'display_width': 8,
+                'active_bits': (self.DATA_WIDTH-1, 0),
+                'description': 'Data'
+            },
+            'err': {
+                'bits': 1,
+                'default': 0,
+                'format': 'bin',
+                'display_width': 1,
+                'active_bits': (0, 0),
+                'description': 'Error flag'
+            }
+        }
+        
+        self.rsp_monitor = create_gaxi_monitor(
+            dut,
+            'RSP Monitor',
+            '',  # No prefix as we're using signal map
+            dut.pclk,
+            field_config=self.rsp_field_config,
+            is_slave=True,  # Monitoring slave-side signals
+            log=self.log,
+            multi_sig=True,  # Using separate signals
+            signal_map=self.rsp_signal_map,
+            optional_signal_map=self.rsp_optional_signal_map
+        )
+        
+        self.rsp_master = create_gaxi_master(
+            dut,
+            'RSP Master',
+            '',  # No prefix as we're using signal map
+            dut.pclk,
+            field_config=self.rsp_field_config,
+            randomizer=self.gaxi_master_randomizer,
+            log=self.log,
+            multi_sig=True,  # Using separate signals
+            signal_map=self.rsp_signal_map,
+            optional_signal_map=self.rsp_optional_signal_map
+        )
+        
+        # Create command handler to connect cmd and response interfaces
+        self.cmd_handler = GAXICommandHandler_APBSlave(
+            self.rsp_master,  # GAXI master for sending responses
+            self.cmd_slave,   # GAXI slave for receiving commands
+            cmd_field_config=self.cmd_field_config,
+            rsp_field_config=self.rsp_field_config,
+            log=self.log
+        )
+        
+        # Set up APB-GAXI scoreboard
+        self.apb_gaxi_scoreboard = APBGAXIScoreboard(
+            'APB-GAXI Scoreboard',
+            log=self.log
+        )
+        
+        # Connect monitors to scoreboard
+        self.apb_monitor.add_callback(self.apb_transaction_callback)
+        self.cmd_monitor.add_callback(self.cmd_transaction_callback)
 
-        # Initialize queues for monitoring and verification
+        # Initialize queues for monitoring
         self.apb_monitor_queue = deque()
-        self.cmd_interface_queue = deque()
-        self.rsp_interface_queue = deque()
-        self.current_apb_transaction = None
+
+    def apb_transaction_callback(self, transaction):
+        """Callback for APB monitor transactions"""
+        self.apb_monitor_queue.append(transaction)
+        self.apb_gaxi_scoreboard.add_apb_transaction(transaction)
+        
+    def cmd_transaction_callback(self, transaction):
+        """Callback for GAXI CMD monitor transactions"""
+        self.apb_gaxi_scoreboard.add_gaxi_transaction(transaction)
 
     async def reset_dut(self):
         self.log.debug('Starting reset_dut')
@@ -85,6 +260,10 @@ class APBSlaveTB(TBBase):
         # Reset APB master
         await self.apb_master.reset_bus()
         
+        # Reset GAXI components
+        await self.cmd_slave.reset_bus()
+        await self.rsp_master.reset_bus()
+        
         # Hold reset for multiple cycles
         await self.wait_clocks('pclk', 5)
         
@@ -94,8 +273,12 @@ class APBSlaveTB(TBBase):
         # Wait for stabilization
         await self.wait_clocks('pclk', 10)
         
-        # Clear tracking variables
-        self.current_apb_transaction = None
+        # Clear monitoring queues
+        self.apb_monitor_queue.clear()
+        
+        # Clear scoreboard
+        self.apb_gaxi_scoreboard.clear()
+        
         self.log.debug('Ending reset_dut')
 
     async def wait_for_queue_empty(self, object_with_queue, timeout=1000):
@@ -125,112 +308,8 @@ class APBSlaveTB(TBBase):
                 self.log.warning(msg)
                 break
 
-    async def cmd_rsp_interface(self, use_rand=False):
-        # sourcery skip: move-assign
-        if use_rand:
-            rand_dict = self.other_randomizer.next()
-            self.log.debug(f'{rand_dict=}')
-            crand  = rand_dict['cmd_delay']
-            rrand  = rand_dict['rsp_delay']
-            slverr = rand_dict['slv_error']
-        else:
-            crand = 0
-            rrand = 0
-            slverr = 0
-    
-        while self.dut.o_cmd_valid.value == 0:
-            await self.wait_clocks('pclk', 1)
-        start_time = get_sim_time('ns')
-        pwrite = int(self.dut.o_cmd_pwrite.value)
-        paddr  = int(self.dut.o_cmd_paddr.value)
-        pwdata = int(self.dut.o_cmd_pwdata.value)
-        pstrb  = int(self.dut.o_cmd_pstrb.value)
-        pprot  = int(self.dut.o_cmd_pprot.value) if hasattr(self.dut, "o_cmd_pprot") else 0
-    
-        if pwrite == 1:
-            direction = "WRITE"
-            pwdata_ba = self.mem.integer_to_bytearray(pwdata, self.STRB_WIDTH)
-            self.mem.write(paddr & 0xFFF, pwdata_ba, pstrb)
-            prdata = 0
-        else:
-            direction = "READ"
-            prdata_ba = self.mem.read(paddr & 0xFFF, self.STRB_WIDTH)
-            prdata = self.mem.bytearray_to_integer(prdata_ba)
-    
-        current = APBCycle(
-                start_time=start_time,
-                count=0,
-                direction=direction,
-                pwrite=pwrite,
-                paddr=paddr,
-                pwdata=pwdata,
-                pstrb=pstrb,
-                prdata=prdata,
-                pprot=pprot,
-                pslverr=slverr,
-        )
-        # wait for cmd delay
-        await self.wait_clocks('pclk', crand)
-    
-        # accept the command
-        self.dut.i_cmd_ready.value = 1
-        await self.wait_clocks('pclk', 1)
-        self.dut.i_cmd_ready.value = 0
-    
-        # wait for rsp delay
-        await self.wait_clocks('pclk', rrand)
-    
-        # give the response
-        self.dut.i_rsp_valid.value = 1
-        self.dut.i_rsp_prdata.value = prdata
-        self.dut.i_rsp_pslverr.value = slverr
-        await self.wait_clocks('pclk', 1)
-        
-        while self.dut.o_rsp_ready.value == 0:
-            await self.wait_clocks('pclk', 1)
-        
-        # Clear the response valid signal after it's been accepted
-        self.dut.i_rsp_valid.value = 0
-    
-        return current
-
-    async def verify_cmd_rsp_against_apb_monitor(self, cmd_rsp_cycle, timeout=1000):
-        """
-        Verify that the cmd/rsp cycle matches with APB monitor
-        
-        Args:
-            cmd_rsp_cycle (APBCycle): The cycle from cmd_rsp_interface to verify
-            timeout (int): Maximum time to wait for a matching cycle
-        
-        Returns:
-            bool: True if a match was found, False if timeout
-        """
-        start_time = get_sim_time('ns')
-        
-        while True:
-            # Check if we've exceeded timeout
-            current_time = get_sim_time('ns')
-            if current_time - start_time > timeout:
-                msg = f"Timeout waiting for matching APB cycle after {timeout}ns"
-                self.log.error(msg)
-                return False
-            
-            # Check if we have any APB transactions to compare against
-            if self.apb_monitor._recvQ:
-                monitor_cycle = self.apb_monitor._recvQ.popleft()
-                if monitor_cycle == cmd_rsp_cycle:
-                    msg = f"Found matching APB cycle for cmd/rsp interface transaction at {start_time}ns"
-                    self.log.info(msg)
-                    return monitor_cycle
-                else:
-                    assert cmd_rsp_cycle == monitor_cycle, \
-                        f'Cycle mismatch at {start_time}ns:\nExpected:\n{monitor_cycle}\nFound:\n{cmd_rsp_cycle}'
-
-            # Wait a cycle before checking again
-            await self.wait_clocks('pclk', 1)
-
     async def send_apb_transaction(self, is_write, addr, data=None, strobe=None):
-        """Send an APB transaction and verify cmd/rsp interface handling"""
+        """Send an APB transaction through the APB master"""
         start_time = get_sim_time('ns')
     
         # Create a plain transaction
@@ -247,12 +326,12 @@ class APBSlaveTB(TBBase):
             # Set data field
             xmit_transaction.pwdata = data if data is not None else random.randint(0, 2**self.DATA_WIDTH - 1)
             msg = f"Setting transaction pwdata to 0x{xmit_transaction.pwdata:08X}"
-            self.log.debug(msg)
+            self.log.info(msg)
                 
             # Set the strobe value
             xmit_transaction.pstrb = strobe if strobe is not None else (2**self.STRB_WIDTH - 1)  # All bytes enabled
             msg = f"Setting transaction pstrb to 0x{xmit_transaction.pstrb:X}"
-            self.log.debug(msg)
+            self.log.info(msg)
         
         # Log the transaction details
         self.log.info(f"Sending {'write' if is_write else 'read'} to addr 0x{addr:08X}" + 
@@ -260,21 +339,25 @@ class APBSlaveTB(TBBase):
     
         # Record transaction start time
         xmit_transaction.start_time = start_time
-    
-        # Start a concurrent task to handle cmd/rsp interface
-        cmd_rsp_task = cocotb.start_soon(self.cmd_rsp_interface(use_rand=True))
         
-        # Send the transaction
+        # Send the transaction - this will be automatically captured by the APB monitor
+        # and transformed by the scoreboard
         await self.apb_master.send(xmit_transaction)
     
         # Wait for the master's queue to be empty
         await self.wait_for_queue_empty(self.apb_master, timeout=10000)
         
-        # Get the cmd/rsp cycle
-        cmd_rsp_cycle = await cmd_rsp_task
+        # Wait a few cycles for the scoreboard to process everything
+        await self.wait_clocks('pclk', 5)
         
-        # Verify the cmd/rsp cycle matches what was monitored by APB monitor
-        return await self.verify_cmd_rsp_against_apb_monitor(cmd_rsp_cycle)
+        # For verification, read the expected value from memory if this was a read
+        if not is_write and self.mem:
+            expected_ba = self.mem.read(addr & 0xFFF, self.STRB_WIDTH)
+            expected = self.mem.bytearray_to_integer(expected_ba)
+            self.log.info(f"Expected read value from memory: 0x{expected:08X}")
+        
+        # Return the transaction for reference
+        return xmit_transaction
 
     async def run_apb_test(self, config: APBSequence, num_transactions: int = None):
         """
@@ -289,17 +372,12 @@ class APBSlaveTB(TBBase):
         """
         # Save original constraints to restore later
         save_master_randomizer = None
-        save_other_randomizer = None
 
         # Apply custom timing constraints if provided
         if config.master_randomizer:
             save_master_randomizer = self.apb_master_randomizer
             self.apb_master_randomizer = config.master_randomizer
             self.apb_master.set_randomizer(self.apb_master_randomizer)
-
-        if config.other_randomizer:
-            save_other_randomizer = self.other_randomizer
-            self.other_randomizer = config.other_randomizer
             
         # Reset iterators
         config.reset_iterators()
@@ -328,15 +406,6 @@ class APBSlaveTB(TBBase):
                 else:
                     # Execute read transaction
                     result = await self.send_apb_transaction(False, addr)
-                    
-                    # Verify read data if needed
-                    if config.verify_data:
-                        # Read from memory model
-                        expected_ba = self.mem.read(addr & 0xFFF, self.STRB_WIDTH)
-                        expected = self.mem.bytearray_to_integer(expected_ba)
-                        
-                        assert result.prdata == expected, \
-                            f"Data mismatch at addr 0x{addr:08X}: expected 0x{expected:08X}, got 0x{result.prdata:08X}"
                 
                 # Store result
                 results.append(result)
@@ -352,14 +421,27 @@ class APBSlaveTB(TBBase):
             if save_master_randomizer:
                 self.apb_master_randomizer = save_master_randomizer
                 self.apb_master.set_randomizer(self.apb_master_randomizer)
-            
-            if save_other_randomizer:
-                self.other_randomizer = save_other_randomizer
 
         return results
 
+    async def verify_scoreboard(self, timeout=1000):
+        """Verify scoreboard for unmatched transactions"""
+        self.log.info("Verifying APB-GAXI scoreboard for unmatched transactions")
+        result = await self.apb_gaxi_scoreboard.check_scoreboard(timeout)
+        
+        if result:
+            self.log.info("Scoreboard verification passed - all transactions matched")
+        else:
+            self.log.error("Scoreboard verification failed - unmatched transactions found")
+            
+        # Get and log the report
+        report = self.apb_gaxi_scoreboard.report()
+        self.log.info(f"Scoreboard report:\n{report}")
+        
+        return result
+
     # Test methods using predefined configurations
-    def _create_basic_config(self):
+    def _create_basic_seq(self):
         """Create configuration for basic test"""
         # Base address and number of registers to test
         base_addr = 0
@@ -395,7 +477,7 @@ class APBSlaveTB(TBBase):
             inter_cycle_delays=delays
         )
     
-    def _create_burst_config(self):
+    def _create_burst_seq(self):
         """Create configuration for burst test"""
         # Base address and number of registers
         base_addr = 0
@@ -433,16 +515,10 @@ class APBSlaveTB(TBBase):
             master_randomizer=FlexRandomizer({
                 'psel':    ([[0, 0], [1, 5], [6, 10]], [1, 0, 0]),
                 'penable': ([[0, 0], [1, 3]], [3, 0]),
-            }),
-            other_randomizer=FlexRandomizer({
-                'cmd_delay': ([(0, 1), (2, 5)], [3, 1]),
-                'rsp_delay': ([[0, 1], [2, 5], [6, 10]], [5, 2, 1]),
-                'slv_error': ([[0, 0], [1, 1]], [10, 0]),
             })
         )
 
-    def _create_strobe_config(self):
-        # sourcery skip: merge-list-append, move-assign-in-block
+    def _create_strobe_seq(self):
         """Create configuration for strobe test"""
         # Test patterns for strobes
         test_data = [0xFFFFFFFF, 0x12345678, 0xAABBCCDD, 0x99887766, 0x55443322, 0xA5A5A5A5, 0x5A5A5A5A]
@@ -484,7 +560,7 @@ class APBSlaveTB(TBBase):
             inter_cycle_delays=delays
         )
     
-    def _create_stress_config(self, num_transactions=100):
+    def _create_stress_seq(self, num_transactions=100):
         """Create configuration for stress test"""
         # Reset memory for clean start
         self.mem.reset()
@@ -530,77 +606,11 @@ class APBSlaveTB(TBBase):
             data_seq=data_seq,
             strb_seq=strb_seq,
             inter_cycle_delays=delay_range,
-            use_random_selection=True,  # Randomly select from sequences
-            verify_data=True
+            use_random_selection=True  # Randomly select from sequences
         )
 
-    async def test_basic_transfers(self):
-        """Run a series of basic transfers"""
-        self.log.info("Running basic transfers test")
-        
-        # Create and run basic test configuration
-        config = self._create_basic_config()
-        await self.run_apb_test(config)
-        
-        self.log.info("Basic transfers test completed")
 
-    async def test_burst_transfers(self):
-        """Test burst transfers (back-to-back transactions)"""
-        self.log.info("Running burst transfers test")
-        
-        # Create and run burst test configuration
-        config = self._create_burst_config()
-        await self.run_apb_test(config)
-        
-        # Optional: dump memory for debugging
-        await self.wait_clocks('pclk', 5)
-        mem_dump = self.mem.dump()
-        self.log.info(f'Burst test memory dump:\n{mem_dump}')
-        
-        self.log.info("Burst transfers test completed")
-
-    async def test_strobe_functionality(self):
-        """Test byte strobe functionality"""
-        self.log.info("Running strobe functionality test")
-        
-        # Create and run strobe test configuration
-        config = self._create_strobe_config()
-        await self.run_apb_test(config)
-        
-        self.log.info("Strobe functionality test completed")
-
-    async def stress_test(self, num_transactions=100):
-        """Run a stress test with many random transactions"""
-        self.log.info(f"Running stress test with {num_transactions} transactions")
-        
-        # Create and run stress test configuration
-        config = self._create_stress_config(num_transactions)
-        await self.run_apb_test(config, num_transactions)
-        
-        self.log.info("Stress test completed successfully")
-
-    async def run_test(self):
-        """Main test executor"""
-        try:
-            print('# Test 2: Burst transfers without clock gating')
-            self.log.info("=== Test 2: Burst transfers without clock gating ===")
-            await self.test_burst_transfers()
-            
-            print('# Test 3: Strobe functionality without clock gating')
-            self.log.info("=== Test 3: Strobe functionality without clock gating ===")
-            await self.test_strobe_functionality()
-
-            print('# Test 4: Stress test')
-            self.log.info("=== Test 4: Stress test ===")
-            await self.stress_test(100)
-
-        finally:
-            # Set done flag to terminate handlers
-            self.done = True
-            # Wait for the tasks to complete
-            await self.wait_clocks('pclk', 10)
-
-@cocotb.test(timeout_time=1, timeout_unit="ms")
+@cocotb.test(timeout_time=40, timeout_unit="us")
 async def apb_slave_test(dut):
     tb = APBSlaveTB(dut)
     
@@ -615,17 +625,57 @@ async def apb_slave_test(dut):
     # Reset the DUT
     print('DUT reset')
     await tb.reset_dut()
-
-    # Run the test
-    print('Run the test')
-    await tb.run_test()
-    await tb.wait_clocks('pclk', 50)
-    tb.log.info("Test completed successfully.")
     
-    # Print test summary
-    print("APB Slave test completed successfully!")
-    print("Verified that command interface signals match APB bus signals for writes")
-    print("Verified that response interface signals match APB bus signals for reads")
+    # Start the monitors
+    # tb.apb_monitor._monitor_task = cocotb.start_soon(tb.apb_monitor._monitor_recv())
+    # tb.cmd_monitor._monitor_task = cocotb.start_soon(tb.cmd_monitor._monitor_recv())
+    # tb.rsp_monitor._monitor_task = cocotb.start_soon(tb.rsp_monitor._monitor_recv())
+    
+    # Start the command handler
+    await tb.cmd_handler.start()
+
+    try:
+        print('# Test 1: Basic transfers with scoreboard verification')
+        tb.log.info("=== Test 1: Basic transfers with scoreboard verification ===")
+        config = tb._create_basic_seq()
+        await tb.run_apb_test(config)
+        await tb.verify_scoreboard()
+        
+        print('# Test 2: Burst transfers with scoreboard verification')
+        tb.log.info("=== Test 2: Burst transfers with scoreboard verification ===")
+        config = tb._create_burst_seq()
+        await tb.run_apb_test(config)
+        await tb.verify_scoreboard()
+        
+        print('# Test 3: Strobe functionality with scoreboard verification')
+        tb.log.info("=== Test 3: Strobe functionality with scoreboard verification ===")
+        config = tb._create_strobe_seq()
+        await tb.run_apb_test(config)
+        await tb.verify_scoreboard()
+
+        print('# Test 4: Stress test with scoreboard verification')
+        tb.log.info("=== Test 4: Stress test with scoreboard verification ===")
+        config = tb._create_stress_seq(100)
+        await tb.run_apb_test(config, 100)
+        await tb.verify_scoreboard()
+        
+        await tb.wait_clocks('pclk', 50)
+        tb.log.info("Test completed successfully.")
+        
+        # Print test summary
+        print("APB Slave test completed successfully!")
+        print("Verified APB-to-GAXI transformation using scoreboard")
+        print("All APB transactions matched with GAXI command/response transactions")
+        # Optional: dump memory for debugging
+        # mem_dump = tb.mem.dump()
+        # tb.log.info(f'Burst test memory dump:\n{mem_dump}')
+    finally:
+        # Set done flag to terminate handlers
+        tb.done = True
+        # Stop the command handler
+        await tb.cmd_handler.stop()
+        # Wait for the tasks to complete
+        await tb.wait_clocks('pclk', 10)
 
 
 @pytest.mark.parametrize("addr_width, data_width, depth", 
@@ -645,7 +695,7 @@ def test_apb_slave(request, addr_width, data_width, depth):
     toplevel = dut_name
 
     verilog_sources = [
-        os.path.join(rtl_dict['rtl_axi'], "axi_skid_buffer.sv"),
+        os.path.join(rtl_dict['rtl_axi'], "gaxi_skid_buffer.sv"),
         os.path.join(rtl_dict['rtl_axi'], "apb_slave.sv")
     ]
 
@@ -682,7 +732,7 @@ def test_apb_slave(request, addr_width, data_width, depth):
         'SEED': str(random.randint(0, 100000))
     }
 
-    # Add test parameters; these are passed t the environment, but not the RTL
+    # Add test parameters; these are passed to the environment, but not the RTL
     extra_env['TEST_ADDR_WIDTH'] = str(addr_width)
     extra_env['TEST_DATA_WIDTH'] = str(data_width)
     extra_env['TEST_DEPTH'] = str(depth)

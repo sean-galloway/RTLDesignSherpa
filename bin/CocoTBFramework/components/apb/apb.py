@@ -186,9 +186,9 @@ class APBCycle:
                 f"count:      {self.count}\n"
                 f"direction:  {self.direction}\n"
                 f"paddr:      0x{self.paddr:08X}\n"
-                f"{pwdata}\n"
+                f"{pwdata}"
                 f"pstrb:      0x{self.pstrb:08b}\n"
-                f"{prdata}\n"
+                f"{prdata}"
                 f"pprot:      0x{self.pprot:04X}\n"
                 f"pslverr:    {self.pslverr}\n"
         )
@@ -201,9 +201,9 @@ class APBCycle:
                 f"count:      {self.count}\n"
                 f"direction:  {self.direction}\n"
                 f"paddr:      0x{self.paddr:0{int(addr_width/4)}X}\n"
-                f"{pwdata}\n"
+                f"{pwdata}"
                 f"pstrb:      0x{self.pstrb:0{strb_width}b}\n"
-                f"{prdata}\n"
+                f"{prdata}"
                 f"pprot:      0x{self.pprot:04X}\n"
                 f"pslverr:    {self.pslverr}\n"
         )
@@ -277,7 +277,7 @@ class APBTransaction(Randomized):
 
 
 class APBMonitor(BusMonitor):
-    def __init__(self, entity, name, clock, signals=None,
+    def __init__(self, entity, title, prefix, clock, signals=None,
                  bus_width=32, addr_width=12, log=None, **kwargs):
 
         if signals:
@@ -288,9 +288,9 @@ class APBMonitor(BusMonitor):
 
         self.count = 0
         self.bus_width = bus_width
-        BusMonitor.__init__(self, entity, name, clock, **kwargs)
+        BusMonitor.__init__(self, entity, prefix, clock, **kwargs)
         self.clock = clock
-        self.name = name
+        self.title = title
         self.log = log or self.entity._log
         self.bus_width = bus_width
         self.addr_width = addr_width
@@ -302,7 +302,7 @@ class APBMonitor(BusMonitor):
 
     def print(self, transaction):
         self.log.debug('-' * 120)
-        msg = f'{self.name} - APB Transaction'
+        msg = f'{self.title} - APB Transaction'
         self.log.debug(msg)
         lines = transaction.formatted(self.addr_width, self.bus_width, self.strb_width).splitlines()
         for line in lines:
@@ -395,12 +395,12 @@ class APBSlave(BusMonitor):
         return hasattr(self.bus, signal_name) and getattr(self.bus, signal_name) is not None
 
     def dump_registers(self):
-        msg = f"APB Slave {self.name} - Register Dump:"
+        msg = f"APB Slave {self.title} - Register Dump:"
         self.log.info(msg)
         self.log.info(self.mem.dump())
 
     async def reset_bus(self):
-        msg = f'Resetting APB Bus {self.name}'
+        msg = f'Resetting APB Bus {self.title}'
         self.log.info(msg)
         self.bus.PRDATA.value = 0
         self.bus.PREADY.value = 0
@@ -423,8 +423,8 @@ class APBSlave(BusMonitor):
                 rand_dict = self.randomizer.next()
                 ready_delay = rand_dict['ready']
                 slv_error = rand_dict['error']
-                msg = f'APB Slave Driver-{self.name}: {ready_delay=}'
-                self.log.warning(msg)
+                # msg = f'APB Slave Driver-{self.title}: {ready_delay=}'
+                # self.log.warning(msg)
                 for _ in range(ready_delay):
                     await RisingEdge(self.clock)
 
@@ -432,8 +432,8 @@ class APBSlave(BusMonitor):
                 await Timer(200, units='ps')
                 while not self.bus.PENABLE.value.integer:
                     start_time = get_sim_time('ns')
-                    msg = f'APB Slave Driver-{self.name} Waiting for penable @ {start_time}'
-                    self.log.warning(msg)
+                    # msg = f'APB Slave Driver-{self.title} Waiting for penable @ {start_time}'
+                    # self.log.warning(msg)
                     await RisingEdge(self.clock)
                     await Timer(200, units='ps')
                 self._finish_recv(slv_error)
@@ -446,12 +446,12 @@ class APBSlave(BusMonitor):
 
         if word_index >= self.num_lines:
             if self.error_overflow:
-                msg = f'APB {self.name} - Memory overflow error: {word_index}'
+                msg = f'APB {self.title} - Memory overflow error: {word_index}'
                 self.log.error(msg)
                 self.bus.PSLVERR.value = 1
             else:
                 expand = word_index - self.num_lines + 10
-                msg = f'APB {self.name} - Memory overflow: {self.num_lines=} {word_index=}'
+                msg = f'APB {self.title} - Memory overflow: {self.num_lines=} {word_index=}'
                 self.log.warning(msg)
                 # Extend the self.mem array to accommodate the overflow
                 self.mem.expand(expand)
@@ -581,10 +581,10 @@ class APBMaster(BusDriver):
 
             transaction = self.transmit_queue.popleft()
             transaction.start_time = cocotb.utils.get_sim_time('ns')
-            msg = f'APB Master {self.name} attempting to transmit:\n{transaction}'
-            self.log.warning(msg)
-            msg = f'APB Master {self.name} {psel_delay=}'
-            self.log.warning(msg)
+            # msg = f'APB Master {self.title} attempting to transmit:\n{transaction}'
+            # self.log.warning(msg)
+            # msg = f'APB Master {self.title} {psel_delay=}'
+            # self.log.warning(msg)
 
             # finish the packet transmit
             await self._finish_xmit(transaction, psel_delay, penable_delay)
@@ -631,8 +631,8 @@ class APBMaster(BusDriver):
 
         while not self.bus.PREADY.value:
             await FallingEdge(self.clock)
-            msg = f'APB Master {self.name} waiting for PREADY'
-            self.log.warning(msg)
+            # msg = f'APB Master {self.title} waiting for PREADY'
+            # self.log.warning(msg)
 
         # check if the slave is asserting an error
         if self.is_signal_present('PSLVERR') and self.bus.PSLVERR.value:

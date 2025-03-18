@@ -337,8 +337,8 @@ def demonstrate_mixed_modes(flex_rand):
     def complex_generator(values):
         if values['clock_delay'] > 15:
             return max(1, values['data_delay'] // 2)
-        else:
-            return min(10, values['data_delay'] + 2)
+
+        return min(10, values['data_delay'] + 2)
 
     flex_rand.set_generator('reset_delay', complex_generator)
     print("Set reset_delay to a complex generator that depends on other values")
@@ -494,9 +494,9 @@ def demonstrate_object_bins():
         elif values['power_state'] == 'IDLE':
             # Read in IDLE state
             return ('read', 8)
-        else:
-            # Config in low power states
-            return ('config', 'sleep_settings')
+
+        # Config in low power states
+        return ('config', 'sleep_settings')
 
     flex_rand.set_generator('transaction', transaction_generator)
 
@@ -541,10 +541,10 @@ def main():  # sourcery skip: extract-duplicate-method
     flex_rand = demonstrate_mixed_modes(flex_rand)
 
     # Demonstrate initialization with different types
-    mixed_rand = demonstrate_initialization_with_different_types()
+    _ = demonstrate_initialization_with_different_types()
 
     # Demonstrate error handling
-    error_rand = demonstrate_error_handling()
+    _ = demonstrate_error_handling()
 
     print("\n=== ADVANCED USAGE PATTERN ===")
     print("Example of a typical testbench usage pattern:")

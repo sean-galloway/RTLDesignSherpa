@@ -407,7 +407,7 @@ if __name__ == "__main__":
         global test_count, passed_count
         test_count += 1
         result = test_func()
-        passed = (result == expected_result)
+        passed = result == expected_result
         if passed:
             passed_count += 1
             status = "PASS"
