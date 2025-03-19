@@ -4,13 +4,13 @@ module apb_slave #(
     parameter int ADDR_WIDTH      = 32,
     parameter int DATA_WIDTH      = 32,
     parameter int STRB_WIDTH      = 32 / 8,
-    parameter int PPROT_WIDTH     = 3,
+    parameter int PROT_WIDTH      = 3,
     parameter int DEPTH      = 2,
     // Short Parameters
     parameter int DW  = DATA_WIDTH,
     parameter int AW  = ADDR_WIDTH,
     parameter int SW  = STRB_WIDTH,
-    parameter int PW  = PPROT_WIDTH,
+    parameter int PW  = PROT_WIDTH,
     parameter int CPW = AW + DW + SW + PW + 1, // verilog_lint: waive line-length
     parameter int RPW = DW + 1
 ) (

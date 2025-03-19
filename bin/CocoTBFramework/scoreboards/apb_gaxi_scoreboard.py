@@ -40,33 +40,34 @@ class APBGAXIScoreboard:
         self.total_verified = 0
         self.address_coverage = set()
         self.type_coverage = {"apb_write": 0, "apb_read": 0,
-                              "gaxi_write": 0, "gaxi_read": 0}
+                                "gaxi_write": 0, "gaxi_read": 0}
 
     def add_apb_transaction(self, transaction):
         """
         Add an APB transaction to the scoreboard.
-
-        Args:
-            transaction: APB transaction to add
         """
         addr = transaction.paddr & 0xFFF  # Use 12-bit address for indexing
-
+        time_ns = transaction.start_time
+        matched = False
+        
         if transaction.direction == "WRITE":
-            self.apb_writes[addr].append(transaction)
+            # Check if this matches with existing GAXI transactions
+            matched = self._check_write_matches(addr, transaction, is_apb=True)
+            if not matched:
+                # Only add to queue if no match was found
+                self.apb_writes[addr].append(transaction)
             self.type_coverage["apb_write"] += 1
-            self.log.debug(f"APB Write added to scoreboard: addr=0x{addr:08X}, data=0x{transaction.pwdata:08X}")
-        else:
-            self.apb_reads[addr].append(transaction)
+            self.log.debug(f"APB Write added to scoreboard @ {time_ns}ns: addr=0x{addr:08X}, data=0x{transaction.pwdata:08X}")
+        else:  # READ
+            # Check if this matches with existing GAXI transactions
+            matched = self._check_read_matches(addr, transaction, is_apb=True)
+            if not matched:
+                # Only add to queue if no match was found
+                self.apb_reads[addr].append(transaction)
             self.type_coverage["apb_read"] += 1
-            self.log.debug(f"APB Read added to scoreboard: addr=0x{addr:08X}, data=0x{transaction.prdata:08X}")
+            self.log.debug(f"APB Read added to scoreboard @ {time_ns}ns: addr=0x{addr:08X}, data=0x{transaction.prdata:08X}")
 
         self.address_coverage.add(addr)
-
-        # Check for matches
-        if transaction.direction == "WRITE":
-            self._check_write_matches(addr, transaction, is_apb=True)
-        else:
-            self._check_read_matches(addr, transaction, is_apb=True)
 
     def add_gaxi_transaction(self, transaction):
         """
@@ -76,67 +77,71 @@ class APBGAXIScoreboard:
             transaction: GAXI transaction to add
         """
         addr = transaction.addr & 0xFFF  # Use 12-bit address for indexing
+        time_ns = transaction.start_time
+        matched = False
 
         if transaction.cmd == 1:  # Write
-            self.gaxi_writes[addr].append(transaction)
+            # Check if this matches with existing APB transactions
+            matched = self._check_write_matches(addr, transaction, is_apb=False)
+            if not matched:
+                # Only add to queue if no match was found
+                self.gaxi_writes[addr].append(transaction)
             self.type_coverage["gaxi_write"] += 1
-            self.log.debug(f"GAXI Write added to scoreboard: addr=0x{addr:08X}, data=0x{transaction.data:08X}")
+            self.log.debug(f"GAXI Write added to scoreboard @ {time_ns}ns: addr=0x{addr:08X}, data=0x{transaction.data:08X}")
         else:  # Read
-            self.gaxi_reads[addr].append(transaction)
+            # Check if this matches with existing APB transactions
+            matched = self._check_read_matches(addr, transaction, is_apb=False)
+            if not matched:
+                # Only add to queue if no match was found
+                self.gaxi_reads[addr].append(transaction)
             self.type_coverage["gaxi_read"] += 1
-            self.log.debug(f"GAXI Read added to scoreboard: addr=0x{addr:08X}, data=0x{transaction.data:08X}")
+            self.log.debug(f"GAXI Read added to scoreboard @ {time_ns}ns: addr=0x{addr:08X}, data=0x{transaction.data:08X}")
 
         self.address_coverage.add(addr)
-
-        # Check for matches
-        if transaction.cmd == 1:  # Write
-            self._check_write_matches(addr, transaction, is_apb=False)
-        else:  # Read
-            self._check_read_matches(addr, transaction, is_apb=False)
 
     def _check_write_matches(self, addr, transaction, is_apb=True):
         """
         Check for write transaction matches.
-
-        Args:
-            addr: Transaction address
-            transaction: New transaction
-            is_apb: True if transaction is APB, False if GAXI
         """
         if is_apb:
             # Check if we have a matching GAXI write
             if self.gaxi_writes[addr]:
                 gaxi_transaction = self.gaxi_writes[addr].popleft()
-                if transaction.pwdata != gaxi_transaction.data:
-                    self.log.error(
-                        f"Write data mismatch at addr 0x{addr:08X}: "
-                        f"APB=0x{transaction.pwdata:08X}, GAXI=0x{gaxi_transaction.data:08X}"
-                    )
-                    self.total_mismatches += 1
-                else:
+                if transaction.pwdata == gaxi_transaction.data:
                     self.log.debug(
                         f"Matched write at addr 0x{addr:08X}: "
                         f"APB=0x{transaction.pwdata:08X}, GAXI=0x{gaxi_transaction.data:08X}"
                     )
                     self.total_matches += 1
-                self.total_verified += 1
-        else:
-            # Check if we have a matching APB write
-            if self.apb_writes[addr]:
-                apb_transaction = self.apb_writes[addr].popleft()
-                if apb_transaction.pwdata != transaction.data:
+                else:
                     self.log.error(
                         f"Write data mismatch at addr 0x{addr:08X}: "
-                        f"APB=0x{apb_transaction.pwdata:08X}, GAXI=0x{transaction.data:08X}"
+                        f"APB=0x{transaction.pwdata:08X}, GAXI=0x{gaxi_transaction.data:08X}"
                     )
                     self.total_mismatches += 1
-                else:
-                    self.log.debug(
-                        f"Matched write at addr 0x{addr:08X}: "
-                        f"APB=0x{apb_transaction.pwdata:08X}, GAXI=0x{transaction.data:08X}"
-                    )
-                    self.total_matches += 1
                 self.total_verified += 1
+                # Don't add the APB transaction to the queue since it was matched
+                return True  # Return True to indicate a match was found
+        elif self.apb_writes[addr]:
+            apb_transaction = self.apb_writes[addr].popleft()
+            if apb_transaction.pwdata != transaction.data:
+                self.log.error(
+                    f"Write data mismatch at addr 0x{addr:08X}: "
+                    f"APB=0x{apb_transaction.pwdata:08X}, GAXI=0x{transaction.data:08X}"
+                )
+                self.total_mismatches += 1
+            else:
+                self.log.debug(
+                    f"Matched write at addr 0x{addr:08X}: "
+                    f"APB=0x{apb_transaction.pwdata:08X}, GAXI=0x{transaction.data:08X}"
+                )
+                self.total_matches += 1
+            self.total_verified += 1
+            # Don't add the GAXI transaction to the queue since it was matched
+            return True  # Return True to indicate a match was found
+        
+        # No match found, add the transaction to its queue
+        return False
 
     def _check_read_matches(self, addr, transaction, is_apb=True):
         """
@@ -146,41 +151,47 @@ class APBGAXIScoreboard:
             addr: Transaction address
             transaction: New transaction
             is_apb: True if transaction is APB, False if GAXI
+            
+        Returns:
+            True if a match was found, False otherwise
         """
         if is_apb:
             # Check if we have a matching GAXI read
             if self.gaxi_reads[addr]:
                 gaxi_transaction = self.gaxi_reads[addr].popleft()
-                if transaction.prdata != gaxi_transaction.data:
-                    self.log.error(
-                        f"Read data mismatch at addr 0x{addr:08X}: "
-                        f"APB=0x{transaction.prdata:08X}, GAXI=0x{gaxi_transaction.data:08X}"
-                    )
-                    self.total_mismatches += 1
-                else:
+                if transaction.prdata == gaxi_transaction.data:
                     self.log.debug(
                         f"Matched read at addr 0x{addr:08X}: "
                         f"APB=0x{transaction.prdata:08X}, GAXI=0x{gaxi_transaction.data:08X}"
                     )
                     self.total_matches += 1
-                self.total_verified += 1
-        else:
-            # Check if we have a matching APB read
-            if self.apb_reads[addr]:
-                apb_transaction = self.apb_reads[addr].popleft()
-                if apb_transaction.prdata != transaction.data:
+                else:
                     self.log.error(
                         f"Read data mismatch at addr 0x{addr:08X}: "
-                        f"APB=0x{apb_transaction.prdata:08X}, GAXI=0x{transaction.data:08X}"
+                        f"APB=0x{transaction.prdata:08X}, GAXI=0x{gaxi_transaction.data:08X}"
                     )
                     self.total_mismatches += 1
-                else:
-                    self.log.debug(
-                        f"Matched read at addr 0x{addr:08X}: "
-                        f"APB=0x{apb_transaction.prdata:08X}, GAXI=0x{transaction.data:08X}"
-                    )
-                    self.total_matches += 1
                 self.total_verified += 1
+                return True  # Return True to indicate a match was found
+        elif self.apb_reads[addr]:
+            apb_transaction = self.apb_reads[addr].popleft()
+            if apb_transaction.prdata != transaction.data:
+                self.log.error(
+                    f"Read data mismatch at addr 0x{addr:08X}: "
+                    f"APB=0x{apb_transaction.prdata:08X}, GAXI=0x{transaction.data:08X}"
+                )
+                self.total_mismatches += 1
+            else:
+                self.log.debug(
+                    f"Matched read at addr 0x{addr:08X}: "
+                    f"APB=0x{apb_transaction.prdata:08X}, GAXI=0x{transaction.data:08X}"
+                )
+                self.total_matches += 1
+            self.total_verified += 1
+            return True  # Return True to indicate a match was found
+            
+        # No match found
+        return False
 
     async def check_scoreboard(self, timeout=None):
         """
@@ -254,7 +265,7 @@ class APBGAXIScoreboard:
             f"Mismatched transactions: {self.total_mismatches}",
             f"Unmatched transactions: {self.total_dropped}",
             f"Unique addresses covered: {len(self.address_coverage)}",
-            f"Transaction type coverage:",
+            "Transaction type coverage:",
             f"  APB writes: {self.type_coverage['apb_write']}",
             f"  APB reads: {self.type_coverage['apb_read']}",
             f"  GAXI writes: {self.type_coverage['gaxi_write']}",
@@ -283,7 +294,6 @@ class APBGAXIScoreboard:
         self.total_verified = 0
         self.address_coverage.clear()
         self.type_coverage = {"apb_write": 0, "apb_read": 0,
-                             "gaxi_write": 0, "gaxi_read": 0}
+                                "gaxi_write": 0, "gaxi_read": 0}
 
         self.log.info(f"Scoreboard {self.name} cleared")
-
