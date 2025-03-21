@@ -1,0 +1,111 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Thu Mar 20 06:04:15 2025
+[*]
+[dumpfile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/local_sim_build/test_axi_master_rd_id08_aw032_dw032_uw1_al12_ar2_r4/axi_master_rd.fst"
+[dumpfile_mtime] "Thu Mar 20 05:06:23 2025"
+[dumpfile_size] 41401
+[savefile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/GTKW/axi_master_rd.gtkw"
+[timestart] 0
+[size] 2198 1541
+[pos] -1 -1
+*-22.167128 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi_master_rd.
+[sst_width] 278
+[signals_width] 270
+[sst_expanded] 1
+[sst_vpaned_height] 485
+@28
+axi_master_rd.aclk
+@22
+axi_master_rd.alignment_boundary[11:0]
+@420
+axi_master_rd.ALIGNMENT_WIDTH
+@200
+-AR-master
+@28
+axi_master_rd.m_axi_arvalid
+axi_master_rd.m_axi_arready
+@22
+axi_master_rd.m_axi_araddr[31:0]
+@28
+axi_master_rd.m_axi_arburst[1:0]
+@22
+axi_master_rd.m_axi_arcache[3:0]
+axi_master_rd.m_axi_arid[7:0]
+axi_master_rd.m_axi_arlen[7:0]
+@28
+axi_master_rd.m_axi_arlock
+axi_master_rd.m_axi_arprot[2:0]
+@22
+axi_master_rd.m_axi_arqos[3:0]
+axi_master_rd.m_axi_arregion[3:0]
+@28
+axi_master_rd.m_axi_arsize[2:0]
+axi_master_rd.m_axi_aruser
+@200
+-R-master
+@28
+axi_master_rd.m_axi_rvalid
+axi_master_rd.m_axi_rready
+axi_master_rd.m_axi_rlast
+@22
+axi_master_rd.m_axi_rdata[31:0]
+axi_master_rd.m_axi_rid[7:0]
+@28
+axi_master_rd.m_axi_rresp[1:0]
+axi_master_rd.m_axi_ruser
+@200
+-AR-slave
+@28
+axi_master_rd.s_axi_arvalid
+axi_master_rd.s_axi_arready
+@22
+axi_master_rd.s_axi_araddr[31:0]
+@28
+axi_master_rd.s_axi_arburst[1:0]
+@22
+axi_master_rd.s_axi_arcache[3:0]
+axi_master_rd.s_axi_arid[7:0]
+axi_master_rd.s_axi_arlen[7:0]
+@28
+axi_master_rd.s_axi_arprot[2:0]
+@22
+axi_master_rd.s_axi_arqos[3:0]
+axi_master_rd.s_axi_arregion[3:0]
+@28
+axi_master_rd.s_axi_arsize[2:0]
+axi_master_rd.s_axi_aruser
+axi_master_rd.s_axi_arlock
+@200
+-R-slave
+@28
+axi_master_rd.s_axi_rvalid
+axi_master_rd.s_axi_rready
+@22
+axi_master_rd.s_axi_rdata[31:0]
+axi_master_rd.s_axi_rid[7:0]
+@28
+axi_master_rd.s_axi_rlast
+axi_master_rd.s_axi_rresp[1:0]
+axi_master_rd.s_axi_ruser
+@200
+-splitter
+@28
+axi_master_rd.i_axi_master_rd_splitter.aclk
+axi_master_rd.i_axi_master_rd_splitter.r_ar_processing
+axi_master_rd.i_axi_master_rd_splitter.r_ar_state[1:0]
+@22
+axi_master_rd.i_axi_master_rd_splitter.r_ar_remaining_len[7:0]
+axi_master_rd.i_axi_rd_error_monitor.error_id_ar[7:0]
+axi_master_rd.i_axi_master_rd_splitter.r_cycle_counter[31:0]
+axi_master_rd.i_axi_master_rd_splitter.r_rd_active_transactions[31:0]
+axi_master_rd.i_axi_master_rd_splitter.rd_transaction_count[31:0]
+@200
+-error
+@28
+axi_master_rd.i_axi_rd_error_monitor.error_timeout_ar
+@29
+axi_master_rd.i_axi_rd_error_monitor.error_timeout_r
+[pattern_trace] 1
+[pattern_trace] 0

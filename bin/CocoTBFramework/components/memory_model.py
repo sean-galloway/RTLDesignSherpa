@@ -38,10 +38,10 @@ class MemoryModel:
             raise ValueError("Data length does not match strobe length")
 
         # Format the address and data as hexadecimal for debugging
-        hex_address = f"0x{address:08X}"
-        hex_data = [f"0x{byte:02X}" for byte in data]
+        # hex_address = f"0x{address:08X}"
+        # hex_data = [f"0x{byte:02X}" for byte in data]
 
-        self.log.debug(f"Writing to memory: address={hex_address}, data={hex_data}, strobe={strobe:08b}")
+        # self.log.debug(f"Writing to memory: address={hex_address}, data={hex_data}, strobe={strobe:08b}")
 
         # Convert bytearray to numpy array
         data_np = np.frombuffer(data, dtype=np.uint8)

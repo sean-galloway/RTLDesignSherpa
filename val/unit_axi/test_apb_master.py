@@ -305,6 +305,7 @@ class APBMasterTB(TBBase):
         self.apb_gaxi_scoreboard.add_apb_transaction(transaction)
 
     def rsp_transaction_callback(self, transaction):
+        # sourcery skip: extract-method
         """Callback for GAXI RSP monitor transactions."""
         self.rsp_monitor_queue.append(transaction)
         
@@ -333,8 +334,6 @@ class APBMasterTB(TBBase):
                 self.apb_gaxi_scoreboard.add_gaxi_transaction(merged_transaction)
             else:
                 self.log.warning("Received GAXI response but no pending read has APB data yet")
-
-
 
     async def reset_dut(self):
         self.log.debug('Starting reset_dut')
@@ -601,6 +600,7 @@ class APBMasterTB(TBBase):
         )
 
     def _create_strobe_seq(self):
+        # sourcery skip: merge-list-append, move-assign-in-block
         """Create configuration for strobe test"""
         # Test patterns for strobes
         test_data = [0xFFFFFFFF, 0x12345678, 0xAABBCCDD, 0x99887766, 0x55443322, 0xA5A5A5A5, 0x5A5A5A5A]
