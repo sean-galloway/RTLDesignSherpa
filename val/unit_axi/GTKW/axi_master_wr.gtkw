@@ -1,0 +1,87 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Mar 24 09:02:22 2025
+[*]
+[dumpfile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/local_sim_build/test_axi_master_wr_id08_aw032_dw032_uw1_al12_aw2_w4_b2_er4_to_aw32_to_w32_to_b32/axi_master_wr.fst"
+[dumpfile_mtime] "Mon Mar 24 09:00:35 2025"
+[dumpfile_size] 16752
+[savefile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/GTKW/axi_master_wr.gtkw"
+[timestart] 0
+[size] 2182 1433
+[pos] -1 -1
+*-19.590210 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi_master_wr.
+[sst_width] 278
+[signals_width] 190
+[sst_expanded] 1
+[sst_vpaned_height] 447
+@200
+-user aw
+@28
+axi_master_wr.s_axi_awvalid
+axi_master_wr.s_axi_awready
+@22
+axi_master_wr.s_axi_awlen[7:0]
+axi_master_wr.s_axi_awid[7:0]
+axi_master_wr.s_axi_awaddr[31:0]
+@28
+axi_master_wr.s_axi_awburst[1:0]
+@22
+axi_master_wr.s_axi_awcache[3:0]
+@28
+axi_master_wr.s_axi_awlock
+axi_master_wr.s_axi_awprot[2:0]
+@22
+axi_master_wr.s_axi_awqos[3:0]
+axi_master_wr.s_axi_awregion[3:0]
+@28
+axi_master_wr.s_axi_awsize[2:0]
+axi_master_wr.s_axi_awuser
+@200
+-axi aw
+@28
+axi_master_wr.m_axi_awvalid
+axi_master_wr.m_axi_awready
+@22
+axi_master_wr.m_axi_awaddr[31:0]
+@28
+axi_master_wr.m_axi_awburst[1:0]
+@22
+axi_master_wr.m_axi_awcache[3:0]
+axi_master_wr.m_axi_awid[7:0]
+@c00022
+axi_master_wr.m_axi_awlen[7:0]
+@28
+(0)axi_master_wr.m_axi_awlen[7:0]
+(1)axi_master_wr.m_axi_awlen[7:0]
+(2)axi_master_wr.m_axi_awlen[7:0]
+(3)axi_master_wr.m_axi_awlen[7:0]
+(4)axi_master_wr.m_axi_awlen[7:0]
+(5)axi_master_wr.m_axi_awlen[7:0]
+(6)axi_master_wr.m_axi_awlen[7:0]
+(7)axi_master_wr.m_axi_awlen[7:0]
+@1401200
+-group_end
+@28
+axi_master_wr.m_axi_awlock
+axi_master_wr.m_axi_awprot[2:0]
+@22
+axi_master_wr.m_axi_awqos[3:0]
+axi_master_wr.m_axi_awregion[3:0]
+@28
+axi_master_wr.m_axi_awsize[2:0]
+axi_master_wr.m_axi_awuser
+@200
+-splitter
+@22
+axi_master_wr.i_axi_master_wr_splitter.alignment_mask[11:0]
+@28
+axi_master_wr.s_split_valid
+axi_master_wr.s_split_ready
+@23
+axi_master_wr.s_split_cnt[7:0]
+@22
+axi_master_wr.s_split_addr[31:0]
+axi_master_wr.s_split_id[7:0]
+[pattern_trace] 1
+[pattern_trace] 0

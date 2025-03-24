@@ -549,11 +549,11 @@ class Axi4MasterWrAxi4Intf(TBBase):
             value: Alignment mask value (typically a power of 2)
         """
         boundary = value & 4095
-        if hasattr(self.dut, 'alignment_boundary'):
-            self.dut.alignment_boundary.value = boundary
+        if hasattr(self.dut, 'alignment_mask'):
+            self.dut.alignment_mask.value = boundary
             self.log.info(f"DUT alignment boundary set to {value}")
         else:
-            self.log.error("DUT does not have alignment_boundary signal")
+            self.log.error("DUT does not have alignment_mask signal")
 
     def configure_error_injection(self, error_type, enable, rate=0.0):
         """

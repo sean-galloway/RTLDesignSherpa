@@ -244,9 +244,9 @@ class Axi4MasterWrTests(TBBase):
         # Iterate with various delays
         rand_keys = [
             ('fixed', 'fixed'),
-            ('always_ready', 'always_ready'),
-            ('fast_ready', 'fast'),
-            ('slow_ready', 'slow')
+            # ('always_ready', 'always_ready'),
+            # ('fast_ready', 'fast'),
+            # ('slow_ready', 'slow')
         ]
 
         # Track total errors

@@ -1,15 +1,13 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Mon Mar 24 05:46:02 2025
+[*] Mon Mar 24 08:46:14 2025
 [*]
-[dumpfile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/local_sim_build/test_axi_master_rd_id08_aw032_dw032_uw1_al12_ar2_r4_er4_to_ar32_to_r32/axi_master_rd.fst"
-[dumpfile_mtime] "Mon Mar 24 05:38:15 2025"
-[dumpfile_size] 18576
+[dumpfile] "(null)"
 [savefile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/GTKW/axi_master_rd.gtkw"
 [timestart] 0
 [size] 2989 1189
 [pos] -1 -1
-*-17.571125 1440000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-22.571125 420000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] axi_master_rd.
 [sst_width] 315
 [signals_width] 363
@@ -81,9 +79,7 @@ axi_master_rd.i_axi_master_rd_splitter.r_num_splits[7:0]
 @28
 axi_master_rd.i_axi_master_rd_splitter.w_split_required
 @22
-axi_master_rd.i_axi_master_rd_splitter.alignment_boundary[11:0]
 axi_master_rd.i_axi_master_rd_splitter.r_num_splits[7:0]
-axi_master_rd.alignment_boundary[11:0]
 @28
 axi_master_rd.s_split_valid
 @29
