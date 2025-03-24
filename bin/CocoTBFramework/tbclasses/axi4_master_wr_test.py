@@ -238,15 +238,15 @@ class Axi4MasterWrTests(TBBase):
         await self.reset_dut()
 
         # Test multiple alignment boundaries
-        # alignment_boundaries = [0x07F, 0x0FF, 0x1FF, 0x3FF, 0x7FF, 0xFFF]
-        alignment_boundaries = [0x07F]
+        alignment_boundaries = [0x07F, 0x0FF, 0x1FF, 0x3FF, 0x7FF, 0xFFF]
+        # alignment_boundaries = [0x07F]
 
         # Iterate with various delays
         rand_keys = [
             ('fixed', 'fixed'),
-            # ('always_ready', 'always_ready'),
-            # ('fast_ready', 'fast'),
-            # ('slow_ready', 'slow')
+            ('always_ready', 'always_ready'),
+            ('fast_ready', 'fast'),
+            ('slow_ready', 'slow')
         ]
 
         # Track total errors
