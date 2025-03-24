@@ -17,9 +17,9 @@ from CocoTBFramework.tbclasses.tbbase import TBBase
 from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 
 # Import our interface and test classes
-from CocoTBFramework.tbclasses.axi4_master_rd_user_intf import Axi4MasterRdUserIntf
-from CocoTBFramework.tbclasses.axi4_master_rd_axi4_intf import Axi4MasterRdAxi4Intf
-from CocoTBFramework.tbclasses.axi4_master_rd_test import Axi4MasterRdTests
+from CocoTBFramework.tbclasses.axi4.axi4_master_rd_user_intf import Axi4MasterRdUserIntf
+from CocoTBFramework.tbclasses.axi4.axi4_master_rd_axi4_intf import Axi4MasterRdAxi4Intf
+from CocoTBFramework.tbclasses.axi4.axi4_master_rd_test import Axi4MasterRdTests
 
 
 class AXI4MasterRDTB(TBBase):

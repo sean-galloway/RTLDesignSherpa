@@ -3,7 +3,7 @@ import random
 import subprocess
 import pytest
 import cocotb
-from CocoTBFramework.tbclasses.adder_testing import AdderTB
+from CocoTBFramework.tbclasses.common.adder_testing import AdderTB
 from cocotb_test.simulator import run
 
 

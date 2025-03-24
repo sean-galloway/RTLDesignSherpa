@@ -14,7 +14,7 @@ from CocoTBFramework.tbclasses.tbbase import TBBase
 from CocoTBFramework.components.memory_model import MemoryModel
 
 # Import from our user interface include file
-from CocoTBFramework.tbclasses.axi4_master_wr_user_intf_incl import (
+from .axi4_master_wr_user_intf_incl import (
     SplitInfo, ErrorInfo, ErrorType, create_error_randomizers,
     generate_test_addresses,
     generate_split_test_cases, PerformanceMetrics,

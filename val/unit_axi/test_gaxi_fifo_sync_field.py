@@ -5,7 +5,7 @@ import pytest
 import cocotb
 from cocotb_test.simulator import run
 from CocoTBFramework.tbclasses.tbbase import TBBase
-from CocoTBFramework.tbclasses.gaxi_buffer_field import GaxiFieldBufferTB
+from CocoTBFramework.tbclasses.gaxi.gaxi_buffer_field import GaxiFieldBufferTB
 from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 
 

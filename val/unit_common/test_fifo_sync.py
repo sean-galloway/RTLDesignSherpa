@@ -3,7 +3,7 @@ import subprocess
 import random
 import pytest
 import cocotb
-from CocoTBFramework.tbclasses.fifo_sync_testing import FIFOSyncTB
+from CocoTBFramework.tbclasses.common.fifo_sync_testing import FIFOSyncTB
 from cocotb_test.simulator import run
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")

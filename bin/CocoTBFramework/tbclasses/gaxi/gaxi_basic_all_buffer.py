@@ -1,6 +1,6 @@
 """Unified GAXI Buffer Testbench for all buffer types including async designs"""
 from CocoTBFramework.components.gaxi.gaxi_components import GAXIMaster, GAXISlave, GAXIMonitor
-from CocoTBFramework.tbclasses.gaxi_basic_all_test_base import GAXIBasicTestBase, TestConfig
+from CocoTBFramework.tbclasses.gaxi.gaxi_basic_all_test_base import GAXIBasicTestBase, TestConfig
 from CocoTBFramework.scoreboards.gaxi_scoreboard import GAXIScoreboard
 
 
