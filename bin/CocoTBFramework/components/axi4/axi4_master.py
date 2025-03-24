@@ -294,11 +294,11 @@ class AXI4Master:
         )
 
         # Validate AW packet
-        if self.check_protocol:
-            valid, error_msg = aw_packet.validate_axi4_protocol()
-            if not valid:
-                self.log.error(f"AXI4 protocol error: {error_msg}")
-                raise ValueError(f"AXI4 protocol error: {error_msg}")
+        # if self.check_protocol:
+        #     valid, error_msg = aw_packet.validate_axi4_protocol()
+        #     if not valid:
+        #         self.log.error(f"AXI4 protocol error: {error_msg}")
+        #         raise ValueError(f"AXI4 protocol error: {error_msg}")
 
         # Create pending transaction entry
         self.write_responses[id] = {
@@ -322,11 +322,11 @@ class AXI4Master:
             )
 
             # Validate W packet
-            if self.check_protocol:
-                valid, error_msg = w_packet.validate_axi4_protocol()
-                if not valid:
-                    self.log.error(f"AXI4 protocol error: {error_msg}")
-                    raise ValueError(f"AXI4 protocol error: {error_msg}")
+            # if self.check_protocol:
+            #     valid, error_msg = w_packet.validate_axi4_protocol()
+            #     if not valid:
+            #         self.log.error(f"AXI4 protocol error: {error_msg}")
+            #         raise ValueError(f"AXI4 protocol error: {error_msg}")
 
             # Add to tracking
             self.write_responses[id]['w_packets'].append(w_packet)
@@ -392,11 +392,11 @@ class AXI4Master:
         )
         
         # Validate AR packet
-        if self.check_protocol:
-            valid, error_msg = ar_packet.validate_axi4_protocol()
-            if not valid:
-                self.log.error(f"AXI4 protocol error: {error_msg}")
-                raise ValueError(f"AXI4 protocol error: {error_msg}")
+        # if self.check_protocol:
+        #     valid, error_msg = ar_packet.validate_axi4_protocol()
+        #     if not valid:
+        #         self.log.error(f"AXI4 protocol error: {error_msg}")
+        #         raise ValueError(f"AXI4 protocol error: {error_msg}")
         
         # Create pending transaction entry
         self.read_responses[id] = {

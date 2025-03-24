@@ -1,7 +1,7 @@
 """
-AXI4 Master Read Test Module
+AXI4 Master Write Test Module
 
-This module provides test methods for validating the AXI4 Master Read module
+This module provides test methods for validating the AXI4 Master Write module
 by leveraging the user interface and AXI4 interface modules.
 """
 
@@ -14,29 +14,29 @@ from CocoTBFramework.tbclasses.tbbase import TBBase
 from CocoTBFramework.components.memory_model import MemoryModel
 
 # Import from our user interface include file
-from CocoTBFramework.tbclasses.axi4_master_rd_user_intf_incl import (
+from CocoTBFramework.tbclasses.axi4_master_wr_user_intf_incl import (
     SplitInfo, ErrorInfo, ErrorType, create_error_randomizers,
     generate_test_addresses,
-    generate_split_test_cases,
+    generate_split_test_cases, PerformanceMetrics,
     generate_timeout_test_values, create_collision_test_matrix
 )
 
 
-class Axi4MasterRdTests(TBBase):
+class Axi4MasterWrTests(TBBase):
     """
-    Test implementation for the AXI4 Master Read module.
+    Test implementation for the AXI4 Master Write module.
     This class contains the actual test methods that validate
-    the functionality of the AXI4 Master Read module.
+    the functionality of the AXI4 Master Write module.
     """
 
     def __init__(self, dut, user_intf, axi4_intf):
         """
-        Initialize the AXI4 Master Read Tests.
+        Initialize the AXI4 Master Write Tests.
 
         Args:
             dut: Device under test
-            user_intf: User interface instance (Axi4MasterRdUserIntf)
-            axi4_intf: AXI4 interface instance (Axi4MasterRdAxi4Intf)
+            user_intf: User interface instance (Axi4MasterWrUserIntf)
+            axi4_intf: AXI4 interface instance (Axi4MasterWrAxi4Intf)
         """
         super().__init__(dut)
 
@@ -49,8 +49,9 @@ class Axi4MasterRdTests(TBBase):
         self.addr_width = int(getattr(dut, 'AXI_ADDR_WIDTH', 32))
         self.data_width = int(getattr(dut, 'AXI_DATA_WIDTH', 32))
         self.user_width = int(getattr(dut, 'AXI_USER_WIDTH', 1))
-        self.timeout_ar = int(getattr(dut, 'TIMEOUT_AR', 1000))
-        self.timeout_r = int(getattr(dut, 'TIMEOUT_R', 1000))
+        self.timeout_aw = int(getattr(dut, 'TIMEOUT_AW', 1000))
+        self.timeout_w = int(getattr(dut, 'TIMEOUT_W', 1000))
+        self.timeout_b = int(getattr(dut, 'TIMEOUT_B', 1000))
 
         # Calculate strobe width
         self.strb_width = self.data_width // 8
@@ -91,18 +92,18 @@ class Axi4MasterRdTests(TBBase):
 
         self.log.info("DUT and interfaces reset")
 
-    async def test_01_basic_read(self):
+    async def test_01_basic_write(self):
         """
-        Test 01: Basic read transactions without splitting.
+        Test 01: Basic write transactions without splitting.
 
-        Tests a representative number of reads with alignment mask
+        Tests a representative number of writes with alignment mask
         set at different places. None of these should split.
         Verify the s_split interface always shows 1.
 
         Returns:
             True if test passes, False otherwise
         """
-        self.log.info("Starting Test 01: Basic Read Test")
+        self.log.info("Starting Test 01: Basic Write Test")
 
         # Reset the DUT and interfaces
         await self.reset_dut()
@@ -124,13 +125,13 @@ class Axi4MasterRdTests(TBBase):
 
         # Iterate with various delays
         # randomizer: split/error options: 'fixed', 'always_ready', 'fast_ready', 'slow_ready'
-        #             ar/r options: 'fixed', 'always_ready', 'fast', 'slow'
+        #             aw/w/b options: 'fixed', 'always_ready', 'fast', 'slow'
         rand_keys = [
             ('always_ready', 'fixed'),
             ('always_ready', 'always_ready'),
             ('always_ready', 'fast'),
             ('always_ready', 'slow')
-            ]
+        ]
 
         # Maximum ID value (for masking)
         max_id = (1 << self.id_width) - 1  # Typically 255 for 8-bit ID
@@ -138,10 +139,11 @@ class Axi4MasterRdTests(TBBase):
         for j, (split_rand, axi_rand) in enumerate(rand_keys):
             self.user_intf.set_split_readiness(split_rand)
             self.user_intf.set_error_readiness(split_rand)
-            self.axi4_intf.set_s_axi_ar_timing(axi_rand)
-            self.axi4_intf.set_m_axi_r_timing(axi_rand)
+            self.axi4_intf.set_s_axi_aw_timing(axi_rand)
+            self.axi4_intf.set_s_axi_w_timing(axi_rand)
+            self.axi4_intf.set_m_axi_b_timing(axi_rand)
 
-            # Send reads with different sizes and lengths
+            # Send writes with different sizes and lengths
             for i, addr_pre in enumerate(test_addresses):
                 addr = 0x10000 + (j*4096) + addr_pre # calculate the final address
 
@@ -152,6 +154,9 @@ class Axi4MasterRdTests(TBBase):
 
                 # Generate a unique ID for this transaction
                 id_value = ((j * 10) + i) & max_id
+
+                # Generate test data based on address
+                data = [(addr + 0xA0000000 + (0x1000 * beat)) & 0xFFFFFFFF for beat in range(length + 1)]
 
                 # Make sure no split occurs (check address vs boundary)
                 boundary_mask = self.boundary_4k
@@ -177,10 +182,10 @@ class Axi4MasterRdTests(TBBase):
                 expected_splits.append((id_value, expected_split_count))
 
                 # Log transaction details for debugging
-                self.log.info(f"Sending read: addr=0x{addr:X}, length={length}, id=0x{id_value:X}, expected_splits={expected_split_count}")
+                self.log.info(f"Sending write: addr=0x{addr:X}, length={length}, id=0x{id_value:X}, expected_splits={expected_split_count}")
 
-                # Send read request
-                await self.axi4_intf.send_read(addr, length, id_value=id_value)
+                # Send write request
+                await self.axi4_intf.send_write(addr, data, length, id_value=id_value)
 
                 # Count transactions
                 total_transactions += 1
@@ -201,8 +206,7 @@ class Axi4MasterRdTests(TBBase):
         # Verify each split notification had the expected count
         for id_value, expected_count in expected_splits:
             # Check that the expected split count matches what was received
-            # This could require additional API in user_intf to query received splits
-            if hasattr(self.user_intf, 'verify_split_count') and not self.user_intf.verify_split_count(id_value, expected_count):
+            if not self.user_intf.verify_split_count(id_value, expected_count):
                 self.log.error(f"Split count mismatch for ID=0x{id_value:X}: expected={expected_count}")
                 total_errors += 1
 
@@ -211,21 +215,21 @@ class Axi4MasterRdTests(TBBase):
 
         # Log test result
         if total_errors == 0:
-            self.log.info(f"Basic read test PASSED - all {total_transactions} transactions had correct split count (1)")
+            self.log.info(f"Basic write test PASSED - all {total_transactions} transactions had correct split count (1)")
         else:
-            self.log.error(f"Basic read test FAILED with {total_errors} errors")
+            self.log.error(f"Basic write test FAILED with {total_errors} errors")
 
         # Store test results
-        self.test_results['test_01_basic_read'] = (total_errors == 0)
+        self.test_results['test_01_basic_write'] = (total_errors == 0)
 
-        self.log.info(f"Test 01 Basic Read completed with {total_errors} errors")
+        self.log.info(f"Test 01 Basic Write completed with {total_errors} errors")
         return total_errors == 0
 
     async def test_02_split_test(self):
         """
         Test 02: Split test, checking boundary conditions for splits.
 
-        This test verifies read transactions that cross alignment boundaries
+        This test verifies write transactions that cross alignment boundaries
         to ensure proper splitting behavior in different scenarios.
         """
         self.log.info("Starting Test 02: Split Test")
@@ -267,8 +271,9 @@ class Axi4MasterRdTests(TBBase):
                 # Set timing modes
                 self.user_intf.set_split_readiness(split_rand)
                 self.user_intf.set_error_readiness(split_rand)
-                self.axi4_intf.set_s_axi_ar_timing(axi_rand)
-                self.axi4_intf.set_m_axi_r_timing(axi_rand)
+                self.axi4_intf.set_s_axi_aw_timing(axi_rand)
+                self.axi4_intf.set_s_axi_w_timing(axi_rand)
+                self.axi4_intf.set_m_axi_b_timing(axi_rand)
 
                 # Base address for this set of tests - make sure it's aligned
                 base_addr_sector = 0x10000 + (alignment_index * 0x10000) + (timing_index * 0x1000)
@@ -282,6 +287,9 @@ class Axi4MasterRdTests(TBBase):
                 case1_addr = boundary_addr - (bytes_per_beat * beats_before_boundary)
                 case1_addr = case1_addr & ~(bytes_per_beat - 1)  # Ensure alignment
                 case1_length = beats_before_boundary - 1  # Will end right at boundary
+
+                # Generate test data
+                case1_data = [(case1_addr + 0xA0000000 + (0x1000 * beat)) & 0xFFFFFFFF for beat in range(case1_length + 1)]
 
                 # Generate ID and mask it to max value
                 id_value = (alignment_index * 10 + timing_index * 3 + 1) & max_id
@@ -301,8 +309,8 @@ class Axi4MasterRdTests(TBBase):
                 # Register expected transaction
                 self.user_intf.expect_split(id_value, expected_splits)
 
-                # Send read request
-                await self.axi4_intf.send_read(case1_addr, case1_length, id_value=id_value)
+                # Send write request
+                await self.axi4_intf.send_write(case1_addr, case1_data, case1_length, id_value=id_value)
 
                 # Brief delay
                 await self.wait_clocks('aclk', 20)
@@ -311,6 +319,9 @@ class Axi4MasterRdTests(TBBase):
                 case2_addr = boundary_addr - (bytes_per_beat * 2)
                 case2_addr = case2_addr & ~(bytes_per_beat - 1)  # Ensure alignment
                 case2_length = 4  # Cross boundary with 5 beats total
+
+                # Generate test data
+                case2_data = [(case2_addr + 0xA0000000 + (0x1000 * beat)) & 0xFFFFFFFF for beat in range(case2_length + 1)]
 
                 # Generate ID and mask it to max value
                 id_value = (alignment_index * 10 + timing_index * 3 + 2) & max_id
@@ -330,8 +341,8 @@ class Axi4MasterRdTests(TBBase):
                 # Register expected transaction
                 self.user_intf.expect_split(id_value, expected_splits)
 
-                # Send read request
-                await self.axi4_intf.send_read(case2_addr, case2_length, id_value=id_value)
+                # Send write request
+                await self.axi4_intf.send_write(case2_addr, case2_data, case2_length, id_value=id_value)
 
                 # Brief delay
                 await self.wait_clocks('aclk', 20)
@@ -340,6 +351,9 @@ class Axi4MasterRdTests(TBBase):
                 case3_addr = boundary_addr - bytes_per_beat
                 case3_addr = case3_addr & ~(bytes_per_beat - 1)  # Ensure alignment
                 case3_length = 15  # Maximum AXI4 burst (16 beats)
+
+                # Generate test data
+                case3_data = [(case3_addr + 0xA0000000 + (0x1000 * beat)) & 0xFFFFFFFF for beat in range(case3_length + 1)]
 
                 # Generate ID and mask it to max value
                 id_value = (alignment_index * 10 + timing_index * 3 + 3) & max_id
@@ -359,8 +373,8 @@ class Axi4MasterRdTests(TBBase):
                 # Register expected transaction
                 self.user_intf.expect_split(id_value, expected_splits)
 
-                # Send read request
-                await self.axi4_intf.send_read(case3_addr, case3_length, id_value=id_value)
+                # Send write request
+                await self.axi4_intf.send_write(case3_addr, case3_data, case3_length, id_value=id_value)
 
                 # Longer delay after case 3 to ensure completion
                 await self.wait_clocks('aclk', 50)
@@ -371,7 +385,7 @@ class Axi4MasterRdTests(TBBase):
 
         # Verify split information
         timeout_ns = 100000
-        await self.user_intf.wait_for_splits(3, timeout_ns)  # We sent 3 transactions
+        await self.user_intf.wait_for_splits(3, timeout_ns)  # We sent 3 transactions per config
 
         # Add errors from interfaces
         total_errors += self.user_intf.total_errors + self.axi4_intf.total_errors
@@ -383,7 +397,6 @@ class Axi4MasterRdTests(TBBase):
         return total_errors == 0
 
     async def test_03_response_error_test(self):
-        # sourcery skip: merge-list-append, merge-list-appends-into-extend, merge-list-extend, remove-redundant-fstring, unwrap-iterable-construction
         """
         Test 03: Response Error Test, test error responses.
 
@@ -401,8 +414,9 @@ class Axi4MasterRdTests(TBBase):
         # Set fast timing for clean test
         self.user_intf.set_split_readiness('fast_ready')
         self.user_intf.set_error_readiness('fast_ready')
-        self.axi4_intf.set_s_axi_ar_timing('fast')
-        self.axi4_intf.set_m_axi_r_timing('fast')
+        self.axi4_intf.set_s_axi_aw_timing('fast')
+        self.axi4_intf.set_s_axi_w_timing('fast')
+        self.axi4_intf.set_m_axi_b_timing('fast')
 
         # Enable response error injection
         self.axi4_intf.configure_error_injection('resp', True, 1.0)  # Always inject errors
@@ -432,13 +446,16 @@ class Axi4MasterRdTests(TBBase):
 
             # Register expected error (SLVERR or DECERR)
             id_value = total_transactions
-            self.user_intf.expect_error(id_value, ErrorType.R_RESP_ERROR)
+            self.user_intf.expect_error(id_value, ErrorType.B_RESP_ERROR)
 
             # Register expected split
             self.user_intf.expect_split(id_value, expected_splits)
 
-            # Send read request
-            await self.axi4_intf.send_read(addr, length, id_value=id_value)
+            # Generate test data
+            test_data = [(addr + 0xA0000000 + (0x1000 * beat)) & 0xFFFFFFFF for beat in range(length + 1)]
+
+            # Send write request
+            await self.axi4_intf.send_write(addr, test_data, length, id_value=id_value)
 
             # Brief delay between transactions
             await self.wait_clocks('aclk', 100)
@@ -452,7 +469,7 @@ class Axi4MasterRdTests(TBBase):
         await self.user_intf.wait_for_errors(total_transactions, 100000)
 
         # Verify right number of errors were detected
-        error_count = self.user_intf.get_error_count(ErrorType.R_RESP_ERROR)
+        error_count = self.user_intf.get_error_count(ErrorType.B_RESP_ERROR)
         if error_count != total_transactions:
             self.log.error(f"Error count mismatch: expected={total_transactions}, actual={error_count}")
             total_errors += 1
@@ -466,132 +483,50 @@ class Axi4MasterRdTests(TBBase):
         self.log.info(f"Test 03 Response Error Test completed with {total_errors} errors")
         return total_errors == 0
 
-    async def test_04_r_timeout_test(self):
+    async def test_04_aw_timeout_test(self):
         """
-        Test 04: R Timeout Test, test R channel timeout detection.
+        Test 04: AW Timeout Test, test AW channel timeout detection.
 
-        Issues a read with 32 beats on the m_axi_ar channel, accepts it immediately,
-        but delays responses on the m_axi_r channel to trigger timeout.
+        Issues a write on the s_axi_aw channel, but delays acceptance on the m_axi_aw channel to trigger timeout.
 
         Returns:
             True if test passes, False otherwise
         """
-        self.log.info("Starting Test 04: R Timeout Test")
+        self.log.info("Starting Test 04: AW Timeout Test")
 
         # Reset the DUT and interfaces
         await self.reset_dut()
 
-        # Set fast timing for AR channel, but slow for R channel
+        # Set fast timing for W channel and B channel, but slow for AW channel
         self.user_intf.set_split_readiness('fast_ready')
         self.user_intf.set_error_readiness('fast_ready')
-        self.axi4_intf.set_s_axi_ar_timing('fast')
+        self.axi4_intf.set_s_axi_w_timing('fast')
+        self.axi4_intf.set_m_axi_b_timing('fast')
 
         # Generate timeout values to test around the configured timeout
-        timeout_values = generate_timeout_test_values(self.timeout_r, 6)  # 6 test points
+        timeout_values = generate_timeout_test_values(self.timeout_aw, 6)  # 6 test points
 
         total_errors = 0
         total_transactions = 0
         expected_timeouts = 0
 
         # Run tests with different timeout delays
-        for r_timeout in timeout_values:
+        for aw_timeout in timeout_values:
             total_transactions += 1
 
             # Create custom randomizer for this specific timeout
-            if r_timeout >= self.timeout_r:
+            if aw_timeout >= self.timeout_aw:
                 # Should timeout
                 expected_timeouts += 1
-                self.user_intf.expect_error(total_transactions, ErrorType.R_TIMEOUT)
+                self.user_intf.expect_error(total_transactions, ErrorType.AW_TIMEOUT)
 
-                # Set timing to trigger timeout
-                self.axi4_intf.set_m_axi_r_timing('timeout')
-                self.log.info(f"Testing R timeout: {r_timeout} clocks (should timeout)")
+                # Configure for AR timeout
+                self.axi4_intf.configure_error_injection('aw_timeout', True, 1.0)
+                self.log.info(f"Testing AW timeout: {aw_timeout} clocks (should timeout)")
             else:
                 # Should not timeout
-                self.axi4_intf.set_m_axi_r_timing('slow')
-                self.log.info(f"Testing R timeout: {r_timeout} clocks (should not timeout)")
-
-            # Large alignment mask to avoid splits
-            self.axi4_intf.set_dut_alignment_mask(1 << 20)
-
-            # Send 32-beat read transaction
-            addr = 64 * total_transactions
-            length = 31  # 32 beats
-            size = 2     # 4 bytes per beat
-
-            # Send read request
-            await self.axi4_intf.send_read(addr, length, id_value=total_transactions)
-
-            # Adequate delay for timeout to trigger or not
-            await self.wait_clocks('aclk', r_timeout * 2)
-
-        # Wait for all transactions to complete or timeout
-        self.log.info("Waiting for all transactions to complete or timeout...")
-        await self.wait_clocks('aclk', total_transactions * self.timeout_r * 3)
-
-        # Verify R timeout errors were reported
-        self.log.info("Waiting for error reports...")
-        await self.user_intf.wait_for_errors(expected_timeouts, 100000)
-
-        # Verify right number of R timeouts were detected
-        r_timeout_count = self.user_intf.get_error_count(ErrorType.R_TIMEOUT)
-        if r_timeout_count != expected_timeouts:
-            self.log.error(f"R timeout count mismatch: expected={expected_timeouts}, actual={r_timeout_count}")
-            total_errors += 1
-
-        # Add errors from interfaces
-        total_errors += self.user_intf.total_errors + self.axi4_intf.total_errors
-
-        # Store test results
-        self.test_results['test_04_r_timeout_test'] = (total_errors == 0)
-
-        self.log.info(f"Test 04 R Timeout Test completed with {total_errors} errors")
-        return total_errors == 0
-
-    async def test_05_ar_timeout_test(self):
-        """
-        Test 05: AR Timeout Test, test AR channel timeout detection.
-
-        Issues read requests but causes the AR channel to timeout
-        by not accepting the requests.
-
-        Returns:
-            True if test passes, False otherwise
-        """
-        self.log.info("Starting Test 05: AR Timeout Test")
-
-        # Reset the DUT and interfaces
-        await self.reset_dut()
-
-        # Set fast timing for R channel responses
-        self.user_intf.set_split_readiness('fast_ready')
-        self.user_intf.set_error_readiness('fast_ready')
-        self.axi4_intf.set_m_axi_r_timing('fast')
-
-        # Generate timeout values to test around the configured timeout
-        timeout_values = generate_timeout_test_values(self.timeout_ar, 6)  # 6 test points
-
-        total_errors = 0
-        total_transactions = 0
-        expected_timeouts = 0
-
-        # Run tests with different timeout delays
-        for ar_timeout in timeout_values:
-            total_transactions += 1
-
-            # Configure for this specific timeout
-            if ar_timeout >= self.timeout_ar:
-                # Should timeout
-                expected_timeouts += 1
-                self.user_intf.expect_error(total_transactions, ErrorType.AR_TIMEOUT)
-
-                # Configure error injection for AR timeout
-                self.axi4_intf.configure_error_injection('ar_timeout', True, 1.0)  # 100% chance
-                self.log.info(f"Testing AR timeout: {ar_timeout} clocks (should timeout)")
-            else:
-                # Should not timeout
-                self.axi4_intf.configure_error_injection('ar_timeout', False)
-                self.log.info(f"Testing AR timeout: {ar_timeout} clocks (should not timeout)")
+                self.axi4_intf.configure_error_injection('aw_timeout', False)
+                self.log.info(f"Testing AW timeout: {aw_timeout} clocks (should not timeout)")
 
             # Start error injection
             await self.axi4_intf.start_error_injection()
@@ -599,54 +534,224 @@ class Axi4MasterRdTests(TBBase):
             # Large alignment mask to avoid splits
             self.axi4_intf.set_dut_alignment_mask(1 << 20)
 
-            # Send single-beat read transaction
+            # Send single-beat write transaction
             addr = 64 * total_transactions
+            data = [0xAAAA0000 + addr]
             length = 0  # 1 beat
-            size = 2    # 4 bytes per beat
 
-            # Send read request
-            await self.axi4_intf.send_read(addr, length, id_value=total_transactions)
+            # Send write request
+            await self.axi4_intf.send_write(addr, data, length, id_value=total_transactions)
 
             # Adequate delay for timeout to trigger or not
-            await self.wait_clocks('aclk', ar_timeout * 2)
+            await self.wait_clocks('aclk', aw_timeout * 2)
 
             # Disable error injection before next test
-            self.axi4_intf.configure_error_injection('ar_timeout', False)
+            self.axi4_intf.configure_error_injection('aw_timeout', False)
 
         # Wait for all transactions to complete or timeout
         self.log.info("Waiting for all transactions to complete or timeout...")
-        await self.wait_clocks('aclk', total_transactions * self.timeout_ar * 3)
+        await self.wait_clocks('aclk', total_transactions * self.timeout_aw * 3)
 
-        # Verify AR timeout errors were reported
+        # Verify AW timeout errors were reported
         self.log.info(f"Waiting for error reports...")
         await self.user_intf.wait_for_errors(expected_timeouts, 100000)
 
-        # Verify right number of AR timeouts were detected
-        ar_timeout_count = self.user_intf.get_error_count(ErrorType.AR_TIMEOUT)
-        if ar_timeout_count != expected_timeouts:
-            self.log.error(f"AR timeout count mismatch: expected={expected_timeouts}, actual={ar_timeout_count}")
+        # Verify right number of AW timeouts were detected
+        aw_timeout_count = self.user_intf.get_error_count(ErrorType.AW_TIMEOUT)
+        if aw_timeout_count != expected_timeouts:
+            self.log.error(f"AW timeout count mismatch: expected={expected_timeouts}, actual={aw_timeout_count}")
             total_errors += 1
 
         # Add errors from interfaces
         total_errors += self.user_intf.total_errors + self.axi4_intf.total_errors
 
         # Store test results
-        self.test_results['test_05_ar_timeout_test'] = (total_errors == 0)
+        self.test_results['test_04_aw_timeout_test'] = (total_errors == 0)
 
-        self.log.info(f"Test 05 AR Timeout Test completed with {total_errors} errors")
+        self.log.info(f"Test 04 AW Timeout Test completed with {total_errors} errors")
         return total_errors == 0
 
-    async def test_06_collision_cases(self):
+    async def test_05_w_timeout_test(self):
         """
-        Test 06: Collision cases, test error collision reporting.
+        Test 05: W Timeout Test, test W channel timeout detection.
 
-        Try to collide Response Error/RTO/ARTO to test that
+        Issues a write with AW accepted but W channel timeout.
+
+        Returns:
+            True if test passes, False otherwise
+        """
+        self.log.info("Starting Test 05: W Timeout Test")
+
+        # Reset the DUT and interfaces
+        await self.reset_dut()
+
+        # Set fast timing for AW channel and B channel, but slow for W channel
+        self.user_intf.set_split_readiness('fast_ready')
+        self.user_intf.set_error_readiness('fast_ready')
+        self.axi4_intf.set_s_axi_aw_timing('fast')
+        self.axi4_intf.set_m_axi_b_timing('fast')
+
+        # Generate timeout values to test around the configured timeout
+        timeout_values = generate_timeout_test_values(self.timeout_w, 6)  # 6 test points
+
+        total_errors = 0
+        total_transactions = 0
+        expected_timeouts = 0
+
+        # Run tests with different timeout delays
+        for w_timeout in timeout_values:
+            total_transactions += 1
+
+            # Configure for this specific timeout
+            if w_timeout >= self.timeout_w:
+                # Should timeout
+                expected_timeouts += 1
+                self.user_intf.expect_error(total_transactions, ErrorType.W_TIMEOUT)
+
+                # Configure for W timeout
+                self.axi4_intf.configure_error_injection('w_timeout', True, 1.0)
+                self.log.info(f"Testing W timeout: {w_timeout} clocks (should timeout)")
+            else:
+                # Should not timeout
+                self.axi4_intf.configure_error_injection('w_timeout', False)
+                self.log.info(f"Testing W timeout: {w_timeout} clocks (should not timeout)")
+
+            # Start error injection
+            await self.axi4_intf.start_error_injection()
+
+            # Large alignment mask to avoid splits
+            self.axi4_intf.set_dut_alignment_mask(1 << 20)
+
+            # Send write transaction with multiple beats to ensure W channel timeouts
+            addr = 64 * total_transactions
+            data = [0xAAAA0000 + addr + (0x1000 * i) for i in range(4)]
+            length = 3  # 4 beats
+
+            # Send write request
+            await self.axi4_intf.send_write(addr, data, length, id_value=total_transactions)
+
+            # Adequate delay for timeout to trigger or not
+            await self.wait_clocks('aclk', w_timeout * 2)
+
+            # Disable error injection before next test
+            self.axi4_intf.configure_error_injection('w_timeout', False)
+
+        # Wait for all transactions to complete or timeout
+        self.log.info("Waiting for all transactions to complete or timeout...")
+        await self.wait_clocks('aclk', total_transactions * self.timeout_w * 3)
+
+        # Verify W timeout errors were reported
+        self.log.info(f"Waiting for error reports...")
+        await self.user_intf.wait_for_errors(expected_timeouts, 100000)
+
+        # Verify right number of W timeouts were detected
+        w_timeout_count = self.user_intf.get_error_count(ErrorType.W_TIMEOUT)
+        if w_timeout_count != expected_timeouts:
+            self.log.error(f"W timeout count mismatch: expected={expected_timeouts}, actual={w_timeout_count}")
+            total_errors += 1
+
+        # Add errors from interfaces
+        total_errors += self.user_intf.total_errors + self.axi4_intf.total_errors
+
+        # Store test results
+        self.test_results['test_05_w_timeout_test'] = (total_errors == 0)
+
+        self.log.info(f"Test 05 W Timeout Test completed with {total_errors} errors")
+        return total_errors == 0
+
+    async def test_06_b_timeout_test(self):
+        """
+        Test 06: B Timeout Test, test B channel timeout detection.
+
+        Issues a write with AW and W channels accepted but B channel timeout.
+
+        Returns:
+            True if test passes, False otherwise
+        """
+        self.log.info("Starting Test 06: B Timeout Test")
+
+        # Reset the DUT and interfaces
+        await self.reset_dut()
+
+        # Set fast timing for AW and W channels, but slow for B channel
+        self.user_intf.set_split_readiness('fast_ready')
+        self.user_intf.set_error_readiness('fast_ready')
+        self.axi4_intf.set_s_axi_aw_timing('fast')
+        self.axi4_intf.set_s_axi_w_timing('fast')
+
+        # Generate timeout values to test around the configured timeout
+        timeout_values = generate_timeout_test_values(self.timeout_b, 6)  # 6 test points
+
+        total_errors = 0
+        total_transactions = 0
+        expected_timeouts = 0
+
+        # Run tests with different timeout delays
+        for b_timeout in timeout_values:
+            total_transactions += 1
+
+            # Configure for this specific timeout
+            if b_timeout >= self.timeout_b:
+                # Should timeout
+                expected_timeouts += 1
+                self.user_intf.expect_error(total_transactions, ErrorType.B_TIMEOUT)
+
+                # Set timing to trigger timeout
+                self.axi4_intf.set_m_axi_b_timing('timeout')
+                self.log.info(f"Testing B timeout: {b_timeout} clocks (should timeout)")
+            else:
+                # Should not timeout
+                self.axi4_intf.set_m_axi_b_timing('slow')
+                self.log.info(f"Testing B timeout: {b_timeout} clocks (should not timeout)")
+
+            # Large alignment mask to avoid splits
+            self.axi4_intf.set_dut_alignment_mask(1 << 20)
+
+            # Send single-beat write transaction
+            addr = 64 * total_transactions
+            data = [0xAAAA0000 + addr]
+            length = 0  # 1 beat
+
+            # Send write request
+            await self.axi4_intf.send_write(addr, data, length, id_value=total_transactions)
+
+            # Adequate delay for timeout to trigger or not
+            await self.wait_clocks('aclk', b_timeout * 2)
+
+        # Wait for all transactions to complete or timeout
+        self.log.info("Waiting for all transactions to complete or timeout...")
+        await self.wait_clocks('aclk', total_transactions * self.timeout_b * 3)
+
+        # Verify B timeout errors were reported
+        self.log.info(f"Waiting for error reports...")
+        await self.user_intf.wait_for_errors(expected_timeouts, 100000)
+
+        # Verify right number of B timeouts were detected
+        b_timeout_count = self.user_intf.get_error_count(ErrorType.B_TIMEOUT)
+        if b_timeout_count != expected_timeouts:
+            self.log.error(f"B timeout count mismatch: expected={expected_timeouts}, actual={b_timeout_count}")
+            total_errors += 1
+
+        # Add errors from interfaces
+        total_errors += self.user_intf.total_errors + self.axi4_intf.total_errors
+
+        # Store test results
+        self.test_results['test_06_b_timeout_test'] = (total_errors == 0)
+
+        self.log.info(f"Test 06 B Timeout Test completed with {total_errors} errors")
+        return total_errors == 0
+
+    async def test_07_collision_cases(self):
+        """
+        Test 07: Collision cases, test error collision reporting.
+
+        Try to collide Response Error/WT/AWT/BTO to test that
         even if 2-3 of them happen at once, they all get reported.
 
         Returns:
             True if test passes, False otherwise
         """
-        self.log.info("Starting Test 06: Collision Cases Test")
+        self.log.info("Starting Test 07: Collision Cases Test")
 
         # Reset the DUT and interfaces
         await self.reset_dut()
@@ -667,9 +772,10 @@ class Axi4MasterRdTests(TBBase):
             self.log.info(f"Testing error collision: {[ErrorType(et).name for et in error_types]}")
 
             # Configure error injection for this case
-            self.axi4_intf.configure_error_injection('resp', ErrorType.R_RESP_ERROR in error_types, 1.0)
-            self.axi4_intf.configure_error_injection('ar_timeout', ErrorType.AR_TIMEOUT in error_types, 1.0)
-            self.axi4_intf.configure_error_injection('r_timeout', ErrorType.R_TIMEOUT in error_types, 1.0)
+            self.axi4_intf.configure_error_injection('resp', ErrorType.B_RESP_ERROR in error_types, 1.0)
+            self.axi4_intf.configure_error_injection('aw_timeout', ErrorType.AW_TIMEOUT in error_types, 1.0)
+            self.axi4_intf.configure_error_injection('w_timeout', ErrorType.W_TIMEOUT in error_types, 1.0)
+            self.axi4_intf.configure_error_injection('b_timeout', ErrorType.B_TIMEOUT in error_types, 1.0)
 
             # Start error injection
             await self.axi4_intf.start_error_injection()
@@ -678,13 +784,13 @@ class Axi4MasterRdTests(TBBase):
             for error_type in error_types:
                 self.user_intf.expect_error(total_cases, error_type)
 
-            # Send read transaction
+            # Send write transaction
             addr = 64 * total_cases
-            length = 1  # 2 beats
-            size = 2    # 4 bytes per beat
+            data = [0xAAAA0000 + addr]
+            length = 0  # 1 beat
 
-            # Send read request
-            await self.axi4_intf.send_read(addr, length, id_value=total_cases)
+            # Send write request
+            await self.axi4_intf.send_write(addr, data, length, id_value=total_cases)
 
             # Wait for errors to be reported
             self.log.info("Waiting for collision errors to be reported...")
@@ -698,8 +804,9 @@ class Axi4MasterRdTests(TBBase):
 
             # Disable error injection before next test
             self.axi4_intf.configure_error_injection('resp', False)
-            self.axi4_intf.configure_error_injection('ar_timeout', False)
-            self.axi4_intf.configure_error_injection('r_timeout', False)
+            self.axi4_intf.configure_error_injection('aw_timeout', False)
+            self.axi4_intf.configure_error_injection('w_timeout', False)
+            self.axi4_intf.configure_error_injection('b_timeout', False)
 
             # Delay between cases
             await self.wait_clocks('aclk', 1000)
@@ -708,9 +815,9 @@ class Axi4MasterRdTests(TBBase):
         total_errors += self.user_intf.total_errors + self.axi4_intf.total_errors
 
         # Store test results
-        self.test_results['test_06_collision_cases'] = (total_errors == 0)
+        self.test_results['test_07_collision_cases'] = (total_errors == 0)
 
-        self.log.info(f"Test 06 Collision Cases completed with {total_errors} errors")
+        self.log.info(f"Test 07 Collision Cases completed with {total_errors} errors")
         return total_errors == 0
 
     def get_test_results(self):

@@ -89,7 +89,7 @@ module axi_master_rd
     // Output split information with FIFO interface
     output logic [AXI_ADDR_WIDTH-1:0]  s_split_addr,
     output logic [AXI_ID_WIDTH-1:0]    s_split_id,
-    output logic [7:0]                 s_split_num_splits,
+    output logic [7:0]                 s_split_cnt,
     output logic                       s_split_valid,
     input  logic                       s_split_ready,
 
@@ -196,7 +196,7 @@ module axi_master_rd
         // Split information with FIFO interface
         .s_split_addr         (s_split_addr),
         .s_split_id           (s_split_id),
-        .s_split_num_splits   (s_split_num_splits),
+        .s_split_cnt   (s_split_cnt),
         .s_split_valid        (s_split_valid),
         .s_split_ready        (s_split_ready)
     );
@@ -238,7 +238,7 @@ module axi_master_rd
     gaxi_skid_buffer #(
         .DEPTH(SKID_DEPTH_AR),
         .DATA_WIDTH(ARSize)
-    ) i_ar_skid (
+    ) i_ar_channel (
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
         .i_wr_valid               (int_m_axi_arvalid),

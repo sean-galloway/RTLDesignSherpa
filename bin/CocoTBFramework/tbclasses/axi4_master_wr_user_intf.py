@@ -1,8 +1,8 @@
 """
-AXI4 Master Read User Interface
+AXI4 Master Write User Interface
 
 This module provides a testbench interface for the user-facing interfaces
-of the AXI4 Master Read module, specifically focusing on the split and error interfaces.
+of the AXI4 Master Write module, specifically focusing on the split and error interfaces.
 """
 
 import cocotb
@@ -15,7 +15,7 @@ from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
 from CocoTBFramework.components.flex_randomizer import FlexRandomizer
 
 # Import definitions from include file
-from CocoTBFramework.tbclasses.axi4_master_rd_user_intf_incl import (
+from CocoTBFramework.tbclasses.axi4_master_wr_user_intf_incl import (
     SplitInfo, ErrorInfo, ErrorType, create_error_randomizers,
     get_split_fifo_field_config, get_error_fifo_field_config,
     FIFO_READY_CONSTRAINTS_FIXED,
@@ -24,16 +24,16 @@ from CocoTBFramework.tbclasses.axi4_master_rd_user_intf_incl import (
 )
 
 
-class Axi4MasterRdUserIntf(TBBase):
+class Axi4MasterWrUserIntf(TBBase):
     """
-    Interface for the user-facing components of the AXI4 Master Read module.
+    Interface for the user-facing components of the AXI4 Master Write module.
     This class handles the split and error interfaces which provide additional
     functionality beyond the standard AXI4 interfaces.
     """
 
     def __init__(self, dut):
         """
-        Initialize the AXI4 Master Read User Interface.
+        Initialize the AXI4 Master Write User Interface.
 
         Args:
             dut: Device under test
@@ -45,8 +45,9 @@ class Axi4MasterRdUserIntf(TBBase):
         self.addr_width = int(getattr(dut, 'AXI_ADDR_WIDTH', 32))
         self.data_width = int(getattr(dut, 'AXI_DATA_WIDTH', 32))
         self.user_width = int(getattr(dut, 'AXI_USER_WIDTH', 1))
-        self.timeout_ar = int(getattr(dut, 'TIMEOUT_AR', 1000))
-        self.timeout_r = int(getattr(dut, 'TIMEOUT_R', 1000))
+        self.timeout_aw = int(getattr(dut, 'TIMEOUT_AW', 1000))
+        self.timeout_w = int(getattr(dut, 'TIMEOUT_W', 1000))
+        self.timeout_b = int(getattr(dut, 'TIMEOUT_B', 1000))
 
         # Create field configurations for the user interfaces
         self.split_field_config = get_split_fifo_field_config(self.addr_width, self.id_width)
@@ -344,3 +345,31 @@ class Axi4MasterRdUserIntf(TBBase):
                 all_detected = False
 
         return all_detected
+
+    def verify_split_count(self, id_value, expected_count):
+        """
+        Verify that a transaction with the given ID was split the expected number of times.
+
+        Args:
+            id_value: Transaction ID
+            expected_count: Expected number of splits
+
+        Returns:
+            True if the split count matches, False otherwise
+        """
+        # Find all split notifications for this ID
+        splits_for_id = [s for s in self.split_queue if s.id == id_value]
+
+        if not splits_for_id:
+            self.log.error(f"No split notification found for ID=0x{id_value:X}")
+            return False
+
+        # Use the most recent split notification
+        most_recent = splits_for_id[-1]
+        actual_count = most_recent.cnt
+
+        if actual_count != expected_count:
+            self.log.error(f"Split count mismatch for ID=0x{id_value:X}: expected={expected_count}, actual={actual_count}")
+            return False
+
+        return True

@@ -55,7 +55,7 @@ module axi_master_rd_errmon
     localparam int             TEDW = AW + IW + ETW;  // Total Error Data Width
     localparam logic [ETW-1:0] ErrorARTimeout = 4'b0001;
     localparam logic [ETW-1:0] ErrorRTimeout  = 4'b0010;
-    localparam logic [ETW-1:0] ErrorRResp     = 4'b0100;
+    localparam logic [ETW-1:0] ErrorRResp     = 4'b1000;
 
     // -------------------------------------------------------------------------
     // Direct timeout monitoring
@@ -222,31 +222,31 @@ module axi_master_rd_errmon
             if (w_resp_error) begin
                 r_error_fifo_valid <= 1'b1;
                 // No address for response errors
-                r_error_fifo_wr_data <= {m_axi_rid, ErrorRResp, '0};
+                r_error_fifo_wr_data <= {ErrorRResp, m_axi_rid, '0};
             end
 
             // AR timeout error
             if (w_arto_error) begin
                 r_error_fifo_valid <= 1'b1;
                 r_error_fifo_wr_data <= ar_timeout ?
-                    {m_axi_araddr, m_axi_arid, ErrorARTimeout} : r_error_flag_arto_data;
+                    {ErrorARTimeout, m_axi_arid, m_axi_araddr} : r_error_flag_arto_data;
                 r_error_flag_arto <= 'b0;
                 r_error_flag_arto_data <= 'b0;
             end else if (ar_timeout) begin
                 r_error_flag_arto <= 'b1;
-                r_error_flag_arto_data <= {m_axi_arid, ErrorARTimeout, m_axi_araddr};
+                r_error_flag_arto_data <= {ErrorARTimeout, m_axi_arid, m_axi_araddr};
             end
 
             // R timeout error
             if (w_rto_error) begin
                 r_error_fifo_valid <= 1'b1;
                 // No address for R timeout
-                r_error_fifo_wr_data <= {m_axi_rid, ErrorRTimeout, '0};
+                r_error_fifo_wr_data <= {ErrorRTimeout, m_axi_rid, '0};
                 r_error_flag_rto <= 'b0;
                 r_error_flag_rto_data <= 'b0;
             end else if (r_timeout) begin
                 r_error_flag_rto <= 'b1;
-                r_error_flag_rto_data <= {m_axi_rid, ErrorRTimeout, '0};
+                r_error_flag_rto_data <= {ErrorRTimeout, m_axi_rid, '0};
             end
 
         end

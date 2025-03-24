@@ -628,7 +628,7 @@ class Axi4MasterRdAxi4Intf(TBBase):
             id_value: Optional specific ID to use
 
         Returns:
-            Tuple of (success, num_splits)
+            Tuple of (success, cnt)
         """
         # Set alignment mask on DUT
         self.set_dut_alignment_mask(alignment_mask)
@@ -652,7 +652,7 @@ class Axi4MasterRdAxi4Intf(TBBase):
             return False, 0
 
         # Count splits by looking at AR transactions on m_axi interface
-        num_splits = len(self.m_axi_ar_transactions)
+        cnt = len(self.m_axi_ar_transactions)
 
         # Calculate expected splits
         bytes_per_beat = 1 << size
@@ -663,16 +663,16 @@ class Axi4MasterRdAxi4Intf(TBBase):
         boundaries_crossed = (end_addr // alignment_mask) - (addr // alignment_mask)
         expected_splits = 1 + boundaries_crossed
 
-        if num_splits != expected_splits:
-            self.log.error(f"Split count mismatch: expected={expected_splits}, actual={num_splits}")
+        if cnt != expected_splits:
+            self.log.error(f"Split count mismatch: expected={expected_splits}, actual={cnt}")
             self.total_errors += 1
-            return False, num_splits
+            return False, cnt
 
         # Verify data for additional check
         data_correct = self.verify_response_data(tx_id)
 
-        self.log.info(f"Split transactions verified: ID={tx_id:X}, addr=0x{addr:08X}, splits={num_splits}")
-        return data_correct, num_splits
+        self.log.info(f"Split transactions verified: ID={tx_id:X}, addr=0x{addr:08X}, splits={cnt}")
+        return data_correct, cnt
 
     def get_transaction_status(self, id_value):
         """

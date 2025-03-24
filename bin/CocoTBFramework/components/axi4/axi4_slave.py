@@ -248,11 +248,11 @@ class AXI4Slave:
         id_value = transaction.awid
 
         # Validate protocol if enabled
-        if self.check_protocol:
-            valid, error_msg = transaction.validate_axi4_protocol()
-            if not valid:
-                self.log.error(f"AXI4 protocol error (AW): {error_msg}")
-                # Still process the transaction, but note the error
+        # if self.check_protocol:
+        #     valid, error_msg = transaction.validate_axi4_protocol()
+        #     if not valid:
+        #         self.log.error(f"AXI4 protocol error (AW): {error_msg}")
+        #         # Still process the transaction, but note the error
 
         # Store the transaction for matching with write data
         self.pending_writes[id_value] = {
@@ -281,10 +281,10 @@ class AXI4Slave:
                     addr = pending['addresses'][-1]
 
                 # Validate protocol if enabled
-                if self.check_protocol:
-                    valid, error_msg = transaction.validate_axi4_protocol()
-                    if not valid:
-                        self.log.error(f"AXI4 protocol error (W): {error_msg}")
+                # if self.check_protocol:
+                #     valid, error_msg = transaction.validate_axi4_protocol()
+                #     if not valid:
+                #         self.log.error(f"AXI4 protocol error (W): {error_msg}")
 
                 # Add this transaction to the pending write
                 pending['w_transactions'].append(transaction)

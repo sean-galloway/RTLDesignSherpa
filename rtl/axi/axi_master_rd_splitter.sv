@@ -72,13 +72,13 @@ module axi_master_rd_splitter
     output logic [UW-1:0]              s_axi_ruser,
     output logic                       s_axi_rvalid,
     input  logic                       s_axi_rready,
-    input  logic                       s_split_ready,
 
     // Output split information
     output logic [AW-1:0]              s_split_addr,
     output logic [IW-1:0]              s_split_id,
-    output logic [7:0]                 s_split_num_splits,
-    output logic                       s_split_valid
+    output logic [7:0]                 s_split_cnt,
+    output logic                       s_split_valid,
+    input  logic                       s_split_ready
 );
 
     //===========================================================================
@@ -305,7 +305,7 @@ module axi_master_rd_splitter
         .i_wr_data(split_fifo_din),
         .i_rd_ready(s_split_ready),
         .o_rd_valid(s_split_valid),
-        .ow_rd_data({s_split_addr, s_split_id, s_split_num_splits}),
+        .ow_rd_data({s_split_addr, s_split_id, s_split_cnt}),
         .o_rd_data(),  // Not used
         .ow_count()    // Not used
     );
