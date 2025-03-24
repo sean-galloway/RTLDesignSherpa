@@ -134,21 +134,21 @@ def get_error_fifo_field_config(addr_width, id_width):
     }
 
 
-def generate_test_addresses(base_addr, alignment_boundary):
-    """Generate test addresses relative to an alignment boundary"""
+def generate_test_addresses(base_addr, alignment_mask):
+    """Generate test addresses relative to an alignment mask"""
     addresses = []
     # Bottom of boundary
-    addresses.append(base_addr - (base_addr % alignment_boundary))
+    addresses.append(base_addr - (base_addr % alignment_mask))
     # Middle of boundary
-    addresses.append(base_addr - (base_addr % alignment_boundary) + (alignment_boundary // 2))
+    addresses.append(base_addr - (base_addr % alignment_mask) + (alignment_mask // 2))
     # Just before top of boundary
-    addresses.append(base_addr - (base_addr % alignment_boundary) + alignment_boundary - 4)
+    addresses.append(base_addr - (base_addr % alignment_mask) + alignment_mask - 4)
     # Top of boundary (next boundary bottom)
-    addresses.append(base_addr - (base_addr % alignment_boundary) + alignment_boundary)
+    addresses.append(base_addr - (base_addr % alignment_mask) + alignment_mask)
     return addresses
 
 
-def generate_split_test_cases(alignment_boundary, addr_width, burst_sizes=(0, 1, 2), burst_lengths=(0, 7, 15, 31, 63, 127, 255)):
+def generate_split_test_cases(alignment_mask, addr_width, burst_sizes=(0, 1, 2), burst_lengths=(0, 7, 15, 31, 63, 127, 255)):
     """Generate test cases for split testing"""
     test_cases = []
 
@@ -156,7 +156,7 @@ def generate_split_test_cases(alignment_boundary, addr_width, burst_sizes=(0, 1,
     base_addr = (1 << (addr_width - 1))
 
     # Generate addresses at different positions relative to boundaries
-    test_addresses = generate_test_addresses(base_addr, alignment_boundary)
+    test_addresses = generate_test_addresses(base_addr, alignment_mask)
 
     # Create test cases combining addresses, sizes, and lengths
     for addr in test_addresses:
@@ -167,8 +167,8 @@ def generate_split_test_cases(alignment_boundary, addr_width, burst_sizes=(0, 1,
                 total_bytes = bytes_per_beat * (length + 1)
                 end_addr = addr + total_bytes - 1
 
-                will_split = ((addr // alignment_boundary) != (end_addr // alignment_boundary))
-                expected_splits = 1 + ((end_addr // alignment_boundary) - (addr // alignment_boundary))
+                will_split = ((addr // alignment_mask) != (end_addr // alignment_mask))
+                expected_splits = 1 + ((end_addr // alignment_mask) - (addr // alignment_mask))
 
                 test_cases.append({
                     'addr': addr,

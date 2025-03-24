@@ -140,13 +140,6 @@ class AXI4MasterRDTB(TBBase):
             # # Wait longer between tests
             # await self.wait_clocks('aclk', 50)
 
-            # # Test 7: Performance Metrics
-            # self.log.info('# Test 7: Performance Metrics Test')
-            # result = await self.tests.test_07_performance_metrics()
-            # test_results.append(("Performance metrics", result))
-
-            await self.wait_clocks('aclk', 50)
-
             # Print test summary
             self.log.info("=== Test Summary ===")
             all_passed = True

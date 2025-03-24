@@ -454,19 +454,19 @@ class Axi4MasterRdAxi4Intf(TBBase):
         # Return the completed transaction
         return self.completed_reads[id_value]
 
-    def set_dut_alignment_boundary(self, value):
+    def set_dut_alignment_mask(self, value):
         """
-        Set the alignment boundary on the DUT.
+        Set the alignment mask on the DUT.
 
         Args:
-            value: Alignment boundary value (typically a power of 2)
+            value: Alignment mask value (typically a power of 2)
         """
         boundary = value & 4095
-        if hasattr(self.dut, 'alignment_boundary'):
-            self.dut.alignment_boundary.value = boundary
-            self.log.info(f"DUT alignment boundary set to {value}")
+        if hasattr(self.dut, 'alignment_mask'):
+            self.dut.alignment_mask.value = boundary
+            self.log.info(f"DUT alignment mask set to {value}")
         else:
-            self.log.error("DUT does not have alignment_boundary signal")
+            self.log.error("DUT does not have alignment_mask signal")
 
     def configure_error_injection(self, error_type, enable, rate=0.0):
         """
@@ -615,12 +615,12 @@ class Axi4MasterRdAxi4Intf(TBBase):
         self.log.info(f"{timeout_type.upper()} timeout behavior verified: Transaction ID={tx_id:X} not completed")
         return True
 
-    async def verify_split_transactions(self, alignment_boundary, addr, length, size=2, burst=1, id_value=None):
+    async def verify_split_transactions(self, alignment_mask, addr, length, size=2, burst=1, id_value=None):
         """
         Verify that transactions split correctly at alignment boundaries.
 
         Args:
-            alignment_boundary: Alignment boundary to set on DUT
+            alignment_mask: Alignment mask to set on DUT
             addr: Address to read from
             length: Burst length
             size: Transfer size
@@ -630,8 +630,8 @@ class Axi4MasterRdAxi4Intf(TBBase):
         Returns:
             Tuple of (success, num_splits)
         """
-        # Set alignment boundary on DUT
-        self.set_dut_alignment_boundary(alignment_boundary)
+        # Set alignment mask on DUT
+        self.set_dut_alignment_mask(alignment_mask)
 
         # Set fast timing for clean test
         self.set_s_axi_ar_timing('fast')
@@ -660,7 +660,7 @@ class Axi4MasterRdAxi4Intf(TBBase):
         end_addr = addr + total_bytes - 1
 
         # Calculate boundaries crossed
-        boundaries_crossed = (end_addr // alignment_boundary) - (addr // alignment_boundary)
+        boundaries_crossed = (end_addr // alignment_mask) - (addr // alignment_mask)
         expected_splits = 1 + boundaries_crossed
 
         if num_splits != expected_splits:

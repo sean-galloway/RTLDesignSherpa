@@ -97,11 +97,11 @@ class AXI4MasterRDTests:
 
     async def alignment_split_test(self):  # sourcery skip: lift-return-into-if
         """
-        Test Case 2: Alignment Boundary Splitting Test.
+        Test Case 2: Alignment Mask Splitting Test.
         Tests read operations that cross alignment boundaries and should be split.
         """
         time_ns = get_sim_time('ns')
-        self.log.info(f"=== Test Case 2: Alignment Boundary Splitting Test @ {time_ns}ns ===")
+        self.log.info(f"=== Test Case 2: Alignment Mask Splitting Test @ {time_ns}ns ===")
         success = True
 
         # Reset pending and completed transactions to ensure clean state
@@ -113,8 +113,8 @@ class AXI4MasterRDTests:
 
         # Test with transaction that crosses 4KB boundary
         # Calculate boundary address (e.g., 0x1000, 0x2000)
-        alignment_boundary = 12  # 4KB boundary
-        boundary = 1 << alignment_boundary  # e.g., 4096 for 4KB
+        alignment_mask = 12  # 4KB boundary
+        boundary = 1 << alignment_mask  # e.g., 4096 for 4KB
         boundary_addr = boundary  # First boundary at 0x1000 for 4KB
 
         # Create a smaller transaction that crosses the boundary
@@ -123,7 +123,7 @@ class AXI4MasterRDTests:
         # Use a smaller transaction (12 beats = 48 bytes for 32-bit)
         burst_len = 11  # 12 beats total
 
-        self.log.info("Sending transaction that crosses alignment boundary:")
+        self.log.info("Sending transaction that crosses alignment mask:")
         self.log.info(f"Start addr: 0x{start_addr:08X}, Boundary: 0x{boundary_addr:08X}")
         self.log.info(f"Burst length: {burst_len+1} beats ({(burst_len+1)*4} bytes)")
 
@@ -140,7 +140,7 @@ class AXI4MasterRDTests:
             len_value=burst_len, 
             size=2, 
             check_split=True, 
-            alignment_boundary=alignment_boundary
+            alignment_mask=alignment_mask
         )
         
         # Wait for potential split transactions to complete
@@ -181,7 +181,7 @@ class AXI4MasterRDTests:
             len_value=burst_len, 
             size=2, 
             check_split=True,
-            alignment_boundary=alignment_boundary
+            alignment_mask=alignment_mask
         )
         
         # Make sure RREADY is still asserted

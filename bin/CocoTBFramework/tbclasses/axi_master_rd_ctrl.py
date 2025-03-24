@@ -331,7 +331,7 @@ class AXI4MasterRDCtrl(TBBase):
                 self.dut.s_error_ready.value = 1
 
     async def send_read_transaction(self, id_value, addr, len_value, size=2, burst=1, check_split=False, 
-                                    alignment_boundary=12):
+                                    alignment_mask=12):
         """
         Send a read transaction and wait for response.
 
@@ -342,7 +342,7 @@ class AXI4MasterRDCtrl(TBBase):
             size: Transfer size (0=8bit, 1=16bit, 2=32bit, etc.)
             burst: Burst type (0=FIXED, 1=INCR, 2=WRAP)
             check_split: Check if transaction should be split based on alignment
-            alignment_boundary: Bit position of the alignment boundary
+            alignment_mask: Bit position of the alignment mask
 
         Returns:
             Dict with transaction information
@@ -353,9 +353,9 @@ class AXI4MasterRDCtrl(TBBase):
 
         # Check if this transaction should be split
         if check_split:
-            # Calculate alignment boundary
-            boundary_mask = (1 << alignment_boundary) - 1
-            boundary_addr = (addr & ~boundary_mask) + (1 << alignment_boundary)
+            # Calculate alignment mask
+            boundary_mask = (1 << alignment_mask) - 1
+            boundary_addr = (addr & ~boundary_mask) + (1 << alignment_mask)
 
             # Calculate end address
             bytes_per_beat = 1 << size
@@ -629,13 +629,13 @@ class AXI4MasterRDCtrl(TBBase):
         else:
             self.log.info("  Error FIFO is empty or not valid")
 
-    async def reset_dut(self, alignment_boundary=12):
+    async def reset_dut(self, alignment_mask=12):
         """Reset the DUT and all connected components"""
         self.log.debug('Starting reset_dut')
 
         # Reset DUT control signals
         self.dut.aresetn.value = 0
-        self.dut.alignment_boundary.value = alignment_boundary
+        self.dut.alignment_mask.value = alignment_mask
 
         # Initialize all AXI slave interface signals
         self.dut.s_axi_arid.value = 0

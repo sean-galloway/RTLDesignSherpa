@@ -20,8 +20,8 @@ module axi_master_rd_splitter
     input  logic aclk,
     input  logic aresetn,
 
-    // Alignment boundary signal (12-bit)
-    input  logic [11:0] alignment_boundary,
+    // Alignment mask signal (12-bit)
+    input  logic [11:0] alignment_mask,
 
     // Master AXI Interface
     // Read address channel (AR)
@@ -117,9 +117,9 @@ module axi_master_rd_splitter
     assign w_current_addr = (r_split_state != IDLE) ? r_next_addr : s_axi_araddr;
     assign w_current_len = (r_split_state != IDLE) ? r_remaining_len : s_axi_arlen;
 
-    // Create boundary mask based on alignment_boundary
+    // Create boundary mask based on alignment_mask
     logic [AW-1:0] w_boundary_mask;
-    assign w_boundary_mask = alignment_boundary;
+    assign w_boundary_mask = alignment_mask;
 
     // Calculate end address for current transaction
     logic [AW-1:0] w_end_addr;

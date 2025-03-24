@@ -2,9 +2,6 @@
 
 module axi_master_rd
 #(
-    // Alignment parameters
-    parameter int ALIGNMENT_WIDTH = 3,  // 0:8b, 1:16b, 2:32b, 3:64b, 4:128b, 5:256b, 6:512b
-
     // AXI parameters
     parameter int AXI_ID_WIDTH      = 8,
     parameter int AXI_ADDR_WIDTH    = 32,
@@ -36,8 +33,8 @@ module axi_master_rd
     input  logic aclk,
     input  logic aresetn,
 
-    // Alignment boundary signal (12-bit)
-    input  logic [11:0] alignment_boundary,
+    // Alignment mask signal (12-bit)
+    input  logic [11:0] alignment_mask,
 
     // Slave AXI Interface (Input Side)
     // Read address channel (AR)
@@ -148,7 +145,7 @@ module axi_master_rd
     ) i_axi_master_rd_splitter (
         .aclk                 (aclk),
         .aresetn              (aresetn),
-        .alignment_boundary   (alignment_boundary),
+        .alignment_mask   (alignment_mask),
 
         // Slave interface (input)
         .s_axi_arid           (s_axi_arid),

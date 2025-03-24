@@ -98,7 +98,7 @@ class Axi4MasterRdTests(TBBase):
         """
         Test 01: Basic read transactions without splitting.
 
-        Tests a representative number of reads with alignment boundary
+        Tests a representative number of reads with alignment mask
         set at different places. None of these should split.
         Verify the s_split interface always shows 1.
 
@@ -110,8 +110,8 @@ class Axi4MasterRdTests(TBBase):
         # Reset the DUT and interfaces
         await self.reset_dut()
 
-        # Use a large alignment boundary to avoid splitting
-        self.axi4_intf.set_dut_alignment_boundary(self.boundary_4k)
+        # Use a large alignment mask to avoid splitting
+        self.axi4_intf.set_dut_alignment_mask(self.boundary_4k)
 
         # Generate test addresses at different positions
         test_addresses = []
@@ -258,12 +258,12 @@ class Axi4MasterRdTests(TBBase):
         # Maximum ID value (for masking)
         max_id = (1 << self.id_width) - 1  # Typically 255 for 8-bit ID
 
-        # For each alignment boundary
-        for alignment_index, alignment_boundary in enumerate(alignment_boundaries):
-            self.log.info(f"Testing alignment boundary: 0x{alignment_boundary:X}")
+        # For each alignment mask
+        for alignment_index, alignment_mask in enumerate(alignment_boundaries):
+            self.log.info(f"Testing alignment mask: 0x{alignment_mask:X}")
 
-            # Set the alignment boundary in the DUT
-            self.axi4_intf.set_dut_alignment_boundary(alignment_boundary)
+            # Set the alignment mask in the DUT
+            self.axi4_intf.set_dut_alignment_mask(alignment_mask)
 
             # For each timing configuration
             for timing_index, (split_rand, axi_rand) in enumerate(rand_keys):
@@ -277,7 +277,7 @@ class Axi4MasterRdTests(TBBase):
                 base_addr_sector = 0x10000 + (alignment_index * 0x10000) + (timing_index * 0x1000)
 
                 # Let's create a proper boundary-aligned address
-                boundary_size = alignment_boundary + 1  # e.g., 0x7F -> 0x80, 0xFF -> 0x100
+                boundary_size = alignment_mask + 1  # e.g., 0x7F -> 0x80, 0xFF -> 0x100
                 boundary_addr = ((base_addr_sector + boundary_size) // boundary_size) * boundary_size
 
                 # Case 1: End burst exactly at the boundary
@@ -426,12 +426,12 @@ class Axi4MasterRdTests(TBBase):
         total_errors = 0
         total_transactions = 0
 
-        for alignment_boundary, addr, length, size, expected_splits, description in test_cases:
+        for alignment_mask, addr, length, size, expected_splits, description in test_cases:
             total_transactions += 1
             self.log.info(f"Running response error test: {description}")
 
-            # Set alignment boundary
-            self.axi4_intf.set_dut_alignment_boundary(alignment_boundary)
+            # Set alignment mask
+            self.axi4_intf.set_dut_alignment_mask(alignment_mask)
 
             # Register expected error (SLVERR or DECERR)
             id_value = total_transactions
@@ -441,7 +441,7 @@ class Axi4MasterRdTests(TBBase):
             self.user_intf.expect_split(id_value, expected_splits)
 
             # Send read request
-            await self.axi4_intf.send_read(addr, length, size, burst=1, id_value=id_value)
+            await self.axi4_intf.send_read(addr, length, id_value=id_value)
 
             # Brief delay between transactions
             await self.wait_clocks('aclk', 100)
@@ -514,8 +514,8 @@ class Axi4MasterRdTests(TBBase):
                 self.axi4_intf.set_m_axi_r_timing('slow')
                 self.log.info(f"Testing R timeout: {r_timeout} clocks (should not timeout)")
 
-            # Large alignment boundary to avoid splits
-            self.axi4_intf.set_dut_alignment_boundary(1 << 20)
+            # Large alignment mask to avoid splits
+            self.axi4_intf.set_dut_alignment_mask(1 << 20)
 
             # Send 32-beat read transaction
             addr = 64 * total_transactions
@@ -523,7 +523,7 @@ class Axi4MasterRdTests(TBBase):
             size = 2     # 4 bytes per beat
 
             # Send read request
-            await self.axi4_intf.send_read(addr, length, size, burst=1, id_value=total_transactions)
+            await self.axi4_intf.send_read(addr, length, id_value=total_transactions)
 
             # Adequate delay for timeout to trigger or not
             await self.wait_clocks('aclk', r_timeout * 2)
@@ -599,8 +599,8 @@ class Axi4MasterRdTests(TBBase):
             # Start error injection
             await self.axi4_intf.start_error_injection()
 
-            # Large alignment boundary to avoid splits
-            self.axi4_intf.set_dut_alignment_boundary(1 << 20)
+            # Large alignment mask to avoid splits
+            self.axi4_intf.set_dut_alignment_mask(1 << 20)
 
             # Send single-beat read transaction
             addr = 64 * total_transactions
@@ -608,7 +608,7 @@ class Axi4MasterRdTests(TBBase):
             size = 2    # 4 bytes per beat
 
             # Send read request
-            await self.axi4_intf.send_read(addr, length, size, burst=1, id_value=total_transactions)
+            await self.axi4_intf.send_read(addr, length, id_value=total_transactions)
 
             # Adequate delay for timeout to trigger or not
             await self.wait_clocks('aclk', ar_timeout * 2)
@@ -687,7 +687,7 @@ class Axi4MasterRdTests(TBBase):
             size = 2    # 4 bytes per beat
 
             # Send read request
-            await self.axi4_intf.send_read(addr, length, size, burst=1, id_value=total_cases)
+            await self.axi4_intf.send_read(addr, length, id_value=total_cases)
 
             # Wait for errors to be reported
             self.log.info("Waiting for collision errors to be reported...")
@@ -714,97 +714,6 @@ class Axi4MasterRdTests(TBBase):
         self.test_results['test_06_collision_cases'] = (total_errors == 0)
 
         self.log.info(f"Test 06 Collision Cases completed with {total_errors} errors")
-        return total_errors == 0
-
-    async def test_07_performance_metrics(self):
-        """
-        Test 07: Performance Metrics Test, test performance counters.
-
-        Gross tests on the performance monitors to ensure they roughly work.
-
-        Returns:
-            True if test passes, False otherwise
-        """
-        self.log.info("Starting Test 07: Performance Metrics Test")
-
-        # Reset the DUT and interfaces
-        await self.reset_dut()
-
-        # Set fast timing for clean test
-        self.user_intf.set_split_readiness('fast_ready')
-        self.user_intf.set_error_readiness('fast_ready')
-        self.axi4_intf.set_s_axi_ar_timing('fast')
-        self.axi4_intf.set_m_axi_r_timing('fast')
-
-        # Large alignment boundary to avoid splits
-        self.axi4_intf.set_dut_alignment_boundary(1 << 20)
-
-        # Reset metrics tracking
-        self.metrics = PerformanceMetrics()
-
-        # Store initial metrics
-        initial_metrics = self.user_intf.get_current_metrics()
-
-        # Send a series of read transactions with various sizes and lengths
-        test_cases = []
-
-        # Test different transaction sizes
-        for size in range(3):  # 0, 1, 2 (byte, halfword, word)
-            bytes_per_beat = 1 << size
-            for length in [0, 1, 3, 7, 15]:  # 1, 2, 4, 8, 16 beats
-                addr = 64 * (length + 1)
-                total_bytes = bytes_per_beat * (length + 1)
-                test_cases.append((addr, length, size, 1, total_bytes))
-
-        total_errors = 0
-        total_expected_transactions = 0
-        total_expected_bytes = 0
-
-        # Run all test cases
-        id_value = 1
-        for addr, length, size, burst, expected_bytes in test_cases:
-            # Send read transaction
-            self.log.info(f"Sending read: addr=0x{addr:X}, length={length}, size={size}, expected_bytes={expected_bytes}")
-            await self.axi4_intf.send_read(addr, length, size, burst, id_value=id_value)
-            id_value += 1
-
-            # Update expected metrics
-            total_expected_transactions += 1
-            total_expected_bytes += expected_bytes
-
-            # Brief delay between transactions
-            await self.wait_clocks('aclk', 10)
-
-        # Wait for all transactions to complete
-        self.log.info("Waiting for all transactions to complete...")
-        await self.wait_clocks('aclk', 1000)
-
-        # Get current metrics
-        current_metrics = self.user_intf.get_current_metrics()
-        delta_metrics = self.user_intf.get_metrics_delta()
-
-        # Verify transaction count
-        if delta_metrics['transaction_delta'] != total_expected_transactions:
-            self.log.error(f"Transaction count mismatch: expected={total_expected_transactions}, actual={delta_metrics['transaction_delta']}")
-            total_errors += 1
-
-        # Verify byte count
-        if delta_metrics['byte_delta'] != total_expected_bytes:
-            self.log.error(f"Byte count mismatch: expected={total_expected_bytes}, actual={delta_metrics['byte_delta']}")
-            total_errors += 1
-
-        # Verify latency is non-zero
-        if delta_metrics['latency_delta'] <= 0:
-            self.log.error(f"Latency sum is not increasing: {delta_metrics['latency_delta']}")
-            total_errors += 1
-
-        # Add errors from interfaces
-        total_errors += self.user_intf.total_errors + self.axi4_intf.total_errors
-
-        # Store test results
-        self.test_results['test_07_performance_metrics'] = (total_errors == 0)
-
-        self.log.info(f"Test 07 Performance Metrics completed with {total_errors} errors")
         return total_errors == 0
 
     def get_test_results(self):
