@@ -6,14 +6,14 @@ module apb_slave_cg #(
     parameter int STRB_WIDTH      = 32 / 8,
     parameter int PPROT_WIDTH     = 3,
     parameter int DEPTH      = 2,
-    parameter int IDLE_CNTR_WIDTH = 4,  // Default width of idle counter
+    parameter int CG_IDLE_COUNT_WIDTH = 4,  // Default width of idle counter
     // Short Parameters
     parameter int DW  = DATA_WIDTH,
     parameter int AW  = ADDR_WIDTH,
     parameter int SW  = STRB_WIDTH,
     parameter int PW  = PPROT_WIDTH,
-    parameter int ICW = IDLE_CNTR_WIDTH,
-    parameter int CPW = AW + DW + SW + PW + 1, // verilog_lint: waive line-length
+    parameter int ICW = CG_IDLE_COUNT_WIDTH,
+    parameter int CPW = AW + DW + SW + PW + 1,
     parameter int RPW = DW + 1
 ) (
     // Clock and Reset
@@ -56,7 +56,7 @@ module apb_slave_cg #(
 
     // local clock gating signals
     logic  r_wakeup;
-    logic  cg_pclk;
+    logic  gated_pclk;
 
     always_ff @(posedge pclk or negedge presetn) begin
         if (!presetn)
@@ -65,16 +65,19 @@ module apb_slave_cg #(
             r_wakeup <= s_apb_PSEL || o_cmd_valid || i_rsp_valid || (r_apb_state == BUSY);
     end
 
-    clock_gate_ctrl #(
-        .IDLE_CNTR_WIDTH(ICW)
-    ) u_clock_gate_ctrl (
+    // Instantiate clock gate controller
+    amba_clock_gate_ctrl #(
+        .N(CG_IDLE_COUNT_WIDTH)
+    ) i_amba_clock_gate_ctrl (
         .clk_in              (pclk),
         .aresetn             (presetn),
         .i_cfg_cg_enable     (i_cfg_cg_enable),
         .i_cfg_cg_idle_count (i_cfg_cg_idle_count),
-        .i_wakeup            (r_wakeup),
-        .clk_out             (cg_pclk),
-        .o_gating            (o_apb_clock_gating)
+        .i_user_valid        (r_wakeup),
+        .i_axi_valid         ('b0),
+        .clk_out             (gated_pclk),
+        .o_gating            (o_apb_clock_gating),
+        .o_idle              ()
     );
 
     apb_slave #(
@@ -85,7 +88,7 @@ module apb_slave_cg #(
         .DEPTH       (DEPTH)
     ) u_apb_slave (
         // Clock / Reset
-        .pclk             (cg_pclk),
+        .pclk             (gated_pclk),
         .presetn          (presetn),
         // APB interface
         .s_apb_PSEL       (s_apb_PSEL),

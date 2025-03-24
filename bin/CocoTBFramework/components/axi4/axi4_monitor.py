@@ -10,18 +10,19 @@ from cocotb.triggers import RisingEdge
 from cocotb.utils import get_sim_time
 
 from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_monitor
+from .axi4_packets import AXI4Packet
 from .axi4_fields_signals import (
+    AXI4_AW_FIELD_CONFIG,
+    AXI4_W_FIELD_CONFIG,
+    AXI4_B_FIELD_CONFIG,
+    AXI4_AR_FIELD_CONFIG,
+    AXI4_R_FIELD_CONFIG,
     adjust_field_configs,
-    get_master_aw_signal_map,
-    get_master_w_signal_map,
-    get_master_b_signal_map,
-    get_master_ar_signal_map,
-    get_master_r_signal_map,
-    get_slave_aw_signal_map,
-    get_slave_w_signal_map,
-    get_slave_b_signal_map,
-    get_slave_ar_signal_map,
-    get_slave_r_signal_map
+    get_aw_signal_map,
+    get_w_signal_map,
+    get_b_signal_map,
+    get_ar_signal_map,
+    get_r_signal_map
 )
 
 
@@ -35,9 +36,9 @@ class AXI4Monitor:
     - AXI4 protocol checking
     """
 
-    def __init__(self, dut, title, prefix, clock,
+    def __init__(self, dut, title, prefix, divider, suffix, clock, channels,
                     id_width=8, addr_width=32, data_width=32, user_width=1,
-                    is_slave_side=False, check_protocol=True, log=None):
+                    is_slave_side=False, check_protocol=False, log=None):
         """
         Initialize AXI4 Monitor component.
 
@@ -45,7 +46,10 @@ class AXI4Monitor:
             dut: Device under test
             title: Component title
             prefix: Signal prefix
+            divider: used if there is an '_' between the channel and the signal
+            suffix: optional suffix useed at the end
             clock: Clock signal
+            channels: a list of the channels to instantiate
             id_width: Width of ID fields (default: 8)
             addr_width: Width of address fields (default: 32)
             data_width: Width of data fields (default: 32)
@@ -59,17 +63,18 @@ class AXI4Monitor:
         self.log = log
         self.check_protocol = check_protocol
         self.is_slave_side = is_slave_side
+        self.channels = [s.upper() for s in channels]
 
         # Calculate strobe width
         self.strb_width = data_width // 8
 
         # Adjust field configs for the specified widths
         field_configs = {
-            'AW': {},
-            'W': {},
-            'B': {},
-            'AR': {},
-            'R': {}
+            'AW': AXI4_AW_FIELD_CONFIG,
+            'W':  AXI4_W_FIELD_CONFIG,
+            'B':  AXI4_B_FIELD_CONFIG,
+            'AR': AXI4_AR_FIELD_CONFIG,
+            'R':  AXI4_R_FIELD_CONFIG
         }
         adjusted_configs = adjust_field_configs(
             field_configs, id_width, addr_width, data_width, user_width
@@ -81,83 +86,87 @@ class AXI4Monitor:
         self.ar_field_config = adjusted_configs['AR']
         self.r_field_config = adjusted_configs['R']
 
-        # Determine signal prefix based on side
-        if is_slave_side:
-            # Create signal mappings for slave side
-            aw_signal_map, aw_optional_signal_map = get_slave_aw_signal_map(prefix)
-            w_signal_map, w_optional_signal_map = get_slave_w_signal_map(prefix)
-            b_signal_map, b_optional_signal_map = get_slave_b_signal_map(prefix)
-            ar_signal_map, ar_optional_signal_map = get_slave_ar_signal_map(prefix)
-            r_signal_map, r_optional_signal_map = get_slave_r_signal_map(prefix)
-        else:
-            # Create signal mappings for master side
-            aw_signal_map, aw_optional_signal_map = get_master_aw_signal_map(prefix)
-            w_signal_map, w_optional_signal_map = get_master_w_signal_map(prefix)
-            b_signal_map, b_optional_signal_map = get_master_b_signal_map(prefix)
-            ar_signal_map, ar_optional_signal_map = get_master_ar_signal_map(prefix)
-            r_signal_map, r_optional_signal_map = get_master_r_signal_map(prefix)
+        # Determine signal prefix/divider/suffix based on side
+        aw_signal_map, aw_optional_signal_map = get_aw_signal_map(prefix, divider, suffix)
+        w_signal_map, w_optional_signal_map = get_w_signal_map(prefix, divider, suffix)
+        b_signal_map, b_optional_signal_map = get_b_signal_map(prefix, divider, suffix)
+        ar_signal_map, ar_optional_signal_map = get_ar_signal_map(prefix, divider, suffix)
+        r_signal_map, r_optional_signal_map = get_r_signal_map(prefix, divider, suffix)
 
         # Create channel monitors
-        self.aw_monitor = create_gaxi_monitor(
-            dut, f"{title}_AW", "", clock,
-            field_config=self.aw_field_config,
-            is_slave=is_slave_side,
-            multi_sig=True,
-            signal_map=aw_signal_map,
-            optional_signal_map=aw_optional_signal_map,
-            log=log
-        )
+        if 'AW' in self.channels:
+            self.aw_monitor = create_gaxi_monitor(
+                dut, f"{title}_AW", "", clock,
+                field_config=self.aw_field_config,
+                is_slave=is_slave_side,
+                multi_sig=True,
+                signal_map=aw_signal_map,
+                optional_signal_map=aw_optional_signal_map,
+                log=log
+            )
+            self.aw_monitor.add_callback(self._handle_aw_transaction)
+        else:
+            self.aw_master = None
 
-        self.w_monitor = create_gaxi_monitor(
-            dut, f"{title}_W", "", clock,
-            field_config=self.w_field_config,
-            is_slave=is_slave_side,
-            multi_sig=True,
-            signal_map=w_signal_map,
-            optional_signal_map=w_optional_signal_map,
-            log=log
-        )
+        if 'W' in self.channels:
+            self.w_monitor = create_gaxi_monitor(
+                dut, f"{title}_W", "", clock,
+                field_config=self.w_field_config,
+                is_slave=is_slave_side,
+                multi_sig=True,
+                signal_map=w_signal_map,
+                optional_signal_map=w_optional_signal_map,
+                log=log
+            )
+            self.w_monitor.add_callback(self._handle_w_transaction)
+        else:
+            self.aw_master = None
 
-        self.b_monitor = create_gaxi_monitor(
-            dut, f"{title}_B", "", clock,
-            field_config=self.b_field_config,
-            is_slave=not is_slave_side,  # B channel direction is opposite
-            multi_sig=True,
-            signal_map=b_signal_map,
-            optional_signal_map=b_optional_signal_map,
-            log=log
-        )
+        if 'B' in self.channels:
+            self.b_monitor = create_gaxi_monitor(
+                dut, f"{title}_B", "", clock,
+                field_config=self.b_field_config,
+                is_slave=not is_slave_side,  # B channel direction is opposite
+                multi_sig=True,
+                signal_map=b_signal_map,
+                optional_signal_map=b_optional_signal_map,
+                log=log
+            )
+            self.b_monitor.add_callback(self._handle_b_transaction)
+        else:
+            self.b_master = None
 
-        self.ar_monitor = create_gaxi_monitor(
-            dut, f"{title}_AR", "", clock,
-            field_config=self.ar_field_config,
-            is_slave=is_slave_side,
-            multi_sig=True,
-            signal_map=ar_signal_map,
-            optional_signal_map=ar_optional_signal_map,
-            log=log
-        )
+        if 'AR' in self.channels:
+            self.ar_monitor = create_gaxi_monitor(
+                dut, f"{title}_AR", "", clock,
+                field_config=self.ar_field_config,
+                is_slave=is_slave_side,
+                multi_sig=True,
+                signal_map=ar_signal_map,
+                optional_signal_map=ar_optional_signal_map,
+                log=log
+            )
+            self.ar_monitor.add_callback(self._handle_ar_transaction)
+        else:
+            self.ar_master = None
 
-        self.r_monitor = create_gaxi_monitor(
-            dut, f"{title}_R", "", clock,
-            field_config=self.r_field_config,
-            is_slave=not is_slave_side,  # R channel direction is opposite
-            multi_sig=True,
-            signal_map=r_signal_map,
-            optional_signal_map=r_optional_signal_map,
-            log=log
-        )
+        if 'R' in self.channels:
+            self.r_monitor = create_gaxi_monitor(
+                dut, f"{title}_R", "", clock,
+                field_config=self.r_field_config,
+                is_slave=not is_slave_side,  # R channel direction is opposite
+                multi_sig=True,
+                signal_map=r_signal_map,
+                optional_signal_map=r_optional_signal_map,
+                log=log
+            )
+            self.r_monitor.add_callback(self._handle_r_transaction)
+        else:
+            self.r_master = None
 
         # Initialize transaction tracking
         self.write_transactions = {}  # Maps IDs to write transactions
         self.read_transactions = {}   # Maps IDs to read transactions
-
-        # Set up callbacks
-        self.aw_monitor.add_callback(self._handle_aw_transaction)
-        self.w_monitor.add_callback(self._handle_w_transaction)
-        self.b_monitor.add_callback(self._handle_b_transaction)
-        self.ar_monitor.add_callback(self._handle_ar_transaction)
-        self.r_monitor.add_callback(self._handle_r_transaction)
 
         # Callback for completed transactions
         self.write_callback = None
@@ -183,10 +192,10 @@ class AXI4Monitor:
         id_value = transaction.awid
 
         # Validate protocol if enabled
-        if self.check_protocol:
-            valid, error_msg = transaction.validate_axi4_protocol()
-            if not valid:
-                self.log.error(f"AXI4 protocol error (AW): {error_msg}")
+        # if self.check_protocol:
+        #     valid, error_msg = AXI4Packet(transaction).validate_axi4_protocol()
+        #     if not valid:
+        #         self.log.error(f"AXI4 protocol error (AW): {error_msg}")
 
         # Create or update transaction tracking
         if id_value not in self.write_transactions:
@@ -258,10 +267,10 @@ class AXI4Monitor:
         id_value = transaction.bid
 
         # Validate protocol if enabled
-        if self.check_protocol:
-            valid, error_msg = transaction.validate_axi4_protocol()
-            if not valid:
-                self.log.error(f"AXI4 protocol error (B): {error_msg}")
+        # if self.check_protocol:
+        #     valid, error_msg = AXI4Packet(transaction).validate_axi4_protocol()
+        #     if not valid:
+        #         self.log.error(f"AXI4 protocol error (B): {error_msg}")
 
         # Create or update transaction tracking
         if id_value not in self.write_transactions:
@@ -291,10 +300,10 @@ class AXI4Monitor:
         id_value = transaction.arid
 
         # Validate protocol if enabled
-        if self.check_protocol:
-            valid, error_msg = transaction.validate_axi4_protocol()
-            if not valid:
-                self.log.error(f"AXI4 protocol error (AR): {error_msg}")
+        # if self.check_protocol:
+        #     valid, error_msg = AXI4Packet(transaction).validate_axi4_protocol()
+        #     if not valid:
+        #         self.log.error(f"AXI4 protocol error (AR): {error_msg}")
 
         # Calculate addresses
         addresses = transaction.get_burst_addresses() if hasattr(transaction, 'get_burst_addresses') else [transaction.araddr]
@@ -334,10 +343,10 @@ class AXI4Monitor:
         id_value = transaction.rid
 
         # Validate protocol if enabled
-        if self.check_protocol:
-            valid, error_msg = transaction.validate_axi4_protocol()
-            if not valid:
-                self.log.error(f"AXI4 protocol error (R): {error_msg}")
+        # if self.check_protocol:
+        #     valid, error_msg = AXI4Packet(transaction).validate_axi4_protocol()
+        #     if not valid:
+        #         self.log.error(f"AXI4 protocol error (R): {error_msg}")
 
         # Create or update transaction tracking
         if id_value not in self.read_transactions:

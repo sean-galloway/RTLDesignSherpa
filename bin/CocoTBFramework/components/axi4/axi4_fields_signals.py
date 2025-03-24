@@ -313,214 +313,129 @@ AXI4_SLAVE_DEFAULT_CONSTRAINTS = {
 
 # AXI4 Signal Mapping Functions
 
-def get_master_aw_signal_map(prefix=""):
-    """Get signal map for AW channel (master)"""
+def get_aw_signal_map(prefix="", divider="_", suffix=""):
+    """Get signal map for AW channel"""
     # Base signal map for valid/ready
     signal_map = {
-        'm2s_valid': f'{prefix}m_axi_awvalid',
-        's2m_ready': f'{prefix}m_axi_awready'
+        'm2s_valid': f'{prefix}_aw{divider}valid{suffix}',
+        's2m_ready': f'{prefix}_aw{divider}ready{suffix}'
     }
 
     # Optional signals for the AW packet fields
     optional_signal_map = {
-        'm2s_pkt_awid': f'{prefix}m_axi_awid',
-        'm2s_pkt_awaddr': f'{prefix}m_axi_awaddr',
-        'm2s_pkt_awlen': f'{prefix}m_axi_awlen',
-        'm2s_pkt_awsize': f'{prefix}m_axi_awsize',
-        'm2s_pkt_awburst': f'{prefix}m_axi_awburst',
-        'm2s_pkt_awlock': f'{prefix}m_axi_awlock',
-        'm2s_pkt_awcache': f'{prefix}m_axi_awcache',
-        'm2s_pkt_awprot': f'{prefix}m_axi_awprot',
-        'm2s_pkt_awqos': f'{prefix}m_axi_awqos',
-        'm2s_pkt_awregion': f'{prefix}m_axi_awregion',
-        'm2s_pkt_awuser': f'{prefix}m_axi_awuser'
+        'm2s_pkt_awid': f'{prefix}_aw{divider}id{suffix}',
+        'm2s_pkt_awaddr': f'{prefix}_aw{divider}addr{suffix}',
+        'm2s_pkt_awlen': f'{prefix}_aw{divider}len{suffix}',
+        'm2s_pkt_awsize': f'{prefix}_aw{divider}size{suffix}',
+        'm2s_pkt_awburst': f'{prefix}_aw{divider}burst{suffix}',
+        'm2s_pkt_awlock': f'{prefix}_aw{divider}lock{suffix}',
+        'm2s_pkt_awcache': f'{prefix}_aw{divider}cache{suffix}',
+        'm2s_pkt_awprot': f'{prefix}_aw{divider}prot{suffix}',
+        'm2s_pkt_awqos': f'{prefix}_aw{divider}qos{suffix}',
+        'm2s_pkt_awregion': f'{prefix}_aw{divider}region{suffix}',
+        'm2s_pkt_awuser': f'{prefix}_aw{divider}user{suffix}'
     }
 
     return signal_map, optional_signal_map
 
-def get_master_w_signal_map(prefix=""):
-    """Get signal map for W channel (master)"""
+def get_w_signal_map(prefix="", divider="_", suffix=""):
+    """Get signal map for W channel"""
     # Base signal map for valid/ready
     signal_map = {
-        'm2s_valid': f'{prefix}m_axi_wvalid',
-        's2m_ready': f'{prefix}m_axi_wready'
+        'm2s_valid': f'{prefix}_w{divider}valid{suffix}',
+        's2m_ready': f'{prefix}_w{divider}ready{suffix}'
     }
 
     # Optional signals for the W packet fields
     optional_signal_map = {
-        'm2s_pkt_wdata': f'{prefix}m_axi_wdata',
-        'm2s_pkt_wstrb': f'{prefix}m_axi_wstrb',
-        'm2s_pkt_wlast': f'{prefix}m_axi_wlast',
-        'm2s_pkt_wuser': f'{prefix}m_axi_wuser'
+        'm2s_pkt_wdata': f'{prefix}_w{divider}data{suffix}',
+        'm2s_pkt_wstrb': f'{prefix}_w{divider}strb{suffix}',
+        'm2s_pkt_wlast': f'{prefix}_w{divider}last{suffix}',
+        'm2s_pkt_wuser': f'{prefix}_w{divider}user{suffix}'
     }
 
     return signal_map, optional_signal_map
 
-def get_master_b_signal_map(prefix=""):
-    """Get signal map for B channel (master)"""
+def get_b_signal_map(prefix="", divider="_", suffix=""):
+    """Get signal map for B channel"""
     # Base signal map for valid/ready
     signal_map = {
-        'm2s_valid': f'{prefix}m_axi_bvalid',
-        's2m_ready': f'{prefix}m_axi_bready'
+        'm2s_valid': f'{prefix}_b{divider}valid{suffix}',
+        's2m_ready': f'{prefix}_b{divider}ready{suffix}'
     }
 
     # Optional signals for the B packet fields
     optional_signal_map = {
-        'm2s_pkt_bid': f'{prefix}m_axi_bid',
-        'm2s_pkt_bresp': f'{prefix}m_axi_bresp',
-        'm2s_pkt_buser': f'{prefix}m_axi_buser'
+        'm2s_pkt_bid': f'{prefix}_b{divider}id{suffix}',
+        'm2s_pkt_bresp': f'{prefix}_b{divider}resp{suffix}',
+        'm2s_pkt_buser': f'{prefix}_b{divider}user{suffix}'
     }
 
     return signal_map, optional_signal_map
 
-def get_master_ar_signal_map(prefix=""):
-    """Get signal map for AR channel (master)"""
+def get_ar_signal_map(prefix="", divider="_", suffix=""):
+    """Get signal map for AR channel"""
     # Base signal map for valid/ready
     signal_map = {
-        'm2s_valid': f'{prefix}m_axi_arvalid',
-        's2m_ready': f'{prefix}m_axi_arready'
+        'm2s_valid': f'{prefix}_ar{divider}valid{suffix}',
+        's2m_ready': f'{prefix}_ar{divider}ready{suffix}'
     }
 
     # Optional signals for the AR packet fields
     optional_signal_map = {
-        'm2s_pkt_arid': f'{prefix}m_axi_arid',
-        'm2s_pkt_araddr': f'{prefix}m_axi_araddr',
-        'm2s_pkt_arlen': f'{prefix}m_axi_arlen',
-        'm2s_pkt_arsize': f'{prefix}m_axi_arsize',
-        'm2s_pkt_arburst': f'{prefix}m_axi_arburst',
-        'm2s_pkt_arlock': f'{prefix}m_axi_arlock',
-        'm2s_pkt_arcache': f'{prefix}m_axi_arcache',
-        'm2s_pkt_arprot': f'{prefix}m_axi_arprot',
-        'm2s_pkt_arqos': f'{prefix}m_axi_arqos',
-        'm2s_pkt_arregion': f'{prefix}m_axi_arregion',
-        'm2s_pkt_aruser': f'{prefix}m_axi_aruser'
+        'm2s_pkt_arid': f'{prefix}_ar{divider}id{suffix}',
+        'm2s_pkt_araddr': f'{prefix}_ar{divider}addr{suffix}',
+        'm2s_pkt_arlen': f'{prefix}_ar{divider}len{suffix}',
+        'm2s_pkt_arsize': f'{prefix}_ar{divider}size{suffix}',
+        'm2s_pkt_arburst': f'{prefix}_ar{divider}burst{suffix}',
+        'm2s_pkt_arlock': f'{prefix}_ar{divider}lock{suffix}',
+        'm2s_pkt_arcache': f'{prefix}_ar{divider}cache{suffix}',
+        'm2s_pkt_arprot': f'{prefix}_ar{divider}prot{suffix}',
+        'm2s_pkt_arqos': f'{prefix}_ar{divider}qos{suffix}',
+        'm2s_pkt_arregion': f'{prefix}_ar{divider}region{suffix}',
+        'm2s_pkt_aruser': f'{prefix}_ar{divider}user{suffix}'
     }
 
     return signal_map, optional_signal_map
 
-def get_master_r_signal_map(prefix=""):
-    """Get signal map for R channel (master)"""
+def get_r_signal_map(prefix="", divider="_", suffix=""):
+    """Get signal map for R channel"""
     # Base signal map for valid/ready
     signal_map = {
-        'm2s_valid': f'{prefix}m_axi_rvalid',
-        's2m_ready': f'{prefix}m_axi_rready'
+        'm2s_valid': f'{prefix}_r{divider}valid{suffix}',
+        's2m_ready': f'{prefix}_r{divider}ready{suffix}'
     }
 
     # Optional signals for the R packet fields
     optional_signal_map = {
-        'm2s_pkt_rid': f'{prefix}m_axi_rid',
-        'm2s_pkt_rdata': f'{prefix}m_axi_rdata',
-        'm2s_pkt_rresp': f'{prefix}m_axi_rresp',
-        'm2s_pkt_rlast': f'{prefix}m_axi_rlast',
-        'm2s_pkt_ruser': f'{prefix}m_axi_ruser'
+        'm2s_pkt_rid': f'{prefix}_r{divider}id{suffix}',
+        'm2s_pkt_rdata': f'{prefix}_r{divider}data{suffix}',
+        'm2s_pkt_rresp': f'{prefix}_r{divider}resp{suffix}',
+        'm2s_pkt_rlast': f'{prefix}_r{divider}last{suffix}',
+        'm2s_pkt_ruser': f'{prefix}_r{divider}user{suffix}'
     }
 
     return signal_map, optional_signal_map
 
-def get_slave_aw_signal_map(prefix=""):
-    """Get signal map for AW channel (slave)"""
-    # Base signal map for valid/ready
-    signal_map = {
-        'm2s_valid': f'{prefix}s_axi_awvalid',
-        's2m_ready': f'{prefix}s_axi_awready'
+def create_all_signal_maps(prefix="", divider="_", suffix=""):
+    """
+    Create signal maps for all AXI4 channels.
+
+    Args:
+        prefix: Signal prefix (e.g., 'm_axi' or 's_axi')
+        divider: Divider between channel and signal name
+        suffix: Signal suffix
+
+    Returns:
+        Dictionary of signal maps for all channels
+    """
+    return {
+        'AW': get_aw_signal_map(prefix, divider, suffix),
+        'W': get_w_signal_map(prefix, divider, suffix),
+        'B': get_b_signal_map(prefix, divider, suffix),
+        'AR': get_ar_signal_map(prefix, divider, suffix),
+        'R': get_r_signal_map(prefix, divider, suffix),
     }
-
-    # Optional signals for the AW packet fields
-    optional_signal_map = {
-        'm2s_pkt_awid': f'{prefix}s_axi_awid',
-        'm2s_pkt_awaddr': f'{prefix}s_axi_awaddr',
-        'm2s_pkt_awlen': f'{prefix}s_axi_awlen',
-        'm2s_pkt_awsize': f'{prefix}s_axi_awsize',
-        'm2s_pkt_awburst': f'{prefix}s_axi_awburst',
-        'm2s_pkt_awlock': f'{prefix}s_axi_awlock',
-        'm2s_pkt_awcache': f'{prefix}s_axi_awcache',
-        'm2s_pkt_awprot': f'{prefix}s_axi_awprot',
-        'm2s_pkt_awqos': f'{prefix}s_axi_awqos',
-        'm2s_pkt_awregion': f'{prefix}s_axi_awregion',
-        'm2s_pkt_awuser': f'{prefix}s_axi_awuser'
-    }
-
-    return signal_map, optional_signal_map
-
-def get_slave_w_signal_map(prefix=""):
-    """Get signal map for W channel (slave)"""
-    # Base signal map for valid/ready
-    signal_map = {
-        'm2s_valid': f'{prefix}s_axi_wvalid',
-        's2m_ready': f'{prefix}s_axi_wready'
-    }
-
-    # Optional signals for the W packet fields
-    optional_signal_map = {
-        'm2s_pkt_wdata': f'{prefix}s_axi_wdata',
-        'm2s_pkt_wstrb': f'{prefix}s_axi_wstrb',
-        'm2s_pkt_wlast': f'{prefix}s_axi_wlast',
-        'm2s_pkt_wuser': f'{prefix}s_axi_wuser'
-    }
-
-    return signal_map, optional_signal_map
-
-def get_slave_b_signal_map(prefix=""):
-    """Get signal map for B channel (slave)"""
-    # Base signal map for valid/ready
-    signal_map = {
-        'm2s_valid': f'{prefix}s_axi_bvalid',
-        's2m_ready': f'{prefix}s_axi_bready'
-    }
-
-    # Optional signals for the B packet fields
-    optional_signal_map = {
-        'm2s_pkt_bid': f'{prefix}s_axi_bid',
-        'm2s_pkt_bresp': f'{prefix}s_axi_bresp',
-        'm2s_pkt_buser': f'{prefix}s_axi_buser'
-    }
-
-    return signal_map, optional_signal_map
-
-def get_slave_ar_signal_map(prefix=""):
-    """Get signal map for AR channel (slave)"""
-    # Base signal map for valid/ready
-    signal_map = {
-        'm2s_valid': f'{prefix}s_axi_arvalid',
-        's2m_ready': f'{prefix}s_axi_arready'
-    }
-
-    # Optional signals for the AR packet fields
-    optional_signal_map = {
-        'm2s_pkt_arid': f'{prefix}s_axi_arid',
-        'm2s_pkt_araddr': f'{prefix}s_axi_araddr',
-        'm2s_pkt_arlen': f'{prefix}s_axi_arlen',
-        'm2s_pkt_arsize': f'{prefix}s_axi_arsize',
-        'm2s_pkt_arburst': f'{prefix}s_axi_arburst',
-        'm2s_pkt_arlock': f'{prefix}s_axi_arlock',
-        'm2s_pkt_arcache': f'{prefix}s_axi_arcache',
-        'm2s_pkt_arprot': f'{prefix}s_axi_arprot',
-        'm2s_pkt_arqos': f'{prefix}s_axi_arqos',
-        'm2s_pkt_arregion': f'{prefix}s_axi_arregion',
-        'm2s_pkt_aruser': f'{prefix}s_axi_aruser'
-    }
-
-    return signal_map, optional_signal_map
-
-def get_slave_r_signal_map(prefix=""):
-    """Get signal map for R channel (slave)"""
-    # Base signal map for valid/ready
-    signal_map = {
-        'm2s_valid': f'{prefix}s_axi_rvalid',
-        's2m_ready': f'{prefix}s_axi_rready'
-    }
-
-    # Optional signals for the R packet fields
-    optional_signal_map = {
-        'm2s_pkt_rid': f'{prefix}s_axi_rid',
-        'm2s_pkt_rdata': f'{prefix}s_axi_rdata',
-        'm2s_pkt_rresp': f'{prefix}s_axi_rresp',
-        'm2s_pkt_rlast': f'{prefix}s_axi_rlast',
-        'm2s_pkt_ruser': f'{prefix}s_axi_ruser'
-    }
-
-    return signal_map, optional_signal_map
-
 
 def adjust_field_configs(field_configs, id_width, addr_width, data_width, user_width):
     """
@@ -599,32 +514,3 @@ def adjust_field_configs(field_configs, id_width, addr_width, data_width, user_w
                 adjusted_configs[channel][field_name]['active_bits'] = (user_width-1, 0)
 
     return adjusted_configs
-
-
-def create_all_signal_maps(prefix="", is_slave=False):
-    """
-    Create signal maps for all AXI4 channels.
-
-    Args:
-        prefix: Signal prefix
-        is_slave: Whether to create slave-side signal maps (default: False for master-side)
-
-    Returns:
-        Dictionary of signal maps for all channels
-    """
-    if is_slave:
-        return {
-            'AW': get_slave_aw_signal_map(prefix),
-            'W': get_slave_w_signal_map(prefix),
-            'B': get_slave_b_signal_map(prefix),
-            'AR': get_slave_ar_signal_map(prefix),
-            'R': get_slave_r_signal_map(prefix),
-        }
-    else:
-        return {
-            'AW': get_master_aw_signal_map(prefix),
-            'W': get_master_w_signal_map(prefix),
-            'B': get_master_b_signal_map(prefix),
-            'AR': get_master_ar_signal_map(prefix),
-            'R': get_master_r_signal_map(prefix),
-        }

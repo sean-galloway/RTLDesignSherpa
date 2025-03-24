@@ -130,10 +130,10 @@ class GAXIMaster(BusDriver):
             self._signals = [self.valid_dut_name, self.ready_dut_name, self.pkt_dut_name]
         else:
             # In multi-signal mode, we need at least valid/ready in the base _signals
-            msg_multi = (f'Master({title}) multi-signal model')
-            msg_multi += f'{signal_map=}\n'
-            msg_multi += f'{optional_signal_map=}\n'
-            msg_multi += f'{field_config=}\n'
+            msg_multi = (f'Master({title}) multi-signal model\n'
+                            f'{signal_map=}\n'
+                            f'{optional_signal_map=}\n'
+                            f'{field_config=}\n')
 
             self._signals = [self.valid_dut_name, self.ready_dut_name]
 
@@ -164,8 +164,8 @@ class GAXIMaster(BusDriver):
         # Initialize parent class
         BusDriver.__init__(self, dut, prefix, clock, **kwargs)
         self.log = log or self._log
-        if msg_multi is not None:
-            self.log.debug(msg_multi)
+        # if msg_multi is not None:
+        #     self.log.debug(msg_multi)
 
         # Initialize queues
         self.transmit_queue = deque()
@@ -246,7 +246,7 @@ class GAXIMaster(BusDriver):
 
             # No mapping and no standard data signal
             else:
-                self.log.warning(f"No signal mapping provided for field {field_name}")
+                self.log.warning(f"GAXIMaster({self.title}): No signal mapping provided for field {field_name}")
 
     def _register_field_signal(self, field_name, dut_signal_name, required=True):
         """Register a field signal with appropriate error handling"""
@@ -434,7 +434,7 @@ class GAXIMaster(BusDriver):
                             # This warning should never happen if initialization was correct
                             self.log.warning(f"Signal {dut_signal_name} mapped but not found on DUT")
                     else:
-                        self.log.debug(f"No signal mapping for field {field_name}")
+                        self.log.debug(f"GAXIMaster({self.title}): No signal mapping for field {field_name}")
             else:
                 # Standard mode: drive aggregate data signal
                 fifo_data = transaction.pack_for_fifo()
@@ -664,12 +664,13 @@ class GAXISlave(BusMonitor):
         self.pkt_dut_name = self.optional_signal_map.get(self.pkt_name, self.pkt_name)
 
         # Prepare signal lists for BusMonitor initialization
+        msg_multi = None
         if self.use_multi_signal:
             # Multi-signal mode - only include valid/ready in _signals
-            msg_multi = f'Slave({self.title}) multi-signal model\n'
-            msg_multi += f'{signal_map=}\n'
-            msg_multi += f'{optional_signal_map=}\n'
-            msg_multi += f'{field_config=}\n'
+            msg_multi = (f'Slave({title}) multi-signal model\n'
+                            f'{signal_map=}\n'
+                            f'{optional_signal_map=}\n'
+                            f'{field_config=}\n')
 
             # Use the mapped signal names for required signals
             self._signals = [self.valid_dut_name, self.ready_dut_name]
@@ -705,6 +706,8 @@ class GAXISlave(BusMonitor):
         self.log = log or self._log
         self.log.debug(f"GAXISlave init for '{title}': randomizer={randomizer}, mode={mode}")
         self.log.debug(f"GAXISlave init for '{title}': _signals={self._signals}")
+        # if msg_multi is not None:
+        #     self.log.debug(msg_multi)
 
         # Set up references to valid and ready signals
         if hasattr(self.bus, self.valid_dut_name):
@@ -761,7 +764,7 @@ class GAXISlave(BusMonitor):
                 self._register_field_signal(field_name, dut_signal_name, required=False)
 
             else:
-                self.log.warning(f"No signal mapping provided for field {field_name}")
+                self.log.warning(f"GAXISlave({self.title}): No signal mapping provided for field {field_name}")
 
     def _register_field_signal(self, field_name, dut_signal_name, required=True):
         """Register a field signal with appropriate error handling"""
@@ -1087,12 +1090,16 @@ class GAXIMonitor(BusMonitor):
         self.pkt_dut_name = self.optional_signal_map.get(self.pkt_name, self.pkt_name)
 
         # Prepare signal lists for BusMonitor initialization
+        msg_multi = None
         if not self.use_multi_signal:
             # Standard mode - use mapped signal names
             self._signals = [self.valid_dut_name, self.ready_dut_name, self.pkt_dut_name]
         else:
             # Multi-signal mode - only include valid/ready with mapped names
-            msg_multi = f'Monitor({self.title}) multi-signal model'
+            msg_multi = (f'Slave({title}) multi-signal model\n'
+                            f'{signal_map=}\n'
+                            f'{optional_signal_map=}\n'
+                            f'{field_config=}\n')
             self._signals = [self.valid_dut_name, self.ready_dut_name]
 
         # Set up optional signals
@@ -1106,6 +1113,8 @@ class GAXIMonitor(BusMonitor):
         BusMonitor.__init__(self, dut, prefix, clock, callback=None, event=None, **kwargs)
         self.log = log or self._log
         self.log.debug(f"GAXIMonitor init for '{title}': mode={mode}")
+        # if msg_multi is not None:
+        #     self.log.debug(msg_multi)
 
         # Set up references to valid and ready signals
         if hasattr(self.bus, self.valid_dut_name):
@@ -1164,7 +1173,7 @@ class GAXIMonitor(BusMonitor):
                 self._register_field_signal(field_name, dut_signal_name, required=False)
 
             else:
-                self.log.warning(f"No signal mapping provided for field {field_name}")
+                self.log.warning(f"GAXIMonitor({self.title}): No signal mapping provided for field {field_name}")
 
     def _register_field_signal(self, field_name, dut_signal_name, required=True):
         """Register a field signal with appropriate error handling"""

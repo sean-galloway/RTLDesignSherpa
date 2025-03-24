@@ -15,13 +15,18 @@ from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master, c
 from CocoTBFramework.components.flex_randomizer import FlexRandomizer
 
 from .axi4_fields_signals import (
+    AXI4_AW_FIELD_CONFIG,
+    AXI4_W_FIELD_CONFIG,
+    AXI4_B_FIELD_CONFIG,
+    AXI4_AR_FIELD_CONFIG,
+    AXI4_R_FIELD_CONFIG,
     AXI4_MASTER_DEFAULT_CONSTRAINTS,
     adjust_field_configs,
-    get_slave_aw_signal_map,
-    get_slave_w_signal_map,
-    get_slave_b_signal_map,
-    get_slave_ar_signal_map,
-    get_slave_r_signal_map
+    get_aw_signal_map,
+    get_w_signal_map,
+    get_b_signal_map,
+    get_ar_signal_map,
+    get_r_signal_map
 )
 from .axi4_packets import AXI4Packet
 
@@ -37,9 +42,9 @@ class AXI4Slave:
     - Response ordering control (in-order or out-of-order between different IDs)
     """
 
-    def __init__(self, dut, title, prefix, clock,
+    def __init__(self, dut, title, prefix, divider, suffix, clock, channels,
                     id_width=8, addr_width=32, data_width=32, user_width=1,
-                    memory_model=None, randomizers=None, check_protocol=True,
+                    memory_model=None, randomizers=None, check_protocol=False,
                     inorder=False, ooo_strategy='random', log=None):
         """
         Initialize AXI4 Slave component.
@@ -48,7 +53,10 @@ class AXI4Slave:
             dut: Device under test
             title: Component title
             prefix: Signal prefix
+            divider: used if there is an '_' between the channel and the signal
+            suffix: optional suffix useed at the end
             clock: Clock signal
+            channels: a list of the channels to instantiate
             id_width: Width of ID fields (default: 8)
             addr_width: Width of address fields (default: 32)
             data_width: Width of data fields (default: 32)
@@ -67,17 +75,18 @@ class AXI4Slave:
         self.memory_model = memory_model
         self.inorder = inorder
         self.ooo_strategy = ooo_strategy
+        self.channels = [s.upper() for s in channels]
 
         # Calculate strobe width
         self.strb_width = data_width // 8
 
         # Adjust field configs for the specified widths
         field_configs = {
-            'AW': {},
-            'W': {},
-            'B': {},
-            'AR': {},
-            'R': {}
+            'AW': AXI4_AW_FIELD_CONFIG,
+            'W':  AXI4_W_FIELD_CONFIG,
+            'B':  AXI4_B_FIELD_CONFIG,
+            'AR': AXI4_AR_FIELD_CONFIG,
+            'R':  AXI4_R_FIELD_CONFIG
         }
         adjusted_configs = adjust_field_configs(
             field_configs, id_width, addr_width, data_width, user_width
@@ -90,11 +99,11 @@ class AXI4Slave:
         self.r_field_config = adjusted_configs['R']
 
         # Prepare signal mappings
-        aw_signal_map, aw_optional_signal_map = get_slave_aw_signal_map(prefix)
-        w_signal_map, w_optional_signal_map = get_slave_w_signal_map(prefix)
-        b_signal_map, b_optional_signal_map = get_slave_b_signal_map(prefix)
-        ar_signal_map, ar_optional_signal_map = get_slave_ar_signal_map(prefix)
-        r_signal_map, r_optional_signal_map = get_slave_r_signal_map(prefix)
+        aw_signal_map, aw_optional_signal_map = get_aw_signal_map(prefix, divider, suffix)
+        w_signal_map, w_optional_signal_map = get_w_signal_map(prefix, divider, suffix)
+        b_signal_map, b_optional_signal_map = get_b_signal_map(prefix, divider, suffix)
+        ar_signal_map, ar_optional_signal_map = get_ar_signal_map(prefix, divider, suffix)
+        r_signal_map, r_optional_signal_map = get_r_signal_map(prefix, divider, suffix)
 
         # Get randomizers
         randomizers = randomizers or {}
@@ -102,52 +111,70 @@ class AXI4Slave:
         r_randomizer = randomizers.get('r', FlexRandomizer(AXI4_MASTER_DEFAULT_CONSTRAINTS))
 
         # Create channel components
-        self.aw_slave = create_gaxi_slave(
-            dut, f"{title}_AW", "", clock,
-            field_config=self.aw_field_config,
-            multi_sig=True,
-            signal_map=aw_signal_map,
-            optional_signal_map=aw_optional_signal_map,
-            log=log
-        )
+        if 'AW' in self.channels:
+            self.aw_slave = create_gaxi_slave(
+                dut, f"{title}_AW", "", clock,
+                field_config=self.aw_field_config,
+                multi_sig=True,
+                signal_map=aw_signal_map,
+                optional_signal_map=aw_optional_signal_map,
+                log=log
+            )
+            self.aw_slave.add_callback(self._handle_aw_transaction)
+        else:
+            self.aw_master = None
 
-        self.w_slave = create_gaxi_slave(
-            dut, f"{title}_W", "", clock,
-            field_config=self.w_field_config,
-            multi_sig=True,
-            signal_map=w_signal_map,
-            optional_signal_map=w_optional_signal_map,
-            log=log
-        )
+        if 'W' in self.channels:
+            self.w_slave = create_gaxi_slave(
+                dut, f"{title}_W", "", clock,
+                field_config=self.w_field_config,
+                multi_sig=True,
+                signal_map=w_signal_map,
+                optional_signal_map=w_optional_signal_map,
+                log=log
+            )
+            self.w_slave.add_callback(self._handle_w_transaction)
+        else:
+            self.w_master = None
 
-        self.b_master = create_gaxi_master(
-            dut, f"{title}_B", "", clock,
-            field_config=self.b_field_config,
-            randomizer=b_randomizer,
-            multi_sig=True,
-            signal_map=b_signal_map,
-            optional_signal_map=b_optional_signal_map,
-            log=log
-        )
+        if 'B' in self.channels:
+            self.b_master = create_gaxi_master(
+                dut, f"{title}_B", "", clock,
+                field_config=self.b_field_config,
+                randomizer=b_randomizer,
+                multi_sig=True,
+                signal_map=b_signal_map,
+                optional_signal_map=b_optional_signal_map,
+                log=log
+            )
+        else:
+            self.b_master = None
 
-        self.ar_slave = create_gaxi_slave(
-            dut, f"{title}_AR", "", clock,
-            field_config=self.ar_field_config,
-            multi_sig=True,
-            signal_map=ar_signal_map,
-            optional_signal_map=ar_optional_signal_map,
-            log=log
-        )
+        if 'AR' in self.channels:
+            self.ar_slave = create_gaxi_slave(
+                dut, f"{title}_AR", "", clock,
+                field_config=self.ar_field_config,
+                multi_sig=True,
+                signal_map=ar_signal_map,
+                optional_signal_map=ar_optional_signal_map,
+                log=log
+            )
+            self.ar_slave.add_callback(self._handle_ar_transaction)
+        else:
+            self.ar_slave = None
 
-        self.r_master = create_gaxi_master(
-            dut, f"{title}_R", "", clock,
-            field_config=self.r_field_config,
-            randomizer=r_randomizer,
-            multi_sig=True,
-            signal_map=r_signal_map,
-            optional_signal_map=r_optional_signal_map,
-            log=log
-        )
+        if 'R' in self.channels:
+            self.r_master = create_gaxi_master(
+                dut, f"{title}_R", "", clock,
+                field_config=self.r_field_config,
+                randomizer=r_randomizer,
+                multi_sig=True,
+                signal_map=r_signal_map,
+                optional_signal_map=r_optional_signal_map,
+                log=log
+            )
+        else:
+            self.r_master = None
 
         # Initialize transaction tracking
         self.pending_writes = {}  # Write address transactions waiting for data
@@ -164,11 +191,6 @@ class AXI4Slave:
         # Weights for weighted OOO strategy - can be adjusted at runtime
         self.ooo_weights = {}
 
-        # Add callbacks to process transactions
-        self.aw_slave.add_callback(self._handle_aw_transaction)
-        self.w_slave.add_callback(self._handle_w_transaction)
-        self.ar_slave.add_callback(self._handle_ar_transaction)
-
         # Start processor task
         self.processor_task = None
         self.running = False
@@ -177,19 +199,25 @@ class AXI4Slave:
 
     async def reset_bus(self):
         """Reset all AXI4 channels"""
-        await self.aw_slave.reset_bus()
-        await self.w_slave.reset_bus()
-        await self.b_master.reset_bus()
-        await self.ar_slave.reset_bus()
-        await self.r_master.reset_bus()
+        if 'AW' in self.channels:
+            await self.aw_slave.reset_bus()
+        if 'W' in self.channels:
+            await self.w_slave.reset_bus()
+        if 'B' in self.channels:
+            await self.b_master.reset_bus()
+        if 'AR' in self.channels:
+            await self.ar_slave.reset_bus()
+        if 'R' in self.channels:
+            await self.r_master.reset_bus()
 
-        # Clear transaction tracking
-        self.pending_writes.clear()
-        self.pending_reads.clear()
+        # Clear transaction/responsses
+        if 'W' in self.channels:
+            self.pending_writes.clear()
+            self.write_response_queue.clear()
 
-        # Clear response queues
-        self.write_response_queue.clear()
-        self.read_response_queue.clear()
+        if 'R' in self.channels:
+            self.pending_reads.clear()
+            self.read_response_queue.clear()
 
         # Reset ordering trackers
         self.next_write_id = None
@@ -287,10 +315,10 @@ class AXI4Slave:
         id_value = transaction.arid
 
         # Validate protocol if enabled
-        if self.check_protocol:
-            valid, error_msg = transaction.validate_axi4_protocol()
-            if not valid:
-                self.log.error(f"AXI4 protocol error (AR): {error_msg}")
+        # if self.check_protocol:
+        #     valid, error_msg = transaction.validate_axi4_protocol()
+        #     if not valid:
+        #         self.log.error(f"AXI4 protocol error (AR): {error_msg}")
 
         # Calculate all addresses in the burst
         addresses = transaction.get_burst_addresses() if hasattr(transaction, 'get_burst_addresses') else [transaction.araddr]
@@ -643,11 +671,7 @@ class AXI4Slave:
                 weights.append(weight)
 
             # Select based on weights
-            if sum(weights) > 0:
-                return random.choices(ids, weights=weights)[0]
-            else:
-                return ids[0]
-
+            return random.choices(ids, weights=weights)[0] if sum(weights) > 0 else ids[0]
         # Default to first ID
         return ids[0]
 

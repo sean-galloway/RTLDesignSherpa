@@ -15,6 +15,10 @@ module axi_master_rd
     parameter int SKID_DEPTH_AR     = 2,
     parameter int SKID_DEPTH_R      = 4,
 
+    // FIFO parameters
+    parameter int SPLIT_FIFO_DEPTH  = 2,
+    parameter int ERROR_FIFO_DEPTH  = 2,
+
     // Timeout parameters (in clock cycles)
     parameter int TIMEOUT_AR       = 1000,  // Read address channel timeout
     parameter int TIMEOUT_R        = 1000,  // Read data channel timeout
@@ -85,29 +89,19 @@ module axi_master_rd
     input  logic                       m_axi_rvalid,
     output logic                       m_axi_rready,
 
-    // Output split information
+    // Output split information with FIFO interface
     output logic [AXI_ADDR_WIDTH-1:0]  s_split_addr,
     output logic [AXI_ID_WIDTH-1:0]    s_split_id,
     output logic [7:0]                 s_split_num_splits,
     output logic                       s_split_valid,
+    input  logic                       s_split_ready,
 
-    // Error outputs
-    output logic                       error_timeout_ar,
-    output logic                       error_timeout_r,
-    output logic                       error_resp_read,   // SLVERR or DECERR on R channel
-
-    // Error address tracking
-    output logic [AXI_ADDR_WIDTH-1:0]  error_addr_ar,
-    output logic [AXI_ID_WIDTH-1:0]    error_id_ar,
-
-    // Status registers
-    output logic [31:0]                error_count_timeout,
-    output logic [31:0]                error_count_resp,
-
-    // Performance metrics
-    output logic [31:0]                rd_transaction_count,
-    output logic [31:0]                rd_byte_count,
-    output logic [31:0]                rd_latency_sum      // Sum of read latencies (cycles)
+    // Error outputs with FIFO interface
+    output logic [3:0]                 s_error_type,     // Error type flags (AR timeout, R timeout, response error)
+    output logic [AXI_ADDR_WIDTH-1:0]  s_error_addr,     // Address associated with error
+    output logic [AXI_ID_WIDTH-1:0]    s_error_id,       // ID associated with error
+    output logic                       s_error_valid,
+    input  logic                       s_error_ready
 );
 
     // Internal connections between splitter and error monitor/skid buffer
@@ -144,13 +138,13 @@ module axi_master_rd
     logic                      int_w_m_axi_rvalid;
     logic                      int_w_m_axi_rready;
 
-    // Instantiate AXI read master splitter
+    // Instantiate AXI read master splitter with FIFO interface
     axi_master_rd_splitter #(
-        .ALIGNMENT_WIDTH      (ALIGNMENT_WIDTH),
         .AXI_ID_WIDTH         (AXI_ID_WIDTH),
         .AXI_ADDR_WIDTH       (AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH       (AXI_DATA_WIDTH),
-        .AXI_USER_WIDTH       (AXI_USER_WIDTH)
+        .AXI_USER_WIDTH       (AXI_USER_WIDTH),
+        .SPLIT_FIFO_DEPTH     (SPLIT_FIFO_DEPTH)
     ) i_axi_master_rd_splitter (
         .aclk                 (aclk),
         .aresetn              (aresetn),
@@ -202,31 +196,28 @@ module axi_master_rd
         .m_axi_rvalid         (int_m_axi_rvalid),
         .m_axi_rready         (int_m_axi_rready),
 
-        // split information
+        // Split information with FIFO interface
         .s_split_addr         (s_split_addr),
         .s_split_id           (s_split_id),
         .s_split_num_splits   (s_split_num_splits),
         .s_split_valid        (s_split_valid),
-
-        // Performance metrics
-        .rd_transaction_count (rd_transaction_count),
-        .rd_byte_count        (rd_byte_count),
-        .rd_latency_sum       (rd_latency_sum)
+        .s_split_ready        (s_split_ready)
     );
 
-    // Instantiate AXI read error monitor
-    axi_rd_error_monitor #(
+    // Instantiate AXI read error monitor with FIFO interface
+    axi_master_rd_errmon #(
         .AXI_ID_WIDTH         (AXI_ID_WIDTH),
         .AXI_ADDR_WIDTH       (AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH       (AXI_DATA_WIDTH),
         .AXI_USER_WIDTH       (AXI_USER_WIDTH),
         .TIMEOUT_AR           (TIMEOUT_AR),
-        .TIMEOUT_R            (TIMEOUT_R)
-    ) i_axi_rd_error_monitor (
+        .TIMEOUT_R            (TIMEOUT_R),
+        .ERROR_FIFO_DEPTH     (ERROR_FIFO_DEPTH)
+    ) i_axi_master_rd_errmon (
         .aclk                 (aclk),
         .aresetn              (aresetn),
 
-        // AXI interface to monitor (post-splitter, pre-skid buffer)
+        // AXI interface to monitor (post-splitter)
         .m_axi_arid           (int_m_axi_arid),
         .m_axi_araddr         (int_m_axi_araddr),
         .m_axi_arvalid        (int_m_axi_arvalid),
@@ -238,18 +229,12 @@ module axi_master_rd
         .m_axi_rready         (int_m_axi_rready),
         .m_axi_rlast          (int_m_axi_rlast),
 
-        // Error outputs
-        .error_timeout_ar     (error_timeout_ar),
-        .error_timeout_r      (error_timeout_r),
-        .error_resp_read      (error_resp_read),
-
-        // Error tracking
-        .error_addr_ar        (error_addr_ar),
-        .error_id_ar          (error_id_ar),
-
-        // Status registers
-        .error_count_timeout  (error_count_timeout),
-        .error_count_resp     (error_count_resp)
+        // Error outputs FIFO interface
+        .error_valid          (s_error_valid),
+        .error_ready          (s_error_ready),
+        .error_type           (s_error_type),
+        .error_addr           (s_error_addr),
+        .error_id             (s_error_id)
     );
 
     // Instantiate AR Skid Buffer
@@ -261,9 +246,10 @@ module axi_master_rd
         .i_axi_aresetn            (aresetn),
         .i_wr_valid               (int_m_axi_arvalid),
         .o_wr_ready               (int_m_axi_arready),
-        .i_wr_data                ({int_m_axi_arid, int_m_axi_araddr, int_m_axi_arlen, int_m_axi_arsize,
-                                    int_m_axi_arburst, int_m_axi_arlock, int_m_axi_arcache, int_m_axi_arprot,
-                                    int_m_axi_arqos, int_m_axi_arregion, int_m_axi_aruser}),
+        .i_wr_data                (
+            {int_m_axi_arid, int_m_axi_araddr, int_m_axi_arlen, int_m_axi_arsize,
+            int_m_axi_arburst, int_m_axi_arlock, int_m_axi_arcache, int_m_axi_arprot,
+            int_m_axi_arqos, int_m_axi_arregion, int_m_axi_aruser}),
         .o_rd_valid               (int_w_m_axi_arvalid),
         .i_rd_ready               (int_w_m_axi_arready),
         .o_rd_count               (int_m_axi_ar_count),
@@ -289,8 +275,9 @@ module axi_master_rd
         .i_wr_data                ({m_axi_rid, m_axi_rdata, m_axi_rresp, m_axi_rlast, m_axi_ruser}),
         .o_rd_valid               (int_m_axi_rvalid),
         .i_rd_ready               (int_m_axi_rready),
-        .o_rd_count               (),  // Not used
-        .o_rd_data                ({int_m_axi_rid, int_m_axi_rdata, int_m_axi_rresp, int_m_axi_rlast, int_m_axi_ruser})
+        .o_rd_count               (int_m_axi_r_count),
+        .o_rd_data                (
+            {int_m_axi_rid, int_m_axi_rdata, int_m_axi_rresp, int_m_axi_rlast, int_m_axi_ruser})
     );
 
 endmodule : axi_master_rd

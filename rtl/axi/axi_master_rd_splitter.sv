@@ -2,14 +2,18 @@
 
 module axi_master_rd_splitter
 #(
-    // Alignment parameters
-    parameter int ALIGNMENT_WIDTH = 3,  // 0:8b, 1:16b, 2:32b, 3:64b, 4:128b, 5:256b, 6:512b
-
     // AXI parameters
     parameter int AXI_ID_WIDTH      = 8,
     parameter int AXI_ADDR_WIDTH    = 32,
     parameter int AXI_DATA_WIDTH    = 32,
-    parameter int AXI_USER_WIDTH    = 1
+    parameter int AXI_USER_WIDTH    = 1,
+    // FIFO depth
+    parameter int SPLIT_FIFO_DEPTH  = 4,
+    // short names
+    parameter int IW = AXI_ID_WIDTH,
+    parameter int AW = AXI_ADDR_WIDTH,
+    parameter int DW = AXI_DATA_WIDTH,
+    parameter int UW = AXI_USER_WIDTH
 )
 (
     // Global Clock and Reset
@@ -21,8 +25,8 @@ module axi_master_rd_splitter
 
     // Master AXI Interface
     // Read address channel (AR)
-    output logic [AXI_ID_WIDTH-1:0]    m_axi_arid,
-    output logic [AXI_ADDR_WIDTH-1:0]  m_axi_araddr,
+    output logic [IW-1:0]              m_axi_arid,
+    output logic [AW-1:0]              m_axi_araddr,
     output logic [7:0]                 m_axi_arlen,
     output logic [2:0]                 m_axi_arsize,
     output logic [1:0]                 m_axi_arburst,
@@ -31,23 +35,23 @@ module axi_master_rd_splitter
     output logic [2:0]                 m_axi_arprot,
     output logic [3:0]                 m_axi_arqos,
     output logic [3:0]                 m_axi_arregion,
-    output logic [AXI_USER_WIDTH-1:0]  m_axi_aruser,
+    output logic [UW-1:0]              m_axi_aruser,
     output logic                       m_axi_arvalid,
     input  logic                       m_axi_arready,
 
     // Read data channel (R)
-    input  logic [AXI_ID_WIDTH-1:0]    m_axi_rid,
-    input  logic [AXI_DATA_WIDTH-1:0]  m_axi_rdata,
+    input  logic [IW-1:0]              m_axi_rid,
+    input  logic [DW-1:0]              m_axi_rdata,
     input  logic [1:0]                 m_axi_rresp,
     input  logic                       m_axi_rlast,
-    input  logic [AXI_USER_WIDTH-1:0]  m_axi_ruser,
+    input  logic [UW-1:0]              m_axi_ruser,
     input  logic                       m_axi_rvalid,
     output logic                       m_axi_rready,
 
     // Slave AXI Interface
     // Read address channel (AR)
-    input  logic [AXI_ID_WIDTH-1:0]    s_axi_arid,
-    input  logic [AXI_ADDR_WIDTH-1:0]  s_axi_araddr,
+    input  logic [IW-1:0]              s_axi_arid,
+    input  logic [AW-1:0]              s_axi_araddr,
     input  logic [7:0]                 s_axi_arlen,
     input  logic [2:0]                 s_axi_arsize,
     input  logic [1:0]                 s_axi_arburst,
@@ -56,72 +60,76 @@ module axi_master_rd_splitter
     input  logic [2:0]                 s_axi_arprot,
     input  logic [3:0]                 s_axi_arqos,
     input  logic [3:0]                 s_axi_arregion,
-    input  logic [AXI_USER_WIDTH-1:0]  s_axi_aruser,
+    input  logic [UW-1:0]              s_axi_aruser,
     input  logic                       s_axi_arvalid,
     output logic                       s_axi_arready,
 
     // Read data channel (R)
-    output logic [AXI_ID_WIDTH-1:0]    s_axi_rid,
-    output logic [AXI_DATA_WIDTH-1:0]  s_axi_rdata,
+    output logic [IW-1:0]              s_axi_rid,
+    output logic [DW-1:0]              s_axi_rdata,
     output logic [1:0]                 s_axi_rresp,
     output logic                       s_axi_rlast,
-    output logic [AXI_USER_WIDTH-1:0]  s_axi_ruser,
+    output logic [UW-1:0]              s_axi_ruser,
     output logic                       s_axi_rvalid,
     input  logic                       s_axi_rready,
+    input  logic                       s_split_ready,
 
     // Output split information
-    output logic [AXI_ADDR_WIDTH-1:0]  s_split_addr,
-    output logic [AXI_ID_WIDTH-1:0]    s_split_id,
+    output logic [AW-1:0]              s_split_addr,
+    output logic [IW-1:0]              s_split_id,
     output logic [7:0]                 s_split_num_splits,
-    output logic                       s_split_valid,
-
-    // Performance metrics
-    output logic [31:0]                rd_transaction_count,
-    output logic [31:0]                rd_byte_count,
-    output logic [31:0]                rd_latency_sum      // Sum of read latencies (cycles)
+    output logic                       s_split_valid
 );
+
+    //===========================================================================
+    // State definitions
+    //===========================================================================
+    typedef enum logic [2:0] {
+        IDLE       = 3'b001,
+        SPLITTING  = 3'b010,
+        LAST_SPLIT = 3'b100
+    } split_state_t;
+
+    split_state_t r_split_state;
 
     //===========================================================================
     // Internal wires and registers
     //===========================================================================
 
     // Transaction control signals
-    logic r_splitting_active;
-    logic [AXI_ADDR_WIDTH-1:0] r_next_addr;
-    logic [7:0] r_remaining_len;
-    logic r_is_last_split;
-    logic r_split_ongoing;  // New flag to track when a split transaction is in progress
+    logic [AW-1:0]  r_next_addr;
+    logic [7:0]     r_remaining_len;
 
-    // Performance tracking
-    logic [31:0] r_cycle_counter;
-    logic [31:0] r_rd_start_time;
-    logic [AXI_ID_WIDTH-1:0] r_curr_id;
-    logic r_read_in_progress;
+    // Split tracking
+    logic [AW-1:0]  r_split_addr;
+    logic [IW-1:0]  r_split_id;
+    logic [7:0]     r_num_splits;
+    logic           r_split_fifo_valid;
 
     //===========================================================================
     // Transaction Splitting Logic - All combinational calculations
     //===========================================================================
 
     // Select current address based on splitting state
-    logic [AXI_ADDR_WIDTH-1:0] w_current_addr;
-    logic [7:0] w_current_len;
+    logic [AW-1:0]  w_current_addr;
+    logic [7:0]     w_current_len;
 
-    assign w_current_addr = r_splitting_active ? r_next_addr : s_axi_araddr;
-    assign w_current_len = r_splitting_active ? r_remaining_len : s_axi_arlen;
+    assign w_current_addr = (r_split_state != IDLE) ? r_next_addr : s_axi_araddr;
+    assign w_current_len = (r_split_state != IDLE) ? r_remaining_len : s_axi_arlen;
 
     // Create boundary mask based on alignment_boundary
-    logic [AXI_ADDR_WIDTH-1:0] w_boundary_mask;
-    assign w_boundary_mask = (1 << alignment_boundary) - 1;
+    logic [AW-1:0] w_boundary_mask;
+    assign w_boundary_mask = alignment_boundary;
 
     // Calculate end address for current transaction
-    logic [AXI_ADDR_WIDTH-1:0] w_end_addr;
+    logic [AW-1:0] w_end_addr;
     assign w_end_addr = w_current_addr + ((w_current_len + 1) << s_axi_arsize) - 1;
 
     // Calculate current boundary address
-    logic [AXI_ADDR_WIDTH-1:0] w_curr_boundary;
-    assign w_curr_boundary = (w_current_addr & ~w_boundary_mask) + (1 << alignment_boundary);
+    logic [AW-1:0] w_curr_boundary;
+    assign w_curr_boundary = (w_current_addr & ~w_boundary_mask) + (w_boundary_mask + 1);
 
-    // Check if transaction crosses boundary - KEY SIGNAL
+    // Check if transaction crosses boundary
     logic w_split_required;
     assign w_split_required = ((w_current_addr & ~w_boundary_mask) !=
                                 (w_end_addr & ~w_boundary_mask));
@@ -136,116 +144,95 @@ module axi_master_rd_splitter
                             ((w_dist_to_boundary >> s_axi_arsize) - 1) :
                             w_current_len;
 
+    // New split detection signal
+    logic w_new_split_needed;
+    assign w_new_split_needed = s_axi_arvalid && (r_split_state == IDLE) && w_split_required;
+
+    // Ready signal control logic
+    logic w_no_split_in_progress;
+    logic w_final_split_complete;
+
+    assign w_no_split_in_progress = !w_split_required && (r_split_state == IDLE);
+    assign w_final_split_complete = (r_split_state == LAST_SPLIT);
+
     //===========================================================================
     // State Management
     //===========================================================================
 
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
-            // Control signals
-            r_splitting_active <= 1'b0;
+            // Reset all state
+            r_split_state <= IDLE;
             r_next_addr <= '0;
             r_remaining_len <= '0;
-            r_is_last_split <= 1'b0;
-            r_split_ongoing <= 1'b0;
 
             // Split info port
-            s_split_addr <= '0;
-            s_split_id <= '0;
-            s_split_num_splits <= '0;
-            s_split_valid <= 1'b0;
+            r_split_addr <= '0;
+            r_split_id <= '0;
+            r_num_splits <= '0;
+            r_split_fifo_valid <= 1'b0;
 
-            // Performance counters
-            rd_transaction_count <= '0;
-            rd_byte_count <= '0;
-            rd_latency_sum <= '0;
-            r_cycle_counter <= '0;
-            r_rd_start_time <= '0;
-            r_curr_id <= '0;
-            r_read_in_progress <= 1'b0;
         end else begin
-            // Clear s_split_valid by default (will be set if needed)
-            s_split_valid <= 1'b0;
+            // Clear r_split_fifo_valid by default (will be set if needed)
+            r_split_fifo_valid <= 1'b0;
 
-            // Always increment cycle counter
-            r_cycle_counter <= r_cycle_counter + 1;
-
-            // Update transaction counter when AR transaction occurs
-            if (m_axi_arvalid && m_axi_arready) begin
-                rd_transaction_count <= rd_transaction_count + 1;
-                rd_byte_count <= rd_byte_count + ((m_axi_arlen + 1) << m_axi_arsize);
-
-                // Record start time for non-split transactions or first transaction in a split
-                if (!r_read_in_progress) begin
-                    r_rd_start_time <= r_cycle_counter;
-                    r_curr_id <= m_axi_arid;
-                    r_read_in_progress <= 1'b1;
-                end
-            end
-
-            // Handle initial transaction acceptance from slave
+            // Handle transaction acceptance - this happens when handshaking with slave side
             if (s_axi_arvalid && s_axi_arready) begin
-                // Check if splitting is needed
-                if (w_split_required) begin
-                    // Set up split state
-                    r_splitting_active <= 1'b1;
-                    r_next_addr <= w_curr_boundary;
-                    r_remaining_len <= s_axi_arlen - w_split_arlen;
-                    r_is_last_split <= 1'b0;
-                    r_split_ongoing <= 1'b1;
+                // Always record split info for FIFO
+                r_split_addr <= s_axi_araddr;
+                r_split_id <= s_axi_arid;
 
-                    // Output information to split port
-                    s_split_addr <= s_axi_araddr;
-                    s_split_id <= s_axi_arid;
-                    s_split_num_splits <= 8'd1; // Start with 1 (will increment)
-                    s_split_valid <= 1'b1;
-                end else begin
-                    // No split needed
-                    r_splitting_active <= 1'b0;
-                    r_split_ongoing <= 1'b0;
-                end
+                // Signal to send info to FIFO
+                r_split_fifo_valid <= 1'b1;
+
+                // Reset state
+                r_split_state <= IDLE;
             end
 
-            // Handle split transactions in progress
-            if (r_splitting_active && m_axi_arready && m_axi_arvalid) begin
-                // Increment split count for each split sent
-                s_split_num_splits <= s_split_num_splits + 8'd1;
+            // State machine for split handling
+            case (r_split_state)
+                IDLE: begin
+                    // Check for new split transaction
+                    if (w_new_split_needed && m_axi_arready) begin
+                        // Start new split
+                        r_split_state <= SPLITTING;
+                        r_next_addr <= w_curr_boundary;
+                        r_remaining_len <= s_axi_arlen - w_split_arlen;
+                        r_num_splits <= 8'd2; // Initial transaction + first split
 
-                // Check if more splits are needed
-                if (w_split_required) begin
-                    // Update for next split
-                    r_next_addr <= w_curr_boundary;
-                    r_remaining_len <= r_remaining_len - w_split_arlen;
-                    r_is_last_split <= 1'b0;
-                end else begin
-                    // This will be the last split
-                    r_is_last_split <= 1'b1;
-
-                    // Keep splitting active until the handshake completes
-                    if (m_axi_arready) begin
-                        r_splitting_active <= 1'b0;
-                        // Leave r_split_ongoing set until all responses are processed
+                        // Save request information for FIFO
+                        r_split_addr <= s_axi_araddr;
+                        r_split_id <= s_axi_arid;
+                    end else if (s_axi_arvalid && s_axi_arready && !w_split_required) begin
+                        // No split needed
+                        r_num_splits <= 8'd1;
                     end
                 end
-            end
 
-            // Track completion for performance metrics
-            if (m_axi_rvalid && m_axi_rready && m_axi_rlast) begin
-                // For the last response (in case of split transactions) or for non-split transactions
-                if ((r_split_ongoing && r_is_last_split) || !r_split_ongoing) begin
-                    // Check if this is for our transaction
-                    if (m_axi_rid == r_curr_id) begin
-                        // Update latency metrics
-                        rd_latency_sum <= rd_latency_sum + (r_cycle_counter - r_rd_start_time);
-                        r_read_in_progress <= 1'b0;
-
-                        // Clear split state when last response received
-                        if (r_split_ongoing) begin
-                            r_split_ongoing <= 1'b0;
+                SPLITTING: begin
+                    // Process ongoing splits
+                    if (m_axi_arready && m_axi_arvalid) begin
+                        if (w_split_required) begin
+                            // More splits needed
+                            r_next_addr <= w_curr_boundary;
+                            r_remaining_len <= r_remaining_len - w_split_arlen;
+                            r_num_splits <= r_num_splits + 8'd1;
+                        end else begin
+                            // This is the last split
+                            r_split_state <= LAST_SPLIT;
                         end
                     end
                 end
-            end
+
+                LAST_SPLIT: begin
+                    // Wait for the last split to complete
+                    if (m_axi_arready && m_axi_arvalid) begin
+                        // Will transition to IDLE when s_axi_arready asserts
+                    end
+                end
+
+                default: r_split_state <= IDLE;
+            endcase
         end
     end
 
@@ -273,7 +260,7 @@ module axi_master_rd_splitter
         m_axi_aruser = s_axi_aruser;
 
         // Control valid signal based on state
-        if (!r_splitting_active) begin
+        if (r_split_state == IDLE) begin
             // Pass through slave valid for initial transaction
             m_axi_arvalid = s_axi_arvalid;
         end else begin
@@ -283,9 +270,7 @@ module axi_master_rd_splitter
     end
 
     // AR Channel - Slave side
-    // For non-split transactions, pass through m_axi_arready directly
-    // For split transactions, only assert s_axi_arready after the last split is sent
-    assign s_axi_arready = ((!w_split_required) || (r_is_last_split)) && m_axi_arready;
+    assign s_axi_arready = (w_no_split_in_progress || w_final_split_complete) && m_axi_arready;
 
     // R Channel - Slave side
     // Pass through all R channel signals
@@ -298,5 +283,31 @@ module axi_master_rd_splitter
 
     // R Channel - Master side
     assign m_axi_rready = s_axi_rready;
+
+    //===========================================================================
+    // Split information FIFO
+    //===========================================================================
+
+    // Pack the split info for the FIFO
+    logic [AW+IW+8-1:0] split_fifo_din;
+    assign split_fifo_din = {r_split_addr, r_split_id, r_num_splits};
+
+    // Instantiate the FIFO for split information
+    gaxi_fifo_sync #(
+        .DATA_WIDTH(AW + IW + 8),
+        .DEPTH(SPLIT_FIFO_DEPTH),
+        .INSTANCE_NAME("SPLIT_FIFO")
+    ) inst_split_info_fifo (
+        .i_axi_aclk(aclk),
+        .i_axi_aresetn(aresetn),
+        .i_wr_valid(r_split_fifo_valid),
+        .o_wr_ready(),  // Not used
+        .i_wr_data(split_fifo_din),
+        .i_rd_ready(s_split_ready),
+        .o_rd_valid(s_split_valid),
+        .ow_rd_data({s_split_addr, s_split_id, s_split_num_splits}),
+        .o_rd_data(),  // Not used
+        .ow_count()    // Not used
+    );
 
 endmodule : axi_master_rd_splitter
