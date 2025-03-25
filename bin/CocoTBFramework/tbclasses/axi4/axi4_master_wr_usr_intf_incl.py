@@ -1,43 +1,42 @@
 """
-AXI4 Master Read User Interface Include File
+AXI4 Master Write User Interface Include File
 
 This module provides common definitions, randomizers, and utility functions
-for the user-facing interfaces (s_split, s_error) of the AXI4 Master Read module.
+for the user-facing interfaces (s_split, s_error) of the AXI4 Master Write module.
 """
 
-from enum import Enum, IntEnum, IntFlag
-from collections import deque, namedtuple
+from enum import IntFlag
+from collections import namedtuple
 from CocoTBFramework.components.flex_randomizer import FlexRandomizer
-
 
 # Split interface definitions
 class SplitInfo(namedtuple('SplitInfo', ['addr', 'id', 'cnt'])):
     """Split information from the s_split interface"""
     pass
 
-
 # Error interface definitions
 class ErrorType(IntFlag):
     """Error types reported on the s_error interface"""
-    AR_TIMEOUT = 0b0001
-    R_TIMEOUT = 0b0010
-    R_RESP_ERROR = 0b0100
-
+    AW_TIMEOUT = 0b0001
+    W_TIMEOUT = 0b0010
+    B_TIMEOUT = 0b0100
+    B_RESP_ERROR = 0b1000
 
 class ErrorInfo(namedtuple('ErrorInfo', ['type', 'addr', 'id'])):
     """Error information from the s_error interface"""
     @property
     def error_type_str(self):
         """Return a string representation of the error type"""
-        if self.type == ErrorType.AR_TIMEOUT:
-            return "AR_TIMEOUT"
-        elif self.type == ErrorType.R_TIMEOUT:
-            return "R_TIMEOUT"
-        elif self.type == ErrorType.R_RESP_ERROR:
-            return "R_RESP_ERROR"
+        if self.type == ErrorType.AW_TIMEOUT:
+            return "AW_TIMEOUT"
+        elif self.type == ErrorType.W_TIMEOUT:
+            return "W_TIMEOUT"
+        elif self.type == ErrorType.B_TIMEOUT:
+            return "B_TIMEOUT"
+        elif self.type == ErrorType.B_RESP_ERROR:
+            return "B_RESP_ERROR"
         else:
             return f"UNKNOWN({self.type:04b})"
-
 
 # Split and Error FIFO randomizers
 FIFO_READY_CONSTRAINTS_ALWAYS = {
@@ -60,7 +59,6 @@ FIFO_READY_CONSTRAINTS_VERY_SLOW = {
     'ready_delay': ([[0, 0], [1, 10], [11, 20]], [0.1, 0.4, 0.5])
 }
 
-
 # Utility functions for error injection
 def create_error_randomizers():
     """Create a set of randomizers for error injection tests"""
@@ -71,7 +69,6 @@ def create_error_randomizers():
         'slow_ready': FlexRandomizer(FIFO_READY_CONSTRAINTS_SLOW),
         'very_slow_ready': FlexRandomizer(FIFO_READY_CONSTRAINTS_VERY_SLOW),
     }
-
 
 # Field configurations for user interface FIFOs
 def get_split_fifo_field_config(addr_width, id_width):
@@ -103,16 +100,15 @@ def get_split_fifo_field_config(addr_width, id_width):
         }
     }
 
-
 def get_error_fifo_field_config(addr_width, id_width):
     """Get field configuration for the error FIFO"""
     return {
         'type': {
-            'bits': 4,  # Updated to 4 bits to match errmon.sv
+            'bits': 4,  # 4 bits to match errmon.sv
             'default': 0,
             'format': 'bin',
-            'display_width': 4,  # Updated to show all 4 bits
-            'active_bits': (3, 0),  # Updated to 4 bits
+            'display_width': 4,
+            'active_bits': (3, 0),
             'description': 'Error Type'
         },
         'addr': {
@@ -133,7 +129,6 @@ def get_error_fifo_field_config(addr_width, id_width):
         }
     }
 
-
 def generate_test_addresses(base_addr, alignment_mask):
     """Generate test addresses relative to an alignment mask"""
     addresses = []
@@ -146,7 +141,6 @@ def generate_test_addresses(base_addr, alignment_mask):
     # Top of boundary (next boundary bottom)
     addresses.append(base_addr - (base_addr % alignment_mask) + alignment_mask)
     return addresses
-
 
 def generate_split_test_cases(alignment_mask, addr_width, burst_sizes=(0, 1, 2), burst_lengths=(0, 7, 15, 31, 63, 127, 255)):
     """Generate test cases for split testing"""
@@ -179,7 +173,6 @@ def generate_split_test_cases(alignment_mask, addr_width, burst_sizes=(0, 1, 2),
                 })
 
     return test_cases
-
 
 class PerformanceMetrics:
     """Class to track and verify performance metrics"""
@@ -231,7 +224,6 @@ class PerformanceMetrics:
 
         return transaction_match and byte_match and latency_match
 
-
 # Helper functions for timing tests
 def generate_timeout_test_values(base_timeout, count=8):
     """Generate timeout values around the base timeout for testing"""
@@ -251,14 +243,18 @@ def generate_timeout_test_values(base_timeout, count=8):
     test_values.sort()
     return test_values
 
-
 def create_collision_test_matrix():
     """Create a test matrix for error collision testing"""
     return [
         # Two errors at once
-        (ErrorType.AR_TIMEOUT, ErrorType.R_TIMEOUT),
-        (ErrorType.AR_TIMEOUT, ErrorType.R_RESP_ERROR),
-        (ErrorType.R_TIMEOUT, ErrorType.R_RESP_ERROR),
-        # All three at once (this is harder to trigger)
-        (ErrorType.AR_TIMEOUT, ErrorType.R_TIMEOUT, ErrorType.R_RESP_ERROR),
+        (ErrorType.AW_TIMEOUT, ErrorType.W_TIMEOUT),
+        (ErrorType.AW_TIMEOUT, ErrorType.B_RESP_ERROR),
+        (ErrorType.W_TIMEOUT, ErrorType.B_RESP_ERROR),
+        (ErrorType.B_TIMEOUT, ErrorType.B_RESP_ERROR),
+        # Three errors at once
+        (ErrorType.AW_TIMEOUT, ErrorType.W_TIMEOUT, ErrorType.B_RESP_ERROR),
+        (ErrorType.AW_TIMEOUT, ErrorType.B_TIMEOUT, ErrorType.B_RESP_ERROR),
+        (ErrorType.W_TIMEOUT, ErrorType.B_TIMEOUT, ErrorType.B_RESP_ERROR),
+        # All four at once (this is harder to trigger)
+        (ErrorType.AW_TIMEOUT, ErrorType.W_TIMEOUT, ErrorType.B_TIMEOUT, ErrorType.B_RESP_ERROR),
     ]

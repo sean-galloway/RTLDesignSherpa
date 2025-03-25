@@ -8,8 +8,7 @@ interfaces for read transactions.
 
 import cocotb
 import random
-from cocotb.triggers import RisingEdge, FallingEdge, Timer
-from collections import deque
+from cocotb.triggers import Timer
 
 from CocoTBFramework.tbclasses.tbbase import TBBase
 from CocoTBFramework.components.axi4.axi4_factories import (

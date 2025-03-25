@@ -17,8 +17,8 @@ from CocoTBFramework.tbclasses.tbbase import TBBase
 from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 
 # Import our interface and test classes
-from CocoTBFramework.tbclasses.axi4.axi4_master_wr_user_intf import Axi4MasterWrUserIntf
-from CocoTBFramework.tbclasses.axi4.axi4_master_wr_axi4_intf import Axi4MasterWrAxi4Intf
+from CocoTBFramework.tbclasses.axi4.axi4_master_wr_usr_intf import Axi4MasterWrUserIntf
+from CocoTBFramework.tbclasses.axi4.axi4_master_wr_slv_intf import Axi4MasterWrAxi4Intf
 from CocoTBFramework.tbclasses.axi4.axi4_master_wr_test import Axi4MasterWrTests
 
 
@@ -211,7 +211,59 @@ async def axi_master_wr_test(dut):
             32,  # AW Timeout clocks
             32,  # W Timeout clocks
             32,  # B Timeout clocks
-        )
+        ),
+        (
+            8,   # id_width
+            64,  # addr_width
+            64,  # data_width
+            1,   # user_width
+            2,   # skid_depth_aw
+            4,   # skid_depth_w
+            2,   # skid_depth_b
+            4,   # error_fifo_depth
+            32,  # AW Timeout clocks
+            32,  # W Timeout clocks
+            32,  # B Timeout clocks
+        ),
+        (
+            8,   # id_width
+            64,  # addr_width
+            128, # data_width
+            1,   # user_width
+            2,   # skid_depth_aw
+            4,   # skid_depth_w
+            2,   # skid_depth_b
+            4,   # error_fifo_depth
+            32,  # AW Timeout clocks
+            32,  # W Timeout clocks
+            32,  # B Timeout clocks
+        ),
+        (
+            8,   # id_width
+            64,  # addr_width
+            256, # data_width
+            1,   # user_width
+            2,   # skid_depth_aw
+            4,   # skid_depth_w
+            2,   # skid_depth_b
+            4,   # error_fifo_depth
+            32,  # AW Timeout clocks
+            32,  # W Timeout clocks
+            32,  # B Timeout clocks
+        ),
+        (
+            8,   # id_width
+            64,  # addr_width
+            512, # data_width
+            1,   # user_width
+            2,   # skid_depth_aw
+            4,   # skid_depth_w
+            2,   # skid_depth_b
+            4,   # error_fifo_depth
+            32,  # AW Timeout clocks
+            32,  # W Timeout clocks
+            32,  # B Timeout clocks
+        ),
     ]
 )
 def test_axi4_master_wr(request, id_width, addr_width, data_width, user_width,

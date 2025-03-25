@@ -1,8 +1,8 @@
 """
-Main Testbench for AXI4 Master Read with Splitting functionality
+Main Testbench for AXI4 Slave Read functionality
 
 This module provides the top-level testbench for the AXI4
-read master module with support for burst splitting and FIFO-based error detection.
+read slave module with support for FIFO-based error detection.
 """
 import os
 import random
@@ -17,14 +17,14 @@ from CocoTBFramework.tbclasses.tbbase import TBBase
 from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 
 # Import our interface and test classes
-from CocoTBFramework.tbclasses.axi4.axi4_master_rd_user_intf import Axi4MasterRdUserIntf
-from CocoTBFramework.tbclasses.axi4.axi4_master_rd_slv_intf import Axi4MasterRdAxi4Intf
-from CocoTBFramework.tbclasses.axi4.axi4_master_rd_test import Axi4MasterRdTests
+from CocoTBFramework.tbclasses.axi4.axi4_slave_rd_mst_intf import Axi4SlaveRdMasterIntf
+from CocoTBFramework.tbclasses.axi4.axi4_slave_rd_usr_intf import Axi4SlaveRdMemIntf
+from CocoTBFramework.tbclasses.axi4.axi4_slave_rd_test import Axi4SlaveRdTests
 
 
-class AXI4MasterRDTB(TBBase):
+class AXI4SlaveRDTB(TBBase):
     """
-    Top-level testbench for AXI4 Master Read with Splitting functionality and FIFO-based error reporting
+    Top-level testbench for AXI4 Slave Read module with FIFO-based error reporting
     """
     def __init__(self, dut):
         super().__init__(dut)
@@ -34,7 +34,6 @@ class AXI4MasterRDTB(TBBase):
         self.ADDR_WIDTH = self.convert_to_int(os.environ.get('TEST_ADDR_WIDTH', '32'))
         self.DATA_WIDTH = self.convert_to_int(os.environ.get('TEST_DATA_WIDTH', '32'))
         self.USER_WIDTH = self.convert_to_int(os.environ.get('TEST_USER_WIDTH', '1'))
-        self.ALIGNMENT_WIDTH = self.convert_to_int(os.environ.get('TEST_ALIGNMENT_WIDTH', '12'))
         self.SKID_DEPTH_AR = self.convert_to_int(os.environ.get('TEST_SKID_DEPTH_AR', '2'))
         self.SKID_DEPTH_R = self.convert_to_int(os.environ.get('TEST_SKID_DEPTH_R', '4'))
         self.TIMEOUT_AR = self.convert_to_int(os.environ.get('TEST_TIMEOUT_AR', '32'))
@@ -58,11 +57,11 @@ class AXI4MasterRDTB(TBBase):
         self._initialize_memory()
 
         # Create interface classes
-        self.user_intf = Axi4MasterRdUserIntf(dut)
-        self.axi4_intf = Axi4MasterRdAxi4Intf(dut, self.mem)
+        self.master_intf = Axi4SlaveRdMasterIntf(dut)
+        self.mem_intf = Axi4SlaveRdMemIntf(dut, self.mem)
 
         # Create test implementation
-        self.tests = Axi4MasterRdTests(dut, self.user_intf, self.axi4_intf)
+        self.tests = Axi4SlaveRdTests(dut, self.master_intf, self.mem_intf)
 
     def _initialize_memory(self):
         """Initialize memory with a pattern."""
@@ -88,10 +87,6 @@ class AXI4MasterRDTB(TBBase):
             self.log.info('Resetting DUT')
             await self.tests.reset_dut()
 
-            # Start the command handler to process read requests
-            self.log.info('Starting AXI4 read command handler')
-            await self.axi4_intf.start_command_handler()
-
             # Test 1: Basic read transactions
             self.log.info('# Test 1: Basic read transactions')
             result = await self.tests.test_01_basic_read()
@@ -100,42 +95,34 @@ class AXI4MasterRDTB(TBBase):
             # Wait longer between tests to ensure full cleanup
             await self.wait_clocks('aclk', 50)
 
-            # Test 2: Alignment boundary splitting
-            self.log.info('# Test 2: Alignment boundary splitting')
-            result = await self.tests.test_02_split_test()
-            test_results.append(("Alignment boundary splitting", result))
-
-            # Wait longer between tests
-            await self.wait_clocks('aclk', 50)
-
-            # # Test 3: Error handling (with FIFO-based reporting)
-            # self.log.info('# Test 3: Error handling with FIFO-based reporting')
-            # result = await self.tests.test_03_response_error_test()
-            # test_results.append(("Response error handling", result))
+            # # Test 2: Concurrent reads with different IDs
+            # self.log.info('# Test 2: Concurrent reads with different IDs')
+            # result = await self.tests.test_02_concurrent_reads()
+            # test_results.append(("Concurrent reads", result))
 
             # # Wait longer between tests
             # await self.wait_clocks('aclk', 50)
 
-            # # Test 4: R Timeout Test
-            # self.log.info('# Test 4: R Timeout Test')
-            # result = await self.tests.test_04_r_timeout_test()
-            # test_results.append(("R channel timeout handling", result))
+            # # Test 3: Error response handling
+            # self.log.info('# Test 3: Error response handling')
+            # result = await self.tests.test_03_error_response()
+            # test_results.append(("Error response handling", result))
 
             # # Wait longer between tests
             # await self.wait_clocks('aclk', 50)
 
-            # # Test 5: AR Timeout Test
-            # self.log.info('# Test 5: AR Timeout Test')
-            # result = await self.tests.test_05_ar_timeout_test()
-            # test_results.append(("AR channel timeout handling", result))
+            # # Test 4: Timeout handling
+            # self.log.info('# Test 4: Timeout handling')
+            # result = await self.tests.test_04_timeout_handling()
+            # test_results.append(("Timeout handling", result))
 
             # # Wait longer between tests
             # await self.wait_clocks('aclk', 50)
 
-            # # Test 6: Collision Cases
-            # self.log.info('# Test 6: Collision Cases Test')
-            # result = await self.tests.test_06_collision_cases()
-            # test_results.append(("Error collision cases", result))
+            # # Test 5: Performance with back-to-back transactions
+            # self.log.info('# Test 5: Performance test')
+            # result = await self.tests.test_05_performance()
+            # test_results.append(("Performance", result))
 
             # # Wait longer between tests
             # await self.wait_clocks('aclk', 50)
@@ -150,10 +137,10 @@ class AXI4MasterRDTB(TBBase):
 
             if all_passed:
                 self.log.info("All tests passed!")
-                print("AXI4 Master Read test completed successfully!")
+                print("AXI4 Slave Read test completed successfully!")
             else:
                 self.log.error("One or more tests failed!")
-                print("AXI4 Master Read test had failures!")
+                print("AXI4 Slave Read test had failures!")
                 for test_name, passed in test_results:
                     if not passed:
                         print(f"  Failed test: {test_name}")
@@ -164,19 +151,15 @@ class AXI4MasterRDTB(TBBase):
             # Ensure cleanup
             self.log.info("Test complete, performing cleanup")
 
-            # Stop the command handler
-            self.log.info('Stopping AXI4 read command handler')
-            await self.axi4_intf.stop_command_handler()
-
             # Wait for tasks to complete
             await self.wait_clocks('aclk', 10)
 
 
 @cocotb.test(timeout_time=5000, timeout_unit="us")
-async def axi_master_rd_test(dut):
-    """Main test for AXI4 Master Read with Splitting module and FIFO-based error reporting"""
+async def axi_slave_rd_test(dut):
+    """Main test for AXI4 Slave Read module"""
     # Create testbench
-    tb = AXI4MasterRDTB(dut)
+    tb = AXI4SlaveRDTB(dut)
 
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '42'))
@@ -199,63 +182,19 @@ async def axi_master_rd_test(dut):
             4,   # error_fifo_depth
             32,  # AR Timeout clocks
             32,  # R Timeout clocks
-        ),
-        (
-            8,   # id_width
-            64,  # addr_width
-            64,  # data_width
-            1,   # user_width
-            2,   # skid_depth_ar
-            4,   # skid_depth_r
-            4,   # error_fifo_depth
-            32,  # AR Timeout clocks
-            32,  # R Timeout clocks
-        ),
-        (
-            8,   # id_width
-            64,  # addr_width
-            128, # data_width
-            1,   # user_width
-            2,   # skid_depth_ar
-            4,   # skid_depth_r
-            4,   # error_fifo_depth
-            32,  # AR Timeout clocks
-            32,  # R Timeout clocks
-        ),
-        (
-            8,   # id_width
-            64,  # addr_width
-            256, # data_width
-            1,   # user_width
-            2,   # skid_depth_ar
-            4,   # skid_depth_r
-            4,   # error_fifo_depth
-            32,  # AR Timeout clocks
-            32,  # R Timeout clocks
-        ),
-        (
-            8,   # id_width
-            64,  # addr_width
-            512, # data_width
-            1,   # user_width
-            2,   # skid_depth_ar
-            4,   # skid_depth_r
-            4,   # error_fifo_depth
-            32,  # AR Timeout clocks
-            32,  # R Timeout clocks
-        ),
+        )
     ]
 )
-def test_axi4_master_rd(request, id_width, addr_width, data_width, user_width,
-                        skid_depth_ar, skid_depth_r, error_fifo_depth,
-                        timeout_ar, timeout_r):
+def test_axi4_slave_rd(request, id_width, addr_width, data_width, user_width,
+                      skid_depth_ar, skid_depth_r, error_fifo_depth,
+                      timeout_ar, timeout_r):
     """
     Run the test using pytest and cocotb.
     """
     # Get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common', 'rtl_axi': 'rtl/axi'})
 
-    dut_name = "axi_master_rd"
+    dut_name = "axi_slave_rd"
     toplevel = dut_name
 
     verilog_sources = [
@@ -263,8 +202,7 @@ def test_axi4_master_rd(request, id_width, addr_width, data_width, user_width,
         os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
         os.path.join(rtl_dict['rtl_axi'], "gaxi_fifo_sync.sv"),
         os.path.join(rtl_dict['rtl_axi'], "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_axi'], "axi_master_rd_splitter.sv"),
-        os.path.join(rtl_dict['rtl_axi'], "axi_master_rd_errmon.sv"),
+        os.path.join(rtl_dict['rtl_axi'], "axi_slave_rd_errmon.sv"),
         os.path.join(rtl_dict['rtl_axi'], f"{dut_name}.sv")
     ]
 
@@ -273,14 +211,13 @@ def test_axi4_master_rd(request, id_width, addr_width, data_width, user_width,
     aw_str = TBBase.format_dec(addr_width, 3)
     dw_str = TBBase.format_dec(data_width, 3)
     uw_str = TBBase.format_dec(user_width, 1)
-    al_str = TBBase.format_dec(12, 2)
     ar_str = TBBase.format_dec(skid_depth_ar, 1)
     r_str = TBBase.format_dec(skid_depth_r, 1)
     er_str = TBBase.format_dec(error_fifo_depth, 1)
     to_ar_str = TBBase.format_dec(timeout_ar, 2)
     to_r_str = TBBase.format_dec(timeout_r, 2)
 
-    test_name_plus_params = f"test_{dut_name}_id{id_str}_aw{aw_str}_dw{dw_str}_uw{uw_str}_al{al_str}_ar{ar_str}_r{r_str}_er{er_str}_to_ar{to_ar_str}_to_r{to_r_str}"
+    test_name_plus_params = f"test_{dut_name}_id{id_str}_aw{aw_str}_dw{dw_str}_uw{uw_str}_ar{ar_str}_r{r_str}_er{er_str}_to_ar{to_ar_str}_to_r{to_r_str}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Use it in the simbuild path

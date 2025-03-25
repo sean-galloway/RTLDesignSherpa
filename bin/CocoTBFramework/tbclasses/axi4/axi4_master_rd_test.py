@@ -5,19 +5,11 @@ This module provides test methods for validating the AXI4 Master Read module
 by leveraging the user interface and AXI4 interface modules.
 """
 
-import cocotb
-import random
-from cocotb.triggers import RisingEdge, FallingEdge, Timer
-from collections import deque
-
 from CocoTBFramework.tbclasses.tbbase import TBBase
-from CocoTBFramework.components.memory_model import MemoryModel
 
 # Import from our user interface include file
-from .axi4_master_rd_user_intf_incl import (
-    SplitInfo, ErrorInfo, ErrorType, create_error_randomizers,
-    generate_test_addresses,
-    generate_split_test_cases,
+from .axi4_master_rd_usr_intf_incl import (
+    ErrorType, 
     generate_timeout_test_values, create_collision_test_matrix
 )
 
@@ -233,9 +225,22 @@ class Axi4MasterRdTests(TBBase):
         # Reset the DUT and interfaces
         await self.reset_dut()
 
-        # Test multiple alignment boundaries
-        alignment_boundaries = [0x07F, 0x0FF, 0x1FF, 0x3FF, 0x7FF, 0xFFF]
-        # alignment_boundaries = [0x07F]
+        # Get the data width in bytes
+        size = self.axi4_intf.dsize
+        bytes_per_beat = 1 << size
+
+        # Scale alignment boundaries based on data width
+        # The alignment boundary must be at least as large as bytes_per_beat
+        # to ensure proper splitting behavior with wider data buses
+        if bytes_per_beat <= 8:  # 32-bit or 64-bit
+            alignment_masks = [0x07F, 0x0FF, 0x1FF, 0x3FF, 0x7FF, 0xFFF]
+        elif bytes_per_beat == 16:  # 128-bit
+            alignment_masks = [0x0FF, 0x1FF, 0x3FF, 0x7FF, 0xFFF] 
+        elif bytes_per_beat == 32:  # 256-bit
+            alignment_masks = [0x1FF, 0x3FF, 0x7FF, 0xFFF]
+        else:  # 512-bit
+            alignment_masks = [0x3FF, 0x7FF, 0xFFF]
+        # alignment_masks = [0x07F]
 
         # Iterate with various delays
         rand_keys = [
@@ -256,7 +261,7 @@ class Axi4MasterRdTests(TBBase):
         max_id = (1 << self.id_width) - 1  # Typically 255 for 8-bit ID
 
         # For each alignment mask
-        for alignment_index, alignment_mask in enumerate(alignment_boundaries):
+        for alignment_index, alignment_mask in enumerate(alignment_masks):
             self.log.info(f"Testing alignment mask: 0x{alignment_mask:X}")
 
             # Set the alignment mask in the DUT

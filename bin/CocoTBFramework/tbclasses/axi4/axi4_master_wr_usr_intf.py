@@ -6,16 +6,15 @@ of the AXI4 Master Write module, specifically focusing on the split and error in
 """
 
 import cocotb
-from cocotb.triggers import RisingEdge, FallingEdge, Timer
+from cocotb.triggers import Timer
 from collections import deque
 
 from CocoTBFramework.tbclasses.tbbase import TBBase
 from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_slave
-from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
 from CocoTBFramework.components.flex_randomizer import FlexRandomizer
 
 # Import definitions from include file
-from .axi4_master_wr_user_intf_incl import (
+from .axi4_master_wr_usr_intf_incl import (
     SplitInfo, ErrorInfo, ErrorType, create_error_randomizers,
     get_split_fifo_field_config, get_error_fifo_field_config,
     FIFO_READY_CONSTRAINTS_FIXED,
