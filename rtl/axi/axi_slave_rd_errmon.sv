@@ -13,19 +13,27 @@ module axi_slave_rd_errmon
     parameter int TIMEOUT_R        = 1000,  // Read data channel timeout
 
     // FIFO parameters
-    parameter int ERROR_FIFO_DEPTH = 2
+    parameter int ERROR_FIFO_DEPTH = 4,     // Depth of error reporting FIFO
+
+    // Short params
+    parameter int AW       = AXI_ADDR_WIDTH,
+    parameter int DW       = AXI_DATA_WIDTH,
+    parameter int IW       = AXI_ID_WIDTH,
+    parameter int UW       = AXI_USER_WIDTH
 )
 (
     // Global Clock and Reset
     input  logic aclk,
     input  logic aresetn,
 
-    // AXI interface to monitor
+    // AXI Interface to monitor
+    // Read address channel (AR)
     input  logic [AXI_ID_WIDTH-1:0]    m_axi_arid,
     input  logic [AXI_ADDR_WIDTH-1:0]  m_axi_araddr,
     input  logic                       m_axi_arvalid,
     input  logic                       m_axi_arready,
 
+    // Read data channel (R)
     input  logic [AXI_ID_WIDTH-1:0]    m_axi_rid,
     input  logic [1:0]                 m_axi_rresp,
     input  logic                       m_axi_rvalid,
@@ -35,217 +43,213 @@ module axi_slave_rd_errmon
     // Error outputs FIFO interface
     output logic                       error_valid,
     input  logic                       error_ready,
-    output logic [3:0]                 error_type,    // Error type flags (bit0: AR timeout, bit1: R timeout, bit2: response error)
-    output logic [AXI_ADDR_WIDTH-1:0]  error_addr,    // Address associated with error
-    output logic [AXI_ID_WIDTH-1:0]    error_id       // ID associated with error
+    // 4'b0001: AR timeout, 4'b0010: R timeout, 4'b0100: R response error
+    output logic [3:0]                 error_type,
+    output logic [AXI_ADDR_WIDTH-1:0]  error_addr,
+    output logic [AXI_ID_WIDTH-1:0]    error_id
 );
 
-    // Error type definitions
-    localparam AR_TIMEOUT = 4'b0001;  // Bit 0: Address Read timeout
-    localparam R_TIMEOUT  = 4'b0010;  // Bit 1: Data Read timeout
-    localparam R_ERROR    = 4'b0100;  // Bit 2: Read response error (SLVERR, DECERR)
+    // Error types
+    localparam int             ErrorTypeWidth = 4;
+    localparam int             ETW = ErrorTypeWidth;
+    localparam int             TEDW = AW + IW + ETW;  // Total Error Data Width
+    localparam logic [ETW-1:0] ErrorARTimeout = 4'b0001;
+    localparam logic [ETW-1:0] ErrorRTimeout  = 4'b0010;
+    localparam logic [ETW-1:0] ErrorRResp     = 4'b0100;
 
-    // State definitions for transaction tracking
-    typedef enum logic [1:0] {
-        IDLE        = 2'b00,
-        AR_ACTIVE   = 2'b01,
-        R_ACTIVE    = 2'b10,
-        R_COMPLETE  = 2'b11
-    } rd_state_t;
+    // -------------------------------------------------------------------------
+    // Direct timeout monitoring
+    // -------------------------------------------------------------------------
 
-    // Transaction tracking structures
-    typedef struct packed {
-        logic [AXI_ID_WIDTH-1:0]    id;
-        logic [AXI_ADDR_WIDTH-1:0]  addr;
-        logic [31:0]                ar_timer;
-        logic [31:0]                r_timer;
-        rd_state_t                  state;
-    } rd_trans_t;
+    // AR channel timeout monitoring
+    logic           ar_active;     // AR transaction in progress
+    logic [31:0]    ar_timer;      // AR timeout counter
+    logic           ar_timeout;    // AR timeout detected
 
-    // Transaction tracking FIFO depth (should match max outstanding transactions)
-    localparam TRANS_FIFO_DEPTH = 8;
+    // R channel timeout monitoring
+    logic           r_active;      // R transaction in progress
+    logic [31:0]    r_timer;       // R timeout counter
+    logic           r_timeout;     // R timeout detected
 
-    // Error information FIFO
-    typedef struct packed {
-        logic [3:0]                 type;
-        logic [AXI_ADDR_WIDTH-1:0]  addr;
-        logic [AXI_ID_WIDTH-1:0]    id;
-    } error_info_t;
+    // -------------------------------------------------------------------------
+    // Error Reporting FIFO
+    // -------------------------------------------------------------------------
 
-    // Tracking registers for active transactions
-    rd_trans_t rd_trans_list [TRANS_FIFO_DEPTH-1:0];
-    logic [$clog2(TRANS_FIFO_DEPTH)-1:0] rd_trans_count;
+    // Error reporting signals
+    logic               r_error_fifo_valid;
+    logic [TEDW-1:0]    r_error_fifo_wr_data;
+    logic               r_error_fifo_ready;
 
-    // Error FIFO
-    error_info_t error_fifo [ERROR_FIFO_DEPTH-1:0];
-    logic [$clog2(ERROR_FIFO_DEPTH):0] error_fifo_count;
-    logic [$clog2(ERROR_FIFO_DEPTH)-1:0] error_fifo_wr_ptr;
-    logic [$clog2(ERROR_FIFO_DEPTH)-1:0] error_fifo_rd_ptr;
+    logic               r_error_flag_arto;
+    logic [TEDW-1:0]    r_error_flag_arto_data;
+    logic               r_error_flag_rto;
+    logic [TEDW-1:0]    r_error_flag_rto_data;
 
-    // Internal error signals
-    logic int_error_valid;
-    logic [3:0] int_error_type;
-    logic [AXI_ADDR_WIDTH-1:0] int_error_addr;
-    logic [AXI_ID_WIDTH-1:0] int_error_id;
+    // Error FIFO - reports detected errors
+    gaxi_fifo_sync #(
+        .DATA_WIDTH(TEDW),
+        .DEPTH(ERROR_FIFO_DEPTH),
+        .INSTANCE_NAME("ERROR_FIFO")
+    ) i_error_fifo (
+        .i_axi_aclk(aclk),
+        .i_axi_aresetn(aresetn),
+        .i_wr_valid(r_error_fifo_valid),
+        .o_wr_ready(r_error_fifo_ready),
+        .i_wr_data(r_error_fifo_wr_data),
+        .i_rd_ready(error_ready),
+        .o_rd_valid(error_valid),
+        .ow_rd_data({error_id, error_type, error_addr}),
+        .o_rd_data(),
+        .ow_count()
+    );
 
-    // Flow control
-    logic error_fifo_full;
-    logic error_fifo_empty;
+    // -------------------------------------------------------------------------
+    // AR Channel Timeout Monitor
+    // -------------------------------------------------------------------------
 
-    // Transaction tracking logic
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
-            // Reset all transaction tracking
-            for (int i = 0; i < TRANS_FIFO_DEPTH; i++) begin
-                rd_trans_list[i].id <= '0;
-                rd_trans_list[i].addr <= '0;
-                rd_trans_list[i].ar_timer <= '0;
-                rd_trans_list[i].r_timer <= '0;
-                rd_trans_list[i].state <= IDLE;
-            end
-            rd_trans_count <= '0;
-            int_error_valid <= 1'b0;
-            int_error_type <= '0;
-            int_error_addr <= '0;
-            int_error_id <= '0;
+            ar_active <= 1'b0;
+            ar_timer <= '0;
+            ar_timeout <= 1'b0;
         end else begin
-            // Transaction Tracking Logic
-            
-            // Clear error signal by default
-            int_error_valid <= 1'b0;
-            
-            // AR Channel monitoring: Add new transactions
-            if (m_axi_arvalid && m_axi_arready) begin
-                // Record new transaction
-                if (rd_trans_count < TRANS_FIFO_DEPTH) begin
-                    rd_trans_list[rd_trans_count].id <= m_axi_arid;
-                    rd_trans_list[rd_trans_count].addr <= m_axi_araddr;
-                    rd_trans_list[rd_trans_count].ar_timer <= '0;
-                    rd_trans_list[rd_trans_count].r_timer <= '0;
-                    rd_trans_list[rd_trans_count].state <= AR_ACTIVE;
-                    rd_trans_count <= rd_trans_count + 1;
-                end
-            end
-            
-            // R Channel monitoring: Handle read responses
-            if (m_axi_rvalid && m_axi_rready) begin
-                for (int i = 0; i < TRANS_FIFO_DEPTH; i++) begin
-                    if (rd_trans_list[i].state == AR_ACTIVE && rd_trans_list[i].id == m_axi_rid) begin
-                        // Update state for this transaction
-                        rd_trans_list[i].state <= m_axi_rlast ? R_COMPLETE : R_ACTIVE;
-                        rd_trans_list[i].r_timer <= '0;
-                        
-                        // Check for response errors
-                        if (m_axi_rresp != 2'b00) begin
-                            // SLVERR or DECERR detected
-                            int_error_valid <= 1'b1;
-                            int_error_type <= R_ERROR;
-                            int_error_addr <= rd_trans_list[i].addr;
-                            int_error_id <= rd_trans_list[i].id;
-                        end
-                    end else if (rd_trans_list[i].state == R_ACTIVE && rd_trans_list[i].id == m_axi_rid) begin
-                        // Continued burst transaction
-                        rd_trans_list[i].state <= m_axi_rlast ? R_COMPLETE : R_ACTIVE;
-                        rd_trans_list[i].r_timer <= '0;
-                        
-                        // Check for response errors
-                        if (m_axi_rresp != 2'b00) begin
-                            // SLVERR or DECERR detected
-                            int_error_valid <= 1'b1;
-                            int_error_type <= R_ERROR;
-                            int_error_addr <= rd_trans_list[i].addr;
-                            int_error_id <= rd_trans_list[i].id;
-                        end
+            // Clear timeout flag by default
+            ar_timeout <= 1'b0;
+
+            // Monitor AR channel
+            if (m_axi_arvalid && !m_axi_arready) begin
+                // AR transaction is waiting for ready
+                if (!ar_active) begin
+                    // Start monitoring
+                    ar_active <= 1'b1;
+                    ar_timer <= '0;
+                end else begin
+                    // Continue monitoring
+                    ar_timer <= ar_timer + 1;
+
+                    // Check for timeout
+                    if (ar_timer >= TIMEOUT_AR) begin
+                        ar_timeout <= 1'b1;
+                        ar_active <= 1'b0; // Reset for next time
                     end
                 end
-            end
-            
-            // Cleanup completed transactions
-            for (int i = 0; i < TRANS_FIFO_DEPTH; i++) begin
-                if (rd_trans_list[i].state == R_COMPLETE) begin
-                    // Remove this transaction by shifting all entries down
-                    for (int j = i; j < TRANS_FIFO_DEPTH-1; j++) begin
-                        rd_trans_list[j] <= rd_trans_list[j+1];
-                    end
-                    // Clear the last entry
-                    rd_trans_list[TRANS_FIFO_DEPTH-1].state <= IDLE;
-                    // Decrement count
-                    rd_trans_count <= rd_trans_count - 1;
-                end
-            end
-            
-            // Timeout monitoring
-            for (int i = 0; i < TRANS_FIFO_DEPTH; i++) begin
-                // AR_ACTIVE state timeout check
-                if (rd_trans_list[i].state == AR_ACTIVE) begin
-                    rd_trans_list[i].ar_timer <= rd_trans_list[i].ar_timer + 1;
-                    if (rd_trans_list[i].ar_timer >= TIMEOUT_AR) begin
-                        // AR timeout detected
-                        int_error_valid <= 1'b1;
-                        int_error_type <= AR_TIMEOUT;
-                        int_error_addr <= rd_trans_list[i].addr;
-                        int_error_id <= rd_trans_list[i].id;
-                        // Mark as complete to remove from tracking
-                        rd_trans_list[i].state <= R_COMPLETE;
-                    end
-                end
-                
-                // R_ACTIVE state timeout check
-                if (rd_trans_list[i].state == R_ACTIVE) begin
-                    rd_trans_list[i].r_timer <= rd_trans_list[i].r_timer + 1;
-                    if (rd_trans_list[i].r_timer >= TIMEOUT_R) begin
-                        // R timeout detected
-                        int_error_valid <= 1'b1;
-                        int_error_type <= R_TIMEOUT;
-                        int_error_addr <= rd_trans_list[i].addr;
-                        int_error_id <= rd_trans_list[i].id;
-                        // Mark as complete to remove from tracking
-                        rd_trans_list[i].state <= R_COMPLETE;
-                    end
-                end
+            end else if (m_axi_arvalid && m_axi_arready) begin
+                // Successful handshake
+                ar_active <= 1'b0;
+                ar_timer <= '0;
+            end else if (!m_axi_arvalid) begin
+                // No transaction present
+                ar_active <= 1'b0;
+                ar_timer <= '0;
             end
         end
     end
 
-    // Error FIFO management
+    // -------------------------------------------------------------------------
+    // R Channel Monitor
+    // -------------------------------------------------------------------------
+
+    // Only monitor R timeout if we get a valid but not ready
+    // No need to track by ID since we only care about the handshake
+
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
-            error_fifo_count <= '0;
-            error_fifo_wr_ptr <= '0;
-            error_fifo_rd_ptr <= '0;
-            error_valid <= 1'b0;
-            error_type <= '0;
-            error_addr <= '0;
-            error_id <= '0;
+            r_active <= 1'b0;
+            r_timer <= '0;
+            r_timeout <= 1'b0;
         end else begin
-            // Write to FIFO when error detected and FIFO not full
-            if (int_error_valid && !error_fifo_full) begin
-                error_fifo[error_fifo_wr_ptr].type <= int_error_type;
-                error_fifo[error_fifo_wr_ptr].addr <= int_error_addr;
-                error_fifo[error_fifo_wr_ptr].id <= int_error_id;
-                error_fifo_wr_ptr <= (error_fifo_wr_ptr + 1) % ERROR_FIFO_DEPTH;
-                error_fifo_count <= error_fifo_count + 1;
-            end
-            
-            // Read from FIFO when consumer ready and FIFO not empty
-            if (error_valid && error_ready) begin
-                error_valid <= 1'b0;
-                error_fifo_rd_ptr <= (error_fifo_rd_ptr + 1) % ERROR_FIFO_DEPTH;
-                error_fifo_count <= error_fifo_count - 1;
-            end
-            
-            // Present next error if available and not already presenting one
-            if (!error_valid && !error_fifo_empty) begin
-                error_valid <= 1'b1;
-                error_type <= error_fifo[error_fifo_rd_ptr].type;
-                error_addr <= error_fifo[error_fifo_rd_ptr].addr;
-                error_id <= error_fifo[error_fifo_rd_ptr].id;
+            // Clear timeout flag by default
+            r_timeout <= 1'b0;
+
+            // Monitor R channel
+            if (m_axi_rvalid && !m_axi_rready) begin
+                // R transaction is waiting for ready
+                if (!r_active) begin
+                    // Start monitoring
+                    r_active <= 1'b1;
+                    r_timer <= '0;
+                end else begin
+                    // Continue monitoring
+                    r_timer <= r_timer + 1;
+
+                    // Check for timeout
+                    if (r_timer >= TIMEOUT_R) begin
+                        r_timeout <= 1'b1;
+                        r_active <= 1'b0; // Reset for next time
+                    end
+                end
+            end else if (m_axi_rvalid && m_axi_rready) begin
+                // Successful handshake
+                r_active <= 1'b0;
+                r_timer <= '0;
+            end else if (!m_axi_rvalid) begin
+                // No transaction present
+                r_active <= 1'b0;
+                r_timer <= '0;
             end
         end
     end
 
-    // FIFO status tracking
-    assign error_fifo_full = (error_fifo_count == ERROR_FIFO_DEPTH);
-    assign error_fifo_empty = (error_fifo_count == 0);
+    // -------------------------------------------------------------------------
+    // Error Detection and Reporting Logic
+    // -------------------------------------------------------------------------
+
+    logic w_resp_error;
+    logic w_arto_error;
+    logic w_rto_error;
+
+    assign w_resp_error = m_axi_rvalid && m_axi_rready && m_axi_rresp[1];
+    assign w_arto_error = (ar_timeout || r_error_flag_arto) && ~w_resp_error;
+    assign w_rto_error  = (r_timeout  || r_error_flag_rto)  && ~w_resp_error && ~w_arto_error;
+
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            r_error_fifo_valid <= 1'b0;
+            r_error_fifo_wr_data <= '0;
+
+            r_error_flag_arto <= 'b0;
+            r_error_flag_arto_data <= 'b0;
+
+            r_error_flag_rto <= 'b0;
+            r_error_flag_rto_data <= 'b0;
+
+        end else begin
+            // Default value
+            r_error_fifo_valid <= 1'b0;
+
+            // R response error (SLVERR or DECERR)
+            if (w_resp_error) begin
+                r_error_fifo_valid <= 1'b1;
+                // No address for response errors
+                r_error_fifo_wr_data <= {ErrorRResp, m_axi_rid, '0};
+            end
+
+            // AR timeout error
+            if (w_arto_error) begin
+                r_error_fifo_valid <= 1'b1;
+                r_error_fifo_wr_data <= ar_timeout ?
+                    {ErrorARTimeout, m_axi_arid, m_axi_araddr} : r_error_flag_arto_data;
+                r_error_flag_arto <= 'b0;
+                r_error_flag_arto_data <= 'b0;
+            end else if (ar_timeout) begin
+                r_error_flag_arto <= 'b1;
+                r_error_flag_arto_data <= {ErrorARTimeout, m_axi_arid, m_axi_araddr};
+            end
+
+            // R timeout error
+            if (w_rto_error) begin
+                r_error_fifo_valid <= 1'b1;
+                // No address for R timeout
+                r_error_fifo_wr_data <= r_timeout ?
+                    {ErrorRTimeout, m_axi_rid, '0} : r_error_flag_rto_data;
+                r_error_flag_rto <= 'b0;
+                r_error_flag_rto_data <= 'b0;
+            end else if (r_timeout) begin
+                r_error_flag_rto <= 'b1;
+                r_error_flag_rto_data <= {ErrorRTimeout, m_axi_rid, '0};
+            end
+
+        end
+    end
 
 endmodule : axi_slave_rd_errmon

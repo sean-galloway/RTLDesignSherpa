@@ -79,7 +79,7 @@ class GaxiFieldBufferTB(TBBase):
                 'active_bits': (self.CW-1, 0),
                 'description': 'Control value'
             },
-            'data': {
+            'data0': {
                 'bits': self.DW,
                 'default': 0,
                 'format': 'hex',

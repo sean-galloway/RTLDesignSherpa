@@ -183,7 +183,7 @@ class AXI4MasterWRTB(TBBase):
 
 
 @cocotb.test(timeout_time=5000, timeout_unit="us")
-async def axi_master_wr_test(dut):
+async def axi4_master_wr_test(dut):
     """Main test for AXI4 Master Write with Splitting module and FIFO-based error reporting"""
     # Create testbench
     tb = AXI4MasterWRTB(dut)

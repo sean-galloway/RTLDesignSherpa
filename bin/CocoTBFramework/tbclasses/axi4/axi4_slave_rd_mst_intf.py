@@ -46,6 +46,9 @@ class Axi4SlaveRdMasterIntf(TBBase):
         self.timeout_ar = int(getattr(dut, 'TIMEOUT_AR', 1000))
         self.timeout_r = int(getattr(dut, 'TIMEOUT_R', 1000))
 
+        # Set the max boundary
+        self.boundary_4k = 0xFFF
+
         # Calculate strobe width
         self.strb_width = self.data_width // 8
 
@@ -98,7 +101,7 @@ class Axi4SlaveRdMasterIntf(TBBase):
         # Transaction tracking
         self.pending_reads = {}    # Reads sent to DUT, awaiting response
         self.completed_reads = {}  # Completed read transactions
-        
+
         # Error monitoring
         self.detected_errors = []  # List of detected errors
 
@@ -107,7 +110,7 @@ class Axi4SlaveRdMasterIntf(TBBase):
 
         # Verification data
         self.total_errors = 0
-        
+
     def _handle_m_axi_read(self, id_value, transaction):
         """
         Process a read transaction from the master AXI interface.
@@ -119,13 +122,13 @@ class Axi4SlaveRdMasterIntf(TBBase):
         if id_value in self.pending_reads:
             # Store the response
             self.pending_reads[id_value]['response'] = transaction
-            
+
             # Mark as complete if it has the 'complete' flag
             if transaction.get('complete', False):
                 self.pending_reads[id_value]['complete'] = True
                 self.completed_reads[id_value] = self.pending_reads[id_value]
                 self.log.info(f"Read transaction completed: ID={id_value:X}, beats={len(transaction.get('r_transactions', []))}")
-                
+
     def _get_next_id(self):
         """
         Get the next available transaction ID.
@@ -154,7 +157,7 @@ class Axi4SlaveRdMasterIntf(TBBase):
         self.total_errors = 0
 
         self.log.info("AXI4 interfaces reset")
-        
+
     def set_m_axi_ar_timing(self, mode):
         """
         Set the timing mode for the master AXI AR channel.
@@ -182,7 +185,7 @@ class Axi4SlaveRdMasterIntf(TBBase):
             self.log.info(f"M_AXI R channel timing set to {mode}")
         else:
             self.log.error(f"Unknown R timing mode: {mode}")
-            
+
     async def read(self, addr, length=0, size=None, burst=1, id_value=None):
         """
         Execute an AXI4 read transaction.
@@ -200,11 +203,11 @@ class Axi4SlaveRdMasterIntf(TBBase):
         # Use default size if not specified
         if size is None:
             size = self.dsize
-            
+
         # Generate ID if not provided
         if id_value is None:
             id_value = self._get_next_id()
-            
+
         # Create tracking entry
         self.pending_reads[id_value] = {
             'addr': addr,
@@ -214,10 +217,10 @@ class Axi4SlaveRdMasterIntf(TBBase):
             'start_time': cocotb.utils.get_sim_time('ns'),
             'complete': False
         }
-            
+
         # Log the transaction
         self.log.info(f"Sending read request: ID={id_value:X}, addr=0x{addr:08X}, length={length}")
-        
+
         try:
             # Send the read request through the master interface
             result = await self.m_axi_master.read(
@@ -227,7 +230,7 @@ class Axi4SlaveRdMasterIntf(TBBase):
                 id=id_value,
                 length=length
             )
-            
+
             # Store the result
             if result:
                 # Update tracking entry
@@ -239,21 +242,35 @@ class Axi4SlaveRdMasterIntf(TBBase):
                     'complete': True,
                     'id': id_value
                 })
-                
+
                 # Move to completed reads
                 self.completed_reads[id_value] = self.pending_reads[id_value]
-                
+
                 return self.completed_reads[id_value]
             else:
                 self.log.error(f"Read transaction failed: ID={id_value:X}, addr=0x{addr:08X}")
                 self.total_errors += 1
                 return None
-                
+
         except Exception as e:
             self.log.error(f"Exception during read transaction: {str(e)}")
             self.total_errors += 1
             return None
-            
+
+    def set_dut_alignment_mask(self, value):
+        """
+        Set the alignment mask on the DUT.
+
+        Args:
+            value: Alignment mask value (typically a power of 2)
+        """
+        boundary = value & self.boundary_4k
+        if hasattr(self.dut, 'alignment_mask'):
+            self.dut.alignment_mask.value = boundary
+            self.log.info(f"DUT alignment mask set to {value}")
+        else:
+            self.log.error("DUT does not have alignment_mask signal")
+
     def check_for_error(self, error_type):
         """
         Check if a specific error type has been detected.
@@ -265,7 +282,7 @@ class Axi4SlaveRdMasterIntf(TBBase):
             True if the error has been detected, False otherwise
         """
         return any(e == error_type for e in self.detected_errors)
-        
+
     def add_detected_error(self, error_type):
         """
         Add a detected error to the tracking list.
@@ -275,7 +292,7 @@ class Axi4SlaveRdMasterIntf(TBBase):
         """
         self.detected_errors.append(error_type)
         self.log.info(f"Error detected: {ErrorType(error_type).name}")
-        
+
     def get_transaction_status(self, id_value):
         """
         Get the status of a transaction.

@@ -1,0 +1,75 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Wed Mar 26 02:44:01 2025
+[*]
+[dumpfile] "/home/sean/github/RTLDesignSherpa/val/integ_axi/local_sim_build/test_data_collect_dw08_idw08_fifo08/data_collect.fst"
+[dumpfile_mtime] "Wed Mar 26 02:36:59 2025"
+[dumpfile_size] 12950
+[savefile] "/home/sean/github/RTLDesignSherpa/val/integ_axi/GTKW/data_collect.gtkw"
+[timestart] 188700
+[size] 2116 1073
+[pos] -1 -1
+*-15.254866 240000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 278
+[signals_width] 226
+[sst_expanded] 1
+[sst_vpaned_height] 322
+@28
+data_collect.i_a_valid
+@22
+data_collect.i_a_data[7:0]
+data_collect.i_a_id[7:0]
+@28
+data_collect.i_b_valid
+@22
+data_collect.i_b_data[7:0]
+data_collect.i_b_id[7:0]
+@28
+data_collect.i_c_valid
+@22
+data_collect.i_c_data[7:0]
+data_collect.i_c_id[7:0]
+@28
+data_collect.i_d_valid
+@22
+data_collect.i_d_data[7:0]
+data_collect.i_d_id[7:0]
+@28
+data_collect.o_e_valid
+data_collect.w_a_skid_valid
+data_collect.w_a_skid_ready
+@22
+data_collect.w_a_skid_data[7:0]
+data_collect.w_a_skid_id[7:0]
+@28
+data_collect.w_b_skid_valid
+data_collect.w_b_skid_ready
+@22
+data_collect.w_b_skid_data[7:0]
+data_collect.w_b_skid_id[7:0]
+@28
+data_collect.w_c_skid_valid
+@22
+data_collect.w_c_skid_data[7:0]
+data_collect.w_c_skid_id[7:0]
+@28
+data_collect.w_d_skid_valid
+data_collect.w_c_skid_ready
+data_collect.w_d_skid_valid
+@29
+data_collect.w_d_skid_ready
+@22
+data_collect.w_d_skid_data[7:0]
+data_collect.w_d_skid_id[7:0]
+data_collect.o_e_data[39:0]
+data_collect.r_id[7:0]
+@28
+data_collect.w_arb_gnt_valid
+data_collect.w_arb_gnt_id[1:0]
+@22
+data_collect.w_arb_gnt[3:0]
+data_collect.w_arb_req[3:0]
+@28
+data_collect.w_arb_block
+[pattern_trace] 1
+[pattern_trace] 0

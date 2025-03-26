@@ -99,7 +99,7 @@ module axi_master_rd_errmon
         .i_wr_data(r_error_fifo_wr_data),
         .i_rd_ready(error_ready),
         .o_rd_valid(error_valid),
-        .ow_rd_data({error_id, error_type, error_addr}),
+        .ow_rd_data({error_type, error_id, error_addr}),
         .o_rd_data(),
         .ow_count()
     );

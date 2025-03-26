@@ -17,7 +17,7 @@ from CocoTBFramework.components.axi4.axi4_factories import (
 from CocoTBFramework.components.axi4.axi4_packets import AXI4Packet
 from CocoTBFramework.components.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.memory_model import MemoryModel
-
+from CocoTBFramework.components.debug_object import get_object_details
 
 class Axi4MasterWrAxi4Intf(TBBase):
     """
@@ -44,6 +44,9 @@ class Axi4MasterWrAxi4Intf(TBBase):
         self.timeout_aw = int(getattr(dut, 'TIMEOUT_AW', 1000))
         self.timeout_w = int(getattr(dut, 'TIMEOUT_W', 1000))
         self.timeout_b = int(getattr(dut, 'TIMEOUT_B', 1000))
+
+        # Set the max boundary
+        self.boundary_4k = 0xFFF
 
         # Calculate strobe width
         self.strb_width = self.data_width // 8
@@ -423,38 +426,85 @@ class Axi4MasterWrAxi4Intf(TBBase):
             busy_send: If True, wait for transaction to complete before returning
 
         Returns:
-            ID of the transaction
+            ID of the transaction or None if transaction validation failed
         """
         func_title = 'Axi4MasterWrAxi4Intf(send_write): '
-        # Generate ID if not provided
-        if id_value is None:
-            id_value = self._get_next_id()
+
+        # === AXI4 Protocol Validation ===
+        # Validate burst length
+        if length > 255:
+            self.log.warning(f"{func_title}Invalid burst length ({length}). AXI4 supports max 256 beats (0-255). Truncating to 255.")
+            length = 255
+
+        # Validate ID width
+        if id_value is not None and id_value >= (1 << self.id_width):
+            self.log.warning(f"{func_title}ID value 0x{id_value:X} exceeds ID width ({self.id_width} bits). Masking ID.")
+            id_value = id_value & ((1 << self.id_width) - 1)
+
+        # Calculate required address alignment based on size
+        bytes_per_beat = 1 << self.dsize
+        required_alignment = bytes_per_beat - 1
+        aligned_addr = addr & ~required_alignment
+
+        if aligned_addr != addr:
+            self.log.warning(f"{func_title}Address 0x{addr:08X} not aligned to transfer size ({bytes_per_beat} bytes). Adjusting to 0x{aligned_addr:08X}")
+
+        # Check for alignment boundary crossing
+        if hasattr(self.dut, 'alignment_mask') and self.dut.alignment_mask.value.is_resolvable:
+            alignment_mask = int(self.dut.alignment_mask.value)
+            boundary_size = alignment_mask + 1
+
+            # Calculate if transaction crosses an alignment boundary
+            last_byte_addr = aligned_addr + (bytes_per_beat * (length + 1)) - 1
+            start_segment = aligned_addr // boundary_size
+            end_segment = last_byte_addr // boundary_size
+
+            if start_segment != end_segment:
+                boundaries_crossed = end_segment - start_segment
+                next_boundary = (start_segment + 1) * boundary_size
+
+                self.log.debug(f"{func_title}Transaction will cross {boundaries_crossed} alignment boundary(ies). "
+                            f"First at 0x{next_boundary:08X}. Current alignment_mask=0x{alignment_mask:X}")
+        else:
+            self.log.debug(f"{func_title}alignmen_mask is not found or not resolvable")
 
         # Handle single-value data by converting to list
         if isinstance(data, int):
             data = [data] * (length + 1)
-        elif len(data) < length + 1:
+
+        # Validate data list length against burst length
+        if len(data) < length + 1:
+            self.log.warning(f"{func_title}Data list length ({len(data)}) is less than burst length ({length+1}). Padding with zeros.")
             # Pad with zeros if data list is too short
             data = data + [0] * (length + 1 - len(data))
         elif len(data) > length + 1:
+            self.log.warning(f"{func_title}Data list length ({len(data)}) is greater than burst length ({length+1}). Truncating.")
             # Truncate if data list is too long
             data = data[:length + 1]
 
-        # Generate strobe if not provided
+        # Check for AXI 4KB boundary crossing (still report as warning but don't fix)
+        last_byte_addr = aligned_addr + (bytes_per_beat * (length + 1)) - 1
+        start_4k = aligned_addr >> 12
+        end_4k = last_byte_addr >> 12
+
+        if start_4k != end_4k:
+            self.log.warning(f"{func_title}Transaction crosses AXI 4KB boundary (0x{(start_4k+1)<<12:08X}). This may cause issues with some AXI slaves.")
+
+        # Validate and generate strobe if not provided
         if strb is None:
             strb = (1 << self.strb_width) - 1  # All bytes enabled
+        elif strb >= (1 << self.strb_width):
+            self.log.warning(f"{func_title}Strobe value 0x{strb:X} exceeds width ({self.strb_width} bits). Masking strobe.")
+            strb = strb & ((1 << self.strb_width) - 1)
 
-        # Align address with data width
-        bytes_per_beat = 1 << self.dsize
-        aligned_addr = addr & ~(bytes_per_beat - 1)
-
-        if aligned_addr != addr:
-            self.log.info(f"{func_title}Aligning address 0x{addr:08X} to 0x{aligned_addr:08X} for size {self.dsize}")
+        # Generate ID if not provided
+        if id_value is None:
+            id_value = self._get_next_id()
 
         # Create AW packet
         aw_packet = AXI4Packet.create_aw_packet(
             awid=id_value,
-            awaddr=addr,
+            awaddr=aligned_addr,
             awlen=length,
             awsize=self.dsize,
             awburst=self.burst,
@@ -547,7 +597,7 @@ class Axi4MasterWrAxi4Intf(TBBase):
         Args:
             value: Alignment mask value (typically a power of 2)
         """
-        boundary = value & 4095
+        boundary = value & self.boundary_4k
         if hasattr(self.dut, 'alignment_mask'):
             self.dut.alignment_mask.value = boundary
             self.log.info(f"DUT alignment boundary set to {value}")

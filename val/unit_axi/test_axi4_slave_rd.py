@@ -17,9 +17,10 @@ from CocoTBFramework.tbclasses.tbbase import TBBase
 from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 
 # Import our interface and test classes
-from CocoTBFramework.tbclasses.axi4.axi4_slave_rd_mst_intf import Axi4SlaveRdMasterIntf
-from CocoTBFramework.tbclasses.axi4.axi4_slave_rd_usr_intf import Axi4SlaveRdMemIntf
-from CocoTBFramework.tbclasses.axi4.axi4_slave_rd_test import Axi4SlaveRdTests
+from axi4_slave_rd_mst_intf import Axi4SlaveRdMasterIntf
+from axi4_slave_rd_mem_intf import Axi4SlaveRdMemIntf
+from axi4_slave_rd_usr_intf import Axi4SlaveRdUserIntf
+from axi4_slave_rd_test import Axi4SlaveRdTests
 
 
 class AXI4SlaveRDTB(TBBase):
@@ -59,9 +60,10 @@ class AXI4SlaveRDTB(TBBase):
         # Create interface classes
         self.master_intf = Axi4SlaveRdMasterIntf(dut)
         self.mem_intf = Axi4SlaveRdMemIntf(dut, self.mem)
+        self.user_intf = Axi4SlaveRdUserIntf(dut)
 
         # Create test implementation
-        self.tests = Axi4SlaveRdTests(dut, self.master_intf, self.mem_intf)
+        self.tests = Axi4SlaveRdTests(dut, self.master_intf, self.mem_intf, self.user_intf)
 
     def _initialize_memory(self):
         """Initialize memory with a pattern."""
@@ -95,37 +97,53 @@ class AXI4SlaveRDTB(TBBase):
             # Wait longer between tests to ensure full cleanup
             await self.wait_clocks('aclk', 50)
 
-            # # Test 2: Concurrent reads with different IDs
-            # self.log.info('# Test 2: Concurrent reads with different IDs')
-            # result = await self.tests.test_02_concurrent_reads()
-            # test_results.append(("Concurrent reads", result))
+            # Test 2: Concurrent reads with different IDs
+            self.log.info('# Test 2: Concurrent reads with different IDs')
+            result = await self.tests.test_02_concurrent_reads()
+            test_results.append(("Concurrent reads", result))
 
-            # # Wait longer between tests
-            # await self.wait_clocks('aclk', 50)
+            # Wait longer between tests
+            await self.wait_clocks('aclk', 50)
 
-            # # Test 3: Error response handling
-            # self.log.info('# Test 3: Error response handling')
-            # result = await self.tests.test_03_error_response()
-            # test_results.append(("Error response handling", result))
+            # Test 3: Error response handling
+            self.log.info('# Test 3: Error response handling')
+            result = await self.tests.test_03_error_response()
+            test_results.append(("Error response handling", result))
 
-            # # Wait longer between tests
-            # await self.wait_clocks('aclk', 50)
+            # Wait longer between tests
+            await self.wait_clocks('aclk', 50)
 
-            # # Test 4: Timeout handling
-            # self.log.info('# Test 4: Timeout handling')
-            # result = await self.tests.test_04_timeout_handling()
-            # test_results.append(("Timeout handling", result))
+            # Test 4: AR timeout handling
+            self.log.info('# Test 4: AR Timeout handling')
+            result = await self.tests.test_04_ar_timeout()
+            test_results.append(("AR Timeout handling", result))
 
-            # # Wait longer between tests
-            # await self.wait_clocks('aclk', 50)
+            # Wait longer between tests
+            await self.wait_clocks('aclk', 50)
 
-            # # Test 5: Performance with back-to-back transactions
-            # self.log.info('# Test 5: Performance test')
-            # result = await self.tests.test_05_performance()
-            # test_results.append(("Performance", result))
+            # Test 5: R timeout handling
+            self.log.info('# Test 5: R Timeout handling')
+            result = await self.tests.test_05_r_timeout()
+            test_results.append(("R Timeout handling", result))
 
-            # # Wait longer between tests
-            # await self.wait_clocks('aclk', 50)
+            # Wait longer between tests
+            await self.wait_clocks('aclk', 50)
+
+            # Test 6: Collision cases
+            self.log.info('# Test 6: Collision cases')
+            result = await self.tests.test_06_collision_cases()
+            test_results.append(("Collision cases", result))
+
+            # Wait longer between tests
+            await self.wait_clocks('aclk', 50)
+
+            # Test 7: Performance with back-to-back transactions
+            self.log.info('# Test 7: Performance test')
+            result = await self.tests.test_07_performance()
+            test_results.append(("Performance", result))
+
+            # Wait longer between tests
+            await self.wait_clocks('aclk', 50)
 
             # Print test summary
             self.log.info("=== Test Summary ===")
@@ -156,7 +174,7 @@ class AXI4SlaveRDTB(TBBase):
 
 
 @cocotb.test(timeout_time=5000, timeout_unit="us")
-async def axi_slave_rd_test(dut):
+async def axi4_slave_rd_test(dut):
     """Main test for AXI4 Slave Read module"""
     # Create testbench
     tb = AXI4SlaveRDTB(dut)
@@ -186,8 +204,8 @@ async def axi_slave_rd_test(dut):
     ]
 )
 def test_axi4_slave_rd(request, id_width, addr_width, data_width, user_width,
-                      skid_depth_ar, skid_depth_r, error_fifo_depth,
-                      timeout_ar, timeout_r):
+                        skid_depth_ar, skid_depth_r, error_fifo_depth,
+                        timeout_ar, timeout_r):
     """
     Run the test using pytest and cocotb.
     """

@@ -33,16 +33,16 @@ module axi_master_wr
 )
 (
     // Global Clock and Reset
-    input  logic aclk,
-    input  logic aresetn,
+    input  logic                       aclk,
+    input  logic                       aresetn,
 
     // Alignment mask signal (12-bit)
-    input  logic [11:0] alignment_mask,
+    input  logic [11:0]                alignment_mask,
 
     // Slave AXI Interface (Input Side)
     // Write address channel (AW)
-    input  logic [AXI_ID_WIDTH-1:0]    s_axi_awid,
-    input  logic [AXI_ADDR_WIDTH-1:0]  s_axi_awaddr,
+    input  logic [IW-1:0]              s_axi_awid,
+    input  logic [AW-1:0]              s_axi_awaddr,
     input  logic [7:0]                 s_axi_awlen,
     input  logic [2:0]                 s_axi_awsize,
     input  logic [1:0]                 s_axi_awburst,
@@ -51,15 +51,15 @@ module axi_master_wr
     input  logic [2:0]                 s_axi_awprot,
     input  logic [3:0]                 s_axi_awqos,
     input  logic [3:0]                 s_axi_awregion,
-    input  logic [AXI_USER_WIDTH-1:0]  s_axi_awuser,
+    input  logic [UW-1:0]              s_axi_awuser,
     input  logic                       s_axi_awvalid,
     output logic                       s_axi_awready,
 
     // Write data channel (W)
-    input  logic [AXI_DATA_WIDTH-1:0]  s_axi_wdata,
-    input  logic [AXI_DATA_WIDTH/8-1:0] s_axi_wstrb,
+    input  logic [DW-1:0]              s_axi_wdata,
+    input  logic [DW/8-1:0]            s_axi_wstrb,
     input  logic                       s_axi_wlast,
-    input  logic [AXI_USER_WIDTH-1:0]  s_axi_wuser,
+    input  logic [UW-1:0]              s_axi_wuser,
     input  logic                       s_axi_wvalid,
     output logic                       s_axi_wready,
 
@@ -72,8 +72,8 @@ module axi_master_wr
 
     // Master AXI Interface (Output Side)
     // Write address channel (AW)
-    output logic [AXI_ID_WIDTH-1:0]    m_axi_awid,
-    output logic [AXI_ADDR_WIDTH-1:0]  m_axi_awaddr,
+    output logic [IW-1:0]              m_axi_awid,
+    output logic [AW-1:0]              m_axi_awaddr,
     output logic [7:0]                 m_axi_awlen,
     output logic [2:0]                 m_axi_awsize,
     output logic [1:0]                 m_axi_awburst,
@@ -82,43 +82,44 @@ module axi_master_wr
     output logic [2:0]                 m_axi_awprot,
     output logic [3:0]                 m_axi_awqos,
     output logic [3:0]                 m_axi_awregion,
-    output logic [AXI_USER_WIDTH-1:0]  m_axi_awuser,
+    output logic [UW-1:0]              m_axi_awuser,
     output logic                       m_axi_awvalid,
     input  logic                       m_axi_awready,
 
     // Write data channel (W)
-    output logic [AXI_DATA_WIDTH-1:0]  m_axi_wdata,
-    output logic [AXI_DATA_WIDTH/8-1:0] m_axi_wstrb,
+    output logic [DW-1:0]              m_axi_wdata,
+    output logic [DW/8-1:0]            m_axi_wstrb,
     output logic                       m_axi_wlast,
-    output logic [AXI_USER_WIDTH-1:0]  m_axi_wuser,
+    output logic [UW-1:0]              m_axi_wuser,
     output logic                       m_axi_wvalid,
     input  logic                       m_axi_wready,
 
     // Write response channel (B)
-    input  logic [AXI_ID_WIDTH-1:0]    m_axi_bid,
+    input  logic [IW-1:0]              m_axi_bid,
     input  logic [1:0]                 m_axi_bresp,
-    input  logic [AXI_USER_WIDTH-1:0]  m_axi_buser,
+    input  logic [UW-1:0]              m_axi_buser,
     input  logic                       m_axi_bvalid,
     output logic                       m_axi_bready,
 
     // Output split information with FIFO interface
-    output logic [AXI_ADDR_WIDTH-1:0]  s_split_addr,
-    output logic [AXI_ID_WIDTH-1:0]    s_split_id,
+    output logic [AW-1:0]              s_split_addr,
+    output logic [IW-1:0]              s_split_id,
     output logic [7:0]                 s_split_cnt,
     output logic                       s_split_valid,
     input  logic                       s_split_ready,
 
     // Error outputs with FIFO interface
-    output logic [3:0]                 s_error_type,     // Error type flags (AW timeout, W timeout, B timeout, response error)
-    output logic [AXI_ADDR_WIDTH-1:0]  s_error_addr,     // Address associated with error
-    output logic [AXI_ID_WIDTH-1:0]    s_error_id,       // ID associated with error
+                        // Error type flags (AW timeout, W timeout, B timeout, response error)
+    output logic [3:0]                 s_error_type,
+    output logic [AW-1:0]              s_error_addr,     // Address associated with error
+    output logic [IW-1:0]              s_error_id,       // ID associated with error
     output logic                       s_error_valid,
     input  logic                       s_error_ready
 );
 
     // Internal connections between splitter and error monitor/skid buffer
-    logic [AXI_ID_WIDTH-1:0]    int_m_axi_awid;
-    logic [AXI_ADDR_WIDTH-1:0]  int_m_axi_awaddr;
+    logic [IW-1:0]              int_m_axi_awid;
+    logic [AW-1:0]              int_m_axi_awaddr;
     logic [7:0]                 int_m_axi_awlen;
     logic [2:0]                 int_m_axi_awsize;
     logic [1:0]                 int_m_axi_awburst;
@@ -127,20 +128,20 @@ module axi_master_wr
     logic [2:0]                 int_m_axi_awprot;
     logic [3:0]                 int_m_axi_awqos;
     logic [3:0]                 int_m_axi_awregion;
-    logic [AXI_USER_WIDTH-1:0]  int_m_axi_awuser;
+    logic [UW-1:0]              int_m_axi_awuser;
     logic                       int_m_axi_awvalid;
     logic                       int_m_axi_awready;
 
-    logic [AXI_DATA_WIDTH-1:0]  int_m_axi_wdata;
-    logic [AXI_DATA_WIDTH/8-1:0] int_m_axi_wstrb;
+    logic [DW-1:0]              int_m_axi_wdata;
+    logic [DW/8-1:0]            int_m_axi_wstrb;
     logic                       int_m_axi_wlast;
-    logic [AXI_USER_WIDTH-1:0]  int_m_axi_wuser;
+    logic [UW-1:0]              int_m_axi_wuser;
     logic                       int_m_axi_wvalid;
     logic                       int_m_axi_wready;
 
-    logic [AXI_ID_WIDTH-1:0]    int_m_axi_bid;
+    logic [IW-1:0]              int_m_axi_bid;
     logic [1:0]                 int_m_axi_bresp;
-    logic [AXI_USER_WIDTH-1:0]  int_m_axi_buser;
+    logic [UW-1:0]              int_m_axi_buser;
     logic                       int_m_axi_bvalid;
     logic                       int_m_axi_bready;
 
@@ -170,7 +171,7 @@ module axi_master_wr
     ) i_axi_master_wr_splitter (
         .aclk                 (aclk),
         .aresetn              (aresetn),
-        .alignment_mask   (alignment_mask),
+        .alignment_mask       (alignment_mask),
 
         // Slave interface (input)
         .s_axi_awid           (s_axi_awid),
@@ -231,7 +232,7 @@ module axi_master_wr
         // Split information with FIFO interface
         .s_split_addr         (s_split_addr),
         .s_split_id           (s_split_id),
-        .s_split_cnt   (s_split_cnt),
+        .s_split_cnt          (s_split_cnt),
         .s_split_valid        (s_split_valid),
         .s_split_ready        (s_split_ready)
     );

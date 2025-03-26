@@ -173,7 +173,7 @@ class AXI4MasterRDTB(TBBase):
 
 
 @cocotb.test(timeout_time=5000, timeout_unit="us")
-async def axi_master_rd_test(dut):
+async def axi4_master_rd_test(dut):
     """Main test for AXI4 Master Read with Splitting module and FIFO-based error reporting"""
     # Create testbench
     tb = AXI4MasterRDTB(dut)
@@ -312,6 +312,7 @@ def test_axi4_master_rd(request, id_width, addr_width, data_width, user_width,
     extra_env = {
         'DUT': dut_name,
         'LOG_PATH': log_path,
+        # 'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_LOG_LEVEL': 'DEBUG',
         'COCOTB_RESULTS_FILE': results_path,
         'SEED': str(random.randint(0, 100000))

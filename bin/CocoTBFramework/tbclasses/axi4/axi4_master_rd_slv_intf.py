@@ -18,6 +18,7 @@ from CocoTBFramework.components.axi4.axi4_packets import AXI4Packet
 from CocoTBFramework.components.axi4.axi4_command_handlers import AXI4ReadCommandHandler
 from CocoTBFramework.components.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.memory_model import MemoryModel
+from CocoTBFramework.components.debug_object import get_object_details
 
 
 class Axi4MasterRdAxi4Intf(TBBase):
@@ -44,6 +45,9 @@ class Axi4MasterRdAxi4Intf(TBBase):
         self.user_width = int(getattr(dut, 'AXI_USER_WIDTH', 1))
         self.timeout_ar = int(getattr(dut, 'TIMEOUT_AR', 1000))
         self.timeout_r = int(getattr(dut, 'TIMEOUT_R', 1000))
+
+        # Set the max boundary
+        self.boundary_4k = 0xFFF
 
         # Calculate strobe width
         self.strb_width = self.data_width // 8
@@ -180,7 +184,7 @@ class Axi4MasterRdAxi4Intf(TBBase):
         randomizers = {}
 
         fixed = 2
-    
+
         # AR channel randomizers for s_axi interface
         randomizers['ar_always_ready'] = FlexRandomizer({
             'valid_delay': ([[0, 0]], [1.0])
@@ -300,7 +304,7 @@ class Axi4MasterRdAxi4Intf(TBBase):
         # Stop command handler if running
         if self.cmd_handler:
             await self.cmd_handler.stop()
-            
+
         # Reset the AXI components
         await self.s_axi_master.reset_bus()
         await self.m_axi_slave.reset_bus()
@@ -370,29 +374,60 @@ class Axi4MasterRdAxi4Intf(TBBase):
         Args:
             addr: Address to read from
             length: Burst length (0=1 beat, 1=2 beats, etc.)
-            size: Transfer size (0=byte, 1=halfword, 2=word, 3=doubleword, etc.)
-            burst: Burst type (0=FIXED, 1=INCR, 2=WRAP)
             id_value: Optional specific ID to use (None for auto-generated)
+            busy_send: If True, wait for transaction to complete before returning
 
         Returns:
-            ID of the transaction
+            ID of the transaction or None if transaction validation failed
         """
         func_title = 'Axi4MasterRdIdAxi4Intf(send_read): '
+
+        # === AXI4 Protocol Validation ===
+        # Validate burst length
+        if length > 255:
+            self.log.warning(f"{func_title}Invalid burst length ({length}). AXI4 supports max 256 beats (0-255). Truncating to 255.")
+            length = 255
+
+        # Validate ID width
+        if id_value is not None and id_value >= (1 << self.id_width):
+            self.log.warning(f"{func_title}ID value 0x{id_value:X} exceeds ID width ({self.id_width} bits). Masking ID.")
+            id_value = id_value & ((1 << self.id_width) - 1)
+
+        # Calculate required address alignment based on size
+        bytes_per_beat = 1 << self.dsize
+        required_alignment = bytes_per_beat - 1
+        aligned_addr = addr & ~required_alignment
+
+        if aligned_addr != addr:
+            self.log.warning(f"{func_title}Address 0x{addr:08X} not aligned to transfer size ({bytes_per_beat} bytes). Adjusting to 0x{aligned_addr:08X}")
+
+        # Check for alignment boundary crossing
+        if hasattr(self.dut, 'alignment_mask') and self.dut.alignment_mask.value.is_resolvable:
+            alignment_mask = int(self.dut.alignment_mask.value)
+            boundary_size = alignment_mask + 1
+
+            # Calculate if transaction crosses an alignment boundary
+            last_byte_addr = aligned_addr + (bytes_per_beat * (length + 1)) - 1
+            start_segment = aligned_addr // boundary_size
+            end_segment = last_byte_addr // boundary_size
+
+            if start_segment != end_segment:
+                boundaries_crossed = end_segment - start_segment
+                next_boundary = (start_segment + 1) * boundary_size
+
+                self.log.debug(f"{func_title}Transaction will cross {boundaries_crossed} alignment boundary(ies). "
+                            f"First at 0x{next_boundary:08X}. Current alignment_mask=0x{alignment_mask:X}")
+        else:
+            self.log.debug(f"{func_title}alignmen_mask is not found or not resolvable")
+
         # Generate ID if not provided
         if id_value is None:
             id_value = self._get_next_id()
 
-        # Align address with data width
-        bytes_per_beat = 1 << self.dsize
-        aligned_addr = addr & ~(bytes_per_beat - 1)
-        
-        if aligned_addr != addr:
-            self.log.info(f"{func_title}Aligning address 0x{addr:08X} to 0x{aligned_addr:08X} for size {self.dsize}")
-
         # Create packet for AXI4 master
         packet = AXI4Packet.create_ar_packet(
             arid=id_value,
-            araddr=addr,
+            araddr=aligned_addr,
             arlen=length,
             arsize=self.dsize,
             arburst=self.burst
@@ -460,7 +495,7 @@ class Axi4MasterRdAxi4Intf(TBBase):
         Args:
             value: Alignment mask value (typically a power of 2)
         """
-        boundary = value & 4095
+        boundary = value & self.boundary_4k
         if hasattr(self.dut, 'alignment_mask'):
             self.dut.alignment_mask.value = boundary
             self.log.info(f"DUT alignment mask set to {value}")

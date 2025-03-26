@@ -1,4 +1,4 @@
-from CocoTBFramework.components.debug_object import print_object_details
+'''Core GAXIPacket Class handling formatting and packing ad uppacking'''
 
 class GAXIPacket:
     """
@@ -34,11 +34,11 @@ class GAXIPacket:
         }
 
         # 2. In master: Create packet with full values and pack for FIFO
-        master_packet = AXIPacket(field_config, addr=0x12345678, data=0xABCD1234)
+        master_packet = GAXIPacket(field_config, addr=0x12345678, data=0xABCD1234)
         fifo_data = master_packet.pack_for_fifo()  # addr becomes right-shifted to fit active_bits
 
         # 3. In slave: Unpack from FIFO data to get full field values
-        slave_packet = AXIPacket(field_config)
+        slave_packet = GAXIPacket(field_config)
         slave_packet.unpack_from_fifo(fifo_data)  # addr is automatically left-shifted back
 
         # 4. Compare packets (skipping specified fields)
@@ -206,18 +206,26 @@ class GAXIPacket:
     def unpack_from_fifo(self, fifo_data):
         """
         Unpack FIFO data into full field values, applying appropriate bit field expansions.
-
+        
         Args:
-            fifo_data: Dictionary with field values from FIFO
+            fifo_data: Dictionary with field values from FIFO, or a single integer value
+                (which will be assigned to 'data' field if present)
 
         Returns:
             Self for chaining
         """
-        for field_name, fifo_value in fifo_data.items():
-            if field_name in self.fields:
-                # Expand from FIFO value to full field value
-                full_value = self.expand_from_fifo(fifo_value, field_name)
-                self.fields[field_name] = full_value
+        # Handle both dictionary input and single value input
+        if isinstance(fifo_data, dict):
+            # Process dictionary of field values
+            for field_name, fifo_value in fifo_data.items():
+                if field_name in self.fields:
+                    # Expand from FIFO value to full field value
+                    full_value = self.expand_from_fifo(fifo_value, field_name)
+                    self.fields[field_name] = full_value
+        elif isinstance(fifo_data, int) and 'data' in self.fields:
+            # Handle case when a single integer value is provided
+            self.fields['data'] = self.expand_from_fifo(fifo_data, 'data')
+            
         return self
 
     def get_total_bits(self):
@@ -393,155 +401,3 @@ class GAXIPacket:
                 return False
 
         return True
-
-
-# Example usage demonstrating master and slave workflow with comparison
-# For test tracking
-test_results = []
-test_count = 0
-passed_count = 0
-
-# Example usage demonstrating master and slave workflow with comparison
-if __name__ == "__main__":
-    def run_test(description, test_func, expected_result):
-        global test_count, passed_count
-        test_count += 1
-        result = test_func()
-        passed = result == expected_result
-        if passed:
-            passed_count += 1
-            status = "PASS"
-        else:
-            status = "FAIL"
-        test_results.append(f"Test {test_count}: {description} - {status}")
-        print(f"{status}: {description}")
-        print(f"  Expected: {expected_result}")
-        print(f"  Actual:   {result}")
-        return passed
-
-    # 1. Define field configuration once
-    field_config = {
-        'addr': {
-            'bits': 32,              # Total bits in the field
-            'default': 0,            # Default value when not specified
-            'format': 'hex',         # Display format (hex, bin, dec)
-            'display_width': 8,      # Always display as 8 hex chars
-            'active_bits': (31, 5),  # Only bits 31:5 are used in FIFO (msb, lsb)
-            'description': 'Address' # Description for display
-        },
-        'data': {
-            'bits': 32,
-            'default': 0,
-            'format': 'hex',
-            'display_width': 8,
-            'active_bits': (31, 0),  # All bits are used
-            'description': 'Data'
-        },
-        'metadata': {
-            'bits': 8,
-            'default': 0,
-            'format': 'hex',
-            'display_width': 2,
-            'active_bits': (7, 0),
-            'description': 'Metadata'
-        }
-    }
-
-    print("\n===== GAXI Packet Class Tests =====\n")
-
-    # Test 1: Basic packet creation
-    master_packet = GAXIPacket(
-        field_config,
-        skip_compare_fields=['metadata', 'start_time', 'end_time'],
-        addr=0x12345678,
-        data=0xABCD1234,
-        metadata=0xAA
-    )
-
-    run_test("Packet creation with correct field values",
-                lambda: master_packet.addr == 0x12345678 and master_packet.data == 0xABCD1234,
-                True)
-
-    # Test 2: FIFO packing/unpacking
-    fifo_data = master_packet.pack_for_fifo()
-
-    # Test that addr field gets correctly shifted for FIFO (right shift by 5)
-    run_test("Address field shifting for FIFO",
-                lambda: fifo_data['addr'] == (0x12345678 >> 5),
-                True)
-
-    # Create slave packet and test unpacking
-    slave_packet = GAXIPacket(
-        field_config,
-        skip_compare_fields=['metadata', 'start_time', 'end_time']
-    )
-    slave_packet.unpack_from_fifo(fifo_data)
-
-    # Test 3: FIFO unpacking - should restore original values for data
-    # Note: For addr, we expect the bottom 5 bits to be lost due to shifting
-    run_test("FIFO unpacking correctly restores data (addr loses lowest 5 bits)",
-                lambda: slave_packet.data == master_packet.data and (
-                        slave_packet.addr == (master_packet.addr & ~0x1F)
-                    ),
-                True)
-
-    # Test 4: Packet comparison - should be equal when non-compared fields differ
-    slave_packet.metadata = 0xBB  # Different from master
-    slave_packet.start_time = 200
-    slave_packet.end_time = 250
-
-    # Fix addr to original value (to bypass the shift loss issue)
-    slave_packet.addr = master_packet.addr
-
-    run_test("Equality comparison skips fields in skip_compare_fields",
-                lambda: master_packet == slave_packet,
-                True)
-
-    # Test 5: Packet comparison - should be unequal when compared fields differ
-    slave_packet.data = 0x99887766  # Change a non-skipped field
-
-    run_test("Equality comparison detects difference in compared fields",
-                lambda: master_packet == slave_packet,
-                False)
-
-    # Test 6: X/Z values handling in equality comparison
-    master_packet.data = -1  # Simulate X/Z value
-
-    run_test("Equality comparison properly handles X/Z values",
-                lambda: master_packet == slave_packet,
-                False)
-
-    # Test 7: String formatting with X/Z values
-    formatted = master_packet.formatted(compact=True)
-
-    run_test("String formatting properly shows X/Z values",
-                lambda: "data=X/Z" in formatted,
-                True)
-
-    # Test 8: Edge case - all fields have X/Z values
-    edge_packet = GAXIPacket(field_config)
-    edge_packet.addr = -1
-    edge_packet.data = -1
-
-    run_test("Packets with all X/Z values are handled correctly",
-                lambda: edge_packet != master_packet,
-                True)
-
-    # Test 9: Field access API
-    run_test("Direct field attribute access works",
-                lambda: master_packet.addr == master_packet.fields['addr'],
-                True)
-
-    # Summary of test results
-    print("\n===== Test Results =====")
-    for result in test_results:
-        print(result)
-
-    print(f"\nPassed {passed_count} of {test_count} tests ({(passed_count/test_count)*100:.1f}%)")
-
-    if passed_count == test_count:
-        print("\nALL TESTS PASSED! ✅")
-        exit(0)  # Success exit code
-    else:
-        print("\nSOME TESTS FAILED! ❌")
-        exit(1)  # Error exit code

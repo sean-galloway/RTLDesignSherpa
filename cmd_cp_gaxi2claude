@@ -1,32 +1,39 @@
+cd /home/sean/github/RTLDesignSherpa/rtl/integ_axi
+  cp data_collect.sv             ~/nuc/files_to_claude/.
+
 cd /home/sean/github/RTLDesignSherpa/rtl/axi
   cp gaxi_skid_buffer.sv        ~/nuc/files_to_claude/.
-  cp REWORK/axi_master_wr.sv    ~/nuc/files_to_claude/.
-  cp REWORK/axi_master_rd.sv    ~/nuc/files_to_claude/.
-  cp REWORK/axi_slave_wr.sv     ~/nuc/files_to_claude/.
-  cp REWORK/axi_slave_rd.sv     ~/nuc/files_to_claude/.
+  cp gaxi_fifo_sync.sv          ~/nuc/files_to_claude/.
+
+cd /home/sean/github/RTLDesignSherpa/rtl/common
+  cp arbiter_fixed_priority.sv           ~/nuc/files_to_claude/.
+  cp arbiter_round_robin_subinst.sv      ~/nuc/files_to_claude/.
+  cp arbiter_round_robin.sv              ~/nuc/files_to_claude/.
+  cp arbiter_weighted_round_robin.sv     ~/nuc/files_to_claude/.
+
 
 
 cd /home/sean/github/RTLDesignSherpa/val/unit_axi
-  cp test_apb_slave.py          ~/nuc/files_to_claude/.
-  cp test_apb_master.py         ~/nuc/files_to_claude/.
+  cp test_gaxi_skid_buffer_field.py   ~/nuc/files_to_claude/.
+  cp test_gaxi_skid_buffer_multi.py   ~/nuc/files_to_claude/.
 
-cd /home/sean/github/RTLDesignSherpa/val/unit_axi/FIX_TESTS/
-  cp test_axi_slave.py          ~/nuc/files_to_claude/.
-  cp test_axi_master.py         ~/nuc/files_to_claude/.
+cd /home/sean/github/RTLDesignSherpa/val/integ_axi
+  cp test_data_collect.py       ~/nuc/files_to_claude/.
+
 
 cd /home/sean/github/RTLDesignSherpa/bin/CocoTBFramework/tbclasses
+  cp data_collect_tb.py          ~/nuc/files_to_claude/.
   cp tbbase.py                   ~/nuc/files_to_claude/.
 
+cd /home/sean/github/RTLDesignSherpa/bin/CocoTBFramework/tbclasses/gaxi
+  cp gaxi_buffer_field.py        ~/nuc/files_to_claude/.
+  cp gaxi_buffer_multi.py        ~/nuc/files_to_claude/.
+
 cd /home/sean/github/RTLDesignSherpa/bin/CocoTBFramework/components/
-  cp flex_randomizer.py          ~/nuc/files_to_claude/.
-  cp memory_model.py             ~/nuc/files_to_claude/.
+  cp *.py          ~/nuc/files_to_claude/.
 
 cd /home/sean/github/RTLDesignSherpa/bin/CocoTBFramework/components/gaxi/
-  cp gaxi_components.py          ~/nuc/files_to_claude/.
-  cp gaxi_enhancements.py        ~/nuc/files_to_claude/.
-  cp gaxi_factories.py           ~/nuc/files_to_claude/.
-  cp gaxi_packet.py              ~/nuc/files_to_claude/.
-  cp gaxi_sequence.py            ~/nuc/files_to_claude/.
+  cp *.py          ~/nuc/files_to_claude/.
 
 cd /home/sean/github/RTLDesignSherpa/bin/CocoTBFramework/scoreboards/
   cp base_scoreboard.py          ~/nuc/files_to_claude/.
