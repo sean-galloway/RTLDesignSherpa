@@ -43,52 +43,52 @@ async def data_collect_simple_test(dut):
     tb.log.info("Simple test passed!")
 
 
-# @cocotb.test(timeout_time=10, timeout_unit="ms")
-# async def data_collect_weighted_arbiter_test(dut):
-#     """Test different weight configurations for the arbiter"""
-#     tb = DataCollectTB(dut)
+@cocotb.test(timeout_time=10, timeout_unit="ms")
+async def data_collect_weighted_arbiter_test(dut):
+    """Test different weight configurations for the arbiter"""
+    tb = DataCollectTB(dut)
 
-#     # Use a fixed seed for reproducibility
-#     seed = int(os.environ.get('SEED', '0'))
-#     random.seed(seed)
-#     tb.log.info(f"Using seed: {seed}")
+    # Use a fixed seed for reproducibility
+    seed = int(os.environ.get('SEED', '0'))
+    random.seed(seed)
+    tb.log.info(f"Using seed: {seed}")
 
-#     # Start clock
-#     await tb.start_clock('i_axi_aclk', 10, 'ns')
+    # Start clock
+    await tb.start_clock('i_axi_aclk', 10, 'ns')
 
-#     # Run weighted arbiter tests
-#     result = await tb.run_weighted_arbiter_test()
+    # Run weighted arbiter tests
+    result = await tb.run_weighted_arbiter_test()
 
-#     # Add a delay to ensure all transactions complete
-#     await tb.wait_clocks('i_axi_aclk', 100)
+    # Add a delay to ensure all transactions complete
+    await tb.wait_clocks('i_axi_aclk', 100)
 
-#     # Final check
-#     assert result, "Weighted arbiter test failed"
-#     tb.log.info("Weighted arbiter test passed!")
+    # Final check
+    assert result, "Weighted arbiter test failed"
+    tb.log.info("Weighted arbiter test passed!")
 
 
-# @cocotb.test(timeout_time=20, timeout_unit="ms")
-# async def data_collect_stress_test(dut):
-#     """Run a stress test with high throughput"""
-#     tb = DataCollectTB(dut)
+@cocotb.test(timeout_time=20, timeout_unit="ms")
+async def data_collect_stress_test(dut):
+    """Run a stress test with high throughput"""
+    tb = DataCollectTB(dut)
 
-#     # Use a fixed seed for reproducibility
-#     seed = int(os.environ.get('SEED', '0'))
-#     random.seed(seed)
-#     tb.log.info(f"Using seed: {seed}")
+    # Use a fixed seed for reproducibility
+    seed = int(os.environ.get('SEED', '0'))
+    random.seed(seed)
+    tb.log.info(f"Using seed: {seed}")
 
-#     # Start clock
-#     await tb.start_clock('i_axi_aclk', 10, 'ns')
+    # Start clock
+    await tb.start_clock('i_axi_aclk', 10, 'ns')
 
-#     # Run stress test with fast randomizers
-#     result = await tb.run_stress_test(duration_clocks=5000)
+    # Run stress test with fast randomizers
+    result = await tb.run_stress_test(duration_clocks=5000)
 
-#     # Add a delay to ensure all transactions complete
-#     await tb.wait_clocks('i_axi_aclk', 100)
+    # Add a delay to ensure all transactions complete
+    await tb.wait_clocks('i_axi_aclk', 100)
 
-#     # Final check
-#     assert result, "Stress test failed"
-#     tb.log.info("Stress test passed!")
+    # Final check
+    assert result, "Stress test failed"
+    tb.log.info("Stress test passed!")
 
 
 def generate_test_params():

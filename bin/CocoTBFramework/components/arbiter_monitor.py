@@ -205,9 +205,6 @@ class ArbiterMonitor:
 
                 prev_req = req_vec
 
-# begin
-
-
     async def _monitor_grants(self):
         """Monitor grant signals and create transaction records"""
         while True:
@@ -294,9 +291,6 @@ class ArbiterMonitor:
                 # Call the transaction callback if registered
                 if self.transaction_callback:
                     self.transaction_callback(transaction)
-
-
-# End
 
     async def _wait_for_ack_bit(self, bit_position):
         """Wait for a specific bit in the ack signal to be asserted"""
