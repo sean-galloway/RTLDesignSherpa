@@ -1,23 +1,19 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Tue Mar 25 04:08:12 2025
+[*] Thu Mar 27 23:05:59 2025
 [*]
 [dumpfile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/local_sim_build/test_axi_slave_rd_id08_aw032_dw032_uw1_ar2_r4_er4_to_ar32_to_r32/axi_slave_rd.fst"
-[dumpfile_mtime] "Tue Mar 25 03:59:49 2025"
-[dumpfile_size] 26058
+[dumpfile_mtime] "Thu Mar 27 22:54:05 2025"
+[dumpfile_size] 7972
 [savefile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/GTKW/axi_slave_rd.gtkw"
 [timestart] 0
-[size] 1966 1084
+[size] 2299 1095
 [pos] -1 -1
-*-25.650280 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
-[treeopen] axi_slave_rd.
-[sst_width] 375
-[signals_width] 382
+*-20.415447 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 278
+[signals_width] 276
 [sst_expanded] 1
-[sst_vpaned_height] 325
-@28
-axi_slave_rd.aclk
-axi_slave_rd.aresetn
+[sst_vpaned_height] 329
 @200
 -master ar
 @28
@@ -25,18 +21,39 @@ axi_slave_rd.m_axi_arvalid
 axi_slave_rd.m_axi_arready
 @22
 axi_slave_rd.m_axi_araddr[31:0]
-axi_slave_rd.m_axi_arid[7:0]
 axi_slave_rd.m_axi_arlen[7:0]
+axi_slave_rd.m_axi_arid[7:0]
 @200
--user ar
+-slave ar
 @28
 axi_slave_rd.s_axi_arvalid
-@29
 axi_slave_rd.s_axi_arready
 @22
 axi_slave_rd.s_axi_araddr[31:0]
-axi_slave_rd.s_axi_araddr[31:0]
-axi_slave_rd.s_axi_arid[7:0]
 axi_slave_rd.s_axi_arlen[7:0]
+axi_slave_rd.s_axi_arid[7:0]
+@200
+-master r
+@28
+axi_slave_rd.m_axi_rvalid
+axi_slave_rd.m_axi_rready
+@22
+axi_slave_rd.m_axi_rdata[31:0]
+axi_slave_rd.m_axi_rid[7:0]
+@28
+axi_slave_rd.m_axi_rlast
+axi_slave_rd.m_axi_rresp[1:0]
+@200
+-slave r
+@28
+axi_slave_rd.s_axi_rvalid
+axi_slave_rd.s_axi_rready
+@22
+axi_slave_rd.s_axi_rdata[31:0]
+axi_slave_rd.s_axi_rid[7:0]
+@28
+axi_slave_rd.s_axi_rlast
+@29
+axi_slave_rd.s_axi_rresp[1:0]
 [pattern_trace] 1
 [pattern_trace] 0

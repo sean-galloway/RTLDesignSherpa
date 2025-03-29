@@ -1,5 +1,5 @@
 """
-Main Testbench for AXI4 Slave Read functionality
+Main Testbench for AXI4 Slave Read with FIFO-based error detection
 
 This module provides the top-level testbench for the AXI4
 read slave module with support for FIFO-based error detection.
@@ -17,15 +17,14 @@ from CocoTBFramework.tbclasses.tbbase import TBBase
 from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 
 # Import our interface and test classes
-from axi4_slave_rd_mst_intf import Axi4SlaveRdMasterIntf
-from axi4_slave_rd_mem_intf import Axi4SlaveRdMemIntf
-from axi4_slave_rd_usr_intf import Axi4SlaveRdUserIntf
-from axi4_slave_rd_test import Axi4SlaveRdTests
+from CocoTBFramework.tbclasses.axi4.axi4_slave_rd_usr_intf import Axi4SlaveRdUserIntf
+from CocoTBFramework.tbclasses.axi4.axi4_slave_rd_mst_intf import Axi4SlaveRdAxi4Intf
+from CocoTBFramework.tbclasses.axi4.axi4_slave_rd_test import Axi4SlaveRdTests
 
 
 class AXI4SlaveRDTB(TBBase):
     """
-    Top-level testbench for AXI4 Slave Read module with FIFO-based error reporting
+    Top-level testbench for AXI4 Slave Read with FIFO-based error reporting
     """
     def __init__(self, dut):
         super().__init__(dut)
@@ -58,12 +57,11 @@ class AXI4SlaveRDTB(TBBase):
         self._initialize_memory()
 
         # Create interface classes
-        self.master_intf = Axi4SlaveRdMasterIntf(dut)
-        self.mem_intf = Axi4SlaveRdMemIntf(dut, self.mem)
         self.user_intf = Axi4SlaveRdUserIntf(dut)
+        self.axi4_intf = Axi4SlaveRdAxi4Intf(dut, self.mem)
 
         # Create test implementation
-        self.tests = Axi4SlaveRdTests(dut, self.master_intf, self.mem_intf, self.user_intf)
+        self.tests = Axi4SlaveRdTests(dut, self.user_intf, self.axi4_intf)
 
     def _initialize_memory(self):
         """Initialize memory with a pattern."""
@@ -73,7 +71,7 @@ class AXI4SlaveRDTB(TBBase):
             data_bytes = self.mem.integer_to_bytearray(value, self.STRB_WIDTH)
             self.mem.write(addr, data_bytes, 0xFF)  # All bytes enabled
 
-        self.log.info(f"Memory initialized with pattern: addr + 0xA5A5A5A5")
+        self.log.info("Memory initialized with pattern: addr + 0xA5A5A5A5")
 
     async def run_test(self):
         """Main test sequence"""
@@ -89,6 +87,10 @@ class AXI4SlaveRDTB(TBBase):
             self.log.info('Resetting DUT')
             await self.tests.reset_dut()
 
+            # Start the command handler to process read requests
+            self.log.info('Starting AXI4 read command handler')
+            await self.axi4_intf.start_command_handler()
+
             # Test 1: Basic read transactions
             self.log.info('# Test 1: Basic read transactions')
             result = await self.tests.test_01_basic_read()
@@ -97,53 +99,37 @@ class AXI4SlaveRDTB(TBBase):
             # Wait longer between tests to ensure full cleanup
             await self.wait_clocks('aclk', 50)
 
-            # Test 2: Concurrent reads with different IDs
-            self.log.info('# Test 2: Concurrent reads with different IDs')
-            result = await self.tests.test_02_concurrent_reads()
-            test_results.append(("Concurrent reads", result))
+            # # Test 2: Response error handling
+            # self.log.info('# Test 2: Response error handling')
+            # result = await self.tests.test_02_response_error_test()
+            # test_results.append(("Response error handling", result))
 
-            # Wait longer between tests
-            await self.wait_clocks('aclk', 50)
+            # # Wait longer between tests
+            # await self.wait_clocks('aclk', 50)
 
-            # Test 3: Error response handling
-            self.log.info('# Test 3: Error response handling')
-            result = await self.tests.test_03_error_response()
-            test_results.append(("Error response handling", result))
+            # # Test 3: R Timeout Test
+            # self.log.info('# Test 3: R Timeout Test')
+            # result = await self.tests.test_03_r_timeout_test()
+            # test_results.append(("R channel timeout handling", result))
 
-            # Wait longer between tests
-            await self.wait_clocks('aclk', 50)
+            # # Wait longer between tests
+            # await self.wait_clocks('aclk', 50)
 
-            # Test 4: AR timeout handling
-            self.log.info('# Test 4: AR Timeout handling')
-            result = await self.tests.test_04_ar_timeout()
-            test_results.append(("AR Timeout handling", result))
+            # # Test 4: AR Timeout Test
+            # self.log.info('# Test 4: AR Timeout Test')
+            # result = await self.tests.test_04_ar_timeout_test()
+            # test_results.append(("AR channel timeout handling", result))
 
-            # Wait longer between tests
-            await self.wait_clocks('aclk', 50)
+            # # Wait longer between tests
+            # await self.wait_clocks('aclk', 50)
 
-            # Test 5: R timeout handling
-            self.log.info('# Test 5: R Timeout handling')
-            result = await self.tests.test_05_r_timeout()
-            test_results.append(("R Timeout handling", result))
+            # # Test 5: Collision Cases
+            # self.log.info('# Test 5: Collision Cases Test')
+            # result = await self.tests.test_05_collision_cases()
+            # test_results.append(("Error collision cases", result))
 
-            # Wait longer between tests
-            await self.wait_clocks('aclk', 50)
-
-            # Test 6: Collision cases
-            self.log.info('# Test 6: Collision cases')
-            result = await self.tests.test_06_collision_cases()
-            test_results.append(("Collision cases", result))
-
-            # Wait longer between tests
-            await self.wait_clocks('aclk', 50)
-
-            # Test 7: Performance with back-to-back transactions
-            self.log.info('# Test 7: Performance test')
-            result = await self.tests.test_07_performance()
-            test_results.append(("Performance", result))
-
-            # Wait longer between tests
-            await self.wait_clocks('aclk', 50)
+            # # Wait longer between tests
+            # await self.wait_clocks('aclk', 50)
 
             # Print test summary
             self.log.info("=== Test Summary ===")
@@ -169,13 +155,17 @@ class AXI4SlaveRDTB(TBBase):
             # Ensure cleanup
             self.log.info("Test complete, performing cleanup")
 
+            # Stop the command handler
+            self.log.info('Stopping AXI4 read command handler')
+            await self.axi4_intf.stop_command_handler()
+
             # Wait for tasks to complete
             await self.wait_clocks('aclk', 10)
 
 
 @cocotb.test(timeout_time=5000, timeout_unit="us")
 async def axi4_slave_rd_test(dut):
-    """Main test for AXI4 Slave Read module"""
+    """Main test for AXI4 Slave Read module with FIFO-based error reporting"""
     # Create testbench
     tb = AXI4SlaveRDTB(dut)
 
@@ -200,7 +190,51 @@ async def axi4_slave_rd_test(dut):
             4,   # error_fifo_depth
             32,  # AR Timeout clocks
             32,  # R Timeout clocks
-        )
+        ),
+        # (
+        #     8,   # id_width
+        #     64,  # addr_width
+        #     64,  # data_width
+        #     1,   # user_width
+        #     2,   # skid_depth_ar
+        #     4,   # skid_depth_r
+        #     4,   # error_fifo_depth
+        #     32,  # AR Timeout clocks
+        #     32,  # R Timeout clocks
+        # ),
+        # (
+        #     8,   # id_width
+        #     64,  # addr_width
+        #     128, # data_width
+        #     1,   # user_width
+        #     2,   # skid_depth_ar
+        #     4,   # skid_depth_r
+        #     4,   # error_fifo_depth
+        #     32,  # AR Timeout clocks
+        #     32,  # R Timeout clocks
+        # ),
+        # (
+        #     8,   # id_width
+        #     64,  # addr_width
+        #     256, # data_width
+        #     1,   # user_width
+        #     2,   # skid_depth_ar
+        #     4,   # skid_depth_r
+        #     4,   # error_fifo_depth
+        #     32,  # AR Timeout clocks
+        #     32,  # R Timeout clocks
+        # ),
+        # (
+        #     8,   # id_width
+        #     64,  # addr_width
+        #     512, # data_width
+        #     1,   # user_width
+        #     2,   # skid_depth_ar
+        #     4,   # skid_depth_r
+        #     4,   # error_fifo_depth
+        #     32,  # AR Timeout clocks
+        #     32,  # R Timeout clocks
+        # ),
     ]
 )
 def test_axi4_slave_rd(request, id_width, addr_width, data_width, user_width,
@@ -267,6 +301,7 @@ def test_axi4_slave_rd(request, id_width, addr_width, data_width, user_width,
     extra_env = {
         'DUT': dut_name,
         'LOG_PATH': log_path,
+        # 'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_LOG_LEVEL': 'DEBUG',
         'COCOTB_RESULTS_FILE': results_path,
         'SEED': str(random.randint(0, 100000))

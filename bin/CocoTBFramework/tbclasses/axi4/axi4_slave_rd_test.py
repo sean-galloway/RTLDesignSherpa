@@ -2,20 +2,16 @@
 AXI4 Slave Read Test Module
 
 This module provides test methods for validating the AXI4 Slave Read module
-by leveraging the master interface and memory interface modules.
+by leveraging the user interface and AXI4 interface modules.
 """
-
-from enum import IntFlag
-import cocotb
 
 from CocoTBFramework.tbclasses.tbbase import TBBase
 
-# Error type definitions for slave module
-class ErrorType(IntFlag):
-    """Error types for AXI4 slave read module"""
-    AR_TIMEOUT = 0b0001  # Bit 0: Address Read timeout
-    R_TIMEOUT = 0b0010   # Bit 1: Read Data timeout
-    R_RESP_ERROR = 0b0100  # Bit 2: Read response error (SLVERR, DECERR)
+# Import from our user interface include file
+from .axi4_slave_rd_usr_intf_incl import (
+    ErrorType, 
+    generate_timeout_test_values, create_collision_test_matrix
+)
 
 
 class Axi4SlaveRdTests(TBBase):
@@ -25,20 +21,20 @@ class Axi4SlaveRdTests(TBBase):
     the functionality of the AXI4 Slave Read module.
     """
 
-    def __init__(self, dut, axi4_intf, user_intf):
+    def __init__(self, dut, user_intf, axi4_intf):
         """
         Initialize the AXI4 Slave Read Tests.
 
         Args:
             dut: Device under test
-            axi4_intf: Master interface instance (Axi4SlaveRdMasterIntf)
-            user_intf: Memory interface instance (Axi4SlaveRdMemIntf)
+            user_intf: User interface instance (Axi4SlaveRdUserIntf)
+            axi4_intf: AXI4 interface instance (Axi4SlaveRdAxi4Intf)
         """
         super().__init__(dut)
 
         # Store the interfaces
-        self.axi4_intf = axi4_intf
         self.user_intf = user_intf
+        self.axi4_intf = axi4_intf
 
         # Extract parameters from the DUT or use defaults
         self.id_width = int(getattr(dut, 'AXI_ID_WIDTH', 8))
@@ -47,9 +43,6 @@ class Axi4SlaveRdTests(TBBase):
         self.user_width = int(getattr(dut, 'AXI_USER_WIDTH', 1))
         self.timeout_ar = int(getattr(dut, 'TIMEOUT_AR', 1000))
         self.timeout_r = int(getattr(dut, 'TIMEOUT_R', 1000))
-
-        # Set the max boundary
-        self.boundary_4k = 0xFFF
 
         # Calculate strobe width
         self.strb_width = self.data_width // 8
@@ -73,8 +66,8 @@ class Axi4SlaveRdTests(TBBase):
         self.dut.aresetn.value = 0
 
         # Reset interfaces
-        await self.axi4_intf.reset_interfaces()
         await self.user_intf.reset_interfaces()
+        await self.axi4_intf.reset_interfaces()
 
         # Wait a few clock cycles
         await self.wait_clocks('aclk', 10)
@@ -91,8 +84,8 @@ class Axi4SlaveRdTests(TBBase):
         """
         Test 01: Basic read transactions.
 
-        Tests a representative number of reads with different
-        data patterns to verify basic slave read functionality.
+        Tests a representative number of reads with various delays.
+        Verifies that responses match expected data.
 
         Returns:
             True if test passes, False otherwise
@@ -102,482 +95,393 @@ class Axi4SlaveRdTests(TBBase):
         # Reset the DUT and interfaces
         await self.reset_dut()
 
-        # Use a large alignment mask to avoid splitting
-        self.axi4_intf.set_dut_alignment_mask(self.boundary_4k)
-
-        # Initialize memory with test patterns
-        await self.user_intf.initialize_memory_pattern()
-
-        # Set master timing to normal
-        self.axi4_intf.set_m_axi_ar_timing('fast')
-        self.axi4_intf.set_m_axi_r_timing('fast')
+        # Generate test addresses
+        test_addresses = []
+        for i in range(10):
+            # Generate address 64-byte aligned
+            addr = i * 256
+            test_addresses.append(addr)
 
         # Track test status
         total_transactions = 0
         total_errors = 0
 
-        # Generate test addresses
-        test_addresses = []
-        for i in range(10):
-            # Generate addresses at 64-byte intervals
-            addr = i * 64
-            test_addresses.append(addr)
+        # Iterate with various delays
+        # randomizer options: 'fixed', 'always_ready', 'fast', 'slow'
+        rand_keys = [
+            ('always_ready', 'fixed'),
+            # ('always_ready', 'always_ready'),
+            # ('always_ready', 'fast'),
+            # ('always_ready', 'slow')
+            ]
 
-        # Run tests with different burst lengths
-        for length in [0, 1, 3, 7, 15]:
-            self.log.info(f"Testing burst length {length+1}")
+        # Maximum ID value (for masking)
+        max_id = (1 << self.id_width) - 1  # Typically 255 for 8-bit ID
 
-            # For each address
-            for i, addr in enumerate(test_addresses):
-                # Generate a unique ID
-                id_value = i + (length * 16)
+        for j, (m_rand, s_rand) in enumerate(rand_keys):
+            self.user_intf.set_error_readiness(m_rand)
+            self.axi4_intf.set_m_axi_ar_timing(m_rand)
+            self.axi4_intf.set_s_axi_r_timing(s_rand)
 
-                # Calculate expected data from memory
-                expected_data = []
-                for j in range(length + 1):
-                    beat_addr = addr + (j * self.strb_width)
-                    expected_data.append((beat_addr + 0xA5A5A5A5) & 0xFFFFFFFF)
+            # Send reads with different sizes and lengths
+            for i, addr_pre in enumerate(test_addresses):
+                addr = 0x10000 + (j*4096) + addr_pre # calculate the final address
 
-                # Send read request to memory interface
-                self.user_intf.expect_read(addr, length, id_value, expected_data)
+                # With the fixed size from the interface:
+                size = self.axi4_intf.dsize  # Use the fixed size from the interface
+                length = i % 8  # Vary length between 0-7
 
-                # Send read request through master interface
-                result = await self.axi4_intf.read(addr, length=length, id_value=id_value)
+                # Generate a unique ID for this transaction
+                id_value = ((j * 10) + i) & max_id
 
-                # Verify result
-                if not result or result.get('id') != id_value:
-                    self.log.error(f"Read transaction failed or ID mismatch: addr=0x{addr:X}, length={length}")
-                    total_errors += 1
-                    continue
+                # Log transaction details for debugging
+                self.log.info(f"Sending read: addr=0x{addr:X}, length={length}, id=0x{id_value:X}")
 
-                # Verify data
-                received_data = result.get('data', [])
-                if len(received_data) != length + 1:
-                    self.log.error(f"Read data length mismatch: expected={length+1}, received={len(received_data)}")
-                    total_errors += 1
-                    continue
+                # Send read request
+                await self.axi4_intf.send_read(addr, length, id_value=id_value)
 
-                # Compare data values
-                for j, (expected, received) in enumerate(zip(expected_data, received_data)):
-                    if expected != received:
-                        self.log.error(f"Read data mismatch at beat {j}: expected=0x{expected:X}, received=0x{received:X}")
-                        total_errors += 1
-
-                # Count successful transaction
+                # Count transactions
                 total_transactions += 1
 
                 # Brief delay between transactions
                 await self.wait_clocks('aclk', 5)
 
+        # Wait for all transactions to complete
+        self.log.info("Waiting for all transactions to complete...")
+        await self.wait_clocks('aclk', 100 + (total_transactions * 20))
+
+        # Verify all transactions completed correctly
+        for j, _ in enumerate(rand_keys):
+            for i, _ in enumerate(test_addresses):
+                id_value = ((j * 10) + i) & max_id
+                
+                # Verify data for this transaction
+                if not self.axi4_intf.verify_response_data(id_value):
+                    self.log.error(f"Data verification failed for ID={id_value:X}")
+                    total_errors += 1
+
         # Log any errors from interfaces
-        total_errors += self.axi4_intf.total_errors + self.user_intf.total_errors
+        total_errors += self.user_intf.total_errors + self.axi4_intf.total_errors
 
         # Log test result
         if total_errors == 0:
-            self.log.info(f"Basic read test PASSED - all {total_transactions} transactions successful")
+            self.log.info(f"Basic read test PASSED - all {total_transactions} transactions had correct data")
         else:
             self.log.error(f"Basic read test FAILED with {total_errors} errors")
 
         # Store test results
         self.test_results['test_01_basic_read'] = (total_errors == 0)
 
+        self.log.info(f"Test 01 Basic Read completed with {total_errors} errors")
         return total_errors == 0
 
-    async def test_02_concurrent_reads(self):
+    async def test_02_response_error_test(self):
         """
-        Test 02: Concurrent read transactions with different IDs.
+        Test 02: Response Error Test, test error responses.
 
-        Tests multiple outstanding read transactions with different IDs
-        to ensure proper handling and responses.
+        Tests error responses and ensures they show up correctly on the error interface.
 
         Returns:
             True if test passes, False otherwise
         """
-        self.log.info("Starting Test 02: Concurrent Reads Test")
+        self.log.info("Starting Test 02: Response Error Test")
 
         # Reset the DUT and interfaces
         await self.reset_dut()
 
-        # Initialize memory with test patterns
-        await self.user_intf.initialize_memory_pattern()
-
-        # Set master timing to normal
+        # Set fast timing for clean test
+        self.user_intf.set_error_readiness('fast_ready')
         self.axi4_intf.set_m_axi_ar_timing('fast')
-        self.axi4_intf.set_m_axi_r_timing('fast')
+        self.axi4_intf.set_s_axi_r_timing('fast')
 
-        # Track test status
-        total_errors = 0
-        pending_reads = {}
+        # Enable response error injection
+        self.axi4_intf.configure_error_injection('resp', True, 1.0)  # Always inject errors
+        await self.axi4_intf.start_error_injection()
 
-        # Number of concurrent transactions
-        num_concurrent = 8
-
-        # Generate test cases with different attributes
+        # Test cases
         test_cases = []
-        for i in range(num_concurrent):
-            # Vary address, length, and ID
-            addr = i * 256
-            length = (i % 4) * 2  # 0, 2, 4, 6
-            id_value = i + 16
 
-            test_cases.append((addr, length, id_value))
+        # Standard read cases with different lengths
+        test_cases.append((64, 0, 2, 1, f"Single beat response error"))
+        test_cases.append((128, 3, 2, 1, f"4-beat burst response error"))
+        test_cases.append((256, 7, 2, 1, f"8-beat burst response error"))
 
-            # Calculate expected data from memory
-            expected_data = []
-            for j in range(length + 1):
-                beat_addr = addr + (j * self.strb_width)
-                expected_data.append((beat_addr + 0xA5A5A5A5) & 0xFFFFFFFF)
-
-            # Prepare memory interface
-            self.user_intf.expect_read(addr, length, id_value, expected_data)
-
-        # Send all read requests without waiting for completion
-        for addr, length, id_value in test_cases:
-            # Send read request through master interface (non-blocking)
-            read_task = cocotb.start_soon(self.axi4_intf.read(addr, length=length, id_value=id_value))
-            pending_reads[id_value] = read_task
-
-            # Short delay between requests
-            await self.wait_clocks('aclk', 2)
-
-        # Wait for all reads to complete
-        self.log.info(f"Waiting for {len(pending_reads)} concurrent reads to complete")
-
-        for id_value, task in pending_reads.items():
-            result = await task
-
-            # Verify result
-            if not result or result.get('id') != id_value:
-                self.log.error(f"Read transaction failed or ID mismatch for ID={id_value}")
-                total_errors += 1
-                continue
-
-            # Get expected data for this ID
-            test_case = next((tc for tc in test_cases if tc[2] == id_value), None)
-            if not test_case:
-                self.log.error(f"Test case for ID={id_value} not found")
-                total_errors += 1
-                continue
-
-            addr, length, _ = test_case
-
-            # Verify data length
-            received_data = result.get('data', [])
-            if len(received_data) != length + 1:
-                self.log.error(f"Read data length mismatch for ID={id_value}: expected={length+1}, received={len(received_data)}")
-                total_errors += 1
-                continue
-
-            # Calculate and compare expected data
-            for j in range(length + 1):
-                beat_addr = addr + (j * self.strb_width)
-                expected = (beat_addr + 0xA5A5A5A5) & 0xFFFFFFFF
-
-                if j < len(received_data) and received_data[j] != expected:
-                    self.log.error(f"Read data mismatch for ID={id_value} at beat {j}: expected=0x{expected:X}, received=0x{received_data[j]:X}")
-                    total_errors += 1
-
-        # Log any errors from interfaces
-        total_errors += self.axi4_intf.total_errors + self.user_intf.total_errors
-
-        # Log test result
-        if total_errors == 0:
-            self.log.info(f"Concurrent reads test PASSED - all {len(pending_reads)} transactions successful")
-        else:
-            self.log.error(f"Concurrent reads test FAILED with {total_errors} errors")
-
-        # Store test results
-        self.test_results['test_02_concurrent_reads'] = (total_errors == 0)
-
-        return total_errors == 0
-
-    async def test_03_error_response(self):
-        """
-        Test 03: Error response handling.
-
-        Tests that the slave correctly generates error responses
-        for invalid read requests.
-
-        Returns:
-            True if test passes, False otherwise
-        """
-        self.log.info("Starting Test 03: Error Response Test")
-
-        # Reset the DUT and interfaces
-        await self.reset_dut()
-
-        # Set memory interface to generate errors
-        self.user_intf.set_error_mode(True)
-
-        # Set master timing to normal
-        self.axi4_intf.set_m_axi_ar_timing('fast')
-        self.axi4_intf.set_m_axi_r_timing('fast')
-
-        # Track test status
         total_errors = 0
         total_transactions = 0
 
-        # Test cases for error responses (invalid addresses)
-        error_addresses = [0xDEADBEEF, 0xFFFFFFFF, 0xBAD00BAD]
+        for addr, length, size, burst, description in test_cases:
+            total_transactions += 1
+            self.log.info(f"Running response error test: {description}")
 
-        for i, addr in enumerate(error_addresses):
-            id_value = 0x80 + i  # Use distinct IDs
-            length = i % 4  # Mix of burst lengths
-
-            # Expect error response in memory interface
-            self.user_intf.expect_error_read(addr, length, id_value)
+            # Register expected error (SLVERR or DECERR)
+            id_value = total_transactions
+            self.user_intf.expect_error(id_value, ErrorType.R_RESP_ERROR)
 
             # Send read request
-            self.log.info(f"Sending read request to invalid address 0x{addr:X}")
-            result = await self.axi4_intf.read(addr, length=length, id_value=id_value)
-
-            # Verify error response
-            if not result:
-                self.log.error(f"Read transaction failed to complete: addr=0x{addr:X}, ID={id_value}")
-                total_errors += 1
-                continue
-
-            # Check response code in each data beat
-            received_data = result.get('data', [])
-            all_error_responses = True
-
-            for j, rdata in enumerate(received_data):
-                resp = result.get('responses', [])[j].rresp if j < len(result.get('responses', [])) else None
-                if resp not in [2, 3]:  # Not SLVERR or DECERR
-                    self.log.error(f"Expected error response for beat {j}, got {resp}")
-                    all_error_responses = False
-                    total_errors += 1
-
-            if all_error_responses:
-                self.log.info(f"Received correct error responses for addr=0x{addr:X}")
-                total_transactions += 1
+            await self.axi4_intf.send_read(addr, length, id_value=id_value)
 
             # Brief delay between transactions
-            await self.wait_clocks('aclk', 10)
+            await self.wait_clocks('aclk', 100)
 
-        # Log any errors from interfaces
-        total_errors += self.axi4_intf.total_errors + self.user_intf.total_errors
+        # Wait for all transactions to complete and errors to be reported
+        self.log.info("Waiting for all errors to be reported...")
+        await self.wait_clocks('aclk', total_transactions * 200)
 
-        # Log test result
-        if total_errors == 0:
-            self.log.info(f"Error response test PASSED - all {total_transactions} transactions returned error responses")
-        else:
-            self.log.error(f"Error response test FAILED with {total_errors} errors")
+        # Verify error information
+        self.log.info(f"Waiting for error reports...")
+        await self.user_intf.wait_for_errors(total_transactions, 100000)
+
+        # Verify right number of errors were detected
+        error_count = self.user_intf.get_error_count(ErrorType.R_RESP_ERROR)
+        if error_count != total_transactions:
+            self.log.error(f"Error count mismatch: expected={total_transactions}, actual={error_count}")
+            total_errors += 1
+
+        # Add errors from interfaces
+        total_errors += self.user_intf.total_errors + self.axi4_intf.total_errors
 
         # Store test results
-        self.test_results['test_03_error_response'] = (total_errors == 0)
+        self.test_results['test_02_response_error_test'] = (total_errors == 0)
 
-        # Disable error mode for subsequent tests
-        self.user_intf.set_error_mode(False)
-
+        self.log.info(f"Test 02 Response Error Test completed with {total_errors} errors")
         return total_errors == 0
 
-    async def test_04_timeout_handling(self):
+    async def test_03_r_timeout_test(self):
         """
-        Test 04: Timeout handling in AXI slave.
+        Test 03: R Timeout Test, test R channel timeout detection.
 
-        Tests that the slave correctly handles timeouts on R channel
-        responses when memory interface is slow to respond.
+        Issues a read with beats on the m_axi_ar channel, accepts it immediately,
+        but delays responses on the s_axi_r channel to trigger timeout.
 
         Returns:
             True if test passes, False otherwise
         """
-        self.log.info("Starting Test 04: Timeout Handling Test")
+        self.log.info("Starting Test 03: R Timeout Test")
 
         # Reset the DUT and interfaces
         await self.reset_dut()
 
-        # Set memory interface to introduce delays (simulate slow memory)
-        self.user_intf.set_delay_mode(True, self.timeout_r * 2)  # Set delay longer than R timeout
-
-        # Set master timing to normal
+        # Set fast timing for AR channel, but slow for R channel
+        self.user_intf.set_error_readiness('fast_ready')
         self.axi4_intf.set_m_axi_ar_timing('fast')
-        self.axi4_intf.set_m_axi_r_timing('fast')
 
-        # Track test status
+        # Generate timeout values to test around the configured timeout
+        timeout_values = generate_timeout_test_values(self.timeout_r, 6)  # 6 test points
+
         total_errors = 0
         total_transactions = 0
+        expected_timeouts = 0
 
-        # Track timeout error detection
-        detected_timeout = False
-
-        # Test case
-        addr = 0x1000
-        length = 3
-        id_value = 0x42
-
-        # Send read request
-        self.log.info(f"Sending read request that will timeout: addr=0x{addr:X}")
-
-        # Start read request
-        read_task = cocotb.start_soon(self.axi4_intf.read(addr, length=length, id_value=id_value))
-
-        # Wait for error monitoring to detect timeout
-        for _ in range(self.timeout_r * 3):  # Wait up to 3x timeout period
-            # Check if error monitor detected R timeout
-            if self.axi4_intf.check_for_error(ErrorType.R_TIMEOUT):
-                detected_timeout = True
-                self.log.info(f"Detected R timeout for addr=0x{addr:X}")
-                break
-
-            await self.wait_clocks('aclk', 1)
-
-        # Try to get result (may fail due to timeout)
-        try:
-            result = await read_task
-
-            # If we got a response, verify it completes the transaction
-            if result and result.get('id') == id_value:
-                self.log.info(f"Read transaction completed despite timeout: addr=0x{addr:X}")
-                # This is acceptable if timeout handling allows transaction to complete
-                total_transactions += 1
-            else:
-                self.log.warning(f"Read transaction returned unexpected result after timeout")
-        except Exception as e:
-            self.log.info(f"Read transaction was cancelled as expected: {str(e)}")
-
-        # Verify timeout was detected
-        if not detected_timeout:
-            self.log.error(f"Failed to detect R timeout")
-            total_errors += 1
-        else:
+        # Run tests with different timeout delays
+        for r_timeout in timeout_values:
             total_transactions += 1
 
-        # Log any errors from interfaces
-        total_errors += self.axi4_intf.total_errors + self.user_intf.total_errors
+            # Create custom randomizer for this specific timeout
+            if r_timeout >= self.timeout_r:
+                # Should timeout
+                expected_timeouts += 1
+                self.user_intf.expect_error(total_transactions, ErrorType.R_TIMEOUT)
 
-        # Log test result
-        if total_errors == 0:
-            self.log.info(f"Timeout handling test PASSED - detected timeout as expected")
-        else:
-            self.log.error(f"Timeout handling test FAILED with {total_errors} errors")
+                # Set timing to trigger timeout
+                self.axi4_intf.set_s_axi_r_timing('timeout')
+                self.log.info(f"Testing R timeout: {r_timeout} clocks (should timeout)")
+            else:
+                # Should not timeout
+                self.axi4_intf.set_s_axi_r_timing('slow')
+                self.log.info(f"Testing R timeout: {r_timeout} clocks (should not timeout)")
+
+            # Send multi-beat read transaction
+            addr = 64 * total_transactions
+            length = 3  # 4 beats
+            size = 2    # 4 bytes per beat
+
+            # Send read request
+            await self.axi4_intf.send_read(addr, length, id_value=total_transactions)
+
+            # Adequate delay for timeout to trigger or not
+            await self.wait_clocks('aclk', r_timeout * 2)
+
+        # Wait for all transactions to complete or timeout
+        self.log.info("Waiting for all transactions to complete or timeout...")
+        await self.wait_clocks('aclk', total_transactions * self.timeout_r * 3)
+
+        # Verify R timeout errors were reported
+        self.log.info("Waiting for error reports...")
+        await self.user_intf.wait_for_errors(expected_timeouts, 100000)
+
+        # Verify right number of R timeouts were detected
+        r_timeout_count = self.user_intf.get_error_count(ErrorType.R_TIMEOUT)
+        if r_timeout_count != expected_timeouts:
+            self.log.error(f"R timeout count mismatch: expected={expected_timeouts}, actual={r_timeout_count}")
+            total_errors += 1
+
+        # Add errors from interfaces
+        total_errors += self.user_intf.total_errors + self.axi4_intf.total_errors
 
         # Store test results
-        self.test_results['test_04_timeout_handling'] = (total_errors == 0)
+        self.test_results['test_03_r_timeout_test'] = (total_errors == 0)
 
-        # Disable delay mode for subsequent tests
-        self.user_intf.set_delay_mode(False)
-
+        self.log.info(f"Test 03 R Timeout Test completed with {total_errors} errors")
         return total_errors == 0
 
-    async def test_05_performance(self):
+    async def test_04_ar_timeout_test(self):
         """
-        Test 05: Performance assessment with back-to-back transactions.
+        Test 04: AR Timeout Test, test AR channel timeout detection.
 
-        Tests the performance of the slave read module with
-        back-to-back read transactions of different sizes.
+        Issues read requests but causes the AR channel to timeout
+        by not accepting the requests.
 
         Returns:
             True if test passes, False otherwise
         """
-        self.log.info("Starting Test 05: Performance Test")
+        self.log.info("Starting Test 04: AR Timeout Test")
 
         # Reset the DUT and interfaces
         await self.reset_dut()
 
-        # Initialize memory with test patterns
-        await self.user_intf.initialize_memory_pattern()
+        # Set fast timing for R channel responses
+        self.user_intf.set_error_readiness('fast_ready')
+        self.axi4_intf.set_s_axi_r_timing('fast')
 
-        # Set master to maximum performance
-        self.axi4_intf.set_m_axi_ar_timing('always_ready')
-        self.axi4_intf.set_m_axi_r_timing('always_ready')
+        # Generate timeout values to test around the configured timeout
+        timeout_values = generate_timeout_test_values(self.timeout_ar, 6)  # 6 test points
 
-        # Track test status
         total_errors = 0
         total_transactions = 0
-        total_data_beats = 0
-        start_time = cocotb.utils.get_sim_time('ns')
+        expected_timeouts = 0
 
-        # Define test patterns
-        # List of (num_transactions, burst_length) pairs
-        test_patterns = [
-            (10, 0),     # 10 single-beat reads
-            (5, 3),      # 5 4-beat reads
-            (3, 7),      # 3 8-beat reads
-            (2, 15),     # 2 16-beat reads
-            (1, 255)     # 1 256-beat read
-        ]
+        # Run tests with different timeout delays
+        for ar_timeout in timeout_values:
+            total_transactions += 1
 
-        # Run performance test with each pattern
-        base_addr = 0x1000
-        for pattern_idx, (num_txn, burst_len) in enumerate(test_patterns):
-            pattern_start_time = cocotb.utils.get_sim_time('ns')
-            pattern_beats = 0
+            # Configure for this specific timeout
+            if ar_timeout >= self.timeout_ar:
+                # Should timeout
+                expected_timeouts += 1
+                self.user_intf.expect_error(total_transactions, ErrorType.AR_TIMEOUT)
 
-            self.log.info(f"Running pattern {pattern_idx+1}: {num_txn} transactions with burst length {burst_len+1}")
+                # Configure error injection for AR timeout
+                self.axi4_intf.configure_error_injection('ar_timeout', True, 1.0)  # 100% chance
+                self.log.info(f"Testing AR timeout: {ar_timeout} clocks (should timeout)")
+            else:
+                # Should not timeout
+                self.axi4_intf.configure_error_injection('ar_timeout', False)
+                self.log.info(f"Testing AR timeout: {ar_timeout} clocks (should not timeout)")
 
-            # Define list to hold all tasks
-            read_tasks = []
+            # Start error injection
+            await self.axi4_intf.start_error_injection()
 
-            # Start all transactions
-            for i in range(num_txn):
-                addr = base_addr + (pattern_idx * 0x1000) + (i * 0x100)
-                id_value = 0x20 + (pattern_idx * 16) + i
+            # Send single-beat read transaction
+            addr = 64 * total_transactions
+            length = 0  # 1 beat
+            size = 2    # 4 bytes per beat
 
-                # Prepare memory interface
-                expected_data = []
-                for j in range(burst_len + 1):
-                    beat_addr = addr + (j * self.strb_width)
-                    expected_data.append((beat_addr + 0xA5A5A5A5) & 0xFFFFFFFF)
+            # Send read request
+            await self.axi4_intf.send_read(addr, length, id_value=total_transactions)
 
-                self.user_intf.expect_read(addr, burst_len, id_value, expected_data)
+            # Adequate delay for timeout to trigger or not
+            await self.wait_clocks('aclk', ar_timeout * 2)
 
-                # Start read task
-                task = cocotb.start_soon(self.axi4_intf.read(addr, length=burst_len, id_value=id_value))
-                read_tasks.append(task)
+            # Disable error injection before next test
+            self.axi4_intf.configure_error_injection('ar_timeout', False)
 
-                # Track expected data beats
-                pattern_beats += burst_len + 1
+        # Wait for all transactions to complete or timeout
+        self.log.info("Waiting for all transactions to complete or timeout...")
+        await self.wait_clocks('aclk', total_transactions * self.timeout_ar * 3)
 
-                # No delay between starting transactions
+        # Verify AR timeout errors were reported
+        self.log.info(f"Waiting for error reports...")
+        await self.user_intf.wait_for_errors(expected_timeouts, 100000)
 
-            # Wait for all transactions to complete
-            for idx, task in enumerate(read_tasks):
-                result = await task
+        # Verify right number of AR timeouts were detected
+        ar_timeout_count = self.user_intf.get_error_count(ErrorType.AR_TIMEOUT)
+        if ar_timeout_count != expected_timeouts:
+            self.log.error(f"AR timeout count mismatch: expected={expected_timeouts}, actual={ar_timeout_count}")
+            total_errors += 1
 
-                if not result:
-                    self.log.error(f"Read transaction {idx} failed in pattern {pattern_idx+1}")
-                    total_errors += 1
-                    continue
-
-                # Verify data length
-                if len(result.get('data', [])) != burst_len + 1:
-                    self.log.error(f"Read data length mismatch: expected={burst_len+1}, received={len(result.get('data', []))}")
-                    total_errors += 1
-
-                total_transactions += 1
-
-            # Calculate pattern performance
-            pattern_end_time = cocotb.utils.get_sim_time('ns')
-            pattern_duration = pattern_end_time - pattern_start_time
-
-            if pattern_duration > 0:
-                beats_per_ns = pattern_beats / pattern_duration
-                self.log.info(f"Pattern {pattern_idx+1} performance: {beats_per_ns:.3f} beats/ns ({pattern_beats} beats in {pattern_duration:.1f} ns)")
-
-            # Update totals
-            total_data_beats += pattern_beats
-
-        # Calculate overall performance
-        end_time = cocotb.utils.get_sim_time('ns')
-        duration = end_time - start_time
-
-        if duration > 0:
-            overall_beats_per_ns = total_data_beats / duration
-            self.log.info(f"Overall performance: {overall_beats_per_ns:.3f} beats/ns ({total_data_beats} beats in {duration:.1f} ns)")
-
-        # Log any errors from interfaces
-        total_errors += self.axi4_intf.total_errors + self.user_intf.total_errors
-
-        # Log test result
-        if total_errors == 0:
-            self.log.info(f"Performance test PASSED - all {total_transactions} transactions successful")
-        else:
-            self.log.error(f"Performance test FAILED with {total_errors} errors")
+        # Add errors from interfaces
+        total_errors += self.user_intf.total_errors + self.axi4_intf.total_errors
 
         # Store test results
-        self.test_results['test_05_performance'] = (total_errors == 0)
+        self.test_results['test_04_ar_timeout_test'] = (total_errors == 0)
 
+        self.log.info(f"Test 04 AR Timeout Test completed with {total_errors} errors")
+        return total_errors == 0
+
+    async def test_05_collision_cases(self):
+        """
+        Test 05: Collision cases, test error collision reporting.
+
+        Try to collide Response Error/RTO/ARTO to test that
+        even if 2-3 of them happen at once, they all get reported.
+
+        Returns:
+            True if test passes, False otherwise
+        """
+        self.log.info("Starting Test 05: Collision Cases Test")
+
+        # Reset the DUT and interfaces
+        await self.reset_dut()
+
+        # Set fast readiness for error reporting
+        self.user_intf.set_error_readiness('fast_ready')
+
+        # Create test matrix for error collisions
+        collision_matrix = create_collision_test_matrix()
+
+        total_errors = 0
+        total_cases = 0
+
+        # Run each collision test case
+        for error_types in collision_matrix:
+            total_cases += 1
+            self.log.info(f"Testing error collision: {[ErrorType(et).name for et in error_types]}")
+
+            # Configure error injection for this case
+            self.axi4_intf.configure_error_injection('resp', ErrorType.R_RESP_ERROR in error_types, 1.0)
+            self.axi4_intf.configure_error_injection('ar_timeout', ErrorType.AR_TIMEOUT in error_types, 1.0)
+            self.axi4_intf.configure_error_injection('r_timeout', ErrorType.R_TIMEOUT in error_types, 1.0)
+
+            # Start error injection
+            await self.axi4_intf.start_error_injection()
+
+            # For each error type, expect it to be reported
+            for error_type in error_types:
+                self.user_intf.expect_error(total_cases, error_type)
+
+            # Send read transaction
+            addr = 64 * total_cases
+            length = 1  # 2 beats
+            size = 2    # 4 bytes per beat
+
+            # Send read request
+            await self.axi4_intf.send_read(addr, length, id_value=total_cases)
+
+            # Wait for errors to be reported
+            self.log.info("Waiting for collision errors to be reported...")
+            await self.wait_clocks('aclk', 1000)
+
+            # Verify that the expected error types were detected
+            success = await self.user_intf.verify_collision_behavior(error_types, 2000)
+            if not success:
+                self.log.error(f"Collision test failed for types: {[ErrorType(et).name for et in error_types]}")
+                total_errors += 1
+
+            # Disable error injection before next test
+            self.axi4_intf.configure_error_injection('resp', False)
+            self.axi4_intf.configure_error_injection('ar_timeout', False)
+            self.axi4_intf.configure_error_injection('r_timeout', False)
+
+            # Delay between cases
+            await self.wait_clocks('aclk', 1000)
+
+        # Add errors from interfaces
+        total_errors += self.user_intf.total_errors + self.axi4_intf.total_errors
+
+        # Store test results
+        self.test_results['test_05_collision_cases'] = (total_errors == 0)
+
+        self.log.info(f"Test 05 Collision Cases completed with {total_errors} errors")
         return total_errors == 0
 
     def get_test_results(self):
