@@ -8,8 +8,6 @@ import os
 import random
 import pytest
 import cocotb
-from cocotb.triggers import RisingEdge
-from cocotb.utils import get_sim_time
 from cocotb_test.simulator import run
 
 from CocoTBFramework.components.memory_model import MemoryModel

@@ -1,20 +1,18 @@
 """APB Sequence, APB Cycle, Transaction, Monitor, Master and Slave Classes"""
 
-import copy
-from dataclasses import dataclass, field
 from collections import deque
-import random
-from typing import List, Tuple, Dict, Optional
 
 import cocotb
 from cocotb.utils import get_sim_time
 from cocotb.triggers import RisingEdge, FallingEdge, Timer
 from cocotb_bus.monitors import BusMonitor
 from cocotb_bus.drivers import BusDriver
-from cocotb_coverage.crv import Randomized
 
 from ..flex_randomizer import FlexRandomizer
 from ..memory_model import MemoryModel
+
+from .apb_packet import APBCycle
+
 
 # define the PWRITE mapping
 pwrite = ['READ', 'WRITE']
@@ -32,248 +30,6 @@ apb_optional_signals = [
     "PSLVERR",
     "PSTRB"
 ]
-
-@dataclass
-class APBSequence:
-    """Configuration for test patterns"""
-    # Test name
-    name: str = "basic"
-
-    # Transaction sequence - list of writes (True) and reads (False)
-    # Examples: [True, False] for alternating write-read
-    #           [True, True, ..., False, False] for all writes then all reads
-    pwrite_seq: List[bool] = field(default_factory=list)
-
-    # Address sequence - list of addresses to use
-    # If shorter than pwrite_seq, will cycle through the addresses
-    addr_seq: List[int] = field(default_factory=list)
-
-    # Data sequence - list of data values to use for writes
-    # If shorter than number of writes, will cycle through the data values
-    data_seq: List[int] = field(default_factory=list)
-
-    # Strobe sequence - list of strobe masks to use for writes
-    # If shorter than number of writes, will cycle through the strobe masks
-    strb_seq: List[int] = field(default_factory=list)
-
-    # Timing
-    inter_cycle_delays: List[int] = field(default_factory=list)  # Delays between cycles
-
-    # Master timing randomizer
-    master_randomizer: Optional[Dict] = None
-    slave_randomizer: Optional[Tuple] = None
-    other_randomizer: Optional[Tuple] = None
-
-    # Selection mode
-    use_random_selection: bool = False  # If True, randomly select from sequences
-
-    # Verification
-    verify_data: bool = True
-
-    def __post_init__(self):
-        """Initialize iterators for sequences"""
-        self.pwrite_iter = iter(self.pwrite_seq)
-        self.addr_iter = iter(self.addr_seq)
-        self.data_iter = iter(self.data_seq)
-        self.strb_iter = iter(self.strb_seq)
-        self.delay_iter = iter(self.inter_cycle_delays)
-
-    def reset_iterators(self):
-        """Reset all iterators to the beginning"""
-        self.pwrite_iter = iter(self.pwrite_seq)
-        self.addr_iter = iter(self.addr_seq)
-        self.data_iter = iter(self.data_seq)
-        self.strb_iter = iter(self.strb_seq)
-        self.delay_iter = iter(self.inter_cycle_delays)
-
-    def next_pwrite(self) -> bool:
-        """Get next write/read operation"""
-        if self.use_random_selection:
-            return random.choice(self.pwrite_seq)
-        try:
-            return next(self.pwrite_iter)
-        except StopIteration:
-            self.pwrite_iter = iter(self.pwrite_seq)
-            return next(self.pwrite_iter)
-
-    def next_addr(self) -> int:
-        """Get next address"""
-        if self.use_random_selection:
-            return random.choice(self.addr_seq)
-        try:
-            return next(self.addr_iter)
-        except StopIteration:
-            self.addr_iter = iter(self.addr_seq)
-            return next(self.addr_iter)
-
-    def next_data(self) -> int:
-        """Get next data value"""
-        if self.use_random_selection:
-            return random.choice(self.data_seq)
-        try:
-            return next(self.data_iter)
-        except StopIteration:
-            self.data_iter = iter(self.data_seq)
-            return next(self.data_iter)
-
-    def next_strb(self) -> int:
-        """Get next strobe mask"""
-        if self.use_random_selection:
-            return random.choice(self.strb_seq)
-        try:
-            return next(self.strb_iter)
-        except StopIteration:
-            self.strb_iter = iter(self.strb_seq)
-            return next(self.strb_iter)
-
-    def next_delay(self) -> int:
-        """Get next inter-cycle delay"""
-        if not self.inter_cycle_delays:
-            return 0
-
-        if self.use_random_selection:
-            return random.choice(self.inter_cycle_delays)
-        try:
-            return next(self.delay_iter)
-        except StopIteration:
-            self.delay_iter = iter(self.inter_cycle_delays)
-            return next(self.delay_iter)
-
-
-@dataclass
-class APBCycle:
-    start_time: int
-    count: int
-    direction: str
-    pwrite: int
-    paddr: int
-    pwdata: int
-    pstrb: int
-    prdata: int
-    pprot: int
-    pslverr: int
-
-    def __eq__(self, other):
-        if not isinstance(other, APBCycle):
-            return NotImplemented
-        if self.direction == 'WRITE':
-            data_s = self.pwdata
-            data_o = other.pwdata
-        else:
-            data_s = self.prdata
-            data_o = other.prdata
-
-        # Compare only specific fields
-        return (self.direction == other.direction and
-                self.paddr == other.paddr and
-                data_s == data_o and
-                self.pprot == other.pprot and
-                self.pslverr == other.pslverr)
-
-    def _format_data(self, src, data, data_width):
-        if isinstance(data, int):
-            # Format prdata as an integer if it is resolvable
-            return f"{src}:     0x{data:0{int(data_width / 4)}X}\n"
-        else:
-            # Format prdata as a binary string if it contains 'X' values
-            return f"{src}:     {data}\n"
-
-    def __str__(self):
-        prdata = self._format_data('prdata', self.prdata, 32)
-        pwdata = self._format_data('pwdata', self.pwdata, 32)
-        return  ('\nAPB Cycle\n'
-                f"start_time: {self.start_time}\n"
-                f"count:      {self.count}\n"
-                f"direction:  {self.direction}\n"
-                f"paddr:      0x{self.paddr:08X}\n"
-                f"{pwdata}"
-                f"pstrb:      0x{self.pstrb:08b}\n"
-                f"{prdata}"
-                f"pprot:      0x{self.pprot:04X}\n"
-                f"pslverr:    {self.pslverr}\n"
-        )
-
-    def formatted(self, addr_width, data_width, strb_width):
-        prdata = self._format_data('prdata', self.prdata, data_width)
-        pwdata = self._format_data('pwdata', self.pwdata, data_width)
-        return  ('\nAPB Cycle\n'
-                f"start_time: {self.start_time}\n"
-                f"count:      {self.count}\n"
-                f"direction:  {self.direction}\n"
-                f"paddr:      0x{self.paddr:0{int(addr_width/4)}X}\n"
-                f"{pwdata}"
-                f"pstrb:      0x{self.pstrb:0{strb_width}b}\n"
-                f"{prdata}"
-                f"pprot:      0x{self.pprot:04X}\n"
-                f"pslverr:    {self.pslverr}\n"
-        )
-
-
-class APBTransaction(Randomized):
-    def __init__(self, data_width, addr_width, strb_width,
-                    randomizer=None):
-        super().__init__()
-        self.start_time = 0
-        self.data_width = data_width
-        self.addr_width = addr_width
-        self.strb_width = strb_width
-        self.addr_mask  = (strb_width - 1)
-        self.count = 0
-        if randomizer is None:
-            addr_min_hi = (4  * self.strb_width)-1
-            addr_max_lo = (4  * self.strb_width)
-            addr_max_hi = (32 * self.strb_width)-1
-            self.randomizer =  FlexRandomizer({
-                'pwrite': ([(0, 0), (1, 1)],
-                            [1, 1]),
-                'paddr':  ([(0, addr_min_hi), (addr_max_lo, addr_max_hi)],
-                            [4, 1]),
-                'pstrb':  ([(15, 15), (0, 14)],
-                            [4, 1]),
-                'pprot':  ([(0, 0), (1, 7)],
-                            [4, 1])
-            })
-        else:
-            self.randomizer = randomizer
-
-        self.pwrite = 0
-        self.paddr = 0
-        self.pstrb = 0
-        self.pprot = 0
-        self.cycle = APBCycle(
-            start_time=0,
-            count=0,
-            direction='unknown',
-            pwrite=0,
-            paddr=0,
-            pwdata=0,
-            prdata=0,
-            pstrb=0,
-            pprot=0,
-            pslverr=0
-        )
-
-        # Adding randomized signals with full ranges
-        self.add_rand("pwrite", [0, 1])
-        self.add_rand("paddr",  list(range(2**12)))
-        self.add_rand("pstrb",  list(range(2**strb_width)))
-        self.add_rand("pprot",  list(range(8)))
-
-    def next(self):
-        self.randomize()
-        value_dict = self.randomizer.next()
-        self.cycle.paddr     = value_dict['paddr'] & ~self.addr_mask
-        self.cycle.direction = pwrite[value_dict['pwrite']]
-        self.cycle.pwrite    = value_dict['pwrite']
-        self.cycle.pstrb     = value_dict['pstrb']
-        self.cycle.pwdata    = random.randint(0, (1 << self.data_width) - 1)
-        return copy.copy(self.cycle)
-
-    def __str__(self):
-        """
-        Return a string representation of the command packet for debugging.
-        """
-        return (f'{self.cycle.formatted(self.addr_width, self.data_width, self.strb_width)}')
 
 
 class APBMonitor(BusMonitor):
@@ -295,19 +51,18 @@ class APBMonitor(BusMonitor):
         self.bus_width = bus_width
         self.addr_width = addr_width
         self.strb_width = bus_width // 8
+        if self.is_signal_present('PPROT'):
+            msg = f'Monitor {self.title} PPROT {dir(self.bus.PPROT)}'
+            self.log.debug(msg)
 
     def is_signal_present(self, signal_name):
         # Check if the bus has the attribute and that it is not None
         return hasattr(self.bus, signal_name) and getattr(self.bus, signal_name) is not None
 
     def print(self, transaction):
-        self.log.debug('-' * 120)
-        msg = f'{self.title} - APB Transaction'
+        msg = f'{self.title} - APB Transaction: '
+        msg += transaction.formatted(compact=True)
         self.log.debug(msg)
-        lines = transaction.formatted(self.addr_width, self.bus_width, self.strb_width).splitlines()
-        for line in lines:
-            self.log.debug(line)
-        self.log.debug('-' * 120)
 
     async def _monitor_recv(self):
         while True:
@@ -332,9 +87,19 @@ class APBMonitor(BusMonitor):
                 else:
                     data = self.bus.PWDATA.value.integer
                 strb = self.bus.PSTRB.value.integer if self.is_signal_present('PSTRB') else 0
-                prot = self.bus.PPROT.value.integer if self.is_signal_present('PPROT') else 0
+                pprot = self.bus.PPROT.value.integer if self.is_signal_present('PPROT') else 0
                 self.count += 1
-                transaction = APBCycle(start_time, self.count, direction, loc_pwrite, address, data, strb, data, prot, error)
+                transaction = APBCycle(
+                                    start_time=start_time,
+                                    count=self.count,
+                                    direction=direction,
+                                    pwrite=loc_pwrite,
+                                    paddr=address,
+                                    pwdata=data,
+                                    pstrb=strb,
+                                    prdata=data,
+                                    pprot=pprot,
+                                    pslverr=error)
                 # signal to the callback
                 self._recv(transaction)
                 self.print(transaction)
@@ -379,12 +144,12 @@ class APBSlave(BusMonitor):
         if self.is_signal_present('PSLVERR'):
             self.bus.PSLVERR.setimmediatevalue(0)
         msg = f'Slave {self.title} {dir(self.bus)}'
-        self.log.warning(msg)
-        msg = f'Slave {self.title} PADDR {dir(self.bus.PADDR)}'
-        self.log.warning(msg)
+        # self.log.debug(msg)
+        # msg = f'Slave {self.title} PADDR {dir(self.bus.PADDR)}'
+        # self.log.debug(msg)
         if self.is_signal_present('PPROT'):
             msg = f'Slave {self.title} PPROT {dir(self.bus.PPROT)}'
-            self.log.warning(msg)
+            self.log.debug(msg)
 
     def set_randomizer(self, randomizer):
         self.randomizer = randomizer
@@ -423,17 +188,12 @@ class APBSlave(BusMonitor):
                 rand_dict = self.randomizer.next()
                 ready_delay = rand_dict['ready']
                 slv_error = rand_dict['error']
-                # msg = f'APB Slave Driver-{self.title}: {ready_delay=}'
-                # self.log.warning(msg)
                 for _ in range(ready_delay):
                     await RisingEdge(self.clock)
 
                 self.bus.PREADY.value = 1
                 await Timer(200, units='ps')
                 while not self.bus.PENABLE.value.integer:
-                    start_time = get_sim_time('ns')
-                    # msg = f'APB Slave Driver-{self.title} Waiting for penable @ {start_time}'
-                    # self.log.warning(msg)
                     await RisingEdge(self.clock)
                     await Timer(200, units='ps')
                 self._finish_recv(slv_error)
@@ -441,7 +201,7 @@ class APBSlave(BusMonitor):
     def _finish_recv(self, slv_error):
         address    =  self.bus.PADDR.value.integer
         word_index =  (address & ~self.addr_mask)
-        _          =  self.bus.PPROT.value.integer if self.is_signal_present('PPROT') else 0
+        pprot      =  self.bus.PPROT.value.integer if self.is_signal_present('PPROT') else 0
         self.count += 1
 
         if word_index >= self.num_lines:
@@ -507,7 +267,6 @@ class APBMaster(BusDriver):
         self.bus.PWDATA.setimmediatevalue(0)
         if self.is_signal_present('PSTRB'):
             self.bus.PSTRB.setimmediatevalue(0)
-        # self.log.warning(f'Master {name} {dir(self.bus)}')
         self.transmit_queue = deque()
 
     def set_randomizer(self, randomizer):
@@ -546,8 +305,8 @@ class APBMaster(BusDriver):
         '''
         # add new transaction
         self.transmit_queue.append(transaction)
-        msg = f'Adding to the transmit_queue: {transaction}'
-        self.log.warning(msg)
+        msg = f'Adding to the transmit_queue: {transaction.formatted(compact=True)}'
+        self.log.debug(msg)
 
         # launch new transmit pipeline coroutine if aren't holding for and the
         #   the coroutine isn't already running.
@@ -581,10 +340,6 @@ class APBMaster(BusDriver):
 
             transaction = self.transmit_queue.popleft()
             transaction.start_time = cocotb.utils.get_sim_time('ns')
-            # msg = f'APB Master {self.title} attempting to transmit:\n{transaction}'
-            # self.log.warning(msg)
-            # msg = f'APB Master {self.title} {psel_delay=}'
-            # self.log.warning(msg)
 
             # finish the packet transmit
             await self._finish_xmit(transaction, psel_delay, penable_delay)
@@ -631,8 +386,6 @@ class APBMaster(BusDriver):
 
         while not self.bus.PREADY.value:
             await FallingEdge(self.clock)
-            # msg = f'APB Master {self.title} waiting for PREADY'
-            # self.log.warning(msg)
 
         # check if the slave is asserting an error
         if self.is_signal_present('PSLVERR') and self.bus.PSLVERR.value:

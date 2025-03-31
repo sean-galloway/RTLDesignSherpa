@@ -7,7 +7,6 @@ from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
-from cocotb.triggers import RisingEdge, FallingEdge, Timer
 
 from CocoTBFramework.tbclasses.tbbase import TBBase
 from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
@@ -118,9 +117,9 @@ def test_data_collect(request, data_width, id_width, fifo_depth):
     toplevel = dut_name
 
     verilog_sources = [
-        os.path.join(rtl_dict['rtl_cmn'], "arbiter_fixed_priority.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "arbiter_round_robin_subinst.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "arbiter_weighted_round_robin.sv"),
+        os.path.join(rtl_dict['rtl_cmn'], "arbiter_round_robin_weighted_fixed_priority.sv"),
+        os.path.join(rtl_dict['rtl_cmn'], "arbiter_round_robin_weighted_subinst.sv"),
+        os.path.join(rtl_dict['rtl_cmn'], "arbiter_round_robin_weighted.sv"),
 
         os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
         os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),

@@ -1,21 +1,59 @@
 import os
-import subprocess
+import random
 import pytest
 import cocotb
+from cocotb.triggers import RisingEdge, Timer
+from cocotb.utils import get_sim_time
 from cocotb_test.simulator import run
+
 from CocoTBFramework.tbclasses.tbbase import TBBase
+from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 from CocoTBFramework.components.constrained_random import ConstrainedRandom
 
 
-class ClockGateCtrlTB(TBBase):
-    def __init__(self, dut):
-        super().__init__(dut)
-        self.N = self.convert_to_int(os.environ.get('N', '4'))
+class ClockGateCtrlConfig:
+    """Configuration class for clock gate controller tests"""
+    def __init__(self, name, counter_width):
+        """
+        Initialize the test configuration
 
-        # Maximum counter value
-        self.max_count = 2**self.N - 1
+        Args:
+            name: Configuration name
+            counter_width: Counter width in bits
+        """
+        self.name = name
+        self.counter_width = counter_width
+
+
+class ClockGateCtrlTB(TBBase):
+    """
+    Testbench for the clock_gate_ctrl module
+    Features:
+    - Clock gating behavior verification
+    - Counter timeout testing
+    - Enable/disable functionality
+    - Wake signal handling
+    """
+
+    def __init__(self, dut):
+        """Initialize the testbench with the DUT"""
+        super().__init__(dut)
+
+        # Get test parameters
+        self.N = self.convert_to_int(os.environ.get('PARAM_N', '4'))
+        self.SEED = self.convert_to_int(os.environ.get('SEED', '0'))
+
+        # Initialize random generator
+        random.seed(self.SEED)
+
+        # Derived parameters
+        self.max_count = (2**self.N) - 1
         self.last_idle_count = self.max_count
-        
+
+        # Clock and reset signals
+        self.clock = self.dut.clk_in
+        self.reset_n = self.dut.aresetn
+
         # Setup constrained random generators
         self.idle_count_gen = ConstrainedRandom(
             constraints=[(0, 2**self.N - 1)],
@@ -29,95 +67,158 @@ class ClockGateCtrlTB(TBBase):
             is_integer=True
         )
 
+        # Log configuration
+        self.log.info(f"Clock Gate Ctrl TB initialized with N={self.N}")
+        self.log.info(f"SEED={self.SEED}")
 
     def assert_reset(self):
-        self.dut.aresetn.value = 0
+        """Reset the DUT to known state"""
+        self.reset_n.value = 0
         self.dut.i_cfg_cg_enable.value = 0
         self.dut.i_cfg_cg_idle_count.value = self.max_count
         self.last_idle_count = self.max_count
         self.dut.i_wakeup.value = 0
         self.log.info('Assert reset done.')
 
-    def deassert_reset(self):
-        self.dut.aresetn.value = 1
-        self.log.info("Reset complete.")
+    async def reset_dut(self):
+        """Reset the DUT"""
+        self.log.debug('Starting reset_dut')
 
-    async def verify_clock_gating(self, cycles, expected_enabled):
-        """Verify clock gating behavior for specified cycles"""
-        await self.wait_clocks('clk_in', cycles)
-        if expected_enabled:
-            assert self.dut.clk_out.value == self.dut.clk_in.value, \
-                "Clock should be enabled but was gated"
-        else:
-            assert self.dut.clk_out.value == 0, \
-                "Clock should be gated but was enabled"
+        # Reset DUT control signals
+        self.assert_reset()
 
-    async def systematic_enable_test(self):
+        # Hold reset for multiple cycles
+        await self.wait_clocks('clk_in', 5)
+
+        # Release reset
+        self.reset_n.value = 1
+
+        # Wait for stabilization
+        await self.wait_clocks('clk_in', 5)
+
+        self.log.debug('Ending reset_dut')
+
+    async def verify_clock_gating(self, cycles, expected_enabled, description=None):
+        """
+        Verify clock gating behavior for specified cycles
+
+        Args:
+            cycles: Number of cycles to verify
+            expected_enabled: Expected clock enable state
+            description: Optional description for logging
+        """
+        msg_prefix = f"{description}: " if description else ""
+        time_ns = get_sim_time('ns')
+        self.log.debug(f"{msg_prefix}Verifying clock for {cycles} cycles, expected enabled: {expected_enabled} @ {time_ns}ns")
+
+        for i in range(cycles):
+            await self.wait_clocks('clk_in', 1)
+            
+            if expected_enabled:
+                assert self.dut.clk_out.value == self.dut.clk_in.value, \
+                    f"{msg_prefix}Clock should be enabled but was gated @ {get_sim_time('ns')}ns"
+            else:
+                assert self.dut.clk_out.value == 0, \
+                    f"{msg_prefix}Clock should be gated but was enabled @ {get_sim_time('ns')}ns"
+
+        time_ns = get_sim_time('ns')
+        self.log.debug(f"{msg_prefix}Clock verification passed @ {time_ns}ns")
+
+    async def run_systematic_enable_test(self):
         """Test all combinations of wake with cfg_enable=1"""
-        self.log.info("Starting systematic enable test")
+        time_ns = get_sim_time('ns')
+        self.log.info(f"Starting systematic enable test @ {time_ns}ns")
+        
         self.dut.i_cfg_cg_enable.value = 1
         self.dut.i_cfg_cg_idle_count.value = self.max_count  # Set max count to focus on wake
 
         # Test all combinations of wake
         for wake in range(2):
-            msg = f"Testing wake={wake}"
+            time_ns = get_sim_time('ns')
+            msg = f"Testing wake={wake} @ {time_ns}ns"
             self.log.info(msg)
             self.dut.i_wakeup.value = wake
             
             # Clock should be enabled if wake=1
             expected_enabled = (wake == 1)
-            await self.verify_clock_gating(30, expected_enabled)
+            await self.verify_clock_gating(30, expected_enabled, f"Wake={wake}")
 
-    async def concurrent_wake_test(self):
+        time_ns = get_sim_time('ns')
+        self.log.info(f"Systematic enable test completed @ {time_ns}ns")
+
+    async def run_concurrent_wake_test(self):
         """Test concurrent assertion of wake signals"""
-        self.log.info("Starting concurrent wake test")
-        count = self.max_count
+        time_ns = get_sim_time('ns')
+        self.log.info(f"Starting concurrent wake test @ {time_ns}ns")
+        
+        count = self.max_count // 2  # Use smaller count for this test
         self.dut.i_cfg_cg_enable.value = 1
-        self.dut.i_cfg_cg_idle_count.value = count  # Use smaller count for this test
+        self.dut.i_cfg_cg_idle_count.value = count
 
         # Test concurrent assertion
         self.dut.i_wakeup.value = 1
-        await self.verify_clock_gating(count, True)  # Wake should dominate
+        await self.verify_clock_gating(count, True, "Concurrent wake")  # Wake should dominate
 
         # Deassert wake, verify counter starts
         self.dut.i_wakeup.value = 0
-        await self.verify_clock_gating(self.max_count-2, True)  # Should still be enabled during countdown
+        await self.verify_clock_gating(count-2, True, "After wake")  # Should still be enabled during countdown
+        
+        # After counter expires, clock should be gated
+        await self.verify_clock_gating(10, False, "After counter expires")
 
-    async def systematic_counter_test(self):
+        time_ns = get_sim_time('ns')
+        self.log.info(f"Concurrent wake test completed @ {time_ns}ns")
+
+    async def run_systematic_counter_test(self):
         """Test various idle counter values"""
-        self.log.info("Starting systematic counter test")
+        time_ns = get_sim_time('ns')
+        self.log.info(f"Starting systematic counter test @ {time_ns}ns")
+        
         self.dut.i_cfg_cg_enable.value = 1
         test_values = [
-            self.max_count,  # Max
-            self.max_count * 3 // 4,  # Max-1/4
-            self.max_count // 2,      # Max-1/2
-            self.max_count // 4       # Max-3/4
+            self.max_count,                # Max
+            self.max_count * 3 // 4,       # Max-1/4
+            self.max_count // 2,           # Max-1/2
+            self.max_count // 4            # Max-3/4
         ]
 
         for count in test_values:
-            msg = f"Testing idle count: {count}"
+            time_ns = get_sim_time('ns')
+            msg = f"Testing idle count: {count} @ {time_ns}ns"
             self.log.info(msg)
+            
             self.dut.i_cfg_cg_idle_count.value = count
             self.last_idle_count = count
+            
+            # Trigger wake
             self.dut.i_wakeup.value = 1
             await self.wait_clocks('clk_in', 2)
             self.dut.i_wakeup.value = 0
 
             # Verify clock runs for exactly count cycles
-            await self.verify_clock_gating(count, True)
-            await self.verify_clock_gating(self.max_count, False)  # Should be gated after timeout
+            await self.verify_clock_gating(count, True, f"Count={count} active")
+            
+            # Verify clock is gated after timeout
+            await self.verify_clock_gating(10, False, f"Count={count} gated")
 
-    async def counter_timeout_sweep_test(self):
+        time_ns = get_sim_time('ns')
+        self.log.info(f"Systematic counter test completed @ {time_ns}ns")
+
+    async def run_counter_timeout_sweep_test(self):
         """Test wakeup assertion around counter timeout"""
-        self.log.info("Starting counter timeout sweep test")
+        time_ns = get_sim_time('ns')
+        self.log.info(f"Starting counter timeout sweep test @ {time_ns}ns")
+        
+        timeout_value = self.max_count // 2  # Use fixed timeout for sweep test
         self.dut.i_cfg_cg_enable.value = 1
-        timeout_value = self.max_count  # Use fixed timeout for sweep test
         self.dut.i_cfg_cg_idle_count.value = timeout_value
         
         # Test wakeup assertions from -5 to +5 cycles around timeout
         for offset in range(-5, 6):
-            msg = f"Testing wakeup at timeout {offset:+d} cycles"
+            time_ns = get_sim_time('ns')
+            msg = f"Testing wakeup at timeout {offset:+d} cycles @ {time_ns}ns"
             self.log.info(msg)
+            
             # Start countdown
             self.dut.i_wakeup.value = 1
             await self.wait_clocks('clk_in', 2)
@@ -128,34 +229,72 @@ class ClockGateCtrlTB(TBBase):
             
             # Assert wakeup
             self.dut.i_wakeup.value = 1
-            await self.verify_clock_gating(10, True)  # Should always be enabled after wakeup
+            await self.verify_clock_gating(10, True, f"Offset={offset}")  # Should always be enabled after wakeup
             
             # Cleanup
             self.dut.i_wakeup.value = 0
             await self.wait_clocks('clk_in', 5)
 
-    async def edge_case_test(self):
+        time_ns = get_sim_time('ns')
+        self.log.info(f"Counter timeout sweep test completed @ {time_ns}ns")
+
+    async def run_edge_case_test(self):
         """Test additional edge cases"""
-        self.log.info("Starting edge case tests")
+        time_ns = get_sim_time('ns')
+        self.log.info(f"Starting edge case tests @ {time_ns}ns")
         
         # Test 1: Zero idle count behavior
-        self.log.info("Testing zero idle count")
+        time_ns = get_sim_time('ns')
+        self.log.info(f"Testing zero idle count @ {time_ns}ns")
         self.dut.i_cfg_cg_enable.value = 1
         self.dut.i_cfg_cg_idle_count.value = 0
         self.dut.i_wakeup.value = 1
         await self.wait_clocks('clk_in', 2)
         self.dut.i_wakeup.value = 0
-        await self.verify_clock_gating(5, False)  # Should gate immediately
+        await self.verify_clock_gating(5, False, "Zero count")  # Should gate immediately
         
         # Test 2: Rapid wake toggles with minimum idle count
-        self.log.info("Testing rapid toggles with min idle count")
+        time_ns = get_sim_time('ns')
+        self.log.info(f"Testing rapid toggles with min idle count @ {time_ns}ns")
         self.dut.i_cfg_cg_idle_count.value = 1
-        for _ in range(5):
+        for i in range(5):
+            time_ns = get_sim_time('ns')
+            self.log.debug(f"Toggle {i} @ {time_ns}ns")
             self.dut.i_wakeup.value = 1
             await self.wait_clocks('clk_in', 1)
             self.dut.i_wakeup.value = 0
-            await self.wait_clocks('clk_in', 1)
-            await self.wait_clocks('clk_in', 1)
+            await self.wait_clocks('clk_in', 2)
+
+        time_ns = get_sim_time('ns')
+        self.log.info(f"Edge case tests completed @ {time_ns}ns")
+
+    async def run_global_enable_test(self):
+        """Test global enable/disable functionality"""
+        time_ns = get_sim_time('ns')
+        self.log.info(f"Starting global enable test @ {time_ns}ns")
+        
+        # Verify clock enabled when global enable is off
+        self.dut.i_cfg_cg_enable.value = 0
+        self.dut.i_wakeup.value = 0
+        await self.verify_clock_gating(10, True, "Enable=0")
+        
+        # Verify wake still works when global enable is on
+        self.dut.i_cfg_cg_enable.value = 1
+        self.dut.i_wakeup.value = 1
+        await self.verify_clock_gating(10, True, "Enable=1, Wake=1")
+        
+        # Verify clock gating after wake with global enable on
+        self.dut.i_wakeup.value = 0
+        self.dut.i_cfg_cg_idle_count.value = 5
+        await self.verify_clock_gating(5, True, "Enable=1, Count active")
+        await self.verify_clock_gating(5, False, "Enable=1, Count expired")
+        
+        # Verify clock immediately enabled when global enable turned off
+        self.dut.i_cfg_cg_enable.value = 0
+        await self.verify_clock_gating(10, True, "Enable=0 after gating")
+
+        time_ns = get_sim_time('ns')
+        self.log.info(f"Global enable test completed @ {time_ns}ns")
 
     async def monitor_clock_output(self):
         """Monitor clock output and log transitions"""
@@ -164,160 +303,135 @@ class ClockGateCtrlTB(TBBase):
         
         while True:
             await self.wait_clocks('clk_in', 1)
-            curr_clk = self.dut.clk_out.value
+            curr_clk = int(self.dut.clk_out.value)
             
             if prev_clk != curr_clk:
                 edges_count += 1
-                msg = f"Clock output changed to {curr_clk} at {edges_count}"
+                time_ns = get_sim_time('ns')
+                msg = f"Clock output changed to {curr_clk} at edge {edges_count} @ {time_ns}ns"
                 self.log.debug(msg)
             
             prev_clk = curr_clk
-
-    async def check_gating_behavior(self):
-        """Test various clock gating scenarios"""
+    
+    async def run_test(self):
+        """Run all test sequences"""
         # Start clock monitoring
         cocotb.start_soon(self.monitor_clock_output())
         
-        # Test Case 1: Basic Wake
-        self.log.info("Test Case 1: Basic Wake Transition")
-        await self.basic_wake_test()
+        # Run all test sequences
+        await self.run_systematic_enable_test()
+        await self.run_concurrent_wake_test()
+        await self.run_systematic_counter_test()
+        await self.run_counter_timeout_sweep_test()
+        await self.run_edge_case_test()
+        await self.run_global_enable_test()
         
-        # Test Case 2: Idle Counter Behavior
-        self.log.info("Test Case 2: Idle Counter Operation")
-        await self.idle_counter_test()
+        # Wait for any pending operations
+        await self.wait_clocks('clk_in', 20)
         
-        # Test Case 3: Quick Toggle Test
-        self.log.info("Test Case 3: Quick Toggle Test")
-        await self.quick_toggle_test()
-        
-        # Test Case 4: Global Enable/Disable
-        self.log.info("Test Case 4: Global Enable/Disable")
-        await self.global_enable_test()
+        time_ns = get_sim_time('ns')
+        self.log.info(f"All test sequences completed successfully @ {time_ns}ns")
 
-    async def basic_wake_test(self):
-        """Test basic wake transitions"""
-        # Enable clock gating
-        self.dut.i_cfg_cg_enable.value = 1
-        
-        # Wake up
-        self.dut.i_wakeup.value = 1
-        await self.wait_clocks('clk_in', 5)
-        self.dut.i_wakeup.value = 0
-        idle_count = self.idle_count_gen.next()
-        self.dut.i_cfg_cg_idle_count.value = idle_count
-        
-        # Wait for idle count to expire
-        await self.wait_clocks('clk_in', idle_count + 2)
-
-    async def idle_counter_test(self):
-        """Test idle counter behavior with various values"""
-        for _ in range(3):  # Test with 3 different random values
-            idle_count = self.idle_count_gen.next()
-            msg = f"Testing idle count: {idle_count}"
-            self.log.info(msg)
-            
-            # Set up test conditions
-            self.dut.i_cfg_cg_enable.value = 1
-            self.dut.i_cfg_cg_idle_count.value = idle_count
-            self.dut.i_wakeup.value = 1
-            
-            await self.wait_clocks('clk_in', 2)
-            self.dut.i_wakeup.value = 0
-            
-            # Wait for counter expiration
-            await self.wait_clocks('clk_in', idle_count + 2)
-            
-            await self.wait_clocks('clk_in', 5)
-
-    async def quick_toggle_test(self):
-        """Test rapid toggling of wake signals"""
-        self.dut.i_cfg_cg_enable.value = 1
-        idle_count = 4  # Use a fixed small value for quick toggle test
-        self.dut.i_cfg_cg_idle_count.value = idle_count
-        
-        for _ in range(5):  # Do 5 quick toggles
-            self.dut.i_wakeup.value = 1
-            await self.wait_clocks('clk_in', 2)
-            self.dut.i_wakeup.value = 0
-            await self.wait_clocks('clk_in', 2)
-            await self.wait_clocks('clk_in', 1)
-
-    async def global_enable_test(self):
-        """Test global enable/disable functionality"""
-        # Disable clock gating
-        self.dut.i_cfg_cg_enable.value = 0
-        await self.wait_clocks('clk_in', 10)
-        
-        # Enable clock gating
-        self.dut.i_cfg_cg_enable.value = 1
-        await self.wait_clocks('clk_in', 10)
-        
-        # Verify clock is gated
-
-    async def run_test(self):
-        # Run systematic tests first
-        await self.systematic_enable_test()
-        await self.concurrent_wake_test()
-        await self.systematic_counter_test()
-        await self.counter_timeout_sweep_test()
-        await self.edge_case_test()
-        
-        # Run original randomized tests
-        await self.check_gating_behavior()
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
 async def clock_gate_ctrl_test(dut):
     """Test the clock gate control block"""
     tb = ClockGateCtrlTB(dut)
     
-    # Set random seed for reproducibility
+    # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
+    random.seed(seed)
     msg = f'Using seed: {seed}'
     tb.log.info(msg)
     
-    # Start clock and initialize
+    # Start the clock
     await tb.start_clock('clk_in', 10, 'ns')
-    tb.assert_reset()
-    await tb.wait_clocks('clk_in', 5)
-    tb.deassert_reset()
-    await tb.wait_clocks('clk_in', 5)
     
-    # Run the test
-    await tb.run_test()
+    # Reset the DUT
+    await tb.reset_dut()
+    
+    try:
+        # Run all test sequences
+        time_ns = get_sim_time('ns')
+        tb.log.info(f"=== Starting clock gate controller tests @ {time_ns}ns ===")
+        await tb.run_test()
+        
+        time_ns = get_sim_time('ns')
+        tb.log.info(f"All tests completed successfully @ {time_ns}ns")
+        
+    except AssertionError as e:
+        tb.log.error(f"Test failed: {str(e)}")
+        raise
+    finally:
+        # Wait for any pending tasks
+        await tb.wait_clocks('clk_in', 10)
 
-# Test configuration
-def test_clock_gate_ctrl(request):
+
+@pytest.mark.parametrize("counter_width", [4, 8])
+def test_clock_gate_ctrl(request, counter_width):
+    """Run the test with pytest"""
+    # Get all of the directory and module information
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common'})
+
     dut_name = "clock_gate_ctrl"
-    module = os.path.splitext(os.path.basename(__file__))[0]
     toplevel = dut_name
 
-    # Get repository root and directories
-    repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
-    tests_dir = os.path.abspath(os.path.dirname(__file__))
-    rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl', 'common'))
-
     verilog_sources = [
-        os.path.join(rtl_dir, "icg.sv"),
-        os.path.join(rtl_dir, f"{dut_name}.sv")
+        os.path.join(rtl_dict['rtl_cmn'], "icg.sv"),
+        os.path.join(rtl_dict['rtl_cmn'], f"{dut_name}.sv"),
     ]
 
-    parameters = {'N': 4}  # Default counter width
-    extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
+    # Create a human readable test identifier
+    n_str = TBBase.format_dec(counter_width, 2)
+    test_name_plus_params = f"test_{dut_name}_n{n_str}"
+    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
+
+    # Use it in the simbuild path
+    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+
+    # Make sim_build directory
+    os.makedirs(sim_build, exist_ok=True)
+
+    # Get the logs and results into one area
+    os.makedirs(log_dir, exist_ok=True)
+    results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
+
+    includes = []
+
+    # RTL parameters
+    parameters = {'N': counter_width}
+
+    # Environment variables
+    extra_env = {
+        'DUT': dut_name,
+        'LOG_PATH': log_path,
+        'COCOTB_LOG_LEVEL': 'INFO',
+        'COCOTB_RESULTS_FILE': results_path,
+        'SEED': str(random.randint(0, 100000))
+    }
     
-    sim_build = os.path.join(repo_root, 'val', 'unit_common', 'local_sim_build', 
-                            request.node.name.replace('[', '-').replace(']', ''))
+    # Add parameter values to environment variables
+    for k, v in parameters.items():
+        extra_env[f'PARAM_{k}'] = str(v)
 
-    extra_env['LOG_PATH'] = os.path.join(str(sim_build), f'cocotb_log_{dut_name}.log')
-    extra_env['DUT'] = dut_name
+    cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
-    run(
-        python_search=[tests_dir],
-        verilog_sources=verilog_sources,
-        includes=[],
-        toplevel=toplevel,
-        module=module,
-        parameters=parameters,
-        sim_build=sim_build,
-        extra_env=extra_env,
-        waves=True
-    )
+    try:
+        run(
+            python_search=[tests_dir],  # where to search for all the python test files
+            verilog_sources=verilog_sources,
+            includes=includes,
+            toplevel=toplevel,
+            module=module,
+            parameters=parameters,
+            sim_build=sim_build,
+            extra_env=extra_env,
+            waves=True,
+            keep_files=True
+        )
+    except Exception as e:
+        # If the test fails, make sure logs are preserved
+        print(f"Test failed: {str(e)}")
+        print(f"Logs preserved at: {log_path}")
+        print(f"To view the Waveforms run this command: {cmd_filename}")
+        raise  # Re-raise exception to indicate failure

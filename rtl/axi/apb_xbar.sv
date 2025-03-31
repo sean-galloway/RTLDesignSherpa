@@ -27,8 +27,8 @@ module apb_xbar #(
     parameter int MSTCPW = AW + DW + SW + 6,
     parameter int MSTRPW = DW + 3
 ) (
-    input  logic                         aclk,
-    input  logic                         aresetn,
+    input  logic                         pclk,
+    input  logic                         presetn,
 
     // Slave enable for addr decoding
     input  logic [S-1:0]                 SLAVE_ENABLE,
@@ -118,14 +118,14 @@ module apb_xbar #(
             assign {r_slv_cmd_pwrite[m_port], r_slv_cmd_pprot[m_port], r_slv_cmd_pstrb[m_port],
                         r_slv_cmd_paddr[m_port], r_slv_cmd_pwdata[m_port]} = r_slv_cmd_data[m_port];
 
-            apb_slave_stub #(
+            apb_slave #(
                 .DEPTH       (DEPTH),
                 .DATA_WIDTH       (DATA_WIDTH),
                 .ADDR_WIDTH       (ADDR_WIDTH),
                 .STRB_WIDTH       (STRB_WIDTH)
-            ) u_apb_slave_stub    (
-                .aclk             (aclk),
-                .aresetn          (aresetn),
+            ) apb_slave_inst    (
+                .pclk             (pclk),
+                .presetn          (presetn),
                 .s_apb_PSEL       (m_apb_psel[m_port]),
                 .s_apb_PENABLE    (m_apb_penable[m_port]),
                 .s_apb_PADDR      (m_apb_paddr[m_port]),
@@ -144,13 +144,13 @@ module apb_xbar #(
                 .i_rsp_data       (r_slv_rsp_data[m_port])   // used
             );
 
-            arbiter_weighted_round_robin #(
+            arbiter_round_robin_weighted #(
                 .MAX_THRESH  (16),
                 .CLIENTS     (S),
                 .WAIT_GNT_ACK(1)
             ) master_arbiter_inst (
-                .i_clk       (aclk),
-                .i_rst_n     (aresetn),
+                .i_clk       (pclk),
+                .i_rst_n     (presetn),
                 .i_block_arb (1'b0),
                 .i_max_thresh(SLV_THRESHOLDS),
                 .i_req       (slave_sel[m_port]),          // used
@@ -209,13 +209,13 @@ module apb_xbar #(
             assign {r_mst_rsp_last[s_port], r_mst_rsp_first[s_port],
                     r_mst_rsp_pslverr[s_port], r_mst_rsp_prdata[s_port]} = r_mst_rsp_data[s_port];
 
-            apb_master_stub #(
+            apb_master #(
                 .DATA_WIDTH     (DATA_WIDTH),
                 .ADDR_WIDTH     (ADDR_WIDTH),
                 .STRB_WIDTH     (STRB_WIDTH)
-            ) u_apb_master_stub (
-                .aclk           (aclk),
-                .aresetn        (aresetn),
+            ) apb_master_inst (
+                .pclk           (pclk),
+                .presetn        (presetn),
                 .m_apb_PSEL     (s_apb_psel[s_port]),
                 .m_apb_PENABLE  (s_apb_penable[s_port]),
                 .m_apb_PADDR    (s_apb_paddr[s_port]),
@@ -235,12 +235,12 @@ module apb_xbar #(
             );
 
             // Instantiate axi_fifo_sync
-            axi_skid_buffer #(
+            gaxi_skid_buffer #(
                 .DEPTH   (DEPTH),
                 .DATA_WIDTH   (MID)
             ) side_queue_inst (
-                .i_axi_aclk   (aclk),
-                .i_axi_aresetn(aresetn),
+                .i_axi_pclk   (pclk),
+                .i_axi_presetn(presetn),
                 .i_wr_valid   (r_mst_side_wr_valid[s_port]), // used
                 .o_wr_ready   (r_mst_side_wr_ready[s_port]), // used
                 .i_wr_data    (r_mst_side_wr_data[s_port]),  // used
@@ -249,13 +249,13 @@ module apb_xbar #(
                 .o_rd_data    (r_mst_side_rd_data[s_port])   // used
             );
 
-            arbiter_weighted_round_robin #(
+            arbiter_round_robin_weighted #(
                 .MAX_THRESH  (16),
                 .CLIENTS     (M),
                 .WAIT_GNT_ACK(1)
             ) master_arbiter_inst (
-                .i_clk       (aclk),
-                .i_rst_n     (aresetn),
+                .i_clk       (pclk),
+                .i_rst_n     (presetn),
                 .i_block_arb (1'b0),
                 .i_max_thresh(SLV_THRESHOLDS),
                 .i_req       (master_sel[s_port]),        // used
@@ -270,8 +270,8 @@ module apb_xbar #(
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     // assert the gnt_acks
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (~aresetn) begin
+    always_ff @(posedge pclk or negedge presetn) begin
+        if (~presetn) begin
             mst_arb_gnt_ack   <= '0;
             slv_arb_gnt_ack   <= '0;
         end else begin
@@ -385,7 +385,7 @@ module apb_xbar #(
     // signal dumps
     initial begin
         forever begin
-            @(negedge aclk);
+            @(negedge pclk);
             $fdisplay(file, "=================================================================================================="); // verilog_lint: waive line-length
             for (int m_loop=0; m_loop<3; m_loop++) begin
                 $fdisplay(file, "Slave Interface @ %0t m_loop=%0d m_apb_penable=%0b m_apb_pready=%0b m_apb_paddr=%0h m_apb_psel=%0b", // verilog_lint: waive line-length
@@ -426,9 +426,6 @@ module apb_xbar #(
         end
     end
 
-    // initial begin
-    //     #28149 $finish;
-    // end
     // synopsys translate_on
 
 endmodule : apb_xbar

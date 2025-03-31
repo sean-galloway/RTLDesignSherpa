@@ -1,6 +1,0 @@
-pie 's/.*_rd \-//' logs/test_axi_master_rd_id08_aw032_dw032_uw1_al12_ar2_r4_er4.log
-pie 's/.*No pending reads.*\n//' logs/test_axi_master_rd_id08_aw032_dw032_uw1_al12_ar2_r4_er4.log
-pie 's/.*No AR valid seen.*\n//' logs/test_axi_master_rd_id08_aw032_dw032_uw1_al12_ar2_r4_er4.log
-pie 's/.*AR ready asserted.*\n//' logs/test_axi_master_rd_id08_aw032_dw032_uw1_al12_ar2_r4_er4.log
-pie 's/.*AR transaction received.*\n//' logs/test_axi_master_rd_id08_aw032_dw032_uw1_al12_ar2_r4_er4.log
-

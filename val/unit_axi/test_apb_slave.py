@@ -9,14 +9,14 @@ from cocotb_test.simulator import run
 
 from CocoTBFramework.components.memory_model import MemoryModel
 from CocoTBFramework.components.flex_randomizer import FlexRandomizer
-from CocoTBFramework.components.apb.apb import APBSequence, APBCycle, APBTransaction, APBMonitor, APBMaster
-from CocoTBFramework.components.apb.apb_factories import create_apb_master, create_apb_monitor, create_apb_scoreboard
-from CocoTBFramework.components.gaxi.gaxi_components import GAXIMaster, GAXISlave, GAXIMonitor
+from CocoTBFramework.components.apb.apb_packet import APBTransaction
+from CocoTBFramework.components.apb.apb_sequence import APBSequence
+from CocoTBFramework.components.apb.apb_factories import \
+    create_apb_master, create_apb_monitor, create_apb_scoreboard
 from CocoTBFramework.components.gaxi.gaxi_factories import \
     create_gaxi_master, create_gaxi_slave, create_gaxi_monitor
 from CocoTBFramework.components.gaxi.gaxi_enhancements import GAXICommandHandler_APBSlave
 from CocoTBFramework.scoreboards.apb_gaxi_scoreboard import APBGAXIScoreboard
-from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
 from CocoTBFramework.tbclasses.tbbase import TBBase
 from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 
@@ -515,6 +515,7 @@ class APBSlaveTB(TBBase):
         )
 
     def _create_strobe_seq(self):
+        # sourcery skip: merge-list-append, move-assign-in-block
         """Create configuration for strobe test"""
         # Test patterns for strobes
         test_data = [0xFFFFFFFF, 0x12345678, 0xAABBCCDD, 0x99887766, 0x55443322, 0xA5A5A5A5, 0x5A5A5A5A]
@@ -621,12 +622,7 @@ async def apb_slave_test(dut):
     # Reset the DUT
     print('DUT reset')
     await tb.reset_dut()
-    
-    # Start the monitors
-    # tb.apb_monitor._monitor_task = cocotb.start_soon(tb.apb_monitor._monitor_recv())
-    # tb.cmd_monitor._monitor_task = cocotb.start_soon(tb.cmd_monitor._monitor_recv())
-    # tb.rsp_monitor._monitor_task = cocotb.start_soon(tb.rsp_monitor._monitor_recv())
-    
+
     # Start the command handler
     await tb.cmd_handler.start()
 

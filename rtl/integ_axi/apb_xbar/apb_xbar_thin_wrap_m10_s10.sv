@@ -11,8 +11,8 @@ module apb_xbar_thin_wrap_m10_s10 #(
     parameter int AW  = ADDR_WIDTH,
     parameter int SW  = STRB_WIDTH
 ) (
-    input  logic                 aclk,
-    input  logic                 aresetn,
+    input  logic                 pclk,
+    input  logic                 presetn,
 
     input  logic                 m0_apb_psel,
     input  logic                 m0_apb_penable,
@@ -241,8 +241,8 @@ module apb_xbar_thin_wrap_m10_s10 #(
         .ADDR_WIDTH(32),
         .DATA_WIDTH(32)
     ) apb_xbar_thin_inst (
-        .aclk                (aclk),
-        .aresetn             (aresetn),
+        .pclk                (pclk),
+        .presetn             (presetn),
         .SLAVE_ENABLE        ({1'b1, 1'b1, 1'b1, 1'b1, 1'b1, 1'b1, 1'b1, 1'b1, 1'b1, 1'b1}),
         .SLAVE_ADDR_BASE     ({32'h9000, 32'h8000, 32'h7000, 32'h6000, 32'h5000, 32'h4000, 32'h3000, 32'h2000, 32'h1000, 32'h0}),
         .SLAVE_ADDR_LIMIT    ({32'h9FFF, 32'h8FFF, 32'h7FFF, 32'h6FFF, 32'h5FFF, 32'h4FFF, 32'h3FFF, 32'h2FFF, 32'h1FFF, 32'hFFF}),

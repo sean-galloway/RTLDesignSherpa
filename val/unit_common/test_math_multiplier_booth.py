@@ -17,20 +17,20 @@ from CocoTBFramework.tbclasses.common.multiplier_testing import MultiplierTB
 async def multiplier_test(dut):
     """Test the Booth radix-4 multiplier"""
     tb = MultiplierTB(dut)
-    
+
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
     msg = f'seed changed to {seed}'
     tb.log.info(msg)
-    
+
     # Print testbench settings
     tb.print_settings()
-    
+
     # Clear and initialize interface
     tb.clear_interface()
     await tb.wait_time(1, 'ns')
-    
+
     # Run the comprehensive test suite
     await tb.run_comprehensive_tests()
 
@@ -51,14 +51,14 @@ def test_math_multiplier_booth_radix_4(request, n):
 
     # Define test parameters
     parameters = {'N': n}
-    
+
     # Create human-readable test identifier
     test_name_plus_params = f"test_{dut_name}_N{parameters['N']:03d}"
-    
+
     # Define simulation build and log paths
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
     os.makedirs(sim_build, exist_ok=True)
-    
+
     # Define log path
     os.makedirs(log_dir, exist_ok=True)
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
@@ -67,16 +67,17 @@ def test_math_multiplier_booth_radix_4(request, n):
     # Set up environment variables
     seed = random.randint(0, 100000)
     test_level = os.environ.get('TEST_LEVEL', 'basic')  # Can be basic, medium, or full
-    
+
     extra_env = {
         'DUT': dut_name,
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
         'SEED': str(seed),
-        'TEST_LEVEL': test_level
+        'TEST_LEVEL': test_level,
+        "PARAM_N": str(n)
     }
-    
+
     # Add parameter environment variables
     extra_env.update({f'PARAM_{k}': str(v) for k, v in parameters.items()})
 

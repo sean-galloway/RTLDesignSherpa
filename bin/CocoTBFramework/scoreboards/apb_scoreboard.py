@@ -1,4 +1,5 @@
 """APB Scoreboard for verifying APB transactions"""
+from collections import defaultdict
 from CocoTBFramework.components.apb.apb import APBCycle
 from CocoTBFramework.scoreboards.base_scoreboard import BaseScoreboard, ProtocolTransformer
 
@@ -11,6 +12,9 @@ class APBScoreboard(BaseScoreboard):
         self.addr_width = addr_width
         self.data_width = data_width
         self.strb_width = data_width // 8
+        
+        # Track which master initiated each transaction
+        self.master_transactions = defaultdict(list)
 
     def _compare_transactions(self, expected, actual):
         """Compare APB cycles based on direction, address, and data"""
@@ -52,6 +56,163 @@ class APBScoreboard(BaseScoreboard):
 
         if expected.pslverr != actual.pslverr:
             self.log.error(f"  Slave error mismatch: expected={expected.pslverr}, actual={actual.pslverr}")
+            
+    def add_expected_with_source(self, transaction, master_id):
+        """Add an expected transaction with source information"""
+        self.add_expected(transaction)
+        self.master_transactions[master_id].append(transaction)
+        
+    def clear(self):
+        """Clear all transactions from scoreboard"""
+        super().clear()
+        self.master_transactions.clear()
+
+
+class APBCrossbarScoreboard:
+    """Router scoreboard for APB crossbar testing"""
+    
+    def __init__(self, name, num_slaves, addr_width=32, data_width=32, log=None):
+        """
+        Initialize APB crossbar scoreboard with multiple slave scoreboards
+        
+        Args:
+            name: Base name for scoreboards
+            num_slaves: Number of slave scoreboards to create
+            addr_width: Address width in bits
+            data_width: Data width in bits
+            log: Logger object
+        """
+        self.name = name
+        self.num_slaves = num_slaves
+        self.addr_width = addr_width
+        self.data_width = data_width
+        self.log = log
+        self.strb_width = data_width // 8
+        
+        # Create scoreboard for each slave
+        self.slave_scoreboards = []
+        for i in range(num_slaves):
+            sb = APBScoreboard(f"{name}_Slave_{i}", addr_width, data_width, log)
+            self.slave_scoreboards.append(sb)
+            
+        # Default address map (can be overridden)
+        self.addr_map = []
+        for i in range(num_slaves):
+            base_addr = i * 0x1000
+            end_addr = base_addr + 0xFFC
+            self.addr_map.append((base_addr, end_addr))
+            
+    def set_address_map(self, addr_map):
+        """
+        Set custom address map for routing transactions
+        
+        Args:
+            addr_map: List of (base_addr, end_addr) tuples for each slave
+        """
+        if len(addr_map) != self.num_slaves:
+            if self.log:
+                self.log.error(f"Address map size ({len(addr_map)}) doesn't match number of slaves ({self.num_slaves})")
+            return
+            
+        self.addr_map = addr_map
+        
+    def get_slave_idx(self, addr):  # sourcery skip: use-next
+        """
+        Determine which slave an address should go to
+        
+        Args:
+            addr: Address to route
+            
+        Returns:
+            int: Slave index (or None if no match)
+        """
+        for i, (base, end) in enumerate(self.addr_map):
+            if base <= addr <= end:
+                return i
+                
+        # Default to modulo routing if no match in address map
+        return addr // 0x1000 % self.num_slaves
+
+    def add_master_transaction(self, transaction, master_id):
+        """
+        Add a transaction from a master, routing to correct slave scoreboard
+        
+        Args:
+            transaction: APB transaction to route
+            master_id: ID of the master that initiated the transaction
+        """
+        # Determine slave based on address
+        addr = transaction.paddr
+        slave_idx = self.get_slave_idx(addr)
+
+        # Don't modify transaction.pprot here, just add to scoreboard with source info
+        scoreboard = self.slave_scoreboards[slave_idx]
+        scoreboard.add_expected_with_source(transaction, master_id)
+
+        if self.log:
+            self.log.debug(f"Routed transaction from master {master_id} to slave {slave_idx}: addr=0x{addr:08X}")
+
+    def add_slave_transaction(self, transaction, slave_idx):
+        """
+        Add a transaction from a slave to its scoreboard
+        
+        Args:
+            transaction: APB transaction from slave
+            slave_idx: Index of the slave
+        """
+        if 0 <= slave_idx < self.num_slaves:
+            scoreboard = self.slave_scoreboards[slave_idx]
+            scoreboard.add_actual(transaction)
+            
+    def all_empty(self):
+        """
+        Check if all scoreboards are empty
+        
+        Returns:
+            bool: True if all scoreboards are empty
+        """
+        return all(sb.is_empty() for sb in self.slave_scoreboards)
+        
+    def clear_all(self):
+        """Clear all slave scoreboards"""
+        for sb in self.slave_scoreboards:
+            sb.clear()
+            
+    def result(self):
+        """
+        Get overall result as minimum of all slave results
+        
+        Returns:
+            float: Overall pass rate (0.0 to 1.0)
+        """
+        results = [sb.result() for sb in self.slave_scoreboards]
+        
+        if not results:
+            return 1.0  # Perfect score if no transactions
+            
+        return min(results)
+        
+    def report(self):
+        """
+        Generate detailed report of all scoreboards
+        
+        Returns:
+            str: Report text
+        """
+        lines = [f"=== {self.name} Report ==="]
+        
+        all_passed = True
+        for i, sb in enumerate(self.slave_scoreboards):
+            result = sb.result()
+            if result < 1.0:
+                all_passed = False
+                lines.append(f"Slave {i}: FAIL ({result:.2f})")
+            else:
+                lines.append(f"Slave {i}: PASS")
+                
+        lines.append(f"Overall: {'PASS' if all_passed else 'FAIL'}")
+        
+        return "\n".join(lines)
 
 
 class APBtoGAXITransformer(ProtocolTransformer):

@@ -9,9 +9,9 @@ from cocotb_test.simulator import run
 
 from CocoTBFramework.components.memory_model import MemoryModel
 from CocoTBFramework.components.flex_randomizer import FlexRandomizer
-from CocoTBFramework.components.apb.apb import APBSequence, APBCycle, APBTransaction, APBMonitor, APBMaster
-from CocoTBFramework.components.apb.apb_factories import create_apb_slave, create_apb_monitor, create_apb_scoreboard
-from CocoTBFramework.components.gaxi.gaxi_components import GAXIMaster, GAXISlave, GAXIMonitor
+from CocoTBFramework.components.apb.apb_sequence import APBSequence
+from CocoTBFramework.components.apb.apb_factories import \
+    create_apb_slave, create_apb_monitor, create_apb_scoreboard
 from CocoTBFramework.components.gaxi.gaxi_factories import \
     create_gaxi_master, create_gaxi_slave, create_gaxi_monitor
 from CocoTBFramework.scoreboards.apb_gaxi_scoreboard import APBGAXIScoreboard

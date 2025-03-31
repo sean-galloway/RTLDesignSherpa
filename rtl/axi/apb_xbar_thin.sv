@@ -19,8 +19,8 @@ module apb_xbar_thin #(
     parameter int MTW   = $clog2(MAX_THRESH),
     parameter int MXMTW = M * MTW
 ) (
-    input  logic                         aclk,
-    input  logic                         aresetn,
+    input  logic                         pclk,
+    input  logic                         presetn,
 
     // Slave enable for addr decoding
     input  logic [S-1:0]                 SLAVE_ENABLE,
@@ -98,8 +98,8 @@ module apb_xbar_thin #(
     logic [M-1:0]                arb_gnt_ack;
 
     // assert the gnt_ack
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (~aresetn)
+    always_ff @(posedge pclk or negedge presetn) begin
+        if (~presetn)
             arb_gnt_ack <= '0;
         else
             arb_gnt_ack <= m_apb_pready & m_apb_penable & m_apb_penable;
@@ -107,13 +107,13 @@ module apb_xbar_thin #(
 
     generate
         for (genvar s_arb = 0; s_arb < S; s_arb++) begin : gen_arbiters
-            arbiter_weighted_round_robin #(
+            arbiter_round_robin_weighted #(
                 .MAX_THRESH  (16),
                 .CLIENTS     (M),
                 .WAIT_GNT_ACK(1)
             ) arbiter_inst   (
-                .i_clk       (aclk),
-                .i_rst_n     (aresetn),
+                .i_clk       (pclk),
+                .i_rst_n     (presetn),
                 .i_block_arb (1'b0),
                 .i_max_thresh(THRESHOLDS),
                 .i_req       (master_sel[s_arb]),

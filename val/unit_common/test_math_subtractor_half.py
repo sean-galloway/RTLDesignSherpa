@@ -1,5 +1,5 @@
 """
-Test for the 8-bit Brent-Kung adder module.
+Test for the half subtractor module.
 """
 import os
 import random
@@ -9,14 +9,14 @@ import cocotb
 from cocotb_test.simulator import run
 from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 
-# Import the base AdderTB class
-from CocoTBFramework.tbclasses.common.adder_testing import AdderTB
+# Import the base SubtractorTB class
+from CocoTBFramework.tbclasses.common.subtractor_testing import SubtractorTB
 
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
-async def adder_test(dut):
-    """Test the 8/16/32-bit Brent-Kung adder"""
-    tb = AdderTB(dut)
+async def subtractor_test(dut):
+    """Test the half subtractor"""
+    tb = SubtractorTB(dut)
 
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
@@ -28,37 +28,27 @@ async def adder_test(dut):
     tb.print_settings()
 
     # Clear and initialize interface
-    tb.clear_interface()
+    await tb.clear_interface()
     await tb.wait_time(1, 'ns')
 
-    # Run the standard adder test
-    await tb.main_loop()
+    # Run the specific half subtractor test
+    await tb.half_subtractor_test()
 
 
-@pytest.mark.parametrize("n", [8, 16, 32])
-def test_math_adder_brent_kung(request, n):
+def test_math_subtractor_half(request):
     """PyTest function to run the cocotb test."""
     # Get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common'})
 
-    dut_name = f"math_adder_brent_kung_{n:03d}"
+    dut_name = "math_subtractor_half"
     toplevel = dut_name
 
     verilog_sources = [
-        os.path.join(rtl_dict['rtl_cmn'], "math_adder_brent_kung_pg.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "math_adder_brent_kung_black.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "math_adder_brent_kung_gray.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "math_adder_brent_kung_bitwisepg.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], f"math_adder_brent_kung_grouppg_{n:03d}.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "math_adder_brent_kung_sum.sv"),
         os.path.join(rtl_dict['rtl_cmn'], f"{dut_name}.sv"),
     ]
 
-    # Define test parameters
-    parameters = {'N': n}
-
     # Create human-readable test identifier
-    test_name_plus_params = f"test_{dut_name}_N{parameters['N']}"
+    test_name_plus_params = f"test_{dut_name}"
 
     # Define simulation build and log paths
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
@@ -80,7 +70,7 @@ def test_math_adder_brent_kung(request, n):
         'COCOTB_RESULTS_FILE': results_path,
         'SEED': str(seed),
         'TEST_LEVEL': test_level,
-        'PARAM_N': str(n)
+        'PARAM_N': '1'  # Half subtractor is 1-bit by definition
     }
 
     # Create command file for viewing waveforms
@@ -94,7 +84,7 @@ def test_math_adder_brent_kung(request, n):
             includes=[],
             toplevel=toplevel,
             module=module,
-            parameters=parameters,
+            parameters={},
             sim_build=sim_build,
             extra_env=extra_env,
             waves=True,

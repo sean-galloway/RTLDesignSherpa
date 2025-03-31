@@ -8,8 +8,6 @@ import os
 import random
 import pytest
 import cocotb
-from cocotb.triggers import RisingEdge
-from cocotb.utils import get_sim_time
 from cocotb_test.simulator import run
 
 from CocoTBFramework.components.memory_model import MemoryModel
@@ -17,7 +15,7 @@ from CocoTBFramework.tbclasses.tbbase import TBBase
 from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 
 # Import our interface and test classes
-from CocoTBFramework.tbclasses.axi4.axi4_master_rd_user_intf import Axi4MasterRdUserIntf
+from CocoTBFramework.tbclasses.axi4.axi4_master_rd_usr_intf import Axi4MasterRdUserIntf
 from CocoTBFramework.tbclasses.axi4.axi4_master_rd_slv_intf import Axi4MasterRdAxi4Intf
 from CocoTBFramework.tbclasses.axi4.axi4_master_rd_test import Axi4MasterRdTests
 

@@ -1,45 +1,97 @@
+"""
+Test for the N-bit adder/subtractor module.
+"""
 import os
-import itertools
 import random
+import itertools
 import subprocess
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.tbbase import TBBase
 
 
 class AddSubTB(TBBase):
-    
+    """Testbench for adder/subtractor modules."""
+
     def __init__(self, dut):
+        """Initialize the testbench with design under test.
+
+        Args:
+            dut: The cocotb design under test object
+        """
         TBBase.__init__(self, dut)
-        self.N = self.convert_to_int(os.environ.get('PARAM_N', '0'))
+        self.N = self.convert_to_int(os.environ.get('PARAM_N', '1'))
         self.max_val = 2**self.N
+        self.mask = self.max_val - 1
+        self.test_level = os.environ.get('TEST_LEVEL', 'basic')
+        self.seed = self.convert_to_int(os.environ.get('SEED', '12345'))
+
+        # Initialize the random generator
+        random.seed(self.seed)
+
+        # Track test statistics
+        self.test_count = 0
+        self.pass_count = 0
+        self.fail_count = 0
+
+        # Get DUT type
+        self.dut_type = os.environ.get('DUT', 'unknown')
+        self.log.info(f"Testing {self.dut_type} with N={self.N}")
 
 
     def clear_interface(self):
+        """Clear the DUT interface by setting all inputs to 0."""
         self.dut.i_a.value = 0
         self.dut.i_b.value = 0
         self.dut.i_c.value = 0
 
 
     def print_settings(self):
+        """Print the current testbench settings."""
         self.log.info('-------------------------------------------')
-        self.log.info('Settings:')
-        msg = f'    N:     {self.N}'
-        self.log.info(msg)
+        self.log.info('Add/Sub Testbench Settings:')
+        self.log.info(f'    DUT:   {self.dut_type}')
+        self.log.info(f'    N:     {self.N}')
+        self.log.info(f'    Mask:  0x{self.mask:X}')
+        self.log.info(f'    Seed:  {self.seed}')
+        self.log.info(f'    Level: {self.test_level}')
         self.log.info('-------------------------------------------')
 
 
     async def main_loop(self, count=256):
+        """Main test loop for adder/subtractor.
+
+        Tests all combinations of inputs up to max_val or randomly samples
+        if max_val is larger than count.
+
+        Args:
+            count: Number of test vectors to generate if random sampling
+        """
+        self.log.info(f"Starting main test loop with count={count}")
+
+        # Determine if we need to test all possible values or random sampling
         if self.max_val < count:
+            self.log.info(f"Testing all {self.max_val} possible values")
             a_list = list(range(self.max_val))
             b_list = list(range(self.max_val))
         else:
-            a_list = [random.randint(0, self.max_val) for _ in range(count)]
-            b_list = [random.randint(0, self.max_val) for _ in range(count)]
+            self.log.info(f"Random sampling with {count} test vectors")
+            a_list = [random.randint(0, self.mask) for _ in range(count)]
+            b_list = [random.randint(0, self.mask) for _ in range(count)]
+
+        # Test both addition and subtraction modes
+        c_list = [0, 1]  # 0 for addition, 1 for subtraction
+
+        total_tests = len(a_list) * len(b_list) * len(c_list)
+        self.log.info(f"Will run {total_tests} total test cases")
 
         # Test the adder/subtractor
-        for a, b, cin in itertools.product(a_list, b_list, range(2)):
+        for test_idx, (a, b, cin) in enumerate(itertools.product(a_list, b_list, c_list)):
+            # Log progress periodically
+            if test_idx % max(1, total_tests // 10) == 0:
+                self.log.info(f"Progress: {test_idx}/{total_tests} tests completed")
 
             # Apply test inputs
             self.dut.i_a.value = a
@@ -50,74 +102,130 @@ class AddSubTB(TBBase):
             await self.wait_time(2, 'ns')
 
             # Check if the operation is addition or subtraction
-            if cin == 0:
-                expected_sum = a + b
-                expected_c = 1 if expected_sum >= (self.max_val) else 0
-                expected_sum = expected_sum % (self.max_val)
+            if cin == 0:  # Addition
+                expected_sum = (a + b) & self.mask
+                expected_c = 1 if (a + b) >= self.max_val else 0
+            else:  # Subtraction
+                expected_sum = (a - b) & self.mask
+                expected_c = 0 if a < b else 1  # borrow vs. no borrow
+
+            # Get actual outputs
+            actual_sum = int(self.dut.ow_sum.value)
+            actual_c = int(self.dut.ow_carry.value)
+
+            msg = f'{a=} {b=} {cin=} {expected_sum=} {actual_sum=}'
+            self.log.debug(msg)
+
+            # Verify results
+            if (actual_sum != expected_sum) or (actual_c != expected_c):
+                self.log.error(f"Test failed for inputs: a={a}, b={b}, cin={cin} (mode={'subtraction' if cin else 'addition'})")
+                self.log.error(f"  Expected: sum={expected_sum}, carry/borrow={expected_c}")
+                self.log.error(f"  Actual: sum={actual_sum}, carry/borrow={actual_c}")
+
+                # For debugging, also print binary
+                self.log.error("  Binary comparison:")
+                self.log.error(f"    a      = {bin(a)[2:].zfill(self.N)}")
+                self.log.error(f"    b      = {bin(b)[2:].zfill(self.N)}")
+                self.log.error(f"    mode   = {'subtraction' if cin else 'addition'}")
+                self.log.error(f"    exp_sum= {bin(expected_sum)[2:].zfill(self.N)}")
+                self.log.error(f"    act_sum= {bin(actual_sum)[2:].zfill(self.N)}")
+
+                self.fail_count += 1
+                assert False, f"Add/Sub test failed for inputs a={a}, b={b}, cin={cin}"
             else:
-                expected_sum = a - b
-                if expected_sum < 0:
-                    expected_sum += (self.max_val)
-                    expected_c = 0
-                else:
-                    expected_c = 1
-            found = self.dut.ow_sum.value.integer
-            msg = f'{self.max_val=} {a=} {b=} {cin=} {expected_sum=} {found=}'
-            self.log.info(msg)
-            # Check results
-            assert self.dut.ow_sum.value.integer == expected_sum,\
-                f"For inputs {a} and {b} with carry-in {cin}, expected sum was {expected_sum} but got {self.dut.ow_sum.value.integer}"
-            assert self.dut.ow_carry.value == expected_c,\
-                f"For inputs {a} and {b} with carry-in {cin}, expected carry/borrow was {expected_c} but got {self.dut.ow_carry.value}"
+                self.pass_count += 1
+
+            self.test_count += 1
+
+        # Print test summary
+        self.log.info(f"Test Summary: {self.pass_count}/{self.test_count} passed, {self.fail_count} failed")
 
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
 async def addsub_dut_test(dut):
-    """Test logic for a specific set of input values."""
+    """Test the adder/subtractor module."""
     tb = AddSubTB(dut)
+
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
     msg = f'seed changed to {seed}'
     tb.log.info(msg)
+
+    # Print testbench settings
     tb.print_settings()
+
+    # Clear and initialize interface
     tb.clear_interface()
     await tb.wait_time(2, 'ns')
+
+    # Run the add/sub test
     await tb.main_loop()
 
 
-repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
-tests_dir = os.path.abspath(os.path.dirname(__file__)) #gives the path to the test(current) directory in which this test.py file is placed
-rtl_dir = os.path.abspath(os.path.join(repo_root, 'rtl/', 'common')) #path to hdl folder where .v files are placed
-
 @pytest.mark.parametrize("n", [4, 8, 12])
 def test_math_addsub_full_nbit(request, n):
+    """PyTest function to run the cocotb test."""
+    # Get all of the directory and module information
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common'})
+
     dut_name = "math_addsub_full_nbit"
-    module = os.path.splitext(os.path.basename(__file__))[0]  # The name of this file
-    toplevel = "math_addsub_full_nbit"   
+    toplevel = dut_name
 
     verilog_sources = [
-        os.path.join(rtl_dir, "math_adder_full.sv"),
-        os.path.join(rtl_dir, "math_addsub_full_nbit.sv"),
+        os.path.join(rtl_dict['rtl_cmn'], "math_adder_full.sv"),
+        os.path.join(rtl_dict['rtl_cmn'], f"{dut_name}.sv"),
     ]
-    includes = []
-    parameters = {'N':n, }
 
-    extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
+    # Define test parameters
+    parameters = {'N': n}
 
-    sim_build = os.path.join(repo_root, 'val', 'unit_common', 'local_sim_build', request.node.name.replace('[', '-').replace(']', ''))
+    # Create human-readable test identifier
+    test_name_plus_params = f"test_{dut_name}_N{parameters['N']}"
 
-    extra_env['LOG_PATH'] = os.path.join(str(sim_build), f'cocotb_log_{dut_name}.log')
-    extra_env['DUT'] = dut_name
+    # Define simulation build and log paths
+    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    os.makedirs(sim_build, exist_ok=True)
 
-    run(
-        python_search=[tests_dir],  # where to search for all the python test files
-        verilog_sources=verilog_sources,
-        includes=includes,
-        toplevel=toplevel,
-        module=module,
-        parameters=parameters,
-        sim_build=sim_build,
-        extra_env=extra_env,
-        waves=True,
-    )
+    # Define log path
+    os.makedirs(log_dir, exist_ok=True)
+    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
+    results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
+
+    # Set up environment variables
+    seed = random.randint(0, 100000)
+    test_level = os.environ.get('TEST_LEVEL', 'basic')  # Can be basic, medium, or full
+
+    extra_env = {
+        'DUT': dut_name,
+        'LOG_PATH': log_path,
+        'COCOTB_LOG_LEVEL': 'INFO',
+        'COCOTB_RESULTS_FILE': results_path,
+        'SEED': str(seed),
+        'TEST_LEVEL': test_level,
+        'PARAM_N': str(n)
+    }
+
+    # Create command file for viewing waveforms
+    cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
+
+    # Launch the simulation
+    try:
+        run(
+            python_search=[tests_dir],  # where to search for all the python test files
+            verilog_sources=verilog_sources,
+            includes=[],
+            toplevel=toplevel,
+            module=module,
+            parameters=parameters,
+            sim_build=sim_build,
+            extra_env=extra_env,
+            waves=True,
+            keep_files=True
+        )
+    except Exception as e:
+        # If the test fails, make sure logs are preserved
+        print(f"Test failed: {str(e)}")
+        print(f"Logs preserved at: {log_path}")
+        print(f"To view the Waveforms run this command: {cmd_filename}")
+        raise  # Re-raise exception to indicate failure

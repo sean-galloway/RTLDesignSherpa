@@ -56,9 +56,9 @@ module arbiter_round_robin_weighted #(
                 w_crd_cnt_next[EndIdx-:MTW] = r_crd_cnt[EndIdx-:MTW];
                 if (w_replenish) begin
                     // During replenish, set credits based on grants
-                    if (ow_gnt[i]) 
+                    if (ow_gnt[i])
                         w_crd_cnt_next[EndIdx-:MTW] = 1;
-                    else 
+                    else
                         w_crd_cnt_next[EndIdx-:MTW] = 0;
                 end else if (ow_gnt[i] && w_has_crd[i]) begin
                     // Normal operation: increment credit counter when granted
@@ -87,7 +87,7 @@ module arbiter_round_robin_weighted #(
     endgenerate
 
     // the masked version of requests will be fed into normal round robin arbiter
-    arbiter_round_robin_subinst #(
+    arbiter_round_robin_weighted_subinst #(
         .CLIENTS(CLIENTS),
         .WAIT_GNT_ACK(WAIT_GNT_ACK)
     ) u_rrb_arb (

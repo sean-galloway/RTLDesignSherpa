@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module arbiter_fixed_priority #(
+module arbiter_round_robin_weighted_fixed_priority #(
     parameter int CLIENTS = 4
 ) (
     input        [CLIENTS-1:0] i_req,
@@ -20,4 +20,4 @@ module arbiter_fixed_priority #(
         end
     end
 
-endmodule : arbiter_fixed_priority
+endmodule : arbiter_round_robin_weighted_fixed_priority

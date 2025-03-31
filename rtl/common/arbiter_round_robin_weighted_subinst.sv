@@ -1,10 +1,7 @@
 `timescale 1ns / 1ps
 
-// I got this design from:
-// https://chipress.online/2019/06/23/round-robin-arbiter-the-wrong-design-and-the-right-design/
-// I've made a few tweaks and clean up items; I parameterized it.
 
-module arbiter_round_robin_subinst #(
+module arbiter_round_robin_weighted_subinst #(
     parameter int CLIENTS = 4,
     parameter int WAIT_GNT_ACK = 0,
     parameter int C = CLIENTS
@@ -40,13 +37,13 @@ module arbiter_round_robin_subinst #(
     assign w_mask_req = i_req & r_mask;
 
     // grant for raw requests in case mask == 'b0
-    arbiter_fixed_priority #(CLIENTS) u_arb_raw (
+    arbiter_round_robin_weighted_fixed_priority #(CLIENTS) u_arb_raw (
         .i_req(i_req),
         .ow_grant(w_raw_grant)
     );
 
     // grant for masked requests in case mask != 'b0
-    arbiter_fixed_priority #(CLIENTS) u_arb_mask (
+    arbiter_round_robin_weighted_fixed_priority #(CLIENTS) u_arb_mask (
         .i_req(w_mask_req),
         .ow_grant(w_mask_grant)
     );
@@ -55,4 +52,4 @@ module arbiter_round_robin_subinst #(
     assign w_select_raw = i_replenish || (w_mask_req == {CLIENTS{1'b0}});
     assign ow_grant = w_select_raw ? w_raw_grant : w_mask_grant;
 
-endmodule : arbiter_round_robin_subinst
+endmodule : arbiter_round_robin_weighted_subinst

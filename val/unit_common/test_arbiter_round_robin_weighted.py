@@ -268,6 +268,7 @@ class WeightedRoundRobinTB(TBBase):
                 self.dut.i_gnt_ack.value = 0
 
     async def test_grant_signals(self):
+        # sourcery skip: hoist-statement-from-loop
         """Test that grant signals work correctly"""
         self.log.info("Starting grant signal test")
 
@@ -865,8 +866,8 @@ def test_arbiter_round_robin_weighted(request, clients, max_thresh, wait_ack):
     toplevel = dut_name
 
     verilog_sources = [
-        os.path.join(rtl_dict['rtl_cmn'], "arbiter_fixed_priority.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "arbiter_round_robin_subinst.sv"),
+        os.path.join(rtl_dict['rtl_cmn'], "arbiter_round_robin_weighted_fixed_priority.sv"),
+        os.path.join(rtl_dict['rtl_cmn'], "arbiter_round_robin_weighted_subinst.sv"),
         os.path.join(rtl_dict['rtl_cmn'], f"{dut_name}.sv"),
     ]
 

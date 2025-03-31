@@ -1,5 +1,5 @@
 """
-Test for the 8-bit Brent-Kung adder module.
+Test for the carry lookahead subtractor module.
 """
 import os
 import random
@@ -9,14 +9,14 @@ import cocotb
 from cocotb_test.simulator import run
 from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 
-# Import the base AdderTB class
-from CocoTBFramework.tbclasses.common.adder_testing import AdderTB
+# Import the base SubtractorTB class
+from CocoTBFramework.tbclasses.common.subtractor_testing import SubtractorTB
 
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
-async def adder_test(dut):
-    """Test the 8/16/32-bit Brent-Kung adder"""
-    tb = AdderTB(dut)
+async def subtractor_test(dut):
+    """Test the carry lookahead subtractor"""
+    tb = SubtractorTB(dut)
 
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
@@ -28,29 +28,23 @@ async def adder_test(dut):
     tb.print_settings()
 
     # Clear and initialize interface
-    tb.clear_interface()
+    await tb.clear_interface()
     await tb.wait_time(1, 'ns')
 
-    # Run the standard adder test
+    # Run the standard subtractor test
     await tb.main_loop()
 
 
-@pytest.mark.parametrize("n", [8, 16, 32])
-def test_math_adder_brent_kung(request, n):
+@pytest.mark.parametrize("n", [4, 6, 8, 12, 16])
+def test_math_subtractor_carry_lookahead(request, n):
     """PyTest function to run the cocotb test."""
     # Get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common'})
 
-    dut_name = f"math_adder_brent_kung_{n:03d}"
+    dut_name = "math_subtractor_carry_lookahead"
     toplevel = dut_name
 
     verilog_sources = [
-        os.path.join(rtl_dict['rtl_cmn'], "math_adder_brent_kung_pg.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "math_adder_brent_kung_black.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "math_adder_brent_kung_gray.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "math_adder_brent_kung_bitwisepg.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], f"math_adder_brent_kung_grouppg_{n:03d}.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "math_adder_brent_kung_sum.sv"),
         os.path.join(rtl_dict['rtl_cmn'], f"{dut_name}.sv"),
     ]
 

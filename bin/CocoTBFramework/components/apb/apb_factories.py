@@ -1,11 +1,12 @@
 """
 Factory functions for creating and configuring APB components
 """
-from CocoTBFramework.components.apb.apb import APBMaster, APBSlave, APBMonitor, APBSequence, APBTransaction
-from CocoTBFramework.components.apb.apb_command_handler import APBCommandHandler
+from .apb import APBMaster, APBSlave, APBMonitor
+from .apb_sequence import APBSequence
+from .apb_command_handler import APBCommandHandler
 
-from CocoTBFramework.components.flex_randomizer import FlexRandomizer
-from CocoTBFramework.components.memory_model import MemoryModel
+from ..flex_randomizer import FlexRandomizer
+from ..memory_model import MemoryModel
 from CocoTBFramework.scoreboards.apb_scoreboard import APBScoreboard
 from CocoTBFramework.scoreboards.transformers.apb_gaxi_transformer import APBtoGAXITransformer
 
@@ -247,8 +248,8 @@ def create_apb_transformer(gaxi_field_config, gaxi_packet_class, log=None):
 
 
 def create_apb_sequence(name="basic", num_regs=10, base_addr=0,
-                         pattern="alternating", data_width=32,
-                         randomize_delays=True):
+                            pattern="alternating", data_width=32,
+                            randomize_delays=True):
     """
     Create an APB Sequence for testing.
 

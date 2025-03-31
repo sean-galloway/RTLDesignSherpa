@@ -205,7 +205,7 @@ module data_collect #(
         end
     end
 
-    arbiter_weighted_round_robin #(
+    arbiter_round_robin_weighted #(
         .MAX_THRESH(16),       // Weight range 0-15
         .CLIENTS(4),           // 4 input channels
         .WAIT_GNT_ACK(0)       // No grant acknowledge mechanism

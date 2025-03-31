@@ -12,6 +12,7 @@ class BaseScoreboard:
         self.actual_queue = deque()
         self.error_count = 0
         self.transaction_count = 0
+        self.mismatched = []
         self.transformer = None
 
     def add_expected(self, transaction):
@@ -39,6 +40,7 @@ class BaseScoreboard:
 
         if not self._compare_transactions(expected, actual):
             self.error_count += 1
+            self.mismatched.append((expected, actual))  # Store mismatched pair
             self._log_mismatch(expected, actual)
 
     def _compare_transactions(self, expected, actual):
@@ -71,6 +73,26 @@ class BaseScoreboard:
             self.log.info(f"  Errors: {total_errors}")
 
         return total_errors
+
+    def result(self):
+        """
+        Calculate the result as a ratio of successful transactions.
+        
+        Returns:
+            float: Pass rate from 0.0 to 1.0
+        """
+        total = self.transaction_count
+        # Account for expected transactions that haven't been received yet
+        total += len(self.expected_queue)
+        
+        if total == 0:
+            return 1.0  # Perfect score if no transactions expected
+        
+        # Calculate failures: mismatches + leftover expected/actual
+        failures = self.error_count + len(self.expected_queue) + len(self.actual_queue)
+        
+        # Return success ratio
+        return (total - failures) / total
 
     def set_transformer(self, transformer):
         """Set a protocol transformer for the scoreboard"""
