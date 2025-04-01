@@ -325,7 +325,7 @@ module axi2apb_convert #(
         w_rsp_ready                = 1'b0;
         w_burst_count              = r_burst_count;
 
-        casez (r_rsp_state)
+        case (r_rsp_state)
             RSP_IDLE: begin
                 if (r_rsp_valid && r_apb_rsp_pkt_first) begin
                     w_rsp_next_state = RSP_ACTIVE;
@@ -357,7 +357,7 @@ module axi2apb_convert #(
             default: w_rsp_next_state = RSP_IDLE;
         endcase
 
-        casez (r_apb_state)
+        case (r_apb_state)
             IDLE: begin
                 if (~r_side_out_valid) // let the last command sequence clear out before the next
                     if (r_s_axi_awvalid && r_s_axi_wvalid) begin
@@ -423,7 +423,7 @@ module axi2apb_convert #(
     end
 
     // Instantiate the side queue
-    axi_fifo_sync #(.DATA_WIDTH(SideSize), .DEPTH(SIDE_DEPTH)) inst_side_fifo (
+    gaxi_fifo_sync #(.DATA_WIDTH(SideSize), .DEPTH(SIDE_DEPTH)) side_fifo_inst (
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
         .i_wr_valid               (w_side_in_valid),

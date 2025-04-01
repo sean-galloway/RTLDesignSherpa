@@ -141,11 +141,11 @@ module axi2apb_shim #(
 
     // Instantiate the axi_slave_stub
     axi_slave_stub #                   (
-        .DEPTH_AW            (DEPTH_AW),
-        .DEPTH_W             (DEPTH_W),
-        .DEPTH_B             (DEPTH_B),
-        .DEPTH_AR            (DEPTH_AR),
-        .DEPTH_R             (DEPTH_R),
+        .DEPTH_AW                 (DEPTH_AW),
+        .DEPTH_W                  (DEPTH_W),
+        .DEPTH_B                  (DEPTH_B),
+        .DEPTH_AR                 (DEPTH_AR),
+        .DEPTH_R                  (DEPTH_R),
         .AXI_ID_WIDTH             (IW),
         .AXI_ADDR_WIDTH           (AW),
         .AXI_DATA_WIDTH           (DW),

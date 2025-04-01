@@ -4,6 +4,7 @@ import logging
 import cocotb
 from cocotb.triggers import RisingEdge, FallingEdge, Timer
 from cocotb.clock import Clock
+from cocotb.utils import get_sim_time
 
 
 class TBBase:
@@ -161,6 +162,11 @@ class TBBase:
         """Force flush all log handlers"""
         for handler in self.log.handlers:
             handler.flush()
+
+    @staticmethod
+    def get_time_ns_str():
+        time_ns = get_sim_time('ns')
+        return f' @ {time_ns}ns'
 
     @staticmethod
     def convert_to_int(value):

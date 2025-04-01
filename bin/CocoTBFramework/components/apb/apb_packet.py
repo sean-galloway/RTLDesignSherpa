@@ -1,7 +1,6 @@
 """APB Cycle and Transaction Classes with enhanced formatting"""
 
 import copy
-from dataclasses import dataclass
 import random
 from cocotb_coverage.crv import Randomized
 from ..flex_randomizer import FlexRandomizer
