@@ -11,7 +11,7 @@ module amba_clock_gate_ctrl #(
 
     // Configuration Interface
     input logic         i_cfg_cg_enable,     // Global clock gate enable
-    input logic [N-1:0] i_cfg_cg_idle_count, // Idle countdown value
+    input logic [ICW-1:0] i_cfg_cg_idle_count, // Idle countdown value
 
     // Activity Monitoring
     input logic i_user_valid,  // Any user-side valid signal
@@ -44,7 +44,7 @@ module amba_clock_gate_ctrl #(
         .aresetn            (aresetn),
         .i_cfg_cg_enable    (i_cfg_cg_enable),
         .i_cfg_cg_idle_count(i_cfg_cg_idle_count),
-        .i_wakeup           (w_wakeup),
+        .i_wakeup           (r_wakeup),
         .clk_out            (clk_out),
         .o_gating           (o_gating)
     );

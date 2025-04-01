@@ -6,7 +6,7 @@ from collections import deque
 import pytest
 import cocotb
 from cocotb.utils import get_sim_time
-from cocotb.triggers import RisingEdge, FallingEdge, Timer
+from cocotb.triggers import RisingEdge, Timer
 from cocotb_test.simulator import run
 
 from CocoTBFramework.tbclasses.tbbase import TBBase
