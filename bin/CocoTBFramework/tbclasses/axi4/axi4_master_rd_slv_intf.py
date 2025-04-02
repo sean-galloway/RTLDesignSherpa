@@ -2,7 +2,7 @@
 AXI4 Master Read AXI4 Interface
 
 This module provides a testbench interface for the AXI4 interfaces
-of the AXI4 Master Read module, specifically focusing on the s_axi and m_axi
+of the AXI4 Master Read module, specifically focusing on the fub and m_axi
 interfaces for read transactions.
 """
 
@@ -81,10 +81,10 @@ class Axi4MasterRdAxi4Intf(TBBase):
         self.randomizers = self._create_randomizers()
         channels = ['ar', 'r']
 
-        # Create AXI4 master component for the slave interface (s_axi_*)
-        self.s_axi_master = create_axi4_master(
-            dut, "S_AXI_Master",
-            prefix='s_axi',
+        # Create AXI4 master component for the slave interface (fub_*)
+        self.fub_master = create_axi4_master(
+            dut, "FUB_Master",
+            prefix='fub',
             divider='',
             suffix='',
             clock=dut.aclk,
@@ -115,9 +115,9 @@ class Axi4MasterRdAxi4Intf(TBBase):
         )
 
         # Create monitors for both interfaces
-        self.s_axi_monitor = create_axi4_monitor(
-            dut, "S_AXI_Monitor",
-            prefix='s_axi',
+        self.fub_monitor = create_axi4_monitor(
+            dut, "FUB_Monitor",
+            prefix='fub',
             divider='',
             suffix='',
             clock=dut.aclk,
@@ -146,7 +146,7 @@ class Axi4MasterRdAxi4Intf(TBBase):
         )
 
         # Connect monitors to callbacks for tracking transactions
-        self.s_axi_monitor.set_read_callback(self._handle_s_axi_read)
+        self.fub_monitor.set_read_callback(self._handle_fub_read)
         self.m_axi_monitor.set_read_callback(self._handle_m_axi_read)
 
         # Create command handler to connect AR and R channels
@@ -185,7 +185,7 @@ class Axi4MasterRdAxi4Intf(TBBase):
 
         fixed = 2
 
-        # AR channel randomizers for s_axi interface
+        # AR channel randomizers for fub interface
         randomizers['ar_always_ready'] = FlexRandomizer({
             'valid_delay': ([[0, 0]], [1.0])
         })
@@ -242,7 +242,7 @@ class Axi4MasterRdAxi4Intf(TBBase):
 
         self.log.info(f"Memory initialized with pattern: addr + 0xA5A5A5A5")
 
-    def _handle_s_axi_read(self, id_value, transaction):
+    def _handle_fub_read(self, id_value, transaction):
         """
         Handle a read transaction from the slave AXI interface.
 
@@ -252,7 +252,7 @@ class Axi4MasterRdAxi4Intf(TBBase):
         """
         if id_value in self.pending_reads:
             self.pending_reads[id_value]['monitor_detected'] = True
-            self.log.debug(f"Detected read request on s_axi interface: ID={id_value:X}, addr=0x{transaction['ar_transaction'].araddr:08X}")
+            self.log.debug(f"Detected read request on fub interface: ID={id_value:X}, addr=0x{transaction['ar_transaction'].araddr:08X}")
 
     def _handle_m_axi_read(self, id_value, transaction):
         """
@@ -282,8 +282,8 @@ class Axi4MasterRdAxi4Intf(TBBase):
                 self.pending_reads[matching_id]['m_axi_complete'] = True
                 self.pending_reads[matching_id]['data'] = transaction.get('data', [])
 
-                # Check if fully complete (both s_axi and m_axi)
-                if self.pending_reads[matching_id].get('s_axi_complete', False):
+                # Check if fully complete (both fub and m_axi)
+                if self.pending_reads[matching_id].get('fub_complete', False):
                     completed_tx = self.pending_reads.pop(matching_id)
                     self.completed_reads[matching_id] = completed_tx
                     self.log.info(f"Read transaction completed: ID={matching_id:X}, addr=0x{completed_tx['addr']:08X}, beats={len(completed_tx['data'])}")
@@ -306,7 +306,7 @@ class Axi4MasterRdAxi4Intf(TBBase):
             await self.cmd_handler.stop()
 
         # Reset the AXI components
-        await self.s_axi_master.reset_bus()
+        await self.fub_master.reset_bus()
         await self.m_axi_slave.reset_bus()
 
         # Clear tracking data
@@ -339,7 +339,7 @@ class Axi4MasterRdAxi4Intf(TBBase):
 
         self.log.info("AXI4 interfaces reset")
 
-    def set_s_axi_ar_timing(self, mode):
+    def set_fub_ar_timing(self, mode):
         """
         Set the timing mode for the slave AXI AR channel.
 
@@ -348,8 +348,8 @@ class Axi4MasterRdAxi4Intf(TBBase):
         """
         randomizer_key = f'ar_{mode}'
         if randomizer_key in self.randomizers:
-            self.s_axi_master.ar_master.set_randomizer(self.randomizers[randomizer_key])
-            self.log.info(f"S_AXI AR channel timing set to {mode}")
+            self.fub_master.ar_master.set_randomizer(self.randomizers[randomizer_key])
+            self.log.info(f"FUB AR channel timing set to {mode}")
         else:
             self.log.error(f"Unknown AR timing mode: {mode}")
 
@@ -442,15 +442,15 @@ class Axi4MasterRdAxi4Intf(TBBase):
             'm_axi_id': id_value,  # Same ID used for now
             'start_time': cocotb.utils.get_sim_time('ns'),
             'monitor_detected': False,
-            's_axi_complete': False,
+            'fub_complete': False,
             'm_axi_complete': False
         }
 
         # Send the read request
         if not busy_send:
-            await self.s_axi_master.ar_master.send(packet)
+            await self.fub_master.ar_master.send(packet)
         else:
-            await self.s_axi_master.ar_master.busy_send(packet)
+            await self.fub_master.ar_master.busy_send(packet)
 
         self.log.info(f"{func_title}ID={id_value:X}, addr=0x{aligned_addr:08X}, length={length}")
 
@@ -668,7 +668,7 @@ class Axi4MasterRdAxi4Intf(TBBase):
         self.set_dut_alignment_mask(alignment_mask)
 
         # Set fast timing for clean test
-        self.set_s_axi_ar_timing('fast')
+        self.set_fub_ar_timing('fast')
         self.set_m_axi_r_timing('fast')
 
         # Clear previous transactions

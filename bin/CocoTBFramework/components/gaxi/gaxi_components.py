@@ -6,10 +6,12 @@ from collections import deque
 from cocotb_bus.drivers import BusDriver
 from cocotb_bus.monitors import BusMonitor
 from cocotb.triggers import RisingEdge, FallingEdge, Timer
+from collections import deque
 from cocotb.utils import get_sim_time
 
 from ..flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
+from CocoTBFramework.components.field_config import FieldConfig, FieldDefinition
 from CocoTBFramework.components.debug_object import print_object_details, print_dict_to_log
 
 
@@ -105,7 +107,11 @@ class GAXIMaster(BusDriver):
         self.title = title
         self.clock = clock
         self.timeout_cycles = timeout_cycles
-        self.field_config = field_config or gaxi_basic_field_config
+        # Handle field_config - convert dict to FieldConfig if needed
+        if isinstance(field_config, dict):
+            self.field_config = FieldConfig.validate_and_create(field_config)
+        else:
+            self.field_config = field_config or FieldConfig.create_data_only()
         self.packet_class = packet_class
 
         # Determine if we're using multi-signal mode (individual signals for each field)
@@ -224,7 +230,8 @@ class GAXIMaster(BusDriver):
             self.valid_sig.setimmediatevalue(0)
 
         # Process each field in the field config
-        for field_name in self.field_config.keys():
+        # Use field_names() method instead of keys() for FieldConfig objects
+        for field_name in self.field_config.field_names():
             # Create the signal name for this field in the signal map
             field_signal_name = f'm2s_pkt_{field_name}'
 
@@ -256,7 +263,14 @@ class GAXIMaster(BusDriver):
             self.field_signals[field_name] = dut_signal_name
 
             # Initialize with default value from field config
-            default_value = self.field_config[field_name].get('default', 0)
+            # Access default value directly from FieldDefinition object
+            if hasattr(self.field_config, 'get_field'):
+                field_def = self.field_config.get_field(field_name)
+                default_value = field_def.default
+            else:
+                # Fallback for dictionary-based field config
+                default_value = self.field_config[field_name].get('default', 0)
+                
             getattr(self.bus, dut_signal_name).setimmediatevalue(default_value)
             # self.log.debug(f"Registered signal '{dut_signal_name}' for field '{field_name}'")
         elif required:
@@ -409,7 +423,6 @@ class GAXIMaster(BusDriver):
         self.log.debug(f"Master({self.title}): Wrote to memory: addr=0x{addr:X}, data=0x{data:X}, strb=0x{strb:X}")
 
     def _drive_signals(self, transaction):
-        # sourcery skip: merge-else-if-into-elif, move-assign-in-block
         """
         Drive transaction data onto the bus signals.
 
@@ -420,15 +433,15 @@ class GAXIMaster(BusDriver):
             True if successful, False if any signals couldn't be driven
         """
         try:
-            # Get FIFO-adjusted values for all fields
+            # Get FIFO-adjusted values for all fields using the new Packet method
             fifo_data = transaction.pack_for_fifo()
-            
+
             if self.use_multi_signal:
                 # Multi-signal mode: drive individual field signals
                 for field_name, field_value in fifo_data.items():
                     # For each field, look up the corresponding signal name
                     signal_name = f'm2s_pkt_{field_name}'
-                    
+
                     if signal_name in self.optional_signal_map:
                         dut_signal_name = self.optional_signal_map[signal_name]
                         if hasattr(self.bus, dut_signal_name):
@@ -453,26 +466,25 @@ class GAXIMaster(BusDriver):
                         self.pkt_sig.value = fifo_data['data']
                 else:
                     # Multiple fields need to be packed into a single value
-                    # This would typically be handled by the RTL logic for field-based buffers
-                    # Here we just warn about it
-                    self.log.warning(f"Multiple fields in standard mode may not be properly handled: {fifo_data}")
-                    
-                    # Try to handle it by concatenating fields according to field configuration
-                    # This is a simplified approach - might need customization based on specific buffer implementations
                     if self.pkt_sig:
                         combined_value = 0
                         bit_offset = 0
-                        
+
                         # Process fields in the order defined in field_config
-                        for field_name, config in transaction.field_config.items():
+                        field_names = self.field_config.field_names()
+
+                        for field_name in field_names:
                             if field_name in fifo_data:
-                                field_width = config.get('bits', 0)
+                                # Get field definition from FieldConfig
+                                field_def = self.field_config.get_field(field_name)
+                                field_width = field_def.bits
+
                                 field_value = fifo_data[field_name]
-                                
+
                                 # Shift and combine
                                 combined_value |= (field_value << bit_offset)
                                 bit_offset += field_width
-                        
+
                         self.pkt_sig.value = combined_value
 
             return True
@@ -671,7 +683,11 @@ class GAXISlave(BusMonitor):
         self.title = title
         self.clock = clock
         self.timeout_cycles = timeout_cycles
-        self.field_config = field_config or gaxi_basic_field_config
+        # Handle field_config - convert dict to FieldConfig if needed
+        if isinstance(field_config, dict):
+            self.field_config = FieldConfig.validate_and_create(field_config)
+        else:
+            self.field_config = field_config or FieldConfig.create_data_only()
         self.packet_class = packet_class
         self.mode = mode
 
@@ -784,8 +800,7 @@ class GAXISlave(BusMonitor):
     def _initialize_multi_signal_mode(self):
         """Initialize and verify signals in multi-signal mode."""
         # Check field signal mappings
-        for field_name in self.field_config.keys():
-
+        for field_name in self.field_config.field_names():
             field_signal_name = f'm2s_pkt_{field_name}'
 
             # Check required signal map first
@@ -886,34 +901,41 @@ class GAXISlave(BusMonitor):
         Finish packet processing and trigger callbacks.
         """
         # Standard mode with complex field config (special case for data_collect)
-        if not self.use_multi_signal and len(packet.field_config) > 1 and isinstance(data_dict, dict) and 'data' in data_dict:
+        if not self.use_multi_signal and hasattr(self.field_config, 'field_names') and len(self.field_config) > 1 and isinstance(data_dict, dict) and 'data' in data_dict:
             # We have a single data value but multiple fields in the config
             combined_value = data_dict['data']
             unpacked_fields = {}
             bit_offset = 0
-            
+
             # Process fields in the order defined in field_config (reversed for data fields)
-            # This assumes the fields are ordered MSB to LSB in the output_field_config
-            fields = list(packet.field_config.keys())
-            
+            # Get field names from FieldConfig object
+            fields = self.field_config.field_names()
+
             for field_name in fields:
-                config = packet.field_config[field_name]
-                field_width = config.get('bits', 0)
+                # Get field definition from FieldConfig
+                field_def = self.field_config.get_field(field_name)
+                field_width = field_def.bits
                 mask = (1 << field_width) - 1
-                
+
                 # Extract field value using mask and shift
                 field_value = (combined_value >> bit_offset) & mask
                 unpacked_fields[field_name] = field_value
-                
+
                 bit_offset += field_width
 
             # Replace data_dict with unpacked fields
             data_dict = unpacked_fields
-        
-        # Standard unpacking
+
+        # Use the packet's unpack_from_fifo method for field handling
         if data_dict:
-            packet.unpack_from_fifo(data_dict)
-            
+            if hasattr(packet, 'unpack_from_fifo'):
+                packet.unpack_from_fifo(data_dict)
+            else:
+                # Legacy fallback - set fields directly
+                for field_name, value in data_dict.items():
+                    if hasattr(packet, field_name):
+                        setattr(packet, field_name, value)
+
         # Apply memory model data, if applicable
         if self.memory_model and self.memory_fields:
             data_field = self.memory_fields.get('data', 'data')
@@ -924,11 +946,10 @@ class GAXISlave(BusMonitor):
         # Record completion time and store packet
         packet.end_time = current_time
         self.received_queue.append(packet)
-        self.log.debug(f"Slave({self.title}) Transaction received at {packet.end_time}ns: {packet.formatted(compact=True)}")
+        self.log.debug(f"Slave({self.title}) Transaction received at {packet.end_time}ns: {packet.formatted(compact=True) if hasattr(packet, 'formatted') else str(packet)}")
         self._recv(packet)  # trigger callbacks
 
     def _get_data_dict(self):
-        # sourcery skip: hoist-similar-statement-from-if, hoist-statement-from-if, lift-duplicated-conditional, merge-else-if-into-elif, remove-pass-body
         """
         Collect data from field signals in multi-signal mode.
 
@@ -936,7 +957,7 @@ class GAXISlave(BusMonitor):
             Dictionary of field values
         """
         data_dict = {}
-        
+
         if self.use_multi_signal:
             # Multi-signal mode: collect from individual field signals
             for field_name, dut_signal_name in self.field_signals.items():
@@ -953,7 +974,8 @@ class GAXISlave(BusMonitor):
             # Standard mode: get from the aggregated data signal
             if self.pkt_sig and self.pkt_sig.value.is_resolvable:
                 # In standard mode with a single 'data' field
-                if 'data' in self.field_config:
+                # Use has_field instead of checking if 'data' is in field_config
+                if hasattr(self.field_config, 'has_field') and self.field_config.has_field('data'):
                     data_dict['data'] = int(self.pkt_sig.value)
                 else:
                     # Handle multi-field configuration in standard mode
@@ -965,8 +987,9 @@ class GAXISlave(BusMonitor):
             elif self.pkt_sig:
                 self.log.warning("Data signal has X/Z value")
                 data_dict['data'] = -1  # Indicate X/Z value
-                
+
         return data_dict
+
 
     def _get_data_value(self):
         return int(self.pkt_sig.value)
@@ -1129,7 +1152,11 @@ class GAXIMonitor(BusMonitor):
         self.title = title
         self.clock = clock
         self.timeout_cycles = timeout_cycles
-        self.field_config = field_config or gaxi_basic_field_config
+        # Handle field_config - convert dict to FieldConfig if needed
+        if isinstance(field_config, dict):
+            self.field_config = FieldConfig.validate_and_create(field_config)
+        else:
+            self.field_config = field_config or FieldConfig.create_data_only()
         self.packet_class = packet_class
         self.is_slave = is_slave
         self.mode = mode
@@ -1233,8 +1260,7 @@ class GAXIMonitor(BusMonitor):
     def _initialize_multi_signal_mode(self):
         """Initialize signal mappings for multi-signal mode with fallback to standard signals."""
         # Check field signal mappings
-        for field_name in self.field_config.keys():
-
+        for field_name in self.field_config.field_names():
             field_signal_name = f'm2s_pkt_{field_name}'
 
             # Check required signal map first
@@ -1267,7 +1293,7 @@ class GAXIMonitor(BusMonitor):
     def _finish_packet(self, current_time, packet, data_dict=None):
         """
         Finish packet processing and trigger callbacks.
-        
+
         Args:
             current_time: Current simulation time
             packet: The packet to finish
@@ -1275,42 +1301,50 @@ class GAXIMonitor(BusMonitor):
                     or single 'data' value (for standard mode)
         """
         # Standard mode with complex field config (special case for data_collect)
-        if not self.use_multi_signal and len(packet.field_config) > 1 and isinstance(data_dict, dict) and 'data' in data_dict:
+        if not self.use_multi_signal and hasattr(self.field_config, 'field_names') and len(self.field_config) > 1 and isinstance(data_dict, dict) and 'data' in data_dict:
             # We have a single data value but multiple fields in the config
             combined_value = data_dict['data']
             unpacked_fields = {}
             bit_offset = 0
-            
+
             # Process fields in the order defined in field_config
-            # This assumes the fields are ordered MSB to LSB in the field_config
-            fields = list(packet.field_config.keys())
-            
+            # Get field names from FieldConfig object
+            fields = self.field_config.field_names()
+
             for field_name in fields:
-                config = packet.field_config[field_name]
-                field_width = config.get('bits', 0)
+                # Get field definition from FieldConfig
+                field_def = self.field_config.get_field(field_name)
+                field_width = field_def.bits
                 mask = (1 << field_width) - 1
-                
+
                 # Extract field value using mask and shift
                 field_value = (combined_value >> bit_offset) & mask
                 unpacked_fields[field_name] = field_value
-                
+
                 bit_offset += field_width
 
             # Replace data_dict with unpacked fields
             data_dict = unpacked_fields
-        
+
         # Use the packet's unpack_from_fifo method for field handling
         if data_dict:
-            packet.unpack_from_fifo(data_dict)
+            if hasattr(packet, 'unpack_from_fifo'):
+                packet.unpack_from_fifo(data_dict)
+            else:
+                # Legacy fallback - set fields directly
+                for field_name, value in data_dict.items():
+                    if hasattr(packet, field_name):
+                        setattr(packet, field_name, value)
 
         # Record completion time and store packet
         packet.end_time = current_time
         self.observed_queue.append(packet)
-        self.log.debug(f"Monitor({self.title}) Transaction received at {packet.end_time}ns: {packet.formatted(compact=True)}")
+        # Format packet for logging if it has a formatted method
+        packet_str = packet.formatted(compact=True) if hasattr(packet, 'formatted') else str(packet)
+        self.log.debug(f"Monitor({self.title}) Transaction received at {packet.end_time}ns: {packet_str}")
         self._recv(packet)  # trigger callbacks
 
     def _get_data_dict(self):
-        # sourcery skip: assign-if-exp, hoist-statement-from-if, lift-duplicated-conditional, merge-else-if-into-elif, remove-redundant-condition
         """
         Collect data from field signals and properly handle X/Z values.
 
@@ -1318,7 +1352,7 @@ class GAXIMonitor(BusMonitor):
             Dictionary of field values with X/Z values represented as -1
         """
         data_dict = {}
-        
+
         if self.use_multi_signal:
             # Multi-signal mode: collect from individual field signals
             for field_name, dut_signal_name in self.field_signals.items():
@@ -1334,8 +1368,10 @@ class GAXIMonitor(BusMonitor):
         else:
             # Standard mode: get from the aggregated data signal
             if self.pkt_sig and self.pkt_sig.value.is_resolvable:
-                # In standard mode with a single 'data' field
-                if len(self.field_config) == 1 and 'data' in self.field_config:
+                # Use len() and has_field instead of checking fields directly
+                if (hasattr(self.field_config, 'has_field') and 
+                    len(self.field_config) == 1 and 
+                    self.field_config.has_field('data')):
                     data_dict['data'] = int(self.pkt_sig.value)
                 else:
                     # Handle multi-field configuration in standard mode
@@ -1344,7 +1380,7 @@ class GAXIMonitor(BusMonitor):
             elif self.pkt_sig:
                 self.log.warning("Data signal has X/Z value")
                 data_dict['data'] = -1  # Indicate X/Z value
-                
+
         return data_dict
 
     async def _recv_phase1(self, current_time, last_packet, last_xfer):

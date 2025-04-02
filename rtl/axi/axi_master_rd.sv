@@ -38,28 +38,28 @@ module axi_master_rd
 
     // Slave AXI Interface (Input Side)
     // Read address channel (AR)
-    input  logic [IW-1:0]              s_axi_arid,
-    input  logic [AW-1:0]              s_axi_araddr,
-    input  logic [7:0]                 s_axi_arlen,
-    input  logic [2:0]                 s_axi_arsize,
-    input  logic [1:0]                 s_axi_arburst,
-    input  logic                       s_axi_arlock,
-    input  logic [3:0]                 s_axi_arcache,
-    input  logic [2:0]                 s_axi_arprot,
-    input  logic [3:0]                 s_axi_arqos,
-    input  logic [3:0]                 s_axi_arregion,
-    input  logic [UW-1:0]              s_axi_aruser,
-    input  logic                       s_axi_arvalid,
-    output logic                       s_axi_arready,
+    input  logic [IW-1:0]              fub_arid,
+    input  logic [AW-1:0]              fub_araddr,
+    input  logic [7:0]                 fub_arlen,
+    input  logic [2:0]                 fub_arsize,
+    input  logic [1:0]                 fub_arburst,
+    input  logic                       fub_arlock,
+    input  logic [3:0]                 fub_arcache,
+    input  logic [2:0]                 fub_arprot,
+    input  logic [3:0]                 fub_arqos,
+    input  logic [3:0]                 fub_arregion,
+    input  logic [UW-1:0]              fub_aruser,
+    input  logic                       fub_arvalid,
+    output logic                       fub_arready,
 
     // Read data channel (R)
-    output logic [IW-1:0]              s_axi_rid,
-    output logic [DW-1:0]              s_axi_rdata,
-    output logic [1:0]                 s_axi_rresp,
-    output logic                       s_axi_rlast,
-    output logic [UW-1:0]              s_axi_ruser,
-    output logic                       s_axi_rvalid,
-    input  logic                       s_axi_rready,
+    output logic [IW-1:0]              fub_rid,
+    output logic [DW-1:0]              fub_rdata,
+    output logic [1:0]                 fub_rresp,
+    output logic                       fub_rlast,
+    output logic [UW-1:0]              fub_ruser,
+    output logic                       fub_rvalid,
+    input  logic                       fub_rready,
 
     // Master AXI Interface (Output Side)
     // Read address channel (AR)
@@ -87,54 +87,54 @@ module axi_master_rd
     output logic                       m_axi_rready,
 
     // Output split information with FIFO interface
-    output logic [AW-1:0]              s_split_addr,
-    output logic [IW-1:0]              s_split_id,
-    output logic [7:0]                 s_split_cnt,
-    output logic                       s_split_valid,
-    input  logic                       s_split_ready,
+    output logic [AW-1:0]              fub_split_addr,
+    output logic [IW-1:0]              fub_split_id,
+    output logic [7:0]                 fub_split_cnt,
+    output logic                       fub_split_valid,
+    input  logic                       fub_split_ready,
 
     // Error outputs with FIFO interface
                              // Error type flags (AR timeout, R timeout, response error)
-    output logic [3:0]                 s_error_type,
-    output logic [AW-1:0]              s_error_addr,     // Address associated with error
-    output logic [IW-1:0]              s_error_id,       // ID associated with error
-    output logic                       s_error_valid,
-    input  logic                       s_error_ready
+    output logic [3:0]                 fub_error_type,
+    output logic [AW-1:0]              fub_error_addr,     // Address associated with error
+    output logic [IW-1:0]              fub_error_id,       // ID associated with error
+    output logic                       fub_error_valid,
+    input  logic                       fub_error_ready
 );
 
     // Internal connections between splitter and error monitor/skid buffer
-    logic [IW-1:0]              int_m_axi_arid;
-    logic [AW-1:0]              int_m_axi_araddr;
-    logic [7:0]                 int_m_axi_arlen;
-    logic [2:0]                 int_m_axi_arsize;
-    logic [1:0]                 int_m_axi_arburst;
-    logic                       int_m_axi_arlock;
-    logic [3:0]                 int_m_axi_arcache;
-    logic [2:0]                 int_m_axi_arprot;
-    logic [3:0]                 int_m_axi_arqos;
-    logic [3:0]                 int_m_axi_arregion;
-    logic [UW-1:0]              int_m_axi_aruser;
-    logic                       int_m_axi_arvalid;
-    logic                       int_m_axi_arready;
+    logic [IW-1:0]              int_arid;
+    logic [AW-1:0]              int_araddr;
+    logic [7:0]                 int_arlen;
+    logic [2:0]                 int_arsize;
+    logic [1:0]                 int_arburst;
+    logic                       int_arlock;
+    logic [3:0]                 int_arcache;
+    logic [2:0]                 int_arprot;
+    logic [3:0]                 int_arqos;
+    logic [3:0]                 int_arregion;
+    logic [UW-1:0]              int_aruser;
+    logic                       int_arvalid;
+    logic                       int_arready;
 
-    logic [IW-1:0]              int_m_axi_rid;
-    logic [DW-1:0]              int_m_axi_rdata;
-    logic [1:0]                 int_m_axi_rresp;
-    logic                       int_m_axi_rlast;
-    logic [UW-1:0]              int_m_axi_ruser;
-    logic                       int_m_axi_rvalid;
-    logic                       int_m_axi_rready;
+    logic [IW-1:0]              int_rid;
+    logic [DW-1:0]              int_rdata;
+    logic [1:0]                 int_rresp;
+    logic                       int_rlast;
+    logic [UW-1:0]              int_ruser;
+    logic                       int_rvalid;
+    logic                       int_rready;
 
     // SKID buffer connections
-    logic [3:0]                int_m_axi_ar_count;
-    logic [ARSize-1:0]         int_m_axi_ar_pkt;
-    logic                      int_w_m_axi_arvalid;
-    logic                      int_w_m_axi_arready;
+    logic [3:0]                int_ar_count;
+    logic [ARSize-1:0]         int_ar_pkt;
+    logic                      int_skid_arvalid;
+    logic                      int_skid_arready;
 
-    logic [3:0]                int_m_axi_r_count;
-    logic [RSize-1:0]          int_m_axi_r_pkt;
-    logic                      int_w_m_axi_rvalid;
-    logic                      int_w_m_axi_rready;
+    logic [3:0]                int_r_count;
+    logic [RSize-1:0]          int_r_pkt;
+    logic                      int_skid_rvalid;
+    logic                      int_skid_rready;
 
     // Instantiate AXI read master splitter with FIFO interface
     axi_master_rd_splitter #(
@@ -149,57 +149,57 @@ module axi_master_rd
         .alignment_mask       (alignment_mask),
 
         // Slave interface (input)
-        .s_axi_arid           (s_axi_arid),
-        .s_axi_araddr         (s_axi_araddr),
-        .s_axi_arlen          (s_axi_arlen),
-        .s_axi_arsize         (s_axi_arsize),
-        .s_axi_arburst        (s_axi_arburst),
-        .s_axi_arlock         (s_axi_arlock),
-        .s_axi_arcache        (s_axi_arcache),
-        .s_axi_arprot         (s_axi_arprot),
-        .s_axi_arqos          (s_axi_arqos),
-        .s_axi_arregion       (s_axi_arregion),
-        .s_axi_aruser         (s_axi_aruser),
-        .s_axi_arvalid        (s_axi_arvalid),
-        .s_axi_arready        (s_axi_arready),
+        .fub_arid             (fub_arid),
+        .fub_araddr           (fub_araddr),
+        .fub_arlen            (fub_arlen),
+        .fub_arsize           (fub_arsize),
+        .fub_arburst          (fub_arburst),
+        .fub_arlock           (fub_arlock),
+        .fub_arcache          (fub_arcache),
+        .fub_arprot           (fub_arprot),
+        .fub_arqos            (fub_arqos),
+        .fub_arregion         (fub_arregion),
+        .fub_aruser           (fub_aruser),
+        .fub_arvalid          (fub_arvalid),
+        .fub_arready          (fub_arready),
 
-        .s_axi_rid            (s_axi_rid),
-        .s_axi_rdata          (s_axi_rdata),
-        .s_axi_rresp          (s_axi_rresp),
-        .s_axi_rlast          (s_axi_rlast),
-        .s_axi_ruser          (s_axi_ruser),
-        .s_axi_rvalid         (s_axi_rvalid),
-        .s_axi_rready         (s_axi_rready),
+        .fub_rid              (fub_rid),
+        .fub_rdata            (fub_rdata),
+        .fub_rresp            (fub_rresp),
+        .fub_rlast            (fub_rlast),
+        .fub_ruser            (fub_ruser),
+        .fub_rvalid           (fub_rvalid),
+        .fub_rready           (fub_rready),
 
         // Master interface (to error monitor)
-        .m_axi_arid           (int_m_axi_arid),
-        .m_axi_araddr         (int_m_axi_araddr),
-        .m_axi_arlen          (int_m_axi_arlen),
-        .m_axi_arsize         (int_m_axi_arsize),
-        .m_axi_arburst        (int_m_axi_arburst),
-        .m_axi_arlock         (int_m_axi_arlock),
-        .m_axi_arcache        (int_m_axi_arcache),
-        .m_axi_arprot         (int_m_axi_arprot),
-        .m_axi_arqos          (int_m_axi_arqos),
-        .m_axi_arregion       (int_m_axi_arregion),
-        .m_axi_aruser         (int_m_axi_aruser),
-        .m_axi_arvalid        (int_m_axi_arvalid),
-        .m_axi_arready        (int_m_axi_arready),
+        .m_axi_arid           (int_arid),
+        .m_axi_araddr         (int_araddr),
+        .m_axi_arlen          (int_arlen),
+        .m_axi_arsize         (int_arsize),
+        .m_axi_arburst        (int_arburst),
+        .m_axi_arlock         (int_arlock),
+        .m_axi_arcache        (int_arcache),
+        .m_axi_arprot         (int_arprot),
+        .m_axi_arqos          (int_arqos),
+        .m_axi_arregion       (int_arregion),
+        .m_axi_aruser         (int_aruser),
+        .m_axi_arvalid        (int_arvalid),
+        .m_axi_arready        (int_arready),
 
-        .m_axi_rid            (int_m_axi_rid),
-        .m_axi_rdata          (int_m_axi_rdata),
-        .m_axi_rresp          (int_m_axi_rresp),
-        .m_axi_rlast          (int_m_axi_rlast),
-        .m_axi_ruser          (int_m_axi_ruser),
-        .m_axi_rvalid         (int_m_axi_rvalid),
-        .m_axi_rready         (int_m_axi_rready),
+        .m_axi_rid            (int_rid),
+        .m_axi_rdata          (int_rdata),
+        .m_axi_rresp          (int_rresp),
+        .m_axi_rlast          (int_rlast),
+        .m_axi_ruser          (int_ruser),
+        .m_axi_rvalid         (int_rvalid),
+        .m_axi_rready         (int_rready),
 
         // Split information with FIFO interface
-        .s_split_addr         (s_split_addr),
-        .s_split_id           (s_split_id),
-        .s_split_cnt          (s_split_cnt),
-        .s_split_valid        (s_split_valid),
-        .s_split_ready        (s_split_ready)
+        .fub_split_addr       (fub_split_addr),
+        .fub_split_id         (fub_split_id),
+        .fub_split_cnt        (fub_split_cnt),
+        .fub_split_valid      (fub_split_valid),
+        .fub_split_ready      (fub_split_ready)
     );
 
     // Instantiate AXI read error monitor with FIFO interface
@@ -216,23 +216,23 @@ module axi_master_rd
         .aresetn              (aresetn),
 
         // AXI interface to monitor (post-splitter)
-        .m_axi_arid           (int_m_axi_arid),
-        .m_axi_araddr         (int_m_axi_araddr),
-        .m_axi_arvalid        (int_m_axi_arvalid),
-        .m_axi_arready        (int_m_axi_arready),
+        .m_axi_arid           (int_arid),
+        .m_axi_araddr         (int_araddr),
+        .m_axi_arvalid        (int_arvalid),
+        .m_axi_arready        (int_arready),
 
-        .m_axi_rid            (int_m_axi_rid),
-        .m_axi_rresp          (int_m_axi_rresp),
-        .m_axi_rvalid         (int_m_axi_rvalid),
-        .m_axi_rready         (int_m_axi_rready),
-        .m_axi_rlast          (int_m_axi_rlast),
+        .m_axi_rid            (int_rid),
+        .m_axi_rresp          (int_rresp),
+        .m_axi_rvalid         (int_rvalid),
+        .m_axi_rready         (int_rready),
+        .m_axi_rlast          (int_rlast),
 
         // Error outputs FIFO interface
-        .error_valid          (s_error_valid),
-        .error_ready          (s_error_ready),
-        .error_type           (s_error_type),
-        .error_addr           (s_error_addr),
-        .error_id             (s_error_id)
+        .fub_error_valid      (fub_error_valid),
+        .fub_error_ready      (fub_error_ready),
+        .fub_error_type       (fub_error_type),
+        .fub_error_addr       (fub_error_addr),
+        .fub_error_id         (fub_error_id)
     );
 
     // Instantiate AR Skid Buffer
@@ -242,24 +242,24 @@ module axi_master_rd
     ) i_ar_channel (
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
-        .i_wr_valid               (int_m_axi_arvalid),
-        .o_wr_ready               (int_m_axi_arready),
+        .i_wr_valid               (int_arvalid),
+        .o_wr_ready               (int_arready),
         .i_wr_data                (
-            {int_m_axi_arid, int_m_axi_araddr, int_m_axi_arlen, int_m_axi_arsize,
-            int_m_axi_arburst, int_m_axi_arlock, int_m_axi_arcache, int_m_axi_arprot,
-            int_m_axi_arqos, int_m_axi_arregion, int_m_axi_aruser}),
-        .o_rd_valid               (int_w_m_axi_arvalid),
-        .i_rd_ready               (int_w_m_axi_arready),
-        .o_rd_count               (int_m_axi_ar_count),
-        .o_rd_data                (int_m_axi_ar_pkt)
+            {int_arid, int_araddr, int_arlen, int_arsize,
+            int_arburst, int_arlock, int_arcache, int_arprot,
+            int_arqos, int_arregion, int_aruser}),
+        .o_rd_valid               (int_skid_arvalid),
+        .i_rd_ready               (int_skid_arready),
+        .o_rd_count               (int_ar_count),
+        .o_rd_data                (int_ar_pkt)
     );
 
     // Unpack AR signals from SKID buffer
     assign {m_axi_arid, m_axi_araddr, m_axi_arlen, m_axi_arsize, m_axi_arburst,
             m_axi_arlock, m_axi_arcache, m_axi_arprot, m_axi_arqos,
-            m_axi_arregion, m_axi_aruser} = int_m_axi_ar_pkt;
-    assign m_axi_arvalid = int_w_m_axi_arvalid;
-    assign int_w_m_axi_arready = m_axi_arready;
+            m_axi_arregion, m_axi_aruser} = int_ar_pkt;
+    assign m_axi_arvalid = int_skid_arvalid;
+    assign int_skid_arready = m_axi_arready;
 
     // Instantiate R channel for read data back to splitter
     gaxi_skid_buffer #(
@@ -271,11 +271,11 @@ module axi_master_rd
         .i_wr_valid               (m_axi_rvalid),
         .o_wr_ready               (m_axi_rready),
         .i_wr_data                ({m_axi_rid, m_axi_rdata, m_axi_rresp, m_axi_rlast, m_axi_ruser}),
-        .o_rd_valid               (int_m_axi_rvalid),
-        .i_rd_ready               (int_m_axi_rready),
-        .o_rd_count               (int_m_axi_r_count),
+        .o_rd_valid               (int_rvalid),
+        .i_rd_ready               (int_rready),
+        .o_rd_count               (int_r_count),
         .o_rd_data                (
-            {int_m_axi_rid, int_m_axi_rdata, int_m_axi_rresp, int_m_axi_rlast, int_m_axi_ruser})
+            {int_rid, int_rdata, int_rresp, int_rlast, int_ruser})
     );
 
 endmodule : axi_master_rd

@@ -5,18 +5,33 @@ from CocoTBFramework.components.gaxi.gaxi_components import GAXIMaster, GAXISlav
 from CocoTBFramework.components.memory_model import MemoryModel
 from CocoTBFramework.components.gaxi.gaxi_enhancements import EnhancedGAXIMaster, EnhancedGAXISlave
 from CocoTBFramework.scoreboards.gaxi_scoreboard import GAXIScoreboard
+from CocoTBFramework.components.field_config import FieldConfig, FieldDefinition
 
-# Default field configuration for GAXI components
-DEFAULT_FIELD_CONFIG = {
-    'data': {
-        'bits': 32,
+
+def get_default_field_config(data_width=32):
+    """
+    Get field configuration for command-response protocol.
+
+    Args:
+        data_width: Data width in bits
+
+    Returns:
+        FieldConfig object for command-response protocol
+    """
+    # Create a new field configuration
+    config = FieldConfig()
+    
+    # Add data field
+    config.add_field_dict('data', {
+        'bits': data_width,
         'default': 0,
         'format': 'hex',
-        'display_width': 8,
-        'active_bits': (31, 0),
+        'display_width': data_width // 4,
+        'active_bits': (data_width-1, 0),
         'description': 'Data value'
-    }
-}
+    })
+    
+    return config
 
 
 def create_gaxi_master(dut, title, prefix, clock, field_config=None,
@@ -44,7 +59,11 @@ def create_gaxi_master(dut, title, prefix, clock, field_config=None,
         GAXIMaster or EnhancedGAXIMaster instance
     """
     # Use default field config if none provided
-    field_config = field_config or DEFAULT_FIELD_CONFIG.copy()
+    if field_config is None:
+        field_config = get_default_field_config()
+    elif isinstance(field_config, dict):
+        # Convert dictionary to FieldConfig if needed
+        field_config = FieldConfig.validate_and_create(field_config)
 
     # Use dut's logger if none provided
     log = log or getattr(dut, '_log', None)
@@ -92,7 +111,11 @@ def create_gaxi_slave(dut, title, prefix, clock, field_config=None,
         GAXISlave or EnhancedGAXISlave instance
     """
     # Use default field config if none provided
-    field_config = field_config or DEFAULT_FIELD_CONFIG.copy()
+    if field_config is None:
+        field_config = get_default_field_config()
+    elif isinstance(field_config, dict):
+        # Convert dictionary to FieldConfig if needed
+        field_config = FieldConfig.validate_and_create(field_config)
 
     # Use dut's logger if none provided
     log = log or getattr(dut, '_log', None)
@@ -140,7 +163,11 @@ def create_gaxi_monitor(dut, title, prefix, clock, field_config=None,
         GAXIMonitor instance
     """
     # Use default field config if none provided
-    field_config = field_config or DEFAULT_FIELD_CONFIG.copy()
+    if field_config is None:
+        field_config = get_default_field_config()
+    elif isinstance(field_config, dict):
+        # Convert dictionary to FieldConfig if needed
+        field_config = FieldConfig.validate_and_create(field_config)
 
     # Use dut's logger if none provided
     log = log or getattr(dut, '_log', None)
@@ -171,7 +198,11 @@ def create_gaxi_scoreboard(name, field_config=None, log=None):
         GAXIScoreboard instance
     """
     # Use default field config if none provided
-    field_config = field_config or DEFAULT_FIELD_CONFIG.copy()
+    if field_config is None:
+        field_config = get_default_field_config()
+    elif isinstance(field_config, dict):
+        # Convert dictionary to FieldConfig if needed
+        field_config = FieldConfig.validate_and_create(field_config)
 
     # Create scoreboard
     return GAXIScoreboard(name, field_config, log=log)
@@ -199,7 +230,11 @@ def create_gaxi_components(dut, clock, title_prefix="", field_config=None,
         Dictionary containing all created components
     """
     # Use default field config if none provided
-    field_config = field_config or DEFAULT_FIELD_CONFIG.copy()
+    if field_config is None:
+        field_config = get_default_field_config()
+    elif isinstance(field_config, dict):
+        # Convert dictionary to FieldConfig if needed
+        field_config = FieldConfig.validate_and_create(field_config)
 
     # Use dut's logger if none provided
     log = log or getattr(dut, '_log', None)
@@ -277,25 +312,3 @@ def create_gaxi_components(dut, clock, title_prefix="", field_config=None,
         'scoreboard': scoreboard,
         'memory_model': memory_model
     }
-
-
-def get_default_field_config(data_width=32):
-    """
-    Get field configuration for command-response protocol.
-
-    Args:
-        addr_width: Address width in bits
-        data_width: Data width in bits
-
-    Returns:
-        Field configuration dictionary for command-response protocol
-    """
-    # Copy base configuration
-    config = DEFAULT_FIELD_CONFIG.copy()
-
-    # Update widths
-
-    config['data']['bits'] = data_width
-    config['data']['active_bits'] = (data_width-1, 0)
-
-    return config

@@ -56,41 +56,41 @@ module axi_master_wr_splitter
 
     // Slave AXI Interface
     // Write address channel (AW)
-    input  logic [IW-1:0]              s_axi_awid,
-    input  logic [AW-1:0]              s_axi_awaddr,
-    input  logic [7:0]                 s_axi_awlen,
-    input  logic [2:0]                 s_axi_awsize,
-    input  logic [1:0]                 s_axi_awburst,
-    input  logic                       s_axi_awlock,
-    input  logic [3:0]                 s_axi_awcache,
-    input  logic [2:0]                 s_axi_awprot,
-    input  logic [3:0]                 s_axi_awqos,
-    input  logic [3:0]                 s_axi_awregion,
-    input  logic [UW-1:0]              s_axi_awuser,
-    input  logic                       s_axi_awvalid,
-    output logic                       s_axi_awready,
+    input  logic [IW-1:0]              fub_awid,
+    input  logic [AW-1:0]              fub_awaddr,
+    input  logic [7:0]                 fub_awlen,
+    input  logic [2:0]                 fub_awsize,
+    input  logic [1:0]                 fub_awburst,
+    input  logic                       fub_awlock,
+    input  logic [3:0]                 fub_awcache,
+    input  logic [2:0]                 fub_awprot,
+    input  logic [3:0]                 fub_awqos,
+    input  logic [3:0]                 fub_awregion,
+    input  logic [UW-1:0]              fub_awuser,
+    input  logic                       fub_awvalid,
+    output logic                       fub_awready,
 
     // Write data channel (W)
-    input  logic [DW-1:0]              s_axi_wdata,
-    input  logic [DW/8-1:0]            s_axi_wstrb,
-    input  logic                       s_axi_wlast,
-    input  logic [UW-1:0]              s_axi_wuser,
-    input  logic                       s_axi_wvalid,
-    output logic                       s_axi_wready,
+    input  logic [DW-1:0]              fub_wdata,
+    input  logic [DW/8-1:0]            fub_wstrb,
+    input  logic                       fub_wlast,
+    input  logic [UW-1:0]              fub_wuser,
+    input  logic                       fub_wvalid,
+    output logic                       fub_wready,
 
     // Write response channel (B)
-    output logic [IW-1:0]              s_axi_bid,
-    output logic [1:0]                 s_axi_bresp,
-    output logic [UW-1:0]              s_axi_buser,
-    output logic                       s_axi_bvalid,
-    input  logic                       s_axi_bready,
+    output logic [IW-1:0]              fub_bid,
+    output logic [1:0]                 fub_bresp,
+    output logic [UW-1:0]              fub_buser,
+    output logic                       fub_bvalid,
+    input  logic                       fub_bready,
 
     // Output split information
-    output logic [AW-1:0]              s_split_addr,
-    output logic [IW-1:0]              s_split_id,
-    output logic [7:0]                 s_split_cnt,
-    output logic                       s_split_valid,
-    input  logic                       s_split_ready
+    output logic [AW-1:0]              fub_split_addr,
+    output logic [IW-1:0]              fub_split_id,
+    output logic [7:0]                 fub_split_cnt,
+    output logic                       fub_split_valid,
+    input  logic                       fub_split_ready
 );
 
     //===========================================================================
@@ -130,8 +130,8 @@ module axi_master_wr_splitter
     logic [AW-1:0]  w_current_addr;
     logic [7:0]     w_current_len;
 
-    assign w_current_addr = (r_split_state != IDLE) ? r_next_addr : s_axi_awaddr;
-    assign w_current_len = (r_split_state != IDLE) ? r_remaining_len : s_axi_awlen;
+    assign w_current_addr = (r_split_state != IDLE) ? r_next_addr : fub_awaddr;
+    assign w_current_len = (r_split_state != IDLE) ? r_remaining_len : fub_awlen;
 
     // Create boundary mask based on alignment_mask
     logic [AW-1:0] w_boundary_mask;
@@ -139,7 +139,7 @@ module axi_master_wr_splitter
 
     // Calculate end address for current transaction
     logic [AW-1:0] w_end_addr;
-    assign w_end_addr = w_current_addr + ((w_current_len + 1) << s_axi_awsize) - 1;
+    assign w_end_addr = w_current_addr + ((w_current_len + 1) << fub_awsize) - 1;
 
     // Calculate current boundary address
     logic [AW-1:0] w_curr_boundary;
@@ -157,12 +157,12 @@ module axi_master_wr_splitter
     // Calculate max beats that fit before boundary
     logic [7:0] w_split_awlen;
     assign w_split_awlen = w_split_required ?
-                            ((w_dist_to_boundary >> s_axi_awsize) - 1) :
+                            ((w_dist_to_boundary >> fub_awsize) - 1) :
                             w_current_len;
 
     // New split detection signal
     logic w_new_split_needed;
-    assign w_new_split_needed = s_axi_awvalid && (r_split_state == IDLE) && w_split_required;
+    assign w_new_split_needed = fub_awvalid && (r_split_state == IDLE) && w_split_required;
 
     // Ready signal control logic
     logic w_no_split_in_progress;
@@ -197,17 +197,17 @@ module axi_master_wr_splitter
             r_split_fifo_valid <= 1'b0;
 
             // Handle transaction acceptance - this happens when handshaking with slave side
-            if (s_axi_awvalid && s_axi_awready) begin
+            if (fub_awvalid && fub_awready) begin
                 // Always record split info for FIFO
-                r_split_addr <= s_axi_awaddr;
-                r_split_id <= s_axi_awid;
+                r_split_addr <= fub_awaddr;
+                r_split_id <= fub_awid;
 
                 // Signal to send info to FIFO
                 r_split_fifo_valid <= 1'b1;
 
                 // If no split needed, set data counter for simple passthrough
                 if (!w_split_required) begin
-                    r_data_counter <= s_axi_awlen + 1;
+                    r_data_counter <= fub_awlen + 1;
                     r_need_wlast <= 1'b0;
                 end
             end
@@ -220,7 +220,7 @@ module axi_master_wr_splitter
                         // Start new split
                         r_split_state <= SPLITTING;
                         r_next_addr <= w_curr_boundary;
-                        r_remaining_len <= s_axi_awlen - w_split_awlen;
+                        r_remaining_len <= fub_awlen - w_split_awlen;
                         r_num_splits <= 8'd2; // Initial transaction + first split
                         r_current_len <= w_split_awlen;
 
@@ -229,9 +229,9 @@ module axi_master_wr_splitter
                         r_need_wlast <= 1'b1;
 
                         // Save request information for FIFO
-                        r_split_addr <= s_axi_awaddr;
-                        r_split_id <= s_axi_awid;
-                    end else if (s_axi_awvalid && s_axi_awready && !w_split_required) begin
+                        r_split_addr <= fub_awaddr;
+                        r_split_id <= fub_awid;
+                    end else if (fub_awvalid && fub_awready && !w_split_required) begin
                         // No split needed
                         r_num_splits <= 8'd1;
                         r_split_state <= IDLE;
@@ -266,7 +266,7 @@ module axi_master_wr_splitter
                 LAST_SPLIT: begin
                     // Wait for the last split to complete
                     if (m_axi_awready && m_axi_awvalid) begin
-                        // Will transition to IDLE when s_axi_awready asserts
+                        // Will transition to IDLE when fub_awready asserts
                         r_split_state <= IDLE;
                     end
                 end
@@ -291,7 +291,7 @@ module axi_master_wr_splitter
     logic w_modified_wlast;
 
     // WLAST is generated for split bursts
-    assign w_modified_wlast = r_need_wlast ? (r_data_counter == 1) : s_axi_wlast;
+    assign w_modified_wlast = r_need_wlast ? (r_data_counter == 1) : fub_wlast;
 
     //===========================================================================
     // AXI Signal Assignments
@@ -306,20 +306,20 @@ module axi_master_wr_splitter
         m_axi_awlen = w_split_required ? w_split_awlen : w_current_len;
 
         // Pass through other AW signals directly
-        m_axi_awid = s_axi_awid;
-        m_axi_awsize = s_axi_awsize;
-        m_axi_awburst = s_axi_awburst;
-        m_axi_awlock = s_axi_awlock;
-        m_axi_awcache = s_axi_awcache;
-        m_axi_awprot = s_axi_awprot;
-        m_axi_awqos = s_axi_awqos;
-        m_axi_awregion = s_axi_awregion;
-        m_axi_awuser = s_axi_awuser;
+        m_axi_awid = fub_awid;
+        m_axi_awsize = fub_awsize;
+        m_axi_awburst = fub_awburst;
+        m_axi_awlock = fub_awlock;
+        m_axi_awcache = fub_awcache;
+        m_axi_awprot = fub_awprot;
+        m_axi_awqos = fub_awqos;
+        m_axi_awregion = fub_awregion;
+        m_axi_awuser = fub_awuser;
 
         // Control valid signal based on state
         if (r_split_state == IDLE) begin
             // Pass through slave valid for initial transaction
-            m_axi_awvalid = s_axi_awvalid;
+            m_axi_awvalid = fub_awvalid;
         end else begin
             // For split transactions, always assert valid
             m_axi_awvalid = 1'b1;
@@ -327,22 +327,22 @@ module axi_master_wr_splitter
     end
 
     // AW Channel - Slave side
-    assign s_axi_awready = (w_no_split_in_progress || w_final_split_complete) && m_axi_awready;
+    assign fub_awready = (w_no_split_in_progress || w_final_split_complete) && m_axi_awready;
 
     // W Channel
-    assign m_axi_wdata = s_axi_wdata;
-    assign m_axi_wstrb = s_axi_wstrb;
-    assign m_axi_wuser = s_axi_wuser;
+    assign m_axi_wdata = fub_wdata;
+    assign m_axi_wstrb = fub_wstrb;
+    assign m_axi_wuser = fub_wuser;
     assign m_axi_wlast = w_modified_wlast;
-    assign m_axi_wvalid = s_axi_wvalid;
-    assign s_axi_wready = m_axi_wready;
+    assign m_axi_wvalid = fub_wvalid;
+    assign fub_wready = m_axi_wready;
 
     // B Channel - passes responses from master to slave
-    assign s_axi_bid = m_axi_bid;
-    assign s_axi_bresp = m_axi_bresp;
-    assign s_axi_buser = m_axi_buser;
-    assign s_axi_bvalid = m_axi_bvalid;
-    assign m_axi_bready = s_axi_bready;
+    assign fub_bid = m_axi_bid;
+    assign fub_bresp = m_axi_bresp;
+    assign fub_buser = m_axi_buser;
+    assign fub_bvalid = m_axi_bvalid;
+    assign m_axi_bready = fub_bready;
 
     //===========================================================================
     // Split information FIFO
@@ -363,9 +363,9 @@ module axi_master_wr_splitter
         .i_wr_valid(r_split_fifo_valid),
         .o_wr_ready(),  // Not used
         .i_wr_data(split_fifo_din),
-        .i_rd_ready(s_split_ready),
-        .o_rd_valid(s_split_valid),
-        .ow_rd_data({s_split_addr, s_split_id, s_split_cnt}),
+        .i_rd_ready(fub_split_ready),
+        .o_rd_valid(fub_split_valid),
+        .ow_rd_data({fub_split_addr, fub_split_id, fub_split_cnt}),
         .o_rd_data(),  // Not used
         .ow_count()    // Not used
     );

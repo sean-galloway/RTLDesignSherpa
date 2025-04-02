@@ -1,6 +1,6 @@
 """APB Scoreboard for verifying APB transactions"""
 from collections import defaultdict
-from CocoTBFramework.components.apb.apb import APBCycle
+from CocoTBFramework.components.apb.apb_packet import APBPacket
 from CocoTBFramework.scoreboards.base_scoreboard import BaseScoreboard, ProtocolTransformer
 
 
@@ -18,14 +18,14 @@ class APBScoreboard(BaseScoreboard):
 
     def _compare_transactions(self, expected, actual):
         """Compare APB cycles based on direction, address, and data"""
-        if not isinstance(expected, APBCycle) or not isinstance(actual, APBCycle):
+        if not isinstance(expected, APBPacket) or not isinstance(actual, APBPacket):
             if self.log:
                 self.log.error(f"{self.name} - Invalid transaction types")
                 self.log.error(f"  Expected type: {type(expected)}")
                 self.log.error(f"  Actual type: {type(actual)}")
             return False
 
-        # Basic comparison already implemented in APBCycle.__eq__
+        # Basic comparison already implemented in APBPacket.__eq__
         return expected == actual
 
     def _log_mismatch(self, expected, actual):
@@ -33,8 +33,8 @@ class APBScoreboard(BaseScoreboard):
         if not self.log:
             return
         self.log.error(f"{self.name} - APB Cycle mismatch:")
-        self.log.error(f"  Expected: {expected.formatted(self.addr_width, self.data_width, self.strb_width)}")
-        self.log.error(f"  Actual:   {actual.formatted(self.addr_width, self.data_width, self.strb_width)}")
+        self.log.error(f"  Expected: {expected.formatted(compact=True)}")
+        self.log.error(f"  Actual:   {actual.formatted(compact=True)}")
 
         # Detailed comparison of fields
         if expected.direction != actual.direction:
@@ -186,11 +186,8 @@ class APBCrossbarScoreboard:
             float: Overall pass rate (0.0 to 1.0)
         """
         results = [sb.result() for sb in self.slave_scoreboards]
-        
-        if not results:
-            return 1.0  # Perfect score if no transactions
-            
-        return min(results)
+
+        return 1.0 if not results else min(results)
         
     def report(self):
         """
@@ -225,7 +222,7 @@ class APBtoGAXITransformer(ProtocolTransformer):
 
     def transform(self, apb_cycle):
         """Transform APB cycle to one or more GAXI transactions"""
-        if not isinstance(apb_cycle, APBCycle):
+        if not isinstance(apb_cycle, APBPacket):
             if self.log:
                 self.log.error("Invalid transaction type for APB to GAXI transformation")
             return []

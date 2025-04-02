@@ -2,7 +2,7 @@
 AXI4 Slave Read AXI4 Interface
 
 This module provides a testbench interface for the AXI4 interfaces
-of the AXI4 Slave Read module, specifically focusing on the m_axi and s_axi
+of the AXI4 Slave Read module, specifically focusing on the fub and s_axi
 interfaces for read transactions.
 """
 
@@ -42,7 +42,7 @@ class Axi4SlaveRdAxi4Intf(TBBase):
         self.id_width = int(getattr(dut, 'AXI_ID_WIDTH', 8))
         self.addr_width = int(getattr(dut, 'AXI_ADDR_WIDTH', 32))
         self.data_width = int(getattr(dut, 'AXI_DATA_WIDTH', 32))
-        self.user_width = int(getattr(dut, 'AXI_USER_WIDTH', 1))
+        self.fub_width = int(getattr(dut, 'AXI_FUB_WIDTH', 1))
         self.timeout_ar = int(getattr(dut, 'TIMEOUT_AR', 1000))
         self.timeout_r = int(getattr(dut, 'TIMEOUT_R', 1000))
 
@@ -78,10 +78,10 @@ class Axi4SlaveRdAxi4Intf(TBBase):
         self.randomizers = self._create_randomizers()
         channels = ['ar', 'r']
 
-        # Create AXI4 master component for the master interface (m_axi_*)
-        self.m_axi_master = create_axi4_master(
-            dut, "M_AXI_Master",
-            prefix='m_axi',
+        # Create AXI4 master component for the master interface (fub_*)
+        self.fub_master = create_axi4_master(
+            dut, "FUB_Master",
+            prefix='fub',
             divider='',
             suffix='',
             clock=dut.aclk,
@@ -89,7 +89,7 @@ class Axi4SlaveRdAxi4Intf(TBBase):
             id_width=self.id_width,
             addr_width=self.addr_width,
             data_width=self.data_width,
-            user_width=self.user_width,
+            fub_width=self.fub_width,
             randomizers={'ar': self.randomizers['ar_fast']},
             log=self.log
         )
@@ -105,16 +105,16 @@ class Axi4SlaveRdAxi4Intf(TBBase):
             id_width=self.id_width,
             addr_width=self.addr_width,
             data_width=self.data_width,
-            user_width=self.user_width,
+            fub_width=self.fub_width,
             memory_model=self.memory_model,
             randomizers={'r': self.randomizers['r_fast']},
             log=self.log
         )
 
         # Create monitors for both interfaces
-        self.m_axi_monitor = create_axi4_monitor(
-            dut, "M_AXI_Monitor",
-            prefix='m_axi',
+        self.fub_monitor = create_axi4_monitor(
+            dut, "FUB_Monitor",
+            prefix='fub',
             divider='',
             suffix='',
             clock=dut.aclk,
@@ -122,7 +122,7 @@ class Axi4SlaveRdAxi4Intf(TBBase):
             id_width=self.id_width,
             addr_width=self.addr_width,
             data_width=self.data_width,
-            user_width=self.user_width,
+            fub_width=self.fub_width,
             is_slave_side=False,
             log=self.log
         )
@@ -137,13 +137,13 @@ class Axi4SlaveRdAxi4Intf(TBBase):
             id_width=self.id_width,
             addr_width=self.addr_width,
             data_width=self.data_width,
-            user_width=self.user_width,
+            fub_width=self.fub_width,
             is_slave_side=True,
             log=self.log
         )
 
         # Connect monitors to callbacks for tracking transactions
-        self.m_axi_monitor.set_read_callback(self._handle_m_axi_read)
+        self.fub_monitor.set_read_callback(self._handle_fub_read)
         self.s_axi_monitor.set_read_callback(self._handle_s_axi_read)
 
         # Create command handler to connect AR and R channels
@@ -182,7 +182,7 @@ class Axi4SlaveRdAxi4Intf(TBBase):
 
         fixed = 2
 
-        # AR channel randomizers for m_axi interface
+        # AR channel randomizers for fub interface
         randomizers['ar_always_ready'] = FlexRandomizer({
             'valid_delay': ([[0, 0]], [1.0])
         })
@@ -239,9 +239,7 @@ class Axi4SlaveRdAxi4Intf(TBBase):
 
         self.log.info("Memory initialized with pattern: addr + 0xA5A5A5A5")
 
-### begin
-
-    def _handle_m_axi_read(self, id_value, transaction):
+    def _handle_fub_read(self, id_value, transaction):
         """
         Handle a read transaction from the master AXI interface.
         Args:
@@ -250,35 +248,32 @@ class Axi4SlaveRdAxi4Intf(TBBase):
         """
         # Store AR transactions for later verification
         if 'ar_transaction' in transaction:
-            self.m_axi_ar_transactions.append(transaction['ar_transaction'])
-            self.log.debug(f"Detected read request on m_axi interface: ID={id_value:X}, addr=0x{transaction['ar_transaction'].araddr:08X}")
+            self.s_axi_ar_transactions.append(transaction['ar_transaction'])
+            self.log.debug(f"Detected read request on fub interface: ID={id_value:X}, addr=0x{transaction['ar_transaction'].araddr:08X}")
         
         # Check for completed transactions
         if 'complete' in transaction and transaction['complete']:
-            self.log.debug(f"M_AXI read transaction complete: ID={id_value:X}, data entries={len(transaction.get('data', []))}")
+            self.log.debug(f"FUB read transaction complete: ID={id_value:X}, data entries={len(transaction.get('data', []))}")
             
             # Find matching pending transaction
             matching_id = None
             for pending_id, pending_tx in self.pending_reads.items():
-                if id_value == pending_tx.get('m_axi_id'):
+                if id_value == pending_tx.get('fub_id'):
                     matching_id = pending_id
-                    self.log.debug(f"Matched M_AXI read ID={id_value:X} to pending transaction ID={pending_id:X}")
-                    pending_tx['m_axi_complete'] = True
+                    self.log.debug(f"Matched FUB read ID={id_value:X} to pending transaction ID={pending_id:X}")
+                    pending_tx['fub_complete'] = True
                     pending_tx['data'] = transaction.get('data', [])
                     
                     # Check if fully complete
                     if pending_tx.get('s_axi_complete', False):
-                        self.log.debug(f"Both M_AXI and S_AXI complete for ID={pending_id:X}")
+                        self.log.debug(f"Both FUB and S_AXI complete for ID={pending_id:X}")
                         completed_tx = self.pending_reads.pop(pending_id)
                         self.completed_reads[pending_id] = completed_tx
                         self.log.info(f"Read transaction completed: ID={pending_id:X}, addr=0x{completed_tx['addr']:08X}, beats={len(completed_tx.get('data', []))}")
                     break
             
             if matching_id is None:
-                self.log.debug(f"No matching pending transaction found for M_AXI read ID={id_value:X}")
-
-### end
-### begin
+                self.log.debug(f"No matching pending transaction found for FUB read ID={id_value:X}")
 
     def _handle_s_axi_read(self, id_value, transaction):
         """
@@ -306,13 +301,11 @@ class Axi4SlaveRdAxi4Intf(TBBase):
                     pending_tx['s_axi_complete'] = True
                     pending_tx['data'] = transaction.get('data', [])
 
-                    # Check if fully complete (both m_axi and s_axi)
-                    if pending_tx.get('m_axi_complete', False):
+                    # Check if fully complete (both fub and s_axi)
+                    if pending_tx.get('fub_complete', False):
                         completed_tx = self.pending_reads.pop(pending_id)
                         self.completed_reads[pending_id] = completed_tx
                         self.log.info(f"Read transaction completed: ID={pending_id:X}, addr=0x{completed_tx['addr']:08X}, beats={len(completed_tx['data'])}")
-
-### end
 
     def _get_next_id(self):
         """
@@ -332,7 +325,7 @@ class Axi4SlaveRdAxi4Intf(TBBase):
             await self.cmd_handler.stop()
 
         # Reset the AXI components
-        await self.m_axi_master.reset_bus()
+        await self.fub_master.reset_bus()
         await self.s_axi_slave.reset_bus()
 
         # Clear tracking data
@@ -365,7 +358,7 @@ class Axi4SlaveRdAxi4Intf(TBBase):
 
         self.log.info("AXI4 interfaces reset")
 
-    def set_m_axi_ar_timing(self, mode):
+    def set_fub_ar_timing(self, mode):
         """
         Set the timing mode for the master AXI AR channel.
 
@@ -374,8 +367,8 @@ class Axi4SlaveRdAxi4Intf(TBBase):
         """
         randomizer_key = f'ar_{mode}'
         if randomizer_key in self.randomizers:
-            self.m_axi_master.ar_master.set_randomizer(self.randomizers[randomizer_key])
-            self.log.info(f"M_AXI AR channel timing set to {mode}")
+            self.fub_master.ar_master.set_randomizer(self.randomizers[randomizer_key])
+            self.log.info(f"FUB AR channel timing set to {mode}")
         else:
             self.log.error(f"Unknown AR timing mode: {mode}")
 
@@ -449,15 +442,15 @@ class Axi4SlaveRdAxi4Intf(TBBase):
             's_axi_id': id_value,  # Same ID used for now
             'start_time': cocotb.utils.get_sim_time('ns'),
             'monitor_detected': False,
-            'm_axi_complete': False,
+            'fub_complete': False,
             's_axi_complete': False
         }
 
         # Send the read request
         if not busy_send:
-            await self.m_axi_master.ar_master.send(packet)
+            await self.fub_master.ar_master.send(packet)
         else:
-            await self.m_axi_master.ar_master.busy_send(packet)
+            await self.fub_master.ar_master.busy_send(packet)
 
         self.log.info(f"{func_title}ID={id_value:X}, addr=0x{aligned_addr:08X}, length={length}")
 

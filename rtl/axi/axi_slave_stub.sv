@@ -90,7 +90,7 @@ module axi_slave_stub
     // AW interface
     output logic                       r_s_axi_awvalid,
     input  logic                       r_s_axi_awready,
-    output logic [2:0]                 r_s_axi_aw_count,
+    output logic [3:0]                 r_s_axi_aw_count,
     output logic [AWSize-1:0]          r_s_axi_aw_pkt,
 
     // W interface
@@ -106,7 +106,7 @@ module axi_slave_stub
     // AR interface
     output logic                       r_s_axi_arvalid,
     input  logic                       r_s_axi_arready,
-    output logic [2:0]                 r_s_axi_ar_count,
+    output logic [3:0]                 r_s_axi_ar_count,
     output logic [ARSize-1:0]          r_s_axi_ar_pkt,
 
     // R interface

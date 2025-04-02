@@ -118,7 +118,7 @@ module apb_xbar #(
             assign {r_slv_cmd_pwrite[m_port], r_slv_cmd_pprot[m_port], r_slv_cmd_pstrb[m_port],
                         r_slv_cmd_paddr[m_port], r_slv_cmd_pwdata[m_port]} = r_slv_cmd_data[m_port];
 
-            apb_slave #(
+            apb_slave_stub #(
                 .DEPTH       (DEPTH),
                 .DATA_WIDTH       (DATA_WIDTH),
                 .ADDR_WIDTH       (ADDR_WIDTH),
@@ -209,7 +209,7 @@ module apb_xbar #(
             assign {r_mst_rsp_last[s_port], r_mst_rsp_first[s_port],
                     r_mst_rsp_pslverr[s_port], r_mst_rsp_prdata[s_port]} = r_mst_rsp_data[s_port];
 
-            apb_master #(
+            apb_master_stub #(
                 .DATA_WIDTH     (DATA_WIDTH),
                 .ADDR_WIDTH     (ADDR_WIDTH),
                 .STRB_WIDTH     (STRB_WIDTH)
@@ -239,8 +239,8 @@ module apb_xbar #(
                 .DEPTH   (DEPTH),
                 .DATA_WIDTH   (MID)
             ) side_queue_inst (
-                .i_axi_pclk   (pclk),
-                .i_axi_presetn(presetn),
+                .i_axi_aclk   (pclk),
+                .i_axi_aresetn(presetn),
                 .i_wr_valid   (r_mst_side_wr_valid[s_port]), // used
                 .o_wr_ready   (r_mst_side_wr_ready[s_port]), // used
                 .i_wr_data    (r_mst_side_wr_data[s_port]),  // used

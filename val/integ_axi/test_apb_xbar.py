@@ -23,7 +23,7 @@ from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 from CocoTBFramework.components.flex_randomizer import FlexRandomizer
 
 # Import APB components
-from CocoTBFramework.components.apb.apb_transaction_extra import APBTransactionExtra as APBTransaction
+from CocoTBFramework.components.apb.apb_packet import APBTransaction
 from CocoTBFramework.components.apb.apb_factories import (
     create_apb_master, create_apb_slave, create_apb_monitor, 
     create_apb_sequence
@@ -599,8 +599,8 @@ def test_apb_xbar_wrap(request, model_type, m, s, addr_width, data_width, num_tr
             os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
             os.path.join(rtl_dict['rtl_axi'], "gaxi_fifo_sync.sv"),
             os.path.join(rtl_dict['rtl_axi'], "gaxi_skid_buffer.sv"),
-            os.path.join(rtl_dict['rtl_axi'], "apb_master.sv"),
-            os.path.join(rtl_dict['rtl_axi'], "apb_slave.sv"),
+            os.path.join(rtl_dict['rtl_axi'], "apb_master_stub.sv"),
+            os.path.join(rtl_dict['rtl_axi'], "apb_slave_stub.sv"),
             os.path.join(rtl_dict['rtl_axi'], "apb_xbar.sv"),
         ]
 

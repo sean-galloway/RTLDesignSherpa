@@ -15,7 +15,7 @@ from CocoTBFramework.tbclasses.tbbase import TBBase
 from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 
 # Import our interface and test classes
-from CocoTBFramework.tbclasses.axi4.axi4_master_rd_usr_intf import Axi4MasterRdUserIntf
+from CocoTBFramework.tbclasses.axi4.axi4_master_rd_fub_intf import Axi4MasterRdFubIntf
 from CocoTBFramework.tbclasses.axi4.axi4_master_rd_slv_intf import Axi4MasterRdAxi4Intf
 from CocoTBFramework.tbclasses.axi4.axi4_master_rd_test import Axi4MasterRdTests
 
@@ -56,7 +56,7 @@ class AXI4MasterRDTB(TBBase):
         self._initialize_memory()
 
         # Create interface classes
-        self.user_intf = Axi4MasterRdUserIntf(dut)
+        self.user_intf = Axi4MasterRdFubIntf(dut)
         self.axi4_intf = Axi4MasterRdAxi4Intf(dut, self.mem)
 
         # Create test implementation
@@ -70,7 +70,7 @@ class AXI4MasterRDTB(TBBase):
             data_bytes = self.mem.integer_to_bytearray(value, self.STRB_WIDTH)
             self.mem.write(addr, data_bytes, 0xFF)  # All bytes enabled
 
-        self.log.info(f"Memory initialized with pattern: addr + 0xA5A5A5A5")
+        self.log.info("Memory initialized with pattern: addr + 0xA5A5A5A5")
 
     async def run_test(self):
         """Main test sequence"""

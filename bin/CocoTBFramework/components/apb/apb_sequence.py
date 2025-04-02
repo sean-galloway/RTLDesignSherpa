@@ -1,15 +1,15 @@
-"""Enhanced APB Sequence class with direct cycle generation"""
+"""Enhanced APB Sequence class with direct packet generation"""
 from dataclasses import dataclass, field
 from collections import deque
 import random
 from typing import List, Tuple, Dict, Optional
 import copy
 
-from CocoTBFramework.components.apb.apb_packet import APBCycle
+from CocoTBFramework.components.apb.apb_packet import APBPacket
 
 @dataclass
 class APBSequence:
-    """Configuration for test patterns with direct cycle generation"""
+    """Configuration for test patterns with direct packet generation"""
     # Test name
     name: str = "basic"
 
@@ -46,10 +46,10 @@ class APBSequence:
 
     # Verification
     verify_data: bool = True
-    
+
     # Data width for sizing operations
     data_width: int = 32
-    
+
     # Current transaction count
     transaction_count: int = 0
 
@@ -60,7 +60,7 @@ class APBSequence:
         self.data_iter = iter(self.data_seq)
         self.strb_iter = iter(self.strb_seq)
         self.delay_iter = iter(self.inter_cycle_delays)
-        
+
         # Default protection values if none provided
         if not self.pprot_seq:
             self.pprot_seq = [0]  # Default protection value
@@ -115,7 +115,7 @@ class APBSequence:
         except StopIteration:
             self.strb_iter = iter(self.strb_seq)
             return next(self.strb_iter)
-            
+
     def next_pprot(self) -> int:
         """Get next protection attribute"""
         if self.use_random_selection:
@@ -138,19 +138,19 @@ class APBSequence:
         except StopIteration:
             self.delay_iter = iter(self.inter_cycle_delays)
             return next(self.delay_iter)
-    
-    def next(self) -> APBCycle:
+
+    def next(self) -> APBPacket:
         """
-        Generate the next complete APB cycle
-        
+        Generate the next complete APB packet
+
         Returns:
-            APBCycle: Complete APB cycle object ready for transmission
+            APBPacket: Complete APB packet object ready for transmission
         """
         # Get next values from sequence
         pwrite = self.next_pwrite()
         paddr = self.next_addr()
         pprot = self.next_pprot()
-        
+
         # Get strobes and data for writes
         if pwrite:
             pwdata = self.next_data()
@@ -158,12 +158,10 @@ class APBSequence:
         else:
             pwdata = 0  # Not used for reads
             pstrb = 0   # Not used for reads
-        
-        # Create APB cycle
-        cycle = APBCycle(
-            start_time=0,  # Will be set by the driver
+
+        # Create APB packet
+        packet = APBPacket(
             count=self.transaction_count,
-            direction='WRITE' if pwrite else 'READ',
             pwrite=1 if pwrite else 0,
             paddr=paddr,
             pwdata=pwdata,
@@ -172,22 +170,22 @@ class APBSequence:
             pprot=pprot,
             pslverr=0   # Will be set by slave if error
         )
-        
+
         # Increment transaction count
         self.transaction_count += 1
-        
-        return copy.copy(cycle)
-    
+
+        return copy.copy(packet)
+
     def has_more_transactions(self) -> bool:
         """
         Check if there are more transactions in the sequence
-        
+
         Returns:
             bool: True if more transactions are available
         """
         # For unlimited sequences or random selections, always return True
         if self.use_random_selection:
             return True
-            
+
         # For finite sequences, check if we've reached the end
         return self.transaction_count < len(self.pwrite_seq)

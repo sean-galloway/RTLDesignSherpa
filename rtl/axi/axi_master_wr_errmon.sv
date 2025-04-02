@@ -20,7 +20,9 @@ module axi_master_wr_errmon
     parameter int AW       = AXI_ADDR_WIDTH,
     parameter int DW       = AXI_DATA_WIDTH,
     parameter int IW       = AXI_ID_WIDTH,
-    parameter int UW       = AXI_USER_WIDTH
+    parameter int UW       = AXI_USER_WIDTH,
+    parameter int EFD      = ERROR_FIFO_DEPTH
+
 )
 (
     // Global Clock and Reset
@@ -46,12 +48,12 @@ module axi_master_wr_errmon
     input  logic                       m_axi_bready,
 
     // Error outputs FIFO interface
-    output logic                       error_valid,
-    input  logic                       error_ready,
+    output logic                       fub_error_valid,
+    input  logic                       fub_error_ready,
     // 4'b0001: AW timeout, 4'b0010: W timeout, 4'b0100: B timeout, 4'b1000: B response error
-    output logic [3:0]                 error_type,
-    output logic [AXI_ADDR_WIDTH-1:0]  error_addr,
-    output logic [AXI_ID_WIDTH-1:0]    error_id
+    output logic [3:0]                 fub_error_type,
+    output logic [AXI_ADDR_WIDTH-1:0]  fub_error_addr,
+    output logic [AXI_ID_WIDTH-1:0]    fub_error_id
 );
 
     // Error types
@@ -101,7 +103,7 @@ module axi_master_wr_errmon
     // Error FIFO - reports detected errors
     gaxi_fifo_sync #(
         .DATA_WIDTH(TEDW),
-        .DEPTH(ERROR_FIFO_DEPTH),
+        .DEPTH(EFD),
         .INSTANCE_NAME("ERROR_FIFO")
     ) i_error_fifo (
         .i_axi_aclk(aclk),
@@ -109,9 +111,9 @@ module axi_master_wr_errmon
         .i_wr_valid(r_error_fifo_valid),
         .o_wr_ready(r_error_fifo_ready),
         .i_wr_data(r_error_fifo_wr_data),
-        .i_rd_ready(error_ready),
-        .o_rd_valid(error_valid),
-        .ow_rd_data({error_type, error_id, error_addr}),
+        .i_rd_ready(fub_error_ready),
+        .o_rd_valid(fub_error_valid),
+        .ow_rd_data({fub_error_type, fub_error_id, fub_error_addr}),
         .o_rd_data(),
         .ow_count()
     );

@@ -5,33 +5,33 @@ CocoTBFramework
 │   ├── arbiter_monitor_testcase.py
 │   ├── constrained_random.py
 │   ├── debug_object.py
+│   ├── field_config.py
 │   ├── flex_randomizer.py
 │   ├── memory_model.py
+│   ├── packet.py
 │   ├── apb
-│   │   ├── apb.py
-│   │   ├── apb_command_handler.py
+│   │   ├── apb_components.py
 │   │   ├── apb_factories.py
 │   │   ├── apb_packet.py
-│   │   ├── apb_sequence.py
-│   │   ├── apb_transaction_extra.py
-│   │   └── register_map.py
+│   │   └── apb_sequence.py
 │   ├── axi4
-│   │   ├── axi4_command_handlers.py
 │   │   ├── axi4_factories.py
 │   │   ├── axi4_fields_signals.py
 │   │   ├── axi4_master.py
 │   │   ├── axi4_monitor.py
 │   │   ├── axi4_packets.py
 │   │   └── axi4_slave.py
+│   ├── fifo
+│   │   ├── fifo_components.py
+│   │   ├── fifo_factories.py
+│   │   ├── fifo_packet.py
+│   │   └── fifo_sequence.py
 │   ├── gaxi
-│   │   ├── gaxi-master-slave-example.txt
 │   │   ├── gaxi_components.py
 │   │   ├── gaxi_enhancements.py
 │   │   ├── gaxi_factories.py
 │   │   ├── gaxi_packet.py
 │   │   └── gaxi_sequence.py
-│   ├── wavedrom_user
-│   │   └── apb.py
 │   └── wavedrom_utils
 │       ├── common_groups.py
 │       ├── container.py
@@ -43,6 +43,7 @@ CocoTBFramework
 │   ├── apb_scoreboard.py
 │   ├── axi4_scoreboard.py
 │   ├── base_scoreboard.py
+│   ├── fifo_scoreboard.py
 │   ├── gaxi_scoreboard.py
 │   └── transformers
 │       └── apb_gaxi_transformer.py
@@ -50,19 +51,23 @@ CocoTBFramework
     ├── data_collect_tb.py
     ├── tbbase.py
     ├── utilities.py
+    ├── apb
+    │   ├── apb_command_handler.py
+    │   └── register_map.py
     ├── axi4
+    │   ├── axi4_command_handlers.py
+    │   ├── axi4_master_rd_fub_intf.py
+    │   ├── axi4_master_rd_fub_intf_incl.py
     │   ├── axi4_master_rd_slv_intf.py
     │   ├── axi4_master_rd_test.py
-    │   ├── axi4_master_rd_usr_intf.py
-    │   ├── axi4_master_rd_usr_intf_incl.py
+    │   ├── axi4_master_wr_fub_intf.py
+    │   ├── axi4_master_wr_fub_intf_incl.py
     │   ├── axi4_master_wr_slv_intf.py
     │   ├── axi4_master_wr_test.py
-    │   ├── axi4_master_wr_usr_intf.py
-    │   ├── axi4_master_wr_usr_intf_incl.py
+    │   ├── axi4_slave_rd_fub_intf.py
+    │   ├── axi4_slave_rd_fub_intf_incl.py
     │   ├── axi4_slave_rd_mst_intf.py
-    │   ├── axi4_slave_rd_test.py
-    │   ├── axi4_slave_rd_usr_intf.py
-    │   └── axi4_slave_rd_usr_intf_incl.py
+    │   └── axi4_slave_rd_test.py
     ├── common
     │   ├── adder_testing.py
     │   ├── amba_cg_ctrl.py
@@ -73,9 +78,17 @@ CocoTBFramework
     │   ├── fifo_sync_testing.py
     │   ├── multiplier_testing.py
     │   └── subtractor_testing.py
-    └── gaxi
-        ├── gaxi_basic_all_buffer.py
-        ├── gaxi_basic_all_test_base.py
-        ├── gaxi_buffer.py
-        ├── gaxi_buffer_field.py
-        └── gaxi_buffer_multi.py
+    ├── fifo
+    │   ├── fifo_basic_all_buffer.py
+    │   └── fifo_basic_all_test_base.py
+    ├── gaxi
+    │   ├── gaxi_basic_all_buffer.py
+    │   ├── gaxi_basic_all_test.py
+    │   ├── gaxi_basic_all_test_async.py
+    │   ├── gaxi_basic_all_test_basic.py
+    │   ├── gaxi_basic_all_test_config.py
+    │   ├── gaxi_basic_all_test_infra.py
+    │   ├── gaxi_basic_all_test_multi.py
+    │   └── gaxi_basic_all_test_seq.py
+    └── wavedrom_user
+        └── apb.py

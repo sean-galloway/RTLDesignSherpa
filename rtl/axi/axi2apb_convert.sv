@@ -35,7 +35,7 @@ module axi2apb_convert #(
 
     // Inputs from axi_slave_stub
     input  logic [AWSize-1:0]       r_s_axi_aw_pkt,
-    input  logic [1:0]              r_s_axi_aw_count,
+    input  logic [3:0]              r_s_axi_aw_count,
     input  logic                    r_s_axi_awvalid,
     output logic                    w_s_axi_awready,
 
@@ -48,7 +48,7 @@ module axi2apb_convert #(
     input  logic                    r_s_axi_bready,
 
     input  logic [ARSize-1:0]       r_s_axi_ar_pkt,
-    input  logic [1:0]              r_s_axi_ar_count,
+    input  logic [3:0]              r_s_axi_ar_count,
     input  logic                    r_s_axi_arvalid,
     output logic                    w_s_axi_arready,
 

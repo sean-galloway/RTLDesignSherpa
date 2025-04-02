@@ -4,17 +4,17 @@ module cdc_handshake #(
     parameter int DATA_WIDTH = 8  // Width of the data bus for transfer
 ) (
     // Source clock domain signals
-    input  logic                 clka,     // Source domain clock
-    input  logic                 rsta_n,   // Source domain async reset (active low)
-    input  logic                 valid_a,  // Source indicates data valid
-    output logic                 ready_a,  // Handshake ready back to source
+    input  logic                  clka,     // Source domain clock
+    input  logic                  rsta_n,   // Source domain async reset (active low)
+    input  logic                  valid_a,  // Source indicates data valid
+    output logic                  ready_a,  // Handshake ready back to source
     input  logic [DATA_WIDTH-1:0] data_a,   // Data from source domain
 
     // Destination clock domain signals
-    input  logic                 clkb,     // Destination domain clock
-    input  logic                 rstb_n,   // Destination domain async reset (active low)
-    output logic                 valid_b,  // Destination indicates data valid to receiver
-    input  logic                 ready_b,  // Receiver ready in destination domain
+    input  logic                  clkb,     // Destination domain clock
+    input  logic                  rstb_n,   // Destination domain async reset (active low)
+    output logic                  valid_b,  // Destination indicates data valid to receiver
+    input  logic                  ready_b,  // Receiver ready in destination domain
     output logic [DATA_WIDTH-1:0] data_b    // Data transferred to destination domain
 );
 

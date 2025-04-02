@@ -37,34 +37,34 @@ module axi_slave_wr
 
     // Master AXI Interface (Input Side)
     // Write address channel (AW)
-    input  logic [AXI_ID_WIDTH-1:0]    m_axi_awid,
-    input  logic [AXI_ADDR_WIDTH-1:0]  m_axi_awaddr,
-    input  logic [7:0]                 m_axi_awlen,
-    input  logic [2:0]                 m_axi_awsize,
-    input  logic [1:0]                 m_axi_awburst,
-    input  logic                       m_axi_awlock,
-    input  logic [3:0]                 m_axi_awcache,
-    input  logic [2:0]                 m_axi_awprot,
-    input  logic [3:0]                 m_axi_awqos,
-    input  logic [3:0]                 m_axi_awregion,
-    input  logic [AXI_USER_WIDTH-1:0]  m_axi_awuser,
-    input  logic                       m_axi_awvalid,
-    output logic                       m_axi_awready,
+    input  logic [AXI_ID_WIDTH-1:0]    fub_awid,
+    input  logic [AXI_ADDR_WIDTH-1:0]  fub_awaddr,
+    input  logic [7:0]                 fub_awlen,
+    input  logic [2:0]                 fub_awsize,
+    input  logic [1:0]                 fub_awburst,
+    input  logic                       fub_awlock,
+    input  logic [3:0]                 fub_awcache,
+    input  logic [2:0]                 fub_awprot,
+    input  logic [3:0]                 fub_awqos,
+    input  logic [3:0]                 fub_awregion,
+    input  logic [AXI_USER_WIDTH-1:0]  fub_awuser,
+    input  logic                       fub_awvalid,
+    output logic                       fub_awready,
 
     // Write data channel (W)
-    input  logic [AXI_DATA_WIDTH-1:0]  m_axi_wdata,
-    input  logic [AXI_DATA_WIDTH/8-1:0] m_axi_wstrb,
-    input  logic                       m_axi_wlast,
-    input  logic [AXI_USER_WIDTH-1:0]  m_axi_wuser,
-    input  logic                       m_axi_wvalid,
-    output logic                       m_axi_wready,
+    input  logic [AXI_DATA_WIDTH-1:0]  fub_wdata,
+    input  logic [AXI_DATA_WIDTH/8-1:0] fub_wstrb,
+    input  logic                       fub_wlast,
+    input  logic [AXI_USER_WIDTH-1:0]  fub_wuser,
+    input  logic                       fub_wvalid,
+    output logic                       fub_wready,
 
     // Write response channel (B)
-    output logic [AXI_ID_WIDTH-1:0]    m_axi_bid,
-    output logic [1:0]                 m_axi_bresp,
-    output logic [AXI_USER_WIDTH-1:0]  m_axi_buser,
-    output logic                       m_axi_bvalid,
-    input  logic                       m_axi_bready,
+    output logic [AXI_ID_WIDTH-1:0]    fub_bid,
+    output logic [1:0]                 fub_bresp,
+    output logic [AXI_USER_WIDTH-1:0]  fub_buser,
+    output logic                       fub_bvalid,
+    input  logic                       fub_bready,
 
     // Slave AXI Interface (Output Side to memory or backend)
     // Write address channel (AW)
@@ -98,11 +98,11 @@ module axi_slave_wr
     output logic                       s_axi_bready,
 
     // Error outputs with FIFO interface
-    output logic [3:0]                 m_error_type,     // Error type flags (AW timeout, W timeout, B timeout, response error)
-    output logic [AXI_ADDR_WIDTH-1:0]  m_error_addr,     // Address associated with error
-    output logic [AXI_ID_WIDTH-1:0]    m_error_id,       // ID associated with error
-    output logic                       m_error_valid,
-    input  logic                       m_error_ready
+    output logic [3:0]                 fub_error_type,     // Error type flags (AW timeout, W timeout, B timeout, response error)
+    output logic [AXI_ADDR_WIDTH-1:0]  fub_error_addr,     // Address associated with error
+    output logic [AXI_ID_WIDTH-1:0]    fub_error_id,       // ID associated with error
+    output logic                       fub_error_valid,
+    input  logic                       fub_error_ready
 );
 
     // Internal connections between error monitor and skid buffer
@@ -164,55 +164,55 @@ module axi_slave_wr
         .aresetn              (aresetn),
 
         // AXI interface to monitor
-        .m_axi_awid           (m_axi_awid),
-        .m_axi_awaddr         (m_axi_awaddr),
-        .m_axi_awvalid        (m_axi_awvalid),
-        .m_axi_awready        (m_axi_awready),
+        .fub_awid             (fub_awid),
+        .fub_awaddr           (fub_awaddr),
+        .fub_awvalid          (fub_awvalid),
+        .fub_awready          (fub_awready),
 
-        .m_axi_wvalid         (m_axi_wvalid),
-        .m_axi_wready         (m_axi_wready),
-        .m_axi_wlast          (m_axi_wlast),
+        .fub_wvalid           (fub_wvalid),
+        .fub_wready           (fub_wready),
+        .fub_wlast            (fub_wlast),
 
-        .m_axi_bid            (m_axi_bid),
-        .m_axi_bresp          (m_axi_bresp),
-        .m_axi_bvalid         (m_axi_bvalid),
-        .m_axi_bready         (m_axi_bready),
+        .fub_bid              (fub_bid),
+        .fub_bresp            (fub_bresp),
+        .fub_bvalid           (fub_bvalid),
+        .fub_bready           (fub_bready),
 
         // Error outputs FIFO interface
-        .error_valid          (m_error_valid),
-        .error_ready          (m_error_ready),
-        .error_type           (m_error_type),
-        .error_addr           (m_error_addr),
-        .error_id             (m_error_id)
+        .fub_error_valid          (fub_error_valid),
+        .fub_error_ready          (fub_error_ready),
+        .fub_error_type           (fub_error_type),
+        .fub_error_addr           (fub_error_addr),
+        .fub_error_id             (fub_error_id)
     );
 
     // Connect Master to Internal
-    assign int_s_axi_awid = m_axi_awid;
-    assign int_s_axi_awaddr = m_axi_awaddr;
-    assign int_s_axi_awlen = m_axi_awlen;
-    assign int_s_axi_awsize = m_axi_awsize;
-    assign int_s_axi_awburst = m_axi_awburst;
-    assign int_s_axi_awlock = m_axi_awlock;
-    assign int_s_axi_awcache = m_axi_awcache;
-    assign int_s_axi_awprot = m_axi_awprot;
-    assign int_s_axi_awqos = m_axi_awqos;
-    assign int_s_axi_awregion = m_axi_awregion;
-    assign int_s_axi_awuser = m_axi_awuser;
-    assign int_s_axi_awvalid = m_axi_awvalid;
-    assign m_axi_awready = int_s_axi_awready;
-    
-    assign int_s_axi_wdata = m_axi_wdata;
-    assign int_s_axi_wstrb = m_axi_wstrb;
-    assign int_s_axi_wlast = m_axi_wlast;
-    assign int_s_axi_wuser = m_axi_wuser;
-    assign int_s_axi_wvalid = m_axi_wvalid;
-    assign m_axi_wready = int_s_axi_wready;
-    
-    assign m_axi_bid = int_s_axi_bid;
-    assign m_axi_bresp = int_s_axi_bresp;
-    assign m_axi_buser = int_s_axi_buser;
-    assign m_axi_bvalid = int_s_axi_bvalid;
-    assign int_s_axi_bready = m_axi_bready;
+    assign int_s_axi_awid = fub_awid;
+    assign int_s_axi_awaddr = fub_awaddr;
+    assign int_s_axi_awlen = fub_awlen;
+    assign int_s_axi_awsize = fub_awsize;
+    assign int_s_axi_awburst = fub_awburst;
+    assign int_s_axi_awlock = fub_awlock;
+    assign int_s_axi_awcache = fub_awcache;
+    assign int_s_axi_awprot = fub_awprot;
+    assign int_s_axi_awqos = fub_awqos;
+    assign int_s_axi_awregion = fub_awregion;
+    assign int_s_axi_awuser = fub_awuser;
+    assign int_s_axi_awvalid = fub_awvalid;
+    assign fub_awready = int_s_axi_awready;
+
+    assign int_s_axi_wdata = fub_wdata;
+    assign int_s_axi_wstrb = fub_wstrb;
+    assign int_s_axi_wlast = fub_wlast;
+    assign int_s_axi_wuser = fub_wuser;
+    assign int_s_axi_wvalid = fub_wvalid;
+    assign fub_wready = int_s_axi_wready;
+
+    assign fub_bid = int_s_axi_bid;
+    assign fub_bresp = int_s_axi_bresp;
+    assign fub_buser = int_s_axi_buser;
+    assign fub_bvalid = int_s_axi_bvalid;
+    assign int_s_axi_bready = fub_bready;
 
     // Instantiate AW Skid Buffer
     gaxi_skid_buffer #(

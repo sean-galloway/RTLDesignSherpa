@@ -18,8 +18,8 @@ module apb_master_stub #(
     parameter int CAW = $clog2(CMD_DEPTH)
 ) (
     // Clock and Reset
-    input  logic                         aclk,
-    input  logic                         aresetn,
+    input  logic                         pclk,
+    input  logic                         presetn,
 
     // APB interface
     output logic                         m_apb_PSEL,
@@ -67,8 +67,8 @@ module apb_master_stub #(
         .DATA_WIDTH(CPW),
         .DEPTH(CMD_DEPTH)
     ) cmd_fifo_inst (
-        .i_axi_aclk     (aclk),
-        .i_axi_aresetn  (aresetn),
+        .i_axi_aclk     (pclk),
+        .i_axi_aresetn  (presetn),
         .i_wr_valid     (i_cmd_valid),
         .o_wr_ready     (o_cmd_ready),
         .i_wr_data      (i_cmd_data),
@@ -91,8 +91,8 @@ module apb_master_stub #(
         .DATA_WIDTH(RPW),
         .DEPTH(RSP_DEPTH)
     ) resp_fifo_inst (
-        .i_axi_aclk     (aclk),
-        .i_axi_aresetn  (aresetn),
+        .i_axi_aclk     (pclk),
+        .i_axi_aresetn  (presetn),
         .i_wr_valid     (w_rsp_valid),
         .o_wr_ready     (r_rsp_ready),
         .i_wr_data      (r_rsp_data),
@@ -109,8 +109,8 @@ module apb_master_stub #(
 
     apb_state_t r_apb_state, w_apb_next_state;
 
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    always_ff @(posedge pclk or negedge presetn) begin
+        if (!presetn) begin
             r_apb_state     <= IDLE;
         end else begin
             r_apb_state     <= w_apb_next_state;

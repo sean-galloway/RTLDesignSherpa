@@ -2,13 +2,13 @@
 AXI4 Master Write Test Module
 
 This module provides test methods for validating the AXI4 Master Write module
-by leveraging the user interface and AXI4 interface modules.
+by leveraging the fub interface and AXI4 interface modules.
 """
 
 from CocoTBFramework.tbclasses.tbbase import TBBase
 
-# Import from our user interface include file
-from .axi4_master_wr_usr_intf_incl import (
+# Import from our fub interface include file
+from .axi4_master_wr_fub_intf_incl import (
     ErrorInfo, ErrorType,
     generate_timeout_test_values, create_collision_test_matrix
 )
@@ -21,26 +21,26 @@ class Axi4MasterWrTests(TBBase):
     the functionality of the AXI4 Master Write module.
     """
 
-    def __init__(self, dut, user_intf, axi4_intf):
+    def __init__(self, dut, fub_intf, axi4_intf):
         """
         Initialize the AXI4 Master Write Tests.
 
         Args:
             dut: Device under test
-            user_intf: User interface instance (Axi4MasterWrUserIntf)
+            fub_intf: Fub interface instance (Axi4MasterWrFubIntf)
             axi4_intf: AXI4 interface instance (Axi4MasterWrAxi4Intf)
         """
         super().__init__(dut)
 
         # Store the interfaces
-        self.user_intf = user_intf
+        self.fub_intf = fub_intf
         self.axi4_intf = axi4_intf
 
         # Extract parameters from the DUT or use defaults
         self.id_width = int(getattr(dut, 'AXI_ID_WIDTH', 8))
         self.addr_width = int(getattr(dut, 'AXI_ADDR_WIDTH', 32))
         self.data_width = int(getattr(dut, 'AXI_DATA_WIDTH', 32))
-        self.user_width = int(getattr(dut, 'AXI_USER_WIDTH', 1))
+        self.fub_width = int(getattr(dut, 'AXI_FUB_WIDTH', 1))
         self.timeout_aw = int(getattr(dut, 'TIMEOUT_AW', 1000))
         self.timeout_w = int(getattr(dut, 'TIMEOUT_W', 1000))
         self.timeout_b = int(getattr(dut, 'TIMEOUT_B', 1000))
@@ -70,7 +70,7 @@ class Axi4MasterWrTests(TBBase):
         self.dut.aresetn.value = 0
 
         # Reset interfaces
-        await self.user_intf.reset_interfaces()
+        await self.fub_intf.reset_interfaces()
         await self.axi4_intf.reset_interfaces()
 
         # Wait a few clock cycles
@@ -90,7 +90,7 @@ class Axi4MasterWrTests(TBBase):
 
         Tests a representative number of writes with alignment mask
         set at different places. None of these should split.
-        Verify the s_split interface always shows 1.
+        Verify the fub_split interface always shows 1.
 
         Returns:
             True if test passes, False otherwise
@@ -129,10 +129,10 @@ class Axi4MasterWrTests(TBBase):
         max_id = (1 << self.id_width) - 1  # Typically 255 for 8-bit ID
 
         for j, (split_rand, axi_rand) in enumerate(rand_keys):
-            self.user_intf.set_split_readiness(split_rand)
-            self.user_intf.set_error_readiness(split_rand)
-            self.axi4_intf.set_s_axi_aw_timing(axi_rand)
-            self.axi4_intf.set_s_axi_w_timing(axi_rand)
+            self.fub_intf.set_split_readiness(split_rand)
+            self.fub_intf.set_error_readiness(split_rand)
+            self.axi4_intf.set_fub_aw_timing(axi_rand)
+            self.axi4_intf.set_fub_w_timing(axi_rand)
             self.axi4_intf.set_m_axi_b_timing(axi_rand)
 
             # Send writes with different sizes and lengths
@@ -170,7 +170,7 @@ class Axi4MasterWrTests(TBBase):
                     continue
 
                 # Register expected transaction and save for later verification
-                self.user_intf.expect_split(id_value, expected_split_count)
+                self.fub_intf.expect_split(id_value, expected_split_count)
                 expected_splits.append((id_value, expected_split_count))
 
                 # Log transaction details for debugging
@@ -191,19 +191,19 @@ class Axi4MasterWrTests(TBBase):
 
         # Verify split information
         timeout_ns = 100000 + (total_transactions * 1000)
-        if not await self.user_intf.wait_for_splits(total_transactions, timeout_ns):
+        if not await self.fub_intf.wait_for_splits(total_transactions, timeout_ns):
             self.log.error(f"Not all split notifications were received: expected {total_transactions}")
             total_errors += 1
 
         # Verify each split notification had the expected count
         for id_value, expected_count in expected_splits:
             # Check that the expected split count matches what was received
-            if not self.user_intf.verify_split_count(id_value, expected_count):
+            if not self.fub_intf.verify_split_count(id_value, expected_count):
                 self.log.error(f"Split count mismatch for ID=0x{id_value:X}: expected={expected_count}")
                 total_errors += 1
 
         # Log any errors from interfaces
-        total_errors += self.user_intf.total_errors + self.axi4_intf.total_errors
+        total_errors += self.fub_intf.total_errors + self.axi4_intf.total_errors
 
         # Log test result
         if total_errors == 0:
@@ -274,10 +274,10 @@ class Axi4MasterWrTests(TBBase):
             # For each timing configuration
             for timing_index, (split_rand, axi_rand) in enumerate(rand_keys):
                 # Set timing modes
-                self.user_intf.set_split_readiness(split_rand)
-                self.user_intf.set_error_readiness(split_rand)
-                self.axi4_intf.set_s_axi_aw_timing(axi_rand)
-                self.axi4_intf.set_s_axi_w_timing(axi_rand)
+                self.fub_intf.set_split_readiness(split_rand)
+                self.fub_intf.set_error_readiness(split_rand)
+                self.axi4_intf.set_fub_aw_timing(axi_rand)
+                self.axi4_intf.set_fub_w_timing(axi_rand)
                 self.axi4_intf.set_m_axi_b_timing(axi_rand)
 
                 # Base address for this set of tests - make sure it's aligned
@@ -312,7 +312,7 @@ class Axi4MasterWrTests(TBBase):
                 self.log.info(f"Test02:        boundary=0x{boundary_addr:X}, expected_splits={expected_splits}, id=0x{id_value:X}")
 
                 # Register expected transaction
-                self.user_intf.expect_split(id_value, expected_splits)
+                self.fub_intf.expect_split(id_value, expected_splits)
 
                 # Send write request
                 await self.axi4_intf.send_write(case1_addr, case1_data, case1_length, id_value=id_value)
@@ -344,7 +344,7 @@ class Axi4MasterWrTests(TBBase):
                 self.log.info(f"Test02:        boundary=0x{boundary_addr:X}, expected_splits={expected_splits}, id=0x{id_value:X}")
 
                 # Register expected transaction
-                self.user_intf.expect_split(id_value, expected_splits)
+                self.fub_intf.expect_split(id_value, expected_splits)
 
                 # Send write request
                 await self.axi4_intf.send_write(case2_addr, case2_data, case2_length, id_value=id_value)
@@ -376,7 +376,7 @@ class Axi4MasterWrTests(TBBase):
                 self.log.info(f"Test02:       boundary=0x{boundary_addr:X}, expected_splits={expected_splits}, id=0x{id_value:X}")
 
                 # Register expected transaction
-                self.user_intf.expect_split(id_value, expected_splits)
+                self.fub_intf.expect_split(id_value, expected_splits)
 
                 # Send write request
                 await self.axi4_intf.send_write(case3_addr, case3_data, case3_length, id_value=id_value)
@@ -390,10 +390,10 @@ class Axi4MasterWrTests(TBBase):
 
         # Verify split information
         timeout_ns = 100000
-        await self.user_intf.wait_for_splits(3, timeout_ns)  # We sent 3 transactions per config
+        await self.fub_intf.wait_for_splits(3, timeout_ns)  # We sent 3 transactions per config
 
         # Add errors from interfaces
-        total_errors += self.user_intf.total_errors + self.axi4_intf.total_errors
+        total_errors += self.fub_intf.total_errors + self.axi4_intf.total_errors
 
         # Store test results
         self.test_results['test_02_split_test'] = (total_errors == 0)
@@ -417,10 +417,10 @@ class Axi4MasterWrTests(TBBase):
         await self.reset_dut()
 
         # Set fast timing for clean test
-        self.user_intf.set_split_readiness('fast_ready')
-        self.user_intf.set_error_readiness('fast_ready')
-        self.axi4_intf.set_s_axi_aw_timing('fast')
-        self.axi4_intf.set_s_axi_w_timing('fast')
+        self.fub_intf.set_split_readiness('fast_ready')
+        self.fub_intf.set_error_readiness('fast_ready')
+        self.axi4_intf.set_fub_aw_timing('fast')
+        self.axi4_intf.set_fub_w_timing('fast')
         self.axi4_intf.set_m_axi_b_timing('fast')
 
         # Enable response error injection
@@ -451,10 +451,10 @@ class Axi4MasterWrTests(TBBase):
 
             # Register expected error (SLVERR or DECERR)
             id_value = total_transactions
-            self.user_intf.expect_error(id_value, ErrorType.B_RESP_ERROR)
+            self.fub_intf.expect_error(id_value, ErrorType.B_RESP_ERROR)
 
             # Register expected split
-            self.user_intf.expect_split(id_value, expected_splits)
+            self.fub_intf.expect_split(id_value, expected_splits)
 
             # Generate test data
             test_data = [(addr + 0xA0000000 + (0x1000 * beat)) & 0xFFFFFFFF for beat in range(length + 1)]
@@ -471,16 +471,16 @@ class Axi4MasterWrTests(TBBase):
 
         # Verify error information
         self.log.info(f"Waiting for error reports...")
-        await self.user_intf.wait_for_errors(total_transactions, 100000)
+        await self.fub_intf.wait_for_errors(total_transactions, 100000)
 
         # Verify right number of errors were detected
-        error_count = self.user_intf.get_error_count(ErrorType.B_RESP_ERROR)
+        error_count = self.fub_intf.get_error_count(ErrorType.B_RESP_ERROR)
         if error_count != total_transactions:
             self.log.error(f"Error count mismatch: expected={total_transactions}, actual={error_count}")
             total_errors += 1
 
         # Add errors from interfaces
-        total_errors += self.user_intf.total_errors + self.axi4_intf.total_errors
+        total_errors += self.fub_intf.total_errors + self.axi4_intf.total_errors
 
         # Store test results
         self.test_results['test_03_response_error_test'] = (total_errors == 0)
@@ -492,7 +492,7 @@ class Axi4MasterWrTests(TBBase):
         """
         Test 04: AW Timeout Test, test AW channel timeout detection.
 
-        Issues a write on the s_axi_aw channel, but delays acceptance on the m_axi_aw channel to trigger timeout.
+        Issues a write on the fub_aw channel, but delays acceptance on the m_axi_aw channel to trigger timeout.
 
         Returns:
             True if test passes, False otherwise
@@ -503,9 +503,9 @@ class Axi4MasterWrTests(TBBase):
         await self.reset_dut()
 
         # Set fast timing for W channel and B channel, but slow for AW channel
-        self.user_intf.set_split_readiness('fast_ready')
-        self.user_intf.set_error_readiness('fast_ready')
-        self.axi4_intf.set_s_axi_w_timing('fast')
+        self.fub_intf.set_split_readiness('fast_ready')
+        self.fub_intf.set_error_readiness('fast_ready')
+        self.axi4_intf.set_fub_w_timing('fast')
         self.axi4_intf.set_m_axi_b_timing('fast')
 
         # Generate timeout values to test around the configured timeout
@@ -523,7 +523,7 @@ class Axi4MasterWrTests(TBBase):
             if aw_timeout >= self.timeout_aw:
                 # Should timeout
                 expected_timeouts += 1
-                self.user_intf.expect_error(total_transactions, ErrorType.AW_TIMEOUT)
+                self.fub_intf.expect_error(total_transactions, ErrorType.AW_TIMEOUT)
 
                 # Configure for AR timeout
                 self.axi4_intf.configure_error_injection('aw_timeout', True, 1.0)
@@ -559,16 +559,16 @@ class Axi4MasterWrTests(TBBase):
 
         # Verify AW timeout errors were reported
         self.log.info(f"Waiting for error reports...")
-        await self.user_intf.wait_for_errors(expected_timeouts, 100000)
+        await self.fub_intf.wait_for_errors(expected_timeouts, 100000)
 
         # Verify right number of AW timeouts were detected
-        aw_timeout_count = self.user_intf.get_error_count(ErrorType.AW_TIMEOUT)
+        aw_timeout_count = self.fub_intf.get_error_count(ErrorType.AW_TIMEOUT)
         if aw_timeout_count != expected_timeouts:
             self.log.error(f"AW timeout count mismatch: expected={expected_timeouts}, actual={aw_timeout_count}")
             total_errors += 1
 
         # Add errors from interfaces
-        total_errors += self.user_intf.total_errors + self.axi4_intf.total_errors
+        total_errors += self.fub_intf.total_errors + self.axi4_intf.total_errors
 
         # Store test results
         self.test_results['test_04_aw_timeout_test'] = (total_errors == 0)
@@ -591,9 +591,9 @@ class Axi4MasterWrTests(TBBase):
         await self.reset_dut()
 
         # Set fast timing for AW channel and B channel, but slow for W channel
-        self.user_intf.set_split_readiness('fast_ready')
-        self.user_intf.set_error_readiness('fast_ready')
-        self.axi4_intf.set_s_axi_aw_timing('fast')
+        self.fub_intf.set_split_readiness('fast_ready')
+        self.fub_intf.set_error_readiness('fast_ready')
+        self.axi4_intf.set_fub_aw_timing('fast')
         self.axi4_intf.set_m_axi_b_timing('fast')
 
         # Generate timeout values to test around the configured timeout
@@ -611,7 +611,7 @@ class Axi4MasterWrTests(TBBase):
             if w_timeout >= self.timeout_w:
                 # Should timeout
                 expected_timeouts += 1
-                self.user_intf.expect_error(total_transactions, ErrorType.W_TIMEOUT)
+                self.fub_intf.expect_error(total_transactions, ErrorType.W_TIMEOUT)
 
                 # Configure for W timeout
                 self.axi4_intf.configure_error_injection('w_timeout', True, 1.0)
@@ -647,16 +647,16 @@ class Axi4MasterWrTests(TBBase):
 
         # Verify W timeout errors were reported
         self.log.info(f"Waiting for error reports...")
-        await self.user_intf.wait_for_errors(expected_timeouts, 100000)
+        await self.fub_intf.wait_for_errors(expected_timeouts, 100000)
 
         # Verify right number of W timeouts were detected
-        w_timeout_count = self.user_intf.get_error_count(ErrorType.W_TIMEOUT)
+        w_timeout_count = self.fub_intf.get_error_count(ErrorType.W_TIMEOUT)
         if w_timeout_count != expected_timeouts:
             self.log.error(f"W timeout count mismatch: expected={expected_timeouts}, actual={w_timeout_count}")
             total_errors += 1
 
         # Add errors from interfaces
-        total_errors += self.user_intf.total_errors + self.axi4_intf.total_errors
+        total_errors += self.fub_intf.total_errors + self.axi4_intf.total_errors
 
         # Store test results
         self.test_results['test_05_w_timeout_test'] = (total_errors == 0)
@@ -679,10 +679,10 @@ class Axi4MasterWrTests(TBBase):
         await self.reset_dut()
 
         # Set fast timing for AW and W channels, but slow for B channel
-        self.user_intf.set_split_readiness('fast_ready')
-        self.user_intf.set_error_readiness('fast_ready')
-        self.axi4_intf.set_s_axi_aw_timing('fast')
-        self.axi4_intf.set_s_axi_w_timing('fast')
+        self.fub_intf.set_split_readiness('fast_ready')
+        self.fub_intf.set_error_readiness('fast_ready')
+        self.axi4_intf.set_fub_aw_timing('fast')
+        self.axi4_intf.set_fub_w_timing('fast')
 
         # Generate timeout values to test around the configured timeout
         timeout_values = generate_timeout_test_values(self.timeout_b, 6)  # 6 test points
@@ -699,7 +699,7 @@ class Axi4MasterWrTests(TBBase):
             if b_timeout >= self.timeout_b:
                 # Should timeout
                 expected_timeouts += 1
-                self.user_intf.expect_error(total_transactions, ErrorType.B_TIMEOUT)
+                self.fub_intf.expect_error(total_transactions, ErrorType.B_TIMEOUT)
 
                 # Set timing to trigger timeout
                 self.axi4_intf.set_m_axi_b_timing('timeout')
@@ -729,16 +729,16 @@ class Axi4MasterWrTests(TBBase):
 
         # Verify B timeout errors were reported
         self.log.info(f"Waiting for error reports...")
-        await self.user_intf.wait_for_errors(expected_timeouts, 100000)
+        await self.fub_intf.wait_for_errors(expected_timeouts, 100000)
 
         # Verify right number of B timeouts were detected
-        b_timeout_count = self.user_intf.get_error_count(ErrorType.B_TIMEOUT)
+        b_timeout_count = self.fub_intf.get_error_count(ErrorType.B_TIMEOUT)
         if b_timeout_count != expected_timeouts:
             self.log.error(f"B timeout count mismatch: expected={expected_timeouts}, actual={b_timeout_count}")
             total_errors += 1
 
         # Add errors from interfaces
-        total_errors += self.user_intf.total_errors + self.axi4_intf.total_errors
+        total_errors += self.fub_intf.total_errors + self.axi4_intf.total_errors
 
         # Store test results
         self.test_results['test_06_b_timeout_test'] = (total_errors == 0)
@@ -762,8 +762,8 @@ class Axi4MasterWrTests(TBBase):
         await self.reset_dut()
 
         # Set fast readiness for error reporting
-        self.user_intf.set_split_readiness('fast_ready')
-        self.user_intf.set_error_readiness('fast_ready')
+        self.fub_intf.set_split_readiness('fast_ready')
+        self.fub_intf.set_error_readiness('fast_ready')
 
         # Create test matrix for error collisions
         collision_matrix = create_collision_test_matrix()
@@ -787,7 +787,7 @@ class Axi4MasterWrTests(TBBase):
 
             # For each error type, expect it to be reported
             for error_type in error_types:
-                self.user_intf.expect_error(total_cases, error_type)
+                self.fub_intf.expect_error(total_cases, error_type)
 
             # Send write transaction
             addr = 64 * total_cases
@@ -802,7 +802,7 @@ class Axi4MasterWrTests(TBBase):
             await self.wait_clocks('aclk', 1000)
 
             # Verify that the expected error types were detected
-            success = await self.user_intf.verify_collision_behavior(error_types, 2000)
+            success = await self.fub_intf.verify_collision_behavior(error_types, 2000)
             if not success:
                 self.log.error(f"Collision test failed for types: {[ErrorType(et).name for et in error_types]}")
                 total_errors += 1
@@ -817,7 +817,7 @@ class Axi4MasterWrTests(TBBase):
             await self.wait_clocks('aclk', 1000)
 
         # Add errors from interfaces
-        total_errors += self.user_intf.total_errors + self.axi4_intf.total_errors
+        total_errors += self.fub_intf.total_errors + self.axi4_intf.total_errors
 
         # Store test results
         self.test_results['test_07_collision_cases'] = (total_errors == 0)

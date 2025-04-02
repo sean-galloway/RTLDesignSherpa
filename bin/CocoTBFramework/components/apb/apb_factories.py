@@ -1,9 +1,10 @@
 """
 Factory functions for creating and configuring APB components
 """
-from .apb import APBMaster, APBSlave, APBMonitor
+from .apb_components import APBMaster, APBSlave, APBMonitor
 from .apb_sequence import APBSequence
-from .apb_command_handler import APBCommandHandler
+from CocoTBFramework.tbclasses.apb.apb_command_handler import APBCommandHandler
+from .apb_packet import APBPacket
 
 from ..flex_randomizer import FlexRandomizer
 from ..memory_model import MemoryModel
@@ -160,7 +161,7 @@ def create_apb_command_handler(dut, memory_model, log=None):
 
 
 def create_apb_components(dut, clock, title_prefix="", addr_width=32, data_width=32,
-                          memory_lines=1024, randomizer=None, log=None):
+                            memory_lines=1024, randomizer=None, log=None):
     """
     Create a complete set of APB components (master, slave, monitor, scoreboard).
 
@@ -245,6 +246,40 @@ def create_apb_transformer(gaxi_field_config, gaxi_packet_class, log=None):
         APBtoGAXITransformer instance
     """
     return APBtoGAXITransformer(gaxi_field_config, gaxi_packet_class, log)
+
+
+def create_apb_packet(count=0, pwrite=0, paddr=0, pwdata=0, prdata=0, 
+                        pstrb=0, pprot=0, pslverr=0, addr_width=32, data_width=32):
+    """
+    Create an APB packet with the given field values.
+    
+    Args:
+        count: Transaction count
+        pwrite: Write enable (0=Read, 1=Write)
+        paddr: Address
+        pwdata: Write data (for writes)
+        prdata: Read data (for reads)
+        pstrb: Write strobes (for writes)
+        pprot: Protection control
+        pslverr: Slave error
+        addr_width: Address width in bits
+        data_width: Data width in bits
+        
+    Returns:
+        APBPacket instance
+    """
+    return APBPacket(
+        count=count,
+        pwrite=pwrite,
+        paddr=paddr,
+        pwdata=pwdata,
+        prdata=prdata,
+        pstrb=pstrb,
+        pprot=pprot,
+        pslverr=pslverr,
+        addr_width=addr_width,
+        data_width=data_width
+    )
 
 
 def create_apb_sequence(name="basic", num_regs=10, base_addr=0,

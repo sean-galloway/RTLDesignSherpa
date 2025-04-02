@@ -1,7 +1,9 @@
 """Unified GAXI Buffer Testbench for all buffer types including async designs"""
+import os
 from CocoTBFramework.components.gaxi.gaxi_components import GAXIMaster, GAXISlave, GAXIMonitor
-from CocoTBFramework.tbclasses.gaxi.gaxi_basic_all_test_base import GAXIBasicTestBase, TestConfig
 from CocoTBFramework.scoreboards.gaxi_scoreboard import GAXIScoreboard
+from CocoTBFramework.tbclasses.gaxi.gaxi_basic_all_test_config import TestConfig, get_field_mode, get_is_async
+from CocoTBFramework.tbclasses.gaxi.gaxi_basic_all_test import GAXIBasicTestBase
 
 
 class GaxiBasicBufferAllTB(GAXIBasicTestBase):
@@ -11,6 +13,7 @@ class GaxiBasicBufferAllTB(GAXIBasicTestBase):
     2. Multi-signal mode (separate addr/ctrl/data signals)
     3. Field mode (combined field structure with flexible field configuration)
     4. Asynchronous buffers (separate read/write clocks)
+    5. Multi-data mode (data0/data1 fields)
     """
     def __init__(self, dut, wr_clk=None, wr_rstn=None, rd_clk=None, rd_rstn=None,
                 buffer_type='standard', config=None):
@@ -37,30 +40,41 @@ class GaxiBasicBufferAllTB(GAXIBasicTestBase):
         # Override buffer type from init parameter
         config.buffer_type = buffer_type
 
-        # Detect if this is an async design
-        is_async = (rd_clk is not None and rd_clk != wr_clk) or ('async' in buffer_type)
+        # Get DUT name from environment
+        dut_name = os.environ.get('DUT', '')
 
-        # Determine the configuration flags
-        use_multi_signals = 'multi' in buffer_type
-        use_multi_field_packets = buffer_type in ['multi', 'field']
+        # Determine configuration flags based on parameters only, not DUT inspection
+        is_async = get_is_async(buffer_type, dut_name)
 
-        # Choose the appropriate field mode for base class
-        field_mode = 'multi' if use_multi_field_packets else 'standard'
+        # Allow field mode for skid buffers - override with explicit field mode for field buffer_type
+        if buffer_type == 'field':
+            field_mode = 'multi'
+        else:
+            field_mode = get_field_mode(buffer_type, dut_name)
 
-        # Initialize the base class with these settings
-        super().__init__(dut, wr_clk, wr_rstn, rd_clk, rd_rstn, config, field_mode)
+        # Tell parent class about is_async for clock handling
+        self.is_async = is_async
 
-        # Ensure our async flag matches the base class
-        self.is_async = is_async  # Explicitly set property
+        # Store configuration information
+        self.buffer_type = buffer_type
+        self.field_mode = field_mode
 
-        # Store the configuration flags
-        self.use_multi_signals = use_multi_signals
-        self.use_multi_field_packets = use_multi_field_packets
+        # Log the configuration for debugging
+        print(f"Buffer Type: {buffer_type}, Field Mode: {field_mode}, Config Mode: {config.mode}")
 
-        # Set up BFM components based on buffer type
+        # Call the parent class constructor
+        super().__init__(
+            dut,
+            wr_clk, wr_rstn,
+            rd_clk, rd_rstn,
+            config,
+            field_mode
+        )
+
+        # Setup BFM components based purely on configured buffer type
         self._setup_bfm_components()
 
-        # Configure monitor callbacks - MUST come after monitors are created in _setup_bfm_components
+        # Configure monitor callbacks after BFM components are created
         if self.wr_monitor:
             self.wr_monitor.add_callback(self._wr_monitor_callback)
         else:
@@ -73,28 +87,22 @@ class GaxiBasicBufferAllTB(GAXIBasicTestBase):
 
         self.log.info(f"GaxiBufferAllTB initialized for buffer type: {buffer_type}, mode: {self.config.mode}")
         self.log.info(f"  - Async: {self.is_async}")
-        self.log.info(f"  - Multi-signal: {self.use_multi_signals}")
-        self.log.info(f"  - Multi-field packets: {self.use_multi_field_packets}")
-
-    def _wr_monitor_callback(self, transaction):
-        """Callback for write monitor"""
-        self.log.debug(f"Write monitor captured: {transaction.formatted(compact=True)}")
-        # Add to scoreboard expected queue
-        self.scoreboard.add_expected(transaction)
-
-    def _rd_monitor_callback(self, transaction):
-        """Callback for read monitor"""
-        self.log.debug(f"Read monitor captured: {transaction.formatted(compact=True)}")
-        # Add to scoreboard actual queue
-        self.scoreboard.add_actual(transaction)
+        self.log.info(f"  - Field mode: {self.field_mode}")
 
     def _setup_bfm_components(self):
-        """Set up BFM components based on clock and signal configuration"""
+        """Set up BFM components based on configuration parameters"""
         # Define function naming based on configuration
         clk_type = "async" if self.is_async else "sync"
-        sig_type = "multi" if self.use_multi_signals else "standard"
 
-        # Create method name like _setup_async_multi_components or _setup_sync_standard_components
+        # Handle special case: if config.mode is 'field' but buffer_type is 'standard',
+        # we need to use the multi-signal setup even though field_mode might be 'standard'
+        if self.config.mode == 'field' and self.buffer_type == 'standard':
+            sig_type = 'multi'
+            self.log.info("Using multi-signal setup for field mode on standard buffer")
+        else:
+            sig_type = self.field_mode  # 'standard', 'multi', or 'multi_data'
+
+        # Create method name like _setup_async_multi_data_components or _setup_sync_standard_components
         method_name = f"_setup_{clk_type}_{sig_type}_components"
 
         self.log.info(f"Setting up components using method: {method_name}")
@@ -103,6 +111,9 @@ class GaxiBasicBufferAllTB(GAXIBasicTestBase):
         if hasattr(self, method_name):
             setup_method = getattr(self, method_name)
             setup_method()
+        elif sig_type == 'multi_data' and hasattr(self, f"_setup_{clk_type}_multi_components"):
+            self.log.warning("Using multi signal method for multi_data buffer type")
+            getattr(self, f"_setup_{clk_type}_multi_components")()
         else:
             self.log.error(f"Missing setup method: {method_name}")
             raise NotImplementedError(f"Buffer configuration not supported: {clk_type}_{sig_type}")
@@ -110,6 +121,11 @@ class GaxiBasicBufferAllTB(GAXIBasicTestBase):
     def _setup_sync_standard_components(self):
         """Set up BFM components for synchronous buffer with standard interfaces"""
         self.log.info("Setting up synchronous standard components")
+
+        # Check if we're in field mode for a standard buffer
+        if self.config.mode == 'field' and self.buffer_type == 'standard':
+            self.log.info("Using multi-signal setup for field mode on standard buffer")
+            return self._setup_sync_multi_components()
 
         # Standard mode (single data signal)
         self.write_master = GAXIMaster(
@@ -119,7 +135,7 @@ class GaxiBasicBufferAllTB(GAXIBasicTestBase):
             timeout_cycles=self.config.timeout_cycles,
             signal_map=None,  # Explicitly specify standard mode
             log=self.log,
-            multi_sig=self.use_multi_signals
+            multi_sig=False
         )
 
         self.read_slave = GAXISlave(
@@ -130,7 +146,7 @@ class GaxiBasicBufferAllTB(GAXIBasicTestBase):
             timeout_cycles=self.config.timeout_cycles,
             signal_map=None,  # Explicitly specify standard mode
             log=self.log,
-            multi_sig=self.use_multi_signals
+            multi_sig=False
         )
 
         self.wr_monitor = GAXIMonitor(
@@ -139,7 +155,7 @@ class GaxiBasicBufferAllTB(GAXIBasicTestBase):
             is_slave=False,
             signal_map=None,  # Explicitly specify standard mode
             log=self.log,
-            multi_sig=self.use_multi_signals
+            multi_sig=False
         )
 
         self.rd_monitor = GAXIMonitor(
@@ -149,14 +165,105 @@ class GaxiBasicBufferAllTB(GAXIBasicTestBase):
             is_slave=True,
             signal_map=None,  # Explicitly specify standard mode
             log=self.log,
-            multi_sig=self.use_multi_signals
+            multi_sig=False
         )
 
     def _setup_sync_multi_components(self):
+        # sourcery skip: class-extract-method
         """Set up BFM components for synchronous buffer with multi-signal interfaces"""
         self.log.info("Setting up synchronous multi-signal components")
 
+        # Determine if we're using a standard buffer in field mode
+        using_standard_in_field_mode = self.config.mode == 'field' and self.buffer_type == 'standard'
+
+        if using_standard_in_field_mode:
+            self.log.info("Configuring standard buffer for field mode operation")
+
         # Define signal mappings for multi-signal mode
+        # Required signals (valid/ready) for master
+        master_signal_map = {
+            'm2s_valid': 'i_wr_valid',
+            's2m_ready': 'o_wr_ready'
+        }
+
+        # Optional signals (data fields) for master
+        # For standard buffer in field mode, we assume the data field can carry the combined fields
+        master_optional_map = {
+            'm2s_pkt_addr': 'i_wr_data' if using_standard_in_field_mode else 'i_wr_addr',
+            'm2s_pkt_ctrl': 'i_wr_data' if using_standard_in_field_mode else 'i_wr_ctrl',
+            'm2s_pkt_data': 'i_wr_data'
+        }
+
+        # Required signals (valid/ready) for slave
+        slave_signal_map = {
+            'm2s_valid': 'o_rd_valid',
+            's2m_ready': 'i_rd_ready'
+        }
+
+        # Optional signals (data fields) for slave
+        slave_optional_map = {
+            'm2s_pkt_addr': 'o_rd_data' if using_standard_in_field_mode else 'o_rd_addr',
+            'm2s_pkt_ctrl': 'o_rd_data' if using_standard_in_field_mode else 'o_rd_ctrl',
+            'm2s_pkt_data': 'o_rd_data'
+        }
+
+        # For fifo_mux mode, we also need to map to ow_rd_* signals
+        if self.config.mode == 'fifo_mux':
+            if not using_standard_in_field_mode:
+                slave_optional_map['m2s_pkt_addr'] = 'ow_rd_addr'
+                slave_optional_map['m2s_pkt_ctrl'] = 'ow_rd_ctrl'
+            slave_optional_map['m2s_pkt_data'] = 'ow_rd_data'
+
+        # Create BFM components with signal maps
+        self.write_master = GAXIMaster(
+            self.dut, 'write_master', '', self.wr_clk,
+            field_config=self.field_config,
+            randomizer=self.write_randomizer,
+            timeout_cycles=self.config.timeout_cycles,
+            signal_map=master_signal_map,
+            optional_signal_map=master_optional_map,
+            log=self.log,
+            multi_sig=True
+        )
+
+        self.read_slave = GAXISlave(
+            self.dut, 'read_slave', '', self.rd_clk,
+            mode=self.config.mode,
+            field_config=self.field_config,
+            randomizer=self.read_randomizer,
+            timeout_cycles=self.config.timeout_cycles,
+            signal_map=slave_signal_map,
+            optional_signal_map=slave_optional_map,
+            log=self.log,
+            multi_sig=True
+        )
+
+        self.wr_monitor = GAXIMonitor(
+            self.dut, 'Write monitor', '', self.wr_clk,
+            field_config=self.field_config,
+            is_slave=False,
+            signal_map=master_signal_map,
+            optional_signal_map=master_optional_map,
+            log=self.log,
+            multi_sig=True
+        )
+
+        self.rd_monitor = GAXIMonitor(
+            self.dut, 'Read monitor', '', self.rd_clk,
+            mode=self.config.mode,
+            field_config=self.field_config,
+            is_slave=True,
+            signal_map=slave_signal_map,
+            optional_signal_map=slave_optional_map,
+            log=self.log,
+            multi_sig=True
+        )
+
+    def _setup_sync_multi_data_components(self):
+        """Set up BFM components for synchronous buffer with multi-data interfaces"""
+        self.log.info("Setting up synchronous multi-data components")
+
+        # Define signal mappings for multi-data mode
         # Required signals (valid/ready) for master
         master_signal_map = {
             'm2s_valid': 'i_wr_valid',
@@ -167,7 +274,8 @@ class GaxiBasicBufferAllTB(GAXIBasicTestBase):
         master_optional_map = {
             'm2s_pkt_addr': 'i_wr_addr',
             'm2s_pkt_ctrl': 'i_wr_ctrl',
-            'm2s_pkt_data': 'i_wr_data'
+            'm2s_pkt_data0': 'i_wr_data0',
+            'm2s_pkt_data1': 'i_wr_data1'
         }
 
         # Required signals (valid/ready) for slave
@@ -180,14 +288,16 @@ class GaxiBasicBufferAllTB(GAXIBasicTestBase):
         slave_optional_map = {
             'm2s_pkt_addr': 'o_rd_addr',
             'm2s_pkt_ctrl': 'o_rd_ctrl',
-            'm2s_pkt_data': 'o_rd_data'
+            'm2s_pkt_data0': 'o_rd_data0',
+            'm2s_pkt_data1': 'o_rd_data1'
         }
 
         # For fifo_mux mode, we also need to map to ow_rd_* signals
         if self.config.mode == 'fifo_mux':
             slave_optional_map['m2s_pkt_addr'] = 'ow_rd_addr'
             slave_optional_map['m2s_pkt_ctrl'] = 'ow_rd_ctrl'
-            slave_optional_map['m2s_pkt_data'] = 'ow_rd_data'
+            slave_optional_map['m2s_pkt_data0'] = 'ow_rd_data0'
+            slave_optional_map['m2s_pkt_data1'] = 'ow_rd_data1'
 
         # Create BFM components with signal maps
         self.write_master = GAXIMaster(
@@ -238,6 +348,11 @@ class GaxiBasicBufferAllTB(GAXIBasicTestBase):
         """Set up BFM components for asynchronous buffer with standard interfaces"""
         self.log.info("Setting up asynchronous standard components")
 
+        # Check if we're in field mode for a standard buffer
+        if self.config.mode == 'field' and self.buffer_type == 'standard':
+            self.log.info("Using multi-signal setup for field mode on standard buffer")
+            return self._setup_async_multi_components()
+
         # Asynchronous standard buffer setup (different clocks, standard signals)
         self.write_master = GAXIMaster(
             self.dut, 'write_master', '', self.wr_clk,
@@ -279,6 +394,12 @@ class GaxiBasicBufferAllTB(GAXIBasicTestBase):
         """Set up BFM components for asynchronous buffer with multi-signal interfaces"""
         self.log.info("Setting up asynchronous multi-signal components")
 
+        # Determine if we're using a standard buffer in field mode
+        using_standard_in_field_mode = self.config.mode == 'field' and self.buffer_type == 'standard'
+
+        if using_standard_in_field_mode:
+            self.log.info("Configuring standard buffer for field mode operation")
+
         # Signal maps for the multi-signal async buffer
         master_signal_map = {
             'm2s_valid': 'i_wr_valid',
@@ -287,8 +408,8 @@ class GaxiBasicBufferAllTB(GAXIBasicTestBase):
 
         # Optional signals (data fields) for master
         master_optional_map = {
-            'm2s_pkt_addr': 'i_wr_addr',
-            'm2s_pkt_ctrl': 'i_wr_ctrl',
+            'm2s_pkt_addr': 'i_wr_addr' if not using_standard_in_field_mode else 'i_wr_data',
+            'm2s_pkt_ctrl': 'i_wr_ctrl' if not using_standard_in_field_mode else 'i_wr_data',
             'm2s_pkt_data': 'i_wr_data'
         }
 
@@ -300,15 +421,16 @@ class GaxiBasicBufferAllTB(GAXIBasicTestBase):
 
         # Optional signals (data fields) for slave
         slave_optional_map = {
-            'm2s_pkt_addr': 'o_rd_addr',
-            'm2s_pkt_ctrl': 'o_rd_ctrl',
+            'm2s_pkt_addr': 'o_rd_addr' if not using_standard_in_field_mode else 'o_rd_data',
+            'm2s_pkt_ctrl': 'o_rd_ctrl' if not using_standard_in_field_mode else 'o_rd_data',
             'm2s_pkt_data': 'o_rd_data'
         }
 
         # For fifo_mux mode, we also need to map to ow_rd_* signals
         if self.config.mode == 'fifo_mux':
-            slave_optional_map['m2s_pkt_addr'] = 'ow_rd_addr'
-            slave_optional_map['m2s_pkt_ctrl'] = 'ow_rd_ctrl'
+            if not using_standard_in_field_mode:
+                slave_optional_map['m2s_pkt_addr'] = 'ow_rd_addr'
+                slave_optional_map['m2s_pkt_ctrl'] = 'ow_rd_ctrl'
             slave_optional_map['m2s_pkt_data'] = 'ow_rd_data'
 
         # Create BFM components with signal maps
@@ -356,60 +478,86 @@ class GaxiBasicBufferAllTB(GAXIBasicTestBase):
             multi_sig=True
         )
 
-    # Run a comprehensive test suite for the current buffer
-    async def run_comprehensive_test_suite(self, short_test=False):
-        """
-        Run a comprehensive test suite covering all aspects of the buffer.
+    def _setup_async_multi_data_components(self):
+        """Set up BFM components for asynchronous buffer with multi-data interfaces"""
+        self.log.info("Setting up asynchronous multi-data components")
 
-        Args:
-            short_test: If True, run a reduced test set for quicker validation
-        """
-        self.log.info(f"Starting comprehensive test suite (short_test={short_test})")
+        # Signal maps for the multi-data async buffer
+        master_signal_map = {
+            'm2s_valid': 'i_wr_valid',
+            's2m_ready': 'o_wr_ready'
+        }
 
-        # Basic test - always run
-        count_basic = 10 * self.config.depth if short_test else 100 * self.config.depth
-        await self.simple_incremental_loops(count=count_basic, use_fast=True, delay_clks_after=20)
+        # Optional signals (data fields) for master
+        master_optional_map = {
+            'm2s_pkt_addr': 'i_wr_addr',
+            'm2s_pkt_ctrl': 'i_wr_ctrl',
+            'm2s_pkt_data0': 'i_wr_data0',
+            'm2s_pkt_data1': 'i_wr_data1'
+        }
 
-        if not short_test:
-            # More extensive incremental test
-            await self.simple_incremental_loops(count=100*self.config.depth, use_fast=False, delay_clks_after=20)
+        # Required signals (valid/ready) for slave
+        slave_signal_map = {
+            'm2s_valid': 'o_rd_valid',
+            's2m_ready': 'i_rd_ready'
+        }
 
-        # Random payload test
-        count_random = 20 * self.config.depth if short_test else 50 * self.config.depth
-        await self.random_payload_test(count=count_random, use_fast=True)
+        # Optional signals (data fields) for slave
+        slave_optional_map = {
+            'm2s_pkt_addr': 'o_rd_addr',
+            'm2s_pkt_ctrl': 'o_rd_ctrl',
+            'm2s_pkt_data0': 'o_rd_data0',
+            'm2s_pkt_data1': 'o_rd_data1'
+        }
 
-        # Back-to-back test
-        count_b2b = 10 * self.config.depth if short_test else 20 * self.config.depth
-        await self.back_to_back_test(count=count_b2b)
+        # For fifo_mux mode, we also need to map to ow_rd_* signals
+        if self.config.mode == 'fifo_mux':
+            slave_optional_map['m2s_pkt_addr'] = 'ow_rd_addr'
+            slave_optional_map['m2s_pkt_ctrl'] = 'ow_rd_ctrl'
+            slave_optional_map['m2s_pkt_data0'] = 'ow_rd_data0'
+            slave_optional_map['m2s_pkt_data1'] = 'ow_rd_data1'
 
-        # Burst-pause test
-        burst_size = 5 if short_test else 10
-        num_bursts = 2 if short_test else 5
-        await self.burst_pause_test(burst_size=burst_size, num_bursts=num_bursts)
+        # Create BFM components with signal maps
+        self.write_master = GAXIMaster(
+            self.dut, 'write_master', '', self.wr_clk,
+            field_config=self.field_config,
+            randomizer=self.write_randomizer,
+            timeout_cycles=self.config.timeout_cycles,
+            signal_map=master_signal_map,
+            optional_signal_map=master_optional_map,
+            log=self.log,
+            multi_sig=True
+        )
 
-        # Full/empty buffer test
-        await self.full_empty_test()
+        self.read_slave = GAXISlave(
+            self.dut, 'read_slave', '', self.rd_clk,  # Note the rd_clk
+            mode=self.config.mode,
+            field_config=self.field_config,
+            randomizer=self.read_randomizer,
+            timeout_cycles=self.config.timeout_cycles,
+            signal_map=slave_signal_map,
+            optional_signal_map=slave_optional_map,
+            log=self.log,
+            multi_sig=True
+        )
 
-        # Field-specific tests
-        if self.field_mode == 'multi':
-            count_field = 20 if short_test else 50
-            await self.addr_ctrl_data_crossing_test(count=count_field)
-            await self.alternating_field_values_test(count=count_field)
+        self.wr_monitor = GAXIMonitor(
+            self.dut, 'Write monitor', '', self.wr_clk,
+            field_config=self.field_config,
+            is_slave=False,
+            signal_map=master_signal_map,
+            optional_signal_map=master_optional_map,
+            log=self.log,
+            multi_sig=True
+        )
 
-        # Edge value test
-        count_edge = 10 if short_test else 20
-        await self.edge_value_test(count=count_edge)
-
-        # Async-specific tests
-        if self.is_async:
-            # Test different clock ratios
-            if not short_test:
-                await self.clock_ratio_test(count=20)
-
-            # Test CDC functionality
-            count_cdc = 20 if short_test else 50
-            await self.async_cdc_test(count=count_cdc)
-
-        self.log.info("Comprehensive test suite completed successfully")
-        self.log.info(f"Total errors: {self.total_errors}")
-        assert self.total_errors == 0, f"Test suite failed with {self.total_errors} errors"
+        self.rd_monitor = GAXIMonitor(
+            self.dut, 'Read monitor', '', self.rd_clk,  # Note the rd_clk
+            mode=self.config.mode,
+            field_config=self.field_config,
+            is_slave=True,
+            signal_map=slave_signal_map,
+            optional_signal_map=slave_optional_map,
+            log=self.log,
+            multi_sig=True
+        )

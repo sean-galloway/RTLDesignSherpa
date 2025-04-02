@@ -39,6 +39,8 @@ module axi2apb_shim #(
     // Clock and Reset
     input  logic                          aclk,
     input  logic                          aresetn,
+    input  logic                          pclk,
+    input  logic                          presetn,
 
     // Write address channel (AW)
     input  logic [AXI_ID_WIDTH-1:0]       s_axi_awid,
@@ -133,11 +135,17 @@ module axi2apb_shim #(
     logic                      w_cmd_valid;
     logic                      r_cmd_ready;
     logic [APBCmdWidth-1:0]    r_cmd_data;
+    logic                      w_cmd_valid_apb;
+    logic                      r_cmd_ready_apb;
+    logic [APBCmdWidth-1:0]    r_cmd_data_apb;
 
     // Read Return interface
     logic                      r_rsp_valid;
     logic                      w_rsp_ready;
     logic [APBRspWidth-1:0]    r_rsp_data;
+    logic                      r_rsp_valid_apb;
+    logic                      w_rsp_ready_apb;
+    logic [APBRspWidth-1:0]    r_rsp_data_apb;
 
     // Instantiate the axi_slave_stub
     axi_slave_stub #                   (
@@ -265,6 +273,39 @@ module axi2apb_shim #(
         .r_rsp_data           (r_rsp_data)
     );
 
+    cdc_handshake #(
+        .DATA_WIDTH(APBCmdWidth)
+    ) u_cmd_cdc_handshake (
+        .clka          (aclk),
+        .rsta_n        (aresetn),
+        .valid_a       (w_cmd_valid),
+        .ready_a       (r_cmd_ready),
+        .data_a        (r_cmd_data),
+
+        .clkb          (pclk),
+        .rstb_n        (presetn),
+        .valid_b       (w_cmd_valid_apb),
+        .ready_b       (r_cmd_ready_apb),
+        .data_b        (r_cmd_data_apb)
+    );
+
+    cdc_handshake #(
+        .DATA_WIDTH(APBRspWidth)
+    ) u_rsp_cdc_handshake (
+        .clka          (pclk),
+        .rsta_n        (presetn),
+        .valid_a       (r_rsp_valid_apb),
+        .ready_a       (w_rsp_ready_apb),
+        .data_a        (r_rsp_data_apb),
+
+        .clkb          (aclk),
+        .rstb_n        (aresetn),
+        .valid_b       (r_rsp_valid),
+        .ready_b       (w_rsp_ready),
+        .data_b        (r_rsp_data)
+    );
+
+
     // Instantiate the APB Master interface
     apb_master_stub # (
         .CMD_DEPTH        (APB_CMD_DEPTH),
@@ -275,8 +316,8 @@ module axi2apb_shim #(
         .CMD_PACKET_WIDTH (APBCmdWidth), // ADDR_WIDTH + DATA_WIDTH + STRB_WIDTH + 4
         .RESP_PACKET_WIDTH(APBRspWidth)  // DATA_WIDTH + 2
     ) apb_master_inst     (
-        .aclk             (aclk),
-        .aresetn          (aresetn),
+        .pclk             (pclk),
+        .presetn          (presetn),
         .m_apb_PSEL       (m_apb_PSEL),
         .m_apb_PENABLE    (m_apb_PENABLE),
         .m_apb_PADDR      (m_apb_PADDR),
@@ -287,12 +328,12 @@ module axi2apb_shim #(
         .m_apb_PRDATA     (m_apb_PRDATA),
         .m_apb_PSLVERR    (m_apb_PSLVERR),
         .m_apb_PREADY     (m_apb_PREADY),
-        .i_cmd_valid      (w_cmd_valid),
-        .o_cmd_ready      (r_cmd_ready),
-        .i_cmd_data       (r_cmd_data),
-        .o_rsp_valid      (r_rsp_valid),
-        .i_rsp_ready      (w_rsp_ready),
-        .o_rsp_data       (r_rsp_data)
+        .i_cmd_valid      (w_cmd_valid_apb),
+        .o_cmd_ready      (r_cmd_ready_apb),
+        .i_cmd_data       (r_cmd_data_apb),
+        .o_rsp_valid      (r_rsp_valid_apb),
+        .i_rsp_ready      (w_rsp_ready_apb),
+        .o_rsp_data       (r_rsp_data_apb)
     );
 
 endmodule : axi2apb_shim

@@ -3,7 +3,6 @@ import os
 import logging
 import random
 import cocotb
-from cocotb.triggers import RisingEdge, FallingEdge, Timer
 from collections import deque
 
 from CocoTBFramework.tbclasses.tbbase import TBBase
@@ -11,7 +10,7 @@ from CocoTBFramework.components.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
 from CocoTBFramework.components.gaxi.gaxi_components import GAXIMaster, GAXISlave, GAXIMonitor
 from CocoTBFramework.components.arbiter_monitor import WeightedRoundRobinArbiterMonitor
-from CocoTBFramework.components.memory_model import MemoryModel
+from CocoTBFramework.components.field_config import FieldConfig
 
 
 class DataCollectScoreboard:
@@ -27,6 +26,17 @@ class DataCollectScoreboard:
     def __init__(self, title, input_field_config, output_field_config, log=None):
         """Initialize the scoreboard"""
         self.title = title
+        # Convert to FieldConfig if received as dictionaries
+        if isinstance(input_field_config, dict):
+            self.input_field_config = FieldConfig.validate_and_create(input_field_config)
+        else:
+            self.input_field_config = input_field_config
+            
+        if isinstance(output_field_config, dict):
+            self.output_field_config = FieldConfig.validate_and_create(output_field_config)
+        else:
+            self.output_field_config = output_field_config
+
         self.input_field_config = input_field_config
         self.output_field_config = output_field_config
 
@@ -81,25 +91,28 @@ class DataCollectScoreboard:
             packet: Input packet from a monitor
         """
         # Determine which queue to add to based on ID
-        if packet.id == 0xAA or packet.id == 0xA:
+        packet_id = packet.id if hasattr(packet, 'id') else None
+
+        # Determine which queue to add to based on ID
+        if packet_id in [0xAA, 0xA]:
             self.queue_a.append(packet)
             # Check if we have 4 packets to combine
             if len(self.queue_a) >= 4:
                 self._combine_packets('A')
-        elif packet.id == 0xBB or packet.id == 0xB:
+        elif packet_id in [0xBB, 0xB]:
             self.queue_b.append(packet)
             if len(self.queue_b) >= 4:
                 self._combine_packets('B')
-        elif packet.id == 0xCC or packet.id == 0xC:
+        elif packet_id in [0xCC, 0xC]:
             self.queue_c.append(packet)
             if len(self.queue_c) >= 4:
                 self._combine_packets('C')
-        elif packet.id == 0xDD or packet.id == 0xD:
+        elif packet_id in [0xDD, 0xD]:
             self.queue_d.append(packet)
             if len(self.queue_d) >= 4:
                 self._combine_packets('D')
         else:
-            self.log.warning(f"Received packet with unknown ID: 0x{packet.id:X}")
+            self.log.warning(f"Received packet with unknown ID: 0x{packet_id:X}")
 
     def _combine_packets(self, channel):
         """
@@ -139,13 +152,18 @@ class DataCollectScoreboard:
         pkt2 = queue.popleft()
         pkt3 = queue.popleft()
 
+        # Get data values from each packet
+        data0 = pkt0.data if hasattr(pkt0, 'data') else 0
+        data1 = pkt1.data if hasattr(pkt1, 'data') else 0
+        data2 = pkt2.data if hasattr(pkt2, 'data') else 0
+        data3 = pkt3.data if hasattr(pkt3, 'data') else 0
         # Create a combined output packet
         output_pkt = GAXIPacket(self.output_field_config)
         output_pkt.id = id_value
-        output_pkt.data0 = pkt0.data
-        output_pkt.data1 = pkt1.data
-        output_pkt.data2 = pkt2.data
-        output_pkt.data3 = pkt3.data
+        output_pkt.data0 = data0
+        output_pkt.data1 = data1
+        output_pkt.data2 = data2
+        output_pkt.data3 = data3
 
         # Add to the combined queue
         combined_queue.append(output_pkt)
@@ -172,27 +190,30 @@ class DataCollectScoreboard:
         # Get the next output packet
         actual = self.actual_queue.popleft()
 
+        # Get the ID from the packet
+        actual_id = actual.id if hasattr(actual, 'id') else None
+
         # Determine which queue to compare against based on ID
-        if actual.id in [0xAA, 0xA]:
+        if actual_id in [0xAA, 0xA]:
             expected_queue = self.combined_queue_a
             channel = 'A'
-        elif actual.id in [0xBB, 0xB]:
+        elif actual_id in [0xBB, 0xB]:
             expected_queue = self.combined_queue_b
             channel = 'B'
-        elif actual.id in [0xCC, 0xC]:
+        elif actual_id in [0xCC, 0xC]:
             expected_queue = self.combined_queue_c
             channel = 'C'
-        elif actual.id in [0xDD, 0xD]:
+        elif actual_id in [0xDD, 0xD]:
             expected_queue = self.combined_queue_d
             channel = 'D'
         else:
-            self.log.error(f"Output packet has unknown ID: 0x{actual.id:X}")
+            self.log.error(f"Output packet has unknown ID: 0x{actual_id:X}")
             self.error_count += 1
             return
 
         # Check if we have an expected packet
         if not expected_queue:
-            self.log.error(f"No expected packets for channel {channel} (ID=0x{actual.id:X})")
+            self.log.error(f"No expected packets for channel {channel} (ID=0x{actual_id:X})")
             self.error_count += 1
             return
 
@@ -200,20 +221,31 @@ class DataCollectScoreboard:
         expected = expected_queue.popleft()
         self.comparison_count += 1
 
-        # Compare packets
-        if (actual.data0 != expected.data0 or
-            actual.data1 != expected.data1 or
-            actual.data2 != expected.data2 or
-            actual.data3 != expected.data3):
+        # Get data values from both packets
+        expected_data0 = expected.data0 if hasattr(expected, 'data0') else 0
+        expected_data1 = expected.data1 if hasattr(expected, 'data1') else 0
+        expected_data2 = expected.data2 if hasattr(expected, 'data2') else 0
+        expected_data3 = expected.data3 if hasattr(expected, 'data3') else 0
+        
+        actual_data0 = actual.data0 if hasattr(actual, 'data0') else 0
+        actual_data1 = actual.data1 if hasattr(actual, 'data1') else 0
+        actual_data2 = actual.data2 if hasattr(actual, 'data2') else 0
+        actual_data3 = actual.data3 if hasattr(actual, 'data3') else 0
 
-            self.log.error(f"Packet mismatch for channel {channel} (ID=0x{actual.id:X}):")
-            self.log.error(f"  Expected: data0=0x{expected.data0:X}, data1=0x{expected.data1:X}, "
-                            f"data2=0x{expected.data2:X}, data3=0x{expected.data3:X}")
-            self.log.error(f"  Actual: data0=0x{actual.data0:X}, data1=0x{actual.data1:X}, "
-                            f"data2=0x{actual.data2:X}, data3=0x{actual.data3:X}")
+        # Compare packets
+        if (actual_data0 != expected_data0 or
+            actual_data1 != expected_data1 or
+            actual_data2 != expected_data2 or
+            actual_data3 != expected_data3):
+
+            self.log.error(f"Packet mismatch for channel {channel} (ID=0x{actual_id:X}):")
+            self.log.error(f"  Expected: data0=0x{expected_data0:X}, data1=0x{expected_data1:X}, "
+                            f"data2=0x{expected_data2:X}, data3=0x{expected_data3:X}")
+            self.log.error(f"  Actual: data0=0x{actual_data0:X}, data1=0x{actual_data1:X}, "
+                            f"data2=0x{actual_data2:X}, data3=0x{actual_data3:X}")
             self.error_count += 1
         else:
-            self.log.debug(f"Packet match for channel {channel} (ID=0x{actual.id:X})")
+            self.log.debug(f"Packet match for channel {channel} (ID=0x{actual_id:X})")
 
     def check_remaining_data(self):
         """
@@ -324,68 +356,67 @@ class DataCollectTB(TBBase):
         self.log.info(f"OUTPUT_FIFO_DEPTH={self.OUTPUT_FIFO_DEPTH}, SEED={self.SEED}")
 
         # Define field configuration for input channels (data+id)
-        self.input_field_config = {
-            'data': {
-                'bits': self.DATA_WIDTH,
-                'default': 0,
-                'format': 'hex',
-                'display_width': 2,
-                'active_bits': (self.DATA_WIDTH-1, 0),
-                'description': 'Data value'
-            },
-            'id': {
-                'bits': self.ID_WIDTH,
-                'default': 0,
-                'format': 'hex',
-                'display_width': 1,
-                'active_bits': (self.ID_WIDTH-1, 0),
-                'description': 'ID value'
-            }
-        }
+        self.input_field_config = FieldConfig()
+        self.input_field_config.add_field_dict('data', {
+            'bits': self.DATA_WIDTH,
+            'default': 0,
+            'format': 'hex',
+            'display_width': 2,
+            'active_bits': (self.DATA_WIDTH-1, 0),
+            'description': 'Data value'
+        })
+        self.input_field_config.add_field_dict('id', {
+            'bits': self.ID_WIDTH,
+            'default': 0,
+            'format': 'hex',
+            'display_width': 1,
+            'active_bits': (self.ID_WIDTH-1, 0),
+            'description': 'ID value'
+        })
+
 
         # Define field configuration for output channel (id + 4 data fields)
-        self.output_field_config = {
-            'data0': {
-                'bits': self.DATA_WIDTH,
-                'default': 0,
-                'format': 'hex',
-                'display_width': 2,
-                'active_bits': (self.DATA_WIDTH-1, 0),
-                'description': 'Data0 value'
-            },
-            'data1': {
-                'bits': self.DATA_WIDTH,
-                'default': 0,
-                'format': 'hex',
-                'display_width': 2,
-                'active_bits': (self.DATA_WIDTH-1, 0),
-                'description': 'Data1 value'
-            },
-            'data2': {
-                'bits': self.DATA_WIDTH,
-                'default': 0,
-                'format': 'hex',
-                'display_width': 2,
-                'active_bits': (self.DATA_WIDTH-1, 0),
-                'description': 'Data2 value'
-            },
-            'data3': {
-                'bits': self.DATA_WIDTH,
-                'default': 0,
-                'format': 'hex',
-                'display_width': 2,
-                'active_bits': (self.DATA_WIDTH-1, 0),
-                'description': 'Data3 value'
-            },
-            'id': {
-                'bits': self.ID_WIDTH,
-                'default': 0,
-                'format': 'hex',
-                'display_width': 1,
-                'active_bits': (self.ID_WIDTH-1, 0),
-                'description': 'ID value'
-            },
-        }
+        self.output_field_config = FieldConfig()
+        self.output_field_config.add_field_dict('data0', {
+            'bits': self.DATA_WIDTH,
+            'default': 0,
+            'format': 'hex',
+            'display_width': 2,
+            'active_bits': (self.DATA_WIDTH-1, 0),
+            'description': 'Data0 value'
+        })
+        self.output_field_config.add_field_dict('data1', {
+            'bits': self.DATA_WIDTH,
+            'default': 0,
+            'format': 'hex',
+            'display_width': 2,
+            'active_bits': (self.DATA_WIDTH-1, 0),
+            'description': 'Data1 value'
+        })
+        self.output_field_config.add_field_dict('data2', {
+            'bits': self.DATA_WIDTH,
+            'default': 0,
+            'format': 'hex',
+            'display_width': 2,
+            'active_bits': (self.DATA_WIDTH-1, 0),
+            'description': 'Data2 value'
+        })
+        self.output_field_config.add_field_dict('data3', {
+            'bits': self.DATA_WIDTH,
+            'default': 0,
+            'format': 'hex',
+            'display_width': 2,
+            'active_bits': (self.DATA_WIDTH-1, 0),
+            'description': 'Data3 value'
+        })
+        self.output_field_config.add_field_dict('id', {
+            'bits': self.ID_WIDTH,
+            'default': 0,
+            'format': 'hex',
+            'display_width': 1,
+            'active_bits': (self.ID_WIDTH-1, 0),
+            'description': 'ID value'
+        })
 
         # Create randomizers for masters with different configurations
         self.randomizer_configs = {

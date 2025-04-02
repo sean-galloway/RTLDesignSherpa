@@ -51,7 +51,7 @@ class Axi2ApbTB(TBBase):
             dut,
             'APB Monitor',
             'm_apb',
-            dut.aclk,
+            dut.pclk,
             addr_width=self.APB_ADDR_WIDTH,
             data_width=self.APB_DATA_WIDTH,
             log=self.log
@@ -61,7 +61,7 @@ class Axi2ApbTB(TBBase):
             dut,
             'APB Slave',
             'm_apb',
-            dut.aclk,
+            dut.pclk,
             registers=[0] * (self.registers * self.APB_STRB_WIDTH),
             addr_width=self.APB_ADDR_WIDTH,
             data_width=self.APB_DATA_WIDTH,
@@ -86,10 +86,12 @@ class Axi2ApbTB(TBBase):
     async def cycle_reset(self):
         self.log.info("Reset Start")
         self.dut.aresetn.value = 0
+        self.dut.presetn.value = 0
         await self.apb_slave.reset_bus()
-        await self.wait_clocks('aclk', 2)
+        await self.wait_clocks('pclk', 2)
         self.dut.aresetn.value = 1
-        await self.wait_clocks('aclk', 2)
+        self.dut.presetn.value = 1
+        await self.wait_clocks('pclk', 2)
         self.log.info("Reset Done.")
 
     def cycle_pause(self):
@@ -101,6 +103,7 @@ class Axi2ApbTB(TBBase):
         self.log.info(msg)
         max_burst_size = self.axi_master.write_if.max_burst_size
         length = int(self.registers/(self.DATA_WIDTH/self.APB_DATA_WIDTH))
+        # length = 10
 
         if size is None:
             # size = int(max_burst_size / (self.DATA_WIDTH/self.APB_DATA_WIDTH))
@@ -167,10 +170,11 @@ class Axi2ApbTB(TBBase):
                     await self.run_test_write_read(idle_inserter=idle, backpressure_inserter=backpressure, size=bsize)
 
 
-@cocotb.test(timeout_time=1, timeout_unit="ms")
+@cocotb.test(timeout_time=10, timeout_unit="ms")
 async def axi2apb_shim_test(dut):
     tb = Axi2ApbTB(dut)
-    cocotb.start_soon(Clock(dut.aclk, 2, units="ns").start())
+    cocotb.start_soon(Clock(dut.aclk,  1, units="ns").start())
+    cocotb.start_soon(Clock(dut.pclk, 10, units="ns").start())
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
@@ -193,6 +197,7 @@ def test_axi2abp_shim(request, id_width, addr_width, data_width, user_width, apb
     toplevel = dut_name
 
     verilog_sources = [
+        os.path.join(rtl_dict['rtl_axi'], "cdc_handshake.sv"),
         os.path.join(rtl_dict['rtl_axi'], "gaxi_skid_buffer.sv"),
         os.path.join(rtl_dict['rtl_axi'], "apb_master_stub.sv"),
 
