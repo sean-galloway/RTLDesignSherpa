@@ -9,7 +9,7 @@ module icg(
 
     logic en_out;
 
-    always_ff @(en or clk) begin
+    always @(en or clk) begin
         if (!clk) begin
             en_out <= en;
         end

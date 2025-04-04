@@ -66,29 +66,29 @@ class CDCValidReadyS2FTB(TBBase):
         # Get test parameters from environment variables
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
         self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic')
-        self.CLKA_PERIOD_NS = self.convert_to_int(os.environ.get('CLKA_PERIOD_NS', '50'))
-        self.CLKB_PERIOD_NS = self.convert_to_int(os.environ.get('CLKB_PERIOD_NS', '10'))
+        self.clk_src_PERIOD_NS = self.convert_to_int(os.environ.get('clk_src_PERIOD_NS', '50'))
+        self.clk_dst_PERIOD_NS = self.convert_to_int(os.environ.get('clk_dst_PERIOD_NS', '10'))
 
         # Calculate clock frequencies in MHz
-        self.CLKA_FREQ_MHZ = 1000 / self.CLKA_PERIOD_NS
-        self.CLKB_FREQ_MHZ = 1000 / self.CLKB_PERIOD_NS
+        self.clk_src_FREQ_MHZ = 1000 / self.clk_src_PERIOD_NS
+        self.clk_dst_FREQ_MHZ = 1000 / self.clk_dst_PERIOD_NS
 
         # Initialize random generator
         random.seed(self.SEED)
 
         # Extract clock and reset signals
-        self.clka = self.dut.clka
-        self.rsta_n = self.dut.rsta_n
-        self.clkb = self.dut.clkb
-        self.rstb_n = self.dut.rstb_n
+        self.clk_src = self.dut.clk_src
+        self.rst_src_n = self.dut.rst_src_n
+        self.clk_dst = self.dut.clk_dst
+        self.rst_dst_n = self.dut.rst_dst_n
 
         # Extract data interface signals
-        self.valid_a = self.dut.valid_a
-        self.ready_a = self.dut.ready_a
-        self.data_a = self.dut.data_a
-        self.valid_b = self.dut.valid_b
-        self.ready_b = self.dut.ready_b
-        self.data_b = self.dut.data_b
+        self.valid_src = self.dut.valid_src
+        self.ready_src = self.dut.ready_src
+        self.data_src = self.dut.data_src
+        self.valid_dst = self.dut.valid_dst
+        self.ready_dst = self.dut.ready_dst
+        self.data_dst = self.dut.data_dst
 
         # Try to extract internal debug signals
         try:
@@ -105,92 +105,92 @@ class CDCValidReadyS2FTB(TBBase):
         self.log.info("CDC Valid/Ready S2F TB initialized")
         self.log.info(f"SEED={self.SEED}")
         self.log.info(f"TEST_LEVEL={self.TEST_LEVEL}")
-        self.log.info(f"CLKA={self.CLKA_PERIOD_NS}ns ({self.CLKA_FREQ_MHZ:.1f}MHz)")
-        self.log.info(f"CLKB={self.CLKB_PERIOD_NS}ns ({self.CLKB_FREQ_MHZ:.1f}MHz)")
+        self.log.info(f"clk_src={self.clk_src_PERIOD_NS}ns ({self.clk_src_FREQ_MHZ:.1f}MHz)")
+        self.log.info(f"clk_dst={self.clk_dst_PERIOD_NS}ns ({self.clk_dst_FREQ_MHZ:.1f}MHz)")
 
         # Test completion flag
         self.done = False
 
         # Monitoring data
-        self.clka_transactions = []
-        self.clkb_transactions = []
+        self.clk_src_transactions = []
+        self.clk_dst_transactions = []
 
         # Track valid pulse information for verification
         self.valid_pulses = []
         self.valid_pulse_durations = []
 
         # Enhanced debug tracking
-        self.debug_clka_signals = []  # Store clka domain signal history
-        self.debug_clkb_signals = []  # Store clkb domain signal history
+        self.debug_clk_src_signals = []  # Store clk_src domain signal history
+        self.debug_clk_dst_signals = []  # Store clk_dst domain signal history
 
     async def reset_dut(self):
         """Reset the DUT"""
         self.log.debug('Starting reset_dut')
 
         # Reset DUT control signals
-        self.rsta_n.value = 0
-        self.rstb_n.value = 0
-        self.valid_a.value = 0
-        self.ready_b.value = 0
-        self.data_a.value = 0
+        self.rst_src_n.value = 0
+        self.rst_dst_n.value = 0
+        self.valid_src.value = 0
+        self.ready_dst.value = 0
+        self.data_src.value = 0
 
         # Hold reset for multiple cycles
-        await self.wait_clocks('clka', 5)
-        await self.wait_clocks('clkb', 5)
+        await self.wait_clocks('clk_src', 5)
+        await self.wait_clocks('clk_dst', 5)
 
         # Release reset
-        self.rsta_n.value = 1
-        self.rstb_n.value = 1
+        self.rst_src_n.value = 1
+        self.rst_dst_n.value = 1
 
         # Wait for stabilization
-        await self.wait_clocks('clka', 10)
-        await self.wait_clocks('clkb', 10)
+        await self.wait_clocks('clk_src', 10)
+        await self.wait_clocks('clk_dst', 10)
 
         # Clear monitoring data
-        self.clka_transactions.clear()
-        self.clkb_transactions.clear()
+        self.clk_src_transactions.clear()
+        self.clk_dst_transactions.clear()
         self.valid_pulses.clear()
         self.valid_pulse_durations.clear()
 
         # Clear debug tracking
-        self.debug_clka_signals.clear()
-        self.debug_clkb_signals.clear()
+        self.debug_clk_src_signals.clear()
+        self.debug_clk_dst_signals.clear()
 
         self.log.debug('Ending reset_dut')
 
-    async def monitor_a_to_b(self, clka_cycles, clkb_cycles):
+    async def monitor_a_to_b(self, clk_src_cycles, clk_dst_cycles):
         """
         Monitor transactions from domain A to domain B
 
         Args:
-            clka_cycles: Number of clka cycles to monitor
-            clkb_cycles: Number of clkb cycles to monitor
+            clk_src_cycles: Number of clk_src cycles to monitor
+            clk_dst_cycles: Number of clk_dst cycles to monitor
 
         Returns:
-            Tuple of (clka_transactions, clkb_transactions)
+            Tuple of (clk_src_transactions, clk_dst_transactions)
         """
         # Clear previous data
-        self.clka_transactions.clear()
-        self.clkb_transactions.clear()
+        self.clk_src_transactions.clear()
+        self.clk_dst_transactions.clear()
         self.valid_pulses.clear()
         self.valid_pulse_durations.clear()
 
         # Clear debug tracking
-        self.debug_clka_signals.clear()
-        self.debug_clkb_signals.clear()
+        self.debug_clk_src_signals.clear()
+        self.debug_clk_dst_signals.clear()
 
         # Set up concurrent monitoring of both clock domains
-        clka_task = cocotb.start_soon(self._monitor_clka_domain(clka_cycles))
-        clkb_task = cocotb.start_soon(self._monitor_clkb_domain(clkb_cycles))
+        clk_src_task = cocotb.start_soon(self._monitor_clk_src_domain(clk_src_cycles))
+        clk_dst_task = cocotb.start_soon(self._monitor_clk_dst_domain(clk_dst_cycles))
 
         # Wait for both monitoring tasks to complete
-        await clka_task
-        await clkb_task
+        await clk_src_task
+        await clk_dst_task
 
         # Print debug summary
         self.print_debug_summary()
 
-        return self.clka_transactions, self.clkb_transactions
+        return self.clk_src_transactions, self.clk_dst_transactions
 
     async def monitor_a_to_b_with_target(self, expected_transactions):
         """
@@ -200,66 +200,66 @@ class CDCValidReadyS2FTB(TBBase):
             expected_transactions: Number of transactions to wait for before exiting
 
         Returns:
-            Tuple of (clka_transactions, clkb_transactions)
+            Tuple of (clk_src_transactions, clk_dst_transactions)
         """
         # Clear previous data
-        self.clka_transactions.clear()
-        self.clkb_transactions.clear()
+        self.clk_src_transactions.clear()
+        self.clk_dst_transactions.clear()
         self.valid_pulses.clear()
         self.valid_pulse_durations.clear()
-        self.debug_clka_signals.clear()
-        self.debug_clkb_signals.clear()
+        self.debug_clk_src_signals.clear()
+        self.debug_clk_dst_signals.clear()
 
         # Create completion event
         target_reached = cocotb.triggers.Event()
 
         # Define maximum cycles to prevent infinite monitoring
-        max_clka_cycles = max(500, int(50 * self.CLKA_PERIOD_NS / 10)) * expected_transactions
-        max_clkb_cycles = max(500, int(50 * self.CLKB_PERIOD_NS / 10)) * expected_transactions
+        max_clk_src_cycles = max(500, int(50 * self.clk_src_PERIOD_NS / 10)) * expected_transactions
+        max_clk_dst_cycles = max(500, int(50 * self.clk_dst_PERIOD_NS / 10)) * expected_transactions
 
         # Define the checker function that will run in the background
         async def check_completion():
             while True:
                 # Check if we've reached the target transaction count in both domains
-                if (len(self.clka_transactions) >= expected_transactions and
-                    len(self.clkb_transactions) >= expected_transactions):
+                if (len(self.clk_src_transactions) >= expected_transactions and
+                    len(self.clk_dst_transactions) >= expected_transactions):
                     # Give it a few more cycles to ensure we capture everything
-                    await Timer(5 * max(self.CLKA_PERIOD_NS, self.CLKB_PERIOD_NS), units='ns')
+                    await Timer(5 * max(self.clk_src_PERIOD_NS, self.clk_dst_PERIOD_NS), units='ns')
                     target_reached.set()
                     break
-                await Timer(min(self.CLKA_PERIOD_NS, self.CLKB_PERIOD_NS), units='ns')
+                await Timer(min(self.clk_src_PERIOD_NS, self.clk_dst_PERIOD_NS), units='ns')
 
         # Start the checker
         checker_task = cocotb.start_soon(check_completion())
 
         # Start the monitoring tasks with max limits
-        clka_task = cocotb.start_soon(self._monitor_clka_domain(max_clka_cycles))
-        clkb_task = cocotb.start_soon(self._monitor_clkb_domain(max_clkb_cycles))
+        clk_src_task = cocotb.start_soon(self._monitor_clk_src_domain(max_clk_src_cycles))
+        clk_dst_task = cocotb.start_soon(self._monitor_clk_dst_domain(max_clk_dst_cycles))
 
         # Wait for either target to be reached or max cycles to complete
         t = await cocotb.triggers.First(
             target_reached.wait(),
-            cocotb.triggers.Join(clka_task),
-            cocotb.triggers.Join(clkb_task)
+            cocotb.triggers.Join(clk_src_task),
+            cocotb.triggers.Join(clk_dst_task)
         )
 
         # If early exit (target reached), cancel the monitoring tasks
         if target_reached.is_set():
             self.log.info(f"Target of {expected_transactions} transactions reached - exiting monitoring early")
-            if not clka_task.done():
-                clka_task.kill()
-            if not clkb_task.done():
-                clkb_task.kill()
+            if not clk_src_task.done():
+                clk_src_task.kill()
+            if not clk_dst_task.done():
+                clk_dst_task.kill()
             if not checker_task.done():
                 checker_task.kill()
             # Small delay to allow tasks to clean up
             await Timer(1, units='ns')
         else:
             # Otherwise, wait for any remaining tasks
-            if not clka_task.done():
-                await clka_task
-            if not clkb_task.done():
-                await clkb_task
+            if not clk_src_task.done():
+                await clk_src_task
+            if not clk_dst_task.done():
+                await clk_dst_task
             if not checker_task.done():
                 checker_task.kill()
                 await Timer(1, units='ns')
@@ -267,7 +267,7 @@ class CDCValidReadyS2FTB(TBBase):
         # Print debug summary
         self.print_debug_summary()
 
-        return self.clka_transactions, self.clkb_transactions
+        return self.clk_src_transactions, self.clk_dst_transactions
 
     def print_debug_summary(self):    # sourcery skip: extract-method, remove-redundant-fstring, simplify-constant-sum, use-contextlib-suppress
         """Print comprehensive debug information from the monitoring session"""
@@ -276,8 +276,8 @@ class CDCValidReadyS2FTB(TBBase):
 
         # Transaction analysis
         self.log.info("Transaction analysis:")
-        self.log.info(f"  CLKA transactions: {len(self.clka_transactions)}")
-        self.log.info(f"  CLKB transactions: {len(self.clkb_transactions)}")
+        self.log.info(f"  clk_src transactions: {len(self.clk_src_transactions)}")
+        self.log.info(f"  clk_dst transactions: {len(self.clk_dst_transactions)}")
 
         # Valid pulse analysis
         self.log.info("Valid pulse analysis:")
@@ -286,21 +286,21 @@ class CDCValidReadyS2FTB(TBBase):
             self.log.info(f"  Valid pulse {i}: cycles {start}-{end}, duration={duration}")
 
         # Signal state analysis
-        if self.debug_clka_signals:
-            valid_high_count = sum(1 for _, _, v, _, _ in self.debug_clka_signals if v == 1)
-            ready_high_count = sum(1 for _, _, _, r, _ in self.debug_clka_signals if r == 1)
-            total_clka = len(self.debug_clka_signals)
-            self.log.info(f"  CLKA domain signal states:")
-            self.log.info(f"    Valid high: {valid_high_count}/{total_clka} cycles ({valid_high_count/total_clka*100:.1f}%)")
-            self.log.info(f"    Ready high: {ready_high_count}/{total_clka} cycles ({ready_high_count/total_clka*100:.1f}%)")
+        if self.debug_clk_src_signals:
+            valid_high_count = sum(1 for _, _, v, _, _ in self.debug_clk_src_signals if v == 1)
+            ready_high_count = sum(1 for _, _, _, r, _ in self.debug_clk_src_signals if r == 1)
+            total_clk_src = len(self.debug_clk_src_signals)
+            self.log.info(f"  clk_src domain signal states:")
+            self.log.info(f"    Valid high: {valid_high_count}/{total_clk_src} cycles ({valid_high_count/total_clk_src*100:.1f}%)")
+            self.log.info(f"    Ready high: {ready_high_count}/{total_clk_src} cycles ({ready_high_count/total_clk_src*100:.1f}%)")
 
-        if self.debug_clkb_signals:
-            valid_high_count = sum(1 for _, _, v, _, _ in self.debug_clkb_signals if v == 1)
-            ready_high_count = sum(1 for _, _, _, r, _ in self.debug_clkb_signals if r == 1)
-            total_clkb = len(self.debug_clkb_signals)
-            self.log.info(f"  CLKB domain signal states:")
-            self.log.info(f"    Valid high: {valid_high_count}/{total_clkb} cycles ({valid_high_count/total_clkb*100:.1f}%)")
-            self.log.info(f"    Ready high: {ready_high_count}/{total_clkb} cycles ({ready_high_count/total_clkb*100:.1f}%)")
+        if self.debug_clk_dst_signals:
+            valid_high_count = sum(1 for _, _, v, _, _ in self.debug_clk_dst_signals if v == 1)
+            ready_high_count = sum(1 for _, _, _, r, _ in self.debug_clk_dst_signals if r == 1)
+            total_clk_dst = len(self.debug_clk_dst_signals)
+            self.log.info(f"  clk_dst domain signal states:")
+            self.log.info(f"    Valid high: {valid_high_count}/{total_clk_dst} cycles ({valid_high_count/total_clk_dst*100:.1f}%)")
+            self.log.info(f"    Ready high: {ready_high_count}/{total_clk_dst} cycles ({ready_high_count/total_clk_dst*100:.1f}%)")
 
         # Internal signals dump if available
         if self.internal_signals_available:
@@ -314,11 +314,11 @@ class CDCValidReadyS2FTB(TBBase):
                 pass
 
         # CDC latency analysis
-        if self.clka_transactions and self.clkb_transactions:
-            min_count = min(len(self.clka_transactions), len(self.clkb_transactions))
+        if self.clk_src_transactions and self.clk_dst_transactions:
+            min_count = min(len(self.clk_src_transactions), len(self.clk_dst_transactions))
             if min_count > 0:
                 latencies = [
-                    self.clkb_transactions[i][1] - self.clka_transactions[i][1]
+                    self.clk_dst_transactions[i][1] - self.clk_src_transactions[i][1]
                     for i in range(min_count)
                 ]
                 avg_latency = sum(latencies) / len(latencies)
@@ -332,26 +332,26 @@ class CDCValidReadyS2FTB(TBBase):
 
         self.log.info(f"=== END DEBUG SUMMARY ===")
 
-    async def _monitor_clka_domain(self, cycles):
+    async def _monitor_clk_src_domain(self, cycles):
         # sourcery skip: use-contextlib-suppress
         """Monitor transactions in clock domain A"""
-        self.log.debug(f"Monitoring clka domain for {cycles} cycles")
+        self.log.debug(f"Monitoring clk_src domain for {cycles} cycles")
 
         for cycle in range(cycles):
-            await RisingEdge(self.clka)
+            await RisingEdge(self.clk_src)
 
-            valid = int(self.valid_a.value)
-            ready = int(self.ready_a.value)
-            data = int(self.data_a.value)
+            valid = int(self.valid_src.value)
+            ready = int(self.ready_src.value)
+            data = int(self.data_src.value)
             time_ns = get_sim_time('ns')
 
             # Track all signal states for debugging
-            self.debug_clka_signals.append((cycle, time_ns, valid, ready, data))
+            self.debug_clk_src_signals.append((cycle, time_ns, valid, ready, data))
 
             # Record valid transactions (when valid and ready are both high)
             if valid and ready:
-                self.clka_transactions.append((cycle, time_ns, data))
-                self.log.debug(f"clka cycle {cycle}: Transaction @ {time_ns}ns (Valid={valid}, Ready={ready}, Data=0x{data:02x})")
+                self.clk_src_transactions.append((cycle, time_ns, data))
+                self.log.debug(f"clk_src cycle {cycle}: Transaction @ {time_ns}ns (Valid={valid}, Ready={ready}, Data=0x{data:02x})")
 
                 # Log internal state if available
                 if self.internal_signals_available:
@@ -361,9 +361,9 @@ class CDCValidReadyS2FTB(TBBase):
                     except Exception:
                         pass
 
-    async def _monitor_clkb_domain(self, cycles):
+    async def _monitor_clk_dst_domain(self, cycles):
         """Monitor transactions in clock domain B"""
-        self.log.debug(f"Monitoring clkb domain for {cycles} cycles")
+        self.log.debug(f"Monitoring clk_dst domain for {cycles} cycles")
 
         # Track valid pulses for verification
         valid_duration = 0
@@ -371,21 +371,21 @@ class CDCValidReadyS2FTB(TBBase):
         last_valid = 0
 
         for cycle in range(cycles):
-            await RisingEdge(self.clkb)
+            await RisingEdge(self.clk_dst)
 
-            valid = int(self.valid_b.value)
-            ready = int(self.ready_b.value)
-            data = int(self.data_b.value)
+            valid = int(self.valid_dst.value)
+            ready = int(self.ready_dst.value)
+            data = int(self.data_dst.value)
             time_ns = get_sim_time('ns')
 
             # Track all signal states for debugging
-            self.debug_clkb_signals.append((cycle, time_ns, valid, ready, data))
+            self.debug_clk_dst_signals.append((cycle, time_ns, valid, ready, data))
 
             # Detect rising edge of valid
             if valid == 1 and last_valid == 0:
                 valid_start_cycle = cycle
                 valid_duration = 1
-                self.log.debug(f"clkb cycle {cycle}: Valid pulse started @ {time_ns}ns")
+                self.log.debug(f"clk_dst cycle {cycle}: Valid pulse started @ {time_ns}ns")
 
             # Track ongoing valid pulse
             elif valid == 1:
@@ -394,7 +394,7 @@ class CDCValidReadyS2FTB(TBBase):
             elif valid == 0 and last_valid == 1:
                 self.valid_pulses.append((valid_start_cycle, cycle - 1))
                 self.valid_pulse_durations.append(valid_duration)
-                self.log.debug(f"clkb cycle {cycle}: Valid pulse ended, duration={valid_duration} @ {time_ns}ns")
+                self.log.debug(f"clk_dst cycle {cycle}: Valid pulse ended, duration={valid_duration} @ {time_ns}ns")
                 valid_duration = 0
                 valid_start_cycle = -1
 
@@ -402,8 +402,8 @@ class CDCValidReadyS2FTB(TBBase):
 
             # Record valid transactions (when valid and ready are both high)
             if valid and ready:
-                self.clkb_transactions.append((cycle, time_ns, data))
-                self.log.debug(f"clkb cycle {cycle}: Transaction @ {time_ns}ns (Valid={valid}, Ready={ready}, Data=0x{data:02x})")
+                self.clk_dst_transactions.append((cycle, time_ns, data))
+                self.log.debug(f"clk_dst cycle {cycle}: Transaction @ {time_ns}ns (Valid={valid}, Ready={ready}, Data=0x{data:02x})")
 
                 # Log internal state if available
                 if self.internal_signals_available:
@@ -414,7 +414,7 @@ class CDCValidReadyS2FTB(TBBase):
         if valid_start_cycle != -1:
             self.valid_pulses.append((valid_start_cycle, cycles - 1))
             self.valid_pulse_durations.append(valid_duration)
-            self.log.debug(f"clkb end: Valid pulse still active, duration so far={valid_duration}")
+            self.log.debug(f"clk_dst end: Valid pulse still active, duration so far={valid_duration}")
 
     async def drive_single_handshake(self, data_value, ready_delay=0, preset_ready=False):
         """
@@ -422,8 +422,8 @@ class CDCValidReadyS2FTB(TBBase):
 
         Args:
             data_value: The data to send
-            ready_delay: Number of cycles to delay ready_b assertion after valid_b
-            preset_ready: If True, assumes ready_b is already set externally
+            ready_delay: Number of cycles to delay ready_dst assertion after valid_dst
+            preset_ready: If True, assumes ready_dst is already set externally
 
         Returns:
             True if handshake completed successfully
@@ -431,75 +431,75 @@ class CDCValidReadyS2FTB(TBBase):
         self.log.info(f"Starting single handshake with data=0x{data_value:02x}, ready_delay={ready_delay}, preset_ready={preset_ready}")
 
         # Calculate monitoring cycles based on clock frequencies and expected CDC latency
-        clka_cycles = max(50, int(50 * self.CLKA_PERIOD_NS / 10))
-        clkb_cycles = max(50, int(50 * self.CLKB_PERIOD_NS / 10))
+        clk_src_cycles = max(50, int(50 * self.clk_src_PERIOD_NS / 10))
+        clk_dst_cycles = max(50, int(50 * self.clk_dst_PERIOD_NS / 10))
 
         # Start monitoring
-        monitor_task = cocotb.start_soon(self.monitor_a_to_b(clka_cycles, clkb_cycles))
+        monitor_task = cocotb.start_soon(self.monitor_a_to_b(clk_src_cycles, clk_dst_cycles))
 
         # Only start the responder task if not using preset ready
         respond_task = None
         if not preset_ready:
-            # Create a task to respond with ready_b when valid_b is detected
-            async def respond_with_ready_b():
-                # Wait for valid_b to be asserted
+            # Create a task to respond with ready_dst when valid_dst is detected
+            async def respond_with_ready_dst():
+                # Wait for valid_dst to be asserted
                 while not self.done:
-                    await RisingEdge(self.clkb)
-                    if int(self.valid_b.value) == 1:
+                    await RisingEdge(self.clk_dst)
+                    if int(self.valid_dst.value) == 1:
                         break
 
-                # Optional delay before asserting ready_b
+                # Optional delay before asserting ready_dst
                 for _ in range(ready_delay):
-                    await RisingEdge(self.clkb)
-                    if int(self.valid_b.value) == 0:  # If valid_b deasserts prematurely
-                        self.log.error("valid_b deasserted before ready_b was asserted!")
+                    await RisingEdge(self.clk_dst)
+                    if int(self.valid_dst.value) == 0:  # If valid_dst deasserts prematurely
+                        self.log.error("valid_dst deasserted before ready_dst was asserted!")
                         return False
 
-                # Assert ready_b to accept the data
-                self.ready_b.value = 1
+                # Assert ready_dst to accept the data
+                self.ready_dst.value = 1
 
-                # Wait one cycle and then deassert ready_b
-                await RisingEdge(self.clkb)
-                self.ready_b.value = 0
+                # Wait one cycle and then deassert ready_dst
+                await RisingEdge(self.clk_dst)
+                self.ready_dst.value = 0
 
                 return True
 
             # Start the responder task
-            respond_task = cocotb.start_soon(respond_with_ready_b())
+            respond_task = cocotb.start_soon(respond_with_ready_dst())
 
         try:
             # Drive the handshake from domain A
             time_ns = get_sim_time('ns')
-            self.log.debug(f'Driving valid_a and data=0x{data_value:02x} @ {time_ns}ns')
+            self.log.debug(f'Driving valid_src and data=0x{data_value:02x} @ {time_ns}ns')
 
-            # Assert valid_a and data
-            self.data_a.value = data_value
-            self.valid_a.value = 1
+            # Assert valid_src and data
+            self.data_src.value = data_value
+            self.valid_src.value = 1
 
-            # Wait for ready_a to be asserted (handshake completed in source domain)
+            # Wait for ready_src to be asserted (handshake completed in source domain)
             cycles_waited = 0
             max_wait_cycles = 5000  # Maximum cycles to wait
 
             while True:
-                await RisingEdge(self.clka)
+                await RisingEdge(self.clk_src)
                 cycles_waited += 1
 
-                if int(self.ready_a.value) == 1:
+                if int(self.ready_src.value) == 1:
                     time_ns = get_sim_time('ns')
-                    self.log.debug(f"ready_a asserted after {cycles_waited} cycles @ {time_ns}ns")
+                    self.log.debug(f"ready_src asserted after {cycles_waited} cycles @ {time_ns}ns")
                     break
 
                 if cycles_waited >= max_wait_cycles:
-                    self.log.error(f"ready_a not asserted after {max_wait_cycles} cycles!")
+                    self.log.error(f"ready_src not asserted after {max_wait_cycles} cycles!")
                     return False
 
-            # Deassert valid_a after handshake completes
-            self.valid_a.value = 0
-            self.data_a.value = 0
+            # Deassert valid_src after handshake completes
+            self.valid_src.value = 0
+            self.data_src.value = 0
 
             # Wait a bit to ensure all effects propagate
-            await self.wait_clocks('clka', 10)
-            await self.wait_clocks('clkb', 20)
+            await self.wait_clocks('clk_src', 10)
+            await self.wait_clocks('clk_dst', 20)
 
             # Verify respond_task completed successfully (if not using preset_ready)
             if respond_task is not None:
@@ -515,22 +515,22 @@ class CDCValidReadyS2FTB(TBBase):
 
         finally:
             # Clean up
-            self.valid_a.value = 0
-            self.data_a.value = 0
+            self.valid_src.value = 0
+            self.data_src.value = 0
 
-            # Don't deassert ready_b if preset_ready was True
+            # Don't deassert ready_dst if preset_ready was True
             # as it was set externally and should be cleared externally
             if not preset_ready:
-                self.ready_b.value = 0
+                self.ready_dst.value = 0
 
-    async def drive_multiple_handshakes(self, data_values, ready_delays=None, preset_ready_b=False):
+    async def drive_multiple_handshakes(self, data_values, ready_delays=None, preset_ready_dst=False):
         """
         Drive multiple handshakes with different data values - robust implementation
 
         Args:
             data_values: List of data values to send
-            ready_delays: List of ready_b delay cycles (optional)
-            preset_ready_b: If True, sets ready_b at the start to test ready-before-valid condition
+            ready_delays: List of ready_dst delay cycles (optional)
+            preset_ready_dst: If True, sets ready_dst at the start to test ready-before-valid condition
 
         Returns:
             True if all handshakes completed successfully
@@ -552,59 +552,59 @@ class CDCValidReadyS2FTB(TBBase):
         expected_transactions = len(data_values)
         monitor_task = cocotb.start_soon(self.monitor_a_to_b_with_target(expected_transactions))
 
-        # Set up valid_b response tracking
-        valid_b_response_needed = not preset_ready_b
+        # Set up valid_dst response tracking
+        valid_dst_response_needed = not preset_ready_dst
         valid_count = 0
-        ready_b_responder_active = True
+        ready_dst_responder_active = True
 
-        # If testing ready-before-valid, set ready_b now
-        if preset_ready_b:
-            self.ready_b.value = 1
+        # If testing ready-before-valid, set ready_dst now
+        if preset_ready_dst:
+            self.ready_dst.value = 1
 
-        # Launch a background task to monitor valid_b and respond with ready_b
-        async def monitor_and_respond_to_valid_b():
-            nonlocal valid_count, ready_b_responder_active
+        # Launch a background task to monitor valid_dst and respond with ready_dst
+        async def monitor_and_respond_to_valid_dst():
+            nonlocal valid_count, ready_dst_responder_active
 
-            # Keep running until we've seen all expected valid_b pulses
-            while valid_count < len(data_values) and ready_b_responder_active:
-                # Check for valid_b assertion on every clkb edge
-                await RisingEdge(self.clkb)
+            # Keep running until we've seen all expected valid_dst pulses
+            while valid_count < len(data_values) and ready_dst_responder_active:
+                # Check for valid_dst assertion on every clk_dst edge
+                await RisingEdge(self.clk_dst)
 
-                if int(self.valid_b.value) == 1:
-                    # Log valid_b detection
+                if int(self.valid_dst.value) == 1:
+                    # Log valid_dst detection
                     time_ns = get_sim_time('ns')
-                    self.log.debug(f"valid_b detected for transaction {valid_count+1} @ {time_ns}ns")
+                    self.log.debug(f"valid_dst detected for transaction {valid_count+1} @ {time_ns}ns")
 
                     # Get delay for this transaction
                     delay = ready_delays[valid_count % len(ready_delays)]
 
-                    # Apply configured delay before asserting ready_b
+                    # Apply configured delay before asserting ready_dst
                     for _ in range(delay):
-                        await RisingEdge(self.clkb)
-                        # Check if valid_b deasserted during delay
-                        if int(self.valid_b.value) == 0:
-                            self.log.error(f"valid_b deasserted during ready delay (transaction {valid_count+1})")
+                        await RisingEdge(self.clk_dst)
+                        # Check if valid_dst deasserted during delay
+                        if int(self.valid_dst.value) == 0:
+                            self.log.error(f"valid_dst deasserted during ready delay (transaction {valid_count+1})")
                             return False
 
-                    # Assert ready_b to accept the data
-                    self.ready_b.value = 1
-                    self.log.debug(f"Asserting ready_b for transaction {valid_count+1}")
+                    # Assert ready_dst to accept the data
+                    self.ready_dst.value = 1
+                    self.log.debug(f"Asserting ready_dst for transaction {valid_count+1}")
 
-                    # Wait one cycle and then deassert ready_b
-                    await RisingEdge(self.clkb)
-                    self.ready_b.value = 0
+                    # Wait one cycle and then deassert ready_dst
+                    await RisingEdge(self.clk_dst)
+                    self.ready_dst.value = 0
 
                     # Count this valid-ready handshake
                     valid_count += 1
 
-                    # Wait for valid_b to deassert before looking for next transaction
-                    while int(self.valid_b.value) == 1 and ready_b_responder_active:
-                        await RisingEdge(self.clkb)
+                    # Wait for valid_dst to deassert before looking for next transaction
+                    while int(self.valid_dst.value) == 1 and ready_dst_responder_active:
+                        await RisingEdge(self.clk_dst)
 
-        # Only start the responder if we're not using preset_ready_b
+        # Only start the responder if we're not using preset_ready_dst
         ready_response_task = None
-        if valid_b_response_needed:
-            ready_response_task = cocotb.start_soon(monitor_and_respond_to_valid_b())
+        if valid_dst_response_needed:
+            ready_response_task = cocotb.start_soon(monitor_and_respond_to_valid_dst())
 
         all_successful = True
 
@@ -615,55 +615,55 @@ class CDCValidReadyS2FTB(TBBase):
 
                 # Drive the handshake from domain A
                 time_ns = get_sim_time('ns')
-                self.log.debug(f'Driving valid_a and data=0x{data_value:02x} @ {time_ns}ns')
+                self.log.debug(f'Driving valid_src and data=0x{data_value:02x} @ {time_ns}ns')
 
-                # Assert valid_a and data
-                self.data_a.value = data_value
-                self.valid_a.value = 1
+                # Assert valid_src and data
+                self.data_src.value = data_value
+                self.valid_src.value = 1
 
-                # Wait for ready_a to be asserted (handshake completed in source domain)
+                # Wait for ready_src to be asserted (handshake completed in source domain)
                 cycles_waited = 0
                 max_wait_cycles = 5000  # Maximum cycles to wait
 
                 # Log state before waiting if debug signals available
                 if self.internal_signals_available:
-                    self.log.debug(f"Before waiting for ready_a: src_state={int(self.r_src_state.value)}, "
+                    self.log.debug(f"Before waiting for ready_src: src_state={int(self.r_src_state.value)}, "
                                 f"dst_state={int(self.r_dst_state.value)}, "
                                 f"r_req_a={int(self.r_req_a.value)}, r_ack_b={int(self.r_ack_b.value)}")
 
-                # Wait for ready_a with debug logging
+                # Wait for ready_src with debug logging
                 while True:
-                    await RisingEdge(self.clka)
+                    await RisingEdge(self.clk_src)
                     cycles_waited += 1
 
                     # Log periodic debug info
                     if cycles_waited % 100 == 0:
                         time_ns = get_sim_time('ns')
-                        self.log.debug(f"Still waiting for ready_a: {cycles_waited} cycles @ {time_ns}ns")
+                        self.log.debug(f"Still waiting for ready_src: {cycles_waited} cycles @ {time_ns}ns")
                         # Log current state of key signals
                         if self.internal_signals_available:
                             self.log.debug(f"  Current states: src={int(self.r_src_state.value)}, dst={int(self.r_dst_state.value)}")
                             self.log.debug(f"  Control signals: req_a={int(self.r_req_a.value)}, ack_b={int(self.r_ack_b.value)}")
-                            self.log.debug(f"  Interface signals: valid_b={int(self.valid_b.value)}, ready_b={int(self.ready_b.value)}")
+                            self.log.debug(f"  Interface signals: valid_dst={int(self.valid_dst.value)}, ready_dst={int(self.ready_dst.value)}")
 
-                    if int(self.ready_a.value) == 1:
+                    if int(self.ready_src.value) == 1:
                         time_ns = get_sim_time('ns')
-                        self.log.debug(f"ready_a asserted after {cycles_waited} cycles @ {time_ns}ns")
+                        self.log.debug(f"ready_src asserted after {cycles_waited} cycles @ {time_ns}ns")
                         break
 
                     if cycles_waited >= max_wait_cycles:
                         time_ns = get_sim_time('ns')
-                        self.log.error(f"ready_a not asserted after {max_wait_cycles} cycles for data {i+1} @ {time_ns}ns")
+                        self.log.error(f"ready_src not asserted after {max_wait_cycles} cycles for data {i+1} @ {time_ns}ns")
                         all_successful = False
                         break
 
-                # Deassert valid_a after handshake completes
-                self.valid_a.value = 0
-                self.data_a.value = 0
+                # Deassert valid_src after handshake completes
+                self.valid_src.value = 0
+                self.data_src.value = 0
 
                 # Wait a reasonable amount of time between transactions
                 # This helps prevent issues with back-to-back transactions
-                await self.wait_clocks('clka', 5)
+                await self.wait_clocks('clk_src', 5)
 
                 # Break early if there was a failure and we're in basic test mode
                 if not all_successful and self.TEST_LEVEL == 'basic':
@@ -673,37 +673,37 @@ class CDCValidReadyS2FTB(TBBase):
             await monitor_task
 
             # Verify expected number of transactions occurred
-            if len(self.clka_transactions) != expected_transactions:
-                self.log.error(f"Transaction count mismatch in A domain: expected {expected_transactions}, got {len(self.clka_transactions)}")
+            if len(self.clk_src_transactions) != expected_transactions:
+                self.log.error(f"Transaction count mismatch in A domain: expected {expected_transactions}, got {len(self.clk_src_transactions)}")
                 all_successful = False
 
-            if len(self.clkb_transactions) != expected_transactions:
-                self.log.error(f"Transaction count mismatch in B domain: expected {expected_transactions}, got {len(self.clkb_transactions)}")
+            if len(self.clk_dst_transactions) != expected_transactions:
+                self.log.error(f"Transaction count mismatch in B domain: expected {expected_transactions}, got {len(self.clk_dst_transactions)}")
                 all_successful = False
 
             # Verify all data values were transferred correctly
-            for i, ((_, _, data_a), (_, _, data_b)) in enumerate(zip(self.clka_transactions, self.clkb_transactions)):
-                if i < len(data_values) and (data_a != data_values[i] or data_b != data_values[i]):
-                    self.log.error(f"Data mismatch in transaction {i+1}: expected 0x{data_values[i]:02x}, got A=0x{data_a:02x}, B=0x{data_b:02x}")
+            for i, ((_, _, data_src), (_, _, data_dst)) in enumerate(zip(self.clk_src_transactions, self.clk_dst_transactions)):
+                if i < len(data_values) and (data_src != data_values[i] or data_dst != data_values[i]):
+                    self.log.error(f"Data mismatch in transaction {i+1}: expected 0x{data_values[i]:02x}, got A=0x{data_src:02x}, B=0x{data_dst:02x}")
                     all_successful = False
 
             # Verify transaction ordering (B transactions must occur after A)
-            for i, ((_, time_a, _), (_, time_b, _)) in enumerate(zip(self.clka_transactions, self.clkb_transactions)):
+            for i, ((_, time_a, _), (_, time_b, _)) in enumerate(zip(self.clk_src_transactions, self.clk_dst_transactions)):
                 if time_b <= time_a:
                     self.log.error(f"Transaction {i+1} timing error: A={time_a}ns, B={time_b}ns")
                     all_successful = False
 
         finally:
             # Clean up
-            self.valid_a.value = 0
-            self.data_a.value = 0
+            self.valid_src.value = 0
+            self.data_src.value = 0
 
             # Ensure responder is stopped
-            ready_b_responder_active = False
+            ready_dst_responder_active = False
 
-            # Clear ready_b if we set it
-            if preset_ready_b:
-                self.ready_b.value = 0
+            # Clear ready_dst if we set it
+            if preset_ready_dst:
+                self.ready_dst.value = 0
 
             # Cancel the response task if it exists and is still running
             if ready_response_task is not None and not ready_response_task.done():
@@ -723,46 +723,46 @@ class CDCValidReadyS2FTB(TBBase):
             True if verification passed, False otherwise
         """
         # Check transaction counts
-        clka_count = len(self.clka_transactions)
-        clkb_count = len(self.clkb_transactions)
+        clk_src_count = len(self.clk_src_transactions)
+        clk_dst_count = len(self.clk_dst_transactions)
 
-        self.log.info(f"Verifying handshake: clka_count={clka_count}, clkb_count={clkb_count}")
+        self.log.info(f"Verifying handshake: clk_src_count={clk_src_count}, clk_dst_count={clk_dst_count}")
 
-        if clka_count != clkb_count:
-            self.log.error(f"Transaction count mismatch: clka={clka_count}, clkb={clkb_count}")
+        if clk_src_count != clk_dst_count:
+            self.log.error(f"Transaction count mismatch: clk_src={clk_src_count}, clk_dst={clk_dst_count}")
             return False
 
-        if clka_count == 0:
+        if clk_src_count == 0:
             self.log.error("No transactions detected")
             return False
 
         # Verify data integrity
         if expected_data is not None:
-            for i, (_, _, data_a) in enumerate(self.clka_transactions):
-                if data_a != expected_data:
-                    self.log.error(f"Data mismatch in clka transaction {i}: expected=0x{expected_data:02x}, actual=0x{data_a:02x}")
+            for i, (_, _, data_src) in enumerate(self.clk_src_transactions):
+                if data_src != expected_data:
+                    self.log.error(f"Data mismatch in clk_src transaction {i}: expected=0x{expected_data:02x}, actual=0x{data_src:02x}")
                     return False
 
-            for i, (_, _, data_b) in enumerate(self.clkb_transactions):
-                if data_b != expected_data:
-                    self.log.error(f"Data mismatch in clkb transaction {i}: expected=0x{expected_data:02x}, actual=0x{data_b:02x}")
+            for i, (_, _, data_dst) in enumerate(self.clk_dst_transactions):
+                if data_dst != expected_data:
+                    self.log.error(f"Data mismatch in clk_dst transaction {i}: expected=0x{expected_data:02x}, actual=0x{data_dst:02x}")
                     return False
 
         # Verify data consistency between domains
-        for i, ((_, _, data_a), (_, _, data_b)) in enumerate(zip(self.clka_transactions, self.clkb_transactions)):
-            if data_a != data_b:
-                self.log.error(f"Data mismatch in transaction {i}: A=0x{data_a:02x}, B=0x{data_b:02x}")
+        for i, ((_, _, data_src), (_, _, data_dst)) in enumerate(zip(self.clk_src_transactions, self.clk_dst_transactions)):
+            if data_src != data_dst:
+                self.log.error(f"Data mismatch in transaction {i}: A=0x{data_src:02x}, B=0x{data_dst:02x}")
                 return False
 
-        # Verify transaction ordering (clkb transactions should come after clka)
-        for i, ((_, time_a, _), (_, time_b, _)) in enumerate(zip(self.clka_transactions, self.clkb_transactions)):
+        # Verify transaction ordering (clk_dst transactions should come after clk_src)
+        for i, ((_, time_a, _), (_, time_b, _)) in enumerate(zip(self.clk_src_transactions, self.clk_dst_transactions)):
             if time_b <= time_a:
                 self.log.error(f"Transaction {i} timing error: A={time_a}ns, B={time_b}ns")
                 return False
 
-        # Verify valid_b pulse behavior
-        if len(self.valid_pulses) != clka_count:
-            self.log.error(f"Valid pulse count mismatch: detected {len(self.valid_pulses)}, expected {clka_count}")
+        # Verify valid_dst pulse behavior
+        if len(self.valid_pulses) != clk_src_count:
+            self.log.error(f"Valid pulse count mismatch: detected {len(self.valid_pulses)}, expected {clk_src_count}")
             return False
 
         # All checks passed
@@ -771,7 +771,7 @@ class CDCValidReadyS2FTB(TBBase):
 
     async def run_back_pressure_test(self, data_value=0xA5):
         """
-        Test back-pressure by incrementally increasing ready_b delay
+        Test back-pressure by incrementally increasing ready_dst delay
 
         Args:
             data_value: Data value to use for testing
@@ -793,7 +793,7 @@ class CDCValidReadyS2FTB(TBBase):
 
         # First, test with standard ready-after-valid behavior
         for delay in range(0, max_delay + 1, 3):  # Test with increasing delays
-            self.log.info(f"Testing with ready_b delay of {delay} cycles")
+            self.log.info(f"Testing with ready_dst delay of {delay} cycles")
 
             # Reset for clean state
             await self.reset_dut()
@@ -810,31 +810,31 @@ class CDCValidReadyS2FTB(TBBase):
                 self.log.info(f"Back-pressure test passed with delay={delay}")
 
             # Wait between tests
-            await self.wait_clocks('clka', 5)
-            await self.wait_clocks('clkb', 10)
+            await self.wait_clocks('clk_src', 5)
+            await self.wait_clocks('clk_dst', 10)
 
         # Now, if still passing, test the preset ready scenario
         if all_passed and self.TEST_LEVEL != 'basic':
-            self.log.info("Testing preset ready_b scenario")
+            self.log.info("Testing preset ready_dst scenario")
             await self.reset_dut()
 
-            # Set ready_b before driving valid
-            self.ready_b.value = 1
+            # Set ready_dst before driving valid
+            self.ready_dst.value = 1
 
             # Wait a few cycles for stability
-            await self.wait_clocks('clkb', 5)
+            await self.wait_clocks('clk_dst', 5)
 
             # Drive a handshake with preset ready
             success = await self.drive_single_handshake(data_value, 0, preset_ready=True)
 
             if not success:
-                self.log.error("Back-pressure test failed with preset ready_b")
+                self.log.error("Back-pressure test failed with preset ready_dst")
                 all_passed = False
             else:
-                self.log.info("Back-pressure test passed with preset ready_b")
+                self.log.info("Back-pressure test passed with preset ready_dst")
 
-            # Clear ready_b for cleanup
-            self.ready_b.value = 0
+            # Clear ready_dst for cleanup
+            self.ready_dst.value = 0
 
         return all_passed
 
@@ -846,9 +846,9 @@ class CDCValidReadyS2FTB(TBBase):
             True if all tests passed
         """
         # Use the currently configured clock ratio
-        clka_period_ns = self.CLKA_PERIOD_NS
-        clkb_period_ns = self.CLKB_PERIOD_NS
-        ratio = clkb_period_ns / clka_period_ns
+        clk_src_period_ns = self.clk_src_PERIOD_NS
+        clk_dst_period_ns = self.clk_dst_PERIOD_NS
+        ratio = clk_dst_period_ns / clk_src_period_ns
 
         self.log.info(f"Running clock ratio test with ratio 1:{ratio:.1f}")
 
@@ -900,7 +900,7 @@ class CDCValidReadyS2FTB(TBBase):
 
             # For longer patterns, use a longer wait time between transactions
             wait_cycles = 30 if len(pattern) > 4 else 15
-            self.log.info(f"Using inter-transaction wait of {wait_cycles} clka cycles")
+            self.log.info(f"Using inter-transaction wait of {wait_cycles} clk_src cycles")
 
             # For other patterns, use the standard approach
             success = await self.drive_multiple_handshakes(pattern)
@@ -914,8 +914,8 @@ class CDCValidReadyS2FTB(TBBase):
                 self.log.info(f"Pattern test {pattern_idx+1} passed")
 
             # Wait between patterns
-            await self.wait_clocks('clka', 10)
-            await self.wait_clocks('clkb', 20)
+            await self.wait_clocks('clk_src', 10)
+            await self.wait_clocks('clk_dst', 20)
 
         return all_passed
 
@@ -942,15 +942,15 @@ class CDCValidReadyS2FTB(TBBase):
             # 2. Multiple handshakes test
             self.log.info("2. Running multiple handshakes test")
             await self.reset_dut()
-            multi_test_passed = await self.drive_multiple_handshakes([0xA5, 0x5A, 0xC3, 0x3C], preset_ready_b=False)
+            multi_test_passed = await self.drive_multiple_handshakes([0xA5, 0x5A, 0xC3, 0x3C], preset_ready_dst=False)
             if not multi_test_passed:
                 self.log.error("Multiple handshakes test failed")
                 all_passed = False
 
             # 2.5 Multiple handshakes test
-            self.log.info("2.5 Running multiple handshakes test, preset ready_b")
+            self.log.info("2.5 Running multiple handshakes test, preset ready_dst")
             await self.reset_dut()
-            multi_test_passed = await self.drive_multiple_handshakes([0xA5, 0x5A, 0xC3, 0x3C], preset_ready_b=True)
+            multi_test_passed = await self.drive_multiple_handshakes([0xA5, 0x5A, 0xC3, 0x3C], preset_ready_dst=True)
             if not multi_test_passed:
                 self.log.error("Multiple handshakes test failed")
                 all_passed = False
@@ -985,40 +985,40 @@ class CDCValidReadyS2FTB(TBBase):
         await self.reset_dut()
         data_values = [0x55, 0xAA, 0x33, 0xCC, 0xFF]
         ready_delays = [1, 5, 10, 15, 20]
-        ext_bp_test_passed = await self.drive_multiple_handshakes(data_values, ready_delays, preset_ready_b=False)
+        ext_bp_test_passed = await self.drive_multiple_handshakes(data_values, ready_delays, preset_ready_dst=False)
         if not ext_bp_test_passed:
             self.log.error("Extended back-pressure test failed")
             all_passed = False
 
         # 5.5 Additional advanced tests for full test level
-        self.log.info("5.1.5 Running additional tests for full test level, preset ready_b")
+        self.log.info("5.1.5 Running additional tests for full test level, preset ready_dst")
 
         # Extended back-pressure test with multiple data values and longer delays
-        self.log.info("5.1.5 Running extended back-pressure test, preset ready_b")
+        self.log.info("5.1.5 Running extended back-pressure test, preset ready_dst")
         await self.reset_dut()
         data_values = [0x55, 0xAA, 0x33, 0xCC, 0xFF]
         ready_delays = [1, 5, 10, 15, 20]
-        ext_bp_test_passed = await self.drive_multiple_handshakes(data_values, ready_delays, preset_ready_b=True)
+        ext_bp_test_passed = await self.drive_multiple_handshakes(data_values, ready_delays, preset_ready_dst=True)
         if not ext_bp_test_passed:
-            self.log.error("Extended back-pressure test failed with preset ready_b")
+            self.log.error("Extended back-pressure test failed with preset ready_dst")
             all_passed = False
 
         # Stress test with random data
         self.log.info("5.2 Running stress test with random data")
         await self.reset_dut()
         random_data = [random.randint(0, 255) for _ in range(20)]
-        stress_test_passed = await self.drive_multiple_handshakes(random_data, preset_ready_b=False)
+        stress_test_passed = await self.drive_multiple_handshakes(random_data, preset_ready_dst=False)
         if not stress_test_passed:
             self.log.error("Stress test failed")
             all_passed = False
 
         # Stress test with random data
-        self.log.info("5.2.5 Running stress test with random data, preset ready_b")
+        self.log.info("5.2.5 Running stress test with random data, preset ready_dst")
         await self.reset_dut()
         random_data = [random.randint(0, 255) for _ in range(20)]
-        stress_test_passed = await self.drive_multiple_handshakes(random_data, preset_ready_b=True)
+        stress_test_passed = await self.drive_multiple_handshakes(random_data, preset_ready_dst=True)
         if not stress_test_passed:
-            self.log.error("Stress test with preset ready_b failed")
+            self.log.error("Stress test with preset ready_dst failed")
             all_passed = False
 
         return all_passed
@@ -1031,8 +1031,8 @@ async def comprehensive_test(dut):
     tb = CDCValidReadyS2FTB(dut)
 
     # Start clocks with configured periods
-    await tb.start_clock('clka', tb.CLKA_PERIOD_NS, 'ns')
-    await tb.start_clock('clkb', tb.CLKB_PERIOD_NS, 'ns')
+    await tb.start_clock('clk_src', tb.clk_src_PERIOD_NS, 'ns')
+    await tb.start_clock('clk_dst', tb.clk_dst_PERIOD_NS, 'ns')
 
     # Run all tests
     passed = await tb.run_all_tests()
@@ -1043,19 +1043,19 @@ async def comprehensive_test(dut):
 
 @pytest.mark.parametrize("params", [
 
-    # clka slower than clkb
-    {'clka_period_ns':  15, 'clkb_period_ns': 10, 'test_level': 'full'}, # 'basic', 'medium', 'full'
-    {'clka_period_ns':  20, 'clkb_period_ns': 10, 'test_level': 'full'},
-    {'clka_period_ns':  50, 'clkb_period_ns': 10, 'test_level': 'full'},
-    {'clka_period_ns': 100, 'clkb_period_ns': 10, 'test_level': 'full'},
-    {'clka_period_ns': 200, 'clkb_period_ns': 10, 'test_level': 'full'},
+    # clk_src slower than clk_dst
+    {'clk_src_period_ns':  15, 'clk_dst_period_ns': 10, 'test_level': 'full'}, # 'basic', 'medium', 'full'
+    {'clk_src_period_ns':  20, 'clk_dst_period_ns': 10, 'test_level': 'full'},
+    {'clk_src_period_ns':  50, 'clk_dst_period_ns': 10, 'test_level': 'full'},
+    {'clk_src_period_ns': 100, 'clk_dst_period_ns': 10, 'test_level': 'full'},
+    {'clk_src_period_ns': 200, 'clk_dst_period_ns': 10, 'test_level': 'full'},
 
-    # # clka faster than clkb
-    {'clka_period_ns': 10, 'clkb_period_ns':  15, 'test_level': 'full'},
-    {'clka_period_ns': 10, 'clkb_period_ns':  20, 'test_level': 'full'},
-    {'clka_period_ns': 10, 'clkb_period_ns':  50, 'test_level': 'full'},
-    {'clka_period_ns': 10, 'clkb_period_ns': 100, 'test_level': 'full'},
-    {'clka_period_ns': 10, 'clkb_period_ns': 200, 'test_level': 'full'},
+    # # clk_src faster than clk_dst
+    {'clk_src_period_ns': 10, 'clk_dst_period_ns':  15, 'test_level': 'full'},
+    {'clk_src_period_ns': 10, 'clk_dst_period_ns':  20, 'test_level': 'full'},
+    {'clk_src_period_ns': 10, 'clk_dst_period_ns':  50, 'test_level': 'full'},
+    {'clk_src_period_ns': 10, 'clk_dst_period_ns': 100, 'test_level': 'full'},
+    {'clk_src_period_ns': 10, 'clk_dst_period_ns': 200, 'test_level': 'full'},
 
 ])
 def test_cdc_handshake(request, params):
@@ -1071,12 +1071,12 @@ def test_cdc_handshake(request, params):
     ]
 
     # Create a human-readable test identifier with clock ratio and test level
-    ratio = params['clka_period_ns'] / params['clkb_period_ns']
+    ratio = params['clk_src_period_ns'] / params['clk_dst_period_ns']
 
-    t_clka = params['clka_period_ns']
-    t_clkb = params['clkb_period_ns']
+    t_clk_src = params['clk_src_period_ns']
+    t_clk_dst = params['clk_dst_period_ns']
     t_name = params['test_level']
-    test_name_plus_params = f"test_{dut_name}_clka{t_clka}_clkb{t_clkb}_{t_name}"
+    test_name_plus_params = f"test_{dut_name}_clk_src{t_clk_src}_clk_dst{t_clk_dst}_{t_name}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Use it in the simbuild path
@@ -1100,12 +1100,12 @@ def test_cdc_handshake(request, params):
         'COCOTB_RESULTS_FILE': results_path,
         'SEED': str(0x414347), # str(seed),
         'TEST_LEVEL': params['test_level'],
-        'CLKA_PERIOD_NS': str(params['clka_period_ns']),
-        'CLKB_PERIOD_NS': str(params['clkb_period_ns'])
+        'clk_src_PERIOD_NS': str(params['clk_src_period_ns']),
+        'clk_dst_PERIOD_NS': str(params['clk_dst_period_ns'])
     }
 
     # Calculate timeout based on clock periods
-    timeout_factor = max(1.0, t_clka / 10, t_clkb / 10) * 50
+    timeout_factor = max(1.0, t_clk_src / 10, t_clk_dst / 10) * 50
     extra_env['COCOTB_TIMEOUT_MULTIPLIER'] = str(timeout_factor)
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)

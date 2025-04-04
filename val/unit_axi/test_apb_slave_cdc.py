@@ -132,7 +132,7 @@ class APBSlaveTB(TBBase):
             dut,
             'CMD Monitor',
             '',  # No prefix as we're using signal map
-            dut.pclk,
+            dut.aclk,
             field_config=self.cmd_field_config,
             is_slave=False,  # Monitoring master-side signals
             log=self.log,
@@ -145,7 +145,7 @@ class APBSlaveTB(TBBase):
             dut,
             'CMD Slave',
             '',  # No prefix as we're using signal map
-            dut.pclk,
+            dut.aclk,
             field_config=self.cmd_field_config,
             randomizer=self.gaxi_slave_randomizer,
             memory_model=self.mem,
@@ -188,7 +188,7 @@ class APBSlaveTB(TBBase):
             dut,
             'RSP Monitor',
             '',  # No prefix as we're using signal map
-            dut.pclk,
+            dut.aclk,
             field_config=self.rsp_field_config,
             is_slave=True,  # Monitoring slave-side signals
             log=self.log,
@@ -201,7 +201,7 @@ class APBSlaveTB(TBBase):
             dut,
             'RSP Master',
             '',  # No prefix as we're using signal map
-            dut.pclk,
+            dut.aclk,
             field_config=self.rsp_field_config,
             randomizer=self.gaxi_master_randomizer,
             log=self.log,
@@ -245,6 +245,7 @@ class APBSlaveTB(TBBase):
         self.log.debug('Starting reset_dut')
 
         # Reset DUT control signals
+        self.dut.aresetn.value = 0
         self.dut.presetn.value = 0
 
         # Reset command/response interface
@@ -264,6 +265,7 @@ class APBSlaveTB(TBBase):
         await self.wait_clocks('pclk', 5)
 
         # Release reset
+        self.dut.aresetn.value = 1
         self.dut.presetn.value = 1
 
         # Wait for stabilization
@@ -607,7 +609,7 @@ class APBSlaveTB(TBBase):
         )
 
 
-@cocotb.test(timeout_time=40, timeout_unit="us")
+@cocotb.test(timeout_time=10, timeout_unit="ms")
 async def apb_slave_test(dut):
     tb = APBSlaveTB(dut)
 
@@ -617,6 +619,7 @@ async def apb_slave_test(dut):
 
     # Start the clock
     print('Starting clk')
+    await tb.start_clock('aclk',  1, 'ns')
     await tb.start_clock('pclk', 10, 'ns')
 
     # Reset the DUT
@@ -683,11 +686,13 @@ def test_apb_slave(request, addr_width, data_width, depth):
     # get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common', 'rtl_axi': 'rtl/axi'})
 
-    dut_name = "apb_slave"
+    dut_name = "apb_slave_cdc"
     toplevel = dut_name
 
     verilog_sources = [
+        os.path.join(rtl_dict['rtl_axi'], "cdc_handshake.sv"),
         os.path.join(rtl_dict['rtl_axi'], "gaxi_skid_buffer.sv"),
+        os.path.join(rtl_dict['rtl_axi'], "apb_slave.sv"),
         os.path.join(rtl_dict['rtl_axi'], f"{dut_name}.sv")
     ]
 
@@ -718,8 +723,8 @@ def test_apb_slave(request, addr_width, data_width, depth):
     extra_env = {
         'DUT': dut_name,
         'LOG_PATH': log_path,
-        'COCOTB_LOG_LEVEL': 'INFO',
-        # 'COCOTB_LOG_LEVEL': 'DEBUG',
+        # 'COCOTB_LOG_LEVEL': 'INFO',
+        'COCOTB_LOG_LEVEL': 'DEBUG',
         'COCOTB_RESULTS_FILE': results_path,
         'SEED': str(random.randint(0, 100000))
     }

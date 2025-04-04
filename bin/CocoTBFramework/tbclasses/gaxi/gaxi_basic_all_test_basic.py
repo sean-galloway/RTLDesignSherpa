@@ -8,6 +8,36 @@ from .gaxi_basic_all_test_infra import GAXIBasicTestInfra, GAXITestSequences
 class GAXIBasicTestMethods(GAXIBasicTestInfra):
     """Basic test methods for GAXI testbenches"""
 
+    def __init__(self, dut, wr_clk=None, wr_rstn=None, rd_clk=None, rd_rstn=None,
+                config=None, field_mode='standard', multi_sig=False, 
+                is_async=False, gaxi_mode='skid'):
+        """
+        Initialize the basic test methods.
+
+        Args:
+            dut: Device under test
+            wr_clk: Write clock signal
+            wr_rstn: Write reset signal (active low)
+            rd_clk: Read clock signal (defaults to wr_clk if None)
+            rd_rstn: Read reset signal (defaults to wr_rstn if None)
+            config: TestConfig object
+            field_mode: Field configuration mode ('standard', 'multi', or 'multi_data')
+            multi_sig: Whether to use multi-signal mode
+            is_async: Whether this is an asynchronous buffer
+            gaxi_mode: GAXI mode ('skid', 'fifo_mux', or 'fifo_flop')
+        """
+        # Pass parameters to parent class
+        super().__init__(
+            dut,
+            wr_clk, wr_rstn,
+            rd_clk, rd_rstn,
+            config,
+            field_mode=field_mode,
+            multi_sig=multi_sig,
+            is_async=is_async,
+            gaxi_mode=gaxi_mode
+        )
+
     async def simple_incremental_loops(self, count, use_fast=True, delay_clks_after=20):
         """
         Run simple incremental tests with different packet sizes.

@@ -109,36 +109,8 @@ FIELD_CONFIGS = {
         }
     },
 
-    # Multi-signal mode - addr, ctrl, data fields
-    'multi': {
-        'addr': {
-            'bits': 32,  # Will be updated based on config
-            'default': 0,
-            'format': 'hex',
-            'display_width': 2,
-            'active_bits': (31, 0),  # Will be updated based on config
-            'description': 'Address value'
-        },
-        'ctrl': {
-            'bits': 8,  # Will be updated based on config
-            'default': 0,
-            'format': 'hex',
-            'display_width': 2,
-            'active_bits': (7, 0),  # Will be updated based on config
-            'description': 'Control value'
-        },
-        'data': {
-            'bits': 32,  # Will be updated based on config
-            'default': 0,
-            'format': 'hex',
-            'display_width': 4,
-            'active_bits': (31, 0),  # Will be updated based on config
-            'description': 'Data value'
-        }
-    },
-
-    # Multi-data mode - addr, ctrl, data0, data1 fields
-    'multi_data': {
+    # field mode - addr, ctrl, data0, data1 fields
+    'field': {
         'addr': {
             'bits': 32,  # Will be updated based on config
             'default': 0,

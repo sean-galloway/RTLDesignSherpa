@@ -276,33 +276,33 @@ module axi2apb_shim #(
     cdc_handshake #(
         .DATA_WIDTH(APBCmdWidth)
     ) u_cmd_cdc_handshake (
-        .clka          (aclk),
-        .rsta_n        (aresetn),
-        .valid_a       (w_cmd_valid),
-        .ready_a       (r_cmd_ready),
-        .data_a        (r_cmd_data),
+        .clk_src          (aclk),
+        .rst_src_n        (aresetn),
+        .valid_src       (w_cmd_valid),
+        .ready_src       (r_cmd_ready),
+        .data_src        (r_cmd_data),
 
-        .clkb          (pclk),
-        .rstb_n        (presetn),
-        .valid_b       (w_cmd_valid_apb),
-        .ready_b       (r_cmd_ready_apb),
-        .data_b        (r_cmd_data_apb)
+        .clk_dst          (pclk),
+        .rst_dst_n        (presetn),
+        .valid_dst       (w_cmd_valid_apb),
+        .ready_dst       (r_cmd_ready_apb),
+        .data_dst        (r_cmd_data_apb)
     );
 
     cdc_handshake #(
         .DATA_WIDTH(APBRspWidth)
     ) u_rsp_cdc_handshake (
-        .clka          (pclk),
-        .rsta_n        (presetn),
-        .valid_a       (r_rsp_valid_apb),
-        .ready_a       (w_rsp_ready_apb),
-        .data_a        (r_rsp_data_apb),
+        .clk_src         (pclk),
+        .rst_src_n       (presetn),
+        .valid_src       (r_rsp_valid_apb),
+        .ready_src       (w_rsp_ready_apb),
+        .data_src        (r_rsp_data_apb),
 
-        .clkb          (aclk),
-        .rstb_n        (aresetn),
-        .valid_b       (r_rsp_valid),
-        .ready_b       (w_rsp_ready),
-        .data_b        (r_rsp_data)
+        .clk_dst         (aclk),
+        .rst_dst_n       (aresetn),
+        .valid_dst       (r_rsp_valid),
+        .ready_dst       (w_rsp_ready),
+        .data_dst        (r_rsp_data)
     );
 
 

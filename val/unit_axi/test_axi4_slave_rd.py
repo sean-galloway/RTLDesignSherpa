@@ -17,7 +17,7 @@ from CocoTBFramework.tbclasses.tbbase import TBBase
 from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 
 # Import our interface and test classes
-from CocoTBFramework.tbclasses.axi4.axi4_slave_rd_usr_intf import Axi4SlaveRdUserIntf
+from CocoTBFramework.tbclasses.axi4.axi4_slave_rd_fub_intf import Axi4SlaveRdFubIntf
 from CocoTBFramework.tbclasses.axi4.axi4_slave_rd_mst_intf import Axi4SlaveRdAxi4Intf
 from CocoTBFramework.tbclasses.axi4.axi4_slave_rd_test import Axi4SlaveRdTests
 
@@ -57,7 +57,7 @@ class AXI4SlaveRDTB(TBBase):
         self._initialize_memory()
 
         # Create interface classes
-        self.user_intf = Axi4SlaveRdUserIntf(dut)
+        self.user_intf = Axi4SlaveRdFubIntf(dut)
         self.axi4_intf = Axi4SlaveRdAxi4Intf(dut, self.mem)
 
         # Create test implementation

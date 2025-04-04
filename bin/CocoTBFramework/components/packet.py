@@ -23,6 +23,7 @@ class Packet:
     - Customizable field value formatting
     - Automatic bit shifting for field packing/unpacking
     - Support for comparing packets with customizable field skipping
+    - Automatic masking of field values to prevent overflow
     """
     
     def __init__(self, field_config: Union[FieldConfig, Dict[str, Dict[str, Any]]], 
@@ -56,7 +57,43 @@ class Packet:
         # Set any provided initial values
         for field_name, value in kwargs.items():
             if field_name in self.fields:
-                self.fields[field_name] = value
+                # Use __setattr__ to ensure masking is applied
+                setattr(self, field_name, value)
+
+    def mask_field_value(self, value, field_name):
+        """
+        Mask a value to ensure it doesn't exceed the bit width of the specified field.
+        
+        This is useful to prevent values from overflowing their assigned fields.
+        The mask is created based on the field's bit width, not just the active bits.
+        
+        Args:
+            value: The value to mask
+            field_name: Name of the field whose bit width determines the mask
+            
+        Returns:
+            Value masked to fit within the field's bit width
+            
+        Raises:
+            AttributeError: If the field doesn't exist
+        """
+        if not self.field_config.has_field(field_name):
+            raise AttributeError(f"No field named '{field_name}' exists in this packet")
+            
+        field_def = self.field_config[field_name]
+        bits = field_def.bits
+        
+        # Create a mask with 1s in all positions defined by the field width
+        mask = (1 << bits) - 1
+        
+        # Apply mask to truncate any bits beyond the field width
+        masked_value = value & mask
+        
+        # If the value was changed by masking, log a warning
+        if masked_value != value:
+            print(f"WARNING: Value 0x{value:X} exceeds bit width ({bits}) for field '{field_name}', masked to 0x{masked_value:X}")
+            
+        return masked_value
 
     def __getattr__(self, name):
         """
@@ -78,16 +115,18 @@ class Packet:
     
     def __setattr__(self, name, value):
         """
-        Support direct attribute assignment for fields.
+        Support direct attribute assignment for fields with automatic value masking.
         
         Args:
             name: Field name to set
-            value: Value to assign
+            value: Value to assign (will be masked to fit field width)
         """
         # Check if we have fields initialized and if name is a field
         if 'fields' in self.__dict__ and name in self.__dict__['fields']:
+            # Apply masking before setting the field value
+            masked_value = self.mask_field_value(value, name)
             # Set field value in the fields dictionary
-            self.__dict__['fields'][name] = value
+            self.__dict__['fields'][name] = masked_value
         else:
             # Set as regular attribute
             object.__setattr__(self, name, value)
@@ -163,6 +202,7 @@ class Packet:
     def unpack_from_fifo(self, fifo_data):
         """
         Unpack FIFO data into full field values, applying appropriate bit field expansions.
+        Values are automatically masked to fit within the defined field widths.
         
         Args:
             fifo_data: Dictionary with field values from FIFO, or a single integer value
@@ -178,10 +218,14 @@ class Packet:
                 if field_name in self.fields:
                     # Expand from FIFO value to full field value
                     full_value = self.expand_from_fifo(fifo_value, field_name)
-                    self.fields[field_name] = full_value
+                    # Apply masking to ensure the value fits the field
+                    masked_value = self.mask_field_value(full_value, field_name)
+                    self.fields[field_name] = masked_value
         elif isinstance(fifo_data, int) and 'data' in self.fields:
             # Handle case when a single integer value is provided
-            self.fields['data'] = self.expand_from_fifo(fifo_data, 'data')
+            full_value = self.expand_from_fifo(fifo_data, 'data')
+            masked_value = self.mask_field_value(full_value, 'data')
+            self.fields['data'] = masked_value
             
         return self
     
@@ -194,7 +238,7 @@ class Packet:
         """
         return self.field_config.get_total_bits()
     
-    def _format_field(self, field_name, value):
+    def _format_field(self, field_name, value):  # sourcery skip: move-assign
         """
         Format a field value according to its configuration.
         

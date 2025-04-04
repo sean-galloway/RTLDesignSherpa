@@ -33,21 +33,16 @@ except ImportError:
 
         @staticmethod
         def create_full_empty_test_sequence(*args, **kwargs):
-            # Fallback implementation
-            sequence = GAXISequence(*args, **kwargs)
-            return sequence
+            return GAXISequence(*args, **kwargs)
 
 
 class GAXIBasicTestInfra(TBBase):
     """Infrastructure base class for GAXI testbenches with common methods"""
 
-    def __init__(self, dut,
-                wr_clk=None, wr_rstn=None,
-                rd_clk=None, rd_rstn=None,
-                config=None,
-                field_mode='standard',
-                field_configs=None,
-                randomizer_configs=None):
+    def __init__(self, dut, wr_clk=None, wr_rstn=None, rd_clk=None, rd_rstn=None,
+                config=None, field_mode='standard', multi_sig=False, 
+                is_async=False, gaxi_mode='skid', 
+                field_configs=None, randomizer_configs=None):
         """
         Initialize the base GAXI testbench.
 
@@ -57,8 +52,11 @@ class GAXIBasicTestInfra(TBBase):
             wr_rstn: Write reset signal (active low)
             rd_clk: Read clock signal (defaults to wr_clk if None)
             rd_rstn: Read reset signal (defaults to wr_rstn if None)
-            config: TestConfig object (created from environment if None)
+            config: TestConfig object
             field_mode: Field configuration mode ('standard', 'multi', or 'multi_data')
+            multi_sig: Whether to use multi-signal mode
+            is_async: Whether this is an asynchronous buffer
+            gaxi_mode: GAXI mode ('skid', 'fifo_mux', or 'fifo_flop')
             field_configs: Dictionary of field configurations (optional)
             randomizer_configs: Dictionary of randomizer configurations (optional)
         """
@@ -75,12 +73,12 @@ class GAXIBasicTestInfra(TBBase):
             self.FIELD_CONFIGS = field_configs
             self.RANDOMIZER_CONFIGS = randomizer_configs
 
-        # Load or create configuration
+        # Store configuration parameters
         self.config = config if config is not None else TestConfig.from_env()
-
-        # Set random seed
-        random.seed(self.config.seed)
-        self.log.info(f'Using random seed: {self.config.seed}')
+        self.field_mode = field_mode
+        self.multi_sig = multi_sig
+        self.is_async = is_async
+        self.gaxi_mode = gaxi_mode
 
         # Store clock and reset signals
         self.wr_clk = wr_clk
@@ -90,33 +88,12 @@ class GAXIBasicTestInfra(TBBase):
         self.rd_clk_name = self.wr_clk_name if rd_clk is None else rd_clk.name
         self.rd_rstn = self.wr_rstn if rd_rstn is None else rd_rstn
 
-        # Is this an async buffer?
-        self.is_async = (self.rd_clk != self.wr_clk) or ('async' in self.config.buffer_type)
-
         # Determine packet and signal configuration
-        self.use_multi_field_packets = hasattr(self, 'use_multi_field_packets') and self.use_multi_field_packets
-        self.use_multi_signals = hasattr(self, 'use_multi_signals') and self.use_multi_signals
-        self.use_multi_data = hasattr(self, 'use_multi_data') and self.use_multi_data
-
-        if not hasattr(self, 'use_multi_field_packets'):
-            # If not already set by derived class
-            self.use_multi_field_packets = self.config.buffer_type in ['multi', 'field']
-
-        if not hasattr(self, 'use_multi_signals'):
-            # If not already set by derived class
-            self.use_multi_signals = self.config.buffer_type == 'multi'
-
-        if not hasattr(self, 'use_multi_data'):
-            # If not already set by derived class
-            self.use_multi_data = 'data0' in str(dut).lower() and 'data1' in str(dut).lower()
-
-        # Adjust field_mode based on detection
-        if self.use_multi_data and field_mode == 'multi':
-            # Override to multi_data for multi-data buffers
-            field_mode = 'multi_data'
+        self.use_multi_field_packets = self.field_mode in ['multi', 'multi_data']
+        self.use_multi_signals = self.multi_sig
+        self.use_multi_data = self.field_mode == 'multi_data'
 
         # Create and configure field definitions
-        self.field_mode = field_mode
         self.field_config = self._create_field_config()
 
         # Create the scoreboard

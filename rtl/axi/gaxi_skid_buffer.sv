@@ -70,7 +70,8 @@ module gaxi_skid_buffer #(
         end
     end
 
-    assign o_rd_data  = r_data[DW-1:0]; // Output the lowest DW bits
+    // assign o_rd_data  = {r_data[DW-1:1], 1'b0}; // Output the lowest DW bits TODO: fix this
+    assign o_rd_data  = r_data[DW-1:0]; // Output the lowest DW bits TODO: fix this
     assign o_rd_count = r_data_count;
     assign ow_count   = r_data_count;
 

@@ -1,9 +1,10 @@
 """
 Factory functions for creating and configuring GAXI components
 """
-from CocoTBFramework.components.gaxi.gaxi_components import GAXIMaster, GAXISlave, GAXIMonitor
+from CocoTBFramework.components.gaxi.gaxi_master import GAXIMaster
+from CocoTBFramework.components.gaxi.gaxi_slave import GAXISlave
+from CocoTBFramework.components.gaxi.gaxi_monitor import GAXIMonitor
 from CocoTBFramework.components.memory_model import MemoryModel
-from CocoTBFramework.components.gaxi.gaxi_enhancements import EnhancedGAXIMaster, EnhancedGAXISlave
 from CocoTBFramework.scoreboards.gaxi_scoreboard import GAXIScoreboard
 from CocoTBFramework.components.field_config import FieldConfig, FieldDefinition
 

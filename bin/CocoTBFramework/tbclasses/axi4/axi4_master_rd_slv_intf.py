@@ -11,14 +11,13 @@ import random
 from cocotb.triggers import Timer
 
 from CocoTBFramework.tbclasses.tbbase import TBBase
+from CocoTBFramework.tbclasses.axi4.axi4_command_handlers import AXI4ReadCommandHandler
 from CocoTBFramework.components.axi4.axi4_factories import (
     create_axi4_master, create_axi4_slave, create_axi4_monitor
 )
 from CocoTBFramework.components.axi4.axi4_packets import AXI4Packet
-from CocoTBFramework.components.axi4.axi4_command_handlers import AXI4ReadCommandHandler
 from CocoTBFramework.components.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.memory_model import MemoryModel
-from CocoTBFramework.components.debug_object import get_object_details
 
 
 class Axi4MasterRdAxi4Intf(TBBase):

@@ -1,147 +1,99 @@
-"""GAXI Packet Implementation"""
-from typing import Dict, Any, List, Optional, Union
+"""GAXI Packet class with value masking implementation"""
+from typing import Dict, Any, Optional
+
 from CocoTBFramework.components.packet import Packet
 from CocoTBFramework.components.field_config import FieldConfig
+from CocoTBFramework.components.flex_randomizer import FlexRandomizer
 
 
 class GAXIPacket(Packet):
     """
-    GAXI-specific packet class for handling GAXI transactions.
-    
-    This class extends the base Packet class with GAXI-specific functionality.
-    It provides backward compatibility with the original GAXIPacket implementation.
+    Packet class for GAXI protocol with value masking to ensure values stay within field boundaries
     """
-    
-    def __init__(self, field_config: Union[FieldConfig, Dict[str, Dict[str, Any]]] = None, 
-                 skip_compare_fields: Optional[List[str]] = None, **kwargs):
+
+    def __init__(self, field_config: Optional[FieldConfig] = None, fields: Optional[Dict[str, int]] = None,
+                 master_randomizer: Optional[FlexRandomizer] = None,
+                 slave_randomizer: Optional[FlexRandomizer] = None):
         """
-        Initialize a GAXI packet with the given field configuration.
+        Initialize a GAXI packet with field masking.
+
+        Args:
+            field_config: Field configuration
+            fields: Optional initial field values
+            master_randomizer: Optional randomizer for master interface
+            slave_randomizer: Optional randomizer for slave interface
+        """
+        # Call parent constructor
+        super().__init__(field_config, fields)
+        
+        # Initialize GAXI-specific properties
+        self.master_randomizer = master_randomizer
+        self.slave_randomizer = slave_randomizer
+        self.master_delay = None
+        self.slave_delay = None
+
+    def _mask_field_value(self, field, value):
+        """
+        Mask a field value according to its maximum allowed value.
         
         Args:
-            field_config: Either a FieldConfig object or a dictionary of field definitions
-            skip_compare_fields: List of field names to skip during comparison operations
-            **kwargs: Initial values for fields (e.g., addr=0x123, data=0xABC)
-        """
-        # Use default GAXI field config if none provided
-        if field_config is None:
-            field_config = self._get_default_field_config()
-            
-        # Initialize base class
-        super().__init__(field_config, skip_compare_fields, **kwargs)
-    
-    @staticmethod
-    def _get_default_field_config():
-        """
-        Get default field configuration for GAXI packets.
-        
-        Returns:
-            Default GAXI field configuration
-        """
-        config = FieldConfig()
-        config.add_field_dict("data", {
-            'bits': 32,
-            'default': 0,
-            'format': 'hex',
-            'display_width': 8,
-            'active_bits': (31, 0),
-            'description': 'Data value'
-        })
-        return config
-    
-    @classmethod
-    def create_with_cmd_addr_data(cls, cmd_width=1, addr_width=32, data_width=32):
-        """
-        Create a GAXI packet with command, address, and data fields.
-        
-        Args:
-            cmd_width: Width of the command field in bits
-            addr_width: Width of the address field in bits
-            data_width: Width of the data field in bits
+            field: Field name
+            value: Original value
             
         Returns:
-            New GAXIPacket with cmd/addr/data field configuration
+            Masked value
         """
-        # Create field configuration
-        config = FieldConfig()
-        
-        # Add command field (0=read, 1=write)
-        config.add_field_dict("cmd", {
-            'bits': cmd_width,
-            'default': 0,
-            'format': 'bin',
-            'display_width': cmd_width,
-            'active_bits': (cmd_width-1, 0),
-            'description': 'Command (0=Read, 1=Write)'
-        })
-        
-        # Add address field
-        config.add_field_dict("addr", {
-            'bits': addr_width,
-            'default': 0,
-            'format': 'hex',
-            'display_width': addr_width // 4,
-            'active_bits': (addr_width-1, 0),
-            'description': 'Address'
-        })
-        
-        # Add data field
-        config.add_field_dict("data", {
-            'bits': data_width,
-            'default': 0,
-            'format': 'hex',
-            'display_width': data_width // 4,
-            'active_bits': (data_width-1, 0),
-            'description': 'Data'
-        })
-        
-        return cls(config)
-    
-    @classmethod
-    def create_with_addr_ctrl_data(cls, addr_width=4, ctrl_width=4, data_width=8, num_data=2):
-        """
-        Create a GAXI packet with address, control, and multiple data fields.
-        
-        Args:
-            addr_width: Width of the address field in bits
-            ctrl_width: Width of the control field in bits
-            data_width: Width of each data field in bits
-            num_data: Number of data fields
+        # Get field width from field_config
+        if self.field_config and field in self.field_config.field_names():
+            field_def = self.field_config.get_field(field)
+            field_width = field_def.bits
+            max_value = (1 << field_width) - 1
             
+            # Apply mask
+            masked_value = value & max_value
+            if masked_value != value:
+                self.log.warning(f"{field} value 0x{value:x} exceeds field width ({field_width} bits), masked to 0x{masked_value:x}")
+            return masked_value
+            
+        # If no field config or field not defined, return original value
+        return value
+
+    def __setitem__(self, field, value):
+        """Set a field value with masking"""
+        # Apply masking to the value
+        masked_value = self._mask_field_value(field, value)
+        # Use parent class's field storage
+        super().__setitem__(field, masked_value)
+
+    def set_master_randomizer(self, randomizer):
+        """Set the master randomizer"""
+        self.master_randomizer = randomizer
+
+    def set_slave_randomizer(self, randomizer):
+        """Set the slave randomizer"""
+        self.slave_randomizer = randomizer
+
+    def get_master_delay(self):
+        """
+        Get the delay for the master interface.
+        
         Returns:
-            New GAXIPacket with multi-data field configuration
+            Delay in cycles (0 if no randomizer)
         """
-        # Create field configuration
-        config = FieldConfig()
+        # Calculate and cache the delay if not already done
+        if self.master_delay is None and self.master_randomizer:
+            self.master_delay = self.master_randomizer.choose_valid_delay()
+        return self.master_delay or 0
+
+    def get_slave_delay(self):
+        """
+        Get the delay for the slave interface.
         
-        # Add address field
-        config.add_field_dict("addr", {
-            'bits': addr_width,
-            'default': 0,
-            'format': 'hex',
-            'display_width': (addr_width + 3) // 4,
-            'active_bits': (addr_width-1, 0),
-            'description': 'Address'
-        })
-        
-        # Add control field
-        config.add_field_dict("ctrl", {
-            'bits': ctrl_width,
-            'default': 0,
-            'format': 'hex',
-            'display_width': (ctrl_width + 3) // 4,
-            'active_bits': (ctrl_width-1, 0),
-            'description': 'Control'
-        })
-        
-        # Add data fields
-        for i in range(num_data):
-            config.add_field_dict(f"data{i}", {
-                'bits': data_width,
-                'default': 0,
-                'format': 'hex',
-                'display_width': (data_width + 3) // 4,
-                'active_bits': (data_width-1, 0),
-                'description': f'Data {i}'
-            })
-            
-        return cls(config)
+        Returns:
+            Delay in cycles (0 if no randomizer)
+        """
+        # Calculate and cache the delay if not already done
+        if self.slave_delay is None and self.slave_randomizer:
+            self.slave_delay = self.slave_randomizer.choose_ready_delay()
+        return self.slave_delay or 0
+

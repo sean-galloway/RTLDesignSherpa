@@ -1,5 +1,4 @@
 import itertools
-import math
 from rtl_generators.verilog.module import Module
 
 
@@ -61,13 +60,13 @@ class MultiplierMixin():
         N_padded = N + N % 3  # Pad N to be divisible by 3
         max_idx = 2 * N + (N // 3)  # Maximum index possible after Booth encoding
         bit_groups = {i: [] for i in range(max_idx)}  # Initialize up to maximum index
-        
+
         # Pad the multiplier and its 2's complement to be divisible by 3
         self.instruction(f"wire [{N_padded-1}:0] multiplier_padded = {{{{N_padded - N{{1'b0}}}}, i_multiplier}};")
         padding = f"{N_padded - N}{{1'b0}}"
         self.instruction(f'wire [{N_padded-1}:0] multiplier_padded = {{ {padding}, i_multiplier }};')
 
-        
+
         max_digits = len(str(N - 1))
         self.comment('Partial Products using Booth Radix-4')
 
@@ -137,7 +136,7 @@ class MultiplierMixin():
             else:
                 # Wire the sum and carry
                 self.instruction(f'wire {sum_name}, {carry_name};')
-                
+
                 ic_value = previous_carry or "1'b0"
                 fa_line = f'math_adder_full FA_{formatted_bit}(.i_a({variables[0]}), .i_b({variables[1]}), .i_c({ic_value}), .ow_sum({sum_name}), .ow_carry({carry_name}));'
                 self.instruction(fa_line)
@@ -161,7 +160,7 @@ class MultiplierMixin():
         ```python
         multiplier = MultiplierMixin()
         N = 8  # Set the buswidth
-        multiplier.generate_final_assignments(N)        
+        multiplier.generate_final_assignments(N)
         '''
         self.comment('Final product assignment')
 

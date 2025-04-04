@@ -26,11 +26,7 @@ class GaxiBasicBufferAllTB(GAXIBasicTestBase):
             wr_rstn: Write reset signal (active low)
             rd_clk: Read clock signal (defaults to wr_clk if None)
             rd_rstn: Read reset signal (defaults to wr_rstn if None)
-            buffer_type: The type of buffer to test:
-                - 'standard': Standard buffer with single data field
-                - 'multi': Multi-signal buffer with separate addr/ctrl/data signals
-                - 'field': Field-based buffer with combined signal structure
-                - 'async': Asynchronous buffer with separate read/write clocks
+            buffer_type: The type of buffer to test
             config: TestConfig object (created from environment if None)
         """
         # Create a config object if none provided
@@ -39,28 +35,22 @@ class GaxiBasicBufferAllTB(GAXIBasicTestBase):
 
         # Override buffer type from init parameter
         config.buffer_type = buffer_type
-
-        # Get DUT name from environment
-        dut_name = os.environ.get('DUT', '')
-
-        # Determine configuration flags based on parameters only, not DUT inspection
-        is_async = get_is_async(buffer_type, dut_name)
-
-        # Allow field mode for skid buffers - override with explicit field mode for field buffer_type
-        if buffer_type == 'field':
-            field_mode = 'multi'
-        else:
-            field_mode = get_field_mode(buffer_type, dut_name)
-
-        # Tell parent class about is_async for clock handling
-        self.is_async = is_async
-
+        
+        # Read all configuration parameters from environment
+        # This is the ONLY place in the codebase that should read these env vars
+        field_mode = os.environ.get('FIELD_MODE', 'standard')
+        multi_sig = os.environ.get('MULTI_SIG', 'false').lower() == 'true'
+        is_async = os.environ.get('IS_ASYNC', 'false').lower() == 'true' or ('async' in buffer_type)
+        gaxi_mode = os.environ.get('GAXI_MODE', config.mode)  # Default to config.mode
+        
         # Store configuration information
         self.buffer_type = buffer_type
         self.field_mode = field_mode
-
+        self.is_async = is_async
+        
         # Log the configuration for debugging
         print(f"Buffer Type: {buffer_type}, Field Mode: {field_mode}, Config Mode: {config.mode}")
+        print(f"Multi-sig: {multi_sig}, Is Async: {is_async}, GAXI Mode: {gaxi_mode}")
 
         # Call the parent class constructor
         super().__init__(
@@ -68,7 +58,10 @@ class GaxiBasicBufferAllTB(GAXIBasicTestBase):
             wr_clk, wr_rstn,
             rd_clk, rd_rstn,
             config,
-            field_mode
+            field_mode=field_mode,
+            multi_sig=multi_sig,
+            is_async=is_async,
+            gaxi_mode=gaxi_mode
         )
 
         # Setup BFM components based purely on configured buffer type
@@ -88,6 +81,8 @@ class GaxiBasicBufferAllTB(GAXIBasicTestBase):
         self.log.info(f"GaxiBufferAllTB initialized for buffer type: {buffer_type}, mode: {self.config.mode}")
         self.log.info(f"  - Async: {self.is_async}")
         self.log.info(f"  - Field mode: {self.field_mode}")
+        self.log.info(f"  - Multi-sig: {multi_sig}")
+        self.log.info(f"  - GAXI mode: {gaxi_mode}")
 
     def _setup_bfm_components(self):
         """Set up BFM components based on configuration parameters"""
@@ -391,27 +386,36 @@ class GaxiBasicBufferAllTB(GAXIBasicTestBase):
         )
 
     def _setup_async_multi_components(self):
+        # sourcery skip: merge-repeated-ifs, move-assign-in-block
         """Set up BFM components for asynchronous buffer with multi-signal interfaces"""
         self.log.info("Setting up asynchronous multi-signal components")
 
-        # Determine if we're using a standard buffer in field mode
+        # First determine if we're using a standard buffer in field mode
         using_standard_in_field_mode = self.config.mode == 'field' and self.buffer_type == 'standard'
 
         if using_standard_in_field_mode:
             self.log.info("Configuring standard buffer for field mode operation")
 
-        # Signal maps for the multi-signal async buffer
+        # Define signal mappings for multi-signal mode
+        # Required signals (valid/ready) for master
         master_signal_map = {
             'm2s_valid': 'i_wr_valid',
             's2m_ready': 'o_wr_ready'
         }
 
         # Optional signals (data fields) for master
-        master_optional_map = {
-            'm2s_pkt_addr': 'i_wr_addr' if not using_standard_in_field_mode else 'i_wr_data',
-            'm2s_pkt_ctrl': 'i_wr_ctrl' if not using_standard_in_field_mode else 'i_wr_data',
-            'm2s_pkt_data': 'i_wr_data'
-        }
+        if using_standard_in_field_mode:
+            master_optional_map = {
+                'm2s_pkt_addr': 'i_wr_data',
+                'm2s_pkt_ctrl': 'i_wr_data',
+                'm2s_pkt_data': 'i_wr_data'
+            }
+        else:
+            master_optional_map = {
+                'm2s_pkt_addr': 'i_wr_addr',
+                'm2s_pkt_ctrl': 'i_wr_ctrl',
+                'm2s_pkt_data': 'i_wr_data'
+            }
 
         # Required signals (valid/ready) for slave
         slave_signal_map = {
@@ -420,11 +424,18 @@ class GaxiBasicBufferAllTB(GAXIBasicTestBase):
         }
 
         # Optional signals (data fields) for slave
-        slave_optional_map = {
-            'm2s_pkt_addr': 'o_rd_addr' if not using_standard_in_field_mode else 'o_rd_data',
-            'm2s_pkt_ctrl': 'o_rd_ctrl' if not using_standard_in_field_mode else 'o_rd_data',
-            'm2s_pkt_data': 'o_rd_data'
-        }
+        if using_standard_in_field_mode:
+            slave_optional_map = {
+                'm2s_pkt_addr': 'o_rd_data',
+                'm2s_pkt_ctrl': 'o_rd_data',
+                'm2s_pkt_data': 'o_rd_data'
+            }
+        else:
+            slave_optional_map = {
+                'm2s_pkt_addr': 'o_rd_addr',
+                'm2s_pkt_ctrl': 'o_rd_ctrl',
+                'm2s_pkt_data': 'o_rd_data'
+            }
 
         # For fifo_mux mode, we also need to map to ow_rd_* signals
         if self.config.mode == 'fifo_mux':

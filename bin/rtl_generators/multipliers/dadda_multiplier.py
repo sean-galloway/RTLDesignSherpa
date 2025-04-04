@@ -21,13 +21,16 @@ class DaddaTree(Module, MultiplierMixin):
         self.module_name = f'{self.module_name}_{str(self.buswidth).zfill(3)}'
         self.params.set_param_value('N', self.buswidth)
 
-
     @staticmethod
     def generate_dadda_numbers(n=100):
         '''
         Generates a list of Dadda numbers.
 
-        The function generates a list of Dadda numbers based on the given value of `n`. The initial list contains the numbers 1 and 2. The function then iterates `n - 2` times and calculates the next Dadda number based on the previous number in the list. If the index is even, the next number is calculated by multiplying the previous number by 1.5 and rounding up. If the index is odd, the next number is calculated by multiplying the previous number by 4/3 and rounding up. The generated Dadda numbers are appended to the list and returned.
+        The function generates a list of Dadda numbers based on the given value of `n`. The initial list contains the numbers 1 and 2.
+        The function then iterates `n - 2` times and calculates the next Dadda number based on the previous number in the list.
+        If the index is even, the next number is calculated by multiplying the previous number by 1.5 and rounding up.
+        If the index is odd, the next number is calculated by multiplying the previous number by 4/3 and rounding up.
+        The generated Dadda numbers are appended to the list and returned.
 
         Args:
             n (int): The number of Dadda numbers to generate. Defaults to 100.
@@ -50,7 +53,6 @@ class DaddaTree(Module, MultiplierMixin):
             )
             dadda_numbers.append(next_dadda)
         return dadda_numbers
-
 
     @staticmethod
     def next_smaller_dadda_number(dadda_numbers, n):
@@ -75,7 +77,6 @@ class DaddaTree(Module, MultiplierMixin):
         '''
         return 1 if n is None else next((num for num in dadda_numbers if n > num), 1)
 
-
     def dadda_reduction(self, bit_groups, N):
         '''
         Performs Dadda reduction on the given bit groups.
@@ -96,7 +97,7 @@ class DaddaTree(Module, MultiplierMixin):
         bit_groups = {...}  # Populate the bit groups dictionary
         N = 8  # Set the buswidth
         reduced_bit_groups = multiplier.dadda_reduction(bit_groups, N)
-        print(reduced_bit_groups)        
+        print(reduced_bit_groups)
         '''
         max_digits_idx = len(str(2 * N - 1))
         max_digits_len = len(str(max(len(group) for group in bit_groups.values())))

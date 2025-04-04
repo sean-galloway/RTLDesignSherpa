@@ -8,7 +8,9 @@ from collections import deque
 from CocoTBFramework.tbclasses.tbbase import TBBase
 from CocoTBFramework.components.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
-from CocoTBFramework.components.gaxi.gaxi_components import GAXIMaster, GAXISlave, GAXIMonitor
+from CocoTBFramework.components.gaxi.gaxi_master import GAXIMaster
+from CocoTBFramework.components.gaxi.gaxi_slave import GAXISlave
+from CocoTBFramework.components.gaxi.gaxi_monitor import GAXIMonitor
 from CocoTBFramework.components.arbiter_monitor import WeightedRoundRobinArbiterMonitor
 from CocoTBFramework.components.field_config import FieldConfig
 
