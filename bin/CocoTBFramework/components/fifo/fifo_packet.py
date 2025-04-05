@@ -1,403 +1,98 @@
-'''Core FIFOPacket Class handling formatting and packing and unpacking'''
+"""FIFO Packet class with value masking implementation"""
+from typing import Dict, Any, Optional
 
-class FIFOPacket:
+from CocoTBFramework.components.packet import Packet
+from CocoTBFramework.components.field_config import FieldConfig
+from CocoTBFramework.components.flex_randomizer import FlexRandomizer
+
+
+class FIFOPacket(Packet):
     """
-    Highly configurable packet class for FIFO protocol transactions.
-
-    This class provides a flexible way to define packets with custom fields without
-    requiring subclassing. Fields are defined through a configuration dictionary,
-    and the ordering of fields in this dictionary determines their display order.
-
-    The class handles bit field transformations automatically during packing/unpacking:
-    - When packing: Full field values are adjusted according to active_bits for FIFO loading
-    - When unpacking: FIFO values are expanded back to full field values
-
-    Basic usage:
-        # 1. Define field configuration once
-        field_config = {
-            'addr': {
-                'bits': 32,
-                'default': 0,
-                'format': 'hex',
-                'display_width': 8,
-                'active_bits': (31, 5),  # Only bits 31:5 are active in FIFO
-                'description': 'Address'
-            },
-            'data': {
-                'bits': 32,
-                'default': 0,
-                'format': 'hex',
-                'display_width': 8,
-                'active_bits': (31, 0),  # All bits are active
-                'description': 'Data'
-            }
-        }
-
-        # 2. In master: Create packet with full values and pack for FIFO
-        master_packet = FIFOPacket(field_config, addr=0x12345678, data=0xABCD1234)
-        fifo_data = master_packet.pack_for_fifo()  # addr becomes right-shifted to fit active_bits
-
-        # 3. In slave: Unpack from FIFO data to get full field values
-        slave_packet = FIFOPacket(field_config)
-        slave_packet.unpack_from_fifo(fifo_data)  # addr is automatically left-shifted back
-
-        # 4. Compare packets (skipping specified fields)
-        are_equal = master_packet == slave_packet  # Will skip comparing fields in skip_compare_fields
+    Packet class for FIFO protocol with value masking to ensure values stay within field boundaries
     """
-    def __init__(self, field_config=None, skip_compare_fields=None, **kwargs):
+
+    def __init__(self, field_config: Optional[FieldConfig] = None, fields: Optional[Dict[str, int]] = None,
+                    master_randomizer: Optional[FlexRandomizer] = None,
+                    slave_randomizer: Optional[FlexRandomizer] = None):
         """
-        Initialize a configurable FIFO packet.
+        Initialize a FIFO packet with field masking.
 
         Args:
-            field_config: Dictionary of field definitions with configuration for each field.
-                Note: The order of fields in this dictionary determines their display order.
-
-                Each field should have:
-                - 'bits': number of bits in the hardware field
-                - 'default': default value
-                - 'format': format string (e.g., 'hex', 'bin', 'dec')
-                - 'display_width': fixed width for display (e.g., 8 for 8 hex chars)
-                - 'active_bits': tuple of (msb, lsb) for partial fields
-                - 'description': field description for display purposes
-
-            skip_compare_fields: List of field names to skip during comparison operations.
-                Defaults to ['start_time', 'end_time'] if None.
-
-            **kwargs: Initial values for fields (e.g., addr=0x123, data=0xABC)
+            field_config: Field configuration
+            fields: Optional initial field values
+            master_randomizer: Optional randomizer for master interface
+            slave_randomizer: Optional randomizer for slave interface
         """
-        self.start_time = 0
-        self.end_time = 0
+        # Call parent constructor
+        super().__init__(field_config, fields)
 
-        # Default to a simple data field if no config provided
-        self.field_config = field_config or {
-            'data': {
-                'bits': 32,
-                'default': 0,
-                'format': 'hex',
-                'display_width': 8,
-                'active_bits': (31, 0),
-                'description': 'Data value'
-            }
-        }
+        # Initialize FIFO-specific properties
+        self.master_randomizer = master_randomizer
+        self.slave_randomizer = slave_randomizer
+        self.master_delay = None
+        self.slave_delay = None
 
-        # Set fields to skip during comparison
-        self.skip_compare_fields = skip_compare_fields or ['start_time', 'end_time']
-
-        # Initialize all fields with their default values
-        self.fields = {}
-        for field_name, config in self.field_config.items():
-            # Get default from config or use 0
-            default_value = config.get('default', 0)
-            self.fields[field_name] = default_value
-
-        # Set any provided initial values
-        for field_name, value in kwargs.items():
-            if field_name in self.fields:
-                self.fields[field_name] = value
-
-    def __getattr__(self, name):
+    def _mask_field_value(self, field, value):
         """
-        Support direct attribute access for fields.
+        Mask a field value according to its maximum allowed value.
 
         Args:
-            name: Field name to access
+            field: Field name
+            value: Original value
 
         Returns:
-            Field value if it exists
-
-        Raises:
-            AttributeError: If the field doesn't exist
+            Masked value
         """
-        if name in self.fields:
-            return self.fields[name]
-        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+        # Get field width from field_config
+        if self.field_config and field in self.field_config.field_names():
+            field_def = self.field_config.get_field(field)
+            field_width = field_def.bits
+            max_value = (1 << field_width) - 1
 
-    def __setattr__(self, name, value):
+            # Apply mask
+            masked_value = value & max_value
+            if masked_value != value:
+                self.log.warning(f"{field} value 0x{value:x} exceeds field width ({field_width} bits), masked to 0x{masked_value:x}")
+            return masked_value
+
+        # If no field config or field not defined, return original value
+        return value
+
+    def __setitem__(self, field, value):
+        """Set a field value with masking"""
+        # Apply masking to the value
+        masked_value = self._mask_field_value(field, value)
+        # Use parent class's field storage
+        super().__setitem__(field, masked_value)
+
+    def set_master_randomizer(self, randomizer):
+        """Set the master randomizer"""
+        self.master_randomizer = randomizer
+
+    def set_slave_randomizer(self, randomizer):
+        """Set the slave randomizer"""
+        self.slave_randomizer = randomizer
+
+    def get_master_delay(self):
         """
-        Support direct attribute assignment for fields.
-
-        Args:
-            name: Field name to set
-            value: Value to assign
-        """
-        if name in ['start_time', 'end_time', 'field_config', 'fields', 'skip_compare_fields']:
-            # These are class attributes, not packet fields
-            super().__setattr__(name, value)
-        elif hasattr(self, 'fields') and name in self.fields:
-            # Set field value in the fields dictionary
-            self.fields[name] = value
-        else:
-            # Set as regular attribute
-            super().__setattr__(name, value)
-
-    def shift_for_fifo(self, value, field_name):
-        """
-        Convert a full field value to its FIFO representation by right-shifting.
-        For example, if addr[31:5] is 0x12345678, this returns 0x91A2B3 (shifted right by 5).
-
-        Args:
-            value: The full field value
-            field_name: Name of the field
+        Get the delay for the master interface.
 
         Returns:
-            Value adjusted according to active_bits configuration for FIFO
+            Delay in cycles (0 if no randomizer)
         """
-        if field_name not in self.field_config:
-            return value
+        # Calculate and cache the delay if not already done
+        if self.master_delay is None and self.master_randomizer:
+            self.master_delay = self.master_randomizer.choose_write_delay()
+        return self.master_delay or 0
 
-        config = self.field_config[field_name]
-        active_bits = config.get('active_bits', None)
-
-        if active_bits is None or active_bits[1] == 0:
-            return value
-
-        # Extract only the active bits by right-shifting
-        msb, lsb = active_bits
-        shifted_value = value >> lsb
-
-        # Create a mask for the active bits
-        active_width = msb - lsb + 1
-        mask = (1 << active_width) - 1
-
-        # Apply the mask to ensure we only keep the active bits
-        return shifted_value & mask
-
-    def expand_from_fifo(self, value, field_name):
+    def get_slave_delay(self):
         """
-        Expand a FIFO value to its full field representation by left-shifting.
-        For example, if addr[31:5] in FIFO is 0x91A2B3, this returns 0x12345660 (shifted left by 5).
-        Note that the lowest 5 bits will be zeros due to the shifting process.
-
-        Args:
-            value: The FIFO field value
-            field_name: Name of the field
+        Get the delay for the slave interface.
 
         Returns:
-            Value expanded according to active_bits configuration
+            Delay in cycles (0 if no randomizer)
         """
-        if field_name not in self.field_config:
-            return value
-
-        config = self.field_config[field_name]
-        active_bits = config.get('active_bits', None)
-
-        if active_bits is None or active_bits[1] == 0:
-            return value
-
-        # Left-shift to get the full field value
-        lsb = active_bits[1]
-        return value << lsb
-
-    def pack_for_fifo(self):
-        """
-        Pack the packet into a dictionary suitable for FIFO transmission,
-        applying appropriate bit field adjustments.
-
-        Returns:
-            Dictionary with field name and FIFO-adjusted values
-        """
-        fifo_data = {}
-        for field_name, value in self.fields.items():
-            # Apply bit shifting for FIFO
-            fifo_value = self.shift_for_fifo(value, field_name)
-            fifo_data[field_name] = fifo_value
-        return fifo_data
-
-    def unpack_from_fifo(self, fifo_data):
-        """
-        Unpack FIFO data into full field values, applying appropriate bit field expansions.
-        
-        Args:
-            fifo_data: Dictionary with field values from FIFO, or a single integer value
-                (which will be assigned to 'data' field if present)
-
-        Returns:
-            Self for chaining
-        """
-        # Handle both dictionary input and single value input
-        if isinstance(fifo_data, dict):
-            # Process dictionary of field values
-            for field_name, fifo_value in fifo_data.items():
-                if field_name in self.fields:
-                    # Expand from FIFO value to full field value
-                    full_value = self.expand_from_fifo(fifo_value, field_name)
-                    self.fields[field_name] = full_value
-        elif isinstance(fifo_data, int) and 'data' in self.fields:
-            # Handle case when a single integer value is provided
-            self.fields['data'] = self.expand_from_fifo(fifo_data, 'data')
-            
-        return self
-
-    def get_total_bits(self):
-        """
-        Calculate the total number of bits in the packet.
-
-        Returns:
-            Total number of bits across all fields
-        """
-        return sum(
-            config.get('bits', 0)
-            for _, config in self.field_config.items()
-        )
-
-    def _format_field(self, field_name, value):
-        """
-        Format a field value according to its configuration.
-
-        Args:
-            field_name: Name of the field to format
-            value: Value to format
-
-        Returns:
-            Formatted string representation of the value
-        """
-        if field_name not in self.field_config:
-            return str(value)
-
-        config = self.field_config[field_name]
-        fmt = config.get('format', 'hex')
-        bits = config.get('bits', 32)
-        display_width = config.get('display_width', 0)
-        active_bits = config.get('active_bits', None)
-
-        # Check for undefined values
-        if value == -1:
-            return "X/Z"  # Indicate undefined value
-
-        # Calculate appropriate width based on bits or display_width
-        if display_width > 0:
-            # Use explicit display width if provided
-            width = display_width
-        elif fmt == 'bin':
-            width = bits
-        elif fmt == 'hex':
-            width = (bits + 3) // 4  # Round up to nearest 4 bits
-        else:
-            width = 1  # Default for decimal is no padding
-
-        # Format based on specified format
-        if fmt == 'bin':
-            formatted = f"0b{value:0{width}b}"
-        elif fmt == 'dec':
-            formatted = f"{value:{width}d}"
-        else:
-            # Default to hex if unknown format
-            formatted = f"0x{value:0{width}X}"
-
-        # Include active bit range in display if specified
-        if active_bits is not None:
-            msb, lsb = active_bits
-            if msb != bits - 1 or lsb != 0:
-                # Only show bit range if it's not the full field
-                if msb == lsb:
-                    formatted = f"{formatted}[{msb}]"
-                else:
-                    formatted = f"{formatted}[{msb}:{lsb}]"
-
-        return formatted
-
-    def __str__(self):
-        """
-        Provide a detailed string representation of the packet.
-        Fields are displayed in the order they were defined in the field_config.
-
-        Returns:
-            Formatted string with all fields
-        """
-        result = [f"{self.__class__.__name__}:"]
-        # Find the longest field description for alignment
-        max_desc_len = max(
-            len(config.get('description', field_name))
-            for field_name, config in self.field_config.items()
-        )
-
-        # Add all fields with their formatted values
-        # Note: We iterate through field_config to preserve field order
-        for field_name, config in self.field_config.items():
-            value = self.fields[field_name]
-            description = config.get('description', field_name)
-            formatted_value = self._format_field(field_name, value)
-
-            # Pad the description to align values
-            padded_desc = description.ljust(max_desc_len)
-            result.append(f"  {padded_desc}: {formatted_value}")
-
-            # If this is a partial field, also show the FIFO value
-            active_bits = config.get('active_bits', None)
-            if active_bits and active_bits[1] > 0 and value != -1:  # Skip FIFO display for X/Z values
-                fifo_value = self.shift_for_fifo(value, field_name)
-                fifo_formatted = self._format_field(field_name, fifo_value)
-                result.append(f"  {' ' * max_desc_len}  FIFO: {fifo_formatted}")
-
-        # Add timing information if available
-        if self.start_time > 0:
-            result.append(f"  Start Time: {self.start_time} ns")
-        if self.end_time > 0:
-            result.extend(
-                (
-                    f"  End Time: {self.end_time} ns",
-                    f"  Duration: {self.end_time - self.start_time} ns",
-                )
-            )
-        return "\n".join(result)
-
-    def formatted(self, compact=False, show_fifo=False):
-        """
-        Return a formatted string representation.
-
-        Args:
-            compact: If True, return a more compact representation
-            show_fifo: If True, show FIFO values instead of full field values
-
-        Returns:
-            Formatted string representation
-        """
-        if not compact:
-            # Use the full string representation
-            return self.__str__()
-        # Compact representation with just field values
-        fields = []
-        for field_name, config in self.field_config.items():
-            value = self.fields[field_name]
-            if show_fifo and value != -1:  # Skip FIFO calculation for X/Z values
-                value = self.shift_for_fifo(value, field_name)
-            formatted_value = self._format_field(field_name, value)
-            fields.append(f"{field_name}={formatted_value}")
-        return f"{self.__class__.__name__}({', '.join(fields)})"
-
-    def __eq__(self, other):
-        """
-        Compare packets for equality, skipping fields in skip_compare_fields.
-        Also checks for undefined values (X/Z), which are typically represented as -1.
-
-        Args:
-            other: Another packet to compare with
-
-        Returns:
-            True if all non-skipped fields match and have defined values, False otherwise
-        """
-        if not isinstance(other, FIFOPacket):
-            return NotImplemented
-
-        # Compare all non-skipped fields
-        for field_name in self.field_config:
-            # Skip fields that are configured to be skipped during comparison
-            if field_name in self.skip_compare_fields:
-                continue
-
-            # Check if field exists in both packets
-            if field_name not in self.fields or field_name not in other.fields:
-                return False
-
-            self_value = self.fields[field_name]
-            other_value = other.fields[field_name]
-
-            # Check for undefined values (X/Z represented as -1 in simulation)
-            if self_value == -1 or other_value == -1:
-                return False  # Undefined values should cause comparison to fail
-
-            # Check if values match
-            if self_value != other_value:
-                return False
-
-        return True
+        # Calculate and cache the delay if not already done
+        if self.slave_delay is None and self.slave_randomizer:
+            self.slave_delay = self.slave_randomizer.choose_read_delay()
+        return self.slave_delay or 0

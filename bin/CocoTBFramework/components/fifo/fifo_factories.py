@@ -1,9 +1,12 @@
 """
 Factory functions for creating and configuring FIFO components
 """
-from CocoTBFramework.components.fifo.fifo_components import FIFOMaster, FIFOSlave, FIFOMonitor
+from CocoTBFramework.components.fifo.fifo_master import FIFOMaster
+from CocoTBFramework.components.fifo.fifo_slave import FIFOSlave
+from CocoTBFramework.components.fifo.fifo_monitor import FIFOMonitor
 from CocoTBFramework.components.memory_model import MemoryModel
 from CocoTBFramework.scoreboards.fifo_scoreboard import FIFOScoreboard
+from CocoTBFramework.components.field_config import FieldConfig, FieldDefinition
 
 # Default field configuration for FIFO components
 DEFAULT_FIELD_CONFIG = {
@@ -41,6 +44,59 @@ DEFAULT_SLAVE_MUX_OPTIONAL_SIGNAL_MAP = {
 }
 
 
+def get_default_field_config(data_width=32, addr_width=0, ctrl_width=0):
+    """
+    Get default field configuration for FIFO packets.
+
+    Args:
+        data_width: Data width in bits
+        addr_width: Address width in bits (0 to exclude)
+        ctrl_width: Control width in bits (0 to exclude)
+
+    Returns:
+        Field configuration dictionary or FieldConfig object
+    """
+    # Start with data-only configuration
+    config = FieldConfig()
+
+    # Add data field first
+    config.add_field(FieldDefinition(
+        name='data',
+        bits=data_width,
+        default=0,
+        format='hex',
+        display_width=(data_width + 3) // 4,
+        active_bits=(data_width-1, 0),
+        description='Data value'
+    ))
+
+    # Add address field if requested
+    if addr_width > 0:
+        config.add_field(FieldDefinition(
+            name='addr',
+            bits=addr_width,
+            default=0,
+            format='hex',
+            display_width=(addr_width + 3) // 4,
+            active_bits=(addr_width-1, 0),
+            description='Address'
+        ))
+
+    # Add control field if requested
+    if ctrl_width > 0:
+        config.add_field(FieldDefinition(
+            name='ctrl',
+            bits=ctrl_width,
+            default=0,
+            format='hex',
+            display_width=(ctrl_width + 3) // 4,
+            active_bits=(ctrl_width-1, 0),
+            description='Control'
+        ))
+
+    return config
+
+
 def create_fifo_master(dut, title, prefix, clock, field_config=None,
                        randomizer=None, memory_model=None,
                        memory_fields=None, log=None, signal_map=None,
@@ -66,7 +122,11 @@ def create_fifo_master(dut, title, prefix, clock, field_config=None,
         FIFOMaster instance
     """
     # Use default field config if none provided
-    field_config = field_config or DEFAULT_FIELD_CONFIG.copy()
+    if field_config is None:
+        field_config = get_default_field_config()
+    elif isinstance(field_config, dict):
+        # Convert dictionary to FieldConfig if needed
+        field_config = FieldConfig.validate_and_create(field_config)
 
     # Use default signal maps if none provided
     signal_map = signal_map or DEFAULT_MASTER_SIGNAL_MAP
@@ -115,11 +175,15 @@ def create_fifo_slave(dut, title, prefix, clock, field_config=None,
         FIFOSlave instance
     """
     # Use default field config if none provided
-    field_config = field_config or DEFAULT_FIELD_CONFIG.copy()
+    if field_config is None:
+        field_config = get_default_field_config()
+    elif isinstance(field_config, dict):
+        # Convert dictionary to FieldConfig if needed
+        field_config = FieldConfig.validate_and_create(field_config)
 
     # Use default signal maps if none provided
     signal_map = signal_map or DEFAULT_SLAVE_SIGNAL_MAP
-    
+
     # If no optional_signal_map provided, select based on mode
     if optional_signal_map is None:
         if mode == 'fifo_mux':
@@ -168,7 +232,11 @@ def create_fifo_monitor(dut, title, prefix, clock, field_config=None,
         FIFOMonitor instance
     """
     # Use default field config if none provided
-    field_config = field_config or DEFAULT_FIELD_CONFIG.copy()
+    if field_config is None:
+        field_config = get_default_field_config()
+    elif isinstance(field_config, dict):
+        # Convert dictionary to FieldConfig if needed
+        field_config = FieldConfig.validate_and_create(field_config)
 
     # Use default signal maps based on whether monitoring read or write port
     if signal_map is None:
@@ -216,7 +284,11 @@ def create_fifo_scoreboard(name, field_config=None, log=None):
         FIFOScoreboard instance
     """
     # Use default field config if none provided
-    field_config = field_config or DEFAULT_FIELD_CONFIG.copy()
+    if field_config is None:
+        field_config = get_default_field_config()
+    elif isinstance(field_config, dict):
+        # Convert dictionary to FieldConfig if needed
+        field_config = FieldConfig.validate_and_create(field_config)
 
     # Create scoreboard
     return FIFOScoreboard(name, field_config, log=log)
@@ -248,7 +320,11 @@ def create_fifo_components(dut, clock, title_prefix="", field_config=None,
         Dictionary containing all created components
     """
     # Use default field config if none provided
-    field_config = field_config or DEFAULT_FIELD_CONFIG.copy()
+    if field_config is None:
+        field_config = get_default_field_config()
+    elif isinstance(field_config, dict):
+        # Convert dictionary to FieldConfig if needed
+        field_config = FieldConfig.validate_and_create(field_config)
 
     # Use dut's logger if none provided
     log = log or getattr(dut, '_log', None)
@@ -265,7 +341,7 @@ def create_fifo_components(dut, clock, title_prefix="", field_config=None,
     master_signal_map = master_signal_map or DEFAULT_MASTER_SIGNAL_MAP
     master_optional_signal_map = master_optional_signal_map or DEFAULT_MASTER_OPTIONAL_SIGNAL_MAP
     slave_signal_map = slave_signal_map or DEFAULT_SLAVE_SIGNAL_MAP
-    
+
     # Select slave optional signal map based on mode if not provided
     if slave_optional_signal_map is None:
         if mode == 'fifo_mux':
@@ -332,52 +408,3 @@ def create_fifo_components(dut, clock, title_prefix="", field_config=None,
         'scoreboard': scoreboard,
         'memory_model': memory_model
     }
-
-
-def get_default_field_config(data_width=32, addr_width=0, ctrl_width=0):
-    """
-    Get default field configuration for FIFO packets.
-
-    Args:
-        data_width: Data width in bits
-        addr_width: Address width in bits (0 to exclude)
-        ctrl_width: Control width in bits (0 to exclude)
-
-    Returns:
-        Field configuration dictionary
-    """
-    # Start with data-only configuration
-    config = {
-        'data': {
-            'bits': data_width,
-            'default': 0,
-            'format': 'hex',
-            'display_width': (data_width + 3) // 4,
-            'active_bits': (data_width-1, 0),
-            'description': 'Data value'
-        }
-    }
-
-    # Add address field if requested
-    if addr_width > 0:
-        config['addr'] = {
-            'bits': addr_width,
-            'default': 0,
-            'format': 'hex',
-            'display_width': (addr_width + 3) // 4,
-            'active_bits': (addr_width-1, 0),
-            'description': 'Address'
-        }
-
-    # Add control field if requested
-    if ctrl_width > 0:
-        config['ctrl'] = {
-            'bits': ctrl_width,
-            'default': 0,
-            'format': 'hex',
-            'display_width': (ctrl_width + 3) // 4,
-            'active_bits': (ctrl_width-1, 0),
-            'description': 'Control'
-        }
-
-    return config
