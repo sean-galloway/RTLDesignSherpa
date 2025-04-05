@@ -4,7 +4,7 @@ import pprint
 import cocotb
 from collections import deque
 from cocotb_bus.drivers import BusDriver
-from cocotb.triggers import RisingEdge, FallingEdge, Timer
+from cocotb.triggers import RisingEdge, Timer
 from cocotb.utils import get_sim_time
 
 from ..flex_randomizer import FlexRandomizer
@@ -86,6 +86,8 @@ class GAXIMaster(BusDriver):
         self.title = title
         self.clock = clock
         self.timeout_cycles = timeout_cycles
+        self.tick_delay = 100
+        self.tick_units = 'ps'
         # Handle field_config - convert dict to FieldConfig if needed
         if isinstance(field_config, dict):
             self.field_config = FieldConfig.validate_and_create(field_config)
@@ -342,6 +344,7 @@ class GAXIMaster(BusDriver):
         await self.send(transaction)
         while self.transfer_busy:
             await RisingEdge(self.clock)
+        await Timer(self.tick_delay, units=self.tick_units)
 
     async def _driver_send(self, transaction, sync=True, hold=False, **kwargs):
         """
@@ -416,14 +419,14 @@ class GAXIMaster(BusDriver):
         if not hasattr(self.field_config, 'get_field'):
             # Can't perform check if field_config doesn't support get_field
             return field_value
-        
+
         try:
             field_def = self.field_config.get_field(field_name)
             bits = field_def.bits
-            
+
             # Calculate maximum value for this field
             max_value = (1 << bits) - 1
-            
+
             # Check if value exceeds maximum
             if field_value > max_value:
                 current_time = get_sim_time('ns')
@@ -431,13 +434,11 @@ class GAXIMaster(BusDriver):
                     f"GAXIMaster({self.title}) at {current_time}ns: Field '{field_name}' value 0x{field_value:X} "
                     f"exceeds maximum 0x{max_value:X} ({bits} bits). Value will be masked."
                 )
-                
-                # Mask the value
-                masked_value = field_value & max_value
-                return masked_value
+
+                return field_value & max_value
         except Exception as e:
             self.log.error(f"Error checking field value: {e}")
-            
+
         return field_value
 
     def _drive_signals(self, transaction):
@@ -459,7 +460,7 @@ class GAXIMaster(BusDriver):
                 for field_name, field_value in fifo_data.items():
                     # Check if value exceeds field capacity and mask if needed
                     field_value = self._check_field_value(field_name, field_value)
-                    
+
                     # For each field, look up the corresponding signal name
                     signal_name = f'm2s_pkt_{field_name}'
 
@@ -478,37 +479,31 @@ class GAXIMaster(BusDriver):
                             self.log.warning(f"Signal {dut_signal_name} registered but not found on DUT")
                     else:
                         self.log.debug(f"GAXIMaster({self.title}): No signal mapping for field {field_name}")
-            else:
-                # Standard mode: Use single data signal
-                # Check if there's only one field (typically 'data')
-                if len(fifo_data) == 1 and 'data' in fifo_data:
-                    # Simple case: only a data field
-                    field_value = self._check_field_value('data', fifo_data['data'])
-                    if self.pkt_sig:
-                        self.pkt_sig.value = field_value
-                else:
-                    # Multiple fields need to be packed into a single value
-                    if self.pkt_sig:
-                        combined_value = 0
-                        bit_offset = 0
+            elif len(fifo_data) == 1 and 'data' in fifo_data:
+                # Simple case: only a data field
+                field_value = self._check_field_value('data', fifo_data['data'])
+                if self.pkt_sig:
+                    self.pkt_sig.value = field_value
+            elif self.pkt_sig:
+                # Process fields in the order defined in field_config
+                field_names = self.field_config.field_names()
 
-                        # Process fields in the order defined in field_config
-                        field_names = self.field_config.field_names()
+                combined_value = 0
+                bit_offset = 0
+                for field_name in field_names:
+                    if field_name in fifo_data:
+                        # Get field definition from FieldConfig
+                        field_def = self.field_config.get_field(field_name)
+                        field_width = field_def.bits
 
-                        for field_name in field_names:
-                            if field_name in fifo_data:
-                                # Get field definition from FieldConfig
-                                field_def = self.field_config.get_field(field_name)
-                                field_width = field_def.bits
+                        # Check field value against its max value
+                        field_value = self._check_field_value(field_name, fifo_data[field_name])
 
-                                # Check field value against its max value
-                                field_value = self._check_field_value(field_name, fifo_data[field_name])
+                        # Shift and combine
+                        combined_value |= (field_value << bit_offset)
+                        bit_offset += field_width
 
-                                # Shift and combine
-                                combined_value |= (field_value << bit_offset)
-                                bit_offset += field_width
-
-                        self.pkt_sig.value = combined_value
+                self.pkt_sig.value = combined_value
 
             return True
         except Exception as e:
@@ -570,7 +565,8 @@ class GAXIMaster(BusDriver):
         ready_signal = self.signal_map.get('s2m_ready', 's2m_ready')
 
         while not getattr(self.bus, ready_signal).value:
-            await FallingEdge(self.clock)
+            await RisingEdge(self.clock)
+            await Timer(self.tick_delay, units=self.tick_units)
             timeout_counter += 1
             if timeout_counter >= self.timeout_cycles:
                 self.log.error(f"Master({self.title}) TIMEOUT waiting for ready after {self.timeout_cycles} cycles")
@@ -590,6 +586,7 @@ class GAXIMaster(BusDriver):
         """Third phase - capture handshake and prepare for next transaction"""
         # Handshake occurred – capture completion time
         await RisingEdge(self.clock)
+        await Timer(self.tick_delay, units=self.tick_units)
         current_time_ns = get_sim_time('ns')
         self.log.debug(f"Master({self.title}) Transaction completed at {current_time_ns}ns: "
                         f"{transaction.formatted(compact=True)}")
@@ -607,6 +604,7 @@ class GAXIMaster(BusDriver):
         self.log.debug(f'Master({self.title}): Transmit pipeline started, queue length: {len(self.transmit_queue)}')
         self.transfer_busy = True
         await RisingEdge(self.clock)
+        await Timer(self.tick_delay, units=self.tick_units)
 
         while len(self.transmit_queue):
             # Get next transaction from the queue
@@ -658,3 +656,4 @@ class GAXIMaster(BusDriver):
         """
         for _ in range(cycles):
             await RisingEdge(self.clock)
+        await Timer(self.tick_delay, units=self.tick_units)

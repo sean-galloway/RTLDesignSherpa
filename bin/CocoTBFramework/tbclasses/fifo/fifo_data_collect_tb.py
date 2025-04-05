@@ -1,4 +1,4 @@
-"""Testbench for fifo_data_collect module"""
+"""Testbench for data_collect module"""
 import os
 import logging
 import random
@@ -13,10 +13,9 @@ from CocoTBFramework.components.fifo.fifo_slave import FIFOSlave
 from CocoTBFramework.components.fifo.fifo_monitor import FIFOMonitor
 from CocoTBFramework.components.field_config import FieldConfig, FieldDefinition
 
-
-class FIFODataCollectScoreboard:
+class DataCollectScoreboard:
     """
-    Specialized scoreboard for fifo_data_collect module.
+    Specialized scoreboard for data_collect module.
 
     Features:
     - Separate queues for each input channel (A, B, C, D)
@@ -32,11 +31,14 @@ class FIFODataCollectScoreboard:
             self.input_field_config = FieldConfig.validate_and_create(input_field_config)
         else:
             self.input_field_config = input_field_config
-
+            
         if isinstance(output_field_config, dict):
             self.output_field_config = FieldConfig.validate_and_create(output_field_config)
         else:
             self.output_field_config = output_field_config
+
+        self.input_field_config = input_field_config
+        self.output_field_config = output_field_config
 
         # Create a logger if not provided
         if log is None:
@@ -155,7 +157,6 @@ class FIFODataCollectScoreboard:
         data1 = pkt1.data if hasattr(pkt1, 'data') else 0
         data2 = pkt2.data if hasattr(pkt2, 'data') else 0
         data3 = pkt3.data if hasattr(pkt3, 'data') else 0
-
         # Create a combined output packet
         output_pkt = FIFOPacket(self.output_field_config)
         output_pkt.id = id_value
@@ -225,7 +226,7 @@ class FIFODataCollectScoreboard:
         expected_data1 = expected.data1 if hasattr(expected, 'data1') else 0
         expected_data2 = expected.data2 if hasattr(expected, 'data2') else 0
         expected_data3 = expected.data3 if hasattr(expected, 'data3') else 0
-
+        
         actual_data0 = actual.data0 if hasattr(actual, 'data0') else 0
         actual_data1 = actual.data1 if hasattr(actual, 'data1') else 0
         actual_data2 = actual.data2 if hasattr(actual, 'data2') else 0
@@ -322,9 +323,9 @@ class FIFODataCollectScoreboard:
         return total_errors
 
 
-class FIFODataCollectTB(TBBase):
+class DataCollectTB(TBBase):
     """
-    Testbench for the fifo_data_collect module.
+    Testbench for the data_collect module.
     Features:
     - 4 input channels (A, B, C, D) with FIFO Masters
     - 1 output channel (E) with FIFO Slave
@@ -343,9 +344,6 @@ class FIFODataCollectTB(TBBase):
         self.OUTPUT_FIFO_DEPTH = self.convert_to_int(os.environ.get('OUTPUT_FIFO_DEPTH', '16'))
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
 
-        # Calculate DEPTH for FIFO components
-        self.DEPTH = 1 << self.ID_WIDTH
-
         # Initialize random generator
         random.seed(self.SEED)
 
@@ -354,7 +352,7 @@ class FIFODataCollectTB(TBBase):
         self.reset_n = self.dut.i_rst_n
 
         # Log configuration
-        self.log.info(f"FIFO Data Collect TB initialized with DATA_WIDTH={self.DATA_WIDTH}, ID_WIDTH={self.ID_WIDTH}")
+        self.log.info(f"Data Collect TB initialized with DATA_WIDTH={self.DATA_WIDTH}, ID_WIDTH={self.ID_WIDTH}")
         self.log.info(f"OUTPUT_FIFO_DEPTH={self.OUTPUT_FIFO_DEPTH}, SEED={self.SEED}")
 
         # Define field configuration for input channels (data+id)
@@ -363,7 +361,7 @@ class FIFODataCollectTB(TBBase):
             'bits': self.DATA_WIDTH,
             'default': 0,
             'format': 'hex',
-            'display_width': (self.DATA_WIDTH + 3) // 4,
+            'display_width': 2,
             'active_bits': (self.DATA_WIDTH-1, 0),
             'description': 'Data value'
         })
@@ -371,41 +369,61 @@ class FIFODataCollectTB(TBBase):
             'bits': self.ID_WIDTH,
             'default': 0,
             'format': 'hex',
-            'display_width': (self.ID_WIDTH + 3) // 4,
+            'display_width': 1,
             'active_bits': (self.ID_WIDTH-1, 0),
             'description': 'ID value'
         })
 
+
         # Define field configuration for output channel (id + 4 data fields)
-        chunks = 4  # As defined in the module parameter CHUNKS
         self.output_field_config = FieldConfig()
-
-        # Add 4 data fields (data0, data1, data2, data3)
-        for i in range(chunks):
-            self.output_field_config.add_field_dict(f'data{i}', {
-                'bits': self.DATA_WIDTH,
-                'default': 0,
-                'format': 'hex',
-                'display_width': (self.DATA_WIDTH + 3) // 4,
-                'active_bits': (self.DATA_WIDTH-1, 0),
-                'description': f'Data{i} value'
-            })
-
-        # Add ID field
+        self.output_field_config.add_field_dict('data0', {
+            'bits': self.DATA_WIDTH,
+            'default': 0,
+            'format': 'hex',
+            'display_width': 2,
+            'active_bits': (self.DATA_WIDTH-1, 0),
+            'description': 'Data0 value'
+        })
+        self.output_field_config.add_field_dict('data1', {
+            'bits': self.DATA_WIDTH,
+            'default': 0,
+            'format': 'hex',
+            'display_width': 2,
+            'active_bits': (self.DATA_WIDTH-1, 0),
+            'description': 'Data1 value'
+        })
+        self.output_field_config.add_field_dict('data2', {
+            'bits': self.DATA_WIDTH,
+            'default': 0,
+            'format': 'hex',
+            'display_width': 2,
+            'active_bits': (self.DATA_WIDTH-1, 0),
+            'description': 'Data2 value'
+        })
+        self.output_field_config.add_field_dict('data3', {
+            'bits': self.DATA_WIDTH,
+            'default': 0,
+            'format': 'hex',
+            'display_width': 2,
+            'active_bits': (self.DATA_WIDTH-1, 0),
+            'description': 'Data3 value'
+        })
         self.output_field_config.add_field_dict('id', {
             'bits': self.ID_WIDTH,
             'default': 0,
             'format': 'hex',
-            'display_width': (self.ID_WIDTH + 3) // 4,
+            'display_width': 1,
             'active_bits': (self.ID_WIDTH-1, 0),
             'description': 'ID value'
         })
 
         # Create randomizers for masters with different configurations
         self.randomizer_configs = {
-            'fast': {'write_delay': ([[0, 0]], [1])},                     # No delay
-            'moderate': {'write_delay': ([[0, 2], [3, 6]], [3, 1])},      # Moderate delay
-            'slow': {'write_delay': ([[0, 1], [2, 10], [11, 20]], [1, 3, 1])}  # Longer delay
+            'fast': {'valid_delay': ([[0, 0]], [1])},                      # No delay
+            'fixed': {'valid_delay': ([[2, 2]], [1])},                     # No delay
+            'moderate': {'valid_delay': ([[0, 2], [3, 6]], [3, 1])},       # Moderate delay
+            'slow': {'valid_delay': ([[0, 1], [2, 10], [11, 20]], [1, 3, 1])}  # Longer delay
         }
 
         # Create randomizers
@@ -414,10 +432,10 @@ class FIFODataCollectTB(TBBase):
         self.master_c_randomizer = FlexRandomizer(self.randomizer_configs['moderate'])
         self.master_d_randomizer = FlexRandomizer(self.randomizer_configs['moderate'])
         self.slave_e_randomizer = FlexRandomizer({
-            'read_delay': ([[0, 0], [1, 3], [4, 8]], [3, 2, 1])
+            'ready_delay': ([[0, 0], [1, 3], [4, 8]], [3, 2, 1])
         })
 
-        # Define signal maps for masters
+        # Define signal maps for masters/slaves/monitors
         self.master_a_map = {
             'i_write': 'i_a_write',
             'o_wr_full': 'o_a_full'
@@ -462,7 +480,7 @@ class FIFODataCollectTB(TBBase):
 
         # FIFO data collect uses mux mode
         self.slave_e_opt_map = {
-            'o_rd_data': 'o_e_data'
+            'ow_rd_data': 'o_e_data'
         }
 
         # Create FIFO masters for input channels
@@ -580,13 +598,35 @@ class FIFODataCollectTB(TBBase):
             log=self.log
         )
 
-        # Create specialized scoreboard for fifo_data_collect
-        self.scoreboard = FIFODataCollectScoreboard(
-            'DataCollect Scoreboard',
-            self.input_field_config,
-            self.output_field_config,
-            log=self.log
-        )
+        # Create specialized scoreboard for data_collect
+        self.scoreboard = DataCollectScoreboard('DataCollect Scoreboard',
+                                                self.input_field_config,
+                                                self.output_field_config,
+                                                log=self.log)
+
+        self.dut_arb = dut.inst_arbiter
+        # # Initialize the arbiter monitors
+        # try:
+        # Create Arbiter Monitor
+        # self.arbiter_monitor = WeightedRoundRobinArbiterMonitor(
+        #     dut=self.dut_arb,
+        #     title="WRR Arbiter Monitor",
+        #     clock=self.dut_arb.i_clk,
+        #     clock_period_ns=10,
+        #     reset_n=self.dut_arb.i_rst_n,
+        #     req_signal=self.dut_arb.i_req,
+        #     gnt_valid_signal=self.dut_arb.ow_gnt_valid,
+        #     gnt_signal=self.dut_arb.ow_gnt,
+        #     gnt_id_signal=self.dut_arb.ow_gnt_id,
+        #     gnt_ack_signal=self.dut_arb.i_gnt_ack if hasattr(self.dut, 'i_gnt_ack') else None,
+        #     block_arb_signal=self.dut_arb.i_block_arb,
+        #     max_thresh_signal=self.dut_arb.i_max_thresh,
+        #     clients=self.dut_arb.CLIENTS,
+        #     log=self.log
+        # )
+        # except (ImportError, AttributeError):
+        #     self.log.warning("WRR Monitor not available, skipping arbiter monitoring")
+        #     self.arbiter_monitor = None
 
         # Test counters
         self.total_errors = 0
@@ -656,72 +696,10 @@ class FIFODataCollectTB(TBBase):
         # Store the configuration for later analysis
         self.weight_configs.append((weight_a, weight_b, weight_c, weight_d))
 
-    async def wait_for_all_masters_idle(self):
-        """Wait until all masters have completed their transmissions"""
-        while (self.master_a.transfer_busy or
-                self.master_b.transfer_busy or
-                self.master_c.transfer_busy or
-                self.master_d.transfer_busy):
-            await self.wait_clocks('i_clk', 1)
-
-    async def send_packets_on_channel(self, channel, count, id_value=None, base_data=0):
-        """
-        Send packets on a specific channel
-
-        Args:
-            channel: Channel to send on ('A', 'B', 'C', or 'D')
-            count: Number of packets to send
-            id_value: ID value to use (None for channel default)
-            base_data: Base value for data (incremented for each packet)
-
-        Returns:
-            List of sent packets
-        """
-        # Choose the correct master and default ID
-        if channel == 'A':
-            master = self.master_a
-            default_id = 0xAA
-        elif channel == 'B':
-            master = self.master_b
-            default_id = 0xBB
-        elif channel == 'C':
-            master = self.master_c
-            default_id = 0xCC
-        elif channel == 'D':
-            master = self.master_d
-            default_id = 0xDD
-        else:
-            self.log.error(f"Unknown channel: {channel}")
-            return []
-
-        # Use provided ID or default
-        if id_value is None:
-            id_value = default_id
-
-        # Create and send packets
-        sent_packets = []
-        for i in range(count):
-            # Create packet
-            pkt = FIFOPacket(self.input_field_config)
-            pkt.id = id_value
-            pkt.data = (base_data + i) & ((1 << self.DATA_WIDTH) - 1)  # Mask to WIDTH bits
-
-            # Send packet
-            await master.send(pkt)
-
-            # Store packet for verification
-            sent_packets.append(pkt)
-
-            # Log every N packets
-            if (i + 1) % 20 == 0 or i == 0 or i == count - 1:
-                self.log.info(f"Sent {i+1}/{count} packets on channel {channel}")
-
-        return sent_packets
-
     def prepare_expected_output(self, input_packets, channel):
         """
         This method is used to add input packets to the scoreboard.
-        The actual grouping is handled by the scoreboard.
+        The actual grouping is now handled by the scoreboard.
 
         Args:
             input_packets: List of input packets
@@ -780,22 +758,84 @@ class FIFODataCollectTB(TBBase):
         """Set randomizer for slave"""
         if name == 'fixed':
             self.slave_e.set_randomizer(FlexRandomizer({
-                'read_delay': ([[2, 2]], [1])
+                'ready_delay': ([[2, 2]], [1])
             }))
-        elif name == 'fast':
+        if name == 'fast':
             self.slave_e.set_randomizer(FlexRandomizer({
-                'read_delay': ([[0, 0]], [1])
+                'ready_delay': ([[0, 0]], [1])
             }))
         elif name == 'slow':
             self.slave_e.set_randomizer(FlexRandomizer({
-                'read_delay': ([[0, 1], [2, 10], [11, 20]], [1, 3, 1])
+                'ready_delay': ([[0, 1], [2, 10], [11, 20]], [1, 3, 1])
             }))
         else:  # moderate (default)
             self.slave_e.set_randomizer(FlexRandomizer({
-                'read_delay': ([[0, 0], [1, 3], [4, 8]], [3, 2, 1])
+                'ready_delay': ([[0, 0], [1, 3], [4, 8]], [3, 2, 1])
             }))
 
         self.log.info(f"Set slave randomizer to {name}")
+
+    async def send_packets_on_channel(self, channel, count, id_value=None, base_data=0):
+        """
+        Send packets on a specific channel
+
+        Args:
+            channel: Channel to send on ('A', 'B', 'C', or 'D')
+            count: Number of packets to send
+            id_value: ID value to use (None for channel default)
+            base_data: Base value for data (incremented for each packet)
+
+        Returns:
+            List of sent packets
+        """
+        # Choose the correct master and default ID
+        if channel == 'A':
+            master = self.master_a
+            default_id = 0xAA
+        elif channel == 'B':
+            master = self.master_b
+            default_id = 0xBB
+        elif channel == 'C':
+            master = self.master_c
+            default_id = 0xCC
+        elif channel == 'D':
+            master = self.master_d
+            default_id = 0xDD
+        else:
+            self.log.error(f"Unknown channel: {channel}")
+            return []
+
+        # Use provided ID or default
+        if id_value is None:
+            id_value = default_id
+
+        # Create and send packets
+        sent_packets = []
+        for i in range(count):
+            # Create packet
+            pkt = FIFOPacket(self.input_field_config)
+            pkt.id = id_value
+            pkt.data = (base_data + i) & ((1 << self.DATA_WIDTH) - 1)  # Mask to WIDTH bits
+
+            # Send packet
+            await master.send(pkt)
+
+            # Store packet for verification
+            sent_packets.append(pkt)
+
+            # Log every N packets
+            if (i + 1) % 20 == 0 or i == 0 or i == count - 1:
+                self.log.info(f"Sent {i+1}/{count} packets on channel {channel}")
+
+        return sent_packets
+
+    async def wait_for_all_masters_idle(self):
+        """Wait until all masters have completed their transmissions"""
+        while (self.master_a.transfer_busy or
+                self.master_b.transfer_busy or
+                self.master_c.transfer_busy or
+                self.master_d.transfer_busy):
+            await self.wait_clocks('i_clk', 1)
 
     async def run_simple_test(self, packets_per_channel=40, expected_outputs=10):
         """
@@ -1055,478 +1095,3 @@ class FIFODataCollectTB(TBBase):
         errors = self.check_scoreboard()
 
         return errors == 0
-
-    async def run_mixed_timing_test(self):
-        """
-        Run a test with mixed timing on different channels.
-        Channel A is fast, B is moderate, C is slow, D is fast.
-        This tests the arbiter's ability to handle different input rates.
-
-        Returns:
-            True if test passed, False if failed
-        """
-        self.log.info("Starting mixed timing test")
-
-        # Reset system
-        await self.assert_reset()
-        await self.wait_clocks('i_clk', 10)
-        await self.deassert_reset()
-        await self.wait_clocks('i_clk', 10)
-
-        # Set different weights to match timing - giving higher weight to slower channels
-        self.set_arbiter_weights(4, 8, 12, 4)
-
-        # Clear the scoreboard
-        self.scoreboard.clear()
-
-        # Set different randomizer profiles for each channel
-        self.master_a.set_randomizer(self.get_randomizer_by_name('fast'))
-        self.master_b.set_randomizer(self.get_randomizer_by_name('moderate'))
-        self.master_c.set_randomizer(self.get_randomizer_by_name('slow'))
-        self.master_d.set_randomizer(self.get_randomizer_by_name('fast'))
-        self.set_slave_randomizer('moderate')
-
-        # Packet count for each channel - multiples of 4 for proper chunking
-        packets_per_channel = 40
-
-        # Send packets on each channel
-        send_tasks = [
-            cocotb.start_soon(
-                self.send_packets_on_channel('A', packets_per_channel, id_value=0xAA, base_data=0x100)
-            ),
-            cocotb.start_soon(
-                self.send_packets_on_channel('B', packets_per_channel, id_value=0xBB, base_data=0x200)
-            ),
-            cocotb.start_soon(
-                self.send_packets_on_channel('C', packets_per_channel, id_value=0xCC, base_data=0x300)
-            ),
-            cocotb.start_soon(
-                self.send_packets_on_channel('D', packets_per_channel, id_value=0xDD, base_data=0x400)
-            )
-        ]
-
-        # Wait for all sending tasks to complete
-        for task in send_tasks:
-            sent_packets = await task
-            # Add packets to scoreboard
-            for pkt in sent_packets:
-                self.scoreboard.add_input_packet(pkt)
-
-        # Wait for masters to finish transmitting
-        await self.wait_for_all_masters_idle()
-        self.log.info("All masters finished sending")
-
-        # Calculate expected number of output packets (each channel produces packets_per_channel/4 outputs)
-        total_expected_outputs = (packets_per_channel * 4) // 4
-
-        # Wait for expected outputs
-        await self.wait_for_expected_outputs(total_expected_outputs)
-
-        # Add received packets to scoreboard
-        self.add_received_packets_to_scoreboard()
-
-        # Wait a bit to ensure all packets have been processed
-        await self.wait_clocks('i_clk', 100)
-
-        # Check scoreboard
-        errors = self.check_scoreboard()
-
-        return errors == 0
-
-    async def run_sequence_test(self):
-        """
-        Run a sequential test where each channel sends packets in sequence.
-        This tests the arbiter's fairness when channels become active at different times.
-
-        Returns:
-            True if test passed, False if failed
-        """
-        self.log.info("Starting sequence test")
-
-        # Reset system
-        await self.assert_reset()
-        await self.wait_clocks('i_clk', 10)
-        await self.deassert_reset()
-        await self.wait_clocks('i_clk', 10)
-
-        # Set equal weights
-        self.set_arbiter_weights(8, 8, 8, 8)
-
-        # Clear the scoreboard
-        self.scoreboard.clear()
-
-        # Set fast randomizer for all channels
-        self.set_master_randomizers('fast', 'fast', 'fast', 'fast')
-        self.set_slave_randomizer('fast')
-
-        # Packet count for each channel - multiple of 4 for proper chunking
-        packets_per_channel = 40
-
-        # Send packets on channel A
-        sent_a = await self.send_packets_on_channel('A', packets_per_channel, id_value=0xAA, base_data=0x100)
-
-        # Wait a bit before sending on channel B
-        await self.wait_clocks('i_clk', 20)
-        sent_b = await self.send_packets_on_channel('B', packets_per_channel, id_value=0xBB, base_data=0x200)
-
-        # Wait a bit before sending on channel C
-        await self.wait_clocks('i_clk', 20)
-        sent_c = await self.send_packets_on_channel('C', packets_per_channel, id_value=0xCC, base_data=0x300)
-
-        # Wait a bit before sending on channel D
-        await self.wait_clocks('i_clk', 20)
-        sent_d = await self.send_packets_on_channel('D', packets_per_channel, id_value=0xDD, base_data=0x400)
-
-        # Add all sent packets to the scoreboard
-        for pkt in sent_a:
-            self.scoreboard.add_input_packet(pkt)
-        for pkt in sent_b:
-            self.scoreboard.add_input_packet(pkt)
-        for pkt in sent_c:
-            self.scoreboard.add_input_packet(pkt)
-        for pkt in sent_d:
-            self.scoreboard.add_input_packet(pkt)
-
-        # Wait for masters to finish transmitting
-        await self.wait_for_all_masters_idle()
-        self.log.info("All masters finished sending")
-
-        # Calculate expected number of output packets
-        total_expected_outputs = (packets_per_channel * 4) // 4
-
-        # Wait for expected outputs
-        await self.wait_for_expected_outputs(total_expected_outputs)
-
-        # Add received packets to scoreboard
-        self.add_received_packets_to_scoreboard()
-
-        # Wait a bit to ensure all packets have been processed
-        await self.wait_clocks('i_clk', 100)
-
-        # Check scoreboard
-        errors = self.check_scoreboard()
-
-        return errors == 0
-
-    async def run_pattern_test(self):
-        """
-        Run a test with specific bit patterns through all channels.
-        Tests data integrity with various bit patterns.
-
-        Returns:
-            True if test passed, False if failed
-        """
-        self.log.info("Starting pattern test")
-
-        # Reset system
-        await self.assert_reset()
-        await self.wait_clocks('i_clk', 10)
-        await self.deassert_reset()
-        await self.wait_clocks('i_clk', 10)
-
-        # Set equal weights
-        self.set_arbiter_weights(8, 8, 8, 8)
-
-        # Clear the scoreboard
-        self.scoreboard.clear()
-
-        # Set moderate timing
-        self.set_master_randomizers('moderate', 'moderate', 'moderate', 'moderate')
-        self.set_slave_randomizer('moderate')
-
-        # Define test patterns - should be multiples of 4 for proper chunking
-        patterns = [
-            0x00000000,                                      # All zeros
-            0xFFFFFFFF & ((1 << self.DATA_WIDTH) - 1),      # All ones
-            0x55555555 & ((1 << self.DATA_WIDTH) - 1),      # 0101...
-            0xAAAAAAAA & ((1 << self.DATA_WIDTH) - 1),      # 1010...
-            0x33333333 & ((1 << self.DATA_WIDTH) - 1),      # 0011...
-            0xCCCCCCCC & ((1 << self.DATA_WIDTH) - 1),      # 1100...
-            0x0F0F0F0F & ((1 << self.DATA_WIDTH) - 1),      # 00001111...
-            0xF0F0F0F0 & ((1 << self.DATA_WIDTH) - 1),      # 11110000...
-            0x00FF00FF & ((1 << self.DATA_WIDTH) - 1),      # 00000000 11111111...
-            0xFF00FF00 & ((1 << self.DATA_WIDTH) - 1),      # 11111111 00000000...
-            0x0000FFFF & ((1 << self.DATA_WIDTH) - 1),      # 16 zeros, 16 ones
-            0xFFFF0000 & ((1 << self.DATA_WIDTH) - 1),      # 16 ones, 16 zeros
-        ]
-
-        # Make sure pattern count is multiple of 4
-        pattern_count = (len(patterns) // 4) * 4
-        if pattern_count < len(patterns):
-            # Add padding patterns to make it multiple of 4
-            padding_needed = 4 - (len(patterns) % 4)
-            patterns.extend(0x00000000 for _ in range(padding_needed))
-        # Send the same patterns on each channel
-        send_tasks = []
-        for idx, channel in enumerate(['A', 'B', 'C', 'D']):
-            channel_packets = []
-            id_value = 0xAA + (idx * 0x11)  # 0xAA, 0xBB, 0xCC, 0xDD
-
-            for pattern in patterns:
-                # Create packet
-                pkt = FIFOPacket(self.input_field_config)
-                pkt.id = id_value
-                pkt.data = pattern
-                channel_packets.append(pkt)
-
-            # Send each pattern packet sequentially
-            send_tasks.append(cocotb.start_soon(
-                self._send_packet_list(channel, channel_packets)
-            ))
-
-        # Wait for all sending tasks to complete
-        for task in send_tasks:
-            await task
-
-        # Wait for masters to finish transmitting
-        await self.wait_for_all_masters_idle()
-        self.log.info("All pattern packets sent")
-
-        # Calculate expected outputs
-        total_expected_outputs = len(patterns) // 4  # Each output packet has 4 input patterns
-
-        # Wait for expected outputs
-        await self.wait_for_expected_outputs(total_expected_outputs)
-
-        # Add received packets to scoreboard
-        self.add_received_packets_to_scoreboard()
-
-        # Wait a bit to ensure all packets have been processed
-        await self.wait_clocks('i_clk', 100)
-
-        # Check scoreboard
-        errors = self.check_scoreboard()
-
-        return errors == 0
-
-    async def _send_packet_list(self, channel, packets):
-        """
-        Helper method to send a list of pre-created packets
-
-        Args:
-            channel: Channel to send on ('A', 'B', 'C', or 'D')
-            packets: List of packets to send
-
-        Returns:
-            List of sent packets
-        """
-        # Choose the correct master
-        if channel == 'A':
-            master = self.master_a
-        elif channel == 'B':
-            master = self.master_b
-        elif channel == 'C':
-            master = self.master_c
-        elif channel == 'D':
-            master = self.master_d
-        else:
-            self.log.error(f"Unknown channel: {channel}")
-            return []
-
-        # Send each packet and add to scoreboard
-        for i, pkt in enumerate(packets):
-            # Send packet
-            await master.send(pkt)
-
-            # Add to scoreboard
-            self.scoreboard.add_input_packet(pkt)
-
-            # Log every 20 packets
-            if (i + 1) % 20 == 0 or i == 0 or i == len(packets) - 1:
-                self.log.info(f"Sent {i+1}/{len(packets)} packets on channel {channel}")
-
-        return packets
-
-    async def run_fast_slow_test(self):
-        """
-        Run a test with fast producer (master) and slow consumer (slave).
-        Tests backpressure handling and full condition.
-
-        Returns:
-            True if test passed, False if failed
-        """
-        self.log.info("Starting fast producer / slow consumer test")
-
-        # Reset system
-        await self.assert_reset()
-        await self.wait_clocks('i_clk', 10)
-        await self.deassert_reset()
-        await self.wait_clocks('i_clk', 10)
-
-        # Set equal weights
-        self.set_arbiter_weights(4, 4, 4, 4)
-
-        # Clear the scoreboard
-        self.scoreboard.clear()
-
-        # Set fast producers (masters) and slow consumer (slave)
-        self.set_master_randomizers('fast', 'fast', 'fast', 'fast')
-        self.set_slave_randomizer('slow')
-
-        # Number of packets to send per channel
-        packets_per_channel = 20
-
-        # Send packets concurrently
-        send_tasks = [
-            cocotb.start_soon(
-                self.send_packets_on_channel('A', packets_per_channel, id_value=0xAA, base_data=0x100)
-            ),
-            cocotb.start_soon(
-                self.send_packets_on_channel('B', packets_per_channel, id_value=0xBB, base_data=0x200)
-            ),
-            cocotb.start_soon(
-                self.send_packets_on_channel('C', packets_per_channel, id_value=0xCC, base_data=0x300)
-            ),
-            cocotb.start_soon(
-                self.send_packets_on_channel('D', packets_per_channel, id_value=0xDD, base_data=0x400)
-            )
-        ]
-
-        # Wait for a brief period to let some data flow
-        await self.wait_clocks('i_clk', 100)
-
-        # Check if any of the full signals have been asserted - at least one should be
-        full_signals = [
-            self.dut.o_a_full.value,
-            self.dut.o_b_full.value,
-            self.dut.o_c_full.value,
-            self.dut.o_d_full.value
-        ]
-
-        # At least one channel should become full with slow consumer
-        full_asserted = any(full_signals)
-        if full_asserted:
-            self.log.info("Backpressure observed: At least one channel full signal asserted")
-        else:
-            self.log.warning("No backpressure observed: No full signals asserted")
-
-        # Now make slave read fast to drain the FIFOs
-        self.set_slave_randomizer('fast')
-
-        # Wait for all sending tasks to complete
-        for task in send_tasks:
-            sent_packets = await task
-            # Add packets to scoreboard
-            for pkt in sent_packets:
-                self.scoreboard.add_input_packet(pkt)
-
-        # Wait for masters to finish transmitting
-        await self.wait_for_all_masters_idle()
-
-        # Calculate expected outputs
-        total_expected_outputs = (packets_per_channel * 4) // 4
-
-        # Wait for expected outputs
-        await self.wait_for_expected_outputs(total_expected_outputs)
-
-        # Add received packets to scoreboard
-        self.add_received_packets_to_scoreboard()
-
-        # Wait a bit to ensure all packets have been processed
-        await self.wait_clocks('i_clk', 100)
-
-        # Check scoreboard
-        errors = self.check_scoreboard()
-
-        return errors == 0 and full_asserted
-
-    async def run_overflow_underflow_test(self):
-        """
-        Run a test that checks overflow and underflow conditions.
-        First fill FIFOs to trigger overflow, then drain to trigger underflow.
-
-        Returns:
-            True if test passed, False if failed
-        """
-        self.log.info("Starting overflow/underflow test")
-
-        # Reset system
-        await self.assert_reset()
-        await self.wait_clocks('i_clk', 10)
-        await self.deassert_reset()
-        await self.wait_clocks('i_clk', 10)
-
-        # Set equal weights
-        self.set_arbiter_weights(4, 4, 4, 4)
-
-        # Clear the scoreboard
-        self.scoreboard.clear()
-
-        # Set very fast masters and disabled slave (won't read)
-        self.set_master_randomizers('fast', 'fast', 'fast', 'fast')
-
-        # Custom extremely slow randomizer for slave
-        very_slow_randomizer = FlexRandomizer({
-            'read_delay': ([[100, 200]], [1])  # Very long delay to prevent reading
-        })
-        self.slave_e.set_randomizer(very_slow_randomizer)
-
-        # Send enough packets to overflow the FIFOs
-        packet_count = 10  # Should be enough to overflow the input FIFOs
-
-        # Start sending packets but don't wait for completion
-        send_tasks = [
-            cocotb.start_soon(
-                self.send_packets_on_channel('A', packet_count, id_value=0xAA, base_data=0x100)
-            ),
-            cocotb.start_soon(
-                self.send_packets_on_channel('B', packet_count, id_value=0xBB, base_data=0x200)
-            ),
-            cocotb.start_soon(
-                self.send_packets_on_channel('C', packet_count, id_value=0xCC, base_data=0x300)
-            ),
-            cocotb.start_soon(
-                self.send_packets_on_channel('D', packet_count, id_value=0xDD, base_data=0x400)
-            )
-        ]
-
-        # Wait for a while to let overflow happen
-        await self.wait_clocks('i_clk', 50)
-
-        # Check if full signals are asserted (should be with slow reader)
-        full_signals = [
-            self.dut.o_a_full.value,
-            self.dut.o_b_full.value,
-            self.dut.o_c_full.value,
-            self.dut.o_d_full.value
-        ]
-
-        overflow_detected = any(full_signals)
-
-        if overflow_detected:
-            self.log.info("Overflow condition detected")
-        else:
-            self.log.warning("Overflow condition not detected")
-
-        # Now set slave to fast to drain the FIFOs
-        self.set_slave_randomizer('fast')
-
-        # Wait for send tasks to complete
-        for task in send_tasks:
-            sent_packets = await task
-            # Add packets to scoreboard
-            for pkt in sent_packets:
-                self.scoreboard.add_input_packet(pkt)
-
-        # Wait for masters to finish transmitting
-        await self.wait_for_all_masters_idle()
-
-        # Wait for a while to let all data drain
-        await self.wait_clocks('i_clk', 100)
-
-        # Check if empty signal is asserted (underflow condition)
-        underflow_detected = self.dut.o_e_empty.value == 1
-
-        if underflow_detected:
-            self.log.info("Underflow condition detected")
-        else:
-            self.log.warning("Underflow condition not detected")
-
-        # Add received packets to scoreboard
-        self.add_received_packets_to_scoreboard()
-
-        # Check scoreboard
-        errors = self.check_scoreboard()
-
-        # Test passes if we detected both overflow and underflow conditions
-        return errors == 0 and overflow_detected and underflow_detected

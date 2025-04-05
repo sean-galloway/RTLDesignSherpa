@@ -94,6 +94,8 @@ class GAXISlave(BusMonitor):
         # Set up simple items
         self.title = title
         self.clock = clock
+        self.tick_delay = 100
+        self.tick_units = 'ps'
         self.timeout_cycles = timeout_cycles
         # Handle field_config - convert dict to FieldConfig if needed
         if isinstance(field_config, dict):
@@ -525,6 +527,7 @@ class GAXISlave(BusMonitor):
                 last_xfer = True
                 last_packet = packet
                 await RisingEdge(self.clock)
+                await Timer(self.tick_delay, units=self.tick_units)
                 return last_packet, last_xfer
             else:
                 # Capture data for this transaction
@@ -533,6 +536,7 @@ class GAXISlave(BusMonitor):
 
         # Deassert ready on the rising edge (prepare for next cycle or delay)
         await RisingEdge(self.clock)
+        await Timer(self.tick_delay, units=self.tick_units)
         self._set_rd_ready(0)
 
         # Default return values
@@ -568,3 +572,4 @@ class GAXISlave(BusMonitor):
         """Wait for a number of clock cycles."""
         for _ in range(cycles):
             await RisingEdge(self.clock)
+        await Timer(self.tick_delay, units=self.tick_units)

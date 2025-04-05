@@ -220,7 +220,93 @@ class FieldConfig:
             Dictionary representation of all fields
         """
         return {name: field_def.to_dict() for name, field_def in self.items()}
+
+    def debug_str(self, indent=0) -> str:
+        """
+        Return a formatted string representation of the field configuration.
         
+        Args:
+            indent: Number of spaces to indent the output
+            
+        Returns:
+            Formatted string showing all fields and their properties
+        """
+        indent_str = ' ' * indent
+        lines = [f"{indent_str}FieldConfig with {len(self)} fields:"]
+        
+        if not self._field_order:
+            lines.append(f"{indent_str}  (empty)")
+            return '\n'.join(lines)
+        
+        # Determine column widths for alignment
+        name_width = max(len(name) for name in self._field_order)
+        bits_width = max(len(str(field.bits)) for field in self.fields())
+        format_width = max(len(field.format) for field in self.fields())
+        active_width = max(len(f"({field.active_bits[0]}:{field.active_bits[1]})") for field in self.fields())
+        default_width = max(len(f"0x{field.default:X}" if field.format == 'hex' else str(field.default)) 
+                            for field in self.fields())
+        
+        # Header
+        lines.append(f"{indent_str}  {'Field Name'.ljust(name_width)} | {'Bits'.ljust(bits_width)} | "
+                    f"{'Format'.ljust(format_width)} | {'Active Bits'.ljust(active_width)} | {'Default'.ljust(default_width)} | Description")
+        lines.append(f"{indent_str}  {'-' * name_width}-+-{'-' * bits_width}-+-"
+                    f"{'-' * format_width}-+-{'-' * active_width}-+-{'-' * default_width}-+-{'-' * 11}")
+        
+        # Fields
+        for name, field_def in self.items():
+            active_bits_str = f"({field_def.active_bits[0]}:{field_def.active_bits[1]})"
+            default_str = f"0x{field_def.default:X}" if field_def.format == 'hex' else str(field_def.default)
+            
+            lines.append(f"{indent_str}  {name.ljust(name_width)} | "
+                        f"{str(field_def.bits).ljust(bits_width)} | "
+                        f"{field_def.format.ljust(format_width)} | "
+                        f"{active_bits_str.ljust(active_width)} | "
+                        f"{default_str.ljust(default_width)} | "
+                        f"{field_def.description}")
+        
+        # Total bits
+        total_bits = self.get_total_bits()
+        lines.append(f"{indent_str}  {'-' * name_width}-+-{'-' * bits_width}-+-"
+                    f"{'-' * format_width}-+-{'-' * active_width}-+-{'-' * default_width}-+-{'-' * 11}")
+        lines.append(f"{indent_str}  Total bits: {total_bits}")
+        
+        return '\n'.join(lines)
+
+    def __str__(self) -> str:
+        """String representation of the FieldConfig"""
+        return self.debug_str()
+
+    def __repr__(self) -> str:
+        """Detailed representation of the FieldConfig"""
+        return self.debug_str()
+
+    def update_field_width(self, field_name: str, new_bits: int, update_active_bits: bool = True) -> 'FieldConfig':
+        """
+        Update a field's bit width and optionally its active bits.
+        
+        Args:
+            field_name: Name of the field to update
+            new_bits: New bit width
+            update_active_bits: If True, also update active_bits to full range
+            
+        Returns:
+            Self for method chaining
+        """
+        if field_name not in self._fields:
+            raise KeyError(f"Field '{field_name}' not found in configuration")
+            
+        field_def = self._fields[field_name]
+        field_def.bits = new_bits
+        
+        if update_active_bits:
+            field_def.active_bits = (new_bits - 1, 0)
+            
+        # Update display width if using hex format
+        if field_def.format == 'hex':
+            field_def.display_width = (new_bits + 3) // 4
+            
+        return self
+
     @classmethod
     def from_dict(cls, field_dict: Dict[str, Dict[str, Any]]) -> 'FieldConfig':
         """

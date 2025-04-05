@@ -2,7 +2,7 @@
 import cocotb
 from collections import deque
 from cocotb_bus.drivers import BusDriver
-from cocotb.triggers import RisingEdge, FallingEdge, Timer
+from cocotb.triggers import RisingEdge, Timer
 from cocotb.utils import get_sim_time
 
 from ..flex_randomizer import FlexRandomizer
@@ -74,6 +74,8 @@ class FIFOMaster(BusDriver):
         self.title = title
         self.clock = clock
         self.timeout_cycles = timeout_cycles
+        self.tick_delay = 100
+        self.tick_units = 'ps'
 
         # Handle field_config - convert dict to FieldConfig if needed
         if isinstance(field_config, dict):
@@ -106,9 +108,9 @@ class FIFOMaster(BusDriver):
         else:
             # In multi-signal mode, we need at least write/full in the base _signals
             msg_multi = (f'Master({title}) multi-signal model\n'
-                         f'{signal_map=}\n'
-                         f'{optional_signal_map=}\n'
-                         f'{field_config=}\n')
+                            f'{signal_map=}\n'
+                            f'{optional_signal_map=}\n'
+                            f'{field_config=}\n')
             self._signals = [self.write_dut_name, self.full_dut_name]
 
         self._optional_signals = []
@@ -366,6 +368,7 @@ class FIFOMaster(BusDriver):
         await self.send(transaction)
         while self.transfer_busy:
             await RisingEdge(self.clock)
+        await Timer(self.tick_delay, units=self.tick_units)
 
     async def _driver_send(self, transaction, sync=True, hold=False, **kwargs):
         """
@@ -544,7 +547,8 @@ class FIFOMaster(BusDriver):
 
         # Check if full signal is high
         while self.full_sig.value:
-            await FallingEdge(self.clock)
+            await RisingEdge(self.clock)
+            await Timer(self.tick_delay, units=self.tick_units)
 
             # Keep write deasserted while full
             self._assign_write_value(value=0)
@@ -567,6 +571,7 @@ class FIFOMaster(BusDriver):
 
         # Wait a cycle for the write to take effect
         await RisingEdge(self.clock)
+        await Timer(self.tick_delay, units=self.tick_units)
 
         # Check for write while full error
         if self.full_sig.value and self.write_sig.value:
@@ -596,6 +601,7 @@ class FIFOMaster(BusDriver):
         self.log.debug(f'Master({self.title}): Transmit pipeline started, queue length: {len(self.transmit_queue)}')
         self.transfer_busy = True
         await RisingEdge(self.clock)
+        await Timer(self.tick_delay, units=self.tick_units)
 
         while len(self.transmit_queue):
             # Get next transaction from the queue
@@ -646,3 +652,4 @@ class FIFOMaster(BusDriver):
         """
         for _ in range(cycles):
             await RisingEdge(self.clock)
+            await Timer(self.tick_delay, units=self.tick_units)

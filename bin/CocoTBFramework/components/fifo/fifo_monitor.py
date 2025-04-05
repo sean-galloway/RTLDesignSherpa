@@ -8,6 +8,8 @@ from cocotb.utils import get_sim_time
 from ..flex_randomizer import FlexRandomizer
 from .fifo_packet import FIFOPacket
 from CocoTBFramework.components.field_config import FieldConfig, FieldDefinition
+from CocoTBFramework.components.debug_object import print_object_details, print_dict_to_log
+
 
 # Standard Signal names for all master/slave/monitor objects
 fifo_write = 'i_write'
@@ -106,8 +108,6 @@ class FIFOMonitor(BusMonitor):
             self.signal_map = signal_map or slave_signal_map
             if optional_signal_map is not None:
                 self.optional_signal_map = optional_signal_map
-            elif mode == 'skid':
-                self.optional_signal_map = slave_skid_optional_signal_map
             elif mode == 'fifo_flop':
                 self.optional_signal_map = slave_fifo_flop_optional_signal_map
             else:
@@ -145,9 +145,9 @@ class FIFOMonitor(BusMonitor):
         else:
             # Multi-signal mode - only include control signals
             msg_multi = (f'Monitor({title}) multi-signal model\n'
-                         f'{signal_map=}\n'
-                         f'{optional_signal_map=}\n'
-                         f'{field_config=}\n')
+                            f'{signal_map=}\n'
+                            f'{optional_signal_map=}\n'
+                            f'{field_config=}\n')
             self._signals = [self.control1_dut_name, self.control2_dut_name]
 
         # Set up optional signals
@@ -204,9 +204,12 @@ class FIFOMonitor(BusMonitor):
         self.log.info(f"FIFOMonitor initialized for {title} in mode '{mode}', "
                         f"{'read' if is_slave else 'write'} port, "
                         f"{'multi-signal' if self.use_multi_signal else 'standard'} mode")
+        print_object_details(self, self.log, f"FIFOMonitor '{self.title}' INIT")
 
-        # Start monitoring
-        self._start_monitoring()
+        self.log.info(f"Field config items count: {len(self.field_config)}")
+        for field_name in self.field_config.field_names():
+            field_def = self.field_config.get_field(field_name)
+            self.log.info(f"Field {field_name}: bits={field_def.bits}, default={field_def.default}")
 
     def _initialize_multi_signal_mode(self):
         """Initialize signal mappings for multi-signal mode."""
@@ -222,17 +225,11 @@ class FIFOMonitor(BusMonitor):
             if field_signal_name in self.optional_signal_map:
                 dut_signal_name = self.optional_signal_map[field_signal_name]
                 self._register_field_signal(field_name, dut_signal_name, required=False)
-            # Then check required signal map
             elif field_signal_name in self.signal_map:
                 dut_signal_name = self.signal_map[field_signal_name]
                 self._register_field_signal(field_name, dut_signal_name, required=True)
-            # Special case for 'data' field with standard signal name
             elif field_name == 'data':
-                if self.is_slave:
-                    std_signal = self.data_name
-                else:
-                    std_signal = fifo_wr_data
-
+                std_signal = self.data_name if self.is_slave else fifo_wr_data
                 if hasattr(self.bus, std_signal):
                     self.field_signals[field_name] = std_signal
                     self.log.debug(f"Using standard signal '{std_signal}' for field '{field_name}'")
@@ -363,7 +360,7 @@ class FIFOMonitor(BusMonitor):
         elif self.fifo_depth > 0:
             self.fifo_depth -= 1
         else:
-            self._extracted_from__update_fifo_depth_19(
+            self._update_fifo_depth_helper(
                 '): Read from empty FIFO detected', 'read_from_empty'
             )
         return self.fifo_depth
@@ -374,45 +371,52 @@ class FIFOMonitor(BusMonitor):
 
     def _finish_packet(self, current_time, packet, data_dict=None):
         """
-        Finish packet processing and trigger callbacks.
-
+        Finish packet processing and add to the observed queue.
+        
         Args:
             current_time: Current simulation time
-            packet: The packet to finish
-            data_dict: Dictionary of field data
+            packet: The packet being processed
+            data_dict: Dictionary with field values or raw data value
         """
-        # Add data to packet if provided
+            # Extract individual fields from the combined data value
+        if isinstance(data_dict, dict) and 'data' in data_dict:
+            if not self.use_multi_signal and self.is_slave:
+                # Extract fields based on field configuration
+                if hasattr(self.field_config, 'field_names'):
+                    field_values = {}
+                    bit_offset = 0
+
+                    # Process fields in reverse order from how they appear in the output
+                    # If the format is [id][data3][data2][data1][data0], we need to extract
+                    # from LSB to MSB: data0, data1, data2, data3, id
+                    fields = self.field_config.field_names()
+
+                    combined_value = data_dict['data']
+
+                    for field_name in fields:
+                        field_def = self.field_config.get_field(field_name)
+                        field_width = field_def.bits
+                        mask = (1 << field_width) - 1
+
+                        # Extract field value from the combined data
+                        field_value = (combined_value >> bit_offset) & mask
+                        field_values[field_name] = field_value
+                        bit_offset += field_width
+
+                    # Replace data_dict with extracted fields
+                    data_dict = field_values
+
+        # The rest of the method remains the same
         if data_dict:
-            # Use the packet's unpack_from_fifo method if available
-            if hasattr(packet, 'unpack_from_fifo'):
-                packet.unpack_from_fifo(data_dict)
-            else:
-                # Legacy fallback - set fields directly
-                for field_name, value in data_dict.items():
-                    value = self._check_field_value(field_name, value)
-                    if hasattr(packet, field_name):
-                        setattr(packet, field_name, value)
+            for field_name, value in data_dict.items():
+                if hasattr(packet, field_name):
+                    setattr(packet, field_name, value)
 
-        # Record completion time
+        # Set end time and add to observed queue
         packet.end_time = current_time
-
-        # Set FIFO metadata
-        if hasattr(packet, 'set_fifo_metadata'):
-            packet.set_fifo_metadata(self.fifo_depth, self.fifo_capacity)
-
-        # Store the packet
         self.observed_queue.append(packet)
-        self.last_transaction = packet
-
-        # Log and trigger callbacks
-        packet_str = packet.formatted(compact=True) if hasattr(packet, 'formatted') else str(packet)
-        self.log.debug(f"FIFOMonitor({self.title}) Transaction at {packet.end_time}ns: {packet_str}")
-        self._recv(packet)
-
-    def _start_monitoring(self):
-        """Start the monitoring coroutine."""
-        cocotb.start_soon(self._monitor_recv())
-        self.log.debug(f"FIFOMonitor ({self.title}): Started monitoring")
+        self.log.debug(f"FIFOMonitor({self.title}) Transaction at {current_time}ns: {packet.formatted(compact=True) if hasattr(packet, 'formatted') else str(packet)}")
+        self._recv(packet)  # Trigger callbacks
 
     async def _monitor_recv(self):
         """
@@ -442,60 +446,66 @@ class FIFOMonitor(BusMonitor):
 
                 # Check for write/read operations
                 if self.is_slave:
-                    # Monitoring read port
-                    if (self.control2_sig.value.is_resolvable and
-                        int(self.control2_sig.value) == 1 and
-                        self.control1_sig.value.is_resolvable and
-                        int(self.control1_sig.value) == 0):  # read and not empty
+                    # Monitoring read port - check if read=1 AND empty=0 (valid read)
+                    valid_read = (
+                        self.control2_sig.value.is_resolvable and 
+                        int(self.control2_sig.value) == 1 and   # read is asserted
+                        self.control1_sig.value.is_resolvable and 
+                        int(self.control1_sig.value) == 0       # not empty
+                    )
 
-                        # Create new packet
+                    if valid_read:
+                        # Create a packet and capture data immediately or in next cycle
+                        # depending on the mode
                         packet = self.packet_class(self.field_config)
                         packet.start_time = current_time
 
-                        # Update FIFO depth
-                        self._update_fifo_depth(is_write=False)
-
                         if self.mode == 'fifo_flop':
-                            # In fifo_flop mode, defer data capture to next cycle
+                            # Schedule capture for next cycle
                             pending_capture = True
                             pending_packet = packet
                         else:
-                            # Capture data immediately
-                            data_dict = self._get_data_dict()
+                            # Capture data immediately from the data signal
+                            if self.use_multi_signal:
+                                data_dict = self._get_data_dict()
+                            elif self.data_sig and self.data_sig.value.is_resolvable:
+                                data_value = int(self.data_sig.value)
+                                # Process the data correctly according to the field configuration
+                                # This is where the current implementation might have issues
+                                data_dict = {'data': data_value}
+                            else:
+                                self.log.warning("Data signal has X/Z value")
+                                data_dict = {'data': -1}  # Indicate X/Z as -1
+
                             self._finish_packet(current_time, packet, data_dict)
 
-                    # Check for read from empty error
                     elif (self.control2_sig.value.is_resolvable and
                             int(self.control2_sig.value) == 1 and
                             self.control1_sig.value.is_resolvable and
                             int(self.control1_sig.value) == 1):  # read while empty
 
                         self.log.warning(f"FIFOMonitor ({self.title}): Read from empty FIFO at {current_time}ns")
-                else:
-                    # Monitoring write port
-                    if (self.control1_sig.value.is_resolvable and
-                        int(self.control1_sig.value) == 1 and
-                        (not self.control2_sig.value.is_resolvable or
-                            int(self.control2_sig.value) == 0)):  # write and not full
+                elif self.control1_sig.value.is_resolvable:
+                    if int(self.control1_sig.value) == 1:
+                        if (
+                            not self.control2_sig.value.is_resolvable
+                            or int(self.control2_sig.value) == 0
+                        ):  # write and not full
 
-                        # Create new packet
-                        packet = self.packet_class(self.field_config)
-                        packet.start_time = current_time
+                            # Create new packet
+                            packet = self.packet_class(self.field_config)
+                            packet.start_time = current_time
 
-                        # Update FIFO depth
-                        self._update_fifo_depth(is_write=True)
+                            # Update FIFO depth
+                            self._update_fifo_depth(is_write=True)
 
-                        # Capture data
-                        data_dict = self._get_data_dict()
-                        self._finish_packet(current_time, packet, data_dict)
+                            # Capture data
+                            data_dict = self._get_data_dict()
+                            self._finish_packet(current_time, packet, data_dict)
 
-                    elif (
-                        self.control1_sig.value.is_resolvable
-                        and int(self.control1_sig.value) == 1
-                        and int(self.control2_sig.value) == 1
-                    ):  # write while full
+                        elif int(self.control2_sig.value) == 1:  # write while full
 
-                        self.log.warning(f"FIFOMonitor ({self.title}): Write to full FIFO at {current_time}ns")
+                            self.log.warning(f"FIFOMonitor ({self.title}): Write to full FIFO at {current_time}ns")
 
                 # Wait a bit to avoid oversampling
                 await Timer(1, units='ps')

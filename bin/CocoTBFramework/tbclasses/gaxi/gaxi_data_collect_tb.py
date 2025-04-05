@@ -437,7 +437,7 @@ class DataCollectTB(TBBase):
             'ready_delay': ([[0, 0], [1, 3], [4, 8]], [3, 2, 1])
         })
 
-        # Define signal maps for masters
+        # Define signal maps for masters/slaves/monitors
         self.master_a_map = {
             'm2s_valid': 'i_a_valid',
             's2m_ready': 'o_a_ready'

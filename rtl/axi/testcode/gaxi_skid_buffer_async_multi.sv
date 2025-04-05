@@ -41,11 +41,10 @@ module gaxi_skid_buffer_async_multi #(
 
     logic                 r_xfer_valid;
     logic                 r_xfer_ready;
-    logic [AW+CW+DW-1:0]  r_xfer_data;
 
     // Instantiate the axi_skid_buffer module
     gaxi_skid_buffer #(
-        .DATA_WIDTH(DW)
+        .DATA_WIDTH(AW+CW+DW+DW)
     ) inst_gaxi_skid_buffer (
         .i_axi_aclk   (i_axi_wr_aclk),
         .i_axi_aresetn(i_axi_wr_aresetn),
@@ -60,7 +59,7 @@ module gaxi_skid_buffer_async_multi #(
     // Instantiate the axi_fifo_async module
     gaxi_fifo_async #(
         .DEL(1),
-        .DATA_WIDTH(DW),
+        .DATA_WIDTH(AW+CW+DW+DW),
         .DEPTH(DEPTH),
         .N_FLOP_CROSS(N_FLOP_CROSS),
         .ALMOST_WR_MARGIN(1),

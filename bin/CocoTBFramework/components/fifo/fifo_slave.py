@@ -87,6 +87,9 @@ class FIFOSlave(BusMonitor):
         # Set up simple items
         self.title = title
         self.clock = clock
+        self.tick_delay = 100
+        self.tick_units = 'ps'
+
         self.timeout_cycles = timeout_cycles
 
         # Handle field_config - convert dict to FieldConfig if needed
@@ -515,6 +518,7 @@ class FIFOSlave(BusMonitor):
                 last_xfer = True
                 last_packet = packet
                 await RisingEdge(self.clock)
+                await Timer(self.tick_delay, units=self.tick_units)
                 return last_packet, last_xfer
             else:
                 # For fifo_mux mode, capture data in the same cycle
@@ -523,6 +527,7 @@ class FIFOSlave(BusMonitor):
 
         # Deassert read on the rising edge (prepare for next cycle or delay)
         await RisingEdge(self.clock)
+        await Timer(self.tick_delay, units=self.tick_units)
         self._set_read_value(0)
 
         # Default return values
@@ -558,3 +563,4 @@ class FIFOSlave(BusMonitor):
         """Wait for a number of clock cycles."""
         for _ in range(cycles):
             await RisingEdge(self.clock)
+        await Timer(self.tick_delay, units=self.tick_units)

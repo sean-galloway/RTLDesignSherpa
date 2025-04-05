@@ -1,0 +1,62 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Sat Apr  5 06:23:09 2025
+[*]
+[dumpfile] "/home/sean/github/RTLDesignSherpa/val/integ_common/local_sim_build/test_fifo_data_collect_dw08_idw04_fifo16/fifo_data_collect.fst"
+[dumpfile_mtime] "Sat Apr  5 06:16:22 2025"
+[dumpfile_size] 5988
+[savefile] "/home/sean/github/RTLDesignSherpa/val/integ_common/GTKW/fifo_data_collect.gtkw"
+[timestart] 122400
+[size] 2545 1406
+[pos] -1 -1
+*-16.034876 230000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 278
+[signals_width] 294
+[sst_expanded] 1
+[sst_vpaned_height] 437
+@28
+fifo_data_collect.i_clk
+fifo_data_collect.i_rst_n
+fifo_data_collect.i_a_write
+@22
+fifo_data_collect.i_a_id[3:0]
+fifo_data_collect.i_a_data[7:0]
+@28
+fifo_data_collect.o_a_full
+fifo_data_collect.i_b_write
+@22
+fifo_data_collect.i_b_id[3:0]
+fifo_data_collect.i_b_data[7:0]
+@28
+fifo_data_collect.o_b_full
+fifo_data_collect.i_c_write
+@22
+fifo_data_collect.i_c_id[3:0]
+fifo_data_collect.i_c_data[7:0]
+@28
+fifo_data_collect.o_c_full
+fifo_data_collect.i_d_write
+@22
+fifo_data_collect.i_d_id[3:0]
+fifo_data_collect.i_d_data[7:0]
+@28
+fifo_data_collect.o_d_full
+@200
+-Output
+@28
+fifo_data_collect.i_e_read
+@22
+fifo_data_collect.o_e_data[35:0]
+@28
+fifo_data_collect.o_e_empty
+@200
+-internals
+@28
+fifo_data_collect.r_locked_agent_id[1:0]
+fifo_data_collect.w_arb_gnt_id[1:0]
+fifo_data_collect.w_arb_gnt_valid
+fifo_data_collect.w_buffer_accept
+@29
+fifo_data_collect.w_buffer_full
+[pattern_trace] 1
+[pattern_trace] 0

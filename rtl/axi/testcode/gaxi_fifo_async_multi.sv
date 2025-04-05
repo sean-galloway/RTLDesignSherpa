@@ -51,7 +51,7 @@ module gaxi_fifo_async_multi #(
         .ALMOST_WR_MARGIN  (1),                // Almost write margin
         .ALMOST_RD_MARGIN  (1),                // Almost read margin
         .INSTANCE_NAME     ("DEADF1F0"),       // Instance name
-        .DW                (DATA_WIDTH),       // Data width alias
+        .DW                (AW+CW+DW+DW),       // Data width alias
         .D                 (DEPTH),            // Depth alias
         .AW                ($clog2(DEPTH)),    // Address width
         .JCW               (D),                // Johnson Counter Width

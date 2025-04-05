@@ -32,7 +32,7 @@ module gaxi_fifo_sync_multi #(
 
     // Instantiate the original FIFO
     gaxi_fifo_sync #(
-        .DATA_WIDTH(AW+CW+DW),
+        .DATA_WIDTH(AW+CW+DW+DW),
         .DEPTH(DEPTH)
     ) u_dut (
         .i_axi_aclk    (i_axi_aclk),

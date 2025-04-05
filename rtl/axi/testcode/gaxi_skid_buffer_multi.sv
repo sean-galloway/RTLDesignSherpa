@@ -27,7 +27,7 @@ module gaxi_skid_buffer_multi #(
 );
 
     // Instantiate the original skid buffer
-    gaxi_skid_buffer #(.DATA_WIDTH(AW+CW+DW), .DEPTH(DEPTH)) u_gaxi_skid_buffer (
+    gaxi_skid_buffer #(.DATA_WIDTH(AW+CW+DW+DW), .DEPTH(DEPTH)) u_gaxi_skid_buffer (
         .i_axi_aclk    (i_axi_aclk),
         .i_axi_aresetn (i_axi_aresetn),
         .i_wr_valid    (i_wr_valid),
