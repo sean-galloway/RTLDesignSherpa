@@ -201,7 +201,7 @@ class FIFOMaster(BusDriver):
         # Use field_names() method instead of keys() for FieldConfig objects
         for field_name in self.field_config.field_names():
             # Create the signal name for this field in the signal map
-            field_signal_name = f'i_wr_data_{field_name}'
+            field_signal_name = f'i_wr_pkt_{field_name}'
 
             # Check required signal map first
             if field_signal_name in self.signal_map:
@@ -449,7 +449,7 @@ class FIFOMaster(BusDriver):
                     field_value = self._check_field_value(field_name, field_value)
 
                     # For each field, look up the corresponding signal name
-                    signal_name = f'i_wr_data_{field_name}'
+                    signal_name = f'i_wr_pkt_{field_name}'
 
                     if signal_name in self.optional_signal_map:
                         dut_signal_name = self.optional_signal_map[signal_name]

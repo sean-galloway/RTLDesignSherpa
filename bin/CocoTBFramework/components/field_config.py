@@ -6,6 +6,8 @@ replacing the dictionary-based approach with proper class structures.
 """
 from dataclasses import dataclass, field
 from typing import Dict, Tuple, List, Optional, Union, Any
+from rich.console import Console
+from rich.table import Table
 
 
 @dataclass
@@ -223,7 +225,7 @@ class FieldConfig:
 
     def debug_str(self, indent=0) -> str:
         """
-        Return a formatted string representation of the field configuration.
+        Return a formatted string representation of the field configuration using Rich.
         
         Args:
             indent: Number of spaces to indent the output
@@ -232,45 +234,44 @@ class FieldConfig:
             Formatted string showing all fields and their properties
         """
         indent_str = ' ' * indent
-        lines = [f"{indent_str}FieldConfig with {len(self)} fields:"]
+        console = Console(record=True)
         
         if not self._field_order:
-            lines.append(f"{indent_str}  (empty)")
-            return '\n'.join(lines)
+            return f"{indent_str}FieldConfig with 0 fields:\n{indent_str} (empty)"
         
-        # Determine column widths for alignment
-        name_width = max(len(name) for name in self._field_order)
-        bits_width = max(len(str(field.bits)) for field in self.fields())
-        format_width = max(len(field.format) for field in self.fields())
-        active_width = max(len(f"({field.active_bits[0]}:{field.active_bits[1]})") for field in self.fields())
-        default_width = max(len(f"0x{field.default:X}" if field.format == 'hex' else str(field.default)) 
-                            for field in self.fields())
+        table = Table(title=f"FieldConfig with {len(self)} fields:")
         
-        # Header
-        lines.append(f"{indent_str}  {'Field Name'.ljust(name_width)} | {'Bits'.ljust(bits_width)} | "
-                    f"{'Format'.ljust(format_width)} | {'Active Bits'.ljust(active_width)} | {'Default'.ljust(default_width)} | Description")
-        lines.append(f"{indent_str}  {'-' * name_width}-+-{'-' * bits_width}-+-"
-                    f"{'-' * format_width}-+-{'-' * active_width}-+-{'-' * default_width}-+-{'-' * 11}")
+        # Add columns
+        table.add_column("Field Name", style="cyan")
+        table.add_column("Bits", justify="right", style="green")
+        table.add_column("Format", style="magenta")
+        table.add_column("Active Bits", style="blue")
+        table.add_column("Default", style="yellow")
+        table.add_column("Description")
         
-        # Fields
+        # Add rows for each field
         for name, field_def in self.items():
             active_bits_str = f"({field_def.active_bits[0]}:{field_def.active_bits[1]})"
             default_str = f"0x{field_def.default:X}" if field_def.format == 'hex' else str(field_def.default)
             
-            lines.append(f"{indent_str}  {name.ljust(name_width)} | "
-                        f"{str(field_def.bits).ljust(bits_width)} | "
-                        f"{field_def.format.ljust(format_width)} | "
-                        f"{active_bits_str.ljust(active_width)} | "
-                        f"{default_str.ljust(default_width)} | "
-                        f"{field_def.description}")
+            table.add_row(
+                name,
+                str(field_def.bits),
+                field_def.format,
+                active_bits_str,
+                default_str,
+                field_def.description
+            )
         
-        # Total bits
+        # Add a footer row for total bits
         total_bits = self.get_total_bits()
-        lines.append(f"{indent_str}  {'-' * name_width}-+-{'-' * bits_width}-+-"
-                    f"{'-' * format_width}-+-{'-' * active_width}-+-{'-' * default_width}-+-{'-' * 11}")
-        lines.append(f"{indent_str}  Total bits: {total_bits}")
         
-        return '\n'.join(lines)
+        # Print the table to the console and capture the output
+        console.print(table)
+        console.print(f"{indent_str}Total bits: {total_bits}")
+        
+        # Return the captured output as a string
+        return f"{indent_str}{console.export_text()}"
 
     def __str__(self) -> str:
         """String representation of the FieldConfig"""

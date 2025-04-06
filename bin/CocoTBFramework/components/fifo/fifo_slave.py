@@ -213,7 +213,7 @@ class FIFOSlave(BusMonitor):
         """Initialize and verify signals in multi-signal mode."""
         # Check field signal mappings
         for field_name in self.field_config.field_names():
-            field_signal_name = f'o_rd_data_{field_name}'
+            field_signal_name = f'o_rd_pkt_{field_name}'
 
             # Check required signal map first
             if field_signal_name in self.signal_map:

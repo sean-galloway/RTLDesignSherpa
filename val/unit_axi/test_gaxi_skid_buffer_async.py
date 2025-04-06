@@ -101,18 +101,15 @@ def test_skid_buffer_async(request, data_width, depth, mode, clk_wr, clk_rd):
     extra_env = {
         'DUT': dut_name,
         'LOG_PATH': log_path,
-        # 'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_LOG_LEVEL': 'DEBUG',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(0x434749) # str(random.randint(0, 100000))
+        'SEED': str(0x434749),
+        'TEST_WIDTH': str(data_width),
+        'TEST_DEPTH': str(depth),
+        'TEST_MODE': str(mode),
+        'TEST_CLK_WR': str(clk_wr),
+        'TEST_CLK_RD': str(clk_rd),
     }
-
-    # Add test parameters; these are passed t the environment, but not the RTL
-    extra_env['TEST_WIDTH'] = str(data_width)
-    extra_env['TEST_DEPTH'] = str(depth)
-    extra_env['TEST_MODE'] = str(mode)
-    extra_env['TEST_CLK_WR'] = str(clk_wr)
-    extra_env['TEST_CLK_RD'] = str(clk_rd)
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 

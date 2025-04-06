@@ -47,7 +47,7 @@ async def fifo_async_test(dut):
         await tb.wait_clocks('i_wr_clk', 30)
 
 
-def generate_width_depth_clk_params():
+def generate_params():
     widths = [8]
     depths = [4, 8]  # Async FIFOs typically need slightly larger depths
     wr_clk_periods = [10]
@@ -56,7 +56,7 @@ def generate_width_depth_clk_params():
 
     return list(product(widths, depths, wr_clk_periods, rd_clk_periods, modes))
 
-params = generate_width_depth_clk_params()
+params = generate_params()
 
 @pytest.mark.parametrize("data_width, depth, wr_clk_period, rd_clk_period, mode", params)
 def test_fifo_async(request, data_width, depth, wr_clk_period, rd_clk_period, mode):
@@ -114,7 +114,7 @@ def test_fifo_async(request, data_width, depth, wr_clk_period, rd_clk_period, mo
     extra_env['TEST_CLK_WR'] = str(wr_clk_period)
     extra_env['TEST_CLK_RD'] = str(rd_clk_period)
     extra_env['TEST_MODE'] = mode
-    extra_env['TEST_KIND'] = 'sync'
+    extra_env['TEST_KIND'] = 'async'
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 

@@ -30,15 +30,15 @@ async def fifo_test(dut):
         await tb.simple_incremental_loops(count=10*tb.TEST_DEPTH, delay_key=delay_key, delay_clks_after=20)
 
 
-def generate_width_depth_mode_params():
+def generate_params():
     widths = [8]
     depths = [2]
     wr_clk_periods = [10]
-    rd_clk_periods = [10] 
+    rd_clk_periods = [10]
     modes = ['fifo_mux', 'fifo_flop']
     return list(product(widths, depths, wr_clk_periods, rd_clk_periods, modes))
 
-params = generate_width_depth_mode_params()
+params = generate_params()
 
 @pytest.mark.parametrize("data_width, depth, wr_clk_period, rd_clk_period, mode", params)
 def test_fifo_buffer_field(request, data_width, depth, wr_clk_period, rd_clk_period, mode):

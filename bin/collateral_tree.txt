@@ -1,33 +1,111 @@
-rtl_generators
-├── __init__.py
-├── adders
+CocoTBFramework
+├── components
 │   ├── __init__.py
-│   └── brentkung
+│   ├── arbiter_monitor.py
+│   ├── constrained_random.py
+│   ├── debug_object.py
+│   ├── field_config.py
+│   ├── flex_randomizer.py
+│   ├── memory_model.py
+│   ├── packet.py
+│   ├── apb
+│   │   ├── __init__.py
+│   │   ├── apb_components.py
+│   │   ├── apb_factories.py
+│   │   ├── apb_packet.py
+│   │   └── apb_sequence.py
+│   ├── axi4
+│   │   ├── axi4_factories.py
+│   │   ├── axi4_fields_signals.py
+│   │   ├── axi4_master.py
+│   │   ├── axi4_monitor.py
+│   │   ├── axi4_packets.py
+│   │   └── axi4_slave.py
+│   ├── example_code
+│   │   ├── arbiter_monitor_example.py.EXAMPLE
+│   │   └── arbiter_monitor_testcase.py.EXAMPLE
+│   ├── fifo
+│   │   ├── __init__.py
+│   │   ├── fifo_factories.py
+│   │   ├── fifo_master.py
+│   │   ├── fifo_monitor.py
+│   │   ├── fifo_packet.py
+│   │   ├── fifo_sequence.py
+│   │   └── fifo_slave.py
+│   ├── gaxi
+│   │   ├── __init__.py
+│   │   ├── gaxi_factories.py
+│   │   ├── gaxi_master.py
+│   │   ├── gaxi_monitor.py
+│   │   ├── gaxi_packet.py
+│   │   ├── gaxi_sequence.py
+│   │   └── gaxi_slave.py
+│   └── wavedrom_utils
 │       ├── __init__.py
-│       ├── bitwise_pg_logic.py
-│       ├── black.py
-│       ├── brent_kung_adder.py
-│       ├── gray.py
-│       ├── group_pg_logic.py
-│       ├── pg.py
-│       └── sum_logic.py
-├── axi
+│       ├── common_groups.py
+│       ├── container.py
+│       ├── example_test.py.EXAMPLE
+│       ├── generator.py
+│       └── models.py
+├── scoreboards
 │   ├── __init__.py
-│   └── apb_xbar_generator.py
-├── ecc
-│   ├── __init__.py
-│   └── hamming.py
-├── multipliers
-│   ├── __init__.py
-│   ├── dadda_multiplier.py
-│   ├── multiplier_mixin.py
-│   └── wallace_multiplier.py
-├── utils
-│   ├── __init__.py
-│   └── utils.py
-└── verilog
+│   ├── apb_gaxi_scoreboard.py
+│   ├── apb_scoreboard.py
+│   ├── axi4_scoreboard.py
+│   ├── base_scoreboard.py
+│   ├── fifo_scoreboard.py
+│   ├── gaxi_scoreboard.py
+│   └── transformers
+│       ├── __init__.py
+│       └── apb_gaxi_transformer.py
+└── tbclasses
     ├── __init__.py
-    ├── module.py
-    ├── param.py
-    ├── signal.py
-    └── verilog_parser.py
+    ├── tbbase.py
+    ├── utilities.py
+    ├── apb
+    │   ├── apb_command_handler.py
+    │   └── register_map.py
+    ├── axi4
+    │   ├── __init__.py
+    │   ├── axi4_command_handlers.py
+    │   ├── axi4_master_rd_fub_intf.py
+    │   ├── axi4_master_rd_fub_intf_incl.py
+    │   ├── axi4_master_rd_slv_intf.py
+    │   ├── axi4_master_rd_test.py
+    │   ├── axi4_master_wr_fub_intf.py
+    │   ├── axi4_master_wr_fub_intf_incl.py
+    │   ├── axi4_master_wr_slv_intf.py
+    │   ├── axi4_master_wr_test.py
+    │   ├── axi4_slave_rd_fub_intf.py
+    │   ├── axi4_slave_rd_fub_intf_incl.py
+    │   ├── axi4_slave_rd_mst_intf.py
+    │   └── axi4_slave_rd_test.py
+    ├── common
+    │   ├── __init__.py
+    │   ├── adder_testing.py
+    │   ├── amba_cg_ctrl.py
+    │   ├── cam_testing.py
+    │   ├── crc_testing.py
+    │   ├── divider_testing.py
+    │   ├── fifo_async_testing.py
+    │   ├── fifo_sync_testing.py
+    │   ├── multiplier_testing.py
+    │   └── subtractor_testing.py
+    ├── fifo
+    │   ├── __init__.py
+    │   ├── fifo_buffer.py
+    │   ├── fifo_buffer_configs.py
+    │   ├── fifo_buffer_field.py
+    │   ├── fifo_buffer_multi.py
+    │   └── fifo_data_collect_tb.py
+    ├── gaxi
+    │   ├── __init__.py
+    │   ├── gaxi_buffer.py
+    │   ├── gaxi_buffer_configs.py
+    │   ├── gaxi_buffer_field.py
+    │   ├── gaxi_buffer_multi.py
+    │   ├── gaxi_data_collect_tb.py
+    │   └── gaxi_enhancements.py
+    └── wavedrom_user
+        ├── __init__.py
+        └── apb.py

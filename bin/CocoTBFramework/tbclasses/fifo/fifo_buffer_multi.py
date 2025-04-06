@@ -23,14 +23,17 @@ class FifoMultiBufferTB(TBBase):
 
         # Get test parameters from environment
         self.TEST_DEPTH = self.convert_to_int(os.environ.get('TEST_DEPTH', '0'))
+        self.TEST_ADDR_WIDTH = self.convert_to_int(os.environ.get('TEST_ADDR_WIDTH', '0'))
         self.TEST_CTRL_WIDTH = self.convert_to_int(os.environ.get('TEST_CTRL_WIDTH', '0'))
-        self.TEST_DATA0_WIDTH = self.convert_to_int(os.environ.get('TEST_DATA0_WIDTH', '0'))
-        self.TEST_DATA1_WIDTH = self.convert_to_int(os.environ.get('TEST_DATA1_WIDTH', '0'))
-        self.TEST_MODE = os.environ.get('TEST_MODE', 'skid')
+        self.TEST_DATA_WIDTH = self.convert_to_int(os.environ.get('TEST_DATA_WIDTH', '0'))
+        self.TEST_MODE = os.environ.get('TEST_MODE', 'fifo_mux')
+        self.TEST_KIND = os.environ.get('TEST_KIND', 'sync')
         self.TEST_CLK_WR = self.convert_to_int(os.environ.get('TEST_CLK_WR', '10'))
         self.TEST_CLK_RD = self.convert_to_int(os.environ.get('TEST_CLK_RD', '10'))
 
         # Setup widths and limits
+        self.AW = self.TEST_ADDR_WIDTH
+        self.MAX_ADDR = (2**self.TEST_ADDR_WIDTH)-1
         self.CW = self.TEST_CTRL_WIDTH
         self.MAX_CTRL = (2**self.TEST_CTRL_WIDTH)-1
         self.DW = self.TEST_DATA_WIDTH
@@ -72,32 +75,25 @@ class FifoMultiBufferTB(TBBase):
         self.log.debug(f"\n{self.field_config}")
 
         # Set up signal mappings for multi-signal mode
-        # Required signals (valid/ready) for master
-        master_signal_map = {
-            'm2s_valid': 'i_wr_valid',
-            's2m_ready': 'o_wr_ready'
-        }
+
+        # Required signals (valid/ready) for master -- not needed
 
         # Optional signals (data fields) for master
         master_optional_map = {
-            'm2s_pkt_addr': 'i_wr_addr',
-            'm2s_pkt_ctrl': 'i_wr_ctrl',
-            'm2s_pkt_data0': 'i_wr_data0',
-            'm2s_pkt_data1': 'i_wr_data1'
+            'i_wr_pkt_addr': 'i_wr_addr',
+            'i_wr_pkt_ctrl': 'i_wr_ctrl',
+            'i_wr_pkt_data0': 'i_wr_data0',
+            'i_wr_pkt_data1': 'i_wr_data1'
         }
 
-        # Required signals (valid/ready) for slave
-        slave_signal_map = {
-            'm2s_valid': 'o_rd_valid',
-            's2m_ready': 'i_rd_ready'
-        }
+        # Required signals (valid/ready) for slave -- not needed
 
         # Optional signals (data fields) for slave
         slave_optional_map = {
-            'm2s_pkt_addr': 'o_rd_addr',
-            'm2s_pkt_ctrl': 'o_rd_ctrl',
-            'm2s_pkt_data0': 'o_rd_data0',
-            'm2s_pkt_data1': 'o_rd_data1',
+            'o_rd_pkt_addr': 'o_rd_addr',
+            'o_rd_pkt_ctrl': 'o_rd_ctrl',
+            'o_rd_pkt_data0': 'o_rd_data0',
+            'o_rd_pkt_data1': 'o_rd_data1',
         }
 
         # For fifo_mux mode, we also need to map to ow_rd_* signals
@@ -112,7 +108,7 @@ class FifoMultiBufferTB(TBBase):
             dut, 'write_master', '', self.wr_clk,
             field_config=self.field_config,
             timeout_cycles=self.TIMEOUT_CYCLES,
-            signal_map=master_signal_map,
+            # signal_map=master_signal_map,
             optional_signal_map=master_optional_map,
             log=self.log,
             multi_sig=True
@@ -123,7 +119,7 @@ class FifoMultiBufferTB(TBBase):
             mode=self.TEST_MODE,
             field_config=self.field_config,
             timeout_cycles=self.TIMEOUT_CYCLES,
-            signal_map=slave_signal_map,
+            # signal_map=slave_signal_map,
             optional_signal_map=slave_optional_map,
             log=self.log,
             multi_sig=True
@@ -134,7 +130,7 @@ class FifoMultiBufferTB(TBBase):
             dut, 'Write monitor', '', self.wr_clk,
             field_config=self.field_config,
             is_slave=False,
-            signal_map=master_signal_map,
+            # signal_map=master_signal_map,
             optional_signal_map=master_optional_map,
             log=self.log,
             multi_sig=True
@@ -145,7 +141,7 @@ class FifoMultiBufferTB(TBBase):
             mode=self.TEST_MODE,
             field_config=self.field_config,
             is_slave=True,
-            signal_map=slave_signal_map,
+            # signal_map=slave_signal_map,
             optional_signal_map=slave_optional_map,
             log=self.log,
             multi_sig=True
@@ -243,10 +239,12 @@ class FifoMultiBufferTB(TBBase):
         # Send packets
         for i in range(count):
             # Create packet
+            addr = i & self.MAX_ADDR  # Mask address to avoid overflow
             ctrl = i & self.MAX_CTRL  # Mask control to avoid overflow
-            data0 = i & self.MAX_DATA0  # Mask data to avoid overflow
-            data1 = 16*i & self.MAX_DATA1  # Mask data to avoid overflow - use different pattern
+            data0 = i & self.MAX_DATA  # Mask data to avoid overflow
+            data1 = i & self.MAX_DATA  # Mask data to avoid overflow
             packet = FIFOPacket(self.field_config)
+            packet.addr=addr
             packet.ctrl = ctrl
             packet.data0 = data0
             packet.data1 = data1
