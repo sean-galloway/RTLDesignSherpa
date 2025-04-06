@@ -1,12 +1,13 @@
 """
 Factory functions for creating and configuring FIFO components
 """
-from CocoTBFramework.components.fifo.fifo_master import FIFOMaster
-from CocoTBFramework.components.fifo.fifo_slave import FIFOSlave
-from CocoTBFramework.components.fifo.fifo_monitor import FIFOMonitor
-from CocoTBFramework.components.memory_model import MemoryModel
+from ..memory_model import MemoryModel
+from ..field_config import FieldConfig, FieldDefinition
 from CocoTBFramework.scoreboards.fifo_scoreboard import FIFOScoreboard
-from CocoTBFramework.components.field_config import FieldConfig, FieldDefinition
+from .fifo_master import FIFOMaster
+from .fifo_slave import FIFOSlave
+from .fifo_monitor import FIFOMonitor
+
 
 # Default field configuration for FIFO components
 DEFAULT_FIELD_CONFIG = {
@@ -97,7 +98,7 @@ def get_default_field_config(data_width=32, addr_width=0, ctrl_width=0):
     return config
 
 
-def create_fifo_master(dut, title, prefix, clock, field_config=None,
+def create_fifo_master(dut, title, prefix, clock, field_config=None, field_mode=False,
                         randomizer=None, memory_model=None,
                         memory_fields=None, log=None, signal_map=None,
                         optional_signal_map=None, multi_sig=False):
@@ -139,6 +140,7 @@ def create_fifo_master(dut, title, prefix, clock, field_config=None,
     return FIFOMaster(
         dut, title, prefix, clock,
         field_config=field_config,
+        field_mode=field_mode,
         randomizer=randomizer,
         memory_model=memory_model,
         memory_fields=memory_fields,
@@ -149,7 +151,7 @@ def create_fifo_master(dut, title, prefix, clock, field_config=None,
     )
 
 
-def create_fifo_slave(dut, title, prefix, clock, field_config=None,
+def create_fifo_slave(dut, title, prefix, clock, field_config=None, field_mode=False,
                         randomizer=None, memory_model=None,
                         memory_fields=None, log=None, mode='fifo_mux',
                         signal_map=None, optional_signal_map=None, multi_sig=False):
@@ -198,6 +200,7 @@ def create_fifo_slave(dut, title, prefix, clock, field_config=None,
     return FIFOSlave(
         dut, title, prefix, clock,
         field_config=field_config,
+        field_mode=field_mode,
         randomizer=randomizer,
         memory_model=memory_model,
         memory_fields=memory_fields,
@@ -209,7 +212,7 @@ def create_fifo_slave(dut, title, prefix, clock, field_config=None,
     )
 
 
-def create_fifo_monitor(dut, title, prefix, clock, field_config=None,
+def create_fifo_monitor(dut, title, prefix, clock, field_config=None, field_mode=False,
                         is_slave=False, log=None, mode='fifo_mux',
                         signal_map=None, optional_signal_map=None, multi_sig=False):
     """
@@ -262,6 +265,7 @@ def create_fifo_monitor(dut, title, prefix, clock, field_config=None,
     return FIFOMonitor(
         dut, title, prefix, clock,
         field_config=field_config,
+        field_mode=field_mode,
         is_slave=is_slave,
         log=log,
         mode=mode,
@@ -294,7 +298,7 @@ def create_fifo_scoreboard(name, field_config=None, log=None):
     return FIFOScoreboard(name, field_config, log=log)
 
 
-def create_fifo_components(dut, clock, title_prefix="", field_config=None,
+def create_fifo_components(dut, clock, title_prefix="", field_config=None, field_mode=False,
                             memory_model=None, log=None, mode='fifo_mux',
                             master_signal_map=None, master_optional_signal_map=None,
                             slave_signal_map=None, slave_optional_signal_map=None,
@@ -353,6 +357,7 @@ def create_fifo_components(dut, clock, title_prefix="", field_config=None,
     master = create_fifo_master(
         dut, f"{title_prefix}Master", "", clock,
         field_config=field_config,
+        field_mode=field_mode,
         memory_model=memory_model,
         log=log,
         signal_map=master_signal_map,
@@ -363,6 +368,7 @@ def create_fifo_components(dut, clock, title_prefix="", field_config=None,
     slave = create_fifo_slave(
         dut, f"{title_prefix}Slave", "", clock,
         field_config=field_config,
+        field_mode=field_mode,
         memory_model=memory_model,
         log=log,
         mode=mode,
@@ -374,6 +380,7 @@ def create_fifo_components(dut, clock, title_prefix="", field_config=None,
     master_monitor = create_fifo_monitor(
         dut, f"{title_prefix}MasterMonitor", "", clock,
         field_config=field_config,
+        field_mode=field_mode,
         is_slave=False,
         log=log,
         mode=mode,
@@ -385,6 +392,7 @@ def create_fifo_components(dut, clock, title_prefix="", field_config=None,
     slave_monitor = create_fifo_monitor(
         dut, f"{title_prefix}SlaveMonitor", "", clock,
         field_config=field_config,
+        field_mode=field_mode,
         is_slave=True,
         log=log,
         mode=mode,

@@ -7,10 +7,9 @@ inherited and extended by future classes.
 """
 import random
 from collections import deque
-from typing import List, Dict, Any, Optional, Callable, Union, Tuple
-from CocoTBFramework.components.field_config import FieldConfig
-from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
-from CocoTBFramework.components.flex_randomizer import FlexRandomizer
+from ..field_config import FieldConfig
+from ..flex_randomizer import FlexRandomizer
+from .gaxi_packet import GAXIPacket
 
 
 class GAXISequence:

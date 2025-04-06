@@ -1,9 +1,9 @@
 """FIFO Packet class with value masking implementation"""
-from typing import Dict, Any, Optional
+from typing import Dict, Optional
 
-from CocoTBFramework.components.packet import Packet
-from CocoTBFramework.components.field_config import FieldConfig
-from CocoTBFramework.components.flex_randomizer import FlexRandomizer
+from ..packet import Packet
+from ..field_config import FieldConfig
+from ..flex_randomizer import FlexRandomizer
 
 
 class FIFOPacket(Packet):

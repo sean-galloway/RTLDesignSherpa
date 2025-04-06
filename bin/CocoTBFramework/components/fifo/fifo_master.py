@@ -6,8 +6,8 @@ from cocotb.triggers import RisingEdge, Timer
 from cocotb.utils import get_sim_time
 
 from ..flex_randomizer import FlexRandomizer
+from ..field_config import FieldConfig
 from .fifo_packet import FIFOPacket
-from CocoTBFramework.components.field_config import FieldConfig, FieldDefinition
 
 # Standard Signal names for all master/slave/monitor objects
 fifo_write = 'i_write'
@@ -47,7 +47,7 @@ class FIFOMaster(BusDriver):
     def __init__(self, dut, title, prefix, clock,
                 field_config=None, packet_class=FIFOPacket, timeout_cycles=1000,
                 randomizer=None, memory_model=None, memory_fields=None, log=None,
-                multi_sig=False, signal_map=None, optional_signal_map=None, **kwargs):
+                field_mode=False, multi_sig=False, signal_map=None, optional_signal_map=None, **kwargs):
         """
         Initialize the FIFO master.
 
@@ -63,6 +63,7 @@ class FIFOMaster(BusDriver):
             memory_model: Optional MemoryModel instance for reading/writing data
             memory_fields: Dictionary mapping memory fields to packet field names
             log: Logger instance
+            field_mode: If True, treat standard data bus as containing multiple fields
             multi_sig: Use multiple signals or not
             signal_map: Dictionary mapping FIFO signals to DUT signals
                 Format: {'i_write': 'dut_write_signal', 'o_wr_full': 'dut_full_signal', ...}
@@ -76,6 +77,7 @@ class FIFOMaster(BusDriver):
         self.timeout_cycles = timeout_cycles
         self.tick_delay = 100
         self.tick_units = 'ps'
+        self.field_mode = field_mode or multi_sig
 
         # Handle field_config - convert dict to FieldConfig if needed
         if isinstance(field_config, dict):
@@ -439,7 +441,7 @@ class FIFOMaster(BusDriver):
             True if successful, False if any signals couldn't be driven
         """
         try:
-            # Get FIFO-adjusted values for all fields using the new Packet method
+            # Get FIFO-adjusted values for all fields using the Packet method
             fifo_data = transaction.pack_for_fifo()
 
             if self.use_multi_signal:
@@ -466,37 +468,57 @@ class FIFOMaster(BusDriver):
                             self.log.warning(f"Signal {dut_signal_name} registered but not found on DUT")
                     else:
                         self.log.debug(f"FIFOMaster({self.title}): No signal mapping for field {field_name}")
-            elif len(fifo_data) == 1 and 'data' in fifo_data:
-                # Simple case: only a data field
-                field_value = self._check_field_value('data', fifo_data['data'])
-                if self.data_sig:
-                    self.data_sig.value = field_value
             elif self.data_sig:
-                combined_value = 0
-                bit_offset = 0
+                # Standard mode
+                if self.field_mode:
+                    # Use helper method for field_mode
+                    self._drive_signals_helper(fifo_data)
+                elif len(fifo_data) == 1 and 'data' in fifo_data:
+                    # Simple case: only a data field
+                    field_value = self._check_field_value('data', fifo_data['data'])
+                    self.data_sig.value = field_value
+                else:
+                    # Process fields in the order defined in field_config
+                    combined_value = 0
+                    bit_offset = 0
+                    for field_name in self.field_config.field_names():
+                        if field_name in fifo_data:
+                            # Get field definition from FieldConfig
+                            field_def = self.field_config.get_field(field_name)
+                            field_width = field_def.bits
 
-                # Process fields in the order defined in field_config
-                field_names = self.field_config.field_names()
+                            # Check field value against its max value
+                            field_value = self._check_field_value(field_name, fifo_data[field_name])
 
-                for field_name in field_names:
-                    if field_name in fifo_data:
-                        # Get field definition from FieldConfig
-                        field_def = self.field_config.get_field(field_name)
-                        field_width = field_def.bits
+                            # Shift and combine
+                            combined_value |= (field_value << bit_offset)
+                            bit_offset += field_width
 
-                        # Check field value against its max value
-                        field_value = self._check_field_value(field_name, fifo_data[field_name])
-
-                        # Shift and combine
-                        combined_value |= (field_value << bit_offset)
-                        bit_offset += field_width
-
-                self.data_sig.value = combined_value
+                    self.data_sig.value = combined_value
 
             return True
         except Exception as e:
             self.log.error(f"Error driving signals: {e}")
             return False
+
+    def _drive_signals_helper(self, fifo_data):
+        """
+        Helper for driving signals in field_mode.
+
+        Args:
+            fifo_data: Dictionary of field values from pack_for_fifo
+        """
+        # Multiple fields packed into single signal
+        combined_value = 0
+        bit_offset = 0
+        for field_name in self.field_config.field_names():
+            if field_name in fifo_data:
+                field_def = self.field_config.get_field(field_name)
+                field_width = field_def.bits
+                field_value = self._check_field_value(field_name, fifo_data[field_name])
+                combined_value |= (field_value << bit_offset)
+                bit_offset += field_width
+        self.data_sig.value = combined_value
 
     def _assign_write_value(self, value):
         # Assert/Deassert write

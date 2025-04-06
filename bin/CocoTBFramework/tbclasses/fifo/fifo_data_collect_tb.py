@@ -537,6 +537,7 @@ class DataCollectTB(TBBase):
             signal_map=self.slave_e_map,
             optional_signal_map=self.slave_e_opt_map,
             multi_sig=False,
+            field_mode=True,
             mode='fifo_mux',
             log=self.log
         )
@@ -593,6 +594,7 @@ class DataCollectTB(TBBase):
             is_slave=True,
             signal_map=self.slave_e_map,
             optional_signal_map=self.slave_e_opt_map,
+            field_mode=True,
             mode='fifo_mux',
             multi_sig=False,
             log=self.log

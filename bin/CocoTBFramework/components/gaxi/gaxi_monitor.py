@@ -1,16 +1,14 @@
 """GAXI Monitor Component with required and optional signal support"""
 import pprint
 
-import cocotb
 from collections import deque
 from cocotb_bus.monitors import BusMonitor
-from cocotb.triggers import RisingEdge, FallingEdge, Timer
+from cocotb.triggers import FallingEdge, Timer
 from cocotb.utils import get_sim_time
 
-from ..flex_randomizer import FlexRandomizer
-from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
-from CocoTBFramework.components.field_config import FieldConfig, FieldDefinition
-from CocoTBFramework.components.debug_object import print_object_details, print_dict_to_log
+from ..field_config import FieldConfig
+from ..debug_object import print_object_details, print_dict_to_log
+from .gaxi_packet import GAXIPacket
 
 
 # Standard Signal names for all master/sllave/monitor objects
@@ -55,7 +53,7 @@ class GAXIMonitor(BusMonitor):
     """
     def __init__(self, dut, title, prefix, clock, is_slave=False,
                     field_config=None, packet_class=GAXIPacket, timeout_cycles=1000,
-                    multi_sig=False, log=None, mode='skid', signal_map=None, optional_signal_map=None, **kwargs):
+                    field_mode=False, multi_sig=False, log=None, mode='skid', signal_map=None, optional_signal_map=None, **kwargs):
         # sourcery skip: low-code-quality
         """
         Initialize the GAXI bus monitor.
@@ -90,6 +88,8 @@ class GAXIMonitor(BusMonitor):
         self.title = title
         self.clock = clock
         self.timeout_cycles = timeout_cycles
+        self.field_mode = field_mode or multi_sig
+
         # Handle field_config - convert dict to FieldConfig if needed
         if isinstance(field_config, dict):
             self.field_config = FieldConfig.validate_and_create(field_config)
@@ -275,35 +275,32 @@ class GAXIMonitor(BusMonitor):
             data_dict: Dictionary of field data (for multi-signal mode)
                     or single 'data' value (for standard mode)
         """
-        # Standard mode with complex field config (special case for data_collect)
-        if not self.use_multi_signal and hasattr(self.field_config, 'field_names') and len(self.field_config) > 1 and isinstance(data_dict, dict) and 'data' in data_dict:
-            # We have a single data value but multiple fields in the config
-            combined_value = data_dict['data']
-            unpacked_fields = {}
-            bit_offset = 0
-
-            # Process fields in the order defined in field_config
-            # Get field names from FieldConfig object
-            fields = self.field_config.field_names()
-
-            for field_name in fields:
-                # Get field definition from FieldConfig
-                field_def = self.field_config.get_field(field_name)
-                field_width = field_def.bits
-                mask = (1 << field_width) - 1
-
-                # Extract field value using mask and shift
-                field_value = (combined_value >> bit_offset) & mask
-                
-                # Check field value against its maximum
-                field_value = self._check_field_value(field_name, field_value)
-                
-                unpacked_fields[field_name] = field_value
-                bit_offset += field_width
-
-            # Replace data_dict with unpacked fields
-            data_dict = unpacked_fields
-
+        # Check if we need to unpack fields from a combined value
+        if not self.use_multi_signal:
+            if (
+                hasattr(self, 'field_mode')
+                and self.field_mode
+                and isinstance(data_dict, dict)
+                and 'data' in data_dict
+            ):
+                unpacked_fields = {}
+                combined_value = data_dict['data']
+                data_dict = self._finish_packet_helper(
+                    combined_value, unpacked_fields
+                )
+            elif (
+                not hasattr(self, 'field_mode')
+                and hasattr(self.field_config, 'field_names')
+                and len(self.field_config) > 1
+                and isinstance(data_dict, dict)
+                and 'data' in data_dict
+            ):
+                # Legacy mode: Standard mode with complex field config
+                combined_value = data_dict['data']
+                unpacked_fields = {}
+                data_dict = self._finish_packet_helper(
+                    combined_value, unpacked_fields
+                )
         # Use the packet's unpack_from_fifo method for field handling
         if data_dict:
             if hasattr(packet, 'unpack_from_fifo'):
@@ -323,6 +320,26 @@ class GAXIMonitor(BusMonitor):
         packet_str = packet.formatted(compact=True) if hasattr(packet, 'formatted') else str(packet)
         self.log.debug(f"Monitor({self.title}) Transaction received at {packet.end_time}ns: {packet_str}")
         self._recv(packet)  # trigger callbacks
+
+    def _finish_packet_helper(self, combined_value, unpacked_fields):
+        bit_offset = 0
+        # Process fields in the order defined in field_config
+        for field_name in self.field_config.field_names():
+            # Get field definition from FieldConfig
+            field_def = self.field_config.get_field(field_name)
+            field_width = field_def.bits
+            mask = (1 << field_width) - 1
+
+            # Extract field value using mask and shift
+            field_value = (combined_value >> bit_offset) & mask
+
+            # Check field value against its maximum
+            field_value = self._check_field_value(field_name, field_value)
+
+            unpacked_fields[field_name] = field_value
+            bit_offset += field_width
+
+        return unpacked_fields
 
     def _get_data_dict(self):
         """
@@ -350,24 +367,21 @@ class GAXIMonitor(BusMonitor):
                     self.log.debug(f"Signal {dut_signal_name} not found on DUT")
         elif self.pkt_sig:
             if self.pkt_sig.value.is_resolvable:
-                # Use len() and has_field instead of checking fields directly
-                if (hasattr(self.field_config, 'has_field') and 
-                    len(self.field_config) == 1 and 
-                    self.field_config.has_field('data')):
-                    field_value = int(self.pkt_sig.value)
-                    # Check value against 'data' field's maximum
-                    field_value = self._check_field_value('data', field_value)
-                    data_dict['data'] = field_value
+                # Get raw value
+                raw_value = int(self.pkt_sig.value)
+                # Store according to field_mode
+                if hasattr(self, 'field_mode') and self.field_mode:
+                    # Multi-field mode (will be unpacked later)
+                    data_dict['data'] = raw_value
                 else:
-                    # Handle multi-field configuration in standard mode
-                    # For now, just store the raw value in 'data'
-                    data_dict['data'] = int(self.pkt_sig.value)
+                    # Single data field mode
+                    field_value = self._check_field_value('data', raw_value)
+                    data_dict['data'] = field_value
             else:
                 self.log.warning("Data signal has X/Z value")
                 data_dict['data'] = -1  # Indicate X/Z value
 
         return data_dict
-
     async def _recv_phase1(self, current_time, last_packet, last_xfer):
         """
         Receive phase 1: Handle pending transactions from previous cycle

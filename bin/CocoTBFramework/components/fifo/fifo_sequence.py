@@ -7,10 +7,9 @@ inherited and extended by future classes.
 """
 import random
 from collections import deque
-from typing import List, Dict, Any, Optional, Callable, Union, Tuple
-from CocoTBFramework.components.field_config import FieldConfig
-from CocoTBFramework.components.fifo.fifo_packet import FIFOPacket
-from CocoTBFramework.components.flex_randomizer import FlexRandomizer
+
+from ..field_config import FieldConfig
+from .fifo_packet import FIFOPacket
 
 
 class FIFOSequence:

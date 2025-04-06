@@ -8,9 +8,9 @@ from cocotb.triggers import RisingEdge, Timer
 from cocotb.utils import get_sim_time
 
 from ..flex_randomizer import FlexRandomizer
-from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
-from CocoTBFramework.components.field_config import FieldConfig, FieldDefinition
-from CocoTBFramework.components.debug_object import print_object_details, print_dict_to_log
+from ..field_config import FieldConfig
+from ..debug_object import print_object_details, print_dict_to_log
+from .gaxi_packet import GAXIPacket
 
 
 # Standard Signal names for all master/sllave/monitor objects
@@ -58,7 +58,7 @@ class GAXIMaster(BusDriver):
     def __init__(self, dut, title, prefix, clock,
                     field_config=None, packet_class=GAXIPacket, timeout_cycles=1000,
                     randomizer=None, memory_model=None, memory_fields=None, log=None,
-                    multi_sig=False, signal_map=None, optional_signal_map=None, **kwargs):
+                    field_mode=False, multi_sig=False, signal_map=None, optional_signal_map=None, **kwargs):
         # sourcery skip: low-code-quality
         """
         Initialize the GAXI master.
@@ -88,6 +88,8 @@ class GAXIMaster(BusDriver):
         self.timeout_cycles = timeout_cycles
         self.tick_delay = 100
         self.tick_units = 'ps'
+        self.field_mode = field_mode or multi_sig
+
         # Handle field_config - convert dict to FieldConfig if needed
         if isinstance(field_config, dict):
             self.field_config = FieldConfig.validate_and_create(field_config)
@@ -452,7 +454,7 @@ class GAXIMaster(BusDriver):
             True if successful, False if any signals couldn't be driven
         """
         try:
-            # Get FIFO-adjusted values for all fields using the new Packet method
+            # Get FIFO-adjusted values for all fields using the Packet method
             fifo_data = transaction.pack_for_fifo()
 
             if self.use_multi_signal:
@@ -468,47 +470,37 @@ class GAXIMaster(BusDriver):
                         dut_signal_name = self.optional_signal_map[signal_name]
                         if hasattr(self.bus, dut_signal_name):
                             getattr(self.bus, dut_signal_name).value = field_value
-                        else:
-                            self.log.warning(f"Signal {dut_signal_name} mapped but not found on DUT")
                     elif field_name in self.field_signals:
                         # Use already registered field signals
                         dut_signal_name = self.field_signals[field_name]
                         if hasattr(self.bus, dut_signal_name):
                             getattr(self.bus, dut_signal_name).value = field_value
-                        else:
-                            self.log.warning(f"Signal {dut_signal_name} registered but not found on DUT")
-                    else:
-                        self.log.debug(f"GAXIMaster({self.title}): No signal mapping for field {field_name}")
-            elif len(fifo_data) == 1 and 'data' in fifo_data:
-                # Simple case: only a data field
-                field_value = self._check_field_value('data', fifo_data['data'])
-                if self.pkt_sig:
-                    self.pkt_sig.value = field_value
             elif self.pkt_sig:
-                # Process fields in the order defined in field_config
-                field_names = self.field_config.field_names()
-
-                combined_value = 0
-                bit_offset = 0
-                for field_name in field_names:
-                    if field_name in fifo_data:
-                        # Get field definition from FieldConfig
-                        field_def = self.field_config.get_field(field_name)
-                        field_width = field_def.bits
-
-                        # Check field value against its max value
-                        field_value = self._check_field_value(field_name, fifo_data[field_name])
-
-                        # Shift and combine
-                        combined_value |= (field_value << bit_offset)
-                        bit_offset += field_width
-
-                self.pkt_sig.value = combined_value
-
+                # Standard mode
+                if hasattr(self, 'field_mode') and self.field_mode:
+                    self._drive_signals_helper(fifo_data)
+                elif 'data' in fifo_data:
+                    field_value = self._check_field_value('data', fifo_data['data'])
+                    self.pkt_sig.value = field_value
+                else:
+                    self._extracted_from__drive_signals_37(fifo_data)
             return True
         except Exception as e:
             self.log.error(f"Error driving signals: {e}")
             return False
+
+    def _drive_signals_helper(self, fifo_data):
+        # Multiple fields packed into single signal
+        combined_value = 0
+        bit_offset = 0
+        for field_name in self.field_config.field_names():
+            if field_name in fifo_data:
+                field_def = self.field_config.get_field(field_name)
+                field_width = field_def.bits
+                field_value = self._check_field_value(field_name, fifo_data[field_name])
+                combined_value |= (field_value << bit_offset)
+                bit_offset += field_width
+        self.pkt_sig.value = combined_value
 
     def _assign_valid_value(self, value):
         # Assert/Deassert valid

@@ -1,9 +1,9 @@
 """GAXI Packet class with value masking implementation"""
-from typing import Dict, Any, Optional
+from typing import Dict, Optional
 
-from CocoTBFramework.components.packet import Packet
-from CocoTBFramework.components.field_config import FieldConfig
-from CocoTBFramework.components.flex_randomizer import FlexRandomizer
+from ..packet import Packet
+from ..field_config import FieldConfig
+from ..flex_randomizer import FlexRandomizer
 
 
 class GAXIPacket(Packet):
@@ -12,8 +12,8 @@ class GAXIPacket(Packet):
     """
 
     def __init__(self, field_config: Optional[FieldConfig] = None, fields: Optional[Dict[str, int]] = None,
-                 master_randomizer: Optional[FlexRandomizer] = None,
-                 slave_randomizer: Optional[FlexRandomizer] = None):
+                    master_randomizer: Optional[FlexRandomizer] = None,
+                    slave_randomizer: Optional[FlexRandomizer] = None):
         """
         Initialize a GAXI packet with field masking.
 

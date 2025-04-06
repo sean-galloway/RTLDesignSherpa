@@ -595,7 +595,7 @@ class Axi4MasterRdTests(TBBase):
         await self.fub_intf.wait_for_errors(expected_timeouts, 100000)
 
         # Verify right number of R timeouts were detected
-                    r_timeout_count = self.fub_intf.get_error_count(ErrorType.R_TIMEOUT)
+        r_timeout_count = self.fub_intf.get_error_count(ErrorType.R_TIMEOUT)
         if r_timeout_count != expected_timeouts:
             self.log.error(f"R timeout count mismatch: expected={expected_timeouts}, actual={r_timeout_count}")
             total_errors += 1

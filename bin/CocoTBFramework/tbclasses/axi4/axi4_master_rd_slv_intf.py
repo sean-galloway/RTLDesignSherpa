@@ -793,8 +793,8 @@ class Axi4MasterRdAxi4Intf(TBBase):
             'transaction_count': self.performance_metrics.transaction_counts[-1] if self.performance_metrics.transaction_counts else 0,
             'byte_count': self.performance_metrics.byte_counts[-1] if self.performance_metrics.byte_counts else 0,
             'average_latency': (self.performance_metrics.latency_sums[-1] / self.performance_metrics.transaction_counts[-1]) 
-                              if (self.performance_metrics.transaction_counts and 
-                                 self.performance_metrics.transaction_counts[-1] > 0) else 0,
+                                if (self.performance_metrics.transaction_counts and 
+                                    self.performance_metrics.transaction_counts[-1] > 0) else 0,
             'cache_stats': self.field_config_cache.get_stats() if self.field_config_cache else {}
         }
         return stats

@@ -1,12 +1,12 @@
 """
 Factory functions for creating and configuring GAXI components
 """
+from ..memory_model import MemoryModel
+from ..field_config import FieldConfig
 from CocoTBFramework.components.gaxi.gaxi_master import GAXIMaster
 from CocoTBFramework.components.gaxi.gaxi_slave import GAXISlave
 from CocoTBFramework.components.gaxi.gaxi_monitor import GAXIMonitor
-from CocoTBFramework.components.memory_model import MemoryModel
 from CocoTBFramework.scoreboards.gaxi_scoreboard import GAXIScoreboard
-from CocoTBFramework.components.field_config import FieldConfig, FieldDefinition
 
 
 def get_default_field_config(data_width=32):
@@ -36,9 +36,9 @@ def get_default_field_config(data_width=32):
 
 
 def create_gaxi_master(dut, title, prefix, clock, field_config=None,
-                        randomizer=None, enhanced=False, memory_model=None,
+                        randomizer=None, memory_model=None,
                         memory_fields=None, log=None, signal_map=None,
-                        optional_signal_map=None, multi_sig=False):
+                        optional_signal_map=None, field_mode=False, multi_sig=False):
     """
     Create a GAXI Master component with configuration.
 
@@ -49,7 +49,6 @@ def create_gaxi_master(dut, title, prefix, clock, field_config=None,
         clock: Clock signal
         field_config: Field configuration for packets (default: standard data field)
         randomizer: Timing randomizer
-        enhanced: If True, create an EnhancedGAXIMaster (default: False)
         memory_model: Memory model for enhanced master
         memory_fields: Field mapping for memory operations
         log: Logger instance (default: dut's logger)
@@ -69,25 +68,25 @@ def create_gaxi_master(dut, title, prefix, clock, field_config=None,
     # Use dut's logger if none provided
     log = log or getattr(dut, '_log', None)
 
-    # Create base master
-    master = GAXIMaster(
-        dut, title, prefix, clock,
+    return GAXIMaster(
+        dut,
+        title,
+        prefix,
+        clock,
         field_config=field_config,
+        field_mode=field_mode,
         randomizer=randomizer,
         memory_model=memory_model,
         memory_fields=memory_fields,
         log=log,
         signal_map=signal_map,
         optional_signal_map=optional_signal_map,
-        multi_sig=multi_sig
+        multi_sig=multi_sig,
     )
 
-    # Create enhanced master if requested
-    return EnhancedGAXIMaster(master, log=log) if enhanced else master
 
-
-def create_gaxi_slave(dut, title, prefix, clock, field_config=None,
-                        randomizer=None, enhanced=False, memory_model=None,
+def create_gaxi_slave(dut, title, prefix, clock, field_config=None, field_mode=False,
+                        randomizer=None, memory_model=None,
                         memory_fields=None, log=None, mode='skid',
                         signal_map=None, optional_signal_map=None, multi_sig=False):
     """
@@ -100,7 +99,6 @@ def create_gaxi_slave(dut, title, prefix, clock, field_config=None,
         clock: Clock signal
         field_config: Field configuration for packets (default: standard data field)
         randomizer: Timing randomizer
-        enhanced: If True, create an EnhancedGAXISlave (default: False)
         memory_model: Memory model for enhanced slave
         memory_fields: Field mapping for memory operations
         log: Logger instance (default: dut's logger)
@@ -122,9 +120,10 @@ def create_gaxi_slave(dut, title, prefix, clock, field_config=None,
     log = log or getattr(dut, '_log', None)
 
     # Create base slave
-    slave = GAXISlave(
+    return  GAXISlave(
         dut, title, prefix, clock,
         field_config=field_config,
+        field_mode=field_mode,
         randomizer=randomizer,
         memory_model=memory_model,
         memory_fields=memory_fields,
@@ -135,14 +134,8 @@ def create_gaxi_slave(dut, title, prefix, clock, field_config=None,
         multi_sig=multi_sig
     )
 
-    # Create enhanced slave if requested
-    if enhanced:
-        return EnhancedGAXISlave(slave, memory_model=memory_model, log=log)
 
-    return slave
-
-
-def create_gaxi_monitor(dut, title, prefix, clock, field_config=None,
+def create_gaxi_monitor(dut, title, prefix, clock, field_config=None, field_mode=False,
                         is_slave=False, log=None, mode='skid',
                         signal_map=None, optional_signal_map=None, multi_sig=False):
     """
@@ -177,6 +170,7 @@ def create_gaxi_monitor(dut, title, prefix, clock, field_config=None,
     return GAXIMonitor(
         dut, title, prefix, clock,
         field_config=field_config,
+        field_mode=field_mode,
         is_slave=is_slave,
         log=log,
         mode=mode,
@@ -209,8 +203,8 @@ def create_gaxi_scoreboard(name, field_config=None, log=None):
     return GAXIScoreboard(name, field_config, log=log)
 
 
-def create_gaxi_components(dut, clock, title_prefix="", field_config=None,
-                            enhanced=False, memory_model=None, log=None,
+def create_gaxi_components(dut, clock, title_prefix="", field_config=None, field_mode=False,
+                            memory_model=None, log=None,
                             mode='skid', signal_map=None, optional_signal_map=None, multi_sig=False):
     """
     Create a complete set of GAXI components (master, slave, monitors, scoreboard).
@@ -241,7 +235,7 @@ def create_gaxi_components(dut, clock, title_prefix="", field_config=None,
     log = log or getattr(dut, '_log', None)
 
     # Create memory model if needed but not provided
-    if enhanced and memory_model is None:
+    if memory_model is None:
         memory_model = MemoryModel(
             num_lines=1024,
             bytes_per_line=4,  # 32-bit default
@@ -252,7 +246,7 @@ def create_gaxi_components(dut, clock, title_prefix="", field_config=None,
     master = create_gaxi_master(
         dut, f"{title_prefix}Master", "", clock,
         field_config=field_config,
-        enhanced=enhanced,
+        field_mode=field_mode,
         memory_model=memory_model,
         log=log,
         signal_map=signal_map,
@@ -263,7 +257,7 @@ def create_gaxi_components(dut, clock, title_prefix="", field_config=None,
     slave = create_gaxi_slave(
         dut, f"{title_prefix}Slave", "", clock,
         field_config=field_config,
-        enhanced=enhanced,
+        field_mode=field_mode,
         memory_model=memory_model,
         log=log,
         mode=mode,
@@ -275,6 +269,7 @@ def create_gaxi_components(dut, clock, title_prefix="", field_config=None,
     master_monitor = create_gaxi_monitor(
         dut, f"{title_prefix}MasterMonitor", "", clock,
         field_config=field_config,
+        field_mode=field_mode,
         is_slave=False,
         log=log,
         mode=mode,
@@ -286,6 +281,7 @@ def create_gaxi_components(dut, clock, title_prefix="", field_config=None,
     slave_monitor = create_gaxi_monitor(
         dut, f"{title_prefix}SlaveMonitor", "", clock,
         field_config=field_config,
+        field_mode=field_mode,
         is_slave=True,
         log=log,
         mode=mode,
@@ -299,10 +295,6 @@ def create_gaxi_components(dut, clock, title_prefix="", field_config=None,
         field_config=field_config,
         log=log
     )
-
-    # Start enhanced slave processor if applicable
-    if enhanced and hasattr(slave, 'start_processor'):
-        slave.start_processor()
 
     # Return all components
     return {

@@ -103,6 +103,7 @@ class FifoFieldBufferTB(TBBase):
             field_config=self.field_config,
             timeout_cycles=self.TIMEOUT_CYCLES,
             signal_map=master_signal_map,
+            field_mode=True,
             optional_signal_map=master_optional_map,
             log=self.log
         )
@@ -113,6 +114,7 @@ class FifoFieldBufferTB(TBBase):
             field_config=self.field_config,
             timeout_cycles=self.TIMEOUT_CYCLES,
             signal_map=slave_signal_map,
+            field_mode=True,
             optional_signal_map=slave_optional_map,
             log=self.log
         )

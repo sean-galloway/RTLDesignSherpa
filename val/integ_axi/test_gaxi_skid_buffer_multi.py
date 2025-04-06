@@ -14,19 +14,65 @@ from CocoTBFramework.tbclasses.gaxi.gaxi_buffer_configs import RANDOMIZER_CONFIG
 async def skid_buffer_multi_test(dut):
     '''Test the axi_skid_buffer_multi component'''
     tb = GaxiMultiBufferTB(dut, wr_clk=dut.i_axi_aclk, wr_rstn=dut.i_axi_aresetn)
+    
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
     msg = f'seed changed to {seed}'
     tb.log.info(msg)
+    
     await tb.start_clock('i_axi_aclk', 10, 'ns')
     await tb.assert_reset()
     await tb.wait_clocks('i_axi_aclk', 5)
     await tb.deassert_reset()
     await tb.wait_clocks('i_axi_aclk', 5)
+    
     tb.log.info("Starting test...")
-    for delay_key in RANDOMIZER_CONFIGS.keys():
-        await tb.simple_incremental_loops(count=10*tb.TEST_DEPTH, delay_key=delay_key,  delay_clks_after=20)
+    
+    # Run legacy test for backward compatibility
+    tb.log.info("Running legacy simple_incremental_loops test...")
+    await tb.simple_incremental_loops(count=10, delay_key='fixed', delay_clks_after=20)
+    
+    # Run basic sequence test
+    tb.log.info("Running basic sequence test...")
+    await tb.run_sequence_test(tb.basic_sequence, delay_key='fixed', delay_clks_after=5)
+    
+    # Run walking ones pattern test
+    tb.log.info("Running walking ones pattern test...")
+    await tb.run_sequence_test(tb.walking_ones_sequence, delay_key='constrained', delay_clks_after=5)
+    
+    # Run alternating patterns test
+    tb.log.info("Running alternating patterns test...")
+    await tb.run_sequence_test(tb.alternating_sequence, delay_key='fast', delay_clks_after=5)
+    
+    # Run burst sequence test with back-to-back packets
+    tb.log.info("Running burst sequence test...")
+    await tb.run_sequence_test(tb.burst_sequence, delay_key='backtoback', delay_clks_after=5)
+    
+    # Run random data test
+    tb.log.info("Running random data test...")
+    await tb.run_sequence_test(tb.random_sequence, delay_key='constrained', delay_clks_after=5)
+    
+    # Run comprehensive test
+    tb.log.info("Running comprehensive test...")
+    await tb.run_sequence_test(tb.comprehensive_sequence, delay_key='constrained', delay_clks_after=10)
+    
+    # Run stress test with varied delays and patterns
+    tb.log.info("Running stress test...")
+    await tb.run_sequence_test(tb.stress_sequence, delay_key='burst_pause', delay_clks_after=20)
+    
+    # Test with different randomizer configurations
+    tb.log.info("Testing with different randomizer configurations...")
+    
+    # Test with slow consumer
+    tb.log.info("Testing with slow consumer...")
+    await tb.run_sequence_test(tb.basic_sequence, delay_key='slow_consumer', delay_clks_after=20)
+    
+    # Test with slow producer
+    tb.log.info("Testing with slow producer...")
+    await tb.run_sequence_test(tb.basic_sequence, delay_key='slow_producer', delay_clks_after=20)
+    
+    tb.log.info("All tests completed successfully!")
 
 
 def generate_params():

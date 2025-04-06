@@ -1,6 +1,7 @@
-"""Testbench for AXI-style multi-signal components"""
+"""Testbench for AXI-style multi-signal components using sequence generators"""
 import os
 import cocotb
+import random
 
 from CocoTBFramework.tbclasses.tbbase import TBBase
 from CocoTBFramework.components.flex_randomizer import FlexRandomizer
@@ -10,6 +11,7 @@ from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
 from CocoTBFramework.components.gaxi.gaxi_master import GAXIMaster
 from CocoTBFramework.components.gaxi.gaxi_slave import GAXISlave
 from CocoTBFramework.components.gaxi.gaxi_monitor import GAXIMonitor
+from CocoTBFramework.tbclasses.gaxi.gaxi_buffer_seq import GAXIBufferSequence
 from CocoTBFramework.tbclasses.gaxi.gaxi_buffer_configs import FIELD_CONFIGS, RANDOMIZER_CONFIGS
 
 
@@ -73,6 +75,7 @@ class GaxiMultiBufferTB(TBBase):
         self.field_config.update_field_width('data0', self.DW)
         self.field_config.update_field_width('data1', self.DW)
 
+        self.log.debug(f"\n{self.field_config}")
 
         # Set up signal mappings for multi-signal mode
         # Required signals (valid/ready) for master
@@ -153,6 +156,68 @@ class GaxiMultiBufferTB(TBBase):
             log=self.log,
             multi_sig=True
         )
+        
+        # Create sequence generators for different test patterns
+        self.create_sequences()
+        
+    def create_sequences(self):
+        """Create sequence generators for different test patterns"""
+        # Create basic sequence with incrementing patterns
+        self.basic_sequence = GAXIBufferSequence("basic_test", self.field_config)
+        self.basic_sequence.add_incrementing_pattern(count=20, delay=0)
+        
+        # Create walking ones sequence
+        self.walking_ones_sequence = GAXIBufferSequence("walking_ones", self.field_config)
+        self.walking_ones_sequence.add_walking_ones_pattern(delay=1)
+        
+        # Create alternating patterns sequence
+        self.alternating_sequence = GAXIBufferSequence("alternating", self.field_config)
+        self.alternating_sequence.add_alternating_patterns(count=2, delay=0)
+        
+        # Create random data sequence
+        self.random_sequence = GAXIBufferSequence("random_data", self.field_config)
+        self.random_sequence.add_random_data_pattern(count=20, delay=1)
+        
+        # Create comprehensive test sequence
+        self.comprehensive_sequence = GAXIBufferSequence("comprehensive_test", self.field_config)
+        self.comprehensive_sequence.add_incrementing_pattern(10, delay=1)
+        self.comprehensive_sequence.add_walking_ones_pattern(delay=1)
+        self.comprehensive_sequence.add_field_test_pattern(delay=1)
+        self.comprehensive_sequence.add_alternating_patterns(1, delay=1)
+        self.comprehensive_sequence.add_boundary_values(delay=2)
+        self.comprehensive_sequence.add_overflow_test(delay=2)
+        self.comprehensive_sequence.add_random_data_pattern(10, delay=1)
+        
+        # Create burst test sequence
+        self.burst_sequence = GAXIBufferSequence("burst_test", self.field_config)
+        self.burst_sequence.add_incrementing_pattern(30, delay=0)
+        # Set fast randomizers
+        self.burst_sequence.set_master_randomizer(FlexRandomizer({
+            'valid_delay': ([[0, 0]], [1]),  # No delay
+        }))
+        self.burst_sequence.set_slave_randomizer(FlexRandomizer({
+            'ready_delay': ([[0, 0]], [1]),  # No delay
+        }))
+        
+        # Create stress test sequence
+        self.stress_sequence = GAXIBufferSequence("stress_test", self.field_config)
+        # Add burst of 5 transactions with no delay
+        self.stress_sequence.add_incrementing_pattern(5, delay=0)
+        # Add transactions with increasing delays
+        for i in range(1, 6):
+            addr = i * 100
+            ctrl = i * 10
+            data0 = i * 1000
+            data1 = i * 10000
+            self.stress_sequence.add_multi_field_transaction(addr, ctrl, data0, data1, delay=i)
+        # Add more varied patterns
+        self.stress_sequence.add_walking_ones_pattern(delay=0)
+        self.stress_sequence.add_random_data_pattern(5, delay=1)
+        self.stress_sequence.add_boundary_values(delay=2)
+        self.stress_sequence.add_alternating_patterns(1, delay=0)
+        self.stress_sequence.add_overflow_test(delay=3)
+        # Add final burst with no delay
+        self.stress_sequence.add_incrementing_pattern(5, start_value=0xAA, delay=0)
 
     async def clear_interface(self):
         """Clear the interface signals"""
@@ -229,9 +294,79 @@ class GaxiMultiBufferTB(TBBase):
             pkt = self.rd_monitor.observed_queue.popleft()
             self.log.error(f"{msg}: Unmatched extra packet in RD monitor: {pkt.formatted(compact=True)}")
             self.total_errors += 1
+            
+    async def run_sequence_test(self, sequence, delay_key='fixed', delay_clks_after=5):
+        """
+        Run a test with the specified sequence.
+        
+        Args:
+            sequence: GAXIBufferSequence to use for the test
+            delay_key: Key for the randomizer configuration to use
+            delay_clks_after: Additional delay clocks after sending all packets
+        """
+        # Get randomizers
+        if sequence.master_randomizer:
+            self.write_master.set_randomizer(sequence.master_randomizer)
+        else:
+            self.write_master.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS[delay_key]['write']))
+            
+        if sequence.slave_randomizer:
+            self.read_slave.set_randomizer(sequence.slave_randomizer)
+        else:
+            self.read_slave.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS[delay_key]['read']))
+
+        # Reset and prepare for test
+        await self.assert_reset()
+        await self.wait_clocks(self.wr_clk_name, 10)
+        await self.deassert_reset()
+        await self.wait_clocks(self.wr_clk_name, 10)
+        
+        # Generate the packets from the sequence
+        packets = sequence.generate_packets()
+        count = len(packets)
+        
+        self.log.info(f"Running sequence '{sequence.name}' with {count} packets")
+        
+        # Send all packets
+        for packet in packets:
+            await self.write_master.send(packet)
+            
+        # Wait for all packets to be transmitted
+        while self.write_master.transfer_busy:
+            await self.wait_clocks(self.wr_clk_name, 1)
+            
+        # Allow time for processing
+        await self.wait_clocks(self.wr_clk_name, delay_clks_after*10)
+        
+        # Wait for all packets to be received
+        timeout_counter = 0
+        while len(self.rd_monitor.observed_queue) < count and timeout_counter < self.TIMEOUT_CYCLES:
+            await self.wait_clocks(self.wr_clk_name, 1)
+            timeout_counter += 1
+            
+        if timeout_counter >= self.TIMEOUT_CYCLES:
+            self.log.error(f"Timeout waiting for packets! Only received {len(self.rd_monitor.observed_queue)} of {count}")
+            
+        # Additional delay for stable results
+        await self.wait_clocks(self.wr_clk_name, delay_clks_after)
+        
+        # Compare the packets
+        self.compare_packets(f"Sequence Test '{sequence.name}'", count)
+        
+        # Log results
+        if self.total_errors == 0:
+            self.log.info(f"Sequence Test '{sequence.name}' PASSED!")
+        else:
+            self.log.error(f"Sequence Test '{sequence.name}' FAILED with {self.total_errors} errors!")
+            
+        # Assert no errors
+        assert self.total_errors == 0, f"Sequence Test '{sequence.name}' failed with {self.total_errors} errors"
+        
+        # Reset error counter for next test
+        self.total_errors = 0
 
     async def simple_incremental_loops(self, count, delay_key, delay_clks_after):
-        """Run simple incremental tests with different packet sizes"""
+        """Run simple incremental tests with different packet sizes (legacy method)"""
         # Choose the type of randomizer
         self.log.info(f'simple_incremental_loops({count=}, {delay_key=}, {delay_clks_after=}')
         self.write_master.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS[delay_key]['write']))
@@ -249,7 +384,7 @@ class GaxiMultiBufferTB(TBBase):
             addr = i & self.MAX_ADDR  # Mask address to avoid overflow
             ctrl = i & self.MAX_CTRL  # Mask control to avoid overflow
             data0 = i & self.MAX_DATA  # Mask data to avoid overflow
-            data1 = 16*i & self.MAX_DATA  # Mask data to avoid overflow
+            data1 = i*16 & self.MAX_DATA  # Mask data to avoid overflow
             packet = GAXIPacket(self.field_config)
             packet.addr=addr
             packet.ctrl=ctrl
@@ -264,7 +399,7 @@ class GaxiMultiBufferTB(TBBase):
             await self.wait_clocks(self.wr_clk_name, 1)
 
         # Read data from the buffer
-        await self.wait_clocks(self.wr_clk_name, delay_clks_after*5)
+        await self.wait_clocks(self.wr_clk_name, delay_clks_after*50)
 
         # Wait for all packets to be received
         timeout_counter = 0
@@ -282,3 +417,4 @@ class GaxiMultiBufferTB(TBBase):
         self.compare_packets("Simple Incremental Loops", count)
 
         assert self.total_errors == 0, f'Simple Incremental Loops found {self.total_errors} Errors'
+    

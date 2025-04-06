@@ -1,13 +1,12 @@
 """FIFO Slave Component with required and optional signal support"""
-import cocotb
 from collections import deque
 from cocotb_bus.monitors import BusMonitor
 from cocotb.triggers import RisingEdge, FallingEdge, Timer
 from cocotb.utils import get_sim_time
 
 from ..flex_randomizer import FlexRandomizer
+from ..field_config import FieldConfig
 from .fifo_packet import FIFOPacket
-from CocoTBFramework.components.field_config import FieldConfig, FieldDefinition
 
 # Standard Signal names for all master/slave/monitor objects
 fifo_read = 'i_read'
@@ -56,7 +55,7 @@ class FIFOSlave(BusMonitor):
     def __init__(self, dut, title, prefix, clock,
                 field_config=None, packet_class=FIFOPacket, timeout_cycles=1000,
                 randomizer=None, memory_model=None, memory_fields=None,
-                multi_sig=False, log=None, mode='fifo_mux', signal_map=None, optional_signal_map=None, **kwargs):
+                field_mode=False, multi_sig=False, log=None, mode='fifo_mux', signal_map=None, optional_signal_map=None, **kwargs):
         """
         Initialize the FIFO slave.
 
@@ -71,9 +70,10 @@ class FIFOSlave(BusMonitor):
             randomizer: FlexRandomizer instance for randomizing timing
             memory_model: Optional MemoryModel instance for reading/writing data
             memory_fields: Dictionary mapping memory fields to packet field names
-            log: Logger instance
+            field_mode: If True, treat standard data bus as containing multiple fields
             multi_sig: Use multiple signals or not
-            mode: 'skid', 'fifo_mux', or 'fifo_flop'
+            log: Logger instance
+            mode: 'fifo_mux', or 'fifo_flop'
             signal_map: Dictionary mapping required FIFO signals to DUT signals
                 Format: {'o_rd_empty': 'dut_empty_signal', 'i_read': 'dut_read_signal', ...}
             optional_signal_map: Dictionary mapping optional FIFO signals to DUT signals
@@ -89,7 +89,7 @@ class FIFOSlave(BusMonitor):
         self.clock = clock
         self.tick_delay = 100
         self.tick_units = 'ps'
-
+        self.field_mode = field_mode or multi_sig
         self.timeout_cycles = timeout_cycles
 
         # Handle field_config - convert dict to FieldConfig if needed
@@ -343,34 +343,28 @@ class FIFOSlave(BusMonitor):
         """
         Finish packet processing and trigger callbacks.
         """
-        # Standard mode with complex field config (special case for data_collect)
-        if not self.use_multi_signal and hasattr(self.field_config, 'field_names') and len(self.field_config) > 1 and isinstance(data_dict, dict) and 'data' in data_dict:
-            # We have a single data value but multiple fields in the config
-            combined_value = data_dict['data']
-            unpacked_fields = {}
-            bit_offset = 0
-
-            # Process fields in the order defined in field_config
-            # Get field names from FieldConfig object
-            fields = self.field_config.field_names()
-
-            for field_name in fields:
-                # Get field definition from FieldConfig
-                field_def = self.field_config.get_field(field_name)
-                field_width = field_def.bits
-                mask = (1 << field_width) - 1
-
-                # Extract field value using mask and shift
-                field_value = (combined_value >> bit_offset) & mask
-
-                # Check against field's maximum value
-                field_value = self._check_field_value(field_name, field_value)
-
-                unpacked_fields[field_name] = field_value
-                bit_offset += field_width
-
-            # Replace data_dict with unpacked fields
-            data_dict = unpacked_fields
+        # Check if we need to unpack fields from a combined value
+        if not self.use_multi_signal:
+            if (
+                self.field_mode
+                and isinstance(data_dict, dict)
+                and 'data' in data_dict
+            ):
+                # Field mode - extract fields from combined value
+                unpacked_fields = {}
+                combined_value = data_dict['data']
+                data_dict = self._finish_packet_helper(combined_value, unpacked_fields)
+            elif (
+                not self.field_mode
+                and isinstance(data_dict, dict)
+                and 'data' in data_dict
+                and hasattr(self.field_config, 'field_names')
+                and len(self.field_config) > 1
+            ):
+                # Standard mode with complex field config
+                combined_value = data_dict['data']
+                unpacked_fields = {}
+                data_dict = self._finish_packet_helper(combined_value, unpacked_fields)
 
         # Use the packet's unpack_from_fifo method for field handling
         if data_dict:
@@ -399,9 +393,39 @@ class FIFOSlave(BusMonitor):
         self.log.debug(f"Slave({self.title}) Transaction received at {packet.end_time}ns: {packet.formatted(compact=True) if hasattr(packet, 'formatted') else str(packet)}")
         self._recv(packet)  # trigger callbacks
 
+    def _finish_packet_helper(self, combined_value, unpacked_fields):
+        """
+        Helper method to extract individual fields from combined value.
+        
+        Args:
+            combined_value: Combined integer value containing all fields
+            unpacked_fields: Empty dictionary to store extracted fields
+            
+        Returns:
+            Dictionary of field name -> field value mappings
+        """
+        bit_offset = 0
+        # Process fields in the order defined in field_config
+        for field_name in self.field_config.field_names():
+            # Get field definition from FieldConfig
+            field_def = self.field_config.get_field(field_name)
+            field_width = field_def.bits
+            mask = (1 << field_width) - 1
+
+            # Extract field value using mask and shift
+            field_value = (combined_value >> bit_offset) & mask
+
+            # Check field value against its maximum
+            field_value = self._check_field_value(field_name, field_value)
+
+            unpacked_fields[field_name] = field_value
+            bit_offset += field_width
+
+        return unpacked_fields
+
     def _get_data_dict(self):
         """
-        Collect data from field signals.
+        Collect data from field signals in multi-signal mode.
 
         Returns:
             Dictionary of field values
@@ -424,18 +448,19 @@ class FIFOSlave(BusMonitor):
                 else:
                     self.log.debug(f"Signal {dut_signal_name} not found on DUT")
         elif self.data_sig:
+            # Standard mode
             if self.data_sig.value.is_resolvable:
-                # In standard mode with a single 'data' field
-                if hasattr(self.field_config, 'has_field') and self.field_config.has_field('data'):
-                    field_value = int(self.data_sig.value)
-                    # Check value against field's maximum
-                    field_value = self._check_field_value('data', field_value)
+                raw_value = int(self.data_sig.value)
+                if self.field_mode:
+                    # Multi-field mode - will be unpacked later
+                    data_dict['data'] = raw_value
+                elif hasattr(self.field_config, 'has_field') and self.field_config.has_field('data'):
+                    # Single field mode
+                    field_value = self._check_field_value('data', raw_value)
                     data_dict['data'] = field_value
                 else:
                     # Handle multi-field configuration in standard mode
-                    # This would need to extract fields from the combined value
-                    # based on the field configuration
-                    data_dict['data'] = int(self.data_sig.value)
+                    data_dict['data'] = raw_value
             else:
                 self.log.warning("Data signal has X/Z value")
                 data_dict['data'] = -1  # Indicate X/Z value
