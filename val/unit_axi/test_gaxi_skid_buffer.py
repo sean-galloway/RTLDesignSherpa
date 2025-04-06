@@ -81,8 +81,8 @@ def test_skid_buffer(request, data_width, depth, mode):
     extra_env = {
         'DUT': dut_name,
         'LOG_PATH': log_path,
-        # 'COCOTB_LOG_LEVEL': 'INFO',
-        'COCOTB_LOG_LEVEL': 'DEBUG',
+        'COCOTB_LOG_LEVEL': 'INFO',
+        # 'COCOTB_LOG_LEVEL': 'DEBUG',
         'COCOTB_RESULTS_FILE': results_path,
         'SEED': str(random.randint(0, 100000))
     }

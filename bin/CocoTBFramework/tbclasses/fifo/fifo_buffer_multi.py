@@ -67,7 +67,7 @@ class FifoMultiBufferTB(TBBase):
 
         # Create field configuration
         self.field_config = FieldConfig.from_dict(FIELD_CONFIGS['field'])
-        self.field_config.update_field_width('addr', self.CW)
+        self.field_config.update_field_width('addr', self.AW)
         self.field_config.update_field_width('ctrl', self.CW)
         self.field_config.update_field_width('data0', self.DW)
         self.field_config.update_field_width('data1', self.DW)

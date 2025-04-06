@@ -74,11 +74,36 @@ class FifoFieldBufferTB(TBBase):
 
         self.log.debug(f"\n{self.field_config}")
 
+        # Set up signal mappings
+        # Required signals (valid/ready) for master
+        master_signal_map = {
+            'm2s_valid': 'i_wr_valid',
+            's2m_ready': 'o_wr_ready'
+        }
+
+        # Optional signals (data fields) for master
+        master_optional_map = {
+            'm2s_pkt_data': 'i_wr_data'
+        }
+
+        # Required signals (valid/ready) for slave
+        slave_signal_map = {
+            'm2s_valid': 'o_rd_valid',
+            's2m_ready': 'i_rd_ready'
+        }
+
+        # Optional signals (data fields) for slave
+        slave_optional_map = {
+            'm2s_pkt_data': 'o_rd_data'
+        }
+
         # Create BFM components - use field mode with appropriate signals
         self.write_master = FIFOMaster(
             dut, 'write_master', '', self.wr_clk,
             field_config=self.field_config,
             timeout_cycles=self.TIMEOUT_CYCLES,
+            signal_map=master_signal_map,
+            optional_signal_map=master_optional_map,
             log=self.log
         )
 
@@ -87,6 +112,8 @@ class FifoFieldBufferTB(TBBase):
             mode=self.TEST_MODE,
             field_config=self.field_config,
             timeout_cycles=self.TIMEOUT_CYCLES,
+            signal_map=slave_signal_map,
+            optional_signal_map=slave_optional_map,
             log=self.log
         )
 
@@ -95,6 +122,8 @@ class FifoFieldBufferTB(TBBase):
             dut, 'Write monitor', '', self.wr_clk,
             field_config=self.field_config,
             is_slave=False,
+            signal_map=master_signal_map,
+            optional_signal_map=master_optional_map,
             log=self.log
         )
 
@@ -103,6 +132,8 @@ class FifoFieldBufferTB(TBBase):
             mode=self.TEST_MODE,
             field_config=self.field_config,
             is_slave=True,
+            signal_map=slave_signal_map,
+            optional_signal_map=slave_optional_map,
             log=self.log
         )
 

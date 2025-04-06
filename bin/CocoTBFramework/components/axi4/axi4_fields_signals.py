@@ -7,300 +7,355 @@ This module provides:
 3. Default timing constraints for AXI4 components
 """
 
+from CocoTBFramework.components.field_config import FieldConfig, FieldDefinition
+
 # AXI4 Field Configurations
-# Each channel has a specific field layout according to the AXI4 specification
+# Create FieldConfig objects for each channel according to the AXI4 specification
 
-# Write Address Channel (AW)
-AXI4_AW_FIELD_CONFIG = {
-    'awid': {
-        'bits': 8,
-        'default': 0,
-        'format': 'hex',
-        'display_width': 2,
-        'active_bits': (7, 0),
-        'description': 'Write Address ID'
-    },
-    'awaddr': {
-        'bits': 32,
-        'default': 0,
-        'format': 'hex',
-        'display_width': 8,
-        'active_bits': (31, 0),
-        'description': 'Write Address'
-    },
-    'awlen': {
-        'bits': 8,
-        'default': 0,
-        'format': 'dec',
-        'display_width': 2,
-        'active_bits': (7, 0),
-        'description': 'Burst Length'
-    },
-    'awsize': {
-        'bits': 3,
-        'default': 0,
-        'format': 'dec',
-        'display_width': 1,
-        'active_bits': (2, 0),
-        'description': 'Burst Size'
-    },
-    'awburst': {
-        'bits': 2,
-        'default': 1,  # INCR
-        'format': 'dec',
-        'display_width': 1,
-        'active_bits': (1, 0),
-        'description': 'Burst Type'
-    },
-    'awlock': {
-        'bits': 1,
-        'default': 0,
-        'format': 'bin',
-        'display_width': 1,
-        'active_bits': (0, 0),
-        'description': 'Lock Type'
-    },
-    'awcache': {
-        'bits': 4,
-        'default': 0,
-        'format': 'bin',
-        'display_width': 1,
-        'active_bits': (3, 0),
-        'description': 'Cache Type'
-    },
-    'awprot': {
-        'bits': 3,
-        'default': 0,
-        'format': 'bin',
-        'display_width': 1,
-        'active_bits': (2, 0),
-        'description': 'Protection Type'
-    },
-    'awqos': {
-        'bits': 4,
-        'default': 0,
-        'format': 'dec',
-        'display_width': 1,
-        'active_bits': (3, 0),
-        'description': 'Quality of Service'
-    },
-    'awregion': {
-        'bits': 4,
-        'default': 0,
-        'format': 'dec',
-        'display_width': 1,
-        'active_bits': (3, 0),
-        'description': 'Region Identifier'
-    },
-    'awuser': {
-        'bits': 1,
-        'default': 0,
-        'format': 'bin',
-        'display_width': 1,
-        'active_bits': (0, 0),
-        'description': 'User Signal'
-    }
-}
+def create_axi4_aw_field_config():
+    """Create the Write Address (AW) channel field configuration"""
+    config = FieldConfig()
+    config.add_field(FieldDefinition(
+        name="awid",
+        bits=8,
+        default=0,
+        format="hex",
+        display_width=2,
+        active_bits=(7, 0),
+        description="Write Address ID"
+    ))
+    config.add_field(FieldDefinition(
+        name="awaddr",
+        bits=32,
+        default=0,
+        format="hex",
+        display_width=8,
+        active_bits=(31, 0),
+        description="Write Address"
+    ))
+    config.add_field(FieldDefinition(
+        name="awlen",
+        bits=8,
+        default=0,
+        format="dec",
+        display_width=2,
+        active_bits=(7, 0),
+        description="Burst Length"
+    ))
+    config.add_field(FieldDefinition(
+        name="awsize",
+        bits=3,
+        default=0,
+        format="dec",
+        display_width=1,
+        active_bits=(2, 0),
+        description="Burst Size"
+    ))
+    config.add_field(FieldDefinition(
+        name="awburst",
+        bits=2,
+        default=1,  # INCR
+        format="dec",
+        display_width=1,
+        active_bits=(1, 0),
+        description="Burst Type"
+    ))
+    config.add_field(FieldDefinition(
+        name="awlock",
+        bits=1,
+        default=0,
+        format="bin",
+        display_width=1,
+        active_bits=(0, 0),
+        description="Lock Type"
+    ))
+    config.add_field(FieldDefinition(
+        name="awcache",
+        bits=4,
+        default=0,
+        format="bin",
+        display_width=1,
+        active_bits=(3, 0),
+        description="Cache Type"
+    ))
+    config.add_field(FieldDefinition(
+        name="awprot",
+        bits=3,
+        default=0,
+        format="bin",
+        display_width=1,
+        active_bits=(2, 0),
+        description="Protection Type"
+    ))
+    config.add_field(FieldDefinition(
+        name="awqos",
+        bits=4,
+        default=0,
+        format="dec",
+        display_width=1,
+        active_bits=(3, 0),
+        description="Quality of Service"
+    ))
+    config.add_field(FieldDefinition(
+        name="awregion",
+        bits=4,
+        default=0,
+        format="dec",
+        display_width=1,
+        active_bits=(3, 0),
+        description="Region Identifier"
+    ))
+    config.add_field(FieldDefinition(
+        name="awuser",
+        bits=1,
+        default=0,
+        format="bin",
+        display_width=1,
+        active_bits=(0, 0),
+        description="User Signal"
+    ))
+    return config
 
-# Write Data Channel (W)
-AXI4_W_FIELD_CONFIG = {
-    'wdata': {
-        'bits': 32,
-        'default': 0,
-        'format': 'hex',
-        'display_width': 8,
-        'active_bits': (31, 0),
-        'description': 'Write Data'
-    },
-    'wstrb': {
-        'bits': 4,
-        'default': 0xF,
-        'format': 'bin',
-        'display_width': 4,
-        'active_bits': (3, 0),
-        'description': 'Write Strobe'
-    },
-    'wlast': {
-        'bits': 1,
-        'default': 1,
-        'format': 'bin',
-        'display_width': 1,
-        'active_bits': (0, 0),
-        'description': 'Write Last'
-    },
-    'wuser': {
-        'bits': 1,
-        'default': 0,
-        'format': 'bin',
-        'display_width': 1,
-        'active_bits': (0, 0),
-        'description': 'User Signal'
-    }
-}
+def create_axi4_w_field_config():
+    """Create the Write Data (W) channel field configuration"""
+    config = FieldConfig()
+    config.add_field(FieldDefinition(
+        name="wdata",
+        bits=32,
+        default=0,
+        format="hex",
+        display_width=8,
+        active_bits=(31, 0),
+        description="Write Data"
+    ))
+    config.add_field(FieldDefinition(
+        name="wstrb",
+        bits=4,
+        default=0xF,
+        format="bin",
+        display_width=4,
+        active_bits=(3, 0),
+        description="Write Strobe"
+    ))
+    config.add_field(FieldDefinition(
+        name="wlast",
+        bits=1,
+        default=1,
+        format="bin",
+        display_width=1,
+        active_bits=(0, 0),
+        description="Write Last"
+    ))
+    config.add_field(FieldDefinition(
+        name="wuser",
+        bits=1,
+        default=0,
+        format="bin",
+        display_width=1,
+        active_bits=(0, 0),
+        description="User Signal"
+    ))
+    return config
 
-# Write Response Channel (B)
-AXI4_B_FIELD_CONFIG = {
-    'bid': {
-        'bits': 8,
-        'default': 0,
-        'format': 'hex',
-        'display_width': 2,
-        'active_bits': (7, 0),
-        'description': 'Response ID'
-    },
-    'bresp': {
-        'bits': 2,
-        'default': 0,
-        'format': 'dec',
-        'display_width': 1,
-        'active_bits': (1, 0),
-        'description': 'Write Response'
-    },
-    'buser': {
-        'bits': 1,
-        'default': 0,
-        'format': 'bin',
-        'display_width': 1,
-        'active_bits': (0, 0),
-        'description': 'User Signal'
-    }
-}
+def create_axi4_b_field_config():
+    """Create the Write Response (B) channel field configuration"""
+    config = FieldConfig()
+    config.add_field(FieldDefinition(
+        name="bid",
+        bits=8,
+        default=0,
+        format="hex",
+        display_width=2,
+        active_bits=(7, 0),
+        description="Response ID"
+    ))
+    config.add_field(FieldDefinition(
+        name="bresp",
+        bits=2,
+        default=0,
+        format="dec",
+        display_width=1,
+        active_bits=(1, 0),
+        description="Write Response"
+    ))
+    config.add_field(FieldDefinition(
+        name="buser",
+        bits=1,
+        default=0,
+        format="bin",
+        display_width=1,
+        active_bits=(0, 0),
+        description="User Signal"
+    ))
+    return config
 
-# Read Address Channel (AR)
-AXI4_AR_FIELD_CONFIG = {
-    'arid': {
-        'bits': 8,
-        'default': 0,
-        'format': 'hex',
-        'display_width': 2,
-        'active_bits': (7, 0),
-        'description': 'Read Address ID'
-    },
-    'araddr': {
-        'bits': 32,
-        'default': 0,
-        'format': 'hex',
-        'display_width': 8,
-        'active_bits': (31, 0),
-        'description': 'Read Address'
-    },
-    'arlen': {
-        'bits': 8,
-        'default': 0,
-        'format': 'dec',
-        'display_width': 2,
-        'active_bits': (7, 0),
-        'description': 'Burst Length'
-    },
-    'arsize': {
-        'bits': 3,
-        'default': 0,
-        'format': 'dec',
-        'display_width': 1,
-        'active_bits': (2, 0),
-        'description': 'Burst Size'
-    },
-    'arburst': {
-        'bits': 2,
-        'default': 1,  # INCR
-        'format': 'dec',
-        'display_width': 1,
-        'active_bits': (1, 0),
-        'description': 'Burst Type'
-    },
-    'arlock': {
-        'bits': 1,
-        'default': 0,
-        'format': 'bin',
-        'display_width': 1,
-        'active_bits': (0, 0),
-        'description': 'Lock Type'
-    },
-    'arcache': {
-        'bits': 4,
-        'default': 0,
-        'format': 'bin',
-        'display_width': 1,
-        'active_bits': (3, 0),
-        'description': 'Cache Type'
-    },
-    'arprot': {
-        'bits': 3,
-        'default': 0,
-        'format': 'bin',
-        'display_width': 1,
-        'active_bits': (2, 0),
-        'description': 'Protection Type'
-    },
-    'arqos': {
-        'bits': 4,
-        'default': 0,
-        'format': 'dec',
-        'display_width': 1,
-        'active_bits': (3, 0),
-        'description': 'Quality of Service'
-    },
-    'arregion': {
-        'bits': 4,
-        'default': 0,
-        'format': 'dec',
-        'display_width': 1,
-        'active_bits': (3, 0),
-        'description': 'Region Identifier'
-    },
-    'aruser': {
-        'bits': 1,
-        'default': 0,
-        'format': 'bin',
-        'display_width': 1,
-        'active_bits': (0, 0),
-        'description': 'User Signal'
-    }
-}
+def create_axi4_ar_field_config():
+    """Create the Read Address (AR) channel field configuration"""
+    config = FieldConfig()
+    config.add_field(FieldDefinition(
+        name="arid",
+        bits=8,
+        default=0,
+        format="hex",
+        display_width=2,
+        active_bits=(7, 0),
+        description="Read Address ID"
+    ))
+    config.add_field(FieldDefinition(
+        name="araddr",
+        bits=32,
+        default=0,
+        format="hex",
+        display_width=8,
+        active_bits=(31, 0),
+        description="Read Address"
+    ))
+    config.add_field(FieldDefinition(
+        name="arlen",
+        bits=8,
+        default=0,
+        format="dec",
+        display_width=2,
+        active_bits=(7, 0),
+        description="Burst Length"
+    ))
+    config.add_field(FieldDefinition(
+        name="arsize",
+        bits=3,
+        default=0,
+        format="dec",
+        display_width=1,
+        active_bits=(2, 0),
+        description="Burst Size"
+    ))
+    config.add_field(FieldDefinition(
+        name="arburst",
+        bits=2,
+        default=1,  # INCR
+        format="dec",
+        display_width=1,
+        active_bits=(1, 0),
+        description="Burst Type"
+    ))
+    config.add_field(FieldDefinition(
+        name="arlock",
+        bits=1,
+        default=0,
+        format="bin",
+        display_width=1,
+        active_bits=(0, 0),
+        description="Lock Type"
+    ))
+    config.add_field(FieldDefinition(
+        name="arcache",
+        bits=4,
+        default=0,
+        format="bin",
+        display_width=1,
+        active_bits=(3, 0),
+        description="Cache Type"
+    ))
+    config.add_field(FieldDefinition(
+        name="arprot",
+        bits=3,
+        default=0,
+        format="bin",
+        display_width=1,
+        active_bits=(2, 0),
+        description="Protection Type"
+    ))
+    config.add_field(FieldDefinition(
+        name="arqos",
+        bits=4,
+        default=0,
+        format="dec",
+        display_width=1,
+        active_bits=(3, 0),
+        description="Quality of Service"
+    ))
+    config.add_field(FieldDefinition(
+        name="arregion",
+        bits=4,
+        default=0,
+        format="dec",
+        display_width=1,
+        active_bits=(3, 0),
+        description="Region Identifier"
+    ))
+    config.add_field(FieldDefinition(
+        name="aruser",
+        bits=1,
+        default=0,
+        format="bin",
+        display_width=1,
+        active_bits=(0, 0),
+        description="User Signal"
+    ))
+    return config
 
-# Read Data Channel (R)
-AXI4_R_FIELD_CONFIG = {
-    'rid': {
-        'bits': 8,
-        'default': 0,
-        'format': 'hex',
-        'display_width': 2,
-        'active_bits': (7, 0),
-        'description': 'Read Data ID'
-    },
-    'rdata': {
-        'bits': 32,
-        'default': 0,
-        'format': 'hex',
-        'display_width': 8,
-        'active_bits': (31, 0),
-        'description': 'Read Data'
-    },
-    'rresp': {
-        'bits': 2,
-        'default': 0,
-        'format': 'dec',
-        'display_width': 1,
-        'active_bits': (1, 0),
-        'description': 'Read Response'
-    },
-    'rlast': {
-        'bits': 1,
-        'default': 1,
-        'format': 'bin',
-        'display_width': 1,
-        'active_bits': (0, 0),
-        'description': 'Read Last'
-    },
-    'ruser': {
-        'bits': 1,
-        'default': 0,
-        'format': 'bin',
-        'display_width': 1,
-        'active_bits': (0, 0),
-        'description': 'User Signal'
-    }
-}
+def create_axi4_r_field_config():
+    """Create the Read Data (R) channel field configuration"""
+    config = FieldConfig()
+    config.add_field(FieldDefinition(
+        name="rid",
+        bits=8,
+        default=0,
+        format="hex",
+        display_width=2,
+        active_bits=(7, 0),
+        description="Read Data ID"
+    ))
+    config.add_field(FieldDefinition(
+        name="rdata",
+        bits=32,
+        default=0,
+        format="hex",
+        display_width=8,
+        active_bits=(31, 0),
+        description="Read Data"
+    ))
+    config.add_field(FieldDefinition(
+        name="rresp",
+        bits=2,
+        default=0,
+        format="dec",
+        display_width=1,
+        active_bits=(1, 0),
+        description="Read Response"
+    ))
+    config.add_field(FieldDefinition(
+        name="rlast",
+        bits=1,
+        default=1,
+        format="bin",
+        display_width=1,
+        active_bits=(0, 0),
+        description="Read Last"
+    ))
+    config.add_field(FieldDefinition(
+        name="ruser",
+        bits=1,
+        default=0,
+        format="bin",
+        display_width=1,
+        active_bits=(0, 0),
+        description="User Signal"
+    ))
+    return config
+
+# Create the field configs
+AXI4_AW_FIELD_CONFIG = create_axi4_aw_field_config()
+AXI4_W_FIELD_CONFIG = create_axi4_w_field_config()
+AXI4_B_FIELD_CONFIG = create_axi4_b_field_config()
+AXI4_AR_FIELD_CONFIG = create_axi4_ar_field_config()
+AXI4_R_FIELD_CONFIG = create_axi4_r_field_config()
+
+# Maintain dictionary representation for backward compatibility
+AXI4_AW_FIELD_CONFIG_DICT = AXI4_AW_FIELD_CONFIG.to_dict()
+AXI4_W_FIELD_CONFIG_DICT = AXI4_W_FIELD_CONFIG.to_dict()
+AXI4_B_FIELD_CONFIG_DICT = AXI4_B_FIELD_CONFIG.to_dict()
+AXI4_AR_FIELD_CONFIG_DICT = AXI4_AR_FIELD_CONFIG.to_dict()
+AXI4_R_FIELD_CONFIG_DICT = AXI4_R_FIELD_CONFIG.to_dict()
 
 # Default timing constraints for AXI4 components
 AXI4_MASTER_DEFAULT_CONSTRAINTS = {
@@ -451,53 +506,52 @@ def adjust_field_configs(field_configs, id_width, addr_width, data_width, user_w
     Returns:
         Dictionary of adjusted field configurations
     """
-    adjusted_configs = {
-        channel: {k: v.copy() for k, v in config.items()}
-        for channel, config in field_configs.items()
-    }
+    adjusted_configs = {}
     # Strobe width calculation
     strb_width = data_width // 8
-
-    # Adjust ID fields
-    for field_name in ['awid', 'bid']:
-        if field_name in adjusted_configs.get('AW', {}):
-            adjusted_configs['AW'][field_name]['bits'] = id_width
-            adjusted_configs['AW'][field_name]['active_bits'] = (id_width-1, 0)
-        if field_name in adjusted_configs.get('B', {}):
-            adjusted_configs['B'][field_name]['bits'] = id_width
-            adjusted_configs['B'][field_name]['active_bits'] = (id_width-1, 0)
-
-    for field_name in ['arid', 'rid']:
-        if field_name in adjusted_configs.get('AR', {}):
-            adjusted_configs['AR'][field_name]['bits'] = id_width
-            adjusted_configs['AR'][field_name]['active_bits'] = (id_width-1, 0)
-        if field_name in adjusted_configs.get('R', {}):
-            adjusted_configs['R'][field_name]['bits'] = id_width
-            adjusted_configs['R'][field_name]['active_bits'] = (id_width-1, 0)
-
+    
+    # Create deep copies of the field configs to avoid modifying the originals
+    for channel, config in field_configs.items():
+        adjusted_configs[channel] = config
+    
+    # Adjust ID fields in AW and B channels
+    if 'AW' in adjusted_configs:
+        if adjusted_configs['AW'].has_field('awid'):
+            adjusted_configs['AW'].update_field_width('awid', id_width)
+    
+    if 'B' in adjusted_configs:
+        if adjusted_configs['B'].has_field('bid'):
+            adjusted_configs['B'].update_field_width('bid', id_width)
+    
+    # Adjust ID fields in AR and R channels
+    if 'AR' in adjusted_configs:
+        if adjusted_configs['AR'].has_field('arid'):
+            adjusted_configs['AR'].update_field_width('arid', id_width)
+    
+    if 'R' in adjusted_configs:
+        if adjusted_configs['R'].has_field('rid'):
+            adjusted_configs['R'].update_field_width('rid', id_width)
+    
     # Adjust address fields
-    for field_name in ['awaddr', 'araddr']:
-        if field_name in adjusted_configs.get('AW', {}):
-            adjusted_configs['AW'][field_name]['bits'] = addr_width
-            adjusted_configs['AW'][field_name]['active_bits'] = (addr_width-1, 0)
-        if field_name in adjusted_configs.get('AR', {}):
-            adjusted_configs['AR'][field_name]['bits'] = addr_width
-            adjusted_configs['AR'][field_name]['active_bits'] = (addr_width-1, 0)
-
+    if 'AW' in adjusted_configs:
+        if adjusted_configs['AW'].has_field('awaddr'):
+            adjusted_configs['AW'].update_field_width('awaddr', addr_width)
+    
+    if 'AR' in adjusted_configs:
+        if adjusted_configs['AR'].has_field('araddr'):
+            adjusted_configs['AR'].update_field_width('araddr', addr_width)
+    
     # Adjust data fields
-    if 'wdata' in adjusted_configs.get('W', {}):
-        adjusted_configs['W']['wdata']['bits'] = data_width
-        adjusted_configs['W']['wdata']['active_bits'] = (data_width-1, 0)
-
-    if 'rdata' in adjusted_configs.get('R', {}):
-        adjusted_configs['R']['rdata']['bits'] = data_width
-        adjusted_configs['R']['rdata']['active_bits'] = (data_width-1, 0)
-
-    # Adjust strobe field
-    if 'wstrb' in adjusted_configs.get('W', {}):
-        adjusted_configs['W']['wstrb']['bits'] = strb_width
-        adjusted_configs['W']['wstrb']['active_bits'] = (strb_width-1, 0)
-
+    if 'W' in adjusted_configs:
+        if adjusted_configs['W'].has_field('wdata'):
+            adjusted_configs['W'].update_field_width('wdata', data_width)
+        if adjusted_configs['W'].has_field('wstrb'):
+            adjusted_configs['W'].update_field_width('wstrb', strb_width)
+    
+    if 'R' in adjusted_configs:
+        if adjusted_configs['R'].has_field('rdata'):
+            adjusted_configs['R'].update_field_width('rdata', data_width)
+    
     # Adjust user fields
     user_fields = {
         'AW': ['awuser'],
@@ -506,11 +560,11 @@ def adjust_field_configs(field_configs, id_width, addr_width, data_width, user_w
         'AR': ['aruser'],
         'R': ['ruser']
     }
-
+    
     for channel, fields in user_fields.items():
-        for field_name in fields:
-            if field_name in adjusted_configs.get(channel, {}):
-                adjusted_configs[channel][field_name]['bits'] = user_width
-                adjusted_configs[channel][field_name]['active_bits'] = (user_width-1, 0)
-
+        if channel in adjusted_configs:
+            for field_name in fields:
+                if adjusted_configs[channel].has_field(field_name):
+                    adjusted_configs[channel].update_field_width(field_name, user_width)
+    
     return adjusted_configs

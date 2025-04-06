@@ -13,15 +13,10 @@ from cocotb.utils import get_sim_time
 
 from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master, create_gaxi_slave
 from CocoTBFramework.components.flex_randomizer import FlexRandomizer
+from CocoTBFramework.components.field_config import FieldConfig
 
 from .axi4_fields_signals import (
-    AXI4_AW_FIELD_CONFIG,
-    AXI4_W_FIELD_CONFIG,
-    AXI4_B_FIELD_CONFIG,
-    AXI4_AR_FIELD_CONFIG,
-    AXI4_R_FIELD_CONFIG,
-    AXI4_MASTER_DEFAULT_CONSTRAINTS,
-    adjust_field_configs,
+    AXI4_SLAVE_DEFAULT_CONSTRAINTS,
     get_aw_signal_map,
     get_w_signal_map,
     get_b_signal_map,
@@ -44,7 +39,7 @@ class AXI4Slave:
 
     def __init__(self, dut, title, prefix, divider, suffix, clock, channels,
                     id_width=8, addr_width=32, data_width=32, user_width=1,
-                    memory_model=None, randomizers=None, check_protocol=False,
+                    field_configs=None, memory_model=None, randomizers=None, check_protocol=False,
                     inorder=False, ooo_strategy='random', log=None):
         """
         Initialize AXI4 Slave component.
@@ -61,6 +56,7 @@ class AXI4Slave:
             addr_width: Width of address fields (default: 32)
             data_width: Width of data fields (default: 32)
             user_width: Width of user fields (default: 1)
+            field_configs: Dictionary of field configurations for each channel
             memory_model: Memory model for data storage
             randomizers: Dict of randomizers for each channel (keys: 'b', 'r')
             check_protocol: Enable AXI4 protocol checking (default: True)
@@ -79,24 +75,20 @@ class AXI4Slave:
 
         # Calculate strobe width
         self.strb_width = data_width // 8
+        
+        # Store field configs
+        self.field_configs = field_configs
+        
+        # Ensure we have proper field configs for each channel
+        if not self.field_configs:
+            raise ValueError(f"AXI4Slave '{title}' requires field configs for each channel")
 
-        # Adjust field configs for the specified widths
-        field_configs = {
-            'AW': AXI4_AW_FIELD_CONFIG,
-            'W':  AXI4_W_FIELD_CONFIG,
-            'B':  AXI4_B_FIELD_CONFIG,
-            'AR': AXI4_AR_FIELD_CONFIG,
-            'R':  AXI4_R_FIELD_CONFIG
-        }
-        adjusted_configs = adjust_field_configs(
-            field_configs, id_width, addr_width, data_width, user_width
-        )
-
-        self.aw_field_config = adjusted_configs['AW']
-        self.w_field_config = adjusted_configs['W']
-        self.b_field_config = adjusted_configs['B']
-        self.ar_field_config = adjusted_configs['AR']
-        self.r_field_config = adjusted_configs['R']
+        # Extract field configs for each channel
+        self.aw_field_config = self.field_configs.get('AW')
+        self.w_field_config = self.field_configs.get('W')
+        self.b_field_config = self.field_configs.get('B')
+        self.ar_field_config = self.field_configs.get('AR')
+        self.r_field_config = self.field_configs.get('R')
 
         # Prepare signal mappings
         aw_signal_map, aw_optional_signal_map = get_aw_signal_map(prefix, divider, suffix)
@@ -107,11 +99,11 @@ class AXI4Slave:
 
         # Get randomizers
         randomizers = randomizers or {}
-        b_randomizer = randomizers.get('b', FlexRandomizer(AXI4_MASTER_DEFAULT_CONSTRAINTS))
-        r_randomizer = randomizers.get('r', FlexRandomizer(AXI4_MASTER_DEFAULT_CONSTRAINTS))
+        b_randomizer = randomizers.get('b', FlexRandomizer(AXI4_SLAVE_DEFAULT_CONSTRAINTS))
+        r_randomizer = randomizers.get('r', FlexRandomizer(AXI4_SLAVE_DEFAULT_CONSTRAINTS))
 
         # Create channel components
-        if 'AW' in self.channels:
+        if 'AW' in self.channels and self.aw_field_config:
             self.aw_slave = create_gaxi_slave(
                 dut, f"{title}_AW", "", clock,
                 field_config=self.aw_field_config,
@@ -122,9 +114,9 @@ class AXI4Slave:
             )
             self.aw_slave.add_callback(self._handle_aw_transaction)
         else:
-            self.aw_master = None
+            self.aw_slave = None
 
-        if 'W' in self.channels:
+        if 'W' in self.channels and self.w_field_config:
             self.w_slave = create_gaxi_slave(
                 dut, f"{title}_W", "", clock,
                 field_config=self.w_field_config,
@@ -135,9 +127,9 @@ class AXI4Slave:
             )
             self.w_slave.add_callback(self._handle_w_transaction)
         else:
-            self.w_master = None
+            self.w_slave = None
 
-        if 'B' in self.channels:
+        if 'B' in self.channels and self.b_field_config:
             self.b_master = create_gaxi_master(
                 dut, f"{title}_B", "", clock,
                 field_config=self.b_field_config,
@@ -150,7 +142,7 @@ class AXI4Slave:
         else:
             self.b_master = None
 
-        if 'AR' in self.channels:
+        if 'AR' in self.channels and self.ar_field_config:
             self.ar_slave = create_gaxi_slave(
                 dut, f"{title}_AR", "", clock,
                 field_config=self.ar_field_config,
@@ -163,7 +155,7 @@ class AXI4Slave:
         else:
             self.ar_slave = None
 
-        if 'R' in self.channels:
+        if 'R' in self.channels and self.r_field_config:
             self.r_master = create_gaxi_master(
                 dut, f"{title}_R", "", clock,
                 field_config=self.r_field_config,
@@ -199,15 +191,15 @@ class AXI4Slave:
 
     async def reset_bus(self):
         """Reset all AXI4 channels"""
-        if 'AW' in self.channels:
+        if 'AW' in self.channels and self.aw_slave:
             await self.aw_slave.reset_bus()
-        if 'W' in self.channels:
+        if 'W' in self.channels and self.w_slave:
             await self.w_slave.reset_bus()
-        if 'B' in self.channels:
+        if 'B' in self.channels and self.b_master:
             await self.b_master.reset_bus()
-        if 'AR' in self.channels:
+        if 'AR' in self.channels and self.ar_slave:
             await self.ar_slave.reset_bus()
-        if 'R' in self.channels:
+        if 'R' in self.channels and self.r_master:
             await self.r_master.reset_bus()
 
         # Clear transaction/responsses
@@ -248,11 +240,11 @@ class AXI4Slave:
         id_value = transaction.awid
 
         # Validate protocol if enabled
-        # if self.check_protocol:
-        #     valid, error_msg = transaction.validate_axi4_protocol()
-        #     if not valid:
-        #         self.log.error(f"AXI4 protocol error (AW): {error_msg}")
-        #         # Still process the transaction, but note the error
+        if self.check_protocol:
+            valid, error_msg = transaction.validate_axi4_protocol()
+            if not valid:
+                self.log.error(f"AXI4 protocol error (AW): {error_msg}")
+                # Still process the transaction, but note the error
 
         # Store the transaction for matching with write data
         self.pending_writes[id_value] = {
@@ -281,10 +273,10 @@ class AXI4Slave:
                     addr = pending['addresses'][-1]
 
                 # Validate protocol if enabled
-                # if self.check_protocol:
-                #     valid, error_msg = transaction.validate_axi4_protocol()
-                #     if not valid:
-                #         self.log.error(f"AXI4 protocol error (W): {error_msg}")
+                if self.check_protocol:
+                    valid, error_msg = transaction.validate_axi4_protocol()
+                    if not valid:
+                        self.log.error(f"AXI4 protocol error (W): {error_msg}")
 
                 # Add this transaction to the pending write
                 pending['w_transactions'].append(transaction)
@@ -315,10 +307,10 @@ class AXI4Slave:
         id_value = transaction.arid
 
         # Validate protocol if enabled
-        # if self.check_protocol:
-        #     valid, error_msg = transaction.validate_axi4_protocol()
-        #     if not valid:
-        #         self.log.error(f"AXI4 protocol error (AR): {error_msg}")
+        if self.check_protocol:
+            valid, error_msg = transaction.validate_axi4_protocol()
+            if not valid:
+                self.log.error(f"AXI4 protocol error (AR): {error_msg}")
 
         # Calculate all addresses in the burst
         addresses = transaction.get_burst_addresses() if hasattr(transaction, 'get_burst_addresses') else [transaction.araddr]

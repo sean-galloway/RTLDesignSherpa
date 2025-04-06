@@ -8,6 +8,7 @@ for the fub-facing interfaces (fub_split, fub_error) of the AXI4 Master Read mod
 from enum import IntFlag
 from collections import namedtuple
 from CocoTBFramework.components.flex_randomizer import FlexRandomizer
+from CocoTBFramework.components.field_config import FieldConfig, FieldDefinition
 
 
 # Split interface definitions
@@ -76,62 +77,84 @@ def create_error_randomizers():
 # Field configurations for fub interface FIFOs
 def get_split_fifo_field_config(addr_width, id_width):
     """Get field configuration for the split FIFO"""
-    return {
-        'addr': {
-            'bits': addr_width,
-            'default': 0,
-            'format': 'hex',
-            'display_width': addr_width // 4,
-            'active_bits': (addr_width-1, 0),
-            'description': 'Split Address'
-        },
-        'id': {
-            'bits': id_width,
-            'default': 0,
-            'format': 'hex',
-            'display_width': 2,
-            'active_bits': (id_width-1, 0),
-            'description': 'Transaction ID'
-        },
-        'cnt': {
-            'bits': 8,
-            'default': 0,
-            'format': 'dec',
-            'display_width': 2,
-            'active_bits': (7, 0),
-            'description': 'Number of Splits'
-        }
-    }
+    # Create a FieldConfig object instead of a dictionary
+    config = FieldConfig()
+    
+    # Add addr field
+    config.add_field(FieldDefinition(
+        name="addr",
+        bits=addr_width,
+        default=0,
+        format="hex",
+        display_width=addr_width // 4,
+        active_bits=(addr_width-1, 0),
+        description="Split Address"
+    ))
+    
+    # Add id field
+    config.add_field(FieldDefinition(
+        name="id",
+        bits=id_width,
+        default=0,
+        format="hex",
+        display_width=2,
+        active_bits=(id_width-1, 0),
+        description="Transaction ID"
+    ))
+    
+    # Add cnt field
+    config.add_field(FieldDefinition(
+        name="cnt",
+        bits=8,
+        default=0,
+        format="dec",
+        display_width=2,
+        active_bits=(7, 0),
+        description="Number of Splits"
+    ))
+    
+    return config
 
 
 def get_error_fifo_field_config(addr_width, id_width):
     """Get field configuration for the error FIFO"""
-    return {
-        'type': {
-            'bits': 4,  # Updated to 4 bits to match errmon.sv
-            'default': 0,
-            'format': 'bin',
-            'display_width': 4,  # Updated to show all 4 bits
-            'active_bits': (3, 0),  # Updated to 4 bits
-            'description': 'Error Type'
-        },
-        'addr': {
-            'bits': addr_width,
-            'default': 0,
-            'format': 'hex',
-            'display_width': addr_width // 4,
-            'active_bits': (addr_width-1, 0),
-            'description': 'Error Address'
-        },
-        'id': {
-            'bits': id_width,
-            'default': 0,
-            'format': 'hex',
-            'display_width': 2,
-            'active_bits': (id_width-1, 0),
-            'description': 'Transaction ID'
-        }
-    }
+    # Create a FieldConfig object instead of a dictionary
+    config = FieldConfig()
+    
+    # Add type field
+    config.add_field(FieldDefinition(
+        name="type",
+        bits=4,
+        default=0,
+        format="bin",
+        display_width=4,
+        active_bits=(3, 0),
+        description="Error Type"
+    ))
+    
+    # Add addr field
+    config.add_field(FieldDefinition(
+        name="addr",
+        bits=addr_width,
+        default=0,
+        format="hex",
+        display_width=addr_width // 4,
+        active_bits=(addr_width-1, 0),
+        description="Error Address"
+    ))
+    
+    # Add id field
+    config.add_field(FieldDefinition(
+        name="id",
+        bits=id_width,
+        default=0,
+        format="hex",
+        display_width=2,
+        active_bits=(id_width-1, 0),
+        description="Transaction ID"
+    ))
+    
+    return config
 
 
 def generate_test_addresses(base_addr, alignment_mask):

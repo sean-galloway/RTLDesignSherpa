@@ -569,13 +569,14 @@ class FIFOMaster(BusDriver):
         # Assert write for this transaction since FIFO is not full
         self._assign_write_value(value=1)
 
+        # Check for write while full error
+        if self.full_sig.value and self.write_sig.value:
+            current_time_ns = get_sim_time('ns')
+            self.log.error(f"Master({self.title}) Error: {self.title} write while fifo full at {current_time_ns}ns")
+
         # Wait a cycle for the write to take effect
         await RisingEdge(self.clock)
         await Timer(self.tick_delay, units=self.tick_units)
-
-        # Check for write while full error
-        if self.full_sig.value and self.write_sig.value:
-            self.log.error(f"Error: {self.title} write while fifo full")
 
         return True
 

@@ -11,7 +11,16 @@ This package provides components for verifying AXI4 interfaces:
 from CocoTBFramework.components.axi4.axi4_master import AXI4Master
 from CocoTBFramework.components.axi4.axi4_slave import AXI4Slave
 from CocoTBFramework.components.axi4.axi4_monitor import AXI4Monitor
+from CocoTBFramework.components.axi4.axi4_packets import AXI4Packet
 from CocoTBFramework.scoreboards.axi4_scoreboard import AXI4Scoreboard, AXI4MemoryScoreboard
+from CocoTBFramework.components.field_config import FieldConfig, FieldDefinition
+from CocoTBFramework.components.flex_randomizer import FlexRandomizer
+
+from .axi4_fields_signals import (
+    AXI4_AW_FIELD_CONFIG, AXI4_W_FIELD_CONFIG, AXI4_B_FIELD_CONFIG,
+    AXI4_AR_FIELD_CONFIG, AXI4_R_FIELD_CONFIG,
+    adjust_field_configs
+)
 
 
 def create_axi4_master(dut, title, prefix, divider, suffix, clock, channels,
@@ -45,6 +54,20 @@ def create_axi4_master(dut, title, prefix, divider, suffix, clock, channels,
     w_randomizer = randomizers.get('w')
     ar_randomizer = randomizers.get('ar')
 
+    # Create field configs dictionary for adjustment
+    field_configs = {
+        'AW': AXI4_AW_FIELD_CONFIG,
+        'W': AXI4_W_FIELD_CONFIG,
+        'B': AXI4_B_FIELD_CONFIG,
+        'AR': AXI4_AR_FIELD_CONFIG,
+        'R': AXI4_R_FIELD_CONFIG
+    }
+
+    # Adjust field configs based on specified widths
+    adjusted_configs = adjust_field_configs(
+        field_configs, id_width, addr_width, data_width, user_width
+    )
+
     # Create and return master
     return AXI4Master(
         dut, title, prefix, divider, suffix, clock, channels,
@@ -52,6 +75,7 @@ def create_axi4_master(dut, title, prefix, divider, suffix, clock, channels,
         addr_width=addr_width,
         data_width=data_width,
         user_width=user_width,
+        field_configs=adjusted_configs,
         aw_randomizer=aw_randomizer,
         w_randomizer=w_randomizer,
         ar_randomizer=ar_randomizer,
@@ -88,6 +112,20 @@ def create_axi4_slave(dut, title, prefix, divider, suffix, clock, channels,
     Returns:
         AXI4Slave instance
     """
+    # Create field configs dictionary for adjustment
+    field_configs = {
+        'AW': AXI4_AW_FIELD_CONFIG,
+        'W': AXI4_W_FIELD_CONFIG,
+        'B': AXI4_B_FIELD_CONFIG,
+        'AR': AXI4_AR_FIELD_CONFIG,
+        'R': AXI4_R_FIELD_CONFIG
+    }
+
+    # Adjust field configs based on specified widths
+    adjusted_configs = adjust_field_configs(
+        field_configs, id_width, addr_width, data_width, user_width
+    )
+
     # Create and return slave
     return AXI4Slave(
         dut, title, prefix, divider, suffix, clock, channels,
@@ -95,6 +133,7 @@ def create_axi4_slave(dut, title, prefix, divider, suffix, clock, channels,
         addr_width=addr_width,
         data_width=data_width,
         user_width=user_width,
+        field_configs=adjusted_configs,
         memory_model=memory_model,
         randomizers=randomizers,
         check_protocol=check_protocol,
@@ -128,6 +167,20 @@ def create_axi4_monitor(dut, title, prefix, divider, suffix, clock, channels,
     Returns:
         AXI4Monitor instance
     """
+    # Create field configs dictionary for adjustment
+    field_configs = {
+        'AW': AXI4_AW_FIELD_CONFIG,
+        'W': AXI4_W_FIELD_CONFIG,
+        'B': AXI4_B_FIELD_CONFIG,
+        'AR': AXI4_AR_FIELD_CONFIG,
+        'R': AXI4_R_FIELD_CONFIG
+    }
+
+    # Adjust field configs based on specified widths
+    adjusted_configs = adjust_field_configs(
+        field_configs, id_width, addr_width, data_width, user_width
+    )
+
     # Create and return monitor
     return AXI4Monitor(
         dut, title, prefix, divider, suffix, clock, channels,
@@ -135,6 +188,7 @@ def create_axi4_monitor(dut, title, prefix, divider, suffix, clock, channels,
         addr_width=addr_width,
         data_width=data_width,
         user_width=user_width,
+        field_configs=adjusted_configs,
         is_slave_side=is_slave_side,
         check_protocol=check_protocol,
         log=log
@@ -156,9 +210,24 @@ def create_axi4_scoreboard(name, id_width=8, addr_width=32, data_width=32, user_
     Returns:
         AXI4Scoreboard instance
     """
+    # Create field configs dictionary for adjustment
+    field_configs = {
+        'AW': AXI4_AW_FIELD_CONFIG,
+        'W': AXI4_W_FIELD_CONFIG,
+        'B': AXI4_B_FIELD_CONFIG,
+        'AR': AXI4_AR_FIELD_CONFIG,
+        'R': AXI4_R_FIELD_CONFIG
+    }
+
+    # Adjust field configs based on specified widths
+    adjusted_configs = adjust_field_configs(
+        field_configs, id_width, addr_width, data_width, user_width
+    )
+
     # Create and return scoreboard
     return AXI4Scoreboard(
         name,
+        field_configs=adjusted_configs,
         id_width=id_width,
         addr_width=addr_width,
         data_width=data_width,
@@ -183,122 +252,28 @@ def create_axi4_memory_scoreboard(name, memory_model, id_width=8, addr_width=32,
     Returns:
         AXI4MemoryScoreboard instance
     """
+    # Create field configs dictionary for adjustment
+    field_configs = {
+        'AW': AXI4_AW_FIELD_CONFIG,
+        'W': AXI4_W_FIELD_CONFIG,
+        'B': AXI4_B_FIELD_CONFIG,
+        'AR': AXI4_AR_FIELD_CONFIG,
+        'R': AXI4_R_FIELD_CONFIG
+    }
+
+    # Adjust field configs based on specified widths
+    adjusted_configs = adjust_field_configs(
+        field_configs, id_width, addr_width, data_width, user_width
+    )
+
     # Create and return memory scoreboard
     return AXI4MemoryScoreboard(
         name,
         memory_model,
+        field_configs=adjusted_configs,
         id_width=id_width,
         addr_width=addr_width,
         data_width=data_width,
         user_width=user_width,
         log=log
     )
-
-
-# def create_axi4_components(dut, title, prefix, clock,
-#                             id_width=8, addr_width=32, data_width=32, user_width=1,
-#                             memory_model=None, randomizers=None, check_protocol=True,
-#                             inorder=False, ooo_strategy='random', log=None):
-#     """
-#     Create a complete set of AXI4 components.
-
-#     Args:
-#         dut: Device under test
-#         title: Base component title
-#         prefix: Signal prefix
-#         clock: Clock signal
-#         id_width: Width of ID fields (default: 8)
-#         addr_width: Width of address fields (default: 32)
-#         data_width: Width of data fields (default: 32)
-#         user_width: Width of user fields (default: 1)
-#         memory_model: Memory model for data storage
-#         randomizers: Dict of randomizers
-#         check_protocol: Enable protocol checking (default: True)
-#         inorder: Force in-order responses for the slave (default: False)
-#         ooo_strategy: Out-of-order strategy for the slave
-#         log: Logger instance
-
-#     Returns:
-#         Dict of components:
-#         {
-#             'master': AXI4Master,
-#             'slave': AXI4Slave,
-#             'master_monitor': AXI4Monitor,
-#             'slave_monitor': AXI4Monitor,
-#             'scoreboard': AXI4Scoreboard
-#         }
-#     """
-#     # Create master
-#     master = create_axi4_master(
-#         dut, f"{title}_Master", prefix, clock,
-#         id_width=id_width,
-#         addr_width=addr_width,
-#         data_width=data_width,
-#         user_width=user_width,
-#         randomizers=randomizers,
-#         check_protocol=check_protocol,
-#         log=log
-#     )
-
-#     # Create slave
-#     slave = create_axi4_slave(
-#         dut, f"{title}_Slave", prefix, clock,
-#         id_width=id_width,
-#         addr_width=addr_width,
-#         data_width=data_width,
-#         user_width=user_width,
-#         memory_model=memory_model,
-#         randomizers=randomizers,
-#         check_protocol=check_protocol,
-#         inorder=inorder,
-#         ooo_strategy=ooo_strategy,
-#         log=log
-#     )
-
-#     # Create monitors
-#     master_monitor = create_axi4_monitor(
-#         dut, f"{title}_Master_Monitor", prefix, clock,
-#         id_width=id_width,
-#         addr_width=addr_width,
-#         data_width=data_width,
-#         user_width=user_width,
-#         is_slave_side=False,
-#         check_protocol=check_protocol,
-#         log=log
-#     )
-
-#     slave_monitor = create_axi4_monitor(
-#         dut, f"{title}_Slave_Monitor", prefix, clock,
-#         id_width=id_width,
-#         addr_width=addr_width,
-#         data_width=data_width,
-#         user_width=user_width,
-#         is_slave_side=True,
-#         check_protocol=check_protocol,
-#         log=log
-#     )
-
-#     # Create scoreboard
-#     scoreboard = create_axi4_scoreboard(
-#         f"{title}_Scoreboard",
-#         id_width=id_width,
-#         addr_width=addr_width,
-#         data_width=data_width,
-#         user_width=user_width,
-#         log=log
-#     )
-
-#     # Connect monitors to scoreboard
-#     master_monitor.set_write_callback(scoreboard._handle_master_write)
-#     master_monitor.set_read_callback(scoreboard._handle_master_read)
-#     slave_monitor.set_write_callback(scoreboard._handle_slave_write)
-#     slave_monitor.set_read_callback(scoreboard._handle_slave_read)
-
-#     # Return all components
-#     return {
-#         'master': master,
-#         'slave': slave,
-#         'master_monitor': master_monitor,
-#         'slave_monitor': slave_monitor,
-#         'scoreboard': scoreboard
-#     }

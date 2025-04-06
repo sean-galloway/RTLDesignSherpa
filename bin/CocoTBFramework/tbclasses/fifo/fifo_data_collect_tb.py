@@ -441,8 +441,8 @@ class DataCollectTB(TBBase):
             'o_wr_full': 'o_a_full'
         }
         self.master_a_opt_map = {
-            'i_wr_data_data': 'i_a_data',
-            'i_wr_data_id': 'i_a_id'
+            'i_wr_pkt_data': 'i_a_data',
+            'i_wr_pkt_id': 'i_a_id'
         }
 
         self.master_b_map = {
@@ -450,8 +450,8 @@ class DataCollectTB(TBBase):
             'o_wr_full': 'o_b_full'
         }
         self.master_b_opt_map = {
-            'i_wr_data_data': 'i_b_data',
-            'i_wr_data_id': 'i_b_id'
+            'i_wr_pkt_data': 'i_b_data',
+            'i_wr_pkt_id': 'i_b_id'
         }
 
         self.master_c_map = {
@@ -459,8 +459,8 @@ class DataCollectTB(TBBase):
             'o_wr_full': 'o_c_full'
         }
         self.master_c_opt_map = {
-            'i_wr_data_data': 'i_c_data',
-            'i_wr_data_id': 'i_c_id'
+            'i_wr_pkt_data': 'i_c_data',
+            'i_wr_pkt_id': 'i_c_id'
         }
 
         self.master_d_map = {
@@ -468,8 +468,8 @@ class DataCollectTB(TBBase):
             'o_wr_full': 'o_d_full'
         }
         self.master_d_opt_map = {
-            'i_wr_data_data': 'i_d_data',
-            'i_wr_data_id': 'i_d_id'
+            'i_wr_pkt_data': 'i_d_data',
+            'i_wr_pkt_id': 'i_d_id'
         }
 
         # Define signal map for slave

@@ -12,6 +12,7 @@ from collections import deque
 from CocoTBFramework.tbclasses.tbbase import TBBase
 from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_slave
 from CocoTBFramework.components.flex_randomizer import FlexRandomizer
+from CocoTBFramework.components.field_config import FieldConfig, FieldDefinition
 
 # Import definitions from include file
 from .axi4_master_rd_fub_intf_incl import (

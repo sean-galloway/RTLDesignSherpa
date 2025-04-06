@@ -10,14 +10,9 @@ from cocotb.triggers import RisingEdge
 from cocotb.utils import get_sim_time
 
 from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_monitor
+from CocoTBFramework.components.field_config import FieldConfig
 from .axi4_packets import AXI4Packet
 from .axi4_fields_signals import (
-    AXI4_AW_FIELD_CONFIG,
-    AXI4_W_FIELD_CONFIG,
-    AXI4_B_FIELD_CONFIG,
-    AXI4_AR_FIELD_CONFIG,
-    AXI4_R_FIELD_CONFIG,
-    adjust_field_configs,
     get_aw_signal_map,
     get_w_signal_map,
     get_b_signal_map,
@@ -38,7 +33,7 @@ class AXI4Monitor:
 
     def __init__(self, dut, title, prefix, divider, suffix, clock, channels,
                     id_width=8, addr_width=32, data_width=32, user_width=1,
-                    is_slave_side=False, check_protocol=False, log=None):
+                    field_configs=None, is_slave_side=False, check_protocol=False, log=None):
         """
         Initialize AXI4 Monitor component.
 
@@ -54,6 +49,7 @@ class AXI4Monitor:
             addr_width: Width of address fields (default: 32)
             data_width: Width of data fields (default: 32)
             user_width: Width of user fields (default: 1)
+            field_configs: Dictionary of field configurations for each channel
             is_slave_side: Whether to monitor slave-side signals (default: False)
             check_protocol: Enable AXI4 protocol checking (default: True)
             log: Logger instance
@@ -67,26 +63,22 @@ class AXI4Monitor:
 
         # Calculate strobe width
         self.strb_width = data_width // 8
+        
+        # Store field configs
+        self.field_configs = field_configs
+        
+        # Ensure we have proper field configs for each channel
+        if not self.field_configs:
+            raise ValueError(f"AXI4Monitor '{title}' requires field configs for each channel")
+        
+        # Extract field configs for each channel
+        self.aw_field_config = self.field_configs.get('AW')
+        self.w_field_config = self.field_configs.get('W')
+        self.b_field_config = self.field_configs.get('B')
+        self.ar_field_config = self.field_configs.get('AR')
+        self.r_field_config = self.field_configs.get('R')
 
-        # Adjust field configs for the specified widths
-        field_configs = {
-            'AW': AXI4_AW_FIELD_CONFIG,
-            'W':  AXI4_W_FIELD_CONFIG,
-            'B':  AXI4_B_FIELD_CONFIG,
-            'AR': AXI4_AR_FIELD_CONFIG,
-            'R':  AXI4_R_FIELD_CONFIG
-        }
-        adjusted_configs = adjust_field_configs(
-            field_configs, id_width, addr_width, data_width, user_width
-        )
-
-        self.aw_field_config = adjusted_configs['AW']
-        self.w_field_config = adjusted_configs['W']
-        self.b_field_config = adjusted_configs['B']
-        self.ar_field_config = adjusted_configs['AR']
-        self.r_field_config = adjusted_configs['R']
-
-        # Determine signal prefix/divider/suffix based on side
+        # Prepare signal mappings
         aw_signal_map, aw_optional_signal_map = get_aw_signal_map(prefix, divider, suffix)
         w_signal_map, w_optional_signal_map = get_w_signal_map(prefix, divider, suffix)
         b_signal_map, b_optional_signal_map = get_b_signal_map(prefix, divider, suffix)
@@ -94,7 +86,7 @@ class AXI4Monitor:
         r_signal_map, r_optional_signal_map = get_r_signal_map(prefix, divider, suffix)
 
         # Create channel monitors
-        if 'AW' in self.channels:
+        if 'AW' in self.channels and self.aw_field_config:
             self.aw_monitor = create_gaxi_monitor(
                 dut, f"{title}_AW", "", clock,
                 field_config=self.aw_field_config,
@@ -106,9 +98,9 @@ class AXI4Monitor:
             )
             self.aw_monitor.add_callback(self._handle_aw_transaction)
         else:
-            self.aw_master = None
+            self.aw_monitor = None
 
-        if 'W' in self.channels:
+        if 'W' in self.channels and self.w_field_config:
             self.w_monitor = create_gaxi_monitor(
                 dut, f"{title}_W", "", clock,
                 field_config=self.w_field_config,
@@ -120,9 +112,9 @@ class AXI4Monitor:
             )
             self.w_monitor.add_callback(self._handle_w_transaction)
         else:
-            self.aw_master = None
+            self.w_monitor = None
 
-        if 'B' in self.channels:
+        if 'B' in self.channels and self.b_field_config:
             self.b_monitor = create_gaxi_monitor(
                 dut, f"{title}_B", "", clock,
                 field_config=self.b_field_config,
@@ -134,9 +126,9 @@ class AXI4Monitor:
             )
             self.b_monitor.add_callback(self._handle_b_transaction)
         else:
-            self.b_master = None
+            self.b_monitor = None
 
-        if 'AR' in self.channels:
+        if 'AR' in self.channels and self.ar_field_config:
             self.ar_monitor = create_gaxi_monitor(
                 dut, f"{title}_AR", "", clock,
                 field_config=self.ar_field_config,
@@ -148,9 +140,9 @@ class AXI4Monitor:
             )
             self.ar_monitor.add_callback(self._handle_ar_transaction)
         else:
-            self.ar_master = None
+            self.ar_monitor = None
 
-        if 'R' in self.channels:
+        if 'R' in self.channels and self.r_field_config:
             self.r_monitor = create_gaxi_monitor(
                 dut, f"{title}_R", "", clock,
                 field_config=self.r_field_config,
@@ -162,7 +154,7 @@ class AXI4Monitor:
             )
             self.r_monitor.add_callback(self._handle_r_transaction)
         else:
-            self.r_master = None
+            self.r_monitor = None
 
         # Initialize transaction tracking
         self.write_transactions = {}  # Maps IDs to write transactions
@@ -192,10 +184,10 @@ class AXI4Monitor:
         id_value = transaction.awid
 
         # Validate protocol if enabled
-        # if self.check_protocol:
-        #     valid, error_msg = AXI4Packet(transaction).validate_axi4_protocol()
-        #     if not valid:
-        #         self.log.error(f"AXI4 protocol error (AW): {error_msg}")
+        if self.check_protocol:
+            valid, error_msg = transaction.validate_axi4_protocol()
+            if not valid:
+                self.log.error(f"AXI4 protocol error (AW): {error_msg}")
 
         # Create or update transaction tracking
         if id_value not in self.write_transactions:
@@ -267,10 +259,10 @@ class AXI4Monitor:
         id_value = transaction.bid
 
         # Validate protocol if enabled
-        # if self.check_protocol:
-        #     valid, error_msg = AXI4Packet(transaction).validate_axi4_protocol()
-        #     if not valid:
-        #         self.log.error(f"AXI4 protocol error (B): {error_msg}")
+        if self.check_protocol:
+            valid, error_msg = transaction.validate_axi4_protocol()
+            if not valid:
+                self.log.error(f"AXI4 protocol error (B): {error_msg}")
 
         # Create or update transaction tracking
         if id_value not in self.write_transactions:
@@ -300,10 +292,10 @@ class AXI4Monitor:
         id_value = transaction.arid
 
         # Validate protocol if enabled
-        # if self.check_protocol:
-        #     valid, error_msg = AXI4Packet(transaction).validate_axi4_protocol()
-        #     if not valid:
-        #         self.log.error(f"AXI4 protocol error (AR): {error_msg}")
+        if self.check_protocol:
+            valid, error_msg = transaction.validate_axi4_protocol()
+            if not valid:
+                self.log.error(f"AXI4 protocol error (AR): {error_msg}")
 
         # Calculate addresses
         addresses = transaction.get_burst_addresses() if hasattr(transaction, 'get_burst_addresses') else [transaction.araddr]
@@ -343,10 +335,10 @@ class AXI4Monitor:
         id_value = transaction.rid
 
         # Validate protocol if enabled
-        # if self.check_protocol:
-        #     valid, error_msg = AXI4Packet(transaction).validate_axi4_protocol()
-        #     if not valid:
-        #         self.log.error(f"AXI4 protocol error (R): {error_msg}")
+        if self.check_protocol:
+            valid, error_msg = transaction.validate_axi4_protocol()
+            if not valid:
+                self.log.error(f"AXI4 protocol error (R): {error_msg}")
 
         # Create or update transaction tracking
         if id_value not in self.read_transactions:
@@ -399,11 +391,7 @@ class AXI4Monitor:
                 if self.write_callback:
                     self.write_callback(id_value, tx_info)
 
-                # Clean up
-                # Note: We keep the transaction for history/debugging
-
     def _check_read_complete(self, id_value):
-        # sourcery skip: extract-method, last-if-guard
         """Check if a read transaction is complete and invoke callback if so"""
         if id_value in self.read_transactions:
             tx_info = self.read_transactions[id_value]
@@ -429,6 +417,4 @@ class AXI4Monitor:
                 # Invoke callback if set
                 if self.read_callback:
                     self.read_callback(id_value, tx_info)
-
-                # Clean up
-                # Note: We keep the transaction for history/debugging
+        

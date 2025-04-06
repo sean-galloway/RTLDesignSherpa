@@ -59,7 +59,7 @@ module fifo_sync_multi #(
         // Read side
         .i_read             (i_read),
         .ow_rd_data         ({ow_rd_addr, ow_rd_ctrl, ow_rd_data1, ow_rd_data0}),
-        .o_rd_data          ({o_rd_addr,   o_rd_ctrl,  o_rd_data1,  o_rd_data0}),
+        .o_rd_data          ({ o_rd_addr,  o_rd_ctrl,  o_rd_data1,  o_rd_data0}),
         .o_rd_empty         (o_rd_empty),
         .o_rd_almost_empty  (o_rd_almost_empty)
     );

@@ -91,8 +91,8 @@ def test_gaxi_fifo_sync_field(request, addr_width, ctrl_width, data_width, depth
     extra_env = {
         'DUT': dut_name,
         'LOG_PATH': log_path,
-        # 'COCOTB_LOG_LEVEL': 'INFO',
-        'COCOTB_LOG_LEVEL': 'DEBUG',
+        'COCOTB_LOG_LEVEL': 'INFO',
+        # 'COCOTB_LOG_LEVEL': 'DEBUG',
         'COCOTB_RESULTS_FILE': results_path,
         'SEED': str(random.randint(0, 100000))
     }

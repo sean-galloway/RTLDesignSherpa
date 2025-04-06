@@ -98,9 +98,9 @@ def get_default_field_config(data_width=32, addr_width=0, ctrl_width=0):
 
 
 def create_fifo_master(dut, title, prefix, clock, field_config=None,
-                       randomizer=None, memory_model=None,
-                       memory_fields=None, log=None, signal_map=None,
-                       optional_signal_map=None, multi_sig=False):
+                        randomizer=None, memory_model=None,
+                        memory_fields=None, log=None, signal_map=None,
+                        optional_signal_map=None, multi_sig=False):
     """
     Create a FIFO Master component with configuration.
 
@@ -150,9 +150,9 @@ def create_fifo_master(dut, title, prefix, clock, field_config=None,
 
 
 def create_fifo_slave(dut, title, prefix, clock, field_config=None,
-                      randomizer=None, memory_model=None,
-                      memory_fields=None, log=None, mode='fifo_mux',
-                      signal_map=None, optional_signal_map=None, multi_sig=False):
+                        randomizer=None, memory_model=None,
+                        memory_fields=None, log=None, mode='fifo_mux',
+                        signal_map=None, optional_signal_map=None, multi_sig=False):
     """
     Create a FIFO Slave component with configuration.
 
@@ -295,10 +295,10 @@ def create_fifo_scoreboard(name, field_config=None, log=None):
 
 
 def create_fifo_components(dut, clock, title_prefix="", field_config=None,
-                           memory_model=None, log=None, mode='fifo_mux',
-                           master_signal_map=None, master_optional_signal_map=None,
-                           slave_signal_map=None, slave_optional_signal_map=None,
-                           multi_sig=False):
+                            memory_model=None, log=None, mode='fifo_mux',
+                            master_signal_map=None, master_optional_signal_map=None,
+                            slave_signal_map=None, slave_optional_signal_map=None,
+                            multi_sig=False):
     """
     Create a complete set of FIFO components (master, slave, monitors, scoreboard).
 

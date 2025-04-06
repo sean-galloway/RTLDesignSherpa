@@ -20,7 +20,7 @@ fifo_rd_empty = 'o_rd_empty'
 fifo_rd_data = 'o_rd_data'
 fifo_rd_data_wire = 'ow_rd_data'  # for fifo_mux mode
 
-fifo_valid_modes = ['skid', 'fifo_mux', 'fifo_flop']
+fifo_valid_modes = ['fifo_mux', 'fifo_flop']
 
 # Standard signal maps for FIFO components
 master_signal_map = {
@@ -57,7 +57,7 @@ class FIFOMonitor(BusMonitor):
     """
     def __init__(self, dut, title, prefix, clock, is_slave=False,
                     field_config=None, packet_class=FIFOPacket, timeout_cycles=1000,
-                    multi_sig=False, log=None, mode='skid', signal_map=None, optional_signal_map=None, **kwargs):
+                    multi_sig=False, log=None, mode='fifo_mux', signal_map=None, optional_signal_map=None, **kwargs):
         """
         Initialize the FIFO bus monitor.
 
@@ -118,10 +118,7 @@ class FIFOMonitor(BusMonitor):
             self.control2_name = fifo_read
 
             # Data signal based on mode
-            if mode == 'fifo_mux':
-                self.data_name = fifo_rd_data_wire
-            else:
-                self.data_name = fifo_rd_data
+            self.data_name = fifo_rd_data_wire if mode == 'fifo_mux' else fifo_rd_data
         else:
             # Monitoring write port
             self.signal_map = signal_map or master_signal_map
@@ -204,12 +201,10 @@ class FIFOMonitor(BusMonitor):
         self.log.info(f"FIFOMonitor initialized for {title} in mode '{mode}', "
                         f"{'read' if is_slave else 'write'} port, "
                         f"{'multi-signal' if self.use_multi_signal else 'standard'} mode")
-        print_object_details(self, self.log, f"FIFOMonitor '{self.title}' INIT")
+        # print_object_details(self, self.log, f"FIFOMonitor '{self.title}' INIT")
 
-        self.log.info(f"Field config items count: {len(self.field_config)}")
-        for field_name in self.field_config.field_names():
-            field_def = self.field_config.get_field(field_name)
-            self.log.info(f"Field {field_name}: bits={field_def.bits}, default={field_def.default}")
+        self.log.info(f"FIFOMonitor '{self.title}'\n{self.field_config}")
+
 
     def _initialize_multi_signal_mode(self):
         """Initialize signal mappings for multi-signal mode."""
@@ -217,9 +212,9 @@ class FIFOMonitor(BusMonitor):
         for field_name in self.field_config.field_names():
             # Create the signal name for this field based on read/write port
             if self.is_slave:
-                field_signal_name = f'o_rd_data_{field_name}'
+                field_signal_name = f'o_rd_pkt_{field_name}'
             else:
-                field_signal_name = f'i_wr_data_{field_name}'
+                field_signal_name = f'i_wr_pkt_{field_name}'
 
             # First check optional signal map
             if field_signal_name in self.optional_signal_map:
@@ -309,18 +304,32 @@ class FIFOMonitor(BusMonitor):
             # Multi-signal mode: collect from individual field signals
             for field_name, dut_signal_name in self.field_signals.items():
                 if hasattr(self.bus, dut_signal_name):
-                    signal = getattr(self.bus, dut_signal_name)
+                    # For slave monitor in fifo_mux mode
+                    if self.is_slave and self.mode == 'fifo_mux':
+                        # Special handling for fifo_mux mode
+                        # Use ow_rd_* signals instead of o_rd_*
+                        mux_signal_name = dut_signal_name.replace('o_rd_', 'ow_rd_')
+                        if hasattr(self.bus, mux_signal_name):
+                            signal = getattr(self.bus, mux_signal_name)
+                        else:
+                            signal = getattr(self.bus, dut_signal_name)
+                    else:
+                        # Standard signal handling for write monitor
+                        signal = getattr(self.bus, dut_signal_name)
+                    
+                    # Get the value from the signal
                     if signal.value.is_resolvable:
                         field_value = int(signal.value)
                         # Check field value against maximum
                         field_value = self._check_field_value(field_name, field_value)
                         data_dict[field_name] = field_value
                     else:
-                        self.log.warning(f"Field {field_name} has X/Z value")
-                        data_dict[field_name] = -1  # Indicate X/Z value
+                        self.log.debug(f"Field {field_name} with signal {dut_signal_name} has X/Z value")
+                        data_dict[field_name] = 0  # Use a safe default
                 else:
-                    self.log.debug(f"Signal {dut_signal_name} not found on DUT")
+                    self.log.debug(f"Signal {dut_signal_name} for field {field_name} not found on DUT")
         elif self.data_sig:
+            # Standard mode logic remains the same
             if self.data_sig.value.is_resolvable:
                 # In standard mode with a single 'data' field
                 if hasattr(self.field_config, 'has_field') and self.field_config.has_field('data'):
@@ -333,13 +342,19 @@ class FIFOMonitor(BusMonitor):
                     data_dict['data'] = int(self.data_sig.value)
             else:
                 self.log.warning("Data signal has X/Z value")
-                data_dict['data'] = -1  # Indicate X/Z value
+                data_dict['data'] = 0  # Use a safe default
 
+        # More detailed debug for troubleshooting
+        if self.use_multi_signal and not data_dict:
+            self.log.warning(f"No data values collected for {'read' if self.is_slave else 'write'} monitor!")
+            self.log.debug(f"Field signals mapping: {self.field_signals}")
+            
         return data_dict
 
     def _update_fifo_depth(self, is_write):
         """
         Update the estimated FIFO depth based on the operation.
+        Uses actual signal values to detect errors instead of guessing.
 
         Args:
             is_write: True for write, False for read
@@ -347,27 +362,21 @@ class FIFOMonitor(BusMonitor):
         Returns:
             Updated FIFO depth
         """
-        prev_depth = self.fifo_depth
+        current_time = get_sim_time('ns')
 
         if is_write:
-            # Write operation - increment depth if not full
-            if self.fifo_depth < self.fifo_capacity:
-                self.fifo_depth += 1
+            # Check if FIFO is actually full before warning
+            if self.control2_sig.value.is_resolvable and int(self.control2_sig.value) == 1:
+                self.log.warning(f"FIFOMonitor ({self.title}): Write to full FIFO detected at {current_time}ns")
             else:
-                self._update_fifo_depth_helper(
-                    '): Write to full FIFO detected', 'write_to_full'
-                )
+                # Safe to increment depth
+                self.fifo_depth += 1
+        elif self.control1_sig.value.is_resolvable and int(self.control1_sig.value) == 1:
+            self.log.warning(f"FIFOMonitor ({self.title}): Read from empty FIFO detected at {current_time}ns")
         elif self.fifo_depth > 0:
             self.fifo_depth -= 1
-        else:
-            self._update_fifo_depth_helper(
-                '): Read from empty FIFO detected', 'read_from_empty'
-            )
-        return self.fifo_depth
 
-    def _update_fifo_depth_helper(self, arg0, arg1):
-                # FIFO is full - log error
-        self.log.warning(f"FIFOMonitor ({self.title}{arg0}")
+        return self.fifo_depth
 
     def _finish_packet(self, current_time, packet, data_dict=None):
         """
@@ -378,33 +387,30 @@ class FIFOMonitor(BusMonitor):
             packet: The packet being processed
             data_dict: Dictionary with field values or raw data value
         """
-            # Extract individual fields from the combined data value
-        if isinstance(data_dict, dict) and 'data' in data_dict:
-            if not self.use_multi_signal and self.is_slave:
-                # Extract fields based on field configuration
-                if hasattr(self.field_config, 'field_names'):
-                    field_values = {}
-                    bit_offset = 0
-
-                    # Process fields in reverse order from how they appear in the output
-                    # If the format is [id][data3][data2][data1][data0], we need to extract
-                    # from LSB to MSB: data0, data1, data2, data3, id
-                    fields = self.field_config.field_names()
-
-                    combined_value = data_dict['data']
-
-                    for field_name in fields:
-                        field_def = self.field_config.get_field(field_name)
-                        field_width = field_def.bits
-                        mask = (1 << field_width) - 1
-
-                        # Extract field value from the combined data
-                        field_value = (combined_value >> bit_offset) & mask
-                        field_values[field_name] = field_value
-                        bit_offset += field_width
-
-                    # Replace data_dict with extracted fields
-                    data_dict = field_values
+        # Extract individual fields from the combined data value
+        if isinstance(data_dict, dict) and 'data' in data_dict and (not self.use_multi_signal) and hasattr(self.field_config, 'field_names'):
+            field_values = {}
+            bit_offset = 0
+                
+            # Process fields in reverse order from how they appear in the output
+            # If the format is [id][data3][data2][data1][data0], we need to extract
+            # from LSB to MSB: data0, data1, data2, data3, id
+            fields = self.field_config.field_names()
+                
+            combined_value = data_dict['data']
+                
+            for field_name in fields:
+                field_def = self.field_config.get_field(field_name)
+                field_width = field_def.bits
+                mask = (1 << field_width) - 1
+                
+                # Extract field value from the combined data
+                field_value = (combined_value >> bit_offset) & mask
+                field_values[field_name] = field_value
+                bit_offset += field_width
+                
+            # Replace data_dict with extracted fields
+            data_dict = field_values
 
         # The rest of the method remains the same
         if data_dict:
@@ -501,6 +507,7 @@ class FIFOMonitor(BusMonitor):
 
                             # Capture data
                             data_dict = self._get_data_dict()
+                            self.log.debug(f"FIFOMonitor ({self.title}): sampling-->{data_dict=}")
                             self._finish_packet(current_time, packet, data_dict)
 
                         elif int(self.control2_sig.value) == 1:  # write while full

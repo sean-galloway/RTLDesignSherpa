@@ -15,7 +15,7 @@ fifo_rd_empty = 'o_rd_empty'
 fifo_rd_data = 'o_rd_data'
 fifo_rd_data_wire = 'ow_rd_data'  # for fifo_mux mode
 
-fifo_valid_modes = ['skid', 'fifo_mux', 'fifo_flop']
+fifo_valid_modes = ['fifo_mux', 'fifo_flop']
 
 # Standard signal maps and constraints for FIFO Slave components
 slave_signal_map = {
@@ -56,7 +56,7 @@ class FIFOSlave(BusMonitor):
     def __init__(self, dut, title, prefix, clock,
                 field_config=None, packet_class=FIFOPacket, timeout_cycles=1000,
                 randomizer=None, memory_model=None, memory_fields=None,
-                multi_sig=False, log=None, mode='skid', signal_map=None, optional_signal_map=None, **kwargs):
+                multi_sig=False, log=None, mode='fifo_mux', signal_map=None, optional_signal_map=None, **kwargs):
         """
         Initialize the FIFO slave.
 
@@ -118,11 +118,7 @@ class FIFOSlave(BusMonitor):
         self.read_name = fifo_read
 
         # Data signal based on mode
-        if mode == 'fifo_mux':
-            self.data_name = fifo_rd_data_wire
-        else:
-            self.data_name = fifo_rd_data
-
+        self.data_name = fifo_rd_data_wire if mode == 'fifo_mux' else fifo_rd_data
         # Get the actual DUT signal names from the map
         self.empty_dut_name = self.signal_map.get(self.empty_name, self.empty_name)
         self.read_dut_name = self.signal_map.get(self.read_name, self.read_name)
@@ -133,9 +129,9 @@ class FIFOSlave(BusMonitor):
         if self.use_multi_signal:
             # Multi-signal mode - only include empty/read in _signals
             msg_multi = (f'Slave({title}) multi-signal model\n'
-                         f'{signal_map=}\n'
-                         f'{optional_signal_map=}\n'
-                         f'{field_config=}\n')
+                            f'{signal_map=}\n'
+                            f'{optional_signal_map=}\n'
+                            f'{field_config=}\n')
             self._signals = [self.empty_dut_name, self.read_dut_name]
         else:
             # Use the mapped signal names for standard mode
@@ -205,9 +201,7 @@ class FIFOSlave(BusMonitor):
         # Create received queue
         self.received_queue = deque()
 
-        # Debug output
-        if log:
-            self.log.info(f"FIFOSlave initialized for {self.title} in mode '{self.mode}', {'multi-signal' if self.use_multi_signal else 'standard'}")
+        self.log.info(f"FIFOSlave initialized for {self.title} in mode '{self.mode}', {'multi-signal' if self.use_multi_signal else 'standard'}")
 
     def _initialize_multi_signal_mode(self):
         """Initialize and verify signals in multi-signal mode."""
@@ -511,7 +505,8 @@ class FIFOSlave(BusMonitor):
 
             # Check for read while empty error
             if self.empty_sig.value and self.read_sig.value:
-                self.log.error(f"Error: {self.title} read while fifo empty")
+                current_time = get_sim_time('ns')
+                self.log.error(f"FIFOSlave({self.title}) Error: {self.title} read while fifo empty at {current_time}ns")
 
             if self.mode == 'fifo_flop':
                 # 'fifo_flop' mode: note read time, defer data capture to next cycle

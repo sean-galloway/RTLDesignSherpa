@@ -5,12 +5,22 @@ This module provides test methods for validating the AXI4 Master Read module
 by leveraging the fub interface and AXI4 interface modules.
 """
 
+import cocotb
+from cocotb.triggers import Timer
+from collections import defaultdict
+
 from CocoTBFramework.tbclasses.tbbase import TBBase
+from CocoTBFramework.components.field_config import FieldConfig, FieldDefinition
+from CocoTBFramework.components.axi4.axi4_perf_opt import (
+    FieldConfigOptimizer, FieldConfigCache, get_field_config_cache, clear_field_config_cache
+)
 
 # Import from our fub interface include file
 from .axi4_master_rd_fub_intf_incl import (
     ErrorType, 
-    generate_timeout_test_values, create_collision_test_matrix
+    generate_timeout_test_values, 
+    create_collision_test_matrix,
+    PerformanceMetrics
 )
 
 
@@ -62,6 +72,13 @@ class Axi4MasterRdTests(TBBase):
 
         # Test results tracking
         self.test_results = {}
+        
+        # Performance metrics for tests
+        self.performance_metrics = PerformanceMetrics()
+        
+        # Initialize field config cache and optimizer
+        self.field_config_cache = get_field_config_cache()
+        self.field_optimizer = FieldConfigOptimizer()
 
     async def reset_dut(self):
         """Reset the DUT and all interfaces."""
@@ -80,6 +97,12 @@ class Axi4MasterRdTests(TBBase):
 
         # Wait for stabilization
         await self.wait_clocks('aclk', 10)
+        
+        # Clear caches for clean test
+        clear_field_config_cache()
+        
+        # Reset performance metrics
+        self.performance_metrics = PerformanceMetrics()
 
         self.log.info("DUT and interfaces reset")
 
@@ -177,6 +200,11 @@ class Axi4MasterRdTests(TBBase):
                 # Count transactions
                 total_transactions += 1
 
+                # Update performance metrics
+                total_bytes = bytes_per_beat * (length + 1)
+                expected_latency = 100 * (length + 1)  # Rough estimate
+                self.performance_metrics.record_expected(1, total_bytes, expected_latency)
+
                 # Brief delay between transactions
                 await self.wait_clocks('aclk', 5)
 
@@ -200,6 +228,16 @@ class Axi4MasterRdTests(TBBase):
 
         # Log any errors from interfaces
         total_errors += self.fub_intf.total_errors + self.axi4_intf.total_errors
+
+        # Get performance metrics
+        perf_stats = self.axi4_intf.get_performance_metrics()
+        self.log.info(f"Performance metrics: {perf_stats['transaction_count']} transactions, " +
+                      f"{perf_stats['byte_count']} bytes, " +
+                      f"{perf_stats['average_latency']:.2f} ns average latency")
+        
+        # Check cache statistics
+        cache_stats = self.field_config_cache.get_stats()
+        self.log.info(f"Field config cache statistics: hit rate = {cache_stats.get('overall_hit_rate', 0):.2f}%")
 
         # Log test result
         if total_errors == 0:
@@ -252,6 +290,8 @@ class Axi4MasterRdTests(TBBase):
 
         # Track total errors
         total_errors = 0
+        total_transactions = 0
+        split_counts = defaultdict(int)  # Count transactions by split count
 
         # Size is fixed based on the interface
         size = self.axi4_intf.dsize
@@ -308,6 +348,8 @@ class Axi4MasterRdTests(TBBase):
 
                 # Send read request
                 await self.axi4_intf.send_read(case1_addr, case1_length, id_value=id_value)
+                total_transactions += 1
+                split_counts[expected_splits] += 1
 
                 # Brief delay
                 await self.wait_clocks('aclk', 20)
@@ -337,6 +379,8 @@ class Axi4MasterRdTests(TBBase):
 
                 # Send read request
                 await self.axi4_intf.send_read(case2_addr, case2_length, id_value=id_value)
+                total_transactions += 1
+                split_counts[expected_splits] += 1
 
                 # Brief delay
                 await self.wait_clocks('aclk', 20)
@@ -366,6 +410,8 @@ class Axi4MasterRdTests(TBBase):
 
                 # Send read request
                 await self.axi4_intf.send_read(case3_addr, case3_length, id_value=id_value)
+                total_transactions += 1
+                split_counts[expected_splits] += 1
 
                 # Longer delay after case 3 to ensure completion
                 await self.wait_clocks('aclk', 50)
@@ -376,7 +422,18 @@ class Axi4MasterRdTests(TBBase):
 
         # Verify split information
         timeout_ns = 100000
-        await self.fub_intf.wait_for_splits(3, timeout_ns)  # We sent 3 transactions
+        await self.fub_intf.wait_for_splits(total_transactions, timeout_ns)
+        
+        # Log split count statistics
+        self.log.info("Split count statistics:")
+        for split_count, count in sorted(split_counts.items()):
+            self.log.info(f"  {split_count} splits: {count} transactions")
+
+        # Get performance metrics
+        perf_stats = self.axi4_intf.get_performance_metrics()
+        self.log.info(f"Performance metrics: {perf_stats['transaction_count']} transactions, " +
+                      f"{perf_stats['byte_count']} bytes, " +
+                      f"{perf_stats['average_latency']:.2f} ns average latency")
 
         # Add errors from interfaces
         total_errors += self.fub_intf.total_errors + self.axi4_intf.total_errors
@@ -388,7 +445,6 @@ class Axi4MasterRdTests(TBBase):
         return total_errors == 0
 
     async def test_03_response_error_test(self):
-        # sourcery skip: merge-list-append, merge-list-appends-into-extend, merge-list-extend, remove-redundant-fstring, unwrap-iterable-construction
         """
         Test 03: Response Error Test, test error responses.
 
@@ -417,13 +473,13 @@ class Axi4MasterRdTests(TBBase):
         test_cases = []
 
         # No split case (large boundary)
-        test_cases.append((4096, 64, 0, 2, 1, f"No split response error"))
+        test_cases.append((4096, 64, 0, 2, 1, "No split response error"))
 
         # Single split case
-        test_cases.append((256, 224, 2, 2, 2, f"Single split response error"))
+        test_cases.append((256, 224, 2, 2, 2, "Single split response error"))
 
         # Multiple split case
-        test_cases.append((256, 224, 15, 2, 3, f"Multiple split response error"))
+        test_cases.append((256, 224, 15, 2, 3, "Multiple split response error"))
 
         total_errors = 0
         total_transactions = 0
@@ -539,7 +595,7 @@ class Axi4MasterRdTests(TBBase):
         await self.fub_intf.wait_for_errors(expected_timeouts, 100000)
 
         # Verify right number of R timeouts were detected
-        r_timeout_count = self.fub_intf.get_error_count(ErrorType.R_TIMEOUT)
+                    r_timeout_count = self.fub_intf.get_error_count(ErrorType.R_TIMEOUT)
         if r_timeout_count != expected_timeouts:
             self.log.error(f"R timeout count mismatch: expected={expected_timeouts}, actual={r_timeout_count}")
             total_errors += 1
@@ -716,6 +772,115 @@ class Axi4MasterRdTests(TBBase):
         self.test_results['test_06_collision_cases'] = (total_errors == 0)
 
         self.log.info(f"Test 06 Collision Cases completed with {total_errors} errors")
+        return total_errors == 0
+        
+    async def test_07_performance_test(self):
+        """
+        Test 07: Performance test for read operations.
+        
+        Tests the performance of various combinations of read operations
+        to measure throughput and latency.
+        
+        Returns:
+            True if test passes, False otherwise
+        """
+        self.log.info("Starting Test 07: Performance Test")
+        
+        # Reset the DUT and interfaces
+        await self.reset_dut()
+        
+        # Use a large alignment mask to avoid splitting
+        self.axi4_intf.set_dut_alignment_mask(self.boundary_4k)
+        
+        # Set optimal timing for performance measurement
+        self.fub_intf.set_split_readiness('always_ready')
+        self.fub_intf.set_error_readiness('always_ready')
+        self.axi4_intf.set_fub_ar_timing('always_ready')
+        self.axi4_intf.set_m_axi_r_timing('always_ready')
+        
+        # Test parameters
+        lengths = [0, 3, 15, 31, 63, 127, 255]  # Various burst lengths
+        addresses = [0x1000, 0x2000, 0x3000, 0x4000]  # Different addresses
+        
+        total_errors = 0
+        total_transactions = 0
+        total_bytes = 0
+        start_time = cocotb.utils.get_sim_time('ns')
+        
+        # First pass: sequential transactions
+        self.log.info("Running sequential transactions")
+        id_base = 0
+        
+        for length in lengths:
+            for addr in addresses:
+                id_value = id_base
+                id_base += 1
+                
+                # Send read request
+                await self.axi4_intf.send_read(addr, length, id_value=id_value, busy_send=True)
+                total_transactions += 1
+                
+                # Calculate bytes transferred
+                bytes_per_beat = 1 << self.axi4_intf.dsize
+                total_bytes += bytes_per_beat * (length + 1)
+        
+        # Wait for all transactions to complete
+        self.log.info("Waiting for sequential transactions to complete")
+        await self.wait_clocks('aclk', 100)
+        
+        # Second pass: pipelined transactions
+        self.log.info("Running pipelined transactions")
+        
+        # Send all requests first
+        for length in lengths:
+            for addr in addresses:
+                id_value = id_base
+                id_base += 1
+                
+                # Send read request (don't wait for completion)
+                await self.axi4_intf.send_read(addr, length, id_value=id_value)
+                total_transactions += 1
+                
+                # Calculate bytes transferred
+                bytes_per_beat = 1 << self.axi4_intf.dsize
+                total_bytes += bytes_per_beat * (length + 1)
+                
+                # Small delay between requests
+                await self.wait_clocks('aclk', 2)
+        
+        # Wait for all transactions to complete
+        self.log.info("Waiting for pipelined transactions to complete")
+        await self.wait_clocks('aclk', 500)
+        
+        # Calculate performance metrics
+        end_time = cocotb.utils.get_sim_time('ns')
+        duration_ns = end_time - start_time
+        throughput_gbps = (total_bytes * 8) / duration_ns  # Gbps
+        
+        self.log.info(f"Performance metrics:")
+        self.log.info(f"  Total transactions: {total_transactions}")
+        self.log.info(f"  Total bytes: {total_bytes}")
+        self.log.info(f"  Duration: {duration_ns} ns")
+        self.log.info(f"  Throughput: {throughput_gbps:.2f} Gbps")
+        
+        # Get detailed performance metrics
+        perf_stats = self.axi4_intf.get_performance_metrics()
+        self.log.info(f"  Average latency: {perf_stats['average_latency']:.2f} ns")
+        
+        # Check cache statistics
+        cache_stats = self.field_config_cache.get_stats()
+        self.log.info(f"Field config cache statistics:")
+        self.log.info(f"  Overall hit rate: {cache_stats.get('overall_hit_rate', 0):.2f}%")
+        self.log.info(f"  Total hits: {cache_stats.get('total_hits', 0)}")
+        self.log.info(f"  Total misses: {cache_stats.get('total_misses', 0)}")
+        
+        # Add errors from interfaces
+        total_errors += self.fub_intf.total_errors + self.axi4_intf.total_errors
+        
+        # Store test results
+        self.test_results['test_07_performance_test'] = (total_errors == 0)
+        
+        self.log.info(f"Test 07 Performance Test completed with {total_errors} errors")
         return total_errors == 0
 
     def get_test_results(self):
