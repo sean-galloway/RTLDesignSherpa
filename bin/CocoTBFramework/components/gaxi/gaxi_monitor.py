@@ -243,14 +243,14 @@ class GAXIMonitor(BusMonitor):
         if not hasattr(self.field_config, 'get_field'):
             # Can't perform check if field_config doesn't support get_field
             return field_value
-        
+
         try:
             field_def = self.field_config.get_field(field_name)
             bits = field_def.bits
-            
+
             # Calculate maximum value for this field
             max_value = (1 << bits) - 1
-            
+
             # Check if value exceeds maximum
             if field_value > max_value:
                 current_time = get_sim_time('ns')
@@ -258,13 +258,11 @@ class GAXIMonitor(BusMonitor):
                     f"GAXIMonitor({self.title}) at {current_time}ns: Field '{field_name}' value 0x{field_value:X} "
                     f"exceeds maximum 0x{max_value:X} ({bits} bits). Value will be masked."
                 )
-                
-                # Mask the value
-                masked_value = field_value & max_value
-                return masked_value
+
+                return field_value & max_value
         except Exception as e:
             self.log.error(f"Error checking field value: {e}")
-            
+
         return field_value
 
     def _finish_packet(self, current_time, packet, data_dict=None):
@@ -350,9 +348,8 @@ class GAXIMonitor(BusMonitor):
                         data_dict[field_name] = -1  # Indicate X/Z value
                 else:
                     self.log.debug(f"Signal {dut_signal_name} not found on DUT")
-        else:
-            # Standard mode: get from the aggregated data signal
-            if self.pkt_sig and self.pkt_sig.value.is_resolvable:
+        elif self.pkt_sig:
+            if self.pkt_sig.value.is_resolvable:
                 # Use len() and has_field instead of checking fields directly
                 if (hasattr(self.field_config, 'has_field') and 
                     len(self.field_config) == 1 and 
@@ -365,7 +362,7 @@ class GAXIMonitor(BusMonitor):
                     # Handle multi-field configuration in standard mode
                     # For now, just store the raw value in 'data'
                     data_dict['data'] = int(self.pkt_sig.value)
-            elif self.pkt_sig:
+            else:
                 self.log.warning("Data signal has X/Z value")
                 data_dict['data'] = -1  # Indicate X/Z value
 
@@ -393,8 +390,6 @@ class GAXIMonitor(BusMonitor):
                 # Standard mode - check if data signal is X/Z
                 if self.pkt_sig.value.is_resolvable:
                     data_val = int(self.pkt_sig.value)
-                    # Check value against maximum
-                    data_val = self._check_field_value('data', data_val)
                 else:
                     self.log.warning("Data signal has X/Z value")
                     data_val = -1  # Represent X/Z as -1

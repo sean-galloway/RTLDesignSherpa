@@ -63,7 +63,8 @@ def test_gaxi_skid_buffer_field(request, addr_width, ctrl_width, data_width, dep
     cw_str = TBBase.format_dec(ctrl_width, 3)
     dw_str = TBBase.format_dec(data_width, 3)
     d_str = TBBase.format_dec(depth, 3)
-    test_name_plus_params = f"test_{dut_name}_field_aw{aw_str}_cw{cw_str}_dw{dw_str}_d{d_str}"
+    test_name_plus_params = f"test_{dut_name}_field_aw{aw_str}_cw{cw_str}_dw{dw_str}_d{d_str}_{mode}"
+
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Use it in the simbuild path
@@ -79,7 +80,7 @@ def test_gaxi_skid_buffer_field(request, addr_width, ctrl_width, data_width, dep
 
     # RTL parameters
     rtl_parameters = {
-        'DATA_WIDTH': str(addr_width+ctrl_width+data_width),
+        'DATA_WIDTH': str(addr_width+ctrl_width+data_width+data_width),
         'DEPTH': str(depth),
     }
 

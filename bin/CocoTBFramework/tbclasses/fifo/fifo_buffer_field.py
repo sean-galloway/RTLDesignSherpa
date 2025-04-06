@@ -1,4 +1,4 @@
-"""Testbench for AXI-style multi-signal components"""
+"""Testbench for FIFO buffer components with multiple fields"""
 import os
 import cocotb
 
@@ -6,15 +6,15 @@ from CocoTBFramework.tbclasses.tbbase import TBBase
 from CocoTBFramework.components.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.field_config import FieldConfig
 
-from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
-from CocoTBFramework.components.gaxi.gaxi_master import GAXIMaster
-from CocoTBFramework.components.gaxi.gaxi_slave import GAXISlave
-from CocoTBFramework.components.gaxi.gaxi_monitor import GAXIMonitor
-from CocoTBFramework.tbclasses.gaxi.gaxi_buffer_configs import FIELD_CONFIGS, RANDOMIZER_CONFIGS
+from CocoTBFramework.components.fifo.fifo_packet import FIFOPacket
+from CocoTBFramework.components.fifo.fifo_master import FIFOMaster
+from CocoTBFramework.components.fifo.fifo_slave import FIFOSlave
+from CocoTBFramework.components.fifo.fifo_monitor import FIFOMonitor
+from CocoTBFramework.tbclasses.fifo.fifo_buffer_configs import FIELD_CONFIGS, RANDOMIZER_CONFIGS
 
 
-class GaxiFieldBufferTB(TBBase):
-    """Testbench for multi-signal AXI components like axi_fifo_sync_field and axi_skid_buffer_field"""
+class FifoFieldBufferTB(TBBase):
+    """Testbench for multi-field FIFO components like fifo_sync_field and fifo_skid_buffer_field"""
 
     def __init__(self, dut,
                     wr_clk=None, wr_rstn=None,
@@ -26,7 +26,8 @@ class GaxiFieldBufferTB(TBBase):
         self.TEST_ADDR_WIDTH = self.convert_to_int(os.environ.get('TEST_ADDR_WIDTH', '0'))
         self.TEST_CTRL_WIDTH = self.convert_to_int(os.environ.get('TEST_CTRL_WIDTH', '0'))
         self.TEST_DATA_WIDTH = self.convert_to_int(os.environ.get('TEST_DATA_WIDTH', '0'))
-        self.TEST_MODE = os.environ.get('TEST_MODE', 'skid')
+        self.TEST_MODE = os.environ.get('TEST_MODE', 'fifo_mux')
+        self.TEST_KIND = os.environ.get('TEST_KIND', 'sync')
         self.TEST_CLK_WR = self.convert_to_int(os.environ.get('TEST_CLK_WR', '10'))
         self.TEST_CLK_RD = self.convert_to_int(os.environ.get('TEST_CLK_RD', '10'))
 
@@ -44,9 +45,9 @@ class GaxiFieldBufferTB(TBBase):
         self.wr_clk = wr_clk
         self.wr_clk_name = wr_clk.name
         self.wr_rstn = wr_rstn
-        self.rd_clk = self.wr_clk if rd_clk is None else rd_clk
-        self.rd_clk_name = self.wr_clk_name if rd_clk is None else rd_clk.name
-        self.rd_rstn = self.wr_rstn if rd_rstn is None else rd_rstn
+        self.rd_clk = self.wr_clk if self.TEST_KIND == 'sync' else rd_clk
+        self.rd_clk_name = self.wr_clk_name if self.TEST_KIND == 'sync' else rd_clk.name
+        self.rd_rstn = self.wr_rstn if self.TEST_KIND == 'sync' else rd_rstn
 
         # Log the test configuration
         msg = '\n'
@@ -54,10 +55,8 @@ class GaxiFieldBufferTB(TBBase):
         msg += ' Settings:\n'
         msg += '-'*80 + "\n"
         msg += f' Depth:    {self.TEST_DEPTH}\n'
-        msg += f' AddrW:    {self.TEST_ADDR_WIDTH}\n'
         msg += f' CtrlW:    {self.TEST_CTRL_WIDTH}\n'
         msg += f' DataW:    {self.TEST_DATA_WIDTH}\n'
-        msg += f' Max Addr: {self.MAX_ADDR}\n'
         msg += f' Max Ctrl: {self.MAX_CTRL}\n'
         msg += f' Max Data: {self.MAX_DATA}\n'
         msg += f' MODE:     {self.TEST_MODE}\n'
@@ -66,7 +65,7 @@ class GaxiFieldBufferTB(TBBase):
         msg += '='*80 + "\n"
         self.log.info(msg)
 
-        # Define field configuration for multi-signal components
+        # Create field configuration
         self.field_config = FieldConfig.from_dict(FIELD_CONFIGS['field'])
         self.field_config.update_field_width('addr', self.AW)
         self.field_config.update_field_width('ctrl', self.CW)
@@ -75,15 +74,15 @@ class GaxiFieldBufferTB(TBBase):
 
         self.log.debug(f"\n{self.field_config}")
 
-        # Create BFM components - use multi-signal mode with signal maps
-        self.write_master = GAXIMaster(
+        # Create BFM components - use field mode with appropriate signals
+        self.write_master = FIFOMaster(
             dut, 'write_master', '', self.wr_clk,
             field_config=self.field_config,
             timeout_cycles=self.TIMEOUT_CYCLES,
             log=self.log
         )
 
-        self.read_slave = GAXISlave(
+        self.read_slave = FIFOSlave(
             dut, 'read_slave', '', self.rd_clk,
             mode=self.TEST_MODE,
             field_config=self.field_config,
@@ -92,14 +91,14 @@ class GaxiFieldBufferTB(TBBase):
         )
 
         # Set up monitors
-        self.wr_monitor = GAXIMonitor(
+        self.wr_monitor = FIFOMonitor(
             dut, 'Write monitor', '', self.wr_clk,
             field_config=self.field_config,
             is_slave=False,
             log=self.log
         )
 
-        self.rd_monitor = GAXIMonitor(
+        self.rd_monitor = FIFOMonitor(
             dut, 'Read monitor', '', self.rd_clk,
             mode=self.TEST_MODE,
             field_config=self.field_config,
@@ -202,12 +201,12 @@ class GaxiFieldBufferTB(TBBase):
             addr = i & self.MAX_ADDR  # Mask address to avoid overflow
             ctrl = i & self.MAX_CTRL  # Mask control to avoid overflow
             data0 = i & self.MAX_DATA  # Mask data to avoid overflow
-            data1 = i*16 & self.MAX_DATA  # Mask data to avoid overflow
-            packet = GAXIPacket(self.field_config)
+            data1 = i & self.MAX_DATA  # Mask data to avoid overflow
+            packet = FIFOPacket(self.field_config)
             packet.addr=addr
-            packet.ctrl=ctrl
-            packet.data0=data0
-            packet.data1=data1
+            packet.ctrl = ctrl
+            packet.data0 = data0
+            packet.data1 = data1
 
             # Queue the packet for transmission
             await self.write_master.send(packet)
@@ -217,7 +216,7 @@ class GaxiFieldBufferTB(TBBase):
             await self.wait_clocks(self.wr_clk_name, 1)
 
         # Read data from the buffer
-        await self.wait_clocks(self.wr_clk_name, delay_clks_after*50)
+        await self.wait_clocks(self.wr_clk_name, delay_clks_after*5)
 
         # Wait for all packets to be received
         timeout_counter = 0

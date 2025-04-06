@@ -486,8 +486,6 @@ class GAXISlave(BusMonitor):
             else:
                 # Standard mode
                 data_val = self._get_data_value()
-                # Check value against maximum for data field
-                data_val = self._check_field_value('data', data_val)
                 self._finish_packet(current_time, packet, {'data': data_val})
 
         return current_time

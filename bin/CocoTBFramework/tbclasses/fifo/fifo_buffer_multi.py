@@ -1,4 +1,4 @@
-"""Testbench for AXI-style multi-signal components"""
+"""Testbench for FIFO buffer components with multiple signals"""
 import os
 import cocotb
 
@@ -6,15 +6,15 @@ from CocoTBFramework.tbclasses.tbbase import TBBase
 from CocoTBFramework.components.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.field_config import FieldConfig
 
-from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
-from CocoTBFramework.components.gaxi.gaxi_master import GAXIMaster
-from CocoTBFramework.components.gaxi.gaxi_slave import GAXISlave
-from CocoTBFramework.components.gaxi.gaxi_monitor import GAXIMonitor
-from CocoTBFramework.tbclasses.gaxi.gaxi_buffer_configs import FIELD_CONFIGS, RANDOMIZER_CONFIGS
+from CocoTBFramework.components.fifo.fifo_packet import FIFOPacket
+from CocoTBFramework.components.fifo.fifo_master import FIFOMaster
+from CocoTBFramework.components.fifo.fifo_slave import FIFOSlave
+from CocoTBFramework.components.fifo.fifo_monitor import FIFOMonitor
+from CocoTBFramework.tbclasses.fifo.fifo_buffer_configs import FIELD_CONFIGS, RANDOMIZER_CONFIGS
 
 
-class GaxiFieldBufferTB(TBBase):
-    """Testbench for multi-signal AXI components like axi_fifo_sync_field and axi_skid_buffer_field"""
+class FifoMultiBufferTB(TBBase):
+    """Testbench for multi-signal FIFO components like fifo_sync_multi and fifo_skid_buffer_multi"""
 
     def __init__(self, dut,
                     wr_clk=None, wr_rstn=None,
@@ -23,16 +23,14 @@ class GaxiFieldBufferTB(TBBase):
 
         # Get test parameters from environment
         self.TEST_DEPTH = self.convert_to_int(os.environ.get('TEST_DEPTH', '0'))
-        self.TEST_ADDR_WIDTH = self.convert_to_int(os.environ.get('TEST_ADDR_WIDTH', '0'))
         self.TEST_CTRL_WIDTH = self.convert_to_int(os.environ.get('TEST_CTRL_WIDTH', '0'))
-        self.TEST_DATA_WIDTH = self.convert_to_int(os.environ.get('TEST_DATA_WIDTH', '0'))
+        self.TEST_DATA0_WIDTH = self.convert_to_int(os.environ.get('TEST_DATA0_WIDTH', '0'))
+        self.TEST_DATA1_WIDTH = self.convert_to_int(os.environ.get('TEST_DATA1_WIDTH', '0'))
         self.TEST_MODE = os.environ.get('TEST_MODE', 'skid')
         self.TEST_CLK_WR = self.convert_to_int(os.environ.get('TEST_CLK_WR', '10'))
         self.TEST_CLK_RD = self.convert_to_int(os.environ.get('TEST_CLK_RD', '10'))
 
         # Setup widths and limits
-        self.AW = self.TEST_ADDR_WIDTH
-        self.MAX_ADDR = (2**self.TEST_ADDR_WIDTH)-1
         self.CW = self.TEST_CTRL_WIDTH
         self.MAX_CTRL = (2**self.TEST_CTRL_WIDTH)-1
         self.DW = self.TEST_DATA_WIDTH
@@ -44,9 +42,9 @@ class GaxiFieldBufferTB(TBBase):
         self.wr_clk = wr_clk
         self.wr_clk_name = wr_clk.name
         self.wr_rstn = wr_rstn
-        self.rd_clk = self.wr_clk if rd_clk is None else rd_clk
-        self.rd_clk_name = self.wr_clk_name if rd_clk is None else rd_clk.name
-        self.rd_rstn = self.wr_rstn if rd_rstn is None else rd_rstn
+        self.rd_clk = self.wr_clk if self.TEST_KIND == 'sync' else rd_clk
+        self.rd_clk_name = self.wr_clk_name if self.TEST_KIND == 'sync' else rd_clk.name
+        self.rd_rstn = self.wr_rstn if self.TEST_KIND == 'sync' else rd_rstn
 
         # Log the test configuration
         msg = '\n'
@@ -54,10 +52,8 @@ class GaxiFieldBufferTB(TBBase):
         msg += ' Settings:\n'
         msg += '-'*80 + "\n"
         msg += f' Depth:    {self.TEST_DEPTH}\n'
-        msg += f' AddrW:    {self.TEST_ADDR_WIDTH}\n'
         msg += f' CtrlW:    {self.TEST_CTRL_WIDTH}\n'
         msg += f' DataW:    {self.TEST_DATA_WIDTH}\n'
-        msg += f' Max Addr: {self.MAX_ADDR}\n'
         msg += f' Max Ctrl: {self.MAX_CTRL}\n'
         msg += f' Max Data: {self.MAX_DATA}\n'
         msg += f' MODE:     {self.TEST_MODE}\n'
@@ -66,45 +62,93 @@ class GaxiFieldBufferTB(TBBase):
         msg += '='*80 + "\n"
         self.log.info(msg)
 
-        # Define field configuration for multi-signal components
+        # Create field configuration
         self.field_config = FieldConfig.from_dict(FIELD_CONFIGS['field'])
-        self.field_config.update_field_width('addr', self.AW)
+        self.field_config.update_field_width('addr', self.CW)
         self.field_config.update_field_width('ctrl', self.CW)
         self.field_config.update_field_width('data0', self.DW)
         self.field_config.update_field_width('data1', self.DW)
 
         self.log.debug(f"\n{self.field_config}")
 
+        # Set up signal mappings for multi-signal mode
+        # Required signals (valid/ready) for master
+        master_signal_map = {
+            'm2s_valid': 'i_wr_valid',
+            's2m_ready': 'o_wr_ready'
+        }
+
+        # Optional signals (data fields) for master
+        master_optional_map = {
+            'm2s_pkt_addr': 'i_wr_addr',
+            'm2s_pkt_ctrl': 'i_wr_ctrl',
+            'm2s_pkt_data0': 'i_wr_data0',
+            'm2s_pkt_data1': 'i_wr_data1'
+        }
+
+        # Required signals (valid/ready) for slave
+        slave_signal_map = {
+            'm2s_valid': 'o_rd_valid',
+            's2m_ready': 'i_rd_ready'
+        }
+
+        # Optional signals (data fields) for slave
+        slave_optional_map = {
+            'm2s_pkt_addr': 'o_rd_addr',
+            'm2s_pkt_ctrl': 'o_rd_ctrl',
+            'm2s_pkt_data0': 'o_rd_data0',
+            'm2s_pkt_data1': 'o_rd_data1',
+        }
+
+        # For fifo_mux mode, we also need to map to ow_rd_* signals
+        if self.TEST_MODE == 'fifo_mux':
+            slave_optional_map['m2s_pkt_addr'] = 'ow_rd_addr'
+            slave_optional_map['m2s_pkt_ctrl'] = 'ow_rd_ctrl'
+            slave_optional_map['m2s_pkt_data0'] = 'ow_rd_data0'
+            slave_optional_map['m2s_pkt_data1'] = 'ow_rd_data1'
+
         # Create BFM components - use multi-signal mode with signal maps
-        self.write_master = GAXIMaster(
+        self.write_master = FIFOMaster(
             dut, 'write_master', '', self.wr_clk,
             field_config=self.field_config,
             timeout_cycles=self.TIMEOUT_CYCLES,
-            log=self.log
+            signal_map=master_signal_map,
+            optional_signal_map=master_optional_map,
+            log=self.log,
+            multi_sig=True
         )
 
-        self.read_slave = GAXISlave(
+        self.read_slave = FIFOSlave(
             dut, 'read_slave', '', self.rd_clk,
             mode=self.TEST_MODE,
             field_config=self.field_config,
             timeout_cycles=self.TIMEOUT_CYCLES,
-            log=self.log
+            signal_map=slave_signal_map,
+            optional_signal_map=slave_optional_map,
+            log=self.log,
+            multi_sig=True
         )
 
         # Set up monitors
-        self.wr_monitor = GAXIMonitor(
+        self.wr_monitor = FIFOMonitor(
             dut, 'Write monitor', '', self.wr_clk,
             field_config=self.field_config,
             is_slave=False,
-            log=self.log
+            signal_map=master_signal_map,
+            optional_signal_map=master_optional_map,
+            log=self.log,
+            multi_sig=True
         )
 
-        self.rd_monitor = GAXIMonitor(
+        self.rd_monitor = FIFOMonitor(
             dut, 'Read monitor', '', self.rd_clk,
             mode=self.TEST_MODE,
             field_config=self.field_config,
             is_slave=True,
-            log=self.log
+            signal_map=slave_signal_map,
+            optional_signal_map=slave_optional_map,
+            log=self.log,
+            multi_sig=True
         )
 
     async def clear_interface(self):
@@ -199,15 +243,13 @@ class GaxiFieldBufferTB(TBBase):
         # Send packets
         for i in range(count):
             # Create packet
-            addr = i & self.MAX_ADDR  # Mask address to avoid overflow
             ctrl = i & self.MAX_CTRL  # Mask control to avoid overflow
-            data0 = i & self.MAX_DATA  # Mask data to avoid overflow
-            data1 = i*16 & self.MAX_DATA  # Mask data to avoid overflow
-            packet = GAXIPacket(self.field_config)
-            packet.addr=addr
-            packet.ctrl=ctrl
-            packet.data0=data0
-            packet.data1=data1
+            data0 = i & self.MAX_DATA0  # Mask data to avoid overflow
+            data1 = 16*i & self.MAX_DATA1  # Mask data to avoid overflow - use different pattern
+            packet = FIFOPacket(self.field_config)
+            packet.ctrl = ctrl
+            packet.data0 = data0
+            packet.data1 = data1
 
             # Queue the packet for transmission
             await self.write_master.send(packet)
@@ -217,7 +259,7 @@ class GaxiFieldBufferTB(TBBase):
             await self.wait_clocks(self.wr_clk_name, 1)
 
         # Read data from the buffer
-        await self.wait_clocks(self.wr_clk_name, delay_clks_after*50)
+        await self.wait_clocks(self.wr_clk_name, delay_clks_after*5)
 
         # Wait for all packets to be received
         timeout_counter = 0
