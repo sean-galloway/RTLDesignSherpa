@@ -8,6 +8,7 @@ CocoTBFramework
 │   ├── flex_randomizer.py
 │   ├── memory_model.py
 │   ├── packet.py
+│   ├── packet_cacheing.md
 │   ├── apb
 │   │   ├── __init__.py
 │   │   ├── apb_components.py
@@ -42,7 +43,15 @@ CocoTBFramework
 │   │   ├── fifo_monitor.py
 │   │   ├── fifo_packet.py
 │   │   ├── fifo_sequence.py
-│   │   └── fifo_slave.py
+│   │   ├── fifo_slave.py
+│   │   └── HOLD
+│   │       ├── __init__.py
+│   │       ├── fifo_factories.py
+│   │       ├── fifo_master.py
+│   │       ├── fifo_monitor.py
+│   │       ├── fifo_packet.py
+│   │       ├── fifo_sequence.py
+│   │       └── fifo_slave.py
 │   ├── gaxi
 │   │   ├── __init__.py
 │   │   ├── gaxi_factories.py
@@ -50,7 +59,15 @@ CocoTBFramework
 │   │   ├── gaxi_monitor.py
 │   │   ├── gaxi_packet.py
 │   │   ├── gaxi_sequence.py
-│   │   └── gaxi_slave.py
+│   │   ├── gaxi_slave.py
+│   │   └── HOLD
+│   │       ├── __init__.py
+│   │       ├── gaxi_factories.py
+│   │       ├── gaxi_master.py
+│   │       ├── gaxi_monitor.py
+│   │       ├── gaxi_packet.py
+│   │       ├── gaxi_sequence.py
+│   │       └── gaxi_slave.py
 │   └── wavedrom_utils
 │       ├── __init__.py
 │       ├── common_groups.py
@@ -78,6 +95,7 @@ CocoTBFramework
     │   └── register_map.py
     ├── axi4
     │   ├── __init__.py
+    │   ├── axi4_command_handlers.py
     │   ├── axi4_master_rd_fub_intf.py
     │   ├── axi4_master_rd_fub_intf_incl.py
     │   ├── axi4_master_rd_slv_intf.py
@@ -121,6 +139,7 @@ CocoTBFramework
     │   ├── gaxi_buffer_configs.py
     │   ├── gaxi_buffer_field.py
     │   ├── gaxi_buffer_multi.py
+    │   ├── gaxi_buffer_seq.py
     │   ├── gaxi_data_collect_tb.py
     │   └── gaxi_enhancements.py
     └── wavedrom_user

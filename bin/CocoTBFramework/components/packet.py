@@ -1,29 +1,186 @@
 """
-Generic Packet Class for Protocol Testing
+Generic Packet Class for Protocol Testing with Performance Optimizations
 
-This module provides a base Packet class that can be used across different protocols
+This module provides an optimized base Packet class that can be used across different protocols
 (GAXI, APB, etc.) to handle common packet operations like field management, formatting,
-and comparisons.
+and comparisons with enhanced performance through caching.
 """
 from typing import Dict, Any, List, Optional, Set, Union, Tuple
 from .field_config import FieldConfig, FieldDefinition
 
 
+# Global cache for field operations
+class _FieldCache:
+    """Cache for field operations to improve performance"""
+    
+    def __init__(self):
+        """Initialize empty caches"""
+        # Field masks cache: (field_config_id, field_name) -> mask
+        self.field_masks = {}
+        
+        # Field bits cache: (field_config_id, field_name) -> bits
+        self.field_bits = {}
+        
+        # Field active bits cache: (field_config_id, field_name) -> (msb, lsb)
+        self.field_active_bits = {}
+        
+        # Field format cache: (field_config_id, field_name) -> format_function
+        self.field_formatters = {}
+        
+        # Statistics
+        self.hits = 0
+        self.misses = 0
+    
+    def get_mask(self, field_config: FieldConfig, field_name: str) -> int:
+        """Get mask for a field (cached)"""
+        # Create a cache key using the field_config's id and field name
+        cache_key = (id(field_config), field_name)
+        
+        if cache_key in self.field_masks:
+            self.hits += 1
+            return self.field_masks[cache_key]
+        
+        # Cache miss, calculate mask
+        self.misses += 1
+        if not field_config.has_field(field_name):
+            # Default to all bits if field not found
+            mask = 0xFFFFFFFF
+        else:
+            field_def = field_config.get_field(field_name)
+            bits = field_def.bits
+            mask = (1 << bits) - 1
+        
+        # Store in cache
+        self.field_masks[cache_key] = mask
+        return mask
+    
+    def get_bits(self, field_config: FieldConfig, field_name: str) -> int:
+        """Get bits for a field (cached)"""
+        cache_key = (id(field_config), field_name)
+        
+        if cache_key in self.field_bits:
+            self.hits += 1
+            return self.field_bits[cache_key]
+        
+        # Cache miss, calculate bits
+        self.misses += 1
+        if not field_config.has_field(field_name):
+            # Default to 32 bits if field not found
+            bits = 32
+        else:
+            field_def = field_config.get_field(field_name)
+            bits = field_def.bits
+        
+        # Store in cache
+        self.field_bits[cache_key] = bits
+        return bits
+    
+    def get_active_bits(self, field_config: FieldConfig, field_name: str) -> Tuple[int, int]:
+        """Get active bits (msb, lsb) for a field (cached)"""
+        cache_key = (id(field_config), field_name)
+        
+        if cache_key in self.field_active_bits:
+            self.hits += 1
+            return self.field_active_bits[cache_key]
+        
+        # Cache miss, calculate active bits
+        self.misses += 1
+        if not field_config.has_field(field_name):
+            # Default to full width if field not found
+            bits = 32
+            active_bits = (bits - 1, 0)
+        else:
+            field_def = field_config.get_field(field_name)
+            active_bits = field_def.active_bits
+        
+        # Store in cache
+        self.field_active_bits[cache_key] = active_bits
+        return active_bits
+    
+    def get_formatter(self, field_config: FieldConfig, field_name: str):
+        """Get a formatting function for a field (cached)"""
+        cache_key = (id(field_config), field_name)
+        
+        if cache_key in self.field_formatters:
+            self.hits += 1
+            return self.field_formatters[cache_key]
+        
+        # Cache miss, create formatter
+        self.misses += 1
+        if not field_config.has_field(field_name):
+            # Default to hex format if field not found
+            formatter = lambda value: f"0x{value:X}"
+        else:
+            field_def = field_config.get_field(field_name)
+            fmt = field_def.format
+            width = field_def.display_width
+            
+            if fmt == 'bin':
+                formatter = lambda value: f"0b{value:0{width}b}"
+            elif fmt == 'dec':
+                formatter = lambda value: f"{value:{width}d}"
+            else:
+                # Default to hex
+                formatter = lambda value: f"0x{value:0{width}X}"
+        
+        # Store in cache
+        self.field_formatters[cache_key] = formatter
+        return formatter
+    
+    def clear(self):
+        """Clear all caches"""
+        self.field_masks.clear()
+        self.field_bits.clear()
+        self.field_active_bits.clear()
+        self.field_formatters.clear()
+        self.hits = 0
+        self.misses = 0
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """Get cache statistics"""
+        total = self.hits + self.misses
+        hit_rate = (self.hits / total * 100) if total > 0 else 0
+        
+        return {
+            'hits': self.hits,
+            'misses': self.misses,
+            'hit_rate': hit_rate,
+            'cache_size': {
+                'masks': len(self.field_masks),
+                'bits': len(self.field_bits),
+                'active_bits': len(self.field_active_bits),
+                'formatters': len(self.field_formatters)
+            }
+        }
+
+
+# Create global cache instance
+_FIELD_CACHE = _FieldCache()
+
+
+def get_field_cache_stats() -> Dict[str, Any]:
+    """Get field cache statistics"""
+    return _FIELD_CACHE.get_stats()
+
+
+def clear_field_cache():
+    """Clear the field cache"""
+    _FIELD_CACHE.clear()
+
+
 class Packet:
     """
-    Generic packet class for handling protocol transactions.
+    Generic packet class for handling protocol transactions with optimized performance.
     
     This class provides a flexible way to define packets with custom fields without
     requiring subclassing for each protocol. Fields are defined through a FieldConfig
     object, and the class handles bit field transformations automatically during 
     packing/unpacking.
     
-    Features:
-    - Support for complex field configurations with active bit ranges
-    - Customizable field value formatting
-    - Automatic bit shifting for field packing/unpacking
-    - Support for comparing packets with customizable field skipping
-    - Automatic masking of field values to prevent overflow
+    Performance optimizations include:
+    - Caching of field masks, bits, and formatters
+    - Fast field lookup and validation
+    - Optimized bit shifting operations for pack/unpack
     """
     
     def __init__(self, field_config: Union[FieldConfig, Dict[str, Dict[str, Any]]], 
@@ -66,6 +223,7 @@ class Packet:
         
         This is useful to prevent values from overflowing their assigned fields.
         The mask is created based on the field's bit width, not just the active bits.
+        Uses caching for better performance.
         
         Args:
             value: The value to mask
@@ -80,18 +238,15 @@ class Packet:
         if not self.field_config.has_field(field_name):
             raise AttributeError(f"No field named '{field_name}' exists in this packet")
             
-        field_def = self.field_config[field_name]
-        bits = field_def.bits
-        
-        # Create a mask with 1s in all positions defined by the field width
-        mask = (1 << bits) - 1
+        # Get mask from cache
+        mask = _FIELD_CACHE.get_mask(self.field_config, field_name)
         
         # Apply mask to truncate any bits beyond the field width
         masked_value = value & mask
         
         # If the value was changed by masking, log a warning
         if masked_value != value:
-            print(f"WARNING: Value 0x{value:X} exceeds bit width ({bits}) for field '{field_name}', masked to 0x{masked_value:X}")
+            print(f"WARNING: Value 0x{value:X} exceeds bit width for field '{field_name}', masked to 0x{masked_value:X}")
             
         return masked_value
 
@@ -136,6 +291,8 @@ class Packet:
         Convert a full field value to its FIFO representation by right-shifting.
         For example, if addr[31:5] is 0x12345678, this returns 0x91A2B3 (shifted right by 5).
         
+        Uses caching for better performance.
+        
         Args:
             value: The full field value
             field_name: Name of the field
@@ -145,9 +302,9 @@ class Packet:
         """
         if not self.field_config.has_field(field_name):
             return value
-            
-        field_def = self.field_config[field_name]
-        active_bits = field_def.active_bits
+        
+        # Get active bits from cache
+        active_bits = _FIELD_CACHE.get_active_bits(self.field_config, field_name)
         
         if active_bits[1] == 0:
             return value
@@ -169,6 +326,8 @@ class Packet:
         For example, if addr[31:5] in FIFO is 0x91A2B3, this returns 0x12345660 (shifted left by 5).
         Note that the lowest 5 bits will be zeros due to the shifting process.
         
+        Uses caching for better performance.
+        
         Args:
             value: The FIFO field value
             field_name: Name of the field
@@ -179,8 +338,8 @@ class Packet:
         if not self.field_config.has_field(field_name):
             return value
 
-        field_def = self.field_config[field_name]
-        active_bits = field_def.active_bits
+        # Get active bits from cache
+        active_bits = _FIELD_CACHE.get_active_bits(self.field_config, field_name)
 
         return value if active_bits[1] == 0 else value << active_bits[1]
     
@@ -238,9 +397,11 @@ class Packet:
         """
         return self.field_config.get_total_bits()
     
-    def _format_field(self, field_name, value):  # sourcery skip: move-assign
+    def _format_field(self, field_name, value):
         """
         Format a field value according to its configuration.
+        
+        Uses caching for better performance.
         
         Args:
             field_name: Name of the field to format
@@ -251,38 +412,26 @@ class Packet:
         """
         if not self.field_config.has_field(field_name):
             return str(value)
-            
-        field_def = self.field_config[field_name]
-        fmt = field_def.format
-        bits = field_def.bits
-        display_width = field_def.display_width
-        active_bits = field_def.active_bits
         
         # Check for undefined values
         if value == -1:
             return "X/Z"  # Indicate undefined value
             
-        # Calculate appropriate width based on bits or display_width
-        width = display_width
-            
-        # Format based on specified format
-        if fmt == 'bin':
-            formatted = f"0b{value:0{width}b}"
-        elif fmt == 'dec':
-            formatted = f"{value:{width}d}"
-        else:
-            # Default to hex if unknown format
-            formatted = f"0x{value:0{width}X}"
-            
-        # Include active bit range in display if specified
-        if active_bits is not None:
-            msb, lsb = active_bits
-            if msb != bits - 1 or lsb != 0:
-                # Only show bit range if it's not the full field
-                if msb == lsb:
-                    formatted = f"{formatted}[{msb}]"
-                else:
-                    formatted = f"{formatted}[{msb}:{lsb}]"
+        # Get formatter from cache
+        formatter = _FIELD_CACHE.get_formatter(self.field_config, field_name)
+        formatted = formatter(value)
+        
+        # Include active bit range in display if not the full field
+        active_bits = _FIELD_CACHE.get_active_bits(self.field_config, field_name)
+        bits = _FIELD_CACHE.get_bits(self.field_config, field_name)
+        
+        msb, lsb = active_bits
+        if msb != bits - 1 or lsb != 0:
+            # Only show bit range if it's not the full field
+            if msb == lsb:
+                formatted = f"{formatted}[{msb}]"
+            else:
+                formatted = f"{formatted}[{msb}:{lsb}]"
                     
         return formatted
     
@@ -313,7 +462,7 @@ class Packet:
             result.append(f"  {padded_desc}: {formatted_value}")
             
             # If this is a partial field, also show the FIFO value
-            active_bits = field_def.active_bits
+            active_bits = _FIELD_CACHE.get_active_bits(self.field_config, field_name)
             if active_bits[1] > 0 and value != -1:  # Skip FIFO display for X/Z values
                 fifo_value = self.shift_for_fifo(value, field_name)
                 fifo_formatted = self._format_field(field_name, fifo_value)
