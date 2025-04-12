@@ -8,7 +8,7 @@ from collections import deque
 from cocotb.utils import get_sim_time
 
 from CocoTBFramework.scoreboards.base_scoreboard import BaseScoreboard
-from CocoTBFramework.components.axi4.axi4_packets import AXI4Packet
+from CocoTBFramework.components.axi4.axi4_packet import AXI4Packet
 
 
 class AXI4Scoreboard(BaseScoreboard):

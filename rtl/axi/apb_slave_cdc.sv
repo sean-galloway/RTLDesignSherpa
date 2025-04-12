@@ -3,7 +3,7 @@
 module apb_slave_cdc #(
     parameter int ADDR_WIDTH      = 32,
     parameter int DATA_WIDTH      = 32,
-    parameter int STRB_WIDTH      = 32 / 8,
+    parameter int STRB_WIDTH      = DATA_WIDTH / 8,
     parameter int PROT_WIDTH      = 3,
     parameter int DEPTH      = 2,
     // Short Parameters
@@ -132,8 +132,8 @@ module apb_slave_cdc #(
         .ready_src       (o_rsp_ready),
         .data_src        ({i_rsp_pslverr, i_rsp_prdata}),
 
-        .clk_dst         (aclk),
-        .rst_dst_n       (aresetn),
+        .clk_dst         (pclk),
+        .rst_dst_n       (presetn),
         .valid_dst       (w_rsp_valid),
         .ready_dst       (w_rsp_ready),
         .data_dst        ({w_rsp_pslverr, w_rsp_prdata})

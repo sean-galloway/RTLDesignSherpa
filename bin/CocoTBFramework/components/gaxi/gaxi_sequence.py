@@ -1,9 +1,9 @@
 """
-Enhanced GAXI Sequence Implementation for Generating Test Patterns
+Enhanced GAXI Sequence Implementation with Transaction Dependency Tracking
 
 This module provides a powerful sequence generator for GAXI transactions
-with built-in masking features and enhanced capabilities designed to be
-inherited and extended by future classes.
+with built-in masking features and enhanced dependency tracking capabilities
+designed to model complex transaction relationships.
 """
 import random
 from collections import deque
@@ -14,10 +14,12 @@ from .gaxi_packet import GAXIPacket
 
 class GAXISequence:
     """
-    Generates sequences of GAXI transactions for testing with built-in masking.
+    Generates sequences of GAXI transactions for testing with built-in masking
+    and transaction dependency tracking.
 
-    This class creates test patterns for GAXI transactions with default configuration
-    focusing on 'data' field, providing automatic field value masking and extensibility.
+    This class creates test patterns for GAXI transactions with dependency tracking,
+    allowing for the creation of complex sequences where transactions depend on
+    the completion of previous transactions.
     """
 
     def __init__(self, name="basic", field_config=None, packet_class=GAXIPacket):
@@ -55,6 +57,10 @@ class GAXISequence:
         self.field_data_seq = {} # Dictionary of field_name -> list of values
         self.delay_seq = []      # Delays between transactions
 
+        # Transaction dependency tracking
+        self.dependencies = {}   # Maps transaction index -> dependency index
+        self.dependency_types = {} # Maps transaction index -> dependency type
+
         # Randomization options
         self.use_random_selection = False
         self.master_randomizer = None
@@ -71,7 +77,8 @@ class GAXISequence:
         self.stats = {
             'total_transactions': 0,
             'masked_values': 0,
-            'field_stats': {}
+            'field_stats': {},
+            'dependencies': 0
         }
 
     def _calculate_field_masks(self):
@@ -128,7 +135,7 @@ class GAXISequence:
             delay: Delay after this transaction
             
         Returns:
-            Self for method chaining
+            Index of the added transaction for dependency tracking
         """
         # Add field values with automatic masking
         field_values = field_values or {}
@@ -147,7 +154,37 @@ class GAXISequence:
         # Update statistics
         self.stats['total_transactions'] += 1
             
-        return self
+        # Return the index of this transaction for dependency tracking
+        return self.stats['total_transactions'] - 1
+
+    def add_transaction_with_dependency(self, field_values=None, delay=0, depends_on_index=None, dependency_type="after"):
+        """
+        Add a transaction that depends on completion of a previous transaction.
+        
+        Args:
+            field_values: Dictionary of field values
+            delay: Delay after this transaction
+            depends_on_index: Index of transaction this depends on
+            dependency_type: Type of dependency ("after", "immediate", "conditional")
+            
+        Returns:
+            Index of the added transaction
+        """
+        # Add the transaction normally
+        current_index = self.add_transaction(field_values, delay)
+        
+        # Store dependency information if provided
+        if depends_on_index is not None:
+            if depends_on_index >= current_index:
+                raise ValueError(f"Dependency index {depends_on_index} must be less than current index {current_index}")
+                
+            self.dependencies[current_index] = depends_on_index
+            self.dependency_types[current_index] = dependency_type
+            
+            # Update statistics
+            self.stats['dependencies'] += 1
+        
+        return current_index
 
     def add_data_value(self, data, delay=0):
         """
@@ -158,9 +195,24 @@ class GAXISequence:
             delay: Delay after transaction
             
         Returns:
-            Self for method chaining
+            Index of the added transaction
         """
         return self.add_transaction({'data': data}, delay)
+
+    def add_data_value_with_dependency(self, data, delay=0, depends_on_index=None, dependency_type="after"):
+        """
+        Add a data transaction that depends on completion of a previous transaction.
+        
+        Args:
+            data: Data value (will be automatically masked)
+            delay: Delay after transaction
+            depends_on_index: Index of transaction this depends on
+            dependency_type: Type of dependency ("after", "immediate", "conditional")
+            
+        Returns:
+            Index of the added transaction
+        """
+        return self.add_transaction_with_dependency({'data': data}, delay, depends_on_index, dependency_type)
 
     def add_delay(self, clocks):
         """
@@ -314,8 +366,13 @@ class GAXISequence:
             count = 0
 
         # Generate packets
-        for _ in range(count):
+        for i in range(count):
             packet = self.generate_packet()
+            # Add dependency information to the packet as metadata
+            if i in self.dependencies:
+                packet.depends_on_index = self.dependencies[i]
+                packet.dependency_type = self.dependency_types.get(i, "after")
+            
             self.packets.append(packet)
 
         return list(self.packets)
@@ -341,6 +398,19 @@ class GAXISequence:
 
         return self.packets[index % len(self.packets)]
 
+    def get_dependency_graph(self):
+        """
+        Get a representation of the transaction dependencies.
+        
+        Returns:
+            Dictionary mapping transaction indexes to their dependencies
+        """
+        return {
+            'dependencies': self.dependencies.copy(),
+            'dependency_types': self.dependency_types.copy(),
+            'transaction_count': self.stats['total_transactions']
+        }
+
     def get_stats(self):
         """
         Get statistics about the sequence generation.
@@ -351,10 +421,45 @@ class GAXISequence:
         # Calculate more statistics
         if self.stats['total_transactions'] > 0:
             self.stats['masking_percentage'] = (self.stats['masked_values'] / self.stats['total_transactions']) * 100
+            if self.stats['dependencies'] > 0:
+                self.stats['dependency_percentage'] = (self.stats['dependencies'] / self.stats['total_transactions']) * 100
+            else:
+                self.stats['dependency_percentage'] = 0
         else:
             self.stats['masking_percentage'] = 0
+            self.stats['dependency_percentage'] = 0
             
         return self.stats
+
+    def resolve_dependencies(self, completed_transactions=None):
+        """
+        Determine which transactions are ready to execute based on dependencies.
+        
+        Args:
+            completed_transactions: Set of transaction indexes that have completed
+            
+        Returns:
+            Set of transaction indexes that are ready to execute
+        """
+        completed_transactions = completed_transactions or set()
+        ready_transactions = set()
+        
+        for i in range(self.stats['total_transactions']):
+            # If already completed, skip
+            if i in completed_transactions:
+                continue
+                
+            # If no dependencies, it's ready
+            if i not in self.dependencies:
+                ready_transactions.add(i)
+                continue
+                
+            # Check if dependency is satisfied
+            depends_on = self.dependencies[i]
+            if depends_on in completed_transactions:
+                ready_transactions.add(i)
+                
+        return ready_transactions
 
     # ========================================================================
     # Extended Data Operation Methods
@@ -373,11 +478,13 @@ class GAXISequence:
         Returns:
             Self for method chaining
         """
+        indexes = []
         for i in range(count):
             data_value = data_start + (i * data_step)
-            self.add_data_value(data_value, delay=delay)
+            index = self.add_data_value(data_value, delay=delay)
+            indexes.append(index)
             
-        return self
+        return self, indexes
         
     def add_data_pattern(self, patterns, delay=0):
         """
@@ -390,10 +497,12 @@ class GAXISequence:
         Returns:
             Self for method chaining
         """
+        indexes = []
         for pattern in patterns:
-            self.add_data_value(pattern, delay=delay)
+            index = self.add_data_value(pattern, delay=delay)
+            indexes.append(index)
                 
-        return self
+        return self, indexes
         
     def add_walking_ones(self, data_width=32, delay=0):
         """
@@ -406,11 +515,13 @@ class GAXISequence:
         Returns:
             Self for method chaining
         """
+        indexes = []
         for bit in range(data_width):
             pattern = 1 << bit
-            self.add_data_value(pattern, delay=delay)
+            index = self.add_data_value(pattern, delay=delay)
+            indexes.append(index)
                 
-        return self
+        return self, indexes
         
     def add_walking_zeros(self, data_width=32, delay=0):
         """
@@ -426,11 +537,13 @@ class GAXISequence:
         # Create all ones mask
         all_ones = (1 << data_width) - 1
         
+        indexes = []
         for bit in range(data_width):
             pattern = all_ones & ~(1 << bit)
-            self.add_data_value(pattern, delay=delay)
+            index = self.add_data_value(pattern, delay=delay)
+            indexes.append(index)
                 
-        return self
+        return self, indexes
         
     def add_alternating_bits(self, data_width=32, delay=0):
         """
@@ -458,360 +571,98 @@ class GAXISequence:
         ]
         
         # Add transactions for each pattern
+        indexes = []
         for pattern in patterns:
-            self.add_data_value(pattern, delay=delay)
+            index = self.add_data_value(pattern, delay=delay)
+            indexes.append(index)
                 
-        return self
+        return self, indexes
         
-    def add_random_data(self, count, data_mask=None, delay=0):
+    def add_burst_with_dependencies(self, count, data_start=0, data_step=1, delay=0, dependency_spacing=1):
         """
-        Add transactions with random data.
+        Add a burst of transactions where each one depends on a previous one.
         
         Args:
             count: Number of transactions
-            data_mask: Mask to apply to random data
+            data_start: Starting data value
+            data_step: Step size between data values
             delay: Delay between transactions
+            dependency_spacing: How many transactions back to depend on (1=previous transaction)
             
         Returns:
-            Self for method chaining
+            Self for method chaining and list of transaction indexes
         """
-        # Determine data width
-        if 'data' in self.field_config:
-            data_width = self.field_config['data'].get('bits', 32)
-        else:
-            data_width = 32
+        indexes = []
+        
+        # Add the first transaction (no dependency)
+        first_index = self.add_data_value(data_start, delay=delay)
+        indexes.append(first_index)
+        
+        # Add remaining transactions with dependencies
+        for i in range(1, count):
+            data_value = data_start + (i * data_step)
             
-        # Create mask if not provided
-        if data_mask is None:
-            data_mask = (1 << data_width) - 1
-            
-        # Add transactions with random data
-        for _ in range(count):
-            data = random.randint(0, 0xFFFFFFFF) & data_mask
-            self.add_data_value(data, delay=delay)
-            
-        return self
-        
-    def add_data_corners(self, data_width=32, delay=0):
-        """
-        Add transactions with data values at the "corners" of the data space.
-        
-        Args:
-            data_width: Width of data in bits
-            delay: Delay between transactions
-            
-        Returns:
-            Self for method chaining
-        """
-        # Create mask for data width
-        mask = (1 << data_width) - 1
-        
-        # Define corner patterns
-        patterns = [
-            0x00000000,                      # All zeros
-            mask,                           # All ones
-            0x00000001,                      # Just LSB
-            1 << (data_width - 1),           # Just MSB
-            0x00000003,                      # Two LSBs
-            mask & ~0x00000001,             # All except LSB
-            mask & ~(1 << (data_width - 1)), # All except MSB
-            0x55555555 & mask,               # Alternating 0101...
-            0xAAAAAAAA & mask,               # Alternating 1010...
-        ]
-        
-        # Add transactions for each pattern
-        for pattern in patterns:
-            self.add_data_value(pattern, delay=delay)
-                
-        return self
-
-    def add_overflow_test(self, data_width=32, delay=0):
-        """
-        Add transactions that test values larger than the field width to verify masking.
-        
-        Args:
-            data_width: Width of data in bits
-            delay: Delay between transactions
-            
-        Returns:
-            Self for method chaining
-        """
-        # Create mask for data width
-        mask = (1 << data_width) - 1
-        
-        # These values will be automatically masked by add_data_value
-        patterns = [
-            mask + 1,                      # Just over the max
-            mask + 2,                      # Just over the max + 1
-            0xFFFFFFFF,                    # All ones (32-bit)
-            0xFFFFFFFF << data_width,      # All ones shifted beyond the field
-            random.randint(0, 0xFFFFFFFF)  # Random value that may exceed field width
-        ]
-        
-        # Add transactions for each pattern
-        for pattern in patterns:
-            self.add_data_value(pattern, delay=delay)
-                
-        return self
-
-    def add_fibonacci_sequence(self, count, delay=0):
-        """
-        Add transactions with Fibonacci sequence data values.
-        
-        Args:
-            count: Number of transactions (Fibonacci numbers to generate)
-            delay: Delay between transactions
-            
-        Returns:
-            Self for method chaining
-        """
-        a, b = 0, 1
-        
-        for _ in range(count):
-            self.add_data_value(a, delay=delay)
-            a, b = b, a + b
-            
-        return self
-
-    def add_prime_sequence(self, count, delay=0):
-        """
-        Add transactions with prime number data values.
-        
-        Args:
-            count: Number of prime numbers to generate
-            delay: Delay between transactions
-            
-        Returns:
-            Self for method chaining
-        """
-        def is_prime(n):
-            """Simple prime checker"""
-            if n < 2:
-                return False
-            for i in range(2, int(n ** 0.5) + 1):
-                if n % i == 0:
-                    return False
-            return True
-        
-        # Generate prime numbers
-        primes = []
-        num = 2
-        while len(primes) < count:
-            if is_prime(num):
-                primes.append(num)
-            num += 1
-        
-        # Add transactions with prime data values
-        for prime in primes:
-            self.add_data_value(prime, delay=delay)
-            
-        return self
-
-    # ========================================================================
-    # Enhanced Factory Methods for creating common test sequences
-    # ========================================================================
-    
-    @classmethod
-    def create_alternating(cls, name="alternating", data_values=None, count=10):
-        """
-        Create an alternating pattern of data values.
-
-        Args:
-            name: Sequence name
-            data_values: List of data values (random if None)
-            count: Number of transactions if data_values is None
-
-        Returns:
-            Configured GAXISequence instance
-        """
-        sequence = cls(name)
-
-        # Generate data values if not provided
-        if data_values is None:
-            data_values = [random.randint(0, 0xFFFFFFFF) for _ in range(count)]
-
-        # Create alternating pattern
-        for data in data_values:
-            # Add with small delay between each value
-            sequence.add_data_value(data, delay=2)
-
-        return sequence
-
-    @classmethod
-    def create_burst(cls, name="burst", count=10, pattern_type="increment"):
-        """
-        Create a burst pattern with no delays between transactions.
-
-        Args:
-            name: Sequence name
-            count: Number of transactions
-            pattern_type: Type of data pattern ("increment", "random", "alternating")
-
-        Returns:
-            Configured GAXISequence instance
-        """
-        sequence = cls(name)
-
-        if pattern_type == "increment":
-            # Incrementing values
-            for i in range(count):
-                sequence.add_data_value(i, delay=0)  # No delay for burst mode
-        
-        elif pattern_type == "random":
-            # Random values
-            for _ in range(count):
-                value = random.randint(0, 0xFFFFFFFF)
-                sequence.add_data_value(value, delay=0)  # No delay for burst mode
-        
-        elif pattern_type == "alternating":
-            # Alternating 0x55/0xAA pattern
-            for i in range(count):
-                value = 0x55555555 if i % 2 == 0 else 0xAAAAAAAA
-                sequence.add_data_value(value, delay=0)  # No delay for burst mode
-        
-        else:
-            raise ValueError(f"Unknown pattern_type: {pattern_type}")
-
-        # Set fast randomizer defaults
-        sequence.set_master_randomizer(FlexRandomizer({
-            'valid_delay': ([[0, 0]], [1]),  # No delay
-        }))
-
-        sequence.set_slave_randomizer(FlexRandomizer({
-            'ready_delay': ([[0, 0]], [1]),  # No delay
-        }))
-
-        return sequence
-
-    @classmethod
-    def create_data_stress(cls, name="data_stress", data_width=32, delay=0):
-        """
-        Create a comprehensive data stress test sequence.
-        
-        Args:
-            name: Sequence name
-            data_width: Width of data in bits
-            delay: Delay between sequences
-            
-        Returns:
-            Configured GAXISequence for stress testing data patterns
-        """
-        sequence = cls(name)
-        
-        # Add walking ones pattern
-        sequence.add_walking_ones(data_width, delay)
-        
-        # Add walking zeros pattern
-        sequence.add_walking_zeros(data_width, delay)
-        
-        # Add alternating bits patterns
-        sequence.add_alternating_bits(data_width, delay)
-        
-        # Add corner values
-        sequence.add_data_corners(data_width, delay)
-        
-        # Add overflow values to test masking
-        sequence.add_overflow_test(data_width, delay)
-        
-        # Add random values
-        sequence.add_random_data(10, delay=delay)
-        
-        return sequence
-
-    @classmethod
-    def create_delay_variation(cls, name="delay_variation", data_pattern=None, count=10):
-        """
-        Create a sequence with varying delays to test timing behavior.
-        
-        Args:
-            name: Sequence name
-            data_pattern: Function to generate data values or None for sequential
-            count: Number of transactions to generate
-            
-        Returns:
-            Configured GAXISequence with varying delays
-        """
-        sequence = cls(name)
-        
-        # Generate data and delays
-        for i in range(count):
-            # Generate data
-            if callable(data_pattern):
-                data = data_pattern(i)
-            elif data_pattern is not None:
-                data = data_pattern
+            # Calculate dependency index
+            if i < dependency_spacing:
+                # First few transactions depend on the first one
+                depends_on = first_index
             else:
-                data = i  # Sequential data
+                # Later transactions depend on earlier ones based on spacing
+                depends_on = indexes[i - dependency_spacing]
                 
-            # Generate delay pattern: 0, 1, 0, 2, 0, 3, ...
-            delay = i // 2 if i % 2 == 1 else 0
+            # Add transaction with dependency
+            index = self.add_transaction_with_dependency(
+                {'data': data_value}, 
+                delay=delay, 
+                depends_on_index=depends_on
+            )
+            indexes.append(index)
             
-            # Add transaction
-            sequence.add_data_value(data, delay=delay)
-            
-        return sequence
+        return self, indexes
 
-    @classmethod
-    def create_interleaved_sequences(cls, name="interleaved", count=10, primary_delay=0, secondary_delay=5):
+    def add_dependency_chain(self, count, data_start=0, data_step=1, delay=0):
         """
-        Create interleaved sequences with primary (fast) and secondary (slow) data.
+        Add a chain of transactions where each depends on the previous one.
+        
+        Args:
+            count: Number of transactions
+            data_start: Starting data value
+            data_step: Step size between data values
+            delay: Delay between transactions
+            
+        Returns:
+            Self for method chaining and list of transaction indexes
+        """
+        return self.add_burst_with_dependencies(
+            count, 
+            data_start=data_start, 
+            data_step=data_step, 
+            delay=delay, 
+            dependency_spacing=1
+        )
+
+    # Factory methods return dependency chain information
+    @classmethod
+    def create_dependency_chain(cls, name="dependency_chain", count=5, 
+                               data_start=0, data_step=1, delay=0):
+        """
+        Create a sequence with transactions forming a dependency chain.
         
         Args:
             name: Sequence name
-            count: Number of transactions (pairs) to generate
-            primary_delay: Delay for primary transactions
-            secondary_delay: Delay for secondary transactions
+            count: Number of transactions
+            data_start: Starting data value
+            data_step: Step size between data values
+            delay: Delay between transactions
             
         Returns:
-            Configured GAXISequence with interleaved primary/secondary data
+            Configured GAXISequence instance with dependency chain
         """
         sequence = cls(name)
-        
-        for i in range(count):
-            # Primary pattern (fast, incrementing)
-            sequence.add_data_value(i, delay=primary_delay)
-            
-            # Secondary pattern (slow, derived)
-            secondary_value = i * 0x100 + 0xFF
-            sequence.add_data_value(secondary_value, delay=secondary_delay)
-            
-        return sequence
-
-    @classmethod
-    def create_comprehensive_test(cls, name="comprehensive", data_width=32):
-        """
-        Create a comprehensive test with many different patterns.
-        
-        Args:
-            name: Sequence name
-            data_width: Width of data in bits
-            
-        Returns:
-            Configured GAXISequence with multiple test patterns
-        """
-        sequence = cls(name)
-        
-        # Basic tests
-        sequence.add_data_value(0, delay=0)  # All zeros
-        sequence.add_data_value((1 << data_width) - 1, delay=0)  # All ones
-        
-        # Standard test patterns
-        sequence.add_walking_ones(data_width, delay=1)
-        sequence.add_walking_zeros(data_width, delay=1)
-        sequence.add_alternating_bits(data_width, delay=1)
-        
-        # Corner cases
-        sequence.add_data_corners(data_width, delay=2)
-        
-        # Overflow testing
-        sequence.add_overflow_test(data_width, delay=2)
-        
-        # Varying data patterns
-        sequence.add_data_incrementing(10, data_start=0, data_step=0x100, delay=0)
-        sequence.add_fibonacci_sequence(10, delay=1)
-        sequence.add_prime_sequence(10, delay=1)
-        
-        # Random data
-        sequence.add_random_data(10, delay=3)
-        
+        sequence, indexes = sequence.add_dependency_chain(
+            count, 
+            data_start=data_start, 
+            data_step=data_step, 
+            delay=delay
+        )
         return sequence

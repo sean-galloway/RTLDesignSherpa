@@ -134,7 +134,7 @@ class AXI4ReadCommandHandler:
                         # Continue with zero data on error
 
                 # Create R channel packet
-                from CocoTBFramework.components.axi4.axi4_packets import AXI4Packet
+                from CocoTBFramework.components.axi4.axi4_packet import AXI4Packet
 
                 r_packet = AXI4Packet.create_r_packet(
                     rid=id_value,
@@ -327,7 +327,7 @@ class AXI4WriteCommandHandler:
         for id_value, transaction in self.pending_transactions.items():
             if transaction['complete']:
                 # Send B response
-                from CocoTBFramework.components.axi4.axi4_packets import AXI4Packet
+                from CocoTBFramework.components.axi4.axi4_packet import AXI4Packet
 
                 aw_transaction = transaction['aw_transaction']
 

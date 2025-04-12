@@ -11,7 +11,7 @@ from cocotb.utils import get_sim_time
 
 from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_monitor
 from CocoTBFramework.components.field_config import FieldConfig
-from .axi4_packets import AXI4Packet
+from .axi4_packet import AXI4Packet
 from .axi4_fields_signals import (
     get_aw_signal_map,
     get_w_signal_map,
@@ -63,14 +63,14 @@ class AXI4Monitor:
 
         # Calculate strobe width
         self.strb_width = data_width // 8
-        
+
         # Store field configs
         self.field_configs = field_configs
-        
+
         # Ensure we have proper field configs for each channel
         if not self.field_configs:
             raise ValueError(f"AXI4Monitor '{title}' requires field configs for each channel")
-        
+
         # Extract field configs for each channel
         self.aw_field_config = self.field_configs.get('AW')
         self.w_field_config = self.field_configs.get('W')
@@ -183,11 +183,87 @@ class AXI4Monitor:
 
         id_value = transaction.awid
 
-        # Validate protocol if enabled
+        # Use protocol validation if available, otherwise perform fallback validation
+        valid = True
+        error_msg = ""
+
         if self.check_protocol:
-            valid, error_msg = transaction.validate_axi4_protocol()
+            if hasattr(transaction, 'validate_axi4_protocol'):
+                # Use native AXI4Packet validation
+                valid, error_msg = transaction.validate_axi4_protocol()
+            else:
+                # Fallback validation for GAXIPacket
+                # Check address alignment based on size
+                if hasattr(transaction, 'awsize') and hasattr(transaction, 'awaddr'):
+                    byte_count = 1 << transaction.awsize
+                    if transaction.awaddr % byte_count != 0:
+                        error_msg = f"AW address 0x{transaction.awaddr:X} not aligned for size {transaction.awsize} ({byte_count} bytes)"
+                        valid = False
+
+                # Check burst type
+                if hasattr(transaction, 'awburst'):
+                    if transaction.awburst not in [0, 1, 2]:  # FIXED, INCR, WRAP
+                        error_msg = f"Invalid AW burst type: {transaction.awburst}"
+                        valid = False
+
+                    # For WRAP bursts, check power-of-2 length
+                    if transaction.awburst == 2 and hasattr(transaction, 'awlen') and (transaction.awlen + 1) not in [2, 4, 8, 16]:
+                        error_msg = f"WRAP burst length must be 2, 4, 8, or 16 (awlen={transaction.awlen})"
+                        valid = False
+
+                # Check burst length
+                if hasattr(transaction, 'awlen') and transaction.awlen > 255:
+                    error_msg = f"AW burst length exceeds AXI4 maximum: {transaction.awlen}"
+                    valid = False
+
+            # Log any errors
             if not valid:
                 self.log.error(f"AXI4 protocol error (AW): {error_msg}")
+
+        # Get burst addresses
+        if hasattr(transaction, 'get_burst_addresses'):
+            # Use native method if available
+            addresses = transaction.get_burst_addresses()
+        else:
+            # Fallback implementation for GAXIPacket
+            addresses = []
+            if hasattr(transaction, 'awaddr') and hasattr(transaction, 'awlen') and hasattr(transaction, 'awsize') and hasattr(transaction, 'awburst'):
+                addr = transaction.awaddr
+                burst_len = transaction.awlen
+                size = transaction.awsize
+                burst_type = transaction.awburst
+
+                # Calculate the byte count for this size
+                byte_count = 1 << size
+
+                # Calculate all addresses in the burst
+                current_addr = addr
+                for _ in range(burst_len + 1):
+                    addresses.append(current_addr)
+
+                    # Update address based on burst type
+                    if burst_type == 0:  # FIXED
+                        # Address remains the same for all beats
+                        pass
+                    elif burst_type == 1:  # INCR
+                        # Increment address by byte count
+                        current_addr += byte_count
+                    elif burst_type == 2:  # WRAP
+                        # Calculate the wrap boundary (align to burst size)
+                        wrap_size = (burst_len + 1) * byte_count
+                        wrap_mask = wrap_size - 1
+                        wrap_boundary = addr & ~wrap_mask
+
+                        # Increment address
+                        current_addr += byte_count
+
+                        # Check if we need to wrap
+                        if (current_addr & wrap_mask) == 0:
+                            current_addr = wrap_boundary
+            else:
+                # If we can't calculate addresses, just use the single address
+                if hasattr(transaction, 'awaddr'):
+                    addresses = [transaction.awaddr]
 
         # Create or update transaction tracking
         if id_value not in self.write_transactions:
@@ -196,7 +272,7 @@ class AXI4Monitor:
                 'w_transactions': [],
                 'b_transaction': None,
                 'start_time': get_sim_time('ns'),
-                'addresses': transaction.get_burst_addresses() if hasattr(transaction, 'get_burst_addresses') else [transaction.awaddr],
+                'addresses': addresses,
                 'expected_beats': transaction.awlen + 1 if hasattr(transaction, 'awlen') else 1,
                 'received_beats': 0,
                 'complete': False
@@ -207,7 +283,7 @@ class AXI4Monitor:
 
             # If addresses not yet calculated, do it now
             if 'addresses' not in self.write_transactions[id_value]:
-                self.write_transactions[id_value]['addresses'] = transaction.get_burst_addresses() if hasattr(transaction, 'get_burst_addresses') else [transaction.awaddr]
+                self.write_transactions[id_value]['addresses'] = addresses
 
             # If expected_beats not set, do it now
             if 'expected_beats' not in self.write_transactions[id_value]:
@@ -220,6 +296,25 @@ class AXI4Monitor:
 
     def _handle_w_transaction(self, transaction):
         """Process Write Data (W) channel transaction"""
+        # Validate protocol if enabled
+        if self.check_protocol:
+            valid = True
+            if hasattr(transaction, 'validate_axi4_protocol'):
+                valid, error_msg = transaction.validate_axi4_protocol()
+                if not valid:
+                    self.log.error(f"AXI4 protocol error (W): {error_msg}")
+            else:
+                # Basic validation for GAXIPacket
+                # Validate strobe for enabled bytes
+                if hasattr(transaction, 'wstrb') and transaction.wstrb == 0:
+                    self.log.error("AXI4 protocol error (W): Write strobe is zero (no bytes enabled)")
+                    valid = False
+
+                # Validate wlast field if present
+                if hasattr(transaction, 'wlast') and not isinstance(transaction.wlast, int):
+                    self.log.error(f"AXI4 protocol error (W): WLAST must be an integer: {transaction.wlast}")
+                    valid = False
+
         # Find matching transaction by looking at all pending writes
         # Note: W transactions don't have ID, so we have to match them by order
         for id_value, tx_info in self.write_transactions.items():
@@ -260,9 +355,16 @@ class AXI4Monitor:
 
         # Validate protocol if enabled
         if self.check_protocol:
-            valid, error_msg = transaction.validate_axi4_protocol()
-            if not valid:
-                self.log.error(f"AXI4 protocol error (B): {error_msg}")
+            valid = True
+            if hasattr(transaction, 'validate_axi4_protocol'):
+                valid, error_msg = transaction.validate_axi4_protocol()
+                if not valid:
+                    self.log.error(f"AXI4 protocol error (B): {error_msg}")
+            else:
+                # Basic validation for GAXIPacket
+                if hasattr(transaction, 'bresp') and transaction.bresp not in [0, 1, 2, 3]:
+                    self.log.error(f"AXI4 protocol error (B): Invalid B response code: {transaction.bresp}")
+                    valid = False
 
         # Create or update transaction tracking
         if id_value not in self.write_transactions:
@@ -291,14 +393,87 @@ class AXI4Monitor:
 
         id_value = transaction.arid
 
-        # Validate protocol if enabled
+        # Use protocol validation if available, otherwise perform fallback validation
+        valid = True
+        error_msg = ""
+
         if self.check_protocol:
-            valid, error_msg = transaction.validate_axi4_protocol()
+            if hasattr(transaction, 'validate_axi4_protocol'):
+                # Use native AXI4Packet validation
+                valid, error_msg = transaction.validate_axi4_protocol()
+            else:
+                # Fallback validation for GAXIPacket
+                # Check address alignment based on size
+                if hasattr(transaction, 'arsize') and hasattr(transaction, 'araddr'):
+                    byte_count = 1 << transaction.arsize
+                    if transaction.araddr % byte_count != 0:
+                        error_msg = f"AR address 0x{transaction.araddr:X} not aligned for size {transaction.arsize} ({byte_count} bytes)"
+                        valid = False
+
+                # Check burst type
+                if hasattr(transaction, 'arburst'):
+                    if transaction.arburst not in [0, 1, 2]:  # FIXED, INCR, WRAP
+                        error_msg = f"Invalid AR burst type: {transaction.arburst}"
+                        valid = False
+
+                    # For WRAP bursts, check power-of-2 length
+                    if transaction.arburst == 2 and hasattr(transaction, 'arlen') and (transaction.arlen + 1) not in [2, 4, 8, 16]:
+                        error_msg = f"WRAP burst length must be 2, 4, 8, or 16 (arlen={transaction.arlen})"
+                        valid = False
+
+                # Check burst length
+                if hasattr(transaction, 'arlen') and transaction.arlen > 255:
+                    error_msg = f"AR burst length exceeds AXI4 maximum: {transaction.arlen}"
+                    valid = False
+
+            # Log any errors
             if not valid:
                 self.log.error(f"AXI4 protocol error (AR): {error_msg}")
 
-        # Calculate addresses
-        addresses = transaction.get_burst_addresses() if hasattr(transaction, 'get_burst_addresses') else [transaction.araddr]
+        # Get burst addresses
+        if hasattr(transaction, 'get_burst_addresses'):
+            # Use native method if available
+            addresses = transaction.get_burst_addresses()
+        else:
+            # Fallback implementation for GAXIPacket
+            addresses = []
+            if hasattr(transaction, 'araddr') and hasattr(transaction, 'arlen') and hasattr(transaction, 'arsize') and hasattr(transaction, 'arburst'):
+                addr = transaction.araddr
+                burst_len = transaction.arlen
+                size = transaction.arsize
+                burst_type = transaction.arburst
+
+                # Calculate the byte count for this size
+                byte_count = 1 << size
+
+                # Calculate all addresses in the burst
+                current_addr = addr
+                for _ in range(burst_len + 1):
+                    addresses.append(current_addr)
+
+                    # Update address based on burst type
+                    if burst_type == 0:  # FIXED
+                        # Address remains the same for all beats
+                        pass
+                    elif burst_type == 1:  # INCR
+                        # Increment address by byte count
+                        current_addr += byte_count
+                    elif burst_type == 2:  # WRAP
+                        # Calculate the wrap boundary (align to burst size)
+                        wrap_size = (burst_len + 1) * byte_count
+                        wrap_mask = wrap_size - 1
+                        wrap_boundary = addr & ~wrap_mask
+
+                        # Increment address
+                        current_addr += byte_count
+
+                        # Check if we need to wrap
+                        if (current_addr & wrap_mask) == 0:
+                            current_addr = wrap_boundary
+            else:
+                # If we can't calculate addresses, just use the single address
+                if hasattr(transaction, 'araddr'):
+                    addresses = [transaction.araddr]
 
         # Create or update transaction tracking
         if id_value not in self.read_transactions:
@@ -336,9 +511,22 @@ class AXI4Monitor:
 
         # Validate protocol if enabled
         if self.check_protocol:
-            valid, error_msg = transaction.validate_axi4_protocol()
-            if not valid:
-                self.log.error(f"AXI4 protocol error (R): {error_msg}")
+            valid = True
+            if hasattr(transaction, 'validate_axi4_protocol'):
+                valid, error_msg = transaction.validate_axi4_protocol()
+                if not valid:
+                    self.log.error(f"AXI4 protocol error (R): {error_msg}")
+            else:
+                # Basic validation for GAXIPacket
+                # Check response code
+                if hasattr(transaction, 'rresp') and transaction.rresp not in [0, 1, 2, 3]:
+                    self.log.error(f"AXI4 protocol error (R): Invalid R response code: {transaction.rresp}")
+                    valid = False
+
+                # Validate rlast field if present
+                if hasattr(transaction, 'rlast') and not isinstance(transaction.rlast, int):
+                    self.log.error(f"AXI4 protocol error (R): RLAST must be an integer: {transaction.rlast}")
+                    valid = False
 
         # Create or update transaction tracking
         if id_value not in self.read_transactions:
@@ -417,4 +605,3 @@ class AXI4Monitor:
                 # Invoke callback if set
                 if self.read_callback:
                     self.read_callback(id_value, tx_info)
-        

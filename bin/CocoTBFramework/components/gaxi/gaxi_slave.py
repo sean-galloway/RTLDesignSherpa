@@ -1,6 +1,4 @@
-"""GAXI Slave Component with required and optional signal support"""
-import pprint
-
+"""GAXI Slave Component with improved memory integration"""
 import cocotb
 from collections import deque
 from cocotb_bus.monitors import BusMonitor
@@ -8,9 +6,10 @@ from cocotb.triggers import RisingEdge, FallingEdge, Timer
 from cocotb.utils import get_sim_time
 
 from ..flex_randomizer import FlexRandomizer
-from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
-from CocoTBFramework.components.field_config import FieldConfig, FieldDefinition
-from CocoTBFramework.components.debug_object import print_object_details, print_dict_to_log
+from .gaxi_packet import GAXIPacket
+from ..field_config import FieldConfig, FieldDefinition
+from ..debug_object import print_object_details, print_dict_to_log
+from .gaxi_memory_integ import EnhancedMemoryIntegration
 
 
 # Standard Signal names for all master/sllave/monitor objects
@@ -51,10 +50,8 @@ gaxi_memory_fields = {
 
 class GAXISlave(BusMonitor):
     """
-    Slave driver for GAXI transactions.
+    Slave driver for GAXI transactions with enhanced memory integration.
     Controls ready signal and monitors valid signals.
-    Can optionally use a memory model for data.
-
     Supports:
     1. Single data bus (standard mode)
     2. Individual signals for each field (multi-signal mode)
@@ -161,19 +158,21 @@ class GAXISlave(BusMonitor):
 
         # Set up memory model integration
         self.memory_model = memory_model
-        if memory_model and not memory_fields:
-            # Default memory field mapping if not provided
-            self.memory_fields = gaxi_memory_fields
-        else:
-            self.memory_fields = memory_fields
-
+        self.memory_fields = memory_fields or gaxi_memory_fields
+        
         # Initialize parent BusMonitor (without auto-starting monitor)
         BusMonitor.__init__(self, dut, prefix, clock, callback=None, event=None, **kwargs)
         self.log = log or self._log
         self.log.debug(f"GAXISlave init for '{title}': randomizer={randomizer}, mode={mode}")
-        self.log.debug(f"GAXISlave init for '{title}': _signals={self._signals}")
-        # if msg_multi is not None:
-        #     self.log.debug(msg_multi)
+        
+        # Create enhanced memory integration if memory model is provided
+        if self.memory_model:
+            self.memory_integration = EnhancedMemoryIntegration(
+                self.memory_model,
+                component_name=f"Slave({self.title})",
+                log=self.log,
+                memory_fields=self.memory_fields
+            )
 
         # Set up references to valid and ready signals
         if hasattr(self.bus, self.valid_dut_name):
@@ -211,7 +210,6 @@ class GAXISlave(BusMonitor):
         # Debug output
         if log:
             self.log.info(f"GAXISlave initialized for {self.title} in mode '{self.mode}', {'multi-signal' if self.use_multi_signal else 'standard'}")
-            print_object_details(self, self.log, f'GAXISlave({self.title})')
 
     def _initialize_multi_signal_mode(self):
         """Initialize and verify signals in multi-signal mode."""
@@ -238,7 +236,6 @@ class GAXISlave(BusMonitor):
         if hasattr(self.bus, dut_signal_name):
             # Store the mapping
             self.field_signals[field_name] = dut_signal_name
-            # self.log.debug(f"Registered signal '{dut_signal_name}' for field '{field_name}'")
         elif required:
             # Signal is required but not found
             raise ValueError(f"Required signal '{dut_signal_name}' for field '{field_name}' not found on DUT")
@@ -270,6 +267,15 @@ class GAXISlave(BusMonitor):
         elif not self.memory_fields:
             # Set default mapping if not already set
             self.memory_fields = gaxi_memory_fields
+            
+        # Update or create memory integration
+        if self.memory_model:
+            self.memory_integration = EnhancedMemoryIntegration(
+                self.memory_model,
+                component_name=f"Slave({self.title})",
+                log=self.log,
+                memory_fields=self.memory_fields
+            )
 
     async def reset_bus(self):
         """
@@ -327,33 +333,10 @@ class GAXISlave(BusMonitor):
             
         return field_value
 
-    def _read_from_memory(self, transaction):
-        """
-        Read data from memory model based on transaction address.
-
-        Args:
-            transaction: The transaction containing the address to read from
-
-        Returns:
-            Data read from memory, or None if memory model not used or read failed
-        """
-        if not self.memory_model or not self.memory_fields:
-            return None
-        try:
-            addr_field = self.memory_fields.get('addr', 'addr')
-            if hasattr(transaction, addr_field):
-                addr = getattr(transaction, addr_field)
-                data_bytes = self.memory_model.read(addr, self.memory_model.bytes_per_line)
-                data = self.memory_model.bytearray_to_integer(data_bytes)
-                self.log.debug(f"Slave({self.title}) Read from memory: addr=0x{addr:X}, data=0x{data:X}")
-                return data
-        except Exception as e:
-            self.log.error(f"Slave({self.title}) Error reading from memory: {e}")
-        return None
-
     def _finish_packet(self, current_time, packet, data_dict=None):
         """
         Finish packet processing and trigger callbacks.
+        Also integrates with memory model if available.
         """
         # Check if we need to unpack fields from a combined value
         if not self.use_multi_signal:
@@ -381,6 +364,7 @@ class GAXISlave(BusMonitor):
                 data_dict = self._finish_packet_helper(
                     combined_value, unpacked_fields
                 )
+                
         # Use the packet's unpack_from_fifo method for field handling
         if data_dict:
             if hasattr(packet, 'unpack_from_fifo'):
@@ -393,19 +377,17 @@ class GAXISlave(BusMonitor):
                     if hasattr(packet, field_name):
                         setattr(packet, field_name, value)
 
-        # Apply memory model data, if applicable
-        if self.memory_model and self.memory_fields:
-            data_field = self.memory_fields.get('data', 'data')
-            mem_val = self._read_from_memory(packet)
-            if mem_val is not None:
-                # Check memory value against field maximum
-                mem_val = self._check_field_value(data_field, mem_val)
-                setattr(packet, data_field, mem_val)
+        # Apply memory model data using enhanced memory integration
+        if hasattr(self, 'memory_integration') and self.memory_model:
+            success, data, error_msg = self.memory_integration.read(packet, update_transaction=True)
+            if not success:
+                self.log.warning(f"Slave({self.title}): {error_msg}")
 
         # Record completion time and store packet
         packet.end_time = current_time
         self.received_queue.append(packet)
-        self.log.debug(f"Slave({self.title}) Transaction received at {packet.end_time}ns: {packet.formatted(compact=True) if hasattr(packet, 'formatted') else str(packet)}")
+        packet_str = packet.formatted(compact=True) if hasattr(packet, 'formatted') else str(packet)
+        self.log.debug(f"Slave({self.title}) Transaction received at {packet.end_time}ns: {packet_str}")
         self._recv(packet)  # trigger callbacks
 
     # TODO Rename this here and in `_finish_packet`
@@ -510,8 +492,6 @@ class GAXISlave(BusMonitor):
         delay_cfg = self.randomizer.next()
         ready_delay = delay_cfg.get('ready_delay', 0)
         if ready_delay > 0:
-            # self.log.debug(f"Slave({self.title}) Delaying ready assertion for {ready_delay} cycles")
-
             # Deassert ready during delay
             self._set_rd_ready(0)
             await self.wait_cycles(ready_delay)
@@ -585,3 +565,56 @@ class GAXISlave(BusMonitor):
         for _ in range(cycles):
             await RisingEdge(self.clock)
         await Timer(self.tick_delay, units=self.tick_units)
+        
+    def get_memory_stats(self):
+        """
+        Get memory operation statistics.
+        
+        Returns:
+            Dictionary with memory statistics, or None if no memory model available
+        """
+        if hasattr(self, 'memory_integration'):
+            return self.memory_integration.get_stats()
+        return None
+        
+    async def process_request(self, transaction):
+        """
+        Process a transaction request, usually from a command handler.
+        
+        This method provides a standardized way for external components like
+        command handlers to send transactions directly to the slave without
+        going through the bus signals.
+        
+        Args:
+            transaction: Transaction to process
+            
+        Returns:
+            Response packet or None
+        """
+        # Create a copy of the transaction to avoid modifying the original
+        packet = self.packet_class(self.field_config)
+        
+        # Copy fields from transaction to packet
+        for field_name in self.field_config.field_names():
+            if hasattr(transaction, field_name):
+                setattr(packet, field_name, getattr(transaction, field_name))
+                
+        # Set timing information
+        current_time = get_sim_time('ns')
+        packet.start_time = current_time
+        
+        # Process with memory model if available
+        if hasattr(self, 'memory_integration') and self.memory_model:
+            success, data, error_msg = self.memory_integration.read(packet, update_transaction=True)
+            if not success:
+                self.log.warning(f"Slave({self.title}): {error_msg}")
+                
+        # Complete packet and add to queue
+        packet.end_time = get_sim_time('ns')
+        self.received_queue.append(packet)
+        
+        # Trigger callbacks
+        self._recv(packet)
+        
+        # Return processed packet
+        return packet

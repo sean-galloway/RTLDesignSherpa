@@ -1,4 +1,4 @@
-"""GAXI Master Component with required and optional signal support"""
+"""GAXI Master Component with improved memory integration"""
 import pprint
 
 import cocotb
@@ -11,6 +11,7 @@ from ..flex_randomizer import FlexRandomizer
 from ..field_config import FieldConfig
 from ..debug_object import print_object_details, print_dict_to_log
 from .gaxi_packet import GAXIPacket
+from .gaxi_memory_integ import EnhancedMemoryIntegration
 
 
 # Standard Signal names for all master/sllave/monitor objects
@@ -46,20 +47,13 @@ gaxi_memory_fields = {
 
 class GAXIMaster(BusDriver):
     """
-    Master driver for GAXI transactions.
+    Master driver for GAXI transactions with enhanced memory integration.
     Controls valid signal and waits for ready.
-    Can optionally use a memory model for data.
-
-    Supports:
-    1. Single data bus (standard mode)
-    2. Individual signals for each field (multi-signal mode)
-    3. Optional signals with fallback behavior
     """
     def __init__(self, dut, title, prefix, clock,
                     field_config=None, packet_class=GAXIPacket, timeout_cycles=1000,
                     randomizer=None, memory_model=None, memory_fields=None, log=None,
                     field_mode=False, multi_sig=False, signal_map=None, optional_signal_map=None, **kwargs):
-        # sourcery skip: low-code-quality
         """
         Initialize the GAXI master.
 
@@ -85,9 +79,9 @@ class GAXIMaster(BusDriver):
         # Set up simple items
         self.title = title
         self.clock = clock
-        self.timeout_cycles = timeout_cycles
         self.tick_delay = 100
         self.tick_units = 'ps'
+        self.timeout_cycles = timeout_cycles
         self.field_mode = field_mode or multi_sig
 
         # Handle field_config - convert dict to FieldConfig if needed
@@ -142,19 +136,22 @@ class GAXIMaster(BusDriver):
         if not isinstance(self.randomizer, FlexRandomizer):
             raise ValueError(f"Master ({self.title}) self.randomizer is not properly initialized!")
 
-        # Set up memory model integration
+        # Set up enhanced memory model integration
         self.memory_model = memory_model
-        if memory_model and not memory_fields:
-            # Default memory field mapping if not provided
-            self.memory_fields = gaxi_memory_fields
-        else:
-            self.memory_fields = memory_fields
-
+        self.memory_fields = memory_fields or gaxi_memory_fields
+        
         # Initialize parent class
         BusDriver.__init__(self, dut, prefix, clock, **kwargs)
         self.log = log or self._log
-        # if msg_multi is not None:
-        #     self.log.debug(msg_multi)
+        
+        # Create enhanced memory integration if memory model is provided
+        if self.memory_model:
+            self.memory_integration = EnhancedMemoryIntegration(
+                self.memory_model,
+                component_name=f"Master({self.title})",
+                log=self.log,
+                memory_fields=self.memory_fields
+            )
 
         # Initialize queues
         self.transmit_queue = deque()
@@ -189,8 +186,6 @@ class GAXIMaster(BusDriver):
         if self.use_multi_signal:
             self._initialize_multi_signal_mode()
         else:
-            print_object_details(self, self.log, f"GAXI Master '{self.title}' INIT")
-            print_object_details(self.bus, self.log, f"GAXI Master '{self.title}' INIT, bus object")
             # Standard mode - initialize the single data bus
             if self.valid_sig:
                 self.valid_sig.setimmediatevalue(0)
@@ -213,7 +208,6 @@ class GAXIMaster(BusDriver):
             self.valid_sig.setimmediatevalue(0)
 
         # Process each field in the field config
-        # Use field_names() method instead of keys() for FieldConfig objects
         for field_name in self.field_config.field_names():
             # Create the signal name for this field in the signal map
             field_signal_name = f'm2s_pkt_{field_name}'
@@ -230,7 +224,6 @@ class GAXIMaster(BusDriver):
 
             # If no mapping exists and we have a 'data' field, use standard data signal
             elif field_name == 'data' and hasattr(self.bus, 'm2s_pkt'):
-                # self.log.debug(f"Using standard data signal for field '{field_name}'")
                 self.field_signals[field_name] = 'm2s_pkt'
                 self.pkt_sig.setimmediatevalue(0)
 
@@ -255,7 +248,6 @@ class GAXIMaster(BusDriver):
                 default_value = self.field_config[field_name].get('default', 0)
                 
             getattr(self.bus, dut_signal_name).setimmediatevalue(default_value)
-            # self.log.debug(f"Registered signal '{dut_signal_name}' for field '{field_name}'")
         elif required:
             # Signal is required but not found
             raise ValueError(f"Required signal '{dut_signal_name}' for field '{field_name}' not found on DUT")
@@ -296,6 +288,15 @@ class GAXIMaster(BusDriver):
         elif not self.memory_fields:
             # Set default mapping if not already set
             self.memory_fields = gaxi_memory_fields
+            
+        # Update or create memory integration
+        if self.memory_model:
+            self.memory_integration = EnhancedMemoryIntegration(
+                self.memory_model,
+                component_name=f"Master({self.title})",
+                log=self.log,
+                memory_fields=self.memory_fields
+            )
 
     async def reset_bus(self):
         """
@@ -358,53 +359,19 @@ class GAXIMaster(BusDriver):
             hold: Whether to hold off starting a new transmit pipeline
             **kwargs: Additional arguments
         """
-        # If using memory model, write to memory
+        # If using memory model, write to memory using enhanced integration
         if self.memory_model and 'write' in kwargs and kwargs['write']:
-            self._write_to_memory(transaction)
+            success, error_msg = self.memory_integration.write(transaction)
+            if not success:
+                self.log.error(f"Master({self.title}): {error_msg}")
 
         # Add transaction to queue
         self.transmit_queue.append(transaction)
-        # self.log.debug(f'Master({self.title}): Adding to transmit queue: {transaction.formatted(compact=True)}')
 
         # Start transmission pipeline if not already running
         if not hold and not self.transmit_coroutine:
             self.log.debug(f'Master({self.title}): Starting new transmit pipeline, queue length: {len(self.transmit_queue)}')
             self.transmit_coroutine = cocotb.start_soon(self._transmit_pipeline())
-
-    def _write_to_memory(self, transaction):
-        """
-        Write transaction data to memory model.
-
-        Args:
-            transaction: The transaction to write to memory
-        """
-        if not self.memory_model or not self.memory_fields:
-            return
-
-        try:
-            # Get field values
-            addr_field = self.memory_fields.get('addr', 'addr')
-            data_field = self.memory_fields.get('data', 'data')
-            strb_field = self.memory_fields.get('strb', 'strb')
-
-            if hasattr(transaction, addr_field) and hasattr(transaction, data_field):
-                self._write_to_memory_helper(
-                    transaction, addr_field, data_field, strb_field
-                )
-        except Exception as e:
-            self.log.error(f"Master({self.title}): Error writing to memory: {e}")
-
-    def _write_to_memory_helper(self, transaction, addr_field, data_field, strb_field):
-        addr = getattr(transaction, addr_field)
-        data = getattr(transaction, data_field)
-        strb = getattr(transaction, strb_field) if hasattr(transaction, strb_field) else 0xFF
-
-        # Convert data to bytearray
-        data_bytes = self.memory_model.integer_to_bytearray(data, self.memory_model.bytes_per_line)
-
-        # Write to memory
-        self.memory_model.write(addr, data_bytes, strb)
-        self.log.debug(f"Master({self.title}): Wrote to memory: addr=0x{addr:X}, data=0x{data:X}, strb=0x{strb:X}")
 
     def _check_field_value(self, field_name, field_value):
         """
@@ -483,7 +450,11 @@ class GAXIMaster(BusDriver):
                     field_value = self._check_field_value('data', fifo_data['data'])
                     self.pkt_sig.value = field_value
                 else:
-                    self._extracted_from__drive_signals_37(fifo_data)
+                    # No 'data' field - use first available field
+                    if fifo_data:
+                        first_field = next(iter(fifo_data))
+                        field_value = self._check_field_value(first_field, fifo_data[first_field])
+                        self.pkt_sig.value = field_value
             return True
         except Exception as e:
             self.log.error(f"Error driving signals: {e}")
@@ -528,8 +499,6 @@ class GAXIMaster(BusDriver):
         delay_dict = self.randomizer.next()
         valid_delay = delay_dict.get('valid_delay', 0)
         if valid_delay > 0:
-            # self.log.debug(f"Master({self.title}) Delaying valid assertion for {valid_delay} cycles")
-
             # Deassert wr_valid
             self._assign_valid_value(value=0)
 
@@ -602,9 +571,6 @@ class GAXIMaster(BusDriver):
             # Get next transaction from the queue
             transaction = self.transmit_queue.popleft()
             transaction.start_time = get_sim_time('ns')
-            # self.log.debug(f"Master({self.title}) Processing transaction, remaining: "
-            #                 f"{len(self.transmit_queue)} at {transaction.start_time}ns "
-            #                 f"transaction={transaction.formatted(compact=True)}")
 
             # xmit phase 1 - apply delay
             await self._xmit_phase1()
@@ -649,3 +615,14 @@ class GAXIMaster(BusDriver):
         for _ in range(cycles):
             await RisingEdge(self.clock)
         await Timer(self.tick_delay, units=self.tick_units)
+        
+    def get_memory_stats(self):
+        """
+        Get memory operation statistics.
+        
+        Returns:
+            Dictionary with memory statistics, or None if no memory model available
+        """
+        if hasattr(self, 'memory_integration'):
+            return self.memory_integration.get_stats()
+        return None

@@ -18,13 +18,13 @@ CocoTBFramework
 │   ├── axi4
 │   │   ├── __init__.py
 │   │   ├── axi4-field-config-documentation.md
+│   │   ├── axi4_command_handlers.py
 │   │   ├── axi4_extensions.py
 │   │   ├── axi4_factories.py
 │   │   ├── axi4_fields_signals.py
 │   │   ├── axi4_master.py
 │   │   ├── axi4_monitor.py
-│   │   ├── axi4_packets.py
-│   │   ├── axi4_perf_opt.py
+│   │   ├── axi4_packet.py
 │   │   ├── axi4_slave.py
 │   │   └── HOLD
 │   │       ├── axi4_factories.py
@@ -54,8 +54,10 @@ CocoTBFramework
 │   │       └── fifo_slave.py
 │   ├── gaxi
 │   │   ├── __init__.py
+│   │   ├── gaxi_command_handler.py
 │   │   ├── gaxi_factories.py
 │   │   ├── gaxi_master.py
+│   │   ├── gaxi_memory_integ.py
 │   │   ├── gaxi_monitor.py
 │   │   ├── gaxi_packet.py
 │   │   ├── gaxi_sequence.py
@@ -95,11 +97,10 @@ CocoTBFramework
     │   └── register_map.py
     ├── axi4
     │   ├── __init__.py
-    │   ├── axi4_command_handlers.py
     │   ├── axi4_master_rd_fub_intf.py
     │   ├── axi4_master_rd_fub_intf_incl.py
-    │   ├── axi4_master_rd_slv_intf.py
-    │   ├── axi4_master_rd_test.py
+    │   ├── axi4_master_wr_fub_intf.py
+    │   ├── axi4_master_wr_fub_intf_incl.py
     │   └── HOLD
     │       ├── __init__.py
     │       ├── axi4_command_handlers.py

@@ -13,7 +13,6 @@ from cocotb.utils import get_sim_time
 
 from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master, create_gaxi_slave
 from CocoTBFramework.components.flex_randomizer import FlexRandomizer
-from CocoTBFramework.components.field_config import FieldConfig
 
 from .axi4_fields_signals import (
     AXI4_SLAVE_DEFAULT_CONSTRAINTS,
@@ -23,7 +22,7 @@ from .axi4_fields_signals import (
     get_ar_signal_map,
     get_r_signal_map
 )
-from .axi4_packets import AXI4Packet
+from .axi4_packet import AXI4Packet
 
 
 class AXI4Slave:
@@ -75,10 +74,10 @@ class AXI4Slave:
 
         # Calculate strobe width
         self.strb_width = data_width // 8
-        
+
         # Store field configs
         self.field_configs = field_configs
-        
+
         # Ensure we have proper field configs for each channel
         if not self.field_configs:
             raise ValueError(f"AXI4Slave '{title}' requires field configs for each channel")

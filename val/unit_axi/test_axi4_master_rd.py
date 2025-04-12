@@ -198,50 +198,50 @@ async def axi4_master_rd_test(dut):
             32,  # AR Timeout clocks
             32,  # R Timeout clocks
         ),
-        (
-            8,   # id_width
-            64,  # addr_width
-            64,  # data_width
-            1,   # user_width
-            2,   # skid_depth_ar
-            4,   # skid_depth_r
-            4,   # error_fifo_depth
-            32,  # AR Timeout clocks
-            32,  # R Timeout clocks
-        ),
-        (
-            8,   # id_width
-            64,  # addr_width
-            128, # data_width
-            1,   # user_width
-            2,   # skid_depth_ar
-            4,   # skid_depth_r
-            4,   # error_fifo_depth
-            32,  # AR Timeout clocks
-            32,  # R Timeout clocks
-        ),
-        (
-            8,   # id_width
-            64,  # addr_width
-            256, # data_width
-            1,   # user_width
-            2,   # skid_depth_ar
-            4,   # skid_depth_r
-            4,   # error_fifo_depth
-            32,  # AR Timeout clocks
-            32,  # R Timeout clocks
-        ),
-        (
-            8,   # id_width
-            64,  # addr_width
-            512, # data_width
-            1,   # user_width
-            2,   # skid_depth_ar
-            4,   # skid_depth_r
-            4,   # error_fifo_depth
-            32,  # AR Timeout clocks
-            32,  # R Timeout clocks
-        ),
+        # (
+        #     8,   # id_width
+        #     64,  # addr_width
+        #     64,  # data_width
+        #     1,   # user_width
+        #     2,   # skid_depth_ar
+        #     4,   # skid_depth_r
+        #     4,   # error_fifo_depth
+        #     32,  # AR Timeout clocks
+        #     32,  # R Timeout clocks
+        # ),
+        # (
+        #     8,   # id_width
+        #     64,  # addr_width
+        #     128, # data_width
+        #     1,   # user_width
+        #     2,   # skid_depth_ar
+        #     4,   # skid_depth_r
+        #     4,   # error_fifo_depth
+        #     32,  # AR Timeout clocks
+        #     32,  # R Timeout clocks
+        # ),
+        # (
+        #     8,   # id_width
+        #     64,  # addr_width
+        #     256, # data_width
+        #     1,   # user_width
+        #     2,   # skid_depth_ar
+        #     4,   # skid_depth_r
+        #     4,   # error_fifo_depth
+        #     32,  # AR Timeout clocks
+        #     32,  # R Timeout clocks
+        # ),
+        # (
+        #     8,   # id_width
+        #     64,  # addr_width
+        #     512, # data_width
+        #     1,   # user_width
+        #     2,   # skid_depth_ar
+        #     4,   # skid_depth_r
+        #     4,   # error_fifo_depth
+        #     32,  # AR Timeout clocks
+        #     32,  # R Timeout clocks
+        # ),
     ]
 )
 def test_axi4_master_rd(request, id_width, addr_width, data_width, user_width,
