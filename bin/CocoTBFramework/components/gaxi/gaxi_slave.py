@@ -488,13 +488,18 @@ class GAXISlave(BusMonitor):
 
     async def _recv_phase2(self):
         """Receive phase 2: Handle ready delays and assert ready"""
-        # Determine ready delay for this cycle
-        delay_cfg = self.randomizer.next()
-        ready_delay = delay_cfg.get('ready_delay', 0)
-        if ready_delay > 0:
-            # Deassert ready during delay
-            self._set_rd_ready(0)
-            await self.wait_cycles(ready_delay)
+        # Check if valid on this cycle, if so we can't drop ready
+        if not (self.valid_sig.value.is_resolvable and
+                self.ready_sig.value.is_resolvable and
+                self.valid_sig.value.integer == 1 and
+                self.ready_sig.value.integer == 1):
+            # Determine ready delay for this cycle
+            delay_cfg = self.randomizer.next()
+            ready_delay = delay_cfg.get('ready_delay', 0)
+            if ready_delay > 0:
+                # Deassert ready during delay
+                self._set_rd_ready(0)
+                await self.wait_cycles(ready_delay)
 
         # Assert ready to accept data
         self._set_rd_ready(1)
@@ -529,7 +534,6 @@ class GAXISlave(BusMonitor):
         # Deassert ready on the rising edge (prepare for next cycle or delay)
         await RisingEdge(self.clock)
         await Timer(self.tick_delay, units=self.tick_units)
-        self._set_rd_ready(0)
 
         # Default return values
         return None, False
