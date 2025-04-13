@@ -2,7 +2,7 @@
 AXI4 Slave Component for Verification
 
 This module provides the AXI4Slave class for AXI4 slave interfaces with
-support for in-order and out-of-order transaction processing.
+integrated protocol extensions and sequence support.
 """
 
 import cocotb
@@ -11,8 +11,8 @@ from collections import deque
 from cocotb.triggers import RisingEdge, Timer
 from cocotb.utils import get_sim_time
 
-from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master, create_gaxi_slave
-from CocoTBFramework.components.flex_randomizer import FlexRandomizer
+from ..gaxi.gaxi_factories import create_gaxi_master, create_gaxi_slave
+from ..flex_randomizer import FlexRandomizer
 
 from .axi4_fields_signals import (
     AXI4_SLAVE_DEFAULT_CONSTRAINTS,
@@ -23,6 +23,7 @@ from .axi4_fields_signals import (
     get_r_signal_map
 )
 from .axi4_packet import AXI4Packet
+from .axi4_extensions import create_axi4_extension_handlers
 
 
 class AXI4Slave:
@@ -34,12 +35,13 @@ class AXI4Slave:
     - Memory model for handling read/write operations
     - AXI4 protocol checking
     - Response ordering control (in-order or out-of-order between different IDs)
+    - Protocol extensions (QoS, exclusive access, atomic operations, barriers)
     """
 
     def __init__(self, dut, title, prefix, divider, suffix, clock, channels,
-                    id_width=8, addr_width=32, data_width=32, user_width=1,
-                    field_configs=None, memory_model=None, randomizers=None, check_protocol=False,
-                    inorder=False, ooo_strategy='random', log=None):
+                id_width=8, addr_width=32, data_width=32, user_width=1,
+                field_configs=None, memory_model=None, randomizers=None, check_protocol=False,
+                inorder=False, ooo_strategy='random', extensions=None, log=None):
         """
         Initialize AXI4 Slave component.
 
@@ -61,6 +63,7 @@ class AXI4Slave:
             check_protocol: Enable AXI4 protocol checking (default: True)
             inorder: If True, force in-order responses across different IDs (default: False)
             ooo_strategy: Strategy for out-of-order responses ('random', 'round_robin', 'weighted')
+            extensions: Dictionary of extension handlers (optional)
             log: Logger instance
         """
         self.title = title
@@ -71,6 +74,12 @@ class AXI4Slave:
         self.inorder = inorder
         self.ooo_strategy = ooo_strategy
         self.channels = [s.upper() for s in channels]
+
+        # Store width parameters
+        self.id_width = id_width
+        self.addr_width = addr_width
+        self.data_width = data_width
+        self.user_width = user_width
 
         # Calculate strobe width
         self.strb_width = data_width // 8
@@ -167,6 +176,16 @@ class AXI4Slave:
         else:
             self.r_master = None
 
+        # Initialize extensions
+        self.extensions = extensions or {}
+
+        # Create standard extension handlers if none provided and memory model is available
+        if not self.extensions and self.memory_model:
+            self.extensions = create_axi4_extension_handlers(self.memory_model, self.log)
+
+        # Slave ID - used for exclusive access tracking
+        self.slave_id = id(self)
+
         # Initialize transaction tracking
         self.pending_writes = {}  # Write address transactions waiting for data
         self.pending_reads = {}   # Read transactions waiting to be processed
@@ -245,16 +264,48 @@ class AXI4Slave:
                 self.log.error(f"AXI4 protocol error (AW): {error_msg}")
                 # Still process the transaction, but note the error
 
+        # Check for exclusive access
+        is_exclusive = False
+        if hasattr(transaction, 'awlock') and transaction.awlock == 1:
+            is_exclusive = True
+
+        # Use QoS if enabled
+        qos_value = 0
+        if hasattr(transaction, 'awqos'):
+            qos_value = transaction.awqos
+
+            # Apply QoS handling if available
+            if 'qos' in self.extensions and qos_value > 0:
+                # Add to QoS prioritization
+                # (will be processed in order of priority)
+                self.extensions['qos'].queue_write_transaction(
+                    {'id': id_value, 'transaction': transaction},
+                    qos_value
+                )
+
+        # Calculate burst addresses for memory access
+        addresses = transaction.get_burst_addresses() if hasattr(transaction, 'get_burst_addresses') else [transaction.awaddr]
+
         # Store the transaction for matching with write data
         self.pending_writes[id_value] = {
             'aw_transaction': transaction,
             'w_transactions': [],
             'start_time': get_sim_time('ns'),
-            'addresses': transaction.get_burst_addresses() if hasattr(transaction, 'get_burst_addresses') else [transaction.awaddr],
+            'addresses': addresses,
             'expected_beats': transaction.awlen + 1 if hasattr(transaction, 'awlen') else 1,
             'received_beats': 0,
-            'complete': False
+            'complete': False,
+            'is_exclusive': is_exclusive,
+            'qos': qos_value
         }
+
+        # Check for barrier dependencies
+        if 'barrier' in self.extensions:
+            # Check if this transaction is allowed to proceed
+            allowed = self.extensions['barrier'].is_transaction_allowed(id_value)
+            if not allowed:
+                # Transaction must wait for barriers
+                self.pending_writes[id_value]['barrier_blocked'] = True
 
         self.log.debug(f"Received write address: ID={id_value}, ADDR=0x{transaction.awaddr:X}, LEN={getattr(transaction, 'awlen', 0)}")
 
@@ -311,6 +362,33 @@ class AXI4Slave:
             if not valid:
                 self.log.error(f"AXI4 protocol error (AR): {error_msg}")
 
+        # Check for exclusive access
+        is_exclusive = False
+        if hasattr(transaction, 'arlock') and transaction.arlock == 1:
+            is_exclusive = True
+
+            # Handle exclusive read in the extensions
+            if 'exclusive' in self.extensions:
+                # Register exclusive monitor
+                addr = transaction.araddr
+                size = 1 << transaction.arsize if hasattr(transaction, 'arsize') else 4
+                self.extensions['exclusive'].handle_exclusive_read(
+                    id_value, self.slave_id, addr, size
+                )
+
+        # Use QoS if enabled
+        qos_value = 0
+        if hasattr(transaction, 'arqos'):
+            qos_value = transaction.arqos
+
+            # Apply QoS handling if available
+            if 'qos' in self.extensions and qos_value > 0:
+                # Add to QoS prioritization
+                self.extensions['qos'].queue_read_transaction(
+                    {'id': id_value, 'transaction': transaction},
+                    qos_value
+                )
+
         # Calculate all addresses in the burst
         addresses = transaction.get_burst_addresses() if hasattr(transaction, 'get_burst_addresses') else [transaction.araddr]
 
@@ -320,8 +398,18 @@ class AXI4Slave:
             'start_time': get_sim_time('ns'),
             'addresses': addresses,
             'expected_beats': transaction.arlen + 1 if hasattr(transaction, 'arlen') else 1,
+            'is_exclusive': is_exclusive,
+            'qos': qos_value,
             'processed': False
         }
+
+        # Check for barrier dependencies
+        if 'barrier' in self.extensions:
+            # Check if this transaction is allowed to proceed
+            allowed = self.extensions['barrier'].is_transaction_allowed(id_value)
+            if not allowed:
+                # Transaction must wait for barriers
+                self.pending_reads[id_value]['barrier_blocked'] = True
 
         self.log.debug(f"Received read address: ID={id_value}, ADDR=0x{transaction.araddr:X}, LEN={getattr(transaction, 'arlen', 0)}")
 
@@ -349,126 +437,224 @@ class AXI4Slave:
 
     async def _process_writes(self):
         """Process completed write transactions and queue responses"""
+        # First, check QoS handler if available
+        next_qos_transaction = None
+        if 'qos' in self.extensions:
+            if next_qos_transaction := self.extensions[
+                'qos'
+            ].get_next_write_transaction():
+                # Process this high-priority transaction first
+                id_value = next_qos_transaction['id']
+                if id_value in self.pending_writes and self.pending_writes[id_value]['complete']:
+                    # Force processing of this ID next
+                    await self._process_write_id(id_value)
+                    return
 
+        # Process regular transactions
         for id_value, pending in self.pending_writes.items():
             if pending['complete'] and not pending.get('processed', False):
-                # Process the write transaction
-
-                # Get original transaction info
-                aw_transaction = pending['aw_transaction']
-                w_transactions = pending['w_transactions']
-
-                # Check if all data received
-                if len(w_transactions) < pending['expected_beats']:
-                    self.log.warning(f"Write transaction ID={id_value} marked complete but missing data beats")
+                # Check if this transaction is blocked by a barrier
+                if pending.get('barrier_blocked', False):
+                    # Skip this transaction until barrier is resolved
                     continue
 
-                # Write to memory if available
-                if self.memory_model:
-                    for i, addr in enumerate(pending['addresses']):
-                        if i < len(w_transactions):
-                            data = w_transactions[i].wdata
-                            strb = w_transactions[i].wstrb if hasattr(w_transactions[i], 'wstrb') else 0xFF
+                # Process this write transaction
+                await self._process_write_id(id_value)
+                # Only process one transaction per cycle to avoid overwhelming
+                return
 
-                            try:
-                                # Convert data to bytearray
-                                data_bytes = self.memory_model.integer_to_bytearray(data, self.memory_model.bytes_per_line)
+    async def _process_write_id(self, id_value):
+        """Process a specific write transaction by ID"""
+        if id_value not in self.pending_writes:
+            return
+        pending = self.pending_writes[id_value]
 
-                                # Write to memory
-                                self.memory_model.write(addr, data_bytes, strb)
-                                self.log.debug(f"Write to memory: addr=0x{addr:X}, data=0x{data:X}, strb=0x{strb:X}")
-                            except Exception as e:
-                                self.log.error(f"Error writing to memory: {e}")
+        # Get original transaction info
+        aw_transaction = pending['aw_transaction']
+        w_transactions = pending['w_transactions']
 
-                # Queue response for sending according to ordering rules
-                b_packet = AXI4Packet.create_b_packet(
-                    bid=id_value,
-                    bresp=0,  # OKAY
-                    buser=getattr(aw_transaction, 'awuser', 0)
-                )
+        # Check if all data received
+        if len(w_transactions) < pending['expected_beats']:
+            self.log.warning(f"Write transaction ID={id_value} marked complete but missing data beats")
+            return
 
-                # Add to response queue
-                self.write_response_queue.append({
-                    'id': id_value,
-                    'packet': b_packet,
-                    'timestamp': get_sim_time('ns'),
-                    'addr': aw_transaction.awaddr  # For tracking/debugging
-                })
+        # Handle exclusive write if applicable
+        exclusive_success = False
+        if pending.get('is_exclusive', False) and 'exclusive' in self.extensions:
+            addr = aw_transaction.awaddr
+            size = 1 << aw_transaction.awsize if hasattr(aw_transaction, 'awsize') else 4
+            exclusive_success = self.extensions['exclusive'].handle_exclusive_write(
+                id_value, self.slave_id, addr, size
+            )
 
-                # If this is the first transaction and we're tracking in-order responses,
-                # set it as the next to process
-                if self.next_write_id is None:
-                    self.next_write_id = id_value
+            # Determine response code based on exclusive success
+            resp_code = 1 if exclusive_success else 0  # 1=EXOKAY, 0=OKAY
+        else:
+            # Normal write, use OKAY response
+            resp_code = 0
 
-                # Mark as processed
-                pending['processed'] = True
+        # Write to memory if available
+        if self.memory_model:
+            for i, addr in enumerate(pending['addresses']):
+                if i < len(w_transactions):
+                    data = w_transactions[i].wdata
+                    strb = w_transactions[i].wstrb if hasattr(w_transactions[i], 'wstrb') else 0xFF
 
-                self.log.debug(f"Queued write response: ID={id_value}, RESP=0")
+                    try:
+                        # Convert data to bytearray
+                        data_bytes = self.memory_model.integer_to_bytearray(data, self.memory_model.bytes_per_line)
+
+                        # Write to memory
+                        self.memory_model.write(addr, data_bytes, strb)
+                        self.log.debug(f"Write to memory: addr=0x{addr:X}, data=0x{data:X}, strb=0x{strb:X}")
+                    except Exception as e:
+                        self.log.error(f"Error writing to memory: {e}")
+                        resp_code = 2  # SLVERR
+
+        # Queue response for sending according to ordering rules
+        b_packet = AXI4Packet.create_b_packet(
+            bid=id_value,
+            bresp=resp_code,
+            buser=getattr(aw_transaction, 'awuser', 0)
+        )
+
+        # Add to response queue
+        self.write_response_queue.append({
+            'id': id_value,
+            'packet': b_packet,
+            'timestamp': get_sim_time('ns'),
+            'addr': aw_transaction.awaddr,  # For tracking/debugging
+            'exclusive': pending.get('is_exclusive', False),
+            'qos': pending.get('qos', 0)
+        })
+
+        # If this is the first transaction and we're tracking in-order responses,
+        # set it as the next to process
+        if self.next_write_id is None:
+            self.next_write_id = id_value
+
+        # Mark as processed
+        pending['processed'] = True
+
+        # Update barrier handler if applicable
+        if 'barrier' in self.extensions:
+            self.extensions['barrier'].complete_transaction(id_value)
+
+        self.log.debug(f"Queued write response: ID={id_value}, RESP={resp_code}")
 
     async def _process_reads(self):
         """Process pending read transactions and queue responses"""
+        # First, check QoS handler if available
+        next_qos_transaction = None
+        if 'qos' in self.extensions:
+            if next_qos_transaction := self.extensions[
+                'qos'
+            ].get_next_read_transaction():
+                # Process this high-priority transaction first
+                id_value = next_qos_transaction['id']
+                if id_value in self.pending_reads and not self.pending_reads[id_value].get('processed', False):
+                    # Force processing of this ID next
+                    await self._process_read_id(id_value)
+                    return
 
+        # Process regular transactions
         for id_value, pending in self.pending_reads.items():
             if not pending.get('processed', False):
-                # Process the read transaction
+                # Check if this transaction is blocked by a barrier
+                if pending.get('barrier_blocked', False):
+                    # Skip this transaction until barrier is resolved
+                    continue
 
-                # Get original transaction info
-                ar_transaction = pending['ar_transaction']
-                addresses = pending['addresses']
-                expected_beats = pending['expected_beats']
+                # Process this read transaction
+                await self._process_read_id(id_value)
+                # Only process one transaction per cycle to avoid overwhelming
+                return
 
-                # For each address in the burst, queue a separate response beat
-                for i, addr in enumerate(addresses):
-                    if i >= expected_beats:
-                        break
+    async def _process_read_id(self, id_value):
+        """Process a specific read transaction by ID"""
+        if id_value not in self.pending_reads:
+            return
+        pending = self.pending_reads[id_value]
 
-                    data = 0
-                    resp = 0  # OKAY
+        # Get original transaction info
+        ar_transaction = pending['ar_transaction']
+        addresses = pending['addresses']
+        expected_beats = pending['expected_beats']
 
-                    # Read from memory if available
-                    if self.memory_model:
-                        try:
-                            # Read from memory
-                            data_bytes = self.memory_model.read(addr, self.memory_model.bytes_per_line)
-                            data = self.memory_model.bytearray_to_integer(data_bytes)
-                            self.log.debug(f"Read from memory: addr=0x{addr:X}, data=0x{data:X}")
-                        except Exception as e:
-                            self.log.error(f"Error reading from memory: {e}")
-                            resp = 2  # SLVERR
+        # For each address in the burst, queue a separate response beat
+        for i, addr in enumerate(addresses):
+            if i >= expected_beats:
+                break
 
-                    # Create the response packet
-                    r_packet = AXI4Packet.create_r_packet(
-                        rid=id_value,
-                        rdata=data,
-                        rresp=resp,
-                        rlast=1 if i == expected_beats - 1 else 0,
-                        ruser=getattr(ar_transaction, 'aruser', 0)
-                    )
+            data = 0
+            resp = 0  # OKAY
 
-                    # Add to response queue
-                    self.read_response_queue.append({
-                        'id': id_value,
-                        'packet': r_packet,
-                        'timestamp': get_sim_time('ns'),
-                        'addr': addr,
-                        'beat': i,
-                        'last': i == expected_beats - 1
-                    })
+            # Read from memory if available
+            if self.memory_model:
+                try:
+                    # Read from memory
+                    data_bytes = self.memory_model.read(addr, self.memory_model.bytes_per_line)
+                    data = self.memory_model.bytearray_to_integer(data_bytes)
+                    self.log.debug(f"Read from memory: addr=0x{addr:X}, data=0x{data:X}")
+                except Exception as e:
+                    self.log.error(f"Error reading from memory: {e}")
+                    resp = 2  # SLVERR
 
-                    self.log.debug(f"Queued read data: ID={id_value}, ADDR=0x{addr:X}, DATA=0x{data:X}, " +
-                                    f"RESP={resp}, LAST={1 if i == expected_beats - 1 else 0}")
+            # Handle atomic operations if applicable
+            if 'atomic' in self.extensions and hasattr(ar_transaction, 'aratomic') and ar_transaction.aratomic:
+                # Extract atomic operation type if available
+                op_type = getattr(ar_transaction, 'aratomicop', 0)
+                value = getattr(ar_transaction, 'aratomicvalue', 0)
+                compare_value = getattr(ar_transaction, 'aratomiccompare', None)
 
-                # If this is the first transaction and we're tracking in-order responses,
-                # set it as the next to process
-                if self.next_read_id is None:
-                    self.next_read_id = id_value
+                # Perform atomic operation
+                success, old_value = self.extensions['atomic'].perform_atomic_operation(
+                    op_type, addr, value, compare_value
+                )
 
-                # Mark as processed
-                pending['processed'] = True
+                # Use old_value as data if successful
+                if success:
+                    data = old_value
+                else:
+                    resp = 2  # SLVERR on failure
 
-                # For weighted OOO strategy, set default weight if not already set
-                if self.ooo_strategy == 'weighted' and id_value not in self.ooo_weights:
-                    self.ooo_weights[id_value] = 1.0  # Default weight
+            # Create the response packet
+            r_packet = AXI4Packet.create_r_packet(
+                rid=id_value,
+                rdata=data,
+                rresp=resp,
+                rlast=1 if i == expected_beats - 1 else 0,
+                ruser=getattr(ar_transaction, 'aruser', 0)
+            )
+
+            # Add to response queue
+            self.read_response_queue.append({
+                'id': id_value,
+                'packet': r_packet,
+                'timestamp': get_sim_time('ns'),
+                'addr': addr,
+                'beat': i,
+                'last': i == expected_beats - 1,
+                'exclusive': pending.get('is_exclusive', False),
+                'qos': pending.get('qos', 0)
+            })
+
+            self.log.debug(f"Queued read data: ID={id_value}, ADDR=0x{addr:X}, DATA=0x{data:X}, " +
+                            f"RESP={resp}, LAST={1 if i == expected_beats - 1 else 0}")
+
+        # If this is the first transaction and we're tracking in-order responses,
+        # set it as the next to process
+        if self.next_read_id is None:
+            self.next_read_id = id_value
+
+        # Mark as processed
+        pending['processed'] = True
+
+        # Update barrier handler if applicable
+        if 'barrier' in self.extensions:
+            # Only complete if all responses are sent, which hasn't happened yet
+            # We'll mark it for completion after the last response
+            pending['barrier_complete_pending'] = True
 
     async def _send_write_responses(self):
         """Send write responses according to ordering rules"""
@@ -492,7 +678,7 @@ class AXI4Slave:
                     # Send this response
                     response = self.write_response_queue.pop(response_idx)
                     await self.b_master.send(response['packet'])
-                    self.log.debug(f"Sent in-order write response: ID={response['id']}, RESP=0")
+                    self.log.debug(f"Sent in-order write response: ID={response['id']}, RESP={response['packet'].bresp}")
 
                     # Remove from tracking
                     if self.next_write_id in self.pending_writes:
@@ -508,7 +694,7 @@ class AXI4Slave:
                 # Send selected response
                 response = self.write_response_queue.pop(response_idx)
                 await self.b_master.send(response['packet'])
-                self.log.debug(f"Sent out-of-order write response: ID={response['id']}, RESP=0")
+                self.log.debug(f"Sent out-of-order write response: ID={response['id']}, RESP={response['packet'].bresp}")
 
                 # Remove from tracking
                 if response['id'] in self.pending_writes:
@@ -565,6 +751,10 @@ class AXI4Slave:
 
         # If this was the last beat for this transaction, clean up
         if response['last']:
+            # Complete barrier if pending
+            if id_value in self.pending_reads and self.pending_reads[id_value].get('barrier_complete_pending', False) and 'barrier' in self.extensions:
+                self.extensions['barrier'].complete_transaction(id_value)
+
             # Remove from tracking
             if id_value in self.pending_reads:
                 del self.pending_reads[id_value]
@@ -626,6 +816,12 @@ class AXI4Slave:
                 id_value = resp['id']
                 # Default weight is 1.0 if not specified
                 weight = self.ooo_weights.get(id_value, 1.0)
+
+                # Factor in QoS if applicable
+                if resp.get('qos', 0) > 0:
+                    # Higher QoS means higher weight
+                    weight *= (1.0 + resp['qos'] / 8.0)
+
                 weights.append(weight)
 
             # Select based on weights
@@ -659,10 +855,19 @@ class AXI4Slave:
             for id_value in ids:
                 # Default weight is 1.0 if not specified
                 weight = self.ooo_weights.get(id_value, 1.0)
+
+                # Factor in QoS if applicable
+                for idx, resp in id_to_responses[id_value]:
+                    if resp.get('qos', 0) > 0:
+                        # Higher QoS means higher weight
+                        weight *= (1.0 + resp['qos'] / 8.0)
+                        break
+
                 weights.append(weight)
 
             # Select based on weights
             return random.choices(ids, weights=weights)[0] if sum(weights) > 0 else ids[0]
+
         # Default to first ID
         return ids[0]
 
@@ -675,3 +880,29 @@ class AXI4Slave:
             weight: Weight value (higher values increase selection probability)
         """
         self.ooo_weights[id_value] = weight
+
+    def get_extension_stats(self):
+        """
+        Get statistics from all extension handlers.
+
+        Returns:
+            Dictionary with statistics from all extensions
+        """
+        return {
+            name: handler.get_stats()
+            for name, handler in self.extensions.items()
+            if hasattr(handler, 'get_stats')
+        }
+
+    async def register_exclusive_region(self, start_address, end_address):
+        """
+        Register a memory region that requires exclusive access.
+
+        Args:
+            start_address: Start address of the region
+            end_address: End address of the region
+        """
+        if 'exclusive' in self.extensions:
+            self.extensions['exclusive'].register_exclusive_region(start_address, end_address)
+        else:
+            self.log.error("Exclusive access not available - no exclusive extension handler")

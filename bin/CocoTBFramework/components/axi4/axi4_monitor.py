@@ -228,42 +228,9 @@ class AXI4Monitor:
             # Fallback implementation for GAXIPacket
             addresses = []
             if hasattr(transaction, 'awaddr') and hasattr(transaction, 'awlen') and hasattr(transaction, 'awsize') and hasattr(transaction, 'awburst'):
-                addr = transaction.awaddr
-                burst_len = transaction.awlen
-                size = transaction.awsize
-                burst_type = transaction.awburst
-
-                # Calculate the byte count for this size
-                byte_count = 1 << size
-
-                # Calculate all addresses in the burst
-                current_addr = addr
-                for _ in range(burst_len + 1):
-                    addresses.append(current_addr)
-
-                    # Update address based on burst type
-                    if burst_type == 0:  # FIXED
-                        # Address remains the same for all beats
-                        pass
-                    elif burst_type == 1:  # INCR
-                        # Increment address by byte count
-                        current_addr += byte_count
-                    elif burst_type == 2:  # WRAP
-                        # Calculate the wrap boundary (align to burst size)
-                        wrap_size = (burst_len + 1) * byte_count
-                        wrap_mask = wrap_size - 1
-                        wrap_boundary = addr & ~wrap_mask
-
-                        # Increment address
-                        current_addr += byte_count
-
-                        # Check if we need to wrap
-                        if (current_addr & wrap_mask) == 0:
-                            current_addr = wrap_boundary
-            else:
-                # If we can't calculate addresses, just use the single address
-                if hasattr(transaction, 'awaddr'):
-                    addresses = [transaction.awaddr]
+                self._handle_aw_transaction_helper(transaction, addresses)
+            elif hasattr(transaction, 'awaddr'):
+                addresses = [transaction.awaddr]
 
         # Create or update transaction tracking
         if id_value not in self.write_transactions:
@@ -293,6 +260,37 @@ class AXI4Monitor:
 
         # Check if transaction is now complete
         self._check_write_complete(id_value)
+
+    def _handle_aw_transaction_helper(self, transaction, addresses):
+        addr = transaction.awaddr
+        burst_len = transaction.awlen
+        size = transaction.awsize
+        burst_type = transaction.awburst
+
+        # Calculate the byte count for this size
+        byte_count = 1 << size
+
+        # Calculate all addresses in the burst
+        current_addr = addr
+        for _ in range(burst_len + 1):
+            addresses.append(current_addr)
+
+                    # Update address based on burst type
+            if burst_type == 1:
+                # Increment address by byte count
+                current_addr += byte_count
+            elif burst_type == 2:
+                # Calculate the wrap boundary (align to burst size)
+                wrap_size = (burst_len + 1) * byte_count
+                wrap_mask = wrap_size - 1
+                wrap_boundary = addr & ~wrap_mask
+
+                # Increment address
+                current_addr += byte_count
+
+                # Check if we need to wrap
+                if (current_addr & wrap_mask) == 0:
+                    current_addr = wrap_boundary
 
     def _handle_w_transaction(self, transaction):
         """Process Write Data (W) channel transaction"""
@@ -360,11 +358,9 @@ class AXI4Monitor:
                 valid, error_msg = transaction.validate_axi4_protocol()
                 if not valid:
                     self.log.error(f"AXI4 protocol error (B): {error_msg}")
-            else:
-                # Basic validation for GAXIPacket
-                if hasattr(transaction, 'bresp') and transaction.bresp not in [0, 1, 2, 3]:
-                    self.log.error(f"AXI4 protocol error (B): Invalid B response code: {transaction.bresp}")
-                    valid = False
+            elif hasattr(transaction, 'bresp') and transaction.bresp not in [0, 1, 2, 3]:
+                self.log.error(f"AXI4 protocol error (B): Invalid B response code: {transaction.bresp}")
+                valid = False
 
         # Create or update transaction tracking
         if id_value not in self.write_transactions:
@@ -438,42 +434,9 @@ class AXI4Monitor:
             # Fallback implementation for GAXIPacket
             addresses = []
             if hasattr(transaction, 'araddr') and hasattr(transaction, 'arlen') and hasattr(transaction, 'arsize') and hasattr(transaction, 'arburst'):
-                addr = transaction.araddr
-                burst_len = transaction.arlen
-                size = transaction.arsize
-                burst_type = transaction.arburst
-
-                # Calculate the byte count for this size
-                byte_count = 1 << size
-
-                # Calculate all addresses in the burst
-                current_addr = addr
-                for _ in range(burst_len + 1):
-                    addresses.append(current_addr)
-
-                    # Update address based on burst type
-                    if burst_type == 0:  # FIXED
-                        # Address remains the same for all beats
-                        pass
-                    elif burst_type == 1:  # INCR
-                        # Increment address by byte count
-                        current_addr += byte_count
-                    elif burst_type == 2:  # WRAP
-                        # Calculate the wrap boundary (align to burst size)
-                        wrap_size = (burst_len + 1) * byte_count
-                        wrap_mask = wrap_size - 1
-                        wrap_boundary = addr & ~wrap_mask
-
-                        # Increment address
-                        current_addr += byte_count
-
-                        # Check if we need to wrap
-                        if (current_addr & wrap_mask) == 0:
-                            current_addr = wrap_boundary
-            else:
-                # If we can't calculate addresses, just use the single address
-                if hasattr(transaction, 'araddr'):
-                    addresses = [transaction.araddr]
+                self._handle_ar_transaction_helper(transaction, addresses)
+            elif hasattr(transaction, 'araddr'):
+                addresses = [transaction.araddr]
 
         # Create or update transaction tracking
         if id_value not in self.read_transactions:
@@ -499,6 +462,37 @@ class AXI4Monitor:
                 self.read_transactions[id_value]['expected_beats'] = transaction.arlen + 1 if hasattr(transaction, 'arlen') else 1
 
         self.log.debug(f"Monitored read address: ID={id_value}, ADDR=0x{transaction.araddr:X}, LEN={getattr(transaction, 'arlen', 0)}")
+
+    def _handle_ar_transaction_helper(self, transaction, addresses):
+        addr = transaction.araddr
+        burst_len = transaction.arlen
+        size = transaction.arsize
+        burst_type = transaction.arburst
+
+        # Calculate the byte count for this size
+        byte_count = 1 << size
+
+        # Calculate all addresses in the burst
+        current_addr = addr
+        for _ in range(burst_len + 1):
+            addresses.append(current_addr)
+
+                    # Update address based on burst type
+            if burst_type == 1:
+                # Increment address by byte count
+                current_addr += byte_count
+            elif burst_type == 2:
+                # Calculate the wrap boundary (align to burst size)
+                wrap_size = (burst_len + 1) * byte_count
+                wrap_mask = wrap_size - 1
+                wrap_boundary = addr & ~wrap_mask
+
+                # Increment address
+                current_addr += byte_count
+
+                # Check if we need to wrap
+                if (current_addr & wrap_mask) == 0:
+                    current_addr = wrap_boundary
 
     def _handle_r_transaction(self, transaction):
         """Process Read Data (R) channel transaction"""
@@ -581,27 +575,31 @@ class AXI4Monitor:
 
     def _check_read_complete(self, id_value):
         """Check if a read transaction is complete and invoke callback if so"""
-        if id_value in self.read_transactions:
-            tx_info = self.read_transactions[id_value]
+        if id_value not in self.read_transactions:
+            return
+        tx_info = self.read_transactions[id_value]
 
             # Check if both address and all data beats are present
-            if (tx_info.get('ar_transaction') and
+        if (tx_info.get('ar_transaction') and
                 tx_info.get('r_complete') and
                 not tx_info.get('complete', False)):
 
-                # Mark as complete
-                tx_info['complete'] = True
-                tx_info['end_time'] = get_sim_time('ns')
-                tx_info['duration'] = tx_info['end_time'] - tx_info['start_time']
+            self._check_read_complete_helper(tx_info, id_value)
 
-                # Extract data values for convenience
-                tx_info['data'] = [r.rdata for r in tx_info.get('r_transactions', [])]
+    def _check_read_complete_helper(self, tx_info, id_value):
+        # Mark as complete
+        tx_info['complete'] = True
+        tx_info['end_time'] = get_sim_time('ns')
+        tx_info['duration'] = tx_info['end_time'] - tx_info['start_time']
 
-                self.log.debug(f"Read transaction complete: ID={id_value}, " +
-                                f"ADDR=0x{tx_info['ar_transaction'].araddr:X}, " +
-                                f"LEN={getattr(tx_info['ar_transaction'], 'arlen', 0)}, " +
-                                f"DATA_COUNT={len(tx_info.get('r_transactions', []))}")
+        # Extract data values for convenience
+        tx_info['data'] = [r.rdata for r in tx_info.get('r_transactions', [])]
 
-                # Invoke callback if set
-                if self.read_callback:
-                    self.read_callback(id_value, tx_info)
+        self.log.debug(f"Read transaction complete: ID={id_value}, " +
+                        f"ADDR=0x{tx_info['ar_transaction'].araddr:X}, " +
+                        f"LEN={getattr(tx_info['ar_transaction'], 'arlen', 0)}, " +
+                        f"DATA_COUNT={len(tx_info.get('r_transactions', []))}")
+
+        # Invoke callback if set
+        if self.read_callback:
+            self.read_callback(id_value, tx_info)

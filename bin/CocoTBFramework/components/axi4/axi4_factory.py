@@ -8,13 +8,13 @@ This package provides components for verifying AXI4 interfaces:
 - AXI4 Scoreboard
 """
 
-from CocoTBFramework.components.axi4.axi4_master import AXI4Master
-from CocoTBFramework.components.axi4.axi4_slave import AXI4Slave
-from CocoTBFramework.components.axi4.axi4_monitor import AXI4Monitor
-from CocoTBFramework.components.axi4.axi4_packet import AXI4Packet
+from .axi4_master import AXI4Master
+from .axi4_slave import AXI4Slave
+from .axi4_monitor import AXI4Monitor
+from .axi4_packet import AXI4Packet
 from CocoTBFramework.scoreboards.axi4_scoreboard import AXI4Scoreboard, AXI4MemoryScoreboard
-from CocoTBFramework.components.field_config import FieldConfig, FieldDefinition
-from CocoTBFramework.components.flex_randomizer import FlexRandomizer
+from ..field_config import FieldConfig, FieldDefinition
+from ..flex_randomizer import FlexRandomizer
 
 from .axi4_fields_signals import (
     AXI4_AW_FIELD_CONFIG, AXI4_W_FIELD_CONFIG, AXI4_B_FIELD_CONFIG,

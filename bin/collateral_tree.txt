@@ -9,6 +9,7 @@ CocoTBFramework
 │   ├── memory_model.py
 │   ├── packet.py
 │   ├── packet_cacheing.md
+│   ├── randomization_config.py
 │   ├── apb
 │   │   ├── __init__.py
 │   │   ├── apb_components.py
@@ -17,22 +18,22 @@ CocoTBFramework
 │   │   └── apb_sequence.py
 │   ├── axi4
 │   │   ├── __init__.py
-│   │   ├── axi4-field-config-documentation.md
-│   │   ├── axi4_command_handlers.py
+│   │   ├── axi4_command_handler.py
 │   │   ├── axi4_extensions.py
-│   │   ├── axi4_factories.py
+│   │   ├── axi4_factory.py
+│   │   ├── axi4_factory_specialized.py
 │   │   ├── axi4_fields_signals.py
 │   │   ├── axi4_master.py
 │   │   ├── axi4_monitor.py
 │   │   ├── axi4_packet.py
-│   │   ├── axi4_slave.py
-│   │   └── HOLD
-│   │       ├── axi4_factories.py
-│   │       ├── axi4_fields_signals.py
-│   │       ├── axi4_master.py
-│   │       ├── axi4_monitor.py
-│   │       ├── axi4_packets.py
-│   │       └── axi4_slave.py
+│   │   ├── axi4_randomization_config.py
+│   │   ├── axi4_seq_address.py
+│   │   ├── axi4_seq_base.py
+│   │   ├── axi4_seq_data.py
+│   │   ├── axi4_seq_protocol.py
+│   │   ├── axi4_seq_response.py
+│   │   ├── axi4_seq_transaction.py
+│   │   └── axi4_slave.py
 │   ├── example_code
 │   │   ├── arbiter_monitor_example.py.EXAMPLE
 │   │   └── arbiter_monitor_testcase.py.EXAMPLE
@@ -43,15 +44,7 @@ CocoTBFramework
 │   │   ├── fifo_monitor.py
 │   │   ├── fifo_packet.py
 │   │   ├── fifo_sequence.py
-│   │   ├── fifo_slave.py
-│   │   └── HOLD
-│   │       ├── __init__.py
-│   │       ├── fifo_factories.py
-│   │       ├── fifo_master.py
-│   │       ├── fifo_monitor.py
-│   │       ├── fifo_packet.py
-│   │       ├── fifo_sequence.py
-│   │       └── fifo_slave.py
+│   │   └── fifo_slave.py
 │   ├── gaxi
 │   │   ├── __init__.py
 │   │   ├── gaxi_command_handler.py
@@ -61,15 +54,7 @@ CocoTBFramework
 │   │   ├── gaxi_monitor.py
 │   │   ├── gaxi_packet.py
 │   │   ├── gaxi_sequence.py
-│   │   ├── gaxi_slave.py
-│   │   └── HOLD
-│   │       ├── __init__.py
-│   │       ├── gaxi_factories.py
-│   │       ├── gaxi_master.py
-│   │       ├── gaxi_monitor.py
-│   │       ├── gaxi_packet.py
-│   │       ├── gaxi_sequence.py
-│   │       └── gaxi_slave.py
+│   │   └── gaxi_slave.py
 │   └── wavedrom_utils
 │       ├── __init__.py
 │       ├── common_groups.py
@@ -136,6 +121,7 @@ CocoTBFramework
     │   └── fifo_data_collect_tb.py
     ├── gaxi
     │   ├── __init__.py
+    │   ├── cdc_handshake.py
     │   ├── gaxi_buffer.py
     │   ├── gaxi_buffer_configs.py
     │   ├── gaxi_buffer_field.py

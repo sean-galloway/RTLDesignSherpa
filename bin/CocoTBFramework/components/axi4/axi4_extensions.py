@@ -15,8 +15,8 @@ import cocotb
 from cocotb.triggers import RisingEdge, Timer
 from cocotb.utils import get_sim_time
 
-from CocoTBFramework.components.field_config import FieldConfig, FieldDefinition
-from CocoTBFramework.components.axi4.axi4_packet import AXI4Packet
+from ..field_config import FieldConfig, FieldDefinition
+from ..axi4.axi4_packet import AXI4Packet
 
 
 class QoSHandler:
