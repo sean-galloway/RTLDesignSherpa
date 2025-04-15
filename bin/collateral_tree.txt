@@ -82,10 +82,10 @@ CocoTBFramework
     │   └── register_map.py
     ├── axi4
     │   ├── __init__.py
-    │   ├── axi4_master_rd_fub_intf.py
-    │   ├── axi4_master_rd_fub_intf_incl.py
-    │   ├── axi4_master_wr_fub_intf.py
-    │   ├── axi4_master_wr_fub_intf_incl.py
+    │   ├── axi4_fub_error_slave.py
+    │   ├── axi4_fub_split_slave.py
+    │   ├── axi4_master_rd_tb.py
+    │   ├── axi4_random_configs.py
     │   └── HOLD
     │       ├── __init__.py
     │       ├── axi4_command_handlers.py

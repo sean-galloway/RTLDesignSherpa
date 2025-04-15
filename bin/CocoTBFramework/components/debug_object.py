@@ -41,7 +41,7 @@ def get_object_details(obj):
     return result
 
 
-def print_object_details(obj, log, name="Object", max_value_length=500):
+def print_object_details(obj, log, name="Object", max_value_length=5000):
     """
     Prints formatted details of all attributes of the given object.
 

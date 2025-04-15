@@ -6,10 +6,6 @@ simplifying the setup of AXI4 components by providing optimized defaults
 and hiding unnecessary complexity.
 """
 
-import cocotb
-from cocotb.triggers import RisingEdge, Timer
-from cocotb.utils import get_sim_time
-
 from .axi4_factory import (
     create_axi4_master,
     create_axi4_slave,
@@ -27,7 +23,7 @@ from .axi4_extensions import create_axi4_extension_handlers
 from .axi4_randomization_config import AXI4RandomizationConfig
 
 
-def create_simple_axi4_master(dut, title, prefix, clock, data_width=32, log=None):
+def create_simple_axi4_master(dut, title, prefix, divider, suffix, clock, data_width=32, log=None):
     """
     Create a basic AXI4 master for simple testing scenarios.
 
@@ -46,8 +42,6 @@ def create_simple_axi4_master(dut, title, prefix, clock, data_width=32, log=None
     id_width = 4  # Simplified ID space
     addr_width = 32
     user_width = 1
-    divider = "_"
-    suffix = ""
     channels = ["AW", "W", "B", "AR", "R"]  # All channels
 
     # Create field configs with adjusted widths
@@ -77,7 +71,7 @@ def create_simple_axi4_master(dut, title, prefix, clock, data_width=32, log=None
     )
 
 
-def create_memory_axi4_slave(dut, title, prefix, clock, memory_model, data_width=32, log=None):
+def create_memory_axi4_slave(dut, title, prefix, divider, suffix, clock, channels, memory_model, id_width=8, addr_width=32, data_width=32, user_width=1, log=None):
     """
     Create an AXI4 slave specifically configured for memory operations.
 
@@ -93,14 +87,6 @@ def create_memory_axi4_slave(dut, title, prefix, clock, memory_model, data_width
     Returns:
         AXI4Slave instance configured for memory operations
     """
-    # Set sensible defaults
-    id_width = 4
-    addr_width = 32
-    user_width = 1
-    divider = "_"
-    suffix = ""
-    channels = ["AW", "W", "B", "AR", "R"]  # All channels
-
     # Create field configs with adjusted widths
     field_configs = {
         'AW': AXI4_AW_FIELD_CONFIG,
@@ -110,10 +96,10 @@ def create_memory_axi4_slave(dut, title, prefix, clock, memory_model, data_width
         'R': AXI4_R_FIELD_CONFIG
     }
 
-    # Adjust for data width
-    adjusted_configs = adjust_field_configs(
-        field_configs, id_width, addr_width, data_width, user_width
-    )
+    # # Adjust for data width
+    # adjusted_configs = adjust_field_configs(
+    #     field_configs, id_width, addr_width, data_width, user_width
+    # )
 
     # Create extension handlers for memory operations
     extensions = create_axi4_extension_handlers(memory_model, log)
@@ -125,7 +111,7 @@ def create_memory_axi4_slave(dut, title, prefix, clock, memory_model, data_width
         addr_width=addr_width,
         data_width=data_width,
         user_width=user_width,
-        field_configs=adjusted_configs,
+        # field_configs=adjusted_configs,
         memory_model=memory_model,
         check_protocol=True,  # Enable protocol checking
         inorder=True,  # Use in-order responses for predictability
@@ -133,7 +119,7 @@ def create_memory_axi4_slave(dut, title, prefix, clock, memory_model, data_width
     )
 
 
-def create_exclusive_access_master(dut, title, prefix, clock, data_width=32, log=None):
+def create_exclusive_access_master(dut, title, prefix, divider, suffix, clock, id_width=8, addr_width=32, data_width=32, user_width=1, log=None):
     """
     Create an AXI4 master pre-configured for exclusive access testing.
 
@@ -149,11 +135,6 @@ def create_exclusive_access_master(dut, title, prefix, clock, data_width=32, log
         AXI4Master instance configured for exclusive access testing
     """
     # Set sensible defaults
-    id_width = 4
-    addr_width = 32
-    user_width = 1
-    divider = "_"
-    suffix = ""
     channels = ["AW", "W", "B", "AR", "R"]  # All channels
 
     # Create field configs with adjusted widths
@@ -174,25 +155,25 @@ def create_exclusive_access_master(dut, title, prefix, clock, data_width=32, log
     randomization_config = AXI4RandomizationConfig()
     randomization_config.set_exclusive_access_mode(probability=0.5)  # 50% exclusive transactions
 
-    # Create and return master
-    master = create_axi4_master(
-        dut, title, prefix, divider, suffix, clock, channels,
+    return create_axi4_master(
+        dut,
+        title,
+        prefix,
+        divider,
+        suffix,
+        clock,
+        channels,
         id_width=id_width,
         addr_width=addr_width,
         data_width=data_width,
         user_width=user_width,
         field_configs=adjusted_configs,
         check_protocol=True,
-        log=log
+        log=log,
     )
 
-    # Create extensions optimized for exclusive access
-    # Note: Extensions will be automatically created when needed in the master
 
-    return master
-
-
-def create_performance_test_environment(dut, prefix, clock, memory_model=None, data_width=32, log=None):
+def create_performance_test_environment(dut, prefix, divider, suffix, clock, memory_model=None, data_width=32, log=None):
     """
     Create both master and slave components optimized for bandwidth testing.
 
@@ -211,11 +192,10 @@ def create_performance_test_environment(dut, prefix, clock, memory_model=None, d
     id_width = 8  # More IDs for better parallelism
     addr_width = 32
     user_width = 1
-    divider = "_"
 
     # Create master with "_m" suffix
     master = create_axi4_master(
-        dut, "perf_master", f"{prefix}_m", divider, "", clock,
+        dut, "perf_master", f"{prefix}_m", divider, suffix, clock,
         ["AW", "W", "B", "AR", "R"],
         id_width=id_width,
         addr_width=addr_width,
@@ -227,7 +207,7 @@ def create_performance_test_environment(dut, prefix, clock, memory_model=None, d
 
     # Create slave with "_s" suffix
     slave = create_axi4_slave(
-        dut, "perf_slave", f"{prefix}_s", divider, "", clock,
+        dut, "perf_slave", f"{prefix}_s", divider, suffix, clock,
         ["AW", "W", "B", "AR", "R"],
         id_width=id_width,
         addr_width=addr_width,
@@ -255,7 +235,7 @@ def create_performance_test_environment(dut, prefix, clock, memory_model=None, d
     return (master, slave, monitor)
 
 
-def create_protocol_compliance_environment(dut, prefix, clock, memory_model=None, data_width=32, log=None):
+def create_protocol_compliance_environment(dut, prefix, divider, suffix, clock, memory_model=None, data_width=32, log=None):
     """
     Set up a full environment with necessary components to verify protocol compliance.
 
@@ -274,11 +254,10 @@ def create_protocol_compliance_environment(dut, prefix, clock, memory_model=None
     id_width = 4
     addr_width = 32
     user_width = 1
-    divider = "_"
 
     # Create master with "_m" suffix and strict protocol checking
     master = create_axi4_master(
-        dut, "compliance_master", f"{prefix}_m", divider, "", clock,
+        dut, "compliance_master", f"{prefix}_m", divider, suffix, clock,
         ["AW", "W", "B", "AR", "R"],
         id_width=id_width,
         addr_width=addr_width,
@@ -290,7 +269,7 @@ def create_protocol_compliance_environment(dut, prefix, clock, memory_model=None
 
     # Create slave with "_s" suffix and strict protocol checking
     slave = create_axi4_slave(
-        dut, "compliance_slave", f"{prefix}_s", divider, "", clock,
+        dut, "compliance_slave", f"{prefix}_s", divider, suffix, clock,
         ["AW", "W", "B", "AR", "R"],
         id_width=id_width,
         addr_width=addr_width,
@@ -304,7 +283,7 @@ def create_protocol_compliance_environment(dut, prefix, clock, memory_model=None
 
     # Create monitor for protocol checking
     monitor = create_axi4_monitor(
-        dut, "compliance_monitor", f"{prefix}_m", divider, "", clock,
+        dut, "compliance_monitor", f"{prefix}_m", divider, suffix, clock,
         ["AW", "W", "B", "AR", "R"],
         id_width=id_width,
         addr_width=addr_width,

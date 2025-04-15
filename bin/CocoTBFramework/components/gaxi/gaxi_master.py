@@ -184,6 +184,7 @@ class GAXIMaster(BusDriver):
 
         # In multi-signal mode, verify signals and store mappings
         if self.use_multi_signal:
+            self.log.debug(msg_multi)
             self._initialize_multi_signal_mode()
         else:
             # Standard mode - initialize the single data bus
@@ -264,6 +265,15 @@ class GAXIMaster(BusDriver):
         """
         self.randomizer = randomizer
         self.log.info(f"Set new randomizer for Master({self.title})")
+
+    def get_randomizer(self):
+        """
+        Get the current randomizer with a new one.
+
+        Args:
+            randomizer: New FlexRandomizer instance
+        """
+        return self.randomizer
 
     def set_packet_generator(self, generator_func):
         """

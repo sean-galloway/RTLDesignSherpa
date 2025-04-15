@@ -115,6 +115,7 @@ class AXI4Slave:
             self.aw_slave = create_gaxi_slave(
                 dut, f"{title}_AW", "", clock,
                 field_config=self.aw_field_config,
+                packet_class=AXI4Packet,
                 multi_sig=True,
                 signal_map=aw_signal_map,
                 optional_signal_map=aw_optional_signal_map,
@@ -128,6 +129,7 @@ class AXI4Slave:
             self.w_slave = create_gaxi_slave(
                 dut, f"{title}_W", "", clock,
                 field_config=self.w_field_config,
+                packet_class=AXI4Packet,
                 multi_sig=True,
                 signal_map=w_signal_map,
                 optional_signal_map=w_optional_signal_map,
@@ -141,6 +143,7 @@ class AXI4Slave:
             self.b_master = create_gaxi_master(
                 dut, f"{title}_B", "", clock,
                 field_config=self.b_field_config,
+                packet_class=AXI4Packet,
                 randomizer=b_randomizer,
                 multi_sig=True,
                 signal_map=b_signal_map,
@@ -154,6 +157,7 @@ class AXI4Slave:
             self.ar_slave = create_gaxi_slave(
                 dut, f"{title}_AR", "", clock,
                 field_config=self.ar_field_config,
+                packet_class=AXI4Packet,
                 multi_sig=True,
                 signal_map=ar_signal_map,
                 optional_signal_map=ar_optional_signal_map,
@@ -167,6 +171,7 @@ class AXI4Slave:
             self.r_master = create_gaxi_master(
                 dut, f"{title}_R", "", clock,
                 field_config=self.r_field_config,
+                packet_class=AXI4Packet,
                 randomizer=r_randomizer,
                 multi_sig=True,
                 signal_map=r_signal_map,
@@ -191,8 +196,8 @@ class AXI4Slave:
         self.pending_reads = {}   # Read transactions waiting to be processed
 
         # Queue structure for ordering responses
-        self.write_response_queue = deque()  # Queue of write responses to send
-        self.read_response_queue = deque()   # Queue of read responses to send
+        self.write_response_queue = []  # Queue of write responses to send
+        self.read_response_queue = []   # Queue of read responses to send
 
         # Transaction ordering trackers
         self.next_write_id = None  # Next write ID to process for in-order mode

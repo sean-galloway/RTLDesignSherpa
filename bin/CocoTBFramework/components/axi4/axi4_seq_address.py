@@ -6,13 +6,10 @@ It focuses on address generation with proper AXI4 protocol compliance, supportin
 different burst types, sizes, and alignment requirements.
 """
 
-import random
 from typing import Dict, List, Any, Optional, Tuple, Union
 from collections import deque
 
 from ..field_config import FieldConfig
-from ..flex_randomizer import FlexRandomizer
-from ..gaxi.gaxi_sequence import GAXISequence
 from .axi4_packet import AXI4Packet
 from .axi4_fields_signals import (
     AXI4_AW_FIELD_CONFIG,
@@ -20,7 +17,9 @@ from .axi4_fields_signals import (
 )
 from .axi4_seq_base import AXI4BaseSequence
 from ..randomization_config import RandomizationConfig, RandomizationMode
-
+from .axi4_randomization_config import (
+                AXI4RandomizationConfig, RandomizationMode
+            )
 
 class AXI4AddressSequence(AXI4BaseSequence):
     """
@@ -35,6 +34,7 @@ class AXI4AddressSequence(AXI4BaseSequence):
                     channel: str = "AW",
                     id_width: int = 8,
                     addr_width: int = 32,
+                    data_width: int = 32,
                     user_width: int = 1,
                     randomization_config: Optional[RandomizationConfig] = None):
         """
@@ -57,6 +57,7 @@ class AXI4AddressSequence(AXI4BaseSequence):
 
         self.id_width = id_width
         self.addr_width = addr_width
+        self.data_width = data_width
         self.user_width = user_width
 
         # Select appropriate field config based on channel
@@ -491,43 +492,158 @@ class AXI4AddressSequence(AXI4BaseSequence):
 
     @classmethod
     def create_4k_boundary_test(cls,
-                                channel: str = "AW",
-                                id_value: int = 0,
-                                randomization_config: Optional[RandomizationConfig] = None) -> 'AXI4AddressSequence':
+                            channel: str = "AR",
+                            id_value: int = 0,
+                            data_width: int = 32,
+                            randomization_config: Optional[RandomizationConfig] = None) -> 'AXI4AddressSequence':
         """
         Create a sequence of transactions that test 4KB boundary cases.
-
+        
         Args:
             channel: AXI4 channel ('AW' or 'AR')
             id_value: Transaction ID to use
+            data_width: Data width in bits (affects bytes per beat)
             randomization_config: Optional randomization configuration
-
+            
         Returns:
             Configured AXI4AddressSequence
         """
         sequence = cls(name="4k_boundary_test", channel=channel, randomization_config=randomization_config)
-
+        sequence.data_width = data_width  # Set data width
+        
+        # Calculate bytes per beat based on data width
+        bytes_per_beat = data_width // 8
+        # Calculate max burst size based on data width (log2 of bytes_per_beat)
+        max_burst_size = (bytes_per_beat).bit_length() - 1
+        
+        # 4KB boundary
+        boundary_size = 0x1000
+        
         # Test cases near 4KB boundaries
         test_cases = [
-            # (address, burst_len, burst_size)
-            (0x00000FF0, 3, 2),  # Near 4KB boundary with 4-byte size
-            (0x00000FF8, 1, 2),  # Just before 4KB boundary
-            (0x00001000, 7, 2),  # At 4KB boundary
-            (0x00001FF0, 3, 2),  # Near second 4KB boundary
-            (0x00000FE0, 7, 2),  # Cross 4KB boundary
-            (0x00001000 - 4, 1, 2),  # Straddle 4KB boundary
+            # (address, burst_len, burst_size, description)
+            (0x00000FF0, 3, max_burst_size, "Near 4KB boundary"),
+            (0x00000FF8, 1, max_burst_size, "Just before 4KB boundary"),
+            (0x00001000, 7, max_burst_size, "At 4KB boundary"),
+            (0x00001FF0, 3, max_burst_size, "Near second 4KB boundary"),
+            
+            # Calculate exact positions that will cross boundaries based on data width
+            (boundary_size - (bytes_per_beat * 4), 7, max_burst_size, "Cross 4KB boundary - medium burst"),
+            (boundary_size - bytes_per_beat, 1, max_burst_size, "Straddle 4KB boundary"),
+            
+            # Additional test cases with various burst lengths and sizes
+            (boundary_size - (bytes_per_beat * 8), 15, max_burst_size, "Large burst crossing 4KB boundary"),
+            (boundary_size - (bytes_per_beat * 2), 3, max_burst_size-1, "Cross with smaller burst size"),
+            
+            # Test cases that shouldn't cross boundaries (for comparison)
+            (boundary_size + (bytes_per_beat * 8), 7, max_burst_size, "After boundary, not crossing"),
+            (boundary_size - (bytes_per_beat * 16), 3, max_burst_size, "Before boundary, not crossing")
         ]
-
-        for addr, burst_len, burst_size in test_cases:
+        
+        for i, (addr, burst_len, burst_size, desc) in enumerate(test_cases):
+            # For proper indexing in case we have multiple test groups
+            current_id = id_value + i
+            
+            # Cap burst_size to max_burst_size to prevent invalid configurations
+            actual_burst_size = min(burst_size, max_burst_size)
+            
             sequence.add_transaction(
                 addr=addr,
-                id_value=id_value,
+                id_value=current_id,
                 burst_len=burst_len,
-                burst_size=burst_size,
+                burst_size=actual_burst_size,
                 burst_type=cls.BURST_INCR  # Use INCR bursts
             )
-
+            
+            # Add comment to the transaction (useful for debugging)
+            if hasattr(sequence, 'add_comment'):
+                sequence.add_comment(current_id, desc)
+        
         return sequence
+
+    @classmethod
+    def create_x_boundary_test(cls,
+                            alignment_mask: int = 0xFFF,
+                            channel: str = "AR",
+                            base_addr: int = 0,  # Add base_addr parameter
+                            id_value: int = 0,
+                            data_width: int = 32,
+                            randomization_config: Optional[RandomizationConfig] = None) -> 'AXI4AddressSequence':
+        """
+        Create a sequence of transactions that test boundary cases based on the alignment mask.
+        
+        Args:
+            alignment_mask: Alignment mask that defines the boundary (e.g., 0xFFF for 4KB boundary)
+            channel: AXI4 channel ('AW' or 'AR')
+            base_addr: Base address for the test (can be used to test different pages)
+            id_value: Transaction ID to use
+            data_width: Data width in bits (affects bytes per beat)
+            randomization_config: Optional randomization configuration
+            
+        Returns:
+            Configured AXI4AddressSequence
+        """
+        # Calculate the boundary size
+        boundary_size = alignment_mask + 1
+        
+        # Create a meaningful name for the sequence
+        sequence_name = f"{boundary_size}b_boundary_test"
+        
+        # Create the sequence
+        sequence = cls(name=sequence_name, channel=channel, randomization_config=randomization_config)
+        sequence.data_width = data_width  # Set data width
+        
+        # Calculate bytes per beat based on data width
+        bytes_per_beat = data_width // 8
+        # Calculate max burst size based on data width (log2 of bytes_per_beat)
+        max_burst_size = (bytes_per_beat).bit_length() - 1
+        
+        # Calculate the boundary address: align base_addr to boundary_size
+        # and add an additional boundary_size to ensure we're testing a boundary
+        page_start = (base_addr // boundary_size) * boundary_size
+        boundary_addr = page_start + boundary_size
+        
+        # Test cases near the boundary
+        test_cases = [
+            # (address, burst_len, burst_size, description)
+            # Standard boundary tests
+            (boundary_addr - (4 * bytes_per_beat), 3, max_burst_size, "Near boundary"),
+            (boundary_addr - (2 * bytes_per_beat), 1, max_burst_size, "Just before boundary"),
+            (boundary_addr, 7, max_burst_size, "At boundary"),
+            (boundary_addr + 0xFF0, 3, max_burst_size, "Near next boundary"),
+            
+            # Crossing cases - align these to cause specific boundary crossing
+            (boundary_addr - (bytes_per_beat * 2), 3, max_burst_size, "Small cross boundary"),
+            (boundary_addr - (bytes_per_beat * 4), 7, max_burst_size, "Medium cross boundary"),
+            (boundary_addr - (bytes_per_beat * 8), 15, max_burst_size, "Large cross boundary"),
+            
+            # Different size cases for multiple data width configurations
+            (boundary_addr - (bytes_per_beat * 2), 3, max_burst_size-1, "Cross with smaller size"),
+            (boundary_addr - (bytes_per_beat * 1), 0, max_burst_size, "Straddle boundary")
+        ]
+        
+        # Add transactions to the sequence
+        for i, (addr, burst_len, burst_size, desc) in enumerate(test_cases):
+            # For proper indexing in case we have multiple test groups
+            current_id = id_value + i
+            
+            # Cap burst_size to max_burst_size to prevent invalid configurations
+            actual_burst_size = min(burst_size, max_burst_size)
+            
+            sequence.add_transaction(
+                addr=addr,
+                id_value=current_id,
+                burst_len=burst_len,
+                burst_size=actual_burst_size,
+                burst_type=cls.BURST_INCR  # Use INCR bursts
+            )
+            
+            # Add comment to the transaction (useful for debugging)
+            if hasattr(sequence, 'add_comment'):
+                sequence.add_comment(current_id, f"{desc} (page: 0x{page_start:X})")
+        
+        return sequence
+
 
     @classmethod
     def create_protection_variations(cls,
@@ -685,9 +801,7 @@ class AXI4AddressSequence(AXI4BaseSequence):
         """
         # If no randomization_config is provided, create a default one
         if randomization_config is None:
-            from CocoTBFramework.components.randomization_config import (
-                AXI4RandomizationConfig, RandomizationMode
-            )
+
             randomization_config = AXI4RandomizationConfig()
 
             # Configure address range

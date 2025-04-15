@@ -253,6 +253,15 @@ class GAXISlave(BusMonitor):
         self.randomizer = randomizer
         self.log.info(f"Slave({self.title}) Set new randomizer for {self.title}")
 
+    def get_randomizer(self):
+        """
+        Get the current randomizer with a new one.
+
+        Args:
+            randomizer: New FlexRandomizer instance
+        """
+        return self.randomizer
+
     def set_memory_model(self, memory_model, memory_fields=None):
         """
         Set or update the memory model.
@@ -309,14 +318,14 @@ class GAXISlave(BusMonitor):
         if not hasattr(self.field_config, 'get_field'):
             # Can't perform check if field_config doesn't support get_field
             return field_value
-        
+
         try:
             field_def = self.field_config.get_field(field_name)
             bits = field_def.bits
-            
+
             # Calculate maximum value for this field
             max_value = (1 << bits) - 1
-            
+
             # Check if value exceeds maximum
             if field_value > max_value:
                 current_time = get_sim_time('ns')
@@ -324,13 +333,11 @@ class GAXISlave(BusMonitor):
                     f"GAXISlave({self.title}) at {current_time}ns: Field '{field_name}' value 0x{field_value:X} "
                     f"exceeds maximum 0x{max_value:X} ({bits} bits). Value will be masked."
                 )
-                
-                # Mask the value
-                masked_value = field_value & max_value
-                return masked_value
+
+                return field_value & max_value
         except Exception as e:
             self.log.error(f"Error checking field value: {e}")
-            
+
         return field_value
 
     def _finish_packet(self, current_time, packet, data_dict=None):
@@ -390,7 +397,6 @@ class GAXISlave(BusMonitor):
         self.log.debug(f"Slave({self.title}) Transaction received at {packet.end_time}ns: {packet_str}")
         self._recv(packet)  # trigger callbacks
 
-    # TODO Rename this here and in `_finish_packet`
     def _finish_packet_helper(self, combined_value, unpacked_fields):
         bit_offset = 0
         # Process fields in the order defined in field_config

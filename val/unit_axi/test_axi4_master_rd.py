@@ -1,289 +1,443 @@
 """
-Main Testbench for AXI4 Master Read with Splitting functionality
+Scenario-based test for AXI4 Master Read module
 
-This module provides the top-level testbench for the AXI4
-read master module with support for burst splitting and FIFO-based error detection.
+This test implements multiple test scenarios for the AXI4 Master Read module:
+- basic: Simple read transactions
+- splits: Transaction splitting with different alignment masks
+- error: Error detection and reporting
+- full: Comprehensive test of all features
+
+The test uses a single entry point with parameters to select the test type.
 """
+
 import os
 import random
+from itertools import product
 import pytest
 import cocotb
-from cocotb_test.simulator import run
+from cocotb.triggers import Timer
 
-from CocoTBFramework.components.memory_model import MemoryModel
-from CocoTBFramework.tbclasses.tbbase import TBBase
 from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
+from CocoTBFramework.tbclasses.axi4.axi4_master_rd_tb import AXI4MasterReadTB
+from CocoTBFramework.components.axi4.axi4_seq_transaction import AXI4TransactionSequence
+from CocoTBFramework.components.axi4.axi4_seq_protocol import AXI4ProtocolSequence
+from CocoTBFramework.components.flex_randomizer import FlexRandomizer
+from CocoTBFramework.components.randomization_config import RandomizationMode
+from CocoTBFramework.tbclasses.axi4.axi4_random_configs import RANDOMIZER_CONFIGS
 
-# Import our interface and test classes
-from CocoTBFramework.tbclasses.axi4.axi4_master_rd_fub_intf import Axi4MasterRdFubIntf
-from CocoTBFramework.tbclasses.axi4.axi4_master_rd_slv_intf import Axi4MasterRdAxi4Intf
-from CocoTBFramework.tbclasses.axi4.axi4_master_rd_test import Axi4MasterRdTests
 
+class AXI4MasterReadScenarioTB:
+    """Test bench for running different test scenarios on AXI4 Master Read module"""
 
-class AXI4MasterRDTB(TBBase):
-    """
-    Top-level testbench for AXI4 Master Read with Splitting functionality and FIFO-based error reporting
-    """
     def __init__(self, dut):
-        super().__init__(dut)
+        """Initialize the scenario testbench"""
+        self.dut = dut
+        self.test_type = os.environ.get('TEST_TYPE', 'basic')
 
-        # Extract parameters from environment or use defaults
-        self.ID_WIDTH = self.convert_to_int(os.environ.get('TEST_ID_WIDTH', '8'))
-        self.ADDR_WIDTH = self.convert_to_int(os.environ.get('TEST_ADDR_WIDTH', '32'))
-        self.DATA_WIDTH = self.convert_to_int(os.environ.get('TEST_DATA_WIDTH', '32'))
-        self.USER_WIDTH = self.convert_to_int(os.environ.get('TEST_USER_WIDTH', '1'))
-        self.ALIGNMENT_WIDTH = self.convert_to_int(os.environ.get('TEST_ALIGNMENT_WIDTH', '12'))
-        self.SKID_DEPTH_AR = self.convert_to_int(os.environ.get('TEST_SKID_DEPTH_AR', '2'))
-        self.SKID_DEPTH_R = self.convert_to_int(os.environ.get('TEST_SKID_DEPTH_R', '4'))
-        self.TIMEOUT_AR = self.convert_to_int(os.environ.get('TEST_TIMEOUT_AR', '32'))
-        self.TIMEOUT_R = self.convert_to_int(os.environ.get('TEST_TIMEOUT_R', '32'))
-        self.ERROR_FIFO_DEPTH = self.convert_to_int(os.environ.get('TEST_ERROR_FIFO_DEPTH', '4'))
-
-        # Calculate derived parameters
-        self.STRB_WIDTH = self.DATA_WIDTH // 8
-
-        # Test configuration
-        self.memory_size = 32768  # Number of lines in memory model
-
-        # Create memory model
-        self.mem = MemoryModel(
-            num_lines=self.memory_size,
-            bytes_per_line=self.STRB_WIDTH,
-            log=self.log
+        # Create the base testbench
+        self.tb = AXI4MasterReadTB(
+            dut=dut,
+            id_width=dut.AXI_ID_WIDTH.value,
+            addr_width=dut.AXI_ADDR_WIDTH.value,
+            data_width=dut.AXI_DATA_WIDTH.value,
+            user_width=dut.AXI_USER_WIDTH.value,
+            alignment_mask=0xFFF  # Start with 4K boundary
         )
 
-        # Initialize memory with pattern data
-        self._initialize_memory()
+        # Note: The TB creates default randomizers during initialization
+        # We'll override them in our test methods as needed for specific timing behavior
 
-        # Create interface classes
-        self.user_intf = Axi4MasterRdFubIntf(dut)
-        self.axi4_intf = Axi4MasterRdAxi4Intf(dut, self.mem)
+        # Setup logging
+        self.log = self.tb.log
+        self.log.info(f"Created AXI4MasterReadScenarioTB with test_type: {self.test_type}")
 
-        # Create test implementation
-        self.tests = Axi4MasterRdTests(dut, self.user_intf, self.axi4_intf)
+        # Use seed for reproducibility
+        self.seed = int(os.environ.get('SEED', '0'))
+        random.seed(self.seed)
+        self.log.info(f"Using seed: {self.seed}")
 
-    def _initialize_memory(self):
-        """Initialize memory with a pattern."""
-        # Use a simple pattern: address + 0xA5A5A5A5
-        for addr in range(0, self.memory_size * self.STRB_WIDTH, self.STRB_WIDTH):
-            value = (addr + 0xA5A5A5A5) & ((1 << (8 * self.STRB_WIDTH)) - 1)
-            data_bytes = self.mem.integer_to_bytearray(value, self.STRB_WIDTH)
-            self.mem.write(addr, data_bytes, 0xFF)  # All bytes enabled
+    async def setup(self):
+        """Setup the testbench"""
+        await self.tb.start_clock('aclk', 10, 'ns')
+        await self.tb.setup_components()
+        await self.tb.reset_dut()
+        await self.tb.start_components()
 
-        self.log.info("Memory initialized with pattern: addr + 0xA5A5A5A5")
+    async def cleanup(self):
+        """Cleanup after tests"""
+        await self.tb.stop_components()
+        self.tb.log_summary()
 
-    async def run_test(self):
-        """Main test sequence"""
-        # Keep track of test results
-        test_results = []
+    async def run_basic_test(self):
+        """Run basic functionality tests without transaction splitting"""
+        self.log.info("Running basic functionality test")
 
+        # Test 1: Single-beat read transactions
+        self.log.info("Test 1: Single-beat read transactions")
+        for i in range(5):
+            addr = i * 0x100  # Space out addresses
+            result = await self.tb.perform_read(addr=addr, id_value=i)
+            await self.tb.verify_read_data(result, addr)
+            await self.tb.wait_clocks('aclk', 5)  # Wait between transactions
+
+        # Test 2: Burst read transactions
+        self.log.info("Test 2: Burst read transactions")
+        for i, burst_len in enumerate([1, 3, 7]):  # 2, 4, 8 beats
+            addr = 0x1000 + (i * 0x100)  # Ensure no boundary crossing
+            result = await self.tb.perform_read(addr=addr, id_value=10+i, burst_len=burst_len)
+            await self.tb.verify_read_data(result, addr, burst_len)
+            await self.tb.wait_clocks('aclk', 10)  # Longer wait for burst transactions
+
+        # Test 3: Different burst sizes
+        self.log.info("Test 3: Different burst sizes")
+        for i, burst_size in enumerate([0, 1, 2]):  # 1, 2, 4 bytes
+            addr = 0x2000 + (i * 0x100)
+            result = await self.tb.perform_read(addr=addr, id_value=20+i, burst_size=burst_size)
+            await self.tb.verify_read_data(result, addr, burst_size=burst_size)
+            await self.tb.wait_clocks('aclk', 5)
+
+        return self.tb.get_test_result()
+
+    async def run_split_test(self):
+        """Run transaction splitting tests with different alignment masks"""
+        self.log.info("Running transaction splitting test")
+
+        # Test with different alignment masks
+        alignment_masks = [
+            0xFFF,  # 4K boundary (default)
+            0x7FF,  # 2K boundary
+            0x3FF,  # 1K boundary
+            0x1FF,  # 512-byte boundary
+        ]
+
+        # Manual tests for specific boundary cases
+        for mask in alignment_masks:
+            # Set alignment mask
+            await self.tb.set_alignment_mask(mask)
+            boundary = mask + 1
+
+            self.log.info(f"Testing with alignment mask: 0x{mask:X}")
+
+            # Test 1: Transaction directly before boundary
+            addr = boundary - 16  # Place just before boundary
+            burst_len = 7  # 8 beats
+
+            # Execute the read
+            result = await self.tb.perform_read(addr=addr, id_value=0, burst_len=burst_len)
+
+            # Verify split and data
+            expected_splits = self.tb.calculate_expected_splits(addr, burst_len, 2)
+            await self.tb.verify_split_transaction(result, addr, 0, burst_len, 2, expected_splits)
+
+            # Test 2: Transaction spanning multiple boundaries
+            addr = boundary - 32
+            burst_len = 15  # 16 beats (spans multiple boundaries)
+
+            # Execute the read
+            result = await self.tb.perform_read(addr=addr, id_value=1, burst_len=burst_len)
+
+            # Verify split and data
+            expected_splits = self.tb.calculate_expected_splits(addr, burst_len, 2)
+            await self.tb.verify_split_transaction(result, addr, 1, burst_len, 2, expected_splits)
+
+            # Wait between masks
+            await self.tb.wait_clocks('aclk', 20)
+
+        # Run the comprehensive boundary test with multiple pages
+        page_addresses = [0, 0x10000, 0x20000]  # Test multiple pages
+        await self.tb.run_boundary_test_sequence(masks=alignment_masks, page_addresses=page_addresses)
+
+        # Return the test result
+        return self.tb.get_test_result()
+
+    async def run_error_test(self):
+        """Run error detection and reporting tests"""
+        self.log.info("Running error detection test")
+
+        # Test 1: Response errors (SLVERR)
+        self.log.info("Test 1: Response errors (SLVERR)")
+
+        # Create a protocol error sequence
+        error_sequence = AXI4ProtocolSequence(
+            id_width=self.tb.id_width,
+            addr_width=self.tb.addr_width,
+            data_width=self.tb.data_width
+        )
+
+        # Create SLVERR response sequence
+        error_sequence.create_slverr_response_sequence()
+
+        # Run the sequence
+        sequence_name, sequence = next(iter(error_sequence.error_sequences.items()))
+        self.log.info(f"Running error sequence: {sequence_name}")
+        await self.tb.run_transaction_sequence(sequence)
+
+        # Wait for error to be processed
+        await self.tb.wait_clocks('aclk', 20)
+
+        # Verify that error was reported
+        if self.tb.get_error_report_count() == 0:
+            self.log.error("No error report detected for SLVERR response")
+            self.tb.total_errors += 1
+
+        # Test 2: AR timeout (with slow randomizer)
+        self.log.info("Test 2: AR timeout")
+
+        # Configure pathological delay
+        pathological_config = {
+            'ready_delay': ([[100, 200]], [1.0])  # Very large delay
+        }
+
+        # Save current randomizer for restoration
+        original_randomizer = self.tb.axi_slave.ar_slave.get_randomizer()
+
+        # Set pathological delay on AXI slave AR channel
+        self.tb.axi_slave.ar_slave.set_randomizer(FlexRandomizer(pathological_config))
+
+        # Issue read transaction that should timeout
         try:
-            # Start the clock
-            self.log.info('Starting clock')
-            await self.start_clock('aclk', 10, 'ns')
+            addr = 0xF000
+            timeout_result = await self.tb.perform_read(addr=addr, id_value=1)
+            self.log.info("Read transaction completed despite timeout configuration")
+        except Exception as e:
+            self.log.info(f"Expected timeout exception: {str(e)}")
 
-            # Reset the DUT
-            self.log.info('Resetting DUT')
-            await self.tests.reset_dut()
+        # Wait longer for timeout to be detected
+        await self.tb.wait_clocks('aclk', 250)
 
-            # Start the command handler to process read requests
-            self.log.info('Starting AXI4 read command handler')
-            await self.axi4_intf.start_command_handler()
+        # Restore normal timing
+        self.tb.axi_slave.ar_slave.set_randomizer(original_randomizer)
 
-            # Test 1: Basic read transactions
-            self.log.info('# Test 1: Basic read transactions')
-            result = await self.tests.test_01_basic_read()
-            test_results.append(("Basic read transactions", result))
+        # Reset DUT to recover from timeout
+        await self.tb.reset_dut()
+        await self.tb.start_components()
 
-            # Wait longer between tests to ensure full cleanup
-            await self.wait_clocks('aclk', 50)
+        # Check that error was reported
+        if self.tb.get_error_report_count() <= 1:  # Should be at least 2 (SLVERR + timeout)
+            self.log.error("No error report detected for AR timeout")
+            self.tb.total_errors += 1
 
-            # Test 2: Alignment boundary splitting
-            self.log.info('# Test 2: Alignment boundary splitting')
-            result = await self.tests.test_02_split_test()
-            test_results.append(("Alignment boundary splitting", result))
+        # Test 3: Run error sequence from protocol sequence
+        self.log.info("Test 3: Protocol error sequence")
 
-            # Wait longer between tests
-            await self.wait_clocks('aclk', 50)
+        # Create a protocol error sequence
+        error_sequence = AXI4ProtocolSequence(
+            id_width=self.tb.id_width,
+            addr_width=self.tb.addr_width,
+            data_width=self.tb.data_width
+        )
 
-            # # Test 3: Error handling (with FIFO-based reporting)
-            # self.log.info('# Test 3: Error handling with FIFO-based reporting')
-            # result = await self.tests.test_03_response_error_test()
-            # test_results.append(("Response error handling", result))
+        # Create additional error sequences
+        error_sequence.create_decerr_response_sequence()  # Add DECERR sequence
 
-            # # Wait longer between tests
-            # await self.wait_clocks('aclk', 50)
+        # Run the error sequences
+        for name, sequence in error_sequence.error_sequences.items():
+            self.log.info(f"Running error sequence: {name}")
+            await self.tb.run_transaction_sequence(sequence)
+            await self.tb.wait_clocks('aclk', 20)
 
-            # # Test 4: R Timeout Test
-            # self.log.info('# Test 4: R Timeout Test')
-            # result = await self.tests.test_04_r_timeout_test()
-            # test_results.append(("R channel timeout handling", result))
+        return self.tb.get_test_result()
 
-            # # Wait longer between tests
-            # await self.wait_clocks('aclk', 50)
+    async def run_full_test(self):
+        """Run comprehensive test of all features"""
+        self.log.info("Running comprehensive test")
 
-            # # Test 5: AR Timeout Test
-            # self.log.info('# Test 5: AR Timeout Test')
-            # result = await self.tests.test_05_ar_timeout_test()
-            # test_results.append(("AR channel timeout handling", result))
+        # Part 1: Basic functionality
+        self.log.info("Part 1: Basic functionality")
+        basic_result = await self.run_basic_test()
 
-            # # Wait longer between tests
-            # await self.wait_clocks('aclk', 50)
+        # Reset before next test
+        await self.tb.reset_dut()
+        await self.tb.start_components()
 
-            # # Test 6: Collision Cases
-            # self.log.info('# Test 6: Collision Cases Test')
-            # result = await self.tests.test_06_collision_cases()
-            # test_results.append(("Error collision cases", result))
+        # Part 2: Transaction splitting
+        self.log.info("Part 2: Transaction splitting")
+        split_result = await self.run_split_test()
 
-            # # Wait longer between tests
-            # await self.wait_clocks('aclk', 50)
+        # Reset before next test
+        await self.tb.reset_dut()
+        await self.tb.start_components()
 
-            # Print test summary
-            self.log.info("=== Test Summary ===")
-            all_passed = True
-            for test_name, passed in test_results:
-                status = "PASSED" if passed else "FAILED"
-                self.log.info(f"  {test_name}: {status}")
-                all_passed = all_passed and passed
+        # Part 3: Error detection
+        self.log.info("Part 3: Error detection")
+        error_result = await self.run_error_test()
 
-            if all_passed:
-                self.log.info("All tests passed!")
-                print("AXI4 Master Read test completed successfully!")
-            else:
-                self.log.error("One or more tests failed!")
-                print("AXI4 Master Read test had failures!")
-                for test_name, passed in test_results:
-                    if not passed:
-                        print(f"  Failed test: {test_name}")
-                # Make the test fail in pytest by raising an exception
-                assert False, "One or more tests failed - see log for details"
+        # Reset before next test
+        await self.tb.reset_dut()
+        await self.tb.start_components()
 
-        finally:
-            # Ensure cleanup
-            self.log.info("Test complete, performing cleanup")
+        # Part 4: Out-of-order response handling
+        self.log.info("Part 4: Out-of-order response handling")
 
-            # Stop the command handler
-            self.log.info('Stopping AXI4 read command handler')
-            await self.axi4_intf.stop_command_handler()
+        # Toggle to out-of-order responses
+        await self.tb.configure_slave_response_order(inorder=False)
 
-            # Wait for tasks to complete
-            await self.wait_clocks('aclk', 10)
+        # Create sequence with multiple IDs
+        ooo_sequence = AXI4TransactionSequence(
+            name="multi_id_sequence",
+            id_width=self.tb.id_width,
+            addr_width=self.tb.addr_width,
+            data_width=self.tb.data_width
+        )
+
+        # Add reads with different IDs
+        for i in range(8):
+            addr = 0x2000 + (i * 0x40)
+            ooo_sequence.add_read_transaction(
+                addr=addr,
+                id_value=i,
+                burst_len=3  # 4 beats
+            )
+
+        # Run the sequence
+        await self.tb.run_transaction_sequence(ooo_sequence)
+        ooo_result = self.tb.get_test_result()
+
+        # Part 5: Randomized testing
+        self.log.info("Part 5: Randomized testing")
+
+        # Create and run random transactions with different delay profiles
+        delay_profiles = ['constrained', 'burst_pause', 'slow_consumer']
+        for profile in delay_profiles:
+            # Set randomizers for each channel
+            # FUB master side (AR master, R slave)
+            self.tb.fub_master.ar_master.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS[profile]['write']))
+            self.tb.fub_master.r_slave.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS[profile]['read']))
+            # AXI slave side (AR slave, R master)
+            self.tb.axi_slave.ar_slave.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS[profile]['read']))
+            self.tb.axi_slave.r_master.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS[profile]['write']))
+
+            # Create random sequence
+            rand_sequence = AXI4TransactionSequence.create_random_transactions(
+                count=10,
+                addr_range=(0x1000, 0x8FFF),
+                id_range=(0, 7),
+                data_width=self.tb.data_width
+            )
+
+            # Run sequence
+            await self.tb.run_transaction_sequence(rand_sequence)
+            await self.tb.wait_clocks('aclk', 30)
+
+        random_result = self.tb.get_test_result()
+
+        # Check all results
+        return basic_result and split_result and error_result and ooo_result and random_result
+
+    async def run_selected_test(self):
+        """Run the selected test type"""
+        test_result = False
+
+        if self.test_type == 'basic':
+            return await self.run_basic_test()
+        elif self.test_type == 'splits':
+            return await self.run_split_test()
+        elif self.test_type == 'error':
+            return await self.run_error_test()
+        elif self.test_type == 'full':
+            return await self.run_full_test()
+        else:
+            self.log.error(f"Unknown test type: {self.test_type}")
+            return False
 
 
-@cocotb.test(timeout_time=5000, timeout_unit="us")
-async def axi4_master_rd_test(dut):
-    """Main test for AXI4 Master Read with Splitting module and FIFO-based error reporting"""
-    # Create testbench
-    tb = AXI4MasterRDTB(dut)
+@cocotb.test(timeout_time=2, timeout_unit="ms")
+async def axi4_master_read_scenario_test(dut):
+    """Main entry point for scenario-based AXI4 Master Read tests"""
+    # Create the scenario testbench
+    scenario_tb = AXI4MasterReadScenarioTB(dut)
 
-    # Use the seed for reproducibility
-    seed = int(os.environ.get('SEED', '42'))
-    random.seed(seed)
+    # Setup the testbench
+    await scenario_tb.setup()
 
-    # Run the test sequence
-    await tb.run_test()
+    try:
+        # Run the selected test
+        result = await scenario_tb.run_selected_test()
 
+        # Check result
+        if result:
+            scenario_tb.log.info("TEST PASSED")
+        else:
+            scenario_tb.log.error("TEST FAILED")
+            assert False, "Test failed"
+
+    finally:
+        # Always cleanup
+        await scenario_tb.cleanup()
+
+
+def generate_params():
+    """Generate test parameters"""
+    id_widths = [8]
+    addr_widths = [32]
+    data_widths = [32, 64]
+    user_widths = [1]
+    skid_depths = [2, 4]
+    fifo_depths = [4]
+    timeout_vals = [1000]
+    test_types = ['basic', 'splits', 'error', 'full']
+
+    data_widths = [64]
+    skid_depths = [4]
+    test_types = ['full']
+
+    return list(product(
+        id_widths,
+        addr_widths,
+        data_widths,
+        user_widths,
+        skid_depths,
+        fifo_depths,
+        timeout_vals,
+        test_types
+    ))
+
+params = generate_params()
 
 @pytest.mark.parametrize(
-    "id_width, addr_width, data_width, user_width, skid_depth_ar, skid_depth_r, error_fifo_depth, timeout_ar, timeout_r",
-    [
-        (
-            8,   # id_width
-            32,  # addr_width
-            32,  # data_width
-            1,   # user_width
-            2,   # skid_depth_ar
-            4,   # skid_depth_r
-            4,   # error_fifo_depth
-            32,  # AR Timeout clocks
-            32,  # R Timeout clocks
-        ),
-        # (
-        #     8,   # id_width
-        #     64,  # addr_width
-        #     64,  # data_width
-        #     1,   # user_width
-        #     2,   # skid_depth_ar
-        #     4,   # skid_depth_r
-        #     4,   # error_fifo_depth
-        #     32,  # AR Timeout clocks
-        #     32,  # R Timeout clocks
-        # ),
-        # (
-        #     8,   # id_width
-        #     64,  # addr_width
-        #     128, # data_width
-        #     1,   # user_width
-        #     2,   # skid_depth_ar
-        #     4,   # skid_depth_r
-        #     4,   # error_fifo_depth
-        #     32,  # AR Timeout clocks
-        #     32,  # R Timeout clocks
-        # ),
-        # (
-        #     8,   # id_width
-        #     64,  # addr_width
-        #     256, # data_width
-        #     1,   # user_width
-        #     2,   # skid_depth_ar
-        #     4,   # skid_depth_r
-        #     4,   # error_fifo_depth
-        #     32,  # AR Timeout clocks
-        #     32,  # R Timeout clocks
-        # ),
-        # (
-        #     8,   # id_width
-        #     64,  # addr_width
-        #     512, # data_width
-        #     1,   # user_width
-        #     2,   # skid_depth_ar
-        #     4,   # skid_depth_r
-        #     4,   # error_fifo_depth
-        #     32,  # AR Timeout clocks
-        #     32,  # R Timeout clocks
-        # ),
-    ]
+    "id_width, addr_width, data_width, user_width, skid_depth, fifo_depth, timeout_val, test_type",
+    params
 )
-def test_axi4_master_rd(request, id_width, addr_width, data_width, user_width,
-                        skid_depth_ar, skid_depth_r, error_fifo_depth,
-                        timeout_ar, timeout_r):
-    """
-    Run the test using pytest and cocotb.
-    """
+def test_axi_master_read(request, id_width, addr_width, data_width, user_width,
+                            skid_depth, fifo_depth, timeout_val, test_type):
+    """Main test function for AXI Master Read module"""
     # Get all of the directory and module information
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common', 'rtl_axi': 'rtl/axi'})
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths(
+        {
+            'rtl_cmn': 'rtl/common',
+            'rtl_axi': 'rtl/axi',
+        }
+    )
 
+    # Set up all of the test names
     dut_name = "axi_master_rd"
     toplevel = dut_name
 
     verilog_sources = [
+        os.path.join(rtl_dict['rtl_axi'], "gaxi_skid_buffer.sv"),
         os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
         os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
         os.path.join(rtl_dict['rtl_axi'], "gaxi_fifo_sync.sv"),
-        os.path.join(rtl_dict['rtl_axi'], "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_axi'], "axi_master_rd_splitter.sv"),
         os.path.join(rtl_dict['rtl_axi'], "axi_master_rd_errmon.sv"),
-        os.path.join(rtl_dict['rtl_axi'], f"{dut_name}.sv")
+        os.path.join(rtl_dict['rtl_axi'], "axi_master_rd_splitter.sv"),
+        os.path.join(rtl_dict['rtl_axi'], f"{dut_name}.sv"),
     ]
 
     # Create a human readable test identifier
-    id_str = TBBase.format_dec(id_width, 2)
-    aw_str = TBBase.format_dec(addr_width, 3)
-    dw_str = TBBase.format_dec(data_width, 3)
-    uw_str = TBBase.format_dec(user_width, 1)
-    al_str = TBBase.format_dec(12, 2)
-    ar_str = TBBase.format_dec(skid_depth_ar, 1)
-    r_str = TBBase.format_dec(skid_depth_r, 1)
-    er_str = TBBase.format_dec(error_fifo_depth, 1)
-    to_ar_str = TBBase.format_dec(timeout_ar, 2)
-    to_r_str = TBBase.format_dec(timeout_r, 2)
+    id_str = format(id_width, '02d')
+    addr_str = format(addr_width, '02d')
+    data_str = format(data_width, '02d')
+    user_str = format(user_width, '02d')
+    skid_str = format(skid_depth, '02d')
+    fifo_str = format(fifo_depth, '02d')
+    timeout_str = format(timeout_val, '04d')
+    test_type_str = f"{test_type}"
 
-    test_name_plus_params = f"test_{dut_name}_id{id_str}_aw{aw_str}_dw{dw_str}_uw{uw_str}_al{al_str}_ar{ar_str}_r{r_str}_er{er_str}_to_ar{to_ar_str}_to_r{to_r_str}"
+    test_name_plus_params = f"test_{dut_name}_id{id_str}_a{addr_str}_d{data_str}_u{user_str}_s{skid_str}_f{fifo_str}_t{timeout_str}_{test_type_str}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Use it in the simbuild path
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
-
     # Make sim_build directory
     os.makedirs(sim_build, exist_ok=True)
 
@@ -295,15 +449,16 @@ def test_axi4_master_rd(request, id_width, addr_width, data_width, user_width,
 
     # RTL parameters
     rtl_parameters = {
-        "SKID_DEPTH_AR": str(skid_depth_ar),
-        "SKID_DEPTH_R": str(skid_depth_r),
-        "TIMEOUT_AR": str(timeout_ar),
-        "TIMEOUT_R": str(timeout_r),
-        "ERROR_FIFO_DEPTH": str(error_fifo_depth),
-        "AXI_ID_WIDTH": str(id_width),
-        "AXI_ADDR_WIDTH": str(addr_width),
-        "AXI_DATA_WIDTH": str(data_width),
-        "AXI_USER_WIDTH": str(user_width)
+        'AXI_ID_WIDTH': str(id_width),
+        'AXI_ADDR_WIDTH': str(addr_width),
+        'AXI_DATA_WIDTH': str(data_width),
+        'AXI_USER_WIDTH': str(user_width),
+        'SKID_DEPTH_AR': str(skid_depth),
+        'SKID_DEPTH_R': str(skid_depth),
+        'SPLIT_FIFO_DEPTH': str(fifo_depth),
+        'ERROR_FIFO_DEPTH': str(fifo_depth),
+        'TIMEOUT_AR': str(timeout_val),
+        'TIMEOUT_R': str(timeout_val),
     }
 
     # Environment variables
@@ -313,23 +468,14 @@ def test_axi4_master_rd(request, id_width, addr_width, data_width, user_width,
         # 'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_LOG_LEVEL': 'DEBUG',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(random.randint(0, 100000))
+        'SEED': str(random.randint(0, 100000)),
+        'TEST_TYPE': test_type
     }
-
-    # Add test parameters to environment
-    extra_env['TEST_ID_WIDTH'] = str(id_width)
-    extra_env['TEST_ADDR_WIDTH'] = str(addr_width)
-    extra_env['TEST_DATA_WIDTH'] = str(data_width)
-    extra_env['TEST_USER_WIDTH'] = str(user_width)
-    extra_env['TEST_SKID_DEPTH_AR'] = str(skid_depth_ar)
-    extra_env['TEST_SKID_DEPTH_R'] = str(skid_depth_r)
-    extra_env['TEST_TIMEOUT_AR'] = str(timeout_ar)
-    extra_env['TEST_TIMEOUT_R'] = str(timeout_r)
-    extra_env['TEST_ERROR_FIFO_DEPTH'] = str(error_fifo_depth)
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
     try:
+        from cocotb_test.simulator import run
         run(
             python_search=[tests_dir],  # where to search for all the python test files
             verilog_sources=verilog_sources,

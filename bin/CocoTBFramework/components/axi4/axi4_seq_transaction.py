@@ -6,6 +6,8 @@ address and data sequences for writes and reads, and managing transaction IDs
 and dependencies.
 """
 
+import random
+import itertools
 from typing import List, Dict, Any, Optional, Tuple, Union, Set
 from collections import deque, defaultdict
 
@@ -201,9 +203,7 @@ class AXI4TransactionSequence(AXI4BaseSequence):
 
         # Calculate burst length based on data values
         burst_len = len(data_values) - 1
-        if burst_len < 0:
-            burst_len = 0
-
+        burst_len = max(burst_len, 0)
         # Calculate proper alignment for address
         alignment = 1 << burst_size
         aligned_addr = (addr // alignment) * alignment
@@ -275,18 +275,18 @@ class AXI4TransactionSequence(AXI4BaseSequence):
         return id_value
 
     def add_read_transaction(self,
-                           addr: int,
-                           burst_len: int = 0,
-                           id_value: Optional[int] = None,
-                           burst_size: int = 2,
-                           burst_type: int = 1,
-                           lock: int = 0,
-                           cache: int = 0,
-                           prot: int = 0,
-                           qos: int = 0,
-                           region: int = 0,
-                           user: int = 0,
-                           dependencies: Optional[List[int]] = None) -> int:
+                            addr: int,
+                            burst_len: int = 0,
+                            id_value: Optional[int] = None,
+                            burst_size: int = 2,
+                            burst_type: int = 1,
+                            lock: int = 0,
+                            cache: int = 0,
+                            prot: int = 0,
+                            qos: int = 0,
+                            region: int = 0,
+                            user: int = 0,
+                            dependencies: Optional[List[int]] = None) -> int:
         """
         Add a read transaction with address and expected burst length.
 
@@ -363,10 +363,10 @@ class AXI4TransactionSequence(AXI4BaseSequence):
         return id_value
 
     def add_read_response_data(self,
-                             id_value: int,
-                             data_values: List[int],
-                             resp_values: Optional[List[int]] = None,
-                             user: int = 0) -> 'AXI4TransactionSequence':
+                                id_value: int,
+                                data_values: List[int],
+                                resp_values: Optional[List[int]] = None,
+                                user: int = 0) -> 'AXI4TransactionSequence':
         """
         Add expected read response data for a specific transaction ID.
         Typically used when simulating expected responses.
@@ -408,9 +408,9 @@ class AXI4TransactionSequence(AXI4BaseSequence):
         return self
 
     def add_write_response(self,
-                          id_value: int,
-                          resp: int = 0,
-                          user: int = 0) -> 'AXI4TransactionSequence':
+                            id_value: int,
+                            resp: int = 0,
+                            user: int = 0) -> 'AXI4TransactionSequence':
         """
         Add a write response for a specific transaction ID.
         Typically used when simulating expected responses.
@@ -454,14 +454,13 @@ class AXI4TransactionSequence(AXI4BaseSequence):
                 self.stats['completed'] += 1
                 self.stats['in_progress'] -= 1
                 return True
-        else:
-            if id_value in self.write_addr_packets:
-                # Mark as complete
-                if id_value in self.write_dependencies:
-                    del self.write_dependencies[id_value]
-                self.stats['completed'] += 1
-                self.stats['in_progress'] -= 1
-                return True
+        elif id_value in self.write_addr_packets:
+            # Mark as complete
+            if id_value in self.write_dependencies:
+                del self.write_dependencies[id_value]
+            self.stats['completed'] += 1
+            self.stats['in_progress'] -= 1
+            return True
 
         return False
 
@@ -481,9 +480,8 @@ class AXI4TransactionSequence(AXI4BaseSequence):
         if is_read:
             if id_value in self.read_dependencies:
                 dependencies.update(self.read_dependencies[id_value])
-        else:
-            if id_value in self.write_dependencies:
-                dependencies.update(self.write_dependencies[id_value])
+        elif id_value in self.write_dependencies:
+            dependencies.update(self.write_dependencies[id_value])
 
         return dependencies
 
@@ -593,14 +591,19 @@ class AXI4TransactionSequence(AXI4BaseSequence):
         ready_ids = []
 
         if is_read:
-            for id_value in self.read_addr_packets.keys():
-                if id_value not in self.read_dependencies or not self.read_dependencies[id_value]:
-                    ready_ids.append(id_value)
+            ready_ids.extend(
+                id_value
+                for id_value in self.read_addr_packets.keys()
+                if id_value not in self.read_dependencies
+                or not self.read_dependencies[id_value]
+            )
         else:
-            for id_value in self.write_addr_packets.keys():
-                if id_value not in self.write_dependencies or not self.write_dependencies[id_value]:
-                    ready_ids.append(id_value)
-
+            ready_ids.extend(
+                id_value
+                for id_value in self.write_addr_packets.keys()
+                if id_value not in self.write_dependencies
+                or not self.write_dependencies[id_value]
+            )
         return ready_ids
 
     def get_pending_transactions(self, is_read: bool = False) -> List[int]:
@@ -616,14 +619,19 @@ class AXI4TransactionSequence(AXI4BaseSequence):
         pending_ids = []
 
         if is_read:
-            for id_value in self.read_addr_packets.keys():
-                if id_value in self.read_dependencies and self.read_dependencies[id_value]:
-                    pending_ids.append(id_value)
+            pending_ids.extend(
+                id_value
+                for id_value in self.read_addr_packets.keys()
+                if id_value in self.read_dependencies
+                and self.read_dependencies[id_value]
+            )
         else:
-            for id_value in self.write_addr_packets.keys():
-                if id_value in self.write_dependencies and self.write_dependencies[id_value]:
-                    pending_ids.append(id_value)
-
+            pending_ids.extend(
+                id_value
+                for id_value in self.write_addr_packets.keys()
+                if id_value in self.write_dependencies
+                and self.write_dependencies[id_value]
+            )
         return pending_ids
 
     def set_random_selection(self, enable: bool = True) -> 'AXI4TransactionSequence':
@@ -748,14 +756,11 @@ class AXI4TransactionSequence(AXI4BaseSequence):
         if is_read:
             # Get read response packets
             packets = self.get_read_response_packets(id_value)
-            for packet in packets:
-                data_values.append(packet.rdata)
+            data_values.extend(packet.rdata for packet in packets)
         else:
             # Get write data packets
             packets = self.get_write_data_packets(id_value)
-            for packet in packets:
-                data_values.append(packet.wdata)
-
+            data_values.extend(packet.wdata for packet in packets)
         return data_values
 
     # ========================================================================
@@ -763,12 +768,104 @@ class AXI4TransactionSequence(AXI4BaseSequence):
     # ========================================================================
 
     @classmethod
+    def create_x_boundary_test(cls, alignment_mask=0xFFF, channel="AR", 
+                            base_addr=0,  # Add base_addr parameter
+                            data_width=32, id_width=8, addr_width=32, 
+                            user_width=1, randomization_config=None):
+        """
+        Create a transaction sequence that tests boundary conditions with configurable boundary size.
+        
+        Args:
+            alignment_mask: Alignment mask that defines the boundary (e.g., 0xFFF for 4KB boundary)
+            channel: Target channel, "AR" for reads or "AW" for writes (or "BOTH" for both)
+            base_addr: Base address for the test (can be used to test different pages)
+            data_width: Width of data in bits
+            id_width: Width of ID field in bits
+            addr_width: Width of address field in bits
+            user_width: Width of user field in bits
+            randomization_config: Optional randomization configuration
+            
+        Returns:
+            Configured AXI4TransactionSequence
+        """
+        # Calculate the boundary size for the name
+        boundary_size = alignment_mask + 1
+        
+        # Create a transaction sequence
+        sequence = cls(
+            name=f"{boundary_size}b_boundary_test",
+            id_width=id_width,
+            addr_width=addr_width,
+            data_width=data_width,
+            user_width=user_width,
+            randomization_config=randomization_config
+        )
+        
+        # Determine which channels to create tests for
+        channels = []
+        if channel.upper() == "BOTH":
+            channels = ["AR", "AW"]
+        else:
+            channels = [channel.upper()]
+        
+        # Process each requested channel
+        id_offset = 0
+        for ch in channels:
+            # Create address sequence for boundary testing
+            # Pass through the base_addr parameter
+            addr_sequence = AXI4AddressSequence.create_x_boundary_test(
+                alignment_mask=alignment_mask,
+                channel=ch,
+                base_addr=base_addr,
+                id_value=id_offset,
+                data_width=data_width
+            )
+            
+            # Generate packets from the address sequence
+            addr_packets = addr_sequence.generate_packets()
+            
+            # Convert address sequence transactions to transaction sequence
+            for packet in addr_packets:
+                if ch == "AR":
+                    # Add read transaction from address packet
+                    sequence.add_read_transaction(
+                        addr=packet.araddr,
+                        id_value=packet.arid,
+                        burst_len=packet.arlen,
+                        burst_size=packet.arsize,
+                        burst_type=packet.arburst
+                    )
+                else:  # AW
+                    # For write transactions, we need data values
+                    # Calculate number of data transfers needed
+                    burst_len = packet.awlen
+                    data_count = burst_len + 1
+                    
+                    # Create data values (using a pattern based on ID and address)
+                    data_values = [(0xA0000000 + packet.awid*0x100 + j) for j in range(data_count)]
+                    
+                    # Add write transaction with data
+                    sequence.add_write_transaction(
+                        addr=packet.awaddr,
+                        id_value=packet.awid,
+                        data_values=data_values,
+                        burst_len=packet.awlen,
+                        burst_size=packet.awsize,
+                        burst_type=packet.awburst
+                    )
+            
+            # Update ID offset for next channel
+            id_offset += len(addr_packets)
+        
+        return sequence
+
+    @classmethod
     def create_simple_writes(cls,
-                           addrs: List[int],
-                           data_values: List[List[int]],
-                           id_values: Optional[List[int]] = None,
-                           data_width: int = 32,
-                           randomization_config: Optional[RandomizationConfig] = None) -> 'AXI4TransactionSequence':
+                            addrs: List[int],
+                            data_values: List[List[int]],
+                            id_values: Optional[List[int]] = None,
+                            data_width: int = 32,
+                            randomization_config: Optional[RandomizationConfig] = None) -> 'AXI4TransactionSequence':
         """
         Create a sequence of simple write transactions.
 
@@ -783,7 +880,7 @@ class AXI4TransactionSequence(AXI4BaseSequence):
             Configured AXI4TransactionSequence
         """
         sequence = cls(name="simple_writes", data_width=data_width,
-                       randomization_config=randomization_config)
+                        randomization_config=randomization_config)
 
         # Create transactions
         for i, addr in enumerate(addrs):
@@ -805,11 +902,11 @@ class AXI4TransactionSequence(AXI4BaseSequence):
 
     @classmethod
     def create_simple_reads(cls,
-                          addrs: List[int],
-                          burst_lens: List[int],
-                          id_values: Optional[List[int]] = None,
-                          data_width: int = 32,
-                          randomization_config: Optional[RandomizationConfig] = None) -> 'AXI4TransactionSequence':
+                            addrs: List[int],
+                            burst_lens: List[int],
+                            id_values: Optional[List[int]] = None,
+                            data_width: int = 32,
+                            randomization_config: Optional[RandomizationConfig] = None) -> 'AXI4TransactionSequence':
         """
         Create a sequence of simple read transactions.
 
@@ -824,7 +921,7 @@ class AXI4TransactionSequence(AXI4BaseSequence):
             Configured AXI4TransactionSequence
         """
         sequence = cls(name="simple_reads", data_width=data_width,
-                       randomization_config=randomization_config)
+                        randomization_config=randomization_config)
 
         # Create transactions
         for i, addr in enumerate(addrs):
@@ -846,10 +943,10 @@ class AXI4TransactionSequence(AXI4BaseSequence):
 
     @classmethod
     def create_incrementing_writes(cls,
-                                 start_addr: int = 0,
-                                 count: int = 10,
-                                 data_width: int = 32,
-                                 randomization_config: Optional[RandomizationConfig] = None) -> 'AXI4TransactionSequence':
+                                    start_addr: int = 0,
+                                    count: int = 10,
+                                    data_width: int = 32,
+                                    randomization_config: Optional[RandomizationConfig] = None) -> 'AXI4TransactionSequence':
         """
         Create a sequence of write transactions with incrementing addresses and data.
 
@@ -863,7 +960,7 @@ class AXI4TransactionSequence(AXI4BaseSequence):
             Configured AXI4TransactionSequence
         """
         sequence = cls(name="incrementing_writes", data_width=data_width,
-                       randomization_config=randomization_config)
+                        randomization_config=randomization_config)
 
         # Byte increment based on data width
         addr_increment = data_width // 8
@@ -880,10 +977,10 @@ class AXI4TransactionSequence(AXI4BaseSequence):
 
     @classmethod
     def create_read_after_write(cls,
-                              addrs: List[int],
-                              data_values: List[List[int]],
-                              data_width: int = 32,
-                              randomization_config: Optional[RandomizationConfig] = None) -> 'AXI4TransactionSequence':
+                                addrs: List[int],
+                                data_values: List[List[int]],
+                                data_width: int = 32,
+                                randomization_config: Optional[RandomizationConfig] = None) -> 'AXI4TransactionSequence':
         """
         Create a sequence where each address is first written, then read.
 
@@ -897,7 +994,7 @@ class AXI4TransactionSequence(AXI4BaseSequence):
             Configured AXI4TransactionSequence with read-after-write dependencies
         """
         sequence = cls(name="read_after_write", data_width=data_width,
-                       randomization_config=randomization_config)
+                        randomization_config=randomization_config)
 
         # Create write transactions and corresponding reads
         for i, addr in enumerate(addrs):
@@ -925,9 +1022,9 @@ class AXI4TransactionSequence(AXI4BaseSequence):
 
     @classmethod
     def create_burst_variations(cls,
-                              start_addr: int = 0,
-                              data_width: int = 32,
-                              randomization_config: Optional[RandomizationConfig] = None) -> 'AXI4TransactionSequence':
+                                start_addr: int = 0,
+                                data_width: int = 32,
+                                randomization_config: Optional[RandomizationConfig] = None) -> 'AXI4TransactionSequence':
         """
         Create a sequence with various burst types and lengths.
 
@@ -940,7 +1037,7 @@ class AXI4TransactionSequence(AXI4BaseSequence):
             Configured AXI4TransactionSequence
         """
         sequence = cls(name="burst_variations", data_width=data_width,
-                       randomization_config=randomization_config)
+                        randomization_config=randomization_config)
 
         # Test parameters
         burst_types = [1, 2, 0]  # INCR, WRAP, FIXED
@@ -952,47 +1049,45 @@ class AXI4TransactionSequence(AXI4BaseSequence):
 
         # Create transactions
         addr = start_addr
-        for burst_type in burst_types:
-            for burst_size in burst_sizes:
-                for burst_len in burst_lengths:
-                    # Skip invalid combinations (WRAP bursts with lengths not 2^n)
-                    if burst_type == sequence.BURST_WRAP and not sequence.is_power_of_two(burst_len + 1):
-                        continue
+        for burst_type, burst_size, burst_len in itertools.product(burst_types, burst_sizes, burst_lengths):
+            # Skip invalid combinations (WRAP bursts with lengths not 2^n)
+            if burst_type == sequence.BURST_WRAP and not sequence.is_power_of_two(burst_len + 1):
+                continue
 
-                    # Create data values for the burst
-                    data_values = [0xA0000000 + i for i in range(burst_len + 1)]
+            # Create data values for the burst
+            data_values = [0xA0000000 + i for i in range(burst_len + 1)]
 
-                    # Add write transaction
-                    write_id = sequence.add_write_transaction(
-                        addr=addr,
-                        data_values=data_values,
-                        burst_size=burst_size,
-                        burst_type=burst_type
-                    )
+            # Add write transaction
+            write_id = sequence.add_write_transaction(
+                addr=addr,
+                data_values=data_values,
+                burst_size=burst_size,
+                burst_type=burst_type
+            )
 
-                    # Add read transaction for the same burst
-                    read_id = sequence.add_read_transaction(
-                        addr=addr,
-                        burst_len=burst_len,
-                        burst_size=burst_size,
-                        burst_type=burst_type,
-                        dependencies=[write_id]
-                    )
+            # Add read transaction for the same burst
+            read_id = sequence.add_read_transaction(
+                addr=addr,
+                burst_len=burst_len,
+                burst_size=burst_size,
+                burst_type=burst_type,
+                dependencies=[write_id]
+            )
 
-                    # Add expected response data
-                    sequence.add_read_response_data(read_id, data_values)
+            # Add expected response data
+            sequence.add_read_response_data(read_id, data_values)
 
-                    # Increment address
-                    addr += addr_increment
+            # Increment address
+            addr += addr_increment
 
         return sequence
 
     @classmethod
     def create_exclusive_access_test(cls,
-                                   addrs: List[int],
-                                   data_values: List[int],
-                                   data_width: int = 32,
-                                   randomization_config: Optional[RandomizationConfig] = None) -> 'AXI4TransactionSequence':
+                                    addrs: List[int],
+                                    data_values: List[int],
+                                    data_width: int = 32,
+                                    randomization_config: Optional[RandomizationConfig] = None) -> 'AXI4TransactionSequence':
         """
         Create a sequence testing exclusive access.
 
@@ -1006,7 +1101,7 @@ class AXI4TransactionSequence(AXI4BaseSequence):
             Configured AXI4TransactionSequence with exclusive access patterns
         """
         sequence = cls(name="exclusive_access", data_width=data_width,
-                       randomization_config=randomization_config)
+                        randomization_config=randomization_config)
 
         # For each address, perform exclusive read followed by exclusive write
         for i, addr in enumerate(addrs):
@@ -1045,8 +1140,8 @@ class AXI4TransactionSequence(AXI4BaseSequence):
 
     @classmethod
     def create_protocol_stress_test(cls,
-                                  data_width: int = 32,
-                                  randomization_config: Optional[RandomizationConfig] = None) -> 'AXI4TransactionSequence':
+                                    data_width: int = 32,
+                                    randomization_config: Optional[RandomizationConfig] = None) -> 'AXI4TransactionSequence':
         """
         Create a comprehensive test of AXI4 protocol features.
 
@@ -1058,7 +1153,7 @@ class AXI4TransactionSequence(AXI4BaseSequence):
             Configured AXI4TransactionSequence with protocol stress patterns
         """
         sequence = cls(name="protocol_stress", data_width=data_width,
-                       randomization_config=randomization_config)
+                        randomization_config=randomization_config)
 
         # Base address for different test sections
         addr = 0x10000000
@@ -1301,5 +1396,78 @@ class AXI4TransactionSequence(AXI4BaseSequence):
             unmapped_write_id,
             cls.RESP_DECERR  # DECERR response
         )
+
+        return sequence
+
+    @classmethod
+    def create_random_transactions(cls,
+                                    count: int = 10,
+                                    addr_range: Tuple[int, int] = (0, 0xFFFF),
+                                    id_range: Tuple[int, int] = (0, 15),
+                                    data_width: int = 32,
+                                    randomization_config: Optional[RandomizationConfig] = None) -> 'AXI4TransactionSequence':
+        """
+        Create a sequence of random but legal AXI4 transactions.
+
+        Args:
+            count: Number of transactions to generate
+            addr_range: (min, max) address range
+            id_range: (min, max) ID range
+            data_width: Width of data in bits
+            randomization_config: Optional randomization configuration
+
+        Returns:
+            Configured AXI4TransactionSequence
+        """
+        sequence = cls(name="random_transactions", 
+                        data_width=data_width,
+                        randomization_config=randomization_config)
+
+        # Create address sequence for random address generation
+        addr_sequence = AXI4AddressSequence.create_random_transactions(
+            count=count,
+            addr_range=addr_range,
+            id_range=id_range,
+            channel="AR",  # Use read channel for addresses
+            randomization_config=randomization_config
+        )
+
+        # Generate the address packets
+        addr_packets = addr_sequence.generate_packets(count)
+
+        # Create both read and write transactions with the random addresses
+        for i, packet in enumerate(addr_packets):
+            # Extract address parameters
+            addr = packet.araddr if hasattr(packet, 'araddr') else 0
+            id_value = packet.arid if hasattr(packet, 'arid') else 0
+            burst_len = packet.arlen if hasattr(packet, 'arlen') else 0
+            burst_size = packet.arsize if hasattr(packet, 'arsize') else 2
+            burst_type = packet.arburst if hasattr(packet, 'arburst') else 1
+
+            if i % 2 == 0:  # Even indices: create write transactions
+                # Generate random data for write
+                data_values = []
+                for _ in range(burst_len + 1):
+                    # Random data value in the range that fits data_width
+                    data_value = random.randint(0, (1 << data_width) - 1)
+                    data_values.append(data_value)
+
+                # Add write transaction
+                sequence.add_write_transaction(
+                    addr=addr,
+                    data_values=data_values,
+                    id_value=id_value,
+                    burst_size=burst_size,
+                    burst_type=burst_type
+                )
+            else:  # Odd indices: create read transactions
+                # Add read transaction
+                sequence.add_read_transaction(
+                    addr=addr,
+                    burst_len=burst_len,
+                    id_value=id_value,
+                    burst_size=burst_size,
+                    burst_type=burst_type
+                )
 
         return sequence

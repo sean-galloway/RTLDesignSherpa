@@ -35,7 +35,7 @@ def get_default_field_config(data_width=32):
     return config
 
 
-def create_gaxi_master(dut, title, prefix, clock, field_config=None,
+def create_gaxi_master(dut, title, prefix, clock, field_config=None, packet_class=None,
                         randomizer=None, memory_model=None,
                         memory_fields=None, log=None, signal_map=None,
                         optional_signal_map=None, field_mode=False, multi_sig=False):
@@ -75,6 +75,7 @@ def create_gaxi_master(dut, title, prefix, clock, field_config=None,
         clock,
         field_config=field_config,
         field_mode=field_mode,
+        packet_class=packet_class,
         randomizer=randomizer,
         memory_model=memory_model,
         memory_fields=memory_fields,
@@ -85,7 +86,7 @@ def create_gaxi_master(dut, title, prefix, clock, field_config=None,
     )
 
 
-def create_gaxi_slave(dut, title, prefix, clock, field_config=None, field_mode=False,
+def create_gaxi_slave(dut, title, prefix, clock, field_config=None, field_mode=False, packet_class=None,
                         randomizer=None, memory_model=None,
                         memory_fields=None, log=None, mode='skid',
                         signal_map=None, optional_signal_map=None, multi_sig=False):
@@ -124,6 +125,7 @@ def create_gaxi_slave(dut, title, prefix, clock, field_config=None, field_mode=F
         dut, title, prefix, clock,
         field_config=field_config,
         field_mode=field_mode,
+        packet_class=packet_class,
         randomizer=randomizer,
         memory_model=memory_model,
         memory_fields=memory_fields,
@@ -135,7 +137,7 @@ def create_gaxi_slave(dut, title, prefix, clock, field_config=None, field_mode=F
     )
 
 
-def create_gaxi_monitor(dut, title, prefix, clock, field_config=None, field_mode=False,
+def create_gaxi_monitor(dut, title, prefix, clock, field_config=None, field_mode=False, packet_class=None,
                         is_slave=False, log=None, mode='skid',
                         signal_map=None, optional_signal_map=None, multi_sig=False):
     """
@@ -171,6 +173,7 @@ def create_gaxi_monitor(dut, title, prefix, clock, field_config=None, field_mode
         dut, title, prefix, clock,
         field_config=field_config,
         field_mode=field_mode,
+        packet_class=packet_class,
         is_slave=is_slave,
         log=log,
         mode=mode,
@@ -203,7 +206,7 @@ def create_gaxi_scoreboard(name, field_config=None, log=None):
     return GAXIScoreboard(name, field_config, log=log)
 
 
-def create_gaxi_components(dut, clock, title_prefix="", field_config=None, field_mode=False,
+def create_gaxi_components(dut, clock, title_prefix="", field_config=None, field_mode=False, packet_class=None,
                             memory_model=None, log=None,
                             mode='skid', signal_map=None, optional_signal_map=None, multi_sig=False):
     """
@@ -247,6 +250,7 @@ def create_gaxi_components(dut, clock, title_prefix="", field_config=None, field
         dut, f"{title_prefix}Master", "", clock,
         field_config=field_config,
         field_mode=field_mode,
+        packet_class=packet_class,
         memory_model=memory_model,
         log=log,
         signal_map=signal_map,
@@ -258,6 +262,7 @@ def create_gaxi_components(dut, clock, title_prefix="", field_config=None, field
         dut, f"{title_prefix}Slave", "", clock,
         field_config=field_config,
         field_mode=field_mode,
+        packet_class=packet_class,
         memory_model=memory_model,
         log=log,
         mode=mode,
@@ -270,6 +275,7 @@ def create_gaxi_components(dut, clock, title_prefix="", field_config=None, field
         dut, f"{title_prefix}MasterMonitor", "", clock,
         field_config=field_config,
         field_mode=field_mode,
+        packet_class=packet_class,
         is_slave=False,
         log=log,
         mode=mode,
@@ -282,6 +288,7 @@ def create_gaxi_components(dut, clock, title_prefix="", field_config=None, field
         dut, f"{title_prefix}SlaveMonitor", "", clock,
         field_config=field_config,
         field_mode=field_mode,
+        packet_class=packet_class,
         is_slave=True,
         log=log,
         mode=mode,

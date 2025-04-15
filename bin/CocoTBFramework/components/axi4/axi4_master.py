@@ -26,6 +26,7 @@ from .axi4_seq_transaction import AXI4TransactionSequence
 from .axi4_seq_address import AXI4AddressSequence
 from .axi4_seq_data import AXI4DataSequence
 from .axi4_extensions import create_axi4_extension_handlers
+from ..debug_object import print_object_details, print_dict_to_log
 
 
 class AXI4Master:
@@ -115,11 +116,13 @@ class AXI4Master:
         self.w_randomizer = w_randomizer or FlexRandomizer(AXI4_MASTER_DEFAULT_CONSTRAINTS)
         self.ar_randomizer = ar_randomizer or FlexRandomizer(AXI4_MASTER_DEFAULT_CONSTRAINTS)
 
+        print_object_details(self, self.log, f"AXI4 Master '{self.title}' INIT")
         # Create channel components
         if 'AW' in self.channels and self.aw_field_config:
             self.aw_master = create_gaxi_master(
                 dut, f"{title}_AW", "", clock,
                 field_config=self.aw_field_config,
+                packet_class=AXI4Packet,
                 randomizer=self.aw_randomizer,
                 multi_sig=True,
                 signal_map=aw_signal_map,
@@ -133,6 +136,7 @@ class AXI4Master:
             self.w_master = create_gaxi_master(
                 dut, f"{title}_W", "", clock,
                 field_config=self.w_field_config,
+                packet_class=AXI4Packet,
                 randomizer=self.w_randomizer,
                 multi_sig=True,
                 signal_map=w_signal_map,
@@ -146,6 +150,7 @@ class AXI4Master:
             self.b_slave = create_gaxi_slave(
                 dut, f"{title}_B", "", clock,
                 field_config=self.b_field_config,
+                packet_class=AXI4Packet,
                 multi_sig=True,
                 signal_map=b_signal_map,
                 optional_signal_map=b_optional_signal_map,
@@ -158,6 +163,7 @@ class AXI4Master:
             self.ar_master = create_gaxi_master(
                 dut, f"{title}_AR", "", clock,
                 field_config=self.ar_field_config,
+                packet_class=AXI4Packet,
                 randomizer=self.ar_randomizer,
                 multi_sig=True,
                 signal_map=ar_signal_map,
@@ -171,6 +177,7 @@ class AXI4Master:
             self.r_slave = create_gaxi_slave(
                 dut, f"{title}_R", "", clock,
                 field_config=self.r_field_config,
+                packet_class=AXI4Packet,
                 multi_sig=True,
                 signal_map=r_signal_map,
                 optional_signal_map=r_optional_signal_map,
@@ -446,7 +453,7 @@ class AXI4Master:
         # Create W packets
         w_packets = []
         for i, d in enumerate(data):
-            is_last = (i == len(data) - 1) or (i == length)
+            is_last = i in [len(data) - 1, length]
             w_packet = AXI4Packet.create_w_packet(
                 wdata=d,
                 wstrb=strobe,
@@ -637,7 +644,7 @@ class AXI4Master:
         # Create W packets
         w_packets = []
         for i, d in enumerate(data):
-            is_last = (i == len(data) - 1) or (i == length)
+            is_last = i in [len(data) - 1, length]
             w_packet = AXI4Packet.create_w_packet(
                 wdata=d,
                 wstrb=strobe,
@@ -784,13 +791,11 @@ class AXI4Master:
         Returns:
             Dictionary with statistics from all extensions
         """
-        stats = {}
-
-        for name, handler in self.extensions.items():
-            if hasattr(handler, 'get_stats'):
-                stats[name] = handler.get_stats()
-
-        return stats
+        return {
+            name: handler.get_stats()
+            for name, handler in self.extensions.items()
+            if hasattr(handler, 'get_stats')
+        }
 
     async def execute_transaction_sequence(self, sequence=None):
         """
@@ -865,9 +870,7 @@ class AXI4Master:
                 self.log.warning(f"Missing packet for read ID {read_id}")
                 continue
 
-            # Check dependencies
-            dependencies = seq.get_dependencies(read_id, is_read=True)
-            if dependencies:
+            if dependencies := seq.get_dependencies(read_id, is_read=True):
                 # Wait for dependencies to complete
                 for dep_id in dependencies:
                     if dep_id in self.sequence_events:

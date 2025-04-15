@@ -90,6 +90,7 @@ class AXI4Monitor:
             self.aw_monitor = create_gaxi_monitor(
                 dut, f"{title}_AW", "", clock,
                 field_config=self.aw_field_config,
+                packet_class=AXI4Packet,
                 is_slave=is_slave_side,
                 multi_sig=True,
                 signal_map=aw_signal_map,
@@ -104,6 +105,7 @@ class AXI4Monitor:
             self.w_monitor = create_gaxi_monitor(
                 dut, f"{title}_W", "", clock,
                 field_config=self.w_field_config,
+                packet_class=AXI4Packet,
                 is_slave=is_slave_side,
                 multi_sig=True,
                 signal_map=w_signal_map,
@@ -118,6 +120,7 @@ class AXI4Monitor:
             self.b_monitor = create_gaxi_monitor(
                 dut, f"{title}_B", "", clock,
                 field_config=self.b_field_config,
+                packet_class=AXI4Packet,
                 is_slave=not is_slave_side,  # B channel direction is opposite
                 multi_sig=True,
                 signal_map=b_signal_map,
@@ -132,6 +135,7 @@ class AXI4Monitor:
             self.ar_monitor = create_gaxi_monitor(
                 dut, f"{title}_AR", "", clock,
                 field_config=self.ar_field_config,
+                packet_class=AXI4Packet,
                 is_slave=is_slave_side,
                 multi_sig=True,
                 signal_map=ar_signal_map,
@@ -146,6 +150,7 @@ class AXI4Monitor:
             self.r_monitor = create_gaxi_monitor(
                 dut, f"{title}_R", "", clock,
                 field_config=self.r_field_config,
+                packet_class=AXI4Packet,
                 is_slave=not is_slave_side,  # R channel direction is opposite
                 multi_sig=True,
                 signal_map=r_signal_map,
