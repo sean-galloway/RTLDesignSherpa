@@ -33,15 +33,16 @@ module fifo_control #(
     localparam int AFT = D - AFULL;
     localparam int AET = AEMPTY;
 
-    logic w_ptr_xor;
+    logic w_wdom_ptr_xor;
+    logic w_rdom_ptr_xor;
     logic w_wr_full_d, w_wr_almost_full_d;
     logic w_rd_empty_d, w_rd_almost_empty_d;
     logic [AW-1:0] w_almost_full_count, w_almost_empty_count;
 
     /////////////////////////////////////////////////////////////////////////
     // XOR the two upper bits of the pointers to for use in the full/empty equations
-    assign #DEL w_wdom_ptr_xor = iw_wr_ptr_bin[AW] ^ iw_wdom_rd_ptr_bin[AW];
-    assign #DEL w_rdom_ptr_xor = iw_rd_ptr_bin[AW] ^ iw_rdom_wr_ptr_bin[AW];
+    assign w_wdom_ptr_xor = iw_wr_ptr_bin[AW] ^ iw_wdom_rd_ptr_bin[AW];
+    assign w_rdom_ptr_xor = iw_rd_ptr_bin[AW] ^ iw_rdom_wr_ptr_bin[AW];
 
     /////////////////////////////////////////////////////////////////////////
     // Full signals

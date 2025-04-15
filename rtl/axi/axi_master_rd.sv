@@ -251,7 +251,8 @@ module axi_master_rd
         .o_rd_valid               (int_skid_arvalid),
         .i_rd_ready               (int_skid_arready),
         .o_rd_count               (int_ar_count),
-        .o_rd_data                (int_ar_pkt)
+        .o_rd_data                (int_ar_pkt),
+        .ow_count()
     );
 
     // Unpack AR signals from SKID buffer
@@ -275,7 +276,8 @@ module axi_master_rd
         .i_rd_ready               (int_rready),
         .o_rd_count               (int_r_count),
         .o_rd_data                (
-            {int_rid, int_rdata, int_rresp, int_rlast, int_ruser})
-    );
+            {int_rid, int_rdata, int_rresp, int_rlast, int_ruser}),
+        .ow_count()
+        );
 
 endmodule : axi_master_rd

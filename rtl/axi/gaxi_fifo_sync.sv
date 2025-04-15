@@ -28,15 +28,16 @@ module gaxi_fifo_sync #(
     /////////////////////////////////////////////////////////////////////////
     // local logics/register signals
     logic [AW-1:0] r_wr_addr, r_rd_addr;
-    logic [AW:0] r_wr_ptr_bin, r_rd_ptr_bin;
-    logic [AW:0] w_wr_ptr_bin_next, w_rd_ptr_bin_next;
-    logic        r_wr_full, r_wr_almost_full, r_rd_empty, r_rd_almost_empty;
+    logic [AW:0]   r_wr_ptr_bin, r_rd_ptr_bin;
+    logic [AW:0]   w_wr_ptr_bin_next, w_rd_ptr_bin_next;
+    logic          r_wr_full, r_wr_almost_full, r_rd_empty, r_rd_almost_empty;
 
     // The flop storage
     logic [DW-1:0] r_mem[0:((1<<AW)-1)];  // verilog_lint: waive unpacked-dimensions-range-ordering
 
     /////////////////////////////////////////////////////////////////////////
     // Write counter
+    logic w_write;
     assign w_write = i_wr_valid && o_wr_ready;
 
     counter_bin #(
@@ -52,6 +53,7 @@ module gaxi_fifo_sync #(
 
     /////////////////////////////////////////////////////////////////////////
     // Read counter
+    logic w_read;
     assign w_read = o_rd_valid && i_rd_ready;
     counter_bin #(
         .WIDTH(AW + 1),

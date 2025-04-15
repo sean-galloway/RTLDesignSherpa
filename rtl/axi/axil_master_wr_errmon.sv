@@ -1,100 +1,133 @@
 `timescale 1ns / 1ps
 
-module axi_slave_wr_errmon
+module axil_master_wr_errmon
 #(
-    // AXI parameters
-    parameter int AXI_ID_WIDTH      = 8,
-    parameter int AXI_ADDR_WIDTH    = 32,
-    parameter int AXI_DATA_WIDTH    = 32,
-    parameter int AXI_USER_WIDTH    = 1,
-
+    // AXI-Lite parameters
+    parameter int AXIL_ADDR_WIDTH    = 32,
+    parameter int AXIL_DATA_WIDTH    = 32,
+    parameter int AXIL_PROT_WIDTH    = 3,    // Fixed for AXI-Lite
+    
     // Timeout parameters (in clock cycles)
-    parameter int TIMEOUT_AW       = 1000,  // Write address channel timeout
-    parameter int TIMEOUT_W        = 1000,  // Write data channel timeout
-    parameter int TIMEOUT_B        = 1000,  // Write response channel timeout
-
+    parameter int TIMEOUT_AW        = 1000,  // Write address channel timeout
+    parameter int TIMEOUT_W         = 1000,  // Write data channel timeout
+    parameter int TIMEOUT_B         = 1000,  // Write response channel timeout
+    
     // FIFO parameters
-    parameter int ERROR_FIFO_DEPTH = 2,
-
+    parameter int ERROR_FIFO_DEPTH  = 4,     // Depth of error reporting FIFO
+    parameter int ADDR_FIFO_DEPTH   = 4,     // Depth of address tracking FIFO
+    
     // Short params
-    parameter int AW       = AXI_ADDR_WIDTH,
-    parameter int DW       = AXI_DATA_WIDTH,
-    parameter int IW       = AXI_ID_WIDTH,
-    parameter int UW       = AXI_USER_WIDTH,
-    parameter int EFD      = ERROR_FIFO_DEPTH
+    parameter int AW       = AXIL_ADDR_WIDTH,
+    parameter int DW       = AXIL_DATA_WIDTH,
+    parameter int PW       = AXIL_PROT_WIDTH,
+    parameter int EFD      = ERROR_FIFO_DEPTH,
+    parameter int AFD      = ADDR_FIFO_DEPTH,
+    parameter int ETW      = 4               // Error type width
 )
 (
     // Global Clock and Reset
     input  logic aclk,
     input  logic aresetn,
-
-    // AXI interface to monitor
-    input  logic [IW-1:0]              fub_awid,
-    input  logic [AW-1:0]              fub_awaddr,
-    input  logic                       fub_awvalid,
-    input  logic                       fub_awready,
-
-    input  logic                       fub_wvalid,
-    input  logic                       fub_wready,
-    input  logic                       fub_wlast,
-
-    input  logic [IW-1:0]              fub_bid,
-    input  logic [1:0]                 fub_bresp,
-    input  logic                       fub_bvalid,
-    input  logic                       fub_bready,
-
+    
+    // AXI-Lite Interface to monitor
+    // Write address channel (AW)
+    input  logic [AW-1:0]            m_axil_awaddr,
+    input  logic [PW-1:0]            m_axil_awprot,
+    input  logic                     m_axil_awvalid,
+    input  logic                     m_axil_awready,
+    
+    // Write data channel (W)
+    input  logic [DW-1:0]            m_axil_wdata,
+    input  logic [DW/8-1:0]          m_axil_wstrb,
+    input  logic                     m_axil_wvalid,
+    input  logic                     m_axil_wready,
+    
+    // Write response channel (B)
+    input  logic [1:0]               m_axil_bresp,
+    input  logic                     m_axil_bvalid,
+    input  logic                     m_axil_bready,
+    
     // Error outputs FIFO interface
-    output logic                       fub_error_valid,
-    input  logic                       fub_error_ready,
-    output logic [3:0]                 fub_error_type,    // Error type flags (bit0: AW timeout, bit1: W timeout, bit2: B timeout, bit3: response error)
-    output logic [AW-1:0]              fub_error_addr,    // Address associated with error
-    output logic [IW-1:0]              fub_error_id       // ID associated with error
+    output logic                     fub_error_valid,
+    input  logic                     fub_error_ready,
+    // 4'b0001: AW timeout, 4'b0010: W timeout, 4'b0100: B timeout, 4'b1000: B response error
+    output logic [ETW-1:0]           fub_error_type,
+    output logic [AW-1:0]            fub_error_addr,
+    
+    // Flow control output
+    output logic                     block_ready
 );
 
     // Error types
-    localparam int             ErrorTypeWidth = 4;
-    localparam int             ETW = ErrorTypeWidth;
-    localparam int             TEDW = AW + IW + ETW;  // Total Error Data Width
-    localparam logic [ETW-1:0] ErrorAWTimeout = 4'b0001;  // Bit 0: Address Write timeout
-    localparam logic [ETW-1:0] ErrorWTimeout  = 4'b0010;  // Bit 1: Data Write timeout
-    localparam logic [ETW-1:0] ErrorBTimeout  = 4'b0100;  // Bit 2: Response timeout
-    localparam logic [ETW-1:0] ErrorBResp     = 4'b1000;  // Bit 3: Write response error (SLVERR, DECERR)
-
+    localparam logic [ETW-1:0] ErrorAWTimeout = 4'b0001;
+    localparam logic [ETW-1:0] ErrorWTimeout  = 4'b0010;
+    localparam logic [ETW-1:0] ErrorBTimeout  = 4'b0100;
+    localparam logic [ETW-1:0] ErrorBResp     = 4'b1000;
+    
+    // Total Error Data Width
+    localparam int TEDW = AW + ETW;
+    
     // -------------------------------------------------------------------------
     // Direct timeout monitoring
     // -------------------------------------------------------------------------
-
+    
     // AW channel timeout monitoring
-    logic           r_aw_active;     // AW transaction in progress
-    logic [31:0]    r_aw_timer;      // AW timeout counter
-    logic           r_aw_timeout;    // AW timeout detected
-
+    logic           r_aw_active;    // AW transaction in progress
+    logic [31:0]    r_aw_timer;     // AW timeout counter
+    logic           r_aw_timeout;   // AW timeout detected
+    
     // W channel timeout monitoring
-    logic           r_w_active;      // W transaction in progress
-    logic [31:0]    r_w_timer;       // W timeout counter
-    logic           r_w_timeout;     // W timeout detected
-
+    logic           r_w_active;     // W transaction in progress
+    logic [31:0]    r_w_timer;      // W timeout counter
+    logic           r_w_timeout;    // W timeout detected
+    
     // B channel timeout monitoring
-    logic           r_b_active;      // B transaction in progress
-    logic [31:0]    r_b_timer;       // B timeout counter
-    logic           r_b_timeout;     // B timeout detected
-
-    // -------------------------------------------------------------------------
-    // Error Reporting FIFO
-    // -------------------------------------------------------------------------
-
+    logic           r_b_active;     // B transaction in progress
+    logic [31:0]    r_b_timer;      // B timeout counter
+    logic           r_b_timeout;    // B timeout detected
+    
+    // Address FIFO signals
+    logic                     w_addr_fifo_wr_valid;
+    logic                     w_addr_fifo_wr_ready;
+    logic [AW-1:0]            w_addr_fifo_wr_data;
+    logic                     w_addr_fifo_rd_valid;
+    logic                     w_addr_fifo_rd_ready;
+    logic [AW-1:0]            w_addr_fifo_rd_data;
+    
     // Error reporting signals
     logic               r_error_fifo_valid;
     logic [TEDW-1:0]    r_error_fifo_wr_data;
     logic               w_error_fifo_ready;
-
+    
     logic               r_error_flag_awto;
     logic [TEDW-1:0]    r_error_flag_awto_data;
     logic               r_error_flag_wto;
     logic [TEDW-1:0]    r_error_flag_wto_data;
     logic               r_error_flag_bto;
     logic [TEDW-1:0]    r_error_flag_bto_data;
-
+    
+    // -------------------------------------------------------------------------
+    // FIFO Instantiations
+    // -------------------------------------------------------------------------
+    
+    // FIFO for address tracking
+    gaxi_fifo_sync #(
+        .DATA_WIDTH(AW),
+        .DEPTH(AFD),
+        .INSTANCE_NAME("ADDR_FIFO")
+    ) i_addr_fifo (
+        .i_axi_aclk(aclk),
+        .i_axi_aresetn(aresetn),
+        .i_wr_valid(w_addr_fifo_wr_valid),
+        .o_wr_ready(w_addr_fifo_wr_ready),
+        .i_wr_data(w_addr_fifo_wr_data),
+        .i_rd_ready(w_addr_fifo_rd_ready),
+        .o_rd_valid(w_addr_fifo_rd_valid),
+        .ow_rd_data(w_addr_fifo_rd_data),
+        .o_rd_data(),
+        .ow_count()
+    );
+    
     // Error FIFO - reports detected errors
     gaxi_fifo_sync #(
         .DATA_WIDTH(TEDW),
@@ -108,15 +141,29 @@ module axi_slave_wr_errmon
         .i_wr_data(r_error_fifo_wr_data),
         .i_rd_ready(fub_error_ready),
         .o_rd_valid(fub_error_valid),
-        .ow_rd_data({fub_error_type, fub_error_id, fub_error_addr}),
+        .ow_rd_data({fub_error_type, fub_error_addr}),
         .o_rd_data(),
         .ow_count()
     );
-
+    
+    // -------------------------------------------------------------------------
+    // Address FIFO Control Logic
+    // -------------------------------------------------------------------------
+    
+    // Write to the address FIFO when a write address is accepted
+    assign w_addr_fifo_wr_valid = m_axil_awvalid && m_axil_awready;
+    assign w_addr_fifo_wr_data = m_axil_awaddr;
+    
+    // Read from the address FIFO when a write response is received
+    assign w_addr_fifo_rd_ready = m_axil_bvalid && m_axil_bready;
+    
+    // Flow control
+    assign block_ready = !w_addr_fifo_wr_ready;
+    
     // -------------------------------------------------------------------------
     // AW Channel Timeout Monitor
     // -------------------------------------------------------------------------
-
+    
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
             r_aw_active <= 1'b0;
@@ -125,9 +172,9 @@ module axi_slave_wr_errmon
         end else begin
             // Clear timeout flag by default
             r_aw_timeout <= 1'b0;
-
+            
             // Monitor AW channel
-            if (fub_awvalid && !fub_awready) begin
+            if (m_axil_awvalid && !m_axil_awready) begin
                 // AW transaction is waiting for ready
                 if (!r_aw_active) begin
                     // Start monitoring
@@ -136,29 +183,29 @@ module axi_slave_wr_errmon
                 end else begin
                     // Continue monitoring
                     r_aw_timer <= r_aw_timer + 1;
-
+                    
                     // Check for timeout
                     if (r_aw_timer >= TIMEOUT_AW) begin
                         r_aw_timeout <= 1'b1;
                         r_aw_active <= 1'b0; // Reset for next time
                     end
                 end
-            end else if (fub_awvalid && fub_awready) begin
+            end else if (m_axil_awvalid && m_axil_awready) begin
                 // Successful handshake
                 r_aw_active <= 1'b0;
                 r_aw_timer <= '0;
-            end else if (!fub_awvalid) begin
+            end else if (!m_axil_awvalid) begin
                 // No transaction present
                 r_aw_active <= 1'b0;
                 r_aw_timer <= '0;
             end
         end
     end
-
+    
     // -------------------------------------------------------------------------
     // W Channel Timeout Monitor
     // -------------------------------------------------------------------------
-
+    
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
             r_w_active <= 1'b0;
@@ -167,9 +214,9 @@ module axi_slave_wr_errmon
         end else begin
             // Clear timeout flag by default
             r_w_timeout <= 1'b0;
-
+            
             // Monitor W channel
-            if (fub_wvalid && !fub_wready) begin
+            if (m_axil_wvalid && !m_axil_wready) begin
                 // W transaction is waiting for ready
                 if (!r_w_active) begin
                     // Start monitoring
@@ -178,29 +225,29 @@ module axi_slave_wr_errmon
                 end else begin
                     // Continue monitoring
                     r_w_timer <= r_w_timer + 1;
-
+                    
                     // Check for timeout
                     if (r_w_timer >= TIMEOUT_W) begin
                         r_w_timeout <= 1'b1;
                         r_w_active <= 1'b0; // Reset for next time
                     end
                 end
-            end else if (fub_wvalid && fub_wready) begin
+            end else if (m_axil_wvalid && m_axil_wready) begin
                 // Successful handshake
                 r_w_active <= 1'b0;
                 r_w_timer <= '0;
-            end else if (!fub_wvalid) begin
+            end else if (!m_axil_wvalid) begin
                 // No transaction present
                 r_w_active <= 1'b0;
                 r_w_timer <= '0;
             end
         end
     end
-
+    
     // -------------------------------------------------------------------------
     // B Channel Timeout Monitor
     // -------------------------------------------------------------------------
-
+    
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
             r_b_active <= 1'b0;
@@ -209,9 +256,9 @@ module axi_slave_wr_errmon
         end else begin
             // Clear timeout flag by default
             r_b_timeout <= 1'b0;
-
+            
             // Monitor B channel
-            if (fub_bvalid && !fub_bready) begin
+            if (m_axil_bvalid && !m_axil_bready) begin
                 // B transaction is waiting for ready
                 if (!r_b_active) begin
                     // Start monitoring
@@ -220,104 +267,100 @@ module axi_slave_wr_errmon
                 end else begin
                     // Continue monitoring
                     r_b_timer <= r_b_timer + 1;
-
+                    
                     // Check for timeout
                     if (r_b_timer >= TIMEOUT_B) begin
                         r_b_timeout <= 1'b1;
                         r_b_active <= 1'b0; // Reset for next time
                     end
                 end
-            end else if (fub_bvalid && fub_bready) begin
+            end else if (m_axil_bvalid && m_axil_bready) begin
                 // Successful handshake
                 r_b_active <= 1'b0;
                 r_b_timer <= '0;
-            end else if (!fub_bvalid) begin
+            end else if (!m_axil_bvalid) begin
                 // No transaction present
                 r_b_active <= 1'b0;
                 r_b_timer <= '0;
             end
         end
     end
-
+    
     // -------------------------------------------------------------------------
     // Error Detection and Reporting Logic
     // -------------------------------------------------------------------------
-
-    // Wire assignments for error detection
-    wire w_resp_error;
-    wire w_awto_error;
-    wire w_wto_error;
-    wire w_bto_error;
-
-    assign w_resp_error = fub_bvalid && fub_bready && fub_bresp[1];
+    
+    logic w_resp_error;
+    logic w_awto_error;
+    logic w_wto_error;
+    logic w_bto_error;
+    
+    assign w_resp_error = m_axil_bvalid && m_axil_bready && m_axil_bresp[1];
     assign w_awto_error = (r_aw_timeout || r_error_flag_awto) && ~w_resp_error;
     assign w_wto_error  = (r_w_timeout  || r_error_flag_wto)  && ~w_resp_error && ~w_awto_error;
-    assign w_bto_error  = (r_b_timeout  || r_error_flag_bto)  && ~w_resp_error &&
-                            ~w_awto_error && ~w_wto_error;
-
+    assign w_bto_error  = (r_b_timeout  || r_error_flag_bto)  && ~w_resp_error && ~w_awto_error && ~w_wto_error;
+    
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
             r_error_fifo_valid <= 1'b0;
             r_error_fifo_wr_data <= '0;
-
+            
             r_error_flag_awto <= 'b0;
             r_error_flag_awto_data <= 'b0;
-
+            
             r_error_flag_wto <= 'b0;
             r_error_flag_wto_data <= 'b0;
-
+            
             r_error_flag_bto <= 'b0;
             r_error_flag_bto_data <= 'b0;
-
+            
         end else begin
             // Default value
             r_error_fifo_valid <= 1'b0;
-
+            
             // B response error (SLVERR or DECERR)
             if (w_resp_error) begin
                 r_error_fifo_valid <= 1'b1;
-                // No address for response errors, use bid
-                r_error_fifo_wr_data <= {ErrorBResp, fub_bid, '0};
+                // Use the address from the FIFO for response errors
+                r_error_fifo_wr_data <= {ErrorBResp, w_addr_fifo_rd_data};
             end
-
+            
             // AW timeout error
             if (w_awto_error) begin
                 r_error_fifo_valid <= 1'b1;
                 r_error_fifo_wr_data <= r_aw_timeout ?
-                    {ErrorAWTimeout, fub_awid, fub_awaddr} : r_error_flag_awto_data;
+                    {ErrorAWTimeout, m_axil_awaddr} : r_error_flag_awto_data;
                 r_error_flag_awto <= 'b0;
                 r_error_flag_awto_data <= 'b0;
             end else if (r_aw_timeout) begin
                 r_error_flag_awto <= 'b1;
-                r_error_flag_awto_data <= {ErrorAWTimeout, fub_awid, fub_awaddr};
+                r_error_flag_awto_data <= {ErrorAWTimeout, m_axil_awaddr};
             end
-
+            
             // W timeout error
             if (w_wto_error) begin
                 r_error_fifo_valid <= 1'b1;
-                // No address for W timeout
-                r_error_fifo_wr_data <= r_w_timeout ?
-                    {ErrorWTimeout, fub_bid, '0} : r_error_flag_wto_data;
+                // Use address from FIFO for W timeout if available
+                r_error_fifo_wr_data <= {ErrorWTimeout, w_addr_fifo_rd_data};
                 r_error_flag_wto <= 'b0;
                 r_error_flag_wto_data <= 'b0;
             end else if (r_w_timeout) begin
                 r_error_flag_wto <= 'b1;
-                r_error_flag_wto_data <= {ErrorWTimeout, fub_bid, '0};
+                r_error_flag_wto_data <= {ErrorWTimeout, w_addr_fifo_rd_data};
             end
-
+            
             // B timeout error
             if (w_bto_error) begin
                 r_error_fifo_valid <= 1'b1;
-                // No address for B timeout
-                r_error_fifo_wr_data <= r_b_timeout ?
-                    {ErrorBTimeout, fub_bid, '0} : r_error_flag_bto_data;
+                // Use address from FIFO for B timeout if available
+                r_error_fifo_wr_data <= {ErrorBTimeout, w_addr_fifo_rd_data};
                 r_error_flag_bto <= 'b0;
                 r_error_flag_bto_data <= 'b0;
             end else if (r_b_timeout) begin
                 r_error_flag_bto <= 'b1;
-                r_error_flag_bto_data <= {ErrorBTimeout, fub_bid, '0};
+                r_error_flag_bto_data <= {ErrorBTimeout, w_addr_fifo_rd_data};
             end
         end
     end
 
-endmodule : axi_slave_wr_errmon
+endmodule : axil_master_wr_errmon

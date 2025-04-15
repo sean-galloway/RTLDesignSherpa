@@ -8,24 +8,20 @@ module axi_master_rd_errmon
     parameter int AXI_DATA_WIDTH    = 32,
     parameter int AXI_USER_WIDTH    = 1,
 
-    // Channel parameter
-    parameter int CHANNELS          = 32,  // New parameter for number of channels
-
     // Timeout parameters (in clock cycles)
     parameter int TIMEOUT_AR       = 1000,  // Read address channel timeout
     parameter int TIMEOUT_R        = 1000,  // Read data channel timeout
 
     // FIFO parameters
     parameter int ERROR_FIFO_DEPTH = 4,     // Depth of error reporting FIFO
-    parameter int ADDR_FIFO_DEPTH  = 4,     // Depth of address tracking FIFO
 
     // Short params
     parameter int AW       = AXI_ADDR_WIDTH,
     parameter int DW       = AXI_DATA_WIDTH,
     parameter int IW       = AXI_ID_WIDTH,
     parameter int UW       = AXI_USER_WIDTH,
-    parameter int EFD      = ERROR_FIFO_DEPTH,
-    parameter int AFD      = ADDR_FIFO_DEPTH
+    parameter int EFD      = ERROR_FIFO_DEPTH
+
 )
 (
     // Global Clock and Reset
@@ -52,10 +48,7 @@ module axi_master_rd_errmon
     // 4'b0001: AR timeout, 4'b0010: R timeout, 4'b0100: R response error
     output logic [3:0]                 fub_error_type,
     output logic [AW-1:0]              fub_error_addr,
-    output logic [IW-1:0]              fub_error_id,
-
-    // Flow control output
-    output logic                       block_ready
+    output logic [IW-1:0]              fub_error_id
 );
 
     // Error types
@@ -71,29 +64,14 @@ module axi_master_rd_errmon
     // -------------------------------------------------------------------------
 
     // AR channel timeout monitoring
-    logic           r_ar_active;     // AR transaction in progress
-    logic [31:0]    r_ar_timer;      // AR timeout counter
-    logic           r_ar_timeout;    // AR timeout detected
+    logic           ar_active;     // AR transaction in progress
+    logic [31:0]    ar_timer;      // AR timeout counter
+    logic           ar_timeout;    // AR timeout detected
 
     // R channel timeout monitoring for each ID
-    logic           r_r_active;      // R transaction in progress
-    logic [31:0]    r_r_timer;       // R timeout counter
-    logic           r_r_timeout;     // R timeout detected
-
-    // -------------------------------------------------------------------------
-    // Channel Address FIFOs
-    // -------------------------------------------------------------------------
-
-    // Per-channel address FIFO signals
-    logic [CHANNELS-1:0]                  w_addr_fifo_wr_valid;
-    logic [CHANNELS-1:0]                  w_addr_fifo_wr_ready;
-    logic [CHANNELS-1:0][AW-1:0]          w_addr_fifo_wr_data;
-    logic [CHANNELS-1:0]                  w_addr_fifo_rd_valid;
-    logic [CHANNELS-1:0]                  w_addr_fifo_rd_ready;
-    logic [CHANNELS-1:0][AW-1:0]          w_addr_fifo_rd_data;
-
-    // Flow control
-    logic                                 w_block_ready;
+    logic           r_active;      // R transaction in progress
+    logic [31:0]    r_timer;       // R timeout counter
+    logic           r_timeout;     // R timeout detected
 
     // -------------------------------------------------------------------------
     // Error Reporting FIFO
@@ -103,7 +81,6 @@ module axi_master_rd_errmon
     logic               r_error_fifo_valid;
     logic [TEDW-1:0]    r_error_fifo_wr_data;
     logic               r_error_fifo_ready;
-    logic [AW-1:0]      w_error_addr;
 
     logic               r_error_flag_arto;
     logic [TEDW-1:0]    r_error_flag_arto_data;
@@ -130,133 +107,43 @@ module axi_master_rd_errmon
     );
 
     // -------------------------------------------------------------------------
-    // Channel Address FIFOs Instantiation
-    // -------------------------------------------------------------------------
-
-    genvar channel_idx;
-    generate
-        for (channel_idx = 0; channel_idx < CHANNELS; channel_idx++) begin : gen_addr_fifo
-            // Only create FIFOs for valid IDs within the ID width
-            if (channel_idx < (1 << IW)) begin : gen_valid_id
-                gaxi_fifo_sync #(
-                    .DATA_WIDTH(AW),
-                    .DEPTH(AFD),
-                    .INSTANCE_NAME($sformatf("ADDR_FIFO_%0d", channel_idx))
-                ) i_addr_fifo (
-                    .i_axi_aclk(aclk),
-                    .i_axi_aresetn(aresetn),
-                    .i_wr_valid(w_addr_fifo_wr_valid[channel_idx]),
-                    .o_wr_ready(w_addr_fifo_wr_ready[channel_idx]),
-                    .i_wr_data(w_addr_fifo_wr_data[channel_idx]),
-                    .i_rd_ready(w_addr_fifo_rd_ready[channel_idx]),
-                    .o_rd_valid(w_addr_fifo_rd_valid[channel_idx]),
-                    .ow_rd_data(w_addr_fifo_rd_data[channel_idx]),
-                    .o_rd_data(),
-                    .ow_count()
-                );
-            end else begin : gen_unused_id
-                // For unused IDs, just tie off the signals
-                assign w_addr_fifo_wr_ready[channel_idx] = 1'b1;
-                assign w_addr_fifo_rd_valid[channel_idx] = 1'b0;
-                assign w_addr_fifo_rd_data[channel_idx] = '0;
-            end
-        end
-    endgenerate
-
-    // -------------------------------------------------------------------------
-    // Address FIFO Control Logic
-    // -------------------------------------------------------------------------
-
-    // Write to the address FIFO when a read address is accepted
-    always_comb begin
-        // Default values
-        for (int i = 0; i < CHANNELS; i++) begin
-            w_addr_fifo_wr_valid[i] = 1'b0;
-            w_addr_fifo_wr_data[i] = '0;
-        end
-
-        // When AR transaction happens, write to the corresponding ID's FIFO
-        if (m_axi_arvalid && m_axi_arready) begin
-            w_addr_fifo_wr_valid[m_axi_arid] = 1'b1;
-            w_addr_fifo_wr_data[m_axi_arid] = m_axi_araddr;
-        end
-    end
-
-    // Read from the address FIFO when a read response with last flag is received
-    always_comb begin
-        // Default values
-        for (int i = 0; i < CHANNELS; i++) begin
-            w_addr_fifo_rd_ready[i] = 1'b0;
-        end
-
-        // When R transaction completes, consume from the corresponding ID's FIFO
-        if (m_axi_rvalid && m_axi_rready && m_axi_rlast) begin
-            w_addr_fifo_rd_ready[m_axi_rid] = 1'b1;
-        end
-    end
-
-    // -------------------------------------------------------------------------
-    // Flow Control Logic
-    // -------------------------------------------------------------------------
-
-    // Block ready if any of the address FIFOs is not ready
-    always_comb begin
-        w_block_ready = 1'b0;
-        for (int i = 0; i < (1 << IW); i++) begin
-            if (!w_addr_fifo_wr_ready[i]) begin
-                w_block_ready = 1'b1;
-                break;
-            end
-        end
-    end
-
-    // Register the block_ready output
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
-            block_ready <= 1'b0;
-        end else begin
-            block_ready <= w_block_ready;
-        end
-    end
-
-    // -------------------------------------------------------------------------
     // AR Channel Timeout Monitor
     // -------------------------------------------------------------------------
 
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
-            r_ar_active <= 1'b0;
-            r_ar_timer <= '0;
-            r_ar_timeout <= 1'b0;
+            ar_active <= 1'b0;
+            ar_timer <= '0;
+            ar_timeout <= 1'b0;
         end else begin
             // Clear timeout flag by default
-            r_ar_timeout <= 1'b0;
+            ar_timeout <= 1'b0;
 
             // Monitor AR channel
             if (m_axi_arvalid && !m_axi_arready) begin
                 // AR transaction is waiting for ready
-                if (!r_ar_active) begin
+                if (!ar_active) begin
                     // Start monitoring
-                    r_ar_active <= 1'b1;
-                    r_ar_timer <= '0;
+                    ar_active <= 1'b1;
+                    ar_timer <= '0;
                 end else begin
                     // Continue monitoring
-                    r_ar_timer <= r_ar_timer + 1;
+                    ar_timer <= ar_timer + 1;
 
                     // Check for timeout
-                    if (r_ar_timer >= TIMEOUT_AR) begin
-                        r_ar_timeout <= 1'b1;
-                        r_ar_active <= 1'b0; // Reset for next time
+                    if (ar_timer >= TIMEOUT_AR) begin
+                        ar_timeout <= 1'b1;
+                        ar_active <= 1'b0; // Reset for next time
                     end
                 end
             end else if (m_axi_arvalid && m_axi_arready) begin
                 // Successful handshake
-                r_ar_active <= 1'b0;
-                r_ar_timer <= '0;
+                ar_active <= 1'b0;
+                ar_timer <= '0;
             end else if (!m_axi_arvalid) begin
                 // No transaction present
-                r_ar_active <= 1'b0;
-                r_ar_timer <= '0;
+                ar_active <= 1'b0;
+                ar_timer <= '0;
             end
         end
     end
@@ -270,48 +157,41 @@ module axi_master_rd_errmon
 
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
-            r_r_active <= 1'b0;
-            r_r_timer <= '0;
-            r_r_timeout <= 1'b0;
+            r_active <= 1'b0;
+            r_timer <= '0;
+            r_timeout <= 1'b0;
         end else begin
             // Clear timeout flag by default
-            r_r_timeout <= 1'b0;
+            r_timeout <= 1'b0;
 
             // Monitor R channel
             if (m_axi_rvalid && !m_axi_rready) begin
                 // R transaction is waiting for ready
-                if (!r_r_active) begin
+                if (!r_active) begin
                     // Start monitoring
-                    r_r_active <= 1'b1;
-                    r_r_timer <= '0;
+                    r_active <= 1'b1;
+                    r_timer <= '0;
                 end else begin
                     // Continue monitoring
-                    r_r_timer <= r_r_timer + 1;
+                    r_timer <= r_timer + 1;
 
                     // Check for timeout
-                    if (r_r_timer >= TIMEOUT_R) begin
-                        r_r_timeout <= 1'b1;
-                        r_r_active <= 1'b0; // Reset for next time
+                    if (r_timer >= TIMEOUT_R) begin
+                        r_timeout <= 1'b1;
+                        r_active <= 1'b0; // Reset for next time
                     end
                 end
             end else if (m_axi_rvalid && m_axi_rready) begin
                 // Successful handshake
-                r_r_active <= 1'b0;
-                r_r_timer <= '0;
+                r_active <= 1'b0;
+                r_timer <= '0;
             end else if (!m_axi_rvalid) begin
                 // No transaction present
-                r_r_active <= 1'b0;
-                r_r_timer <= '0;
+                r_active <= 1'b0;
+                r_timer <= '0;
             end
         end
     end
-
-    // -------------------------------------------------------------------------
-    // Address Selection for Error Reporting
-    // -------------------------------------------------------------------------
-
-    // Get the address from the corresponding FIFO for response errors
-    assign w_error_addr = w_addr_fifo_rd_valid[m_axi_rid] ? w_addr_fifo_rd_data[m_axi_rid] : '0;
 
     // -------------------------------------------------------------------------
     // Error Detection and Reporting Logic
@@ -322,8 +202,8 @@ module axi_master_rd_errmon
     logic w_rto_error;
 
     assign w_resp_error = m_axi_rvalid && m_axi_rready && m_axi_rresp[1];
-    assign w_arto_error = (r_ar_timeout || r_error_flag_arto) && ~w_resp_error;
-    assign w_rto_error  = (r_r_timeout  || r_error_flag_rto)  && ~w_resp_error && ~w_arto_error;
+    assign w_arto_error = (ar_timeout || r_error_flag_arto) && ~w_resp_error;
+    assign w_rto_error  = (r_timeout  || r_error_flag_rto)  && ~w_resp_error && ~w_arto_error;
 
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
@@ -343,18 +223,18 @@ module axi_master_rd_errmon
             // R response error (SLVERR or DECERR)
             if (w_resp_error) begin
                 r_error_fifo_valid <= 1'b1;
-                // Use the address from the FIFO for response errors
-                r_error_fifo_wr_data <= {ErrorRResp, m_axi_rid, w_error_addr};
+                // No address for response errors
+                r_error_fifo_wr_data <= {ErrorRResp, m_axi_rid, '0};
             end
 
             // AR timeout error
             if (w_arto_error) begin
                 r_error_fifo_valid <= 1'b1;
-                r_error_fifo_wr_data <= r_ar_timeout ?
+                r_error_fifo_wr_data <= ar_timeout ?
                     {ErrorARTimeout, m_axi_arid, m_axi_araddr} : r_error_flag_arto_data;
                 r_error_flag_arto <= 'b0;
                 r_error_flag_arto_data <= 'b0;
-            end else if (r_ar_timeout) begin
+            end else if (ar_timeout) begin
                 r_error_flag_arto <= 'b1;
                 r_error_flag_arto_data <= {ErrorARTimeout, m_axi_arid, m_axi_araddr};
             end
@@ -362,16 +242,15 @@ module axi_master_rd_errmon
             // R timeout error
             if (w_rto_error) begin
                 r_error_fifo_valid <= 1'b1;
-                // For R timeout, we can also use the address from the FIFO
-                r_error_fifo_wr_data <= {ErrorRTimeout, m_axi_rid,
-                    w_addr_fifo_rd_valid[m_axi_rid] ? w_addr_fifo_rd_data[m_axi_rid] : '0};
+                // No address for R timeout
+                r_error_fifo_wr_data <= {ErrorRTimeout, m_axi_rid, '0};
                 r_error_flag_rto <= 'b0;
                 r_error_flag_rto_data <= 'b0;
-            end else if (r_r_timeout) begin
+            end else if (r_timeout) begin
                 r_error_flag_rto <= 'b1;
-                r_error_flag_rto_data <= {ErrorRTimeout, m_axi_rid,
-                    w_addr_fifo_rd_valid[m_axi_rid] ? w_addr_fifo_rd_data[m_axi_rid] : '0};
+                r_error_flag_rto_data <= {ErrorRTimeout, m_axi_rid, '0};
             end
+
         end
     end
 
