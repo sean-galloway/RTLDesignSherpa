@@ -38,7 +38,9 @@ async def subtractor_test(dut):
 def test_math_subtractor_half(request):
     """PyTest function to run the cocotb test."""
     # Get all of the directory and module information
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common'})
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_cmn': 'rtl/common'
+    })
 
     dut_name = "math_subtractor_half"
     toplevel = dut_name
@@ -64,6 +66,8 @@ def test_math_subtractor_half(request):
     test_level = os.environ.get('TEST_LEVEL', 'basic')  # Can be basic, medium, or full
 
     extra_env = {
+        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'VERILATOR_TRACE': '1',  # Enable tracing
         'DUT': dut_name,
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
@@ -74,6 +78,23 @@ def test_math_subtractor_half(request):
     }
 
     # Create command file for viewing waveforms
+
+    compile_args = [
+        "--trace-fst",
+        "--trace-structs",
+        "--trace-depth", "99",
+    ]
+
+    sim_args = [
+        "--trace-fst",  # Tell Verilator to use FST
+        "--trace-structs",
+        "--trace-depth", "99",
+    ]
+
+    plusargs = [
+        "+trace",
+    ]
+
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
     # Launch the simulation
@@ -88,7 +109,10 @@ def test_math_subtractor_half(request):
             sim_build=sim_build,
             extra_env=extra_env,
             waves=True,
-            keep_files=True
+            keep_files=True,
+            compile_args=compile_args,
+            sim_args=sim_args,
+            plusargs=plusargs,
         )
     except Exception as e:
         # If the test fails, make sure logs are preserved

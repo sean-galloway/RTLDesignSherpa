@@ -7,12 +7,14 @@ module icg(
     output logic gclk
 );
 
-    logic en_out;
+logic en_out;
 
-    always @(en or clk) begin
-        if (!clk) begin
-            en_out <= en;
-        end
+// Latch-based approach
+always_latch begin
+    if (!clk) begin
+        en_out = en;
     end
-    assign gclk = en_out && clk;
+end
+assign gclk = en_out && clk;
+
 endmodule : icg

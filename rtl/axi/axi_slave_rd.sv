@@ -83,11 +83,11 @@ module axi_slave_rd
     output logic                       s_axi_rready,
 
     // Error outputs with FIFO interface
-    output logic [3:0]                 m_error_type,     // Error type flags (AR timeout, R timeout, response error)
-    output logic [AXI_ADDR_WIDTH-1:0]  m_error_addr,     // Address associated with error
-    output logic [AXI_ID_WIDTH-1:0]    m_error_id,       // ID associated with error
-    output logic                       m_error_valid,
-    input  logic                       m_error_ready
+    output logic [3:0]                 fub_error_type,     // Error type flags (AR timeout, R timeout, response error)
+    output logic [AXI_ADDR_WIDTH-1:0]  fub_error_addr,     // Address associated with error
+    output logic [AXI_ID_WIDTH-1:0]    fub_error_id,       // ID associated with error
+    output logic                       fub_error_valid,
+    input  logic                       fub_error_ready
 );
 
     // Internal connections between error monitor and skid buffer

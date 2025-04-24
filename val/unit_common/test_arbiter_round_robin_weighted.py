@@ -86,7 +86,7 @@ class WeightedRoundRobinTB(TBBase):
         if value > self.MAX_THRESH:
             self.log.error(f"FATAL ERROR: Threshold value {value} exceeds MAX_THRESH={self.MAX_THRESH}")
             assert False, f"Cannot set threshold to {value}, maximum allowed is {self.MAX_THRESH}"
-        
+
         # All values are valid, proceed with setting thresholds
         self.client_thresholds = [value] * self.CLIENTS
 
@@ -107,7 +107,7 @@ class WeightedRoundRobinTB(TBBase):
         if value > self.MAX_THRESH:
             self.log.error(f"FATAL ERROR: Threshold value {value} exceeds MAX_THRESH={self.MAX_THRESH}")
             assert False, f"Cannot set threshold to {value}, maximum allowed is {self.MAX_THRESH}"
-            
+
         # Value is valid, proceed with setting threshold
         self.client_thresholds[client_id] = value
 
@@ -115,12 +115,12 @@ class WeightedRoundRobinTB(TBBase):
         packed_thresholds = 0
         for i in range(self.CLIENTS):
             packed_thresholds |= (self.client_thresholds[i] << (i * self.MAX_THRESH_WIDTH))
-        
+
         # Log the binary representation to make bit allocation clear
         binary_str = format(packed_thresholds, f'0{self.CLIENTS * self.MAX_THRESH_WIDTH}b')
-        formatted_binary = ' '.join(binary_str[i:i+self.MAX_THRESH_WIDTH] 
+        formatted_binary = ' '.join(binary_str[i:i+self.MAX_THRESH_WIDTH]
                                 for i in range(0, len(binary_str), self.MAX_THRESH_WIDTH))
-        
+
         self.dut.i_max_thresh.value = packed_thresholds
         self.log.info(f"Set client {client_id} threshold to {value}")
         self.log.info(f"New packed thresholds: 0x{packed_thresholds:x} ({formatted_binary})")
@@ -598,7 +598,7 @@ class WeightedRoundRobinTB(TBBase):
 
         # Set equal weights for all clients
         self.set_all_thresholds(1)
-        
+
         # Track grants per client
         grant_counts = [0] * self.CLIENTS
         total_cycles = 2000
@@ -613,20 +613,20 @@ class WeightedRoundRobinTB(TBBase):
         for cycle in range(total_cycles):
             # Wait for falling edge plus delay - sample in middle of clock period
             await self.wait_falling_clocks('i_clk', 1, 100, 'ps')
-            
+
             # Capture grant signals at a stable point in the clock period
             gnt_valid = int(self.dut.ow_gnt_valid.value)
-            
+
             if gnt_valid == 1:
                 # Read both the grant ID and one-hot signals for verification
                 gnt_id = int(self.dut.ow_gnt_id.value)
                 gnt_oh = int(self.dut.ow_gnt.value)
-                
+
                 # Verify the ID matches the one-hot encoding
                 expected_oh = (1 << gnt_id)
                 if gnt_oh != expected_oh:
                     self.log.warning(f"Grant ID {gnt_id} doesn't match one-hot signal 0x{gnt_oh:x}")
-                    
+
                 grant_bit = (1 << gnt_id)
                 req_value = int(self.dut.i_req.value)
 
@@ -707,20 +707,20 @@ class WeightedRoundRobinTB(TBBase):
         for cycle in range(total_cycles):
             # Wait for falling edge plus delay - sample in middle of clock period
             await self.wait_falling_clocks('i_clk', 1, 100, 'ps')
-            
+
             # Capture grant signals at a stable point in the clock period
             gnt_valid = int(self.dut.ow_gnt_valid.value)
-            
+
             if gnt_valid == 1:
                 # Read both the grant ID and one-hot signals for verification
                 gnt_id = int(self.dut.ow_gnt_id.value)
                 gnt_oh = int(self.dut.ow_gnt.value)
-                
+
                 # Verify the ID matches the one-hot encoding
                 expected_oh = (1 << gnt_id)
                 if gnt_oh != expected_oh:
                     self.log.warning(f"Grant ID {gnt_id} doesn't match one-hot signal 0x{gnt_oh:x}")
-                    
+
                 grant_bit = (1 << gnt_id)
                 req_value = int(self.dut.i_req.value)
 
@@ -860,7 +860,10 @@ async def arbiter_round_robin_weighted_test(dut):
 def test_arbiter_round_robin_weighted(request, clients, max_thresh, wait_ack):
     """Run the test with pytest"""
     # Get all of the directory and module information
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common'})
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths(
+        {
+            'rtl_cmn': 'rtl/common'
+    })
 
     dut_name = "arbiter_round_robin_weighted"
     toplevel = dut_name
@@ -900,6 +903,8 @@ def test_arbiter_round_robin_weighted(request, clients, max_thresh, wait_ack):
 
     # Environment variables
     extra_env = {
+        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'VERILATOR_TRACE': '1',  # Enable tracing
         'DUT': dut_name,
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
@@ -907,6 +912,23 @@ def test_arbiter_round_robin_weighted(request, clients, max_thresh, wait_ack):
         'SEED': str(0x434749)
         # 'SEED': str(random.randint(0, 100000))
     }
+
+
+    compile_args = [
+            "--trace-fst",
+            "--trace-structs",
+            "--trace-depth", "99",
+    ]
+
+    sim_args = [
+            "--trace-fst",  # Tell Verilator to use FST
+            "--trace-structs",
+            "--trace-depth", "99",
+    ]
+
+    plusargs = [
+            "+trace",
+    ]
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
@@ -921,7 +943,10 @@ def test_arbiter_round_robin_weighted(request, clients, max_thresh, wait_ack):
             sim_build=sim_build,
             extra_env=extra_env,
             waves=True,
-            keep_files=True
+            keep_files=True,
+            compile_args=compile_args,
+            sim_args=sim_args,
+            plusargs=plusargs,
         )
     except Exception as e:
         # If the test fails, make sure logs are preserved

@@ -59,8 +59,9 @@ module counter_freq_invariant
     end
 
     // Prescaler counter using the provided counter_load_clear
+    // FIX: Use 32-bit parameter value instead of 16-bit value
     counter_load_clear #(
-        .MAX(16'hFFFF)  // Max value for the prescaler
+        .MAX(32'd65535)  // Max value for the prescaler - fixed to 32-bit
     ) prescaler_counter (
         .i_clk(i_clk),
         .i_rst_n(i_rst_n),

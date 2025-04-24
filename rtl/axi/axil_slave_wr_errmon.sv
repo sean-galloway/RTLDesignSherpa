@@ -367,5 +367,3 @@ module axil_slave_wr_errmon
     end
 
 endmodule : axil_slave_wr_errmon
-            end
-        end

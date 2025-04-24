@@ -106,48 +106,48 @@ module axi_slave_wr
 );
 
     // Internal connections between error monitor and skid buffer
-    logic [AXI_ID_WIDTH-1:0]    int_s_axi_awid;
-    logic [AXI_ADDR_WIDTH-1:0]  int_s_axi_awaddr;
-    logic [7:0]                 int_s_axi_awlen;
-    logic [2:0]                 int_s_axi_awsize;
-    logic [1:0]                 int_s_axi_awburst;
-    logic                       int_s_axi_awlock;
-    logic [3:0]                 int_s_axi_awcache;
-    logic [2:0]                 int_s_axi_awprot;
-    logic [3:0]                 int_s_axi_awqos;
-    logic [3:0]                 int_s_axi_awregion;
-    logic [AXI_USER_WIDTH-1:0]  int_s_axi_awuser;
-    logic                       int_s_axi_awvalid;
-    logic                       int_s_axi_awready;
+    logic [AXI_ID_WIDTH-1:0]    int_awid;
+    logic [AXI_ADDR_WIDTH-1:0]  int_awaddr;
+    logic [7:0]                 int_awlen;
+    logic [2:0]                 int_awsize;
+    logic [1:0]                 int_awburst;
+    logic                       int_awlock;
+    logic [3:0]                 int_awcache;
+    logic [2:0]                 int_awprot;
+    logic [3:0]                 int_awqos;
+    logic [3:0]                 int_awregion;
+    logic [AXI_USER_WIDTH-1:0]  int_awuser;
+    logic                       int_awvalid;
+    logic                       int_awready;
 
-    logic [AXI_DATA_WIDTH-1:0]  int_s_axi_wdata;
-    logic [AXI_DATA_WIDTH/8-1:0] int_s_axi_wstrb;
-    logic                       int_s_axi_wlast;
-    logic [AXI_USER_WIDTH-1:0]  int_s_axi_wuser;
-    logic                       int_s_axi_wvalid;
-    logic                       int_s_axi_wready;
+    logic [AXI_DATA_WIDTH-1:0]  int_wdata;
+    logic [AXI_DATA_WIDTH/8-1:0] int_wstrb;
+    logic                       int_wlast;
+    logic [AXI_USER_WIDTH-1:0]  int_wuser;
+    logic                       int_wvalid;
+    logic                       int_wready;
 
-    logic [AXI_ID_WIDTH-1:0]    int_s_axi_bid;
-    logic [1:0]                 int_s_axi_bresp;
-    logic [AXI_USER_WIDTH-1:0]  int_s_axi_buser;
-    logic                       int_s_axi_bvalid;
-    logic                       int_s_axi_bready;
+    logic [AXI_ID_WIDTH-1:0]    int_bid;
+    logic [1:0]                 int_bresp;
+    logic [AXI_USER_WIDTH-1:0]  int_buser;
+    logic                       int_bvalid;
+    logic                       int_bready;
 
     // SKID buffer connections
-    logic [3:0]                int_s_axi_aw_count;
-    logic [AWSize-1:0]         int_s_axi_aw_pkt;
-    logic                      int_w_s_axi_awvalid;
-    logic                      int_w_s_axi_awready;
+    logic [3:0]                int_aw_count;
+    logic [AWSize-1:0]         int_aw_pkt;
+    logic                      int_skid_awvalid;
+    logic                      int_skid_awready;
 
-    logic [3:0]                int_s_axi_w_count;
-    logic [WSize-1:0]          int_s_axi_w_pkt;
-    logic                      int_w_s_axi_wvalid;
-    logic                      int_w_s_axi_wready;
+    logic [3:0]                int_w_count;
+    logic [WSize-1:0]          int_w_pkt;
+    logic                      int_skid_wvalid;
+    logic                      int_skid_wready;
 
-    logic [3:0]                int_s_axi_b_count;
-    logic [BSize-1:0]          int_s_axi_b_pkt;
-    logic                      int_w_s_axi_bvalid;
-    logic                      int_w_s_axi_bready;
+    logic [3:0]                int_b_count;
+    logic [BSize-1:0]          int_b_pkt;
+    logic                      int_skid_bvalid;
+    logic                      int_skid_bready;
 
     // Instantiate AXI write slave error monitor with FIFO interface
     axi_slave_wr_errmon #(
@@ -179,40 +179,40 @@ module axi_slave_wr
         .fub_bready           (fub_bready),
 
         // Error outputs FIFO interface
-        .fub_error_valid          (fub_error_valid),
-        .fub_error_ready          (fub_error_ready),
-        .fub_error_type           (fub_error_type),
-        .fub_error_addr           (fub_error_addr),
-        .fub_error_id             (fub_error_id)
+        .fub_error_valid      (fub_error_valid),
+        .fub_error_ready      (fub_error_ready),
+        .fub_error_type       (fub_error_type),
+        .fub_error_addr       (fub_error_addr),
+        .fub_error_id         (fub_error_id)
     );
 
     // Connect Master to Internal
-    assign int_s_axi_awid = fub_awid;
-    assign int_s_axi_awaddr = fub_awaddr;
-    assign int_s_axi_awlen = fub_awlen;
-    assign int_s_axi_awsize = fub_awsize;
-    assign int_s_axi_awburst = fub_awburst;
-    assign int_s_axi_awlock = fub_awlock;
-    assign int_s_axi_awcache = fub_awcache;
-    assign int_s_axi_awprot = fub_awprot;
-    assign int_s_axi_awqos = fub_awqos;
-    assign int_s_axi_awregion = fub_awregion;
-    assign int_s_axi_awuser = fub_awuser;
-    assign int_s_axi_awvalid = fub_awvalid;
-    assign fub_awready = int_s_axi_awready;
+    assign int_awid = fub_awid;
+    assign int_awaddr = fub_awaddr;
+    assign int_awlen = fub_awlen;
+    assign int_awsize = fub_awsize;
+    assign int_awburst = fub_awburst;
+    assign int_awlock = fub_awlock;
+    assign int_awcache = fub_awcache;
+    assign int_awprot = fub_awprot;
+    assign int_awqos = fub_awqos;
+    assign int_awregion = fub_awregion;
+    assign int_awuser = fub_awuser;
+    assign int_awvalid = fub_awvalid;
+    assign fub_awready = int_awready;
 
-    assign int_s_axi_wdata = fub_wdata;
-    assign int_s_axi_wstrb = fub_wstrb;
-    assign int_s_axi_wlast = fub_wlast;
-    assign int_s_axi_wuser = fub_wuser;
-    assign int_s_axi_wvalid = fub_wvalid;
-    assign fub_wready = int_s_axi_wready;
+    assign int_wdata = fub_wdata;
+    assign int_wstrb = fub_wstrb;
+    assign int_wlast = fub_wlast;
+    assign int_wuser = fub_wuser;
+    assign int_wvalid = fub_wvalid;
+    assign fub_wready = int_wready;
 
-    assign fub_bid = int_s_axi_bid;
-    assign fub_bresp = int_s_axi_bresp;
-    assign fub_buser = int_s_axi_buser;
-    assign fub_bvalid = int_s_axi_bvalid;
-    assign int_s_axi_bready = fub_bready;
+    assign fub_bid = int_bid;
+    assign fub_bresp = int_bresp;
+    assign fub_buser = int_buser;
+    assign fub_bvalid = int_bvalid;
+    assign int_bready = fub_bready;
 
     // Instantiate AW Skid Buffer
     gaxi_skid_buffer #(
@@ -221,24 +221,24 @@ module axi_slave_wr
     ) i_aw_channel (
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
-        .i_wr_valid               (int_s_axi_awvalid),
-        .o_wr_ready               (int_s_axi_awready),
+        .i_wr_valid               (int_awvalid),
+        .o_wr_ready               (int_awready),
         .i_wr_data                (
-            {int_s_axi_awid, int_s_axi_awaddr, int_s_axi_awlen, int_s_axi_awsize,
-            int_s_axi_awburst, int_s_axi_awlock, int_s_axi_awcache, int_s_axi_awprot,
-            int_s_axi_awqos, int_s_axi_awregion, int_s_axi_awuser}),
-        .o_rd_valid               (int_w_s_axi_awvalid),
-        .i_rd_ready               (int_w_s_axi_awready),
-        .o_rd_count               (int_s_axi_aw_count),
-        .o_rd_data                (int_s_axi_aw_pkt)
+            {int_awid, int_awaddr, int_awlen, int_awsize,
+            int_awburst, int_awlock, int_awcache, int_awprot,
+            int_awqos, int_awregion, int_awuser}),
+        .o_rd_valid               (int_skid_awvalid),
+        .i_rd_ready               (int_skid_awready),
+        .o_rd_count               (int_aw_count),
+        .o_rd_data                (int_aw_pkt)
     );
 
     // Unpack AW signals from SKID buffer
     assign {s_axi_awid, s_axi_awaddr, s_axi_awlen, s_axi_awsize, s_axi_awburst,
             s_axi_awlock, s_axi_awcache, s_axi_awprot, s_axi_awqos,
-            s_axi_awregion, s_axi_awuser} = int_s_axi_aw_pkt;
-    assign s_axi_awvalid = int_w_s_axi_awvalid;
-    assign int_w_s_axi_awready = s_axi_awready;
+            s_axi_awregion, s_axi_awuser} = int_aw_pkt;
+    assign s_axi_awvalid = int_skid_awvalid;
+    assign int_skid_awready = s_axi_awready;
 
     // Instantiate W Skid Buffer
     gaxi_skid_buffer #(
@@ -247,20 +247,20 @@ module axi_slave_wr
     ) i_w_channel (
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
-        .i_wr_valid               (int_s_axi_wvalid),
-        .o_wr_ready               (int_s_axi_wready),
+        .i_wr_valid               (int_wvalid),
+        .o_wr_ready               (int_wready),
         .i_wr_data                (
-            {int_s_axi_wdata, int_s_axi_wstrb, int_s_axi_wlast, int_s_axi_wuser}),
-        .o_rd_valid               (int_w_s_axi_wvalid),
-        .i_rd_ready               (int_w_s_axi_wready),
-        .o_rd_count               (int_s_axi_w_count),
-        .o_rd_data                (int_s_axi_w_pkt)
+            {int_wdata, int_wstrb, int_wlast, int_wuser}),
+        .o_rd_valid               (int_skid_wvalid),
+        .i_rd_ready               (int_skid_wready),
+        .o_rd_count               (int_w_count),
+        .o_rd_data                (int_w_pkt)
     );
 
     // Unpack W signals from SKID buffer
-    assign {s_axi_wdata, s_axi_wstrb, s_axi_wlast, s_axi_wuser} = int_s_axi_w_pkt;
-    assign s_axi_wvalid = int_w_s_axi_wvalid;
-    assign int_w_s_axi_wready = s_axi_wready;
+    assign {s_axi_wdata, s_axi_wstrb, s_axi_wlast, s_axi_wuser} = int_w_pkt;
+    assign s_axi_wvalid = int_skid_wvalid;
+    assign int_skid_wready = s_axi_wready;
 
     // Instantiate B channel for write response back to master
     gaxi_skid_buffer #(
@@ -272,10 +272,10 @@ module axi_slave_wr
         .i_wr_valid               (s_axi_bvalid),
         .o_wr_ready               (s_axi_bready),
         .i_wr_data                ({s_axi_bid, s_axi_bresp, s_axi_buser}),
-        .o_rd_valid               (int_s_axi_bvalid),
-        .i_rd_ready               (int_s_axi_bready),
-        .o_rd_count               (int_s_axi_b_count),
-        .o_rd_data                ({int_s_axi_bid, int_s_axi_bresp, int_s_axi_buser})
+        .o_rd_valid               (int_bvalid),
+        .i_rd_ready               (int_bready),
+        .o_rd_count               (int_b_count),
+        .o_rd_data                ({int_bid, int_bresp, int_buser})
     );
 
 endmodule : axi_slave_wr

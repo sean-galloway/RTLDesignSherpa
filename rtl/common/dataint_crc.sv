@@ -2,7 +2,7 @@
 
 // Generic CRC Block
 module dataint_crc #(
-    parameter ALGO_NAME = "DEADF1F0",  // verilog_lint: waive explicit-parameter-storage-type
+    parameter string ALGO_NAME = "DEADF1F0",  // verilog_lint: waive explicit-parameter-storage-type
     parameter int DATA_WIDTH = 64,     // Adjustable data width
     parameter int CHUNKS = DATA_WIDTH / 8,
     parameter int CRC_WIDTH = 64,      // CRC polynomial width
@@ -36,7 +36,8 @@ module dataint_crc #(
     // Reflect input data if REFIN is enabled
     genvar i, j, idx;
     generate
-        if (REFIN) begin : gen_reflect_inputs
+        // FIX: Use explicit comparison for REFIN
+        if (REFIN != 0) begin : gen_reflect_inputs
             for (genvar i = 0; i < CH; i++) begin : gen_ch_reflect
                 for (genvar j = 0; j < 8; j++) begin : gen_bit_reflect
                     assign w_block_data[i][j] = i_data[i*8+7-j];
@@ -96,7 +97,8 @@ module dataint_crc #(
     ////////////////////////////////////////////////////////////////////////////
     // CRC logic, reflections, and output muxing as before, adjusted for new generate blocks
     generate
-        if (REFOUT == 1) begin : gen_reflect_result
+        // FIX: Use explicit comparison for REFOUT
+        if (REFOUT != 0) begin : gen_reflect_result
             for (idx = 0; idx < CW; idx = idx + 1) assign w_result[idx] = r_crc_value[(CW-1)-idx];
         end else assign w_result = r_crc_value;
     endgenerate

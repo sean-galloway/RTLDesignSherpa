@@ -50,6 +50,7 @@ module arbiter_round_robin #(
         .ow_trailingone       (w_req_location),
         .ow_trailingone_vector(),
         .ow_all_zeroes        (),
+        .ow_all_ones          (),
         .ow_valid             (w_vld_ffs_req)
     );
 
@@ -62,6 +63,7 @@ module arbiter_round_robin #(
         .ow_trailingone       (w_reqm_location),
         .ow_trailingone_vector(),
         .ow_all_zeroes        (),
+        .ow_all_ones          (),
         .ow_valid             (w_vld_ffs_reqm)
     );
 

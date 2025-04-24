@@ -91,6 +91,11 @@ module axil_slave_wr_cg
     logic user_valid;
     logic axi_valid;
     
+    // Internal ready signals from the base module
+    logic int_fub_awready;
+    logic int_fub_wready;
+    logic int_s_axil_bready;
+    
     // OR all user-side valid signals
     assign user_valid = fub_awvalid || fub_wvalid || fub_bvalid || fub_error_valid;
     
@@ -112,6 +117,11 @@ module axil_slave_wr_cg
         .o_idle              (o_cg_idle)
     );
     
+    // Force ready signals to 0 when clock gating is active
+    assign fub_awready = o_cg_gating ? 1'b0 : int_fub_awready;
+    assign fub_wready = o_cg_gating ? 1'b0 : int_fub_wready;
+    assign s_axil_bready = o_cg_gating ? 1'b0 : int_s_axil_bready;
+    
     // Instantiate the base AXI-Lite slave write module with gated clock
     axil_slave_wr #(
         .AXIL_ADDR_WIDTH     (AXIL_ADDR_WIDTH),
@@ -132,12 +142,12 @@ module axil_slave_wr_cg
         .fub_awaddr          (fub_awaddr),
         .fub_awprot          (fub_awprot),
         .fub_awvalid         (fub_awvalid),
-        .fub_awready         (fub_awready),
+        .fub_awready         (int_fub_awready),  // Connect to internal signal
         
         .fub_wdata           (fub_wdata),
         .fub_wstrb           (fub_wstrb),
         .fub_wvalid          (fub_wvalid),
-        .fub_wready          (fub_wready),
+        .fub_wready          (int_fub_wready),   // Connect to internal signal
         
         .fub_bresp           (fub_bresp),
         .fub_bvalid          (fub_bvalid),
@@ -156,7 +166,7 @@ module axil_slave_wr_cg
         
         .s_axil_bresp        (s_axil_bresp),
         .s_axil_bvalid       (s_axil_bvalid),
-        .s_axil_bready       (s_axil_bready),
+        .s_axil_bready       (int_s_axil_bready),  // Connect to internal signal
         
         // Error outputs
         .fub_error_type      (fub_error_type),

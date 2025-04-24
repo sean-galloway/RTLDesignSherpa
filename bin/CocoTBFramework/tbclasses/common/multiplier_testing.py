@@ -46,7 +46,7 @@ class MultiplierTB(TBBase):
         self.dut_type = os.environ.get('DUT', 'unknown')
         self.log.info(f"Testing {self.dut_type} with N={self.N}")
 
-    async def main_loop(self, count: int = 256) -> None:
+    async def main_loop(self, count: int = 256) -> list:
         """Main test loop for multipliers.
 
         Tests various combinations of inputs up to max_val or randomly samples
@@ -54,7 +54,11 @@ class MultiplierTB(TBBase):
 
         Args:
             count: Number of test vectors to generate if random sampling
+
+        Returns:
+            list: List of failure messages, empty if all tests passed
         """
+        failures = []
         self.log.info("Starting Main Test")
 
         # Determine if we need to test all possible values or random sampling
@@ -106,22 +110,23 @@ class MultiplierTB(TBBase):
 
             # Verify results
             if ow_product != expected_product:
-                self.log.error(f"Test failed at {test_idx+1}/{count}:")
-                self.log.error(f"  Input: multiplier={a}, multiplicand={b}")
-                self.log.error(f"  Expected: product={expected_product} (0x{expected_product:X})")
-                self.log.error(f"  Actual: product={ow_product} (0x{ow_product:X})")
+                error_msg_lines = []
+                error_msg_lines.append(f"Test failed at {test_idx+1}/{count}:")
+                error_msg_lines.append(f"  Input: multiplier={a}, multiplicand={b}")
+                error_msg_lines.append(f"  Expected: product={expected_product} (0x{expected_product:X})")
+                error_msg_lines.append(f"  Actual: product={ow_product} (0x{ow_product:X})")
 
                 # For comprehensive analysis, also print binary representation
                 # of both expected and actual results for easier debugging
-                self.log.error(f"  Binary comparison:")
-                self.log.error(f"    multiplier   = {bin(a)[2:].zfill(self.N)}")
-                self.log.error(f"    multiplicand = {bin(b)[2:].zfill(self.N)}")
-                self.log.error(f"    exp_product  = {bin(expected_product)[2:].zfill(2*self.N)}")
-                self.log.error(f"    act_product  = {bin(ow_product)[2:].zfill(2*self.N)}")
+                error_msg_lines.append("  Binary comparison:")
+                error_msg_lines.append(f"    multiplier   = {bin(a)[2:].zfill(self.N)}")
+                error_msg_lines.append(f"    multiplicand = {bin(b)[2:].zfill(self.N)}")
+                error_msg_lines.append(f"    exp_product  = {bin(expected_product)[2:].zfill(2*self.N)}")
+                error_msg_lines.append(f"    act_product  = {bin(ow_product)[2:].zfill(2*self.N)}")
 
                 if a > 0 and b > 0:
                     # Analyze bit by bit for partial products debug
-                    self.log.error("  Analyzing partial products:")
+                    error_msg_lines.append("  Analyzing partial products:")
                     for i in range(self.N):
                         for j in range(self.N):
                             bit_pos = i + j
@@ -129,11 +134,13 @@ class MultiplierTB(TBBase):
                             expected_bit = (expected_product >> bit_pos) & 1
                             actual_bit = (ow_product >> bit_pos) & 1
                             if expected_bit != actual_bit:
-                                self.log.error(f"    Bit position {bit_pos}: Expected {expected_bit}, Got {actual_bit}")
-                                self.log.error(f"      Partial product a[{i}] & b[{j}] = {partial_product}")
+                                error_msg_lines.append(f"    Bit position {bit_pos}: Expected {expected_bit}, Got {actual_bit}")
+                                error_msg_lines.append(f"      Partial product a[{i}] & b[{j}] = {partial_product}")
 
+                error_str = "\n".join(error_msg_lines)
+                self.log.error(error_str)
+                failures.append(error_str)
                 self.fail_count += 1
-                assert False, f"Multiplier test failed: Input: multiplier={a}, multiplicand={b}\nExpected: product={expected_product}\nGot: product={ow_product}"
             else:
                 self.pass_count += 1
 
@@ -141,16 +148,21 @@ class MultiplierTB(TBBase):
             test_idx += 1
 
         # Print test summary
-        self.log.info(f"Test Summary: {self.pass_count}/{self.test_count} passed, {self.fail_count} failed")
+        self.log.info(f"Main Test Summary: {self.pass_count}/{self.test_count} passed, {self.fail_count} failed")
+        return failures
 
-    async def booth_specific_test(self) -> None:
+    async def booth_specific_test(self) -> list:
         """Test cases specifically designed to test Booth radix-4 multiplier edge cases.
 
         These test cases focus on patterns that exercise different Booth encoding groups
         and ensure proper sign extension is happening. The test adapts to different bit
         widths (N) automatically.
+        
+        Returns:
+            list: List of failure messages, empty if all tests passed
         """
         self.log.info("Starting Booth Radix-4 Specific Test")
+        failures = []
 
         # Create bit-width specific values
         max_positive = (1 << (self.N - 1)) - 1     # Largest positive number (all 1s except MSB)
@@ -249,11 +261,12 @@ class MultiplierTB(TBBase):
 
             # Verify results
             if ow_product != expected_product:
-                self.log.error(f"Booth specific test failed:")
-                self.log.error(f"  Input: multiplier={a} (0x{a:X}), multiplicand={b} (0x{b:X})")
-                self.log.error(f"  Signed values: a_signed={a_signed}, b_signed={b_signed}")
-                self.log.error(f"  Expected: product={expected_product} (0x{expected_product:X})")
-                self.log.error(f"  Actual: product={ow_product} (0x{ow_product:X})")
+                error_msg_lines = []
+                error_msg_lines.append("Booth specific test failed:")
+                error_msg_lines.append(f"  Input: multiplier={a} (0x{a:X}), multiplicand={b} (0x{b:X})")
+                error_msg_lines.append(f"  Signed values: a_signed={a_signed}, b_signed={b_signed}")
+                error_msg_lines.append(f"  Expected: product={expected_product} (0x{expected_product:X})")
+                error_msg_lines.append(f"  Actual: product={ow_product} (0x{ow_product:X})")
 
                 # Print binary representation for easier debugging
                 # For large bit widths, only show the relevant bits
@@ -266,27 +279,27 @@ class MultiplierTB(TBBase):
 
                 if self.N > 16:
                     # For large bit widths, show abbreviated binary with '...'
-                    self.log.error(f"  Binary comparison (abbreviated):")
-                    self.log.error(f"    multiplier   = {a_bin[:4]}...{a_bin[-4:]}")
-                    self.log.error(f"    multiplicand = {b_bin[:4]}...{b_bin[-4:]}")
-                    self.log.error(f"    exp_product  = {exp_bin[:8]}...{exp_bin[-8:]}")
-                    self.log.error(f"    act_product  = {act_bin[:8]}...{act_bin[-8:]}")
+                    error_msg_lines.append("  Binary comparison (abbreviated):")
+                    error_msg_lines.append(f"    multiplier   = {a_bin[:4]}...{a_bin[-4:]}")
+                    error_msg_lines.append(f"    multiplicand = {b_bin[:4]}...{b_bin[-4:]}")
+                    error_msg_lines.append(f"    exp_product  = {exp_bin[:8]}...{exp_bin[-8:]}")
+                    error_msg_lines.append(f"    act_product  = {act_bin[:8]}...{act_bin[-8:]}")
                 else:
                     # For smaller bit widths, show full binary
-                    self.log.error(f"  Binary comparison:")
-                    self.log.error(f"    multiplier   = {a_bin}")
-                    self.log.error(f"    multiplicand = {b_bin}")
-                    self.log.error(f"    exp_product  = {exp_bin}")
-                    self.log.error(f"    act_product  = {act_bin}")
+                    error_msg_lines.append("  Binary comparison:")
+                    error_msg_lines.append(f"    multiplier   = {a_bin}")
+                    error_msg_lines.append(f"    multiplicand = {b_bin}")
+                    error_msg_lines.append(f"    exp_product  = {exp_bin}")
+                    error_msg_lines.append(f"    act_product  = {act_bin}")
 
                 # Find first bit position that differs
                 for i in range(2*self.N):
                     if ((expected_product >> i) & 1) != ((ow_product >> i) & 1):
-                        self.log.error(f"  First difference at bit position {i}: Expected {(expected_product >> i) & 1}, Got {(ow_product >> i) & 1}")
+                        error_msg_lines.append(f"  First difference at bit position {i}: Expected {(expected_product >> i) & 1}, Got {(ow_product >> i) & 1}")
                         break
 
                 # Booth group analysis scaled to bit width
-                self.log.error(f"  Booth groups analysis:")
+                error_msg_lines.append("  Booth groups analysis:")
                 num_groups = (self.N + 1) // 2
 
                 for i in range(num_groups):
@@ -324,10 +337,12 @@ class MultiplierTB(TBBase):
                     elif group_val in [0b101, 0b110]:
                         op = "-A"
 
-                    self.log.error(f"    Group {i}: bits={booth_group[0]}{booth_group[1]}{booth_group[2]} (value={group_val}) => operation: {op}")
+                    error_msg_lines.append(f"    Group {i}: bits={booth_group[0]}{booth_group[1]}{booth_group[2]} (value={group_val}) => operation: {op}")
 
+                error_str = "\n".join(error_msg_lines)
+                self.log.error(error_str)
+                failures.append(error_str)
                 self.fail_count += 1
-                assert False, f"Booth specific test failed for multiplier={a}, multiplicand={b}"
             else:
                 self.pass_count += 1
 
@@ -335,13 +350,18 @@ class MultiplierTB(TBBase):
 
         # Print test summary
         self.log.info(f"Booth Specific Test Summary: {self.pass_count}/{self.test_count} passed, {self.fail_count} failed")
+        return failures
 
-    async def corner_cases_test(self) -> None:
+    async def corner_cases_test(self) -> list:
         """Test with corner cases specific to multipliers.
 
         Includes cases like zeros, ones, powers of 2, max values, etc.
+        
+        Returns:
+            list: List of failure messages, empty if all tests passed
         """
         self.log.info("Starting Corner Cases Test")
+        failures = []
 
         # Define corner cases
         corner_cases = [
@@ -355,17 +375,13 @@ class MultiplierTB(TBBase):
         ]
 
         # Add some powers of 2
-        for i in range(1, self.N):
-            corner_cases.append(1 << i)  # 2^i
-
+        corner_cases.extend(1 << i for i in range(1, self.N))
         # Add some values with single bit set
-        for i in range(self.N):
-            corner_cases.append(1 << i)  # Bit at position i set
-
+        corner_cases.extend(1 << i for i in range(self.N))
         # Remove duplicates and ensure values fit in N bits
-        corner_cases = list(set([case & self.mask for case in corner_cases]))
+        corner_cases = list({case & self.mask for case in corner_cases})
 
-        total_tests = len(corner_cases) * len(corner_cases)
+        total_tests = len(corner_cases)**2
         self.log.info(f"Will run {total_tests} corner case tests")
 
         for a in corner_cases:
@@ -385,20 +401,22 @@ class MultiplierTB(TBBase):
 
                 # Verify results
                 if ow_product != expected_product:
-                    self.log.error(f"Corner case test failed:")
-                    self.log.error(f"  Input: multiplier={a} (0x{a:X}), multiplicand={b} (0x{b:X})")
-                    self.log.error(f"  Expected: product={expected_product} (0x{expected_product:X})")
-                    self.log.error(f"  Actual: product={ow_product} (0x{ow_product:X})")
+                    error_msg_lines = [
+                        "Corner case test failed:",
+                        f"  Input: multiplier={a} (0x{a:X}), multiplicand={b} (0x{b:X})",
+                        f"  Expected: product={expected_product} (0x{expected_product:X})",
+                        f"  Actual: product={ow_product} (0x{ow_product:X})",
+                        "  Binary comparison:",
+                        f"    multiplier   = {bin(a)[2:].zfill(self.N)}",
+                    ]
+                    error_msg_lines.append(f"    multiplicand = {bin(b)[2:].zfill(self.N)}")
+                    error_msg_lines.append(f"    exp_product  = {bin(expected_product)[2:].zfill(2*self.N)}")
+                    error_msg_lines.append(f"    act_product  = {bin(ow_product)[2:].zfill(2*self.N)}")
 
-                    # Print binary representation for easier debugging
-                    self.log.error(f"  Binary comparison:")
-                    self.log.error(f"    multiplier   = {bin(a)[2:].zfill(self.N)}")
-                    self.log.error(f"    multiplicand = {bin(b)[2:].zfill(self.N)}")
-                    self.log.error(f"    exp_product  = {bin(expected_product)[2:].zfill(2*self.N)}")
-                    self.log.error(f"    act_product  = {bin(ow_product)[2:].zfill(2*self.N)}")
-
+                    error_str = "\n".join(error_msg_lines)
+                    self.log.error(error_str)
+                    failures.append(error_str)
                     self.fail_count += 1
-                    assert False, f"Corner case test failed: Input: multiplier={a}, multiplicand={b}\nExpected: product={expected_product}\nGot: product={ow_product}"
                 else:
                     self.pass_count += 1
 
@@ -406,14 +424,19 @@ class MultiplierTB(TBBase):
 
         # Print test summary
         self.log.info(f"Corner Cases Test Summary: {self.pass_count}/{self.test_count} passed, {self.fail_count} failed")
+        return failures
 
-    async def walking_ones_test(self) -> None:
+    async def walking_ones_test(self) -> list:
         """Walking ones test pattern.
 
         Tests the multiplier with a sequential pattern where a single bit
         is set to 1 and walks through all bit positions.
+        
+        Returns:
+            list: List of failure messages, empty if all tests passed
         """
         self.log.info("Starting Walking Ones Test")
+        failures = []
 
         # Test with walking ones pattern in multiplier
         for pos_a in range(self.N):
@@ -438,12 +461,21 @@ class MultiplierTB(TBBase):
 
                 # Verify results
                 if ow_product != expected_product:
-                    self.log.error(f"Walking ones test failed:")
-                    self.log.error(f"  Input: multiplier=0b{bin(a)[2:].zfill(self.N)}, multiplicand=0b{bin(b)[2:].zfill(self.N)}")
-                    self.log.error(f"  Expected: product=0b{bin(expected_product)[2:].zfill(2*self.N)}")
-                    self.log.error(f"  Actual: product=0b{bin(ow_product)[2:].zfill(2*self.N)}")
+                    error_msg_lines = [
+                        "Walking ones test failed:",
+                        f"  Input: multiplier=0b{bin(a)[2:].zfill(self.N)}, multiplicand=0b{bin(b)[2:].zfill(self.N)}",
+                    ]
+                    error_msg_lines.append(f"  Expected: product=0b{bin(expected_product)[2:].zfill(2*self.N)}")
+                    error_msg_lines.extend(
+                        (
+                            f"  Actual: product=0b{bin(ow_product)[2:].zfill(2 * self.N)}",
+                            f"  First difference at bit position {pos_a + pos_b}: Expected 1, Got {ow_product >> pos_a + pos_b & 1}",
+                        )
+                    )
+                    error_str = "\n".join(error_msg_lines)
+                    self.log.error(error_str)
+                    failures.append(error_str)
                     self.fail_count += 1
-                    assert False, f"Walking ones test failed at bit positions multiplier[{pos_a}] * multiplicand[{pos_b}]"
                 else:
                     self.pass_count += 1
 
@@ -451,13 +483,18 @@ class MultiplierTB(TBBase):
 
         # Print test summary
         self.log.info(f"Walking Ones Test Summary: {self.pass_count}/{self.test_count} passed, {self.fail_count} failed")
+        return failures
 
-    async def alternating_pattern_test(self) -> None:
+    async def alternating_pattern_test(self) -> list:
         """Test with alternating bit patterns (0101... and 1010...).
 
         This tests for issues with adjacent bits affecting each other.
+        
+        Returns:
+            list: List of failure messages, empty if all tests passed
         """
         self.log.info("Starting Alternating Pattern Test")
+        failures = []
 
         # Create alternating patterns
         pattern1 = 0  # Will be 0101...
@@ -486,12 +523,17 @@ class MultiplierTB(TBBase):
 
             # Verify results
             if ow_product != expected_product:
-                self.log.error(f"Alternating pattern test failed:")
-                self.log.error(f"  Input: multiplier=0b{bin(a)[2:].zfill(self.N)}, multiplicand=0b{bin(b)[2:].zfill(self.N)}")
-                self.log.error(f"  Expected: product=0b{bin(expected_product)[2:].zfill(2*self.N)}")
-                self.log.error(f"  Actual: product=0b{bin(ow_product)[2:].zfill(2*self.N)}")
+                error_msg_lines = [
+                    "Alternating pattern test failed:",
+                    f"  Input: multiplier=0b{bin(a)[2:].zfill(self.N)}, multiplicand=0b{bin(b)[2:].zfill(self.N)}",
+                ]
+                error_msg_lines.append(f"  Expected: product=0b{bin(expected_product)[2:].zfill(2*self.N)}")
+                error_msg_lines.append(f"  Actual: product=0b{bin(ow_product)[2:].zfill(2*self.N)}")
+
+                error_str = "\n".join(error_msg_lines)
+                self.log.error(error_str)
+                failures.append(error_str)
                 self.fail_count += 1
-                assert False, f"Alternating pattern test failed"
             else:
                 self.pass_count += 1
 
@@ -499,13 +541,18 @@ class MultiplierTB(TBBase):
 
         # Print test summary
         self.log.info(f"Alternating Pattern Test Summary: {self.pass_count}/{self.test_count} passed, {self.fail_count} failed")
+        return failures
 
-    async def special_patterns_test(self) -> None:
+    async def special_patterns_test(self) -> list:
         """Test multiplier with special patterns specific to multiplier architectures.
 
         Includes tests for booth encoding, carry propagation, etc.
+        
+        Returns:
+            list: List of failure messages, empty if all tests passed
         """
         self.log.info("Starting Special Patterns Test")
+        failures = []
 
         # Special cases for Booth algorithm
         booth_special = [
@@ -538,17 +585,22 @@ class MultiplierTB(TBBase):
 
             # Verify results
             if ow_product != expected_product:
-                self.log.error(f"Special pattern test failed:")
-                self.log.error(f"  Input: multiplier=0x{a:X}, multiplicand=0x{b:X}")
-                self.log.error(f"  Expected: product=0x{expected_product:X}")
-                self.log.error(f"  Actual: product=0x{ow_product:X}")
-                self.log.error(f"  Binary comparison:")
-                self.log.error(f"    multiplier   = {bin(a)[2:].zfill(self.N)}")
-                self.log.error(f"    multiplicand = {bin(b)[2:].zfill(self.N)}")
-                self.log.error(f"    exp_product  = {bin(expected_product)[2:].zfill(2*self.N)}")
-                self.log.error(f"    act_product  = {bin(ow_product)[2:].zfill(2*self.N)}")
+                error_msg_lines = [
+                    "Special pattern test failed:",
+                    f"  Input: multiplier=0x{a:X}, multiplicand=0x{b:X}",
+                    f"  Expected: product=0x{expected_product:X}",
+                    f"  Actual: product=0x{ow_product:X}",
+                    "  Binary comparison:",
+                    f"    multiplier   = {bin(a)[2:].zfill(self.N)}",
+                ]
+                error_msg_lines.append(f"    multiplicand = {bin(b)[2:].zfill(self.N)}")
+                error_msg_lines.append(f"    exp_product  = {bin(expected_product)[2:].zfill(2*self.N)}")
+                error_msg_lines.append(f"    act_product  = {bin(ow_product)[2:].zfill(2*self.N)}")
+
+                error_str = "\n".join(error_msg_lines)
+                self.log.error(error_str)
+                failures.append(error_str)
                 self.fail_count += 1
-                assert False, f"Special pattern test failed: multiplier=0x{a:X}, multiplicand=0x{b:X}"
             else:
                 self.pass_count += 1
 
@@ -556,6 +608,124 @@ class MultiplierTB(TBBase):
 
         # Print test summary
         self.log.info(f"Special Patterns Test Summary: {self.pass_count}/{self.test_count} passed, {self.fail_count} failed")
+        return failures
+        
+    async def simple_test(self) -> list:
+        """Run a simple test with the specific case 5*7=35.
+
+        This is the exact case that's failing in our tests, so it's a good starting point.
+        
+        Returns:
+            list: List of failure messages, empty if all tests passed
+        """
+        self.log.info("Running simple test (5*7=35)")
+        failures = []
+
+        a, b = 5, 7
+        self.dut.i_multiplier.value = a
+        self.dut.i_multiplicand.value = b
+
+        # Wait for combinational logic to settle
+        await self.wait_time(1, 'ns')
+
+        # Read outputs
+        ow_product = int(self.dut.ow_product.value)
+
+        # Calculate expected values
+        expected_product = (a * b) & (2**(2*self.N) - 1)
+
+        # Verify results
+        if ow_product != expected_product:
+            error_msg_lines = [
+                "Simple test failed:",
+                f"  Input: multiplier={a} (0x{a:X}), multiplicand={b} (0x{b:X})",
+                f"  Expected: product={expected_product} (0x{expected_product:X})",
+                f"  Actual: product={ow_product} (0x{ow_product:X})",
+                "  Binary comparison:",
+                f"    multiplier   = {bin(a)[2:].zfill(self.N)}",
+            ]
+            error_msg_lines.append(f"    multiplicand = {bin(b)[2:].zfill(self.N)}")
+            error_msg_lines.append(f"    exp_product  = {bin(expected_product)[2:].zfill(2*self.N)}")
+            error_msg_lines.append(f"    act_product  = {bin(ow_product)[2:].zfill(2*self.N)}")
+
+            error_str = "\n".join(error_msg_lines)
+            self.log.error(error_str)
+            failures.append(error_str)
+            self.fail_count += 1
+        else:
+            self.log.info("Simple test PASSED!")
+            self.pass_count += 1
+
+        self.test_count += 1
+        return failures
+        
+    async def booth_specific_simple_test(self) -> list:
+        """Run simpler booth-specific tests focusing on common patterns.
+        
+        This runs a subset of the most critical test cases for Booth algorithm.
+        
+        Returns:
+            list: List of failure messages, empty if all tests passed
+        """
+        self.log.info("Running simplified Booth test")
+        failures = []
+
+        # Test cases that emphasize different Booth patterns
+        test_cases = [
+            (5, 7),      # Simple positive * positive
+            (1, 1),      # Simplest case
+            (2, 2),      # Power of 2
+            (3, 3),      # Adjacent bits set
+            (4, 15),     # Tests +2 encoding
+            (1, -1),     # Positive * negative (using 2's complement)
+            (-1, -1),    # Negative * negative
+        ]
+
+        for a_signed, b_signed in test_cases:
+            # Convert signed values to N-bit 2's complement representations
+            a = a_signed & self.mask
+            b = b_signed & self.mask
+
+            # Apply the inputs to DUT
+            self.dut.i_multiplier.value = a
+            self.dut.i_multiplicand.value = b
+
+            # Wait for combinational logic to settle
+            await self.wait_time(1, 'ns')
+
+            # Read outputs
+            ow_product = int(self.dut.ow_product.value)
+
+            # Calculate expected values
+            expected_product = (a_signed * b_signed) & (2**(2*self.N) - 1)
+
+            # Verify results
+            if ow_product != expected_product:
+                error_msg_lines = [
+                    "Simple Booth test failed:",
+                    f"  Input: multiplier={a} (0x{a:X}), multiplicand={b} (0x{b:X})",
+                    f"  Signed values: a_signed={a_signed}, b_signed={b_signed}",
+                    f"  Expected: product={expected_product} (0x{expected_product:X})",
+                    f"  Actual: product={ow_product} (0x{ow_product:X})",
+                    "  Binary comparison:",
+                    f"    multiplier   = {bin(a)[2:].zfill(self.N)}",
+                ]
+                error_msg_lines.append(f"    multiplicand = {bin(b)[2:].zfill(self.N)}")
+                error_msg_lines.append(f"    exp_product  = {bin(expected_product)[2:].zfill(2*self.N)}")
+                error_msg_lines.append(f"    act_product  = {bin(ow_product)[2:].zfill(2*self.N)}")
+
+                error_str = "\n".join(error_msg_lines)
+                self.log.error(error_str)
+                failures.append(error_str)
+                self.fail_count += 1
+            else:
+                self.log.info(f"PASS: {a_signed} * {b_signed} = {a_signed * b_signed}")
+                self.pass_count += 1
+
+            self.test_count += 1
+
+        self.log.info(f"Simple Booth Test Summary: {self.pass_count}/{self.test_count} passed, {self.fail_count} failed")
+        return failures
 
     async def clear_interface(self) -> None:
         """Clear the DUT interface by setting all inputs to 0."""
@@ -578,39 +748,80 @@ class MultiplierTB(TBBase):
     async def run_comprehensive_tests(self) -> None:
         """Run a comprehensive suite of tests based on test_level.
 
-        This combines multiple test patterns to thoroughly test the multiplier.
+        Different test levels:
+        - simple: Run only the most basic test (5*7=35)
+        - basic: Run essential tests including simple cases and Booth-specific tests
+        - booth: Run only Booth radix-4 specific test cases
+        - medium: Run more extensive tests including various patterns
+        - full: Run all tests including edge cases and exhaustive checks
         """
         self.log.info(f"Running comprehensive tests at {self.test_level} level")
+        
+        # List to store failure details for later reporting
+        failures = []
 
         # Clear the interface
         await self.clear_interface()
 
-        # Always run the Booth specific test first for Booth multipliers
-        if "booth" in self.dut_type.lower():
-            await self.booth_specific_test()
+        if self.test_level == 'simple':
+            # Run only the simplest test case: 5 * 7 = 35
+            failures.extend(await self.simple_test())
+        elif self.test_level == 'booth':
+            # Run only Booth specific test cases
+            failures.extend(await self.booth_specific_simple_test())
+            failures.extend(await self.booth_specific_test())
+        else:
+            # For basic level and above
+            failures.extend(await self.simple_test())
 
-        # # Determine test count based on level
-        # if self.test_level == 'basic':
-        #     count = min(64, 2**self.N)
-        # elif self.test_level == 'medium':
-        #     count = min(128, 2**self.N)
-        # else:  # 'full' or anything else
-        #     count = min(256, 2**self.N)
+            if "booth" in self.dut_type.lower():
+                failures.extend(await self.booth_specific_simple_test())
+                failures.extend(await self.booth_specific_test())
 
-        # # Always run the main loop for standard tests
-        # await self.main_loop(count)
+            # Determine test count based on level
+            if self.test_level == 'basic':
+                count = min(64, 2**self.N)
+            elif self.test_level == 'medium':
+                count = min(128, 2**self.N)
+            else:  # 'full' or anything else
+                count = min(256, 2**self.N)
 
-        # # For all levels, include corner cases
-        # await self.corner_cases_test()
+            # Always run the main loop for standard tests
+            failures.extend(await self.main_loop(count))
 
-        # # For medium and full test levels, add walking ones test
-        # if self.test_level in ['medium', 'full']:
-        #     await self.walking_ones_test()
+            # For all levels above basic, include corner cases
+            if self.test_level in ['medium', 'full']:
+                failures.extend(await self.corner_cases_test())
 
-        # # For full test level, add alternating pattern and special patterns tests
-        # if self.test_level == 'full':
-        #     await self.alternating_pattern_test()
-        #     await self.special_patterns_test()
+            # For medium and full test levels, add walking ones test
+            if self.test_level in ['medium', 'full']:
+                failures.extend(await self.walking_ones_test())
+
+            # For full test level, add alternating pattern and special patterns tests
+            if self.test_level == 'full':
+                failures.extend(await self.alternating_pattern_test())
+                failures.extend(await self.special_patterns_test())
 
         # Print final test summary
         self.log.info(f"Comprehensive Test Summary: {self.pass_count}/{self.test_count} passed, {self.fail_count} failed")
+        
+        # Print summary of failures
+        if failures:
+            self.log.error("=== FAILURES SUMMARY ===")
+            self.log.error(f"Total failures: {len(failures)}")
+            if len(failures) > 10:
+                self.log.error(f"Showing first 10 failures out of {len(failures)}:")
+                for i, failure in enumerate(failures[:10]):
+                    self.log.error(f"Failure {i+1}:")
+                    for line in failure.split('\n'):
+                        self.log.error(f"  {line}")
+                self.log.error(f"... and {len(failures) - 10} more failures")
+            else:
+                for i, failure in enumerate(failures):
+                    self.log.error(f"Failure {i+1}:")
+                    for line in failure.split('\n'):
+                        self.log.error(f"  {line}")
+            self.log.error("=== END FAILURES SUMMARY ===")
+            
+            # Only assert after all tests have run
+            assert self.fail_count == 0, f"Tests failed: {self.fail_count} out of {self.test_count}"

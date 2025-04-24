@@ -20,13 +20,16 @@ module math_adder_kogge_stone_nbit #(
 
     ////////////////////////////////////////////////////////////////////////////
     // Step 2: Parallel Prefix Computation using Kogge-Stone
-    logic [N-1:0] w_C;  // Array to store carry for each bit
-    assign w_C[0] = w_G[0];  // Initial carry is the first generate signal
-    generate
-        for (i = 1; i < N; i++) begin : gen_kogge_stone
-            assign w_C[i] = w_G[i] | (w_P[i] & w_C[i-1]);
+    logic [N-1:0] w_C;
+    always_comb begin
+        logic carry;          // local scratch
+        carry   = w_G[0];
+        w_C[0]  = carry;
+        for (int j = 1; j < N; ++j) begin
+            carry  = w_G[j] | (w_P[j] & carry);
+            w_C[j] = carry;
         end
-    endgenerate
+    end
 
     ////////////////////////////////////////////////////////////////////////////
     // Step 3: Sum Calculation

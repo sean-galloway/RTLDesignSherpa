@@ -7,10 +7,10 @@ module math_multiplier_carry_save #(
     input  logic [  N-1:0] i_multiplicand,
     output logic [2*N-1:0] ow_product
 );
-    logic [N:0]     w_cin  [0:N]; // verilog_lint: waive unpacked-dimensions-range-ordering
-    logic [N:0]     w_pin  [0:N]; // verilog_lint: waive unpacked-dimensions-range-ordering
-    logic [N:0]     w_cout [0:N]; // verilog_lint: waive unpacked-dimensions-range-ordering
-    logic [N:0]     w_pout [0:N]; // verilog_lint: waive unpacked-dimensions-range-ordering
+    logic [N:0] w_cin  [N] /*verilator isolate_assignments*/;
+    logic [N:0] w_pin  [N] /*verilator isolate_assignments*/;
+    logic [N:0] w_cout [N] /*verilator isolate_assignments*/;
+    logic [N:0] w_pout [N] /*verilator isolate_assignments*/;
     logic [2*N-1:0] w_product;
 
     // Generate partial products
@@ -40,24 +40,6 @@ module math_multiplier_carry_save #(
 
     // do the final addition
     assign ow_product[2*N-1:0] = {{w_pin[N][N-1:0] + w_cin[N][N-1:0]}, w_product[N-1:0]};
-
-    // /////////////////////////////////////////////////////////////////////////
-    // // error checking
-    // // synopsys translate_off
-    // // Generate a version of the memory for waveforms
-    // logic [(N+1)*(N+1):0] flat_w_cin;
-    // logic [(N+1)*(N+1):0] flat_w_pin;
-    // logic [(N+1)*(N+1):0] flat_w_cout;
-    // logic [(N+1)*(N+1):0] flat_w_pout;
-    // genvar k;
-    // generate
-    //     for (k = 0; k <= N; k++) begin : gen_flatten_signals
-    //         assign flat_w_cin[k*N+:N]  = w_cin[k];
-    //         assign flat_w_pin[k*N+:N]  = w_pin[k];
-    //         assign flat_w_cout[k*N+:N] = w_cout[k];
-    //         assign flat_w_pout[k*N+:N] = w_pout[k];
-    //     end
-    // endgenerate
 
 endmodule : math_multiplier_carry_save
 

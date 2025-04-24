@@ -1,14 +1,10 @@
 import os
 import random
-from collections import deque
 
 import pytest
 import cocotb
-from cocotb.utils import get_sim_time
-from cocotb.triggers import RisingEdge, Timer
 from cocotb_test.simulator import run
 
-from CocoTBFramework.tbclasses.tbbase import TBBase
 from CocoTBFramework.tbclasses.common.crc_testing import CRCTB, crc_parameters
 from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 
@@ -33,24 +29,40 @@ async def crc_basic_test(dut):
     await tb.main_loop()
 
 
+# @pytest.mark.parametrize("params", [
+#     # Only use the first entry from crc_parameters list
+#     {
+#         'algo_name': crc_parameters[0][0],
+#         'data_width': crc_parameters[0][1],
+#         'crc_width': crc_parameters[0][2],
+#         'poly': crc_parameters[0][3],
+#         'poly_init': crc_parameters[0][4],
+#         'refin': crc_parameters[0][5],
+#         'refout': crc_parameters[0][6],
+#         'xorout': crc_parameters[0][7],
+#         'test_level': 'basic'
+#     }
+# ])
 @pytest.mark.parametrize("params", [
     # Standard parameter sets from the crc_parameters list
     {
-        'algo_name': entry[0], 
-        'data_width': entry[1], 
-        'crc_width': entry[2], 
-        'poly': entry[3], 
-        'poly_init': entry[4], 
-        'refin': entry[5], 
-        'refout': entry[6], 
-        'xorout': entry[7], 
+        'algo_name': entry[0],
+        'data_width': entry[1],
+        'crc_width': entry[2],
+        'poly': entry[3],
+        'poly_init': entry[4],
+        'refin': entry[5],
+        'refout': entry[6],
+        'xorout': entry[7],
         'test_level': 'basic'
     } for entry in crc_parameters
 ])
 def test_dataint_crc(request, params):
     """Run the test with pytest and configurable parameters"""
     # Get all of the directory and module information
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common'})
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths(
+        {'rtl_cmn': 'rtl/common'}
+    )
 
     dut_name = "dataint_crc"
     toplevel = dut_name
@@ -86,7 +98,7 @@ def test_dataint_crc(request, params):
 
     # RTL parameters
     parameters = {
-        'ALGO_NAME': params['algo_name'],
+        # 'ALGO_NAME': params['algo_name'],
         'DATA_WIDTH': params['data_width'],
         'CRC_WIDTH': params['crc_width'],
         'REFIN': params['refin'],
@@ -95,6 +107,8 @@ def test_dataint_crc(request, params):
 
     # Prepare environment variables
     extra_env = {
+        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'VERILATOR_TRACE': '1',  # Enable tracing
         'DUT': dut_name,
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
@@ -107,12 +121,30 @@ def test_dataint_crc(request, params):
     }
 
     # Pass all parameters as environment variables for consistency
+    # sourcery skip: no-loop-in-tests
     for k, v in parameters.items():
         extra_env[f'PARAM_{k}'] = str(v)
 
     # Calculate timeout based on test complexity
     timeout_factor = 50
     extra_env['COCOTB_TIMEOUT_MULTIPLIER'] = str(timeout_factor)
+
+
+    compile_args = [
+        "--trace-fst",
+        "--trace-structs",
+        "--trace-depth", "99",
+    ]
+
+    sim_args = [
+        "--trace-fst",  # Tell Verilator to use FST
+        "--trace-structs",
+        "--trace-depth", "99",
+    ]
+
+    plusargs = [
+        "+trace",
+    ]
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
@@ -127,7 +159,10 @@ def test_dataint_crc(request, params):
             sim_build=sim_build,
             extra_env=extra_env,
             waves=True,
-            keep_files=True
+            keep_files=True,
+            compile_args=compile_args,
+            sim_args=sim_args,
+            plusargs=plusargs,
         )
     except Exception as e:
         # If the test fails, make sure logs are preserved

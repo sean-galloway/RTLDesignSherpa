@@ -35,9 +35,23 @@ async def multiplier_test(dut):
     await tb.run_comprehensive_tests()
 
 
-@pytest.mark.parametrize("n", [8, 16, 32])
-def test_math_multiplier_booth_radix_4(request, n):
-    """PyTest function to run the cocotb test."""
+@pytest.mark.parametrize("params", [
+    # Basic verification of different bit widths
+    {'WIDTH': 8, 'test_level': 'simple'},   # Start with simple tests
+    {'WIDTH': 8, 'test_level': 'basic'},    # Basic test level
+    {'WIDTH': 8, 'test_level': 'booth'},    # Booth-specific tests
+
+    # More comprehensive testing
+    {'WIDTH': 8, 'test_level': 'medium'},   # More thorough tests
+    {'WIDTH': 8, 'test_level': 'full'},     # Complete test suite
+
+    # Test with different data widths
+    {'WIDTH': 4, 'test_level': 'basic'},    # Small width
+    {'WIDTH': 16, 'test_level': 'basic'},   # Larger width
+    {'WIDTH': 32, 'test_level': 'basic'},   # Full 32-bit width
+])
+def test_math_multiplier_booth_radix_4(request, params):
+    """Run the test with pytest and configurable parameters"""
     # Get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common'})
 
@@ -49,11 +63,11 @@ def test_math_multiplier_booth_radix_4(request, n):
         os.path.join(rtl_dict['rtl_cmn'], f"{dut_name}.sv"),
     ]
 
-    # Define test parameters
-    parameters = {'N': n}
-
-    # Create human-readable test identifier
-    test_name_plus_params = f"test_{dut_name}_N{parameters['N']:03d}"
+    # Create a human-readable test identifier
+    t_width = params['WIDTH']
+    t_name = params['test_level']
+    test_name_plus_params = f"test_{dut_name}_W{t_width:03d}_{t_name}"
+    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Define simulation build and log paths
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
@@ -61,46 +75,63 @@ def test_math_multiplier_booth_radix_4(request, n):
 
     # Define log path
     os.makedirs(log_dir, exist_ok=True)
-    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
     # Set up environment variables
     seed = random.randint(0, 100000)
-    test_level = os.environ.get('TEST_LEVEL', 'basic')  # Can be basic, medium, or full
 
     extra_env = {
+        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'VERILATOR_TRACE': '1',  # Enable tracing
         'DUT': dut_name,
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
         'SEED': str(seed),
-        'TEST_LEVEL': test_level,
-        "PARAM_N": str(n)
+        'TEST_LEVEL': params['test_level'],
+        'PARAM_N': str(params['WIDTH'])
     }
 
-    # Add parameter environment variables
-    extra_env.update({f'PARAM_{k}': str(v) for k, v in parameters.items()})
-
     # Create command file for viewing waveforms
+
+    compile_args = [
+        "--trace-fst",
+        "--trace-structs",
+        "--trace-depth", "99",
+    ]
+
+    sim_args = [
+        "--trace-fst",  # Tell Verilator to use FST
+        "--trace-structs",
+        "--trace-depth", "99",
+    ]
+
+    plusargs = [
+        "+trace",
+    ]
+
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
     # Launch the simulation
     try:
         run(
-            python_search=[tests_dir],  # where to search for all the python test files
+            python_search=[tests_dir],
             verilog_sources=verilog_sources,
             includes=[],
             toplevel=toplevel,
             module=module,
-            parameters=parameters,
+            parameters={'N': params['WIDTH']},
             sim_build=sim_build,
             extra_env=extra_env,
             waves=True,
-            keep_files=True
+            keep_files=True,
+            compile_args=compile_args,
+            sim_args=sim_args,
+            plusargs=plusargs,
         )
     except Exception as e:
         # If the test fails, make sure logs are preserved
         print(f"Test failed: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the Waveforms run this command: {cmd_filename}")
-        raise  # Re-raise exception to indicate failure
+        raise

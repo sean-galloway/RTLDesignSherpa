@@ -1,5 +1,3 @@
-`timescale 1ns / 1ps
-
 module clock_gate_ctrl #(
     parameter int IDLE_CNTR_WIDTH = 4, // Default width of idle counter
     parameter int N = IDLE_CNTR_WIDTH
@@ -18,34 +16,25 @@ module clock_gate_ctrl #(
 
     // Internal signals
     logic [N-1:0] r_idle_counter;
-    logic         w_counter_active;
-    logic         w_gate_enable;
-    logic         w_idle_timer_done;
-    logic         w_begin_clock_gating;
 
-    // Counter is active when sleep is asserted but wakeup is not
-    assign w_counter_active = ~i_wakeup;
-
-    // Idle counter logic
+    // Counter logic
     always_ff @(posedge clk_in or negedge aresetn) begin
-        if (!aresetn)
-            r_idle_counter <= 'h0;
-        else
-            if (i_wakeup || ~i_cfg_cg_enable) begin
+        if (!aresetn) begin
+            r_idle_counter <= i_cfg_cg_idle_count;
+        end else begin
+            if (i_wakeup || !i_cfg_cg_enable) begin
+                // On wakeup or global disable, reset counter
                 r_idle_counter <= i_cfg_cg_idle_count;
-            end else if (w_counter_active && r_idle_counter != 'h0) begin
+            end else if (r_idle_counter != 'h0) begin
+                // Normal counting operation - decrement when not zero
                 r_idle_counter <= r_idle_counter - 1'b1;
+            end
+            // When counter reaches zero, it stays at zero
         end
     end
 
-    // Clock gating enable logic
-    // Keep clock enabled if:
-    // 1. Clock gating is globally disabled (cg_enable = 0)
-    // 2. Block is in wakeup state
-    // 3. Counter is still running (not zero) during sleep
-    assign w_idle_timer_done = (r_idle_counter == 'h0);
-    assign w_begin_gating    = (i_wakeup) ? 1'b0 : w_idle_timer_done;
-    assign w_gate_enable     = (~i_cfg_cg_enable) ? 1'b0 : w_begin_gating;
+    // Simple gating condition: gate when not in wakeup, globally enabled, and counter is zero
+    wire w_gate_enable = i_cfg_cg_enable && !i_wakeup && (r_idle_counter == 'h0);
 
     // Instantiate the ICG cell
     icg u_icg (

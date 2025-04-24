@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module axi_slave
+module axi_slave_cg
 #(
     // AXI parameters
     parameter int AXI_ID_WIDTH      = 8,
@@ -23,14 +23,21 @@ module axi_slave
     parameter int TIMEOUT_R         = 1000,  // Read data channel timeout
     parameter int TIMEOUT_AW        = 1000,  // Write address channel timeout
     parameter int TIMEOUT_W         = 1000,  // Write data channel timeout
-    parameter int TIMEOUT_B         = 1000   // Write response channel timeout
+    parameter int TIMEOUT_B         = 1000,  // Write response channel timeout
+
+    // Clock gating parameters
+    parameter int CG_IDLE_COUNT_WIDTH = 4  // Width of idle counter
 )
 (
     // Global Clock and Reset
     input  logic aclk,
     input  logic aresetn,
 
-    // Master AXI Interface (Input Side)
+    // Clock gating configuration
+    input  logic                          i_cfg_cg_enable,
+    input  logic [CG_IDLE_COUNT_WIDTH-1:0] i_cfg_cg_idle_count,
+
+    // READ CHANNEL - Master AXI Interface (Input Side)
     // Read address channel (AR)
     input  logic [AXI_ID_WIDTH-1:0]    fub_arid,
     input  logic [AXI_ADDR_WIDTH-1:0]  fub_araddr,
@@ -55,6 +62,7 @@ module axi_slave
     output logic                       fub_rvalid,
     input  logic                       fub_rready,
 
+    // WRITE CHANNEL - Master AXI Interface (Input Side)
     // Write address channel (AW)
     input  logic [AXI_ID_WIDTH-1:0]    fub_awid,
     input  logic [AXI_ADDR_WIDTH-1:0]  fub_awaddr,
@@ -85,7 +93,7 @@ module axi_slave
     output logic                       fub_bvalid,
     input  logic                       fub_bready,
 
-    // Slave AXI Interface (Output Side to memory or backend)
+    // READ CHANNEL - Slave AXI Interface (Output Side to memory or backend)
     // Read address channel (AR)
     output logic [AXI_ID_WIDTH-1:0]    s_axi_arid,
     output logic [AXI_ADDR_WIDTH-1:0]  s_axi_araddr,
@@ -110,6 +118,7 @@ module axi_slave
     input  logic                       s_axi_rvalid,
     output logic                       s_axi_rready,
 
+    // WRITE CHANNEL - Slave AXI Interface (Output Side to memory or backend)
     // Write address channel (AW)
     output logic [AXI_ID_WIDTH-1:0]    s_axi_awid,
     output logic [AXI_ADDR_WIDTH-1:0]  s_axi_awaddr,
@@ -140,23 +149,29 @@ module axi_slave
     input  logic                       s_axi_bvalid,
     output logic                       s_axi_bready,
 
-    // Error outputs with FIFO interface - Read Channel
+    // READ CHANNEL - Error outputs with FIFO interface
     output logic [3:0]                 fub_rd_error_type,
     output logic [AXI_ADDR_WIDTH-1:0]  fub_rd_error_addr,
     output logic [AXI_ID_WIDTH-1:0]    fub_rd_error_id,
     output logic                       fub_rd_error_valid,
     input  logic                       fub_rd_error_ready,
 
-    // Error outputs with FIFO interface - Write Channel
+    // WRITE CHANNEL - Error outputs with FIFO interface
     output logic [3:0]                 fub_wr_error_type,
     output logic [AXI_ADDR_WIDTH-1:0]  fub_wr_error_addr,
     output logic [AXI_ID_WIDTH-1:0]    fub_wr_error_id,
     output logic                       fub_wr_error_valid,
-    input  logic                       fub_wr_error_ready
+    input  logic                       fub_wr_error_ready,
+
+    // Clock gating status
+    output logic                       o_rd_cg_gating,
+    output logic                       o_rd_cg_idle,
+    output logic                       o_wr_cg_gating,
+    output logic                       o_wr_cg_idle
 );
 
-    // Instantiate AXI slave read module
-    axi_slave_rd #(
+    // Instantiate the AXI slave read module with clock gating
+    axi_slave_rd_cg #(
         .AXI_ID_WIDTH         (AXI_ID_WIDTH),
         .AXI_ADDR_WIDTH       (AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH       (AXI_DATA_WIDTH),
@@ -165,12 +180,15 @@ module axi_slave
         .SKID_DEPTH_R         (SKID_DEPTH_R),
         .ERROR_FIFO_DEPTH     (ERROR_FIFO_DEPTH),
         .TIMEOUT_AR           (TIMEOUT_AR),
-        .TIMEOUT_R            (TIMEOUT_R)
-    ) i_axi_slave_rd (
+        .TIMEOUT_R            (TIMEOUT_R),
+        .CG_IDLE_COUNT_WIDTH  (CG_IDLE_COUNT_WIDTH)
+    ) i_axi_slave_rd_cg (
         .aclk                 (aclk),
         .aresetn              (aresetn),
+        .i_cfg_cg_enable      (i_cfg_cg_enable),
+        .i_cfg_cg_idle_count  (i_cfg_cg_idle_count),
 
-        // Master interface (input)
+        // Master AXI Interface (Input Side)
         .fub_arid             (fub_arid),
         .fub_araddr           (fub_araddr),
         .fub_arlen            (fub_arlen),
@@ -193,7 +211,7 @@ module axi_slave
         .fub_rvalid           (fub_rvalid),
         .fub_rready           (fub_rready),
 
-        // Slave interface (output to memory/backend)
+        // Slave AXI Interface (Output Side)
         .s_axi_arid           (s_axi_arid),
         .s_axi_araddr         (s_axi_araddr),
         .s_axi_arlen          (s_axi_arlen),
@@ -216,16 +234,20 @@ module axi_slave
         .s_axi_rvalid         (s_axi_rvalid),
         .s_axi_rready         (s_axi_rready),
 
-        // Error outputs FIFO interface
-        .fub_error_valid      (fub_rd_error_valid),
-        .fub_error_ready      (fub_rd_error_ready),
+        // Error outputs with FIFO interface
         .fub_error_type       (fub_rd_error_type),
         .fub_error_addr       (fub_rd_error_addr),
-        .fub_error_id         (fub_rd_error_id)
+        .fub_error_id         (fub_rd_error_id),
+        .fub_error_valid      (fub_rd_error_valid),
+        .fub_error_ready      (fub_rd_error_ready),
+
+        // Clock gating status
+        .o_cg_gating          (o_rd_cg_gating),
+        .o_cg_idle            (o_rd_cg_idle)
     );
 
-    // Instantiate AXI slave write module
-    axi_slave_wr #(
+    // Instantiate the AXI slave write module with clock gating
+    axi_slave_wr_cg #(
         .AXI_ID_WIDTH         (AXI_ID_WIDTH),
         .AXI_ADDR_WIDTH       (AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH       (AXI_DATA_WIDTH),
@@ -236,12 +258,15 @@ module axi_slave
         .ERROR_FIFO_DEPTH     (ERROR_FIFO_DEPTH),
         .TIMEOUT_AW           (TIMEOUT_AW),
         .TIMEOUT_W            (TIMEOUT_W),
-        .TIMEOUT_B            (TIMEOUT_B)
-    ) i_axi_slave_wr (
+        .TIMEOUT_B            (TIMEOUT_B),
+        .CG_IDLE_COUNT_WIDTH  (CG_IDLE_COUNT_WIDTH)
+    ) i_axi_slave_wr_cg (
         .aclk                 (aclk),
         .aresetn              (aresetn),
+        .i_cfg_cg_enable      (i_cfg_cg_enable),
+        .i_cfg_cg_idle_count  (i_cfg_cg_idle_count),
 
-        // Master interface (input)
+        // Master AXI Interface (Input Side)
         .fub_awid             (fub_awid),
         .fub_awaddr           (fub_awaddr),
         .fub_awlen            (fub_awlen),
@@ -269,7 +294,7 @@ module axi_slave
         .fub_bvalid           (fub_bvalid),
         .fub_bready           (fub_bready),
 
-        // Slave interface (output to memory/backend)
+        // Slave AXI Interface (Output Side)
         .s_axi_awid           (s_axi_awid),
         .s_axi_awaddr         (s_axi_awaddr),
         .s_axi_awlen          (s_axi_awlen),
@@ -297,12 +322,16 @@ module axi_slave
         .s_axi_bvalid         (s_axi_bvalid),
         .s_axi_bready         (s_axi_bready),
 
-        // Error outputs FIFO interface
-        .fub_error_valid      (fub_wr_error_valid),
-        .fub_error_ready      (fub_wr_error_ready),
+        // Error outputs with FIFO interface
         .fub_error_type       (fub_wr_error_type),
         .fub_error_addr       (fub_wr_error_addr),
-        .fub_error_id         (fub_wr_error_id)
+        .fub_error_id         (fub_wr_error_id),
+        .fub_error_valid      (fub_wr_error_valid),
+        .fub_error_ready      (fub_wr_error_ready),
+
+        // Clock gating status
+        .o_cg_gating          (o_wr_cg_gating),
+        .o_cg_idle            (o_wr_cg_idle)
     );
 
-endmodule : axi_slave
+endmodule : axi_slave_cg

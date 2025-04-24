@@ -27,7 +27,8 @@ module math_adder_brent_kung_016 #(
     ) GroupPGLogic_inst (
         .i_g  (ow_g),
         .i_p  (ow_p),
-        .ow_gg(ow_gg)
+        .ow_gg(ow_gg),
+        .ow_pp()
     );
     math_adder_brent_kung_sum #(
         .N(N)

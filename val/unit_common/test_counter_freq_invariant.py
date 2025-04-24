@@ -11,6 +11,24 @@ from cocotb_test.simulator import run
 from CocoTBFramework.tbclasses.tbbase import TBBase
 from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 
+FACTOR_MAP = {
+    0x0: 1,       # 1000MHz (1GHz)  - 1:1 division
+    0x1: 10,      # 100MHz          - 10:1 division
+    0x2: 20,      # 50MHz           - 20:1 division
+    0x3: 25,      # 40MHz           - 25:1 division
+    0x4: 40,      # 25MHz           - 40:1 division
+    0x5: 50,      # 20MHz           - 50:1 division
+    0x6: 80,      # 12.5MHz         - 80:1 division
+    0x7: 100,     # 10MHz           - 100:1 division
+    0x8: 125,     # 8MHz            - 125:1 division
+    0x9: 200,     # 5MHz            - 200:1 division
+    0xA: 250,     # 4MHz            - 250:1 division
+    0xB: 500,     # 2MHz            - 500:1 division
+    0xC: 1000,    # 1MHz            - 1000:1 division
+    0xD: 2000,    # 500kHz          - 2000:1 division
+    0xE: 5000,    # 200kHz          - 5000:1 division
+    0xF: 10000,   # 100kHz          - 10000:1 division
+}
 
 class CounterFreqConfig:
     """Configuration class for counter frequency tests"""
@@ -53,25 +71,8 @@ class CounterFreqConfig:
 
     def _get_division_factor(self, freq_sel):
         """Get the expected division factor for a given frequency selection"""
-        factor_map = {
-            0x0: 1,       # 1000MHz (1GHz)  - 1:1 division
-            0x1: 10,      # 100MHz          - 10:1 division
-            0x2: 20,      # 50MHz           - 20:1 division
-            0x3: 25,      # 40MHz           - 25:1 division
-            0x4: 40,      # 25MHz           - 40:1 division
-            0x5: 50,      # 20MHz           - 50:1 division
-            0x6: 80,      # 12.5MHz         - 80:1 division
-            0x7: 100,     # 10MHz           - 100:1 division
-            0x8: 125,     # 8MHz            - 125:1 division
-            0x9: 200,     # 5MHz            - 200:1 division
-            0xA: 250,     # 4MHz            - 250:1 division
-            0xB: 500,     # 2MHz            - 500:1 division
-            0xC: 1000,    # 1MHz            - 1000:1 division
-            0xD: 2000,    # 500kHz          - 2000:1 division
-            0xE: 5000,    # 200kHz          - 5000:1 division
-            0xF: 10000,   # 100kHz          - 10000:1 division
-        }
-        return factor_map.get(freq_sel, 1)  # Default to 1 if invalid
+
+        return FACTOR_MAP.get(freq_sel, 1)  # Default to 1 if invalid
 
 
 class CounterFreqInvariantTB(TBBase):
@@ -117,25 +118,8 @@ class CounterFreqInvariantTB(TBBase):
 
     def _get_division_factor(self, freq_sel):
         """Get the expected division factor for a given frequency selection"""
-        factor_map = {
-            0x0: 1,       # 1000MHz (1GHz)  - 1:1 division
-            0x1: 10,      # 100MHz          - 10:1 division
-            0x2: 20,      # 50MHz           - 20:1 division
-            0x3: 25,      # 40MHz           - 25:1 division
-            0x4: 40,      # 25MHz           - 40:1 division
-            0x5: 50,      # 20MHz           - 50:1 division
-            0x6: 80,      # 12.5MHz         - 80:1 division
-            0x7: 100,     # 10MHz           - 100:1 division
-            0x8: 125,     # 8MHz            - 125:1 division
-            0x9: 200,     # 5MHz            - 200:1 division
-            0xA: 250,     # 4MHz            - 250:1 division
-            0xB: 500,     # 2MHz            - 500:1 division
-            0xC: 1000,    # 1MHz            - 1000:1 division
-            0xD: 2000,    # 500kHz          - 2000:1 division
-            0xE: 5000,    # 200kHz          - 5000:1 division
-            0xF: 10000,   # 100kHz          - 10000:1 division
-        }
-        return factor_map.get(freq_sel, 1)  # Default to 1 if invalid
+
+        return FACTOR_MAP.get(freq_sel, 1)  # Default to 1 if invalid
 
     async def reset_dut(self):
         """Reset the DUT"""
@@ -339,7 +323,7 @@ class CounterFreqInvariantTB(TBBase):
             if value != expected_value and (prev_value != self.counter_max or value != 0):
                 errors += 1
                 error_details.append((i, prev_value, value, expected_value))
-            
+
                 # If we detect a sequence error, end the current segment
                 segments.append(current_segment)
                 current_segment = [(cycle, value)]
@@ -829,7 +813,10 @@ async def counter_freq_invariant_dynamic_test(dut):
 def test_counter_freq_invariant(request, counter_width):
     """Run the test with pytest"""
     # Get all of the directory and module information
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common'})
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths(
+        {
+            'rtl_cmn': 'rtl/common'
+    })
 
     dut_name = "counter_freq_invariant"
     toplevel = dut_name
@@ -863,6 +850,8 @@ def test_counter_freq_invariant(request, counter_width):
 
     # Environment variables
     extra_env = {
+        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'VERILATOR_TRACE': '1',  # Enable tracing
         'TEST_COUNTER_WIDTH': str(counter_width),
         'DUT': dut_name,
         'LOG_PATH': log_path,
@@ -870,6 +859,23 @@ def test_counter_freq_invariant(request, counter_width):
         'COCOTB_RESULTS_FILE': results_path,
         'SEED': str(random.randint(0, 100000))
     }
+
+
+    compile_args = [
+            "--trace-fst",
+            "--trace-structs",
+            "--trace-depth", "99",
+    ]
+
+    sim_args = [
+            "--trace-fst",  # Tell Verilator to use FST
+            "--trace-structs",
+            "--trace-depth", "99",
+    ]
+
+    plusargs = [
+            "+trace",
+    ]
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
@@ -884,7 +890,10 @@ def test_counter_freq_invariant(request, counter_width):
             sim_build=sim_build,
             extra_env=extra_env,
             waves=True,
-            keep_files=True
+            keep_files=True,
+            compile_args=compile_args,
+            sim_args=sim_args,
+            plusargs=plusargs,
         )
     except Exception as e:
         # If the test fails, make sure logs are preserved

@@ -35,7 +35,7 @@ module glitch_free_n_dff_arn #(
 
     ////////////////////////////////////////////////////////////////////////////
     // Output assignment with DEL time unit delay
-    assign #DEL o_q = r_q_array[FC-1];
+    assign o_q = r_q_array[FC-1];
 
     wire [(DW*FC)-1:0] flat_r_q;
     genvar i;

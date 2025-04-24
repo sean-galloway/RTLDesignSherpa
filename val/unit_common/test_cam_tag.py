@@ -2,7 +2,6 @@ import os
 import random
 import pytest
 import cocotb
-from cocotb.triggers import RisingEdge, Timer
 from cocotb.utils import get_sim_time
 from cocotb_test.simulator import run
 
@@ -273,16 +272,19 @@ async def cam_tag_test(dut):
         time_ns = get_sim_time('ns')
         tb.log.info(f"=== Starting basic CAM test @ {time_ns}ns ===")
         await tb.run_basic_test()
+        await tb.cleanup_cam()  # Clean up after test
 
         # Run capacity test
         time_ns = get_sim_time('ns')
         tb.log.info(f"=== Starting capacity test @ {time_ns}ns ===")
         await tb.run_capacity_test()
+        await tb.cleanup_cam()  # Clean up after test
 
         # Run concurrent access test
         time_ns = get_sim_time('ns')
         tb.log.info(f"=== Starting concurrent access test @ {time_ns}ns ===")
         await tb.run_concurrent_access_test()
+        await tb.cleanup_cam()  # Clean up after test
 
         # Run main loop test from CamTB base class
         time_ns = get_sim_time('ns')
@@ -303,14 +305,17 @@ async def cam_tag_test(dut):
 
 @pytest.mark.parametrize("n, depth", [
     (8, 16),
-    # (4, 8),
-    # (8, 32),
-    # (8, 64)
+    (4, 8),
+    (8, 32),
+    (8, 64)
     ])
 def test_cam_tag(request, n, depth):
     """Run the test with pytest"""
     # Get all of the directory and module information
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common'})
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths(
+        {
+            'rtl_cmn': 'rtl/common'
+    })
 
     dut_name = "cam_tag"
     toplevel = dut_name
@@ -342,6 +347,8 @@ def test_cam_tag(request, n, depth):
 
     # Environment variables
     extra_env = {
+        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'VERILATOR_TRACE': '1',  # Enable tracing
         'DUT': dut_name,
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
@@ -352,6 +359,23 @@ def test_cam_tag(request, n, depth):
     # Add parameter values to environment variables
     for k, v in parameters.items():
         extra_env[f'PARAM_{k}'] = str(v)
+
+
+    compile_args = [
+            "--trace-fst",
+            "--trace-structs",
+            "--trace-depth", "99",
+    ]
+
+    sim_args = [
+            "--trace-fst",  # Tell Verilator to use FST
+            "--trace-structs",
+            "--trace-depth", "99",
+    ]
+
+    plusargs = [
+            "+trace",
+    ]
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
@@ -366,7 +390,10 @@ def test_cam_tag(request, n, depth):
             sim_build=sim_build,
             extra_env=extra_env,
             waves=True,
-            keep_files=True
+            keep_files=True,
+            compile_args=compile_args,
+            sim_args=sim_args,
+            plusargs=plusargs,
         )
     except Exception as e:
         # If the test fails, make sure logs are preserved

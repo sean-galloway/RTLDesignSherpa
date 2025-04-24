@@ -79,6 +79,10 @@ module axil_master_rd_cg
     logic user_valid;
     logic axi_valid;
     
+    // Internal ready signals from the base module
+    logic int_fub_arready;
+    logic int_m_axil_rready;
+    
     // OR all user-side valid signals
     assign user_valid = fub_arvalid || fub_rvalid || fub_error_valid;
     
@@ -100,6 +104,10 @@ module axil_master_rd_cg
         .o_idle              (o_cg_idle)
     );
     
+    // Force ready signals to 0 when clock gating is active
+    assign fub_arready = o_cg_gating ? 1'b0 : int_fub_arready;
+    assign m_axil_rready = o_cg_gating ? 1'b0 : int_m_axil_rready;
+    
     // Instantiate the base AXI-Lite master read module with gated clock
     axil_master_rd #(
         .AXIL_ADDR_WIDTH     (AXIL_ADDR_WIDTH),
@@ -118,7 +126,7 @@ module axil_master_rd_cg
         .fub_araddr          (fub_araddr),
         .fub_arprot          (fub_arprot),
         .fub_arvalid         (fub_arvalid),
-        .fub_arready         (fub_arready),
+        .fub_arready         (int_fub_arready),  // Connect to internal signal
         
         .fub_rdata           (fub_rdata),
         .fub_rresp           (fub_rresp),
@@ -134,7 +142,7 @@ module axil_master_rd_cg
         .m_axil_rdata        (m_axil_rdata),
         .m_axil_rresp        (m_axil_rresp),
         .m_axil_rvalid       (m_axil_rvalid),
-        .m_axil_rready       (m_axil_rready),
+        .m_axil_rready       (int_m_axil_rready),  // Connect to internal signal
         
         // Error outputs
         .fub_error_type      (fub_error_type),

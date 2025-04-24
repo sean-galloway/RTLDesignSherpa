@@ -1,11 +1,9 @@
 import os
 import random
-from collections import deque
 
 import pytest
 import cocotb
 from cocotb.utils import get_sim_time
-from cocotb.triggers import RisingEdge, Timer
 from cocotb_test.simulator import run
 
 from CocoTBFramework.tbclasses.tbbase import TBBase
@@ -45,7 +43,7 @@ class ChecksumTB(TBBase):
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
         self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic')
         self.WIDTH = self.convert_to_int(os.environ.get('TEST_WIDTH', '8'))
-        
+
         # Calculate maximum data value based on width
         self.MAX_DATA = (1 << self.WIDTH) - 1
 
@@ -130,7 +128,7 @@ class ChecksumTB(TBBase):
         for i, data in enumerate(data_values):
             # Mask data to the correct width
             masked_data = data & self.MAX_DATA
-            
+
             # Drive the inputs
             self.i_valid.value = 1
             self.i_data.value = masked_data
@@ -146,13 +144,13 @@ class ChecksumTB(TBBase):
 
             # Store results
             test_result['actual_checksums'].append(actual_checksum)
-            
+
             # Check if checksum matches expected
             match = (actual_checksum == expected_checksum)
             if not match:
                 test_result['all_match'] = False
                 time_ns = get_sim_time('ns')
-                self.log.error(f"Checksum mismatch at step {i+1}: " + 
+                self.log.error(f"Checksum mismatch at step {i+1}: " +
                                 f"expected=0x{expected_checksum:x}, actual=0x{actual_checksum:x}"
                                 f"@ {time_ns}ns")
             else:
@@ -160,13 +158,13 @@ class ChecksumTB(TBBase):
 
         # Deassert valid
         self.i_valid.value = 0
-        
+
         # Wait a few cycles
         await self.wait_clocks('i_clk', 5)
-        
+
         # Store test result
         self.test_results.append(test_result)
-        
+
         return test_result
 
     def _calculate_expected_checksums(self, data_values):
@@ -181,17 +179,17 @@ class ChecksumTB(TBBase):
         """
         checksum = 0
         checksums = []
-        
+
         for data in data_values:
             # Mask data to the correct width
             masked_data = data & self.MAX_DATA
-            
+
             # Calculate new checksum
             checksum = (checksum + masked_data) & self.MAX_DATA
-            
+
             # Store checksum
             checksums.append(checksum)
-        
+
         return checksums
 
     async def test_basic_operation(self):
@@ -202,7 +200,7 @@ class ChecksumTB(TBBase):
             True if all tests passed
         """
         self.log.info("Testing basic checksum operation")
-        
+
         # Define test vectors
         test_vectors = [
             [0x01, 0x02, 0x03, 0x04],                      # Simple incrementing
@@ -211,24 +209,24 @@ class ChecksumTB(TBBase):
             [0xAA, 0x55, 0xAA, 0x55],                      # Alternating pattern
             [0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10]     # Longer sequence
         ]
-        
+
         all_passed = True
-        
+
         # Drive each test vector
         for i, vector in enumerate(test_vectors):
             time_ns = get_sim_time('ns')
             self.log.info(f"Testing vector {i+1}: {[hex(x) for x in vector]} @ {time_ns}ns")
-            
+
             # Drive the vector
             result = await self.drive_data(vector)
-            
+
             # Check if all checksums matched
             if not result['all_match']:
                 self.log.error(f"Test vector {i+1} failed")
                 all_passed = False
                 if self.TEST_LEVEL == 'basic':
                     break
-        
+
         return all_passed
 
     async def test_reset_functionality(self):
@@ -239,57 +237,57 @@ class ChecksumTB(TBBase):
             True if all tests passed
         """
         self.log.info("Testing reset functionality")
-        
+
         # First, drive some data to build up a checksum
         initial_data = [0x12, 0x34, 0x56, 0x78]
-        
+
         result1 = await self.drive_data(initial_data)
         if not result1['all_match']:
             self.log.error("Initial data sequence failed")
             return False
-        
+
         # Get the final checksum
         final_checksum = result1['actual_checksums'][-1]
         self.log.info(f"Final checksum before reset: 0x{final_checksum:x}")
-        
+
         # Test asynchronous reset
         self.log.info("Testing asynchronous reset")
         self.i_rst_n.value = 0
         await self.wait_clocks('i_clk', 2)
         self.i_rst_n.value = 1
         await self.wait_clocks('i_clk', 2)
-        
+
         # Check if checksum was reset
         reset_checksum = int(self.o_chksum.value)
         if reset_checksum != 0:
             self.log.error(f"Asynchronous reset failed: checksum=0x{reset_checksum:x}, expected=0x0")
             return False
-        
+
         self.log.info("Asynchronous reset successful")
-        
+
         # Drive more data
         more_data = [0x9A, 0xBC, 0xDE, 0xF0]
-        
+
         result2 = await self.drive_data(more_data)
         if not result2['all_match']:
             self.log.error("Second data sequence failed")
             return False
-        
+
         # Test synchronous reset
         self.log.info("Testing synchronous reset")
         self.i_reset.value = 1
         await self.wait_clocks('i_clk', 1)
         self.i_reset.value = 0
         await self.wait_clocks('i_clk', 1)
-        
+
         # Check if checksum was reset
         reset_checksum = int(self.o_chksum.value)
         if reset_checksum != 0:
             self.log.error(f"Synchronous reset failed: checksum=0x{reset_checksum:x}, expected=0x0")
             return False
-        
+
         self.log.info("Synchronous reset successful")
-        
+
         return True
 
     async def test_overflow_behavior(self):
@@ -301,45 +299,45 @@ class ChecksumTB(TBBase):
         """
 
         self.log.info("Testing overflow behavior")
-        
+
         # Create a test vector that will cause overflow
         max_value = self.MAX_DATA
         half_max = max_value // 2
-        
+
         test_vector = [max_value, 1]
         expected_checksums = [max_value, 0]  # Expect overflow back to 0
-        
+
         result = await self.drive_data(test_vector, expected_checksums)
         time_ns = get_sim_time('ns')
         if not result['all_match']:
             self.log.error("Overflow test failed @ {time_ns}ns")
             return False
-        
+
         self.log.info("Overflow test passed")
-        
+
         # Test multiple overflows if not in basic mode
         if self.TEST_LEVEL != 'basic':
             self.log.info("Testing multiple overflows")
-            
+
             # Create a test vector with multiple overflows
             test_vector = [max_value] * 5
-            
+
             # Calculate expected checksums with overflow consideration
             expected = 0
             expected_checksums = []
             for _ in range(5):
                 expected = (expected + max_value) & self.MAX_DATA
                 expected_checksums.append(expected)
-            
+
             result = await self.drive_data(test_vector, expected_checksums)
-            
+
             if not result['all_match']:
                 time_ns = get_sim_time('ns')
                 self.log.error("Multiple overflow test failed @ {time_ns}ns")
                 return False
-            
+
             self.log.info("Multiple overflow test passed")
-        
+
         return True
 
     async def test_random_data(self):
@@ -350,7 +348,7 @@ class ChecksumTB(TBBase):
             True if all tests passed
         """
         self.log.info("Testing with random data")
-        
+
         # Determine number of tests based on test level
         if self.TEST_LEVEL == 'basic':
             num_tests = 2
@@ -361,26 +359,26 @@ class ChecksumTB(TBBase):
         else:  # full
             num_tests = 10
             max_length = 50
-        
+
         all_passed = True
-        
+
         for test_num in range(num_tests):
             # Generate random data vector
             length = random.randint(5, max_length)
             data_vector = [random.randint(0, self.MAX_DATA) for _ in range(length)]
-            
+
             self.log.info(f"Random test {test_num+1}: length={length}")
-            
+
             # Drive the vector
             result = await self.drive_data(data_vector)
-            
+
             # Check if all checksums matched
             if not result['all_match']:
                 self.log.error(f"Random test {test_num+1} failed")
                 all_passed = False
                 if self.TEST_LEVEL == 'basic':
                     break
-        
+
         return all_passed
 
     async def run_all_tests(self):
@@ -440,11 +438,11 @@ class ChecksumTB(TBBase):
         total_tests = len(self.test_results)
         passed_tests = sum(bool(r['all_match'])
                         for r in self.test_results)
-        
+
         self.log.info("="*50)
         self.log.info(f"Test Summary: {passed_tests}/{total_tests} tests passed")
         self.log.info("="*50)
-        
+
         # Print detailed results based on test level
         if self.TEST_LEVEL != 'basic' and passed_tests < total_tests:
             self.log.info("Failed tests:")
@@ -452,8 +450,8 @@ class ChecksumTB(TBBase):
                 if not result['all_match']:
                     self.log.info(f"Test {i+1}:")
                     for j, (data, expected, actual) in enumerate(zip(
-                            result['data_values'], 
-                            result['expected_checksums'], 
+                            result['data_values'],
+                            result['expected_checksums'],
                             result['actual_checksums'])):
                         if expected != actual:
                             self.log.info(f"  Step {j+1}: data=0x{data:x}, expected=0x{expected:x}, actual=0x{actual:x}")
@@ -480,7 +478,7 @@ async def comprehensive_test(dut):
     {'WIDTH': 8, 'test_level': 'basic'},
     {'WIDTH': 8, 'test_level': 'medium'},
     {'WIDTH': 8, 'test_level': 'full'},
-    
+
     # Test with different data widths
     {'WIDTH':  4, 'test_level': 'medium'},
     {'WIDTH': 16, 'test_level': 'medium'},
@@ -489,7 +487,10 @@ async def comprehensive_test(dut):
 def test_dataint_checksum(request, params): # sourcery skip: no-conditionals-in-tests
     """Run the test with pytest and configurable parameters"""
     # Get all of the directory and module information
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common'})
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths(
+        {
+            'rtl_cmn': 'rtl/common'
+    })
 
     dut_name = "dataint_checksum"
     toplevel = dut_name
@@ -523,6 +524,8 @@ def test_dataint_checksum(request, params): # sourcery skip: no-conditionals-in-
 
     # Prepare environment variables
     extra_env = {
+        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'VERILATOR_TRACE': '1',  # Enable tracing
         'DUT': dut_name,
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
@@ -541,6 +544,23 @@ def test_dataint_checksum(request, params): # sourcery skip: no-conditionals-in-
     timeout_factor = complexity_factor * 50
     extra_env['COCOTB_TIMEOUT_MULTIPLIER'] = str(timeout_factor)
 
+
+    compile_args = [
+            "--trace-fst",
+            "--trace-structs",
+            "--trace-depth", "99",
+    ]
+
+    sim_args = [
+            "--trace-fst",  # Tell Verilator to use FST
+            "--trace-structs",
+            "--trace-depth", "99",
+    ]
+
+    plusargs = [
+            "+trace",
+    ]
+
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
     try:
@@ -554,7 +574,10 @@ def test_dataint_checksum(request, params): # sourcery skip: no-conditionals-in-
             sim_build=sim_build,
             extra_env=extra_env,
             waves=True,
-            keep_files=True
+            keep_files=True,
+            compile_args=compile_args,
+            sim_args=sim_args,
+            plusargs=plusargs,
         )
     except Exception as e:
         # If the test fails, make sure logs are preserved

@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module axi_slave
+module axi_master
 #(
     // AXI parameters
     parameter int AXI_ID_WIDTH      = 8,
@@ -16,6 +16,7 @@ module axi_slave
     parameter int SKID_DEPTH_B      = 2,
 
     // FIFO parameters
+    parameter int SPLIT_FIFO_DEPTH  = 2,
     parameter int ERROR_FIFO_DEPTH  = 2,
 
     // Timeout parameters (in clock cycles)
@@ -27,10 +28,14 @@ module axi_slave
 )
 (
     // Global Clock and Reset
-    input  logic aclk,
-    input  logic aresetn,
+    input  logic                       aclk,
+    input  logic                       aresetn,
 
-    // Master AXI Interface (Input Side)
+    // Alignment mask signals (12-bit)
+    input  logic [11:0]                rd_alignment_mask,
+    input  logic [11:0]                wr_alignment_mask,
+
+    // Slave AXI Interface (Input Side)
     // Read address channel (AR)
     input  logic [AXI_ID_WIDTH-1:0]    fub_arid,
     input  logic [AXI_ADDR_WIDTH-1:0]  fub_araddr,
@@ -85,60 +90,74 @@ module axi_slave
     output logic                       fub_bvalid,
     input  logic                       fub_bready,
 
-    // Slave AXI Interface (Output Side to memory or backend)
+    // Master AXI Interface (Output Side)
     // Read address channel (AR)
-    output logic [AXI_ID_WIDTH-1:0]    s_axi_arid,
-    output logic [AXI_ADDR_WIDTH-1:0]  s_axi_araddr,
-    output logic [7:0]                 s_axi_arlen,
-    output logic [2:0]                 s_axi_arsize,
-    output logic [1:0]                 s_axi_arburst,
-    output logic                       s_axi_arlock,
-    output logic [3:0]                 s_axi_arcache,
-    output logic [2:0]                 s_axi_arprot,
-    output logic [3:0]                 s_axi_arqos,
-    output logic [3:0]                 s_axi_arregion,
-    output logic [AXI_USER_WIDTH-1:0]  s_axi_aruser,
-    output logic                       s_axi_arvalid,
-    input  logic                       s_axi_arready,
+    output logic [AXI_ID_WIDTH-1:0]    m_axi_arid,
+    output logic [AXI_ADDR_WIDTH-1:0]  m_axi_araddr,
+    output logic [7:0]                 m_axi_arlen,
+    output logic [2:0]                 m_axi_arsize,
+    output logic [1:0]                 m_axi_arburst,
+    output logic                       m_axi_arlock,
+    output logic [3:0]                 m_axi_arcache,
+    output logic [2:0]                 m_axi_arprot,
+    output logic [3:0]                 m_axi_arqos,
+    output logic [3:0]                 m_axi_arregion,
+    output logic [AXI_USER_WIDTH-1:0]  m_axi_aruser,
+    output logic                       m_axi_arvalid,
+    input  logic                       m_axi_arready,
 
     // Read data channel (R)
-    input  logic [AXI_ID_WIDTH-1:0]    s_axi_rid,
-    input  logic [AXI_DATA_WIDTH-1:0]  s_axi_rdata,
-    input  logic [1:0]                 s_axi_rresp,
-    input  logic                       s_axi_rlast,
-    input  logic [AXI_USER_WIDTH-1:0]  s_axi_ruser,
-    input  logic                       s_axi_rvalid,
-    output logic                       s_axi_rready,
+    input  logic [AXI_ID_WIDTH-1:0]    m_axi_rid,
+    input  logic [AXI_DATA_WIDTH-1:0]  m_axi_rdata,
+    input  logic [1:0]                 m_axi_rresp,
+    input  logic                       m_axi_rlast,
+    input  logic [AXI_USER_WIDTH-1:0]  m_axi_ruser,
+    input  logic                       m_axi_rvalid,
+    output logic                       m_axi_rready,
 
     // Write address channel (AW)
-    output logic [AXI_ID_WIDTH-1:0]    s_axi_awid,
-    output logic [AXI_ADDR_WIDTH-1:0]  s_axi_awaddr,
-    output logic [7:0]                 s_axi_awlen,
-    output logic [2:0]                 s_axi_awsize,
-    output logic [1:0]                 s_axi_awburst,
-    output logic                       s_axi_awlock,
-    output logic [3:0]                 s_axi_awcache,
-    output logic [2:0]                 s_axi_awprot,
-    output logic [3:0]                 s_axi_awqos,
-    output logic [3:0]                 s_axi_awregion,
-    output logic [AXI_USER_WIDTH-1:0]  s_axi_awuser,
-    output logic                       s_axi_awvalid,
-    input  logic                       s_axi_awready,
+    output logic [AXI_ID_WIDTH-1:0]    m_axi_awid,
+    output logic [AXI_ADDR_WIDTH-1:0]  m_axi_awaddr,
+    output logic [7:0]                 m_axi_awlen,
+    output logic [2:0]                 m_axi_awsize,
+    output logic [1:0]                 m_axi_awburst,
+    output logic                       m_axi_awlock,
+    output logic [3:0]                 m_axi_awcache,
+    output logic [2:0]                 m_axi_awprot,
+    output logic [3:0]                 m_axi_awqos,
+    output logic [3:0]                 m_axi_awregion,
+    output logic [AXI_USER_WIDTH-1:0]  m_axi_awuser,
+    output logic                       m_axi_awvalid,
+    input  logic                       m_axi_awready,
 
     // Write data channel (W)
-    output logic [AXI_DATA_WIDTH-1:0]  s_axi_wdata,
-    output logic [AXI_DATA_WIDTH/8-1:0] s_axi_wstrb,
-    output logic                       s_axi_wlast,
-    output logic [AXI_USER_WIDTH-1:0]  s_axi_wuser,
-    output logic                       s_axi_wvalid,
-    input  logic                       s_axi_wready,
+    output logic [AXI_DATA_WIDTH-1:0]  m_axi_wdata,
+    output logic [AXI_DATA_WIDTH/8-1:0] m_axi_wstrb,
+    output logic                       m_axi_wlast,
+    output logic [AXI_USER_WIDTH-1:0]  m_axi_wuser,
+    output logic                       m_axi_wvalid,
+    input  logic                       m_axi_wready,
 
     // Write response channel (B)
-    input  logic [AXI_ID_WIDTH-1:0]    s_axi_bid,
-    input  logic [1:0]                 s_axi_bresp,
-    input  logic [AXI_USER_WIDTH-1:0]  s_axi_buser,
-    input  logic                       s_axi_bvalid,
-    output logic                       s_axi_bready,
+    input  logic [AXI_ID_WIDTH-1:0]    m_axi_bid,
+    input  logic [1:0]                 m_axi_bresp,
+    input  logic [AXI_USER_WIDTH-1:0]  m_axi_buser,
+    input  logic                       m_axi_bvalid,
+    output logic                       m_axi_bready,
+
+    // Output split information with FIFO interface - Read Channel
+    output logic [AXI_ADDR_WIDTH-1:0]  fub_rd_split_addr,
+    output logic [AXI_ID_WIDTH-1:0]    fub_rd_split_id,
+    output logic [7:0]                 fub_rd_split_cnt,
+    output logic                       fub_rd_split_valid,
+    input  logic                       fub_rd_split_ready,
+
+    // Output split information with FIFO interface - Write Channel
+    output logic [AXI_ADDR_WIDTH-1:0]  fub_wr_split_addr,
+    output logic [AXI_ID_WIDTH-1:0]    fub_wr_split_id,
+    output logic [7:0]                 fub_wr_split_cnt,
+    output logic                       fub_wr_split_valid,
+    input  logic                       fub_wr_split_ready,
 
     // Error outputs with FIFO interface - Read Channel
     output logic [3:0]                 fub_rd_error_type,
@@ -155,22 +174,24 @@ module axi_slave
     input  logic                       fub_wr_error_ready
 );
 
-    // Instantiate AXI slave read module
-    axi_slave_rd #(
+    // Instantiate AXI master read module
+    axi_master_rd #(
         .AXI_ID_WIDTH         (AXI_ID_WIDTH),
         .AXI_ADDR_WIDTH       (AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH       (AXI_DATA_WIDTH),
         .AXI_USER_WIDTH       (AXI_USER_WIDTH),
         .SKID_DEPTH_AR        (SKID_DEPTH_AR),
         .SKID_DEPTH_R         (SKID_DEPTH_R),
+        .SPLIT_FIFO_DEPTH     (SPLIT_FIFO_DEPTH),
         .ERROR_FIFO_DEPTH     (ERROR_FIFO_DEPTH),
         .TIMEOUT_AR           (TIMEOUT_AR),
         .TIMEOUT_R            (TIMEOUT_R)
-    ) i_axi_slave_rd (
+    ) i_axi_master_rd (
         .aclk                 (aclk),
         .aresetn              (aresetn),
+        .alignment_mask       (rd_alignment_mask),
 
-        // Master interface (input)
+        // Slave interface (input)
         .fub_arid             (fub_arid),
         .fub_araddr           (fub_araddr),
         .fub_arlen            (fub_arlen),
@@ -193,28 +214,35 @@ module axi_slave
         .fub_rvalid           (fub_rvalid),
         .fub_rready           (fub_rready),
 
-        // Slave interface (output to memory/backend)
-        .s_axi_arid           (s_axi_arid),
-        .s_axi_araddr         (s_axi_araddr),
-        .s_axi_arlen          (s_axi_arlen),
-        .s_axi_arsize         (s_axi_arsize),
-        .s_axi_arburst        (s_axi_arburst),
-        .s_axi_arlock         (s_axi_arlock),
-        .s_axi_arcache        (s_axi_arcache),
-        .s_axi_arprot         (s_axi_arprot),
-        .s_axi_arqos          (s_axi_arqos),
-        .s_axi_arregion       (s_axi_arregion),
-        .s_axi_aruser         (s_axi_aruser),
-        .s_axi_arvalid        (s_axi_arvalid),
-        .s_axi_arready        (s_axi_arready),
+        // Master interface (output)
+        .m_axi_arid           (m_axi_arid),
+        .m_axi_araddr         (m_axi_araddr),
+        .m_axi_arlen          (m_axi_arlen),
+        .m_axi_arsize         (m_axi_arsize),
+        .m_axi_arburst        (m_axi_arburst),
+        .m_axi_arlock         (m_axi_arlock),
+        .m_axi_arcache        (m_axi_arcache),
+        .m_axi_arprot         (m_axi_arprot),
+        .m_axi_arqos          (m_axi_arqos),
+        .m_axi_arregion       (m_axi_arregion),
+        .m_axi_aruser         (m_axi_aruser),
+        .m_axi_arvalid        (m_axi_arvalid),
+        .m_axi_arready        (m_axi_arready),
 
-        .s_axi_rid            (s_axi_rid),
-        .s_axi_rdata          (s_axi_rdata),
-        .s_axi_rresp          (s_axi_rresp),
-        .s_axi_rlast          (s_axi_rlast),
-        .s_axi_ruser          (s_axi_ruser),
-        .s_axi_rvalid         (s_axi_rvalid),
-        .s_axi_rready         (s_axi_rready),
+        .m_axi_rid            (m_axi_rid),
+        .m_axi_rdata          (m_axi_rdata),
+        .m_axi_rresp          (m_axi_rresp),
+        .m_axi_rlast          (m_axi_rlast),
+        .m_axi_ruser          (m_axi_ruser),
+        .m_axi_rvalid         (m_axi_rvalid),
+        .m_axi_rready         (m_axi_rready),
+
+        // Split information with FIFO interface
+        .fub_split_addr       (fub_rd_split_addr),
+        .fub_split_id         (fub_rd_split_id),
+        .fub_split_cnt        (fub_rd_split_cnt),
+        .fub_split_valid      (fub_rd_split_valid),
+        .fub_split_ready      (fub_rd_split_ready),
 
         // Error outputs FIFO interface
         .fub_error_valid      (fub_rd_error_valid),
@@ -224,8 +252,8 @@ module axi_slave
         .fub_error_id         (fub_rd_error_id)
     );
 
-    // Instantiate AXI slave write module
-    axi_slave_wr #(
+    // Instantiate AXI master write module
+    axi_master_wr #(
         .AXI_ID_WIDTH         (AXI_ID_WIDTH),
         .AXI_ADDR_WIDTH       (AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH       (AXI_DATA_WIDTH),
@@ -233,15 +261,17 @@ module axi_slave
         .SKID_DEPTH_AW        (SKID_DEPTH_AW),
         .SKID_DEPTH_W         (SKID_DEPTH_W),
         .SKID_DEPTH_B         (SKID_DEPTH_B),
+        .SPLIT_FIFO_DEPTH     (SPLIT_FIFO_DEPTH),
         .ERROR_FIFO_DEPTH     (ERROR_FIFO_DEPTH),
         .TIMEOUT_AW           (TIMEOUT_AW),
         .TIMEOUT_W            (TIMEOUT_W),
         .TIMEOUT_B            (TIMEOUT_B)
-    ) i_axi_slave_wr (
+    ) i_axi_master_wr (
         .aclk                 (aclk),
         .aresetn              (aresetn),
+        .alignment_mask       (wr_alignment_mask),
 
-        // Master interface (input)
+        // Slave interface (input)
         .fub_awid             (fub_awid),
         .fub_awaddr           (fub_awaddr),
         .fub_awlen            (fub_awlen),
@@ -269,33 +299,40 @@ module axi_slave
         .fub_bvalid           (fub_bvalid),
         .fub_bready           (fub_bready),
 
-        // Slave interface (output to memory/backend)
-        .s_axi_awid           (s_axi_awid),
-        .s_axi_awaddr         (s_axi_awaddr),
-        .s_axi_awlen          (s_axi_awlen),
-        .s_axi_awsize         (s_axi_awsize),
-        .s_axi_awburst        (s_axi_awburst),
-        .s_axi_awlock         (s_axi_awlock),
-        .s_axi_awcache        (s_axi_awcache),
-        .s_axi_awprot         (s_axi_awprot),
-        .s_axi_awqos          (s_axi_awqos),
-        .s_axi_awregion       (s_axi_awregion),
-        .s_axi_awuser         (s_axi_awuser),
-        .s_axi_awvalid        (s_axi_awvalid),
-        .s_axi_awready        (s_axi_awready),
+        // Master interface (output)
+        .m_axi_awid           (m_axi_awid),
+        .m_axi_awaddr         (m_axi_awaddr),
+        .m_axi_awlen          (m_axi_awlen),
+        .m_axi_awsize         (m_axi_awsize),
+        .m_axi_awburst        (m_axi_awburst),
+        .m_axi_awlock         (m_axi_awlock),
+        .m_axi_awcache        (m_axi_awcache),
+        .m_axi_awprot         (m_axi_awprot),
+        .m_axi_awqos          (m_axi_awqos),
+        .m_axi_awregion       (m_axi_awregion),
+        .m_axi_awuser         (m_axi_awuser),
+        .m_axi_awvalid        (m_axi_awvalid),
+        .m_axi_awready        (m_axi_awready),
 
-        .s_axi_wdata          (s_axi_wdata),
-        .s_axi_wstrb          (s_axi_wstrb),
-        .s_axi_wlast          (s_axi_wlast),
-        .s_axi_wuser          (s_axi_wuser),
-        .s_axi_wvalid         (s_axi_wvalid),
-        .s_axi_wready         (s_axi_wready),
+        .m_axi_wdata          (m_axi_wdata),
+        .m_axi_wstrb          (m_axi_wstrb),
+        .m_axi_wlast          (m_axi_wlast),
+        .m_axi_wuser          (m_axi_wuser),
+        .m_axi_wvalid         (m_axi_wvalid),
+        .m_axi_wready         (m_axi_wready),
 
-        .s_axi_bid            (s_axi_bid),
-        .s_axi_bresp          (s_axi_bresp),
-        .s_axi_buser          (s_axi_buser),
-        .s_axi_bvalid         (s_axi_bvalid),
-        .s_axi_bready         (s_axi_bready),
+        .m_axi_bid            (m_axi_bid),
+        .m_axi_bresp          (m_axi_bresp),
+        .m_axi_buser          (m_axi_buser),
+        .m_axi_bvalid         (m_axi_bvalid),
+        .m_axi_bready         (m_axi_bready),
+
+        // Split information with FIFO interface
+        .fub_split_addr       (fub_wr_split_addr),
+        .fub_split_id         (fub_wr_split_id),
+        .fub_split_cnt        (fub_wr_split_cnt),
+        .fub_split_valid      (fub_wr_split_valid),
+        .fub_split_ready      (fub_wr_split_ready),
 
         // Error outputs FIFO interface
         .fub_error_valid      (fub_wr_error_valid),
@@ -305,4 +342,4 @@ module axi_slave
         .fub_error_id         (fub_wr_error_id)
     );
 
-endmodule : axi_slave
+endmodule : axi_master

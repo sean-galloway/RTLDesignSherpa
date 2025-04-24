@@ -10,7 +10,7 @@ module math_multiplier_booth_radix_4_encoder #(
     // Sign-extended multiplicand (N+1 bits)
     logic [N:0] multiplicand_ext;
     assign multiplicand_ext = {i_multiplicand[N-1], i_multiplicand};
-    
+
     always_comb begin
         case (i_booth_group)
             3'b000:  ow_booth_out = {(N+2){1'b0}};                // +0

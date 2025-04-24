@@ -1,10 +1,9 @@
-from CocoTBFramework.tbclasses.tbbase import TBBase
-import cocotb
-from cocotb.clock import Clock
-from cocotb.triggers import RisingEdge, FallingEdge, ClockCycles, Timer
-from crc import Calculator, Configuration
 import os
 import random
+
+from cocotb.utils import get_sim_time
+from CocoTBFramework.tbclasses.tbbase import TBBase
+
 
 class CamTB(TBBase):
 
@@ -39,29 +38,62 @@ class CamTB(TBBase):
         self.check_empty()
         self.check_not_full()
 
-    async def main_loop_sb(self):
+    async def main_loop(self):
         self.log.info("Main Test")
-        tag_list = [random.randint(0x00, self.max_val) for _ in range(self.DEPTH)]
+        # Generate DEPTH unique tags
+        tag_list = []
+        while len(tag_list) < self.DEPTH:
+            tag = random.randint(0x00, self.max_val)
+            if tag not in tag_list:
+                tag_list.append(tag)
+
         self.log.info(f'{tag_list=}')
+
+        # Track which tags are actually added successfully
+        valid_tags = []
+
+        # Add tags to the CAM
         for tag in tag_list:
             await self.mark_one_valid(tag)
+            # Verify tag was added successfully
+            self.dut.i_tag_in_status.value = tag
+            await self.wait_clocks('i_clk', 1)
+            if self.dut.ow_tag_status == 1:
+                valid_tags.append(tag)
+
         self.check_not_empty()
-        # self.check_full()
-        random.shuffle(tag_list)
-        tag = tag_list.pop()
+
+        # Verify CAM is full if all tags were added
+        if len(valid_tags) == self.DEPTH:
+            self.check_full()
+
+        # Process one tag
+        random.shuffle(valid_tags)
+        tag = valid_tags.pop()
         await self.mark_one_invalid(tag)
         self.check_not_empty()
         self.check_not_full()
+
+        # Add tag back
         await self.mark_one_valid(tag)
-        # self.check_full()
-        tag_list.append(tag)
-        for tag in tag_list:
+        valid_tags.append(tag)
+
+        # Check if CAM is full if we expect it to be
+        if len(valid_tags) == self.DEPTH:
+            self.check_full()
+
+        # Remove all tags we know are valid
+        for tag in valid_tags:
             await self.mark_one_invalid(tag)
+            # Verify tag is removed
+            self.dut.i_tag_in_status.value = tag
+            await self.wait_clocks('i_clk', 1)
+            assert self.dut.ow_tag_status == 0, f"Tag 0x{tag:x} was not properly removed"
+
         self.clear_interface()
         await self.wait_clocks('i_clk', 1)
         self.check_empty()
         self.check_not_full()
-
 
     def clear_interface(self):
         self.dut.i_tag_in_status.value = 0
@@ -82,23 +114,23 @@ class CamTB(TBBase):
 
 
     def check_empty(self):
-        assert self.dut.ow_tags_empty == 1, "CAM should be empty, but is not."
+        assert self.dut.ow_tags_empty == 1, f"CAM should be empty, but is not.{self.get_time_ns_str()}"
 
 
     def check_not_empty(self):
-        assert self.dut.ow_tags_empty == 0, "CAM should not be empty, but is."
+        assert self.dut.ow_tags_empty == 0, f"CAM should not be empty, but is.{self.get_time_ns_str()}"
 
 
     def check_full(self):
-        assert self.dut.ow_tags_full == 1, "CAM should be full, but is not."
+        assert self.dut.ow_tags_full == 1, f"CAM should be full, but is not.{self.get_time_ns_str()}"
 
 
     def check_not_full(self):
-        assert self.dut.ow_tags_full == 0, "CAM should not be full, but is."
+        assert self.dut.ow_tags_full == 0, f"CAM should not be full, but is{self.get_time_ns_str()}."
 
 
     async def mark_one_valid(self, tag_value):
-        self.log.info(f"Marking Valid {hex(tag_value)}")
+        self.log.info(f"Marking Valid {self.hex_format(tag_value, self.max_val)}{self.get_time_ns_str()}")
         self.dut.i_tag_in_valid.value = tag_value
         self.dut.i_mark_valid.value = 1
         await self.wait_clocks('i_clk', 1)
@@ -107,7 +139,7 @@ class CamTB(TBBase):
 
 
     async def mark_one_invalid(self, tag_value):
-        self.log.info(f"Marking Valid {hex(tag_value)}")
+        self.log.info(f"Marking Invalid {self.hex_format(tag_value, self.max_val)}{self.get_time_ns_str()}")
         self.dut.i_tag_in_invalid.value = tag_value
         self.dut.i_mark_invalid.value = 1
         await self.wait_clocks('i_clk', 1)
@@ -120,9 +152,9 @@ class CamTB(TBBase):
         await self.wait_clocks('i_clk', 1)
         found = self.dut.ow_tag_status
         if check == 1:
-            msg = f"Expected tag({hex(tag_value)}) to be True"
+            msg = f"Expected tag({self.hex_format(tag_value, self.max_val)}) to be True{self.get_time_ns_str()}"
         else:
-            msg = f"Expected tag({hex(tag_value)}) to be False"
+            msg = f"Expected tag({self.hex_format(tag_value, self.max_val)}) to be False{self.get_time_ns_str()}"
         assert found == check, msg
 
 
@@ -141,3 +173,33 @@ class CamTB(TBBase):
         self.log.info(f'    N:     {self.N}')
         self.log.info(f'    DEPTH: {self.DEPTH}')
         self.log.info('-------------------------------------------')
+
+    async def cleanup_cam(self):
+        """Clear all entries from the CAM"""
+        self.log.info("Cleaning up CAM - removing all entries")
+
+        # First, find all valid entries in the CAM by checking each possible tag
+        valid_tags = []
+        for tag in range(1 << self.N):
+            self.dut.i_tag_in_status.value = tag
+            await self.wait_clocks('i_clk', 1)
+            if self.dut.ow_tag_status == 1:
+                valid_tags.append(tag)
+
+        # Now invalidate all discovered valid tags
+        for tag in valid_tags:
+            self.log.debug(f"Cleanup: Removing tag 0x{tag:x}")
+            await self.mark_one_invalid(tag)
+
+        # Clear interface signals
+        self.clear_interface()
+        await self.wait_clocks('i_clk', 1)
+
+        # Verify CAM is empty
+        try:
+            self.check_empty()
+            self.log.info("CAM successfully cleaned up")
+        except AssertionError:
+            self.log.error("CAM could not be completely cleaned up!")
+            # Do a hardware reset as a last resort
+            await self.reset_dut()

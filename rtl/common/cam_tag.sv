@@ -58,10 +58,10 @@ module cam_tag #(
                 r_tag_array[i] <= 'b0;
             end
         end else begin
-            if (i_mark_valid && !ow_tags_full && ENABLE) begin
+            if (i_mark_valid && !ow_tags_full && (ENABLE != 0)) begin
                 r_tag_array[w_next_valid_loc] <= i_tag_in_valid;
                 r_valid[w_next_valid_loc] <= 1'b1;
-            end else if (i_mark_invalid) begin
+            end else if (i_mark_invalid && w_match_invalid_loc >= 0) begin
                 r_tag_array[w_match_invalid_loc] <= 'b0;
                 r_valid[w_match_invalid_loc] <= 1'b0;
             end

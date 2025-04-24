@@ -16,12 +16,16 @@ module counter_bin #(
 );
 
     // Assign the next value
+    logic [WIDTH-2:0] w_max_val;
+    assign w_max_val = (WIDTH-1)'(MAX - 1);
+
     always_comb begin
-        if (i_enable)
-            if (o_counter_bin[WIDTH-2:0] == MAX - 1)
-                ow_counter_bin_next = {~o_counter_bin[WIDTH-1], {(WIDTH - 1) {1'b0}}};
-            else ow_counter_bin_next = o_counter_bin + 1;
-        else begin
+        if (i_enable) begin
+            if (o_counter_bin[WIDTH-2:0] == w_max_val)
+                ow_counter_bin_next = {~o_counter_bin[WIDTH-1], {(WIDTH - 1){1'b0}}};
+            else
+                ow_counter_bin_next = o_counter_bin + 1;
+        end else begin
             ow_counter_bin_next = o_counter_bin;
         end
     end

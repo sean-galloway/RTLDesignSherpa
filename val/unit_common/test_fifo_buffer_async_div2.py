@@ -11,49 +11,74 @@ from CocoTBFramework.tbclasses.fifo.fifo_buffer_configs import RANDOMIZER_CONFIG
 
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
-async def fifo_test(dut):
-    '''Test the FIFO Buffer as thoroughly as possible'''
-    tb = FifoBufferTB(dut, dut.i_clk, dut.i_rst_n)
+async def fifo_async_test(dut):
+    '''Test the Asynchronous FIFO Buffer as thoroughly as possible'''
+    # Create testbench with separate write and read clocks and reset signals
+    tb = FifoBufferTB(
+        dut,
+        wr_clk=dut.i_wr_clk,
+        wr_rstn=dut.i_wr_rst_n,
+        rd_clk=dut.i_rd_clk,
+        rd_rstn=dut.i_rd_rst_n
+    )
+
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
     msg = f'seed changed to {seed}'
     tb.log.info(msg)
-    await tb.start_clock('i_clk', 10, 'ns')
+
+    # Start both clocks with possibly different periods
+    await tb.start_clock('i_wr_clk', tb.TEST_CLK_WR, 'ns')
+    await tb.start_clock('i_rd_clk', tb.TEST_CLK_RD, 'ns')
+
+    # Reset sequence
     await tb.assert_reset()
-    await tb.wait_clocks('i_clk', 5)
+    await tb.wait_clocks('i_wr_clk', 5)
     await tb.deassert_reset()
-    await tb.wait_clocks('i_clk', 5)
+    await tb.wait_clocks('i_wr_clk', 5)
     tb.log.info("Starting test...")
 
-    for delay_key in RANDOMIZER_CONFIGS.keys():
-        await tb.simple_incremental_loops(count=10*tb.TEST_DEPTH, delay_key=delay_key, delay_clks_after=20)
+    # Run tests with different randomizer configurations
+    delay_keys = ['fixed', 'constrained', 'burst_pause']
+    for delay_key in delay_keys:
+        await tb.simple_incremental_loops(count=10*tb.TEST_DEPTH, delay_key=delay_key, delay_clks_after=30)
+        # Add extra delay between test iterations to allow for clock domain crossing
+        await tb.wait_clocks('i_wr_clk', 30)
 
 
 def generate_params():
     widths = [8]
-    depths = [2]
+    depths = [4, 8]  # Async FIFOs typically need slightly larger depths
     wr_clk_periods = [10]
-    rd_clk_periods = [10]
+    rd_clk_periods = [8, 12]  # Different read clock periods to test async behavior
     modes = ['fifo_mux', 'fifo_flop']
+
     return list(product(widths, depths, wr_clk_periods, rd_clk_periods, modes))
 
 params = generate_params()
 
 @pytest.mark.parametrize("data_width, depth, wr_clk_period, rd_clk_period, mode", params)
-def test_fifo_buffer_field(request, data_width, depth, wr_clk_period, rd_clk_period, mode):
+def test_fifo_async(request, data_width, depth, wr_clk_period, rd_clk_period, mode):
 
     # get all of the directory and module information
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
-        'rtl_cmn': 'rtl/common'
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths(
+        {
+            'rtl_cmn': 'rtl/common'
     })
 
     # set up all of the test names
-    dut_name = "fifo_sync"
+    dut_name = "fifo_async_div2"
     toplevel = dut_name
 
     verilog_sources = [
+        os.path.join(rtl_dict['rtl_cmn'], "find_first_set.sv"),
+        os.path.join(rtl_dict['rtl_cmn'], "find_last_set.sv"),
+        os.path.join(rtl_dict['rtl_cmn'], "leading_one_trailing_one.sv"),
         os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
+        os.path.join(rtl_dict['rtl_cmn'], "counter_johnson.sv"),
+        os.path.join(rtl_dict['rtl_cmn'], "grayj2bin.sv"),
+        os.path.join(rtl_dict['rtl_cmn'], "glitch_free_n_dff_arn.sv"),
         os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
         os.path.join(rtl_dict['rtl_cmn'], f"{dut_name}.sv"),
     ]
@@ -63,7 +88,7 @@ def test_fifo_buffer_field(request, data_width, depth, wr_clk_period, rd_clk_per
     d_str = TBBase.format_dec(depth, 3)
     wcl_str = TBBase.format_dec(wr_clk_period, 3)
     rcl_str = TBBase.format_dec(rd_clk_period, 3)
-    test_name_plus_params = f"test_buffer_field_sync_w{w_str}_d{d_str}_wcl{wcl_str}_rcl{rcl_str}_{mode}"
+    test_name_plus_params = f"test_buffer_async_w{w_str}_d{d_str}_wcl{wcl_str}_rcl{rcl_str}_{mode}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # use it in the simbuild path
@@ -98,7 +123,7 @@ def test_fifo_buffer_field(request, data_width, depth, wr_clk_period, rd_clk_per
     extra_env['TEST_CLK_WR'] = str(wr_clk_period)
     extra_env['TEST_CLK_RD'] = str(rd_clk_period)
     extra_env['TEST_MODE'] = mode
-    extra_env['TEST_KIND'] = 'sync'
+    extra_env['TEST_KIND'] = 'async'
 
 
     compile_args = [

@@ -15,23 +15,23 @@ async def fifo_async_test(dut):
     '''Test the Asynchronous FIFO Buffer as thoroughly as possible'''
     # Create testbench with separate write and read clocks and reset signals
     tb = FifoBufferTB(
-        dut, 
-        wr_clk=dut.i_wr_clk, 
+        dut,
+        wr_clk=dut.i_wr_clk,
         wr_rstn=dut.i_wr_rst_n,
         rd_clk=dut.i_rd_clk,
         rd_rstn=dut.i_rd_rst_n
     )
-    
+
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
     msg = f'seed changed to {seed}'
     tb.log.info(msg)
-    
+
     # Start both clocks with possibly different periods
     await tb.start_clock('i_wr_clk', tb.TEST_CLK_WR, 'ns')
     await tb.start_clock('i_rd_clk', tb.TEST_CLK_RD, 'ns')
-    
+
     # Reset sequence
     await tb.assert_reset()
     await tb.wait_clocks('i_wr_clk', 5)
@@ -62,7 +62,9 @@ params = generate_params()
 def test_fifo_async(request, data_width, depth, wr_clk_period, rd_clk_period, mode):
 
     # get all of the directory and module information
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common'})
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_cmn': 'rtl/common'
+    })
 
     # set up all of the test names
     dut_name = "fifo_async"
@@ -100,6 +102,8 @@ def test_fifo_async(request, data_width, depth, wr_clk_period, rd_clk_period, mo
 
     # Environment variables
     extra_env = {
+        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'VERILATOR_TRACE': '1',  # Enable tracing
         'DUT': dut_name,
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
@@ -116,6 +120,23 @@ def test_fifo_async(request, data_width, depth, wr_clk_period, rd_clk_period, mo
     extra_env['TEST_MODE'] = mode
     extra_env['TEST_KIND'] = 'async'
 
+
+    compile_args = [
+        "--trace-fst",
+        "--trace-structs",
+        "--trace-depth", "99",
+    ]
+
+    sim_args = [
+        "--trace-fst",  # Tell Verilator to use FST
+        "--trace-structs",
+        "--trace-depth", "99",
+    ]
+
+    plusargs = [
+        "+trace",
+    ]
+
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
     try:
@@ -129,7 +150,10 @@ def test_fifo_async(request, data_width, depth, wr_clk_period, rd_clk_period, mo
             sim_build=sim_build,
             extra_env=extra_env,
             waves=True,
-            keep_files=True
+            keep_files=True,
+            compile_args=compile_args,
+            sim_args=sim_args,
+            plusargs=plusargs,
         )
     except Exception as e:
         # If the test fails, make sure logs are preserved

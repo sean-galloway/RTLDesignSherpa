@@ -74,7 +74,8 @@ module arbiter_round_robin_weighted #(
                     // When replenish signal is active or this client is granted
                     if ((w_replenish && ow_gnt[i]) || (ow_gnt[i] && w_has_crd[i])) begin
                         // Only update when grant is acknowledged (if waiting for ack)
-                        if (~WAIT_GNT_ACK || i_gnt_ack[i]) begin
+                        // FIX: Using comparison instead of negation for parameter
+                        if ((WAIT_GNT_ACK == 0) || i_gnt_ack[i]) begin
                             r_crd_cnt[EndIdx-:MTW] <= w_crd_cnt_next[EndIdx-:MTW];
                         end
                     end else if (w_replenish && !ow_gnt[i]) begin
@@ -104,7 +105,8 @@ module arbiter_round_robin_weighted #(
         ow_gnt_id = '0;  // Default value
         for (int j = 0; j < C; j++) begin
             if (ow_gnt[j]) begin
-                ow_gnt_id = j;
+                // FIX: Explicit casting from int to N bits
+                ow_gnt_id = N'(j);
             end
         end
     end

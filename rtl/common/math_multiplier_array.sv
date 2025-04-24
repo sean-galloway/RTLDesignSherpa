@@ -9,7 +9,8 @@ module math_multiplier_array #(
 );
 
     wire [N*(N-1)-1:0] w_sum;
-    wire [N-1:0] w_and, w_o_c;
+    wire [N-1:0] w_and;
+    wire         w_o_c [N-2];
 
     assign w_and[N-1:0] = i_multiplier & {N{i_multiplicand[0]}};
 
@@ -58,4 +59,3 @@ module math_multiplier_array #(
     assign ow_product[N*2-1:N*2-N-1] = {w_o_c[N-2], w_sum[N*(N-1)-1:N*(N-2)]};
 
 endmodule
-
