@@ -308,7 +308,7 @@ async def cam_tag_test(dut):
     (4, 8),
     (8, 32),
     (8, 64)
-    ])
+])
 def test_cam_tag(request, n, depth):
     """Run the test with pytest"""
     # Get all of the directory and module information
