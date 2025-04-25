@@ -32,7 +32,7 @@ class GAXISequence:
             packet_class: Class to use for packet creation
         """
         self.name = name
-        self.packet_class = packet_class
+        self.packet_class = packet_class or GAXIPacket
 
         # Handle field_config as either FieldConfig object or dictionary
         if isinstance(field_config, FieldConfig):

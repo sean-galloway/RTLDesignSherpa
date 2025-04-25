@@ -29,12 +29,12 @@ always_comb begin
     increment_pre = (1 << i_size);
     increment     = increment_pre;
     if (DW != ODW) begin
-        if (increment_pre > ODWBYTES)
-            increment = ODWBYTES;
+        if (AW'(increment_pre) > AW'(ODWBYTES))
+            increment = AW'(ODWBYTES);
     end
 
     // Calculate the wrap mask based on i_size and i_len
-    wrap_mask = (1 << (i_size + $clog2(i_len + 1))) - 1;
+    wrap_mask = (1 << (32'(i_size) + $clog2(i_len + 1))) - 1;
 
     // Calculate the aligned address
     aligned_addr = (i_curr_addr + increment) & ~(increment - 1);
@@ -53,7 +53,8 @@ always_comb begin
 end
 
 // Calculate the aligned address
-wire [AW-1:0] w_alignment_mask = ODWBYTES - 1;
+wire [AW-1:0] w_alignment_mask = AW'(ODWBYTES) - 1;
+
 assign ow_next_addr_align = ow_next_addr & ~w_alignment_mask;
 
 endmodule : axi_gen_addr

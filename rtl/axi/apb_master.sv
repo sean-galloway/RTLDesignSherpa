@@ -80,7 +80,8 @@ module apb_master #(
         .ow_count       (w_cmd_count),
         .o_rd_valid     (r_cmd_valid),
         .i_rd_ready     (w_cmd_ready),
-        .o_rd_data      (r_cmd_data_out)
+        .o_rd_data      (r_cmd_data_out),
+        .o_rd_count     ()
     );
 
     // Response FIFO signals
@@ -101,9 +102,11 @@ module apb_master #(
         .i_wr_valid     (w_rsp_valid),
         .o_wr_ready     (r_rsp_ready),
         .i_wr_data      (r_rsp_data_in),
+        .ow_count       (),
         .o_rd_valid     (o_rsp_valid),
         .i_rd_ready     (i_rsp_ready),
-        .o_rd_data      ({o_rsp_pslverr, o_rsp_prdata})
+        .o_rd_data      ({o_rsp_pslverr, o_rsp_prdata}),
+        .o_rd_count     ()
     );
 
     // APB FSM

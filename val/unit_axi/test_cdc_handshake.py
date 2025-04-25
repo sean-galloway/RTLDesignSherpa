@@ -125,6 +125,8 @@ def test_cdc_handshake(request, params):
 
     # Environment variables
     extra_env = {
+        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'VERILATOR_TRACE': '1',  # Enable tracing
         'DUT': dut_name,
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'DEBUG',
@@ -135,6 +137,23 @@ def test_cdc_handshake(request, params):
         'clk_src_PERIOD_NS': str(params['clk_src_period_ns']),
         'clk_dst_PERIOD_NS': str(params['clk_dst_period_ns'])
     }
+
+
+    compile_args = [
+        "--trace-fst",
+        "--trace-structs",
+        "--trace-depth", "99",
+    ]
+
+    sim_args = [
+        "--trace-fst",  # Tell Verilator to use FST
+        "--trace-structs",
+        "--trace-depth", "99",
+    ]
+
+    plusargs = [
+        "+trace",
+    ]
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
@@ -149,7 +168,10 @@ def test_cdc_handshake(request, params):
             sim_build=sim_build,
             extra_env=extra_env,
             waves=True,
-            keep_files=True
+            keep_files=True,
+            compile_args=compile_args,
+            sim_args=sim_args,
+            plusargs=plusargs,
         )
     except Exception as e:
         # If the test fails, make sure logs are preserved

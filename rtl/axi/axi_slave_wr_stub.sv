@@ -89,7 +89,8 @@ module axi_slave_wr_stub
         .o_rd_valid               (r_s_axi_awvalid),
         .i_rd_ready               (r_s_axi_awready),
         .o_rd_count               (r_s_axi_aw_count),
-        .o_rd_data                (r_s_axi_aw_pkt)
+        .o_rd_data                (r_s_axi_aw_pkt),
+        .ow_count                 ()
     );
 
     ///////////////////////////////////////////////////////////////////////////////////////////
@@ -102,7 +103,9 @@ module axi_slave_wr_stub
         .i_wr_data                ({s_axi_wdata,s_axi_wstrb,s_axi_wlast,s_axi_wuser}),
         .o_rd_valid               (r_s_axi_wvalid),
         .i_rd_ready               (r_s_axi_wready),
-        .o_rd_data                (r_s_axi_w_pkt)
+        .o_rd_data                (r_s_axi_w_pkt),
+        .o_rd_count               (),
+        .ow_count                 ()
     );
 
     ///////////////////////////////////////////////////////////////////////////////////////////
@@ -115,7 +118,9 @@ module axi_slave_wr_stub
         .i_wr_data                (r_s_axi_b_pkt),
         .o_rd_valid               (s_axi_bvalid),
         .i_rd_ready               (s_axi_bready),
-        .o_rd_data                ({s_axi_bid,s_axi_bresp,s_axi_buser})
+        .o_rd_data                ({s_axi_bid,s_axi_bresp,s_axi_buser}),
+        .o_rd_count               (),
+        .ow_count                 ()
     );
 
 endmodule : axi_slave_wr_stub

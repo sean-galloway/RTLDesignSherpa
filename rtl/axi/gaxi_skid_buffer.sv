@@ -50,7 +50,7 @@ module gaxi_skid_buffer #(
             end else if (w_wr_xfer & w_rd_xfer) begin
                 // Shift in new data and shift out old data
                 r_data <= {zeros, r_data[BUF_WIDTH-1:DW]};
-                r_data[(DW * (r_data_count - 1)) +: DW] <= i_wr_data;
+                r_data[(DW * (32'(r_data_count) - 1)) +: DW] <= i_wr_data;
             end
         end
     end
@@ -60,9 +60,9 @@ module gaxi_skid_buffer #(
             o_wr_ready <= 1'b0;
             o_rd_valid <= 1'b0;
         end else begin
-            o_wr_ready <= (r_data_count <= DEPTH-2) ||
-                            (r_data_count == DEPTH-1 && (~w_wr_xfer || w_rd_xfer)) ||
-                            (r_data_count == DEPTH && w_rd_xfer);
+            o_wr_ready <= (32'(r_data_count) <= DEPTH-2) ||
+                            (32'(r_data_count) == DEPTH-1 && (~w_wr_xfer || w_rd_xfer)) ||
+                            (32'(r_data_count) == DEPTH && w_rd_xfer);
 
             o_rd_valid <= (r_data_count >= 2) ||
                             (r_data_count == 4'b0001 && (~w_rd_xfer || w_wr_xfer)) ||

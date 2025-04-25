@@ -637,6 +637,8 @@ def test_apb_xbar_wrap(request, model_type, m, s, addr_width, data_width, num_tr
 
     # Environment variables
     extra_env = {
+        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'VERILATOR_TRACE': '1',  # Enable tracing
         'DUT': dut_name,
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
@@ -654,6 +656,23 @@ def test_apb_xbar_wrap(request, model_type, m, s, addr_width, data_width, num_tr
         'PARAM_TEST_MIXED': 'True',
     }
 
+
+    compile_args = [
+            "--trace-fst",
+            "--trace-structs",
+            "--trace-depth", "99",
+    ]
+
+    sim_args = [
+            "--trace-fst",  # Tell Verilator to use FST
+            "--trace-structs",
+            "--trace-depth", "99",
+    ]
+
+    plusargs = [
+            "+trace",
+    ]
+
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
     try:
@@ -667,7 +686,10 @@ def test_apb_xbar_wrap(request, model_type, m, s, addr_width, data_width, num_tr
             sim_build=sim_build,
             extra_env=extra_env,
             waves=True,
-            keep_files=True
+            keep_files=True,
+            compile_args=compile_args,
+            sim_args=sim_args,
+            plusargs=plusargs,
         )
     except Exception as e:
         # If the test fails, make sure logs are preserved

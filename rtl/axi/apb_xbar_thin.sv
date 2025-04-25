@@ -81,9 +81,9 @@ module apb_xbar_thin #(
                             (m_apb_paddr[m_dec] >= SLAVE_ADDR_BASE[s_dec]) &&
                             (m_apb_paddr[m_dec] <= SLAVE_ADDR_LIMIT[s_dec])) begin
                         master_sel[s_dec][m_dec] = 1'b1;
-    // synopsys translate_off
+                        // synopsys translate_off
                         $fdisplay(file, "Decode: Time=%0t s_dec=%0h m_dec=%0h", $realtime/1e3, s_dec, m_dec); // verilog_lint: waive line-length
-    // synopsys translate_on
+                        // synopsys translate_on
                     end
                 end
             end
@@ -94,7 +94,11 @@ module apb_xbar_thin #(
     // Instantiate arbiters for each slave
     logic [S-1:0]                arb_gnt_valid;
     logic [S-1:0][M-1:0]         arb_gnt;
-    logic [S-1:0][$clog2(M):0]   arb_gnt_id;
+
+    // Fix: Ensure the size of arb_gnt_id matches the arbiter module's output width
+    // Using $clog2(M) instead of $clog2(M):0
+    logic [S-1:0][$clog2(M)-1:0] arb_gnt_id;
+
     logic [M-1:0]                arb_gnt_ack;
 
     // assert the gnt_ack
@@ -152,8 +156,10 @@ module apb_xbar_thin #(
     generate
         for (genvar s_mux = 0; s_mux < S; s_mux++) begin : gen_slave_mux
             always_comb begin
-                logic [$clog2(M):0] mst_id;
+                // Fix: Ensure proper width for mst_id to match array indexing
+                logic [$clog2(M)-1:0] mst_id;
                 mst_id = arb_gnt_id[s_mux];
+
                 s_apb_psel[s_mux]    = arb_gnt_valid[s_mux] ? m_apb_psel[mst_id] : 1'b0;
                 s_apb_penable[s_mux] = arb_gnt_valid[s_mux] ? m_apb_penable[mst_id] : 1'b0;
                 s_apb_pwrite[s_mux]  = arb_gnt_valid[s_mux] ? m_apb_pwrite[mst_id] : 1'b0;

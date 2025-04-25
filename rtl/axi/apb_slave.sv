@@ -69,7 +69,8 @@ module apb_slave #(
         .o_rd_valid     (o_cmd_valid),
         .i_rd_ready     (i_cmd_ready),
         .o_rd_data      (r_cmd_data_out),
-        .ow_count       (r_cmd_count)
+        .ow_count       (r_cmd_count),
+        .o_rd_count     ()
     );
 
     // Extract response packet signals
@@ -96,7 +97,8 @@ module apb_slave #(
         .o_rd_valid     (r_rsp_valid),
         .i_rd_ready     (r_rsp_ready),
         .o_rd_data      (r_rsp_data_out),
-        .ow_count       (r_rsp_count)
+        .ow_count       (r_rsp_count),
+        .o_rd_count     ()
     );
 
     // APB FSM

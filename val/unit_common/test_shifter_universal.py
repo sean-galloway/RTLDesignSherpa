@@ -517,14 +517,11 @@ class ShifterUniversalTB(TBBase):
 
         # Run tests based on the test level
         for test_func, test_name, run_in_basic, run_in_medium, run_in_full in test_functions:
-            # Determine if the test should run based on the test level
-            should_run = (
-                (self.TEST_LEVEL == 'basic' and run_in_basic) or
-                (self.TEST_LEVEL == 'medium' and run_in_medium) or
-                (self.TEST_LEVEL == 'full' and run_in_full)
-            )
-
-            if should_run:
+            if should_run := (
+                (self.TEST_LEVEL == 'basic' and run_in_basic)
+                or (self.TEST_LEVEL == 'medium' and run_in_medium)
+                or (self.TEST_LEVEL == 'full' and run_in_full)
+            ):
                 self.log.info(f"{test_number}. Testing {test_name}")
                 try:
                     test_passed = await test_func()

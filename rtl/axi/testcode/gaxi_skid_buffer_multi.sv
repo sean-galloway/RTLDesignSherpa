@@ -35,7 +35,9 @@ module gaxi_skid_buffer_multi #(
         .i_wr_data     ({i_wr_addr, i_wr_ctrl, i_wr_data1, i_wr_data0}),
         .o_rd_valid    (o_rd_valid),
         .i_rd_ready    (i_rd_ready),
-        .o_rd_data     ({o_rd_addr, o_rd_ctrl, o_rd_data1, o_rd_data0})
+        .o_rd_data     ({o_rd_addr, o_rd_ctrl, o_rd_data1, o_rd_data0}),
+        .ow_count      (),
+        .o_rd_count    ()
     );
 
 endmodule : gaxi_skid_buffer_multi

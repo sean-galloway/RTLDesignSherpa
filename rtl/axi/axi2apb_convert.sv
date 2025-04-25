@@ -147,11 +147,13 @@ module axi2apb_convert #(
     logic                          r_apb_rsp_pkt_first;
     logic                          r_apb_rsp_pkt_last;
 
-    // Data shift register and pointer
+    // Data shift register and pointer - Fix for $clog2(1) = 0 issue
     logic [DW-1:0]                   r_axi_data_shift, w_axi_data_shift;
-    logic [$clog2(AXI2APBRATIO)-1:0] r_axi_rd_data_pointer, w_axi_rd_data_pointer;
-    logic [$clog2(AXI2APBRATIO)-1:0] r_axi_wr_data_pointer, w_axi_wr_data_pointer;
-    logic [$clog2(AXI2APBRATIO)-1:0] r_axi_rsp_data_pointer, w_axi_rsp_data_pointer;
+    // Use max(1, $clog2(AXI2APBRATIO)) to avoid 0-width signals
+    localparam int PTR_WIDTH = $clog2(AXI2APBRATIO == 1 ? 2 : AXI2APBRATIO);
+    logic [PTR_WIDTH-1:0] r_axi_rd_data_pointer, w_axi_rd_data_pointer;
+    logic [PTR_WIDTH-1:0] r_axi_wr_data_pointer, w_axi_wr_data_pointer;
+    logic [PTR_WIDTH-1:0] r_axi_rsp_data_pointer, w_axi_rsp_data_pointer;
     int                              axi2abpratio = AXI2APBRATIO;
 
     // axi_gen_addr module
@@ -161,7 +163,8 @@ module axi2apb_convert #(
     logic [2:0]       r_axi_size;
     logic [1:0]       r_axi_burst;
     logic [7:0]       r_axi_len;
-    logic [APBAW-1:0] w_alignment_mask = APBSW - 1;
+    // Fix for width truncation
+    logic [APBAW-1:0] w_alignment_mask = APBAW'(APBSW - 1);
 
     // Burst counter
     logic [7:0]       r_burst_count, w_burst_count;
@@ -225,8 +228,10 @@ module axi2apb_convert #(
         .i_size             (r_axi_size),
         .i_burst            (r_axi_burst),
         .i_len              (r_axi_len),
-        .ow_next_addr       (w_next_addr_gen)
+        .ow_next_addr       (w_next_addr_gen),
+        .ow_next_addr_align ()
     );
+
 
     always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
@@ -258,19 +263,21 @@ module axi2apb_convert #(
                 end else begin
                     r_axi_data_shift[r_axi_rsp_data_pointer*APBDW +: APBDW] <= r_apb_rsp_pkt_prdata;
                     r_axi_rsp_data_pointer <= r_axi_rsp_data_pointer + 1;
-                    if (r_axi_rsp_data_pointer == axi2abpratio-1) begin
+                    if (r_axi_rsp_data_pointer == PTR_WIDTH'(axi2abpratio-1)) begin
                         r_axi_rsp_data_pointer <= 'b0;
                     end
                 end
             end
 
             if ((r_apb_state == IDLE) && (w_apb_next_state == READ)) begin
-                r_apb_paddr           <= r_s_axi_araddr & ~w_alignment_mask;
+                // Fix bit width mismatch with proper casting
+                r_apb_paddr           <= APBAW'(r_s_axi_araddr & ~{{(AW-APBAW){1'b0}}, w_alignment_mask});
                 r_burst_count         <= r_s_axi_arlen;
                 r_axi_rd_data_pointer <= 'b0;
                 r_axi_data_shift      <= 'b0;
             end else if ((r_apb_state == IDLE) && (w_apb_next_state == WRITE)) begin
-                r_apb_paddr           <= r_s_axi_awaddr & ~w_alignment_mask;
+                // Fix bit width mismatch with proper casting
+                r_apb_paddr           <= APBAW'(r_s_axi_awaddr & ~{{(AW-APBAW){1'b0}}, w_alignment_mask});
                 r_burst_count         <= r_s_axi_awlen;
                 r_axi_wr_data_pointer <= 'b0;
             end
@@ -281,13 +288,13 @@ module axi2apb_convert #(
                 if ((r_apb_state == READ) && w_cmd_valid) begin
                     if (axi2abpratio != 1) begin
                         r_axi_rd_data_pointer <= r_axi_rd_data_pointer + 1;
-                        if (r_axi_rd_data_pointer == axi2abpratio-1)
+                        if (r_axi_rd_data_pointer == PTR_WIDTH'(axi2abpratio-1))
                             r_axi_rd_data_pointer <= 'b0;
                     end
                 end else if ((r_apb_state == WRITE)) begin
                     if (axi2abpratio != 1 && w_cmd_valid) begin
                         r_axi_wr_data_pointer <= r_axi_wr_data_pointer + 1;
-                        if (r_axi_wr_data_pointer == axi2abpratio-1)
+                        if (r_axi_wr_data_pointer == PTR_WIDTH'(axi2abpratio-1))
                             r_axi_wr_data_pointer <= 'b0;
                     end
                 end
@@ -338,7 +345,7 @@ module axi2apb_convert #(
                         w_rsp_ready      = 1'b1;
                         w_axi_data_shift[r_axi_rsp_data_pointer*APBDW +: APBDW] =
                                 r_apb_rsp_pkt_prdata;
-                        if (r_axi_rsp_data_pointer == axi2abpratio-1) begin
+                        if (r_axi_rsp_data_pointer == PTR_WIDTH'(axi2abpratio-1)) begin
                             w_axi_rsp_data_pointer = 'b0;
                             w_s_axi_rvalid         = 1'b1;
                         end
@@ -363,11 +370,13 @@ module axi2apb_convert #(
                     if (r_s_axi_awvalid && r_s_axi_wvalid) begin
                         w_apb_next_state     = WRITE;
                         w_apb_cmd_pkt_pwrite = 1'b1;
-                        w_apb_cmd_pkt_paddr  = r_s_axi_awaddr & ~w_alignment_mask;
+                        // Fix bit width mismatch with proper casting
+                        w_apb_cmd_pkt_paddr  = APBAW'(r_s_axi_awaddr & ~{{(AW-APBAW){1'b0}}, w_alignment_mask});
                     end else if (r_s_axi_arvalid) begin
                         w_apb_next_state     = READ;
                         w_apb_cmd_pkt_pwrite = 1'b0;
-                        w_apb_cmd_pkt_paddr  = r_s_axi_araddr & ~w_alignment_mask;
+                        // Fix bit width mismatch with proper casting
+                        w_apb_cmd_pkt_paddr  = APBAW'(r_s_axi_araddr & ~{{(AW-APBAW){1'b0}}, w_alignment_mask});
                     end
             end
 
@@ -378,7 +387,7 @@ module axi2apb_convert #(
                     w_side_in_valid = 1'b1;
                     if (r_apb_last_state == IDLE)
                         w_apb_cmd_pkt_first = 1'b1;
-                    if (r_axi_rd_data_pointer == axi2abpratio-1) begin
+                    if (r_axi_rd_data_pointer == PTR_WIDTH'(axi2abpratio-1)) begin
                         w_axi_rd_data_pointer = 'b0;
                         if (r_burst_count == 0) begin
                             w_apb_next_state   = IDLE;
@@ -401,7 +410,7 @@ module axi2apb_convert #(
                     w_side_in_valid = 1'b1;
                     if (r_apb_last_state == IDLE)
                         w_apb_cmd_pkt_first = 1'b1;
-                    if (r_axi_wr_data_pointer == axi2abpratio-1) begin
+                    if (r_axi_wr_data_pointer == PTR_WIDTH'(axi2abpratio-1)) begin
                         if (r_burst_count == 0) begin
                             w_apb_next_state      = IDLE;
                             w_s_axi_awready       = 1'b1;
@@ -431,7 +440,9 @@ module axi2apb_convert #(
         .i_wr_data                (r_side_in_data),
         .o_rd_valid               (r_side_out_valid),
         .i_rd_ready               (w_side_out_ready),
-        .ow_rd_data               (r_side_out_data)
+        .ow_rd_data               (r_side_out_data),
+        .o_rd_data                (),
+        .ow_count                 ()
     );
 
 endmodule : axi2apb_convert

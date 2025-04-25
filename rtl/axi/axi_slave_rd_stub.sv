@@ -76,7 +76,8 @@ module axi_slave_rd_stub
         .o_rd_valid               (r_s_axi_arvalid),
         .i_rd_ready               (r_s_axi_arready),
         .o_rd_count               (r_s_axi_ar_count),
-        .o_rd_data                (r_s_axi_ar_pkt)
+        .o_rd_data                (r_s_axi_ar_pkt),
+        .ow_count                 ()
     );
 
     ///////////////////////////////////////////////////////////////////////////////////////////
@@ -89,7 +90,9 @@ module axi_slave_rd_stub
         .i_wr_data                (r_s_axi_r_pkt),
         .o_rd_valid               (s_axi_rvalid),
         .i_rd_ready               (s_axi_rready),
-        .o_rd_data                ({s_axi_rid,s_axi_rdata,s_axi_rresp,s_axi_rlast,s_axi_ruser})
+        .o_rd_data                ({s_axi_rid,s_axi_rdata,s_axi_rresp,s_axi_rlast,s_axi_ruser}),
+        .o_rd_count               (),
+        .ow_count                 ()
     );
 
 endmodule : axi_slave_rd_stub

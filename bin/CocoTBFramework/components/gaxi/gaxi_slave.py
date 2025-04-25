@@ -101,7 +101,7 @@ class GAXISlave(BusMonitor):
             self.field_config = FieldConfig.validate_and_create(field_config)
         else:
             self.field_config = field_config or FieldConfig.create_data_only()
-        self.packet_class = packet_class
+        self.packet_class = packet_class or GAXIPacket
         self.mode = mode
 
         # Determine if we're using multi-signal mode

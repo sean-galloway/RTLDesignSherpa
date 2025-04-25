@@ -43,7 +43,8 @@ module gaxi_fifo_sync_multi #(
         .o_rd_valid    (o_rd_valid),
         .i_rd_ready    (i_rd_ready),
         .o_rd_data     ({o_rd_addr,   o_rd_ctrl,  o_rd_data1,  o_rd_data0}),
-        .ow_rd_data    ({ow_rd_addr, ow_rd_ctrl, ow_rd_data1, ow_rd_data0})
+        .ow_rd_data    ({ow_rd_addr, ow_rd_ctrl, ow_rd_data1, ow_rd_data0}),
+        .ow_count      ()
     );
 
 endmodule : gaxi_fifo_sync_multi

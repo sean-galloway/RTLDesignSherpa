@@ -53,7 +53,10 @@ module gaxi_skid_buffer_async_multi #(
         .i_wr_data    ({i_wr_addr, i_wr_ctrl, i_wr_data1, i_wr_data0}),
         .o_rd_valid   (r_xfer_valid),
         .i_rd_ready   (r_xfer_ready),
-        .o_rd_data    (r_xfer_data)
+        .o_rd_data    (r_xfer_data),
+        .ow_count     (),
+        .o_rd_count   ()
+
     );
 
     // Instantiate the axi_fifo_async module

@@ -232,33 +232,40 @@ module gaxi_data_collect #(
     // Data Collection Logic
     // Only assert ready when arbiter grant is valid or we're locked to an agent
     // Determine if we can accept data from the selected or locked agent
+    
+    // Fix for latch issue - initialize all signals
     always_comb begin
-        case ({r_arb_locked, r_locked_agent_id})
-            3'b100: begin
-                w_a_skid_ready = w_buffer_ready;
-                w_buffer_accept = w_a_skid_valid && w_buffer_ready;
-            end
-            3'b101: begin
-                w_b_skid_ready = w_buffer_ready;
-                w_buffer_accept = w_b_skid_valid && w_buffer_ready;
-            end
-            3'b110: begin
-                w_c_skid_ready = w_buffer_ready;
-                w_buffer_accept = w_c_skid_valid && w_buffer_ready;
-            end
-            3'b111: begin
-                w_d_skid_ready = w_buffer_ready;
-                w_buffer_accept = w_d_skid_valid && w_buffer_ready;
-            end
-            default: begin
-                // default values
-                w_a_skid_ready = 1'b0;
-                w_b_skid_ready = 1'b0;
-                w_c_skid_ready = 1'b0;
-                w_d_skid_ready = 1'b0;
-                w_buffer_accept = 1'b0;
-            end
-        endcase
+        // Default assignments to prevent latches
+        w_a_skid_ready = 1'b0;
+        w_b_skid_ready = 1'b0;
+        w_c_skid_ready = 1'b0;
+        w_d_skid_ready = 1'b0;
+        w_buffer_accept = 1'b0;
+        
+        // Only set ready for the selected channel
+        if (r_arb_locked) begin
+            case (r_locked_agent_id)
+                2'b00: begin
+                    w_a_skid_ready = w_buffer_ready;
+                    w_buffer_accept = w_a_skid_valid && w_buffer_ready;
+                end
+                2'b01: begin
+                    w_b_skid_ready = w_buffer_ready;
+                    w_buffer_accept = w_b_skid_valid && w_buffer_ready;
+                end
+                2'b10: begin
+                    w_c_skid_ready = w_buffer_ready;
+                    w_buffer_accept = w_c_skid_valid && w_buffer_ready;
+                end
+                2'b11: begin
+                    w_d_skid_ready = w_buffer_ready;
+                    w_buffer_accept = w_d_skid_valid && w_buffer_ready;
+                end
+                default: begin
+                    // Already assigned default values
+                end
+            endcase
+        end
     end
 
     // Data selector signals
