@@ -78,8 +78,10 @@ module shifter_lfsr #(
     always_comb begin
         w_taps = 'b0;
         for (int i = 0; i < TAP_COUNT; i++)
+            /* verilator lint_off WIDTHTRUNC */
             if (w_tap_positions[i] > 0) w_taps[w_tap_positions[i]-1'b1] = 1'b1;
-    end
+            /* verilator lint_on WIDTHTRUNC */
+        end
 
     ////////////////////////////////////////////////////////////////////////////
     // Calculate feedback by XORing tapped bits

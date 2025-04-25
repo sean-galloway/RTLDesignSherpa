@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-// Galois LFSR, parameterized
+// Galois LFSR, parameterized with right shift to match Fibonacci LFSR style
 module shifter_lfsr_galois #(
     parameter int WIDTH = 8,           // Width of the LFSR
     parameter int TAP_INDEX_WIDTH = 12,
@@ -20,6 +20,7 @@ module shifter_lfsr_galois #(
     logic [WIDTH-1:0]  r_lfsr;
     logic [TIW-1:0]    w_tap_positions [0:TAP_COUNT-1];  // verilog_lint: waive unpacked-dimensions-range-ordering
     logic              w_feedback;
+    logic [WIDTH-1:0]  next_lfsr;
 
     ////////////////////////////////////////////////////////////////////////////
     // Split concatenated tap positions into separate groups for each tap
@@ -30,19 +31,30 @@ module shifter_lfsr_galois #(
     end
 
     // Observe when the lfsr has looped back
-    assign o_lfsr_done = (o_lfsr_out == i_seed_data) ? 1'b1 : 1'b0;
+    assign ow_lfsr_done = (o_lfsr_out == i_seed_data) ? 1'b1 : 1'b0;
 
+    // Get the LSB for feedback
+    assign w_feedback = r_lfsr[0];
+
+    // Calculate next LFSR state with proper Galois feedback
     always_comb begin
-        // Update LFSR state
-        w_feedback = r_lfsr[0];  // Feedback is the LSB
+        // Start with right shift (include 0 in MSB)
+        next_lfsr = {1'b0, r_lfsr[WIDTH-1:1]};
 
-        for (int j = 0; j < TAP_COUNT; j++) begin
-            if (w_tap_positions[j] > 0) begin
-                w_feedback ^= r_lfsr[w_tap_positions[j]-1];
+        // Apply Galois feedback taps if LSB is 1
+        if (w_feedback) begin
+            for (int j = 0; j < TAP_COUNT; j++) begin
+                /* verilator lint_off WIDTHEXPAND */
+                if (w_tap_positions[j] > 0 && w_tap_positions[j] <= WIDTH) begin
+                    // Apply XOR to the tap positions
+                    next_lfsr[w_tap_positions[j]-1] = next_lfsr[w_tap_positions[j]-1] ^ 1'b1;
+                /* verilator lint_on WIDTHEXPAND */
+                end
             end
         end
     end
 
+    // Update LFSR state
     always_ff @(posedge i_clk or negedge i_rst_n) begin
         if (~i_rst_n) begin
             // Reset LFSR to a non-zero value
@@ -51,7 +63,8 @@ module shifter_lfsr_galois #(
             if (i_seed_load) begin
                 r_lfsr <= i_seed_data;
             end else begin
-                r_lfsr <= {w_feedback, r_lfsr[WIDTH-1:1]};
+                // Update with the next state calculated in combinational logic
+                r_lfsr <= next_lfsr;
             end
         end
     end

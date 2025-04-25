@@ -31,30 +31,35 @@ module shifter_lfsr_fibonacci #(
     always_comb begin
         w_taps = 'b0;
         for (int i = 0; i < TAP_COUNT; i++)
-        if (w_tap_positions[i] > 0) w_taps[w_tap_positions[i]-1'b1] = 1'b1;
+            /* verilator lint_off WIDTHTRUNC */
+            if (w_tap_positions[i] > 0) w_taps[w_tap_positions[i]-1'b1] = 1'b1;
+            /* verilator lint_on WIDTHTRUNC */
     end
 
     ////////////////////////////////////////////////////////////////////////////
     // Calculate feedback by XORing tapped bits
-    assign w_feedback   = ^(r_lfsr[WIDTH-1:0] & w_taps[WIDTH-1:0]);
+    assign w_feedback = ^(r_lfsr & w_taps);
 
     ////////////////////////////////////////////////////////////////////////////
     // observe when the lfsr has looped back
     assign ow_lfsr_done = (o_lfsr_out == i_seed_data) ? 1'b1 : 1'b0;
 
-    always_ff @(posedge i_clk or posedge i_rst_n) begin
+    // Output value immediately
+    assign o_lfsr_out = r_lfsr;
+
+    always_ff @(posedge i_clk or negedge i_rst_n) begin
         if (~i_rst_n) begin
             r_lfsr <= 'b0;  // initialization to all 0's
         end else begin
             if (i_enable) begin
-                if (i_seed_load) r_lfsr <= i_seed_data;
-                else begin
-                    r_lfsr <= {r_lfsr[WIDTH-2:0], w_feedback};
+                if (i_seed_load) begin
+                    r_lfsr <= i_seed_data;  // Load seed
+                end else if (|r_lfsr) begin // Only shift if we have non-zero value
+                    // Fibonacci LFSR: Shift right, feedback to MSB
+                    r_lfsr <= {w_feedback, r_lfsr[WIDTH-1:1]};
                 end
             end
         end
     end
-
-    assign o_lfsr_out = r_lfsr;
 
 endmodule : shifter_lfsr_fibonacci
