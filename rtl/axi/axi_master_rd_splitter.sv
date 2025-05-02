@@ -48,6 +48,9 @@ module axi_master_rd_splitter
     input  logic                       m_axi_rvalid,
     output logic                       m_axi_rready,
 
+    // Block ready from the errmon
+    input  logic                       block_ready,
+
     // Slave AXI Interface
     // Read address channel (AR)
     input  logic [IW-1:0]              fub_arid,
@@ -99,12 +102,10 @@ module axi_master_rd_splitter
     // Transaction control signals
     logic [AW-1:0]  r_next_addr;
     logic [7:0]     r_remaining_len;
+    logic [7:0]     r_current_len;   // Length for current split
 
     // Split tracking
-    logic [AW-1:0]  r_split_addr;
-    logic [IW-1:0]  r_split_id;
     logic [7:0]     r_num_splits;
-    logic           r_split_fifo_valid;
 
     //===========================================================================
     // Transaction Splitting Logic - All combinational calculations
@@ -119,11 +120,11 @@ module axi_master_rd_splitter
 
     // Create boundary mask based on alignment_mask
     logic [AW-1:0] w_boundary_mask;
-    assign w_boundary_mask = alignment_mask;
+    assign w_boundary_mask = {{(AW-12){1'b0}}, alignment_mask};
 
     // Calculate end address for current transaction
     logic [AW-1:0] w_end_addr;
-    assign w_end_addr = w_current_addr + ((w_current_len + 1) << fub_arsize) - 1;
+    assign w_end_addr = w_current_addr + (({24'b0, w_current_len} + 1) << fub_arsize) - 1;
 
     // Calculate current boundary address
     logic [AW-1:0] w_curr_boundary;
@@ -141,7 +142,7 @@ module axi_master_rd_splitter
     // Calculate max beats that fit before boundary
     logic [7:0] w_split_arlen;
     assign w_split_arlen = w_split_required ?
-                            ((w_dist_to_boundary >> fub_arsize) - 1) :
+                            8'(((w_dist_to_boundary >> fub_arsize) - 1)) :
                             w_current_len;
 
     // New split detection signal
@@ -158,54 +159,27 @@ module axi_master_rd_splitter
     //===========================================================================
     // State Management
     //===========================================================================
-
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
-            // Reset all state
             r_split_state <= IDLE;
             r_next_addr <= '0;
             r_remaining_len <= '0;
-
-            // Split info port
-            r_split_addr <= '0;
-            r_split_id <= '0;
-            r_num_splits <= '0;
-            r_split_fifo_valid <= 1'b0;
-
+            r_current_len <= '0;
+            r_num_splits <= 8'd1;
         end else begin
-            // Clear r_split_fifo_valid by default (will be set if needed)
-            r_split_fifo_valid <= 1'b0;
-
-            // Handle transaction acceptance - this happens when handshaking with slave side
-            if (fub_arvalid && fub_arready) begin
-                // Always record split info for FIFO
-                r_split_addr <= fub_araddr;
-                r_split_id <= fub_arid;
-
-                // Signal to send info to FIFO
-                r_split_fifo_valid <= 1'b1;
-
-                // Reset state
-                r_split_state <= IDLE;
-            end
 
             // State machine for split handling
-            case (r_split_state)
+            casez (r_split_state)
                 IDLE: begin
+                    r_num_splits <= 8'd1;
                     // Check for new split transaction
                     if (w_new_split_needed && m_axi_arready) begin
                         // Start new split
                         r_split_state <= SPLITTING;
                         r_next_addr <= w_curr_boundary;
                         r_remaining_len <= fub_arlen - w_split_arlen;
+                        r_current_len <= w_split_arlen;
                         r_num_splits <= 8'd2; // Initial transaction + first split
-
-                        // Save request information for FIFO
-                        r_split_addr <= fub_araddr;
-                        r_split_id <= fub_arid;
-                    end else if (fub_arvalid && fub_arready && !w_split_required) begin
-                        // No split needed
-                        r_num_splits <= 8'd1;
                     end
                 end
 
@@ -216,18 +190,20 @@ module axi_master_rd_splitter
                             // More splits needed
                             r_next_addr <= w_curr_boundary;
                             r_remaining_len <= r_remaining_len - w_split_arlen;
+                            r_current_len <= w_split_arlen;
                             r_num_splits <= r_num_splits + 8'd1;
                         end else begin
                             // This is the last split
                             r_split_state <= LAST_SPLIT;
+                            r_current_len <= r_remaining_len;
                         end
                     end
                 end
 
                 LAST_SPLIT: begin
                     // Wait for the last split to complete
-                    if (m_axi_arready && m_axi_arvalid) begin
-                        // Will transition to IDLE when fub_arready asserts
+                    if (fub_arvalid && fub_arready) begin
+                        r_split_state <= IDLE;
                     end
                 end
 
@@ -270,7 +246,8 @@ module axi_master_rd_splitter
     end
 
     // AR Channel - Slave side
-    assign fub_arready = (w_no_split_in_progress || w_final_split_complete) && m_axi_arready;
+    assign fub_arready = (w_no_split_in_progress || w_final_split_complete)
+                            && m_axi_arready && !block_ready;
 
     // R Channel - Slave side
     // Pass through all R channel signals
@@ -290,7 +267,9 @@ module axi_master_rd_splitter
 
     // Pack the split info for the FIFO
     logic [AW+IW+8-1:0] split_fifo_din;
-    assign split_fifo_din = {r_split_addr, r_split_id, r_num_splits};
+    logic w_split_fifo_valid;
+    assign split_fifo_din = {fub_araddr, fub_arid, r_num_splits};
+    assign w_split_fifo_valid = (fub_arvalid && fub_arready);
 
     // Instantiate the FIFO for split information
     gaxi_fifo_sync #(
@@ -300,7 +279,7 @@ module axi_master_rd_splitter
     ) inst_split_info_fifo (
         .i_axi_aclk(aclk),
         .i_axi_aresetn(aresetn),
-        .i_wr_valid(r_split_fifo_valid),
+        .i_wr_valid(w_split_fifo_valid),
         .o_wr_ready(),  // Not used
         .i_wr_data(split_fifo_din),
         .i_rd_ready(fub_split_ready),

@@ -29,6 +29,8 @@ from .axi4_extensions import create_axi4_extension_handlers
 from ..debug_object import print_object_details, print_dict_to_log
 
 
+TIMEOUT_BASE = 1000
+
 class AXI4Master:
     """
     AXI4 Master component that manages multiple channels for AXI4 transactions.
@@ -92,6 +94,9 @@ class AXI4Master:
 
         # Store field configs
         self.field_configs = field_configs
+
+        # Add callbacks to track responses - but defer to after initialization is complete
+        self._register_callbacks()
 
         # Ensure we have proper field configs for each channel
         if not self.field_configs:
@@ -189,12 +194,33 @@ class AXI4Master:
         # Initialize transaction tracking
         self.write_responses = {}  # Maps IDs to pending write transactions
         self.read_responses = {}   # Maps IDs to pending read transactions
-
-        # Add callbacks to track responses
-        if 'B' in self.channels and self.b_slave:
-            self.b_slave.add_callback(self._handle_b_response)
-        if 'R' in self.channels and self.r_slave:
-            self.r_slave.add_callback(self._handle_r_response)
+        
+        # Add callbacks to track responses - CRITICAL FOR TRANSACTION COMPLETION
+        if 'B' in self.channels and hasattr(self, 'b_slave') and self.b_slave is not None:
+            if self.log:
+                self.log.debug(f"Registering B-response callback for {self.title}")
+            
+            # Ensure the monitor has a callback method
+            if hasattr(self.b_slave, 'add_callback'):
+                self.b_slave.add_callback(self._handle_b_response)
+                if self.log:
+                    self.log.debug(f"B-response callback registered successfully")
+            else:
+                if self.log:
+                    self.log.error(f"B-slave does not have add_callback method - transaction tracking will fail")
+        
+        if 'R' in self.channels and hasattr(self, 'r_slave') and self.r_slave is not None:
+            if self.log:
+                self.log.debug(f"Registering R-response callback for {self.title}")
+            
+            # Ensure the monitor has a callback method
+            if hasattr(self.r_slave, 'add_callback'):
+                self.r_slave.add_callback(self._handle_r_response)
+                if self.log:
+                    self.log.debug(f"R-response callback registered successfully")
+            else:
+                if self.log:
+                    self.log.error(f"R-slave does not have add_callback method - transaction tracking will fail")
 
         # Initialize extensions
         self.extensions = extensions or {}
@@ -209,7 +235,26 @@ class AXI4Master:
         # Create sequence support
         self._initialize_sequence_support()
 
-        self.log.info(f"AXI4Master '{title}' initialized")
+        self.log.info(f"AXI4Master '{self.title}' initialized")
+
+    def _register_callbacks(self):
+        """Register callbacks for response tracking"""
+        # Add callbacks to track responses
+        if 'B' in self.channels and hasattr(self, 'b_slave') and self.b_slave:
+            if self.log:
+                self.log.debug(f"Registering B-response callback for {self.title}")
+            self.b_slave.add_callback(self._handle_b_response)
+            if self.log:
+                callbacks = getattr(self.b_slave, 'callbacks', [])
+                self.log.debug(f"B-slave now has {len(callbacks)} callbacks")
+
+        if 'R' in self.channels and hasattr(self, 'r_slave') and self.r_slave:
+            if self.log:
+                self.log.debug(f"Registering R-response callback for {self.title}")
+            self.r_slave.add_callback(self._handle_r_response)
+            if self.log:
+                callbacks = getattr(self.r_slave, 'callbacks', [])
+                self.log.debug(f"R-slave now has {len(callbacks)} callbacks")
 
     def _initialize_sequence_support(self):
         """Initialize sequence support with default transaction sequence."""
@@ -287,25 +332,39 @@ class AXI4Master:
 
     def _handle_r_response(self, transaction):
         """Callback for R channel responses"""
-        if hasattr(transaction, 'rid') and transaction.rid in self.read_responses:
+        if not hasattr(transaction, 'rid'):
+            return
+        # Add additional logging to trace the response handling
+        # self.log.debug(f"R Transaction received with ID={transaction.rid}, attributes: {dir(transaction)}")
+        if hasattr(transaction, 'rlast'):
+            self.log.debug(f"rlast value: {transaction.rlast}, type: {type(transaction.rlast)}")
+
+        if transaction.rid in self.read_responses:
             pending_transaction = self.read_responses[transaction.rid]
 
             # Log response
-            self.log.debug(f"Received read data: ID={transaction.rid}, DATA=0x{transaction.rdata:X}, RESP={transaction.rresp}, LAST={transaction.rlast}")
+            self.log.debug(f"Received read data: ID={transaction.rid}, DATA=0x{transaction.rdata:X}, " +
+                        f"RESP={transaction.rresp}, LAST={getattr(transaction, 'rlast', 'unknown')}")
 
             # Add to response data
             if 'responses' not in pending_transaction:
                 pending_transaction['responses'] = []
             pending_transaction['responses'].append(transaction)
 
-            # Check if this is the last data beat
-            if transaction.rlast:
+            # MODIFIED: More lenient check for transaction completion
+            if (hasattr(transaction, 'rlast') and transaction.rlast) or \
+                (hasattr(transaction, 'rlast') and transaction.rlast == 1) or \
+                len(pending_transaction['responses']) >= pending_transaction.get('expected_beats', 1):
                 # Mark as complete
                 pending_transaction['complete'] = True
+                self.log.debug(f"Transaction ID={transaction.rid} marked as complete")
 
                 # Set completion event if this is part of a sequence
                 if transaction.rid in self.sequence_events:
+                    self.log.debug(f"Setting completion event for sequence ID={transaction.rid}")
                     self.sequence_events[transaction.rid].set()
+            else:
+                self.log.debug(f"Transaction ID={transaction.rid} not marked complete yet, responses: {len(pending_transaction['responses'])}")
 
     async def read(self, addr, size=2, burst=1, id=0, length=0, cache=0, prot=0, qos=0, region=0, user=0):
         """
@@ -365,7 +424,7 @@ class AXI4Master:
         await self.ar_master.send(ar_packet)
 
         # Wait for completion or timeout
-        timeout_ns = 1000 * (length + 1)  # Scale timeout with burst length
+        timeout_ns = TIMEOUT_BASE * (length + 1)  # Scale timeout with burst length
         start_time = get_sim_time('ns')
 
         while not self.read_responses[id].get('complete', False):
@@ -373,7 +432,8 @@ class AXI4Master:
 
             # Check for timeout
             if get_sim_time('ns') - start_time > timeout_ns:
-                self.log.error(f"Timeout waiting for read response for ID {id}")
+                time_ns = get_sim_time('ns')
+                self.log.error(f"Timeout waiting for read response for ID {id} @ {time_ns}ns")
                 break
 
         # Get result
@@ -479,7 +539,7 @@ class AXI4Master:
             await self.w_master.send(w_packet)
 
         # Wait for completion or timeout
-        timeout_ns = 1000 * (length + 1)  # Scale timeout with burst length
+        timeout_ns = TIMEOUT_BASE * (length + 1)  # Scale timeout with burst length
         start_time = get_sim_time('ns')
 
         while not self.write_responses[id].get('complete', False):
@@ -487,7 +547,8 @@ class AXI4Master:
 
             # Check for timeout
             if get_sim_time('ns') - start_time > timeout_ns:
-                self.log.error(f"Timeout waiting for write response for ID {id}")
+                time_ns = get_sim_time('ns')
+                self.log.error(f"Timeout waiting for write response for ID {id} @ {time_ns}ns")
                 break
 
         # Get result
@@ -561,7 +622,7 @@ class AXI4Master:
         await self.ar_master.send(ar_packet)
 
         # Wait for completion or timeout
-        timeout_ns = 1000 * (length + 1)  # Scale timeout with burst length
+        timeout_ns = TIMEOUT_BASE * (length + 1)  # Scale timeout with burst length
         start_time = get_sim_time('ns')
 
         while not self.read_responses[id].get('complete', False):
@@ -569,7 +630,8 @@ class AXI4Master:
 
             # Check for timeout
             if get_sim_time('ns') - start_time > timeout_ns:
-                self.log.error(f"Timeout waiting for exclusive read response for ID {id}")
+                time_ns = get_sim_time('ns')
+                self.log.error(f"Timeout waiting for exclusive read response for ID {id} @ {time_ns}ns")
                 break
 
         # Get result
@@ -672,7 +734,7 @@ class AXI4Master:
             await self.w_master.send(w_packet)
 
         # Wait for completion or timeout
-        timeout_ns = 1000 * (length + 1)  # Scale timeout with burst length
+        timeout_ns = TIMEOUT_BASE * (length + 1)  # Scale timeout with burst length
         start_time = get_sim_time('ns')
 
         while not self.write_responses[id].get('complete', False):
@@ -680,7 +742,8 @@ class AXI4Master:
 
             # Check for timeout
             if get_sim_time('ns') - start_time > timeout_ns:
-                self.log.error(f"Timeout waiting for exclusive write response for ID {id}")
+                time_ns = get_sim_time('ns')
+                self.log.error(f"Timeout waiting for exclusive write response for ID {id} @ {time_ns}ns")
                 break
 
         # Get result

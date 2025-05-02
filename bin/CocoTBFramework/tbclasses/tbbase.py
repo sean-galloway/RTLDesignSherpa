@@ -2,7 +2,7 @@
 import os
 import logging
 import cocotb
-from cocotb.triggers import RisingEdge, FallingEdge, Timer
+from cocotb.triggers import RisingEdge, FallingEdge, Timer, Edge
 from cocotb.clock import Clock
 from cocotb.utils import get_sim_time
 
@@ -37,6 +37,98 @@ class TBBase:
         self.log.info(msg)
         msg = f"Log file: {self.log_path}"
         self.log.info(msg)
+
+        # Initialize signal monitors
+        self._signal_monitors = {}
+        self._monitor_tasks = []
+
+    def add_monitor(self, signal_name, callback=None):
+        """
+        Add a monitor to a signal that will call the callback whenever the signal changes.
+
+        Args:
+            signal_name: Name of the signal to monitor
+            callback: Function to call when signal changes.
+                        Function signature: callback(signal, value)
+
+        Returns:
+            Monitor handle that can be used to remove the monitor
+        """
+        if not hasattr(self.dut, signal_name):
+            self.log.error(f"Signal {signal_name} not found in DUT")
+            return None
+
+        signal = getattr(self.dut, signal_name)
+
+        # Create a unique ID for this monitor
+        monitor_id = len(self._signal_monitors)
+
+        # Store monitor info
+        self._signal_monitors[monitor_id] = {
+            'signal_name': signal_name,
+            'signal': signal,
+            'callback': callback,
+            'last_value': signal.value
+        }
+
+        # Start monitor task
+        task = cocotb.start_soon(self._monitor_signal(monitor_id))
+        self._monitor_tasks.append(task)
+
+        self.log.debug(f"Added monitor for signal {signal_name}")
+        return monitor_id
+
+    def remove_monitor(self, monitor_id):
+        """
+        Remove a previously added signal monitor.
+
+        Args:
+            monitor_id: Monitor handle returned from add_monitor
+
+        Returns:
+            True if monitor was removed, False otherwise
+        """
+        if monitor_id not in self._signal_monitors:
+            self.log.error(f"Monitor ID {monitor_id} not found")
+            return False
+
+        # Kill the monitor task (if running)
+        monitor_info = self._signal_monitors[monitor_id]
+        self.log.debug(f"Removed monitor for signal {monitor_info['signal_name']}")
+
+        # Remove from monitors
+        del self._signal_monitors[monitor_id]
+        return True
+
+    async def _monitor_signal(self, monitor_id):
+        """
+        Internal coroutine to monitor a signal and call the callback on changes.
+
+        Args:
+            monitor_id: ID of the monitor to run
+        """
+        monitor_info = self._signal_monitors[monitor_id]
+        signal = monitor_info['signal']
+        callback = monitor_info['callback']
+        last_value = monitor_info['last_value']
+
+        try:
+            while True:
+                # Wait for the signal to change
+                await Edge(signal)
+
+                # Get the new value
+                new_value = signal.value
+
+                # Call the callback if the value changed and a callback is registered
+                if new_value != last_value and callback:
+                    callback(signal, new_value)
+
+                # Update last value
+                monitor_info['last_value'] = new_value
+
+        except Exception as e:
+            self.log.error(f"Error in signal monitor for {monitor_info['signal_name']}: {str(e)}")
 
     @staticmethod
     def convert_param_type(value, default):

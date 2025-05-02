@@ -5,6 +5,8 @@ from CocoTBFramework.components.field_config import FieldConfig
 class AXISplitMonitorSlave:
     """
     Combined monitor/slave for a single AXI split monitoring interface.
+    Works with the updated splitter design that provides consistent behavior
+    between read and write protocols.
     """
     def __init__(self, dut, clock, axi_addr_width=32, axi_id_width=8,
                     title_prefix="Split", randomizer=None, log=None):
@@ -24,7 +26,10 @@ class AXISplitMonitorSlave:
         self.randomizer = randomizer
 
         # Create field configuration for split reporting interface
+        # This remains largely the same as the updated splitters maintain
+        # the same interface for reporting split transactions
         self.field_config = FieldConfig()
+        
         self.field_config.add_field_dict('split_addr', {
             'bits': axi_addr_width,
             'default': 0,
@@ -33,6 +38,7 @@ class AXISplitMonitorSlave:
             'active_bits': (axi_addr_width-1, 0),
             'description': 'Original address of the split transaction'
         })
+        
         self.field_config.add_field_dict('split_id', {
             'bits': axi_id_width,
             'default': 0,
@@ -41,6 +47,7 @@ class AXISplitMonitorSlave:
             'active_bits': (axi_id_width-1, 0),
             'description': 'Transaction ID associated with the split transaction'
         })
+        
         self.field_config.add_field_dict('split_cnt', {
             'bits': 8,
             'default': 0,
@@ -50,14 +57,17 @@ class AXISplitMonitorSlave:
             'description': 'Number of splits for the transaction'
         })
 
-        signal_map={
-                'm2s_valid': 'fub_split_valid',
-                's2m_ready': 'fub_split_ready'
+        # Signal maps remain unchanged as the interface is consistent
+        # between the old and new implementations
+        signal_map = {
+            'm2s_valid': 'fub_split_valid',
+            's2m_ready': 'fub_split_ready'
         }
-        optional_signal_map={
-                'm2s_pkt_split_addr': 'fub_split_addr',
-                'm2s_pkt_split_id':   'fub_split_id',
-                'm2s_pkt_split_cnt':  'fub_split_cnt'
+        
+        optional_signal_map = {
+            'm2s_pkt_split_addr': 'fub_split_addr',
+            'm2s_pkt_split_id':   'fub_split_id',
+            'm2s_pkt_split_cnt':  'fub_split_cnt'
         }
 
         # Create slave for split tracking
@@ -103,3 +113,19 @@ class AXISplitMonitorSlave:
     def clear_queue(self):
         """Clear the monitor queue"""
         self.split_monitor.clear_queue()
+    
+    def get_split_info(self, split_packet):
+        """
+        Extract split information from a packet.
+        
+        Args:
+            split_packet: Split packet received from the monitor
+            
+        Returns:
+            Dictionary containing split information
+        """
+        return {
+            'split_addr': split_packet.split_addr,
+            'split_id': split_packet.split_id,
+            'split_cnt': split_packet.split_cnt,
+        }

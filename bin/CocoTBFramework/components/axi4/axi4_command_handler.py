@@ -482,6 +482,14 @@ class AXI4CommandHandler:
         if hasattr(response, 'rlast') and response.rlast:
             self.read_responses[id_value]['complete'] = True
             self.read_responses[id_value]['end_time'] = get_sim_time('ns')
+            
+            # DEBUG: Add more logging about transaction completion
+            self.log.info(f"Read transaction complete: ID={id_value}, received rlast=1")
+            
+            # Check for pending transaction and explicitly mark as complete
+            if id_value in self.pending_read_transactions:
+                self.pending_read_transactions[id_value]['completed'] = True
+                self.log.info(f"Explicitly marked transaction ID={id_value} as completed")
 
         self.log.debug(f"Received read response: ID={id_value}, DATA=0x{getattr(response, 'rdata', 0):X}, LAST={getattr(response, 'rlast', 0)}")
 
@@ -514,16 +522,24 @@ class AXI4CommandHandler:
         """
         for id_value, info in list(self.pending_read_transactions.items()):
             # Check if we have all responses
-            if id_value in self.read_responses and self.read_responses[id_value]['complete']:
-                # This transaction is complete
-                info['completed'] = True
-                info['end_time'] = self.read_responses[id_value]['end_time']
+            if id_value in self.read_responses:
+                # Consider a transaction complete if either:
+                # 1. The response is marked complete (rlast seen)
+                # 2. We've received all expected beats based on burst length
+                response_info = self.read_responses[id_value]
+                expected_beats = info.get('addresses', [])
+                received_beats = len(response_info.get('packets', []))
+                
+                if response_info.get('complete', False) or (expected_beats and received_beats >= len(expected_beats)):
+                    # This transaction is complete
+                    info['completed'] = True
+                    info['end_time'] = response_info.get('end_time', get_sim_time('ns'))
 
-                # Update transaction order
-                if (id_value, True) in self.transaction_order:
-                    self.transaction_order.remove((id_value, True))
+                    # Update transaction order
+                    if (id_value, True) in self.transaction_order:
+                        self.transaction_order.remove((id_value, True))
 
-                self.log.debug(f"Read transaction completed: ID={id_value}")
+                    self.log.debug(f"Read transaction completed: ID={id_value}, beats={received_beats}")
 
     async def _check_sequence_completions(self):
         """

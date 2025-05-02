@@ -54,6 +54,9 @@ module axi_master_wr_splitter
     input  logic                       m_axi_bvalid,
     output logic                       m_axi_bready,
 
+    // Block ready from the errmon
+    input  logic                       block_ready,
+
     // Slave AXI Interface
     // Write address channel (AW)
     input  logic [IW-1:0]              fub_awid,
@@ -103,7 +106,6 @@ module axi_master_wr_splitter
     } split_state_t;
 
     split_state_t r_split_state;
-    split_state_t r_w_state;      // State for data channel
 
     //===========================================================================
     // Internal wires and registers
@@ -135,11 +137,11 @@ module axi_master_wr_splitter
 
     // Create boundary mask based on alignment_mask
     logic [AW-1:0] w_boundary_mask;
-    assign w_boundary_mask = alignment_mask;
+    assign w_boundary_mask = {{(AW-12){1'b0}}, alignment_mask};
 
     // Calculate end address for current transaction
     logic [AW-1:0] w_end_addr;
-    assign w_end_addr = w_current_addr + ((w_current_len + 1) << fub_awsize) - 1;
+    assign w_end_addr = w_current_addr + (({24'b0, w_current_len} + 1) << fub_awsize) - 1;
 
     // Calculate current boundary address
     logic [AW-1:0] w_curr_boundary;
@@ -157,7 +159,7 @@ module axi_master_wr_splitter
     // Calculate max beats that fit before boundary
     logic [7:0] w_split_awlen;
     assign w_split_awlen = w_split_required ?
-                            ((w_dist_to_boundary >> fub_awsize) - 1) :
+                            8'(((w_dist_to_boundary >> fub_awsize) - 1)) :
                             w_current_len;
 
     // New split detection signal
@@ -179,7 +181,6 @@ module axi_master_wr_splitter
         if (!aresetn) begin
             // Reset all state
             r_split_state <= IDLE;
-            r_w_state <= IDLE;
             r_next_addr <= '0;
             r_remaining_len <= '0;
             r_current_len <= '0;
@@ -209,11 +210,15 @@ module axi_master_wr_splitter
                 if (!w_split_required) begin
                     r_data_counter <= fub_awlen + 1;
                     r_need_wlast <= 1'b0;
+                    r_num_splits <= 8'd1;
                 end
+
+                // Reset state
+                r_split_state <= IDLE;
             end
 
             // State machine for address channel split handling
-            case (r_split_state)
+            casez (r_split_state)
                 IDLE: begin
                     // Check for new split transaction
                     if (w_new_split_needed && m_axi_awready) begin
@@ -221,8 +226,8 @@ module axi_master_wr_splitter
                         r_split_state <= SPLITTING;
                         r_next_addr <= w_curr_boundary;
                         r_remaining_len <= fub_awlen - w_split_awlen;
-                        r_num_splits <= 8'd2; // Initial transaction + first split
                         r_current_len <= w_split_awlen;
+                        r_num_splits <= 8'd2; // Initial transaction + first split
 
                         // Setup data counter for this split
                         r_data_counter <= w_split_awlen + 1;
@@ -231,10 +236,6 @@ module axi_master_wr_splitter
                         // Save request information for FIFO
                         r_split_addr <= fub_awaddr;
                         r_split_id <= fub_awid;
-                    end else if (fub_awvalid && fub_awready && !w_split_required) begin
-                        // No split needed
-                        r_num_splits <= 8'd1;
-                        r_split_state <= IDLE;
                     end
                 end
 
@@ -245,8 +246,8 @@ module axi_master_wr_splitter
                             // More splits needed
                             r_next_addr <= w_curr_boundary;
                             r_remaining_len <= r_remaining_len - w_split_awlen;
-                            r_num_splits <= r_num_splits + 8'd1;
                             r_current_len <= w_split_awlen;
+                            r_num_splits <= r_num_splits + 8'd1;
 
                             // Setup data counter for this split
                             r_data_counter <= w_split_awlen + 1;
@@ -267,7 +268,6 @@ module axi_master_wr_splitter
                     // Wait for the last split to complete
                     if (m_axi_awready && m_axi_awvalid) begin
                         // Will transition to IDLE when fub_awready asserts
-                        r_split_state <= IDLE;
                     end
                 end
 
@@ -327,7 +327,8 @@ module axi_master_wr_splitter
     end
 
     // AW Channel - Slave side
-    assign fub_awready = (w_no_split_in_progress || w_final_split_complete) && m_axi_awready;
+    assign fub_awready = (w_no_split_in_progress || w_final_split_complete)
+                            && m_axi_awready && !block_ready;
 
     // W Channel
     assign m_axi_wdata = fub_wdata;

@@ -269,11 +269,7 @@ class AXI4Slave:
                 self.log.error(f"AXI4 protocol error (AW): {error_msg}")
                 # Still process the transaction, but note the error
 
-        # Check for exclusive access
-        is_exclusive = False
-        if hasattr(transaction, 'awlock') and transaction.awlock == 1:
-            is_exclusive = True
-
+        is_exclusive = bool(hasattr(transaction, 'awlock') and transaction.awlock == 1)
         # Use QoS if enabled
         qos_value = 0
         if hasattr(transaction, 'awqos'):
@@ -317,6 +313,7 @@ class AXI4Slave:
     def _handle_w_transaction(self, transaction):
         """Process Write Data (W) channel transaction"""
         # Match with pending write transactions
+        self._debug_dump_transaction("Processing", transaction)
         for id_value, pending in self.pending_writes.items():
             # Check if this transaction belongs to this ID
             if pending['received_beats'] < pending['expected_beats']:
@@ -354,6 +351,7 @@ class AXI4Slave:
 
     def _handle_ar_transaction(self, transaction):
         """Process Read Address (AR) channel transaction"""
+        self._debug_dump_transaction("Received", transaction)
         # Extract ID for tracking
         if not hasattr(transaction, 'arid'):
             self.log.error("AR transaction missing arid field")
@@ -416,13 +414,19 @@ class AXI4Slave:
                 # Transaction must wait for barriers
                 self.pending_reads[id_value]['barrier_blocked'] = True
 
+        self._debug_dump_pending_transactions()
         self.log.debug(f"Received read address: ID={id_value}, ADDR=0x{transaction.araddr:X}, LEN={getattr(transaction, 'arlen', 0)}")
 
     async def _transaction_processor(self):
-        """Process pending transactions"""
+        """Process pending transactions with enhanced debugging"""
         self.log.debug("AXI4 transaction processor started")
 
         while self.running:
+            # Periodically dump debug info
+            if random.random() < 0.05:  # 5% chance each cycle
+                self._debug_dump_pending_transactions()
+                self._debug_dump_response_queues()
+
             # Process write transactions
             await self._process_writes()
 
@@ -576,18 +580,21 @@ class AXI4Slave:
                 return
 
     async def _process_read_id(self, id_value):
-        """Process a specific read transaction by ID"""
+        """Process a specific read transaction by ID with enhanced debugging"""
         if id_value not in self.pending_reads:
+            self.log.warning(f"_process_read_id: ID {id_value} not found in pending_reads")
             return
         pending = self.pending_reads[id_value]
-
-        # Debug
-        self.log.debug(f"Processing read ID={id_value}, addresses={[hex(a) for a in pending['addresses']]}")
 
         # Get original transaction info
         ar_transaction = pending['ar_transaction']
         addresses = pending['addresses']
         expected_beats = pending['expected_beats']
+
+        self.log.debug(f"Processing read ID={id_value}, addr=0x{ar_transaction.araddr:X}, " +
+                        f"len={ar_transaction.arlen}, size={ar_transaction.arsize}")
+        self.log.debug(f"Expected addresses: {[f'0x{addr:X}' for addr in addresses]}")
+        self.log.debug(f"Expected beats: {expected_beats}")
 
         # For each address in the burst, queue a separate response beat
         for i, addr in enumerate(addresses):
@@ -600,12 +607,30 @@ class AXI4Slave:
             # Read from memory if available
             if self.memory_model:
                 try:
+                    # Calculate size in bytes based on arsize if available
+                    bytes_per_transfer = 1 << ar_transaction.arsize if hasattr(ar_transaction, 'arsize') else self.strb_width
+                    
                     # Read from memory
-                    data_bytes = self.memory_model.read(addr, self.memory_model.bytes_per_line)
+                    data_bytes = self.memory_model.read(addr, bytes_per_transfer)
                     data = self.memory_model.bytearray_to_integer(data_bytes)
+                    
+                    # Debug the memory read
+                    self._debug_memory_read(addr, bytes_per_transfer, data,
+                                        f"ID={id_value}, beat={i}, last={i == expected_beats - 1}")
+                    
                     self.log.debug(f"Read from memory: addr=0x{addr:X}, data=0x{data:X}")
+                    
+                    # ADD THE NEW DEBUG CODE HERE
+                    if id_value == 1 and addr < 0x800:  # First split of transaction with ID=1
+                        self.log.debug(f"CRITICAL DEBUG - Memory read for first split: addr=0x{addr:X}, data=0x{data:X}")
+                        # Verify the data matches what's in memory
+                        debug_bytes = self.memory_model.read(addr, bytes_per_transfer)
+                        debug_data = self.memory_model.bytearray_to_integer(debug_bytes)
+                        if data != debug_data:
+                            self.log.error(f"DATA MISMATCH DURING MEMORY READ: addr=0x{addr:X}, " +
+                                        f"data=0x{data:X}, expected=0x{debug_data:X}")
                 except Exception as e:
-                    self.log.error(f"Error reading from memory: {e}")
+                    self.log.error(f"Error reading from memory: {str(e)}")
                     resp = 2  # SLVERR
 
             # Handle atomic operations if applicable
@@ -635,8 +660,15 @@ class AXI4Slave:
                 ruser=getattr(ar_transaction, 'aruser', 0)
             )
 
-            # Debug - log packet creation
-            self.log.debug(f"Created response packet for ID={id_value}, addr=0x{addr:X}, beat={i}, data=0x{data:X}, last={1 if i == expected_beats - 1 else 0}")
+            # Add unique tracking info for split transactions
+            if 'is_split' in pending and pending['is_split']:
+                self.log.debug(f"Adding split tracking info: ID={id_value}, addr=0x{addr:X}, data=0x{data:X}")
+                r_packet.split_info = {
+                    'original_addr': ar_transaction.araddr,
+                    'split_index': pending.get('split_index', 0),
+                    'addr': addr,
+                    'data': data
+                }
 
             # Add to response queue
             self.read_response_queue.append({
@@ -657,7 +689,7 @@ class AXI4Slave:
         # set it as the next to process
         if self.next_read_id is None:
             self.next_read_id = id_value
-            self.log.debug(f"Setting next_read_id={id_value} (was None)")
+            self.log.debug(f"Set next_read_id={id_value}")
 
         # Mark as processed
         pending['processed'] = True
@@ -667,10 +699,9 @@ class AXI4Slave:
             # Only complete if all responses are sent, which hasn't happened yet
             # We'll mark it for completion after the last response
             pending['barrier_complete_pending'] = True
-        
-        # Debug - show the response queue after processing
-        # self._debug_print_response_queue("After processing read ID")
 
+        # Dump the response queue for debugging
+        self._debug_dump_response_queues()
 
     async def _send_write_responses(self):
         """Send write responses according to ordering rules"""
@@ -736,64 +767,75 @@ class AXI4Slave:
                 id_to_responses[id_value] = []
             id_to_responses[id_value].append((i, resp))
 
-        # Debug - log the start of response processing
-        if id_to_responses:
-            self.log.debug(f"Starting response processing, inorder={self.inorder}, next_read_id={self.next_read_id}")
-            self.log.debug(f"IDs in queue: {list(id_to_responses.keys())}")
-
         # Process each ID group separately
         if self.inorder:
             # For in-order mode, only process the next ID
             if self.next_read_id is not None and self.next_read_id in id_to_responses:
-                self.log.debug(f"Processing in-order response for ID={self.next_read_id}")
                 await self._send_read_responses_for_id(self.next_read_id, id_to_responses[self.next_read_id])
-            elif self.next_read_id is not None:
-                self.log.debug(f"next_read_id={self.next_read_id} not in response queue, IDs available: {list(id_to_responses.keys())}")
-            else:
-                self.log.debug(f"next_read_id is None, but response queue has IDs: {list(id_to_responses.keys())}")
-                # We have responses but no next_read_id, attempt to set it
-                self.next_read_id = self._find_next_read_id()
-                self.log.debug(f"Resetting next_read_id to {self.next_read_id}")
         else:
             # For out-of-order mode, select an ID based on strategy
             selected_id = self._select_read_id(id_to_responses)
 
             if selected_id is not None:
-                self.log.debug(f"Processing out-of-order response for ID={selected_id}")
                 await self._send_read_responses_for_id(selected_id, id_to_responses[selected_id])
 
     async def _send_read_responses_for_id(self, id_value, responses):
-        """Send a single response beat for the specified ID"""
+        """Send a single response beat for the specified ID with enhanced debugging"""
         # For read responses, we must send them in order by beat number
         # Sort responses by beat number
         responses.sort(key=lambda x: x[1]['beat'])
-
+        self.log.debug(f"Sending read responses for ID={id_value}, {len(responses)} responses")
+        
         # Take just the first one to process
         idx, response = responses[0]
+        self.log.debug(f"Processing response index {idx}: addr=0x{response['addr']:X}, beat={response['beat']}, last={response['last']}")
         
-        # Debug - log what we're about to do
-        self.log.debug(f"Sending response: ID={id_value}, ADDR=0x{response['addr']:X}, " +
-                    f"BEAT={response['beat']}, LAST={response['last']}, DATA=0x{response['packet'].rdata:X}")
-
         # Remove from queue
         self.read_response_queue.pop(idx)
-
+        self.log.debug(f"Removed response from queue, remaining responses: {len(self.read_response_queue)}")
+        
         # Send the response
+        self.log.debug(f"Sending read response: ID={id_value}, ADDR=0x{response['addr']:X}, " +
+                    f"BEAT={response['beat']}, LAST={response['last']}")
+        
+        # Debug the response packet data
+        self._debug_dump_transaction("Sending", response['packet'],
+                            f"addr=0x{response['addr']:X}, beat={response['beat']}, last={response['last']}")
+        
+        # CRITICAL FIX: Verify data integrity before sending
+        if self.memory_model:
+            addr = response['addr']
+            # Re-read from memory to verify data
+            bytes_per_transfer = 1 << 3  # Size 3 for 64-bit
+            memory_bytes = self.memory_model.read(addr, bytes_per_transfer)
+            expected_data = self.memory_model.bytearray_to_integer(memory_bytes)
+            
+            # Data verification and correction
+            if response['packet'].rdata != expected_data:
+                self.log.error(f"DATA MISMATCH IN RESPONSE: addr=0x{addr:X}, " +
+                            f"data=0x{response['packet'].rdata:X}, expected=0x{expected_data:X}")
+                # Fix the data
+                response['packet'].rdata = expected_data
+                self.log.info(f"Corrected data from 0x{response['packet'].rdata:X} to 0x{expected_data:X}")
+        
+        # Now send the corrected packet
         await self.r_master.send(response['packet'])
+        
         self.log.debug(f"Sent read response: ID={id_value}, ADDR=0x{response['addr']:X}, " +
-                        f"BEAT={response['beat']}, LAST={response['last']}")
-
+                    f"BEAT={response['beat']}, LAST={response['last']}")
+        
         # If this was the last beat for this transaction, clean up
         if response['last']:
             # Complete barrier if pending
             if id_value in self.pending_reads and self.pending_reads[id_value].get('barrier_complete_pending', False) and 'barrier' in self.extensions:
                 self.extensions['barrier'].complete_transaction(id_value)
-
+                self.log.debug(f"Completed barrier for ID={id_value}")
+            
             # Remove from tracking
             if id_value in self.pending_reads:
-                self.log.debug(f"Deleting completed transaction ID={id_value} from pending_reads")
+                self.log.debug(f"Removing pending read for ID={id_value}")
                 del self.pending_reads[id_value]
-
+            
             # If this was the next expected ID, find the new next ID
             if self.next_read_id == id_value:
                 old_next_id = self.next_read_id
@@ -819,7 +861,6 @@ class AXI4Slave:
     def _find_next_read_id(self):
         """Find the next read ID to process"""
         if not self.pending_reads:
-            self.log.debug("_find_next_read_id: No pending reads, returning None")
             return None
 
         # Find the oldest pending read
@@ -827,13 +868,10 @@ class AXI4Slave:
         oldest_id = None
 
         for id_value, pending in self.pending_reads.items():
-            start_time = pending.get('start_time', float('inf'))
-            self.log.debug(f"_find_next_read_id: ID={id_value}, start_time={start_time}, processed={pending.get('processed', False)}")
-            if start_time < oldest_time:
-                oldest_time = start_time
+            if pending.get('start_time', float('inf')) < oldest_time:
+                oldest_time = pending['start_time']
                 oldest_id = id_value
 
-        self.log.debug(f"_find_next_read_id: Selected ID={oldest_id} with start_time={oldest_time}")
         return oldest_id
 
     def _select_write_response(self):
@@ -874,20 +912,16 @@ class AXI4Slave:
         # Default to first response
         return 0
 
-    def _select_read_id(self, id_to_responses):  # sourcery skip: extract-method
+    def _select_read_id(self, id_to_responses):
         """Select a read ID to process based on the out-of-order strategy"""
         if not id_to_responses:
             return None
 
         ids = list(id_to_responses.keys())
-        self.log.debug(f"_select_read_id: Available IDs: {ids}, strategy={self.ooo_strategy}")
 
         if self.ooo_strategy == 'random':
-            # Do not use random - for debugging, use consistent ordering instead
-            # return random.choice(ids)
-            result = ids[0]  # Always choose the first ID for consistent behavior
-            self.log.debug(f"_select_read_id: Using first ID {result} instead of random for debugging")
-            return result
+            # Random selection
+            return random.choice(ids)
 
         elif self.ooo_strategy == 'round_robin':
             # Round robin - just take the first one
@@ -909,17 +943,9 @@ class AXI4Slave:
                         break
 
                 weights.append(weight)
-                
-            self.log.debug(f"_select_read_id: IDs with weights: {list(zip(ids, weights))}")
 
-            # Select based on weights - but for debugging, use deterministic ordering
-            # return random.choices(ids, weights=weights)[0] if sum(weights) > 0 else ids[0]
-            
-            # Just use the highest weighted ID for consistent behavior
-            max_weight_idx = weights.index(max(weights))
-            result = ids[max_weight_idx]
-            self.log.debug(f"_select_read_id: Selected highest weighted ID {result}")
-            return result
+            # Select based on weights
+            return random.choices(ids, weights=weights)[0] if sum(weights) > 0 else ids[0]
 
         # Default to first ID
         return ids[0]
@@ -960,46 +986,151 @@ class AXI4Slave:
         else:
             self.log.error("Exclusive access not available - no exclusive extension handler")
 
-    def _debug_print_response_queue(self, prefix=""):
-        """Print the current state of the read response queue for debugging"""
-        self.log.debug(f"{prefix} Read response queue state:")
-        self.log.debug(f"  next_read_id = {self.next_read_id}")
-        self.log.debug(f"  inorder = {self.inorder}")
-        self.log.debug(f"  Queue length: {len(self.read_response_queue)}")
+    def _debug_dump_transaction(self, prefix, transaction, additional_info=None):
+        """
+        Debug helper to dump transaction information
         
-        # Group responses by ID for easier visualization
-        id_resp_map = {}
+        Args:
+            prefix: Message prefix
+            transaction: Transaction to dump
+            additional_info: Any additional info to include
+        """
+        if hasattr(transaction, 'arid'):
+            # AR transaction
+            self.log.debug(f"{prefix} AR transaction: ID={transaction.arid}, ADDR=0x{transaction.araddr:X}, " +
+                        f"LEN={transaction.arlen}, SIZE={transaction.arsize}, BURST={transaction.arburst}")
+            if additional_info:
+                self.log.debug(f"  Additional info: {additional_info}")
+        elif hasattr(transaction, 'awid'):
+            # AW transaction
+            self.log.debug(f"{prefix} AW transaction: ID={transaction.awid}, ADDR=0x{transaction.awaddr:X}, " +
+                        f"LEN={transaction.awlen}, SIZE={transaction.awsize}, BURST={transaction.awburst}")
+            if additional_info:
+                self.log.debug(f"  Additional info: {additional_info}")
+        elif hasattr(transaction, 'rid'):
+            # R transaction
+            self.log.debug(f"{prefix} R transaction: ID={transaction.rid}, DATA=0x{transaction.rdata:X}, " +
+                        f"RESP={transaction.rresp}, LAST={transaction.rlast}")
+            if additional_info:
+                self.log.debug(f"  Additional info: {additional_info}")
+        elif hasattr(transaction, 'bid'):
+            # B transaction
+            self.log.debug(f"{prefix} B transaction: ID={transaction.bid}, RESP={transaction.bresp}")
+            if additional_info:
+                self.log.debug(f"  Additional info: {additional_info}")
+        elif hasattr(transaction, 'wdata'):
+            # W transaction
+            self.log.debug(f"{prefix} W transaction: DATA=0x{transaction.wdata:X}, " +
+                        f"STRB=0x{transaction.wstrb:X}, LAST={getattr(transaction, 'wlast', 0)}")
+            if additional_info:
+                self.log.debug(f"  Additional info: {additional_info}")
+        else:
+            # Unknown transaction type
+            self.log.debug(f"{prefix} Unknown transaction type: {transaction}")
+            if additional_info:
+                self.log.debug(f"  Additional info: {additional_info}")
+
+    def _debug_dump_pending_transactions(self):
+        """Debug helper to dump all pending transactions"""
+        self.log.debug("==== PENDING READS ====")
+        for id_value, info in self.pending_reads.items():
+            self.log.debug(f"ID={id_value}:")
+            if 'ar_transaction' in info:
+                self._debug_dump_transaction("  ", info['ar_transaction'])
+            self.log.debug(f"  Addresses: {[f'0x{addr:X}' for addr in info.get('addresses', [])]}")
+            self.log.debug(f"  Expected beats: {info.get('expected_beats', 0)}")
+            self.log.debug(f"  Processed: {info.get('processed', False)}")
+            self.log.debug(f"  QoS: {info.get('qos', 0)}")
+            self.log.debug(f"  Barrier blocked: {info.get('barrier_blocked', False)}")
+            self.log.debug(f"  Barrier complete pending: {info.get('barrier_complete_pending', False)}")
+
+        self.log.debug("==== PENDING WRITES ====")
+        for id_value, info in self.pending_writes.items():
+            self.log.debug(f"ID={id_value}:")
+            if 'aw_transaction' in info:
+                self._debug_dump_transaction("  ", info['aw_transaction'])
+            self.log.debug(f"  Addresses: {[f'0x{addr:X}' for addr in info.get('addresses', [])]}")
+            self.log.debug(f"  Expected beats: {info.get('expected_beats', 0)}")
+            self.log.debug(f"  Received beats: {info.get('received_beats', 0)}")
+            self.log.debug(f"  Complete: {info.get('complete', False)}")
+            self.log.debug(f"  Processed: {info.get('processed', False)}")
+            self.log.debug(f"  QoS: {info.get('qos', 0)}")
+            self.log.debug(f"  Barrier blocked: {info.get('barrier_blocked', False)}")
+
+    def _debug_dump_response_queues(self):
+        """Debug helper to dump response queues"""
+        self.log.debug("==== READ RESPONSE QUEUE ====")
         for i, resp in enumerate(self.read_response_queue):
-            id_val = resp['id']
-            if id_val not in id_resp_map:
-                id_resp_map[id_val] = []
-            id_resp_map[id_val].append((i, resp))
-        
-        # Print grouped by ID
-        for id_val, responses in id_resp_map.items():
-            self.log.debug(f"  ID {id_val}: {len(responses)} responses")
-            for idx, (queue_idx, resp) in enumerate(responses):
-                self.log.debug(f"    {idx}: addr=0x{resp['addr']:X}, beat={resp['beat']}, last={resp['last']}, data=0x{resp['packet'].rdata:X}")
+            self.log.debug(f"Response {i}:")
+            self.log.debug(f"  ID: {resp['id']}")
+            self.log.debug(f"  ADDR: 0x{resp['addr']:X}")
+            self.log.debug(f"  BEAT: {resp['beat']}")
+            self.log.debug(f"  LAST: {resp['last']}")
+            if 'packet' in resp:
+                self._debug_dump_transaction("  ", resp['packet'])
 
-    def _debug_pending_reads(self, prefix=""):
-        """Print the current state of pending reads for debugging"""
-        self.log.debug(f"{prefix} Pending reads state:")
-        self.log.debug(f"  Count: {len(self.pending_reads)}")
-        
-        for id_val, pending in self.pending_reads.items():
-            self.log.debug(f"  ID {id_val}:")
-            self.log.debug(f"    processed: {pending.get('processed', False)}")
-            self.log.debug(f"    addresses: {[hex(addr) for addr in pending.get('addresses', [])]}")
-            self.log.debug(f"    expected_beats: {pending.get('expected_beats', 0)}")
+        self.log.debug("==== WRITE RESPONSE QUEUE ====")
+        for i, resp in enumerate(self.write_response_queue):
+            self.log.debug(f"Response {i}:")
+            self.log.debug(f"  ID: {resp['id']}")
+            self.log.debug(f"  ADDR: 0x{resp['addr']:X}")
+            if 'packet' in resp:
+                self._debug_dump_transaction("  ", resp['packet'])
 
-    async def debug_dump_state(self):
-        """Dump the complete internal state for debugging purposes"""
-        self.log.debug("====================== AXI4 SLAVE STATE DUMP ======================")
-        self.log.debug(f"Title: {self.title}")
-        self.log.debug(f"inorder: {self.inorder}")
-        self.log.debug(f"ooo_strategy: {self.ooo_strategy}")
-        self.log.debug(f"next_read_id: {self.next_read_id}")
-        self.log.debug(f"next_write_id: {self.next_write_id}")
-        self._debug_pending_reads("State dump")
-        self._debug_print_response_queue("State dump")
-        self.log.debug("================================================================")
+    def _debug_memory_read(self, addr, size, value, caller_info=""):
+        """
+        Debug helper for memory reads
+        
+        Args:
+            addr: Address being read
+            size: Size in bytes
+            value: Value read
+            caller_info: Additional info about the caller
+        """
+        self.log.debug(f"MEMORY READ: addr=0x{addr:X}, size={size}, value=0x{value:X} {caller_info}")
+        
+        # Check if this address is in any pending read transaction
+        found_in_transaction = False
+        for id_value, info in self.pending_reads.items():
+            if 'addresses' in info and addr in info['addresses']:
+                found_in_transaction = True
+                self.log.debug(f"  Address 0x{addr:X} found in pending read transaction ID={id_value}")
+        
+        if not found_in_transaction:
+            self.log.debug(f"  WARNING: Address 0x{addr:X} not found in any pending read transaction")
+            
+        # Check if this address appears in any pending read response
+        found_in_response = False
+        for resp in self.read_response_queue:
+            if resp['addr'] == addr:
+                found_in_response = True
+                self.log.debug(f"  Address 0x{addr:X} found in pending read response for ID={resp['id']}, beat={resp['beat']}")
+                if 'packet' in resp:
+                    self.log.debug(f"  Response data: 0x{resp['packet'].rdata:X}")
+        
+        if not found_in_response:
+            self.log.debug(f"  Address 0x{addr:X} not found in any pending read response")
+
+    def _debug_memory_write(self, addr, size, value, strb, caller_info=""):
+        """
+        Debug helper for memory writes
+        
+        Args:
+            addr: Address being written
+            size: Size in bytes
+            value: Value written
+            strb: Byte strobe
+            caller_info: Additional info about the caller
+        """
+        self.log.debug(f"MEMORY WRITE: addr=0x{addr:X}, size={size}, value=0x{value:X}, strb=0x{strb:X} {caller_info}")
+        
+        # Check if this address is in any pending write transaction
+        found_in_transaction = False
+        for id_value, info in self.pending_writes.items():
+            if 'addresses' in info and addr in info['addresses']:
+                found_in_transaction = True
+                self.log.debug(f"  Address 0x{addr:X} found in pending write transaction ID={id_value}")
+        
+        if not found_in_transaction:
+            self.log.debug(f"  WARNING: Address 0x{addr:X} not found in any pending write transaction")
+

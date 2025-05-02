@@ -6,7 +6,7 @@ It focuses on address generation with proper AXI4 protocol compliance, supportin
 different burst types, sizes, and alignment requirements.
 """
 
-from typing import Dict, List, Any, Optional, Tuple, Union
+from typing import Dict, List, Any, Optional, Tuple
 from collections import deque
 
 from ..field_config import FieldConfig
@@ -16,10 +16,8 @@ from .axi4_fields_signals import (
     AXI4_AR_FIELD_CONFIG
 )
 from .axi4_seq_base import AXI4BaseSequence
-from ..randomization_config import RandomizationConfig, RandomizationMode
-from .axi4_randomization_config import (
-                AXI4RandomizationConfig, RandomizationMode
-            )
+from ..randomization_config import RandomizationConfig, RandomizationMode, FieldRandomizationConfig
+from .axi4_randomization_config import AXI4RandomizationConfig
 
 class AXI4AddressSequence(AXI4BaseSequence):
     """
@@ -373,11 +371,7 @@ class AXI4AddressSequence(AXI4BaseSequence):
 
         # Default to length of sequence if count not specified
         if count is None:
-            if self.addr_sequence:
-                count = len(self.addr_sequence)
-            else:
-                count = 0
-
+            count = len(self.addr_sequence) if self.addr_sequence else 0
         # Generate packets
         for _ in range(count):
             packet = self.generate_packet()
@@ -498,27 +492,27 @@ class AXI4AddressSequence(AXI4BaseSequence):
                             randomization_config: Optional[RandomizationConfig] = None) -> 'AXI4AddressSequence':
         """
         Create a sequence of transactions that test 4KB boundary cases.
-        
+
         Args:
             channel: AXI4 channel ('AW' or 'AR')
             id_value: Transaction ID to use
             data_width: Data width in bits (affects bytes per beat)
             randomization_config: Optional randomization configuration
-            
+
         Returns:
             Configured AXI4AddressSequence
         """
         sequence = cls(name="4k_boundary_test", channel=channel, randomization_config=randomization_config)
         sequence.data_width = data_width  # Set data width
-        
+
         # Calculate bytes per beat based on data width
         bytes_per_beat = data_width // 8
         # Calculate max burst size based on data width (log2 of bytes_per_beat)
         max_burst_size = (bytes_per_beat).bit_length() - 1
-        
+
         # 4KB boundary
         boundary_size = 0x1000
-        
+
         # Test cases near 4KB boundaries
         test_cases = [
             # (address, burst_len, burst_size, description)
@@ -526,27 +520,27 @@ class AXI4AddressSequence(AXI4BaseSequence):
             (0x00000FF8, 1, max_burst_size, "Just before 4KB boundary"),
             (0x00001000, 7, max_burst_size, "At 4KB boundary"),
             (0x00001FF0, 3, max_burst_size, "Near second 4KB boundary"),
-            
+
             # Calculate exact positions that will cross boundaries based on data width
             (boundary_size - (bytes_per_beat * 4), 7, max_burst_size, "Cross 4KB boundary - medium burst"),
             (boundary_size - bytes_per_beat, 1, max_burst_size, "Straddle 4KB boundary"),
-            
+
             # Additional test cases with various burst lengths and sizes
             (boundary_size - (bytes_per_beat * 8), 15, max_burst_size, "Large burst crossing 4KB boundary"),
             (boundary_size - (bytes_per_beat * 2), 3, max_burst_size-1, "Cross with smaller burst size"),
-            
+
             # Test cases that shouldn't cross boundaries (for comparison)
             (boundary_size + (bytes_per_beat * 8), 7, max_burst_size, "After boundary, not crossing"),
             (boundary_size - (bytes_per_beat * 16), 3, max_burst_size, "Before boundary, not crossing")
         ]
-        
+
         for i, (addr, burst_len, burst_size, desc) in enumerate(test_cases):
             # For proper indexing in case we have multiple test groups
             current_id = id_value + i
-            
+
             # Cap burst_size to max_burst_size to prevent invalid configurations
             actual_burst_size = min(burst_size, max_burst_size)
-            
+
             sequence.add_transaction(
                 addr=addr,
                 id_value=current_id,
@@ -554,11 +548,11 @@ class AXI4AddressSequence(AXI4BaseSequence):
                 burst_size=actual_burst_size,
                 burst_type=cls.BURST_INCR  # Use INCR bursts
             )
-            
+
             # Add comment to the transaction (useful for debugging)
             if hasattr(sequence, 'add_comment'):
                 sequence.add_comment(current_id, desc)
-        
+
         return sequence
 
     @classmethod
@@ -571,7 +565,7 @@ class AXI4AddressSequence(AXI4BaseSequence):
                             randomization_config: Optional[RandomizationConfig] = None) -> 'AXI4AddressSequence':
         """
         Create a sequence of transactions that test boundary cases based on the alignment mask.
-        
+
         Args:
             alignment_mask: Alignment mask that defines the boundary (e.g., 0xFFF for 4KB boundary)
             channel: AXI4 channel ('AW' or 'AR')
@@ -579,30 +573,30 @@ class AXI4AddressSequence(AXI4BaseSequence):
             id_value: Transaction ID to use
             data_width: Data width in bits (affects bytes per beat)
             randomization_config: Optional randomization configuration
-            
+
         Returns:
             Configured AXI4AddressSequence
         """
         # Calculate the boundary size
         boundary_size = alignment_mask + 1
-        
+
         # Create a meaningful name for the sequence
         sequence_name = f"{boundary_size}b_boundary_test"
-        
+
         # Create the sequence
         sequence = cls(name=sequence_name, channel=channel, randomization_config=randomization_config)
         sequence.data_width = data_width  # Set data width
-        
+
         # Calculate bytes per beat based on data width
         bytes_per_beat = data_width // 8
         # Calculate max burst size based on data width (log2 of bytes_per_beat)
         max_burst_size = (bytes_per_beat).bit_length() - 1
-        
+
         # Calculate the boundary address: align base_addr to boundary_size
         # and add an additional boundary_size to ensure we're testing a boundary
         page_start = (base_addr // boundary_size) * boundary_size
         boundary_addr = page_start + boundary_size
-        
+
         # Test cases near the boundary
         test_cases = [
             # (address, burst_len, burst_size, description)
@@ -611,25 +605,25 @@ class AXI4AddressSequence(AXI4BaseSequence):
             (boundary_addr - (2 * bytes_per_beat), 1, max_burst_size, "Just before boundary"),
             (boundary_addr, 7, max_burst_size, "At boundary"),
             (boundary_addr + 0xFF0, 3, max_burst_size, "Near next boundary"),
-            
+
             # Crossing cases - align these to cause specific boundary crossing
             (boundary_addr - (bytes_per_beat * 2), 3, max_burst_size, "Small cross boundary"),
             (boundary_addr - (bytes_per_beat * 4), 7, max_burst_size, "Medium cross boundary"),
             (boundary_addr - (bytes_per_beat * 8), 15, max_burst_size, "Large cross boundary"),
-            
+
             # Different size cases for multiple data width configurations
             (boundary_addr - (bytes_per_beat * 2), 3, max_burst_size-1, "Cross with smaller size"),
             (boundary_addr - (bytes_per_beat * 1), 0, max_burst_size, "Straddle boundary")
         ]
-        
+
         # Add transactions to the sequence
         for i, (addr, burst_len, burst_size, desc) in enumerate(test_cases):
             # For proper indexing in case we have multiple test groups
             current_id = id_value + i
-            
+
             # Cap burst_size to max_burst_size to prevent invalid configurations
             actual_burst_size = min(burst_size, max_burst_size)
-            
+
             sequence.add_transaction(
                 addr=addr,
                 id_value=current_id,
@@ -637,11 +631,11 @@ class AXI4AddressSequence(AXI4BaseSequence):
                 burst_size=actual_burst_size,
                 burst_type=cls.BURST_INCR  # Use INCR bursts
             )
-            
+
             # Add comment to the transaction (useful for debugging)
             if hasattr(sequence, 'add_comment'):
                 sequence.add_comment(current_id, f"{desc} (page: 0x{page_start:X})")
-        
+
         return sequence
 
 
@@ -781,11 +775,11 @@ class AXI4AddressSequence(AXI4BaseSequence):
 
     @classmethod
     def create_random_transactions(cls,
-                                    count: int = 10,
-                                    addr_range: Tuple[int, int] = (0, 0xFFFF),
-                                    id_range: Tuple[int, int] = (0, 15),
-                                    channel: str = "AW",
-                                    randomization_config: Optional[RandomizationConfig] = None) -> 'AXI4AddressSequence':
+                                count: int = 10,
+                                addr_range: Tuple[int, int] = (0, 0xFFFF),
+                                id_range: Tuple[int, int] = (0, 15),
+                                channel: str = "AW",
+                                randomization_config: Optional[RandomizationConfig] = None) -> 'AXI4AddressSequence':
         """
         Create a sequence of random but legal AXI4 transactions.
 
@@ -806,25 +800,25 @@ class AXI4AddressSequence(AXI4BaseSequence):
 
             # Configure address range
             field_name = f"{channel.lower()}_addr"
-            randomization_config.configure_field(
-                field_name,
+            addr_field_config = FieldRandomizationConfig(
                 mode=RandomizationMode.CONSTRAINED,
                 constraints={
                     "bins": [addr_range],
                     "weights": [1.0]
                 }
             )
+            randomization_config.configure_field(field_name, addr_field_config)
 
             # Configure ID range
             field_name = f"{channel.lower()}_id"
-            randomization_config.configure_field(
-                field_name,
+            id_field_config = FieldRandomizationConfig(
                 mode=RandomizationMode.CONSTRAINED,
                 constraints={
                     "bins": [id_range],
                     "weights": [1.0]
                 }
             )
+            randomization_config.configure_field(field_name, id_field_config)
 
         sequence = cls(name="random_transactions", channel=channel,
                         randomization_config=randomization_config)
@@ -832,23 +826,89 @@ class AXI4AddressSequence(AXI4BaseSequence):
         for _ in range(count):
             # Generate random values
             ch_prefix = channel.lower()
-            id_value = sequence.get_random_value(f"{ch_prefix}_id", id_range[0], id_range[1])
-            burst_size = sequence.get_random_value(f"{ch_prefix}_size", 0, 3)  # 1, 2, 4, 8 bytes
-            burst_type = sequence.get_random_value(f"{ch_prefix}_burst", 0, 2)
+
+            # Make sure to convert the return values to integers
+            try:
+                id_value = int(sequence.get_random_value(f"{ch_prefix}_id"))
+                # Ensure id_value is within range, default to minimum if not
+                if id_value < id_range[0] or id_value > id_range[1]:
+                    id_value = id_range[0]
+            except (ValueError, TypeError):
+                id_value = id_range[0]  # Default if conversion fails
+
+            try:
+                burst_size = int(sequence.get_random_value(f"{ch_prefix}_size", 0, 3))  # 1, 2, 4, 8 bytes
+                if burst_size < 0 or burst_size > 3:
+                    burst_size = 2  # Default to 4-byte size
+            except (ValueError, TypeError):
+                burst_size = 2  # Default if conversion fails
+
+            try:
+                burst_type = int(sequence.get_random_value(f"{ch_prefix}_burst", 0, 2))
+                if burst_type < 0 or burst_type > 2:
+                    burst_type = cls.BURST_INCR  # Default to INCR
+            except (ValueError, TypeError):
+                burst_type = cls.BURST_INCR  # Default if conversion fails
 
             # Generate random address within range and properly aligned
-            addr = sequence.get_random_value(f"{ch_prefix}_addr", addr_range[0], addr_range[1])
+            try:
+                addr = int(sequence.get_random_value(f"{ch_prefix}_addr"))
+                # Ensure addr is within range, default to minimum if not
+                if addr < addr_range[0] or addr > addr_range[1]:
+                    addr = addr_range[0]
+            except (ValueError, TypeError):
+                addr = addr_range[0]  # Default if conversion fails
+
             aligned_addr = sequence.align_address(addr, burst_size)
 
             # Determine burst length based on burst type
             if burst_type == cls.BURST_WRAP:
                 # WRAP bursts need specific lengths
                 wrap_len_options = [1, 3, 7, 15]  # 2, 4, 8, 16 transfers
-                burst_len = sequence.get_random_value(f"{ch_prefix}_wrap_len", 0, len(wrap_len_options)-1)
-                burst_len = wrap_len_options[burst_len]
+                try:
+                    burst_len_idx = int(sequence.get_random_value(f"{ch_prefix}_wrap_len", 0, len(wrap_len_options)-1))
+                    if burst_len_idx < 0 or burst_len_idx >= len(wrap_len_options):
+                        burst_len_idx = 0
+                    burst_len = wrap_len_options[burst_len_idx]
+                except (ValueError, TypeError):
+                    burst_len = 1  # Default if conversion fails
             else:
                 # For other types, any length up to 15 is fine for testing
-                burst_len = sequence.get_random_value(f"{ch_prefix}_len", 0, 15)
+                try:
+                    burst_len = int(sequence.get_random_value(f"{ch_prefix}_len", 0, 15))
+                    if burst_len < 0 or burst_len > 15:
+                        burst_len = 0  # Default to single beat
+                except (ValueError, TypeError):
+                    burst_len = 0  # Default if conversion fails
+
+            # Parse other parameters with defaults
+            try:
+                lock = int(sequence.get_random_value(f"{ch_prefix}_lock", 0, 1))
+                if lock < 0 or lock > 1:
+                    lock = 0
+            except (ValueError, TypeError):
+                lock = 0
+
+            try:
+                cache = int(sequence.get_random_value(f"{ch_prefix}_cache", 0, 15))
+                if cache < 0 or cache > 15:
+                    cache = 0
+            except (ValueError, TypeError):
+                cache = 0
+
+            try:
+                prot = int(sequence.get_random_value(f"{ch_prefix}_prot", 0, 7))
+                if prot < 0 or prot > 7:
+                    prot = 0
+            except (ValueError, TypeError):
+                prot = 0
+
+            try:
+                qos = int(sequence.get_random_value(f"{ch_prefix}_qos", 0, 15))
+                if qos < 0 or qos > 15:
+                    qos = 0
+            except (ValueError, TypeError):
+                qos = 0
 
             # Add the transaction
             sequence.add_transaction(
@@ -857,10 +917,10 @@ class AXI4AddressSequence(AXI4BaseSequence):
                 burst_len=burst_len,
                 burst_size=burst_size,
                 burst_type=burst_type,
-                lock=sequence.get_random_value(f"{ch_prefix}_lock", 0, 1),
-                cache=sequence.get_random_value(f"{ch_prefix}_cache", 0, 15),
-                prot=sequence.get_random_value(f"{ch_prefix}_prot", 0, 7),
-                qos=sequence.get_random_value(f"{ch_prefix}_qos", 0, 15)
+                lock=lock,
+                cache=cache,
+                prot=prot,
+                qos=qos
             )
 
         return sequence

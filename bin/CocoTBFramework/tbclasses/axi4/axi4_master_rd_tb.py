@@ -19,6 +19,7 @@ class AXI4MasterReadTB(TBBase):
                     data_width=32,
                     user_width=1,
                     alignment_mask=0xFFF,
+                    channels=32,
                     skid_depth_ar=2,
                     skid_depth_r=4,
                     timeout_ar=32,
@@ -38,6 +39,10 @@ class AXI4MasterReadTB(TBBase):
         self.alignment_mask = alignment_mask
         self.strb_width = data_width // 8
         self.memory_size = 32768  # Size in lines
+        self.channels = channels
+        self.error_fifo_depth = error_fifo_depth
+        self.timeout_ar = timeout_ar
+        self.timeout_r = timeout_r
 
         # Create memory model for AXI slave
         self.mem = MemoryModel(
@@ -70,7 +75,7 @@ class AXI4MasterReadTB(TBBase):
         # Log the configuration
         self._log_config()
 
-    def _log_config(self):
+    def _log_config(self):  # sourcery skip: class-extract-method
         """Log the testbench configuration"""
         self.log.info("=" * 80)
         self.log.info("AXI4 Master Read Testbench Configuration:")
@@ -387,6 +392,9 @@ class AXI4MasterReadTB(TBBase):
         # Calculate bytes per transfer
         bytes_per_transfer = 1 << burst_size
 
+        # Create appropriate mask based on transfer size
+        size_mask = (1 << (8 * bytes_per_transfer)) - 1
+
         # Check each beat
         all_match = True
         for i, read_value in enumerate(result['data']):
@@ -397,15 +405,30 @@ class AXI4MasterReadTB(TBBase):
             expected_bytes = self.mem.read(current_addr, bytes_per_transfer)
             expected_value = self.mem.bytearray_to_integer(expected_bytes)
 
+            # For smaller transfer sizes, we need to extract the correct bytes
+            # The data alignment depends on the address
+            byte_offset = current_addr % self.strb_width
+            bit_offset = byte_offset * 8
+
+            # For transfers smaller than full data width, extract the appropriate bytes
+            if bytes_per_transfer < self.strb_width:
+                # Extract the relevant bytes based on size and address alignment
+                masked_expected = (expected_value >> bit_offset) & size_mask
+                masked_read = (read_value >> bit_offset) & size_mask
+            else:
+                # For full-width transfers, use the entire value
+                masked_expected = expected_value
+                masked_read = read_value
+
             # Compare
-            if read_value != expected_value:
+            if masked_read != masked_expected:
                 self.log.error(f"Data mismatch at beat {i}, addr=0x{current_addr:X}: "
-                                f"expected=0x{expected_value:X}, got=0x{read_value:X}")
+                            f"expected=0x{masked_expected:X}, got=0x{masked_read:X}")
                 all_match = False
                 self.total_errors += 1
             else:
                 self.log.debug(f"Data match at beat {i}, addr=0x{current_addr:X}: "
-                                f"value=0x{read_value:X}")
+                            f"value=0x{masked_read:X}")
 
         return all_match
 
@@ -433,7 +456,31 @@ class AXI4MasterReadTB(TBBase):
             self.total_errors += 1
             return False
 
-        # Check if we have any split reports for this transaction
+        # Wait for split information to arrive - add a timeout to prevent hanging
+        max_wait_cycles = 100
+        wait_count = 0
+
+        while wait_count < max_wait_cycles:
+            # Check if we have any split reports for this transaction
+            splits = txn_info.get('splits', [])
+
+            if len(splits) > 0:
+                # Split info has arrived
+                break
+
+            # Wait a few clock cycles for FIFO processing
+            await self.wait_clocks('aclk', 5)
+            wait_count += 5
+
+            # Refresh the transaction info from our tracking dictionary
+            txn_info = self.transactions.get(txn_key, None)
+
+            # Check for any new split reports
+            for split in self.split_reports:
+                if split['id'] == id_value and split['addr'] == addr and split not in txn_info.get('splits', []):
+                    txn_info.setdefault('splits', []).append(split)
+
+        # Now check if we have the expected split information
         splits = txn_info.get('splits', [])
 
         if len(splits) == 0 and expected_splits > 1:
@@ -481,16 +528,29 @@ class AXI4MasterReadTB(TBBase):
         # Wait for settings to take effect
         await self.wait_clocks('aclk', 5)
 
-    async def set_pathological_delay(self, interface='fub', channel='valid'):
+    async def set_pathological_delay(self, interface='fub', channel='valid', timeout_factor=1.5):
         """
         Configure a pathologically large delay to trigger timeouts
 
         Args:
             interface: 'fub' for FUB side, 'axi' for AXI side
             channel: 'valid' for master valid, 'ready' for slave ready
+            timeout_factor: Multiplier for timeout value to ensure timeout occurs
         """
+        # Determine appropriate timeout value based on channel
+        if channel.lower() == 'valid' and channel.lower() in ['ar', 'w']:
+            # Address channel (AR/AW)
+            base_timeout = self.timeout_ar
+        else:
+            # Data channel (R/W/B)
+            base_timeout = self.timeout_r
+
+        # Apply factor to ensure delay exceeds timeout
+        min_delay = int(base_timeout * timeout_factor)
+        max_delay = min_delay + 50  # Add some variability
+
         delay_config = {
-            f'{channel}_delay': ([[100, 1000]], [1.0])  # Very large delay
+            f'{channel}_delay': ([[min_delay, max_delay]], [1.0])
         }
 
         patho_randomizer = FlexRandomizer(delay_config)
@@ -500,16 +560,37 @@ class AXI4MasterReadTB(TBBase):
                 self.fub_master.ar_master.set_randomizer(patho_randomizer)
             else:
                 self.fub_master.r_slave.set_randomizer(patho_randomizer)
-            self.log.info(f"Set pathological {channel} delay on FUB {interface} channel")
+            self.log.info(f"Set pathological {channel} delay on FUB {interface} channel: {min_delay}-{max_delay} cycles")
         else:
             if channel.lower() == 'valid':
                 self.axi_slave.r_master.set_randomizer(patho_randomizer)
             else:
                 self.axi_slave.ar_slave.set_randomizer(patho_randomizer)
-            self.log.info(f"Set pathological {channel} delay on AXI {interface} channel")
+            self.log.info(f"Set pathological {channel} delay on AXI {interface} channel: {min_delay}-{max_delay} cycles")
 
         # Wait for setting to take effect
         await self.wait_clocks('aclk', 5)
+
+    async def wait_for_timeout_detection(self, timeout_type='ar', additional_margin=20):
+        """
+        Wait for a sufficient number of cycles for timeout detection
+
+        Args:
+            timeout_type: 'ar' for address channel timeout, 'r' for data channel timeout
+            additional_margin: Additional cycles to wait beyond the timeout value
+
+        Returns:
+            Number of cycles waited
+        """
+        if timeout_type.lower() == 'ar':
+            timeout_cycles = self.timeout_ar
+        else:
+            timeout_cycles = self.timeout_r
+
+        wait_cycles = timeout_cycles + additional_margin
+        self.log.info(f"Waiting {wait_cycles} cycles for {timeout_type.upper()} timeout detection")
+        await self.wait_clocks('aclk', wait_cycles)
+        return wait_cycles
 
     def get_test_result(self):
         """Get the test result (True if no errors)"""
@@ -645,3 +726,47 @@ class AXI4MasterReadTB(TBBase):
                 await self.wait_clocks('aclk', 10)
 
         return True
+
+    async def verify_error_addresses(self, txn_id, expected_addr, error_type=None):
+        """
+        Verify that error reports have the correct address for a given transaction ID
+
+        Args:
+            txn_id: Transaction ID to check errors for
+            expected_addr: The expected address for this transaction
+            error_type: Optional error type to filter by (bitfield)
+
+        Returns:
+            True if all errors for this transaction have the correct address, False otherwise
+        """
+        # Wait a few cycles for error reporting to complete
+        await self.wait_clocks('aclk', 10)
+
+        # Find all errors for this transaction ID
+        txn_errors = [err for err in self.error_reports if err['id'] == txn_id]
+
+        # Filter by error type if specified
+        if error_type is not None:
+            txn_errors = [err for err in txn_errors if err['type'] & error_type]
+
+        # If no errors found but we expect some, that's a failure
+        if not txn_errors:
+            self.log.error(f"No errors found for ID={txn_id} (expected address 0x{expected_addr:X})")
+            self.total_errors += 1
+            return False
+
+        # Check addresses for all found errors
+        all_match = True
+        for err in txn_errors:
+            if err['addr'] != expected_addr:
+                self.log.error(f"Address mismatch for error type {err['type_str']} "
+                            f"with ID={txn_id}: expected=0x{expected_addr:X}, "
+                            f"got=0x{err['addr']:X}")
+                all_match = False
+                self.total_errors += 1
+            else:
+                self.log.info(f"Address correct for error type {err['type_str']} "
+                            f"with ID={txn_id}: addr=0x{err['addr']:X}")
+
+        return all_match
+

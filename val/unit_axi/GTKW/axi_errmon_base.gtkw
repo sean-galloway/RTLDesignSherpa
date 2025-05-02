@@ -1,0 +1,141 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Wed Apr 30 19:02:38 2025
+[*]
+[dumpfile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/local_sim_build/test_axi_errmon_base_ch04_id08_a32_tw16_efd04_afd04_to0100_W_AXI_medium/dump.fst"
+[dumpfile_mtime] "Wed Apr 30 18:56:09 2025"
+[dumpfile_size] 113327
+[savefile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/GTKW/axi_errmon_base.gtkw"
+[timestart] 0
+[size] 2703 1559
+[pos] -1 -1
+*-24.002146 17230100 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi_errmon_base.
+[treeopen] axi_errmon_base.gen_channel_fifos[0].
+[treeopen] axi_errmon_base.gen_channel_fifos[1].
+[treeopen] axi_errmon_base.gen_channel_fifos[2].
+[treeopen] axi_errmon_base.gen_channel_fifos[3].
+[sst_width] 322
+[signals_width] 333
+[sst_expanded] 1
+[sst_vpaned_height] 909
+@420
+axi_errmon_base.ADDR_FIFO_DEPTH
+axi_errmon_base.CHANNELS
+axi_errmon_base.TIMEOUT_ADDR
+axi_errmon_base.TIMEOUT_DATA
+axi_errmon_base.TIMEOUT_RESP
+@28
+axi_errmon_base.aclk
+axi_errmon_base.aresetn
+axi_errmon_base.o_block_ready
+@200
+-cmd interface
+@28
+axi_errmon_base.i_valid
+axi_errmon_base.i_ready
+@22
+axi_errmon_base.i_addr[31:0]
+axi_errmon_base.i_id[7:0]
+@28
+axi_errmon_base.gen_channel_fifos[0].i_addr_fifo.ow_count[1:0]
+axi_errmon_base.gen_channel_fifos[0].i_addr_fifo.r_wr_full
+axi_errmon_base.gen_channel_fifos[0].i_addr_fifo.o_wr_ready
+axi_errmon_base.gen_channel_fifos[1].i_addr_fifo.ow_count[1:0]
+axi_errmon_base.gen_channel_fifos[1].i_addr_fifo.r_wr_full
+axi_errmon_base.gen_channel_fifos[1].i_addr_fifo.o_wr_ready
+axi_errmon_base.gen_channel_fifos[3].i_addr_fifo.ow_count[1:0]
+axi_errmon_base.gen_channel_fifos[2].i_addr_fifo.r_wr_full
+axi_errmon_base.gen_channel_fifos[2].i_addr_fifo.o_wr_ready
+@420
+axi_errmon_base.gen_channel_fifos[3].i_addr_fifo.DEPTH
+@28
+axi_errmon_base.gen_channel_fifos[2].i_addr_fifo.ow_count[1:0]
+axi_errmon_base.gen_channel_fifos[3].i_addr_fifo.r_wr_full
+axi_errmon_base.gen_channel_fifos[3].i_addr_fifo.o_wr_ready
+@200
+-data interface
+@28
+axi_errmon_base.i_data_valid
+axi_errmon_base.i_data_ready
+@22
+axi_errmon_base.i_data_id[7:0]
+@28
+axi_errmon_base.i_data_last
+axi_errmon_base.i_data_resp[1:0]
+@200
+-rsp interface
+@28
+axi_errmon_base.i_resp_valid
+axi_errmon_base.i_resp_ready
+@22
+axi_errmon_base.i_resp_id[7:0]
+@28
+axi_errmon_base.i_resp[1:0]
+@200
+-error interface
+@22
+axi_errmon_base.w_addr_fifo_wr_valid[3:0]
+axi_errmon_base.w_addr_fifo_wr_data[0][31:0]
+axi_errmon_base.w_addr_fifo_wr_data[1][31:0]
+axi_errmon_base.w_addr_fifo_wr_data[2][31:0]
+axi_errmon_base.w_addr_fifo_wr_data[3][31:0]
+axi_errmon_base.w_addr_fifo_rd_valid[3:0]
+axi_errmon_base.w_addr_fifo_rd_data[0][31:0]
+axi_errmon_base.w_addr_fifo_rd_data[1][31:0]
+axi_errmon_base.w_addr_fifo_rd_data[2][31:0]
+axi_errmon_base.w_addr_fifo_rd_data[3][31:0]
+@28
+axi_errmon_base.o_error_valid
+axi_errmon_base.i_error_ready
+@22
+axi_errmon_base.o_error_addr[31:0]
+axi_errmon_base.o_error_id[7:0]
+@c00022
+axi_errmon_base.o_error_type[3:0]
+@28
+(0)axi_errmon_base.o_error_type[3:0]
+(1)axi_errmon_base.o_error_type[3:0]
+(2)axi_errmon_base.o_error_type[3:0]
+(3)axi_errmon_base.o_error_type[3:0]
+@1401200
+-group_end
+@24
+axi_errmon_base.r_addr_timer[15:0]
+@28
+axi_errmon_base.r_addr_timeout
+@c00022
+axi_errmon_base.r_data_timer[0][15:0]
+@28
+(0)axi_errmon_base.r_data_timer[0][15:0]
+(1)axi_errmon_base.r_data_timer[0][15:0]
+(2)axi_errmon_base.r_data_timer[0][15:0]
+(3)axi_errmon_base.r_data_timer[0][15:0]
+(4)axi_errmon_base.r_data_timer[0][15:0]
+(5)axi_errmon_base.r_data_timer[0][15:0]
+(6)axi_errmon_base.r_data_timer[0][15:0]
+(7)axi_errmon_base.r_data_timer[0][15:0]
+(8)axi_errmon_base.r_data_timer[0][15:0]
+(9)axi_errmon_base.r_data_timer[0][15:0]
+(10)axi_errmon_base.r_data_timer[0][15:0]
+(11)axi_errmon_base.r_data_timer[0][15:0]
+(12)axi_errmon_base.r_data_timer[0][15:0]
+(13)axi_errmon_base.r_data_timer[0][15:0]
+(14)axi_errmon_base.r_data_timer[0][15:0]
+(15)axi_errmon_base.r_data_timer[0][15:0]
+@1401200
+-group_end
+@22
+axi_errmon_base.r_data_timer[1][15:0]
+axi_errmon_base.r_data_timer[2][15:0]
+axi_errmon_base.r_data_timer[3][15:0]
+axi_errmon_base.r_data_timeout[3:0]
+axi_errmon_base.r_resp_timer[0][15:0]
+axi_errmon_base.r_resp_timer[1][15:0]
+axi_errmon_base.r_resp_timer[2][15:0]
+@23
+axi_errmon_base.r_resp_timer[3][15:0]
+@22
+axi_errmon_base.r_resp_timeout[3:0]
+[pattern_trace] 1
+[pattern_trace] 0

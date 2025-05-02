@@ -1401,28 +1401,30 @@ class AXI4TransactionSequence(AXI4BaseSequence):
 
     @classmethod
     def create_random_transactions(cls,
-                                    count: int = 10,
-                                    addr_range: Tuple[int, int] = (0, 0xFFFF),
-                                    id_range: Tuple[int, int] = (0, 15),
-                                    data_width: int = 32,
-                                    randomization_config: Optional[RandomizationConfig] = None) -> 'AXI4TransactionSequence':
+                                count: int = 10,
+                                addr_range: Tuple[int, int] = (0, 0xFFFF),
+                                id_range: Tuple[int, int] = (0, 15),
+                                data_width: int = 32,
+                                min_size: int = 0,  # Add min_size parameter with default 0
+                                randomization_config: Optional[RandomizationConfig] = None) -> 'AXI4TransactionSequence':
         """
         Create a sequence of random but legal AXI4 transactions.
-
+        
         Args:
             count: Number of transactions to generate
             addr_range: (min, max) address range
             id_range: (min, max) ID range
             data_width: Width of data in bits
+            min_size: Minimum size parameter (log2 of bytes per transfer)
             randomization_config: Optional randomization configuration
-
+            
         Returns:
             Configured AXI4TransactionSequence
         """
-        sequence = cls(name="random_transactions", 
-                        data_width=data_width,
-                        randomization_config=randomization_config)
-
+        sequence = cls(name="random_transactions",
+                    data_width=data_width,
+                    randomization_config=randomization_config)
+        
         # Create address sequence for random address generation
         addr_sequence = AXI4AddressSequence.create_random_transactions(
             count=count,
@@ -1431,19 +1433,25 @@ class AXI4TransactionSequence(AXI4BaseSequence):
             channel="AR",  # Use read channel for addresses
             randomization_config=randomization_config
         )
-
+        
         # Generate the address packets
         addr_packets = addr_sequence.generate_packets(count)
-
+        
         # Create both read and write transactions with the random addresses
         for i, packet in enumerate(addr_packets):
             # Extract address parameters
             addr = packet.araddr if hasattr(packet, 'araddr') else 0
             id_value = packet.arid if hasattr(packet, 'arid') else 0
             burst_len = packet.arlen if hasattr(packet, 'arlen') else 0
-            burst_size = packet.arsize if hasattr(packet, 'arsize') else 2
+            
+            # Apply min_size constraint to ensure size is at least the minimum supported
+            if hasattr(packet, 'arsize'):
+                burst_size = max(packet.arsize, min_size)
+            else:
+                burst_size = max(2, min_size)  # Default to word size if not specified
+                
             burst_type = packet.arburst if hasattr(packet, 'arburst') else 1
-
+            
             if i % 2 == 0:  # Even indices: create write transactions
                 # Generate random data for write
                 data_values = []
@@ -1451,7 +1459,7 @@ class AXI4TransactionSequence(AXI4BaseSequence):
                     # Random data value in the range that fits data_width
                     data_value = random.randint(0, (1 << data_width) - 1)
                     data_values.append(data_value)
-
+                    
                 # Add write transaction
                 sequence.add_write_transaction(
                     addr=addr,
@@ -1469,5 +1477,5 @@ class AXI4TransactionSequence(AXI4BaseSequence):
                     burst_size=burst_size,
                     burst_type=burst_type
                 )
-
+                
         return sequence

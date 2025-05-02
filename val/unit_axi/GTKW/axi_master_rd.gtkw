@@ -1,47 +1,21 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Mon Mar 24 08:46:14 2025
+[*] Sun Apr 27 19:29:23 2025
 [*]
 [dumpfile] "(null)"
 [savefile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/GTKW/axi_master_rd.gtkw"
 [timestart] 0
-[size] 2989 1189
+[size] 2469 1269
 [pos] -1 -1
-*-22.571125 420000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-21.497194 780000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] axi_master_rd.
 [sst_width] 315
-[signals_width] 363
+[signals_width] 376
 [sst_expanded] 1
-[sst_vpaned_height] 361
+[sst_vpaned_height] 847
 @28
 axi_master_rd.i_axi_master_rd_splitter.aclk
 axi_master_rd.i_axi_master_rd_splitter.aresetn
-@200
--user ar
-@28
-axi_master_rd.s_axi_arvalid
-axi_master_rd.s_axi_arready
-@22
-axi_master_rd.s_axi_araddr[31:0]
-@28
-axi_master_rd.s_axi_arburst[1:0]
-axi_master_rd.s_axi_arsize[2:0]
-@22
-axi_master_rd.s_axi_arlen[7:0]
-axi_master_rd.s_axi_arid[7:0]
-@200
--user r
-@28
-axi_master_rd.s_axi_rvalid
-axi_master_rd.s_axi_rready
-@22
-axi_master_rd.s_axi_rdata[31:0]
-@28
-axi_master_rd.s_axi_rlast
-@22
-axi_master_rd.s_axi_rid[7:0]
-@28
-axi_master_rd.s_axi_rresp[1:0]
 @200
 -axi ar
 @28
@@ -61,7 +35,7 @@ axi_master_rd.m_axi_arid[7:0]
 axi_master_rd.m_axi_rvalid
 axi_master_rd.m_axi_rready
 @22
-axi_master_rd.m_axi_rdata[31:0]
+axi_master_rd.m_axi_rdata[63:0]
 @28
 axi_master_rd.m_axi_rlast
 @22
@@ -70,37 +44,62 @@ axi_master_rd.m_axi_rid[7:0]
 axi_master_rd.m_axi_rresp[1:0]
 @200
 -split
-@28
-axi_master_rd.i_axi_master_rd_splitter.r_split_fifo_valid
 @22
-axi_master_rd.i_axi_master_rd_splitter.r_split_addr[31:0]
-axi_master_rd.i_axi_master_rd_splitter.r_split_id[7:0]
+axi_master_rd.alignment_mask[11:0]
+@28
+axi_master_rd.fub_split_valid
+axi_master_rd.fub_split_ready
+@22
+axi_master_rd.fub_split_cnt[7:0]
+axi_master_rd.fub_split_id[7:0]
+axi_master_rd.fub_split_addr[31:0]
+@c00022
 axi_master_rd.i_axi_master_rd_splitter.r_num_splits[7:0]
+@28
+(0)axi_master_rd.i_axi_master_rd_splitter.r_num_splits[7:0]
+(1)axi_master_rd.i_axi_master_rd_splitter.r_num_splits[7:0]
+(2)axi_master_rd.i_axi_master_rd_splitter.r_num_splits[7:0]
+(3)axi_master_rd.i_axi_master_rd_splitter.r_num_splits[7:0]
+(4)axi_master_rd.i_axi_master_rd_splitter.r_num_splits[7:0]
+(5)axi_master_rd.i_axi_master_rd_splitter.r_num_splits[7:0]
+(6)axi_master_rd.i_axi_master_rd_splitter.r_num_splits[7:0]
+(7)axi_master_rd.i_axi_master_rd_splitter.r_num_splits[7:0]
+@1401200
+-group_end
 @28
 axi_master_rd.i_axi_master_rd_splitter.w_split_required
 @22
 axi_master_rd.i_axi_master_rd_splitter.r_num_splits[7:0]
-@28
-axi_master_rd.s_split_valid
-@29
-axi_master_rd.s_split_ready
-@22
-axi_master_rd.s_split_num_splits[7:0]
-axi_master_rd.s_split_addr[31:0]
-axi_master_rd.s_split_id[7:0]
-axi_master_rd.i_axi_master_rd_splitter.s_split_addr[31:0]
-@28
-axi_master_rd.i_axi_master_rd_splitter.r_split_fifo_valid
-@22
 axi_master_rd.i_axi_master_rd_splitter.w_curr_boundary[31:0]
+axi_master_rd.i_axi_master_rd_splitter.r_remaining_len[7:0]
+@100000028
+axi_master_rd.i_axi_master_rd_splitter.r_split_state[2:0]
 @200
 -error
 @28
-axi_master_rd.s_error_valid
-axi_master_rd.s_error_ready
+$rootio.fub_error_valid
+$rootio.fub_error_ready
 @22
-axi_master_rd.s_error_addr[31:0]
-axi_master_rd.s_error_id[7:0]
-axi_master_rd.s_error_type[3:0]
+$rootio.fub_error_id[7:0]
+$rootio.fub_error_addr[31:0]
+$rootio.fub_error_type[3:0]
+@200
+-fub_ar
+@28
+$rootio.fub_arvalid
+$rootio.fub_arready
+@22
+$rootio.fub_araddr[31:0]
+$rootio.fub_arid[7:0]
+@200
+-fub_r
+@28
+$rootio.fub_rvalid
+$rootio.fub_rready
+@22
+$rootio.fub_rid[7:0]
+axi_master_rd.fub_rdata[63:0]
+@28
+$rootio.fub_rlast
 [pattern_trace] 1
 [pattern_trace] 0

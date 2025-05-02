@@ -81,8 +81,8 @@ module fifo_control #(
 
     // Fixed: Explicit cast to AW-bit width to avoid 32-bit truncation warnings
     assign ow_count = (w_rdom_ptr_xor) ?
-                        ((AW)'(D) + (AW)'(iw_rd_ptr_bin[AW-1:0]) - (AW)'(iw_rdom_wr_ptr_bin[AW-1:0])) :
-                        ((AW)'(iw_rd_ptr_bin[AW-1:0]) - (AW)'(iw_rdom_wr_ptr_bin[AW-1:0]));
+                ((AW)'(iw_rdom_wr_ptr_bin[AW-1:0]) - (AW)'(iw_rd_ptr_bin[AW-1:0]) + (AW)'(D)) :
+                ((AW)'(iw_rdom_wr_ptr_bin[AW-1:0]) - (AW)'(iw_rd_ptr_bin[AW-1:0]));
 
     always_ff @(posedge i_rd_clk, negedge i_rd_rst_n) begin
         if (!i_rd_rst_n) begin

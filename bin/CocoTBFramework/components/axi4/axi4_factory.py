@@ -7,7 +7,7 @@ This package provides components for verifying AXI4 interfaces:
 - AXI4 Monitor
 - AXI4 Scoreboard
 """
-
+import cocotb
 from .axi4_master import AXI4Master
 from .axi4_slave import AXI4Slave
 from .axi4_monitor import AXI4Monitor
@@ -68,8 +68,8 @@ def create_axi4_master(dut, title, prefix, divider, suffix, clock, channels,
         field_configs, id_width, addr_width, data_width, user_width
     )
 
-    # Create and return master
-    return AXI4Master(
+    # Create master with explicit callback registration (callbacks registered in constructor)
+    master = AXI4Master(
         dut, title, prefix, divider, suffix, clock, channels,
         id_width=id_width,
         addr_width=addr_width,
@@ -83,6 +83,19 @@ def create_axi4_master(dut, title, prefix, divider, suffix, clock, channels,
         log=log
     )
 
+    # # Explicitly register callbacks again to ensure they're connected
+    # master._register_callbacks()
+
+    # # Log successful creation with callback registration info
+    # if log:
+    #     if 'R' in channels and hasattr(master, 'r_slave'):
+    #         callback_count = len(getattr(master.r_slave, 'callbacks', []))
+    #         log.debug(f"AXI4Master '{title}' created with {callback_count} R callbacks registered")
+    #     if 'B' in channels and hasattr(master, 'b_slave'):
+    #         callback_count = len(getattr(master.b_slave, 'callbacks', []))
+    #         log.debug(f"AXI4Master '{title}' created with {callback_count} B callbacks registered")
+    
+    return master
 
 def create_axi4_slave(dut, title, prefix, divider, suffix, clock, channels,
                         id_width=8, addr_width=32, data_width=32, user_width=1,
@@ -126,9 +139,14 @@ def create_axi4_slave(dut, title, prefix, divider, suffix, clock, channels,
         field_configs, id_width, addr_width, data_width, user_width
     )
 
-    # Create and return slave
     return AXI4Slave(
-        dut, title, prefix, divider, suffix, clock, channels,
+        dut,
+        title,
+        prefix,
+        divider,
+        suffix,
+        clock,
+        channels,
         id_width=id_width,
         addr_width=addr_width,
         data_width=data_width,
@@ -139,7 +157,7 @@ def create_axi4_slave(dut, title, prefix, divider, suffix, clock, channels,
         check_protocol=check_protocol,
         inorder=inorder,
         ooo_strategy=ooo_strategy,
-        log=log
+        log=log,
     )
 
 

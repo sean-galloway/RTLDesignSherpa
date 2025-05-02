@@ -8,6 +8,9 @@ module axi_master_rd
     parameter int AXI_ID_WIDTH      = 8,
     parameter int AXI_USER_WIDTH    = 1,
 
+    // Channel parameter
+    parameter int CHANNELS          = 16,    // Number of channels to monitor (typically <= 2^AXI_ID_WIDTH)
+
     // Skid buffer depths
     parameter int SKID_DEPTH_AR     = 2,
     parameter int SKID_DEPTH_R      = 4,
@@ -15,6 +18,7 @@ module axi_master_rd
     // FIFO parameters
     parameter int SPLIT_FIFO_DEPTH  = 2,
     parameter int ERROR_FIFO_DEPTH  = 2,
+    parameter int ADDR_FIFO_DEPTH   = 4,     // Depth of address tracking FIFO
 
     // Timeout parameters (in clock cycles)
     parameter int TIMEOUT_AR       = 1000,  // Read address channel timeout
@@ -94,10 +98,9 @@ module axi_master_rd
     input  logic                       fub_split_ready,
 
     // Error outputs with FIFO interface
-                             // Error type flags (AR timeout, R timeout, response error)
     output logic [3:0]                 fub_error_type,
-    output logic [AW-1:0]              fub_error_addr,     // Address associated with error
-    output logic [IW-1:0]              fub_error_id,       // ID associated with error
+    output logic [AW-1:0]              fub_error_addr,
+    output logic [IW-1:0]              fub_error_id,
     output logic                       fub_error_valid,
     input  logic                       fub_error_ready
 );
@@ -136,6 +139,9 @@ module axi_master_rd
     logic                      int_skid_rvalid;
     logic                      int_skid_rready;
 
+    // Flow control signal
+    logic                      int_block_ready;
+
     // Instantiate AXI read master splitter with FIFO interface
     axi_master_rd_splitter #(
         .AXI_ID_WIDTH         (AXI_ID_WIDTH),
@@ -147,6 +153,8 @@ module axi_master_rd
         .aclk                 (aclk),
         .aresetn              (aresetn),
         .alignment_mask       (alignment_mask),
+
+        .block_ready          (int_block_ready),
 
         // Slave interface (input)
         .fub_arid             (fub_arid),
@@ -202,37 +210,49 @@ module axi_master_rd
         .fub_split_ready      (fub_split_ready)
     );
 
-    // Instantiate AXI read error monitor with FIFO interface
-    axi_master_rd_errmon #(
-        .AXI_ID_WIDTH         (AXI_ID_WIDTH),
-        .AXI_ADDR_WIDTH       (AXI_ADDR_WIDTH),
-        .AXI_DATA_WIDTH       (AXI_DATA_WIDTH),
-        .AXI_USER_WIDTH       (AXI_USER_WIDTH),
-        .TIMEOUT_AR           (TIMEOUT_AR),
-        .TIMEOUT_R            (TIMEOUT_R),
-        .ERROR_FIFO_DEPTH     (ERROR_FIFO_DEPTH)
-    ) i_axi_master_rd_errmon (
+    // Instantiate base error monitor module directly
+    axi_errmon_base #(
+        .CHANNELS(CHANNELS),
+        .ADDR_WIDTH(AXI_ADDR_WIDTH),
+        .ID_WIDTH(AXI_ID_WIDTH),
+        .TIMEOUT_ADDR(TIMEOUT_AR),
+        .TIMEOUT_DATA(TIMEOUT_R),
+        .TIMEOUT_RESP(0),         // Not used for read
+        .ERROR_FIFO_DEPTH(ERROR_FIFO_DEPTH),
+        .ADDR_FIFO_DEPTH(ADDR_FIFO_DEPTH),
+        .IS_READ(1),              // This is a read monitor
+        .IS_AXI(1)                // Full AXI (not AXI-Lite)
+    ) i_axi_errmon_base (
         .aclk                 (aclk),
         .aresetn              (aresetn),
 
-        // AXI interface to monitor (post-splitter)
-        .m_axi_arid           (int_arid),
-        .m_axi_araddr         (int_araddr),
-        .m_axi_arvalid        (int_arvalid),
-        .m_axi_arready        (int_arready),
+        // Address channel signals
+        .i_addr               (int_araddr),
+        .i_id                 (int_arid),
+        .i_valid              (int_arvalid),
+        .i_ready              (int_arready),
 
-        .m_axi_rid            (int_rid),
-        .m_axi_rresp          (int_rresp),
-        .m_axi_rvalid         (int_rvalid),
-        .m_axi_rready         (int_rready),
-        .m_axi_rlast          (int_rlast),
+        // Data channel signals
+        .i_data_id            (int_rid),
+        .i_data_valid         (int_rvalid),
+        .i_data_ready         (int_rready),
+        .i_data_last          (int_rlast),
 
-        // Error outputs FIFO interface
-        .fub_error_valid      (fub_error_valid),
-        .fub_error_ready      (fub_error_ready),
-        .fub_error_type       (fub_error_type),
-        .fub_error_addr       (fub_error_addr),
-        .fub_error_id         (fub_error_id)
+        // Response channel signals (unused for read)
+        .i_resp_id            ('0),
+        .i_resp               (int_rresp),
+        .i_resp_valid         (1'b0),
+        .i_resp_ready         (1'b0),
+
+        // Error outputs
+        .o_error_valid        (fub_error_valid),
+        .i_error_ready        (fub_error_ready),
+        .o_error_type         (fub_error_type),
+        .o_error_addr         (fub_error_addr),
+        .o_error_id           (fub_error_id),
+
+        // Flow control
+        .o_block_ready        (int_block_ready)
     );
 
     // Instantiate AR Skid Buffer
@@ -275,9 +295,8 @@ module axi_master_rd
         .o_rd_valid               (int_rvalid),
         .i_rd_ready               (int_rready),
         .o_rd_count               (int_r_count),
-        .o_rd_data                (
-            {int_rid, int_rdata, int_rresp, int_rlast, int_ruser}),
+        .o_rd_data                ({int_rid, int_rdata, int_rresp, int_rlast, int_ruser}),
         .ow_count()
-        );
+    );
 
 endmodule : axi_master_rd

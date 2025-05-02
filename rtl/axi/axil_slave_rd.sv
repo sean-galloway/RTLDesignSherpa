@@ -5,117 +5,120 @@ module axil_slave_rd
     // AXI-Lite parameters
     parameter int AXIL_ADDR_WIDTH    = 32,
     parameter int AXIL_DATA_WIDTH    = 32,
+    parameter int AXI_ID_WIDTH       = 8,
     parameter int AXIL_PROT_WIDTH    = 3,   // Fixed for AXI-Lite
-    
+
     // Skid buffer depths
     parameter int SKID_DEPTH_AR     = 2,
     parameter int SKID_DEPTH_R      = 4,
-    
+
     // FIFO parameters
     parameter int ERROR_FIFO_DEPTH  = 2,
-    
+    parameter int ADDR_FIFO_DEPTH   = 4,     // Depth of address tracking FIFO
+
     // Timeout parameters (in clock cycles)
     parameter int TIMEOUT_AR        = 1000,  // Read address channel timeout
     parameter int TIMEOUT_R         = 1000,  // Read data channel timeout
-    
+
     // Derived parameters
     parameter int AW       = AXIL_ADDR_WIDTH,
     parameter int DW       = AXIL_DATA_WIDTH,
+    parameter int IW       = AXI_ID_WIDTH,
     parameter int PW       = AXIL_PROT_WIDTH
 )
 (
     // Global Clock and Reset
     input  logic                       aclk,
     input  logic                       aresetn,
-    
+
     // Master AXI-Lite Interface (Input Side)
     // Read address channel (AR)
-    input  logic [AW-1:0]              fub_araddr,
-    input  logic [PW-1:0]              fub_arprot,
-    input  logic                       fub_arvalid,
-    output logic                       fub_arready,
-    
+    output logic [AW-1:0]               fub_araddr,
+    output logic [PW-1:0]               fub_arprot,
+    output logic                        fub_arvalid,
+    input logic                         fub_arready,
+
     // Read data channel (R)
-    output logic [DW-1:0]              fub_rdata,
-    output logic [1:0]                 fub_rresp,
-    output logic                       fub_rvalid,
-    input  logic                       fub_rready,
-    
+    input logic [DW-1:0]                fub_rdata,
+    input logic [1:0]                   fub_rresp,
+    input logic                         fub_rvalid,
+    output logic                        fub_rready,
+
     // Slave AXI-Lite Interface (Output Side to memory or backend)
     // Read address channel (AR)
-    output logic [AW-1:0]              s_axil_araddr,
-    output logic [PW-1:0]              s_axil_arprot,
-    output logic                       s_axil_arvalid,
-    input  logic                       s_axil_arready,
-    
+    input logic [AW-1:0]                s_axil_araddr,
+    input logic [PW-1:0]                s_axil_arprot,
+    input logic                         s_axil_arvalid,
+    output logic                        s_axil_arready,
+
     // Read data channel (R)
-    input  logic [DW-1:0]              s_axil_rdata,
-    input  logic [1:0]                 s_axil_rresp,
-    input  logic                       s_axil_rvalid,
-    output logic                       s_axil_rready,
-    
+    output logic [DW-1:0]               s_axil_rdata,
+    output logic [1:0]                  s_axil_rresp,
+    output logic                        s_axil_rvalid,
+    input logic                         s_axil_rready,
+
     // Error outputs with FIFO interface
-    output logic [3:0]                 fub_error_type,     // Error type flags (AR timeout, R timeout, response error)
-    output logic [AW-1:0]              fub_error_addr,     // Address associated with error
+    output logic [3:0]                 fub_error_type,
+    output logic [AW-1:0]              fub_error_addr,
+    output logic [IW-1:0]              fub_error_id,
     output logic                       fub_error_valid,
     input  logic                       fub_error_ready
 );
 
     // Internal connections between error monitor and skid buffer
-    logic [AW-1:0]              int_araddr;
-    logic [PW-1:0]              int_arprot;
-    logic                       int_arvalid;
     logic                       int_arready;
-    
-    logic [DW-1:0]              int_rdata;
-    logic [1:0]                 int_rresp;
-    logic                       int_rvalid;
-    logic                       int_rready;
-    
-    // Instantiate AXI-Lite read slave error monitor
-    axil_slave_rd_errmon #(
-        .AXIL_ADDR_WIDTH       (AXIL_ADDR_WIDTH),
-        .AXIL_DATA_WIDTH       (AXIL_DATA_WIDTH),
-        .AXIL_PROT_WIDTH       (AXIL_PROT_WIDTH),
-        .TIMEOUT_AR            (TIMEOUT_AR),
-        .TIMEOUT_R             (TIMEOUT_R),
-        .ERROR_FIFO_DEPTH      (ERROR_FIFO_DEPTH)
-    ) i_axil_slave_rd_errmon (
-        .aclk                  (aclk),
-        .aresetn               (aresetn),
-        
-        // AXI-Lite interface to monitor
-        .fub_araddr            (fub_araddr),
-        .fub_arprot            (fub_arprot),
-        .fub_arvalid           (fub_arvalid),
-        .fub_arready           (fub_arready),
-        
-        .fub_rdata             (fub_rdata),
-        .fub_rresp             (fub_rresp),
-        .fub_rvalid            (fub_rvalid),
-        .fub_rready            (fub_rready),
-        
-        // Error outputs FIFO interface
-        .fub_error_valid       (fub_error_valid),
-        .fub_error_ready       (fub_error_ready),
-        .fub_error_type        (fub_error_type),
-        .fub_error_addr        (fub_error_addr),
-        
-        // Flow control output
-        .block_ready           ()  // Not used in this implementation
+
+    // Flow control signal (not used in this case)
+    logic                       int_block_ready;
+
+    assign s_axil_arready = int_arready && !int_block_ready;
+    assign fub_error_id = 'b0;
+
+    // Instantiate base error monitor module directly
+    axi_errmon_base #(
+        .CHANNELS(1),             // AXI-Lite has only one channel
+        .ADDR_WIDTH(AW),
+        .ID_WIDTH(AXI_ID_WIDTH),  // Using minimal ID width of 1
+        .TIMEOUT_ADDR(TIMEOUT_AR),
+        .TIMEOUT_DATA(TIMEOUT_R),
+        .TIMEOUT_RESP(0),         // Not used for read
+        .ERROR_FIFO_DEPTH(ERROR_FIFO_DEPTH),
+        .ADDR_FIFO_DEPTH(ADDR_FIFO_DEPTH),
+        .IS_READ(1),              // This is a read monitor
+        .IS_AXI(0)                // AXI-Lite, not full AXI
+    ) i_axil_errmon_base (
+        .aclk                 (aclk),
+        .aresetn              (aresetn),
+
+        // Address channel signals (slave interface)
+        .i_addr               (fub_araddr),
+        .i_id                 ('0),                // No ID for AXI-Lite
+        .i_valid              (fub_arvalid),
+        .i_ready              (fub_arready),
+
+        // Data channel signals (slave interface)
+        .i_data_id            ('0),                // No ID for AXI-Lite
+        .i_data_valid         (fub_rvalid),
+        .i_data_ready         (fub_rready),
+        .i_data_last          (1'b1),              // Always last for AXI-Lite
+
+        // Response channel signals (unused for read)
+        .i_resp_id            ('0),
+        .i_resp               (fub_rresp),
+        .i_resp_valid         (1'b0),
+        .i_resp_ready         (1'b0),
+
+        // Error outputs
+        .o_error_valid        (fub_error_valid),
+        .i_error_ready        (fub_error_ready),
+        .o_error_type         (fub_error_type),
+        .o_error_addr         (fub_error_addr),
+        .o_error_id           (),
+
+        // Flow control
+        .o_block_ready        (int_block_ready)
     );
-    
-    // Connect Master to Internal
-    assign int_araddr = fub_araddr;
-    assign int_arprot = fub_arprot;
-    assign int_arvalid = fub_arvalid;
-    assign fub_arready = int_arready;
-    
-    assign fub_rdata = int_rdata;
-    assign fub_rresp = int_rresp;
-    assign fub_rvalid = int_rvalid;
-    assign int_rready = fub_rready;
-    
+
     // Instantiate AR Skid Buffer
     gaxi_skid_buffer #(
         .DEPTH(SKID_DEPTH_AR),
@@ -123,15 +126,15 @@ module axil_slave_rd
     ) i_ar_channel (
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
-        .i_wr_valid               (int_arvalid),
+        .i_wr_valid               (s_axil_arvalid),
         .o_wr_ready               (int_arready),
-        .i_wr_data                ({int_araddr, int_arprot}),
-        .o_rd_valid               (s_axil_arvalid),
-        .i_rd_ready               (s_axil_arready),
+        .i_wr_data                ({s_axil_araddr, s_axil_arprot}),
+        .o_rd_valid               (fub_arvalid),
+        .i_rd_ready               (fub_arready),
         .o_rd_count               (),
-        .o_rd_data                ({s_axil_araddr, s_axil_arprot})
+        .o_rd_data                ({fub_araddr, fub_arprot})
     );
-    
+
     // Instantiate R channel for read data from memory back to the master
     gaxi_skid_buffer #(
         .DEPTH(SKID_DEPTH_R),
@@ -139,13 +142,14 @@ module axil_slave_rd
     ) i_r_channel (
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
-        .i_wr_valid               (s_axil_rvalid),
-        .o_wr_ready               (s_axil_rready),
-        .i_wr_data                ({s_axil_rdata, s_axil_rresp}),
-        .o_rd_valid               (int_rvalid),
-        .i_rd_ready               (int_rready),
+        .i_wr_valid               (fub_rvalid),
+        .o_wr_ready               (fub_rready),
+        .i_wr_data                ({fub_rdata, fub_rresp}),
+        .o_rd_valid               (s_axil_rvalid),
+        .i_rd_ready               (s_axil_rready),
         .o_rd_count               (),
-        .o_rd_data                ({int_rdata, int_rresp})
+        .o_rd_data                ({s_axil_rdata, s_axil_rresp})
     );
+
 
 endmodule : axil_slave_rd

@@ -8,6 +8,9 @@ module axi_master_wr
     parameter int AXI_DATA_WIDTH    = 32,
     parameter int AXI_USER_WIDTH    = 1,
 
+    // Channel parameter
+    parameter int CHANNELS          = 16,
+
     // Skid buffer depths
     parameter int SKID_DEPTH_AW     = 2,
     parameter int SKID_DEPTH_W      = 4,
@@ -16,6 +19,7 @@ module axi_master_wr
     // FIFO parameters
     parameter int SPLIT_FIFO_DEPTH  = 2,
     parameter int ERROR_FIFO_DEPTH  = 2,
+    parameter int ADDR_FIFO_DEPTH   = 4,     // Depth of address tracking FIFO
 
     // Timeout parameters (in clock cycles)
     parameter int TIMEOUT_AW       = 1000,  // Write address channel timeout
@@ -109,10 +113,9 @@ module axi_master_wr
     input  logic                       fub_split_ready,
 
     // Error outputs with FIFO interface
-                        // Error type flags (AW timeout, W timeout, B timeout, response error)
-    output logic [3:0]                 fub_error_type,
-    output logic [AW-1:0]              fub_error_addr,     // Address associated with error
-    output logic [IW-1:0]              fub_error_id,       // ID associated with error
+    output logic [3:0]                 fub_error_type,    // Error type flags (AW timeout, W timeout, B timeout, response error)
+    output logic [AW-1:0]              fub_error_addr,    // Address associated with error
+    output logic [IW-1:0]              fub_error_id,      // ID associated with error
     output logic                       fub_error_valid,
     input  logic                       fub_error_ready
 );
@@ -161,6 +164,9 @@ module axi_master_wr
     logic                       int_skid_bvalid;
     logic                       int_skid_bready;
 
+    // Flow control signal
+    logic                      int_block_ready;
+
     // Instantiate AXI write master splitter with FIFO interface
     axi_master_wr_splitter #(
         .AXI_ID_WIDTH         (AXI_ID_WIDTH),
@@ -172,6 +178,8 @@ module axi_master_wr
         .aclk                 (aclk),
         .aresetn              (aresetn),
         .alignment_mask       (alignment_mask),
+
+        .block_ready          (int_block_ready),
 
         // Slave interface (input)
         .fub_awid             (fub_awid),
@@ -237,41 +245,49 @@ module axi_master_wr
         .fub_split_ready      (fub_split_ready)
     );
 
-    // Instantiate AXI write error monitor with FIFO interface
-    axi_master_wr_errmon #(
-        .AXI_ID_WIDTH         (AXI_ID_WIDTH),
-        .AXI_ADDR_WIDTH       (AXI_ADDR_WIDTH),
-        .AXI_DATA_WIDTH       (AXI_DATA_WIDTH),
-        .AXI_USER_WIDTH       (AXI_USER_WIDTH),
-        .TIMEOUT_AW           (TIMEOUT_AW),
-        .TIMEOUT_W            (TIMEOUT_W),
-        .TIMEOUT_B            (TIMEOUT_B),
-        .ERROR_FIFO_DEPTH     (ERROR_FIFO_DEPTH)
-    ) i_axi_master_wr_errmon (
+    // Instantiate base error monitor module directly
+    axi_errmon_base #(
+        .CHANNELS(CHANNELS),
+        .ADDR_WIDTH(AXI_ADDR_WIDTH),
+        .ID_WIDTH(AXI_ID_WIDTH),
+        .TIMEOUT_ADDR(TIMEOUT_AW),
+        .TIMEOUT_DATA(TIMEOUT_W),
+        .TIMEOUT_RESP(TIMEOUT_B),   // Used for write
+        .ERROR_FIFO_DEPTH(ERROR_FIFO_DEPTH),
+        .ADDR_FIFO_DEPTH(ADDR_FIFO_DEPTH),
+        .IS_READ(0),                // This is a write monitor
+        .IS_AXI(1)                  // Full AXI (not AXI-Lite)
+    ) i_axi_errmon_base (
         .aclk                 (aclk),
         .aresetn              (aresetn),
 
-        // AXI interface to monitor (post-splitter)
-        .m_axi_awid           (int_awid),
-        .m_axi_awaddr         (int_awaddr),
-        .m_axi_awvalid        (int_awvalid),
-        .m_axi_awready        (int_awready),
+        // Address channel signals
+        .i_addr               (int_awaddr),
+        .i_id                 (int_awid),
+        .i_valid              (int_awvalid),
+        .i_ready              (int_awready),
 
-        .m_axi_wvalid         (int_wvalid),
-        .m_axi_wready         (int_wready),
-        .m_axi_wlast          (int_wlast),
+        // Data channel signals
+        .i_data_id            ('0),           // No ID for write data
+        .i_data_valid         (int_wvalid),
+        .i_data_ready         (int_wready),
+        .i_data_last          (int_wlast),
 
-        .m_axi_bid            (int_bid),
-        .m_axi_bresp          (int_bresp),
-        .m_axi_bvalid         (int_bvalid),
-        .m_axi_bready         (int_bready),
+        // Response channel signals
+        .i_resp_id            (int_bid),
+        .i_resp               (int_bresp),
+        .i_resp_valid         (int_bvalid),
+        .i_resp_ready         (int_bready),
 
-        // Error outputs FIFO interface
-        .fub_error_valid      (fub_error_valid),
-        .fub_error_ready      (fub_error_ready),
-        .fub_error_type       (fub_error_type),
-        .fub_error_addr       (fub_error_addr),
-        .fub_error_id         (fub_error_id)
+        // Error outputs
+        .o_error_valid        (fub_error_valid),
+        .i_error_ready        (fub_error_ready),
+        .o_error_type         (fub_error_type),
+        .o_error_addr         (fub_error_addr),
+        .o_error_id           (fub_error_id),
+
+        // Flow control
+        .o_block_ready        (int_block_ready)
     );
 
     // Instantiate AW Skid Buffer

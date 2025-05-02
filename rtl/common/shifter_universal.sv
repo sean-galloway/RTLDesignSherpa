@@ -24,7 +24,7 @@ module shifter_universal #(
         casez (i_select)
             2'b00:   w_pdata = o_pdata;  // Hold (Do nothing)
             2'b01:   w_pdata = {i_sdata_rt, o_pdata[WIDTH-1:1]};  // Right Shift
-            2'b10:   w_pdata = {o_pdata[WIDTH-2:0], i_sdata_lt};  // Left Shift - Fixed to use WIDTH parameter 
+            2'b10:   w_pdata = {o_pdata[WIDTH-2:0], i_sdata_lt};  // Left Shift - Fixed to use WIDTH parameter
             2'b11:   w_pdata = i_pdata;  // Parallel in - Parallel out
             default: w_pdata = o_pdata;  // Handle X cases - hold current value
         endcase
