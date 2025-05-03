@@ -1,4 +1,4 @@
-"""Testbench for FIFO buffer components with multiple signals"""
+"""Testbench for FIFO buffer components with multiple signals and enhanced error detection"""
 import os
 import cocotb
 
@@ -10,11 +10,13 @@ from CocoTBFramework.components.fifo.fifo_packet import FIFOPacket
 from CocoTBFramework.components.fifo.fifo_master import FIFOMaster
 from CocoTBFramework.components.fifo.fifo_slave import FIFOSlave
 from CocoTBFramework.components.fifo.fifo_monitor import FIFOMonitor
+from CocoTBFramework.components.fifo.fifo_memory_integ import EnhancedMemoryModel
+from CocoTBFramework.components.fifo.fifo_command_handler import FIFOCommandHandler
 from CocoTBFramework.tbclasses.fifo.fifo_buffer_configs import FIELD_CONFIGS, RANDOMIZER_CONFIGS
 
 
 class FifoMultiBufferTB(TBBase):
-    """Testbench for multi-signal FIFO components like fifo_sync_multi and fifo_skid_buffer_multi"""
+    """Testbench for multi-signal FIFO components like fifo_sync_multi and fifo_skid_buffer_multi with enhanced error detection"""
 
     def __init__(self, dut,
                     wr_clk=None, wr_rstn=None,
@@ -55,8 +57,10 @@ class FifoMultiBufferTB(TBBase):
         msg += ' Settings:\n'
         msg += '-'*80 + "\n"
         msg += f' Depth:    {self.TEST_DEPTH}\n'
+        msg += f' AddrW:    {self.TEST_ADDR_WIDTH}\n'
         msg += f' CtrlW:    {self.TEST_CTRL_WIDTH}\n'
         msg += f' DataW:    {self.TEST_DATA_WIDTH}\n'
+        msg += f' Max Addr: {self.MAX_ADDR}\n'
         msg += f' Max Ctrl: {self.MAX_CTRL}\n'
         msg += f' Max Data: {self.MAX_DATA}\n'
         msg += f' MODE:     {self.TEST_MODE}\n'
@@ -73,10 +77,15 @@ class FifoMultiBufferTB(TBBase):
         self.field_config.update_field_width('data1', self.DW)
 
         self.log.debug(f"\n{self.field_config}")
+        
+        # Create enhanced memory model
+        self.memory_model = EnhancedMemoryModel(
+            num_lines=self.TEST_DEPTH,
+            bytes_per_line=(self.AW + self.CW + 2*self.DW) // 8 or 1,
+            log=self.log
+        )
 
         # Set up signal mappings for multi-signal mode
-
-        # Required signals (valid/ready) for master -- not needed
 
         # Optional signals (data fields) for master
         master_optional_map = {
@@ -85,8 +94,6 @@ class FifoMultiBufferTB(TBBase):
             'i_wr_pkt_data0': 'i_wr_data0',
             'i_wr_pkt_data1': 'i_wr_data1'
         }
-
-        # Required signals (valid/ready) for slave -- not needed
 
         # Optional signals (data fields) for slave
         slave_optional_map = {
@@ -107,8 +114,8 @@ class FifoMultiBufferTB(TBBase):
         self.write_master = FIFOMaster(
             dut, 'write_master', '', self.wr_clk,
             field_config=self.field_config,
+            memory_model=self.memory_model,
             timeout_cycles=self.TIMEOUT_CYCLES,
-            # signal_map=master_signal_map,
             optional_signal_map=master_optional_map,
             log=self.log,
             multi_sig=True
@@ -118,8 +125,8 @@ class FifoMultiBufferTB(TBBase):
             dut, 'read_slave', '', self.rd_clk,
             mode=self.TEST_MODE,
             field_config=self.field_config,
+            memory_model=self.memory_model,
             timeout_cycles=self.TIMEOUT_CYCLES,
-            # signal_map=slave_signal_map,
             optional_signal_map=slave_optional_map,
             log=self.log,
             multi_sig=True
@@ -130,7 +137,6 @@ class FifoMultiBufferTB(TBBase):
             dut, 'Write monitor', '', self.wr_clk,
             field_config=self.field_config,
             is_slave=False,
-            # signal_map=master_signal_map,
             optional_signal_map=master_optional_map,
             log=self.log,
             multi_sig=True
@@ -141,10 +147,18 @@ class FifoMultiBufferTB(TBBase):
             mode=self.TEST_MODE,
             field_config=self.field_config,
             is_slave=True,
-            # signal_map=slave_signal_map,
             optional_signal_map=slave_optional_map,
             log=self.log,
             multi_sig=True
+        )
+        
+        # Create command handler to coordinate transactions
+        self.command_handler = FIFOCommandHandler(
+            self.write_master,
+            self.read_slave,
+            memory_model=self.memory_model,
+            log=self.log,
+            fifo_capacity=self.TEST_DEPTH
         )
 
     async def clear_interface(self):
@@ -210,6 +224,15 @@ class FifoMultiBufferTB(TBBase):
                     f"{msg}: Packet mismatch – WR: {wr_pkt.formatted(compact=True)} "
                     f"vs RD: {rd_pkt.formatted(compact=True)}"
                 )
+                
+                # Provide detailed field comparison for debugging
+                all_fields = set(wr_pkt.get_all_field_names()) | set(rd_pkt.get_all_field_names())
+                for field in all_fields:
+                    wr_val = getattr(wr_pkt, field, None)
+                    rd_val = getattr(rd_pkt, field, None)
+                    if wr_val != rd_val:
+                        self.log.error(f"  Field '{field}' mismatch: write={wr_val}, read={rd_val}")
+                
                 self.total_errors += 1
 
         # Log any leftover packets
@@ -223,10 +246,22 @@ class FifoMultiBufferTB(TBBase):
             self.log.error(f"{msg}: Unmatched extra packet in RD monitor: {pkt.formatted(compact=True)}")
             self.total_errors += 1
 
+    def get_component_statistics(self):
+        """Get statistics from all components for analysis"""
+        stats = {
+            'write_master': self.write_master.get_stats(),
+            'read_slave': self.read_slave.get_stats() if hasattr(self.read_slave, 'get_stats') else {},
+            'write_monitor': self.wr_monitor.get_stats() if hasattr(self.wr_monitor, 'get_stats') else {},
+            'read_monitor': self.rd_monitor.get_stats() if hasattr(self.rd_monitor, 'get_stats') else {},
+            'memory_model': self.memory_model.get_stats() if hasattr(self.memory_model, 'get_stats') else {},
+            'command_handler': self.command_handler.get_stats() if hasattr(self.command_handler, 'get_stats') else {}
+        }
+        return stats
+
     async def simple_incremental_loops(self, count, delay_key, delay_clks_after):
         """Run simple incremental tests with different packet sizes"""
         # Choose the type of randomizer
-        self.log.info(f'simple_incremental_loops({count=}, {delay_key=}, {delay_clks_after=}')
+        self.log.info(f'simple_incremental_loops({count=}, {delay_key=}, {delay_clks_after=})')
         self.write_master.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS[delay_key]['write']))
         self.read_slave.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS[delay_key]['read']))
 
@@ -235,6 +270,9 @@ class FifoMultiBufferTB(TBBase):
         await self.wait_clocks(self.wr_clk_name, 10)
         await self.deassert_reset()
         await self.wait_clocks(self.wr_clk_name, 10)
+        
+        # Start the command handler
+        await self.command_handler.start()
 
         # Send packets
         for i in range(count):
@@ -242,12 +280,18 @@ class FifoMultiBufferTB(TBBase):
             addr = i & self.MAX_ADDR  # Mask address to avoid overflow
             ctrl = i & self.MAX_CTRL  # Mask control to avoid overflow
             data0 = i & self.MAX_DATA  # Mask data to avoid overflow
-            data1 = i & self.MAX_DATA  # Mask data to avoid overflow
+            data1 = (i * 2) & self.MAX_DATA  # Mask data to avoid overflow
             packet = FIFOPacket(self.field_config)
-            packet.addr=addr
+            packet.addr = addr
             packet.ctrl = ctrl
             packet.data0 = data0
             packet.data1 = data1
+            
+            # Set FIFO metadata for improved debugging
+            packet.set_fifo_metadata(
+                depth=min(i, self.TEST_DEPTH), 
+                capacity=self.TEST_DEPTH
+            )
 
             # Queue the packet for transmission
             await self.write_master.send(packet)
@@ -270,8 +314,157 @@ class FifoMultiBufferTB(TBBase):
 
         # Additional delay for stable results
         await self.wait_clocks(self.wr_clk_name, delay_clks_after)
+        
+        # Stop the command handler
+        await self.command_handler.stop()
 
         # Compare the packets
         self.compare_packets("Simple Incremental Loops", count)
+        
+        # Print statistics
+        stats = self.get_component_statistics()
+        self.log.info(f"Test Statistics: {stats}")
 
         assert self.total_errors == 0, f'Simple Incremental Loops found {self.total_errors} Errors'
+        
+    async def run_sequence_test(self, sequence_type='comprehensive', count=20):
+        """Run a test using predefined FIFO sequences"""
+        from CocoTBFramework.components.fifo.fifo_sequence import FIFOSequence
+        
+        self.log.info(f"Running {sequence_type} sequence test with {count} packets")
+        
+        # Reset the environment
+        await self.assert_reset()
+        await self.wait_clocks(self.wr_clk_name, 10)
+        await self.deassert_reset()
+        await self.wait_clocks(self.wr_clk_name, 10)
+        
+        # Start the command handler
+        await self.command_handler.start()
+        
+        # Create the appropriate sequence
+        if sequence_type == 'comprehensive':
+            sequence = FIFOSequence.create_comprehensive_test(
+                name="comprehensive_test",
+                capacity=self.TEST_DEPTH,
+                data_width=self.DW
+            )
+        elif sequence_type == 'stress':
+            sequence = FIFOSequence.create_data_stress_test(
+                name="stress_test",
+                data_width=self.DW,
+                delay=1
+            )
+        elif sequence_type == 'burst':
+            sequence = FIFOSequence.create_burst_sequence(
+                name="burst_test",
+                count=count // 5,
+                burst_size=5,
+                pattern_type="increment"
+            )
+        elif sequence_type == 'capacity':
+            sequence = FIFOSequence.create_fifo_capacity_test(
+                name="capacity_test",
+                capacity=self.TEST_DEPTH
+            )
+        else:
+            self.log.error(f"Unknown sequence type: {sequence_type}")
+            return False
+            
+        # Set field configuration to match our testbench
+        sequence.field_config = self.field_config
+        
+        # Generate the packets
+        packets = sequence.generate_packets(count=count, apply_fifo_metadata=True)
+        self.log.info(f"Generated {len(packets)} packets for sequence test")
+        
+        # Process the packets through the command handler
+        response_map = await self.command_handler.process_sequence(sequence)
+        
+        # Wait for all transactions to complete
+        await self.wait_clocks(self.wr_clk_name, 50)
+        
+        # Stop the command handler
+        await self.command_handler.stop()
+        
+        # Compare monitored packets
+        self.compare_packets(f"{sequence_type.capitalize()} Sequence Test", len(packets))
+        
+        # Get and report statistics
+        stats = self.get_component_statistics()
+        sequence_stats = sequence.get_stats()
+        self.log.info(f"Sequence Test Statistics - Components: {stats}")
+        self.log.info(f"Sequence Test Statistics - Sequence: {sequence_stats}")
+        
+        return self.total_errors == 0
+        
+    async def protocol_error_test(self):
+        """Test error detection features in the FIFO components"""
+        self.log.info("Running protocol error test")
+        
+        # Set to faster randomizers for quicker testing
+        self.write_master.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS['fast']['write']))
+        self.read_slave.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS['fast']['read']))
+        
+        # Reset environment
+        await self.assert_reset()
+        await self.wait_clocks(self.wr_clk_name, 10)
+        await self.deassert_reset()
+        await self.wait_clocks(self.wr_clk_name, 10)
+        
+        # Start the command handler
+        await self.command_handler.start()
+        
+        # Test field width violations
+        self.log.info("Testing field width violations")
+        
+        # Create a packet with field values that exceed their bit widths
+        packet_oversized = FIFOPacket(self.field_config)
+        packet_oversized.addr = (1 << (self.AW + 2)) - 1  # Value exceeds AW bit width
+        packet_oversized.ctrl = (1 << (self.CW + 4)) - 1  # Value exceeds CW bit width
+        packet_oversized.data0 = (1 << (self.DW + 8)) - 1  # Value exceeds DW bit width
+        packet_oversized.data1 = (1 << (self.DW + 16)) - 1  # Value exceeds DW bit width
+        
+        # Send the oversized packet
+        await self.write_master.send(packet_oversized)
+        
+        # Wait for transmission to complete
+        while self.write_master.transfer_busy:
+            await self.wait_clocks(self.wr_clk_name, 1)
+        
+        # Wait for processing
+        await self.wait_clocks(self.wr_clk_name, 20)
+        
+        # Check that values were properly masked
+        if self.wr_monitor.observed_queue:
+            wr_pkt = self.wr_monitor.observed_queue[0]
+            self.log.info(f"Field values after masking: {wr_pkt.formatted(compact=True)}")
+            
+            # Verify fields were masked correctly
+            addr_mask = (1 << self.AW) - 1
+            ctrl_mask = (1 << self.CW) - 1
+            data_mask = (1 << self.DW) - 1
+            
+            masked_addr = packet_oversized.addr & addr_mask
+            masked_ctrl = packet_oversized.ctrl & ctrl_mask
+            masked_data0 = packet_oversized.data0 & data_mask
+            masked_data1 = packet_oversized.data1 & data_mask
+            
+            if wr_pkt.addr != masked_addr or wr_pkt.ctrl != masked_ctrl or \
+               wr_pkt.data0 != masked_data0 or wr_pkt.data1 != masked_data1:
+                self.log.error("Field masking did not work correctly")
+                self.total_errors += 1
+            else:
+                self.log.info("Field masking verification passed")
+        
+        # Wait for all processing to complete
+        await self.wait_clocks(self.wr_clk_name, 20)
+        
+        # Stop the command handler
+        await self.command_handler.stop()
+        
+        # Get statistics to verify masked values were recorded
+        stats = self.get_component_statistics()
+        self.log.info(f"Protocol Error Test Statistics: {stats}")
+        
+        return self.total_errors == 0

@@ -317,7 +317,7 @@ class AXIErrorMonBaseTest:
             ch_idx: Channel index to wait for
         """
         timeout_count = 0
-        timeout_limit = 1000  # Maximum cycles to wait
+        timeout_limit = 10000  # Maximum cycles to wait
 
         while self.channel_states[ch_idx]['busy'] and timeout_count < timeout_limit:
             await RisingEdge(self.dut.aclk)
@@ -836,10 +836,14 @@ class AXIErrorMonBaseTest:
 
         # Clear block_ready events history
         self.tb.ready_ctrl.clear_block_ready_events()
+        self.tb.error_slave.set_randomizer(FlexRandomizer(self.tb.randomizer_configs['fixed']))
 
         # Make sure all masters are idle
         await self.tb.addr_master.reset_bus()
         await self.tb.data_master.reset_bus()
+        await self.tb.error_slave.reset_bus()
+        self.tb.error_slave._set_rd_ready(1)
+
         if not self.tb.is_read:
             await self.tb.resp_master.reset_bus()
 

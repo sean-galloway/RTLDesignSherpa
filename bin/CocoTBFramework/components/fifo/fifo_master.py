@@ -1,4 +1,4 @@
-"""FIFO Master Component with required and optional signal support"""
+"""FIFO Master Component with improved memory integration and robust error handling"""
 import cocotb
 from collections import deque
 from cocotb_bus.drivers import BusDriver
@@ -8,6 +8,8 @@ from cocotb.utils import get_sim_time
 from ..flex_randomizer import FlexRandomizer
 from ..field_config import FieldConfig
 from .fifo_packet import FIFOPacket
+from .fifo_memory_integ import FIFOMemoryInteg
+
 
 # Standard Signal names for all master/slave/monitor objects
 fifo_write = 'i_write'
@@ -35,14 +37,15 @@ fifo_memory_fields = {
 
 class FIFOMaster(BusDriver):
     """
-    Master driver for FIFO transactions.
+    Master driver for FIFO transactions with enhanced memory integration.
     Controls i_write signal and monitors o_wr_full.
-    Can optionally use a memory model for data.
-
+    
     Supports:
     1. Single data bus (standard mode)
     2. Individual signals for each field (multi-signal mode)
     3. Optional signals with fallback behavior
+    4. Enhanced memory integration with error handling
+    5. Transaction dependency tracking
     """
     def __init__(self, dut, title, prefix, clock,
                 field_config=None, packet_class=FIFOPacket, timeout_cycles=1000,
@@ -74,17 +77,18 @@ class FIFOMaster(BusDriver):
         # Set up simple items
         self.title = title
         self.clock = clock
-        self.timeout_cycles = timeout_cycles
         self.tick_delay = 100
         self.tick_units = 'ps'
         self.field_mode = field_mode or multi_sig
+        self.timeout_cycles = timeout_cycles
+        self.reset_occurring = False
 
         # Handle field_config - convert dict to FieldConfig if needed
         if isinstance(field_config, dict):
             self.field_config = FieldConfig.validate_and_create(field_config)
         else:
             self.field_config = field_config or FieldConfig.create_data_only()
-
+        
         self.packet_class = packet_class
 
         # Determine if we're using multi-signal mode (individual signals for each field)
@@ -142,8 +146,15 @@ class FIFOMaster(BusDriver):
         # Initialize parent class
         BusDriver.__init__(self, dut, prefix, clock, **kwargs)
         self.log = log or self._log
-        # if msg_multi is not None:
-        #     self.log.debug(msg_multi)
+        
+        # Create enhanced memory integration if memory model is provided
+        if self.memory_model:
+            self.memory_integration = FIFOMemoryInteg(
+                self.memory_model,
+                component_name=f"Master({self.title})",
+                log=self.log,
+                memory_fields=self.memory_fields
+            )
 
         # Initialize queues
         self.transmit_queue = deque()
@@ -184,14 +195,22 @@ class FIFOMaster(BusDriver):
             if self.data_sig:
                 self.data_sig.setimmediatevalue(0)
 
+        # Statistics 
+        self.stats = {
+            'transactions_sent': 0,
+            'timeouts': 0,
+            'write_while_full': 0,
+            'full_cycles': 0
+        }
+
         # Debug output
         self.log.info(f"FIFOMaster initialized for {title} in {'multi-signal' if self.use_multi_signal else 'standard'} mode")
 
     def _initialize_multi_signal_mode(self):
         """Initialize signals in multi-signal mode with fallback to defaults for optional signals."""
         # Initialize write signal - this is always required
-        if fifo_write in self.signal_map:
-            write_signal = self.signal_map[fifo_write]
+        if 'i_write' in self.signal_map:
+            write_signal = self.signal_map['i_write']
             if hasattr(self.bus, write_signal):
                 getattr(self.bus, write_signal).setimmediatevalue(0)
             else:
@@ -240,9 +259,8 @@ class FIFOMaster(BusDriver):
             else:
                 # Fallback for dictionary-based field config
                 default_value = self.field_config[field_name].get('default', 0)
-
+                
             getattr(self.bus, dut_signal_name).setimmediatevalue(default_value)
-            # self.log.debug(f"Registered signal '{dut_signal_name}' for field '{field_name}'")
         elif required:
             # Signal is required but not found
             raise ValueError(f"Required signal '{dut_signal_name}' for field '{field_name}' not found on DUT")
@@ -253,11 +271,11 @@ class FIFOMaster(BusDriver):
     def _check_field_value(self, field_name, field_value):
         """
         Check if a field value exceeds the maximum possible value for the field.
-
+        
         Args:
             field_name: Name of the field to check
             field_value: Value to check against field width
-
+            
         Returns:
             field_value: The original value if within range, or the masked value if not
         """
@@ -297,6 +315,15 @@ class FIFOMaster(BusDriver):
         self.randomizer = randomizer
         self.log.info(f"Set new randomizer for Master({self.title})")
 
+    def get_randomizer(self):
+        """
+        Get the current randomizer.
+
+        Returns:
+            Current FlexRandomizer instance
+        """
+        return self.randomizer
+
     def set_packet_generator(self, generator_func):
         """
         Set a function that generates packets on demand.
@@ -320,6 +347,15 @@ class FIFOMaster(BusDriver):
         elif not self.memory_fields:
             # Set default mapping if not already set
             self.memory_fields = fifo_memory_fields
+            
+        # Update or create memory integration
+        if self.memory_model:
+            self.memory_integration = FIFOMemoryInteg(
+                self.memory_model,
+                component_name=f"Master({self.title})",
+                log=self.log,
+                memory_fields=self.memory_fields
+            )
 
     async def reset_bus(self):
         """
@@ -332,6 +368,12 @@ class FIFOMaster(BusDriver):
 
         # Reset field signals
         self._clear_data_bus()
+        self.reset_occurring = True
+        await RisingEdge(self.clock)
+        await RisingEdge(self.clock)
+        await RisingEdge(self.clock)
+        await RisingEdge(self.clock)
+        self.reset_occurring = False
 
         # Clear queues
         self.transmit_queue = deque()
@@ -382,9 +424,11 @@ class FIFOMaster(BusDriver):
             hold: Whether to hold off starting a new transmit pipeline
             **kwargs: Additional arguments
         """
-        # If using memory model, write to memory
-        if self.memory_model and 'write' in kwargs and kwargs['write']:
-            self._write_to_memory(transaction)
+        # If using memory model, write to memory using enhanced integration
+        if hasattr(self, 'memory_integration') and self.memory_model and 'write' in kwargs and kwargs['write']:
+            success, error_msg = self.memory_integration.write(transaction)
+            if not success:
+                self.log.error(f"Master({self.title}): {error_msg}")
 
         # Add transaction to queue
         self.transmit_queue.append(transaction)
@@ -394,41 +438,6 @@ class FIFOMaster(BusDriver):
         if not hold and not self.transmit_coroutine:
             self.log.debug(f'Master({self.title}): Starting new transmit pipeline, queue length: {len(self.transmit_queue)}')
             self.transmit_coroutine = cocotb.start_soon(self._transmit_pipeline())
-
-    def _write_to_memory(self, transaction):
-        """
-        Write transaction data to memory model.
-
-        Args:
-            transaction: The transaction to write to memory
-        """
-        if not self.memory_model or not self.memory_fields:
-            return
-
-        try:
-            # Get field values
-            addr_field = self.memory_fields.get('addr', 'addr')
-            data_field = self.memory_fields.get('data', 'data')
-            strb_field = self.memory_fields.get('strb', 'strb')
-
-            if hasattr(transaction, addr_field) and hasattr(transaction, data_field):
-                self._write_to_memory_helper(
-                    transaction, addr_field, data_field, strb_field
-                )
-        except Exception as e:
-            self.log.error(f"Master({self.title}): Error writing to memory: {e}")
-
-    def _write_to_memory_helper(self, transaction, addr_field, data_field, strb_field):
-        addr = getattr(transaction, addr_field)
-        data = getattr(transaction, data_field)
-        strb = getattr(transaction, strb_field) if hasattr(transaction, strb_field) else 0xFF
-
-        # Convert data to bytearray
-        data_bytes = self.memory_model.integer_to_bytearray(data, self.memory_model.bytes_per_line)
-
-        # Write to memory
-        self.memory_model.write(addr, data_bytes, strb)
-        self.log.debug(f"Master({self.title}): Wrote to memory: addr=0x{addr:X}, data=0x{data:X}, strb=0x{strb:X}")
 
     def _drive_signals(self, transaction):
         """
@@ -504,7 +513,7 @@ class FIFOMaster(BusDriver):
     def _drive_signals_helper(self, fifo_data):
         """
         Helper for driving signals in field_mode.
-
+        
         Args:
             fifo_data: Dictionary of field values from pack_for_fifo
         """
@@ -575,6 +584,9 @@ class FIFOMaster(BusDriver):
             # Keep write deasserted while full
             self._assign_write_value(value=0)
 
+            # Update stats
+            self.stats['full_cycles'] += 1
+
             timeout_counter += 1
             if timeout_counter >= self.timeout_cycles:
                 self.log.error(f"Master({self.title}) TIMEOUT waiting for FIFO not full after {self.timeout_cycles} cycles")
@@ -584,6 +596,9 @@ class FIFOMaster(BusDriver):
 
                 # Clear the data bus
                 self._clear_data_bus()
+
+                # Update stats
+                self.stats['timeouts'] += 1
 
                 self.transfer_busy = False
                 return False
@@ -595,6 +610,8 @@ class FIFOMaster(BusDriver):
         if self.full_sig.value and self.write_sig.value:
             current_time_ns = get_sim_time('ns')
             self.log.error(f"Master({self.title}) Error: {self.title} write while fifo full at {current_time_ns}ns")
+            # Update stats
+            self.stats['write_while_full'] += 1
 
         # Wait a cycle for the write to take effect
         await RisingEdge(self.clock)
@@ -610,6 +627,9 @@ class FIFOMaster(BusDriver):
                         f"{transaction.formatted(compact=True)}")
         transaction.end_time = current_time_ns
         self.sent_queue.append(transaction)
+        
+        # Update stats
+        self.stats['transactions_sent'] += 1
 
         # Deassert write
         self._assign_write_value(value=0)
@@ -630,9 +650,6 @@ class FIFOMaster(BusDriver):
             # Get next transaction from the queue
             transaction = self.transmit_queue.popleft()
             transaction.start_time = get_sim_time('ns')
-            # self.log.debug(f"Master({self.title}) Processing transaction, remaining: "
-            #                 f"{len(self.transmit_queue)} at {transaction.start_time}ns "
-            #                 f"transaction={transaction.formatted(compact=True)}")
 
             # xmit phase 1 - apply delay
             await self._xmit_phase1()
@@ -675,4 +692,26 @@ class FIFOMaster(BusDriver):
         """
         for _ in range(cycles):
             await RisingEdge(self.clock)
-            await Timer(self.tick_delay, units=self.tick_units)
+            if self.reset_occurring:
+                break
+        await Timer(self.tick_delay, units=self.tick_units)
+            
+    def get_memory_stats(self):
+        """
+        Get memory operation statistics.
+        
+        Returns:
+            Dictionary with memory statistics, or None if no memory model available
+        """
+        if hasattr(self, 'memory_integration'):
+            return self.memory_integration.get_stats()
+        return None
+        
+    def get_stats(self):
+        """
+        Get transaction statistics.
+        
+        Returns:
+            Dictionary with transaction statistics
+        """
+        return self.stats.copy()

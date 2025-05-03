@@ -95,6 +95,7 @@ class GAXISlave(BusMonitor):
         self.tick_units = 'ps'
         self.timeout_cycles = timeout_cycles
         self.field_mode = field_mode or multi_sig
+        self.reset_occurring = False
 
         # Handle field_config - convert dict to FieldConfig if needed
         if isinstance(field_config, dict):
@@ -291,6 +292,12 @@ class GAXISlave(BusMonitor):
         Reset the bus to initial state.
         """
         self.log.debug(f"Slave({self.title}): resetting the bus")
+        self.reset_occurring = True
+        await RisingEdge(self.clock)
+        await RisingEdge(self.clock)
+        await RisingEdge(self.clock)
+        await RisingEdge(self.clock)
+        self.reset_occurring = False
 
         # Deassert ready signal
         if 's2m_ready' in self.signal_map:
@@ -574,6 +581,8 @@ class GAXISlave(BusMonitor):
         """Wait for a number of clock cycles."""
         for _ in range(cycles):
             await RisingEdge(self.clock)
+            if self.reset_occurring:
+                break
         await Timer(self.tick_delay, units=self.tick_units)
         
     def get_memory_stats(self):

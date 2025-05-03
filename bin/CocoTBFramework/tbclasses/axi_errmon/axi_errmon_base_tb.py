@@ -98,12 +98,12 @@ class AXIErrorMonitorTB(TBBase):
         self.randomizer_configs = RANDOMIZER_CONFIGS
         timeout = timeout_addr + 50
         self.randomizer_configs['slow_consumer']['ready_delay'] = ([[timeout, timeout]], [1])
-        self.master_randdomizer_configs = {
+        self.master_randomizer_configs = {
                                             'fixed': {
                                                     'valid_delay': ([[2, 2]], [1])
                                             },
                                             'slow_producer': {
-                                                    'vvalid_delay': ([[timeout, timeout]], [1])
+                                                    'valid_delay': ([[timeout, timeout]], [1])
                                             },
         }
         # Create field configurations
@@ -239,6 +239,7 @@ class AXIErrorMonitorTB(TBBase):
             self.dut, 'AddrMaster', '', self.dut.aclk,
             field_config=self.addr_field_config,
             multi_sig=True,
+            timeout_cycles=10000,
             signal_map={
                 'm2s_valid': 'i_valid',
                 's2m_ready': 'i_ready'
@@ -248,7 +249,7 @@ class AXIErrorMonitorTB(TBBase):
                 'm2s_pkt_id': 'i_id'
             },
             log=self.log,
-            randomizer=FlexRandomizer(self.master_randdomizer_configs['fixed'])
+            randomizer=FlexRandomizer(self.master_randomizer_configs['fixed'])
         )
 
         # Create data channel master
@@ -264,13 +265,14 @@ class AXIErrorMonitorTB(TBBase):
             self.dut, 'DataMaster', '', self.dut.aclk,
             field_config=self.data_field_config,
             multi_sig=True,
+            timeout_cycles=10000,
             signal_map={
                 'm2s_valid': data_valid_signal,
                 's2m_ready': data_ready_signal
             },
             optional_signal_map=data_optional_map,
             log=self.log,
-            randomizer=FlexRandomizer(self.master_randdomizer_configs['fixed'])
+            randomizer=FlexRandomizer(self.master_randomizer_configs['fixed'])
         )
 
         # Create response channel master (write only)
@@ -280,6 +282,7 @@ class AXIErrorMonitorTB(TBBase):
                 self.dut, 'RespMaster', '', self.dut.aclk,
                 field_config=self.resp_field_config,
                 multi_sig=True,
+            timeout_cycles=10000,
                 signal_map={
                     'm2s_valid': 'i_resp_valid',
                     's2m_ready': 'i_resp_ready'
@@ -289,7 +292,7 @@ class AXIErrorMonitorTB(TBBase):
                     'm2s_pkt_resp': 'i_resp'
                 },
                 log=self.log,
-            randomizer=FlexRandomizer(self.master_randdomizer_configs['fixed'])
+            randomizer=FlexRandomizer(self.master_randomizer_configs['fixed'])
 
             )
 

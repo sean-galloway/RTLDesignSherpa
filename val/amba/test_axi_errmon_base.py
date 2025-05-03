@@ -56,7 +56,7 @@ async def axi_errmon_base_test(dut):
 
 def generate_params():
     """Generate test parameters"""
-    channels_list = [1, 4, 16, 32]
+    # Initial parameter lists
     id_widths = [8]
     addr_widths = [32]
     timer_widths = [16, 20]  # Added timer width options
@@ -64,53 +64,65 @@ def generate_params():
     addr_fifo_depths = [4]
     timeout_values = [100]
     is_read_options = [True, False]
-    is_axi_options = [True]
     test_levels = ['basic', 'medium', 'full']
 
-    is_read_options = [True, False]
-    timer_widths = [16]  # Added timer width options
-    # channels_list = [4]
-    test_levels = ['full']
+    # Define is_axi_options first
+    is_axi_options = [True, False]
+
+    # Then define channels_list based on is_axi_options
+    channels_dict = {
+        True: [1, 4, 16, 32],  # When is_axi is True
+        False: [1]             # When is_axi is False
+    }
 
     # For faster running tests, limit parameters
     if os.environ.get('QUICK_TEST', '0') == '1':
-        channels_list = [1, 4]
         timer_widths = [16]
         test_levels = ['basic']
+        channels_dict[True] = [1, 4]  # Only modify the True case
 
     # For debug-focused testing
     if os.environ.get('DEBUG_TEST', '0') == '1':
-        channels_list = [4]
         timer_widths = [20]
         test_levels = ['full']
+        channels_dict[True] = [4]  # Only modify the True case
 
-    return [
-        (
-            channels,
-            id_width,
-            addr_width,
-            timer_width,  # Added to parameter list
-            error_fifo_depth,
-            addr_fifo_depth,
-            timeout,
-            is_read,
-            is_axi,
-            test_level,
+    # is_read_options = [True, False]
+    # timer_widths = [16]  # Added timer width options
+    test_levels = ['full']
+
+    result = []
+    for is_axi in is_axi_options:
+        # Use the appropriate channels list based on the is_axi value
+        channels_list = channels_dict[is_axi]
+
+        result.extend(
+            (
+                channels,
+                id_width,
+                addr_width,
+                timer_width,
+                error_fifo_depth,
+                addr_fifo_depth,
+                timeout,
+                is_read,
+                is_axi,
+                test_level,
+            )
+            for channels, id_width, addr_width, timer_width, error_fifo_depth, addr_fifo_depth, timeout, is_read, test_level in product(
+                channels_list,
+                id_widths,
+                addr_widths,
+                timer_widths,
+                error_fifo_depths,
+                addr_fifo_depths,
+                timeout_values,
+                is_read_options,
+                test_levels,
+            )
+            if channels <= 16 or test_level != 'full'
         )
-        for channels, id_width, addr_width, timer_width, error_fifo_depth, addr_fifo_depth, timeout, is_read, is_axi, test_level in product(
-            channels_list,
-            id_widths,
-            addr_widths,
-            timer_widths,
-            error_fifo_depths,
-            addr_fifo_depths,
-            timeout_values,
-            is_read_options,
-            is_axi_options,
-            test_levels,
-        )
-        if channels <= 16 or test_level != 'full'
-    ]
+    return result
 
 params = generate_params()
 
@@ -141,7 +153,7 @@ def test_axi_errmon_base(request, channels, id_width, addr_width, timer_width, e
     ]
 
     # Create a human-readable test identifier
-    timeout = timeout * (channels//4) if channels  > 4 else timeout
+    timeout = timeout * (channels//2) if channels  > 4 else timeout
     ch_str = format(channels, '02d')
     id_str = format(id_width, '02d')
     addr_str = format(addr_width, '02d')

@@ -83,6 +83,7 @@ class GAXIMaster(BusDriver):
         self.tick_units = 'ps'
         self.timeout_cycles = timeout_cycles
         self.field_mode = field_mode or multi_sig
+        self.reset_occurring = False
 
         # Handle field_config - convert dict to FieldConfig if needed
         if isinstance(field_config, dict):
@@ -316,6 +317,12 @@ class GAXIMaster(BusDriver):
 
         # Reset valid signal
         self._assign_valid_value(value=0)
+        self.reset_occurring = True
+        await RisingEdge(self.clock)
+        await RisingEdge(self.clock)
+        await RisingEdge(self.clock)
+        await RisingEdge(self.clock)
+        self.reset_occurring = False
 
         # Reset field signals
         self._clear_data_bus()
@@ -624,6 +631,8 @@ class GAXIMaster(BusDriver):
         """
         for _ in range(cycles):
             await RisingEdge(self.clock)
+            if self.reset_occurring:
+                break
         await Timer(self.tick_delay, units=self.tick_units)
         
     def get_memory_stats(self):

@@ -1,4 +1,4 @@
-"""Testbench for FIFO buffer components"""
+"""Testbench for FIFO buffer components with enhanced signal handling and robust error detection"""
 import os
 import cocotb
 
@@ -10,11 +10,12 @@ from CocoTBFramework.components.fifo.fifo_packet import FIFOPacket
 from CocoTBFramework.components.fifo.fifo_master import FIFOMaster
 from CocoTBFramework.components.fifo.fifo_slave import FIFOSlave
 from CocoTBFramework.components.fifo.fifo_monitor import FIFOMonitor
+from CocoTBFramework.components.fifo.fifo_memory_integ import EnhancedMemoryModel
 from CocoTBFramework.tbclasses.fifo.fifo_buffer_configs import FIELD_CONFIGS, RANDOMIZER_CONFIGS
 
 
 class FifoBufferTB(TBBase):
-    """Testbench for FIFO buffer components"""
+    """Testbench for FIFO buffer components with enhanced error detection and statistics"""
 
     def __init__(self, dut,
                     wr_clk=None, wr_rstn=None,
@@ -63,6 +64,13 @@ class FifoBufferTB(TBBase):
 
         self.log.debug(f"\n{self.field_config}")
 
+        # Create enhanced memory model
+        self.memory_model = EnhancedMemoryModel(
+            num_lines=self.TEST_DEPTH,
+            bytes_per_line=self.DW // 8 or 1,
+            log=self.log
+        )
+
         # Set up signal mappings
         # Required signals (valid/ready) for master
         master_signal_map = {
@@ -90,6 +98,7 @@ class FifoBufferTB(TBBase):
         self.write_master = FIFOMaster(
             dut, 'write_master', '', self.wr_clk,
             field_config=self.field_config,
+            memory_model=self.memory_model,
             timeout_cycles=self.TIMEOUT_CYCLES,
             signal_map=master_signal_map,
             optional_signal_map=master_optional_map,
@@ -100,6 +109,7 @@ class FifoBufferTB(TBBase):
             dut, 'read_slave', '', self.rd_clk,
             mode=self.TEST_MODE,
             field_config=self.field_config,
+            memory_model=self.memory_model,
             timeout_cycles=self.TIMEOUT_CYCLES,
             signal_map=slave_signal_map,
             optional_signal_map=slave_optional_map,
@@ -202,6 +212,17 @@ class FifoBufferTB(TBBase):
             self.log.error(f"{msg}: Unmatched extra packet in RD monitor: {pkt.formatted(compact=True)}")
             self.total_errors += 1
 
+    def get_component_statistics(self):
+        """Get statistics from all components for analysis"""
+        stats = {
+            'write_master': self.write_master.get_stats(),
+            'read_slave': self.read_slave.get_stats() if hasattr(self.read_slave, 'get_stats') else {},
+            'write_monitor': self.wr_monitor.get_stats() if hasattr(self.wr_monitor, 'get_stats') else {},
+            'read_monitor': self.rd_monitor.get_stats() if hasattr(self.rd_monitor, 'get_stats') else {},
+            'memory_model': self.memory_model.get_stats() if hasattr(self.memory_model, 'get_stats') else {}
+        }
+        return stats
+
     async def simple_incremental_loops(self, count, delay_key, delay_clks_after):
         """Run simple incremental tests with different packet sizes"""
         # Choose the type of randomizer
@@ -247,4 +268,86 @@ class FifoBufferTB(TBBase):
         # Compare the packets
         self.compare_packets("Simple Incremental Loops", count)
 
+        # Print statistics
+        stats = self.get_component_statistics()
+        self.log.info(f"Test Statistics: {stats}")
+
         assert self.total_errors == 0, f'Simple Incremental Loops found {self.total_errors} Errors'
+        
+    async def stress_test_with_random_patterns(self, count=100, delay_key='constrained'):
+        """Run a stress test with more complex patterns to test FIFO buffering"""
+        self.log.info(f'Running stress test with {count} packets and delay profile {delay_key}')
+        
+        # Set randomizers for both components
+        self.write_master.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS[delay_key]['write']))
+        self.read_slave.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS[delay_key]['read']))
+        
+        # Reset the environment
+        await self.assert_reset()
+        await self.wait_clocks(self.wr_clk_name, 10)
+        await self.deassert_reset()
+        await self.wait_clocks(self.wr_clk_name, 10)
+        
+        # Create varied test patterns
+        patterns = []
+        
+        # Pattern 1: Walking ones
+        for bit in range(min(32, self.DW)):
+            patterns.append(1 << bit)
+            
+        # Pattern 2: Walking zeros
+        all_ones = (1 << self.DW) - 1
+        for bit in range(min(32, self.DW)):
+            patterns.append(all_ones & ~(1 << bit))
+        
+        # Pattern 3: Alternating bits
+        patterns.extend([
+            0x55555555 & self.MAX_DATA,  # 0101...
+            0xAAAAAAAA & self.MAX_DATA,  # 1010...
+            0x33333333 & self.MAX_DATA,  # 0011...
+            0xCCCCCCCC & self.MAX_DATA,  # 1100...
+        ])
+        
+        # Pattern 4: Random values
+        import random
+        random.seed(12345)  # For reproducibility
+        for _ in range(count - len(patterns)):
+            patterns.append(random.randint(0, self.MAX_DATA))
+        
+        # Send all patterns
+        for i, pattern in enumerate(patterns):
+            packet = FIFOPacket(self.field_config)
+            packet.data = pattern
+            
+            # Queue the packet for transmission
+            await self.write_master.send(packet)
+            
+            # Add occasional delay to prevent overwhelming the FIFO
+            if i % 10 == 9:
+                await self.wait_clocks(self.wr_clk_name, 5)
+        
+        # Wait for all packets to be transmitted
+        while self.write_master.transfer_busy:
+            await self.wait_clocks(self.wr_clk_name, 1)
+            
+        # Allow time for all packets to be received
+        await self.wait_clocks(self.wr_clk_name, 50)
+        
+        # Wait for all packets to be received
+        timeout_counter = 0
+        while len(self.rd_monitor.observed_queue) < len(patterns) and timeout_counter < self.TIMEOUT_CYCLES:
+            await self.wait_clocks(self.wr_clk_name, 1)
+            timeout_counter += 1
+            
+        if timeout_counter >= self.TIMEOUT_CYCLES:
+            self.log.error(f"Timeout waiting for packets! Only received {len(self.rd_monitor.observed_queue)} of {len(patterns)}")
+            
+        # Compare the packets
+        self.compare_packets("Stress Test With Random Patterns", len(patterns))
+        
+        # Get and report statistics
+        stats = self.get_component_statistics()
+        self.log.info(f"Stress Test Statistics: {stats}")
+        
+        # Return test result
+        return self.total_errors == 0

@@ -83,9 +83,6 @@ class AXIErrorMonFIFOTest(AXIErrorMonBaseTest):
         # Fill to one less than full to ensure we can trigger full condition
         entries_per_channel = self.tb.addr_fifo_depth
 
-        # Target channel to fill completely (triggers block_ready)
-        target_channel = 0
-
         return await self.drive_fifo_fill_test(
             entries_per_channel=entries_per_channel
         )
@@ -207,6 +204,8 @@ class AXIErrorMonFIFOTest(AXIErrorMonBaseTest):
             transactions_to_send = self.tb.addr_fifo_depth  # Shared FIFO has same depth
             block_ready_asserted = False
             sent_transactions = []
+            self.tb.ready_ctrl.force_data_ready_low(True)
+            self.tb.ready_ctrl.force_resp_ready_low(True)
 
             current_channel = 0  # Arbitrary channel
 
@@ -223,6 +222,9 @@ class AXIErrorMonFIFOTest(AXIErrorMonBaseTest):
                 # Send the address packet
                 await self.tb.addr_master.send(addr_packet)
                 sent_transactions.append(addr_packet)
+
+                while self.tb.addr_master.transfer_busy:
+                    await self.tb.wait_clocks('aclk', 1)
 
                 # Wait a little longer to ensure block_ready has time to assert if it's going to
                 await self.tb.wait_clocks('aclk', 2)
@@ -286,6 +288,9 @@ class AXIErrorMonFIFOTest(AXIErrorMonBaseTest):
                 return False
 
             self.log.info(f"o_block_ready correctly deasserted after completing all transactions{self.tb.get_time_ns_str()}")
+            self.tb.ready_ctrl.force_data_ready_low(False)
+            self.tb.ready_ctrl.force_resp_ready_low(False)
+
 
         # All tests passed
         self.log.info(f"FIFO fill test passed for all channels{self.tb.get_time_ns_str()}")
@@ -878,6 +883,11 @@ class AXIErrorMonFIFOTest(AXIErrorMonBaseTest):
 
         # Shuffle the transactions to randomize the order IDs come in
         random.shuffle(all_transactions)
+        self.log.info("--------------")
+        self.log.info('random transactions:')
+        for i, packet in enumerate(all_transactions):
+            self.log.info(f'    {i}: {packet.formatted(compact=True)}')
+        self.log.info("--------------")
 
         # Issue the transactions in the shuffled order
         self.log.info(f"Sending {len(all_transactions)} transactions with randomized ID order{self.tb.get_time_ns_str()}")
@@ -900,7 +910,7 @@ class AXIErrorMonFIFOTest(AXIErrorMonBaseTest):
 
         # Randomly select transactions for error injection
         error_count = min(4, len(all_transactions))
-        error_indices = random.sample(range(len(all_transactions)), error_count).sort()
+        error_indices = random.sample(range(len(all_transactions)), error_count)
 
         self.log.info(f"Selected transactions {error_indices} for error responses{self.tb.get_time_ns_str()}")
 
@@ -915,10 +925,10 @@ class AXIErrorMonFIFOTest(AXIErrorMonBaseTest):
             })
             self.log.info(f"Transaction {idx} (addr=0x{tx.addr:X}, id={tx.id}) will have error{self.tb.get_time_ns_str()}")
 
+        # Process read data phases
+        self.dut.i_data_ready.value = 1
         # Now process data phases in the same order as address phases
         if self.tb.is_read:
-            # Process read data phases
-            self.dut.i_data_ready.value = 1
             for i, tx in enumerate(all_transactions):
                 # Set response value based on whether this transaction should have an error
                 resp_value = 2 if i in error_indices else 0  # 2 = SLVERR
@@ -944,8 +954,6 @@ class AXIErrorMonFIFOTest(AXIErrorMonBaseTest):
             # Cleanup
             self.dut.i_data_ready.value = 0
         else:
-            # For write mode, process data phases first
-            self.dut.i_data_ready.value = 1
             for i, tx in enumerate(all_transactions):
                 self.log.info(f"Processing data phase {i}: addr=0x{tx.addr:X}, id={tx.id}{self.tb.get_time_ns_str()}")
 

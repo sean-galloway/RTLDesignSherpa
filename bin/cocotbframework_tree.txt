@@ -34,7 +34,8 @@ CocoTBFramework
 │   │   ├── axi4_seq_protocol.py
 │   │   ├── axi4_seq_response.py
 │   │   ├── axi4_seq_transaction.py
-│   │   └── axi4_slave.py
+│   │   ├── axi4_slave.py
+│   │   └── axi4_slave.py.HOLD
 │   ├── example_code
 │   │   ├── arbiter_monitor_example.py.EXAMPLE
 │   │   └── arbiter_monitor_testcase.py.EXAMPLE
@@ -101,7 +102,18 @@ CocoTBFramework
     │       ├── axi4_slave_rd_fub_intf.py
     │       ├── axi4_slave_rd_fub_intf_incl.py
     │       ├── axi4_slave_rd_mst_intf.py
-    │       └── axi4_slave_rd_test.py
+    │       ├── axi4_slave_rd_test.py
+    │       ├── simple_axi4_master_rd_tb.py
+    │       └── simple_axi4_master_rd_tb.py.HOLD
+    ├── axi_errmon
+    │   ├── axi_errmon_base_tb.py
+    │   ├── axi_errmon_base_test.py
+    │   ├── axi_errmon_basic_test.py
+    │   ├── axi_errmon_error_test.py
+    │   ├── axi_errmon_fifo_test.py
+    │   ├── axi_errmon_multichannel_test.py
+    │   ├── axi_errmon_random_test.py
+    │   └── axi_errmon_readyctrl.py
     ├── common
     │   ├── __init__.py
     │   ├── adder_testing.py

@@ -1,4 +1,4 @@
-"""Testbench for data_collect module"""
+"""Testbench for data_collect module with enhanced error detection and memory model integration"""
 import os
 import logging
 import random
@@ -11,17 +11,20 @@ from CocoTBFramework.components.fifo.fifo_packet import FIFOPacket
 from CocoTBFramework.components.fifo.fifo_master import FIFOMaster
 from CocoTBFramework.components.fifo.fifo_slave import FIFOSlave
 from CocoTBFramework.components.fifo.fifo_monitor import FIFOMonitor
+from CocoTBFramework.components.fifo.fifo_memory_integ import EnhancedMemoryModel
 from CocoTBFramework.components.field_config import FieldConfig, FieldDefinition
+
 
 class DataCollectScoreboard:
     """
-    Specialized scoreboard for data_collect module.
+    Specialized scoreboard for data_collect module with enhanced field validation and error detection.
 
     Features:
     - Separate queues for each input channel (A, B, C, D)
     - Groups data in 4-item chunks by channel
     - Compares output packets against expected grouped data
     - Checks for leftover data at end of test
+    - Enhanced field validation and mask caching
     """
     def __init__(self, title, input_field_config, output_field_config, log=None):
         """Initialize the scoreboard"""
@@ -61,10 +64,21 @@ class DataCollectScoreboard:
 
         # Queue for actual output packets
         self.actual_queue = deque()
+        
+        # Create field mask cache for improved performance
+        self._field_masks = {}
 
         # Error tracking
         self.error_count = 0
         self.comparison_count = 0
+        self.field_error_counts = {}
+        
+        # Statistics
+        self.stats = {
+            'packets_processed': 0,
+            'groups_created': 0,
+            'field_errors': 0
+        }
 
     def clear(self):
         """Clear all queues and reset counters"""
@@ -82,6 +96,30 @@ class DataCollectScoreboard:
 
         self.error_count = 0
         self.comparison_count = 0
+        self.field_error_counts = {}
+        
+        # Reset statistics
+        for key in self.stats:
+            self.stats[key] = 0
+
+    def _get_field_mask(self, field_name, field_config):
+        """Get a mask for a field based on its bit width with caching."""
+        # Check the cache first
+        if field_name in self._field_masks:
+            return self._field_masks[field_name]
+            
+        # Calculate mask based on field width
+        if hasattr(field_config, 'get_field'):
+            field_def = field_config.get_field(field_name)
+            if field_def:
+                bits = field_def.bits
+                mask = (1 << bits) - 1
+                # Cache the mask
+                self._field_masks[field_name] = mask
+                return mask
+                
+        # Default to all ones if field width can't be determined
+        return 0xFFFFFFFF
 
     def add_input_packet(self, packet):
         """
@@ -90,6 +128,9 @@ class DataCollectScoreboard:
         Args:
             packet: Input packet from a monitor
         """
+        # Track statistics
+        self.stats['packets_processed'] += 1
+        
         # Determine which queue to add to based on ID
         packet_id = packet.id if hasattr(packet, 'id') else None
 
@@ -116,7 +157,7 @@ class DataCollectScoreboard:
 
     def _combine_packets(self, channel):
         """
-        Combine 4 packets from a channel into a single output packet
+        Combine 4 packets from a channel into a single output packet with field validation
 
         Args:
             channel: Channel identifier ('A', 'B', 'C', or 'D')
@@ -157,6 +198,16 @@ class DataCollectScoreboard:
         data1 = pkt1.data if hasattr(pkt1, 'data') else 0
         data2 = pkt2.data if hasattr(pkt2, 'data') else 0
         data3 = pkt3.data if hasattr(pkt3, 'data') else 0
+        
+        # Get mask for data field
+        data_mask = self._get_field_mask('data', self.input_field_config)
+        
+        # Mask values to ensure they're within field width
+        data0 &= data_mask
+        data1 &= data_mask
+        data2 &= data_mask
+        data3 &= data_mask
+        
         # Create a combined output packet
         output_pkt = FIFOPacket(self.output_field_config)
         output_pkt.id = id_value
@@ -167,6 +218,9 @@ class DataCollectScoreboard:
 
         # Add to the combined queue
         combined_queue.append(output_pkt)
+        
+        # Update statistics
+        self.stats['groups_created'] += 1
 
         self.log.debug(f"Combined 4 packets from channel {channel} into output packet with ID=0x{id_value:X}")
 
@@ -183,7 +237,7 @@ class DataCollectScoreboard:
         self._check_next_packet()
 
     def _check_next_packet(self):
-        """Check the next output packet against expected data"""
+        """Check the next output packet against expected data with enhanced field validation"""
         if not self.actual_queue:
             return
 
@@ -231,21 +285,43 @@ class DataCollectScoreboard:
         actual_data1 = actual.data1 if hasattr(actual, 'data1') else 0
         actual_data2 = actual.data2 if hasattr(actual, 'data2') else 0
         actual_data3 = actual.data3 if hasattr(actual, 'data3') else 0
+        
+        # Get masks for each field
+        data_mask = self._get_field_mask('data0', self.output_field_config)
+        
+        # Compare packets with field-by-field detailed comparison
+        errors = []
+        
+        if (actual_data0 & data_mask) != (expected_data0 & data_mask):
+            errors.append(f"data0: expected=0x{expected_data0:X}, actual=0x{actual_data0:X}")
+            self._increment_field_error('data0')
+            
+        if (actual_data1 & data_mask) != (expected_data1 & data_mask):
+            errors.append(f"data1: expected=0x{expected_data1:X}, actual=0x{actual_data1:X}")
+            self._increment_field_error('data1')
+            
+        if (actual_data2 & data_mask) != (expected_data2 & data_mask):
+            errors.append(f"data2: expected=0x{expected_data2:X}, actual=0x{actual_data2:X}")
+            self._increment_field_error('data2')
+            
+        if (actual_data3 & data_mask) != (expected_data3 & data_mask):
+            errors.append(f"data3: expected=0x{expected_data3:X}, actual=0x{actual_data3:X}")
+            self._increment_field_error('data3')
 
-        # Compare packets
-        if (actual_data0 != expected_data0 or
-            actual_data1 != expected_data1 or
-            actual_data2 != expected_data2 or
-            actual_data3 != expected_data3):
-
+        if errors:
             self.log.error(f"Packet mismatch for channel {channel} (ID=0x{actual_id:X}):")
-            self.log.error(f"  Expected: data0=0x{expected_data0:X}, data1=0x{expected_data1:X}, "
-                            f"data2=0x{expected_data2:X}, data3=0x{expected_data3:X}")
-            self.log.error(f"  Actual: data0=0x{actual_data0:X}, data1=0x{actual_data1:X}, "
-                            f"data2=0x{actual_data2:X}, data3=0x{actual_data3:X}")
+            for error in errors:
+                self.log.error(f"  {error}")
             self.error_count += 1
         else:
             self.log.debug(f"Packet match for channel {channel} (ID=0x{actual_id:X})")
+            
+    def _increment_field_error(self, field_name):
+        """Increment error counter for a specific field"""
+        if field_name not in self.field_error_counts:
+            self.field_error_counts[field_name] = 0
+        self.field_error_counts[field_name] += 1
+        self.stats['field_errors'] += 1
 
     def check_remaining_data(self):
         """
@@ -296,6 +372,14 @@ class DataCollectScoreboard:
             errors += 1
 
         return errors
+        
+    def get_statistics(self):
+        """Get statistics about packet processing and errors"""
+        stats = self.stats.copy()
+        stats['comparisons'] = self.comparison_count
+        stats['errors'] = self.error_count
+        stats['field_error_details'] = self.field_error_counts.copy()
+        return stats
 
     def report(self):
         """
@@ -314,6 +398,12 @@ class DataCollectScoreboard:
         self.log.info(f"  Data mismatches: {self.error_count}")
         self.log.info(f"  Leftover data errors: {leftover_errors}")
         self.log.info(f"  Total errors: {total_errors}")
+        
+        # Log field-specific error details if any
+        if self.field_error_counts:
+            self.log.info("  Field error details:")
+            for field, count in self.field_error_counts.items():
+                self.log.info(f"    {field}: {count} errors")
 
         if total_errors == 0:
             self.log.info("  TEST PASSED: All packets verified successfully")
@@ -325,13 +415,15 @@ class DataCollectScoreboard:
 
 class DataCollectTB(TBBase):
     """
-    Testbench for the data_collect module.
+    Testbench for the data_collect module with enhanced memory model integration.
     Features:
     - 4 input channels (A, B, C, D) with FIFO Masters
     - 1 output channel (E) with FIFO Slave
     - Monitors for all channels
     - Scoreboard for verification
     - Support for weighted arbitration testing
+    - Memory model integration
+    - Enhanced error detection and reporting
     """
 
     def __init__(self, dut):
@@ -417,6 +509,20 @@ class DataCollectTB(TBBase):
             'active_bits': (self.ID_WIDTH-1, 0),
             'description': 'ID value'
         })
+        
+        # Create memory models for each channel
+        self.input_memory_models = {
+            'A': EnhancedMemoryModel(num_lines=16, bytes_per_line=2, log=self.log),
+            'B': EnhancedMemoryModel(num_lines=16, bytes_per_line=2, log=self.log),
+            'C': EnhancedMemoryModel(num_lines=16, bytes_per_line=2, log=self.log),
+            'D': EnhancedMemoryModel(num_lines=16, bytes_per_line=2, log=self.log),
+        }
+        
+        self.output_memory_model = EnhancedMemoryModel(
+            num_lines=self.OUTPUT_FIFO_DEPTH,
+            bytes_per_line=4 * self.DATA_WIDTH // 8,
+            log=self.log
+        )
 
         # Create randomizers for masters with different configurations
         self.randomizer_configs = {
@@ -488,6 +594,7 @@ class DataCollectTB(TBBase):
             dut, 'Master A', '', self.clock,
             field_config=self.input_field_config,
             randomizer=self.master_a_randomizer,
+            memory_model=self.input_memory_models['A'],
             timeout_cycles=1000,
             signal_map=self.master_a_map,
             optional_signal_map=self.master_a_opt_map,
@@ -499,6 +606,7 @@ class DataCollectTB(TBBase):
             dut, 'Master B', '', self.clock,
             field_config=self.input_field_config,
             randomizer=self.master_b_randomizer,
+            memory_model=self.input_memory_models['B'],
             timeout_cycles=1000,
             signal_map=self.master_b_map,
             optional_signal_map=self.master_b_opt_map,
@@ -510,6 +618,7 @@ class DataCollectTB(TBBase):
             dut, 'Master C', '', self.clock,
             field_config=self.input_field_config,
             randomizer=self.master_c_randomizer,
+            memory_model=self.input_memory_models['C'],
             timeout_cycles=1000,
             signal_map=self.master_c_map,
             optional_signal_map=self.master_c_opt_map,
@@ -521,6 +630,7 @@ class DataCollectTB(TBBase):
             dut, 'Master D', '', self.clock,
             field_config=self.input_field_config,
             randomizer=self.master_d_randomizer,
+            memory_model=self.input_memory_models['D'],
             timeout_cycles=1000,
             signal_map=self.master_d_map,
             optional_signal_map=self.master_d_opt_map,
@@ -533,6 +643,7 @@ class DataCollectTB(TBBase):
             dut, 'Slave E', '', self.clock,
             field_config=self.output_field_config,
             randomizer=self.slave_e_randomizer,
+            memory_model=self.output_memory_model,
             timeout_cycles=1000,
             signal_map=self.slave_e_map,
             optional_signal_map=self.slave_e_opt_map,
@@ -607,32 +718,46 @@ class DataCollectTB(TBBase):
                                                 log=self.log)
 
         self.dut_arb = dut.inst_arbiter
-        # # Initialize the arbiter monitors
-        # try:
-        # Create Arbiter Monitor
-        # self.arbiter_monitor = WeightedRoundRobinArbiterMonitor(
-        #     dut=self.dut_arb,
-        #     title="WRR Arbiter Monitor",
-        #     clock=self.dut_arb.i_clk,
-        #     clock_period_ns=10,
-        #     reset_n=self.dut_arb.i_rst_n,
-        #     req_signal=self.dut_arb.i_req,
-        #     gnt_valid_signal=self.dut_arb.ow_gnt_valid,
-        #     gnt_signal=self.dut_arb.ow_gnt,
-        #     gnt_id_signal=self.dut_arb.ow_gnt_id,
-        #     gnt_ack_signal=self.dut_arb.i_gnt_ack if hasattr(self.dut, 'i_gnt_ack') else None,
-        #     block_arb_signal=self.dut_arb.i_block_arb,
-        #     max_thresh_signal=self.dut_arb.i_max_thresh,
-        #     clients=self.dut_arb.CLIENTS,
-        #     log=self.log
-        # )
-        # except (ImportError, AttributeError):
-        #     self.log.warning("WRR Monitor not available, skipping arbiter monitoring")
-        #     self.arbiter_monitor = None
+        # Initialize the arbiter monitors if applicable
+        try:
+            from CocoTBFramework.components.arbiter_monitor import WeightedRoundRobinArbiterMonitor
+            # Create Arbiter Monitor
+            self.arbiter_monitor = WeightedRoundRobinArbiterMonitor(
+                dut=self.dut_arb,
+                title="WRR Arbiter Monitor",
+                clock=self.dut_arb.i_clk,
+                clock_period_ns=10,
+                reset_n=self.dut_arb.i_rst_n,
+                req_signal=self.dut_arb.i_req,
+                gnt_valid_signal=self.dut_arb.ow_gnt_valid,
+                gnt_signal=self.dut_arb.ow_gnt,
+                gnt_id_signal=self.dut_arb.ow_gnt_id,
+                gnt_ack_signal=self.dut_arb.i_gnt_ack if hasattr(self.dut, 'i_gnt_ack') else None,
+                block_arb_signal=self.dut_arb.i_block_arb,
+                max_thresh_signal=self.dut_arb.i_max_thresh,
+                clients=self.dut_arb.CLIENTS,
+                log=self.log
+            )
+        except (ImportError, AttributeError):
+            self.log.warning("WRR Monitor not available, skipping arbiter monitoring")
+            self.arbiter_monitor = None
 
         # Test counters
         self.total_errors = 0
         self.weight_configs = []
+        
+        # Error tracking
+        self.error_log = []
+
+    def log_error(self, error_type, details):
+        """Log an error with timestamp for later analysis"""
+        import time
+        self.error_log.append({
+            'time': time.time(),
+            'type': error_type,
+            'details': details
+        })
+        self.total_errors += 1
 
     async def wait_for_expected_outputs(self, expected_count, timeout_clocks=5000):
         """
@@ -657,6 +782,7 @@ class DataCollectTB(TBBase):
         received = len(self.monitor_e.observed_queue)
         if received < expected_count:
             self.log.warning(f"Timeout waiting for outputs: {received}/{expected_count} received")
+            self.log_error('timeout', f"Expected {expected_count} outputs, got {received}")
             return False
 
         self.log.info(f"All expected outputs received: {received}/{expected_count}")
@@ -684,6 +810,7 @@ class DataCollectTB(TBBase):
         for name, weight in [('A', weight_a), ('B', weight_b), ('C', weight_c), ('D', weight_d)]:
             if weight < 0 or weight > 15:
                 self.log.error(f"Invalid weight for channel {name}: {weight}. Must be 0-15.")
+                self.log_error('invalid_weight', f"Channel {name} weight {weight} out of range 0-15")
                 return
 
         # Set the weights
@@ -734,6 +861,7 @@ class DataCollectTB(TBBase):
         self.total_errors += errors
         if errors > 0:
             self.log.error(f"Scoreboard found {errors} errors")
+            self.log_error('scoreboard', f"Scoreboard reported {errors} errors")
         else:
             self.log.info("Scoreboard verification passed")
 
@@ -777,6 +905,35 @@ class DataCollectTB(TBBase):
 
         self.log.info(f"Set slave randomizer to {name}")
 
+    def get_component_statistics(self):
+        """Get statistics from all components"""
+        stats = {
+            'master_a': self.master_a.get_stats(),
+            'master_b': self.master_b.get_stats(),
+            'master_c': self.master_c.get_stats(),
+            'master_d': self.master_d.get_stats(),
+            'slave_e': self.slave_e.get_stats(),
+            'monitor_a': self.monitor_a.get_stats() if hasattr(self.monitor_a, 'get_stats') else {},
+            'monitor_b': self.monitor_b.get_stats() if hasattr(self.monitor_b, 'get_stats') else {},
+            'monitor_c': self.monitor_c.get_stats() if hasattr(self.monitor_c, 'get_stats') else {},
+            'monitor_d': self.monitor_d.get_stats() if hasattr(self.monitor_d, 'get_stats') else {},
+            'monitor_e': self.monitor_e.get_stats() if hasattr(self.monitor_e, 'get_stats') else {},
+            'scoreboard': self.scoreboard.get_statistics() if hasattr(self.scoreboard, 'get_statistics') else {},
+            'memory_models': {
+                'input_A': self.input_memory_models['A'].get_stats(),
+                'input_B': self.input_memory_models['B'].get_stats(),
+                'input_C': self.input_memory_models['C'].get_stats(),
+                'input_D': self.input_memory_models['D'].get_stats(),
+                'output': self.output_memory_model.get_stats(),
+            }
+        }
+        
+        # Add error statistics
+        stats['error_count'] = self.total_errors
+        stats['error_log_count'] = len(self.error_log)
+        
+        return stats
+        
     async def send_packets_on_channel(self, channel, count, id_value=None, base_data=0):
         """
         Send packets on a specific channel
@@ -794,17 +951,22 @@ class DataCollectTB(TBBase):
         if channel == 'A':
             master = self.master_a
             default_id = 0xAA
+            memory_model = self.input_memory_models['A']
         elif channel == 'B':
             master = self.master_b
             default_id = 0xBB
+            memory_model = self.input_memory_models['B']
         elif channel == 'C':
             master = self.master_c
             default_id = 0xCC
+            memory_model = self.input_memory_models['C']
         elif channel == 'D':
             master = self.master_d
             default_id = 0xDD
+            memory_model = self.input_memory_models['D']
         else:
             self.log.error(f"Unknown channel: {channel}")
+            self.log_error('unknown_channel', f"Unknown channel: {channel}")
             return []
 
         # Use provided ID or default
@@ -818,6 +980,13 @@ class DataCollectTB(TBBase):
             pkt = FIFOPacket(self.input_field_config)
             pkt.id = id_value
             pkt.data = (base_data + i) & ((1 << self.DATA_WIDTH) - 1)  # Mask to WIDTH bits
+            
+            # Store in memory model if available
+            if memory_model:
+                addr = i % memory_model.num_lines
+                data = pkt.data
+                data_bytes = memory_model.integer_to_bytearray(data, 2)
+                memory_model.write(addr, data_bytes)
 
             # Send packet
             await master.send(pkt)
@@ -838,7 +1007,7 @@ class DataCollectTB(TBBase):
                 self.master_c.transfer_busy or
                 self.master_d.transfer_busy):
             await self.wait_clocks('i_clk', 1)
-
+            
     async def run_simple_test(self, packets_per_channel=40, expected_outputs=10):
         """
         Run a simple test with equal packets on all channels
@@ -908,9 +1077,13 @@ class DataCollectTB(TBBase):
 
         # Check scoreboard
         errors = self.check_scoreboard()
+        
+        # Get and report statistics
+        stats = self.get_component_statistics()
+        self.log.info(f"Test Statistics: {stats}")
 
         return errors == 0
-
+        
     async def run_weighted_arbiter_test(self, weights_list=None):
         """
         Run a test with different arbiter weight configurations
@@ -938,6 +1111,7 @@ class DataCollectTB(TBBase):
             ]
 
         all_passed = True
+        results = []
 
         for i, weights in enumerate(weights_list):
             self.log.info(f"Starting weighted test {i+1}/{len(weights_list)} with weights: {weights}")
@@ -1014,23 +1188,34 @@ class DataCollectTB(TBBase):
             if not success:
                 self.log.error(f"Test {i+1}/{len(weights_list)} failed: timeout waiting for outputs")
                 all_passed = False
-
-            # Add all received packets to scoreboard
-            self.add_received_packets_to_scoreboard()
-
-            # Add extra delay for any remaining packets
-            await self.wait_clocks('i_clk', 100)
-
-            # Check scoreboard for errors
-            errors = self.check_scoreboard()
-            if errors > 0:
-                self.log.error(f"Test {i+1}/{len(weights_list)} failed: {errors} scoreboard errors")
-                all_passed = False
+                results.append(False)
             else:
-                self.log.info(f"Test {i+1}/{len(weights_list)} passed")
+                # Add all received packets to scoreboard
+                self.add_received_packets_to_scoreboard()
+
+                # Add extra delay for any remaining packets
+                await self.wait_clocks('i_clk', 100)
+
+                # Check scoreboard for errors
+                errors = self.check_scoreboard()
+                if errors > 0:
+                    self.log.error(f"Test {i+1}/{len(weights_list)} failed: {errors} scoreboard errors")
+                    all_passed = False
+                    results.append(False)
+                else:
+                    self.log.info(f"Test {i+1}/{len(weights_list)} passed")
+                    results.append(True)
+            
+            # Get and report statistics for this test
+            stats = self.get_component_statistics()
+            self.log.info(f"Test {i+1} Statistics: {stats}")
+
+        # Report overall test results
+        self.log.info(f"Weighted arbiter test results: {results}")
+        self.log.info(f"Overall result: {'Passed' if all_passed else 'Failed'}")
 
         return all_passed
-
+        
     async def run_stress_test(self, duration_clocks=10000):
         """
         Run a stress test with continuous data streams
@@ -1092,8 +1277,109 @@ class DataCollectTB(TBBase):
 
         # Add received packets to scoreboard
         self.add_received_packets_to_scoreboard()
+        
+        # Get and report memory model coverage
+        memory_stats = {
+            'A': self.input_memory_models['A'].get_stats(),
+            'B': self.input_memory_models['B'].get_stats(),
+            'C': self.input_memory_models['C'].get_stats(),
+            'D': self.input_memory_models['D'].get_stats(),
+            'output': self.output_memory_model.get_stats()
+        }
+        self.log.info(f"Memory model statistics: {memory_stats}")
 
         # Check the scoreboard
         errors = self.check_scoreboard()
+        
+        # Get overall statistics
+        stats = self.get_component_statistics()
+        self.log.info(f"Stress Test Statistics: {stats}")
 
         return errors == 0
+        
+    async def protocol_error_test(self):
+        """
+        Test error detection features by intentionally triggering protocol violations
+        
+        Returns:
+            True if all error detection mechanisms work correctly
+        """
+        self.log.info("Starting protocol error test")
+        
+        # Reset system
+        await self.assert_reset()
+        await self.wait_clocks('i_clk', 10)
+        await self.deassert_reset()
+        await self.wait_clocks('i_clk', 10)
+        
+        # Clear the scoreboard
+        self.scoreboard.clear()
+        initial_errors = self.total_errors
+        
+        # Test 1: Field overflow detection
+        self.log.info("Test 1: Field overflow detection")
+        
+        # Create packet with values exceeding bit width
+        overflow_packet = FIFOPacket(self.input_field_config)
+        overflow_packet.id = (1 << self.ID_WIDTH) + 0x5  # Value exceeds ID_WIDTH
+        overflow_packet.data = (1 << self.DATA_WIDTH) + 0xA  # Value exceeds DATA_WIDTH
+        
+        # Send to channel A
+        await self.master_a.send(overflow_packet)
+        
+        # Wait for transmission to complete
+        await self.wait_for_all_masters_idle()
+        await self.wait_clocks('i_clk', 20)
+        
+        # Check if masking was applied correctly
+        if self.monitor_a.observed_queue:
+            # Should have masked values to fit within field width
+            mon_pkt = self.monitor_a.observed_queue[0]
+            expected_id = overflow_packet.id & ((1 << self.ID_WIDTH) - 1)
+            expected_data = overflow_packet.data & ((1 << self.DATA_WIDTH) - 1)
+            
+            if mon_pkt.id != expected_id or mon_pkt.data != expected_data:
+                self.log_error('mask_failure', 
+                               f"Field masking failed. Expected ID={expected_id}, Data={expected_data}, "
+                               f"Got ID={mon_pkt.id}, Data={mon_pkt.data}")
+                self.log.error("Test 1 Failed: Field masking did not work correctly")
+            else:
+                self.log.info("Test 1 Passed: Field overflow was correctly masked")
+        
+        # Test 2: Protocol violation detection
+        self.log.info("Test 2: Protocol violation detection")
+        
+        # Reset to clear previous state
+        await self.assert_reset()
+        await self.wait_clocks('i_clk', 10)
+        await self.deassert_reset()
+        await self.wait_clocks('i_clk', 10)
+        
+        # Fill up a channel to capacity to test overflow handling
+        # First, set arbiter to use only channel A
+        self.set_arbiter_weights(15, 0, 0, 0)
+        
+        # Flood Channel A with packets but don't read from output
+        self.set_slave_randomizer('slow')  # Make slave very slow
+        
+        # Send many packets to cause overflow pressure
+        packets_to_send = self.OUTPUT_FIFO_DEPTH * 2  # Double the capacity
+        await self.send_packets_on_channel('A', packets_to_send, id_value=0xAA, base_data=0x500)
+        
+        # Allow time for overflow detection
+        await self.wait_clocks('i_clk', 200)
+        
+        # Check component statistics for protocol violations
+        master_a_stats = self.master_a.get_stats()
+        
+        if 'write_while_full' in master_a_stats and master_a_stats['write_while_full'] > 0:
+            self.log.info(f"Test 2 Passed: Master A detected {master_a_stats['write_while_full']} write-while-full violations")
+        else:
+            self.log.error("Test 2 Failed: Protocol violation detection did not work correctly")
+            self.log_error('protocol_violation', "Failed to detect write-while-full violations")
+        
+        # Get final component statistics
+        stats = self.get_component_statistics()
+        self.log.info(f"Protocol Error Test Statistics: {stats}")
+        
+        return self.total_errors == initial_errors  # Pass if no new errors were added
