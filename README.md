@@ -2,7 +2,6 @@
 
 Initially, this site was only a playground for me to do things I was told at work for years was impossible or above my pay grade. It has since morphed into an area where I want to help folks learn how to code synthesizable RTL using industry-standard flows and processes while using all free tools. Being in the industry for many years, I am very familiar with the flows and how to script and automate them. I am striving to have a set of RTL that is a jumping-off point for folks; they can adapt and change as they like. I also want a robust test or set of tests for each block or mega-block that folks can adjust if needed to their new code. Finally, I want to have all the flows (regression testing, lint, CDC, etc.) automated as it is in the industry so that folks will run them before their turn ins. I will likely write some GitHub hooks so that this happens automatically on turn-ins for me. Nothing is worse than figuring out a turn-in from ten turn-ins ago broke everything. Unwinding that mess is a nightmare.
 
-
 To see the state of the current scripts documentation, check out this area: [Scripts Doc Index](docs/markdown/Scripts/index.md)
 
 To see the state of the current RTL documentation, check out this area: [RTL Doc Index](docs/markdown/RTLCommon/index.md)

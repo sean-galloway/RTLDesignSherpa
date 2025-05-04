@@ -1,395 +1,240 @@
-# Packet Class Documentation
+# Packet
 
 ## Overview
-The `Packet` class provides a flexible and optimized framework for representing protocol transactions in digital verification environments. It is designed to work with the `FieldConfig` system to handle field definitions, formatting, and bit manipulations with high performance.
 
-## Key Features
-- Field-based structure with automatic bit masking
-- Performance optimizations through caching
-- Support for protocol-specific bit field operations
-- Comprehensive formatting and display capabilities
-- FIFO-compatible packing and unpacking
-- Robust comparison operators
+The `Packet` class provides a generic and extensible foundation for handling protocol transactions in verification environments. It uses the `FieldConfig` class to define its structure and offers advanced features like field masking, bit shifting for FIFO interfaces, and caching optimizations for performance.
 
-## Class Structure
+## Features
 
-The main components of the Packet module include:
+- Generic packet representation for any protocol
+- Field-based structure with automatic masking to prevent overflow
+- Support for FIFO-style bit field transformations
+- High-performance implementation with caching optimizations
+- Rich formatting and display capabilities
+- Built-in timing information for performance analysis
+- Equality comparison with customizable field exclusion
 
-1. `_FieldCache`: Internal cache for field operations
-2. `Packet`: Main packet class for protocol transactions
+## Classes
 
-## _FieldCache Class
+### Packet
 
-### Purpose
-The `_FieldCache` class provides caching for field operations to improve performance by avoiding redundant calculations.
+The main packet class for protocol transactions with optimized performance.
 
-### Class Definition
+#### Constructor
+
 ```python
-class _FieldCache:
-    """Cache for field operations to improve performance"""
-
-    def __init__(self):
-        """Initialize empty caches"""
-        # Field masks cache: (field_config_id, field_name) -> mask
-        self.field_masks = {}
-
-        # Field bits cache: (field_config_id, field_name) -> bits
-        self.field_bits = {}
-
-        # Field active bits cache: (field_config_id, field_name) -> (msb, lsb)
-        self.field_active_bits = {}
-
-        # Field format cache: (field_config_id, field_name) -> format_function
-        self.field_formatters = {}
-
-        # Statistics
-        self.hits = 0
-        self.misses = 0
+def __init__(self, field_config: Union[FieldConfig, Dict[str, Dict[str, Any]]],
+             skip_compare_fields: Optional[List[str]] = None, **kwargs)
 ```
 
-### Key Methods
+- `field_config`: Either a `FieldConfig` object or a dictionary of field definitions
+- `skip_compare_fields`: List of field names to skip during comparison operations
+- `**kwargs`: Initial values for fields (e.g., `addr=0x123`, `data=0xABC`)
 
-#### Cache Retrieval
-```python
-def get_mask(self, field_config: FieldConfig, field_name: str) -> int:
-    """Get mask for a field (cached)"""
-```
-Gets or calculates a field mask and caches the result.
+#### Attributes
 
-```python
-def get_bits(self, field_config: FieldConfig, field_name: str) -> int:
-    """Get bits for a field (cached)"""
-```
-Gets or calculates a field's bit width and caches the result.
+- `field_config`: The field configuration defining the packet structure
+- `fields`: Dictionary holding the actual field values
+- `start_time`: Transaction start time (nanoseconds)
+- `end_time`: Transaction end time (nanoseconds)
+- `skip_compare_fields`: Fields to skip when comparing packets
 
-```python
-def get_active_bits(self, field_config: FieldConfig, field_name: str) -> Tuple[int, int]:
-    """Get active bits (msb, lsb) for a field (cached)"""
-```
-Gets or calculates a field's active bits and caches the result.
+#### Key Methods
 
-```python
-def get_formatter(self, field_config: FieldConfig, field_name: str):
-    """Get a formatting function for a field (cached)"""
-```
-Gets or creates a formatting function for a field and caches the result.
+- `mask_field_value(value, field_name)`: Mask a value to fit within a field's bit width
+- `shift_for_fifo(value, field_name)`: Convert a field value to its FIFO representation
+- `expand_from_fifo(value, field_name)`: Expand a FIFO value to its full field representation
+- `pack_for_fifo()`: Pack the packet into a dictionary for FIFO transmission
+- `unpack_from_fifo(fifo_data)`: Unpack FIFO data into full field values
+- `get_total_bits()`: Calculate the total number of bits in the packet
+- `formatted(compact=False, show_fifo=False)`: Return a formatted string representation
+- `copy()`: Create a copy of this packet
 
-#### Cache Management
-```python
-def clear(self):
-    """Clear all caches"""
-```
-Clears all caches.
+### Caching Support
 
-```python
-def get_stats(self) -> Dict[str, Any]:
-    """Get cache statistics"""
-```
-Returns statistics about cache usage.
+The module also includes a field cache for performance optimization:
 
-## Packet Class
+- `_FieldCache`: Class that caches field operations to improve performance
+- `get_field_cache_stats()`: Get field cache statistics
+- `clear_field_cache()`: Clear the field cache
 
-### Purpose
-The `Packet` class provides a flexible representation of protocol transactions, with automatic field management and bit operations.
+## Example Usage
 
-### Class Definition
-```python
-class Packet:
-    """
-    Generic packet class for handling protocol transactions with optimized performance.
-
-    This class provides a flexible way to define packets with custom fields without
-    requiring subclassing for each protocol. Fields are defined through a FieldConfig
-    object, and the class handles bit field transformations automatically during
-    packing/unpacking.
-
-    Performance optimizations include:
-    - Caching of field masks, bits, and formatters
-    - Fast field lookup and validation
-    - Optimized bit shifting operations for pack/unpack
-    """
-
-    def __init__(self, field_config: Union[FieldConfig, Dict[str, Dict[str, Any]]],
-                 skip_compare_fields: Optional[List[str]] = None, **kwargs):
-        """
-        Initialize a packet with the given field configuration.
-
-        Args:
-            field_config: Either a FieldConfig object or a dictionary of field definitions
-            skip_compare_fields: List of field names to skip during comparison operations
-            **kwargs: Initial values for fields (e.g., addr=0x123, data=0xABC)
-        """
-```
-
-### Key Features
-
-#### Field Management
-The packet maintains fields in a dictionary and supports direct attribute access:
-```python
-# Initialize a packet with fields
-packet = Packet(field_config, addr=0x1000, data=0xABCD)
-
-# Access fields as attributes
-addr = packet.addr  # Returns 0x1000
-
-# Set fields as attributes (with automatic masking)
-packet.data = 0x12345678  # Will be masked to field width
-```
-
-#### Value Masking
-```python
-def mask_field_value(self, value, field_name):
-    """
-    Mask a value to ensure it doesn't exceed the bit width of the specified field.
-    """
-```
-Automatically masks values to ensure they fit within the field's bit width.
-
-#### FIFO Operations
-```python
-def shift_for_fifo(self, value, field_name):
-    """
-    Convert a full field value to its FIFO representation by right-shifting.
-    """
-```
-Converts a field value to its FIFO representation by right-shifting according to active bits.
+### Basic Packet Creation
 
 ```python
-def expand_from_fifo(self, value, field_name):
-    """
-    Expand a FIFO value to its full field representation by left-shifting.
-    """
-```
-Expands a FIFO value to its full field representation by left-shifting according to active bits.
+from CocoTBFramework.components.packet import Packet
+from CocoTBFramework.components.field_config import FieldConfig
 
-```python
-def pack_for_fifo(self):
-    """
-    Pack the packet into a dictionary suitable for FIFO transmission.
-    """
-```
-Packs the packet into a dictionary suitable for FIFO transmission.
+# Create a field configuration
+config = FieldConfig.create_standard(addr_width=32, data_width=32)
 
-```python
-def unpack_from_fifo(self, fifo_data):
-    """
-    Unpack FIFO data into full field values.
-    """
-```
-Unpacks FIFO data into full field values.
+# Create a packet with initial values
+packet = Packet(config, addr=0x1000, data=0xABCD1234)
 
-#### Field Formatting
-```python
-def _format_field(self, field_name, value):
-    """Format a field value according to its configuration."""
-```
-Formats a field value according to its configuration.
+# Access field values directly
+print(f"Address: 0x{packet.addr:X}")
+print(f"Data: 0x{packet.data:X}")
 
-#### String Representation
-```python
-def __str__(self):
-    """Provide a detailed string representation of the packet."""
-```
-Provides a detailed string representation of the packet.
-
-```python
-def formatted(self, compact=False, show_fifo=False):
-    """Return a formatted string representation."""
-```
-Returns a formatted string representation with options for compact display and FIFO values.
-
-#### Comparison
-```python
-def __eq__(self, other):
-    """Compare packets for equality, skipping fields in skip_compare_fields."""
-```
-Compares packets for equality, skipping specified fields.
-
-#### Cloning
-```python
-def copy(self):
-    """Create a copy of this packet."""
-```
-Creates a copy of the packet.
-
-### Global Functions
-
-#### Cache Management
-```python
-def get_field_cache_stats() -> Dict[str, Any]:
-    """Get field cache statistics"""
-```
-Returns statistics about the field cache.
-
-```python
-def clear_field_cache():
-    """Clear the field cache"""
-```
-Clears the field cache.
-
-## Usage Examples
-
-### Basic Packet Usage
-```python
-# Create field configuration
-field_config = FieldConfig.create_standard(addr_width=32, data_width=32)
-
-# Create packet with initial values
-packet = Packet(field_config, addr=0x1000, data=0xABCD)
-
-# Access fields as attributes
-addr = packet.addr  # Returns 0x1000
-data = packet.data  # Returns 0xABCD
-
-# Set fields as attributes (with automatic masking)
-packet.data = 0x12345678  # Will be masked to field width (e.g., 0x345678)
+# Set field values
+packet.addr = 0x2000
+packet.data = 0x98765432
 
 # Print the packet
-print(packet)  # Detailed representation
-print(packet.formatted(compact=True))  # Compact representation
+print(packet)
 ```
 
-### FIFO Operations
+### Working with FIFO Interfaces
+
 ```python
-# Create field configuration with active bits
-field_config = FieldConfig()
-field_config.add_field(FieldDefinition(
-    name="addr",
-    bits=32,
-    active_bits=(31, 2),  # Only bits 31:2 are active for FIFO
-    format="hex"
-))
-field_config.add_field(FieldDefinition(
-    name="data",
-    bits=32,
-    format="hex"
-))
-
-# Create packet
-packet = Packet(field_config, addr=0x12345678, data=0xABCD)
-
-# Pack for FIFO
-fifo_data = packet.pack_for_fifo()
-# fifo_data = {'addr': 0x48D159E, 'data': 0xABCD}
-# addr is right-shifted by 2 bits
-
-# Create new packet and unpack from FIFO
-new_packet = Packet(field_config)
-new_packet.unpack_from_fifo(fifo_data)
-
-# Now new_packet.addr = 0x12345678 (left-shifted)
-# and new_packet.data = 0xABCD
-```
-
-### Comparison
-```python
-# Create two packets
-packet1 = Packet(field_config, addr=0x1000, data=0xABCD)
-packet2 = Packet(field_config, addr=0x1000, data=0xABCD)
-packet3 = Packet(field_config, addr=0x2000, data=0xABCD)
-
-# Compare packets
-print(packet1 == packet2)  # True
-print(packet1 == packet3)  # False
-
-# Create packet with timing information
-packet4 = Packet(field_config, addr=0x1000, data=0xABCD)
-packet4.start_time = 100
-packet4.end_time = 200
-
-# Compare with default skip_compare_fields
-print(packet1 == packet4)  # True (timing fields are skipped by default)
-
-# Create packet with custom skip_compare_fields
-packet5 = Packet(
-    field_config,
-    skip_compare_fields=['data', 'start_time', 'end_time'],
-    addr=0x1000,
-    data=0x1234
+# Create a packet with a field that has active bits
+config = FieldConfig()
+config.add_field(
+    FieldDefinition(
+        name="addr",
+        bits=32,
+        active_bits=(31, 2),  # Only bits 31:2 are active
+        format="hex"
+    )
+)
+config.add_field(
+    FieldDefinition(
+        name="data",
+        bits=32,
+        format="hex"
+    )
 )
 
-# Compare with different data (data field is skipped in comparison)
-print(packet1 == packet5)  # True
-```
-
-### Packet Copying
-```python
 # Create a packet
-packet = Packet(field_config, addr=0x1000, data=0xABCD)
-packet.start_time = 100
-packet.end_time = 200
+packet = Packet(config, addr=0x12345678, data=0xABCDEF01)
 
-# Create a copy
-copy = packet.copy()
+# Get the shifted (FIFO) representation of the address
+addr_fifo = packet.shift_for_fifo(packet.addr, "addr")
+print(f"Full address: 0x{packet.addr:X}")
+print(f"FIFO address: 0x{addr_fifo:X}")  # Will be right-shifted by 2 bits
 
-# Modify the original
-packet.addr = 0x2000
+# Pack entire packet for FIFO
+fifo_data = packet.pack_for_fifo()
+print(f"FIFO data: {fifo_data}")
 
-# The copy remains unchanged
-print(copy.addr)  # 0x1000
-print(copy.start_time)  # 100
+# Create a new packet from FIFO data
+new_packet = Packet(config)
+new_packet.unpack_from_fifo(fifo_data)
+print(f"Reconstructed packet: {new_packet}")
 ```
 
-### Cache Statistics
-```python
-# Get cache statistics
-stats = get_field_cache_stats()
-print(f"Cache hits: {stats['hits']}")
-print(f"Cache misses: {stats['misses']}")
-print(f"Hit rate: {stats['hit_rate']:.2f}%")
-print(f"Cache size: {stats['cache_size']}")
+### Packet Comparison
 
-# Clear the cache if needed
+```python
+# Create two packets
+packet1 = Packet(config, addr=0x1000, data=0x12345678)
+packet2 = Packet(config, addr=0x1000, data=0x12345678)
+packet3 = Packet(config, addr=0x2000, data=0x12345678)
+
+# Compare the packets
+print(f"packet1 == packet2: {packet1 == packet2}")
+print(f"packet1 == packet3: {packet1 == packet3}")
+
+# Create a packet with skip_compare_fields
+packet4 = Packet(config, skip_compare_fields=["addr"], addr=0x3000, data=0x12345678)
+
+# This comparison will ignore the addr field
+print(f"packet1 == packet4 (ignoring addr): {packet1 == packet4}")
+```
+
+### Timing Information
+
+```python
+import cocotb
+from cocotb.triggers import Timer
+
+@cocotb.test()
+async def test_packet_timing(dut):
+    packet = Packet(config, addr=0x1000, data=0xABCD)
+    
+    # Record start time
+    packet.start_time = cocotb.utils.get_sim_time(units='ns')
+    
+    # Wait some time
+    await Timer(100, units='ns')
+    
+    # Record end time
+    packet.end_time = cocotb.utils.get_sim_time(units='ns')
+    
+    # Print the packet with timing information
+    print(packet)
+```
+
+### Performance Optimization with Caching
+
+```python
+from CocoTBFramework.components.packet import get_field_cache_stats, clear_field_cache
+
+# Create and process many packets
+for i in range(1000):
+    packet = Packet(config, addr=i, data=i*2)
+    # Process packet...
+
+# Check cache statistics
+stats = get_field_cache_stats()
+print(f"Cache statistics: {stats}")
+print(f"Cache hit rate: {stats['hit_rate']:.2f}%")
+
+# Clear cache if needed
 clear_field_cache()
 ```
 
-## Best Practices
+## Advanced Features
 
-1. **Use with FieldConfig**: Always use the `Packet` class with a well-defined `FieldConfig` to ensure proper field validation and formatting.
+### Handling Undefined Values
 
-2. **Leverage Direct Attribute Access**: Access fields directly as attributes for cleaner code:
-   ```python
-   # Good
-   packet.addr = 0x1000
-   
-   # Avoid
-   packet.fields['addr'] = 0x1000
-   ```
+The `Packet` class supports representing undefined values (X/Z in simulation) as -1:
 
-3. **Use FIFO Operations for Bit Field Handling**: When working with active bit ranges, use the FIFO packing/unpacking methods to handle bit shifting automatically.
+```python
+# Create a packet with an undefined data value
+packet = Packet(config, addr=0x1000, data=-1)
+print(packet)  # Will show X/Z for data field
 
-4. **Specify Skip Compare Fields**: When comparing packets, specify which fields should be ignored in the comparison:
-   ```python
-   packet = Packet(
-       field_config,
-       skip_compare_fields=['timestamp', 'metadata'],
-       addr=0x1000,
-       data=0xABCD
-   )
-   ```
+# Equality comparison will fail with undefined values
+packet2 = Packet(config, addr=0x1000, data=-1)
+print(f"packet == packet2: {packet == packet2}")  # False due to undefined values
+```
 
-5. **Format for Display**: Use the `formatted()` method with appropriate parameters for different display contexts:
-   ```python
-   # Detailed view
-   print(packet)
-   
-   # Compact view
-   print(packet.formatted(compact=True))
-   
-   # Show FIFO values
-   print(packet.formatted(show_fifo=True))
-   ```
+### Formatted Output Options
 
-6. **Copy for Independence**: Use the `copy()` method when you need an independent copy of a packet:
-   ```python
-   original = Packet(field_config, addr=0x1000)
-   modified = original.copy()
-   modified.addr = 0x2000  # Doesn't affect original
-   ```
+```python
+packet = Packet(config, addr=0x1234ABCD, data=0x98765432)
 
-7. **Monitor Cache Performance**: For high-volume verification, monitor cache performance and clear the cache if hit rate decreases significantly:
-   ```python
-   stats = get_field_cache_stats()
-   if stats['hit_rate'] < 50.0:
-       clear_field_cache()
-   ```
+# Full formatted output
+print(packet)
+
+# Compact representation
+print(packet.formatted(compact=True))
+
+# Show FIFO values in compact format
+print(packet.formatted(compact=True, show_fifo=True))
+```
+
+## Performance Considerations
+
+- Uses caching for repeatedly accessed field information
+- Field masks and formatters are cached for better performance
+- Attribute access is optimized to reduce overhead
+- Suitable for high-performance verification environments with many transactions
+
+## Notes
+
+- The `Packet` class provides a foundation for protocol-specific packet classes
+- For most protocols, you can use this generic class without subclassing
+- Field configuration can be defined once and reused across many packets
+- Performance optimizations are important for large verification environments
+
+## See Also
+
+- [FieldConfig](field_config.md) - Used to define packet structure
+- [FieldDefinition](field_config.md) - Used to define individual fields
+- [MemoryModel](memory_model.md) - Can be used with packets for memory transactions
+
+## Navigation
+
+[↑ Components Index](index.md) | [↑ CocoTBFramework Index](../index.md)

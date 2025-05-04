@@ -8,7 +8,6 @@ CocoTBFramework
 │   ├── flex_randomizer.py
 │   ├── memory_model.py
 │   ├── packet.py
-│   ├── packet_cacheing.md
 │   ├── randomization_config.py
 │   ├── apb
 │   │   ├── __init__.py
@@ -41,8 +40,10 @@ CocoTBFramework
 │   │   └── arbiter_monitor_testcase.py.EXAMPLE
 │   ├── fifo
 │   │   ├── __init__.py
+│   │   ├── fifo_command_handler.py
 │   │   ├── fifo_factories.py
 │   │   ├── fifo_master.py
+│   │   ├── fifo_memory_integ.py
 │   │   ├── fifo_monitor.py
 │   │   ├── fifo_packet.py
 │   │   ├── fifo_sequence.py
@@ -131,7 +132,12 @@ CocoTBFramework
     │   ├── fifo_buffer_configs.py
     │   ├── fifo_buffer_field.py
     │   ├── fifo_buffer_multi.py
-    │   └── fifo_data_collect_tb.py
+    │   ├── fifo_data_collect_tb.py
+    │   └── HOLD
+    │       ├── fifo_buffer.py
+    │       ├── fifo_buffer_field.py
+    │       ├── fifo_buffer_multi.py
+    │       └── fifo_data_collect_tb.py
     ├── gaxi
     │   ├── __init__.py
     │   ├── cdc_handshake.py

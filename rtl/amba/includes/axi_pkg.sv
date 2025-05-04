@@ -32,18 +32,18 @@ package axi_pkg;
     parameter int AXI_RESP_WIDTH     = 2;    // Response status width
 
     // Protocol Constants
-    localparam int BURST_TYPE_FIXED = 2'b00;
-    localparam int BURST_TYPE_INCR  = 2'b01;
-    localparam int BURST_TYPE_WRAP  = 2'b10;
+    localparam logic [1:0] BURST_TYPE_FIXED = 2'b00;
+    localparam logic [1:0] BURST_TYPE_INCR  = 2'b01;
+    localparam logic [1:0] BURST_TYPE_WRAP  = 2'b10;
 
-    localparam int RESP_OKAY   = 2'b00;
-    localparam int RESP_EXOKAY = 2'b01;
-    localparam int RESP_SLVERR = 2'b10;
-    localparam int RESP_DECERR = 2'b11;
+    localparam logic [1:0] RESP_OKAY   = 2'b00;
+    localparam logic [1:0] RESP_EXOKAY = 2'b01;
+    localparam logic [1:0] RESP_SLVERR = 2'b10;
+    localparam logic [1:0] RESP_DECERR = 2'b11;
 
-    localparam int PROT_PRIVILEGED   = 3'b001;
-    localparam int PROT_SECURE       = 3'b010;
-    localparam int PROT_INSTRUCTION  = 3'b100;
+    localparam logic [2:0] PROT_PRIVILEGED   = 3'b001;
+    localparam logic [2:0] PROT_SECURE       = 3'b010;
+    localparam logic [2:0] PROT_INSTRUCTION  = 3'b100;
 
     // Channel Structures (without valid signals)
     typedef struct packed {

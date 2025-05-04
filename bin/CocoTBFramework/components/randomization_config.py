@@ -361,11 +361,7 @@ class RandomizationConfig:
                         roots.append(node)
 
         # Check for cycles
-        if len(result) != len(nodes):
-            # There are cycles, just return all fields
-            return list(nodes)
-
-        return result
+        return list(nodes) if len(result) != len(nodes) else result
 
     def enable(self) -> 'RandomizationConfig':
         """
