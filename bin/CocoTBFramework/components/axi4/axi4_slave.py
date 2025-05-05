@@ -269,11 +269,7 @@ class AXI4Slave:
                 self.log.error(f"AXI4 protocol error (AW): {error_msg}")
                 # Still process the transaction, but note the error
 
-        # Check for exclusive access
-        is_exclusive = False
-        if hasattr(transaction, 'awlock') and transaction.awlock == 1:
-            is_exclusive = True
-
+        is_exclusive = bool(hasattr(transaction, 'awlock') and transaction.awlock == 1)
         # Use QoS if enabled
         qos_value = 0
         if hasattr(transaction, 'awqos'):
@@ -483,38 +479,50 @@ class AXI4Slave:
             self.log.warning(f"Write transaction ID={id_value} marked complete but missing data beats")
             return
 
-        # Handle exclusive write if applicable
-        exclusive_success = False
-        if pending.get('is_exclusive', False) and 'exclusive' in self.extensions:
-            addr = aw_transaction.awaddr
-            size = 1 << aw_transaction.awsize if hasattr(aw_transaction, 'awsize') else 4
-            exclusive_success = self.extensions['exclusive'].handle_exclusive_write(
-                id_value, self.slave_id, addr, size
+        # Check with error handler if available
+        should_error = False
+        error_resp = 0  # Default OKAY
+        if 'error_handler' in self.extensions:
+            should_error, error_resp = self.extensions['error_handler'].check_for_error(
+                aw_transaction.awaddr, id_value
             )
 
-            # Determine response code based on exclusive success
-            resp_code = 1 if exclusive_success else 0  # 1=EXOKAY, 0=OKAY
+        # If error handler indicates an error, use that response
+        if should_error:
+            resp_code = error_resp
+            self.log.debug(f"Error handler triggered for write ID={id_value}, ADDR=0x{aw_transaction.awaddr:X}, RESP={resp_code}")
         else:
-            # Normal write, use OKAY response
-            resp_code = 0
+            # Handle exclusive write if applicable
+            if pending.get('is_exclusive', False) and 'exclusive' in self.extensions:
+                addr = aw_transaction.awaddr
+                size = 1 << aw_transaction.awsize if hasattr(aw_transaction, 'awsize') else 4
+                exclusive_success = self.extensions['exclusive'].handle_exclusive_write(
+                    id_value, self.slave_id, addr, size
+                )
 
-        # Write to memory if available
-        if self.memory_model:
-            for i, addr in enumerate(pending['addresses']):
-                if i < len(w_transactions):
-                    data = w_transactions[i].wdata
-                    strb = w_transactions[i].wstrb if hasattr(w_transactions[i], 'wstrb') else 0xFF
+                # Determine response code based on exclusive success
+                resp_code = 1 if exclusive_success else 0  # 1=EXOKAY, 0=OKAY
+            else:
+                # Normal write, use OKAY response
+                resp_code = 0
 
-                    try:
-                        # Convert data to bytearray
-                        data_bytes = self.memory_model.integer_to_bytearray(data, self.memory_model.bytes_per_line)
+            # Write to memory if available and not an error
+            if self.memory_model:
+                for i, addr in enumerate(pending['addresses']):
+                    if i < len(w_transactions):
+                        data = w_transactions[i].wdata
+                        strb = w_transactions[i].wstrb if hasattr(w_transactions[i], 'wstrb') else 0xFF
 
-                        # Write to memory
-                        self.memory_model.write(addr, data_bytes, strb)
-                        self.log.debug(f"Write to memory: addr=0x{addr:X}, data=0x{data:X}, strb=0x{strb:X}")
-                    except Exception as e:
-                        self.log.error(f"Error writing to memory: {e}")
-                        resp_code = 2  # SLVERR
+                        try:
+                            # Convert data to bytearray
+                            data_bytes = self.memory_model.integer_to_bytearray(data, self.memory_model.bytes_per_line)
+
+                            # Write to memory
+                            self.memory_model.write(addr, data_bytes, strb)
+                            self.log.debug(f"Write to memory: addr=0x{addr:X}, data=0x{data:X}, strb=0x{strb:X}")
+                        except Exception as e:
+                            self.log.error(f"Error writing to memory: {e}")
+                            resp_code = 2  # SLVERR
 
         # Queue response for sending according to ordering rules
         b_packet = AXI4Packet.create_b_packet(
@@ -594,37 +602,51 @@ class AXI4Slave:
             if i >= expected_beats:
                 break
 
-            data = 0
-            resp = 0  # OKAY
-
-            # Read from memory if available
-            if self.memory_model:
-                try:
-                    # Read from memory
-                    data_bytes = self.memory_model.read(addr, self.memory_model.bytes_per_line)
-                    data = self.memory_model.bytearray_to_integer(data_bytes)
-                    self.log.debug(f"Read from memory: addr=0x{addr:X}, data=0x{data:X}")
-                except Exception as e:
-                    self.log.error(f"Error reading from memory: {e}")
-                    resp = 2  # SLVERR
-
-            # Handle atomic operations if applicable
-            if 'atomic' in self.extensions and hasattr(ar_transaction, 'aratomic') and ar_transaction.aratomic:
-                # Extract atomic operation type if available
-                op_type = getattr(ar_transaction, 'aratomicop', 0)
-                value = getattr(ar_transaction, 'aratomicvalue', 0)
-                compare_value = getattr(ar_transaction, 'aratomiccompare', None)
-
-                # Perform atomic operation
-                success, old_value = self.extensions['atomic'].perform_atomic_operation(
-                    op_type, addr, value, compare_value
+            # Check with error handler if available
+            should_error = False
+            error_resp = 0  # Default OKAY
+            if 'error_handler' in self.extensions:
+                should_error, error_resp = self.extensions['error_handler'].check_for_error(
+                    addr, id_value
                 )
 
-                # Use old_value as data if successful
-                if success:
-                    data = old_value
-                else:
-                    resp = 2  # SLVERR on failure
+            # If error handler indicates an error, use that response
+            if should_error:
+                resp = error_resp
+                data = 0  # For errors, data is typically undefined
+                self.log.debug(f"Error handler triggered for read ID={id_value}, ADDR=0x{addr:X}, RESP={resp}")
+            else:
+                data = 0
+                resp = 0  # OKAY
+
+                # Read from memory if available
+                if self.memory_model:
+                    try:
+                        # Read from memory
+                        data_bytes = self.memory_model.read(addr, self.memory_model.bytes_per_line)
+                        data = self.memory_model.bytearray_to_integer(data_bytes)
+                        self.log.debug(f"Read from memory: addr=0x{addr:X}, data=0x{data:X}")
+                    except Exception as e:
+                        self.log.error(f"Error reading from memory: {e}")
+                        resp = 2  # SLVERR
+
+                # Handle atomic operations if applicable
+                if 'atomic' in self.extensions and hasattr(ar_transaction, 'aratomic') and ar_transaction.aratomic:
+                    # Extract atomic operation type if available
+                    op_type = getattr(ar_transaction, 'aratomicop', 0)
+                    value = getattr(ar_transaction, 'aratomicvalue', 0)
+                    compare_value = getattr(ar_transaction, 'aratomiccompare', None)
+
+                    # Perform atomic operation
+                    success, old_value = self.extensions['atomic'].perform_atomic_operation(
+                        op_type, addr, value, compare_value
+                    )
+
+                    # Use old_value as data if successful
+                    if success:
+                        data = old_value
+                    else:
+                        resp = 2  # SLVERR on failure
 
             # Create the response packet
             r_packet = AXI4Packet.create_r_packet(
@@ -667,10 +689,6 @@ class AXI4Slave:
             # Only complete if all responses are sent, which hasn't happened yet
             # We'll mark it for completion after the last response
             pending['barrier_complete_pending'] = True
-        
-        # Debug - show the response queue after processing
-        # self._debug_print_response_queue("After processing read ID")
-
 
     async def _send_write_responses(self):
         """Send write responses according to ordering rules"""

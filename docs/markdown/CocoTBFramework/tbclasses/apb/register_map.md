@@ -378,3 +378,7 @@ These methods generate test patterns for thorough register verification:
 6. **Flexible Addressing**: Calculates correct addresses based on register definitions
 7. **Verification Support**: Provides methods for comparing expected and actual transactions
 8. **Test Pattern Generation**: Generates patterns for thorough register verification
+
+## Navigation
+
+[↑ APB Index](index.md) | [↑ TBClasses Index](../index.md) | [↑ CocoTBFramework Index](../../index.md)

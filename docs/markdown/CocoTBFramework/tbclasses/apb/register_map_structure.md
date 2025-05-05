@@ -193,3 +193,7 @@ The `RegisterMap` class:
 3. **Access Controls**: Fields specify software and hardware access permissions
 4. **Metadata**: Additional information like documentation is included
 5. **Addressing**: Detailed addressing information for precise memory mapping
+
+## Navigation
+
+[↑ APB Index](index.md) | [↑ TBClasses Index](../index.md) | [↑ CocoTBFramework Index](../../index.md)

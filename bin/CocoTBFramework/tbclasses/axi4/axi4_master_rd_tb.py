@@ -1,6 +1,12 @@
+
+import random
+import cocotb
+from cocotb.triggers import Edge
 from CocoTBFramework.tbclasses.tbbase import TBBase
 from CocoTBFramework.components.memory_model import MemoryModel
 from CocoTBFramework.components.flex_randomizer import FlexRandomizer
+from CocoTBFramework.components.axi4.axi4_seq_protocol import AXI4ProtocolSequence
+from CocoTBFramework.components.axi4.axi4_packet import AXI4Packet
 from CocoTBFramework.components.axi4.axi4_factory import create_axi4_master, create_axi4_slave
 from CocoTBFramework.tbclasses.axi4.axi4_fub_error_slave import AXIErrorMonitorSlave
 from CocoTBFramework.tbclasses.axi4.axi4_fub_split_slave import AXISplitMonitorSlave
@@ -40,6 +46,8 @@ class AXI4MasterReadTB(TBBase):
         self.strb_width = data_width // 8
         self.memory_size = 32768  # Size in lines
         self.channels = channels
+        self.skid_depth_ar = skid_depth_ar
+        self.skid_depth_r = skid_depth_r
         self.error_fifo_depth = error_fifo_depth
         self.timeout_ar = timeout_ar
         self.timeout_r = timeout_r
@@ -546,7 +554,7 @@ class AXI4MasterReadTB(TBBase):
             base_timeout = self.timeout_r
 
         # Apply factor to ensure delay exceeds timeout
-        min_delay = int(base_timeout * timeout_factor)
+        min_delay = int(int(base_timeout) * timeout_factor)
         max_delay = min_delay + 50  # Add some variability
 
         delay_config = {
@@ -587,7 +595,7 @@ class AXI4MasterReadTB(TBBase):
         else:
             timeout_cycles = self.timeout_r
 
-        wait_cycles = timeout_cycles + additional_margin
+        wait_cycles = int(timeout_cycles) + int(additional_margin)
         self.log.info(f"Waiting {wait_cycles} cycles for {timeout_type.upper()} timeout detection")
         await self.wait_clocks('aclk', wait_cycles)
         return wait_cycles
@@ -770,3 +778,474 @@ class AXI4MasterReadTB(TBBase):
 
         return all_match
 
+    async def test_error_monitor_basic(self):
+        """
+        Basic test for error monitor functionality in AXI Master RD
+
+        This test verifies basic error detection and reporting in the error monitor
+        including address timeouts, data timeouts, and response errors.
+        """
+        # Save original randomizers
+        original_fub_ar_randomizer = self.fub_master.ar_master.get_randomizer()
+        original_fub_r_randomizer = self.fub_master.r_slave.get_randomizer()
+        original_axi_ar_randomizer = self.axi_slave.ar_slave.get_randomizer()
+        original_axi_r_randomizer = self.axi_slave.r_master.get_randomizer()
+
+        # 1. Test Address Timeout - Using your implementation
+        self.log.info('='*80)
+        self.log.info('Error Test: AR Timeout')
+        self.log.info('='*80)
+
+        # Configure AXI slave to introduce long delay on AR ready
+        ar_timeout = self.dut.TIMEOUT_AR.value
+        slow_ar_ready_config = {
+            'ready_delay': ([[int(ar_timeout * 1.7), int(ar_timeout * 1.9)]], [1.0])
+        }
+        self.axi_slave.ar_slave.set_randomizer(FlexRandomizer(slow_ar_ready_config))
+        self.axi_slave.r_master.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS['fixed']['write']))
+
+        # Reset and setup for clean test state
+        await self.reset_dut()
+
+        # Attempt a read that will timeout on address channel
+        addr_start = 0x4000
+        count = self.skid_depth_ar + 1
+        id_value = 0
+
+        # Calculate the decrement size based on count
+        addr_decrement = 0x100  # Example decrement value
+        starting_offset = (count - 1) * addr_decrement
+
+        # Loop from highest address down to lowest
+        for i in range(count):
+            addr = addr_start - starting_offset + (i * addr_decrement)
+            try:
+                # Send just the AR phase and don't wait for response
+                from CocoTBFramework.components.axi4.axi4_packet import AXI4Packet
+
+                ar_packet = AXI4Packet.create_ar_packet(
+                    arid=id_value,
+                    araddr=addr,
+                    arlen=0,
+                    arsize=2,
+                    arburst=1,
+                    arlock=0,
+                    arcache=0,
+                    arprot=0,
+                    arqos=0,
+                    arregion=0,
+                    aruser=0
+                )
+                await self.fub_master.ar_master.send(ar_packet)
+
+            except Exception as e:
+                self.log.info(f"Expected exception: {str(e)}")
+
+        # Wait for address phase to complete
+        while self.fub_master.ar_master.transfer_busy:
+            await self.wait_clocks('aclk', 1)
+
+        # Verify error was reported with correct address and ID
+        ar_timeout_detected = await self.verify_error_addresses(
+            txn_id=id_value,
+            expected_addr=addr_start,
+            error_type=0x1  # AR timeout
+        )
+
+        # Reset DUT for clean state before next test
+        await self.reset_dut()
+        await self.start_components()
+
+        # 2. Test Data Timeout
+        self.log.info('='*80)
+        self.log.info('Error Test: R Timeout')
+        self.log.info('='*80)
+
+        # Configure AXI slave to introduce long delay on R valid
+        r_timeout = self.dut.TIMEOUT_R.value
+        slow_r_valid_config = {
+            'valid_delay': ([[int(r_timeout * 1.5), int(r_timeout * 1.8)]], [1.0])
+        }
+        self.axi_slave.r_master.set_randomizer(FlexRandomizer(slow_r_valid_config))
+        self.axi_slave.ar_slave.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS['fixed']['read']))
+
+        # Reset and setup for clean test state
+        await self.reset_dut()
+        await self.start_components()
+
+        # Attempt reads that will timeout on data channel
+        addr_start = 0x5000
+        count = 1
+        arlen =  self.skid_depth_r + 4
+        id_value = 1
+
+        # Calculate the decrement size
+        addr_decrement = 0x100
+        starting_offset = (count - 1) * addr_decrement
+
+        # Loop from lowest address up to highest
+        for i in range(count):
+            addr = addr_start - starting_offset + (i * addr_decrement)
+            self.log.info(f"Starting read that will timeout on data channel: addr=0x{addr:X}, id={id_value}")
+
+            try:
+                # Send just the AR phase - we expect the R phase to timeout
+                from CocoTBFramework.components.axi4.axi4_packet import AXI4Packet
+
+                ar_packet = AXI4Packet.create_ar_packet(
+                    arid=id_value,
+                    araddr=addr,
+                    arlen=arlen,
+                    arsize=2,
+                    arburst=1,
+                    arlock=0,
+                    arcache=0,
+                    arprot=0,
+                    arqos=0,
+                    arregion=0,
+                    aruser=0
+                )
+                await self.fub_master.ar_master.send(ar_packet)
+
+                # Wait for address phase to complete
+                while self.fub_master.ar_master.transfer_busy:
+                    await self.wait_clocks('aclk', 1)
+
+            except Exception as e:
+                self.log.info(f"Expected exception: {str(e)}")
+
+        # Wait for data phase to complete
+        while self.axi_slave.r_master.transfer_busy:
+            await self.wait_clocks('aclk', 1)
+
+        # Wait for timeout to be detected (timeout + margin)
+        await self.wait_clocks('aclk', r_timeout + 20)
+
+        # Verify error was reported with correct address and ID
+        r_timeout_detected = await self.verify_error_addresses(
+            txn_id=id_value,
+            expected_addr=addr_start,
+            error_type=0x2  # R timeout
+        )
+
+        # 3. Test Response Error
+        self.log.info('='*80)
+        self.log.info('Error Test: Response error detection')
+        self.log.info('='*80)
+        self.axi_slave.r_master.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS['fixed']['write']))
+        error_handler = self.axi_slave.extensions['error_handler']
+
+        # Reset and setup for clean test state
+        await self.reset_dut()
+        await self.start_components()
+
+        # Set up the slave to return error responses
+        self.axi_slave.error_rate = 1.0
+
+        # Send multiple transactions to test error responses
+        addr_start = 0x6000
+        count = min(4, self.channels)  # Test multiple channels
+
+        # Send transactions to different IDs
+        for i in range(count):
+            addr = addr_start + (i * 0x100)
+            id_value = i + 2  # Start from ID 2
+
+            self.log.info(f"Sending transaction for response error: addr=0x{addr:X}, id={id_value}")
+
+            # register an error
+            error_handler.register_error_transaction(addr, id_value, 2)
+
+            ar_packet = AXI4Packet.create_ar_packet(
+                arid=id_value,
+                araddr=addr,
+                arlen=0,
+                arsize=2,
+                arburst=1,
+                arlock=0,
+                arcache=0,
+                arprot=0,
+                arqos=0,
+                arregion=0,
+                aruser=0
+            )
+            await self.fub_master.ar_master.send(ar_packet)
+
+            # Wait for address phase to complete
+            while self.fub_master.ar_master.transfer_busy:
+                await self.wait_clocks('aclk', 1)
+
+        # Wait for responses to be processed
+        await self.wait_clocks('aclk', 20)
+
+        # Verify errors for each transaction
+        resp_errors_detected = True
+        for i in range(count):
+            id_value = i + 2
+            addr = addr_start + (i * 0x100)
+
+            error_detected = await self.verify_error_addresses(
+                txn_id=id_value,
+                expected_addr=addr,
+                error_type=0x8  # Response error
+            )
+
+            if not error_detected:
+                resp_errors_detected = False
+
+        # clear the errors
+        error_handler.clear_error_transactions()
+
+        # Restore original randomizers
+        self.fub_master.ar_master.set_randomizer(original_fub_ar_randomizer)
+        self.fub_master.r_slave.set_randomizer(original_fub_r_randomizer)
+        self.axi_slave.ar_slave.set_randomizer(original_axi_ar_randomizer)
+        self.axi_slave.r_master.set_randomizer(original_axi_r_randomizer)
+        self.axi_slave.error_rate = 0.0
+
+        # Return overall success
+        return ar_timeout_detected and r_timeout_detected and resp_errors_detected
+
+    async def test_error_monitor_flow_control(self):
+        """
+        Test flow control via int_block_ready signal
+
+        This test verifies that int_block_ready is asserted when the address tracking
+        FIFOs are full and deasserted when entries are removed.
+        """
+        self.log.info('='*80)
+        self.log.info('Error Test: Flow Control')
+        self.log.info('='*80)
+        self.fub_master.r_slave.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS['fixed']['read']))
+
+        # Reset and setup for clean test state
+        await self.reset_dut()
+
+        # Fill the address tracking FIFOs to capacity plus skid buffer depth
+        total_capacity = max(self.error_fifo_depth, self.skid_depth_ar)
+
+        # Keep track of block_ready assertions
+        block_ready_assertions = []
+
+        # Register edge detector for int_block_ready
+        async def monitor_block_ready():
+            previous = self.dut.int_block_ready.value
+
+            while True:
+                await Edge(self.dut.int_block_ready)
+                current = self.dut.int_block_ready.value
+
+                if current and not previous:  # Rising edge
+                    block_ready_assertions.append("asserted")
+                    self.log.info(f"int_block_ready asserted @ {cocotb.utils.get_sim_time('ns')}ns")
+                elif not current and previous:  # Falling edge
+                    block_ready_assertions.append("deasserted")
+                    self.log.info(f"int_block_ready deasserted @ {cocotb.utils.get_sim_time('ns')}ns")
+
+                previous = current
+
+        # Start monitor
+        block_ready_task = cocotb.start_soon(monitor_block_ready())
+
+        # Save original randomizers
+        original_fub_r_randomizer = self.fub_master.r_slave.get_randomizer()
+
+        # Set FUB Side R channel to not accept data
+        # This ensures address phases complete but data doesn't drain
+        self.fub_master.r_slave.set_randomizer(FlexRandomizer({'ready_delay': ([[100, 100]], [1.0])}))
+        id_value = random.randint(0, self.channels-1)
+
+        # Send transactions to fill FIFO (more than capacity to ensure we hit the limit)
+        for i in range(total_capacity + 2):
+            addr = 0x8000 + (i * 0x100)
+
+            self.log.info(f"Sending transaction {i+1}/{total_capacity+2}: addr=0x{addr:X}, id={id_value}")
+
+            # Create and send AR packet
+            from CocoTBFramework.components.axi4.axi4_packet import AXI4Packet
+
+            ar_packet = AXI4Packet.create_ar_packet(
+                arid=id_value,
+                araddr=addr,
+                arlen=0,
+                arsize=2,
+                arburst=1,
+                arlock=0,
+                arcache=0,
+                arprot=0,
+                arqos=0,
+                arregion=0,
+                aruser=0
+            )
+            await self.fub_master.ar_master.send(ar_packet)
+
+            # Wait for address phase to complete or block_ready to assert
+            timeout = 0
+            max_timeout = 100
+            while self.fub_master.ar_master.transfer_busy and timeout < max_timeout:
+                if self.dut.int_block_ready.value:
+                    self.log.info(f"int_block_ready asserted during transaction {i+1}")
+                    break
+                await self.wait_clocks('aclk', 1)
+                timeout += 1
+
+            # If block_ready asserted, we've hit our goal
+            if self.dut.int_block_ready.value:
+                self.log.info(f"int_block_ready asserted after {i+1} transactions")
+                break
+
+        # Wait a bit to ensure any final block_ready assertion is captured
+        await self.wait_clocks('aclk', 10)
+
+        # Verify block_ready was asserted
+        if "asserted" not in block_ready_assertions:
+            self.log.error("int_block_ready was never asserted")
+            return False
+
+        # Now allow data to flow to drain the FIFOs
+        self.fub_master.r_slave.set_randomizer(original_fub_r_randomizer)
+
+        # Wait for block_ready to deassert
+        max_wait = 1000
+        for _ in range(max_wait):
+            if not self.dut.int_block_ready.value:
+                break
+            await self.wait_clocks('aclk', 1)
+
+        # Verify block_ready was deasserted
+        if "deasserted" not in block_ready_assertions:
+            self.log.error("int_block_ready was never deasserted")
+            return False
+
+        # Clean up
+        block_ready_task.kill()
+
+        return True
+
+    async def test_error_monitor_address_tracking(self):
+        """
+        Test that errors report the correct address
+
+        This test verifies that the error monitor correctly tracks addresses
+        through the FIFOs for error reporting.
+        """
+        self.log.info('='*80)
+        self.log.info('Error Test: Address Tracking')
+        self.log.info('='*80)
+
+        # Reset and setup for clean test state
+        await self.reset_dut()
+
+        # Save original randomizers
+        original_axi_r_randomizer = self.axi_slave.r_master.get_randomizer()
+        error_handler = self.axi_slave.extensions['error_handler']
+
+        # Configure AXI slave to return error responses
+        self.axi_slave.error_rate = 1.0
+
+        # Dictionary to track sent transactions
+        sent_transactions = {}
+
+        # Send multiple transactions with different addresses and IDs
+        # Account for both the FIFO depth and skid buffer
+        total_capacity = self.error_fifo_depth + self.skid_depth_ar
+        num_transactions = min(total_capacity, self.channels, 8)  # Test reasonable number
+
+        # Send the transactions
+        for i in range(num_transactions):
+            addr = 0xA000 + (i * 0x1000)
+            id_value = i % self.channels
+
+            sent_transactions[id_value] = addr
+
+            self.log.info(
+                f"Sending transaction {id_value + 1}/{num_transactions}: addr=0x{addr:X}, id={id_value}"
+            )
+
+            # register an error
+            error_handler.register_error_transaction(addr, id_value, 2)
+
+            ar_packet = AXI4Packet.create_ar_packet(
+                arid=id_value,
+                araddr=addr,
+                arlen=0,
+                arsize=2,
+                arburst=1,
+                arlock=0,
+                arcache=0,
+                arprot=0,
+                arqos=0,
+                arregion=0,
+                aruser=0
+            )
+            await self.fub_master.ar_master.send(ar_packet)
+
+            # Wait for address phase to complete
+            while self.fub_master.ar_master.transfer_busy:
+                await self.wait_clocks('aclk', 1)
+
+        # Wait for all transactions to complete or timeout
+        await self.wait_clocks('aclk', 200)
+
+        # Verify error addresses for each transaction
+        all_correct = True
+        for id_value, addr in sent_transactions.items():
+            # Verify error was reported with correct address and ID
+            error_correct = await self.verify_error_addresses(
+                txn_id=id_value,
+                expected_addr=addr,
+                error_type=0x8  # Response error
+            )
+
+            if not error_correct:
+                all_correct = False
+
+        # Restore normal operation
+        self.axi_slave.error_rate = 0.0
+        self.axi_slave.r_master.set_randomizer(original_axi_r_randomizer)
+
+        return all_correct
+
+    async def run_error_monitor_tests(self):
+        """
+        Run all error monitor tests and report results
+        """
+        self.log.info("=" * 80)
+        self.log.info("Running AXI Error Monitor Tests")
+        self.log.info("=" * 80)
+
+        # Reset error count
+        initial_errors = self.total_errors
+
+        # Run the tests
+        basic_passed = await self.test_error_monitor_basic()
+        self.log.info(f"Basic Error Monitor Test: {'PASSED' if basic_passed else 'FAILED'}")
+
+        # Reset for next test
+        await self.reset_dut()
+        await self.start_components()
+
+        flow_control_passed = await self.test_error_monitor_flow_control()
+        self.log.info(f"Flow Control Test: {'PASSED' if flow_control_passed else 'FAILED'}")
+
+        # Reset for next test
+        await self.reset_dut()
+        await self.start_components()
+
+        address_tracking_passed = await self.test_error_monitor_address_tracking()
+        self.log.info(f"Address Tracking Test: {'PASSED' if address_tracking_passed else 'FAILED'}")
+
+        # Reset for next test
+        await self.reset_dut()
+        await self.start_components()
+
+        # Report overall results
+        tests_passed = basic_passed and flow_control_passed and address_tracking_passed
+        final_errors = self.total_errors
+
+        self.log.info("=" * 80)
+        self.log.info(f"Error Monitor Tests: {'PASSED' if tests_passed else 'FAILED'}")
+        self.log.info(f"Error Count: {final_errors - initial_errors}")
+        self.log.info("=" * 80)
+
+        return tests_passed

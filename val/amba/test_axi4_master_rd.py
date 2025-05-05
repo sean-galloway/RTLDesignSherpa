@@ -37,14 +37,16 @@ class AXI4MasterReadScenarioTB:
         # Create the base testbench
         self.tb = AXI4MasterReadTB(
             dut=dut,
-            id_width=dut.AXI_ID_WIDTH.value,
-            addr_width=dut.AXI_ADDR_WIDTH.value,
-            data_width=dut.AXI_DATA_WIDTH.value,
-            user_width=dut.AXI_USER_WIDTH.value,
-            channels=dut.CHANNELS,
-            error_fifo_depth=dut.ERROR_FIFO_DEPTH,
-            timeout_ar=dut.TIMEOUT_AR,
-            timeout_r=dut.TIMEOUT_R,
+            id_width=int(dut.AXI_ID_WIDTH.value),
+            addr_width=int(dut.AXI_ADDR_WIDTH.value),
+            data_width=int(dut.AXI_DATA_WIDTH.value),
+            user_width=int(dut.AXI_USER_WIDTH.value),
+            channels=int(dut.CHANNELS.value),
+            error_fifo_depth=int(dut.ERROR_FIFO_DEPTH),
+            timeout_ar=int(dut.TIMEOUT_AR),
+            timeout_r=int(dut.TIMEOUT_R),
+            skid_depth_ar=int(dut.SKID_DEPTH_AR),
+            skid_depth_r=int(dut.SKID_DEPTH_R),
             alignment_mask=0xFFF  # Start with 4K boundary
         )
 
@@ -159,152 +161,7 @@ class AXI4MasterReadScenarioTB:
         """Run error detection and reporting tests with address verification"""
         self.log.info("Running error detection and address verification test")
 
-        # Track addresses for verification
-        error_addresses = {}
-
-        # Test 1: Response errors (SLVERR)
-        self.log.info("Test 1: Response errors (SLVERR)")
-        # Create a protocol error sequence
-        error_sequence = AXI4ProtocolSequence(
-            id_width=self.tb.id_width,
-            addr_width=self.tb.addr_width,
-            data_width=self.tb.data_width
-        )
-        # Create SLVERR response sequence
-        error_sequence.create_slverr_response_sequence()
-        # Run the sequence
-        sequence_name, sequence = next(iter(error_sequence.error_sequences.items()))
-        self.log.info(f"Running error sequence: {sequence_name}")
-
-        # Get the read address packet to extract test address
-        read_ids = sequence.get_read_ids()
-        if read_ids:
-            test_id = read_ids[0]
-            if ar_packet := sequence.get_read_addr_packet(test_id):
-                test_addr = ar_packet.araddr
-                error_addresses[test_id] = test_addr
-                self.log.info(f"Using test address 0x{test_addr:X} for ID {test_id}")
-
-        await self.tb.run_transaction_sequence(sequence)
-
-        # Wait for error to be processed
-        await self.tb.wait_clocks('aclk', 20)
-
-        # Verify that error was reported
-        if self.tb.get_error_report_count() == 0:
-            self.log.error("No error report detected for SLVERR response")
-            self.tb.total_errors += 1
-        else:
-            # Verify error address is correct for the response error
-            for id_val, addr in error_addresses.items():
-                await self.tb.verify_error_addresses(id_val, addr, 0x8)  # RESP_ERROR = 0x8
-
-        # Test 2: AR timeout (with slow randomizer)
-        self.log.info("Test 2: AR timeout")
-        # Configure pathological delay
-        ar_timeout_cycles = self.tb.dut.TIMEOUT_AR.value
-        self.log.info(f"Using AR timeout value from DUT: {ar_timeout_cycles} cycles")
-        
-        # Add some margin to ensure we exceed the timeout
-        pathological_config = {
-            'ready_delay': ([[ar_timeout_cycles + 10, ar_timeout_cycles + 50]], [1.0])
-        }
-        
-        # Save current randomizer for restoration
-        original_randomizer = self.tb.axi_slave.ar_slave.get_randomizer()
-        # Set pathological delay on AXI slave AR channel
-        self.tb.axi_slave.ar_slave.set_randomizer(FlexRandomizer(pathological_config))
-        
-        # Issue read transaction that should timeout
-        try:
-            addr = 0xF000
-            test_id = 1
-            error_addresses[test_id] = addr  # Save for verification
-            timeout_result = await self.tb.perform_read(addr=addr, id_value=test_id)
-            self.log.info("Read transaction completed despite timeout configuration")
-        except Exception as e:
-            self.log.info(f"Expected timeout exception: {str(e)}")
-        
-        # Wait longer for timeout to be detected
-        # Wait for timeout + some margin
-        await self.tb.wait_clocks('aclk', ar_timeout_cycles + 60)
-        
-        # Verify error address
-        await self.tb.verify_error_addresses(test_id, addr, 0x1)  # AR_TIMEOUT = 0x1
-        
-        # Restore normal timing
-        self.tb.axi_slave.ar_slave.set_randomizer(original_randomizer)
-        
-        # Reset DUT to recover from timeout
-        await self.tb.reset_dut()
-        await self.tb.start_components()
-        
-        # Test 3: R timeout test
-        self.log.info("Test 3: R timeout")
-        # Configure pathological delay for R channel
-        r_timeout_cycles = self.tb.dut.TIMEOUT_R.value
-        self.log.info(f"Using R timeout value from DUT: {r_timeout_cycles} cycles")
-        
-        # Add some margin to ensure we exceed the timeout
-        pathological_config = {
-            'valid_delay': ([[r_timeout_cycles + 10, r_timeout_cycles + 50]], [1.0])
-        }
-        
-        # Save current randomizer for restoration
-        original_randomizer = self.tb.axi_slave.r_master.get_randomizer()
-        # Set pathological delay on AXI slave R channel
-        self.tb.axi_slave.r_master.set_randomizer(FlexRandomizer(pathological_config))
-        
-        # Issue read transaction that should timeout
-        try:
-            addr = 0xE000
-            test_id = 2
-            error_addresses[test_id] = addr  # Save for verification
-            timeout_result = await self.tb.perform_read(addr=addr, id_value=test_id)
-            self.log.info("Read transaction completed despite R timeout configuration")
-        except Exception as e:
-            self.log.info(f"Expected timeout exception: {str(e)}")
-        
-        # Wait longer for timeout to be detected
-        # Wait for timeout + some margin
-        await self.tb.wait_clocks('aclk', r_timeout_cycles + 60)
-        
-        # Verify error address
-        await self.tb.verify_error_addresses(test_id, addr, 0x2)  # R_TIMEOUT = 0x2
-
-        # Test 4: Run error sequence from protocol sequence
-        self.log.info("Test 4: Protocol error sequence (DECERR)")
-        # Create a protocol error sequence
-        error_sequence = AXI4ProtocolSequence(
-            id_width=self.tb.id_width,
-            addr_width=self.tb.addr_width,
-            data_width=self.tb.data_width
-        )
-        # Create additional error sequences
-        error_sequence.create_decerr_response_sequence()  # Add DECERR sequence
-
-        # Run the error sequences
-        for name, sequence in error_sequence.error_sequences.items():
-            self.log.info(f"Running error sequence: {name}")
-
-            # Get the read address packet to extract test address
-            read_ids = sequence.get_read_ids()
-            if read_ids:
-                test_id = read_ids[0]
-                if ar_packet := sequence.get_read_addr_packet(test_id):
-                    test_addr = ar_packet.araddr
-                    error_addresses[test_id] = test_addr
-                    self.log.info(f"Using test address 0x{test_addr:X} for ID {test_id}")
-
-            await self.tb.run_transaction_sequence(sequence)
-            await self.tb.wait_clocks('aclk', 20)
-
-            # Verify error address
-            for id_val, addr in error_addresses.items():
-                if id_val in read_ids:
-                    await self.tb.verify_error_addresses(id_val, addr, 0x8)  # RESP_ERROR = 0x8
-
-        return self.tb.get_test_result()
+        return await self.tb.run_error_monitor_tests()
 
     async def run_full_test(self):
         """Run comprehensive test of all features"""
@@ -438,6 +295,9 @@ async def axi4_master_read_scenario_test(dut):
 
 def generate_params():
     """Generate test parameters"""
+    clk_period_ns = [10]
+    use_cg = [False]
+    CG_IDLE_COUNT_WIDTH = [8]
     channels = [32]
     id_widths = [8]
     addr_widths = [32]
@@ -449,10 +309,14 @@ def generate_params():
     test_types = ['basic', 'splits', 'error', 'full']
 
     data_widths = [64]
-    skid_depths = [4]
-    test_types = ['error']
+    # skid_depths = [4]
+    # test_types = ['error']
+    test_types = ['full']
 
     return list(product(
+        clk_period_ns,
+        use_cg,
+        CG_IDLE_COUNT_WIDTH,
         channels,
         id_widths,
         addr_widths,
@@ -467,10 +331,10 @@ def generate_params():
 params = generate_params()
 
 @pytest.mark.parametrize(
-    "channels, id_width, addr_width, data_width, user_width, skid_depth, fifo_depth, timeout_val, test_type",
+    "clk_period_ns, use_cg, CG_IDLE_COUNT_WIDTH, channels, id_width, addr_width, data_width, user_width, skid_depth, fifo_depth, timeout_val, test_type",
     params
 )
-def test_axi_master_read(request, channels, id_width, addr_width, data_width, user_width,
+def test_axi_master_read(request, clk_period_ns, use_cg, CG_IDLE_COUNT_WIDTH, channels, id_width, addr_width, data_width, user_width,
                             skid_depth, fifo_depth, timeout_val, test_type):
     """Main test function for AXI Master Read module"""
     # Get all of the directory and module information
@@ -482,20 +346,25 @@ def test_axi_master_read(request, channels, id_width, addr_width, data_width, us
     )
 
     # Set up all of the test names
-    dut_name = "axi_master_rd"
+    post = '_cg' if use_cg else ''
+    dut_name = f"axi_master_rd{post}"
     toplevel = dut_name
 
     verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba'], "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
+        os.path.join(rtl_dict['rtl_cmn'],  "icg.sv"),
+        os.path.join(rtl_dict['rtl_cmn'],  "clock_gate_ctrl.sv"),
+        os.path.join(rtl_dict['rtl_amba'], "amba_clock_gate_ctrl.sv"),
+        os.path.join(rtl_dict['rtl_cmn'],  "counter_bin.sv"),
+        os.path.join(rtl_dict['rtl_cmn'],  "fifo_control.sv"),
         os.path.join(rtl_dict['rtl_amba'], "gaxi_fifo_sync.sv"),
         os.path.join(rtl_dict['rtl_amba'], "axi_errmon_base.sv"),
         os.path.join(rtl_dict['rtl_amba'], "axi_master_rd_splitter.sv"),
+        os.path.join(rtl_dict['rtl_amba'], "gaxi_skid_buffer.sv"),
         os.path.join(rtl_dict['rtl_amba'], f"{dut_name}.sv"),
     ]
 
     # Create a human readable test identifier
+    t_clk = clk_period_ns
     ch_str = format(channels, '02d')
     id_str = format(id_width, '02d')
     addr_str = format(addr_width, '02d')
@@ -532,8 +401,12 @@ def test_axi_master_read(request, channels, id_width, addr_width, data_width, us
         'SPLIT_FIFO_DEPTH': str(fifo_depth),
         'ERROR_FIFO_DEPTH': str(fifo_depth),
         'TIMEOUT_AR': str(timeout_val),
-        'TIMEOUT_R': str(timeout_val),
+        'TIMEOUT_R': str(2*timeout_val),
     }
+
+    # sourcery skip: no-conditionals-in-tests
+    if use_cg:
+        rtl_parameters['CG_IDLE_COUNT_WIDTH'] = str(CG_IDLE_COUNT_WIDTH)
 
     # Environment variables
     extra_env = {
@@ -545,9 +418,13 @@ def test_axi_master_read(request, channels, id_width, addr_width, data_width, us
         'COCOTB_LOG_LEVEL': 'DEBUG',
         'COCOTB_RESULTS_FILE': results_path,
         'SEED': str(0x434749), # str(random.randint(0, 100000)),
-        'TEST_TYPE': test_type
+        'TEST_TYPE': test_type,
+        'CLK_PERIOD_NS': str(t_clk)
     }
 
+    # Calculate timeout based on clock period
+    timeout_factor = max(1.0, t_clk / 10) * 50
+    extra_env['COCOTB_TIMEOUT_MULTIPLIER'] = str(timeout_factor)
 
     compile_args = [
             "--trace-fst",

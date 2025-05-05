@@ -227,17 +227,17 @@ module axi_master_rd
         .aresetn              (aresetn),
 
         // Address channel signals
-        .i_addr               (int_araddr),
-        .i_id                 (int_arid),
-        .i_valid              (int_arvalid),
-        .i_ready              (int_arready),
+        .i_addr               (fub_araddr),
+        .i_id                 (fub_arid),
+        .i_valid              (fub_arvalid),
+        .i_ready              (fub_arready),
 
         // Data channel signals
-        .i_data_id            (int_rid),
-        .i_data_valid         (int_rvalid),
-        .i_data_ready         (int_rready),
-        .i_data_last          (int_rlast),
-        .i_data_resp          (int_rresp),
+        .i_data_id            (fub_rid),
+        .i_data_valid         (fub_rvalid),
+        .i_data_ready         (fub_rready),
+        .i_data_last          (fub_rlast),
+        .i_data_resp          (fub_rresp),
 
         // Response channel signals (unused for read)
         .i_resp_id            ('b0),

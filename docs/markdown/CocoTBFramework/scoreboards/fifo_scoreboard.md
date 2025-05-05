@@ -1,6 +1,7 @@
 # FIFO Scoreboard Documentation
 
 ## Overview
+
 The FIFO Scoreboard module provides components for verifying FIFO (First-In, First-Out) transactions in digital designs. It includes:
 
 1. `FIFOScoreboard`: Core verification component for FIFO transactions
@@ -11,9 +12,11 @@ These components allow verification engineers to track and compare FIFO transact
 ## FIFOScoreboard Class
 
 ### Purpose
+
 The `FIFOScoreboard` extends the basic `BaseScoreboard` to provide FIFO-specific transaction verification capabilities.
 
 ### Class Definition
+
 ```python
 class FIFOScoreboard(BaseScoreboard):
     """Scoreboard for FIFO transactions"""
@@ -26,6 +29,7 @@ class FIFOScoreboard(BaseScoreboard):
 ### Key Features
 
 #### Transaction Comparison
+
 ```python
 def _compare_transactions(self, expected, actual):
     """Compare FIFO packets"""
@@ -33,6 +37,7 @@ def _compare_transactions(self, expected, actual):
 Verifies that both transactions are valid `FIFOPacket` objects and compares them using their built-in equality method.
 
 #### Enhanced Mismatch Logging
+
 ```python
 def _log_mismatch(self, expected, actual):
     """Enhanced mismatch logging for FIFO packets"""
@@ -42,9 +47,11 @@ Provides detailed field-by-field comparison when transactions don't match, makin
 ## MemoryAdapter Class
 
 ### Purpose
+
 The `MemoryAdapter` provides an interface between FIFO packets and memory models, allowing memory-based verification of FIFO transactions.
 
 ### Class Definition
+
 ```python
 class MemoryAdapter:
     """
@@ -66,6 +73,7 @@ class MemoryAdapter:
 ### Key Features
 
 #### Field Mapping
+
 Supports custom mapping between FIFO packet fields and memory operations:
 ```python
 # Default field mapping if not provided
@@ -77,6 +85,7 @@ self.field_map = field_map or {
 ```
 
 #### Memory Write Operations
+
 ```python
 def write_to_memory(self, packet):
     """
@@ -92,6 +101,7 @@ def write_to_memory(self, packet):
 Extracts address, data, and control information from a FIFO packet and writes it to the memory model.
 
 #### Memory Read Operations
+
 ```python
 def read_from_memory(self, packet):
     """
@@ -118,6 +128,7 @@ The exact structure is defined by the `field_config` provided during initializat
 ## Usage Examples
 
 ### Basic FIFO Verification
+
 ```python
 # Create field configuration
 field_config = {
@@ -155,6 +166,7 @@ print(fifo_sb.report())    # Detailed report
 ```
 
 ### Memory-Based Verification
+
 ```python
 # Create memory model
 mem_model = MemoryModel(num_lines=1024, bytes_per_line=4, log=logger)
@@ -201,6 +213,7 @@ assert read_data == 0xABCD, f"Read data mismatch: expected 0xABCD, got 0x{read_d
 ```
 
 ### Verification with Multiple FIFO Interfaces
+
 ```python
 # Create field configuration
 field_config = {
@@ -250,6 +263,7 @@ print(f"Output FIFO: {output_result}")
 The FIFO Scoreboard can be integrated with other verification components:
 
 ### With Protocol Transformers
+
 ```python
 # Create transformer between FIFO and target protocol
 transformer = FIFOtoTargetTransformer(fifo_config, target_config)
@@ -271,6 +285,7 @@ fifo_sb.add_actual(target_tx)
 ```
 
 ### With Memory Models
+
 ```python
 # Create memory model
 mem_model = MemoryModel(num_lines=1024, bytes_per_line=4, log=logger)
@@ -304,3 +319,7 @@ for packet in fifo_transactions:
 5. Clear the scoreboard between test phases with `clear()`
 6. For cross-protocol verification, use transformers to convert between protocols
 7. Ensure field mappings match your specific FIFO implementation
+
+## Navigation
+
+[↑ Scoreboards Index](index.md) | [↑ CocoTBFramework Index](../index.md)

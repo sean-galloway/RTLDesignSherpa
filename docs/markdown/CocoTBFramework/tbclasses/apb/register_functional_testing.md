@@ -272,3 +272,7 @@ The tuple-based approach to register testing offers:
 - **Automation**: Automatic handling of read-modify-write operations and field masking
 
 This makes it ideal for creating maintainable, self-documenting functional tests that focus on device behavior rather than register access mechanisms.
+
+## Navigation
+
+[↑ APB Index](index.md) | [↑ TBClasses Index](../index.md) | [↑ CocoTBFramework Index](../../index.md)

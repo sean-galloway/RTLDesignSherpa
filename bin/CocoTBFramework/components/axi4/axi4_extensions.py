@@ -17,6 +17,7 @@ from cocotb.utils import get_sim_time
 
 from ..field_config import FieldConfig, FieldDefinition
 from ..axi4.axi4_packet import AXI4Packet
+from ..protocol_error_handler import ErrorHandler
 
 
 class QoSHandler:
@@ -623,12 +624,14 @@ def create_axi4_extension_handlers(memory_model=None, log=None):
     exclusive_handler = ExclusiveAccessHandler()
     atomic_handler = AtomicOperationHandler(memory_model)
     barrier_handler = BarrierHandler()
+    error_handler = ErrorHandler()  # Import from common location
 
     return {
         'qos': qos_handler,
         'exclusive': exclusive_handler,
         'atomic': atomic_handler,
-        'barrier': barrier_handler
+        'barrier': barrier_handler,
+        'error_handler': error_handler
     }
 
 

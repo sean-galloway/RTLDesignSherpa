@@ -86,72 +86,80 @@ module axi_errmon_base
     // Total Error Data Width for FIFO
     localparam int TEDW = AW + IW + ETW;
 
+    // count wiidth
+    localparam int CW = $clog2(ADDR_FIFO_DEPTH+1);
+
     // -------------------------------------------------------------------------
     // Direct timeout monitoring signals - Optimized Timer Architecture
     // -------------------------------------------------------------------------
 
     // Address channel timeout monitoring (single timer)
-    logic                       r_addr_active;    // Address transaction in progress
-    logic [TIMER_WIDTH-1:0]     r_addr_timer;     // Address timeout counter
-    logic                       r_addr_timeout;   // Address timeout detected
-    logic [IW-1:0]              r_addr_current_id; // Current transaction ID
+    logic                                  r_addr_active;     // Address transaction in progress
+    logic [TIMER_WIDTH-1:0]                r_addr_timer;      // Address timeout counter
+    logic                                  r_addr_timeout;    // Address timeout detected
+    logic [IW-1:0]                         r_addr_current_id; // Current transaction ID
 
     // Data channel timeout monitoring (per-channel)
-    logic [CHANNELS-1:0]        r_data_active;    // Data transaction in progress
-    logic [CHANNELS-1:0][TIMER_WIDTH-1:0] r_data_timer; // Data timeout counter
-    logic [CHANNELS-1:0]        r_data_timeout;   // Data timeout detected
+    logic [CHANNELS-1:0]                   r_data_active;    // Data transaction in progress
+    logic [CHANNELS-1:0][TIMER_WIDTH-1:0]  r_data_timer;     // Data timeout counter
+    logic [CHANNELS-1:0]                   r_data_timeout;   // Data timeout detected
 
     // Response channel timeout monitoring (write only, per-channel)
-    logic [CHANNELS-1:0]        r_resp_active;    // Response transaction in progress
-    logic [CHANNELS-1:0][TIMER_WIDTH-1:0] r_resp_timer; // Response timeout counter
-    logic [CHANNELS-1:0]        r_resp_timeout;   // Response timeout detected
+    logic [CHANNELS-1:0]                   r_resp_active;    // Response transaction in progress
+    logic [CHANNELS-1:0][TIMER_WIDTH-1:0]  r_resp_timer;     // Response timeout counter
+    logic [CHANNELS-1:0]                   r_resp_timeout;   // Response timeout detected
+
+    // Store original IDs for each channel
+    logic [CHANNELS-1:0][IW-1:0]           r_channel_id;    // Store ID per channel
 
     // -------------------------------------------------------------------------
     // Address FIFO tracking
     // -------------------------------------------------------------------------
 
     // Address FIFO signals - one per channel
-    logic [CHANNELS-1:0]            w_addr_fifo_wr_valid;
-    logic [CHANNELS-1:0]            w_addr_fifo_wr_ready;
-    logic [CHANNELS-1:0][AW-1:0]    w_addr_fifo_wr_data;
-    logic [CHANNELS-1:0]            w_addr_fifo_rd_valid;
-    logic [CHANNELS-1:0]            w_addr_fifo_rd_ready;
-    logic [CHANNELS-1:0][AW-1:0]    w_addr_fifo_rd_data;
+    logic [CHANNELS-1:0]                   w_addr_fifo_wr_valid;
+    logic [CHANNELS-1:0]                   w_addr_fifo_wr_ready;
+    logic [CHANNELS-1:0][AW-1:0]           w_addr_fifo_wr_data;
+    logic [CHANNELS-1:0]                   w_addr_fifo_rd_valid;
+    logic [CHANNELS-1:0]                   w_addr_fifo_rd_ready;
+    logic [CHANNELS-1:0][AW-1:0]           w_addr_fifo_rd_data;
+    logic [CHANNELS-1:0][CW-1:0]           w_addr_fifo_count;
 
     // Add signals for a single write data FIFO (not per-channel)
-    logic w_wdata_fifo_wr_valid;
-    logic w_wdata_fifo_wr_ready;
-    logic [AW+IW-1:0] w_wdata_fifo_wr_data;  // Combined addr+id for write data tracking
-    logic w_wdata_fifo_rd_valid;
-    logic w_wdata_fifo_rd_ready;
-    logic [AW+IW-1:0] w_wdata_fifo_rd_data;  // Combined addr+id from FIFO
+    logic                                  w_wdata_fifo_wr_valid;
+    logic                                  w_wdata_fifo_wr_ready;
+    logic [AW+IW-1:0]                      w_wdata_fifo_wr_data;  // Combined addr+id for write data tracking
+    logic                                  w_wdata_fifo_rd_valid;
+    logic                                  w_wdata_fifo_rd_ready;
+    logic [AW+IW-1:0]                      w_wdata_fifo_rd_data;  // Combined addr+id from FIFO
+    logic [CW-1:0]                         w_wdata_fifo_count;    // Combined addr+id from FIFO
 
     // Error reporting signals
-    logic                     r_error_fifo_valid;
-    logic [TEDW-1:0]          r_error_fifo_wr_data;
-    logic                     w_error_fifo_ready;
+    logic                                  r_error_fifo_valid;
+    logic [TEDW-1:0]                       r_error_fifo_wr_data;
+    logic                                  w_error_fifo_ready;
 
     // Error flag storage to prevent loss during processing
-    logic [CHANNELS-1:0]         r_error_flag_addr_to;
-    logic [CHANNELS-1:0][TEDW-1:0] r_error_flag_addr_to_data;
-    logic [CHANNELS-1:0]         r_error_flag_data_to;
-    logic [CHANNELS-1:0][TEDW-1:0] r_error_flag_data_to_data;
-    logic [CHANNELS-1:0]         r_error_flag_resp_to;
-    logic [CHANNELS-1:0][TEDW-1:0] r_error_flag_resp_to_data;
+    logic [CHANNELS-1:0]                   r_error_flag_addr_to;
+    logic [CHANNELS-1:0][TEDW-1:0]         r_error_flag_addr_to_data;
+    logic [CHANNELS-1:0]                   r_error_flag_data_to;
+    logic [CHANNELS-1:0][TEDW-1:0]         r_error_flag_data_to_data;
+    logic [CHANNELS-1:0]                   r_error_flag_resp_to;
+    logic [CHANNELS-1:0][TEDW-1:0]         r_error_flag_resp_to_data;
 
     // Intermediate signals for timeout detection
-    logic                       w_addr_active_next;
-    logic [TIMER_WIDTH-1:0]     w_addr_timer_next;
-    logic                       w_addr_timeout_next;
-    logic [IW-1:0]              w_addr_current_id_next;
+    logic                                   w_addr_active_next;
+    logic [TIMER_WIDTH-1:0]                 w_addr_timer_next;
+    logic                                   w_addr_timeout_next;
+    logic [IW-1:0]                          w_addr_current_id_next;
 
-    logic [CHANNELS-1:0]        w_data_active_next;
-    logic [CHANNELS-1:0][TIMER_WIDTH-1:0] w_data_timer_next;
-    logic [CHANNELS-1:0]        w_data_timeout_next;
+    logic [CHANNELS-1:0]                    w_data_active_next;
+    logic [CHANNELS-1:0][TIMER_WIDTH-1:0]   w_data_timer_next;
+    logic [CHANNELS-1:0]                    w_data_timeout_next;
 
-    logic [CHANNELS-1:0]        w_resp_active_next;
-    logic [CHANNELS-1:0][TIMER_WIDTH-1:0] w_resp_timer_next;
-    logic [CHANNELS-1:0]        w_resp_timeout_next;
+    logic [CHANNELS-1:0]                    w_resp_active_next;
+    logic [CHANNELS-1:0][TIMER_WIDTH-1:0]   w_resp_timer_next;
+    logic [CHANNELS-1:0]                    w_resp_timeout_next;
 
     // Error priority type for handling multiple errors
     typedef enum logic [2:0] {
@@ -187,7 +195,7 @@ module axi_errmon_base
             // FIFO for address tracking
             gaxi_fifo_sync #(
                 .DATA_WIDTH(AW),
-                .DEPTH(AFD),
+                .DEPTH(AFD+1),
                 .INSTANCE_NAME($sformatf("ADDR_FIFO_%0d", i))
             ) i_addr_fifo (
                 .i_axi_aclk(aclk),
@@ -199,7 +207,7 @@ module axi_errmon_base
                 .o_rd_valid(w_addr_fifo_rd_valid[i]),
                 .ow_rd_data(w_addr_fifo_rd_data[i]),
                 .o_rd_data(),
-                .ow_count()
+                .ow_count(w_addr_fifo_count[i])  // sean
             );
         end
     endgenerate
@@ -210,7 +218,7 @@ module axi_errmon_base
             // Single FIFO for write data tracking
             gaxi_fifo_sync #(
                 .DATA_WIDTH(AW+IW),
-                .DEPTH(AFD),  // Same depth as address FIFO
+                .DEPTH(AFD+1),  // Same depth as address FIFO
                 .INSTANCE_NAME("WDATA_FIFO")
             ) i_wdata_fifo (
                 .i_axi_aclk(aclk),
@@ -222,7 +230,7 @@ module axi_errmon_base
                 .o_rd_valid(w_wdata_fifo_rd_valid),
                 .ow_rd_data(w_wdata_fifo_rd_data),
                 .o_rd_data(),
-                .ow_count()
+                .ow_count(w_wdata_fifo_count)  // sean
             );
         end
     endgenerate
@@ -249,8 +257,35 @@ module axi_errmon_base
     // Address FIFO Control Logic
     // -------------------------------------------------------------------------
 
+    logic w_block_ready;
+
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn)
+            o_block_ready <= 1'b0;
+        else begin
+            o_block_ready <= w_block_ready;
+        end
+    end
+
     // Address FIFO control - combinational logic
     /* verilator lint_off LATCH */
+    /* verilator lint_off WIDTHEXPAND */
+    always_comb begin
+        // Flow control - block if any FIFO is almost full
+        w_block_ready = 1'b0;
+        for (int ch = 0; ch < CHANNELS; ch++) begin
+            if (w_addr_fifo_count[ch] == AFD) begin
+                w_block_ready = 1'b1;
+            end
+        end
+
+        // For write mode, also check if write data FIFO is full
+        if (!IS_READ && w_wdata_fifo_count == AFD) begin
+            w_block_ready = 1'b1;
+        end
+    end
+    /* verilator lint_on WIDTHEXPAND */
+
     always_comb begin
         // Initialize all signals and variables
         for (int ch = 0; ch < CHANNELS; ch++) begin
@@ -300,21 +335,8 @@ module axi_errmon_base
                 w_wdata_fifo_rd_ready = 1'b1;
             end
         end
-
-        // Flow control - block if any FIFO is full
-        o_block_ready = 1'b0;
-        for (int ch = 0; ch < CHANNELS; ch++) begin
-            if (!w_addr_fifo_wr_ready[ch]) begin
-                o_block_ready = 1'b1;
-                break;
-            end
-        end
-
-        // For write mode, also check if write data FIFO is full
-        if (!IS_READ && !w_wdata_fifo_wr_ready) begin
-            o_block_ready = 1'b1;
-        end
     end
+
     /* verilator lint_on LATCH */
 
     // -------------------------------------------------------------------------
@@ -367,11 +389,23 @@ module axi_errmon_base
             r_addr_timer <= '0;
             r_addr_timeout <= 1'b0;
             r_addr_current_id <= '0;
+
+            // Initialize channel IDs
+            for (int ch = 0; ch < CHANNELS; ch++) begin
+                r_channel_id[ch] <= '0;
+            end
         end else begin
             r_addr_active <= w_addr_active_next;
             r_addr_timer <= w_addr_timer_next;
             r_addr_timeout <= w_addr_timeout_next;
             r_addr_current_id <= w_addr_current_id_next;
+
+            // Store ID when address transaction occurs
+            if (i_valid && i_ready) begin
+                automatic int ch_idx;
+                ch_idx = get_channel_idx(i_id);
+                r_channel_id[ch_idx] <= i_id;
+            end
         end
     end
 
@@ -386,50 +420,58 @@ module axi_errmon_base
         w_data_timer_next = r_data_timer;
         w_data_timeout_next = '0;  // Timeouts are cleared each cycle by default
 
-        // First, handle new address transactions (reset timers)
-        if (i_valid && i_ready) begin
-            automatic int ch_idx;
-            ch_idx = get_channel_idx(i_id);
-            // Reset the data timer for this channel to 0 (starting state)
-            w_data_timer_next[ch_idx] = '0;
-            w_data_active_next[ch_idx] = 1'b0; // Not active yet
-        end
+        if (IS_READ) begin
+            // For read mode:
+            // 1. Start monitoring when AR transaction completes
+            // 2. Stop monitoring when R transaction completes
+            // 3. Timeout if no response within the timeout period
 
-        // Then handle data channel timing for each channel
-        for (int ch = 0; ch < CHANNELS; ch++) begin
-            if (IS_READ) begin
-                // Read data channel - use channel index from data ID
+            // Start monitoring on address transaction
+            if (i_valid && i_ready) begin
+                automatic int ch_idx;
+                ch_idx = get_channel_idx(i_id);
+
+                // Start monitoring for this channel
+                w_data_active_next[ch_idx] = 1'b1;
+                w_data_timer_next[ch_idx] = '0;
+            end
+
+            // Stop monitoring on data transaction completion
+            if (i_data_valid && i_data_ready && i_data_last) begin
                 automatic int ch_idx;
                 ch_idx = get_channel_idx(i_data_id);
 
-                if (i_data_valid && !i_data_ready && (ch_idx == ch)) begin
-                    // Data transaction is waiting for ready
-                    if (!r_data_active[ch]) begin
-                        // Start monitoring
-                        w_data_active_next[ch] = 1'b1;
-                    end
+                w_data_active_next[ch_idx] = 1'b0;
+                w_data_timer_next[ch_idx] = '0;
+            end
 
-                    // Increment timer (count up from 0)
+            // For all active channels, increment the timer and check for timeout
+            for (int ch = 0; ch < CHANNELS; ch++) begin
+                if (r_data_active[ch]) begin
+                    // Increment timer
                     w_data_timer_next[ch] = r_data_timer[ch] + {{(TIMER_WIDTH-1){1'b0}}, 1'b1};
 
-                    // Check for timeout - use explicit cast to match widths
+                    // Check for timeout
                     if (r_data_timer[ch] >= TIMER_WIDTH'(TIMEOUT_DATA)) begin
                         w_data_timeout_next[ch] = 1'b1;
-                        w_data_timer_next[ch] = 'b0;
-                        w_data_active_next[ch] = 1'b0; // Reset for next time
+                        w_data_timer_next[ch] = '0;
+                        w_data_active_next[ch] = 1'b0; // Reset for next monitoring
                     end
-                end else if (i_data_valid && i_data_ready && (ch_idx == ch)) begin
-                    // Successful handshake
-                    w_data_active_next[ch] = 1'b0;
-                    // Reset timer to 0
-                    w_data_timer_next[ch] = '0;
-                end else if (r_data_active[ch] && !(i_data_valid && (ch_idx == ch))) begin
-                    // Transaction disappeared
-                    w_data_active_next[ch] = 1'b0;
-                    // Reset timer to 0
-                    w_data_timer_next[ch] = '0;
                 end
-            end else begin
+            end
+        end else begin
+            // For write mode, the existing logic can remain
+            // First, handle new address transactions (reset timers)
+            if (i_valid && i_ready) begin
+                automatic int ch_idx;
+                ch_idx = get_channel_idx(i_id);
+                // Reset the data timer for this channel to 0 (starting state)
+                w_data_timer_next[ch_idx] = '0;
+                w_data_active_next[ch_idx] = 1'b0; // Not active yet
+            end
+
+            // Then handle data channel timing for each channel
+            for (int ch = 0; ch < CHANNELS; ch++) begin
                 // Write data channel - ONLY USE CHANNEL 0
                 if (ch == 0) begin  // Only monitor channel 0 for write data
                     if (i_data_valid && !i_data_ready) begin
@@ -617,14 +659,14 @@ module axi_errmon_base
     // -------------------------------------------------------------------------
 
     // Combinational signals for error processing
-    logic w_error_fifo_valid_next;
-    logic [TEDW-1:0] w_error_fifo_wr_data_next;
-    logic [CHANNELS-1:0] w_error_flag_addr_to_next;
-    logic [CHANNELS-1:0][TEDW-1:0] w_error_flag_addr_to_data_next;
-    logic [CHANNELS-1:0] w_error_flag_data_to_next;
-    logic [CHANNELS-1:0][TEDW-1:0] w_error_flag_data_to_data_next;
-    logic [CHANNELS-1:0] w_error_flag_resp_to_next;
-    logic [CHANNELS-1:0][TEDW-1:0] w_error_flag_resp_to_data_next;
+    logic                           w_error_fifo_valid_next;
+    logic [TEDW-1:0]                w_error_fifo_wr_data_next;
+    logic [CHANNELS-1:0]            w_error_flag_addr_to_next;
+    logic [CHANNELS-1:0][TEDW-1:0]  w_error_flag_addr_to_data_next;
+    logic [CHANNELS-1:0]            w_error_flag_data_to_next;
+    logic [CHANNELS-1:0][TEDW-1:0]  w_error_flag_data_to_data_next;
+    logic [CHANNELS-1:0]            w_error_flag_resp_to_next;
+    logic [CHANNELS-1:0][TEDW-1:0]  w_error_flag_resp_to_data_next;
 
     always_comb begin
         // Default values - keep current state
@@ -691,10 +733,22 @@ module axi_errmon_base
                         current_err_data = r_error_flag_data_to_data[ch];
                     end
                 end else begin
-                    // For read mode, keep using the original approach with data_id
-                    current_err_data = r_data_timeout[ch] ?
-                        {ErrorDataTimeout, i_data_id, w_addr_fifo_rd_data[ch]} :
-                        r_error_flag_data_to_data[ch];
+                    // For read mode, use stored original ID for this channel
+                    if (r_data_timeout[ch]) begin
+                        // Use stored ID and address from FIFO
+                        current_err_data[TEDW-1:TEDW-ETW] = ErrorDataTimeout;
+                        current_err_data[TEDW-ETW-1:TEDW-ETW-IW] = r_channel_id[ch];
+
+                        // Use address from FIFO if available, otherwise 0
+                        if (w_addr_fifo_rd_valid[ch]) begin
+                            current_err_data[TEDW-ETW-IW-1:0] = w_addr_fifo_rd_data[ch];
+                        end else begin
+                            current_err_data[TEDW-ETW-IW-1:0] = '0;
+                        end
+                    end else begin
+                        // Use stored error data
+                        current_err_data = r_error_flag_data_to_data[ch];
+                    end
                 end
             end
             // Check response timeout (write only)

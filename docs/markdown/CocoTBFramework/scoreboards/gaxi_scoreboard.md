@@ -1,6 +1,7 @@
 # GAXI Scoreboard Documentation
 
 ## Overview
+
 The GAXI (Generic AXI) Scoreboard module provides specialized components for verifying GAXI protocol transactions. GAXI is a simplified version of the AXI protocol used for internal verification purposes. This module includes:
 
 1. `GAXIScoreboard`: Core verification component for GAXI transactions
@@ -10,9 +11,11 @@ The GAXI (Generic AXI) Scoreboard module provides specialized components for ver
 ## GAXIScoreboard Class
 
 ### Purpose
+
 The `GAXIScoreboard` provides core functionality for verifying GAXI protocol transactions. It supports both the legacy configuration approach and the new field configuration system.
 
 ### Class Definition
+
 ```python
 class GAXIScoreboard(BaseScoreboard):
     """Scoreboard for GAXI transactions"""
@@ -31,6 +34,7 @@ class GAXIScoreboard(BaseScoreboard):
 ### Key Features
 
 #### Flexible Configuration
+
 The scoreboard supports both the newer `FieldConfig` class and legacy dictionary-based configuration:
 ```python
 # Convert dict to FieldConfig if needed
@@ -41,6 +45,7 @@ else:
 ```
 
 #### Transaction Comparison
+
 ```python
 def _compare_transactions(self, expected, actual):
     """
@@ -57,6 +62,7 @@ def _compare_transactions(self, expected, actual):
 Validates that both transactions are `GAXIPacket` objects and uses their built-in comparison.
 
 #### Enhanced Mismatch Logging
+
 ```python
 def _log_mismatch(self, expected, actual):
     """
@@ -72,9 +78,11 @@ Provides detailed field-by-field comparison of mismatched transactions, with for
 ## TransformScoreboard Class
 
 ### Purpose
+
 The `TransformScoreboard` extends the functionality of the `BaseScoreboard` by adding support for protocol transformation, allowing verification across different protocols.
 
 ### Class Definition
+
 ```python
 class TransformScoreboard(BaseScoreboard):
     """Scoreboard that handles protocol transformations"""
@@ -94,6 +102,7 @@ class TransformScoreboard(BaseScoreboard):
 ### Key Features
 
 #### Protocol Transformation
+
 ```python
 def add_expected(self, transaction):
     """
@@ -117,6 +126,7 @@ def add_actual(self, transaction):
 Adds the actual transaction directly to the target scoreboard.
 
 #### Delegation to Target Scoreboard
+
 ```python
 def report(self):
     """
@@ -137,9 +147,11 @@ Clears the target scoreboard.
 ## GAXItoMemoryAdapter Class
 
 ### Purpose
+
 The `GAXItoMemoryAdapter` provides an interface between GAXI packets and memory models, facilitating verification against memory references.
 
 ### Class Definition
+
 ```python
 class GAXItoMemoryAdapter:
     """
@@ -161,6 +173,7 @@ class GAXItoMemoryAdapter:
 ### Key Features
 
 #### Field Mapping
+
 The adapter supports custom mapping between GAXI fields and memory operations:
 ```python
 # Default field mapping if not provided
@@ -172,6 +185,7 @@ self.field_map = field_map or {
 ```
 
 #### Memory Operations
+
 ```python
 def write_to_memory(self, packet):
     """
@@ -203,6 +217,7 @@ Reads data from the memory model based on the address in a GAXI packet, handling
 ## Usage Examples
 
 ### Basic GAXI Scoreboard
+
 ```python
 # Create a field configuration
 field_config = FieldConfig.create_standard(addr_width=32, data_width=32)
@@ -224,6 +239,7 @@ print(gaxi_sb.report())    # Detailed report
 ```
 
 ### Protocol Transformation
+
 ```python
 # Create field configurations for source and target protocols
 source_config = create_source_protocol_config()
@@ -252,6 +268,7 @@ print(transform_sb.report())
 ```
 
 ### Memory Model Integration
+
 ```python
 # Create memory model
 mem_model = MemoryModel(num_lines=1024, bytes_per_line=4, log=logger)
@@ -281,6 +298,7 @@ print(f"Read data: 0x{read_data:X}")  # Should print 0xABCD1234
 The GAXI scoreboard supports both the new `FieldConfig` class and legacy dictionary-based configuration:
 
 ### New FieldConfig Approach
+
 ```python
 # Create standard address/data configuration
 field_config = FieldConfig.create_standard(addr_width=32, data_width=32)
@@ -298,6 +316,7 @@ multi_config = FieldConfig.create_multi_data(
 ```
 
 ### Legacy Dictionary Approach
+
 ```python
 field_config = {
     'addr': {
@@ -319,9 +338,14 @@ field_config = {
 ```
 
 ## Best Practices
+
 1. Use the newer `FieldConfig` class for more robust field configuration
 2. Ensure field configurations match between protocols when using transformers
 3. For memory verification, use the `GAXItoMemoryAdapter` to connect to a memory model
 4. Always check both the result (pass rate) and detailed report for verification
 5. Clear scoreboards between test phases
 6. Use appropriate field mapping when different field names are used between protocols
+
+## Navigation
+
+[↑ Scoreboards Index](index.md) | [↑ CocoTBFramework Index](../index.md)

@@ -1,9 +1,11 @@
 # BaseScoreboard Class Documentation
 
 ## Overview
+
 The `BaseScoreboard` class serves as the foundation for all protocol-specific scoreboards in the verification framework. It provides essential functionality for comparing expected versus actual transactions and tracking mismatches.
 
 ## Key Features
+
 - Transaction queue management for expected and actual transactions
 - Comparison infrastructure with customizable comparison logic
 - Error tracking and reporting
@@ -142,9 +144,14 @@ class MyProtocolScoreboard(BaseScoreboard):
 ```
 
 ## Best Practices
+
 1. Always override `_compare_transactions()` in derived classes
 2. Enhance `_log_mismatch()` with protocol-specific details
 3. Use `result()` to get a normalized pass/fail ratio
 4. Use `report()` for detailed error information
 5. Use transformers when comparing transactions across different protocols
 6. Clear the scoreboard between test phases with `clear()`
+
+## Navigation
+
+[↑ Scoreboards Index](index.md) | [↑ CocoTBFramework Index](../index.md)

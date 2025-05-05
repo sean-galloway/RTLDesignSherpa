@@ -44,36 +44,91 @@ CocoTBFramework
 │   │   ├── fifo_slave.md
 │   │   ├── index.md
 │   │   └── overview.md
-│   └── gaxi
-│       ├── gaxi_command_handler.md
-│       ├── gaxi_factories.md
-│       ├── gaxi_master.md
-│       ├── gaxi_memory_model.md
-│       ├── gaxi_monitor.md
-│       ├── gaxi_packet.md
-│       ├── gaxi_practical_examples.md
-│       ├── gaxi_sequence.md
-│       ├── gaxi_slave.md
+│   ├── gaxi
+│   │   ├── gaxi_command_handler.md
+│   │   ├── gaxi_factories.md
+│   │   ├── gaxi_master.md
+│   │   ├── gaxi_memory_model.md
+│   │   ├── gaxi_monitor.md
+│   │   ├── gaxi_packet.md
+│   │   ├── gaxi_practical_examples.md
+│   │   ├── gaxi_sequence.md
+│   │   ├── gaxi_slave.md
+│   │   ├── index.md
+│   │   └── overview.md
+│   └── wavedrom_utils
+│       ├── capture.md
+│       ├── common_groups.md
+│       ├── container.md
+│       ├── enhanced_generator.md
+│       ├── example_test.md
+│       ├── generator.md
 │       ├── index.md
-│       └── overview.md
+│       ├── models.md
+│       ├── overview.md
+│       └── protocol_checks.md
 ├── scoreboards
-│   ├── apb-gaxi-scoreboard-documentation.md
-│   ├── apb-scoreboard-documentation.md
-│   ├── axi4-scoreboard-documentation.md
-│   ├── base-scoreboard-documentation.md
-│   ├── fifo-scoreboard-documentation.md
-│   └── gaxi-scoreboard-documentation.md
+│   ├── apb_gaxi_scoreboard.md
+│   ├── apb_scoreboard.md
+│   ├── axi4_scoreboard.md
+│   ├── base_scoreboard.md
+│   ├── fifo_scoreboard.md
+│   ├── gaxi_scoreboard.md
+│   ├── index.md
+│   └── overview.md
 └── tbclasses
     ├── tbbase.md
     ├── utilities.md
     ├── apb
     │   ├── apb_command_handler.md
+    │   ├── index.md
+    │   ├── overview.md
+    │   ├── register_functional_testing.md
     │   ├── register_map.md
     │   ├── register_map_structure.md
-    │   ├── register_runctional_testing.md
-    │   └── register_test+factory.md
+    │   └── register_test_factory.md
     ├── axi4
     ├── axi_errmon
+    │   ├── axi_errmon_base_tb.md
+    │   ├── axi_errmon_base_test.md
+    │   ├── axi_errmon_basic_test.md
+    │   ├── axi_errmon_error_test.md
+    │   ├── axi_errmon_fifo_test.md
+    │   ├── axi_errmon_multichannel_test.md
+    │   ├── axi_errmon_random_test.md
+    │   ├── axi_errmon_readyctrl.md
+    │   ├── index.md
+    │   └── overview.md
+    ├── common
+    │   ├── adder_testing.md
+    │   ├── amba_cg_ctrl.md
+    │   ├── cam_testing.md
+    │   ├── crc_testing.md
+    │   ├── index.md
+    │   └── overview.md
     ├── fifo
+    │   ├── fifo_buffer.md
+    │   ├── fifo_buffer_configs.md
+    │   ├── fifo_buffer_field.md
+    │   ├── fifo_buffer_multi.md
+    │   ├── fifo_data_collect_tb.md
+    │   ├── index.md
+    │   └── overview.md
     ├── gaxi
+    │   ├── cdc_handshake.md
+    │   ├── gaxi_buffer.md
+    │   ├── gaxi_buffer_configs.md
+    │   ├── gaxi_buffer_field.md
+    │   ├── gaxi_buffer_multi.md
+    │   ├── gaxi_buffer_seq.md
+    │   ├── gaxi_data_collect_tb.md
+    │   ├── gaxi_enhancements.md
+    │   ├── index.md
+    │   └── overview.md
     └── wavedrom_user
+        ├── apb.md
+        ├── axi4.md
+        ├── fifo.md
+        ├── gaxi.md
+        ├── index.md
+        └── overview.md

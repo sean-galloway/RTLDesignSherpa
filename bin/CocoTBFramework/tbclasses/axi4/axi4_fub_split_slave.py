@@ -29,7 +29,7 @@ class AXISplitMonitorSlave:
         # This remains largely the same as the updated splitters maintain
         # the same interface for reporting split transactions
         self.field_config = FieldConfig()
-        
+
         self.field_config.add_field_dict('split_addr', {
             'bits': axi_addr_width,
             'default': 0,
@@ -38,7 +38,7 @@ class AXISplitMonitorSlave:
             'active_bits': (axi_addr_width-1, 0),
             'description': 'Original address of the split transaction'
         })
-        
+
         self.field_config.add_field_dict('split_id', {
             'bits': axi_id_width,
             'default': 0,
@@ -47,7 +47,7 @@ class AXISplitMonitorSlave:
             'active_bits': (axi_id_width-1, 0),
             'description': 'Transaction ID associated with the split transaction'
         })
-        
+
         self.field_config.add_field_dict('split_cnt', {
             'bits': 8,
             'default': 0,
@@ -63,7 +63,7 @@ class AXISplitMonitorSlave:
             'm2s_valid': 'fub_split_valid',
             's2m_ready': 'fub_split_ready'
         }
-        
+
         optional_signal_map = {
             'm2s_pkt_split_addr': 'fub_split_addr',
             'm2s_pkt_split_id':   'fub_split_id',
@@ -113,14 +113,14 @@ class AXISplitMonitorSlave:
     def clear_queue(self):
         """Clear the monitor queue"""
         self.split_monitor.clear_queue()
-    
+
     def get_split_info(self, split_packet):
         """
         Extract split information from a packet.
-        
+
         Args:
             split_packet: Split packet received from the monitor
-            
+
         Returns:
             Dictionary containing split information
         """

@@ -1,18 +1,28 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Sun Apr 27 19:29:23 2025
+[*] Mon May  5 22:04:21 2025
 [*]
 [dumpfile] "(null)"
-[savefile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/GTKW/axi_master_rd.gtkw"
-[timestart] 0
-[size] 2469 1269
+[savefile] "/home/sean/github/RTLDesignSherpa/val/amba/GTKW/axi_master_rd.gtkw"
+[timestart] 6050500
+[size] 2583 1491
 [pos] -1 -1
-*-21.497194 780000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-15.289053 6290000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] axi_master_rd.
-[sst_width] 315
-[signals_width] 376
+[treeopen] axi_master_rd.i_axi_errmon_base.
+[treeopen] axi_master_rd.i_axi_errmon_base.gen_channel_fifos[0].
+[treeopen] axi_master_rd.i_axi_errmon_base.gen_channel_fifos[11].
+[treeopen] axi_master_rd.i_axi_errmon_base.gen_channel_fifos[17].
+[treeopen] axi_master_rd.i_axi_errmon_base.gen_channel_fifos[1].
+[treeopen] axi_master_rd.i_axi_errmon_base.gen_channel_fifos[2].
+[treeopen] axi_master_rd.i_axi_errmon_base.gen_channel_fifos[3].
+[treeopen] axi_master_rd.i_axi_errmon_base.gen_channel_fifos[4].
+[treeopen] axi_master_rd.i_axi_errmon_base.gen_channel_fifos[5].
+[treeopen] axi_master_rd.i_axi_errmon_base.gen_channel_fifos[6].
+[sst_width] 278
+[signals_width] 303
 [sst_expanded] 1
-[sst_vpaned_height] 847
+[sst_vpaned_height] 978
 @28
 axi_master_rd.i_axi_master_rd_splitter.aclk
 axi_master_rd.i_axi_master_rd_splitter.aresetn
@@ -28,6 +38,7 @@ axi_master_rd.m_axi_arburst[1:0]
 axi_master_rd.m_axi_arsize[2:0]
 @22
 axi_master_rd.m_axi_arlen[7:0]
+@24
 axi_master_rd.m_axi_arid[7:0]
 @200
 -axi r
@@ -44,7 +55,18 @@ axi_master_rd.m_axi_rid[7:0]
 axi_master_rd.m_axi_rresp[1:0]
 @200
 -split
+@28
+axi_master_rd.i_axi_master_rd_splitter.fub_arvalid
+axi_master_rd.i_axi_master_rd_splitter.fub_arready
 @22
+axi_master_rd.i_axi_master_rd_splitter.fub_araddr[31:0]
+@28
+axi_master_rd.i_axi_master_rd_splitter.m_axi_arvalid
+axi_master_rd.i_axi_master_rd_splitter.m_axi_arready
+@23
+axi_master_rd.i_axi_master_rd_splitter.m_axi_araddr[31:0]
+@22
+axi_master_rd.i_axi_master_rd_splitter.w_current_addr[31:0]
 axi_master_rd.alignment_mask[11:0]
 @28
 axi_master_rd.fub_split_valid
@@ -77,6 +99,38 @@ axi_master_rd.i_axi_master_rd_splitter.r_split_state[2:0]
 @200
 -error
 @28
+axi_master_rd.i_axi_errmon_base.gen_channel_fifos[0].i_addr_fifo.i_rd_ready
+axi_master_rd.i_axi_errmon_base.gen_channel_fifos[1].i_addr_fifo.i_rd_ready
+axi_master_rd.i_axi_errmon_base.gen_channel_fifos[2].i_addr_fifo.i_rd_ready
+axi_master_rd.i_axi_errmon_base.gen_channel_fifos[3].i_addr_fifo.i_rd_ready
+axi_master_rd.i_axi_errmon_base.gen_channel_fifos[4].i_addr_fifo.i_rd_ready
+axi_master_rd.i_axi_errmon_base.gen_channel_fifos[5].i_addr_fifo.i_rd_ready
+axi_master_rd.i_axi_errmon_base.gen_channel_fifos[6].i_addr_fifo.i_rd_ready
+axi_master_rd.i_axi_errmon_base.o_block_ready
+@420
+axi_master_rd.i_axi_errmon_base.ADDR_FIFO_DEPTH
+axi_master_rd.i_axi_errmon_base.CHANNELS
+@28
+axi_master_rd.i_axi_errmon_base.IS_AXI
+axi_master_rd.i_axi_errmon_base.IS_READ
+@420
+axi_master_rd.i_axi_errmon_base.TIMEOUT_ADDR
+axi_master_rd.i_axi_errmon_base.TIMEOUT_DATA
+@22
+axi_master_rd.i_axi_errmon_base.r_data_active[31:0]
+axi_master_rd.i_axi_errmon_base.w_data_active_next[31:0]
+axi_master_rd.i_axi_errmon_base.r_data_timer[1][19:0]
+axi_master_rd.i_axi_errmon_base.r_data_timer[0][19:0]
+@420
+axi_master_rd.i_axi_errmon_base.TIMEOUT_ADDR
+axi_master_rd.i_axi_errmon_base.TIMEOUT_DATA
+axi_master_rd.i_axi_errmon_base.TIMEOUT_RESP
+@28
+axi_master_rd.i_axi_errmon_base.r_addr_timeout
+@22
+axi_master_rd.i_axi_errmon_base.r_data_timeout[31:0]
+axi_master_rd.i_axi_errmon_base.r_addr_timer[19:0]
+@28
 $rootio.fub_error_valid
 $rootio.fub_error_ready
 @22
@@ -85,6 +139,12 @@ $rootio.fub_error_addr[31:0]
 $rootio.fub_error_type[3:0]
 @200
 -fub_ar
+@28
+axi_master_rd.int_block_ready
+axi_master_rd.int_arvalid
+axi_master_rd.int_arready
+@420
+axi_master_rd.i_ar_channel.DEPTH
 @28
 $rootio.fub_arvalid
 $rootio.fub_arready
@@ -101,5 +161,9 @@ $rootio.fub_rid[7:0]
 axi_master_rd.fub_rdata[63:0]
 @28
 $rootio.fub_rlast
+@420
+axi_master_rd.SKID_DEPTH_AR
+@24
+axi_master_rd.TIMEOUT_AR
 [pattern_trace] 1
 [pattern_trace] 0

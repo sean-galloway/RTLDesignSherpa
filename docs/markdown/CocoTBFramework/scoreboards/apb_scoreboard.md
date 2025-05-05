@@ -1,6 +1,7 @@
 # APB Scoreboard Documentation
 
 ## Overview
+
 The APB Scoreboard module provides specialized components for verifying APB (Advanced Peripheral Bus) protocol transactions. It includes:
 
 1. `APBScoreboard`: Verifies standard APB transactions
@@ -58,6 +59,7 @@ Adds an expected transaction while tracking which master initiated it.
 This specialized scoreboard verifies APB crossbar functionality, checking that transactions from masters are correctly routed to the appropriate slaves.
 
 ### Class Definition
+
 
 ```python
 class APBCrossbarScoreboard:
@@ -236,3 +238,7 @@ result = apb_sb.result()
 2. Set appropriate address mapping in `APBCrossbarScoreboard` for accurate routing
 3. Use the transformer when integrating APB with GAXI components
 4. Always check both the result (pass rate) and detailed report for verification
+
+## Navigation
+
+[↑ Scoreboards Index](index.md) | [↑ CocoTBFramework Index](../index.md)

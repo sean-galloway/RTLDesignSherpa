@@ -47,7 +47,7 @@ Documentation for the AMBA related code is coming soon.
 
 Install thru Ubuntu UI
 
-## Icarus
+## Icarus (not used, but for reference)
 
 sudo apt-get install build-essential autoconf gpref flex bison
 sudo apt install iverilog
@@ -58,7 +58,7 @@ sudo apt-get install verilator
 
 ## Ctags
 
-sudo snap install universal-ctags 
+sudo snap install universal-ctags
 Update the ctags path in the vscode preferences
 
 ## Git
@@ -86,7 +86,7 @@ sudo apt-get install libcanberra-gtk-module libcanberra-gtk3-module
 
 sudo apt install graphviz
 
-## Java (needed for PlantUML):
+## Java (needed for PlantUML)
 
 sudo apt install default-jre
 
@@ -109,7 +109,7 @@ curl -sSLf https://scala-cli.virtuslab.org/get | sh
 
 download the latest version:
 Releases · chipsalliance/verible (github.com)
-tar xvzf verible-v0.0-3430-g060bde0f-Ubuntu-20.04-focal-x86_64.tar.gz 
+tar xvzf verible-v0.0-3430-g060bde0f-Ubuntu-20.04-focal-x86_64.tar.gz
 sudo mv  verible-v0.0-3430-g060bde0f /usr/bin/verible-v0.0-3430-g060bde0f/
 
 -- Once all is installed, make a github directory, cd into it and clone the repo:

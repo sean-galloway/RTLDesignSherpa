@@ -1,10 +1,13 @@
 # APB-GAXI Scoreboard Documentation
 
 ## Overview
+
 The `APBGAXIScoreboard` class provides a specialized scoreboard for cross-protocol verification between APB (Advanced Peripheral Bus) and GAXI (Generic AXI) protocols. This component allows verification engineers to track and compare transactions between these two different protocols, ensuring that data transfers correctly between APB and GAXI interfaces.
 
 ## Purpose
+
 In complex SoC designs, it's common to have bridges between different protocols. The APB-GAXI scoreboard verifies that:
+
 - APB write transactions are properly translated to GAXI write transactions
 - APB read transactions result in correct GAXI read transactions
 - Address mapping is preserved between protocols
@@ -37,13 +40,16 @@ class APBGAXIScoreboard:
 ## Key Features
 
 ### Transaction Queues
+
 The scoreboard maintains separate queues for different transaction types:
+
 - `apb_writes`: Stores APB write transactions indexed by address
 - `apb_reads`: Stores APB read transactions indexed by address
 - `gaxi_writes`: Stores GAXI write transactions indexed by address
 - `gaxi_reads`: Stores GAXI read transactions indexed by address
 
 ### Statistics Tracking
+
 - `total_matches`: Counts matching transactions
 - `total_mismatches`: Counts mismatched transactions
 - `total_dropped`: Counts unmatched transactions
@@ -197,3 +203,7 @@ These metrics help assess the completeness and correctness of protocol translati
 4. Check the verification rate to ensure complete coverage.
 5. Look for specific addresses with unmatched transactions to identify problem areas.
 6. Clear the scoreboard between test phases with `clear()`.
+
+## Navigation
+
+[↑ Scoreboards Index](index.md) | [↑ CocoTBFramework Index](../index.md)

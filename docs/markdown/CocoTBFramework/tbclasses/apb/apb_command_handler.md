@@ -280,3 +280,7 @@ This creates a clean handshake protocol with separate command and response phase
 6. **Configurable Delays**: Simulates processing time with adjustable delays
 7. **Error Handling**: Supports error signaling through the pslverr flag
 8. **Debug Support**: Comprehensive logging for debugging and analysis
+
+## Navigation
+
+[↑ APB Index](index.md) | [↑ TBClasses Index](../index.md) | [↑ CocoTBFramework Index](../../index.md)
