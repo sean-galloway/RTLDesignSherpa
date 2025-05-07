@@ -20,7 +20,7 @@ class ReadySignalController:
 
     Key features:
     - Single point of control for all ready signals
-    - Automatic handling of o_block_ready to i_ready relationship
+    - Automatic handling of o_block_ready to i_addr_ready relationship
     - Methods for forcing ready signals low for specific durations
     - Event tracking and logging
     """
@@ -37,12 +37,12 @@ class ReadySignalController:
         self.log = log
 
         # Default ready states (typically asserted for good throughput)
-        self.default_i_ready = 1
+        self.default_i_addr_ready = 1
         self.default_i_data_ready = 1
         self.default_i_resp_ready = 1
 
         # Current states
-        self.i_ready_forced_low = False
+        self.i_addr_ready_forced_low = False
         self.i_data_ready_forced_low = False
         self.i_resp_ready_forced_low = False
 
@@ -109,12 +109,12 @@ class ReadySignalController:
         This applies the current state of all ready signals, taking into account
         forced values and the block_ready state.
         """
-        # For address channel ready (i_ready)
-        # Special case: i_ready is forced low by o_block_ready
-        if self.block_ready_asserted or self.i_ready_forced_low:
-            self.dut.i_ready.value = 0
+        # For address channel ready (i_addr_ready)
+        # Special case: i_addr_ready is forced low by o_block_ready
+        if self.block_ready_asserted or self.i_addr_ready_forced_low:
+            self.dut.i_addr_ready.value = 0
         else:
-            self.dut.i_ready.value = self.default_i_ready
+            self.dut.i_addr_ready.value = self.default_i_addr_ready
 
         # For other ready signals
         if not self.i_data_ready_forced_low:
@@ -125,9 +125,9 @@ class ReadySignalController:
 
     async def _monitor_block_ready(self):
         """
-        Monitor o_block_ready and control i_ready accordingly
+        Monitor o_block_ready and control i_addr_ready accordingly
 
-        This is the core functionality that ensures i_ready is deasserted
+        This is the core functionality that ensures i_addr_ready is deasserted
         whenever o_block_ready is asserted.
         """
         try:
@@ -150,10 +150,10 @@ class ReadySignalController:
                 self.block_ready_asserted = bool(self.dut.o_block_ready.value)
 
                 if self.dut.o_block_ready.value:
-                    # o_block_ready asserted, must force i_ready low
-                    self.dut.i_ready.value = 0
-                elif not self.i_ready_forced_low:
-                    self.dut.i_ready.value = self.default_i_ready
+                    # o_block_ready asserted, must force i_addr_ready low
+                    self.dut.i_addr_ready.value = 0
+                elif not self.i_addr_ready_forced_low:
+                    self.dut.i_addr_ready.value = self.default_i_addr_ready
 
         except Exception as e:
             if self.log:
@@ -161,15 +161,15 @@ class ReadySignalController:
 
     def set_addr_ready(self, value):
         """
-        Set the address channel ready signal (i_ready)
+        Set the address channel ready signal (i_addr_ready)
 
         Args:
             value: Value to set (0 or 1)
         """
-        self.default_i_ready = value
+        self.default_i_addr_ready = value
         # Only apply if not forced low and not blocked
-        if not self.i_ready_forced_low and not self.block_ready_asserted:
-            self.dut.i_ready.value = value
+        if not self.i_addr_ready_forced_low and not self.block_ready_asserted:
+            self.dut.i_addr_ready.value = value
 
     def set_data_ready(self, value):
         """
@@ -200,11 +200,11 @@ class ReadySignalController:
         Args:
             forced: True to force low, False to restore default
         """
-        self.i_ready_forced_low = forced
+        self.i_addr_ready_forced_low = forced
         if forced:
-            self.dut.i_ready.value = 0
+            self.dut.i_addr_ready.value = 0
         elif not self.block_ready_asserted:
-            self.dut.i_ready.value = self.default_i_ready
+            self.dut.i_addr_ready.value = self.default_i_addr_ready
 
     def force_data_ready_low(self, forced=True):
         """

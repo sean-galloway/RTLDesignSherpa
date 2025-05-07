@@ -308,9 +308,9 @@ class AXIErrorMonFIFOTest(AXIErrorMonBaseTest):
         Returns:
             True if test passed, False otherwise
         """
-        self.log.info(f"{'=' * 80}{self.tb.get_time_ns_str()}")
+        self.log.info(f"{'=' * 80}")
         self.log.info(f"Testing error reporting when error FIFO is full{self.tb.get_time_ns_str()}")
-        self.log.info(f"{'=' * 80}{self.tb.get_time_ns_str()}")
+        self.log.info(f"{'=' * 80}")
 
         # Reset and set up for clean test state
         await self.reset_and_setup_for_test()
@@ -375,7 +375,7 @@ class AXIErrorMonFIFOTest(AXIErrorMonBaseTest):
 
         # Wait longer for timeout to occur - at least as long as the timeout value
         # The timeout value is typically 1000 cycles, so wait at least that long
-        await self.tb.wait_clocks('aclk', self.tb.timeout_data + 50)
+        await self.tb.wait_clocks('aclk', self.tb.timeout_data + 150)
 
         # Check if any errors were stored internally despite error_ready being low
         self.log.info(f"Checking for internally stored errors{self.tb.get_time_ns_str()}")

@@ -2,14 +2,18 @@
 
 module axi_master_rd_cg
 #(
-    // Alignment parameters
-    parameter int ALIGNMENT_WIDTH = 3,  // 0:8b, 1:16b, 2:32b, 3:64b, 4:128b, 5:256b, 6:512b
+    // Error Packet Identifiers
+    parameter int UNIT_ID            = 99,
+    parameter int AGENT_ID           = 99,
 
     // AXI parameters
     parameter int AXI_ID_WIDTH      = 8,
     parameter int AXI_ADDR_WIDTH    = 32,
     parameter int AXI_DATA_WIDTH    = 32,
     parameter int AXI_USER_WIDTH    = 1,
+
+    // Channel parameter
+    parameter int CHANNELS          = 16,
 
     // Skid buffer depths
     parameter int SKID_DEPTH_AR     = 2,
@@ -18,10 +22,7 @@ module axi_master_rd_cg
     // FIFO parameters
     parameter int SPLIT_FIFO_DEPTH  = 2,
     parameter int ERROR_FIFO_DEPTH  = 2,
-
-    // Timeout parameters (in clock cycles)
-    parameter int TIMEOUT_AR       = 1000,  // Read address channel timeout
-    parameter int TIMEOUT_R        = 1000,  // Read data channel timeout
+    parameter int ADDR_FIFO_DEPTH   = 4,    // Depth of address tracking FIFO
 
     // Clock gating parameters
     parameter int CG_IDLE_COUNT_WIDTH = 4,  // Width of idle counter
@@ -40,8 +41,14 @@ module axi_master_rd_cg
     input  logic aresetn,
 
     // Clock gating configuration
-    input  logic                          i_cfg_cg_enable,
+    input  logic                           i_cfg_cg_enable,
     input  logic [CG_IDLE_COUNT_WIDTH-1:0] i_cfg_cg_idle_count,
+
+    // Timer configs
+    input  logic [3:0]               i_cfg_freq_sel, // Frequency selection (configurable)
+    input  logic [3:0]               i_cfg_addr_cnt, // ADDR match for a timeout
+    input  logic [3:0]               i_cfg_data_cnt, // DATA match for a timeout
+    input  logic [3:0]               i_cfg_resp_cnt, // RESP match for a timeout
 
     // Alignment mask signal (12-bit)
     input  logic [11:0] alignment_mask,
@@ -104,15 +111,17 @@ module axi_master_rd_cg
     input  logic                       fub_split_ready,
 
     // Error outputs with FIFO interface
-    output logic [3:0]                 fub_error_type,     // Error type flags (AR timeout, R timeout, response error)
-    output logic [AXI_ADDR_WIDTH-1:0]  fub_error_addr,     // Address associated with error
-    output logic [AXI_ID_WIDTH-1:0]    fub_error_id,       // ID associated with error
+    output logic [7:0]                 fub_error_type,
+    output logic [AW-1:0]              fub_error_addr,
+    output logic [IW-1:0]              fub_error_id,
+    output logic [7:0]                 fub_error_unit_id,
+    output logic [7:0]                 fub_error_agent_id,
     output logic                       fub_error_valid,
     input  logic                       fub_error_ready,
 
     // Clock gating status
     output logic                       o_cg_gating,         // Active gating indicator
-    output logic                       o_cg_idle           // All buffers empty indicator
+    output logic                       o_cg_idle            // All buffers empty indicator
 );
 
     // Gated clock signal
@@ -125,9 +134,10 @@ module axi_master_rd_cg
     // Internal ready signals
     logic int_arready;
     logic int_rready;
+    logic int_busy;
 
     // OR all user-side valid signals
-    assign user_valid = fub_arvalid || fub_split_valid || fub_error_valid;
+    assign user_valid = fub_arvalid || fub_split_valid || fub_error_valid || int_busy;
 
     // OR all AXI-side valid signals
     assign axi_valid = m_axi_arvalid || m_axi_rvalid;
@@ -153,20 +163,28 @@ module axi_master_rd_cg
 
     // Instantiate the original AXI master read module with gated clock
     axi_master_rd #(
+        .UNIT_ID              (UNIT_ID),
+        .AGENT_ID             (AGENT_ID),
         .AXI_ID_WIDTH         (AXI_ID_WIDTH),
         .AXI_ADDR_WIDTH       (AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH       (AXI_DATA_WIDTH),
         .AXI_USER_WIDTH       (AXI_USER_WIDTH),
+        .CHANNELS             (CHANNELS),
         .SKID_DEPTH_AR        (SKID_DEPTH_AR),
         .SKID_DEPTH_R         (SKID_DEPTH_R),
+        .ADDR_FIFO_DEPTH      (ADDR_FIFO_DEPTH),
         .SPLIT_FIFO_DEPTH     (SPLIT_FIFO_DEPTH),
-        .ERROR_FIFO_DEPTH     (ERROR_FIFO_DEPTH),
-        .TIMEOUT_AR           (TIMEOUT_AR),
-        .TIMEOUT_R            (TIMEOUT_R)
+        .ERROR_FIFO_DEPTH     (ERROR_FIFO_DEPTH)
     ) i_axi_master_rd (
         .aclk                 (gated_aclk),      // Use gated clock
         .aresetn              (aresetn),
         .alignment_mask       (alignment_mask),
+
+        // Configs
+        .i_cfg_freq_sel       (i_cfg_freq_sel),
+        .i_cfg_addr_cnt       (i_cfg_addr_cnt),
+        .i_cfg_data_cnt       (i_cfg_data_cnt),
+        .i_cfg_resp_cnt       (i_cfg_resp_cnt),
 
         // Slave AXI Interface (Input Side)
         .fub_arid             (fub_arid),
@@ -225,8 +243,12 @@ module axi_master_rd_cg
         .fub_error_type       (fub_error_type),
         .fub_error_addr       (fub_error_addr),
         .fub_error_id         (fub_error_id),
+        .fub_error_unit_id    (fub_error_unit_id),
+        .fub_error_agent_id   (fub_error_agent_id),
         .fub_error_valid      (fub_error_valid),
-        .fub_error_ready      (fub_error_ready)
+        .fub_error_ready      (fub_error_ready),
+        // A cycle is in flight
+        .o_busy               (int_busy)
     );
 
 endmodule : axi_master_rd_cg

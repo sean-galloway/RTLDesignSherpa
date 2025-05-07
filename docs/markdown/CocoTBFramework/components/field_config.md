@@ -8,6 +8,7 @@ The `field_config.py` module provides a type-safe and structured way to define f
 
 - Object-oriented representation of field configurations
 - Automatic validation of field properties and constraints
+- Support for enumerated field encoding with human-readable names
 - Rich formatting and display capabilities
 - Factory methods for common configurations
 - Backward compatibility with dictionary-based configurations
@@ -27,6 +28,7 @@ A dataclass that defines a single field within a packet.
 - `display_width`: Width for display formatting (default: calculated based on bits)
 - `active_bits`: Tuple of (msb, lsb) defining active bit range (default: full width)
 - `description`: Human-readable description of the field (default: capitalized name)
+- `encoding`: Optional dictionary mapping values to state names (default: None)
 
 #### Methods
 
@@ -58,6 +60,8 @@ Initializes an empty field configuration.
 - `to_dict()`: Convert to dictionary format
 - `debug_str(indent=0)`: Return a formatted string representation
 - `update_field_width(field_name, new_bits, update_active_bits=True)`: Update a field's bit width
+- `set_encoding(field_name, encoding)`: Set an encoding dictionary for a field
+- `add_encoding_value(field_name, value, state_name)`: Add a single encoding value to a field
 
 #### Factory Methods
 
@@ -147,6 +151,49 @@ field_config = FieldConfig.from_dict(dict_config)
 print(field_config)
 ```
 
+### Using Field Encodings
+
+```python
+# Create a configuration with an encoded state field
+config = FieldConfig()
+
+# Add a state field
+config.add_field(
+    FieldDefinition(
+        name="state",
+        bits=2,
+        format="bin",
+        description="State Machine Status"
+    )
+)
+
+# Set an encoding for the state field
+config.set_encoding("state", {
+    0: "IDLE",
+    1: "BUSY",
+    2: "ERROR",
+    3: "COMPLETE"
+})
+
+# Or add encoding values one by one
+config = FieldConfig()
+config.add_field(
+    FieldDefinition(
+        name="error_type",
+        bits=8,
+        format="hex",
+        description="Error Type"
+    )
+)
+config.add_encoding_value("error_type", 1, "AddrTO")
+config.add_encoding_value("error_type", 2, "DataTO")
+config.add_encoding_value("error_type", 4, "RespTO")
+config.add_encoding_value("error_type", 8, "RespErr")
+
+# Print the configuration
+print(config)
+```
+
 ### Updating Field Width
 
 ```python
@@ -181,12 +228,42 @@ packet = Packet(config, addr=0x1000, data=0xABCD1234)
 print(packet)
 ```
 
+## Field Encoding Example
+
+```python
+# Create a field config with an error type field
+field_config = FieldConfig()
+field_config.add_field(FieldDefinition(
+    name="error_type",
+    bits=8,
+    default=0,
+    format="hex",
+    description="Error type"
+))
+
+# Set an encoding for the error_type field
+field_config.set_encoding("error_type", {
+    1: "AddrTO",   # Address timeout
+    2: "DataTO",   # Data timeout
+    4: "RespTO",   # Response timeout 
+    8: "RespErr"   # Response error
+})
+
+# Create a packet with the field
+packet = Packet(field_config, error_type=2)
+print(packet)
+# Output:
+# Packet:
+#   Error type: DataTO (0x02)
+```
+
 ## Notes
 
 - The `FieldConfig` class ensures type safety and validation compared to dictionary-based approaches
 - Field display formats and widths are automatically calculated based on bit width
 - Rich string representation provides better debugging capabilities
 - Factory methods make it easy to create common configurations
+- Field encodings make debug output more readable by showing state names instead of raw values
 
 ## See Also
 

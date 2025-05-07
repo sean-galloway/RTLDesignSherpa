@@ -2,6 +2,10 @@
 
 module axi_master_rd
 #(
+    // Error Packet Identifiers
+    parameter int UNIT_ID            = 99,
+    parameter int AGENT_ID           = 99,
+
     // AXI parameters
     parameter int AXI_ADDR_WIDTH    = 32,
     parameter int AXI_DATA_WIDTH    = 32,
@@ -9,7 +13,7 @@ module axi_master_rd
     parameter int AXI_USER_WIDTH    = 1,
 
     // Channel parameter
-    parameter int CHANNELS          = 16,    // Number of channels to monitor (typically <= 2^AXI_ID_WIDTH)
+    parameter int CHANNELS          = 16,
 
     // Skid buffer depths
     parameter int SKID_DEPTH_AR     = 2,
@@ -18,11 +22,7 @@ module axi_master_rd
     // FIFO parameters
     parameter int SPLIT_FIFO_DEPTH  = 2,
     parameter int ERROR_FIFO_DEPTH  = 2,
-    parameter int ADDR_FIFO_DEPTH   = 4,     // Depth of address tracking FIFO
-
-    // Timeout parameters (in clock cycles)
-    parameter int TIMEOUT_AR       = 1000,  // Read address channel timeout
-    parameter int TIMEOUT_R        = 1000,  // Read data channel timeout
+    parameter int ADDR_FIFO_DEPTH   = 4,    // Depth of address tracking FIFO
 
     // Derived parameters
     parameter int AW       = AXI_ADDR_WIDTH,
@@ -39,6 +39,12 @@ module axi_master_rd
 
     // Alignment mask signal (12-bit)
     input  logic [11:0]                alignment_mask,
+
+    // Timer configs
+    input  logic [3:0]               i_cfg_freq_sel, // Frequency selection (configurable)
+    input  logic [3:0]               i_cfg_addr_cnt, // ADDR match for a timeout
+    input  logic [3:0]               i_cfg_data_cnt, // DATA match for a timeout
+    input  logic [3:0]               i_cfg_resp_cnt, // RESP match for a timeout
 
     // Slave AXI Interface (Input Side)
     // Read address channel (AR)
@@ -98,11 +104,16 @@ module axi_master_rd
     input  logic                       fub_split_ready,
 
     // Error outputs with FIFO interface
-    output logic [3:0]                 fub_error_type,
+    output logic [7:0]                 fub_error_type,
     output logic [AW-1:0]              fub_error_addr,
     output logic [IW-1:0]              fub_error_id,
+    output logic [7:0]                 fub_error_unit_id,
+    output logic [7:0]                 fub_error_agent_id,
     output logic                       fub_error_valid,
-    input  logic                       fub_error_ready
+    input  logic                       fub_error_ready,
+
+    // A cycle is in flight
+    output logic                       o_busy
 );
 
     // Internal connections between splitter and error monitor/skid buffer
@@ -212,12 +223,11 @@ module axi_master_rd
 
     // Instantiate base error monitor module directly
     axi_errmon_base #(
+        .UNIT_ID(UNIT_ID),
+        .AGENT_ID(AGENT_ID),
         .CHANNELS(CHANNELS),
         .ADDR_WIDTH(AXI_ADDR_WIDTH),
         .ID_WIDTH(AXI_ID_WIDTH),
-        .TIMEOUT_ADDR(TIMEOUT_AR),
-        .TIMEOUT_DATA(TIMEOUT_R),
-        .TIMEOUT_RESP(0),         // Not used for read
         .ERROR_FIFO_DEPTH(ERROR_FIFO_DEPTH),
         .ADDR_FIFO_DEPTH(ADDR_FIFO_DEPTH),
         .IS_READ(1),              // This is a read monitor
@@ -226,11 +236,17 @@ module axi_master_rd
         .aclk                 (aclk),
         .aresetn              (aresetn),
 
+        // Configs
+        .i_cfg_freq_sel       (i_cfg_freq_sel),
+        .i_cfg_addr_cnt       (i_cfg_addr_cnt),
+        .i_cfg_data_cnt       (i_cfg_data_cnt),
+        .i_cfg_resp_cnt       (i_cfg_resp_cnt),
+
         // Address channel signals
-        .i_addr               (fub_araddr),
-        .i_id                 (fub_arid),
-        .i_valid              (fub_arvalid),
-        .i_ready              (fub_arready),
+        .i_addr_addr          (fub_araddr),
+        .i_addr_id            (fub_arid),
+        .i_addr_valid         (fub_arvalid),
+        .i_addr_ready         (fub_arready),
 
         // Data channel signals
         .i_data_id            (fub_rid),
@@ -251,9 +267,12 @@ module axi_master_rd
         .o_error_type         (fub_error_type),
         .o_error_addr         (fub_error_addr),
         .o_error_id           (fub_error_id),
+        .o_error_unit_id      (fub_error_unit_id),
+        .o_error_agent_id     (fub_error_agent_id),
 
         // Flow control
-        .o_block_ready        (int_block_ready)
+        .o_block_ready        (int_block_ready),
+        .o_busy               (o_busy)
     );
 
     // Instantiate AR Skid Buffer

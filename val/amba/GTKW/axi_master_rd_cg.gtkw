@@ -1,0 +1,87 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Tue May  6 20:09:11 2025
+[*]
+[dumpfile] "/home/sean/github/RTLDesignSherpa/val/amba/local_sim_build/test_axi_master_rd_cg_clk10_ch32_id08_a32_d64_u01_s02_f04_t0050_full/dump.fst"
+[dumpfile_mtime] "Tue May  6 19:14:10 2025"
+[dumpfile_size] 116463
+[savefile] "/home/sean/github/RTLDesignSherpa/val/amba/GTKW/axi_master_rd_cg.gtkw"
+[timestart] 5834000
+[size] 2657 1142
+[pos] -1 -1
+*-17.886940 6810100 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 278
+[signals_width] 303
+[sst_expanded] 1
+[sst_vpaned_height] 247
+@420
+axi_master_rd_cg.AW
+axi_master_rd_cg.CHANNELS
+axi_master_rd_cg.DW
+axi_master_rd_cg.ADDR_FIFO_DEPTH
+axi_master_rd_cg.ERROR_FIFO_DEPTH
+axi_master_rd_cg.TIMEOUT_AR
+axi_master_rd_cg.TIMEOUT_R
+axi_master_rd_cg.SKID_DEPTH_AR
+axi_master_rd_cg.SKID_DEPTH_R
+@28
+axi_master_rd_cg.aclk
+axi_master_rd_cg.aresetn
+@200
+-fub-ar
+@28
+axi_master_rd_cg.fub_arvalid
+@29
+axi_master_rd_cg.fub_arready
+@22
+axi_master_rd_cg.fub_araddr[31:0]
+axi_master_rd_cg.fub_arid[7:0]
+axi_master_rd_cg.fub_arlen[7:0]
+@200
+-fub-r
+@28
+axi_master_rd_cg.fub_rvalid
+axi_master_rd_cg.fub_rready
+@22
+axi_master_rd_cg.fub_rid[7:0]
+@28
+axi_master_rd_cg.fub_rlast
+axi_master_rd_cg.fub_rresp[1:0]
+@200
+-axi-ar
+@28
+axi_master_rd_cg.m_axi_arvalid
+axi_master_rd_cg.m_axi_arready
+@22
+axi_master_rd_cg.m_axi_araddr[31:0]
+axi_master_rd_cg.m_axi_arid[7:0]
+axi_master_rd_cg.m_axi_arlen[7:0]
+@200
+-axi-r
+@28
+axi_master_rd_cg.m_axi_rvalid
+axi_master_rd_cg.m_axi_rready
+@22
+axi_master_rd_cg.m_axi_rid[7:0]
+@28
+axi_master_rd_cg.m_axi_rlast
+axi_master_rd_cg.m_axi_rresp[1:0]
+@200
+-cg
+@28
+axi_master_rd_cg.i_cfg_cg_enable
+@22
+axi_master_rd_cg.i_cfg_cg_idle_count[7:0]
+@28
+axi_master_rd_cg.o_cg_gating
+axi_master_rd_cg.o_cg_idle
+@200
+-error
+@28
+axi_master_rd_cg.fub_error_valid
+axi_master_rd_cg.fub_error_ready
+@22
+axi_master_rd_cg.fub_error_addr[31:0]
+axi_master_rd_cg.fub_error_id[7:0]
+[pattern_trace] 1
+[pattern_trace] 0

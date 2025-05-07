@@ -31,14 +31,19 @@ class AXIErrorMonitorSlave:
         
         # Error type is the same for both AXI and AXI-Lite
         self.field_config.add_field_dict('error_type', {
-            'bits': 4,
+            'bits': 8,
             'default': 0,
             'format': 'bin',
-            'display_width': 4,
-            'active_bits': (3, 0),
+            'display_width': 8,
+            'active_bits': (7, 0),
             'description': 'Error type: [0]=AR/AW timeout, [1]=R/W timeout, [2]=B timeout, [3]=Response error'
         })
-        
+        self.field_config.set_encoding("error_type", {
+            1: "AddrTO",   # Address timeout  (0b00000001)
+            2: "DataTO",   # Data timeout     (0b00000010)
+            4: "RespTO",   # Response timeout (0b00000100)
+            8: "RespErr"   # Response error   (0b00001000)
+        })
         # Add ID field only for AXI (not AXI-Lite)
         if not is_axil:
             self.field_config.add_field_dict('error_id', {
@@ -60,6 +65,26 @@ class AXIErrorMonitorSlave:
             'description': 'Address associated with the error (if applicable)'
         })
 
+        # Unit ID field
+        self.field_config.add_field_dict('error_unit_id', {
+            'bits': 8,
+            'default': 0,
+            'format': 'hex',
+            'display_width': 2,
+            'active_bits': (7, 0),
+            'description': 'Unit ID'
+        })
+
+        # Unit ID field
+        self.field_config.add_field_dict('error_agent_id', {
+            'bits': 8,
+            'default': 0,
+            'format': 'hex',
+            'display_width': 2,
+            'active_bits': (7, 0),
+            'description': 'Agent ID'
+        })
+
         # Define common signal map
         signal_map = {
             'm2s_valid': 'fub_error_valid',
@@ -69,14 +94,18 @@ class AXIErrorMonitorSlave:
         # Define signal map based on protocol type
         if is_axil:
             optional_signal_map = {
-                'm2s_pkt_error_type': 'fub_error_type',
-                'm2s_pkt_error_addr': 'fub_error_addr'
+                'm2s_pkt_error_type':     'fub_error_type',
+                'm2s_pkt_error_addr':     'fub_error_addr',
+                'm2s_pkt_error_unit_id':  'fub_error_unit_id',
+                'm2s_pkt_error_agent_id': 'fub_error_agent_id',
             }
         else:
             optional_signal_map = {
-                'm2s_pkt_error_type': 'fub_error_type',
-                'm2s_pkt_error_id':   'fub_error_id',
-                'm2s_pkt_error_addr': 'fub_error_addr'
+                'm2s_pkt_error_type':     'fub_error_type',
+                'm2s_pkt_error_id':       'fub_error_id',
+                'm2s_pkt_error_addr':     'fub_error_addr',
+                'm2s_pkt_error_unit_id':  'fub_error_unit_id',
+                'm2s_pkt_error_agent_id': 'fub_error_agent_id',
             }
 
         # Create slave for error monitoring

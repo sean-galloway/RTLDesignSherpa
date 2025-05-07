@@ -10,7 +10,6 @@ import random
 from itertools import product
 import pytest
 import cocotb
-from cocotb.triggers import Timer
 
 from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.axi_errmon.axi_errmon_base_tb import AXIErrorMonitorTB
@@ -31,10 +30,6 @@ async def axi_errmon_base_test(dut):
         id_width=dut.ID_WIDTH.value,
         is_read=dut.IS_READ.value == 1,
         is_axi=dut.IS_AXI.value == 1,
-        timer_width=dut.TIMER_WIDTH.value,  # Added timer width parameter
-        timeout_addr=dut.TIMEOUT_ADDR.value,
-        timeout_data=dut.TIMEOUT_DATA.value,
-        timeout_resp=dut.TIMEOUT_RESP.value,
         error_fifo_depth=dut.ERROR_FIFO_DEPTH.value,
         addr_fifo_depth=dut.ADDR_FIFO_DEPTH.value,
         channels=dut.CHANNELS.value
@@ -59,10 +54,8 @@ def generate_params():
     # Initial parameter lists
     id_widths = [8]
     addr_widths = [32]
-    timer_widths = [16, 20]  # Added timer width options
     error_fifo_depths = [4]
     addr_fifo_depths = [4]
-    timeout_values = [100]
     is_read_options = [True, False]
     test_levels = ['basic', 'medium', 'full']
 
@@ -74,21 +67,22 @@ def generate_params():
         True: [1, 4, 16, 32],  # When is_axi is True
         False: [1]             # When is_axi is False
     }
-
+    channels_dict = {
+        True: [4],  # When is_axi is True
+        False: [1]             # When is_axi is False
+    }
     # For faster running tests, limit parameters
     if os.environ.get('QUICK_TEST', '0') == '1':
-        timer_widths = [16]
         test_levels = ['basic']
         channels_dict[True] = [1, 4]  # Only modify the True case
 
     # For debug-focused testing
     if os.environ.get('DEBUG_TEST', '0') == '1':
-        timer_widths = [20]
         test_levels = ['full']
         channels_dict[True] = [4]  # Only modify the True case
 
-    # is_read_options = [True, False]
-    # timer_widths = [16]  # Added timer width options
+    # is_read_options = [True]
+    # is_axi_options = [True]
     test_levels = ['full']
 
     result = []
@@ -101,22 +95,18 @@ def generate_params():
                 channels,
                 id_width,
                 addr_width,
-                timer_width,
                 error_fifo_depth,
                 addr_fifo_depth,
-                timeout,
                 is_read,
                 is_axi,
                 test_level,
             )
-            for channels, id_width, addr_width, timer_width, error_fifo_depth, addr_fifo_depth, timeout, is_read, test_level in product(
+            for channels, id_width, addr_width, error_fifo_depth, addr_fifo_depth, is_read, test_level in product(
                 channels_list,
                 id_widths,
                 addr_widths,
-                timer_widths,
                 error_fifo_depths,
                 addr_fifo_depths,
-                timeout_values,
                 is_read_options,
                 test_levels,
             )
@@ -127,11 +117,11 @@ def generate_params():
 params = generate_params()
 
 @pytest.mark.parametrize(
-    "channels, id_width, addr_width, timer_width, error_fifo_depth, addr_fifo_depth, timeout, is_read, is_axi, test_level",
+    "channels, id_width, addr_width, error_fifo_depth, addr_fifo_depth, is_read, is_axi, test_level",
     params
 )
-def test_axi_errmon_base(request, channels, id_width, addr_width, timer_width, error_fifo_depth,
-                            addr_fifo_depth, timeout, is_read, is_axi, test_level):
+def test_axi_errmon_base(request, channels, id_width, addr_width, error_fifo_depth,
+                            addr_fifo_depth, is_read, is_axi, test_level):
     """Main test function for AXI Error Monitor Base module"""
     # Get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths(
@@ -146,6 +136,8 @@ def test_axi_errmon_base(request, channels, id_width, addr_width, timer_width, e
     toplevel = dut_name
 
     verilog_sources = [
+        os.path.join(rtl_dict['rtl_cmn'], "counter_load_clear.sv"),
+        os.path.join(rtl_dict['rtl_cmn'], "counter_freq_invariant.sv"),
         os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
         os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
         os.path.join(rtl_dict['rtl_amba'], "gaxi_fifo_sync.sv"),
@@ -153,19 +145,16 @@ def test_axi_errmon_base(request, channels, id_width, addr_width, timer_width, e
     ]
 
     # Create a human-readable test identifier
-    timeout = timeout * (channels//2) if channels  > 4 else timeout
     ch_str = format(channels, '02d')
     id_str = format(id_width, '02d')
     addr_str = format(addr_width, '02d')
-    tw_str = format(timer_width, '02d')  # Added timer width to identifier
     efd_str = format(error_fifo_depth, '02d')
     afd_str = format(addr_fifo_depth, '02d')
-    to_str = format(timeout, '04d')
     rd_str = "R" if is_read else "W"
     axi_str = "AXI" if is_axi else "AXIL"
     test_type_str = f"{test_level}"
 
-    test_name_plus_params = f"test_{dut_name}_ch{ch_str}_id{id_str}_a{addr_str}_tw{tw_str}_efd{efd_str}_afd{afd_str}_to{to_str}_{rd_str}_{axi_str}_{test_type_str}"
+    test_name_plus_params = f"test_{dut_name}_ch{ch_str}_id{id_str}_a{addr_str}_efd{efd_str}_afd{afd_str}_{rd_str}_{axi_str}_{test_type_str}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Use it in the simbuild path
@@ -185,12 +174,8 @@ def test_axi_errmon_base(request, channels, id_width, addr_width, timer_width, e
         'CHANNELS': str(channels),
         'ID_WIDTH': str(id_width),
         'ADDR_WIDTH': str(addr_width),
-        'TIMER_WIDTH': str(timer_width),  # Added timer width parameter
         'ERROR_FIFO_DEPTH': str(error_fifo_depth),
         'ADDR_FIFO_DEPTH': str(addr_fifo_depth),
-        'TIMEOUT_ADDR': str(timeout),
-        'TIMEOUT_DATA': str(timeout),
-        'TIMEOUT_RESP': str(timeout),
         'IS_READ': '1' if is_read else '0',
         'IS_AXI': '1' if is_axi else '0',
     }
@@ -207,7 +192,6 @@ def test_axi_errmon_base(request, channels, id_width, addr_width, timer_width, e
         'TEST_TYPE': test_level,
         'IS_READ': '1' if is_read else '0',
         'IS_AXI': '1' if is_axi else '0',
-        'TIMER_WIDTH': str(timer_width),  # Added environment variable
     }
 
     compile_args = [

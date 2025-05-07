@@ -895,9 +895,9 @@ class AXIErrorMonBaseTest:
         self.tb.ready_ctrl.force_addr_ready_low(True)
 
         # Start address phase and hold valid high
-        self.dut.i_valid.value = 1
-        self.dut.i_addr.value = addr
-        self.dut.i_id.value = id_value
+        self.dut.i_addr_valid.value = 1
+        self.dut.i_addr_addr.value = addr
+        self.dut.i_addr_id.value = id_value
 
         # Wait several cycles to let timer start counting
         await self.tb.wait_clocks('aclk', 10)
@@ -938,7 +938,7 @@ class AXIErrorMonBaseTest:
             return False
 
         # Clean up
-        self.dut.i_valid.value = 0
+        self.dut.i_addr_valid.value = 0
         self.tb.ready_ctrl.force_addr_ready_low(False)
 
         self.log.info(f"Timer countdown test passed successfully{self.tb.get_time_ns_str()}")

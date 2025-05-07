@@ -14,6 +14,8 @@ from CocoTBFramework.components.axi4.axi4_seq_transaction import AXI4Transaction
 from CocoTBFramework.tbclasses.axi4.axi4_random_configs import RANDOMIZER_CONFIGS
 
 
+from CocoTBFramework.tbclasses.common.amba_cg_ctrl import AxiClockGateCtrl
+
 class AXI4MasterReadTB(TBBase):
     """
     Testbench for AXI4 Master Read module with split tracking and error monitoring
@@ -28,8 +30,6 @@ class AXI4MasterReadTB(TBBase):
                     channels=32,
                     skid_depth_ar=2,
                     skid_depth_r=4,
-                    timeout_ar=32,
-                    timeout_r=32,
                     error_fifo_depth=4,
                     split_fifo_depth=4):
         """
@@ -49,8 +49,51 @@ class AXI4MasterReadTB(TBBase):
         self.skid_depth_ar = skid_depth_ar
         self.skid_depth_r = skid_depth_r
         self.error_fifo_depth = error_fifo_depth
-        self.timeout_ar = timeout_ar
-        self.timeout_r = timeout_r
+
+        timeout_addr = 40
+        self.timeout_ar = timeout_addr
+        self.timeout_r  = timeout_addr * 4
+
+        # set the errmon delay configss
+        self.dut.i_cfg_freq_sel.value = 4
+        self.dut.i_cfg_addr_cnt.value = 1
+        self.dut.i_cfg_data_cnt.value = 4
+        self.dut.i_cfg_resp_cnt.value = 6
+
+        # Detect if this DUT has clock gating support
+        self.has_clock_gating = hasattr(dut, 'CG_IDLE_COUNT_WIDTH')
+        if self.has_clock_gating:
+            self.cg_idle_count_width = int(dut.CG_IDLE_COUNT_WIDTH.value)
+            self.max_idle_count = (1 << self.cg_idle_count_width) - 1
+            self.log.info(f"Clock gating detected with idle count width: {self.cg_idle_count_width}")
+
+            # Create the clock gating controller
+            self.cg_ctrl = AxiClockGateCtrl(
+                dut,
+                instance_path="i_amba_clock_gate_ctrl",  # Path to the instance
+                clock_signal_name="clk_in",              # Name of the clock signal
+                user_valid_signals=["i_user_valid"],     # User-side valid signals
+                axi_valid_signals=["i_axi_valid"]        # AXI-side valid signals
+            )
+
+            # Get block_ready signal from the right hierarchy
+            if hasattr(dut, 'i_axi_master_rd') and hasattr(dut.i_axi_master_rd, 'int_block_ready'):
+                self.block_ready = dut.i_axi_master_rd.int_block_ready
+                self.log.info("Using hierarchical path for int_block_ready signal")
+            else:
+                # Fallback to direct access
+                self.block_ready = None
+                self.log.warning("Could not find i_axi_master_rd.int_block_ready signal")
+        else:
+            self.log.info("DUT does not have clock gating support")
+
+            # For non-clock gating case, block_ready is directly accessible
+            if hasattr(dut, 'int_block_ready'):
+                self.block_ready = dut.int_block_ready
+                self.log.info("Using direct path for int_block_ready signal")
+            else:
+                self.block_ready = None
+                self.log.warning("Could not find int_block_ready signal")
 
         # Create memory model for AXI slave
         self.mem = MemoryModel(
@@ -82,6 +125,277 @@ class AXI4MasterReadTB(TBBase):
 
         # Log the configuration
         self._log_config()
+
+    # Add these new methods for clock gating control and testing
+
+    def has_cg_support(self):
+        """Check if the DUT has clock gating support"""
+        return self.has_clock_gating
+
+    async def configure_clock_gating(self, enable=True, idle_count=8):
+        """
+        Configure clock gating parameters
+
+        Args:
+            enable: True to enable clock gating, False to disable
+            idle_count: Number of idle cycles before clock gating activates (clamped to max)
+        """
+        if not self.has_clock_gating:
+            self.log.warning("Attempting to configure clock gating on a DUT without support")
+            return False
+
+        # Clamp idle count to the maximum supported by the hardware
+        if idle_count > self.max_idle_count:
+            self.log.warning(f"Idle count {idle_count} exceeds maximum {self.max_idle_count}, clamping")
+            idle_count = self.max_idle_count
+
+        self.log.info(f"Configuring clock gating: enable={enable}, idle_count={idle_count}")
+
+        # Use the AxiClockGateCtrl helper to configure the DUT
+        self.cg_ctrl.enable_clock_gating(enable)
+        self.cg_ctrl.set_idle_count(idle_count)
+
+        # Wait a few cycles for configuration to take effect
+        await self.wait_clocks('aclk', 5)
+
+        # Verify configuration was applied correctly
+        state = self.cg_ctrl.get_current_state()
+        self.log.info(f"Clock gating state after configuration: {state}")
+
+        # Return success if configuration was applied correctly
+        return state['enabled'] == enable and state['idle_count'] == idle_count
+
+    async def monitor_clock_gating(self, duration=500, units='ns'):
+        """
+        Monitor clock gating activity for a specified duration
+
+        Args:
+            duration: Duration to monitor
+            units: Time units for duration ('ns', 'us', etc.)
+
+        Returns:
+            Dict with activity statistics
+        """
+        if not self.has_clock_gating:
+            self.log.warning("Attempting to monitor clock gating on a DUT without support")
+            return {}
+
+        self.log.info(f"Monitoring clock gating activity for {duration} {units}")
+
+        # Use the AxiClockGateCtrl helper to monitor activity
+        stats = await self.cg_ctrl.monitor_activity(duration, units)
+
+        # Log the results
+        self.log.info("Activity monitoring complete:")
+        self.log.info(f"  Active cycles: {stats['active_cycles']} ({stats.get('active_percent', 0):.1f}%)")
+        self.log.info(f"  Gated cycles: {stats['gated_cycles']} ({stats.get('gated_percent', 0):.1f}%)")
+        self.log.info(f"  User active: {stats['user_active_cycles']} ({stats.get('user_active_percent', 0):.1f}%)")
+        self.log.info(f"  AXI active: {stats['axi_active_cycles']} ({stats.get('axi_active_percent', 0):.1f}%)")
+
+        return stats
+
+    async def verify_gating_after_inactivity(self, idle_count=None):
+        """
+        Verify that clock gating activates after the specified idle period
+
+        Args:
+            idle_count: Number of idle cycles to wait for gating (uses configured value if None)
+
+        Returns:
+            True if clock gating activated as expected
+        """
+        if not self.has_clock_gating:
+            self.log.warning("Attempting to verify clock gating on a DUT without support")
+            return False
+
+        # Get current idle count if not specified
+        if idle_count is None:
+            state = self.cg_ctrl.get_current_state()
+            idle_count = state['idle_count']
+
+        self.log.info(f"Verifying clock gating activates after {idle_count} idle cycles")
+
+        # Generate activity to wake up the clock
+        await self.perform_read(addr=0x1000, id_value=0)
+
+        # Wait a few cycles for the transaction to complete
+        await self.wait_clocks('aclk', 20)
+
+        # Wait for idle state
+        idle_reached = await self.cg_ctrl.wait_for_idle(timeout=1000, units='ns')
+        if not idle_reached:
+            self.log.error("Failed to reach idle state within timeout")
+            self.total_errors += 1
+            return False
+
+        self.log.info("Idle state reached, waiting for gating")
+
+        # Wait for gating to activate (add a margin to the idle count)
+        wait_cycles = idle_count + 10
+        for _ in range(wait_cycles):
+            # Check if gating is active
+            state = self.cg_ctrl.get_current_state()
+            if state['is_gated']:
+                self.log.info(f"Clock gating activated after waiting {_} cycles")
+                return True
+            await self.wait_clocks('aclk', 1)
+
+        # If we reached here, gating didn't activate in time
+        self.log.error(f"Clock gating did not activate after waiting {wait_cycles} cycles")
+        self.total_errors += 1
+        return False
+
+    async def verify_wakeup_from_gated(self):
+        """
+        Verify that the DUT wakes up from gated state when transaction arrives
+
+        Returns:
+            True if wakeup worked correctly
+        """
+        if not self.has_clock_gating:
+            self.log.warning("Attempting to verify wakeup on a DUT without support")
+            return False
+
+        self.log.info("Verifying wakeup from gated state")
+
+        # First ensure we're in gated state
+        # Generate activity then wait for it to gate
+        await self.perform_read(addr=0x2000, id_value=1)
+        await self.wait_clocks('aclk', 20)
+
+        # Wait for gating
+        gating_reached = await self.cg_ctrl.wait_for_gating(timeout=1000, units='ns')
+        if not gating_reached:
+            self.log.error("Failed to reach gated state within timeout")
+            self.total_errors += 1
+            return False
+
+        self.log.info("Gated state reached, sending wake-up transaction")
+
+        # Check if we're gated (should be)
+        state_before = self.cg_ctrl.get_current_state()
+        if not state_before['is_gated']:
+            self.log.error("Not in gated state before wake-up transaction")
+            self.total_errors += 1
+            return False
+
+        # Send a transaction to wake up the clock
+        result = await self.perform_read(addr=0x3000, id_value=2)
+
+        # Verify clock is no longer gated
+        state_after = self.cg_ctrl.get_current_state()
+        if state_after['is_gated']:
+            self.log.error("Still in gated state after wake-up transaction")
+            self.total_errors += 1
+            return False
+
+        self.log.info("Successfully woke up from gated state")
+
+        return await self.verify_read_data(result, 0x3000)
+
+    async def run_clock_gating_tests(self):
+        """
+        Run a series of tests to verify clock gating functionality
+
+        Returns:
+            True if all tests passed
+        """
+        if not self.has_clock_gating:
+            self.log.warning("Skipping clock gating tests on a DUT without support")
+            return True
+
+        self.log.info("=" * 80)
+        self.log.info("Running Clock Gating Tests")
+        self.log.info("=" * 80)
+
+        # Test 1: Basic functionality with clock gating disabled
+        self.log.info("Test 1: Basic functionality with clock gating disabled")
+        await self.configure_clock_gating(enable=False)
+        await self.perform_read(addr=0x100, id_value=0)
+        await self.perform_read(addr=0x200, id_value=1, burst_len=3)
+
+        # Monitor and verify no gating occurs
+        stats = await self.monitor_clock_gating(duration=300, units='ns')
+        if stats.get('gated_cycles', 0) > 0:
+            self.log.error("Detected gating cycles when clock gating is disabled")
+            self.total_errors += 1
+            test1_passed = False
+        else:
+            self.log.info("Test 1 passed: No gating when disabled")
+            test1_passed = True
+
+        # Test 2: Basic functionality with default idle count
+        self.log.info("Test 2: Basic functionality with default idle count")
+        await self.configure_clock_gating(enable=True, idle_count=8)
+
+        # Verify gating activates after inactivity
+        test2_passed = await self.verify_gating_after_inactivity()
+        if test2_passed:
+            self.log.info("Test 2 passed: Gating activates after default idle count")
+
+        # Test 3: Short idle count
+        self.log.info("Test 3: Short idle count")
+        short_idle = 2
+        await self.configure_clock_gating(enable=True, idle_count=short_idle)
+
+        # Verify gating activates after short inactivity
+        test3_passed = await self.verify_gating_after_inactivity(short_idle)
+        if test3_passed:
+            self.log.info("Test 3 passed: Gating activates after short idle count")
+
+        # Test 4: Long idle count
+        self.log.info("Test 4: Long idle count")
+        long_idle = min(16, self.max_idle_count)
+        await self.configure_clock_gating(enable=True, idle_count=long_idle)
+
+        # Verify gating activates after long inactivity
+        test4_passed = await self.verify_gating_after_inactivity(long_idle)
+        if test4_passed:
+            self.log.info("Test 4 passed: Gating activates after long idle count")
+
+        # Test 5: Wakeup from gated state
+        self.log.info("Test 5: Wakeup from gated state")
+        await self.configure_clock_gating(enable=True, idle_count=4)
+
+        # Verify wakeup works correctly
+        test5_passed = await self.verify_wakeup_from_gated()
+        if test5_passed:
+            self.log.info("Test 5 passed: Wakeup from gated state works correctly")
+
+        # Test 6: Monitor activity during transactions
+        self.log.info("Test 6: Monitor activity during transactions")
+        await self.configure_clock_gating(enable=True, idle_count=8)
+
+        # Start monitoring
+        monitor_task = cocotb.start_soon(self.monitor_clock_gating(duration=1000, units='ns'))
+
+        # Perform a series of transactions
+        for i in range(5):
+            addr = 0x4000 + (i * 0x100)
+            await self.perform_read(addr=addr, id_value=i)
+            # Add random delays between transactions
+            await self.wait_clocks('aclk', random.randint(3, 12))
+
+        # Wait for monitoring to complete
+        stats = await monitor_task
+
+        # Verify we saw both active and gated cycles
+        if stats.get('active_cycles', 0) > 0 and stats.get('gated_cycles', 0) > 0:
+            self.log.info("Test 6 passed: Detected both active and gated cycles")
+            test6_passed = True
+        else:
+            self.log.error("Test 6 failed: Did not detect expected activity pattern")
+            self.total_errors += 1
+            test6_passed = False
+
+        # Overall test result
+        all_passed = test1_passed and test2_passed and test3_passed and test4_passed and test5_passed and test6_passed
+
+        self.log.info("=" * 80)
+        self.log.info(f"Clock Gating Tests: {'PASSED' if all_passed else 'FAILED'}")
+        self.log.info("=" * 80)
+
+        return all_passed
 
     def _log_config(self):  # sourcery skip: class-extract-method
         """Log the testbench configuration"""
@@ -797,9 +1111,9 @@ class AXI4MasterReadTB(TBBase):
         self.log.info('='*80)
 
         # Configure AXI slave to introduce long delay on AR ready
-        ar_timeout = self.dut.TIMEOUT_AR.value
+        ar_timeout = self.timeout_ar
         slow_ar_ready_config = {
-            'ready_delay': ([[int(ar_timeout * 1.7), int(ar_timeout * 1.9)]], [1.0])
+            'ready_delay': ([[int(ar_timeout * 2.1), int(ar_timeout * 2.1)]], [1.0])
         }
         self.axi_slave.ar_slave.set_randomizer(FlexRandomizer(slow_ar_ready_config))
         self.axi_slave.r_master.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS['fixed']['write']))
@@ -862,9 +1176,9 @@ class AXI4MasterReadTB(TBBase):
         self.log.info('='*80)
 
         # Configure AXI slave to introduce long delay on R valid
-        r_timeout = self.dut.TIMEOUT_R.value
+        r_timeout = self.timeout_r
         slow_r_valid_config = {
-            'valid_delay': ([[int(r_timeout * 1.5), int(r_timeout * 1.8)]], [1.0])
+            'valid_delay': ([[int(r_timeout * 4.2), int(r_timeout * 4.2)]], [1.0])
         }
         self.axi_slave.r_master.set_randomizer(FlexRandomizer(slow_r_valid_config))
         self.axi_slave.ar_slave.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS['fixed']['read']))
@@ -1029,11 +1343,11 @@ class AXI4MasterReadTB(TBBase):
 
         # Register edge detector for int_block_ready
         async def monitor_block_ready():
-            previous = self.dut.int_block_ready.value
+            previous = self.block_ready.value
 
             while True:
-                await Edge(self.dut.int_block_ready)
-                current = self.dut.int_block_ready.value
+                await Edge(self.block_ready)
+                current = self.block_ready.value
 
                 if current and not previous:  # Rising edge
                     block_ready_assertions.append("asserted")
@@ -1083,14 +1397,14 @@ class AXI4MasterReadTB(TBBase):
             timeout = 0
             max_timeout = 100
             while self.fub_master.ar_master.transfer_busy and timeout < max_timeout:
-                if self.dut.int_block_ready.value:
+                if self.block_ready.value:
                     self.log.info(f"int_block_ready asserted during transaction {i+1}")
                     break
                 await self.wait_clocks('aclk', 1)
                 timeout += 1
 
             # If block_ready asserted, we've hit our goal
-            if self.dut.int_block_ready.value:
+            if self.block_ready.value:
                 self.log.info(f"int_block_ready asserted after {i+1} transactions")
                 break
 
@@ -1108,7 +1422,7 @@ class AXI4MasterReadTB(TBBase):
         # Wait for block_ready to deassert
         max_wait = 1000
         for _ in range(max_wait):
-            if not self.dut.int_block_ready.value:
+            if not self.block_ready.value:
                 break
             await self.wait_clocks('aclk', 1)
 

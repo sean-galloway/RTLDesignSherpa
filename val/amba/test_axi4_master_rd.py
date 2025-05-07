@@ -43,8 +43,6 @@ class AXI4MasterReadScenarioTB:
             user_width=int(dut.AXI_USER_WIDTH.value),
             channels=int(dut.CHANNELS.value),
             error_fifo_depth=int(dut.ERROR_FIFO_DEPTH),
-            timeout_ar=int(dut.TIMEOUT_AR),
-            timeout_r=int(dut.TIMEOUT_R),
             skid_depth_ar=int(dut.SKID_DEPTH_AR),
             skid_depth_r=int(dut.SKID_DEPTH_R),
             alignment_mask=0xFFF  # Start with 4K boundary
@@ -103,6 +101,18 @@ class AXI4MasterReadScenarioTB:
             await self.tb.wait_clocks('aclk', 5)
 
         return self.tb.get_test_result()
+
+    async def run_clock_gating_test(self):
+        """Run clock gating functionality tests"""
+        self.log.info("Running clock gating test")
+
+        # Check if DUT supports clock gating
+        if not self.tb.has_cg_support():
+            self.log.warning("DUT does not support clock gating, skipping test")
+            return True
+
+        # Run the comprehensive clock gating tests
+        return await self.tb.run_clock_gating_tests()
 
     async def run_split_test(self):
         """Run transaction splitting tests with different alignment masks"""
@@ -176,24 +186,32 @@ class AXI4MasterReadScenarioTB:
         await self.tb.reset_dut()
         await self.tb.start_components()
 
-        # Part 2: Transaction splitting
-        self.log.info("Part 2: Transaction splitting")
+        # Part 2: Clock Gating
+        self.log.info("Part 2: Clock Gating")
+        cg_result = await self.run_clock_gating_test()
+
+        # Reset before next test
+        await self.tb.reset_dut()
+        await self.tb.start_components()
+
+        # Part 3: Transaction splitting
+        self.log.info("Part 3: Transaction splitting")
         split_result = await self.run_split_test()
 
         # Reset before next test
         await self.tb.reset_dut()
         await self.tb.start_components()
 
-        # Part 3: Error detection
-        self.log.info("Part 3: Error detection")
+        # Part 4: Error detection
+        self.log.info("Part 4: Error detection")
         error_result = await self.run_error_test()
 
         # Reset before next test
         await self.tb.reset_dut()
         await self.tb.start_components()
 
-        # Part 4: Out-of-order response handling
-        self.log.info("Part 4: Out-of-order response handling")
+        # Part 5: Out-of-order response handling
+        self.log.info("Part 5: Out-of-order response handling")
 
         # Toggle to out-of-order responses
         await self.tb.configure_slave_response_order(inorder=False)
@@ -249,7 +267,7 @@ class AXI4MasterReadScenarioTB:
         random_result = self.tb.get_test_result()
 
         # Check all results
-        return basic_result and split_result and error_result and ooo_result and random_result
+        return basic_result and cg_result and split_result and error_result and ooo_result and random_result
 
     async def run_selected_test(self):
         """Run the selected test type"""
@@ -257,6 +275,8 @@ class AXI4MasterReadScenarioTB:
 
         if self.test_type == 'basic':
             return await self.run_basic_test()
+        elif self.test_type == 'clock_gating':
+            return await self.run_clock_gating_test()
         elif self.test_type == 'splits':
             return await self.run_split_test()
         elif self.test_type == 'error':
@@ -296,7 +316,7 @@ async def axi4_master_read_scenario_test(dut):
 def generate_params():
     """Generate test parameters"""
     clk_period_ns = [10]
-    use_cg = [False]
+    use_cg = [False, True]
     CG_IDLE_COUNT_WIDTH = [8]
     channels = [32]
     id_widths = [8]
@@ -305,10 +325,10 @@ def generate_params():
     user_widths = [1]
     skid_depths = [2, 4]
     fifo_depths = [4]
-    timeout_vals = [50]
-    test_types = ['basic', 'splits', 'error', 'full']
+    test_types = ['basic', 'clock_gating', 'splits', 'error', 'full']
 
-    data_widths = [64]
+    # use_cg = [False]
+    data_widths = [32]
     # skid_depths = [4]
     # test_types = ['error']
     test_types = ['full']
@@ -324,23 +344,22 @@ def generate_params():
         user_widths,
         skid_depths,
         fifo_depths,
-        timeout_vals,
         test_types
     ))
 
 params = generate_params()
 
 @pytest.mark.parametrize(
-    "clk_period_ns, use_cg, CG_IDLE_COUNT_WIDTH, channels, id_width, addr_width, data_width, user_width, skid_depth, fifo_depth, timeout_val, test_type",
+    "clk_period_ns, use_cg, CG_IDLE_COUNT_WIDTH, channels, id_width, addr_width, data_width, user_width, skid_depth, fifo_depth, test_type",
     params
 )
 def test_axi_master_read(request, clk_period_ns, use_cg, CG_IDLE_COUNT_WIDTH, channels, id_width, addr_width, data_width, user_width,
-                            skid_depth, fifo_depth, timeout_val, test_type):
+                            skid_depth, fifo_depth, test_type):
     """Main test function for AXI Master Read module"""
     # Get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths(
         {
-            'rtl_cmn': 'rtl/common',
+            'rtl_cmn':  'rtl/common',
             'rtl_amba': 'rtl/amba',
         }
     )
@@ -350,10 +369,9 @@ def test_axi_master_read(request, clk_period_ns, use_cg, CG_IDLE_COUNT_WIDTH, ch
     dut_name = f"axi_master_rd{post}"
     toplevel = dut_name
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_cmn'],  "icg.sv"),
-        os.path.join(rtl_dict['rtl_cmn'],  "clock_gate_ctrl.sv"),
-        os.path.join(rtl_dict['rtl_amba'], "amba_clock_gate_ctrl.sv"),
+    verilog_sources_pre = [
+        os.path.join(rtl_dict['rtl_cmn'],  "counter_load_clear.sv"),
+        os.path.join(rtl_dict['rtl_cmn'],  "counter_freq_invariant.sv"),
         os.path.join(rtl_dict['rtl_cmn'],  "counter_bin.sv"),
         os.path.join(rtl_dict['rtl_cmn'],  "fifo_control.sv"),
         os.path.join(rtl_dict['rtl_amba'], "gaxi_fifo_sync.sv"),
@@ -362,6 +380,18 @@ def test_axi_master_read(request, clk_period_ns, use_cg, CG_IDLE_COUNT_WIDTH, ch
         os.path.join(rtl_dict['rtl_amba'], "gaxi_skid_buffer.sv"),
         os.path.join(rtl_dict['rtl_amba'], f"{dut_name}.sv"),
     ]
+    verilog_sources_cg = [
+        os.path.join(rtl_dict['rtl_cmn'],  "icg.sv"),
+        os.path.join(rtl_dict['rtl_cmn'],  "clock_gate_ctrl.sv"),
+        os.path.join(rtl_dict['rtl_amba'], "amba_clock_gate_ctrl.sv"),
+        os.path.join(rtl_dict['rtl_amba'], "axi_master_rd.sv"),
+    ]
+
+    # sourcery skip: no-conditionals-in-tests
+    if use_cg:
+        verilog_sources = verilog_sources_pre + verilog_sources_cg
+    else:
+        verilog_sources = verilog_sources_pre
 
     # Create a human readable test identifier
     t_clk = clk_period_ns
@@ -372,10 +402,9 @@ def test_axi_master_read(request, clk_period_ns, use_cg, CG_IDLE_COUNT_WIDTH, ch
     user_str = format(user_width, '02d')
     skid_str = format(skid_depth, '02d')
     fifo_str = format(fifo_depth, '02d')
-    timeout_str = format(timeout_val, '04d')
     test_type_str = f"{test_type}"
 
-    test_name_plus_params = f"test_{dut_name}_ch{ch_str}_id{id_str}_a{addr_str}_d{data_str}_u{user_str}_s{skid_str}_f{fifo_str}_t{timeout_str}_{test_type_str}"
+    test_name_plus_params = f"test_{dut_name}_clk{t_clk}_ch{ch_str}_id{id_str}_a{addr_str}_d{data_str}_u{user_str}_s{skid_str}_f{fifo_str}_{test_type_str}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Use it in the simbuild path
@@ -391,6 +420,8 @@ def test_axi_master_read(request, clk_period_ns, use_cg, CG_IDLE_COUNT_WIDTH, ch
 
     # RTL parameters
     rtl_parameters = {
+        'UNIT_ID': str(99),
+        'AGENT_ID': str(99),
         'CHANNELS': str(channels),
         'AXI_ID_WIDTH': str(id_width),
         'AXI_ADDR_WIDTH': str(addr_width),
@@ -399,9 +430,7 @@ def test_axi_master_read(request, clk_period_ns, use_cg, CG_IDLE_COUNT_WIDTH, ch
         'SKID_DEPTH_AR': str(skid_depth),
         'SKID_DEPTH_R': str(skid_depth),
         'SPLIT_FIFO_DEPTH': str(fifo_depth),
-        'ERROR_FIFO_DEPTH': str(fifo_depth),
-        'TIMEOUT_AR': str(timeout_val),
-        'TIMEOUT_R': str(2*timeout_val),
+        'ERROR_FIFO_DEPTH': str(fifo_depth)
     }
 
     # sourcery skip: no-conditionals-in-tests

@@ -18,13 +18,14 @@ class AxiClockGateCtrl(TBBase):
     on both user and AXI interface sides.
     """
 
-    def __init__(self, dut, clock_gate_prefix="", user_valid_signals=None, axi_valid_signals=None):
+    def __init__(self, dut, instance_path="", clock_signal_name="clk_in", user_valid_signals=None, axi_valid_signals=None):
         """
         Initialize the AXI Clock Gate Controller.
 
         Args:
             dut: Device under test
-            clock_gate_prefix: Signal prefix for the clock gate control module
+            instance_path: Path to the clock gate controller instance (e.g., "i_amba_clock_gate_ctrl")
+            clock_signal_name: Name of the clock signal
             user_valid_signals: List of user-side valid signal names
             axi_valid_signals: List of AXI-side valid signal names
         """
@@ -32,7 +33,8 @@ class AxiClockGateCtrl(TBBase):
 
         # Store parameters
         self.dut = dut
-        self.prefix = clock_gate_prefix
+        self.instance_path = instance_path
+        self.clock_signal_name = clock_signal_name
 
         # Default empty lists if not provided
         self.user_valid_signals = user_valid_signals or []
@@ -55,19 +57,44 @@ class AxiClockGateCtrl(TBBase):
         """Register all signal paths for user and AXI valid signals."""
         # Process user valid signals
         for signal_name in self.user_valid_signals:
-            if hasattr(self.dut, signal_name):
-                self.user_valid_paths.append(getattr(self.dut, signal_name))
+            signal_path = f"{self.instance_path}.{signal_name}" if self.instance_path else signal_name
+            if signal := self._get_signal(signal_path):
+                self.user_valid_paths.append(signal)
             else:
-                self.log.warning(f"User valid signal not found: {signal_name}")
+                self.log.warning(f"User valid signal not found: {signal_path}")
 
         # Process AXI valid signals
         for signal_name in self.axi_valid_signals:
-            if hasattr(self.dut, signal_name):
-                self.axi_valid_paths.append(getattr(self.dut, signal_name))
+            signal_path = f"{self.instance_path}.{signal_name}" if self.instance_path else signal_name
+            if signal := self._get_signal(signal_path):
+                self.axi_valid_paths.append(signal)
             else:
-                self.log.warning(f"AXI valid signal not found: {signal_name}")
+                self.log.warning(f"AXI valid signal not found: {signal_path}")
 
         self.log.info(f"Registered {len(self.user_valid_paths)} user valid signals and {len(self.axi_valid_paths)} AXI valid signals")
+
+    def _get_signal(self, signal_path):
+        """
+        Helper to get a signal by hierarchical path.
+
+        Args:
+            signal_path: Path to the signal, can include dots for hierarchy
+
+        Returns:
+            Signal object or None if not found
+        """
+        # Handle hierarchical paths
+        parts = signal_path.split('.')
+        current = self.dut
+
+        for part in parts:
+            if hasattr(current, part):
+                current = getattr(current, part)
+            else:
+                self.log.warning(f"Signal part not found: {part} in path {signal_path}")
+                return None
+
+        return current
 
     def enable_clock_gating(self, enable=True):
         """
@@ -76,12 +103,14 @@ class AxiClockGateCtrl(TBBase):
         Args:
             enable: True to enable clock gating, False to disable
         """
-        if hasattr(self.dut, f"{self.prefix}i_cfg_cg_enable"):
-            getattr(self.dut, f"{self.prefix}i_cfg_cg_enable").value = 1 if enable else 0
+        # signal_path = f"{self.instance_path}.i_cfg_cg_enable" if self.instance_path else "i_cfg_cg_enable"
+        signal_path = "i_cfg_cg_enable"
+        if signal := self._get_signal(signal_path):
+            signal.value = 1 if enable else 0
             self.is_enabled = enable
             self.log.info(f"Clock gating {'enabled' if enable else 'disabled'}")
         else:
-            self.log.error(f"Clock gating enable signal not found: {self.prefix}i_cfg_cg_enable")
+            self.log.error(f"Clock gating enable signal not found: {signal_path}")
 
     def set_idle_count(self, count):
         """
@@ -90,12 +119,14 @@ class AxiClockGateCtrl(TBBase):
         Args:
             count: Number of idle cycles before clock gating is activated
         """
-        if hasattr(self.dut, f"{self.prefix}i_cfg_cg_idle_count"):
-            getattr(self.dut, f"{self.prefix}i_cfg_cg_idle_count").value = count
+        # signal_path = f"{self.instance_path}.i_cfg_cg_idle_count" if self.instance_path else "i_cfg_cg_idle_count"
+        signal_path = "i_cfg_cg_idle_count"
+        if signal := self._get_signal(signal_path):
+            signal.value = count
             self.idle_count = count
             self.log.info(f"Idle count set to {count}")
         else:
-            self.log.error(f"Idle count signal not found: {self.prefix}i_cfg_cg_idle_count")
+            self.log.error(f"Idle count signal not found: {signal_path}")
 
     async def monitor_activity(self, duration=1000, units='ns'):
         """
@@ -121,11 +152,19 @@ class AxiClockGateCtrl(TBBase):
         end_time = start_time + duration
 
         # Get clock signal
-        clock_signal = getattr(self.dut, f"{self.prefix}clk_in")
+        clock_signal_path = f"{self.instance_path}.{self.clock_signal_name}" if self.instance_path else self.clock_signal_name
+        clock_signal = self._get_signal(clock_signal_path)
+
+        if not clock_signal:
+            self.log.error(f"Clock signal not found: {clock_signal_path}")
+            return stats
 
         # Get gating and idle indicators if available
-        gating_signal = getattr(self.dut, f"{self.prefix}o_gating", None)
-        idle_signal = getattr(self.dut, f"{self.prefix}o_idle", None)
+        gating_signal_path = f"{self.instance_path}.o_gating" if self.instance_path else "o_gating"
+        gating_signal = self._get_signal(gating_signal_path)
+
+        idle_signal_path = f"{self.instance_path}.o_idle" if self.instance_path else "o_idle"
+        idle_signal = self._get_signal(idle_signal_path)
 
         while cocotb.utils.get_sim_time(units) < end_time:
             # Wait for clock edge
@@ -177,11 +216,17 @@ class AxiClockGateCtrl(TBBase):
             Dict with current state information
         """
         # Update gating and idle state from signals if available
-        if hasattr(self.dut, f"{self.prefix}o_gating"):
-            self.is_gated = bool(getattr(self.dut, f"{self.prefix}o_gating").value)
+        gating_signal_path = f"{self.instance_path}.o_gating" if self.instance_path else "o_gating"
+        gating_signal = self._get_signal(gating_signal_path)
 
-        if hasattr(self.dut, f"{self.prefix}o_idle"):
-            self.is_idle = bool(getattr(self.dut, f"{self.prefix}o_idle").value)
+        idle_signal_path = f"{self.instance_path}.o_idle" if self.instance_path else "o_idle"
+        idle_signal = self._get_signal(idle_signal_path)
+
+        if gating_signal:
+            self.is_gated = bool(gating_signal.value)
+
+        if idle_signal:
+            self.is_idle = bool(idle_signal.value)
 
         return {
             'enabled': self.is_enabled,
@@ -233,12 +278,16 @@ class AxiClockGateCtrl(TBBase):
         end_time = start_time + timeout
 
         # Get idle signal
-        if not hasattr(self.dut, f"{self.prefix}o_idle"):
-            self.log.error(f"Idle signal not found: {self.prefix}o_idle")
+        idle_signal_path = f"{self.instance_path}.o_idle" if self.instance_path else "o_idle"
+        idle_signal = self._get_signal(idle_signal_path)
+
+        if not idle_signal:
+            self.log.error(f"Idle signal not found: {idle_signal_path}")
             return False
 
-        idle_signal = getattr(self.dut, f"{self.prefix}o_idle")
-        clock_signal = getattr(self.dut, f"{self.prefix}clk_in")
+        # Get clock signal for waiting
+        clock_signal_path = f"{self.instance_path}.{self.clock_signal_name}" if self.instance_path else self.clock_signal_name
+        clock_signal = self._get_signal(clock_signal_path)
 
         while cocotb.utils.get_sim_time(units) < end_time:
             # Check if already idle
@@ -268,12 +317,16 @@ class AxiClockGateCtrl(TBBase):
         end_time = start_time + timeout
 
         # Get gating signal
-        if not hasattr(self.dut, f"{self.prefix}o_gating"):
-            self.log.error(f"Gating signal not found: {self.prefix}o_gating")
+        gating_signal_path = f"{self.instance_path}.o_gating" if self.instance_path else "o_gating"
+        gating_signal = self._get_signal(gating_signal_path)
+
+        if not gating_signal:
+            self.log.error(f"Gating signal not found: {gating_signal_path}")
             return False
 
-        gating_signal = getattr(self.dut, f"{self.prefix}o_gating")
-        clock_signal = getattr(self.dut, f"{self.prefix}clk_in")
+        # Get clock signal for waiting
+        clock_signal_path = f"{self.instance_path}.{self.clock_signal_name}" if self.instance_path else self.clock_signal_name
+        clock_signal = self._get_signal(clock_signal_path)
 
         while cocotb.utils.get_sim_time(units) < end_time:
             # Check if already gated
@@ -287,7 +340,6 @@ class AxiClockGateCtrl(TBBase):
 
         self.log.warning(f"Timeout waiting for gated state ({timeout} {units})")
         return False
-
 
 # # Create with multiple valid signals from both sides
 # clock_gate = AxiClockGateCtrl(

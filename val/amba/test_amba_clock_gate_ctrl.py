@@ -78,7 +78,8 @@ class AmbaClockGateCtrlTB(TBBase):
         # Create the AXI Clock Gate Controller testbench class
         self.cg_ctrl = AxiClockGateCtrl(
             dut,
-            clock_gate_prefix="",  # No prefix in this case
+            instance_path="",  # No instance path in this case (top level)
+            clock_signal_name="clk_in",
             user_valid_signals=["i_user_valid"],
             axi_valid_signals=["i_axi_valid"]
         )
@@ -179,16 +180,16 @@ class AmbaClockGateCtrlTB(TBBase):
         # Drive the pattern
         for i, value in enumerate(valid_pattern):
             self.log.debug(f"Cycle {i}: Setting {valid_type} valid to {value}")
-            if valid_type == 'user' or valid_type == 'both':
+            if valid_type in ['user', 'both']:
                 self.i_user_valid.value = value
-            if valid_type == 'axi' or valid_type == 'both':
+            if valid_type in ['axi', 'both']:
                 self.i_axi_valid.value = value
             await RisingEdge(self.clk_in)
 
         # Clear the valid signals
-        if valid_type == 'user' or valid_type == 'both':
+        if valid_type in ['user', 'both']:
             self.i_user_valid.value = 0
-        if valid_type == 'axi' or valid_type == 'both':
+        if valid_type in ['axi', 'both']:
             self.i_axi_valid.value = 0
 
         # Wait for a reasonable time to observe gating

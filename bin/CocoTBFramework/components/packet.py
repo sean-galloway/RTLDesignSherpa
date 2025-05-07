@@ -26,6 +26,9 @@ class _FieldCache:
 
         # Field format cache: (field_config_id, field_name) -> format_function
         self.field_formatters = {}
+        
+        # Field encoding cache: (field_config_id, field_name) -> encoding_dict
+        self.field_encodings = {}
 
         # Statistics
         self.hits = 0
@@ -126,6 +129,27 @@ class _FieldCache:
         # Store in cache
         self.field_formatters[cache_key] = formatter
         return formatter
+        
+    def get_encoding(self, field_config: FieldConfig, field_name: str) -> Optional[Dict[int, str]]:
+        """Get encoding dictionary for a field (cached)"""
+        cache_key = (id(field_config), field_name)
+        
+        if cache_key in self.field_encodings:
+            self.hits += 1
+            return self.field_encodings[cache_key]
+            
+        # Cache miss, get encoding
+        self.misses += 1
+        if not field_config.has_field(field_name):
+            # No encoding if field not found
+            encoding = None
+        else:
+            field_def = field_config.get_field(field_name)
+            encoding = field_def.encoding if hasattr(field_def, 'encoding') else None
+            
+        # Store in cache
+        self.field_encodings[cache_key] = encoding
+        return encoding
 
     def clear(self):
         """Clear all caches"""
@@ -133,6 +157,7 @@ class _FieldCache:
         self.field_bits.clear()
         self.field_active_bits.clear()
         self.field_formatters.clear()
+        self.field_encodings.clear()
         self.hits = 0
         self.misses = 0
 
@@ -149,7 +174,8 @@ class _FieldCache:
                 'masks': len(self.field_masks),
                 'bits': len(self.field_bits),
                 'active_bits': len(self.field_active_bits),
-                'formatters': len(self.field_formatters)
+                'formatters': len(self.field_formatters),
+                'encodings': len(self.field_encodings)
             }
         }
 
@@ -396,10 +422,25 @@ class Packet:
             Total number of bits across all fields
         """
         return self.field_config.get_total_bits()
+        
+    def _get_basic_format(self, field_name, value):
+        """
+        Get the basic formatted value without encoding.
+        
+        Args:
+            field_name: Name of the field
+            value: Value to format
+            
+        Returns:
+            Basic formatted string representation of the value
+        """
+        formatter = _FIELD_CACHE.get_formatter(self.field_config, field_name)
+        return formatter(value)
 
     def _format_field(self, field_name, value):
         """
         Format a field value according to its configuration.
+        If an encoding is defined for the field, use the state name.
 
         Uses caching for better performance.
 
@@ -416,10 +457,19 @@ class Packet:
         # Check for undefined values
         if value == -1:
             return "X/Z"  # Indicate undefined value
-
-        # Get formatter from cache
-        formatter = _FIELD_CACHE.get_formatter(self.field_config, field_name)
-        formatted = formatter(value)
+            
+        # Check if field has encoding
+        encoding = _FIELD_CACHE.get_encoding(self.field_config, field_name)
+        
+        if encoding and value in encoding:
+            # Use the encoded state name with raw value in parentheses
+            state_name = encoding[value]
+            raw_format = self._get_basic_format(field_name, value)
+            formatted = f"{state_name} ({raw_format})"
+        else:
+            # Use the normal formatting
+            formatter = _FIELD_CACHE.get_formatter(self.field_config, field_name)
+            formatted = formatter(value)
 
         # Include active bit range in display if not the full field
         active_bits = _FIELD_CACHE.get_active_bits(self.field_config, field_name)

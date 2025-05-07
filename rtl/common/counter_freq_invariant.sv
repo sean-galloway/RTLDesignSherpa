@@ -2,10 +2,12 @@
 
 module counter_freq_invariant
 #(
-    parameter int COUNTER_WIDTH = 5      // Width of the output counter
+    parameter int COUNTER_WIDTH = 5,      // Width of the output counter
+    parameter int PRESCALER_MAX = 65536   // Maximum value of the pre-scaler
 ) (
     input  logic                        i_clk,         // Input clock
     input  logic                        i_rst_n,       // Active low reset
+    input  logic                        i_sync_reset_n,// Synchronous reset signal
     input  logic [3:0]                  i_freq_sel,    // Frequency selection (configurable)
     output logic [COUNTER_WIDTH-1:0]    o_counter,     // 5-bit output counter
     output logic                        o_tick         // Pulse every time counter increments
@@ -16,7 +18,7 @@ module counter_freq_invariant
 
     // Frequency selection change detection
     logic [3:0] r_prev_freq_sel;        // Previous frequency selection
-    logic       r_clear_pulse;     // Indicates frequency selection changed
+    logic       r_clear_pulse;          // Indicates frequency selection changed
 
     // Internal counters
     logic w_prescaler_done;
@@ -54,21 +56,20 @@ module counter_freq_invariant
             r_prev_freq_sel <= i_freq_sel;
 
             // Pulse w_freq_sel_changed for one cycle when i_freq_sel changes
-            r_clear_pulse <= (i_freq_sel != r_prev_freq_sel);
+            r_clear_pulse <= (i_freq_sel != r_prev_freq_sel) || !i_sync_reset_n;
         end
     end
 
     // Prescaler counter using the provided counter_load_clear
-    // FIX: Use 32-bit parameter value instead of 16-bit value
     counter_load_clear #(
-        .MAX(32'd65535)  // Max value for the prescaler - fixed to 32-bit
+        .MAX(PRESCALER_MAX)
     ) prescaler_counter (
         .i_clk(i_clk),
         .i_rst_n(i_rst_n),
         .i_clear(r_clear_pulse),         // Clear the prescaler when frequency selection changes
         .i_increment(1'b1),              // Always increment
         .i_load(1'b1),                   // Always have a valid load value
-        .i_loadval(w_division_factor-1), // Load the division factor (minus 1)
+        .i_loadval(w_division_factor[$clog2(PRESCALER_MAX)-1:0] - 1'b1),
         .o_count(),
         .ow_done(w_prescaler_done)
     );

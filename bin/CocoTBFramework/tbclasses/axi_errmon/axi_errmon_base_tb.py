@@ -62,10 +62,6 @@ class AXIErrorMonitorTB(TBBase):
                     id_width=8,
                     is_read=True,
                     is_axi=True,
-                    timer_width=20,          # Added parameter for timer width
-                    timeout_addr=1000,
-                    timeout_data=1000,
-                    timeout_resp=1000,
                     error_fifo_depth=4,
                     addr_fifo_depth=4,
                     channels=1):
@@ -77,16 +73,22 @@ class AXIErrorMonitorTB(TBBase):
         self.id_width = id_width
         self.is_read = is_read
         self.is_axi = is_axi
-        self.timer_width = timer_width    # Store timer width
+        timeout_addr = 40
         self.timeout_addr = timeout_addr
-        self.timeout_data = timeout_data
-        self.timeout_resp = timeout_resp
+        self.timeout_data = timeout_addr * 4
+        self.timeout_resp = timeout_addr * 6
         self.error_fifo_depth = error_fifo_depth
         self.addr_fifo_depth = addr_fifo_depth
         self.channels = channels
 
+        # set the errmon delay configss
+        self.dut.i_cfg_freq_sel.value = 4
+        self.dut.i_cfg_addr_cnt.value = 1
+        self.dut.i_cfg_data_cnt.value = 5
+        self.dut.i_cfg_resp_cnt.value = 6
+
         # Compute maximum timer values
-        self.max_timer_value = (1 << timer_width) - 1  # Max value based on timer width
+        self.max_timer_value = 16384
 
         # Constants for error types (must match RTL definitions)
         self.ERROR_ADDR_TIMEOUT = 0x1  # Address timeout
@@ -208,12 +210,18 @@ class AXIErrorMonitorTB(TBBase):
         field_config = FieldConfig()
         field_config.add_field(FieldDefinition(
             name="error_type",
-            bits=4,
+            bits=8,
             default=0,
             format="hex",
             display_width=1,
             description="Error type"
         ))
+        field_config.set_encoding("error_type", {
+            1: "AddrTO",   # Address timeout  (0b00000001)
+            2: "DataTO",   # Data timeout     (0b00000010)
+            4: "RespTO",   # Response timeout (0b00000100)
+            8: "RespErr"   # Response error   (0b00001000)
+        })
         field_config.add_field(FieldDefinition(
             name="error_id",
             bits=self.id_width,
@@ -230,6 +238,22 @@ class AXIErrorMonitorTB(TBBase):
             display_width=8,
             description="Error address"
         ))
+        field_config.add_field(FieldDefinition(
+            name="error_unit_id",
+            bits=self.addr_width,
+            default=0,
+            format="hex",
+            display_width=2,
+            description="Error Unit ID"
+        ))
+        field_config.add_field(FieldDefinition(
+            name="error_agent_id",
+            bits=self.addr_width,
+            default=0,
+            format="hex",
+            display_width=2,
+            description="Error Agent ID"
+        ))
         return field_config
 
     def _init_gaxi_components(self):
@@ -241,12 +265,12 @@ class AXIErrorMonitorTB(TBBase):
             multi_sig=True,
             timeout_cycles=10000,
             signal_map={
-                'm2s_valid': 'i_valid',
-                's2m_ready': 'i_ready'
+                'm2s_valid': 'i_addr_valid',
+                's2m_ready': 'i_addr_ready'
             },
             optional_signal_map={
-                'm2s_pkt_addr': 'i_addr',
-                'm2s_pkt_id': 'i_id'
+                'm2s_pkt_addr': 'i_addr_addr',
+                'm2s_pkt_id': 'i_addr_id'
             },
             log=self.log,
             randomizer=FlexRandomizer(self.master_randomizer_configs['fixed'])
@@ -306,9 +330,11 @@ class AXIErrorMonitorTB(TBBase):
                 's2m_ready': 'i_error_ready'
             },
             optional_signal_map={
-                'm2s_pkt_error_type': 'o_error_type',
-                'm2s_pkt_error_id': 'o_error_id',
-                'm2s_pkt_error_addr': 'o_error_addr'
+                'm2s_pkt_error_type':     'o_error_type',
+                'm2s_pkt_error_id':       'o_error_id',
+                'm2s_pkt_error_addr':     'o_error_addr',
+                'm2s_pkt_error_unit_id':  'o_error_unit_id',
+                'm2s_pkt_error_agent_id': 'o_error_agent_id',
             },
             log=self.log,
             randomizer=FlexRandomizer(self.randomizer_configs['fixed'])
@@ -321,12 +347,12 @@ class AXIErrorMonitorTB(TBBase):
             is_slave=False,
             multi_sig=True,
             signal_map={
-                'm2s_valid': 'i_valid',
-                's2m_ready': 'i_ready'
+                'm2s_valid': 'i_addr_valid',
+                's2m_ready': 'i_addr_ready'
             },
             optional_signal_map={
-                'm2s_pkt_addr': 'i_addr',
-                'm2s_pkt_id': 'i_id'
+                'm2s_pkt_addr': 'i_addr_addr',
+                'm2s_pkt_id': 'i_addr_id'
             },
             log=self.log
         )
@@ -412,7 +438,6 @@ class AXIErrorMonitorTB(TBBase):
         self.log.info(f"{'-' * 80}")
         self.log.info(f"Address Width:     {self.addr_width}")
         self.log.info(f"ID Width:          {self.id_width}")
-        self.log.info(f"Timer Width:       {self.timer_width}")
         self.log.info(f"Channels:          {self.channels}")
         self.log.info(f"Mode:              {'Read' if self.is_read else 'Write'}")
         self.log.info(f"Interface:         {'AXI' if self.is_axi else 'AXI-Lite'}")

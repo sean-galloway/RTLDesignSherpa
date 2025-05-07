@@ -2,12 +2,13 @@
 
 ## Overview
 
-The `Packet` class provides a generic and extensible foundation for handling protocol transactions in verification environments. It uses the `FieldConfig` class to define its structure and offers advanced features like field masking, bit shifting for FIFO interfaces, and caching optimizations for performance.
+The `Packet` class provides a generic and extensible foundation for handling protocol transactions in verification environments. It uses the `FieldConfig` class to define its structure and offers advanced features like field masking, bit shifting for FIFO interfaces, caching optimizations for performance, and support for field encoding to display human-readable state names.
 
 ## Features
 
 - Generic packet representation for any protocol
 - Field-based structure with automatic masking to prevent overflow
+- Support for field encoding to display human-readable state names
 - Support for FIFO-style bit field transformations
 - High-performance implementation with caching optimizations
 - Rich formatting and display capabilities
@@ -47,6 +48,8 @@ def __init__(self, field_config: Union[FieldConfig, Dict[str, Dict[str, Any]]],
 - `pack_for_fifo()`: Pack the packet into a dictionary for FIFO transmission
 - `unpack_from_fifo(fifo_data)`: Unpack FIFO data into full field values
 - `get_total_bits()`: Calculate the total number of bits in the packet
+- `_format_field(field_name, value)`: Format a field value according to its configuration
+- `_get_basic_format(field_name, value)`: Get basic formatted value without encoding
 - `formatted(compact=False, show_fifo=False)`: Return a formatted string representation
 - `copy()`: Create a copy of this packet
 
@@ -82,6 +85,37 @@ packet.data = 0x98765432
 
 # Print the packet
 print(packet)
+```
+
+### Using Field Encoding
+
+```python
+from CocoTBFramework.components.packet import Packet
+from CocoTBFramework.components.field_config import FieldConfig, FieldDefinition
+
+# Create a field config with a state field
+field_config = FieldConfig()
+field_config.add_field(FieldDefinition(
+    name="state", 
+    bits=2, 
+    format="bin",
+    description="State Machine Status"
+))
+
+# Set an encoding for the state field
+field_config.set_encoding("state", {
+    0: "IDLE",
+    1: "BUSY", 
+    2: "ERROR",
+    3: "COMPLETE"
+})
+
+# Create a packet with the state field
+packet = Packet(field_config, state=2)
+print(packet)
+# Output:
+# Packet:
+#   State Machine Status: ERROR (0b10)
 ```
 
 ### Working with FIFO Interfaces
@@ -121,6 +155,50 @@ print(f"FIFO data: {fifo_data}")
 new_packet = Packet(config)
 new_packet.unpack_from_fifo(fifo_data)
 print(f"Reconstructed packet: {new_packet}")
+```
+
+### Error Type Encoding
+
+```python
+# Create a field config for an error reporting packet
+field_config = FieldConfig()
+field_config.add_field(FieldDefinition(
+    name="error_type",
+    bits=8,
+    default=0,
+    format="hex",
+    display_width=1,
+    description="Error type"
+))
+field_config.add_field(FieldDefinition(
+    name="error_id",
+    bits=8,
+    format="hex",
+    description="ID associated with error"
+))
+field_config.add_field(FieldDefinition(
+    name="error_addr",
+    bits=32,
+    format="hex",
+    description="Address associated with error"
+))
+
+# Set an encoding for the error_type field
+field_config.set_encoding("error_type", {
+    1: "AddrTO",   # Address timeout
+    2: "DataTO",   # Data timeout
+    4: "RespTO",   # Response timeout 
+    8: "RespErr"   # Response error
+})
+
+# Create a packet with an error
+packet = Packet(field_config, error_type=2, error_id=0x1A, error_addr=0x12345000)
+print(packet)
+# Output:
+# Packet:
+#   Error type: DataTO (0x02)
+#   ID associated with error: 0x1A
+#   Address associated with error: 0x12345000
 ```
 
 ### Packet Comparison
@@ -218,7 +296,7 @@ print(packet.formatted(compact=True, show_fifo=True))
 ## Performance Considerations
 
 - Uses caching for repeatedly accessed field information
-- Field masks and formatters are cached for better performance
+- Field masks, formatters, and encodings are cached for better performance
 - Attribute access is optimized to reduce overhead
 - Suitable for high-performance verification environments with many transactions
 
@@ -227,6 +305,7 @@ print(packet.formatted(compact=True, show_fifo=True))
 - The `Packet` class provides a foundation for protocol-specific packet classes
 - For most protocols, you can use this generic class without subclassing
 - Field configuration can be defined once and reused across many packets
+- Field encodings make debug output more readable by showing state names instead of raw values
 - Performance optimizations are important for large verification environments
 
 ## See Also

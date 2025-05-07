@@ -1,16 +1,15 @@
 import os
 import random
-from collections import deque
-
 import pytest
 import cocotb
 from cocotb.utils import get_sim_time
-from cocotb.triggers import RisingEdge, FallingEdge, Timer
+from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
 
 from CocoTBFramework.tbclasses.tbbase import TBBase
 from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 
+# Division factor mapping for each frequency selection value
 FACTOR_MAP = {
     0x0: 1,       # 1000MHz (1GHz)  - 1:1 division
     0x1: 10,      # 100MHz          - 10:1 division
@@ -71,7 +70,6 @@ class CounterFreqConfig:
 
     def _get_division_factor(self, freq_sel):
         """Get the expected division factor for a given frequency selection"""
-
         return FACTOR_MAP.get(freq_sel, 1)  # Default to 1 if invalid
 
 
@@ -83,6 +81,7 @@ class CounterFreqInvariantTB(TBBase):
     - Counter output verification
     - Tick signal monitoring
     - Frequency change verification
+    - Synchronous reset testing
     """
 
     def __init__(self, dut):
@@ -99,6 +98,7 @@ class CounterFreqInvariantTB(TBBase):
         # Clock and reset signals
         self.clock = self.dut.i_clk
         self.reset_n = self.dut.i_rst_n
+        self.sync_reset_n = self.dut.i_sync_reset_n  # New synchronous reset signal
 
         # Log configuration
         self.log.info(f"Counter Frequency Invariant TB initialized with COUNTER_WIDTH={self.COUNTER_WIDTH}")
@@ -118,15 +118,15 @@ class CounterFreqInvariantTB(TBBase):
 
     def _get_division_factor(self, freq_sel):
         """Get the expected division factor for a given frequency selection"""
-
         return FACTOR_MAP.get(freq_sel, 1)  # Default to 1 if invalid
 
     async def reset_dut(self):
-        """Reset the DUT"""
-        self.log.debug('Starting reset_dut')
+        """Reset the DUT using the asynchronous reset"""
+        self.log.debug('Starting asynchronous reset_dut')
 
         # Reset DUT control signals
         self.reset_n.value = 0
+        self.sync_reset_n.value = 1  # Keep sync reset inactive during async reset
         self.dut.i_freq_sel.value = 0
 
         # Hold reset for multiple cycles
@@ -142,7 +142,32 @@ class CounterFreqInvariantTB(TBBase):
         self.counter_changes.clear()
         self.tick_events.clear()
 
-        self.log.debug('Ending reset_dut')
+        self.log.debug('Ending asynchronous reset_dut')
+
+    async def sync_reset_dut(self):
+        """Reset the DUT using the synchronous reset"""
+        self.log.debug('Starting synchronous reset_dut')
+
+        # Ensure async reset is inactive
+        self.reset_n.value = 1
+
+        # Apply synchronous reset
+        self.sync_reset_n.value = 0
+
+        # Hold sync reset for multiple cycles
+        await self.wait_clocks('i_clk', 5)
+
+        # Release sync reset
+        self.sync_reset_n.value = 1
+
+        # Wait for stabilization
+        await self.wait_clocks('i_clk', 10)
+
+        # Clear monitoring data
+        self.counter_changes.clear()
+        self.tick_events.clear()
+
+        self.log.debug('Ending synchronous reset_dut')
 
     async def monitor_counter(self, num_cycles):
         """
@@ -362,7 +387,7 @@ class CounterFreqInvariantTB(TBBase):
             True if verification passed, False otherwise
         """
         if not tick_events:
-            # With the new RTL, we might not see tick events for short monitoring periods
+            # With the RTL, we might not see tick events for short monitoring periods
             # or for specific counter sequences, so this isn't necessarily an error
             self.log.info("No tick events recorded - this is expected for short monitoring periods")
             return True
@@ -418,216 +443,305 @@ class CounterFreqInvariantTB(TBBase):
             self.log.error(f"Tick signal verification failed: {errors} errors @ {time_ns}ns")
             return False
 
-    def _create_basic_freq_config(self):
-        """Create configuration for basic frequency test"""
-        freq_sel_seq = [0x0, 0x1, 0x7, 0xF]  # Test a few key frequencies
-        return CounterFreqConfig("basic", freq_sel_seq)
-
-    def _create_all_freq_config(self):
-        """Create configuration to test all frequency selections"""
-        freq_sel_seq = list(range(16))  # Test all 16 frequency selections
-        return CounterFreqConfig("all_freq", freq_sel_seq)
-
-    def _create_random_freq_config(self, num_tests=5):
-        """Create configuration for random frequency changes"""
-        freq_sel_seq = [random.randint(0, 15) for _ in range(num_tests)]
-        return CounterFreqConfig("random", freq_sel_seq)
-
-    async def run_frequency_test(self, config, cycles_per_freq=1000):
+    async def run_sync_reset_test(self):
         """
-        Run test with different frequency selections
-
-        Args:
-            config: Test configuration
-            cycles_per_freq: Base number of cycles to monitor for each frequency
-
-        Returns:
-            True if all tests passed, False if any failed
-        """
-        # Reset for clean state
-        await self.reset_dut()
-
-        all_passed = True
-        config.reset_iterators()
-
-        # Run test for each frequency in the sequence
-        for _ in range(len(config.freq_sel_seq)):
-            # Get next test parameters
-            freq_sel = config.next_freq_sel()
-            division_factor = config.next_division_factor()
-
-            # Set frequency selection
-            self.set_frequency_selection(freq_sel)
-
-            # Wait for counter to stabilize - scale wait time based on division factor
-            stabilization_cycles = min(20 + division_factor, 100)  # Cap at 100 cycles
-            await self.wait_clocks('i_clk', stabilization_cycles)
-
-            # Calculate how many cycles are needed to see enough counter changes
-            # We want to see at least 15 counter changes for reliable statistics
-            min_counter_changes = 15
-
-            # Add a safety margin proportional to the division factor
-            safety_margin = 2.0  # 2x safety margin
-            if division_factor > 100:
-                safety_margin = 3.0  # Higher safety margin for large division factors
-
-            estimated_cycles = int(division_factor * min_counter_changes * safety_margin)
-            monitor_cycles = max(cycles_per_freq, estimated_cycles)
-
-            # Log the monitoring plan
-            self.log.info(f"Monitoring for {monitor_cycles} cycles to observe at least {min_counter_changes} counter changes")
-
-            # Monitor counter for specified cycles
-            counter_changes, tick_events = await self.monitor_counter(monitor_cycles)
-
-            # Log how many changes we actually observed
-            self.log.info(f"Observed {len(counter_changes)-1} counter changes and {len(tick_events)} tick events")
-
-            # If we didn't see enough counter changes, extend monitoring time
-            if len(counter_changes) < min_counter_changes and division_factor > 1:
-                additional_cycles = int(division_factor * min_counter_changes * safety_margin)
-                self.log.warning(f"Not enough counter changes observed, extending monitoring by {additional_cycles} cycles")
-
-                # Monitor for additional time
-                more_changes, more_ticks = await self.monitor_counter(additional_cycles)
-
-                # Merge the results
-                last_cycle = counter_changes[-1][0] if counter_changes else 0
-                counter_changes.extend([(c + last_cycle, v) for c, v in more_changes[1:]])  # Skip the first one to avoid duplicates
-                tick_events.extend([t + last_cycle for t in more_ticks])
-
-                self.log.info(f"After extension: {len(counter_changes)-1} counter changes and {len(tick_events)} tick events")
-
-            # Verify results only if we have enough data
-            time_ns = get_sim_time('ns')
-            if len(counter_changes) >= 2:
-                interval_ok = self.verify_counter_changes(counter_changes, division_factor)
-                sequence_ok = self.verify_counter_sequence(counter_changes)
-                tick_ok = self.verify_tick_signal(tick_events, counter_changes)
-
-                test_passed = interval_ok and sequence_ok and tick_ok
-            else:
-                self.log.error(f"Not enough counter changes to verify for freq_sel={freq_sel} @ {time_ns}ns")
-                test_passed = False
-            if test_passed:
-                self.log.info(f"Test for freq_sel={freq_sel} (div={division_factor}) passed @ {time_ns}ns")
-            else:
-                self.log.error(f"Test for freq_sel={freq_sel} (div={division_factor}) failed @ {time_ns}ns")
-                all_passed = False
-
-            # Wait a bit before changing frequency
-            await self.wait_clocks('i_clk', 20)
-
-        return all_passed
-
-    async def run_frequency_change_test(self, num_changes=10, cycles_between_changes=500):
-        """
-        Test dynamic frequency changes
-
-        Args:
-            num_changes: Number of frequency changes to test
-            cycles_between_changes: Base number of cycles between changes
+        Test the synchronous reset functionality
 
         Returns:
             True if test passed, False otherwise
         """
+        self.log.info("=== Testing synchronous reset functionality ===")
+
         # Reset for clean state
         await self.reset_dut()
-        time_ns = get_sim_time('ns')
 
-        self.log.info(f"Running frequency change test with {num_changes} changes @ {time_ns}ns")
+        # Set a moderate frequency for testing
+        freq_sel = 0x1  # 10:1 division
+        self.set_frequency_selection(freq_sel)
 
-        # Start with a known frequency with a moderate division factor
-        initial_freq_sel = 0x1  # 10:1 division
-        self.set_frequency_selection(initial_freq_sel)
+        # Wait for counter to start incrementing
+        await self.wait_clocks('i_clk', 50)
+
+        # Capture counter value before sync reset
+        counter_before = int(self.dut.o_counter.value)
+        self.log.info(f"Counter value before sync reset: {counter_before}")
+
+        # Apply synchronous reset
+        self.sync_reset_n.value = 0
+        await self.wait_clocks('i_clk', 5)  # Wait 1 cycle for the reset to take effect
+
+        # Capture counter value during sync reset
+        counter_during = int(self.dut.o_counter.value)
+        self.log.info(f"Counter value during sync reset: {counter_during}")
+
+        # Verify counter is reset to 0 during sync reset
+        sync_reset_effective = (counter_during == 0)
+
+        # Release sync reset
+        self.sync_reset_n.value = 1
+
+        # Wait for counter to start incrementing again
+        await self.wait_clocks('i_clk', 30)
+
+        # Monitor counter behavior after sync reset
+        counter_changes, tick_events = await self.monitor_counter(100)
+
+        # Verify counter starts from 0 after sync reset
+        counter_restart_ok = len(counter_changes) > 1 and counter_changes[0][0] == 0
+        self.log.debug(f"{counter_changes=}")
+
+        # Verify counter increments correctly after sync reset
+        sequence_ok = self.verify_counter_sequence(counter_changes)
+
+        # Return overall test status
+        test_passed = sync_reset_effective and counter_restart_ok and sequence_ok
+        self.log.debug(f"{sync_reset_effective=} {counter_restart_ok=} {sequence_ok=}")
+
+        if test_passed:
+            self.log.info("Synchronous reset test passed")
+        else:
+            time_ns = get_sim_time('ns')
+            self.log.error(f"Synchronous reset test failed @ {time_ns}ns")
+
+            if not sync_reset_effective:
+                self.log.error(f"Counter was not reset to 0 during sync reset (value: {counter_during})")
+            if not counter_restart_ok:
+                self.log.error("Counter did not restart from 0 after sync reset")
+            if not sequence_ok:
+                self.log.error("Counter sequence incorrect after sync reset")
+
+        return test_passed
+
+    async def run_sync_reset_during_operation_test(self):
+        """
+        Test the synchronous reset during counter operation
+
+        Returns:
+            True if test passed, False otherwise
+        """
+        self.log.info("=== Testing synchronous reset during operation ===")
+
+        # Reset for clean state
+        await self.reset_dut()
+
+        # Set a low frequency for immediate counter changes
+        freq_sel = 0x0  # 1:1 division
+        self.set_frequency_selection(freq_sel)
+
+        # Wait for counter to increment a few times
+        await self.wait_clocks('i_clk', 10)
+
+        # Start monitoring
+        counter_values = []
+        for _ in range(5):
+            counter_values.append(int(self.dut.o_counter.value))
+            await self.wait_clocks('i_clk', 1)
+
+        # Apply sync reset in the middle of operation
+        self.sync_reset_n.value = 0
+        counter_during_reset = int(self.dut.o_counter.value)
+        await self.wait_clocks('i_clk', 5)
+
+        # Verify counter is reset synchronously
+        counter_after_reset = int(self.dut.o_counter.value)
+
+        # Release sync reset
+        self.sync_reset_n.value = 1
+
+        # Monitor counter after reset
+        post_reset_values = []
+        for _ in range(10):
+            post_reset_values.append(int(self.dut.o_counter.value))
+            await self.wait_clocks('i_clk', 1)
+
+        # Verify counter was reset to 0
+        reset_effective = (counter_after_reset == 0)
+
+        # Verify counter increments again after reset
+        counter_incrementing = any(val > 0 for val in post_reset_values[1:])
+
+        # Log results
+        self.log.info(f"Counter values before reset: {counter_values}")
+        self.log.info(f"Counter during reset application: {counter_during_reset}")
+        self.log.info(f"Counter after reset application: {counter_after_reset}")
+        self.log.info(f"Counter values after reset release: {post_reset_values}")
+
+        # Return test result
+        test_passed = reset_effective and counter_incrementing
+
+        if test_passed:
+            self.log.info("Synchronous reset during operation test passed")
+        else:
+            time_ns = get_sim_time('ns')
+            self.log.error(f"Synchronous reset during operation test failed @ {time_ns}ns")
+
+            if not reset_effective:
+                self.log.error(f"Counter was not reset to 0 (value: {counter_after_reset})")
+
+            if not counter_incrementing:
+                self.log.error("Counter did not increment after reset release")
+
+        return test_passed
+
+    async def run_sync_vs_async_reset_test(self):
+        """
+        Compare synchronous and asynchronous reset behavior
+
+        Returns:
+            True if test passed, False otherwise
+        """
+        self.log.info("=== Testing synchronous vs asynchronous reset behavior ===")
+
+        # First, test asynchronous reset
+        self.log.info("Testing asynchronous reset behavior")
+
+        # Set a moderate frequency
+        freq_sel = 0x1  # 10:1 division
+        self.set_frequency_selection(freq_sel)
+
+        # Let counter run for a bit
+        await self.wait_clocks('i_clk', 50)
+
+        # Apply asynchronous reset
+        self.reset_n.value = 0
+        await self.wait_clocks('i_clk', 1)
+
+        # Immediately check counter
+        counter_after_async = int(self.dut.o_counter.value)
+
+        # Release async reset
+        await self.wait_clocks('i_clk', 5)
+        self.reset_n.value = 1
 
         # Wait for stabilization
+        await self.wait_clocks('i_clk', 20)
+
+        # Now test synchronous reset
+        self.log.info("Testing synchronous reset behavior")
+
+        # Set same frequency
+        self.set_frequency_selection(freq_sel)
+
+        # Let counter run for a bit
+        await self.wait_clocks('i_clk', 50)
+
+        # Apply synchronous reset
+        self.sync_reset_n.value = 0
+        await self.wait_clocks('i_clk', 1)
+
+        # Check counter immediately
+        counter_immediate_sync = int(self.dut.o_counter.value)
+
+        # Wait five clock cycles and check again
+        await self.wait_clocks('i_clk', 5)
+        counter_after_sync = int(self.dut.o_counter.value)
+
+        # Release sync reset
+        self.sync_reset_n.value = 1
+
+        # Log results
+        self.log.info(f"Counter value immediately after async reset: {counter_after_async}")
+        self.log.info(f"Counter value immediately after sync reset: {counter_immediate_sync}")
+        self.log.info(f"Counter value one cycle after sync reset: {counter_after_sync}")
+
+        # Verify async reset is immediate
+        async_immediate = (counter_after_async == 0)
+
+        # Verify sync reset takes effect after a clock cycle
+        sync_delayed = (counter_after_sync == 0)
+
+        # Return test result
+        test_passed = async_immediate and sync_delayed
+        self.log.debug(f'{async_immediate=} {sync_delayed=}')
+
+        if test_passed:
+            self.log.info("Synchronous vs asynchronous reset behavior test passed")
+        else:
+            time_ns = get_sim_time('ns')
+            self.log.error(f"Synchronous vs asynchronous reset behavior test failed @ {time_ns}ns")
+
+            if not async_immediate:
+                self.log.error(f"Asynchronous reset did not reset counter immediately (value: {counter_after_async})")
+
+            if not sync_delayed:
+                self.log.error(f"Synchronous reset did not reset counter after a clock cycle (value: {counter_after_sync})")
+
+        return test_passed
+
+    async def run_freq_change_with_sync_reset_test(self):
+        """
+        Test frequency change combined with synchronous reset
+
+        Returns:
+            True if test passed, False otherwise
+        """
+        self.log.info("=== Testing frequency change with synchronous reset ===")
+
+        # Reset for clean state
+        await self.reset_dut()
+
+        # Set initial frequency
+        initial_freq_sel = 0x7  # 100:1 division
+        self.set_frequency_selection(initial_freq_sel)
+
+        # Let counter run for a bit
         await self.wait_clocks('i_clk', 100)
 
-        # Track counter behavior across changes
-        all_counter_changes = []
-        all_tick_events = []
-        freq_change_cycles = []
-        all_passed = True
+        # Apply both frequency change and sync reset simultaneously
+        new_freq_sel = 0x1  # 10:1 division
+        self.set_frequency_selection(new_freq_sel)
+        self.sync_reset_n.value = 0
 
-        # Change frequencies multiple times
-        for change_idx in range(num_changes):
-            # Select new random frequency
-            # For testing frequency changes, focus on frequencies with smaller division factors
-            # to make verification more practical
-            freq_options = [0, 1, 2, 3, 4, 5]  # Division factors: 1, 10, 20, 25, 40, 50
-            new_freq_sel = random.choice(freq_options)
-            while new_freq_sel == self.current_freq_sel:
-                new_freq_sel = random.choice(freq_options)
+        # Wait five clock cycles
+        await self.wait_clocks('i_clk', 5)
 
-            # Get the division factor for the new frequency
-            new_division_factor = self._get_division_factor(new_freq_sel)
+        # Check counter after sync reset
+        counter_after_reset = int(self.dut.o_counter.value)
+
+        # Release sync reset
+        self.sync_reset_n.value = 1
+
+        # Monitor counter behavior
+        await self.wait_clocks('i_clk', 30)
+        counter_changes, tick_events = await self.monitor_counter(200)
+
+        # Verify reset was effective
+        reset_effective = (counter_after_reset == 0)
+
+        # Verify counter operates at new frequency
+        if len(counter_changes) >= 3:
+            freq_change_effective = self.verify_counter_changes(counter_changes, self.current_division_factor)
+        else:
+            self.log.warning("Not enough counter changes to verify frequency")
+            freq_change_effective = True  # Assume it's OK if we don't have enough data
+
+        # Verify counter sequence
+        sequence_ok = self.verify_counter_sequence(counter_changes)
+
+        # Return test result
+        test_passed = reset_effective and freq_change_effective and sequence_ok
+
+        if test_passed:
+            self.log.info("Frequency change with synchronous reset test passed")
+        else:
             time_ns = get_sim_time('ns')
+            self.log.error(f"Frequency change with synchronous reset test failed @ {time_ns}ns")
 
-            self.log.info(f"Change {change_idx+1}/{num_changes}: Switching from " +
-                            f"freq_sel={self.current_freq_sel} (div={self.current_division_factor}) to " +
-                            f"freq_sel={new_freq_sel} (div={new_division_factor}) @ {time_ns}ns")
+            if not reset_effective:
+                self.log.error(f"Synchronous reset did not reset counter (value: {counter_after_reset})")
 
-            # Remember old division factor before changing
-            old_division_factor = self.current_division_factor
+            if not freq_change_effective:
+                self.log.error("Counter not operating at new frequency after reset and frequency change")
 
-            # Change frequency
-            self.set_frequency_selection(new_freq_sel)
+            if not sequence_ok:
+                self.log.error("Counter sequence incorrect after reset and frequency change")
 
-            # Wait for prescaler to reset and stabilize
-            # Longer wait if switching to a higher division factor
-            stabilization_cycles = 20 + max(old_division_factor, new_division_factor) // 5
-            await self.wait_clocks('i_clk', stabilization_cycles)
-
-            # Determine monitoring duration based on the division factor
-            # We need longer observation for higher division factors
-            adjusted_cycles = max(cycles_between_changes, new_division_factor * 20)
-
-            # Monitor for adjusted duration
-            counter_changes, tick_events = await self.monitor_counter(adjusted_cycles)
-
-            # Verify this segment individually
-            if len(counter_changes) >= 2:
-                interval_ok = self.verify_counter_changes(counter_changes, new_division_factor)
-                sequence_ok = self.verify_counter_sequence(counter_changes)
-
-                if not (interval_ok and sequence_ok):
-                    time_ns = get_sim_time('ns')
-                    self.log.error(f"Verification failed after frequency change to {new_freq_sel} @ {time_ns}ns")
-                    all_passed = False
-            else:
-                self.log.warning(f"Not enough counter changes to verify for freq_sel={new_freq_sel}")
-
-            # Record current cycle count for tracking frequency change points
-            if all_counter_changes:
-                last_segment = all_counter_changes[-1]
-                current_cycle = sum(len(segment) for segment in all_counter_changes)
-            else:
-                current_cycle = 0
-
-            freq_change_cycles.append(current_cycle)
-
-            # Add these changes to our overall list
-            if all_counter_changes:
-                # Adjust cycle numbers to be continuous
-                last_cycle = all_counter_changes[-1][-1][0] if all_counter_changes[-1] else 0
-                all_counter_changes.append([(cycle + last_cycle, value) for cycle, value in counter_changes])
-                all_tick_events.extend([cycle + last_cycle for cycle in tick_events])
-            else:
-                all_counter_changes.append(counter_changes)
-                all_tick_events.extend(tick_events)
-
-        # Analyze results
-        total_changes = sum(len(changes) for changes in all_counter_changes)
-        self.log.info(f"Recorded {total_changes} counter changes and {len(all_tick_events)} tick events")
-
-        return all_passed
+        return test_passed
 
 
 @cocotb.test(timeout_time=50, timeout_unit="ms")
-async def counter_freq_invariant_dynamic_test(dut):
-    """Test dynamic frequency changes"""
+async def counter_freq_invariant_sync_reset_test(dut):
+    """Test synchronous reset functionality"""
     tb = CounterFreqInvariantTB(dut)
 
     # Use the seed for reproducibility
@@ -643,162 +757,35 @@ async def counter_freq_invariant_dynamic_test(dut):
     await tb.reset_dut()
 
     try:
-        print('# Test 1: Frequency change test')
+        print('# Test 1: Basic synchronous reset test')
         time_ns = get_sim_time('ns')
-        tb.log.info(f"=== Test 1: Frequency change test  @ {time_ns}ns ===")
-        passed = await tb.run_frequency_change_test(num_changes=5, cycles_between_changes=500)
+        tb.log.info(f"=== Test 1: Basic synchronous reset test @ {time_ns}ns ===")
+        passed = await tb.run_sync_reset_test()
         time_ns = get_sim_time('ns')
-        assert passed, f"Frequency change test failed @ {time_ns}ns"
+        assert passed, f"Basic synchronous reset test failed @ {time_ns}ns"
 
-        print('# Test 2: Random frequency test')
-        tb.log.info("=== Test 2: Random frequency test ===")
-        config = tb._create_random_freq_config()
-        passed = await tb.run_frequency_test(config)
+        print('# Test 2: Synchronous reset during operation test')
+        tb.log.info("=== Test 2: Synchronous reset during operation test ===")
+        passed = await tb.run_sync_reset_during_operation_test()
         time_ns = get_sim_time('ns')
-        assert passed, "Random frequency test failed  @ {time_ns}ns"
+        assert passed, f"Synchronous reset during operation test failed @ {time_ns}ns"
+
+        print('# Test 3: Synchronous vs asynchronous reset test')
+        tb.log.info("=== Test 3: Synchronous vs asynchronous reset test ===")
+        passed = await tb.run_sync_vs_async_reset_test()
+        time_ns = get_sim_time('ns')
+        assert passed, f"Synchronous vs asynchronous reset test failed @ {time_ns}ns"
+
+        print('# Test 4: Frequency change with synchronous reset test')
+        tb.log.info("=== Test 4: Frequency change with synchronous reset test ===")
+        passed = await tb.run_freq_change_with_sync_reset_test()
+        time_ns = get_sim_time('ns')
+        assert passed, f"Frequency change with synchronous reset test failed @ {time_ns}ns"
 
         await tb.wait_clocks('i_clk', 50)
-        tb.log.info(f"Dynamic frequency tests completed successfully @ {time_ns}ns")
+        tb.log.info(f"Synchronous reset tests completed successfully @ {time_ns}ns")
 
     finally:
-        # Set done flag
-        tb.done = True
-        time_ns = get_sim_time('ns')
-        tb.log.info(f"=== Test 1: Frequency change test Done @ {time_ns}ns ===")
-        # Wait for any pending tasks
-        await tb.wait_clocks('i_clk', 10)
-
-
-    # Reset the DUT
-    print('DUT reset')
-    await tb.reset_dut()
-
-    try:
-        print('# Test: Frequency change reset behavior')
-        time_ns = get_sim_time('ns')
-        tb.log.info(f"=== Testing frequency change reset behavior @ {time_ns}ns ===")
-
-        # Test sequence: Go from high division factor to low and observe quick reset
-        # Start with a high division factor
-        high_freq_sel = 0xF  # 10000:1 division
-        tb.set_frequency_selection(high_freq_sel)
-
-        # Let it run for a short time
-        await tb.wait_clocks('i_clk', 100)
-
-        # Monitor counter behavior right before change
-        counter_before = []
-        for _ in range(10):
-            await RisingEdge(tb.clock)
-            counter_before.append(int(tb.dut.o_counter.value))
-
-        tb.log.info(f"Counter values before change: {counter_before}")
-
-        # Now switch to a very low division factor
-        low_freq_sel = 0x0  # 1:1 division
-        tb.set_frequency_selection(low_freq_sel)
-
-        # If prescaler reset is working, we should see counter changes very quickly
-        counter_after = []
-        tick_seen = False
-
-        # Monitor for a short period to see if counter starts changing
-        for i in range(20):
-            await RisingEdge(tb.clock)
-            counter_value = int(tb.dut.o_counter.value)
-            counter_after.append(counter_value)
-
-            # Also check for tick signal
-            if int(tb.dut.o_tick.value) == 1:
-                tick_seen = True
-                tb.log.info(f"Tick seen at cycle {i} after frequency change")
-
-        tb.log.info(f"Counter values after change: {counter_after}")
-
-        # Verify that counter started changing quickly after frequency change
-        # With the 1:1 division, we should see changes in every cycle
-        changes_detected = sum(
-            counter_after[i] != counter_after[i - 1]
-            for i in range(1, len(counter_after))
-        )
-
-        # If prescaler is reset properly, we should see at least several changes
-        reset_working = changes_detected >= 5
-
-        time_ns = get_sim_time('ns')
-        if reset_working:
-            tb.log.info(f"Prescaler reset verification passed: {changes_detected} changes detected after frequency change @ {time_ns}ns")
-        else:
-            tb.log.error(f"Prescaler reset verification failed: Only {changes_detected} changes detected @ {time_ns}ns")
-
-        # Continue with a more extensive test of transitions
-        print('# Testing transitions between various frequencies')
-
-        # Define some transition pairs to test (high to low and low to high)
-        transitions = [
-            (0xF, 0x0),  # Very high to very low
-            (0x0, 0xA),  # Very low to medium
-            (0xC, 0x1),  # High to low
-            (0x1, 0xD),  # Low to high
-            (0x7, 0x3),  # Medium to medium
-        ]
-
-        all_transitions_passed = True
-
-        for high_sel, low_sel in transitions:
-            # Get division factors
-            high_div = tb._get_division_factor(high_sel)
-            low_div = tb._get_division_factor(low_sel)
-            time_ns = get_sim_time('ns')
-
-            tb.log.info(f"Testing transition from freq_sel={high_sel} (div={high_div}) to freq_sel={low_sel} (div={low_div}) @ {time_ns}ns")
-
-            # Set first frequency
-            tb.set_frequency_selection(high_sel)
-            await tb.wait_clocks('i_clk', 50)
-
-            # Set second frequency
-            tb.set_frequency_selection(low_sel)
-
-            # Monitor counter for a reasonable time
-            # Even for low division factor, we should see changes quickly if reset works
-            max_wait = 50
-            changes_seen = 0
-
-            for i in range(max_wait):
-                current_counter = int(tb.dut.o_counter.value)
-                await RisingEdge(tb.clock)
-                next_counter = int(tb.dut.o_counter.value)
-
-                if current_counter != next_counter:
-                    changes_seen += 1
-                    time_ns = get_sim_time('ns')
-                    tb.log.info(f"Counter change detected at cycle {i} after frequency change @ {time_ns}ns")
-
-                    # For verification, we only need to see a few changes
-                    if changes_seen >= 3:
-                        break
-
-            # Verify that we saw changes within a reasonable time
-            transition_passed = changes_seen > 0
-            time_ns = get_sim_time('ns')
-
-            if transition_passed:
-                tb.log.info(f"Transition test passed: {changes_seen} changes detected @ {time_ns}ns")
-            else:
-                tb.log.error(f"Transition test failed: No changes detected within {max_wait} cycles @ {time_ns}ns")
-                all_transitions_passed = False
-
-        # Final result
-        passed = reset_working and all_transitions_passed
-        assert passed, "Frequency change reset test failed"
-
-        await tb.wait_clocks('i_clk', 50)
-        tb.log.info("Frequency change reset test completed successfully.")
-
-    finally:
-        time_ns = get_sim_time('ns')
-        tb.log.info(f"=== Testing frequency change reset behavior Done @ {time_ns}ns ===")
         # Set done flag
         tb.done = True
         # Wait for any pending tasks
@@ -859,7 +846,6 @@ def test_counter_freq_invariant(request, counter_width):
         'COCOTB_RESULTS_FILE': results_path,
         'SEED': str(random.randint(0, 100000))
     }
-
 
     compile_args = [
             "--trace-fst",

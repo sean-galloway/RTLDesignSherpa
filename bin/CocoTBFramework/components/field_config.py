@@ -23,6 +23,7 @@ class FieldDefinition:
         display_width: Width for display formatting
         active_bits: Tuple of (msb, lsb) defining active bit range
         description: Human-readable description of the field
+        encoding: Optional dictionary mapping values to state names
     """
     name: str
     bits: int
@@ -31,6 +32,7 @@ class FieldDefinition:
     display_width: int = 0
     active_bits: Optional[Tuple[int, int]] = None
     description: Optional[str] = None
+    encoding: Optional[Dict[int, str]] = None
     
     def __post_init__(self):
         """Validate and set derived values after initialization"""
@@ -55,10 +57,14 @@ class FieldDefinition:
         # Set description to name if not provided
         if self.description is None:
             self.description = self.name.replace('_', ' ').capitalize()
+
+        # Initialize encoding to empty dict if None
+        if self.encoding is None:
+            self.encoding = {}
             
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary format for backward compatibility"""
-        return {
+        result = {
             'bits': self.bits,
             'default': self.default,
             'format': self.format,
@@ -66,6 +72,10 @@ class FieldDefinition:
             'active_bits': self.active_bits,
             'description': self.description
         }
+        # Only include encoding if it's not empty
+        if self.encoding:
+            result['encoding'] = self.encoding
+        return result
         
     @classmethod
     def from_dict(cls, name: str, field_dict: Dict[str, Any]) -> 'FieldDefinition':
@@ -77,7 +87,8 @@ class FieldDefinition:
             format=field_dict.get('format', 'hex'),
             display_width=field_dict.get('display_width', 0),
             active_bits=field_dict.get('active_bits'),
-            description=field_dict.get('description')
+            description=field_dict.get('description'),
+            encoding=field_dict.get('encoding')
         )
 
 
@@ -247,6 +258,7 @@ class FieldConfig:
         table.add_column("Format", style="magenta")
         table.add_column("Active Bits", style="blue")
         table.add_column("Default", style="yellow")
+        table.add_column("Encoding", style="bright_yellow")
         table.add_column("Description")
         
         # Add rows for each field
@@ -254,12 +266,20 @@ class FieldConfig:
             active_bits_str = f"({field_def.active_bits[0]}:{field_def.active_bits[1]})"
             default_str = f"0x{field_def.default:X}" if field_def.format == 'hex' else str(field_def.default)
             
+            # Format encoding information
+            if field_def.encoding:
+                encoding_values = ", ".join(f"{k}:{v}" for k, v in field_def.encoding.items())
+                encoding_str = f"{{{encoding_values}}}"
+            else:
+                encoding_str = ""
+            
             table.add_row(
                 name,
                 str(field_def.bits),
                 field_def.format,
                 active_bits_str,
                 default_str,
+                encoding_str,
                 field_def.description
             )
         
@@ -308,6 +328,45 @@ class FieldConfig:
             
         return self
 
+    def set_encoding(self, field_name: str, encoding: Dict[int, str]) -> 'FieldConfig':
+        """
+        Set an encoding dictionary for a field.
+        
+        Args:
+            field_name: Name of the field
+            encoding: Dictionary mapping values to state names
+            
+        Returns:
+            Self for method chaining
+        """
+        if field_name not in self._fields:
+            raise KeyError(f"Field '{field_name}' not found in configuration")
+            
+        self._fields[field_name].encoding = encoding
+        return self
+        
+    def add_encoding_value(self, field_name: str, value: int, state_name: str) -> 'FieldConfig':
+        """
+        Add a single encoding value to a field.
+        
+        Args:
+            field_name: Name of the field
+            value: Value to encode
+            state_name: Name for the state
+            
+        Returns:
+            Self for method chaining
+        """
+        if field_name not in self._fields:
+            raise KeyError(f"Field '{field_name}' not found in configuration")
+            
+        field_def = self._fields[field_name]
+        if field_def.encoding is None:
+            field_def.encoding = {}
+        
+        field_def.encoding[value] = state_name
+        return self
+
     @classmethod
     def from_dict(cls, field_dict: Dict[str, Dict[str, Any]]) -> 'FieldConfig':
         """
@@ -349,12 +408,12 @@ class FieldConfig:
         config = cls()
         errors = []
         warnings = []
-        
+
         # Empty configuration check
         if not field_dict:
             warnings.append("Empty field configuration provided")
             return config
-            
+
         # Iterate through fields and validate
         for field_name, field_props in field_dict.items():
             # Field name validation
@@ -364,14 +423,14 @@ class FieldConfig:
                     raise ValueError(msg)
                 errors.append(msg)
                 continue
-                
+
             if not field_name:
                 msg = "Empty field name provided"
                 if raise_errors:
                     raise ValueError(msg)
                 errors.append(msg)
                 continue
-                
+
             # Required field properties
             if 'bits' not in field_props:
                 msg = f"Field '{field_name}' is missing required 'bits' property"
@@ -379,7 +438,7 @@ class FieldConfig:
                     raise ValueError(msg)
                 warnings.append(msg)
                 field_props['bits'] = 32  # Default to 32 bits
-                
+
             # Type checking for critical properties
             if not isinstance(field_props.get('bits'), int):
                 msg = f"Field '{field_name}' has non-integer 'bits' value: {field_props.get('bits')}"
@@ -391,7 +450,7 @@ class FieldConfig:
                     field_props['bits'] = int(field_props['bits'])
                 except (ValueError, TypeError):
                     field_props['bits'] = 32  # Default to 32 bits
-                    
+
             # Validate bits > 0
             if field_props.get('bits', 0) <= 0:
                 msg = f"Field '{field_name}' has invalid 'bits' value: {field_props.get('bits')}"
@@ -399,7 +458,7 @@ class FieldConfig:
                     raise ValueError(msg)
                 warnings.append(msg)
                 field_props['bits'] = 32  # Default to 32 bits
-                
+
             # Validate active_bits if present
             if 'active_bits' in field_props:
                 active_bits = field_props['active_bits']
@@ -413,7 +472,7 @@ class FieldConfig:
                 else:
                     msb, lsb = active_bits
                     bits = field_props['bits']
-                    
+
                     if msb >= bits or lsb < 0 or msb < lsb:
                         msg = f"Field '{field_name}' has invalid 'active_bits' range: {active_bits}"
                         if raise_errors:
@@ -421,7 +480,7 @@ class FieldConfig:
                         warnings.append(msg)
                         # Correct to valid range
                         field_props['active_bits'] = (min(bits - 1, max(0, msb)), max(0, min(bits - 1, lsb)))
-                        
+
             # Validate format if present
             if 'format' in field_props and field_props['format'] not in ['hex', 'bin', 'dec']:
                 msg = f"Field '{field_name}' has invalid 'format': {field_props['format']}"
@@ -429,7 +488,30 @@ class FieldConfig:
                     raise ValueError(msg)
                 warnings.append(msg)
                 field_props['format'] = 'hex'  # Default to hex
-                
+
+            # Validate encoding if present
+            if 'encoding' in field_props:
+                encoding = field_props['encoding']
+                if not isinstance(encoding, dict):
+                    msg = f"Field '{field_name}' has invalid 'encoding' (not a dictionary): {encoding}"
+                    if raise_errors:
+                        raise ValueError(msg)
+                    warnings.append(msg)
+                    field_props['encoding'] = {}  # Default to empty dict
+                else:
+                    # Validate encoding keys and values
+                    valid_encoding = {}
+                    for k, v in encoding.items():
+                        try:
+                            key = k if isinstance(k, int) else int(k)
+                            valid_encoding[key] = str(v)
+                        except (ValueError, TypeError) as e:
+                            msg = f"Field '{field_name}' has invalid encoding key/value: {k}:{v}"
+                            if raise_errors:
+                                raise ValueError(msg) from e
+                            warnings.append(msg)
+                    field_props['encoding'] = valid_encoding
+
             # Add the field to the configuration
             try:
                 config.add_field_dict(field_name, field_props)
@@ -438,14 +520,14 @@ class FieldConfig:
                 if raise_errors:
                     raise ValueError(msg) from e
                 errors.append(msg)
-                
+
         # Log any warnings or errors
         for warning in warnings:
             print(f"WARNING: {warning}")
-            
+
         for error in errors:
             print(f"ERROR: {error}")
-            
+
         return config
         
     @classmethod
