@@ -2,6 +2,10 @@
 
 module axi_master_wr
 #(
+     // Error Packet Identifiers
+    parameter int UNIT_ID            = 99,
+    parameter int AGENT_ID           = 99,
+
     // AXI parameters
     parameter int AXI_ID_WIDTH      = 8,
     parameter int AXI_ADDR_WIDTH    = 32,
@@ -21,11 +25,6 @@ module axi_master_wr
     parameter int ERROR_FIFO_DEPTH  = 2,
     parameter int ADDR_FIFO_DEPTH   = 4,     // Depth of address tracking FIFO
 
-    // Timeout parameters (in clock cycles)
-    parameter int TIMEOUT_AW       = 1000,  // Write address channel timeout
-    parameter int TIMEOUT_W        = 1000,  // Write data channel timeout
-    parameter int TIMEOUT_B        = 1000,  // Write response channel timeout
-
     // Derived parameters
     parameter int AW       = AXI_ADDR_WIDTH,
     parameter int DW       = AXI_DATA_WIDTH,
@@ -42,6 +41,12 @@ module axi_master_wr
 
     // Alignment mask signal (12-bit)
     input  logic [11:0]                alignment_mask,
+
+    // Timer configs
+    input  logic [3:0]               i_cfg_freq_sel, // Frequency selection (configurable)
+    input  logic [3:0]               i_cfg_addr_cnt, // ADDR match for a timeout
+    input  logic [3:0]               i_cfg_data_cnt, // DATA match for a timeout
+    input  logic [3:0]               i_cfg_resp_cnt, // RESP match for a timeout
 
     // Slave AXI Interface (Input Side)
     // Write address channel (AW)
@@ -113,11 +118,17 @@ module axi_master_wr
     input  logic                       fub_split_ready,
 
     // Error outputs with FIFO interface
-    output logic [3:0]                 fub_error_type,    // Error type flags (AW timeout, W timeout, B timeout, response error)
-    output logic [AW-1:0]              fub_error_addr,    // Address associated with error
-    output logic [IW-1:0]              fub_error_id,      // ID associated with error
+    output logic [7:0]                 fub_error_type,
+    output logic [AW-1:0]              fub_error_addr,
+    output logic [IW-1:0]              fub_error_id,
+    output logic [7:0]                 fub_error_unit_id,
+    output logic [7:0]                 fub_error_agent_id,
     output logic                       fub_error_valid,
-    input  logic                       fub_error_ready
+    input  logic                       fub_error_ready,
+
+    // A cycle is in flight
+    output logic                       o_busy
+
 );
 
     // Internal connections between splitter and error monitor/skid buffer
@@ -247,12 +258,11 @@ module axi_master_wr
 
     // Instantiate base error monitor module directly
     axi_errmon_base #(
+        .UNIT_ID(UNIT_ID),
+        .AGENT_ID(AGENT_ID),
         .CHANNELS(CHANNELS),
         .ADDR_WIDTH(AXI_ADDR_WIDTH),
         .ID_WIDTH(AXI_ID_WIDTH),
-        .TIMEOUT_ADDR(TIMEOUT_AW),
-        .TIMEOUT_DATA(TIMEOUT_W),
-        .TIMEOUT_RESP(TIMEOUT_B),   // Used for write
         .ERROR_FIFO_DEPTH(ERROR_FIFO_DEPTH),
         .ADDR_FIFO_DEPTH(ADDR_FIFO_DEPTH),
         .IS_READ(0),                // This is a write monitor
@@ -261,23 +271,30 @@ module axi_master_wr
         .aclk                 (aclk),
         .aresetn              (aresetn),
 
+        // Configs
+        .i_cfg_freq_sel       (i_cfg_freq_sel),
+        .i_cfg_addr_cnt       (i_cfg_addr_cnt),
+        .i_cfg_data_cnt       (i_cfg_data_cnt),
+        .i_cfg_resp_cnt       (i_cfg_resp_cnt),
+
         // Address channel signals
-        .i_addr               (int_awaddr),
-        .i_id                 (int_awid),
-        .i_valid              (int_awvalid),
-        .i_ready              (int_awready),
+        .i_addr_addr          (fub_awaddr),
+        .i_addr_id            (fub_awid),
+        .i_addr_valid         (fub_awvalid),
+        .i_addr_ready         (fub_awready),
 
         // Data channel signals
-        .i_data_id            ('0),           // No ID for write data
-        .i_data_valid         (int_wvalid),
-        .i_data_ready         (int_wready),
-        .i_data_last          (int_wlast),
+        .i_data_id            ('b0),
+        .i_data_last          (fub_wlast),
+        .i_data_resp          ('b0),
+        .i_data_valid         (fub_wvalid),
+        .i_data_ready         (fub_wready),
 
         // Response channel signals
-        .i_resp_id            (int_bid),
-        .i_resp               (int_bresp),
-        .i_resp_valid         (int_bvalid),
-        .i_resp_ready         (int_bready),
+        .i_resp_id            (fub_bid),
+        .i_resp               (fub_bresp),
+        .i_resp_valid         (fub_bvalid),
+        .i_resp_ready         (fub_bready),
 
         // Error outputs
         .o_error_valid        (fub_error_valid),
@@ -285,9 +302,12 @@ module axi_master_wr
         .o_error_type         (fub_error_type),
         .o_error_addr         (fub_error_addr),
         .o_error_id           (fub_error_id),
+        .o_error_unit_id      (fub_error_unit_id),
+        .o_error_agent_id     (fub_error_agent_id),
 
         // Flow control
-        .o_block_ready        (int_block_ready)
+        .o_block_ready        (int_block_ready),
+        .o_busy               (o_busy)
     );
 
     // Instantiate AW Skid Buffer
@@ -306,7 +326,8 @@ module axi_master_wr
         .o_rd_valid               (int_skid_awvalid),
         .i_rd_ready               (int_skid_awready),
         .o_rd_count               (int_aw_count),
-        .o_rd_data                (int_aw_pkt)
+        .o_rd_data                (int_aw_pkt),
+        .ow_count                 ()
     );
 
     // Unpack AW signals from SKID buffer
@@ -330,7 +351,9 @@ module axi_master_wr
         .o_rd_valid               (int_skid_wvalid),
         .i_rd_ready               (int_skid_wready),
         .o_rd_count               (int_w_count),
-        .o_rd_data                (int_w_pkt)
+        .o_rd_data                (int_w_pkt),
+        .ow_count                 ()
+
     );
 
     // Unpack W signals from SKID buffer
@@ -351,7 +374,8 @@ module axi_master_wr
         .o_rd_valid               (int_bvalid),
         .i_rd_ready               (int_bready),
         .o_rd_count               (int_b_count),
-        .o_rd_data                ({int_bid, int_bresp, int_buser})
+        .o_rd_data                ({int_bid, int_bresp, int_buser}),
+        .ow_count                 ()
     );
 
 endmodule : axi_master_wr

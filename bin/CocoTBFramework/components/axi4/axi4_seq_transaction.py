@@ -849,7 +849,7 @@ class AXI4TransactionSequence(AXI4BaseSequence):
                         addr=packet.awaddr,
                         id_value=packet.awid,
                         data_values=data_values,
-                        burst_len=packet.awlen,
+                        # burst_len=packet.awlen,
                         burst_size=packet.awsize,
                         burst_type=packet.awburst
                     )

@@ -1,87 +1,91 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Mon Mar 24 09:02:22 2025
+[*] Fri May  9 00:06:59 2025
 [*]
-[dumpfile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/local_sim_build/test_axi_master_wr_id08_aw032_dw032_uw1_al12_aw2_w4_b2_er4_to_aw32_to_w32_to_b32/axi_master_wr.fst"
-[dumpfile_mtime] "Mon Mar 24 09:00:35 2025"
-[dumpfile_size] 16752
-[savefile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/GTKW/axi_master_wr.gtkw"
+[dumpfile] "(null)"
+[savefile] "/home/sean/github/RTLDesignSherpa/val/amba/GTKW/axi_master_wr.gtkw"
 [timestart] 0
-[size] 2182 1433
+[size] 2418 1248
 [pos] -1 -1
-*-19.590210 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
-[treeopen] axi_master_wr.
+*-17.568296 520100 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [sst_width] 278
-[signals_width] 190
+[signals_width] 293
 [sst_expanded] 1
-[sst_vpaned_height] 447
+[sst_vpaned_height] 364
 @200
--user aw
+-fub_aw
 @28
-axi_master_wr.s_axi_awvalid
-axi_master_wr.s_axi_awready
+axi_master_wr.fub_awvalid
+axi_master_wr.fub_awready
 @22
-axi_master_wr.s_axi_awlen[7:0]
-axi_master_wr.s_axi_awid[7:0]
-axi_master_wr.s_axi_awaddr[31:0]
+axi_master_wr.fub_awaddr[31:0]
+axi_master_wr.fub_awid[7:0]
+axi_master_wr.fub_awlen[7:0]
 @28
-axi_master_wr.s_axi_awburst[1:0]
+axi_master_wr.fub_awsize[2:0]
 @22
-axi_master_wr.s_axi_awcache[3:0]
-@28
-axi_master_wr.s_axi_awlock
-axi_master_wr.s_axi_awprot[2:0]
-@22
-axi_master_wr.s_axi_awqos[3:0]
-axi_master_wr.s_axi_awregion[3:0]
-@28
-axi_master_wr.s_axi_awsize[2:0]
-axi_master_wr.s_axi_awuser
+axi_master_wr.fub_awlen[7:0]
 @200
--axi aw
+-fub_w
+@28
+axi_master_wr.fub_wvalid
+axi_master_wr.fub_wready
+@22
+axi_master_wr.fub_wdata[31:0]
+axi_master_wr.fub_wstrb[3:0]
+@28
+axi_master_wr.fub_wlast
+@200
+-fub_b
+@28
+axi_master_wr.fub_buser[0]
+axi_master_wr.fub_bready
+@22
+axi_master_wr.fub_bid[7:0]
+@28
+axi_master_wr.fub_bresp[1:0]
+@200
+-axi_aw
 @28
 axi_master_wr.m_axi_awvalid
 axi_master_wr.m_axi_awready
 @22
 axi_master_wr.m_axi_awaddr[31:0]
-@28
-axi_master_wr.m_axi_awburst[1:0]
-@22
-axi_master_wr.m_axi_awcache[3:0]
 axi_master_wr.m_axi_awid[7:0]
-@c00022
 axi_master_wr.m_axi_awlen[7:0]
 @28
-(0)axi_master_wr.m_axi_awlen[7:0]
-(1)axi_master_wr.m_axi_awlen[7:0]
-(2)axi_master_wr.m_axi_awlen[7:0]
-(3)axi_master_wr.m_axi_awlen[7:0]
-(4)axi_master_wr.m_axi_awlen[7:0]
-(5)axi_master_wr.m_axi_awlen[7:0]
-(6)axi_master_wr.m_axi_awlen[7:0]
-(7)axi_master_wr.m_axi_awlen[7:0]
-@1401200
--group_end
-@28
-axi_master_wr.m_axi_awlock
-axi_master_wr.m_axi_awprot[2:0]
-@22
-axi_master_wr.m_axi_awqos[3:0]
-axi_master_wr.m_axi_awregion[3:0]
-@28
 axi_master_wr.m_axi_awsize[2:0]
-axi_master_wr.m_axi_awuser
 @200
--splitter
-@22
-axi_master_wr.i_axi_master_wr_splitter.alignment_mask[11:0]
+-axi_w
+@29
+axi_master_wr.m_axi_wvalid
 @28
-axi_master_wr.s_split_valid
-axi_master_wr.s_split_ready
-@23
-axi_master_wr.s_split_cnt[7:0]
+axi_master_wr.m_axi_wready
 @22
-axi_master_wr.s_split_addr[31:0]
-axi_master_wr.s_split_id[7:0]
+axi_master_wr.m_axi_wdata[31:0]
+axi_master_wr.m_axi_wstrb[3:0]
+@28
+axi_master_wr.m_axi_wlast
+@200
+-axi_b
+@28
+axi_master_wr.m_axi_bvalid
+axi_master_wr.m_axi_bready
+@22
+axi_master_wr.m_axi_bid[7:0]
+@28
+axi_master_wr.m_axi_bready
+@200
+-error
+@28
+axi_master_wr.fub_error_valid
+axi_master_wr.fub_error_ready
+@22
+axi_master_wr.fub_error_type[7:0]
+axi_master_wr.fub_error_id[7:0]
+axi_master_wr.fub_error_addr[31:0]
+axi_master_wr.fub_error_agent_id[7:0]
+@200
+-internals
 [pattern_trace] 1
 [pattern_trace] 0

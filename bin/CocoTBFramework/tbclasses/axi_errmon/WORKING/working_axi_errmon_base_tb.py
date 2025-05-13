@@ -22,17 +22,12 @@ from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
 # Import the ready signal controller
 from .axi_errmon_readyctrl import ReadySignalController
 
-# Import the interrupt bus monitor
-from ..intrbus import IntrBusComponents
-
 # Import the test classes
 from .axi_errmon_basic_test import AXIErrorMonBasicTest
-# Comment out test imports until implemented
-# from .axi_errmon_fifo_test import AXIErrorMonFIFOTest
-# from .axi_errmon_error_test import AXIErrorMonErrorTest
-# from .axi_errmon_multichannel_test import AXIErrorMonMultiChannelTest
-# from .axi_errmon_random_test import AXIErrorMonRandomTest
-# from .axi_errmon_intrbus_test import AXIErrorMonIntrBusTest
+from .axi_errmon_fifo_test import AXIErrorMonFIFOTest
+from .axi_errmon_error_test import AXIErrorMonErrorTest
+from .axi_errmon_multichannel_test import AXIErrorMonMultiChannelTest
+from .axi_errmon_random_test import AXIErrorMonRandomTest
 
 
 RANDOMIZER_CONFIGS = {
@@ -69,8 +64,6 @@ class AXIErrorMonitorTB(TBBase):
                     is_axi=True,
                     error_fifo_depth=4,
                     addr_fifo_depth=4,
-                    unit_id=9,
-                    agent_id=99,
                     channels=1):
         """Initialize with DUT and configuration parameters"""
         super().__init__(dut)
@@ -87,10 +80,8 @@ class AXIErrorMonitorTB(TBBase):
         self.error_fifo_depth = error_fifo_depth
         self.addr_fifo_depth = addr_fifo_depth
         self.channels = channels
-        self.unit_id = unit_id
-        self.agent_id = agent_id
 
-        # set the errmon delay configs
+        # set the errmon delay configss
         self.dut.i_cfg_freq_sel.value = 4
         self.dut.i_cfg_addr_cnt.value = 1
         self.dut.i_cfg_data_cnt.value = 5
@@ -123,15 +114,11 @@ class AXIErrorMonitorTB(TBBase):
         # Initialize GAXI components
         self._init_gaxi_components()
 
-        # Initialize interrupt bus components
-        self._init_intrbus_components()
-
         # Initialize ready signal controller
         self.ready_ctrl = ReadySignalController(dut, log=self.log)
 
         # Initialize monitoring structures
         self.errors_detected = []
-        self.intrbus_events = []
         self.axi_transactions = []
 
         # Create test classes
@@ -166,89 +153,35 @@ class AXIErrorMonitorTB(TBBase):
             display_width=2,
             description="Transaction ID"
         ))
-        
-        # Add AXI-specific fields
-        if self.is_axi:
-            field_config.add_field(FieldDefinition(
-                name="len",
-                bits=8,
-                default=0,
-                format="dec",
-                display_width=2,
-                description="Burst length"
-            ))
-            field_config.add_field(FieldDefinition(
-                name="size",
-                bits=3,
-                default=0b010,  # Default to 4 bytes
-                format="bin",
-                display_width=3,
-                description="Burst size"
-            ))
-            field_config.add_field(FieldDefinition(
-                name="burst",
-                bits=2,
-                default=0b01,  # INCR
-                format="bin",
-                display_width=2,
-                description="Burst type"
-            ))
         return field_config
 
     def _create_data_field_config(self):
         """Create field configuration for data channel"""
         field_config = FieldConfig()
-        
-        if self.is_read:
-            # Read data channel includes ID and response
-            field_config.add_field(FieldDefinition(
-                name="id",
-                bits=self.id_width,
-                default=0,
-                format="hex",
-                display_width=2,
-                description="Transaction ID"
-            ))
-            field_config.add_field(FieldDefinition(
-                name="resp",
-                bits=2,
-                default=0,
-                format="bin",
-                display_width=2,
-                description="Response code (read data)"
-            ))
-            
-            # AXI-specific field
-            if self.is_axi:
-                field_config.add_field(FieldDefinition(
-                    name="last",
-                    bits=1,
-                    default=0,
-                    format="bin",
-                    display_width=1,
-                    description="Last beat"
-                ))
-        else:
-            # Write data channel - note: for monitoring only, so no data value
-            # fields for strobe and last signal
-            field_config.add_field(FieldDefinition(
-                name="last",
-                bits=1,
-                default=1,  # Default to last beat
-                format="bin",
-                display_width=1,
-                description="Last flag"
-            ))
-            
-            if not self.is_axi:  # AXI-Lite doesn't have data signals beyond valid/ready
-                field_config.add_field(FieldDefinition(
-                    name="strb",
-                    bits=4,
-                    default=0xF,
-                    format="bin",
-                    display_width=4,
-                    description="Byte strobe"
-                ))
+        field_config.add_field(FieldDefinition(
+            name="id",
+            bits=self.id_width,
+            default=0,
+            format="hex",
+            display_width=2,
+            description="Transaction ID"
+        ))
+        field_config.add_field(FieldDefinition(
+            name="last",
+            bits=1,
+            default=0,
+            format="bin",
+            display_width=1,
+            description="Last flag"
+        ))
+        field_config.add_field(FieldDefinition(
+            name="resp",
+            bits=2,
+            default=0,
+            format="bin",
+            display_width=2,
+            description="Response code (read data)"
+        ))
         return field_config
 
     def _create_resp_field_config(self):
@@ -272,21 +205,60 @@ class AXIErrorMonitorTB(TBBase):
         ))
         return field_config
 
+    def _create_error_field_config(self):
+        """Create field configuration for error reporting FIFO"""
+        field_config = FieldConfig()
+        field_config.add_field(FieldDefinition(
+            name="error_type",
+            bits=8,
+            default=0,
+            format="hex",
+            display_width=1,
+            description="Error type"
+        ))
+        field_config.set_encoding("error_type", {
+            1: "AddrTO",   # Address timeout  (0b00000001)
+            2: "DataTO",   # Data timeout     (0b00000010)
+            4: "RespTO",   # Response timeout (0b00000100)
+            8: "RespErr"   # Response error   (0b00001000)
+        })
+        field_config.add_field(FieldDefinition(
+            name="error_id",
+            bits=self.id_width,
+            default=0,
+            format="hex",
+            display_width=2,
+            description="Error ID"
+        ))
+        field_config.add_field(FieldDefinition(
+            name="error_addr",
+            bits=self.addr_width,
+            default=0,
+            format="hex",
+            display_width=8,
+            description="Error address"
+        ))
+        field_config.add_field(FieldDefinition(
+            name="error_unit_id",
+            bits=self.addr_width,
+            default=0,
+            format="hex",
+            display_width=2,
+            description="Error Unit ID"
+        ))
+        field_config.add_field(FieldDefinition(
+            name="error_agent_id",
+            bits=self.addr_width,
+            default=0,
+            format="hex",
+            display_width=2,
+            description="Error Agent ID"
+        ))
+        return field_config
+
     def _init_gaxi_components(self):
         """Initialize all GAXI components"""
         # Create address channel master
-        addr_optional_map = {
-            'm2s_pkt_addr': 'i_addr_addr',
-            'm2s_pkt_id': 'i_addr_id'
-        }
-
-        if self.is_axi:  # Add AXI-specific signals
-            addr_optional_map |= {
-                'm2s_pkt_len': 'i_addr_len',
-                'm2s_pkt_size': 'i_addr_size',
-                'm2s_pkt_burst': 'i_addr_burst',
-            }
-
         self.addr_master = GAXIMaster(
             self.dut, 'AddrMaster', '', self.dut.aclk,
             field_config=self.addr_field_config,
@@ -296,7 +268,10 @@ class AXIErrorMonitorTB(TBBase):
                 'm2s_valid': 'i_addr_valid',
                 's2m_ready': 'i_addr_ready'
             },
-            optional_signal_map=addr_optional_map,
+            optional_signal_map={
+                'm2s_pkt_addr': 'i_addr_addr',
+                'm2s_pkt_id': 'i_addr_id'
+            },
             log=self.log,
             randomizer=FlexRandomizer(self.master_randomizer_configs['fixed'])
         )
@@ -304,20 +279,11 @@ class AXIErrorMonitorTB(TBBase):
         # Create data channel master
         data_valid_signal = 'i_data_valid'
         data_ready_signal = 'i_data_ready'
-        data_optional_map = {}
-
-        if self.is_read:
-            # For read mode, we connect to data ID, last and resp
-            data_optional_map = {
-                'm2s_pkt_id': 'i_data_id',
-                'm2s_pkt_last': 'i_data_last',
-                'm2s_pkt_resp': 'i_data_resp'
-            }
-        else:
-            # For write mode, we only connect to last signal
-            data_optional_map = {
-                'm2s_pkt_last': 'i_data_last'
-            }
+        data_optional_map = {
+            'm2s_pkt_id': 'i_data_id',
+            'm2s_pkt_last': 'i_data_last',
+            'm2s_pkt_resp': 'i_data_resp'
+        }
 
         self.data_master = GAXIMaster(
             self.dut, 'DataMaster', '', self.dut.aclk,
@@ -340,7 +306,7 @@ class AXIErrorMonitorTB(TBBase):
                 self.dut, 'RespMaster', '', self.dut.aclk,
                 field_config=self.resp_field_config,
                 multi_sig=True,
-                timeout_cycles=10000,
+            timeout_cycles=10000,
                 signal_map={
                     'm2s_valid': 'i_resp_valid',
                     's2m_ready': 'i_resp_ready'
@@ -350,7 +316,8 @@ class AXIErrorMonitorTB(TBBase):
                     'm2s_pkt_resp': 'i_resp'
                 },
                 log=self.log,
-                randomizer=FlexRandomizer(self.master_randomizer_configs['fixed'])
+            randomizer=FlexRandomizer(self.master_randomizer_configs['fixed'])
+
             )
 
         # Create error reporting FIFO slave
@@ -383,7 +350,10 @@ class AXIErrorMonitorTB(TBBase):
                 'm2s_valid': 'i_addr_valid',
                 's2m_ready': 'i_addr_ready'
             },
-            optional_signal_map=addr_optional_map,
+            optional_signal_map={
+                'm2s_pkt_addr': 'i_addr_addr',
+                'm2s_pkt_id': 'i_addr_id'
+            },
             log=self.log
         )
 
@@ -396,7 +366,10 @@ class AXIErrorMonitorTB(TBBase):
                 'm2s_valid': data_valid_signal,
                 's2m_ready': data_ready_signal
             },
-            optional_signal_map=data_optional_map,
+            optional_signal_map={
+                'm2s_pkt_id': 'i_data_id',
+                'm2s_pkt_last': 'i_data_last'
+            },
             log=self.log
         )
 
@@ -421,79 +394,10 @@ class AXIErrorMonitorTB(TBBase):
 
         # Set up callbacks
         self.error_slave.add_callback(self._on_error_report)
-    
-    def _init_intrbus_components(self):
-        """Initialize interrupt bus components"""
-        # Create intrbus components using IntrBusComponents class
-        self.intrbus_components = IntrBusComponents(
-            self.dut, 
-            self.dut.aclk, 
-            title_prefix="IntrBus", 
-            log=self.log,
-            randomizer=FlexRandomizer(self.randomizer_configs['fixed'])
-        )
-        
-        # Extract individual components for easier access
-        self.intrbus_master = self.intrbus_components.master
-        self.intrbus_slave = self.intrbus_components.slave
-        self.intrbus_monitor = self.intrbus_components.monitor
-        
-        # Set up callbacks for the monitor
-        self.intrbus_monitor.add_callback(self._on_intrbus_event)
-        
-    def _on_intrbus_event(self, packet):  # sourcery skip: extract-method, switch
-        """Callback for all interrupt bus events"""
-        # Format the event for logging
-        event_desc = self.intrbus_components.format_event(packet)
-        self.log.info(f"Interrupt bus event detected: {event_desc}{self.get_time_ns_str()}")
-        
-        # Store event for analysis
-        event_info = {
-            'time': get_sim_time('ns'),
-            'packet_type': packet.packet_type,
-            'event_code': packet.event_code,
-            'channel_id': packet.channel_id,
-            'unit_id': packet.unit_id,
-            'agent_id': packet.agent_id,
-            'addr': packet.addr,
-            'description': event_desc
-        }
-        
-        self.intrbus_events.append(event_info)
-        
-        # Additional processing based on packet type
-        if packet.packet_type == 0:  # Error event
-            error_info = {
-                'time': get_sim_time('ns'),
-                'type': self._map_event_code_to_error_type(packet.event_code),
-                'id': packet.channel_id,
-                'addr': packet.addr,
-                'event_code': packet.event_code
-            }
-            
-            # Add decoded error type string
-            error_type_str = []
-            if packet.event_code == 0x1:  # ADDR_TIMEOUT
-                error_type_str.append("ADDR_TIMEOUT")
-            elif packet.event_code == 0x2:  # DATA_TIMEOUT
-                error_type_str.append("DATA_TIMEOUT")
-            elif packet.event_code == 0x3:  # RESP_TIMEOUT
-                error_type_str.append("RESP_TIMEOUT")
-            elif packet.event_code == 0x4:  # RESP_SLVERR
-                error_type_str.append("RESP_SLVERR")
-            elif packet.event_code == 0x5:  # RESP_DECERR
-                error_type_str.append("RESP_DECERR")
-            
-            error_info['type_str'] = "|".join(error_type_str)
-            
-            # Store error
-            self.errors_detected.append(error_info)
-            
-            self.log.info(f"Error event detected: {error_info['type_str']}, ID={packet.channel_id}, addr=0x{packet.addr:X}{self.get_time_ns_str()}")
 
     def _on_error_report(self, packet):
-        """Callback for error reports from the error FIFO (legacy method)"""
-        self.log.info(f"Error report from FIFO: {packet.formatted(compact=True)}{self.get_time_ns_str()}")
+        """Callback for error reports from the error FIFO"""
+        self.log.info(f"Error report: {packet.formatted(compact=True)}{self.get_time_ns_str()}")
 
         # Extract error information
         error_info = {
@@ -518,29 +422,14 @@ class AXIErrorMonitorTB(TBBase):
 
         # Store error
         self.errors_detected.append(error_info)
-    
-    def _map_event_code_to_error_type(self, event_code):
-        """Map event code to error type constant"""
-        if event_code == 0x1:  # ADDR_TIMEOUT
-            return self.ERROR_ADDR_TIMEOUT
-        elif event_code == 0x2:  # DATA_TIMEOUT
-            return self.ERROR_DATA_TIMEOUT
-        elif event_code == 0x3:  # RESP_TIMEOUT
-            return self.ERROR_RESP_TIMEOUT
-        elif event_code in [0x4, 0x5]:  # RESP_SLVERR or RESP_DECERR
-            return self.ERROR_RESP_ERROR
-        else:
-            return 0
 
     def _create_test_classes(self):
         """Create the test classes"""
         self.basic_test = AXIErrorMonBasicTest(self)
-        # Comment out test class creation until implemented
-        # self.fifo_test = AXIErrorMonFIFOTest(self)
-        # self.error_test = AXIErrorMonErrorTest(self)
-        # self.multichannel_test = AXIErrorMonMultiChannelTest(self)
-        # self.random_test = AXIErrorMonRandomTest(self)
-        # self.intrbus_test = AXIErrorMonIntrBusTest(self)
+        self.fifo_test = AXIErrorMonFIFOTest(self)
+        self.error_test = AXIErrorMonErrorTest(self)
+        self.multichannel_test = AXIErrorMonMultiChannelTest(self)
+        self.random_test = AXIErrorMonRandomTest(self)
 
     def _log_config(self):
         """Log the testbench configuration"""
@@ -550,8 +439,6 @@ class AXIErrorMonitorTB(TBBase):
         self.log.info(f"Address Width:     {self.addr_width}")
         self.log.info(f"ID Width:          {self.id_width}")
         self.log.info(f"Channels:          {self.channels}")
-        self.log.info(f"Unit ID:           {self.unit_id}")
-        self.log.info(f"Agent ID:          {self.agent_id}")
         self.log.info(f"Mode:              {'Read' if self.is_read else 'Write'}")
         self.log.info(f"Interface:         {'AXI' if self.is_axi else 'AXI-Lite'}")
         self.log.info(f"Addr Timeout:      {self.timeout_addr}")
@@ -570,7 +457,6 @@ class AXIErrorMonitorTB(TBBase):
 
         # Reset monitoring structures
         self.errors_detected = []
-        self.intrbus_events = []
         self.axi_transactions = []
 
         # Wait for reset to stabilize
@@ -586,12 +472,6 @@ class AXIErrorMonitorTB(TBBase):
             await self.resp_master.reset_bus()
         await self.error_slave.reset_bus()
 
-        # Reset the interrupt bus components
-        await self.intrbus_components.reset_bus()
-        
-        # Set intrbus slave to normal ready speed
-        self.intrbus_slave.set_randomizer(FlexRandomizer(self.randomizer_configs['fixed']))
-        
         # Start ready signal controller
         await self.ready_ctrl.start()
 
@@ -636,29 +516,27 @@ class AXIErrorMonitorTB(TBBase):
         basic_passed = await self.basic_test.run()
         all_passed = all_passed and basic_passed
 
-        # Comment out advanced tests until implemented
-        # if test_level != 'basic':
-        #     # Medium adds error detection
-        #     error_passed = await self.error_test.run()
-        #     all_passed = all_passed and error_passed
-        # 
-        #     # Run intrbus-specific tests
-        #     intrbus_passed = await self.intrbus_test.run()
-        #     all_passed = all_passed and intrbus_passed
-        # 
-        #     # Run random traffic test with moderate number of transactions
-        #     if test_level == 'medium':
-        #         random_passed = await self.random_test.run(num_transactions=20)
-        #         all_passed = all_passed and random_passed
-        # 
-        # # Full adds multichannel test and more extensive random testing
-        # if test_level == 'full':
-        #     multichannel_passed = await self.multichannel_test.run()
-        #     all_passed = all_passed and multichannel_passed
-        # 
-        #     # Run more extensive random traffic test
-        #     random_passed = await self.random_test.run(num_transactions=50)
-        #     all_passed = all_passed and random_passed
+        fifo_passed = await self.fifo_test.run()
+        all_passed = all_passed and fifo_passed
+
+        # Medium adds error detection
+        if test_level != 'basic':
+            error_passed = await self.error_test.run()
+            all_passed = all_passed and error_passed
+
+            # Run random traffic test with moderate number of transactions
+            if test_level == 'medium':
+                random_passed = await self.random_test.run(num_transactions=20)
+                all_passed = all_passed and random_passed
+
+        # Full adds multichannel test and more extensive random testing
+        if test_level == 'full':
+            # multichannel_passed = await self.multichannel_test.run()
+            # all_passed = all_passed and multichannel_passed
+
+            # Run more extensive random traffic test
+            random_passed = await self.random_test.run(num_transactions=50)
+            all_passed = all_passed and random_passed
 
         if all_passed:
             self.log.info(f"All tests at level {test_level} passed{self.get_time_ns_str()}")
@@ -666,3 +544,22 @@ class AXIErrorMonitorTB(TBBase):
             self.log.error(f"Some tests at level {test_level} failed{self.get_time_ns_str()}")
 
         return all_passed
+
+    def verify_timer_operation(self, timer_operation):
+        """
+        Verify timer operation type matches the expected behavior
+
+        Args:
+            timer_operation: Expected timer operation ('count_up' or 'count_down')
+
+        Returns:
+            True if the operation is as expected, False otherwise
+        """
+        # In the updated RTL, timers always count down from MAX
+        expected_operation = 'count_down'
+
+        if timer_operation != expected_operation:
+            self.log.error(f"Timer operation mismatch: expected {expected_operation}, got {timer_operation}{self.get_time_ns_str()}")
+            return False
+
+        return True

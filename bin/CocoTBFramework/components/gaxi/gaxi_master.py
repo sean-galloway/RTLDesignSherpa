@@ -466,12 +466,10 @@ class GAXIMaster(BusDriver):
                 elif 'data' in fifo_data:
                     field_value = self._check_field_value('data', fifo_data['data'])
                     self.pkt_sig.value = field_value
-                else:
-                    # No 'data' field - use first available field
-                    if fifo_data:
-                        first_field = next(iter(fifo_data))
-                        field_value = self._check_field_value(first_field, fifo_data[first_field])
-                        self.pkt_sig.value = field_value
+                elif fifo_data:
+                    first_field = next(iter(fifo_data))
+                    field_value = self._check_field_value(first_field, fifo_data[first_field])
+                    self.pkt_sig.value = field_value
             return True
         except Exception as e:
             self.log.error(f"Error driving signals: {e}")
@@ -629,6 +627,7 @@ class GAXIMaster(BusDriver):
         Args:
             cycles: Number of cycles to wait
         """
+        self.log.debug(f"Master({self.title}) waiting cycles {cycles}")
         for _ in range(cycles):
             await RisingEdge(self.clock)
             if self.reset_occurring:

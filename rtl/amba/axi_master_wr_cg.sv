@@ -2,6 +2,10 @@
 
 module axi_master_wr_cg
 #(
+        // Error Packet Identifiers
+    parameter int UNIT_ID            = 99,
+    parameter int AGENT_ID           = 99,
+
     // AXI parameters
     parameter int AXI_ID_WIDTH      = 8,
     parameter int AXI_ADDR_WIDTH    = 32,
@@ -45,6 +49,12 @@ module axi_master_wr_cg
 
     // Alignment mask signal (12-bit)
     input  logic [11:0]                alignment_mask,
+
+    // Timer configs
+    input  logic [3:0]               i_cfg_freq_sel, // Frequency selection (configurable)
+    input  logic [3:0]               i_cfg_addr_cnt, // ADDR match for a timeout
+    input  logic [3:0]               i_cfg_data_cnt, // DATA match for a timeout
+    input  logic [3:0]               i_cfg_resp_cnt, // RESP match for a timeout
 
     // Slave AXI Interface (Input Side)
     // Write address channel (AW)
@@ -116,9 +126,11 @@ module axi_master_wr_cg
     input  logic                       fub_split_ready,
 
     // Error outputs with FIFO interface
-    output logic [3:0]                 fub_error_type,
+    output logic [7:0]                 fub_error_type,
     output logic [AW-1:0]              fub_error_addr,
     output logic [IW-1:0]              fub_error_id,
+    output logic [7:0]                 fub_error_unit_id,
+    output logic [7:0]                 fub_error_agent_id,
     output logic                       fub_error_valid,
     input  logic                       fub_error_ready,
 
@@ -138,9 +150,11 @@ module axi_master_wr_cg
     logic int_awready;
     logic int_wready;
     logic int_bready;
+    logic int_busy;
 
     // OR all user-side valid signals
-    assign user_valid = fub_awvalid || fub_wvalid || fub_bready || fub_split_valid || fub_error_valid;
+    assign user_valid = fub_awvalid || fub_wvalid || fub_bready ||
+                            fub_split_valid || fub_error_valid || int_busy;
 
     // OR all AXI-side valid signals
     assign axi_valid = m_axi_awvalid || m_axi_wvalid || m_axi_bvalid;
@@ -167,6 +181,8 @@ module axi_master_wr_cg
 
     // Instantiate the original AXI master write module with gated clock
     axi_master_wr #(
+        .UNIT_ID(UNIT_ID),
+        .AGENT_ID(AGENT_ID),
         .AXI_ID_WIDTH         (AXI_ID_WIDTH),
         .AXI_ADDR_WIDTH       (AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH       (AXI_DATA_WIDTH),
@@ -175,13 +191,16 @@ module axi_master_wr_cg
         .SKID_DEPTH_W         (SKID_DEPTH_W),
         .SKID_DEPTH_B         (SKID_DEPTH_B),
         .SPLIT_FIFO_DEPTH     (SPLIT_FIFO_DEPTH),
-        .ERROR_FIFO_DEPTH     (ERROR_FIFO_DEPTH),
-        .TIMEOUT_AW           (TIMEOUT_AW),
-        .TIMEOUT_W            (TIMEOUT_W),
-        .TIMEOUT_B            (TIMEOUT_B)
+        .ERROR_FIFO_DEPTH     (ERROR_FIFO_DEPTH)
     ) i_axi_master_wr (
         .aclk                 (gated_aclk),      // Use gated clock
         .aresetn              (aresetn),
+        // Configs
+        .i_cfg_freq_sel       (i_cfg_freq_sel),
+        .i_cfg_addr_cnt       (i_cfg_addr_cnt),
+        .i_cfg_data_cnt       (i_cfg_data_cnt),
+        .i_cfg_resp_cnt       (i_cfg_resp_cnt),
+
         .alignment_mask       (alignment_mask),
 
         // Slave AXI Interface (Input Side)
@@ -251,8 +270,12 @@ module axi_master_wr_cg
         .fub_error_type       (fub_error_type),
         .fub_error_addr       (fub_error_addr),
         .fub_error_id         (fub_error_id),
+        .fub_error_unit_id    (fub_error_unit_id),
+        .fub_error_agent_id   (fub_error_agent_id),
         .fub_error_valid      (fub_error_valid),
-        .fub_error_ready      (fub_error_ready)
+        .fub_error_ready      (fub_error_ready),
+        // A cycle is in flight
+        .o_busy               (int_busy)
     );
 
 endmodule : axi_master_wr_cg

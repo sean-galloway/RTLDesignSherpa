@@ -1,5 +1,5 @@
 """
-Test runner for AXI Error Monitor Base module
+Test runner for AXI Error Monitor module
 
 This module provides a pytest-based test runner for validating the axi_errmon_base
 module with different parameter configurations.
@@ -16,8 +16,8 @@ from CocoTBFramework.tbclasses.axi_errmon.axi_errmon_base_tb import AXIErrorMoni
 
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
-async def axi_errmon_base_test(dut):
-    """Main entry point for AXI Error Monitor Base tests"""
+async def axi_errmon_test(dut):
+    """Main entry point for AXI Error Monitor tests"""
     # Get test parameters from environment
     test_type = os.environ.get('TEST_TYPE', 'basic')  # basic, medium, full
     is_read = os.environ.get('IS_READ', '1') == '1'
@@ -30,16 +30,15 @@ async def axi_errmon_base_test(dut):
         id_width=dut.ID_WIDTH.value,
         is_read=dut.IS_READ.value == 1,
         is_axi=dut.IS_AXI.value == 1,
-        error_fifo_depth=dut.ERROR_FIFO_DEPTH.value,
-        addr_fifo_depth=dut.ADDR_FIFO_DEPTH.value,
-        channels=dut.CHANNELS.value
+        unit_id=dut.UNIT_ID.value,
+        agent_id=dut.AGENT_ID.value
     )
 
     # Start the clock
     await tb.start_clock('aclk', 10, 'ns')
 
     # Run the tests
-    result = await tb.run_all_tests(test_level=test_type)
+    result = await tb.run_all_tests(test_type)
 
     # Check result
     if result:
@@ -54,75 +53,50 @@ def generate_params():
     # Initial parameter lists
     id_widths = [8]
     addr_widths = [32]
-    error_fifo_depths = [4]
-    addr_fifo_depths = [4]
-    is_read_options = [True, False]
-    test_levels = ['basic', 'medium', 'full']
+    unit_ids = [9]  # Default unit ID in RTL
+    agent_ids = [99]  # Default agent ID in RTL
+    is_read_options = [True, False]  # Both read and write modes
+    is_axi_options = [True, False]  # Both AXI and AXI-Lite
 
-    # Define is_axi_options first
-    is_axi_options = [True, False]
+    is_read_options = [True]
+    is_axi_options = [True]
+    test_levels = ['basic']  # Start with basic tests
 
-    # Then define channels_list based on is_axi_options
-    channels_dict = {
-        True: [1, 4, 16, 32],  # When is_axi is True
-        False: [1]             # When is_axi is False
-    }
-    channels_dict = {
-        True: [4],  # When is_axi is True
-        False: [1]             # When is_axi is False
-    }
     # For faster running tests, limit parameters
-    if os.environ.get('QUICK_TEST', '0') == '1':
-        test_levels = ['basic']
-        channels_dict[True] = [1, 4]  # Only modify the True case
+    if os.environ.get('QUICK_TEST', '1') == '1':
+        # Focus on just a few configurations for quick testing
+        is_axi_options = [True]
+        is_read_options = [True]
 
-    # For debug-focused testing
-    if os.environ.get('DEBUG_TEST', '0') == '1':
-        test_levels = ['full']
-        channels_dict[True] = [4]  # Only modify the True case
+    # For more extensive testing
+    if os.environ.get('FULL_TEST', '0') == '1':
+        test_levels = ['basic', 'medium', 'full']
 
-    # is_read_options = [True]
-    # is_axi_options = [True]
-    test_levels = ['full']
-
+    # Generate parameter combinations
     result = []
-    for is_axi in is_axi_options:
-        # Use the appropriate channels list based on the is_axi value
-        channels_list = channels_dict[is_axi]
-
-        result.extend(
-            (
-                channels,
-                id_width,
-                addr_width,
-                error_fifo_depth,
-                addr_fifo_depth,
-                is_read,
-                is_axi,
-                test_level,
-            )
-            for channels, id_width, addr_width, error_fifo_depth, addr_fifo_depth, is_read, test_level in product(
-                channels_list,
-                id_widths,
-                addr_widths,
-                error_fifo_depths,
-                addr_fifo_depths,
-                is_read_options,
-                test_levels,
-            )
-            if channels <= 16 or test_level != 'full'
+    result.extend(
+        (id_width, addr_width, unit_id, agent_id, is_read, is_axi, test_level)
+        for id_width, addr_width, unit_id, agent_id, is_read, is_axi, test_level in product(
+            id_widths,
+            addr_widths,
+            unit_ids,
+            agent_ids,
+            is_read_options,
+            is_axi_options,
+            test_levels,
         )
+    )
     return result
+
 
 params = generate_params()
 
 @pytest.mark.parametrize(
-    "channels, id_width, addr_width, error_fifo_depth, addr_fifo_depth, is_read, is_axi, test_level",
+    "id_width, addr_width, unit_id, agent_id, is_read, is_axi, test_level",
     params
 )
-def test_axi_errmon_base(request, channels, id_width, addr_width, error_fifo_depth,
-                            addr_fifo_depth, is_read, is_axi, test_level):
-    """Main test function for AXI Error Monitor Base module"""
+def test_axi_errmon(request, id_width, addr_width, unit_id, agent_id, is_read, is_axi, test_level):
+    """Main test function for AXI Error Monitor module"""
     # Get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths(
         {
@@ -135,26 +109,31 @@ def test_axi_errmon_base(request, channels, id_width, addr_width, error_fifo_dep
     dut_name = "axi_errmon_base"
     toplevel = dut_name
 
+    # Verilog sources needed for the test
     verilog_sources = [
-        os.path.join(rtl_dict['rtl_cmn'], "counter_load_clear.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "counter_freq_invariant.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
+        os.path.join(rtl_dict['rtl_amba'], "includes/axi_errmon_types.sv"),  # Updated include path
+        os.path.join(rtl_dict['rtl_cmn'],  "counter_load_clear.sv"),
+        os.path.join(rtl_dict['rtl_cmn'],  "counter_freq_invariant.sv"),
+        os.path.join(rtl_dict['rtl_cmn'],  "counter_bin.sv"),
+        os.path.join(rtl_dict['rtl_cmn'],  "fifo_control.sv"),
         os.path.join(rtl_dict['rtl_amba'], "gaxi_fifo_sync.sv"),
+        os.path.join(rtl_dict['rtl_amba'], "axi_errmon_timer.sv"),
+        os.path.join(rtl_dict['rtl_amba'], "axi_errmon_timeout.sv"),
+        os.path.join(rtl_dict['rtl_amba'], "axi_errmon_trans_mgr.sv"),
+        os.path.join(rtl_dict['rtl_amba'], "axi_errmon_reporter.sv"),
         os.path.join(rtl_dict['rtl_amba'], f"{dut_name}.sv")
     ]
 
     # Create a human-readable test identifier
-    ch_str = format(channels, '02d')
     id_str = format(id_width, '02d')
     addr_str = format(addr_width, '02d')
-    efd_str = format(error_fifo_depth, '02d')
-    afd_str = format(addr_fifo_depth, '02d')
+    uid_str = format(unit_id, '02d')
+    aid_str = format(agent_id, '02d')
     rd_str = "R" if is_read else "W"
     axi_str = "AXI" if is_axi else "AXIL"
     test_type_str = f"{test_level}"
 
-    test_name_plus_params = f"test_{dut_name}_ch{ch_str}_id{id_str}_a{addr_str}_efd{efd_str}_afd{afd_str}_{rd_str}_{axi_str}_{test_type_str}"
+    test_name_plus_params = f"test_{dut_name}_id{id_str}_a{addr_str}_uid{uid_str}_aid{aid_str}_{rd_str}_{axi_str}_{test_type_str}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Use it in the simbuild path
@@ -171,13 +150,13 @@ def test_axi_errmon_base(request, channels, id_width, addr_width, error_fifo_dep
 
     # RTL parameters
     rtl_parameters = {
-        'CHANNELS': str(channels),
         'ID_WIDTH': str(id_width),
         'ADDR_WIDTH': str(addr_width),
-        'ERROR_FIFO_DEPTH': str(error_fifo_depth),
-        'ADDR_FIFO_DEPTH': str(addr_fifo_depth),
+        'UNIT_ID': str(unit_id),
+        'AGENT_ID': str(agent_id),
         'IS_READ': '1' if is_read else '0',
         'IS_AXI': '1' if is_axi else '0',
+        'MAX_TRANSACTIONS': '16'  # Default value
     }
 
     # Environment variables

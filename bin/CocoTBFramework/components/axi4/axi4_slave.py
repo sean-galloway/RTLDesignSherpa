@@ -261,6 +261,10 @@ class AXI4Slave:
             return
 
         id_value = transaction.awid
+        address = transaction.awaddr
+
+        # Log detailed information
+        self.log.debug(f"Received write address: ID={id_value}, ADDR=0x{address:X}, LEN={getattr(transaction, 'awlen', 0)}")
 
         # Validate protocol if enabled
         if self.check_protocol:
@@ -269,8 +273,10 @@ class AXI4Slave:
                 self.log.error(f"AXI4 protocol error (AW): {error_msg}")
                 # Still process the transaction, but note the error
 
+        # Handle exclusive access if applicable
         is_exclusive = bool(hasattr(transaction, 'awlock') and transaction.awlock == 1)
-        # Use QoS if enabled
+        
+        # Handle QoS if applicable
         qos_value = 0
         if hasattr(transaction, 'awqos'):
             qos_value = transaction.awqos
@@ -278,7 +284,6 @@ class AXI4Slave:
             # Apply QoS handling if available
             if 'qos' in self.extensions and qos_value > 0:
                 # Add to QoS prioritization
-                # (will be processed in order of priority)
                 self.extensions['qos'].queue_write_transaction(
                     {'id': id_value, 'transaction': transaction},
                     qos_value
@@ -308,45 +313,133 @@ class AXI4Slave:
                 # Transaction must wait for barriers
                 self.pending_writes[id_value]['barrier_blocked'] = True
 
-        self.log.debug(f"Received write address: ID={id_value}, ADDR=0x{transaction.awaddr:X}, LEN={getattr(transaction, 'awlen', 0)}")
+        # IMPORTANT: Check if we have any stored W data that might belong to this transaction
+        # This handles the case where W data arrives before or simultaneously with AW
+        if hasattr(self, 'pending_w_data') and self.pending_w_data:
+            self.log.debug(f"Checking {len(self.pending_w_data)} pending W transactions for ID={id_value}")
+            pending = self.pending_writes[id_value]
+            
+            # Check each stored W transaction
+            i = 0
+            while i < len(self.pending_w_data) and pending['received_beats'] < pending['expected_beats']:
+                w_transaction = self.pending_w_data[i]
+                
+                # Add this transaction to the pending write
+                pending['w_transactions'].append(w_transaction)
+                pending['received_beats'] += 1
+                
+                # Check if this completes the transaction
+                is_last = hasattr(w_transaction, 'wlast') and w_transaction.wlast == 1
+                expected_last = pending['received_beats'] >= pending['expected_beats']
+                
+                if is_last or expected_last:
+                    pending['complete'] = True
+                    self.log.debug(f"Transaction ID={id_value} now complete using stored W data, received all {pending['received_beats']} beats")
+                
+                # Get the address for this beat
+                addr = pending['addresses'][pending['received_beats']-1] if pending['received_beats'] <= len(pending['addresses']) else pending['addresses'][-1]
+                
+                self.log.debug(f"Matched stored W data with new AW transaction: ID={id_value}, ADDR=0x{addr:X}, DATA=0x{w_transaction.wdata:X}, beat #{pending['received_beats']}")
+                
+                # Remove this W transaction from the buffer
+                self.pending_w_data.pop(i)
+                
+                # Don't increment i since we removed an item
+                # Next iteration will use the new item at index i
 
     def _handle_w_transaction(self, transaction):
         """Process Write Data (W) channel transaction"""
-        # Match with pending write transactions
+        # W transactions don't carry ID, so we need to match them with AW transactions
+        
+        # Detailed debugging for incoming transaction
+        w_data = transaction.wdata if hasattr(transaction, 'wdata') else 'unknown'
+        w_strb = transaction.wstrb if hasattr(transaction, 'wstrb') else 'unknown'
+        w_last = transaction.wlast if hasattr(transaction, 'wlast') else 'unknown'
+        self.log.debug(f"Incoming W transaction: DATA=0x{w_data:X}, STRB=0x{w_strb:X}, LAST={w_last}")
+        
+        # Log the current state of pending writes
+        if self.pending_writes:
+            self.log.debug(f"Current pending writes: {len(self.pending_writes)} transactions")
+            for id_val, pending in self.pending_writes.items():
+                aw_addr = pending['aw_transaction'].awaddr if 'aw_transaction' in pending else 'unknown'
+                received = pending.get('received_beats', 0)
+                expected = pending.get('expected_beats', 0)
+                self.log.debug(f"  ID={id_val}, ADDR=0x{aw_addr:X}, received={received}/{expected} beats, complete={pending.get('complete', False)}")
+        
+        # Track if we found a match
+        found_match = False
+        
+        # SCENARIO 1: Look for in-progress transactions first
         for id_value, pending in self.pending_writes.items():
-            # Check if this transaction belongs to this ID
-            if pending['received_beats'] < pending['expected_beats']:
+            if pending.get('complete', False):
+                continue  # Skip complete transactions
+                
+            if pending.get('received_beats', 0) > 0:
+                # This transaction already has some data, try to match this beat with it
+                if pending['received_beats'] < pending['expected_beats']:
+                    # Get next expected address
+                    addr = pending['addresses'][pending['received_beats']] if pending['received_beats'] < len(pending['addresses']) else pending['addresses'][-1]
+                    
+                    # Add this transaction to the pending write
+                    pending['w_transactions'].append(transaction)
+                    pending['received_beats'] += 1
+                    
+                    # Check if this completes the transaction
+                    is_last = hasattr(transaction, 'wlast') and transaction.wlast == 1
+                    expected_last = pending['received_beats'] >= pending['expected_beats']
+                    
+                    if is_last or expected_last:
+                        pending['complete'] = True
+                        self.log.debug(f"In-progress transaction ID={id_value} now complete, received all {pending['received_beats']} beats")
+                    
+                    self.log.debug(f"Matched write data with in-progress transaction: ID={id_value}, ADDR=0x{addr:X}, DATA=0x{w_data:X}, beat #{pending['received_beats']}")
+                    found_match = True
+                    break
+        
+        # SCENARIO 2: If no match with in-progress transactions, try to match with a new transaction
+        if not found_match:
+            # Create a list of pending writes that need data, sorted by start time (oldest first)
+            pending_needing_data = []
+            
+            for id_value, pending in self.pending_writes.items():
+                if not pending.get('complete', False) and pending.get('received_beats', 0) < pending.get('expected_beats', 1):
+                    pending_needing_data.append((id_value, pending.get('start_time', float('inf'))))
+            
+            # Sort by start time
+            pending_needing_data.sort(key=lambda x: x[1])
+            
+            # Try to match with the oldest transaction that needs data
+            if pending_needing_data:
+                oldest_id = pending_needing_data[0][0]
+                pending = self.pending_writes[oldest_id]
+                
                 # Get next expected address
-                if pending['received_beats'] < len(pending['addresses']):
-                    addr = pending['addresses'][pending['received_beats']]
-                else:
-                    # Should not happen, but handle gracefully
-                    addr = pending['addresses'][-1]
-
-                # Validate protocol if enabled
-                if self.check_protocol:
-                    valid, error_msg = transaction.validate_axi4_protocol()
-                    if not valid:
-                        self.log.error(f"AXI4 protocol error (W): {error_msg}")
-
+                addr = pending['addresses'][pending['received_beats']] if pending['received_beats'] < len(pending['addresses']) else pending['addresses'][-1]
+                
                 # Add this transaction to the pending write
                 pending['w_transactions'].append(transaction)
                 pending['received_beats'] += 1
-
-                # Check if last beat
-                if hasattr(transaction, 'wlast') and transaction.wlast == 1:
-                    # Mark as complete and ready for processing
+                
+                # Check if this completes the transaction
+                is_last = hasattr(transaction, 'wlast') and transaction.wlast == 1
+                expected_last = pending['received_beats'] >= pending['expected_beats']
+                
+                if is_last or expected_last:
                     pending['complete'] = True
-
-                # Check if all expected beats received
-                if pending['received_beats'] >= pending['expected_beats']:
-                    # Mark as complete and ready for processing
-                    pending['complete'] = True
-
-                self.log.debug(f"Received write data: ADDR=0x{addr:X}, DATA=0x{transaction.wdata:X}, STRB=0x{transaction.wstrb:X}, LAST={getattr(transaction, 'wlast', 0)}")
-
-                # Found a match, no need to check other IDs
-                break
+                    self.log.debug(f"New transaction ID={oldest_id} now complete, received all {pending['received_beats']} beats")
+                
+                self.log.debug(f"Matched write data with oldest pending transaction: ID={oldest_id}, ADDR=0x{addr:X}, DATA=0x{w_data:X}, beat #{pending['received_beats']}")
+                found_match = True
+        
+        # SCENARIO 3: Store the data temporarily if no AW transaction has arrived yet
+        # This handles the case where W data arrives before or simultaneously with AW
+        if not found_match:
+            # Store in a temporary buffer keyed by data value as we don't have ID info
+            if not hasattr(self, 'pending_w_data'):
+                self.pending_w_data = []
+            
+            self.pending_w_data.append(transaction)
+            self.log.debug(f"No matching AW transaction found yet. Storing W data (0x{w_data:X}) for later matching. Buffer size: {len(self.pending_w_data)}")
 
     def _handle_ar_transaction(self, transaction):
         """Process Read Address (AR) channel transaction"""
@@ -438,6 +531,22 @@ class AXI4Slave:
 
     async def _process_writes(self):
         """Process completed write transactions and queue responses"""
+        # Skip if no pending writes
+        if not self.pending_writes:
+            return
+
+        # Check for any pending W data that hasn't been matched yet
+        if hasattr(self, 'pending_w_data') and self.pending_w_data and len(self.pending_w_data) > 5:
+            self.log.warning(f"Large number of unmatched W transactions: {len(self.pending_w_data)}")
+
+        if pending_complete := [
+            id_val
+            for id_val, pending in self.pending_writes.items()
+            if pending.get('complete', False)
+            and not pending.get('processed', False)
+        ]:
+            self.log.debug(f"Processing writes: {len(pending_complete)} complete transactions waiting to be processed: {pending_complete}")
+
         # First, check QoS handler if available
         next_qos_transaction = None
         if 'qos' in self.extensions:
@@ -446,38 +555,72 @@ class AXI4Slave:
             ].get_next_write_transaction():
                 # Process this high-priority transaction first
                 id_value = next_qos_transaction['id']
-                if id_value in self.pending_writes and self.pending_writes[id_value]['complete']:
+                if id_value in self.pending_writes and self.pending_writes[id_value]['complete'] and not self.pending_writes[id_value].get('processed', False):
                     # Force processing of this ID next
+                    self.log.debug(f"Processing high-priority QoS transaction ID={id_value}")
                     await self._process_write_id(id_value)
                     return
 
-        # Process regular transactions
+        # Create a list of IDs that are complete but not processed
+        complete_ids = []
         for id_value, pending in self.pending_writes.items():
-            if pending['complete'] and not pending.get('processed', False):
-                # Check if this transaction is blocked by a barrier
+            if pending.get('complete', False) and not pending.get('processed', False):
+                # Skip if barrier blocked
                 if pending.get('barrier_blocked', False):
-                    # Skip this transaction until barrier is resolved
+                    self.log.debug(f"Transaction ID={id_value} is complete but barrier blocked")
                     continue
 
-                # Process this write transaction
-                await self._process_write_id(id_value)
-                # Only process one transaction per cycle to avoid overwhelming
+                # Add to the list of processable transactions
+                complete_ids.append((id_value, pending.get('start_time', float('inf'))))
+
+        # Sort transactions by start time to process oldest first
+        if complete_ids:
+            complete_ids.sort(key=lambda x: x[1])
+            id_to_process = complete_ids[0][0]
+
+            # Log transaction details
+            pending = self.pending_writes[id_to_process]
+            self.log.debug(f"Processing oldest complete transaction ID={id_to_process}, ADDR=0x{pending['aw_transaction'].awaddr:X}")
+
+            # Double-check that data is actually available
+            if len(pending.get('w_transactions', [])) < pending.get('expected_beats', 1):
+                self.log.warning(f"Transaction ID={id_to_process} is marked complete but has {len(pending.get('w_transactions', []))}/{pending.get('expected_beats', 1)} beats")
+                # Mark as incomplete to prevent processing
+                pending['complete'] = False
                 return
+
+            await self._process_write_id(id_to_process)
 
     async def _process_write_id(self, id_value):
         """Process a specific write transaction by ID"""
         if id_value not in self.pending_writes:
+            self.log.error(f"Attempted to process non-existent write ID={id_value}")
             return
+            
         pending = self.pending_writes[id_value]
+        
+        # Check if transaction is really complete
+        if not pending.get('complete', False):
+            self.log.warning(f"Attempted to process incomplete write transaction ID={id_value}")
+            return
+            
+        # Check if transaction is already processed
+        if pending.get('processed', False):
+            self.log.warning(f"Attempted to process already processed write transaction ID={id_value}")
+            return
 
         # Get original transaction info
         aw_transaction = pending['aw_transaction']
         w_transactions = pending['w_transactions']
 
-        # Check if all data received
+        # Double-check that all data was received
         if len(w_transactions) < pending['expected_beats']:
-            self.log.warning(f"Write transaction ID={id_value} marked complete but missing data beats")
+            self.log.warning(f"Write transaction ID={id_value} marked complete but missing data beats: {len(w_transactions)}/{pending['expected_beats']}")
+            # Do not process incomplete transactions
             return
+
+        # Log details for debugging
+        self.log.debug(f"Processing write transaction ID={id_value}, ADDR=0x{aw_transaction.awaddr:X}, expected_beats={pending['expected_beats']}, received_beats={pending['received_beats']}")
 
         # Check with error handler if available
         should_error = False
@@ -531,29 +674,34 @@ class AXI4Slave:
             buser=getattr(aw_transaction, 'awuser', 0)
         )
 
-        # Add to response queue
-        self.write_response_queue.append({
+        # Add to response queue with detailed information for debugging
+        response_entry = {
             'id': id_value,
             'packet': b_packet,
             'timestamp': get_sim_time('ns'),
             'addr': aw_transaction.awaddr,  # For tracking/debugging
             'exclusive': pending.get('is_exclusive', False),
             'qos': pending.get('qos', 0)
-        })
+        }
+        
+        self.write_response_queue.append(response_entry)
+        self.log.debug(f"Queued write response: ID={id_value}, RESP={resp_code}, ADDR=0x{aw_transaction.awaddr:X}")
 
         # If this is the first transaction and we're tracking in-order responses,
         # set it as the next to process
         if self.next_write_id is None:
             self.next_write_id = id_value
+            self.log.debug(f"Setting next_write_id={id_value} (was None)")
 
-        # Mark as processed
+        # Mark as processed - important for tracking
         pending['processed'] = True
 
         # Update barrier handler if applicable
         if 'barrier' in self.extensions:
             self.extensions['barrier'].complete_transaction(id_value)
 
-        self.log.debug(f"Queued write response: ID={id_value}, RESP={resp_code}")
+        # Detailed debug log for response queuing
+        self.log.debug(f"Write transaction ID={id_value} processed successfully, response queued")
 
     async def _process_reads(self):
         """Process pending read transactions and queue responses"""
@@ -696,6 +844,14 @@ class AXI4Slave:
         if not self.write_response_queue:
             return
 
+        id_list = [resp['id'] for resp in self.write_response_queue]
+        self.log.debug(f"Write response queue state: {len(self.write_response_queue)} responses for IDs {id_list}, next_write_id={self.next_write_id}")
+
+        # Check if the B channel master is busy
+        if hasattr(self.b_master, 'transfer_busy') and self.b_master.transfer_busy:
+            self.log.debug("B-channel master is busy, deferring response send")
+            return
+
         # For in-order mode, we need to respect transaction order across all IDs
         if self.inorder:
             # Only send the next response if it matches the expected ID
@@ -708,35 +864,107 @@ class AXI4Slave:
                     ),
                     None,
                 )
+
                 if response_idx is not None:
-                    # Send this response
-                    response = self.write_response_queue.pop(response_idx)
-                    await self.b_master.send(response['packet'])
-                    self.log.debug(f"Sent in-order write response: ID={response['id']}, RESP={response['packet'].bresp}")
+                    # Get the response but don't pop it yet - wait for successful send
+                    response = self.write_response_queue[response_idx]
 
-                    # Remove from tracking
-                    if self.next_write_id in self.pending_writes:
-                        del self.pending_writes[self.next_write_id]
+                    try:
+                        # Send this response with minimal delay
+                        # This addresses the issue of the long delay between W and B
+                        if hasattr(self.b_master, 'set_randomizer'):
+                            # Store the original randomizer to restore later
+                            original_randomizer = self.b_master.get_randomizer()
 
-                    # Find next transaction ID
-                    self.next_write_id = self._find_next_write_id()
+                            # Set a minimal delay (fixed 2 cycles) for this response
+                            from ..flex_randomizer import FlexRandomizer
+                            fixed_delay = {
+                                'valid_delay': ([[2, 2]], [1.0])  # Always wait exactly 2 cycles
+                            }
+                            self.b_master.set_randomizer(FlexRandomizer(fixed_delay))
+
+                        # Send the response
+                        self.log.debug(f"Sending in-order write response: ID={response['id']}, RESP={response['packet'].bresp}, ADDR=0x{response['addr']:X}")
+                        await self.b_master.send(response['packet'])
+
+                        # Restore original randomizer if we changed it
+                        if hasattr(self.b_master, 'set_randomizer') and original_randomizer:
+                            self.b_master.set_randomizer(original_randomizer)
+
+                        # Now remove it after successful send
+                        self.write_response_queue.pop(response_idx)
+
+                        # Log detailed successful send
+                        self.log.debug(f"Sent in-order write response: ID={response['id']}, RESP={response['packet'].bresp}")
+
+                        # Remove from tracking
+                        if self.next_write_id in self.pending_writes:
+                            del self.pending_writes[self.next_write_id]
+
+                        # Find next transaction ID
+                        old_next = self.next_write_id
+                        self.next_write_id = self._find_next_write_id()
+                        self.log.debug(f"Updated next_write_id from {old_next} to {self.next_write_id}")
+
+                    except Exception as e:
+                        # Log failure but don't remove from queue - will retry
+                        self.log.error(f"Failed to send write response for ID={response['id']}: {str(e)}")
+
+                        # Restore original randomizer if we changed it
+                        if hasattr(self.b_master, 'set_randomizer') and original_randomizer:
+                            self.b_master.set_randomizer(original_randomizer)
         else:
             # For out-of-order mode, select response based on strategy
             response_idx = self._select_write_response()
 
             if response_idx is not None:
-                # Send selected response
-                response = self.write_response_queue.pop(response_idx)
-                await self.b_master.send(response['packet'])
-                self.log.debug(f"Sent out-of-order write response: ID={response['id']}, RESP={response['packet'].bresp}")
+                # Get the response but don't pop it yet
+                response = self.write_response_queue[response_idx]
 
-                # Remove from tracking
-                if response['id'] in self.pending_writes:
-                    del self.pending_writes[response['id']]
+                try:
+                    # Set minimal delay for B-channel response
+                    if hasattr(self.b_master, 'set_randomizer'):
+                        # Store the original randomizer to restore later
+                        original_randomizer = self.b_master.get_randomizer()
 
-                # Update next ID tracking if this was the next expected
-                if self.next_write_id == response['id']:
-                    self.next_write_id = self._find_next_write_id()
+                        # Set a minimal delay (fixed 2 cycles) for this response
+                        from ..flex_randomizer import FlexRandomizer
+                        fixed_delay = {
+                            'valid_delay': ([[2, 2]], [1.0])  # Always wait exactly 2 cycles
+                        }
+                        self.b_master.set_randomizer(FlexRandomizer(fixed_delay))
+
+                    # Send selected response
+                    self.log.debug(f"Sending out-of-order write response: ID={response['id']}, RESP={response['packet'].bresp}, ADDR=0x{response['addr']:X}")
+                    await self.b_master.send(response['packet'])
+
+                    # Restore original randomizer if we changed it
+                    if hasattr(self.b_master, 'set_randomizer') and original_randomizer:
+                        self.b_master.set_randomizer(original_randomizer)
+
+                    # Now remove it after successful send
+                    self.write_response_queue.pop(response_idx)
+
+                    # Log successful send
+                    self.log.debug(f"Sent out-of-order write response: ID={response['id']}, RESP={response['packet'].bresp}")
+
+                    # Remove from tracking
+                    if response['id'] in self.pending_writes:
+                        del self.pending_writes[response['id']]
+
+                    # Update next ID tracking if this was the next expected
+                    if self.next_write_id == response['id']:
+                        old_next = self.next_write_id
+                        self.next_write_id = self._find_next_write_id()
+                        self.log.debug(f"Updated next_write_id from {old_next} to {self.next_write_id}")
+
+                except Exception as e:
+                    # Log failure but don't remove from queue - will retry
+                    self.log.error(f"Failed to send write response for ID={response['id']}: {str(e)}")
+
+                    # Restore original randomizer if we changed it
+                    if hasattr(self.b_master, 'set_randomizer') and original_randomizer:
+                        self.b_master.set_randomizer(original_randomizer)
 
     async def _send_read_responses(self):
         """Send read responses according to ordering rules"""
@@ -821,17 +1049,56 @@ class AXI4Slave:
     def _find_next_write_id(self):
         """Find the next write ID to process"""
         if not self.pending_writes:
+            self.log.debug("No pending writes available for next ID selection")
             return None
 
-        # Find the oldest pending write
+        # Log current state for debugging
+        self.log.debug(f"Finding next write ID among {len(self.pending_writes)} pending transactions")
+        
+        # Find transactions that are complete and processed, but not yet responded to
+        complete_ids = []
+        for id_value, pending in self.pending_writes.items():
+            is_complete = pending.get('complete', False)
+            is_processed = pending.get('processed', False)
+            
+            # Log status of each transaction
+            self.log.debug(f"  ID={id_value}, ADDR=0x{pending['aw_transaction'].awaddr:X}, complete={is_complete}, processed={is_processed}, start_time={pending['start_time']}")
+            
+            if is_complete and is_processed:
+                complete_ids.append((id_value, pending['start_time']))
+        
+        # If there are any complete and processed transactions, use the oldest
+        if complete_ids:
+            # Sort by timestamp (ascending)
+            complete_ids.sort(key=lambda x: x[1])
+            oldest_id = complete_ids[0][0]
+            self.log.debug(f"Selected oldest complete transaction ID={oldest_id} with start_time={complete_ids[0][1]}")
+            return oldest_id
+        
+        # Otherwise, find the oldest transaction that is complete but not yet processed
         oldest_time = float('inf')
         oldest_id = None
-
+        
+        for id_value, pending in self.pending_writes.items():
+            if pending.get('complete', False) and not pending.get('processed', False):
+                if pending.get('start_time', float('inf')) < oldest_time:
+                    oldest_time = pending['start_time']
+                    oldest_id = id_value
+        
+        if oldest_id is not None:
+            self.log.debug(f"Selected oldest complete but unprocessed transaction ID={oldest_id} with start_time={oldest_time}")
+            return oldest_id
+        
+        # If no complete transactions, use the oldest pending transaction
+        oldest_time = float('inf')
+        oldest_id = None
+        
         for id_value, pending in self.pending_writes.items():
             if pending.get('start_time', float('inf')) < oldest_time:
                 oldest_time = pending['start_time']
                 oldest_id = id_value
-
+        
+        self.log.debug(f"Selected oldest pending transaction ID={oldest_id} with start_time={oldest_time}")
         return oldest_id
 
     def _find_next_read_id(self):

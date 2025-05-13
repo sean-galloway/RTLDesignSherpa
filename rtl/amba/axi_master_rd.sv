@@ -250,10 +250,10 @@ module axi_master_rd
 
         // Data channel signals
         .i_data_id            (fub_rid),
-        .i_data_valid         (fub_rvalid),
-        .i_data_ready         (fub_rready),
         .i_data_last          (fub_rlast),
         .i_data_resp          (fub_rresp),
+        .i_data_valid         (fub_rvalid),
+        .i_data_ready         (fub_rready),
 
         // Response channel signals (unused for read)
         .i_resp_id            ('b0),

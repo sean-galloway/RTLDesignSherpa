@@ -506,13 +506,15 @@ class GAXISlave(BusMonitor):
                 self.ready_sig.value.is_resolvable and
                 self.valid_sig.value.integer == 1 and
                 self.ready_sig.value.integer == 1):
+            
+            # Wait for valid to assert to decide to delay the ready
+            while self.valid_sig.value.integer == 0:
+                await self.wait_cycles(1)
+
             # Determine ready delay for this cycle
             delay_cfg = self.randomizer.next()
             ready_delay = delay_cfg.get('ready_delay', 0)
-            # if ready_delay > 0:
-            #     current_time = get_sim_time('ns')
-            #     msg = f'Waiting for {ready_delay} clocks at {current_time}ns'
-            #     self.log.info(f"Slave({self.title}): {msg}")
+
             if ready_delay > 0:
                 # Deassert ready during delay
                 self._set_rd_ready(0)
