@@ -48,12 +48,12 @@ module fifo_control #(
     // Full signals
     assign w_wr_full_d = (w_wdom_ptr_xor && (iw_wr_ptr_bin[AW-1:0] == iw_wdom_rd_ptr_bin[AW-1:0]));
 
-    // Fixed: Explicit cast to AW-bit width to avoid 32-bit truncation warnings
+    // Fixed: Cast D to AW-bit width to match other operands
     assign w_almost_full_count = (w_wdom_ptr_xor) ?
-                        ((AW)'(D - iw_wdom_rd_ptr_bin[AW-1:0]) - (AW)'(iw_wr_ptr_bin[AW-1:0])) :
-                        ((AW)'(iw_wr_ptr_bin[AW-1:0]) - (AW)'(iw_wdom_rd_ptr_bin[AW-1:0]));
+                        (AW'(D) - iw_wdom_rd_ptr_bin[AW-1:0] + iw_wr_ptr_bin[AW-1:0]) :
+                        (iw_wr_ptr_bin[AW-1:0] - iw_wdom_rd_ptr_bin[AW-1:0]);
 
-    assign w_wr_almost_full_d = w_almost_full_count >= ((AW)'(AFT));
+    assign w_wr_almost_full_d = w_almost_full_count >= AW'(AFT);
 
     always_ff @(posedge i_wr_clk, negedge i_wr_rst_n) begin
         if (!i_wr_rst_n) begin
@@ -70,19 +70,19 @@ module fifo_control #(
     assign w_rd_empty_d = (!w_rdom_ptr_xor &&
                             (iw_rd_ptr_bin[AW:0] == iw_rdom_wr_ptr_bin[AW:0]));
 
-    // Fixed: Explicit cast to AW-bit width to avoid 32-bit truncation warnings
+    // Fixed: Cast D to AW-bit width to match other operands
     assign w_almost_empty_count = (w_rdom_ptr_xor) ?
-                        ((AW)'(D - iw_rd_ptr_bin[AW-1:0]) - (AW)'(iw_rdom_wr_ptr_bin[AW-1:0])) :
-                        ((AW)'(iw_rdom_wr_ptr_bin[AW-1:0]) - (AW)'(iw_rd_ptr_bin[AW-1:0]));
+                        (AW'(D) - iw_rd_ptr_bin[AW-1:0] + iw_rdom_wr_ptr_bin[AW-1:0]) :
+                        (iw_rdom_wr_ptr_bin[AW-1:0] - iw_rd_ptr_bin[AW-1:0]);
 
     /* verilator lint_off CMPCONST */
     assign w_rd_almost_empty_d = w_almost_empty_count <= AW'(AET);
     /* verilator lint_on CMPCONST */
 
-    // Fixed: Explicit cast to AW-bit width to avoid 32-bit truncation warnings
+    // Fixed: Cast D to AW-bit width to match other operands
     assign ow_count = (w_rdom_ptr_xor) ?
-                ((AW)'(iw_rdom_wr_ptr_bin[AW-1:0]) - (AW)'(iw_rd_ptr_bin[AW-1:0]) + (AW)'(D)) :
-                ((AW)'(iw_rdom_wr_ptr_bin[AW-1:0]) - (AW)'(iw_rd_ptr_bin[AW-1:0]));
+                (iw_rdom_wr_ptr_bin[AW-1:0] - iw_rd_ptr_bin[AW-1:0] + AW'(D)) :
+                (iw_rdom_wr_ptr_bin[AW-1:0] - iw_rd_ptr_bin[AW-1:0]);
 
     always_ff @(posedge i_rd_clk, negedge i_rd_rst_n) begin
         if (!i_rd_rst_n) begin

@@ -37,20 +37,17 @@ async def multiplier_test(dut):
 
 @pytest.mark.parametrize("params", [
     # Basic tests with different widths
-    {'WIDTH': 8, 'test_level': 'simple'},   # Start with simple tests
-    {'WIDTH': 8, 'test_level': 'basic'},    # Basic test level
-
-    # Different bit widths with basic testing
-    {'WIDTH': 4, 'test_level': 'basic'},    # Small width
-    {'WIDTH': 16, 'test_level': 'basic'},   # Medium width
-    {'WIDTH': 32, 'test_level': 'basic'},   # Full 32-bit width
+    {'WIDTH':  8, 'test_level': 'basic'},   # Basic test level
+    {'WIDTH': 16, 'test_level': 'basic'},
+    {'WIDTH': 32, 'test_level': 'basic'},
 
     # More comprehensive testing
-    {'WIDTH': 8, 'test_level': 'medium'},   # More thorough tests
-    {'WIDTH': 16, 'test_level': 'medium'},  # Medium tests with larger width
+    {'WIDTH':  8, 'test_level': 'medium'},  # More thorough tests
+    {'WIDTH': 16, 'test_level': 'medium'},
+    {'WIDTH': 32, 'test_level': 'medium'},
 
     # Full test suite (only run selectively due to time)
-    {'WIDTH': 8, 'test_level': 'full'},     # Complete test suite
+    {'WIDTH': 16, 'test_level': 'full'},    # Complete test suite
 ])
 def test_math_multiplier_carry_save(request, params):
     """PyTest function to run the cocotb test."""
