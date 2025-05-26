@@ -12,6 +12,8 @@
  * - Complete protocol compliance
  * - Consolidated 64-bit event packet output for system event bus
  * - Optional performance metrics tracking
+ *
+ * Updated with proper naming conventions: w_ for combo, r_ for flopped
  */
 module axi_errmon_base
 #(
@@ -26,10 +28,10 @@ module axi_errmon_base
     parameter int ADDR_BITS_IN_PKT    = 38,    // Number of address bits to include in error packet
 
     // Configuration options
-    parameter bit IS_READ             = 1,     // 1 for read, 0 for write
-    parameter bit IS_AXI              = 1,     // 1 for AXI, 0 for AXI-Lite
-    parameter bit ENABLE_PERF_PACKETS = 0,     // Enable performance metrics tracking
-    parameter bit ENABLE_DEBUG_MODULE = 0,     // Enable debug tracking module
+    parameter int IS_READ             = 1, // 1 for read, 0 for write
+    parameter int IS_AXI              = 1, // 1 for AXI, 0 for AXI-Lite
+    parameter int ENABLE_PERF_PACKETS = 0, // Enable performance metrics tracking
+    parameter int ENABLE_DEBUG_MODULE = 0, // Enable debug tracking module
 
     // FIFO depths
     parameter int INTR_FIFO_DEPTH     = 8,     // Interrupt FIFO depth
@@ -106,31 +108,32 @@ module axi_errmon_base
     import axi_errmon_types::*;
 
     // Transaction tracking table
-    axi_transaction_t trans_table[MAX_TRANSACTIONS];
+    axi_transaction_t w_trans_table[MAX_TRANSACTIONS];
 
-    // Transaction statistics
-    logic [7:0]  active_count;
-    logic [15:0] event_count;
-    logic [15:0] debug_count;
+    // Transaction statistics (combinational)
+    logic [7:0]  w_active_count;
+    logic [15:0] w_event_count;
+    logic [15:0] w_debug_count;
 
-    // Timer tick from the frequency invariant timer
-    logic timer_tick;
+    // Timer tick from the frequency invariant timer (combinational)
+    logic w_timer_tick;
 
-    // Timestamp counter for transaction timing
-    logic [31:0] timestamp;
+    // Timestamp counter for transaction timing (flopped)
+    logic [31:0] r_timestamp;
 
-    // State change detection for debug module
-    logic [MAX_TRANSACTIONS-1:0] state_change_detected;
+    // State change detection for debug module (combinational)
+    logic [MAX_TRANSACTIONS-1:0] w_state_change_detected;
+    logic [MAX_TRANSACTIONS-1:0] w_timeout_detected;
 
-    // Interrupt outputs from different modules
-    logic                     reporter_intrbus_valid;
-    logic [63:0]              reporter_intrbus_packet;
-    logic                     debug_intrbus_valid;
-    logic [63:0]              debug_intrbus_packet;
+    // Interrupt outputs from different modules (combinational)
+    logic                     w_reporter_intrbus_valid;
+    logic [63:0]              w_reporter_intrbus_packet;
+    logic                     w_debug_intrbus_valid;
+    logic [63:0]              w_debug_intrbus_packet;
 
-    // Performance metrics registers (only used when ENABLE_PERF_PACKETS=1)
-    logic [15:0] perf_completed_count;
-    logic [15:0] perf_error_count;
+    // Performance metrics registers (only used when ENABLE_PERF_PACKETS=1) (flopped)
+    logic [15:0] r_perf_completed_count;
+    logic [15:0] r_perf_error_count;
 
     // -------------------------------------------------------------------------
     // Module Instantiations
@@ -141,9 +144,9 @@ module axi_errmon_base
         .MAX_TRANSACTIONS(MAX_TRANSACTIONS),
         .ADDR_WIDTH(ADDR_WIDTH),
         .ID_WIDTH(ID_WIDTH),
-        .IS_READ(IS_READ),
-        .IS_AXI(IS_AXI),
-        .ENABLE_PERF_METRICS(ENABLE_PERF_PACKETS)
+        .IS_READ(1'(IS_READ)),
+        .IS_AXI(1'(IS_AXI)),
+        .ENABLE_PERF_PACKETS(1'(ENABLE_PERF_PACKETS))
     ) i_trans_mgr (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -163,9 +166,10 @@ module axi_errmon_base
         .i_resp_ready(i_resp_ready),
         .i_resp_id(i_resp_id),
         .i_resp(i_resp),
-        .i_timestamp(timestamp),
-        .o_trans_table(trans_table),
-        .o_active_count(active_count)
+        .i_timestamp(r_timestamp),
+        .o_trans_table(w_trans_table),
+        .o_active_count(w_active_count),
+        .o_state_change(w_state_change_detected)
     );
 
     // Invariant Timer using counter_freq_invariant
@@ -173,23 +177,25 @@ module axi_errmon_base
         .aclk(aclk),
         .aresetn(aresetn),
         .i_cfg_freq_sel(i_cfg_freq_sel),
-        .o_timer_tick(timer_tick),
-        .o_timestamp(timestamp)
+        .o_timer_tick(w_timer_tick),
+        .o_timestamp(r_timestamp)
     );
 
     // Timeout Detector
     axi_errmon_timeout #(
         .MAX_TRANSACTIONS(MAX_TRANSACTIONS),
         .ADDR_WIDTH(ADDR_WIDTH),
-        .IS_READ(IS_READ)
+        .IS_READ(1'(IS_READ))
     ) i_timeout (
         .aclk(aclk),
         .aresetn(aresetn),
-        .i_trans_table(trans_table),
-        .i_timer_tick(timer_tick),
+        .i_trans_table(w_trans_table),
+        .i_timer_tick(w_timer_tick),
         .i_cfg_addr_cnt(i_cfg_addr_cnt),
         .i_cfg_data_cnt(i_cfg_data_cnt),
-        .i_cfg_resp_cnt(i_cfg_resp_cnt)
+        .i_cfg_resp_cnt(i_cfg_resp_cnt),
+        .i_cfg_timeout_enable(i_cfg_timeout_enable),
+        .o_timeout_detected(w_timeout_detected)
     );
 
     // Interrupt Reporter with gaxi_fifo_sync
@@ -198,13 +204,13 @@ module axi_errmon_base
         .ADDR_WIDTH(ADDR_WIDTH),
         .UNIT_ID(UNIT_ID),
         .AGENT_ID(AGENT_ID),
-        .IS_READ(IS_READ),
-        .ENABLE_PERF_PACKETS(ENABLE_PERF_PACKETS),
+        .IS_READ(1'(IS_READ)),
+        .ENABLE_PERF_PACKETS(1'(ENABLE_PERF_PACKETS)),
         .INTR_FIFO_DEPTH(INTR_FIFO_DEPTH)
     ) i_reporter (
         .aclk(aclk),
         .aresetn(aresetn),
-        .i_trans_table(trans_table),
+        .i_trans_table(w_trans_table),
         .i_cfg_error_enable(i_cfg_error_enable),
         .i_cfg_compl_enable(i_cfg_compl_enable),
         .i_cfg_threshold_enable(i_cfg_threshold_enable),
@@ -212,18 +218,18 @@ module axi_errmon_base
         .i_cfg_perf_enable(i_cfg_perf_enable),
         .i_cfg_debug_enable(i_cfg_debug_enable),
         .i_intrbus_ready(i_intrbus_ready),
-        .o_intrbus_valid(reporter_intrbus_valid),
-        .o_intrbus_packet(reporter_intrbus_packet),
-        .o_event_count(event_count),
-        .o_perf_completed_count(perf_completed_count),
-        .o_perf_error_count(perf_error_count),
+        .o_intrbus_valid(w_reporter_intrbus_valid),
+        .o_intrbus_packet(w_reporter_intrbus_packet),
+        .o_event_count(w_event_count),
+        .o_perf_completed_count(r_perf_completed_count),
+        .o_perf_error_count(r_perf_error_count),
         .i_active_trans_threshold(i_cfg_active_trans_threshold),
         .i_latency_threshold(i_cfg_latency_threshold)
     );
 
     // Debug module (only instantiated when ENABLE_DEBUG_MODULE=1)
     generate
-        if (ENABLE_DEBUG_MODULE) begin : gen_debug_module
+        if (1'(ENABLE_DEBUG_MODULE)) begin : gen_debug_module
             axi_errmon_debug #(
                 .MAX_TRANSACTIONS(MAX_TRANSACTIONS),
                 .ADDR_WIDTH(ADDR_WIDTH),
@@ -235,21 +241,21 @@ module axi_errmon_base
                 .i_cfg_debug_enable(i_cfg_debug_enable),
                 .i_cfg_debug_level(i_cfg_debug_level),
                 .i_cfg_debug_mask(i_cfg_debug_mask),
-                .i_trans_table(trans_table),
+                .i_trans_table(w_trans_table),
                 .i_addr_handshake(i_addr_valid && i_addr_ready),
                 .i_data_handshake(i_data_valid && i_data_ready),
                 .i_resp_handshake(i_resp_valid && i_resp_ready),
-                .i_state_change(state_change_detected),
+                .i_state_change(w_state_change_detected),
                 .i_intrbus_ready(i_intrbus_ready),
-                .o_intrbus_valid(debug_intrbus_valid),
-                .o_intrbus_packet(debug_intrbus_packet),
-                .o_debug_count(debug_count)
+                .o_intrbus_valid(w_debug_intrbus_valid),
+                .o_intrbus_packet(w_debug_intrbus_packet),
+                .o_debug_count(w_debug_count)
             );
         end else begin : gen_no_debug_module
             // Tie outputs to default values when module is disabled
-            assign debug_intrbus_valid = 1'b0;
-            assign debug_intrbus_packet = '0;
-            assign debug_count = '0;
+            assign w_debug_intrbus_valid = 1'b0;
+            assign w_debug_intrbus_packet = '0;
+            assign w_debug_count = '0;
         end
     endgenerate
 
@@ -259,12 +265,12 @@ module axi_errmon_base
 
     // Simple priority arbitration between reporter and debug packets
     always_comb begin
-        if (reporter_intrbus_valid) begin
-            o_intrbus_valid = reporter_intrbus_valid;
-            o_intrbus_packet = reporter_intrbus_packet;
-        end else if (debug_intrbus_valid) begin
-            o_intrbus_valid = debug_intrbus_valid;
-            o_intrbus_packet = debug_intrbus_packet;
+        if (w_reporter_intrbus_valid) begin
+            o_intrbus_valid = w_reporter_intrbus_valid;
+            o_intrbus_packet = w_reporter_intrbus_packet;
+        end else if (w_debug_intrbus_valid) begin
+            o_intrbus_valid = w_debug_intrbus_valid;
+            o_intrbus_packet = w_debug_intrbus_packet;
         end else begin
             o_intrbus_valid = 1'b0;
             o_intrbus_packet = '0;
@@ -276,12 +282,12 @@ module axi_errmon_base
     // -------------------------------------------------------------------------
 
     // Flow control - block when too many outstanding transactions
-    assign o_block_ready = (active_count >= MAX_TRANSACTIONS - 2);
+    assign o_block_ready = ({24'h0, w_active_count} >= (MAX_TRANSACTIONS - 2));
 
     // Busy signal
-    assign o_busy = (active_count > 0);
+    assign o_busy = (w_active_count > 0);
 
     // Active transaction count
-    assign o_active_count = active_count;
+    assign o_active_count = w_active_count;
 
 endmodule : axi_errmon_base

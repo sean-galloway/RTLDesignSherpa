@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+
 /**
  * AXI Interrupt Bus Timeout Detector
  *
@@ -8,8 +9,11 @@
  * configurable timeout thresholds.
  *
  * Updated to support dedicated timeout packet types.
+ * Updated with proper naming conventions: w_ for combo, r_ for flopped
+ * Fixed for Verilator compatibility
  */
 module axi_errmon_timeout
+    import axi_errmon_types::*;
 #(
     parameter int MAX_TRANSACTIONS   = 16,   // Maximum outstanding transactions
     parameter int ADDR_WIDTH         = 32,   // Width of address bus
@@ -20,8 +24,8 @@ module axi_errmon_timeout
     input  logic                     aclk,
     input  logic                     aresetn,
 
-    // Transaction table (read-modify access)
-    input  axi_errmon_types::axi_transaction_t [MAX_TRANSACTIONS-1:0] i_trans_table,
+    // Transaction table (read-modify access) - use packed array
+    input  axi_transaction_t [MAX_TRANSACTIONS-1:0] i_trans_table,
 
     // Timer inputs
     input  logic                     i_timer_tick,    // From frequency invariant timer
@@ -38,86 +42,92 @@ module axi_errmon_timeout
     output logic [MAX_TRANSACTIONS-1:0] o_timeout_detected   // Indicates which transactions had timeouts
 );
 
-    import axi_errmon_types::*;
+    // Local copy of transaction table for modifications (flopped) - use packed array
+    axi_transaction_t [MAX_TRANSACTIONS-1:0] r_trans_table_local;
 
-    // Local copy of transaction table for modifications
-    axi_transaction_t trans_table_local[MAX_TRANSACTIONS];
-
-    // Flag to track if timeouts have been detected for each transaction
-    logic [MAX_TRANSACTIONS-1:0] timeout_detected;
-    assign o_timeout_detected = timeout_detected;
+    // Flag to track if timeouts have been detected for each transaction (flopped)
+    logic [MAX_TRANSACTIONS-1:0] r_timeout_detected;
+    assign o_timeout_detected = r_timeout_detected;
 
     // Timeout detection logic
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
             // Reset local table
-            trans_table_local <= '{default: '0};
-            timeout_detected <= '0;
+            for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
+                r_trans_table_local[idx] <= '0;
+            end
+            r_timeout_detected <= '0;
         end else begin
             // Update local table from input and process individually
-            for (int i = 0; i < MAX_TRANSACTIONS; i++) begin
-                trans_table_local[i] <= i_trans_table[i];
+            for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
+                r_trans_table_local[idx] <= i_trans_table[idx];
 
                 // If this transaction has a state change to non-active, mark it as no longer timing out
-                if (i_trans_table[i].state == TRANS_COMPLETE ||
-                    i_trans_table[i].state == TRANS_ERROR ||
-                    i_trans_table[i].state == TRANS_EMPTY) begin
-                    timeout_detected[i] <= 1'b0;
+                if (i_trans_table[idx].state == TRANS_COMPLETE ||
+                    i_trans_table[idx].state == TRANS_ERROR ||
+                    i_trans_table[idx].state == TRANS_EMPTY) begin
+                    r_timeout_detected[idx] <= 1'b0;
                 end
             end
 
             // If timer tick, check for timeouts
             if (i_timer_tick) begin
-                for (int i = 0; i < MAX_TRANSACTIONS; i++) begin
-                    if (trans_table_local[i].valid && !timeout_detected[i]) begin
+                for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
+                    if (r_trans_table_local[idx].valid && !r_timeout_detected[idx]) begin
 
                         // Address phase timeout detection
-                        if (trans_table_local[i].state == TRANS_ADDR_PHASE &&
-                            !trans_table_local[i].addr_received) begin
+                        if (r_trans_table_local[idx].state == TRANS_ADDR_PHASE &&
+                            !r_trans_table_local[idx].addr_received) begin
 
                             // Increment address timer
-                            trans_table_local[i].addr_timer <= trans_table_local[i].addr_timer + 1'b1;
+                            r_trans_table_local[idx].addr_timer <= r_trans_table_local[idx].addr_timer + 1'b1;
 
                             // Check for timeout
-                            if (trans_table_local[i].addr_timer >= i_cfg_addr_cnt) begin
-                                trans_table_local[i].state <= TRANS_ERROR;
-                                trans_table_local[i].error_code <= EVT_ADDR_TIMEOUT;
-                                timeout_detected[i] <= 1'b1;
+                            /* verilator lint_off WIDTHEXPAND */
+                            if (r_trans_table_local[idx].addr_timer >= {12'h0, i_cfg_addr_cnt}) begin
+                            /* verilator lint_on WIDTHEXPAND */
+                                r_trans_table_local[idx].state <= TRANS_ERROR;
+                                r_trans_table_local[idx].error_code <= EVT_ADDR_TIMEOUT;
+                                r_timeout_detected[idx] <= 1'b1;
                             end
                         end
 
                         // Data phase timeout detection
-                        if ((trans_table_local[i].state == TRANS_ADDR_PHASE ||
-                                trans_table_local[i].state == TRANS_DATA_PHASE) &&
-                                trans_table_local[i].addr_received &&
-                                trans_table_local[i].data_started &&
-                                !trans_table_local[i].data_completed) begin
+                        if ((r_trans_table_local[idx].state == TRANS_ADDR_PHASE ||
+                                r_trans_table_local[idx].state == TRANS_DATA_PHASE) &&
+                                r_trans_table_local[idx].addr_received &&
+                                r_trans_table_local[idx].data_started &&
+                                !r_trans_table_local[idx].data_completed) begin
 
                             // Increment data timer
-                            trans_table_local[i].data_timer <= trans_table_local[i].data_timer + 1'b1;
+                            r_trans_table_local[idx].data_timer <= r_trans_table_local[idx].data_timer + 1'b1;
 
                             // Check for timeout
-                            if (trans_table_local[i].data_timer >= i_cfg_data_cnt) begin
-                                trans_table_local[i].state <= TRANS_ERROR;
-                                trans_table_local[i].error_code <= EVT_DATA_TIMEOUT;
-                                timeout_detected[i] <= 1'b1;
+                            /* verilator lint_off WIDTHEXPAND */
+                            if (r_trans_table_local[idx].data_timer >= {12'h0, i_cfg_data_cnt}) begin
+                            /* verilator lint_on WIDTHEXPAND */
+                                r_trans_table_local[idx].state <= TRANS_ERROR;
+                                r_trans_table_local[idx].error_code <= EVT_DATA_TIMEOUT;
+                                r_timeout_detected[idx] <= 1'b1;
                             end
                         end
 
                         // Response phase timeout detection (write only)
                         if (!IS_READ &&
-                            trans_table_local[i].state == TRANS_DATA_PHASE &&
-                            trans_table_local[i].data_completed &&
-                            !trans_table_local[i].resp_received) begin
+                            r_trans_table_local[idx].state == TRANS_DATA_PHASE &&
+                            r_trans_table_local[idx].data_completed &&
+                            !r_trans_table_local[idx].resp_received) begin
 
                             // Increment response timer
-                            trans_table_local[i].resp_timer <= trans_table_local[i].resp_timer + 1'b1;
+                            r_trans_table_local[idx].resp_timer <= r_trans_table_local[idx].resp_timer + 1'b1;
 
                             // Check for timeout
-                            if (trans_table_local[i].resp_timer >= i_cfg_resp_cnt) begin
-                                trans_table_local[i].state <= TRANS_ERROR;
-                                trans_table_local[i].error_code <= EVT_RESP_TIMEOUT;
-                                timeout_detected[i] <= 1'b1;
+                            /* verilator lint_off WIDTHEXPAND */
+                            if (r_trans_table_local[idx].resp_timer >= {12'h0, i_cfg_resp_cnt}) begin
+                            /* verilator lint_on WIDTHEXPAND */
+                                r_trans_table_local[idx].state <= TRANS_ERROR;
+                                r_trans_table_local[idx].error_code <= EVT_RESP_TIMEOUT;
+                                r_timeout_detected[idx] <= 1'b1;
                             end
                         end
                     end

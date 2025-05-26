@@ -6,6 +6,8 @@
  * AXI Error Monitor. It uses the counter_freq_invariant module to generate
  * timing ticks based on the frequency selection provided, allowing the
  * timeout thresholds to remain consistent across different clock frequencies.
+ *
+ * Updated with proper naming conventions: w_ for combo, r_ for flopped
  */
 module axi_errmon_timer (
     // Global Clock and Reset
@@ -20,13 +22,21 @@ module axi_errmon_timer (
     output logic [31:0] o_timestamp        // Global timestamp counter
 );
 
-    // Counter for timestamp generation
+    // Counter for timestamp generation (flopped)
+    logic [31:0] r_timestamp;
+    assign o_timestamp = r_timestamp;
+
+    // Timer tick from frequency invariant counter (combinational)
+    logic w_timer_tick;
+    assign o_timer_tick = w_timer_tick;
+
+    // Timestamp counter generation
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
-            o_timestamp <= '0;
+            r_timestamp <= '0;
         end else begin
             // Increment timestamp counter every clock cycle
-            o_timestamp <= o_timestamp + 1'b1;
+            r_timestamp <= r_timestamp + 1'b1;
         end
     end
 
@@ -40,7 +50,7 @@ module axi_errmon_timer (
         .i_sync_reset_n(1'b1),    // No synchronous reset needed
         .i_freq_sel(i_cfg_freq_sel),
         .o_counter(),             // Not used
-        .o_tick(o_timer_tick)     // This is the tick signal we need
+        .o_tick(w_timer_tick)     // This is the tick signal we need
     );
 
 endmodule : axi_errmon_timer

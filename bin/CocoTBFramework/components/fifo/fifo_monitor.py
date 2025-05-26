@@ -196,7 +196,7 @@ class FIFOMonitor(BusMonitor):
         self.fifo_capacity = 8   # Default assumed FIFO capacity
         self.last_transaction = None  # Last observed transaction
         self.pending_transaction = None  # For fifo_flop mode
-        
+
         # Statistics - use a dictionary instead of class to avoid attribute errors
         self.stats = {
             'transactions_observed': 0,
@@ -208,7 +208,7 @@ class FIFOMonitor(BusMonitor):
             'write_while_full': 0,
             'received_transactions': 0  # Add this explicitly to avoid AttributeError
         }
-        
+
         # Initialize callbacks list
         self.callbacks = []
 
@@ -387,7 +387,7 @@ class FIFOMonitor(BusMonitor):
             else:
                 # Safe to increment depth
                 self.fifo_depth = min(self.fifo_depth + 1, self.fifo_capacity)
-                
+
             # Update full cycles counter
             if self.fifo_depth >= self.fifo_capacity:
                 self.stats['full_cycles'] += 1
@@ -398,7 +398,7 @@ class FIFOMonitor(BusMonitor):
                 self.stats['read_while_empty'] += 1
             elif self.fifo_depth > 0:
                 self.fifo_depth = max(0, self.fifo_depth - 1)
-                
+
             # Update empty cycles counter
             if self.fifo_depth == 0:
                 self.stats['empty_cycles'] += 1
@@ -408,16 +408,16 @@ class FIFOMonitor(BusMonitor):
     def _check_protocol_violation(self, is_write):
         """
         Check for protocol violations based on signals.
-        
+
         Args:
             is_write: True if checking write port, False if checking read port
-            
+
         Returns:
             True if violation detected, False otherwise
         """
         if is_write:
             # Check for write while full violation
-            if (self.control1_sig.value.is_resolvable and 
+            if (self.control1_sig.value.is_resolvable and
                 self.control2_sig.value.is_resolvable and
                 int(self.control1_sig.value) == 1 and
                 int(self.control2_sig.value) == 1):
@@ -426,14 +426,14 @@ class FIFOMonitor(BusMonitor):
                 return True
         else:
             # Check for read while empty violation
-            if (self.control1_sig.value.is_resolvable and 
+            if (self.control1_sig.value.is_resolvable and
                 self.control2_sig.value.is_resolvable and
                 int(self.control2_sig.value) == 1 and
                 int(self.control1_sig.value) == 1):
                 self.log.warning(f"FIFOMonitor ({self.title}): Protocol violation - read while empty at {get_sim_time('ns')}ns")
                 self.stats['protocol_violations'] += 1
                 return True
-        
+
         return False
 
     def _finish_packet(self, current_time, packet, data_dict=None):
@@ -486,7 +486,7 @@ class FIFOMonitor(BusMonitor):
         self.stats['transactions_observed'] += 1
         self.stats['received_transactions'] += 1  # Add this to match expected behavior
         self.log.debug(f"FIFOMonitor({self.title}) Transaction at {current_time}ns: {packet.formatted(compact=True) if hasattr(packet, 'formatted') else str(packet)}")
-        
+
         # Call all registered callbacks
         self._call_callbacks(packet)
 
@@ -494,7 +494,7 @@ class FIFOMonitor(BusMonitor):
         """
         Call all registered callbacks with the packet.
         This replaces the direct _recv call to avoid the AttributeError.
-        
+
         Args:
             packet: The packet to pass to callbacks
         """
@@ -505,7 +505,7 @@ class FIFOMonitor(BusMonitor):
             except AttributeError:
                 # Handle the AttributeError by not propagating it
                 self.log.debug("Ignoring AttributeError from parent _recv method")
-        
+
         # Call additional callbacks
         for callback in self.callbacks:
             try:
@@ -516,10 +516,10 @@ class FIFOMonitor(BusMonitor):
     def add_callback(self, callback):
         """
         Add a callback function to be called when a packet is observed.
-        
+
         Args:
             callback: Function to call with observed packet
-            
+
         Returns:
             Self for method chaining
         """
@@ -620,7 +620,7 @@ class FIFOMonitor(BusMonitor):
                             int(self.control1_sig.value) == 1):  # read while empty
                         # Already logged in _update_fifo_depth, just update stats
                         pass
-                        
+
                     # Update empty cycles counter if applicable
                     if self.control1_sig.value.is_resolvable and int(self.control1_sig.value) == 1:
                         self.stats['empty_cycles'] += 1
@@ -644,7 +644,7 @@ class FIFOMonitor(BusMonitor):
                         elif int(self.control2_sig.value) == 1:  # write while full
                             # Already logged in _update_fifo_depth, just update stats
                             pass
-                            
+
                     # Update full cycles counter if applicable
                     if self.control2_sig.value.is_resolvable and int(self.control2_sig.value) == 1:
                         self.stats['full_cycles'] += 1
@@ -673,14 +673,14 @@ class FIFOMonitor(BusMonitor):
         result['utilization_percentage'] = (self.fifo_depth / self.fifo_capacity * 100) if self.fifo_capacity > 0 else 0
 
         return result
-        
+
     def get_observed_packets(self, count=None):
         """
         Get observed packets.
-        
+
         Args:
             count: Number of packets to return (None = all)
-            
+
         Returns:
             List of observed packets
         """

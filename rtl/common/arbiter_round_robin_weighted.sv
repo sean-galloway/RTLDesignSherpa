@@ -46,23 +46,34 @@ module arbiter_round_robin_weighted #(
             localparam int EndIdx = (i + 1) * MTW - 1;
 
             assign w_crd_cnt_incr[EndIdx-:MTW] = r_crd_cnt[EndIdx-:MTW] + 1'b1;
-            assign w_has_crd[i] = (w_crd_cnt_incr[EndIdx-:MTW] <= i_max_thresh[EndIdx-:MTW]);
 
-            // credit mask logic generates masked version of requests
-            assign w_mask_req[i] = (w_has_crd[i] | w_replenish) & w_req_post[i];
+            // FIX: Only allow credits for clients with non-zero weights
+            assign w_has_crd[i] = (w_crd_cnt_incr[EndIdx-:MTW] <= i_max_thresh[EndIdx-:MTW]) &&
+                                    (i_max_thresh[EndIdx-:MTW] > 0);
+
+            // FIX: credit mask logic - ensure zero-weight clients never participate
+            assign w_mask_req[i] = (w_has_crd[i] | (w_replenish && i_max_thresh[EndIdx-:MTW] > 0)) &
+                                    w_req_post[i];
 
             // Simplified next credit counter value calculation
             always_comb begin
                 w_crd_cnt_next[EndIdx-:MTW] = r_crd_cnt[EndIdx-:MTW];
-                if (w_replenish) begin
-                    // During replenish, set credits based on grants
-                    if (ow_gnt[i])
-                        w_crd_cnt_next[EndIdx-:MTW] = 1;
-                    else
-                        w_crd_cnt_next[EndIdx-:MTW] = 0;
-                end else if (ow_gnt[i] && w_has_crd[i]) begin
-                    // Normal operation: increment credit counter when granted
-                    w_crd_cnt_next[EndIdx-:MTW] = w_crd_cnt_incr[EndIdx-:MTW];
+
+                // Only process credits for clients with non-zero weights
+                if (i_max_thresh[EndIdx-:MTW] > 0) begin
+                    if (w_replenish) begin
+                        // During replenish, set credits based on grants
+                        if (ow_gnt[i])
+                            w_crd_cnt_next[EndIdx-:MTW] = 1;
+                        else
+                            w_crd_cnt_next[EndIdx-:MTW] = 0;
+                    end else if (ow_gnt[i] && w_has_crd[i]) begin
+                        // Normal operation: increment credit counter when granted
+                        w_crd_cnt_next[EndIdx-:MTW] = w_crd_cnt_incr[EndIdx-:MTW];
+                    end
+                end else begin
+                    // Zero-weight clients always have no credits
+                    w_crd_cnt_next[EndIdx-:MTW] = 0;
                 end
             end
 
@@ -71,15 +82,20 @@ module arbiter_round_robin_weighted #(
                 if (~i_rst_n) begin
                     r_crd_cnt[EndIdx-:MTW] <= '0;
                 end else begin
-                    // When replenish signal is active or this client is granted
-                    if ((w_replenish && ow_gnt[i]) || (ow_gnt[i] && w_has_crd[i])) begin
-                        // Only update when grant is acknowledged (if waiting for ack)
-                        // FIX: Using comparison instead of negation for parameter
-                        if ((WAIT_GNT_ACK == 0) || i_gnt_ack[i]) begin
-                            r_crd_cnt[EndIdx-:MTW] <= w_crd_cnt_next[EndIdx-:MTW];
+                    // Only update for clients with non-zero weights
+                    if (i_max_thresh[EndIdx-:MTW] > 0) begin
+                        // When replenish signal is active or this client is granted
+                        if ((w_replenish && ow_gnt[i]) || (ow_gnt[i] && w_has_crd[i])) begin
+                            // Only update when grant is acknowledged (if waiting for ack)
+                            if ((WAIT_GNT_ACK == 0) || i_gnt_ack[i]) begin
+                                r_crd_cnt[EndIdx-:MTW] <= w_crd_cnt_next[EndIdx-:MTW];
+                            end
+                        end else if (w_replenish && !ow_gnt[i]) begin
+                            // Reset credits for non-granted clients during replenish
+                            r_crd_cnt[EndIdx-:MTW] <= '0;
                         end
-                    end else if (w_replenish && !ow_gnt[i]) begin
-                        // Reset credits for non-granted clients during replenish
+                    end else begin
+                        // Zero-weight clients always have zero credits
                         r_crd_cnt[EndIdx-:MTW] <= '0;
                     end
                 end

@@ -1,4 +1,9 @@
 `timescale 1ns / 1ps
+/**
+ * Counter with Load and Clear functionality
+ *
+ * Updated with proper naming conventions: w_ for combo, r_ for flopped
+ */
 module counter_load_clear #(
     parameter int MAX = 32'd32  // Fixed: Explicitly specify as 32-bit value
 ) (
@@ -12,10 +17,13 @@ module counter_load_clear #(
     output logic [$clog2(MAX)-1:0] o_count,
     output logic ow_done
 );
+    // Match value register (flopped)
     logic [$clog2(MAX)-1:0] r_match_val;
-    logic [$clog2(MAX)-1:0] r_next_count;
+    
+    // Next count calculation (combinational)
+    logic [$clog2(MAX)-1:0] w_next_count;
 
-    assign r_next_count = (i_clear == 1'b1) ? 'b0 :
+    assign w_next_count = (i_clear == 1'b1) ? 'b0 :
                             ((o_count == r_match_val) ? 'b0 : o_count + 'b1);
 
     always_ff @(posedge i_clk or negedge i_rst_n) begin
@@ -25,7 +33,7 @@ module counter_load_clear #(
         end else begin
             if (i_load) r_match_val <= i_loadval;
             // Only increment if i_increment is asserted
-            if (i_increment) o_count <= r_next_count;
+            if (i_increment) o_count <= w_next_count;
         end
     end
 

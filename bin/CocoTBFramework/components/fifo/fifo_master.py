@@ -39,7 +39,7 @@ class FIFOMaster(BusDriver):
     """
     Master driver for FIFO transactions with enhanced memory integration.
     Controls i_write signal and monitors o_wr_full.
-    
+
     Supports:
     1. Single data bus (standard mode)
     2. Individual signals for each field (multi-signal mode)
@@ -88,7 +88,7 @@ class FIFOMaster(BusDriver):
             self.field_config = FieldConfig.validate_and_create(field_config)
         else:
             self.field_config = field_config or FieldConfig.create_data_only()
-        
+
         self.packet_class = packet_class
 
         # Determine if we're using multi-signal mode (individual signals for each field)
@@ -146,7 +146,7 @@ class FIFOMaster(BusDriver):
         # Initialize parent class
         BusDriver.__init__(self, dut, prefix, clock, **kwargs)
         self.log = log or self._log
-        
+
         # Create enhanced memory integration if memory model is provided
         if self.memory_model:
             self.memory_integration = FIFOMemoryInteg(
@@ -195,7 +195,7 @@ class FIFOMaster(BusDriver):
             if self.data_sig:
                 self.data_sig.setimmediatevalue(0)
 
-        # Statistics 
+        # Statistics
         self.stats = {
             'transactions_sent': 0,
             'timeouts': 0,
@@ -259,7 +259,7 @@ class FIFOMaster(BusDriver):
             else:
                 # Fallback for dictionary-based field config
                 default_value = self.field_config[field_name].get('default', 0)
-                
+
             getattr(self.bus, dut_signal_name).setimmediatevalue(default_value)
         elif required:
             # Signal is required but not found
@@ -271,11 +271,11 @@ class FIFOMaster(BusDriver):
     def _check_field_value(self, field_name, field_value):
         """
         Check if a field value exceeds the maximum possible value for the field.
-        
+
         Args:
             field_name: Name of the field to check
             field_value: Value to check against field width
-            
+
         Returns:
             field_value: The original value if within range, or the masked value if not
         """
@@ -347,7 +347,7 @@ class FIFOMaster(BusDriver):
         elif not self.memory_fields:
             # Set default mapping if not already set
             self.memory_fields = fifo_memory_fields
-            
+
         # Update or create memory integration
         if self.memory_model:
             self.memory_integration = FIFOMemoryInteg(
@@ -513,7 +513,7 @@ class FIFOMaster(BusDriver):
     def _drive_signals_helper(self, fifo_data):
         """
         Helper for driving signals in field_mode.
-        
+
         Args:
             fifo_data: Dictionary of field values from pack_for_fifo
         """
@@ -627,7 +627,7 @@ class FIFOMaster(BusDriver):
                         f"{transaction.formatted(compact=True)}")
         transaction.end_time = current_time_ns
         self.sent_queue.append(transaction)
-        
+
         # Update stats
         self.stats['transactions_sent'] += 1
 
@@ -695,22 +695,22 @@ class FIFOMaster(BusDriver):
             if self.reset_occurring:
                 break
         await Timer(self.tick_delay, units=self.tick_units)
-            
+
     def get_memory_stats(self):
         """
         Get memory operation statistics.
-        
+
         Returns:
             Dictionary with memory statistics, or None if no memory model available
         """
         if hasattr(self, 'memory_integration'):
             return self.memory_integration.get_stats()
         return None
-        
+
     def get_stats(self):
         """
         Get transaction statistics.
-        
+
         Returns:
             Dictionary with transaction statistics
         """

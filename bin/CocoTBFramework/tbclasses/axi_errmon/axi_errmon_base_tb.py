@@ -4,6 +4,8 @@ Wrapper class for AXI Error Monitor Base testbench.
 This module provides a wrapper class that integrates all the components needed
 for testing the AXI Error Monitor Base module, including masters, slaves,
 monitors, and test classes.
+
+Updated to match the RTL's consolidated 64-bit interrupt bus interface.
 """
 
 import os
@@ -23,7 +25,7 @@ from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
 from .axi_errmon_readyctrl import ReadySignalController
 
 # Import the interrupt bus monitor
-from ..intrbus import IntrBusComponents
+from ..intrbus import IntrBusComponents, extract_packet_fields
 
 # Import the test classes
 from .axi_errmon_basic_test import AXIErrorMonBasicTest
@@ -60,6 +62,7 @@ class AXIErrorMonitorTB(TBBase):
     """
     Wrapper class for AXI Error Monitor testbench.
     Manages masters, slaves, monitors, and provides interface to test classes.
+    Updated for consolidated 64-bit interrupt bus interface.
     """
 
     def __init__(self, dut,
@@ -67,8 +70,8 @@ class AXIErrorMonitorTB(TBBase):
                     id_width=8,
                     is_read=True,
                     is_axi=True,
-                    error_fifo_depth=4,
-                    addr_fifo_depth=4,
+                    intr_fifo_depth=8,
+                    debug_fifo_depth=8,
                     unit_id=9,
                     agent_id=99,
                     channels=1):
@@ -84,26 +87,53 @@ class AXIErrorMonitorTB(TBBase):
         self.timeout_addr = timeout_addr
         self.timeout_data = timeout_addr * 4
         self.timeout_resp = timeout_addr * 6
-        self.error_fifo_depth = error_fifo_depth
-        self.addr_fifo_depth = addr_fifo_depth
+        self.intr_fifo_depth = intr_fifo_depth
+        self.debug_fifo_depth = debug_fifo_depth
         self.channels = channels
         self.unit_id = unit_id
         self.agent_id = agent_id
 
-        # set the errmon delay configs
-        self.dut.i_cfg_freq_sel.value = 4
-        self.dut.i_cfg_addr_cnt.value = 1
-        self.dut.i_cfg_data_cnt.value = 5
-        self.dut.i_cfg_resp_cnt.value = 6
+        # Set the errmon delay configs to match timeout values
+        self.dut.i_cfg_freq_sel.value = 4  # Timer frequency
+        self.dut.i_cfg_addr_cnt.value = 1  # Address timeout threshold
+        self.dut.i_cfg_data_cnt.value = 5  # Data timeout threshold
+        self.dut.i_cfg_resp_cnt.value = 6  # Response timeout threshold
+
+        # Enable all packet types by default
+        self.dut.i_cfg_error_enable.value = 1
+        self.dut.i_cfg_compl_enable.value = 1
+        self.dut.i_cfg_threshold_enable.value = 1
+        self.dut.i_cfg_timeout_enable.value = 1
+        self.dut.i_cfg_perf_enable.value = 1
+        self.dut.i_cfg_debug_enable.value = 1
+
+        # Set threshold configuration values
+        self.dut.i_cfg_active_trans_threshold.value = 10
+        self.dut.i_cfg_latency_threshold.value = 1000
+
+        # Set debug configuration (if debug module enabled)
+        if hasattr(self.dut, 'i_cfg_debug_level'):
+            self.dut.i_cfg_debug_level.value = 0xF  # All debug levels
+        if hasattr(self.dut, 'i_cfg_debug_mask'):
+            self.dut.i_cfg_debug_mask.value = 0xFFFF  # All debug events
 
         # Compute maximum timer values
         self.max_timer_value = 16384
 
-        # Constants for error types (must match RTL definitions)
-        self.ERROR_ADDR_TIMEOUT = 0x1  # Address timeout
-        self.ERROR_DATA_TIMEOUT = 0x2  # Data timeout
-        self.ERROR_RESP_TIMEOUT = 0x4  # Response timeout
-        self.ERROR_RESP_ERROR = 0x8    # Response error
+        # Constants for error types (must match RTL definitions from axi_errmon_types.sv)
+        self.ERROR_ADDR_TIMEOUT = 0x1  # EVT_ADDR_TIMEOUT
+        self.ERROR_DATA_TIMEOUT = 0x2  # EVT_DATA_TIMEOUT
+        self.ERROR_RESP_TIMEOUT = 0x3  # EVT_RESP_TIMEOUT
+        self.ERROR_RESP_SLVERR = 0x4   # EVT_RESP_SLVERR
+        self.ERROR_RESP_DECERR = 0x5   # EVT_RESP_DECERR
+
+        # Packet type constants (from axi_errmon_types.sv)
+        self.PKT_TYPE_ERROR = 0x0      # PktTypeError
+        self.PKT_TYPE_COMPLETION = 0x1 # PktTypeCompletion
+        self.PKT_TYPE_THRESHOLD = 0x2  # PktTypeThreshold
+        self.PKT_TYPE_TIMEOUT = 0x3    # PktTypeTimeout
+        self.PKT_TYPE_PERF = 0x4       # PktTypePerf
+        self.PKT_TYPE_DEBUG = 0xF      # PktTypeDebug
 
         # adjust the randomized configs
         self.randomizer_configs = RANDOMIZER_CONFIGS
@@ -145,7 +175,6 @@ class AXIErrorMonitorTB(TBBase):
         self.addr_field_config = self._create_addr_field_config()
         self.data_field_config = self._create_data_field_config()
         self.resp_field_config = None if self.is_read else self._create_resp_field_config()
-        self.error_field_config = self._create_error_field_config()
 
     def _create_addr_field_config(self):
         """Create field configuration for address channel"""
@@ -166,7 +195,7 @@ class AXIErrorMonitorTB(TBBase):
             display_width=2,
             description="Transaction ID"
         ))
-        
+
         # Add AXI-specific fields
         if self.is_axi:
             field_config.add_field(FieldDefinition(
@@ -198,7 +227,7 @@ class AXIErrorMonitorTB(TBBase):
     def _create_data_field_config(self):
         """Create field configuration for data channel"""
         field_config = FieldConfig()
-        
+
         if self.is_read:
             # Read data channel includes ID and response
             field_config.add_field(FieldDefinition(
@@ -217,7 +246,7 @@ class AXIErrorMonitorTB(TBBase):
                 display_width=2,
                 description="Response code (read data)"
             ))
-            
+
             # AXI-specific field
             if self.is_axi:
                 field_config.add_field(FieldDefinition(
@@ -239,7 +268,7 @@ class AXIErrorMonitorTB(TBBase):
                 display_width=1,
                 description="Last flag"
             ))
-            
+
             if not self.is_axi:  # AXI-Lite doesn't have data signals beyond valid/ready
                 field_config.add_field(FieldDefinition(
                     name="strb",
@@ -353,26 +382,6 @@ class AXIErrorMonitorTB(TBBase):
                 randomizer=FlexRandomizer(self.master_randomizer_configs['fixed'])
             )
 
-        # Create error reporting FIFO slave
-        self.error_slave = GAXISlave(
-            self.dut, 'ErrorSlave', '', self.dut.aclk,
-            field_config=self.error_field_config,
-            multi_sig=True,
-            signal_map={
-                'm2s_valid': 'o_error_valid',
-                's2m_ready': 'i_error_ready'
-            },
-            optional_signal_map={
-                'm2s_pkt_error_type':     'o_error_type',
-                'm2s_pkt_error_id':       'o_error_id',
-                'm2s_pkt_error_addr':     'o_error_addr',
-                'm2s_pkt_error_unit_id':  'o_error_unit_id',
-                'm2s_pkt_error_agent_id': 'o_error_agent_id',
-            },
-            log=self.log,
-            randomizer=FlexRandomizer(self.randomizer_configs['fixed'])
-        )
-
         # Create monitors
         self.addr_monitor = GAXIMonitor(
             self.dut, 'AddrMonitor', '', self.dut.aclk,
@@ -419,106 +428,95 @@ class AXIErrorMonitorTB(TBBase):
                 log=self.log
             )
 
-        # Set up callbacks
-        self.error_slave.add_callback(self._on_error_report)
-    
     def _init_intrbus_components(self):
         """Initialize interrupt bus components"""
         # Create intrbus components using IntrBusComponents class
         self.intrbus_components = IntrBusComponents(
-            self.dut, 
-            self.dut.aclk, 
-            title_prefix="IntrBus", 
+            self.dut,
+            self.dut.aclk,
+            title_prefix="IntrBus",
             log=self.log,
             randomizer=FlexRandomizer(self.randomizer_configs['fixed'])
         )
-        
+
         # Extract individual components for easier access
         self.intrbus_master = self.intrbus_components.master
         self.intrbus_slave = self.intrbus_components.slave
         self.intrbus_monitor = self.intrbus_components.monitor
-        
+
         # Set up callbacks for the monitor
         self.intrbus_monitor.add_callback(self._on_intrbus_event)
-        
-    def _on_intrbus_event(self, packet):  # sourcery skip: extract-method, switch
+
+    def _on_intrbus_event(self, packet):
         """Callback for all interrupt bus events"""
+        # Extract fields from the 64-bit packet
+        if hasattr(packet, 'intrbus_packet'):
+            fields = extract_packet_fields(packet.intrbus_packet)
+        else:
+            # Fallback - try to get individual fields
+            fields = {
+                'packet_type': getattr(packet, 'packet_type', 0),
+                'event_code': getattr(packet, 'event_code', 0),
+                'channel_id': getattr(packet, 'channel_id', 0),
+                'unit_id': getattr(packet, 'unit_id', 0),
+                'agent_id': getattr(packet, 'agent_id', 0),
+                'addr': getattr(packet, 'addr', 0)
+            }
+
         # Format the event for logging
         event_desc = self.intrbus_components.format_event(packet)
         self.log.info(f"Interrupt bus event detected: {event_desc}{self.get_time_ns_str()}")
-        
+
         # Store event for analysis
         event_info = {
             'time': get_sim_time('ns'),
-            'packet_type': packet.packet_type,
-            'event_code': packet.event_code,
-            'channel_id': packet.channel_id,
-            'unit_id': packet.unit_id,
-            'agent_id': packet.agent_id,
-            'addr': packet.addr,
+            'packet_type': fields['packet_type'],
+            'event_code': fields['event_code'],
+            'channel_id': fields['channel_id'],
+            'unit_id': fields['unit_id'],
+            'agent_id': fields['agent_id'],
+            'addr': fields['addr'],
             'description': event_desc
         }
-        
+
         self.intrbus_events.append(event_info)
-        
+
         # Additional processing based on packet type
-        if packet.packet_type == 0:  # Error event
+        if fields['packet_type'] == self.PKT_TYPE_ERROR:  # Error event
             error_info = {
                 'time': get_sim_time('ns'),
-                'type': self._map_event_code_to_error_type(packet.event_code),
-                'id': packet.channel_id,
-                'addr': packet.addr,
-                'event_code': packet.event_code
+                'type': self._map_event_code_to_error_type(fields['event_code']),
+                'id': fields['channel_id'],
+                'addr': fields['addr'],
+                'event_code': fields['event_code']
             }
-            
+
             # Add decoded error type string
             error_type_str = []
-            if packet.event_code == 0x1:  # ADDR_TIMEOUT
+            if fields['event_code'] == 0x1:  # ADDR_TIMEOUT
                 error_type_str.append("ADDR_TIMEOUT")
-            elif packet.event_code == 0x2:  # DATA_TIMEOUT
+            elif fields['event_code'] == 0x2:  # DATA_TIMEOUT
                 error_type_str.append("DATA_TIMEOUT")
-            elif packet.event_code == 0x3:  # RESP_TIMEOUT
+            elif fields['event_code'] == 0x3:  # RESP_TIMEOUT
                 error_type_str.append("RESP_TIMEOUT")
-            elif packet.event_code == 0x4:  # RESP_SLVERR
+            elif fields['event_code'] == 0x4:  # RESP_SLVERR
                 error_type_str.append("RESP_SLVERR")
-            elif packet.event_code == 0x5:  # RESP_DECERR
+            elif fields['event_code'] == 0x5:  # RESP_DECERR
                 error_type_str.append("RESP_DECERR")
-            
+            elif fields['event_code'] == 0x6:  # DATA_ORPHAN
+                error_type_str.append("DATA_ORPHAN")
+            elif fields['event_code'] == 0x7:  # RESP_ORPHAN
+                error_type_str.append("RESP_ORPHAN")
+            elif fields['event_code'] == 0x8:  # PROTOCOL
+                error_type_str.append("PROTOCOL")
+
             error_info['type_str'] = "|".join(error_type_str)
-            
+
             # Store error
             self.errors_detected.append(error_info)
-            
-            self.log.info(f"Error event detected: {error_info['type_str']}, ID={packet.channel_id}, addr=0x{packet.addr:X}{self.get_time_ns_str()}")
 
-    def _on_error_report(self, packet):
-        """Callback for error reports from the error FIFO (legacy method)"""
-        self.log.info(f"Error report from FIFO: {packet.formatted(compact=True)}{self.get_time_ns_str()}")
+            self.log.info(f"Error event detected: {error_info['type_str']}, ID={fields['channel_id']}, addr=0x{fields['addr']:X}{self.get_time_ns_str()}")
 
-        # Extract error information
-        error_info = {
-            'time': get_sim_time('ns'),
-            'type': packet.error_type,
-            'id': packet.error_id,
-            'addr': packet.error_addr
-        }
-
-        # Add decoded error type string
-        error_type_str = []
-        if error_info['type'] & self.ERROR_ADDR_TIMEOUT:
-            error_type_str.append("ADDR_TIMEOUT")
-        if error_info['type'] & self.ERROR_DATA_TIMEOUT:
-            error_type_str.append("DATA_TIMEOUT")
-        if error_info['type'] & self.ERROR_RESP_TIMEOUT:
-            error_type_str.append("RESP_TIMEOUT")
-        if error_info['type'] & self.ERROR_RESP_ERROR:
-            error_type_str.append("RESP_ERROR")
-
-        error_info['type_str'] = "|".join(error_type_str)
-
-        # Store error
-        self.errors_detected.append(error_info)
-    
     def _map_event_code_to_error_type(self, event_code):
         """Map event code to error type constant"""
         if event_code == 0x1:  # ADDR_TIMEOUT
@@ -528,7 +526,7 @@ class AXIErrorMonitorTB(TBBase):
         elif event_code == 0x3:  # RESP_TIMEOUT
             return self.ERROR_RESP_TIMEOUT
         elif event_code in [0x4, 0x5]:  # RESP_SLVERR or RESP_DECERR
-            return self.ERROR_RESP_ERROR
+            return 0x8  # Generic response error bit
         else:
             return 0
 
@@ -557,8 +555,8 @@ class AXIErrorMonitorTB(TBBase):
         self.log.info(f"Addr Timeout:      {self.timeout_addr}")
         self.log.info(f"Data Timeout:      {self.timeout_data}")
         self.log.info(f"Resp Timeout:      {self.timeout_resp}")
-        self.log.info(f"Error FIFO Depth:  {self.error_fifo_depth}")
-        self.log.info(f"Addr FIFO Depth:   {self.addr_fifo_depth}")
+        self.log.info(f"Intr FIFO Depth:   {self.intr_fifo_depth}")
+        self.log.info(f"Debug FIFO Depth:  {self.debug_fifo_depth}")
         self.log.info(f"{'=' * 80}")
 
     async def reset_dut(self):
@@ -584,14 +582,13 @@ class AXIErrorMonitorTB(TBBase):
         await self.data_master.reset_bus()
         if self.resp_master:
             await self.resp_master.reset_bus()
-        await self.error_slave.reset_bus()
 
         # Reset the interrupt bus components
         await self.intrbus_components.reset_bus()
-        
+
         # Set intrbus slave to normal ready speed
         self.intrbus_slave.set_randomizer(FlexRandomizer(self.randomizer_configs['fixed']))
-        
+
         # Start ready signal controller
         await self.ready_ctrl.start()
 
@@ -641,21 +638,21 @@ class AXIErrorMonitorTB(TBBase):
         #     # Medium adds error detection
         #     error_passed = await self.error_test.run()
         #     all_passed = all_passed and error_passed
-        # 
+        #
         #     # Run intrbus-specific tests
         #     intrbus_passed = await self.intrbus_test.run()
         #     all_passed = all_passed and intrbus_passed
-        # 
+        #
         #     # Run random traffic test with moderate number of transactions
         #     if test_level == 'medium':
         #         random_passed = await self.random_test.run(num_transactions=20)
         #         all_passed = all_passed and random_passed
-        # 
+        #
         # # Full adds multichannel test and more extensive random testing
         # if test_level == 'full':
         #     multichannel_passed = await self.multichannel_test.run()
         #     all_passed = all_passed and multichannel_passed
-        # 
+        #
         #     # Run more extensive random traffic test
         #     random_passed = await self.random_test.run(num_transactions=50)
         #     all_passed = all_passed and random_passed

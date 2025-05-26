@@ -65,11 +65,11 @@ class FifoBufferTB(TBBase):
         self.log.debug(f"\n{self.field_config}")
 
         # Create enhanced memory model
-        self.memory_model = EnhancedMemoryModel(
-            num_lines=self.TEST_DEPTH,
-            bytes_per_line=self.DW // 8 or 1,
-            log=self.log
-        )
+        # self.memory_model = EnhancedMemoryModel(
+        #     num_lines=self.TEST_DEPTH,
+        #     bytes_per_line=self.DW // 8 or 1,
+        #     log=self.log
+        # )
 
         # Set up signal mappings
         # Required signals (valid/ready) for master
@@ -98,7 +98,7 @@ class FifoBufferTB(TBBase):
         self.write_master = FIFOMaster(
             dut, 'write_master', '', self.wr_clk,
             field_config=self.field_config,
-            memory_model=self.memory_model,
+            # memory_model=self.memory_model,
             timeout_cycles=self.TIMEOUT_CYCLES,
             signal_map=master_signal_map,
             optional_signal_map=master_optional_map,
@@ -109,7 +109,7 @@ class FifoBufferTB(TBBase):
             dut, 'read_slave', '', self.rd_clk,
             mode=self.TEST_MODE,
             field_config=self.field_config,
-            memory_model=self.memory_model,
+            # memory_model=self.memory_model,
             timeout_cycles=self.TIMEOUT_CYCLES,
             signal_map=slave_signal_map,
             optional_signal_map=slave_optional_map,
@@ -219,7 +219,7 @@ class FifoBufferTB(TBBase):
             'read_slave': self.read_slave.get_stats() if hasattr(self.read_slave, 'get_stats') else {},
             'write_monitor': self.wr_monitor.get_stats() if hasattr(self.wr_monitor, 'get_stats') else {},
             'read_monitor': self.rd_monitor.get_stats() if hasattr(self.rd_monitor, 'get_stats') else {},
-            'memory_model': self.memory_model.get_stats() if hasattr(self.memory_model, 'get_stats') else {}
+            # 'memory_model': self.memory_model.get_stats() if hasattr(self.memory_model, 'get_stats') else {}
         }
         return stats
 

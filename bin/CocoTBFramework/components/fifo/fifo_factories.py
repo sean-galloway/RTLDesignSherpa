@@ -229,7 +229,7 @@ def create_fifo_monitor(dut, title, prefix, clock, field_config=None, field_mode
         prefix: Signal prefix
         clock: Clock signal
         field_config: Field configuration for packets (default: standard data field)
-        field_mode: Whether to use field mode for data interpretation 
+        field_mode: Whether to use field mode for data interpretation
         is_slave: If True, monitor read side; if False, monitor write side
         log: Logger instance (default: dut's logger)
         mode: Operating mode ('fifo_mux', 'fifo_flop')
@@ -307,30 +307,30 @@ def create_fifo_scoreboard(name, field_config=None, log=None):
 def create_fifo_command_handler(master, slave, memory_model=None, log=None, fifo_capacity=8):
     """
     Create a FIFO Command Handler for managing transactions between master and slave.
-    
+
     Args:
         master: FIFOMaster instance
         slave: FIFOSlave instance
         memory_model: Optional memory model (if None, uses master's memory model)
         log: Logger instance
         fifo_capacity: FIFO capacity in entries for modeling
-        
+
     Returns:
         FIFOCommandHandler instance
     """
     # Use master's or slave's logger if none provided
     log = log or getattr(master, 'log', None) or getattr(slave, 'log', None)
-    
+
     # Use master's memory model if none provided
     if memory_model is None and hasattr(master, 'memory_model'):
         memory_model = master.memory_model
-        
+
     # Create command handler
     return FIFOCommandHandler(
-        master, 
-        slave, 
-        memory_model=memory_model, 
-        log=log, 
+        master,
+        slave,
+        memory_model=memory_model,
+        log=log,
         fifo_capacity=fifo_capacity
     )
 
@@ -445,7 +445,7 @@ def create_fifo_components(dut, clock, title_prefix="", field_config=None, field
         field_config=field_config,
         log=log
     )
-    
+
     command_handler = create_fifo_command_handler(
         master,
         slave,
@@ -469,14 +469,14 @@ def create_fifo_components(dut, clock, title_prefix="", field_config=None, field
 def create_enhanced_memory_model(num_lines, bytes_per_line=4, log=None, preset_values=None, debug=False):
     """
     Create an enhanced memory model with improved diagnostics and boundary checking.
-    
+
     Args:
         num_lines: Number of memory lines
         bytes_per_line: Bytes per memory line
         log: Logger instance
         preset_values: Optional initial values for memory
         debug: Enable detailed debug logging
-        
+
     Returns:
         EnhancedMemoryModel instance
     """

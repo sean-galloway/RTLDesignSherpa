@@ -19,7 +19,7 @@ module fifo_control #(
     input  logic [ADDR_WIDTH:0]     iw_wdom_rd_ptr_bin,
     input  logic [ADDR_WIDTH:0]     iw_rd_ptr_bin,
     input  logic [ADDR_WIDTH:0]     iw_rdom_wr_ptr_bin,
-    output logic [ADDR_WIDTH-1:0]   ow_count,
+    output logic [ADDR_WIDTH:0]     ow_count,
     output logic                    o_wr_full,
     output logic                    o_wr_almost_full,
     output logic                    o_rd_empty,

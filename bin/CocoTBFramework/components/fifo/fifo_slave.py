@@ -49,7 +49,7 @@ class FIFOSlave(BusMonitor):
     """
     Slave driver for FIFO transactions with enhanced memory integration.
     Controls read signal and monitors empty signal.
-    
+
     Supports:
     1. Single data bus (standard mode)
     2. Individual signals for each field (multi-signal mode)
@@ -164,12 +164,12 @@ class FIFOSlave(BusMonitor):
             self.memory_fields = fifo_memory_fields
         else:
             self.memory_fields = memory_fields
-        
+
         # Initialize parent BusMonitor (without auto-starting monitor)
         BusMonitor.__init__(self, dut, prefix, clock, callback=None, event=None, **kwargs)
         self.log = log or self._log
         self.log.debug(f"FIFOSlave init for '{title}': randomizer={randomizer}, mode={mode}")
-        
+
         # Create enhanced memory integration if memory model is provided
         if self.memory_model:
             self.memory_integration = FIFOMemoryInteg(
@@ -211,10 +211,10 @@ class FIFOSlave(BusMonitor):
 
         # Create received queue
         self.received_queue = deque()
-        
+
         # Initialize callbacks list
         self.callbacks = []
-        
+
         # Statistics - use a dictionary instead of class to avoid attribute errors
         self.stats = {
             'transactions_received': 0,
@@ -261,11 +261,11 @@ class FIFOSlave(BusMonitor):
     def _check_field_value(self, field_name, field_value):
         """
         Check if a field value exceeds the maximum possible value for the field.
-        
+
         Args:
             field_name: Name of the field to check
             field_value: Value to check against field width
-            
+
         Returns:
             field_value: The original value if within range, or the masked value if not
         """
@@ -328,7 +328,7 @@ class FIFOSlave(BusMonitor):
         elif not self.memory_fields:
             # Set default mapping if not already set
             self.memory_fields = fifo_memory_fields
-            
+
         # Update or create memory integration
         if self.memory_model:
             self.memory_integration = FIFOMemoryInteg(
@@ -391,7 +391,7 @@ class FIFOSlave(BusMonitor):
                 data_dict = self._finish_packet_helper(
                     combined_value, unpacked_fields
                 )
-                
+
         # Use the packet's unpack_from_fifo method for field handling
         if data_dict:
             if hasattr(packet, 'unpack_from_fifo'):
@@ -413,15 +413,15 @@ class FIFOSlave(BusMonitor):
         # Record completion time and store packet
         packet.end_time = current_time
         self.received_queue.append(packet)
-        
+
         # Update stats
         self.stats['transactions_received'] += 1
         self.stats['received_transactions'] += 1  # Add this to match expected behavior
-        
+
         # Log packet
         packet_str = packet.formatted(compact=True) if hasattr(packet, 'formatted') else str(packet)
         self.log.debug(f"Slave({self.title}) Transaction received at {packet.end_time}ns: {packet_str}")
-        
+
         # Call all registered callbacks with the packet
         self._call_callbacks(packet)
 
@@ -429,7 +429,7 @@ class FIFOSlave(BusMonitor):
         """
         Call all registered callbacks with the packet.
         This replaces the direct _recv call to avoid the AttributeError.
-        
+
         Args:
             packet: The packet to pass to callbacks
         """
@@ -440,7 +440,7 @@ class FIFOSlave(BusMonitor):
             except AttributeError:
                 # Handle the AttributeError by not propagating it
                 self.log.debug("Ignoring AttributeError from parent _recv method")
-        
+
         # Call additional callbacks
         for callback in self.callbacks:
             try:
@@ -451,10 +451,10 @@ class FIFOSlave(BusMonitor):
     def add_callback(self, callback):
         """
         Add a callback function to be called when a packet is received.
-        
+
         Args:
             callback: Function to call with received packet
-            
+
         Returns:
             Self for method chaining
         """
@@ -664,69 +664,69 @@ class FIFOSlave(BusMonitor):
                 break
 
         await Timer(self.tick_delay, units=self.tick_units)
-        
+
     def get_memory_stats(self):
         """
         Get memory operation statistics.
-        
+
         Returns:
             Dictionary with memory statistics, or None if no memory model available
         """
         if hasattr(self, 'memory_integration'):
             return self.memory_integration.get_stats()
         return None
-        
+
     def get_stats(self):
         """
         Get transaction statistics.
-        
+
         Returns:
             Dictionary with transaction statistics
         """
         return self.stats.copy()
-        
+
     async def process_request(self, transaction):
         """
         Process a transaction request, usually from a command handler.
-        
+
         This method provides a standardized way for external components like
         command handlers to send transactions directly to the slave without
         going through the bus signals.
-        
+
         Args:
             transaction: Transaction to process
-            
+
         Returns:
             Response packet or None
         """
         # Create a copy of the transaction to avoid modifying the original
         packet = self.packet_class(self.field_config)
-        
+
         # Copy fields from transaction to packet
         for field_name in self.field_config.field_names():
             if hasattr(transaction, field_name):
                 setattr(packet, field_name, getattr(transaction, field_name))
-                
+
         # Set timing information
         current_time = get_sim_time('ns')
         packet.start_time = current_time
-        
+
         # Process with memory model if available
         if hasattr(self, 'memory_integration') and self.memory_model:
             success, data, error_msg = self.memory_integration.read(packet, update_transaction=True)
             if not success:
                 self.log.warning(f"Slave({self.title}): {error_msg}")
-                
+
         # Complete packet and add to queue
         packet.end_time = get_sim_time('ns')
         self.received_queue.append(packet)
-        
+
         # Update stats
         self.stats['transactions_received'] += 1
         self.stats['received_transactions'] += 1
-        
+
         # Call callbacks
         self._call_callbacks(packet)
-        
+
         # Return processed packet
         return packet

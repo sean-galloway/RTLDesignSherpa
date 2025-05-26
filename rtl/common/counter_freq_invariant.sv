@@ -1,5 +1,9 @@
 `timescale 1ns / 1ps
-
+/**
+ * Frequency Invariant Counter
+ *
+ * Updated with proper naming conventions: w_ for combo, r_ for flopped
+ */
 module counter_freq_invariant
 #(
     parameter int COUNTER_WIDTH = 5,      // Width of the output counter
@@ -13,14 +17,14 @@ module counter_freq_invariant
     output logic                        o_tick         // Pulse every time counter increments
 );
 
-    // Configuration registers
+    // Configuration registers (combinational)
     logic [15:0] w_division_factor;     // How many clock cycles per tick
 
-    // Frequency selection change detection
+    // Frequency selection change detection (flopped)
     logic [3:0] r_prev_freq_sel;        // Previous frequency selection
     logic       r_clear_pulse;          // Indicates frequency selection changed
 
-    // Internal counters
+    // Internal counters (combinational)
     logic w_prescaler_done;
 
     // Config lookup - Maps i_freq_sel to division factors
@@ -75,7 +79,7 @@ module counter_freq_invariant
     );
 
     // Generate tick signal and
-    // COUNTER_WIDTH-bit output counter that increments on tick
+    // COUNTER_WIDTH-bit output counter that increments on tick (flopped)
     always_ff @(posedge i_clk or negedge i_rst_n) begin
         if (!i_rst_n) begin
             o_counter <= 'b0;
