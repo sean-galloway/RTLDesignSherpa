@@ -2,7 +2,6 @@
 
 // Parameterized Synchronous FIFO -- This works with any depth
 module gaxi_fifo_sync #(
-    parameter int DEL = 1,
     parameter int DATA_WIDTH = 4,
     parameter int DEPTH = 4,
     parameter int ALMOST_WR_MARGIN = 1,
@@ -18,7 +17,7 @@ module gaxi_fifo_sync #(
     output logic            o_wr_ready,   // not full
     input  logic [DW-1:0]   i_wr_data,
     input  logic            i_rd_ready,
-    output logic [AW-1:0]   ow_count,
+    output logic [AW:0]     ow_count,
     output logic            o_rd_valid,   // not empty
     output logic [DW-1:0]   ow_rd_data,
     output logic [DW-1:0]   o_rd_data
@@ -69,7 +68,6 @@ module gaxi_fifo_sync #(
     /////////////////////////////////////////////////////////////////////////
     // Generate the Full/Empty signals
     fifo_control #(
-        .DEL(DEL),
         .DEPTH(D),
         .ADDR_WIDTH(AW),
         .ALMOST_RD_MARGIN(ALMOST_RD_MARGIN),

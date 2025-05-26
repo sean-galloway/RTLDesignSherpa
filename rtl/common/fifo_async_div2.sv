@@ -2,7 +2,6 @@
 
 // Paramerized Asynchronous FIFO -- This works for any even depth
 module fifo_async_div2 #(
-    parameter int DEL = 1,
     parameter int DATA_WIDTH = 8,
     parameter int DEPTH = 10,
     parameter int N_FLOP_CROSS = 2,
@@ -159,7 +158,6 @@ module fifo_async_div2 #(
     /////////////////////////////////////////////////////////////////////////
     // Generate the Full/Empty signals
     fifo_control #(
-        .DEL(DEL),
         .DEPTH(D),
         .ADDR_WIDTH(AW),
         .ALMOST_RD_MARGIN(ALMOST_RD_MARGIN),

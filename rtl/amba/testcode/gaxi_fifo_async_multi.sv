@@ -2,7 +2,6 @@
 
 // Paramerized Asynchronous FIFO -- This works for any even depth
 module gaxi_fifo_async_multi #(
-    parameter int DEL = 1,
     parameter int ADDR_WIDTH = 4,
     parameter int CTRL_WIDTH = 4,
     parameter int DATA_WIDTH = 8,
@@ -44,7 +43,6 @@ module gaxi_fifo_async_multi #(
 
 
     gaxi_fifo_async #(
-        .DEL               (1),                // Default delay
         .DATA_WIDTH        (8),                // Data width
         .DEPTH             (10),               // FIFO depth
         .N_FLOP_CROSS      (2),                // Number of flop crossings

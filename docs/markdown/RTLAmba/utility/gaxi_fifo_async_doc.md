@@ -19,7 +19,6 @@ The `gaxi_fifo_async` module implements a parameterized asynchronous FIFO (First
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `DEL` | Delay parameter | 1 |
 | `DATA_WIDTH` | Width of the data bus | 8 |
 | `DEPTH` | FIFO depth (must be an even number) | 10 |
 | `N_FLOP_CROSS` | Number of flops in synchronizer chains | 2 |
@@ -406,7 +405,6 @@ The FIFO control module manages the full and empty status signals:
 
 ```systemverilog
 fifo_control #(
-    .DEL(DEL),
     .DEPTH(D),
     .ADDR_WIDTH(AW),
     .ALMOST_RD_MARGIN(ALMOST_RD_MARGIN),

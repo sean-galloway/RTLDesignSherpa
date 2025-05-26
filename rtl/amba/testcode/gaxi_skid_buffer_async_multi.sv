@@ -61,7 +61,6 @@ module gaxi_skid_buffer_async_multi #(
 
     // Instantiate the axi_fifo_async module
     gaxi_fifo_async #(
-        .DEL(1),
         .DATA_WIDTH(AW+CW+DW+DW),
         .DEPTH(DEPTH),
         .N_FLOP_CROSS(N_FLOP_CROSS),

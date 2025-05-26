@@ -2,7 +2,6 @@
 
 // Parameterized Synchronous FIFO -- This works with any depth
 module fifo_async_multi #(
-    parameter int DEL = 1,
     parameter int ADDR_WIDTH = 4,
     parameter int CTRL_WIDTH = 4,
     parameter int DATA_WIDTH = 4,
@@ -42,7 +41,6 @@ module fifo_async_multi #(
 );
 
     fifo_async #(
-        .DEL               (1),
         .DATA_WIDTH        (AW+CW+DW+DW),
         .DEPTH             (DEPTH),
         .ALMOST_WR_MARGIN  (ALMOST_WR_MARGIN),

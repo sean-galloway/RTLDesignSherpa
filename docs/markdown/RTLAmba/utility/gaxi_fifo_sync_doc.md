@@ -19,7 +19,6 @@ The `gaxi_fifo_sync` module implements a parameterized synchronous FIFO (First I
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `DEL` | Delay parameter | 1 |
 | `DATA_WIDTH` | Width of the data bus | 4 |
 | `DEPTH` | FIFO depth (works with any depth) | 4 |
 | `ALMOST_WR_MARGIN` | Margin for almost-full indication | 1 |
@@ -357,7 +356,6 @@ The FIFO control module manages the full and empty status signals:
 
 ```systemverilog
 fifo_control #(
-    .DEL(DEL),
     .DEPTH(D),
     .ADDR_WIDTH(AW),
     .ALMOST_RD_MARGIN(ALMOST_RD_MARGIN),

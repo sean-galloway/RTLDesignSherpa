@@ -1,4 +1,4 @@
-"""Testbench for data_collect module"""
+"""Enhanced testbench for gaxi_data_collect module with proper arbiter monitor integration"""
 import os
 import logging
 import random
@@ -11,19 +11,21 @@ from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
 from CocoTBFramework.components.gaxi.gaxi_master import GAXIMaster
 from CocoTBFramework.components.gaxi.gaxi_slave import GAXISlave
 from CocoTBFramework.components.gaxi.gaxi_monitor import GAXIMonitor
-from CocoTBFramework.components.arbiter_monitor import WeightedRoundRobinArbiterMonitor
 from CocoTBFramework.components.field_config import FieldConfig
+from CocoTBFramework.components.arbiter_monitor import WeightedRoundRobinArbiterMonitor
 
 
 class DataCollectScoreboard:
     """
-    Specialized scoreboard for data_collect module.
+    Enhanced specialized scoreboard for gaxi_data_collect module with arbiter behavior verification.
 
     Features:
     - Separate queues for each input channel (A, B, C, D)
     - Groups data in 4-item chunks by channel
     - Compares output packets against expected grouped data
     - Checks for leftover data at end of test
+    - Enhanced field validation and error detection
+    - Arbiter behavior verification and weight compliance checking
     """
     def __init__(self, title, input_field_config, output_field_config, log=None):
         """Initialize the scoreboard"""
@@ -33,14 +35,11 @@ class DataCollectScoreboard:
             self.input_field_config = FieldConfig.validate_and_create(input_field_config)
         else:
             self.input_field_config = input_field_config
-            
+
         if isinstance(output_field_config, dict):
             self.output_field_config = FieldConfig.validate_and_create(output_field_config)
         else:
             self.output_field_config = output_field_config
-
-        self.input_field_config = input_field_config
-        self.output_field_config = output_field_config
 
         # Create a logger if not provided
         if log is None:
@@ -64,9 +63,84 @@ class DataCollectScoreboard:
         # Queue for actual output packets
         self.actual_queue = deque()
 
+        # Create field mask cache for improved performance
+        self._field_masks = {}
+
         # Error tracking
         self.error_count = 0
         self.comparison_count = 0
+        self.field_error_counts = {}
+
+        # Statistics
+        self.stats = {
+            'packets_processed': 0,
+            'groups_created': 0,
+            'field_errors': 0
+        }
+
+        # Arbiter-related tracking
+        self.arbiter_stats = {
+            'channel_selections': {'A': 0, 'B': 0, 'C': 0, 'D': 0},
+            'weight_compliance_errors': 0,
+            'fairness_violations': 0
+        }
+
+    def add_arbiter_transaction(self, transaction, expected_weights=None):
+        """
+        Add an arbiter transaction for analysis
+
+        Args:
+            transaction: ArbiterTransaction from the monitor
+            expected_weights: Expected weights for each channel [A, B, C, D]
+        """
+        if transaction.gnt_id < 4:  # Valid client ID
+            channel_map = {0: 'A', 1: 'B', 2: 'C', 3: 'D'}
+            channel = channel_map[transaction.gnt_id]
+            self.arbiter_stats['channel_selections'][channel] += 1
+
+            self.log.debug(f"Arbiter granted channel {channel} (ID {transaction.gnt_id}) "
+                            f"after {transaction.cycle_count} cycles")
+
+    def verify_arbiter_weights(self, expected_weights, tolerance=0.2):
+        """
+        Verify that the arbiter is respecting the configured weights
+
+        Args:
+            expected_weights: List of expected weights [A, B, C, D]
+            tolerance: Acceptable deviation from expected ratio (0.2 = 20%)
+
+        Returns:
+            True if weights are respected within tolerance
+        """
+        total_selections = sum(self.arbiter_stats['channel_selections'].values())
+        if total_selections < 20:  # Need sufficient data
+            self.log.warning("Insufficient arbiter transactions for weight verification")
+            return True
+
+        total_weight = sum(expected_weights)
+        if total_weight == 0:
+            return True  # All weights zero, can't verify
+
+        channels = ['A', 'B', 'C', 'D']
+        weight_errors = 0
+
+        for i, channel in enumerate(channels):
+            expected_ratio = expected_weights[i] / total_weight
+            actual_selections = self.arbiter_stats['channel_selections'][channel]
+            actual_ratio = actual_selections / total_selections
+
+            deviation = abs(expected_ratio - actual_ratio)
+
+            self.log.info(f"Channel {channel}: Expected {expected_ratio:.2%}, "
+                            f"Actual {actual_ratio:.2%}, Deviation {deviation:.2%}")
+
+            if expected_ratio > 0 and deviation > tolerance:
+                weight_errors += 1
+                self.arbiter_stats['weight_compliance_errors'] += 1
+                self.log.error(f"Weight compliance error for channel {channel}: "
+                                f"deviation {deviation:.2%} exceeds tolerance {tolerance:.2%}")
+
+        return weight_errors == 0
 
     def clear(self):
         """Clear all queues and reset counters"""
@@ -84,6 +158,36 @@ class DataCollectScoreboard:
 
         self.error_count = 0
         self.comparison_count = 0
+        self.field_error_counts = {}
+
+        # Reset statistics
+        for key in self.stats:
+            self.stats[key] = 0
+
+        # Reset arbiter stats
+        for channel in self.arbiter_stats['channel_selections']:
+            self.arbiter_stats['channel_selections'][channel] = 0
+        self.arbiter_stats['weight_compliance_errors'] = 0
+        self.arbiter_stats['fairness_violations'] = 0
+
+    def _get_field_mask(self, field_name, field_config):
+        """Get a mask for a field based on its bit width with caching."""
+        # Check the cache first
+        if field_name in self._field_masks:
+            return self._field_masks[field_name]
+
+        # Calculate mask based on field width
+        if hasattr(field_config, 'get_field'):
+            field_def = field_config.get_field(field_name)
+            if field_def:
+                bits = field_def.bits
+                mask = (1 << bits) - 1
+                # Cache the mask
+                self._field_masks[field_name] = mask
+                return mask
+
+        # Default to all ones if field width can't be determined
+        return 0xFFFFFFFF
 
     def add_input_packet(self, packet):
         """
@@ -92,6 +196,9 @@ class DataCollectScoreboard:
         Args:
             packet: Input packet from a monitor
         """
+        # Track statistics
+        self.stats['packets_processed'] += 1
+
         # Determine which queue to add to based on ID
         packet_id = packet.id if hasattr(packet, 'id') else None
 
@@ -118,7 +225,7 @@ class DataCollectScoreboard:
 
     def _combine_packets(self, channel):
         """
-        Combine 4 packets from a channel into a single output packet
+        Combine 4 packets from a channel into a single output packet with field validation
 
         Args:
             channel: Channel identifier ('A', 'B', 'C', or 'D')
@@ -159,6 +266,16 @@ class DataCollectScoreboard:
         data1 = pkt1.data if hasattr(pkt1, 'data') else 0
         data2 = pkt2.data if hasattr(pkt2, 'data') else 0
         data3 = pkt3.data if hasattr(pkt3, 'data') else 0
+
+        # Get mask for data field
+        data_mask = self._get_field_mask('data', self.input_field_config)
+
+        # Mask values to ensure they're within field width
+        data0 &= data_mask
+        data1 &= data_mask
+        data2 &= data_mask
+        data3 &= data_mask
+
         # Create a combined output packet
         output_pkt = GAXIPacket(self.output_field_config)
         output_pkt.id = id_value
@@ -169,6 +286,9 @@ class DataCollectScoreboard:
 
         # Add to the combined queue
         combined_queue.append(output_pkt)
+
+        # Update statistics
+        self.stats['groups_created'] += 1
 
         self.log.debug(f"Combined 4 packets from channel {channel} into output packet with ID=0x{id_value:X}")
 
@@ -185,7 +305,7 @@ class DataCollectScoreboard:
         self._check_next_packet()
 
     def _check_next_packet(self):
-        """Check the next output packet against expected data"""
+        """Check the next output packet against expected data with enhanced field validation"""
         if not self.actual_queue:
             return
 
@@ -228,26 +348,48 @@ class DataCollectScoreboard:
         expected_data1 = expected.data1 if hasattr(expected, 'data1') else 0
         expected_data2 = expected.data2 if hasattr(expected, 'data2') else 0
         expected_data3 = expected.data3 if hasattr(expected, 'data3') else 0
-        
+
         actual_data0 = actual.data0 if hasattr(actual, 'data0') else 0
         actual_data1 = actual.data1 if hasattr(actual, 'data1') else 0
         actual_data2 = actual.data2 if hasattr(actual, 'data2') else 0
         actual_data3 = actual.data3 if hasattr(actual, 'data3') else 0
 
-        # Compare packets
-        if (actual_data0 != expected_data0 or
-            actual_data1 != expected_data1 or
-            actual_data2 != expected_data2 or
-            actual_data3 != expected_data3):
+        # Get masks for each field
+        data_mask = self._get_field_mask('data0', self.output_field_config)
 
+        # Compare packets with field-by-field detailed comparison
+        errors = []
+
+        if (actual_data0 & data_mask) != (expected_data0 & data_mask):
+            errors.append(f"data0: expected=0x{expected_data0:X}, actual=0x{actual_data0:X}")
+            self._increment_field_error('data0')
+
+        if (actual_data1 & data_mask) != (expected_data1 & data_mask):
+            errors.append(f"data1: expected=0x{expected_data1:X}, actual=0x{actual_data1:X}")
+            self._increment_field_error('data1')
+
+        if (actual_data2 & data_mask) != (expected_data2 & data_mask):
+            errors.append(f"data2: expected=0x{expected_data2:X}, actual=0x{actual_data2:X}")
+            self._increment_field_error('data2')
+
+        if (actual_data3 & data_mask) != (expected_data3 & data_mask):
+            errors.append(f"data3: expected=0x{expected_data3:X}, actual=0x{actual_data3:X}")
+            self._increment_field_error('data3')
+
+        if errors:
             self.log.error(f"Packet mismatch for channel {channel} (ID=0x{actual_id:X}):")
-            self.log.error(f"  Expected: data0=0x{expected_data0:X}, data1=0x{expected_data1:X}, "
-                            f"data2=0x{expected_data2:X}, data3=0x{expected_data3:X}")
-            self.log.error(f"  Actual: data0=0x{actual_data0:X}, data1=0x{actual_data1:X}, "
-                            f"data2=0x{actual_data2:X}, data3=0x{actual_data3:X}")
+            for error in errors:
+                self.log.error(f"  {error}")
             self.error_count += 1
         else:
             self.log.debug(f"Packet match for channel {channel} (ID=0x{actual_id:X})")
+
+    def _increment_field_error(self, field_name):
+        """Increment error counter for a specific field"""
+        if field_name not in self.field_error_counts:
+            self.field_error_counts[field_name] = 0
+        self.field_error_counts[field_name] += 1
+        self.stats['field_errors'] += 1
 
     def check_remaining_data(self):
         """
@@ -299,6 +441,15 @@ class DataCollectScoreboard:
 
         return errors
 
+    def get_statistics(self):
+        """Get statistics about packet processing and errors"""
+        stats = self.stats.copy()
+        stats['comparisons'] = self.comparison_count
+        stats['errors'] = self.error_count
+        stats['field_error_details'] = self.field_error_counts.copy()
+        stats['arbiter_stats'] = self.arbiter_stats.copy()
+        return stats
+
     def report(self):
         """
         Generate a report and return the number of errors
@@ -308,14 +459,26 @@ class DataCollectScoreboard:
         """
         # Check for any leftover data
         leftover_errors = self.check_remaining_data()
-        total_errors = self.error_count + leftover_errors
+        total_errors = self.error_count + leftover_errors + self.arbiter_stats['weight_compliance_errors']
 
         # Log summary
         self.log.info(f"Scoreboard report for {self.title}:")
         self.log.info(f"  Packets compared: {self.comparison_count}")
         self.log.info(f"  Data mismatches: {self.error_count}")
         self.log.info(f"  Leftover data errors: {leftover_errors}")
+        self.log.info(f"  Arbiter weight errors: {self.arbiter_stats['weight_compliance_errors']}")
         self.log.info(f"  Total errors: {total_errors}")
+
+        # Log arbiter statistics
+        self.log.info("  Arbiter Channel Selections:")
+        for channel, count in self.arbiter_stats['channel_selections'].items():
+            self.log.info(f"    Channel {channel}: {count}")
+
+        # Log field-specific error details if any
+        if self.field_error_counts:
+            self.log.info("  Field error details:")
+            for field, count in self.field_error_counts.items():
+                self.log.info(f"    {field}: {count} errors")
 
         if total_errors == 0:
             self.log.info("  TEST PASSED: All packets verified successfully")
@@ -327,13 +490,14 @@ class DataCollectScoreboard:
 
 class DataCollectTB(TBBase):
     """
-    Testbench for the data_collect module.
+    Enhanced testbench for the gaxi_data_collect module with proper arbiter monitor integration.
     Features:
     - 4 input channels (A, B, C, D) with GAXI Masters
     - 1 output channel (E) with GAXI Slave
     - Monitors for all channels
-    - Scoreboard for verification
-    - Support for weighted arbitration testing
+    - Enhanced scoreboard for verification with arbiter analysis
+    - Support for weighted arbitration testing with detailed verification
+    - Comprehensive error tracking and statistics
     """
 
     def __init__(self, dut):
@@ -354,7 +518,7 @@ class DataCollectTB(TBBase):
         self.reset_n = self.dut.i_axi_aresetn
 
         # Log configuration
-        self.log.info(f"Data Collect TB initialized with DATA_WIDTH={self.DATA_WIDTH}, ID_WIDTH={self.ID_WIDTH}")
+        self.log.info(f"GAXI Data Collect TB initialized with DATA_WIDTH={self.DATA_WIDTH}, ID_WIDTH={self.ID_WIDTH}")
         self.log.info(f"OUTPUT_FIFO_DEPTH={self.OUTPUT_FIFO_DEPTH}, SEED={self.SEED}")
 
         # Define field configuration for input channels (data+id)
@@ -375,7 +539,6 @@ class DataCollectTB(TBBase):
             'active_bits': (self.ID_WIDTH-1, 0),
             'description': 'ID value'
         })
-
 
         # Define field configuration for output channel (id + 4 data fields)
         self.output_field_config = FieldConfig()
@@ -423,7 +586,7 @@ class DataCollectTB(TBBase):
         # Create randomizers for masters with different configurations
         self.randomizer_configs = {
             'fast': {'valid_delay': ([[0, 0]], [1])},                      # No delay
-            'fixed': {'valid_delay': ([[2, 2]], [1])},                     # No delay
+            'fixed': {'valid_delay': ([[2, 2]], [1])},                     # Fixed delay
             'moderate': {'valid_delay': ([[0, 2], [3, 6]], [3, 1])},       # Moderate delay
             'slow': {'valid_delay': ([[0, 1], [2, 10], [11, 20]], [1, 3, 1])}  # Longer delay
         }
@@ -601,38 +764,136 @@ class DataCollectTB(TBBase):
         )
 
         # Create specialized scoreboard for data_collect
-        self.scoreboard = DataCollectScoreboard('DataCollect Scoreboard',
+        self.scoreboard = DataCollectScoreboard('GAXI DataCollect Scoreboard',
                                                 self.input_field_config,
                                                 self.output_field_config,
                                                 log=self.log)
 
+        # Initialize the arbiter monitor with proper integration
         self.dut_arb = dut.inst_arbiter
-        # # Initialize the arbiter monitors
-        # try:
-        # Create Arbiter Monitor
-        # self.arbiter_monitor = WeightedRoundRobinArbiterMonitor(
-        #     dut=self.dut_arb,
-        #     title="WRR Arbiter Monitor",
-        #     clock=self.dut_arb.i_clk,
-        #     clock_period_ns=10,
-        #     reset_n=self.dut_arb.i_rst_n,
-        #     req_signal=self.dut_arb.i_req,
-        #     gnt_valid_signal=self.dut_arb.ow_gnt_valid,
-        #     gnt_signal=self.dut_arb.ow_gnt,
-        #     gnt_id_signal=self.dut_arb.ow_gnt_id,
-        #     gnt_ack_signal=self.dut_arb.i_gnt_ack if hasattr(self.dut, 'i_gnt_ack') else None,
-        #     block_arb_signal=self.dut_arb.i_block_arb,
-        #     max_thresh_signal=self.dut_arb.i_max_thresh,
-        #     clients=self.dut_arb.CLIENTS,
-        #     log=self.log
-        # )
-        # except (ImportError, AttributeError):
-        #     self.log.warning("WRR Monitor not available, skipping arbiter monitoring")
-        #     self.arbiter_monitor = None
+        try:
+            # Create Arbiter Monitor
+            self.arbiter_monitor = WeightedRoundRobinArbiterMonitor(
+                dut=self.dut_arb,
+                title="WRR Arbiter Monitor",
+                clock=self.dut_arb.i_clk,
+                clock_period_ns=10,
+                reset_n=self.dut_arb.i_rst_n,
+                req_signal=self.dut_arb.i_req,
+                gnt_valid_signal=self.dut_arb.ow_gnt_valid,
+                gnt_signal=self.dut_arb.ow_gnt,
+                gnt_id_signal=self.dut_arb.ow_gnt_id,
+                gnt_ack_signal=self.dut_arb.i_gnt_ack if hasattr(self.dut_arb, 'i_gnt_ack') else None,
+                block_arb_signal=self.dut_arb.i_block_arb,
+                max_thresh_signal=self.dut_arb.i_max_thresh,
+                clients=self.dut_arb.CLIENTS,
+                log=self.log
+            )
 
-        # Test counters
+            # Add callback to forward arbiter transactions to scoreboard
+            self.arbiter_monitor.add_transaction_callback(self._on_arbiter_transaction)
+
+            # Current weight configuration for verification
+            self.current_weights = [0, 0, 0, 0]
+
+            self.log.info("Arbiter monitor initialized successfully")
+        except (ImportError, AttributeError) as e:
+            self.log.warning(f"WRR Monitor not available: {e}, skipping arbiter monitoring")
+            self.arbiter_monitor = None
+
+        # Test counters and error tracking
         self.total_errors = 0
         self.weight_configs = []
+        self.error_log = []
+
+    def _on_arbiter_transaction(self, transaction):
+        """
+        Callback function called when arbiter monitor observes a transaction
+
+        Args:
+            transaction: ArbiterTransaction from the monitor
+        """
+        # Forward transaction to scoreboard for analysis
+        self.scoreboard.add_arbiter_transaction(transaction, self.current_weights)
+
+        # Log interesting transactions for debugging
+        self.log.debug(f"Arbiter transaction: Client {transaction.gnt_id} granted "
+                        f"after {transaction.cycle_count} cycles, "
+                        f"req_vector=0x{transaction.req_vector:x}{self.get_time_ns_str()}")
+
+    def start_arbiter_monitoring(self):
+        """Start the arbiter monitoring if available"""
+        if self.arbiter_monitor:
+            self.arbiter_monitor.start_monitoring()
+            self.log.info("Arbiter monitoring started")
+        else:
+            self.log.debug("No arbiter monitor available")
+
+    def get_arbiter_statistics(self):
+        """Get statistics from the arbiter monitor"""
+        if self.arbiter_monitor:
+            stats = self.arbiter_monitor.get_stats_summary()
+            fairness = self.arbiter_monitor.get_fairness_index()
+            stats['fairness_index'] = fairness
+            return stats
+        return {}
+
+    def verify_arbiter_weight_compliance(self, tolerance=0.25):
+        """
+        Verify that the arbiter is following the configured weights
+
+        Args:
+            tolerance: Acceptable deviation from expected weight ratios
+
+        Returns:
+            True if weights are being respected
+        """
+        if not self.arbiter_monitor:
+            self.log.warning("No arbiter monitor available for weight verification")
+            return True
+
+        # Get arbiter statistics
+        stats = self.arbiter_monitor.get_stats_summary()
+
+        if stats['total_grants'] < 20:  # Need sufficient samples
+            self.log.warning("Insufficient arbiter grants for weight verification")
+            return True
+
+        # Verify weight compliance using scoreboard
+        return self.scoreboard.verify_arbiter_weights(self.current_weights, tolerance)
+
+    def log_error(self, error_type, details):
+        """Log an error with timestamp for later analysis"""
+        import time
+        self.error_log.append({
+            'time': time.time(),
+            'type': error_type,
+            'details': details
+        })
+        self.total_errors += 1
+
+    def get_component_statistics(self):
+        """Get statistics from all components"""
+        stats = {
+            'master_a': self.master_a.get_stats() if hasattr(self.master_a, 'get_stats') else {},
+            'master_b': self.master_b.get_stats() if hasattr(self.master_b, 'get_stats') else {},
+            'master_c': self.master_c.get_stats() if hasattr(self.master_c, 'get_stats') else {},
+            'master_d': self.master_d.get_stats() if hasattr(self.master_d, 'get_stats') else {},
+            'slave_e': self.slave_e.get_stats() if hasattr(self.slave_e, 'get_stats') else {},
+            'monitor_a': self.monitor_a.get_stats() if hasattr(self.monitor_a, 'get_stats') else {},
+            'monitor_b': self.monitor_b.get_stats() if hasattr(self.monitor_b, 'get_stats') else {},
+            'monitor_c': self.monitor_c.get_stats() if hasattr(self.monitor_c, 'get_stats') else {},
+            'monitor_d': self.monitor_d.get_stats() if hasattr(self.monitor_d, 'get_stats') else {},
+            'monitor_e': self.monitor_e.get_stats() if hasattr(self.monitor_e, 'get_stats') else {},
+            'scoreboard': self.scoreboard.get_statistics(),
+            'arbiter': self.get_arbiter_statistics()
+        }
+
+        # Add error statistics
+        stats['error_count'] = self.total_errors
+        stats['error_log_count'] = len(self.error_log)
+
+        return stats
 
     async def wait_for_expected_outputs(self, expected_count, timeout_clocks=5000):
         """
@@ -657,9 +918,10 @@ class DataCollectTB(TBBase):
         received = len(self.monitor_e.observed_queue)
         if received < expected_count:
             self.log.warning(f"Timeout waiting for outputs: {received}/{expected_count} received")
+            self.log_error('timeout', f"Expected {expected_count} outputs, got {received}")
             return False
 
-        self.log.info(f"All expected outputs received: {received}/{expected_count}")
+        self.log.info(f"All expected outputs received: {received}/{expected_count}{self.get_time_ns_str()}")
         return True
 
     async def assert_reset(self):
@@ -676,7 +938,7 @@ class DataCollectTB(TBBase):
     async def deassert_reset(self):
         """Deassert the reset signal"""
         self.reset_n.value = 1
-        self.log.info("Reset deasserted")
+        self.log.info(f"Reset deasserted{self.get_time_ns_str()}")
 
     def set_arbiter_weights(self, weight_a, weight_b, weight_c, weight_d):
         """Set the weights for the weighted round-robin arbiter"""
@@ -684,6 +946,7 @@ class DataCollectTB(TBBase):
         for name, weight in [('A', weight_a), ('B', weight_b), ('C', weight_c), ('D', weight_d)]:
             if weight < 0 or weight > 15:
                 self.log.error(f"Invalid weight for channel {name}: {weight}. Must be 0-15.")
+                self.log_error('invalid_weight', f"Channel {name} weight {weight} out of range 0-15")
                 return
 
         # Set the weights
@@ -691,6 +954,9 @@ class DataCollectTB(TBBase):
         self.dut.i_weight_b.value = weight_b
         self.dut.i_weight_c.value = weight_c
         self.dut.i_weight_d.value = weight_d
+
+        # Store current weights for arbiter verification
+        self.current_weights = [weight_a, weight_b, weight_c, weight_d]
 
         # Log the configuration
         self.log.info(f"Arbiter weights set: A={weight_a}, B={weight_b}, C={weight_c}, D={weight_d}")
@@ -733,9 +999,10 @@ class DataCollectTB(TBBase):
         errors = self.scoreboard.report()
         self.total_errors += errors
         if errors > 0:
-            self.log.error(f"Scoreboard found {errors} errors")
+            self.log.error(f"Scoreboard found {errors} errors{self.get_time_ns_str()}")
+            self.log_error('scoreboard', f"Scoreboard reported {errors} errors")
         else:
-            self.log.info("Scoreboard verification passed")
+            self.log.info(f"Scoreboard verification passed{self.get_time_ns_str()}")
 
         return errors
 
@@ -762,7 +1029,7 @@ class DataCollectTB(TBBase):
             self.slave_e.set_randomizer(FlexRandomizer({
                 'ready_delay': ([[2, 2]], [1])
             }))
-        if name == 'fast':
+        elif name == 'fast':
             self.slave_e.set_randomizer(FlexRandomizer({
                 'ready_delay': ([[0, 0]], [1])
             }))
@@ -805,6 +1072,7 @@ class DataCollectTB(TBBase):
             default_id = 0xDD
         else:
             self.log.error(f"Unknown channel: {channel}")
+            self.log_error('unknown_channel', f"Unknown channel: {channel}")
             return []
 
         # Use provided ID or default
@@ -827,7 +1095,7 @@ class DataCollectTB(TBBase):
 
             # Log every N packets
             if (i + 1) % 20 == 0 or i == 0 or i == count - 1:
-                self.log.info(f"Sent {i+1}/{count} packets on channel {channel}")
+                self.log.info(f"Sent {i+1}/{count} packets on channel {channel}{self.get_time_ns_str()}")
 
         return sent_packets
 
@@ -850,7 +1118,7 @@ class DataCollectTB(TBBase):
         Returns:
             True if test passed, False if failed
         """
-        self.log.info(f"Starting simple test with {packets_per_channel} packets per channel")
+        self.log.info(f"Starting simple test with {packets_per_channel} packets per channel{self.get_time_ns_str()}")
 
         # Reset system
         await self.assert_reset()
@@ -860,6 +1128,9 @@ class DataCollectTB(TBBase):
 
         # Set equal weights for all channels
         self.set_arbiter_weights(8, 8, 8, 8)
+
+        # Start arbiter monitoring
+        self.start_arbiter_monitoring()
 
         # Clear the scoreboard before starting
         self.scoreboard.clear()
@@ -892,7 +1163,7 @@ class DataCollectTB(TBBase):
 
         # Wait for masters to finish transmitting
         await self.wait_for_all_masters_idle()
-        self.log.info("All masters finished sending")
+        self.log.info(f"All masters finished sending{self.get_time_ns_str()}")
 
         # Calculate expected number of output packets (each channel produces packets_per_channel/4 outputs)
         total_expected_outputs = (packets_per_channel * 4) // 4
@@ -906,10 +1177,20 @@ class DataCollectTB(TBBase):
         # Wait a bit to ensure all packets have been processed
         await self.wait_clocks('i_axi_aclk', 100)
 
+        # Verify arbiter weight compliance
+        weight_compliance = self.verify_arbiter_weight_compliance()
+        if not weight_compliance:
+            self.log.error(f"Arbiter weight compliance check failed{self.get_time_ns_str()}")
+            self.total_errors += 1
+
         # Check scoreboard
         errors = self.check_scoreboard()
 
-        return errors == 0
+        # Get and report statistics including arbiter stats
+        stats = self.get_component_statistics()
+        self.log.info(f"Test Statistics: {stats}")
+
+        return errors == 0 and weight_compliance
 
     async def run_weighted_arbiter_test(self, weights_list=None):
         """
@@ -938,9 +1219,10 @@ class DataCollectTB(TBBase):
             ]
 
         all_passed = True
+        results = []
 
         for i, weights in enumerate(weights_list):
-            self.log.info(f"Starting weighted test {i+1}/{len(weights_list)} with weights: {weights}")
+            self.log.info(f"Starting weighted test {i+1}/{len(weights_list)} with weights: {weights}{self.get_time_ns_str()}")
 
             # Reset system
             await self.assert_reset()
@@ -951,6 +1233,9 @@ class DataCollectTB(TBBase):
             # Set weights
             weight_a, weight_b, weight_c, weight_d = weights
             self.set_arbiter_weights(weight_a, weight_b, weight_c, weight_d)
+
+            # Start arbiter monitoring
+            self.start_arbiter_monitoring()
 
             # Clear scoreboard
             self.scoreboard.clear()
@@ -1006,28 +1291,47 @@ class DataCollectTB(TBBase):
             await self.wait_for_all_masters_idle()
 
             # Allow time for all packets to be processed
-            await self.wait_clocks('i_axi_aclk', 100)
+            await self.wait_clocks('i_axi_aclk', 200)
 
             # Wait for expected outputs
             success = await self.wait_for_expected_outputs(expected_outputs)
 
             if not success:
-                self.log.error(f"Test {i+1}/{len(weights_list)} failed: timeout waiting for outputs")
+                self.log.error(f"Test {i+1}/{len(weights_list)} failed: timeout waiting for outputs{self.get_time_ns_str()}")
                 all_passed = False
-
-            # Add all received packets to scoreboard
-            self.add_received_packets_to_scoreboard()
-
-            # Add extra delay for any remaining packets
-            await self.wait_clocks('i_axi_aclk', 100)
-
-            # Check scoreboard for errors
-            errors = self.check_scoreboard()
-            if errors > 0:
-                self.log.error(f"Test {i+1}/{len(weights_list)} failed: {errors} scoreboard errors")
-                all_passed = False
+                results.append(False)
             else:
-                self.log.info(f"Test {i+1}/{len(weights_list)} passed")
+                # Add all received packets to scoreboard
+                self.add_received_packets_to_scoreboard()
+
+                # Add extra delay for any remaining packets
+                await self.wait_clocks('i_axi_aclk', 100)
+
+                # Verify arbiter weight compliance
+                weight_compliance = self.verify_arbiter_weight_compliance(tolerance=0.3)  # 30% tolerance
+                if not weight_compliance:
+                    self.log.error(f"Test {i+1}/{len(weights_list)} failed: arbiter weight compliance{self.get_time_ns_str()}")
+                    all_passed = False
+
+                # Check scoreboard for errors
+                errors = self.check_scoreboard()
+                if errors > 0:
+                    self.log.error(f"Test {i+1}/{len(weights_list)} failed: {errors} scoreboard errors{self.get_time_ns_str()}")
+                    all_passed = False
+                    results.append(False)
+                elif not weight_compliance:
+                    results.append(False)
+                else:
+                    self.log.info(f"Test {i+1}/{len(weights_list)} passed{self.get_time_ns_str()}")
+                    results.append(True)
+
+            # Get and report statistics for this test
+            stats = self.get_component_statistics()
+            self.log.info(f"Test {i+1} Statistics: {stats}")
+
+        # Report overall test results
+        self.log.info(f"Weighted arbiter test results: {results}")
+        self.log.info(f"Overall result: {'Passed' if all_passed else 'Failed'}")
 
         return all_passed
 
@@ -1041,7 +1345,7 @@ class DataCollectTB(TBBase):
         Returns:
             True if test passed, False if failed
         """
-        self.log.info(f"Starting stress test for {duration_clocks} clock cycles")
+        self.log.info(f"Starting stress test for {duration_clocks} clock cycles{self.get_time_ns_str()}")
 
         # Reset system
         await self.assert_reset()
@@ -1058,6 +1362,9 @@ class DataCollectTB(TBBase):
 
         # Set equal weights
         self.set_arbiter_weights(8, 8, 8, 8)
+
+        # Start arbiter monitoring
+        self.start_arbiter_monitoring()
 
         # Start packet generation tasks - use multiples of 4 for clean testing
         task_a = cocotb.start_soon(self.send_packets_on_channel('A', 500, id_value=0xAA, base_data=0x100))
@@ -1093,7 +1400,19 @@ class DataCollectTB(TBBase):
         # Add received packets to scoreboard
         self.add_received_packets_to_scoreboard()
 
+        # Verify arbiter weight compliance under stress
+        weight_compliance = self.verify_arbiter_weight_compliance()
+        if not weight_compliance:
+            self.log.error(f"Arbiter weight compliance check failed under stress{self.get_time_ns_str()}")
+            self.total_errors += 1
+        else:
+            self.log.info(f"Arbiter weight compliance check passed under stress{self.get_time_ns_str()}")
+
         # Check the scoreboard
         errors = self.check_scoreboard()
 
-        return errors == 0
+        # Get overall statistics including arbiter performance
+        stats = self.get_component_statistics()
+        self.log.info(f"Stress Test Statistics: {stats}")
+
+        return errors == 0 and weight_compliance

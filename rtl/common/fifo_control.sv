@@ -2,7 +2,6 @@
 
 // Paramerized Asynchronous FIFO -- This only works for power of two depths
 module fifo_control #(
-    parameter int DEL = 1,
     parameter int ADDR_WIDTH = 3,
     parameter int DEPTH = 16,
     parameter int ALMOST_WR_MARGIN = 1,

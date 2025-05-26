@@ -2,7 +2,6 @@
 
 // Parameterized Synchronous FIFO -- This works with any depth
 module fifo_sync #(
-    parameter int DEL = 1,
     parameter int DATA_WIDTH = 4,
     parameter int DEPTH = 4,
     parameter int ALMOST_WR_MARGIN = 1,
@@ -63,7 +62,6 @@ module fifo_sync #(
     /////////////////////////////////////////////////////////////////////////
     // Generate the Full/Empty signals
     fifo_control #(
-        .DEL(DEL),
         .DEPTH(D),
         .ADDR_WIDTH(AW),
         .ALMOST_RD_MARGIN(ALMOST_RD_MARGIN),

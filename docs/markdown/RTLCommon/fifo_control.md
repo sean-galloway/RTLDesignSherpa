@@ -18,7 +18,6 @@ The `fifo_control` module performs several key operations to manage the status o
 
 The module is parameterized to allow customization of various aspects:
 
-- `DEL`: Delay for signal assignments.
 - `ADDR_WIDTH`: Width of the address pointers.
 - `DEPTH`: Depth of the FIFO, which must be a power of two.
 - `ALMOST_WR_MARGIN`: Margin for the almost full condition.

@@ -134,7 +134,6 @@ gaxi_skid_buffer #(
 2. **Asynchronous FIFO**:
 ```verilog
 gaxi_fifo_async #(
-    .DEL(1),
     .DATA_WIDTH(DW),
     .DEPTH(DEPTH),
     .N_FLOP_CROSS(N_FLOP_CROSS),
