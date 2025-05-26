@@ -1019,14 +1019,14 @@ class DataCollectTB(TBBase):
     async def send_packets_on_channel_with_timeout_handling(self, channel, count, id_value=None, base_data=0, expected_weight=None):
         """
         Send packets on a specific channel with proper timeout handling for zero-weight channels
-        
+
         Args:
             channel: Channel to send on ('A', 'B', 'C', or 'D')
             count: Number of packets to send
             id_value: ID value to use (None for channel default)
             base_data: Base value for data (incremented for each packet)
             expected_weight: Expected weight for this channel (for timeout handling)
-            
+
         Returns:
             List of sent packets
         """
@@ -1058,7 +1058,7 @@ class DataCollectTB(TBBase):
 
         # Create and send packets
         sent_packets = []
-        
+
         # If this is a zero-weight channel, we expect it to timeout/backup
         # So we'll send fewer packets and handle timeouts gracefully
         if expected_weight is not None and expected_weight == 0:
@@ -1067,7 +1067,7 @@ class DataCollectTB(TBBase):
             self.log.info(f"Channel {channel} has zero weight, limiting to {actual_count} packets")
         else:
             actual_count = count
-            
+
         for i in range(actual_count):
             # Create packet
             pkt = FIFOPacket(self.input_field_config)
@@ -1087,16 +1087,16 @@ class DataCollectTB(TBBase):
                     # Set a shorter timeout for the master
                     original_timeout = master.timeout_cycles
                     master.timeout_cycles = 50  # Much shorter timeout
-                    
+
                 await master.send(pkt)
-                
+
                 # Restore original timeout
                 if expected_weight is not None and expected_weight == 0:
                     master.timeout_cycles = original_timeout
-                    
+
                 # Store packet for verification
                 sent_packets.append(pkt)
-                
+
             except Exception as e:
                 # For zero-weight channels, timeouts are expected
                 if expected_weight is not None and expected_weight == 0:

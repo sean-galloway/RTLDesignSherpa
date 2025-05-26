@@ -466,12 +466,12 @@ module axi_errmon_reporter
                 // Latency threshold - Fixed syntax error
                 if (w_has_latency_event && !o_intrbus_valid && w_fifo_rd_valid == 0) begin
                     logic [31:0] w_latency_temp;  // Temporary calculation variable
-                    
+
                     if (IS_READ) begin
-                        w_latency_temp = r_trans_table_local[w_selected_latency_idx].data_timestamp - 
+                        w_latency_temp = r_trans_table_local[w_selected_latency_idx].data_timestamp -
                                         r_trans_table_local[w_selected_latency_idx].addr_timestamp;
                     end else begin
-                        w_latency_temp = r_trans_table_local[w_selected_latency_idx].resp_timestamp - 
+                        w_latency_temp = r_trans_table_local[w_selected_latency_idx].resp_timestamp -
                                         r_trans_table_local[w_selected_latency_idx].addr_timestamp;
                     end
 

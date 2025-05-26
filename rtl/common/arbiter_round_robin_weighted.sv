@@ -47,6 +47,7 @@ module arbiter_round_robin_weighted #(
 
             assign w_crd_cnt_incr[EndIdx-:MTW] = r_crd_cnt[EndIdx-:MTW] + 1'b1;
 
+
             // FIX: Only allow credits for clients with non-zero weights
             assign w_has_crd[i] = (w_crd_cnt_incr[EndIdx-:MTW] <= i_max_thresh[EndIdx-:MTW]) &&
                                     (i_max_thresh[EndIdx-:MTW] > 0);
