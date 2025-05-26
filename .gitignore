@@ -203,3 +203,4 @@ logs/
 rtl/axi/REWORK/*
 val/unit_axi/FIX_TESTS*
 HOLD/
+.obsidian
