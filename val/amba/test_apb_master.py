@@ -17,6 +17,7 @@ from CocoTBFramework.components.gaxi.gaxi_factories import \
 from CocoTBFramework.scoreboards.apb_gaxi_scoreboard import APBGAXIScoreboard
 from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
 from CocoTBFramework.tbclasses.tbbase import TBBase
+from CocoTBFramework.tbclasses.amba.amba_random_configs import APB_SLAVE_RANDOMIZER_CONFIGS, AXI_RANDOMIZER_CONFIGS
 from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 
 
@@ -42,20 +43,6 @@ class APBMasterTB(TBBase):
         # Queue to track read commands waiting for responses
         self.pending_reads = deque()
 
-        # Set up randomizers
-        self.apb_slave_randomizer = FlexRandomizer({
-            'ready': ([[0, 0], [1, 5], [6, 10]], [5, 3, 1]),
-            'error': ([[0, 0], [1, 1]], [10, 0]),
-        })
-
-        self.gaxi_master_randomizer = FlexRandomizer({
-            'valid_delay': ([[0, 0], [1, 5], [6, 10]], [5, 3, 1]),
-        })
-
-        self.gaxi_slave_randomizer = FlexRandomizer({
-            'ready_delay': ([[0, 0], [1, 5], [6, 10]], [5, 3, 1]),
-        })
-
         # Configure APB components
         self.apb_monitor = create_apb_monitor(
             dut,
@@ -75,7 +62,7 @@ class APBMasterTB(TBBase):
             registers=[0] * (self.registers * self.STRB_WIDTH),
             addr_width=self.ADDR_WIDTH,
             data_width=self.DATA_WIDTH,
-            randomizer=self.apb_slave_randomizer,
+            randomizer=FlexRandomizer(APB_SLAVE_RANDOMIZER_CONFIGS['fixed']),
             log=self.log
         )
 
@@ -161,7 +148,7 @@ class APBMasterTB(TBBase):
             '',  # No prefix as we're using signal map
             dut.pclk,
             field_config=self.cmd_field_config,
-            randomizer=self.gaxi_master_randomizer,
+            randomizer=FlexRandomizer(AXI_RANDOMIZER_CONFIGS['fixed']['master']),
             memory_model=self.mem,
             log=self.log,
             multi_sig=True,  # Using separate signals
@@ -217,7 +204,7 @@ class APBMasterTB(TBBase):
             '',  # No prefix as we're using signal map
             dut.pclk,
             field_config=self.rsp_field_config,
-            randomizer=self.gaxi_slave_randomizer,
+            randomizer=FlexRandomizer(AXI_RANDOMIZER_CONFIGS['fixed']['slave']),
             log=self.log,
             multi_sig=True,  # Using separate signals
             signal_map=self.rsp_signal_map,
@@ -453,13 +440,13 @@ class APBMasterTB(TBBase):
             List of transaction results
         """
         # Save original constraints to restore later
-        save_gaxi_master_randomizer = None
+        save_randomizer = False
 
         # Apply custom timing constraints if provided
         if config.master_randomizer:
-            save_gaxi_master_randomizer = self.gaxi_master_randomizer
-            self.gaxi_master_randomizer = config.master_randomizer
-            self.cmd_master.set_randomizer(self.gaxi_master_randomizer)
+            save_randomizer = True
+            self.log.debug(f'run_test: Setting master randomizer to {config.master_randomizer}')
+            self.cmd_master.set_randomizer(config.master_randomizer)
 
         # Reset iterators
         config.reset_iterators()
@@ -500,9 +487,8 @@ class APBMasterTB(TBBase):
 
         finally:
             # Restore original constraints
-            if save_gaxi_master_randomizer:
-                self.gaxi_master_randomizer = save_gaxi_master_randomizer
-                self.cmd_master.set_randomizer(self.gaxi_master_randomizer)
+            if save_randomizer:
+                self.cmd_master.set_randomizer(FlexRandomizer(AXI_RANDOMIZER_CONFIGS['fixed']['master']))
 
         return results
 
@@ -594,9 +580,7 @@ class APBMasterTB(TBBase):
             data_seq=data_seq,
             strb_seq=strb_seq,
             inter_cycle_delays=delays,
-            master_randomizer=FlexRandomizer({
-                'valid_delay': ([[0, 0], [1, 5], [6, 10]], [1, 0, 0]),
-            })
+            master_randomizer=FlexRandomizer(AXI_RANDOMIZER_CONFIGS['constrained']['master']),
         )
 
     def _create_strobe_seq(self):

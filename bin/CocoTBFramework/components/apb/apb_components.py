@@ -51,9 +51,9 @@ class APBMonitor(BusMonitor):
         self.bus_width = bus_width
         self.addr_width = addr_width
         self.strb_width = bus_width // 8
-        if self.is_signal_present('PPROT'):
-            msg = f'Monitor {self.title} PPROT {dir(self.bus.PPROT)}'
-            self.log.debug(msg)
+        # if self.is_signal_present('PPROT'):
+        #     msg = f'Monitor {self.title} PPROT {dir(self.bus.PPROT)}'
+        #     self.log.debug(msg)
 
     def is_signal_present(self, signal_name):
         # Check if the bus has the attribute and that it is not None
@@ -89,7 +89,7 @@ class APBMonitor(BusMonitor):
                 strb = self.bus.PSTRB.value.integer if self.is_signal_present('PSTRB') else 0
                 pprot = self.bus.PPROT.value.integer if self.is_signal_present('PPROT') else 0
                 self.count += 1
-                
+
                 # Create APBPacket instead of APBCycle
                 transaction = APBPacket(
                     start_time=start_time,
@@ -102,7 +102,7 @@ class APBMonitor(BusMonitor):
                     pprot=pprot,
                     pslverr=error
                 )
-                
+
                 # signal to the callback
                 self._recv(transaction)
                 self.print(transaction)

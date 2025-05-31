@@ -43,7 +43,7 @@ class APBPacket(Packet):
 
         # Use default APB field config if none provided
         if field_config is None:
-            field_config = APBPacket._create_default_field_config(addr_width, data_width, strb_width)
+            field_config = APBPacket.create_apb_field_config(addr_width, data_width, strb_width)
 
         # Set default skip_compare_fields if none provided
         if skip_compare_fields is None:
@@ -59,7 +59,7 @@ class APBPacket(Packet):
         self.cycle = self  # In case code expects to access a 'cycle' attribute
 
     @staticmethod
-    def _create_default_field_config(addr_width, data_width, strb_width):
+    def create_apb_field_config(addr_width, data_width, strb_width):
         """
         Create default field configuration for APB packets.
 
@@ -274,7 +274,7 @@ class APBTransaction(Randomized):
         # This must be done before calling add_rand
         self.pwrite = 0
         self.paddr = 0
-        self.pstrb = 0 
+        self.pstrb = 0
         self.pprot = 0
 
         # Add these variables to be randomized
@@ -290,7 +290,7 @@ class APBTransaction(Randomized):
         self.addr_mask = (strb_width - 1)
 
         # Setup field configuration
-        self.field_config = APBPacket._create_default_field_config(
+        self.field_config = APBPacket.create_apb_field_config(
             addr_width, data_width, strb_width
         )
 
@@ -329,7 +329,7 @@ class APBTransaction(Randomized):
     def next(self):
         """
         Generate next transaction using randomizer.
-        
+
         This will use either the Randomized infrastructure or the FlexRandomizer
         based on the implementation.
 
@@ -338,7 +338,7 @@ class APBTransaction(Randomized):
         """
         # Use Randomized's randomize method to set self.pwrite, self.paddr, etc.
         self.randomize()
-        
+
         # Also get values from FlexRandomizer
         value_dict = self.randomizer.next()
 

@@ -18,8 +18,8 @@ distro==1.9.0
 execnet==2.1.1
 executing==2.0.1
 find_libpython==0.4.0
-h11==0.14.0
-httpcore==1.0.5
+h11==0.16.0
+httpcore==1.0.9
 httpx==0.27.0
 idna==3.7
 importlib_resources==6.4.0
@@ -65,7 +65,7 @@ sourcery==1.35.0
 sourcery-cli==1.18.0
 stack-data==0.6.3
 tomlkit==0.13.2
-tornado==6.4.1
+tornado==6.4.2
 tqdm==4.66.4
 traitlets==5.14.3
 typing_extensions==4.12.2

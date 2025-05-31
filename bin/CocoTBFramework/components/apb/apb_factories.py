@@ -248,11 +248,11 @@ def create_apb_transformer(gaxi_field_config, gaxi_packet_class, log=None):
     return APBtoGAXITransformer(gaxi_field_config, gaxi_packet_class, log)
 
 
-def create_apb_packet(count=0, pwrite=0, paddr=0, pwdata=0, prdata=0, 
+def create_apb_packet(count=0, pwrite=0, paddr=0, pwdata=0, prdata=0,
                         pstrb=0, pprot=0, pslverr=0, addr_width=32, data_width=32):
     """
     Create an APB packet with the given field values.
-    
+
     Args:
         count: Transaction count
         pwrite: Write enable (0=Read, 1=Write)
@@ -264,7 +264,7 @@ def create_apb_packet(count=0, pwrite=0, paddr=0, pwdata=0, prdata=0,
         pslverr: Slave error
         addr_width: Address width in bits
         data_width: Data width in bits
-        
+
     Returns:
         APBPacket instance
     """
