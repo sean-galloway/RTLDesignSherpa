@@ -9,7 +9,7 @@
  * Optionally tracks performance metrics when ENABLE_PERF_PACKETS is enabled.
  *
  * Updated with proper naming conventions: w_ for combo, r_ for flopped
- * Fixed for Verilator compatibility
+ * Fixed for Verilator compatibility and consistent array declarations
  */
 module axi_errmon_reporter
     import axi_errmon_types::*;
@@ -27,8 +27,8 @@ module axi_errmon_reporter
     input  logic                     aclk,
     input  logic                     aresetn,
 
-    // Transaction table (read-only access)
-    input  axi_transaction_t [MAX_TRANSACTIONS-1:0] i_trans_table,
+    // Transaction table (read-only access) - Fixed: Use unpacked array
+    input  axi_transaction_t         i_trans_table[MAX_TRANSACTIONS],
 
     // Configuration enables for different packet types
     input  logic                     i_cfg_error_enable,    // Enable error packets
@@ -390,7 +390,6 @@ module axi_errmon_reporter
             o_intrbus_valid <= 1'b0;
             r_event_count <= '0;
             r_event_reported <= '0;
-            o_intrbus_packet <= '0;
 
             // Reset performance counters
             r_perf_completed_count <= '0;
@@ -511,9 +510,6 @@ module axi_errmon_reporter
 
     // Construct the 64-bit interrupt bus packet
     always_comb begin
-        // Initialize to zero
-        o_intrbus_packet = '0;
-
         // 64-bit packet format:
         // - packet_type: 4 bits  [63:60] (error, completion, threshold, etc.)
         // - event_code:  4 bits  [59:56] (specific error or event code)

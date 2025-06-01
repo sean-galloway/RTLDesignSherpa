@@ -3,17 +3,27 @@ Base test class for AXI Error Monitor.
 
 This module provides a base test class with common utilities used by all
 specialized test classes for the AXI Error Monitor Base module.
+
+Updated to work with the surgically updated testbench using separate intrbus components.
+Updated to use field configurations consistently throughout.
+Updated to use centralized constants from intrbus module.
 """
 import cocotb
 from cocotb.utils import get_sim_time
 from CocoTBFramework.components.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
 
+# Import constants from intrbus module
+from ..intrbus import EVENT_CODES, PACKET_TYPES
+
 
 class AXIErrorMonBaseTest:
     """
     Base class for AXI Error Monitor tests.
     Provides common utilities for all test classes.
+    Updated to work with separate intrbus component creation.
+    Updated to use field configurations consistently.
+    Updated to use centralized constants from intrbus module.
     """
 
     def __init__(self, tb):
@@ -28,6 +38,10 @@ class AXIErrorMonBaseTest:
         self.log = tb.log
         self.is_read = tb.is_read
         self.is_axi = tb.is_axi
+
+        # Import constants for easy access
+        self.EVENT_CODES = EVENT_CODES
+        self.PACKET_TYPES = PACKET_TYPES
 
         # Transaction tracking
         self.active_transactions = {}
@@ -47,6 +61,136 @@ class AXIErrorMonBaseTest:
     def get_channel_idx(self, id_value):
         """Get channel index from transaction ID"""
         return id_value % self.tb.channels if self.tb.is_axi else 0
+
+    async def reset_and_setup_for_test(self):
+        """Reset and setup for a clean test state"""
+        # Reset the DUT
+        await self.tb.reset_dut()
+
+        # Clear tracking structures
+        self.active_transactions = {}
+        self.completed_transactions = []
+        self.expected_errors = []
+
+        # Reset channel states
+        self.channel_states = [{'busy': False, 'last_tx_time': 0} for _ in range(self.tb.channels)]
+
+        # Wait for stabilization
+        await self.tb.wait_clocks('aclk', 10)
+
+    def _get_expected_error_bit(self, error_type):
+        """Get expected error bit for error type using centralized constants"""
+        error_map = {
+            'addr_timeout': self.EVENT_CODES['ADDR_TIMEOUT'],
+            'data_timeout': self.EVENT_CODES['DATA_TIMEOUT'],
+            'resp_timeout': self.EVENT_CODES['RESP_TIMEOUT'],
+            'resp_error': self.EVENT_CODES['RESP_SLVERR']  # or RESP_DECERR
+        }
+        return error_map.get(error_type, 0)
+
+    def _check_for_expected_error(self, initial_events_count, error_type, id_value, addr):
+        """Check if expected error was detected"""
+        # Check intrbus events for error
+        for event in self.tb.intrbus_events[initial_events_count:]:
+            if (event['packet_type'] == self.PACKET_TYPES['ERROR'] or
+                event['packet_type'] == self.PACKET_TYPES['TIMEOUT']):
+
+                # Map error type to expected event code
+                expected_code = None
+                if error_type == 'addr_timeout':
+                    expected_code = self.EVENT_CODES['ADDR_TIMEOUT']
+                elif error_type == 'data_timeout':
+                    expected_code = self.EVENT_CODES['DATA_TIMEOUT']
+                elif error_type == 'resp_timeout':
+                    expected_code = self.EVENT_CODES['RESP_TIMEOUT']
+                elif error_type == 'resp_error':
+                    expected_code = [self.EVENT_CODES['RESP_SLVERR'], self.EVENT_CODES['RESP_DECERR']]
+
+                if expected_code is not None:
+                    if isinstance(expected_code, list):
+                        if event['event_code'] in expected_code:
+                            self.log.info(f"Found expected error event: {event['description']}{self.tb.get_time_ns_str()}")
+                            return True
+                    else:
+                        if event['event_code'] == expected_code:
+                            self.log.info(f"Found expected error event: {event['description']}{self.tb.get_time_ns_str()}")
+                            return True
+
+        # Also check the errors_detected list
+        if self.tb.errors_detected:
+            for error in self.tb.errors_detected:
+                if error.get('addr') == addr and error.get('id') == id_value:
+                    self.log.info(f"Found expected error in errors_detected: {error['type_str']}{self.tb.get_time_ns_str()}")
+                    return True
+
+        return False
+
+    def _create_addr_packet(self, addr, id_value):
+        """
+        Create an address packet using the testbench's field configuration.
+
+        Args:
+            addr: Address value
+            id_value: Transaction ID
+
+        Returns:
+            GAXIPacket configured for address phase
+        """
+        addr_packet = GAXIPacket(self.tb.addr_field_config)
+        addr_packet.addr = addr
+        addr_packet.id = id_value
+
+        # Set AXI-specific fields if needed
+        if self.is_axi:
+            addr_packet.len = 0  # Single transfer (0 means 1 beat)
+            addr_packet.size = 2  # 4 bytes (log2 of 4)
+            addr_packet.burst = 1  # INCR
+
+        return addr_packet
+
+    def _create_data_packet(self, id_value, resp_value=0):
+        """
+        Create a data packet using the testbench's field configuration.
+
+        Args:
+            id_value: Transaction ID
+            resp_value: Response code (for read mode)
+
+        Returns:
+            GAXIPacket configured for data phase
+        """
+        data_packet = GAXIPacket(self.tb.data_field_config)
+
+        if self.is_read:
+            # For read transactions, we create a data packet for ID, last, resp
+            data_packet.id = id_value
+            data_packet.last = 1  # Single transfer
+            data_packet.resp = resp_value  # Response code for read data
+        else:
+            # For write transactions, we create a data packet for last signal
+            data_packet.last = 1  # Single transfer
+            # Note: no data value is needed as it's just for monitoring
+
+        return data_packet
+
+    def _create_resp_packet(self, id_value, resp_value=0):
+        """
+        Create a response packet using the testbench's field configuration.
+
+        Args:
+            id_value: Transaction ID
+            resp_value: Response code
+
+        Returns:
+            GAXIPacket configured for response phase
+        """
+        if self.tb.is_read:
+            return None  # No response packet for read transactions
+
+        resp_packet = GAXIPacket(self.tb.resp_field_config)
+        resp_packet.id = id_value
+        resp_packet.resp = resp_value
+        return resp_packet
 
     async def drive_basic_transaction(self,
                                     addr=0x1000,
@@ -68,7 +212,9 @@ class AXIErrorMonBaseTest:
         with configurable control over ready signal timing for each phase.
         Supports AXI parallelism where AW and W channels can operate simultaneously.
 
-        Updated to handle the single shared FIFO in write mode.
+        Updated to handle the single shared FIFO in write mode and work with
+        the surgically updated testbench.
+        Updated to use field configurations consistently.
 
         Args:
             addr: Address for the transaction
@@ -89,10 +235,9 @@ class AXIErrorMonBaseTest:
         # Calculate channel index from ID
         ch_idx = self.get_channel_idx(id_value)
 
-        # Set intrbus ready speed using the slave's randomizer
+        # Set intrbus ready speed using the testbench's new method
         if intrbus_ready_speed in self.tb.randomizer_configs:
-            self.tb.intrbus_slave.set_randomizer(
-                FlexRandomizer(self.tb.randomizer_configs[intrbus_ready_speed]))
+            self.tb.set_intrbus_backpressure(intrbus_ready_speed)
 
         # New: For write mode, check if we need to wait for the shared FIFO to have space
         if not self.tb.is_read and wait_prev_completion:
@@ -174,35 +319,10 @@ class AXIErrorMonBaseTest:
             self.tb.ready_ctrl.set_data_ready(1)
             self.tb.ready_ctrl.set_resp_ready(1)
 
-        # Create packets for all phases
-        addr_packet = GAXIPacket(self.tb.addr_field_config)
-        addr_packet.addr = addr
-        addr_packet.id = id_value
-
-        # Set AXI-specific fields if needed
-        if self.is_axi:
-            addr_packet.len = 0  # Single transfer (0 means 1 beat)
-            addr_packet.size = 2  # 4 bytes (log2 of 4)
-            addr_packet.burst = 1  # INCR
-
-        data_packet = None
-        if self.is_read:
-            # For read transactions, we create a data packet for ID, last, resp
-            data_packet = GAXIPacket(self.tb.data_field_config)
-            data_packet.id = id_value
-            data_packet.last = 1  # Single transfer
-            data_packet.resp = resp_value  # Response code for read data
-        else:
-            # For write transactions, we create a data packet for last signal
-            data_packet = GAXIPacket(self.tb.data_field_config)
-            data_packet.last = 1  # Single transfer
-            # Note: no data value is needed as it's just for monitoring
-
-        resp_packet = None
-        if not self.tb.is_read:  # Only create response packet for write transactions
-            resp_packet = GAXIPacket(self.tb.resp_field_config)
-            resp_packet.id = id_value
-            resp_packet.resp = resp_value
+        # Create packets for all phases using consistent field config approach
+        addr_packet = self._create_addr_packet(addr, id_value)
+        data_packet = self._create_data_packet(id_value, resp_value)
+        resp_packet = self._create_resp_packet(id_value, resp_value) if not self.tb.is_read else None
 
         # Start address phase
         addr_task = cocotb.start_soon(self._complete_addr_phase(tx_id, addr_packet))
@@ -306,8 +426,8 @@ class AXIErrorMonBaseTest:
             self.completed_transactions.append(transaction)
             del self.active_transactions[tx_id]
 
-        # Reset intrbus ready speed to fixed (normal)
-        self.tb.intrbus_slave.set_randomizer(FlexRandomizer(self.tb.randomizer_configs['fixed']))
+        # Reset intrbus ready speed to fixed (normal) using new method
+        self.tb.set_intrbus_backpressure('fixed')
 
         # Mark channel as free
         self.channel_states[ch_idx]['busy'] = False
@@ -420,7 +540,7 @@ class AXIErrorMonBaseTest:
             wait_for_data: If True, wait for data phase to complete first
         """
         # Only applicable for write transactions
-        if self.tb.is_read:
+        if self.tb.is_read or resp_packet is None:
             return
 
         if tx_id in self.active_transactions:
@@ -495,7 +615,10 @@ class AXIErrorMonBaseTest:
         """
         Drive a transaction that will trigger a specific error with improved waiting logic
 
-        Updated to handle the single shared FIFO in write mode.
+        Updated to handle the single shared FIFO in write mode and work with
+        the surgically updated testbench.
+        Updated to use field configurations consistently.
+        Updated to use centralized constants from intrbus module.
 
         Args:
             error_type: Type of error to generate ('addr_timeout', 'data_timeout', 'resp_timeout', or 'resp_error')
@@ -511,10 +634,9 @@ class AXIErrorMonBaseTest:
         self.log.info(f"Driving error scenario: type={error_type}, addr=0x{addr:X}, id={id_value}{self.tb.get_time_ns_str()}")
         self.log.info("="*80)
 
-        # Set intrbus ready speed using the slave's randomizer
+        # Set intrbus ready speed using the testbench's new method
         if intrbus_ready_speed in self.tb.randomizer_configs:
-            self.tb.intrbus_slave.set_randomizer(
-                FlexRandomizer(self.tb.randomizer_configs[intrbus_ready_speed]))
+            self.tb.set_intrbus_backpressure(intrbus_ready_speed)
 
         # Log expected error for debug
         expected_error_bit = self._get_expected_error_bit(error_type)
@@ -530,8 +652,8 @@ class AXIErrorMonBaseTest:
         self.tb.ready_ctrl.force_data_ready_low(False)
         self.tb.ready_ctrl.force_resp_ready_low(False)
 
-        # Ensure error FIFO ready is high to receive errors
-        self.tb.error_slave.set_randomizer(FlexRandomizer(self.tb.randomizer_configs['fixed']))
+        # Ensure intrbus ready is properly configured (removed error_slave reference)
+        self.tb.set_intrbus_backpressure('fixed')
 
         await self.tb.wait_clocks('aclk', 5)
 
@@ -556,16 +678,8 @@ class AXIErrorMonBaseTest:
             # Force addr_ready low to ensure timeout
             self.tb.ready_ctrl.force_addr_ready_low(True)
 
-            # Start address phase and hold valid high
-            addr_packet = GAXIPacket(self.tb.addr_field_config)
-            addr_packet.addr = addr
-            addr_packet.id = id_value
-
-            # Set AXI-specific fields if needed
-            if self.is_axi:
-                addr_packet.len = 0  # Single transfer (0 means 1 beat)
-                addr_packet.size = 2  # 4 bytes (log2 of 4)
-                addr_packet.burst = 1  # INCR
+            # Start address phase and hold valid high using field config
+            addr_packet = self._create_addr_packet(addr, id_value)
 
             # Send the address packet (won't complete due to ready=0)
             await self.tb.addr_master.send(addr_packet)
@@ -596,17 +710,8 @@ class AXIErrorMonBaseTest:
             # Let address phase complete normally
             self.tb.ready_ctrl.set_addr_ready(1)
 
-            # Start with a normal transaction
-            addr_packet = GAXIPacket(self.tb.addr_field_config)
-            addr_packet.addr = addr
-            addr_packet.id = id_value
-
-            # Set AXI-specific fields if needed
-            if self.is_axi:
-                addr_packet.len = 0  # Single transfer (0 means 1 beat)
-                addr_packet.size = 2  # 4 bytes (log2 of 4)
-                addr_packet.burst = 1  # INCR
-
+            # Start with a normal transaction using field config
+            addr_packet = self._create_addr_packet(addr, id_value)
             await self.tb.addr_master.send(addr_packet)
 
             # Wait for address phase to complete
@@ -617,14 +722,8 @@ class AXIErrorMonBaseTest:
             # Force data_ready low to create timeout
             self.tb.ready_ctrl.force_data_ready_low(True)
 
-            # Send data packet (which will timeout waiting for ready)
-            data_packet = GAXIPacket(self.tb.data_field_config)
-            if self.is_read:
-                data_packet.id = id_value
-                data_packet.last = 1
-                data_packet.resp = resp_value
-            else:
-                data_packet.last = 1  # Single beat
+            # Send data packet (which will timeout waiting for ready) using field config
+            data_packet = self._create_data_packet(id_value, resp_value)
 
             # Send the data packet (won't complete due to ready=0)
             await self.tb.data_master.send(data_packet)
@@ -656,17 +755,8 @@ class AXIErrorMonBaseTest:
                 self.tb.ready_ctrl.set_addr_ready(1)
                 self.tb.ready_ctrl.set_data_ready(1)
 
-                # Start with a normal transaction
-                addr_packet = GAXIPacket(self.tb.addr_field_config)
-                addr_packet.addr = addr
-                addr_packet.id = id_value
-
-                # Set AXI-specific fields if needed
-                if self.is_axi:
-                    addr_packet.len = 0  # Single transfer (0 means 1 beat)
-                    addr_packet.size = 2  # 4 bytes (log2 of 4)
-                    addr_packet.burst = 1  # INCR
-
+                # Start with a normal transaction using field config
+                addr_packet = self._create_addr_packet(addr, id_value)
                 await self.tb.addr_master.send(addr_packet)
 
                 # Wait for address phase to complete
@@ -674,10 +764,8 @@ class AXIErrorMonBaseTest:
                     await self.tb.wait_clocks('aclk', 1)
                 await self.tb.wait_clocks('aclk', 5)
 
-                # Send data packet
-                data_packet = GAXIPacket(self.tb.data_field_config)
-                data_packet.last = 1  # Single beat
-
+                # Send data packet using field config
+                data_packet = self._create_data_packet(id_value, resp_value)
                 await self.tb.data_master.send(data_packet)
 
                 # Wait for data phase to complete
@@ -688,11 +776,8 @@ class AXIErrorMonBaseTest:
                 # Force resp_ready low to create timeout
                 self.tb.ready_ctrl.force_resp_ready_low(True)
 
-                # Send response packet (which will timeout waiting for ready)
-                resp_packet = GAXIPacket(self.tb.resp_field_config)
-                resp_packet.id = id_value
-                resp_packet.resp = resp_value
-
+                # Send response packet (which will timeout waiting for ready) using field config
+                resp_packet = self._create_resp_packet(id_value, resp_value)
                 await self.tb.resp_master.send(resp_packet)
 
                 # Wait for timeout to occur (timeout value plus margin)
@@ -732,17 +817,8 @@ class AXIErrorMonBaseTest:
                 # For read, we need to complete address phase then send data with error response
                 self.log.info(f"Sending read address packet{self.tb.get_time_ns_str()}")
 
-                # Start with a normal address transaction
-                addr_packet = GAXIPacket(self.tb.addr_field_config)
-                addr_packet.addr = addr
-                addr_packet.id = id_value
-
-                # Set AXI-specific fields if needed
-                if self.is_axi:
-                    addr_packet.len = 0  # Single transfer (0 means 1 beat)
-                    addr_packet.size = 2  # 4 bytes (log2 of 4)
-                    addr_packet.burst = 1  # INCR
-
+                # Start with a normal address transaction using field config
+                addr_packet = self._create_addr_packet(addr, id_value)
                 await self.tb.addr_master.send(addr_packet)
 
                 # Wait for address phase to complete - shorter wait
@@ -751,11 +827,8 @@ class AXIErrorMonBaseTest:
 
                 self.log.info(f"Sending read data packet with error response={error_resp}{self.tb.get_time_ns_str()}")
 
-                # Send data packet with error response immediately after address completes
-                data_packet = GAXIPacket(self.tb.data_field_config)
-                data_packet.id = id_value
-                data_packet.last = 1
-                data_packet.resp = error_resp  # Error response
+                # Send data packet with error response immediately after address completes using field config
+                data_packet = self._create_data_packet(id_value, error_resp)  # Error response
                 await self.tb.data_master.send(data_packet)
 
                 # Only a brief wait for data phase to complete
@@ -766,17 +839,8 @@ class AXIErrorMonBaseTest:
                 # For write, we need to complete address and data phases then send error response
                 self.log.info(f"Sending write address packet{self.tb.get_time_ns_str()}")
 
-                # Start with a normal address transaction
-                addr_packet = GAXIPacket(self.tb.addr_field_config)
-                addr_packet.addr = addr
-                addr_packet.id = id_value
-
-                # Set AXI-specific fields if needed
-                if self.is_axi:
-                    addr_packet.len = 0  # Single transfer (0 means 1 beat)
-                    addr_packet.size = 2  # 4 bytes (log2 of 4)
-                    addr_packet.burst = 1  # INCR
-
+                # Start with a normal address transaction using field config
+                addr_packet = self._create_addr_packet(addr, id_value)
                 await self.tb.addr_master.send(addr_packet)
 
                 # Wait for address phase to complete - shorter wait
@@ -785,10 +849,8 @@ class AXIErrorMonBaseTest:
 
                 self.log.info(f"Sending write data packet{self.tb.get_time_ns_str()}")
 
-                # Send data packet immediately after address completes
-                data_packet = GAXIPacket(self.tb.data_field_config)
-                data_packet.last = 1  # Last beat
-
+                # Send data packet immediately after address completes using field config
+                data_packet = self._create_data_packet(id_value, resp_value)
                 await self.tb.data_master.send(data_packet)
 
                 # Only a brief wait for data phase to complete
@@ -797,10 +859,8 @@ class AXIErrorMonBaseTest:
 
                 self.log.info(f"Sending write response packet with error response={error_resp}{self.tb.get_time_ns_str()}")
 
-                # Send response packet with error response immediately after data completes
-                resp_packet = GAXIPacket(self.tb.resp_field_config)
-                resp_packet.id = id_value
-                resp_packet.resp = error_resp  # Error response
+                # Send response packet with error response immediately after data completes using field config
+                resp_packet = self._create_resp_packet(id_value, error_resp)  # Error response
                 await self.tb.resp_master.send(resp_packet)
 
                 # Only a brief wait for response phase to complete
@@ -818,3 +878,12 @@ class AXIErrorMonBaseTest:
                 self.log.info(f"No error detected yet, waiting a bit longer{self.tb.get_time_ns_str()}")
                 await self.tb.wait_clocks('aclk', 30)
                 error_detected = self._check_for_expected_error(initial_events_count, error_type, id_value, addr)
+
+        else:
+            self.log.error(f"Unknown error type: {error_type}{self.tb.get_time_ns_str()}")
+            return False
+
+        # Reset intrbus ready speed to fixed using new method
+        self.tb.set_intrbus_backpressure('fixed')
+
+        return error_detected

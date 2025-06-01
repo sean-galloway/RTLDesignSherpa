@@ -6,6 +6,9 @@ for testing the AXI Error Monitor Base module, including masters, slaves,
 monitors, and test classes.
 
 Updated to match the RTL's consolidated 64-bit interrupt bus interface.
+Updated to use separate intrbus component creation functions.
+Enhanced with comprehensive parameter control for systematic testing.
+Fixed to properly use GAXIPacket field access throughout.
 """
 
 import os
@@ -24,8 +27,12 @@ from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
 # Import the ready signal controller
 from .axi_errmon_readyctrl import ReadySignalController
 
-# Import the interrupt bus monitor
-from ..intrbus import IntrBusComponents, extract_packet_fields
+# Import the updated interrupt bus components and constants
+from ..intrbus import (
+    create_intrbus_slave, create_intrbus_monitor, create_intrbus_specialized_monitor,
+    create_intrbus_field_config, EVENT_CODES, PACKET_TYPES,
+    get_event_name, get_packet_type_name, is_error_event, is_timeout_event, is_response_error_event
+)
 
 # Import the test classes
 from .axi_errmon_basic_test import AXIErrorMonBasicTest
@@ -62,7 +69,9 @@ class AXIErrorMonitorTB(TBBase):
     """
     Wrapper class for AXI Error Monitor testbench.
     Manages masters, slaves, monitors, and provides interface to test classes.
-    Updated for consolidated 64-bit interrupt bus interface.
+    Updated for consolidated 64-bit interrupt bus interface with separate component creation.
+    Enhanced with comprehensive parameter control for systematic testing.
+    Fixed to properly use GAXIPacket field access throughout.
     """
 
     def __init__(self, dut,
@@ -74,7 +83,10 @@ class AXIErrorMonitorTB(TBBase):
                     debug_fifo_depth=8,
                     unit_id=9,
                     agent_id=99,
-                    channels=1):
+                    channels=1,
+                    # NEW: Enhanced configuration parameters
+                    timer_config=None,
+                    packet_enable_config=None):
         """Initialize with DUT and configuration parameters"""
         super().__init__(dut)
 
@@ -83,77 +95,71 @@ class AXIErrorMonitorTB(TBBase):
         self.id_width = id_width
         self.is_read = is_read
         self.is_axi = is_axi
-        timeout_addr = 40
-        self.timeout_addr = timeout_addr
-        self.timeout_data = timeout_addr * 4
-        self.timeout_resp = timeout_addr * 6
         self.intr_fifo_depth = intr_fifo_depth
         self.debug_fifo_depth = debug_fifo_depth
         self.channels = channels
         self.unit_id = unit_id
         self.agent_id = agent_id
 
-        # Set the errmon delay configs to match timeout values
-        self.dut.i_cfg_freq_sel.value = 4  # Timer frequency
-        self.dut.i_cfg_addr_cnt.value = 1  # Address timeout threshold
-        self.dut.i_cfg_data_cnt.value = 5  # Data timeout threshold
-        self.dut.i_cfg_resp_cnt.value = 6  # Response timeout threshold
+        if timer_config is None:
+            timer_config = {
+                'freq_sel': 4,
+                'addr_cnt': 1,
+                'data_cnt': 5,
+                'resp_cnt': 6,
+                'description': 'Default basic timing'
+            }
+        self.timer_config = timer_config
 
-        # Enable all packet types by default
-        self.dut.i_cfg_error_enable.value = 1
-        self.dut.i_cfg_compl_enable.value = 1
-        self.dut.i_cfg_threshold_enable.value = 1
-        self.dut.i_cfg_timeout_enable.value = 1
-        self.dut.i_cfg_perf_enable.value = 1
-        self.dut.i_cfg_debug_enable.value = 1
+        # NEW: Packet enable configuration
+        if packet_enable_config is None:
+            packet_enable_config = {
+                'error_enable': True,
+                'compl_enable': False,
+                'threshold_enable': False,
+                'timeout_enable': False,
+                'perf_enable': False,
+                'debug_enable': False,
+                'description': 'Default error-only mode'
+            }
+        self.packet_enable_config = packet_enable_config
 
-        # Set threshold configuration values
-        self.dut.i_cfg_active_trans_threshold.value = 10
-        self.dut.i_cfg_latency_threshold.value = 1000
+        # Calculate timeout values based on timer configuration
+        base_timeout = 40  # Base timeout value
+        freq_multiplier = max(1, 6 - self.timer_config['freq_sel'])  # Higher freq_sel = faster timer
 
-        # Set debug configuration (if debug module enabled)
-        if hasattr(self.dut, 'i_cfg_debug_level'):
-            self.dut.i_cfg_debug_level.value = 0xF  # All debug levels
-        if hasattr(self.dut, 'i_cfg_debug_mask'):
-            self.dut.i_cfg_debug_mask.value = 0xFFFF  # All debug events
+        self.timeout_addr = self.timer_config['addr_cnt'] * freq_multiplier
+        self.timeout_data = self.timer_config['data_cnt'] * freq_multiplier
+        self.timeout_resp = self.timer_config['resp_cnt'] * freq_multiplier
 
-        # Compute maximum timer values
-        self.max_timer_value = 16384
+        # Apply RTL configuration - these will be set in configure_rtl_parameters()
+        self.rtl_configured = False
 
-        # Constants for error types (must match RTL definitions from axi_errmon_types.sv)
-        self.ERROR_ADDR_TIMEOUT = 0x1  # EVT_ADDR_TIMEOUT
-        self.ERROR_DATA_TIMEOUT = 0x2  # EVT_DATA_TIMEOUT
-        self.ERROR_RESP_TIMEOUT = 0x3  # EVT_RESP_TIMEOUT
-        self.ERROR_RESP_SLVERR = 0x4   # EVT_RESP_SLVERR
-        self.ERROR_RESP_DECERR = 0x5   # EVT_RESP_DECERR
+        # Use imported constants from intrbus module
+        self.EVENT_CODES = EVENT_CODES
+        self.PACKET_TYPES = PACKET_TYPES
 
-        # Packet type constants (from axi_errmon_types.sv)
-        self.PKT_TYPE_ERROR = 0x0      # PktTypeError
-        self.PKT_TYPE_COMPLETION = 0x1 # PktTypeCompletion
-        self.PKT_TYPE_THRESHOLD = 0x2  # PktTypeThreshold
-        self.PKT_TYPE_TIMEOUT = 0x3    # PktTypeTimeout
-        self.PKT_TYPE_PERF = 0x4       # PktTypePerf
-        self.PKT_TYPE_DEBUG = 0xF      # PktTypeDebug
-
-        # adjust the randomized configs
-        self.randomizer_configs = RANDOMIZER_CONFIGS
-        timeout = timeout_addr + 50
+        # Adjust randomizer configs based on timeouts
+        self.randomizer_configs = RANDOMIZER_CONFIGS.copy()
+        timeout = max(self.timeout_addr, self.timeout_data, self.timeout_resp) + 50
         self.randomizer_configs['slow_consumer']['ready_delay'] = ([[timeout, timeout]], [1])
+
         self.master_randomizer_configs = {
-                                            'fixed': {
-                                                    'valid_delay': ([[2, 2]], [1])
-                                            },
-                                            'slow_producer': {
-                                                    'valid_delay': ([[timeout, timeout]], [1])
-                                            },
+            'fixed': {
+                'valid_delay': ([[2, 2]], [1])
+            },
+            'slow_producer': {
+                'valid_delay': ([[timeout, timeout]], [1])
+            },
         }
+
         # Create field configurations
         self._create_field_configs()
 
         # Initialize GAXI components
         self._init_gaxi_components()
 
-        # Initialize interrupt bus components
+        # Initialize interrupt bus components (updated to use separate creation)
         self._init_intrbus_components()
 
         # Initialize ready signal controller
@@ -169,6 +175,40 @@ class AXIErrorMonitorTB(TBBase):
 
         # Log configuration
         self._log_config()
+
+    async def configure_rtl_parameters(self):
+        """Configure RTL parameters based on the provided configurations"""
+        if self.rtl_configured:
+            return
+
+        # Configure timer parameters
+        self.dut.i_cfg_freq_sel.value = self.timer_config['freq_sel']
+        self.dut.i_cfg_addr_cnt.value = self.timer_config['addr_cnt']
+        self.dut.i_cfg_data_cnt.value = self.timer_config['data_cnt']
+        self.dut.i_cfg_resp_cnt.value = self.timer_config['resp_cnt']
+
+        # Configure packet type enables
+        self.dut.i_cfg_error_enable.value = 1 if self.packet_enable_config['error_enable'] else 0
+        self.dut.i_cfg_compl_enable.value = 1 if self.packet_enable_config['compl_enable'] else 0
+        self.dut.i_cfg_threshold_enable.value = 1 if self.packet_enable_config['threshold_enable'] else 0
+        self.dut.i_cfg_timeout_enable.value = 1 if self.packet_enable_config['timeout_enable'] else 0
+        self.dut.i_cfg_perf_enable.value = 1 if self.packet_enable_config['perf_enable'] else 0
+        self.dut.i_cfg_debug_enable.value = 1 if self.packet_enable_config['debug_enable'] else 0
+
+        # Set threshold configuration values (reasonable defaults)
+        self.dut.i_cfg_active_trans_threshold.value = 10
+        self.dut.i_cfg_latency_threshold.value = 1000
+
+        # Set debug configuration (if debug module enabled)
+        if hasattr(self.dut, 'i_cfg_debug_level'):
+            self.dut.i_cfg_debug_level.value = 0xF  # All debug levels
+        if hasattr(self.dut, 'i_cfg_debug_mask'):
+            self.dut.i_cfg_debug_mask.value = 0xFFFF  # All debug events
+
+        self.rtl_configured = True
+
+        self.log.info(f"RTL configured with timer: {self.timer_config['description']}")
+        self.log.info(f"RTL configured with packets: {self.packet_enable_config['description']}")
 
     def _create_field_configs(self):
         """Create field configurations for all channels"""
@@ -429,103 +469,159 @@ class AXIErrorMonitorTB(TBBase):
             )
 
     def _init_intrbus_components(self):
-        """Initialize interrupt bus components"""
-        # Create intrbus components using IntrBusComponents class
-        self.intrbus_components = IntrBusComponents(
+        """Initialize interrupt bus components using separate creation functions"""
+        # Create interrupt bus field configuration
+        self.intrbus_field_config = create_intrbus_field_config()
+
+        # Create interrupt bus slave (for handling ready signal and backpressure)
+        self.intrbus_slave = create_intrbus_slave(
             self.dut,
             self.dut.aclk,
-            title_prefix="IntrBus",
+            title_prefix="IntrBusSlave",
             log=self.log,
-            randomizer=FlexRandomizer(self.randomizer_configs['fixed'])
+            randomizer=FlexRandomizer(self.randomizer_configs['fixed']),
+            signal_prefix="",
+            field_config=self.intrbus_field_config
         )
 
-        # Extract individual components for easier access
-        self.intrbus_master = self.intrbus_components.master
-        self.intrbus_slave = self.intrbus_components.slave
-        self.intrbus_monitor = self.intrbus_components.monitor
+        # Create basic interrupt bus monitor
+        self.intrbus_monitor = create_intrbus_monitor(
+            self.dut,
+            self.dut.aclk,
+            title_prefix="IntrBusMonitor",
+            log=self.log,
+            signal_prefix="",
+            field_config=self.intrbus_field_config,
+            is_slave=True
+        )
 
-        # Set up callbacks for the monitor
+        # Create specialized monitor for enhanced callback capabilities
+        self.intrbus_specialized_monitor = create_intrbus_specialized_monitor(
+            self.dut,
+            self.dut.aclk,
+            title_prefix="IntrBusSpecializedMonitor",
+            log=self.log,
+            signal_prefix="",
+            field_config=self.intrbus_field_config
+        )
+
+        # Set up callbacks for the basic monitor (maintains existing interface)
         self.intrbus_monitor.add_callback(self._on_intrbus_event)
 
-    def _on_intrbus_event(self, packet):
-        """Callback for all interrupt bus events"""
-        # Extract fields from the 64-bit packet
-        if hasattr(packet, 'intrbus_packet'):
-            fields = extract_packet_fields(packet.intrbus_packet)
-        else:
-            # Fallback - try to get individual fields
-            fields = {
-                'packet_type': getattr(packet, 'packet_type', 0),
-                'event_code': getattr(packet, 'event_code', 0),
-                'channel_id': getattr(packet, 'channel_id', 0),
-                'unit_id': getattr(packet, 'unit_id', 0),
-                'agent_id': getattr(packet, 'agent_id', 0),
-                'addr': getattr(packet, 'addr', 0)
-            }
+        # Set up specialized callbacks for error detection
+        self.intrbus_specialized_monitor.add_callback(self._on_error_event, 'error')
+        self.intrbus_specialized_monitor.add_callback(self._on_timeout_event, 'timeout')
+        self.intrbus_specialized_monitor.add_callback(self._on_completion_event, 'completion')
 
-        # Format the event for logging
-        event_desc = self.intrbus_components.format_event(packet)
+    def _on_intrbus_event(self, packet):
+        """Callback for all interrupt bus events using direct field access"""
+        # Validate packet type
+        if not isinstance(packet, GAXIPacket):
+            self.log.error(f"Expected GAXIPacket, got {type(packet)}")
+            return
+
+        # Validate required fields
+        required_fields = ['packet_type', 'event_code', 'channel_id', 'unit_id', 'agent_id', 'payload']
+        missing_fields = [field for field in required_fields if not hasattr(packet, field)]
+        if missing_fields:
+            self.log.error(f"Packet missing required fields: {missing_fields}")
+            return
+
+        # Use direct field access - no manual extraction needed!
+        event_desc = self.intrbus_specialized_monitor.format_event(packet)
         self.log.info(f"Interrupt bus event detected: {event_desc}{self.get_time_ns_str()}")
 
-        # Store event for analysis
+        # Store event for analysis using direct field access
         event_info = {
             'time': get_sim_time('ns'),
-            'packet_type': fields['packet_type'],
-            'event_code': fields['event_code'],
-            'channel_id': fields['channel_id'],
-            'unit_id': fields['unit_id'],
-            'agent_id': fields['agent_id'],
-            'addr': fields['addr'],
+            'packet_type': packet.packet_type,
+            'event_code': packet.event_code,
+            'channel_id': packet.channel_id,
+            'unit_id': packet.unit_id,
+            'agent_id': packet.agent_id,
+            'addr': packet.payload,  # Map payload to addr for backward compatibility
             'description': event_desc
         }
 
         self.intrbus_events.append(event_info)
 
         # Additional processing based on packet type
-        if fields['packet_type'] == self.PKT_TYPE_ERROR:  # Error event
-            error_info = {
-                'time': get_sim_time('ns'),
-                'type': self._map_event_code_to_error_type(fields['event_code']),
-                'id': fields['channel_id'],
-                'addr': fields['addr'],
-                'event_code': fields['event_code']
-            }
+        if packet.packet_type == self.PACKET_TYPES['ERROR']:  # Error event
+            self._process_error_event(packet)
 
-            # Add decoded error type string
-            error_type_str = []
-            if fields['event_code'] == 0x1:  # ADDR_TIMEOUT
-                error_type_str.append("ADDR_TIMEOUT")
-            elif fields['event_code'] == 0x2:  # DATA_TIMEOUT
-                error_type_str.append("DATA_TIMEOUT")
-            elif fields['event_code'] == 0x3:  # RESP_TIMEOUT
-                error_type_str.append("RESP_TIMEOUT")
-            elif fields['event_code'] == 0x4:  # RESP_SLVERR
-                error_type_str.append("RESP_SLVERR")
-            elif fields['event_code'] == 0x5:  # RESP_DECERR
-                error_type_str.append("RESP_DECERR")
-            elif fields['event_code'] == 0x6:  # DATA_ORPHAN
-                error_type_str.append("DATA_ORPHAN")
-            elif fields['event_code'] == 0x7:  # RESP_ORPHAN
-                error_type_str.append("RESP_ORPHAN")
-            elif fields['event_code'] == 0x8:  # PROTOCOL
-                error_type_str.append("PROTOCOL")
+    def _on_error_event(self, packet):
+        """Specialized callback for error events using direct field access"""
+        if not isinstance(packet, GAXIPacket):
+            self.log.error(f"Expected GAXIPacket, got {type(packet)}")
+            return
 
-            error_info['type_str'] = "|".join(error_type_str)
+        self.log.info(f"Error callback triggered: code={packet.event_code}, addr=0x{packet.payload:X}{self.get_time_ns_str()}")
 
-            # Store error
-            self.errors_detected.append(error_info)
+    def _on_timeout_event(self, packet):
+        """Specialized callback for timeout events using direct field access"""
+        if not isinstance(packet, GAXIPacket):
+            self.log.error(f"Expected GAXIPacket, got {type(packet)}")
+            return
 
-            self.log.info(f"Error event detected: {error_info['type_str']}, ID={fields['channel_id']}, addr=0x{fields['addr']:X}{self.get_time_ns_str()}")
+        self.log.info(f"Timeout callback triggered: code={packet.event_code}, addr=0x{packet.payload:X}{self.get_time_ns_str()}")
+
+    def _on_completion_event(self, packet):
+        """Specialized callback for completion events using direct field access"""
+        if not isinstance(packet, GAXIPacket):
+            self.log.error(f"Expected GAXIPacket, got {type(packet)}")
+            return
+
+        self.log.debug(f"Completion callback triggered: addr=0x{packet.payload:X}, ch={packet.channel_id}{self.get_time_ns_str()}")
+
+    def _process_error_event(self, packet):
+        """Process error events using direct field access"""
+        if not isinstance(packet, GAXIPacket):
+            self.log.error(f"Expected GAXIPacket, got {type(packet)}")
+            return
+
+        error_info = {
+            'time': get_sim_time('ns'),
+            'type': self._map_event_code_to_error_type(packet.event_code),
+            'id': packet.channel_id,
+            'addr': packet.payload,  # Map payload to addr for backward compatibility
+            'event_code': packet.event_code
+        }
+
+        # Add decoded error type string using direct field access and constants
+        error_type_str = []
+        if packet.event_code == self.EVENT_CODES['ADDR_TIMEOUT']:
+            error_type_str.append("ADDR_TIMEOUT")
+        elif packet.event_code == self.EVENT_CODES['DATA_TIMEOUT']:
+            error_type_str.append("DATA_TIMEOUT")
+        elif packet.event_code == self.EVENT_CODES['RESP_TIMEOUT']:
+            error_type_str.append("RESP_TIMEOUT")
+        elif packet.event_code == self.EVENT_CODES['RESP_SLVERR']:
+            error_type_str.append("RESP_SLVERR")
+        elif packet.event_code == self.EVENT_CODES['RESP_DECERR']:
+            error_type_str.append("RESP_DECERR")
+        elif packet.event_code == self.EVENT_CODES['DATA_ORPHAN']:
+            error_type_str.append("DATA_ORPHAN")
+        elif packet.event_code == self.EVENT_CODES['RESP_ORPHAN']:
+            error_type_str.append("RESP_ORPHAN")
+        elif packet.event_code == self.EVENT_CODES['PROTOCOL']:
+            error_type_str.append("PROTOCOL")
+
+        error_info['type_str'] = "|".join(error_type_str) if error_type_str else f"UNKNOWN_ERROR_{packet.event_code:X}"
+
+        # Store error
+        self.errors_detected.append(error_info)
+
+        self.log.info(f"Error event detected: {error_info['type_str']}, ID={packet.channel_id}, addr=0x{packet.payload:X}{self.get_time_ns_str()}")
 
     def _map_event_code_to_error_type(self, event_code):
         """Map event code to error type constant"""
-        if event_code == 0x1:  # ADDR_TIMEOUT
-            return self.ERROR_ADDR_TIMEOUT
-        elif event_code == 0x2:  # DATA_TIMEOUT
-            return self.ERROR_DATA_TIMEOUT
-        elif event_code == 0x3:  # RESP_TIMEOUT
-            return self.ERROR_RESP_TIMEOUT
-        elif event_code in [0x4, 0x5]:  # RESP_SLVERR or RESP_DECERR
+        if event_code == self.EVENT_CODES['ADDR_TIMEOUT']:
+            return self.EVENT_CODES['ADDR_TIMEOUT']
+        elif event_code == self.EVENT_CODES['DATA_TIMEOUT']:
+            return self.EVENT_CODES['DATA_TIMEOUT']
+        elif event_code == self.EVENT_CODES['RESP_TIMEOUT']:
+            return self.EVENT_CODES['RESP_TIMEOUT']
+        elif event_code in [self.EVENT_CODES['RESP_SLVERR'], self.EVENT_CODES['RESP_DECERR']]:
             return 0x8  # Generic response error bit
         else:
             return 0
@@ -541,7 +637,7 @@ class AXIErrorMonitorTB(TBBase):
         # self.intrbus_test = AXIErrorMonIntrBusTest(self)
 
     def _log_config(self):
-        """Log the testbench configuration"""
+        """Log the testbench configuration with enhanced information"""
         self.log.info(f"{'=' * 80}")
         self.log.info("AXI Error Monitor Testbench Configuration:")
         self.log.info(f"{'-' * 80}")
@@ -552,9 +648,25 @@ class AXIErrorMonitorTB(TBBase):
         self.log.info(f"Agent ID:          {self.agent_id}")
         self.log.info(f"Mode:              {'Read' if self.is_read else 'Write'}")
         self.log.info(f"Interface:         {'AXI' if self.is_axi else 'AXI-Lite'}")
-        self.log.info(f"Addr Timeout:      {self.timeout_addr}")
-        self.log.info(f"Data Timeout:      {self.timeout_data}")
-        self.log.info(f"Resp Timeout:      {self.timeout_resp}")
+        self.log.info(f"{'-' * 40}")
+        self.log.info(f"Timer Configuration: {self.timer_config['description']}")
+        self.log.info(f"  Freq Sel:        {self.timer_config['freq_sel']}")
+        self.log.info(f"  Addr Count:      {self.timer_config['addr_cnt']}")
+        self.log.info(f"  Data Count:      {self.timer_config['data_cnt']}")
+        self.log.info(f"  Resp Count:      {self.timer_config['resp_cnt']}")
+        self.log.info(f"  Calculated Timeouts:")
+        self.log.info(f"    Addr Timeout:  {self.timeout_addr}")
+        self.log.info(f"    Data Timeout:  {self.timeout_data}")
+        self.log.info(f"    Resp Timeout:  {self.timeout_resp}")
+        self.log.info(f"{'-' * 40}")
+        self.log.info(f"Packet Configuration: {self.packet_enable_config['description']}")
+        self.log.info(f"  Error Enable:    {self.packet_enable_config['error_enable']}")
+        self.log.info(f"  Compl Enable:    {self.packet_enable_config['compl_enable']}")
+        self.log.info(f"  Threshold Enable: {self.packet_enable_config['threshold_enable']}")
+        self.log.info(f"  Timeout Enable:  {self.packet_enable_config['timeout_enable']}")
+        self.log.info(f"  Perf Enable:     {self.packet_enable_config['perf_enable']}")
+        self.log.info(f"  Debug Enable:    {self.packet_enable_config['debug_enable']}")
+        self.log.info(f"{'-' * 40}")
         self.log.info(f"Intr FIFO Depth:   {self.intr_fifo_depth}")
         self.log.info(f"Debug FIFO Depth:  {self.debug_fifo_depth}")
         self.log.info(f"{'=' * 80}")
@@ -577,6 +689,9 @@ class AXIErrorMonitorTB(TBBase):
         # Release reset
         self.dut.aresetn.value = 1
 
+        # Configure RTL parameters after reset
+        await self.configure_rtl_parameters()
+
         # Reset GAXI components
         await self.addr_master.reset_bus()
         await self.data_master.reset_bus()
@@ -584,10 +699,12 @@ class AXIErrorMonitorTB(TBBase):
             await self.resp_master.reset_bus()
 
         # Reset the interrupt bus components
-        await self.intrbus_components.reset_bus()
+        if hasattr(self.intrbus_slave, 'set_randomizer'):
+            self.intrbus_slave.set_randomizer(FlexRandomizer(self.randomizer_configs['fixed']))
 
-        # Set intrbus slave to normal ready speed
-        self.intrbus_slave.set_randomizer(FlexRandomizer(self.randomizer_configs['fixed']))
+        # Clear specialized monitor stats if needed
+        if hasattr(self.intrbus_specialized_monitor, 'reset_stats'):
+            self.intrbus_specialized_monitor.reset_stats()
 
         # Start ready signal controller
         await self.ready_ctrl.start()
@@ -614,6 +731,38 @@ class AXIErrorMonitorTB(TBBase):
             self.log.debug(f"Set i_data_resp = {resp_value}{self.get_time_ns_str()}")
         else:
             self.log.warning(f"set_data_resp() called in write mode (ignored){self.get_time_ns_str()}")
+
+    def get_intrbus_stats(self):
+        """
+        Get interrupt bus statistics from the specialized monitor.
+
+        Returns:
+            Dictionary containing interrupt bus statistics
+        """
+        if hasattr(self.intrbus_specialized_monitor, 'get_stats'):
+            return self.intrbus_specialized_monitor.get_stats()
+        else:
+            # Fallback for basic stats
+            return {
+                'total_events': len(self.intrbus_events),
+                'error_events': len(self.errors_detected)
+            }
+
+    def set_intrbus_backpressure(self, config_name='fixed'):
+        """
+        Set interrupt bus backpressure configuration.
+
+        Args:
+            config_name: Configuration name from RANDOMIZER_CONFIGS
+        """
+        if config_name in self.randomizer_configs:
+            if hasattr(self.intrbus_slave, 'set_randomizer'):
+                self.intrbus_slave.set_randomizer(
+                    FlexRandomizer(self.randomizer_configs[config_name])
+                )
+            self.log.info(f"Set intrbus backpressure to '{config_name}'{self.get_time_ns_str()}")
+        else:
+            self.log.warning(f"Unknown backpressure config: {config_name}{self.get_time_ns_str()}")
 
     async def run_all_tests(self, test_level='basic'):
         """
@@ -656,6 +805,10 @@ class AXIErrorMonitorTB(TBBase):
         #     # Run more extensive random traffic test
         #     random_passed = await self.random_test.run(num_transactions=50)
         #     all_passed = all_passed and random_passed
+
+        # Log final interrupt bus statistics
+        intrbus_stats = self.get_intrbus_stats()
+        self.log.info(f"Final interrupt bus statistics: {intrbus_stats}{self.get_time_ns_str()}")
 
         if all_passed:
             self.log.info(f"All tests at level {test_level} passed{self.get_time_ns_str()}")

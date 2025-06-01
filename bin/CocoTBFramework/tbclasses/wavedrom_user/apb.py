@@ -1,529 +1,750 @@
 """
-APB WaveDrom Utilities - Protocol Scenarios and Checks
+APB Constraints with Improved Sequence Detection and Edge Annotations
 
-This module provides APB-specific scenarios, checks, and signal groups for WaveDrom visualization.
+Improvements:
+1. Extended sequences to capture PREADY falling edge (transaction completion)
+2. Better signal naming (defaults to actual signal names)
+3. Enhanced edge annotation positioning
+4. Full WaveDrom arrow type support
 """
 
-from CocoTBFramework.components.wavedrom_utils import (
-    EdgeType, ArrowStyle, SignalEvent, SignalRelation,
-    WaveformContainer, ScenarioConfig, CommonGroups
+from typing import List, Dict, Optional, Any
+from CocoTBFramework.components.wavedrom_utils.constraint_solver import (
+    TemporalConstraint, TemporalEvent, SignalTransition, SignalStatic, TemporalRelation,
+    TemporalConstraintSolver
 )
-from CocoTBFramework.components.wavedrom_utils.protocol_checks import ProtocolType
+from CocoTBFramework.components.wavedrom_utils.utility import (
+    create_transition_pattern, create_static_pattern, create_temporal_event,
+    create_debug_constraint, create_protocol_specific_field_config,
+    get_apb_field_config
+)
 
-# Define APB-specific signal groups
-APB_GROUPS = {
-    "APB Interface": ["s_apb_PSEL", "s_apb_PENABLE", "s_apb_PREADY", "s_apb_PWRITE", 
-                      "s_apb_PWDATA", "s_apb_PRDATA", "s_apb_PSLVERR"],
-    "Control": ["pclk", "presetn", "cg_pclk", "o_apb_clock_gating", "r_wakeup"],
-    "Command Channel": ["o_cmd_valid", "i_cmd_ready", "o_cmd_pwrite", "o_cmd_pwdata"],
-    "Response Channel": ["i_rsp_valid", "o_rsp_ready", "i_rsp_prdata", "i_rsp_pslverr"],
-    "State Machine": ["r_apb_state"]
-}
+# Required imports - no conditionals
+from CocoTBFramework.components.field_config import FieldConfig, FieldDefinition
+from CocoTBFramework.components.wavedrom_utils.wavejson_gen import (
+    WaveJSONGenerator, create_apb_wavejson_generator
+)
 
-# Define valid APB FSM state transitions
-APB_STATE_TRANSITIONS = {
-    1: [2],     # IDLE(1) -> BUSY(2)
-    2: [4],     # BUSY(2) -> WAIT(4) 
-    4: [1]      # WAIT(4) -> IDLE(1)
-}
+# Import APB packet for integration
+from CocoTBFramework.components.apb.apb_packet import APBPacket
 
-# Define APB state values
-APB_STATES = {
-    1: "IDLE",
-    2: "BUSY",
-    4: "WAIT"
-}
 
-# Debug check functions for APB protocol
+# APB-specific boundary utilities with FieldConfig integration
 
-async def check_apb_pready_timing(dut, wave_gen):
-    """Check if PREADY is properly asserted after cmd_valid and rsp_valid"""
-    # We're in a BUSY state but PREADY hasn't been asserted for too long
-    if hasattr(dut, 'r_apb_state') and dut.r_apb_state.value.integer == 2:  # BUSY state
-        busy_cycles = wave_gen.cycles_since_event(
-            SignalEvent("r_apb_state", EdgeType.ANY_CHANGE, 2)  # BUSY is 2
+def get_apb_boundary_pattern():
+    """Get the APB boundary reset pattern - all control signals idle"""
+    return {
+        'apb_psel': 0,
+        'apb_penable': 0,
+        'apb_pready': 0
+    }
+
+def setup_apb_boundaries(wave_solver: TemporalConstraintSolver,
+                                 constraint_names: List[str],
+                                 field_config: Optional['FieldConfig'] = None):
+    """
+    Set up APB transaction boundaries with FieldConfig integration.
+    Uses PSEL falling edge as boundary trigger for more reliable detection.
+
+    Args:
+        wave_solver: TemporalConstraintSolver instance
+        constraint_names: List of constraint names to configure boundaries for
+        field_config: Optional FieldConfig for configuration
+    """
+    for constraint_name in constraint_names:
+        # Auto-boundary detection for APB transactions
+        # Use PSEL falling edge - more reliable than PREADY
+        wave_solver.auto_detect_boundaries(
+            constraint_name=constraint_name,
+            transition_signal='apb_psel',
+            transition_value=(1, 0),  # PSEL high to low transition (end of transaction)
+            reset_signals=get_apb_boundary_pattern()
         )
-        if busy_cycles > 10:
-            wave_gen.add_debug_point(
-                wave_gen.current_cycle,
-                "APB stuck in BUSY state without response for 10+ cycles",
-                {'state': "BUSY", 'cycles': busy_cycles}
-            )
-            return True
-    return False
 
-async def check_command_response_handshake(dut, wave_gen):
-    """Check for improper command-response handshake"""
-    if hasattr(dut, 'o_cmd_valid') and hasattr(dut, 'i_cmd_ready'):
-        if dut.o_cmd_valid.value == 1 and dut.i_cmd_ready.value == 0:
-            stall_cycles = wave_gen.cycles_since_event(
-                SignalEvent("o_cmd_valid", EdgeType.RISING)
-            )
-            if stall_cycles > 5:
-                wave_gen.add_debug_point(
-                    wave_gen.current_cycle,
-                    "Command stalled - valid without ready for 5+ cycles",
-                    {'o_cmd_valid': 1, 'i_cmd_ready': 0, 'cycles': stall_cycles}
-                )
-                return True
-    return False
+        # Configure protocol-specific FieldConfig if available
+        if field_config and hasattr(wave_solver, 'configure_protocol_field_config'):
+            wave_solver.configure_protocol_field_config("apb", field_config)
 
-async def check_clock_gating_behavior(dut, wave_gen):
-    """Check for proper clock gating behavior"""
-    
-    # Only check if clock gating is enabled and relevant signals exist
-    if not all(hasattr(dut, attr) for attr in ['i_cfg_cg_enable', 'r_apb_state', 'o_apb_clock_gating']):
-        return False
-        
-    if dut.i_cfg_cg_enable.value == 0:
-        return False
-    
-    # Check if in IDLE state with no activity but clock not gated
-    if (dut.r_apb_state.value.integer == 1 and  # IDLE state
-        dut.s_apb_PSEL.value == 0 and
-        dut.o_cmd_valid.value == 0 and
-        dut.i_rsp_valid.value == 0):
-        
-        # If we've been idle for longer than idle_count, clock should be gated
-        idle_cycles = wave_gen.cycles_since_event(
-            SignalEvent("r_apb_state", EdgeType.ANY_CHANGE, 1)  # IDLE is 1
-        )
-        
-        if hasattr(dut, 'i_cfg_cg_idle_count'):
-            idle_count = dut.i_cfg_cg_idle_count.value
-            
-            # Clock should be gated after idle_count + 2 (allowing for implementation delay)
-            if idle_cycles > idle_count + 2:
-                # Clock should be gated by now
-                if dut.o_apb_clock_gating.value == 0:
-                    wave_gen.add_debug_point(
-                        wave_gen.current_cycle,
-                        f"Clock Gating Issue: Not gated after {idle_cycles} idle cycles (limit: {idle_count})",
-                        {'idle_cycles': idle_cycles, 'idle_limit': idle_count}
-                    )
-                    return True
-    
-    # Check for incorrect gating during active states
-    if hasattr(dut, 'o_apb_clock_gating') and dut.o_apb_clock_gating.value == 1:
-        if (hasattr(dut, 'r_apb_state') and dut.r_apb_state.value.integer != 1 or  # Not in IDLE state
-            dut.s_apb_PSEL.value == 1 or
-            dut.o_cmd_valid.value == 1 or
-            dut.i_rsp_valid.value == 1):
-            
-            wave_gen.add_debug_point(
-                wave_gen.current_cycle,
-                "Clock Gating Issue: Clock gated during active operation",
-                {'state': dut.r_apb_state.value.integer if hasattr(dut, 'r_apb_state') else "N/A", 
-                 'psel': dut.s_apb_PSEL.value,
-                 'cmd_valid': dut.o_cmd_valid.value,
-                 'rsp_valid': dut.i_rsp_valid.value}
-            )
-            return True
-    
-    return False
+def create_apb_signals_list() -> List[str]:
+    """Get APB signals for waveform display"""
+    return [
+        "apb_psel", "apb_penable", "apb_pready", "apb_pwrite",
+        "apb_paddr", "apb_pwdata", "apb_prdata", "apb_pstrb",
+        "apb_pprot", "apb_pslverr"
+    ]
 
-async def check_apb_protocol_violations(dut, wave_gen):
-    """Comprehensive check for APB protocol violations"""
-    
-    # 1. Check for PENABLE without PSEL
-    if dut.s_apb_PENABLE.value == 1 and dut.s_apb_PSEL.value == 0:
-        wave_gen.add_debug_point(
-            wave_gen.current_cycle,
-            "APB Protocol Violation: PENABLE asserted without PSEL",
-            {'PENABLE': 1, 'PSEL': 0}
-        )
-        return True
-        
-    # 2. Check PSEL->PENABLE timing (must happen on next cycle)
-    if dut.s_apb_PSEL.value == 1 and dut.s_apb_PENABLE.value == 0:
-        # Get time since PSEL assertion
-        psel_cycles = wave_gen.cycles_since_event(
-            SignalEvent("s_apb_PSEL", EdgeType.RISING)
-        )
-        if psel_cycles > 1:
-            wave_gen.add_debug_point(
-                wave_gen.current_cycle,
-                f"APB Protocol Violation: PENABLE not asserted cycle after PSEL ({psel_cycles} cycles)",
-                {'PSEL': 1, 'PENABLE': 0, 'cycles': psel_cycles}
-            )
-            return True
-    
-    # 3. Check PREADY responsiveness
-    if (dut.s_apb_PSEL.value == 1 and 
-        dut.s_apb_PENABLE.value == 1 and 
-        hasattr(dut, 'r_apb_state') and
-        dut.r_apb_state.value.integer == 2):  # BUSY
-        
-        busy_cycles = wave_gen.cycles_since_event(
-            SignalEvent("r_apb_state", EdgeType.ANY_CHANGE, 2)  # BUSY is 2
-        )
-        if busy_cycles > 20:  # Excessive time in BUSY state
-            wave_gen.add_debug_point(
-                wave_gen.current_cycle,
-                f"APB Responsiveness Issue: No PREADY after {busy_cycles} cycles in BUSY state",
-                {'state': "BUSY", 'cycles': busy_cycles, 'cmd_valid': dut.o_cmd_valid.value}
-            )
-            return True
-    
-    # 4. Check for multiple PSEL/PENABLE during active transfer
-    if (dut.s_apb_PREADY.value == 0 and 
-        hasattr(dut, 'r_apb_state') and 
-        dut.r_apb_state.value.integer == 2):  # BUSY
-        
-        # Look for PSEL/PENABLE changes
-        psel_toggle = wave_gen.cycles_since_event(
-            SignalEvent("s_apb_PSEL", EdgeType.ANY_CHANGE)
-        )
-        if hasattr(dut, 'busy_cycles') and psel_toggle < dut.busy_cycles:
-            wave_gen.add_debug_point(
-                wave_gen.current_cycle,
-                "APB Protocol Violation: PSEL changed during active transfer",
-                {'state': "BUSY", 'PSEL_changed': True}
-            )
-            return True
-    
-    return False
 
-async def check_fsm_transitions(dut, wave_gen):
-    """Monitor FSM state transitions for correctness"""
-    
-    # Only check if state signal exists
-    if not hasattr(dut, 'r_apb_state'):
-        return False
-        
-    # 1. Check for invalid state transitions
-    current_state = dut.r_apb_state.value.integer
-    
-    # Get previous state if available
-    prev_state_event = wave_gen.cycles_since_event(
-        SignalEvent("r_apb_state", EdgeType.ANY_CHANGE)
+# APB-specific constraint builder functions with improved sequences
+
+def create_apb_write_sequence_constraint(max_window: int = 25,  # Increased for completion
+                                                 required: bool = True,
+                                                 clock_group: str = "default",
+                                                 field_config: Optional['FieldConfig'] = None,
+                                                 post_match_cycles: int = 2) -> TemporalConstraint:
+    """
+    Create APB write sequence constraint - SIMPLIFIED for better detection.
+
+    Core sequence: PSEL(0→1) → PWRITE=1 → PENABLE(0→1) → PREADY(0→1)
+    Extended with post_match_cycles to capture transaction completion.
+    """
+    events = [
+        create_temporal_event("psel_start", create_transition_pattern("apb_psel", 0, 1)),
+        create_temporal_event("write_type", create_static_pattern("apb_pwrite", 1)),
+        create_temporal_event("enable_start", create_transition_pattern("apb_penable", 0, 1)),
+        create_temporal_event("ready_response", create_transition_pattern("apb_pready", 0, 1))
+        # Post-match extension will capture PREADY and PSEL falling edges
+    ]
+
+    constraint = TemporalConstraint(
+        name="apb_write_sequence",
+        events=events,
+        temporal_relation=TemporalRelation.SEQUENCE,
+        max_window_size=max_window,
+        required=required,
+        clock_group=clock_group,
+        signals_to_show=create_apb_signals_list(),
+        min_sequence_duration=3,  # Core APB sequence
+        max_sequence_duration=15,  # Reduced from 20
+        field_config=field_config,
+        protocol_hint="apb"
     )
-    
-    if prev_state_event == 1:  # Just had a transition last cycle
-        # Get value before most recent change
-        prev_events = [(c, v) for c, s, v, e in wave_gen.event_history 
-                      if s == "r_apb_state" and c < wave_gen.current_cycle]
-        
-        if prev_events:
-            prev_state = max(prev_events, key=lambda x: x[0])[1]
-            
-            # Check valid transitions
-            # IDLE(1) -> BUSY(2) -> WAIT(4) -> IDLE(1)
-            if current_state not in APB_STATE_TRANSITIONS.get(prev_state, []):
-                # Get state names for better debug messages
-                prev_state_name = APB_STATES.get(prev_state, str(prev_state))
-                current_state_name = APB_STATES.get(current_state, str(current_state))
-                
-                wave_gen.add_debug_point(
-                    wave_gen.current_cycle,
-                    f"Invalid FSM transition: {prev_state_name}({prev_state}) -> {current_state_name}({current_state})",
-                    {'prev_state': prev_state, 'current_state': current_state}
-                )
+
+    # Add post-match extension and disable boundary detection
+    constraint.post_match_cycles = post_match_cycles
+    constraint.skip_boundary_detection = True  # Prevent early termination
+    return constraint
+
+
+def create_apb_read_sequence_constraint(max_window: int = 25,  # Increased for completion
+                                               required: bool = True,
+                                               clock_group: str = "default",
+                                               field_config: Optional['FieldConfig'] = None,
+                                               post_match_cycles: int = 2) -> TemporalConstraint:
+    """
+    Create APB read sequence constraint - SIMPLIFIED for better detection.
+
+    Core sequence: PSEL(0→1) → PWRITE=0 → PENABLE(0→1) → PREADY(0→1)
+    Extended with post_match_cycles to capture transaction completion.
+    """
+    events = [
+        create_temporal_event("psel_start", create_transition_pattern("apb_psel", 0, 1)),
+        create_temporal_event("read_type", create_static_pattern("apb_pwrite", 0)),
+        create_temporal_event("enable_start", create_transition_pattern("apb_penable", 0, 1)),
+        create_temporal_event("ready_response", create_transition_pattern("apb_pready", 0, 1))
+        # Post-match extension will capture PREADY and PSEL falling edges
+    ]
+
+    constraint = TemporalConstraint(
+        name="apb_read_sequence",
+        events=events,
+        temporal_relation=TemporalRelation.SEQUENCE,
+        max_window_size=max_window,
+        required=required,
+        clock_group=clock_group,
+        signals_to_show=create_apb_signals_list(),
+        min_sequence_duration=3,  # Core APB sequence
+        max_sequence_duration=15,  # Reduced from 20
+        field_config=field_config,
+        protocol_hint="apb"
+    )
+
+    # Add post-match extension and disable boundary detection
+    constraint.post_match_cycles = post_match_cycles
+    constraint.skip_boundary_detection = True  # Prevent early termination
+    return constraint
+
+
+def create_apb_complete_transaction_constraint(max_window: int = 30,  # Increased window
+                                                       required: bool = False,
+                                                       clock_group: str = "default",
+                                                       field_config: Optional['FieldConfig'] = None) -> TemporalConstraint:
+    """
+    Create APB complete transaction constraint with full transaction lifecycle.
+
+    Complete sequence: PSEL(0→1) → PENABLE(0→1) → PREADY(0→1) → PREADY(1→0) → PSEL(1→0) → PENABLE(1→0)
+    """
+    events = [
+        create_temporal_event("psel_start", create_transition_pattern("apb_psel", 0, 1)),
+        create_temporal_event("enable_start", create_transition_pattern("apb_penable", 0, 1)),
+        create_temporal_event("ready_start", create_transition_pattern("apb_pready", 0, 1)),
+        create_temporal_event("ready_end", create_transition_pattern("apb_pready", 1, 0)),
+        create_temporal_event("psel_end", create_transition_pattern("apb_psel", 1, 0)),
+        create_temporal_event("enable_end", create_transition_pattern("apb_penable", 1, 0))  # ADDED: Full reset
+    ]
+
+    return TemporalConstraint(
+        name="apb_complete_transaction",
+        events=events,
+        temporal_relation=TemporalRelation.SEQUENCE,
+        max_window_size=max_window,
+        required=required,
+        clock_group=clock_group,
+        signals_to_show=create_apb_signals_list(),
+        min_sequence_duration=5,  # Increased for full sequence
+        max_sequence_duration=25,
+        field_config=field_config,
+        protocol_hint="apb"
+    )
+
+
+def check_apb_protocol_compliance(window_data: Dict[str, List[int]]) -> bool:
+    """APB protocol compliance check with validation"""
+    if "apb_psel" not in window_data or "apb_penable" not in window_data:
+        return False
+
+    psel_values = window_data["apb_psel"]
+    penable_values = window_data["apb_penable"]
+
+    # Look for proper setup->access sequence
+    for i in range(len(psel_values) - 1):
+        if psel_values[i] == 1 and penable_values[i] == 0:  # Setup phase
+            if i + 1 < len(penable_values) and penable_values[i + 1] == 1:  # Access phase
                 return True
-    
+
     return False
 
-async def check_fifo_overrun(dut, wave_gen):
-    """Check for potential FIFO overruns in command or response paths"""
-    
-    # Check command FIFO count approaching limit if signal exists
-    if hasattr(dut, 'r_cmd_count'):
-        cmd_count = dut.r_cmd_count.value
-        if cmd_count >= 3:  # Nearing FIFO depth of SKID_DEPTH
-            wave_gen.add_debug_point(
-                wave_gen.current_cycle,
-                f"Command FIFO nearing capacity: {cmd_count}/4 entries used",
-                {'cmd_count': cmd_count, 
-                 'cmd_valid': dut.o_cmd_valid.value if hasattr(dut, 'o_cmd_valid') else 'N/A', 
-                 'cmd_ready': dut.i_cmd_ready.value if hasattr(dut, 'i_cmd_ready') else 'N/A'}
-            )
-            return True
-        
-    # Check response FIFO count approaching limit if signal exists
-    if hasattr(dut, 'r_rsp_count'):
-        rsp_count = dut.r_rsp_count.value
-        if rsp_count >= 3:  # Nearing FIFO depth of SKID_DEPTH
-            wave_gen.add_debug_point(
-                wave_gen.current_cycle,
-                f"Response FIFO nearing capacity: {rsp_count}/4 entries used",
-                {'rsp_count': rsp_count, 
-                 'rsp_valid': dut.i_rsp_valid.value if hasattr(dut, 'i_rsp_valid') else 'N/A', 
-                 'rsp_ready': dut.o_rsp_ready.value if hasattr(dut, 'o_rsp_ready') else 'N/A'}
-            )
-            return True
-    
-    return False
 
-# Predefined APB scenarios
+class APBConstraints:
+    """APB constraints with improved sequences and edge annotations"""
 
-apb_setup_scenario = ScenarioConfig(
-    name="APB Transaction Setup",
-    description="Verify APB setup phase timing",
-    pre_cycles=2,
-    post_cycles=2,
-    relations=[
-        # PSEL & PENABLE activates command valid
-        SignalRelation(
-            cause=SignalEvent("s_apb_PSEL", EdgeType.RISING),
-            effect=SignalEvent("s_apb_PENABLE", EdgeType.RISING),
-            min_cycles=1,
-            max_cycles=1,
-            style=ArrowStyle.STRAIGHT
-        ),
-        # PSEL & PENABLE leads to command valid
-        SignalRelation(
-            cause=SignalEvent("s_apb_PENABLE", EdgeType.RISING),
-            effect=SignalEvent("o_cmd_valid", EdgeType.RISING),
-            min_cycles=1,
-            max_cycles=1,
-            style=ArrowStyle.STRAIGHT
-        ),
-        # Command valid leads to state transition to BUSY
-        SignalRelation(
-            cause=SignalEvent("o_cmd_valid", EdgeType.RISING),
-            effect=SignalEvent.state_change("r_apb_state", "IDLE", "BUSY"),
-            min_cycles=0,
-            max_cycles=1,
-            style=ArrowStyle.BLOCKING
+    @staticmethod
+    def write_transaction(max_cycles: int = 25,  # Increased
+                         required: bool = True,
+                         clock_group: str = "default",
+                         field_config: Optional['FieldConfig'] = None) -> TemporalConstraint:
+        """APB write transaction with complete sequence"""
+        return create_apb_write_sequence_constraint(max_cycles, required, clock_group, field_config)
+
+    @staticmethod
+    def read_transaction(max_cycles: int = 25,  # Increased
+                        required: bool = True,
+                        clock_group: str = "default",
+                        field_config: Optional['FieldConfig'] = None) -> TemporalConstraint:
+        """APB read transaction with complete sequence"""
+        return create_apb_read_sequence_constraint(max_cycles, required, clock_group, field_config)
+
+    @staticmethod
+    def complete_transaction(max_cycles: int = 30,  # Increased
+                           required: bool = False,
+                           clock_group: str = "default",
+                           field_config: Optional['FieldConfig'] = None) -> TemporalConstraint:
+        """Complete APB transaction with full lifecycle"""
+        return create_apb_complete_transaction_constraint(max_cycles, required, clock_group, field_config)
+
+    @staticmethod
+    def write_completion(max_cycles: int = 20,
+                        required: bool = False,
+                        clock_group: str = "default",
+                        field_config: Optional['FieldConfig'] = None) -> TemporalConstraint:
+        """APB write completion with specific write type check"""
+        events = [
+            create_temporal_event("psel_active", create_static_pattern("apb_psel", 1)),
+            create_temporal_event("write_type", create_static_pattern("apb_pwrite", 1)),
+            create_temporal_event("enable_active", create_static_pattern("apb_penable", 1)),
+            create_temporal_event("ready_response", create_transition_pattern("apb_pready", 0, 1))
+        ]
+
+        return TemporalConstraint(
+            name="apb_write_completion",
+            events=events,
+            temporal_relation=TemporalRelation.CONCURRENT,
+            max_window_size=max_cycles,
+            required=required,
+            clock_group=clock_group,
+            signals_to_show=create_apb_signals_list(),
+            field_config=field_config,
+            protocol_hint="apb"
         )
-    ],
-    debug_checks=[{
-        'function': check_command_response_handshake,
-        'description': "Check command handshake"
-    }]
-)
 
-apb_response_scenario = ScenarioConfig(
-    name="APB Response Handling",
-    description="Verify APB response phase timing",
-    pre_cycles=2,
-    post_cycles=2,
-    relations=[
-        # Response valid triggers PREADY
-        SignalRelation(
-            cause=SignalEvent("i_rsp_valid", EdgeType.RISING),
-            effect=SignalEvent("s_apb_PREADY", EdgeType.RISING),
-            min_cycles=0,
-            max_cycles=1,
-            style=ArrowStyle.BLOCKING
-        ),
-        # PREADY leads to FSM transitioning to WAIT
-        SignalRelation(
-            cause=SignalEvent("s_apb_PREADY", EdgeType.RISING),
-            effect=SignalEvent.state_change("r_apb_state", "BUSY", "WAIT"),
-            min_cycles=0,
-            max_cycles=1,
-            style=ArrowStyle.BLOCKING
-        ),
-        # WAIT state always returns to IDLE
-        SignalRelation(
-            cause=SignalEvent.state_change("r_apb_state", "WAIT", "IDLE"),
-            effect=SignalEvent("s_apb_PREADY", EdgeType.FALLING),
-            min_cycles=0,
-            max_cycles=1,
-            style=ArrowStyle.STRAIGHT
+    @staticmethod
+    def read_completion(max_cycles: int = 20,
+                       required: bool = False,
+                       clock_group: str = "default",
+                       field_config: Optional['FieldConfig'] = None) -> TemporalConstraint:
+        """APB read completion with specific read type check"""
+        events = [
+            create_temporal_event("psel_active", create_static_pattern("apb_psel", 1)),
+            create_temporal_event("read_type", create_static_pattern("apb_pwrite", 0)),
+            create_temporal_event("enable_active", create_static_pattern("apb_penable", 1)),
+            create_temporal_event("ready_response", create_transition_pattern("apb_pready", 0, 1))
+        ]
+
+        return TemporalConstraint(
+            name="apb_read_completion",
+            events=events,
+            temporal_relation=TemporalRelation.CONCURRENT,
+            max_window_size=max_cycles,
+            required=required,
+            clock_group=clock_group,
+            signals_to_show=create_apb_signals_list(),
+            field_config=field_config,
+            protocol_hint="apb"
         )
-    ],
-    debug_checks=[{
-        'function': check_apb_pready_timing,
-        'description': "Check PREADY timing"
-    }]
-)
 
-apb_clock_gating_scenario = ScenarioConfig(
-    name="Clock Gating Behavior",
-    description="Verify APB clock gating activation/deactivation",
-    pre_cycles=3,
-    post_cycles=3,
-    relations=[
-        # Activity wakes up the clock
-        SignalRelation(
-            cause=SignalEvent("s_apb_PSEL", EdgeType.RISING),
-            effect=SignalEvent("r_wakeup", EdgeType.RISING),
-            min_cycles=0,
-            max_cycles=1,
-            style=ArrowStyle.STRAIGHT
-        ),
-        # Wakeup disables clock gating
-        SignalRelation(
-            cause=SignalEvent("r_wakeup", EdgeType.RISING),
-            effect=SignalEvent("o_apb_clock_gating", EdgeType.FALLING),
-            min_cycles=0,
-            max_cycles=2,
-            style=ArrowStyle.SPLINE
+    @staticmethod
+    def setup_phase(max_cycles: int = 15,
+                   required: bool = False,
+                   clock_group: str = "default",
+                   field_config: Optional['FieldConfig'] = None) -> TemporalConstraint:
+        """APB setup phase: PSEL=1 AND PENABLE=0"""
+        events = [
+            create_temporal_event("psel_start", create_transition_pattern("apb_psel", 0, 1)),
+            create_temporal_event("enable_low", create_static_pattern("apb_penable", 0))
+        ]
+
+        return TemporalConstraint(
+            name="apb_setup",
+            events=events,
+            temporal_relation=TemporalRelation.CONCURRENT,
+            max_window_size=max_cycles,
+            required=required,
+            clock_group=clock_group,
+            signals_to_show=create_apb_signals_list(),
+            max_matches=2,
+            field_config=field_config,
+            protocol_hint="apb"
         )
-    ],
-    debug_checks=[{
-        'function': check_clock_gating_behavior,
-        'description': "Check clock gating behavior"
-    }]
-)
 
-apb_protocol_scenario = ScenarioConfig(
-    name="APB Protocol Compliance",
-    description="Verify APB protocol compliance",
-    pre_cycles=2,
-    post_cycles=2,
-    relations=[
-        # PSEL must precede PENABLE
-        SignalRelation(
-            cause=SignalEvent("s_apb_PSEL", EdgeType.RISING),
-            effect=SignalEvent("s_apb_PENABLE", EdgeType.RISING),
-            min_cycles=1,
-            max_cycles=1,
-            style=ArrowStyle.STRAIGHT
-        ),
-    ],
-    debug_checks=[{
-        'function': check_apb_protocol_violations,
-        'description': "Check APB protocol violations"
-    }]
-)
+    @staticmethod
+    def access_phase(max_cycles: int = 15,
+                    required: bool = False,
+                    clock_group: str = "default",
+                    field_config: Optional['FieldConfig'] = None) -> TemporalConstraint:
+        """APB access phase: PSEL=1 AND PENABLE=1"""
+        events = [
+            create_temporal_event("psel_active", create_static_pattern("apb_psel", 1)),
+            create_temporal_event("enable_start", create_transition_pattern("apb_penable", 0, 1))
+        ]
 
-apb_state_machine_scenario = ScenarioConfig(
-    name="APB State Machine",
-    description="Verify APB state machine transitions",
-    pre_cycles=2,
-    post_cycles=2,
-    relations=[
-        # IDLE to BUSY
-        SignalRelation(
-            cause=SignalEvent.state_change("r_apb_state", "IDLE", "BUSY"),
-            effect=SignalEvent("o_cmd_valid", EdgeType.RISING),
-            min_cycles=0,
-            max_cycles=1,
-            style=ArrowStyle.STRAIGHT
-        ),
-        # BUSY to WAIT
-        SignalRelation(
-            cause=SignalEvent("s_apb_PREADY", EdgeType.RISING),
-            effect=SignalEvent.state_change("r_apb_state", "BUSY", "WAIT"),
-            min_cycles=0,
-            max_cycles=1,
-            style=ArrowStyle.STRAIGHT
-        ),
-        # WAIT to IDLE
-        SignalRelation(
-            cause=SignalEvent.state_change("r_apb_state", "WAIT", "IDLE"),
-            effect=SignalEvent("s_apb_PENABLE", EdgeType.FALLING),
-            min_cycles=0,
-            max_cycles=1,
-            style=ArrowStyle.STRAIGHT
+        return TemporalConstraint(
+            name="apb_access",
+            events=events,
+            temporal_relation=TemporalRelation.CONCURRENT,
+            max_window_size=max_cycles,
+            required=required,
+            clock_group=clock_group,
+            signals_to_show=create_apb_signals_list(),
+            max_matches=2,
+            field_config=field_config,
+            protocol_hint="apb"
         )
-    ],
-    debug_checks=[{
-        'function': check_fsm_transitions,
-        'description': "Check FSM transitions"
-    }]
-)
 
-def get_signal_groups(dut):
+    @staticmethod
+    def error_transaction(max_cycles: int = 25,
+                         required: bool = False,
+                         clock_group: str = "default",
+                         field_config: Optional['FieldConfig'] = None) -> TemporalConstraint:
+        """APB error transaction: PSLVERR goes high"""
+        events = [
+            create_temporal_event("error_response", create_transition_pattern("apb_pslverr", 0, 1))
+        ]
+
+        return TemporalConstraint(
+            name="apb_error",
+            events=events,
+            temporal_relation=TemporalRelation.SEQUENCE,
+            max_window_size=max_cycles,
+            required=required,
+            clock_group=clock_group,
+            signals_to_show=create_apb_signals_list(),
+            field_config=field_config,
+            protocol_hint="apb"
+        )
+
+    @staticmethod
+    def wait_state_sequence(max_cycles: int = 30,
+                           required: bool = False,
+                           clock_group: str = "default",
+                           field_config: Optional['FieldConfig'] = None) -> TemporalConstraint:
+        """APB wait state sequence: PENABLE=1 but PREADY stays 0"""
+        events = [
+            create_temporal_event("enable_start", create_transition_pattern("apb_penable", 0, 1)),
+            create_temporal_event("ready_wait", create_static_pattern("apb_pready", 0)),
+            create_temporal_event("ready_response", create_transition_pattern("apb_pready", 0, 1))
+        ]
+
+        return TemporalConstraint(
+            name="apb_wait_state",
+            events=events,
+            temporal_relation=TemporalRelation.SEQUENCE,
+            max_window_size=max_cycles,
+            required=required,
+            clock_group=clock_group,
+            signals_to_show=create_apb_signals_list(),
+            min_sequence_duration=3,
+            max_sequence_duration=20,
+            field_config=field_config,
+            protocol_hint="apb"
+        )
+
+
+class APBDebug:
+    """Debug constraints for APB troubleshooting with FieldConfig integration"""
+
+    @staticmethod
+    def psel_activity(max_cycles: int = 30,
+                     required: bool = False,
+                     clock_group: str = "default",
+                     field_config: Optional['FieldConfig'] = None) -> TemporalConstraint:
+        """Debug constraint for PSEL transitions"""
+        return create_debug_constraint("apb_psel", "debug_psel_activity", max_cycles, clock_group, field_config)
+
+    @staticmethod
+    def pready_activity(max_cycles: int = 30,
+                       required: bool = False,
+                       clock_group: str = "default",
+                       field_config: Optional['FieldConfig'] = None) -> TemporalConstraint:
+        """Debug constraint for PREADY transitions"""
+        return create_debug_constraint("apb_pready", "debug_pready_activity", max_cycles, clock_group, field_config)
+
+    @staticmethod
+    def penable_activity(max_cycles: int = 30,
+                        required: bool = False,
+                        clock_group: str = "default",
+                        field_config: Optional['FieldConfig'] = None) -> TemporalConstraint:
+        """Debug constraint for PENABLE transitions"""
+        return create_debug_constraint("apb_penable", "debug_penable_activity", max_cycles, clock_group, field_config)
+
+    @staticmethod
+    def write_data_changes(max_cycles: int = 25,
+                          required: bool = False,
+                          clock_group: str = "default",
+                          field_config: Optional['FieldConfig'] = None) -> TemporalConstraint:
+        """Debug constraint for write data activity"""
+        events = [
+            create_temporal_event("write_type", create_static_pattern("apb_pwrite", 1)),
+            create_temporal_event("psel_active", create_static_pattern("apb_psel", 1))
+        ]
+
+        return TemporalConstraint(
+            name="debug_write_data",
+            events=events,
+            temporal_relation=TemporalRelation.CONCURRENT,
+            max_window_size=max_cycles,
+            required=required,
+            clock_group=clock_group,
+            signals_to_show=[
+                "apb_psel", "apb_penable", "apb_pready", "apb_pwrite",
+                "apb_paddr", "apb_pwdata", "apb_pstrb"
+            ],
+            max_matches=3,
+            field_config=field_config,
+            protocol_hint="apb"
+        )
+
+    @staticmethod
+    def read_data_capture(max_cycles: int = 25,
+                         required: bool = False,
+                         clock_group: str = "default",
+                         field_config: Optional['FieldConfig'] = None) -> TemporalConstraint:
+        """Debug constraint for read data capture"""
+        events = [
+            create_temporal_event("read_type", create_static_pattern("apb_pwrite", 0)),
+            create_temporal_event("ready_response", create_transition_pattern("apb_pready", 0, 1))
+        ]
+
+        return TemporalConstraint(
+            name="debug_read_data",
+            events=events,
+            temporal_relation=TemporalRelation.SEQUENCE,
+            max_window_size=max_cycles,
+            required=required,
+            clock_group=clock_group,
+            signals_to_show=[
+                "apb_psel", "apb_penable", "apb_pready", "apb_pwrite",
+                "apb_paddr", "apb_prdata", "apb_pprot", "apb_pslverr"
+            ],
+            max_matches=3,
+            field_config=field_config,
+            protocol_hint="apb"
+        )
+
+
+class APBPresets:
+    """Preset constraint collections with improved sequences"""
+
+    @staticmethod
+    def basic_rw_test(max_cycles: int = 25,  # Increased
+                     clock_group: str = "default",
+                     field_config: Optional['FieldConfig'] = None) -> List[TemporalConstraint]:
+        """Basic read/write test with complete sequences"""
+        return [
+            APBConstraints.write_transaction(max_cycles=max_cycles, required=True, clock_group=clock_group, field_config=field_config),
+            APBConstraints.read_transaction(max_cycles=max_cycles, required=True, clock_group=clock_group, field_config=field_config),
+        ]
+
+    @staticmethod
+    def setup_boundaries_for_basic_rw(wave_solver: TemporalConstraintSolver, field_config: Optional['FieldConfig'] = None):
+        """Set up boundaries for basic read/write test"""
+        constraint_names = ['apb_write_sequence', 'apb_read_sequence']
+        setup_apb_boundaries(wave_solver, constraint_names, field_config)
+
+    @staticmethod
+    def comprehensive_test(max_cycles: int = 25,  # Increased
+                          clock_group: str = "default",
+                          field_config: Optional['FieldConfig'] = None) -> List[TemporalConstraint]:
+        """Comprehensive test with detailed sequence analysis"""
+        return [
+            # Required basic transactions
+            APBConstraints.write_transaction(max_cycles=max_cycles, required=True, clock_group=clock_group, field_config=field_config),
+            APBConstraints.read_transaction(max_cycles=max_cycles, required=True, clock_group=clock_group, field_config=field_config),
+
+            # Phase analysis (optional)
+            APBConstraints.setup_phase(max_cycles=max_cycles, required=False, clock_group=clock_group, field_config=field_config),
+            APBConstraints.access_phase(max_cycles=max_cycles, required=False, clock_group=clock_group, field_config=field_config),
+
+            # Completion analysis (optional)
+            APBConstraints.write_completion(max_cycles=max_cycles, required=False, clock_group=clock_group, field_config=field_config),
+            APBConstraints.read_completion(max_cycles=max_cycles, required=False, clock_group=clock_group, field_config=field_config),
+
+            # Complete transaction sequences (optional)
+            APBConstraints.complete_transaction(max_cycles=max_cycles+5, required=False, clock_group=clock_group, field_config=field_config),
+
+            # Error handling
+            APBConstraints.error_transaction(max_cycles=max_cycles, required=False, clock_group=clock_group, field_config=field_config)
+        ]
+
+    @staticmethod
+    def setup_boundaries_for_comprehensive(wave_solver: TemporalConstraintSolver, field_config: Optional['FieldConfig'] = None):
+        """Set up boundaries for comprehensive test"""
+        constraint_names = [
+            'apb_write_sequence', 'apb_read_sequence', 'apb_setup', 'apb_access',
+            'apb_write_completion', 'apb_read_completion', 'apb_complete_transaction',
+            'apb_error'
+        ]
+        setup_apb_boundaries(wave_solver, constraint_names, field_config)
+
+    @staticmethod
+    def debug_test(max_cycles: int = 30,
+                  clock_group: str = "default",
+                  field_config: Optional['FieldConfig'] = None) -> List[TemporalConstraint]:
+        """Debug-focused constraints for troubleshooting"""
+        return [
+            # Basic activity detection
+            APBDebug.psel_activity(max_cycles=max_cycles, required=False, clock_group=clock_group, field_config=field_config),
+            APBDebug.pready_activity(max_cycles=max_cycles, required=False, clock_group=clock_group, field_config=field_config),
+            APBDebug.penable_activity(max_cycles=max_cycles, required=False, clock_group=clock_group, field_config=field_config),
+
+            # Data activity
+            APBDebug.write_data_changes(max_cycles=max_cycles, required=False, clock_group=clock_group, field_config=field_config),
+            APBDebug.read_data_capture(max_cycles=max_cycles, required=False, clock_group=clock_group, field_config=field_config)
+        ]
+
+    @staticmethod
+    def setup_boundaries_for_debug(wave_solver: TemporalConstraintSolver, field_config: Optional['FieldConfig'] = None):
+        """Set up boundaries for debug test"""
+        constraint_names = [
+            'debug_psel_activity', 'debug_pready_activity', 'debug_penable_activity',
+            'debug_write_data', 'debug_read_data'
+        ]
+        setup_apb_boundaries(wave_solver, constraint_names, field_config)
+
+    @staticmethod
+    def timing_analysis_test(max_cycles: int = 30,  # Increased
+                           clock_group: str = "default",
+                           field_config: Optional['FieldConfig'] = None) -> List[TemporalConstraint]:
+        """Timing and protocol compliance analysis"""
+        return [
+            # Complete transaction sequences for timing analysis
+            APBConstraints.write_transaction(max_cycles=max_cycles, required=True, clock_group=clock_group, field_config=field_config),
+            APBConstraints.read_transaction(max_cycles=max_cycles, required=True, clock_group=clock_group, field_config=field_config),
+
+            # Protocol phase sequences
+            APBConstraints.setup_phase(max_cycles=max_cycles, required=False, clock_group=clock_group, field_config=field_config),
+            APBConstraints.access_phase(max_cycles=max_cycles, required=False, clock_group=clock_group, field_config=field_config),
+
+            # Wait state analysis
+            APBConstraints.wait_state_sequence(max_cycles=max_cycles+5, required=False, clock_group=clock_group, field_config=field_config),
+
+            # Complete sequences with termination
+            APBConstraints.complete_transaction(max_cycles=max_cycles+5, required=False, clock_group=clock_group, field_config=field_config)
+        ]
+
+    @staticmethod
+    def setup_boundaries_for_timing_analysis(wave_solver: TemporalConstraintSolver, field_config: Optional['FieldConfig'] = None):
+        """Set up boundaries for timing analysis test"""
+        constraint_names = [
+            'apb_write_sequence', 'apb_read_sequence', 'apb_setup', 'apb_access',
+            'apb_wait_state', 'apb_complete_transaction'
+        ]
+        setup_apb_boundaries(wave_solver, constraint_names, field_config)
+
+    @staticmethod
+    def error_focused_test(max_cycles: int = 25,  # Increased
+                          clock_group: str = "default",
+                          field_config: Optional['FieldConfig'] = None) -> List[TemporalConstraint]:
+        """Error conditions and edge cases focus"""
+        return [
+            # Basic transactions (may or may not complete)
+            APBConstraints.write_transaction(max_cycles=max_cycles, required=False, clock_group=clock_group, field_config=field_config),
+            APBConstraints.read_transaction(max_cycles=max_cycles, required=False, clock_group=clock_group, field_config=field_config),
+
+            # Error detection
+            APBConstraints.error_transaction(max_cycles=max_cycles, required=True, clock_group=clock_group, field_config=field_config),
+
+            # Wait states (might indicate problems)
+            APBConstraints.wait_state_sequence(max_cycles=max_cycles+10, required=False, clock_group=clock_group, field_config=field_config)
+        ]
+
+    @staticmethod
+    def setup_boundaries_for_error_focused(wave_solver: TemporalConstraintSolver, field_config: Optional['FieldConfig'] = None):
+        """Set up boundaries for error focused test"""
+        constraint_names = [
+            'apb_write_sequence', 'apb_read_sequence', 'apb_error', 'apb_wait_state'
+        ]
+        setup_apb_boundaries(wave_solver, constraint_names, field_config)
+
+
+# Helper function with improvements
+def setup_apb_constraints_with_boundaries(wave_solver: TemporalConstraintSolver,
+                                                  preset_name: str = "basic_rw",
+                                                  max_cycles: int = 30,  # Increased default for post-match
+                                                  clock_group: str = "default",
+                                                  data_width: int = 32,
+                                                  addr_width: int = 32,
+                                                  enable_packet_callbacks: bool = True,
+                                                  use_signal_names: bool = True,
+                                                  post_match_cycles: int = 2):
     """
-    Return signal groups appropriate for the DUT
-    
+    Helper function to set up APB constraints with post-match extension.
+
     Args:
-        dut: Device under test
-        
-    Returns:
-        Dictionary of signal groups
-    """
-    groups = {}
-    
-    # APB Interface signals - always include if they exist
-    apb_signals = []
-    for signal in ["s_apb_PSEL", "s_apb_PENABLE", "s_apb_PREADY", "s_apb_PWRITE", 
-                  "s_apb_PWDATA", "s_apb_PRDATA", "s_apb_PSLVERR"]:
-        if hasattr(dut, signal):
-            apb_signals.append(signal)
-            
-    if apb_signals:
-        groups["APB Interface"] = apb_signals
-    
-    # Control signals
-    control_signals = []
-    for signal in ["pclk", "presetn"]:
-        if hasattr(dut, signal):
-            control_signals.append(signal)
-            
-    if control_signals:
-        groups["Control"] = control_signals
-    
-    # Clock gating signals
-    cg_signals = []
-    for signal in ["cg_pclk", "o_apb_clock_gating", "r_wakeup", "i_cfg_cg_enable", "i_cfg_cg_idle_count"]:
-        if hasattr(dut, signal):
-            cg_signals.append(signal)
-            
-    if cg_signals:
-        groups["Clock Gating"] = cg_signals
-    
-    # Command channel signals
-    cmd_signals = []
-    for signal in ["o_cmd_valid", "i_cmd_ready", "o_cmd_pwrite", "o_cmd_pwdata", "o_cmd_paddr", "o_cmd_pstrb"]:
-        if hasattr(dut, signal):
-            cmd_signals.append(signal)
-            
-    if cmd_signals:
-        groups["Command Channel"] = cmd_signals
-    
-    # Response channel signals
-    rsp_signals = []
-    for signal in ["i_rsp_valid", "o_rsp_ready", "i_rsp_prdata", "i_rsp_pslverr"]:
-        if hasattr(dut, signal):
-            rsp_signals.append(signal)
-            
-    if rsp_signals:
-        groups["Response Channel"] = rsp_signals
-    
-    # State machine signals
-    if hasattr(dut, "r_apb_state"):
-        groups["State Machine"] = ["r_apb_state"]
-    
-    # If no signals were found, return the predefined groups
-    if not groups:
-        return APB_GROUPS
-    
-    return groups
+        wave_solver: TemporalConstraintSolver instance
+        preset_name: Name of preset ('basic_rw', 'comprehensive', 'debug', 'timing', 'error')
+        max_cycles: Maximum cycles for constraints
+        clock_group: Clock group name
+        data_width: APB data width
+        addr_width: APB address width
+        enable_packet_callbacks: Whether to enable APB packet-based callbacks
+        use_signal_names: Whether to use signal names (True) vs descriptions (False)
+        post_match_cycles: Extra cycles to include after sequence match (default: 2)
 
-def create_apb_scenarios(dut, include_scenarios=None):
-    """
-    Create APB scenarios based on available signals in the DUT
-    
-    Args:
-        dut: Device under test
-        include_scenarios: Optional list of scenario names to include
-                          (None = all available)
-    
     Returns:
-        List of applicable scenarios
+        Number of constraints added
     """
-    # Check which signals are available
-    has_state = hasattr(dut, 'r_apb_state')
-    has_cmd_channel = hasattr(dut, 'o_cmd_valid') and hasattr(dut, 'i_cmd_ready')
-    has_rsp_channel = hasattr(dut, 'i_rsp_valid') and hasattr(dut, 'o_rsp_ready')
-    has_clock_gating = hasattr(dut, 'o_apb_clock_gating') and hasattr(dut, 'r_wakeup')
-    
-    # Build list of applicable scenarios
-    scenarios = []
-    
-    # Basic APB protocol scenario is always applicable
-    if include_scenarios is None or 'protocol' in include_scenarios:
-        scenarios.append(apb_protocol_scenario)
-    
-    # Setup scenario requires command channel
-    if (include_scenarios is None or 'setup' in include_scenarios) and has_cmd_channel:
-        scenarios.append(apb_setup_scenario)
-    
-    # Response scenario requires response channel
-    if (include_scenarios is None or 'response' in include_scenarios) and has_rsp_channel:
-        scenarios.append(apb_response_scenario)
-    
-    # State machine scenario requires state signal
-    if (include_scenarios is None or 'state_machine' in include_scenarios) and has_state:
-        scenarios.append(apb_state_machine_scenario)
-    
-    # Clock gating scenario requires clock gating signals
-    if (include_scenarios is None or 'clock_gating' in include_scenarios) and has_clock_gating:
-        scenarios.append(apb_clock_gating_scenario)
-    
-    return scenarios
+
+    # Create FieldConfig for APB with signal name preference
+    field_config = get_apb_field_config(data_width, addr_width, data_width // 8, use_signal_names)
+
+    # Configure protocol-specific FieldConfig in solver
+    if field_config and hasattr(wave_solver, 'configure_protocol_field_config'):
+        wave_solver.configure_protocol_field_config("apb", field_config)
+
+    # Set up packet-based WaveJSON callbacks if enabled
+    if enable_packet_callbacks and hasattr(wave_solver, 'add_packet_based_callback'):
+        def apb_packet_callback(packet_obj, signal_data, temporal_solution):
+            """APB packet-based WaveJSON callback"""
+            try:
+                from CocoTBFramework.components.wavedrom_utils.utility import create_wavejson_from_packet_and_signals
+                return create_wavejson_from_packet_and_signals(
+                    packet_obj, signal_data, temporal_solution,
+                    title=f"APB {packet_obj.direction} Transaction",
+                    interface_prefix="apb"
+                )
+            except Exception as e:
+                print(f"APB packet callback failed: {e}")
+                return None
+
+        # Register packet callbacks for write and read sequences
+        wave_solver.add_packet_based_callback("apb_write_sequence", APBPacket, apb_packet_callback)
+        wave_solver.add_packet_based_callback("apb_read_sequence", APBPacket, apb_packet_callback)
+
+    # Add constraints based on preset
+    if preset_name == "basic_rw":
+        constraints = [
+            create_apb_write_sequence_constraint(max_cycles, True, clock_group, field_config, post_match_cycles),
+            create_apb_read_sequence_constraint(max_cycles, True, clock_group, field_config, post_match_cycles)
+        ]
+        for constraint in constraints:
+            wave_solver.add_constraint(constraint)
+        # Skip boundary setup for main sequences to avoid early termination
+        # setup_apb_boundaries(wave_solver, ['apb_write_sequence', 'apb_read_sequence'], field_config)
+
+    elif preset_name == "comprehensive":
+        constraints = [
+            # Required basic transactions with post-match extension
+            create_apb_write_sequence_constraint(max_cycles, True, clock_group, field_config, post_match_cycles),
+            create_apb_read_sequence_constraint(max_cycles, True, clock_group, field_config, post_match_cycles),
+
+            # Phase analysis (optional) - these can have boundaries
+            APBConstraints.setup_phase(max_cycles=max_cycles, required=False, clock_group=clock_group, field_config=field_config),
+            APBConstraints.access_phase(max_cycles=max_cycles, required=False, clock_group=clock_group, field_config=field_config),
+
+            # Completion analysis (optional)
+            APBConstraints.write_completion(max_cycles=max_cycles, required=False, clock_group=clock_group, field_config=field_config),
+            APBConstraints.read_completion(max_cycles=max_cycles, required=False, clock_group=clock_group, field_config=field_config),
+
+            # Complete transaction sequences (optional)
+            APBConstraints.complete_transaction(max_cycles=max_cycles+5, required=False, clock_group=clock_group, field_config=field_config),
+
+            # Error handling
+            APBConstraints.error_transaction(max_cycles=max_cycles, required=False, clock_group=clock_group, field_config=field_config)
+        ]
+        for constraint in constraints:
+            wave_solver.add_constraint(constraint)
+        # Only set boundaries for non-main sequences
+        optional_constraints = [
+            'apb_setup', 'apb_access', 'apb_write_completion', 'apb_read_completion',
+            'apb_complete_transaction', 'apb_error'
+        ]
+        setup_apb_boundaries(wave_solver, optional_constraints, field_config)
+
+    elif preset_name == "debug":
+        constraints = APBPresets.debug_test(max_cycles, clock_group, field_config)
+        for constraint in constraints:
+            wave_solver.add_constraint(constraint)
+        APBPresets.setup_boundaries_for_debug(wave_solver, field_config)
+
+    elif preset_name == "timing":
+        constraints = [
+            # Main sequences with post-match extension
+            create_apb_write_sequence_constraint(max_cycles, True, clock_group, field_config, post_match_cycles),
+            create_apb_read_sequence_constraint(max_cycles, True, clock_group, field_config, post_match_cycles),
+
+            # Other timing constraints
+            APBConstraints.setup_phase(max_cycles=max_cycles, required=False, clock_group=clock_group, field_config=field_config),
+            APBConstraints.access_phase(max_cycles=max_cycles, required=False, clock_group=clock_group, field_config=field_config),
+            APBConstraints.wait_state_sequence(max_cycles=max_cycles+5, required=False, clock_group=clock_group, field_config=field_config),
+            APBConstraints.complete_transaction(max_cycles=max_cycles+5, required=False, clock_group=clock_group, field_config=field_config)
+        ]
+        for constraint in constraints:
+            wave_solver.add_constraint(constraint)
+        # Boundaries only for non-main sequences
+        timing_constraints = ['apb_setup', 'apb_access', 'apb_wait_state', 'apb_complete_transaction']
+        setup_apb_boundaries(wave_solver, timing_constraints, field_config)
+
+    elif preset_name == "error":
+        constraints = APBPresets.error_focused_test(max_cycles, clock_group, field_config)
+        for constraint in constraints:
+            wave_solver.add_constraint(constraint)
+        APBPresets.setup_boundaries_for_error_focused(wave_solver, field_config)
+
+    else:
+        raise ValueError(f"Unknown preset: {preset_name}. Available: basic_rw, comprehensive, debug, timing, error")
+
+    return len(constraints)
+
+
+# Export classes and functions
+__all__ = [
+    # Signal lists and utilities
+    'create_apb_signals_list',
+    'get_apb_boundary_pattern',
+
+    # Constraint builders
+    'create_apb_write_sequence_constraint',
+    'create_apb_read_sequence_constraint',
+    'create_apb_complete_transaction_constraint',
+    'check_apb_protocol_compliance',
+
+    # Boundary management
+    'setup_apb_boundaries',
+
+    # Constraint classes
+    'APBConstraints',
+    'APBDebug',
+    'APBPresets',
+
+    # Setup function
+    'setup_apb_constraints_with_boundaries',
+]

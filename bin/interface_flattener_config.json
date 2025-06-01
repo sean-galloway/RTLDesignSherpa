@@ -1,0 +1,95 @@
+{
+  "// File list processing": "Path to your VCS file list",
+  "file_list": "rtl_list.f",
+  
+  "// Target file and wrapper configuration": "",
+  "target": {
+    "input_file": "my_axi_master.sv",
+    "output_file": "my_axi_master_wrapper.sv", 
+    "wrapper_module_name": "my_axi_master_flat"
+  },
+  
+  "// Parsing strategy": "",
+  "parsing_strategy": "smart",
+  "// Options: 'smart' (parse only needed files), 'lazy' (on-demand), 'all' (parse everything)",
+  
+  "// Verible configuration": "",
+  "verible_path": "verible-verilog-syntax",
+  "// Path to verible-verilog-syntax executable. Will search common paths if not found": "",
+  
+  "// Naming convention for flattened signals": "",
+  "naming_convention": "amba",
+  "// Options: 'amba' (m_axi_, s_axi_), 'instance' (use instance name), 'hierarchical' (interface_modport_signal)",
+  
+  "// Parameter handling": "",
+  "leave_all_as_params": false,
+  "// If true, all parameters are passed through. If false, resolve what's specified below",
+  
+  "parameters": {
+    "resolve": ["WIDTH", "DEPTH", "AXI_DATA_WIDTH"],
+    "leave_as_param": ["AXI_ID_WIDTH", "AXI_ADDR_WIDTH"],
+    "// Parameters to resolve with specific values": "",
+    "values": {
+      "WIDTH": "32",
+      "DEPTH": "4"
+    }
+  },
+  
+  "// Struct handling": "",
+  "keep_structs": false,
+  "// If true, only flatten interfaces, leave structs intact",
+  
+  "// Interface-specific overrides": "",
+  "interfaces": {
+    "axi_if": {
+      "prefix_template": "{role}_{interface}",
+      "// Available variables: {role}, {interface}, {instance}, {modport}": "",
+      "modport_directions": {
+        "master": {
+          "awaddr": "output", "awvalid": "output", "awready": "input",
+          "wdata": "output", "wvalid": "output", "wready": "input",
+          "araddr": "output", "arvalid": "output", "arready": "input",
+          "rdata": "input", "rvalid": "input", "rready": "output"
+        },
+        "slave": {
+          "awaddr": "input", "awvalid": "input", "awready": "output",
+          "wdata": "input", "wvalid": "input", "wready": "output", 
+          "araddr": "input", "arvalid": "input", "arready": "output",
+          "rdata": "output", "rvalid": "output", "rready": "input"
+        }
+      }
+    },
+    "apb_if": {
+      "prefix_template": "{instance}",
+      "modport_directions": {
+        "master": {
+          "paddr": "output", "pwrite": "output", "pwdata": "output",
+          "psel": "output", "penable": "output", "pready": "input",
+          "prdata": "input", "pslverr": "input"
+        },
+        "slave": {
+          "paddr": "input", "pwrite": "input", "pwdata": "input", 
+          "psel": "input", "penable": "input", "pready": "output",
+          "prdata": "output", "pslverr": "output"
+        }
+      }
+    }
+  },
+  
+  "// Array handling": "",
+  "array_flattening": {
+    "enabled": true,
+    "naming": "{instance}_{index}_{signal}",
+    "// For interface arrays like axi_if my_bus[4], creates my_bus_0_awaddr, my_bus_1_awaddr, etc.": ""
+  },
+  
+  "// Output options": "",
+  "output": {
+    "style": "wrapper",
+    "// Options: 'wrapper' (create new wrapper module) or 'inline' (modify original)": "",
+    "include_original": true,
+    "// If true, include original module as comment for reference": "",
+    "add_comments": true
+    "// Add explanatory comments in generated code": ""
+  }
+}

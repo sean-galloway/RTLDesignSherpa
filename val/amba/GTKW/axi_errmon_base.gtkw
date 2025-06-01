@@ -1,49 +1,46 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Wed May  7 06:08:02 2025
+[*] Tue May 27 03:40:27 2025
 [*]
-[dumpfile] "/home/sean/github/RTLDesignSherpa/val/amba/local_sim_build/test_axi_errmon_base_ch04_id08_a32_efd04_afd04_R_AXI_full/dump.fst"
-[dumpfile_mtime] "Wed May  7 06:03:50 2025"
-[dumpfile_size] 40022
-[savefile] "/home/sean/github/RTLDesignSherpa/val/amba/GTKW/axi_errmon_base.gtkw"
-[timestart] 118081000
-[size] 2394 1318
-[pos] -1 -1
-*-17.697119 118960000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
-[treeopen] axi_errmon_base.
-[treeopen] axi_errmon_base.gen_data_counters[0].
-[treeopen] axi_errmon_base.gen_data_counters[1].
-[treeopen] axi_errmon_base.gen_data_counters[2].
-[treeopen] axi_errmon_base.gen_data_counters[3].
-[sst_width] 322
-[signals_width] 396
+[dumpfile] "(null)"
+[savefile] "/home/seang/github/RTLDesignSherpa/val/amba/GTKW/axi_errmon_base.gtkw"
+[timestart] 303000
+[size] 2162 1499
+[pos] 55 118
+*-17.003090 970000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .axi_errmon_base.
+[sst_width] 331
+[signals_width] 344
 [sst_expanded] 1
-[sst_vpaned_height] 822
+[sst_vpaned_height] 470
 @420
-axi_errmon_base.ADDR_FIFO_DEPTH
-axi_errmon_base.CHANNELS
-axi_errmon_base.TIMEOUT_ADDR
-axi_errmon_base.TIMEOUT_DATA
-axi_errmon_base.TIMEOUT_RESP
-@22
-axi_errmon_base.i_cfg_freq_sel[3:0]
-axi_errmon_base.i_cfg_addr_cnt[3:0]
-axi_errmon_base.i_cfg_data_cnt[3:0]
-axi_errmon_base.i_cfg_resp_cnt[3:0]
+axi_errmon_base.DEBUG_FIFO_DEPTH
+axi_errmon_base.ENABLE_DEBUG_MODULE
+axi_errmon_base.ENABLE_PERF_PACKETS
+axi_errmon_base.INTR_FIFO_DEPTH
+axi_errmon_base.IS_AXI
+axi_errmon_base.IS_READ
+axi_errmon_base.MAX_TRANSACTIONS
 @28
 axi_errmon_base.aclk
 axi_errmon_base.aresetn
-axi_errmon_base.o_block_ready
 @200
--cmd interface
+-address channel
 @28
 axi_errmon_base.i_addr_valid
 axi_errmon_base.i_addr_ready
 @22
-axi_errmon_base.i_addr_id[7:0]
 axi_errmon_base.i_addr_addr[31:0]
+@28
+axi_errmon_base.i_addr_burst[1:0]
+@22
+axi_errmon_base.i_addr_id[7:0]
+axi_errmon_base.i_addr_len[7:0]
+@28
+axi_errmon_base.i_addr_size[2:0]
 @200
--data interface
+-data channel
 @28
 axi_errmon_base.i_data_valid
 axi_errmon_base.i_data_ready
@@ -53,34 +50,27 @@ axi_errmon_base.i_data_id[7:0]
 axi_errmon_base.i_data_last
 axi_errmon_base.i_data_resp[1:0]
 @200
--rsp interface
+-response channel
 @28
 axi_errmon_base.i_resp_valid
 axi_errmon_base.i_resp_ready
+axi_errmon_base.i_resp[1:0]
 @22
 axi_errmon_base.i_resp_id[7:0]
-@28
-axi_errmon_base.i_resp[1:0]
 @200
--error interface
+-intrbus
 @28
-axi_errmon_base.o_error_valid
-axi_errmon_base.i_error_ready
+axi_errmon_base.o_intrbus_valid
+axi_errmon_base.i_intrbus_ready
 @22
-axi_errmon_base.o_error_type[7:0]
-axi_errmon_base.o_error_addr[31:0]
-axi_errmon_base.o_error_id[7:0]
-axi_errmon_base.o_error_unit_id[7:0]
-axi_errmon_base.o_error_agent_id[7:0]
-@200
--internals
-@22
-axi_errmon_base.r_addr_timeout[3:0]
-axi_errmon_base.r_data_timeout[3:0]
-axi_errmon_base.r_resp_timeout[3:0]
-axi_errmon_base.r_addr_timeout_reported[3:0]
-axi_errmon_base.r_data_timeout_reported[3:0]
+axi_errmon_base.o_intrbus_packet[63:0]
+axi_errmon_base.i_reporter.r_packet_type[3:0]
+axi_errmon_base.i_reporter.r_event_code[3:0]
+axi_errmon_base.i_reporter.r_event_channel[5:0]
+@420
+axi_errmon_base.i_reporter.UNIT_ID
+axi_errmon_base.i_reporter.AGENT_ID
 @23
-axi_errmon_base.r_resp_timeout_reported[3:0]
+axi_errmon_base.i_reporter.r_event_data[37:0]
 [pattern_trace] 1
 [pattern_trace] 0

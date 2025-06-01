@@ -4,18 +4,26 @@ Basic test class for AXI Error Monitor.
 This module provides basic functionality tests for the AXI Error Monitor Base module,
 focusing on simple transaction handling and interrupt bus events.
 
-Updated to work with the consolidated 64-bit interrupt bus interface.
+Updated to work with the consolidated 64-bit interrupt bus interface and
+the surgically updated testbench using separate intrbus components.
+Updated to use field configurations consistently throughout.
+Updated to use centralized constants from intrbus module.
 """
 
 from .axi_errmon_base_test import AXIErrorMonBaseTest
 from CocoTBFramework.components.flex_randomizer import FlexRandomizer
+
+# Import constants from intrbus module
+from ..intrbus import EVENT_CODES, PACKET_TYPES
 
 
 class AXIErrorMonBasicTest(AXIErrorMonBaseTest):
     """
     Basic tests for AXI Error Monitor.
     Tests simple transaction handling and basic functionality.
-    Updated for consolidated interrupt bus interface.
+    Updated for consolidated interrupt bus interface and separate intrbus components.
+    Updated to use field configurations consistently.
+    Updated to use centralized constants from intrbus module.
     """
 
     def __init__(self, tb):
@@ -89,8 +97,8 @@ class AXIErrorMonBasicTest(AXIErrorMonBaseTest):
         # Get initial event count for later comparison
         initial_events_count = len(self.tb.intrbus_events)
 
-        # Set intrbus ready to normal speed
-        self.tb.intrbus_slave.set_randomizer(FlexRandomizer(self.tb.randomizer_configs['fixed']))
+        # Set intrbus ready to normal speed using new method
+        self.tb.set_intrbus_backpressure('fixed')
 
         # Drive a single transaction
         transaction = await self.drive_basic_transaction(
@@ -117,10 +125,10 @@ class AXIErrorMonBasicTest(AXIErrorMonBaseTest):
         # Check for completion event on intrbus (if any)
         completion_found = False
         for event in self.tb.intrbus_events[initial_events_count:]:
-            if (event['packet_type'] == self.tb.PKT_TYPE_COMPLETION and  # Completion packet type
-                event['event_code'] == 0x9 and  # EVT_TRANS_COMPLETE
+            if (event['packet_type'] == self.PACKET_TYPES['COMPLETION'] and  # Completion packet type
+                event['event_code'] == self.EVENT_CODES['TRANS_COMPLETE'] and  # EVT_TRANS_COMPLETE
                 event['channel_id'] == 0 and
-                event['addr'] == 0x1000):
+                event['addr'] == 0x1000):  # Note: using 'addr' key for backward compatibility
                 self.log.info(f"Found completion event for transaction: addr=0x{event['addr']:X}, id={event['channel_id']}{self.tb.get_time_ns_str()}")
                 completion_found = True
                 break
@@ -155,15 +163,8 @@ class AXIErrorMonBasicTest(AXIErrorMonBaseTest):
 
         self.log.info(f"Initial busy state: {initial_busy}, active count: {initial_active_count}{self.tb.get_time_ns_str()}")
 
-        # Start a transaction but don't complete it immediately
-        addr_packet = self.tb.addr_field_config.create_packet()
-        addr_packet.addr = 0x2000
-        addr_packet.id = 0
-
-        if self.is_axi:
-            addr_packet.len = 0
-            addr_packet.size = 2
-            addr_packet.burst = 1
+        # Start a transaction but don't complete it immediately using field config
+        addr_packet = self._create_addr_packet(0x2000, 0)
 
         # Send address phase
         await self.tb.addr_master.send(addr_packet)
@@ -174,7 +175,7 @@ class AXIErrorMonBasicTest(AXIErrorMonBaseTest):
 
         # Check that busy signal is now asserted and active count increased
         await self.tb.wait_clocks('aclk', 5)
-        
+
         busy_after_addr = self.dut.o_busy.value
         active_after_addr = self.dut.o_active_count.value
 
@@ -184,26 +185,16 @@ class AXIErrorMonBasicTest(AXIErrorMonBaseTest):
         if active_after_addr == 0:
             self.log.warning(f"Active count is still 0 after address phase - this may indicate an issue{self.tb.get_time_ns_str()}")
 
-        # Complete the transaction
-        data_packet = self.tb.data_field_config.create_packet()
-        if self.is_read:
-            data_packet.id = 0
-            data_packet.last = 1
-            data_packet.resp = 0
-        else:
-            data_packet.last = 1
-
+        # Complete the transaction using field config
+        data_packet = self._create_data_packet(0, 0)
         await self.tb.data_master.send(data_packet)
 
         # For write mode, also send response
         if not self.is_read:
             while self.tb.data_master.transfer_busy:
                 await self.tb.wait_clocks('aclk', 1)
-            
-            resp_packet = self.tb.resp_field_config.create_packet()
-            resp_packet.id = 0
-            resp_packet.resp = 0
-            
+
+            resp_packet = self._create_resp_packet(0, 0)
             await self.tb.resp_master.send(resp_packet)
 
         # Wait for transaction to complete
@@ -236,8 +227,8 @@ class AXIErrorMonBasicTest(AXIErrorMonBaseTest):
         # Reset and set up for clean test state
         await self.reset_and_setup_for_test()
 
-        # Set intrbus ready to normal speed
-        self.tb.intrbus_slave.set_randomizer(FlexRandomizer(self.tb.randomizer_configs['fixed']))
+        # Set intrbus ready to normal speed using new method
+        self.tb.set_intrbus_backpressure('fixed')
 
         # Drive multiple transactions sequentially
         num_transactions = 5  # Reduced for basic testing
@@ -294,8 +285,8 @@ class AXIErrorMonBasicTest(AXIErrorMonBaseTest):
         # Reset and set up for clean test state
         await self.reset_and_setup_for_test()
 
-        # Set intrbus ready to normal speed
-        self.tb.intrbus_slave.set_randomizer(FlexRandomizer(self.tb.randomizer_configs['fixed']))
+        # Set intrbus ready to normal speed using new method
+        self.tb.set_intrbus_backpressure('fixed')
 
         # Drive multiple transactions with pipelining
         num_transactions = 3  # Reduced for basic testing
@@ -350,7 +341,7 @@ class AXIErrorMonBasicTest(AXIErrorMonBaseTest):
 
         for speed in ready_speeds:
             self.log.info(f"Testing with intrbus ready speed: {speed}{self.tb.get_time_ns_str()}")
-            
+
             # Reset and set up clean state
             await self.reset_and_setup_for_test()
 
@@ -397,9 +388,9 @@ class AXIErrorMonBasicTest(AXIErrorMonBaseTest):
             # Success depends on whether we found error events (these are required)
             error_found = False
             for event in self.tb.intrbus_events:
-                if (event['packet_type'] == self.tb.PKT_TYPE_ERROR and  # Error packet type
-                    event['event_code'] in [0x4, 0x5] and  # SLVERR or DECERR
-                    event['addr'] == 0x5000):
+                if (event['packet_type'] == self.PACKET_TYPES['ERROR'] and  # Error packet type
+                    event['event_code'] in [self.EVENT_CODES['RESP_SLVERR'], self.EVENT_CODES['RESP_DECERR']] and  # SLVERR or DECERR
+                    event['addr'] == 0x5000):  # Note: using 'addr' key for backward compatibility
                     error_found = True
                     self.log.info(f"Found error event: {event['description']}{self.tb.get_time_ns_str()}")
                     break
@@ -410,8 +401,8 @@ class AXIErrorMonBasicTest(AXIErrorMonBaseTest):
             else:
                 self.log.info(f"Interrupt bus events test passed with {speed} ready{self.tb.get_time_ns_str()}")
 
-        # Reset intrbus ready to fixed speed
-        self.tb.intrbus_slave.set_randomizer(FlexRandomizer(self.tb.randomizer_configs['fixed']))
+        # Reset intrbus ready to fixed speed using new method
+        self.tb.set_intrbus_backpressure('fixed')
 
         return all_tests_passed
 
@@ -433,9 +424,9 @@ class AXIErrorMonBasicTest(AXIErrorMonBaseTest):
 
         # Test response error scenario (works for both read and write)
         self.log.info(f"Testing response error scenario{self.tb.get_time_ns_str()}")
-        
+
         await self.reset_and_setup_for_test()
-        
+
         resp_err_detected = await self.drive_error_scenario(
             error_type='resp_error',
             addr=0x6000,
@@ -452,9 +443,9 @@ class AXIErrorMonBasicTest(AXIErrorMonBaseTest):
 
         # Test address timeout scenario
         self.log.info(f"Testing address timeout scenario{self.tb.get_time_ns_str()}")
-        
+
         await self.reset_and_setup_for_test()
-        
+
         addr_timeout_detected = await self.drive_error_scenario(
             error_type='addr_timeout',
             addr=0x7000,
@@ -469,11 +460,11 @@ class AXIErrorMonBasicTest(AXIErrorMonBaseTest):
         else:
             self.log.info(f"Address timeout scenario passed{self.tb.get_time_ns_str()}")
 
-        # Test data timeout scenario  
+        # Test data timeout scenario
         self.log.info(f"Testing data timeout scenario{self.tb.get_time_ns_str()}")
-        
+
         await self.reset_and_setup_for_test()
-        
+
         data_timeout_detected = await self.drive_error_scenario(
             error_type='data_timeout',
             addr=0x8000,
@@ -491,9 +482,9 @@ class AXIErrorMonBasicTest(AXIErrorMonBaseTest):
         # Test response timeout scenario (write mode only)
         if not self.tb.is_read:
             self.log.info(f"Testing response timeout scenario{self.tb.get_time_ns_str()}")
-            
+
             await self.reset_and_setup_for_test()
-            
+
             resp_timeout_detected = await self.drive_error_scenario(
                 error_type='resp_timeout',
                 addr=0x9000,

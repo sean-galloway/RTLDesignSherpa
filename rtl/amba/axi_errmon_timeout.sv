@@ -10,7 +10,7 @@
  *
  * Updated to support dedicated timeout packet types.
  * Updated with proper naming conventions: w_ for combo, r_ for flopped
- * Fixed for Verilator compatibility
+ * Fixed for Verilator compatibility and consistent array declarations
  */
 module axi_errmon_timeout
     import axi_errmon_types::*;
@@ -24,8 +24,8 @@ module axi_errmon_timeout
     input  logic                     aclk,
     input  logic                     aresetn,
 
-    // Transaction table (read-modify access) - use packed array
-    input  axi_transaction_t [MAX_TRANSACTIONS-1:0] i_trans_table,
+    // Transaction table (read-modify access) - Fixed: Use unpacked array
+    input  axi_transaction_t         i_trans_table[MAX_TRANSACTIONS],
 
     // Timer inputs
     input  logic                     i_timer_tick,    // From frequency invariant timer
@@ -42,8 +42,8 @@ module axi_errmon_timeout
     output logic [MAX_TRANSACTIONS-1:0] o_timeout_detected   // Indicates which transactions had timeouts
 );
 
-    // Local copy of transaction table for modifications (flopped) - use packed array
-    axi_transaction_t [MAX_TRANSACTIONS-1:0] r_trans_table_local;
+    // Local copy of transaction table for modifications (flopped) - use unpacked array
+    axi_transaction_t r_trans_table_local[MAX_TRANSACTIONS];
 
     // Flag to track if timeouts have been detected for each transaction (flopped)
     logic [MAX_TRANSACTIONS-1:0] r_timeout_detected;

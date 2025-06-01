@@ -14,6 +14,7 @@
  * - Optional performance metrics tracking
  *
  * Updated with proper naming conventions: w_ for combo, r_ for flopped
+ * Fixed array declaration consistency for Verilator compatibility
  */
 module axi_errmon_base
 #(
@@ -107,7 +108,7 @@ module axi_errmon_base
     // Import standard errmon types and constants
     import axi_errmon_types::*;
 
-    // Transaction tracking table
+    // Transaction tracking table - Fixed: Use unpacked array consistently
     axi_transaction_t w_trans_table[MAX_TRANSACTIONS];
 
     // Transaction statistics (combinational)

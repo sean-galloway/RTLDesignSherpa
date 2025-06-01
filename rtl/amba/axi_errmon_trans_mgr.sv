@@ -11,7 +11,7 @@
  * Includes state change detection to support debug functionality.
  *
  * Updated with proper naming conventions: w_ for combo, r_ for flopped
- * Fixed for Verilator compatibility
+ * Fixed for Verilator compatibility and consistent array declarations
  */
 module axi_errmon_trans_mgr
     import axi_errmon_types::*;
@@ -57,17 +57,17 @@ module axi_errmon_trans_mgr
     // Timestamp input
     input  logic [31:0]              i_timestamp,
 
-    // Transaction table output - use packed array
-    output axi_transaction_t [MAX_TRANSACTIONS-1:0] o_trans_table,
+    // Transaction table output - Fixed: Use unpacked array
+    output axi_transaction_t         o_trans_table[MAX_TRANSACTIONS],
     output logic [7:0]               o_active_count,
 
     // State change detection (for debug module)
     output logic [MAX_TRANSACTIONS-1:0] o_state_change
 );
 
-    // Transaction table (flopped) - use packed array
-    axi_transaction_t [MAX_TRANSACTIONS-1:0] r_trans_table;
-    axi_transaction_t [MAX_TRANSACTIONS-1:0] r_trans_table_prev; // Previous state for change detection (flopped)
+    // Transaction table (flopped) - use unpacked array
+    axi_transaction_t r_trans_table[MAX_TRANSACTIONS];
+    axi_transaction_t r_trans_table_prev[MAX_TRANSACTIONS]; // Previous state for change detection (flopped)
     assign o_trans_table = r_trans_table;
 
     // Active transaction counter (flopped)
@@ -234,76 +234,57 @@ module axi_errmon_trans_mgr
             end
             r_active_count <= '0;
         end else begin
-            // Process address phase transactions
-            if (i_addr_valid && i_addr_ready) begin
-                if (w_addr_trans_idx < 0) begin
-                    // New transaction - create entry
-                    if (w_addr_free_idx >= 0) begin
-                        // Initialize new transaction
-                        r_trans_table[w_addr_free_idx].valid <= 1'b1;
-                        r_trans_table[w_addr_free_idx].state <= TRANS_ADDR_PHASE;
-                        r_trans_table[w_addr_free_idx].id <= '0;
-                        r_trans_table[w_addr_free_idx].id[IW-1:0] <= i_addr_id;
-                        r_trans_table[w_addr_free_idx].addr <= '0;
-                        r_trans_table[w_addr_free_idx].addr[AW-1:0] <= i_addr_addr;
-                        r_trans_table[w_addr_free_idx].len <= i_addr_len;
-                        r_trans_table[w_addr_free_idx].size <= i_addr_size;
-                        r_trans_table[w_addr_free_idx].burst <= i_addr_burst;
-                        r_trans_table[w_addr_free_idx].addr_received <= 1'b1;
-                        r_trans_table[w_addr_free_idx].data_started <= 1'b0;
-                        r_trans_table[w_addr_free_idx].data_completed <= 1'b0;
-                        r_trans_table[w_addr_free_idx].resp_received <= 1'b0;
-                        r_trans_table[w_addr_free_idx].error_code <= EVT_NONE;
-                        r_trans_table[w_addr_free_idx].event_reported <= 1'b0;
-                        r_trans_table[w_addr_free_idx].addr_timer <= '0;
-                        r_trans_table[w_addr_free_idx].data_timer <= '0;
-                        r_trans_table[w_addr_free_idx].resp_timer <= '0;
-                        r_trans_table[w_addr_free_idx].addr_timestamp <= i_timestamp;
-                        r_trans_table[w_addr_free_idx].expected_beats <= IS_AXI ? (i_addr_len + 8'h1) : 8'h1;
-                        r_trans_table[w_addr_free_idx].data_beat_count <= '0;
-                        r_trans_table[w_addr_free_idx].channel <= 6'(w_addr_chan_idx);
-
-                        // Increment active count
-                        r_active_count <= r_active_count + 1'b1;
-                    end
-                end else begin
-                    // Existing transaction - update address info
-                    // This can happen in AXI-Lite if data arrives first
-                    r_trans_table[w_addr_trans_idx].addr <= '0;
-                    r_trans_table[w_addr_trans_idx].addr[AW-1:0] <= i_addr_addr;
-
-                    if (IS_AXI) begin
-                        r_trans_table[w_addr_trans_idx].len <= i_addr_len;
-                        r_trans_table[w_addr_trans_idx].size <= i_addr_size;
-                        r_trans_table[w_addr_trans_idx].burst <= i_addr_burst;
-                        r_trans_table[w_addr_trans_idx].expected_beats <= i_addr_len + 1'b1;
-                    end else begin
-                        // AXI-Lite is always single beat
-                        r_trans_table[w_addr_trans_idx].len <= '0;
-                        r_trans_table[w_addr_trans_idx].size <= i_addr_size;
-                        r_trans_table[w_addr_trans_idx].burst <= 2'b01; // INCR
-                        r_trans_table[w_addr_trans_idx].expected_beats <= 8'h1;
-                    end
-
-                    r_trans_table[w_addr_trans_idx].addr_received <= 1'b1;
-                    r_trans_table[w_addr_trans_idx].addr_timestamp <= i_timestamp;
-                    r_trans_table[w_addr_trans_idx].channel <= 6'(w_addr_chan_idx);
-
-                    // Update state if not already in error
-                    if (r_trans_table[w_addr_trans_idx].state != TRANS_ERROR &&
-                        r_trans_table[w_addr_trans_idx].state != TRANS_ORPHANED) begin
-                        if (r_trans_table[w_addr_trans_idx].data_started) begin
-                            r_trans_table[w_addr_trans_idx].state <= TRANS_DATA_PHASE;
-                        end else begin
-                            r_trans_table[w_addr_trans_idx].state <= TRANS_ADDR_PHASE;
-                        end
-                    end
-
-                    // Reset addr timer
-                    r_trans_table[w_addr_trans_idx].addr_timer <= '0;
+            
+            // =====================================================================
+            // STEP 1: Create transaction when addr_valid asserted (before handshake)
+            // =====================================================================
+            if (i_addr_valid) begin
+                // Check if we need to create a new transaction
+                if (w_addr_trans_idx < 0 && w_addr_free_idx >= 0) begin
+                    // Create new transaction entry immediately when valid asserted
+                    r_trans_table[w_addr_free_idx].valid <= 1'b1;
+                    r_trans_table[w_addr_free_idx].state <= TRANS_ADDR_PHASE;
+                    r_trans_table[w_addr_free_idx].id <= '0;
+                    r_trans_table[w_addr_free_idx].id[IW-1:0] <= i_addr_id;
+                    r_trans_table[w_addr_free_idx].addr <= '0;
+                    r_trans_table[w_addr_free_idx].addr[AW-1:0] <= i_addr_addr;
+                    r_trans_table[w_addr_free_idx].len <= i_addr_len;
+                    r_trans_table[w_addr_free_idx].size <= i_addr_size;
+                    r_trans_table[w_addr_free_idx].burst <= i_addr_burst;
+                    
+                    // CRITICAL: Address NOT received yet, timer starts now
+                    r_trans_table[w_addr_free_idx].addr_received <= 1'b0;  // Not received until handshake
+                    r_trans_table[w_addr_free_idx].addr_timer <= '0;       // Start timer immediately
+                    
+                    r_trans_table[w_addr_free_idx].data_started <= 1'b0;
+                    r_trans_table[w_addr_free_idx].data_completed <= 1'b0;
+                    r_trans_table[w_addr_free_idx].resp_received <= 1'b0;
+                    r_trans_table[w_addr_free_idx].error_code <= EVT_NONE;
+                    r_trans_table[w_addr_free_idx].event_reported <= 1'b0;
+                    r_trans_table[w_addr_free_idx].data_timer <= '0;
+                    r_trans_table[w_addr_free_idx].resp_timer <= '0;
+                    r_trans_table[w_addr_free_idx].addr_timestamp <= i_timestamp;
+                    r_trans_table[w_addr_free_idx].expected_beats <= IS_AXI ? (i_addr_len + 8'h1) : 8'h1;
+                    r_trans_table[w_addr_free_idx].data_beat_count <= '0;
+                    r_trans_table[w_addr_free_idx].channel <= 6'(w_addr_chan_idx);
+    
+                    // Increment active count
+                    r_active_count <= r_active_count + 1'b1;
                 end
             end
-
+    
+            // =====================================================================
+            // STEP 2: Mark address received when handshake completes
+            // =====================================================================
+            if (i_addr_valid && i_addr_ready) begin
+                if (w_addr_trans_idx >= 0) begin
+                    // Mark address phase as complete
+                    r_trans_table[w_addr_trans_idx].addr_received <= 1'b1;
+                    r_trans_table[w_addr_trans_idx].addr_timer <= '0;  // Stop/clear timer
+                    r_trans_table[w_addr_trans_idx].addr_timestamp <= i_timestamp;
+                end
+            end
+    
             // Clean up completed transactions
             for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
                 if (r_trans_table[idx].valid && w_can_cleanup[idx]) begin
@@ -508,3 +489,4 @@ module axi_errmon_trans_mgr
     endgenerate
 
 endmodule : axi_errmon_trans_mgr
+                

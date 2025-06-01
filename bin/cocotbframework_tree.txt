@@ -59,7 +59,8 @@ CocoTBFramework
 │   └── wavedrom_utils
 │       ├── __init__.py
 │       ├── constraint_solver.py
-│       └── utility.py
+│       ├── utility.py
+│       └── wavejson_gen.py
 ├── scoreboards
 │   ├── __init__.py
 │   ├── apb_gaxi_scoreboard.py
@@ -76,6 +77,9 @@ CocoTBFramework
     ├── intrbus.py
     ├── tbbase.py
     ├── utilities.py
+    ├── amba
+    │   ├── __init__.py
+    │   └── amba_random_configs.py
     ├── apb
     │   ├── apb_command_handler.py
     │   └── register_map.py
