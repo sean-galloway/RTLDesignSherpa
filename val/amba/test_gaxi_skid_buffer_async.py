@@ -40,7 +40,7 @@ async def fifo_test(dut):
 
 def generate_test_params():
     widths = [8]
-    depths = [4]
+    depths = [4, 6]
     modes = ["fifo_mux", "fifo_flop"]
     clk_pairs = [(10, 15), (15, 10)]  # Clock write/read variations
 

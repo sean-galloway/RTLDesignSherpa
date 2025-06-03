@@ -1,19 +1,21 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Sat May 31 22:52:47 2025
+[*] Mon Jun  2 17:27:44 2025
 [*]
 [dumpfile] "/home/seang/github/RTLDesignSherpa/val/amba/local_sim_build/test_apb_slave_cdc_aw032_dw032_d002/dump.fst"
-[dumpfile_mtime] "Sat May 31 22:37:29 2025"
-[dumpfile_size] 54802
+[dumpfile_mtime] "Mon Jun  2 17:21:00 2025"
+[dumpfile_size] 3091
 [savefile] "/home/seang/github/RTLDesignSherpa/val/amba/GTKW/apb_slave_cdc.gtkw"
 [timestart] 0
-[size] 3142 1579
+[size] 2380 1639
 [pos] -1 -1
-*-17.847876 250000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-17.358009 270200 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .apb_slave_cdc.
 [sst_width] 280
 [signals_width] 275
 [sst_expanded] 1
-[sst_vpaned_height] 312
+[sst_vpaned_height] 975
 @200
 -clocks and resets
 @28
@@ -21,7 +23,7 @@ pclk
 presetn
 @100000028
 aclk
-@29
+@28
 aresetn
 @200
 -APB Interface
@@ -38,6 +40,16 @@ s_apb_PSTRB[3:0]
 s_apb_PPROT[2:0]
 @22
 s_apb_PRDATA[31:0]
+@200
+-apb internals
+@100000028
+apb_slave_cdc.u_apb_slave.r_apb_state[2:0]
+@28
+apb_slave_cdc.u_apb_slave.r_cmd_valid
+apb_slave_cdc.u_apb_slave.r_cmd_ready
+apb_slave_cdc.u_apb_slave.r_rsp_valid
+@29
+apb_slave_cdc.u_apb_slave.r_rsp_ready
 @200
 -cmd interface
 @28
@@ -59,5 +71,30 @@ o_rsp_ready
 i_rsp_prdata[31:0]
 @28
 i_rsp_pslverr
+@200
+-cmd cdc
+@28
+apb_slave_cdc.u_cmd_cdc_handshake.clk_dst
+apb_slave_cdc.u_cmd_cdc_handshake.r_ack_dst
+apb_slave_cdc.u_cmd_cdc_handshake.valid_src
+apb_slave_cdc.u_cmd_cdc_handshake.ready_src
+@100000028
+apb_slave_cdc.u_cmd_cdc_handshake.r_src_state[1:0]
+apb_slave_cdc.u_cmd_cdc_handshake.r_dst_state[1:0]
+@28
+apb_slave_cdc.u_cmd_cdc_handshake.ready_dst
+apb_slave_cdc.u_cmd_cdc_handshake.valid_dst
+@200
+-rsp cdc
+@28
+apb_slave_cdc.u_rsp_cdc_handshake.valid_src
+apb_slave_cdc.u_rsp_cdc_handshake.ready_src
+@100000028
+apb_slave_cdc.u_rsp_cdc_handshake.r_src_state[1:0]
+@28
+apb_slave_cdc.u_rsp_cdc_handshake.valid_dst
+apb_slave_cdc.u_rsp_cdc_handshake.ready_dst
+@100000028
+apb_slave_cdc.u_rsp_cdc_handshake.r_dst_state[1:0]
 [pattern_trace] 1
 [pattern_trace] 0

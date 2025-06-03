@@ -140,11 +140,11 @@ class GAXIMaster(BusDriver):
         # Set up enhanced memory model integration
         self.memory_model = memory_model
         self.memory_fields = memory_fields or gaxi_memory_fields
-        
+
         # Initialize parent class
         BusDriver.__init__(self, dut, prefix, clock, **kwargs)
         self.log = log or self._log
-        
+
         # Create enhanced memory integration if memory model is provided
         if self.memory_model:
             self.memory_integration = EnhancedMemoryIntegration(
@@ -248,7 +248,7 @@ class GAXIMaster(BusDriver):
             else:
                 # Fallback for dictionary-based field config
                 default_value = self.field_config[field_name].get('default', 0)
-                
+
             getattr(self.bus, dut_signal_name).setimmediatevalue(default_value)
         elif required:
             # Signal is required but not found
@@ -299,7 +299,7 @@ class GAXIMaster(BusDriver):
         elif not self.memory_fields:
             # Set default mapping if not already set
             self.memory_fields = gaxi_memory_fields
-            
+
         # Update or create memory integration
         if self.memory_model:
             self.memory_integration = EnhancedMemoryIntegration(
@@ -364,7 +364,7 @@ class GAXIMaster(BusDriver):
         await self.send(transaction)
         while self.transfer_busy:
             await RisingEdge(self.clock)
-        await Timer(self.tick_delay, units=self.tick_units)
+        # await Timer(self.tick_delay, units=self.tick_units)
 
     async def _driver_send(self, transaction, sync=True, hold=False, **kwargs):
         """
@@ -393,11 +393,11 @@ class GAXIMaster(BusDriver):
     def _check_field_value(self, field_name, field_value):
         """
         Check if a field value exceeds the maximum possible value for the field.
-        
+
         Args:
             field_name: Name of the field to check
             field_value: Value to check against field width
-            
+
         Returns:
             field_value: The original value if within range, or the masked value if not
         """
@@ -534,7 +534,7 @@ class GAXIMaster(BusDriver):
         # Assert valid for this transaction
         self._assign_valid_value(value=1)
         # wait a bit to keep from catching the last ready assertion
-        await Timer(100, units='ps')
+        # await Timer(100, units='ps')
 
         # Wait for the DUT to assert ready (handshake completion)
         timeout_counter = 0
@@ -542,7 +542,7 @@ class GAXIMaster(BusDriver):
 
         while not getattr(self.bus, ready_signal).value:
             await RisingEdge(self.clock)
-            await Timer(self.tick_delay, units=self.tick_units)
+            # await Timer(self.tick_delay, units=self.tick_units)
             timeout_counter += 1
             if timeout_counter >= self.timeout_cycles:
                 self.log.error(f"Master({self.title}) TIMEOUT waiting for ready after {self.timeout_cycles} cycles")
@@ -562,7 +562,7 @@ class GAXIMaster(BusDriver):
         """Third phase - capture handshake and prepare for next transaction"""
         # Handshake occurred – capture completion time
         await RisingEdge(self.clock)
-        await Timer(self.tick_delay, units=self.tick_units)
+        # await Timer(self.tick_delay, units=self.tick_units)
         current_time_ns = get_sim_time('ns')
         self.log.debug(f"Master({self.title}) Transaction completed at {current_time_ns}ns: "
                         f"{transaction.formatted(compact=True)}")
@@ -580,7 +580,7 @@ class GAXIMaster(BusDriver):
         self.log.debug(f'Master({self.title}): Transmit pipeline started, queue length: {len(self.transmit_queue)}')
         self.transfer_busy = True
         await RisingEdge(self.clock)
-        await Timer(self.tick_delay, units=self.tick_units)
+        # await Timer(self.tick_delay, units=self.tick_units)
 
         while len(self.transmit_queue):
             # Get next transaction from the queue
@@ -632,12 +632,12 @@ class GAXIMaster(BusDriver):
             await RisingEdge(self.clock)
             if self.reset_occurring:
                 break
-        await Timer(self.tick_delay, units=self.tick_units)
-        
+        # await Timer(self.tick_delay, units=self.tick_units)
+
     def get_memory_stats(self):
         """
         Get memory operation statistics.
-        
+
         Returns:
             Dictionary with memory statistics, or None if no memory model available
         """

@@ -15,6 +15,7 @@ from CocoTBFramework.components.apb.apb_factories import \
     create_apb_master, create_apb_monitor, create_apb_scoreboard
 from CocoTBFramework.components.gaxi.gaxi_factories import \
     create_gaxi_master, create_gaxi_slave, create_gaxi_monitor
+from CocoTBFramework.tbclasses.apb.apbgaxiconfig import APBGAXIConfig
 from CocoTBFramework.tbclasses.gaxi.gaxi_enhancements import GAXICommandHandler_APBSlave
 from CocoTBFramework.scoreboards.apb_gaxi_scoreboard import APBGAXIScoreboard
 from CocoTBFramework.tbclasses.tbbase import TBBase
@@ -86,51 +87,13 @@ class APBSlaveTB(TBBase):
         )
 
         # Configure GAXI components for command interface
-        self.cmd_signal_map = {
-            'm2s_valid': 'o_cmd_valid',
-            's2m_ready': 'i_cmd_ready'
-        }
-        self.cmd_optional_signal_map = {
-            'm2s_pkt_cmd': 'o_cmd_pwrite',
-            'm2s_pkt_addr': 'o_cmd_paddr',
-            'm2s_pkt_data': 'o_cmd_pwdata',
-            'm2s_pkt_strb': 'o_cmd_pstrb'
-        }
-        
-        self.cmd_field_config = {
-            'cmd': {
-                'bits': 1,
-                'default': 0,
-                'format': 'bin',
-                'display_width': 1,
-                'active_bits': (0, 0),
-                'description': 'Command (0=Read, 1=Write)'
-            },
-            'addr': {
-                'bits': self.ADDR_WIDTH,
-                'default': 0,
-                'format': 'hex',
-                'display_width': 8,
-                'active_bits': (self.ADDR_WIDTH-1, 0),
-                'description': 'Address'
-            },
-            'data': {
-                'bits': self.DATA_WIDTH,
-                'default': 0,
-                'format': 'hex',
-                'display_width': 8,
-                'active_bits': (self.DATA_WIDTH-1, 0),
-                'description': 'Data'
-            },
-            'strb': {
-                'bits': self.STRB_WIDTH,
-                'default': 0xF,
-                'format': 'bin',
-                'display_width': 4,
-                'active_bits': (self.STRB_WIDTH-1, 0),
-                'description': 'Byte strobe'
-            },
-        }
+        self.apbgaxiconfig = APBGAXIConfig(
+            addr_width=self.ADDR_WIDTH,
+            data_width=self.DATA_WIDTH,
+            strb_width=self.STRB_WIDTH
+        )
+        self.cmd_signal_maps = self.apbgaxiconfig.get_master_cmd_signal_maps()
+        self.cmd_field_config = self.apbgaxiconfig.create_cmd_field_config()
 
         self.cmd_monitor = create_gaxi_monitor(
             dut,
@@ -141,8 +104,8 @@ class APBSlaveTB(TBBase):
             is_slave=False,  # Monitoring master-side signals
             log=self.log,
             multi_sig=True,  # Using separate signals
-            signal_map=self.cmd_signal_map,
-            optional_signal_map=self.cmd_optional_signal_map
+            signal_map=self.cmd_signal_maps['ctl'],
+            optional_signal_map=self.cmd_signal_maps['opt']
         )
 
         self.cmd_slave = create_gaxi_slave(
@@ -155,39 +118,13 @@ class APBSlaveTB(TBBase):
             memory_model=self.mem,
             log=self.log,
             multi_sig=True,  # Using separate signals
-            signal_map=self.cmd_signal_map,
-            optional_signal_map=self.cmd_optional_signal_map
+            signal_map=self.cmd_signal_maps['ctl'],
+            optional_signal_map=self.cmd_signal_maps['opt']
         )
 
         # Configure GAXI components for response interface
-        self.rsp_signal_map = {
-            'm2s_valid': 'i_rsp_valid',
-            's2m_ready': 'o_rsp_ready'
-        }
-        self.rsp_optional_signal_map = {
-            'm2s_pkt_data': 'i_rsp_prdata',
-            'm2s_pkt_err': 'i_rsp_pslverr'
-        }
-
-        # Use field config
-        self.rsp_field_config = {
-            'data': {
-                'bits': self.DATA_WIDTH,
-                'default': 0,
-                'format': 'hex',
-                'display_width': 8,
-                'active_bits': (self.DATA_WIDTH-1, 0),
-                'description': 'Data'
-            },
-            'err': {
-                'bits': 1,
-                'default': 0,
-                'format': 'bin',
-                'display_width': 1,
-                'active_bits': (0, 0),
-                'description': 'Error flag'
-            }
-        }
+        self.rsp_signal_maps = self.apbgaxiconfig.get_slave_rsp_signal_maps()
+        self.rsp_field_config = self.apbgaxiconfig.create_rsp_field_config()
 
         self.rsp_monitor = create_gaxi_monitor(
             dut,
@@ -198,8 +135,8 @@ class APBSlaveTB(TBBase):
             is_slave=True,  # Monitoring slave-side signals
             log=self.log,
             multi_sig=True,  # Using separate signals
-            signal_map=self.rsp_signal_map,
-            optional_signal_map=self.rsp_optional_signal_map
+            signal_map=self.rsp_signal_maps['ctl'],
+            optional_signal_map=self.rsp_signal_maps['opt']
         )
 
         self.rsp_master = create_gaxi_master(
@@ -211,8 +148,8 @@ class APBSlaveTB(TBBase):
             randomizer=FlexRandomizer(AXI_RANDOMIZER_CONFIGS['fixed']['master']),
             log=self.log,
             multi_sig=True,  # Using separate signals
-            signal_map=self.rsp_signal_map,
-            optional_signal_map=self.rsp_optional_signal_map
+            signal_map=self.rsp_signal_maps['ctl'],
+            optional_signal_map=self.rsp_signal_maps['opt']
         )
 
         # Create command handler to connect cmd and response interfaces

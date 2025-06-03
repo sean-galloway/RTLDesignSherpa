@@ -33,8 +33,8 @@ async def skid_buffer_test(dut):
 
 def generate_width_depth_mode_params():
     widths = [8]
-    # depths = [2, 4, 6, 8, 10]
-    depths = [4]
+    depths = [2, 4, 6, 8, 10]
+    # depths = [4]
     modes = ['skid']
     return list(product(widths, depths, modes))
 

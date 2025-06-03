@@ -160,22 +160,14 @@ module cdc_handshake #(
             case (r_dst_state)
                 D_IDLE: begin
                     r_ack_dst <= 1'b0;
-                    if (w_req_sync) begin  // New request arrived from source domain
-                        r_data_dst   <= r_async_data;  // Latch the data immediately
-                        valid_dst    <= 1'b1;          // Assert valid_dst immediately
-                        if (ready_dst) begin
-                            // Destination is already ready to accept data
-                            r_ack_dst    <= 1'b1;          // Send acknowledge back to source
-                            r_dst_state  <= D_WAIT_REQ_CLR;
-                        end else begin
-                            // Receiver not ready yet, wait for ready_dst
-                            r_dst_state  <= D_WAIT_READY;
-                        end
+                    if (w_req_sync) begin  
+                        r_data_dst   <= r_async_data;  
+                        valid_dst    <= 1'b1;          
+                        r_dst_state  <= D_WAIT_READY;      // Always go to WAIT_READY first
                     end else begin
-                        valid_dst <= 1'b0;  // No valid request, no valid data
+                        valid_dst <= 1'b0;  
                     end
                 end
-
                 D_WAIT_READY: begin
                     // Keep valid_dst high while waiting for ready_dst
                     valid_dst <= 1'b1;

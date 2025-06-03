@@ -35,13 +35,19 @@ async def cdc_handshake_test(dut):
         tb.log.info("=== Test 1: Basic alternating reads/writes ===")
         basic_result = await tb.run_basic_test(num_transactions=10)
 
-        # Test 2: Burst transactions
-        tb.log.info("=== Test 2: Burst transactions ===")
-        burst_result = await tb.run_burst_test(num_transactions=20)
+        if tb.TEST_LEVEL != 'basic':
+            # Test 2: Burst transactions
+            tb.log.info("=== Test 2: Burst transactions ===")
+            burst_result = await tb.run_burst_test(num_transactions=20)
+        else:
+            burst_result = True
 
-        # Test 3: Random transactions
-        tb.log.info("=== Test 3: Random transactions ===")
-        random_result = await tb.run_random_test(num_transactions=30)
+        if tb.TEST_LEVEL == 'full':
+            # Test 3: Random transactions
+            tb.log.info("=== Test 3: Random transactions ===")
+            random_result = await tb.run_random_test(num_transactions=30)
+        else:
+            random_result = True
 
         # Allow some additional time for any pending transactions
         await tb.wait_clocks('clk_src', 50)
@@ -52,8 +58,10 @@ async def cdc_handshake_test(dut):
         else:
             tb.log.error("Some tests failed:")
             tb.log.error(f"  Basic test: {'PASS' if basic_result else 'FAIL'}")
-            tb.log.error(f"  Burst test: {'PASS' if burst_result else 'FAIL'}")
-            tb.log.error(f"  Random test: {'PASS' if random_result else 'FAIL'}")
+            if tb.TEST_LEVEL != 'basic':
+                tb.log.error(f"  Burst test: {'PASS' if burst_result else 'FAIL'}")
+            if tb.TEST_LEVEL == 'full':
+                tb.log.error(f"  Random test: {'PASS' if random_result else 'FAIL'}")
             assert False, "Test failures detected"
 
     finally:
@@ -67,18 +75,18 @@ async def cdc_handshake_test(dut):
 @pytest.mark.parametrize("params", [
 
     # clk_src slower than clk_dst
-    {'clk_src_period_ns':  15, 'clk_dst_period_ns': 10, 'test_level': 'full'}, # 'basic', 'medium', 'full'
-    # {'clk_src_period_ns':  20, 'clk_dst_period_ns': 10, 'test_level': 'full'},
-    # {'clk_src_period_ns':  50, 'clk_dst_period_ns': 10, 'test_level': 'full'},
-    # {'clk_src_period_ns': 100, 'clk_dst_period_ns': 10, 'test_level': 'full'},
-    # {'clk_src_period_ns': 200, 'clk_dst_period_ns': 10, 'test_level': 'full'},
+    {'clk_src_period_ns':  15, 'clk_dst_period_ns': 10, 'test_level': 'basic'}, # 'basic', 'medium', 'full'
+    {'clk_src_period_ns':  20, 'clk_dst_period_ns': 10, 'test_level': 'basic'},
+    {'clk_src_period_ns':  50, 'clk_dst_period_ns': 10, 'test_level': 'basic'},
+    {'clk_src_period_ns': 100, 'clk_dst_period_ns': 10, 'test_level': 'basic'},
+    {'clk_src_period_ns': 200, 'clk_dst_period_ns': 10, 'test_level': 'basic'},
 
-    # # # clk_src faster than clk_dst
-    # {'clk_src_period_ns': 10, 'clk_dst_period_ns':  15, 'test_level': 'full'},
-    # {'clk_src_period_ns': 10, 'clk_dst_period_ns':  20, 'test_level': 'full'},
-    # {'clk_src_period_ns': 10, 'clk_dst_period_ns':  50, 'test_level': 'full'},
-    # {'clk_src_period_ns': 10, 'clk_dst_period_ns': 100, 'test_level': 'full'},
-    # {'clk_src_period_ns': 10, 'clk_dst_period_ns': 200, 'test_level': 'full'},
+    # clk_src faster than clk_dst
+    {'clk_src_period_ns': 10, 'clk_dst_period_ns':  15, 'test_level': 'basic'},
+    {'clk_src_period_ns': 10, 'clk_dst_period_ns':  20, 'test_level': 'basic'},
+    {'clk_src_period_ns': 10, 'clk_dst_period_ns':  50, 'test_level': 'basic'},
+    {'clk_src_period_ns': 10, 'clk_dst_period_ns': 100, 'test_level': 'basic'},
+    {'clk_src_period_ns': 10, 'clk_dst_period_ns': 200, 'test_level': 'basic'},
 
 ])
 def test_cdc_handshake(request, params):
@@ -134,6 +142,7 @@ def test_cdc_handshake(request, params):
         'SEED': str(0x434749),
         'TEST_ADDR_WIDTH': aw_str,
         'TEST_DATA_WIDTH': dw_str,
+        'TEST_LEVLE': str(params['test_level']),
         'clk_src_PERIOD_NS': str(params['clk_src_period_ns']),
         'clk_dst_PERIOD_NS': str(params['clk_dst_period_ns'])
     }

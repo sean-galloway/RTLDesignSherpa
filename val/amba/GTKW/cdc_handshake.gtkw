@@ -1,54 +1,45 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Sat Mar 29 02:22:11 2025
+[*] Mon Jun  2 18:49:10 2025
 [*]
-[dumpfile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/local_sim_build/test_cdc_handshake_clka50_clkb10_basic/cdc_handshake.fst"
-[dumpfile_mtime] "Sat Mar 29 02:13:18 2025"
-[dumpfile_size] 1707
-[savefile] "/home/sean/github/RTLDesignSherpa/val/unit_axi/GTKW/cdc_handshake.gtkw"
-[timestart] 0
-[size] 2195 1293
-[pos] -1 -1
-*-19.532545 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[dumpfile] "/home/seang/github/RTLDesignSherpa/val/amba/local_sim_build/test_cdc_handshake_clk_src15_clk_dst10_cdc_handshake_full/dump.fst"
+[dumpfile_mtime] "Mon Jun  2 18:30:26 2025"
+[dumpfile_size] 3700
+[savefile] "/home/seang/github/RTLDesignSherpa/val/amba/GTKW/cdc_handshake.gtkw"
+[timestart] 785000
+[size] 2824 1207
+[pos] 1 7
+*-15.532545 915000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
 [sst_width] 278
 [signals_width] 334
 [sst_expanded] 1
 [sst_vpaned_height] 398
-@28
-cdc_handshake.clka
-cdc_handshake.rsta_n
-cdc_handshake.clkb
-cdc_handshake.rstb_n
 @200
--a interface
+-SRC interface
 @28
-cdc_handshake.valid_a
-cdc_handshake.ready_a
+cdc_handshake.clk_src
+cdc_handshake.rst_src_n
+cdc_handshake.valid_src
+cdc_handshake.ready_src
 @22
-cdc_handshake.data_a[7:0]
-@200
--b interface
-@28
-cdc_handshake.valid_b
-cdc_handshake.ready_b
-@22
-cdc_handshake.r_data_b[7:0]
-@200
--a internals
-@28
+cdc_handshake.data_src[71:0]
+@100000028
 cdc_handshake.r_src_state[1:0]
-@22
-cdc_handshake.r_async_data[7:0]
 @28
-cdc_handshake.r_req_a
-cdc_handshake.r_req_sync[2:0]
+cdc_handshake.r_req_src
 @200
--b internals
+-DST interface
 @28
+cdc_handshake.clk_dst
+cdc_handshake.rst_dst_n
+cdc_handshake.valid_dst
+cdc_handshake.ready_dst
+@22
+cdc_handshake.data_dst[71:0]
+@100000028
 cdc_handshake.r_dst_state[1:0]
-cdc_handshake.r_ack_b
-cdc_handshake.r_ack_sync[2:0]
 @29
-cdc_handshake.w_ack_sync
+cdc_handshake.r_ack_dst
 [pattern_trace] 1
 [pattern_trace] 0

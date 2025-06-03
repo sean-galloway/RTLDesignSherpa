@@ -15,6 +15,7 @@ from CocoTBFramework.components.apb.apb_factories import \
     create_apb_master, create_apb_monitor, create_apb_scoreboard
 from CocoTBFramework.components.gaxi.gaxi_factories import \
     create_gaxi_master, create_gaxi_slave, create_gaxi_monitor
+from CocoTBFramework.tbclasses.apb.apbgaxiconfig import APBGAXIConfig
 from CocoTBFramework.tbclasses.gaxi.gaxi_enhancements import GAXICommandHandler_APBSlave
 from CocoTBFramework.scoreboards.apb_gaxi_scoreboard import APBGAXIScoreboard
 from CocoTBFramework.tbclasses.tbbase import TBBase
@@ -62,58 +63,14 @@ class APBSlaveTB(TBBase):
         )
 
         # Create APB scoreboard
-        self.apb_scoreboard = create_apb_scoreboard(
-            'APB Scoreboard',
+        self.apbgaxiconfig = APBGAXIConfig(
             addr_width=self.ADDR_WIDTH,
             data_width=self.DATA_WIDTH,
-            log=self.log
+            strb_width=self.STRB_WIDTH
         )
+        self.cmd_signal_maps = self.apbgaxiconfig.get_master_cmd_signal_maps()
+        self.cmd_field_config = self.apbgaxiconfig.create_cmd_field_config()
 
-        # Configure GAXI components for command interface
-        self.cmd_signal_map = {
-            'm2s_valid': 'o_cmd_valid',
-            's2m_ready': 'i_cmd_ready'
-        }
-        self.cmd_optional_signal_map = {
-            'm2s_pkt_cmd': 'o_cmd_pwrite',
-            'm2s_pkt_addr': 'o_cmd_paddr',
-            'm2s_pkt_data': 'o_cmd_pwdata',
-            'm2s_pkt_strb': 'o_cmd_pstrb'
-        }
-        self.cmd_field_config = {
-            'cmd': {
-                'bits': 1,
-                'default': 0,
-                'format': 'bin',
-                'display_width': 1,
-                'active_bits': (0, 0),
-                'description': 'Command (0=Read, 1=Write)'
-            },
-            'addr': {
-                'bits': self.ADDR_WIDTH,
-                'default': 0,
-                'format': 'hex',
-                'display_width': 8,
-                'active_bits': (self.ADDR_WIDTH-1, 0),
-                'description': 'Address'
-            },
-            'data': {
-                'bits': self.DATA_WIDTH,
-                'default': 0,
-                'format': 'hex',
-                'display_width': 8,
-                'active_bits': (self.DATA_WIDTH-1, 0),
-                'description': 'Data'
-            },
-            'strb': {
-                'bits': self.STRB_WIDTH,
-                'default': 0xF,
-                'format': 'bin',
-                'display_width': 4,
-                'active_bits': (self.STRB_WIDTH-1, 0),
-                'description': 'Byte strobe'
-            },
-        }
 
         self.cmd_monitor = create_gaxi_monitor(
             dut,
@@ -124,8 +81,8 @@ class APBSlaveTB(TBBase):
             is_slave=False,  # Monitoring master-side signals
             log=self.log,
             multi_sig=True,  # Using separate signals
-            signal_map=self.cmd_signal_map,
-            optional_signal_map=self.cmd_optional_signal_map
+            signal_map=self.cmd_signal_maps['ctl'],
+            optional_signal_map=self.cmd_signal_maps['opt']
         )
 
         self.cmd_slave = create_gaxi_slave(
@@ -138,63 +95,38 @@ class APBSlaveTB(TBBase):
             memory_model=self.mem,
             log=self.log,
             multi_sig=True,  # Using separate signals
-            signal_map=self.cmd_signal_map,
-            optional_signal_map=self.cmd_optional_signal_map
+            signal_map=self.cmd_signal_maps['ctl'],
+            optional_signal_map=self.cmd_signal_maps['opt']
         )
 
         # Configure GAXI components for response interface
-        self.rsp_signal_map = {
-            'm2s_valid': 'i_rsp_valid',
-            's2m_ready': 'o_rsp_ready'
-        }
-        self.rsp_optional_signal_map = {
-            'm2s_pkt_data': 'i_rsp_prdata',
-            'm2s_pkt_err': 'i_rsp_pslverr'
-        }
-
-        self.rsp_field_config = {
-            'data': {
-                'bits': self.DATA_WIDTH,
-                'default': 0,
-                'format': 'hex',
-                'display_width': 8,
-                'active_bits': (self.DATA_WIDTH-1, 0),
-                'description': 'Data'
-            },
-            'err': {
-                'bits': 1,
-                'default': 0,
-                'format': 'bin',
-                'display_width': 1,
-                'active_bits': (0, 0),
-                'description': 'Error flag'
-            }
-        }
+        self.rsp_signal_maps = self.apbgaxiconfig.get_slave_rsp_signal_maps()
+        self.rsp_field_config = self.apbgaxiconfig.create_rsp_field_config()
 
         self.rsp_monitor = create_gaxi_monitor(
             dut,
             'RSP Monitor',
             '',  # No prefix as we're using signal map
-            dut.aclk,
+            dut.pclk,
             field_config=self.rsp_field_config,
             is_slave=True,  # Monitoring slave-side signals
             log=self.log,
             multi_sig=True,  # Using separate signals
-            signal_map=self.rsp_signal_map,
-            optional_signal_map=self.rsp_optional_signal_map
+            signal_map=self.rsp_signal_maps['ctl'],
+            optional_signal_map=self.rsp_signal_maps['opt']
         )
 
         self.rsp_master = create_gaxi_master(
             dut,
             'RSP Master',
             '',  # No prefix as we're using signal map
-            dut.aclk,
+            dut.pclk,
             field_config=self.rsp_field_config,
             randomizer=FlexRandomizer(AXI_RANDOMIZER_CONFIGS['fixed']['master']),
             log=self.log,
             multi_sig=True,  # Using separate signals
-            signal_map=self.rsp_signal_map,
-            optional_signal_map=self.rsp_optional_signal_map
+            signal_map=self.rsp_signal_maps['ctl'],
+            optional_signal_map=self.rsp_signal_maps['opt']
         )
 
         # Create command handler to connect cmd and response interfaces
@@ -279,7 +211,7 @@ class APBSlaveTB(TBBase):
         else:
             msg = f"Unknown queue type for object {object_with_queue.__class__.__name__}"
             self.log.error(msg)
-            return
+            return True
 
         queue = getattr(object_with_queue, queue_attr)
 
@@ -290,8 +222,10 @@ class APBSlaveTB(TBBase):
             # Check for timeout
             if current_time - start_time > timeout:
                 msg = f"Timeout waiting for queue to be empty after {timeout}ns"
-                self.log.warning(msg)
-                break
+                self.log.error(msg)
+                return False
+
+        return True
 
     async def send_apb_transaction(self, is_write, addr, data=None, strobe=None):
         """Send an APB transaction through the APB master"""
@@ -330,7 +264,7 @@ class APBSlaveTB(TBBase):
         await self.apb_master.send(xmit_transaction)
 
         # Wait for the master's queue to be empty
-        await self.wait_for_queue_empty(self.apb_master, timeout=10000)
+        status = await self.wait_for_queue_empty(self.apb_master, timeout=10000)
 
         # Wait a few cycles for the scoreboard to process everything
         await self.wait_clocks('pclk', 5)
@@ -342,7 +276,7 @@ class APBSlaveTB(TBBase):
             self.log.info(f"Expected read value from memory: 0x{expected:08X}")
 
         # Return the transaction for reference
-        return xmit_transaction
+        return xmit_transaction, status
 
     async def run_apb_test(self, config: APBSequence, num_transactions: int = None):
         """
@@ -386,14 +320,16 @@ class APBSlaveTB(TBBase):
                     strobe = config.next_strb()
 
                     # Execute write transaction
-                    result = await self.send_apb_transaction(True, addr, data, strobe)
+                    result, status = await self.send_apb_transaction(True, addr, data, strobe)
 
                 else:
                     # Execute read transaction
-                    result = await self.send_apb_transaction(False, addr)
+                    result, status = await self.send_apb_transaction(False, addr)
 
                 # Store result
                 results.append(result)
+                if status is False:
+                    break
 
                 # Add delay between transactions if not the last one
                 if i < num_transactions - 1:
@@ -406,7 +342,7 @@ class APBSlaveTB(TBBase):
             if save_randomizer:
                 self.apb_master.set_randomizer(FlexRandomizer(APB_MASTER_RANDOMIZER_CONFIGS['fixed']))
 
-        return results
+        return results, status
 
     async def verify_scoreboard(self, timeout=1000):
         """Verify scoreboard for unmatched transactions"""
@@ -616,25 +552,27 @@ async def apb_slave_test(dut):
         print('# Test 1: Basic transfers with scoreboard verification')
         tb.log.info("=== Test 1: Basic transfers with scoreboard verification ===")
         config = tb._create_basic_seq()
-        await tb.run_apb_test(config)
+        _, status = await tb.run_apb_test(config)
+        if status is False:
+            raise Exception("Test failed")
         await tb.verify_scoreboard()
 
         print('# Test 2: Burst transfers with scoreboard verification')
         tb.log.info("=== Test 2: Burst transfers with scoreboard verification ===")
         config = tb._create_burst_seq()
-        await tb.run_apb_test(config)
+        _, status = await tb.run_apb_test(config)
         await tb.verify_scoreboard()
 
         print('# Test 3: Strobe functionality with scoreboard verification')
         tb.log.info("=== Test 3: Strobe functionality with scoreboard verification ===")
         config = tb._create_strobe_seq()
-        await tb.run_apb_test(config)
+        _, status = await tb.run_apb_test(config)
         await tb.verify_scoreboard()
 
         print('# Test 4: Stress test with scoreboard verification')
         tb.log.info("=== Test 4: Stress test with scoreboard verification ===")
         config = tb._create_stress_seq(100)
-        await tb.run_apb_test(config, 100)
+        _, status = await tb.run_apb_test(config, 100)
         await tb.verify_scoreboard()
 
         await tb.wait_clocks('pclk', 50)

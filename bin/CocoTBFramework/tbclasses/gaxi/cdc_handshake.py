@@ -16,6 +16,64 @@ from CocoTBFramework.components.gaxi.gaxi_factories import (
     create_gaxi_master, create_gaxi_slave, create_gaxi_monitor
 )
 
+RANDOMIZER_CONFIGS = {
+    'fixed': {
+        'write': {
+            'valid_delay': ([(2, 2)], [1])
+        },
+        'read': {
+            'ready_delay': ([(2, 2)], [1])
+        }
+    },
+    'constrained': {
+        'write': {
+            'valid_delay': ([(0, 0), (1, 8), (9, 20)], [5, 2, 1])
+        },
+        'read': {
+            'ready_delay': ([(0, 1), (2, 8), (9, 30)], [5, 2, 1])
+        }
+    },
+    'fast': {
+        'write': {
+            'valid_delay': ([(0, 0), (1, 8), (9, 20)], [5, 0, 0])
+        },
+        'read': {
+            'ready_delay': ([(0, 0), (1, 8), (9, 30)], [5, 0, 0])
+        }
+    },
+    'backtoback': {
+        'write': {
+            'valid_delay': ([(0, 0)], [1])
+        },
+        'read': {
+            'ready_delay': ([(0, 0)], [1])
+        }
+    },
+    'burst_pause': {
+        'write': {
+            'valid_delay': ([(0, 0), (15, 25)], [10, 1])
+        },
+        'read': {
+            'ready_delay': ([(0, 0), (1, 5)], [10, 1])
+        }
+    },
+    'slow_consumer': {
+        'write': {
+            'valid_delay': ([(0, 0)], [1])
+        },
+        'read': {
+            'ready_delay': ([(10, 20)], [1])
+        }
+    },
+    'slow_producer': {
+        'write': {
+            'valid_delay': ([(10, 20)], [1])
+        },
+        'read': {
+            'ready_delay': ([(0, 0)], [1])
+        }
+    }
+}
 
 class CDCHandshakeTB(TBBase):
     """
@@ -29,15 +87,31 @@ class CDCHandshakeTB(TBBase):
         TBBase.__init__(self, dut)
 
         # Get test parameters from environment variables
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic')
         self.ADDR_WIDTH = self.convert_to_int(os.environ.get('TEST_ADDR_WIDTH', '32'))
         self.DATA_WIDTH = self.convert_to_int(os.environ.get('TEST_DATA_WIDTH', '32'))
         self.STRB_WIDTH = self.DATA_WIDTH // 8
-        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic')
         self.clk_src_PERIOD_NS = self.convert_to_int(os.environ.get('clk_src_PERIOD_NS', '50'))
         self.clk_dst_PERIOD_NS = self.convert_to_int(os.environ.get('clk_dst_PERIOD_NS', '10'))
         # Calculate clock frequencies in MHz
         self.clk_src_FREQ_MHZ = 1000 / self.clk_src_PERIOD_NS
         self.clk_dst_FREQ_MHZ = 1000 / self.clk_dst_PERIOD_NS
+
+        # Log the test configuration
+        msg = '\n'
+        msg += '='*80 + "\n"
+        msg += ' Settings:\n'
+        msg += '-'*80 + "\n"
+        msg += f' Level:    {self.TEST_LEVEL}\n'
+        msg += f' AddrW:    {self.ADDR_WIDTH}\n'
+        msg += f' DataW:    {self.DATA_WIDTH}\n'
+        msg += f' StrbW:    {self.STRB_WIDTH}\n'
+        msg += f' clk_src_prd:  {self.clk_src_PERIOD_NS}ns\n'
+        msg += f' clk_dst_prd:  {self.clk_dst_PERIOD_NS}ns\n'
+        msg += f' clk_src_frq:  {self.clk_src_FREQ_MHZ}MHz\n'
+        msg += f' clk_dst_frq:  {self.clk_dst_FREQ_MHZ}MHz\n'
+        msg += '='*80 + "\n"
+        self.log.info(msg)
 
         # Test completion flag and stats
         self.done = False
@@ -90,14 +164,18 @@ class CDCHandshakeTB(TBBase):
             'description': 'Protection bits'
         })
 
-        # Set up randomizers
-        self.master_randomizer = FlexRandomizer({
-            'valid_delay': ([[0, 0], [1, 5], [6, 10]], [5, 3, 1]),
-        })
+        # Set up random configs for the randomizer
+        # Extract master configs (write configs)
+        self.master_random_config = {
+            key: config['write'] 
+            for key, config in RANDOMIZER_CONFIGS.items()
+        }
 
-        self.slave_randomizer = FlexRandomizer({
-            'ready_delay': ([[0, 0], [1, 5], [6, 10]], [5, 3, 1]),
-        })
+        # Extract slave configs (read configs)
+        self.slave_random_config = {
+            key: config['read'] 
+            for key, config in RANDOMIZER_CONFIGS.items()
+        }
 
         master_signal_map = {
             'm2s_valid': 'valid_src',
@@ -116,7 +194,7 @@ class CDCHandshakeTB(TBBase):
             optional_signal_map=master_optional_map,
             field_config=self.field_config,
             field_mode=True,
-            randomizer=self.master_randomizer,
+            randomizer=FlexRandomizer(self.master_random_config['constrained']),
             log=self.log
         )
 
@@ -150,7 +228,7 @@ class CDCHandshakeTB(TBBase):
             optional_signal_map=slave_optional_map,
             field_config=self.field_config,
             field_mode=True,
-            randomizer=self.slave_randomizer,
+            randomizer=FlexRandomizer(self.slave_random_config['constrained']),
             log=self.log
         )
 
@@ -224,7 +302,7 @@ class CDCHandshakeTB(TBBase):
 
         self.log.debug('Ending reset_dut')
 
-    async def send_transaction(self, is_write, addr, data=None, strobe=None, prot=0):
+    async def send_transaction(self, is_write, addr, data=None, strobe=None, prot=0, busy_send=True):
         """
         Send a transaction through the CDC handshake.
 
@@ -269,12 +347,15 @@ class CDCHandshakeTB(TBBase):
         packet.pprot = prot
 
         # Log transaction details
-        self.log.info(f"Sending {('write' if is_write else 'read')} to addr 0x{addr:08X}" +
+        self.log.info(f"{self.get_time_ns_str()} Sending {('write' if is_write else 'read')} to addr 0x{addr:08X}" +
                     (f" with data 0x{packet.pwdata:08X} strobe 0x{packet.pstrb:X}" if is_write else ""))
 
         # Send transaction
         packet.start_time = start_time
-        await self.src_master.send(packet)
+        if busy_send:
+            await self.src_master.busy_send(packet)
+        else:
+            await self.src_master.send(packet)
 
         return packet
 
@@ -295,7 +376,7 @@ class CDCHandshakeTB(TBBase):
             count += 1
 
         if count >= timeout_cycles:
-            self.log.warning(f"Timeout waiting for src_master after {timeout_cycles} cycles")
+            self.log.warning(f"Timeout waiting for src_master after {timeout_cycles} cycles{self.get_time_ns_str()}")
             return False
 
         # Wait additional cycles for CDC crossing
@@ -318,7 +399,7 @@ class CDCHandshakeTB(TBBase):
         src_count = len(self.src_transactions)
         dst_count = len(self.dst_transactions)
 
-        self.log.info(f"Comparing {src_count} source and {dst_count} destination transactions")
+        self.log.info(f"Comparing {src_count} source and {dst_count} destination transactions{self.get_time_ns_str()}")
 
         # Check if expected count matches
         if expected_count is not None:
@@ -381,28 +462,34 @@ class CDCHandshakeTB(TBBase):
         Returns:
             True if test passed, False otherwise
         """
-        self.log.info(f"Starting basic test with {num_transactions} transactions")
+        self.log.info(f"Starting basic test with {num_transactions} transactions{self.get_time_ns_str()}")
 
         # Reset the DUT
         await self.reset_dut()
+        loops = len(self.master_random_config)
 
-        # Send alternating read/write transactions
-        base_addr = 0
-        for i in range(num_transactions):
-            is_write = (i % 2 == 0)  # Alternate write/read
-            addr = base_addr + (i * 4)
-            data = random.randint(0, 2**self.DATA_WIDTH - 1) if is_write else None
-            strobe = 0xF if is_write else None
+        for i, delay_profile in enumerate(self.master_random_config):
+            self.src_master.set_randomizer(FlexRandomizer(self.master_random_config[delay_profile]))
+            self.dst_slave.set_randomizer(FlexRandomizer(self.slave_random_config[delay_profile]))
+            
+            # Send alternating read/write transactions
+            base_addr = 0x1000 * i
+            for i in range(num_transactions):
+                is_write = (i % 2 == 0)  # Alternate write/read
+                addr = base_addr + (i * 4)
+                data = random.randint(0, 2**self.DATA_WIDTH - 1) if is_write else None
+                strobe = 0xF if is_write else None
 
-            await self.send_transaction(is_write, addr, data, strobe)
+                await self.send_transaction(is_write, addr, data, strobe)
 
-            # Add small delay between transactions
-            await self.wait_clocks('clk_src', 5)
+                # Add small delay between transactions
+                await self.wait_clocks('clk_src', 5)
+                await self.wait_clocks('clk_dst', 5)
 
-        # Wait for all transactions to complete
-        await self.wait_for_completion()
+            # Wait for all transactions to complete
+            await self.wait_for_completion()
 
-        return self.compare_transactions(num_transactions)
+        return self.compare_transactions(num_transactions * loops)
 
     async def run_burst_test(self, num_transactions=20):
         """
@@ -414,16 +501,13 @@ class CDCHandshakeTB(TBBase):
         Returns:
             True if test passed, False otherwise
         """
-        self.log.info(f"Starting burst test with {num_transactions} transactions")
+        self.log.info(f"Starting burst test with {num_transactions} transactions{self.get_time_ns_str()}")
 
         # Reset the DUT
         await self.reset_dut()
 
         # Set faster randomizers for bursts
-        fast_randomizer = FlexRandomizer({
-            'valid_delay': ([[0, 0]], [1]),  # No delay for bursts
-        })
-        self.src_master.set_randomizer(fast_randomizer)
+        self.src_master.set_randomizer(FlexRandomizer(self.master_random_config['fast']))
 
         # First half: write transactions
         half = num_transactions // 2
@@ -455,7 +539,7 @@ class CDCHandshakeTB(TBBase):
         await self.wait_for_completion()
 
         # Restore original randomizer
-        self.src_master.set_randomizer(self.master_randomizer)
+        self.src_master.set_randomizer(FlexRandomizer(self.master_random_config['constrained']))
 
         return self.compare_transactions(num_transactions)
 
@@ -469,7 +553,7 @@ class CDCHandshakeTB(TBBase):
         Returns:
             True if test passed, False otherwise
         """
-        self.log.info(f"Starting random test with {num_transactions} transactions")
+        self.log.info(f"Starting random test with {num_transactions} transactions{self.get_time_ns_str()}")
 
         # Reset the DUT
         await self.reset_dut()
