@@ -33,7 +33,7 @@ async def cdc_handshake_test(dut):
     try:
         # Test 1: Basic alternating reads/writes
         tb.log.info("=== Test 1: Basic alternating reads/writes ===")
-        basic_result = await tb.run_basic_test(num_transactions=10)
+        basic_result = await tb.run_basic_test(num_transactions=100)
 
         if tb.TEST_LEVEL != 'basic':
             # Test 2: Burst transactions
