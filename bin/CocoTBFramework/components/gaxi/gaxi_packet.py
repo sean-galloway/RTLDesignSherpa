@@ -32,7 +32,7 @@ class GAXIPacket(Packet):
         self.slave_randomizer = slave_randomizer
         self.master_delay = None
         self.slave_delay = None
-        
+
         # Add mask cache to improve performance
         self._field_masks = {}
 
@@ -55,16 +55,16 @@ class GAXIPacket(Packet):
             if masked_value != value:
                 self.log.warning(f"{field} value 0x{value:x} exceeds field width, masked to 0x{masked_value:x}")
             return masked_value
-        
+
         # Calculate mask if not cached
         if self.field_config and field in self.field_config.field_names():
             field_def = self.field_config.get_field(field)
             field_width = field_def.bits
             mask = (1 << field_width) - 1
-            
+
             # Cache the mask for future use
             self._field_masks[field] = mask
-            
+
             # Apply mask
             masked_value = value & mask
             if masked_value != value:
@@ -119,11 +119,11 @@ class GAXIPacket(Packet):
         Useful when field configurations change.
         """
         self._field_masks.clear()
-        
+
     def get_cache_stats(self):
         """
         Get cache statistics.
-        
+
         Returns:
             Dictionary with cache information
         """

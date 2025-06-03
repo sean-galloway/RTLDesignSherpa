@@ -768,13 +768,13 @@ class AXI4TransactionSequence(AXI4BaseSequence):
     # ========================================================================
 
     @classmethod
-    def create_x_boundary_test(cls, alignment_mask=0xFFF, channel="AR", 
+    def create_x_boundary_test(cls, alignment_mask=0xFFF, channel="AR",
                             base_addr=0,  # Add base_addr parameter
-                            data_width=32, id_width=8, addr_width=32, 
+                            data_width=32, id_width=8, addr_width=32,
                             user_width=1, randomization_config=None):
         """
         Create a transaction sequence that tests boundary conditions with configurable boundary size.
-        
+
         Args:
             alignment_mask: Alignment mask that defines the boundary (e.g., 0xFFF for 4KB boundary)
             channel: Target channel, "AR" for reads or "AW" for writes (or "BOTH" for both)
@@ -784,13 +784,13 @@ class AXI4TransactionSequence(AXI4BaseSequence):
             addr_width: Width of address field in bits
             user_width: Width of user field in bits
             randomization_config: Optional randomization configuration
-            
+
         Returns:
             Configured AXI4TransactionSequence
         """
         # Calculate the boundary size for the name
         boundary_size = alignment_mask + 1
-        
+
         # Create a transaction sequence
         sequence = cls(
             name=f"{boundary_size}b_boundary_test",
@@ -800,14 +800,14 @@ class AXI4TransactionSequence(AXI4BaseSequence):
             user_width=user_width,
             randomization_config=randomization_config
         )
-        
+
         # Determine which channels to create tests for
         channels = []
         if channel.upper() == "BOTH":
             channels = ["AR", "AW"]
         else:
             channels = [channel.upper()]
-        
+
         # Process each requested channel
         id_offset = 0
         for ch in channels:
@@ -820,10 +820,10 @@ class AXI4TransactionSequence(AXI4BaseSequence):
                 id_value=id_offset,
                 data_width=data_width
             )
-            
+
             # Generate packets from the address sequence
             addr_packets = addr_sequence.generate_packets()
-            
+
             # Convert address sequence transactions to transaction sequence
             for packet in addr_packets:
                 if ch == "AR":
@@ -840,10 +840,10 @@ class AXI4TransactionSequence(AXI4BaseSequence):
                     # Calculate number of data transfers needed
                     burst_len = packet.awlen
                     data_count = burst_len + 1
-                    
+
                     # Create data values (using a pattern based on ID and address)
                     data_values = [(0xA0000000 + packet.awid*0x100 + j) for j in range(data_count)]
-                    
+
                     # Add write transaction with data
                     sequence.add_write_transaction(
                         addr=packet.awaddr,
@@ -853,10 +853,10 @@ class AXI4TransactionSequence(AXI4BaseSequence):
                         burst_size=packet.awsize,
                         burst_type=packet.awburst
                     )
-            
+
             # Update ID offset for next channel
             id_offset += len(addr_packets)
-        
+
         return sequence
 
     @classmethod
@@ -1409,7 +1409,7 @@ class AXI4TransactionSequence(AXI4BaseSequence):
                                 randomization_config: Optional[RandomizationConfig] = None) -> 'AXI4TransactionSequence':
         """
         Create a sequence of random but legal AXI4 transactions.
-        
+
         Args:
             count: Number of transactions to generate
             addr_range: (min, max) address range
@@ -1417,14 +1417,14 @@ class AXI4TransactionSequence(AXI4BaseSequence):
             data_width: Width of data in bits
             min_size: Minimum size parameter (log2 of bytes per transfer)
             randomization_config: Optional randomization configuration
-            
+
         Returns:
             Configured AXI4TransactionSequence
         """
         sequence = cls(name="random_transactions",
                     data_width=data_width,
                     randomization_config=randomization_config)
-        
+
         # Create address sequence for random address generation
         addr_sequence = AXI4AddressSequence.create_random_transactions(
             count=count,
@@ -1433,25 +1433,25 @@ class AXI4TransactionSequence(AXI4BaseSequence):
             channel="AR",  # Use read channel for addresses
             randomization_config=randomization_config
         )
-        
+
         # Generate the address packets
         addr_packets = addr_sequence.generate_packets(count)
-        
+
         # Create both read and write transactions with the random addresses
         for i, packet in enumerate(addr_packets):
             # Extract address parameters
             addr = packet.araddr if hasattr(packet, 'araddr') else 0
             id_value = packet.arid if hasattr(packet, 'arid') else 0
             burst_len = packet.arlen if hasattr(packet, 'arlen') else 0
-            
+
             # Apply min_size constraint to ensure size is at least the minimum supported
             if hasattr(packet, 'arsize'):
                 burst_size = max(packet.arsize, min_size)
             else:
                 burst_size = max(2, min_size)  # Default to word size if not specified
-                
+
             burst_type = packet.arburst if hasattr(packet, 'arburst') else 1
-            
+
             if i % 2 == 0:  # Even indices: create write transactions
                 # Generate random data for write
                 data_values = []
@@ -1459,7 +1459,7 @@ class AXI4TransactionSequence(AXI4BaseSequence):
                     # Random data value in the range that fits data_width
                     data_value = random.randint(0, (1 << data_width) - 1)
                     data_values.append(data_value)
-                    
+
                 # Add write transaction
                 sequence.add_write_transaction(
                     addr=addr,
@@ -1477,5 +1477,5 @@ class AXI4TransactionSequence(AXI4BaseSequence):
                     burst_size=burst_size,
                     burst_type=burst_type
                 )
-                
+
         return sequence

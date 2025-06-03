@@ -21,7 +21,7 @@ def get_default_field_config(data_width=32):
     """
     # Create a new field configuration
     config = FieldConfig()
-    
+
     # Add data field
     config.add_field_dict('data', {
         'bits': data_width,
@@ -31,7 +31,7 @@ def get_default_field_config(data_width=32):
         'active_bits': (data_width-1, 0),
         'description': 'Data value'
     })
-    
+
     return config
 
 

@@ -49,7 +49,7 @@ class APBGAXIScoreboard:
         addr = transaction.paddr & 0xFFF  # Use 12-bit address for indexing
         time_ns = transaction.start_time
         matched = False
-        
+
         if transaction.direction == "WRITE":
             # Check if this matches with existing GAXI transactions
             matched = self._check_write_matches(addr, transaction, is_apb=True)
@@ -139,7 +139,7 @@ class APBGAXIScoreboard:
             self.total_verified += 1
             # Don't add the GAXI transaction to the queue since it was matched
             return True  # Return True to indicate a match was found
-        
+
         # No match found, add the transaction to its queue
         return False
 
@@ -151,7 +151,7 @@ class APBGAXIScoreboard:
             addr: Transaction address
             transaction: New transaction
             is_apb: True if transaction is APB, False if GAXI
-            
+
         Returns:
             True if a match was found, False otherwise
         """
@@ -189,7 +189,7 @@ class APBGAXIScoreboard:
                 self.total_matches += 1
             self.total_verified += 1
             return True  # Return True to indicate a match was found
-            
+
         # No match found
         return False
 

@@ -70,10 +70,10 @@ RANDOMIZER_CONFIGS = {
     },
     'fast': {
         'write': {
-            'valid_delay': ([(0, 0), (1, 8), (9, 20)], [5, 0, 0])
+            'valid_delay': ([(0, 0)], [1])  # Only use the fast bin
         },
         'read': {
-            'ready_delay': ([(0, 0), (1, 8), (9, 30)], [5, 0, 0])
+            'ready_delay': ([(0, 0)], [1])  # Only use the fast bin
         }
     },
     'backtoback': {

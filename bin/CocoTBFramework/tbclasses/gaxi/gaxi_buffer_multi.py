@@ -190,12 +190,8 @@ class GaxiMultiBufferTB(TBBase):
         self.burst_sequence = GAXIBufferSequence("burst_test", self.field_config)
         self.burst_sequence.add_incrementing_pattern(30, delay=0)
         # Set fast randomizers
-        self.burst_sequence.set_master_randomizer(FlexRandomizer({
-            'valid_delay': ([[0, 0]], [1]),  # No delay
-        }))
-        self.burst_sequence.set_slave_randomizer(FlexRandomizer({
-            'ready_delay': ([[0, 0]], [1]),  # No delay
-        }))
+        self.burst_sequence.set_master_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS['fast']['write']))
+        self.burst_sequence.set_slave_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS['fast']['read']))
 
         # Create stress test sequence
         self.stress_sequence = GAXIBufferSequence("stress_test", self.field_config)

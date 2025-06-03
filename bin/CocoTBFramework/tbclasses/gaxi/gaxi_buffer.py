@@ -161,10 +161,11 @@ class GaxiBufferTB(TBBase):
             self.log.error(f"{msg}: Unmatched extra packet in RD monitor: {pkt.formatted(compact=True)}")
             self.total_errors += 1
 
-    async def simple_incremental_loops(self, count, delay_key, delay_clks_after):
+    async def simple_incremental_loops(self, count, delay_key, delay_clks_after, base=0):
         """Run simple incremental tests with different packet sizes"""
         # Choose the type of randomizer
-        self.log.info(f'simple_incremental_loops({count=}, {delay_key=}, {delay_clks_after=}')
+        self.log.info('='*80)
+        self.log.info(f'simple_incremental_loops({count=}, {delay_key=}, {delay_clks_after=}{self.get_time_ns_str()})')
         self.write_master.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS[delay_key]['write']))
         self.read_slave.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS[delay_key]['read']))
 
@@ -175,7 +176,7 @@ class GaxiBufferTB(TBBase):
 
         for i in range(count):
             # Create packet with data
-            data = i & self.MAX_DATA # mask the data so we don't overflow
+            data = (base+i) & self.MAX_DATA # mask the data so we don't overflow
             packet = GAXIPacket(self.field_config)
             packet.data = data
 
@@ -194,4 +195,4 @@ class GaxiBufferTB(TBBase):
 
         self.compare_packets("Simple Incremental Loops", count)
 
-        assert self.total_errors == 0, f'Simple Incremental Loops found {self.total_errors} Errors'
+        assert self.total_errors == 0, f'Simple Incremental Loops found {self.total_errors} Errors{self.get_time_ns_str()}'

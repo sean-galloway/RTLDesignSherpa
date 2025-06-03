@@ -46,7 +46,7 @@ def generate_test_params():
 
     # Generate all permutations
     params = list(product(widths, depths, modes, clk_pairs))
-    
+
     # Flatten each tuple to match the required structure
     params = [(w, d, m, clk_wr, clk_rd) for (w, d, m, (clk_wr, clk_rd)) in params]
 

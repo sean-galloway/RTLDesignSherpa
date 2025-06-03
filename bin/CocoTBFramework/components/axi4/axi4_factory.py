@@ -94,7 +94,7 @@ def create_axi4_master(dut, title, prefix, divider, suffix, clock, channels,
     #     if 'B' in channels and hasattr(master, 'b_slave'):
     #         callback_count = len(getattr(master.b_slave, 'callbacks', []))
     #         log.debug(f"AXI4Master '{title}' created with {callback_count} B callbacks registered")
-    
+
     return master
 
 def create_axi4_slave(dut, title, prefix, divider, suffix, clock, channels,

@@ -34,7 +34,7 @@ slave_fifo_mux_optional_signal_map = {
             'm2s_pkt': 'ow_rd_data'
 }
 gaxi_slave_default_constraints = {
-    'ready_delay': ([[0, 1], [2, 8], [9, 30]], [5, 2, 1])
+    'ready_delay': ([(0, 1), (2, 8), (9, 30)], [5, 2, 1])
 }
 
 # Basic, default field config
@@ -160,12 +160,12 @@ class GAXISlave(BusMonitor):
         # Set up memory model integration
         self.memory_model = memory_model
         self.memory_fields = memory_fields or gaxi_memory_fields
-        
+
         # Initialize parent BusMonitor (without auto-starting monitor)
         BusMonitor.__init__(self, dut, prefix, clock, callback=None, event=None, **kwargs)
         self.log = log or self._log
         self.log.debug(f"GAXISlave init for '{title}': randomizer={randomizer}, mode={mode}")
-        
+
         # Create enhanced memory integration if memory model is provided
         if self.memory_model:
             self.memory_integration = EnhancedMemoryIntegration(
@@ -277,7 +277,7 @@ class GAXISlave(BusMonitor):
         elif not self.memory_fields:
             # Set default mapping if not already set
             self.memory_fields = gaxi_memory_fields
-            
+
         # Update or create memory integration
         if self.memory_model:
             self.memory_integration = EnhancedMemoryIntegration(
@@ -313,11 +313,11 @@ class GAXISlave(BusMonitor):
     def _check_field_value(self, field_name, field_value):
         """
         Check if a field value exceeds the maximum possible value for the field.
-        
+
         Args:
             field_name: Name of the field to check
             field_value: Value to check against field width
-            
+
         Returns:
             field_value: The original value if within range, or the masked value if not
         """
@@ -378,7 +378,7 @@ class GAXISlave(BusMonitor):
                 data_dict = self._finish_packet_helper(
                     combined_value, unpacked_fields
                 )
-                
+
         # Use the packet's unpack_from_fifo method for field handling
         if data_dict:
             if hasattr(packet, 'unpack_from_fifo'):
@@ -506,7 +506,7 @@ class GAXISlave(BusMonitor):
                 self.ready_sig.value.is_resolvable and
                 self.valid_sig.value.integer == 1 and
                 self.ready_sig.value.integer == 1):
-            
+
             # Wait for valid to assert to decide to delay the ready
             while self.valid_sig.value.integer == 0:
                 await self.wait_cycles(1)
@@ -590,56 +590,56 @@ class GAXISlave(BusMonitor):
             if self.reset_occurring:
                 break
         await Timer(self.tick_delay, units=self.tick_units)
-        
+
     def get_memory_stats(self):
         """
         Get memory operation statistics.
-        
+
         Returns:
             Dictionary with memory statistics, or None if no memory model available
         """
         if hasattr(self, 'memory_integration'):
             return self.memory_integration.get_stats()
         return None
-        
+
     async def process_request(self, transaction):
         """
         Process a transaction request, usually from a command handler.
-        
+
         This method provides a standardized way for external components like
         command handlers to send transactions directly to the slave without
         going through the bus signals.
-        
+
         Args:
             transaction: Transaction to process
-            
+
         Returns:
             Response packet or None
         """
         # Create a copy of the transaction to avoid modifying the original
         packet = self.packet_class(self.field_config)
-        
+
         # Copy fields from transaction to packet
         for field_name in self.field_config.field_names():
             if hasattr(transaction, field_name):
                 setattr(packet, field_name, getattr(transaction, field_name))
-                
+
         # Set timing information
         current_time = get_sim_time('ns')
         packet.start_time = current_time
-        
+
         # Process with memory model if available
         if hasattr(self, 'memory_integration') and self.memory_model:
             success, data, error_msg = self.memory_integration.read(packet, update_transaction=True)
             if not success:
                 self.log.warning(f"Slave({self.title}): {error_msg}")
-                
+
         # Complete packet and add to queue
         packet.end_time = get_sim_time('ns')
         self.received_queue.append(packet)
-        
+
         # Trigger callbacks
         self._recv(packet)
-        
+
         # Return processed packet
         return packet

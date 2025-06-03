@@ -33,8 +33,8 @@ async def fifo_test(dut):
     await tb.wait_clocks('i_axi_wr_aclk', 6)
     tb.log.info("Starting test...")
 
-    for delay_key in RANDOMIZER_CONFIGS.keys():
-        await tb.simple_incremental_loops(count=10*tb.TEST_DEPTH, delay_key=delay_key,  delay_clks_after=20)
+    for i, delay_key in enumerate(RANDOMIZER_CONFIGS.keys()):
+        await tb.simple_incremental_loops(count=10*tb.TEST_DEPTH, delay_key=delay_key,  delay_clks_after=20, base=i*0x100)
 
 
 def generate_width_depth_mode_params():

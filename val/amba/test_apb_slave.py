@@ -34,7 +34,7 @@ from CocoTBFramework.components.wavedrom_utils.utility import (
     get_apb_field_config
 )
 from CocoTBFramework.tbclasses.wavedrom_user.apb import (
-    APBPresets, APBDebug, APBConstraints, 
+    APBPresets, APBDebug, APBConstraints,
     setup_apb_constraints_with_boundaries, get_apb_boundary_pattern
 )
 
@@ -183,7 +183,7 @@ class APBSlaveTB(TBBase):
         """Set up the modular Temporal Sequence WaveDrom system"""
         try:
             self.log.info("Setting up Modular Temporal Sequence WaveDrom system...")
-            
+
             # Get APB field config
             self.apb_field_config = get_apb_field_config(
                 data_width=self.DATA_WIDTH,
@@ -191,15 +191,15 @@ class APBSlaveTB(TBBase):
                 strb_width=self.STRB_WIDTH
             )
             self.log.info(f"Created APB FieldConfig: {len(self.apb_field_config.field_names())} fields")
-            
+
             # Create APB-specific WaveJSON generator
             self.wave_generator = create_apb_wavejson_generator(field_config=self.apb_field_config)
-            
+
             if not self.wave_generator:
                 # Fallback: Create generic generator
                 self.log.warning("Protocol-specific generator not available, using generic")
                 self.wave_generator = WaveJSONGenerator(debug_level=2)
-                
+
                 # Manually configure APB interface
                 apb_signals = [
                     "apb_psel", "apb_penable", "apb_pready", "apb_pwrite",
@@ -207,7 +207,7 @@ class APBSlaveTB(TBBase):
                     "apb_pprot", "apb_pslverr"
                 ]
                 self.wave_generator.add_interface_group("APB Interface", apb_signals)
-            
+
             # Create the temporal constraint solver with the WaveJSON generator
             self.wave_solver = TemporalConstraintSolver(
                 dut=self.dut,
@@ -216,7 +216,7 @@ class APBSlaveTB(TBBase):
                 wavejson_generator=self.wave_generator,
                 default_field_config=self.apb_field_config
             )
-            
+
             # Add primary clock group (APB clock)
             self.wave_solver.add_clock_group(
                 name="apb_clk",
@@ -225,11 +225,11 @@ class APBSlaveTB(TBBase):
                 sample_delay_ns=0.1,  # Sample 0.1ns after rising edge
                 field_config=self.apb_field_config
             )
-            
+
             # Add APB interface signals
             apb_signals = {
                 'psel': 's_apb_PSEL',
-                'penable': 's_apb_PENABLE', 
+                'penable': 's_apb_PENABLE',
                 'pready': 's_apb_PREADY',
                 'pwrite': 's_apb_PWRITE',
                 'paddr': 's_apb_PADDR',
@@ -240,7 +240,7 @@ class APBSlaveTB(TBBase):
                 'pslverr': 's_apb_PSLVERR'
             }
             self.wave_solver.add_interface("apb", apb_signals, field_config=self.apb_field_config)
-            
+
             # Set up constraints with boundaries using the helper function
             num_constraints = setup_apb_constraints_with_boundaries(
                 wave_solver=self.wave_solver,
@@ -253,16 +253,16 @@ class APBSlaveTB(TBBase):
                 use_signal_names=True,  # Use actual signal names by default
                 post_match_cycles=3  # Extra cycles to capture transaction completion
             )
-            
+
             self.log.info(f"Added {num_constraints} APB constraints with boundaries")
-            
+
             # Optional: Add custom WaveJSON callback for specific formatting
             def custom_apb_write_wavejson(constraint, signal_data, temporal_solution):
                 """Custom WaveJSON generation for APB write sequences"""
                 try:
                     # Create temporal annotations from solution
                     annotations = create_temporal_annotations_from_solution(temporal_solution)
-                    
+
                     # Generate WaveJSON with custom formatting
                     return self.wave_generator.generate_wavejson(
                         signal_data=signal_data,
@@ -274,15 +274,15 @@ class APBSlaveTB(TBBase):
                 except Exception as e:
                     self.log.error(f"Custom WaveJSON callback failed: {e}")
                     return None
-            
+
             # Register custom callback for write sequences
             if hasattr(self.wave_solver, 'add_wavejson_callback'):
                 self.wave_solver.add_wavejson_callback("apb_write_sequence", custom_apb_write_wavejson)
-            
+
             self.log.info("Modular Temporal Sequence WaveDrom setup complete")
             if self.wave_generator:
                 self.log.info(f"   WaveJSON Generator: {self.wave_generator.get_stats()}")
-            
+
         except Exception as e:
             self.log.error(f"Failed to setup Modular Temporal WaveDrom: {e}")
             import traceback
@@ -496,7 +496,7 @@ class APBSlaveTB(TBBase):
     def _create_read_seq(self):
         """Create configuration focused on read transactions"""
         return APBSequence(
-            name="read_focused", 
+            name="read_focused",
             pwrite_seq=[True, False, False],  # Write then two reads
             addr_seq=[0x2000, 0x2000, 0x2004],
             data_seq=[0x12345678, 0, 0],  # Only write data matters

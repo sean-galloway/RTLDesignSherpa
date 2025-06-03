@@ -414,16 +414,16 @@ class AXI4RandomizationConfig(RandomizationConfig):
     def configure_field(self, field_name, config=None, **kwargs):
         """
         Configure randomization for a specific field.
-        
+
         This method provides backward compatibility by accepting either:
         1. A FieldRandomizationConfig object as the second parameter
         2. Individual parameters as keyword arguments
-        
+
         Args:
             field_name: Name of the field to configure
             config: FieldRandomizationConfig object (optional)
             **kwargs: Individual configuration parameters
-            
+
         Returns:
             Self for method chaining
         """
@@ -431,18 +431,18 @@ class AXI4RandomizationConfig(RandomizationConfig):
         if config is not None:
             # Called with a FieldRandomizationConfig object
             return super().configure_field(field_name, config)
-        
+
         # Called with individual parameters
         # Convert them to a FieldRandomizationConfig
         from ..randomization_config import FieldRandomizationConfig, RandomizationMode
-        
+
         # Extract parameters
         mode = kwargs.get('mode', RandomizationMode.CONSTRAINED)
         constraints = kwargs.get('constraints')
         sequence = kwargs.get('sequence')
         custom_generator = kwargs.get('custom_generator')
         dependencies = kwargs.get('dependencies', [])
-        
+
         # Create the config object
         field_config = FieldRandomizationConfig(
             mode=mode,
@@ -451,6 +451,6 @@ class AXI4RandomizationConfig(RandomizationConfig):
             custom_generator=custom_generator,
             dependencies=dependencies
         )
-        
+
         # Use parent method with the config object
         return super().configure_field(field_name, field_config)

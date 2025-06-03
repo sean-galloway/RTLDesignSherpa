@@ -194,12 +194,12 @@ class AXI4Master:
         # Initialize transaction tracking
         self.write_responses = {}  # Maps IDs to pending write transactions
         self.read_responses = {}   # Maps IDs to pending read transactions
-        
+
         # Add callbacks to track responses - CRITICAL FOR TRANSACTION COMPLETION
         if 'B' in self.channels and hasattr(self, 'b_slave') and self.b_slave is not None:
             if self.log:
                 self.log.debug(f"Registering B-response callback for {self.title}")
-            
+
             # Ensure the monitor has a callback method
             if hasattr(self.b_slave, 'add_callback'):
                 self.b_slave.add_callback(self._handle_b_response)
@@ -208,11 +208,11 @@ class AXI4Master:
             else:
                 if self.log:
                     self.log.error(f"B-slave does not have add_callback method - transaction tracking will fail")
-        
+
         if 'R' in self.channels and hasattr(self, 'r_slave') and self.r_slave is not None:
             if self.log:
                 self.log.debug(f"Registering R-response callback for {self.title}")
-            
+
             # Ensure the monitor has a callback method
             if hasattr(self.r_slave, 'add_callback'):
                 self.r_slave.add_callback(self._handle_r_response)

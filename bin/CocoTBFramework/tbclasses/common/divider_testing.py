@@ -86,21 +86,21 @@ class DividerTB(TBBase):
         """
         start_time = get_sim_time('ns')
         timeout_ns = timeout + start_time
-        
+
         while get_sim_time('ns') - start_time < timeout_ns:
             if int(self.dut.o_done.value):
                 is_valid = int(self.dut.o_valid.value)
                 quotient = int(self.dut.o_quotient.value)
                 remainder = int(self.dut.o_remainder.value)
                 dbz = int(self.dut.o_dbz.value)
-                
+
                 return (is_valid, quotient, remainder, dbz)
-            
+
             await RisingEdge(self.dut.i_clk)
-            
+
         self.log.error(f"Timeout waiting for division to complete after {timeout} {units}")
         return (False, 0, 0, False)
-    
+
     async def perform_division(self, dividend, divisor):
         """Perform a single division operation.
 
@@ -125,7 +125,7 @@ class DividerTB(TBBase):
         # Wait for completion
         max_cycles = self.DATA_WIDTH + 10  # Should be enough for any divider
         return await self.wait_for_completion(timeout=max_cycles, units='cycles')
-    
+
     async def main_loop(self, count: int = 100) -> None:
         """Main test loop for dividers.
 
@@ -138,7 +138,7 @@ class DividerTB(TBBase):
 
         # Define test vectors for thorough testing
         test_vectors = []
-        
+
         # Add edge cases and special values
         edge_cases = [
             (0, 1),                # Zero dividend
@@ -147,11 +147,11 @@ class DividerTB(TBBase):
             (self.mask, self.mask) # Max dividend, max divisor
         ]
         test_vectors.extend(edge_cases)
-        
+
         # Add divide by zero cases
         dbz_cases = [(random.randint(1, self.mask), 0) for _ in range(5)]
         test_vectors.extend(dbz_cases)
-        
+
         # Add random values
         if count <= 100:
             # For small counts, add a full distribution of values
@@ -164,7 +164,7 @@ class DividerTB(TBBase):
             small_range = self.max_val // 4
             mid_range = self.max_val // 2
             large_range = 3 * self.max_val // 4
-            
+
             random_cases = []
             ranges = [
                 (0, small_range),
@@ -172,32 +172,32 @@ class DividerTB(TBBase):
                 (mid_range, large_range),
                 (large_range, self.mask)
             ]
-            
+
             remaining = count - len(test_vectors)
             per_range = remaining // 4
-            
+
             for low, high in ranges:
                 for _ in range(per_range):
                     dividend = random.randint(low, high)
                     divisor = random.randint(1, self.mask)
                     random_cases.append((dividend, divisor))
-            
+
             # Add any remaining cases
             remaining = count - len(test_vectors) - len(random_cases)
             for _ in range(remaining):
                 dividend = random.randint(0, self.mask)
                 divisor = random.randint(1, self.mask)
                 random_cases.append((dividend, divisor))
-        
+
         test_vectors.extend(random_cases)
-        
+
         # Shuffle to avoid patterns
         random.shuffle(test_vectors)
-        
+
         # Run tests
         total_tests = len(test_vectors)
         self.log.info(f"Will run {total_tests} total test cases")
-        
+
         for test_idx, (dividend, divisor) in enumerate(test_vectors):
             # Log progress periodically
             if test_idx % max(1, total_tests // 10) == 0:
@@ -205,10 +205,10 @@ class DividerTB(TBBase):
 
             msg = f'Testing {dividend=} {divisor=}'
             self.log.debug(msg)
-            
+
             # Perform the division
             valid, quotient, remainder, dbz = await self.perform_division(dividend, divisor)
-            
+
             # Verify results
             if divisor == 0:
                 # Should detect divide by zero
@@ -221,7 +221,7 @@ class DividerTB(TBBase):
                 expected_dbz = False
                 expected_quotient = dividend // divisor
                 expected_remainder = dividend % divisor
-            
+
             if dbz and divisor == 0:
                 self.log.debug(f"Divide by zero detected as expected")
                 self.dbz_count += 1
@@ -249,7 +249,7 @@ class DividerTB(TBBase):
                 self.log.error(f"  Actual: valid={valid}, dbz={dbz}, quotient={quotient}, remainder={remainder}")
                 self.fail_count += 1
                 assert False, f"Division test failed with unexpected results: Input: dividend={dividend}, divisor={divisor}"
-                
+
             self.test_count += 1
 
         # Print test summary
@@ -264,68 +264,68 @@ class DividerTB(TBBase):
             count: Number of test vectors to generate
         """
         self.log.info("Starting Divider Latency Test")
-        
+
         # Generate test vectors (avoid divide by zero)
         test_vectors = []
-        
+
         # Add small, medium and large values
         ranges = [
             (1, 10),
             (100, 1000),
             (self.mask // 2, self.mask)
         ]
-        
+
         per_range = count // 3
         for low, high in ranges:
             for _ in range(per_range):
                 dividend = random.randint(low, high)
                 divisor = random.randint(1, high)
                 test_vectors.append((dividend, divisor))
-        
+
         # Add any remaining tests
         remaining = count - len(test_vectors)
         for _ in range(remaining):
             dividend = random.randint(1, self.mask)
             divisor = random.randint(1, self.mask)
             test_vectors.append((dividend, divisor))
-        
+
         # Run tests
         latencies = []
-        
+
         for dividend, divisor in test_vectors:
             self.log.debug(f"Testing latency for {dividend} / {divisor}")
-            
+
             # Apply inputs
             self.dut.i_dividend.value = dividend
             self.dut.i_divisor.value = divisor
-            
+
             # Start operation and measure time
             await RisingEdge(self.dut.i_clk)
             start_time = get_sim_time('ns')
-            
+
             self.dut.i_start.value = 1
             await RisingEdge(self.dut.i_clk)
             self.dut.i_start.value = 0
-            
+
             # Wait for completion
             while not int(self.dut.o_done.value):
                 await RisingEdge(self.dut.i_clk)
-            
+
             end_time = get_sim_time('ns')
-            
+
             # Calculate latency in clock cycles
             latency_ns = end_time - start_time
             clock_period = 10  # Assuming 10ns clock
             latency_cycles = latency_ns / clock_period
-            
+
             self.log.debug(f"Latency for {dividend} / {divisor}: {latency_cycles:.1f} cycles")
             latencies.append(latency_cycles)
-        
+
         # Analyze results
         avg_latency = sum(latencies) / len(latencies)
         min_latency = min(latencies)
         max_latency = max(latencies)
-        
+
         self.log.info(f"Latency Analysis:")
         self.log.info(f"  Average: {avg_latency:.2f} cycles")
         self.log.info(f"  Minimum: {min_latency:.2f} cycles")
@@ -341,42 +341,42 @@ class DividerTB(TBBase):
             count: Number of consecutive operations to test
         """
         self.log.info("Starting Back-to-Back Divider Test")
-        
+
         # Generate random dividend/divisor pairs (avoid divide by zero)
         test_vectors = [
             (random.randint(1, self.mask), random.randint(1, self.mask))
             for _ in range(count)
         ]
-        
+
         # Run operations back-to-back
         for i, (dividend, divisor) in enumerate(test_vectors):
             self.log.debug(f"Back-to-back test {i+1}/{count}: {dividend} / {divisor}")
-            
+
             # Apply inputs
             self.dut.i_dividend.value = dividend
             self.dut.i_divisor.value = divisor
-            
+
             # Start operation immediately
             self.dut.i_start.value = 1
             await RisingEdge(self.dut.i_clk)
             self.dut.i_start.value = 0
-            
+
             # Wait for busy to assert before checking
             await RisingEdge(self.dut.o_busy)
-            
+
             # Calculate expected results
             expected_quotient = dividend // divisor
             expected_remainder = dividend % divisor
-            
+
             # Wait for completion
             while not int(self.dut.o_done.value):
                 await RisingEdge(self.dut.i_clk)
-                
+
             # Verify results
             valid = int(self.dut.o_valid.value)
             quotient = int(self.dut.o_quotient.value)
             remainder = int(self.dut.o_remainder.value)
-            
+
             if valid and quotient == expected_quotient and remainder == expected_remainder:
                 self.log.debug(f"Back-to-back test {i+1} passed")
                 self.pass_count += 1
@@ -387,11 +387,11 @@ class DividerTB(TBBase):
                 self.log.error(f"  Actual: valid={valid}, quotient={quotient}, remainder={remainder}")
                 self.fail_count += 1
                 assert False, f"Back-to-back test failed: Input: dividend={dividend}, divisor={divisor}, Expected: quotient={expected_quotient}, remainder={expected_remainder}, Got: quotient={quotient}, remainder={remainder}"
-                
+
             self.test_count += 1
-            
+
             # Do not add delay - start next operation immediately
-        
+
         self.log.info(f"Back-to-back test complete: {self.pass_count}/{self.test_count} passed")
 
     async def clear_interface(self) -> None:
@@ -422,7 +422,7 @@ class DividerTB(TBBase):
 
         # Clear the interface
         await self.clear_interface()
-        
+
         # Start with basic tests
         await self.wait_time(1, 'ns')
 

@@ -167,13 +167,13 @@ class CDCHandshakeTB(TBBase):
         # Set up random configs for the randomizer
         # Extract master configs (write configs)
         self.master_random_config = {
-            key: config['write'] 
+            key: config['write']
             for key, config in RANDOMIZER_CONFIGS.items()
         }
 
         # Extract slave configs (read configs)
         self.slave_random_config = {
-            key: config['read'] 
+            key: config['read']
             for key, config in RANDOMIZER_CONFIGS.items()
         }
 
@@ -471,7 +471,7 @@ class CDCHandshakeTB(TBBase):
         for i, delay_profile in enumerate(self.master_random_config):
             self.src_master.set_randomizer(FlexRandomizer(self.master_random_config[delay_profile]))
             self.dst_slave.set_randomizer(FlexRandomizer(self.slave_random_config[delay_profile]))
-            
+
             # Send alternating read/write transactions
             base_addr = 0x1000 * i
             for i in range(num_transactions):

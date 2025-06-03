@@ -161,11 +161,11 @@ class APBMasterTB(TBBase):
         """
         Update the data field of any GAXI read command transaction in the scoreboard
         that matches the given address.
-        
+
         Args:
             addr: Address to match
             data: Data to update the command transaction with
-            
+
         Returns:
             True if a transaction was updated, False otherwise
         """
@@ -185,11 +185,11 @@ class APBMasterTB(TBBase):
         # sourcery skip: lift-duplicated-conditional
         """Callback for GAXI CMD monitor transactions."""
         self.cmd_monitor_queue.append(transaction)
-        
+
         # Only add write commands to the scoreboard directly
         if hasattr(transaction, 'cmd') and transaction.cmd == 1:  # Write command
             self.apb_gaxi_scoreboard.add_gaxi_transaction(transaction)
-        
+
         # For read commands, add to pending reads queue with a unique ID
         elif hasattr(transaction, 'cmd') and transaction.cmd == 0:  # Read command
             # Generate a unique transaction ID (could be a counter or timestamp)
@@ -200,11 +200,11 @@ class APBMasterTB(TBBase):
     def apb_transaction_callback(self, transaction):
         """Callback for APB monitor transactions."""
         self.apb_monitor_queue.append(transaction)
-        
+
         # For read transactions, record the response data for the matching GAXI command
         if transaction.direction == 'READ':
             addr = transaction.paddr
-            
+
             # Look for a pending read command with matching address
             found = False
             for cmd in self.pending_reads:
@@ -214,10 +214,10 @@ class APBMasterTB(TBBase):
                     self.log.debug(f"Saved APB read data for tx_id={cmd.tx_id}: addr=0x{addr:08X}, data=0x{transaction.prdata:08X}")
                     found = True
                     break
-            
+
             if not found:
                 self.log.warning(f"No pending GAXI read found for APB read: addr=0x{addr:08X}")
-        
+
         # Add APB transaction to scoreboard
         self.apb_gaxi_scoreboard.add_apb_transaction(transaction)
 
@@ -225,7 +225,7 @@ class APBMasterTB(TBBase):
         # sourcery skip: extract-method
         """Callback for GAXI RSP monitor transactions."""
         self.rsp_monitor_queue.append(transaction)
-        
+
         # Look for the oldest pending read that has response_data set
         # This ensures we match the correct APB and GAXI transactions
         if self.pending_reads:
@@ -236,7 +236,7 @@ class APBMasterTB(TBBase):
                     cmd = read_cmd
                     del self.pending_reads[i]
                     break
-            
+
             if cmd:
                 # Create a merged transaction
                 merged_transaction = GAXIPacket(self.cmd_field_config)
@@ -245,7 +245,7 @@ class APBMasterTB(TBBase):
                 merged_transaction.data = cmd.response_data  # From APB read
                 if hasattr(transaction, 'err'):
                     merged_transaction.err = transaction.err
-                
+
                 # Add to scoreboard
                 self.log.info(f"Adding merged read tx_id={cmd.tx_id} to scoreboard: addr=0x{merged_transaction.addr:08X}, data=0x{merged_transaction.data:08X}")
                 self.apb_gaxi_scoreboard.add_gaxi_transaction(merged_transaction)
@@ -327,7 +327,7 @@ class APBMasterTB(TBBase):
         packet.cmd = 1 if is_write else 0  # 1 for write, 0 for read
         packet.addr = addr
         packet.prot = prot
-        
+
         # For write transactions, set data and strobe
         if is_write:
             packet.data = data if data is not None else random.randint(0, 2**self.DATA_WIDTH - 1)
@@ -338,24 +338,24 @@ class APBMasterTB(TBBase):
             packet.data = 0
             packet.strb = 0
             self.log.info(f"Sending read command: addr=0x{addr:08X}")
-            
+
             # IMPORTANT: We do NOT write to memory directly for reads
             # Let the APB master read what was previously written
-        
+
         # Send command through GAXI command master
         await self.cmd_master.send(packet)
-        
+
         # Wait for the master's queue to be empty
         await self.wait_for_queue_empty(self.cmd_master, timeout=10000)
-        
+
         # For reads, we need to ensure the response slave is ready
         if not is_write:
             # Wait a bit to allow the DUT time to process the read and generate a response
             await self.wait_clocks('pclk', 5)
-        
+
         # Wait a few cycles for the scoreboard to process everything
         await self.wait_clocks('pclk', 5)
-        
+
         return packet
 
     async def run_gaxi_test(self, config: APBSequence, num_transactions: int = None):

@@ -509,49 +509,49 @@ def adjust_field_configs(field_configs, id_width, addr_width, data_width, user_w
     adjusted_configs = {}
     # Strobe width calculation
     strb_width = data_width // 8
-    
+
     # Create deep copies of the field configs to avoid modifying the originals
     for channel, config in field_configs.items():
         adjusted_configs[channel] = config
-    
+
     # Adjust ID fields in AW and B channels
     if 'AW' in adjusted_configs:
         if adjusted_configs['AW'].has_field('awid'):
             adjusted_configs['AW'].update_field_width('awid', id_width)
-    
+
     if 'B' in adjusted_configs:
         if adjusted_configs['B'].has_field('bid'):
             adjusted_configs['B'].update_field_width('bid', id_width)
-    
+
     # Adjust ID fields in AR and R channels
     if 'AR' in adjusted_configs:
         if adjusted_configs['AR'].has_field('arid'):
             adjusted_configs['AR'].update_field_width('arid', id_width)
-    
+
     if 'R' in adjusted_configs:
         if adjusted_configs['R'].has_field('rid'):
             adjusted_configs['R'].update_field_width('rid', id_width)
-    
+
     # Adjust address fields
     if 'AW' in adjusted_configs:
         if adjusted_configs['AW'].has_field('awaddr'):
             adjusted_configs['AW'].update_field_width('awaddr', addr_width)
-    
+
     if 'AR' in adjusted_configs:
         if adjusted_configs['AR'].has_field('araddr'):
             adjusted_configs['AR'].update_field_width('araddr', addr_width)
-    
+
     # Adjust data fields
     if 'W' in adjusted_configs:
         if adjusted_configs['W'].has_field('wdata'):
             adjusted_configs['W'].update_field_width('wdata', data_width)
         if adjusted_configs['W'].has_field('wstrb'):
             adjusted_configs['W'].update_field_width('wstrb', strb_width)
-    
+
     if 'R' in adjusted_configs:
         if adjusted_configs['R'].has_field('rdata'):
             adjusted_configs['R'].update_field_width('rdata', data_width)
-    
+
     # Adjust user fields
     user_fields = {
         'AW': ['awuser'],
@@ -560,11 +560,11 @@ def adjust_field_configs(field_configs, id_width, addr_width, data_width, user_w
         'AR': ['aruser'],
         'R': ['ruser']
     }
-    
+
     for channel, fields in user_fields.items():
         if channel in adjusted_configs:
             for field_name in fields:
                 if adjusted_configs[channel].has_field(field_name):
                     adjusted_configs[channel].update_field_width(field_name, user_width)
-    
+
     return adjusted_configs

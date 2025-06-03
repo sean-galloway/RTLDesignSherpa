@@ -15,20 +15,20 @@ async def fifo_async_test(dut):
     '''Test the Asynchronous FIFO Buffer as thoroughly as possible'''
     # Create testbench with separate write and read clocks and reset signals
     tb = FifoMultiBufferTB(
-        dut, 
-        wr_clk=dut.i_clk, 
+        dut,
+        wr_clk=dut.i_clk,
         wr_rstn=dut.i_rst_n
     )
-    
+
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
     msg = f'seed changed to {seed}'
     tb.log.info(msg)
-    
+
     # Start both clocks with possibly different periods
     await tb.start_clock('i_clk', tb.TEST_CLK_WR, 'ns')
-    
+
     # Reset sequence
     await tb.assert_reset()
     await tb.wait_clocks('i_clk', 5)

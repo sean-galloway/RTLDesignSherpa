@@ -231,11 +231,11 @@ class GAXIMonitor(BusMonitor):
     def _check_field_value(self, field_name, field_value):
         """
         Check if a field value exceeds the maximum possible value for the field.
-        
+
         Args:
             field_name: Name of the field to check
             field_value: Value to check against field width
-            
+
         Returns:
             field_value: The original value if within range, or the masked value if not
         """

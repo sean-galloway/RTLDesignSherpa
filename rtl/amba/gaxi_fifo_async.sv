@@ -37,7 +37,7 @@ module gaxi_fifo_async #(
     logic [AW:0] w_wr_ptr_bin_next, w_rd_ptr_bin_next;
     logic        r_wr_full, r_wr_almost_full, r_rd_empty, r_rd_almost_empty;
     logic        w_write, w_read;
-    logic [AW-1:0] w_count;
+    logic [AW:0] w_count;
 
     // The flop storage registers
     logic [DW-1:0] r_mem[0:((1<<AW)-1)];  // verilog_lint: waive unpacked-dimensions-range-ordering

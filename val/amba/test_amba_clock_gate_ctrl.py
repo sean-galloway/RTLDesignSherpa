@@ -48,7 +48,7 @@ class AmbaClockGateCtrlTB(TBBase):
         self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic')
         self.CLK_PERIOD_NS = self.convert_to_int(os.environ.get('CLK_PERIOD_NS', '10'))
         self.CG_IDLE_COUNT_WIDTH = self.convert_to_int(os.environ.get('TEST_ICW', '4'))
-            
+
         # Calculate max idle count value based on width
         self.MAX_IDLE_COUNT = (1 << self.CG_IDLE_COUNT_WIDTH) - 1
 
@@ -135,7 +135,7 @@ class AmbaClockGateCtrlTB(TBBase):
         if idle_count > self.MAX_IDLE_COUNT:
             self.log.warning(f"Requested idle_count {idle_count} exceeds maximum {self.MAX_IDLE_COUNT}, clamping")
             idle_count = self.MAX_IDLE_COUNT
-            
+
         self.log.info(f"Configuring controller: enable={enable}, idle_count={idle_count}")
 
         # Use the AxiClockGateCtrl helper class
@@ -447,7 +447,7 @@ class AmbaClockGateCtrlTB(TBBase):
 
         # Set up idle counts to test based on test level and max value
         max_count = self.MAX_IDLE_COUNT
-        
+
         if self.TEST_LEVEL == 'basic':
             # Use a small and medium value for basic testing
             idle_counts = [2, min(8, max_count)]
@@ -460,14 +460,14 @@ class AmbaClockGateCtrlTB(TBBase):
         else:  # full
             # Comprehensive testing for full level
             idle_counts = [1]  # Minimum value
-            
+
             # Add powers of 2 up to the maximum
             power = 1
             while power <= max_count:
                 if power > 1:  # Skip 1 as we already added it
                     idle_counts.append(power)
                 power *= 2
-                
+
             # Add the maximum value if it's not a power of 2
             if max_count not in idle_counts:
                 idle_counts.append(max_count)

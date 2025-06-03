@@ -415,7 +415,7 @@ class EnhancedWeightedRoundRobinTB(TBBase):
         # Set different weights for different clients
         if self.CLIENTS >= 4:
             # Client 0: weight 1 (low priority)
-            # Client 1: weight 2 (medium priority)  
+            # Client 1: weight 2 (medium priority)
             # Client 2: weight 4 (high priority)
             # Client 3+: weight 1 (low priority)
             self.set_all_thresholds(1)

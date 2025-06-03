@@ -482,10 +482,10 @@ class AXI4CommandHandler:
         if hasattr(response, 'rlast') and response.rlast:
             self.read_responses[id_value]['complete'] = True
             self.read_responses[id_value]['end_time'] = get_sim_time('ns')
-            
+
             # DEBUG: Add more logging about transaction completion
             self.log.info(f"Read transaction complete: ID={id_value}, received rlast=1")
-            
+
             # Check for pending transaction and explicitly mark as complete
             if id_value in self.pending_read_transactions:
                 self.pending_read_transactions[id_value]['completed'] = True
@@ -529,7 +529,7 @@ class AXI4CommandHandler:
                 response_info = self.read_responses[id_value]
                 expected_beats = info.get('addresses', [])
                 received_beats = len(response_info.get('packets', []))
-                
+
                 if response_info.get('complete', False) or (expected_beats and received_beats >= len(expected_beats)):
                     # This transaction is complete
                     info['completed'] = True

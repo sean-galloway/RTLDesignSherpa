@@ -579,7 +579,6 @@ class FIFOMaster(BusDriver):
         # Check if full signal is high
         while self.full_sig.value:
             await RisingEdge(self.clock)
-            await Timer(self.tick_delay, units=self.tick_units)
 
             # Keep write deasserted while full
             self._assign_write_value(value=0)
@@ -615,7 +614,6 @@ class FIFOMaster(BusDriver):
 
         # Wait a cycle for the write to take effect
         await RisingEdge(self.clock)
-        await Timer(self.tick_delay, units=self.tick_units)
 
         return True
 
@@ -644,7 +642,6 @@ class FIFOMaster(BusDriver):
         self.log.debug(f'Master({self.title}): Transmit pipeline started, queue length: {len(self.transmit_queue)}')
         self.transfer_busy = True
         await RisingEdge(self.clock)
-        await Timer(self.tick_delay, units=self.tick_units)
 
         while len(self.transmit_queue):
             # Get next transaction from the queue
@@ -694,7 +691,6 @@ class FIFOMaster(BusDriver):
             await RisingEdge(self.clock)
             if self.reset_occurring:
                 break
-        await Timer(self.tick_delay, units=self.tick_units)
 
     def get_memory_stats(self):
         """

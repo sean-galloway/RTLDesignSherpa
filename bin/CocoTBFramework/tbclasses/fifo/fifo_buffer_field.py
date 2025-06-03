@@ -77,14 +77,14 @@ class FifoFieldBufferTB(TBBase):
         self.field_config.update_field_width('data1', self.DW)
 
         self.log.debug(f"\n{self.field_config}")
-        
+
         # Create enhanced memory model
         self.memory_model = EnhancedMemoryModel(
             num_lines=self.TEST_DEPTH,
             bytes_per_line=(self.AW + self.CW + 2*self.DW) // 8 or 1,
             log=self.log
         )
-        
+
         # Define memory regions for better diagnostics
         self.memory_model.define_region('addr_fields', 0, self.TEST_DEPTH // 4 - 1, 'Address fields')
         self.memory_model.define_region('ctrl_fields', self.TEST_DEPTH // 4, self.TEST_DEPTH // 2 - 1, 'Control fields')
@@ -158,7 +158,7 @@ class FifoFieldBufferTB(TBBase):
             optional_signal_map=slave_optional_map,
             log=self.log
         )
-        
+
         # Create command handler to coordinate transactions
         self.command_handler = FIFOCommandHandler(
             self.write_master,
@@ -231,7 +231,7 @@ class FifoFieldBufferTB(TBBase):
                     f"{msg}: Packet mismatch – WR: {wr_pkt.formatted(compact=True)} "
                     f"vs RD: {rd_pkt.formatted(compact=True)}"
                 )
-                
+
                 # Provide detailed field comparison
                 all_fields = set(wr_pkt.get_all_field_names()) | set(rd_pkt.get_all_field_names())
                 for field in all_fields:
@@ -239,7 +239,7 @@ class FifoFieldBufferTB(TBBase):
                     rd_val = getattr(rd_pkt, field, None)
                     if wr_val != rd_val:
                         self.log.error(f"  Field '{field}' mismatch: write={wr_val}, read={rd_val}")
-                
+
                 self.total_errors += 1
 
         # Log any leftover packets
@@ -263,13 +263,13 @@ class FifoFieldBufferTB(TBBase):
             'memory_model': self.memory_model.get_stats() if hasattr(self.memory_model, 'get_stats') else {},
             'command_handler': self.command_handler.get_stats() if hasattr(self.command_handler, 'get_stats') else {}
         }
-        
+
         # Get memory region statistics
         for region in ['addr_fields', 'ctrl_fields', 'data_fields']:
             region_stats = self.memory_model.get_region_access_stats(region)
             if region_stats:
                 stats[f'memory_region_{region}'] = region_stats
-                
+
         return stats
 
     async def simple_incremental_loops(self, count, delay_key, delay_clks_after):
@@ -284,7 +284,7 @@ class FifoFieldBufferTB(TBBase):
         await self.wait_clocks(self.wr_clk_name, 10)
         await self.deassert_reset()
         await self.wait_clocks(self.wr_clk_name, 10)
-        
+
         # Start the command handler
         await self.command_handler.start()
 
@@ -322,38 +322,38 @@ class FifoFieldBufferTB(TBBase):
 
         # Additional delay for stable results
         await self.wait_clocks(self.wr_clk_name, delay_clks_after)
-        
+
         # Stop the command handler
         await self.command_handler.stop()
 
         # Compare the packets
         self.compare_packets("Simple Incremental Loops", count)
-        
+
         # Print statistics
         stats = self.get_component_statistics()
         self.log.info(f"Test Statistics: {stats}")
 
         assert self.total_errors == 0, f'Simple Incremental Loops found {self.total_errors} Errors'
-        
+
     async def dependency_test(self, count=10, delay_key='moderate'):
         """Test transaction dependencies with complex sequence"""
         from CocoTBFramework.components.fifo.fifo_sequence import FIFOSequence
-        
+
         self.log.info(f"Running dependency test with {count} packets and {delay_key} delays")
-        
+
         # Set randomizers for timing
         self.write_master.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS[delay_key]['write']))
         self.read_slave.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS[delay_key]['read']))
-        
+
         # Reset environment
         await self.assert_reset()
         await self.wait_clocks(self.wr_clk_name, 10)
         await self.deassert_reset()
         await self.wait_clocks(self.wr_clk_name, 10)
-        
+
         # Start command handler
         await self.command_handler.start()
-        
+
         # Create sequence with dependency chain
         sequence = FIFOSequence.create_dependency_chain(
             name="test_dependency_chain",
@@ -362,30 +362,30 @@ class FifoFieldBufferTB(TBBase):
             data_step=0x100,
             delay=1
         )
-        
+
         # Set field configuration to match our testbench
         sequence.field_config = self.field_config
-        
+
         # Process the sequence to generate packets
         self.log.info(f"Processing sequence with {count} packets")
         response_map = await self.command_handler.process_sequence(sequence)
-        
+
         # Validate responses
         if len(response_map) != count:
             self.log.error(f"Expected {count} responses, but got {len(response_map)}")
             self.total_errors += 1
-        
+
         # Wait for processing to complete
         await self.wait_clocks(self.wr_clk_name, 20)
-        
+
         # Stop command handler
         await self.command_handler.stop()
-        
+
         # Check results and print statistics
         stats = self.get_component_statistics()
         self.log.info(f"Dependency Test Statistics: {stats}")
-        
+
         # Check monitored transactions
         self.compare_packets("Dependency Test", count)
-        
+
         return self.total_errors == 0

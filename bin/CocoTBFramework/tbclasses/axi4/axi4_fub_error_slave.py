@@ -25,10 +25,10 @@ class AXIErrorMonitorSlave:
         # Store the randomizer for later access
         self.randomizer = randomizer
         self.is_axil = is_axil
-        
+
         # Create field configuration for error reporting interface
         self.field_config = FieldConfig()
-        
+
         # Error type is the same for both AXI and AXI-Lite
         self.field_config.add_field_dict('error_type', {
             'bits': 8,
@@ -151,14 +151,14 @@ class AXIErrorMonitorSlave:
     def clear_queue(self):
         """Clear the monitor queue"""
         self.error_monitor.clear_queue()
-        
+
     def get_error_info(self, error_packet):
         """
         Extract error information from a packet based on protocol type.
-        
+
         Args:
             error_packet: Error packet received from the monitor
-            
+
         Returns:
             Dictionary containing error information
         """
@@ -166,9 +166,9 @@ class AXIErrorMonitorSlave:
             'error_type': error_packet.error_type,
             'error_addr': error_packet.error_addr
         }
-        
+
         # Add ID only for AXI (not for AXI-Lite)
         if not self.is_axil:
             error_info['error_id'] = error_packet.error_id
-        
+
         return error_info

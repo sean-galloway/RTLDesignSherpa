@@ -36,8 +36,8 @@ def create_apb_master(dut, title, prefix, clock, addr_width=32, data_width=32,
     # Create default randomizer if none provided
     if randomizer is None:
         randomizer = FlexRandomizer({
-            'psel':    ([[0, 0], [1, 5], [6, 10]], [5, 3, 1]),
-            'penable': ([[0, 0], [1, 3]], [3, 1]),
+            'psel':    ([(0, 0), (1, 5), (6, 10)], [5, 3, 1]),
+            'penable': ([(0, 0), (1, 3)], [3, 1]),
         })
 
     return APBMaster(
@@ -330,8 +330,8 @@ def create_apb_sequence(name="basic", num_regs=10, base_addr=0,
             strb_seq=strb_seq,
             inter_cycle_delays=delays,
             master_randomizer=FlexRandomizer({
-                'psel':    ([[0, 0], [1, 5], [6, 10]], [5, 3, 1]),
-                'penable': ([[0, 0], [1, 3]], [3, 1]),
+                'psel':    ([(0, 0), (1, 5), (6, 10)], [5, 3, 1]),
+                'penable': ([(0, 0), (1, 3)], [3, 1]),
             })
         )
 
@@ -361,8 +361,8 @@ def create_apb_sequence(name="basic", num_regs=10, base_addr=0,
             inter_cycle_delays=delays,
             # Fast back-to-back transactions
             master_randomizer=FlexRandomizer({
-                'psel':    ([[0, 0]], [1]),  # No psel delay
-                'penable': ([[0, 0]], [1]),  # No penable delay
+                'psel':    ([(0, 0)], [1]),  # No psel delay
+                'penable': ([(0, 0)], [1]),  # No penable delay
             })
         )
 
@@ -412,8 +412,8 @@ def create_apb_sequence(name="basic", num_regs=10, base_addr=0,
             strb_seq=strb_seq,
             inter_cycle_delays=delays,
             master_randomizer=FlexRandomizer({
-                'psel':    ([[0, 0], [1, 2]], [3, 1]),
-                'penable': ([[0, 0], [1, 1]], [3, 1]),
+                'psel':    ([(0, 0), (1, 2)], [3, 1]),
+                'penable': ([(0, 0), (1, 1)], [3, 1]),
             })
         )
 
@@ -456,8 +456,8 @@ def create_apb_sequence(name="basic", num_regs=10, base_addr=0,
             inter_cycle_delays=delay_range,
             use_random_selection=True,  # Randomly select from sequences
             master_randomizer=FlexRandomizer({
-                'psel':    ([[0, 0], [1, 5], [6, 10]], [5, 3, 1]),
-                'penable': ([[0, 0], [1, 3]], [3, 1]),
+                'psel':    ([(0, 0), (1, 5), (6, 10)], [5, 3, 1]),
+                'penable': ([(0, 0), (1, 3)], [3, 1]),
             })
         )
 

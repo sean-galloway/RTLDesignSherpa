@@ -659,7 +659,7 @@ class AXI4MasterWriteTB(TBBase):
         # Handle data as single value or list
         if not isinstance(data, list):
             data = [data]
-        
+
         # If burst_len not specified, calculate from data length
         if burst_len is None:
             burst_len = len(data) - 1
@@ -1002,10 +1002,10 @@ class AXI4MasterWriteTB(TBBase):
             addr = aw_packet.awaddr
             burst_len = aw_packet.awlen
             burst_size = aw_packet.awsize
-            
+
             # Extract data values from packets
             data_values = [pkt.wdata for pkt in w_packets]
-            
+
             # Extract strobe values from packets if available
             strb_values = [pkt.wstrb for pkt in w_packets] if hasattr(w_packets[0], 'wstrb') else None
 
@@ -1232,7 +1232,7 @@ class AXI4MasterWriteTB(TBBase):
             try:
                 # Create write data - need enough for the burst
                 data_values = [(0xA0000000 + j) for j in range(awlen + 1)]
-                
+
                 # Send the AW packet
                 aw_packet = AXI4Packet.create_aw_packet(
                     awid=id_value,
@@ -1252,7 +1252,7 @@ class AXI4MasterWriteTB(TBBase):
                 # Wait for address phase to complete
                 while self.fub_master.aw_master.transfer_busy:
                     await self.wait_clocks('aclk', 1)
-                
+
                 # Send W packets
                 for j, data in enumerate(data_values):
                     w_packet = AXI4Packet.create_w_packet(
@@ -1284,7 +1284,7 @@ class AXI4MasterWriteTB(TBBase):
         self.log.info('='*80)
         self.log.info('Error Test: B Timeout')
         self.log.info('='*80)
-        
+
         # Configure AXI slave to introduce long delay on B valid
         b_timeout = self.timeout_b
         slow_b_valid_config = {
@@ -1301,14 +1301,14 @@ class AXI4MasterWriteTB(TBBase):
         # Attempt a write that will timeout on response channel
         addr_start = 0x6000
         id_value = 2
-        
+
         try:
             # Create simple write
             data_value = 0xB0B0B0B0
-            
+
             # Set up the fub_master.b_slave to not accept responses (this forces the timeout)
             self.fub_master.b_slave.set_randomizer(FlexRandomizer({'ready_delay': ([[int(b_timeout * 2.1), int(b_timeout * 2.1)]], [1.0])}))
-            
+
             # Start the write
             aw_packet = AXI4Packet.create_aw_packet(
                 awid=id_value,
@@ -1324,7 +1324,7 @@ class AXI4MasterWriteTB(TBBase):
                 awuser=0
             )
             await self.fub_master.aw_master.send(aw_packet)
-            
+
             # Send W packet
             w_packet = AXI4Packet.create_w_packet(
                 wdata=data_value,
@@ -1333,13 +1333,13 @@ class AXI4MasterWriteTB(TBBase):
                 wuser=0
             )
             await self.fub_master.w_master.send(w_packet)
-            
+
         except Exception as e:
             self.log.info(f"Expected exception: {str(e)}")
-            
+
         # Wait for timeout to be detected (timeout + margin)
         await self.wait_clocks('aclk', b_timeout + 20)
-        
+
         # Verify error was reported with correct address and ID
         b_timeout_detected = await self.verify_error_addresses(
             txn_id=id_value,
@@ -1351,13 +1351,13 @@ class AXI4MasterWriteTB(TBBase):
         self.log.info('='*80)
         self.log.info('Error Test: Response error detection')
         self.log.info('='*80)
-        
+
         # Reset the randomizers to normal
         self.axi_slave.aw_slave.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS['fixed']['read']))
         self.axi_slave.w_slave.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS['fixed']['read']))
         self.axi_slave.b_master.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS['fixed']['write']))
         self.fub_master.b_slave.set_randomizer(original_fub_b_randomizer)
-        
+
         error_handler = self.axi_slave.extensions['error_handler']
 
         # Reset and setup for clean test state
@@ -1383,7 +1383,7 @@ class AXI4MasterWriteTB(TBBase):
 
             # Create a simple write
             data_value = 0xC0000000 + i
-            
+
             await self.perform_write(
                 addr=addr,
                 data=data_value,
@@ -1433,7 +1433,7 @@ class AXI4MasterWriteTB(TBBase):
         self.log.info('='*80)
         self.log.info('Error Test: Flow Control')
         self.log.info('='*80)
-        
+
         # Set a more predictable randomizer for the B channel
         self.fub_master.b_slave.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS['fixed']['read']))
 
@@ -1653,7 +1653,7 @@ class AXI4MasterWriteTB(TBBase):
         self.log.info("=" * 80)
 
         return tests_passed
-        
+
     async def run_basic_test(self):
         """Run basic functionality tests without transaction splitting"""
         self.log.info("Running basic functionality test")
@@ -1681,12 +1681,12 @@ class AXI4MasterWriteTB(TBBase):
             addr = 0x1000 + (i * 0x100)  # Ensure no boundary crossing
             data = [(0xB0000000 + i*100 + j) for j in range(burst_len + 1)]
             result = await self.perform_write(addr=addr, data=data, id_value=10+i, burst_len=burst_len)
-            
+
             # Verify each value in memory
             for j, value in enumerate(data):
                 current_addr = addr + (j * (self.data_width // 8))
                 await self.verify_memory_value(current_addr, value)
-                
+
             await self.wait_clocks('aclk', 10)  # Longer wait for burst transactions
 
         # Test 3: Different burst sizes
@@ -1833,7 +1833,7 @@ class AXI4MasterWriteTB(TBBase):
             self.fub_master.aw_master.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS[profile]['write']))
             self.fub_master.w_master.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS[profile]['write']))
             self.fub_master.b_slave.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS[profile]['read']))
-            
+
             # AXI slave side (AW slave, W slave, B master)
             self.axi_slave.aw_slave.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS[profile]['read']))
             self.axi_slave.w_slave.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS[profile]['read']))
@@ -1846,14 +1846,14 @@ class AXI4MasterWriteTB(TBBase):
                 addr_width=self.addr_width,
                 data_width=self.data_width
             )
-            
+
             # Add random write transactions
             for i in range(10):
                 addr = random.randint(0x1000, 0x8FFF) & ~0x3  # Align to word
                 id_value = random.randint(0, 7)
                 burst_len = random.choice([0, 1, 3, 7])  # Random burst length
                 data = [(0xA0A00000 + i*100 + j) for j in range(burst_len + 1)]
-                
+
                 rand_sequence.add_write_transaction(
                     addr=addr,
                     data_values=data,

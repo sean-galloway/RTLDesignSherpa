@@ -273,33 +273,33 @@ class FifoBufferTB(TBBase):
         self.log.info(f"Test Statistics: {stats}")
 
         assert self.total_errors == 0, f'Simple Incremental Loops found {self.total_errors} Errors'
-        
+
     async def stress_test_with_random_patterns(self, count=100, delay_key='constrained'):
         """Run a stress test with more complex patterns to test FIFO buffering"""
         self.log.info(f'Running stress test with {count} packets and delay profile {delay_key}')
-        
+
         # Set randomizers for both components
         self.write_master.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS[delay_key]['write']))
         self.read_slave.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS[delay_key]['read']))
-        
+
         # Reset the environment
         await self.assert_reset()
         await self.wait_clocks(self.wr_clk_name, 10)
         await self.deassert_reset()
         await self.wait_clocks(self.wr_clk_name, 10)
-        
+
         # Create varied test patterns
         patterns = []
-        
+
         # Pattern 1: Walking ones
         for bit in range(min(32, self.DW)):
             patterns.append(1 << bit)
-            
+
         # Pattern 2: Walking zeros
         all_ones = (1 << self.DW) - 1
         for bit in range(min(32, self.DW)):
             patterns.append(all_ones & ~(1 << bit))
-        
+
         # Pattern 3: Alternating bits
         patterns.extend([
             0x55555555 & self.MAX_DATA,  # 0101...
@@ -307,47 +307,47 @@ class FifoBufferTB(TBBase):
             0x33333333 & self.MAX_DATA,  # 0011...
             0xCCCCCCCC & self.MAX_DATA,  # 1100...
         ])
-        
+
         # Pattern 4: Random values
         import random
         random.seed(12345)  # For reproducibility
         for _ in range(count - len(patterns)):
             patterns.append(random.randint(0, self.MAX_DATA))
-        
+
         # Send all patterns
         for i, pattern in enumerate(patterns):
             packet = FIFOPacket(self.field_config)
             packet.data = pattern
-            
+
             # Queue the packet for transmission
             await self.write_master.send(packet)
-            
+
             # Add occasional delay to prevent overwhelming the FIFO
             if i % 10 == 9:
                 await self.wait_clocks(self.wr_clk_name, 5)
-        
+
         # Wait for all packets to be transmitted
         while self.write_master.transfer_busy:
             await self.wait_clocks(self.wr_clk_name, 1)
-            
+
         # Allow time for all packets to be received
         await self.wait_clocks(self.wr_clk_name, 50)
-        
+
         # Wait for all packets to be received
         timeout_counter = 0
         while len(self.rd_monitor.observed_queue) < len(patterns) and timeout_counter < self.TIMEOUT_CYCLES:
             await self.wait_clocks(self.wr_clk_name, 1)
             timeout_counter += 1
-            
+
         if timeout_counter >= self.TIMEOUT_CYCLES:
             self.log.error(f"Timeout waiting for packets! Only received {len(self.rd_monitor.observed_queue)} of {len(patterns)}")
-            
+
         # Compare the packets
         self.compare_packets("Stress Test With Random Patterns", len(patterns))
-        
+
         # Get and report statistics
         stats = self.get_component_statistics()
         self.log.info(f"Stress Test Statistics: {stats}")
-        
+
         # Return test result
         return self.total_errors == 0

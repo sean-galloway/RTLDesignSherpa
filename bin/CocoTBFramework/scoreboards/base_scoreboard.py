@@ -77,20 +77,20 @@ class BaseScoreboard:
     def result(self):
         """
         Calculate the result as a ratio of successful transactions.
-        
+
         Returns:
             float: Pass rate from 0.0 to 1.0
         """
         total = self.transaction_count
         # Account for expected transactions that haven't been received yet
         total += len(self.expected_queue)
-        
+
         if total == 0:
             return 1.0  # Perfect score if no transactions expected
-        
+
         # Calculate failures: mismatches + leftover expected/actual
         failures = self.error_count + len(self.expected_queue) + len(self.actual_queue)
-        
+
         # Return success ratio
         return (total - failures) / total
 

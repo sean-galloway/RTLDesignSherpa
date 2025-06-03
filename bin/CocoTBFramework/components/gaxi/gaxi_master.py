@@ -31,7 +31,7 @@ master_optional_signal_map = {
             'm2s_pkt': 'i_wr_data'
 }
 gaxi_master_default_constraints = {
-    'valid_delay': ([[0, 0], [1, 8], [9, 20]], [5, 2, 1])
+    'valid_delay': ([(0, 0), (1, 8), (9, 20)], [5, 2, 1])
 }
 
 # Basic, defauult field  config
@@ -533,44 +533,46 @@ class GAXIMaster(BusDriver):
 
         # Assert valid for this transaction
         self._assign_valid_value(value=1)
-        # wait a bit to keep from catching the last ready assertion
-        # await Timer(100, units='ps')
 
         # Wait for the DUT to assert ready (handshake completion)
         timeout_counter = 0
         ready_signal = self.signal_map.get('s2m_ready', 's2m_ready')
 
-        while not getattr(self.bus, ready_signal).value:
+        while timeout_counter < self.timeout_cycles:
+            # Wait for rising edge first
             await RisingEdge(self.clock)
-            # await Timer(self.tick_delay, units=self.tick_units)
             timeout_counter += 1
-            if timeout_counter >= self.timeout_cycles:
-                self.log.error(f"Master({self.title}) TIMEOUT waiting for ready after {self.timeout_cycles} cycles")
 
-                # Stop driving if timeout (prevent hang)
-                self._assign_valid_value(value=0)
+            # Check if ready is asserted at this clock edge
+            # Since we know valid is asserted (we just set it), we only need to check ready
+            ready_value = getattr(self.bus, ready_signal).value
 
-                # Clear the data bus
-                self._clear_data_bus()
+            if ready_value:
+                self.log.debug(f"Master({self.title}) Handshake detected at cycle {timeout_counter}")
+                return True
+            else:
+                # Log the current state for debugging
+                self.log.debug(f"Master({self.title}) Waiting for ready, cycle={timeout_counter}")
 
-                self.transfer_busy = False
-                return False
-
-        return True
+        # Timeout occurred
+        self.log.error(f"Master({self.title}) TIMEOUT waiting for ready after {self.timeout_cycles} cycles")
+        # Stop driving if timeout (prevent hang)
+        self._assign_valid_value(value=0)
+        self._clear_data_bus()
+        self.transfer_busy = False
+        return False
 
     async def _xmit_phase3(self, transaction):
         """Third phase - capture handshake and prepare for next transaction"""
-        # Handshake occurred – capture completion time
-        await RisingEdge(self.clock)
-        # await Timer(self.tick_delay, units=self.tick_units)
+        # Handshake already occurred in phase2, just clean up
         current_time_ns = get_sim_time('ns')
         self.log.debug(f"Master({self.title}) Transaction completed at {current_time_ns}ns: "
                         f"{transaction.formatted(compact=True)}")
         transaction.end_time = current_time_ns
         self.sent_queue.append(transaction)
-        # clear wr valid
+
+        # Deassert valid and clear data bus
         self._assign_valid_value(value=0)
-        # Clear the data bus
         self._clear_data_bus()
 
     async def _transmit_pipeline(self):
@@ -579,8 +581,9 @@ class GAXIMaster(BusDriver):
         """
         self.log.debug(f'Master({self.title}): Transmit pipeline started, queue length: {len(self.transmit_queue)}')
         self.transfer_busy = True
+
+        # Wait for initial clock edge to ensure clean start
         await RisingEdge(self.clock)
-        # await Timer(self.tick_delay, units=self.tick_units)
 
         while len(self.transmit_queue):
             # Get next transaction from the queue
@@ -592,7 +595,7 @@ class GAXIMaster(BusDriver):
 
             # xmit phase 2 - drive signals and wait for handshake
             if not await self._xmit_phase2(transaction):
-                # Error occurred in phase 2
+                # Error occurred in phase 2, continue to next transaction
                 continue
 
             # xmit phase 3 - handle handshake completion
@@ -603,22 +606,8 @@ class GAXIMaster(BusDriver):
         self.transmit_coroutine = None
 
         # Ensure signals are deasserted at the end
-        if 'm2s_valid' in self.signal_map:
-            valid_signal = self.signal_map['m2s_valid']
-            if hasattr(self.bus, valid_signal):
-                getattr(self.bus, valid_signal).value = 0
-        else:
-            self.valid_sig.value = 0
-
-        # Clear data signals
-        if self.use_multi_signal:
-            # Reset field signals
-            for _, dut_signal_name in self.field_signals.items():
-                if hasattr(self.bus, dut_signal_name):
-                    getattr(self.bus, dut_signal_name).value = 0
-        else:
-            # Standard mode - reset aggregate data signal
-            self.pkt_sig.value = 0
+        self._assign_valid_value(value=0)
+        self._clear_data_bus()
 
     async def wait_cycles(self, cycles):
         """
@@ -627,7 +616,7 @@ class GAXIMaster(BusDriver):
         Args:
             cycles: Number of cycles to wait
         """
-        self.log.debug(f"Master({self.title}) waiting cycles {cycles}")
+        # self.log.debug(f"Master({self.title}) waiting cycles {cycles}")
         for _ in range(cycles):
             await RisingEdge(self.clock)
             if self.reset_occurring:

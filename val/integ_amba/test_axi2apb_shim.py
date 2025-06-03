@@ -26,7 +26,7 @@ class Axi2ApbTB(TBBase):
         TBBase.__init__(self, dut)
         self.log = self.configure_logging(level=logging.DEBUG)
         self.log.info('Starting Axi2ApbTB')
-        self.DATA_WIDTH      = self.convert_to_int(os.environ.get('TEST_AXI_DATA_WIDTH', '0'))      
+        self.DATA_WIDTH      = self.convert_to_int(os.environ.get('TEST_AXI_DATA_WIDTH', '0'))
         self.APB_ADDR_WIDTH  = self.convert_to_int(os.environ.get('TEST_APB_ADDR_WIDTH', '0'))
         self.APB_DATA_WIDTH  = self.convert_to_int(os.environ.get('TEST_APB_DATA_WIDTH', '0'))
         self.strb_bits       = self.DATA_WIDTH // 8
@@ -36,14 +36,14 @@ class Axi2ApbTB(TBBase):
 
         self.debug           = True
         bus                  = AxiBus.from_prefix(dut, "s_axi")
-        self.axi_master      = AxiMaster(bus, dut.aclk, dut.aresetn, reset_active_level=False)   
+        self.axi_master      = AxiMaster(bus, dut.aclk, dut.aresetn, reset_active_level=False)
         self.registers       = 32 * self.strb_bits
         self.slave_register  = list(range(self.registers))
 
         # Set up randomizers
         self.apb_slave_randomizer = FlexRandomizer({
-            'ready': ([[0, 0], [1, 5], [6, 10]], [5, 3, 1]),
-            'error': ([[0, 0], [1, 1]], [10, 0]),
+            'ready': ([(0, 0), (1, 5), (6, 10)], [5, 3, 1]),
+            'error': ([(0, 0), (1, 1)], [10, 0])
         })
 
         # Configure APB components
@@ -150,8 +150,8 @@ class Axi2ApbTB(TBBase):
 
         # write_read tests
         apb_slv_constraints = {
-                'ready': ([[0, 0], [1, 5], [6, 10]], [5, 0, 0]),
-                'error': ([[0, 0], [1, 1]], [10, 0]),
+                'ready': ([(0, 0), (1, 5), (6, 10)], [5, 0, 0]),
+                'error': ([(0, 0), (1, 1)], [10, 0]),
         }
         self.apb_slave.set_randomizer(FlexRandomizer(apb_slv_constraints))
         for idle in [None, self.cycle_pause]:
@@ -160,8 +160,8 @@ class Axi2ApbTB(TBBase):
                     await self.run_test_write_read(idle_inserter=idle, backpressure_inserter=backpressure, size=bsize)
 
         apb_slv_constraints = {
-                'ready': ([[0, 0], [1, 5], [6, 10]], [3, 3, 1]),
-                'error': ([[0, 0], [1, 1]], [10, 0]),
+                'ready': ([(0, 0), (1, 5), (6, 10)], [3, 3, 1]),
+                'error': ([(0, 0), (1, 1)], [10, 0]),
         }
         self.apb_slave.set_randomizer(FlexRandomizer(apb_slv_constraints))
         for idle in [None, self.cycle_pause]:

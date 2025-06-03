@@ -585,10 +585,10 @@ class DataCollectTB(TBBase):
 
         # Create randomizers for masters with different configurations
         self.randomizer_configs = {
-            'fast': {'valid_delay': ([[0, 0]], [1])},                      # No delay
-            'fixed': {'valid_delay': ([[2, 2]], [1])},                     # Fixed delay
-            'moderate': {'valid_delay': ([[0, 2], [3, 6]], [3, 1])},       # Moderate delay
-            'slow': {'valid_delay': ([[0, 1], [2, 10], [11, 20]], [1, 3, 1])}  # Longer delay
+            'fast': {'valid_delay': ([(0, 0)], [1])},                      # No delay
+            'fixed': {'valid_delay': ([(2, 2)], [1])},                     # Fixed delay
+            'moderate': {'valid_delay': ([(0, 2), (3, 6)], [3, 1])},       # Moderate delay
+            'slow': {'valid_delay': ([(0, 1), (2, 10), (11, 20)], [1, 3, 1])}  # Longer delay
         }
 
         # Create randomizers
@@ -597,7 +597,7 @@ class DataCollectTB(TBBase):
         self.master_c_randomizer = FlexRandomizer(self.randomizer_configs['moderate'])
         self.master_d_randomizer = FlexRandomizer(self.randomizer_configs['moderate'])
         self.slave_e_randomizer = FlexRandomizer({
-            'ready_delay': ([[0, 0], [1, 3], [4, 8]], [3, 2, 1])
+            'ready_delay': ([(0, 0), (1, 3), (4, 8)], [3, 2, 1])
         })
 
         # Define signal maps for masters/slaves/monitors
@@ -1027,19 +1027,19 @@ class DataCollectTB(TBBase):
         """Set randomizer for slave"""
         if name == 'fixed':
             self.slave_e.set_randomizer(FlexRandomizer({
-                'ready_delay': ([[2, 2]], [1])
+                'ready_delay': ([(2, 2)], [1])
             }))
         elif name == 'fast':
             self.slave_e.set_randomizer(FlexRandomizer({
-                'ready_delay': ([[0, 0]], [1])
+                'ready_delay': ([(0, 0)], [1])
             }))
         elif name == 'slow':
             self.slave_e.set_randomizer(FlexRandomizer({
-                'ready_delay': ([[0, 1], [2, 10], [11, 20]], [1, 3, 1])
+                'ready_delay': ([(0, 1), (2, 10), (11, 20)], [1, 3, 1])
             }))
         else:  # moderate (default)
             self.slave_e.set_randomizer(FlexRandomizer({
-                'ready_delay': ([[0, 0], [1, 3], [4, 8]], [3, 2, 1])
+                'ready_delay': ([(0, 0), (1, 3), (4, 8)], [3, 2, 1])
             }))
 
         self.log.info(f"Set slave randomizer to {name}")

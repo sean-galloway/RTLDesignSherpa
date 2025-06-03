@@ -157,7 +157,7 @@ class MultiplierTB(TBBase):
         These test cases focus on patterns that exercise different Booth encoding groups
         and ensure proper sign extension is happening. The test adapts to different bit
         widths (N) automatically.
-        
+
         Returns:
             list: List of failure messages, empty if all tests passed
         """
@@ -356,7 +356,7 @@ class MultiplierTB(TBBase):
         """Test with corner cases specific to multipliers.
 
         Includes cases like zeros, ones, powers of 2, max values, etc.
-        
+
         Returns:
             list: List of failure messages, empty if all tests passed
         """
@@ -431,7 +431,7 @@ class MultiplierTB(TBBase):
 
         Tests the multiplier with a sequential pattern where a single bit
         is set to 1 and walks through all bit positions.
-        
+
         Returns:
             list: List of failure messages, empty if all tests passed
         """
@@ -489,7 +489,7 @@ class MultiplierTB(TBBase):
         """Test with alternating bit patterns (0101... and 1010...).
 
         This tests for issues with adjacent bits affecting each other.
-        
+
         Returns:
             list: List of failure messages, empty if all tests passed
         """
@@ -547,7 +547,7 @@ class MultiplierTB(TBBase):
         """Test multiplier with special patterns specific to multiplier architectures.
 
         Includes tests for booth encoding, carry propagation, etc.
-        
+
         Returns:
             list: List of failure messages, empty if all tests passed
         """
@@ -609,12 +609,12 @@ class MultiplierTB(TBBase):
         # Print test summary
         self.log.info(f"Special Patterns Test Summary: {self.pass_count}/{self.test_count} passed, {self.fail_count} failed")
         return failures
-        
+
     async def simple_test(self) -> list:
         """Run a simple test with the specific case 5*7=35.
 
         This is the exact case that's failing in our tests, so it's a good starting point.
-        
+
         Returns:
             list: List of failure messages, empty if all tests passed
         """
@@ -658,12 +658,12 @@ class MultiplierTB(TBBase):
 
         self.test_count += 1
         return failures
-        
+
     async def booth_specific_simple_test(self) -> list:
         """Run simpler booth-specific tests focusing on common patterns.
-        
+
         This runs a subset of the most critical test cases for Booth algorithm.
-        
+
         Returns:
             list: List of failure messages, empty if all tests passed
         """
@@ -756,7 +756,7 @@ class MultiplierTB(TBBase):
         - full: Run all tests including edge cases and exhaustive checks
         """
         self.log.info(f"Running comprehensive tests at {self.test_level} level")
-        
+
         # List to store failure details for later reporting
         failures = []
 
@@ -804,7 +804,7 @@ class MultiplierTB(TBBase):
 
         # Print final test summary
         self.log.info(f"Comprehensive Test Summary: {self.pass_count}/{self.test_count} passed, {self.fail_count} failed")
-        
+
         # Print summary of failures
         if failures:
             self.log.error("=== FAILURES SUMMARY ===")
@@ -822,6 +822,6 @@ class MultiplierTB(TBBase):
                     for line in failure.split('\n'):
                         self.log.error(f"  {line}")
             self.log.error("=== END FAILURES SUMMARY ===")
-            
+
             # Only assert after all tests have run
             assert self.fail_count == 0, f"Tests failed: {self.fail_count} out of {self.test_count}"

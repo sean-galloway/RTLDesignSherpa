@@ -10,14 +10,14 @@ class GAXIScoreboard(BaseScoreboard):
     def __init__(self, name, field_config, log=None):
         """
         Initialize the scoreboard with the given field configuration.
-        
+
         Args:
             name: Name of the scoreboard
             field_config: Field configuration (FieldConfig object or dictionary)
             log: Logger instance
         """
         super().__init__(name, log)
-        
+
         # Convert dict to FieldConfig if needed
         if isinstance(field_config, dict):
             self.field_config = FieldConfig.validate_and_create(field_config)
@@ -27,11 +27,11 @@ class GAXIScoreboard(BaseScoreboard):
     def _compare_transactions(self, expected, actual):
         """
         Compare GAXI packets for equality.
-        
+
         Args:
             expected: Expected transaction
             actual: Actual transaction
-            
+
         Returns:
             True if transactions match, False otherwise
         """
@@ -49,14 +49,14 @@ class GAXIScoreboard(BaseScoreboard):
     def _log_mismatch(self, expected, actual):
         """
         Enhanced mismatch logging for GAXI packets.
-        
+
         Args:
             expected: Expected transaction
             actual: Actual transaction
         """
         if self.log:
             self.log.error(f"{self.name} - GAXI Packet mismatch:")
-            
+
             # Use formatted method if available (from new Packet class)
             if hasattr(expected, 'formatted') and hasattr(actual, 'formatted'):
                 self.log.error(f"  Expected: {expected.formatted(compact=True)}")
@@ -71,7 +71,7 @@ class GAXIScoreboard(BaseScoreboard):
             if hasattr(expected, 'fields') and hasattr(actual, 'fields'):
                 # Use field names from FieldConfig
                 field_names = self.field_config.field_names() if hasattr(self.field_config, 'field_names') else self.field_config.keys()
-                
+
                 for field_name in field_names:
                     if field_name in expected.fields and field_name in actual.fields and expected.fields[field_name] != actual.fields[field_name]:
                         exp_val = expected.fields[field_name]
@@ -93,7 +93,7 @@ class TransformScoreboard(BaseScoreboard):
     def __init__(self, name, transformer, target_scoreboard, log=None):
         """
         Initialize a transform scoreboard.
-        
+
         Args:
             name: Name of the scoreboard
             transformer: Transformer to convert transactions
@@ -107,7 +107,7 @@ class TransformScoreboard(BaseScoreboard):
     def add_expected(self, transaction):
         """
         Transform source transaction and add resulting transactions to expected queue.
-        
+
         Args:
             transaction: Transaction to transform and add
         """
@@ -118,7 +118,7 @@ class TransformScoreboard(BaseScoreboard):
     def add_actual(self, transaction):
         """
         Add actual transaction with channel information.
-        
+
         Args:
             transaction: Actual transaction to add
         """
@@ -127,7 +127,7 @@ class TransformScoreboard(BaseScoreboard):
     def report(self):
         """
         Generate report using target scoreboard.
-        
+
         Returns:
             Error count from target scoreboard
         """
@@ -186,7 +186,7 @@ class GAXItoMemoryAdapter:
                     if self.log:
                         self.log.error(f"Missing required fields for memory write: {addr_field}, {data_field}")
                     return False
-                
+
                 addr = packet.fields[addr_field]
                 data = packet.fields[data_field]
                 strb = packet.fields.get(strb_field, 0xFF)
@@ -196,7 +196,7 @@ class GAXItoMemoryAdapter:
                     if self.log:
                         self.log.error(f"Missing required fields for memory write: {addr_field}, {data_field}")
                     return False
-                
+
                 addr = getattr(packet, addr_field)
                 data = getattr(packet, data_field)
                 strb = getattr(packet, strb_field) if hasattr(packet, strb_field) else 0xFF
@@ -236,7 +236,7 @@ class GAXItoMemoryAdapter:
                     if self.log:
                         self.log.error(f"Missing required field for memory read: {addr_field}")
                     return None
-                
+
                 addr = packet.fields[addr_field]
             else:
                 # Legacy approach - use attributes
@@ -244,7 +244,7 @@ class GAXItoMemoryAdapter:
                     if self.log:
                         self.log.error(f"Missing required field for memory read: {addr_field}")
                     return None
-                
+
                 addr = getattr(packet, addr_field)
 
             # Read from memory
