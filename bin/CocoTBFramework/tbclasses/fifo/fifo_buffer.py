@@ -1,5 +1,6 @@
 """Testbench for FIFO buffer components with enhanced signal handling and robust error detection"""
 import os
+import random
 import cocotb
 
 from CocoTBFramework.tbclasses.tbbase import TBBase
@@ -226,7 +227,8 @@ class FifoBufferTB(TBBase):
     async def simple_incremental_loops(self, count, delay_key, delay_clks_after):
         """Run simple incremental tests with different packet sizes"""
         # Choose the type of randomizer
-        self.log.info(f'simple_incremental_loops({count=}, {delay_key=}, {delay_clks_after=}')
+        self.log.info('='*80)
+        self.log.info(f'simple_incremental_loops({count=}, {delay_key=}, {delay_clks_after=}{self.get_time_ns_str()}')
         self.write_master.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS[delay_key]['write']))
         self.read_slave.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS[delay_key]['read']))
 
@@ -260,7 +262,7 @@ class FifoBufferTB(TBBase):
             timeout_counter += 1
 
         if timeout_counter >= self.TIMEOUT_CYCLES:
-            self.log.error(f"Timeout waiting for packets! Only received {len(self.rd_monitor.observed_queue)} of {count}")
+            self.log.error(f"Timeout waiting for packets! Only received {len(self.rd_monitor.observed_queue)} of {count}{self.get_time_ns_str()}")
 
         # Additional delay for stable results
         await self.wait_clocks(self.wr_clk_name, delay_clks_after)
@@ -272,11 +274,12 @@ class FifoBufferTB(TBBase):
         stats = self.get_component_statistics()
         self.log.info(f"Test Statistics: {stats}")
 
-        assert self.total_errors == 0, f'Simple Incremental Loops found {self.total_errors} Errors'
+        assert self.total_errors == 0, f'Simple Incremental Loops found {self.total_errors} Errors{self.get_time_ns_str()}'
 
     async def stress_test_with_random_patterns(self, count=100, delay_key='constrained'):
         """Run a stress test with more complex patterns to test FIFO buffering"""
-        self.log.info(f'Running stress test with {count} packets and delay profile {delay_key}')
+        self.log.info('='*80)
+        self.log.info(f'Running stress test with {count} packets and delay profile {delay_key}{self.get_time_ns_str()}')
 
         # Set randomizers for both components
         self.write_master.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS[delay_key]['write']))
@@ -309,7 +312,6 @@ class FifoBufferTB(TBBase):
         ])
 
         # Pattern 4: Random values
-        import random
         random.seed(12345)  # For reproducibility
         for _ in range(count - len(patterns)):
             patterns.append(random.randint(0, self.MAX_DATA))
@@ -340,7 +342,7 @@ class FifoBufferTB(TBBase):
             timeout_counter += 1
 
         if timeout_counter >= self.TIMEOUT_CYCLES:
-            self.log.error(f"Timeout waiting for packets! Only received {len(self.rd_monitor.observed_queue)} of {len(patterns)}")
+            self.log.error(f"Timeout waiting for packets! Only received {len(self.rd_monitor.observed_queue)} of {len(patterns)}{self.get_time_ns_str()}")
 
         # Compare the packets
         self.compare_packets("Stress Test With Random Patterns", len(patterns))

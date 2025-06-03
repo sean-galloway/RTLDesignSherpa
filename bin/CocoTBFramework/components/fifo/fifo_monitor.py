@@ -504,7 +504,7 @@ class FIFOMonitor(BusMonitor):
                 self._recv(packet)
             except AttributeError:
                 # Handle the AttributeError by not propagating it
-                self.log.debug("Ignoring AttributeError from parent _recv method")
+                self.log.debug(f"FIFOMonitor({self.title}) Ignoring AttributeError from parent _recv method")
 
         # Call additional callbacks
         for callback in self.callbacks:

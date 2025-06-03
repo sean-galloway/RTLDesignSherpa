@@ -25,7 +25,7 @@ master_optional_signal_map = {
     'i_wr_data': 'i_wr_data'
 }
 fifo_master_default_constraints = {
-    'write_delay': ([[0, 0], [1, 8], [9, 20]], [5, 2, 1])
+    'write_delay': ([(0, 0), (1, 8), (9, 20)], [5, 2, 1])
 }
 
 # Default memory Fields
@@ -578,7 +578,7 @@ class FIFOMaster(BusDriver):
 
         # Check if full signal is high
         while self.full_sig.value:
-            await RisingEdge(self.clock)
+            await self.wait_cycles(1)
 
             # Keep write deasserted while full
             self._assign_write_value(value=0)
@@ -613,7 +613,7 @@ class FIFOMaster(BusDriver):
             self.stats['write_while_full'] += 1
 
         # Wait a cycle for the write to take effect
-        await RisingEdge(self.clock)
+        await self.wait_cycles(1)
 
         return True
 
@@ -641,7 +641,7 @@ class FIFOMaster(BusDriver):
         """
         self.log.debug(f'Master({self.title}): Transmit pipeline started, queue length: {len(self.transmit_queue)}')
         self.transfer_busy = True
-        await RisingEdge(self.clock)
+        await self.wait_cycles(1)
 
         while len(self.transmit_queue):
             # Get next transaction from the queue
@@ -689,6 +689,7 @@ class FIFOMaster(BusDriver):
         """
         for _ in range(cycles):
             await RisingEdge(self.clock)
+            await Timer(200, units='ps')
             if self.reset_occurring:
                 break
 

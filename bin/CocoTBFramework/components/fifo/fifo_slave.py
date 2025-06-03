@@ -34,7 +34,7 @@ slave_fifo_mux_optional_signal_map = {
     'o_rd_data': 'ow_rd_data'
 }
 fifo_slave_default_constraints = {
-    'read_delay': ([[0, 1], [2, 8], [9, 30]], [5, 2, 1])
+    'read_delay': ([(0, 1), (2, 8), (9, 30)], [5, 2, 1])
 }
 
 # Default memory Fields
@@ -439,7 +439,7 @@ class FIFOSlave(BusMonitor):
                 self._recv(packet)
             except AttributeError:
                 # Handle the AttributeError by not propagating it
-                self.log.debug("Ignoring AttributeError from parent _recv method")
+                self.log.debug(f"Slave({self.title}) Ignoring AttributeError from parent _recv method")
 
         # Call additional callbacks
         for callback in self.callbacks:

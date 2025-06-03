@@ -10,6 +10,7 @@ from CocoTBFramework.components.fifo.fifo_packet import FIFOPacket
 from CocoTBFramework.components.fifo.fifo_master import FIFOMaster
 from CocoTBFramework.components.fifo.fifo_slave import FIFOSlave
 from CocoTBFramework.components.fifo.fifo_monitor import FIFOMonitor
+from CocoTBFramework.components.fifo.fifo_sequence import FIFOSequence
 from CocoTBFramework.components.fifo.fifo_memory_integ import EnhancedMemoryModel
 from CocoTBFramework.components.fifo.fifo_command_handler import FIFOCommandHandler
 from CocoTBFramework.tbclasses.fifo.fifo_buffer_configs import FIELD_CONFIGS, RANDOMIZER_CONFIGS
@@ -275,7 +276,8 @@ class FifoFieldBufferTB(TBBase):
     async def simple_incremental_loops(self, count, delay_key, delay_clks_after):
         """Run simple incremental tests with different packet sizes"""
         # Choose the type of randomizer
-        self.log.info(f'simple_incremental_loops({count=}, {delay_key=}, {delay_clks_after=})')
+        self.log.info('='*80)
+        self.log.info(f'simple_incremental_loops({count=}, {delay_key=}, {delay_clks_after=}){self.get_time_ns_str()}')
         self.write_master.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS[delay_key]['write']))
         self.read_slave.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS[delay_key]['read']))
 
@@ -337,9 +339,9 @@ class FifoFieldBufferTB(TBBase):
 
     async def dependency_test(self, count=10, delay_key='moderate'):
         """Test transaction dependencies with complex sequence"""
-        from CocoTBFramework.components.fifo.fifo_sequence import FIFOSequence
 
-        self.log.info(f"Running dependency test with {count} packets and {delay_key} delays")
+        self.log.info('='*80)
+        self.log.info(f"Running dependency test with {count} packets and {delay_key} delays{self.get_time_ns_str()}")
 
         # Set randomizers for timing
         self.write_master.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS[delay_key]['write']))

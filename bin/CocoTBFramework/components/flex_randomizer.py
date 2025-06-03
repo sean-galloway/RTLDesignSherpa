@@ -1,5 +1,7 @@
 import random
 import threading
+import traceback
+import inspect
 from collections import deque
 from typing import Dict, List, Tuple, Callable, Any, Union
 
@@ -17,6 +19,46 @@ class ConstraintValidationError(FlexRandomizerError):
 class GeneratorError(FlexRandomizerError):
     """Raised when a generator function fails."""
     pass
+
+
+def _get_caller_info():
+    """Get information about where FlexRandomizer was called from."""
+    try:
+        # Walk up the stack to find the first frame outside this file
+        current_frame = inspect.currentframe()
+        for frame_info in inspect.stack():
+            filename = frame_info.filename
+            function_name = frame_info.function
+            line_number = frame_info.lineno
+            
+            # Skip frames within this file (flex_randomizer.py)
+            if 'flex_randomizer.py' not in filename:
+                # Get some context around the line if possible
+                try:
+                    with open(filename, 'r') as f:
+                        lines = f.readlines()
+                        if 0 <= line_number - 1 < len(lines):
+                            code_line = lines[line_number - 1].strip()
+                        else:
+                            code_line = "<line not available>"
+                except:
+                    code_line = "<unable to read file>"
+                
+                return {
+                    'filename': filename,
+                    'function': function_name,
+                    'line_number': line_number,
+                    'code_line': code_line
+                }
+    except:
+        pass
+    
+    return {
+        'filename': '<unknown>',
+        'function': '<unknown>',
+        'line_number': 0,
+        'code_line': '<unknown>'
+    }
 
 
 class FlexRandomizer:
@@ -96,18 +138,37 @@ class FlexRandomizer:
             ... }
             >>> randomizer = FlexRandomizer(constraints)
         """
+        # Get caller information for better error reporting
+        caller_info = _get_caller_info()
+        
         if not isinstance(constraints, dict):
-            raise TypeError("Constraints must be a dictionary")
+            raise TypeError(
+                f"Constraints must be a dictionary\n"
+                f"Called from: {caller_info['filename']}:{caller_info['line_number']} in {caller_info['function']}()\n"
+                f"Code: {caller_info['code_line']}"
+            )
 
         if not constraints:
-            raise ValueError("Constraints dictionary cannot be empty")
+            raise ValueError(
+                f"Constraints dictionary cannot be empty\n"
+                f"Called from: {caller_info['filename']}:{caller_info['line_number']} in {caller_info['function']}()\n"
+                f"Code: {caller_info['code_line']}"
+            )
 
         # Validate constraint names
         for name in constraints.keys():
             if not isinstance(name, str) or not name.strip():
-                raise ValueError(f"Constraint names must be non-empty strings, got: {name}")
+                raise ValueError(
+                    f"Constraint names must be non-empty strings, got: {name}\n"
+                    f"Called from: {caller_info['filename']}:{caller_info['line_number']} in {caller_info['function']}()\n"
+                    f"Code: {caller_info['code_line']}"
+                )
             if not name.replace('_', '').replace('-', '').isalnum():
-                raise ValueError(f"Constraint name '{name}' contains invalid characters")
+                raise ValueError(
+                    f"Constraint name '{name}' contains invalid characters\n"
+                    f"Called from: {caller_info['filename']}:{caller_info['line_number']} in {caller_info['function']}()\n"
+                    f"Code: {caller_info['code_line']}"
+                )
 
         # Initialize thread safety
         self._lock = threading.RLock()
@@ -128,18 +189,23 @@ class FlexRandomizer:
                 setattr(self, delay_name, 0)
 
                 try:
-                    self._validate_and_categorize_constraint(delay_name, constraint)
+                    self._validate_and_categorize_constraint(delay_name, constraint, caller_info)
                 except Exception as e:
                     raise ConstraintValidationError(
-                        f"Invalid constraint for '{delay_name}': {e}"
+                        f"Invalid constraint for '{delay_name}': {e}\n"
+                        f"Constraint value: {constraint}\n"
+                        f"Constraint type: {type(constraint)}\n"
+                        f"Called from: {caller_info['filename']}:{caller_info['line_number']} in {caller_info['function']}()\n"
+                        f"Code: {caller_info['code_line']}"
                     ) from e
 
-    def _validate_and_categorize_constraint(self, delay_name: str, constraint: Any) -> None:
+    def _validate_and_categorize_constraint(self, delay_name: str, constraint: Any, caller_info: dict) -> None:
         """Validate and categorize a single constraint.
 
         Args:
             delay_name: Name of the delay field
             constraint: The constraint definition to validate
+            caller_info: Information about the calling context
 
         Raises:
             ConstraintValidationError: If the constraint is invalid
@@ -149,16 +215,26 @@ class FlexRandomizer:
             bins, weights = constraint
 
             if not isinstance(bins, list) or not bins:
-                raise ConstraintValidationError("Bins must be a non-empty list")
+                raise ConstraintValidationError(
+                    f"Bins must be a non-empty list, got {type(bins)} with value: {bins}"
+                )
 
             if not isinstance(weights, list) or len(weights) != len(bins):
-                raise ConstraintValidationError("Weights must be a list with same length as bins")
+                raise ConstraintValidationError(
+                    f"Weights must be a list with same length as bins. "
+                    f"Got {len(weights)} weights for {len(bins)} bins. "
+                    f"Weights: {weights}, Bins: {bins}"
+                )
 
             if not all(isinstance(w, (int, float)) and w >= 0 for w in weights):
-                raise ConstraintValidationError("All weights must be non-negative numbers")
+                raise ConstraintValidationError(
+                    f"All weights must be non-negative numbers, got: {weights}"
+                )
 
             if sum(weights) <= 0:
-                raise ConstraintValidationError("Sum of weights must be positive")
+                raise ConstraintValidationError(
+                    f"Sum of weights must be positive, got sum = {sum(weights)} from weights: {weights}"
+                )
 
             # Determine if this is object bins or integer range bins
             is_object_bin = self._is_object_bin(bins)
@@ -175,14 +251,21 @@ class FlexRandomizer:
                 # Validate integer range bins
                 for i, bin_range in enumerate(bins):
                     if not isinstance(bin_range, tuple) or len(bin_range) != 2:
-                        raise ConstraintValidationError(f"Bin {i} must be a tuple of (min, max)")
+                        raise ConstraintValidationError(
+                            f"Bin {i} must be a tuple of (min, max), got {type(bin_range)}: {bin_range}. "
+                            f"Note: Use (min, max) with parentheses, not [min, max] with brackets!"
+                        )
 
                     min_val, max_val = bin_range
                     if not isinstance(min_val, int) or not isinstance(max_val, int):
-                        raise ConstraintValidationError(f"Bin {i} values must be integers")
+                        raise ConstraintValidationError(
+                            f"Bin {i} values must be integers, got ({type(min_val).__name__}, {type(max_val).__name__}): {bin_range}"
+                        )
 
                     if min_val > max_val:
-                        raise ConstraintValidationError(f"Bin {i}: min ({min_val}) > max ({max_val})")
+                        raise ConstraintValidationError(
+                            f"Bin {i}: min ({min_val}) > max ({max_val})"
+                        )
 
                 # Add to constrained random fields
                 self._add_rand_field(delay_name, self._get_full_range(bins))
@@ -202,7 +285,7 @@ class FlexRandomizer:
         else:
             raise ConstraintValidationError(
                 f"Constraint must be tuple (bins, weights), list/tuple for sequence, "
-                f"or callable for generator. Got: {type(constraint)}"
+                f"or callable for generator. Got: {type(constraint)} with value: {constraint}"
             )
 
     def _is_object_bin(self, bins: List) -> bool:
@@ -497,7 +580,8 @@ class FlexRandomizer:
             # Re-categorize based on original constraint
             constraint = self.constraints[delay_name]
             try:
-                self._validate_and_categorize_constraint(delay_name, constraint)
+                caller_info = _get_caller_info()
+                self._validate_and_categorize_constraint(delay_name, constraint, caller_info)
             except Exception as e:
                 raise ConstraintValidationError(
                     f"Failed to reset '{delay_name}' to original constraint: {e}"

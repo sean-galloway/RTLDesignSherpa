@@ -2,6 +2,7 @@
 import os
 import logging
 import random
+import time
 import cocotb
 from collections import deque
 
@@ -848,9 +849,8 @@ class DataCollectTB(TBBase):
 
     def log_error(self, error_type, details):
         """Log an error with timestamp for later analysis"""
-        import time
         self.error_log.append({
-            'time': time.time(),
+            'time': self.get_time_ns_str(),
             'type': error_type,
             'details': details
         })
@@ -865,11 +865,11 @@ class DataCollectTB(TBBase):
 
             # Status updates every 200 clocks
             if count % 200 == 0:
-                self.log.info(f"Waiting for outputs: {len(self.monitor_e.observed_queue)}/{expected_count} received")
+                self.log.info(f"Waiting for outputs: {len(self.monitor_e.observed_queue)}/{expected_count} received{self.get_time_ns_str()}")
 
         received = len(self.monitor_e.observed_queue)
         if received < expected_count:
-            self.log.warning(f"Timeout waiting for outputs: {received}/{expected_count} received")
+            self.log.warning(f"Timeout waiting for outputs: {received}/{expected_count} received{self.get_time_ns_str()}")
             self.log_error('timeout', f"Expected {expected_count} outputs, got {received}")
             return False
 

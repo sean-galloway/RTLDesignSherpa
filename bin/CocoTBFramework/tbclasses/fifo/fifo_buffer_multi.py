@@ -10,6 +10,7 @@ from CocoTBFramework.components.fifo.fifo_packet import FIFOPacket
 from CocoTBFramework.components.fifo.fifo_master import FIFOMaster
 from CocoTBFramework.components.fifo.fifo_slave import FIFOSlave
 from CocoTBFramework.components.fifo.fifo_monitor import FIFOMonitor
+from CocoTBFramework.components.fifo.fifo_sequence import FIFOSequence
 from CocoTBFramework.components.fifo.fifo_memory_integ import EnhancedMemoryModel
 from CocoTBFramework.components.fifo.fifo_command_handler import FIFOCommandHandler
 from CocoTBFramework.tbclasses.fifo.fifo_buffer_configs import FIELD_CONFIGS, RANDOMIZER_CONFIGS
@@ -261,7 +262,8 @@ class FifoMultiBufferTB(TBBase):
     async def simple_incremental_loops(self, count, delay_key, delay_clks_after):
         """Run simple incremental tests with different packet sizes"""
         # Choose the type of randomizer
-        self.log.info(f'simple_incremental_loops({count=}, {delay_key=}, {delay_clks_after=})')
+        self.log.info('='*80)
+        self.log.info(f'simple_incremental_loops({count=}, {delay_key=}, {delay_clks_after=}){self.get_time_ns_str()}')
         self.write_master.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS[delay_key]['write']))
         self.read_slave.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS[delay_key]['read']))
 
@@ -310,7 +312,7 @@ class FifoMultiBufferTB(TBBase):
             timeout_counter += 1
 
         if timeout_counter >= self.TIMEOUT_CYCLES:
-            self.log.error(f"Timeout waiting for packets! Only received {len(self.rd_monitor.observed_queue)} of {count}")
+            self.log.error(f"Timeout waiting for packets! Only received {len(self.rd_monitor.observed_queue)} of {count}{self.get_time_ns_str()}")
 
         # Additional delay for stable results
         await self.wait_clocks(self.wr_clk_name, delay_clks_after)
@@ -325,13 +327,13 @@ class FifoMultiBufferTB(TBBase):
         stats = self.get_component_statistics()
         self.log.info(f"Test Statistics: {stats}")
 
-        assert self.total_errors == 0, f'Simple Incremental Loops found {self.total_errors} Errors'
+        assert self.total_errors == 0, f'Simple Incremental Loops found {self.total_errors} Errors{self.get_time_ns_str()}'
 
     async def run_sequence_test(self, sequence_type='comprehensive', count=20):
         """Run a test using predefined FIFO sequences"""
-        from CocoTBFramework.components.fifo.fifo_sequence import FIFOSequence
 
-        self.log.info(f"Running {sequence_type} sequence test with {count} packets")
+        self.log.info('='*80)
+        self.log.info(f"Running {sequence_type} sequence test with {count} packets{self.get_time_ns_str()}")
 
         # Reset the environment
         await self.assert_reset()
@@ -400,7 +402,8 @@ class FifoMultiBufferTB(TBBase):
 
     async def protocol_error_test(self):
         """Test error detection features in the FIFO components"""
-        self.log.info("Running protocol error test")
+        self.log.info('='*80)
+        self.log.info(f"Running protocol error test{self.get_time_ns_str()}")
 
         # Set to faster randomizers for quicker testing
         self.write_master.set_randomizer(FlexRandomizer(RANDOMIZER_CONFIGS['fast']['write']))
@@ -451,11 +454,11 @@ class FifoMultiBufferTB(TBBase):
             masked_data1 = packet_oversized.data1 & data_mask
 
             if wr_pkt.addr != masked_addr or wr_pkt.ctrl != masked_ctrl or \
-               wr_pkt.data0 != masked_data0 or wr_pkt.data1 != masked_data1:
-                self.log.error("Field masking did not work correctly")
+                    wr_pkt.data0 != masked_data0 or wr_pkt.data1 != masked_data1:
+                self.log.error(f"Field masking did not work correctly{self.get_time_ns_str()}")
                 self.total_errors += 1
             else:
-                self.log.info("Field masking verification passed")
+                self.log.info(f"Field masking verification passed{self.get_time_ns_str()}")
 
         # Wait for all processing to complete
         await self.wait_clocks(self.wr_clk_name, 20)
