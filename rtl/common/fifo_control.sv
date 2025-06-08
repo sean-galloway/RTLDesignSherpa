@@ -6,7 +6,7 @@ module fifo_control #(
     parameter int DEPTH = 16,
     parameter int ALMOST_WR_MARGIN = 1,
     parameter int ALMOST_RD_MARGIN = 1,
-    parameter INSTANCE_NAME = "DEADF1F0"  // verilog_lint: waive explicit-parameter-storage-type
+    parameter int REGISTERED = 0  // 0 = mux mode, 1 = flop mode
 ) (
     // clocks and resets
     input  logic                    i_wr_clk,
@@ -65,10 +65,39 @@ module fifo_control #(
     end
 
     /////////////////////////////////////////////////////////////////////////
-    // Empty Signals
-    assign w_rd_empty_d = (!w_rdom_ptr_xor &&
-                            (iw_rd_ptr_bin[AW:0] == iw_rdom_wr_ptr_bin[AW:0]));
+    // Empty Signals - Mode-aware write pointer selection
+    logic [ADDR_WIDTH:0] w_wr_ptr_for_empty;
+    logic w_rdom_ptr_xor_for_empty;
 
+    generate
+        if (REGISTERED == 1) begin : gen_flop_mode
+            // FLOP mode: Use previous cycle's write pointer to match registered data timing
+            logic [ADDR_WIDTH:0] r_rdom_wr_ptr_bin_delayed;
+
+            always_ff @(posedge i_rd_clk or negedge i_rd_rst_n) begin
+                if (!i_rd_rst_n) begin
+                    r_rdom_wr_ptr_bin_delayed <= '0;
+                end else begin
+                    r_rdom_wr_ptr_bin_delayed <= iw_rdom_wr_ptr_bin;
+                end
+            end
+
+            assign w_wr_ptr_for_empty = r_rdom_wr_ptr_bin_delayed;
+        end else begin : gen_mux_mode
+            // MUX mode: Use current write pointer for immediate data availability
+            assign w_wr_ptr_for_empty = iw_rdom_wr_ptr_bin;
+        end
+    endgenerate
+
+    // Calculate XOR using the mode-appropriate write pointer
+    assign w_rdom_ptr_xor_for_empty = iw_rd_ptr_bin[AW] ^ w_wr_ptr_for_empty[AW];
+
+    // Empty detection using mode-appropriate write pointer
+    assign w_rd_empty_d = (!w_rdom_ptr_xor_for_empty &&
+                            (iw_rd_ptr_bin[AW:0] == w_wr_ptr_for_empty[AW:0]));
+
+    /////////////////////////////////////////////////////////////////////////
+    // Almost Empty calculation (uses standard timing regardless of mode)
     // Fixed: Cast D to AW-bit width to match other operands
     assign w_almost_empty_count = (w_rdom_ptr_xor) ?
                         (AW'(D) - iw_rd_ptr_bin[AW-1:0] + iw_rdom_wr_ptr_bin[AW-1:0]) :
@@ -92,4 +121,5 @@ module fifo_control #(
             o_rd_almost_empty <= w_rd_almost_empty_d;
         end
     end
+
 endmodule : fifo_control

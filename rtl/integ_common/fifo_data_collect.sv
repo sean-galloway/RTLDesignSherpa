@@ -22,32 +22,32 @@ module fifo_data_collect #(
 
     // Input Channel A
     input  logic                    i_a_write,
-    output logic                    o_a_full,
+    output logic                    o_a_wr_full,
     input  logic [DW-1:0]           i_a_data,
     input  logic [IDW-1:0]          i_a_id,
 
     // Input Channel B
     input  logic                    i_b_write,
-    output logic                    o_b_full,
+    output logic                    o_b_wr_full,
     input  logic [DW-1:0]           i_b_data,
     input  logic [IDW-1:0]          i_b_id,
 
     // Input Channel C
     input  logic                    i_c_write,
-    output logic                    o_c_full,
+    output logic                    o_c_wr_full,
     input  logic [DW-1:0]           i_c_data,
     input  logic [IDW-1:0]          i_c_id,
 
     // Input Channel D
     input  logic                    i_d_write,
-    output logic                    o_d_full,
+    output logic                    o_d_wr_full,
     input  logic [DW-1:0]           i_d_data,
     input  logic [IDW-1:0]          i_d_id,
 
     // Output Channel E (FIFO)
     input  logic                    i_e_read,
     output logic                    o_e_empty,
-    output logic [IDW+CHUNKS*DW-1:0] o_e_data
+    output logic [IDW+CHUNKS*DW-1:0] ow_e_data
 );
 
     // ===========================================================================
@@ -120,7 +120,7 @@ module fifo_data_collect #(
         .i_rst_n          (i_rst_n),
         .i_write          (i_a_write),
         .i_wr_data        ({i_a_id, i_a_data}),
-        .o_wr_full        (o_a_full),
+        .o_wr_full        (o_a_wr_full),
         .o_wr_almost_full (),
         .i_read           (w_a_read),
         .o_rd_data        (),
@@ -139,7 +139,7 @@ module fifo_data_collect #(
         .i_rst_n          (i_rst_n),
         .i_write          (i_b_write),
         .i_wr_data        ({i_b_id, i_b_data}),
-        .o_wr_full        (o_b_full),
+        .o_wr_full        (o_b_wr_full),
         .o_wr_almost_full (),
         .i_read           (w_b_read),
         .o_rd_data        (),
@@ -158,7 +158,7 @@ module fifo_data_collect #(
         .i_rst_n          (i_rst_n),
         .i_write          (i_c_write),
         .i_wr_data        ({i_c_id, i_c_data}),
-        .o_wr_full        (o_c_full),
+        .o_wr_full        (o_c_wr_full),
         .o_wr_almost_full (),
         .i_read           (w_c_read),
         .o_rd_data        (),
@@ -177,7 +177,7 @@ module fifo_data_collect #(
         .i_rst_n          (i_rst_n),
         .i_write          (i_d_write),
         .i_wr_data        ({i_d_id, i_d_data}),
-        .o_wr_full        (o_d_full),
+        .o_wr_full        (o_d_wr_full),
         .o_wr_almost_full (),
         .i_read           (w_d_read),
         .o_rd_data        (),
@@ -360,7 +360,7 @@ module fifo_data_collect #(
         .o_wr_almost_full (),
         .i_read           (i_e_read),
         .o_rd_data        (),
-        .ow_rd_data       (o_e_data),
+        .ow_rd_data       (ow_e_data),
         .o_rd_empty       (o_e_empty),
         .o_rd_almost_empty()
     );

@@ -2,29 +2,29 @@
 
 // Paramerized Asynchronous FIFO -- This works for any even depth
 module fifo_async_div2 #(
+    parameter int REGISTERED = 0,  // 0 = mux mode (ow_rd_data), 1 = flop mode (o_rd_data)
     parameter int DATA_WIDTH = 8,
     parameter int DEPTH = 10,
     parameter int N_FLOP_CROSS = 2,
     parameter int ALMOST_WR_MARGIN = 1,
     parameter int ALMOST_RD_MARGIN = 1,
-    parameter INSTANCE_NAME = "DEADF1F0"  // verilog_lint: waive explicit-parameter-storage-type
+    parameter     INSTANCE_NAME = "DEADF1F0"  // verilog_lint: waive explicit-parameter-storage-type
 ) (
     // clocks and resets
-    input  logic                  i_wr_clk,
-    i_wr_rst_n,
-    i_rd_clk,
-    i_rd_rst_n,
+    input  logic                    i_wr_clk,
+                                    i_wr_rst_n,
+                                    i_rd_clk,
+                                    i_rd_rst_n,
     // i_wr_clk domain
-    input  logic                  i_write,
-    input  logic [DATA_WIDTH-1:0] i_wr_data,
-    output logic                  o_wr_full,
-    output logic                  o_wr_almost_full,
+    input  logic                    i_write,
+    input  logic [DATA_WIDTH-1:0]   i_wr_data,
+    output logic                    o_wr_full,
+    output logic                    o_wr_almost_full,
     // i_rd_clk domain
-    input  logic                  i_read,
-    output logic [DATA_WIDTH-1:0] ow_rd_data,
-    output logic [DATA_WIDTH-1:0] o_rd_data,
-    output logic                  o_rd_empty,
-    output logic                  o_rd_almost_empty
+    input  logic                    i_read,
+    output logic [DATA_WIDTH-1:0]   o_rd_data,
+    output logic                    o_rd_empty,
+    output logic                    o_rd_almost_empty
     );
 
     localparam int DW = DATA_WIDTH;
@@ -43,6 +43,7 @@ module fifo_async_div2 #(
 
     // The flop storage registers
     logic [DW-1:0] r_mem[0:((1<<AW)-1)];  // verilog_lint: waive unpacked-dimensions-range-ordering
+    logic [DW-1:0] w_rd_data;
 
     /////////////////////////////////////////////////////////////////////////
     // Instantiate the binary counters for write and read pointers
@@ -142,40 +143,52 @@ module fifo_async_div2 #(
     /////////////////////////////////////////////////////////////////////////
     // Memory Flops
     always_ff @(posedge i_wr_clk) begin
-        if (i_write && !o_wr_full) r_mem[r_wr_addr] <= i_wr_data;
+        if (i_write) begin
+            r_mem[r_wr_addr] <= i_wr_data;
+        end
     end
 
-    // Flop stage for the flopped data
-    always_ff @(posedge i_rd_clk or negedge i_rd_rst_n) begin
-        if (!i_rd_rst_n) o_rd_data <= 'b0;
-        else o_rd_data <= r_mem[r_rd_addr];
-    end
+    assign w_rd_data = r_mem[r_rd_addr];
 
     /////////////////////////////////////////////////////////////////////////
     // Read Port
-    assign ow_rd_data = r_mem[r_rd_addr];
+    generate
+        if (REGISTERED != 0) begin : gen_flop_mode
+            // Flop mode - registered output
+            always_ff @(posedge i_rd_clk or negedge i_rd_rst_n) begin
+                if (!i_rd_rst_n)
+                    o_rd_data <= 'b0;
+                else
+                    o_rd_data <= w_rd_data;
+            end
+        end else begin : gen_mux_mode
+            // Mux mode - non-registered output
+            assign o_rd_data = w_rd_data;
+        end
+    endgenerate
 
     /////////////////////////////////////////////////////////////////////////
     // Generate the Full/Empty signals
     fifo_control #(
-        .DEPTH(D),
-        .ADDR_WIDTH(AW),
-        .ALMOST_RD_MARGIN(ALMOST_RD_MARGIN),
-        .ALMOST_WR_MARGIN(ALMOST_WR_MARGIN)
+        .DEPTH              (D),
+        .ADDR_WIDTH         (AW),
+        .ALMOST_RD_MARGIN   (ALMOST_RD_MARGIN),
+        .ALMOST_WR_MARGIN   (ALMOST_WR_MARGIN),
+        .REGISTERED         (REGISTERED)
     ) fifo_control_inst (
-        .i_wr_clk          (i_wr_clk),
-        .i_wr_rst_n        (i_wr_rst_n),
-        .i_rd_clk          (i_rd_clk),
-        .i_rd_rst_n        (i_rd_rst_n),
-        .iw_wr_ptr_bin     (w_wr_ptr_bin_next),
-        .iw_wdom_rd_ptr_bin(w_wdom_rd_ptr_bin),
-        .iw_rd_ptr_bin     (w_rd_ptr_bin_next),
-        .iw_rdom_wr_ptr_bin(w_rdom_wr_ptr_bin),
-        .ow_count          (),
-        .o_wr_full         (o_wr_full),
-        .o_wr_almost_full  (o_wr_almost_full),
-        .o_rd_empty        (o_rd_empty),
-        .o_rd_almost_empty (o_rd_almost_empty)
+        .i_wr_clk           (i_wr_clk),
+        .i_wr_rst_n         (i_wr_rst_n),
+        .i_rd_clk           (i_rd_clk),
+        .i_rd_rst_n         (i_rd_rst_n),
+        .iw_wr_ptr_bin      (w_wr_ptr_bin_next),
+        .iw_wdom_rd_ptr_bin (w_wdom_rd_ptr_bin),
+        .iw_rd_ptr_bin      (w_rd_ptr_bin_next),
+        .iw_rdom_wr_ptr_bin (w_rdom_wr_ptr_bin),
+        .ow_count           (),
+        .o_wr_full          (o_wr_full),
+        .o_wr_almost_full   (o_wr_almost_full),
+        .o_rd_empty         (o_rd_empty),
+        .o_rd_almost_empty  (o_rd_almost_empty)
     );
 
     /////////////////////////////////////////////////////////////////////////

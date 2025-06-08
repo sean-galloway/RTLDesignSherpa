@@ -1,0 +1,55 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Sat Jun  7 21:28:33 2025
+[*]
+[dumpfile] "/home/seang/github/RTLDesignSherpa/val/common/local_sim_build/test_buffer_sync_w008_d002_wcl010_rcl010_fifo_flop/dump.fst"
+[dumpfile_mtime] "Sat Jun  7 21:08:58 2025"
+[dumpfile_size] 5348
+[savefile] "/home/seang/github/RTLDesignSherpa/val/common/GTKW/fifo_buffer.gtkw"
+[timestart] 0
+[size] 2695 1309
+[pos] -1 -1
+*-20.478840 15620200 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .fifo_sync.
+[sst_width] 451
+[signals_width] 223
+[sst_expanded] 1
+[sst_vpaned_height] 289
+@420
+fifo_sync.DEPTH
+fifo_sync.AW
+fifo_sync.DW
+fifo_sync.INSTANCE_NAME
+@200
+-clk and reset
+@28
+fifo_sync.i_clk
+fifo_sync.i_rst_n
+@200
+-write interface
+@28
+fifo_sync.i_write
+@22
+fifo_sync.i_wr_data[7:0]
+@28
+fifo_sync.o_wr_full
+fifo_sync.o_wr_almost_full
+@200
+-read interface
+@28
+fifo_sync.i_read
+@22
+fifo_sync.o_rd_data[7:0]
+fifo_sync.ow_rd_data[7:0]
+@29
+fifo_sync.o_rd_empty
+@28
+fifo_sync.o_rd_almost_empty
+@200
+-internals
+@28
+fifo_sync.r_wr_ptr_bin[1:0]
+fifo_sync.r_rd_ptr_bin[1:0]
+[pattern_trace] 1
+[pattern_trace] 0

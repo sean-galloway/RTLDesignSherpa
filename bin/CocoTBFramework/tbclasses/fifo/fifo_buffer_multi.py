@@ -187,8 +187,8 @@ class FifoMultiBufferTB(TBBase):
         Logs any mismatches and updates self.total_errors.
         """
         # Check packet counts
-        wr_mon_count = len(self.wr_monitor.observed_queue)
-        rd_mon_count = len(self.rd_monitor.observed_queue)
+        wr_mon_count = len(self.wr_monitor._recvQ)
+        rd_mon_count = len(self.rd_monitor._recvQ)
 
         if wr_mon_count != rd_mon_count:
             self.log.error(
@@ -215,9 +215,9 @@ class FifoMultiBufferTB(TBBase):
             self.total_errors += 1
 
         # Compare packets
-        while self.wr_monitor.observed_queue and self.rd_monitor.observed_queue:
-            wr_pkt = self.wr_monitor.observed_queue.popleft()
-            rd_pkt = self.rd_monitor.observed_queue.popleft()
+        while self.wr_monitor._recvQ and self.rd_monitor._recvQ:
+            wr_pkt = self.wr_monitor._recvQ.popleft()
+            rd_pkt = self.rd_monitor._recvQ.popleft()
 
             # Compare the two packets
             if wr_pkt != rd_pkt:
@@ -237,13 +237,13 @@ class FifoMultiBufferTB(TBBase):
                 self.total_errors += 1
 
         # Log any leftover packets
-        while self.wr_monitor.observed_queue:
-            pkt = self.wr_monitor.observed_queue.popleft()
+        while self.wr_monitor._recvQ:
+            pkt = self.wr_monitor._recvQ.popleft()
             self.log.error(f"{msg}: Unmatched extra packet in WR monitor: {pkt.formatted(compact=True)}")
             self.total_errors += 1
 
-        while self.rd_monitor.observed_queue:
-            pkt = self.rd_monitor.observed_queue.popleft()
+        while self.rd_monitor._recvQ:
+            pkt = self.rd_monitor._recvQ.popleft()
             self.log.error(f"{msg}: Unmatched extra packet in RD monitor: {pkt.formatted(compact=True)}")
             self.total_errors += 1
 
@@ -307,12 +307,12 @@ class FifoMultiBufferTB(TBBase):
 
         # Wait for all packets to be received
         timeout_counter = 0
-        while len(self.rd_monitor.observed_queue) < count and timeout_counter < self.TIMEOUT_CYCLES:
+        while len(self.rd_monitor._recvQ) < count and timeout_counter < self.TIMEOUT_CYCLES:
             await self.wait_clocks(self.wr_clk_name, 1)
             timeout_counter += 1
 
         if timeout_counter >= self.TIMEOUT_CYCLES:
-            self.log.error(f"Timeout waiting for packets! Only received {len(self.rd_monitor.observed_queue)} of {count}{self.get_time_ns_str()}")
+            self.log.error(f"Timeout waiting for packets! Only received {len(self.rd_monitor._recvQ)} of {count}{self.get_time_ns_str()}")
 
         # Additional delay for stable results
         await self.wait_clocks(self.wr_clk_name, delay_clks_after)
@@ -439,8 +439,8 @@ class FifoMultiBufferTB(TBBase):
         await self.wait_clocks(self.wr_clk_name, 20)
 
         # Check that values were properly masked
-        if self.wr_monitor.observed_queue:
-            wr_pkt = self.wr_monitor.observed_queue[0]
+        if self.wr_monitor._recvQ:
+            wr_pkt = self.wr_monitor._recvQ[0]
             self.log.info(f"Field values after masking: {wr_pkt.formatted(compact=True)}")
 
             # Verify fields were masked correctly

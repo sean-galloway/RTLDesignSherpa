@@ -21,7 +21,8 @@ class FifoFieldBufferTB(TBBase):
 
     def __init__(self, dut,
                     wr_clk=None, wr_rstn=None,
-                    rd_clk=None, rd_rstn=None):
+                    rd_clk=None, rd_rstn=None,
+                    super_debug=False):
         super().__init__(dut)
 
         # Get test parameters from environment
@@ -33,6 +34,7 @@ class FifoFieldBufferTB(TBBase):
         self.TEST_KIND = os.environ.get('TEST_KIND', 'sync')
         self.TEST_CLK_WR = self.convert_to_int(os.environ.get('TEST_CLK_WR', '10'))
         self.TEST_CLK_RD = self.convert_to_int(os.environ.get('TEST_CLK_RD', '10'))
+        self.super_debug = True
 
         # Setup widths and limits
         self.AW = self.TEST_ADDR_WIDTH
@@ -67,6 +69,7 @@ class FifoFieldBufferTB(TBBase):
         msg += f' MODE:     {self.TEST_MODE}\n'
         msg += f' clk_wr:   {self.TEST_CLK_WR}\n'
         msg += f' clk_rd:   {self.TEST_CLK_RD}\n'
+        msg += f' Debug:    {self.super_debug}\n'
         msg += '='*80 + "\n"
         self.log.info(msg)
 
@@ -91,72 +94,72 @@ class FifoFieldBufferTB(TBBase):
         self.memory_model.define_region('ctrl_fields', self.TEST_DEPTH // 4, self.TEST_DEPTH // 2 - 1, 'Control fields')
         self.memory_model.define_region('data_fields', self.TEST_DEPTH // 2, self.TEST_DEPTH - 1, 'Data fields')
 
-        # Set up signal mappings
-        # Required signals (valid/ready) for master
-        master_signal_map = {
-            'm2s_valid': 'i_wr_valid',
-            's2m_ready': 'o_wr_ready'
-        }
-
-        # Optional signals (data fields) for master
-        master_optional_map = {
-            'm2s_pkt_data': 'i_wr_data'
-        }
-
-        # Required signals (valid/ready) for slave
-        slave_signal_map = {
-            'm2s_valid': 'o_rd_valid',
-            's2m_ready': 'i_rd_ready'
-        }
-
-        # Optional signals (data fields) for slave
-        slave_optional_map = {
-            'm2s_pkt_data': 'o_rd_data'
-        }
-
-        # Create BFM components - use field mode with appropriate signals
+        # Create BFM components using new unified signal resolution
+        # For FIFO buffer tests, we typically use single combined data signals with field_mode=True
         self.write_master = FIFOMaster(
             dut, 'write_master', '', self.wr_clk,
             field_config=self.field_config,
-            field_mode=True,
+            field_mode=True,  # Unpack combined data signal into multiple fields
+            multi_sig=False,  # Use single data signal, not individual field signals
             memory_model=self.memory_model,
             timeout_cycles=self.TIMEOUT_CYCLES,
-            signal_map=master_signal_map,
-            optional_signal_map=master_optional_map,
+            mode=self.TEST_MODE,
+            in_prefix='i_',
+            out_prefix='o_',
+            bus_name='wr_',
+            mux_prefix='ow',
+            pkt_prefix='',
+            super_debug=self.super_debug,
             log=self.log
         )
 
         self.read_slave = FIFOSlave(
             dut, 'read_slave', '', self.rd_clk,
-            mode=self.TEST_MODE,
             field_config=self.field_config,
-            field_mode=True,
+            field_mode=True,  # Unpack combined data signal into multiple fields
+            multi_sig=False,  # Use single data signal, not individual field signals
             memory_model=self.memory_model,
             timeout_cycles=self.TIMEOUT_CYCLES,
-            signal_map=slave_signal_map,
-            optional_signal_map=slave_optional_map,
+            mode=self.TEST_MODE,
+            in_prefix='i_',
+            out_prefix='o_',
+            bus_name='rd_',
+            mux_prefix='ow',
+            pkt_prefix='',
+            super_debug=self.super_debug,
             log=self.log
         )
 
-        # Set up monitors
+        # Set up monitors with same signal configuration
         self.wr_monitor = FIFOMonitor(
             dut, 'Write monitor', '', self.wr_clk,
             field_config=self.field_config,
             field_mode=True,
-            is_slave=False,
-            signal_map=master_signal_map,
-            optional_signal_map=master_optional_map,
+            multi_sig=False,
+            is_slave=False,  # Monitor write port (master side)
+            mode=self.TEST_MODE,
+            in_prefix='i_',
+            out_prefix='o_',
+            bus_name='wr_',
+            mux_prefix='ow_',
+            pkt_prefix='pkt_',
+            super_debug=self.super_debug,
             log=self.log
         )
 
         self.rd_monitor = FIFOMonitor(
             dut, 'Read monitor', '', self.rd_clk,
-            mode=self.TEST_MODE,
             field_config=self.field_config,
             field_mode=True,
-            is_slave=True,
-            signal_map=slave_signal_map,
-            optional_signal_map=slave_optional_map,
+            multi_sig=False,
+            is_slave=True,  # Monitor read port (slave side)
+            mode=self.TEST_MODE,
+            in_prefix='i_',
+            out_prefix='o_',
+            bus_name='rd_',
+            mux_prefix='ow_',
+            pkt_prefix='pkt_',
+            super_debug=self.super_debug,
             log=self.log
         )
 
@@ -194,8 +197,8 @@ class FifoFieldBufferTB(TBBase):
         Logs any mismatches and updates self.total_errors.
         """
         # Check packet counts
-        wr_mon_count = len(self.wr_monitor.observed_queue)
-        rd_mon_count = len(self.rd_monitor.observed_queue)
+        wr_mon_count = len(self.wr_monitor._recvQ)
+        rd_mon_count = len(self.rd_monitor._recvQ)
 
         if wr_mon_count != rd_mon_count:
             self.log.error(
@@ -222,9 +225,9 @@ class FifoFieldBufferTB(TBBase):
             self.total_errors += 1
 
         # Compare packets
-        while self.wr_monitor.observed_queue and self.rd_monitor.observed_queue:
-            wr_pkt = self.wr_monitor.observed_queue.popleft()
-            rd_pkt = self.rd_monitor.observed_queue.popleft()
+        while self.wr_monitor._recvQ and self.rd_monitor._recvQ:
+            wr_pkt = self.wr_monitor._recvQ.popleft()
+            rd_pkt = self.rd_monitor._recvQ.popleft()
 
             # Compare the two packets
             if wr_pkt != rd_pkt:
@@ -234,7 +237,12 @@ class FifoFieldBufferTB(TBBase):
                 )
 
                 # Provide detailed field comparison
-                all_fields = set(wr_pkt.get_all_field_names()) | set(rd_pkt.get_all_field_names())
+                if hasattr(wr_pkt, 'get_all_field_names'):
+                    all_fields = set(wr_pkt.get_all_field_names()) | set(rd_pkt.get_all_field_names())
+                else:
+                    # Fallback to field_config field names
+                    all_fields = set(self.field_config.field_names())
+
                 for field in all_fields:
                     wr_val = getattr(wr_pkt, field, None)
                     rd_val = getattr(rd_pkt, field, None)
@@ -244,13 +252,13 @@ class FifoFieldBufferTB(TBBase):
                 self.total_errors += 1
 
         # Log any leftover packets
-        while self.wr_monitor.observed_queue:
-            pkt = self.wr_monitor.observed_queue.popleft()
+        while self.wr_monitor._recvQ:
+            pkt = self.wr_monitor._recvQ.popleft()
             self.log.error(f"{msg}: Unmatched extra packet in WR monitor: {pkt.formatted(compact=True)}")
             self.total_errors += 1
 
-        while self.rd_monitor.observed_queue:
-            pkt = self.rd_monitor.observed_queue.popleft()
+        while self.rd_monitor._recvQ:
+            pkt = self.rd_monitor._recvQ.popleft()
             self.log.error(f"{msg}: Unmatched extra packet in RD monitor: {pkt.formatted(compact=True)}")
             self.total_errors += 1
 
@@ -315,12 +323,12 @@ class FifoFieldBufferTB(TBBase):
 
         # Wait for all packets to be received
         timeout_counter = 0
-        while len(self.rd_monitor.observed_queue) < count and timeout_counter < self.TIMEOUT_CYCLES:
+        while len(self.rd_monitor._recvQ) < count and timeout_counter < self.TIMEOUT_CYCLES:
             await self.wait_clocks(self.wr_clk_name, 1)
             timeout_counter += 1
 
         if timeout_counter >= self.TIMEOUT_CYCLES:
-            self.log.error(f"Timeout waiting for packets! Only received {len(self.rd_monitor.observed_queue)} of {count}")
+            self.log.error(f"Timeout waiting for packets! Only received {len(self.rd_monitor._recvQ)} of {count}")
 
         # Additional delay for stable results
         await self.wait_clocks(self.wr_clk_name, delay_clks_after)
