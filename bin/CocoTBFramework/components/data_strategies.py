@@ -10,6 +10,7 @@ Key Benefits:
 - 30% faster data driving through cached driving functions
 - Eliminates repeated hasattr()/getattr() calls every cycle
 - Pre-computed field validation for maximum efficiency
+- Clean field unpacking without conditional mess
 """
 
 from typing import Dict, Any, List, Optional
@@ -20,6 +21,9 @@ class DataCollectionStrategy:
     High-performance data collection strategy that caches signal references and
     field validation rules during initialization to eliminate repeated lookups
     in monitoring loops.
+
+    Enhanced with clean field unpacking to eliminate the conditional mess
+    that was appearing in _finish_packet methods.
 
     This solves the performance issue where _get_data_dict() was called every
     cycle, causing repeated hasattr(), getattr(), and field config lookups.
@@ -60,9 +64,14 @@ class DataCollectionStrategy:
         # Set up collection strategy once during init
         self._setup_collection_strategy()
 
+        # NEW: Set up field unpacking strategy
+        self.needs_unpacking = self._determine_unpacking_needs()
+        self.unpacking_func = self._create_unpacking_function()
+
         self.log.debug(f"DataCollectionStrategy initialized: "
                         f"{len(self.collection_funcs)} signal collectors, "
-                        f"{'multi-signal' if use_multi_signal else 'standard'} mode")
+                        f"{'multi-signal' if use_multi_signal else 'standard'} mode, "
+                        f"unpacking={'required' if self.needs_unpacking else 'not needed'}")
 
     def _setup_collection_strategy(self):
         """Set up data collection strategy based on available signals."""
@@ -152,6 +161,97 @@ class DataCollectionStrategy:
 
         return data_dict
 
+    # NEW METHODS: Clean field unpacking logic
+
+    def _determine_unpacking_needs(self):
+        """
+        Determine if we need to unpack fields from combined data.
+
+        This replaces the messy conditional logic that was in _finish_packet.
+
+        Returns:
+            True if field unpacking is needed, False otherwise
+        """
+        # If using multi-signal mode, no unpacking needed (each field has its own signal)
+        if self.use_multi_signal:
+            return False
+
+        # If we only have one field, no unpacking needed
+        if len(self.field_config) <= 1:
+            return False
+
+        # If we have multiple fields but only collected 'data', we need unpacking
+        # This happens when multiple fields are packed into a single data signal
+        return True
+
+    def _create_unpacking_function(self):
+        """
+        Create the appropriate unpacking function based on configuration.
+
+        This eliminates the conditional nightmare that was in _finish_packet.
+
+        Returns:
+            Function to unpack fields, or None if no unpacking needed
+        """
+        if not self.needs_unpacking:
+            return None
+
+        # Create a cached unpacking function
+        def unpack_combined_fields(data_dict):
+            """Unpack combined data field into individual fields"""
+            if 'data' not in data_dict or data_dict['data'] == -1:
+                # No data to unpack or X/Z value
+                return data_dict
+
+            combined_value = data_dict['data']
+            unpacked_fields = {}
+            bit_offset = 0
+
+            # Process fields in the order defined in field_config
+            for field_name in self.field_config.field_names():
+                try:
+                    field_def = self.field_config.get_field(field_name)
+                    field_width = field_def.bits
+                    mask = (1 << field_width) - 1
+
+                    # Extract field value using mask and shift
+                    field_value = (combined_value >> bit_offset) & mask
+                    unpacked_fields[field_name] = field_value
+                    bit_offset += field_width
+
+                except Exception as e:
+                    self.log.warning(f"Error unpacking field {field_name}: {e}")
+                    unpacked_fields[field_name] = -1
+
+            return unpacked_fields
+
+        return unpack_combined_fields
+
+    def collect_and_unpack_data(self):
+        """
+        Collect data and handle field unpacking in one clean call.
+
+        This is the NEW method that replaces the messy _get_data_dict() +
+        conditional unpacking logic that was in _finish_packet.
+
+        Returns:
+            Dictionary of field values, unpacked if necessary
+        """
+        # First collect the raw data
+        raw_data = self.collect_data()
+
+        # If no unpacking needed, return as-is
+        if not self.needs_unpacking:
+            return raw_data
+
+        # Apply unpacking function
+        try:
+            return self.unpacking_func(raw_data)
+        except Exception as e:
+            self.log.error(f"Error in field unpacking: {e}")
+            # Return raw data as fallback
+            return raw_data
+
     def get_stats(self):
         """Get statistics about the collection strategy."""
         return {
@@ -159,6 +259,7 @@ class DataCollectionStrategy:
             'cached_signals': len(self.signal_refs),
             'mode': 'multi-signal' if self.use_multi_signal else 'standard',
             'field_count': len(self.field_config) if self.field_config else 0,
+            'needs_unpacking': self.needs_unpacking,
             'performance_optimized': True
         }
 
@@ -388,13 +489,14 @@ def performance_comparison_example():
     # FAST APPROACH (using DataCollectionStrategy)
     def fast_data_collection(data_collector):
         """Fast approach - cached functions and signal references."""
-        return data_collector.collect_data()  # All lookups pre-cached!
+        return data_collector.collect_and_unpack_data()  # All lookups pre-cached!
 
     print("Performance Impact:")
     print("- Slow approach: hasattr() + getattr() + field lookup every cycle")
     print("- Fast approach: Pre-cached function calls")
     print("- Result: ~40% performance improvement in monitoring loops")
     print("- Result: ~30% performance improvement in driving loops")
+    print("- NEW: Clean field unpacking eliminates conditional mess")
 
 
 # Usage examples in components
@@ -424,8 +526,8 @@ class ExampleComponentUsage:
         while self.monitoring_active:
             await self.wait_for_transaction()
 
-            # Fast data collection - no repeated lookups!
-            data_dict = self.data_collector.collect_data()
+            # Fast data collection with clean unpacking - no more conditional mess!
+            data_dict = self.data_collector.collect_and_unpack_data()
 
             # Process transaction...
             packet = self.create_packet_from_data(data_dict)

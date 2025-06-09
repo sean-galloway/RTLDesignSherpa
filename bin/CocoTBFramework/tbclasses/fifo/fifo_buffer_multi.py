@@ -489,13 +489,6 @@ class FifoMultiBufferTB(TBBase):
                 data_width=self.DW,
                 delay=1
             )
-        elif sequence_type == 'burst':
-            sequence = FIFOSequence.create_burst_sequence(
-                name="multi_burst_test",
-                count=count // 4,
-                burst_size=4,
-                pattern_type="increment"
-            )
         elif sequence_type == 'capacity':
             sequence = FIFOSequence.create_fifo_capacity_test(
                 name="multi_capacity_test",

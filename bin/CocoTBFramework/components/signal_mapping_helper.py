@@ -225,7 +225,7 @@ class SignalResolver:
         print("=== End Log Messages ===\n")
 
     def _generate_parameter_combinations(self, in_prefix: str, out_prefix: str,
-                                       bus_name: str, pkt_prefix: str) -> List[Dict[str, str]]:
+                                        bus_name: str, pkt_prefix: str) -> List[Dict[str, str]]:
         """Generate all parameter combinations with and without underscores."""
 
         # Create parameter lists - empty string if parameter is empty
@@ -287,7 +287,7 @@ class SignalResolver:
                 for field_name in self.field_config.field_names():
                     logical_name = f'field_{field_name}_sig'
                     signal_obj = self._find_signal_match(logical_name, patterns,
-                                                       required=False, field_name=field_name)
+                                                        required=False, field_name=field_name)
                     self.resolved_signals[logical_name] = signal_obj
             else:
                 # Single signal mode: resolve data signal
@@ -295,7 +295,7 @@ class SignalResolver:
                 self.resolved_signals['data_sig'] = signal_obj
 
     def _find_signal_match(self, logical_name: str, patterns: List[str],
-                          required: bool = True, field_name: str = None) -> Optional[Any]:
+                            required: bool = True, field_name: str = None) -> Optional[Any]:
         """Find a signal match using pattern combinations."""
         matches = []
         tried_names = set()
@@ -334,7 +334,7 @@ class SignalResolver:
                 return None  # Will be caught in validation
             else:
                 self._log_warning(f"Optional signal '{logical_name}' not found. "
-                               f"Tried: {', '.join(sorted(tried_names))}")
+                                f"Tried: {', '.join(sorted(tried_names))}")
                 return None
 
         elif len(matches) == 1:
@@ -376,7 +376,7 @@ class SignalResolver:
 
         # Add optional signals
         optional_signals = [name for name in self.resolved_signals.keys()
-                          if name not in self.config['signal_map']]
+                            if name not in self.config['signal_map']]
 
         for logical_name in sorted(optional_signals):
             signal_obj = self.resolved_signals[logical_name]
@@ -446,7 +446,7 @@ class SignalResolver:
 
         # Add optional signals that were found
         optional_signals = [name for name in self.resolved_signals.keys()
-                          if name not in self.config['signal_map']]
+                            if name not in self.config['signal_map']]
 
         for logical_name in optional_signals:
             if self.resolved_signals.get(logical_name) is not None:

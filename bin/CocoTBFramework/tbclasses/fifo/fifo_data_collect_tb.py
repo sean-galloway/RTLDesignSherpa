@@ -508,6 +508,7 @@ class DataCollectTB(TBBase):
                 field_config=self.input_field_config,
                 timeout_cycles=1000,
                 mode='fifo_mux',
+                multi_sig=True,
                 bus_name=channel,  # 'a', 'b', 'c', 'd'
                 pkt_prefix='',
                 super_debug=self.super_debug,
@@ -533,6 +534,7 @@ class DataCollectTB(TBBase):
             field_config=self.output_field_config,
             timeout_cycles=1000,
             mode='fifo_mux',
+            multi_sig=True,
             super_debug=self.super_debug,
             bus_name='e',
             log=self.log

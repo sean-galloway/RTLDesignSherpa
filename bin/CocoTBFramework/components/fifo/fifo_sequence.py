@@ -516,7 +516,7 @@ class FIFOSequence:
         return sequence
 
     @classmethod
-    def create_simple_burst(cls, name="burst", count=10, data_start=0x1000):
+    def create_burst_sequence(cls, name="burst", count=10, data_start=0x1000):
         """
         Create a simple burst sequence.
 
