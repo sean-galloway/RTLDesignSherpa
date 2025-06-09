@@ -1,0 +1,47 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Jun  9 03:11:11 2025
+[*]
+[dumpfile] "/home/seang/github/RTLDesignSherpa/val/integ_common/local_sim_build/test_fifo_multi_aw004_cw005_dw008_d004_wcl010_rcl010_fifo_mux_basic/dump.fst"
+[dumpfile_mtime] "Mon Jun  9 03:03:43 2025"
+[dumpfile_size] 2861
+[savefile] "/home/seang/github/RTLDesignSherpa/val/integ_common/GTKW/fifo_buffer_multi.gtkw"
+[timestart] 0
+[size] 2174 1313
+[pos] 8 -1
+*-17.428574 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .fifo_sync_multi.
+[sst_width] 278
+[signals_width] 260
+[sst_expanded] 1
+[sst_vpaned_height] 405
+@420
+fifo_sync_multi.DEPTH
+@28
+fifo_sync_multi.i_clk
+fifo_sync_multi.i_rst_n
+@200
+-write interface
+@28
+fifo_sync_multi.i_write
+@22
+fifo_sync_multi.i_wr_addr[3:0]
+fifo_sync_multi.i_wr_ctrl[4:0]
+fifo_sync_multi.i_wr_data0[7:0]
+fifo_sync_multi.i_wr_data1[7:0]
+@28
+fifo_sync_multi.o_wr_full
+@200
+-read interface
+@28
+fifo_sync_multi.i_read
+@22
+fifo_sync_multi.o_rd_addr[3:0]
+fifo_sync_multi.o_rd_ctrl[4:0]
+fifo_sync_multi.o_rd_data0[7:0]
+fifo_sync_multi.o_rd_data1[7:0]
+@29
+fifo_sync_multi.o_rd_empty
+[pattern_trace] 1
+[pattern_trace] 0

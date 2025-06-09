@@ -108,8 +108,8 @@ class FieldConfig:
         return self
 
     def mostly_zero(self, zero_weight: Union[int, float] = 9,
-                   fallback_range: Tuple[int, int] = (1, 5),
-                   fallback_weight: Union[int, float] = 1) -> 'FieldConfig':
+                    fallback_range: Tuple[int, int] = (1, 5),
+                    fallback_weight: Union[int, float] = 1) -> 'FieldConfig':
         """
         Create a pattern that's mostly zero with occasional other values.
 
@@ -131,8 +131,8 @@ class FieldConfig:
         return self
 
     def burst_pattern(self, fast_cycles: int = 0,
-                     pause_range: Tuple[int, int] = (15, 25),
-                     burst_ratio: Union[int, float] = 10) -> 'FieldConfig':
+                        pause_range: Tuple[int, int] = (15, 25),
+                        burst_ratio: Union[int, float] = 10) -> 'FieldConfig':
         """
         Create a burst pattern - mostly fast cycles with occasional pauses.
 

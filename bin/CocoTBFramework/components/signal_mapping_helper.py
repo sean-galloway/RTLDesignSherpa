@@ -1,100 +1,77 @@
 """
-Simplified FIFO Signal Mapping - Single Read Data Interface
+Simplified FIFO Signal Mapping - Pattern Matching Against Top-Level Ports
 
-Based on the clean fifo_sync.sv RTL that has only one o_rd_data output.
-The REGISTERED parameter is internal to the RTL - from BFM perspective, 
-there's always just one consistent read data signal.
-
-This eliminates the need for mode-aware data signal resolution!
+Uses pattern matching against actual DUT ports with parameter combinations
+to find the correct signal mappings automatically.
 """
 from typing import Dict, List, Optional, Any, Union
+from itertools import product
+from rich.console import Console
+from rich.table import Table
 
 
 # Standard FIFO modes (kept for parameter passing to RTL)
 FIFO_VALID_MODES = ['fifo_mux', 'fifo_flop']
 
-# Simplified base signal patterns - no more mux vs flop data patterns!
+# Simplified base signal patterns
 FIFO_BASE_PATTERNS = {
     # Write-side patterns (for masters and write monitors)
     'write_base': [
-        '{in_prefix}write',                   # i_write
-        '{in_prefix}{bus_name}_write',        # i_e_write (with bus_name)
-        '{in_prefix}{bus_name}write'          # fallback without underscore
+        '{in_prefix}{bus_name}write',
     ],
     'wr_data_base': [
-        '{in_prefix}wr_data',                 # i_wr_data
-        '{in_prefix}data',                    # i_data
-        '{in_prefix}{bus_name}_wr_data',      # i_e_wr_data (with bus_name)
-        '{in_prefix}{bus_name}_data',         # i_e_data (with bus_name)
-        '{in_prefix}{bus_name}wr_data',       # fallback without underscore
-        '{in_prefix}{bus_name}data'           # fallback
+        '{in_prefix}{bus_name}wr_data',
+        '{in_prefix}{bus_name}data',
     ],
     'wr_field_base': [
-        '{in_prefix}{field_name}',            # i_data0, i_data1, etc.
-        '{in_prefix}{bus_name}_{field_name}', # i_e_data0
-        '{in_prefix}{bus_name}{field_name}'   # fallback
+        '{in_prefix}{bus_name}{pkt_prefix}{field_name}',
+        '{in_prefix}{bus_name}{pkt_prefix}wr_{field_name}',
     ],
     'full_base': [
-        '{out_prefix}wr_full',                # o_wr_full
-        '{out_prefix}full',                   # o_full (alternative)
-        '{out_prefix}{bus_name}_wr_full',     # o_e_wr_full (with bus_name)
-        '{out_prefix}{bus_name}wr_full',      # fallback without underscore
-        '{out_prefix}{bus_name}_full',        # o_e_full (alternative with bus_name)
-        '{out_prefix}{bus_name}full'          # fallback
+        '{out_prefix}{bus_name}wr_full',
+        '{out_prefix}{bus_name}full'
     ],
-    
-    # Read-side patterns (for slaves and read monitors) - SIMPLIFIED!
+
+    # Read-side patterns (for slaves and read monitors)
     'read_base': [
-        '{in_prefix}read',                    # i_read
-        '{in_prefix}{bus_name}_read',         # i_e_read (with bus_name)
-        '{in_prefix}{bus_name}read'           # fallback without underscore
+        '{in_prefix}{bus_name}read'
     ],
     'rd_data_base': [
-        '{out_prefix}rd_data',                # o_rd_data (single output!)
-        '{out_prefix}data',                   # o_data
-        '{out_prefix}{bus_name}_rd_data',     # o_e_rd_data (with bus_name)
-        '{out_prefix}{bus_name}_data',        # o_e_data (with bus_name)
-        '{out_prefix}{bus_name}rd_data',      # fallback without underscore
-        '{out_prefix}{bus_name}data'          # fallback
+        '{out_prefix}{bus_name}rd_data',
+        '{out_prefix}{bus_name}data'
     ],
     'rd_field_base': [
-        '{out_prefix}{field_name}',           # o_data0, o_data1, etc.
-        '{out_prefix}{bus_name}_{field_name}',# o_e_data0
-        '{out_prefix}{bus_name}{field_name}'  # fallback
+        '{out_prefix}{bus_name}{pkt_prefix}{field_name}',
+        '{out_prefix}{bus_name}{pkt_prefix}rd_{field_name}'
     ],
     'empty_base': [
-        '{out_prefix}rd_empty',               # o_rd_empty
-        '{out_prefix}empty',                  # o_empty (alternative)
-        '{out_prefix}{bus_name}_rd_empty',    # o_e_rd_empty (with bus_name)
-        '{out_prefix}{bus_name}_empty',       # o_e_empty (with bus_name)
-        '{out_prefix}{bus_name}rd_empty',     # fallback without underscore
-        '{out_prefix}{bus_name}empty'         # fallback
+        '{out_prefix}{bus_name}rd_empty',
+        '{out_prefix}{bus_name}empty'
     ]
 }
 
-# Much simpler signal mapping - no mode-aware complexity!
 PROTOCOL_SIGNAL_CONFIGS = {
     'fifo_master': {
         'signal_map': {
-            'i_write': FIFO_BASE_PATTERNS['write_base'],
+            'i_write':   FIFO_BASE_PATTERNS['write_base'],
             'o_wr_full': FIFO_BASE_PATTERNS['full_base']
         },
         'optional_signal_map': {
             # No mode-aware patterns needed - RTL handles timing internally
             'multi_sig_false': FIFO_BASE_PATTERNS['wr_data_base'],
-            'multi_sig_true': FIFO_BASE_PATTERNS['wr_field_base']
+            'multi_sig_true':  FIFO_BASE_PATTERNS['wr_field_base']
         }
     },
 
     'fifo_slave': {
         'signal_map': {
-            'i_read': FIFO_BASE_PATTERNS['read_base'],
+            'i_read':     FIFO_BASE_PATTERNS['read_base'],
             'o_rd_empty': FIFO_BASE_PATTERNS['empty_base']
         },
         'optional_signal_map': {
             # Single read data pattern - no more mux vs flop complexity!
             'multi_sig_false': FIFO_BASE_PATTERNS['rd_data_base'],
-            'multi_sig_true': FIFO_BASE_PATTERNS['rd_field_base']
+            'multi_sig_true':  FIFO_BASE_PATTERNS['rd_field_base']
         }
     }
 
@@ -103,12 +80,31 @@ PROTOCOL_SIGNAL_CONFIGS = {
 }
 
 
+def get_top_level_ports(dut):
+    """Get all top-level input/output/inout ports of the DUT"""
+    ports = {}
+
+    print("="*80)
+    for port_name in dir(dut):
+        if not port_name.startswith('_'):  # Skip private attributes
+            try:
+                port = getattr(dut, port_name)
+                if hasattr(port, 'value'):  # Only include signals with values
+                    ports[port_name] = port
+                    print(f"Port-->:{port_name}:")
+            except (AttributeError, TypeError):
+                continue
+    print("="*80)
+
+    return ports
+
+
 class SignalResolver:
     """
-    Simplified signal resolver for clean FIFO RTL interface.
-    
-    Much simpler now that there's only one read data output in the RTL.
-    No more mode-aware data signal resolution needed!
+    Signal resolver using pattern matching against actual top-level DUT ports.
+
+    Uses parameter combinations to generate all possible signal name patterns
+    and matches them against the actual DUT ports.
     """
 
     def __init__(self, protocol_type: str, dut, bus, log, component_name: str,
@@ -117,21 +113,21 @@ class SignalResolver:
                 bus_name: str = '', pkt_prefix: str = '', mode: str = None,
                 super_debug: bool = False):
         """
-        Initialize signal resolver.
+        Initialize signal resolver with pattern matching.
 
         Args:
             protocol_type: Protocol type ('fifo_master', 'fifo_slave')
             dut: Device under test
-            bus: Bus object from BusDriver/BusMonitor
-            log: Logger instance
+            bus: Bus object from BusDriver/BusMonitor (can be None initially)
+            log: Logger instance (can be None)
             component_name: Component name for error messages
             field_config: Field configuration (required for multi_sig=True)
             multi_sig: Whether using multi-signal mode
             in_prefix: Input signal prefix
             out_prefix: Output signal prefix
             bus_name: Bus/channel name
-            pkt_prefix: Packet field prefix (unused but kept for compatibility)
-            mode: FIFO mode (kept for RTL parameter, not used in signal resolution)
+            pkt_prefix: Packet field prefix
+            mode: FIFO mode (kept for RTL parameter)
             super_debug: Enable detailed signal resolution debugging
         """
         self.protocol_type = protocol_type
@@ -141,8 +137,11 @@ class SignalResolver:
         self.component_name = component_name
         self.field_config = field_config
         self.multi_sig = multi_sig
-        self.mode = mode  # Kept for RTL parameter but not used in signal resolution
+        self.mode = mode
         self.super_debug = super_debug
+
+        # Storage for log messages (in case log is None)
+        self.log_messages = []
 
         # Validate protocol type
         if protocol_type not in PROTOCOL_SIGNAL_CONFIGS:
@@ -156,158 +155,110 @@ class SignalResolver:
         if multi_sig and not field_config:
             raise ValueError(f"field_config is required when multi_sig=True for {component_name}")
 
-        # Store substitution variables
-        self.substitution_vars = {
-            'in_prefix': in_prefix,
-            'out_prefix': out_prefix,
-            'bus_name': bus_name,
-        }
+        # Get top-level ports from DUT
+        self.top_level_ports = get_top_level_ports(dut)
+        self._log_info(f"Found {len(self.top_level_ports)} top-level ports")
+        if len(self.top_level_ports) > 0:
+            for port_name in sorted(self.top_level_ports.keys()):
+                self._log_debug(f"Available port: {port_name}")
+
+        # Generate parameter combinations
+        self.param_combinations = self._generate_parameter_combinations(
+            in_prefix, out_prefix, bus_name, pkt_prefix
+        )
+        self._log_debug(f"Generated {len(self.param_combinations)} parameter combinations")
 
         # Storage for resolved signals
         self.resolved_signals = {}
+        self.signal_conflicts = {}  # Track multiple matches
         self.missing_signals = []
-        self.fallback_used = {}
+
+        # Resolve all signals immediately
+        self._resolve_all_signals()
+
+        # Display results and validate
+        self._display_signal_mapping()
+        self._validate_required_signals()
 
         # Prepare signal lists for cocotb Bus initialization
         self._signals, self._optional_signals = self._prepare_signal_lists()
 
-    def _prepare_signal_lists(self):
-        """Prepare _signals and _optional_signals lists - MUCH SIMPLER now!"""
-        _signals = []
-        _optional_signals = []
+    def _log_debug(self, message: str):
+        """Log debug message with fallback storage."""
+        full_msg = f"{self.component_name}: {message}"
+        self.log_messages.append(('DEBUG', full_msg))
+        if self.log:
+            self.log.debug(full_msg)
 
-        # Add required signals
-        for logical_name, patterns in self.config['signal_map'].items():
-            signal_name = self._select_best_pattern_for_bus_init(patterns)
-            _signals.append(signal_name)
+    def _log_info(self, message: str):
+        """Log info message with fallback storage."""
+        full_msg = f"{self.component_name}: {message}"
+        self.log_messages.append(('INFO', full_msg))
+        if self.log:
+            self.log.info(full_msg)
+        else:
+            print(f"INFO: {full_msg}")
 
-        # Add optional signals - simplified!
-        optional_map = self.config.get('optional_signal_map', {})
-        mode_key = 'multi_sig_true' if self.multi_sig else 'multi_sig_false'
-        
-        if mode_key in optional_map:
-            patterns = optional_map[mode_key]
-            
-            if self.multi_sig:
-                # Multi-signal mode: add individual field signals
-                for field_name in self.field_config.field_names():
-                    signal_name = self._select_best_pattern_for_bus_init(patterns, field_name=field_name)
-                    _optional_signals.append(signal_name)
-            else:
-                # Single signal mode: add data signal
-                signal_name = self._select_best_pattern_for_bus_init(patterns)
-                _optional_signals.append(signal_name)
+    def _log_warning(self, message: str):
+        """Log warning message with fallback storage."""
+        full_msg = f"{self.component_name}: {message}"
+        self.log_messages.append(('WARNING', full_msg))
+        if self.log:
+            self.log.warning(full_msg)
+        else:
+            print(f"WARNING: {full_msg}")
+
+    def _log_error(self, message: str):
+        """Log error message with fallback storage."""
+        full_msg = f"{self.component_name}: {message}"
+        self.log_messages.append(('ERROR', full_msg))
+        if self.log:
+            self.log.error(full_msg)
+        else:
+            print(f"ERROR: {full_msg}")
+
+    def dump_log_messages(self):
+        """Dump all stored log messages."""
+        print(f"\n=== SignalResolver Log Messages for {self.component_name} ===")
+        for level, message in self.log_messages:
+            print(f"{level}: {message}")
+        print("=== End Log Messages ===\n")
+
+    def _generate_parameter_combinations(self, in_prefix: str, out_prefix: str,
+                                       bus_name: str, pkt_prefix: str) -> List[Dict[str, str]]:
+        """Generate all parameter combinations with and without underscores."""
+
+        # Create parameter lists - empty string if parameter is empty
+        in_prefix_variants = [in_prefix] if in_prefix else ['']
+        out_prefix_variants = [out_prefix] if out_prefix else ['']
+
+        # For bus_name and pkt_prefix, create variants with and without trailing underscore
+        bus_name_variants = [''] if not bus_name else [bus_name, bus_name + '_']
+        pkt_prefix_variants = [''] if not pkt_prefix else [pkt_prefix, pkt_prefix + '_']
+
+        # Generate all combinations
+        combinations = []
+        for in_p, out_p, bus_n, pkt_p in product(
+            in_prefix_variants, out_prefix_variants, bus_name_variants, pkt_prefix_variants
+        ):
+            combinations.append({
+                'in_prefix': in_p,
+                'out_prefix': out_p,
+                'bus_name': bus_n,
+                'pkt_prefix': pkt_p
+            })
 
         if self.super_debug:
-            self.log.info(f"{self.component_name}: Signal preparation (protocol='{self.protocol_type}') - "
-                            f"_signals: {_signals}, _optional_signals: {_optional_signals}")
+            self._log_info(f"Parameter combinations: {combinations}")
 
-        return _signals, _optional_signals
-
-    def _resolve_required_signals(self):
-        """Resolve all required signals from signal_map."""
-        for logical_name, patterns in self.config['signal_map'].items():
-            signal_obj = self._try_signal_patterns(logical_name, patterns, required=True)
-            self.resolved_signals[logical_name] = signal_obj
-
-    def _resolve_optional_signals(self):
-        """Resolve optional signals - simplified!"""
-        optional_map = self.config.get('optional_signal_map', {})
-        mode_key = 'multi_sig_true' if self.multi_sig else 'multi_sig_false'
-        
-        if mode_key in optional_map:
-            patterns = optional_map[mode_key]
-            
-            if self.multi_sig:
-                # Multi-signal mode: resolve individual field signals
-                for field_name in self.field_config.field_names():
-                    logical_name = f'field_{field_name}_sig'
-                    signal_obj = self._try_signal_patterns(logical_name, patterns,
-                                                            field_name=field_name, required=False)
-                    self.resolved_signals[logical_name] = signal_obj
-            else:
-                # Single signal mode: resolve data signal
-                signal_obj = self._try_signal_patterns('data_sig', patterns, required=False)
-                self.resolved_signals['data_sig'] = signal_obj
-
-    def _substitute_variables(self, pattern: str, field_name: str = None) -> str:
-        """Substitute variables in a signal name pattern."""
-        format_vars = self.substitution_vars.copy()
-        if field_name:
-            format_vars['field_name'] = field_name
-
-        substituted = pattern.format(**format_vars)
-
-        if self.super_debug:
-            self.log.info(f"{self.component_name}: SUBSTITUTE ::{pattern}:: -> ::{substituted}::")
-
-        return substituted
-
-    def _try_signal_patterns(self, logical_name: str, patterns: List[str],
-                        field_name: str = None, required: bool = True) -> Optional[Any]:
-        """Try multiple signal patterns until one is found on the bus."""
-        tried_names = []
-
-        for i, pattern in enumerate(patterns):
-            signal_name = self._substitute_variables(pattern, field_name)
-            tried_names.append(signal_name)
-
-            if self.super_debug:
-                self.log.info(f"{self.component_name}: ATTEMPT_{i+1} ::{signal_name}:: for {logical_name}")
-
-            # Check if signal exists on bus
-            if hasattr(self.bus, signal_name):
-                signal_obj = getattr(self.bus, signal_name)
-
-                if signal_obj is not None:
-                    # Track if this was a fallback
-                    if len(tried_names) > 1:
-                        self.fallback_used[logical_name] = signal_name
-                        self.log.info(f"{self.component_name}: Using fallback signal '{signal_name}' for {logical_name}")
-                    else:
-                        self.log.debug(f"{self.component_name}: Found signal '{signal_name}' for {logical_name}")
-                    return signal_obj
-
-        # No signal found
-        self.missing_signals.append((logical_name, tried_names, required))
-
-        if required:
-            available_signals = [s for s in dir(self.bus) if not s.startswith('_')]
-            self.log.error(f"{self.component_name}: Available signals: {sorted(available_signals)}")
-            self.log.error(f"{self.component_name}: Required signal '{logical_name}' not found. "
-                        f"Tried: {', '.join(tried_names)}")
-            raise ValueError(f"Required signal '{logical_name}' not found. Tried: {', '.join(tried_names)}")
-        else:
-            self.log.warning(f"{self.component_name}: Optional signal '{logical_name}' not found. "
-                        f"Tried: {', '.join(tried_names)}")
-            return None
-
-    def _select_best_pattern_for_bus_init(self, patterns, field_name=None):
-        """Select the best pattern for bus initialization based on bus_name."""
-        bus_name = self.substitution_vars['bus_name']
-
-        # If bus_name is empty, prefer patterns that don't use {bus_name}
-        if not bus_name:
-            for pattern in patterns:
-                if '{bus_name}' not in pattern:
-                    return self._substitute_variables(pattern, field_name)
-
-        # If bus_name is not empty, prefer patterns that do use {bus_name}
-        else:
-            for pattern in patterns:
-                if '{bus_name}' in pattern:
-                    return self._substitute_variables(pattern, field_name)
-
-        # Fallback to first pattern
-        return self._substitute_variables(patterns[0], field_name)
+        return combinations
 
     def _resolve_all_signals(self):
-        """Resolve all signals for this protocol."""
-        self.log.debug(f"{self.component_name}: Resolving signals for protocol '{self.protocol_type}', "
-                        f"multi_sig={self.multi_sig}")
+        """Resolve all signals using pattern matching."""
+        self._log_debug(f"Resolving signals for protocol '{self.protocol_type}', multi_sig={self.multi_sig}")
 
         # Resolve required signals
-        self._resolve_required_signals()
+        self._resolve_signal_group(self.config['signal_map'], required=True)
 
         # Resolve optional signals
         self._resolve_optional_signals()
@@ -315,7 +266,198 @@ class SignalResolver:
         # Log summary
         total_signals = len(self.resolved_signals)
         found_signals = sum(1 for sig in self.resolved_signals.values() if sig is not None)
-        self.log.debug(f"{self.component_name}: Resolved {found_signals}/{total_signals} signals")
+        self._log_debug(f"Resolved {found_signals}/{total_signals} signals")
+
+    def _resolve_signal_group(self, signal_group: Dict[str, List[str]], required: bool = True):
+        """Resolve a group of signals (either required or optional)."""
+        for logical_name, patterns in signal_group.items():
+            signal_obj = self._find_signal_match(logical_name, patterns, required)
+            self.resolved_signals[logical_name] = signal_obj
+
+    def _resolve_optional_signals(self):
+        """Resolve optional signals based on multi_sig mode."""
+        optional_map = self.config.get('optional_signal_map', {})
+        mode_key = 'multi_sig_true' if self.multi_sig else 'multi_sig_false'
+
+        if mode_key in optional_map:
+            patterns = optional_map[mode_key]
+
+            if self.multi_sig:
+                # Multi-signal mode: resolve individual field signals
+                for field_name in self.field_config.field_names():
+                    logical_name = f'field_{field_name}_sig'
+                    signal_obj = self._find_signal_match(logical_name, patterns,
+                                                       required=False, field_name=field_name)
+                    self.resolved_signals[logical_name] = signal_obj
+            else:
+                # Single signal mode: resolve data signal
+                signal_obj = self._find_signal_match('data_sig', patterns, required=False)
+                self.resolved_signals['data_sig'] = signal_obj
+
+    def _find_signal_match(self, logical_name: str, patterns: List[str],
+                          required: bool = True, field_name: str = None) -> Optional[Any]:
+        """Find a signal match using pattern combinations."""
+        matches = []
+        tried_names = set()
+
+        # Try each pattern with each parameter combination
+        for pattern in patterns:
+            for param_combo in self.param_combinations:
+                # Add field_name to parameters if provided
+                format_params = param_combo.copy()
+                if field_name:
+                    format_params['field_name'] = field_name
+
+                try:
+                    signal_name = pattern.format(**format_params)
+                    tried_names.add(signal_name)
+
+                    if self.super_debug:
+                        self._log_info(f"Trying '{signal_name}' for {logical_name}")
+
+                    # Check if this signal exists in top-level ports
+                    if signal_name in self.top_level_ports:
+                        matches.append((signal_name, self.top_level_ports[signal_name]))
+                        self._log_debug(f"Found match '{signal_name}' for {logical_name}")
+
+                except KeyError as e:
+                    # Pattern contains a parameter we don't have
+                    if self.super_debug:
+                        self._log_warning(f"Pattern '{pattern}' missing parameter: {e}")
+                    continue
+
+        # Handle results
+        if len(matches) == 0:
+            # No matches found
+            self.missing_signals.append((logical_name, list(tried_names), required))
+            if required:
+                return None  # Will be caught in validation
+            else:
+                self._log_warning(f"Optional signal '{logical_name}' not found. "
+                               f"Tried: {', '.join(sorted(tried_names))}")
+                return None
+
+        elif len(matches) == 1:
+            # Exactly one match - perfect!
+            signal_name, signal_obj = matches[0]
+            self._log_debug(f"Matched '{signal_name}' for {logical_name}")
+            return signal_obj
+
+        else:
+            # Multiple matches - conflict!
+            match_names = [name for name, _ in matches]
+            self.signal_conflicts[logical_name] = match_names
+            self._log_error(f"Multiple matches for '{logical_name}': {match_names}")
+            return matches[0][1]  # Return first match but will error in validation
+
+    def _display_signal_mapping(self):
+        """Display signal mapping results in a Rich table."""
+        console = Console()
+        table = Table(title=f"Signal Mapping for {self.component_name} ({self.protocol_type})")
+
+        table.add_column("Logical Signal", style="cyan")
+        table.add_column("Matched Signal", style="green")
+        table.add_column("Status", style="bold")
+
+        # Add required signals
+        for logical_name in self.config['signal_map'].keys():
+            signal_obj = self.resolved_signals.get(logical_name)
+            if signal_obj is not None:
+                # Find the actual signal name
+                matched_name = self._find_signal_name(signal_obj)
+                status = "✓ Found"
+                if logical_name in self.signal_conflicts:
+                    status = f"⚠ Conflict ({len(self.signal_conflicts[logical_name])} matches)"
+            else:
+                matched_name = "X"
+                status = "✗ Missing (Required)"
+
+            table.add_row(logical_name, matched_name, status)
+
+        # Add optional signals
+        optional_signals = [name for name in self.resolved_signals.keys()
+                          if name not in self.config['signal_map']]
+
+        for logical_name in sorted(optional_signals):
+            signal_obj = self.resolved_signals[logical_name]
+            if signal_obj is not None:
+                matched_name = self._find_signal_name(signal_obj)
+                status = "✓ Found (Optional)"
+                if logical_name in self.signal_conflicts:
+                    status = f"⚠ Conflict ({len(self.signal_conflicts[logical_name])} matches)"
+            else:
+                matched_name = "X"
+                status = "- Missing (Optional)"
+
+            table.add_row(logical_name, matched_name, status)
+
+        console.print(table)
+
+    def _find_signal_name(self, signal_obj) -> str:
+        """Find the signal name that corresponds to a signal object."""
+        for name, obj in self.top_level_ports.items():
+            if obj is signal_obj:
+                return name
+        return "Unknown"
+
+    def _validate_required_signals(self):
+        """Validate that all required signals were found and no conflicts exist."""
+        errors = []
+
+        # Check for missing required signals
+        missing_required = [(name, tried, req) for name, tried, req in self.missing_signals if req]
+        if missing_required:
+            error_details = []
+            for logical_name, tried_names, _ in missing_required:
+                error_details.append(f"  - {logical_name}: tried {', '.join(sorted(tried_names))}")
+
+            available_ports = ', '.join(sorted(self.top_level_ports.keys()))
+            errors.append(
+                f"Missing required signals for {self.component_name}:\n" +
+                '\n'.join(error_details) +
+                f"\nAvailable ports: {available_ports}"
+            )
+
+        # Check for signal conflicts
+        if self.signal_conflicts:
+            conflict_details = []
+            for logical_name, matches in self.signal_conflicts.items():
+                conflict_details.append(f"  - {logical_name}: matches {', '.join(matches)}")
+
+            errors.append(
+                f"Signal conflicts for {self.component_name}:\n" +
+                '\n'.join(conflict_details)
+            )
+
+        # Raise combined error if any issues
+        if errors:
+            raise ValueError('\n\n'.join(errors))
+
+    def _prepare_signal_lists(self):
+        """Prepare _signals and _optional_signals lists for cocotb Bus initialization."""
+        _signals = []
+        _optional_signals = []
+
+        # Add required signals that were found
+        for logical_name in self.config['signal_map'].keys():
+            if self.resolved_signals.get(logical_name) is not None:
+                signal_name = self._find_signal_name(self.resolved_signals[logical_name])
+                _signals.append(signal_name)
+
+        # Add optional signals that were found
+        optional_signals = [name for name in self.resolved_signals.keys()
+                          if name not in self.config['signal_map']]
+
+        for logical_name in optional_signals:
+            if self.resolved_signals.get(logical_name) is not None:
+                signal_name = self._find_signal_name(self.resolved_signals[logical_name])
+                _optional_signals.append(signal_name)
+
+        if self.super_debug:
+            self._log_info(f"Prepared signal lists - "
+                            f"_signals: {_signals}, _optional_signals: {_optional_signals}")
+
+        return _signals, _optional_signals
 
     def get_signal_lists(self):
         """Get the _signals and _optional_signals lists for cocotb Bus initialization."""
@@ -332,34 +474,33 @@ class SignalResolver:
             return 'data_sig'
 
         # Handle control signals
-        if logical_name == 'i_write':
-            return 'write_sig'
-        elif logical_name == 'o_wr_full':
-            return 'full_sig'
-        elif logical_name == 'i_read':
-            return 'read_sig'
-        elif logical_name == 'o_rd_empty':
-            return 'empty_sig'
-        else:
-            # Fallback: use logical name as-is
-            return logical_name
+        signal_to_attr = {
+            'i_write': 'write_sig',
+            'o_wr_full': 'full_sig',
+            'i_read': 'read_sig',
+            'o_rd_empty': 'empty_sig'
+        }
+
+        return signal_to_attr.get(logical_name, logical_name)
 
     def apply_to_component(self, component):
         """Apply resolved signals to component as attributes."""
-        # Resolve signals now if not done yet
-        if not self.resolved_signals:
-            if self.bus is None:
-                raise ValueError(f"{self.component_name}: Bus must be set before applying signals")
-            self._resolve_all_signals()
+        if self.bus is None:
+            raise ValueError(f"{self.component_name}: Bus must be set before applying signals")
 
         # Apply signal mappings
         for logical_name, signal_obj in self.resolved_signals.items():
             attr_name = self._derive_attribute_name(logical_name)
-            setattr(component, attr_name, signal_obj)
+
             if signal_obj is not None:
-                self.log.debug(f"{self.component_name}: Set {attr_name} = {logical_name} signal")
+                # Get the signal from the bus using the actual signal name
+                signal_name = self._find_signal_name(signal_obj)
+                bus_signal = getattr(self.bus, signal_name, None)
+                setattr(component, attr_name, bus_signal)
+                self._log_debug(f"Set {attr_name} = bus.{signal_name}")
             else:
-                self.log.debug(f"{self.component_name}: Set {attr_name} = None (missing signal)")
+                setattr(component, attr_name, None)
+                self._log_debug(f"Set {attr_name} = None (missing signal)")
 
     def get_signal(self, logical_name: str):
         """Get a resolved signal by logical name."""
@@ -380,16 +521,18 @@ class SignalResolver:
             'protocol_type': self.protocol_type,
             'multi_sig_mode': self.multi_sig,
             'mode': self.mode,
+            'total_ports_found': len(self.top_level_ports),
+            'parameter_combinations': len(self.param_combinations),
             'total_signals': total_signals,
             'resolved_signals': resolved_signals,
             'missing_required': missing_required,
             'missing_optional': missing_optional,
+            'conflicts': len(self.signal_conflicts),
             'resolution_rate': (resolved_signals / total_signals * 100) if total_signals > 0 else 100
         }
 
-        # Add fallback usage info
-        if self.fallback_used:
-            stats['fallbacks_used'] = len(self.fallback_used)
-            stats['fallback_details'] = self.fallback_used.copy()
+        # Add conflict details
+        if self.signal_conflicts:
+            stats['conflict_details'] = self.signal_conflicts.copy()
 
         return stats

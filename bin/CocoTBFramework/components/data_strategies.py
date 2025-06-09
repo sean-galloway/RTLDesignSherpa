@@ -7,7 +7,7 @@ monitoring and driving loops.
 
 Key Benefits:
 - 40% faster data collection through cached signal references
-- 30% faster data driving through cached driving functions  
+- 30% faster data driving through cached driving functions
 - Eliminates repeated hasattr()/getattr() calls every cycle
 - Pre-computed field validation for maximum efficiency
 """
@@ -23,7 +23,7 @@ class DataCollectionStrategy:
 
     This solves the performance issue where _get_data_dict() was called every
     cycle, causing repeated hasattr(), getattr(), and field config lookups.
-    
+
     Performance Impact:
     - Before: hasattr() + getattr() + field lookup every cycle
     - After: Cached function calls with pre-resolved signal references
@@ -141,7 +141,7 @@ class DataCollectionStrategy:
 
         Returns:
             Dictionary of field values with X/Z values represented as -1
-            
+
         Performance: ~40% faster than repeated hasattr/getattr calls
         """
         data_dict = {}
@@ -171,7 +171,7 @@ class DataDrivingStrategy:
 
     This is the counterpart to DataCollectionStrategy for driving signals
     instead of reading them.
-    
+
     Performance Impact:
     - Before: hasattr() + getattr() + field validation every transaction
     - After: Cached function calls with pre-resolved signal references
@@ -282,7 +282,7 @@ class DataDrivingStrategy:
 
         Returns:
             True if successful, False otherwise
-            
+
         Performance: ~30% faster than repeated signal lookups
         """
         try:
@@ -321,38 +321,38 @@ class DataDrivingStrategy:
 def create_data_collection_strategy(component, field_config, multi_sig=None, log=None):
     """
     Convenience function to create a DataCollectionStrategy.
-    
+
     Args:
         component: Component with signal attributes
         field_config: Field configuration
         multi_sig: Whether to use multi-signal mode (auto-detected if None)
         log: Logger instance
-        
+
     Returns:
         DataCollectionStrategy instance
     """
     if multi_sig is None:
         multi_sig = len(field_config) > 1
-        
+
     return DataCollectionStrategy(component, field_config, multi_sig, log)
 
 
 def create_data_driving_strategy(component, field_config, multi_sig=None, log=None):
     """
     Convenience function to create a DataDrivingStrategy.
-    
+
     Args:
         component: Component with signal attributes
         field_config: Field configuration
         multi_sig: Whether to use multi-signal mode (auto-detected if None)
         log: Logger instance
-        
+
     Returns:
         DataDrivingStrategy instance
     """
     if multi_sig is None:
         multi_sig = len(field_config) > 1
-        
+
     return DataDrivingStrategy(component, field_config, multi_sig, log)
 
 
@@ -360,11 +360,11 @@ def create_data_driving_strategy(component, field_config, multi_sig=None, log=No
 def performance_comparison_example():
     """
     Example showing performance difference between strategies and manual approach.
-    
+
     This demonstrates why DataCollectionStrategy and DataDrivingStrategy
     are crucial for high-performance BFM components.
     """
-    
+
     # SLOW APPROACH (what we used to do)
     def slow_data_collection(component, field_config):
         """Slow approach - repeated lookups every cycle."""
@@ -384,12 +384,12 @@ def performance_comparison_example():
                     else:
                         data_dict[field_name] = -1
         return data_dict
-    
+
     # FAST APPROACH (using DataCollectionStrategy)
     def fast_data_collection(data_collector):
         """Fast approach - cached functions and signal references."""
         return data_collector.collect_data()  # All lookups pre-cached!
-    
+
     print("Performance Impact:")
     print("- Slow approach: hasattr() + getattr() + field lookup every cycle")
     print("- Fast approach: Pre-cached function calls")
@@ -400,10 +400,10 @@ def performance_comparison_example():
 # Usage examples in components
 class ExampleComponentUsage:
     """Example showing how components use these strategies."""
-    
+
     def __init__(self, dut, field_config, log):
         # ... other initialization ...
-        
+
         # Create high-performance strategies during init
         self.data_collector = DataCollectionStrategy(
             component=self,
@@ -411,32 +411,32 @@ class ExampleComponentUsage:
             use_multi_signal=len(field_config) > 1,
             log=log
         )
-        
+
         self.data_driver = DataDrivingStrategy(
             component=self,
             field_config=field_config,
             use_multi_signal=len(field_config) > 1,
             log=log
         )
-    
+
     async def monitor_loop(self):
         """Example monitoring loop using cached strategy."""
         while self.monitoring_active:
             await self.wait_for_transaction()
-            
+
             # Fast data collection - no repeated lookups!
             data_dict = self.data_collector.collect_data()
-            
+
             # Process transaction...
             packet = self.create_packet_from_data(data_dict)
             self.handle_transaction(packet)
-    
+
     async def send_transaction(self, packet):
         """Example transaction sending using cached strategy."""
         # Fast data driving - no repeated lookups!
         success = self.data_driver.drive_transaction(packet)
-        
+
         if success:
             await self.wait_for_completion()
-        
+
         return success

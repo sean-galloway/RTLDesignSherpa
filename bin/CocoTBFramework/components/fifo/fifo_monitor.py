@@ -18,17 +18,23 @@ from .fifo_packet import FIFOPacket
 class FIFOMonitor(BusMonitor):
     """
     FIFO Monitor combining exact working cocotb methods with modern infrastructure.
-    
+
     Preserves all timing-critical cocotb methods while adding:
-    - Automatic signal resolution via SignalResolver  
+    - Automatic signal resolution via SignalResolver
     - High-performance data collection via DataCollectionStrategy
     - Standard cocotb _recvQ pattern for packet queueing
     - Protocol violation detection
     """
 
     def __init__(self, dut, title, prefix, clock, field_config, is_slave=False,
-                 mode='fifo_mux', bus_name='', pkt_prefix='', fifo_depth=16,
-                 log=None, super_debug=False, **kwargs):
+                    mode='fifo_mux',
+                    in_prefix='i_',
+                    out_prefix='o_',
+                    bus_name='',
+                    pkt_prefix='',
+                    multi_sig=False,
+                    fifo_depth=16,
+                    log=None, super_debug=False, **kwargs):
         """
         Initialize FIFO Monitor with modern infrastructure.
         """
@@ -40,15 +46,18 @@ class FIFOMonitor(BusMonitor):
         self.super_debug = super_debug
         self.fifo_depth = fifo_depth
 
+        # set the naming convention params
+        self.in_prefix = in_prefix
+        self.out_prefix = out_prefix
+        self.bus_name = bus_name
+        self.pkt_prefix = pkt_prefix
+        self.use_multi_signal = multi_sig
+
         # Handle field_config - convert dict if needed
         if isinstance(field_config, dict):
             self.field_config = FieldConfig.validate_and_create(field_config)
         else:
             self.field_config = field_config or FieldConfig.create_data_only()
-
-        # Multi-signal mode detection
-        self.use_multi_signal = len(self.field_config) > 1
-        self.field_mode = self.use_multi_signal
 
         # Choose protocol type based on what we're monitoring
         protocol_type = 'fifo_slave' if is_slave else 'fifo_master'
@@ -62,10 +71,10 @@ class FIFOMonitor(BusMonitor):
             component_name=title,
             field_config=self.field_config,
             multi_sig=self.use_multi_signal,
-            in_prefix='i_',
-            out_prefix='o_',
-            bus_name=bus_name,
-            pkt_prefix=pkt_prefix,
+            in_prefix=self.in_prefix,
+            out_prefix=self.out_prefix,
+            bus_name=self.bus_name,
+            pkt_prefix=self.pkt_prefix,
             mode=mode,
             super_debug=super_debug
         )
@@ -89,7 +98,7 @@ class FIFOMonitor(BusMonitor):
             log=self.log
         )
 
-        # Modern infrastructure - statistics 
+        # Modern infrastructure - statistics
         # Note: BusMonitor parent class has its own self.stats (MonitorStatistics)
         # We'll use our own enhanced stats that includes everything
         from ..monitor_statistics import MonitorStatistics
@@ -106,7 +115,7 @@ class FIFOMonitor(BusMonitor):
 
         side = "read" if is_slave else "write"
         self.log.info(f"FIFOMonitor '{title}' initialized: {side} side, mode={mode}, "
-                      f"multi_sig={self.use_multi_signal}")
+                        f"multi_sig={self.use_multi_signal}")
 
     def set_fifo_capacity(self, capacity):
         """Set the assumed FIFO capacity for depth tracking - from original"""
@@ -127,7 +136,7 @@ class FIFOMonitor(BusMonitor):
 
         if is_write:
             # Check if FIFO is actually full before warning
-            if (hasattr(self, 'full_sig') and self.full_sig is not None and 
+            if (hasattr(self, 'full_sig') and self.full_sig is not None and
                 self.full_sig.value.is_resolvable and int(self.full_sig.value) == 1):
                 self.log.warning(f"FIFOMonitor ({self.title}): Write to full FIFO detected at {current_time}ns")
                 self.enhanced_stats.write_while_full += 1
@@ -189,7 +198,7 @@ class FIFOMonitor(BusMonitor):
         # Check if we need to unpack fields from a combined value - EXACT WORKING LOGIC
         if not self.use_multi_signal:
             if (
-                self.field_mode
+                self.use_multi_signal
                 and isinstance(data_dict, dict)
                 and 'data' in data_dict
             ):
@@ -198,7 +207,7 @@ class FIFOMonitor(BusMonitor):
                 combined_value = data_dict['data']
                 data_dict = self._finish_packet_helper(combined_value, unpacked_fields)
             elif (
-                not self.field_mode
+                not self.use_multi_signal
                 and isinstance(data_dict, dict)
                 and 'data' in data_dict
                 and hasattr(self.field_config, 'field_names')
@@ -228,7 +237,7 @@ class FIFOMonitor(BusMonitor):
         self.enhanced_stats.transactions_observed += 1
 
         self.log.debug(f"FIFOMonitor({self.title}) Transaction at {current_time}ns: "
-                       f"{packet.formatted(compact=True) if hasattr(packet, 'formatted') else str(packet)}")
+                        f"{packet.formatted(compact=True) if hasattr(packet, 'formatted') else str(packet)}")
 
         # ESSENTIAL: Use cocotb _recv method to add to _recvQ and trigger callbacks
         self._recv(packet)
@@ -311,11 +320,11 @@ class FIFOMonitor(BusMonitor):
                             self._finish_packet(current_time, packet, data_dict)
 
                     elif (hasattr(self, 'read_sig') and self.read_sig is not None and
-                          hasattr(self, 'empty_sig') and self.empty_sig is not None and
-                          self.read_sig.value.is_resolvable and
-                          int(self.read_sig.value) == 1 and
-                          self.empty_sig.value.is_resolvable and
-                          int(self.empty_sig.value) == 1):  # read while empty
+                            hasattr(self, 'empty_sig') and self.empty_sig is not None and
+                            self.read_sig.value.is_resolvable and
+                            int(self.read_sig.value) == 1 and
+                            self.empty_sig.value.is_resolvable and
+                            int(self.empty_sig.value) == 1):  # read while empty
                         # Already logged in _update_fifo_depth, just update stats
                         pass
 
@@ -327,11 +336,11 @@ class FIFOMonitor(BusMonitor):
                     # Monitoring write port - check if write=1 (valid write)
                     if (hasattr(self, 'write_sig') and self.write_sig is not None and
                         self.write_sig.value.is_resolvable and int(self.write_sig.value) == 1):
-                        
+
                         if (not hasattr(self, 'full_sig') or self.full_sig is None or
                             not self.full_sig.value.is_resolvable or
                             int(self.full_sig.value) == 0):  # write and not full
-                            
+
                             # Create new packet
                             packet = FIFOPacket(self.field_config)
                             packet.start_time = current_time
@@ -343,7 +352,7 @@ class FIFOMonitor(BusMonitor):
                             data_dict = self._get_data_dict()
                             self._finish_packet(current_time, packet, data_dict)
                         elif (hasattr(self, 'full_sig') and self.full_sig is not None and
-                              self.full_sig.value.is_resolvable and int(self.full_sig.value) == 1):  # write while full
+                                self.full_sig.value.is_resolvable and int(self.full_sig.value) == 1):  # write while full
                             # Already logged in _update_fifo_depth, just update stats
                             pass
 
@@ -373,10 +382,10 @@ class FIFOMonitor(BusMonitor):
     def get_observed_packets(self, count=None):
         """
         Get observed packets from standard cocotb _recvQ.
-        
+
         Args:
             count: Number of packets to return (None = all)
-            
+
         Returns:
             List of observed packets
         """

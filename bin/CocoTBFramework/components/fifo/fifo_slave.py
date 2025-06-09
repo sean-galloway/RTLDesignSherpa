@@ -34,7 +34,12 @@ class FIFOSlave(BusMonitor):
     """
 
     def __init__(self, dut, title, prefix, clock, field_config,
-                    timeout_cycles=1000, mode='fifo_mux', bus_name='', pkt_prefix='',
+                    timeout_cycles=1000, mode='fifo_mux',
+                    in_prefix='i_',
+                    out_prefix='o_',
+                    bus_name='',
+                    pkt_prefix='',
+                    multi_sig=False,
                     randomizer=None, log=None, super_debug=False, **kwargs):
         """
         Initialize FIFO Slave with modern infrastructure.
@@ -48,15 +53,18 @@ class FIFOSlave(BusMonitor):
         self.reset_occurring = False
         self.mode = mode
 
+        # set the naming convention params
+        self.in_prefix = in_prefix
+        self.out_prefix = out_prefix
+        self.bus_name = bus_name
+        self.pkt_prefix = pkt_prefix
+        self.use_multi_signal = multi_sig
+
         # Handle field_config - convert dict if needed
         if isinstance(field_config, dict):
             self.field_config = FieldConfig.validate_and_create(field_config)
         else:
             self.field_config = field_config or FieldConfig.create_data_only()
-
-        # Multi-signal mode detection
-        self.use_multi_signal = len(self.field_config) > 1
-        self.field_mode = self.use_multi_signal
 
         # Modern infrastructure - signal resolution
         self.signal_resolver = SignalResolver(
@@ -67,10 +75,10 @@ class FIFOSlave(BusMonitor):
             component_name=title,
             field_config=self.field_config,
             multi_sig=self.use_multi_signal,
-            in_prefix='i_',
-            out_prefix='o_',
-            bus_name=bus_name,
-            pkt_prefix=pkt_prefix,
+            in_prefix=self.in_prefix,
+            out_prefix=self.out_prefix,
+            bus_name=self.bus_name,
+            pkt_prefix=self.pkt_prefix,
             mode=mode,
             super_debug=super_debug
         )
@@ -165,7 +173,7 @@ class FIFOSlave(BusMonitor):
         # Check if we need to unpack fields from a combined value - EXACT WORKING LOGIC
         if not self.use_multi_signal:
             if (
-                self.field_mode
+                self.use_multi_signal
                 and isinstance(data_dict, dict)
                 and 'data' in data_dict
             ):
@@ -175,7 +183,7 @@ class FIFOSlave(BusMonitor):
                     combined_value, unpacked_fields
                 )
             elif (
-                not hasattr(self, 'field_mode')
+                not hasattr(self, 'use_multi_signal')
                 and hasattr(self.field_config, 'field_names')
                 and len(self.field_config) > 1
                 and isinstance(data_dict, dict)
