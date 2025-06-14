@@ -1,630 +1,286 @@
 """
-Enhanced Memory Model Integration for FIFO Components
+Simple Memory Integration Helper for FIFO Components
 
-This module provides improved memory integration utilities for FIFO
-master and slave components with robust error handling and boundary checking.
+This module provides lightweight helper functions for integrating with
+your existing MemoryModel infrastructure, eliminating the duplicate
+EnhancedMemoryModel and FIFOMemoryInteg classes.
+
+All functionality now leverages your existing MemoryModel which already has:
+- write_transaction() and read_transaction() methods
+- Comprehensive error handling and boundary checking
+- Statistics tracking and diagnostics
+- Access maps and region management
 """
 
-from typing import Optional, Dict, Any, Union, List, Tuple
-import numpy as np
+from typing import Optional, Dict, Any, Tuple
 
 
-class FIFOMemoryInteg:
+def attach_memory_model(component, memory_model, field_mapping=None):
     """
-    Utilities for integrating memory models with FIFO components.
+    Attach a memory model to a FIFO component using existing infrastructure.
 
-    This class provides methods for safely reading and writing to memory models
-    with improved error handling, boundary checking, and diagnostics.
+    Args:
+        component: FIFO component (master/slave/monitor)
+        memory_model: Your existing MemoryModel instance
+        field_mapping: Optional mapping of memory fields to packet fields
 
-    It can be used by both master and slave components to standardize memory
-    operations and provide better debugging information.
+    Returns:
+        The component for method chaining
     """
+    # Attach memory model directly - no wrapper needed
+    component.memory_model = memory_model
 
-    def __init__(self, memory_model, component_name="Component", log=None, memory_fields=None):
-        """
-        Initialize the memory integration.
-
-        Args:
-            memory_model: Memory model to use
-            component_name: Name of the component using this integration (for logging)
-            log: Logger instance
-            memory_fields: Dictionary mapping memory fields to packet field names
-        """
-        self.memory_model = memory_model
-        self.component_name = component_name
-        self.log = log
-
-        # Default memory field mapping if not provided
-        self.memory_fields = memory_fields or {
+    # Set up field mapping if provided
+    if field_mapping:
+        component.memory_field_mapping = field_mapping
+    else:
+        # Default mapping
+        component.memory_field_mapping = {
             'addr': 'addr',
             'data': 'data',
             'strb': 'strb'
         }
 
-        # Statistics
-        self.stats = {
-            'reads': 0,
-            'writes': 0,
-            'read_errors': 0,
-            'write_errors': 0,
-            'overflow_masked': 0,
-            'boundary_violations': 0
-        }
+    if hasattr(component, 'log') and component.log:
+        component.log.info(f"Attached memory model to {getattr(component, 'title', 'component')}")
 
-    def write(self, transaction, check_required_fields=True) -> Tuple[bool, str]:
-        """
-        Write transaction data to memory with enhanced error handling.
-
-        Args:
-            transaction: The transaction to write to memory
-            check_required_fields: If True, validate that required fields exist
-
-        Returns:
-            (success, error_message): Tuple with success flag and error message
-        """
-        if self.memory_model is None:
-            return False, "No memory model available"
-
-        try:
-            # Get field mapping
-            addr_field = self.memory_fields.get('addr', 'addr')
-            data_field = self.memory_fields.get('data', 'data')
-            strb_field = self.memory_fields.get('strb', 'strb')
-
-            # Check if transaction has required fields
-            if check_required_fields:
-                if not hasattr(transaction, addr_field):
-                    return False, f"Transaction missing required address field '{addr_field}'"
-                if not hasattr(transaction, data_field):
-                    return False, f"Transaction missing required data field '{data_field}'"
-
-            # Get values from transaction
-            addr = getattr(transaction, addr_field)
-            data = getattr(transaction, data_field)
-
-            # Get strobe if available, default to all bytes enabled
-            if hasattr(transaction, strb_field):
-                strb = getattr(transaction, strb_field)
-            else:
-                # Calculate appropriate strobe based on data width
-                bytes_per_line = self.memory_model.bytes_per_line
-                strb = (1 << bytes_per_line) - 1
-
-            # Perform boundary checking
-            if addr < 0:
-                self.stats['boundary_violations'] += 1
-                return False, f"Invalid negative address: {addr}"
-
-            if addr + self.memory_model.bytes_per_line > self.memory_model.size:
-                self.stats['boundary_violations'] += 1
-                return False, f"Memory write at 0x{addr:X} would exceed memory bounds (size: {self.memory_model.size})"
-
-            # Convert data to bytearray with proper size handling
-            try:
-                data_bytes = self._integer_to_bytearray(data, self.memory_model.bytes_per_line)
-            except OverflowError:
-                # If data doesn't fit, mask it
-                max_value = (1 << (self.memory_model.bytes_per_line * 8)) - 1
-                masked_data = data & max_value
-                if self.log:
-                    self.log.warning(
-                        f"{self.component_name}: Data value 0x{data:X} exceeds memory width, masked to 0x{masked_data:X}"
-                    )
-                data_bytes = self._integer_to_bytearray(masked_data, self.memory_model.bytes_per_line)
-                self.stats['overflow_masked'] += 1
-
-            # Write to memory
-            self.memory_model.write(addr, data_bytes, strb)
-            if self.log:
-                self.log.debug(f"{self.component_name}: Wrote to memory: addr=0x{addr:X}, data=0x{data:X}, strb=0x{strb:X}")
-            self.stats['writes'] += 1
-
-            return True, ""
-
-        except Exception as e:
-            error_msg = f"{self.component_name}: Error writing to memory: {str(e)}"
-            if self.log:
-                self.log.error(error_msg)
-            self.stats['write_errors'] += 1
-            return False, error_msg
-
-    def read(self, transaction, update_transaction=True, check_required_fields=True) -> Tuple[bool, Any, str]:
-        """
-        Read data from memory based on transaction address.
-
-        Args:
-            transaction: The transaction containing the address to read from
-            update_transaction: If True, update the transaction's data field with read value
-            check_required_fields: If True, validate that required fields exist
-
-        Returns:
-            (success, data, error_message): Tuple with success flag, data read (or None),
-                                           and error message
-        """
-        if self.memory_model is None:
-            return False, None, "No memory model available"
-
-        try:
-            # Get field mapping
-            addr_field = self.memory_fields.get('addr', 'addr')
-            data_field = self.memory_fields.get('data', 'data')
-
-            # Check if transaction has required fields
-            if check_required_fields and not hasattr(transaction, addr_field):
-                return False, None, f"Transaction missing required address field '{addr_field}'"
-
-            # Get address from transaction
-            addr = getattr(transaction, addr_field)
-
-            # Perform boundary checking
-            if addr < 0:
-                self.stats['boundary_violations'] += 1
-                return False, None, f"Invalid negative address: {addr}"
-
-            if addr + self.memory_model.bytes_per_line > self.memory_model.size:
-                self.stats['boundary_violations'] += 1
-                return False, None, f"Memory read at 0x{addr:X} would exceed memory bounds (size: {self.memory_model.size})"
-
-            # Read from memory
-            data_bytes = self.memory_model.read(addr, self.memory_model.bytes_per_line)
-            data = self._bytearray_to_integer(data_bytes)
-
-            # Update transaction if requested
-            if update_transaction and hasattr(transaction, data_field):
-                setattr(transaction, data_field, data)
-
-            if self.log:
-                self.log.debug(f"{self.component_name}: Read from memory: addr=0x{addr:X}, data=0x{data:X}")
-            self.stats['reads'] += 1
-
-            return True, data, ""
-
-        except Exception as e:
-            error_msg = f"{self.component_name}: Error reading from memory: {str(e)}"
-            if self.log:
-                self.log.error(error_msg)
-            self.stats['read_errors'] += 1
-            return False, None, error_msg
-
-    def _integer_to_bytearray(self, value, byte_length):
-        """
-        Convert an integer to a bytearray with safety checks.
-
-        Args:
-            value: Integer value to convert
-            byte_length: Length of resulting bytearray
-
-        Returns:
-            Bytearray representation of the value
-
-        Raises:
-            TypeError: If value is not an integer
-            ValueError: If value is negative
-            OverflowError: If value is too large for the specified byte_length
-        """
-        # Ensure value is a valid integer
-        if not isinstance(value, int):
-            raise TypeError(f"{self.component_name}: Value must be an integer, got {type(value).__name__}")
-
-        if value < 0:
-            raise ValueError(f"{self.component_name}: Negative integers are not supported for conversion: {value}")
-
-        # Check if the value can fit into the specified byte_length
-        max_value = (1 << (byte_length * 8)) - 1
-        if value > max_value:
-            raise OverflowError(
-                f"{self.component_name}: Value {value:X} is too large to fit into {byte_length} bytes. "
-                f"Maximum allowed value is {max_value:X}."
-            )
-
-        # Perform the conversion
-        return bytearray(value.to_bytes(byte_length, byteorder='little'))
-
-    def _bytearray_to_integer(self, byte_array):
-        """
-        Convert a bytearray to an integer.
-
-        Args:
-            byte_array: Bytearray to convert
-
-        Returns:
-            Integer representation of the bytearray
-        """
-        return int.from_bytes(byte_array, byteorder='little')
-
-    def get_stats(self):
-        """
-        Get memory operation statistics.
-
-        Returns:
-            Dictionary with statistics
-        """
-        return self.stats.copy()
-
-    def reset_stats(self):
-        """Reset memory operation statistics."""
-        for key in self.stats:
-            self.stats[key] = 0
+    return component
 
 
-class EnhancedMemoryModel:
+def write_packet_to_memory(memory_model, packet, component_name="Component", log=None):
     """
-    Enhanced memory model with improved boundary checking and diagnostics.
+    Write a packet to memory using existing MemoryModel.write_transaction().
 
-    This class extends the basic memory model capabilities with better error handling,
-    diagnostics, and memory organization features for hardware verification.
+    Args:
+        memory_model: Your existing MemoryModel instance
+        packet: Packet to write to memory
+        component_name: Component name for error messages
+        log: Logger instance
+
+    Returns:
+        (success, error_message): Tuple with success flag and error message
+    """
+    if memory_model is None:
+        return False, "No memory model available"
+
+    # Use existing MemoryModel.write_transaction() method
+    # This already has all the error handling, boundary checking, and statistics
+    return memory_model.write_transaction(
+        transaction=packet,
+        check_required_fields=True,
+        component_name=component_name
+    )
+
+
+def read_packet_from_memory(memory_model, packet, component_name="Component", log=None):
+    """
+    Read data from memory into a packet using existing MemoryModel.read_transaction().
+
+    Args:
+        memory_model: Your existing MemoryModel instance
+        packet: Packet containing address to read from
+        component_name: Component name for error messages
+        log: Logger instance
+
+    Returns:
+        (success, data, error_message): Tuple with success flag, data, and error message
+    """
+    if memory_model is None:
+        return False, None, "No memory model available"
+
+    # Use existing MemoryModel.read_transaction() method
+    # This already has all the error handling, boundary checking, and statistics
+    return memory_model.read_transaction(
+        transaction=packet,
+        update_transaction=True,
+        check_required_fields=True,
+        component_name=component_name
+    )
+
+
+def get_memory_stats(memory_model):
+    """
+    Get memory statistics using existing MemoryModel infrastructure.
+
+    Args:
+        memory_model: Your existing MemoryModel instance
+
+    Returns:
+        Dictionary with memory statistics
+    """
+    if memory_model is None:
+        return {'error': 'No memory model available'}
+
+    # Use existing MemoryModel.get_stats() method
+    return memory_model.get_stats()
+
+
+def create_memory_regions(memory_model, regions_config, log=None):
+    """
+    Define memory regions using existing MemoryModel infrastructure.
+
+    Args:
+        memory_model: Your existing MemoryModel instance
+        regions_config: List of (name, start_addr, end_addr, description) tuples
+        log: Logger instance
+
+    Returns:
+        Memory model for method chaining
+    """
+    if memory_model is None:
+        if log:
+            log.error("No memory model available for region definition")
+        return None
+
+    # Use existing MemoryModel.define_region() method
+    for region_config in regions_config:
+        if len(region_config) >= 3:
+            name, start_addr, end_addr = region_config[:3]
+            description = region_config[3] if len(region_config) > 3 else None
+            memory_model.define_region(name, start_addr, end_addr, description)
+
+    return memory_model
+
+
+def dump_memory_with_access_info(memory_model, include_regions=True):
+    """
+    Generate memory dump using existing MemoryModel infrastructure.
+
+    Args:
+        memory_model: Your existing MemoryModel instance
+        include_regions: Whether to include region access information
+
+    Returns:
+        String with memory dump
+    """
+    if memory_model is None:
+        return "No memory model available"
+
+    # Use existing MemoryModel.dump() method
+    return memory_model.dump(include_access_info=True)
+
+
+# Convenience functions for FIFO-specific operations
+def setup_fifo_memory(memory_model, fifo_capacity=8, base_addr=0x0000, log=None):
+    """
+    Set up memory regions for FIFO testing using existing infrastructure.
+
+    Args:
+        memory_model: Your existing MemoryModel instance
+        fifo_capacity: FIFO capacity in entries
+        base_addr: Base address for FIFO data
+        log: Logger instance
+
+    Returns:
+        Memory model for method chaining
+    """
+    if memory_model is None:
+        if log:
+            log.error("No memory model available for FIFO setup")
+        return None
+
+    # Define FIFO data region using existing infrastructure
+    fifo_end_addr = base_addr + (fifo_capacity * memory_model.bytes_per_line) - 1
+
+    regions = [
+        ("fifo_data", base_addr, fifo_end_addr, f"FIFO data region ({fifo_capacity} entries)")
+    ]
+
+    return create_memory_regions(memory_model, regions, log)
+
+
+def validate_fifo_transaction(memory_model, packet, operation="write", log=None):
+    """
+    Validate a FIFO transaction using existing MemoryModel infrastructure.
+
+    Args:
+        memory_model: Your existing MemoryModel instance
+        packet: Packet to validate
+        operation: Operation type ("write" or "read")
+        log: Logger instance
+
+    Returns:
+        (valid, error_message): Tuple with validation result and error message
+    """
+    if memory_model is None:
+        return False, "No memory model available"
+
+    # Basic validation using existing packet infrastructure
+    try:
+        # Check if packet has required fields
+        if not hasattr(packet, 'addr'):
+            return False, "Packet missing address field"
+
+        if operation == "write" and not hasattr(packet, 'data'):
+            return False, "Write packet missing data field"
+
+        addr = packet.addr
+
+        # Use existing boundary checking logic
+        if addr < 0:
+            return False, f"Invalid negative address: {addr}"
+
+        if addr + memory_model.bytes_per_line > memory_model.size:
+            return False, f"Address 0x{addr:X} would exceed memory bounds"
+
+        return True, ""
+
+    except Exception as e:
+        error_msg = f"Validation error: {str(e)}"
+        if log:
+            log.error(error_msg)
+        return False, error_msg
+
+
+# Integration with existing component classes
+class MemoryModelMixin:
+    """
+    Mixin to add memory model functionality to FIFO components.
+
+    This leverages your existing MemoryModel infrastructure without duplication.
     """
 
-    def __init__(self, num_lines, bytes_per_line, log=None, preset_values=None, debug=False):
-        """
-        Initialize the enhanced memory model.
-
-        Args:
-            num_lines: Number of memory lines
-            bytes_per_line: Bytes per memory line
-            log: Logger instance
-            preset_values: Optional initial values for memory
-            debug: Enable detailed debug logging
-        """
-        self.num_lines = num_lines
-        self.bytes_per_line = bytes_per_line
-        self.size = num_lines * bytes_per_line
-        self.log = log
-        self.debug = debug
-
-        # Initialize memory using numpy for better performance
-        if preset_values:
-            if len(preset_values) != self.size:
-                if log:
-                    log.warning(f"Preset values length {len(preset_values)} doesn't match memory size {self.size}. Adjusting.")
-
-                # Truncate or pad preset values to match memory size
-                if len(preset_values) > self.size:
-                    preset_values = preset_values[:self.size]
-                else:
-                    preset_values = preset_values + [0] * (self.size - len(preset_values))
-
-            # Convert to numpy array
-            self.mem = np.frombuffer(bytearray(preset_values), dtype=np.uint8).copy()
-            self.preset_values = np.frombuffer(bytearray(preset_values), dtype=np.uint8).copy()
-        else:
-            self.mem = np.zeros(self.size, dtype=np.uint8)
-            self.preset_values = np.zeros(self.size, dtype=np.uint8)
-
-        # Access tracking for diagnostics
-        self.read_access_map = np.zeros(self.size, dtype=np.uint32)  # Count reads per address
-        self.write_access_map = np.zeros(self.size, dtype=np.uint32)  # Count writes per address
-
-        # Memory regions for logical organization
-        self.regions = {}  # name -> (start_addr, end_addr, description)
-
-        # Statistics
-        self.stats = {
-            'reads': 0,
-            'writes': 0,
-            'read_errors': 0,
-            'write_errors': 0,
-            'uninitialized_reads': 0
-        }
-
-    def write(self, address, data, strobe=None):
-        """
-        Write data to memory with improved error handling and diagnostics.
-
-        Args:
-            address: Target memory address
-            data: Data to write (bytearray)
-            strobe: Optional write strobe (bit mask for byte enables)
-
-        Raises:
-            ValueError: If address or data is invalid
-            IndexError: If write would exceed memory bounds
-        """
-        if not isinstance(data, bytearray):
-            raise TypeError("Data must be a bytearray")
-
-        # Set default strobe if not provided (all bytes enabled)
-        if strobe is None:
-            strobe = (1 << len(data)) - 1
-
-        start = address
-        data_len = len(data)
-        end = start + data_len
-
-        # Check for memory overflow
-        if end > self.size:
-            raise ValueError(f"Write at address 0x{address:X} with size {data_len} exceeds memory bounds (size: {self.size})")
-
-        # Ensure the data and strobe lengths match
-        if data_len * 8 < strobe.bit_length():
-            raise ValueError(f"Data length {data_len} does not match strobe length {strobe.bit_length() // 8}")
-
-        # Format the address and data as hexadecimal for debugging
-        if self.debug and self.log:
-            hex_address = f"0x{address:08X}"
-            hex_data = [f"0x{byte:02X}" for byte in data]
-            self.log.debug(f"Writing to memory: address={hex_address}, data={hex_data}, strobe={strobe:08b}")
-
-        # Convert bytearray to numpy array
-        data_np = np.frombuffer(data, dtype=np.uint8)
-
-        # Create a mask array from the strobe
-        mask = np.zeros(data_len, dtype=bool)
-        for i in range(data_len):
-            if strobe & (1 << i):
-                mask[i] = True
-
-                # Update write access map
-                self.write_access_map[start + i] += 1
-
-                if self.debug and self.log:
-                    self.log.debug(f"Writing byte: mem[{start+i:08X}] = {data_np[i]:02X}")
-
-        # Apply the masked write operation in one vectorized operation
-        if np.any(mask):
-            indices = np.arange(start, start + data_len)[mask]
-            self.mem[indices] = data_np[mask]
-
-            # Update statistics
-            self.stats['writes'] += 1
-
-    def read(self, address, length):
-        """
-        Read data from memory with error checking.
-
-        Args:
-            address: Memory address to read from
-            length: Number of bytes to read
-
-        Returns:
-            Bytearray containing the read data
-
-        Raises:
-            ValueError: If address or length is invalid
-            IndexError: If read would exceed memory bounds
-        """
-        # Check for memory overflow
-        if address + length > self.size:
-            raise ValueError(f"Read at address 0x{address:X} with size {length} exceeds memory bounds (size: {self.size})")
-
-        # Update read access map
-        for i in range(length):
-            self.read_access_map[address + i] += 1
-
-            # Check for uninitialized memory (if all preset values were zero)
-            if np.all(self.preset_values == 0) and self.write_access_map[address + i] == 0:
-                if self.log:
-                    self.log.warning(f"Reading uninitialized memory at address 0x{address + i:X}")
-                self.stats['uninitialized_reads'] += 1
-
-        # Update statistics
-        self.stats['reads'] += 1
-
-        # Read the data
-        data = self.mem[address:address + length].copy()
-
-        # Convert back to bytearray to maintain API compatibility
-        return bytearray(data)
-
-    def reset(self, to_preset=False):
-        """
-        Reset memory to initial state.
-
-        Args:
-            to_preset: If True, reset to preset values; if False, reset to all zeros
-        """
-        if to_preset:
-            self.mem = self.preset_values.copy()
-        else:
-            self.mem = np.zeros(self.size, dtype=np.uint8)
-
-        # Reset access maps
-        self.read_access_map.fill(0)
-        self.write_access_map.fill(0)
-
-        # Reset statistics
-        for key in self.stats:
-            self.stats[key] = 0
-
-    def expand(self, additional_lines):
-        """
-        Expand memory by adding additional lines.
-
-        Args:
-            additional_lines: Number of lines to add
-        """
-        additional_size = additional_lines * self.bytes_per_line
-
-        # Expand memory
-        self.mem = np.append(self.mem, np.zeros(additional_size, dtype=np.uint8))
-        self.preset_values = np.append(self.preset_values, np.zeros(additional_size, dtype=np.uint8))
-
-        # Expand access maps
-        self.read_access_map = np.append(self.read_access_map, np.zeros(additional_size, dtype=np.uint32))
-        self.write_access_map = np.append(self.write_access_map, np.zeros(additional_size, dtype=np.uint32))
-
-        # Update memory dimensions
-        self.num_lines += additional_lines
-        self.size += additional_size
-
-    def define_region(self, name, start_addr, end_addr, description=None):
-        """
-        Define a named memory region for better organization and diagnostics.
-
-        Args:
-            name: Region name
-            start_addr: Starting address (inclusive)
-            end_addr: Ending address (inclusive)
-            description: Optional description of the region
-
-        Returns:
-            Self for method chaining
-        """
-        # Validate region
-        if end_addr < start_addr:
-            if self.log:
-                self.log.warning(f"Invalid region '{name}': end_addr {end_addr} < start_addr {start_addr}")
-            return self
-
-        if start_addr < 0 or end_addr >= self.size:
-            if self.log:
-                self.log.warning(f"Invalid region '{name}': addresses out of bounds (0-{self.size-1})")
-            return self
-
-        # Store region
-        self.regions[name] = (start_addr, end_addr, description or name)
-
-        if self.log:
-            self.log.info(f"Defined memory region '{name}': 0x{start_addr:X}-0x{end_addr:X} ({description or name})")
-
-        return self
-
-    def get_region_access_stats(self, name):
-        """
-        Get access statistics for a named region.
-
-        Args:
-            name: Region name
-
-        Returns:
-            Dictionary with region access statistics
-        """
-        if name not in self.regions:
-            return None
-
-        start_addr, end_addr, _ = self.regions[name]
-        size = end_addr - start_addr + 1
-
-        reads = np.sum(self.read_access_map[start_addr:end_addr + 1])
-        writes = np.sum(self.write_access_map[start_addr:end_addr + 1])
-
-        return {
-            'region': name,
-            'start_addr': start_addr,
-            'end_addr': end_addr,
-            'size': size,
-            'total_reads': int(reads),
-            'total_writes': int(writes),
-            'read_percentage': int(reads) / size if size > 0 else 0,
-            'write_percentage': int(writes) / size if size > 0 else 0,
-            'untouched_addresses': int(np.sum((self.read_access_map[start_addr:end_addr + 1] == 0) &
-                                           (self.write_access_map[start_addr:end_addr + 1] == 0)))
-        }
-
-    def dump(self, include_access_info=False):
-        """
-        Generate a detailed memory dump.
-
-        Args:
-            include_access_info: If True, include read/write access information
-
-        Returns:
-            String with the memory dump
-        """
-        mem_dump = "-" * 60 + '\n'
-
-        # Add header
-        mem_dump += f"Memory Dump: {self.num_lines} lines x {self.bytes_per_line} bytes = {self.size} bytes\n"
-        mem_dump += "-" * 60 + '\n'
-
-        # Dump memory contents by line
-        for i in range(self.num_lines):
-            addr = i * self.bytes_per_line
-
-            # Get memory line data
-            line_data = bytes(self.mem[addr:addr + self.bytes_per_line])
-            value = int.from_bytes(line_data, byteorder='little')
-
-            # Format line with address and value
-            mem_dump += f"Line {i:4}: Address 0x{addr:08X} - Value 0x{value:0{self.bytes_per_line * 2}X}"
-
-            # Add access info if requested
-            if include_access_info:
-                reads = np.sum(self.read_access_map[addr:addr + self.bytes_per_line])
-                writes = np.sum(self.write_access_map[addr:addr + self.bytes_per_line])
-                mem_dump += f" (Reads: {reads}, Writes: {writes})"
-
-            mem_dump += '\n'
-
-        # Add region information if any regions defined
-        if self.regions:
-            mem_dump += "\nMemory Regions:\n"
-            mem_dump += "-" * 60 + '\n'
-
-            for name, (start, end, desc) in self.regions.items():
-                stats = self.get_region_access_stats(name)
-                mem_dump += f"Region '{name}': 0x{start:X}-0x{end:X} ({desc})\n"
-                if stats:
-                    mem_dump += f"  Size: {stats['size']} bytes, Reads: {stats['total_reads']}, Writes: {stats['total_writes']}\n"
-                    mem_dump += f"  Untouched: {stats['untouched_addresses']} bytes ({stats['untouched_addresses'] * 100 / stats['size']:.1f}%)\n"
-
-        mem_dump += "-" * 60 + '\n'
-        return '\n' + mem_dump
-
-    def integer_to_bytearray(self, value, byte_length=None):
-        """
-        Convert an integer to a bytearray with enhanced error checking.
-
-        Args:
-            value: Integer value to convert
-            byte_length: Length of resulting bytearray
-
-        Returns:
-            Bytearray representation of the value
-
-        Raises:
-            TypeError: If value is not an integer
-            ValueError: If value is negative
-            OverflowError: If value is too large for the specified byte_length
-        """
-        # Ensure value is a valid integer
-        if not isinstance(value, int):
-            raise TypeError("Value must be an integer")
-
-        if value < 0:
-            raise ValueError("Negative integers are not supported for conversion")
-
-        # Calculate byte_length if not provided
-        if byte_length is None:
-            byte_length = (value.bit_length() + 7) // 8
-            byte_length = max(1, byte_length)  # Ensure at least 1 byte
-
-        # Check if the value can fit into the specified byte_length
-        max_value = (1 << (byte_length * 8)) - 1
-        if value > max_value:
-            raise OverflowError(
-                f"Value {value} is too large to fit into {byte_length} bytes. "
-                f"Maximum allowed value is {max_value}."
-            )
-
-        # Perform the conversion
-        return bytearray(value.to_bytes(byte_length, byteorder='little'))
-
-    def bytearray_to_integer(self, byte_array):
-        """
-        Convert a bytearray to an integer.
-
-        Args:
-            byte_array: Bytearray to convert
-
-        Returns:
-            Integer representation of the bytearray
-        """
-        return int.from_bytes(byte_array, byteorder='little')
-
-    def get_stats(self):
-        """
-        Get memory operation statistics.
-
-        Returns:
-            Dictionary with statistics
-        """
-        # Calculate additional statistics
-        coverage = {
-            'read_coverage': np.count_nonzero(self.read_access_map) / self.size,
-            'write_coverage': np.count_nonzero(self.write_access_map) / self.size,
-            'any_access_coverage': np.count_nonzero(self.read_access_map | self.write_access_map) / self.size,
-            'untouched_bytes': np.count_nonzero((self.read_access_map == 0) & (self.write_access_map == 0))
-        }
-
-        return {**self.stats, **coverage}
+    def setup_memory_integration(self, memory_model, field_mapping=None):
+        """Set up memory integration using existing infrastructure."""
+        return attach_memory_model(self, memory_model, field_mapping)
+
+    def write_to_memory(self, packet):
+        """Write packet to memory using existing infrastructure."""
+        if not hasattr(self, 'memory_model') or self.memory_model is None:
+            return False, "No memory model attached"
+
+        component_name = getattr(self, 'title', 'Component')
+        log = getattr(self, 'log', None)
+
+        return write_packet_to_memory(self.memory_model, packet, component_name, log)
+
+    def read_from_memory(self, packet):
+        """Read data from memory using existing infrastructure."""
+        if not hasattr(self, 'memory_model') or self.memory_model is None:
+            return False, None, "No memory model attached"
+
+        component_name = getattr(self, 'title', 'Component')
+        log = getattr(self, 'log', None)
+
+        return read_packet_from_memory(self.memory_model, packet, component_name, log)
+
+    def get_memory_statistics(self):
+        """Get memory statistics using existing infrastructure."""
+        if not hasattr(self, 'memory_model') or self.memory_model is None:
+            return {'error': 'No memory model attached'}
+
+        return get_memory_stats(self.memory_model)
+
+
+# Note: This file replaces the entire fifo_memory_integ.py
+#
+# DELETED CLASSES (no longer needed):
+# - EnhancedMemoryModel (duplicate of your MemoryModel)
+# - FIFOMemoryInteg (wrapper around functionality your MemoryModel already provides)
+#
+# BENEFITS:
+# - Eliminates ~400 lines of duplicate code
+# - Uses your existing optimized MemoryModel infrastructure
+# - Maintains all functionality through lightweight helpers
+# - Consistent error handling and statistics across all components
+# - Better integration with your existing caching and performance optimizations

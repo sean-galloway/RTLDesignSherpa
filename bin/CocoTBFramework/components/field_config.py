@@ -104,6 +104,7 @@ class FieldConfig:
         """Initialize an empty field configuration"""
         self._fields: Dict[str, FieldDefinition] = {}
         self._field_order: List[str] = []
+        self.total_bits: int = 0
 
     def add_field(self, field_def: FieldDefinition) -> 'FieldConfig':
         """
@@ -121,6 +122,7 @@ class FieldConfig:
 
         self._fields[name] = field_def
         self._field_order.append(name)
+        self.total_bits += field_def.bits
         return self
 
     def add_field_dict(self, name: str, field_dict: Dict[str, Any]) -> 'FieldConfig':
@@ -148,6 +150,7 @@ class FieldConfig:
             Self for method chaining
         """
         if name in self._fields:
+            self.total_bits -= self._fields[name].bits
             del self._fields[name]
             self._field_order.remove(name)
         return self
@@ -208,6 +211,10 @@ class FieldConfig:
         """
         for name in self._field_order:
             yield name, self._fields[name]
+
+    def get_total_bits(self) -> int:
+        """Calculate the total number of bits across all fields."""
+        return self.total_bits
 
     def __iter__(self):
         """Iterator over field names (like dict.__iter__)"""

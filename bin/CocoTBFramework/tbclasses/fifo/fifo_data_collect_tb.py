@@ -404,7 +404,7 @@ class DataCollectTB(TBBase):
     Enhanced testbench for the data_collect module using modern framework with FlexConfigGen.
     """
 
-    def __init__(self, dut):
+    def __init__(self, dut, super_debug=False):
         """Initialize the testbench with the DUT"""
         super().__init__(dut)
 
@@ -421,7 +421,7 @@ class DataCollectTB(TBBase):
         # Clock and reset signals
         self.clock = self.dut.i_clk
         self.reset_n = self.dut.i_rst_n
-        self.super_debug = True
+        self.super_debug = super_debug
 
         # Channel configuration
         self.channels = ['a', 'b', 'c', 'd']
@@ -521,6 +521,7 @@ class DataCollectTB(TBBase):
                 field_config=self.input_field_config,
                 is_slave=False,
                 mode='fifo_mux',
+                multi_sig=True,
                 bus_name=channel,  # 'a', 'b', 'c', 'd'
                 pkt_prefix='',
                 fifo_depth=2,
@@ -534,9 +535,9 @@ class DataCollectTB(TBBase):
             field_config=self.output_field_config,
             timeout_cycles=1000,
             mode='fifo_mux',
-            multi_sig=True,
-            super_debug=self.super_debug,
+            multi_sig=False,
             bus_name='e',
+            super_debug=self.super_debug,
             log=self.log
         )
 
@@ -546,6 +547,7 @@ class DataCollectTB(TBBase):
             field_config=self.output_field_config,
             is_slave=True,
             mode='fifo_mux',
+            multi_sig=False,
             bus_name='e',
             fifo_depth=16,
             super_debug=self.super_debug,
@@ -801,7 +803,7 @@ class DataCollectTB(TBBase):
             self.slave_e.set_randomizer(FlexRandomizer(read_config))
             
             self.log.info(f"Set all randomizers to config '{config_name}' - "
-                         f"Write: {write_config}, Read: {read_config}")
+                            f"Write: {write_config}, Read: {read_config}")
         else:
             self.log.warning(f"Randomizer config '{config_name}' not found, using 'constrained'")
             fallback_config = self.randomizer_configs['constrained']

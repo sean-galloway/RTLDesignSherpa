@@ -23,7 +23,7 @@ class FifoMultiBufferTB(TBBase):
     def __init__(self, dut,
                     wr_clk=None, wr_rstn=None,
                     rd_clk=None, rd_rstn=None,
-                    super_debug=False):
+                    super_debug=True):
         super().__init__(dut)
 
         # Get test parameters from environment

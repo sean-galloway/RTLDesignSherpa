@@ -5,7 +5,7 @@ Leverages modern infrastructure (SignalResolver, FieldConfig, etc.)
 to provide clean component creation with minimal configuration needed.
 """
 from ..memory_model import MemoryModel
-from ..field_config import FieldConfig, FieldDefinition
+from ..field_config import FieldConfig
 from CocoTBFramework.scoreboards.fifo_scoreboard import FIFOScoreboard
 from .fifo_master import FIFOMaster
 from .fifo_slave import FIFOSlave
@@ -15,7 +15,7 @@ from .fifo_command_handler import FIFOCommandHandler
 
 def get_default_field_config(data_width=32, addr_width=0, ctrl_width=0):
     """
-    Get default field configuration for FIFO packets.
+    Get default field configuration for FIFO packets using existing factory methods.
 
     Args:
         data_width: Data width in bits
@@ -25,44 +25,21 @@ def get_default_field_config(data_width=32, addr_width=0, ctrl_width=0):
     Returns:
         FieldConfig object with specified fields
     """
-    config = FieldConfig()
-
-    # Add data field first
-    config.add_field(FieldDefinition(
-        name='data',
-        bits=data_width,
-        default=0,
-        format='hex',
-        display_width=(data_width + 3) // 4,
-        active_bits=(data_width-1, 0),
-        description='Data value'
-    ))
-
-    # Add address field if requested
-    if addr_width > 0:
-        config.add_field(FieldDefinition(
-            name='addr',
-            bits=addr_width,
-            default=0,
-            format='hex',
-            display_width=(addr_width + 3) // 4,
-            active_bits=(addr_width-1, 0),
-            description='Address'
-        ))
-
-    # Add control field if requested
-    if ctrl_width > 0:
-        config.add_field(FieldDefinition(
-            name='ctrl',
-            bits=ctrl_width,
-            default=0,
-            format='hex',
-            display_width=(ctrl_width + 3) // 4,
-            active_bits=(ctrl_width-1, 0),
-            description='Control'
-        ))
-
-    return config
+    # Use existing FieldConfig factory methods instead of manual creation
+    if addr_width > 0 and ctrl_width > 0:
+        # Multi-field configuration with addr, ctrl, and data
+        return FieldConfig.create_multi_data(
+            addr_width=addr_width, 
+            ctrl_width=ctrl_width, 
+            data_width=data_width, 
+            num_data=1
+        )
+    elif addr_width > 0:
+        # Standard addr + data configuration
+        return FieldConfig.create_standard(addr_width, data_width)
+    else:
+        # Simple data-only configuration
+        return FieldConfig.create_data_only(data_width)
 
 
 def create_fifo_master(dut, title, clock, field_config=None, randomizer=None, 
@@ -93,7 +70,7 @@ def create_fifo_master(dut, title, clock, field_config=None, randomizer=None,
     log = log or getattr(dut, '_log', None)
 
     # Create master - SignalResolver handles signal discovery automatically
-    return FIFOMaster(
+    master = FIFOMaster(
         dut=dut,
         title=title,
         prefix="",  # Let SignalResolver handle this
@@ -103,6 +80,12 @@ def create_fifo_master(dut, title, clock, field_config=None, randomizer=None,
         log=log,
         **kwargs
     )
+    
+    # Attach memory model if provided - use existing MemoryModel directly
+    if memory_model:
+        master.memory_model = memory_model
+    
+    return master
 
 
 def create_fifo_slave(dut, title, clock, field_config=None, randomizer=None,
@@ -134,7 +117,7 @@ def create_fifo_slave(dut, title, clock, field_config=None, randomizer=None,
     log = log or getattr(dut, '_log', None)
 
     # Create slave - SignalResolver handles signal discovery automatically
-    return FIFOSlave(
+    slave = FIFOSlave(
         dut=dut,
         title=title,
         prefix="",  # Let SignalResolver handle this
@@ -145,6 +128,12 @@ def create_fifo_slave(dut, title, clock, field_config=None, randomizer=None,
         mode=mode,
         **kwargs
     )
+    
+    # Attach memory model if provided - use existing MemoryModel directly
+    if memory_model:
+        slave.memory_model = memory_model
+    
+    return slave
 
 
 def create_fifo_monitor(dut, title, clock, field_config=None, is_slave=False,
@@ -229,7 +218,7 @@ def create_fifo_command_handler(master, slave, log=None):
 
 def create_memory_model(num_lines, bytes_per_line=4, log=None, preset_values=None, debug=False):
     """
-    Create a memory model with diagnostics.
+    Create a memory model with diagnostics using existing MemoryModel infrastructure.
 
     Args:
         num_lines: Number of memory lines
@@ -239,7 +228,7 @@ def create_memory_model(num_lines, bytes_per_line=4, log=None, preset_values=Non
         debug: Enable detailed debug logging
 
     Returns:
-        MemoryModel instance
+        MemoryModel instance (using existing infrastructure)
     """
     return MemoryModel(
         num_lines=num_lines,
@@ -278,7 +267,7 @@ def create_fifo_components(dut, clock, title_prefix="", field_config=None,
     # Use dut's logger if none provided
     log = log or getattr(dut, '_log', None)
 
-    # Create memory model if needed but not provided
+    # Create memory model if needed but not provided - use existing MemoryModel
     if memory_model is None:
         memory_model = create_memory_model(
             num_lines=fifo_capacity,

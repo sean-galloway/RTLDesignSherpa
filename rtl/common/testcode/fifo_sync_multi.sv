@@ -2,6 +2,7 @@
 
 // Parameterized Synchronous FIFO -- This works with any depth
 module fifo_sync_multi #(
+    parameter int REGISTERED = 0,  // 0 = mux mode (ow_rd_data), 1 = flop mode (o_rd_data)
     parameter int ADDR_WIDTH = 4,
     parameter int CTRL_WIDTH = 4,
     parameter int DATA_WIDTH = 4,
@@ -34,6 +35,7 @@ module fifo_sync_multi #(
 );
 
     fifo_sync #(
+        .REGISTERED        (REGISTERED),
         .DATA_WIDTH        (AW+CW+DW+DW),
         .DEPTH             (DEPTH),
         .ALMOST_WR_MARGIN  (ALMOST_WR_MARGIN),

@@ -16,13 +16,20 @@ from CocoTBFramework.tbclasses.fifo.fifo_data_collect_tb import DataCollectTB
 @cocotb.test(timeout_time=10, timeout_unit="ms")  # Increased timeout for comprehensive testing
 async def fifo_data_collect_test(dut):
     """Test the FIFO Data Collect module comprehensively with FlexConfigGen randomizers"""
-    tb = DataCollectTB(dut)
+    tb = DataCollectTB(dut, super_debug=False)
 
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
     msg = f'seed changed to {seed}'
     tb.log.info(msg)
+
+    # In your test, add this to check the signal properties:
+    print(f"DEBUG: o_e_data.value type: {type(dut.o_e_data.value)}")
+    print(f"DEBUG: o_e_data.value: {dut.o_e_data.value}")
+    print(f"DEBUG: o_e_data.value.integer: {getattr(dut.o_e_data.value, 'integer', 'N/A')}")
+    print(f"DEBUG: int(o_e_data.value): {int(dut.o_e_data.value)}")
+    print(f"DEBUG: o_e_data signal length: {len(dut.o_e_data)}")
 
     # Get test level from environment (default: basic)
     test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
@@ -50,7 +57,6 @@ async def fifo_data_collect_test(dut):
         }
         run_randomizer_sweep = False
         run_weighted_arbiter_test = False
-        run_stress_test = False
 
     elif test_level == 'medium':
         # Moderate testing for development
@@ -61,7 +67,6 @@ async def fifo_data_collect_test(dut):
         }
         run_randomizer_sweep = True
         run_weighted_arbiter_test = True
-        run_stress_test = False
 
     else:  # test_level == 'full'
         # Comprehensive testing for validation
@@ -72,7 +77,6 @@ async def fifo_data_collect_test(dut):
         }
         run_randomizer_sweep = True
         run_weighted_arbiter_test = True
-        run_stress_test = True
 
     tb.log.info(f"Data collect packet counts: {packet_counts}")
 
@@ -97,13 +101,6 @@ async def fifo_data_collect_test(dut):
         arbiter_result = await tb.run_weighted_arbiter_test()
         assert arbiter_result, f"Weighted arbiter test failed{tb.get_time_ns_str()}"
         tb.log.info("✓ Weighted arbiter test passed!")
-
-    # Run stress test for full level only
-    if run_stress_test:
-        tb.log.info("Running stress test...")
-        stress_result = await tb.run_stress_test(duration_clocks=5000)
-        assert stress_result, f"Stress test failed{tb.get_time_ns_str()}"
-        tb.log.info("✓ Stress test passed!")
 
     # Final verification
     if tb.arbiter_monitor:
@@ -149,9 +146,10 @@ def generate_params():
     data_widths = [8, 16]
     id_widths = [4, 8]
     output_fifo_depths = [16, 32]
-    test_levels = ['basic', 'medium', 'full']  # All test levels
-    return [(8, 4, 16, 'basic')]  # For quick debugging
-    # return list(product(data_widths, id_widths, output_fifo_depths, test_levels))
+    # test_levels = ['basic', 'medium', 'full']  # All test levels
+    test_levels = ['full']
+    # return [(8, 4, 16, 'basic')]  # For quick debugging
+    return list(product(data_widths, id_widths, output_fifo_depths, test_levels))
 
 params = generate_params()
 

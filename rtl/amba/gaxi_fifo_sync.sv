@@ -2,6 +2,7 @@
 
 // Parameterized Synchronous FIFO -- This works with any depth
 module gaxi_fifo_sync #(
+    parameter int REGISTERED = 0,  // 0 = mux mode (ow_rd_data), 1 = flop mode (o_rd_data)
     parameter int DATA_WIDTH = 4,
     parameter int DEPTH = 4,
     parameter int ALMOST_WR_MARGIN = 1,
@@ -19,7 +20,6 @@ module gaxi_fifo_sync #(
     input  logic            i_rd_ready,
     output logic [AW:0]     ow_count,
     output logic            o_rd_valid,   // not empty
-    output logic [DW-1:0]   ow_rd_data,
     output logic [DW-1:0]   o_rd_data
 );
 
@@ -33,6 +33,7 @@ module gaxi_fifo_sync #(
 
     // The flop storage
     logic [DW-1:0] r_mem[0:((1<<AW)-1)];  // verilog_lint: waive unpacked-dimensions-range-ordering
+    logic [DW-1:0] w_rd_data;
 
     /////////////////////////////////////////////////////////////////////////
     // Write counter
@@ -68,24 +69,25 @@ module gaxi_fifo_sync #(
     /////////////////////////////////////////////////////////////////////////
     // Generate the Full/Empty signals
     fifo_control #(
-        .DEPTH(D),
-        .ADDR_WIDTH(AW),
-        .ALMOST_RD_MARGIN(ALMOST_RD_MARGIN),
-        .ALMOST_WR_MARGIN(ALMOST_WR_MARGIN)
+        .DEPTH              (D),
+        .ADDR_WIDTH         (AW),
+        .ALMOST_RD_MARGIN   (ALMOST_RD_MARGIN),
+        .ALMOST_WR_MARGIN   (ALMOST_WR_MARGIN),
+        .REGISTERED         (REGISTERED)
     ) fifo_control_inst (
-        .i_wr_clk          (i_axi_aclk),
-        .i_wr_rst_n        (i_axi_aresetn),
-        .i_rd_clk          (i_axi_aclk),
-        .i_rd_rst_n        (i_axi_aresetn),
-        .iw_wr_ptr_bin     (w_wr_ptr_bin_next),
-        .iw_wdom_rd_ptr_bin(w_rd_ptr_bin_next),
-        .iw_rd_ptr_bin     (w_rd_ptr_bin_next),
-        .iw_rdom_wr_ptr_bin(w_wr_ptr_bin_next),
-        .ow_count          (ow_count),
-        .o_wr_full         (r_wr_full),
-        .o_wr_almost_full  (r_wr_almost_full),
-        .o_rd_empty        (r_rd_empty),
-        .o_rd_almost_empty (r_rd_almost_empty)
+        .i_wr_clk           (i_axi_aclk),
+        .i_wr_rst_n         (i_axi_aresetn),
+        .i_rd_clk           (i_axi_aclk),
+        .i_rd_rst_n         (i_axi_aresetn),
+        .iw_wr_ptr_bin      (w_wr_ptr_bin_next),
+        .iw_wdom_rd_ptr_bin (w_rd_ptr_bin_next),
+        .iw_rd_ptr_bin      (w_rd_ptr_bin_next),
+        .iw_rdom_wr_ptr_bin (w_wr_ptr_bin_next),
+        .ow_count           (ow_count),
+        .o_wr_full          (r_wr_full),
+        .o_wr_almost_full   (r_wr_almost_full),
+        .o_rd_empty         (r_rd_empty),
+        .o_rd_almost_empty  (r_rd_almost_empty)
     );
 
     assign o_wr_ready = !r_wr_full;
@@ -96,19 +98,33 @@ module gaxi_fifo_sync #(
     // Memory operations using the extracted addresses
     assign r_wr_addr  = r_wr_ptr_bin[AW-1:0];
     assign r_rd_addr  = r_rd_ptr_bin[AW-1:0];
-    assign ow_rd_data = r_mem[r_rd_addr];
 
+    /////////////////////////////////////////////////////////////////////////
+    // Memory Flops
     always_ff @(posedge i_axi_aclk) begin
-        if (w_write && !r_wr_full) begin
+        if (w_write) begin
             r_mem[r_wr_addr] <= i_wr_data;
         end
     end
 
-    // Flop stage for the flopped data
-    always_ff @(posedge i_axi_aclk or negedge i_axi_aresetn) begin
-        if (!i_axi_aresetn) o_rd_data <= 'b0;
-        else o_rd_data <= r_mem[r_rd_addr];
-    end
+    assign w_rd_data = r_mem[r_rd_addr];
+
+    /////////////////////////////////////////////////////////////////////////
+    // Read Port
+    generate
+        if (REGISTERED != 0) begin : gen_flop_mode
+            // Flop mode - registered output
+            always_ff @(posedge i_clk or negedge i_axi_aresetn) begin
+                if (!i_axi_aresetn)
+                    o_rd_data <= 'b0;
+                else
+                    o_rd_data <= w_rd_data;
+            end
+        end else begin : gen_mux_mode
+            // Mux mode - non-registered output
+            assign o_rd_data = w_rd_data;
+        end
+    endgenerate
 
     /////////////////////////////////////////////////////////////////////////
     // error checking

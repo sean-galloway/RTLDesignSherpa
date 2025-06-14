@@ -36,7 +36,7 @@ from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 @cocotb.test(timeout_time=5, timeout_unit="ms")  # Increased timeout for multi-signal testing
 async def fifo_multi_test(dut):
     '''Test the FIFO Buffer Multi-Signal comprehensively with FlexConfigGen randomizers'''
-    tb = FifoMultiBufferTB(dut, dut.i_clk, dut.i_rst_n)
+    tb = FifoMultiBufferTB(dut, dut.i_clk, dut.i_rst_n, super_debug=False)
 
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
@@ -202,10 +202,10 @@ def generate_params():
     rd_clk_periods = [10]
     registered = [0, 1]
     # test_levels = ['basic', 'medium', 'full']  # All test levels
-    test_levels = ['basic']  # For initial testing
+    test_levels = ['full']  # For initial testing
     # return [(4, 5, 8, 4, 10, 10, 0, 'basic')]
-    # return [(4, 5, 8, 4, 10, 10, 0, 'basic'), (4, 5, 8, 4, 10, 10, 1, 'basic')]
-    return list(product(addr_widths, ctrl_widths, data_widths, depths, wr_clk_periods, rd_clk_periods, registered, test_levels))
+    return [(4, 5, 8, 4, 10, 10, 0, 'full'), (4, 5, 8, 4, 10, 10, 1, 'full')]
+    # return list(product(addr_widths, ctrl_widths, data_widths, depths, wr_clk_periods, rd_clk_periods, registered, test_levels))
 
 params = generate_params()
 
@@ -270,6 +270,7 @@ def test_fifo_buffer_multi(request, addr_width, ctrl_width, data_width, depth, w
     rtl_parameters['CTRL_WIDTH'] = str(ctrl_width)
     rtl_parameters['DATA_WIDTH'] = str(data_width)
     rtl_parameters['DEPTH'] = str(depth)
+    rtl_parameters['REGISTERED'] = str(registered)
 
     # Add string parameter with quotes for Verilator
     rtl_parameters['INSTANCE_NAME'] = f'"multi_{mode}_{test_level}"'  # Include test level in instance name
