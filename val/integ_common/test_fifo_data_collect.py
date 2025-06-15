@@ -83,7 +83,7 @@ async def fifo_data_collect_test(dut):
     # Run simple test with equal weights on all channels
     tb.log.info("Running simple test with equal weights and arbiter monitoring...")
     result = await tb.run_simple_test(
-        packets_per_channel=packet_counts['simple_test'], 
+        packets_per_channel=packet_counts['simple_test'],
         expected_outputs=packet_counts['simple_test'] * len(tb.channels) // tb.CHUNKS
     )
     assert result, f"Simple test failed with {tb.total_errors} errors{tb.get_time_ns_str()}"
@@ -95,7 +95,7 @@ async def fifo_data_collect_test(dut):
         await tb.run_comprehensive_randomizer_sweep(packets_per_config=packet_counts['randomizer_sweep'])
         tb.log.info("✓ Completed comprehensive data collect randomizer sweep")
 
-    # Run weighted arbiter test for medium and full levels  
+    # Run weighted arbiter test for medium and full levels
     if run_weighted_arbiter_test:
         tb.log.info("Running weighted arbiter test...")
         arbiter_result = await tb.run_weighted_arbiter_test()
@@ -124,18 +124,18 @@ async def fifo_data_collect_test(dut):
 def generate_params():
     """
     Generate test parameters for data collect testing. Modify this function to limit test scope for debugging.
-    
+
     Examples for quick debugging:
         # Single test case:
         return [(8, 4, 16, 'basic')]
-        
+
         # Test only basic level:
         data_widths = [8]
-        id_widths = [4] 
+        id_widths = [4]
         output_fifo_depths = [16]
         test_levels = ['basic']  # Only basic
         return list(product(data_widths, id_widths, output_fifo_depths, test_levels))
-        
+
         # Test all levels:
         data_widths = [8, 16]
         id_widths = [4, 8]
@@ -148,8 +148,8 @@ def generate_params():
     output_fifo_depths = [16, 32]
     # test_levels = ['basic', 'medium', 'full']  # All test levels
     test_levels = ['full']
-    # return [(8, 4, 16, 'basic')]  # For quick debugging
-    return list(product(data_widths, id_widths, output_fifo_depths, test_levels))
+    return [(8, 4, 16, 'basic')]  # For quick debugging
+    # return list(product(data_widths, id_widths, output_fifo_depths, test_levels))
 
 params = generate_params()
 
@@ -160,7 +160,7 @@ def test_fifo_data_collect(request, data_width, id_width, output_fifo_depth, tes
 
     Test level controls the depth and breadth of testing:
     - basic: Quick verification (4-6 min)
-    - medium: Integration testing (10-15 min)  
+    - medium: Integration testing (10-15 min)
     - full: Comprehensive validation (25-35 min)
 
     For quick debugging: Modify generate_params() function to return only specific combinations

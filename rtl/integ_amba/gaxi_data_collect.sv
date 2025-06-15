@@ -1,6 +1,7 @@
 `timescale 1ns / 1ps
 
 module gaxi_data_collect #(
+    parameter int REGISTERED = 0,  // 0 = mux mode, 1 = flop mode
     parameter int DATA_WIDTH = 8,
     parameter int ID_WIDTH = 4,
     parameter int OUTPUT_FIFO_DEPTH = 16,
@@ -339,6 +340,7 @@ module gaxi_data_collect #(
     // Output FIFO
 
     gaxi_fifo_sync #(
+        .REGISTERED(REGISTERED),
         .DATA_WIDTH(IDW + CHUNKS*DW),
         .DEPTH(OUTPUT_FIFO_DEPTH)
     ) output_fifo (
@@ -348,9 +350,8 @@ module gaxi_data_collect #(
         .o_wr_ready     (w_fifo_wr_ready),
         .i_wr_data      (w_fifo_wr_data),
         .o_rd_valid     (o_e_valid),
-        .ow_rd_data     (o_e_data),
+        .o_rd_data      (o_e_data),
         .i_rd_ready     (i_e_ready),
-        .o_rd_data      (),
         .ow_count       ()
     );
 

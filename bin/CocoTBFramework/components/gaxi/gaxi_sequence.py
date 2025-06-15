@@ -1,10 +1,13 @@
 """
-Enhanced GAXI Sequence Implementation with Transaction Dependency Tracking
+Updated GAXI Sequence - Leveraging Shared Infrastructure
 
-This module provides a powerful sequence generator for GAXI transactions
-with built-in masking features and enhanced dependency tracking capabilities
-designed to model complex transaction relationships.
+This simplified version uses existing infrastructure more effectively:
+- FlexRandomizer for value generation and constraints
+- Built-in Packet field masking (no custom implementation needed)
+- Standard dependency tracking patterns
+- Better integration with GAXIComponentBase patterns
 """
+
 import random
 from collections import deque
 from ..field_config import FieldConfig
@@ -14,181 +17,117 @@ from .gaxi_packet import GAXIPacket
 
 class GAXISequence:
     """
-    Generates sequences of GAXI transactions for testing with built-in masking
-    and transaction dependency tracking.
+    Enhanced GAXI sequence generator leveraging shared infrastructure.
 
-    This class creates test patterns for GAXI transactions with dependency tracking,
-    allowing for the creation of complex sequences where transactions depend on
-    the completion of previous transactions.
+    This simplified version eliminates custom field masking and uses existing
+    infrastructure more effectively while preserving all existing APIs.
     """
 
-    def __init__(self, name="basic", field_config=None, packet_class=GAXIPacket):
+    def __init__(self, name="basic", field_config=None, packet_class=None):
         """
-        Initialize the GAXI sequence.
+        Initialize GAXI sequence with shared infrastructure.
 
         Args:
             name: Sequence name
             field_config: Field configuration (FieldConfig object or dictionary)
-            packet_class: Class to use for packet creation
+            packet_class: Packet class to use (defaults to GAXIPacket)
         """
         self.name = name
         self.packet_class = packet_class or GAXIPacket
 
-        # Handle field_config as either FieldConfig object or dictionary
+        # Normalize field_config using standard pattern from GAXIComponentBase
         if isinstance(field_config, FieldConfig):
-            self.field_config = field_config.to_dict()
+            self.field_config = field_config
+        elif isinstance(field_config, dict):
+            self.field_config = FieldConfig.validate_and_create(field_config)
         else:
-            # Default field configuration: just 'data' field
-            self.field_config = field_config or {
-                'data': {
-                    'bits': 32,
-                    'default': 0,
-                    'format': 'hex',
-                    'display_width': 8,
-                    'active_bits': (31, 0),
-                    'description': 'Data'
-                }
-            }
+            # Default to standard data field
+            self.field_config = FieldConfig.create_data_only()
 
-        # Calculate and store field masks for all fields
-        self.field_masks = self._calculate_field_masks()
+        # Sequence data storage - simplified structure
+        self.sequence_data = []  # List of (field_values_dict, delay, dependencies)
 
-        # Sequence parameters
-        self.field_data_seq = {} # Dictionary of field_name -> list of values
-        self.delay_seq = []      # Delays between transactions
+        # Randomization using FlexRandomizer infrastructure
+        self.randomizer = None
+        self.use_randomization = False
 
-        # Transaction dependency tracking
-        self.dependencies = {}   # Maps transaction index -> dependency index
-        self.dependency_types = {} # Maps transaction index -> dependency type
-
-        # Randomization options
-        self.use_random_selection = False
-        self.master_randomizer = None
-        self.slave_randomizer = None
-
-        # Generated packets
-        self.packets = deque()
-
-        # Iterators for sequences
-        self.field_iters = {}
-        self.delay_iter = None
+        # Dependency tracking - simplified
+        self.dependencies = {}  # transaction_index -> depends_on_index
 
         # Statistics
         self.stats = {
             'total_transactions': 0,
-            'masked_values': 0,
-            'field_stats': {},
-            'dependencies': 0
+            'dependencies': 0,
+            'randomized_transactions': 0
         }
 
-    def _calculate_field_masks(self):
+    def set_randomizer(self, constraints_dict):
         """
-        Calculate masks for all fields based on their bit widths.
-
-        Returns:
-            Dictionary of field_name -> bit mask
-        """
-        masks = {}
-        for field_name, field_def in self.field_config.items():
-            if 'bits' in field_def:
-                bits = field_def['bits']
-                masks[field_name] = (1 << bits) - 1
-            else:
-                # Default to 32-bit mask if bits not specified
-                masks[field_name] = 0xFFFFFFFF
-        return masks
-
-    def mask_field_value(self, field_name, value):
-        """
-        Mask a value according to the corresponding field's bit width.
+        Set up randomizer for field value generation using FlexRandomizer.
 
         Args:
-            field_name: Field name
-            value: Value to mask
+            constraints_dict: Dictionary of field constraints for FlexRandomizer
 
-        Returns:
-            Masked value that fits within the field's bit width
+        Example:
+            sequence.set_randomizer({
+                'data': ([(0x0000, 0xFFFF), (0x10000, 0x1FFFF)], [0.7, 0.3]),
+                'addr': ([(0, 1023)], [1.0])
+            })
         """
-        if field_name in self.field_masks:
-            mask = self.field_masks[field_name]
-            masked_value = value & mask
+        self.randomizer = FlexRandomizer(constraints_dict)
+        self.use_randomization = True
+        return self
 
-            # Update statistics if masking occurred
-            if masked_value != value:
-                self.stats['masked_values'] += 1
-                if field_name not in self.stats['field_stats']:
-                    self.stats['field_stats'][field_name] = 0
-                self.stats['field_stats'][field_name] += 1
-
-                # Warning message about masked value
-                print(f"WARNING: Value 0x{value:X} for field '{field_name}' exceeds field width, masked to 0x{masked_value:X}")
-
-            return masked_value
-        return value  # No mask available for this field
-
-    def add_transaction(self, field_values=None, delay=0):
+    def add_transaction(self, field_values=None, delay=0, depends_on=None):
         """
-        Add a transaction to the sequence with automatic field value masking.
+        Add a transaction to the sequence.
+
+        Field values will be automatically masked by Packet class - no custom masking needed.
 
         Args:
-            field_values: Dictionary of field values
+            field_values: Dictionary of field values (will be masked automatically by Packet)
             delay: Delay after this transaction
+            depends_on: Index of transaction this depends on (None for no dependency)
 
         Returns:
             Index of the added transaction for dependency tracking
         """
-        # Add field values with automatic masking
+        # Default field values
         field_values = field_values or {}
-        for field_name, value in field_values.items():
-            # Mask the value to fit within field width
-            masked_value = self.mask_field_value(field_name, value)
 
-            # Add to sequence
-            if field_name not in self.field_data_seq:
-                self.field_data_seq[field_name] = []
-            self.field_data_seq[field_name].append(masked_value)
+        # Store transaction data
+        current_index = len(self.sequence_data)
+        self.sequence_data.append((field_values, delay, depends_on))
 
-        # Add delay
-        self.delay_seq.append(delay)
+        # Track dependencies
+        if depends_on is not None:
+            if depends_on >= current_index:
+                raise ValueError(f"Dependency index {depends_on} must be less than current index {current_index}")
+            self.dependencies[current_index] = depends_on
+            self.stats['dependencies'] += 1
 
         # Update statistics
         self.stats['total_transactions'] += 1
 
-        # Return the index of this transaction for dependency tracking
-        return self.stats['total_transactions'] - 1
+        return current_index
 
-    def add_transaction_with_dependency(self, field_values=None, delay=0, depends_on_index=None, dependency_type="after"):
+    def add_data_transaction(self, data, delay=0, depends_on=None):
         """
-        Add a transaction that depends on completion of a previous transaction.
+        Add a simple data transaction.
 
         Args:
-            field_values: Dictionary of field values
-            delay: Delay after this transaction
-            depends_on_index: Index of transaction this depends on
-            dependency_type: Type of dependency ("after", "immediate", "conditional")
+            data: Data value (will be automatically masked by Packet class)
+            delay: Delay after transaction
+            depends_on: Index of transaction this depends on
 
         Returns:
             Index of the added transaction
         """
-        # Add the transaction normally
-        current_index = self.add_transaction(field_values, delay)
-
-        # Store dependency information if provided
-        if depends_on_index is not None:
-            if depends_on_index >= current_index:
-                raise ValueError(f"Dependency index {depends_on_index} must be less than current index {current_index}")
-
-            self.dependencies[current_index] = depends_on_index
-            self.dependency_types[current_index] = dependency_type
-
-            # Update statistics
-            self.stats['dependencies'] += 1
-
-        return current_index
+        return self.add_transaction({'data': data}, delay, depends_on)
 
     def add_data_value(self, data, delay=0):
         """
-        Add a transaction with a data value.
+        Add a transaction with a data value - backward compatibility.
 
         Args:
             data: Data value (will be automatically masked)
@@ -197,277 +136,77 @@ class GAXISequence:
         Returns:
             Index of the added transaction
         """
-        return self.add_transaction({'data': data}, delay)
+        return self.add_data_transaction(data, delay)
 
     def add_data_value_with_dependency(self, data, delay=0, depends_on_index=None, dependency_type="after"):
         """
-        Add a data transaction that depends on completion of a previous transaction.
+        Add a data transaction that depends on completion of a previous transaction - backward compatibility.
 
         Args:
             data: Data value (will be automatically masked)
             delay: Delay after transaction
             depends_on_index: Index of transaction this depends on
-            dependency_type: Type of dependency ("after", "immediate", "conditional")
+            dependency_type: Type of dependency (kept for compatibility, not used internally)
 
         Returns:
             Index of the added transaction
         """
-        return self.add_transaction_with_dependency({'data': data}, delay, depends_on_index, dependency_type)
+        return self.add_data_transaction(data, delay, depends_on_index)
 
-    def add_delay(self, clocks):
+    def add_randomized_transaction(self, delay=0, depends_on=None, field_overrides=None):
         """
-        Add a delay to the sequence.
+        Add a transaction with randomized field values using FlexRandomizer.
 
         Args:
-            clocks: Number of clock cycles to delay
+            delay: Delay after transaction
+            depends_on: Index of transaction this depends on
+            field_overrides: Dictionary of field values to override random values
 
         Returns:
-            Self for method chaining
+            Index of the added transaction
         """
-        # If there are existing transactions, update the delay of the last one
-        if self.field_data_seq.get('data', []):
-            self.delay_seq[-1] += clocks
-        # Otherwise, record the delay to be applied to the next transaction
-        else:
-            self.delay_seq.append(clocks)
+        if not self.randomizer:
+            raise ValueError("No randomizer set. Call set_randomizer() first.")
 
-        return self
+        # Generate random values for all constrained fields
+        random_values = self.randomizer.next()
 
-    def set_random_selection(self, enable=True):
+        # Apply any overrides
+        if field_overrides:
+            random_values.update(field_overrides)
+
+        # Add transaction with generated values
+        self.stats['randomized_transactions'] += 1
+        return self.add_transaction(random_values, delay, depends_on)
+
+    def add_burst(self, count, start_data=0, data_step=1, delay=0, dependency_chain=False):
         """
-        Enable/disable random selection from sequences.
+        Add a burst of transactions.
 
         Args:
-            enable: True to enable random selection, False to use sequential
+            count: Number of transactions in burst
+            start_data: Starting data value
+            data_step: Step between data values
+            delay: Delay between transactions
+            dependency_chain: If True, each transaction depends on the previous
 
         Returns:
-            Self for method chaining
+            List of transaction indexes
         """
-        self.use_random_selection = enable
-        return self
+        indexes = []
 
-    def set_master_randomizer(self, randomizer):
-        """
-        Set the randomizer to use for master timing constraints.
-
-        Args:
-            randomizer: FlexRandomizer instance
-
-        Returns:
-            Self for method chaining
-        """
-        self.master_randomizer = randomizer
-        return self
-
-    def set_slave_randomizer(self, randomizer):
-        """
-        Set the randomizer to use for slave timing constraints.
-
-        Args:
-            randomizer: FlexRandomizer instance
-
-        Returns:
-            Self for method chaining
-        """
-        self.slave_randomizer = randomizer
-        return self
-
-    def reset_iterators(self):
-        """Reset all sequence iterators to the beginning."""
-        self.field_iters = {}
-        for field_name, values in self.field_data_seq.items():
-            self.field_iters[field_name] = iter(values)
-        self.delay_iter = iter(self.delay_seq) if self.delay_seq else iter([0])
-
-    def next_field_value(self, field_name):
-        """
-        Get the next value for a specific field from the sequence.
-
-        Args:
-            field_name: Name of the field
-
-        Returns:
-            Next value for the field, or None if field not in sequence
-        """
-        # If field isn't in sequence, return None
-        if field_name not in self.field_data_seq:
-            return None
-
-        if self.use_random_selection:
-            return random.choice(self.field_data_seq[field_name])
-
-        try:
-            if field_name not in self.field_iters:
-                self.field_iters[field_name] = iter(self.field_data_seq[field_name])
-            return next(self.field_iters[field_name])
-        except (StopIteration, TypeError):
-            # Reset iterator and try again
-            self.field_iters[field_name] = iter(self.field_data_seq[field_name])
-            return next(self.field_iters[field_name])
-
-    def next_delay(self):
-        """
-        Get the next delay value from the sequence.
-
-        Returns:
-            Next delay value in clock cycles
-        """
-        if not self.delay_seq:
-            return 0
-
-        if self.use_random_selection:
-            return random.choice(self.delay_seq)
-
-        try:
-            return next(self.delay_iter)
-        except (StopIteration, TypeError):
-            self.delay_iter = iter(self.delay_seq)
-            return next(self.delay_iter)
-
-    def generate_packet(self):
-        """
-        Generate the next packet in the sequence.
-
-        Returns:
-            Next GAXI packet with masked field values
-        """
-        # Create packet
-        packet = self.packet_class(self.field_config)
-
-        # Set fields from sequence data
-        for field_name in self.field_data_seq:
-            value = self.next_field_value(field_name)
-            if value is not None and hasattr(packet, field_name):
-                setattr(packet, field_name, value)
-
-        return packet
-
-    def generate_packets(self, count=None):
-        """
-        Generate multiple packets.
-
-        Args:
-            count: Number of packets to generate, or None for all in sequence
-
-        Returns:
-            List of generated packets
-        """
-        # Clear previous packets
-        self.packets.clear()
-
-        # Reset iterators
-        self.reset_iterators()
-
-        # Default to length of first field's sequence if count not specified
-        if count is None and self.field_data_seq:
-            first_field = next(iter(self.field_data_seq))
-            count = len(self.field_data_seq[first_field])
-        elif count is None:
-            count = 0
-
-        # Generate packets
         for i in range(count):
-            packet = self.generate_packet()
-            # Add dependency information to the packet as metadata
-            if i in self.dependencies:
-                packet.depends_on_index = self.dependencies[i]
-                packet.dependency_type = self.dependency_types.get(i, "after")
+            data = start_data + (i * data_step)
+            depends_on = indexes[-1] if dependency_chain and indexes else None
 
-            self.packets.append(packet)
+            index = self.add_data_transaction(data, delay, depends_on)
+            indexes.append(index)
 
-        return list(self.packets)
-
-    def get_packet(self, index=0):
-        """
-        Get a specific packet from the generated list.
-
-        Args:
-            index: Packet index
-
-        Returns:
-            Packet at specified index
-        """
-        if not self.packets:
-            self.generate_packets()
-
-        if not self.packets:
-            return None
-
-        if self.use_random_selection:
-            return random.choice(self.packets)
-
-        return self.packets[index % len(self.packets)]
-
-    def get_dependency_graph(self):
-        """
-        Get a representation of the transaction dependencies.
-
-        Returns:
-            Dictionary mapping transaction indexes to their dependencies
-        """
-        return {
-            'dependencies': self.dependencies.copy(),
-            'dependency_types': self.dependency_types.copy(),
-            'transaction_count': self.stats['total_transactions']
-        }
-
-    def get_stats(self):
-        """
-        Get statistics about the sequence generation.
-
-        Returns:
-            Dictionary with statistics
-        """
-        # Calculate more statistics
-        if self.stats['total_transactions'] > 0:
-            self.stats['masking_percentage'] = (self.stats['masked_values'] / self.stats['total_transactions']) * 100
-            if self.stats['dependencies'] > 0:
-                self.stats['dependency_percentage'] = (self.stats['dependencies'] / self.stats['total_transactions']) * 100
-            else:
-                self.stats['dependency_percentage'] = 0
-        else:
-            self.stats['masking_percentage'] = 0
-            self.stats['dependency_percentage'] = 0
-
-        return self.stats
-
-    def resolve_dependencies(self, completed_transactions=None):
-        """
-        Determine which transactions are ready to execute based on dependencies.
-
-        Args:
-            completed_transactions: Set of transaction indexes that have completed
-
-        Returns:
-            Set of transaction indexes that are ready to execute
-        """
-        completed_transactions = completed_transactions or set()
-        ready_transactions = set()
-
-        for i in range(self.stats['total_transactions']):
-            # If already completed, skip
-            if i in completed_transactions:
-                continue
-
-            # If no dependencies, it's ready
-            if i not in self.dependencies:
-                ready_transactions.add(i)
-                continue
-
-            # Check if dependency is satisfied
-            depends_on = self.dependencies[i]
-            if depends_on in completed_transactions:
-                ready_transactions.add(i)
-
-        return ready_transactions
-
-    # ========================================================================
-    # Extended Data Operation Methods
-    # ========================================================================
+        return indexes
 
     def add_data_incrementing(self, count, data_start=0, data_step=1, delay=0):
         """
-        Add transactions with incrementing data values.
+        Add transactions with incrementing data values - backward compatibility.
 
         Args:
             count: Number of transactions
@@ -476,111 +215,72 @@ class GAXISequence:
             delay: Delay between transactions
 
         Returns:
-            Self for method chaining
+            Self and list of indexes for method chaining
         """
-        indexes = []
-        for i in range(count):
-            data_value = data_start + (i * data_step)
-            index = self.add_data_value(data_value, delay=delay)
-            indexes.append(index)
-
+        indexes = self.add_burst(count, data_start, data_step, delay)
         return self, indexes
 
-    def add_data_pattern(self, patterns, delay=0):
+    def add_pattern(self, pattern_name, data_width=32, delay=0):
         """
-        Add transactions with various data patterns.
+        Add common test patterns.
 
         Args:
-            patterns: List of data patterns to use
-            delay: Delay between transactions
+            pattern_name: Type of pattern ('walking_ones', 'walking_zeros', 'alternating')
+            data_width: Width of data field
+            delay: Delay between pattern transactions
 
         Returns:
-            Self for method chaining
+            List of transaction indexes
         """
+        patterns = self._generate_test_pattern(pattern_name, data_width)
         indexes = []
-        for pattern in patterns:
-            index = self.add_data_value(pattern, delay=delay)
+
+        for pattern_value in patterns:
+            index = self.add_data_transaction(pattern_value, delay)
             indexes.append(index)
 
-        return self, indexes
+        return indexes
 
     def add_walking_ones(self, data_width=32, delay=0):
-        """
-        Add transactions with walking ones pattern.
-
-        Args:
-            data_width: Width of data in bits
-            delay: Delay between transactions
-
-        Returns:
-            Self for method chaining
-        """
-        indexes = []
-        for bit in range(data_width):
-            pattern = 1 << bit
-            index = self.add_data_value(pattern, delay=delay)
-            indexes.append(index)
-
-        return self, indexes
+        """Add transactions with walking ones pattern - backward compatibility."""
+        return self.add_pattern('walking_ones', data_width, delay)
 
     def add_walking_zeros(self, data_width=32, delay=0):
-        """
-        Add transactions with walking zeros pattern.
-
-        Args:
-            data_width: Width of data in bits
-            delay: Delay between transactions
-
-        Returns:
-            Self for method chaining
-        """
-        # Create all ones mask
-        all_ones = (1 << data_width) - 1
-
-        indexes = []
-        for bit in range(data_width):
-            pattern = all_ones & ~(1 << bit)
-            index = self.add_data_value(pattern, delay=delay)
-            indexes.append(index)
-
-        return self, indexes
+        """Add transactions with walking zeros pattern - backward compatibility."""
+        return self.add_pattern('walking_zeros', data_width, delay)
 
     def add_alternating_bits(self, data_width=32, delay=0):
-        """
-        Add transactions with alternating bit patterns.
+        """Add transactions with alternating bit patterns - backward compatibility."""
+        return self.add_pattern('alternating', data_width, delay)
 
-        Args:
-            data_width: Width of data in bits
-            delay: Delay between transactions
+    def _generate_test_pattern(self, pattern_name, data_width):
+        """Generate common test patterns."""
+        mask = (1 << data_width) - 1
 
-        Returns:
-            Self for method chaining
-        """
-        # Create alternating patterns
-        patterns = [
-            0x55555555 & ((1 << data_width) - 1),  # 0101...
-            0xAAAAAAAA & ((1 << data_width) - 1),  # 1010...
-            0x33333333 & ((1 << data_width) - 1),  # 0011...
-            0xCCCCCCCC & ((1 << data_width) - 1),  # 1100...
-            0x0F0F0F0F & ((1 << data_width) - 1),  # 00001111...
-            0xF0F0F0F0 & ((1 << data_width) - 1),  # 11110000...
-            0x00FF00FF & ((1 << data_width) - 1),  # 00000000 11111111...
-            0xFF00FF00 & ((1 << data_width) - 1),  # 11111111 00000000...
-            0x0000FFFF & ((1 << data_width) - 1),  # 16 zeros, 16 ones
-            0xFFFF0000 & ((1 << data_width) - 1),  # 16 ones, 16 zeros
-        ]
-
-        # Add transactions for each pattern
-        indexes = []
-        for pattern in patterns:
-            index = self.add_data_value(pattern, delay=delay)
-            indexes.append(index)
-
-        return self, indexes
+        if pattern_name == 'walking_ones':
+            return [1 << bit for bit in range(data_width)]
+        elif pattern_name == 'walking_zeros':
+            all_ones = mask
+            return [all_ones & ~(1 << bit) for bit in range(data_width)]
+        elif pattern_name == 'alternating':
+            return [
+                0x55555555 & mask,  # 0101...
+                0xAAAAAAAA & mask,  # 1010...
+                0x33333333 & mask,  # 0011...
+                0xCCCCCCCC & mask,  # 1100...
+                0x0F0F0F0F & mask,  # 00001111...
+                0xF0F0F0F0 & mask,  # 11110000...
+                0x00FF00FF & mask,  # 00000000 11111111...
+                0xFF00FF00 & mask,  # 11111111 00000000...
+                0x0000FFFF & mask,  # 16 zeros, 16 ones
+                0xFFFF0000 & mask,  # 16 ones, 16 zeros
+            ]
+        else:
+            raise ValueError(f"Unknown pattern: {pattern_name}")
 
     def add_burst_with_dependencies(self, count, data_start=0, data_step=1, delay=0, dependency_spacing=1):
         """
-        Add a burst of transactions where each one depends on a previous one.
+        Add a burst of transactions where each one depends on a previous one - backward compatibility.
 
         Args:
             count: Number of transactions
@@ -590,12 +290,12 @@ class GAXISequence:
             dependency_spacing: How many transactions back to depend on (1=previous transaction)
 
         Returns:
-            Self for method chaining and list of transaction indexes
+            Self and list of transaction indexes
         """
         indexes = []
 
         # Add the first transaction (no dependency)
-        first_index = self.add_data_value(data_start, delay=delay)
+        first_index = self.add_data_transaction(data_start, delay)
         indexes.append(first_index)
 
         # Add remaining transactions with dependencies
@@ -604,65 +304,219 @@ class GAXISequence:
 
             # Calculate dependency index
             if i < dependency_spacing:
-                # First few transactions depend on the first one
                 depends_on = first_index
             else:
-                # Later transactions depend on earlier ones based on spacing
                 depends_on = indexes[i - dependency_spacing]
 
             # Add transaction with dependency
-            index = self.add_transaction_with_dependency(
-                {'data': data_value},
-                delay=delay,
-                depends_on_index=depends_on
-            )
+            index = self.add_data_transaction(data_value, delay, depends_on)
             indexes.append(index)
 
         return self, indexes
 
     def add_dependency_chain(self, count, data_start=0, data_step=1, delay=0):
         """
-        Add a chain of transactions where each depends on the previous one.
+        Add a chain of transactions where each depends on the previous one - backward compatibility.
+        """
+        return self.add_burst_with_dependencies(count, data_start, data_step, delay, 1)
+
+    def generate_packets(self, count=None):
+        """
+        Generate packets from the sequence.
+
+        Uses Packet class built-in field masking - no custom masking implementation needed.
 
         Args:
-            count: Number of transactions
-            data_start: Starting data value
-            data_step: Step size between data values
-            delay: Delay between transactions
+            count: Number of packets to generate (None for all)
 
         Returns:
-            Self for method chaining and list of transaction indexes
+            List of generated packets with dependency information
         """
-        return self.add_burst_with_dependencies(
-            count,
-            data_start=data_start,
-            data_step=data_step,
-            delay=delay,
-            dependency_spacing=1
-        )
+        if count is None:
+            count = len(self.sequence_data)
 
-    # Factory methods return dependency chain information
+        packets = []
+
+        for i in range(min(count, len(self.sequence_data))):
+            field_values, delay, depends_on = self.sequence_data[i]
+
+            # Create packet using class constructor (handles field masking automatically)
+            packet = self.packet_class(self.field_config, **field_values)
+
+            # Add sequence metadata
+            packet.sequence_index = i
+            packet.sequence_delay = delay
+            if depends_on is not None:
+                packet.depends_on_index = depends_on
+                packet.dependency_type = "completion"  # Standard dependency type
+
+            packets.append(packet)
+
+        return packets
+
+    def generate_packets_with_randomization(self, count):
+        """
+        Generate packets with randomized values using FlexRandomizer.
+
+        Args:
+            count: Number of packets to generate
+
+        Returns:
+            List of packets with randomized field values
+        """
+        if not self.randomizer:
+            raise ValueError("No randomizer set. Call set_randomizer() first.")
+
+        packets = []
+
+        for i in range(count):
+            # Generate random values
+            random_values = self.randomizer.next()
+
+            # Create packet using class constructor (handles field masking automatically)
+            packet = self.packet_class(self.field_config, **random_values)
+            packet.sequence_index = i
+            packet.sequence_delay = 0  # Default delay for random packets
+
+            packets.append(packet)
+            self.stats['randomized_transactions'] += 1
+
+        return packets
+
+    def get_dependency_order(self):
+        """
+        Get the order in which transactions should be executed based on dependencies.
+
+        Returns:
+            List of transaction indexes in dependency-resolved order
+        """
+        if not self.dependencies:
+            # No dependencies - sequential order
+            return list(range(len(self.sequence_data)))
+
+        # Simple topological sort for dependency resolution
+        resolved = []
+        remaining = set(range(len(self.sequence_data)))
+
+        while remaining:
+            # Find transactions with no unresolved dependencies
+            ready = []
+            for idx in remaining:
+                if idx not in self.dependencies or self.dependencies[idx] in resolved:
+                    ready.append(idx)
+
+            if not ready:
+                raise ValueError("Circular dependency detected in sequence")
+
+            # Add ready transactions in index order
+            ready.sort()
+            resolved.extend(ready)
+            remaining -= set(ready)
+
+        return resolved
+
+    def validate_dependencies(self):
+        """
+        Validate that all dependencies are resolvable.
+
+        Returns:
+            True if valid, raises ValueError if invalid
+        """
+        for idx, depends_on in self.dependencies.items():
+            if depends_on >= idx:
+                raise ValueError(f"Transaction {idx} cannot depend on future transaction {depends_on}")
+            if depends_on >= len(self.sequence_data):
+                raise ValueError(f"Transaction {idx} depends on non-existent transaction {depends_on}")
+
+        # Check for circular dependencies using dependency order
+        try:
+            self.get_dependency_order()
+        except ValueError as e:
+            raise ValueError(f"Dependency validation failed: {e}")
+
+        return True
+
+    def get_dependency_graph(self):
+        """
+        Get a representation of the transaction dependencies - backward compatibility.
+
+        Returns:
+            Dictionary mapping transaction indexes to their dependencies
+        """
+        return {
+            'dependencies': self.dependencies.copy(),
+            'dependency_types': {idx: 'completion' for idx in self.dependencies.keys()},
+            'transaction_count': self.stats['total_transactions']
+        }
+
+    def get_stats(self):
+        """Get sequence generation statistics."""
+        stats = self.stats.copy()
+
+        if self.stats['total_transactions'] > 0:
+            stats['dependency_percentage'] = (self.stats['dependencies'] / self.stats['total_transactions']) * 100
+            if self.use_randomization:
+                stats['randomization_percentage'] = (self.stats['randomized_transactions'] / self.stats['total_transactions']) * 100
+
+        stats['sequence_length'] = len(self.sequence_data)
+        stats['uses_randomization'] = self.use_randomization
+        stats['has_dependencies'] = len(self.dependencies) > 0
+
+        return stats
+
+    def reset(self):
+        """Reset sequence to empty state."""
+        self.sequence_data.clear()
+        self.dependencies.clear()
+        self.stats = {
+            'total_transactions': 0,
+            'dependencies': 0,
+            'randomized_transactions': 0
+        }
+
+    def __len__(self):
+        """Return number of transactions in sequence."""
+        return len(self.sequence_data)
+
+    def __str__(self):
+        """String representation of sequence."""
+        return (f"GAXISequence '{self.name}': {len(self.sequence_data)} transactions, "
+                f"{len(self.dependencies)} dependencies")
+
+    # Factory methods for common sequence types
+    @classmethod
+    def create_burst_sequence(cls, name, count, start_data=0, data_step=1,
+                            field_config=None, dependency_chain=False):
+        """Create a burst sequence with incrementing data."""
+        sequence = cls(name, field_config)
+        sequence.add_burst(count, start_data, data_step, dependency_chain=dependency_chain)
+        return sequence
+
+    @classmethod
+    def create_pattern_sequence(cls, name, pattern_name, data_width=32, field_config=None):
+        """Create a sequence with test patterns."""
+        sequence = cls(name, field_config)
+        sequence.add_pattern(pattern_name, data_width)
+        return sequence
+
+    @classmethod
+    def create_randomized_sequence(cls, name, constraints, count, field_config=None):
+        """Create a sequence with randomized values."""
+        sequence = cls(name, field_config)
+        sequence.set_randomizer(constraints)
+
+        # Add randomized transactions
+        for _ in range(count):
+            sequence.add_randomized_transaction()
+
+        return sequence
+
     @classmethod
     def create_dependency_chain(cls, name="dependency_chain", count=5,
                                 data_start=0, data_step=1, delay=0):
         """
-        Create a sequence with transactions forming a dependency chain.
-
-        Args:
-            name: Sequence name
-            count: Number of transactions
-            data_start: Starting data value
-            data_step: Step size between data values
-            delay: Delay between transactions
-
-        Returns:
-            Configured GAXISequence instance with dependency chain
+        Create a sequence with transactions forming a dependency chain - backward compatibility.
         """
         sequence = cls(name)
-        sequence, indexes = sequence.add_dependency_chain(
-            count,
-            data_start=data_start,
-            data_step=data_step,
-            delay=delay
-        )
+        sequence.add_dependency_chain(count, data_start, data_step, delay)
         return sequence

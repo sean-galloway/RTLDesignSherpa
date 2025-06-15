@@ -51,7 +51,7 @@ class DataCollectScoreboard:
         self.channels = ['A', 'B', 'C', 'D']
         self.channel_ids = {
             'A': [0xAA, 0xA],
-            'B': [0xBB, 0xB], 
+            'B': [0xBB, 0xB],
             'C': [0xCC, 0xC],
             'D': [0xDD, 0xD]
         }
@@ -601,7 +601,7 @@ class DataCollectTB(TBBase):
 
     def _create_comprehensive_randomizer_configs(self):
         """Create comprehensive randomizer configurations using FlexConfigGen"""
-        
+
         # Define custom data collect specific profiles
         data_collect_custom_profiles = {
             # Data collection specific patterns
@@ -629,15 +629,15 @@ class DataCollectTB(TBBase):
         )
 
         # Customize profiles for data collection behavior
-        
+
         # Ultra-aggressive backtoback for maximum throughput
         config_gen.backtoback.write_delay.fixed_value(0)
         config_gen.backtoback.read_delay.fixed_value(0)
-        
+
         # Fast patterns optimized for data collection
         config_gen.fast.write_delay.mostly_zero(zero_weight=40, fallback_range=(1, 2), fallback_weight=1)
         config_gen.fast.read_delay.mostly_zero(zero_weight=35, fallback_range=(1, 3), fallback_weight=2)
-        
+
         # Stress test with data collection variations
         config_gen.stress.write_delay.weighted_ranges([
             ((0, 0), 8), ((1, 3), 6), ((4, 8), 4), ((12, 18), 2), ((25, 35), 1)
@@ -645,11 +645,11 @@ class DataCollectTB(TBBase):
         config_gen.stress.read_delay.weighted_ranges([
             ((0, 1), 6), ((2, 5), 5), ((6, 12), 4), ((18, 28), 2), ((35, 45), 1)
         ])
-        
+
         # Data collection optimized pipeline timing
         config_gen.pipeline.write_delay.uniform_range(1, 2)
         config_gen.pipeline.read_delay.uniform_range(2, 4)
-        
+
         # Chaotic data collection testing
         config_gen.chaotic.write_delay.probability_split([
             ((0, 1), 0.5), ((2, 6), 0.3), ((8, 15), 0.15), ((20, 30), 0.05)
@@ -668,7 +668,7 @@ class DataCollectTB(TBBase):
 
         # Build all configurations
         randomizer_dict = config_gen.build(return_flexrandomizer=False)
-        
+
         # Convert to the format expected by the rest of the testbench
         converted_configs = {}
         for profile_name, profile_config in randomizer_dict.items():
@@ -676,11 +676,11 @@ class DataCollectTB(TBBase):
                 'write': {field: constraints for field, constraints in profile_config.items() if 'write' in field},
                 'read': {field: constraints for field, constraints in profile_config.items() if 'read' in field}
             }
-        
+
         self.log.info(f"Created {len(converted_configs)} comprehensive data collection randomizer configurations:")
         for profile_name in converted_configs.keys():
             self.log.info(f"  - {profile_name}")
-            
+
         return converted_configs
 
     def get_randomizer_config_names(self):
@@ -794,20 +794,20 @@ class DataCollectTB(TBBase):
         if config_name in self.randomizer_configs:
             write_config = self.randomizer_configs[config_name]['write']
             read_config = self.randomizer_configs[config_name]['read']
-            
+
             # Set all master randomizers
             for channel_name in self.channel_names:
                 self.masters[channel_name].set_randomizer(FlexRandomizer(write_config))
-            
+
             # Set slave randomizer
             self.slave_e.set_randomizer(FlexRandomizer(read_config))
-            
+
             self.log.info(f"Set all randomizers to config '{config_name}' - "
                             f"Write: {write_config}, Read: {read_config}")
         else:
             self.log.warning(f"Randomizer config '{config_name}' not found, using 'constrained'")
             fallback_config = self.randomizer_configs['constrained']
-            
+
             for channel_name in self.channel_names:
                 self.masters[channel_name].set_randomizer(FlexRandomizer(fallback_config['write']))
             self.slave_e.set_randomizer(FlexRandomizer(fallback_config['read']))
@@ -1005,10 +1005,10 @@ class DataCollectTB(TBBase):
         """Test all available randomizer configurations"""
         self.log.info('='*80)
         self.log.info(f'Running comprehensive data collection randomizer sweep with {packets_per_config} packets per config')
-        
+
         # Get test level from environment for filtering
         test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
-        
+
         # Filter configs based on test level
         if test_level == 'basic':
             test_configs = ['backtoback', 'fast', 'constrained', 'collect_realistic']
@@ -1019,14 +1019,14 @@ class DataCollectTB(TBBase):
             ]
         else:  # full
             test_configs = list(self.randomizer_configs.keys())
-        
+
         # Filter to only existing configs
         test_configs = [config for config in test_configs if config in self.randomizer_configs]
-        
+
         total_configs = len(test_configs)
         for i, config_name in enumerate(test_configs):
             self.log.info(f'Testing data collection config {i+1}/{total_configs}: {config_name}')
-            
+
             try:
                 # Reset system
                 await self.assert_reset()
@@ -1080,7 +1080,7 @@ class DataCollectTB(TBBase):
                     raise Exception(f"Config {config_name} failed")
                 else:
                     self.log.info(f'✓ Data collection config {config_name} passed')
-                    
+
             except Exception as e:
                 self.log.error(f'✗ Data collection config {config_name} failed: {e}')
                 raise
@@ -1090,7 +1090,7 @@ class DataCollectTB(TBBase):
         if weights_list is None:
             # Get test level for configuration filtering
             test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
-            
+
             if test_level == 'basic':
                 weights_list = [
                     (8, 8, 8, 8),     # Equal weights

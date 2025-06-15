@@ -1,9 +1,11 @@
 """
-GAXI Slave - Clean implementation inheriting from GAXIMonitorBase
+Updated GAXISlave - Clean implementation using unified GAXIMonitorBase
 
 Preserves exact timing-critical cocotb methods and external API while
 eliminating code duplication through inheritance. Combines monitoring
 capabilities with active ready signal driving.
+
+All existing parameters are preserved and used exactly as before.
 """
 
 import cocotb
@@ -11,26 +13,20 @@ from cocotb.triggers import RisingEdge, FallingEdge, Timer
 from cocotb.utils import get_sim_time
 
 from .gaxi_monitor_base import GAXIMonitorBase
-from ..master_statistics import SlaveStatistics
-from ..flex_randomizer import FlexRandomizer
+from ..monitor_statistics import MonitorStatistics
 from .gaxi_packet import GAXIPacket
-
-
-# Default constraints - keeping from original working code
-gaxi_slave_default_constraints = {
-    'ready_delay': ([(0, 1), (2, 8), (9, 30)], [5, 2, 1])
-}
 
 
 class GAXISlave(GAXIMonitorBase):
     """
-    GAXI Slave - Clean implementation using shared base functionality.
+    GAXI Slave - Clean implementation using unified base functionality.
 
     Inherits all common functionality from GAXIMonitorBase:
     - Signal resolution and data collection setup
     - Clean _get_data_dict() with automatic field unpacking
     - Unified _finish_packet() without conditional mess
     - Packet creation and statistics
+    - Memory model integration using base MemoryModel directly
 
     Adds slave-specific functionality:
     - Active ready signal driving (_set_ready)
@@ -46,9 +42,9 @@ class GAXISlave(GAXIMonitorBase):
                     bus_name='',
                     pkt_prefix='',
                     multi_sig=False,
-                    randomizer=None, log=None, super_debug=False, **kwargs):
+                    randomizer=None, memory_model=None, log=None, super_debug=False, **kwargs):
         """
-        Initialize GAXI Slave - SAME API as before.
+        Initialize GAXI Slave - EXACT SAME API AS BEFORE.
 
         Args:
             dut: Device under test
@@ -64,6 +60,7 @@ class GAXISlave(GAXIMonitorBase):
             pkt_prefix: Packet field prefix
             multi_sig: Whether using multi-signal mode
             randomizer: Optional randomizer for ready delays
+            memory_model: Optional memory model for transactions
             log: Logger instance
             super_debug: Enable detailed debugging
             **kwargs: Additional arguments
@@ -82,6 +79,8 @@ class GAXISlave(GAXIMonitorBase):
             pkt_prefix=pkt_prefix,
             multi_sig=multi_sig,
             protocol_type='gaxi_slave',  # Slave monitors slave side
+            memory_model=memory_model,
+            randomizer=randomizer,
             log=log,
             super_debug=super_debug,
             **kwargs
@@ -93,13 +92,8 @@ class GAXISlave(GAXIMonitorBase):
         self.timeout_cycles = timeout_cycles
         self.reset_occurring = False
 
-        # Note: Statistics are now set up in base class as self.stats
-
-        # Set up randomizer - keeping original default constraints
-        if randomizer is None:
-            self.randomizer = FlexRandomizer(gaxi_slave_default_constraints)
-        else:
-            self.randomizer = randomizer
+        # Override statistics with monitor statistics (same as before)
+        self.stats = MonitorStatistics()
 
         # Slave-specific initialization - callbacks for compatibility
         self.callbacks = []
@@ -119,11 +113,6 @@ class GAXISlave(GAXIMonitorBase):
 
         except Exception as e:
             self.log.error(f"GAXISlave '{self.title}': Error initializing signals: {e}")
-
-    def set_randomizer(self, randomizer):
-        """Set randomizer - modern interface"""
-        self.randomizer = randomizer
-        self.log.info(f"GAXISlave({self.title}) Set new randomizer for {self.title}")
 
     async def reset_bus(self):
         """Reset bus - EXACT WORKING PATTERN FROM ORIGINAL"""
@@ -209,8 +198,8 @@ class GAXISlave(GAXIMonitorBase):
             packet = GAXIPacket(self.field_config)
             packet.start_time = current_time
 
-            # Record transaction received for monitoring statistics
-            # Note: Can add SlaveStatistics separately for performance tracking if needed
+            # Record transaction received (using MonitorStatistics interface)
+            received_time = get_sim_time('ns')  # For logging purposes
 
             if self.mode == 'fifo_flop':
                 # 'fifo_flop' mode: note handshake time, defer data capture to next cycle
@@ -226,7 +215,13 @@ class GAXISlave(GAXIMonitorBase):
                 # CLEAN: Use inherited _finish_packet() - unified implementation!
                 self._finish_packet(current_time, packet, data_dict)
 
-                # Statistics updated by inherited _finish_packet method
+                # Record transaction processed (using MonitorStatistics interface)
+                self.stats.transactions_observed += 1
+
+                # Handle memory operations if memory model available
+                if self.memory_model:
+                    # Use unified memory integration
+                    self.handle_memory_write(packet)
 
         # Deassert ready on the rising edge (prepare for next cycle or delay)
         await RisingEdge(self.clock)
@@ -279,8 +274,8 @@ class GAXISlave(GAXIMonitorBase):
         """Get comprehensive statistics"""
         base_stats = self.get_base_stats()
 
-        # Add any slave-specific statistics here if needed in the future
-        # For now, all statistics are handled by the base class
+        # Override monitor stats with same stats (MonitorStatistics used for both)
+        base_stats['monitor_stats'] = self.stats.get_stats()
 
         return base_stats
 

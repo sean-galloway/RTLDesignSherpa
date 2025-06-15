@@ -7,7 +7,6 @@ from cocotb_test.simulator import run
 from CocoTBFramework.tbclasses.tbbase import TBBase
 from CocoTBFramework.tbclasses.gaxi.gaxi_buffer_multi import GaxiMultiBufferTB
 from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
-from CocoTBFramework.tbclasses.gaxi.gaxi_buffer_configs import RANDOMIZER_CONFIGS
 
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
@@ -76,9 +75,9 @@ async def fifo_multi_test(dut):
 
 def generate_width_depth_mode_params():
     addr_widths = [4, 6, 8]
-    ctrl_widths = [5]
+    ctrl_widths = [3, 5, 7]
     data_widths = [8]
-    depths = [2]
+    depths = [6]
     modes = ['fifo_mux', 'fifo_flop']
     addr_widths = [4]  # You can add more address widths if needed
     ctrl_widths = [5]

@@ -1,5 +1,8 @@
 """
-FIFO Master - Combines exact working cocotb methods with modern infrastructure
+Updated FIFOMaster - Using FIFOComponentBase for unified functionality
+
+Preserves exact API and timing while leveraging shared infrastructure.
+All existing parameters are maintained and used exactly as before.
 """
 
 import cocotb
@@ -8,29 +11,22 @@ from cocotb_bus.drivers import BusDriver
 from cocotb.triggers import RisingEdge, Timer
 from cocotb.utils import get_sim_time
 
-from ..field_config import FieldConfig
-from ..signal_mapping_helper import SignalResolver
-from ..data_strategies import DataDrivingStrategy
+from .fifo_component_base import FIFOComponentBase
 from ..master_statistics import MasterStatistics
-from ..flex_randomizer import FlexRandomizer
 from .fifo_packet import FIFOPacket
 
 
-# Default constraints - keeping from original working code
-fifo_master_default_constraints = {
-    'write_delay': ([(0, 0), (1, 8), (9, 20)], [5, 2, 1])
-}
-
-
-class FIFOMaster(BusDriver):
+class FIFOMaster(FIFOComponentBase, BusDriver):
     """
-    FIFO Master combining exact working cocotb methods with modern infrastructure.
+    FIFO Master using unified base functionality while preserving exact API.
 
-    Preserves all timing-critical cocotb methods while adding:
-    - Automatic signal resolution via SignalResolver
-    - High-performance data driving via DataDrivingStrategy
-    - Comprehensive statistics via MasterStatistics
-    - Flexible randomization via FlexRandomizer
+    Inherits common functionality from FIFOComponentBase:
+    - Signal resolution and data driving setup
+    - Unified field configuration handling
+    - Memory model integration using base MemoryModel directly
+    - Statistics and logging patterns
+
+    Preserves all timing-critical cocotb methods exactly as before.
     """
 
     def __init__(self, dut, title, prefix, clock, field_config,
@@ -42,74 +38,44 @@ class FIFOMaster(BusDriver):
                     multi_sig=False,
                     randomizer=None, log=None, super_debug=False, **kwargs):
         """
-        Initialize FIFO Master with modern infrastructure.
+        Initialize FIFO Master - EXACT SAME API AS BEFORE.
         """
-        # Core attributes - keeping original working setup
-        self.title = title
-        self.clock = clock
+        # Initialize base class with all parameters preserved
+        FIFOComponentBase.__init__(
+            self,
+            dut=dut,
+            title=title,
+            prefix=prefix,
+            clock=clock,
+            field_config=field_config,
+            protocol_type='fifo_master',
+            mode=mode,
+            in_prefix=in_prefix,
+            out_prefix=out_prefix,
+            bus_name=bus_name,
+            pkt_prefix=pkt_prefix,
+            multi_sig=multi_sig,
+            randomizer=randomizer,
+            log=log,
+            super_debug=super_debug,
+            **kwargs
+        )
+
+        # Master-specific attributes - keeping original working setup
         self.tick_delay = 100
         self.tick_units = 'ps'
         self.timeout_cycles = timeout_cycles
         self.reset_occurring = False
-        self.mode = mode
-
-        # set the naming convention params
-        self.in_prefix = in_prefix
-        self.out_prefix = out_prefix
-        self.bus_name = bus_name
-        self.pkt_prefix = pkt_prefix
-        self.use_multi_signal = multi_sig
-
-        # Handle field_config - convert dict if needed
-        if isinstance(field_config, dict):
-            self.field_config = FieldConfig.validate_and_create(field_config)
-        else:
-            self.field_config = field_config or FieldConfig.create_data_only()
-
-        # Modern infrastructure - signal resolution
-        self.signal_resolver = SignalResolver(
-            protocol_type='fifo_master',
-            dut=dut,
-            bus=None,  # Set after BusDriver init
-            log=log,
-            component_name=title,
-            field_config=self.field_config,
-            multi_sig=self.use_multi_signal,
-            in_prefix=self.in_prefix,
-            out_prefix=self.out_prefix,
-            bus_name=self.bus_name,
-            pkt_prefix=self.pkt_prefix,
-            mode=mode,
-            super_debug=super_debug
-        )
-
-        # Get signal lists for BusDriver - ESSENTIAL FOR COCOTB
-        self._signals, self._optional_signals = self.signal_resolver.get_signal_lists()
 
         # Initialize parent BusDriver - MUST BE CALLED WITH EXACT PATTERN
         BusDriver.__init__(self, dut, prefix, clock, **kwargs)
         self.log = log or self._log
 
-        # Apply modern signal mappings after bus is created
-        self.signal_resolver.bus = self.bus
-        self.signal_resolver.apply_to_component(self)
+        # Complete base class initialization now that bus is available
+        self.complete_base_initialization(self.bus)
 
-        # Modern infrastructure - data driving strategy
-        self.data_driver = DataDrivingStrategy(
-            component=self,
-            field_config=self.field_config,
-            use_multi_signal=self.use_multi_signal,
-            log=self.log
-        )
-
-        # Modern infrastructure - statistics
+        # Master-specific statistics
         self.stats = MasterStatistics()
-
-        # Set up randomizer - keeping original default constraints
-        if randomizer is None:
-            self.randomizer = FlexRandomizer(fifo_master_default_constraints)
-        else:
-            self.randomizer = randomizer
 
         # EXACT WORKING COCOTB PATTERN - DO NOT MODIFY
         self.transmit_queue = deque()
@@ -130,16 +96,11 @@ class FIFOMaster(BusDriver):
             if hasattr(self, 'write_sig') and self.write_sig is not None:
                 self.write_sig.setimmediatevalue(0)
 
-            # Clear data signals using modern data driver
-            self.data_driver.clear_signals()
+            # Clear data signals using unified data driver
+            self.clear_signals_unified()
 
         except Exception as e:
             self.log.error(f"FIFOMaster '{self.title}': Error initializing signals: {e}")
-
-    def set_randomizer(self, randomizer):
-        """Set randomizer - modern interface"""
-        self.randomizer = randomizer
-        self.log.info(f"Set new randomizer for Master({self.title})")
 
     async def reset_bus(self):
         """Reset bus - EXACT WORKING PATTERN FROM ORIGINAL"""
@@ -148,8 +109,8 @@ class FIFOMaster(BusDriver):
         # Reset write signal
         self._assign_write_value(value=0)
 
-        # Reset field signals using modern data driver
-        self.data_driver.clear_signals()
+        # Reset field signals using unified data driver
+        self.clear_signals_unified()
 
         self.reset_occurring = True
         await RisingEdge(self.clock)
@@ -179,12 +140,12 @@ class FIFOMaster(BusDriver):
 
     def _drive_signals(self, transaction):
         """
-        Drive signals using modern data driving strategy.
+        Drive signals using unified data driving strategy.
         REPLACES original _drive_signals logic but keeps exact interface.
         """
         try:
-            # Use modern data driving strategy instead of manual signal driving
-            return self.data_driver.drive_transaction(transaction)
+            # Use unified data driving strategy instead of manual signal driving
+            return self.drive_transaction_unified(transaction)
         except Exception as e:
             self.log.error(f"Error driving signals: {e}")
             return False
@@ -195,8 +156,8 @@ class FIFOMaster(BusDriver):
             self.write_sig.value = value
 
     def _clear_data_bus(self):
-        """Clear data signals - MODERNIZED"""
-        self.data_driver.clear_signals()
+        """Clear data signals - UNIFIED"""
+        self.clear_signals_unified()
 
     async def _xmit_phase1(self):
         """Phase 1: Apply delay - EXACT WORKING TIMING"""
@@ -213,7 +174,7 @@ class FIFOMaster(BusDriver):
 
     async def _xmit_phase2(self, transaction):
         """Phase 2: Drive signals and wait for not full - EXACT WORKING LOGIC"""
-        # Drive signals for this transaction - MODERNIZED CALL
+        # Drive signals for this transaction - UNIFIED CALL
         if not self._drive_signals(transaction):
             self.log.error(f"Failed to drive signals for transaction: {transaction.formatted()}")
             self.transfer_busy = False
@@ -229,7 +190,7 @@ class FIFOMaster(BusDriver):
             # Keep write deasserted while full
             self._assign_write_value(value=0)
 
-            # Update stats - MODERNIZED
+            # Update stats - UNIFIED
             self.stats.record_flow_control_stall(1)
 
             timeout_counter += 1
@@ -240,7 +201,7 @@ class FIFOMaster(BusDriver):
                 self._assign_write_value(value=0)
                 self._clear_data_bus()
 
-                # Update stats - MODERNIZED
+                # Update stats - UNIFIED
                 self.stats.record_timeout()
 
                 self.transfer_busy = False
@@ -255,7 +216,7 @@ class FIFOMaster(BusDriver):
             self.full_sig.value and self.write_sig.value):
             current_time_ns = get_sim_time('ns')
             self.log.error(f"Master({self.title}) Error: {self.title} write while fifo full at {current_time_ns}ns")
-            # Update stats - MODERNIZED
+            # Update stats - UNIFIED
             self.stats.record_protocol_violation("write_while_full")
 
         # Wait a cycle for the write to take effect - EXACT WORKING TIMING
@@ -272,9 +233,8 @@ class FIFOMaster(BusDriver):
         transaction.end_time = current_time_ns
         self.sent_queue.append(transaction)
 
-        # Update stats - MODERNIZED
+        # Update stats - UNIFIED
         bytes_transferred = self._calculate_bytes_transferred(transaction)
-        # Note: start_time tracking handled in send() method
 
         # Deassert write
         self._assign_write_value(value=0)
@@ -296,7 +256,7 @@ class FIFOMaster(BusDriver):
             transaction = self.transmit_queue.popleft()
             transaction.start_time = get_sim_time('ns')
 
-            # Record transaction start - MODERNIZED
+            # Record transaction start - UNIFIED
             start_time = self.stats.record_transaction_start()
 
             # xmit phase 1 - apply delay
@@ -311,7 +271,7 @@ class FIFOMaster(BusDriver):
             # xmit phase 3 - handle transfer completion
             await self._xmit_phase3(transaction)
 
-            # Complete stats recording - MODERNIZED
+            # Complete stats recording - UNIFIED
             bytes_transferred = self._calculate_bytes_transferred(transaction)
             self.stats.record_transaction_complete(start_time, bytes_transferred)
 
@@ -332,7 +292,7 @@ class FIFOMaster(BusDriver):
                 break
 
     def _calculate_bytes_transferred(self, packet):
-        """Calculate bytes for statistics - MODERNIZED"""
+        """Calculate bytes for statistics - UNIFIED"""
         total_bits = packet.get_total_bits()
         return (total_bits + 7) // 8
 
@@ -353,15 +313,32 @@ class FIFOMaster(BusDriver):
                 setattr(packet, field_name, value)
         return packet
 
+    # Memory operations using base MemoryModel directly
+    async def write_to_memory(self, packet):
+        """Write packet to memory using unified memory integration"""
+        success, error = self.write_to_memory_unified(packet)
+        if not success:
+            self.log.error(f"FIFOMaster: Memory write failed: {error}")
+            self.stats.record_transaction_failed("memory_write_error", error)
+        return success
+
+    async def read_from_memory(self, packet):
+        """Read data from memory using unified memory integration"""
+        success, data, error = self.read_from_memory_unified(packet, update_transaction=True)
+        if not success:
+            self.log.error(f"FIFOMaster: Memory read failed: {error}")
+            self.stats.record_transaction_failed("memory_read_error", error)
+        return success, data
+
     def get_stats(self):
-        """Get comprehensive statistics - MODERNIZED"""
-        return {
+        """Get comprehensive statistics - UNIFIED"""
+        stats = self.get_base_stats_unified()
+        stats.update({
             'master_stats': self.stats.get_stats(),
-            'data_driver_stats': self.data_driver.get_stats(),
-            'signal_resolver_stats': self.signal_resolver.get_stats(),
             'transfer_busy': self.transfer_busy,
             'queue_depth': len(self.transmit_queue)
-        }
+        })
+        return stats
 
     def __str__(self):
         """String representation"""

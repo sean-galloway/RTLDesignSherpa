@@ -1,35 +1,34 @@
-"""Enhanced testbench for gaxi_data_collect module with proper arbiter monitor integration"""
+"""
+Enhanced testbench for gaxi_data_collect module using modern framework with FlexConfigGen
+"""
 import os
 import logging
 import random
+import time
 import cocotb
 from collections import deque
 
 from CocoTBFramework.tbclasses.tbbase import TBBase
 from CocoTBFramework.components.flex_randomizer import FlexRandomizer
+from CocoTBFramework.components.field_config import FieldConfig, FieldDefinition
 from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
 from CocoTBFramework.components.gaxi.gaxi_master import GAXIMaster
 from CocoTBFramework.components.gaxi.gaxi_slave import GAXISlave
 from CocoTBFramework.components.gaxi.gaxi_monitor import GAXIMonitor
-from CocoTBFramework.components.field_config import FieldConfig
+from CocoTBFramework.components.memory_model import MemoryModel
+from CocoTBFramework.tbclasses.flex_config_gen import FlexConfigGen
 from CocoTBFramework.components.arbiter_monitor import WeightedRoundRobinArbiterMonitor
 
 
-class DataCollectScoreboard:
+class GAXIDataCollectScoreboard:
     """
-    Enhanced specialized scoreboard for gaxi_data_collect module with arbiter behavior verification.
-
-    Features:
-    - Separate queues for each input channel (A, B, C, D)
-    - Groups data in 4-item chunks by channel
-    - Compares output packets against expected grouped data
-    - Checks for leftover data at end of test
-    - Enhanced field validation and error detection
-    - Arbiter behavior verification and weight compliance checking
+    Specialized scoreboard for gaxi_data_collect module with enhanced field validation and error detection.
+    Updated to use modern framework components with GAXI protocol.
     """
     def __init__(self, title, input_field_config, output_field_config, log=None):
         """Initialize the scoreboard"""
         self.title = title
+
         # Convert to FieldConfig if received as dictionaries
         if isinstance(input_field_config, dict):
             self.input_field_config = FieldConfig.validate_and_create(input_field_config)
@@ -48,17 +47,28 @@ class DataCollectScoreboard:
         else:
             self.log = log
 
-        # Initialize queues for each input channel
-        self.queue_a = deque()  # Channel A (ID: 0xAA)
-        self.queue_b = deque()  # Channel B (ID: 0xBB)
-        self.queue_c = deque()  # Channel C (ID: 0xCC)
-        self.queue_d = deque()  # Channel D (ID: 0xDD)
+        # Channel configuration using loops for maintainability
+        self.channels = ['A', 'B', 'C', 'D']
+        self.channel_ids = {
+            'A': [0xAA, 0xA],
+            'B': [0xBB, 0xB],
+            'C': [0xCC, 0xC],
+            'D': [0xDD, 0xD]
+        }
+        self.channel_id_map = {
+            # Forward mapping: ID -> Channel
+            0xAA: 'A', 0xA: 'A',
+            0xBB: 'B', 0xB: 'B',
+            0xCC: 'C', 0xC: 'C',
+            0xDD: 'D', 0xD: 'D'
+        }
 
-        # Combined packet queues for each channel (after grouping 4 packets)
-        self.combined_queue_a = deque()
-        self.combined_queue_b = deque()
-        self.combined_queue_c = deque()
-        self.combined_queue_d = deque()
+        # Initialize queues using loops
+        self.input_queues = {}
+        self.combined_queues = {}
+        for channel in self.channels:
+            self.input_queues[channel] = deque()      # Raw input packets
+            self.combined_queues[channel] = deque()   # Combined packets (groups of 4)
 
         # Queue for actual output packets
         self.actual_queue = deque()
@@ -80,38 +90,22 @@ class DataCollectScoreboard:
 
         # Arbiter-related tracking
         self.arbiter_stats = {
-            'channel_selections': {'A': 0, 'B': 0, 'C': 0, 'D': 0},
+            'channel_selections': {channel: 0 for channel in self.channels},
             'weight_compliance_errors': 0,
             'fairness_violations': 0
         }
 
     def add_arbiter_transaction(self, transaction, expected_weights=None):
-        """
-        Add an arbiter transaction for analysis
-
-        Args:
-            transaction: ArbiterTransaction from the monitor
-            expected_weights: Expected weights for each channel [A, B, C, D]
-        """
-        if transaction.gnt_id < 4:  # Valid client ID
-            channel_map = {0: 'A', 1: 'B', 2: 'C', 3: 'D'}
-            channel = channel_map[transaction.gnt_id]
+        """Add an arbiter transaction for analysis"""
+        if transaction.gnt_id < len(self.channels):  # Valid client ID
+            channel = self.channels[transaction.gnt_id]
             self.arbiter_stats['channel_selections'][channel] += 1
 
             self.log.debug(f"Arbiter granted channel {channel} (ID {transaction.gnt_id}) "
                             f"after {transaction.cycle_count} cycles")
 
     def verify_arbiter_weights(self, expected_weights, tolerance=0.2):
-        """
-        Verify that the arbiter is respecting the configured weights
-
-        Args:
-            expected_weights: List of expected weights [A, B, C, D]
-            tolerance: Acceptable deviation from expected ratio (0.2 = 20%)
-
-        Returns:
-            True if weights are respected within tolerance
-        """
+        """Verify that the arbiter is respecting the configured weights"""
         total_selections = sum(self.arbiter_stats['channel_selections'].values())
         if total_selections < 20:  # Need sufficient data
             self.log.warning("Insufficient arbiter transactions for weight verification")
@@ -121,10 +115,9 @@ class DataCollectScoreboard:
         if total_weight == 0:
             return True  # All weights zero, can't verify
 
-        channels = ['A', 'B', 'C', 'D']
         weight_errors = 0
 
-        for i, channel in enumerate(channels):
+        for i, channel in enumerate(self.channels):
             expected_ratio = expected_weights[i] / total_weight
             actual_selections = self.arbiter_stats['channel_selections'][channel]
             actual_ratio = actual_selections / total_selections
@@ -144,18 +137,11 @@ class DataCollectScoreboard:
 
     def clear(self):
         """Clear all queues and reset counters"""
-        self.queue_a.clear()
-        self.queue_b.clear()
-        self.queue_c.clear()
-        self.queue_d.clear()
-
-        self.combined_queue_a.clear()
-        self.combined_queue_b.clear()
-        self.combined_queue_c.clear()
-        self.combined_queue_d.clear()
+        for channel in self.channels:
+            self.input_queues[channel].clear()
+            self.combined_queues[channel].clear()
 
         self.actual_queue.clear()
-
         self.error_count = 0
         self.comparison_count = 0
         self.field_error_counts = {}
@@ -164,15 +150,14 @@ class DataCollectScoreboard:
         for key in self.stats:
             self.stats[key] = 0
 
-        # Reset arbiter stats
-        for channel in self.arbiter_stats['channel_selections']:
+        # Reset arbiter stats using loops
+        for channel in self.channels:
             self.arbiter_stats['channel_selections'][channel] = 0
         self.arbiter_stats['weight_compliance_errors'] = 0
         self.arbiter_stats['fairness_violations'] = 0
 
     def _get_field_mask(self, field_name, field_config):
         """Get a mask for a field based on its bit width with caching."""
-        # Check the cache first
         if field_name in self._field_masks:
             return self._field_masks[field_name]
 
@@ -182,7 +167,6 @@ class DataCollectScoreboard:
             if field_def:
                 bits = field_def.bits
                 mask = (1 << bits) - 1
-                # Cache the mask
                 self._field_masks[field_name] = mask
                 return mask
 
@@ -190,99 +174,62 @@ class DataCollectScoreboard:
         return 0xFFFFFFFF
 
     def add_input_packet(self, packet):
-        """
-        Add an input packet to the appropriate queue based on ID
-
-        Args:
-            packet: Input packet from a monitor
-        """
-        # Track statistics
+        """Add an input packet to the appropriate queue based on ID"""
         self.stats['packets_processed'] += 1
 
         # Determine which queue to add to based on ID
         packet_id = packet.id if hasattr(packet, 'id') else None
+        channel = self.channel_id_map.get(packet_id)
 
-        # Determine which queue to add to based on ID
-        if packet_id in [0xAA, 0xA]:
-            self.queue_a.append(packet)
-            # Check if we have 4 packets to combine
-            if len(self.queue_a) >= 4:
-                self._combine_packets('A')
-        elif packet_id in [0xBB, 0xB]:
-            self.queue_b.append(packet)
-            if len(self.queue_b) >= 4:
-                self._combine_packets('B')
-        elif packet_id in [0xCC, 0xC]:
-            self.queue_c.append(packet)
-            if len(self.queue_c) >= 4:
-                self._combine_packets('C')
-        elif packet_id in [0xDD, 0xD]:
-            self.queue_d.append(packet)
-            if len(self.queue_d) >= 4:
-                self._combine_packets('D')
-        else:
+        if channel is None:
             self.log.warning(f"Received packet with unknown ID: 0x{packet_id:X}")
+            return
+
+        # Add packet to the appropriate input queue
+        self.input_queues[channel].append(packet)
+
+        # Check if we have 4 packets to combine
+        if len(self.input_queues[channel]) >= 4:
+            self._combine_packets(channel)
 
     def _combine_packets(self, channel):
-        """
-        Combine 4 packets from a channel into a single output packet with field validation
-
-        Args:
-            channel: Channel identifier ('A', 'B', 'C', or 'D')
-        """
-        # Select the correct queue
-        if channel == 'A':
-            queue = self.queue_a
-            combined_queue = self.combined_queue_a
-            id_value = 0xAA
-        elif channel == 'B':
-            queue = self.queue_b
-            combined_queue = self.combined_queue_b
-            id_value = 0xBB
-        elif channel == 'C':
-            queue = self.queue_c
-            combined_queue = self.combined_queue_c
-            id_value = 0xCC
-        elif channel == 'D':
-            queue = self.queue_d
-            combined_queue = self.combined_queue_d
-            id_value = 0xDD
-        else:
+        """Combine 4 packets from a channel into a single output packet with field validation"""
+        if channel not in self.channels:
             self.log.error(f"Unknown channel: {channel}")
             return
 
+        input_queue = self.input_queues[channel]
+        combined_queue = self.combined_queues[channel]
+
+        # Get the primary ID for this channel (first ID in the list)
+        id_value = self.channel_ids[channel][0]
+
         # Ensure we have at least 4 packets
-        if len(queue) < 4:
+        if len(input_queue) < 4:
             return
 
         # Take 4 packets from the queue
-        pkt0 = queue.popleft()
-        pkt1 = queue.popleft()
-        pkt2 = queue.popleft()
-        pkt3 = queue.popleft()
+        packets = [input_queue.popleft() for _ in range(4)]
 
         # Get data values from each packet
-        data0 = pkt0.data if hasattr(pkt0, 'data') else 0
-        data1 = pkt1.data if hasattr(pkt1, 'data') else 0
-        data2 = pkt2.data if hasattr(pkt2, 'data') else 0
-        data3 = pkt3.data if hasattr(pkt3, 'data') else 0
+        data_values = []
+        for pkt in packets:
+            data = pkt.data if hasattr(pkt, 'data') else 0
+            data_values.append(data)
 
         # Get mask for data field
         data_mask = self._get_field_mask('data', self.input_field_config)
 
         # Mask values to ensure they're within field width
-        data0 &= data_mask
-        data1 &= data_mask
-        data2 &= data_mask
-        data3 &= data_mask
+        data_values = [data & data_mask for data in data_values]
 
         # Create a combined output packet
         output_pkt = GAXIPacket(self.output_field_config)
         output_pkt.id = id_value
-        output_pkt.data0 = data0
-        output_pkt.data1 = data1
-        output_pkt.data2 = data2
-        output_pkt.data3 = data3
+
+        # Set data fields using loop
+        for i, data_value in enumerate(data_values):
+            setattr(output_pkt, f'data{i}', data_value)
 
         # Add to the combined queue
         combined_queue.append(output_pkt)
@@ -293,14 +240,8 @@ class DataCollectScoreboard:
         self.log.debug(f"Combined 4 packets from channel {channel} into output packet with ID=0x{id_value:X}")
 
     def add_output_packet(self, packet):
-        """
-        Add an output packet from the E monitor
-
-        Args:
-            packet: Output packet from monitor E
-        """
+        """Add an output packet from the E monitor"""
         self.actual_queue.append(packet)
-
         # Perform comparison immediately
         self._check_next_packet()
 
@@ -314,24 +255,15 @@ class DataCollectScoreboard:
 
         # Get the ID from the packet
         actual_id = actual.id if hasattr(actual, 'id') else None
+        channel = self.channel_id_map.get(actual_id)
 
-        # Determine which queue to compare against based on ID
-        if actual_id in [0xAA, 0xA]:
-            expected_queue = self.combined_queue_a
-            channel = 'A'
-        elif actual_id in [0xBB, 0xB]:
-            expected_queue = self.combined_queue_b
-            channel = 'B'
-        elif actual_id in [0xCC, 0xC]:
-            expected_queue = self.combined_queue_c
-            channel = 'C'
-        elif actual_id in [0xDD, 0xD]:
-            expected_queue = self.combined_queue_d
-            channel = 'D'
-        else:
+        if channel is None:
             self.log.error(f"Output packet has unknown ID: 0x{actual_id:X}")
             self.error_count += 1
             return
+
+        # Get the appropriate combined queue
+        expected_queue = self.combined_queues[channel]
 
         # Check if we have an expected packet
         if not expected_queue:
@@ -343,38 +275,30 @@ class DataCollectScoreboard:
         expected = expected_queue.popleft()
         self.comparison_count += 1
 
-        # Get data values from both packets
-        expected_data0 = expected.data0 if hasattr(expected, 'data0') else 0
-        expected_data1 = expected.data1 if hasattr(expected, 'data1') else 0
-        expected_data2 = expected.data2 if hasattr(expected, 'data2') else 0
-        expected_data3 = expected.data3 if hasattr(expected, 'data3') else 0
+        # Get data values using loops
+        expected_data = []
+        actual_data = []
 
-        actual_data0 = actual.data0 if hasattr(actual, 'data0') else 0
-        actual_data1 = actual.data1 if hasattr(actual, 'data1') else 0
-        actual_data2 = actual.data2 if hasattr(actual, 'data2') else 0
-        actual_data3 = actual.data3 if hasattr(actual, 'data3') else 0
+        for i in range(4):  # 4 data fields: data0, data1, data2, data3
+            field_name = f'data{i}'
+            expected_value = getattr(expected, field_name, 0)
+            actual_value = getattr(actual, field_name, 0)
+            expected_data.append(expected_value)
+            actual_data.append(actual_value)
 
-        # Get masks for each field
+        # Get mask for data fields
         data_mask = self._get_field_mask('data0', self.output_field_config)
 
-        # Compare packets with field-by-field detailed comparison
+        # Compare packets using loop
         errors = []
+        for i in range(4):
+            field_name = f'data{i}'
+            expected_value = expected_data[i]
+            actual_value = actual_data[i]
 
-        if (actual_data0 & data_mask) != (expected_data0 & data_mask):
-            errors.append(f"data0: expected=0x{expected_data0:X}, actual=0x{actual_data0:X}")
-            self._increment_field_error('data0')
-
-        if (actual_data1 & data_mask) != (expected_data1 & data_mask):
-            errors.append(f"data1: expected=0x{expected_data1:X}, actual=0x{actual_data1:X}")
-            self._increment_field_error('data1')
-
-        if (actual_data2 & data_mask) != (expected_data2 & data_mask):
-            errors.append(f"data2: expected=0x{expected_data2:X}, actual=0x{actual_data2:X}")
-            self._increment_field_error('data2')
-
-        if (actual_data3 & data_mask) != (expected_data3 & data_mask):
-            errors.append(f"data3: expected=0x{expected_data3:X}, actual=0x{actual_data3:X}")
-            self._increment_field_error('data3')
+            if (actual_value & data_mask) != (expected_value & data_mask):
+                errors.append(f"{field_name}: expected=0x{expected_value:X}, actual=0x{actual_value:X}")
+                self._increment_field_error(field_name)
 
         if errors:
             self.log.error(f"Packet mismatch for channel {channel} (ID=0x{actual_id:X}):")
@@ -392,47 +316,21 @@ class DataCollectScoreboard:
         self.stats['field_errors'] += 1
 
     def check_remaining_data(self):
-        """
-        Check if any queues have leftover data
-
-        Returns:
-            Number of errors (non-zero if any queue has leftover data)
-        """
+        """Check if any queues have leftover data"""
         errors = 0
 
-        # Check input queues
-        if self.queue_a:
-            self.log.error(f"Channel A has {len(self.queue_a)} leftover input packets")
-            errors += 1
+        # Check input and combined queues using loops
+        for channel in self.channels:
+            input_queue = self.input_queues[channel]
+            combined_queue = self.combined_queues[channel]
 
-        if self.queue_b:
-            self.log.error(f"Channel B has {len(self.queue_b)} leftover input packets")
-            errors += 1
+            if input_queue:
+                self.log.error(f"Channel {channel} has {len(input_queue)} leftover input packets")
+                errors += 1
 
-        if self.queue_c:
-            self.log.error(f"Channel C has {len(self.queue_c)} leftover input packets")
-            errors += 1
-
-        if self.queue_d:
-            self.log.error(f"Channel D has {len(self.queue_d)} leftover input packets")
-            errors += 1
-
-        # Check combined queues
-        if self.combined_queue_a:
-            self.log.error(f"Channel A has {len(self.combined_queue_a)} leftover combined packets")
-            errors += 1
-
-        if self.combined_queue_b:
-            self.log.error(f"Channel B has {len(self.combined_queue_b)} leftover combined packets")
-            errors += 1
-
-        if self.combined_queue_c:
-            self.log.error(f"Channel C has {len(self.combined_queue_c)} leftover combined packets")
-            errors += 1
-
-        if self.combined_queue_d:
-            self.log.error(f"Channel D has {len(self.combined_queue_d)} leftover combined packets")
-            errors += 1
+            if combined_queue:
+                self.log.error(f"Channel {channel} has {len(combined_queue)} leftover combined packets")
+                errors += 1
 
         # Check output queue
         if self.actual_queue:
@@ -448,15 +346,20 @@ class DataCollectScoreboard:
         stats['errors'] = self.error_count
         stats['field_error_details'] = self.field_error_counts.copy()
         stats['arbiter_stats'] = self.arbiter_stats.copy()
+
+        # Add per-channel queue statistics
+        stats['queue_status'] = {}
+        for channel in self.channels:
+            stats['queue_status'][channel] = {
+                'input_packets': len(self.input_queues[channel]),
+                'combined_packets': len(self.combined_queues[channel])
+            }
+        stats['queue_status']['actual_output'] = len(self.actual_queue)
+
         return stats
 
     def report(self):
-        """
-        Generate a report and return the number of errors
-
-        Returns:
-            Number of errors detected
-        """
+        """Generate a report and return the number of errors"""
         # Check for any leftover data
         leftover_errors = self.check_remaining_data()
         total_errors = self.error_count + leftover_errors + self.arbiter_stats['weight_compliance_errors']
@@ -469,9 +372,10 @@ class DataCollectScoreboard:
         self.log.info(f"  Arbiter weight errors: {self.arbiter_stats['weight_compliance_errors']}")
         self.log.info(f"  Total errors: {total_errors}")
 
-        # Log arbiter statistics
+        # Log arbiter statistics using loop
         self.log.info("  Arbiter Channel Selections:")
-        for channel, count in self.arbiter_stats['channel_selections'].items():
+        for channel in self.channels:
+            count = self.arbiter_stats['channel_selections'][channel]
             self.log.info(f"    Channel {channel}: {count}")
 
         # Log field-specific error details if any
@@ -479,6 +383,13 @@ class DataCollectScoreboard:
             self.log.info("  Field error details:")
             for field, count in self.field_error_counts.items():
                 self.log.info(f"    {field}: {count} errors")
+
+        # Log per-channel queue status
+        self.log.info("  Queue Status:")
+        for channel in self.channels:
+            input_count = len(self.input_queues[channel])
+            combined_count = len(self.combined_queues[channel])
+            self.log.info(f"    Channel {channel}: {input_count} input, {combined_count} combined")
 
         if total_errors == 0:
             self.log.info("  TEST PASSED: All packets verified successfully")
@@ -488,19 +399,12 @@ class DataCollectScoreboard:
         return total_errors
 
 
-class DataCollectTB(TBBase):
+class GAXIDataCollectTB(TBBase):
     """
-    Enhanced testbench for the gaxi_data_collect module with proper arbiter monitor integration.
-    Features:
-    - 4 input channels (A, B, C, D) with GAXI Masters
-    - 1 output channel (E) with GAXI Slave
-    - Monitors for all channels
-    - Enhanced scoreboard for verification with arbiter analysis
-    - Support for weighted arbitration testing with detailed verification
-    - Comprehensive error tracking and statistics
+    Enhanced testbench for the gaxi_data_collect module using modern framework with FlexConfigGen.
     """
 
-    def __init__(self, dut):
+    def __init__(self, dut, super_debug=False):
         """Initialize the testbench with the DUT"""
         super().__init__(dut)
 
@@ -508,266 +412,151 @@ class DataCollectTB(TBBase):
         self.DATA_WIDTH = self.convert_to_int(os.environ.get('DATA_WIDTH', '8'))
         self.ID_WIDTH = self.convert_to_int(os.environ.get('ID_WIDTH', '4'))
         self.OUTPUT_FIFO_DEPTH = self.convert_to_int(os.environ.get('OUTPUT_FIFO_DEPTH', '16'))
+        self.CHUNKS = self.convert_to_int(os.environ.get('CHUNKS', '4'))
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
 
         # Initialize random generator
         random.seed(self.SEED)
 
-        # Clock and reset signals
+        # Clock and reset signals - GAXI uses AXI naming
         self.clock = self.dut.i_axi_aclk
         self.reset_n = self.dut.i_axi_aresetn
+        self.super_debug = super_debug
+
+        # Channel configuration
+        self.channels = ['a', 'b', 'c', 'd']
+        self.channel_names = ['A', 'B', 'C', 'D']
+        self.channel_ids = [0xAA, 0xBB, 0xCC, 0xDD]
 
         # Log configuration
         self.log.info(f"GAXI Data Collect TB initialized with DATA_WIDTH={self.DATA_WIDTH}, ID_WIDTH={self.ID_WIDTH}")
-        self.log.info(f"OUTPUT_FIFO_DEPTH={self.OUTPUT_FIFO_DEPTH}, SEED={self.SEED}")
+        self.log.info(f"OUTPUT_FIFO_DEPTH={self.OUTPUT_FIFO_DEPTH}, CHUNKS={self.CHUNKS}, SEED={self.SEED}")
+
+        # Create comprehensive randomizer configurations using FlexConfigGen
+        self.randomizer_configs = self._create_comprehensive_randomizer_configs()
 
         # Define field configuration for input channels (data+id)
         self.input_field_config = FieldConfig()
-        self.input_field_config.add_field_dict('data', {
-            'bits': self.DATA_WIDTH,
-            'default': 0,
-            'format': 'hex',
-            'display_width': 2,
-            'active_bits': (self.DATA_WIDTH-1, 0),
-            'description': 'Data value'
-        })
-        self.input_field_config.add_field_dict('id', {
-            'bits': self.ID_WIDTH,
-            'default': 0,
-            'format': 'hex',
-            'display_width': 1,
-            'active_bits': (self.ID_WIDTH-1, 0),
-            'description': 'ID value'
-        })
+        self.input_field_config.add_field(FieldDefinition(
+            name='data',
+            bits=self.DATA_WIDTH,
+            default=0,
+            format='hex',
+            display_width=2,
+            active_bits=(self.DATA_WIDTH-1, 0),
+            description='Data value'
+        ))
+        self.input_field_config.add_field(FieldDefinition(
+            name='id',
+            bits=self.ID_WIDTH,
+            default=0,
+            format='hex',
+            display_width=1,
+            active_bits=(self.ID_WIDTH-1, 0),
+            description='ID value'
+        ))
 
-        # Define field configuration for output channel (id + 4 data fields)
+        # Define field configuration for output channel (id + CHUNKS data fields)
         self.output_field_config = FieldConfig()
-        self.output_field_config.add_field_dict('data0', {
-            'bits': self.DATA_WIDTH,
-            'default': 0,
-            'format': 'hex',
-            'display_width': 2,
-            'active_bits': (self.DATA_WIDTH-1, 0),
-            'description': 'Data0 value'
-        })
-        self.output_field_config.add_field_dict('data1', {
-            'bits': self.DATA_WIDTH,
-            'default': 0,
-            'format': 'hex',
-            'display_width': 2,
-            'active_bits': (self.DATA_WIDTH-1, 0),
-            'description': 'Data1 value'
-        })
-        self.output_field_config.add_field_dict('data2', {
-            'bits': self.DATA_WIDTH,
-            'default': 0,
-            'format': 'hex',
-            'display_width': 2,
-            'active_bits': (self.DATA_WIDTH-1, 0),
-            'description': 'Data2 value'
-        })
-        self.output_field_config.add_field_dict('data3', {
-            'bits': self.DATA_WIDTH,
-            'default': 0,
-            'format': 'hex',
-            'display_width': 2,
-            'active_bits': (self.DATA_WIDTH-1, 0),
-            'description': 'Data3 value'
-        })
-        self.output_field_config.add_field_dict('id', {
-            'bits': self.ID_WIDTH,
-            'default': 0,
-            'format': 'hex',
-            'display_width': 1,
-            'active_bits': (self.ID_WIDTH-1, 0),
-            'description': 'ID value'
-        })
+        for i in range(self.CHUNKS):
+            self.output_field_config.add_field(FieldDefinition(
+                name=f'data{i}',
+                bits=self.DATA_WIDTH,
+                default=0,
+                format='hex',
+                display_width=2,
+                active_bits=(self.DATA_WIDTH-1, 0),
+                description=f'Data{i} value'
+            ))
+        self.output_field_config.add_field(FieldDefinition(
+            name='id',
+            bits=self.ID_WIDTH,
+            default=0,
+            format='hex',
+            display_width=1,
+            active_bits=(self.ID_WIDTH-1, 0),
+            description='ID value'
+        ))
 
-        # Create randomizers for masters with different configurations
-        self.randomizer_configs = {
-            'fast': {'valid_delay': ([(0, 0)], [1])},                      # No delay
-            'fixed': {'valid_delay': ([(2, 2)], [1])},                     # Fixed delay
-            'moderate': {'valid_delay': ([(0, 2), (3, 6)], [3, 1])},       # Moderate delay
-            'slow': {'valid_delay': ([(0, 1), (2, 10), (11, 20)], [1, 3, 1])}  # Longer delay
-        }
+        # Create memory models for each input channel
+        self.input_memory_models = {}
+        for i, channel_name in enumerate(self.channel_names):
+            self.input_memory_models[channel_name] = MemoryModel(
+                num_lines=16,
+                bytes_per_line=2,
+                log=self.log
+            )
 
-        # Create randomizers
-        self.master_a_randomizer = FlexRandomizer(self.randomizer_configs['moderate'])
-        self.master_b_randomizer = FlexRandomizer(self.randomizer_configs['moderate'])
-        self.master_c_randomizer = FlexRandomizer(self.randomizer_configs['moderate'])
-        self.master_d_randomizer = FlexRandomizer(self.randomizer_configs['moderate'])
-        self.slave_e_randomizer = FlexRandomizer({
-            'ready_delay': ([(0, 0), (1, 3), (4, 8)], [3, 2, 1])
-        })
-
-        # Define signal maps for masters/slaves/monitors
-        self.master_a_map = {
-            'm2s_valid': 'i_a_valid',
-            's2m_ready': 'o_a_ready'
-        }
-        self.master_a_opt_map = {
-            'm2s_pkt_data': 'i_a_data',
-            'm2s_pkt_id': 'i_a_id'
-        }
-
-        self.master_b_map = {
-            'm2s_valid': 'i_b_valid',
-            's2m_ready': 'o_b_ready'
-        }
-        self.master_b_opt_map = {
-            'm2s_pkt_data': 'i_b_data',
-            'm2s_pkt_id': 'i_b_id'
-        }
-
-        self.master_c_map = {
-            'm2s_valid': 'i_c_valid',
-            's2m_ready': 'o_c_ready'
-        }
-        self.master_c_opt_map = {
-            'm2s_pkt_data': 'i_c_data',
-            'm2s_pkt_id': 'i_c_id'
-        }
-
-        self.master_d_map = {
-            'm2s_valid': 'i_d_valid',
-            's2m_ready': 'o_d_ready'
-        }
-        self.master_d_opt_map = {
-            'm2s_pkt_data': 'i_d_data',
-            'm2s_pkt_id': 'i_d_id'
-        }
-
-        # Define signal map for slave
-        self.slave_e_map = {
-            'm2s_valid': 'o_e_valid',
-            's2m_ready': 'i_e_ready'
-        }
-        self.slave_e_opt_map = {
-            'm2s_pkt': 'o_e_data'
-        }
-
-        # Create GAXI masters for input channels
-        self.master_a = GAXIMaster(
-            dut, 'Master A', '', self.clock,
-            field_config=self.input_field_config,
-            randomizer=self.master_a_randomizer,
-            timeout_cycles=1000,
-            signal_map=self.master_a_map,
-            optional_signal_map=self.master_a_opt_map,
-            multi_sig=True,
+        self.output_memory_model = MemoryModel(
+            num_lines=self.OUTPUT_FIFO_DEPTH,
+            bytes_per_line=self.CHUNKS * self.DATA_WIDTH // 8 or 1,
             log=self.log
         )
 
-        self.master_b = GAXIMaster(
-            dut, 'Master B', '', self.clock,
-            field_config=self.input_field_config,
-            randomizer=self.master_b_randomizer,
-            timeout_cycles=1000,
-            signal_map=self.master_b_map,
-            optional_signal_map=self.master_b_opt_map,
-            multi_sig=True,
-            log=self.log
-        )
+        # Create dictionaries to store masters and monitors
+        self.masters = {}
+        self.monitors = {}
 
-        self.master_c = GAXIMaster(
-            dut, 'Master C', '', self.clock,
-            field_config=self.input_field_config,
-            randomizer=self.master_c_randomizer,
-            timeout_cycles=1000,
-            signal_map=self.master_c_map,
-            optional_signal_map=self.master_c_opt_map,
-            multi_sig=True,
-            log=self.log
-        )
+        # Create input channel masters and monitors in a loop
+        for i, (channel, channel_name) in enumerate(zip(self.channels, self.channel_names)):
+            # Create GAXI master for this input channel
+            self.masters[channel_name] = GAXIMaster(
+                dut=dut,
+                title=f'Master {channel_name}',
+                prefix='',
+                clock=self.clock,
+                field_config=self.input_field_config,
+                timeout_cycles=1000,
+                mode='skid',  # GAXI uses skid mode
+                multi_sig=True,
+                bus_name=channel,  # 'a', 'b', 'c', 'd'
+                pkt_prefix='',
+                super_debug=self.super_debug,
+                log=self.log
+            )
 
-        self.master_d = GAXIMaster(
-            dut, 'Master D', '', self.clock,
-            field_config=self.input_field_config,
-            randomizer=self.master_d_randomizer,
-            timeout_cycles=1000,
-            signal_map=self.master_d_map,
-            optional_signal_map=self.master_d_opt_map,
-            multi_sig=True,
-            log=self.log
-        )
+            # Create monitor for this input channel
+            self.monitors[channel_name] = GAXIMonitor(
+                dut, f'Monitor {channel_name}', '', self.clock,
+                field_config=self.input_field_config,
+                is_slave=False,  # Monitor master side
+                mode='skid',
+                multi_sig=True,
+                bus_name=channel,  # 'a', 'b', 'c', 'd'
+                pkt_prefix='',
+                super_debug=self.super_debug,
+                log=self.log
+            )
 
-        # Create GAXI slave for output channel
+        # Create GAXI slave for output channel E
         self.slave_e = GAXISlave(
             dut, 'Slave E', '', self.clock,
             field_config=self.output_field_config,
-            randomizer=self.slave_e_randomizer,
             timeout_cycles=1000,
-            signal_map=self.slave_e_map,
-            optional_signal_map=self.slave_e_opt_map,
-            multi_sig=False,
-            field_mode=True,
             mode='skid',
+            multi_sig=False,  # Single output signal
+            bus_name='e',
+            super_debug=self.super_debug,
             log=self.log
         )
 
-        # Create monitors for inputs
-        self.monitor_a = GAXIMonitor(
-            dut, 'Monitor A', '', self.clock,
-            field_config=self.input_field_config,
-            is_slave=False,
-            signal_map=self.master_a_map,
-            optional_signal_map=self.master_a_opt_map,
-            multi_sig=True,
-            mode='skid',
-            log=self.log
-        )
-
-        self.monitor_b = GAXIMonitor(
-            dut, 'Monitor B', '', self.clock,
-            field_config=self.input_field_config,
-            is_slave=False,
-            signal_map=self.master_b_map,
-            optional_signal_map=self.master_b_opt_map,
-            multi_sig=True,
-            mode='skid',
-            log=self.log
-        )
-
-        self.monitor_c = GAXIMonitor(
-            dut, 'Monitor C', '', self.clock,
-            field_config=self.input_field_config,
-            is_slave=False,
-            signal_map=self.master_c_map,
-            optional_signal_map=self.master_c_opt_map,
-            multi_sig=True,
-            mode='skid',
-            log=self.log
-        )
-
-        self.monitor_d = GAXIMonitor(
-            dut, 'Monitor D', '', self.clock,
-            field_config=self.input_field_config,
-            is_slave=False,
-            signal_map=self.master_d_map,
-            optional_signal_map=self.master_d_opt_map,
-            multi_sig=True,
-            mode='skid',
-            log=self.log
-        )
-
-        # Create monitor for output
+        # Create output monitor
         self.monitor_e = GAXIMonitor(
             dut, 'Monitor E', '', self.clock,
             field_config=self.output_field_config,
-            is_slave=True,
-            signal_map=self.slave_e_map,
-            optional_signal_map=self.slave_e_opt_map,
+            is_slave=True,  # Monitor slave side
             mode='skid',
-            field_mode=True,
             multi_sig=False,
+            bus_name='e',
+            super_debug=self.super_debug,
             log=self.log
         )
 
-        # Create specialized scoreboard for data_collect
-        self.scoreboard = DataCollectScoreboard('GAXI DataCollect Scoreboard',
-                                                self.input_field_config,
-                                                self.output_field_config,
-                                                log=self.log)
+        # Create specialized scoreboard for gaxi_data_collect
+        self.scoreboard = GAXIDataCollectScoreboard('GAXI DataCollect Scoreboard',
+                                                   self.input_field_config,
+                                                   self.output_field_config,
+                                                   log=self.log)
 
         # Initialize the arbiter monitor with proper integration
         self.dut_arb = dut.inst_arbiter
@@ -801,22 +590,141 @@ class DataCollectTB(TBBase):
             self.log.warning(f"WRR Monitor not available: {e}, skipping arbiter monitoring")
             self.arbiter_monitor = None
 
-        # Test counters and error tracking
+        # Test statistics and tracking
         self.total_errors = 0
         self.weight_configs = []
         self.error_log = []
 
+        # Statistics for additional test methods
+        self.stats = {
+            'verification_errors': 0,
+            'arbiter_decisions': {channel: 0 for channel in self.channel_names}
+        }
+
+        self.log.info(f"Testbench initialized with {len(self.masters)} input masters and {len(self.monitors)} input monitors")
+
+    def _create_comprehensive_randomizer_configs(self):
+        """Create comprehensive randomizer configurations using FlexConfigGen"""
+
+        # Define GAXI-specific arbitration profiles
+        gaxi_arbitration_profiles = {
+            # GAXI-specific arbitration patterns
+            'arbitration_balanced': ([(0, 0), (1, 2), (3, 5)], [6, 3, 1]),         # Balanced arbitration
+            'arbitration_fair': ([(0, 1), (2, 3), (4, 6)], [4, 3, 2]),            # Fair arbitration
+            'arbitration_stress': ([(0, 0), (1, 3), (8, 15)], [8, 4, 1]),         # Stress arbitration
+            'arbitration_burst': ([(0, 0), (5, 10)], [20, 1]),                     # Burst arbitration
+            'arbitration_coordinated': ([(1, 2), (4, 6)], [5, 2]),                 # Coordinated timing
+            'arbitration_chaotic': ([(0, 2), (3, 8), (12, 20)], [3, 3, 1]),       # Chaotic timing
+            'arbitration_weighted': ([(0, 0), (1, 4), (self.CHUNKS*2, self.CHUNKS*4)], [10, 5, 1])  # Weight-aware
+        }
+
+        # Create FlexConfigGen for comprehensive GAXI arbitration testing
+        config_gen = FlexConfigGen(
+            profiles=[
+                # Standard canned profiles
+                'backtoback', 'fast', 'constrained', 'bursty', 'slow', 'stress',
+                'moderate', 'balanced', 'heavy_pause', 'gradual', 'jittery',
+                'pipeline', 'throttled', 'chaotic', 'smooth', 'efficient',
+                # GAXI arbitration profiles
+                'arbitration_balanced', 'arbitration_fair', 'arbitration_stress', 
+                'arbitration_burst', 'arbitration_coordinated', 'arbitration_chaotic',
+                'arbitration_weighted'
+            ],
+            fields=['valid_delay', 'ready_delay'],
+            custom_profiles=gaxi_arbitration_profiles
+        )
+
+        # Customize profiles for GAXI arbitration behavior
+
+        # Ultra-aggressive backtoback for maximum throughput
+        config_gen.backtoback.valid_delay.fixed_value(0)
+        config_gen.backtoback.ready_delay.fixed_value(0)
+
+        # Fast patterns optimized for GAXI arbitration
+        config_gen.fast.valid_delay.mostly_zero(zero_weight=40, fallback_range=(1, 2), fallback_weight=1)
+        config_gen.fast.ready_delay.mostly_zero(zero_weight=35, fallback_range=(1, 3), fallback_weight=2)
+
+        # Stress test with arbitration variations
+        config_gen.stress.valid_delay.weighted_ranges([
+            ((0, 0), 8), ((1, 3), 6), ((4, 8), 4), ((12, 18), 2), ((25, 35), 1)
+        ])
+        config_gen.stress.ready_delay.weighted_ranges([
+            ((0, 1), 6), ((2, 5), 5), ((6, 12), 4), ((18, 28), 2), ((35, 45), 1)
+        ])
+
+        # GAXI arbitration optimized pipeline timing
+        config_gen.pipeline.valid_delay.uniform_range(1, 2)
+        config_gen.pipeline.ready_delay.uniform_range(2, 4)
+
+        # Chaotic arbitration testing
+        config_gen.chaotic.valid_delay.probability_split([
+            ((0, 1), 0.5), ((2, 6), 0.3), ((8, 15), 0.15), ((20, 30), 0.05)
+        ])
+        config_gen.chaotic.ready_delay.probability_split([
+            ((0, 2), 0.5), ((3, 8), 0.3), ((12, 20), 0.15), ((25, 40), 0.05)
+        ])
+
+        # Arbitration burst patterns
+        config_gen.bursty.valid_delay.burst_pattern(fast_cycles=0, pause_range=(6, 12), burst_ratio=25)
+        config_gen.bursty.ready_delay.burst_pattern(fast_cycles=0, pause_range=(8, 15), burst_ratio=15)
+
+        # Heavy pause for arbitration overflow testing
+        config_gen.heavy_pause.valid_delay.mostly_zero(zero_weight=20, fallback_range=(1, 2), fallback_weight=1)
+        config_gen.heavy_pause.ready_delay.weighted_ranges([((0, 0), 4), ((15, 25), 1)])
+
+        # Build all configurations
+        randomizer_dict = config_gen.build(return_flexrandomizer=False)
+
+        # Convert to the format expected by the rest of the testbench
+        converted_configs = {}
+        for profile_name, profile_config in randomizer_dict.items():
+            converted_configs[profile_name] = {
+                'master': {field: constraints for field, constraints in profile_config.items() if 'valid' in field},
+                'slave': {field: constraints for field, constraints in profile_config.items() if 'ready' in field}
+            }
+
+        self.log.info(f"Created {len(converted_configs)} comprehensive GAXI arbitration randomizer configurations:")
+        for profile_name in converted_configs.keys():
+            self.log.info(f"  - {profile_name}")
+
+        return converted_configs
+
+    def get_available_profiles(self):
+        """Get list of available randomizer profile names"""
+        return list(self.randomizer_configs.keys())
+
+    def set_randomizer_profile(self, profile_name):
+        """Set randomizer profile for all components"""
+        if profile_name in self.randomizer_configs:
+            master_config = self.randomizer_configs[profile_name]['master']
+            slave_config = self.randomizer_configs[profile_name]['slave']
+
+            # Set all master randomizers
+            for channel_name in self.channel_names:
+                self.masters[channel_name].set_randomizer(FlexRandomizer(master_config))
+
+            # Set slave randomizer
+            self.slave_e.set_randomizer(FlexRandomizer(slave_config))
+
+            self.log.info(f"Set all randomizers to profile '{profile_name}' - "
+                            f"Master: {master_config}, Slave: {slave_config}")
+        else:
+            self.log.warning(f"Randomizer profile '{profile_name}' not found, using 'arbitration_balanced'")
+            fallback_config = self.randomizer_configs['arbitration_balanced']
+
+            for channel_name in self.channel_names:
+                self.masters[channel_name].set_randomizer(FlexRandomizer(fallback_config['master']))
+            self.slave_e.set_randomizer(FlexRandomizer(fallback_config['slave']))
+
     def _on_arbiter_transaction(self, transaction):
-        """
-        Callback function called when arbiter monitor observes a transaction
-
-        Args:
-            transaction: ArbiterTransaction from the monitor
-        """
-        # Forward transaction to scoreboard for analysis
+        """Callback function called when arbiter monitor observes a transaction"""
         self.scoreboard.add_arbiter_transaction(transaction, self.current_weights)
-
-        # Log interesting transactions for debugging
+        
+        # Track for additional statistics
+        if transaction.gnt_id < len(self.channel_names):
+            channel = self.channel_names[transaction.gnt_id]
+            self.stats['arbiter_decisions'][channel] += 1
+        
         self.log.debug(f"Arbiter transaction: Client {transaction.gnt_id} granted "
                         f"after {transaction.cycle_count} cycles, "
                         f"req_vector=0x{transaction.req_vector:x}{self.get_time_ns_str()}")
@@ -826,8 +734,6 @@ class DataCollectTB(TBBase):
         if self.arbiter_monitor:
             self.arbiter_monitor.start_monitoring()
             self.log.info("Arbiter monitoring started")
-        else:
-            self.log.debug("No arbiter monitor available")
 
     def get_arbiter_statistics(self):
         """Get statistics from the arbiter monitor"""
@@ -838,86 +744,55 @@ class DataCollectTB(TBBase):
             return stats
         return {}
 
-    def verify_arbiter_weight_compliance(self, tolerance=0.25):
-        """
-        Verify that the arbiter is following the configured weights
-
-        Args:
-            tolerance: Acceptable deviation from expected weight ratios
-
-        Returns:
-            True if weights are being respected
-        """
+    def verify_arbiter_behavior(self, tolerance=0.25):
+        """Verify that the arbiter is following the configured weights"""
         if not self.arbiter_monitor:
             self.log.warning("No arbiter monitor available for weight verification")
             return True
 
-        # Get arbiter statistics
         stats = self.arbiter_monitor.get_stats_summary()
-
-        if stats['total_grants'] < 20:  # Need sufficient samples
+        if stats['total_grants'] < 20:
             self.log.warning("Insufficient arbiter grants for weight verification")
             return True
 
-        # Verify weight compliance using scoreboard
         return self.scoreboard.verify_arbiter_weights(self.current_weights, tolerance)
+
+    def reset_statistics(self):
+        """Reset all statistics"""
+        self.scoreboard.clear()
+        for channel in self.channel_names:
+            self.stats['arbiter_decisions'][channel] = 0
+        self.stats['verification_errors'] = 0
+
+    def get_statistics(self):
+        """Get comprehensive statistics"""
+        stats = self.stats.copy()
+        stats.update(self.get_component_statistics())
+        return stats
 
     def log_error(self, error_type, details):
         """Log an error with timestamp for later analysis"""
-        import time
         self.error_log.append({
-            'time': time.time(),
+            'time': self.get_time_ns_str(),
             'type': error_type,
             'details': details
         })
         self.total_errors += 1
-
-    def get_component_statistics(self):
-        """Get statistics from all components"""
-        stats = {
-            'master_a': self.master_a.get_stats() if hasattr(self.master_a, 'get_stats') else {},
-            'master_b': self.master_b.get_stats() if hasattr(self.master_b, 'get_stats') else {},
-            'master_c': self.master_c.get_stats() if hasattr(self.master_c, 'get_stats') else {},
-            'master_d': self.master_d.get_stats() if hasattr(self.master_d, 'get_stats') else {},
-            'slave_e': self.slave_e.get_stats() if hasattr(self.slave_e, 'get_stats') else {},
-            'monitor_a': self.monitor_a.get_stats() if hasattr(self.monitor_a, 'get_stats') else {},
-            'monitor_b': self.monitor_b.get_stats() if hasattr(self.monitor_b, 'get_stats') else {},
-            'monitor_c': self.monitor_c.get_stats() if hasattr(self.monitor_c, 'get_stats') else {},
-            'monitor_d': self.monitor_d.get_stats() if hasattr(self.monitor_d, 'get_stats') else {},
-            'monitor_e': self.monitor_e.get_stats() if hasattr(self.monitor_e, 'get_stats') else {},
-            'scoreboard': self.scoreboard.get_statistics(),
-            'arbiter': self.get_arbiter_statistics()
-        }
-
-        # Add error statistics
-        stats['error_count'] = self.total_errors
-        stats['error_log_count'] = len(self.error_log)
-
-        return stats
+        self.stats['verification_errors'] += 1
 
     async def wait_for_expected_outputs(self, expected_count, timeout_clocks=5000):
-        """
-        Wait until the expected number of outputs have been received or timeout
-
-        Args:
-            expected_count: Expected number of output packets
-            timeout_clocks: Maximum number of clock cycles to wait
-
-        Returns:
-            True if all expected outputs were received, False if timeout
-        """
+        """Wait until the expected number of outputs have been received or timeout"""
         count = 0
-        while len(self.monitor_e.observed_queue) < expected_count and count < timeout_clocks:
+        while len(self.monitor_e._recvQ) < expected_count and count < timeout_clocks:
             await self.wait_clocks('i_axi_aclk', 1)
             count += 1
 
-            # Status updates every 200 clocks
             if count % 200 == 0:
-                self.log.info(f"Waiting for outputs: {len(self.monitor_e.observed_queue)}/{expected_count} received")
+                self.log.info(f"Waiting for outputs: {len(self.monitor_e._recvQ)}/{expected_count} received{self.get_time_ns_str()}")
 
-        received = len(self.monitor_e.observed_queue)
+        received = len(self.monitor_e._recvQ)
         if received < expected_count:
-            self.log.warning(f"Timeout waiting for outputs: {received}/{expected_count} received")
+            self.log.warning(f"Timeout waiting for outputs: {received}/{expected_count} received{self.get_time_ns_str()}")
             self.log_error('timeout', f"Expected {expected_count} outputs, got {received}")
             return False
 
@@ -928,11 +803,10 @@ class DataCollectTB(TBBase):
         """Assert the reset signal"""
         self.reset_n.value = 0
 
-        # Reset masters and slave
-        await self.master_a.reset_bus()
-        await self.master_b.reset_bus()
-        await self.master_c.reset_bus()
-        await self.master_d.reset_bus()
+        # Reset all masters and slave using loops
+        for channel_name in self.channel_names:
+            await self.masters[channel_name].reset_bus()
+
         await self.slave_e.reset_bus()
 
     async def deassert_reset(self):
@@ -942,11 +816,13 @@ class DataCollectTB(TBBase):
 
     def set_arbiter_weights(self, weight_a, weight_b, weight_c, weight_d):
         """Set the weights for the weighted round-robin arbiter"""
+        weights = [weight_a, weight_b, weight_c, weight_d]
+
         # Validate weights are within 0-15 range
-        for name, weight in [('A', weight_a), ('B', weight_b), ('C', weight_c), ('D', weight_d)]:
+        for i, (channel_name, weight) in enumerate(zip(self.channel_names, weights)):
             if weight < 0 or weight > 15:
-                self.log.error(f"Invalid weight for channel {name}: {weight}. Must be 0-15.")
-                self.log_error('invalid_weight', f"Channel {name} weight {weight} out of range 0-15")
+                self.log.error(f"Invalid weight for channel {channel_name}: {weight}. Must be 0-15.")
+                self.log_error('invalid_weight', f"Channel {channel_name} weight {weight} out of range 0-15")
                 return
 
         # Set the weights
@@ -956,42 +832,56 @@ class DataCollectTB(TBBase):
         self.dut.i_weight_d.value = weight_d
 
         # Store current weights for arbiter verification
-        self.current_weights = [weight_a, weight_b, weight_c, weight_d]
+        self.current_weights = weights
 
         # Log the configuration
         self.log.info(f"Arbiter weights set: A={weight_a}, B={weight_b}, C={weight_c}, D={weight_d}")
+        self.weight_configs.append(tuple(weights))
 
-        # Store the configuration for later analysis
-        self.weight_configs.append((weight_a, weight_b, weight_c, weight_d))
+    async def send_sequence(self, channel_name, data_list, base_id):
+        """Send a sequence of data values on a specific channel"""
+        if channel_name not in self.channel_names:
+            self.log.error(f"Unknown channel: {channel_name}")
+            self.log_error('unknown_channel', f"Unknown channel: {channel_name}")
+            return []
 
-    def prepare_expected_output(self, input_packets, channel):
-        """
-        This method is used to add input packets to the scoreboard.
-        The actual grouping is now handled by the scoreboard.
+        master = self.masters[channel_name]
+        sent_packets = []
 
-        Args:
-            input_packets: List of input packets
-            channel: Channel identifier ('A', 'B', 'C', or 'D')
+        for i, data_value in enumerate(data_list):
+            # Create packet
+            pkt = GAXIPacket(self.input_field_config)
+            pkt.id = base_id
+            pkt.data = data_value & ((1 << self.DATA_WIDTH) - 1)  # Mask to WIDTH bits
 
-        Returns:
-            Empty list (for backward compatibility)
-        """
-        # Add each packet to the scoreboard
-        for pkt in input_packets:
-            self.scoreboard.add_input_packet(pkt)
+            try:
+                await master.send(pkt)
+                sent_packets.append(pkt)
 
-        # Return empty list for backward compatibility
-        return []
+                # Add to scoreboard for verification
+                self.scoreboard.add_input_packet(pkt)
 
-    def add_expected_packets_to_scoreboard(self, packets):
-        """This method is kept for backward compatibility"""
-        # No action needed as packets are added in prepare_expected_output
-        pass
+            except Exception as e:
+                self.log.error(f"Failed to send packet on channel {channel_name}: {e}")
+                self.log_error('send_failure', f"Channel {channel_name}: {e}")
+                break
+
+            # Log progress
+            if (i + 1) % 20 == 0 or i == 0 or i == len(data_list) - 1:
+                self.log.info(f"Sent {i+1}/{len(data_list)} packets on channel {channel_name}")
+
+        self.log.info(f"Channel {channel_name} sent {len(sent_packets)} packets")
+        return sent_packets
+
+    async def wait_for_all_masters_idle(self):
+        """Wait until all masters have completed their transmissions"""
+        while any(self.masters[channel_name].transfer_busy for channel_name in self.channel_names):
+            await self.wait_clocks('i_axi_aclk', 1)
 
     def add_received_packets_to_scoreboard(self):
         """Add received packets from the output monitor to the scoreboard"""
-        while self.monitor_e.observed_queue:
-            pkt = self.monitor_e.observed_queue.popleft()
+        while self.monitor_e._recvQ:
+            pkt = self.monitor_e._recvQ.popleft()
             self.scoreboard.add_output_packet(pkt)
 
     def check_scoreboard(self):
@@ -1003,121 +893,32 @@ class DataCollectTB(TBBase):
             self.log_error('scoreboard', f"Scoreboard reported {errors} errors")
         else:
             self.log.info(f"Scoreboard verification passed{self.get_time_ns_str()}")
-
         return errors
 
-    def get_randomizer_by_name(self, name):
-        """Get a randomizer by name"""
-        if name in self.randomizer_configs:
-            return FlexRandomizer(self.randomizer_configs[name])
-        self.log.warning(f"Unknown randomizer name: {name}, using 'moderate'")
-        return FlexRandomizer(self.randomizer_configs['moderate'])
+    def get_component_statistics(self):
+        """Get statistics from all components"""
+        stats = {
+            'slave_e': self.slave_e.get_stats(),
+            'monitor_e': self.monitor_e.get_stats(),
+            'scoreboard': self.scoreboard.get_statistics(),
+            'memory_models': {
+                'output': self.output_memory_model.get_stats(),
+            },
+            'arbiter': self.get_arbiter_statistics(),
+            'error_count': self.total_errors,
+            'error_log_count': len(self.error_log)
+        }
 
-    def set_master_randomizers(self, master_a='moderate', master_b='moderate',
-                                master_c='moderate', master_d='moderate'):
-        """Set randomizers for all masters"""
-        self.master_a.set_randomizer(self.get_randomizer_by_name(master_a))
-        self.master_b.set_randomizer(self.get_randomizer_by_name(master_b))
-        self.master_c.set_randomizer(self.get_randomizer_by_name(master_c))
-        self.master_d.set_randomizer(self.get_randomizer_by_name(master_d))
+        # Add input channel statistics using loops
+        for channel_name in self.channel_names:
+            stats[f'master_{channel_name.lower()}'] = self.masters[channel_name].get_stats()
+            stats[f'monitor_{channel_name.lower()}'] = self.monitors[channel_name].get_stats()
+            stats['memory_models'][f'input_{channel_name}'] = self.input_memory_models[channel_name].get_stats()
 
-        self.log.info(f"Set randomizers: A={master_a}, B={master_b}, C={master_c}, D={master_d}")
-
-    def set_slave_randomizer(self, name='moderate'):
-        """Set randomizer for slave"""
-        if name == 'fixed':
-            self.slave_e.set_randomizer(FlexRandomizer({
-                'ready_delay': ([(2, 2)], [1])
-            }))
-        elif name == 'fast':
-            self.slave_e.set_randomizer(FlexRandomizer({
-                'ready_delay': ([(0, 0)], [1])
-            }))
-        elif name == 'slow':
-            self.slave_e.set_randomizer(FlexRandomizer({
-                'ready_delay': ([(0, 1), (2, 10), (11, 20)], [1, 3, 1])
-            }))
-        else:  # moderate (default)
-            self.slave_e.set_randomizer(FlexRandomizer({
-                'ready_delay': ([(0, 0), (1, 3), (4, 8)], [3, 2, 1])
-            }))
-
-        self.log.info(f"Set slave randomizer to {name}")
-
-    async def send_packets_on_channel(self, channel, count, id_value=None, base_data=0):
-        """
-        Send packets on a specific channel
-
-        Args:
-            channel: Channel to send on ('A', 'B', 'C', or 'D')
-            count: Number of packets to send
-            id_value: ID value to use (None for channel default)
-            base_data: Base value for data (incremented for each packet)
-
-        Returns:
-            List of sent packets
-        """
-        # Choose the correct master and default ID
-        if channel == 'A':
-            master = self.master_a
-            default_id = 0xAA
-        elif channel == 'B':
-            master = self.master_b
-            default_id = 0xBB
-        elif channel == 'C':
-            master = self.master_c
-            default_id = 0xCC
-        elif channel == 'D':
-            master = self.master_d
-            default_id = 0xDD
-        else:
-            self.log.error(f"Unknown channel: {channel}")
-            self.log_error('unknown_channel', f"Unknown channel: {channel}")
-            return []
-
-        # Use provided ID or default
-        if id_value is None:
-            id_value = default_id
-
-        # Create and send packets
-        sent_packets = []
-        for i in range(count):
-            # Create packet
-            pkt = GAXIPacket(self.input_field_config)
-            pkt.id = id_value
-            pkt.data = (base_data + i) & ((1 << self.DATA_WIDTH) - 1)  # Mask to WIDTH bits
-
-            # Send packet
-            await master.send(pkt)
-
-            # Store packet for verification
-            sent_packets.append(pkt)
-
-            # Log every N packets
-            if (i + 1) % 20 == 0 or i == 0 or i == count - 1:
-                self.log.info(f"Sent {i+1}/{count} packets on channel {channel}{self.get_time_ns_str()}")
-
-        return sent_packets
-
-    async def wait_for_all_masters_idle(self):
-        """Wait until all masters have completed their transmissions"""
-        while (self.master_a.transfer_busy or
-                self.master_b.transfer_busy or
-                self.master_c.transfer_busy or
-                self.master_d.transfer_busy):
-            await self.wait_clocks('i_axi_aclk', 1)
+        return stats
 
     async def run_simple_test(self, packets_per_channel=40, expected_outputs=10):
-        """
-        Run a simple test with equal packets on all channels
-
-        Args:
-            packets_per_channel: Number of packets to send on each channel
-            expected_outputs: Expected number of output packets (for timeout calculation)
-
-        Returns:
-            True if test passed, False if failed
-        """
+        """Run a simple test with equal packets on all channels"""
         self.log.info(f"Starting simple test with {packets_per_channel} packets per channel{self.get_time_ns_str()}")
 
         # Reset system
@@ -1128,57 +929,34 @@ class DataCollectTB(TBBase):
 
         # Set equal weights for all channels
         self.set_arbiter_weights(8, 8, 8, 8)
-
-        # Start arbiter monitoring
         self.start_arbiter_monitoring()
-
-        # Clear the scoreboard before starting
         self.scoreboard.clear()
 
-        # Create input data streams with different IDs for each channel
-        send_tasks = [
-            cocotb.start_soon(
-                self.send_packets_on_channel(
-                    'A', packets_per_channel, id_value=0xAA, base_data=0x100
-                )
-            )
-        ]
+        # Set randomizers to moderate for stable test
+        self.set_randomizer_profile('arbitration_balanced')
 
-        send_tasks.append(cocotb.start_soon(
-            self.send_packets_on_channel('B', packets_per_channel, id_value=0xBB, base_data=0x200)
-        ))
-        send_tasks.append(cocotb.start_soon(
-            self.send_packets_on_channel('C', packets_per_channel, id_value=0xCC, base_data=0x300)
-        ))
-        send_tasks.append(cocotb.start_soon(
-            self.send_packets_on_channel('D', packets_per_channel, id_value=0xDD, base_data=0x400)
-        ))
-
-        # Wait for all sending tasks to complete and add packets to scoreboard
-        for task in send_tasks:
-            sent_packets_channel = await task
-            # Add all packets to the scoreboard
-            for pkt in sent_packets_channel:
-                self.scoreboard.add_input_packet(pkt)
+        # Send packets on all channels
+        for i, channel_name in enumerate(self.channel_names):
+            data_list = [0x100 + i * 0x100 + j for j in range(packets_per_channel)]
+            await self.send_sequence(channel_name, data_list, self.channel_ids[i])
 
         # Wait for masters to finish transmitting
         await self.wait_for_all_masters_idle()
         self.log.info(f"All masters finished sending{self.get_time_ns_str()}")
 
-        # Calculate expected number of output packets (each channel produces packets_per_channel/4 outputs)
-        total_expected_outputs = (packets_per_channel * 4) // 4
+        # Calculate expected outputs (use parameter if provided, otherwise calculate)
+        if expected_outputs == 10:  # Default value, calculate based on packets
+            total_expected_outputs = (packets_per_channel * len(self.channels)) // self.CHUNKS
+        else:
+            total_expected_outputs = expected_outputs
 
         # Wait for expected outputs
         await self.wait_for_expected_outputs(total_expected_outputs)
-
-        # Add received packets to scoreboard
         self.add_received_packets_to_scoreboard()
-
-        # Wait a bit to ensure all packets have been processed
         await self.wait_clocks('i_axi_aclk', 100)
 
         # Verify arbiter weight compliance
-        weight_compliance = self.verify_arbiter_weight_compliance()
+        weight_compliance = self.verify_arbiter_behavior()
         if not weight_compliance:
             self.log.error(f"Arbiter weight compliance check failed{self.get_time_ns_str()}")
             self.total_errors += 1
@@ -1186,233 +964,204 @@ class DataCollectTB(TBBase):
         # Check scoreboard
         errors = self.check_scoreboard()
 
-        # Get and report statistics including arbiter stats
+        # Get and report statistics
         stats = self.get_component_statistics()
         self.log.info(f"Test Statistics: {stats}")
 
         return errors == 0 and weight_compliance
 
-    async def run_weighted_arbiter_test(self, weights_list=None):
-        """
-        Run a test with different arbiter weight configurations
+    # Add helper methods to the testbench through monkey patching for compatibility
+    async def run_basic_arbitration_test(self, packets_per_channel, weights, profile):
+        """Run basic arbitration test with specified parameters"""
+        tb = self  # For clarity
 
-        Args:
-            weights_list: List of (weight_a, weight_b, weight_c, weight_d) tuples
-                            If None, a default set of configurations is used
+        # Send packets on all active channels
+        active_channels = []
+        for i, weight in enumerate(weights):
+            if weight > 0:
+                channel = ['A', 'B', 'C', 'D'][i]
+                active_channels.append(channel)
 
-        Returns:
-            True if all tests passed, False if any failed
-        """
-        # Default weights if none provided
-        if weights_list is None:
-            weights_list = [
-                (15, 0, 0, 0),    # Channel A only
-                (0, 15, 0, 0),    # Channel B only
-                (0, 0, 15, 0),    # Channel C only
-                (0, 0, 0, 15),    # Channel D only
-                (8, 8, 0, 0),     # Equal A and B
-                (0, 8, 8, 0),     # Equal B and C
-                (0, 0, 8, 8),     # Equal C and D
-                (8, 0, 0, 8),     # Equal A and D
-                (4, 8, 12, 0),    # Varied weights
-                (1, 2, 4, 8),     # Increasing weights
-            ]
+        # Send packets on active channels
+        for channel in active_channels:
+            data_list = [0x100 + (ord(channel) - ord('A')) * 0x10 + i for i in range(packets_per_channel)]
+            base_id = {'A': 0xAA, 'B': 0xBB, 'C': 0xCC, 'D': 0xDD}[channel]
+            await tb.send_sequence(channel, data_list, base_id)
 
-        all_passed = True
-        results = []
+        # Wait for completion
+        await tb.wait_clocks('i_axi_aclk', packets_per_channel * 10 + 100)
+        await tb.wait_for_all_masters_idle()
 
-        for i, weights in enumerate(weights_list):
-            self.log.info(f"Starting weighted test {i+1}/{len(weights_list)} with weights: {weights}{self.get_time_ns_str()}")
+        # Calculate expected outputs
+        total_packets = packets_per_channel * len(active_channels)
+        expected_outputs = total_packets // tb.CHUNKS
 
-            # Reset system
-            await self.assert_reset()
-            await self.wait_clocks('i_axi_aclk', 10)
-            await self.deassert_reset()
-            await self.wait_clocks('i_axi_aclk', 10)
+        # Wait for outputs and verify
+        await tb.wait_for_expected_outputs(expected_outputs)
+        tb.add_received_packets_to_scoreboard()
+        await tb.wait_clocks('i_axi_aclk', 50)
 
-            # Set weights
-            weight_a, weight_b, weight_c, weight_d = weights
-            self.set_arbiter_weights(weight_a, weight_b, weight_c, weight_d)
+        # Check scoreboard
+        errors = tb.check_scoreboard()
+        if errors > 0:
+            tb.log.error(f"Basic arbitration test failed with {errors} errors")
+            tb.stats['verification_errors'] += errors
 
-            # Start arbiter monitoring
-            self.start_arbiter_monitoring()
 
-            # Clear scoreboard
-            self.scoreboard.clear()
+    async def run_fairness_analysis_test(self, profiles):
+        """Run fairness analysis across multiple profiles"""
+        tb = self
 
-            # Calculate packets per channel based on weights
-            total_weight = max(1, weight_a + weight_b + weight_c + weight_d)
-            base_count = 20  # Base number of packets per weight unit
+        fairness_results = []
 
-            packets_a = 0 if weight_a == 0 else base_count * weight_a
-            packets_b = 0 if weight_b == 0 else base_count * weight_b
-            packets_c = 0 if weight_c == 0 else base_count * weight_c
-            packets_d = 0 if weight_d == 0 else base_count * weight_d
+        for profile in profiles:
+            tb.log.info(f"Fairness analysis for profile: {profile}")
+            tb.set_randomizer_profile(profile)
+            tb.reset_statistics()
 
-            # Make sure packet counts are multiples of 4 for clean testing
-            packets_a = (packets_a // 4) * 4
-            packets_b = (packets_b // 4) * 4
-            packets_c = (packets_c // 4) * 4
-            packets_d = (packets_d // 4) * 4
+            # Use equal weights for fairness testing
+            tb.set_arbiter_weights(8, 8, 8, 8)
+            tb.start_arbiter_monitoring()
 
-            # Estimate expected output count (total packets / 4)
-            expected_outputs = (packets_a + packets_b + packets_c + packets_d) // 4
+            # Send packets on all channels
+            packets_per_channel = 40
+            for channel in ['A', 'B', 'C', 'D']:
+                data_list = [0x100 + (ord(channel) - ord('A')) * 0x10 + i for i in range(packets_per_channel)]
+                base_id = {'A': 0xAA, 'B': 0xBB, 'C': 0xCC, 'D': 0xDD}[channel]
+                await tb.send_sequence(channel, data_list, base_id)
 
-            # Send packets concurrently
-            send_tasks = []
-            if packets_a > 0:
-                send_tasks.append(cocotb.start_soon(
-                    self.send_packets_on_channel('A', packets_a, id_value=0xAA, base_data=0x100 + i*0x1000)
-                ))
+            # Wait for completion
+            await tb.wait_clocks('i_axi_aclk', packets_per_channel * 20 + 200)
+            await tb.wait_for_all_masters_idle()
 
-            if packets_b > 0:
-                send_tasks.append(cocotb.start_soon(
-                    self.send_packets_on_channel('B', packets_b, id_value=0xBB, base_data=0x200 + i*0x1000)
-                ))
+            # Calculate expected outputs and wait
+            expected_outputs = (packets_per_channel * 4) // tb.CHUNKS
+            await tb.wait_for_expected_outputs(expected_outputs)
+            tb.add_received_packets_to_scoreboard()
 
-            if packets_c > 0:
-                send_tasks.append(cocotb.start_soon(
-                    self.send_packets_on_channel('C', packets_c, id_value=0xCC, base_data=0x300 + i*0x1000)
-                ))
+            # Analyze fairness
+            stats = tb.get_statistics()
+            fairness_score = tb.calculate_fairness_score()
+            fairness_results.append((profile, fairness_score))
 
-            if packets_d > 0:
-                send_tasks.append(cocotb.start_soon(
-                    self.send_packets_on_channel('D', packets_d, id_value=0xDD, base_data=0x400 + i*0x1000)
-                ))
+            tb.log.info(f"Profile {profile} fairness score: {fairness_score:.3f}")
 
-            # Wait for sending to complete and add packets to scoreboard
-            for task in send_tasks:
-                sent_packets = await task
-                # Add all packets to the scoreboard
-                for pkt in sent_packets:
-                    self.scoreboard.add_input_packet(pkt)
+            # Check scoreboard
+            errors = tb.check_scoreboard()
+            if errors > 0:
+                tb.log.warning(f"Fairness test for {profile} had {errors} verification errors")
 
-            # Wait for masters to finish transmitting
-            await self.wait_for_all_masters_idle()
+        # Log overall fairness results
+        avg_fairness = sum(score for _, score in fairness_results) / len(fairness_results)
+        tb.log.info(f"Average fairness across profiles: {avg_fairness:.3f}")
 
-            # Allow time for all packets to be processed
-            await self.wait_clocks('i_axi_aclk', 200)
+        return fairness_results
 
-            # Wait for expected outputs
-            success = await self.wait_for_expected_outputs(expected_outputs)
 
-            if not success:
-                self.log.error(f"Test {i+1}/{len(weights_list)} failed: timeout waiting for outputs{self.get_time_ns_str()}")
-                all_passed = False
-                results.append(False)
-            else:
-                # Add all received packets to scoreboard
-                self.add_received_packets_to_scoreboard()
+    async def run_stress_arbitration_test(self, duration_packets):
+        """Run stress test with high contention"""
+        tb = self
 
-                # Add extra delay for any remaining packets
-                await self.wait_clocks('i_axi_aclk', 100)
+        tb.log.info(f"Running stress test with {duration_packets} packets per channel")
+        tb.reset_statistics()
 
-                # Verify arbiter weight compliance
-                weight_compliance = self.verify_arbiter_weight_compliance(tolerance=0.3)  # 30% tolerance
-                if not weight_compliance:
-                    self.log.error(f"Test {i+1}/{len(weights_list)} failed: arbiter weight compliance{self.get_time_ns_str()}")
-                    all_passed = False
+        # Use biased weights to test arbitration under stress
+        tb.set_arbiter_weights(12, 4, 2, 1)
+        tb.start_arbiter_monitoring()
 
-                # Check scoreboard for errors
-                errors = self.check_scoreboard()
-                if errors > 0:
-                    self.log.error(f"Test {i+1}/{len(weights_list)} failed: {errors} scoreboard errors{self.get_time_ns_str()}")
-                    all_passed = False
-                    results.append(False)
-                elif not weight_compliance:
-                    results.append(False)
-                else:
-                    self.log.info(f"Test {i+1}/{len(weights_list)} passed{self.get_time_ns_str()}")
-                    results.append(True)
+        # Send many packets on all channels to create contention
+        for channel in ['A', 'B', 'C', 'D']:
+            data_list = [random.randint(0, 255) for _ in range(duration_packets)]
+            base_id = {'A': 0xAA, 'B': 0xBB, 'C': 0xCC, 'D': 0xDD}[channel]
+            await tb.send_sequence(channel, data_list, base_id)
 
-            # Get and report statistics for this test
-            stats = self.get_component_statistics()
-            self.log.info(f"Test {i+1} Statistics: {stats}")
+        # Wait for completion with extended timeout
+        await tb.wait_clocks('i_axi_aclk', duration_packets * 30 + 500)
+        await tb.wait_for_all_masters_idle()
 
-        # Report overall test results
-        self.log.info(f"Weighted arbiter test results: {results}")
-        self.log.info(f"Overall result: {'Passed' if all_passed else 'Failed'}")
+        # Calculate expected outputs and wait
+        expected_outputs = (duration_packets * 4) // tb.CHUNKS
+        await tb.wait_for_expected_outputs(expected_outputs, timeout_clocks=duration_packets * 50)
+        tb.add_received_packets_to_scoreboard()
 
-        return all_passed
+        # Verify stress test results
+        errors = tb.check_scoreboard()
+        if errors > 0:
+            tb.log.warning(f"Stress test had {errors} verification errors")
+            tb.stats['verification_errors'] += errors
 
-    async def run_stress_test(self, duration_clocks=10000):
-        """
-        Run a stress test with continuous data streams
+        stats = tb.get_statistics()
+        tb.log.info(f"Stress test completed: {stats}")
 
-        Args:
-            duration_clocks: Duration of the test in clock cycles
 
-        Returns:
-            True if test passed, False if failed
-        """
-        self.log.info(f"Starting stress test for {duration_clocks} clock cycles{self.get_time_ns_str()}")
+    async def run_zero_weight_test(self):
+        """Test zero-weight channel behavior"""
+        tb = self
 
-        # Reset system
-        await self.assert_reset()
-        await self.wait_clocks('i_axi_aclk', 10)
-        await self.deassert_reset()
-        await self.wait_clocks('i_axi_aclk', 10)
+        tb.log.info("Testing zero-weight channel behavior")
+        tb.reset_statistics()
 
-        # Clear the scoreboard
-        self.scoreboard.clear()
+        # Set weights: only B and C active
+        tb.set_arbiter_weights(0, 10, 10, 0)
+        tb.start_arbiter_monitoring()
 
-        # Set randomizers for fast throughput
-        self.set_master_randomizers('fast', 'fast', 'fast', 'fast')
-        self.set_slave_randomizer('fast')
+        # Send packets only on active channels
+        packets_per_channel = 20
+        for channel in ['B', 'C']:
+            data_list = [0x100 + (ord(channel) - ord('A')) * 0x10 + i for i in range(packets_per_channel)]
+            base_id = {'B': 0xBB, 'C': 0xCC}[channel]
+            await tb.send_sequence(channel, data_list, base_id)
 
-        # Set equal weights
-        self.set_arbiter_weights(8, 8, 8, 8)
+        # Wait for completion
+        await tb.wait_clocks('i_axi_aclk', packets_per_channel * 15 + 100)
+        await tb.wait_for_all_masters_idle()
 
-        # Start arbiter monitoring
-        self.start_arbiter_monitoring()
+        # Calculate expected outputs and wait
+        expected_outputs = (packets_per_channel * 2) // tb.CHUNKS
+        await tb.wait_for_expected_outputs(expected_outputs)
+        tb.add_received_packets_to_scoreboard()
 
-        # Start packet generation tasks - use multiples of 4 for clean testing
-        task_a = cocotb.start_soon(self.send_packets_on_channel('A', 500, id_value=0xAA, base_data=0x100))
-        task_b = cocotb.start_soon(self.send_packets_on_channel('B', 500, id_value=0xBB, base_data=0x200))
-        task_c = cocotb.start_soon(self.send_packets_on_channel('C', 500, id_value=0xCC, base_data=0x300))
-        task_d = cocotb.start_soon(self.send_packets_on_channel('D', 500, id_value=0xDD, base_data=0x400))
+        # Verify zero-weight channels got no grants
+        stats = tb.get_statistics()
+        a_decisions = stats['arbiter_decisions']['A']
+        d_decisions = stats['arbiter_decisions']['D']
+        total_decisions = sum(stats['arbiter_decisions'].values())
 
-        # Wait for specified duration
-        await self.wait_clocks('i_axi_aclk', duration_clocks)
+        if total_decisions > 0:
+            a_ratio = a_decisions / total_decisions
+            d_ratio = d_decisions / total_decisions
 
-        # Wait for tasks to complete
-        sent_a = await task_a
-        sent_b = await task_b
-        sent_c = await task_c
-        sent_d = await task_d
+            if a_ratio > 0.05:  # Allow 5% tolerance
+                tb.log.error(f"Channel A (weight=0) got too many decisions: {a_decisions} ({a_ratio:.1%})")
+                tb.stats['verification_errors'] += 1
 
-        # Add all sent packets to the scoreboard
-        for pkt in sent_a:
-            self.scoreboard.add_input_packet(pkt)
-        for pkt in sent_b:
-            self.scoreboard.add_input_packet(pkt)
-        for pkt in sent_c:
-            self.scoreboard.add_input_packet(pkt)
-        for pkt in sent_d:
-            self.scoreboard.add_input_packet(pkt)
+            if d_ratio > 0.05:  # Allow 5% tolerance
+                tb.log.error(f"Channel D (weight=0) got too many decisions: {d_decisions} ({d_ratio:.1%})")
+                tb.stats['verification_errors'] += 1
 
-        # Wait for masters to finish transmitting
-        await self.wait_for_all_masters_idle()
+        # Check scoreboard
+        errors = tb.check_scoreboard()
+        if errors > 0:
+            tb.log.warning(f"Zero-weight test had {errors} verification errors")
+            tb.stats['verification_errors'] += errors
 
-        # Allow time for all packets to be processed
-        await self.wait_clocks('i_axi_aclk', 500)
+        tb.log.info("✓ Zero-weight channels correctly limited")
 
-        # Add received packets to scoreboard
-        self.add_received_packets_to_scoreboard()
 
-        # Verify arbiter weight compliance under stress
-        weight_compliance = self.verify_arbiter_weight_compliance()
-        if not weight_compliance:
-            self.log.error(f"Arbiter weight compliance check failed under stress{self.get_time_ns_str()}")
-            self.total_errors += 1
-        else:
-            self.log.info(f"Arbiter weight compliance check passed under stress{self.get_time_ns_str()}")
+    def calculate_fairness_score(self):
+        """Calculate fairness score based on arbiter decisions"""
+        decisions = self.stats['arbiter_decisions']
+        total = sum(decisions.values())
 
-        # Check the scoreboard
-        errors = self.check_scoreboard()
+        if total == 0:
+            return 1.0
 
-        # Get overall statistics including arbiter performance
-        stats = self.get_component_statistics()
-        self.log.info(f"Stress Test Statistics: {stats}")
+        # Calculate fairness using Jain's fairness index
+        sum_squared = sum(count**2 for count in decisions.values())
+        sum_linear = sum(decisions.values())
 
-        return errors == 0 and weight_compliance
+        if sum_linear == 0:
+            return 1.0
+
+        fairness = (sum_linear**2) / (4 * sum_squared)  # 4 = number of channels
+        return fairness

@@ -1,8 +1,10 @@
 """
-FIFO Monitor - Clean implementation inheriting from FIFOMonitorBase
+Updated FIFOMonitor - Clean implementation using unified FIFOMonitorBase
 
 Preserves exact timing-critical cocotb methods and external API while
-eliminating code duplication through inheritance.
+leveraging the unified infrastructure through the updated base classes.
+
+All existing parameters are preserved and used exactly as before.
 """
 
 import cocotb
@@ -15,13 +17,15 @@ from .fifo_packet import FIFOPacket
 
 class FIFOMonitor(FIFOMonitorBase):
     """
-    FIFO Monitor - Clean implementation using shared base functionality.
+    FIFO Monitor - Clean implementation using unified base functionality.
 
-    Inherits all common functionality from FIFOMonitorBase:
+    Inherits all common functionality from FIFOMonitorBase (which now inherits from FIFOComponentBase):
     - Signal resolution and data collection setup
     - Clean _get_data_dict() with automatic field unpacking
     - Unified _finish_packet() without conditional mess
     - Packet creation and statistics
+    - Memory model integration using base MemoryModel directly
+    - Randomizer setup with appropriate defaults
 
     Focuses only on monitoring-specific logic:
     - Pure monitoring (no signal driving)
@@ -40,7 +44,7 @@ class FIFOMonitor(FIFOMonitorBase):
                     fifo_depth=16,
                     log=None, super_debug=False, **kwargs):
         """
-        Initialize FIFO Monitor - SAME API as before.
+        Initialize FIFO Monitor - EXACT SAME API AS BEFORE.
 
         Args:
             dut: Device under test
@@ -280,7 +284,7 @@ class FIFOMonitor(FIFOMonitorBase):
             raise
 
     def get_stats(self):
-        """Get comprehensive statistics - ENHANCED with base stats"""
+        """Get comprehensive statistics - ENHANCED with unified base stats"""
         base_stats = self.get_base_stats()
 
         # Add monitor-specific statistics

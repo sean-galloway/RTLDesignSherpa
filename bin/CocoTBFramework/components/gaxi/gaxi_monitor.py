@@ -1,12 +1,10 @@
 """
-GAXI Monitor - Clean implementation inheriting from GAXIMonitorBase
+Updated GAXIMonitor - Clean implementation using unified GAXIMonitorBase
 
 Preserves exact timing-critical cocotb methods and external API while
-eliminating code duplication through inheritance.
+eliminating code duplication through inheritance from unified base classes.
 
-FIXED: Monitors now always sample data immediately when handshake is detected,
-regardless of mode. The fifo_flop/fifo_mux mode only affects internal DUT
-implementation, not external interface observation.
+All existing parameters are preserved and used exactly as before.
 """
 
 import cocotb
@@ -19,13 +17,14 @@ from .gaxi_packet import GAXIPacket
 
 class GAXIMonitor(GAXIMonitorBase):
     """
-    GAXI Monitor - Clean implementation using shared base functionality.
+    GAXI Monitor - Clean implementation using unified base functionality.
 
     Inherits all common functionality from GAXIMonitorBase:
     - Signal resolution and data collection setup
     - Clean _get_data_dict() with automatic field unpacking
     - Unified _finish_packet() without conditional mess
     - Packet creation and statistics
+    - Memory model integration using base MemoryModel directly
 
     Focuses only on monitoring-specific logic:
     - Pure monitoring (no signal driving)
@@ -46,7 +45,7 @@ class GAXIMonitor(GAXIMonitorBase):
                     multi_sig=False,
                     log=None, super_debug=False, **kwargs):
         """
-        Initialize GAXI Monitor - SAME API as before.
+        Initialize GAXI Monitor - EXACT SAME API AS BEFORE.
 
         Args:
             dut: Device under test

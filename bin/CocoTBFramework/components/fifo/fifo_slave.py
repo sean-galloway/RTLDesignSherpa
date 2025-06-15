@@ -1,9 +1,10 @@
 """
-FIFO Slave - Clean implementation inheriting from FIFOMonitorBase
+Updated FIFOSlave - Clean implementation using unified FIFOMonitorBase
 
 Preserves exact timing-critical cocotb methods and external API while
-eliminating code duplication through inheritance. Combines monitoring
-capabilities with active read signal driving.
+leveraging the unified infrastructure through the updated base classes.
+
+All existing parameters are preserved and used exactly as before.
 """
 
 import cocotb
@@ -11,32 +12,26 @@ from cocotb.triggers import RisingEdge, FallingEdge, Timer
 from cocotb.utils import get_sim_time
 
 from .fifo_monitor_base import FIFOMonitorBase
-from ..master_statistics import SlaveStatistics
-from ..flex_randomizer import FlexRandomizer
+from ..monitor_statistics import MonitorStatistics
 from .fifo_packet import FIFOPacket
-
-
-# Default constraints - keeping from original working code
-fifo_slave_default_constraints = {
-    'read_delay': ([(0, 1), (2, 8), (9, 30)], [5, 2, 1])
-}
 
 
 class FIFOSlave(FIFOMonitorBase):
     """
-    FIFO Slave - Clean implementation using shared base functionality.
+    FIFO Slave - Clean implementation using unified base functionality.
 
-    Inherits all common functionality from FIFOMonitorBase:
+    Inherits all common functionality from FIFOMonitorBase (which now inherits from FIFOComponentBase):
     - Signal resolution and data collection setup
     - Clean _get_data_dict() with automatic field unpacking
     - Unified _finish_packet() without conditional mess
     - Packet creation and statistics
+    - Memory model integration using base MemoryModel directly
+    - Randomizer setup with appropriate defaults
 
     Adds slave-specific functionality:
     - Active read signal driving (_set_rd_ready)
     - Phase-based receive logic with delays
     - Read timing control with randomization
-    - SlaveStatistics for performance tracking
     """
 
     def __init__(self, dut, title, prefix, clock, field_config,
@@ -48,7 +43,7 @@ class FIFOSlave(FIFOMonitorBase):
                     multi_sig=False,
                     randomizer=None, log=None, super_debug=False, **kwargs):
         """
-        Initialize FIFO Slave - SAME API as before.
+        Initialize FIFO Slave - EXACT SAME API AS BEFORE.
 
         Args:
             dut: Device under test
@@ -68,7 +63,7 @@ class FIFOSlave(FIFOMonitorBase):
             super_debug: Enable detailed debugging
             **kwargs: Additional arguments
         """
-        # Initialize base class with slave protocol type
+        # Initialize base class with slave protocol type and pass randomizer through
         super().__init__(
             dut=dut,
             title=title,
@@ -82,6 +77,7 @@ class FIFOSlave(FIFOMonitorBase):
             pkt_prefix=pkt_prefix,
             multi_sig=multi_sig,
             protocol_type='fifo_slave',  # Slave monitors read side
+            randomizer=randomizer,  # Pass through to FIFOComponentBase
             log=log,
             super_debug=super_debug,
             **kwargs
@@ -93,13 +89,7 @@ class FIFOSlave(FIFOMonitorBase):
         self.timeout_cycles = timeout_cycles
         self.reset_occurring = False
 
-        # Note: Statistics are now set up in base class as self.stats
-
-        # Set up randomizer - keeping original default constraints
-        if randomizer is None:
-            self.randomizer = FlexRandomizer(fifo_slave_default_constraints)
-        else:
-            self.randomizer = randomizer
+        # Note: Statistics, randomizer, and most initialization now handled by base classes
 
         # Slave-specific initialization - callbacks for compatibility
         self.callbacks = []
@@ -119,11 +109,6 @@ class FIFOSlave(FIFOMonitorBase):
 
         except Exception as e:
             self.log.error(f"FIFOSlave '{self.title}': Error initializing signals: {e}")
-
-    def set_randomizer(self, randomizer):
-        """Set randomizer - modern interface"""
-        self.randomizer = randomizer
-        self.log.info(f"FIFOSlave({self.title}) Set new randomizer for {self.title}")
 
     async def reset_bus(self):
         """Reset bus - EXACT WORKING PATTERN FROM ORIGINAL"""
@@ -227,7 +212,9 @@ class FIFOSlave(FIFOMonitorBase):
                 # CLEAN: Use inherited _finish_packet() - unified implementation!
                 self._finish_packet(current_time, packet, data_dict)
 
-                # Statistics updated by inherited _finish_packet method
+                # Handle memory operations if memory model available - UNIFIED
+                if self.memory_model:
+                    self.handle_memory_write(packet)
 
         elif (hasattr(self, 'read_sig') and self.read_sig is not None and
                 hasattr(self, 'empty_sig') and self.empty_sig is not None and
@@ -288,11 +275,11 @@ class FIFOSlave(FIFOMonitorBase):
         await Timer(self.tick_delay, units=self.tick_units)
 
     def get_stats(self):
-        """Get comprehensive statistics"""
+        """Get comprehensive statistics - ENHANCED with unified base stats"""
         base_stats = self.get_base_stats()
 
         # Add any slave-specific statistics here if needed in the future
-        # For now, all statistics are handled by the base class
+        # For now, all statistics are handled by the base classes
 
         return base_stats
 

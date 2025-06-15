@@ -1,34 +1,30 @@
 """
-GAXI Monitor Base - Common functionality for GAXI monitoring components
+Updated GAXIMonitorBase - Using GAXIComponentBase for unified functionality
 
-Provides shared initialization, signal resolution, data collection, and packet
-finishing logic for both GAXIMonitor and GAXISlave components.
-
-Eliminates code duplication while preserving exact APIs and functionality.
+Eliminates duplication while preserving exact APIs and timing.
+All existing parameters are maintained and used exactly as before.
 """
 
 from cocotb_bus.monitors import BusMonitor
 from cocotb.utils import get_sim_time
 
-from ..field_config import FieldConfig
-from ..signal_mapping_helper import SignalResolver
-from ..data_strategies import DataCollectionStrategy
+from .gaxi_component_base import GAXIComponentBase
 from ..monitor_statistics import MonitorStatistics
 from .gaxi_packet import GAXIPacket
 
 
-class GAXIMonitorBase(BusMonitor):
+class GAXIMonitorBase(GAXIComponentBase, BusMonitor):
     """
-    Base class providing common GAXI monitoring functionality.
+    Base class providing common GAXI monitoring functionality using unified infrastructure.
+
+    Inherits common functionality from GAXIComponentBase:
+    - Signal resolution and data collection setup
+    - Unified field configuration handling
+    - Memory model integration using base MemoryModel directly
+    - Statistics and logging patterns
 
     Shared by GAXIMonitor and GAXISlave to eliminate code duplication
     while preserving exact APIs and timing-critical behavior.
-
-    Provides:
-    - Common initialization logic
-    - Signal resolution and data collection setup
-    - Clean packet finishing without conditional mess
-    - Unified statistics handling
     """
 
     def __init__(self, dut, title, prefix, clock, field_config,
@@ -41,7 +37,7 @@ class GAXIMonitorBase(BusMonitor):
                     protocol_type=None,  # 'gaxi_master' or 'gaxi_slave' - set by subclass
                     log=None, super_debug=False, **kwargs):
         """
-        Initialize common GAXI monitoring functionality.
+        Initialize common GAXI monitoring functionality - EXACT SAME API AS BEFORE.
 
         Args:
             dut: Device under test
@@ -60,65 +56,39 @@ class GAXIMonitorBase(BusMonitor):
             super_debug: Enable detailed debugging
             **kwargs: Additional arguments for BusMonitor
         """
-        # Core attributes - common setup
-        self.title = title
-        self.clock = clock
-        self.mode = mode
-        self.super_debug = super_debug
-
-        # Signal naming convention params
-        self.in_prefix = in_prefix
-        self.out_prefix = out_prefix
-        self.bus_name = bus_name
-        self.pkt_prefix = pkt_prefix
-        self.use_multi_signal = multi_sig
-
-        # Validate protocol_type - must be set by subclass
-        if protocol_type not in ['gaxi_master', 'gaxi_slave']:
-            raise ValueError(f"protocol_type must be 'gaxi_master' or 'gaxi_slave', got: {protocol_type}")
-        self.protocol_type = protocol_type
-
-        # Handle field_config - convert dict if needed
-        if isinstance(field_config, dict):
-            self.field_config = FieldConfig.validate_and_create(field_config)
-        else:
-            self.field_config = field_config or FieldConfig.create_data_only()
-
-        # Modern infrastructure - signal resolution
-        self.signal_resolver = SignalResolver(
-            protocol_type=self.protocol_type,
+        # Extract parameters that shouldn't go to BusMonitor
+        memory_model = kwargs.pop('memory_model', None)
+        randomizer = kwargs.pop('randomizer', None)
+        
+        # Initialize base class with all parameters preserved
+        GAXIComponentBase.__init__(
+            self,
             dut=dut,
-            bus=None,  # Set after BusMonitor init
-            log=log,
-            component_name=title,
-            field_config=self.field_config,
-            multi_sig=self.use_multi_signal,
-            in_prefix=self.in_prefix,
-            out_prefix=self.out_prefix,
-            bus_name=self.bus_name,
-            pkt_prefix=self.pkt_prefix,
+            title=title,
+            prefix=prefix,
+            clock=clock,
+            field_config=field_config,
+            protocol_type=protocol_type,
             mode=mode,
-            super_debug=super_debug
+            in_prefix=in_prefix,
+            out_prefix=out_prefix,
+            bus_name=bus_name,
+            pkt_prefix=pkt_prefix,
+            multi_sig=multi_sig,
+            memory_model=memory_model,
+            randomizer=randomizer,
+            log=log,
+            super_debug=super_debug,
+            **kwargs
         )
 
-        # Get signal lists for BusMonitor - ESSENTIAL FOR COCOTB
-        self._signals, self._optional_signals = self.signal_resolver.get_signal_lists()
-
         # Initialize parent BusMonitor - MUST BE CALLED WITH EXACT PATTERN
+        # Only pass kwargs that BusMonitor/Bus can handle
         BusMonitor.__init__(self, dut, prefix, clock, callback=None, event=None, **kwargs)
         self.log = log or self._log
 
-        # Apply modern signal mappings after bus is created
-        self.signal_resolver.bus = self.bus
-        self.signal_resolver.apply_to_component(self)
-
-        # Modern infrastructure - data collection strategy with enhanced unpacking
-        self.data_collector = DataCollectionStrategy(
-            component=self,
-            field_config=self.field_config,
-            use_multi_signal=self.use_multi_signal,
-            log=self.log
-        )
+        # Complete base class initialization now that bus is available
+        self.complete_base_initialization(self.bus)
 
         # Statistics - unified setup for all GAXI monitoring components
         self.stats = MonitorStatistics()
@@ -134,13 +104,13 @@ class GAXIMonitorBase(BusMonitor):
         This replaces the messy _get_data_dict() + conditional unpacking logic
         that was duplicated in both GAXIMonitor and GAXISlave.
 
-        Uses the enhanced DataCollectionStrategy.collect_and_unpack_data() method
+        Uses the unified DataCollectionStrategy.collect_and_unpack_data() method
         that eliminates all the conditional mess.
 
         Returns:
             Dictionary of field values, properly unpacked
         """
-        return self.data_collector.collect_and_unpack_data()
+        return self.get_data_dict_unified()
 
     def _finish_packet(self, current_time, packet, data_dict=None):
         """
@@ -224,6 +194,25 @@ class GAXIMonitorBase(BusMonitor):
         self._recvQ.clear()
         self.log.info(f"GAXIMonitorBase ({self.title}): Observed queue cleared")
 
+    # Memory operations using base MemoryModel directly (for slave components)
+    def handle_memory_write(self, packet):
+        """Handle memory write using unified memory integration"""
+        success, error = self.write_to_memory_unified(packet)
+        if success:
+            self.log.debug(f"GAXIMonitorBase: Memory write successful")
+        else:
+            self.log.warning(f"GAXIMonitorBase: Memory write failed: {error}")
+        return success
+
+    def handle_memory_read(self, packet):
+        """Handle memory read using unified memory integration"""
+        success, data, error = self.read_from_memory_unified(packet, update_transaction=True)
+        if success:
+            self.log.debug(f"GAXIMonitorBase: Memory read successful, data=0x{data:X}")
+        else:
+            self.log.warning(f"GAXIMonitorBase: Memory read failed: {error}")
+        return success, data
+
     def get_base_stats(self):
         """
         Get base statistics that are common to all GAXI monitoring components.
@@ -233,16 +222,12 @@ class GAXIMonitorBase(BusMonitor):
         Returns:
             Dictionary containing base statistics
         """
-        return {
-            'base_stats': self.stats.get_stats(),
-            'data_collector_stats': self.data_collector.get_stats(),
-            'signal_resolver_stats': self.signal_resolver.get_stats(),
-            'observed_packets': len(self._recvQ),
-            'protocol_type_used': self.protocol_type,
-            'mode': self.mode,
-            'multi_signal': self.use_multi_signal,
-            'field_count': len(self.field_config) if self.field_config else 0
-        }
+        base_stats = self.get_base_stats_unified()
+        base_stats.update({
+            'monitor_stats': self.stats.get_stats(),
+            'observed_packets': len(self._recvQ)
+        })
+        return base_stats
 
     def __str__(self):
         """String representation"""

@@ -7,7 +7,6 @@ from cocotb_test.simulator import run
 from CocoTBFramework.tbclasses.tbbase import TBBase
 from CocoTBFramework.tbclasses.gaxi.gaxi_buffer_multi import GaxiMultiBufferTB
 from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
-from CocoTBFramework.tbclasses.gaxi.gaxi_buffer_configs import RANDOMIZER_CONFIGS
 
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
@@ -81,8 +80,7 @@ def generate_params():
     data_widths = [8]
     depths = [2]
     modes = ['skid']  # Skid buffer has only one mode
-    addr_width = [12]
-    ctrl_width = [9]
+
     return list(product(addr_widths, ctrl_widths, data_widths, depths, modes))
 
 params = generate_params()
