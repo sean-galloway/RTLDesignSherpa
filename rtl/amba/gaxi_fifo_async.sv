@@ -2,12 +2,13 @@
 
 // Paramerized Asynchronous FIFO -- This works for any even depth
 module gaxi_fifo_async #(
+    parameter int REGISTERED = 0,  // 0 = mux mode, 1 = flop mode
     parameter int DATA_WIDTH = 8,
     parameter int DEPTH = 10,
     parameter int N_FLOP_CROSS = 2,
     parameter int ALMOST_WR_MARGIN = 1,
     parameter int ALMOST_RD_MARGIN = 1,
-    parameter INSTANCE_NAME = "DEADF1F0",  // verilog_lint: waive explicit-parameter-storage-type
+    parameter     INSTANCE_NAME = "DEADF1F0",  // verilog_lint: waive explicit-parameter-storage-type
     parameter int DW = DATA_WIDTH,
     parameter int D = DEPTH,
     parameter int AW = $clog2(DEPTH),
@@ -24,7 +25,6 @@ module gaxi_fifo_async #(
     input  logic [DW-1:0]   i_wr_data,
     input  logic            i_rd_ready,
     output logic            o_rd_valid,   // not empty
-    output logic [DW-1:0]   ow_rd_data,
     output logic [DW-1:0]   o_rd_data
     );
 
@@ -41,6 +41,7 @@ module gaxi_fifo_async #(
 
     // The flop storage registers
     logic [DW-1:0] r_mem[0:((1<<AW)-1)];  // verilog_lint: waive unpacked-dimensions-range-ordering
+    logic [DW-1:0] w_rd_data;
 
     /////////////////////////////////////////////////////////////////////////
     // Instantiate the binary counters for write and read pointers
@@ -145,37 +146,47 @@ module gaxi_fifo_async #(
         if (w_write && !r_wr_full) r_mem[r_wr_addr] <= i_wr_data;
     end
 
-    // Flop stage for the flopped data
-    always_ff @(posedge i_axi_rd_aclk or negedge i_axi_rd_aresetn) begin
-        if (!i_axi_rd_aresetn) o_rd_data <= 'b0;
-        else o_rd_data <= r_mem[r_rd_addr];
-    end
+    assign w_rd_data = r_mem[r_rd_addr];
 
     /////////////////////////////////////////////////////////////////////////
     // Read Port
-    assign ow_rd_data = r_mem[r_rd_addr];
+    generate
+        if (REGISTERED != 0) begin : gen_flop_mode
+            // Flop mode - registered output
+            always_ff @(posedge i_axi_rd_aclk or negedge i_axi_rd_aresetn) begin
+                if (!i_axi_rd_aresetn)
+                    o_rd_data <= 'b0;
+                else
+                    o_rd_data <= w_rd_data;
+            end
+        end else begin : gen_mux_mode
+            // Mux mode - non-registered output
+            assign o_rd_data = w_rd_data;
+        end
+    endgenerate
 
     /////////////////////////////////////////////////////////////////////////
     // Generate the Full/Empty signals
     fifo_control #(
-        .DEPTH(D),
-        .ADDR_WIDTH(AW),
-        .ALMOST_RD_MARGIN(ALMOST_RD_MARGIN),
-        .ALMOST_WR_MARGIN(ALMOST_WR_MARGIN)
+        .DEPTH              (D),
+        .ADDR_WIDTH         (AW),
+        .ALMOST_RD_MARGIN   (ALMOST_RD_MARGIN),
+        .ALMOST_WR_MARGIN   (ALMOST_WR_MARGIN),
+        .REGISTERED         (REGISTERED)
     ) fifo_control_inst (
-        .i_wr_clk          (i_axi_wr_aclk),
-        .i_wr_rst_n        (i_axi_wr_aresetn),
-        .i_rd_clk          (i_axi_rd_aclk),
-        .i_rd_rst_n        (i_axi_rd_aresetn),
-        .iw_wr_ptr_bin     (w_wr_ptr_bin_next),
-        .iw_wdom_rd_ptr_bin(w_wdom_rd_ptr_bin),
-        .iw_rd_ptr_bin     (w_rd_ptr_bin_next),
-        .iw_rdom_wr_ptr_bin(w_rdom_wr_ptr_bin),
-        .o_wr_full         (r_wr_full),
-        .o_wr_almost_full  (r_wr_almost_full),
-        .o_rd_empty        (r_rd_empty),
-        .o_rd_almost_empty (r_rd_almost_empty),
-        .ow_count          (w_count)
+        .i_wr_clk           (i_axi_wr_aclk),
+        .i_wr_rst_n         (i_axi_wr_aresetn),
+        .i_rd_clk           (i_axi_rd_aclk),
+        .i_rd_rst_n         (i_axi_rd_aresetn),
+        .iw_wr_ptr_bin      (w_wr_ptr_bin_next),
+        .iw_wdom_rd_ptr_bin (w_wdom_rd_ptr_bin),
+        .iw_rd_ptr_bin      (w_rd_ptr_bin_next),
+        .iw_rdom_wr_ptr_bin (w_rdom_wr_ptr_bin),
+        .o_wr_full          (r_wr_full),
+        .o_wr_almost_full   (r_wr_almost_full),
+        .o_rd_empty         (r_rd_empty),
+        .o_rd_almost_empty  (r_rd_almost_empty),
+        .ow_count           (w_count)
     );
 
     assign o_wr_ready = !r_wr_full;

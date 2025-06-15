@@ -118,7 +118,7 @@ class FIFOSequence:
         return current_index
 
     def add_transaction_with_dependency(self, field_values=None, delay=0, 
-                                       depends_on_index=None, dependency_type="after"):
+                                        depends_on_index=None, dependency_type="after"):
         """
         Add a transaction that depends on completion of a previous transaction.
 
@@ -512,7 +512,7 @@ class FIFOSequence:
     # Factory methods for creating common test sequences
     @classmethod
     def create_dependency_chain(cls, name="dependency_chain", count=5,
-                               data_start=0, data_step=1, delay=0, log=None):
+                                data_start=0, data_step=1, delay=0, log=None):
         """
         Create a sequence with transactions forming a dependency chain.
 
@@ -570,7 +570,7 @@ class FIFOSequence:
         
         if log:
             log.info(f"Created capacity test sequence '{name}' for capacity={capacity} "
-                   f"with {sequence.transaction_counter} transactions")
+                    f"with {sequence.transaction_counter} transactions")
         
         return sequence
 
@@ -625,8 +625,8 @@ class FIFOSequence:
 
     @classmethod
     def create_comprehensive_test(cls, name="comprehensive", field_config=None, 
-                                 packets_per_pattern=10, include_dependencies=True, log=None,
-                                 capacity=None, data_width=None):
+                                    packets_per_pattern=10, include_dependencies=True, log=None,
+                                    capacity=None, data_width=None):
         """
         Create a comprehensive test sequence with multiple patterns.
 
@@ -688,7 +688,7 @@ class FIFOSequence:
         
         if log:
             log.info(f"Created comprehensive test sequence '{name}' with {sequence.transaction_counter} transactions, "
-                   f"data_width={actual_data_width}, capacity={capacity}")
+                    f"data_width={actual_data_width}, capacity={capacity}")
         
         return sequence
 
@@ -751,7 +751,7 @@ class FIFOSequence:
 
     @classmethod  
     def create_performance_test(cls, name="performance", count=50, burst_size=10, 
-                               data_start=0x8000, log=None):
+                                data_start=0x8000, log=None):
         """
         Create a performance-focused test sequence with bursts.
 
@@ -792,7 +792,7 @@ class FIFOSequence:
 
     @classmethod
     def create_mixed_pattern_test(cls, name="mixed_patterns", field_config=None, 
-                                 pattern_size=8, log=None):
+                                    pattern_size=8, log=None):
         """
         Create a sequence with mixed test patterns for thorough validation.
 

@@ -2,12 +2,12 @@
 
 // Parameterized Synchronous FIFO -- This works with any depth
 module gaxi_fifo_sync #(
-    parameter int REGISTERED = 0,  // 0 = mux mode (ow_rd_data), 1 = flop mode (o_rd_data)
+    parameter int REGISTERED = 0,  // 0 = mux mode, 1 = flop mode
     parameter int DATA_WIDTH = 4,
     parameter int DEPTH = 4,
     parameter int ALMOST_WR_MARGIN = 1,
     parameter int ALMOST_RD_MARGIN = 1,
-    parameter INSTANCE_NAME = "DEADF1F0",  // verilog_lint: waive explicit-parameter-storage-type
+    parameter     INSTANCE_NAME = "DEADF1F0",  // verilog_lint: waive explicit-parameter-storage-type
     parameter int DW = DATA_WIDTH,
     parameter int D = DEPTH,
     parameter int AW = $clog2(DEPTH)
@@ -114,7 +114,7 @@ module gaxi_fifo_sync #(
     generate
         if (REGISTERED != 0) begin : gen_flop_mode
             // Flop mode - registered output
-            always_ff @(posedge i_clk or negedge i_axi_aresetn) begin
+            always_ff @(posedge i_axi_aclk or negedge i_axi_aresetn) begin
                 if (!i_axi_aresetn)
                     o_rd_data <= 'b0;
                 else

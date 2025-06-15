@@ -1,5 +1,5 @@
 """
-Simplified FIFO Signal Mapping - Pattern Matching Against Top-Level Ports
+Simplified GAXI/FIFO Signal Mapping - Pattern Matching Against Top-Level Ports
 
 Uses pattern matching against actual DUT ports with parameter combinations
 to find the correct signal mappings automatically.
@@ -12,6 +12,56 @@ from rich.table import Table
 
 # Standard FIFO modes (kept for parameter passing to RTL)
 FIFO_VALID_MODES = ['fifo_mux', 'fifo_flop']
+
+# Standard GAXI modes (kept for parameter passing to RTL)
+GAXI_VALID_MODES = ['skid', 'fifo_mux', 'fifo_flop']
+
+# GAXI base signal patterns
+GAXI_BASE_PATTERNS = {
+    # Master-side patterns (for masters and write monitors)
+    'valid_base': [
+        '{in_prefix}{bus_name}wr_valid',
+        '{in_prefix}{bus_name}valid',
+        '{in_prefix}{bus_name}m2s_valid',
+    ],
+    'ready_base': [
+        '{out_prefix}{bus_name}wr_ready',
+        '{out_prefix}{bus_name}ready',
+        '{out_prefix}{bus_name}s2m_ready',
+    ],
+    'pkt_base': [
+        '{in_prefix}{bus_name}wr_data',
+        '{in_prefix}{bus_name}data',
+        '{in_prefix}{bus_name}m2s_pkt',
+    ],
+    'field_base': [
+        '{in_prefix}{bus_name}{pkt_prefix}{field_name}',
+        '{in_prefix}{bus_name}{pkt_prefix}wr_{field_name}',
+        '{in_prefix}{bus_name}m2s_pkt_{field_name}',
+    ],
+
+    # Slave-side patterns (for slaves and read monitors)
+    'slave_valid_base': [
+        '{out_prefix}{bus_name}rd_valid',
+        '{out_prefix}{bus_name}valid',
+        '{out_prefix}{bus_name}m2s_valid',
+    ],
+    'slave_ready_base': [
+        '{in_prefix}{bus_name}rd_ready',
+        '{in_prefix}{bus_name}ready',
+        '{in_prefix}{bus_name}s2m_ready',
+    ],
+    'slave_pkt_base': [
+        '{out_prefix}{bus_name}rd_data',
+        '{out_prefix}{bus_name}data',
+        '{out_prefix}{bus_name}m2s_pkt',
+    ],
+    'slave_field_base': [
+        '{out_prefix}{bus_name}{pkt_prefix}{field_name}',
+        '{out_prefix}{bus_name}{pkt_prefix}rd_{field_name}',
+        '{out_prefix}{bus_name}m2s_pkt_{field_name}',
+    ]
+}
 
 # Simplified base signal patterns
 FIFO_BASE_PATTERNS = {
@@ -73,9 +123,33 @@ PROTOCOL_SIGNAL_CONFIGS = {
             'multi_sig_false': FIFO_BASE_PATTERNS['rd_data_base'],
             'multi_sig_true':  FIFO_BASE_PATTERNS['rd_field_base']
         }
+    },
+
+    # GAXI protocol configurations
+    'gaxi_master': {
+        'signal_map': {
+            'i_valid':    GAXI_BASE_PATTERNS['valid_base'],
+            'o_ready':    GAXI_BASE_PATTERNS['ready_base']
+        },
+        'optional_signal_map': {
+            'multi_sig_false': GAXI_BASE_PATTERNS['pkt_base'],
+            'multi_sig_true':  GAXI_BASE_PATTERNS['field_base']
+        }
+    },
+
+    'gaxi_slave': {
+        'signal_map': {
+            'o_valid':    GAXI_BASE_PATTERNS['slave_valid_base'],
+            'i_ready':    GAXI_BASE_PATTERNS['slave_ready_base']
+        },
+        'optional_signal_map': {
+            'multi_sig_false': GAXI_BASE_PATTERNS['slave_pkt_base'],
+            'multi_sig_true':  GAXI_BASE_PATTERNS['slave_field_base']
+        }
     }
 
     # Note: No special monitor configurations needed!
+    # Write monitors use 'gaxi_master', read monitors use 'gaxi_slave'
     # Write monitors use 'fifo_master', read monitors use 'fifo_slave'
 }
 
@@ -116,7 +190,7 @@ class SignalResolver:
         Initialize signal resolver with pattern matching.
 
         Args:
-            protocol_type: Protocol type ('fifo_master', 'fifo_slave')
+            protocol_type: Protocol type ('fifo_master', 'fifo_slave', 'gaxi_master', 'gaxi_slave')
             dut: Device under test
             bus: Bus object from BusDriver/BusMonitor (can be None initially)
             log: Logger instance (can be None)
@@ -127,9 +201,19 @@ class SignalResolver:
             out_prefix: Output signal prefix
             bus_name: Bus/channel name
             pkt_prefix: Packet field prefix
-            mode: FIFO mode (kept for RTL parameter)
+            mode: Protocol mode (kept for RTL parameter)
             super_debug: Enable detailed signal resolution debugging
         """
+        # Get caller information for better error reporting
+        caller_info = _get_caller_info()
+
+        if not isinstance(protocol_type, str):
+            raise TypeError(
+                f"Protocol type must be a string\n"
+                f"Called from: {caller_info['filename']}:{caller_info['line_number']} in {caller_info['function']}()\n"
+                f"Code: {caller_info['code_line']}"
+            )
+
         self.protocol_type = protocol_type
         self.dut = dut
         self.bus = bus
@@ -473,15 +557,27 @@ class SignalResolver:
         if logical_name == 'data_sig':
             return 'data_sig'
 
-        # Handle control signals
-        signal_to_attr = {
-            'i_write': 'write_sig',
-            'o_wr_full': 'full_sig',
-            'i_read': 'read_sig',
-            'o_rd_empty': 'empty_sig'
-        }
+        # Handle FIFO control signals
+        if logical_name in ['i_write', 'o_wr_full', 'i_read', 'o_rd_empty']:
+            fifo_signal_to_attr = {
+                'i_write': 'write_sig',
+                'o_wr_full': 'full_sig',
+                'i_read': 'read_sig',
+                'o_rd_empty': 'empty_sig'
+            }
+            return fifo_signal_to_attr.get(logical_name, logical_name)
 
-        return signal_to_attr.get(logical_name, logical_name)
+        # Handle GAXI control signals
+        if logical_name in ['i_valid', 'o_ready', 'o_valid', 'i_ready']:
+            gaxi_signal_to_attr = {
+                'i_valid': 'valid_sig',
+                'o_ready': 'ready_sig',
+                'o_valid': 'valid_sig',
+                'i_ready': 'ready_sig'
+            }
+            return gaxi_signal_to_attr.get(logical_name, logical_name)
+
+        return logical_name
 
     def apply_to_component(self, component):
         """Apply resolved signals to component as attributes."""
@@ -536,3 +632,44 @@ class SignalResolver:
             stats['conflict_details'] = self.signal_conflicts.copy()
 
         return stats
+
+
+# Helper function to get caller info (referenced but not defined in the original)
+def _get_caller_info():
+    """Get information about where SignalResolver was called from."""
+    import inspect
+    try:
+        # Walk up the stack to find the first frame outside this file
+        for frame_info in inspect.stack():
+            filename = frame_info.filename
+            function_name = frame_info.function
+            line_number = frame_info.lineno
+
+            # Skip frames within this file (signal_mapping_helper.py)
+            if 'signal_mapping_helper' not in filename:
+                # Get some context around the line if possible
+                try:
+                    with open(filename, 'r') as f:
+                        lines = f.readlines()
+                        if 0 <= line_number - 1 < len(lines):
+                            code_line = lines[line_number - 1].strip()
+                        else:
+                            code_line = "<line not available>"
+                except:
+                    code_line = "<unable to read file>"
+
+                return {
+                    'filename': filename,
+                    'function': function_name,
+                    'line_number': line_number,
+                    'code_line': code_line
+                }
+    except:
+        pass
+
+    return {
+        'filename': '<unknown>',
+        'function': '<unknown>',
+        'line_number': 0,
+        'code_line': '<unknown>'
+    }

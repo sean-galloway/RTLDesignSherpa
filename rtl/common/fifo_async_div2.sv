@@ -2,7 +2,7 @@
 
 // Paramerized Asynchronous FIFO -- This works for any even depth
 module fifo_async_div2 #(
-    parameter int REGISTERED = 0,  // 0 = mux mode (ow_rd_data), 1 = flop mode (o_rd_data)
+    parameter int REGISTERED = 0,  // 0 = mux mode, 1 = flop mode
     parameter int DATA_WIDTH = 8,
     parameter int DEPTH = 10,
     parameter int N_FLOP_CROSS = 2,

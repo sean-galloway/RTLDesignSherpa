@@ -1,37 +1,40 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Tue Jun  3 01:34:07 2025
+[*] Sat Jun 14 21:37:56 2025
 [*]
-[dumpfile] "/home/seang/github/RTLDesignSherpa/val/amba/local_sim_build/test_gaxi_fifo_async_w008_d004_fifo_mux/dump.fst"
-[dumpfile_mtime] "Tue Jun  3 01:21:54 2025"
-[dumpfile_size] 8484
+[dumpfile] "(null)"
 [savefile] "/home/seang/github/RTLDesignSherpa/val/amba/GTKW/gaxi_fifo_async.gtkw"
-[timestart] 11086500
-[size] 3215 914
-[pos] -1 84
-*-17.093634 12010000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[timestart] 0
+[size] 2641 1616
+[pos] -1 -1
+*-19.436430 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] .
-[sst_width] 370
-[signals_width] 182
+[sst_width] 278
+[signals_width] 344
 [sst_expanded] 1
-[sst_vpaned_height] 267
+[sst_vpaned_height] 510
+@420
+gaxi_skid_buffer_async.DEPTH
+gaxi_skid_buffer_async.DATA_WIDTH
+gaxi_skid_buffer_async.N_FLOP_CROSS
+gaxi_skid_buffer_async.REGISTERED
 @200
 -write interface
 @28
-i_axi_wr_aclk
-i_axi_wr_aresetn
-i_wr_valid
-o_wr_ready
+gaxi_skid_buffer_async.i_axi_wr_aclk
+gaxi_skid_buffer_async.i_axi_wr_aresetn
+gaxi_skid_buffer_async.i_wr_valid
+gaxi_skid_buffer_async.o_wr_ready
 @22
-i_wr_data[7:0]
+gaxi_skid_buffer_async.i_wr_data[7:0]
 @200
 -read interface
 @28
-i_axi_rd_aclk
-i_axi_rd_aresetn
-o_rd_valid
-i_rd_ready
+gaxi_skid_buffer_async.i_axi_rd_aclk
+gaxi_skid_buffer_async.i_axi_rd_aresetn
+gaxi_skid_buffer_async.o_rd_valid
+gaxi_skid_buffer_async.i_rd_ready
 @23
-ow_rd_data[7:0]
+gaxi_skid_buffer_async.o_rd_data[7:0]
 [pattern_trace] 1
 [pattern_trace] 0

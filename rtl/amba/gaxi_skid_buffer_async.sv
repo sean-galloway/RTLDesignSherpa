@@ -2,6 +2,7 @@
 
 // AXI Skid buffer where all ports are driven or received by a flop
 module gaxi_skid_buffer_async #(
+    parameter int REGISTERED = 0,  // 0 = mux mode, 1 = flop mode
     parameter int DATA_WIDTH    = 32,
     parameter int DEPTH         = 2,
     parameter int N_FLOP_CROSS  = 2,
@@ -22,7 +23,6 @@ module gaxi_skid_buffer_async #(
     // output side
     output logic          o_rd_valid,
     input  logic          i_rd_ready,
-    output logic [DW-1:0] ow_rd_data,
     output logic [DW-1:0] o_rd_data
 );
 
@@ -53,7 +53,8 @@ module gaxi_skid_buffer_async #(
         .N_FLOP_CROSS(N_FLOP_CROSS),
         .ALMOST_WR_MARGIN(1),
         .ALMOST_RD_MARGIN(1),
-        .INSTANCE_NAME(INSTANCE_NAME)
+        .INSTANCE_NAME(INSTANCE_NAME),
+        .REGISTERED(REGISTERED)
     ) inst_gaxi_fifo_async (
         .i_axi_wr_aclk   (i_axi_wr_aclk),
         .i_axi_wr_aresetn(i_axi_wr_aresetn),
@@ -64,7 +65,6 @@ module gaxi_skid_buffer_async #(
         .i_wr_data       (r_xfer_data),
         .i_rd_ready      (i_rd_ready),
         .o_rd_valid      (o_rd_valid),
-        .ow_rd_data      (ow_rd_data),
         .o_rd_data       (o_rd_data)
     );
 

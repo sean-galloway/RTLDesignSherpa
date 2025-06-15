@@ -1,4 +1,8 @@
-'''Shared Configs for the GAXI Buffer tests'''
+"""Shared Field Configurations for GAXI Buffer Tests
+
+Simplified to only contain field configurations. Randomization is now handled
+by FlexConfigGen in the individual testbenches.
+"""
 
 # Field configurations for different test modes
 FIELD_CONFIGS = {
@@ -14,7 +18,7 @@ FIELD_CONFIGS = {
         }
     },
 
-    # field mode - addr, ctrl, data0, data1 fields
+    # Field mode - addr, ctrl, data0, data1 fields
     'field': {
         'addr': {
             'bits': 32,  # Will be updated based on config
@@ -45,67 +49,8 @@ FIELD_CONFIGS = {
             'default': 0,
             'format': 'hex',
             'display_width': 4,
-            'active_bits': (31, 0),  # Will be updated based on config
+            'active_bits': (31, 0),  # Will be updated based config
             'description': 'Data1 value'
-        }
-    }
-}
-
-RANDOMIZER_CONFIGS = {
-    'fixed': {
-        'write': {
-            'valid_delay': ([(2, 2)], [1])
-        },
-        'read': {
-            'ready_delay': ([(2, 2)], [1])
-        }
-    },
-    'constrained': {
-        'write': {
-            'valid_delay': ([(0, 0), (1, 8), (9, 20)], [5, 2, 1])
-        },
-        'read': {
-            'ready_delay': ([(0, 1), (2, 8), (9, 30)], [5, 2, 1])
-        }
-    },
-    'fast': {
-        'write': {
-            'valid_delay': ([(0, 0)], [1])  # Only use the fast bin
-        },
-        'read': {
-            'ready_delay': ([(0, 0)], [1])  # Only use the fast bin
-        }
-    },
-    'backtoback': {
-        'write': {
-            'valid_delay': ([(0, 0)], [1])
-        },
-        'read': {
-            'ready_delay': ([(0, 0)], [1])
-        }
-    },
-    'burst_pause': {
-        'write': {
-            'valid_delay': ([(0, 0), (15, 25)], [10, 1])
-        },
-        'read': {
-            'ready_delay': ([(0, 0), (1, 5)], [10, 1])
-        }
-    },
-    'slow_consumer': {
-        'write': {
-            'valid_delay': ([(0, 0)], [1])
-        },
-        'read': {
-            'ready_delay': ([(10, 20)], [1])
-        }
-    },
-    'slow_producer': {
-        'write': {
-            'valid_delay': ([(10, 20)], [1])
-        },
-        'read': {
-            'ready_delay': ([(0, 0)], [1])
         }
     }
 }
