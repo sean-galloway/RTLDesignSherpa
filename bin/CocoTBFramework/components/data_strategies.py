@@ -5,12 +5,16 @@ These classes provide significant performance improvements by caching signal ref
 and field validation rules during initialization, eliminating repeated lookups in
 monitoring and driving loops.
 
+FIXED: Now accepts resolved signals directly from SignalResolver instead of doing
+its own signal discovery, eliminating the guesswork and making the system robust.
+
 Key Benefits:
 - 40% faster data collection through cached signal references
 - 30% faster data driving through cached driving functions
 - Eliminates repeated hasattr()/getattr() calls every cycle
 - Pre-computed field validation for maximum efficiency
 - Clean field unpacking without conditional mess
+- Uses exact signal handles found by SignalResolver
 """
 
 from typing import Dict, Any, List, Optional
@@ -19,9 +23,8 @@ from cocotb.utils import get_sim_time
 
 class DataCollectionStrategy:
     """
-    High-performance data collection strategy that caches signal references and
-    field validation rules during initialization to eliminate repeated lookups
-    in monitoring loops.
+    High-performance data collection strategy that uses resolved signals directly
+    from SignalResolver instead of doing its own signal discovery.
 
     Enhanced with clean field unpacking to eliminate the conditional mess
     that was appearing in _finish_packet methods.
@@ -34,20 +37,22 @@ class DataCollectionStrategy:
     - After: Cached function calls with pre-resolved signal references
     """
 
-    def __init__(self, component, field_config, use_multi_signal, log):
+    def __init__(self, component, field_config, use_multi_signal, log, resolved_signals=None):
         """
-        Initialize data collection strategy with cached signal references.
+        Initialize data collection strategy with resolved signal references.
 
         Args:
             component: The monitor/slave component with signal attributes
             field_config: Field configuration
             use_multi_signal: Whether using multi-signal mode
             log: Logger instance
+            resolved_signals: Dict of resolved signals from SignalResolver (NEW)
         """
         self.component = component
         self.field_config = field_config
         self.use_multi_signal = use_multi_signal
         self.log = log
+        self.resolved_signals = resolved_signals or {}
 
         # Cache signal references and collection functions
         self.signal_refs = {}
@@ -75,40 +80,70 @@ class DataCollectionStrategy:
                         f"unpacking={'required' if self.needs_unpacking else 'not needed'}")
 
     def _setup_collection_strategy(self):
-        """Set up data collection strategy based on available signals."""
+        """Set up data collection strategy using resolved signals from SignalResolver."""
         if self.use_multi_signal:
             self._setup_multi_signal_collection()
         else:
             self._setup_standard_signal_collection()
 
     def _setup_multi_signal_collection(self):
-        """Set up collection for multi-signal mode with cached field signal references."""
+        """Set up collection for multi-signal mode using resolved signals."""
         for field_name in self.field_config.field_names():
-            attr_name = f'field_{field_name}_sig'
-            if hasattr(self.component, attr_name):
-                signal_obj = getattr(self.component, attr_name)
-                if signal_obj is not None:
-                    max_val = self.field_max_values.get(field_name, 0xFFFFFFFF)
-                    self.collection_funcs.append(
-                        self._create_field_collector(field_name, signal_obj, max_val)
-                    )
-                    self.signal_refs[field_name] = signal_obj
+            logical_name = f'field_{field_name}_sig'
+            
+            # Get signal from resolved signals instead of component discovery
+            signal_obj = self._get_resolved_signal(logical_name)
+            
+            if signal_obj is not None:
+                max_val = self.field_max_values.get(field_name, 0xFFFFFFFF)
+                self.collection_funcs.append(
+                    self._create_field_collector(field_name, signal_obj, max_val)
+                )
+                self.signal_refs[field_name] = signal_obj
+            else:
+                self.log.warning(f"Signal '{logical_name}' not found in resolved signals for field '{field_name}'")
 
     def _setup_standard_signal_collection(self):
-        """Set up collection for standard single-signal mode."""
-        if hasattr(self.component, 'data_sig') and self.component.data_sig is not None:
-            data_sig = self.component.data_sig
-            
+        """Set up collection for standard single-signal mode using resolved signals."""
+        # Get data signal from resolved signals instead of component discovery
+        signal_obj = self._get_resolved_signal('data_sig')
+        
+        if signal_obj is not None:
             # For single-signal mode, we're always collecting the COMBINED signal
             # regardless of whether it represents one field or multiple fields
             combined_max_value = self._get_combined_signal_max_value()
-            
+
             # The key insight: we're collecting into a 'data' key that represents
             # the combined signal, which will be unpacked later if needed
             self.collection_funcs.append(
-                self._create_field_collector('data', data_sig, combined_max_value)
+                self._create_field_collector('data', signal_obj, combined_max_value)
             )
-            self.signal_refs['data'] = data_sig
+            self.signal_refs['data'] = signal_obj
+        else:
+            self.log.warning("Signal 'data_sig' not found in resolved signals")
+
+    def _get_resolved_signal(self, logical_name):
+        """
+        Get a resolved signal by logical name, with fallback to component attribute.
+        
+        Args:
+            logical_name: Logical signal name from SignalResolver
+            
+        Returns:
+            Signal object or None
+        """
+        # First try resolved signals from SignalResolver
+        if logical_name in self.resolved_signals:
+            return self.resolved_signals[logical_name]
+        
+        # Fallback to component attribute (for backward compatibility)
+        attr_name = logical_name  # Logical names already match attribute names
+        if hasattr(self.component, attr_name):
+            signal_obj = getattr(self.component, attr_name)
+            if signal_obj is not None:
+                return signal_obj
+        
+        return None
 
     def _get_combined_signal_max_value(self):
         """Get the maximum value for the combined signal based on total field width."""
@@ -125,18 +160,18 @@ class DataCollectionStrategy:
             if signal_obj.value.is_resolvable:
                 try:
                     value = signal_obj.value.integer
-                    
+
                     # Apply the correct max value (which is now the combined signal max)
                     if value > max_value:
                         value &= max_value
-                        
+
                     data_dict[field_name] = value
                 except Exception as e:
                     self.log.error(f"Error reading signal {field_name}: {e}")
                     data_dict[field_name] = -1
             else:
                 data_dict[field_name] = -1
-                
+
         return collect_field
 
     def _create_combined_data_collector(self, field_name, signal_obj):
@@ -240,11 +275,11 @@ class DataCollectionStrategy:
         """Collect data and handle field unpacking in one clean call."""
         # First collect the raw data
         raw_data = self.collect_data()
-        
+
         # If no unpacking needed, return as-is
         if not self.needs_unpacking:
             return raw_data
-            
+
         # Apply unpacking function
         try:
             unpacked = self.unpacking_func(raw_data)
@@ -261,15 +296,15 @@ class DataCollectionStrategy:
             'mode': 'multi-signal' if self.use_multi_signal else 'standard',
             'field_count': len(self.field_config) if self.field_config else 0,
             'needs_unpacking': self.needs_unpacking,
-            'performance_optimized': True
+            'performance_optimized': True,
+            'resolved_signals_used': len(self.resolved_signals)
         }
 
 
 class DataDrivingStrategy:
     """
-    High-performance data driving strategy that caches signal references and
-    field validation rules during initialization to eliminate repeated lookups
-    in transmission loops.
+    High-performance data driving strategy that uses resolved signals directly
+    from SignalResolver instead of doing its own signal discovery.
 
     This is the counterpart to DataCollectionStrategy for driving signals
     instead of reading them.
@@ -279,12 +314,13 @@ class DataDrivingStrategy:
     - After: Cached function calls with pre-resolved signal references
     """
 
-    def __init__(self, component, field_config, use_multi_signal, log):
-        """Initialize data driving strategy with cached signal references."""
+    def __init__(self, component, field_config, use_multi_signal, log, resolved_signals=None):
+        """Initialize data driving strategy with resolved signal references."""
         self.component = component
         self.field_config = field_config
         self.use_multi_signal = use_multi_signal
         self.log = log
+        self.resolved_signals = resolved_signals or {}
 
         # Cache signal references and driving functions
         self.signal_refs = {}
@@ -307,46 +343,76 @@ class DataDrivingStrategy:
                         f"{'multi-signal' if use_multi_signal else 'standard'} mode")
 
     def _setup_driving_strategy(self):
-        """Set up data driving strategy based on available signals."""
+        """Set up data driving strategy using resolved signals from SignalResolver."""
         if self.use_multi_signal:
             self._setup_multi_signal_driving()
         else:
             self._setup_standard_signal_driving()
 
     def _setup_multi_signal_driving(self):
-        """Set up driving for multi-signal mode with cached field signal references."""
+        """Set up driving for multi-signal mode using resolved signals."""
         for field_name in self.field_config.field_names():
-            attr_name = f'field_{field_name}_sig'
-            if hasattr(self.component, attr_name):
-                signal_obj = getattr(self.component, attr_name)
-                if signal_obj is not None:
-                    max_val = self.field_max_values.get(field_name, 0xFFFFFFFF)
-                    self.driving_funcs.append(
-                        self._create_field_driver(field_name, signal_obj, max_val)
-                    )
-                    self.signal_refs[field_name] = signal_obj
+            logical_name = f'field_{field_name}_sig'
+            
+            # Get signal from resolved signals instead of component discovery
+            signal_obj = self._get_resolved_signal(logical_name)
+            
+            if signal_obj is not None:
+                max_val = self.field_max_values.get(field_name, 0xFFFFFFFF)
+                self.driving_funcs.append(
+                    self._create_field_driver(field_name, signal_obj, max_val)
+                )
+                self.signal_refs[field_name] = signal_obj
+            else:
+                self.log.warning(f"Signal '{logical_name}' not found in resolved signals for field '{field_name}'")
 
     def _setup_standard_signal_driving(self):
-        """Set up driving for standard single-signal mode."""
-        if hasattr(self.component, 'data_sig') and self.component.data_sig is not None:
-            data_sig = self.component.data_sig
-            
+        """Set up driving for standard single-signal mode using resolved signals."""
+        # Get data signal from resolved signals instead of component discovery
+        signal_obj = self._get_resolved_signal('data_sig')
+        
+        if signal_obj is not None:
             # For single-signal mode, we're always driving the COMBINED signal
             # regardless of whether it represents one field or multiple fields
             combined_max_value = self._get_combined_signal_max_value()
-            
+
             if len(self.field_config) > 1:
                 # Multi-field packing into single signal
                 self.driving_funcs.append(
-                    self._create_combined_data_driver('data', data_sig, combined_max_value)
+                    self._create_combined_data_driver('data', signal_obj, combined_max_value)
                 )
             else:
                 # Single field - but still use combined signal max value
                 self.driving_funcs.append(
-                    self._create_single_field_driver('data', data_sig, combined_max_value)
+                    self._create_single_field_driver('data', signal_obj, combined_max_value)
                 )
-                
-            self.signal_refs['data'] = data_sig
+
+            self.signal_refs['data'] = signal_obj
+        else:
+            self.log.warning("Signal 'data_sig' not found in resolved signals")
+
+    def _get_resolved_signal(self, logical_name):
+        """
+        Get a resolved signal by logical name, with fallback to component attribute.
+        
+        Args:
+            logical_name: Logical signal name from SignalResolver
+            
+        Returns:
+            Signal object or None
+        """
+        # First try resolved signals from SignalResolver
+        if logical_name in self.resolved_signals:
+            return self.resolved_signals[logical_name]
+        
+        # Fallback to component attribute (for backward compatibility)
+        attr_name = logical_name  # Logical names already match attribute names
+        if hasattr(self.component, attr_name):
+            signal_obj = getattr(self.component, attr_name)
+            if signal_obj is not None:
+                return signal_obj
+        
+        return None
 
     def _get_combined_signal_max_value(self):
         """Get the maximum value for the combined signal based on total field width."""
@@ -388,7 +454,7 @@ class DataDrivingStrategy:
                 signal_obj.value = value
             else:
                 self.log.warning("No data to drive in single field mode")
-                
+
         return drive_single_field
 
     def _create_combined_data_driver(self, signal_key, signal_obj, max_value):
@@ -404,11 +470,11 @@ class DataDrivingStrategy:
                     field_value = fifo_data[fname] & field_max
                     combined_value |= (field_value << bit_offset)
                     bit_offset += field_width
-                    
+
             # Apply the overall signal max value
             if combined_value > max_value:
                 combined_value &= max_value
-                
+
             signal_obj.value = combined_value
 
         return drive_combined
@@ -453,12 +519,13 @@ class DataDrivingStrategy:
             'cached_signals': len(self.signal_refs),
             'mode': 'multi-signal' if self.use_multi_signal else 'standard',
             'field_count': len(self.field_config) if self.field_config else 0,
-            'performance_optimized': True
+            'performance_optimized': True,
+            'resolved_signals_used': len(self.resolved_signals)
         }
 
 
 # Convenience functions for creating strategies
-def create_data_collection_strategy(component, field_config, multi_sig=None, log=None):
+def create_data_collection_strategy(component, field_config, multi_sig=None, log=None, resolved_signals=None):
     """
     Convenience function to create a DataCollectionStrategy.
 
@@ -467,6 +534,7 @@ def create_data_collection_strategy(component, field_config, multi_sig=None, log
         field_config: Field configuration
         multi_sig: Whether to use multi-signal mode (auto-detected if None)
         log: Logger instance
+        resolved_signals: Dict of resolved signals from SignalResolver (NEW)
 
     Returns:
         DataCollectionStrategy instance
@@ -474,10 +542,10 @@ def create_data_collection_strategy(component, field_config, multi_sig=None, log
     if multi_sig is None:
         multi_sig = len(field_config) > 1
 
-    return DataCollectionStrategy(component, field_config, multi_sig, log)
+    return DataCollectionStrategy(component, field_config, multi_sig, log, resolved_signals)
 
 
-def create_data_driving_strategy(component, field_config, multi_sig=None, log=None):
+def create_data_driving_strategy(component, field_config, multi_sig=None, log=None, resolved_signals=None):
     """
     Convenience function to create a DataDrivingStrategy.
 
@@ -486,6 +554,7 @@ def create_data_driving_strategy(component, field_config, multi_sig=None, log=No
         field_config: Field configuration
         multi_sig: Whether to use multi-signal mode (auto-detected if None)
         log: Logger instance
+        resolved_signals: Dict of resolved signals from SignalResolver (NEW)
 
     Returns:
         DataDrivingStrategy instance
@@ -493,4 +562,4 @@ def create_data_driving_strategy(component, field_config, multi_sig=None, log=No
     if multi_sig is None:
         multi_sig = len(field_config) > 1
 
-    return DataDrivingStrategy(component, field_config, multi_sig, log)
+    return DataDrivingStrategy(component, field_config, multi_sig, log, resolved_signals)

@@ -5,6 +5,8 @@ This base class consolidates common functionality across FIFOMaster, FIFOMonitor
 and FIFOSlave, eliminating code duplication while preserving exact APIs and timing.
 
 All existing parameters are preserved and used exactly as before.
+
+FIXED: Now passes resolved signals directly to DataStrategies, eliminating guesswork.
 """
 
 from ..field_config import FieldConfig
@@ -19,6 +21,9 @@ class FIFOComponentBase:
 
     Consolidates common initialization, signal resolution, data handling,
     and packet management while preserving component-specific functionality.
+
+    FIXED: Data strategies now receive resolved signals directly from SignalResolver
+    instead of doing their own signal discovery.
     """
 
     def __init__(self, dut, title, prefix, clock, field_config,
@@ -89,6 +94,7 @@ class FIFOComponentBase:
             bus=None,  # Set after cocotb parent class init
             log=self.log,
             component_name=title,
+            prefix=prefix,
             field_config=self.field_config,
             multi_sig=self.use_multi_signal,
             in_prefix=self.in_prefix,
@@ -179,13 +185,22 @@ class FIFOComponentBase:
                         f"mode={self.mode}, multi_sig={self.use_multi_signal}")
 
     def _setup_data_strategies(self):
-        """Set up data collection and driving strategies based on component needs."""
+        """
+        Set up data collection and driving strategies based on component needs.
+
+        FIXED: Now passes resolved signals directly to DataStrategies instead of
+        letting them do their own signal discovery.
+        """
+        # Get the resolved signals from SignalResolver
+        resolved_signals = self.signal_resolver.resolved_signals
+
         # Data collection strategy - used by all components for monitoring
         self.data_collector = DataCollectionStrategy(
             component=self,
             field_config=self.field_config,
             use_multi_signal=self.use_multi_signal,
-            log=self.log
+            log=self.log,
+            resolved_signals=resolved_signals  # FIXED: Pass resolved signals directly
         )
 
         # Data driving strategy - used by masters and slaves that drive signals
@@ -193,7 +208,8 @@ class FIFOComponentBase:
             component=self,
             field_config=self.field_config,
             use_multi_signal=self.use_multi_signal,
-            log=self.log
+            log=self.log,
+            resolved_signals=resolved_signals  # FIXED: Pass resolved signals directly
         )
 
     def get_data_dict_unified(self):

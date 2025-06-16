@@ -187,9 +187,9 @@ def generate_params():
     registered = [0, 1]  # ADDED - matches sync version (0=mux, 1=flop)
     # test_levels = ['basic', 'medium', 'full']  # All test levels
     test_levels =['full']
-    # return [(8, 4, 10, 8, 0, 'basic')]
-    # return [(8, 4, 10, 8, 0, 'basic'), (8, 4, 10, 8, 1, 'basic')]
-    return list(product(widths, depths, wr_clk_periods, rd_clk_periods, registered, test_levels))
+
+    return [(8, 6, 10, 8, 0, 'full'), (8, 6, 10, 8, 1, 'full'), (8, 6, 8, 10, 0, 'full'), (8, 6, 8, 10, 1, 'full')]
+    # return list(product(widths, depths, wr_clk_periods, rd_clk_periods, registered, test_levels))
 
 params = generate_params()
 

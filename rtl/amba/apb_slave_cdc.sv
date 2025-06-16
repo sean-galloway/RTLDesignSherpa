@@ -128,15 +128,15 @@ module apb_slave_cdc #(
     ) u_rsp_cdc_handshake (
         .clk_src         (aclk),
         .rst_src_n       (aresetn),
-        .valid_src       (i_rsp_valid),
-        .ready_src       (o_rsp_ready),
-        .data_src        ({i_rsp_pslverr, i_rsp_prdata}),
+        .src_valid       (i_rsp_valid),
+        .src_ready       (o_rsp_ready),
+        .src_data        ({i_rsp_pslverr, i_rsp_prdata}),
 
         .clk_dst         (pclk),
         .rst_dst_n       (presetn),
-        .valid_dst       (w_rsp_valid),
-        .ready_dst       (w_rsp_ready),
-        .data_dst        ({w_rsp_pslverr, w_rsp_prdata})
+        .dst_valid       (w_rsp_valid),
+        .dst_ready       (w_rsp_ready),
+        .dst_data        ({w_rsp_pslverr, w_rsp_prdata})
     );
 
 endmodule : apb_slave_cdc

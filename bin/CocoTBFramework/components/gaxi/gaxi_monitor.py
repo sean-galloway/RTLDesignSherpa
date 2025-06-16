@@ -31,7 +31,7 @@ class GAXIMonitor(GAXIMonitorBase):
     - Protocol violation detection
     - Handshake tracking
     - Master-side or slave-side monitoring based on is_slave parameter
-    
+
     FIXED: Always samples data immediately when handshake is detected,
     regardless of DUT internal mode (fifo_flop vs fifo_mux).
     """
@@ -103,13 +103,13 @@ class GAXIMonitor(GAXIMonitorBase):
         # Check for valid/ready protocol violations
         if (hasattr(self, 'valid_sig') and self.valid_sig is not None and
             hasattr(self, 'ready_sig') and self.ready_sig is not None):
-            
+
             if (self.valid_sig.value.is_resolvable and
                 self.ready_sig.value.is_resolvable):
-                
+
                 valid_val = int(self.valid_sig.value)
                 ready_val = int(self.ready_sig.value)
-                
+
                 # Log any unusual protocol conditions
                 if valid_val == 1 and ready_val == 0:
                     # Valid asserted but ready not asserted - normal backpressure
@@ -121,16 +121,16 @@ class GAXIMonitor(GAXIMonitorBase):
                     # Valid handshake - normal operation
                     pass
                 # No specific protocol violations to check for GAXI unlike FIFO
-                
+
         return False
 
     async def _monitor_recv(self):
         """
         FIXED MONITOR RECV - Correct sampling timing based on mode and side.
-        
+
         SAMPLING RULES:
         - Master side monitoring: ALWAYS sample immediately (mode irrelevant)
-        - Slave side + fifo_mux: Sample immediately  
+        - Slave side + fifo_mux: Sample immediately
         - Slave side + fifo_flop: Delay capture by one cycle
         - Slave side + skid: Sample immediately
 
@@ -183,7 +183,7 @@ class GAXIMonitor(GAXIMonitorBase):
                     else:
                         # Capture data immediately for all other cases:
                         # - Master side (any mode)
-                        # - Slave side + fifo_mux mode  
+                        # - Slave side + fifo_mux mode
                         # - Slave side + skid mode
                         # CLEAN: Use inherited _get_data_dict() - no conditional mess!
                         data_dict = self._get_data_dict()

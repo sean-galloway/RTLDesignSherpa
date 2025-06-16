@@ -145,12 +145,12 @@ class GaxiBufferTB(TBBase):
 
     def _create_robust_randomizer_configs(self):
         """Create comprehensive randomizer configurations using FlexConfigGen"""
-        
+
         # Define custom GAXI-specific profiles for different test scenarios
         gaxi_custom_profiles = {
             # Specific patterns for GAXI testing
             'gaxi_stress': ([(0, 0), (1, 2), (5, 10), (20, 30)], [3, 4, 2, 1]),      # Mixed fast/slow for stress
-            'gaxi_pipeline': ([(2, 3), (4, 6)], [3, 1]),                              # Pipeline-friendly timing  
+            'gaxi_pipeline': ([(2, 3), (4, 6)], [3, 1]),                              # Pipeline-friendly timing
             'gaxi_backpressure': ([(0, 0), (30, 50)], [8, 1]),                        # Test backpressure protection
             'gaxi_realistic': ([(0, 1), (2, 4), (8, 12), (20, 25)], [4, 3, 2, 1]),   # Real-world-like pattern
             'gaxi_burst_heavy': ([(0, 0), (50, 80)], [15, 1]),                        # Heavy burst pattern
@@ -174,15 +174,15 @@ class GaxiBufferTB(TBBase):
         )
 
         # Customize some profiles for GAXI-specific behavior
-        
+
         # Make backtoback truly aggressive for both valid and ready
         config_gen.backtoback.valid_delay.fixed_value(0)
         config_gen.backtoback.ready_delay.fixed_value(0)
-        
+
         # Create asymmetric patterns (different valid vs ready behaviors)
         config_gen.fast.valid_delay.mostly_zero(zero_weight=20, fallback_range=(1, 3), fallback_weight=1)
         config_gen.fast.ready_delay.mostly_zero(zero_weight=15, fallback_range=(1, 5), fallback_weight=2)
-        
+
         # Stress test with wider variations
         config_gen.stress.valid_delay.weighted_ranges([
             ((0, 0), 4), ((1, 5), 3), ((10, 15), 2), ((25, 40), 1)
@@ -190,11 +190,11 @@ class GaxiBufferTB(TBBase):
         config_gen.stress.ready_delay.weighted_ranges([
             ((0, 1), 3), ((2, 8), 4), ((15, 25), 2), ((35, 50), 1)
         ])
-        
+
         # Pipeline-friendly - consistent moderate delays
         config_gen.pipeline.valid_delay.uniform_range(3, 5)
         config_gen.pipeline.ready_delay.uniform_range(4, 7)
-        
+
         # Chaotic - completely unpredictable for robustness testing
         config_gen.chaotic.valid_delay.probability_split([
             ((0, 2), 0.3), ((5, 10), 0.25), ((15, 25), 0.25), ((40, 60), 0.2)
@@ -213,7 +213,7 @@ class GaxiBufferTB(TBBase):
 
         # Build all configurations
         randomizer_dict = config_gen.build(return_flexrandomizer=False)
-        
+
         # Convert to the format expected by the rest of the testbench
         converted_configs = {}
         for profile_name, profile_config in randomizer_dict.items():
@@ -221,11 +221,11 @@ class GaxiBufferTB(TBBase):
                 'write': {field: constraints for field, constraints in profile_config.items() if 'valid' in field},
                 'read': {field: constraints for field, constraints in profile_config.items() if 'ready' in field}
             }
-        
+
         self.log.info(f"Created {len(converted_configs)} robust randomizer configurations:")
         for profile_name in converted_configs.keys():
             self.log.info(f"  - {profile_name}")
-            
+
         return converted_configs
 
     def get_randomizer_config_names(self):
@@ -331,10 +331,10 @@ class GaxiBufferTB(TBBase):
         if delay_key in self.randomizer_configs:
             write_config = self.randomizer_configs[delay_key]['write']
             read_config = self.randomizer_configs[delay_key]['read']
-            
+
             self.write_master.set_randomizer(FlexRandomizer(write_config))
             self.read_slave.set_randomizer(FlexRandomizer(read_config))
-            
+
             self.log.info(f"Using randomizer config '{delay_key}' - "
                          f"Write: {write_config}, Read: {read_config}")
         else:
@@ -392,15 +392,15 @@ class GaxiBufferTB(TBBase):
         """Test all available randomizer configurations"""
         self.log.info('='*80)
         self.log.info(f'Running comprehensive randomizer sweep with {packets_per_config} packets per config')
-        
+
         total_configs = len(self.randomizer_configs)
         for i, config_name in enumerate(self.randomizer_configs.keys()):
             self.log.info(f'Testing config {i+1}/{total_configs}: {config_name}')
-            
+
             try:
                 await self.simple_incremental_loops(
-                    count=packets_per_config, 
-                    delay_key=config_name, 
+                    count=packets_per_config,
+                    delay_key=config_name,
                     delay_clks_after=10
                 )
                 self.log.info(f'✓ Config {config_name} passed')
@@ -417,7 +417,7 @@ class GaxiBufferTB(TBBase):
         if delay_key in self.randomizer_configs:
             write_config = self.randomizer_configs[delay_key]['write']
             read_config = self.randomizer_configs[delay_key]['read']
-            
+
             self.write_master.set_randomizer(FlexRandomizer(write_config))
             self.read_slave.set_randomizer(FlexRandomizer(read_config))
         else:

@@ -81,12 +81,11 @@ def generate_params():
     depths = [2]
     modes = ['skid']  # Skid buffer has only one mode
 
-    return list(product(addr_widths, ctrl_widths, data_widths, depths, modes))
+    return [(6, 3, 8, 2, 'skid')]
+    # return list(product(addr_widths, ctrl_widths, data_widths, depths, modes))
 
 params = generate_params()
 
-# Single test configuration for initial debugging
-# @pytest.mark.parametrize("addr_width, ctrl_width, data_width, depth, mode", [(8, 3, 8, 2, 'skid',)])
 @pytest.mark.parametrize("addr_width, ctrl_width, data_width, depth, mode", params)
 def test_axi_skid_buffer_multi(request, addr_width, ctrl_width, data_width, depth, mode):
     # Get all of the directory and module information

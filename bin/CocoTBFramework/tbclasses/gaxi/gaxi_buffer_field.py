@@ -107,7 +107,7 @@ class GaxiFieldBufferTB(TBBase):
 
         # Create proper FieldConfig with FieldDefinition objects
         self.field_config = FieldConfig()
-        
+
         # Add fields with proper bit assignments for field-based testing
         self.field_config.add_field(FieldDefinition(
             name='addr',
@@ -118,7 +118,7 @@ class GaxiFieldBufferTB(TBBase):
             active_bits=(self.AW-1, 0),
             description=f'Address field ({self.AW} bits)'
         ))
-        
+
         self.field_config.add_field(FieldDefinition(
             name='ctrl',
             bits=self.CW,
@@ -128,7 +128,7 @@ class GaxiFieldBufferTB(TBBase):
             active_bits=(self.CW-1, 0),
             description=f'Control field ({self.CW} bits)'
         ))
-        
+
         self.field_config.add_field(FieldDefinition(
             name='data0',
             bits=self.DW,
@@ -138,7 +138,7 @@ class GaxiFieldBufferTB(TBBase):
             active_bits=(self.DW-1, 0),
             description=f'Data0 field ({self.DW} bits)'
         ))
-        
+
         self.field_config.add_field(FieldDefinition(
             name='data1',
             bits=self.DW,
@@ -476,30 +476,30 @@ class GaxiFieldBufferTB(TBBase):
         Legacy simple incremental test - UNCHANGED API for test runners.
         """
         self.log.info(f"Running simple incremental loops with count={count}, delay_key='{delay_key}'")
-        
+
         # Set randomizer profile
         self.set_randomizer_profile(delay_key)
-        
+
         # Reset statistics
         self.reset_statistics()
-        
+
         # Generate simple incrementing sequence
         sequence = self.basic_sequence(count)
-        
+
         # Run the sequence
         await self.run_sequence(sequence)
-        
+
         # Wait for completion
         await self.wait_clocks(self.wr_clk_name, delay_clks_after)
-        
+
         # Verify results
         result = self.verify_transactions()
-        
+
         if result:
             self.log.info(f"✓ Simple incremental loops completed successfully")
         else:
             self.log.error(f"✗ Simple incremental loops failed verification")
-            
+
         return result
 
     async def run_sequence_test(self, sequence_generator, delay_key='balanced', delay_clks_after=20):
@@ -508,25 +508,25 @@ class GaxiFieldBufferTB(TBBase):
         """
         # Set randomizer profile
         self.set_randomizer_profile(delay_key)
-        
+
         # Reset statistics
         self.reset_statistics()
-        
+
         # Get the sequence (generator is a callable that returns sequence)
         if callable(sequence_generator):
             sequence = sequence_generator()
         else:
             sequence = sequence_generator
-            
+
         # Run the sequence
         await self.run_sequence(sequence)
-        
+
         # Wait for completion
         await self.wait_clocks(self.wr_clk_name, delay_clks_after)
-        
+
         # Verify results
         result = self.verify_transactions()
-        
+
         return result
 
     async def run_sequence(self, sequence_gen=None):
@@ -538,7 +538,7 @@ class GaxiFieldBufferTB(TBBase):
 
         # Execute sequence using new infrastructure's unified methods
         transactions = sequence_gen.get_transactions()
-        
+
         self.log.info(f"Running sequence with {len(transactions)} transactions")
 
         for i, transaction_data in enumerate(transactions):
@@ -631,7 +631,7 @@ class GaxiFieldBufferTB(TBBase):
         for field_name in ['addr', 'ctrl', 'data0', 'data1']:
             if not hasattr(sent, field_name) or not hasattr(received, field_name):
                 continue
-                
+
             sent_value = getattr(sent, field_name, 0)
             received_value = getattr(received, field_name, 0)
 
@@ -786,7 +786,7 @@ class GaxiFieldBufferTB(TBBase):
         }
 
         field_widths = {'addr': self.AW, 'ctrl': self.CW, 'data0': self.DW, 'data1': self.DW}
-        
+
         for field_name, error_count in self.stats['field_errors'].items():
             summary['field_breakdown'][field_name] = {
                 'errors': error_count,

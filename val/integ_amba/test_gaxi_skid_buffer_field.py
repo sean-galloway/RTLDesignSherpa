@@ -81,15 +81,11 @@ def generate_params():
     depths = [2]
     modes = ['skid']  # Skid buffer has only one mode
 
-    addr_widths = [8]  # You can add more address widths if needed
-    ctrl_widths = [7]
-
-    return list(product(addr_widths, ctrl_widths, data_widths, depths, modes))
+    return [(6, 3, 8, 2, 'skid')]
+    # return list(product(addr_widths, ctrl_widths, data_widths, depths, modes))
 
 params = generate_params()
 
-# Single test configuration for initial debugging
-# @pytest.mark.parametrize("data_width, depth, mode, addr_width", [(8, 2, 'skid', 4)])
 @pytest.mark.parametrize("addr_width, ctrl_width, data_width, depth, mode", params)
 def test_gaxi_skid_buffer_field(request, addr_width, ctrl_width, data_width, depth, mode):
     # Get all of the directory and module information

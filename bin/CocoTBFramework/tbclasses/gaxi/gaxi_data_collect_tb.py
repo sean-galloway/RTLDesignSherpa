@@ -626,7 +626,7 @@ class GAXIDataCollectTB(TBBase):
                 'moderate', 'balanced', 'heavy_pause', 'gradual', 'jittery',
                 'pipeline', 'throttled', 'chaotic', 'smooth', 'efficient',
                 # GAXI arbitration profiles
-                'arbitration_balanced', 'arbitration_fair', 'arbitration_stress', 
+                'arbitration_balanced', 'arbitration_fair', 'arbitration_stress',
                 'arbitration_burst', 'arbitration_coordinated', 'arbitration_chaotic',
                 'arbitration_weighted'
             ],
@@ -719,12 +719,12 @@ class GAXIDataCollectTB(TBBase):
     def _on_arbiter_transaction(self, transaction):
         """Callback function called when arbiter monitor observes a transaction"""
         self.scoreboard.add_arbiter_transaction(transaction, self.current_weights)
-        
+
         # Track for additional statistics
         if transaction.gnt_id < len(self.channel_names):
             channel = self.channel_names[transaction.gnt_id]
             self.stats['arbiter_decisions'][channel] += 1
-        
+
         self.log.debug(f"Arbiter transaction: Client {transaction.gnt_id} granted "
                         f"after {transaction.cycle_count} cycles, "
                         f"req_vector=0x{transaction.req_vector:x}{self.get_time_ns_str()}")

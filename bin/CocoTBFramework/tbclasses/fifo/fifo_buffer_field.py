@@ -163,7 +163,7 @@ class FifoFieldBufferTB(TBBase):
 
     def _create_robust_randomizer_configs(self):
         """Create comprehensive randomizer configurations using FlexConfigGen"""
-        
+
         # Define custom FIFO-specific profiles for multi-field testing
         fifo_field_custom_profiles = {
             # Field-specific patterns
@@ -191,15 +191,15 @@ class FifoFieldBufferTB(TBBase):
         )
 
         # Customize profiles for field-specific behavior
-        
+
         # Aggressive backtoback for field testing
         config_gen.backtoback.write_delay.fixed_value(0)
         config_gen.backtoback.read_delay.fixed_value(0)
-        
+
         # Fast patterns optimized for field processing
         config_gen.fast.write_delay.mostly_zero(zero_weight=25, fallback_range=(1, 2), fallback_weight=1)
         config_gen.fast.read_delay.mostly_zero(zero_weight=20, fallback_range=(1, 4), fallback_weight=2)
-        
+
         # Stress test with field-aware variations
         config_gen.stress.write_delay.weighted_ranges([
             ((0, 0), 5), ((1, 4), 4), ((8, 12), 3), ((20, 30), 2), ((35, 50), 1)
@@ -207,11 +207,11 @@ class FifoFieldBufferTB(TBBase):
         config_gen.stress.read_delay.weighted_ranges([
             ((0, 1), 4), ((2, 6), 4), ((10, 18), 3), ((25, 35), 2), ((40, 55), 1)
         ])
-        
+
         # Field-optimized pipeline timing
         config_gen.pipeline.write_delay.uniform_range(2, 4)
         config_gen.pipeline.read_delay.uniform_range(3, 6)
-        
+
         # Chaotic field testing
         config_gen.chaotic.write_delay.probability_split([
             ((0, 1), 0.35), ((3, 8), 0.3), ((12, 20), 0.2), ((30, 50), 0.15)
@@ -226,7 +226,7 @@ class FifoFieldBufferTB(TBBase):
 
         # Build all configurations
         randomizer_dict = config_gen.build(return_flexrandomizer=False)
-        
+
         # Convert to the format expected by the rest of the testbench
         converted_configs = {}
         for profile_name, profile_config in randomizer_dict.items():
@@ -234,11 +234,11 @@ class FifoFieldBufferTB(TBBase):
                 'write': {field: constraints for field, constraints in profile_config.items() if 'write' in field},
                 'read': {field: constraints for field, constraints in profile_config.items() if 'read' in field}
             }
-        
+
         self.log.info(f"Created {len(converted_configs)} robust field randomizer configurations:")
         for profile_name in converted_configs.keys():
             self.log.info(f"  - {profile_name}")
-            
+
         return converted_configs
 
     def get_randomizer_config_names(self):
@@ -358,10 +358,10 @@ class FifoFieldBufferTB(TBBase):
         if delay_key in self.randomizer_configs:
             write_config = self.randomizer_configs[delay_key]['write']
             read_config = self.randomizer_configs[delay_key]['read']
-            
+
             self.write_master.set_randomizer(FlexRandomizer(write_config))
             self.read_slave.set_randomizer(FlexRandomizer(read_config))
-            
+
             self.log.info(f"Using randomizer config '{delay_key}' - "
                             f"Write: {write_config}, Read: {read_config}")
         else:
@@ -386,7 +386,7 @@ class FifoFieldBufferTB(TBBase):
             ctrl = i & self.MAX_CTRL  # Mask control to avoid overflow
             data0 = i & self.MAX_DATA  # Mask data to avoid overflow
             data1 = (i * 2) & self.MAX_DATA  # Mask data to avoid overflow
-            
+
             packet = FIFOPacket(self.field_config)
             packet.addr = addr
             packet.ctrl = ctrl
@@ -432,15 +432,15 @@ class FifoFieldBufferTB(TBBase):
         """Test all available randomizer configurations"""
         self.log.info('='*80)
         self.log.info(f'Running comprehensive field randomizer sweep with {packets_per_config} packets per config')
-        
+
         total_configs = len(self.randomizer_configs)
         for i, config_name in enumerate(self.randomizer_configs.keys()):
             self.log.info(f'Testing field config {i+1}/{total_configs}: {config_name}')
-            
+
             try:
                 await self.simple_incremental_loops(
-                    count=packets_per_config, 
-                    delay_key=config_name, 
+                    count=packets_per_config,
+                    delay_key=config_name,
                     delay_clks_after=8
                 )
                 self.log.info(f'✓ Field config {config_name} passed')
@@ -458,7 +458,7 @@ class FifoFieldBufferTB(TBBase):
         if delay_key in self.randomizer_configs:
             write_config = self.randomizer_configs[delay_key]['write']
             read_config = self.randomizer_configs[delay_key]['read']
-            
+
             self.write_master.set_randomizer(FlexRandomizer(write_config))
             self.read_slave.set_randomizer(FlexRandomizer(read_config))
         else:
@@ -536,7 +536,7 @@ class FifoFieldBufferTB(TBBase):
 
         if pattern_type == 'comprehensive':
             # Test all field corner cases
-            
+
             # Corner values for each field
             patterns.extend([
                 {'addr': 0, 'ctrl': 0, 'data0': 0, 'data1': 0},                                    # All zeros
@@ -549,7 +549,7 @@ class FifoFieldBufferTB(TBBase):
             for bit in range(min(16, self.AW)):
                 patterns.append({'addr': 1 << bit, 'ctrl': bit & self.MAX_CTRL, 'data0': bit, 'data1': bit * 2})
 
-            # Walking patterns in ctrl field  
+            # Walking patterns in ctrl field
             for bit in range(min(8, self.CW)):
                 patterns.append({'addr': bit, 'ctrl': 1 << bit, 'data0': bit * 3, 'data1': bit * 4})
 

@@ -305,6 +305,17 @@ class FIFOMaster(FIFOComponentBase, BusDriver):
             await RisingEdge(self.clock)
         return True
 
+    async def busy_send(self, transaction):
+        """
+        Send a transaction and wait for completion.
+
+        Args:
+            transaction: The transaction to send
+        """
+        await self.send(transaction)
+        while self.transfer_busy:
+            await self.wait_cycles(1)
+
     def create_packet(self, **field_values):
         """Create a packet with specified field values"""
         packet = FIFOPacket(self.field_config)

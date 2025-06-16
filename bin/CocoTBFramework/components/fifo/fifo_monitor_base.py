@@ -59,7 +59,7 @@ class FIFOMonitorBase(FIFOComponentBase, BusMonitor):
         # Extract parameters that shouldn't go to BusMonitor
         memory_model = kwargs.pop('memory_model', None)
         randomizer = kwargs.pop('randomizer', None)
-        
+
         # Initialize base class with all parameters preserved
         FIFOComponentBase.__init__(
             self,

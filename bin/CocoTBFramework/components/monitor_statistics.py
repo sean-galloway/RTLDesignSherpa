@@ -14,10 +14,10 @@ class MonitorStatistics:
     def get_stats(self):
         """
         Return all statistics as a dictionary.
-        
+
         This makes the class more robust by providing a standard interface
         for accessing statistics without having to manually extract attributes.
-        
+
         Returns:
             Dictionary containing all statistics
         """

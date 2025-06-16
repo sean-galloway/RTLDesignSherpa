@@ -79,10 +79,9 @@ def generate_width_depth_mode_params():
     data_widths = [8]
     depths = [6]
     modes = ['fifo_mux', 'fifo_flop']
-    addr_widths = [4]  # You can add more address widths if needed
-    ctrl_widths = [5]
-    modes = ['fifo_mux']
-    return list(product(addr_widths, ctrl_widths, data_widths, depths, modes))
+
+    return [(8, 5, 8, 2, 'fifo_mux'), (8, 5, 8, 2, 'fifo_flop')]
+    # return list(product(addr_widths, ctrl_widths, data_widths, depths, modes))
 
 params = generate_width_depth_mode_params()
 

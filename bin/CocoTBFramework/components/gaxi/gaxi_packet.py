@@ -9,13 +9,13 @@ from ..flex_randomizer import FlexRandomizer
 class GAXIPacket(Packet):
     """
     Packet class for GAXI protocol.
-    
+
     Minimal extension of base Packet class that only adds GAXI-specific
     randomizer handling. All field management, masking, pack/unpack, and
     formatting functionality is inherited from the base Packet class.
     """
 
-    def __init__(self, field_config: Optional[FieldConfig] = None, 
+    def __init__(self, field_config: Optional[FieldConfig] = None,
                     master_randomizer: Optional[FlexRandomizer] = None,
                     slave_randomizer: Optional[FlexRandomizer] = None, **kwargs):
         """

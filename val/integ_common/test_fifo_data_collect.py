@@ -148,7 +148,7 @@ def generate_params():
     output_fifo_depths = [16, 32]
     # test_levels = ['basic', 'medium', 'full']  # All test levels
     test_levels = ['full']
-    return [(8, 4, 16, 'basic')]  # For quick debugging
+    return [(8, 4, 16, 'full')]  # For quick debugging
     # return list(product(data_widths, id_widths, output_fifo_depths, test_levels))
 
 params = generate_params()

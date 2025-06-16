@@ -167,7 +167,7 @@ class FifoMultiBufferTB(TBBase):
 
     def _create_robust_randomizer_configs(self):
         """Create comprehensive randomizer configurations using FlexConfigGen"""
-        
+
         # Define custom multi-signal specific profiles
         multi_signal_custom_profiles = {
             # Multi-signal specific patterns
@@ -195,15 +195,15 @@ class FifoMultiBufferTB(TBBase):
         )
 
         # Customize profiles for multi-signal behavior
-        
+
         # Ultra-aggressive backtoback for multi-signal
         config_gen.backtoback.write_delay.fixed_value(0)
         config_gen.backtoback.read_delay.fixed_value(0)
-        
+
         # Fast patterns optimized for multi-signal processing
         config_gen.fast.write_delay.mostly_zero(zero_weight=30, fallback_range=(1, 2), fallback_weight=1)
         config_gen.fast.read_delay.mostly_zero(zero_weight=25, fallback_range=(1, 3), fallback_weight=2)
-        
+
         # Stress test with multi-signal variations
         config_gen.stress.write_delay.weighted_ranges([
             ((0, 0), 6), ((1, 3), 5), ((4, 8), 4), ((12, 18), 3), ((25, 35), 2), ((40, 60), 1)
@@ -211,11 +211,11 @@ class FifoMultiBufferTB(TBBase):
         config_gen.stress.read_delay.weighted_ranges([
             ((0, 1), 5), ((2, 5), 5), ((6, 12), 4), ((18, 28), 3), ((35, 45), 2), ((50, 70), 1)
         ])
-        
+
         # Multi-signal optimized pipeline timing
         config_gen.pipeline.write_delay.uniform_range(1, 3)
         config_gen.pipeline.read_delay.uniform_range(2, 5)
-        
+
         # Chaotic multi-signal testing
         config_gen.chaotic.write_delay.probability_split([
             ((0, 1), 0.4), ((2, 6), 0.3), ((8, 15), 0.2), ((20, 40), 0.1)
@@ -234,7 +234,7 @@ class FifoMultiBufferTB(TBBase):
 
         # Build all configurations
         randomizer_dict = config_gen.build(return_flexrandomizer=False)
-        
+
         # Convert to the format expected by the rest of the testbench
         converted_configs = {}
         for profile_name, profile_config in randomizer_dict.items():
@@ -242,11 +242,11 @@ class FifoMultiBufferTB(TBBase):
                 'write': {field: constraints for field, constraints in profile_config.items() if 'write' in field},
                 'read': {field: constraints for field, constraints in profile_config.items() if 'read' in field}
             }
-        
+
         self.log.info(f"Created {len(converted_configs)} robust multi-signal randomizer configurations:")
         for profile_name in converted_configs.keys():
             self.log.info(f"  - {profile_name}")
-            
+
         return converted_configs
 
     def get_randomizer_config_names(self):
@@ -366,10 +366,10 @@ class FifoMultiBufferTB(TBBase):
         if delay_key in self.randomizer_configs:
             write_config = self.randomizer_configs[delay_key]['write']
             read_config = self.randomizer_configs[delay_key]['read']
-            
+
             self.write_master.set_randomizer(FlexRandomizer(write_config))
             self.read_slave.set_randomizer(FlexRandomizer(read_config))
-            
+
             self.log.info(f"Using multi-signal randomizer config '{delay_key}' - "
                             f"Write: {write_config}, Read: {read_config}")
         else:
@@ -394,7 +394,7 @@ class FifoMultiBufferTB(TBBase):
             ctrl = i & self.MAX_CTRL  # Mask control to avoid overflow
             data0 = i & self.MAX_DATA  # Mask data to avoid overflow
             data1 = (i * 2) & self.MAX_DATA  # Mask data to avoid overflow
-            
+
             packet = FIFOPacket(self.field_config)
             packet.addr = addr
             packet.ctrl = ctrl
@@ -440,15 +440,15 @@ class FifoMultiBufferTB(TBBase):
         """Test all available randomizer configurations"""
         self.log.info('='*80)
         self.log.info(f'Running comprehensive multi-signal randomizer sweep with {packets_per_config} packets per config')
-        
+
         total_configs = len(self.randomizer_configs)
         for i, config_name in enumerate(self.randomizer_configs.keys()):
             self.log.info(f'Testing multi-signal config {i+1}/{total_configs}: {config_name}')
-            
+
             try:
                 await self.simple_incremental_loops(
-                    count=packets_per_config, 
-                    delay_key=config_name, 
+                    count=packets_per_config,
+                    delay_key=config_name,
                     delay_clks_after=6
                 )
                 self.log.info(f'✓ Multi-signal config {config_name} passed')
@@ -548,7 +548,7 @@ class FifoMultiBufferTB(TBBase):
         test_patterns = [
             # Test addr field isolation
             {'name': 'addr_isolation', 'addr_vary': True, 'ctrl_vary': False, 'data0_vary': False, 'data1_vary': False},
-            # Test ctrl field isolation  
+            # Test ctrl field isolation
             {'name': 'ctrl_isolation', 'addr_vary': False, 'ctrl_vary': True, 'data0_vary': False, 'data1_vary': False},
             # Test data0 field isolation
             {'name': 'data0_isolation', 'addr_vary': False, 'ctrl_vary': False, 'data0_vary': True, 'data1_vary': False},
@@ -561,11 +561,11 @@ class FifoMultiBufferTB(TBBase):
 
         for pattern in test_patterns:
             self.log.info(f"Testing pattern: {pattern['name']}")
-            
+
             # Send packets according to pattern
             for i in range(count // len(test_patterns)):
                 packet = FIFOPacket(self.field_config)
-                
+
                 # Set fields based on pattern
                 packet.addr = (i if pattern['addr_vary'] else 0x1000) & self.MAX_ADDR
                 packet.ctrl = (i if pattern['ctrl_vary'] else 0x55) & self.MAX_CTRL
@@ -640,7 +640,7 @@ class FifoMultiBufferTB(TBBase):
             # Test data1 field overflow
             {'addr': 0x100, 'ctrl': 0x10, 'data0': 0x1000, 'data1': (1 << (self.DW + 8)) - 1},
             # Test all fields overflow
-            {'addr': (1 << (self.AW + 1)) - 1, 'ctrl': (1 << (self.CW + 1)) - 1, 
+            {'addr': (1 << (self.AW + 1)) - 1, 'ctrl': (1 << (self.CW + 1)) - 1,
                 'data0': (1 << (self.DW + 2)) - 1, 'data1': (1 << (self.DW + 4)) - 1},
         ]
 
@@ -678,7 +678,7 @@ class FifoMultiBufferTB(TBBase):
                     expected_data0 = original_values['data0'] & data_mask
                     expected_data1 = original_values['data1'] & data_mask
 
-                    if (wr_pkt.addr != expected_addr or wr_pkt.ctrl != expected_ctrl or 
+                    if (wr_pkt.addr != expected_addr or wr_pkt.ctrl != expected_ctrl or
                         wr_pkt.data0 != expected_data0 or wr_pkt.data1 != expected_data1):
                         self.log.error(f"Multi-signal field masking did not work correctly for packet {i+1}{self.get_time_ns_str()}")
                         self.log.error(f"Expected: addr=0x{expected_addr:X}, ctrl=0x{expected_ctrl:X}, data0=0x{expected_data0:X}, data1=0x{expected_data1:X}")
@@ -689,11 +689,11 @@ class FifoMultiBufferTB(TBBase):
 
         # Test signal isolation errors (if applicable)
         self.log.info("Testing multi-signal isolation verification")
-        
+
         # Send a packet with known values to verify signal separation
         isolation_packet = FIFOPacket(self.field_config)
         isolation_packet.addr = 0xA5A5 & self.MAX_ADDR
-        isolation_packet.ctrl = 0x5A & self.MAX_CTRL  
+        isolation_packet.ctrl = 0x5A & self.MAX_CTRL
         isolation_packet.data0 = 0x12345678 & self.MAX_DATA
         isolation_packet.data1 = 0x87654321 & self.MAX_DATA
 
@@ -740,7 +740,7 @@ class FifoMultiBufferTB(TBBase):
             packet.ctrl = (i % 16) & self.MAX_CTRL         # Cycling control values
             packet.data0 = (i * 0x100 + 0x1000) & self.MAX_DATA  # Incremental data0
             packet.data1 = ((count - i) * 0x200) & self.MAX_DATA  # Decremental data1
-            
+
             await self.write_master.send(packet)
 
         # Wait for completion

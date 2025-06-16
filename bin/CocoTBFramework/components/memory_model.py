@@ -11,7 +11,7 @@ from typing import Optional, Dict, Any, Union, List, Tuple
 class MemoryModel:
     """
     Memory model with integrated diagnostics, access tracking, and region management.
-    
+
     Provides high-performance memory operations using NumPy with comprehensive
     debugging capabilities, boundary checking, and memory organization features.
     """

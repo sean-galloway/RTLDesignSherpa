@@ -188,15 +188,15 @@ module apb_slave_cdc_cg #(
     ) u_cmd_cdc_handshake (
         .clk_src         (gated_pclk),       // Use gated clock
         .rst_src_n       (presetn),
-        .valid_src       (w_cmd_valid),
-        .ready_src       (int_cmd_ready),    // Connect to internal signal
-        .data_src        ({w_cmd_pwrite, w_cmd_paddr, w_cmd_pwdata, w_cmd_pstrb, w_cmd_pprot}),
+        .src_valid       (w_cmd_valid),
+        .src_ready       (int_cmd_ready),
+        .src_data        ({w_cmd_pwrite, w_cmd_paddr, w_cmd_pwdata, w_cmd_pstrb, w_cmd_pprot}),
 
         .clk_dst         (gated_aclk),       // Use gated clock
         .rst_dst_n       (aresetn),
-        .valid_dst       (o_cmd_valid),
-        .ready_dst       (i_cmd_ready),
-        .data_dst        ({o_cmd_pwrite, o_cmd_paddr, o_cmd_pwdata, o_cmd_pstrb, o_cmd_pprot})
+        .dst_valid       (o_cmd_valid),
+        .dst_ready       (i_cmd_ready),
+        .dst_data        ({o_cmd_pwrite, o_cmd_paddr, o_cmd_pwdata, o_cmd_pstrb, o_cmd_pprot})
     );
 
     // Use clock domain crossing handshake for response path
@@ -205,15 +205,15 @@ module apb_slave_cdc_cg #(
     ) u_rsp_cdc_handshake (
         .clk_src         (gated_aclk),       // Use gated clock
         .rst_src_n       (aresetn),
-        .valid_src       (i_rsp_valid),
-        .ready_src       (int_rsp_ready_aclk),  // Fixed - connect to internal signal
-        .data_src        ({i_rsp_pslverr, i_rsp_prdata}),
+        .src_valid       (i_rsp_valid),
+        .src_ready       (int_rsp_ready_aclk),
+        .src_data        ({i_rsp_pslverr, i_rsp_prdata}),
 
         .clk_dst         (gated_pclk),       // Use gated clock
         .rst_dst_n       (presetn),
-        .valid_dst       (w_rsp_valid),
-        .ready_dst       (w_rsp_ready),      // This is now properly controlled
-        .data_dst        ({w_rsp_pslverr, w_rsp_prdata})
+        .dst_valid       (w_rsp_valid),
+        .dst_ready       (w_rsp_ready),
+        .dst_data        ({w_rsp_pslverr, w_rsp_prdata})
     );
 
 endmodule : apb_slave_cdc_cg

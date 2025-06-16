@@ -15,7 +15,7 @@ from ..field_config import FieldConfig
 from .gaxi_master import GAXIMaster
 from .gaxi_slave import GAXISlave
 from .gaxi_monitor import GAXIMonitor
-from scoreboards.gaxi_scoreboard import GAXIScoreboard
+from CocoTBFramework.scoreboards.gaxi_scoreboard import GAXIScoreboard
 
 
 def get_default_field_config(data_width=32):

@@ -6,16 +6,16 @@ module cdc_handshake #(
     // Source clock domain signals
     input  logic                  clk_src,     // Source domain clock
     input  logic                  rst_src_n,   // Source domain async reset (active low)
-    input  logic                  valid_src,   // Source indicates data valid
-    output logic                  ready_src,   // Handshake ready back to source
-    input  logic [DATA_WIDTH-1:0] data_src,    // Data from source domain
+    input  logic                  src_valid,   // Source indicates data valid
+    output logic                  src_ready,   // Handshake ready back to source
+    input  logic [DATA_WIDTH-1:0] src_data,    // Data from source domain
 
     // Destination clock domain signals
     input  logic                  clk_dst,     // Destination domain clock
     input  logic                  rst_dst_n,   // Destination domain async reset (active low)
-    output logic                  valid_dst,   // Destination indicates data valid to receiver
-    input  logic                  ready_dst,   // Receiver ready in destination domain
-    output logic [DATA_WIDTH-1:0] data_dst     // Data transferred to destination domain
+    output logic                  dst_valid,   // Destination indicates data valid to receiver
+    input  logic                  dst_ready,   // Receiver ready in destination domain
+    output logic [DATA_WIDTH-1:0] dst_data     // Data transferred to destination domain
 );
 
     //-------------------------------------------------------------------------
@@ -28,7 +28,7 @@ module cdc_handshake #(
 
     // Data storage for crossing
     logic [DATA_WIDTH-1:0] r_async_data;  // Holds the data word during transfer (latched in source domain)
-    logic [DATA_WIDTH-1:0] r_data_dst;    // Latched data in destination domain (to drive data_dst)
+    logic [DATA_WIDTH-1:0] r_dst_data;    // Latched data in destination domain (to drive dst_data)
 
     // Multi-stage synchronizer registers (3-stage) for CDC
     logic [2:0] r_req_sync;  // Synchronizer for r_req_src -> clk_dst domain
@@ -72,35 +72,35 @@ module cdc_handshake #(
     //-------------------------------------------------------------------------
     // Source Domain Handshake FSM (clk_src)
     //-------------------------------------------------------------------------
-    // Handles incoming valid_src/data_src, drives request and generates ready_src after handshake completes.
+    // Handles incoming src_valid/src_data, drives request and generates src_ready after handshake completes.
     always_ff @(posedge clk_src or negedge rst_src_n) begin
         if (!rst_src_n) begin
             // Asynchronous reset (active low)
             r_src_state   <= S_IDLE;
             r_req_src     <= 1'b0;
-            ready_src     <= 1'b0;
+            src_ready     <= 1'b0;
             r_async_data  <= {DATA_WIDTH{1'b0}};
         end else begin
             case (r_src_state)
                 S_IDLE: begin
-                    ready_src <= 1'b1;      // Module is ready for a new transfer
+                    src_ready <= 1'b1;      // Module is ready for a new transfer
                     r_req_src <= 1'b0;      // Ensure request is low when idle
-                    if (valid_src) begin
+                    if (src_valid) begin
                         // New valid data detected, latch data and raise request
-                        r_async_data <= data_src;   // Capture the data word for transfer
+                        r_async_data <= src_data;   // Capture the data word for transfer
                         r_req_src    <= 1'b1;       // Assert request to destination
-                        ready_src    <= 1'b0;       // Not ready for new data until current handshake completes
+                        src_ready    <= 1'b0;       // Not ready for new data until current handshake completes
                         r_src_state  <= S_WAIT_ACK;
                     end
                 end
 
                 S_WAIT_ACK: begin
-                    ready_src <= 1'b0;      // Busy waiting for ack, hold ready_src low
+                    src_ready <= 1'b0;      // Busy waiting for ack, hold src_ready low
                     if (w_ack_sync) begin
                         // Destination acknowledged the transfer (ack received)
                         r_req_src    <= 1'b0;     // Drop the request now that ack is seen
                         r_src_state  <= S_WAIT_ACK_CLR;
-                        // Note: Keep ready_src low until ack is fully cleared in next state
+                        // Note: Keep src_ready low until ack is fully cleared in next state
                     end else begin
                         // No ack yet, keep waiting
                         r_req_src    <= 1'b1;     // Maintain request signal
@@ -109,11 +109,11 @@ module cdc_handshake #(
                 end
 
                 S_WAIT_ACK_CLR: begin
-                    ready_src <= 1'b0;      // Still busy until ack is cleared
+                    src_ready <= 1'b0;      // Still busy until ack is cleared
                     r_req_src <= 1'b0;      // Ensure request remains deasserted
                     if (!w_ack_sync) begin
                         // Ack has returned to 0 in source domain -> handshake cycle complete
-                        ready_src    <= 1'b1;     // Now ready for the next data (handshake done)
+                        src_ready    <= 1'b1;     // Now ready for the next data (handshake done)
                         r_src_state  <= S_IDLE;
                     end else begin
                         // Ack still asserted, wait for it to clear
@@ -122,7 +122,7 @@ module cdc_handshake #(
                 end
                 default: begin
                     r_src_state   <= S_IDLE;
-                    ready_src <= 1'b1;      // Module is ready for a new transfer
+                    src_ready <= 1'b1;      // Module is ready for a new transfer
                     r_req_src <= 1'b0;      // Ensure request is low when idle
                 end
             endcase
@@ -147,45 +147,45 @@ module cdc_handshake #(
     //-------------------------------------------------------------------------
     // Destination Domain Handshake FSM (clk_dst)
     //-------------------------------------------------------------------------
-    // Waits for synchronized request, then, if the local receiver is ready, latches data and asserts valid_dst and ack.
-    // Holds valid_dst high until ready_dst is asserted by the receiver, and waits for source to drop request (acknowledged back).
+    // Waits for synchronized request, then, if the local receiver is ready, latches data and asserts dst_valid and ack.
+    // Holds dst_valid high until dst_ready is asserted by the receiver, and waits for source to drop request (acknowledged back).
     always_ff @(posedge clk_dst or negedge rst_dst_n) begin
         if (!rst_dst_n) begin
             // Asynchronous reset (active low)
             r_dst_state <= D_IDLE;
             r_ack_dst   <= 1'b0;
-            valid_dst   <= 1'b0;
-            r_data_dst  <= {DATA_WIDTH{1'b0}};
+            dst_valid   <= 1'b0;
+            r_dst_data  <= {DATA_WIDTH{1'b0}};
         end else begin
             case (r_dst_state)
                 D_IDLE: begin
                     r_ack_dst <= 1'b0;
                     if (w_req_sync) begin  
-                        r_data_dst   <= r_async_data;  
-                        valid_dst    <= 1'b1;          
+                        r_dst_data   <= r_async_data;  
+                        dst_valid    <= 1'b1;          
                         r_dst_state  <= D_WAIT_READY;      // Always go to WAIT_READY first
                     end else begin
-                        valid_dst <= 1'b0;  
+                        dst_valid <= 1'b0;  
                     end
                 end
                 D_WAIT_READY: begin
-                    // Keep valid_dst high while waiting for ready_dst
-                    valid_dst <= 1'b1;
-                    if (ready_dst) begin
+                    // Keep dst_valid high while waiting for dst_ready
+                    dst_valid <= 1'b1;
+                    if (dst_ready) begin
                         // Now receiver is ready, acknowledge the transfer
                         r_ack_dst    <= 1'b1;
-                        valid_dst    <= 1'b0;  // Drop valid_dst as soon as ready_dst is sampled high
+                        dst_valid    <= 1'b0;  // Drop dst_valid as soon as dst_ready is sampled high
                         r_dst_state  <= D_WAIT_REQ_CLR;
                     end else if (!w_req_sync) begin
                         // Source withdrew the request
-                        valid_dst    <= 1'b0;
+                        dst_valid    <= 1'b0;
                         r_dst_state  <= D_IDLE;
                     end
                 end
 
                 D_WAIT_REQ_CLR: begin
-                    // At this point, ack is high but valid_dst is now low
-                    valid_dst <= 1'b0;  // Keep valid_dst low in this state
+                    // At this point, ack is high but dst_valid is now low
+                    dst_valid <= 1'b0;  // Keep dst_valid low in this state
                     if (!w_req_sync) begin
                         // Source has dropped the request (received our ack and completed its cycle)
                         r_ack_dst    <= 1'b0;   // Drop acknowledge signal
@@ -198,13 +198,13 @@ module cdc_handshake #(
                 default: begin
                     r_dst_state <= D_IDLE;
                     r_ack_dst   <= 1'b0;
-                    valid_dst   <= 1'b0;
+                    dst_valid   <= 1'b0;
                 end
             endcase
         end
     end
 
     // Drive the output data bus in destination domain from the latched register
-    assign data_dst = r_data_dst;
+    assign dst_data = r_dst_data;
 
 endmodule : cdc_handshake

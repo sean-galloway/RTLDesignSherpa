@@ -30,7 +30,7 @@ def _get_caller_info():
             filename = frame_info.filename
             function_name = frame_info.function
             line_number = frame_info.lineno
-            
+
             # Skip frames within this file (flex_randomizer.py)
             if 'flex_randomizer.py' not in filename:
                 # Get some context around the line if possible
@@ -43,7 +43,7 @@ def _get_caller_info():
                             code_line = "<line not available>"
                 except:
                     code_line = "<unable to read file>"
-                
+
                 return {
                     'filename': filename,
                     'function': function_name,
@@ -52,7 +52,7 @@ def _get_caller_info():
                 }
     except:
         pass
-    
+
     return {
         'filename': '<unknown>',
         'function': '<unknown>',
@@ -140,7 +140,7 @@ class FlexRandomizer:
         """
         # Get caller information for better error reporting
         caller_info = _get_caller_info()
-        
+
         if not isinstance(constraints, dict):
             raise TypeError(
                 f"Constraints must be a dictionary\n"

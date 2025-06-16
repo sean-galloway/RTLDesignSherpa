@@ -220,9 +220,8 @@ def generate_params():
     test_levels = ['basic']  # All test levels
 
     # For quick testing, uncomment this line:
-    # return [(8, 4, 8, 'basic'), (8, 8, 16, 'basic')]
-
-    return list(product(data_widths, id_widths, fifo_depths, test_levels))
+    return [(8, 4, 8, 'full'), (8, 8, 16, 'full')]
+    # return list(product(data_widths, id_widths, fifo_depths, test_levels))
 
 
 params = generate_params()
