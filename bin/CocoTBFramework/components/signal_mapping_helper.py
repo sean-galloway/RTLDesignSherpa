@@ -4,8 +4,7 @@ Simplified GAXI/FIFO Signal Mapping - Pattern Matching Against Top-Level Ports
 Uses pattern matching against actual DUT ports with parameter combinations
 to find the correct signal mappings automatically.
 
-FIXED: Corrected GAXI master/slave signal directions - masters drive valid/read ready,
-slaves read valid/drive ready.
+UPDATED: Now properly handles 'prefix' parameter for both signal discovery and cocotb compatibility.
 """
 from typing import Dict, List, Optional, Any, Union
 from itertools import product
@@ -19,87 +18,87 @@ FIFO_VALID_MODES = ['fifo_mux', 'fifo_flop']
 # Standard GAXI modes (kept for parameter passing to RTL)
 GAXI_VALID_MODES = ['skid', 'fifo_mux', 'fifo_flop']
 
-# GAXI base signal patterns
+# GAXI base signal patterns - UPDATED to include prefix
 GAXI_BASE_PATTERNS = {
     # Master-side patterns (for masters and write monitors)
     'valid_base': [
-        '{in_prefix}{bus_name}wr_valid',
-        '{in_prefix}{bus_name}valid',
-        '{in_prefix}{bus_name}m2s_valid',
+        '{prefix}{in_prefix}{bus_name}wr_valid',
+        '{prefix}{in_prefix}{bus_name}valid',
+        '{prefix}{in_prefix}{bus_name}m2s_valid',
     ],
     'ready_base': [
-        '{out_prefix}{bus_name}wr_ready',
-        '{out_prefix}{bus_name}ready',
-        '{out_prefix}{bus_name}s2m_ready',
+        '{prefix}{out_prefix}{bus_name}wr_ready',
+        '{prefix}{out_prefix}{bus_name}ready',
+        '{prefix}{out_prefix}{bus_name}s2m_ready',
     ],
     'pkt_base': [
-        '{in_prefix}{bus_name}wr_data',
-        '{in_prefix}{bus_name}data',
-        '{in_prefix}{bus_name}m2s_pkt',
+        '{prefix}{in_prefix}{bus_name}wr_data',
+        '{prefix}{in_prefix}{bus_name}data',
+        '{prefix}{in_prefix}{bus_name}m2s_pkt',
     ],
     'field_base': [
-        '{in_prefix}{bus_name}{pkt_prefix}{field_name}',
-        '{in_prefix}{bus_name}{pkt_prefix}wr_{field_name}',
-        '{in_prefix}{bus_name}m2s_pkt_{field_name}',
+        '{prefix}{in_prefix}{bus_name}{pkt_prefix}{field_name}',
+        '{prefix}{in_prefix}{bus_name}{pkt_prefix}wr_{field_name}',
+        '{prefix}{in_prefix}{bus_name}m2s_pkt_{field_name}',
     ],
 
     # Slave-side patterns (for slaves and read monitors)
     'slave_valid_base': [
-        '{out_prefix}{bus_name}rd_valid',
-        '{out_prefix}{bus_name}valid',
-        '{out_prefix}{bus_name}m2s_valid',
+        '{prefix}{out_prefix}{bus_name}rd_valid',
+        '{prefix}{out_prefix}{bus_name}valid',
+        '{prefix}{out_prefix}{bus_name}m2s_valid',
     ],
     'slave_ready_base': [
-        '{in_prefix}{bus_name}rd_ready',
-        '{in_prefix}{bus_name}ready',
-        '{in_prefix}{bus_name}s2m_ready',
+        '{prefix}{in_prefix}{bus_name}rd_ready',
+        '{prefix}{in_prefix}{bus_name}ready',
+        '{prefix}{in_prefix}{bus_name}s2m_ready',
     ],
     'slave_pkt_base': [
-        '{out_prefix}{bus_name}rd_data',
-        '{out_prefix}{bus_name}data',
-        '{out_prefix}{bus_name}m2s_pkt',
+        '{prefix}{out_prefix}{bus_name}rd_data',
+        '{prefix}{out_prefix}{bus_name}data',
+        '{prefix}{out_prefix}{bus_name}m2s_pkt',
     ],
     'slave_field_base': [
-        '{out_prefix}{bus_name}{pkt_prefix}{field_name}',
-        '{out_prefix}{bus_name}{pkt_prefix}rd_{field_name}',
-        '{out_prefix}{bus_name}m2s_pkt_{field_name}',
+        '{prefix}{out_prefix}{bus_name}{pkt_prefix}{field_name}',
+        '{prefix}{out_prefix}{bus_name}{pkt_prefix}rd_{field_name}',
+        '{prefix}{out_prefix}{bus_name}m2s_pkt_{field_name}',
     ]
 }
 
-# Simplified base signal patterns
+# FIFO base signal patterns - UPDATED to include prefix
 FIFO_BASE_PATTERNS = {
     # Write-side patterns (for masters and write monitors)
     'write_base': [
-        '{in_prefix}{bus_name}write',
+        '{prefix}{in_prefix}{bus_name}write',
     ],
     'wr_data_base': [
-        '{in_prefix}{bus_name}wr_data',
-        '{in_prefix}{bus_name}data',
+        '{prefix}{in_prefix}{bus_name}wr_data',
+        '{prefix}{in_prefix}{bus_name}data',
     ],
     'wr_field_base': [
-        '{in_prefix}{bus_name}{pkt_prefix}{field_name}',
-        '{in_prefix}{bus_name}{pkt_prefix}wr_{field_name}',
+        '{prefix}{in_prefix}{bus_name}{pkt_prefix}{field_name}',
+        '{prefix}{in_prefix}{bus_name}{pkt_prefix}wr_{field_name}',
     ],
     'full_base': [
-        '{out_prefix}{bus_name}wr_full',
-        '{out_prefix}{bus_name}full'
+        '{prefix}{out_prefix}{bus_name}wr_full',
+        '{prefix}{out_prefix}{bus_name}full'
     ],
 
     # Read-side patterns (for slaves and read monitors)
     'read_base': [
-        '{in_prefix}{bus_name}read'
+        '{prefix}{in_prefix}{bus_name}read'
     ],
     'rd_data_base': [
-        '{out_prefix}{bus_name}rd_data',
-        '{out_prefix}{bus_name}data'
+        '{prefix}{out_prefix}{bus_name}rd_data',
+        '{prefix}{out_prefix}{bus_name}data'
     ],
     'rd_field_base': [
-        '{out_prefix}{bus_name}{pkt_prefix}{field_name}',
-        '{out_prefix}{bus_name}{pkt_prefix}rd_{field_name}'
+        '{prefix}{out_prefix}{bus_name}{pkt_prefix}{field_name}',
+        '{prefix}{out_prefix}{bus_name}{pkt_prefix}rd_{field_name}'
     ],
     'empty_base': [
-        '{out_prefix}{bus_name}rd_empty',
-        '{out_prefix}{bus_name}empty'
+        '{prefix}{out_prefix}{bus_name}rd_empty',
+        '{prefix}{out_prefix}{bus_name}empty'
     ]
 }
 
@@ -110,7 +109,6 @@ PROTOCOL_SIGNAL_CONFIGS = {
             'o_wr_full': FIFO_BASE_PATTERNS['full_base']
         },
         'optional_signal_map': {
-            # No mode-aware patterns needed - RTL handles timing internally
             'multi_sig_false': FIFO_BASE_PATTERNS['wr_data_base'],
             'multi_sig_true':  FIFO_BASE_PATTERNS['wr_field_base']
         }
@@ -122,17 +120,15 @@ PROTOCOL_SIGNAL_CONFIGS = {
             'o_rd_empty': FIFO_BASE_PATTERNS['empty_base']
         },
         'optional_signal_map': {
-            # Single read data pattern - no more mux vs flop complexity!
             'multi_sig_false': FIFO_BASE_PATTERNS['rd_data_base'],
             'multi_sig_true':  FIFO_BASE_PATTERNS['rd_field_base']
         }
     },
 
-    # GAXI protocol configurations - FIXED SIGNAL DIRECTIONS
     'gaxi_master': {
         'signal_map': {
-            'o_valid':    GAXI_BASE_PATTERNS['valid_base'],      # ✅ FIXED: Master DRIVES valid
-            'i_ready':    GAXI_BASE_PATTERNS['ready_base']       # ✅ FIXED: Master READS ready
+            'o_valid':    GAXI_BASE_PATTERNS['valid_base'],
+            'i_ready':    GAXI_BASE_PATTERNS['ready_base']
         },
         'optional_signal_map': {
             'multi_sig_false': GAXI_BASE_PATTERNS['pkt_base'],
@@ -142,18 +138,14 @@ PROTOCOL_SIGNAL_CONFIGS = {
 
     'gaxi_slave': {
         'signal_map': {
-            'i_valid':    GAXI_BASE_PATTERNS['slave_valid_base'], # ✅ FIXED: Slave READS valid
-            'o_ready':    GAXI_BASE_PATTERNS['slave_ready_base']  # ✅ FIXED: Slave DRIVES ready
+            'i_valid':    GAXI_BASE_PATTERNS['slave_valid_base'],
+            'o_ready':    GAXI_BASE_PATTERNS['slave_ready_base']
         },
         'optional_signal_map': {
             'multi_sig_false': GAXI_BASE_PATTERNS['slave_pkt_base'],
             'multi_sig_true':  GAXI_BASE_PATTERNS['slave_field_base']
         }
     }
-
-    # Note: No special monitor configurations needed!
-    # Write monitors use 'gaxi_master', read monitors use 'gaxi_slave'
-    # Write monitors use 'fifo_master', read monitors use 'fifo_slave'
 }
 
 
@@ -180,8 +172,7 @@ class SignalResolver:
     """
     Signal resolver using pattern matching against actual top-level DUT ports.
 
-    Uses parameter combinations to generate all possible signal name patterns
-    and matches them against the actual DUT ports.
+    UPDATED: Now properly handles 'prefix' parameter for both signal discovery and cocotb compatibility.
     """
 
     def __init__(self, protocol_type: str, dut, bus, log, component_name: str,
@@ -190,7 +181,7 @@ class SignalResolver:
                 bus_name: str = '', pkt_prefix: str = '', mode: str = None,
                 super_debug: bool = False):
         """
-        Initialize signal resolver with pattern matching.
+        Initialize signal resolver with pattern matching and prefix support.
 
         Args:
             protocol_type: Protocol type ('fifo_master', 'fifo_slave', 'gaxi_master', 'gaxi_slave')
@@ -198,6 +189,7 @@ class SignalResolver:
             bus: Bus object from BusDriver/BusMonitor (can be None initially)
             log: Logger instance (can be None)
             component_name: Component name for error messages
+            prefix: Prefix that cocotb will prepend to signal names (NEW)
             field_config: Field configuration (required for multi_sig=True)
             multi_sig: Whether using multi-signal mode
             in_prefix: Input signal prefix
@@ -222,6 +214,7 @@ class SignalResolver:
         self.bus = bus
         self.log = log
         self.component_name = component_name
+        self.prefix = prefix  # ADDED: Store prefix for proper handling
         self.field_config = field_config
         self.multi_sig = multi_sig
         self.mode = mode
@@ -249,9 +242,9 @@ class SignalResolver:
             for port_name in sorted(self.top_level_ports.keys()):
                 self._log_debug(f"Available port:{port_name}:")
 
-        # Generate parameter combinations
+        # Generate parameter combinations (now includes prefix)
         self.param_combinations = self._generate_parameter_combinations(
-            in_prefix, out_prefix, bus_name, pkt_prefix
+            prefix, in_prefix, out_prefix, bus_name, pkt_prefix
         )
         self._log_debug(f"Generated {len(self.param_combinations)} parameter combinations")
 
@@ -267,7 +260,7 @@ class SignalResolver:
         self._display_signal_mapping()
         self._validate_required_signals()
 
-        # Prepare signal lists for cocotb Bus initialization
+        # Prepare signal lists for cocotb Bus initialization (strips prefix)
         self._signals, self._optional_signals = self._prepare_signal_lists()
 
     def _log_debug(self, message: str):
@@ -311,11 +304,14 @@ class SignalResolver:
             print(f"{level}: {message}")
         print("=== End Log Messages ===\n")
 
-    def _generate_parameter_combinations(self, in_prefix: str, out_prefix: str,
+    def _generate_parameter_combinations(self, prefix: str, in_prefix: str, out_prefix: str,
                                         bus_name: str, pkt_prefix: str) -> List[Dict[str, str]]:
-        """Generate all parameter combinations with and without underscores."""
+        """Generate all parameter combinations including prefix variants."""
 
-        # Create parameter lists - empty string if parameter is empty
+        # UPDATED: Create prefix variants - empty string if prefix is empty
+        prefix_variants = [prefix] if prefix else ['']
+        
+        # Create other parameter lists - empty string if parameter is empty
         in_prefix_variants = [in_prefix] if in_prefix else ['']
         out_prefix_variants = [out_prefix] if out_prefix else ['']
 
@@ -323,12 +319,13 @@ class SignalResolver:
         bus_name_variants = [''] if not bus_name else [bus_name, bus_name + '_']
         pkt_prefix_variants = [''] if not pkt_prefix else [pkt_prefix, pkt_prefix + '_']
 
-        # Generate all combinations
+        # Generate all combinations (now includes prefix)
         combinations = []
-        for in_p, out_p, bus_n, pkt_p in product(
-            in_prefix_variants, out_prefix_variants, bus_name_variants, pkt_prefix_variants
+        for prefix_p, in_p, out_p, bus_n, pkt_p in product(
+            prefix_variants, in_prefix_variants, out_prefix_variants, bus_name_variants, pkt_prefix_variants
         ):
             combinations.append({
+                'prefix': prefix_p,      # ADDED: Include prefix in combinations
                 'in_prefix': in_p,
                 'out_prefix': out_p,
                 'bus_name': bus_n,
@@ -342,7 +339,7 @@ class SignalResolver:
 
     def _resolve_all_signals(self):
         """Resolve all signals using pattern matching."""
-        self._log_debug(f"Resolving signals for protocol '{self.protocol_type}', multi_sig={self.multi_sig}")
+        self._log_debug(f"Resolving signals for protocol '{self.protocol_type}', multi_sig={self.multi_sig}, prefix='{self.prefix}'")
 
         # Resolve required signals
         self._resolve_signal_group(self.config['signal_map'], required=True)
@@ -437,6 +434,23 @@ class SignalResolver:
             self._log_error(f"Multiple matches for '{logical_name}': {match_names}")
             return matches[0][1]  # Return first match but will error in validation
 
+    def _strip_prefix_from_signal_name(self, signal_name: str) -> str:
+        """
+        Strip the prefix from a signal name for cocotb Bus compatibility.
+        
+        Args:
+            signal_name: Full signal name including prefix
+            
+        Returns:
+            Signal name with prefix removed
+        """
+        if self.prefix and signal_name.startswith(self.prefix):
+            stripped = signal_name[len(self.prefix):]
+            if self.super_debug:
+                self._log_debug(f"Stripped prefix '{self.prefix}' from '{signal_name}' -> '{stripped}'")
+            return stripped
+        return signal_name
+
     def _display_signal_mapping(self):
         """Display signal mapping results in a Rich table."""
         console = Console()
@@ -444,6 +458,7 @@ class SignalResolver:
 
         table.add_column("Logical Signal", style="cyan")
         table.add_column("Matched Signal", style="green")
+        table.add_column("Cocotb Signal", style="yellow")  # ADDED: Show cocotb signal name
         table.add_column("Status", style="bold")
 
         # Add required signals
@@ -452,14 +467,16 @@ class SignalResolver:
             if signal_obj is not None:
                 # Find the actual signal name
                 matched_name = self._find_signal_name(signal_obj)
+                cocotb_name = self._strip_prefix_from_signal_name(matched_name)  # ADDED
                 status = "✓ Found"
                 if logical_name in self.signal_conflicts:
                     status = f"⚠ Conflict ({len(self.signal_conflicts[logical_name])} matches)"
             else:
                 matched_name = "X"
+                cocotb_name = "X"  # ADDED
                 status = "✗ Missing (Required)"
 
-            table.add_row(logical_name, matched_name, status)
+            table.add_row(logical_name, matched_name, cocotb_name, status)
 
         # Add optional signals
         optional_signals = [name for name in self.resolved_signals.keys()
@@ -469,14 +486,16 @@ class SignalResolver:
             signal_obj = self.resolved_signals[logical_name]
             if signal_obj is not None:
                 matched_name = self._find_signal_name(signal_obj)
+                cocotb_name = self._strip_prefix_from_signal_name(matched_name)  # ADDED
                 status = "✓ Found (Optional)"
                 if logical_name in self.signal_conflicts:
                     status = f"⚠ Conflict ({len(self.signal_conflicts[logical_name])} matches)"
             else:
                 matched_name = "X"
+                cocotb_name = "X"  # ADDED
                 status = "- Missing (Optional)"
 
-            table.add_row(logical_name, matched_name, status)
+            table.add_row(logical_name, matched_name, cocotb_name, status)
 
         console.print(table)
 
@@ -521,28 +540,35 @@ class SignalResolver:
             raise ValueError('\n\n'.join(errors))
 
     def _prepare_signal_lists(self):
-        """Prepare _signals and _optional_signals lists for cocotb Bus initialization."""
+        """
+        Prepare _signals and _optional_signals lists for cocotb Bus initialization.
+        
+        UPDATED: Now strips prefix from signal names since cocotb Bus will add it back.
+        """
         _signals = []
         _optional_signals = []
 
-        # Add required signals that were found
+        # Add required signals that were found (strip prefix)
         for logical_name in self.config['signal_map'].keys():
             if self.resolved_signals.get(logical_name) is not None:
                 signal_name = self._find_signal_name(self.resolved_signals[logical_name])
-                _signals.append(signal_name)
+                cocotb_signal_name = self._strip_prefix_from_signal_name(signal_name)  # UPDATED
+                _signals.append(cocotb_signal_name)
 
-        # Add optional signals that were found
+        # Add optional signals that were found (strip prefix)
         optional_signals = [name for name in self.resolved_signals.keys()
                             if name not in self.config['signal_map']]
 
         for logical_name in optional_signals:
             if self.resolved_signals.get(logical_name) is not None:
                 signal_name = self._find_signal_name(self.resolved_signals[logical_name])
-                _optional_signals.append(signal_name)
+                cocotb_signal_name = self._strip_prefix_from_signal_name(signal_name)  # UPDATED
+                _optional_signals.append(cocotb_signal_name)
 
         if self.super_debug:
             self._log_info(f"Prepared signal lists - "
                             f"_signals: {_signals}, _optional_signals: {_optional_signals}")
+            self._log_info(f"Prefix handling: prefix='{self.prefix}' will be prepended by cocotb Bus")
 
         return _signals, _optional_signals
 
@@ -570,13 +596,13 @@ class SignalResolver:
             }
             return fifo_signal_to_attr.get(logical_name, logical_name)
 
-        # Handle GAXI control signals - FIXED MAPPING
+        # Handle GAXI control signals
         if logical_name in ['i_valid', 'o_ready', 'o_valid', 'i_ready']:
             gaxi_signal_to_attr = {
                 'i_valid': 'valid_sig',     # Slave reads valid
                 'o_ready': 'ready_sig',     # Slave drives ready
-                'o_valid': 'valid_sig',     # Master drives valid ✅ FIXED
-                'i_ready': 'ready_sig'      # Master reads ready ✅ FIXED
+                'o_valid': 'valid_sig',     # Master drives valid
+                'i_ready': 'ready_sig'      # Master reads ready
             }
             return gaxi_signal_to_attr.get(logical_name, logical_name)
 
@@ -609,15 +635,17 @@ class SignalResolver:
             signal_type = "REQUIRED" if is_required else "DATA/OPTIONAL"
 
             if signal_obj is not None:
-                # Get the signal from the bus using the actual signal name
+                # Get the signal from the bus using the STRIPPED signal name (without prefix)
                 signal_name = self._find_signal_name(signal_obj)
-                self._log_debug(f"{self.component_name} Signal Resolver: {signal_name}")
+                cocotb_signal_name = self._strip_prefix_from_signal_name(signal_name)  # UPDATED
+                
+                self._log_debug(f"{self.component_name} Signal Resolver: {signal_name} -> cocotb: {cocotb_signal_name}")
 
-                # Try to get the signal from the bus
-                bus_signal = getattr(self.bus, signal_name, None)
+                # Try to get the signal from the bus using the stripped name
+                bus_signal = getattr(self.bus, cocotb_signal_name, None)
 
                 # DEBUG: Check the bus_signal result
-                self._log_debug(f"bus_signal for '{signal_name}': {bus_signal}")
+                self._log_debug(f"bus_signal for '{cocotb_signal_name}': {bus_signal}")
                 self._log_debug(f"bus_signal type: {type(bus_signal)}")
 
                 if bus_signal is None:
@@ -625,23 +653,25 @@ class SignalResolver:
                     failure_info = {
                         'logical_name': logical_name,
                         'signal_name': signal_name,
+                        'cocotb_signal_name': cocotb_signal_name,  # ADDED
                         'attr_name': attr_name,
                         'signal_type': signal_type,
-                        'has_attr': hasattr(self.bus, signal_name),
-                        'bus_attr_type': type(getattr(self.bus, signal_name, 'NOT_FOUND'))
+                        'has_attr': hasattr(self.bus, cocotb_signal_name),
+                        'bus_attr_type': type(getattr(self.bus, cocotb_signal_name, 'NOT_FOUND'))
                     }
 
                     failed_signals.append(failure_info)
-                    self._log_error(f"❌ CRITICAL: {signal_type} signal '{logical_name}' -> '{signal_name}' cannot be linked to Bus!")
+                    self._log_error(f"❌ CRITICAL: {signal_type} signal '{logical_name}' -> '{cocotb_signal_name}' cannot be linked to Bus!")
                 else:
                     # Success!
                     successful_linkages.append({
                         'logical_name': logical_name,
                         'signal_name': signal_name,
+                        'cocotb_signal_name': cocotb_signal_name,  # ADDED
                         'attr_name': attr_name,
                         'signal_type': signal_type
                     })
-                    self._log_debug(f"✅ Linked {attr_name} = bus.{signal_name}")
+                    self._log_debug(f"✅ Linked {attr_name} = bus.{cocotb_signal_name}")
 
                 # Set the attribute regardless (None if failed)
                 setattr(component, attr_name, bus_signal)
@@ -655,6 +685,7 @@ class SignalResolver:
             error_lines = [
                 f"\n🚨 CRITICAL SIGNAL LINKAGE FAILURE for {self.component_name} 🚨",
                 f"SignalResolver found signals, but Bus linkage failed!",
+                f"Prefix used: '{self.prefix}'",  # ADDED
                 f""
             ]
 
@@ -665,24 +696,26 @@ class SignalResolver:
             if required_failures:
                 error_lines.append("❌ FAILED CONTROL SIGNALS:")
                 for failure in required_failures:
-                    error_lines.append(f"  • {failure['logical_name']} -> '{failure['signal_name']}'")
+                    error_lines.append(f"  • {failure['logical_name']}")
+                    error_lines.append(f"    - DUT signal: '{failure['signal_name']}'")
+                    error_lines.append(f"    - Cocotb signal: '{failure['cocotb_signal_name']}'")  # ADDED
                     error_lines.append(f"    - Target attribute: component.{failure['attr_name']}")
                     error_lines.append(f"    - Bus has attribute: {failure['has_attr']}")
-                    error_lines.append(f"    - Bus attribute type: {failure['bus_attr_type']}")
 
             if data_failures:
                 error_lines.append(f"\n❌ FAILED DATA SIGNALS:")
                 for failure in data_failures:
-                    error_lines.append(f"  • {failure['logical_name']} -> '{failure['signal_name']}'")
+                    error_lines.append(f"  • {failure['logical_name']}")
+                    error_lines.append(f"    - DUT signal: '{failure['signal_name']}'")
+                    error_lines.append(f"    - Cocotb signal: '{failure['cocotb_signal_name']}'")  # ADDED
                     error_lines.append(f"    - Target attribute: component.{failure['attr_name']}")
                     error_lines.append(f"    - Bus has attribute: {failure['has_attr']}")
-                    error_lines.append(f"    - Bus attribute type: {failure['bus_attr_type']}")
 
             # Successful linkages (if any)
             if successful_linkages:
                 error_lines.append(f"\n✅ SUCCESSFUL LINKAGES:")
                 for success in successful_linkages:
-                    error_lines.append(f"  • {success['logical_name']} -> '{success['signal_name']}' ({success['signal_type']})")
+                    error_lines.append(f"  • {success['logical_name']} -> '{success['cocotb_signal_name']}' ({success['signal_type']})")
 
             # Bus diagnostic information
             bus_attrs = [attr for attr in dir(self.bus) if not attr.startswith('_')]
@@ -696,25 +729,16 @@ class SignalResolver:
                 f""
             ])
 
-            # Show what SignalResolver found vs what Bus has
+            # Show prefix handling information
             resolved_signal_names = [self._find_signal_name(sig) for sig in self.resolved_signals.values() if sig is not None]
+            cocotb_signal_names = [self._strip_prefix_from_signal_name(name) for name in resolved_signal_names]
             error_lines.extend([
-                f"🔍 SIGNAL RESOLUTION vs BUS MISMATCH:",
-                f"  SignalResolver found: {resolved_signal_names}",
+                f"🔍 PREFIX HANDLING:",
+                f"  Prefix: '{self.prefix}'",
+                f"  DUT signals found: {resolved_signal_names}",
+                f"  Cocotb signals expected: {cocotb_signal_names}",
                 f"  Bus actually has: {bus_signals}",
-                f"  Missing from Bus: {set(resolved_signal_names) - set(bus_signals)}",
-                f""
-            ])
-
-            # Likely causes and solutions
-            error_lines.extend([
-                f"💡 LIKELY CAUSES:",
-                f"  1. Double prefixing: Both 'prefix' and 'bus_name' are set",
-                f"     - Current prefix: '{getattr(self, 'prefix', 'NOT_SET')}'",
-                f"     - Current bus_name: '{getattr(self, 'bus_name', 'NOT_SET')}'",
-                f"  2. _prepare_signal_lists() not stripping prefixes correctly",
-                f"  3. Bus constructor received wrong signal lists",
-                f"  4. SignalResolver vs Bus naming convention mismatch",
+                f"  Missing from Bus: {set(cocotb_signal_names) - set(bus_signals)}",
                 f""
             ])
 
@@ -726,39 +750,6 @@ class SignalResolver:
                 f""
             ])
 
-            # Quick fixes
-            error_lines.extend([
-                f"🔧 IMMEDIATE FIXES:",
-                f"  1. If using bus_name='{getattr(self, 'bus_name', '')}', set prefix=''",
-                f"  2. If using prefix, set bus_name=''",
-                f"  3. Check _prepare_signal_lists() calls _clean_signal_name_for_bus()",
-                f"  4. Verify Bus constructor gets cleaned signal names",
-                f""
-            ])
-
-            # Component impact - emphasize that ALL signals are critical
-            error_lines.extend([
-                f"⚠️  COMPONENT IMPACT:",
-                f"  - {self.component_name} CANNOT FUNCTION without these signals!",
-                f"  - Control signals: needed for valid/ready handshaking",
-                f"  - Data signals: needed for actual data transfer",
-                f"  - Component will fail at runtime when accessing these signals",
-                f"  - NO SIGNALS ARE TRULY 'OPTIONAL' - all found signals must link!",
-                f""
-            ])
-
-            # Debugging steps
-            error_lines.extend([
-                f"🐛 DEBUGGING STEPS:",
-                f"  1. Check signal_mapping_helper._prepare_signal_lists()",
-                f"  2. Verify _clean_signal_name_for_bus() is being called",
-                f"  3. Compare resolved signals vs Bus constructor inputs",
-                f"  4. Enable super_debug=True for detailed signal resolution",
-                f"  5. Check cocotb Bus constructor logic for double prefixing",
-                f""
-            ])
-
-            # Raise the comprehensive error - NO MERCY!
             raise RuntimeError('\n'.join(error_lines))
 
         # SUCCESS: Log successful initialization
@@ -770,6 +761,7 @@ class SignalResolver:
 
         self._log_info(f"✅ Signal linkage SUCCESS: {success_count}/{total_resolved} signals linked")
         self._log_info(f"✅ Control signals: {required_count}, Data signals: {data_count}")
+        self._log_info(f"✅ Prefix handling: '{self.prefix}' correctly handled")  # ADDED
         self._log_info(f"✅ {self.component_name} ready for operation!")
 
     def get_signal(self, logical_name: str):
@@ -791,6 +783,7 @@ class SignalResolver:
             'protocol_type': self.protocol_type,
             'multi_sig_mode': self.multi_sig,
             'mode': self.mode,
+            'prefix': self.prefix,  # ADDED
             'total_ports_found': len(self.top_level_ports),
             'parameter_combinations': len(self.param_combinations),
             'total_signals': total_signals,
@@ -808,7 +801,7 @@ class SignalResolver:
         return stats
 
 
-# Helper function to get caller info (referenced but not defined in the original)
+# Helper function to get caller info
 def _get_caller_info():
     """Get information about where SignalResolver was called from."""
     import inspect

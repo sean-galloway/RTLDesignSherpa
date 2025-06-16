@@ -172,13 +172,7 @@ def generate_cdc_test_params():
             })
 
     # For debugging: uncomment to limit scope
-    # return [{'clk_src_period_ns': 15, 'clk_dst_period_ns': 10, 'test_level': 'basic'}]  # Single test
-    # params = [p for p in params if p['test_level'] == 'basic'][:5]  # First 5 basic tests only
-
-    return [
-                {'clk_src_period_ns': 30, 'clk_dst_period_ns': 10, 'test_level': 'full'},
-                {'clk_src_period_ns': 10, 'clk_dst_period_ns': 30, 'test_level': 'full'},
-            ]
+    return [{'clk_src_period_ns': 30, 'clk_dst_period_ns': 10, 'test_level': 'full'}, {'clk_src_period_ns': 10, 'clk_dst_period_ns': 30, 'test_level': 'full'}]
     # return params
 
 
