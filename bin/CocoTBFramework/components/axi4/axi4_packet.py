@@ -1,533 +1,447 @@
 """
-AXI4 Packet Classes (Optimized Version)
+AXI4 Packet Implementation - Ground Up Design
 
-This module provides:
-1. AXI4Packet class that extends optimized Packet class with AXI4-specific functionality
-2. Factory methods for creating packets for each AXI4 channel
-3. Protocol validation functions with performance optimizations
-4. Caching of frequently accessed field information
+This module provides the AXI4Packet class that extends the base Packet class
+with AXI4-specific functionality, working seamlessly with the ground-up design approach.
+
+Key Design Principles:
+1. Extend base Packet class (not GAXIPacket - this is AXI4-specific)
+2. Use AXI4FieldConfigHelper for field configurations
+3. Simple factory methods for each channel type
+4. AXI4 protocol validation built-in
+5. Clean integration with AXI4Master packet creation
 """
 
-from CocoTBFramework.components.packet import Packet, _FIELD_CACHE
-from .axi4_fields_signals import (
-    AXI4_AW_FIELD_CONFIG, AXI4_W_FIELD_CONFIG, AXI4_B_FIELD_CONFIG,
-    AXI4_AR_FIELD_CONFIG, AXI4_R_FIELD_CONFIG
-)
+from typing import Optional, Tuple, Dict, Any
+from ..shared.packet import Packet
+from .axi4_field_configs import AXI4FieldConfigHelper
 
 
 class AXI4Packet(Packet):
     """
-    AXI4 Packet class that extends the optimized Packet base class with AXI4-specific methods.
+    AXI4 Packet class extending the optimized base Packet class.
 
-    This class provides:
-    - Specialized constructors for each AXI4 channel
-    - Helper methods for working with AXI4 bursts
-    - AXI4 protocol validation
-    - Performance optimizations through caching
+    Provides AXI4-specific functionality while leveraging all the performance
+    optimizations and field management from the base Packet class.
     """
 
+    def __init__(self, field_config, **kwargs):
+        """
+        Initialize AXI4 packet with field configuration.
+
+        Args:
+            field_config: FieldConfig object for the specific AXI4 channel
+            **kwargs: Initial field values
+        """
+        # Call parent constructor with field config and initial values
+        super().__init__(field_config, **kwargs)
+
+        # Cache channel type for performance
+        self._channel_type = None
+
     @classmethod
-    def create_aw_packet(cls,
-                        awid=0,
-                        awaddr=0,
-                        awlen=0,
-                        awsize=0,
-                        awburst=1,  # INCR
-                        awlock=0,
-                        awcache=0,
-                        awprot=0,
-                        awqos=0,
-                        awregion=0,
-                        awuser=0):
+    def create_aw_packet(cls, id_width: int = 8, addr_width: int = 32, user_width: int = 1, **field_values):
         """
         Create a Write Address (AW) channel packet.
 
         Args:
-            awid: Write transaction ID
-            awaddr: Write address
-            awlen: Burst length (0 = 1 beat, 15 = 16 beats)
-            awsize: Burst size (0 = 1 byte, 1 = 2 bytes, 2 = 4 bytes, etc.)
-            awburst: Burst type (0 = FIXED, 1 = INCR, 2 = WRAP)
-            awlock: Lock type (0 = Normal, 1 = Exclusive)
-            awcache: Cache type
-            awprot: Protection type
-            awqos: Quality of Service
-            awregion: Region identifier
-            awuser: User signal
+            id_width: Width of AWID field
+            addr_width: Width of AWADDR field
+            user_width: Width of AWUSER field
+            **field_values: AXI4 AW channel field values (awid, awaddr, awlen, etc.)
 
         Returns:
-            AXI4Packet: Write address packet
+            AXI4Packet configured for AW channel
+
+        Example:
+            packet = AXI4Packet.create_aw_packet(awid=1, awaddr=0x1000, awlen=3)
         """
-        # Create packet using FieldConfig
-        packet = cls(AXI4_AW_FIELD_CONFIG)
-
-        # Set field values (these will be automatically masked by the parent class)
-        packet.awid = awid
-        packet.awaddr = awaddr
-        packet.awlen = awlen
-        packet.awsize = awsize
-        packet.awburst = awburst
-        packet.awlock = awlock
-        packet.awcache = awcache
-        packet.awprot = awprot
-        packet.awqos = awqos
-        packet.awregion = awregion
-        packet.awuser = awuser
-
-        return packet
+        field_config = AXI4FieldConfigHelper.create_aw_field_config(id_width, addr_width, user_width)
+        return cls(field_config, **field_values)
 
     @classmethod
-    def create_w_packet(cls, wdata=0, wstrb=0xF, wlast=1, wuser=0):
+    def create_w_packet(cls, data_width: int = 32, user_width: int = 1, **field_values):
         """
         Create a Write Data (W) channel packet.
 
         Args:
-            wdata: Write data
-            wstrb: Write strobe (byte enable)
-            wlast: Last transfer in write burst
-            wuser: User signal
+            data_width: Width of WDATA field
+            user_width: Width of WUSER field
+            **field_values: AXI4 W channel field values (wdata, wstrb, wlast, wuser)
 
         Returns:
-            AXI4Packet: Write data packet
+            AXI4Packet configured for W channel
+
+        Example:
+            packet = AXI4Packet.create_w_packet(wdata=0xDEADBEEF, wlast=1)
         """
-        # Create packet using FieldConfig
-        packet = cls(AXI4_W_FIELD_CONFIG)
-
-        # Set field values (these will be automatically masked by the parent class)
-        packet.wdata = wdata
-        packet.wstrb = wstrb
-        packet.wlast = wlast
-        packet.wuser = wuser
-
-        return packet
+        field_config = AXI4FieldConfigHelper.create_w_field_config(data_width, user_width)
+        return cls(field_config, **field_values)
 
     @classmethod
-    def create_b_packet(cls, bid=0, bresp=0, buser=0):
+    def create_b_packet(cls, id_width: int = 8, user_width: int = 1, **field_values):
         """
         Create a Write Response (B) channel packet.
 
         Args:
-            bid: Response ID
-            bresp: Write response (0 = OKAY, 1 = EXOKAY, 2 = SLVERR, 3 = DECERR)
-            buser: User signal
+            id_width: Width of BID field
+            user_width: Width of BUSER field
+            **field_values: AXI4 B channel field values (bid, bresp, buser)
 
         Returns:
-            AXI4Packet: Write response packet
+            AXI4Packet configured for B channel
+
+        Example:
+            packet = AXI4Packet.create_b_packet(bid=1, bresp=0)  # OKAY response
         """
-        # Create packet using FieldConfig
-        packet = cls(AXI4_B_FIELD_CONFIG)
-
-        # Set field values (these will be automatically masked by the parent class)
-        packet.bid = bid
-        packet.bresp = bresp
-        packet.buser = buser
-
-        return packet
+        field_config = AXI4FieldConfigHelper.create_b_field_config(id_width, user_width)
+        return cls(field_config, **field_values)
 
     @classmethod
-    def create_ar_packet(cls,
-                        arid=0,
-                        araddr=0,
-                        arlen=0,
-                        arsize=0,
-                        arburst=1,  # INCR
-                        arlock=0,
-                        arcache=0,
-                        arprot=0,
-                        arqos=0,
-                        arregion=0,
-                        aruser=0):
+    def create_ar_packet(cls, id_width: int = 8, addr_width: int = 32, user_width: int = 1, **field_values):
         """
         Create a Read Address (AR) channel packet.
 
         Args:
-            arid: Read transaction ID
-            araddr: Read address
-            arlen: Burst length (0 = 1 beat, 15 = 16 beats)
-            arsize: Burst size (0 = 1 byte, 1 = 2 bytes, 2 = 4 bytes, etc.)
-            arburst: Burst type (0 = FIXED, 1 = INCR, 2 = WRAP)
-            arlock: Lock type (0 = Normal, 1 = Exclusive)
-            arcache: Cache type
-            arprot: Protection type
-            arqos: Quality of Service
-            arregion: Region identifier
-            aruser: User signal
+            id_width: Width of ARID field
+            addr_width: Width of ARADDR field
+            user_width: Width of ARUSER field
+            **field_values: AXI4 AR channel field values (arid, araddr, arlen, etc.)
 
         Returns:
-            AXI4Packet: Read address packet
+            AXI4Packet configured for AR channel
+
+        Example:
+            packet = AXI4Packet.create_ar_packet(arid=2, araddr=0x2000, arlen=7)
         """
-        # Create packet using FieldConfig
-        packet = cls(AXI4_AR_FIELD_CONFIG)
-
-        # Set field values (these will be automatically masked by the parent class)
-        packet.arid = arid
-        packet.araddr = araddr
-        packet.arlen = arlen
-        packet.arsize = arsize
-        packet.arburst = arburst
-        packet.arlock = arlock
-        packet.arcache = arcache
-        packet.arprot = arprot
-        packet.arqos = arqos
-        packet.arregion = arregion
-        packet.aruser = aruser
-
-        return packet
+        field_config = AXI4FieldConfigHelper.create_ar_field_config(id_width, addr_width, user_width)
+        return cls(field_config, **field_values)
 
     @classmethod
-    def create_r_packet(cls, rid=0, rdata=0, rresp=0, rlast=1, ruser=0):
+    def create_r_packet(cls, id_width: int = 8, data_width: int = 32, user_width: int = 1, **field_values):
         """
         Create a Read Data (R) channel packet.
 
         Args:
-            rid: Read ID
-            rdata: Read data
-            rresp: Read response (0 = OKAY, 1 = EXOKAY, 2 = SLVERR, 3 = DECERR)
-            rlast: Last transfer in read burst
-            ruser: User signal
+            id_width: Width of RID field
+            data_width: Width of RDATA field
+            user_width: Width of RUSER field
+            **field_values: AXI4 R channel field values (rid, rdata, rresp, rlast, ruser)
 
         Returns:
-            AXI4Packet: Read data packet
+            AXI4Packet configured for R channel
+
+        Example:
+            packet = AXI4Packet.create_r_packet(rid=2, rdata=0x12345678, rlast=1)
         """
-        # Create packet using FieldConfig
-        packet = cls(AXI4_R_FIELD_CONFIG)
+        field_config = AXI4FieldConfigHelper.create_r_field_config(id_width, data_width, user_width)
+        return cls(field_config, **field_values)
 
-        # Set field values (these will be automatically masked by the parent class)
-        packet.rid = rid
-        packet.rdata = rdata
-        packet.rresp = rresp
-        packet.rlast = rlast
-        packet.ruser = ruser
+    def get_channel_type(self) -> str:
+        """
+        Determine which AXI4 channel this packet belongs to.
 
-        return packet
+        Returns:
+            Channel type string ('AW', 'W', 'B', 'AR', 'R', 'UNKNOWN')
+        """
+        if self._channel_type is None:
+            # Check for unique fields that identify each channel
+            field_names = set(self.field_config.field_names())
 
-    def validate_axi4_protocol(self):
+            if 'awid' in field_names or 'awaddr' in field_names:
+                self._channel_type = 'AW'
+            elif 'wdata' in field_names or 'wstrb' in field_names:
+                self._channel_type = 'W'
+            elif 'bid' in field_names and 'bresp' in field_names:
+                self._channel_type = 'B'
+            elif 'arid' in field_names or 'araddr' in field_names:
+                self._channel_type = 'AR'
+            elif 'rid' in field_names and 'rdata' in field_names:
+                self._channel_type = 'R'
+            else:
+                self._channel_type = 'UNKNOWN'
+
+        return self._channel_type
+
+    def validate_axi4_protocol(self) -> Tuple[bool, str]:
         """
         Validates the packet against AXI4 protocol rules.
-        Uses optimized caching for field lookups.
 
         Returns:
-            tuple: (is_valid, error_message)
+            Tuple of (is_valid, error_message)
         """
-        # Determine which channel this packet is for
-        # Optimized implementation that checks existence of key fields efficiently
-        if 'awid' in self.fields:
-            return self._validate_aw_packet()
-        elif 'wdata' in self.fields:
-            return self._validate_w_packet()
-        elif 'bid' in self.fields:
-            return self._validate_b_packet()
-        elif 'arid' in self.fields:
-            return self._validate_ar_packet()
-        elif 'rid' in self.fields:
-            return self._validate_r_packet()
+        channel_type = self.get_channel_type()
+
+        # Dispatch to appropriate validation method
+        validation_methods = {
+            'AW': self._validate_aw_packet,
+            'W': self._validate_w_packet,
+            'B': self._validate_b_packet,
+            'AR': self._validate_ar_packet,
+            'R': self._validate_r_packet
+        }
+
+        validator = validation_methods.get(channel_type)
+        if validator:
+            return validator()
         else:
-            return False, "Unknown AXI4 packet type"
+            return False, f"Unknown AXI4 packet type: {channel_type}"
 
-    def _validate_aw_packet(self):
-        """Validate Write Address channel packet using cached operations"""
+    def _validate_aw_packet(self) -> Tuple[bool, str]:
+        """Validate Write Address channel packet."""
         # Check address alignment based on size
-        if 'awsize' in self.fields and 'awaddr' in self.fields:
-            byte_count = 1 << self.fields['awsize']
-            if self.fields['awaddr'] % byte_count != 0:
-                return False, f"AW address 0x{self.fields['awaddr']:X} not aligned for size {self.fields['awsize']} ({byte_count} bytes)"
+        if hasattr(self, 'awsize') and hasattr(self, 'awaddr'):
+            if self.awsize > 7:  # Max size is 2^7 = 128 bytes
+                return False, f"Invalid AW size: {self.awsize} (max is 7)"
+
+            byte_count = 1 << self.awsize
+            if self.awaddr % byte_count != 0:
+                return False, f"AW address 0x{self.awaddr:X} not aligned for size {self.awsize} ({byte_count} bytes)"
 
         # Check burst type
-        if 'awburst' in self.fields:
-            if self.fields['awburst'] not in [0, 1, 2]:  # FIXED, INCR, WRAP
-                return False, f"Invalid AW burst type: {self.fields['awburst']}"
+        if hasattr(self, 'awburst'):
+            if self.awburst not in [0, 1, 2]:  # FIXED, INCR, WRAP
+                return False, f"Invalid AW burst type: {self.awburst} (must be 0=FIXED, 1=INCR, 2=WRAP)"
 
             # For WRAP bursts, check power-of-2 length
-            if self.fields['awburst'] == 2 and 'awlen' in self.fields and (self.fields['awlen'] + 1) not in [2, 4, 8, 16]:
-                return False, f"WRAP burst length must be 2, 4, 8, or 16 (awlen={self.fields['awlen']})"
+            if self.awburst == 2 and hasattr(self, 'awlen'):
+                valid_lens = [1, 3, 7, 15]  # 2, 4, 8, 16 beats (awlen is 0-based)
+                if self.awlen not in valid_lens:
+                    return False, f"WRAP burst length must be 2, 4, 8, or 16 beats (awlen={self.awlen})"
 
         # Check burst length
-        if 'awlen' in self.fields and self.fields['awlen'] > 255:
-            return False, f"AW burst length exceeds AXI4 maximum: {self.fields['awlen']}"
+        if hasattr(self, 'awlen'):
+            if self.awlen > 255:  # AXI4 supports up to 256 beats
+                return False, f"AW burst length too long: {self.awlen + 1} beats (max 256)"
 
-        return True, "Valid AW packet"
+        # Check lock type
+        if hasattr(self, 'awlock'):
+            if self.awlock not in [0, 1]:  # Normal, Exclusive
+                return False, f"Invalid AW lock: {self.awlock} (must be 0=Normal, 1=Exclusive)"
 
-    def _validate_w_packet(self):
-        """Validate Write Data channel packet using cached operations"""
-        # Validate strobe for enabled bytes
-        if 'wstrb' in self.fields and self.fields['wstrb'] == 0:
-            return False, "Write strobe is zero (no bytes enabled)"
+        return True, "AW packet valid"
 
-        # Validate wlast field if present
-        if 'wlast' in self.fields and not isinstance(self.fields['wlast'], int):
-            return False, f"WLAST must be an integer: {self.fields['wlast']}"
+    def _validate_w_packet(self) -> Tuple[bool, str]:
+        """Validate Write Data channel packet."""
+        # Check that wstrb has correct relationship to wdata
+        if hasattr(self, 'wdata') and hasattr(self, 'wstrb'):
+            # Calculate expected strobe width from data width
+            data_width = self.field_config.get_field('wdata').bits
+            expected_strb_width = data_width // 8
+            actual_strb_width = self.field_config.get_field('wstrb').bits
 
-        return True, "Valid W packet"
+            if actual_strb_width != expected_strb_width:
+                return False, f"W strobe width {actual_strb_width} doesn't match data width {data_width} (expected {expected_strb_width})"
 
-    def _validate_b_packet(self):
-        """Validate Write Response channel packet using cached operations"""
-        # Check response code
-        if 'bresp' in self.fields and self.fields['bresp'] not in [0, 1, 2, 3]:
-            return False, f"Invalid B response code: {self.fields['bresp']}"
+        # Check wlast value
+        if hasattr(self, 'wlast'):
+            if self.wlast not in [0, 1]:
+                return False, f"Invalid W last: {self.wlast} (must be 0 or 1)"
 
-        return True, "Valid B packet"
+        return True, "W packet valid"
 
-    def _validate_ar_packet(self):
-        """Validate Read Address channel packet using cached operations"""
-        # Check address alignment based on size
-        if 'arsize' in self.fields and 'araddr' in self.fields:
-            byte_count = 1 << self.fields['arsize']
-            if self.fields['araddr'] % byte_count != 0:
-                return False, f"AR address 0x{self.fields['araddr']:X} not aligned for size {self.fields['arsize']} ({byte_count} bytes)"
+    def _validate_b_packet(self) -> Tuple[bool, str]:
+        """Validate Write Response channel packet."""
+        # Check response type
+        if hasattr(self, 'bresp'):
+            if self.bresp not in [0, 1, 2, 3]:  # OKAY, EXOKAY, SLVERR, DECERR
+                return False, f"Invalid B response: {self.bresp} (must be 0=OKAY, 1=EXOKAY, 2=SLVERR, 3=DECERR)"
 
-        # Check burst type
-        if 'arburst' in self.fields:
-            if self.fields['arburst'] not in [0, 1, 2]:  # FIXED, INCR, WRAP
-                return False, f"Invalid AR burst type: {self.fields['arburst']}"
+        return True, "B packet valid"
 
-            # For WRAP bursts, check power-of-2 length
-            if self.fields['arburst'] == 2 and 'arlen' in self.fields and (self.fields['arlen'] + 1) not in [2, 4, 8, 16]:
-                return False, f"WRAP burst length must be 2, 4, 8, or 16 (arlen={self.fields['arlen']})"
+    def _validate_ar_packet(self) -> Tuple[bool, str]:
+        """Validate Read Address channel packet."""
+        # AR validation is similar to AW
+        if hasattr(self, 'arsize') and hasattr(self, 'araddr'):
+            if self.arsize > 7:
+                return False, f"Invalid AR size: {self.arsize} (max is 7)"
 
-        # Check burst length
-        if 'arlen' in self.fields and self.fields['arlen'] > 255:
-            return False, f"AR burst length exceeds AXI4 maximum: {self.fields['arlen']}"
+            byte_count = 1 << self.arsize
+            if self.araddr % byte_count != 0:
+                return False, f"AR address 0x{self.araddr:X} not aligned for size {self.arsize} ({byte_count} bytes)"
 
-        return True, "Valid AR packet"
+        if hasattr(self, 'arburst'):
+            if self.arburst not in [0, 1, 2]:
+                return False, f"Invalid AR burst type: {self.arburst} (must be 0=FIXED, 1=INCR, 2=WRAP)"
 
-    def _validate_r_packet(self):
-        """Validate Read Data channel packet using cached operations"""
-        # Check response code
-        if 'rresp' in self.fields and self.fields['rresp'] not in [0, 1, 2, 3]:
-            return False, f"Invalid R response code: {self.fields['rresp']}"
+            if self.arburst == 2 and hasattr(self, 'arlen'):
+                valid_lens = [1, 3, 7, 15]
+                if self.arlen not in valid_lens:
+                    return False, f"WRAP burst length must be 2, 4, 8, or 16 beats (arlen={self.arlen})"
 
-        # Validate rlast field if present
-        if 'rlast' in self.fields and not isinstance(self.fields['rlast'], int):
-            return False, f"RLAST must be an integer: {self.fields['rlast']}"
+        if hasattr(self, 'arlen'):
+            if self.arlen > 255:
+                return False, f"AR burst length too long: {self.arlen + 1} beats (max 256)"
 
-        return True, "Valid R packet"
+        if hasattr(self, 'arlock'):
+            if self.arlock not in [0, 1]:
+                return False, f"Invalid AR lock: {self.arlock} (must be 0=Normal, 1=Exclusive)"
 
-    def get_burst_addresses(self):
+        return True, "AR packet valid"
+
+    def _validate_r_packet(self) -> Tuple[bool, str]:
+        """Validate Read Data channel packet."""
+        # Check response type
+        if hasattr(self, 'rresp'):
+            if self.rresp not in [0, 1, 2, 3]:  # OKAY, EXOKAY, SLVERR, DECERR
+                return False, f"Invalid R response: {self.rresp} (must be 0=OKAY, 1=EXOKAY, 2=SLVERR, 3=DECERR)"
+
+        # Check rlast value
+        if hasattr(self, 'rlast'):
+            if self.rlast not in [0, 1]:
+                return False, f"Invalid R last: {self.rlast} (must be 0 or 1)"
+
+        return True, "R packet valid"
+
+    def get_burst_info(self) -> Dict[str, Any]:
         """
-        Calculate all addresses in a burst sequence based on address, length, size, and burst type.
-        Uses optimized field access and bit operations.
+        Get burst information from address packets (AW/AR).
 
         Returns:
-            list: List of addresses in the burst
+            Dictionary with burst information, or empty dict if not an address packet
         """
-        # Determine if this is a read or write address packet
-        is_read = 'araddr' in self.fields
+        channel_type = self.get_channel_type()
 
-        # Get the relevant fields using direct dictionary access for better performance
-        if is_read:
-            addr = self.fields['araddr']
-            burst_len = self.fields['arlen']
-            size = self.fields['arsize']
-            burst_type = self.fields['arburst']
+        if channel_type in ['AW', 'AR']:
+            prefix = channel_type.lower()
+
+            return {
+                'burst_type': getattr(self, f'{prefix}burst', None),
+                'burst_length': (getattr(self, f'{prefix}len', 0) + 1),  # Convert to actual beats
+                'burst_size': getattr(self, f'{prefix}size', None),
+                'bytes_per_beat': (1 << getattr(self, f'{prefix}size', 0)),
+                'total_bytes': (getattr(self, f'{prefix}len', 0) + 1) * (1 << getattr(self, f'{prefix}size', 0)),
+                'address': getattr(self, f'{prefix}addr', None)
+            }
+
+        return {}
+
+    def get_response_info(self) -> Dict[str, Any]:
+        """
+        Get response information from response packets (B/R).
+
+        Returns:
+            Dictionary with response information, or empty dict if not a response packet
+        """
+        channel_type = self.get_channel_type()
+
+        if channel_type == 'B':
+            resp_code = getattr(self, 'bresp', 0)
+        elif channel_type == 'R':
+            resp_code = getattr(self, 'rresp', 0)
         else:
-            addr = self.fields['awaddr']
-            burst_len = self.fields['awlen']
-            size = self.fields['awsize']
-            burst_type = self.fields['awburst']
+            return {}
 
-        # Calculate the byte count for this size using bit shift for performance
-        byte_count = 1 << size
+        resp_names = {0: 'OKAY', 1: 'EXOKAY', 2: 'SLVERR', 3: 'DECERR'}
 
-        # Pre-allocate the addresses list for better performance
-        addresses = [0] * (burst_len + 1)
-        current_addr = addr
+        info = {
+            'response_code': resp_code,
+            'response_name': resp_names.get(resp_code, 'UNKNOWN'),
+            'is_error': resp_code >= 2,
+            'is_exclusive': resp_code == 1
+        }
 
-        for i in range(burst_len + 1):
-            addresses[i] = current_addr
+        if channel_type == 'R':
+            info['is_last'] = getattr(self, 'rlast', 0) == 1
 
-            # Update address based on burst type
-            if burst_type == 0:  # FIXED
-                # Address remains the same for all beats
-                pass
-            elif burst_type == 1:  # INCR
-                # Increment address by byte count
-                current_addr += byte_count
-            elif burst_type == 2:  # WRAP
-                # Calculate the wrap boundary (align to burst size)
-                wrap_size = (burst_len + 1) * byte_count
-                wrap_mask = wrap_size - 1
-                wrap_boundary = addr & ~wrap_mask
+        return info
 
-                # Increment address
-                current_addr += byte_count
+    def __str__(self) -> str:
+        """String representation of the packet."""
+        channel_type = self.get_channel_type()
 
-                # Check if we need to wrap
-                if (current_addr & wrap_mask) == 0:
-                    current_addr = wrap_boundary
+        if channel_type == 'AW':
+            return f"AXI4Packet(AW: id={getattr(self, 'awid', '?')}, addr=0x{getattr(self, 'awaddr', 0):X}, len={getattr(self, 'awlen', 0)})"
+        elif channel_type == 'W':
+            return f"AXI4Packet(W: data=0x{getattr(self, 'wdata', 0):X}, last={getattr(self, 'wlast', '?')})"
+        elif channel_type == 'B':
+            resp_names = {0: 'OKAY', 1: 'EXOKAY', 2: 'SLVERR', 3: 'DECERR'}
+            resp = resp_names.get(getattr(self, 'bresp', 0), 'UNKNOWN')
+            return f"AXI4Packet(B: id={getattr(self, 'bid', '?')}, resp={resp})"
+        elif channel_type == 'AR':
+            return f"AXI4Packet(AR: id={getattr(self, 'arid', '?')}, addr=0x{getattr(self, 'araddr', 0):X}, len={getattr(self, 'arlen', 0)})"
+        elif channel_type == 'R':
+            resp_names = {0: 'OKAY', 1: 'EXOKAY', 2: 'SLVERR', 3: 'DECERR'}
+            resp = resp_names.get(getattr(self, 'rresp', 0), 'UNKNOWN')
+            return f"AXI4Packet(R: id={getattr(self, 'rid', '?')}, data=0x{getattr(self, 'rdata', 0):X}, resp={resp}, last={getattr(self, 'rlast', '?')})"
+        else:
+            return f"AXI4Packet({channel_type})"
 
-        return addresses
 
-# Helper functions for optimized performance
-
-def validate_axi4_packet_cached(packet):
+# Convenience functions for common packet patterns
+def create_simple_write_packets(awid: int, addr: int, data: int,
+                               id_width: int = 8, addr_width: int = 32, data_width: int = 32) -> Tuple[AXI4Packet, AXI4Packet]:
     """
-    Validate an AXI4 packet against protocol rules with optimized caching.
-    This is a standalone function that can be used without creating an instance.
+    Create AW and W packets for a simple single-beat write.
 
     Args:
-        packet: The packet to validate
+        awid: Write ID
+        addr: Write address
+        data: Write data
+        id_width: ID field width
+        addr_width: Address field width
+        data_width: Data field width
 
     Returns:
-        tuple: (is_valid, error_message)
+        Tuple of (aw_packet, w_packet)
     """
-    # Determine which channel this packet is for based on field existence
-    if hasattr(packet, 'awid'):
-        return _validate_aw_packet_cached(packet)
-    elif hasattr(packet, 'wdata'):
-        return _validate_w_packet_cached(packet)
-    elif hasattr(packet, 'bid'):
-        return _validate_b_packet_cached(packet)
-    elif hasattr(packet, 'arid'):
-        return _validate_ar_packet_cached(packet)
-    elif hasattr(packet, 'rid'):
-        return _validate_r_packet_cached(packet)
-    else:
-        return False, "Unknown AXI4 packet type"
+    aw_packet = AXI4Packet.create_aw_packet(
+        id_width=id_width, addr_width=addr_width,
+        awid=awid, awaddr=addr, awlen=0, awsize=2, awburst=1  # Single beat, 4 bytes, INCR
+    )
 
-def _validate_aw_packet_cached(packet):
-    """Validate Write Address channel packet with performance optimizations"""
-    # Check address alignment based on size
-    if hasattr(packet, 'awsize') and hasattr(packet, 'awaddr'):
-        byte_count = 1 << packet.awsize
-        if packet.awaddr % byte_count != 0:
-            return False, f"AW address 0x{packet.awaddr:X} not aligned for size {packet.awsize} ({byte_count} bytes)"
+    strb_width = data_width // 8
+    w_packet = AXI4Packet.create_w_packet(
+        data_width=data_width,
+        wdata=data, wstrb=(1 << strb_width) - 1, wlast=1  # All bytes valid, last beat
+    )
 
-    # Check burst type
-    if hasattr(packet, 'awburst'):
-        if packet.awburst not in [0, 1, 2]:  # FIXED, INCR, WRAP
-            return False, f"Invalid AW burst type: {packet.awburst}"
+    return aw_packet, w_packet
 
-        # For WRAP bursts, check power-of-2 length
-        if packet.awburst == 2 and hasattr(packet, 'awlen') and (packet.awlen + 1) not in [2, 4, 8, 16]:
-            return False, f"WRAP burst length must be 2, 4, 8, or 16 (awlen={packet.awlen})"
 
-    # Check burst length
-    if hasattr(packet, 'awlen') and packet.awlen > 255:
-        return False, f"AW burst length exceeds AXI4 maximum: {packet.awlen}"
-
-    return True, "Valid AW packet"
-
-def _validate_w_packet_cached(packet):
-    """Validate Write Data channel packet with performance optimizations"""
-    # Validate strobe for enabled bytes
-    if hasattr(packet, 'wstrb') and packet.wstrb == 0:
-        return False, "Write strobe is zero (no bytes enabled)"
-
-    # Validate wlast field if present
-    if hasattr(packet, 'wlast') and not isinstance(packet.wlast, int):
-        return False, f"WLAST must be an integer: {packet.wlast}"
-
-    return True, "Valid W packet"
-
-def _validate_b_packet_cached(packet):
-    """Validate Write Response channel packet with performance optimizations"""
-    # Check response code
-    if hasattr(packet, 'bresp') and packet.bresp not in [0, 1, 2, 3]:
-        return False, f"Invalid B response code: {packet.bresp}"
-
-    return True, "Valid B packet"
-
-def _validate_ar_packet_cached(packet):
-    """Validate Read Address channel packet with performance optimizations"""
-    # Check address alignment based on size
-    if hasattr(packet, 'arsize') and hasattr(packet, 'araddr'):
-        byte_count = 1 << packet.arsize
-        if packet.araddr % byte_count != 0:
-            return False, f"AR address 0x{packet.araddr:X} not aligned for size {packet.arsize} ({byte_count} bytes)"
-
-    # Check burst type
-    if hasattr(packet, 'arburst'):
-        if packet.arburst not in [0, 1, 2]:  # FIXED, INCR, WRAP
-            return False, f"Invalid AR burst type: {packet.arburst}"
-
-        # For WRAP bursts, check power-of-2 length
-        if packet.arburst == 2 and hasattr(packet, 'arlen') and (packet.arlen + 1) not in [2, 4, 8, 16]:
-            return False, f"WRAP burst length must be 2, 4, 8, or 16 (arlen={packet.arlen})"
-
-    # Check burst length
-    if hasattr(packet, 'arlen') and packet.arlen > 255:
-        return False, f"AR burst length exceeds AXI4 maximum: {packet.arlen}"
-
-    return True, "Valid AR packet"
-
-def _validate_r_packet_cached(packet):
-    """Validate Read Data channel packet with performance optimizations"""
-    # Check response code
-    if hasattr(packet, 'rresp') and packet.rresp not in [0, 1, 2, 3]:
-        return False, f"Invalid R response code: {packet.rresp}"
-
-    # Validate rlast field if present
-    if hasattr(packet, 'rlast') and not isinstance(packet.rlast, int):
-        return False, f"RLAST must be an integer: {packet.rlast}"
-
-    return True, "Valid R packet"
-
-def get_burst_addresses_cached(packet):
+def create_simple_read_packet(arid: int, addr: int,
+                            id_width: int = 8, addr_width: int = 32) -> AXI4Packet:
     """
-    Calculate all addresses in a burst sequence with optimized performance.
-    This is a standalone function that can be used without creating an instance.
+    Create AR packet for a simple single-beat read.
 
     Args:
-        packet: The packet containing burst information
+        arid: Read ID
+        addr: Read address
+        id_width: ID field width
+        addr_width: Address field width
 
     Returns:
-        list: List of addresses in the burst
+        AR packet
     """
-    # Determine if this is a read or write address packet
-    is_read = hasattr(packet, 'araddr')
+    return AXI4Packet.create_ar_packet(
+        id_width=id_width, addr_width=addr_width,
+        arid=arid, araddr=addr, arlen=0, arsize=2, arburst=1  # Single beat, 4 bytes, INCR
+    )
 
-    # Get the relevant fields
-    if is_read:
-        addr = packet.araddr
-        burst_len = packet.arlen
-        size = packet.arsize
-        burst_type = packet.arburst
-    else:
-        addr = packet.awaddr
-        burst_len = packet.awlen
-        size = packet.awsize
-        burst_type = packet.awburst
 
-    # Calculate the byte count for this size
-    byte_count = 1 << size
+# Example usage and testing
+if __name__ == "__main__":
+    print("AXI4 Packet - Ground Up Implementation Testing")
+    print("=" * 60)
 
-    # Pre-allocate the addresses list for better performance
-    addresses = [0] * (burst_len + 1)
-    current_addr = addr
+    # Test packet creation
+    aw_packet = AXI4Packet.create_aw_packet(awid=1, awaddr=0x1000, awlen=3)
+    print(f"AW Packet: {aw_packet}")
+    print(f"Channel Type: {aw_packet.get_channel_type()}")
+    print(f"Burst Info: {aw_packet.get_burst_info()}")
 
-    for i in range(burst_len + 1):
-        addresses[i] = current_addr
+    # Test validation
+    is_valid, error_msg = aw_packet.validate_axi4_protocol()
+    print(f"Validation: {is_valid}, Message: {error_msg}")
 
-        # Update address based on burst type
-        if burst_type == 1:
-            # Increment address by byte count
-            current_addr += byte_count
-        elif burst_type == 2:
-            # Calculate the wrap boundary (align to burst size)
-            wrap_size = (burst_len + 1) * byte_count
-            wrap_mask = wrap_size - 1
-            wrap_boundary = addr & ~wrap_mask
+    # Test W packet
+    w_packet = AXI4Packet.create_w_packet(wdata=0xDEADBEEF, wlast=1)
+    print(f"\nW Packet: {w_packet}")
 
-            # Increment address
-            current_addr += byte_count
+    # Test convenience functions
+    aw, w = create_simple_write_packets(1, 0x2000, 0x12345678)
+    print(f"\nSimple Write - AW: {aw}")
+    print(f"Simple Write - W: {w}")
 
-            # Check if we need to wrap
-            if (current_addr & wrap_mask) == 0:
-                current_addr = wrap_boundary
-
-    return addresses
-
-# Performance monitoring function
-def get_axi4_cache_stats():
-    """
-    Get statistics about the field cache performance.
-
-    Returns:
-        Dict with cache statistics
-    """
-    return _FIELD_CACHE.get_stats()
-
-# Cache management function
-def clear_axi4_cache():
-    """Clear the field cache to free memory and reset statistics"""
-    _FIELD_CACHE.clear()
+    ar = create_simple_read_packet(2, 0x3000)
+    print(f"Simple Read - AR: {ar}")

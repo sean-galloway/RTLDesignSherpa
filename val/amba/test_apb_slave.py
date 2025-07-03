@@ -7,8 +7,8 @@ import cocotb
 from cocotb.utils import get_sim_time
 from cocotb_test.simulator import run
 
-from CocoTBFramework.components.memory_model import MemoryModel
-from CocoTBFramework.components.flex_randomizer import FlexRandomizer
+from CocoTBFramework.components.shared.memory_model import MemoryModel
+from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.apb.apb_packet import APBTransaction, APBPacket
 from CocoTBFramework.components.apb.apb_sequence import APBSequence
 from CocoTBFramework.components.apb.apb_factories import \
@@ -23,13 +23,13 @@ from CocoTBFramework.tbclasses.amba.amba_random_configs import APB_MASTER_RANDOM
 from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 
 # Import the modular Temporal Sequence WaveDrom system - no conditionals
-from CocoTBFramework.components.wavedrom_utils.constraint_solver import (
+from CocoTBFramework.components.wavedrom.constraint_solver import (
     TemporalConstraintSolver, ClockEdge
 )
-from CocoTBFramework.components.wavedrom_utils.wavejson_gen import (
+from CocoTBFramework.components.wavedrom.wavejson_gen import (
     WaveJSONGenerator, create_apb_wavejson_generator
 )
-from CocoTBFramework.components.wavedrom_utils.utility import (
+from CocoTBFramework.components.wavedrom.utility import (
     create_temporal_annotations_from_solution, create_wavejson_from_packet_and_signals,
     get_apb_field_config
 )
@@ -754,8 +754,8 @@ def test_apb_slave(request, addr_width, data_width, depth):
     toplevel = dut_name
 
     verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba'], "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_amba'], f"{dut_name}.sv")
+        os.path.join(rtl_dict['rtl_amba'], "gaxi/gaxi_skid_buffer.sv"),
+        os.path.join(rtl_dict['rtl_amba'], f"apb/{dut_name}.sv")
     ]
 
     # create a human readable test identifier

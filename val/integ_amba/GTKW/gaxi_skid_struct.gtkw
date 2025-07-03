@@ -1,0 +1,39 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Sun Jun 22 05:14:28 2025
+[*]
+[dumpfile] "/home/seang/github/RTLDesignSherpa/val/integ_amba/local_sim_build/test_gaxi_struct_only_skid_axi_narrow_d04_full/dump.fst"
+[dumpfile_mtime] "Sun Jun 22 05:07:28 2025"
+[dumpfile_size] 51259
+[savefile] "/home/seang/github/RTLDesignSherpa/val/integ_amba/GTKW/gaxi_skid_struct.gtkw"
+[timestart] 0
+[size] 2246 1335
+[pos] 5 -4
+*-24.976166 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .gaxi_skid_buffer_struct.
+[sst_width] 375
+[signals_width] 340
+[sst_expanded] 1
+[sst_vpaned_height] 413
+@28
+gaxi_skid_buffer_struct.i_axi_aclk
+gaxi_skid_buffer_struct.i_axi_aresetn
+@200
+-write interface
+@28
+gaxi_skid_buffer_struct.i_wr_valid
+gaxi_skid_buffer_struct.o_wr_ready
+@22
+gaxi_skid_buffer_struct.i_wr_data[31:0]
+@200
+-read interface
+@28
+gaxi_skid_buffer_struct.o_rd_valid
+gaxi_skid_buffer_struct.i_rd_ready
+@22
+gaxi_skid_buffer_struct.o_rd_data[31:0]
+@23
+gaxi_skid_buffer_struct.o_rd_count[3:0]
+[pattern_trace] 1
+[pattern_trace] 0

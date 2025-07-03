@@ -6,7 +6,7 @@ framework. It supports parameterized field configurations and signal mappings.
 """
 
 from typing import Dict, Any, Optional
-from CocoTBFramework.components.field_config import FieldConfig, FieldDefinition
+from CocoTBFramework.components.shared.field_config import FieldConfig, FieldDefinition
 
 
 class APBGAXIConfig:
@@ -39,49 +39,65 @@ class APBGAXIConfig:
         """
         config = FieldConfig()
 
-        # Command field (read/write)
+        # pwrite field - 1 bit indicating read (0) or write (1)
         config.add_field(FieldDefinition(
-            name="cmd",
+            name="pwrite",
             bits=1,
             default=0,
-            format="bin",
-            display_width=1,
-            active_bits=(0, 0),
-            description="Command (0=Read, 1=Write)",
+            format="dec",
+            description="Write enable (0=read, 1=write)",
             encoding={0: "READ", 1: "WRITE"}
         ))
-
-        # Address field
+        
+        # paddr field - address field
         config.add_field(FieldDefinition(
-            name="addr",
+            name="paddr", 
             bits=self.addr_width,
             default=0,
             format="hex",
             display_width=(self.addr_width + 3) // 4,  # Hex digits needed
-            active_bits=(self.addr_width - 1, 0),
-            description="Address"
+            description=f"Address ({self.addr_width}-bit)"
         ))
-
-        # Data field
+        
+        # pwdata field - write data
         config.add_field(FieldDefinition(
-            name="data",
-            bits=self.data_width,
+            name="pwdata",
+            bits=self.data_width, 
             default=0,
             format="hex",
             display_width=(self.data_width + 3) // 4,  # Hex digits needed
-            active_bits=(self.data_width - 1, 0),
-            description="Data"
+            description=f"Write data ({self.data_width}-bit)"
         ))
-
-        # Strobe field
+        
+        # pstrb field - byte strobes
         config.add_field(FieldDefinition(
-            name="strb",
+            name="pstrb",
             bits=self.strb_width,
-            default=(1 << self.strb_width) - 1,  # All bits set by default
-            format="bin",
+            default=(1 << self.strb_width) - 1,  # All strobes enabled by default
+            format="bin", 
             display_width=self.strb_width,
-            active_bits=(self.strb_width - 1, 0),
-            description="Byte strobe"
+            description=f"Byte strobes ({self.strb_width}-bit)"
+        ))
+        
+        # pprot field - protection attributes
+        prot_width = 3
+        config.add_field(FieldDefinition(
+            name="pprot",
+            bits=prot_width,
+            default=0,
+            format="bin",
+            display_width=prot_width,
+            description=f"Protection attributes ({prot_width}-bit)",
+            encoding={
+                0b000: "NORMAL",
+                0b001: "PRIVILEGED", 
+                0b010: "NONSECURE",
+                0b011: "PRIV_NONSECURE",
+                0b100: "INSTR",
+                0b101: "PRIV_INSTR",
+                0b110: "NONSECURE_INSTR", 
+                0b111: "PRIV_NONSECURE_INSTR"
+            } if prot_width >= 3 else None
         ))
 
         return config
@@ -95,84 +111,25 @@ class APBGAXIConfig:
         """
         config = FieldConfig()
 
-        # Data field
+        # prdata field - read data
         config.add_field(FieldDefinition(
-            name="data",
+            name="prdata",
             bits=self.data_width,
             default=0,
-            format="hex",
+            format="hex", 
             display_width=(self.data_width + 3) // 4,  # Hex digits needed
-            active_bits=(self.data_width - 1, 0),
-            description="Response data"
+            description=f"Read data ({self.data_width}-bit)"
         ))
-
-        # Error field
+        
+        # pslverr field - slave error
         config.add_field(FieldDefinition(
-            name="err",
+            name="pslverr",
             bits=1,
             default=0,
-            format="bin",
-            display_width=1,
-            active_bits=(0, 0),
-            description="Error flag",
+            format="dec",
+            description="Slave error (0=OK, 1=ERROR)",
             encoding={0: "OK", 1: "ERROR"}
         ))
 
         return config
 
-    def get_master_cmd_signal_maps(self) -> Dict[str, str]:
-        """Get master command interface signal mapping."""
-        return {
-            'ctl': {
-                'm2s_valid': 'o_cmd_valid',
-                's2m_ready': 'i_cmd_ready'
-            },
-            'opt': {
-                'm2s_pkt_cmd': 'o_cmd_pwrite',
-                'm2s_pkt_addr': 'o_cmd_paddr',
-                'm2s_pkt_data': 'o_cmd_pwdata',
-                'm2s_pkt_strb': 'o_cmd_pstrb'
-            }
-        }
-
-    def get_slave_cmd_signal_maps(self) -> Dict[str, str]:
-        """Get slave command interface optional signal mapping."""
-        return {
-            'ctl':{
-                'm2s_valid': 'i_cmd_valid',
-                's2m_ready': 'o_cmd_ready'
-            },
-            'opt': {
-                'm2s_pkt_cmd': 'i_cmd_pwrite',
-                'm2s_pkt_addr': 'i_cmd_paddr',
-                'm2s_pkt_data': 'i_cmd_pwdata',
-                'm2s_pkt_strb': 'i_cmd_pstrb',
-                'm2s_pkt_prot': 'i_cmd_pprot'
-            }
-        }
-
-    def get_master_rsp_signal_maps(self) -> Dict[str, str]:
-        """Get master response interface signal mapping."""
-        return {
-            'ctl': {
-                'm2s_valid': 'o_rsp_valid',
-                's2m_ready': 'i_rsp_ready'
-            },
-            'opt': {
-                'm2s_pkt_data': 'o_rsp_prdata',
-                'm2s_pkt_err': 'o_rsp_pslverr'
-            }
-        }
-
-    def get_slave_rsp_signal_maps(self) -> Dict[str, str]:
-        """Get slave response interface signal mapping."""
-        return {
-            'ctl': {
-                'm2s_valid': 'i_rsp_valid',
-                's2m_ready': 'o_rsp_ready'
-            },
-            'opt': {
-                'm2s_pkt_data': 'i_rsp_prdata',
-                'm2s_pkt_err': 'i_rsp_pslverr'
-            }
-        }

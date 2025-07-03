@@ -9,10 +9,10 @@ All existing parameters are preserved and used exactly as before.
 FIXED: Now passes resolved signals directly to DataStrategies, eliminating guesswork.
 """
 
-from ..field_config import FieldConfig
-from ..signal_mapping_helper import SignalResolver
-from ..data_strategies import DataCollectionStrategy, DataDrivingStrategy
-from ..flex_randomizer import FlexRandomizer
+from ..shared.field_config import FieldConfig
+from ..shared.signal_mapping_helper import SignalResolver
+from ..shared.data_strategies import DataCollectionStrategy, DataDrivingStrategy
+from ..shared.flex_randomizer import FlexRandomizer
 
 
 class FIFOComponentBase:

@@ -101,7 +101,7 @@ def test_axi_skid_buffer_multi(request, addr_width, ctrl_width, data_width, dept
     toplevel = dut_name
 
     verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba'], "gaxi_skid_buffer.sv"),
+        os.path.join(rtl_dict['rtl_amba'], "gaxi/gaxi_skid_buffer.sv"),
         os.path.join(rtl_dict['rtl_amba_test'], f"{dut_name}.sv"),
     ]
 

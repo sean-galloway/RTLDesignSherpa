@@ -5,7 +5,7 @@ import random
 from typing import List, Tuple, Dict, Optional
 import copy
 
-from CocoTBFramework.components.apb.apb_packet import APBPacket
+from .apb_packet import APBPacket
 
 @dataclass
 class APBSequence:

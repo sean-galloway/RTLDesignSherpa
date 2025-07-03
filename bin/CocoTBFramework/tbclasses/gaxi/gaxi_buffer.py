@@ -4,8 +4,8 @@ import random
 import cocotb
 
 from CocoTBFramework.tbclasses.tbbase import TBBase
-from CocoTBFramework.components.flex_randomizer import FlexRandomizer
-from CocoTBFramework.components.field_config import FieldConfig
+from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
+from CocoTBFramework.components.shared.field_config import FieldConfig
 
 from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
 from CocoTBFramework.components.gaxi.gaxi_master import GAXIMaster

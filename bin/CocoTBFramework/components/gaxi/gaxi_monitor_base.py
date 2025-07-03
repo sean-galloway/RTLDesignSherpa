@@ -9,7 +9,7 @@ from cocotb_bus.monitors import BusMonitor
 from cocotb.utils import get_sim_time
 
 from .gaxi_component_base import GAXIComponentBase
-from ..monitor_statistics import MonitorStatistics
+from ..shared.monitor_statistics import MonitorStatistics
 from .gaxi_packet import GAXIPacket
 
 

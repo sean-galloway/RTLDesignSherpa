@@ -7,8 +7,8 @@ import cocotb
 from cocotb.utils import get_sim_time
 from cocotb_test.simulator import run
 
-from CocoTBFramework.components.memory_model import MemoryModel
-from CocoTBFramework.components.flex_randomizer import FlexRandomizer
+from CocoTBFramework.components.shared.memory_model import MemoryModel
+from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.apb.apb_sequence import APBSequence
 from CocoTBFramework.components.apb.apb_factories import \
     create_apb_slave, create_apb_monitor, create_apb_scoreboard
@@ -43,6 +43,7 @@ class APBMasterTB(TBBase):
 
         # Queue to track read commands waiting for responses
         self.pending_reads = deque()
+        super_debug = True
 
         # Configure APB components
         self.apb_monitor = create_apb_monitor(
@@ -81,7 +82,6 @@ class APBMasterTB(TBBase):
             data_width=self.DATA_WIDTH,
             strb_width=self.STRB_WIDTH
         )
-        self.cmd_signal_maps = self.apbgaxiconfig.get_slave_cmd_signal_maps()
         self.cmd_field_config = self.apbgaxiconfig.create_cmd_field_config()
 
         self.cmd_monitor = create_gaxi_monitor(
@@ -90,11 +90,11 @@ class APBMasterTB(TBBase):
             '',  # No prefix as we're using signal map
             dut.pclk,
             field_config=self.cmd_field_config,
+            pkt_prefix='cmd',
             is_slave=True,  # Monitoring slave-side signals
             log=self.log,
+            super_debug=super_debug,
             multi_sig=True,  # Using separate signals
-            signal_map=self.cmd_signal_maps['ctl'],
-            optional_signal_map=self.cmd_signal_maps['opt']
         )
 
         self.cmd_master = create_gaxi_master(
@@ -103,16 +103,15 @@ class APBMasterTB(TBBase):
             '',  # No prefix as we're using signal map
             dut.pclk,
             field_config=self.cmd_field_config,
+            pkt_prefix='cmd',
             randomizer=FlexRandomizer(AXI_RANDOMIZER_CONFIGS['fixed']['master']),
             memory_model=self.mem,
             log=self.log,
+            super_debug=super_debug,
             multi_sig=True,  # Using separate signals
-            signal_map=self.cmd_signal_maps['ctl'],
-            optional_signal_map=self.cmd_signal_maps['opt']
         )
 
         # Configure GAXI components for response interface
-        self.rsp_signal_maps = self.apbgaxiconfig.get_master_rsp_signal_maps()
         self.rsp_field_config = self.apbgaxiconfig.create_rsp_field_config()
 
         self.rsp_monitor = create_gaxi_monitor(
@@ -121,11 +120,11 @@ class APBMasterTB(TBBase):
             '',  # No prefix as we're using signal map
             dut.pclk,
             field_config=self.rsp_field_config,
+            pkt_prefix='rsp',
             is_slave=False,  # Monitoring master-side signals
             log=self.log,
+            super_debug=super_debug,
             multi_sig=True,  # Using separate signals
-            signal_map=self.rsp_signal_maps['ctl'],
-            optional_signal_map=self.rsp_signal_maps['opt']
         )
 
         self.rsp_slave = create_gaxi_slave(
@@ -134,11 +133,11 @@ class APBMasterTB(TBBase):
             '',  # No prefix as we're using signal map
             dut.pclk,
             field_config=self.rsp_field_config,
+            pkt_prefix='rsp',
             randomizer=FlexRandomizer(AXI_RANDOMIZER_CONFIGS['fixed']['slave']),
             log=self.log,
+            super_debug=super_debug,
             multi_sig=True,  # Using separate signals
-            signal_map=self.rsp_signal_maps['ctl'],
-            optional_signal_map=self.rsp_signal_maps['opt']
         )
 
         # Set up APB-GAXI scoreboard
@@ -259,13 +258,13 @@ class APBMasterTB(TBBase):
         self.dut.presetn.value = 0
 
         # Reset command/response interface
-        self.dut.i_cmd_valid.value = 0
-        self.dut.i_cmd_pwrite.value = 0
-        self.dut.i_cmd_paddr.value = 0
-        self.dut.i_cmd_pwdata.value = 0
-        self.dut.i_cmd_pstrb.value = 0
-        self.dut.i_cmd_pprot.value = 0
-        self.dut.i_rsp_ready.value = 0
+        # self.dut.i_cmd_valid.value = 0
+        # self.dut.i_cmd_pwrite.value = 0
+        # self.dut.i_cmd_paddr.value = 0
+        # self.dut.i_cmd_pwdata.value = 0
+        # self.dut.i_cmd_pstrb.value = 0
+        # self.dut.i_cmd_pprot.value = 0
+        # self.dut.i_rsp_ready.value = 0
 
         # Reset APB slave
         await self.apb_slave.reset_bus()
@@ -719,8 +718,8 @@ def test_apb_master(request, addr_width, data_width, cmd_depth, rsp_depth):
     toplevel = dut_name
 
     verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba'], "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_amba'], f"{dut_name}.sv")
+        os.path.join(rtl_dict['rtl_amba'], "gaxi/gaxi_skid_buffer.sv"),
+        os.path.join(rtl_dict['rtl_amba'], f"apb/{dut_name}.sv")
     ]
 
     # create a human readable test identifier

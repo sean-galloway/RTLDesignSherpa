@@ -1,0 +1,92 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Wed Jul  2 23:17:13 2025
+[*]
+[dumpfile] "/home/seang/github/RTLDesignSherpa/val/amba/local_sim_build/test_axi_rd_splitter_iw08_aw32_dw512_uw08_fd04_am00FF_basic/dump.fst"
+[dumpfile_mtime] "Wed Jul  2 21:17:21 2025"
+[dumpfile_size] 4895
+[savefile] "/home/seang/github/RTLDesignSherpa/val/amba/GTKW/axi_master_rd_splitter.gtkw"
+[timestart] 388800
+[size] 1961 1165
+[pos] -1 -1
+*-15.886080 620200 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .axi_master_rd_splitter.
+[sst_width] 278
+[signals_width] 299
+[sst_expanded] 1
+[sst_vpaned_height] 417
+@420
+axi_master_rd_splitter.AW
+axi_master_rd_splitter.DW
+axi_master_rd_splitter.IW
+axi_master_rd_splitter.UW
+axi_master_rd_splitter.SPLIT_FIFO_DEPTH
+@28
+axi_master_rd_splitter.aclk
+axi_master_rd_splitter.aresetn
+@22
+axi_master_rd_splitter.alignment_mask[11:0]
+@200
+-fub ar
+@28
+axi_master_rd_splitter.fub_arvalid
+axi_master_rd_splitter.fub_arready
+@22
+axi_master_rd_splitter.fub_araddr[31:0]
+@28
+axi_master_rd_splitter.fub_arburst[1:0]
+@22
+axi_master_rd_splitter.fub_arlen[7:0]
+axi_master_rd_splitter.fub_arid[7:0]
+@200
+-m_axi_ar
+@28
+axi_master_rd_splitter.m_axi_arvalid
+axi_master_rd_splitter.m_axi_arready
+@22
+axi_master_rd_splitter.m_axi_araddr[31:0]
+@28
+axi_master_rd_splitter.m_axi_arburst[1:0]
+@22
+axi_master_rd_splitter.m_axi_arlen[7:0]
+axi_master_rd_splitter.m_axi_arid[7:0]
+@200
+-m_axi_r
+@28
+axi_master_rd_splitter.m_axi_rvalid
+axi_master_rd_splitter.m_axi_rready
+@22
+axi_master_rd_splitter.m_axi_rid[7:0]
+@28
+axi_master_rd_splitter.m_axi_rlast
+@200
+-fub_r
+@28
+axi_master_rd_splitter.fub_rvalid
+axi_master_rd_splitter.fub_rready
+@22
+axi_master_rd_splitter.fub_rid[7:0]
+@28
+axi_master_rd_splitter.fub_rlast
+@200
+-fub_split
+@28
+axi_master_rd_splitter.fub_split_valid
+axi_master_rd_splitter.fub_split_ready
+@22
+axi_master_rd_splitter.fub_split_addr[31:0]
+axi_master_rd_splitter.fub_split_cnt[7:0]
+axi_master_rd_splitter.fub_split_id[7:0]
+@200
+-internals
+@28
+axi_master_rd_splitter.inst_axi_split_combi.split_required
+@22
+axi_master_rd_splitter.inst_axi_split_combi.split_len[7:0]
+axi_master_rd_splitter.inst_axi_split_combi.next_boundary_addr[31:0]
+axi_master_rd_splitter.inst_axi_split_combi.remaining_len_after_split[7:0]
+@29
+axi_master_rd_splitter.inst_axi_split_combi.new_split_needed
+[pattern_trace] 1
+[pattern_trace] 0

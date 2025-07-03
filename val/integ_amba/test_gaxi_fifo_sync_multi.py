@@ -104,7 +104,7 @@ def test_gaxi_fifo_sync_multi(request, addr_width, ctrl_width, data_width, depth
     verilog_sources = [
         os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
         os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
-        os.path.join(rtl_dict['rtl_amba'], "gaxi_fifo_sync.sv"),
+        os.path.join(rtl_dict['rtl_amba'], "gaxi/gaxi_fifo_sync.sv"),
         os.path.join(rtl_dict['rtl_amba_test'], f"{dut_name}.sv"),
     ]
 

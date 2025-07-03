@@ -13,9 +13,9 @@ Key improvements:
 """
 from typing import Optional, Dict, Any, Union, List
 
-from ..memory_model import MemoryModel
-from ..field_config import FieldConfig
-from ..flex_randomizer import FlexRandomizer
+from ..shared.memory_model import MemoryModel
+from ..shared.field_config import FieldConfig
+from ..shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.scoreboards.fifo_scoreboard import FIFOScoreboard
 from .fifo_master import FIFOMaster
 from .fifo_slave import FIFOSlave

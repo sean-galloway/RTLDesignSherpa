@@ -20,7 +20,7 @@ from cocotb_test.simulator import run
 # Import TBBase and utility functions
 from CocoTBFramework.tbclasses.tbbase import TBBase
 from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
-from CocoTBFramework.components.flex_randomizer import FlexRandomizer
+from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 
 # Import APB components
 from CocoTBFramework.components.apb.apb_packet import APBTransaction
@@ -567,8 +567,10 @@ def test_apb_xbar_wrap(request, model_type, m, s, addr_width, data_width, num_tr
     # Get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths(
         {
-            'rtl_cmn': 'rtl/common',
-            'rtl_amba': 'rtl/amba',
+            'rtl_cmn':      'rtl/common',
+            'rtl_amba':     'rtl/amba',
+            'rtl_apb':      'rtl/amba/apb',
+            'rtl_gaxi':     'rtl/amba/gaxi',
             'rtl_int_amba': 'rtl/integ_amba/apb_xbar',
         })
 
@@ -591,17 +593,17 @@ def test_apb_xbar_wrap(request, model_type, m, s, addr_width, data_width, num_tr
     model_specific_sources = []
     if model_type == "thin":
         model_specific_sources = [
-            os.path.join(rtl_dict['rtl_amba'], "apb_xbar_thin.sv"),
+            os.path.join(rtl_dict['rtl_apb'], "apb_xbar_thin.sv"),
         ]
     else:  # Full model
         model_specific_sources = [
-            os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
-            os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
-            os.path.join(rtl_dict['rtl_amba'], "gaxi_fifo_sync.sv"),
-            os.path.join(rtl_dict['rtl_amba'], "gaxi_skid_buffer.sv"),
-            os.path.join(rtl_dict['rtl_amba'], "apb_master_stub.sv"),
-            os.path.join(rtl_dict['rtl_amba'], "apb_slave_stub.sv"),
-            os.path.join(rtl_dict['rtl_amba'], "apb_xbar.sv"),
+            os.path.join(rtl_dict['rtl_cmn'],  "counter_bin.sv"),
+            os.path.join(rtl_dict['rtl_cmn'],  "fifo_control.sv"),
+            os.path.join(rtl_dict['rtl_gaxi'], "gaxi_fifo_sync.sv"),
+            os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"),
+            os.path.join(rtl_dict['rtl_apb'],  "apb_master_stub.sv"),
+            os.path.join(rtl_dict['rtl_apb'],  "apb_slave_stub.sv"),
+            os.path.join(rtl_dict['rtl_amba'], "apb/apb_xbar.sv"),
         ]
 
     # Add the top-level wrapper
@@ -655,7 +657,6 @@ def test_apb_xbar_wrap(request, model_type, m, s, addr_width, data_width, num_tr
         'PARAM_TEST_SEQUENCE': 'True',
         'PARAM_TEST_MIXED': 'True',
     }
-
 
     compile_args = [
             "--trace-fst",

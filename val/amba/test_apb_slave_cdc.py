@@ -7,14 +7,17 @@ import cocotb
 from cocotb.utils import get_sim_time
 from cocotb_test.simulator import run
 
-from CocoTBFramework.components.memory_model import MemoryModel
-from CocoTBFramework.components.flex_randomizer import FlexRandomizer
+from CocoTBFramework.components.shared.memory_model import MemoryModel
+from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.apb.apb_packet import APBTransaction
 from CocoTBFramework.components.apb.apb_sequence import APBSequence
 from CocoTBFramework.components.apb.apb_factories import \
     create_apb_master, create_apb_monitor, create_apb_scoreboard
 from CocoTBFramework.components.gaxi.gaxi_factories import \
     create_gaxi_master, create_gaxi_slave, create_gaxi_monitor
+from CocoTBFramework.components.gaxi.gaxi_master import GAXIMaster
+from CocoTBFramework.components.gaxi.gaxi_monitor import GAXIMonitor
+from CocoTBFramework.components.gaxi.gaxi_slave import GAXISlave
 from CocoTBFramework.tbclasses.apb.apbgaxiconfig import APBGAXIConfig
 from CocoTBFramework.tbclasses.gaxi.gaxi_enhancements import GAXICommandHandler_APBSlave
 from CocoTBFramework.scoreboards.apb_gaxi_scoreboard import APBGAXIScoreboard
@@ -72,20 +75,24 @@ class APBSlaveTB(TBBase):
         self.cmd_field_config = self.apbgaxiconfig.create_cmd_field_config()
 
 
-        self.cmd_monitor = create_gaxi_monitor(
+        self.cmd_monitor = GAXIMonitor(
             dut,
             'CMD Monitor',
             '',  # No prefix as we're using signal map
             dut.aclk,
             field_config=self.cmd_field_config,
-            is_slave=False,  # Monitoring master-side signals
-            log=self.log,
+            is_slave=True,
+            mode='skid',
+            in_prefix='',
+            out_prefix='',
+            bus_name='cmd',
+            pkt_prefix='',
             multi_sig=True,  # Using separate signals
-            signal_map=self.cmd_signal_maps['ctl'],
-            optional_signal_map=self.cmd_signal_maps['opt']
+            log=self.log,
+            super_debug=True
         )
 
-        self.cmd_slave = create_gaxi_slave(
+        self.cmd_slave = GAXISlave(
             dut,
             'CMD Slave',
             '',  # No prefix as we're using signal map
@@ -93,10 +100,14 @@ class APBSlaveTB(TBBase):
             field_config=self.cmd_field_config,
             randomizer=FlexRandomizer(AXI_RANDOMIZER_CONFIGS['fixed']['slave']),
             memory_model=self.mem,
-            log=self.log,
+            mode='skid',
+            in_prefix='',
+            out_prefix='',
+            bus_name='cmd',
+            pkt_prefix='',
             multi_sig=True,  # Using separate signals
-            signal_map=self.cmd_signal_maps['ctl'],
-            optional_signal_map=self.cmd_signal_maps['opt']
+            log=self.log,
+            super_debug=True
         )
 
         # Configure GAXI components for response interface
@@ -108,12 +119,11 @@ class APBSlaveTB(TBBase):
             'RSP Monitor',
             '',  # No prefix as we're using signal map
             dut.pclk,
+            pkt_prefix='rsp',
             field_config=self.rsp_field_config,
             is_slave=True,  # Monitoring slave-side signals
             log=self.log,
             multi_sig=True,  # Using separate signals
-            signal_map=self.rsp_signal_maps['ctl'],
-            optional_signal_map=self.rsp_signal_maps['opt']
         )
 
         self.rsp_master = create_gaxi_master(
@@ -121,12 +131,11 @@ class APBSlaveTB(TBBase):
             'RSP Master',
             '',  # No prefix as we're using signal map
             dut.pclk,
+            pkt_prefix='rsp',
             field_config=self.rsp_field_config,
             randomizer=FlexRandomizer(AXI_RANDOMIZER_CONFIGS['fixed']['master']),
             log=self.log,
             multi_sig=True,  # Using separate signals
-            signal_map=self.rsp_signal_maps['ctl'],
-            optional_signal_map=self.rsp_signal_maps['opt']
         )
 
         # Create command handler to connect cmd and response interfaces
@@ -605,16 +614,22 @@ async def apb_slave_test(dut):
 def test_apb_slave(request, addr_width, data_width, depth):
 
     # get all of the directory and module information
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common', 'rtl_amba': 'rtl/amba'})
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths(
+        {
+            'rtl_cmn':  'rtl/common',
+            'rtl_amba': 'rtl/amba',
+            'rtl_gaxi': 'rtl/amba/gaxi',
+            'rtl_apb':  'rtl/amba/apb',
+        })
 
     dut_name = "apb_slave_cdc"
     toplevel = dut_name
 
     verilog_sources = [
         os.path.join(rtl_dict['rtl_amba'], "cdc_handshake.sv"),
-        os.path.join(rtl_dict['rtl_amba'], "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_amba'], "apb_slave.sv"),
-        os.path.join(rtl_dict['rtl_amba'], f"{dut_name}.sv")
+        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"),
+        os.path.join(rtl_dict['rtl_apb'],  "apb_slave.sv"),
+        os.path.join(rtl_dict['rtl_apb'], f"{dut_name}.sv")
     ]
 
     # create a human readable test identifier

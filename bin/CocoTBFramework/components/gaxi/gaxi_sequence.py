@@ -10,8 +10,8 @@ This simplified version uses existing infrastructure more effectively:
 
 import random
 from collections import deque
-from ..field_config import FieldConfig
-from ..flex_randomizer import FlexRandomizer
+from ..shared.field_config import FieldConfig
+from ..shared.flex_randomizer import FlexRandomizer
 from .gaxi_packet import GAXIPacket
 
 

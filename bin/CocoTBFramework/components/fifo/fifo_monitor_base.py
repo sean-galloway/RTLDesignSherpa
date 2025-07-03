@@ -9,7 +9,7 @@ from cocotb_bus.monitors import BusMonitor
 from cocotb.utils import get_sim_time
 
 from .fifo_component_base import FIFOComponentBase
-from ..monitor_statistics import MonitorStatistics
+from ..shared.monitor_statistics import MonitorStatistics
 from .fifo_packet import FIFOPacket
 
 

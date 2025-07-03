@@ -17,8 +17,8 @@ import os
 import random
 
 from CocoTBFramework.tbclasses.tbbase import TBBase
-from CocoTBFramework.components.flex_randomizer import FlexRandomizer
-from CocoTBFramework.components.field_config import FieldConfig, FieldDefinition
+from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
+from CocoTBFramework.components.shared.field_config import FieldConfig, FieldDefinition
 from CocoTBFramework.tbclasses.flex_config_gen import FlexConfigGen
 
 from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
@@ -27,7 +27,7 @@ from CocoTBFramework.components.gaxi.gaxi_slave import GAXISlave
 from CocoTBFramework.components.gaxi.gaxi_monitor import GAXIMonitor
 from CocoTBFramework.tbclasses.gaxi.gaxi_buffer_seq import GAXIBufferSequence
 from CocoTBFramework.tbclasses.gaxi.gaxi_buffer_configs import FIELD_CONFIGS
-from CocoTBFramework.components.memory_model import MemoryModel
+from CocoTBFramework.components.shared.memory_model import MemoryModel
 
 
 class GaxiMultiBufferTB(TBBase):

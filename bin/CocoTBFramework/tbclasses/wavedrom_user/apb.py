@@ -9,11 +9,11 @@ Improvements:
 """
 
 from typing import List, Dict, Optional, Any
-from CocoTBFramework.components.wavedrom_utils.constraint_solver import (
+from CocoTBFramework.components.wavedrom.constraint_solver import (
     TemporalConstraint, TemporalEvent, SignalTransition, SignalStatic, TemporalRelation,
     TemporalConstraintSolver
 )
-from CocoTBFramework.components.wavedrom_utils.utility import (
+from CocoTBFramework.components.wavedrom.utility import (
     create_transition_pattern, create_static_pattern, create_temporal_event,
     create_debug_constraint, create_protocol_specific_field_config,
     get_apb_field_config
@@ -21,7 +21,7 @@ from CocoTBFramework.components.wavedrom_utils.utility import (
 
 # Required imports - no conditionals
 from CocoTBFramework.components.field_config import FieldConfig, FieldDefinition
-from CocoTBFramework.components.wavedrom_utils.wavejson_gen import (
+from CocoTBFramework.components.wavedrom.wavejson_gen import (
     WaveJSONGenerator, create_apb_wavejson_generator
 )
 
@@ -635,7 +635,7 @@ def setup_apb_constraints_with_boundaries(wave_solver: TemporalConstraintSolver,
         def apb_packet_callback(packet_obj, signal_data, temporal_solution):
             """APB packet-based WaveJSON callback"""
             try:
-                from CocoTBFramework.components.wavedrom_utils.utility import create_wavejson_from_packet_and_signals
+                from CocoTBFramework.components.wavedrom.utility import create_wavejson_from_packet_and_signals
                 return create_wavejson_from_packet_and_signals(
                     packet_obj, signal_data, temporal_solution,
                     title=f"APB {packet_obj.direction} Transaction",

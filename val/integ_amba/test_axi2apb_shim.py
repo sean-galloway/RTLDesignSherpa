@@ -193,24 +193,24 @@ def test_axi2abp_shim(request, id_width, addr_width, data_width, user_width, apb
     # get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common', 'rtl_amba': 'rtl/amba'})
 
-    dut_name = "axi2apb_shim"
+    dut_name = "axi4_to_apb_shim"
     toplevel = dut_name
 
     verilog_sources = [
         os.path.join(rtl_dict['rtl_amba'], "cdc_handshake.sv"),
-        os.path.join(rtl_dict['rtl_amba'], "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_amba'], "apb_master_stub.sv"),
+        os.path.join(rtl_dict['rtl_amba'], "gaxi/gaxi_skid_buffer.sv"),
+        os.path.join(rtl_dict['rtl_amba'], "apb/apb_master_stub.sv"),
 
         os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
         os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
-        os.path.join(rtl_dict['rtl_amba'], "gaxi_fifo_sync.sv"),
+        os.path.join(rtl_dict['rtl_amba'], "gaxi/gaxi_fifo_sync.sv"),
 
-        os.path.join(rtl_dict['rtl_amba'], "axi_gen_addr.sv"),
-        os.path.join(rtl_dict['rtl_amba'], "axi2apb_convert.sv"),
+        os.path.join(rtl_dict['rtl_amba'], "axi4/axi_gen_addr.sv"),
+        os.path.join(rtl_dict['rtl_amba'], "axi4_to_apb_convert.sv"),
 
-        os.path.join(rtl_dict['rtl_amba'], "axi_slave_wr_stub.sv"),
-        os.path.join(rtl_dict['rtl_amba'], "axi_slave_rd_stub.sv"),
-        os.path.join(rtl_dict['rtl_amba'], "axi_slave_stub.sv"),
+        os.path.join(rtl_dict['rtl_amba'], "axi4/axi_slave_wr_stub.sv"),
+        os.path.join(rtl_dict['rtl_amba'], "axi4/axi_slave_rd_stub.sv"),
+        os.path.join(rtl_dict['rtl_amba'], "axi4/axi_slave_stub.sv"),
 
         os.path.join(rtl_dict['rtl_amba'], f"{dut_name}.sv")
     ]

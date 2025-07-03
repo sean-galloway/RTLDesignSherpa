@@ -7,12 +7,12 @@ the AXI interrupt bus framework. It includes:
 2. Master/slave/monitor components for the interrupt bus
 """
 
-from CocoTBFramework.components.field_config import FieldConfig, FieldDefinition
+from .shared.field_config import FieldConfig, FieldDefinition
+from .shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.gaxi.gaxi_master import GAXIMaster
 from CocoTBFramework.components.gaxi.gaxi_slave import GAXISlave
 from CocoTBFramework.components.gaxi.gaxi_monitor import GAXIMonitor
 from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
-from CocoTBFramework.components.flex_randomizer import FlexRandomizer
 
 
 def create_intrbus_field_config(addr_width=38, packet_type_width=4, event_code_width=4,

@@ -16,10 +16,10 @@ Key improvements:
 import itertools
 import random
 from typing import Any
-from CocoTBFramework.components.field_config import FieldConfig
+from CocoTBFramework.components.shared.field_config import FieldConfig
 from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
 from CocoTBFramework.components.gaxi.gaxi_sequence import GAXISequence
-from CocoTBFramework.components.flex_randomizer import FlexRandomizer
+from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 
 
 class GAXIBufferSequence(GAXISequence):

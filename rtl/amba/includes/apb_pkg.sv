@@ -21,14 +21,14 @@ package apb_pkg;
     // Slave to Master Interface (without pready)
     typedef struct packed {
         logic [APB_DATA_WIDTH-1:0] prdata;
-        logic pslverr;
+        logic                      pslverr;
     } apb_s2m_t;
 
     // Command Packet Structure (without handshaking)
     typedef struct packed {
-        logic last;
-        logic first;
-        logic write;
+        logic                      last;
+        logic                      first;
+        logic                      write;
         logic [APB_PROT_WIDTH-1:0] prot;
         logic [APB_STRB_WIDTH-1:0] strb;
         logic [APB_ADDR_WIDTH-1:0] addr;
@@ -37,9 +37,9 @@ package apb_pkg;
 
     // Response Packet Structure (without handshaking)
     typedef struct packed {
-        logic last;
-        logic first;
-        logic error;
+        logic                      last;
+        logic                      first;
+        logic                      error;
         logic [APB_DATA_WIDTH-1:0] data;
     } apb_rsp_packet_t;
 

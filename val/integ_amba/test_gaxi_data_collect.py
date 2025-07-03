@@ -243,7 +243,7 @@ def test_gaxi_data_collect_with_arbitration(request, data_width, id_width, fifo_
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_cmn': 'rtl/common',
         'rtl_amba': 'rtl/amba',
-        'rtl_intamba': 'rtl/integ_amba'
+        'rtl_amba_test': 'rtl/amba/testcode',
     })
 
     # set up all of the test names
@@ -260,13 +260,13 @@ def test_gaxi_data_collect_with_arbitration(request, data_width, id_width, fifo_
         # FIFO components
         os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
         os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
-        os.path.join(rtl_dict['rtl_amba'], "gaxi_fifo_sync.sv"),
+        os.path.join(rtl_dict['rtl_amba'], "gaxi/gaxi_fifo_sync.sv"),
 
         # GAXI components
-        os.path.join(rtl_dict['rtl_amba'], "gaxi_skid_buffer.sv"),
+        os.path.join(rtl_dict['rtl_amba'], "gaxi/gaxi_skid_buffer.sv"),
 
         # Main DUT
-        os.path.join(rtl_dict['rtl_intamba'], f"{dut_name}.sv"),
+        os.path.join(rtl_dict['rtl_amba_test'], f"{dut_name}.sv"),
     ]
 
     # create a human readable test identifier with test level

@@ -6,8 +6,8 @@ from .apb_sequence import APBSequence
 from CocoTBFramework.tbclasses.apb.apb_command_handler import APBCommandHandler
 from .apb_packet import APBPacket
 
-from ..flex_randomizer import FlexRandomizer
-from ..memory_model import MemoryModel
+from ..shared.flex_randomizer import FlexRandomizer
+from ..shared.memory_model import MemoryModel
 from CocoTBFramework.scoreboards.apb_scoreboard import APBScoreboard
 from CocoTBFramework.scoreboards.transformers.apb_gaxi_transformer import APBtoGAXITransformer
 

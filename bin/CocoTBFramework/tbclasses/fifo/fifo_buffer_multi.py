@@ -3,8 +3,8 @@ import os
 import cocotb
 
 from CocoTBFramework.tbclasses.tbbase import TBBase
-from CocoTBFramework.components.flex_randomizer import FlexRandomizer
-from CocoTBFramework.components.field_config import FieldConfig
+from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
+from CocoTBFramework.components.shared.field_config import FieldConfig
 
 from CocoTBFramework.components.fifo.fifo_packet import FIFOPacket
 from CocoTBFramework.components.fifo.fifo_master import FIFOMaster
@@ -12,7 +12,7 @@ from CocoTBFramework.components.fifo.fifo_slave import FIFOSlave
 from CocoTBFramework.components.fifo.fifo_monitor import FIFOMonitor
 from CocoTBFramework.components.fifo.fifo_sequence import FIFOSequence
 from CocoTBFramework.components.fifo.fifo_command_handler import FIFOCommandHandler
-from CocoTBFramework.components.memory_model import MemoryModel
+from CocoTBFramework.components.shared.memory_model import MemoryModel
 from CocoTBFramework.tbclasses.flex_config_gen import FlexConfigGen
 from CocoTBFramework.tbclasses.fifo.fifo_buffer_configs import FIELD_CONFIGS
 

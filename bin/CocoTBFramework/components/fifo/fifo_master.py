@@ -12,7 +12,7 @@ from cocotb.triggers import RisingEdge, Timer
 from cocotb.utils import get_sim_time
 
 from .fifo_component_base import FIFOComponentBase
-from ..master_statistics import MasterStatistics
+from ..shared.master_statistics import MasterStatistics
 from .fifo_packet import FIFOPacket
 
 

@@ -8,8 +8,8 @@ from cocotb.triggers import RisingEdge, FallingEdge, Timer
 from cocotb_bus.monitors import BusMonitor
 from cocotb_bus.drivers import BusDriver
 
-from ..flex_randomizer import FlexRandomizer
-from ..memory_model import MemoryModel
+from ..shared.flex_randomizer import FlexRandomizer
+from ..shared.memory_model import MemoryModel
 
 from .apb_packet import APBPacket  # Updated import
 

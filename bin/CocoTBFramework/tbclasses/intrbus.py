@@ -11,12 +11,12 @@ Removed unnecessary extract_packet_fields() function.
 Enhanced with validation and error handling for GAXIPacket usage.
 """
 
-from CocoTBFramework.components.field_config import FieldConfig, FieldDefinition
+from CocoTBFramework.components.shared.field_config import FieldConfig, FieldDefinition
 from CocoTBFramework.components.gaxi.gaxi_master import GAXIMaster
 from CocoTBFramework.components.gaxi.gaxi_slave import GAXISlave
 from CocoTBFramework.components.gaxi.gaxi_monitor import GAXIMonitor
 from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
-from CocoTBFramework.components.flex_randomizer import FlexRandomizer
+from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 
 
 # AXI Error Monitor Constants - matches RTL definitions from axi_errmon_types.sv

@@ -14,8 +14,8 @@ Key improvements:
 import random
 from typing import Dict, List, Optional, Tuple, Any
 
-from ..field_config import FieldConfig
-from ..packet_factory import PacketFactory
+from ..shared.field_config import FieldConfig
+from ..shared.packet_factory import PacketFactory
 from .fifo_packet import FIFOPacket
 
 
@@ -535,4 +535,3 @@ class FIFOSequence:
             sequence.add_data_incrementing(capacity // 2, start=offset + (capacity // 2), step=1, delay=0)
 
         return sequence
-        

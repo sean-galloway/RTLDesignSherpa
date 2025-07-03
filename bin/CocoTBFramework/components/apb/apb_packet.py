@@ -6,9 +6,9 @@ from typing import Dict, Any, List, Optional, Union
 from cocotb_coverage.crv import Randomized
 
 # Import the base Packet class and other dependencies
-from CocoTBFramework.components.packet import Packet
-from CocoTBFramework.components.field_config import FieldConfig, FieldDefinition
-from CocoTBFramework.components.flex_randomizer import FlexRandomizer
+from ..shared.packet import Packet
+from ..shared.field_config import FieldConfig, FieldDefinition
+from ..shared.flex_randomizer import FlexRandomizer
 
 # Define the PWRITE mapping
 PWRITE_MAP = ['READ', 'WRITE']

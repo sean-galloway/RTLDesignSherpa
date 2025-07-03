@@ -1,0 +1,46 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Wed Jul  2 20:44:44 2025
+[*]
+[dumpfile] "/home/seang/github/RTLDesignSherpa/val/amba/local_sim_build/systematic_axi_split_combi_AW32_DW512_basic_basic/dump.fst"
+[dumpfile_mtime] "Wed Jul  2 20:44:20 2025"
+[dumpfile_size] 2902
+[savefile] "/home/seang/github/RTLDesignSherpa/val/amba/GTKW/axi_split_combi.gtkw"
+[timestart] 0
+[size] 2230 1281
+[pos] -1 -1
+*-14.909694 111000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[sst_width] 278
+[signals_width] 398
+[sst_expanded] 1
+[sst_vpaned_height] 394
+@420
+axi_split_combi.AW
+axi_split_combi.DW
+@28
+axi_split_combi.aclk
+axi_split_combi.aresetn
+@200
+-inputs
+@22
+axi_split_combi.current_addr[31:0]
+axi_split_combi.current_len[7:0]
+@28
+axi_split_combi.ax_size[2:0]
+@22
+axi_split_combi.alignment_mask[11:0]
+@28
+axi_split_combi.is_idle_state
+axi_split_combi.transaction_valid
+@200
+-outputs
+@28
+axi_split_combi.split_required
+@22
+axi_split_combi.split_len[7:0]
+axi_split_combi.next_boundary_addr[31:0]
+@23
+axi_split_combi.remaining_len_after_split[7:0]
+[pattern_trace] 1
+[pattern_trace] 0

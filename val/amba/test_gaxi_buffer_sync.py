@@ -80,10 +80,7 @@ async def gaxi_test(dut):
             'backtoback', 'fast', 'constrained', 'bursty',
             'gaxi_stress', 'gaxi_realistic', 'moderate'
         ]
-        packet_counts = {
-            'simple_loops': 8 * tb.TEST_DEPTH,
-            'back_to_back': 30,
-            'stress_test': 50
+        packet_counts = {verilog_sources
         }
         run_comprehensive_sweep = True
         comprehensive_packets = 6 * tb.TEST_DEPTH
@@ -193,8 +190,8 @@ def test_gaxi_buffer(request, data_width, depth, clk_period, mode, test_level):
     """
     # get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
-        'rtl_cmn': 'rtl/common',
-        'rtl_amba': 'rtl/amba'
+        'rtl_cmn':  'rtl/common',
+        'rtl_gaxi': 'rtl/amba/gaxi',
     })
 
     # set up all of the test names
@@ -207,13 +204,13 @@ def test_gaxi_buffer(request, data_width, depth, clk_period, mode, test_level):
     # Get verilog sources based on mode
     if mode == 'skid':
         verilog_sources = [
-            os.path.join(rtl_dict['rtl_amba'], f"{dut_name}.sv"),
+            os.path.join(rtl_dict['rtl_gaxi'], f"{dut_name}.sv"),
         ]
     else:
         verilog_sources = [
             os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
             os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
-            os.path.join(rtl_dict['rtl_amba'], f"{dut_name}.sv"),
+            os.path.join(rtl_dict['rtl_gaxi'], f"{dut_name}.sv"),
         ]
 
     # create a human readable test identifier with test level

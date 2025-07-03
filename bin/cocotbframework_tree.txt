@@ -1,21 +1,9 @@
 CocoTBFramework
+├── __init__.py
 ├── components
 │   ├── __init__.py
 │   ├── arbiter_monitor.py
-│   ├── constrained_random.py
-│   ├── data_strategies.py
-│   ├── debug_object.py
-│   ├── field_config.py
-│   ├── flex_randomizer.py
 │   ├── intrbus.py
-│   ├── master_statistics.py
-│   ├── memory_model.py
-│   ├── monitor_statistics.py
-│   ├── packet.py
-│   ├── packet_factory.py
-│   ├── protocol_error_handler.py
-│   ├── randomization_config.py
-│   ├── signal_mapping_helper.py
 │   ├── apb
 │   │   ├── __init__.py
 │   │   ├── apb_components.py
@@ -25,22 +13,17 @@ CocoTBFramework
 │   │   └── enhanced_apb_factories.py
 │   ├── axi4
 │   │   ├── __init__.py
-│   │   ├── axi4_command_handler.py
-│   │   ├── axi4_extensions.py
-│   │   ├── axi4_factory.py
-│   │   ├── axi4_factory_specialized.py
-│   │   ├── axi4_fields_signals.py
+│   │   ├── axi4_channel.py
+│   │   ├── axi4_factories.py
+│   │   ├── axi4_field_configs.py
 │   │   ├── axi4_master.py
-│   │   ├── axi4_monitor.py
 │   │   ├── axi4_packet.py
 │   │   ├── axi4_randomization_config.py
-│   │   ├── axi4_seq_address.py
-│   │   ├── axi4_seq_base.py
-│   │   ├── axi4_seq_data.py
-│   │   ├── axi4_seq_protocol.py
-│   │   ├── axi4_seq_response.py
-│   │   ├── axi4_seq_transaction.py
-│   │   └── axi4_slave.py
+│   │   ├── axi4_randomization_manager.py
+│   │   ├── axi4_signal_mapper.py
+│   │   ├── axi4_slave.py
+│   │   ├── axi4_timing_config.py
+│   │   └── axi4_transaction.py
 │   ├── fifo
 │   │   ├── __init__.py
 │   │   ├── fifo_command_handler.py
@@ -63,7 +46,22 @@ CocoTBFramework
 │   │   ├── gaxi_packet.py
 │   │   ├── gaxi_sequence.py
 │   │   └── gaxi_slave.py
-│   └── wavedrom_utils
+│   ├── shared
+│   │   ├── __init__.py
+│   │   ├── constrained_random.py
+│   │   ├── data_strategies.py
+│   │   ├── debug_object.py
+│   │   ├── field_config.py
+│   │   ├── flex_randomizer.py
+│   │   ├── master_statistics.py
+│   │   ├── memory_model.py
+│   │   ├── monitor_statistics.py
+│   │   ├── packet.py
+│   │   ├── packet_factory.py
+│   │   ├── protocol_error_handler.py
+│   │   ├── randomization_config.py
+│   │   └── signal_mapping_helper.py
+│   └── wavedrom
 │       ├── __init__.py
 │       ├── constraint_solver.py
 │       ├── utility.py
@@ -83,6 +81,7 @@ CocoTBFramework
     ├── __init__.py
     ├── flex_config_gen.py
     ├── intrbus.py
+    ├── struct_parser.py
     ├── tbbase.py
     ├── utilities.py
     ├── amba
@@ -94,16 +93,12 @@ CocoTBFramework
     │   └── register_map.py
     ├── axi4
     │   ├── __init__.py
-    │   ├── axi4_fub_error_slave.py
-    │   ├── axi4_fub_split_slave.py
-    │   ├── axi4_master_rd_tb.py
-    │   ├── axi4_master_wr_tb.py
-    │   └── axi4_random_configs.py
-    ├── axi_errmon
-    │   ├── axi_errmon_base_tb.py
-    │   ├── axi_errmon_base_test.py
-    │   ├── axi_errmon_basic_test.py
-    │   ├── axi_errmon_readyctrl.py
+    │   └── axi4_master_read_tb.py
+    ├── axi_monitor
+    │   ├── axi_monitor_base_tb.py
+    │   ├── axi_monitor_base_test.py
+    │   ├── axi_monitor_basic_test.py
+    │   ├── axi_monitor_readyctrl.py
     │   └── WORKING
     │       ├── axi_errmon_error_test.py
     │       ├── axi_errmon_fifo_test.py
@@ -113,6 +108,11 @@ CocoTBFramework
     │       ├── working_axi_errmon_base_test.py
     │       ├── working_axi_errmon_basic_test.py
     │       └── working_axi_errmon_readyctrl.py
+    ├── axi_splitter
+    │   ├── __init__.py
+    │   ├── axi_read_splitter_packets.py
+    │   ├── axi_read_splitter_scoreboard.py
+    │   └── axi_read_splitter_tb.py
     ├── common
     │   ├── __init__.py
     │   ├── adder_testing.py

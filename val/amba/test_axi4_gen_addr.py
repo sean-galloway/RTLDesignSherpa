@@ -585,13 +585,17 @@ async def comprehensive_test(dut):
 def test_axi_gen_addr(request, params):
     """Run the test with pytest and configurable parameters"""
     # Get all of the directory and module information
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common', 'rtl_amba': 'rtl/amba'})
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths(
+        {
+            'rtl_cmn': 'rtl/common',
+            'rtl_amba_axi4_shared': 'rtl/amba/axi4/shared'
+        })
 
     dut_name = "axi_gen_addr"
     toplevel = dut_name
 
     verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba'], f"{dut_name}.sv")
+        os.path.join(rtl_dict['rtl_amba_axi4_shared'], f"{dut_name}.sv")
     ]
 
     # Create a human-readable test identifier
@@ -617,7 +621,7 @@ def test_axi_gen_addr(request, params):
 
     # RTL parameters
     parameters = {}
-# sourcery skip: no-conditionals-in-tests
+    # sourcery skip: no-conditionals-in-tests
     if 'AW' in params:
         parameters['AW'] = params['AW']
     if 'DW' in params:
