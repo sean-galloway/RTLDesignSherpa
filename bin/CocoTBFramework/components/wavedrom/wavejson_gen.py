@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 # Required imports - no conditionals
-from ..field_config import FieldConfig, FieldDefinition
+from ..shared.field_config import FieldConfig, FieldDefinition
 
 
 class SignalType(Enum):

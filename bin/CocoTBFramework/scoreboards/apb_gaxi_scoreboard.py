@@ -1,299 +1,523 @@
 """
-Scoreboard for verification between APB and GAXI protocols
+Fixed APB-GAXI Scoreboard - Handles both read and write responses
+
+Key fix: Both APB reads and writes get responses (PREADY + PSLVERR + optional PRDATA).
+The original scoreboard incorrectly assumed writes don't need response matching.
 """
-from collections import deque, defaultdict
-import cocotb
-from cocotb.triggers import Timer
+
+from collections import deque
+from cocotb.utils import get_sim_time
+
+
+class APBTransactionExtractor:
+    """
+    Helper class to extract transaction fields from both APB and GAXI packets.
+    Handles both APB attribute style and GAXI fields dict style.
+    """
+
+    @staticmethod
+    def extract_command_fields(transaction):
+        """Extract command interface fields from transaction."""
+        fields = {}
+
+        # Extract pwrite field - supports both storage methods
+        fields['pwrite'] = APBTransactionExtractor._get_field_value(transaction, 'pwrite', 0)
+        fields['is_write'] = fields['pwrite'] == 1
+        fields['transaction_type'] = 'WRITE' if fields['is_write'] else 'READ'
+
+        # Extract paddr field
+        fields['paddr'] = APBTransactionExtractor._get_field_value(transaction, 'paddr', 0)
+
+        # Extract pwdata field
+        fields['pwdata'] = APBTransactionExtractor._get_field_value(transaction, 'pwdata', 0)
+
+        # Extract pstrb field
+        fields['pstrb'] = APBTransactionExtractor._get_field_value(transaction, 'pstrb', 0xF)
+
+        # Extract pprot field
+        fields['pprot'] = APBTransactionExtractor._get_field_value(transaction, 'pprot', 0)
+
+        return fields
+
+    @staticmethod
+    def extract_response_fields(transaction):
+        """Extract response interface fields from transaction."""
+        fields = {}
+
+        # Extract prdata field
+        fields['prdata'] = APBTransactionExtractor._get_field_value(transaction, 'prdata', 0)
+
+        # Extract pslverr field
+        fields['pslverr'] = APBTransactionExtractor._get_field_value(transaction, 'pslverr', 0)
+        fields['has_error'] = fields['pslverr'] == 1
+        fields['error_status'] = 'ERROR' if fields['has_error'] else 'OK'
+
+        return fields
+
+    @staticmethod
+    def _get_field_value(transaction, field_name, default_value):
+        """
+        Safely extract a field value from transaction supporting both storage methods.
+
+        Priority order:
+        1. transaction.fields[field_name] (GAXI style)
+        2. transaction.field_name (APB style)
+        3. transaction.field_name.lower() (case variations)
+        4. default_value
+        """
+        # FIRST: Try fields dictionary (GAXI style)
+        if hasattr(transaction, 'fields') and isinstance(transaction.fields, dict):
+            if field_name in transaction.fields:
+                value = transaction.fields[field_name]
+                if value is not None:
+                    return value
+
+        # SECOND: Try direct attribute access (APB style)
+        if hasattr(transaction, field_name):
+            value = getattr(transaction, field_name)
+            if value is not None:
+                return value
+
+        # THIRD: Try lowercase versions (handle case variations)
+        if hasattr(transaction, field_name.lower()):
+            value = getattr(transaction, field_name.lower())
+            if value is not None:
+                return value
+
+        # FOURTH: Return default if nothing found
+        return default_value
+
+    @staticmethod
+    def format_command_transaction(fields):
+        """Format command transaction for logging."""
+        return (f"{fields['transaction_type']} @ addr=0x{fields['paddr']:08X}, "
+                f"data=0x{fields['pwdata']:08X}, strb=0x{fields['pstrb']:X}, "
+                f"prot=0x{fields['pprot']:X}")
+
+    @staticmethod
+    def format_response_transaction(fields):
+        """Format response transaction for logging."""
+        return (f"RESPONSE data=0x{fields['prdata']:08X}, "
+                f"status={fields['error_status']}")
+
 
 class APBGAXIScoreboard:
     """
-    Scoreboard for verifying APB and GAXI transactions match.
+    FIXED: APB-GAXI Scoreboard that properly handles both read and write responses.
 
-    This scoreboard can:
-    1. Verify APB transactions against GAXI transactions
-    2. Track transactions by address
-    3. Report mismatches in data or control signals
-    4. Provide coverage statistics
+    Key fix: APB protocol always provides responses for both reads and writes:
+    - PREADY: indicates transaction completion
+    - PSLVERR: indicates success/error status
+    - PRDATA: contains data for reads (ignored for writes)
     """
 
     def __init__(self, name, log=None):
-        """
-        Initialize the APB-GAXI scoreboard.
-
-        Args:
-            name: Scoreboard name
-            log: Logger instance
-        """
+        """Initialize the APB-GAXI scoreboard."""
         self.name = name
         self.log = log
 
-        # Transaction queues indexed by direction and address
-        self.apb_writes = defaultdict(deque)
-        self.apb_reads = defaultdict(deque)
-        self.gaxi_writes = defaultdict(deque)
-        self.gaxi_reads = defaultdict(deque)
+        # Transaction queues
+        self.apb_queue = deque()
+        self.gaxi_cmd_queue = deque()
+        self.gaxi_rsp_queue = deque()
 
-        # Verification statistics
-        self.total_matches = 0
-        self.total_mismatches = 0
-        self.total_dropped = 0
-        self.total_verified = 0
-        self.address_coverage = set()
-        self.type_coverage = {"apb_write": 0, "apb_read": 0,
-                                "gaxi_write": 0, "gaxi_read": 0}
+        # Statistics tracking
+        self.stats = {
+            'apb_transactions': 0,
+            'gaxi_cmd_transactions': 0,
+            'gaxi_rsp_transactions': 0,
+            'matched_pairs': 0,
+            'matched_write_responses': 0,  # NEW: Track write response matches
+            'matched_read_responses': 0,   # NEW: Track read response matches
+            'unmatched_apb': 0,
+            'unmatched_gaxi_cmd': 0,
+            'unmatched_gaxi_rsp': 0,
+            'error_transactions': 0,
+            'field_extraction_errors': 0,
+            'transaction_type_errors': 0
+        }
+
+        # Configuration
+        self.match_timeout_ns = 10000  # 10us timeout for matching
 
     def add_apb_transaction(self, transaction):
-        """
-        Add an APB transaction to the scoreboard.
-        """
-        addr = transaction.paddr & 0xFFF  # Use 12-bit address for indexing
-        time_ns = transaction.start_time
-        matched = False
+        """Add an APB transaction to the scoreboard."""
+        time_ns = get_sim_time('ns')
 
-        if transaction.direction == "WRITE":
-            # Check if this matches with existing GAXI transactions
-            matched = self._check_write_matches(addr, transaction, is_apb=True)
-            if not matched:
-                # Only add to queue if no match was found
-                self.apb_writes[addr].append(transaction)
-            self.type_coverage["apb_write"] += 1
-            self.log.debug(f"APB Write added to scoreboard @ {time_ns}ns: addr=0x{addr:08X}, data=0x{transaction.pwdata:08X}")
-        else:  # READ
-            # Check if this matches with existing GAXI transactions
-            matched = self._check_read_matches(addr, transaction, is_apb=True)
-            if not matched:
-                # Only add to queue if no match was found
-                self.apb_reads[addr].append(transaction)
-            self.type_coverage["apb_read"] += 1
-            self.log.debug(f"APB Read added to scoreboard @ {time_ns}ns: addr=0x{addr:08X}, data=0x{transaction.prdata:08X}")
+        try:
+            # Extract APB transaction fields using the enhanced extractor
+            apb_fields = {
+                'pwrite': APBTransactionExtractor._get_field_value(transaction, 'pwrite', 0),
+                'paddr': APBTransactionExtractor._get_field_value(transaction, 'paddr', 0),
+                'pwdata': APBTransactionExtractor._get_field_value(transaction, 'pwdata', 0),
+                'prdata': APBTransactionExtractor._get_field_value(transaction, 'prdata', 0),
+                'pstrb': APBTransactionExtractor._get_field_value(transaction, 'pstrb', 0xF),
+                'pprot': APBTransactionExtractor._get_field_value(transaction, 'pprot', 0),
+                'pslverr': APBTransactionExtractor._get_field_value(transaction, 'pslverr', 0)
+            }
 
-        self.address_coverage.add(addr)
+            apb_fields['is_write'] = apb_fields['pwrite'] == 1
+            apb_fields['transaction_type'] = 'WRITE' if apb_fields['is_write'] else 'READ'
+            apb_fields['has_error'] = apb_fields['pslverr'] == 1
+
+            # Store in APB queue
+            self.apb_queue.append({
+                'fields': apb_fields,
+                'timestamp': time_ns,
+                'transaction': transaction
+            })
+
+            self.stats['apb_transactions'] += 1
+
+            if self.log:
+                if apb_fields['is_write']:
+                    self.log.debug(f"APB WRITE added @ {time_ns}ns: addr=0x{apb_fields['paddr']:08X}, "
+                                    f"data=0x{apb_fields['pwdata']:08X}, strb=0x{apb_fields['pstrb']:X}, "
+                                    f"err={apb_fields['has_error']}")
+                else:
+                    self.log.debug(f"APB READ added @ {time_ns}ns: addr=0x{apb_fields['paddr']:08X}, "
+                                    f"data=0x{apb_fields['prdata']:08X}, err={apb_fields['has_error']}")
+
+        except Exception as e:
+            self.stats['field_extraction_errors'] += 1
+            if self.log:
+                self.log.error(f"Error extracting APB transaction fields: {e}")
+
+        # Try to match transactions
+        self._match_transactions()
 
     def add_gaxi_transaction(self, transaction):
-        """
-        Add a GAXI transaction to the scoreboard.
+        """Add a GAXI transaction to the scoreboard."""
+        time_ns = get_sim_time('ns')
 
-        Args:
-            transaction: GAXI transaction to add
-        """
-        addr = transaction.addr & 0xFFF  # Use 12-bit address for indexing
-        time_ns = transaction.start_time
-        matched = False
+        try:
+            # Improved transaction type detection using the enhanced field extraction
+            has_cmd_fields = (
+                APBTransactionExtractor._get_field_value(transaction, 'pwrite', None) is not None or
+                APBTransactionExtractor._get_field_value(transaction, 'paddr', None) is not None or
+                APBTransactionExtractor._get_field_value(transaction, 'pwdata', None) is not None
+            )
+            has_rsp_fields = (
+                APBTransactionExtractor._get_field_value(transaction, 'prdata', None) is not None or
+                APBTransactionExtractor._get_field_value(transaction, 'pslverr', None) is not None
+            )
 
-        if transaction.cmd == 1:  # Write
-            # Check if this matches with existing APB transactions
-            matched = self._check_write_matches(addr, transaction, is_apb=False)
-            if not matched:
-                # Only add to queue if no match was found
-                self.gaxi_writes[addr].append(transaction)
-            self.type_coverage["gaxi_write"] += 1
-            self.log.debug(f"GAXI Write added to scoreboard @ {time_ns}ns: addr=0x{addr:08X}, data=0x{transaction.data:08X}")
-        else:  # Read
-            # Check if this matches with existing APB transactions
-            matched = self._check_read_matches(addr, transaction, is_apb=False)
-            if not matched:
-                # Only add to queue if no match was found
-                self.gaxi_reads[addr].append(transaction)
-            self.type_coverage["gaxi_read"] += 1
-            self.log.debug(f"GAXI Read added to scoreboard @ {time_ns}ns: addr=0x{addr:08X}, data=0x{transaction.data:08X}")
+            if self.log:
+                self.log.debug(f"GAXI transaction analysis: has_cmd_fields={has_cmd_fields}, "
+                              f"has_rsp_fields={has_rsp_fields}")
 
-        self.address_coverage.add(addr)
-
-    def _check_write_matches(self, addr, transaction, is_apb=True):
-        """
-        Check for write transaction matches.
-        """
-        if is_apb:
-            # Check if we have a matching GAXI write
-            if self.gaxi_writes[addr]:
-                gaxi_transaction = self.gaxi_writes[addr].popleft()
-                if transaction.pwdata == gaxi_transaction.data:
-                    self.log.debug(
-                        f"Matched write at addr 0x{addr:08X}: "
-                        f"APB=0x{transaction.pwdata:08X}, GAXI=0x{gaxi_transaction.data:08X}"
-                    )
-                    self.total_matches += 1
-                else:
-                    self.log.error(
-                        f"Write data mismatch at addr 0x{addr:08X}: "
-                        f"APB=0x{transaction.pwdata:08X}, GAXI=0x{gaxi_transaction.data:08X}"
-                    )
-                    self.total_mismatches += 1
-                self.total_verified += 1
-                # Don't add the APB transaction to the queue since it was matched
-                return True  # Return True to indicate a match was found
-        elif self.apb_writes[addr]:
-            apb_transaction = self.apb_writes[addr].popleft()
-            if apb_transaction.pwdata != transaction.data:
-                self.log.error(
-                    f"Write data mismatch at addr 0x{addr:08X}: "
-                    f"APB=0x{apb_transaction.pwdata:08X}, GAXI=0x{transaction.data:08X}"
-                )
-                self.total_mismatches += 1
+            if has_cmd_fields and not has_rsp_fields:
+                # This is a command transaction
+                self._add_gaxi_command(transaction, time_ns)
+            elif has_rsp_fields and not has_cmd_fields:
+                # This is a response transaction
+                self._add_gaxi_response(transaction, time_ns)
             else:
-                self.log.debug(
-                    f"Matched write at addr 0x{addr:08X}: "
-                    f"APB=0x{apb_transaction.pwdata:08X}, GAXI=0x{transaction.data:08X}"
-                )
-                self.total_matches += 1
-            self.total_verified += 1
-            # Don't add the GAXI transaction to the queue since it was matched
-            return True  # Return True to indicate a match was found
+                # Mixed fields or unclear - try to determine primary type
+                pwrite_val = APBTransactionExtractor._get_field_value(transaction, 'pwrite', None)
+                paddr_val = APBTransactionExtractor._get_field_value(transaction, 'paddr', None)
 
-        # No match found, add the transaction to its queue
-        return False
-
-    def _check_read_matches(self, addr, transaction, is_apb=True):
-        """
-        Check for read transaction matches.
-
-        Args:
-            addr: Transaction address
-            transaction: New transaction
-            is_apb: True if transaction is APB, False if GAXI
-
-        Returns:
-            True if a match was found, False otherwise
-        """
-        if is_apb:
-            # Check if we have a matching GAXI read
-            if self.gaxi_reads[addr]:
-                gaxi_transaction = self.gaxi_reads[addr].popleft()
-                if transaction.prdata == gaxi_transaction.data:
-                    self.log.debug(
-                        f"Matched read at addr 0x{addr:08X}: "
-                        f"APB=0x{transaction.prdata:08X}, GAXI=0x{gaxi_transaction.data:08X}"
-                    )
-                    self.total_matches += 1
+                if pwrite_val is not None or paddr_val is not None:
+                    if self.log:
+                        self.log.debug(f"GAXI transaction has mixed fields, treating as command based on pwrite/paddr")
+                    self._add_gaxi_command(transaction, time_ns)
                 else:
-                    self.log.error(
-                        f"Read data mismatch at addr 0x{addr:08X}: "
-                        f"APB=0x{transaction.prdata:08X}, GAXI=0x{gaxi_transaction.data:08X}"
-                    )
-                    self.total_mismatches += 1
-                self.total_verified += 1
-                return True  # Return True to indicate a match was found
-        elif self.apb_reads[addr]:
-            apb_transaction = self.apb_reads[addr].popleft()
-            if apb_transaction.prdata != transaction.data:
-                self.log.error(
-                    f"Read data mismatch at addr 0x{addr:08X}: "
-                    f"APB=0x{apb_transaction.prdata:08X}, GAXI=0x{transaction.data:08X}"
-                )
-                self.total_mismatches += 1
+                    if self.log:
+                        self.log.debug(f"GAXI transaction has mixed fields, treating as response")
+                    self._add_gaxi_response(transaction, time_ns)
+
+        except Exception as e:
+            self.stats['transaction_type_errors'] += 1
+            if self.log:
+                self.log.error(f"Error processing GAXI transaction: {e}")
+
+    def _add_gaxi_command(self, transaction, time_ns):
+        """Add GAXI command transaction."""
+        try:
+            cmd_fields = APBTransactionExtractor.extract_command_fields(transaction)
+
+            # Store in GAXI command queue
+            self.gaxi_cmd_queue.append({
+                'fields': cmd_fields,
+                'timestamp': time_ns,
+                'transaction': transaction
+            })
+
+            self.stats['gaxi_cmd_transactions'] += 1
+
+            if self.log:
+                formatted = APBTransactionExtractor.format_command_transaction(cmd_fields)
+                self.log.debug(f"GAXI CMD added @ {time_ns}ns: {formatted}")
+
+        except Exception as e:
+            self.stats['field_extraction_errors'] += 1
+            if self.log:
+                self.log.error(f"Error adding GAXI command: {e}")
+
+        # Try to match transactions
+        self._match_transactions()
+
+    def _add_gaxi_response(self, transaction, time_ns):
+        """Add GAXI response transaction."""
+        try:
+            rsp_fields = APBTransactionExtractor.extract_response_fields(transaction)
+
+            # Store in GAXI response queue
+            self.gaxi_rsp_queue.append({
+                'fields': rsp_fields,
+                'timestamp': time_ns,
+                'transaction': transaction
+            })
+
+            self.stats['gaxi_rsp_transactions'] += 1
+
+            if rsp_fields['has_error']:
+                self.stats['error_transactions'] += 1
+
+            if self.log:
+                formatted = APBTransactionExtractor.format_response_transaction(rsp_fields)
+                self.log.debug(f"GAXI RSP added @ {time_ns}ns: {formatted}")
+
+        except Exception as e:
+            self.stats['field_extraction_errors'] += 1
+            if self.log:
+                self.log.error(f"Error adding GAXI response: {e}")
+
+        # Try to match transactions
+        self._match_transactions()
+
+    def _match_transactions(self):
+        """
+        FIXED: Match APB transactions with GAXI command/response pairs.
+
+        Key fix: Both reads and writes get responses in APB protocol.
+        """
+        matched_indices = []
+
+        for apb_idx, apb_item in enumerate(self.apb_queue):
+            apb_fields = apb_item['fields']
+
+            # Find matching GAXI command
+            cmd_match = None
+            for cmd_idx, cmd_item in enumerate(self.gaxi_cmd_queue):
+                cmd_fields = cmd_item['fields']
+
+                if self._commands_match(apb_fields, cmd_fields):
+                    cmd_match = (cmd_idx, cmd_item)
+                    break
+
+            if cmd_match is None:
+                continue
+
+            cmd_idx, cmd_item = cmd_match
+
+            # FIXED: Both reads and writes need response matching
+            rsp_match = None
+            for rsp_idx, rsp_item in enumerate(self.gaxi_rsp_queue):
+                rsp_fields = rsp_item['fields']
+
+                if apb_fields['is_write']:
+                    # For writes, match based on error status
+                    if self._write_response_matches_apb(apb_fields, rsp_fields):
+                        rsp_match = (rsp_idx, rsp_item)
+                        break
+                else:
+                    # For reads, match based on data and error status
+                    if self._read_response_matches_apb(apb_fields, rsp_fields):
+                        rsp_match = (rsp_idx, rsp_item)
+                        break
+
+            if rsp_match is None:
+                continue
+
+            rsp_idx, rsp_item = rsp_match
+
+            # Remove matched transactions
+            matched_indices.append(apb_idx)
+            del self.gaxi_cmd_queue[cmd_idx]
+            del self.gaxi_rsp_queue[rsp_idx]
+
+            # Update statistics
+            self.stats['matched_pairs'] += 1
+            if apb_fields['is_write']:
+                self.stats['matched_write_responses'] += 1
+                if self.log:
+                    self.log.info(f"✓ Matched APB WRITE with GAXI CMD+RSP: "
+                                    f"addr=0x{apb_fields['paddr']:08X}, "
+                                    f"data=0x{apb_fields['pwdata']:08X}, "
+                                    f"err={apb_fields['has_error']}")
             else:
-                self.log.debug(
-                    f"Matched read at addr 0x{addr:08X}: "
-                    f"APB=0x{apb_transaction.prdata:08X}, GAXI=0x{transaction.data:08X}"
-                )
-                self.total_matches += 1
-            self.total_verified += 1
-            return True  # Return True to indicate a match was found
+                self.stats['matched_read_responses'] += 1
+                if self.log:
+                    self.log.info(f"✓ Matched APB READ with GAXI CMD+RSP: "
+                                    f"addr=0x{apb_fields['paddr']:08X}, "
+                                    f"data=0x{apb_fields['prdata']:08X}, "
+                                    f"err={apb_fields['has_error']}")
 
-        # No match found
-        return False
+        # Remove matched APB transactions (in reverse order to maintain indices)
+        for idx in reversed(matched_indices):
+            del self.apb_queue[idx]
 
-    async def check_scoreboard(self, timeout=None):
+    def _commands_match(self, apb_fields, cmd_fields):
+        """Check if APB transaction matches GAXI command."""
+        # Address must match
+        if apb_fields['paddr'] != cmd_fields['paddr']:
+            if self.log:
+                self.log.debug(f"Address mismatch: APB=0x{apb_fields['paddr']:08X}, "
+                              f"GAXI=0x{cmd_fields['paddr']:08X}")
+            return False
+
+        # Transaction type must match
+        if apb_fields['is_write'] != cmd_fields['is_write']:
+            if self.log:
+                self.log.debug(f"Transaction type mismatch: APB={apb_fields['transaction_type']}, "
+                              f"GAXI={cmd_fields['transaction_type']}")
+            return False
+
+        # For writes, data must match
+        if apb_fields['is_write'] and apb_fields['pwdata'] != cmd_fields['pwdata']:
+            if self.log:
+                self.log.debug(f"Write data mismatch: APB=0x{apb_fields['pwdata']:08X}, "
+                              f"GAXI=0x{cmd_fields['pwdata']:08X}")
+            return False
+
+        return True
+
+    def _write_response_matches_apb(self, apb_fields, rsp_fields):
         """
-        Check scoreboard for unmatched transactions.
+        NEW: Check if GAXI response matches APB write transaction.
 
-        Args:
-            timeout: Optional timeout in ns before checking
-
-        Returns:
-            True if all transactions matched, False otherwise
+        For writes, we primarily care about error status matching.
+        The PRDATA field is ignored for writes (as per APB spec).
         """
-        if timeout:
-            await Timer(timeout, units='ns')
+        # Only for write transactions
+        if not apb_fields['is_write']:
+            return False
+
+        # Error status should match
+        if apb_fields['has_error'] != rsp_fields['has_error']:
+            if self.log:
+                self.log.debug(f"Write error status mismatch: APB={apb_fields['has_error']}, "
+                              f"GAXI={rsp_fields['has_error']}")
+            return False
+
+        return True
+
+    def _read_response_matches_apb(self, apb_fields, rsp_fields):
+        """
+        RENAMED: Check if GAXI response matches APB read transaction.
+
+        For reads, we care about both data and error status matching.
+        """
+        # Only for read transactions
+        if apb_fields['is_write']:
+            return False
+
+        # Read data must match
+        if apb_fields['prdata'] != rsp_fields['prdata']:
+            if self.log:
+                self.log.debug(f"Read data mismatch: APB=0x{apb_fields['prdata']:08X}, "
+                              f"GAXI=0x{rsp_fields['prdata']:08X}")
+            return False
+
+        # Error status should match
+        if apb_fields['has_error'] != rsp_fields['has_error']:
+            if self.log:
+                self.log.debug(f"Read error status mismatch: APB={apb_fields['has_error']}, "
+                              f"GAXI={rsp_fields['has_error']}")
+            return False
+
+        return True
+
+    async def check_scoreboard(self, timeout_ns=1000):
+        """Check scoreboard for unmatched transactions."""
+        # Wait a bit for any pending transactions
+        import cocotb
+        from cocotb.triggers import Timer
+        await Timer(timeout_ns, units='ns')
+
+        # Final match attempt
+        self._match_transactions()
 
         # Check for unmatched transactions
-        unmatched = 0
+        self.stats['unmatched_apb'] = len(self.apb_queue)
+        self.stats['unmatched_gaxi_cmd'] = len(self.gaxi_cmd_queue)
+        self.stats['unmatched_gaxi_rsp'] = len(self.gaxi_rsp_queue)
 
-        for addr, queue in self.apb_writes.items():
-            if queue:
-                unmatched += len(queue)
-                self.log.warning(f"Unmatched APB writes at addr 0x{addr:08X}: {len(queue)}")
-                for tx in queue:
-                    self.log.warning(f"  APB write: data=0x{tx.pwdata:08X}")
+        total_unmatched = (self.stats['unmatched_apb'] +
+                            self.stats['unmatched_gaxi_cmd'] +
+                            self.stats['unmatched_gaxi_rsp'])
 
-        for addr, queue in self.apb_reads.items():
-            if queue:
-                unmatched += len(queue)
-                self.log.warning(f"Unmatched APB reads at addr 0x{addr:08X}: {len(queue)}")
-                for tx in queue:
-                    self.log.warning(f"  APB read: data=0x{tx.prdata:08X}")
+        if total_unmatched > 0:
+            if self.log:
+                self.log.error(f"Scoreboard has {total_unmatched} unmatched transactions")
+                self._log_unmatched_transactions()
+            return False
 
-        for addr, queue in self.gaxi_writes.items():
-            if queue:
-                unmatched += len(queue)
-                self.log.warning(f"Unmatched GAXI writes at addr 0x{addr:08X}: {len(queue)}")
-                for tx in queue:
-                    self.log.warning(f"  GAXI write: data=0x{tx.data:08X}")
+        if self.log:
+            self.log.info(f"✓ Scoreboard check passed: {self.stats['matched_pairs']} matched pairs "
+                         f"({self.stats['matched_write_responses']} writes, {self.stats['matched_read_responses']} reads)")
 
-        for addr, queue in self.gaxi_reads.items():
-            if queue:
-                unmatched += len(queue)
-                self.log.warning(f"Unmatched GAXI reads at addr 0x{addr:08X}: {len(queue)}")
-                for tx in queue:
-                    self.log.warning(f"  GAXI read: data=0x{tx.data:08X}")
+        return True
 
-        self.total_dropped = unmatched
-        self.log.info(f"Scoreboard check: {self.total_matches} matches, {self.total_mismatches} mismatches, {self.total_dropped} unmatched")
+    def _log_unmatched_transactions(self):
+        """Log details of unmatched transactions."""
+        if self.apb_queue:
+            self.log.error(f"Unmatched APB transactions ({len(self.apb_queue)}):")
+            for i, item in enumerate(self.apb_queue):
+                fields = item['fields']
+                txn_type = fields['transaction_type']
+                addr = fields['paddr']
+                if fields['is_write']:
+                    data = fields['pwdata']
+                    self.log.error(f"  {i}: {txn_type} @ addr=0x{addr:08X}, data=0x{data:08X}, err={fields['has_error']}")
+                else:
+                    data = fields['prdata']
+                    self.log.error(f"  {i}: {txn_type} @ addr=0x{addr:08X}, data=0x{data:08X}, err={fields['has_error']}")
 
-        # Report coverage statistics
-        self.log.info(f"Address coverage: {len(self.address_coverage)} unique addresses")
-        self.log.info(f"Transaction type coverage: {self.type_coverage}")
+        if self.gaxi_cmd_queue:
+            self.log.error(f"Unmatched GAXI commands ({len(self.gaxi_cmd_queue)}):")
+            for i, item in enumerate(self.gaxi_cmd_queue):
+                fields = item['fields']
+                formatted = APBTransactionExtractor.format_command_transaction(fields)
+                self.log.error(f"  {i}: {formatted}")
 
-        # Calculate verification rate
-        total = self.total_verified + self.total_dropped
-        verification_rate = (self.total_verified / total) * 100 if total else 0
-        self.log.info(f"Verification rate: {verification_rate:.1f}% ({self.total_verified}/{total})")
-
-        return self.total_mismatches == 0 and self.total_dropped == 0
-
-    def report(self):
-        """
-        Generate a report of scoreboard statistics.
-
-        Returns:
-            String with scoreboard report
-        """
-        report = [
-            f"=== {self.name} Report ===",
-            f"Total transactions verified: {self.total_verified}",
-            f"Matching transactions: {self.total_matches}",
-            f"Mismatched transactions: {self.total_mismatches}",
-            f"Unmatched transactions: {self.total_dropped}",
-            f"Unique addresses covered: {len(self.address_coverage)}",
-            "Transaction type coverage:",
-            f"  APB writes: {self.type_coverage['apb_write']}",
-            f"  APB reads: {self.type_coverage['apb_read']}",
-            f"  GAXI writes: {self.type_coverage['gaxi_write']}",
-            f"  GAXI reads: {self.type_coverage['gaxi_read']}",
-        ]
-
-        # Calculate verification rate
-        total = self.total_verified + self.total_dropped
-        verification_rate = (self.total_verified / total) * 100 if total else 0
-        report.append(f"Verification rate: {verification_rate:.1f}%")
-
-        return "\n".join(report)
+        if self.gaxi_rsp_queue:
+            self.log.error(f"Unmatched GAXI responses ({len(self.gaxi_rsp_queue)}):")
+            for i, item in enumerate(self.gaxi_rsp_queue):
+                fields = item['fields']
+                formatted = APBTransactionExtractor.format_response_transaction(fields)
+                self.log.error(f"  {i}: {formatted}")
 
     def clear(self):
-        """Clear all transactions and reset statistics."""
-        # Clear transaction queues
-        self.apb_writes.clear()
-        self.apb_reads.clear()
-        self.gaxi_writes.clear()
-        self.gaxi_reads.clear()
+        """Clear all transactions from the scoreboard."""
+        self.apb_queue.clear()
+        self.gaxi_cmd_queue.clear()
+        self.gaxi_rsp_queue.clear()
 
         # Reset statistics
-        self.total_matches = 0
-        self.total_mismatches = 0
-        self.total_dropped = 0
-        self.total_verified = 0
-        self.address_coverage.clear()
-        self.type_coverage = {"apb_write": 0, "apb_read": 0,
-                                "gaxi_write": 0, "gaxi_read": 0}
+        for key in self.stats:
+            self.stats[key] = 0
 
-        self.log.info(f"Scoreboard {self.name} cleared")
+    def report(self):
+        """Generate comprehensive scoreboard report."""
+        report = f"\n=== APB-GAXI Scoreboard Report ({self.name}) ===\n"
+        report += f"APB Transactions: {self.stats['apb_transactions']}\n"
+        report += f"GAXI Commands: {self.stats['gaxi_cmd_transactions']}\n"
+        report += f"GAXI Responses: {self.stats['gaxi_rsp_transactions']}\n"
+        report += f"Matched Pairs: {self.stats['matched_pairs']}\n"
+        report += f"  - Write Responses: {self.stats['matched_write_responses']}\n"
+        report += f"  - Read Responses: {self.stats['matched_read_responses']}\n"
+        report += f"Error Transactions: {self.stats['error_transactions']}\n"
+        report += f"Unmatched APB: {self.stats['unmatched_apb']}\n"
+        report += f"Unmatched GAXI CMD: {self.stats['unmatched_gaxi_cmd']}\n"
+        report += f"Unmatched GAXI RSP: {self.stats['unmatched_gaxi_rsp']}\n"
+        report += f"Field Extraction Errors: {self.stats['field_extraction_errors']}\n"
+        report += f"Transaction Type Errors: {self.stats['transaction_type_errors']}\n"
+        report += "=" * 60
+
+        return report
+
+    def get_stats(self):
+        """Get comprehensive scoreboard statistics."""
+        return self.stats.copy()

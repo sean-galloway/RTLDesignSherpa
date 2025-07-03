@@ -10,7 +10,7 @@ from dataclasses import dataclass
 
 # Required imports - no conditionals
 from .constraint_solver import SignalTransition, SignalStatic, TemporalEvent, TemporalAnnotation
-from ..field_config import FieldConfig, FieldDefinition
+from ..shared.field_config import FieldConfig, FieldDefinition
 from .wavejson_gen import WaveJSONGenerator, create_wavejson_from_packet
 
 

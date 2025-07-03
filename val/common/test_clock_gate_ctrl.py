@@ -7,7 +7,7 @@ from cocotb_test.simulator import run
 
 from CocoTBFramework.tbclasses.tbbase import TBBase
 from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
-from CocoTBFramework.components.constrained_random import ConstrainedRandom
+from CocoTBFramework.components.shared.constrained_random import ConstrainedRandom
 
 
 class ClockGateCtrlConfig:

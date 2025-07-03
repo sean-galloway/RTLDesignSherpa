@@ -41,7 +41,7 @@ from .axi_write_splitter_scoreboard import AxiWriteSplitterScoreboard
 from .axi_write_splitter_packets import (
     AXIWriteAddressPacket, AXIWriteDataPacket, AXIWriteResponsePacket, WriteSplitInfoPacket,
     create_axi_write_address_field_config, create_axi_write_data_field_config,
-    create_axi_write_response_field_config, create_write_split_info_field_config, 
+    create_axi_write_response_field_config, create_write_split_info_field_config,
     convert_gaxi_packet_to_axi_write_address, convert_gaxi_packet_to_axi_write_data,
     convert_gaxi_packet_to_axi_write_response
 )
@@ -249,7 +249,7 @@ class AxiWriteSplitterTB(TBBase):
 
         if addr != aligned_addr:
             self.log.debug(f"Address alignment: 0x{addr:08X} -> 0x{aligned_addr:08X} "
-                          f"(aligned to {self.BYTES_PER_BEAT}-byte boundary)")
+                            f"(aligned to {self.BYTES_PER_BEAT}-byte boundary)")
 
         return aligned_addr
 
@@ -691,8 +691,8 @@ class AxiWriteSplitterTB(TBBase):
             f"ID={axi_packet.id:02X} ADDR=0x{axi_packet.addr:08X} LEN={axi_packet.len}")
 
         self.log.info(f"🚀 [{self.current_test_case}] Write Transaction Started{time_str}: ID={axi_packet.id:02X} "
-                     f"ADDR=0x{axi_packet.addr:08X} LEN={axi_packet.len} "
-                     f"SIZE={axi_packet.size}")
+                        f"ADDR=0x{axi_packet.addr:08X} LEN={axi_packet.len} "
+                        f"SIZE={axi_packet.size}")
 
     def _fub_w_callback(self, packet):
         """Handle fub_w transactions with enhanced tracking"""
@@ -716,7 +716,7 @@ class AxiWriteSplitterTB(TBBase):
             f"DATA=0x{axi_packet.data:016X} LAST={axi_packet.last}")
 
         self.log.debug(f"📤 FUB_W{time_str}: "
-                      f"DATA=0x{axi_packet.data:016X} STRB={axi_packet.get_strobe_info()} LAST={axi_packet.last}")
+                        f"DATA=0x{axi_packet.data:016X} STRB={axi_packet.get_strobe_info()} LAST={axi_packet.last}")
 
     def _fub_b_callback(self, packet):
         """Handle fub_b transactions with enhanced tracking"""
@@ -739,7 +739,7 @@ class AxiWriteSplitterTB(TBBase):
             f"ID={axi_packet.id:02X} RESP={axi_packet.get_response_name()}")
 
         self.log.debug(f"📥 FUB_B{time_str}: ID={axi_packet.id:02X} "
-                      f"RESP={axi_packet.get_response_name()}")
+                        f"RESP={axi_packet.get_response_name()}")
 
     def _m_axi_aw_callback(self, packet):
         """Handle m_axi_aw transactions with enhanced tracking"""
@@ -757,7 +757,7 @@ class AxiWriteSplitterTB(TBBase):
             f"ID={axi_packet.id:02X} ADDR=0x{axi_packet.addr:08X} LEN={axi_packet.len}")
 
         self.log.debug(f"🔄 M_AXI_AW{time_str}: ID={axi_packet.id:02X} "
-                      f"ADDR=0x{axi_packet.addr:08X} LEN={axi_packet.len}")
+                        f"ADDR=0x{axi_packet.addr:08X} LEN={axi_packet.len}")
 
     def _m_axi_w_callback(self, packet):
         """Handle m_axi_w transactions"""
@@ -775,7 +775,7 @@ class AxiWriteSplitterTB(TBBase):
             f"DATA=0x{axi_packet.data:016X} LAST={axi_packet.last}")
 
         self.log.debug(f"📨 M_AXI_W{time_str}: "
-                      f"DATA=0x{axi_packet.data:016X} STRB={axi_packet.get_strobe_info()} LAST={axi_packet.last}")
+                        f"DATA=0x{axi_packet.data:016X} STRB={axi_packet.get_strobe_info()} LAST={axi_packet.last}")
 
     def _m_axi_b_callback(self, packet):
         """Enhanced M_AXI B callback - these are DOWNSTREAM responses (from testbench to DUT)"""
@@ -789,7 +789,7 @@ class AxiWriteSplitterTB(TBBase):
 
         # Record as DOWNSTREAM response (to DUT)
         # Don't record in transaction_contexts here since these are not final responses
-        
+
         self.log_transaction_event("M_AXI_B_SENT",
             f"ID={axi_packet.id:02X} RESP={axi_packet.get_response_name()}")
 
@@ -805,7 +805,7 @@ class AxiWriteSplitterTB(TBBase):
         self.log.info(f"🔍 WRITE SPLIT INFO CALLBACK{time_str}:")
         self.log.info(f"  Raw packet type: {type(packet)}")
         self.log.info(f"  Raw packet: {packet}")
-        
+
         # Check if packet has expected attributes
         for attr in ['addr', 'id', 'cnt']:
             if hasattr(packet, attr):
@@ -845,7 +845,7 @@ class AxiWriteSplitterTB(TBBase):
                 f"ID={split_packet.id:02X} CNT={split_packet.cnt}")
 
             self.log.info(f"✅ WRITE_SPLIT_INFO_PROCESSED{time_str}: ID={split_packet.id:02X} "
-                          f"ADDR=0x{split_packet.addr:08X} CNT={split_packet.cnt}")
+                            f"ADDR=0x{split_packet.addr:08X} CNT={split_packet.cnt}")
 
         except Exception as e:
             self.log.error(f"❌ WRITE_SPLIT_INFO_CALLBACK_ERROR{time_str}: {e}")
@@ -856,18 +856,18 @@ class AxiWriteSplitterTB(TBBase):
         """Calculate expected number of split transactions"""
         if not aw_packet.will_cross_boundary(self.BOUNDARY_SIZE):
             return 1
-            
+
         # Enhanced calculation for debugging
         start_addr = aw_packet.addr
         bytes_per_beat = 1 << aw_packet.size
         total_bytes = (aw_packet.len + 1) * bytes_per_beat
         end_addr = start_addr + total_bytes - 1
-        
+
         start_boundary = start_addr // self.BOUNDARY_SIZE
         end_boundary = end_addr // self.BOUNDARY_SIZE
-        
+
         expected_splits = int(end_boundary - start_boundary + 1)
-        
+
         # Extra logging for wide data buses
         if self.DW >= 512 and self.log:
             time_str = self.get_time_ns_str()
@@ -877,7 +877,7 @@ class AxiWriteSplitterTB(TBBase):
             self.log.debug(f"  Bytes per beat: {bytes_per_beat}")
             self.log.debug(f"  Total bytes: {total_bytes}")
             self.log.debug(f"  Expected splits: {expected_splits}")
-        
+
         return expected_splits
 
     def _handle_m_axi_aw_request(self, aw_packet):
@@ -901,7 +901,7 @@ class AxiWriteSplitterTB(TBBase):
             # Wait for all write data to be received
             expected_beats = aw_len + 1
             received_beats = 0
-            
+
             self.log.debug(f"Expecting {expected_beats} write data beats for ID={aw_id:02X}")
 
             # Wait for write data completion (indicated by WLAST)
@@ -979,19 +979,19 @@ class AxiWriteSplitterTB(TBBase):
     async def _send_write_data_for_transaction(self, aw_packet: AXIWriteAddressPacket):
         """Generate and send write data for a transaction - COMPREHENSIVE DEBUG VERSION"""
         total_beats = aw_packet.len + 1  # Convert AXI encoding to beat count
-        
+
         self.log.info(f"🔢 DEBUG: Starting write data generation for ID={aw_packet.id:02X}")
         self.log.info(f"🔢 DEBUG: aw_packet.len={aw_packet.len}, total_beats={total_beats}")
         self.log.info(f"🔢 DEBUG: Address=0x{aw_packet.addr:08X}, Size={aw_packet.size}")
-        
+
         if total_beats <= 0:
             self.log.error(f"❌ DEBUG: Invalid total_beats={total_beats}, aw_packet.len={aw_packet.len}")
             return
-        
+
         try:
             for beat in range(total_beats):
                 self.log.info(f"🔄 DEBUG: Processing beat {beat+1}/{total_beats} (beat index {beat})")
-                
+
                 # Generate write data
                 beat_addr = aw_packet.addr + (beat * self.BYTES_PER_BEAT)
                 data_value = self.generate_deterministic_write_data(beat_addr, beat, aw_packet.id)
@@ -1019,14 +1019,14 @@ class AxiWriteSplitterTB(TBBase):
                 self.log.info(f"🚀 DEBUG: Calling fub_w_master.send() for beat {beat+1}")
                 await self.fub_w_master.send(w_packet)
                 self.log.info(f"✅ DEBUG: fub_w_master.send() completed for beat {beat+1}")
-                
+
                 # Small delay between beats to ensure proper timing
                 await self.wait_clocks('aclk', 2)  # Increased delay for debugging
 
                 self.log.info(f"✅ DEBUG: Completed beat {beat+1}/{total_beats} for ID={aw_packet.id:02X}")
 
             self.log.info(f"🎉 DEBUG: SUCCESSFULLY completed sending all {total_beats} write data beats for ID={aw_packet.id:02X}")
-            
+
         except Exception as e:
             self.log.error(f"❌ DEBUG: Exception in write data generation: {e}")
             import traceback
@@ -1050,15 +1050,15 @@ class AxiWriteSplitterTB(TBBase):
 
                 duration = completion_time - start_time
                 self.log.info(f"✅ Write Transaction 0x{txn_id:02X} completed{completion_time_str} "
-                             f"(duration: {duration:.1f}ns, {cycle} cycles)")
-                
+                                f"(duration: {duration:.1f}ns, {cycle} cycles)")
+
                 # TIMING FIX: Wait for split info to propagate (learned from read splitter)
                 self.log.debug(f"⏳ Waiting for split info propagation for write transaction 0x{txn_id:02X}...")
                 await self.wait_clocks('aclk', 5)  # Wait for split info
-                
+
                 split_info_time_str = self.get_time_ns_str()
                 self.log.debug(f"✅ Split info wait period completed{split_info_time_str}")
-                
+
                 return
             await RisingEdge(self.dut.aclk)
 
@@ -1409,7 +1409,7 @@ async def test_axi_write_splitter(dut):
     await tb.setup_clocks_and_reset()
     result = await tb.run_all_tests()
     await tb.shutdown()
-    
+
     if not result:
         raise cocotb.result.TestFailure("AXI Write Splitter tests failed")
     else:

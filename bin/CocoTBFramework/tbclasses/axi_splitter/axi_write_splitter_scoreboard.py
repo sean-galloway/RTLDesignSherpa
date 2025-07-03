@@ -184,48 +184,48 @@ class AxiWriteSplitterScoreboard:
 
             # CRITICAL FIX: More robust write data association
             data_associated = False
-            
+
             # Method 1: Try to associate with transaction that has room for more data
             for txn_id, split_txn in self.active_split_transactions.items():
                 current_data_count = len(self.write_data_tracking.get(txn_id, []))
                 expected_data_count = split_txn.expected_data_beats
-                
+
                 # Associate if this transaction needs more data AND is in correct state
-                if (current_data_count < expected_data_count and 
-                    split_txn.state in [SplitWriteTransactionState.ADDRESS_SENT, 
+                if (current_data_count < expected_data_count and
+                    split_txn.state in [SplitWriteTransactionState.ADDRESS_SENT,
                                     SplitWriteTransactionState.DATA_PARTIAL]):
-                    
+
                     self.write_data_tracking[txn_id].append(w_packet)
                     split_txn.add_write_data(w_packet)
                     self.stats['write_data_beats'] += 1
                     data_associated = True
-                    
+
                     if self.log:
                         time_str = self.get_time_str()
                         self.log.debug(f"✅ W_DATA_ASSOCIATED{time_str}: "
                                     f"ID={txn_id:02X} beat={current_data_count+1}/{expected_data_count} "
                                     f"LAST={w_packet.last}")
                     break
-            
+
             # Method 2: If no association by state, try ANY active transaction (fallback)
             if not data_associated:
                 for txn_id, split_txn in self.active_split_transactions.items():
                     current_data_count = len(self.write_data_tracking.get(txn_id, []))
                     expected_data_count = split_txn.expected_data_beats
-                    
+
                     if current_data_count < expected_data_count:
                         self.write_data_tracking[txn_id].append(w_packet)
                         split_txn.add_write_data(w_packet)
                         self.stats['write_data_beats'] += 1
                         data_associated = True
-                        
+
                         if self.log:
                             time_str = self.get_time_str()
                             self.log.debug(f"🔄 W_DATA_FALLBACK{time_str}: "
                                         f"ID={txn_id:02X} beat={current_data_count+1}/{expected_data_count} "
                                         f"state={split_txn.state.value} LAST={w_packet.last}")
                         break
-            
+
             # Log if still no association (for debugging)
             if not data_associated:
                 if self.log:
@@ -319,7 +319,7 @@ class AxiWriteSplitterScoreboard:
         self.downstream_response_tracking[b_packet.id].append(b_packet)
 
     def _add_error_with_context(self, error_msg: str, txn_id: int = None,
-                               error_category: str = "GENERAL", severity: str = "ERROR"):
+                                error_category: str = "GENERAL", severity: str = "ERROR"):
         """
         Enhanced error reporting with FIXED timing and full write transaction context.
         """
@@ -442,20 +442,20 @@ class AxiWriteSplitterScoreboard:
     def debug_response_flow(self, txn_id: int):
         """Debug the response consolidation flow"""
         time_str = self.get_time_str()
-        
+
         self.log.info(f"🔍 RESPONSE_FLOW_DEBUG{time_str}: ID={txn_id:02X}")
-        
+
         upstream_responses = self.response_tracking.get(txn_id, [])
         downstream_responses = self.downstream_response_tracking.get(txn_id, [])
-        
+
         self.log.info(f"  Downstream responses (to DUT): {len(downstream_responses)}")
         for i, resp in enumerate(downstream_responses):
             self.log.info(f"    {i+1}: RESP={resp.get_response_name()}")
-        
+
         self.log.info(f"  Upstream responses (from DUT): {len(upstream_responses)}")
         for i, resp in enumerate(upstream_responses):
             self.log.info(f"    {i+1}: RESP={resp.get_response_name()}")
-        
+
         if hasattr(self, 'transaction_contexts') and txn_id in self.transaction_contexts:
             ctx = self.transaction_contexts[txn_id]
             boundary_info = ctx.calculate_expected_boundary_behavior()
@@ -465,7 +465,7 @@ class AxiWriteSplitterScoreboard:
     def verify_transaction_splitting(self, txn_id: int) -> bool:
         """
         Enhanced verification for write transaction splitting with response consolidation.
-        
+
         Verifies:
         1. Address splitting correctness
         2. Write data flow and WLAST generation
@@ -491,7 +491,7 @@ class AxiWriteSplitterScoreboard:
         split_txn = self.active_split_transactions[txn_id]
         split_aws = self.downstream_transactions.get(txn_id, [])
         write_data = self.write_data_tracking.get(txn_id, [])
-        
+
         # ENHANCED: Separate upstream and downstream responses for consolidation verification
         upstream_responses = self.response_tracking.get(txn_id, [])  # From DUT to testbench (consolidated)
         downstream_responses = getattr(self, 'downstream_response_tracking', {}).get(txn_id, [])  # From testbench to DUT (splits)
@@ -502,7 +502,7 @@ class AxiWriteSplitterScoreboard:
         # ==========================================================================
         # 1. BOUNDARY CROSSING AND SPLIT COUNT VERIFICATION
         # ==========================================================================
-        
+
         # Check if transaction should have been split
         should_split = original_aw.will_cross_boundary(self.boundary_size)
         expected_splits = self._calculate_expected_splits(original_aw)
@@ -556,9 +556,9 @@ class AxiWriteSplitterScoreboard:
         # ==========================================================================
         # 2. WRITE DATA VERIFICATION
         # ==========================================================================
-        
+
         expected_data_beats = self._calculate_expected_data_beats(original_aw)
-        
+
         if len(write_data) != expected_data_beats:
             self._add_error_with_context(
                 f"Write data beat count mismatch: expected {expected_data_beats}, got {len(write_data)}",
@@ -577,11 +577,11 @@ class AxiWriteSplitterScoreboard:
         # ==========================================================================
         # 3. RESPONSE CONSOLIDATION VERIFICATION (CRITICAL FOR WRITE TRANSACTIONS)
         # ==========================================================================
-        
+
         # WRITE TRANSACTIONS: Multiple split responses must be consolidated into one
         expected_upstream_responses = 1  # Always exactly 1 for original transaction
         expected_downstream_responses = expected_splits  # One response per split
-        
+
         # Verify upstream response count (what original transaction sees)
         if len(upstream_responses) != expected_upstream_responses:
             self._add_error_with_context(
@@ -601,14 +601,14 @@ class AxiWriteSplitterScoreboard:
                 if len(downstream_responses) != expected_downstream_responses:
                     self.log.warning(f"⚠️ Downstream response count: expected {expected_downstream_responses}, got {len(downstream_responses)}")
                     # This might be OK depending on testbench implementation
-                
+
                 if len(upstream_responses) == 1 and len(downstream_responses) > 1:
                     # Response consolidation working correctly
                     if self.log:
                         time_str = self.get_time_str()
                         self.log.info(f"✅ RESPONSE_CONSOLIDATION_OK{time_str}: ID={txn_id:02X} "
                                     f"{len(downstream_responses)} downstream → {len(upstream_responses)} upstream")
-                    
+
                     # Verify consolidated response status (should be worst of all downstream responses)
                     verification_passed &= self._verify_response_consolidation_status(
                         upstream_responses, downstream_responses, txn_id
@@ -629,7 +629,7 @@ class AxiWriteSplitterScoreboard:
         # ==========================================================================
         # 4. TRANSACTION COMPLETENESS VERIFICATION
         # ==========================================================================
-        
+
         # Verify transaction is in completed state
         if not split_txn.is_complete():
             self._add_error_with_context(
@@ -651,12 +651,12 @@ class AxiWriteSplitterScoreboard:
         # ==========================================================================
         # 5. ENHANCED SUCCESS REPORTING
         # ==========================================================================
-        
+
         if verification_passed:
             if self.log:
                 time_str = self.get_time_str()
                 duration = end_time - start_time if (start_time > 0 and end_time > 0) else 0.0
-                
+
                 self.log.info(f"✅ VERIFICATION_PASSED{time_str}: ID={txn_id:02X}")
                 self.log.info(f"   Address Splits: {len(split_aws)}/{expected_splits}")
                 self.log.info(f"   Data Beats: {len(write_data)}/{expected_data_beats}")
@@ -669,30 +669,30 @@ class AxiWriteSplitterScoreboard:
 
         return verification_passed
 
-    def _verify_response_consolidation_status(self, upstream_responses: List[AXIWriteResponsePacket], 
-                                            downstream_responses: List[AXIWriteResponsePacket], 
+    def _verify_response_consolidation_status(self, upstream_responses: List[AXIWriteResponsePacket],
+                                            downstream_responses: List[AXIWriteResponsePacket],
                                             txn_id: int) -> bool:
         """
         Verify that response consolidation preserved the worst error status.
-        
+
         Response priority: DECERR (3) > SLVERR (2) > EXOKAY (1) > OKAY (0)
         The consolidated response should have the worst status from all downstream responses.
         """
         if not upstream_responses or not downstream_responses:
             return True  # Nothing to verify
-        
+
         if len(upstream_responses) != 1:
             return True  # Consolidation verification only applies to single upstream response
-        
+
         # Find worst downstream response status
         worst_downstream_status = 0  # Start with OKAY
         for resp in downstream_responses:
             if resp.resp > worst_downstream_status:
                 worst_downstream_status = resp.resp
-        
+
         # Check if upstream response matches worst downstream status
         upstream_status = upstream_responses[0].resp
-        
+
         if upstream_status != worst_downstream_status:
             self._add_error_with_context(
                 f"Response consolidation status error: "
@@ -703,12 +703,12 @@ class AxiWriteSplitterScoreboard:
                 txn_id, "RESPONSE_STATUS_CONSOLIDATION", "ERROR"
             )
             return False
-        
+
         if self.log:
             time_str = self.get_time_str()
             self.log.debug(f"✅ RESPONSE_STATUS_OK{time_str}: ID={txn_id:02X} "
                         f"consolidated to {self._resp_status_name(upstream_status)}")
-        
+
         return True
 
     def _resp_status_name(self, status: int) -> str:
@@ -717,7 +717,7 @@ class AxiWriteSplitterScoreboard:
         return status_map.get(status, f"UNKNOWN({status})")
 
 
-    def _verify_split_addresses(self, original_aw: AXIWriteAddressPacket, 
+    def _verify_split_addresses(self, original_aw: AXIWriteAddressPacket,
                             split_aws: List[AXIWriteAddressPacket], txn_id: int) -> bool:
         """Enhanced split address verification with better error reporting"""
         if not split_aws:
@@ -774,7 +774,7 @@ class AxiWriteSplitterScoreboard:
 
         verification_passed = True
         bytes_per_beat = 1 << original_aw.size
-        
+
         # Calculate expected address range
         original_start = original_aw.addr
         original_total_bytes = (original_aw.len + 1) * bytes_per_beat
@@ -809,13 +809,13 @@ class AxiWriteSplitterScoreboard:
                     txn_id, "SPLIT_GAP", "ERROR"
                 )
                 verification_passed = False
-            
+
             # Update current address for next split
             split_bytes = (split_aw.len + 1) * bytes_per_beat
             current_addr += split_bytes
 
         return verification_passed
-    def _verify_wlast_generation(self, write_data: List[AXIWriteDataPacket], 
+    def _verify_wlast_generation(self, write_data: List[AXIWriteDataPacket],
                             split_aws: List[AXIWriteAddressPacket], txn_id: int) -> bool:
         """Enhanced WLAST verification for split write transactions"""
         if not write_data or not split_aws:
@@ -850,26 +850,26 @@ class AxiWriteSplitterScoreboard:
         # This is a more advanced verification that would require tracking
         # which data beats correspond to which splits
         # For now, just verify basic WLAST count and positioning
-        
+
         wlast_positions = []
         for i, w in enumerate(write_data):
             if w.last:
                 wlast_positions.append(i)
-        
+
         # Calculate expected WLAST positions based on split lengths
         expected_positions = []
         beat_count = 0
         for split_aw in split_aws:
             beat_count += split_aw.len + 1
             expected_positions.append(beat_count - 1)  # WLAST on last beat of split
-        
+
         if wlast_positions != expected_positions:
             if self.log:
                 time_str = self.get_time_str()
                 self.log.warning(f"⚠️ WLAST_POSITION{time_str}: ID={txn_id:02X} "
                             f"expected positions {expected_positions}, got {wlast_positions}")
             # This might be OK depending on implementation details
-        
+
         return True  # Don't fail on positioning mismatches for now
 
     def is_transaction_complete(self, txn_id: int) -> bool:

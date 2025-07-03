@@ -20,7 +20,7 @@ from CocoTBFramework.components.wavedrom.utility import (
 )
 
 # Required imports - no conditionals
-from CocoTBFramework.components.field_config import FieldConfig, FieldDefinition
+from CocoTBFramework.components.shared.field_config import FieldConfig, FieldDefinition
 from CocoTBFramework.components.wavedrom.wavejson_gen import (
     WaveJSONGenerator, create_apb_wavejson_generator
 )

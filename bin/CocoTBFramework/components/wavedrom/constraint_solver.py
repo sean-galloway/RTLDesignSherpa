@@ -17,7 +17,7 @@ from cocotb.triggers import RisingEdge, FallingEdge, Timer
 # Required imports - no conditionals
 from ortools.sat.python import cp_model
 from .wavejson_gen import WaveJSONGenerator, TemporalAnnotation, create_wavejson_from_packet
-from ..field_config import FieldConfig, FieldDefinition
+from ..shared.field_config import FieldConfig, FieldDefinition
 
 
 class ClockEdge(Enum):

@@ -5,750 +5,1005 @@ from collections import deque
 import pytest
 import cocotb
 from cocotb.utils import get_sim_time
+from cocotb.triggers import RisingEdge, Timer
 from cocotb_test.simulator import run
 
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.apb.apb_packet import APBTransaction, APBPacket
 from CocoTBFramework.components.apb.apb_sequence import APBSequence
-from CocoTBFramework.components.apb.apb_factories import \
-    create_apb_master, create_apb_monitor, create_apb_scoreboard
-from CocoTBFramework.components.gaxi.gaxi_factories import \
-    create_gaxi_master, create_gaxi_slave, create_gaxi_monitor
+from CocoTBFramework.components.apb.apb_factories import create_apb_master, create_apb_monitor
+from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master, create_gaxi_slave, create_gaxi_monitor
+from CocoTBFramework.components.gaxi.gaxi_command_handler import GAXICommandHandler
 from CocoTBFramework.tbclasses.apb.apbgaxiconfig import APBGAXIConfig
-from CocoTBFramework.tbclasses.gaxi.gaxi_enhancements import GAXICommandHandler_APBSlave
 from CocoTBFramework.scoreboards.apb_gaxi_scoreboard import APBGAXIScoreboard
 from CocoTBFramework.tbclasses.tbbase import TBBase
-from CocoTBFramework.tbclasses.amba.amba_random_configs import APB_MASTER_RANDOMIZER_CONFIGS, AXI_RANDOMIZER_CONFIGS
+from CocoTBFramework.tbclasses.amba.amba_random_configs import (
+    APB_MASTER_RANDOMIZER_CONFIGS,
+    APB_SLAVE_RANDOMIZER_CONFIGS,
+    AXI_RANDOMIZER_CONFIGS
+)
 from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 
-# Import the modular Temporal Sequence WaveDrom system - no conditionals
-from CocoTBFramework.components.wavedrom.constraint_solver import (
-    TemporalConstraintSolver, ClockEdge
-)
-from CocoTBFramework.components.wavedrom.wavejson_gen import (
-    WaveJSONGenerator, create_apb_wavejson_generator
-)
-from CocoTBFramework.components.wavedrom.utility import (
-    create_temporal_annotations_from_solution, create_wavejson_from_packet_and_signals,
-    get_apb_field_config
-)
-from CocoTBFramework.tbclasses.wavedrom_user.apb import (
-    APBPresets, APBDebug, APBConstraints,
-    setup_apb_constraints_with_boundaries, get_apb_boundary_pattern
-)
 
+class APBGAXIDebugTB(TBBase):
+    """APB-GAXI Debug testbench - focus on finding refactor issues."""
 
-class APBSlaveTB(TBBase):
     def __init__(self, dut):
         TBBase.__init__(self, dut)
-        self.ADDR_WIDTH = self.convert_to_int(os.environ.get('TEST_ADDR_WIDTH', '32'))
-        self.DATA_WIDTH = self.convert_to_int(os.environ.get('TEST_DATA_WIDTH', '32'))
-        self.STRB_WIDTH = self.DATA_WIDTH // 8
+        self.ADDR_WIDTH = 32
+        self.DATA_WIDTH = 32
+        self.STRB_WIDTH = 4
         self.done = False
-        # Number of registers to test
-        self.registers = 64
+        self.num_line = 1024
 
-        # Task termination flag
-        self.done = False
-        self.num_line = 32768
+        # Enhanced debug tracking
+        self.debug_stats = {
+            'apb_writes': 0,
+            'apb_reads': 0,
+            'gaxi_commands': 0,
+            'gaxi_responses': 0,
+            'cmd_handler_responses': 0,
+            'signal_checks': {}
+        }
 
-        # Create a shared memory model for both APB and GAXI components
+        # Test statistics for comprehensive suite
+        self.test_stats = {
+            'total_tests': 0,
+            'passed_tests': 0,
+            'failed_tests': 0,
+            'total_transactions': 0,
+            'error_transactions': 0,
+            'configurations_tested': set()
+        }
+
+        # Initialize components
+        self._init_components_with_debug()
+
+    def _init_components_with_debug(self):
+        """Initialize components with enhanced debugging for refactor issues."""
+        self.log.info("=== APB-GAXI DEBUG: Component initialization ===")
+
+        # Memory model
         self.mem = MemoryModel(num_lines=self.num_line, bytes_per_line=self.STRB_WIDTH, log=self.log)
+        self.log.info(f"✓ Memory model created: {self.num_line} lines x {self.STRB_WIDTH} bytes")
 
-        # Configure APB components
-        self.apb_monitor = create_apb_monitor(
-            dut,
-            'APB Monitor',
-            's_apb',
-            dut.pclk,
-            addr_width=self.ADDR_WIDTH,
-            data_width=self.DATA_WIDTH,
-            log=self.log
-        )
-
+        # APB components - these should be unchanged by GAXI refactor
         self.apb_master = create_apb_master(
-            dut,
-            'APB Master',
-            's_apb',
-            dut.pclk,
-            addr_width=self.ADDR_WIDTH,
-            data_width=self.DATA_WIDTH,
+            self.dut, 'APB Master', 's_apb', self.dut.pclk,
+            addr_width=self.ADDR_WIDTH, data_width=self.DATA_WIDTH,
             randomizer=FlexRandomizer(APB_MASTER_RANDOMIZER_CONFIGS['fixed']),
             log=self.log
         )
+        self.log.info("✓ APB Master created")
 
-        # Create APB scoreboard
-        self.apb_scoreboard = create_apb_scoreboard(
-            'APB Scoreboard',
-            addr_width=self.ADDR_WIDTH,
-            data_width=self.DATA_WIDTH,
+        self.apb_monitor = create_apb_monitor(
+            self.dut, 'APB Monitor', 's_apb', self.dut.pclk,
+            addr_width=self.ADDR_WIDTH, data_width=self.DATA_WIDTH,
             log=self.log
         )
+        self.log.info("✓ APB Monitor created")
 
-        # Configure GAXI components for command interface
+        # GAXI field configurations - check if refactor changed these
         self.apbgaxiconfig = APBGAXIConfig(
             addr_width=self.ADDR_WIDTH,
             data_width=self.DATA_WIDTH,
             strb_width=self.STRB_WIDTH
         )
-        self.cmd_signal_maps = self.apbgaxiconfig.get_master_cmd_signal_maps()
         self.cmd_field_config = self.apbgaxiconfig.create_cmd_field_config()
-
-        self.cmd_monitor = create_gaxi_monitor(
-            dut,
-            'CMD Monitor',
-            '',  # No prefix as we're using signal map
-            dut.pclk,
-            field_config=self.cmd_field_config,
-            is_slave=False,  # Monitoring master-side signals
-            log=self.log,
-            multi_sig=True,  # Using separate signals
-            signal_map=self.cmd_signal_maps['ctl'],
-            optional_signal_map=self.cmd_signal_maps['opt']
-        )
-
-        self.cmd_slave = create_gaxi_slave(
-            dut,
-            'CMD Slave',
-            '',  # No prefix as we're using signal map
-            dut.pclk,
-            field_config=self.cmd_field_config,
-            randomizer=FlexRandomizer(AXI_RANDOMIZER_CONFIGS['fixed']['slave']),
-            memory_model=self.mem,
-            log=self.log,
-            multi_sig=True,  # Using separate signals
-            signal_map=self.cmd_signal_maps['ctl'],
-            optional_signal_map=self.cmd_signal_maps['opt']
-        )
-
-        # Configure GAXI components for response interface
-        self.rsp_signal_maps = self.apbgaxiconfig.get_slave_rsp_signal_maps()
         self.rsp_field_config = self.apbgaxiconfig.create_rsp_field_config()
 
-        self.rsp_monitor = create_gaxi_monitor(
-            dut,
-            'RSP Monitor',
-            '',  # No prefix as we're using signal map
-            dut.pclk,
-            field_config=self.rsp_field_config,
-            is_slave=True,  # Monitoring slave-side signals
-            log=self.log,
-            multi_sig=True,  # Using separate signals
-            signal_map=self.rsp_signal_maps['ctl'],
-            optional_signal_map=self.rsp_signal_maps['opt']
-        )
+        self.log.info(f"✓ Field configs created:")
 
-        self.rsp_master = create_gaxi_master(
-            dut,
-            'RSP Master',
-            '',  # No prefix as we're using signal map
-            dut.pclk,
-            field_config=self.rsp_field_config,
-            randomizer=FlexRandomizer(AXI_RANDOMIZER_CONFIGS['fixed']['master']),
-            log=self.log,
-            multi_sig=True,  # Using separate signals
-            signal_map=self.rsp_signal_maps['ctl'],
-            optional_signal_map=self.rsp_signal_maps['opt']
-        )
-
-        # Create command handler to connect cmd and response interfaces
-        self.cmd_handler = GAXICommandHandler_APBSlave(
-            self.rsp_master,  # GAXI master for sending responses
-            self.cmd_slave,   # GAXI slave for receiving commands
-            cmd_field_config=self.cmd_field_config,
-            rsp_field_config=self.rsp_field_config,
-            log=self.log
-        )
-
-        # Set up APB-GAXI scoreboard
-        self.apb_gaxi_scoreboard = APBGAXIScoreboard(
-            'APB-GAXI Scoreboard',
-            log=self.log
-        )
-
-        # Connect monitors to scoreboard
-        self.apb_monitor.add_callback(self.apb_transaction_callback)
-        self.cmd_monitor.add_callback(self.cmd_transaction_callback)
-
-        # Initialize queues for monitoring
-        self.apb_monitor_queue = deque()
-
-        # Initialize WaveDrom components - will be set up later
-        self.wave_solver = None
-        self.wave_generator = None
-        self.apb_field_config = None
-
-    def setup_wavedrom(self, preset_type: str = "comprehensive"):
-        """Set up the modular Temporal Sequence WaveDrom system"""
+        # Handle field_names as either method or property after refactor
         try:
-            self.log.info("Setting up Modular Temporal Sequence WaveDrom system...")
+            cmd_fields = self.cmd_field_config.field_names() if callable(getattr(self.cmd_field_config, 'field_names', None)) else getattr(self.cmd_field_config, 'field_names', 'unknown')
+            self.log.info(f"  CMD fields: {list(cmd_fields) if hasattr(cmd_fields, '__iter__') and not isinstance(cmd_fields, str) else cmd_fields}")
+        except Exception as e:
+            self.log.info(f"  CMD fields: unable to access ({e})")
 
-            # Get APB field config
-            self.apb_field_config = get_apb_field_config(
-                data_width=self.DATA_WIDTH,
-                addr_width=self.ADDR_WIDTH,
-                strb_width=self.STRB_WIDTH
+        try:
+            rsp_fields = self.rsp_field_config.field_names() if callable(getattr(self.rsp_field_config, 'field_names', None)) else getattr(self.rsp_field_config, 'field_names', 'unknown')
+            self.log.info(f"  RSP fields: {list(rsp_fields) if hasattr(rsp_fields, '__iter__') and not isinstance(rsp_fields, str) else rsp_fields}")
+        except Exception as e:
+            self.log.info(f"  RSP fields: unable to access ({e})")
+
+        # GAXI components - focus on what the refactor might have changed
+        self.log.info("Creating GAXI components with debug...")
+
+        # Command interface (slave side - receives commands from APB slave)
+        try:
+            self.cmd_monitor = create_gaxi_monitor(
+                self.dut, 'CMD Monitor', '', self.dut.pclk,
+                field_config=self.cmd_field_config,
+                pkt_prefix='cmd', is_slave=True,
+                log=self.log, super_debug=True, multi_sig=True
             )
-            self.log.info(f"Created APB FieldConfig: {len(self.apb_field_config.field_names())} fields")
+            self.log.info("✓ CMD Monitor created")
 
-            # Create APB-specific WaveJSON generator
-            self.wave_generator = create_apb_wavejson_generator(field_config=self.apb_field_config)
-
-            if not self.wave_generator:
-                # Fallback: Create generic generator
-                self.log.warning("Protocol-specific generator not available, using generic")
-                self.wave_generator = WaveJSONGenerator(debug_level=2)
-
-                # Manually configure APB interface
-                apb_signals = [
-                    "apb_psel", "apb_penable", "apb_pready", "apb_pwrite",
-                    "apb_paddr", "apb_pwdata", "apb_prdata", "apb_pstrb",
-                    "apb_pprot", "apb_pslverr"
-                ]
-                self.wave_generator.add_interface_group("APB Interface", apb_signals)
-
-            # Create the temporal constraint solver with the WaveJSON generator
-            self.wave_solver = TemporalConstraintSolver(
-                dut=self.dut,
-                log=self.log,
-                debug_level=2,
-                wavejson_generator=self.wave_generator,
-                default_field_config=self.apb_field_config
-            )
-
-            # Add primary clock group (APB clock)
-            self.wave_solver.add_clock_group(
-                name="apb_clk",
-                clock_signal=self.dut.pclk,
-                edge=ClockEdge.RISING,
-                sample_delay_ns=0.1,  # Sample 0.1ns after rising edge
-                field_config=self.apb_field_config
-            )
-
-            # Add APB interface signals
-            apb_signals = {
-                'psel': 's_apb_PSEL',
-                'penable': 's_apb_PENABLE',
-                'pready': 's_apb_PREADY',
-                'pwrite': 's_apb_PWRITE',
-                'paddr': 's_apb_PADDR',
-                'pwdata': 's_apb_PWDATA',
-                'prdata': 's_apb_PRDATA',
-                'pstrb': 's_apb_PSTRB',
-                'pprot': 's_apb_PPROT',
-                'pslverr': 's_apb_PSLVERR'
-            }
-            self.wave_solver.add_interface("apb", apb_signals, field_config=self.apb_field_config)
-
-            # Set up constraints with boundaries using the helper function
-            num_constraints = setup_apb_constraints_with_boundaries(
-                wave_solver=self.wave_solver,
-                preset_name=preset_type,
-                max_cycles=30,  # Increased for complete sequences + post-match
-                clock_group="apb_clk",
-                data_width=self.DATA_WIDTH,
-                addr_width=self.ADDR_WIDTH,
-                enable_packet_callbacks=True,
-                use_signal_names=True,  # Use actual signal names by default
-                post_match_cycles=3  # Extra cycles to capture transaction completion
-            )
-
-            self.log.info(f"Added {num_constraints} APB constraints with boundaries")
-
-            # Optional: Add custom WaveJSON callback for specific formatting
-            def custom_apb_write_wavejson(constraint, signal_data, temporal_solution):
-                """Custom WaveJSON generation for APB write sequences"""
-                try:
-                    # Create temporal annotations from solution
-                    annotations = create_temporal_annotations_from_solution(temporal_solution)
-
-                    # Generate WaveJSON with custom formatting
-                    return self.wave_generator.generate_wavejson(
-                        signal_data=signal_data,
-                        title="APB Write Transaction Sequence",
-                        subtitle=f"Custom formatting | Duration: {temporal_solution.get('sequence_duration', 0)} cycles",
-                        temporal_annotations=annotations,
-                        config_options={"hscale": 3}  # Wider display
-                    )
-                except Exception as e:
-                    self.log.error(f"Custom WaveJSON callback failed: {e}")
-                    return None
-
-            # Register custom callback for write sequences
-            if hasattr(self.wave_solver, 'add_wavejson_callback'):
-                self.wave_solver.add_wavejson_callback("apb_write_sequence", custom_apb_write_wavejson)
-
-            self.log.info("Modular Temporal Sequence WaveDrom setup complete")
-            if self.wave_generator:
-                self.log.info(f"   WaveJSON Generator: {self.wave_generator.get_stats()}")
+            # Check what signals it resolved to
+            if hasattr(self.cmd_monitor, 'signal_resolver'):
+                resolved = getattr(self.cmd_monitor.signal_resolver, 'resolved_signals', {})
+                self.log.info(f"  CMD Monitor resolved signals: {resolved}")
 
         except Exception as e:
-            self.log.error(f"Failed to setup Modular Temporal WaveDrom: {e}")
-            import traceback
-            self.log.error(traceback.format_exc())
-            self.wave_solver = None
-            self.wave_generator = None
+            self.log.error(f"✗ CMD Monitor creation failed: {e}")
+            raise
 
-    def apb_transaction_callback(self, transaction):
-        """Callback for APB monitor transactions"""
-        self.apb_monitor_queue.append(transaction)
-        self.apb_gaxi_scoreboard.add_apb_transaction(transaction)
+        try:
+            self.cmd_slave = create_gaxi_slave(
+                self.dut, 'CMD Slave', '', self.dut.pclk,
+                field_config=self.cmd_field_config,
+                pkt_prefix='cmd',
+                randomizer=FlexRandomizer(AXI_RANDOMIZER_CONFIGS['fixed']['slave']),
+                memory_model=None,  # Don't use memory in slave
+                log=self.log, super_debug=True, multi_sig=True
+            )
+            self.log.info("✓ CMD Slave created")
 
-    def cmd_transaction_callback(self, transaction):
-        """Callback for GAXI CMD monitor transactions"""
-        self.apb_gaxi_scoreboard.add_gaxi_transaction(transaction)
+            # Check what signals it resolved to
+            if hasattr(self.cmd_slave, 'signal_resolver'):
+                resolved = getattr(self.cmd_slave.signal_resolver, 'resolved_signals', {})
+                self.log.info(f"  CMD Slave resolved signals: {resolved}")
+
+        except Exception as e:
+            self.log.error(f"✗ CMD Slave creation failed: {e}")
+            raise
+
+        # Response interface (master side - sends responses back to APB slave)
+        try:
+            self.rsp_monitor = create_gaxi_monitor(
+                self.dut, 'RSP Monitor', '', self.dut.pclk,
+                field_config=self.rsp_field_config,
+                pkt_prefix='rsp', is_slave=False,
+                log=self.log, super_debug=True, multi_sig=True
+            )
+            self.log.info("✓ RSP Monitor created")
+
+            # Check what signals it resolved to
+            if hasattr(self.rsp_monitor, 'signal_resolver'):
+                resolved = getattr(self.rsp_monitor.signal_resolver, 'resolved_signals', {})
+                self.log.info(f"  RSP Monitor resolved signals: {resolved}")
+
+        except Exception as e:
+            self.log.error(f"✗ RSP Monitor creation failed: {e}")
+            raise
+
+        try:
+            self.rsp_master = create_gaxi_master(
+                self.dut, 'RSP Master', '', self.dut.pclk,
+                field_config=self.rsp_field_config,
+                pkt_prefix='rsp',
+                randomizer=FlexRandomizer(AXI_RANDOMIZER_CONFIGS['fixed']['master']),
+                memory_model=None,
+                log=self.log, super_debug=True, multi_sig=True
+            )
+            self.log.info("✓ RSP Master created")
+
+            # Check what signals it resolved to
+            if hasattr(self.rsp_master, 'signal_resolver'):
+                resolved = getattr(self.rsp_master.signal_resolver, 'resolved_signals', {})
+                self.log.info(f"  RSP Master resolved signals: {resolved}")
+
+        except Exception as e:
+            self.log.error(f"✗ RSP Master creation failed: {e}")
+            raise
+
+        # Command handler - this orchestrates the command/response flow
+        try:
+            self.cmd_handler = GAXICommandHandler(
+                master=self.rsp_master,
+                slave=self.cmd_slave,
+                memory_model=self.mem,
+                log=self.log,
+                response_generation_mode=True
+            )
+            self.log.info("✓ Command Handler created in response generation mode")
+
+        except Exception as e:
+            self.log.error(f"✗ Command Handler creation failed: {e}")
+            raise
+
+        # Scoreboard for matching APB and GAXI transactions
+        self.apb_gaxi_scoreboard = APBGAXIScoreboard('Debug Scoreboard', log=self.log)
+        self.log.info("✓ Scoreboard created")
+
+        # Connect callbacks with enhanced debugging
+        self.log.info("Connecting callbacks...")
+
+        try:
+            self.apb_monitor.add_callback(self.debug_apb_callback)
+            self.log.info("✓ APB Monitor callback connected")
+        except Exception as e:
+            self.log.error(f"✗ APB Monitor callback failed: {e}")
+
+        try:
+            self.cmd_monitor.add_callback(self.debug_cmd_callback)
+            self.log.info("✓ CMD Monitor callback connected")
+        except Exception as e:
+            self.log.error(f"✗ CMD Monitor callback failed: {e}")
+
+        try:
+            self.rsp_monitor.add_callback(self.debug_rsp_callback)
+            self.log.info("✓ RSP Monitor callback connected")
+        except Exception as e:
+            self.log.error(f"✗ RSP Monitor callback failed: {e}")
+
+        self.log.info("=== APB-GAXI DEBUG: Component initialization complete ===")
+
+    def debug_apb_callback(self, transaction):
+        """Debug APB transaction callback with detailed field inspection."""
+        try:
+            pwrite = getattr(transaction, 'pwrite', None)
+            paddr = getattr(transaction, 'paddr', None)
+
+            if pwrite == 1:
+                self.debug_stats['apb_writes'] += 1
+                pwdata = getattr(transaction, 'pwdata', None)
+                pstrb = getattr(transaction, 'pstrb', None)
+                self.log.info(f"🔵 APB WRITE #{self.debug_stats['apb_writes']}: addr=0x{paddr:X}, data=0x{pwdata:X}, strb=0x{pstrb:X}")
+            elif pwrite == 0:
+                self.debug_stats['apb_reads'] += 1
+                prdata = getattr(transaction, 'prdata', None)
+                pslverr = getattr(transaction, 'pslverr', None)
+                self.log.info(f"🔵 APB READ #{self.debug_stats['apb_reads']}: addr=0x{paddr:X}, data=0x{prdata:X}, err={pslverr}")
+            else:
+                self.log.error(f"🔴 APB UNKNOWN: pwrite={pwrite}")
+
+            # Add to scoreboard
+            self.apb_gaxi_scoreboard.add_apb_transaction(transaction)
+            self.log.debug("✓ APB transaction added to scoreboard")
+
+        except Exception as e:
+            self.log.error(f"🔴 APB callback error: {e}")
+
+    def debug_cmd_callback(self, transaction):
+        """Debug GAXI command callback with field inspection."""
+        try:
+            self.debug_stats['gaxi_commands'] += 1
+
+            # Handle both field storage methods
+            if hasattr(transaction, 'fields') and isinstance(transaction.fields, dict):
+                fields = transaction.fields
+                pwrite = fields.get('pwrite', 'N/A')
+                paddr = fields.get('paddr', 'N/A')
+                pwdata = fields.get('pwdata', 'N/A')
+                self.log.info(f"🟢 GAXI CMD #{self.debug_stats['gaxi_commands']} (fields dict): pwrite={pwrite}, addr=0x{paddr:X}, data=0x{pwdata:X}")
+            else:
+                pwrite = getattr(transaction, 'pwrite', 'N/A')
+                paddr = getattr(transaction, 'paddr', 'N/A')
+                pwdata = getattr(transaction, 'pwdata', 'N/A')
+                self.log.info(f"🟢 GAXI CMD #{self.debug_stats['gaxi_commands']} (attributes): pwrite={pwrite}, addr=0x{paddr:X}, data=0x{pwdata:X}")
+
+            # Add to scoreboard
+            self.apb_gaxi_scoreboard.add_gaxi_transaction(transaction)
+            self.log.debug("✓ GAXI CMD transaction added to scoreboard")
+
+        except Exception as e:
+            self.log.error(f"🔴 GAXI CMD callback error: {e}")
+
+    def debug_rsp_callback(self, transaction):
+        """Debug GAXI response callback with field inspection."""
+        try:
+            self.debug_stats['gaxi_responses'] += 1
+
+            # Handle both field storage methods
+            if hasattr(transaction, 'fields') and isinstance(transaction.fields, dict):
+                fields = transaction.fields
+                prdata = fields.get('prdata', 'N/A')
+                pslverr = fields.get('pslverr', 'N/A')
+                self.log.info(f"🟡 GAXI RSP #{self.debug_stats['gaxi_responses']} (fields dict): data=0x{prdata:X}, err={pslverr}")
+            else:
+                prdata = getattr(transaction, 'prdata', 'N/A')
+                pslverr = getattr(transaction, 'pslverr', 'N/A')
+                self.log.info(f"🟡 GAXI RSP #{self.debug_stats['gaxi_responses']} (attributes): data=0x{prdata:X}, err={pslverr}")
+
+            # Add to scoreboard
+            self.apb_gaxi_scoreboard.add_gaxi_transaction(transaction)
+            self.log.debug("✓ GAXI RSP transaction added to scoreboard")
+
+        except Exception as e:
+            self.log.error(f"🔴 GAXI RSP callback error: {e}")
 
     async def reset_dut(self):
-        self.log.debug('Starting reset_dut')
+        """Reset DUT and all components."""
+        self.log.info('=== APB-GAXI DEBUG: Starting reset ===')
 
-        # Reset DUT control signals
+        # Reset DUT
         self.dut.presetn.value = 0
+        await self.wait_clocks('pclk', 5)
 
-        # Reset command/response interface
-        self.dut.i_cmd_ready.value = 0
-        self.dut.i_rsp_valid.value = 0
-        self.dut.i_rsp_prdata.value = 0
-        self.dut.i_rsp_pslverr.value = 0
-
-        # Reset APB master
+        # Reset all components
         await self.apb_master.reset_bus()
-
-        # Reset GAXI components
         await self.cmd_slave.reset_bus()
         await self.rsp_master.reset_bus()
-
-        # Hold reset for multiple cycles
         await self.wait_clocks('pclk', 5)
 
         # Release reset
         self.dut.presetn.value = 1
-
-        # Wait for stabilization
         await self.wait_clocks('pclk', 10)
 
-        # Clear monitoring queues
-        self.apb_monitor_queue.clear()
-
-        # Clear scoreboard
+        # Clear tracking
+        self.debug_stats = {k: 0 if isinstance(v, int) else {} for k, v in self.debug_stats.items()}
         self.apb_gaxi_scoreboard.clear()
 
-        self.log.debug('Ending reset_dut')
+        self.log.info('=== APB-GAXI DEBUG: Reset complete ===')
 
-    async def wait_for_queue_empty(self, object_with_queue, timeout=1000):
-        """Wait for a queue to be empty with timeout"""
+    async def check_signal_connectivity(self):
+        """Check signal connectivity after refactor."""
+        self.log.info("=== CHECKING SIGNAL CONNECTIVITY POST-REFACTOR ===")
+
+        signal_checks = {}
+
+        # Check APB signals
+        apb_signals = ['PSEL', 'PENABLE', 'PWRITE', 'PADDR', 'PWDATA', 'PRDATA', 'PREADY', 'PSTRB', 'PPROT', 'PSLVERR']
+        for sig in apb_signals:
+            try:
+                signal_name = f's_apb_{sig}'
+                signal_obj = getattr(self.dut, signal_name)
+                signal_checks[signal_name] = '✓ accessible'
+                self.log.debug(f"✓ {signal_name} accessible")
+            except AttributeError:
+                signal_checks[signal_name] = '✗ missing'
+                self.log.warning(f"✗ {signal_name} not found")
+
+        # Check GAXI command signals (what your refactor might have changed)
+        cmd_signals = ['cmd_valid', 'cmd_ready', 'cmd_pwrite', 'cmd_paddr', 'cmd_pwdata', 'cmd_pstrb', 'cmd_pprot']
+        for sig in cmd_signals:
+            for direction in ['i_', 'o_']:
+                try:
+                    signal_name = f'{direction}{sig}'
+                    signal_obj = getattr(self.dut, signal_name)
+                    signal_checks[signal_name] = '✓ accessible'
+                    self.log.debug(f"✓ {signal_name} accessible")
+                except AttributeError:
+                    signal_checks[signal_name] = '✗ missing'
+                    self.log.debug(f"✗ {signal_name} not found")
+
+        # Check GAXI response signals
+        rsp_signals = ['rsp_valid', 'rsp_ready', 'rsp_prdata', 'rsp_pslverr']
+        for sig in rsp_signals:
+            for direction in ['i_', 'o_']:
+                try:
+                    signal_name = f'{direction}{sig}'
+                    signal_obj = getattr(self.dut, signal_name)
+                    signal_checks[signal_name] = '✓ accessible'
+                    self.log.debug(f"✓ {signal_name} accessible")
+                except AttributeError:
+                    signal_checks[signal_name] = '✗ missing'
+                    self.log.debug(f"✗ {signal_name} not found")
+
+        self.debug_stats['signal_checks'] = signal_checks
+
+        # Summary
+        accessible_count = sum(1 for status in signal_checks.values() if '✓' in status)
+        total_count = len(signal_checks)
+        self.log.info(f"Signal connectivity: {accessible_count}/{total_count} signals accessible")
+
+        if accessible_count < total_count:
+            self.log.warning("Some signals missing - this might be related to your refactor")
+            for sig, status in signal_checks.items():
+                if '✗' in status:
+                    self.log.warning(f"  Missing: {sig}")
+
+        return accessible_count >= len(apb_signals)  # At least APB signals should work
+
+    async def wait_for_queue_empty(self, obj, timeout=5000):
+        """Wait for transmit queue to empty."""
         start_time = get_sim_time('ns')
-        current_time = start_time
 
-        # Check which queue attribute to monitor based on object type
-        if hasattr(object_with_queue, 'transmit_queue'):
-            queue_attr = 'transmit_queue'
-        elif hasattr(object_with_queue, '_xmitQ'):
-            queue_attr = '_xmitQ'
-        else:
-            msg = f"Unknown queue type for object {object_with_queue.__class__.__name__}"
-            self.log.error(msg)
+        queue = getattr(obj, 'transmit_queue', None)
+        if queue is None:
+            self.log.debug(f"No transmit_queue found on {obj.__class__.__name__}")
             return
 
-        queue = getattr(object_with_queue, queue_attr)
+        initial_length = len(queue)
+        if initial_length > 0:
+            self.log.debug(f"Waiting for {obj.__class__.__name__} queue to empty (initial: {initial_length})")
 
+        cycle_count = 0
         while len(queue) > 0:
             await self.wait_clocks('pclk', 1)
-            current_time = get_sim_time('ns')
+            cycle_count += 1
 
-            # Check for timeout
-            if current_time - start_time > timeout:
-                msg = f"Timeout waiting for queue to be empty after {timeout}ns"
-                self.log.warning(msg)
+            if cycle_count % 20 == 0:
+                self.log.debug(f"{obj.__class__.__name__} queue: {len(queue)} items after {cycle_count} cycles")
+
+            if get_sim_time('ns') - start_time > timeout:
+                self.log.error(f"TIMEOUT: {obj.__class__.__name__} queue still has {len(queue)} items")
                 break
 
+    async def send_apb_write_read_pair(self, addr, data):
+        """Send write then read to test full flow."""
+        self.log.info(f"=== TESTING WRITE-READ PAIR: addr=0x{addr:X}, data=0x{data:X} ===")
+
+        # Send write
+        self.log.info("Sending WRITE...")
+        write_transaction = APBTransaction(self.DATA_WIDTH, self.ADDR_WIDTH, self.STRB_WIDTH)
+        write_packet = write_transaction.next()
+        write_packet.pwrite = 1
+        write_packet.paddr = addr
+        write_packet.pwdata = data
+        write_packet.pstrb = 0xF
+        write_packet.direction = "WRITE"
+
+        await self.apb_master.send(write_packet)
+        await self.wait_for_queue_empty(self.apb_master)
+        await self.wait_clocks('pclk', 20)  # Allow processing time
+
+        # Send read
+        self.log.info("Sending READ...")
+        read_transaction = APBTransaction(self.DATA_WIDTH, self.ADDR_WIDTH, self.STRB_WIDTH)
+        read_packet = read_transaction.next()
+        read_packet.pwrite = 0
+        read_packet.paddr = addr
+        read_packet.direction = "READ"
+
+        await self.apb_master.send(read_packet)
+        await self.wait_for_queue_empty(self.apb_master)
+        await self.wait_clocks('pclk', 20)  # Allow processing time
+
+        self.log.info("=== WRITE-READ PAIR COMPLETE ===")
+
+    async def run_refactor_debug_test(self):
+        """Run test focused on finding refactor issues."""
+        self.log.info("=== STARTING APB-GAXI REFACTOR DEBUG TEST ===")
+
+        # Step 1: Check signal connectivity
+        signals_ok = await self.check_signal_connectivity()
+
+        # Step 2: Start command handler (critical for response generation)
+        self.log.info("Starting command handler...")
+        try:
+            await self.cmd_handler.start()
+            handler_stats = self.cmd_handler.get_stats()
+            self.log.info(f"✓ Command handler started: {handler_stats}")
+        except Exception as e:
+            self.log.error(f"✗ Command handler start failed: {e}")
+            return False
+
+        # Step 3: Wait for stable state
+        await self.wait_clocks('pclk', 10)
+
+        # Step 4: Test the full APB->GAXI->APB flow
+        test_addr = 0x1000
+        test_data = 0x12345678
+
+        initial_stats = self.debug_stats.copy()
+        await self.send_apb_write_read_pair(test_addr, test_data)
+
+        # Step 5: Check what happened
+        self.log.info("=== FLOW ANALYSIS ===")
+        self.log.info(f"APB Writes: {initial_stats['apb_writes']} → {self.debug_stats['apb_writes']}")
+        self.log.info(f"APB Reads: {initial_stats['apb_reads']} → {self.debug_stats['apb_reads']}")
+        self.log.info(f"GAXI Commands: {initial_stats['gaxi_commands']} → {self.debug_stats['gaxi_commands']}")
+        self.log.info(f"GAXI Responses: {initial_stats['gaxi_responses']} → {self.debug_stats['gaxi_responses']}")
+
+        # Step 6: Command handler analysis
+        handler_stats = self.cmd_handler.get_stats()
+        self.log.info(f"Command Handler Stats: {handler_stats}")
+
+        # Step 7: Scoreboard analysis
+        await self.wait_clocks('pclk', 50)  # Allow final processing
+        scoreboard_stats = self.apb_gaxi_scoreboard.get_stats()
+        self.log.info(f"Scoreboard Stats: {scoreboard_stats}")
+
+        # Step 8: Determine what's broken
+        apb_flow_working = (self.debug_stats['apb_writes'] > 0 and self.debug_stats['apb_reads'] > 0)
+        gaxi_cmd_working = (self.debug_stats['gaxi_commands'] > 0)
+        gaxi_rsp_working = (self.debug_stats['gaxi_responses'] > 0)
+        scoreboard_working = (scoreboard_stats['matched_pairs'] > 0)
+
+        self.log.info("=== REFACTOR DEBUG ANALYSIS ===")
+        self.log.info(f"Signal connectivity: {'✓' if signals_ok else '✗'}")
+        self.log.info(f"APB transaction flow: {'✓' if apb_flow_working else '✗'}")
+        self.log.info(f"GAXI command generation: {'✓' if gaxi_cmd_working else '✗'}")
+        self.log.info(f"GAXI response generation: {'✓' if gaxi_rsp_working else '✗'}")
+        self.log.info(f"Scoreboard matching: {'✓' if scoreboard_working else '✗'}")
+
+        # Identify likely refactor issues
+        if not gaxi_cmd_working:
+            self.log.error("🔥 ISSUE: GAXI commands not being generated - check signal mapping in refactor")
+        if not gaxi_rsp_working:
+            self.log.error("🔥 ISSUE: GAXI responses not being generated - check command handler or RSP master")
+        if gaxi_cmd_working and gaxi_rsp_working and not scoreboard_working:
+            self.log.error("🔥 ISSUE: GAXI flow works but scoreboard doesn't match - check field formats")
+
+        success = apb_flow_working and gaxi_cmd_working and gaxi_rsp_working and scoreboard_working
+
+        if success:
+            self.log.info("✓ APB-GAXI REFACTOR DEBUG TEST PASSED")
+        else:
+            self.log.error("✗ APB-GAXI REFACTOR DEBUG TEST FAILED - issues identified above")
+
+        return success
+
+    def set_randomizer_config(self, apb_master_config=None, apb_slave_config=None, axi_config=None):
+        """Set randomizer configurations for all components."""
+        if apb_master_config:
+            self.apb_master.set_randomizer(FlexRandomizer(apb_master_config))
+            self.test_stats['configurations_tested'].add(f"apb_master_{apb_master_config}")
+
+        if apb_slave_config:
+            # Note: APB slave randomizer would be used if we had an APB slave component
+            # For now, we track the configuration for completeness
+            self.test_stats['configurations_tested'].add(f"apb_slave_{apb_slave_config}")
+
+        if axi_config:
+            if 'master' in axi_config:
+                self.rsp_master.set_randomizer(FlexRandomizer(axi_config['master']))
+            if 'slave' in axi_config:
+                self.cmd_slave.set_randomizer(FlexRandomizer(axi_config['slave']))
+            self.test_stats['configurations_tested'].add(f"axi_{axi_config}")
+
+    async def run_test_sequence(self, sequence_config, num_transactions=None):
+        """Run a test sequence with the given configuration."""
+        if num_transactions is None:
+            num_transactions = len(sequence_config.pwrite_seq)
+
+        results = []
+        sequence_config.reset_iterators()
+
+        try:
+            for i in range(num_transactions):
+                is_write = sequence_config.next_pwrite()
+                addr = sequence_config.next_addr()
+
+                if is_write:
+                    data = sequence_config.next_data()
+                    strobe = sequence_config.next_strb()
+                    result = await self.send_apb_transaction(True, addr, data, strobe)
+                else:
+                    result = await self.send_apb_transaction(False, addr)
+
+                results.append(result)
+
+                if i < num_transactions - 1:
+                    delay = sequence_config.next_delay()
+                    if delay > 0:
+                        await self.wait_clocks('pclk', delay)
+
+        except Exception as e:
+            self.log.error(f"Test sequence failed: {e}")
+            self.test_stats['failed_tests'] += 1
+            raise
+
+        return results
+
     async def send_apb_transaction(self, is_write, addr, data=None, strobe=None):
-        """Send an APB transaction through the APB master"""
+        """Send APB transaction."""
         start_time = get_sim_time('ns')
 
-        # Create a transaction
         xmit_transaction_cls = APBTransaction(self.DATA_WIDTH, self.ADDR_WIDTH, self.STRB_WIDTH)
         xmit_transaction = xmit_transaction_cls.next()
 
-        # Set transaction fields directly
         xmit_transaction.pwrite = 1 if is_write else 0
         xmit_transaction.direction = "WRITE" if is_write else "READ"
         xmit_transaction.paddr = addr
 
-        # For write transactions, set data and strobe
         if is_write:
-            # Set data field
             xmit_transaction.pwdata = data if data is not None else random.randint(0, 2**self.DATA_WIDTH - 1)
-            msg = f"Setting transaction pwdata to 0x{xmit_transaction.pwdata:08X}"
-            self.log.info(msg)
+            xmit_transaction.pstrb = strobe if strobe is not None else (2**self.STRB_WIDTH - 1)
 
-            # Set the strobe value
-            xmit_transaction.pstrb = strobe if strobe is not None else (2**self.STRB_WIDTH - 1)  # All bytes enabled
-            msg = f"Setting transaction pstrb to 0x{xmit_transaction.pstrb:X}"
-            self.log.info(msg)
-
-        # Log the transaction details
-        self.log.info(f"Sending {'write' if is_write else 'read'} to addr 0x{addr:08X}" +
-                        (f" with data 0x{xmit_transaction.pwdata:08X} strobe 0x{xmit_transaction.pstrb:X}" if is_write else ""))
-
-        # Record transaction start time
         xmit_transaction.start_time = start_time
 
-        # Send the transaction
         await self.apb_master.send(xmit_transaction)
-
-        # Wait for the master's queue to be empty
         await self.wait_for_queue_empty(self.apb_master, timeout=10000)
+        await self.wait_clocks('pclk', 3)  # Small delay for response processing
 
-        # Wait a few cycles for the scoreboard to process everything
-        await self.wait_clocks('pclk', 5)
-
-        # For verification, read the expected value from memory if this was a read
-        if not is_write and self.mem:
-            expected_ba = self.mem.read(addr & 0xFFF, self.STRB_WIDTH)
-            expected = self.mem.bytearray_to_integer(expected_ba)
-            self.log.info(f"Expected read value from memory: 0x{expected:08X}")
-
-        # Return the transaction for reference
         return xmit_transaction
 
-    async def run_test(self, config: APBSequence, num_transactions: int = None):
-        """Run test - Modular WaveDrom solver samples automatically in background"""
-
-        save_randomizer = False
-
-        # Apply custom timing constraints if provided
-        if config.master_randomizer:
-            save_randomizer = True
-            self.log.debug(f'run_test: Setting master randomizer to {config.master_randomizer}')
-            self.apb_master.set_randomizer(config.master_randomizer)
-
-        # Reset iterators
-        config.reset_iterators()
-
-        # Determine number of transactions to run
-        if num_transactions is None:
-            num_transactions = len(config.pwrite_seq)
-
-        results = []
-
-        try:
-            # Execute transactions - the modular WaveDrom solver samples automatically!
-            for i in range(num_transactions):
-                # Get next transaction parameters
-                is_write = config.next_pwrite()
-                addr = config.next_addr()
-
-                if is_write:
-                    # Get data and strobe for write
-                    data = config.next_data()
-                    strobe = config.next_strb()
-                    # Execute write transaction
-                    result = await self.send_apb_transaction(True, addr, data, strobe)
-                else:
-                    # Execute read transaction
-                    result = await self.send_apb_transaction(False, addr)
-
-                # Store result
-                results.append(result)
-
-                # Add delay between transactions if not the last one
-                if i < num_transactions - 1:
-                    delay = config.next_delay()
-                    if delay > 0:
-                        await self.wait_clocks('pclk', delay)
-
-        finally:
-            # Restore original constraints
-            if save_randomizer:
-                self.apb_master.set_randomizer(FlexRandomizer(APB_MASTER_RANDOMIZER_CONFIGS['fixed']))
-
-        return results
-
     async def verify_scoreboard(self, timeout=1000):
-        """Verify scoreboard for unmatched transactions"""
-        self.log.info("Verifying APB-GAXI scoreboard for unmatched transactions")
+        """Verify scoreboard."""
         result = await self.apb_gaxi_scoreboard.check_scoreboard(timeout)
 
         if result:
-            self.log.info("Scoreboard verification passed - all transactions matched")
+            self.test_stats['passed_tests'] += 1
+            self.log.info("Scoreboard verification passed")
         else:
-            self.log.error("Scoreboard verification failed - unmatched transactions found")
-
-        # Get and log the report
-        report = self.apb_gaxi_scoreboard.report()
-        self.log.info(f"Scoreboard report:\n{report}")
+            self.test_stats['failed_tests'] += 1
+            self.log.error("Scoreboard verification failed")
 
         return result
 
-    # Test methods using predefined configurations
-    def _create_write_seq(self):
-        """Create configuration focused on write transactions"""
+    # Test sequence generators
+    def create_basic_write_sequence(self, num_txns=5):
+        """Create basic write sequence - FIXED to include reads."""
+        # Create write-read pairs for better testing
+        pwrite_seq = []
+        addr_seq = []
+        data_seq = []
+        strb_seq = []
+
+        for i in range(num_txns):
+            # Write first
+            pwrite_seq.append(True)
+            addr_seq.append(0x1000 + i*4)
+            data_seq.append(0x10000 + i)
+            strb_seq.append(0xF)
+
+            # Then read back
+            pwrite_seq.append(False)
+            addr_seq.append(0x1000 + i*4)
+            data_seq.append(0)  # Not used for reads
+            strb_seq.append(0xF)
+
         return APBSequence(
-            name="write_focused",
-            pwrite_seq=[True, True],  # Two write transactions
-            addr_seq=[0x1000, 0x1004],
-            data_seq=[0xDEADBEEF, 0xCAFEBABE],
-            strb_seq=[0xF, 0xF],
-            inter_cycle_delays=[8, 8]  # Good spacing for waveform capture
+            name="basic_write_read",
+            pwrite_seq=pwrite_seq,
+            addr_seq=addr_seq,
+            data_seq=data_seq,
+            strb_seq=strb_seq,
+            inter_cycle_delays=[2] * len(pwrite_seq)
         )
 
-    def _create_read_seq(self):
-        """Create configuration focused on read transactions"""
+    def create_basic_read_sequence(self, num_txns=5):
+        """Create basic read sequence - FIXED to test sequential data."""
+        # First write some data, then read it back
+        pwrite_seq = []
+        addr_seq = []
+        data_seq = []
+        strb_seq = []
+
+        # Write phase
+        for i in range(num_txns):
+            pwrite_seq.append(True)
+            addr_seq.append(0x2000 + i*4)
+            data_seq.append(0x20000 + i)
+            strb_seq.append(0xF)
+
+        # Read phase
+        for i in range(num_txns):
+            pwrite_seq.append(False)
+            addr_seq.append(0x2000 + i*4)
+            data_seq.append(0)  # Not used for reads
+            strb_seq.append(0xF)
+
         return APBSequence(
-            name="read_focused",
-            pwrite_seq=[True, False, False],  # Write then two reads
-            addr_seq=[0x2000, 0x2000, 0x2004],
-            data_seq=[0x12345678, 0, 0],  # Only write data matters
-            strb_seq=[0xF, 0xF, 0xF],
-            inter_cycle_delays=[8, 8, 8]
+            name="basic_read_test",
+            pwrite_seq=pwrite_seq,
+            addr_seq=addr_seq,
+            data_seq=data_seq,
+            strb_seq=strb_seq,
+            inter_cycle_delays=[2] * len(pwrite_seq)
         )
 
-    def _create_mixed_seq(self):
-        """Create mixed read/write sequence for comprehensive testing"""
+    def create_burst_sequence(self, num_txns=10):
+        """Create burst sequence - FIXED to include reads."""
+        # Alternating write-read pattern
+        pwrite_seq = []
+        addr_seq = []
+        data_seq = []
+        strb_seq = []
+
+        for i in range(num_txns//2):
+            # Write
+            pwrite_seq.append(True)
+            addr_seq.append(0x3000 + i*4)
+            data_seq.append(0x30000 + i)
+            strb_seq.append(0xF)
+
+            # Read
+            pwrite_seq.append(False)
+            addr_seq.append(0x3000 + i*4)
+            data_seq.append(0)
+            strb_seq.append(0xF)
+
         return APBSequence(
-            name="mixed_rw",
-            pwrite_seq=[True, False, True, False, True],  # Mixed sequence
-            addr_seq=[0x3000, 0x3000, 0x3004, 0x3004, 0x3008],
-            data_seq=[0x11223344, 0, 0x55667788, 0, 0x99AABBCC],
-            strb_seq=[0xF, 0xF, 0xF, 0xF, 0xF],
-            inter_cycle_delays=[6, 6, 6, 6, 6]  # Shorter delays for rapid sequences
+            name="burst_write_read",
+            pwrite_seq=pwrite_seq,
+            addr_seq=addr_seq,
+            data_seq=data_seq,
+            strb_seq=strb_seq,
+            inter_cycle_delays=[0] * len(pwrite_seq)  # Back-to-back
         )
 
+    def create_sequential_read_test(self, num_txns=8):
+        """Create test specifically for sequential data generation."""
+        # Only reads to test sequential data generation
+        return APBSequence(
+            name="sequential_read_test",
+            pwrite_seq=[False] * num_txns,
+            addr_seq=[0x4000 + i*4 for i in range(num_txns)],
+            data_seq=[0] * num_txns,  # Not used for reads
+            strb_seq=[0xF] * num_txns,
+            inter_cycle_delays=[1] * num_txns
+        )
 
-@cocotb.test(timeout_time=120, timeout_unit="us")
-async def apb_slave_test(dut):
-    """APB slave test with Modular Temporal Sequence WaveDrom system"""
-    tb = APBSlaveTB(dut)
+    def create_sparse_sequence(self, num_txns=5):
+        """Create sparse sequence with large delays."""
+        return APBSequence(
+            name="sparse",
+            pwrite_seq=[True, False] * (num_txns//2) + [True],
+            addr_seq=[0x4000 + i*4 for i in range(num_txns)],
+            data_seq=[0x2000 + i for i in range(num_txns)],
+            strb_seq=[0xF] * num_txns,
+            inter_cycle_delays=[20] * num_txns  # Large delays
+        )
 
-    # Use the seed for reproducibility
+    def create_boundary_address_sequence(self):
+        """Create sequence testing boundary addresses."""
+        boundary_addrs = [
+            0x00000000,  # Minimum address
+            0x00000004,  # Word aligned
+            0x00000008,  # Word aligned
+            0x000003FC,  # Near boundary
+            0x00000FFC,  # Near 4K boundary
+        ]
+
+        return APBSequence(
+            name="boundary_addresses",
+            pwrite_seq=[True, False] * (len(boundary_addrs)//2) + [True],
+            addr_seq=boundary_addrs,
+            data_seq=[0x5000 + i for i in range(len(boundary_addrs))],
+            strb_seq=[0xF] * len(boundary_addrs),
+            inter_cycle_delays=[3] * len(boundary_addrs)
+        )
+
+    def create_strobe_pattern_sequence(self):
+        """Create sequence testing different strobe patterns."""
+        strobe_patterns = [0x1, 0x3, 0x7, 0xF, 0x8, 0xC, 0x6, 0x9]
+
+        return APBSequence(
+            name="strobe_patterns",
+            pwrite_seq=[True] * len(strobe_patterns),
+            addr_seq=[0x5000 + i*4 for i in range(len(strobe_patterns))],
+            data_seq=[0x3000 + i for i in range(len(strobe_patterns))],
+            strb_seq=strobe_patterns,
+            inter_cycle_delays=[2] * len(strobe_patterns)
+        )
+
+    def create_data_pattern_sequence(self):
+        """Create sequence testing different data patterns."""
+        data_patterns = [
+            0x00000000,  # All zeros
+            0xFFFFFFFF,  # All ones
+            0x55555555,  # Alternating 01
+            0xAAAAAAAA,  # Alternating 10
+            0x12345678,  # Incremental
+            0x87654321,  # Decremental
+            0xDEADBEEF,  # Known pattern
+            0xCAFEBABE,  # Known pattern
+        ]
+
+        return APBSequence(
+            name="data_patterns",
+            pwrite_seq=[True, False] * (len(data_patterns)//2),
+            addr_seq=[0x6000 + i*4 for i in range(len(data_patterns))],
+            data_seq=data_patterns,
+            strb_seq=[0xF] * len(data_patterns),
+            inter_cycle_delays=[1] * len(data_patterns)
+        )
+
+    async def run_comprehensive_test_suite(self):
+        """Run comprehensive test suite with all configurations."""
+        self.log.info("=== Starting Comprehensive APB Test Suite ===")
+
+        # Test configuration matrix
+        test_matrix = [
+            ('fixed', 'fixed', 'Basic Fixed Timing'),
+            ('constrained', 'constrained', 'Constrained Random Timing'),
+            ('fast', 'fast', 'Fast Timing'),
+            ('backtoback', 'backtoback', 'Back-to-Back Transactions'),
+        ]
+
+        test_sequences = [
+            ('basic_write_read', lambda: self.create_basic_write_sequence(3)),
+            ('basic_read_test', lambda: self.create_basic_read_sequence(3)),
+            ('burst_write_read', lambda: self.create_burst_sequence(6)),
+            ('sequential_read_test', lambda: self.create_sequential_read_test(5)),
+            ('boundary_addresses', lambda: self.create_boundary_address_sequence()),
+            ('strobe_patterns', lambda: self.create_strobe_pattern_sequence()),
+            ('data_patterns', lambda: self.create_data_pattern_sequence()),
+        ]
+
+        total_test_combinations = len(test_matrix) * len(test_sequences)
+        current_test = 0
+
+        for apb_config, axi_config, config_desc in test_matrix:
+            for seq_name, seq_generator in test_sequences:
+                current_test += 1
+                self.log.info(f"=== Test {current_test}/{total_test_combinations}: {config_desc} - {seq_name} ===")
+
+                try:
+                    # Set configuration
+                    self.set_randomizer_config(
+                        apb_master_config=APB_MASTER_RANDOMIZER_CONFIGS[apb_config],
+                        axi_config=AXI_RANDOMIZER_CONFIGS[axi_config]
+                    )
+
+                    # Generate and run sequence
+                    sequence = seq_generator()
+                    await self.run_test_sequence(sequence)
+
+                    # Verify results
+                    result = await self.verify_scoreboard()
+
+                    if result:
+                        self.log.info(f"✓ Test {current_test} PASSED: {config_desc} - {seq_name}")
+                    else:
+                        self.log.error(f"✗ Test {current_test} FAILED: {config_desc} - {seq_name}")
+
+                    # Allow settling time between tests
+                    await self.wait_clocks('pclk', 10)
+
+                    self.test_stats['total_tests'] += 1
+
+                except Exception as e:
+                    self.log.error(f"✗ Test {current_test} EXCEPTION: {config_desc} - {seq_name}: {e}")
+                    self.test_stats['failed_tests'] += 1
+                    # Continue with next test
+                    continue
+
+        # # High-throughput stress test
+        # await self.run_stress_tests()
+
+        # # Error injection tests
+        # await self.run_error_injection_tests()
+
+        # Generate final report
+        self.generate_test_report()
+
+    async def run_stress_tests(self):
+        """Run stress tests with high transaction volumes."""
+        self.log.info("=== Running Stress Tests ===")
+
+        stress_configs = [
+            ('high_throughput', 'high_throughput', 'High Throughput Stress'),
+            # ('backtoback', 'backtoback', 'Back-to-Back Stress'),
+        ]
+
+        for apb_config, axi_config, config_desc in stress_configs:
+            self.log.info(f"=== Stress Test: {config_desc} ===")
+
+            try:
+                # Set high-performance configuration
+                self.set_randomizer_config(
+                    apb_master_config=APB_MASTER_RANDOMIZER_CONFIGS[apb_config],
+                    axi_config=AXI_RANDOMIZER_CONFIGS[axi_config]
+                )
+
+                # Create large burst sequence
+                large_burst = APBSequence(
+                    name="stress_burst",
+                    pwrite_seq=[True, False] * 50,  # 100 transactions
+                    addr_seq=[0x7000 + i*4 for i in range(100)],
+                    data_seq=[0x4000 + i for i in range(100)],
+                    strb_seq=[0xF] * 100,
+                    inter_cycle_delays=[0] * 100  # Back-to-back
+                )
+
+                await self.run_test_sequence(large_burst)
+                result = await self.verify_scoreboard()
+
+                if result:
+                    self.log.info(f"✓ Stress Test PASSED: {config_desc}")
+                else:
+                    self.log.error(f"✗ Stress Test FAILED: {config_desc}")
+
+                self.test_stats['total_tests'] += 1
+
+            except Exception as e:
+                self.log.error(f"✗ Stress Test EXCEPTION: {config_desc}: {e}")
+                self.test_stats['failed_tests'] += 1
+
+    async def run_error_injection_tests(self):
+        """Run error injection tests."""
+        self.log.info("=== Running Error Injection Tests ===")
+
+        # Note: These tests would be more effective with actual error injection
+        # in the DUT or slave components, but we can test the framework
+
+        try:
+            # Test with slow consumer configuration
+            self.set_randomizer_config(
+                apb_master_config=APB_MASTER_RANDOMIZER_CONFIGS['slow_master'],
+                axi_config=AXI_RANDOMIZER_CONFIGS['slow_producer']
+            )
+
+            # Create challenging sequence
+            error_sequence = APBSequence(
+                name="error_injection",
+                pwrite_seq=[True, False, True, False, True],
+                addr_seq=[0x8000, 0x8004, 0x8008, 0x800C, 0x8010],
+                data_seq=[0x5000, 0x5001, 0x5002, 0x5003, 0x5004],
+                strb_seq=[0xF, 0x3, 0xC, 0x1, 0x8],
+                inter_cycle_delays=[5, 10, 15, 20, 25]
+            )
+
+            await self.run_test_sequence(error_sequence)
+            result = await self.verify_scoreboard()
+
+            if result:
+                self.log.info("✓ Error Injection Test PASSED")
+            else:
+                self.log.error("✗ Error Injection Test FAILED")
+
+            self.test_stats['total_tests'] += 1
+
+        except Exception as e:
+            self.log.error(f"✗ Error Injection Test EXCEPTION: {e}")
+            self.test_stats['failed_tests'] += 1
+
+    def generate_test_report(self):
+        """Generate comprehensive test report."""
+        self.log.info("=== COMPREHENSIVE TEST REPORT ===")
+        self.log.info(f"Total Tests: {self.test_stats['total_tests']}")
+        self.log.info(f"Passed Tests: {self.test_stats['passed_tests']}")
+        self.log.info(f"Failed Tests: {self.test_stats['failed_tests']}")
+        self.log.info(f"Total Transactions: {self.test_stats['total_transactions']}")
+        self.log.info(f"Error Transactions: {self.test_stats['error_transactions']}")
+
+        if self.test_stats['total_tests'] > 0:
+            pass_rate = (self.test_stats['passed_tests'] / self.test_stats['total_tests']) * 100
+            self.log.info(f"Pass Rate: {pass_rate:.1f}%")
+
+        self.log.info(f"Configurations Tested: {len(self.test_stats['configurations_tested'])}")
+        for config in sorted(self.test_stats['configurations_tested']):
+            self.log.info(f"  - {config}")
+
+        self.log.info("=== END TEST REPORT ===")
+
+
+@cocotb.test(timeout_time=300, timeout_unit="us")  # Increased timeout for comprehensive tests
+async def comprehensive_apb_gaxi_test(dut):
+    """Comprehensive APB-GAXI test with all sequences."""
+
+    tb = APBGAXIDebugTB(dut)
+
+    # Set seed for reproducibility
     seed = int(os.environ.get('SEED', '42'))
     random.seed(seed)
+    tb.log.info(f"Using seed: {seed}")
 
-    # Start the clock
-    print('Starting clk')
+    # Start clock
     await tb.start_clock('pclk', 10, 'ns')
 
-    # Reset the DUT
-    print('DUT reset')
+    # Reset DUT
     await tb.reset_dut()
 
-    # Set up modular Temporal Sequence WaveDrom system
-    print('Setting up Modular Temporal Sequence WaveDrom')
-    tb.log.info("=== Setting up Modular Temporal Sequence WaveDrom System ===")
-    tb.setup_wavedrom(preset_type="comprehensive")
-
-    # Start the command handler
+    # Start command handler
     await tb.cmd_handler.start()
 
-    # Start WaveDrom sampling (if solver is available)
-    if tb.wave_solver:
-        await tb.wave_solver.start_sampling()
-        tb.log.info("Modular Temporal Sequence WaveDrom solver is sampling...")
-
     try:
-        print('# Test 1: Write Transaction Sequences')
-        tb.log.info("=== Test 1: Write Transaction Sequences ===")
 
-        config = tb._create_write_seq()
-        await tb.run_test(config)
-        await tb.verify_scoreboard()
+        # Simple refactor debug test
+        result = await tb.run_refactor_debug_test()
 
-        # Allow time for boundary detection
-        tb.log.info("Allowing time for boundary detection to capture write sequences...")
-        await tb.wait_clocks('pclk', 15)
-
-        print('# Test 2: Read Transaction Sequences')
-        tb.log.info("=== Test 2: Read Transaction Sequences ===")
-        config = tb._create_read_seq()
-        await tb.run_test(config)
-        await tb.verify_scoreboard()
-
-        # Allow time for boundary detection
-        tb.log.info("Allowing time for boundary detection to capture read sequences...")
-        await tb.wait_clocks('pclk', 15)
-
-        print('# Test 3: Mixed Read/Write Sequences')
-        tb.log.info("=== Test 3: Mixed R/W Sequences ===")
-        config = tb._create_mixed_seq()
-        await tb.run_test(config)
-        await tb.verify_scoreboard()
-
-        # Final settling time for any remaining boundary detections
-        tb.log.info("Final boundary detection settling time...")
-        await tb.wait_clocks('pclk', 20)
-
-        # Stop sampling and get results
-        if tb.wave_solver:
-            await tb.wave_solver.stop_sampling()
-
-            # Debug status
-            tb.wave_solver.debug_status()
-
-            # Get results
-            results = tb.wave_solver.get_results()
-
-            tb.log.info(f"Modular Temporal Sequence Results:")
-            tb.log.info(f"  Total solutions found: {len(results['solutions'])}")
-            tb.log.info(f"  Satisfied constraints: {results['satisfied_constraints']}")
-            tb.log.info(f"  Failed constraints: {results['failed_constraints']}")
-            tb.log.info(f"  All required satisfied: {results['all_required_satisfied']}")
-            tb.log.info(f"  WaveJSON Generator stats: {results.get('wavejson_generator_stats', {})}")
-            tb.log.info(f"  Protocol configs: {results.get('protocol_configs', 0)}")
-            tb.log.info(f"  Boundary configs: {results.get('boundary_configs', 0)}")
-
-            if not results["all_required_satisfied"]:
-                tb.log.error(f"Required temporal constraints failed: {results['failed_constraints']}")
-
-                # Show any solutions we did get
-                if results["solutions"]:
-                    tb.log.warning(f"Got {len(results['solutions'])} solutions from constraints:")
-                    for solution in results["solutions"]:
-                        tb.log.warning(f"    - {solution.constraint_name}: {solution.filename}")
-                        if solution.temporal_solution:
-                            timing = solution.temporal_solution.get('event_timing', {})
-                            duration = solution.temporal_solution.get('sequence_duration', 0)
-                            tb.log.warning(f"      Events: {timing}, Duration: {duration} cycles")
-                        if solution.field_config:
-                            tb.log.warning(f"      FieldConfig: {len(solution.field_config.field_names())} fields")
-                        if solution.protocol_hint:
-                            tb.log.warning(f"      Protocol: {solution.protocol_hint}")
-                else:
-                    tb.log.error("No temporal solutions found!")
-
-                # Don't fail the test, just warn for debugging
-                tb.log.warning("Continuing test despite constraint failures for debugging")
-            else:
-                tb.log.info(f"All required temporal constraints satisfied!")
-
-            # Show generated files with information
-            tb.log.info("Generated WaveJSON Files:")
-            for solution in results["solutions"]:
-                tb.log.info(f"  File: {solution.filename}")
-                if solution.temporal_solution:
-                    timing = solution.temporal_solution.get('event_timing', {})
-                    duration = solution.temporal_solution.get('sequence_duration', 0)
-                    tb.log.info(f"      Sequence timing: {timing}")
-                    tb.log.info(f"      Duration: {duration} cycles")
-
-                # Solution information
-                if solution.field_config:
-                    tb.log.info(f"      FieldConfig: {len(solution.field_config.field_names())} fields")
-                if solution.protocol_hint:
-                    tb.log.info(f"      Protocol: {solution.protocol_hint}")
-                if solution.wavejson_generator:
-                    gen_stats = solution.wavejson_generator.get_stats()
-                    tb.log.info(f"      Generator: {gen_stats.get('total_signals', 0)} signals, {gen_stats.get('fieldconfig_signals', 0)} FieldConfig")
-
-                # WaveJSON validation results
-                if tb.wave_generator and solution.wavejson:
-                    is_valid, errors = tb.wave_generator.validate_wavejson(solution.wavejson)
-                    if is_valid:
-                        tb.log.info(f"      WaveJSON: Valid format")
-
-                        # Check for features
-                        has_edges = "edge" in solution.wavejson and solution.wavejson["edge"]
-                        has_nodes = False
-                        has_fieldconfig_data = False
-
-                        if "signal" in solution.wavejson:
-                            for signal_item in solution.wavejson["signal"]:
-                                if isinstance(signal_item, list):
-                                    for signal in signal_item[1:]:  # Skip group name
-                                        if isinstance(signal, dict):
-                                            if "node" in signal:
-                                                has_nodes = True
-                                            if "data" in signal and signal["data"]:
-                                                has_fieldconfig_data = True
-                                elif isinstance(signal_item, dict):
-                                    if "node" in signal_item:
-                                        has_nodes = True
-                                    if "data" in signal_item and signal_item["data"]:
-                                        has_fieldconfig_data = True
-
-                        feature_status = []
-                        if has_edges and has_nodes:
-                            feature_status.append("Edges with nodes")
-                        elif has_edges:
-                            feature_status.append("Edges present, nodes missing")
-                        else:
-                            feature_status.append("No edge annotations")
-
-                        if has_fieldconfig_data:
-                            feature_status.append("FieldConfig data formatting")
-                        else:
-                            feature_status.append("No advanced data formatting")
-
-                        tb.log.info(f"      Features: {', '.join(feature_status)}")
-                    else:
-                        tb.log.warning(f"      WaveJSON: Validation errors: {errors}")
-
-            # Show boundary detection statistics
-            if hasattr(tb.wave_solver, 'auto_boundary_configs') and tb.wave_solver.auto_boundary_configs:
-                tb.log.info("Boundary Detection Summary:")
-                for constraint_name, config in tb.wave_solver.auto_boundary_configs.items():
-                    signal = config['transition_signal']
-                    transition = config['transition_value']
-                    reset_count = len(config['reset_signals'])
-                    tb.log.info(f"  {constraint_name}: {signal} {transition[0]}→{transition[1]} (resets {reset_count} signals)")
-
-            # Show FieldConfig integration statistics
-            tb.log.info("FieldConfig Integration Summary:")
-            tb.log.info(f"  APB FieldConfig: {len(tb.apb_field_config.field_names())} fields")
-            for field_name, field_def in tb.apb_field_config.items():
-                encoding_info = f", encoding: {len(field_def.encoding)} values" if field_def.encoding else ""
-                tb.log.info(f"    {field_name}: {field_def.bits}b, {field_def.format}{encoding_info}")
-
+        if result:
+            tb.log.info("🎉 APB-GAXI DEBUG TEST PASSED! 🎉")
         else:
-            tb.log.warning("No Temporal Sequence Solver available")
+            tb.log.error("❌ APB-GAXI DEBUG TEST FAILED ❌")
+            tb.log.error("Check the detailed analysis above to identify refactor issues")
+            assert False, "APB-GAXI debug test failed"
 
-        print("\n" + "="*80)
-        print("APB Slave test completed with Modular Architecture!")
-        print("="*80)
-        print("ARCHITECTURE FEATURES:")
-        print("  FieldConfig integration for automatic signal configuration")
-        print("  WaveJSON generation with protocol-specific formatting")
-        print("  Modular constraint solver with FieldConfig-aware boundaries")
-        print("  Packet-based WaveJSON callbacks using APBPacket objects")
-        print("  Edge nodes with proper WaveDrom specification compliance")
-        print("  Automatic signal classification from FieldConfig definitions")
-        print("  Validation and error handling")
-        print("  Multi-protocol support through FieldConfig abstraction")
-        print("\nFIELDCONFIG INTEGRATION:")
-        print("  Automatic signal bit width and format detection")
-        print("  Protocol-aware field encoding (READ/WRITE, OKAY/ERROR)")
-        print("  Data formatting in WaveJSON output")
-        print("  Field validation and boundary checking")
-        print("  Seamless integration between packets and constraints")
-        print("\nWAVEJSON FEATURES:")
-        print("  Protocol-specific signal grouping and organization")
-        print("  Temporal annotations with proper node mappings")
-        print("  Custom formatting based on FieldConfig field definitions")
-        print("  Validation of generated WaveJSON against specification")
-        print("  Multiple callback types: custom, packet-based, debug")
-        print("="*80)
+        # Run comprehensive test suite
+        await tb.run_comprehensive_test_suite()
+
+        # Final verification
+        final_result = await tb.verify_scoreboard(timeout=5000)
+
+        if final_result and tb.test_stats['failed_tests'] == 0:
+            tb.log.info("🎉 COMPREHENSIVE TEST SUITE PASSED! 🎉")
+        else:
+            tb.log.error("❌ COMPREHENSIVE TEST SUITE FAILED ❌")
+            assert False, f"Test suite failed: {tb.test_stats['failed_tests']} failed tests"
 
     finally:
         # Clean shutdown
         tb.done = True
-        if tb.wave_solver:
-            await tb.wave_solver.stop_sampling()
         await tb.cmd_handler.stop()
         await tb.wait_clocks('pclk', 10)
 
 
-@pytest.mark.parametrize("addr_width, data_width, depth",
-    [
-        (
-            32,  # addr_width
-            32,  # data_width
-            2,   # depth
-        )
-    ])
-def test_apb_slave(request, addr_width, data_width, depth):
+@pytest.mark.parametrize("addr_width, data_width, depth", [(32, 32, 2)])
+def test_apb_gaxi_refactor_debug(request, addr_width, data_width, depth):
+    """APB-GAXI refactor debug test."""
 
-    # get all of the directory and module information
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common', 'rtl_amba': 'rtl/amba'})
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_cmn': 'rtl/common',
+        'rtl_amba': 'rtl/amba'
+    })
 
     dut_name = "apb_slave"
     toplevel = dut_name
@@ -758,68 +1013,58 @@ def test_apb_slave(request, addr_width, data_width, depth):
         os.path.join(rtl_dict['rtl_amba'], f"apb/{dut_name}.sv")
     ]
 
-    # create a human readable test identifier
     aw_str = TBBase.format_dec(addr_width, 3)
     dw_str = TBBase.format_dec(data_width, 3)
     d_str = TBBase.format_dec(depth, 3)
-    test_name_plus_params = f"test_{dut_name}_aw{aw_str}_dw{dw_str}_d{d_str}"
+    test_name_plus_params = f"test_apb_gaxi_refactor_debug_{dut_name}_aw{aw_str}_dw{dw_str}_d{d_str}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
-    # use it in the simbuild path
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
-
-    # Make sim_build directory
     os.makedirs(sim_build, exist_ok=True)
-
-    # get the logs and results into one area
     os.makedirs(log_dir, exist_ok=True)
+
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes = []
-
-    # RTL parameters
-    rtl_parameters = {k.upper(): str(v) for k, v in locals().items() if k in ["addr_width", "data_width", "depth"]}
-
-    # Environment variables
-    extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.fst",
-        'VERILATOR_TRACE': '1',  # Enable tracing
-        'DUT': dut_name,
-        'LOG_PATH': log_path,
-        'COCOTB_LOG_LEVEL': 'INFO',
-        'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(random.randint(0, 100000)),
-        'WAVEDROM_SHOW_STATUS': '1'  # Show WaveDrom status on import
+    rtl_parameters = {
+        k.upper(): str(v) for k, v in locals().items()
+        if k in ["addr_width", "data_width", "depth"]
     }
 
-    # Add test parameters
-    extra_env['TEST_ADDR_WIDTH'] = str(addr_width)
-    extra_env['TEST_DATA_WIDTH'] = str(data_width)
-    extra_env['TEST_DEPTH'] = str(depth)
+    extra_env = {
+        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'VERILATOR_TRACE': '1',
+        'DUT': dut_name,
+        'LOG_PATH': log_path,
+        'COCOTB_LOG_LEVEL': 'DEBUG',
+        'COCOTB_RESULTS_FILE': results_path,
+        'SEED': str(42),
+        'TEST_ADDR_WIDTH': str(addr_width),
+        'TEST_DATA_WIDTH': str(data_width),
+        'TEST_DEPTH': str(depth),
+    }
 
     compile_args = [
-            "--trace-fst",
-            "--trace-structs",
-            "--trace-depth", "99",
+        "--trace-fst",
+        "--trace-structs",
+        "--trace-depth", "99",
+        "--trace-max-array", "1024",
     ]
 
     sim_args = [
-            "--trace-fst",  # Tell Verilator to use FST
-            "--trace-structs",
-            "--trace-depth", "99",
+        "--trace-fst",
+        "--trace-structs",
+        "--trace-depth", "99",
     ]
 
-    plusargs = [
-            "+trace",
-    ]
+    plusargs = ["+trace"]
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
     try:
         run(
-            python_search=[tests_dir],  # where to search for all the python test files
+            python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=includes,
+            includes=[],
             toplevel=toplevel,
             module=module,
             parameters=rtl_parameters,
@@ -831,9 +1076,14 @@ def test_apb_slave(request, addr_width, data_width, depth):
             sim_args=sim_args,
             plusargs=plusargs,
         )
+
+        print(f"✓ APB-GAXI refactor debug test completed!")
+        print(f"Logs: {log_path}")
+        print(f"Waveforms: {cmd_filename}")
+
     except Exception as e:
-        # If the test fails, make sure logs are preserved
-        print(f"Test failed: {str(e)}")
+        print(f"❌ APB-GAXI refactor debug test failed: {str(e)}")
         print(f"Logs preserved at: {log_path}")
-        print(f"To view the Waveforms run this command: {cmd_filename}")
-        raise  # Re-raise exception to indicate failure
+        print(f"To view waveforms: {cmd_filename}")
+        print(f"Check the log file for detailed refactor issue analysis.")
+        raise

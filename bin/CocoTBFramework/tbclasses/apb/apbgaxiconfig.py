@@ -48,37 +48,37 @@ class APBGAXIConfig:
             description="Write enable (0=read, 1=write)",
             encoding={0: "READ", 1: "WRITE"}
         ))
-        
+
         # paddr field - address field
         config.add_field(FieldDefinition(
-            name="paddr", 
+            name="paddr",
             bits=self.addr_width,
             default=0,
             format="hex",
             display_width=(self.addr_width + 3) // 4,  # Hex digits needed
             description=f"Address ({self.addr_width}-bit)"
         ))
-        
+
         # pwdata field - write data
         config.add_field(FieldDefinition(
             name="pwdata",
-            bits=self.data_width, 
+            bits=self.data_width,
             default=0,
             format="hex",
             display_width=(self.data_width + 3) // 4,  # Hex digits needed
             description=f"Write data ({self.data_width}-bit)"
         ))
-        
+
         # pstrb field - byte strobes
         config.add_field(FieldDefinition(
             name="pstrb",
             bits=self.strb_width,
             default=(1 << self.strb_width) - 1,  # All strobes enabled by default
-            format="bin", 
+            format="bin",
             display_width=self.strb_width,
             description=f"Byte strobes ({self.strb_width}-bit)"
         ))
-        
+
         # pprot field - protection attributes
         prot_width = 3
         config.add_field(FieldDefinition(
@@ -90,12 +90,12 @@ class APBGAXIConfig:
             description=f"Protection attributes ({prot_width}-bit)",
             encoding={
                 0b000: "NORMAL",
-                0b001: "PRIVILEGED", 
+                0b001: "PRIVILEGED",
                 0b010: "NONSECURE",
                 0b011: "PRIV_NONSECURE",
                 0b100: "INSTR",
                 0b101: "PRIV_INSTR",
-                0b110: "NONSECURE_INSTR", 
+                0b110: "NONSECURE_INSTR",
                 0b111: "PRIV_NONSECURE_INSTR"
             } if prot_width >= 3 else None
         ))
@@ -116,11 +116,11 @@ class APBGAXIConfig:
             name="prdata",
             bits=self.data_width,
             default=0,
-            format="hex", 
+            format="hex",
             display_width=(self.data_width + 3) // 4,  # Hex digits needed
             description=f"Read data ({self.data_width}-bit)"
         ))
-        
+
         # pslverr field - slave error
         config.add_field(FieldDefinition(
             name="pslverr",
@@ -132,4 +132,3 @@ class APBGAXIConfig:
         ))
 
         return config
-
