@@ -1,20 +1,23 @@
 """
-Generic Packet Class for Protocol Testing with Performance Optimizations
+Generic Packet Class for Protocol Testing with Thread-Safe Performance Optimizations
 
 This module provides an optimized base Packet class that can be used across different protocols
 (GAXI, APB, etc.) to handle common packet operations like field management, formatting,
-and comparisons with enhanced performance through caching.
+and comparisons with enhanced performance through thread-safe caching.
+
+UPDATED: Made field cache thread-safe for parallel test execution.
 """
+import threading
 from typing import Dict, Any, List, Optional, Union, Tuple
 from .field_config import FieldConfig
 
 
-# Global cache for field operations
+# Thread-safe cache for field operations
 class _FieldCache:
-    """Cache for field operations to improve performance"""
+    """Thread-safe cache for field operations to improve performance in parallel testing"""
 
     def __init__(self):
-        """Initialize empty caches"""
+        """Initialize empty caches with thread safety"""
         # Field masks cache: (field_config_id, field_name) -> mask
         self.field_masks = {}
 
@@ -34,169 +37,180 @@ class _FieldCache:
         self.hits = 0
         self.misses = 0
 
+        # Thread safety
+        self._lock = threading.RLock()
+
     def get_mask(self, field_config: FieldConfig, field_name: str) -> int:
-        """Get mask for a field (cached)"""
+        """Get mask for a field (thread-safe cached)"""
         # Create a cache key using the field_config's id and field name
         cache_key = (id(field_config), field_name)
 
-        if cache_key in self.field_masks:
-            self.hits += 1
-            return self.field_masks[cache_key]
+        with self._lock:
+            if cache_key in self.field_masks:
+                self.hits += 1
+                return self.field_masks[cache_key]
 
-        # Cache miss, calculate mask
-        self.misses += 1
-        if not field_config.has_field(field_name):
-            # Default to all bits if field not found
-            mask = 0xFFFFFFFF
-        else:
-            field_def = field_config.get_field(field_name)
-            bits = field_def.bits
-            mask = (1 << bits) - 1
+            # Cache miss, calculate mask
+            self.misses += 1
+            if not field_config.has_field(field_name):
+                # Default to all bits if field not found
+                mask = 0xFFFFFFFF
+            else:
+                field_def = field_config.get_field(field_name)
+                bits = field_def.bits
+                mask = (1 << bits) - 1
 
-        # Store in cache
-        self.field_masks[cache_key] = mask
-        return mask
+            # Store in cache
+            self.field_masks[cache_key] = mask
+            return mask
 
     def get_bits(self, field_config: FieldConfig, field_name: str) -> int:
-        """Get bits for a field (cached)"""
+        """Get bits for a field (thread-safe cached)"""
         cache_key = (id(field_config), field_name)
 
-        if cache_key in self.field_bits:
-            self.hits += 1
-            return self.field_bits[cache_key]
+        with self._lock:
+            if cache_key in self.field_bits:
+                self.hits += 1
+                return self.field_bits[cache_key]
 
-        # Cache miss, calculate bits
-        self.misses += 1
-        if not field_config.has_field(field_name):
-            # Default to 32 bits if field not found
-            bits = 32
-        else:
-            field_def = field_config.get_field(field_name)
-            bits = field_def.bits
+            # Cache miss, calculate bits
+            self.misses += 1
+            if not field_config.has_field(field_name):
+                # Default to 32 bits if field not found
+                bits = 32
+            else:
+                field_def = field_config.get_field(field_name)
+                bits = field_def.bits
 
-        # Store in cache
-        self.field_bits[cache_key] = bits
-        return bits
+            # Store in cache
+            self.field_bits[cache_key] = bits
+            return bits
 
     def get_active_bits(self, field_config: FieldConfig, field_name: str) -> Tuple[int, int]:
-        """Get active bits (msb, lsb) for a field (cached)"""
+        """Get active bits (msb, lsb) for a field (thread-safe cached)"""
         cache_key = (id(field_config), field_name)
 
-        if cache_key in self.field_active_bits:
-            self.hits += 1
-            return self.field_active_bits[cache_key]
+        with self._lock:
+            if cache_key in self.field_active_bits:
+                self.hits += 1
+                return self.field_active_bits[cache_key]
 
-        # Cache miss, calculate active bits
-        self.misses += 1
-        if not field_config.has_field(field_name):
-            # Default to full width if field not found
-            bits = 32
-            active_bits = (bits - 1, 0)
-        else:
-            field_def = field_config.get_field(field_name)
-            active_bits = field_def.active_bits
+            # Cache miss, calculate active bits
+            self.misses += 1
+            if not field_config.has_field(field_name):
+                # Default to full width if field not found
+                bits = 32
+                active_bits = (bits - 1, 0)
+            else:
+                field_def = field_config.get_field(field_name)
+                active_bits = field_def.active_bits
 
-        # Store in cache
-        self.field_active_bits[cache_key] = active_bits
-        return active_bits
+            # Store in cache
+            self.field_active_bits[cache_key] = active_bits
+            return active_bits
 
     def get_formatter(self, field_config: FieldConfig, field_name: str):
-        """Get a formatting function for a field (cached)"""
+        """Get a formatting function for a field (thread-safe cached)"""
         cache_key = (id(field_config), field_name)
 
-        if cache_key in self.field_formatters:
-            self.hits += 1
-            return self.field_formatters[cache_key]
+        with self._lock:
+            if cache_key in self.field_formatters:
+                self.hits += 1
+                return self.field_formatters[cache_key]
 
-        # Cache miss, create formatter
-        self.misses += 1
-        if not field_config.has_field(field_name):
-            # Default to hex format if field not found
-            formatter = lambda value: f"0x{value:X}"
-        else:
-            field_def = field_config.get_field(field_name)
-            fmt = field_def.format
-            width = field_def.display_width
-
-            if fmt == 'bin':
-                formatter = lambda value: f"0b{value:0{width}b}"
-            elif fmt == 'dec':
-                formatter = lambda value: f"{value:{width}d}"
+            # Cache miss, create formatter
+            self.misses += 1
+            if not field_config.has_field(field_name):
+                # Default to hex format if field not found
+                formatter = lambda value: f"0x{value:X}"
             else:
-                # Default to hex
-                formatter = lambda value: f"0x{value:0{width}X}"
+                field_def = field_config.get_field(field_name)
+                fmt = field_def.format
+                width = field_def.display_width
 
-        # Store in cache
-        self.field_formatters[cache_key] = formatter
-        return formatter
+                if fmt == 'bin':
+                    formatter = lambda value: f"0b{value:0{width}b}"
+                elif fmt == 'dec':
+                    formatter = lambda value: f"{value:{width}d}"
+                else:
+                    # Default to hex
+                    formatter = lambda value: f"0x{value:0{width}X}"
+
+            # Store in cache
+            self.field_formatters[cache_key] = formatter
+            return formatter
 
     def get_encoding(self, field_config: FieldConfig, field_name: str) -> Optional[Dict[int, str]]:
-        """Get encoding dictionary for a field (cached)"""
+        """Get encoding dictionary for a field (thread-safe cached)"""
         cache_key = (id(field_config), field_name)
 
-        if cache_key in self.field_encodings:
-            self.hits += 1
-            return self.field_encodings[cache_key]
+        with self._lock:
+            if cache_key in self.field_encodings:
+                self.hits += 1
+                return self.field_encodings[cache_key]
 
-        # Cache miss, get encoding
-        self.misses += 1
-        if not field_config.has_field(field_name):
-            # No encoding if field not found
-            encoding = None
-        else:
-            field_def = field_config.get_field(field_name)
-            encoding = field_def.encoding if hasattr(field_def, 'encoding') else None
+            # Cache miss, get encoding
+            self.misses += 1
+            if not field_config.has_field(field_name):
+                # No encoding if field not found
+                encoding = None
+            else:
+                field_def = field_config.get_field(field_name)
+                encoding = field_def.encoding if hasattr(field_def, 'encoding') else None
 
-        # Store in cache
-        self.field_encodings[cache_key] = encoding
-        return encoding
+            # Store in cache
+            self.field_encodings[cache_key] = encoding
+            return encoding
 
     def clear(self):
-        """Clear all caches"""
-        self.field_masks.clear()
-        self.field_bits.clear()
-        self.field_active_bits.clear()
-        self.field_formatters.clear()
-        self.field_encodings.clear()
-        self.hits = 0
-        self.misses = 0
+        """Clear all caches (thread-safe)"""
+        with self._lock:
+            self.field_masks.clear()
+            self.field_bits.clear()
+            self.field_active_bits.clear()
+            self.field_formatters.clear()
+            self.field_encodings.clear()
+            self.hits = 0
+            self.misses = 0
 
     def get_stats(self) -> Dict[str, Any]:
-        """Get cache statistics"""
-        total = self.hits + self.misses
-        hit_rate = (self.hits / total * 100) if total > 0 else 0
+        """Get cache statistics (thread-safe)"""
+        with self._lock:
+            total = self.hits + self.misses
+            hit_rate = (self.hits / total * 100) if total > 0 else 0
 
-        return {
-            'hits': self.hits,
-            'misses': self.misses,
-            'hit_rate': hit_rate,
-            'cache_size': {
-                'masks': len(self.field_masks),
-                'bits': len(self.field_bits),
-                'active_bits': len(self.field_active_bits),
-                'formatters': len(self.field_formatters),
-                'encodings': len(self.field_encodings)
+            return {
+                'hits': self.hits,
+                'misses': self.misses,
+                'hit_rate': hit_rate,
+                'cache_size': {
+                    'masks': len(self.field_masks),
+                    'bits': len(self.field_bits),
+                    'active_bits': len(self.field_active_bits),
+                    'formatters': len(self.field_formatters),
+                    'encodings': len(self.field_encodings)
+                },
+                'thread_safe': True
             }
-        }
 
 
-# Create global cache instance
+# Create global thread-safe cache instance
 _FIELD_CACHE = _FieldCache()
 
 
 def get_field_cache_stats() -> Dict[str, Any]:
-    """Get field cache statistics"""
+    """Get field cache statistics (thread-safe)"""
     return _FIELD_CACHE.get_stats()
 
 
 def clear_field_cache():
-    """Clear the field cache"""
+    """Clear the field cache (thread-safe)"""
     _FIELD_CACHE.clear()
 
 
 class Packet:
     """
-    Generic packet class for handling protocol transactions with optimized performance.
+    Generic packet class for handling protocol transactions with thread-safe optimized performance.
 
     This class provides a flexible way to define packets with custom fields without
     requiring subclassing for each protocol. Fields are defined through a FieldConfig
@@ -204,9 +218,10 @@ class Packet:
     packing/unpacking.
 
     Performance optimizations include:
-    - Caching of field masks, bits, and formatters
+    - Thread-safe caching of field masks, bits, and formatters
     - Fast field lookup and validation
     - Optimized bit shifting operations for pack/unpack
+    - Safe parallel test execution
     """
 
     def __init__(self, field_config: Union[FieldConfig, Dict[str, Dict[str, Any]]],
@@ -249,7 +264,7 @@ class Packet:
 
         This is useful to prevent values from overflowing their assigned fields.
         The mask is created based on the field's bit width, not just the active bits.
-        Uses caching for better performance.
+        Uses thread-safe caching for better performance.
 
         Args:
             value: The value to mask
@@ -264,7 +279,7 @@ class Packet:
         if not self.field_config.has_field(field_name):
             raise AttributeError(f"No field named '{field_name}' exists in this packet")
 
-        # Get mask from cache
+        # Get mask from thread-safe cache
         mask = _FIELD_CACHE.get_mask(self.field_config, field_name)
 
         # Apply mask to truncate any bits beyond the field width
@@ -317,7 +332,7 @@ class Packet:
         Convert a full field value to its FIFO representation by right-shifting.
         For example, if addr[31:5] is 0x12345678, this returns 0x91A2B3 (shifted right by 5).
 
-        Uses caching for better performance.
+        Uses thread-safe caching for better performance.
 
         Args:
             value: The full field value
@@ -329,7 +344,7 @@ class Packet:
         if not self.field_config.has_field(field_name):
             return value
 
-        # Get active bits from cache
+        # Get active bits from thread-safe cache
         active_bits = _FIELD_CACHE.get_active_bits(self.field_config, field_name)
 
         if active_bits[1] == 0:
@@ -352,7 +367,7 @@ class Packet:
         For example, if addr[31:5] in FIFO is 0x91A2B3, this returns 0x12345660 (shifted left by 5).
         Note that the lowest 5 bits will be zeros due to the shifting process.
 
-        Uses caching for better performance.
+        Uses thread-safe caching for better performance.
 
         Args:
             value: The FIFO field value
@@ -364,7 +379,7 @@ class Packet:
         if not self.field_config.has_field(field_name):
             return value
 
-        # Get active bits from cache
+        # Get active bits from thread-safe cache
         active_bits = _FIELD_CACHE.get_active_bits(self.field_config, field_name)
 
         return value if active_bits[1] == 0 else value << active_bits[1]
@@ -442,7 +457,7 @@ class Packet:
         Format a field value according to its configuration.
         If an encoding is defined for the field, use the state name.
 
-        Uses caching for better performance.
+        Uses thread-safe caching for better performance.
 
         Args:
             field_name: Name of the field to format

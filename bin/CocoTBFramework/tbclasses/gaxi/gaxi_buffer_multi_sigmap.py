@@ -1,16 +1,15 @@
 """
-Updated Testbench for GAXI field-based components with FlexConfigGen integration
+Updated Testbench for GAXI multi-signal components with FlexConfigGen integration
 
 Updated to use new unified infrastructure while preserving all existing APIs
 for test runner compatibility. Now includes comprehensive FlexConfigGen
-integration for randomizer profiles and all sequence generation methods.
+integration for randomizer profiles.
 
 Key improvements:
 - Uses GAXIComponentBase infrastructure for all components
 - Leverages unified FieldConfig patterns with proper field width handling
 - Integrates FlexConfigGen for comprehensive randomizer configurations
 - Uses base MemoryModel directly (no wrapper classes needed)
-- Enhanced field-based testing with new infrastructure
 - Maintains exact same API for test runners
 - Added comprehensive sequence generation methods
 """
@@ -31,11 +30,11 @@ from CocoTBFramework.tbclasses.gaxi.gaxi_buffer_configs import FIELD_CONFIGS
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 
 
-class GaxiFieldBufferTB(TBBase):
+class GaxiMultiSigMapBufferTB(TBBase):
     """
-    Updated testbench for field-based GAXI components using new unified infrastructure with FlexConfigGen.
+    Updated testbench for multi-signal GAXI components using new unified infrastructure with FlexConfigGen.
 
-    Supports gaxi_fifo_sync_field and gaxi_skid_buffer_field components.
+    Supports gaxi_fifo_sync_multi and gaxi_skid_buffer_multi components.
     All existing APIs are preserved for test runner compatibility.
     """
 
@@ -96,8 +95,25 @@ class GaxiFieldBufferTB(TBBase):
         # Create comprehensive randomizer configurations using FlexConfigGen
         self.randomizer_configs = self._create_comprehensive_randomizer_configs()
 
+        self.master_signal_map = {
+            'valid' : 'wr_valid',
+            'ready' : 'wr_ready',
+            'addr'  : 'wr_siga',
+            'ctrl'  : 'wr_sigb',
+            'data0' : 'wr_sigc',
+            'data1' : 'wr_sigd'
+        }
+        self.slave_signal_map = {
+            'valid' : 'rd_valid',
+            'ready' : 'rd_ready',
+            'addr'  : 'rd_sige',
+            'ctrl'  : 'rd_sigf',
+            'data0' : 'rd_sigg',
+            'data1' : 'rd_sigh'
+        }
+
         # Define field configuration using new unified infrastructure
-        # Use FIELD_CONFIGS as base, then create FieldConfig with FieldDefinition
+        # Use FieldConfig.validate_and_create for consistent handling
         base_config = FIELD_CONFIGS.get('field', {
             'addr': {'bits': self.AW, 'start_bit': 0},
             'ctrl': {'bits': self.CW, 'start_bit': self.AW},
@@ -105,52 +121,16 @@ class GaxiFieldBufferTB(TBBase):
             'data1': {'bits': self.DW, 'start_bit': self.AW + self.CW + self.DW}
         })
 
-        # Create proper FieldConfig with FieldDefinition objects
-        self.field_config = FieldConfig()
+        # Create normalized field configuration
+        self.field_config = FieldConfig.validate_and_create(base_config)
 
-        # Add fields with proper bit assignments for field-based testing
-        self.field_config.add_field(FieldDefinition(
-            name='addr',
-            bits=self.AW,
-            default=0,
-            format='hex',
-            display_width=((self.AW + 3) // 4),  # Hex digits needed
-            active_bits=(self.AW-1, 0),
-            description=f'Address field ({self.AW} bits)'
-        ))
+        # Update field widths from test parameters
+        self.field_config.update_field_width('addr', self.AW)
+        self.field_config.update_field_width('ctrl', self.CW)
+        self.field_config.update_field_width('data0', self.DW)
+        self.field_config.update_field_width('data1', self.DW)
 
-        self.field_config.add_field(FieldDefinition(
-            name='ctrl',
-            bits=self.CW,
-            default=0,
-            format='hex',
-            display_width=((self.CW + 3) // 4),  # Hex digits needed
-            active_bits=(self.CW-1, 0),
-            description=f'Control field ({self.CW} bits)'
-        ))
-
-        self.field_config.add_field(FieldDefinition(
-            name='data0',
-            bits=self.DW,
-            default=0,
-            format='hex',
-            display_width=((self.DW + 3) // 4),  # Hex digits needed
-            active_bits=(self.DW-1, 0),
-            description=f'Data0 field ({self.DW} bits)'
-        ))
-
-        self.field_config.add_field(FieldDefinition(
-            name='data1',
-            bits=self.DW,
-            default=0,
-            format='hex',
-            display_width=((self.DW + 3) // 4),  # Hex digits needed
-            active_bits=(self.DW-1, 0),
-            description=f'Data1 field ({self.DW} bits)'
-        ))
-
-        self.log.debug(f"Field Configuration:\n{self.field_config}")
-
+        self.log.debug(f"\n{self.field_config}")
         # Create memory models
         self.input_memory_model = MemoryModel(
             num_lines=16,
@@ -163,7 +143,10 @@ class GaxiFieldBufferTB(TBBase):
             bytes_per_line=4,  # addr + ctrl + data0 + data1
             log=self.log
         )
-
+        self.super_debug = True
+        print(f"🔍 TESTBENCH: About to create GAXIMaster")
+        print(f"🔍 TESTBENCH: self.master_signal_map = {self.master_signal_map}")
+        print(f"🔍 TESTBENCH: type(self.master_signal_map) = {type(self.master_signal_map)}")
         # Create BFM components using new infrastructure
         self.write_master = GAXIMaster(
             dut, 'write_master', '', self.wr_clk,
@@ -172,7 +155,9 @@ class GaxiFieldBufferTB(TBBase):
             mode=self.TEST_MODE,
             timeout_cycles=self.TIMEOUT_CYCLES,
             memory_model=self.input_memory_model,
-            log=self.log
+            signal_map=self.master_signal_map,
+            log=self.log,
+            super_debug=self.super_debug
         )
 
         self.read_slave = GAXISlave(
@@ -182,7 +167,9 @@ class GaxiFieldBufferTB(TBBase):
             multi_sig=True,  # Enable multi-signal mode
             timeout_cycles=self.TIMEOUT_CYCLES,
             memory_model=self.output_memory_model,
-            log=self.log
+            signal_map=self.slave_signal_map,
+            log=self.log,
+            super_debug=self.super_debug
         )
 
         # Set up monitors using new infrastructure
@@ -192,7 +179,9 @@ class GaxiFieldBufferTB(TBBase):
             multi_sig=True,  # Enable multi-signal mode
             is_slave=False,  # Monitor master side
             mode=self.TEST_MODE,
-            log=self.log
+            signal_map=self.master_signal_map,
+            log=self.log,
+            super_debug=self.super_debug
         )
 
         self.rd_monitor = GAXIMonitor(
@@ -201,24 +190,23 @@ class GaxiFieldBufferTB(TBBase):
             multi_sig=True,  # Enable multi-signal mode
             is_slave=True,  # Monitor slave side
             mode=self.TEST_MODE,
-            log=self.log
+            signal_map=self.slave_signal_map,
+            log=self.log,
+            super_debug=self.super_debug
         )
 
         # Setup sequence generator with new infrastructure patterns
         self.sequence_gen = GAXIBufferSequence(
-            name="field_buffer_test",
+            name="multi_buffer_test",
             field_config=self.field_config,
             packet_class=GAXIPacket
         )
 
-        # Statistics tracking - enhanced with field-specific and new infrastructure patterns
+        # Statistics tracking - enhanced with new infrastructure patterns
         self.stats = {
             'total_sent': 0,
             'total_received': 0,
             'total_errors': 0,
-            'field_errors': {'addr': 0, 'ctrl': 0, 'data0': 0, 'data1': 0},
-            'boundary_tests': 0,
-            'field_combinations_tested': 0,
             'sequence_completed': False,
             'test_duration': 0,
             'verification_errors': 0
@@ -233,23 +221,23 @@ class GaxiFieldBufferTB(TBBase):
         # Set default randomizer profile
         self.set_randomizer_profile('balanced')
 
-        self.log.info(f"Field testbench initialized with mode='{self.TEST_MODE}', depth={self.TEST_DEPTH}")
+        self.log.info(f"Testbench initialized with mode='{self.TEST_MODE}', depth={self.TEST_DEPTH}")
 
     def _create_comprehensive_randomizer_configs(self):
-        """Create comprehensive randomizer configurations using FlexConfigGen for field-based testing"""
+        """Create comprehensive randomizer configurations using FlexConfigGen"""
 
-        # Define GAXI field-specific profiles
-        gaxi_field_profiles = {
-            # Field-specific patterns optimized for field-level testing
-            'field_intensive': ([(0, 0), (1, 2)], [6, 1]),                     # Field intensive testing
-            'field_boundary': ([(0, 1), (2, 5)], [4, 1]),                      # Field boundary testing
-            'field_stress': ([(0, 0), (3, 8)], [3, 1]),                        # Field stress testing
-            'field_coordinated': ([(1, 2), (3, 6)], [5, 2]),                   # Coordinated field timing
-            'field_alternating': ([(0, 1), (4, 7)], [4, 2]),                   # Alternating field patterns
-            'field_comprehensive': ([(0, 2), (3, 6), (10, 15)], [6, 3, 1]),    # Comprehensive field testing
+        # Define GAXI buffer-specific profiles
+        gaxi_buffer_profiles = {
+            # Buffer-specific patterns optimized for throughput and latency testing
+            'buffer_throughput': ([(0, 0), (1, 1)], [8, 1]),                    # Maximize throughput
+            'buffer_latency': ([(0, 2), (3, 6)], [4, 1]),                       # Test latency sensitivity
+            'buffer_backpressure': ([(0, 0), (4, 12)], [2, 1]),                 # Test backpressure handling
+            'buffer_mixed': ([(0, 1), (2, 4), (8, 15)], [5, 3, 1]),            # Mixed behavior
+            'buffer_burst': ([(0, 0), (5, 8)], [15, 1]),                        # Burst testing
+            'buffer_coordinated': ([(1, 3), (4, 7)], [3, 2]),                   # Coordinated timing
         }
 
-        # Create FlexConfigGen for comprehensive field testing
+        # Create FlexConfigGen for comprehensive buffer testing
         config_gen = FlexConfigGen(
             profiles=[
                 # Standard canned profiles
@@ -257,59 +245,59 @@ class GaxiFieldBufferTB(TBBase):
                 'moderate', 'balanced', 'heavy_pause', 'gradual', 'jittery',
                 'pipeline', 'throttled', 'chaotic', 'smooth', 'efficient',
                 'slow_consumer', 'slow_producer', 'burst_pause', 'fixed',
-                # Field-specific profiles
-                'field_intensive', 'field_boundary', 'field_stress',
-                'field_coordinated', 'field_alternating', 'field_comprehensive'
+                # Buffer-specific profiles
+                'buffer_throughput', 'buffer_latency', 'buffer_backpressure',
+                'buffer_mixed', 'buffer_burst', 'buffer_coordinated'
             ],
             fields=['valid_delay', 'ready_delay'],
-            custom_profiles=gaxi_field_profiles
+            custom_profiles=gaxi_buffer_profiles
         )
 
-        # Customize profiles for field-specific behavior
+        # Customize profiles for buffer-specific behavior
 
-        # Ultra-aggressive for maximum field throughput
+        # Ultra-aggressive for maximum throughput
         config_gen.backtoback.valid_delay.fixed_value(0)
         config_gen.backtoback.ready_delay.fixed_value(0)
 
-        # Fixed delays for predictable field testing
+        # Fixed delays for predictable testing
         config_gen.fixed.valid_delay.fixed_value(0)
         config_gen.fixed.ready_delay.fixed_value(0)
 
-        # Fast patterns optimized for field testing
-        config_gen.fast.valid_delay.mostly_zero(zero_weight=60, fallback_range=(1, 2), fallback_weight=1)
-        config_gen.fast.ready_delay.mostly_zero(zero_weight=55, fallback_range=(1, 3), fallback_weight=2)
+        # Fast patterns optimized for buffer testing
+        config_gen.fast.valid_delay.mostly_zero(zero_weight=50, fallback_range=(1, 2), fallback_weight=1)
+        config_gen.fast.ready_delay.mostly_zero(zero_weight=45, fallback_range=(1, 3), fallback_weight=2)
 
-        # Stress test with field variations
+        # Stress test with buffer variations
         config_gen.stress.valid_delay.weighted_ranges([
-            ((0, 0), 12), ((1, 3), 6), ((4, 8), 2), ((12, 16), 1)
+            ((0, 0), 10), ((1, 3), 6), ((4, 8), 3), ((12, 18), 1)
         ])
         config_gen.stress.ready_delay.weighted_ranges([
-            ((0, 1), 10), ((2, 5), 5), ((6, 10), 2), ((15, 20), 1)
+            ((0, 1), 8), ((2, 5), 5), ((6, 12), 3), ((18, 25), 1)
         ])
 
-        # Field intensive testing
-        config_gen.field_intensive.valid_delay.mostly_zero(zero_weight=85, fallback_range=(1, 2), fallback_weight=1)
-        config_gen.field_intensive.ready_delay.mostly_zero(zero_weight=80, fallback_range=(1, 2), fallback_weight=1)
+        # Buffer throughput optimized
+        config_gen.buffer_throughput.valid_delay.mostly_zero(zero_weight=80, fallback_range=(1, 1), fallback_weight=1)
+        config_gen.buffer_throughput.ready_delay.mostly_zero(zero_weight=75, fallback_range=(1, 1), fallback_weight=1)
 
-        # Field boundary testing
-        config_gen.field_boundary.valid_delay.uniform_range(0, 2)
-        config_gen.field_boundary.ready_delay.uniform_range(1, 4)
+        # Buffer latency testing
+        config_gen.buffer_latency.valid_delay.uniform_range(0, 3)
+        config_gen.buffer_latency.ready_delay.uniform_range(1, 5)
 
-        # Field stress testing
-        config_gen.field_stress.valid_delay.mostly_zero(zero_weight=25, fallback_range=(1, 3), fallback_weight=1)
-        config_gen.field_stress.ready_delay.weighted_ranges([((0, 0), 2), ((3, 8), 1)])
+        # Buffer backpressure testing
+        config_gen.buffer_backpressure.valid_delay.mostly_zero(zero_weight=30, fallback_range=(1, 2), fallback_weight=1)
+        config_gen.buffer_backpressure.ready_delay.weighted_ranges([((0, 0), 2), ((4, 12), 1)])
 
-        # Slow consumer pattern for field overflow testing
-        config_gen.slow_consumer.valid_delay.mostly_zero(zero_weight=75, fallback_range=(1, 2), fallback_weight=1)
-        config_gen.slow_consumer.ready_delay.weighted_ranges([((0, 1), 3), ((6, 12), 1)])
+        # Slow consumer pattern for buffer overflow testing
+        config_gen.slow_consumer.valid_delay.mostly_zero(zero_weight=70, fallback_range=(1, 2), fallback_weight=1)
+        config_gen.slow_consumer.ready_delay.weighted_ranges([((0, 1), 3), ((8, 15), 1)])
 
         # Slow producer pattern
-        config_gen.slow_producer.valid_delay.weighted_ranges([((0, 1), 3), ((5, 10), 1)])
-        config_gen.slow_producer.ready_delay.mostly_zero(zero_weight=75, fallback_range=(1, 2), fallback_weight=1)
+        config_gen.slow_producer.valid_delay.weighted_ranges([((0, 1), 3), ((6, 12), 1)])
+        config_gen.slow_producer.ready_delay.mostly_zero(zero_weight=70, fallback_range=(1, 2), fallback_weight=1)
 
-        # Burst pause for field depth testing
-        config_gen.burst_pause.valid_delay.burst_pattern(fast_cycles=0, pause_range=(self.TEST_DEPTH, self.TEST_DEPTH*2), burst_ratio=25)
-        config_gen.burst_pause.ready_delay.burst_pattern(fast_cycles=0, pause_range=(self.TEST_DEPTH//2, self.TEST_DEPTH), burst_ratio=20)
+        # Burst pause for buffer depth testing
+        config_gen.burst_pause.valid_delay.burst_pattern(fast_cycles=0, pause_range=(self.TEST_DEPTH, self.TEST_DEPTH*2), burst_ratio=20)
+        config_gen.burst_pause.ready_delay.burst_pattern(fast_cycles=0, pause_range=(self.TEST_DEPTH//2, self.TEST_DEPTH), burst_ratio=15)
 
         # Build all configurations
         randomizer_dict = config_gen.build(return_flexrandomizer=False)
@@ -322,7 +310,7 @@ class GaxiFieldBufferTB(TBBase):
                 'slave': {field: constraints for field, constraints in profile_config.items() if 'ready' in field}
             }
 
-        self.log.info(f"Created {len(converted_configs)} comprehensive field randomizer configurations:")
+        self.log.info(f"Created {len(converted_configs)} comprehensive buffer randomizer configurations:")
         for profile_name in converted_configs.keys():
             self.log.info(f"  - {profile_name}")
 
@@ -356,7 +344,7 @@ class GaxiFieldBufferTB(TBBase):
             self.write_master.set_randomizer(FlexRandomizer(fallback_config['master']))
             self.read_slave.set_randomizer(FlexRandomizer(fallback_config['slave']))
 
-    # Enhanced sequence generation methods - same as multi buffer but field-focused
+    # Enhanced sequence generation methods
 
     def basic_sequence(self, count=100):
         """Generate basic sequence with simple patterns"""
@@ -394,7 +382,7 @@ class GaxiFieldBufferTB(TBBase):
     def comprehensive_sequence(self, count=200):
         """Generate comprehensive test sequence"""
         self.sequence_gen.clear()
-        # Add various patterns for comprehensive field testing
+        # Add various patterns for comprehensive testing
         self.sequence_gen.add_boundary_values()
         self.sequence_gen.add_walking_ones_pattern()
         self.sequence_gen.add_alternating_patterns(count // 4)
@@ -412,64 +400,7 @@ class GaxiFieldBufferTB(TBBase):
         self.sequence_gen.add_random_pattern(count - 70)  # Fill remainder
         return self.sequence_gen
 
-    # API Methods - ENHANCED for field testing but maintaining compatibility
-
-    def create_field_sequence(self, sequence_type='basic', count=100):
-        """
-        Create field-specific test sequence - ENHANCED API for field testing.
-
-        Args:
-            sequence_type: Type of sequence to generate
-            count: Number of transactions
-
-        Returns:
-            Generated sequence
-        """
-        self.sequence_gen.clear()  # Reset sequence
-
-        if sequence_type == 'incrementing':
-            self.sequence_gen.add_incrementing_pattern(count)
-        elif sequence_type == 'random':
-            self.sequence_gen.add_random_pattern(count)
-        elif sequence_type == 'boundary':
-            self.sequence_gen.add_boundary_values()
-            self.sequence_gen.add_random_pattern(count - 20)  # Fill remaining
-            self.stats['boundary_tests'] += 1
-        elif sequence_type == 'field_stress':
-            # Comprehensive field testing
-            self.sequence_gen.add_boundary_values()
-            self.sequence_gen.add_overflow_test()
-            self.sequence_gen.add_max_value_pattern()
-            self.sequence_gen.add_alternating_patterns(20)
-            self.sequence_gen.add_random_pattern(count - 50)  # Fill remaining
-            self.stats['boundary_tests'] += 1
-            self.stats['field_combinations_tested'] += 1
-        elif sequence_type == 'field_combinations':
-            # Test all field combinations
-            self.sequence_gen.add_max_value_pattern()
-            self.sequence_gen.add_alternating_patterns(count // 4)
-            self.sequence_gen.add_boundary_values()
-            self.sequence_gen.add_random_pattern(count // 2)
-            self.stats['field_combinations_tested'] += 1
-        else:  # basic
-            self.sequence_gen.add_incrementing_pattern(count // 2)
-            self.sequence_gen.add_random_pattern(count // 2)
-
-        return self.sequence_gen
-
-    # Backward compatibility - delegate to new method
-    def create_sequence(self, sequence_type='basic', count=100):
-        """
-        Create test sequence - UNCHANGED API for test runners.
-
-        Args:
-            sequence_type: Type of sequence to generate
-            count: Number of transactions
-
-        Returns:
-            Generated sequence
-        """
-        return self.create_field_sequence(sequence_type, count)
+    # API Methods - UNCHANGED for test runner compatibility
 
     async def simple_incremental_loops(self, count=100, delay_key='fixed', delay_clks_after=10):
         """
@@ -578,7 +509,7 @@ class GaxiFieldBufferTB(TBBase):
 
     def verify_transactions(self):
         """
-        Verify received transactions with enhanced field verification - ENHANCED API.
+        Verify received transactions - UNCHANGED API for test runners.
         """
         # Get received packets using new infrastructure
         sent_packets = list(self.wr_monitor._recvQ)
@@ -595,12 +526,12 @@ class GaxiFieldBufferTB(TBBase):
             self.total_errors += 1  # Update compatibility attribute
             return False
 
-        # Enhanced field-by-field verification
+        # Data integrity verification
         errors = 0
         for i, (sent, received) in enumerate(zip(sent_packets, received_packets)):
-            field_errors = self._compare_packets_detailed(sent, received, i)
-            if field_errors:
-                errors += len(field_errors)
+            if not self._compare_packets(sent, received):
+                self.log.error(f"Packet {i} data mismatch")
+                errors += 1
 
         self.stats['total_errors'] += errors
         self.stats['verification_errors'] += errors
@@ -610,23 +541,13 @@ class GaxiFieldBufferTB(TBBase):
             self.log.info(f"✓ Verification passed: {len(sent_packets)} packets verified")
             return True
         else:
-            self.log.error(f"✗ Verification failed: {errors} field mismatches")
+            self.log.error(f"✗ Verification failed: {errors} packet mismatches")
             return False
 
-    def _compare_packets_detailed(self, sent, received, packet_index):
+    def _compare_packets(self, sent, received):
         """
-        Compare two packets with detailed field-level error reporting.
-
-        Args:
-            sent: Sent packet
-            received: Received packet
-            packet_index: Index of packet being compared
-
-        Returns:
-            List of field errors found
+        Compare two packets for data integrity - uses new infrastructure.
         """
-        field_errors = []
-
         # Use field configuration to compare relevant fields
         for field_name in ['addr', 'ctrl', 'data0', 'data1']:
             if not hasattr(sent, field_name) or not hasattr(received, field_name):
@@ -643,67 +564,14 @@ class GaxiFieldBufferTB(TBBase):
                 received_value &= field_mask
 
             if sent_value != received_value:
-                error_msg = (f"Packet {packet_index}, Field {field_name} mismatch: "
-                           f"sent=0x{sent_value:X}, received=0x{received_value:X}")
-                self.log.error(error_msg)
-                field_errors.append(field_name)
-                self.stats['field_errors'][field_name] += 1
+                self.log.error(f"Field {field_name} mismatch: sent=0x{sent_value:X}, received=0x{received_value:X}")
+                return False
 
-        return field_errors
-
-    def _compare_packets(self, sent, received):
-        """
-        Compare two packets for data integrity - uses new infrastructure.
-
-        Args:
-            sent: Sent packet
-            received: Received packet
-
-        Returns:
-            True if packets match, False otherwise
-        """
-        return len(self._compare_packets_detailed(sent, received, -1)) == 0
-
-    def verify_field_integrity(self):
-        """
-        Verify field-level data integrity - NEW method for field testing.
-
-        Returns:
-            Dictionary containing field-specific verification results
-        """
-        field_results = {}
-
-        # Get packets using new infrastructure
-        sent_packets = list(self.wr_monitor._recvQ)
-        received_packets = list(self.rd_monitor._recvQ)
-
-        if len(sent_packets) != len(received_packets):
-            field_results['count_mismatch'] = True
-            return field_results
-
-        field_results['count_mismatch'] = False
-        field_results['field_errors'] = {}
-
-        # Check each field individually
-        for field_name in ['addr', 'ctrl', 'data0', 'data1']:
-            field_errors = 0
-            field_def = self.field_config.get_field(field_name)
-            field_mask = (1 << field_def.bits) - 1 if field_def else 0xFFFFFFFF
-
-            for sent, received in zip(sent_packets, received_packets):
-                sent_value = getattr(sent, field_name, 0) & field_mask
-                received_value = getattr(received, field_name, 0) & field_mask
-
-                if sent_value != received_value:
-                    field_errors += 1
-
-            field_results['field_errors'][field_name] = field_errors
-
-        return field_results
+        return True
 
     def get_statistics(self):
         """
-        Get test statistics - ENHANCED with field-specific stats.
+        Get test statistics - UNCHANGED API for test runners.
         """
         # Enhance with new infrastructure stats
         enhanced_stats = self.stats.copy()
@@ -718,40 +586,14 @@ class GaxiFieldBufferTB(TBBase):
         enhanced_stats['input_memory_stats'] = self.input_memory_model.get_stats()
         enhanced_stats['output_memory_stats'] = self.output_memory_model.get_stats()
 
-        # Add field configuration details
-        enhanced_stats['field_config'] = {
-            'field_names': ['addr', 'ctrl', 'data0', 'data1'],
-            'field_widths': {
-                'addr': self.AW,
-                'ctrl': self.CW,
-                'data0': self.DW,
-                'data1': self.DW
-            },
-            'total_width': self.AW + self.CW + self.DW + self.DW
-        }
-
-        # Add error analysis
-        total_field_errors = sum(self.stats['field_errors'].values())
-        if total_field_errors > 0:
-            enhanced_stats['error_analysis'] = {
-                'total_field_errors': total_field_errors,
-                'error_rate_by_field': {
-                    field: (errors / self.stats['total_sent'] if self.stats['total_sent'] > 0 else 0)
-                    for field, errors in self.stats['field_errors'].items()
-                }
-            }
-
         return enhanced_stats
 
     def reset_statistics(self):
-        """Reset all statistics - ENHANCED for field testing."""
+        """Reset all statistics - UNCHANGED API for test runners."""
         self.stats = {
             'total_sent': 0,
             'total_received': 0,
             'total_errors': 0,
-            'field_errors': {'addr': 0, 'ctrl': 0, 'data0': 0, 'data1': 0},
-            'boundary_tests': 0,
-            'field_combinations_tested': 0,
             'sequence_completed': False,
             'test_duration': 0,
             'verification_errors': 0
@@ -767,34 +609,6 @@ class GaxiFieldBufferTB(TBBase):
             self.wr_monitor._recvQ.clear()
         if hasattr(self.rd_monitor, '_recvQ'):
             self.rd_monitor._recvQ.clear()
-
-    def get_field_error_summary(self):
-        """
-        Get summary of field-specific errors - NEW method.
-
-        Returns:
-            Dictionary of field error analysis
-        """
-        total_errors = sum(self.stats['field_errors'].values())
-        total_transactions = self.stats['total_sent']
-
-        summary = {
-            'total_field_errors': total_errors,
-            'total_transactions': total_transactions,
-            'overall_error_rate': total_errors / total_transactions if total_transactions > 0 else 0,
-            'field_breakdown': {}
-        }
-
-        field_widths = {'addr': self.AW, 'ctrl': self.CW, 'data0': self.DW, 'data1': self.DW}
-
-        for field_name, error_count in self.stats['field_errors'].items():
-            summary['field_breakdown'][field_name] = {
-                'errors': error_count,
-                'error_rate': error_count / total_transactions if total_transactions > 0 else 0,
-                'field_width': field_widths.get(field_name, 0)
-            }
-
-        return summary
 
     # Additional helper methods
 
@@ -825,6 +639,5 @@ class GaxiFieldBufferTB(TBBase):
             'rd_monitor': self.rd_monitor.get_stats(),
             'input_memory': self.input_memory_model.get_stats(),
             'output_memory': self.output_memory_model.get_stats(),
-            'sequence_gen': self.sequence_gen.get_enhanced_stats() if hasattr(self.sequence_gen, 'get_enhanced_stats') else {},
-            'field_error_summary': self.get_field_error_summary()
+            'sequence_gen': self.sequence_gen.get_enhanced_stats() if hasattr(self.sequence_gen, 'get_enhanced_stats') else {}
         }

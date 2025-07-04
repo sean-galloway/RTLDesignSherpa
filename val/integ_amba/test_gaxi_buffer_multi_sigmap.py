@@ -5,14 +5,14 @@ import pytest
 import cocotb
 from cocotb_test.simulator import run
 from CocoTBFramework.tbclasses.tbbase import TBBase
-from CocoTBFramework.tbclasses.gaxi.gaxi_buffer_multi import GaxiMultiBufferTB
+from CocoTBFramework.tbclasses.gaxi.gaxi_buffer_multi_sigmap import GaxiMultiSigMapBufferTB
 from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
-async def skid_buffer_multi_test(dut):
+async def skid_buffer_multi_sigmap_test(dut):
     '''Test the axi_skid_buffer_multi component'''
-    tb = GaxiMultiBufferTB(dut, wr_clk=dut.i_axi_aclk, wr_rstn=dut.i_axi_aresetn)
+    tb = GaxiMultiSigMapBufferTB(dut, wr_clk=dut.axi_aclk, wr_rstn=dut.axi_aresetn)
 
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
@@ -20,11 +20,11 @@ async def skid_buffer_multi_test(dut):
     msg = f'seed changed to {seed}'
     tb.log.info(msg)
 
-    await tb.start_clock('i_axi_aclk', 10, 'ns')
+    await tb.start_clock('axi_aclk', 10, 'ns')
     await tb.assert_reset()
-    await tb.wait_clocks('i_axi_aclk', 5)
+    await tb.wait_clocks('axi_aclk', 5)
     await tb.deassert_reset()
-    await tb.wait_clocks('i_axi_aclk', 5)
+    await tb.wait_clocks('axi_aclk', 5)
 
     tb.log.info("Starting test...")
 
@@ -79,31 +79,34 @@ def generate_params():
     ctrl_widths = [3, 5, 7]
     data_widths = [8]
     depths = [2]
-    modes = ['skid']  # Skid buffer has only one mode
+    modes = ['skid']
 
-    return [(6, 3, 8, 2, 'skid')]
-    # return list(product(addr_widths, ctrl_widths, data_widths, depths, modes))
+    # return [(6, 3, 8, 2, 'skid')]
+    return list(product(addr_widths, ctrl_widths, data_widths, depths, modes))
 
 params = generate_params()
 
 @pytest.mark.parametrize("addr_width, ctrl_width, data_width, depth, mode", params)
-def test_axi_skid_buffer_multi(request, addr_width, ctrl_width, data_width, depth, mode):
+def test_axi_skid_buffer_multi_sigmap(request, addr_width, ctrl_width, data_width, depth, mode):
     # Get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths(
         {
-            'rtl_cmn': 'rtl/common',
-            'rtl_amba': 'rtl/amba',
+            'rtl_cmn':       'rtl/common',
+            'rtl_amba':      'rtl/amba',
+            'rtl_gaxi':      'rtl/amba/gaxi',
             'rtl_amba_test': 'rtl/amba/testcode',
         })
 
     # Set up all of the test names
-    dut_name = "gaxi_skid_buffer_multi"
+    dut_name = "gaxi_skid_buffer_multi_sigmap"
     toplevel = dut_name
 
+
     verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba'], "gaxi/gaxi_skid_buffer.sv"),
+        os.path.join(rtl_dict['rtl_gaxi'],       "gaxi_skid_buffer.sv"),
         os.path.join(rtl_dict['rtl_amba_test'], f"{dut_name}.sv"),
     ]
+
 
     # Create a human readable test identifier
     aw_str = TBBase.format_dec(addr_width, 3)

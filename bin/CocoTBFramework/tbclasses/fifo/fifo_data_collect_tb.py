@@ -458,6 +458,7 @@ class DataCollectTB(TBBase):
 
         # Define field configuration for output channel (id + CHUNKS data fields)
         self.output_field_config = FieldConfig()
+
         for i in range(self.CHUNKS):
             self.output_field_config.add_field(FieldDefinition(
                 name=f'data{i}',
@@ -497,6 +498,11 @@ class DataCollectTB(TBBase):
         self.masters = {}
         self.monitors = {}
 
+        # self.slave_e_signal_map = {
+        #     'read': 'i_e_read',
+        #     'empty': 'o_e_empty',
+        #     'data': 'o_e_data'
+        # }
         # Create input channel masters and monitors in a loop
         for i, (channel, channel_name) in enumerate(zip(self.channels, self.channel_names)):
             # Create FIFO master for this input channel
@@ -538,6 +544,7 @@ class DataCollectTB(TBBase):
             multi_sig=False,
             bus_name='e',
             super_debug=self.super_debug,
+            # signal_map=self.slave_e_signal_map,
             log=self.log
         )
 
@@ -551,6 +558,7 @@ class DataCollectTB(TBBase):
             bus_name='e',
             fifo_depth=16,
             super_debug=self.super_debug,
+            # signal_map=self.slave_e_signal_map,
             log=self.log
         )
 

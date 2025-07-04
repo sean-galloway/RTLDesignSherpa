@@ -7,6 +7,7 @@ and FIFOSlave, eliminating code duplication while preserving exact APIs and timi
 All existing parameters are preserved and used exactly as before.
 
 FIXED: Now passes resolved signals directly to DataStrategies, eliminating guesswork.
+ADDED: Optional signal_map parameter for manual signal mapping override.
 """
 
 from ..shared.field_config import FieldConfig
@@ -24,6 +25,8 @@ class FIFOComponentBase:
 
     FIXED: Data strategies now receive resolved signals directly from SignalResolver
     instead of doing their own signal discovery.
+    
+    ADDED: Optional signal_map parameter for manual signal override.
     """
 
     def __init__(self, dut, title, prefix, clock, field_config,
@@ -38,6 +41,7 @@ class FIFOComponentBase:
                     memory_model=None,
                     log=None,
                     super_debug=False,
+                    signal_map=None,  # NEW: Optional manual signal mapping
                     **kwargs):
         """
         Initialize common FIFO component functionality.
@@ -59,6 +63,10 @@ class FIFOComponentBase:
             memory_model: Optional memory model for transactions
             log: Logger instance
             super_debug: Enable detailed debugging
+            signal_map: Optional dict mapping simplified signal names to DUT signal names.
+                        Keys: 'write', 'full', 'read', 'empty', 'data' (or field names for multi_sig=True)
+                        Values: DUT signal name strings
+                        If provided, bypasses automatic signal discovery.
             **kwargs: Additional arguments for specific component types
         """
         # Store all parameters exactly as provided - no changes to APIs
@@ -72,6 +80,7 @@ class FIFOComponentBase:
         self.pkt_prefix = pkt_prefix
         self.use_multi_signal = multi_sig
         self.memory_model = memory_model
+        self.signal_map = signal_map  # NEW: Store signal map
 
         # Validate protocol_type
         if protocol_type not in ['fifo_master', 'fifo_slave']:
@@ -102,7 +111,8 @@ class FIFOComponentBase:
             bus_name=self.bus_name,
             pkt_prefix=self.pkt_prefix,
             mode=mode,
-            super_debug=super_debug
+            super_debug=super_debug,
+            signal_map=signal_map  # NEW: Pass signal map to resolver
         )
 
         # Get signal lists for cocotb Bus initialization
@@ -180,9 +190,10 @@ class FIFOComponentBase:
 
         # Log successful initialization
         side_description = "slave" if self.protocol_type == 'fifo_slave' else "master"
+        signal_source = "manual signal_map" if self.signal_map else "automatic discovery"
         if self.log:
             self.log.info(f"FIFOComponentBase '{self.title}' initialized: {side_description} side, "
-                        f"mode={self.mode}, multi_sig={self.use_multi_signal}")
+                        f"mode={self.mode}, multi_sig={self.use_multi_signal}, signals={signal_source}")
 
     def _setup_data_strategies(self):
         """
@@ -292,7 +303,8 @@ class FIFOComponentBase:
             'mode': self.mode,
             'multi_signal': self.use_multi_signal,
             'field_count': len(self.field_config) if self.field_config else 0,
-            'title': self.title
+            'title': self.title,
+            'signal_mapping_source': 'manual' if self.signal_map else 'automatic'  # NEW
         }
 
         # Add signal resolver stats

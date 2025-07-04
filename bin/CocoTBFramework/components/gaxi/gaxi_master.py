@@ -41,7 +41,8 @@ class GAXIMaster(GAXIComponentBase, BusDriver):
                     pkt_prefix='',
                     multi_sig=False,
                     randomizer=None, memory_model=None, log=None, 
-                    super_debug=False, pipeline_debug=False, **kwargs):
+                    super_debug=False, pipeline_debug=False,
+                    signal_map=None, **kwargs):
         """
         Initialize GAXI Master with structured pipeline support.
 
@@ -87,6 +88,7 @@ class GAXIMaster(GAXIComponentBase, BusDriver):
             memory_model=memory_model,
             log=log,
             super_debug=super_debug,
+            signal_map=signal_map,
             **kwargs
         )
 

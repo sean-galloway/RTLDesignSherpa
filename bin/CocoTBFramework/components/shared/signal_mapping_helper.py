@@ -5,6 +5,8 @@ Uses pattern matching against actual DUT ports with parameter combinations
 to find the correct signal mappings automatically.
 
 UPDATED: Now properly handles 'prefix' parameter for both signal discovery and cocotb compatibility.
+ADDED: Optional signal_map parameter for manual signal mapping override.
+ADDED: Full FIFO protocol support for signal_map functionality.
 """
 from typing import Dict, List, Optional, Any, Union
 from itertools import product
@@ -188,13 +190,15 @@ class SignalResolver:
     Signal resolver using pattern matching against actual top-level DUT ports.
 
     UPDATED: Now properly handles 'prefix' parameter for both signal discovery and cocotb compatibility.
+    ADDED: Optional signal_map parameter for manual signal mapping override.
+    ADDED: Full FIFO protocol support for signal_map functionality.
     """
 
     def __init__(self, protocol_type: str, dut, bus, log, component_name: str,
                 prefix='', field_config=None, multi_sig: bool = False,
                 in_prefix: str = 'i_', out_prefix: str = 'o_',
                 bus_name: str = '', pkt_prefix: str = '', mode: str = None,
-                super_debug: bool = False):
+                super_debug: bool = False, signal_map: Optional[Dict[str, str]] = None):
         """
         Initialize signal resolver with pattern matching and prefix support.
 
@@ -204,7 +208,7 @@ class SignalResolver:
             bus: Bus object from BusDriver/BusMonitor (can be None initially)
             log: Logger instance (can be None)
             component_name: Component name for error messages
-            prefix: Prefix that cocotb will prepend to signal names (NEW)
+            prefix: Prefix that cocotb will prepend to signal names
             field_config: Field configuration (required for multi_sig=True)
             multi_sig: Whether using multi-signal mode
             in_prefix: Input signal prefix
@@ -213,6 +217,11 @@ class SignalResolver:
             pkt_prefix: Packet field prefix
             mode: Protocol mode (kept for RTL parameter)
             super_debug: Enable detailed signal resolution debugging
+            signal_map: Optional manual signal mapping. 
+                Keys for GAXI: 'valid', 'ready', 'data' (or field names for multi_sig=True).
+                Keys for FIFO Master: 'write', 'full', 'data' (or field names for multi_sig=True).
+                Keys for FIFO Slave: 'read', 'empty', 'data' (or field names for multi_sig=True).
+                Values: DUT signal name strings. If provided, bypasses automatic discovery.
         """
         # Get caller information for better error reporting
         caller_info = _get_caller_info()
@@ -227,6 +236,7 @@ class SignalResolver:
         self.protocol_type = protocol_type
         self.dut = dut
         self.bus = bus
+        self.pkt_prefix = pkt_prefix
         self.log = log
         self.component_name = component_name
         self.prefix = prefix  # ADDED: Store prefix for proper handling
@@ -234,6 +244,7 @@ class SignalResolver:
         self.multi_sig = multi_sig
         self.mode = mode
         self.super_debug = super_debug
+        self.signal_map = signal_map  # NEW: Store manual signal mapping
 
         # Storage for log messages (in case log is None)
         self.log_messages = []
@@ -257,19 +268,24 @@ class SignalResolver:
             for port_name in sorted(self.top_level_ports.keys()):
                 self._log_debug(f"Available port:{port_name}:")
 
-        # Generate parameter combinations (now includes prefix)
-        self.param_combinations = self._generate_parameter_combinations(
-            prefix, in_prefix, out_prefix, bus_name, pkt_prefix
-        )
-        self._log_debug(f"Generated {len(self.param_combinations)} parameter combinations")
-
         # Storage for resolved signals
         self.resolved_signals = {}
         self.signal_conflicts = {}  # Track multiple matches
         self.missing_signals = []
 
-        # Resolve all signals immediately
-        self._resolve_all_signals()
+        # Choose resolution method based on signal_map
+        if signal_map is not None:
+            self._log_info(f"Using manual signal mapping with {len(signal_map)} signals")
+            self._resolve_signals_from_map()
+        else:
+            # Generate parameter combinations (now includes prefix) - only for automatic discovery
+            self.param_combinations = self._generate_parameter_combinations(
+                prefix, in_prefix, out_prefix, bus_name, pkt_prefix
+            )
+            self._log_debug(f"Generated {len(self.param_combinations)} parameter combinations")
+
+            # Resolve all signals using automatic discovery
+            self._resolve_all_signals()
 
         # Display results and validate
         self._display_signal_mapping()
@@ -277,6 +293,117 @@ class SignalResolver:
 
         # Prepare signal lists for cocotb Bus initialization (strips prefix)
         self._signals, self._optional_signals = self._prepare_signal_lists()
+
+    def _resolve_signals_from_map(self):
+        """
+        Resolve signals using the provided signal_map.
+
+        Maps simplified keys ('valid', 'ready', 'data', field names) to internal logical names.
+        """
+        self._log_debug(f"Manual signal mapping: {self.signal_map}")
+
+        # Validate signal_map contains required signals
+        self._validate_signal_map()
+
+        # Map simplified keys to internal logical names
+        logical_mapping = self._create_logical_mapping()
+
+        # Resolve each signal from the map
+        for simple_key, dut_signal_name in self.signal_map.items():
+            logical_name = logical_mapping.get(simple_key)
+            if logical_name is None:
+                raise ValueError(f"Unknown signal key '{simple_key}' in signal_map for {self.component_name}. "
+                               f"Valid keys: {list(logical_mapping.keys())}")
+
+            # Check if signal exists on DUT
+            if dut_signal_name not in self.top_level_ports:
+                raise ValueError(f"Signal '{dut_signal_name}' (for '{simple_key}') not found on DUT. "
+                               f"Available ports: {list(self.top_level_ports.keys())}")
+
+            # Store the resolved signal
+            signal_obj = self.top_level_ports[dut_signal_name]
+            self.resolved_signals[logical_name] = signal_obj
+            self._log_debug(f"Mapped '{simple_key}' -> '{logical_name}' = '{dut_signal_name}'")
+
+    def _validate_signal_map(self):
+        """Validate that signal_map contains all required signals."""
+        if self.protocol_type.startswith('gaxi'):
+            required_keys = {'valid', 'ready'}
+
+            if self.multi_sig:
+                # Multi-sig mode: need field names
+                if not self.field_config:
+                    raise ValueError(f"field_config required for multi_sig=True with signal_map")
+                required_keys.update(self.field_config.field_names())
+            else:
+                # Single-sig mode: need data signal
+                required_keys.add('data')
+
+        elif self.protocol_type.startswith('fifo'):
+            # FIFO protocols support
+            if self.protocol_type == 'fifo_master':
+                required_keys = {'write', 'full'}
+            elif self.protocol_type == 'fifo_slave':
+                required_keys = {'read', 'empty'}
+            else:
+                raise ValueError(f"Unknown FIFO protocol type: {self.protocol_type}")
+
+            if self.multi_sig:
+                # Multi-sig mode: need field names
+                if not self.field_config:
+                    raise ValueError(f"field_config required for multi_sig=True with signal_map")
+                required_keys.update(self.field_config.field_names())
+            else:
+                # Single-sig mode: need data signal
+                required_keys.add('data')
+
+        else:
+            raise ValueError(f"Unknown protocol type: {self.protocol_type}")
+
+        # Check all required keys are present
+        missing_keys = required_keys - set(self.signal_map.keys())
+        if missing_keys:
+            raise ValueError(f"signal_map missing required keys: {missing_keys}. "
+                           f"Required: {required_keys}, Provided: {list(self.signal_map.keys())}")
+
+        # Check for unexpected keys
+        unexpected_keys = set(self.signal_map.keys()) - required_keys
+        if unexpected_keys:
+            raise ValueError(f"signal_map contains unexpected keys: {unexpected_keys}. "
+                           f"Valid keys: {required_keys}")
+
+    def _create_logical_mapping(self):
+        """Create mapping from simplified keys to internal logical names."""
+        logical_mapping = {}
+
+        if self.protocol_type == 'gaxi_master':
+            logical_mapping['valid'] = 'o_valid'  # Master drives valid
+            logical_mapping['ready'] = 'i_ready'  # Master reads ready
+        elif self.protocol_type == 'gaxi_slave':
+            logical_mapping['valid'] = 'i_valid'  # Slave reads valid
+            logical_mapping['ready'] = 'o_ready'  # Slave drives ready
+        elif self.protocol_type == 'fifo_master':
+            logical_mapping['write'] = 'i_write'  # Master drives write
+            logical_mapping['full'] = 'o_wr_full'  # Master reads full
+        elif self.protocol_type == 'fifo_slave':
+            logical_mapping['read'] = 'i_read'    # Slave drives read
+            logical_mapping['empty'] = 'o_rd_empty'  # Slave reads empty
+
+        # Handle data signals based on multi_sig mode
+        if self.multi_sig and self.field_config:
+            # Multi-signal mode: map field names to field signal names
+            for field_name in self.field_config.field_names():
+                logical_mapping[field_name] = f'field_{field_name}_sig'
+        else:
+            # Single-signal mode: map 'data' to appropriate data signal
+            if self.protocol_type in ['gaxi_master', 'gaxi_slave']:
+                logical_mapping['data'] = 'data_sig'
+            elif self.protocol_type == 'fifo_master':
+                logical_mapping['data'] = 'data_sig'
+            elif self.protocol_type == 'fifo_slave':
+                logical_mapping['data'] = 'data_sig'
+
+        return logical_mapping
 
     def _log_debug(self, message: str):
         """Log debug message with fallback storage."""
@@ -354,7 +481,9 @@ class SignalResolver:
 
     def _resolve_all_signals(self):
         """Resolve all signals using pattern matching."""
-        self._log_debug(f"Resolving signals for protocol '{self.protocol_type}', multi_sig={self.multi_sig}, prefix='{self.prefix}'")
+        self._log_debug(f"Resolving signals for {self.component_name=}: protocol '{self.protocol_type}', multi_sig={self.multi_sig}")
+        self._log_debug(f"bus='{self.bus}' prefix='{self.prefix}' pkt_prefix='{self.pkt_prefix}' ")
+        self._log_debug(f"signal_map={self.signal_map}")
 
         # Resolve required signals
         self._resolve_signal_group(self.config['signal_map'], required=True)
@@ -390,8 +519,15 @@ class SignalResolver:
                     self.resolved_signals[logical_name] = signal_obj
             else:
                 # Single signal mode: resolve data signal
-                signal_obj = self._find_signal_match('data_sig', patterns, required=False)
-                self.resolved_signals['data_sig'] = signal_obj
+                if self.protocol_type in ['gaxi_master', 'gaxi_slave']:
+                    signal_obj = self._find_signal_match('data_sig', patterns, required=False)
+                    self.resolved_signals['data_sig'] = signal_obj
+                elif self.protocol_type == 'fifo_master':
+                    signal_obj = self._find_signal_match('data_sig', patterns, required=False)
+                    self.resolved_signals['data_sig'] = signal_obj
+                elif self.protocol_type == 'fifo_slave':
+                    signal_obj = self._find_signal_match('data_sig', patterns, required=False)
+                    self.resolved_signals['data_sig'] = signal_obj
 
     def _find_signal_match(self, logical_name: str, patterns: List[str],
                             required: bool = True, field_name: str = None) -> Optional[Any]:
@@ -484,7 +620,8 @@ class SignalResolver:
     def _display_signal_mapping(self):
         """Display signal mapping results in a Rich table."""
         console = Console()
-        table = Table(title=f"Signal Mapping for {self.component_name} ({self.protocol_type})")
+        mapping_source = "Manual signal_map" if self.signal_map else "Automatic discovery"
+        table = Table(title=f"Signal Mapping for {self.component_name} ({self.protocol_type}) - {mapping_source}")
 
         table.add_column("Logical Signal", style="cyan")
         table.add_column("Matched Signal", style="green")
@@ -612,9 +749,9 @@ class SignalResolver:
         if logical_name.startswith('field_') and logical_name.endswith('_sig'):
             return logical_name  # field_{field_name}_sig stays as-is
 
-        # Handle data signal
-        if logical_name == 'data_sig':
-            return 'data_sig'
+        # Handle data signals
+        if logical_name in ['data_sig']:
+            return logical_name
 
         # Handle FIFO control signals
         if logical_name in ['i_write', 'o_wr_full', 'i_read', 'o_rd_empty']:
@@ -712,9 +849,11 @@ class SignalResolver:
 
         # HARD FAIL: Generate comprehensive error report if ANY signals failed
         if failed_signals:
+            mapping_source = "Manual signal_map" if self.signal_map else "Automatic discovery"
             error_lines = [
                 f"\n🚨 CRITICAL SIGNAL LINKAGE FAILURE for {self.component_name} 🚨",
                 f"SignalResolver found signals, but Bus linkage failed!",
+                f"Signal source: {mapping_source}",
                 f"Prefix used: '{self.prefix}'",  # ADDED
                 f""
             ]
@@ -780,6 +919,14 @@ class SignalResolver:
                 f""
             ])
 
+            # Show signal mapping source info
+            if self.signal_map:
+                error_lines.extend([
+                    f"🔍 MANUAL SIGNAL MAP:",
+                    f"  Provided mapping: {self.signal_map}",
+                    f""
+                ])
+
             raise RuntimeError('\n'.join(error_lines))
 
         # SUCCESS: Log successful initialization
@@ -788,9 +935,12 @@ class SignalResolver:
         required_count = len([name for name in self.config['signal_map'].keys()
                             if self.resolved_signals.get(name) is not None])
         data_count = success_count - required_count
+        mapping_source = "Manual signal_map" if self.signal_map else "Automatic discovery"
 
         self._log_info(f"✅ Signal linkage SUCCESS: {success_count}/{total_resolved} signals linked")
         self._log_info(f"✅ Control signals: {required_count}, Data signals: {data_count}")
+        self._log_info(f"✅ Signal source: {mapping_source}")
+        self._log_info(f"✅ Protocol: {self.protocol_type}")
         self._log_info(f"✅ Prefix handling: '{self.prefix}' correctly handled")  # ADDED
         self._log_info(f"✅ {self.component_name} ready for operation!")
 
@@ -814,8 +964,9 @@ class SignalResolver:
             'multi_sig_mode': self.multi_sig,
             'mode': self.mode,
             'prefix': self.prefix,  # ADDED
+            'signal_mapping_source': 'manual' if self.signal_map else 'automatic',  # NEW
             'total_ports_found': len(self.top_level_ports),
-            'parameter_combinations': len(self.param_combinations),
+            'parameter_combinations': len(getattr(self, 'param_combinations', [])),  # May not exist for manual mapping
             'total_signals': total_signals,
             'resolved_signals': resolved_signals,
             'missing_required': missing_required,
@@ -827,6 +978,10 @@ class SignalResolver:
         # Add conflict details
         if self.signal_conflicts:
             stats['conflict_details'] = self.signal_conflicts.copy()
+
+        # Add signal map info
+        if self.signal_map:
+            stats['signal_map'] = self.signal_map.copy()
 
         return stats
 

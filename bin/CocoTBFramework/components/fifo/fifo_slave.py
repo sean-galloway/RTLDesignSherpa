@@ -41,7 +41,8 @@ class FIFOSlave(FIFOMonitorBase):
                     bus_name='',
                     pkt_prefix='',
                     multi_sig=False,
-                    randomizer=None, log=None, super_debug=False, **kwargs):
+                    randomizer=None, log=None, super_debug=False,
+                    signal_map=None, **kwargs):
         """
         Initialize FIFO Slave - EXACT SAME API AS BEFORE.
 
@@ -80,6 +81,7 @@ class FIFOSlave(FIFOMonitorBase):
             randomizer=randomizer,  # Pass through to FIFOComponentBase
             log=log,
             super_debug=super_debug,
+            signal_map=signal_map,
             **kwargs
         )
 

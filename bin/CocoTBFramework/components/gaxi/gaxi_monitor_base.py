@@ -35,7 +35,8 @@ class GAXIMonitorBase(GAXIComponentBase, BusMonitor):
                     pkt_prefix='',
                     multi_sig=False,
                     protocol_type=None,  # 'gaxi_master' or 'gaxi_slave' - set by subclass
-                    log=None, super_debug=False, **kwargs):
+                    log=None, super_debug=False,
+                    signal_map=None, **kwargs):
         """
         Initialize common GAXI monitoring functionality - EXACT SAME API AS BEFORE.
 
@@ -79,6 +80,7 @@ class GAXIMonitorBase(GAXIComponentBase, BusMonitor):
             randomizer=randomizer,
             log=log,
             super_debug=super_debug,
+            signal_map=signal_map,
             **kwargs
         )
 

@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 import random
 from collections import defaultdict
 
-from CocoTBFramework.components.flex_randomizer import FlexRandomizer
+from .flex_randomizer import FlexRandomizer
 
 
 class RandomizationMode(Enum):

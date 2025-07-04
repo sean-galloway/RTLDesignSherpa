@@ -1,16 +1,3 @@
-"""
-GAXI Buffer Field-Only Test Runner
-
-This test runner focuses exclusively on field-based testing using individual
-field definitions (addr, ctrl, data0, data1). It does not use struct definitions.
-
-Features:
-- Field-based parameter combinations
-- Individual field width configurations
-- Field-specific validation and error reporting
-- Uses non-struct DUT modules (gaxi_skid_buffer.sv)
-"""
-
 import os
 import random
 from itertools import product
@@ -22,30 +9,16 @@ from CocoTBFramework.tbclasses.gaxi.gaxi_buffer_field import GaxiFieldBufferTB
 from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 
 
-@cocotb.test(timeout_time=5, timeout_unit="ms")
-async def gaxi_field_test(dut):
-    '''Field-based test using individual field definitions'''
+@cocotb.test(timeout_time=1, timeout_unit="ms")
+async def skid_buffer_field_test(dut):
+    '''Test the gaxi_fifo_sync_field component'''
     tb = GaxiFieldBufferTB(dut, wr_clk=dut.i_axi_aclk, wr_rstn=dut.i_axi_aresetn)
 
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
-    tb.log.info(f'Field mode test with seed: {seed}')
-
-    # Verify we're in field mode (no struct variables should be set)
-    if tb.is_struct_mode:
-        tb.log.error("ERROR: Test runner is in struct mode but should be field-only")
-        raise RuntimeError("Field-only test runner detected struct mode configuration")
-
-    tb.log.info(f"✓ Confirmed FIELD-ONLY mode with field-based configuration")
-
-    # Get test parameters from environment
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
-    
-    valid_levels = ['basic', 'medium', 'full']
-    if test_level not in valid_levels:
-        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'basic'. Valid: {valid_levels}")
-        test_level = 'basic'
+    msg = f'seed changed to {seed}'
+    tb.log.info(msg)
 
     await tb.start_clock('i_axi_aclk', 10, 'ns')
     await tb.assert_reset()
@@ -53,151 +26,52 @@ async def gaxi_field_test(dut):
     await tb.deassert_reset()
     await tb.wait_clocks('i_axi_aclk', 5)
 
-    tb.log.info(f"Starting {test_level.upper()} field-based test...")
-    tb.log.info(f"Field widths: addr={tb.AW}, ctrl={tb.CW}, data={tb.DW}")
+    tb.log.info("Starting test...")
 
-    # Get available randomizer configurations
-    config_names = tb.get_randomizer_config_names()
-    tb.log.info(f"Available randomizer configs: {config_names}")
+    # Run legacy test for backward compatibility
+    tb.log.info("Running legacy simple_incremental_loops test...")
+    await tb.simple_incremental_loops(count=10, delay_key='fixed', delay_clks_after=20)
 
-    # Define field-specific test configurations based on test level
-    if test_level == 'basic':
-        test_configs = ['backtoback', 'fast', 'constrained', 'field_intensive']
-        packet_counts = {'simple_loops': 6 * tb.TEST_DEPTH, 'back_to_back': 20, 'stress_test': 25}
-        run_field_sweep = False
-        run_boundary_test = True
-    elif test_level == 'medium':
-        test_configs = ['backtoback', 'fast', 'constrained', 'bursty', 'moderate', 
-                        'field_intensive', 'field_boundary', 'field_coordinated']
-        packet_counts = {'simple_loops': 10 * tb.TEST_DEPTH, 'back_to_back': 40, 'stress_test': 60}
-        run_field_sweep = True
-        field_sweep_packets = 8 * tb.TEST_DEPTH
-        run_boundary_test = True
-    else:  # test_level == 'full'
-        # Use all available field-related configs
-        field_configs = [
-            'backtoback', 'fast', 'constrained', 'bursty', 'slow', 'stress', 'moderate', 'balanced', 
-            'heavy_pause', 'gradual', 'jittery', 'pipeline', 'throttled', 'chaotic', 'smooth', 'efficient',
-            'field_intensive', 'field_boundary', 'field_stress', 'field_coordinated', 'field_alternating'
-        ]
-        test_configs = [config for config in field_configs if config in config_names]
-        packet_counts = {'simple_loops': 15 * tb.TEST_DEPTH, 'back_to_back': 60, 'stress_test': 100}
-        run_field_sweep = True
-        field_sweep_packets = 12 * tb.TEST_DEPTH
-        run_boundary_test = True
+    # Run basic sequence test
+    tb.log.info("Running basic sequence test...")
+    await tb.run_sequence_test(tb.basic_sequence, delay_key='fixed', delay_clks_after=5)
 
-    # Filter to only test configs that exist
-    test_configs = [config for config in test_configs if config in config_names]
-    tb.log.info(f"Testing with {len(test_configs)} field-specific configs: {test_configs}")
+    # Run walking ones pattern test
+    tb.log.info("Running walking ones pattern test...")
+    await tb.run_sequence_test(tb.walking_ones_sequence, delay_key='constrained', delay_clks_after=5)
 
-    # Simple minimal test first
-    tb.log.info("Running minimal packet test...")
-    tb.reset_statistics()
-    simple_sequence = tb.create_field_sequence('incrementing', 5)  # Just 5 packets
-    await tb.run_sequence(simple_sequence)
-    await tb.wait_clocks('i_axi_aclk', 30)  # Extra long wait
-    
-    simple_result = tb.verify_transactions()
-    tb.log.info(f"Minimal test result: {simple_result}, sent={tb.stats['total_sent']}, received={tb.stats['total_received']}")
+    # Run alternating patterns test
+    tb.log.info("Running alternating patterns test...")
+    await tb.run_sequence_test(tb.alternating_sequence, delay_key='fast', delay_clks_after=5)
 
-    # Field validation test
-    tb.log.info("Running field validation test...")
-    field_validation_sequence = tb.create_field_sequence('boundary', 25)
-    await tb.run_sequence(field_validation_sequence)
-    
-    # IMPORTANT: Wait for all packets to be received before verification
-    tb.log.info("Waiting for all packets to be processed...")
-    await tb.wait_clocks('i_axi_aclk', 20)  # Wait longer for packet processing
-    
-    result = tb.verify_transactions()
-    if not result:
-        tb.log.error("Field validation test failed!")
-        
-        # Debug information
-        tb.log.error(f"Debug info: sent={tb.stats['total_sent']}, received={tb.stats['total_received']}")
-        tb.log.error(f"Monitor queues - WR: {len(list(tb.wr_monitor._recvQ)) if hasattr(tb.wr_monitor, '_recvQ') else 'N/A'}")
-        tb.log.error(f"Monitor queues - RD: {len(list(tb.rd_monitor._recvQ)) if hasattr(tb.rd_monitor, '_recvQ') else 'N/A'}")
-        
-        # Don't fail immediately - let's try to continue and see if it's a timing issue
-        tb.log.warning("Continuing test despite validation failure...")
-    else:
-        tb.log.info("✓ Completed field validation")
+    # Run burst sequence test with back-to-back packets
+    tb.log.info("Running burst sequence test...")
+    await tb.run_sequence_test(tb.burst_sequence, delay_key='backtoback', delay_clks_after=5)
 
-    # Run core field tests with different randomizer configurations
-    for i, delay_key in enumerate(test_configs):
-        tb.log.info(f"[{i+1}/{len(test_configs)}] Testing with '{delay_key}' field configuration")
-        
-        await tb.simple_incremental_loops(
-            count=packet_counts['simple_loops'], 
-            delay_key=delay_key, 
-            delay_clks_after=15
-        )
-        
-        tb.log.info(f"✓ Completed '{delay_key}' field configuration")
+    # Run random data test
+    tb.log.info("Running random data test...")
+    await tb.run_sequence_test(tb.random_sequence, delay_key='constrained', delay_clks_after=5)
 
-    # Run field-specific comprehensive sweep for medium and full levels
-    if run_field_sweep:
-        tb.log.info("Running comprehensive field randomizer sweep...")
-        field_profiles = ['field_intensive', 'field_boundary', 'field_stress']
-        for profile in field_profiles:
-            if profile in config_names:
-                tb.log.info(f"Field sweep with profile: {profile}")
-                await tb.simple_incremental_loops(field_sweep_packets, profile, 5)
-        tb.log.info("✓ Completed comprehensive field sweep")
+    # Run comprehensive test
+    tb.log.info("Running comprehensive test...")
+    await tb.run_sequence_test(tb.comprehensive_sequence, delay_key='constrained', delay_clks_after=10)
 
-    # Always run back-to-back field test
-    tb.log.info("Running back-to-back field test...")
-    await tb.simple_incremental_loops(packet_counts['back_to_back'], 'backtoback', 10)
-    tb.log.info("✓ Completed back-to-back field test")
+    # Run stress test with varied delays and patterns
+    tb.log.info("Running stress test...")
+    await tb.run_sequence_test(tb.stress_sequence, delay_key='burst_pause', delay_clks_after=20)
 
-    # Run field stress test for medium and full levels
-    if test_level in ['medium', 'full']:
-        tb.log.info("Running field stress test...")
-        stress_config = 'field_stress' if 'field_stress' in config_names else 'stress'
-        await tb.simple_incremental_loops(packet_counts['stress_test'], stress_config, 20)
-        tb.log.info("✓ Completed field stress test")
+    # Test with different randomizer configurations
+    tb.log.info("Testing with different randomizer configurations...")
 
-    # Field boundary tests
-    if run_boundary_test:
-        tb.log.info("Running field boundary tests...")
-        boundary_sequence = tb.create_field_sequence('field_stress', 35)
-        await tb.run_sequence(boundary_sequence)
-        result = tb.verify_transactions()
-        if not result:
-            tb.log.warning("Field boundary test had verification issues")
-        tb.log.info("✓ Completed field boundary tests")
+    # Test with slow consumer
+    tb.log.info("Testing with slow consumer...")
+    await tb.run_sequence_test(tb.basic_sequence, delay_key='slow_consumer', delay_clks_after=20)
 
-    # Field-specific pattern tests for full level
-    if test_level == 'full':
-        tb.log.info("Running advanced field pattern tests...")
-        
-        # Test incrementing patterns
-        incrementing_seq = tb.create_field_sequence('incrementing', 30)
-        await tb.run_sequence(incrementing_seq)
-        
-        # Test random patterns  
-        random_seq = tb.create_field_sequence('random', 40)
-        await tb.run_sequence(random_seq)
-        
-        tb.log.info("✓ Completed advanced field pattern tests")
+    # Test with slow producer
+    tb.log.info("Testing with slow producer...")
+    await tb.run_sequence_test(tb.basic_sequence, delay_key='slow_producer', delay_clks_after=20)
 
-        # Optional: Generate struct from field configuration for reference
-        tb.log.info("Generating struct definition from field configuration for reference...")
-        struct_info = tb.generate_struct_from_fields()
-        if struct_info:
-            tb.log.info(f"Generated reference struct: {struct_info['struct_name']}")
-            tb.log.info(f"Include file: {struct_info['include_file']}")
-
-    # Final field statistics
-    tb.log.info("Field Test Statistics:")
-    tb.log.info(f"  Total packets sent: {tb.stats['total_sent']}")
-    tb.log.info(f"  Total packets received: {tb.stats['total_received']}")
-    tb.log.info(f"  Total errors: {tb.stats['total_errors']}")
-    tb.log.info(f"  Field errors: {tb.stats['field_errors']}")
-    tb.log.info(f"  Boundary tests run: {tb.stats['boundary_tests']}")
-    tb.log.info(f"  Field combinations tested: {tb.stats['field_combinations_tested']}")
-
-    tb.log.info(f"✓ ALL {test_level.upper()} FIELD-BASED TESTS PASSED!")
+    tb.log.info("All tests completed successfully!")
 
 
 def generate_field_params():
@@ -223,7 +97,7 @@ def generate_field_params():
 
 
 @pytest.mark.parametrize("addr_width, ctrl_width, data_width, depth, mode, test_level", generate_field_params())
-def test_gaxi_field_only(request, addr_width, ctrl_width, data_width, depth, mode, test_level):
+def test_gaxi_buffer_field(request, addr_width, ctrl_width, data_width, depth, mode, test_level):
     """Test GAXI buffer in field-only mode"""
     
     # Get paths and setup

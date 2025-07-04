@@ -10,8 +10,8 @@ from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
-async def fifo_multi_test(dut):
-    '''Test the gaxi_fifo_sync_multi component'''
+async def skid_buffer_multi_test(dut):
+    '''Test the axi_skid_buffer_multi component'''
     tb = GaxiMultiBufferTB(dut, wr_clk=dut.i_axi_aclk, wr_rstn=dut.i_axi_aresetn)
 
     # Use the seed for reproducibility
@@ -73,48 +73,54 @@ async def fifo_multi_test(dut):
 
     tb.log.info("All tests completed successfully!")
 
-def generate_width_depth_mode_params():
+
+def generate_params():
     addr_widths = [4, 6, 8]
     ctrl_widths = [3, 5, 7]
     data_widths = [8]
-    depths = [6]
-    modes = ['fifo_mux', 'fifo_flop']
+    depths = [2]
+    modes = ['skid', 'fifo_mux', 'fifo_flop']
+    # modes = ['fifo_mux']
 
-    return [(8, 5, 8, 2, 'fifo_mux'), (8, 5, 8, 2, 'fifo_flop')]
-    # return list(product(addr_widths, ctrl_widths, data_widths, depths, modes))
+    # return [(6, 3, 8, 2, 'fifo_mux')]
+    return list(product(addr_widths, ctrl_widths, data_widths, depths, modes))
 
-params = generate_width_depth_mode_params()
+params = generate_params()
 
-# Single test configuration for initial debugging
-# @pytest.mark.parametrize("data_width, depth, mode, addr_width", [(8, 2, 'skid', 4)])
 @pytest.mark.parametrize("addr_width, ctrl_width, data_width, depth, mode", params)
-def test_gaxi_fifo_sync_multi(request, addr_width, ctrl_width, data_width, depth, mode):
+def test_axi_buffer_multi(request, addr_width, ctrl_width, data_width, depth, mode):
     # Get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths(
         {
-            'rtl_cmn': 'rtl/common',
-            'rtl_amba': 'rtl/amba',
+            'rtl_cmn':       'rtl/common',
+            'rtl_amba':      'rtl/amba',
+            'rtl_gaxi':      'rtl/amba/gaxi',
             'rtl_amba_test': 'rtl/amba/testcode',
         })
 
     # Set up all of the test names
-    dut_name = "gaxi_fifo_sync_multi"
+    dut_name = "gaxi_skid_buffer_multi" if mode == 'skid' else "gaxi_fifo_sync_multi"
     toplevel = dut_name
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
-        os.path.join(rtl_dict['rtl_amba'], "gaxi/gaxi_fifo_sync.sv"),
-        os.path.join(rtl_dict['rtl_amba_test'], f"{dut_name}.sv"),
-    ]
+    if mode == "skid":
+        verilog_sources = [
+            os.path.join(rtl_dict['rtl_gaxi'],       "gaxi_skid_buffer.sv"),
+            os.path.join(rtl_dict['rtl_amba_test'], f"{dut_name}.sv"),
+        ]
+    else:
+        verilog_sources = [
+            os.path.join(rtl_dict['rtl_cmn'],        "counter_bin.sv"),
+            os.path.join(rtl_dict['rtl_cmn'],        "fifo_control.sv"),
+            os.path.join(rtl_dict['rtl_gaxi'],       "gaxi_fifo_sync.sv"),
+            os.path.join(rtl_dict['rtl_amba_test'], f"{dut_name}.sv"),
+        ]
 
     # Create a human readable test identifier
     aw_str = TBBase.format_dec(addr_width, 3)
     cw_str = TBBase.format_dec(ctrl_width, 3)
     dw_str = TBBase.format_dec(data_width, 3)
     d_str = TBBase.format_dec(depth, 3)
-    test_name_plus_params = f"test_{dut_name}_aw{aw_str}_cw{cw_str}_dw{dw_str}_d{d_str}_{mode}"
-
+    test_name_plus_params = f"test_{dut_name}_aw{aw_str}_cw{cw_str}_dw{dw_str}_d{d_str}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Use it in the simbuild path
@@ -153,7 +159,7 @@ def test_gaxi_fifo_sync_multi(request, addr_width, ctrl_width, data_width, depth
     extra_env['TEST_CTRL_WIDTH'] = str(ctrl_width)
     extra_env['TEST_DATA_WIDTH'] = str(data_width)
     extra_env['TEST_DEPTH'] = str(depth)
-    extra_env['TEST_MODE'] = str(mode)
+    extra_env['TEST_MODE'] = 'skid'  # Always 'skid' mode for skid buffer
 
 
     compile_args = [

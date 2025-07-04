@@ -43,7 +43,8 @@ class GAXIMonitor(GAXIMonitorBase):
                     bus_name='',
                     pkt_prefix='',
                     multi_sig=False,
-                    log=None, super_debug=False, **kwargs):
+                    log=None, super_debug=False,
+                    signal_map=None, **kwargs):
         """
         Initialize GAXI Monitor - EXACT SAME API AS BEFORE.
 
@@ -86,6 +87,7 @@ class GAXIMonitor(GAXIMonitorBase):
             protocol_type=protocol_type,
             log=log,
             super_debug=super_debug,
+            signal_map=signal_map,
             **kwargs
         )
 

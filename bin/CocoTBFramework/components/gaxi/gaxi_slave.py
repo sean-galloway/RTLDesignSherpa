@@ -45,7 +45,8 @@ class GAXISlave(GAXIMonitorBase):
                     pkt_prefix='',
                     multi_sig=False,
                     randomizer=None, memory_model=None, log=None, 
-                    super_debug=False, pipeline_debug=False, **kwargs):
+                    super_debug=False, pipeline_debug=False,
+                    signal_map=None, **kwargs):
         """
         Initialize GAXI Slave with structured pipeline support.
 
@@ -104,6 +105,7 @@ class GAXISlave(GAXIMonitorBase):
             randomizer=randomizer,
             log=log,
             super_debug=super_debug,
+            signal_map=signal_map,
             **kwargs
         )
 

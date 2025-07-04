@@ -42,7 +42,8 @@ class FIFOMonitor(FIFOMonitorBase):
                     pkt_prefix='',
                     multi_sig=False,
                     fifo_depth=16,
-                    log=None, super_debug=False, **kwargs):
+                    log=None, super_debug=False,
+                    signal_map=None, **kwargs):
         """
         Initialize FIFO Monitor - EXACT SAME API AS BEFORE.
 
@@ -87,6 +88,7 @@ class FIFOMonitor(FIFOMonitorBase):
             protocol_type=protocol_type,
             log=log,
             super_debug=super_debug,
+            signal_map=signal_map,
             **kwargs
         )
 

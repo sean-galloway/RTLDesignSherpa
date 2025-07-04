@@ -35,7 +35,8 @@ class FIFOMonitorBase(FIFOComponentBase, BusMonitor):
                     pkt_prefix='',
                     multi_sig=False,
                     protocol_type=None,  # 'fifo_master' or 'fifo_slave' - set by subclass
-                    log=None, super_debug=False, **kwargs):
+                    log=None, super_debug=False,
+                    signal_map=None, **kwargs):
         """
         Initialize common FIFO monitoring functionality - EXACT SAME API AS BEFORE.
 
@@ -79,6 +80,7 @@ class FIFOMonitorBase(FIFOComponentBase, BusMonitor):
             randomizer=randomizer,
             log=log,
             super_debug=super_debug,
+            signal_map=signal_map,
             **kwargs
         )
 
@@ -132,8 +134,10 @@ class FIFOMonitorBase(FIFOComponentBase, BusMonitor):
         if data_dict:
             if hasattr(packet, 'unpack_from_fifo'):
                 packet.unpack_from_fifo(data_dict)
+                self.log.debug(f"FIFOMonitorBase({self.title}) Transaction at {current_time}ns: unpack from fifo")
             else:
                 # Legacy fallback - set fields directly
+                self.log.debug(f"FIFOMonitorBase({self.title}) Transaction at {current_time}ns: legacy unpack")
                 for field_name, value in data_dict.items():
                     if value != -1:  # Skip X/Z values
                         if hasattr(packet, field_name):
