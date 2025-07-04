@@ -203,9 +203,8 @@ def generate_params():
     registered = [0, 1]
     # test_levels = ['basic', 'medium', 'full']  # All test levels
     test_levels = ['full']  # For initial testing
-    # return [(4, 5, 8, 4, 10, 10, 0, 'basic')]
-    return [(4, 5, 8, 4, 10, 10, 0, 'full'), (4, 5, 8, 4, 10, 10, 1, 'full')]
-    # return list(product(addr_widths, ctrl_widths, data_widths, depths, wr_clk_periods, rd_clk_periods, registered, test_levels))
+    # return [(4, 5, 8, 4, 10, 10, 0, 'full'), (4, 5, 8, 4, 10, 10, 1, 'full')]
+    return list(product(addr_widths, ctrl_widths, data_widths, depths, wr_clk_periods, rd_clk_periods, registered, test_levels))
 
 params = generate_params()
 

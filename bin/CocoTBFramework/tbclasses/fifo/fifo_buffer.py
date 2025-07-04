@@ -30,6 +30,10 @@ class FifoBufferTB(TBBase):
         self.TEST_CLK_WR = self.convert_to_int(os.environ.get('TEST_CLK_WR', '10'))
         self.TEST_CLK_RD = self.convert_to_int(os.environ.get('TEST_CLK_RD', '10'))
         self.super_debug = False
+        self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
+
+        # Initialize random generator
+        random.seed(self.SEED)
 
         # Setup widths and limits
         self.DW = self.TEST_DATA_WIDTH
@@ -441,7 +445,6 @@ class FifoBufferTB(TBBase):
         ])
 
         # Pattern 4: Random values
-        random.seed(12345)  # For reproducibility
         for _ in range(count - len(patterns)):
             patterns.append(random.randint(0, self.MAX_DATA))
 

@@ -1,5 +1,6 @@
 """Testbench for FIFO buffer components with multiple signals using modern infrastructure"""
 import os
+import random
 import cocotb
 
 from CocoTBFramework.tbclasses.tbbase import TBBase
@@ -36,6 +37,10 @@ class FifoMultiBufferTB(TBBase):
         self.TEST_CLK_WR = self.convert_to_int(os.environ.get('TEST_CLK_WR', '10'))
         self.TEST_CLK_RD = self.convert_to_int(os.environ.get('TEST_CLK_RD', '10'))
         self.super_debug = super_debug
+        self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
+
+        # Initialize random generator
+        random.seed(self.SEED)
 
         # Setup widths and limits
         self.AW = self.TEST_ADDR_WIDTH
