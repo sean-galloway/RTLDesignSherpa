@@ -236,8 +236,8 @@ module axi_master_rd_splitter
     logic           w_new_split_needed;
 
     axi_split_combi #(
-        .AW(AW),
-        .DW(DW)
+        .AW                        (AW),
+        .DW                        (DW)
     ) inst_axi_split_combi (
         // Clock and reset for assertions
         .aclk                      (aclk),
@@ -435,21 +435,21 @@ module axi_master_rd_splitter
 
     // Instantiate the FIFO for split information
     gaxi_fifo_sync #(
-        .REGISTERED(0), // muxed output mode
-        .DATA_WIDTH(AW + IW + 8),
-        .DEPTH(SPLIT_FIFO_DEPTH),
-        .INSTANCE_NAME("SPLIT_FIFO")
-    ) inst_split_info_fifo (
-        .i_axi_aclk(aclk),
-        .i_axi_aresetn(aresetn),
-        .i_wr_valid(w_split_fifo_valid),
-        .i_wr_data(split_fifo_din),
-        .i_rd_ready(fub_split_ready),
-        .o_rd_valid(fub_split_valid),
-        .o_rd_data({fub_split_addr, fub_split_id, fub_split_cnt}),
+        .REGISTERED        (0), // muxed output mode
+        .DATA_WIDTH        (AW + IW + 8),
+        .DEPTH             (SPLIT_FIFO_DEPTH),
+        .INSTANCE_NAME     ("SPLIT_FIFO")
+    ) inst_split_info_fifo(
+        .i_axi_aclk        (aclk),
+        .i_axi_aresetn     (aresetn),
+        .i_wr_valid        (w_split_fifo_valid),
+        .i_wr_data         (split_fifo_din),
+        .i_rd_ready        (fub_split_ready),
+        .o_rd_valid        (fub_split_valid),
+        .o_rd_data         ({fub_split_addr, fub_split_id, fub_split_cnt}),
         /* verilator lint_off PINCONNECTEMPTY */
-        .o_wr_ready(),  // Not used
-        .ow_count()    // Not used
+        .o_wr_ready        (),  // Not used
+        .ow_count          ()    // Not used
         /* verilator lint_on PINCONNECTEMPTY */
     );
 

@@ -14,7 +14,7 @@
  * Fixed for Verilator compatibility and consistent array declarations
  */
 module axi_monitor_trans_mgr
-    import axi_monitor_types::*;
+    import monitor_pkg::*;
 #(
     parameter int MAX_TRANSACTIONS    = 16,   // Maximum outstanding transactions
     parameter int ADDR_WIDTH          = 32,   // Width of address bus
@@ -58,7 +58,7 @@ module axi_monitor_trans_mgr
     input  logic [31:0]              i_timestamp,
 
     // Transaction table output - Fixed: Use unpacked array
-    output axi_transaction_t         o_trans_table[MAX_TRANSACTIONS],
+    output bus_transaction_t         o_trans_table[MAX_TRANSACTIONS],
     output logic [7:0]               o_active_count,
 
     // State change detection (for debug module)
@@ -66,8 +66,8 @@ module axi_monitor_trans_mgr
 );
 
     // Transaction table (flopped) - use unpacked array
-    axi_transaction_t r_trans_table[MAX_TRANSACTIONS];
-    axi_transaction_t r_trans_table_prev[MAX_TRANSACTIONS]; // Previous state for change detection (flopped)
+    bus_transaction_t r_trans_table[MAX_TRANSACTIONS];
+    bus_transaction_t r_trans_table_prev[MAX_TRANSACTIONS]; // Previous state for change detection (flopped)
     assign o_trans_table = r_trans_table;
 
     // Active transaction counter (flopped)
@@ -489,4 +489,3 @@ module axi_monitor_trans_mgr
     endgenerate
 
 endmodule : axi_monitor_trans_mgr
-                

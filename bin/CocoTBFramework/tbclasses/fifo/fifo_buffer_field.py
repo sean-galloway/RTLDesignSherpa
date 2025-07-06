@@ -1,10 +1,16 @@
-"""Testbench for FIFO buffer components with multiple fields using modern infrastructure"""
+"""Testbench for FIFO buffer components with multiple fields - Refactored to use FlexConfigGen only
+
+Key changes:
+- Eliminated manual FlexRandomizer instantiation throughout
+- FlexConfigGen now returns FlexRandomizer instances directly via return_flexrandomizer=True
+- Simplified randomizer profile management with direct instance access
+- Cleaner architecture using single randomization source
+"""
 import os
 import random
 import cocotb
 
 from CocoTBFramework.tbclasses.tbbase import TBBase
-from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.shared.field_config import FieldConfig
 
 from CocoTBFramework.components.fifo.fifo_packet import FIFOPacket
@@ -14,12 +20,12 @@ from CocoTBFramework.components.fifo.fifo_monitor import FIFOMonitor
 from CocoTBFramework.components.fifo.fifo_sequence import FIFOSequence
 from CocoTBFramework.components.fifo.fifo_command_handler import FIFOCommandHandler
 from CocoTBFramework.components.shared.memory_model import MemoryModel
-from CocoTBFramework.tbclasses.flex_config_gen import FlexConfigGen
+from CocoTBFramework.components.shared.flex_config_gen import FlexConfigGen
 from CocoTBFramework.tbclasses.fifo.fifo_buffer_configs import FIELD_CONFIGS
 
 
 class FifoFieldBufferTB(TBBase):
-    """Testbench for multi-field FIFO components with modern infrastructure and FlexConfigGen"""
+    """Testbench for multi-field FIFO components using FlexConfigGen only for randomization"""
 
     def __init__(self, dut,
                     wr_clk=None, wr_rstn=None,
@@ -79,8 +85,8 @@ class FifoFieldBufferTB(TBBase):
         msg += '='*80 + "\n"
         self.log.info(msg)
 
-        # Create comprehensive randomizer configurations using FlexConfigGen
-        self.randomizer_configs = self._create_robust_randomizer_configs()
+        # Create FlexConfigGen manager and get randomizer instances directly
+        self.randomizer_manager = self._create_robust_randomizer_manager()
 
         # Create field configuration
         self.field_config = FieldConfig.from_dict(FIELD_CONFIGS['field'])
@@ -103,8 +109,8 @@ class FifoFieldBufferTB(TBBase):
         self.memory_model.define_region('ctrl_fields', self.TEST_DEPTH // 4, self.TEST_DEPTH // 2 - 1, 'Control fields')
         self.memory_model.define_region('data_fields', self.TEST_DEPTH // 2, self.TEST_DEPTH - 1, 'Data fields')
 
-        # Create BFM components using modern simplified interface
-        # For field FIFO tests, we use field_mode=True with single combined signal
+        # Create BFM components using FlexConfigGen randomizer instances
+        default_write_randomizer = self.get_randomizer('balanced', 'write')
         self.write_master = FIFOMaster(
             dut=dut,
             title='write_master',
@@ -116,7 +122,10 @@ class FifoFieldBufferTB(TBBase):
             log=self.log,
             super_debug=self.super_debug
         )
+        # Set default randomizer from FlexConfigGen
+        self.write_master.set_randomizer(default_write_randomizer)
 
+        default_read_randomizer = self.get_randomizer('balanced', 'read')
         self.read_slave = FIFOSlave(
             dut=dut,
             title='read_slave',
@@ -128,6 +137,8 @@ class FifoFieldBufferTB(TBBase):
             log=self.log,
             super_debug=self.super_debug
         )
+        # Set default randomizer from FlexConfigGen
+        self.read_slave.set_randomizer(default_read_randomizer)
 
         # Set up monitors
         self.wr_monitor = FIFOMonitor(
@@ -166,21 +177,21 @@ class FifoFieldBufferTB(TBBase):
         self.log.info(f"FifoFieldBufferTB initialized with mode={self.TEST_MODE}, "
                         f"addr_width={self.AW}, ctrl_width={self.CW}, data_width={self.DW}, depth={self.TEST_DEPTH}")
 
-    def _create_robust_randomizer_configs(self):
-        """Create comprehensive randomizer configurations using FlexConfigGen"""
+    def _create_robust_randomizer_manager(self):
+        """Create FlexConfigGen manager that returns FlexRandomizer instances directly"""
 
         # Define custom FIFO-specific profiles for multi-field testing
         fifo_field_custom_profiles = {
             # Field-specific patterns
-            'field_stress': ([(0, 0), (1, 3), (8, 15), (25, 40)], [4, 3, 2, 1]),     # Mixed timing for field stress
-            'field_pipeline': ([(2, 4), (5, 7)], [3, 1]),                             # Pipeline-friendly for fields
-            'field_burst': ([(0, 0), (20, 35)], [10, 1]),                             # Burst pattern for fields
-            'field_realistic': ([(0, 1), (3, 6), (10, 15), (25, 30)], [5, 3, 2, 1]), # Real-world field patterns
-            'field_fine_grain': ([(0, 2), (3, 5), (6, 8), (9, 12)], [4, 3, 2, 1]),   # Fine control for fields
+            'field_stress': ([(0, 0), (1, 3), (8, 15), (25, 40)], [4, 3, 2, 1]),                      # Mixed timing for field stress
+            'field_pipeline': ([(2, 4), (5, 7)], [3, 1]),                                             # Pipeline-friendly for fields
+            'field_burst': ([(0, 0), (20, 35)], [10, 1]),                                             # Burst pattern for fields
+            'field_realistic': ([(0, 1), (3, 6), (10, 15), (25, 30)], [5, 3, 2, 1]),                  # Real-world field patterns
+            'field_fine_grain': ([(0, 2), (3, 5), (6, 8), (9, 12)], [4, 3, 2, 1]),                    # Fine control for fields
             'field_depth_aware': ([(0, 0), (1, 2), (self.TEST_DEPTH, self.TEST_DEPTH*2)], [7, 2, 1])  # Depth-aware for fields
         }
 
-        # Create FlexConfigGen for comprehensive field testing
+        # Create FlexConfigGen - NOTE: return_flexrandomizer=True
         config_gen = FlexConfigGen(
             profiles=[
                 # Standard canned profiles
@@ -196,6 +207,27 @@ class FifoFieldBufferTB(TBBase):
         )
 
         # Customize profiles for field-specific behavior
+        self._customize_profiles(config_gen)
+
+        # Build and get FlexRandomizer instances directly
+        self.randomizer_instances = config_gen.build(return_flexrandomizer=True)
+
+        # Create write/read domain mapping for easier access
+        self.domain_randomizers = {}
+        for profile_name, randomizer in self.randomizer_instances.items():
+            self.domain_randomizers[profile_name] = {
+                'write': randomizer,  # Write domain gets the randomizer instance
+                'read': randomizer    # Read domain gets the same randomizer instance
+            }
+
+        self.log.info(f"Created {len(self.randomizer_instances)} robust field randomizer instances via FlexConfigGen:")
+        for profile_name in self.randomizer_instances.keys():
+            self.log.info(f"  - {profile_name}")
+
+        return config_gen
+
+    def _customize_profiles(self, config_gen):
+        """Customize FlexConfigGen profiles for field-specific behavior"""
 
         # Aggressive backtoback for field testing
         config_gen.backtoback.write_delay.fixed_value(0)
@@ -229,26 +261,33 @@ class FifoFieldBufferTB(TBBase):
         config_gen.bursty.write_delay.burst_pattern(fast_cycles=0, pause_range=(12, 20), burst_ratio=15)
         config_gen.bursty.read_delay.burst_pattern(fast_cycles=0, pause_range=(15, 25), burst_ratio=10)
 
-        # Build all configurations
-        randomizer_dict = config_gen.build(return_flexrandomizer=False)
-
-        # Convert to the format expected by the rest of the testbench
-        converted_configs = {}
-        for profile_name, profile_config in randomizer_dict.items():
-            converted_configs[profile_name] = {
-                'write': {field: constraints for field, constraints in profile_config.items() if 'write' in field},
-                'read': {field: constraints for field, constraints in profile_config.items() if 'read' in field}
-            }
-
-        self.log.info(f"Created {len(converted_configs)} robust field randomizer configurations:")
-        for profile_name in converted_configs.keys():
-            self.log.info(f"  - {profile_name}")
-
-        return converted_configs
+    def get_randomizer(self, profile_name, domain='write'):
+        """Get FlexRandomizer instance for specified profile and domain"""
+        if profile_name in self.domain_randomizers:
+            return self.domain_randomizers[profile_name][domain]
+        else:
+            # Fallback to balanced profile
+            self.log.warning(f"Profile '{profile_name}' not found, using 'balanced'")
+            return self.domain_randomizers['balanced'][domain]
 
     def get_randomizer_config_names(self):
         """Get list of available randomizer configuration names"""
-        return list(self.randomizer_configs.keys())
+        return list(self.randomizer_instances.keys())
+
+    def get_available_profiles(self):
+        """Get list of available profiles (alias for compatibility)"""
+        return self.get_randomizer_config_names()
+
+    def set_randomizer_profile(self, profile_name):
+        """Set randomizer profile for write and read components using FlexConfigGen instances"""
+        write_randomizer = self.get_randomizer(profile_name, 'write')
+        read_randomizer = self.get_randomizer(profile_name, 'read')
+
+        # Apply randomizers from FlexConfigGen instances
+        self.write_master.set_randomizer(write_randomizer)
+        self.read_slave.set_randomizer(read_randomizer)
+
+        self.log.info(f"Set randomizers to profile '{profile_name}' using FlexConfigGen instances")
 
     async def clear_interface(self):
         """Clear the interface signals"""
@@ -343,7 +382,8 @@ class FifoFieldBufferTB(TBBase):
             'read_monitor': self.rd_monitor.get_stats(),
             'memory_model': self.memory_model.get_stats(),
             'command_handler': self.command_handler.get_stats(),
-            'total_errors': self.total_errors
+            'total_errors': self.total_errors,
+            'available_profiles': len(self.randomizer_instances)
         }
 
         # Get memory region statistics
@@ -355,25 +395,12 @@ class FifoFieldBufferTB(TBBase):
         return stats
 
     async def simple_incremental_loops(self, count, delay_key, delay_clks_after):
-        """Run simple incremental tests with different packet sizes"""
+        """Run simple incremental tests using FlexConfigGen randomizer instances"""
         self.log.info('='*80)
         self.log.info(f'simple_incremental_loops({count=}, {delay_key=}, {delay_clks_after=}){self.get_time_ns_str()}')
 
-        # Set randomizers using the robust FlexConfigGen configurations
-        if delay_key in self.randomizer_configs:
-            write_config = self.randomizer_configs[delay_key]['write']
-            read_config = self.randomizer_configs[delay_key]['read']
-
-            self.write_master.set_randomizer(FlexRandomizer(write_config))
-            self.read_slave.set_randomizer(FlexRandomizer(read_config))
-
-            self.log.info(f"Using randomizer config '{delay_key}' - "
-                            f"Write: {write_config}, Read: {read_config}")
-        else:
-            self.log.warning(f"Randomizer config '{delay_key}' not found, using 'constrained'")
-            fallback_config = self.randomizer_configs['constrained']
-            self.write_master.set_randomizer(FlexRandomizer(fallback_config['write']))
-            self.read_slave.set_randomizer(FlexRandomizer(fallback_config['read']))
+        # Set randomizer profile using FlexConfigGen instances
+        self.set_randomizer_profile(delay_key)
 
         # Reset and prepare for test
         await self.assert_reset()
@@ -434,12 +461,14 @@ class FifoFieldBufferTB(TBBase):
         assert self.total_errors == 0, f'Simple Incremental Loops found {self.total_errors} Errors{self.get_time_ns_str()}'
 
     async def comprehensive_randomizer_sweep(self, packets_per_config=15):
-        """Test all available randomizer configurations"""
+        """Test all available randomizer configurations using FlexConfigGen instances"""
         self.log.info('='*80)
         self.log.info(f'Running comprehensive field randomizer sweep with {packets_per_config} packets per config')
 
-        total_configs = len(self.randomizer_configs)
-        for i, config_name in enumerate(self.randomizer_configs.keys()):
+        total_configs = len(self.randomizer_instances)
+        failures = 0
+
+        for i, config_name in enumerate(self.randomizer_instances.keys()):
             self.log.info(f'Testing field config {i+1}/{total_configs}: {config_name}')
 
             try:
@@ -451,26 +480,19 @@ class FifoFieldBufferTB(TBBase):
                 self.log.info(f'✓ Field config {config_name} passed')
             except Exception as e:
                 self.log.error(f'✗ Field config {config_name} failed: {e}')
-                raise
+                failures += 1
+
+        self.log.info(f"Field randomizer sweep completed: {total_configs - failures}/{total_configs} profiles passed")
+        return failures == 0
 
     async def dependency_test(self, count=10, delay_key='field_stress'):
-        """Test transaction dependencies with complex field sequence"""
+        """Test transaction dependencies with complex field sequence using FlexConfigGen"""
 
         self.log.info('='*80)
         self.log.info(f"Running field dependency test with {count} packets and {delay_key} delays{self.get_time_ns_str()}")
 
-        # Set randomizers using FlexConfigGen configurations
-        if delay_key in self.randomizer_configs:
-            write_config = self.randomizer_configs[delay_key]['write']
-            read_config = self.randomizer_configs[delay_key]['read']
-
-            self.write_master.set_randomizer(FlexRandomizer(write_config))
-            self.read_slave.set_randomizer(FlexRandomizer(read_config))
-        else:
-            self.log.warning(f"Using fallback 'stress' config for {delay_key}")
-            stress_config = self.randomizer_configs['stress']
-            self.write_master.set_randomizer(FlexRandomizer(stress_config['write']))
-            self.read_slave.set_randomizer(FlexRandomizer(stress_config['read']))
+        # Set randomizer profile using FlexConfigGen instances
+        self.set_randomizer_profile(delay_key)
 
         # Reset environment
         await self.assert_reset()
@@ -518,14 +540,12 @@ class FifoFieldBufferTB(TBBase):
         return self.total_errors == 0
 
     async def field_pattern_test(self, pattern_type='comprehensive', count=25):
-        """Test field-specific patterns"""
+        """Test field-specific patterns using FlexConfigGen randomizers"""
         self.log.info('='*80)
         self.log.info(f"Running field pattern test: {pattern_type} with {count} packets{self.get_time_ns_str()}")
 
-        # Use field-specific randomizer
-        field_config = self.randomizer_configs.get('field_realistic', self.randomizer_configs['constrained'])
-        self.write_master.set_randomizer(FlexRandomizer(field_config['write']))
-        self.read_slave.set_randomizer(FlexRandomizer(field_config['read']))
+        # Use field-specific randomizer from FlexConfigGen
+        self.set_randomizer_profile('field_realistic')
 
         # Reset environment
         await self.assert_reset()

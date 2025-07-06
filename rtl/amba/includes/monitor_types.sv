@@ -6,30 +6,36 @@
  * that that need monitoring, error handling and interrupt bus,
  * providing consistent data structures and enumerations.
  */
-package monitor_types;
+package monitor_pkg;
 
     // Event/Error code enumeration (4 bits)
     typedef enum logic [3:0] {
-        EVT_NONE          = 4'h0,  // No event
+        EVT_NONE            = 4'h0,
 
-        // Error events
-        EVT_ADDR_TIMEOUT   = 4'h1,  // Address channel timeout
-        EVT_DATA_TIMEOUT   = 4'h2,  // Data channel timeout
-        EVT_RESP_TIMEOUT   = 4'h3,  // Response channel timeout
-        EVT_RESP_SLVERR    = 4'h4,  // Error response (SLVERR)
-        EVT_RESP_DECERR    = 4'h5,  // Error response (DECERR)
-        EVT_DATA_ORPHAN    = 4'h6,  // Data without address
-        EVT_RESP_ORPHAN    = 4'h7,  // Response without transaction
-        EVT_PROTOCOL       = 4'h8,  // Protocol violation
-        EVT_TRANS_COMPLETE = 4'h9,  // Transaction completed successfully
-        EVT_ADDR_MISS_T0   = 4'hA,  // Address missed the address map
-        EVT_ADDR_MISS_T1   = 4'hB,  // Address missed the address map
-        // Reserved for future use
-        EVT_RESERVED_C     = 4'hC,
-        EVT_RESERVED_D     = 4'hD,
-        EVT_RESERVED_E     = 4'hE,
-        EVT_USER_DEFINED   = 4'hF    // User-defined event
-    } axi_event_code_t;
+        // Generic timeout events (work for any bus)
+        EVT_CMD_TIMEOUT     = 4'h1,  // Command/Address timeout
+        EVT_DATA_TIMEOUT    = 4'h2,  // Data timeout
+        EVT_RESP_TIMEOUT    = 4'h3,  // Response timeout
+
+        // Generic response errors
+        EVT_RESP_ERROR      = 4'h4,  // Generic error response
+        EVT_RESP_SLVERR     = 4'h5,  // Slave error (AXI/AHB)
+        EVT_RESP_DECERR     = 4'h6,  // Decode error (AXI/AHB)
+
+        // Generic protocol violations
+        EVT_DATA_ORPHAN     = 4'h7,  // Data without command
+        EVT_RESP_ORPHAN     = 4'h8,  // Response without transaction
+        EVT_PROTOCOL        = 4'h9,  // Protocol violation
+        EVT_TRANS_COMPLETE  = 4'hA,  // Transaction completed
+
+        // Keep your address miss events
+        EVT_ADDR_MISS_T0    = 4'hB,
+        EVT_ADDR_MISS_T1    = 4'hC,
+
+        EVT_RESERVED_D      = 4'hD,
+        EVT_RESERVED_E      = 4'hE,
+        EVT_USER_DEFINED    = 4'hF
+    } monitor_event_code_t;
 
     // Transaction state enumeration
     typedef enum logic [2:0] {
@@ -53,7 +59,7 @@ package monitor_types;
         logic [1:0]     burst;           // Burst type
 
         // Phase completion flags
-        logic           addr_received;   // Address phase received
+        logic           cmd_received;    // Address phase received
         logic           data_started;    // Data phase started
         logic           data_completed;  // Data phase completed
         logic           resp_received;   // Response received
@@ -78,7 +84,7 @@ package monitor_types;
 
         // Additional tracking
         logic [5:0]     channel;        // Channel ID for multi-channel systems (6 bits)
-    } axi_transaction_t;
+    } bus_transaction_t;
 
     // Consolidated 64-bit interrupt bus packet
     // Fields are packed according to specified sizes:
@@ -135,4 +141,4 @@ package monitor_types;
         THRESH_CUSTOM         = 4'hF   // Custom threshold
     } threshold_event_t;
 
-endpackage : axi_errmon_types
+endpackage : monitor_pkg

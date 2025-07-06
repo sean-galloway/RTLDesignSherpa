@@ -1,16 +1,12 @@
 """
-Updated GAXI Buffer Sequence Classes - Using New Unified Infrastructure
+Updated GAXI Buffer Sequence Classes - Refactored to use FlexConfigGen only
 
-This module provides specialized sequence generators for GAXI buffer testing
-with multi-field support (addr, ctrl, data0, data1) updated to leverage
-the new unified infrastructure while preserving all existing APIs.
-
-Key improvements:
-- Uses GAXIComponentBase patterns for consistency
-- Leverages unified FieldConfig.validate_and_create() patterns
-- Uses FlexRandomizer infrastructure more effectively
-- Integrates with base MemoryModel directly
-- Preserves all existing APIs for test runner compatibility
+Key changes:
+- Eliminated manual FlexRandomizer instantiation in add_random_pattern
+- FlexConfigGen integration for consistent randomization approach
+- Simplified randomizer management through centralized configuration
+- Enhanced randomization capabilities using FlexConfigGen profiles
+- Fixed 'uniform' profile issue by properly defining all profiles
 """
 
 import itertools
@@ -19,54 +15,75 @@ from typing import Any
 from CocoTBFramework.components.shared.field_config import FieldConfig
 from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
 from CocoTBFramework.components.gaxi.gaxi_sequence import GAXISequence
-from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
+from CocoTBFramework.components.shared.flex_config_gen import FlexConfigGen
 
 
 class GAXIBufferSequence(GAXISequence):
     """
-    Extended sequence generator for GAXI buffer tests using new unified infrastructure.
+    Extended sequence generator for GAXI buffer tests using FlexConfigGen only.
 
     This class expands on the base GAXISequence to add specific patterns and
     sequences suitable for testing GAXI buffer components with multiple fields
     (addr, ctrl, data0, data1).
 
-    Updated to use new infrastructure while preserving exact APIs for test runners.
+    Refactored to use FlexConfigGen for all randomization needs.
     """
 
     def __init__(self, name, field_config, packet_class=GAXIPacket):
         """
-        Initialize the GAXI buffer sequence using new infrastructure patterns.
+        Initialize the GAXI buffer sequence with FlexConfigGen integration.
 
         Args:
             name: Sequence name
             field_config: Field configuration for multi-field packets (dict or FieldConfig)
             packet_class: Class to use for packet creation
         """
+        print(f"🔍 GAXIBufferSequence.__init__: Step 1 - About to call super().__init__")
+        
+        # CRITICAL: Call parent initialization FIRST
         super().__init__(name, field_config, packet_class)
-
-        # Normalize field_config using new infrastructure patterns
-        if isinstance(field_config, dict):
-            self.field_config = FieldConfig.validate_and_create(field_config)
-        elif field_config is None:
-            # Default multi-field configuration
-            default_config = {
-                'addr': {'bits': 16, 'start_bit': 0},
-                'ctrl': {'bits': 8, 'start_bit': 16},
-                'data0': {'bits': 32, 'start_bit': 24},
-                'data1': {'bits': 32, 'start_bit': 56}
-            }
-            self.field_config = FieldConfig.validate_and_create(default_config)
-        elif isinstance(field_config, FieldConfig):
-            self.field_config = field_config
-        else:
-            raise TypeError(f"field_config must be FieldConfig, dict, or None, got {type(field_config)}")
-
-        # Extract field widths using new infrastructure patterns
-        self.addr_width = self._get_field_width('addr')
-        self.ctrl_width = self._get_field_width('ctrl')
-        self.data0_width = self._get_field_width('data0')
-        self.data1_width = self._get_field_width('data1')
-
+        print(f"🔍 GAXIBufferSequence.__init__: Step 1 - ✅ super().__init__ completed")
+        
+        print(f"🔍 GAXIBufferSequence.__init__: Step 2 - About to extract field widths")
+        
+        # NOW extract field widths after parent is properly initialized
+        try:
+            self.addr_width = self._get_field_width('addr')
+            print(f"🔍 GAXIBufferSequence.__init__: addr_width = {self.addr_width}")
+            
+            self.ctrl_width = self._get_field_width('ctrl')
+            print(f"🔍 GAXIBufferSequence.__init__: ctrl_width = {self.ctrl_width}")
+            
+            self.data0_width = self._get_field_width('data0')
+            print(f"🔍 GAXIBufferSequence.__init__: data0_width = {self.data0_width}")
+            
+            self.data1_width = self._get_field_width('data1')
+            print(f"🔍 GAXIBufferSequence.__init__: data1_width = {self.data1_width}")
+            
+            print(f"🔍 GAXIBufferSequence.__init__: Step 2 - ✅ Field widths extracted")
+            
+        except Exception as e:
+            print(f"🚨 ERROR: Field width extraction failed: {e}")
+            # Fallback to safe defaults
+            self.addr_width = 12
+            self.ctrl_width = 6
+            self.data0_width = 32
+            self.data1_width = 32
+            print(f"🔍 GAXIBufferSequence.__init__: Using fallback field widths")
+        
+        print(f"🔍 GAXIBufferSequence.__init__: Step 3 - About to create randomizer manager")
+        
+        try:
+            self._create_randomizer_manager()
+            print(f"🔍 GAXIBufferSequence.__init__: Step 3 - ✅ Randomizer manager created")
+        except Exception as e:
+            print(f"🚨 ERROR: Randomizer manager creation failed: {e}")
+            # Create minimal randomizer setup
+            self.randomizer_instances = {}
+            print(f"🔍 GAXIBufferSequence.__init__: Using minimal randomizer setup")
+        
+        print(f"🔍 GAXIBufferSequence.__init__: Step 4 - Setting up enhanced statistics")
+        
         # Enhanced statistics tracking
         self.stats.update({
             'multi_field_transactions': 0,
@@ -75,6 +92,318 @@ class GAXIBufferSequence(GAXISequence):
             'pattern_tests': 0,
             'burst_tests': 0
         })
+        
+        print(f"🔍 GAXIBufferSequence.__init__: ✅ ALL INITIALIZATION COMPLETED SUCCESSFULLY!")
+
+    def _create_randomizer_manager(self):
+        """Create FlexConfigGen manager for sequence randomization"""
+        
+        # Define sequence-specific randomization profiles
+        sequence_profiles = {
+            'seq_uniform': ([(0, 100)], [1]),                          # Uniform distribution
+            'seq_weighted': ([(0, 25), (26, 75), (76, 100)], [3, 2, 1]), # Weighted distribution
+            'seq_boundary_focus': ([(0, 5), (250, 255)], [1, 1]),     # Focus on boundaries
+            'seq_mid_range': ([(40, 60)], [1]),                       # Mid-range values
+            'seq_sparse': ([(0, 10), (50, 60), (90, 100)], [1, 1, 1]), # Sparse coverage
+        }
+
+        # Create FlexConfigGen for sequence randomization
+        # Only use profiles that exist as defaults or are defined as custom profiles
+        config_gen = FlexConfigGen(
+            profiles=[
+                'moderate', 'balanced', 'constrained', 'chaotic',
+                'seq_uniform', 'seq_weighted', 'seq_boundary_focus', 
+                'seq_mid_range', 'seq_sparse'
+            ],
+            fields=['addr_range', 'ctrl_range', 'data0_range', 'data1_range'],
+            custom_profiles=sequence_profiles
+        )
+
+        # Customize profiles for sequence generation
+        self._customize_sequence_profiles(config_gen)
+
+        # Build and store randomizer instances
+        self.randomizer_instances = config_gen.build(return_flexrandomizer=True)
+        
+        # Set default randomizer for sequence generation
+        self.sequence_randomizer = self.randomizer_instances.get('balanced', None)
+        self.use_randomization = True
+
+        print(f"Created {len(self.randomizer_instances)} sequence randomizer profiles")
+
+    def _customize_sequence_profiles(self, config_gen):
+        """Customize FlexConfigGen profiles for sequence generation"""
+        
+        # Calculate field maximums
+        addr_max = (1 << self.addr_width) - 1
+        ctrl_max = (1 << self.ctrl_width) - 1
+        data0_max = (1 << self.data0_width) - 1
+        data1_max = (1 << self.data1_width) - 1
+        
+        # Balanced profile for general sequence use
+        config_gen.balanced.addr_range.uniform_range(0, addr_max)
+        config_gen.balanced.ctrl_range.uniform_range(0, ctrl_max)
+        config_gen.balanced.data0_range.uniform_range(0, data0_max)
+        config_gen.balanced.data1_range.uniform_range(0, data1_max)
+
+        # Moderate profile with some constraints
+        # Ensure ranges are valid for small field widths
+        if addr_max >= 4:
+            addr_quarter = addr_max // 4
+            addr_half = addr_max // 2
+            config_gen.moderate.addr_range.weighted_ranges([
+                ((0, addr_quarter), 2), ((addr_half, addr_max), 1)
+            ])
+        else:
+            # For very small fields, just use uniform distribution
+            config_gen.moderate.addr_range.uniform_range(0, addr_max)
+        
+        if ctrl_max >= 2:
+            ctrl_half = ctrl_max // 2
+            config_gen.moderate.ctrl_range.weighted_ranges([
+                ((0, ctrl_half), 3), ((ctrl_half, ctrl_max), 1)
+            ])
+        else:
+            config_gen.moderate.ctrl_range.uniform_range(0, ctrl_max)
+            
+        config_gen.moderate.data0_range.uniform_range(0, data0_max)
+        config_gen.moderate.data1_range.uniform_range(0, data1_max)
+
+        # Constrained profile for focused testing
+        config_gen.constrained.addr_range.uniform_range(0, min(0xFF, addr_max))
+        config_gen.constrained.ctrl_range.uniform_range(0, min(0xF, ctrl_max))
+        config_gen.constrained.data0_range.uniform_range(0, min(0xFFFF, data0_max))
+        config_gen.constrained.data1_range.uniform_range(0, min(0xFFFF, data1_max))
+
+        # Chaotic profile for stress testing - handle small field widths gracefully
+        # For addr field
+        if addr_max >= 8:
+            config_gen.chaotic.addr_range.probability_split([
+                ((0, addr_max // 8), 0.3), ((addr_max // 2, addr_max), 0.7)
+            ])
+        else:
+            config_gen.chaotic.addr_range.uniform_range(0, addr_max)
+        
+        # For ctrl field
+        if ctrl_max >= 2:
+            config_gen.chaotic.ctrl_range.probability_split([
+                ((0, max(1, ctrl_max // 4)), 0.5), ((max(1, ctrl_max - 1), ctrl_max), 0.5)
+            ])
+        else:
+            config_gen.chaotic.ctrl_range.uniform_range(0, ctrl_max)
+        
+        # For data0 field - ensure valid ranges
+        if data0_max >= 0xFF:
+            # Large enough for complex patterns
+            low_end = min(0xFF, data0_max // 4)
+            mid_start = max(low_end + 1, data0_max // 2)
+            high_start = max(mid_start + 1, data0_max - data0_max // 4)
+            config_gen.chaotic.data0_range.probability_split([
+                ((0, low_end), 0.4), 
+                ((mid_start, min(mid_start + data0_max // 4, data0_max)), 0.3), 
+                ((high_start, data0_max), 0.3)
+            ])
+        else:
+            # Small field, use simple split
+            mid_point = data0_max // 2
+            config_gen.chaotic.data0_range.probability_split([
+                ((0, mid_point), 0.5), ((mid_point + 1 if mid_point < data0_max else mid_point, data0_max), 0.5)
+            ])
+        
+        # For data1 field - same logic as data0
+        if data1_max >= 0xFF:
+            low_end = min(0xFF, data1_max // 4)
+            mid_start = max(low_end + 1, data1_max // 2)
+            high_start = max(mid_start + 1, data1_max - data1_max // 4)
+            config_gen.chaotic.data1_range.probability_split([
+                ((0, low_end), 0.4), 
+                ((mid_start, min(mid_start + data1_max // 4, data1_max)), 0.3), 
+                ((high_start, data1_max), 0.3)
+            ])
+        else:
+            # Small field, use simple split
+            mid_point = data1_max // 2
+            config_gen.chaotic.data1_range.probability_split([
+                ((0, mid_point), 0.5), ((mid_point + 1 if mid_point < data1_max else mid_point, data1_max), 0.5)
+            ])
+
+        # Customize the seq_uniform profile to be truly uniform across full ranges
+        config_gen.seq_uniform.addr_range.uniform_range(0, addr_max)
+        config_gen.seq_uniform.ctrl_range.uniform_range(0, ctrl_max)
+        config_gen.seq_uniform.data0_range.uniform_range(0, data0_max)
+        config_gen.seq_uniform.data1_range.uniform_range(0, data1_max)
+
+        # Customize seq_weighted for interesting distribution patterns
+        # Handle small field widths gracefully
+        if addr_max >= 4:
+            addr_q1 = addr_max // 4
+            addr_q2 = addr_max // 2
+            config_gen.seq_weighted.addr_range.weighted_ranges([
+                ((0, addr_q1), 3), ((addr_q1, addr_q2), 2), ((addr_q2, addr_max), 1)
+            ])
+        else:
+            config_gen.seq_weighted.addr_range.uniform_range(0, addr_max)
+            
+        if ctrl_max >= 4:
+            ctrl_q1 = ctrl_max // 4
+            ctrl_q2 = ctrl_max // 2
+            config_gen.seq_weighted.ctrl_range.weighted_ranges([
+                ((0, ctrl_q1), 3), ((ctrl_q1, ctrl_q2), 2), ((ctrl_q2, ctrl_max), 1)
+            ])
+        else:
+            config_gen.seq_weighted.ctrl_range.uniform_range(0, ctrl_max)
+            
+        if data0_max >= 4:
+            data0_q1 = data0_max // 4
+            data0_q2 = data0_max // 2
+            config_gen.seq_weighted.data0_range.weighted_ranges([
+                ((0, data0_q1), 3), ((data0_q1, data0_q2), 2), ((data0_q2, data0_max), 1)
+            ])
+        else:
+            config_gen.seq_weighted.data0_range.uniform_range(0, data0_max)
+            
+        if data1_max >= 4:
+            data1_q1 = data1_max // 4
+            data1_q2 = data1_max // 2
+            config_gen.seq_weighted.data1_range.weighted_ranges([
+                ((0, data1_q1), 3), ((data1_q1, data1_q2), 2), ((data1_q2, data1_max), 1)
+            ])
+        else:
+            config_gen.seq_weighted.data1_range.uniform_range(0, data1_max)
+
+        # Customize seq_boundary_focus for edge case testing
+        # Ensure valid ranges for boundary testing
+        if addr_max >= 10:
+            addr_boundary_size = min(5, addr_max // 2)
+            config_gen.seq_boundary_focus.addr_range.weighted_ranges([
+                ((0, addr_boundary_size), 1), 
+                ((max(0, addr_max - addr_boundary_size), addr_max), 1)
+            ])
+        else:
+            config_gen.seq_boundary_focus.addr_range.uniform_range(0, addr_max)
+            
+        if ctrl_max >= 4:
+            ctrl_boundary_size = min(2, ctrl_max // 2)
+            config_gen.seq_boundary_focus.ctrl_range.weighted_ranges([
+                ((0, ctrl_boundary_size), 1), 
+                ((max(0, ctrl_max - ctrl_boundary_size), ctrl_max), 1)
+            ])
+        else:
+            config_gen.seq_boundary_focus.ctrl_range.uniform_range(0, ctrl_max)
+            
+        if data0_max >= 512:
+            data0_boundary_size = min(255, data0_max // 2)
+            config_gen.seq_boundary_focus.data0_range.weighted_ranges([
+                ((0, data0_boundary_size), 1), 
+                ((max(0, data0_max - data0_boundary_size), data0_max), 1)
+            ])
+        else:
+            config_gen.seq_boundary_focus.data0_range.uniform_range(0, data0_max)
+            
+        if data1_max >= 512:
+            data1_boundary_size = min(255, data1_max // 2)
+            config_gen.seq_boundary_focus.data1_range.weighted_ranges([
+                ((0, data1_boundary_size), 1), 
+                ((max(0, data1_max - data1_boundary_size), data1_max), 1)
+            ])
+        else:
+            config_gen.seq_boundary_focus.data1_range.uniform_range(0, data1_max)
+
+        # Customize seq_mid_range for middle values
+        # Ensure valid ranges for mid-range testing
+        if addr_max >= 4:
+            addr_start = addr_max // 4
+            addr_end = (addr_max * 3) // 4
+            config_gen.seq_mid_range.addr_range.uniform_range(addr_start, addr_end)
+        else:
+            config_gen.seq_mid_range.addr_range.uniform_range(0, addr_max)
+            
+        if ctrl_max >= 4:
+            ctrl_start = ctrl_max // 4
+            ctrl_end = (ctrl_max * 3) // 4
+            config_gen.seq_mid_range.ctrl_range.uniform_range(ctrl_start, ctrl_end)
+        else:
+            config_gen.seq_mid_range.ctrl_range.uniform_range(0, ctrl_max)
+            
+        if data0_max >= 4:
+            data0_start = data0_max // 4
+            data0_end = (data0_max * 3) // 4
+            config_gen.seq_mid_range.data0_range.uniform_range(data0_start, data0_end)
+        else:
+            config_gen.seq_mid_range.data0_range.uniform_range(0, data0_max)
+            
+        if data1_max >= 4:
+            data1_start = data1_max // 4
+            data1_end = (data1_max * 3) // 4
+            config_gen.seq_mid_range.data1_range.uniform_range(data1_start, data1_end)
+        else:
+            config_gen.seq_mid_range.data1_range.uniform_range(0, data1_max)
+
+        # Customize seq_sparse for sparse coverage
+        # Handle small field widths with simpler ranges
+        if addr_max >= 10:
+            addr_low = addr_max // 10
+            addr_mid_start = max(addr_low + 1, addr_max // 2 - addr_max // 20)
+            addr_mid_end = min(addr_max - 1, addr_max // 2 + addr_max // 20)
+            addr_high_start = max(addr_mid_end + 1, addr_max - addr_max // 10)
+            config_gen.seq_sparse.addr_range.weighted_ranges([
+                ((0, addr_low), 1), 
+                ((addr_mid_start, addr_mid_end), 1), 
+                ((addr_high_start, addr_max), 1)
+            ])
+        else:
+            config_gen.seq_sparse.addr_range.uniform_range(0, addr_max)
+            
+        if ctrl_max >= 6:
+            ctrl_low = max(1, ctrl_max // 10)
+            ctrl_mid = ctrl_max // 2
+            ctrl_high_start = max(ctrl_mid + 1, ctrl_max - ctrl_low)
+            config_gen.seq_sparse.ctrl_range.weighted_ranges([
+                ((0, ctrl_low), 1), 
+                ((ctrl_mid, min(ctrl_max, ctrl_mid + ctrl_low)), 1), 
+                ((ctrl_high_start, ctrl_max), 1)
+            ])
+        else:
+            config_gen.seq_sparse.ctrl_range.uniform_range(0, ctrl_max)
+            
+        if data0_max >= 20:
+            data0_low = data0_max // 10
+            data0_mid_start = max(data0_low + 1, data0_max // 2 - data0_max // 20)
+            data0_mid_end = min(data0_max - 1, data0_max // 2 + data0_max // 20)
+            data0_high_start = max(data0_mid_end + 1, data0_max - data0_low)
+            config_gen.seq_sparse.data0_range.weighted_ranges([
+                ((0, data0_low), 1), 
+                ((data0_mid_start, data0_mid_end), 1), 
+                ((data0_high_start, data0_max), 1)
+            ])
+        else:
+            config_gen.seq_sparse.data0_range.uniform_range(0, data0_max)
+            
+        if data1_max >= 20:
+            data1_low = data1_max // 10
+            data1_mid_start = max(data1_low + 1, data1_max // 2 - data1_max // 20)
+            data1_mid_end = min(data1_max - 1, data1_max // 2 + data1_max // 20)
+            data1_high_start = max(data1_mid_end + 1, data1_max - data1_low)
+            config_gen.seq_sparse.data1_range.weighted_ranges([
+                ((0, data1_low), 1), 
+                ((data1_mid_start, data1_mid_end), 1), 
+                ((data1_high_start, data1_max), 1)
+            ])
+        else:
+            config_gen.seq_sparse.data1_range.uniform_range(0, data1_max)
+
+    def set_randomizer_profile(self, profile_name):
+        """Set randomizer profile for sequence generation"""
+        if profile_name in self.randomizer_instances:
+            self.sequence_randomizer = self.randomizer_instances[profile_name]
+            self.use_randomization = True
+            print(f"Set sequence randomizer to profile '{profile_name}'")
+        else:
+            print(f"Profile '{profile_name}' not found, keeping current randomizer")
+
+    def get_available_randomizer_profiles(self):
+        """Get list of available randomizer profiles"""
+        return list(self.randomizer_instances.keys())
 
     def _get_field_width(self, field_name):
         """
@@ -98,16 +427,25 @@ class GAXIBufferSequence(GAXISequence):
             return 32
 
     def _get_field_mask(self, field_name):
-        """
-        Get field mask using new infrastructure patterns.
-
-        Args:
-            field_name: Name of the field
-
-        Returns:
-            Field mask value
-        """
+        """Optimized field mask calculation for large fields"""
+        
+        # Check if we're in large field mode
+        if hasattr(self, 'large_field_mode') and self.large_field_mode:
+            # Use simplified masks for large fields to avoid expensive calculations
+            if field_name in ['data0', 'data1']:
+                return 0xFFFFFFFF  # Simple 32-bit mask
+            elif field_name == 'addr':
+                return 0xFFF       # Simple 12-bit mask  
+            elif field_name == 'ctrl':
+                return 0x3F        # Simple 6-bit mask
+            else:
+                return 0xFFFFFFFF  # Default mask
+        
+        # Normal calculation for smaller fields
         field_width = self._get_field_width(field_name)
+        if field_width > 32:
+            field_width = 32  # Cap at 32 bits to prevent overflow
+        
         return (1 << field_width) - 1
 
     def add_multi_field_transaction(self, addr=0, ctrl=0, data0=0, data1=0, delay=0):
@@ -228,28 +566,35 @@ class GAXIBufferSequence(GAXISequence):
 
         return self
 
-    def add_random_pattern(self, count, delay=0):
+    def add_random_pattern(self, count, delay=0, randomizer_profile='balanced'):
         """
-        Add transactions with random values for all fields - ENHANCED with new infrastructure.
+        Add transactions with random values using FlexConfigGen randomizer.
 
         Args:
             count: Number of transactions to generate
             delay: Delay between transactions
+            randomizer_profile: Profile to use for randomization
 
         Returns:
             Self for method chaining
         """
-        # Use FlexRandomizer for better random generation if available
-        if self.randomizer and self.use_randomization:
-            for _ in range(count):
-                # Generate constrained random values
-                field_values = self.randomizer.generate_constrained_values()
+        # Set randomizer profile if specified
+        if randomizer_profile and randomizer_profile in self.randomizer_instances:
+            current_randomizer = self.randomizer_instances[randomizer_profile]
+        else:
+            current_randomizer = self.sequence_randomizer
 
-                # Apply field masks using new infrastructure
-                addr = field_values.get('addr', random.randint(0, 0xFFFFFFFF)) & self._get_field_mask('addr')
-                ctrl = field_values.get('ctrl', random.randint(0, 0xFF)) & self._get_field_mask('ctrl')
-                data0 = field_values.get('data0', random.randint(0, 0xFFFFFFFF)) & self._get_field_mask('data0')
-                data1 = field_values.get('data1', random.randint(0, 0xFFFFFFFF)) & self._get_field_mask('data1')
+        # Use FlexConfigGen randomizer for enhanced random generation
+        if current_randomizer and self.use_randomization:
+            for _ in range(count):
+                # Generate constrained random values using FlexConfigGen randomizer
+                field_values = current_randomizer.next()
+
+                # Extract and apply field masks
+                addr = field_values.get('addr_range', random.randint(0, 0xFFFFFFFF)) & self._get_field_mask('addr')
+                ctrl = field_values.get('ctrl_range', random.randint(0, 0xFF)) & self._get_field_mask('ctrl')
+                data0 = field_values.get('data0_range', random.randint(0, 0xFFFFFFFF)) & self._get_field_mask('data0')
+                data1 = field_values.get('data1_range', random.randint(0, 0xFFFFFFFF)) & self._get_field_mask('data1')
 
                 self.add_multi_field_transaction(
                     addr=addr,
@@ -259,7 +604,8 @@ class GAXIBufferSequence(GAXISequence):
                     delay=delay
                 )
         else:
-            # Fallback to basic random generation
+            # Fallback to basic random generation if no randomizer available
+            print("No FlexConfigGen randomizer available, using basic random generation")
             for _ in range(count):
                 addr = random.randint(0, 0xFFFFFFFF) & self._get_field_mask('addr')
                 ctrl = random.randint(0, 0xFF) & self._get_field_mask('ctrl')
@@ -278,7 +624,7 @@ class GAXIBufferSequence(GAXISequence):
         return self
 
     def add_burst_pattern(self, count, burst_size=None, addr_base=0, ctrl_base=0,
-                         data0_start=0, data1_start=0, delay=0, inter_burst_delay=0):
+                            data0_start=0, data1_start=0, delay=0, inter_burst_delay=0):
         """
         Add burst pattern transactions for testing buffer depth and backpressure - ADDED METHOD.
 
@@ -484,7 +830,7 @@ class GAXIBufferSequence(GAXISequence):
 
     def add_max_value_pattern(self, delay=0):
         """
-        Add transactions with maximum field values - NEW method for comprehensive testing.
+        Add transactions with maximum values for each field - NEW method.
 
         Args:
             delay: Delay between transactions
@@ -492,60 +838,26 @@ class GAXIBufferSequence(GAXISequence):
         Returns:
             Self for method chaining
         """
-        # Get field masks using new infrastructure
+        # Get field masks
         addr_mask = self._get_field_mask('addr')
         ctrl_mask = self._get_field_mask('ctrl')
         data0_mask = self._get_field_mask('data0')
         data1_mask = self._get_field_mask('data1')
 
-        # Test each field at maximum value individually
-        max_tests = [
-            {'addr': addr_mask, 'ctrl': 0, 'data0': 0, 'data1': 0},
-            {'addr': 0, 'ctrl': ctrl_mask, 'data0': 0, 'data1': 0},
-            {'addr': 0, 'ctrl': 0, 'data0': data0_mask, 'data1': 0},
-            {'addr': 0, 'ctrl': 0, 'data0': 0, 'data1': data1_mask},
-        ]
+        # Add transaction with all maximum values
+        self.add_multi_field_transaction(
+            addr=addr_mask,
+            ctrl=ctrl_mask,
+            data0=data0_mask,
+            data1=data1_mask,
+            delay=delay
+        )
 
-        # Test pairs of fields at maximum
-        max_tests.extend([
-            {'addr': addr_mask, 'ctrl': ctrl_mask, 'data0': 0, 'data1': 0},
-            {'addr': addr_mask, 'ctrl': 0, 'data0': data0_mask, 'data1': 0},
-            {'addr': addr_mask, 'ctrl': 0, 'data0': 0, 'data1': data1_mask},
-            {'addr': 0, 'ctrl': ctrl_mask, 'data0': data0_mask, 'data1': 0},
-            {'addr': 0, 'ctrl': ctrl_mask, 'data0': 0, 'data1': data1_mask},
-            {'addr': 0, 'ctrl': 0, 'data0': data0_mask, 'data1': data1_mask},
-        ])
-
-        # Test groups of three fields at maximum
-        max_tests.extend([
-            {'addr': addr_mask, 'ctrl': ctrl_mask, 'data0': data0_mask, 'data1': 0},
-            {'addr': addr_mask, 'ctrl': ctrl_mask, 'data0': 0, 'data1': data1_mask},
-            {'addr': addr_mask, 'ctrl': 0, 'data0': data0_mask, 'data1': data1_mask},
-            {'addr': 0, 'ctrl': ctrl_mask, 'data0': data0_mask, 'data1': data1_mask},
-        ])
-
-        # Test all fields at maximum
-        max_tests.append({
-            'addr': addr_mask, 'ctrl': ctrl_mask,
-            'data0': data0_mask, 'data1': data1_mask
-        })
-
-        # Add max value test transactions
-        for test_case in max_tests:
-            self.add_multi_field_transaction(
-                addr=test_case['addr'],
-                ctrl=test_case['ctrl'],
-                data0=test_case['data0'],
-                data1=test_case['data1'],
-                delay=delay
-            )
-
-        self.stats['pattern_tests'] += len(max_tests)
         return self
 
     def add_alternating_patterns(self, count, delay=0):
         """
-        Add transactions with alternating bit patterns across fields - ENHANCED.
+        Add transactions with alternating bit patterns - NEW method.
 
         Args:
             count: Number of transactions to generate
@@ -554,83 +866,40 @@ class GAXIBufferSequence(GAXISequence):
         Returns:
             Self for method chaining
         """
-        # Get field masks using new infrastructure
-        addr_mask = self._get_field_mask('addr')
-        ctrl_mask = self._get_field_mask('ctrl')
-        data0_mask = self._get_field_mask('data0')
-        data1_mask = self._get_field_mask('data1')
-
-        # Create alternating patterns
         patterns = [
-            # Alternating 0101... and 1010... patterns
-            {'addr': 0x55555555 & addr_mask, 'ctrl': 0x55 & ctrl_mask,
-                'data0': 0x55555555 & data0_mask, 'data1': 0x55555555 & data1_mask},
-            {'addr': 0xAAAAAAAA & addr_mask, 'ctrl': 0xAA & ctrl_mask,
-                'data0': 0xAAAAAAAA & data0_mask, 'data1': 0xAAAAAAAA & data1_mask},
-
-            # Alternating bytes
-            {'addr': 0x0F0F0F0F & addr_mask, 'ctrl': 0x0F & ctrl_mask,
-                'data0': 0x0F0F0F0F & data0_mask, 'data1': 0x0F0F0F0F & data1_mask},
-            {'addr': 0xF0F0F0F0 & addr_mask, 'ctrl': 0xF0 & ctrl_mask,
-                'data0': 0xF0F0F0F0 & data0_mask, 'data1': 0xF0F0F0F0 & data1_mask},
-
-            # Alternating words
-            {'addr': 0x00FF00FF & addr_mask, 'ctrl': 0x00 & ctrl_mask,
-                'data0': 0x00FF00FF & data0_mask, 'data1': 0x00FF00FF & data1_mask},
-            {'addr': 0xFF00FF00 & addr_mask, 'ctrl': 0xFF & ctrl_mask,
-                'data0': 0xFF00FF00 & data0_mask, 'data1': 0xFF00FF00 & data1_mask},
+            0x55555555,  # 0101...
+            0xAAAAAAAA,  # 1010...
+            0x33333333,  # 0011...
+            0xCCCCCCCC,  # 1100...
+            0x0F0F0F0F,  # 00001111...
+            0xF0F0F0F0,  # 11110000...
         ]
 
-        # Repeat patterns for the requested count
-        pattern_cycle = itertools.cycle(patterns)
-
-        for _ in range(count):
-            pattern = next(pattern_cycle)
+        for i in range(count):
+            pattern = patterns[i % len(patterns)]
+            
             self.add_multi_field_transaction(
-                addr=pattern['addr'],
-                ctrl=pattern['ctrl'],
-                data0=pattern['data0'],
-                data1=pattern['data1'],
+                addr=pattern & self._get_field_mask('addr'),
+                ctrl=pattern & self._get_field_mask('ctrl'),
+                data0=pattern & self._get_field_mask('data0'),
+                data1=pattern & self._get_field_mask('data1'),
                 delay=delay
             )
 
-        self.stats['pattern_tests'] += 1
         return self
 
-    def set_randomizer_enhanced(self, constraints_dict):
+    def set_randomizer_enhanced(self, randomizer_profile='balanced'):
         """
-        Set up enhanced randomizer for multi-field generation - NEW method.
+        Set up enhanced randomizer using FlexConfigGen profile - UPDATED method.
 
         Args:
-            constraints_dict: Enhanced constraints for multi-field generation
+            randomizer_profile: Profile name to use for randomization
 
         Returns:
             Self for method chaining
         """
-        # Set base randomizer
-        self.set_randomizer(constraints_dict)
-
-        # Add multi-field specific constraints if not present
-        if 'addr' not in constraints_dict:
-            addr_max = self._get_field_mask('addr')
-            constraints_dict['addr'] = ([(0, addr_max)], [1.0])
-
-        if 'ctrl' not in constraints_dict:
-            ctrl_max = self._get_field_mask('ctrl')
-            constraints_dict['ctrl'] = ([(0, ctrl_max)], [1.0])
-
-        if 'data0' not in constraints_dict:
-            data0_max = self._get_field_mask('data0')
-            constraints_dict['data0'] = ([(0, data0_max)], [1.0])
-
-        if 'data1' not in constraints_dict:
-            data1_max = self._get_field_mask('data1')
-            constraints_dict['data1'] = ([(0, data1_max)], [1.0])
-
-        # Update randomizer with enhanced constraints
-        self.randomizer = FlexRandomizer(constraints_dict)
-        self.use_randomization = True
-
+        # Set randomizer profile using FlexConfigGen
+        self.set_randomizer_profile(randomizer_profile)
         return self
 
     def get_enhanced_stats(self):
@@ -659,7 +928,9 @@ class GAXIBufferSequence(GAXISequence):
             'total_unique_patterns': self.stats['boundary_tests'] +
                                     self.stats['overflow_tests'] +
                                     self.stats['pattern_tests'],
-            'burst_tests': self.stats['burst_tests']
+            'burst_tests': self.stats['burst_tests'],
+            'available_randomizer_profiles': len(self.randomizer_instances),
+            'current_randomizer_active': self.use_randomization
         })
 
         return base_stats

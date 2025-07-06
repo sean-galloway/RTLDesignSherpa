@@ -4,9 +4,7 @@ import subprocess
 import inspect
 import logging
 import tempfile
-import json
 from typing import Dict, Tuple, Optional, List
-from .struct_parser import StructParser, StructHelper, validate_struct_setup
 
 
 def get_paths(dir_dict):

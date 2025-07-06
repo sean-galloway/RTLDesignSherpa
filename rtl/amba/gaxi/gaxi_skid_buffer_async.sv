@@ -32,7 +32,7 @@ module gaxi_skid_buffer_async #(
 
     // Instantiate the axi_skid_buffer module
     gaxi_skid_buffer #(
-        .DATA_WIDTH(DW)
+        .DATA_WIDTH   (DW)
     ) inst_gaxi_skid_buffer (
         .i_axi_aclk   (i_axi_wr_aclk),
         .i_axi_aresetn(i_axi_wr_aresetn),
@@ -48,13 +48,13 @@ module gaxi_skid_buffer_async #(
 
     // Instantiate the axi_fifo_async module
     gaxi_fifo_async #(
-        .DATA_WIDTH(DW),
-        .DEPTH(DEPTH),
-        .N_FLOP_CROSS(N_FLOP_CROSS),
+        .DATA_WIDTH      (DW),
+        .DEPTH           (DEPTH),
+        .N_FLOP_CROSS    (N_FLOP_CROSS),
         .ALMOST_WR_MARGIN(1),
         .ALMOST_RD_MARGIN(1),
-        .INSTANCE_NAME(INSTANCE_NAME),
-        .REGISTERED(REGISTERED)
+        .INSTANCE_NAME   (INSTANCE_NAME),
+        .REGISTERED      (REGISTERED)
     ) inst_gaxi_fifo_async (
         .i_axi_wr_aclk   (i_axi_wr_aclk),
         .i_axi_wr_aresetn(i_axi_wr_aresetn),

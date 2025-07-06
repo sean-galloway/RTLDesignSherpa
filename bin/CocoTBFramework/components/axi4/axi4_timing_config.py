@@ -9,7 +9,7 @@ FlexConfigGen is always available - no fallback logic needed.
 
 from typing import Dict, List, Optional, Union, Any
 from ..shared.flex_randomizer import FlexRandomizer
-from CocoTBFramework.tbclasses.flex_config_gen import FlexConfigGen
+from CocoTBFramework.components.shared.flex_config_gen import FlexConfigGen
 
 
 class AXI4TimingConfig:

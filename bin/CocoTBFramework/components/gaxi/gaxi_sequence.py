@@ -23,7 +23,7 @@ class GAXISequence:
     infrastructure more effectively while preserving all existing APIs.
     """
 
-    def __init__(self, name="basic", field_config=None, packet_class=None):
+    def __init__(self, name="basic", field_config=None, packet_class=None, log=None):
         """
         Initialize GAXI sequence with shared infrastructure.
 
@@ -32,34 +32,67 @@ class GAXISequence:
             field_config: Field configuration (FieldConfig object or dictionary)
             packet_class: Packet class to use (defaults to GAXIPacket)
         """
+        print(f"🔍 GAXISequence.__init__: Starting with name='{name}'")
+        
+        # Basic attributes (always fast)
         self.name = name
         self.packet_class = packet_class or GAXIPacket
-
-        # Normalize field_config using standard pattern from GAXIComponentBase
+        self.log = log
+        
+        # CRITICAL: Detect large field configurations and use simplified mode
+        total_bits = 0
+        if hasattr(field_config, 'get_total_bits'):
+            total_bits = field_config.get_total_bits()
+        
+        print(f"🔍 GAXISequence.__init__: Field config total bits: {total_bits}")
+        
+        if total_bits > 50:  # Threshold for performance optimization
+            print(f"⚠️  Large field config detected ({total_bits} bits) - using optimized initialization")
+            
+            # Direct assignment without expensive validation
+            self.field_config = field_config
+            
+            # Simplified data structures to avoid expensive operations
+            self.sequence_data = []
+            self.randomizer = None
+            self.use_randomization = False
+            self.dependencies = {}
+            self.stats = {
+                'total_transactions': 0,
+                'dependencies': 0,
+                'randomized_transactions': 0
+            }
+            
+            # Flag to use simplified mode in other methods
+            self.large_field_mode = True
+            
+            print(f"🔍 GAXISequence.__init__: ✅ Optimized initialization completed")
+            return
+        
+        # Normal initialization for smaller field configs
+        print(f"🔍 GAXISequence.__init__: Using normal initialization for {total_bits} bits")
+        
+        # Normalize field_config using standard pattern
         if isinstance(field_config, FieldConfig):
             self.field_config = field_config
         elif isinstance(field_config, dict):
             self.field_config = FieldConfig.validate_and_create(field_config)
         else:
-            # Default to standard data field
             self.field_config = FieldConfig.create_data_only()
 
-        # Sequence data storage - simplified structure
-        self.sequence_data = []  # List of (field_values_dict, delay, dependencies)
-
-        # Randomization using FlexRandomizer infrastructure
+        # Standard initialization
+        self.sequence_data = []
         self.randomizer = None
         self.use_randomization = False
-
-        # Dependency tracking - simplified
-        self.dependencies = {}  # transaction_index -> depends_on_index
-
-        # Statistics
+        self.dependencies = {}
         self.stats = {
             'total_transactions': 0,
             'dependencies': 0,
             'randomized_transactions': 0
         }
+        
+        self.large_field_mode = False
+        print(f"🔍 GAXISequence.__init__: ✅ Normal initialization completed")
 
     def set_randomizer(self, constraints_dict):
         """

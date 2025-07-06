@@ -236,6 +236,20 @@ class FlexRandomizer:
                     f"Sum of weights must be positive, got sum = {sum(weights)} from weights: {weights}"
                 )
 
+            # Check for common mistake: flat list of objects instead of bins of objects
+            if not bins[0] or not isinstance(bins[0], (tuple, list)):
+                # Check if this looks like object bins with wrong format
+                if any(isinstance(item, (str, bool)) or (not isinstance(item, (int, float, tuple, list))) for item in bins):
+                    example_fixed = [(item,) for item in bins]
+                    raise ConstraintValidationError(
+                        f"Object bins detected but using wrong format. "
+                        f"Each bin must be a tuple/list of objects.\n"
+                        f"You have: {bins}\n"
+                        f"Should be: {example_fixed}\n"
+                        f"For example: 'field': ([{bins[0]!r},), ({bins[1]!r},)], {weights}) if you want separate bins, "
+                        f"or 'field': ({bins!r}], [1]) if you want all values in one bin."
+                    )
+
             # Determine if this is object bins or integer range bins
             is_object_bin = self._is_object_bin(bins)
 
@@ -304,10 +318,12 @@ class FlexRandomizer:
 
         # If first bin is a tuple/list with non-numeric items, it's an object bin
         if isinstance(first_bin, (tuple, list)):
-            return not all(isinstance(x, (int, float)) for x in first_bin)
+            # Check for booleans first since bool is a subclass of int in Python
+            return any(isinstance(x, bool) for x in first_bin) or not all(isinstance(x, (int, float)) for x in first_bin)
 
         # If first bin is not a tuple/list and not numeric, it's a single object
-        return not isinstance(first_bin, (int, float, tuple, list))
+        # Check for bool first since bool is a subclass of int in Python
+        return isinstance(first_bin, bool) or not isinstance(first_bin, (int, float, tuple, list))
 
     def _add_rand_field(self, name: str, rand_range: List[int]) -> None:
         """Add a field to randomization tracking.

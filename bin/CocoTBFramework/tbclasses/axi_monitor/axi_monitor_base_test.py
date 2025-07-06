@@ -1,889 +1,632 @@
 """
-Base test class for AXI Error Monitor.
+AXI Monitor Base Test Class
 
-This module provides a base test class with common utilities used by all
-specialized test classes for the AXI Error Monitor Base module.
+This provides a foundation for building specific AXI monitor test scenarios.
+It extends the main testbench with additional utilities and patterns for
+creating focused test cases.
 
-Updated to work with the surgically updated testbench using separate intrbus components.
-Updated to use field configurations consistently throughout.
-Updated to use centralized constants from intrbus module.
+Usage:
+    from axi_monitor_base_test import AXIMonitorBaseTest
+    
+    class MySpecificTest(AXIMonitorBaseTest):
+        async def run_test(self):
+            # Custom test logic here
+            pass
+
+Features:
+- Transaction pattern generators
+- Error injection utilities  
+- Verification helpers
+- Test reporting templates
+- Configuration management
 """
+
+import random
+import asyncio
+from typing import Dict, List, Optional, Tuple, Any
+from abc import ABC, abstractmethod
+
 import cocotb
+from cocotb.triggers import RisingEdge, Timer
 from cocotb.utils import get_sim_time
-from CocoTBFramework.components.flex_randomizer import FlexRandomizer
-from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
 
-# Import constants from intrbus module
-from ..intrbus import EVENT_CODES, PACKET_TYPES
+from .axi_monitor_tb import AXIMonitorTB, AXIMonitorTestContext
+from .axi_monitor_packets import (
+    AXIAddressPacket, AXIReadDataPacket, AXIWriteDataPacket, AXIWriteResponsePacket,
+    InterruptPacket, MonitorConfigPacket, MonitoredTransaction,
+    AXITransactionState, MonitorEventCode, InterruptPacketType
+)
 
 
-class AXIMonitorBaseTest:
-    """
-    Base class for AXI Error Monitor tests.
-    Provides common utilities for all test classes.
-    Updated to work with separate intrbus component creation.
-    Updated to use field configurations consistently.
-    Updated to use centralized constants from intrbus module.
-    """
+class TransactionPattern:
+    """Defines a pattern for transaction generation"""
+    
+    def __init__(self, name: str, description: str):
+        self.name = name
+        self.description = description
+        self.transactions = []
+        self.timing_constraints = {}
+        self.error_injection = {}
+        
+    def add_read(self, addr: int, length: int = 0, delay: int = 0, expect_error: bool = False):
+        """Add a read transaction to the pattern"""
+        self.transactions.append({
+            'type': 'read',
+            'addr': addr,
+            'length': length,
+            'delay': delay,
+            'expect_error': expect_error
+        })
+        
+    def add_write(self, addr: int, length: int = 0, delay: int = 0, expect_error: bool = False):
+        """Add a write transaction to the pattern"""
+        self.transactions.append({
+            'type': 'write',
+            'addr': addr,
+            'length': length,
+            'delay': delay,
+            'expect_error': expect_error
+        })
+        
+    def add_delay(self, cycles: int):
+        """Add a delay to the pattern"""
+        self.transactions.append({
+            'type': 'delay',
+            'cycles': cycles
+        })
 
-    def __init__(self, tb):
-        """
-        Initialize with a reference to the testbench
 
-        Args:
-            tb: Reference to the AXIMonitorTB wrapper class
-        """
-        self.tb = tb
-        self.dut = tb.dut
-        self.log = tb.log
-        self.is_read = tb.is_read
-        self.is_axi = tb.is_axi
-
-        # Import constants for easy access
-        self.EVENT_CODES = EVENT_CODES
-        self.PACKET_TYPES = PACKET_TYPES
-
-        # Transaction tracking
-        self.active_transactions = {}
-        self.completed_transactions = []
-
-        # New: Per-channel state tracking
-        self.channel_states = [{'busy': False, 'last_tx_time': 0} for _ in range(self.tb.channels)]
-
-        # New: Transaction queue and processor state
-        self.transaction_queue = []
-        self.queue_processor_active = False
-
-        # New: Expected errors tracking
-        self.expected_errors = []
-
-    # Helper method to determine channel index from ID
-    def get_channel_idx(self, id_value):
-        """Get channel index from transaction ID"""
-        return id_value % self.tb.channels if self.tb.is_axi else 0
-
-    async def reset_and_setup_for_test(self):
-        """Reset and setup for a clean test state"""
-        # Reset the DUT
-        await self.tb.reset_dut()
-
-        # Clear tracking structures
-        self.active_transactions = {}
-        self.completed_transactions = []
-        self.expected_errors = []
-
-        # Reset channel states
-        self.channel_states = [{'busy': False, 'last_tx_time': 0} for _ in range(self.tb.channels)]
-
-        # Wait for stabilization
-        await self.tb.wait_clocks('aclk', 10)
-
-    def _get_expected_error_bit(self, error_type):
-        """Get expected error bit for error type using centralized constants"""
-        error_map = {
-            'addr_timeout': self.EVENT_CODES['ADDR_TIMEOUT'],
-            'data_timeout': self.EVENT_CODES['DATA_TIMEOUT'],
-            'resp_timeout': self.EVENT_CODES['RESP_TIMEOUT'],
-            'resp_error': self.EVENT_CODES['RESP_SLVERR']  # or RESP_DECERR
+class ErrorScenario:
+    """Defines an error injection scenario"""
+    
+    def __init__(self, name: str, description: str):
+        self.name = name
+        self.description = description
+        self.setup_steps = []
+        self.trigger_condition = None
+        self.expected_responses = []
+        
+    def add_setup_step(self, step_type: str, **kwargs):
+        """Add a setup step for the error scenario"""
+        self.setup_steps.append({
+            'type': step_type,
+            'params': kwargs
+        })
+        
+    def set_trigger(self, condition: str, **kwargs):
+        """Set the trigger condition for the error"""
+        self.trigger_condition = {
+            'condition': condition,
+            'params': kwargs
         }
-        return error_map.get(error_type, 0)
+        
+    def add_expected_response(self, response_type: str, **kwargs):
+        """Add an expected response from the monitor"""
+        self.expected_responses.append({
+            'type': response_type,
+            'params': kwargs
+        })
 
-    def _check_for_expected_error(self, initial_events_count, error_type, id_value, addr):
-        """Check if expected error was detected"""
-        # Check intrbus events for error
-        for event in self.tb.intrbus_events[initial_events_count:]:
-            if (event['packet_type'] == self.PACKET_TYPES['ERROR'] or
-                event['packet_type'] == self.PACKET_TYPES['TIMEOUT']):
 
-                # Map error type to expected event code
-                expected_code = None
-                if error_type == 'addr_timeout':
-                    expected_code = self.EVENT_CODES['ADDR_TIMEOUT']
-                elif error_type == 'data_timeout':
-                    expected_code = self.EVENT_CODES['DATA_TIMEOUT']
-                elif error_type == 'resp_timeout':
-                    expected_code = self.EVENT_CODES['RESP_TIMEOUT']
-                elif error_type == 'resp_error':
-                    expected_code = [self.EVENT_CODES['RESP_SLVERR'], self.EVENT_CODES['RESP_DECERR']]
+class PerformanceTest:
+    """Defines a performance test scenario"""
+    
+    def __init__(self, name: str, description: str):
+        self.name = name
+        self.description = description
+        self.load_pattern = None
+        self.duration_cycles = 1000
+        self.success_criteria = {}
+        
+    def set_load_pattern(self, pattern_type: str, **kwargs):
+        """Set the load pattern for the test"""
+        self.load_pattern = {
+            'type': pattern_type,
+            'params': kwargs
+        }
+        
+    def add_success_criterion(self, metric: str, threshold: float, comparison: str = 'max'):
+        """Add a success criterion"""
+        self.success_criteria[metric] = {
+            'threshold': threshold,
+            'comparison': comparison
+        }
 
-                if expected_code is not None:
-                    if isinstance(expected_code, list):
-                        if event['event_code'] in expected_code:
-                            self.log.info(f"Found expected error event: {event['description']}{self.tb.get_time_ns_str()}")
-                            return True
+
+class AXIMonitorBaseTest(AXIMonitorTB, ABC):
+    """
+    Base class for AXI Monitor tests providing common utilities and patterns.
+    
+    This extends the main testbench with additional test-oriented functionality
+    while maintaining the same core interface.
+    """
+
+    def __init__(self, dut):
+        """Initialize base test"""
+        super().__init__(dut)
+        
+        # Test-specific attributes
+        self.test_name = self.__class__.__name__
+        self.test_description = getattr(self, 'DESCRIPTION', 'AXI Monitor Test')
+        self.test_patterns = []
+        self.error_scenarios = []
+        self.performance_tests = []
+        
+        # Results tracking
+        self.test_results = {}
+        self.performance_metrics = {}
+        self.error_detection_results = {}
+        
+        # Configuration overrides
+        self.config_overrides = {}
+        
+        self.log.info(f"Initialized {self.test_name}: {self.test_description}")
+
+    @abstractmethod
+    async def run_test(self) -> bool:
+        """
+        Main test method to be implemented by derived classes.
+        
+        Returns:
+            bool: True if test passed, False otherwise
+        """
+        pass
+
+    async def setup_test_specific_config(self):
+        """Apply test-specific configuration overrides"""
+        if self.config_overrides:
+            self.log.info("Applying test-specific configuration overrides...")
+            
+            for config_name, value in self.config_overrides.items():
+                if hasattr(self.dut, f'i_cfg_{config_name}'):
+                    getattr(self.dut, f'i_cfg_{config_name}').value = value
+                    self.log.debug(f"  {config_name}: {value}")
+            
+            # Record the configuration change
+            config = MonitorConfigPacket(
+                field_config=self.config_field_config,
+                **self.config_overrides
+            )
+            self.scoreboard.record_configuration(config)
+
+    async def execute_transaction_pattern(self, pattern: TransactionPattern) -> bool:
+        """Execute a predefined transaction pattern"""
+        self.log.info(f"🔄 Executing pattern: {pattern.name}")
+        
+        issued_transactions = []
+        pattern_start_time = get_sim_time('ns')
+        
+        for transaction in pattern.transactions:
+            if transaction['type'] == 'delay':
+                await self.wait_clocks('aclk', transaction['cycles'])
+                continue
+                
+            # Apply delay before transaction
+            if transaction.get('delay', 0) > 0:
+                await self.wait_clocks('aclk', transaction['delay'])
+            
+            # Issue transaction
+            if transaction['type'] == 'read':
+                txn_id = await self.issue_read_transaction(
+                    transaction['addr'],
+                    transaction['length'],
+                    expect_error=transaction.get('expect_error', False)
+                )
+            elif transaction['type'] == 'write':
+                txn_id = await self.issue_write_transaction(
+                    transaction['addr'],
+                    transaction['length'],
+                    expect_error=transaction.get('expect_error', False)
+                )
+            else:
+                self.log.warning(f"Unknown transaction type: {transaction['type']}")
+                continue
+                
+            issued_transactions.append(txn_id)
+        
+        # Wait for all transactions to complete
+        completion_success = await self.wait_for_all_transactions_complete()
+        
+        pattern_duration = get_sim_time('ns') - pattern_start_time
+        self.log.info(f"✅ Pattern {pattern.name} completed in {pattern_duration:.1f}ns")
+        
+        return completion_success
+
+    async def execute_error_scenario(self, scenario: ErrorScenario) -> bool:
+        """Execute an error injection scenario"""
+        self.log.info(f"💥 Executing error scenario: {scenario.name}")
+        
+        scenario_start_time = get_sim_time('ns')
+        
+        # Execute setup steps
+        for step in scenario.setup_steps:
+            step_type = step['type']
+            params = step['params']
+            
+            if step_type == 'configure_timeouts':
+                for timeout_type, value in params.items():
+                    if hasattr(self.dut, f'i_cfg_{timeout_type}_cnt'):
+                        getattr(self.dut, f'i_cfg_{timeout_type}_cnt').value = value
+                        
+            elif step_type == 'disable_monitoring':
+                for monitor_type in params.get('types', []):
+                    if hasattr(self.dut, f'i_cfg_{monitor_type}_enable'):
+                        getattr(self.dut, f'i_cfg_{monitor_type}_enable').value = 0
+                        
+            elif step_type == 'issue_transaction':
+                if params.get('type') == 'read':
+                    await self.issue_read_transaction(
+                        params.get('addr', 0x1000),
+                        params.get('length', 0)
+                    )
+                elif params.get('type') == 'write':
+                    await self.issue_write_transaction(
+                        params.get('addr', 0x1000),
+                        params.get('length', 0)
+                    )
+        
+        # Trigger the error condition
+        if scenario.trigger_condition:
+            trigger = scenario.trigger_condition
+            if trigger['condition'] == 'timeout':
+                await self.inject_timeout(trigger['params'].get('type', 'data'))
+            elif trigger['condition'] == 'protocol_violation':
+                await self.inject_protocol_violation(trigger['params'].get('type', 'orphaned_data'))
+            elif trigger['condition'] == 'response_error':
+                await self.inject_response_error(trigger['params'].get('type', 'SLVERR'))
+        
+        # Wait for monitor response
+        await self.wait_clocks('aclk', 100)
+        
+        # Verify expected responses
+        scenario_passed = True
+        for expected_response in scenario.expected_responses:
+            response_type = expected_response['type']
+            
+            if response_type == 'interrupt':
+                expected_packet_type = expected_response['params'].get('packet_type')
+                interrupt_found = False
+                
+                for interrupt in self.scoreboard.interrupt_packets:
+                    if interrupt.get_packet_type_name() == expected_packet_type:
+                        interrupt_found = True
+                        break
+                
+                if not interrupt_found:
+                    self.log.error(f"❌ Expected interrupt {expected_packet_type} not found")
+                    scenario_passed = False
+                    
+            elif response_type == 'error_detection':
+                expected_error_count = expected_response['params'].get('min_errors', 1)
+                actual_errors = len(self.scoreboard.verification_errors)
+                
+                if actual_errors < expected_error_count:
+                    self.log.error(f"❌ Expected {expected_error_count} errors, got {actual_errors}")
+                    scenario_passed = False
+        
+        scenario_duration = get_sim_time('ns') - scenario_start_time
+        status = "✅ PASSED" if scenario_passed else "❌ FAILED"
+        self.log.info(f"{status} Error scenario {scenario.name} in {scenario_duration:.1f}ns")
+        
+        return scenario_passed
+
+    async def execute_performance_test(self, perf_test: PerformanceTest) -> bool:
+        """Execute a performance test"""
+        self.log.info(f"📊 Executing performance test: {perf_test.name}")
+        
+        test_start_time = get_sim_time('ns')
+        initial_stats = dict(self.test_stats)
+        
+        # Execute load pattern
+        if perf_test.load_pattern:
+            pattern_type = perf_test.load_pattern['type']
+            params = perf_test.load_pattern['params']
+            
+            if pattern_type == 'constant_rate':
+                transactions_per_cycle = params.get('rate', 0.1)
+                transaction_count = int(perf_test.duration_cycles * transactions_per_cycle)
+                
+                for i in range(transaction_count):
+                    if i % 2 == 0:
+                        await self.issue_read_transaction(0x10000 + i * 0x100, 0)
                     else:
-                        if event['event_code'] == expected_code:
-                            self.log.info(f"Found expected error event: {event['description']}{self.tb.get_time_ns_str()}")
-                            return True
-
-        # Also check the errors_detected list
-        if self.tb.errors_detected:
-            for error in self.tb.errors_detected:
-                if error.get('addr') == addr and error.get('id') == id_value:
-                    self.log.info(f"Found expected error in errors_detected: {error['type_str']}{self.tb.get_time_ns_str()}")
-                    return True
-
-        return False
-
-    def _create_addr_packet(self, addr, id_value):
-        """
-        Create an address packet using the testbench's field configuration.
-
-        Args:
-            addr: Address value
-            id_value: Transaction ID
-
-        Returns:
-            GAXIPacket configured for address phase
-        """
-        addr_packet = GAXIPacket(self.tb.addr_field_config)
-        addr_packet.addr = addr
-        addr_packet.id = id_value
-
-        # Set AXI-specific fields if needed
-        if self.is_axi:
-            addr_packet.len = 0  # Single transfer (0 means 1 beat)
-            addr_packet.size = 2  # 4 bytes (log2 of 4)
-            addr_packet.burst = 1  # INCR
-
-        return addr_packet
-
-    def _create_data_packet(self, id_value, resp_value=0):
-        """
-        Create a data packet using the testbench's field configuration.
-
-        Args:
-            id_value: Transaction ID
-            resp_value: Response code (for read mode)
-
-        Returns:
-            GAXIPacket configured for data phase
-        """
-        data_packet = GAXIPacket(self.tb.data_field_config)
-
-        if self.is_read:
-            # For read transactions, we create a data packet for ID, last, resp
-            data_packet.id = id_value
-            data_packet.last = 1  # Single transfer
-            data_packet.resp = resp_value  # Response code for read data
-        else:
-            # For write transactions, we create a data packet for last signal
-            data_packet.last = 1  # Single transfer
-            # Note: no data value is needed as it's just for monitoring
-
-        return data_packet
-
-    def _create_resp_packet(self, id_value, resp_value=0):
-        """
-        Create a response packet using the testbench's field configuration.
-
-        Args:
-            id_value: Transaction ID
-            resp_value: Response code
-
-        Returns:
-            GAXIPacket configured for response phase
-        """
-        if self.tb.is_read:
-            return None  # No response packet for read transactions
-
-        resp_packet = GAXIPacket(self.tb.resp_field_config)
-        resp_packet.id = id_value
-        resp_packet.resp = resp_value
-        return resp_packet
-
-    async def drive_basic_transaction(self,
-                                    addr=0x1000,
-                                    id_value=0,
-                                    resp_value=0,  # 0=OKAY, 2=SLVERR, etc.
-                                    control_ready=False,  # If True, use ready control parameters
-                                    addr_ready_delay=0,  # Cycles to delay addr_ready
-                                    data_ready_delay=0,  # Cycles to delay data_ready
-                                    resp_ready_delay=0,  # Cycles to delay resp_ready
-                                    intrbus_ready_speed='fixed',  # Speed for intrbus ready signal
-                                    pipeline_phases=True,  # If True, enable AXI parallelism for AW/W channels
-                                    wait_for_completion=True,    # If True, wait for all phases to complete
-                                    wait_prev_completion=True):    # Wait for previous transactions on this channel
-        # sourcery skip: hoist-similar-statement-from-if, hoist-statement-from-if
-        """
-        Drive a complete AXI transaction through the DUT with full phase control.
-
-        This method drives all phases of an AXI transaction (address, data, response)
-        with configurable control over ready signal timing for each phase.
-        Supports AXI parallelism where AW and W channels can operate simultaneously.
-
-        Updated to handle the single shared FIFO in write mode and work with
-        the surgically updated testbench.
-        Updated to use field configurations consistently.
-
-        Args:
-            addr: Address for the transaction
-            id_value: ID for the transaction
-            resp_value: Response code (0=OKAY, 1=EXOKAY, 2=SLVERR, 3=DECERR)
-            control_ready: If True, use the ready delay parameters
-            addr_ready_delay: Cycles to delay address ready
-            data_ready_delay: Cycles to delay data ready
-            resp_ready_delay: Cycles to delay response ready
-            intrbus_ready_speed: Speed setting for intrbus ready ('fixed', 'slow_consumer', etc.)
-            pipeline_phases: If True, enable AXI parallelism (AW/W in same cycle)
-            wait_for_completion: If True, wait for all phases to complete
-            wait_prev_completion: If True, wait for previous transactions on same channel
-
-        Returns:
-            Dict with transaction details and status
-        """
-        # Calculate channel index from ID
-        ch_idx = self.get_channel_idx(id_value)
-
-        # Set intrbus ready speed using the testbench's new method
-        if intrbus_ready_speed in self.tb.randomizer_configs:
-            self.tb.set_intrbus_backpressure(intrbus_ready_speed)
-
-        # New: For write mode, check if we need to wait for the shared FIFO to have space
-        if not self.tb.is_read and wait_prev_completion:
-            # Wait for master to be ready before starting transaction
-            while self.tb.addr_master.transfer_busy:
-                await self.tb.wait_clocks('aclk', 1)
-
-            # Check if the block_ready signal is asserted (shared FIFO full)
-            if self.dut.o_block_ready.value:
-                self.log.info(f"Waiting for block_ready to deassert before starting transaction{self.tb.get_time_ns_str()}")
-                timeout_count = 0
-                max_timeout = 100
-                while self.dut.o_block_ready.value and timeout_count < max_timeout:
-                    await self.tb.wait_clocks('aclk', 1)
-                    timeout_count += 1
-
-                if timeout_count >= max_timeout:
-                    self.log.error(f"Timeout waiting for block_ready to deassert{self.tb.get_time_ns_str()}")
-                    return {
-                        'addr': addr,
-                        'id': id_value,
-                        'resp': resp_value,
-                        'start_time': get_sim_time('ns'),
-                        'end_time': get_sim_time('ns'),
-                        'addr_phase_complete': False,
-                        'data_phase_complete': False,
-                        'resp_phase_complete': False,
-                        'completed': False,
-                        'error': "Timeout waiting for block_ready to deassert",
-                        'channel': ch_idx,
-                    }
-        # Wait for previous transactions on this channel to complete if requested
-        if wait_prev_completion:
-            await self._wait_for_channel_ready(ch_idx)
-
-        # Mark channel as busy
-        self.channel_states[ch_idx]['busy'] = True
-
-        # Create transaction record
-        transaction = {
-            'addr': addr,
-            'id': id_value,
-            'resp': resp_value,
-            'start_time': get_sim_time('ns'),
-            'addr_phase_complete': False,
-            'data_phase_complete': False,
-            'resp_phase_complete': False,
-            'completed': False,
-            'error': None,
-            'channel': ch_idx
+                        await self.issue_write_transaction(0x10000 + i * 0x100, 0)
+                    
+                    # Wait based on rate
+                    if transactions_per_cycle < 1.0:
+                        wait_cycles = int(1.0 / transactions_per_cycle)
+                        await self.wait_clocks('aclk', wait_cycles)
+                        
+            elif pattern_type == 'burst':
+                burst_size = params.get('burst_size', 5)
+                burst_interval = params.get('interval', 100)
+                num_bursts = perf_test.duration_cycles // burst_interval
+                
+                for burst in range(num_bursts):
+                    # Issue burst of transactions
+                    for i in range(burst_size):
+                        addr = 0x20000 + burst * 0x1000 + i * 0x100
+                        if i % 2 == 0:
+                            await self.issue_read_transaction(addr, 0)
+                        else:
+                            await self.issue_write_transaction(addr, 0)
+                    
+                    # Wait for interval
+                    await self.wait_clocks('aclk', burst_interval)
+        
+        # Wait for all transactions to complete
+        await self.wait_for_all_transactions_complete()
+        
+        test_duration = get_sim_time('ns') - test_start_time
+        
+        # Calculate performance metrics
+        final_stats = dict(self.test_stats)
+        transactions_completed = (final_stats['transactions_issued'] - 
+                                initial_stats['transactions_issued'])
+        
+        metrics = {
+            'transactions_completed': transactions_completed,
+            'test_duration_ns': test_duration,
+            'throughput_tps': transactions_completed / (test_duration / 1e9) if test_duration > 0 else 0,
+            'avg_latency_ns': test_duration / transactions_completed if transactions_completed > 0 else 0
         }
+        
+        self.performance_metrics[perf_test.name] = metrics
+        
+        # Check success criteria
+        test_passed = True
+        for metric, criteria in perf_test.success_criteria.items():
+            if metric in metrics:
+                actual_value = metrics[metric]
+                threshold = criteria['threshold']
+                comparison = criteria['comparison']
+                
+                if comparison == 'max' and actual_value > threshold:
+                    self.log.error(f"❌ {metric} {actual_value} exceeds threshold {threshold}")
+                    test_passed = False
+                elif comparison == 'min' and actual_value < threshold:
+                    self.log.error(f"❌ {metric} {actual_value} below threshold {threshold}")
+                    test_passed = False
+        
+        status = "✅ PASSED" if test_passed else "❌ FAILED"
+        self.log.info(f"{status} Performance test {perf_test.name}")
+        self.log.info(f"  Throughput: {metrics['throughput_tps']:.1f} TPS")
+        self.log.info(f"  Avg Latency: {metrics['avg_latency_ns']:.1f} ns")
+        
+        return test_passed
 
-        # Store in active transactions
-        tx_id = f"{id_value}_{addr}_{get_sim_time('ns')}"
-        self.active_transactions[tx_id] = transaction
+    def create_basic_read_pattern(self, base_addr: int = 0x1000, count: int = 5) -> TransactionPattern:
+        """Create a basic read transaction pattern"""
+        pattern = TransactionPattern("basic_reads", f"Basic read pattern with {count} transactions")
+        
+        for i in range(count):
+            addr = base_addr + i * 0x100
+            length = i % 4  # Vary length
+            pattern.add_read(addr, length, delay=random.randint(1, 5))
+            
+        return pattern
 
-        self.log.info(f"Starting transaction: addr=0x{addr:X}, id={id_value}, resp={resp_value}, pipeline_phases={pipeline_phases}{self.tb.get_time_ns_str()}")
+    def create_basic_write_pattern(self, base_addr: int = 0x2000, count: int = 5) -> TransactionPattern:
+        """Create a basic write transaction pattern"""
+        pattern = TransactionPattern("basic_writes", f"Basic write pattern with {count} transactions")
+        
+        for i in range(count):
+            addr = base_addr + i * 0x100
+            length = i % 4  # Vary length  
+            pattern.add_write(addr, length, delay=random.randint(1, 5))
+            
+        return pattern
 
-        # Configure ready signals using the ReadySignalController
-        if control_ready:
-            # Configure delayed ready signals
-            if addr_ready_delay > 0:
-                await self.tb.ready_ctrl.delay_addr_ready(addr_ready_delay)
+    def create_mixed_pattern(self, base_addr: int = 0x3000, count: int = 10) -> TransactionPattern:
+        """Create a mixed read/write pattern"""
+        pattern = TransactionPattern("mixed_rw", f"Mixed R/W pattern with {count} transactions")
+        
+        for i in range(count):
+            addr = base_addr + i * 0x100
+            length = random.randint(0, 3)
+            delay = random.randint(1, 10)
+            
+            if i % 2 == 0:
+                pattern.add_read(addr, length, delay)
             else:
-                self.tb.ready_ctrl.set_addr_ready(1)
+                pattern.add_write(addr, length, delay)
+                
+        return pattern
 
-            if data_ready_delay > 0:
-                await self.tb.ready_ctrl.delay_data_ready(data_ready_delay)
-            else:
-                self.tb.ready_ctrl.set_data_ready(1)
+    def create_timeout_error_scenario(self) -> ErrorScenario:
+        """Create a timeout error scenario"""
+        scenario = ErrorScenario("timeout_test", "Test timeout detection")
+        
+        # Setup shorter timeout
+        scenario.add_setup_step('configure_timeouts', addr=4, data=4, resp=4)
+        
+        # Issue transaction that will timeout
+        scenario.add_setup_step('issue_transaction', type='read', addr=0x5000, length=0)
+        
+        # Trigger timeout
+        scenario.set_trigger('timeout', type='data')
+        
+        # Expect timeout interrupt
+        scenario.add_expected_response('interrupt', packet_type='TIMEOUT')
+        
+        return scenario
 
-            if not self.tb.is_read and resp_ready_delay > 0:
-                await self.tb.ready_ctrl.delay_resp_ready(resp_ready_delay)
-            else:
-                self.tb.ready_ctrl.set_resp_ready(1)
-        else:
-            # Default settings
-            self.tb.ready_ctrl.set_addr_ready(1)
-            self.tb.ready_ctrl.set_data_ready(1)
-            self.tb.ready_ctrl.set_resp_ready(1)
+    def create_response_error_scenario(self) -> ErrorScenario:
+        """Create a response error scenario"""
+        scenario = ErrorScenario("response_error_test", "Test response error detection")
+        
+        # Issue normal transaction
+        scenario.add_setup_step('issue_transaction', type='read', addr=0x6000, length=0)
+        
+        # Trigger response error
+        scenario.set_trigger('response_error', type='SLVERR')
+        
+        # Expect error interrupt
+        scenario.add_expected_response('interrupt', packet_type='ERROR')
+        scenario.add_expected_response('error_detection', min_errors=1)
+        
+        return scenario
 
-        # Create packets for all phases using consistent field config approach
-        addr_packet = self._create_addr_packet(addr, id_value)
-        data_packet = self._create_data_packet(id_value, resp_value)
-        resp_packet = self._create_resp_packet(id_value, resp_value) if not self.tb.is_read else None
+    def create_throughput_performance_test(self) -> PerformanceTest:
+        """Create a throughput performance test"""
+        perf_test = PerformanceTest("throughput_test", "Test transaction throughput")
+        
+        # Constant rate load
+        perf_test.set_load_pattern('constant_rate', rate=0.2)  # 20% utilization
+        perf_test.duration_cycles = 1000
+        
+        # Success criteria
+        perf_test.add_success_criterion('throughput_tps', 100, 'min')  # Min 100 TPS
+        perf_test.add_success_criterion('avg_latency_ns', 1000, 'max')  # Max 1000ns latency
+        
+        return perf_test
 
-        # Start address phase
-        addr_task = cocotb.start_soon(self._complete_addr_phase(tx_id, addr_packet))
+    async def run_all_patterns(self) -> bool:
+        """Run all registered transaction patterns"""
+        all_passed = True
+        
+        for pattern in self.test_patterns:
+            passed = await self.execute_transaction_pattern(pattern)
+            if not passed:
+                all_passed = False
+                
+        return all_passed
 
-        # Handle phases according to transaction type and pipelining settings
-        if self.is_read:
-            # For read transactions, data is a response so no parallelism
-            # Wait for address phase to complete before preparing for data
-            await addr_task
+    async def run_all_error_scenarios(self) -> bool:
+        """Run all registered error scenarios"""
+        all_passed = True
+        
+        for scenario in self.error_scenarios:
+            passed = await self.execute_error_scenario(scenario)
+            if not passed:
+                all_passed = False
+                
+        return all_passed
 
-            # Launch data phase
-            data_task = cocotb.start_soon(self._complete_data_phase(tx_id, data_packet))
+    async def run_all_performance_tests(self) -> bool:
+        """Run all registered performance tests"""
+        all_passed = True
+        
+        for perf_test in self.performance_tests:
+            passed = await self.execute_performance_test(perf_test)
+            if not passed:
+                all_passed = False
+                
+        return all_passed
 
-        elif pipeline_phases:
-            # Special handling for write mode with shared FIFO
-            if not self.tb.is_read and not self.dut.o_block_ready.value:
-                # True AXI parallelism - launch data phase immediately in parallel with address
-                data_task = cocotb.start_soon(self._complete_data_phase(tx_id, data_packet))
+    def print_test_specific_report(self):
+        """Print test-specific report"""
+        self.log.info(f"\n📋 {self.test_name} Specific Results:")
+        
+        if self.performance_metrics:
+            self.log.info("Performance Metrics:")
+            for test_name, metrics in self.performance_metrics.items():
+                self.log.info(f"  {test_name}:")
+                for metric, value in metrics.items():
+                    self.log.info(f"    {metric}: {value}")
+        
+        if self.error_detection_results:
+            self.log.info("Error Detection Results:")
+            for error_type, detected in self.error_detection_results.items():
+                status = "✅" if detected else "❌"
+                self.log.info(f"  {status} {error_type}")
 
-                # New: Create futures for address and data completion
-                addr_phase_done = cocotb.start_soon(self._wait_for_phase_completion(tx_id, 'addr_phase_complete'))
-                data_phase_done = cocotb.start_soon(self._wait_for_phase_completion(tx_id, 'data_phase_complete'))
-
-                # New: Wait for both to complete more efficiently
-                while not (self.active_transactions[tx_id]['addr_phase_complete'] and
-                        self.active_transactions[tx_id]['data_phase_complete']):
-                    await self.tb.wait_clocks('aclk', 1)
-
-                # Now start response phase
-                resp_task = cocotb.start_soon(self._complete_resp_phase(tx_id, resp_packet, wait_for_data=False))
-            else:
-                # If block_ready is asserted, we need to be more cautious
-                # Wait for address phase to complete first
-                await addr_task
-
-                # Then launch data phase
-                data_task = cocotb.start_soon(self._complete_data_phase(tx_id, data_packet))
-
-                # Wait for data phase to complete
-                await data_task
-
-                # Then launch response phase
-                resp_task = cocotb.start_soon(self._complete_resp_phase(tx_id, resp_packet, wait_for_data=False))
-
-        else:
-            # Sequential behavior - wait for address phase to complete first
-            await addr_task
-
-            # Then launch data phase
-            data_task = cocotb.start_soon(self._complete_data_phase(tx_id, data_packet))
-
-            # Wait for data phase to complete
-            await data_task
-
-            # Then launch response phase
-            resp_task = cocotb.start_soon(self._complete_resp_phase(tx_id, resp_packet, wait_for_data=False))
-
-        # Wait for completion if requested
-        if wait_for_completion:
-            # New: Adaptive timeout based on test conditions and delays
-            timeout_multiplier = 2  # Base multiplier
-            if addr_ready_delay > 0:
-                timeout_multiplier += addr_ready_delay // 10
-            if data_ready_delay > 0:
-                timeout_multiplier += data_ready_delay // 10
-            if resp_ready_delay > 0:
-                timeout_multiplier += resp_ready_delay // 10
-
-            timeout_limit = 100 * timeout_multiplier  # Scale based on complexity
-
-            # Simple timeout mechanism
-            timeout_count = 0
-
-            while not transaction['completed'] and timeout_count < timeout_limit:
-                await self.tb.wait_clocks('aclk', 1)
-                timeout_count += 1
-
-                # Check for completion
-                if self.tb.is_read:
-                    transaction['completed'] = transaction['addr_phase_complete'] and transaction['data_phase_complete']
-                else:
-                    transaction['completed'] = transaction['addr_phase_complete'] and \
-                                                    transaction['data_phase_complete'] and \
-                                                    transaction['resp_phase_complete']
-
-            # Check for timeout
-            if timeout_count >= timeout_limit:
-                transaction['error'] = "Transaction timed out"
-                self.log.error(f"Transaction timed out: addr=0x{addr:X}, id={id_value}{self.tb.get_time_ns_str()}")
-
-                # Mark channel as free even on timeout
-                self.channel_states[ch_idx]['busy'] = False
-                self.channel_states[ch_idx]['last_tx_time'] = get_sim_time('ns')
-                return transaction
-
-            # Transaction completed
-            transaction['end_time'] = get_sim_time('ns')
-            self.log.info(f"Transaction completed: addr=0x{addr:X}, id={id_value}{self.tb.get_time_ns_str()}")
-
-            # Move to completed list
-            self.completed_transactions.append(transaction)
-            del self.active_transactions[tx_id]
-
-        # Reset intrbus ready speed to fixed (normal) using new method
-        self.tb.set_intrbus_backpressure('fixed')
-
-        # Mark channel as free
-        self.channel_states[ch_idx]['busy'] = False
-        self.channel_states[ch_idx]['last_tx_time'] = get_sim_time('ns')
-
-        return transaction
-
-    async def _wait_for_channel_ready(self, ch_idx):
+    async def run_base_test_flow(self) -> bool:
         """
-        Wait for a channel to be ready (not busy)
-
-        Args:
-            ch_idx: Channel index to wait for
+        Standard test flow that can be used by derived classes.
+        
+        This provides a template that most tests can follow:
+        1. Setup test-specific configuration
+        2. Run the main test logic
+        3. Generate reports
         """
-        timeout_count = 0
-        timeout_limit = 10000  # Maximum cycles to wait
-
-        while self.channel_states[ch_idx]['busy'] and timeout_count < timeout_limit:
-            await self.tb.wait_clocks('aclk', 1)
-            timeout_count += 1
-
-        if timeout_count >= timeout_limit:
-            self.log.error(f"Channel {ch_idx} never became ready{self.tb.get_time_ns_str()}")
-            # Force channel to ready state to prevent deadlock
-            self.channel_states[ch_idx]['busy'] = False
-
-    async def _complete_addr_phase(self, tx_id, addr_packet):
-        """
-        Complete the address phase of a transaction
-
-        Args:
-            tx_id: Transaction ID to update
-            addr_packet: Address packet to send
-        """
-        if tx_id in self.active_transactions:
-            transaction = self.active_transactions[tx_id]
-
-            # Send address packet
-            await self.tb.addr_master.send(addr_packet)
-
-        # Mark address phase as complete
-        if tx_id in self.active_transactions:
-            self.active_transactions[tx_id]['addr_phase_complete'] = True
-            self.log.debug(f"Address phase completed for tx {tx_id}{self.tb.get_time_ns_str()}")
-
-    async def _complete_data_phase(self, tx_id, data_packet):
-        """
-        Complete the data phase of a transaction
-
-        Args:
-            tx_id: Transaction ID to update
-            data_packet: Data packet to send
-        """
-        # New: Wait for master to be ready instead of checking transfer_busy
-        while self.tb.addr_master.transfer_busy:
-            await self.tb.wait_clocks('aclk', 1)
-
-        if tx_id in self.active_transactions:
-            transaction = self.active_transactions[tx_id]
-
-            # Use the data master to send the packet for both read and write modes
-            await self.tb.data_master.send(data_packet)
-
-        # Mark data phase as complete
-        if tx_id in self.active_transactions:
-            self.active_transactions[tx_id]['data_phase_complete'] = True
-            self.log.debug(f"Data phase completed for tx {tx_id}{self.tb.get_time_ns_str()}")
-
-    async def _wait_for_phase_completion(self, tx_id, phase_name):
-        """
-        Wait for a specific phase of a transaction to complete
-
-        Args:
-            tx_id: Transaction ID to monitor
-            phase_name: Name of the phase to wait for ('addr_phase_complete', etc.)
-        """
-        # New: Wait for data master to be ready instead of checking transfer_busy
-        while self.tb.data_master.transfer_busy:
-            await self.tb.wait_clocks('aclk', 1)
-
-        if tx_id not in self.active_transactions:
-            return
-
-        transaction = self.active_transactions[tx_id]
-
-        # Wait for the phase to complete
-        timeout_count = 0
-        timeout_limit = 500  # Maximum cycles to wait
-
-        while not transaction.get(phase_name, False) and timeout_count < timeout_limit:
-            await self.tb.wait_clocks('aclk', 1)
-            timeout_count += 1
-
-            # Check if transaction is still active
-            if tx_id not in self.active_transactions:
-                return
-
-            transaction = self.active_transactions[tx_id]
-
-        if timeout_count >= timeout_limit:
-            self.log.error(f"{phase_name} timed out for tx {tx_id}{self.tb.get_time_ns_str()}")
-
-    async def _complete_resp_phase(self, tx_id, resp_packet, wait_for_data=True):
-        """
-        Complete the response phase of a transaction (write only)
-
-        Args:
-            tx_id: Transaction ID to update
-            resp_packet: Response packet to send
-            wait_for_data: If True, wait for data phase to complete first
-        """
-        # Only applicable for write transactions
-        if self.tb.is_read or resp_packet is None:
-            return
-
-        if tx_id in self.active_transactions:
-            transaction = self.active_transactions[tx_id]
-
-            # Wait for data phase to complete if requested
-            if wait_for_data:
-                # Wait for data phase completion
-                while tx_id in self.active_transactions and not self.active_transactions[tx_id]['data_phase_complete']:
-                    await self.tb.wait_clocks('aclk', 1)
-
-                # Check if transaction still exists
-                if tx_id not in self.active_transactions:
-                    return
-
-                if not self.active_transactions[tx_id]['data_phase_complete']:
-                    transaction['error'] = "Data phase timed out"
-                    self.log.error(f"Data phase timed out for tx {tx_id}{self.tb.get_time_ns_str()}")
-                    return
-
-            # Send response packet
-            await self.tb.resp_master.send(resp_packet)
-
-        # Mark response phase as complete
-        if tx_id in self.active_transactions:
-            self.active_transactions[tx_id]['resp_phase_complete'] = True
-            self.log.debug(f"Response phase completed for tx {tx_id}{self.tb.get_time_ns_str()}")
-
-            # Check if this completes the transaction
-            if (self.active_transactions[tx_id]['addr_phase_complete'] and
-                self.active_transactions[tx_id]['data_phase_complete'] and
-                self.active_transactions[tx_id]['resp_phase_complete']):
-                self.active_transactions[tx_id]['completed'] = True
-                self.active_transactions[tx_id]['end_time'] = get_sim_time('ns')
-
-    async def queue_transaction(self, tx_params):
-        """
-        Queue a transaction and process in order
-
-        Args:
-            tx_params: Dictionary of parameters for drive_basic_transaction
-
-        Returns:
-            Transaction ID
-        """
-        # Add to queue
-        tx_id = len(self.transaction_queue)
-        self.transaction_queue.append((tx_id, tx_params))
-
-        # Process queue in order
-        if not self.queue_processor_active:
-            self.queue_processor_active = True
-            cocotb.start_soon(self._process_transaction_queue())
-
-        return tx_id
-
-    async def _process_transaction_queue(self):
-        """Process transactions from queue in order"""
-        while self.transaction_queue:
-            tx_id, tx_params = self.transaction_queue.pop(0)
-            await self.drive_basic_transaction(**tx_params)
-            # Add small delay between transactions
-            await self.tb.wait_clocks('aclk', 2)
-        self.queue_processor_active = False
-
-    async def drive_error_scenario(self,
-                                error_type,
-                                addr=0x2000,
-                                id_value=1,
-                                resp_value=0,
-                                intrbus_ready_speed='fixed'):
-        """
-        Drive a transaction that will trigger a specific error with improved waiting logic
-
-        Updated to handle the single shared FIFO in write mode and work with
-        the surgically updated testbench.
-        Updated to use field configurations consistently.
-        Updated to use centralized constants from intrbus module.
-
-        Args:
-            error_type: Type of error to generate ('addr_timeout', 'data_timeout', 'resp_timeout', or 'resp_error')
-            addr: Address for the transaction
-            id_value: ID for the transaction
-            resp_value: Response code (overridden for resp_error)
-            intrbus_ready_speed: Speed setting for intrbus ready ('fixed', 'slow_consumer', etc.)
-
-        Returns:
-            True if error was detected, False otherwise
-        """
-        self.log.info("="*80)
-        self.log.info(f"Driving error scenario: type={error_type}, addr=0x{addr:X}, id={id_value}{self.tb.get_time_ns_str()}")
-        self.log.info("="*80)
-
-        # Set intrbus ready speed using the testbench's new method
-        if intrbus_ready_speed in self.tb.randomizer_configs:
-            self.tb.set_intrbus_backpressure(intrbus_ready_speed)
-
-        # Log expected error for debug
-        expected_error_bit = self._get_expected_error_bit(error_type)
-        self.log.info(f"Expecting {error_type} (0x{expected_error_bit:X}) error for addr=0x{addr:X}, id={id_value}{self.tb.get_time_ns_str()}")
-
-        # Clear any previous errors
-        initial_events_count = len(self.tb.intrbus_events)
-        self.tb.errors_detected = []
-        self.expected_errors = []
-
-        # Clear any forced low settings
-        self.tb.ready_ctrl.force_addr_ready_low(False)
-        self.tb.ready_ctrl.force_data_ready_low(False)
-        self.tb.ready_ctrl.force_resp_ready_low(False)
-
-        # Ensure intrbus ready is properly configured (removed error_slave reference)
-        self.tb.set_intrbus_backpressure('fixed')
-
-        await self.tb.wait_clocks('aclk', 5)
-
-        # Create transaction record
-        transaction = {
-            'addr': addr,
-            'id': id_value,
-            'resp': resp_value,
-            'error_type': error_type,
-            'start_time': get_sim_time('ns'),
-            'completed': False,
-            'error_detected': False
-        }
-
-        # Store transaction for tracking
-        self.tb.axi_transactions.append(transaction)
-
-        # Configure different error scenarios with specific waiting logic
-        if error_type == 'addr_timeout':
-            self.log.info(f"Starting address timeout scenario{self.tb.get_time_ns_str()}")
-
-            # Force addr_ready low to ensure timeout
-            self.tb.ready_ctrl.force_addr_ready_low(True)
-
-            # Start address phase and hold valid high using field config
-            addr_packet = self._create_addr_packet(addr, id_value)
-
-            # Send the address packet (won't complete due to ready=0)
-            await self.tb.addr_master.send(addr_packet)
-
-            # Wait for timeout to occur (timeout value plus margin)
-            timeout_wait = self.tb.timeout_addr + 50
-            self.log.info(f"Waiting for error detection{self.tb.get_time_ns_str()}")
-            await self.tb.wait_clocks('aclk', timeout_wait)
-
-            # Check for error detection with extended time
-            error_detected = self._check_for_expected_error(initial_events_count, error_type, id_value, addr)
-            if not error_detected:
-                # Wait longer if not detected yet - some implementations might need more time
-                await self.tb.wait_clocks('aclk', 50)
-                error_detected = self._check_for_expected_error(initial_events_count, error_type, id_value, addr)
-
-            # Release forced ready signal regardless of test outcome
-            self.tb.ready_ctrl.force_addr_ready_low(False)
-
-        elif error_type == 'data_timeout':
-            self.log.info(f"Starting data timeout scenario{self.tb.get_time_ns_str()}")
-
-            # For write mode, we need to make sure we have room in the shared FIFO
-            if not self.tb.is_read:
-                # Make sure we start with a clean state
-                await self.reset_and_setup_for_test()
-
-            # Let address phase complete normally
-            self.tb.ready_ctrl.set_addr_ready(1)
-
-            # Start with a normal transaction using field config
-            addr_packet = self._create_addr_packet(addr, id_value)
-            await self.tb.addr_master.send(addr_packet)
-
-            # Wait for address phase to complete
-            while self.tb.addr_master.transfer_busy:
-                await self.tb.wait_clocks('aclk', 1)
-            await self.tb.wait_clocks('aclk', 5)
-
-            # Force data_ready low to create timeout
-            self.tb.ready_ctrl.force_data_ready_low(True)
-
-            # Send data packet (which will timeout waiting for ready) using field config
-            data_packet = self._create_data_packet(id_value, resp_value)
-
-            # Send the data packet (won't complete due to ready=0)
-            await self.tb.data_master.send(data_packet)
-
-            # Wait for timeout to occur (timeout value plus margin)
-            timeout_wait = self.tb.timeout_data + 50
-            self.log.info(f"Waiting for error detection{self.tb.get_time_ns_str()}")
-            await self.tb.wait_clocks('aclk', timeout_wait)
-
-            # Check for error detection with extended time
-            error_detected = self._check_for_expected_error(initial_events_count, error_type, id_value, addr)
-            if not error_detected:
-                # Wait longer if not detected yet
-                await self.tb.wait_clocks('aclk', 50)
-                error_detected = self._check_for_expected_error(initial_events_count, error_type, id_value, addr)
-
-            # Release forced ready signal regardless of outcome
-            self.tb.ready_ctrl.force_data_ready_low(False)
-
-        elif error_type == 'resp_timeout':
-            if not self.tb.is_read:
-                self.log.info(f"Starting response timeout scenario{self.tb.get_time_ns_str()}")
-
-                # For write mode, we need to make sure we have room in the shared FIFO
-                # Make sure we start with a clean state
-                await self.reset_and_setup_for_test()
-
-                # Let address and data phases complete normally
-                self.tb.ready_ctrl.set_addr_ready(1)
-                self.tb.ready_ctrl.set_data_ready(1)
-
-                # Start with a normal transaction using field config
-                addr_packet = self._create_addr_packet(addr, id_value)
-                await self.tb.addr_master.send(addr_packet)
-
-                # Wait for address phase to complete
-                while self.tb.addr_master.transfer_busy:
-                    await self.tb.wait_clocks('aclk', 1)
-                await self.tb.wait_clocks('aclk', 5)
-
-                # Send data packet using field config
-                data_packet = self._create_data_packet(id_value, resp_value)
-                await self.tb.data_master.send(data_packet)
-
-                # Wait for data phase to complete
-                while self.tb.data_master.transfer_busy:
-                    await self.tb.wait_clocks('aclk', 1)
-                await self.tb.wait_clocks('aclk', 5)
-
-                # Force resp_ready low to create timeout
-                self.tb.ready_ctrl.force_resp_ready_low(True)
-
-                # Send response packet (which will timeout waiting for ready) using field config
-                resp_packet = self._create_resp_packet(id_value, resp_value)
-                await self.tb.resp_master.send(resp_packet)
-
-                # Wait for timeout to occur (timeout value plus margin)
-                timeout_wait = self.tb.timeout_resp + 50
-                self.log.info(f"Waiting for error detection{self.tb.get_time_ns_str()}")
-                await self.tb.wait_clocks('aclk', timeout_wait)
-
-                # Check for error with extended time
-                error_detected = self._check_for_expected_error(initial_events_count, error_type, id_value, addr)
-                if not error_detected:
-                    # Wait longer if not detected yet
-                    await self.tb.wait_clocks('aclk', 50)
-                    error_detected = self._check_for_expected_error(initial_events_count, error_type, id_value, addr)
-
-                # Release forced ready signal regardless of outcome
-                self.tb.ready_ctrl.force_resp_ready_low(False)
-            else:
-                self.log.warning(f"Response timeout test not applicable for read mode{self.tb.get_time_ns_str()}")
-                return True  # Skip this test for read mode
-
-        elif error_type == 'resp_error':
-            self.log.info(f"Starting response error scenario{self.tb.get_time_ns_str()}")
-
-            # For write mode, make sure we have a clean state
-            if not self.tb.is_read:
-                await self.reset_and_setup_for_test()
-
-            error_resp = resp_value if resp_value in [2, 3] else 2
-            # Set all ready signals high for maximum throughput
-            self.tb.ready_ctrl.force_resp_ready_low(False)
-            self.tb.ready_ctrl.set_addr_ready(1)
-            self.tb.ready_ctrl.set_data_ready(1)
-            self.tb.ready_ctrl.set_resp_ready(1)
-
-            # Different handling for read vs. write mode
-            if self.tb.is_read:
-                # For read, we need to complete address phase then send data with error response
-                self.log.info(f"Sending read address packet{self.tb.get_time_ns_str()}")
-
-                # Start with a normal address transaction using field config
-                addr_packet = self._create_addr_packet(addr, id_value)
-                await self.tb.addr_master.send(addr_packet)
-
-                # Wait for address phase to complete - shorter wait
-                while self.tb.addr_master.transfer_busy:
-                    await self.tb.wait_clocks('aclk', 1)
-
-                self.log.info(f"Sending read data packet with error response={error_resp}{self.tb.get_time_ns_str()}")
-
-                # Send data packet with error response immediately after address completes using field config
-                data_packet = self._create_data_packet(id_value, error_resp)  # Error response
-                await self.tb.data_master.send(data_packet)
-
-                # Only a brief wait for data phase to complete
-                while self.tb.data_master.transfer_busy:
-                    await self.tb.wait_clocks('aclk', 1)
-
-            else:
-                # For write, we need to complete address and data phases then send error response
-                self.log.info(f"Sending write address packet{self.tb.get_time_ns_str()}")
-
-                # Start with a normal address transaction using field config
-                addr_packet = self._create_addr_packet(addr, id_value)
-                await self.tb.addr_master.send(addr_packet)
-
-                # Wait for address phase to complete - shorter wait
-                while self.tb.addr_master.transfer_busy:
-                    await self.tb.wait_clocks('aclk', 1)
-
-                self.log.info(f"Sending write data packet{self.tb.get_time_ns_str()}")
-
-                # Send data packet immediately after address completes using field config
-                data_packet = self._create_data_packet(id_value, resp_value)
-                await self.tb.data_master.send(data_packet)
-
-                # Only a brief wait for data phase to complete
-                while self.tb.data_master.transfer_busy:
-                    await self.tb.wait_clocks('aclk', 1)
-
-                self.log.info(f"Sending write response packet with error response={error_resp}{self.tb.get_time_ns_str()}")
-
-                # Send response packet with error response immediately after data completes using field config
-                resp_packet = self._create_resp_packet(id_value, error_resp)  # Error response
-                await self.tb.resp_master.send(resp_packet)
-
-                # Only a brief wait for response phase to complete
-                while self.tb.resp_master.transfer_busy:
-                    await self.tb.wait_clocks('aclk', 1)
-
-            # Wait for error to be detected - shorter initial wait
-            self.log.info(f"Waiting for error detection{self.tb.get_time_ns_str()}")
-            await self.tb.wait_clocks('aclk', 20)
-
-            # Check for error detection
-            error_detected = self._check_for_expected_error(initial_events_count, error_type, id_value, addr)
-            if not error_detected:
-                # Wait a bit longer if not detected yet, but not excessively
-                self.log.info(f"No error detected yet, waiting a bit longer{self.tb.get_time_ns_str()}")
-                await self.tb.wait_clocks('aclk', 30)
-                error_detected = self._check_for_expected_error(initial_events_count, error_type, id_value, addr)
-
-        else:
-            self.log.error(f"Unknown error type: {error_type}{self.tb.get_time_ns_str()}")
+        try:
+            # Setup
+            await self.setup_test_specific_config()
+            
+            # Run main test
+            test_passed = await self.run_test()
+            
+            # Additional verification
+            monitor_verification = self.scoreboard.verify_monitor_behavior()
+            
+            # Generate reports
+            self.print_test_specific_report()
+            
+            overall_passed = test_passed and monitor_verification
+            
+            status = "✅ PASSED" if overall_passed else "❌ FAILED"
+            self.log.info(f"{status} {self.test_name}")
+            
+            return overall_passed
+            
+        except Exception as e:
+            self.log.error(f"❌ {self.test_name} failed with exception: {e}")
+            import traceback
+            self.log.error(f"Traceback: {traceback.format_exc()}")
             return False
 
-        # Reset intrbus ready speed to fixed using new method
-        self.tb.set_intrbus_backpressure('fixed')
 
-        return error_detected
+# Example derived test class
+class ExampleBasicTest(AXIMonitorBaseTest):
+    """Example of how to use the base test class"""
+    
+    DESCRIPTION = "Example basic AXI monitor test using patterns"
+    
+    def __init__(self, dut):
+        super().__init__(dut)
+        
+        # Configure test-specific settings
+        self.config_overrides = {
+            'addr_cnt': 0x10,
+            'data_cnt': 0x10,
+            'resp_cnt': 0x10
+        }
+        
+        # Create test patterns
+        self.test_patterns = [
+            self.create_basic_read_pattern(),
+            self.create_basic_write_pattern(),
+            self.create_mixed_pattern()
+        ]
+        
+        # Create error scenarios
+        self.error_scenarios = [
+            self.create_timeout_error_scenario(),
+            self.create_response_error_scenario()
+        ]
+        
+        # Create performance tests
+        self.performance_tests = [
+            self.create_throughput_performance_test()
+        ]
+
+    async def run_test(self) -> bool:
+        """Main test implementation"""
+        self.log.info(f"🧪 Running {self.test_name}")
+        
+        # Run transaction patterns
+        patterns_passed = await self.run_all_patterns()
+        
+        # Run error scenarios
+        errors_passed = await self.run_all_error_scenarios()
+        
+        # Run performance tests
+        perf_passed = await self.run_all_performance_tests()
+        
+        return patterns_passed and errors_passed and perf_passed
+
+
+# Cocotb test using the base class
+@cocotb.test()
+async def test_example_basic(dut):
+    """Example test using the base test class"""
+    test = ExampleBasicTest(dut)
+    await test.setup_clocks_and_reset()
+    result = await test.run_base_test_flow()
+    await test.shutdown()
+    
+    if not result:
+        raise cocotb.result.TestFailure("Example basic test failed")
+    else:
+        test.log.info("🎉 Example basic test passed!")

@@ -13,7 +13,7 @@
  * Fixed for Verilator compatibility and consistent array declarations
  */
 module axi_monitor_timeout
-    import axi_monitor_types::*;
+    import monitor_pkg::*;
 #(
     parameter int MAX_TRANSACTIONS   = 16,   // Maximum outstanding transactions
     parameter int ADDR_WIDTH         = 32,   // Width of address bus
@@ -25,7 +25,7 @@ module axi_monitor_timeout
     input  logic                     aresetn,
 
     // Transaction table (read-modify access) - Fixed: Use unpacked array
-    input  axi_transaction_t         i_trans_table[MAX_TRANSACTIONS],
+    input  bus_transaction_t         i_trans_table[MAX_TRANSACTIONS],
 
     // Timer inputs
     input  logic                     i_timer_tick,    // From frequency invariant timer
@@ -43,7 +43,7 @@ module axi_monitor_timeout
 );
 
     // Local copy of transaction table for modifications (flopped) - use unpacked array
-    axi_transaction_t r_trans_table_local[MAX_TRANSACTIONS];
+    bus_transaction_t r_trans_table_local[MAX_TRANSACTIONS];
 
     // Flag to track if timeouts have been detected for each transaction (flopped)
     logic [MAX_TRANSACTIONS-1:0] r_timeout_detected;

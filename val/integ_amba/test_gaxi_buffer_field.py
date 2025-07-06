@@ -81,15 +81,15 @@ def generate_field_params():
     data_widths = [8, 16, 24, 32]
     depths = [2, 4, 6, 8]
     modes = ['skid', 'fifo_mux', 'fifo_flop']
-    test_levels = ['basic', 'medium', 'full']
+    test_levels = ['full'] # ['basic', 'medium', 'full']
     
     # For debugging/quick testing, return a smaller subset:
     debug_mode = True
     if debug_mode:
         return [
-            (4, 3, 8, 2, 'skid', 'basic'),
-            (8, 5, 16, 4, 'fifo_mux', 'basic'),
-            (12, 6, 32, 4, 'skid', 'medium'),
+            ( 4, 3,  8, 2, 'skid',      'full'),
+            ( 8, 5, 16, 4, 'fifo_mux',  'full'),
+            (12, 6,  8, 4, 'fifo_flop', 'full'),
         ]
     
     # Full parameter sweep for comprehensive testing:

@@ -232,7 +232,7 @@ def generate_params():
         else:
             filtered_params.append((width, depth, wr_period, rd_period, mode, level))
 
-    return [(8, 4, 10, 12, 'skid', 'basic'), (8, 4, 10, 12, 'fifo_mux', 'basic'), (8, 4, 10, 12, 'fifo_flop', 'basic')]
+    return [(8, 4, 10, 12, 'skid', 'full'), (8, 4, 10, 12, 'fifo_mux', 'full'), (8, 4, 10, 12, 'fifo_flop', 'full')]
     # return filtered_params
 
 

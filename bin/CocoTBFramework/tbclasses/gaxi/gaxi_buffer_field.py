@@ -13,14 +13,14 @@ Key improvements:
 - Enhanced field-based testing with new infrastructure
 - Maintains exact same API for test runners
 - Added comprehensive sequence generation methods
+- Updated to use FlexConfigGen returning FlexRandomizer instances directly
 """
 import os
 import random
 
 from CocoTBFramework.tbclasses.tbbase import TBBase
-from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.shared.field_config import FieldConfig, FieldDefinition
-from CocoTBFramework.tbclasses.flex_config_gen import FlexConfigGen
+from CocoTBFramework.components.shared.flex_config_gen import FlexConfigGen
 
 from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
 from CocoTBFramework.components.gaxi.gaxi_master import GAXIMaster
@@ -94,7 +94,7 @@ class GaxiFieldBufferTB(TBBase):
         self.log.info(msg)
 
         # Create comprehensive randomizer configurations using FlexConfigGen
-        self.randomizer_configs = self._create_comprehensive_randomizer_configs()
+        self.randomizer_manager = self._create_randomizer_manager()
 
         # Define field configuration using new unified infrastructure
         # Use FIELD_CONFIGS as base, then create FieldConfig with FieldDefinition
@@ -168,7 +168,7 @@ class GaxiFieldBufferTB(TBBase):
         self.write_master = GAXIMaster(
             dut, 'write_master', '', self.wr_clk,
             field_config=self.field_config,
-            multi_sig=True,  # Enable multi-signal mode
+            multi_sig=False,
             mode=self.TEST_MODE,
             timeout_cycles=self.TIMEOUT_CYCLES,
             memory_model=self.input_memory_model,
@@ -179,7 +179,7 @@ class GaxiFieldBufferTB(TBBase):
             dut, 'read_slave', '', self.rd_clk,
             mode=self.TEST_MODE,
             field_config=self.field_config,
-            multi_sig=True,  # Enable multi-signal mode
+            multi_sig=False,
             timeout_cycles=self.TIMEOUT_CYCLES,
             memory_model=self.output_memory_model,
             log=self.log
@@ -189,7 +189,7 @@ class GaxiFieldBufferTB(TBBase):
         self.wr_monitor = GAXIMonitor(
             dut, 'WrMon', '', self.wr_clk,
             field_config=self.field_config,
-            multi_sig=True,  # Enable multi-signal mode
+            multi_sig=False,
             is_slave=False,  # Monitor master side
             mode=self.TEST_MODE,
             log=self.log
@@ -198,18 +198,32 @@ class GaxiFieldBufferTB(TBBase):
         self.rd_monitor = GAXIMonitor(
             dut, 'RdMon', '', self.rd_clk,
             field_config=self.field_config,
-            multi_sig=True,  # Enable multi-signal mode
+            multi_sig=False,
             is_slave=True,  # Monitor slave side
             mode=self.TEST_MODE,
             log=self.log
         )
 
-        # Setup sequence generator with new infrastructure patterns
-        self.sequence_gen = GAXIBufferSequence(
-            name="field_buffer_test",
-            field_config=self.field_config,
-            packet_class=GAXIPacket
-        )
+        self.log.info(f"🔍 DEBUG: About to create GAXIBufferSequence (mode={self.TEST_MODE})")
+        self.log.info(f"🔍 DEBUG: field_config type: {type(self.field_config)}")
+        self.log.info(f"🔍 DEBUG: field_config: {self.field_config}")
+
+        try:
+            self.log.info(f"🔍 DEBUG: Calling GAXIBufferSequence.__init__...")
+            self.sequence_gen = GAXIBufferSequence(
+                name="field_buffer_test",
+                field_config=self.field_config,
+                packet_class=GAXIPacket,
+            )
+            self.log.info(f"🔍 DEBUG: ✅ GAXIBufferSequence created successfully!")
+            
+        except Exception as e:
+            self.log.error(f"🚨 ERROR: GAXIBufferSequence creation failed: {e}")
+            import traceback
+            self.log.error(f"🚨 ERROR: Traceback:\n{traceback.format_exc()}")
+            raise
+
+        self.log.info(f"🔍 DEBUG: About to setup statistics...")
 
         # Statistics tracking - enhanced with field-specific and new infrastructure patterns
         self.stats = {
@@ -235,8 +249,8 @@ class GaxiFieldBufferTB(TBBase):
 
         self.log.info(f"Field testbench initialized with mode='{self.TEST_MODE}', depth={self.TEST_DEPTH}")
 
-    def _create_comprehensive_randomizer_configs(self):
-        """Create comprehensive randomizer configurations using FlexConfigGen for field-based testing"""
+    def _create_randomizer_manager(self):
+        """Create FlexConfigGen manager that returns FlexRandomizer instances directly"""
 
         # Define GAXI field-specific profiles
         gaxi_field_profiles = {
@@ -249,7 +263,7 @@ class GaxiFieldBufferTB(TBBase):
             'field_comprehensive': ([(0, 2), (3, 6), (10, 15)], [6, 3, 1]),    # Comprehensive field testing
         }
 
-        # Create FlexConfigGen for comprehensive field testing
+        # Create FlexConfigGen for comprehensive field testing - NOTE: return_flexrandomizer=True
         config_gen = FlexConfigGen(
             profiles=[
                 # Standard canned profiles
@@ -266,6 +280,27 @@ class GaxiFieldBufferTB(TBBase):
         )
 
         # Customize profiles for field-specific behavior
+        self._customize_profiles(config_gen)
+
+        # Build configurations and get FlexRandomizer instances directly
+        self.randomizer_instances = config_gen.build(return_flexrandomizer=True)
+
+        # Create write/read domain mapping for easier access
+        self.domain_randomizers = {}
+        for profile_name, randomizer in self.randomizer_instances.items():
+            self.domain_randomizers[profile_name] = {
+                'write': randomizer,  # Write domain gets the randomizer
+                'read': randomizer    # Read domain gets the same randomizer
+            }
+
+        self.log.info(f"Created {len(self.randomizer_instances)} FlexRandomizer instances via FlexConfigGen:")
+        for profile_name in self.randomizer_instances.keys():
+            self.log.info(f"  - {profile_name}")
+
+        return config_gen
+
+    def _customize_profiles(self, config_gen):
+        """Customize FlexConfigGen profiles for field-specific behavior"""
 
         # Ultra-aggressive for maximum field throughput
         config_gen.backtoback.valid_delay.fixed_value(0)
@@ -311,50 +346,46 @@ class GaxiFieldBufferTB(TBBase):
         config_gen.burst_pause.valid_delay.burst_pattern(fast_cycles=0, pause_range=(self.TEST_DEPTH, self.TEST_DEPTH*2), burst_ratio=25)
         config_gen.burst_pause.ready_delay.burst_pattern(fast_cycles=0, pause_range=(self.TEST_DEPTH//2, self.TEST_DEPTH), burst_ratio=20)
 
-        # Build all configurations
-        randomizer_dict = config_gen.build(return_flexrandomizer=False)
-
-        # Convert to the format expected by the testbench
-        converted_configs = {}
-        for profile_name, profile_config in randomizer_dict.items():
-            converted_configs[profile_name] = {
-                'master': {field: constraints for field, constraints in profile_config.items() if 'valid' in field},
-                'slave': {field: constraints for field, constraints in profile_config.items() if 'ready' in field}
-            }
-
-        self.log.info(f"Created {len(converted_configs)} comprehensive field randomizer configurations:")
-        for profile_name in converted_configs.keys():
-            self.log.info(f"  - {profile_name}")
-
-        return converted_configs
-
-    def get_available_profiles(self):
-        """Get list of available randomizer profile names"""
-        return list(self.randomizer_configs.keys())
+    def get_randomizer(self, profile_name, domain='write'):
+        """Get FlexRandomizer instance for specified profile and domain"""
+        if profile_name in self.domain_randomizers:
+            return self.domain_randomizers[profile_name][domain]
+        else:
+            # Fallback to balanced profile
+            self.log.warning(f"Profile '{profile_name}' not found, using 'balanced'")
+            return self.domain_randomizers['balanced'][domain]
 
     def set_randomizer_profile(self, profile_name):
-        """Set randomizer profile for all components"""
-        if profile_name in self.randomizer_configs:
-            master_config = self.randomizer_configs[profile_name]['master']
-            slave_config = self.randomizer_configs[profile_name]['slave']
+        """Set randomizer profile for write and read components"""
+        self.log.info(f"🔍 STEP 1: Starting set_randomizer_profile('{profile_name}') for mode={self.TEST_MODE}")
 
-            # Set master randomizer
-            self.write_master.set_randomizer(FlexRandomizer(master_config))
+        self.log.info(f"🔍 STEP 2: Getting write randomizer...")
+        write_randomizer = self.get_randomizer(profile_name, 'write')
+        self.log.info(f"🔍 STEP 2: Got write randomizer: {type(write_randomizer)}")
 
-            # Set slave randomizer
-            self.read_slave.set_randomizer(FlexRandomizer(slave_config))
+        self.log.info(f"🔍 STEP 3: Getting read randomizer...")
+        read_randomizer = self.get_randomizer(profile_name, 'read')
+        self.log.info(f"🔍 STEP 3: Got read randomizer: {type(read_randomizer)}")
 
-            self.log.info(f"Set randomizers to profile '{profile_name}' - "
-                            f"Master: {master_config}, Slave: {slave_config}")
-        else:
-            self.log.warning(f"Randomizer profile '{profile_name}' not found, using 'balanced'")
-            fallback_config = self.randomizer_configs.get('balanced', {
-                'master': {'valid_delay': ([(0, 1), (2, 5)], [0.7, 0.3])},
-                'slave': {'ready_delay': ([(0, 1), (2, 5)], [0.7, 0.3])}
-            })
+        # Apply randomizers to components
+        self.log.info(f"🔍 STEP 4: About to call write_master.set_randomizer() (mode={self.TEST_MODE})")
+        self.write_master.set_randomizer(write_randomizer)
+        self.log.info(f"🔍 STEP 4: ✅ write_master.set_randomizer() completed successfully")
 
-            self.write_master.set_randomizer(FlexRandomizer(fallback_config['master']))
-            self.read_slave.set_randomizer(FlexRandomizer(fallback_config['slave']))
+        self.log.info(f"🔍 STEP 5: About to call read_slave.set_randomizer() (mode={self.TEST_MODE})")
+        self.read_slave.set_randomizer(read_randomizer)
+        self.log.info(f"🔍 STEP 5: ✅ read_slave.set_randomizer() completed successfully")
+
+        self.log.info(f"🔍 STEP 6: All randomizer setup completed successfully for mode={self.TEST_MODE}")
+        self.log.info(f"Set randomizers to profile '{profile_name}' for write/read domains")
+
+        def get_randomizer_config_names(self):
+            """Get list of available randomizer configuration names"""
+            return list(self.randomizer_instances.keys())
+
+        def get_available_profiles(self):
+            """Get list of available profiles (alias for compatibility)"""
+            return self.get_randomizer_config_names()
 
     # Enhanced sequence generation methods - same as multi buffer but field-focused
 

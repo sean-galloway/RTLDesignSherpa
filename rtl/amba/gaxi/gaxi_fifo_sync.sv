@@ -41,13 +41,13 @@ module gaxi_fifo_sync #(
     assign w_write = i_wr_valid && o_wr_ready;
 
     counter_bin #(
-        .WIDTH(AW + 1),
-        .MAX  (D)
-    ) write_pointer_inst (
-        .i_clk(i_axi_aclk),
-        .i_rst_n(i_axi_aresetn),
-        .i_enable(w_write && !r_wr_full),
-        .o_counter_bin(r_wr_ptr_bin),
+        .WIDTH              (AW + 1),
+        .MAX                (D)
+    ) write_pointer_inst(
+        .i_clk              (i_axi_aclk),
+        .i_rst_n            (i_axi_aresetn),
+        .i_enable           (w_write && !r_wr_full),
+        .o_counter_bin      (r_wr_ptr_bin),
         .ow_counter_bin_next(w_wr_ptr_bin_next)
     );
 
@@ -56,13 +56,13 @@ module gaxi_fifo_sync #(
     logic w_read;
     assign w_read = o_rd_valid && i_rd_ready;
     counter_bin #(
-        .WIDTH(AW + 1),
-        .MAX  (D)
-    ) read_pointer_inst (
-        .i_clk(i_axi_aclk),
-        .i_rst_n(i_axi_aresetn),
-        .i_enable(w_read && !r_rd_empty),
-        .o_counter_bin(r_rd_ptr_bin),
+        .WIDTH              (AW + 1),
+        .MAX                (D)
+    ) read_pointer_inst(
+        .i_clk              (i_axi_aclk),
+        .i_rst_n            (i_axi_aresetn),
+        .i_enable           (w_read && !r_rd_empty),
+        .o_counter_bin      (r_rd_ptr_bin),
         .ow_counter_bin_next(w_rd_ptr_bin_next)
     );
 

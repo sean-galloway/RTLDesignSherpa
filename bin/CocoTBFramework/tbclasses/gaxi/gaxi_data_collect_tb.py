@@ -1,5 +1,6 @@
 """
 Enhanced testbench for gaxi_data_collect module using modern framework with FlexConfigGen
+Updated to use FlexConfigGen returning FlexRandomizer instances directly
 """
 import os
 import logging
@@ -9,14 +10,13 @@ import cocotb
 from collections import deque
 
 from CocoTBFramework.tbclasses.tbbase import TBBase
-from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.shared.field_config import FieldConfig, FieldDefinition
 from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
 from CocoTBFramework.components.gaxi.gaxi_master import GAXIMaster
 from CocoTBFramework.components.gaxi.gaxi_slave import GAXISlave
 from CocoTBFramework.components.gaxi.gaxi_monitor import GAXIMonitor
 from CocoTBFramework.components.shared.memory_model import MemoryModel
-from CocoTBFramework.tbclasses.flex_config_gen import FlexConfigGen
+from CocoTBFramework.components.shared.flex_config_gen import FlexConfigGen
 from CocoTBFramework.components.arbiter_monitor import WeightedRoundRobinArbiterMonitor
 
 
@@ -433,7 +433,7 @@ class GAXIDataCollectTB(TBBase):
         self.log.info(f"OUTPUT_FIFO_DEPTH={self.OUTPUT_FIFO_DEPTH}, CHUNKS={self.CHUNKS}, SEED={self.SEED}")
 
         # Create comprehensive randomizer configurations using FlexConfigGen
-        self.randomizer_configs = self._create_comprehensive_randomizer_configs()
+        self.randomizer_manager = self._create_randomizer_manager()
 
         # Define field configuration for input channels (data+id)
         self.input_field_config = FieldConfig()
@@ -601,10 +601,13 @@ class GAXIDataCollectTB(TBBase):
             'arbiter_decisions': {channel: 0 for channel in self.channel_names}
         }
 
+        # Set default randomizer profile
+        self.set_randomizer_profile('arbitration_balanced')
+
         self.log.info(f"Testbench initialized with {len(self.masters)} input masters and {len(self.monitors)} input monitors")
 
-    def _create_comprehensive_randomizer_configs(self):
-        """Create comprehensive randomizer configurations using FlexConfigGen"""
+    def _create_randomizer_manager(self):
+        """Create FlexConfigGen manager that returns FlexRandomizer instances directly"""
 
         # Define GAXI-specific arbitration profiles
         gaxi_arbitration_profiles = {
@@ -618,7 +621,7 @@ class GAXIDataCollectTB(TBBase):
             'arbitration_weighted': ([(0, 0), (1, 4), (self.CHUNKS*2, self.CHUNKS*4)], [10, 5, 1])  # Weight-aware
         }
 
-        # Create FlexConfigGen for comprehensive GAXI arbitration testing
+        # Create FlexConfigGen for comprehensive GAXI arbitration testing - NOTE: return_flexrandomizer=True
         config_gen = FlexConfigGen(
             profiles=[
                 # Standard canned profiles
@@ -635,6 +638,19 @@ class GAXIDataCollectTB(TBBase):
         )
 
         # Customize profiles for GAXI arbitration behavior
+        self._customize_profiles(config_gen)
+
+        # Build configurations and get FlexRandomizer instances directly
+        self.randomizer_instances = config_gen.build(return_flexrandomizer=True)
+
+        self.log.info(f"Created {len(self.randomizer_instances)} FlexRandomizer instances via FlexConfigGen:")
+        for profile_name in self.randomizer_instances.keys():
+            self.log.info(f"  - {profile_name}")
+
+        return config_gen
+
+    def _customize_profiles(self, config_gen):
+        """Customize FlexConfigGen profiles for GAXI arbitration behavior"""
 
         # Ultra-aggressive backtoback for maximum throughput
         config_gen.backtoback.valid_delay.fixed_value(0)
@@ -672,49 +688,35 @@ class GAXIDataCollectTB(TBBase):
         config_gen.heavy_pause.valid_delay.mostly_zero(zero_weight=20, fallback_range=(1, 2), fallback_weight=1)
         config_gen.heavy_pause.ready_delay.weighted_ranges([((0, 0), 4), ((15, 25), 1)])
 
-        # Build all configurations
-        randomizer_dict = config_gen.build(return_flexrandomizer=False)
-
-        # Convert to the format expected by the rest of the testbench
-        converted_configs = {}
-        for profile_name, profile_config in randomizer_dict.items():
-            converted_configs[profile_name] = {
-                'master': {field: constraints for field, constraints in profile_config.items() if 'valid' in field},
-                'slave': {field: constraints for field, constraints in profile_config.items() if 'ready' in field}
-            }
-
-        self.log.info(f"Created {len(converted_configs)} comprehensive GAXI arbitration randomizer configurations:")
-        for profile_name in converted_configs.keys():
-            self.log.info(f"  - {profile_name}")
-
-        return converted_configs
-
-    def get_available_profiles(self):
-        """Get list of available randomizer profile names"""
-        return list(self.randomizer_configs.keys())
+    def get_randomizer(self, profile_name):
+        """Get FlexRandomizer instance for specified profile"""
+        if profile_name in self.randomizer_instances:
+            return self.randomizer_instances[profile_name]
+        else:
+            # Fallback to balanced profile
+            self.log.warning(f"Profile '{profile_name}' not found, using 'arbitration_balanced'")
+            return self.randomizer_instances['arbitration_balanced']
 
     def set_randomizer_profile(self, profile_name):
         """Set randomizer profile for all components"""
-        if profile_name in self.randomizer_configs:
-            master_config = self.randomizer_configs[profile_name]['master']
-            slave_config = self.randomizer_configs[profile_name]['slave']
+        randomizer = self.get_randomizer(profile_name)
 
-            # Set all master randomizers
-            for channel_name in self.channel_names:
-                self.masters[channel_name].set_randomizer(FlexRandomizer(master_config))
+        # Set all master randomizers
+        for channel_name in self.channel_names:
+            self.masters[channel_name].set_randomizer(randomizer)
 
-            # Set slave randomizer
-            self.slave_e.set_randomizer(FlexRandomizer(slave_config))
+        # Set slave randomizer
+        self.slave_e.set_randomizer(randomizer)
 
-            self.log.info(f"Set all randomizers to profile '{profile_name}' - "
-                            f"Master: {master_config}, Slave: {slave_config}")
-        else:
-            self.log.warning(f"Randomizer profile '{profile_name}' not found, using 'arbitration_balanced'")
-            fallback_config = self.randomizer_configs['arbitration_balanced']
+        self.log.info(f"Set all randomizers to profile '{profile_name}'")
 
-            for channel_name in self.channel_names:
-                self.masters[channel_name].set_randomizer(FlexRandomizer(fallback_config['master']))
-            self.slave_e.set_randomizer(FlexRandomizer(fallback_config['slave']))
+    def get_randomizer_config_names(self):
+        """Get list of available randomizer configuration names"""
+        return list(self.randomizer_instances.keys())
+
+    def get_available_profiles(self):
+        """Get list of available profiles (alias for compatibility)"""
+        return self.get_randomizer_config_names()
 
     def _on_arbiter_transaction(self, transaction):
         """Callback function called when arbiter monitor observes a transaction"""

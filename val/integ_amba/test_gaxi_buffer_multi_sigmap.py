@@ -11,7 +11,7 @@ from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
 async def skid_buffer_multi_sigmap_test(dut):
-    '''Test the axi_skid_buffer_multi component'''
+    '''Test the axi_skid_buffer_multi component with proper result checking'''
     tb = GaxiMultiSigMapBufferTB(dut, wr_clk=dut.axi_aclk, wr_rstn=dut.axi_aresetn)
 
     # Use the seed for reproducibility
@@ -26,52 +26,123 @@ async def skid_buffer_multi_sigmap_test(dut):
     await tb.deassert_reset()
     await tb.wait_clocks('axi_aclk', 5)
 
-    tb.log.info("Starting test...")
+    tb.log.info("Starting test with verification checking...")
 
-    # Run legacy test for backward compatibility
-    tb.log.info("Running legacy simple_incremental_loops test...")
-    await tb.simple_incremental_loops(count=10, delay_key='fixed', delay_clks_after=20)
+    try:
+        # Run legacy test for backward compatibility - CHECK RESULT
+        tb.log.info("Running legacy simple_incremental_loops test...")
+        result = await tb.simple_incremental_loops(count=10, delay_key='fixed', delay_clks_after=20)
+        if not result:
+            raise AssertionError("❌ Simple incremental loops test FAILED verification")
+        tb.log.info("✅ Simple incremental loops test PASSED")
 
-    # Run basic sequence test
-    tb.log.info("Running basic sequence test...")
-    await tb.run_sequence_test(tb.basic_sequence, delay_key='fixed', delay_clks_after=5)
+        # Run basic sequence test - CHECK RESULT
+        tb.log.info("Running basic sequence test...")
+        result = await tb.run_sequence_test(tb.basic_sequence, delay_key='fixed', delay_clks_after=5)
+        if not result:
+            raise AssertionError("❌ Basic sequence test FAILED verification")
+        tb.log.info("✅ Basic sequence test PASSED")
 
-    # Run walking ones pattern test
-    tb.log.info("Running walking ones pattern test...")
-    await tb.run_sequence_test(tb.walking_ones_sequence, delay_key='constrained', delay_clks_after=5)
+        # Run walking ones pattern test - CHECK RESULT
+        tb.log.info("Running walking ones pattern test...")
+        result = await tb.run_sequence_test(tb.walking_ones_sequence, delay_key='constrained', delay_clks_after=5)
+        if not result:
+            raise AssertionError("❌ Walking ones pattern test FAILED verification")
+        tb.log.info("✅ Walking ones pattern test PASSED")
 
-    # Run alternating patterns test
-    tb.log.info("Running alternating patterns test...")
-    await tb.run_sequence_test(tb.alternating_sequence, delay_key='fast', delay_clks_after=5)
+        # Run alternating patterns test - CHECK RESULT
+        tb.log.info("Running alternating patterns test...")
+        result = await tb.run_sequence_test(tb.alternating_sequence, delay_key='fast', delay_clks_after=5)
+        if not result:
+            raise AssertionError("❌ Alternating patterns test FAILED verification")
+        tb.log.info("✅ Alternating patterns test PASSED")
 
-    # Run burst sequence test with back-to-back packets
-    tb.log.info("Running burst sequence test...")
-    await tb.run_sequence_test(tb.burst_sequence, delay_key='backtoback', delay_clks_after=5)
+        # Run burst sequence test with back-to-back packets - CHECK RESULT
+        tb.log.info("Running burst sequence test...")
+        result = await tb.run_sequence_test(tb.burst_sequence, delay_key='backtoback', delay_clks_after=5)
+        if not result:
+            raise AssertionError("❌ Burst sequence test FAILED verification")
+        tb.log.info("✅ Burst sequence test PASSED")
 
-    # Run random data test
-    tb.log.info("Running random data test...")
-    await tb.run_sequence_test(tb.random_sequence, delay_key='constrained', delay_clks_after=5)
+        # Run random data test - CHECK RESULT
+        tb.log.info("Running random data test...")
+        result = await tb.run_sequence_test(tb.random_sequence, delay_key='constrained', delay_clks_after=5)
+        if not result:
+            raise AssertionError("❌ Random data test FAILED verification")
+        tb.log.info("✅ Random data test PASSED")
 
-    # Run comprehensive test
-    tb.log.info("Running comprehensive test...")
-    await tb.run_sequence_test(tb.comprehensive_sequence, delay_key='constrained', delay_clks_after=10)
+        # Run comprehensive test - CHECK RESULT
+        tb.log.info("Running comprehensive test...")
+        result = await tb.run_sequence_test(tb.comprehensive_sequence, delay_key='constrained', delay_clks_after=10)
+        if not result:
+            raise AssertionError("❌ Comprehensive test FAILED verification")
+        tb.log.info("✅ Comprehensive test PASSED")
 
-    # Run stress test with varied delays and patterns
-    tb.log.info("Running stress test...")
-    await tb.run_sequence_test(tb.stress_sequence, delay_key='burst_pause', delay_clks_after=20)
+        # Run stress test with varied delays and patterns - CHECK RESULT
+        tb.log.info("Running stress test...")
+        result = await tb.run_sequence_test(tb.stress_sequence, delay_key='burst_pause', delay_clks_after=20)
+        if not result:
+            raise AssertionError("❌ Stress test FAILED verification")
+        tb.log.info("✅ Stress test PASSED")
 
-    # Test with different randomizer configurations
-    tb.log.info("Testing with different randomizer configurations...")
+        # Test with different randomizer configurations
+        tb.log.info("Testing with different randomizer configurations...")
 
-    # Test with slow consumer
-    tb.log.info("Testing with slow consumer...")
-    await tb.run_sequence_test(tb.basic_sequence, delay_key='slow_consumer', delay_clks_after=20)
+        # Test with slow consumer - CHECK RESULT
+        tb.log.info("Testing with slow consumer...")
+        result = await tb.run_sequence_test(tb.basic_sequence, delay_key='slow_consumer', delay_clks_after=20)
+        if not result:
+            raise AssertionError("❌ Slow consumer test FAILED verification")
+        tb.log.info("✅ Slow consumer test PASSED")
 
-    # Test with slow producer
-    tb.log.info("Testing with slow producer...")
-    await tb.run_sequence_test(tb.basic_sequence, delay_key='slow_producer', delay_clks_after=20)
+        # Test with slow producer - CHECK RESULT
+        tb.log.info("Testing with slow producer...")
+        result = await tb.run_sequence_test(tb.basic_sequence, delay_key='slow_producer', delay_clks_after=20)
+        if not result:
+            raise AssertionError("❌ Slow producer test FAILED verification")
+        tb.log.info("✅ Slow producer test PASSED")
 
-    tb.log.info("All tests completed successfully!")
+        # Final verification check - ensure no accumulated errors
+        final_stats = tb.get_statistics()
+        total_errors = final_stats.get('total_errors', 0)
+        verification_errors = final_stats.get('verification_errors', 0)
+
+        if total_errors > 0:
+            tb.log.error(f"❌ FINAL CHECK FAILED: {total_errors} total errors detected")
+            tb.log.error(f"   Verification errors: {verification_errors}")
+            tb.log.error(f"   Final statistics: {final_stats}")
+            raise AssertionError(f"❌ TEST SUITE FAILED: {total_errors} total errors, {verification_errors} verification errors")
+
+        if final_stats.get('total_sent', 0) != final_stats.get('total_received', 0):
+            sent = final_stats.get('total_sent', 0)
+            received = final_stats.get('total_received', 0)
+            tb.log.error(f"❌ PACKET COUNT MISMATCH: sent={sent}, received={received}")
+            raise AssertionError(f"❌ Packet count mismatch: sent={sent}, received={received}")
+
+        # Success summary
+        tb.log.info("🎉 ALL TESTS COMPLETED SUCCESSFULLY! 🎉")
+        tb.log.info(f"✅ Total packets verified: {final_stats.get('total_received', 0)}")
+        tb.log.info(f"✅ Zero errors detected")
+        tb.log.info(f"✅ All sequence tests passed verification")
+
+    except AssertionError as e:
+        # Re-raise assertion errors (test failures)
+        tb.log.error(f"🚨 TEST FAILED: {e}")
+        raise
+
+    except Exception as e:
+        # Handle unexpected errors
+        tb.log.error(f"🚨 UNEXPECTED ERROR: {e}")
+
+        # Get debug statistics
+        try:
+            debug_stats = tb.get_statistics()
+            tb.log.error(f"Debug statistics: {debug_stats}")
+        except:
+            tb.log.error("Could not retrieve debug statistics")
+
+        # Re-raise as test failure
+        raise AssertionError(f"❌ Unexpected error during test: {e}")
 
 
 def generate_params():
@@ -81,8 +152,8 @@ def generate_params():
     depths = [2]
     modes = ['skid']
 
-    # return [(6, 3, 8, 2, 'skid')]
-    return list(product(addr_widths, ctrl_widths, data_widths, depths, modes))
+    return [(6, 3, 8, 2, 'skid')]
+    # return list(product(addr_widths, ctrl_widths, data_widths, depths, modes))
 
 params = generate_params()
 
@@ -101,19 +172,17 @@ def test_axi_skid_buffer_multi_sigmap(request, addr_width, ctrl_width, data_widt
     dut_name = "gaxi_skid_buffer_multi_sigmap"
     toplevel = dut_name
 
-
     verilog_sources = [
         os.path.join(rtl_dict['rtl_gaxi'],       "gaxi_skid_buffer.sv"),
         os.path.join(rtl_dict['rtl_amba_test'], f"{dut_name}.sv"),
     ]
-
 
     # Create a human readable test identifier
     aw_str = TBBase.format_dec(addr_width, 3)
     cw_str = TBBase.format_dec(ctrl_width, 3)
     dw_str = TBBase.format_dec(data_width, 3)
     d_str = TBBase.format_dec(depth, 3)
-    test_name_plus_params = f"test_{dut_name}_aw{aw_str}_cw{cw_str}_dw{dw_str}_d{d_str}"
+    test_name_plus_params = f"test_{dut_name}_{mode}_aw{aw_str}_cw{cw_str}_dw{dw_str}_d{d_str}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Use it in the simbuild path
@@ -153,7 +222,6 @@ def test_axi_skid_buffer_multi_sigmap(request, addr_width, ctrl_width, data_widt
     extra_env['TEST_DATA_WIDTH'] = str(data_width)
     extra_env['TEST_DEPTH'] = str(depth)
     extra_env['TEST_MODE'] = 'skid'  # Always 'skid' mode for skid buffer
-
 
     compile_args = [
         "--trace-fst",

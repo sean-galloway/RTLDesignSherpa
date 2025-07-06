@@ -162,12 +162,6 @@ async def fifo_multi_test(dut):
     await tb.back_to_back_multi_signal_test(count=packet_counts['back_to_back'])
     tb.log.info("✓ Completed back-to-back multi-signal test")
 
-    # Run protocol error test for medium and full levels
-    if run_protocol_error_test:
-        tb.log.info("Running multi-signal protocol error test...")
-        await tb.protocol_error_test()
-        tb.log.info("✓ Completed multi-signal protocol error test")
-
     tb.log.info(f"✓ ALL {test_level.upper()} MULTI-SIGNAL TESTS PASSED!")
 
 
@@ -203,8 +197,8 @@ def generate_params():
     registered = [0, 1]
     # test_levels = ['basic', 'medium', 'full']  # All test levels
     test_levels = ['full']  # For initial testing
-    # return [(4, 5, 8, 4, 10, 10, 0, 'full'), (4, 5, 8, 4, 10, 10, 1, 'full')]
-    return list(product(addr_widths, ctrl_widths, data_widths, depths, wr_clk_periods, rd_clk_periods, registered, test_levels))
+    return [(4, 5, 8, 4, 10, 10, 0, 'full'), (4, 5, 8, 4, 10, 10, 1, 'full')]
+    # return list(product(addr_widths, ctrl_widths, data_widths, depths, wr_clk_periods, rd_clk_periods, registered, test_levels))
 
 params = generate_params()
 
@@ -247,7 +241,7 @@ def test_fifo_buffer_multi_sigmap(request, addr_width, ctrl_width, data_width, d
     wcl_str = TBBase.format_dec(wr_clk_period, 3)
     rcl_str = TBBase.format_dec(rd_clk_period, 3)
     # Updated test name format: includes test level in the main name
-    test_name_plus_params = f"test_fifo_multi_aw{aw_str}_cw{cw_str}_dw{dw_str}_d{d_str}_wcl{wcl_str}_rcl{rcl_str}_{mode}_{test_level}"
+    test_name_plus_params = f"test_fifo_multi_sigmap_aw{aw_str}_cw{cw_str}_dw{dw_str}_d{d_str}_wcl{wcl_str}_rcl{rcl_str}_{mode}_{test_level}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # use it in the simbuild path

@@ -35,7 +35,7 @@ module gaxi_skid_buffer_multi_sigmap #(
         .i_wr_data     ({wr_siga, wr_sigb, wr_sigd, wr_sigc}),
         .o_rd_valid    (rd_valid),
         .i_rd_ready    (rd_ready),
-        .o_rd_data     ({rd_sige, rd_sigf, rd_sigg, rd_sigh}),
+        .o_rd_data     ({rd_sige, rd_sigf, rd_sigh, rd_sigg}),
         .ow_count      (),
         .o_rd_count    ()
     );

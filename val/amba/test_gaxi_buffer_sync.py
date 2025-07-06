@@ -171,7 +171,7 @@ def generate_params():
     modes = ['skid', 'fifo_mux', 'fifo_flop']
     # modes = ['fifo_mux']
     test_levels = ['full']  # All test levels
-    return [(8, 4, 10, 'skid', 'basic'), (8, 4, 10, 'fifo_mux', 'basic'), (8, 4, 10, 'fifo_flop', 'basic')]
+    return [(8, 4, 10, 'skid', 'full'), (8, 4, 10, 'fifo_mux', 'full'), (8, 4, 10, 'fifo_flop', 'full')]
     # return list(product(widths, depths, clk_periods, modes, test_levels))
 
 params = generate_params()

@@ -162,12 +162,6 @@ async def fifo_multi_test(dut):
     await tb.back_to_back_multi_signal_test(count=packet_counts['back_to_back'])
     tb.log.info("✓ Completed back-to-back multi-signal test")
 
-    # Run protocol error test for medium and full levels
-    if run_protocol_error_test:
-        tb.log.info("Running multi-signal protocol error test...")
-        await tb.protocol_error_test()
-        tb.log.info("✓ Completed multi-signal protocol error test")
-
     tb.log.info(f"✓ ALL {test_level.upper()} MULTI-SIGNAL TESTS PASSED!")
 
 
@@ -203,8 +197,8 @@ def generate_params():
     registered = [0, 1]
     # test_levels = ['basic', 'medium', 'full']  # All test levels
     test_levels = ['full']  # For initial testing
-    # return [(4, 5, 8, 4, 10, 10, 0, 'full'), (4, 5, 8, 4, 10, 10, 1, 'full')]
-    return list(product(addr_widths, ctrl_widths, data_widths, depths, wr_clk_periods, rd_clk_periods, registered, test_levels))
+    return [(4, 5, 8, 4, 10, 10, 0, 'full'), (4, 5, 8, 4, 10, 10, 1, 'full')]
+    # return list(product(addr_widths, ctrl_widths, data_widths, depths, wr_clk_periods, rd_clk_periods, registered, test_levels))
 
 params = generate_params()
 

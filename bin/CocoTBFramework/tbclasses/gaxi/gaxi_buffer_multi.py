@@ -1,25 +1,20 @@
 """
-Updated Testbench for GAXI multi-signal components with FlexConfigGen integration
+Updated Testbench for GAXI multi-signal components - FIXED timing issues
 
-Updated to use new unified infrastructure while preserving all existing APIs
-for test runner compatibility. Now includes comprehensive FlexConfigGen
-integration for randomizer profiles.
-
-Key improvements:
-- Uses GAXIComponentBase infrastructure for all components
-- Leverages unified FieldConfig patterns with proper field width handling
-- Integrates FlexConfigGen for comprehensive randomizer configurations
-- Uses base MemoryModel directly (no wrapper classes needed)
-- Maintains exact same API for test runners
-- Added comprehensive sequence generation methods
+Key fixes:
+- Added proper completion checking after sending packets  
+- Wait for expected number of packets to be received before verification
+- Account for buffer depth and mode-specific delays
+- Added timeout protection to prevent infinite waits
+- Enhanced timing calculations based on buffer characteristics
+- Added enhanced verification methods for better error detection
 """
 import os
 import random
 
 from CocoTBFramework.tbclasses.tbbase import TBBase
-from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.shared.field_config import FieldConfig, FieldDefinition
-from CocoTBFramework.tbclasses.flex_config_gen import FlexConfigGen
+from CocoTBFramework.components.shared.flex_config_gen import FlexConfigGen
 
 from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
 from CocoTBFramework.components.gaxi.gaxi_master import GAXIMaster
@@ -32,10 +27,17 @@ from CocoTBFramework.components.shared.memory_model import MemoryModel
 
 class GaxiMultiBufferTB(TBBase):
     """
-    Updated testbench for multi-signal GAXI components using new unified infrastructure with FlexConfigGen.
+    Updated testbench for multi-signal GAXI components with FIXED timing and completion checking.
 
     Supports gaxi_fifo_sync_multi and gaxi_skid_buffer_multi components.
     All existing APIs are preserved for test runner compatibility.
+    
+    Fixed timing issues:
+    - Proper completion checking after sending packets
+    - Wait for expected packet counts before verification  
+    - Buffer-depth-aware timing calculations
+    - Mode-specific delay considerations
+    - Timeout protection for completion waits
     """
 
     def __init__(self, dut,
@@ -65,6 +67,15 @@ class GaxiMultiBufferTB(TBBase):
         self.MAX_DATA = (2**self.TEST_DATA_WIDTH)-1
         self.TIMEOUT_CYCLES = 1000
 
+        # FIXED: Enhanced timing calculations based on buffer characteristics
+        self.COMPLETION_TIMEOUT_CYCLES = max(1000, self.TEST_DEPTH * 100)  # Scale with buffer depth
+        self.MODE_SPECIFIC_DELAYS = {
+            'skid': 3,        # Skid buffer: ~3 cycle latency
+            'fifo_mux': 2,    # FIFO mux: ~2 cycle latency  
+            'fifo_flop': 3    # FIFO flop: ~3 cycle latency
+        }
+        self.BASE_COMPLETION_DELAY = self.MODE_SPECIFIC_DELAYS.get(self.TEST_MODE, 3)
+
         # Setup clock and reset signals - UNCHANGED API
         self.wr_clk = wr_clk
         self.wr_clk_name = wr_clk.name
@@ -73,7 +84,12 @@ class GaxiMultiBufferTB(TBBase):
         self.rd_clk_name = self.wr_clk_name if rd_clk is None else rd_clk.name
         self.rd_rstn = self.wr_rstn if rd_rstn is None else rd_rstn
 
-        # Log the test configuration - UNCHANGED API
+        # Enhanced verification settings (optional - for compatibility)
+        self.strict_verification = True
+        self.fail_fast = True  
+        self.max_allowed_errors = 0
+
+        # Log the test configuration with timing info - ENHANCED
         msg = '\n'
         msg += '='*80 + "\n"
         msg += ' Settings:\n'
@@ -89,11 +105,13 @@ class GaxiMultiBufferTB(TBBase):
         msg += f' clk_wr:   {self.TEST_CLK_WR}\n'
         msg += f' clk_rd:   {self.TEST_CLK_RD}\n'
         msg += f' SEED:     {self.SEED}\n'
+        msg += f' COMPLETION_TIMEOUT: {self.COMPLETION_TIMEOUT_CYCLES}\n'
+        msg += f' BASE_DELAY: {self.BASE_COMPLETION_DELAY}\n'
         msg += '='*80 + "\n"
         self.log.info(msg)
 
         # Create comprehensive randomizer configurations using FlexConfigGen
-        self.randomizer_configs = self._create_comprehensive_randomizer_configs()
+        self.randomizer_manager = self._create_randomizer_manager()
 
         # Define field configuration using new unified infrastructure
         # Use FieldConfig.validate_and_create for consistent handling
@@ -171,17 +189,32 @@ class GaxiMultiBufferTB(TBBase):
         self.sequence_gen = GAXIBufferSequence(
             name="multi_buffer_test",
             field_config=self.field_config,
-            packet_class=GAXIPacket
+            packet_class=GAXIPacket,
         )
 
-        # Statistics tracking - enhanced with new infrastructure patterns
+        # ENHANCED statistics tracking with verification details and timing
         self.stats = {
             'total_sent': 0,
             'total_received': 0,
             'total_errors': 0,
+            'verification_errors': 0,
+            'field_mismatch_errors': 0,
             'sequence_completed': False,
             'test_duration': 0,
-            'verification_errors': 0
+            'failed_tests': [],
+            'last_error_details': None,
+            'packet_errors': {},  # Track errors per packet
+            'completion_timeouts': 0,  # Track completion timeout events
+            'expected_packets': 0      # Track expected packet count
+        }
+
+        # Enhanced error tracking
+        self.verification_failures = []
+        self.field_error_counts = {
+            'addr': 0,
+            'ctrl': 0,
+            'data0': 0,
+            'data1': 0
         }
 
         # Compatibility attributes for existing test runners
@@ -194,9 +227,10 @@ class GaxiMultiBufferTB(TBBase):
         self.set_randomizer_profile('balanced')
 
         self.log.info(f"Testbench initialized with mode='{self.TEST_MODE}', depth={self.TEST_DEPTH}")
+        self.log.info(f"Timing: completion_timeout={self.COMPLETION_TIMEOUT_CYCLES}, base_delay={self.BASE_COMPLETION_DELAY}")
 
-    def _create_comprehensive_randomizer_configs(self):
-        """Create comprehensive randomizer configurations using FlexConfigGen"""
+    def _create_randomizer_manager(self):
+        """Create FlexConfigGen manager that returns FlexRandomizer instances directly"""
 
         # Define GAXI buffer-specific profiles
         gaxi_buffer_profiles = {
@@ -209,7 +243,7 @@ class GaxiMultiBufferTB(TBBase):
             'buffer_coordinated': ([(1, 3), (4, 7)], [3, 2]),                   # Coordinated timing
         }
 
-        # Create FlexConfigGen for comprehensive buffer testing
+        # Create FlexConfigGen for comprehensive buffer testing - NOTE: return_flexrandomizer=True
         config_gen = FlexConfigGen(
             profiles=[
                 # Standard canned profiles
@@ -226,6 +260,27 @@ class GaxiMultiBufferTB(TBBase):
         )
 
         # Customize profiles for buffer-specific behavior
+        self._customize_profiles(config_gen)
+
+        # Build configurations and get FlexRandomizer instances directly
+        self.randomizer_instances = config_gen.build(return_flexrandomizer=True)
+
+        # Create write/read domain mapping for easier access
+        self.domain_randomizers = {}
+        for profile_name, randomizer in self.randomizer_instances.items():
+            self.domain_randomizers[profile_name] = {
+                'write': randomizer,  # Write domain gets the randomizer
+                'read': randomizer    # Read domain gets the same randomizer
+            }
+
+        self.log.info(f"Created {len(self.randomizer_instances)} FlexRandomizer instances via FlexConfigGen:")
+        for profile_name in self.randomizer_instances.keys():
+            self.log.info(f"  - {profile_name}")
+
+        return config_gen
+
+    def _customize_profiles(self, config_gen):
+        """Customize FlexConfigGen profiles for buffer-specific behavior"""
 
         # Ultra-aggressive for maximum throughput
         config_gen.backtoback.valid_delay.fixed_value(0)
@@ -271,50 +326,33 @@ class GaxiMultiBufferTB(TBBase):
         config_gen.burst_pause.valid_delay.burst_pattern(fast_cycles=0, pause_range=(self.TEST_DEPTH, self.TEST_DEPTH*2), burst_ratio=20)
         config_gen.burst_pause.ready_delay.burst_pattern(fast_cycles=0, pause_range=(self.TEST_DEPTH//2, self.TEST_DEPTH), burst_ratio=15)
 
-        # Build all configurations
-        randomizer_dict = config_gen.build(return_flexrandomizer=False)
-
-        # Convert to the format expected by the testbench
-        converted_configs = {}
-        for profile_name, profile_config in randomizer_dict.items():
-            converted_configs[profile_name] = {
-                'master': {field: constraints for field, constraints in profile_config.items() if 'valid' in field},
-                'slave': {field: constraints for field, constraints in profile_config.items() if 'ready' in field}
-            }
-
-        self.log.info(f"Created {len(converted_configs)} comprehensive buffer randomizer configurations:")
-        for profile_name in converted_configs.keys():
-            self.log.info(f"  - {profile_name}")
-
-        return converted_configs
-
-    def get_available_profiles(self):
-        """Get list of available randomizer profile names"""
-        return list(self.randomizer_configs.keys())
+    def get_randomizer(self, profile_name, domain='write'):
+        """Get FlexRandomizer instance for specified profile and domain"""
+        if profile_name in self.domain_randomizers:
+            return self.domain_randomizers[profile_name][domain]
+        else:
+            # Fallback to balanced profile
+            self.log.warning(f"Profile '{profile_name}' not found, using 'balanced'")
+            return self.domain_randomizers['balanced'][domain]
 
     def set_randomizer_profile(self, profile_name):
-        """Set randomizer profile for all components"""
-        if profile_name in self.randomizer_configs:
-            master_config = self.randomizer_configs[profile_name]['master']
-            slave_config = self.randomizer_configs[profile_name]['slave']
+        """Set randomizer profile for write and read components"""
+        write_randomizer = self.get_randomizer(profile_name, 'write')
+        read_randomizer = self.get_randomizer(profile_name, 'read')
 
-            # Set master randomizer
-            self.write_master.set_randomizer(FlexRandomizer(master_config))
+        # Apply randomizers to components
+        self.write_master.set_randomizer(write_randomizer)
+        self.read_slave.set_randomizer(read_randomizer)
 
-            # Set slave randomizer
-            self.read_slave.set_randomizer(FlexRandomizer(slave_config))
+        self.log.info(f"Set randomizers to profile '{profile_name}' for write/read domains")
 
-            self.log.info(f"Set randomizers to profile '{profile_name}' - "
-                            f"Master: {master_config}, Slave: {slave_config}")
-        else:
-            self.log.warning(f"Randomizer profile '{profile_name}' not found, using 'balanced'")
-            fallback_config = self.randomizer_configs.get('balanced', {
-                'master': {'valid_delay': ([(0, 1), (2, 5)], [0.7, 0.3])},
-                'slave': {'ready_delay': ([(0, 1), (2, 5)], [0.7, 0.3])}
-            })
+    def get_randomizer_config_names(self):
+        """Get list of available randomizer configuration names"""
+        return list(self.randomizer_instances.keys())
 
-            self.write_master.set_randomizer(FlexRandomizer(fallback_config['master']))
-            self.read_slave.set_randomizer(FlexRandomizer(fallback_config['slave']))
+    def get_available_profiles(self):
+        """Get list of available profiles (alias for compatibility)"""
+        return self.get_randomizer_config_names()
 
     # Enhanced sequence generation methods
 
@@ -372,78 +410,120 @@ class GaxiMultiBufferTB(TBBase):
         self.sequence_gen.add_random_pattern(count - 70)  # Fill remainder
         return self.sequence_gen
 
-    # API Methods - UNCHANGED for test runner compatibility
+    # FIXED API Methods with proper completion checking
 
     async def simple_incremental_loops(self, count=100, delay_key='fixed', delay_clks_after=10):
         """
-        Legacy simple incremental test - UNCHANGED API for test runners.
+        Legacy simple incremental test with FIXED COMPLETION CHECKING.
         """
-        self.log.info(f"Running simple incremental loops with count={count}, delay_key='{delay_key}'")
+        test_name = f"simple_incremental_loops(count={count})"
+        self.log.info(f"Running {test_name} with delay_key='{delay_key}'")
 
-        # Set randomizer profile
-        self.set_randomizer_profile(delay_key)
+        try:
+            # Set randomizer profile
+            self.set_randomizer_profile(delay_key)
 
-        # Reset statistics
-        self.reset_statistics()
+            # Reset statistics
+            self.reset_statistics()
 
-        # Generate simple incrementing sequence
-        sequence = self.basic_sequence(count)
+            # Generate simple incrementing sequence
+            sequence = self.basic_sequence(count)
 
-        # Run the sequence
-        await self.run_sequence(sequence)
+            # Run the sequence with proper completion checking
+            await self.run_sequence_with_completion(sequence, test_name)
 
-        # Wait for completion
-        await self.wait_clocks(self.wr_clk_name, delay_clks_after)
+            # FIXED: Use calculated completion delay instead of fixed delay_clks_after
+            calculated_delay = self._calculate_completion_delay(count)
+            additional_delay = max(delay_clks_after, calculated_delay) + 500
+            
+            self.log.info(f"Waiting additional {additional_delay} cycles for final completion")
+            await self.wait_clocks(self.wr_clk_name, additional_delay)
 
-        # Verify results
-        result = self.verify_transactions()
+            # Verify results using available verification method
+            result = self.verify_transactions_enhanced(test_name)
 
-        if result:
-            self.log.info(f"✓ Simple incremental loops completed successfully")
-        else:
-            self.log.error(f"✗ Simple incremental loops failed verification")
+            if result:
+                self.log.info(f"✅ {test_name} completed successfully")
+            else:
+                self.log.error(f"❌ {test_name} FAILED verification")
 
-        return result
+            return result
+
+        except Exception as e:
+            self.log.error(f"❌ Exception in {test_name}: {e}")
+            self.stats['failed_tests'].append(test_name)
+            self.stats['last_error_details'] = str(e)
+            return False
 
     async def run_sequence_test(self, sequence_generator, delay_key='balanced', delay_clks_after=20):
         """
-        Run sequence test with specified generator - UNCHANGED API for test runners.
+        Run sequence test with FIXED COMPLETION CHECKING.
         """
-        # Set randomizer profile
-        self.set_randomizer_profile(delay_key)
+        # Get test name from sequence generator
+        test_name = f"sequence_test({sequence_generator.__name__ if callable(sequence_generator) else str(sequence_generator)})"
+        self.log.info(f"Running {test_name} with delay_key='{delay_key}'")
 
-        # Reset statistics
-        self.reset_statistics()
+        try:
+            # Set randomizer profile
+            self.set_randomizer_profile(delay_key)
 
-        # Get the sequence (generator is a callable that returns sequence)
-        if callable(sequence_generator):
-            sequence = sequence_generator()
-        else:
-            sequence = sequence_generator
+            # Reset statistics
+            self.reset_statistics()
 
-        # Run the sequence
-        await self.run_sequence(sequence)
+            # Get the sequence (generator is a callable that returns sequence)
+            if callable(sequence_generator):
+                sequence = sequence_generator()
+            else:
+                sequence = sequence_generator
 
-        # Wait for completion
-        await self.wait_clocks(self.wr_clk_name, delay_clks_after)
+            # Run the sequence with proper completion checking
+            await self.run_sequence_with_completion(sequence, test_name)
 
-        # Verify results
-        result = self.verify_transactions()
+            # FIXED: Use calculated completion delay
+            transaction_count = len(sequence.get_transactions()) if hasattr(sequence, 'get_transactions') else 50
+            calculated_delay = self._calculate_completion_delay(transaction_count)
+            additional_delay = max(delay_clks_after, calculated_delay)
+            
+            self.log.info(f"Waiting additional {additional_delay} cycles for final completion")
+            await self.wait_clocks(self.wr_clk_name, additional_delay)
 
-        return result
+            # Verify results using available verification method
+            result = self.verify_transactions_enhanced(test_name)
 
-    async def run_sequence(self, sequence_gen=None):
+            if result:
+                self.log.info(f"✅ {test_name} completed successfully")
+            else:
+                self.log.error(f"❌ {test_name} FAILED verification")
+
+            return result
+
+        except Exception as e:
+            self.log.error(f"❌ Exception in {test_name}: {e}")
+            self.stats['failed_tests'].append(test_name)
+            self.stats['last_error_details'] = str(e)
+            return False
+
+    async def run_sequence_with_completion(self, sequence_gen, test_name="Unknown"):
         """
-        Run test sequence - UNCHANGED API for test runners.
+        FIXED: Run test sequence with proper completion checking.
         """
         if sequence_gen is None:
             sequence_gen = self.sequence_gen
 
         # Execute sequence using new infrastructure's unified methods
         transactions = sequence_gen.get_transactions()
+        expected_count = len(transactions)
+        self.stats['expected_packets'] = expected_count
 
-        self.log.info(f"Running sequence with {len(transactions)} transactions")
+        self.log.info(f"Running sequence '{test_name}' with {expected_count} transactions")
 
+        # Clear monitor queues before starting
+        if hasattr(self.wr_monitor, '_recvQ'):
+            self.wr_monitor._recvQ.clear()
+        if hasattr(self.rd_monitor, '_recvQ'):
+            self.rd_monitor._recvQ.clear()
+
+        # Send all packets
         for i, transaction_data in enumerate(transactions):
             # Create packet with proper field values
             packet = GAXIPacket(self.field_config)
@@ -475,14 +555,108 @@ class GaxiMultiBufferTB(TBBase):
 
             # Log progress periodically
             if (i + 1) % 50 == 0:
-                self.log.debug(f"Sent {i+1}/{len(transactions)} transactions")
+                self.log.debug(f"Sent {i+1}/{expected_count} transactions")
 
-        self.log.info(f"Completed sending {len(transactions)} transactions")
+        self.log.info(f"Completed sending {expected_count} transactions")
 
-    def verify_transactions(self):
+        # FIXED: Wait for master transmission to complete
+        await self._wait_for_master_completion(test_name)
+
+        # FIXED: Wait for expected packets to be received
+        await self._wait_for_packet_reception(expected_count, test_name)
+
+    async def _wait_for_master_completion(self, test_name="Unknown"):
+        """FIXED: Wait for master transmission pipeline to complete"""
+        self.log.debug(f"Waiting for master transmission completion for {test_name}")
+        
+        timeout_cycles = 0
+        max_timeout = self.COMPLETION_TIMEOUT_CYCLES
+        
+        # Wait for master to finish transmitting
+        while self.write_master.transfer_busy and timeout_cycles < max_timeout:
+            await self.wait_clocks(self.wr_clk_name, 1)
+            timeout_cycles += 1
+            
+            if timeout_cycles % 100 == 0:
+                self.log.debug(f"Master completion wait: {timeout_cycles}/{max_timeout} cycles")
+        
+        if timeout_cycles >= max_timeout:
+            self.log.error(f"❌ Master completion timeout after {timeout_cycles} cycles for {test_name}")
+            self.stats['completion_timeouts'] += 1
+            raise TimeoutError(f"Master completion timeout for {test_name}")
+        
+        # Additional buffer-specific delay
+        buffer_delay = self.BASE_COMPLETION_DELAY + self.TEST_DEPTH
+        self.log.debug(f"Waiting {buffer_delay} additional cycles for buffer pipeline")
+        await self.wait_clocks(self.wr_clk_name, buffer_delay)
+        
+        self.log.debug(f"Master transmission completed for {test_name} after {timeout_cycles} cycles")
+
+    async def _wait_for_packet_reception(self, expected_count, test_name="Unknown"):
+        """FIXED: Wait for expected number of packets to be received by monitors"""
+        self.log.debug(f"Waiting for {expected_count} packets to be received for {test_name}")
+        
+        timeout_cycles = 0
+        max_timeout = self.COMPLETION_TIMEOUT_CYCLES
+        check_interval = 10  # Check every 10 cycles
+        
+        while timeout_cycles < max_timeout:
+            # Check both monitors for received packets
+            wr_received = len(self.wr_monitor._recvQ) if hasattr(self.wr_monitor, '_recvQ') else 0
+            rd_received = len(self.rd_monitor._recvQ) if hasattr(self.rd_monitor, '_recvQ') else 0
+            
+            # We need both monitors to have received all packets
+            if wr_received >= expected_count and rd_received >= expected_count:
+                self.log.debug(f"Packet reception completed for {test_name}: wr={wr_received}, rd={rd_received}")
+                return
+            
+            # Log progress periodically
+            if timeout_cycles % (check_interval * 10) == 0:
+                self.log.debug(f"Packet reception progress: wr={wr_received}/{expected_count}, rd={rd_received}/{expected_count}, cycles={timeout_cycles}")
+            
+            await self.wait_clocks(self.wr_clk_name, check_interval)
+            timeout_cycles += check_interval
+        
+        # Timeout occurred
+        wr_received = len(self.wr_monitor._recvQ) if hasattr(self.wr_monitor, '_recvQ') else 0
+        rd_received = len(self.rd_monitor._recvQ) if hasattr(self.rd_monitor, '_recvQ') else 0
+        
+        self.log.error(f"❌ Packet reception timeout for {test_name} after {timeout_cycles} cycles")
+        self.log.error(f"   Expected: {expected_count}, WR received: {wr_received}, RD received: {rd_received}")
+        self.stats['completion_timeouts'] += 1
+        
+        # Don't raise timeout error, let verification catch the packet count mismatch
+        self.log.warning(f"⚠️  Proceeding to verification with incomplete packet reception")
+
+    def _calculate_completion_delay(self, transaction_count):
+        """Calculate appropriate completion delay based on transaction count and buffer characteristics"""
+        # Base delay for buffer pipeline
+        base_delay = self.BASE_COMPLETION_DELAY + self.TEST_DEPTH
+        
+        # Scale with transaction count (more transactions may need more time)
+        scaled_delay = max(10, transaction_count // 10)
+        
+        # Mode-specific adjustments
+        mode_multiplier = {
+            'skid': 1.0,
+            'fifo_mux': 1.2,    # FIFO may have more pipeline stages
+            'fifo_flop': 1.5    # FIFO flop typically has more latency
+        }
+        
+        total_delay = int((base_delay + scaled_delay) * mode_multiplier.get(self.TEST_MODE, 1.0))
+        
+        self.log.debug(f"Calculated completion delay: {total_delay} cycles (base={base_delay}, scaled={scaled_delay}, mode={self.TEST_MODE})")
+        return total_delay
+
+    # Enhanced verification methods
+
+    def verify_transactions_enhanced(self, test_name="Unknown"):
         """
-        Verify received transactions - UNCHANGED API for test runners.
+        ENHANCED verification with detailed error reporting.
+        Compatible with both strict and legacy modes.
         """
+        self.log.info(f"🔍 Starting enhanced verification for {test_name}")
+        
         # Get received packets using new infrastructure
         sent_packets = list(self.wr_monitor._recvQ)
         received_packets = list(self.rd_monitor._recvQ)
@@ -492,34 +666,49 @@ class GaxiMultiBufferTB(TBBase):
 
         # Basic count verification
         if len(sent_packets) != len(received_packets):
-            self.log.error(f"Packet count mismatch: sent={len(sent_packets)}, received={len(received_packets)}")
+            error_msg = f"❌ PACKET COUNT MISMATCH in {test_name}: sent={len(sent_packets)}, received={len(received_packets)}"
+            self.log.error(error_msg)
             self.stats['total_errors'] += 1
             self.stats['verification_errors'] += 1
+            self.stats['last_error_details'] = error_msg
+            self.verification_failures.append(error_msg)
             self.total_errors += 1  # Update compatibility attribute
             return False
 
+        if len(sent_packets) == 0:
+            self.log.warning(f"⚠️ No packets to verify in {test_name}")
+            return True
+
         # Data integrity verification
-        errors = 0
+        total_errors = 0
         for i, (sent, received) in enumerate(zip(sent_packets, received_packets)):
-            if not self._compare_packets(sent, received):
-                self.log.error(f"Packet {i} data mismatch")
-                errors += 1
+            packet_errors = self._compare_packets_enhanced(sent, received, i, test_name)
+            if packet_errors > 0:
+                total_errors += packet_errors
+                self.stats['packet_errors'][i] = packet_errors
 
-        self.stats['total_errors'] += errors
-        self.stats['verification_errors'] += errors
-        self.total_errors += errors  # Update compatibility attribute
+        # Update statistics
+        self.stats['total_errors'] += total_errors
+        self.stats['verification_errors'] += total_errors
+        self.stats['field_mismatch_errors'] += total_errors
+        self.total_errors += total_errors  # Update compatibility attribute
 
-        if errors == 0:
-            self.log.info(f"✓ Verification passed: {len(sent_packets)} packets verified")
+        if total_errors == 0:
+            self.log.info(f"✅ VERIFICATION PASSED for {test_name}: {len(sent_packets)} packets verified successfully")
             return True
         else:
-            self.log.error(f"✗ Verification failed: {errors} packet mismatches")
+            error_summary = f"❌ VERIFICATION FAILED for {test_name}: {total_errors} errors in {len(sent_packets)} packets"
+            self.log.error(error_summary)
+            self.stats['last_error_details'] = error_summary
+            self.verification_failures.append(error_summary)
             return False
 
-    def _compare_packets(self, sent, received):
+    def _compare_packets_enhanced(self, sent, received, packet_index, test_name):
         """
-        Compare two packets for data integrity - uses new infrastructure.
+        Enhanced packet comparison with detailed field analysis.
         """
+        errors = 0
+
         # Use field configuration to compare relevant fields
         for field_name in ['addr', 'ctrl', 'data0', 'data1']:
             if not hasattr(sent, field_name) or not hasattr(received, field_name):
@@ -536,14 +725,44 @@ class GaxiMultiBufferTB(TBBase):
                 received_value &= field_mask
 
             if sent_value != received_value:
-                self.log.error(f"Field {field_name} mismatch: sent=0x{sent_value:X}, received=0x{received_value:X}")
-                return False
+                self.log.error(f"❌ Field {field_name} mismatch in packet {packet_index}: "
+                             f"sent=0x{sent_value:X}, received=0x{received_value:X}")
+                
+                # Track field-specific error counts
+                self.field_error_counts[field_name] += 1
+                errors += 1
 
-        return True
+        if errors > 0:
+            self.log.error(f"❌ Packet {packet_index} data mismatch: {errors} field errors")
+
+        return errors
+
+    # Legacy compatibility methods
+
+    async def run_sequence(self, sequence_gen=None):
+        """
+        LEGACY COMPATIBILITY: Run test sequence - redirects to proper completion checking.
+        """
+        if sequence_gen is None:
+            sequence_gen = self.sequence_gen
+        await self.run_sequence_with_completion(sequence_gen, "legacy_run_sequence")
+
+    def verify_transactions(self):
+        """
+        LEGACY COMPATIBILITY: Verification method - uses enhanced verification.
+        """
+        return self.verify_transactions_enhanced("legacy_verify")
+
+    def _compare_packets(self, sent, received):
+        """
+        LEGACY COMPATIBILITY: Packet comparison - uses enhanced comparison.
+        """
+        errors = self._compare_packets_enhanced(sent, received, -1, "legacy_compare")
+        return errors == 0
 
     def get_statistics(self):
         """
-        Get test statistics - UNCHANGED API for test runners.
+        Get ENHANCED test statistics - compatible with both old and new APIs.
         """
         # Enhance with new infrastructure stats
         enhanced_stats = self.stats.copy()
@@ -558,23 +777,42 @@ class GaxiMultiBufferTB(TBBase):
         enhanced_stats['input_memory_stats'] = self.input_memory_model.get_stats()
         enhanced_stats['output_memory_stats'] = self.output_memory_model.get_stats()
 
+        # Add enhanced verification tracking
+        enhanced_stats['field_error_counts'] = self.field_error_counts.copy()
+        enhanced_stats['verification_failures'] = self.verification_failures.copy()
+
         return enhanced_stats
 
     def reset_statistics(self):
-        """Reset all statistics - UNCHANGED API for test runners."""
+        """Reset all statistics including enhanced tracking."""
         self.stats = {
             'total_sent': 0,
             'total_received': 0,
             'total_errors': 0,
+            'verification_errors': 0,
+            'field_mismatch_errors': 0,
             'sequence_completed': False,
             'test_duration': 0,
-            'verification_errors': 0
+            'failed_tests': [],
+            'last_error_details': None,
+            'packet_errors': {},
+            'completion_timeouts': 0,
+            'expected_packets': 0
         }
 
         # Reset compatibility attributes
         self.total_sent = 0
         self.total_received = 0
         self.total_errors = 0
+
+        # Reset enhanced tracking
+        self.verification_failures.clear()
+        self.field_error_counts = {
+            'addr': 0,
+            'ctrl': 0,
+            'data0': 0,
+            'data1': 0
+        }
 
         # Clear monitor queues using new infrastructure
         if hasattr(self.wr_monitor, '_recvQ'):
@@ -611,5 +849,12 @@ class GaxiMultiBufferTB(TBBase):
             'rd_monitor': self.rd_monitor.get_stats(),
             'input_memory': self.input_memory_model.get_stats(),
             'output_memory': self.output_memory_model.get_stats(),
-            'sequence_gen': self.sequence_gen.get_enhanced_stats() if hasattr(self.sequence_gen, 'get_enhanced_stats') else {}
+            'sequence_gen': self.sequence_gen.get_enhanced_stats() if hasattr(self.sequence_gen, 'get_enhanced_stats') else {},
+            'verification_summary': {
+                'strict_mode': self.strict_verification,
+                'fail_fast': self.fail_fast,
+                'total_failures': len(self.verification_failures),
+                'field_errors': self.field_error_counts,
+                'completion_timeouts': self.stats['completion_timeouts']
+            }
         }

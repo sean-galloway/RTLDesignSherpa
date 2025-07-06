@@ -95,9 +95,9 @@ module axi_monitor_base
     input  logic [31:0]              i_cfg_latency_threshold,      // Latency threshold
 
     // Consolidated 64-bit event packet interface (interrupt bus)
-    output logic                     o_intrbus_valid,  // Interrupt valid
-    input  logic                     i_intrbus_ready,  // Interrupt ready
-    output logic [63:0]              o_intrbus_packet, // Consolidated interrupt packet
+    output logic                     o_monbus_valid,  // Interrupt valid
+    input  logic                     i_monbus_ready,  // Interrupt ready
+    output logic [63:0]              o_monbus_packet, // Consolidated interrupt packet
 
     // Flow control and status
     output logic                     o_block_ready,    // Flow control signal
@@ -106,7 +106,7 @@ module axi_monitor_base
 );
 
     // Import standard monitor types and constants
-    import axi_monitor_types::*;
+    import monitor_pkg::*;
 
     // Transaction tracking table - Fixed: Use unpacked array consistently
     axi_transaction_t w_trans_table[MAX_TRANSACTIONS];
@@ -127,10 +127,10 @@ module axi_monitor_base
     logic [MAX_TRANSACTIONS-1:0] w_timeout_detected;
 
     // Interrupt outputs from different modules (combinational)
-    logic                     w_reporter_intrbus_valid;
-    logic [63:0]              w_reporter_intrbus_packet;
-    logic                     w_debug_intrbus_valid;
-    logic [63:0]              w_debug_intrbus_packet;
+    logic                     w_reporter_monbus_valid;
+    logic [63:0]              w_reporter_monbus_packet;
+    logic                     w_debug_monbus_valid;
+    logic [63:0]              w_debug_monbus_packet;
 
     // Performance metrics registers (only used when ENABLE_PERF_PACKETS=1) (flopped)
     logic [15:0] r_perf_completed_count;
@@ -218,9 +218,9 @@ module axi_monitor_base
         .i_cfg_timeout_enable(i_cfg_timeout_enable),
         .i_cfg_perf_enable(i_cfg_perf_enable),
         .i_cfg_debug_enable(i_cfg_debug_enable),
-        .i_intrbus_ready(i_intrbus_ready),
-        .o_intrbus_valid(w_reporter_intrbus_valid),
-        .o_intrbus_packet(w_reporter_intrbus_packet),
+        .i_monbus_ready(i_monbus_ready),
+        .o_monbus_valid(w_reporter_monbus_valid),
+        .o_monbus_packet(w_reporter_monbus_packet),
         .o_event_count(w_event_count),
         .o_perf_completed_count(r_perf_completed_count),
         .o_perf_error_count(r_perf_error_count),
@@ -228,53 +228,21 @@ module axi_monitor_base
         .i_latency_threshold(i_cfg_latency_threshold)
     );
 
-    // Debug module (only instantiated when ENABLE_DEBUG_MODULE=1)
-    generate
-        if (1'(ENABLE_DEBUG_MODULE)) begin : gen_debug_module
-            axi_monitor_debug #(
-                .MAX_TRANSACTIONS(MAX_TRANSACTIONS),
-                .ADDR_WIDTH(ADDR_WIDTH),
-                .ID_WIDTH(ID_WIDTH),
-                .DEBUG_FIFO_DEPTH(DEBUG_FIFO_DEPTH)
-            ) i_debug (
-                .aclk(aclk),
-                .aresetn(aresetn),
-                .i_cfg_debug_enable(i_cfg_debug_enable),
-                .i_cfg_debug_level(i_cfg_debug_level),
-                .i_cfg_debug_mask(i_cfg_debug_mask),
-                .i_trans_table(w_trans_table),
-                .i_addr_handshake(i_addr_valid && i_addr_ready),
-                .i_data_handshake(i_data_valid && i_data_ready),
-                .i_resp_handshake(i_resp_valid && i_resp_ready),
-                .i_state_change(w_state_change_detected),
-                .i_intrbus_ready(i_intrbus_ready),
-                .o_intrbus_valid(w_debug_intrbus_valid),
-                .o_intrbus_packet(w_debug_intrbus_packet),
-                .o_debug_count(w_debug_count)
-            );
-        end else begin : gen_no_debug_module
-            // Tie outputs to default values when module is disabled
-            assign w_debug_intrbus_valid = 1'b0;
-            assign w_debug_intrbus_packet = '0;
-            assign w_debug_count = '0;
-        end
-    endgenerate
-
     // -------------------------------------------------------------------------
     // Interrupt Bus Arbitration
     // -------------------------------------------------------------------------
 
     // Simple priority arbitration between reporter and debug packets
     always_comb begin
-        if (w_reporter_intrbus_valid) begin
-            o_intrbus_valid = w_reporter_intrbus_valid;
-            o_intrbus_packet = w_reporter_intrbus_packet;
-        end else if (w_debug_intrbus_valid) begin
-            o_intrbus_valid = w_debug_intrbus_valid;
-            o_intrbus_packet = w_debug_intrbus_packet;
+        if (w_reporter_monbus_valid) begin
+            o_monbus_valid = w_reporter_monbus_valid;
+            o_monbus_packet = w_reporter_monbus_packet;
+        end else if (w_debug_monbus_valid) begin
+            o_monbus_valid = w_debug_monbus_valid;
+            o_monbus_packet = w_debug_monbus_packet;
         end else begin
-            o_intrbus_valid = 1'b0;
-            o_intrbus_packet = '0;
+            o_monbus_valid = 1'b0;
+            o_monbus_packet = '0;
         end
     end
 

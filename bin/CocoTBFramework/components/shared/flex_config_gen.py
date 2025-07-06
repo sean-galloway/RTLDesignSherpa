@@ -6,7 +6,7 @@ a clean API for building weighted bin configurations and common shortcuts.
 """
 
 from typing import Dict, List, Tuple, Union, Optional
-from ..components.shared.flex_randomizer import FlexRandomizer
+from .flex_randomizer import FlexRandomizer
 
 
 # Canned profiles for common timing patterns

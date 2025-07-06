@@ -17,14 +17,14 @@ from cocotb.triggers import RisingEdge, Timer
 from cocotb.utils import get_sim_time
 
 from CocoTBFramework.tbclasses.tbbase import TBBase
-from CocoTBFramework.components.memory_model import MemoryModel
-from CocoTBFramework.components.flex_randomizer import FlexRandomizer
-from CocoTBFramework.components.field_config import FieldConfig
+from CocoTBFramework.components.shared.memory_model import MemoryModel
+from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
+from CocoTBFramework.components.shared.field_config import FieldConfig
 from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
 from CocoTBFramework.components.gaxi.gaxi_factories import (
     create_gaxi_master, create_gaxi_slave, create_gaxi_monitor
 )
-from CocoTBFramework.tbclasses.flex_config_gen import FlexConfigGen
+from CocoTBFramework.components.shared.flex_config_gen import FlexConfigGen
 
 
 class CDCHandshakeTB(TBBase):
@@ -100,7 +100,6 @@ class CDCHandshakeTB(TBBase):
             bus_name='src',
             clock=dut.clk_src,
             field_config=self.field_config,
-            field_mode=True,
             randomizer=src_randomizer,
             memory_model=self.mem,
             log=self.log
@@ -115,7 +114,6 @@ class CDCHandshakeTB(TBBase):
             bus_name='src',
             clock=dut.clk_src,
             field_config=self.field_config,
-            field_mode=True,
             is_slave=False,
             log=self.log
         )
@@ -131,7 +129,6 @@ class CDCHandshakeTB(TBBase):
             bus_name='dst',
             clock=dut.clk_dst,
             field_config=self.field_config,
-            field_mode=True,
             randomizer=dst_randomizer,
             memory_model=self.mem,
             log=self.log
@@ -146,7 +143,6 @@ class CDCHandshakeTB(TBBase):
             bus_name='dst',
             clock=dut.clk_dst,
             field_config=self.field_config,
-            field_mode=True,
             is_slave=True,
             log=self.log
         )
