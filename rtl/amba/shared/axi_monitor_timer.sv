@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 /**
- * AXI Interrupt Bus Frequency Invariant Timer
+ * AXI Monitor Bus Frequency Invariant Timer
  *
  * This module provides a configurable timer for timeout detection in the
  * AXI Error Monitor. It uses the counter_freq_invariant module to generate

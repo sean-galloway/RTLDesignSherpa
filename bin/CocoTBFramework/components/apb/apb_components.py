@@ -245,7 +245,7 @@ class APBMaster(BusDriver):
             self._signals = apb_signals + apb_optional_signals
             self._optional_signals = apb_optional_signals
         if randomizer is None:
-            self.constraints = FlexRandomizer({
+            self.randomizer = FlexRandomizer({
                 'psel':    ([[0, 0], [1, 5], [6, 10]], [5, 2, 1]),
                 'penable': ([[0, 0], [1, 2]], [4, 1]),
             })

@@ -256,7 +256,7 @@ class APBTransaction(Randomized):
     This class generates APB packets with randomized field values.
     """
 
-    def __init__(self, data_width=32, addr_width=32, strb_width=4, constraints=None, **kwargs):
+    def __init__(self, data_width=32, addr_width=32, strb_width=4, randomizer=None, **kwargs):
         """
         Initialize APB Transaction generator.
 
@@ -264,7 +264,7 @@ class APBTransaction(Randomized):
             data_width: Data width in bits
             addr_width: Address width in bits
             strb_width: Strobe width in bits
-            constraints: Optional constraints dictionary or FlexRandomizer
+            randomizer: Optional randomizer dictionary or FlexRandomizer
             **kwargs: Initial values for fields
         """
         # Initialize the Randomized base class first
@@ -295,27 +295,27 @@ class APBTransaction(Randomized):
         )
 
         # Setup randomizer for FlexRandomizer-based randomization
-        if constraints is None:
+        if randomizer is None:
             addr_min_hi = (4 * self.strb_width) - 1
             addr_max_lo = (4 * self.strb_width)
             addr_max_hi = (32 * self.strb_width) - 1
 
-            # Default constraints
+            # Default randomizer
             self.randomizer = FlexRandomizer({
                 'pwrite': ([(0, 0), (1, 1)], [1, 1]),
                 'paddr': ([(0, addr_min_hi), (addr_max_lo, addr_max_hi)], [4, 1]),
                 'pstrb': ([(15, 15), (0, 14)], [4, 1]),
                 'pprot': ([(0, 0), (1, 7)], [4, 1])
             })
-        elif isinstance(constraints, FlexRandomizer):
+        elif isinstance(randomizer, FlexRandomizer):
             # Use provided FlexRandomizer
-            self.randomizer = constraints
-        elif isinstance(constraints, dict):
+            self.randomizer = randomizer
+        elif isinstance(randomizer, dict):
             # Create from dictionary
-            self.randomizer = FlexRandomizer(constraints)
+            self.randomizer = FlexRandomizer(randomizer)
         else:
             # Try to convert to FlexRandomizer
-            self.randomizer = FlexRandomizer(constraints)
+            self.randomizer = FlexRandomizer(randomizer)
 
         # Create initial packet with any initial values from kwargs
         self.packet = APBPacket(

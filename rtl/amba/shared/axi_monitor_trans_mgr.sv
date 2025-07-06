@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 /**
- * AXI Interrupt Bus Transaction Manager
+ * AXI Monitor Bus Transaction Manager
  *
  * This module manages the transaction tracking table, tracking each AXI
  * transaction through its lifecycle and handling all of the protocol

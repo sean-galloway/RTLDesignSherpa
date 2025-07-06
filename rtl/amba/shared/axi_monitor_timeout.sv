@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 /**
- * AXI Interrupt Bus Timeout Detector
+ * AXI Monitor Bus Timeout Detector
  *
  * This module monitors the transaction tracking table for potential timeout
  * conditions in each phase of AXI transactions (address, data, response).

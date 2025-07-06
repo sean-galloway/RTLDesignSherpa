@@ -1,9 +1,9 @@
 `timescale 1ns / 1ps
 
 /**
- * AXI Interrupt Bus Reporter
+ * AXI Monitor Bus Reporter
  *
- * This module reports events and errors through a shared interrupt bus.
+ * This module reports events and errors through a shared monitor bus.
  * It detects conditions from the AXI transaction table and formats them into
  * standard 64-bit interrupt packet format for system-wide event notification.
  * Optionally tracks performance metrics when ENABLE_PERF_PACKETS is enabled.
@@ -518,7 +518,7 @@ module axi_monitor_reporter
         end
     end
 
-    // Construct the 64-bit interrupt bus packet
+    // Construct the 64-bit monitor bus packet
     always_comb begin
         // 64-bit packet format:
         // - packet_type: 4 bits  [63:60] (error, completion, threshold, etc.)

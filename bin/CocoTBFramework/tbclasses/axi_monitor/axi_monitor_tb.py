@@ -313,13 +313,13 @@ class AXIMonitorTB(TBBase):
         # Create monitors for all interfaces
         self.ar_monitor = GAXIMonitor(
             dut=self.dut, title="AR_Monitor", prefix="", bus_name="",
-            pkt_prefix="addr", clock=self.dut.aclk, field_config=self.addr_field_config,
+            pkt_prefix="cmd", clock=self.dut.aclk, field_config=self.addr_field_config,
             mode='skid', in_prefix='', out_prefix='', multi_sig=True, log=self.log, super_debug=self.super_debug
         )
 
         self.aw_monitor = GAXIMonitor(
             dut=self.dut, title="AW_Monitor", prefix="", bus_name="",
-            pkt_prefix="addr", clock=self.dut.aclk, field_config=self.addr_field_config,
+            pkt_prefix="cmd", clock=self.dut.aclk, field_config=self.addr_field_config,
             mode='skid', in_prefix='', out_prefix='', multi_sig=True, log=self.log, super_debug=self.super_debug
         )
 
@@ -342,8 +342,8 @@ class AXIMonitorTB(TBBase):
         )
 
         self.monbus_monitor = GAXIMonitor(
-            dut=self.dut, title="MonitorBus_Monitor", prefix="", bus_name="monbus",  # Updated
-            pkt_prefix="", clock=self.dut.aclk, field_config=self.monbus_field_config,
+            dut=self.dut, title="MonitorBus_Monitor", prefix="", bus_name="",
+            pkt_prefix="monbus", clock=self.dut.aclk, field_config=self.monbus_field_config,
             mode='skid', in_prefix='', out_prefix='', multi_sig=False, log=self.log, super_debug=self.super_debug
         )
 

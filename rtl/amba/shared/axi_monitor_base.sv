@@ -1,9 +1,9 @@
 `timescale 1ns / 1ps
 /**
- * AXI Interrupt Bus Base Module
+ * AXI Monitor Bus Base Module
  *
  * This module provides a robust implementation for tracking AXI/AXI-Lite
- * transactions and reporting events and errors through the interrupt bus.
+ * transactions and reporting events and errors through the monitor bus.
  *
  * Features:
  * - Transaction-based tracking for both AXI and AXI-Lite
@@ -94,7 +94,7 @@ module axi_monitor_base
     input  logic [15:0]              i_cfg_active_trans_threshold, // Active transaction threshold
     input  logic [31:0]              i_cfg_latency_threshold,      // Latency threshold
 
-    // Consolidated 64-bit event packet interface (interrupt bus)
+    // Consolidated 64-bit event packet interface (monitor bus)
     output logic                     monbus_valid,  // Interrupt valid
     input  logic                     monbus_ready,  // Interrupt ready
     output logic [63:0]              monbus_packet, // Consolidated interrupt packet
@@ -229,7 +229,7 @@ module axi_monitor_base
     );
 
     // -------------------------------------------------------------------------
-    // Interrupt Bus Arbitration
+    // Monitor Bus Arbitration
     // -------------------------------------------------------------------------
 
     // Simple priority arbitration between reporter and debug packets
