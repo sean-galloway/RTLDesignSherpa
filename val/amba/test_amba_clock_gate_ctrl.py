@@ -773,7 +773,11 @@ async def comprehensive_test(dut):
 def test_amba_clock_gate_ctrl(request, params):
     """Run the test with pytest and configurable parameters"""
     # Get all of the directory and module information
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common', 'rtl_amba': 'rtl/amba'})
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths(
+        {
+            'rtl_cmn': 'rtl/common',
+            'rtl_amba_shared':'rtl/amba/shared',
+        })
 
     dut_name = "amba_clock_gate_ctrl"
     toplevel = dut_name
@@ -781,7 +785,7 @@ def test_amba_clock_gate_ctrl(request, params):
     verilog_sources = [
         os.path.join(rtl_dict['rtl_cmn'], "icg.sv"),
         os.path.join(rtl_dict['rtl_cmn'], "clock_gate_ctrl.sv"),
-        os.path.join(rtl_dict['rtl_amba'], f"{dut_name}.sv")
+        os.path.join(rtl_dict['rtl_amba_shared'], f"{dut_name}.sv")
     ]
 
     # Create a human-readable test identifier

@@ -37,12 +37,12 @@ from CocoTBFramework.components.gaxi.gaxi_monitor import GAXIMonitor
 from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
 from .axi_monitor_scoreboard import AXIMonitorScoreboard
 from .axi_monitor_packets import (
-    AXIAddressPacket, AXIReadDataPacket, AXIWriteDataPacket, AXIWriteResponsePacket,
+    AXICommandPacket, AXIReadDataPacket, AXIWriteDataPacket, AXIWriteResponsePacket,
     InterruptPacket, MonitorConfigPacket, MonitoredTransaction,
     AXITransactionState, MonitorEventCode, InterruptPacketType,
     convert_gaxi_to_axi_address, convert_gaxi_to_axi_read_data,
     convert_gaxi_to_axi_write_data, convert_gaxi_to_axi_write_response,
-    create_axi_address_field_config, create_axi_read_data_field_config,
+    create_axi_command_field_config, create_axi_read_data_field_config,
     create_axi_write_data_field_config, create_axi_write_response_field_config,
     create_interrupt_packet_field_config, create_monitor_config_field_config
 )
@@ -112,7 +112,7 @@ class AXIMonitorTB(TBBase):
         self.UNIT_ID = self.convert_to_int(os.environ.get('TEST_UNIT_ID', '9'))
         self.AGENT_ID = self.convert_to_int(os.environ.get('TEST_AGENT_ID', '99'))
 
-        self.super_debug = False
+        self.super_debug = True
         self.TIMEOUT_CYCLES = 1000
 
         # Calculate derived parameters
@@ -124,7 +124,7 @@ class AXIMonitorTB(TBBase):
         random.seed(self.SEED)
 
         # Create field configurations
-        self.addr_field_config = create_axi_address_field_config(self.IW, self.AW, self.UW)
+        self.addr_field_config = create_axi_command_field_config(self.IW, self.AW, self.UW)
         self.read_data_field_config = create_axi_read_data_field_config(self.IW, self.DW, self.UW)
         self.write_data_field_config = create_axi_write_data_field_config(self.DW, self.UW)
         self.write_resp_field_config = create_axi_write_response_field_config(self.IW, self.UW)
@@ -204,9 +204,9 @@ class AXIMonitorTB(TBBase):
         self.ar_master = GAXIMaster(
             dut=self.dut,
             title="AR_Master",
-            prefix="i_",
+            prefix="",
             bus_name="",
-            pkt_prefix="addr",
+            pkt_prefix="cmd",
             clock=self.dut.aclk,
             field_config=self.addr_field_config,
             timeout_cycles=self.TIMEOUT_CYCLES,
@@ -223,9 +223,9 @@ class AXIMonitorTB(TBBase):
         self.aw_master = GAXIMaster(
             dut=self.dut,
             title="AW_Master",
-            prefix="i_",
+            prefix="",
             bus_name="",
-            pkt_prefix="addr",
+            pkt_prefix="cmd",
             clock=self.dut.aclk,
             field_config=self.addr_field_config,
             timeout_cycles=self.TIMEOUT_CYCLES,
@@ -242,7 +242,7 @@ class AXIMonitorTB(TBBase):
         self.r_slave = GAXISlave(
             dut=self.dut,
             title="R_Slave",
-            prefix="i_",
+            prefix="",
             bus_name="",
             pkt_prefix="data",
             clock=self.dut.aclk,
@@ -261,7 +261,7 @@ class AXIMonitorTB(TBBase):
         self.w_slave = GAXISlave(
             dut=self.dut,
             title="W_Slave",
-            prefix="i_",
+            prefix="",
             bus_name="",
             pkt_prefix="data",
             clock=self.dut.aclk,
@@ -280,7 +280,7 @@ class AXIMonitorTB(TBBase):
         self.b_slave = GAXISlave(
             dut=self.dut,
             title="B_Slave",
-            prefix="i_",
+            prefix="",
             bus_name="",
             pkt_prefix="resp",
             clock=self.dut.aclk,
@@ -299,8 +299,8 @@ class AXIMonitorTB(TBBase):
         self.monbus_slave = MonbusSlave(
             dut=self.dut,
             title="MonitorBus_Slave",
-            prefix="o_",
-            bus_name="monbus",  # Updated from intrbus to monbus
+            prefix="",
+            pkt_prefix="monbus",
             clock=self.dut.aclk,
             expected_unit_id=self.UNIT_ID,
             expected_agent_id=self.AGENT_ID,
@@ -312,37 +312,37 @@ class AXIMonitorTB(TBBase):
 
         # Create monitors for all interfaces
         self.ar_monitor = GAXIMonitor(
-            dut=self.dut, title="AR_Monitor", prefix="i_", bus_name="",
+            dut=self.dut, title="AR_Monitor", prefix="", bus_name="",
             pkt_prefix="addr", clock=self.dut.aclk, field_config=self.addr_field_config,
             mode='skid', in_prefix='', out_prefix='', multi_sig=True, log=self.log, super_debug=self.super_debug
         )
 
         self.aw_monitor = GAXIMonitor(
-            dut=self.dut, title="AW_Monitor", prefix="i_", bus_name="",
+            dut=self.dut, title="AW_Monitor", prefix="", bus_name="",
             pkt_prefix="addr", clock=self.dut.aclk, field_config=self.addr_field_config,
             mode='skid', in_prefix='', out_prefix='', multi_sig=True, log=self.log, super_debug=self.super_debug
         )
 
         self.r_monitor = GAXIMonitor(
-            dut=self.dut, title="R_Monitor", prefix="i_", bus_name="",
+            dut=self.dut, title="R_Monitor", prefix="", bus_name="",
             pkt_prefix="data", clock=self.dut.aclk, field_config=self.read_data_field_config,
             mode='skid', in_prefix='', out_prefix='', multi_sig=True, log=self.log, super_debug=self.super_debug
         )
 
         self.w_monitor = GAXIMonitor(
-            dut=self.dut, title="W_Monitor", prefix="i_", bus_name="",
+            dut=self.dut, title="W_Monitor", prefix="", bus_name="",
             pkt_prefix="data", clock=self.dut.aclk, field_config=self.write_data_field_config,
             mode='skid', in_prefix='', out_prefix='', multi_sig=True, log=self.log, super_debug=self.super_debug
         )
 
         self.b_monitor = GAXIMonitor(
-            dut=self.dut, title="B_Monitor", prefix="i_", bus_name="",
+            dut=self.dut, title="B_Monitor", prefix="", bus_name="", 
             pkt_prefix="resp", clock=self.dut.aclk, field_config=self.write_resp_field_config,
             mode='skid', in_prefix='', out_prefix='', multi_sig=True, log=self.log, super_debug=self.super_debug
         )
 
         self.monbus_monitor = GAXIMonitor(
-            dut=self.dut, title="MonitorBus_Monitor", prefix="o_", bus_name="monbus",  # Updated
+            dut=self.dut, title="MonitorBus_Monitor", prefix="", bus_name="monbus",  # Updated
             pkt_prefix="", clock=self.dut.aclk, field_config=self.monbus_field_config,
             mode='skid', in_prefix='', out_prefix='', multi_sig=False, log=self.log, super_debug=self.super_debug
         )

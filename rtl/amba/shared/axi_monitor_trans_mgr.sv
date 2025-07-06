@@ -33,50 +33,50 @@ module axi_monitor_trans_mgr
     input  logic                     aresetn,
 
     // Address channel
-    input  logic                     i_addr_valid,
-    input  logic                     i_addr_ready,
-    input  logic [IW-1:0]            i_addr_id,
-    input  logic [AW-1:0]            i_addr_addr,
-    input  logic [7:0]               i_addr_len,
-    input  logic [2:0]               i_addr_size,
-    input  logic [1:0]               i_addr_burst,
+    input  logic                     cmd_valid,
+    input  logic                     cmd_ready,
+    input  logic [IW-1:0]            cmd_id,
+    input  logic [AW-1:0]            cmd_addr,
+    input  logic [7:0]               cmd_len,
+    input  logic [2:0]               cmd_size,
+    input  logic [1:0]               cmd_burst,
 
     // Data channel
-    input  logic                     i_data_valid,
-    input  logic                     i_data_ready,
-    input  logic [IW-1:0]            i_data_id,
-    input  logic                     i_data_last,
-    input  logic [1:0]               i_data_resp,
+    input  logic                     data_valid,
+    input  logic                     data_ready,
+    input  logic [IW-1:0]            data_id,
+    input  logic                     data_last,
+    input  logic [1:0]               data_resp,
 
     // Response channel (write only)
-    input  logic                     i_resp_valid,
-    input  logic                     i_resp_ready,
-    input  logic [IW-1:0]            i_resp_id,
-    input  logic [1:0]               i_resp,
+    input  logic                     resp_valid,
+    input  logic                     resp_ready,
+    input  logic [IW-1:0]            resp_id,
+    input  logic [1:0]               resp_code,
 
     // Timestamp input
-    input  logic [31:0]              i_timestamp,
+    input  logic [31:0]              timestamp,
 
     // Transaction table output - Fixed: Use unpacked array
-    output bus_transaction_t         o_trans_table[MAX_TRANSACTIONS],
-    output logic [7:0]               o_active_count,
+    output bus_transaction_t         trans_table[MAX_TRANSACTIONS],
+    output logic [7:0]               active_count,
 
     // State change detection (for debug module)
-    output logic [MAX_TRANSACTIONS-1:0] o_state_change
+    output logic [MAX_TRANSACTIONS-1:0] state_change
 );
 
     // Transaction table (flopped) - use unpacked array
     bus_transaction_t r_trans_table[MAX_TRANSACTIONS];
     bus_transaction_t r_trans_table_prev[MAX_TRANSACTIONS]; // Previous state for change detection (flopped)
-    assign o_trans_table = r_trans_table;
+    assign trans_table = r_trans_table;
 
     // Active transaction counter (flopped)
     logic [7:0] r_active_count;
-    assign o_active_count = r_active_count;
+    assign active_count = r_active_count;
 
     // State change detection (flopped)
     logic [MAX_TRANSACTIONS-1:0] r_state_change;
-    assign o_state_change = r_state_change;
+    assign state_change = r_state_change;
 
     // Transaction indices for various operations (combinational)
     int w_addr_trans_idx;
@@ -102,7 +102,7 @@ module axi_monitor_trans_mgr
         w_addr_trans_idx = -1;
         for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
             if (w_addr_trans_idx == -1 && r_trans_table[idx].valid && 
-                r_trans_table[idx].id[IW-1:0] == i_addr_id) begin
+                r_trans_table[idx].id[IW-1:0] == cmd_id) begin
                 w_addr_trans_idx = idx;
             end
         end
@@ -117,7 +117,7 @@ module axi_monitor_trans_mgr
 
         // Calculate channel index from ID
         /* verilator lint_off WIDTHTRUNC */
-        w_addr_chan_idx = IS_AXI ? (({24'h0, i_addr_id} % 64)) : 0;
+        w_addr_chan_idx = IS_AXI ? (({24'h0, cmd_id} % 64)) : 0;
         /* verilator lint_on WIDTHTRUNC */
 
         // Find transaction for data phase
@@ -126,7 +126,7 @@ module axi_monitor_trans_mgr
             w_data_trans_idx = -1;
             for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
                 if (w_data_trans_idx == -1 && r_trans_table[idx].valid && 
-                    r_trans_table[idx].id[IW-1:0] == i_data_id) begin
+                    r_trans_table[idx].id[IW-1:0] == data_id) begin
                     w_data_trans_idx = idx;
                 end
             end
@@ -137,7 +137,7 @@ module axi_monitor_trans_mgr
                 if (w_data_trans_idx == -1 && r_trans_table[idx].valid &&
                         (r_trans_table[idx].state == TRANS_ADDR_PHASE ||
                         r_trans_table[idx].state == TRANS_DATA_PHASE) &&
-                        r_trans_table[idx].addr_received &&
+                        r_trans_table[idx].cmd_received &&
                         !r_trans_table[idx].data_completed) begin
                     w_data_trans_idx = idx;
                 end
@@ -157,7 +157,7 @@ module axi_monitor_trans_mgr
             w_resp_trans_idx = -1;
             for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
                 if (w_resp_trans_idx == -1 && r_trans_table[idx].valid && 
-                    r_trans_table[idx].id[IW-1:0] == i_resp_id) begin
+                    r_trans_table[idx].id[IW-1:0] == resp_id) begin
                     w_resp_trans_idx = idx;
                 end
             end
@@ -236,35 +236,35 @@ module axi_monitor_trans_mgr
         end else begin
             
             // =====================================================================
-            // STEP 1: Create transaction when addr_valid asserted (before handshake)
+            // STEP 1: Create transaction when cmd_valid asserted (before handshake)
             // =====================================================================
-            if (i_addr_valid) begin
+            if (cmd_valid) begin
                 // Check if we need to create a new transaction
                 if (w_addr_trans_idx < 0 && w_addr_free_idx >= 0) begin
                     // Create new transaction entry immediately when valid asserted
                     r_trans_table[w_addr_free_idx].valid <= 1'b1;
                     r_trans_table[w_addr_free_idx].state <= TRANS_ADDR_PHASE;
                     r_trans_table[w_addr_free_idx].id <= '0;
-                    r_trans_table[w_addr_free_idx].id[IW-1:0] <= i_addr_id;
+                    r_trans_table[w_addr_free_idx].id[IW-1:0] <= cmd_id;
                     r_trans_table[w_addr_free_idx].addr <= '0;
-                    r_trans_table[w_addr_free_idx].addr[AW-1:0] <= i_addr_addr;
-                    r_trans_table[w_addr_free_idx].len <= i_addr_len;
-                    r_trans_table[w_addr_free_idx].size <= i_addr_size;
-                    r_trans_table[w_addr_free_idx].burst <= i_addr_burst;
+                    r_trans_table[w_addr_free_idx].addr[AW-1:0] <= cmd_addr;
+                    r_trans_table[w_addr_free_idx].len <= cmd_len;
+                    r_trans_table[w_addr_free_idx].size <= cmd_size;
+                    r_trans_table[w_addr_free_idx].burst <= cmd_burst;
                     
                     // CRITICAL: Address NOT received yet, timer starts now
-                    r_trans_table[w_addr_free_idx].addr_received <= 1'b0;  // Not received until handshake
+                    r_trans_table[w_addr_free_idx].cmd_received <= 1'b0;  // Not received until handshake
                     r_trans_table[w_addr_free_idx].addr_timer <= '0;       // Start timer immediately
                     
                     r_trans_table[w_addr_free_idx].data_started <= 1'b0;
                     r_trans_table[w_addr_free_idx].data_completed <= 1'b0;
                     r_trans_table[w_addr_free_idx].resp_received <= 1'b0;
-                    r_trans_table[w_addr_free_idx].error_code <= EVT_NONE;
+                    r_trans_table[w_addr_free_idx].event_code <= EVT_NONE;
                     r_trans_table[w_addr_free_idx].event_reported <= 1'b0;
                     r_trans_table[w_addr_free_idx].data_timer <= '0;
                     r_trans_table[w_addr_free_idx].resp_timer <= '0;
-                    r_trans_table[w_addr_free_idx].addr_timestamp <= i_timestamp;
-                    r_trans_table[w_addr_free_idx].expected_beats <= IS_AXI ? (i_addr_len + 8'h1) : 8'h1;
+                    r_trans_table[w_addr_free_idx].addr_timestamp <= timestamp;
+                    r_trans_table[w_addr_free_idx].expected_beats <= IS_AXI ? (cmd_len + 8'h1) : 8'h1;
                     r_trans_table[w_addr_free_idx].data_beat_count <= '0;
                     r_trans_table[w_addr_free_idx].channel <= 6'(w_addr_chan_idx);
     
@@ -276,12 +276,12 @@ module axi_monitor_trans_mgr
             // =====================================================================
             // STEP 2: Mark address received when handshake completes
             // =====================================================================
-            if (i_addr_valid && i_addr_ready) begin
+            if (cmd_valid && cmd_ready) begin
                 if (w_addr_trans_idx >= 0) begin
                     // Mark address phase as complete
-                    r_trans_table[w_addr_trans_idx].addr_received <= 1'b1;
+                    r_trans_table[w_addr_trans_idx].cmd_received <= 1'b1;
                     r_trans_table[w_addr_trans_idx].addr_timer <= '0;  // Stop/clear timer
-                    r_trans_table[w_addr_trans_idx].addr_timestamp <= i_timestamp;
+                    r_trans_table[w_addr_trans_idx].addr_timestamp <= timestamp;
                 end
             end
     
@@ -303,7 +303,7 @@ module axi_monitor_trans_mgr
             // Reset handled by address processor
         end else begin
             // Process data phase transactions
-            if (i_data_valid && i_data_ready) begin
+            if (data_valid && data_ready) begin
                 if (IS_READ) begin
                     // For reads, we have an ID so we can find the transaction
                     if (w_data_trans_idx >= 0) begin
@@ -321,9 +321,9 @@ module axi_monitor_trans_mgr
                         end
 
                         // Check if data completed (last beat)
-                        if (i_data_last) begin
+                        if (data_last) begin
                             r_trans_table[w_data_trans_idx].data_completed <= 1'b1;
-                            r_trans_table[w_data_trans_idx].data_timestamp <= i_timestamp;
+                            r_trans_table[w_data_trans_idx].data_timestamp <= timestamp;
 
                             // For reads, transaction is complete once last data beat arrives
                             if (r_trans_table[w_data_trans_idx].state != TRANS_ERROR) begin
@@ -337,10 +337,10 @@ module axi_monitor_trans_mgr
                         end
 
                         // Check for data response error
-                        if (i_data_resp[1]) begin
+                        if (data_resp[1]) begin
                             r_trans_table[w_data_trans_idx].state <= TRANS_ERROR;
                             // Properly distinguish between SLVERR and DECERR
-                            r_trans_table[w_data_trans_idx].error_code <= (i_data_resp[0]) ? EVT_RESP_DECERR : EVT_RESP_SLVERR;
+                            r_trans_table[w_data_trans_idx].event_code <= (data_resp[0]) ? EVT_RESP_DECERR : EVT_RESP_SLVERR;
                         end
                     end else if (IS_AXI && w_data_free_idx >= 0) begin
                         // Orphaned read data - create entry to track it
@@ -348,14 +348,14 @@ module axi_monitor_trans_mgr
                         r_trans_table[w_data_free_idx].valid <= 1'b1;
                         r_trans_table[w_data_free_idx].state <= TRANS_ORPHANED;
                         r_trans_table[w_data_free_idx].id <= '0;
-                        r_trans_table[w_data_free_idx].id[IW-1:0] <= i_data_id;
+                        r_trans_table[w_data_free_idx].id[IW-1:0] <= data_id;
                         r_trans_table[w_data_free_idx].data_started <= 1'b1;
-                        r_trans_table[w_data_free_idx].data_completed <= i_data_last;
+                        r_trans_table[w_data_free_idx].data_completed <= data_last;
                         r_trans_table[w_data_free_idx].data_beat_count <= 8'h1;
-                        r_trans_table[w_data_free_idx].data_timestamp <= i_timestamp;
-                        r_trans_table[w_data_free_idx].error_code <= EVT_DATA_ORPHAN;
+                        r_trans_table[w_data_free_idx].data_timestamp <= timestamp;
+                        r_trans_table[w_data_free_idx].event_code <= EVT_DATA_ORPHAN;
                         /* verilator lint_off WIDTHTRUNC */
-                        r_trans_table[w_data_free_idx].channel <= 6'(({24'h0, i_data_id} % 64));
+                        r_trans_table[w_data_free_idx].channel <= 6'(({24'h0, data_id} % 64));
                         /* verilator lint_on WIDTHTRUNC */
 
                         // Increment active count
@@ -378,10 +378,10 @@ module axi_monitor_trans_mgr
                         end
 
                         // Check if data completed (last beat or expected count reached)
-                        if (i_data_last || r_trans_table[w_data_trans_idx].data_beat_count + 1 ==
+                        if (data_last || r_trans_table[w_data_trans_idx].data_beat_count + 1 ==
                                         r_trans_table[w_data_trans_idx].expected_beats) begin
                             r_trans_table[w_data_trans_idx].data_completed <= 1'b1;
-                            r_trans_table[w_data_trans_idx].data_timestamp <= i_timestamp;
+                            r_trans_table[w_data_trans_idx].data_timestamp <= timestamp;
 
                             // Performance metrics - data phase latency
                             if (ENABLE_PERF_PACKETS) begin
@@ -395,11 +395,11 @@ module axi_monitor_trans_mgr
                         r_trans_table[w_data_free_idx].state <= TRANS_ORPHANED;
                         r_trans_table[w_data_free_idx].id <= '0; // No ID for AXI-Lite
                         r_trans_table[w_data_free_idx].data_started <= 1'b1;
-                        r_trans_table[w_data_free_idx].data_completed <= i_data_last;
+                        r_trans_table[w_data_free_idx].data_completed <= data_last;
                         r_trans_table[w_data_free_idx].data_beat_count <= 8'h1;
                         r_trans_table[w_data_free_idx].expected_beats <= 8'h1; // AXI-Lite is single beat
-                        r_trans_table[w_data_free_idx].data_timestamp <= i_timestamp;
-                        r_trans_table[w_data_free_idx].error_code <= EVT_DATA_ORPHAN;
+                        r_trans_table[w_data_free_idx].data_timestamp <= timestamp;
+                        r_trans_table[w_data_free_idx].event_code <= EVT_DATA_ORPHAN;
                         r_trans_table[w_data_free_idx].channel <= 6'h0; // AXI-Lite always channel 0
 
                         // Increment active count
@@ -420,20 +420,20 @@ module axi_monitor_trans_mgr
                     // Reset handled by address processor
                 end else begin
                     // Process response phase
-                    if (i_resp_valid && i_resp_ready) begin
+                    if (resp_valid && resp_ready) begin
                         if (w_resp_trans_idx >= 0) begin
                             // Update transaction response info
                             r_trans_table[w_resp_trans_idx].resp_received <= 1'b1;
-                            r_trans_table[w_resp_trans_idx].resp_timestamp <= i_timestamp;
+                            r_trans_table[w_resp_trans_idx].resp_timestamp <= timestamp;
 
                             // Reset response timeout timer
                             r_trans_table[w_resp_trans_idx].resp_timer <= '0;
 
                             // Check for response error
-                            if (i_resp[1]) begin
+                            if (resp_code[1]) begin
                                 r_trans_table[w_resp_trans_idx].state <= TRANS_ERROR;
                                 // Properly distinguish between SLVERR and DECERR
-                                r_trans_table[w_resp_trans_idx].error_code <= (i_resp[0]) ? EVT_RESP_DECERR : EVT_RESP_SLVERR;
+                                r_trans_table[w_resp_trans_idx].event_code <= (resp_code[0]) ? EVT_RESP_DECERR : EVT_RESP_SLVERR;
                             end else if (r_trans_table[w_resp_trans_idx].data_completed) begin
                                 // Transaction completed successfully
                                 if (r_trans_table[w_resp_trans_idx].state != TRANS_ERROR) begin
@@ -447,11 +447,11 @@ module axi_monitor_trans_mgr
                             end else if (r_trans_table[w_resp_trans_idx].data_started) begin
                                 // Response received before data completion (protocol violation)
                                 r_trans_table[w_resp_trans_idx].state <= TRANS_ERROR;
-                                r_trans_table[w_resp_trans_idx].error_code <= EVT_PROTOCOL;
+                                r_trans_table[w_resp_trans_idx].event_code <= EVT_PROTOCOL;
                             end else begin
                                 // Response received before data started (protocol violation)
                                 r_trans_table[w_resp_trans_idx].state <= TRANS_ERROR;
-                                r_trans_table[w_resp_trans_idx].error_code <= EVT_PROTOCOL;
+                                r_trans_table[w_resp_trans_idx].event_code <= EVT_PROTOCOL;
                             end
                         end else if (w_resp_free_idx >= 0) begin
                             if (IS_AXI) begin
@@ -460,12 +460,12 @@ module axi_monitor_trans_mgr
                                 r_trans_table[w_resp_free_idx].valid <= 1'b1;
                                 r_trans_table[w_resp_free_idx].state <= TRANS_ORPHANED;
                                 r_trans_table[w_resp_free_idx].id <= '0;
-                                r_trans_table[w_resp_free_idx].id[IW-1:0] <= i_resp_id;
+                                r_trans_table[w_resp_free_idx].id[IW-1:0] <= resp_id;
                                 r_trans_table[w_resp_free_idx].resp_received <= 1'b1;
-                                r_trans_table[w_resp_free_idx].resp_timestamp <= i_timestamp;
-                                r_trans_table[w_resp_free_idx].error_code <= EVT_RESP_ORPHAN;
+                                r_trans_table[w_resp_free_idx].resp_timestamp <= timestamp;
+                                r_trans_table[w_resp_free_idx].event_code <= EVT_RESP_ORPHAN;
                                 /* verilator lint_off WIDTHTRUNC */
-                                r_trans_table[w_resp_free_idx].channel <= 6'(i_resp_id % 64);
+                                r_trans_table[w_resp_free_idx].channel <= 6'(resp_id % 64);
                                 /* verilator lint_on WIDTHTRUNC */
                             end else begin
                                 // For AXI-Lite, orphaned response
@@ -474,8 +474,8 @@ module axi_monitor_trans_mgr
                                 r_trans_table[w_resp_free_idx].state <= TRANS_ORPHANED;
                                 r_trans_table[w_resp_free_idx].id <= '0; // No ID for AXI-Lite
                                 r_trans_table[w_resp_free_idx].resp_received <= 1'b1;
-                                r_trans_table[w_resp_free_idx].resp_timestamp <= i_timestamp;
-                                r_trans_table[w_resp_free_idx].error_code <= EVT_RESP_ORPHAN;
+                                r_trans_table[w_resp_free_idx].resp_timestamp <= timestamp;
+                                r_trans_table[w_resp_free_idx].event_code <= EVT_RESP_ORPHAN;
                                 r_trans_table[w_resp_free_idx].channel <= 6'h0; // AXI-Lite always channel 0
                             end
 

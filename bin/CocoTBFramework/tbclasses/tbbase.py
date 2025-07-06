@@ -86,10 +86,7 @@ class TBBase:
         self.safety_limits = self.DEFAULT_SAFETY_LIMITS.copy()
         if safety_limits:
             self.safety_limits.update(safety_limits)
-            
-        # Override with environment variables if present
-        self._load_safety_limits_from_env()
-        
+
         # Safety monitoring state
         self.safety_enabled = self.safety_limits['enable_safety_monitoring']
         self.test_start_time = time.time()
@@ -119,6 +116,9 @@ class TBBase:
         self.log_count = 0
         self.log = self.configure_logging(level=TBBase.default_log_level)
         
+        # Override with environment variables if present
+        self._load_safety_limits_from_env()
+
         # Initialize signal monitors
         self._signal_monitors = {}
         self._monitor_tasks = []

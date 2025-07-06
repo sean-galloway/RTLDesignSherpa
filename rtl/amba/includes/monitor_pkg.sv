@@ -50,40 +50,40 @@ package monitor_pkg;
 
     // Transaction entry structure - one per outstanding transaction
     typedef struct packed {
-        logic           valid;           // Entry is valid
-        trans_state_t   state;           // Transaction state
-        logic [31:0]    id;              // Transaction ID (padded to 32 bits)
-        logic [63:0]    addr;            // Transaction address (padded to 64 bits)
-        logic [7:0]     len;             // Burst length
-        logic [2:0]     size;            // Access size
-        logic [1:0]     burst;           // Burst type
+        logic                valid;           // Entry is valid
+        trans_state_t        state;           // Transaction state
+        logic [31:0]         id;              // Transaction ID (padded to 32 bits)
+        logic [63:0]         addr;            // Transaction address (padded to 64 bits)
+        logic [7:0]          len;             // Burst length
+        logic [2:0]          size;            // Access size
+        logic [1:0]          burst;           // Burst type
 
         // Phase completion flags
-        logic           cmd_received;    // Address phase received
-        logic           data_started;    // Data phase started
-        logic           data_completed;  // Data phase completed
-        logic           resp_received;   // Response received
+        logic                cmd_received;    // Address phase received
+        logic                data_started;    // Data phase started
+        logic                data_completed;  // Data phase completed
+        logic                resp_received;   // Response received
 
         // Error detection and reporting
-        axi_event_code_t event_code;     // Error code if any
-        logic            event_reported; // Error or event has been reported
+        monitor_event_code_t event_code;     // Error code if any
+        logic                event_reported; // Error or event has been reported
 
         // Timeout counters
-        logic [15:0]     addr_timer;     // Address phase timer
-        logic [15:0]     data_timer;     // Data phase timer
-        logic [15:0]     resp_timer;     // Response phase timer
+        logic [15:0]         addr_timer;     // Address phase timer
+        logic [15:0]         data_timer;     // Data phase timer
+        logic [15:0]         resp_timer;     // Response phase timer
 
         // Timestamps for performance monitoring
-        logic [31:0]     addr_timestamp; // When address phase completed
-        logic [31:0]     data_timestamp; // When data phase completed
-        logic [31:0]     resp_timestamp; // When response phase completed
+        logic [31:0]         addr_timestamp; // When address phase completed
+        logic [31:0]         data_timestamp; // When data phase completed
+        logic [31:0]         resp_timestamp; // When response phase completed
 
         // Beat counters
-        logic [7:0]      data_beat_count; // Number of data beats received
-        logic [7:0]      expected_beats;  // Expected number of data beats
+        logic [7:0]          data_beat_count; // Number of data beats received
+        logic [7:0]          expected_beats;  // Expected number of data beats
 
         // Additional tracking
-        logic [5:0]     channel;        // Channel ID for multi-channel systems (6 bits)
+        logic [5:0]          channel;        // Channel ID for multi-channel systems (6 bits)
     } bus_transaction_t;
 
     // Consolidated 64-bit interrupt bus packet

@@ -51,26 +51,26 @@ module axi_monitor_base
     input  logic                     aresetn,
 
     // Command phase (AW/AR)
-    input  logic [AW-1:0]            i_addr_addr,    // Address value
-    input  logic [IW-1:0]            i_addr_id,      // Transaction ID
-    input  logic                     i_addr_valid,   // Command valid
-    input  logic                     i_addr_ready,   // Command ready
-    input  logic [7:0]               i_addr_len,     // Burst length (AXI only)
-    input  logic [2:0]               i_addr_size,    // Burst size (AXI only)
-    input  logic [1:0]               i_addr_burst,   // Burst type (AXI only)
+    input  logic [AW-1:0]            cmd_addr,    // Address value
+    input  logic [IW-1:0]            cmd_id,      // Transaction ID
+    input  logic [7:0]               cmd_len,     // Burst length (AXI only)
+    input  logic [2:0]               cmd_size,    // Burst size (AXI only)
+    input  logic [1:0]               cmd_burst,   // Burst type (AXI only)
+    input  logic                     cmd_valid,   // Command valid
+    input  logic                     cmd_ready,   // Command ready
 
     // Data channel (W/R)
-    input  logic [IW-1:0]            i_data_id,      // Data ID (read only)
-    input  logic                     i_data_last,    // Last data flag
-    input  logic [1:0]               i_data_resp,    // Response code (read only)
-    input  logic                     i_data_valid,   // Data valid
-    input  logic                     i_data_ready,   // Data ready
+    input  logic [IW-1:0]            data_id,      // Data ID (read only)
+    input  logic                     data_last,    // Last data flag
+    input  logic [1:0]               data_resp,    // Response code (read only)
+    input  logic                     data_valid,   // Data valid
+    input  logic                     data_ready,   // Data ready
 
     // Response channel (B)
-    input  logic [IW-1:0]            i_resp_id,      // Response ID (write only)
-    input  logic [1:0]               i_resp,         // Response code
-    input  logic                     i_resp_valid,   // Response valid
-    input  logic                     i_resp_ready,   // Response ready
+    input  logic [IW-1:0]            resp_id,      // Response ID (write only)
+    input  logic [1:0]               resp_code,    // Response code
+    input  logic                     resp_valid,   // Response valid
+    input  logic                     resp_ready,   // Response ready
 
     // Timer configs
     input  logic [3:0]               i_cfg_freq_sel, // Frequency selection (configurable)
@@ -95,21 +95,21 @@ module axi_monitor_base
     input  logic [31:0]              i_cfg_latency_threshold,      // Latency threshold
 
     // Consolidated 64-bit event packet interface (interrupt bus)
-    output logic                     o_monbus_valid,  // Interrupt valid
-    input  logic                     i_monbus_ready,  // Interrupt ready
-    output logic [63:0]              o_monbus_packet, // Consolidated interrupt packet
+    output logic                     monbus_valid,  // Interrupt valid
+    input  logic                     monbus_ready,  // Interrupt ready
+    output logic [63:0]              monbus_packet, // Consolidated interrupt packet
 
     // Flow control and status
-    output logic                     o_block_ready,    // Flow control signal
-    output logic                     o_busy,           // Monitor is busy
-    output logic [7:0]               o_active_count    // Number of active transactions
+    output logic                     block_ready,    // Flow control signal
+    output logic                     busy,           // Monitor is busy
+    output logic [7:0]               active_count    // Number of active transactions
 );
 
     // Import standard monitor types and constants
     import monitor_pkg::*;
 
     // Transaction tracking table - Fixed: Use unpacked array consistently
-    axi_transaction_t w_trans_table[MAX_TRANSACTIONS];
+    bus_transaction_t w_trans_table[MAX_TRANSACTIONS];
 
     // Transaction statistics (combinational)
     logic [7:0]  w_active_count;
@@ -151,26 +151,26 @@ module axi_monitor_base
     ) i_trans_mgr (
         .aclk(aclk),
         .aresetn(aresetn),
-        .i_addr_valid(i_addr_valid),
-        .i_addr_ready(i_addr_ready),
-        .i_addr_id(i_addr_id),
-        .i_addr_addr(i_addr_addr),
-        .i_addr_len(i_addr_len),
-        .i_addr_size(i_addr_size),
-        .i_addr_burst(i_addr_burst),
-        .i_data_valid(i_data_valid),
-        .i_data_ready(i_data_ready),
-        .i_data_id(i_data_id),
-        .i_data_last(i_data_last),
-        .i_data_resp(i_data_resp),
-        .i_resp_valid(i_resp_valid),
-        .i_resp_ready(i_resp_ready),
-        .i_resp_id(i_resp_id),
-        .i_resp(i_resp),
-        .i_timestamp(r_timestamp),
-        .o_trans_table(w_trans_table),
-        .o_active_count(w_active_count),
-        .o_state_change(w_state_change_detected)
+        .cmd_valid(cmd_valid),
+        .cmd_ready(cmd_ready),
+        .cmd_id(cmd_id),
+        .cmd_addr(cmd_addr),
+        .cmd_len(cmd_len),
+        .cmd_size(cmd_size),
+        .cmd_burst(cmd_burst),
+        .data_valid(data_valid),
+        .data_ready(data_ready),
+        .data_id(data_id),
+        .data_last(data_last),
+        .data_resp(data_resp),
+        .resp_valid(resp_valid),
+        .resp_ready(resp_ready),
+        .resp_id(resp_id),
+        .resp_code(resp_code),
+        .timestamp(r_timestamp),
+        .trans_table(w_trans_table),
+        .active_count(w_active_count),
+        .state_change(w_state_change_detected)
     );
 
     // Invariant Timer using counter_freq_invariant
@@ -178,8 +178,8 @@ module axi_monitor_base
         .aclk(aclk),
         .aresetn(aresetn),
         .i_cfg_freq_sel(i_cfg_freq_sel),
-        .o_timer_tick(w_timer_tick),
-        .o_timestamp(r_timestamp)
+        .timer_tick(w_timer_tick),
+        .timestamp(r_timestamp)
     );
 
     // Timeout Detector
@@ -190,13 +190,13 @@ module axi_monitor_base
     ) i_timeout (
         .aclk(aclk),
         .aresetn(aresetn),
-        .i_trans_table(w_trans_table),
-        .i_timer_tick(w_timer_tick),
+        .trans_table(w_trans_table),
+        .timer_tick(w_timer_tick),
         .i_cfg_addr_cnt(i_cfg_addr_cnt),
         .i_cfg_data_cnt(i_cfg_data_cnt),
         .i_cfg_resp_cnt(i_cfg_resp_cnt),
         .i_cfg_timeout_enable(i_cfg_timeout_enable),
-        .o_timeout_detected(w_timeout_detected)
+        .timeout_detected(w_timeout_detected)
     );
 
     // Interrupt Reporter with gaxi_fifo_sync
@@ -211,21 +211,21 @@ module axi_monitor_base
     ) i_reporter (
         .aclk(aclk),
         .aresetn(aresetn),
-        .i_trans_table(w_trans_table),
+        .trans_table(w_trans_table),
         .i_cfg_error_enable(i_cfg_error_enable),
         .i_cfg_compl_enable(i_cfg_compl_enable),
         .i_cfg_threshold_enable(i_cfg_threshold_enable),
         .i_cfg_timeout_enable(i_cfg_timeout_enable),
         .i_cfg_perf_enable(i_cfg_perf_enable),
         .i_cfg_debug_enable(i_cfg_debug_enable),
-        .i_monbus_ready(i_monbus_ready),
-        .o_monbus_valid(w_reporter_monbus_valid),
-        .o_monbus_packet(w_reporter_monbus_packet),
-        .o_event_count(w_event_count),
-        .o_perf_completed_count(r_perf_completed_count),
-        .o_perf_error_count(r_perf_error_count),
-        .i_active_trans_threshold(i_cfg_active_trans_threshold),
-        .i_latency_threshold(i_cfg_latency_threshold)
+        .monbus_ready(monbus_ready),
+        .monbus_valid(w_reporter_monbus_valid),
+        .monbus_packet(w_reporter_monbus_packet),
+        .event_count(w_event_count),
+        .perf_completed_count(r_perf_completed_count),
+        .perf_error_count(r_perf_error_count),
+        .active_trans_threshold(i_cfg_active_trans_threshold),
+        .latency_threshold(i_cfg_latency_threshold)
     );
 
     // -------------------------------------------------------------------------
@@ -235,14 +235,14 @@ module axi_monitor_base
     // Simple priority arbitration between reporter and debug packets
     always_comb begin
         if (w_reporter_monbus_valid) begin
-            o_monbus_valid = w_reporter_monbus_valid;
-            o_monbus_packet = w_reporter_monbus_packet;
+            monbus_valid = w_reporter_monbus_valid;
+            monbus_packet = w_reporter_monbus_packet;
         end else if (w_debug_monbus_valid) begin
-            o_monbus_valid = w_debug_monbus_valid;
-            o_monbus_packet = w_debug_monbus_packet;
+            monbus_valid = w_debug_monbus_valid;
+            monbus_packet = w_debug_monbus_packet;
         end else begin
-            o_monbus_valid = 1'b0;
-            o_monbus_packet = '0;
+            monbus_valid = 1'b0;
+            monbus_packet = '0;
         end
     end
 
@@ -251,12 +251,12 @@ module axi_monitor_base
     // -------------------------------------------------------------------------
 
     // Flow control - block when too many outstanding transactions
-    assign o_block_ready = ({24'h0, w_active_count} >= (MAX_TRANSACTIONS - 2));
+    assign block_ready = ({24'h0, w_active_count} >= (MAX_TRANSACTIONS - 2));
 
     // Busy signal
-    assign o_busy = (w_active_count > 0);
+    assign busy = (w_active_count > 0);
 
     // Active transaction count
-    assign o_active_count = w_active_count;
+    assign active_count = w_active_count;
 
 endmodule : axi_monitor_base

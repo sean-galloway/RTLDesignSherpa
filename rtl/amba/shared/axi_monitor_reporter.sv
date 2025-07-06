@@ -28,7 +28,7 @@ module axi_monitor_reporter
     input  logic                     aresetn,
 
     // Transaction table (read-only access) - Fixed: Use unpacked array
-    input  bus_transaction_t         i_trans_table[MAX_TRANSACTIONS],
+    input  bus_transaction_t         trans_table[MAX_TRANSACTIONS],
 
     // Configuration enables for different packet types
     input  logic                     i_cfg_error_enable,    // Enable error packets
@@ -39,20 +39,20 @@ module axi_monitor_reporter
     input  logic                     i_cfg_debug_enable,    // Enable debug packets
 
     // Interrupt bus output interface
-    input  logic                     i_monbus_ready,  // Downstream ready
-    output logic                     o_monbus_valid,  // Interrupt valid
-    output logic [63:0]              o_monbus_packet, // Consolidated interrupt packet
+    input  logic                     monbus_ready,  // Downstream ready
+    output logic                     monbus_valid,  // Interrupt valid
+    output logic [63:0]              monbus_packet, // Consolidated interrupt packet
 
     // Statistics output
-    output logic [15:0]              o_event_count,    // Total event count
+    output logic [15:0]              event_count,    // Total event count
 
     // Performance metrics (only used when ENABLE_PERF_PACKETS=1)
-    output logic [15:0]              o_perf_completed_count, // Number of completed transactions
-    output logic [15:0]              o_perf_error_count,     // Number of error transactions
+    output logic [15:0]              perf_completed_count, // Number of completed transactions
+    output logic [15:0]              perf_error_count,     // Number of error transactions
 
     // Performance metric thresholds
-    input  logic [15:0]              i_active_trans_threshold,
-    input  logic [31:0]              i_latency_threshold
+    input  logic [15:0]              active_trans_threshold,
+    input  logic [31:0]              latency_threshold
 );
 
     // Local version of transaction table for processing (flopped)
@@ -67,15 +67,15 @@ module axi_monitor_reporter
 
     // Event count (flopped)
     logic [15:0] r_event_count;
-    assign o_event_count = r_event_count;
+    assign event_count = r_event_count;
 
     // Performance metrics counters (flopped)
     logic [15:0] r_perf_completed_count;
     logic [15:0] r_perf_error_count;
 
     // Assign performance metrics outputs
-    assign o_perf_completed_count = r_perf_completed_count;
-    assign o_perf_error_count = r_perf_error_count;
+    assign perf_completed_count = r_perf_completed_count;
+    assign perf_error_count = r_perf_error_count;
 
     // Performance report state machine (flopped)
     logic [2:0] r_perf_report_state;
@@ -134,6 +134,29 @@ module axi_monitor_reporter
     logic w_has_timeout_event;
     logic w_has_completion_event;
 
+    // Event marking signals (combinational)
+    logic [MAX_TRANSACTIONS-1:0] w_events_to_mark;
+    logic [MAX_TRANSACTIONS-1:0] w_error_events;
+    logic [MAX_TRANSACTIONS-1:0] w_completion_events;
+
+    // Active transaction count for threshold detection (combinational)
+    logic [7:0] w_active_count_current;
+    logic w_active_threshold_detection;
+
+    // Latency threshold detection signals (combinational)
+    logic [MAX_TRANSACTIONS-1:0] w_latency_threshold_events;
+    logic [$clog2(MAX_TRANSACTIONS)-1:0] w_selected_latency_idx;
+    logic w_has_latency_event;
+
+    // Pre-declare latency calculation variables to avoid latch inference
+    logic [31:0] w_total_latency;
+    logic [31:0] w_selected_latency_value;
+
+    // Performance packet state and selection (combinational)
+    logic w_generate_perf_packet_completed;
+    logic w_generate_perf_packet_errors;
+    logic [2:0] w_next_perf_report_state;
+
     // Error event detection
     always_comb begin
         w_error_events_detected = '0;
@@ -145,9 +168,9 @@ module axi_monitor_reporter
             if (r_trans_table_local[idx].valid && !r_event_reported[idx] &&
                     r_trans_table_local[idx].state == TRANS_ERROR && i_cfg_error_enable &&
                     !(i_cfg_timeout_enable &&
-                    (r_trans_table_local[idx].error_code == EVT_ADDR_TIMEOUT ||
-                        r_trans_table_local[idx].error_code == EVT_DATA_TIMEOUT ||
-                        r_trans_table_local[idx].error_code == EVT_RESP_TIMEOUT))) begin
+                    (r_trans_table_local[idx].event_code == EVT_CMD_TIMEOUT ||
+                        r_trans_table_local[idx].event_code == EVT_DATA_TIMEOUT ||
+                        r_trans_table_local[idx].event_code == EVT_RESP_TIMEOUT))) begin
                 w_error_events_detected[idx] = 1'b1;
             end
         end
@@ -173,9 +196,9 @@ module axi_monitor_reporter
         for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
             if (r_trans_table_local[idx].valid && !r_event_reported[idx] &&
                 r_trans_table_local[idx].state == TRANS_ERROR && i_cfg_timeout_enable &&
-                (r_trans_table_local[idx].error_code == EVT_ADDR_TIMEOUT ||
-                    r_trans_table_local[idx].error_code == EVT_DATA_TIMEOUT ||
-                    r_trans_table_local[idx].error_code == EVT_RESP_TIMEOUT)) begin
+                (r_trans_table_local[idx].event_code == EVT_CMD_TIMEOUT ||
+                    r_trans_table_local[idx].event_code == EVT_DATA_TIMEOUT ||
+                    r_trans_table_local[idx].event_code == EVT_RESP_TIMEOUT)) begin
                 w_timeout_events_detected[idx] = 1'b1;
             end
         end
@@ -225,7 +248,7 @@ module axi_monitor_reporter
         if (w_has_error_event) begin
             w_fifo_wr_valid = 1'b1;
             w_fifo_wr_data.packet_type = PktTypeError;
-            w_fifo_wr_data.event_code = r_trans_table_local[w_selected_error_idx].error_code;
+            w_fifo_wr_data.event_code = r_trans_table_local[w_selected_error_idx].event_code;
             w_fifo_wr_data.channel = r_trans_table_local[w_selected_error_idx].channel[5:0];
             /* verilator lint_off WIDTHTRUNC */
             w_fifo_wr_data.data = {{(38-ADDR_WIDTH){1'b0}}, r_trans_table_local[w_selected_error_idx].addr[ADDR_WIDTH-1:0]};
@@ -233,7 +256,7 @@ module axi_monitor_reporter
         end else if (w_has_timeout_event) begin
             w_fifo_wr_valid = 1'b1;
             w_fifo_wr_data.packet_type = PktTypeTimeout;
-            w_fifo_wr_data.event_code = r_trans_table_local[w_selected_timeout_idx].error_code;
+            w_fifo_wr_data.event_code = r_trans_table_local[w_selected_timeout_idx].event_code;
             w_fifo_wr_data.channel = r_trans_table_local[w_selected_timeout_idx].channel[5:0];
             /* verilator lint_off WIDTHTRUNC */
             w_fifo_wr_data.data = {{(38-ADDR_WIDTH){1'b0}}, r_trans_table_local[w_selected_timeout_idx].addr[ADDR_WIDTH-1:0]};
@@ -250,21 +273,7 @@ module axi_monitor_reporter
     end
 
     // FIFO read interface and event processing
-    assign w_fifo_rd_ready = i_monbus_ready && o_monbus_valid;
-
-    // Event marking signals (combinational)
-    logic [MAX_TRANSACTIONS-1:0] w_events_to_mark;
-    logic [MAX_TRANSACTIONS-1:0] w_error_events;
-    logic [MAX_TRANSACTIONS-1:0] w_completion_events;
-
-    // Active transaction count for threshold detection (combinational)
-    logic [7:0] w_active_count_current;
-    logic w_active_threshold_detection;
-
-    // Latency threshold detection signals (combinational)
-    logic [MAX_TRANSACTIONS-1:0] w_latency_threshold_events;
-    logic [$clog2(MAX_TRANSACTIONS)-1:0] w_selected_latency_idx;
-    logic w_has_latency_event;
+    assign w_fifo_rd_ready = monbus_ready && monbus_valid;
 
     // Detect events that need to be marked as reported
     always_comb begin
@@ -303,9 +312,9 @@ module axi_monitor_reporter
         end
 
         /* verilator lint_off WIDTHEXPAND */
-        w_active_threshold_detection = (({8'h0, w_active_count_current} > i_active_trans_threshold) &&
+        w_active_threshold_detection = (({8'h0, w_active_count_current} > active_trans_threshold) &&
                                         !r_active_threshold_crossed &&
-                                        !o_monbus_valid &&
+                                        !monbus_valid &&
                                         (w_fifo_rd_valid == 0));
         /* verilator lint_on WIDTHEXPAND */
     end
@@ -315,18 +324,18 @@ module axi_monitor_reporter
         w_latency_threshold_events = '0;
         w_selected_latency_idx = '0;
         w_has_latency_event = 1'b0;
+        w_total_latency = '0;
 
         if (ENABLE_PERF_PACKETS && i_cfg_perf_enable && i_cfg_threshold_enable) begin
             for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
                 if (r_trans_table_local[idx].valid && r_trans_table_local[idx].state == TRANS_COMPLETE) begin
-                    logic [31:0] w_total_latency;
                     if (IS_READ) begin
                         w_total_latency = r_trans_table_local[idx].data_timestamp - r_trans_table_local[idx].addr_timestamp;
                     end else begin
                         w_total_latency = r_trans_table_local[idx].resp_timestamp - r_trans_table_local[idx].addr_timestamp;
                     end
 
-                    if (w_total_latency > i_latency_threshold && !r_latency_threshold_crossed) begin
+                    if (w_total_latency > latency_threshold && !r_latency_threshold_crossed) begin
                         w_latency_threshold_events[idx] = 1'b1;
                     end
                 end
@@ -344,17 +353,28 @@ module axi_monitor_reporter
         end
     end
 
-    // Performance packet state and selection (combinational)
-    logic w_generate_perf_packet_completed;
-    logic w_generate_perf_packet_errors;
-    logic [2:0] w_next_perf_report_state;
+    // Calculate latency value for selected transaction (combinational)
+    always_comb begin
+        w_selected_latency_value = '0;
+        
+        if (w_has_latency_event) begin
+            if (IS_READ) begin
+                w_selected_latency_value = r_trans_table_local[w_selected_latency_idx].data_timestamp -
+                                          r_trans_table_local[w_selected_latency_idx].addr_timestamp;
+            end else begin
+                w_selected_latency_value = r_trans_table_local[w_selected_latency_idx].resp_timestamp -
+                                          r_trans_table_local[w_selected_latency_idx].addr_timestamp;
+            end
+        end
+    end
 
+    // Performance packet state and selection (combinational)
     always_comb begin
         w_next_perf_report_state = 3'h0;
         w_generate_perf_packet_completed = 1'b0;
         w_generate_perf_packet_errors = 1'b0;
 
-        if (ENABLE_PERF_PACKETS && i_cfg_perf_enable && !o_monbus_valid && w_fifo_rd_valid == 0) begin
+        if (ENABLE_PERF_PACKETS && i_cfg_perf_enable && !monbus_valid && w_fifo_rd_valid == 0) begin
             case (r_perf_report_state)
                 3'h0: begin // ADDR_LATENCY
                     w_next_perf_report_state = 3'h1;
@@ -387,7 +407,7 @@ module axi_monitor_reporter
         if (!aresetn) begin
             // Reset local table and reporting state
             r_trans_table_local <= '{default: '0};
-            o_monbus_valid <= 1'b0;
+            monbus_valid <= 1'b0;
             r_event_count <= '0;
             r_event_reported <= '0;
 
@@ -410,17 +430,17 @@ module axi_monitor_reporter
         end else begin
             // Update local transaction table element by element to avoid width issues
             for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
-                r_trans_table_local[idx] <= i_trans_table[idx];
+                r_trans_table_local[idx] <= trans_table[idx];
             end
 
             // Handle packet output
-            if (o_monbus_valid && i_monbus_ready) begin
-                o_monbus_valid <= 1'b0;
+            if (monbus_valid && monbus_ready) begin
+                monbus_valid <= 1'b0;
             end
 
             // Present next packet from FIFO
-            if (!o_monbus_valid && w_fifo_rd_valid) begin
-                o_monbus_valid <= 1'b1;
+            if (!monbus_valid && w_fifo_rd_valid) begin
+                monbus_valid <= 1'b1;
                 r_packet_type <= w_fifo_rd_data.packet_type;
                 r_event_code <= w_fifo_rd_data.event_code;
                 r_event_data <= w_fifo_rd_data.data;
@@ -449,7 +469,7 @@ module axi_monitor_reporter
             if (i_cfg_threshold_enable) begin
                 // Active transaction count threshold
                 if (w_active_threshold_detection) begin
-                    o_monbus_valid <= 1'b1;
+                    monbus_valid <= 1'b1;
                     r_packet_type <= PktTypeThreshold;
                     r_event_code <= THRESH_ACTIVE_COUNT;
                     r_event_data <= {6'h0, {24'h0, w_active_count_current}};  // Zero-extend to 38 bits
@@ -457,28 +477,18 @@ module axi_monitor_reporter
                     r_active_threshold_crossed <= 1'b1;
                     r_event_count <= r_event_count + 1'b1;
                 /* verilator lint_off WIDTHEXPAND */
-                end else if (({8'h0, w_active_count_current} <= i_active_trans_threshold)) begin
+                end else if (({8'h0, w_active_count_current} <= active_trans_threshold)) begin
                 /* verilator lint_on WIDTHEXPAND */
                     r_active_threshold_crossed <= 1'b0;
                 end
 
-                // Latency threshold - Fixed syntax error
-                if (w_has_latency_event && !o_monbus_valid && w_fifo_rd_valid == 0) begin
-                    logic [31:0] w_latency_temp;  // Temporary calculation variable
-
-                    if (IS_READ) begin
-                        w_latency_temp = r_trans_table_local[w_selected_latency_idx].data_timestamp -
-                                        r_trans_table_local[w_selected_latency_idx].addr_timestamp;
-                    end else begin
-                        w_latency_temp = r_trans_table_local[w_selected_latency_idx].resp_timestamp -
-                                        r_trans_table_local[w_selected_latency_idx].addr_timestamp;
-                    end
-
-                    o_monbus_valid <= 1'b1;
+                // Latency threshold
+                if (w_has_latency_event && !monbus_valid && w_fifo_rd_valid == 0) begin
+                    monbus_valid <= 1'b1;
                     r_packet_type <= PktTypeThreshold;
                     r_event_code <= THRESH_LATENCY;
                     /* verilator lint_off WIDTHTRUNC */
-                    r_event_data <= {{(38-ADDR_WIDTH){1'b0}}, w_latency_temp[ADDR_WIDTH-1:0]};
+                    r_event_data <= {{(38-ADDR_WIDTH){1'b0}}, w_selected_latency_value[ADDR_WIDTH-1:0]};
                     /* verilator lint_on WIDTHTRUNC */
                     r_event_channel <= r_trans_table_local[w_selected_latency_idx].channel[5:0];
                     r_latency_threshold_crossed <= 1'b1;
@@ -488,7 +498,7 @@ module axi_monitor_reporter
 
             // Generate performance packets if enabled
             if (w_generate_perf_packet_completed) begin
-                o_monbus_valid <= 1'b1;
+                monbus_valid <= 1'b1;
                 r_packet_type <= PktTypePerf;
                 r_event_code <= PERF_COMPLETED_COUNT;
                 r_event_data <= {6'h0, {16'h0, r_perf_completed_count}};  // Zero-extend to 38 bits
@@ -496,7 +506,7 @@ module axi_monitor_reporter
             end
 
             if (w_generate_perf_packet_errors) begin
-                o_monbus_valid <= 1'b1;
+                monbus_valid <= 1'b1;
                 r_packet_type <= PktTypePerf;
                 r_event_code <= PERF_ERROR_COUNT;
                 r_event_data <= {6'h0, {16'h0, r_perf_error_count}};     // Zero-extend to 38 bits
@@ -518,14 +528,14 @@ module axi_monitor_reporter
         // - agent_id:    8 bits  [45:38] (module identifier)
         // - data:        38 bits [37:0]  (address or metric value)
 
-        o_monbus_packet[63:60] = r_packet_type;
-        o_monbus_packet[59:56] = r_event_code;
-        o_monbus_packet[55:50] = r_event_channel;
-        o_monbus_packet[49:46] = UNIT_ID[3:0];  // 4-bit Unit ID
-        o_monbus_packet[45:38] = AGENT_ID[7:0]; // 8-bit Agent ID
+        monbus_packet[63:60] = r_packet_type;
+        monbus_packet[59:56] = r_event_code;
+        monbus_packet[55:50] = r_event_channel;
+        monbus_packet[49:46] = UNIT_ID[3:0];  // 4-bit Unit ID
+        monbus_packet[45:38] = AGENT_ID[7:0]; // 8-bit Agent ID
 
         // Address/data field (up to 38 bits)
-        o_monbus_packet[37:0] = r_event_data;
+        monbus_packet[37:0] = r_event_data;
     end
 
 endmodule : axi_monitor_reporter

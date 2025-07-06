@@ -85,7 +85,7 @@ def test_axi_write_splitter(request, iw, aw, dw, uw, fifo_depth, alignment_mask,
         'rtl_cmn':         'rtl/common',
         'rtl_gaxi':        'rtl/amba/gaxi',
         'rtl_axi4':        'rtl/amba/axi4/',
-        'rtl_axi4_shared': 'rtl/amba/axi4/shared',
+        'rtl_amba_shared':'rtl/amba/shared',
     })
 
     # Set up test names and directories
@@ -115,9 +115,9 @@ def test_axi_write_splitter(request, iw, aw, dw, uw, fifo_depth, alignment_mask,
         os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
         os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
         os.path.join(rtl_dict['rtl_gaxi'], "gaxi_fifo_sync.sv"),
-        os.path.join(rtl_dict['rtl_axi4_shared'], f"axi_split_combi.sv"),
+        os.path.join(rtl_dict['rtl_amba_shared'], f"axi_split_combi.sv"),
         # Main DUT
-        os.path.join(rtl_dict['rtl_axi4_shared'], f"{dut_name}.sv")
+        os.path.join(rtl_dict['rtl_amba_shared'], f"{dut_name}.sv")
     ]
 
     # RTL parameters

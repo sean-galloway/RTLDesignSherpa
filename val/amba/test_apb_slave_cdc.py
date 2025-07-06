@@ -1025,6 +1025,7 @@ def test_apb_slave_cdc_robust(request, addr_width, data_width, depth):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_cmn':  'rtl/common',
         'rtl_amba': 'rtl/amba',
+        'rtl_amba_shared':'rtl/amba/shared',
         'rtl_apb':  'rtl/amba/apb',
         'rtl_gaxi': 'rtl/amba/gaxi',
     })
@@ -1033,10 +1034,10 @@ def test_apb_slave_cdc_robust(request, addr_width, data_width, depth):
     toplevel = dut_name
 
     verilog_sources = [
-        os.path.join(rtl_dict['rtl_gaxi'],  "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_amba'],  "cdc_handshake.sv"),
-        os.path.join(rtl_dict['rtl_apb'],   "apb_slave.sv"),
-        os.path.join(rtl_dict['rtl_apb'],  f"{dut_name}.sv")
+        os.path.join(rtl_dict['rtl_gaxi'],         "gaxi_skid_buffer.sv"),
+        os.path.join(rtl_dict['rtl_amba_shared'],  "cdc_handshake.sv"),
+        os.path.join(rtl_dict['rtl_apb'],          "apb_slave.sv"),
+        os.path.join(rtl_dict['rtl_apb'],         f"{dut_name}.sv")
     ]
 
     aw_str = TBBase.format_dec(addr_width, 3)

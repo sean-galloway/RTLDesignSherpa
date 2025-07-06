@@ -25,10 +25,10 @@ module axi_monitor_timeout
     input  logic                     aresetn,
 
     // Transaction table (read-modify access) - Fixed: Use unpacked array
-    input  bus_transaction_t         i_trans_table[MAX_TRANSACTIONS],
+    input  bus_transaction_t         trans_table[MAX_TRANSACTIONS],
 
     // Timer inputs
-    input  logic                     i_timer_tick,    // From frequency invariant timer
+    input  logic                     timer_tick,    // From frequency invariant timer
 
     // Timeout configuration
     input  logic [3:0]               i_cfg_addr_cnt,  // Address phase timeout threshold
@@ -39,7 +39,7 @@ module axi_monitor_timeout
     input  logic                     i_cfg_timeout_enable, // Enable dedicated timeout packets
 
     // Output signals
-    output logic [MAX_TRANSACTIONS-1:0] o_timeout_detected   // Indicates which transactions had timeouts
+    output logic [MAX_TRANSACTIONS-1:0] timeout_detected   // Indicates which transactions had timeouts
 );
 
     // Local copy of transaction table for modifications (flopped) - use unpacked array
@@ -47,7 +47,7 @@ module axi_monitor_timeout
 
     // Flag to track if timeouts have been detected for each transaction (flopped)
     logic [MAX_TRANSACTIONS-1:0] r_timeout_detected;
-    assign o_timeout_detected = r_timeout_detected;
+    assign timeout_detected = r_timeout_detected;
 
     // Timeout detection logic
     always_ff @(posedge aclk or negedge aresetn) begin
@@ -60,24 +60,24 @@ module axi_monitor_timeout
         end else begin
             // Update local table from input and process individually
             for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
-                r_trans_table_local[idx] <= i_trans_table[idx];
+                r_trans_table_local[idx] <= trans_table[idx];
 
                 // If this transaction has a state change to non-active, mark it as no longer timing out
-                if (i_trans_table[idx].state == TRANS_COMPLETE ||
-                    i_trans_table[idx].state == TRANS_ERROR ||
-                    i_trans_table[idx].state == TRANS_EMPTY) begin
+                if (trans_table[idx].state == TRANS_COMPLETE ||
+                    trans_table[idx].state == TRANS_ERROR ||
+                    trans_table[idx].state == TRANS_EMPTY) begin
                     r_timeout_detected[idx] <= 1'b0;
                 end
             end
 
             // If timer tick, check for timeouts
-            if (i_timer_tick) begin
+            if (timer_tick) begin
                 for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
                     if (r_trans_table_local[idx].valid && !r_timeout_detected[idx]) begin
 
                         // Address phase timeout detection
                         if (r_trans_table_local[idx].state == TRANS_ADDR_PHASE &&
-                            !r_trans_table_local[idx].addr_received) begin
+                            !r_trans_table_local[idx].cmd_received) begin
 
                             // Increment address timer
                             r_trans_table_local[idx].addr_timer <= r_trans_table_local[idx].addr_timer + 1'b1;
@@ -87,7 +87,7 @@ module axi_monitor_timeout
                             if (r_trans_table_local[idx].addr_timer >= {12'h0, i_cfg_addr_cnt}) begin
                             /* verilator lint_on WIDTHEXPAND */
                                 r_trans_table_local[idx].state <= TRANS_ERROR;
-                                r_trans_table_local[idx].error_code <= EVT_ADDR_TIMEOUT;
+                                r_trans_table_local[idx].event_code <= EVT_CMD_TIMEOUT;
                                 r_timeout_detected[idx] <= 1'b1;
                             end
                         end
@@ -95,7 +95,7 @@ module axi_monitor_timeout
                         // Data phase timeout detection
                         if ((r_trans_table_local[idx].state == TRANS_ADDR_PHASE ||
                                 r_trans_table_local[idx].state == TRANS_DATA_PHASE) &&
-                                r_trans_table_local[idx].addr_received &&
+                                r_trans_table_local[idx].cmd_received &&
                                 r_trans_table_local[idx].data_started &&
                                 !r_trans_table_local[idx].data_completed) begin
 
@@ -107,7 +107,7 @@ module axi_monitor_timeout
                             if (r_trans_table_local[idx].data_timer >= {12'h0, i_cfg_data_cnt}) begin
                             /* verilator lint_on WIDTHEXPAND */
                                 r_trans_table_local[idx].state <= TRANS_ERROR;
-                                r_trans_table_local[idx].error_code <= EVT_DATA_TIMEOUT;
+                                r_trans_table_local[idx].event_code <= EVT_DATA_TIMEOUT;
                                 r_timeout_detected[idx] <= 1'b1;
                             end
                         end
@@ -126,7 +126,7 @@ module axi_monitor_timeout
                             if (r_trans_table_local[idx].resp_timer >= {12'h0, i_cfg_resp_cnt}) begin
                             /* verilator lint_on WIDTHEXPAND */
                                 r_trans_table_local[idx].state <= TRANS_ERROR;
-                                r_trans_table_local[idx].error_code <= EVT_RESP_TIMEOUT;
+                                r_trans_table_local[idx].event_code <= EVT_RESP_TIMEOUT;
                                 r_timeout_detected[idx] <= 1'b1;
                             end
                         end

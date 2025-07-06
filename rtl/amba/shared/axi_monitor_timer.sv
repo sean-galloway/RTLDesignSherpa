@@ -18,17 +18,17 @@ module axi_monitor_timer (
     input  logic [3:0]  i_cfg_freq_sel,    // Frequency selection
 
     // Timer outputs
-    output logic        o_timer_tick,      // Timer tick signal
-    output logic [31:0] o_timestamp        // Global timestamp counter
+    output logic        timer_tick,      // Timer tick signal
+    output logic [31:0] timestamp        // Global timestamp counter
 );
 
     // Counter for timestamp generation (flopped)
     logic [31:0] r_timestamp;
-    assign o_timestamp = r_timestamp;
+    assign timestamp = r_timestamp;
 
     // Timer tick from frequency invariant counter (combinational)
     logic w_timer_tick;
-    assign o_timer_tick = w_timer_tick;
+    assign timer_tick = w_timer_tick;
 
     // Timestamp counter generation
     always_ff @(posedge aclk or negedge aresetn) begin

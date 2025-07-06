@@ -12,7 +12,7 @@ from cocotb_test.simulator import run
 from cocotb.clock import Clock
 from cocotbext.axi import AxiBus, AxiMaster
 
-from CocoTBFramework.components.flex_randomizer import FlexRandomizer
+from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.apb.apb_packet import APBTransaction
 from CocoTBFramework.components.apb.apb_factories import \
     create_apb_slave, create_apb_monitor
@@ -191,28 +191,32 @@ async def axi2apb_shim_test(dut):
 def test_axi2abp_shim(request, id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width):
 
     # get all of the directory and module information
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common', 'rtl_amba': 'rtl/amba'})
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths(
+        {
+            'rtl_cmn': 'rtl/common',
+            'rtl_amba': 'rtl/amba'
+        })
 
     dut_name = "axi4_to_apb_shim"
     toplevel = dut_name
 
     verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba'], "cdc_handshake.sv"),
+        os.path.join(rtl_dict['rtl_amba'], "shared/cdc_handshake.sv"),
         os.path.join(rtl_dict['rtl_amba'], "gaxi/gaxi_skid_buffer.sv"),
         os.path.join(rtl_dict['rtl_amba'], "apb/apb_master_stub.sv"),
 
-        os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
+        os.path.join(rtl_dict['rtl_cmn'],  "counter_bin.sv"),
+        os.path.join(rtl_dict['rtl_cmn'],  "fifo_control.sv"),
         os.path.join(rtl_dict['rtl_amba'], "gaxi/gaxi_fifo_sync.sv"),
 
         os.path.join(rtl_dict['rtl_amba'], "axi4/axi_gen_addr.sv"),
-        os.path.join(rtl_dict['rtl_amba'], "axi4_to_apb_convert.sv"),
+        os.path.join(rtl_dict['rtl_amba'], "shims/axi4_to_apb_convert.sv"),
 
         os.path.join(rtl_dict['rtl_amba'], "axi4/axi_slave_wr_stub.sv"),
         os.path.join(rtl_dict['rtl_amba'], "axi4/axi_slave_rd_stub.sv"),
         os.path.join(rtl_dict['rtl_amba'], "axi4/axi_slave_stub.sv"),
 
-        os.path.join(rtl_dict['rtl_amba'], f"{dut_name}.sv")
+        os.path.join(rtl_dict['rtl_amba'], f"shims/{dut_name}.sv")
     ]
 
     # create a human readable test identifier

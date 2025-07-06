@@ -194,14 +194,14 @@ def test_enhanced_cdc_handshake(request, params):
     # Get directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_cmn': 'rtl/common',
-        'rtl_amba': 'rtl/amba'
+        'rtl_amba_shared':'rtl/amba/shared',
     })
 
     dut_name = "cdc_handshake"
     toplevel = dut_name
 
     verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba'], f"{dut_name}.sv")
+        os.path.join(rtl_dict['rtl_amba_shared'], f"{dut_name}.sv")
     ]
 
     # Extract test parameters
@@ -220,8 +220,8 @@ def test_enhanced_cdc_handshake(request, params):
 
     # Create descriptive test name
     test_name_plus_params = (f"test_enhanced_cdc_handshake_"
-                           f"src{src_period}ns_dst{dst_period}ns_"
-                           f"{ratio_desc}_{test_level}")
+                            f"src{src_period}ns_dst{dst_period}ns_"
+                            f"{ratio_desc}_{test_level}")
 
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 

@@ -32,7 +32,7 @@ from cocotb.utils import get_sim_time
 
 from .axi_monitor_tb import AXIMonitorTB, AXIMonitorTestContext
 from .axi_monitor_packets import (
-    AXIAddressPacket, AXIReadDataPacket, AXIWriteDataPacket, AXIWriteResponsePacket,
+    AXICommandPacket, AXIReadDataPacket, AXIWriteDataPacket, AXIWriteResponsePacket,
     InterruptPacket, MonitorConfigPacket, MonitoredTransaction,
     AXITransactionState, MonitorEventCode, InterruptPacketType
 )

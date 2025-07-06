@@ -588,14 +588,14 @@ def test_axi_gen_addr(request, params):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths(
         {
             'rtl_cmn': 'rtl/common',
-            'rtl_amba_axi4_shared': 'rtl/amba/axi4/shared'
+            'rtl_amba_shared':'rtl/amba/shared',
         })
 
     dut_name = "axi_gen_addr"
     toplevel = dut_name
 
     verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba_axi4_shared'], f"{dut_name}.sv")
+        os.path.join(rtl_dict['rtl_amba_shared'], f"{dut_name}.sv")
     ]
 
     # Create a human-readable test identifier

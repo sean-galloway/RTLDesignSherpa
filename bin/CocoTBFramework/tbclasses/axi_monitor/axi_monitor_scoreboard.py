@@ -24,13 +24,13 @@ import time
 from cocotb.utils import get_sim_time
 
 from .axi_monitor_packets import (
-    AXIAddressPacket, AXIReadDataPacket, AXIWriteDataPacket, AXIWriteResponsePacket,
+    AXICommandPacket, AXIReadDataPacket, AXIWriteDataPacket, AXIWriteResponsePacket,
     InterruptPacket, MonitorConfigPacket, MonitoredTransaction,
     AXITransactionState, MonitorEventCode, InterruptPacketType, PerformanceMetric,
     convert_gaxi_to_axi_address, convert_gaxi_to_axi_read_data,
     convert_gaxi_to_axi_write_data, convert_gaxi_to_axi_write_response,
     convert_raw_to_interrupt_packet,
-    create_axi_address_field_config, create_axi_read_data_field_config,
+    create_axi_command_field_config, create_axi_read_data_field_config,
     create_axi_write_data_field_config, create_axi_write_response_field_config,
     create_interrupt_packet_field_config, create_monitor_config_field_config
 )
@@ -59,7 +59,7 @@ class AXIMonitorScoreboard:
         self.max_transactions = max_transactions
 
         # Create field configurations for all packet types
-        self.addr_field_config = create_axi_address_field_config(id_width, addr_width, user_width)
+        self.addr_field_config = create_axi_command_field_config(id_width, addr_width, user_width)
         self.read_data_field_config = create_axi_read_data_field_config(id_width, data_width, user_width)
         self.write_data_field_config = create_axi_write_data_field_config(data_width, user_width)
         self.write_resp_field_config = create_axi_write_response_field_config(id_width, user_width)
@@ -125,7 +125,7 @@ class AXIMonitorScoreboard:
         current_time = self.get_current_time_ns()
 
         # Convert to AXI address packet if needed
-        if not isinstance(packet, AXIAddressPacket):
+        if not isinstance(packet, AXICommandPacket):
             ar_packet = convert_gaxi_to_axi_address(packet, self.addr_field_config)
         else:
             ar_packet = packet
@@ -165,7 +165,7 @@ class AXIMonitorScoreboard:
         current_time = self.get_current_time_ns()
 
         # Convert to AXI address packet if needed
-        if not isinstance(packet, AXIAddressPacket):
+        if not isinstance(packet, AXICommandPacket):
             aw_packet = convert_gaxi_to_axi_address(packet, self.addr_field_config)
         else:
             aw_packet = packet

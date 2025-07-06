@@ -73,7 +73,7 @@ class PerformanceMetric(Enum):
     ERROR_COUNT = 0x8
 
 
-def create_axi_address_field_config(id_width: int = 8, addr_width: int = 32, user_width: int = 1) -> FieldConfig:
+def create_axi_command_field_config(id_width: int = 8, addr_width: int = 32, user_width: int = 1) -> FieldConfig:
     """Create AXI address channel field configuration (AR/AW)"""
     config = FieldConfig()
 
@@ -194,7 +194,7 @@ def create_axi_write_response_field_config(id_width: int = 8, user_width: int = 
         description="Transaction ID"
     ))
     config.add_field(FieldDefinition(
-        name="resp", bits=2, format="dec",
+        name="code", bits=2, format="dec",
         description="Response status",
         encoding={0: "OKAY", 1: "EXOKAY", 2: "SLVERR", 3: "DECERR"}
     ))
@@ -296,12 +296,12 @@ def create_monitor_config_field_config() -> FieldConfig:
     return config
 
 
-class AXIAddressPacket(GAXIPacket):
+class AXICommandPacket(GAXIPacket):
     """AXI Address Channel packet (AR/AW)"""
 
     def __init__(self, field_config: Optional[FieldConfig] = None, **kwargs):
         if field_config is None:
-            field_config = create_axi_address_field_config()
+            field_config = create_axi_command_field_config()
 
         self.timestamp = kwargs.pop('timestamp', time.time())
         super().__init__(field_config, **kwargs)
@@ -450,7 +450,7 @@ class MonitoredTransaction:
     is_axi4: bool  # True for AXI4, False for AXI-Lite
 
     # Address phase
-    address_packet: Optional[AXIAddressPacket] = None
+    address_packet: Optional[AXICommandPacket] = None
     address_timestamp: Optional[float] = None
 
     # Data phase
@@ -543,13 +543,13 @@ class MonitoredTransaction:
 
 
 # Utility functions for packet conversion
-def convert_gaxi_to_axi_address(gaxi_packet, field_config: Optional[FieldConfig] = None) -> AXIAddressPacket:
+def convert_gaxi_to_axi_address(gaxi_packet, field_config: Optional[FieldConfig] = None) -> AXICommandPacket:
     """Convert GAXI packet to AXI address packet"""
     packet_data = {}
     for field_name in ['id', 'addr', 'len', 'size', 'burst', 'lock', 'cache', 'prot', 'qos', 'region', 'user']:
         if hasattr(gaxi_packet, field_name):
             packet_data[field_name] = getattr(gaxi_packet, field_name)
-    return AXIAddressPacket.from_dict(packet_data, field_config)
+    return AXICommandPacket.from_dict(packet_data, field_config)
 
 
 def convert_gaxi_to_axi_read_data(gaxi_packet, field_config: Optional[FieldConfig] = None) -> AXIReadDataPacket:

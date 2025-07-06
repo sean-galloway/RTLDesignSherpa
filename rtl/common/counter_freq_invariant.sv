@@ -74,8 +74,10 @@ module counter_freq_invariant
         .i_increment(1'b1),              // Always increment
         .i_load(1'b1),                   // Always have a valid load value
         .i_loadval(w_division_factor[$clog2(PRESCALER_MAX)-1:0] - 1'b1),
-        .o_count(),
-        .ow_done(w_prescaler_done)
+        .ow_done(w_prescaler_done),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .o_count()
+        /* verilator lint_on PINCONNECTEMPTY */
     );
 
     // Generate tick signal and
