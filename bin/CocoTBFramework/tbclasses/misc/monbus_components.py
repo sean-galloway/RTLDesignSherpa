@@ -1,25 +1,9 @@
 """
-Monitor Bus Components - Master and Slave Classes
+Monitor Bus Components - Fixed Version
 
-This module provides specialized GAXI Master and Slave components for interfacing
-with any Monitor's consolidated 64-bit event packet bus (monbus). This is a generic
-monitoring interface that can be used with AXI, AHB, APB, or any other bus protocol.
-
-The monitor bus carries structured 64-bit packets containing:
-- packet_type: 4 bits [63:60] (error, completion, threshold, timeout, perf, debug)
-- event_code:  4 bits [59:56] (specific error or event code)
-- channel_id:  6 bits [55:50] (channel ID and transaction ID)
-- unit_id:     4 bits [49:46] (subsystem identifier)
-- agent_id:    8 bits [45:38] (module identifier)
-- data:        38 bits [37:0]  (address or metric value)
-
-Features:
-- Automatic packet field extraction and formatting
-- Event type decoding and validation
-- Performance metrics tracking
-- Debug packet handling
-- Comprehensive logging and verification
-- Protocol-agnostic design for any bus type
+Fix for the stats attribute error in MonbusSlave.
+The issue was that GAXISlave expects stats to be an object with attributes,
+but we were using a dictionary.
 """
 
 import asyncio
@@ -64,6 +48,31 @@ class MonbusEventCode(Enum):
     ADDR_MISS_T0 = 0xB
     ADDR_MISS_T1 = 0xC
     USER_DEFINED = 0xF
+
+
+class MonbusStats:
+    """Stats object compatible with GAXISlave expectations"""
+    
+    def __init__(self):
+        # Standard GAXISlave stats
+        self.received_transactions = 0
+        self.transactions_observed = 0
+        self.packets_sent = 0
+        self.packets_received = 0
+        self.bytes_sent = 0
+        self.bytes_received = 0
+        self.errors = 0
+        self.timeouts = 0
+        
+        # MonbusSlave specific stats
+        self.total_packets = 0
+        self.error_packets = 0
+        self.completion_packets = 0
+        self.timeout_packets = 0
+        self.performance_packets = 0
+        self.debug_packets = 0
+        self.unknown_packets = 0
+        self.verification_errors = 0
 
 
 class MonbusPacket(GAXIPacket):
@@ -429,24 +438,15 @@ class MonbusSlave(GAXISlave):
             **kwargs
         )
 
+        # CRITICAL FIX: Replace the dictionary stats with MonbusStats object
+        self.stats = MonbusStats()
+
         self.expected_unit_id = expected_unit_id
         self.expected_agent_id = expected_agent_id
         self.packet_count = 0
         self.packets_received = []
         self.packet_callbacks = []
         self.verification_errors = []
-
-        # Statistics tracking
-        self.stats = {
-            'total_packets': 0,
-            'error_packets': 0,
-            'completion_packets': 0,
-            'timeout_packets': 0,
-            'performance_packets': 0,
-            'debug_packets': 0,
-            'unknown_packets': 0,
-            'verification_errors': 0
-        }
 
         self.log.info(f"{title} initialized for monitoring packets")
         if expected_unit_id is not None:
@@ -488,21 +488,21 @@ class MonbusSlave(GAXISlave):
         """Process a received monitor packet"""
         self.packets_received.append(packet)
         self.packet_count += 1
-        self.stats['total_packets'] += 1
+        self.stats.total_packets += 1
 
         # Update type statistics
         if packet.is_error_packet():
-            self.stats['error_packets'] += 1
+            self.stats.error_packets += 1
         elif packet.is_completion_packet():
-            self.stats['completion_packets'] += 1
+            self.stats.completion_packets += 1
         elif packet.is_timeout_packet():
-            self.stats['timeout_packets'] += 1
+            self.stats.timeout_packets += 1
         elif packet.is_performance_packet():
-            self.stats['performance_packets'] += 1
+            self.stats.performance_packets += 1
         elif packet.packet_type == MonbusPktType.DEBUG.value:
-            self.stats['debug_packets'] += 1
+            self.stats.debug_packets += 1
         else:
-            self.stats['unknown_packets'] += 1
+            self.stats.unknown_packets += 1
 
         # Verify packet format
         await self._verify_packet(packet)
@@ -567,7 +567,7 @@ class MonbusSlave(GAXISlave):
         # Record verification errors
         if errors:
             self.verification_errors.extend(errors)
-            self.stats['verification_errors'] += len(errors)
+            self.stats.verification_errors += len(errors)
 
             if self.log:
                 for error in errors:
@@ -623,14 +623,21 @@ class MonbusSlave(GAXISlave):
 
     def get_statistics(self) -> Dict[str, Any]:
         """Get comprehensive statistics"""
-        stats = dict(self.stats)
-        stats.update({
+        stats = {
             'packets_received': self.packet_count,
+            'total_packets': self.stats.total_packets,
+            'error_packets': self.stats.error_packets,
+            'completion_packets': self.stats.completion_packets,
+            'timeout_packets': self.stats.timeout_packets,
+            'performance_packets': self.stats.performance_packets,
+            'debug_packets': self.stats.debug_packets,
+            'unknown_packets': self.stats.unknown_packets,
+            'verification_errors': self.stats.verification_errors,
             'verification_error_list': self.verification_errors,
             'last_packet_time': self.packets_received[-1].timestamp if self.packets_received else 0,
             'monitoring_duration': (self.packets_received[-1].timestamp - self.packets_received[0].timestamp)
                                   if len(self.packets_received) > 1 else 0
-        })
+        }
         return stats
 
     def generate_report(self) -> str:
@@ -665,8 +672,8 @@ class MonbusSlave(GAXISlave):
         self.packets_received.clear()
         self.verification_errors.clear()
 
-        for key in self.stats:
-            self.stats[key] = 0
+        # Reset the stats object
+        self.stats = MonbusStats()
 
         if self.log:
             self.log.info(f"{self.title} statistics reset")

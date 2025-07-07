@@ -1,5 +1,5 @@
 """
-AXI4/AXIL Monitor Packet Definitions
+AXI4/AXIL Monitor Packet Definitions - Clean Implementation
 
 Comprehensive packet classes for AXI monitor verification, supporting:
 - AXI4 and AXI-Lite transactions (AR, AW, R, W, B channels)
@@ -72,6 +72,10 @@ class PerformanceMetric(Enum):
     COMPLETED_COUNT = 0x7
     ERROR_COUNT = 0x8
 
+
+# =============================================================================
+# Field Configuration Functions
+# =============================================================================
 
 def create_axi_command_field_config(id_width: int = 8, addr_width: int = 32, user_width: int = 1) -> FieldConfig:
     """Create AXI address channel field configuration (AR/AW)"""
@@ -194,7 +198,7 @@ def create_axi_write_response_field_config(id_width: int = 8, user_width: int = 
         description="Transaction ID"
     ))
     config.add_field(FieldDefinition(
-        name="code", bits=2, format="dec",
+        name="resp", bits=2, format="dec",
         description="Response status",
         encoding={0: "OKAY", 1: "EXOKAY", 2: "SLVERR", 3: "DECERR"}
     ))
@@ -296,6 +300,10 @@ def create_monitor_config_field_config() -> FieldConfig:
     return config
 
 
+# =============================================================================
+# AXI Packet Classes
+# =============================================================================
+
 class AXICommandPacket(GAXIPacket):
     """AXI Address Channel packet (AR/AW)"""
 
@@ -308,21 +316,26 @@ class AXICommandPacket(GAXIPacket):
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any], field_config: Optional[FieldConfig] = None):
+        """Create packet from dictionary"""
         return cls(field_config=field_config, **data)
 
     def get_burst_type_name(self) -> str:
+        """Get human-readable burst type name"""
         burst_map = {0: "FIXED", 1: "INCR", 2: "WRAP"}
         return burst_map.get(self.burst, f"UNKNOWN({self.burst})")
 
     def calculate_total_bytes(self) -> int:
+        """Calculate total bytes in this transaction"""
         bytes_per_beat = 1 << self.size
         num_beats = self.len + 1
         return bytes_per_beat * num_beats
 
     def calculate_end_address(self) -> int:
+        """Calculate end address of this transaction"""
         return self.addr + self.calculate_total_bytes() - 1
 
     def will_cross_boundary(self, boundary_size: int) -> bool:
+        """Check if transaction crosses a boundary"""
         start_boundary = self.addr // boundary_size
         end_boundary = self.calculate_end_address() // boundary_size
         return start_boundary != end_boundary
@@ -338,11 +351,18 @@ class AXIReadDataPacket(GAXIPacket):
         self.timestamp = kwargs.pop('timestamp', time.time())
         super().__init__(field_config, **kwargs)
 
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any], field_config: Optional[FieldConfig] = None):
+        """Create packet from dictionary"""
+        return cls(field_config=field_config, **data)
+
     def get_response_name(self) -> str:
+        """Get human-readable response name"""
         resp_map = {0: "OKAY", 1: "EXOKAY", 2: "SLVERR", 3: "DECERR"}
         return resp_map.get(self.resp, f"UNKNOWN({self.resp})")
 
     def is_error_response(self) -> bool:
+        """Check if this is an error response"""
         return self.resp in [2, 3]  # SLVERR or DECERR
 
 
@@ -356,8 +376,18 @@ class AXIWriteDataPacket(GAXIPacket):
         self.timestamp = kwargs.pop('timestamp', time.time())
         super().__init__(field_config, **kwargs)
 
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any], field_config: Optional[FieldConfig] = None):
+        """Create packet from dictionary"""
+        return cls(field_config=field_config, **data)
+
     def get_strobe_pattern(self) -> str:
+        """Get formatted strobe pattern"""
         return f"0x{self.strb:X}"
+
+    def get_active_bytes(self) -> int:
+        """Count number of active byte lanes"""
+        return bin(self.strb).count('1')
 
 
 class AXIWriteResponsePacket(GAXIPacket):
@@ -370,12 +400,19 @@ class AXIWriteResponsePacket(GAXIPacket):
         self.timestamp = kwargs.pop('timestamp', time.time())
         super().__init__(field_config, **kwargs)
 
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any], field_config: Optional[FieldConfig] = None):
+        """Create packet from dictionary"""
+        return cls(field_config=field_config, **data)
+
     def get_response_name(self) -> str:
+        """Get human-readable response name"""
         resp_map = {0: "OKAY", 1: "EXOKAY", 2: "SLVERR", 3: "DECERR"}
         return resp_map.get(self.resp, f"UNKNOWN({self.resp})")
 
     def is_error_response(self) -> bool:
-        return self.resp in [2, 3]
+        """Check if this is an error response"""
+        return self.resp in [2, 3]  # SLVERR or DECERR
 
 
 class InterruptPacket(GAXIPacket):
@@ -387,6 +424,11 @@ class InterruptPacket(GAXIPacket):
 
         self.timestamp = kwargs.pop('timestamp', time.time())
         super().__init__(field_config, **kwargs)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any], field_config: Optional[FieldConfig] = None):
+        """Create packet from dictionary"""
+        return cls(field_config=field_config, **data)
 
     @classmethod
     def from_64bit_value(cls, value: int) -> 'InterruptPacket':
@@ -412,9 +454,10 @@ class InterruptPacket(GAXIPacket):
         )
 
     def get_packet_type_name(self) -> str:
+        """Get human-readable packet type name"""
         type_map = {
             0x0: "ERROR",
-            0x1: "COMPLETION",
+            0x1: "COMPLETION", 
             0x2: "THRESHOLD",
             0x3: "TIMEOUT",
             0x4: "PERF",
@@ -423,10 +466,36 @@ class InterruptPacket(GAXIPacket):
         return type_map.get(self.packet_type, f"UNKNOWN({self.packet_type:X})")
 
     def get_event_code_name(self) -> str:
-        if hasattr(MonitorEventCode, '_value2member_map_'):
-            event = MonitorEventCode._value2member_map_.get(self.event_code)
-            return event.name if event else f"UNKNOWN({self.event_code:X})"
-        return f"CODE_{self.event_code:X}"
+        """Get human-readable event code name"""
+        try:
+            event = MonitorEventCode(self.event_code)
+            return event.name
+        except ValueError:
+            return f"UNKNOWN({self.event_code:X})"
+
+    def is_error_packet(self) -> bool:
+        """Check if this is an error packet"""
+        return self.packet_type == InterruptPacketType.ERROR.value
+
+    def is_timeout_packet(self) -> bool:
+        """Check if this is a timeout packet"""
+        return self.packet_type == InterruptPacketType.TIMEOUT.value
+
+    def is_completion_packet(self) -> bool:
+        """Check if this is a completion packet"""
+        return self.packet_type == InterruptPacketType.COMPLETION.value
+
+    def is_performance_packet(self) -> bool:
+        """Check if this is a performance packet"""
+        return self.packet_type == InterruptPacketType.PERF.value
+
+    def get_address_value(self, addr_width: int = 32) -> int:
+        """Extract address value from data field"""
+        return self.data & ((1 << addr_width) - 1)
+
+    def get_metric_value(self) -> int:
+        """Extract metric value from data field"""
+        return self.data
 
 
 class MonitorConfigPacket(GAXIPacket):
@@ -439,6 +508,32 @@ class MonitorConfigPacket(GAXIPacket):
         self.timestamp = kwargs.pop('timestamp', time.time())
         super().__init__(field_config, **kwargs)
 
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any], field_config: Optional[FieldConfig] = None):
+        """Create packet from dictionary"""
+        return cls(field_config=field_config, **data)
+
+    def get_enabled_features(self) -> List[str]:
+        """Get list of enabled monitoring features"""
+        features = []
+        if getattr(self, 'error_enable', 0):
+            features.append('ERROR')
+        if getattr(self, 'compl_enable', 0):
+            features.append('COMPLETION')
+        if getattr(self, 'threshold_enable', 0):
+            features.append('THRESHOLD')
+        if getattr(self, 'timeout_enable', 0):
+            features.append('TIMEOUT')
+        if getattr(self, 'perf_enable', 0):
+            features.append('PERFORMANCE')
+        if getattr(self, 'debug_enable', 0):
+            features.append('DEBUG')
+        return features
+
+
+# =============================================================================
+# Transaction Tracking
+# =============================================================================
 
 @dataclass
 class MonitoredTransaction:
@@ -477,6 +572,7 @@ class MonitoredTransaction:
     total_latency: Optional[float] = None
 
     def __post_init__(self):
+        """Initialize mutable default values"""
         if self.data_packets is None:
             self.data_packets = []
         if self.data_timestamps is None:
@@ -541,8 +637,32 @@ class MonitoredTransaction:
         """Get actual number of data beats received"""
         return len(self.data_packets)
 
+    def is_burst_transaction(self) -> bool:
+        """Check if this is a burst transaction"""
+        return self.get_expected_data_beats() > 1
 
-# Utility functions for packet conversion
+    def get_transaction_summary(self) -> str:
+        """Get a summary string for this transaction"""
+        txn_type = "READ" if self.is_read else "WRITE"
+        protocol = "AXI4" if self.is_axi4 else "AXI-Lite"
+        beats = f"{self.get_actual_data_beats()}/{self.get_expected_data_beats()}"
+        
+        summary = f"{protocol} {txn_type} ID={self.transaction_id:02X} "
+        summary += f"state={self.state.value} beats={beats}"
+        
+        if self.has_errors():
+            summary += f" errors={len(self.errors)}"
+        
+        if self.total_latency:
+            summary += f" latency={self.total_latency:.1f}ns"
+            
+        return summary
+
+
+# =============================================================================
+# Conversion Functions
+# =============================================================================
+
 def convert_gaxi_to_axi_address(gaxi_packet, field_config: Optional[FieldConfig] = None) -> AXICommandPacket:
     """Convert GAXI packet to AXI address packet"""
     packet_data = {}
@@ -573,12 +693,96 @@ def convert_gaxi_to_axi_write_data(gaxi_packet, field_config: Optional[FieldConf
 def convert_gaxi_to_axi_write_response(gaxi_packet, field_config: Optional[FieldConfig] = None) -> AXIWriteResponsePacket:
     """Convert GAXI packet to AXI write response packet"""
     packet_data = {}
-    for field_name in ['id', 'resp', 'user']:
+    
+    # Handle standard fields
+    for field_name in ['id', 'user']:
         if hasattr(gaxi_packet, field_name):
             packet_data[field_name] = getattr(gaxi_packet, field_name)
+    
+    # Handle response field - could be named 'resp' or 'code'
+    if hasattr(gaxi_packet, 'resp'):
+        packet_data['resp'] = gaxi_packet.resp
+    elif hasattr(gaxi_packet, 'code'):
+        packet_data['resp'] = gaxi_packet.code
+    else:
+        packet_data['resp'] = 0  # Default to OKAY
+    
     return AXIWriteResponsePacket.from_dict(packet_data, field_config)
 
 
 def convert_raw_to_interrupt_packet(raw_value: int) -> InterruptPacket:
     """Convert raw 64-bit value to interrupt packet"""
     return InterruptPacket.from_64bit_value(raw_value)
+
+
+# =============================================================================
+# Utility Functions
+# =============================================================================
+
+def create_default_config_packet(**overrides) -> MonitorConfigPacket:
+    """Create a monitor configuration packet with default values"""
+    defaults = {
+        'freq_sel': 3,
+        'addr_cnt': 8,
+        'data_cnt': 8,
+        'resp_cnt': 8,
+        'error_enable': 1,
+        'compl_enable': 1,
+        'threshold_enable': 1,
+        'timeout_enable': 1,
+        'perf_enable': 0,
+        'debug_enable': 0,
+        'active_trans_threshold': 8,
+        'latency_threshold': 1000
+    }
+    defaults.update(overrides)
+    return MonitorConfigPacket.from_dict(defaults)
+
+
+def validate_packet_consistency(packet) -> List[str]:
+    """Validate packet field consistency and return list of issues"""
+    issues = []
+    
+    if isinstance(packet, AXICommandPacket):
+        # Validate command packet
+        if packet.len > 255:
+            issues.append(f"Invalid burst length: {packet.len}")
+        if packet.size > 7:
+            issues.append(f"Invalid burst size: {packet.size}")
+        if packet.burst > 2:
+            issues.append(f"Invalid burst type: {packet.burst}")
+            
+    elif isinstance(packet, (AXIReadDataPacket, AXIWriteResponsePacket)):
+        # Validate response codes
+        if packet.resp > 3:
+            issues.append(f"Invalid response code: {packet.resp}")
+            
+    elif isinstance(packet, InterruptPacket):
+        # Validate interrupt packet
+        if packet.packet_type > 0xF:
+            issues.append(f"Invalid packet type: {packet.packet_type:X}")
+        if packet.event_code > 0xF:
+            issues.append(f"Invalid event code: {packet.event_code:X}")
+        if packet.channel_id > 0x3F:
+            issues.append(f"Invalid channel ID: {packet.channel_id:X}")
+    
+    return issues
+
+
+def format_packet_summary(packet) -> str:
+    """Generate a concise summary string for any packet type"""
+    if isinstance(packet, AXICommandPacket):
+        return f"CMD(ID={packet.id:02X}, ADDR=0x{packet.addr:X}, LEN={packet.len})"
+    elif isinstance(packet, AXIReadDataPacket):
+        return f"RDATA(ID={packet.id:02X}, RESP={packet.get_response_name()}, LAST={packet.last})"
+    elif isinstance(packet, AXIWriteDataPacket):
+        return f"WDATA(STRB={packet.get_strobe_pattern()}, LAST={packet.last})"
+    elif isinstance(packet, AXIWriteResponsePacket):
+        return f"WRESP(ID={packet.id:02X}, RESP={packet.get_response_name()})"
+    elif isinstance(packet, InterruptPacket):
+        return f"INTR({packet.get_packet_type_name()}.{packet.get_event_code_name()}, CH={packet.channel_id:02X})"
+    elif isinstance(packet, MonitorConfigPacket):
+        features = ','.join(packet.get_enabled_features())
+        return f"CONFIG({features})"
+    else:
+        return f"UNKNOWN({type(packet).__name__})"

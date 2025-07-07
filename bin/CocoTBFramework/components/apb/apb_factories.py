@@ -7,7 +7,7 @@ from .apb_sequence import APBSequence
 from ..shared.flex_randomizer import FlexRandomizer
 from ..shared.memory_model import MemoryModel
 from CocoTBFramework.scoreboards.apb_scoreboard import APBScoreboard
-from CocoTBFramework.scoreboards.transformers.apb_gaxi_transformer import APBtoGAXITransformer
+from CocoTBFramework.scoreboards.apb_gaxi_transformer import APBtoGAXITransformer
 
 
 def create_apb_master(dut, title, prefix, clock, addr_width=32, data_width=32,
