@@ -18,8 +18,8 @@ from cocotb.utils import get_sim_time
 from cocotb_test.simulator import run
 
 # Import TBBase and utility functions
-from CocoTBFramework.tbclasses.tbbase import TBBase
-from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
+from CocoTBFramework.tbclasses.misc.tbbase import TBBase
+from CocoTBFramework.tbclasses.misc.utilities import get_paths, create_view_cmd
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 
 # Import APB components
@@ -656,6 +656,7 @@ def test_apb_xbar_wrap(request, model_type, m, s, addr_width, data_width, num_tr
         'PARAM_TEST_BASIC': 'True',
         'PARAM_TEST_SEQUENCE': 'True',
         'PARAM_TEST_MIXED': 'True',
+        'SEED': str(random.randint(0, 100000)),
     }
 
     compile_args = [

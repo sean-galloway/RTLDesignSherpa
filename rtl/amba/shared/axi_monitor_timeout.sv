@@ -7,10 +7,6 @@
  * conditions in each phase of AXI transactions (address, data, response).
  * It uses the timer tick from the frequency invariant timer and the
  * configurable timeout thresholds.
- *
- * Updated to support dedicated timeout packet types.
- * Updated with proper naming conventions: w_ for combo, r_ for flopped
- * Fixed for Verilator compatibility and consistent array declarations
  */
 module axi_monitor_timeout
     import monitor_pkg::*;

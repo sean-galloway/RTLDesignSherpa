@@ -9,9 +9,6 @@
  *
  * When ENABLE_PERF_PACKETS is set, additional performance tracking is enabled.
  * Includes state change detection to support debug functionality.
- *
- * Updated with proper naming conventions: w_ for combo, r_ for flopped
- * Fixed for Verilator compatibility and consistent array declarations
  */
 module axi_monitor_trans_mgr
     import monitor_pkg::*;

@@ -7,9 +7,6 @@
  * It detects conditions from the AXI transaction table and formats them into
  * standard 64-bit interrupt packet format for system-wide event notification.
  * Optionally tracks performance metrics when ENABLE_PERF_PACKETS is enabled.
- *
- * Updated with proper naming conventions: w_ for combo, r_ for flopped
- * Fixed for Verilator compatibility and consistent array declarations
  */
 module axi_monitor_reporter
     import monitor_pkg::*;
@@ -91,10 +88,10 @@ module axi_monitor_reporter
     // FIFO signals (combinational)
     logic                                 w_fifo_wr_valid;
     logic                                 w_fifo_wr_ready;
-    monbus_entry_t                       w_fifo_wr_data;
+    monbus_entry_t                        w_fifo_wr_data;
     logic                                 w_fifo_rd_valid;
     logic                                 w_fifo_rd_ready;
-    monbus_entry_t                       w_fifo_rd_data;
+    monbus_entry_t                        w_fifo_rd_data;
     logic [$clog2(INTR_FIFO_DEPTH):0]     w_fifo_count;  // Proper width calculation
 
     // Use gaxi_fifo_sync for the interrupt packet FIFO
@@ -360,10 +357,10 @@ module axi_monitor_reporter
         if (w_has_latency_event) begin
             if (IS_READ) begin
                 w_selected_latency_value = r_trans_table_local[w_selected_latency_idx].data_timestamp -
-                                          r_trans_table_local[w_selected_latency_idx].addr_timestamp;
+                                            r_trans_table_local[w_selected_latency_idx].addr_timestamp;
             end else begin
                 w_selected_latency_value = r_trans_table_local[w_selected_latency_idx].resp_timestamp -
-                                          r_trans_table_local[w_selected_latency_idx].addr_timestamp;
+                                            r_trans_table_local[w_selected_latency_idx].addr_timestamp;
             end
         end
     end

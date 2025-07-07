@@ -1,0 +1,63 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Sun Jul  6 20:37:13 2025
+[*]
+[dumpfile] "/home/seang/github/RTLDesignSherpa/val/amba/local_sim_build/test_axi_monitor_iw08_aw32_dw032_uw01_mt08_axi4_rd_u09_a63_basic/dump.fst"
+[dumpfile_mtime] "Sun Jul  6 15:06:54 2025"
+[dumpfile_size] 29164
+[savefile] "/home/seang/github/RTLDesignSherpa/val/amba/GTKW/axi_monitor_iw08_aw32_dw032_uw01_mt08_rd_u09_a63.gtkw"
+[timestart] 0
+[size] 2141 1325
+[pos] -1 -1
+*-22.195105 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[sst_width] 278
+[signals_width] 158
+[sst_expanded] 1
+[sst_vpaned_height] 409
+@420
+axi_monitor_base.AW
+axi_monitor_base.IW
+axi_monitor_base.UNIT_ID
+axi_monitor_base.IS_AXI
+axi_monitor_base.IS_READ
+axi_monitor_base.DEBUG_FIFO_DEPTH
+@28
+axi_monitor_base.aclk
+axi_monitor_base.aresetn
+@200
+-cmd interface
+@28
+axi_monitor_base.cmd_valid
+axi_monitor_base.cmd_ready
+@22
+axi_monitor_base.cmd_addr[31:0]
+@28
+axi_monitor_base.cmd_burst[1:0]
+@22
+axi_monitor_base.cmd_len[7:0]
+@28
+axi_monitor_base.cmd_size[2:0]
+@22
+axi_monitor_base.cmd_id[7:0]
+@200
+-data interface
+@28
+axi_monitor_base.data_valid
+axi_monitor_base.data_ready
+@22
+axi_monitor_base.data_id[7:0]
+@28
+axi_monitor_base.data_last
+axi_monitor_base.data_resp[1:0]
+@200
+-resp interface
+@28
+axi_monitor_base.resp_valid
+axi_monitor_base.resp_ready
+@22
+axi_monitor_base.resp_id[7:0]
+@29
+axi_monitor_base.resp_code[1:0]
+[pattern_trace] 1
+[pattern_trace] 0

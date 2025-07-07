@@ -14,7 +14,7 @@ import time
 import cocotb
 from collections import deque
 
-from CocoTBFramework.tbclasses.tbbase import TBBase
+from CocoTBFramework.tbclasses.misc.tbbase import TBBase
 from CocoTBFramework.components.shared.field_config import FieldConfig, FieldDefinition
 from CocoTBFramework.components.fifo.fifo_packet import FIFOPacket
 from CocoTBFramework.components.fifo.fifo_master import FIFOMaster
@@ -22,7 +22,7 @@ from CocoTBFramework.components.fifo.fifo_slave import FIFOSlave
 from CocoTBFramework.components.fifo.fifo_monitor import FIFOMonitor
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 from CocoTBFramework.components.shared.flex_config_gen import FlexConfigGen
-from CocoTBFramework.components.arbiter_monitor import WeightedRoundRobinArbiterMonitor
+from CocoTBFramework.components.misc.arbiter_monitor import WeightedRoundRobinArbiterMonitor
 
 
 # [DataCollectScoreboard class remains unchanged - no randomization logic]

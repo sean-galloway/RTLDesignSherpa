@@ -8,8 +8,8 @@ from cocotb.utils import get_sim_time
 from cocotb.triggers import RisingEdge, Timer
 from cocotb_test.simulator import run
 
-from CocoTBFramework.tbclasses.tbbase import TBBase
-from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
+from CocoTBFramework.tbclasses.misc.tbbase import TBBase
+from CocoTBFramework.tbclasses.misc.utilities import get_paths, create_view_cmd
 
 
 class ShifterBarrelConfig:

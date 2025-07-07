@@ -23,7 +23,7 @@ from CocoTBFramework.tbclasses.amba.amba_random_configs import (
     APB_SLAVE_RANDOMIZER_CONFIGS,
     AXI_RANDOMIZER_CONFIGS
 )
-from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
+from CocoTBFramework.tbclasses.misc.utilities import get_paths, create_view_cmd
 
 
 class APBSlaveCDCTB(TBBase):

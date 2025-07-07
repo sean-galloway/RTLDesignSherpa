@@ -12,7 +12,7 @@ Key fixes:
 import os
 import random
 
-from CocoTBFramework.tbclasses.tbbase import TBBase
+from CocoTBFramework.tbclasses.misc.tbbase import TBBase
 from CocoTBFramework.components.shared.field_config import FieldConfig, FieldDefinition
 from CocoTBFramework.components.shared.flex_config_gen import FlexConfigGen
 

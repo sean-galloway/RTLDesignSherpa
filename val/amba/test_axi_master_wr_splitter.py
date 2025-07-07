@@ -22,7 +22,7 @@ import cocotb
 from cocotb_test.simulator import run
 
 from CocoTBFramework.tbclasses.tbbase import TBBase
-from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
+from CocoTBFramework.tbclasses.misc.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.axi_splitter.axi_write_splitter_tb import AxiWriteSplitterTB
 
 

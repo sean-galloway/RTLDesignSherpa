@@ -3,8 +3,6 @@ Factory functions for creating and configuring APB components
 """
 from .apb_components import APBMaster, APBSlave, APBMonitor
 from .apb_sequence import APBSequence
-from CocoTBFramework.tbclasses.apb.apb_command_handler import APBCommandHandler
-from .apb_packet import APBPacket
 
 from ..shared.flex_randomizer import FlexRandomizer
 from ..shared.memory_model import MemoryModel
@@ -142,26 +140,8 @@ def create_apb_scoreboard(name, addr_width=32, data_width=32, log=None):
     return APBScoreboard(name, addr_width, data_width, log)
 
 
-def create_apb_command_handler(dut, memory_model, log=None):
-    """
-    Create an APB Command Handler for APB slave command/response interface.
-
-    Args:
-        dut: Device under test
-        memory_model: Memory model for storage
-        log: Logger instance
-
-    Returns:
-        APBCommandHandler instance
-    """
-    # Use dut's logger if none provided
-    log = log or getattr(dut, '_log', None)
-
-    return APBCommandHandler(dut, memory_model, log)
-
-
 def create_apb_components(dut, clock, title_prefix="", addr_width=32, data_width=32,
-                            memory_lines=1024, randomizer=None, log=None):
+                          memory_lines=1024, randomizer=None, log=None):
     """
     Create a complete set of APB components (master, slave, monitor, scoreboard).
 
@@ -246,40 +226,6 @@ def create_apb_transformer(gaxi_field_config, gaxi_packet_class, log=None):
         APBtoGAXITransformer instance
     """
     return APBtoGAXITransformer(gaxi_field_config, gaxi_packet_class, log)
-
-
-def create_apb_packet(count=0, pwrite=0, paddr=0, pwdata=0, prdata=0,
-                        pstrb=0, pprot=0, pslverr=0, addr_width=32, data_width=32):
-    """
-    Create an APB packet with the given field values.
-
-    Args:
-        count: Transaction count
-        pwrite: Write enable (0=Read, 1=Write)
-        paddr: Address
-        pwdata: Write data (for writes)
-        prdata: Read data (for reads)
-        pstrb: Write strobes (for writes)
-        pprot: Protection control
-        pslverr: Slave error
-        addr_width: Address width in bits
-        data_width: Data width in bits
-
-    Returns:
-        APBPacket instance
-    """
-    return APBPacket(
-        count=count,
-        pwrite=pwrite,
-        paddr=paddr,
-        pwdata=pwdata,
-        prdata=prdata,
-        pstrb=pstrb,
-        pprot=pprot,
-        pslverr=pslverr,
-        addr_width=addr_width,
-        data_width=data_width
-    )
 
 
 def create_apb_sequence(name="basic", num_regs=10, base_addr=0,

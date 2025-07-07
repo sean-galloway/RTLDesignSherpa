@@ -17,8 +17,8 @@ from CocoTBFramework.components.apb.apb_packet import APBTransaction
 from CocoTBFramework.components.apb.apb_factories import \
     create_apb_slave, create_apb_monitor
 
-from CocoTBFramework.tbclasses.tbbase import TBBase
-from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
+from CocoTBFramework.tbclasses.misc.tbbase import TBBase
+from CocoTBFramework.tbclasses.misc.utilities import get_paths, create_view_cmd
 
 
 class Axi2ApbTB(TBBase):

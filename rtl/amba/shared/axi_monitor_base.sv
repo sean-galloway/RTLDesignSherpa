@@ -12,9 +12,37 @@
  * - Complete protocol compliance
  * - Consolidated 64-bit event packet output for system event bus
  * - Optional performance metrics tracking
- *
- * Updated with proper naming conventions: w_ for combo, r_ for flopped
- * Fixed array declaration consistency for Verilator compatibility
+
+### Assumption 1: Address is always aligned to the data bus width
+**Assumption**: All AXI transactions are aligned to the data bus width.
+
+- **Implication**: `AxADDRESS` is always set to match the data bus width
+    - if DATA_WIDTH = 512bits, `AxADDRESS` is always 64-byte aligned
+
+### Assumption 2: Fixed Transfer Size
+**Assumption**: All AXI transfers use the maximum transfer size equal to the bus width.
+
+- **Implication**: `AxSIZE` is always set to match the data bus width
+- **Rationale**: Maximizes bus utilization and simplifies address alignment
+- **Implementation**:
+    - 32-bit bus → `AxSIZE = 3'b010` (4 bytes)
+    - 64-bit bus → `AxSIZE = 3'b011` (8 bytes)
+    - 128-bit bus → `AxSIZE = 3'b100` (16 bytes)
+
+### Assumption 3: Incrementing Bursts Only
+**Assumption**: All AXI bursts use incrementing address mode (`AxBURST = 2'b01`).
+
+- **Implication**: No FIXED (`2'b00`) or WRAP (`2'b10`) bursts supported
+- **Rationale**: Simplifies address generation logic and covers most use cases
+- **Benefit**: Eliminates wrap boundary calculations and fixed address handling
+
+### Assumption 4: No Address Wraparound
+**Assumption**: Transactions never wrap around the top of address space (0xFFFFFFFF -> 0x00000000).
+
+- **Implication**: No wraparound handling in boundary crossing logic
+- **Rationale**: Real systems never allow this condition due to memory layout and software design
+- **Benefit**: Dramatically simplified boundary crossing detection logic
+
  */
 module axi_monitor_base
 #(
@@ -142,90 +170,90 @@ module axi_monitor_base
 
     // Transaction Table Manager
     axi_monitor_trans_mgr #(
-        .MAX_TRANSACTIONS(MAX_TRANSACTIONS),
-        .ADDR_WIDTH(ADDR_WIDTH),
-        .ID_WIDTH(ID_WIDTH),
-        .IS_READ(1'(IS_READ)),
-        .IS_AXI(1'(IS_AXI)),
+        .MAX_TRANSACTIONS   (MAX_TRANSACTIONS),
+        .ADDR_WIDTH         (ADDR_WIDTH),
+        .ID_WIDTH           (ID_WIDTH),
+        .IS_READ            (1'(IS_READ)),
+        .IS_AXI             (1'(IS_AXI)),
         .ENABLE_PERF_PACKETS(1'(ENABLE_PERF_PACKETS))
-    ) i_trans_mgr (
-        .aclk(aclk),
-        .aresetn(aresetn),
-        .cmd_valid(cmd_valid),
-        .cmd_ready(cmd_ready),
-        .cmd_id(cmd_id),
-        .cmd_addr(cmd_addr),
-        .cmd_len(cmd_len),
-        .cmd_size(cmd_size),
-        .cmd_burst(cmd_burst),
-        .data_valid(data_valid),
-        .data_ready(data_ready),
-        .data_id(data_id),
-        .data_last(data_last),
-        .data_resp(data_resp),
-        .resp_valid(resp_valid),
-        .resp_ready(resp_ready),
-        .resp_id(resp_id),
-        .resp_code(resp_code),
-        .timestamp(r_timestamp),
-        .trans_table(w_trans_table),
-        .active_count(w_active_count),
-        .state_change(w_state_change_detected)
+    ) i_trans_mgr(
+        .aclk               (aclk),
+        .aresetn            (aresetn),
+        .cmd_valid          (cmd_valid),
+        .cmd_ready          (cmd_ready),
+        .cmd_id             (cmd_id),
+        .cmd_addr           (cmd_addr),
+        .cmd_len            (cmd_len),
+        .cmd_size           (cmd_size),
+        .cmd_burst          (cmd_burst),
+        .data_valid         (data_valid),
+        .data_ready         (data_ready),
+        .data_id            (data_id),
+        .data_last          (data_last),
+        .data_resp          (data_resp),
+        .resp_valid         (resp_valid),
+        .resp_ready         (resp_ready),
+        .resp_id            (resp_id),
+        .resp_code          (resp_code),
+        .timestamp          (r_timestamp),
+        .trans_table        (w_trans_table),
+        .active_count       (w_active_count),
+        .state_change       (w_state_change_detected)
     );
 
     // Invariant Timer using counter_freq_invariant
     axi_monitor_timer i_timer (
-        .aclk(aclk),
-        .aresetn(aresetn),
+        .aclk          (aclk),
+        .aresetn       (aresetn),
         .i_cfg_freq_sel(i_cfg_freq_sel),
-        .timer_tick(w_timer_tick),
-        .timestamp(r_timestamp)
+        .timer_tick    (w_timer_tick),
+        .timestamp     (r_timestamp)
     );
 
     // Timeout Detector
     axi_monitor_timeout #(
-        .MAX_TRANSACTIONS(MAX_TRANSACTIONS),
-        .ADDR_WIDTH(ADDR_WIDTH),
-        .IS_READ(1'(IS_READ))
-    ) i_timeout (
-        .aclk(aclk),
-        .aresetn(aresetn),
-        .trans_table(w_trans_table),
-        .timer_tick(w_timer_tick),
-        .i_cfg_addr_cnt(i_cfg_addr_cnt),
-        .i_cfg_data_cnt(i_cfg_data_cnt),
-        .i_cfg_resp_cnt(i_cfg_resp_cnt),
+        .MAX_TRANSACTIONS    (MAX_TRANSACTIONS),
+        .ADDR_WIDTH          (ADDR_WIDTH),
+        .IS_READ             (1'(IS_READ))
+    ) i_timeout(
+        .aclk                (aclk),
+        .aresetn             (aresetn),
+        .trans_table         (w_trans_table),
+        .timer_tick          (w_timer_tick),
+        .i_cfg_addr_cnt      (i_cfg_addr_cnt),
+        .i_cfg_data_cnt      (i_cfg_data_cnt),
+        .i_cfg_resp_cnt      (i_cfg_resp_cnt),
         .i_cfg_timeout_enable(i_cfg_timeout_enable),
-        .timeout_detected(w_timeout_detected)
+        .timeout_detected    (w_timeout_detected)
     );
 
     // Interrupt Reporter with gaxi_fifo_sync
     axi_monitor_reporter #(
-        .MAX_TRANSACTIONS(MAX_TRANSACTIONS),
-        .ADDR_WIDTH(ADDR_WIDTH),
-        .UNIT_ID(UNIT_ID),
-        .AGENT_ID(AGENT_ID),
-        .IS_READ(1'(IS_READ)),
-        .ENABLE_PERF_PACKETS(1'(ENABLE_PERF_PACKETS)),
-        .INTR_FIFO_DEPTH(INTR_FIFO_DEPTH)
-    ) i_reporter (
-        .aclk(aclk),
-        .aresetn(aresetn),
-        .trans_table(w_trans_table),
-        .i_cfg_error_enable(i_cfg_error_enable),
-        .i_cfg_compl_enable(i_cfg_compl_enable),
+        .MAX_TRANSACTIONS      (MAX_TRANSACTIONS),
+        .ADDR_WIDTH            (ADDR_WIDTH),
+        .UNIT_ID               (UNIT_ID),
+        .AGENT_ID              (AGENT_ID),
+        .IS_READ               (1'(IS_READ)),
+        .ENABLE_PERF_PACKETS   (1'(ENABLE_PERF_PACKETS)),
+        .INTR_FIFO_DEPTH       (INTR_FIFO_DEPTH)
+    ) i_reporter(
+        .aclk                  (aclk),
+        .aresetn               (aresetn),
+        .trans_table           (w_trans_table),
+        .i_cfg_error_enable    (i_cfg_error_enable),
+        .i_cfg_compl_enable    (i_cfg_compl_enable),
         .i_cfg_threshold_enable(i_cfg_threshold_enable),
-        .i_cfg_timeout_enable(i_cfg_timeout_enable),
-        .i_cfg_perf_enable(i_cfg_perf_enable),
-        .i_cfg_debug_enable(i_cfg_debug_enable),
-        .monbus_ready(monbus_ready),
-        .monbus_valid(w_reporter_monbus_valid),
-        .monbus_packet(w_reporter_monbus_packet),
-        .event_count(w_event_count),
-        .perf_completed_count(r_perf_completed_count),
-        .perf_error_count(r_perf_error_count),
+        .i_cfg_timeout_enable  (i_cfg_timeout_enable),
+        .i_cfg_perf_enable     (i_cfg_perf_enable),
+        .i_cfg_debug_enable    (i_cfg_debug_enable),
+        .monbus_ready          (monbus_ready),
+        .monbus_valid          (w_reporter_monbus_valid),
+        .monbus_packet         (w_reporter_monbus_packet),
+        .event_count           (w_event_count),
+        .perf_completed_count  (r_perf_completed_count),
+        .perf_error_count      (r_perf_error_count),
         .active_trans_threshold(i_cfg_active_trans_threshold),
-        .latency_threshold(i_cfg_latency_threshold)
+        .latency_threshold     (i_cfg_latency_threshold)
     );
 
     // -------------------------------------------------------------------------

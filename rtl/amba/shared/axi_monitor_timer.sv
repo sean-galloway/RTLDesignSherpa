@@ -6,8 +6,6 @@
  * AXI Error Monitor. It uses the counter_freq_invariant module to generate
  * timing ticks based on the frequency selection provided, allowing the
  * timeout thresholds to remain consistent across different clock frequencies.
- *
- * Updated with proper naming conventions: w_ for combo, r_ for flopped
  */
 module axi_monitor_timer (
     // Global Clock and Reset

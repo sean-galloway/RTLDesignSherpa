@@ -3,7 +3,7 @@
 import os
 import random
 from crc import Calculator, Configuration
-from CocoTBFramework.tbclasses.tbbase import TBBase
+from CocoTBFramework.tbclasses.misc.tbbase import TBBase
 
 class CRCTB(TBBase):
     """A class for testing CRC functionality.

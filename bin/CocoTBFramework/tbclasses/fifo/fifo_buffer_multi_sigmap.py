@@ -11,7 +11,7 @@ import os
 import random
 import cocotb
 
-from CocoTBFramework.tbclasses.tbbase import TBBase
+from CocoTBFramework.tbclasses.misc.tbbase import TBBase
 from CocoTBFramework.components.shared.field_config import FieldConfig
 
 from CocoTBFramework.components.fifo.fifo_packet import FIFOPacket

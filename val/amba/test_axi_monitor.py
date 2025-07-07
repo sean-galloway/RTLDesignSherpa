@@ -23,7 +23,7 @@ import cocotb
 from cocotb_test.simulator import run
 
 from CocoTBFramework.tbclasses.tbbase import TBBase
-from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
+from CocoTBFramework.tbclasses.misc.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.axi_monitor.axi_monitor_tb import AXIMonitorTB
 
 
@@ -76,7 +76,7 @@ def generate_test_params():
         'dw': [32],
         'uw': [1],
         'max_transactions': [8],
-        'is_read': [1],  # Test both read and write monitors
+        'is_read': [0],  # Test both read and write monitors
         'is_axi': [1],      # Start with AXI4 only for basic
         'unit_id': [9],
         'agent_id': [99],

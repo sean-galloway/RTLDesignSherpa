@@ -6,9 +6,9 @@ from cocotb.utils import get_sim_time
 from cocotb_test.simulator import run
 import pytest
 
-from CocoTBFramework.tbclasses.tbbase import TBBase
-from CocoTBFramework.tbclasses.utilities import get_paths, create_view_cmd
-from CocoTBFramework.components.arbiter_monitor import RoundRobinArbiterMonitor
+from CocoTBFramework.tbclasses.misc.tbbase import TBBase
+from CocoTBFramework.tbclasses.misc.utilities import get_paths, create_view_cmd
+from CocoTBFramework.components.misc.arbiter_monitor import RoundRobinArbiterMonitor
 
 
 class ArbiterRoundRobinConfig:

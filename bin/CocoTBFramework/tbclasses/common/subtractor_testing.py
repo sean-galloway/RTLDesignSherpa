@@ -11,7 +11,7 @@ from typing import List, Tuple, Dict, Any, Optional, Union
 
 from cocotb.triggers import Timer
 from cocotb.utils import get_sim_time
-from CocoTBFramework.tbclasses.tbbase import TBBase
+from CocoTBFramework.tbclasses.misc.tbbase import TBBase
 
 class SubtractorTB(TBBase):
     """Base Testbench for various subtractor implementations

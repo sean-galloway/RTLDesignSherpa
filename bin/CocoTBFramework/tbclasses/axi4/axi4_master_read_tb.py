@@ -10,7 +10,7 @@ import os
 import random
 
 # Framework imports
-from CocoTBFramework.tbclasses.tbbase import TBBase
+from CocoTBFramework.tbclasses.misc.tbbase import TBBase
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 

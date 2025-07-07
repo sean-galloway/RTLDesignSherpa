@@ -7,7 +7,7 @@ with support for multiple valid signals from both user and interface sides.
 
 import cocotb
 from cocotb.triggers import RisingEdge, FallingEdge, Timer
-from CocoTBFramework.tbclasses.tbbase import TBBase
+from CocoTBFramework.tbclasses.misc.tbbase import TBBase
 
 
 class AxiClockGateCtrl(TBBase):
