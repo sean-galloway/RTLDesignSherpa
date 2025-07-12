@@ -69,17 +69,17 @@ module apb_master #(
 
     // Command FIFO instance
     gaxi_skid_buffer #(
-        .DATA_WIDTH(CPW),
-        .DEPTH(CMD_DEPTH)
+        .DATA_WIDTH   (CPW),
+        .DEPTH        (CMD_DEPTH)
     ) cmd_fifo_inst (
-        .i_axi_aclk     (pclk),
-        .i_axi_aresetn  (presetn),
-        .i_wr_valid     (cmd_valid),
+        .axi_aclk     (pclk),
+        .axi_aresetn  (presetn),
+        .wr_valid     (cmd_valid),
         .wr_ready     (cmd_ready),
-        .i_wr_data      (r_cmd_data_in),
+        .wr_data      (r_cmd_data_in),
         .count       (w_cmd_count),
         .rd_valid     (r_cmd_valid),
-        .i_rd_ready     (w_cmd_ready),
+        .rd_ready     (w_cmd_ready),
         .rd_data      (r_cmd_data_out),
         .rd_count     ()
     );
@@ -94,17 +94,17 @@ module apb_master #(
 
     // Response FIFO instance
     gaxi_skid_buffer #(
-        .DATA_WIDTH(RPW),
-        .DEPTH(RSP_DEPTH)
+        .DATA_WIDTH   (RPW),
+        .DEPTH        (RSP_DEPTH)
     ) resp_fifo_inst (
-        .i_axi_aclk     (pclk),
-        .i_axi_aresetn  (presetn),
-        .i_wr_valid     (w_rsp_valid),
+        .axi_aclk     (pclk),
+        .axi_aresetn  (presetn),
+        .wr_valid     (w_rsp_valid),
         .wr_ready     (r_rsp_ready),
-        .i_wr_data      (r_rsp_data_in),
+        .wr_data      (r_rsp_data_in),
         .count       (),
         .rd_valid     (rsp_valid),
-        .i_rd_ready     (rsp_ready),
+        .rd_ready     (rsp_ready),
         .rd_data      ({rsp_pslverr, rsp_prdata}),
         .rd_count     ()
     );

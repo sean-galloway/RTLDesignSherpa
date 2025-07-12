@@ -194,7 +194,7 @@ def test_axi2abp_shim(request, id_width, addr_width, data_width, user_width, apb
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths(
         {
             'rtl_cmn': 'rtl/common',
-            'rtl_amba': 'rtl/amba'
+            'rtl_amba': 'rtl/amba',
         })
 
     dut_name = "axi4_to_apb_shim"
@@ -209,12 +209,12 @@ def test_axi2abp_shim(request, id_width, addr_width, data_width, user_width, apb
         os.path.join(rtl_dict['rtl_cmn'],  "fifo_control.sv"),
         os.path.join(rtl_dict['rtl_amba'], "gaxi/gaxi_fifo_sync.sv"),
 
-        os.path.join(rtl_dict['rtl_amba'], "axi4/axi_gen_addr.sv"),
+        os.path.join(rtl_dict['rtl_amba'], "shared/axi_gen_addr.sv"),
         os.path.join(rtl_dict['rtl_amba'], "shims/axi4_to_apb_convert.sv"),
 
-        os.path.join(rtl_dict['rtl_amba'], "axi4/axi_slave_wr_stub.sv"),
-        os.path.join(rtl_dict['rtl_amba'], "axi4/axi_slave_rd_stub.sv"),
-        os.path.join(rtl_dict['rtl_amba'], "axi4/axi_slave_stub.sv"),
+        os.path.join(rtl_dict['rtl_amba'], "axi4/stubs/axi_slave_wr_stub.sv"),
+        os.path.join(rtl_dict['rtl_amba'], "axi4/stubs/axi_slave_rd_stub.sv"),
+        os.path.join(rtl_dict['rtl_amba'], "axi4/stubs/axi_slave_stub.sv"),
 
         os.path.join(rtl_dict['rtl_amba'], f"shims/{dut_name}.sv")
     ]

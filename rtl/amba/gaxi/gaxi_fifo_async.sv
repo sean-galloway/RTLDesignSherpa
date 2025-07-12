@@ -47,32 +47,32 @@ module gaxi_fifo_async #(
     // Instantiate the binary counters for write and read pointers
     assign w_write = wr_valid && wr_ready;
     counter_bin #(
-        .MAX                (D),
-        .WIDTH              (AW + 1)
+        .MAX             (D),
+        .WIDTH           (AW + 1)
     ) wr_ptr_counter_bin(
-        .clk              (axi_wr_aclk),
-        .rst_n            (axi_wr_aresetn),
-        .enable           (w_write && !r_wr_full),
+        .clk             (axi_wr_aclk),
+        .rst_n           (axi_wr_aresetn),
+        .enable          (w_write && !r_wr_full),
         .counter_bin_next(w_wr_ptr_bin_next),
-        .counter_bin      (r_wr_ptr_bin)
+        .counter_bin_curr(r_wr_ptr_bin)
     );
 
     assign w_read = rd_valid && rd_ready;
     counter_bin #(
-        .MAX                (D),
-        .WIDTH              (AW + 1)
+        .MAX             (D),
+        .WIDTH           (AW + 1)
     ) rd_ptr_counter_bin(
-        .clk              (axi_rd_aclk),
-        .rst_n            (axi_rd_aresetn),
-        .enable           (w_read && !r_rd_empty),
+        .clk             (axi_rd_aclk),
+        .rst_n           (axi_rd_aresetn),
+        .enable          (w_read && !r_rd_empty),
         .counter_bin_next(w_rd_ptr_bin_next),
-        .counter_bin      (r_rd_ptr_bin)
+        .counter_bin_curr(r_rd_ptr_bin)
     );
 
     /////////////////////////////////////////////////////////////////////////
     // Instantiate the gray counters for write and read pointers
     counter_johnson #(
-        .WIDTH            (JCW)
+        .WIDTH          (JCW)
     ) wr_ptr_counter_gray(
         .clk            (axi_wr_aclk),
         .rst_n          (axi_wr_aresetn),
@@ -81,7 +81,7 @@ module gaxi_fifo_async #(
     );
 
     counter_johnson #(
-        .WIDTH            (JCW)
+        .WIDTH          (JCW)
     ) rd_ptr_counter_gray(
         .clk            (axi_rd_aclk),
         .rst_n          (axi_rd_aresetn),
@@ -92,8 +92,8 @@ module gaxi_fifo_async #(
     /////////////////////////////////////////////////////////////////////////
     // Instantiate the clock crossing modules
     glitch_free_n_dff_arn #(
-        .FLOP_COUNT          (N_FLOP_CROSS),
-        .WIDTH               (JCW)
+        .FLOP_COUNT        (N_FLOP_CROSS),
+        .WIDTH             (JCW)
     ) rd_ptr_gray_cross_inst(
         .q                 (r_wdom_rd_ptr_gray),
         .d                 (r_rd_ptr_gray),
@@ -103,19 +103,19 @@ module gaxi_fifo_async #(
 
     // convert the gray rd ptr to binary
     grayj2bin #(
-        .JCW               (JCW),
-        .WIDTH             (AW + 1),
-        .INSTANCE_NAME     ("rd_ptr_johnson2bin_inst")
+        .JCW             (JCW),
+        .WIDTH           (AW + 1),
+        .INSTANCE_NAME   ("rd_ptr_johnson2bin_inst")
     ) rd_ptr_gray2bin_inst(
-        .binary         (w_wdom_rd_ptr_bin),
+        .binary          (w_wdom_rd_ptr_bin),
         .gray            (r_wdom_rd_ptr_gray),
         .clk             (axi_wr_aclk),
         .rst_n           (axi_wr_aresetn)
     );
 
     glitch_free_n_dff_arn #(
-        .FLOP_COUNT          (N_FLOP_CROSS),
-        .WIDTH               (JCW)
+        .FLOP_COUNT        (N_FLOP_CROSS),
+        .WIDTH             (JCW)
     ) wr_ptr_gray_cross_inst(
         .q                 (r_rdom_wr_ptr_gray),
         .d                 (r_wr_ptr_gray),
@@ -125,11 +125,11 @@ module gaxi_fifo_async #(
 
     // convert the gray wr ptr to binary
     grayj2bin #(
-        .JCW               (JCW),
-        .WIDTH             (AW + 1),
-        .INSTANCE_NAME     ("wr_ptr_gray2bin_inst")
+        .JCW             (JCW),
+        .WIDTH           (AW + 1),
+        .INSTANCE_NAME   ("wr_ptr_gray2bin_inst")
     ) wr_ptr_gray2bin_inst(
-        .binary         (w_rdom_wr_ptr_bin),
+        .binary          (w_rdom_wr_ptr_bin),
         .gray            (r_rdom_wr_ptr_gray),
         .clk             (axi_rd_aclk),
         .rst_n           (axi_rd_aresetn)
@@ -173,20 +173,20 @@ module gaxi_fifo_async #(
         .ALMOST_RD_MARGIN   (ALMOST_RD_MARGIN),
         .ALMOST_WR_MARGIN   (ALMOST_WR_MARGIN),
         .REGISTERED         (REGISTERED)
-    ) fifo_control_inst (
-        .wr_clk           (axi_wr_aclk),
-        .wr_rst_n         (axi_wr_aresetn),
-        .rd_clk           (axi_rd_aclk),
-        .rd_rst_n         (axi_rd_aresetn),
-        .wr_ptr_bin      (w_wr_ptr_bin_next),
-        .wdom_rd_ptr_bin (w_wdom_rd_ptr_bin),
-        .rd_ptr_bin      (w_rd_ptr_bin_next),
-        .rdom_wr_ptr_bin (w_rdom_wr_ptr_bin),
-        .wr_full          (r_wr_full),
-        .wr_almost_full   (r_wr_almost_full),
-        .rd_empty         (r_rd_empty),
-        .rd_almost_empty  (r_rd_almost_empty),
-        .count           (w_count)
+    ) fifo_control_inst(
+        .wr_clk             (axi_wr_aclk),
+        .wr_rst_n           (axi_wr_aresetn),
+        .rd_clk             (axi_rd_aclk),
+        .rd_rst_n           (axi_rd_aresetn),
+        .wr_ptr_bin         (w_wr_ptr_bin_next),
+        .wdom_rd_ptr_bin    (w_wdom_rd_ptr_bin),
+        .rd_ptr_bin         (w_rd_ptr_bin_next),
+        .rdom_wr_ptr_bin    (w_rdom_wr_ptr_bin),
+        .wr_full            (r_wr_full),
+        .wr_almost_full     (r_wr_almost_full),
+        .rd_empty           (r_rd_empty),
+        .rd_almost_empty    (r_rd_almost_empty),
+        .count              (w_count)
     );
 
     assign wr_ready = !r_wr_full;

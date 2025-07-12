@@ -51,11 +51,11 @@ async def gaxi_data_collect_test(dut):
 
     tb.log.info(f"Running test level: {test_level.upper()}")
 
-    await tb.start_clock('i_axi_aclk', 10, 'ns')
+    await tb.start_clock('axi_aclk', 10, 'ns')
     await tb.assert_reset()
-    await tb.wait_clocks('i_axi_aclk', 5)
+    await tb.wait_clocks('axi_aclk', 5)
     await tb.deassert_reset()
-    await tb.wait_clocks('i_axi_aclk', 5)
+    await tb.wait_clocks('axi_aclk', 5)
     tb.log.info(f"Starting {test_level.upper()} GAXI Data Collect test...")
 
     # Get available randomizer configurations from FlexConfigGen

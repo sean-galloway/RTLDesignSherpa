@@ -12,7 +12,7 @@ from CocoTBFramework.tbclasses.misc.utilities import get_paths, create_view_cmd
 @cocotb.test(timeout_time=1, timeout_unit="ms")
 async def skid_buffer_field_test(dut):
     '''Test the gaxi_fifo_sync_field component'''
-    tb = GaxiFieldBufferTB(dut, wr_clk=dut.i_axi_aclk, wr_rstn=dut.i_axi_aresetn)
+    tb = GaxiFieldBufferTB(dut, wr_clk=dut.axi_aclk, wr_rstn=dut.axi_aresetn)
 
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
@@ -20,11 +20,11 @@ async def skid_buffer_field_test(dut):
     msg = f'seed changed to {seed}'
     tb.log.info(msg)
 
-    await tb.start_clock('i_axi_aclk', 10, 'ns')
+    await tb.start_clock('axi_aclk', 10, 'ns')
     await tb.assert_reset()
-    await tb.wait_clocks('i_axi_aclk', 5)
+    await tb.wait_clocks('axi_aclk', 5)
     await tb.deassert_reset()
-    await tb.wait_clocks('i_axi_aclk', 5)
+    await tb.wait_clocks('axi_aclk', 5)
 
     tb.log.info("Starting test...")
 

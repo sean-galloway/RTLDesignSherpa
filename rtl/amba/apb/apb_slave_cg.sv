@@ -21,8 +21,8 @@ module apb_slave_cg #(
     input  logic              presetn,
 
     // Configs
-    input logic               i_cfg_cg_enable,     // Global clock gate enable
-    input logic  [ICW-1:0]    i_cfg_cg_idle_count, // Idle countdown value
+    input logic               cfg_cg_enable,     // Global clock gate enable
+    input logic  [ICW-1:0]    cfg_cg_idle_count, // Idle countdown value
 
     // APB interface
     input  logic              s_apb_PSEL,
@@ -67,17 +67,17 @@ module apb_slave_cg #(
 
     // Instantiate clock gate controller
     amba_clock_gate_ctrl #(
-        .N(CG_IDLE_COUNT_WIDTH)
-    ) i_amba_clock_gate_ctrl (
+        .N                   (CG_IDLE_COUNT_WIDTH)
+    ) amba_clock_gate_ctrl(
         .clk_in              (pclk),
         .aresetn             (presetn),
-        .i_cfg_cg_enable     (i_cfg_cg_enable),
-        .i_cfg_cg_idle_count (i_cfg_cg_idle_count),
-        .i_user_valid        (r_wakeup),
-        .i_axi_valid         ('b0),
+        .cfg_cg_enable       (cfg_cg_enable),
+        .cfg_cg_idle_count   (cfg_cg_idle_count),
+        .user_valid          (r_wakeup),
+        .axi_valid           ('b0),
         .clk_out             (gated_pclk),
-        .gating            (apb_clock_gating),
-        .idle              ()
+        .gating              (apb_clock_gating),
+        .idle                ()
     );
 
     apb_slave #(
@@ -85,8 +85,8 @@ module apb_slave_cg #(
         .DATA_WIDTH       (DATA_WIDTH),
         .STRB_WIDTH       (STRB_WIDTH),
         .PPROT_WIDTH      (PPROT_WIDTH),
-        .DEPTH       (DEPTH)
-    ) u_apb_slave (
+        .DEPTH            (DEPTH)
+    ) u_apb_slave(
         // Clock / Reset
         .pclk             (gated_pclk),
         .presetn          (presetn),
@@ -102,18 +102,18 @@ module apb_slave_cg #(
         .s_apb_PRDATA     (s_apb_PRDATA),
         .s_apb_PSLVERR    (s_apb_PSLVERR),
         // Command interface
-        .cmd_valid      (cmd_valid),
-        .cmd_ready      (cmd_ready),
-        .cmd_pwrite     (cmd_pwrite),
-        .cmd_paddr      (cmd_paddr),
-        .cmd_pwdata     (cmd_pwdata),
-        .cmd_pstrb      (cmd_pstrb),
-        .cmd_pprot      (cmd_pprot),
+        .cmd_valid        (cmd_valid),
+        .cmd_ready        (cmd_ready),
+        .cmd_pwrite       (cmd_pwrite),
+        .cmd_paddr        (cmd_paddr),
+        .cmd_pwdata       (cmd_pwdata),
+        .cmd_pstrb        (cmd_pstrb),
+        .cmd_pprot        (cmd_pprot),
         // Response interface
-        .rsp_valid      (rsp_valid),
-        .rsp_ready      (rsp_ready),
-        .rsp_prdata     (rsp_prdata),
-        .rsp_pslverr    (rsp_pslverr)
+        .rsp_valid        (rsp_valid),
+        .rsp_ready        (rsp_ready),
+        .rsp_prdata       (rsp_prdata),
+        .rsp_pslverr      (rsp_pslverr)
     );
 
 endmodule : apb_slave_cg

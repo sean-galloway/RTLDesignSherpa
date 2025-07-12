@@ -178,8 +178,8 @@ class AXIMonitorBaseTest(AXIMonitorTB, ABC):
             self.log.info("Applying test-specific configuration overrides...")
             
             for config_name, value in self.config_overrides.items():
-                if hasattr(self.dut, f'i_cfg_{config_name}'):
-                    getattr(self.dut, f'i_cfg_{config_name}').value = value
+                if hasattr(self.dut, f'cfg_{config_name}'):
+                    getattr(self.dut, f'cfg_{config_name}').value = value
                     self.log.debug(f"  {config_name}: {value}")
             
             # Record the configuration change
@@ -245,13 +245,13 @@ class AXIMonitorBaseTest(AXIMonitorTB, ABC):
             
             if step_type == 'configure_timeouts':
                 for timeout_type, value in params.items():
-                    if hasattr(self.dut, f'i_cfg_{timeout_type}_cnt'):
-                        getattr(self.dut, f'i_cfg_{timeout_type}_cnt').value = value
+                    if hasattr(self.dut, f'cfg_{timeout_type}_cnt'):
+                        getattr(self.dut, f'cfg_{timeout_type}_cnt').value = value
                         
             elif step_type == 'disable_monitoring':
                 for monitor_type in params.get('types', []):
-                    if hasattr(self.dut, f'i_cfg_{monitor_type}_enable'):
-                        getattr(self.dut, f'i_cfg_{monitor_type}_enable').value = 0
+                    if hasattr(self.dut, f'cfg_{monitor_type}_enable'):
+                        getattr(self.dut, f'cfg_{monitor_type}_enable').value = 0
                         
             elif step_type == 'issue_transaction':
                 if params.get('type') == 'read':

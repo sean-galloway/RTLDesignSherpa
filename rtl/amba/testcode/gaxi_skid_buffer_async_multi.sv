@@ -13,22 +13,22 @@ module gaxi_skid_buffer_async_multi #(
     parameter integer DW = DATA_WIDTH
 ) (
     // Global Clock and Reset
-    input  logic          i_axi_wr_aclk,
-    input  logic          i_axi_wr_aresetn,
-    input  logic          i_axi_rd_aclk,
-    input  logic          i_axi_rd_aresetn,
+    input  logic          axi_wr_aclk,
+    input  logic          axi_wr_aresetn,
+    input  logic          axi_rd_aclk,
+    input  logic          axi_rd_aresetn,
 
     // input side
-    input  logic          i_wr_valid,
+    input  logic          wr_valid,
     output logic          wr_ready,
-    input  logic [AW-1:0] i_wr_addr,
-    input  logic [CW-1:0] i_wr_ctrl,
-    input  logic [DW-1:0] i_wr_data0,
-    input  logic [DW-1:0] i_wr_data1,
+    input  logic [AW-1:0] wr_addr,
+    input  logic [CW-1:0] wr_ctrl,
+    input  logic [DW-1:0] wr_data0,
+    input  logic [DW-1:0] wr_data1,
 
     // output side
     output logic          rd_valid,
-    input  logic          i_rd_ready,
+    input  logic          rd_ready,
     output logic [AW-1:0] rd_addr,
     output logic [CW-1:0] rd_ctrl,
     output logic [DW-1:0] rd_data0,
@@ -46,13 +46,13 @@ module gaxi_skid_buffer_async_multi #(
     gaxi_skid_buffer #(
         .DATA_WIDTH(AW+CW+DW+DW)
     ) inst_gaxi_skid_buffer (
-        .i_axi_aclk   (i_axi_wr_aclk),
-        .i_axi_aresetn(i_axi_wr_aresetn),
-        .i_wr_valid   (i_wr_valid),
+        .axi_aclk   (axi_wr_aclk),
+        .axi_aresetn(axi_wr_aresetn),
+        .wr_valid   (wr_valid),
         .wr_ready   (wr_ready),
-        .i_wr_data    ({i_wr_addr, i_wr_ctrl, i_wr_data1, i_wr_data0}),
+        .wr_data    ({wr_addr, wr_ctrl, wr_data1, wr_data0}),
         .rd_valid   (r_xfer_valid),
-        .i_rd_ready   (r_xfer_ready),
+        .rd_ready   (r_xfer_ready),
         .rd_data    (r_xfer_data),
         .count     (),
         .rd_count   ()
@@ -68,14 +68,14 @@ module gaxi_skid_buffer_async_multi #(
         .ALMOST_RD_MARGIN(1),
         .INSTANCE_NAME(INSTANCE_NAME)
     ) inst_gaxi_fifo_async (
-        .i_axi_wr_aclk   (i_axi_wr_aclk),
-        .i_axi_wr_aresetn(i_axi_wr_aresetn),
-        .i_axi_rd_aclk   (i_axi_rd_aclk),
-        .i_axi_rd_aresetn(i_axi_rd_aresetn),
-        .i_wr_valid      (r_xfer_valid),
+        .axi_wr_aclk   (axi_wr_aclk),
+        .axi_wr_aresetn(axi_wr_aresetn),
+        .axi_rd_aclk   (axi_rd_aclk),
+        .axi_rd_aresetn(axi_rd_aresetn),
+        .wr_valid      (r_xfer_valid),
         .wr_ready      (r_xfer_ready),
-        .i_wr_data       (r_xfer_data),
-        .i_rd_ready      (i_rd_ready),
+        .wr_data       (r_xfer_data),
+        .rd_ready      (rd_ready),
         .rd_valid      (rd_valid),
         .rd_data        ({rd_addr, rd_ctrl, rd_data1, rd_data0}),
         .rd_data         ({rd_addr,   rd_ctrl,  rd_data1,  rd_data0})

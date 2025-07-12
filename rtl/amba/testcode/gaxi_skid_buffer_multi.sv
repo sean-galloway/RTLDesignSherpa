@@ -8,18 +8,18 @@ module gaxi_skid_buffer_multi #(
     parameter integer CW = CTRL_WIDTH,
     parameter integer DW = DATA_WIDTH
 )(
-    input  logic                i_axi_aclk,
-    input  logic                i_axi_aresetn,
+    input  logic                axi_aclk,
+    input  logic                axi_aresetn,
     // Write channel
-    input  logic                i_wr_valid,
+    input  logic                wr_valid,
     output logic                wr_ready,
-    input  logic [AW-1:0]       i_wr_addr,
-    input  logic [CW-1:0]       i_wr_ctrl,
-    input  logic [DW-1:0]       i_wr_data0,
-    input  logic [DW-1:0]       i_wr_data1,
+    input  logic [AW-1:0]       wr_addr,
+    input  logic [CW-1:0]       wr_ctrl,
+    input  logic [DW-1:0]       wr_data0,
+    input  logic [DW-1:0]       wr_data1,
     // Read channel
     output logic                rd_valid,
-    input  logic                i_rd_ready,
+    input  logic                rd_ready,
     output logic [AW-1:0]       rd_addr,
     output logic [CW-1:0]       rd_ctrl,
     output logic [DW-1:0]       rd_data0,
@@ -28,13 +28,13 @@ module gaxi_skid_buffer_multi #(
 
     // Instantiate the original skid buffer
     gaxi_skid_buffer #(.DATA_WIDTH(AW+CW+DW+DW), .DEPTH(DEPTH)) u_gaxi_skid_buffer (
-        .i_axi_aclk    (i_axi_aclk),
-        .i_axi_aresetn (i_axi_aresetn),
-        .i_wr_valid    (i_wr_valid),
+        .axi_aclk    (axi_aclk),
+        .axi_aresetn (axi_aresetn),
+        .wr_valid    (wr_valid),
         .wr_ready    (wr_ready),
-        .i_wr_data     ({i_wr_addr, i_wr_ctrl, i_wr_data1, i_wr_data0}),
+        .wr_data     ({wr_addr, wr_ctrl, wr_data1, wr_data0}),
         .rd_valid    (rd_valid),
-        .i_rd_ready    (i_rd_ready),
+        .rd_ready    (rd_ready),
         .rd_data     ({rd_addr, rd_ctrl, rd_data1, rd_data0}),
         .count      (),
         .rd_count    ()

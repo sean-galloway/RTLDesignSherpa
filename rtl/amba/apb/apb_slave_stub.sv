@@ -57,13 +57,13 @@ module apb_slave_stub #(
         .DEPTH(DEPTH),
         .DATA_WIDTH(CPW)
     ) cmd_skid_buffer_inst (
-        .i_axi_aclk     (pclk),
-        .i_axi_aresetn  (presetn),
-        .i_wr_valid     (r_cmd_valid),
+        .axi_aclk     (pclk),
+        .axi_aresetn  (presetn),
+        .wr_valid     (r_cmd_valid),
         .wr_ready     (r_cmd_ready),
-        .i_wr_data      (r_cmd_data),
+        .wr_data      (r_cmd_data),
         .rd_valid     (cmd_valid),
-        .i_rd_ready     (cmd_ready),
+        .rd_ready     (cmd_ready),
         .rd_data      (cmd_data)
     );
 
@@ -81,13 +81,13 @@ module apb_slave_stub #(
         .DEPTH(DEPTH),
         .DATA_WIDTH(RPW)
     ) resp_skid_buffer_inst (
-        .i_axi_aclk     (pclk),
-        .i_axi_aresetn  (presetn),
-        .i_wr_valid     (rsp_valid),
+        .axi_aclk     (pclk),
+        .axi_aresetn  (presetn),
+        .wr_valid     (rsp_valid),
         .wr_ready     (rsp_ready),
-        .i_wr_data      (rsp_data),
+        .wr_data      (rsp_data),
         .rd_valid     (r_rsp_valid),
-        .i_rd_ready     (r_rsp_ready),
+        .rd_ready     (r_rsp_ready),
         .rd_data      (r_rsp_data)
     );
 

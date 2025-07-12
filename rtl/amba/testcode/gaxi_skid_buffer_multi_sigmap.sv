@@ -28,13 +28,13 @@ module gaxi_skid_buffer_multi_sigmap #(
 
     // Instantiate the original skid buffer
     gaxi_skid_buffer #(.DATA_WIDTH(AW+CW+DW+DW), .DEPTH(DEPTH)) u_gaxi_skid_buffer (
-        .i_axi_aclk    (axi_aclk),
-        .i_axi_aresetn (axi_aresetn),
-        .i_wr_valid    (wr_valid),
+        .axi_aclk    (axi_aclk),
+        .axi_aresetn (axi_aresetn),
+        .wr_valid    (wr_valid),
         .wr_ready    (wr_ready),
-        .i_wr_data     ({wr_siga, wr_sigb, wr_sigd, wr_sigc}),
+        .wr_data     ({wr_siga, wr_sigb, wr_sigd, wr_sigc}),
         .rd_valid    (rd_valid),
-        .i_rd_ready    (rd_ready),
+        .rd_ready    (rd_ready),
         .rd_data     ({rd_sige, rd_sigf, rd_sigh, rd_sigg}),
         .count      (),
         .rd_count    ()

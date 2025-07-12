@@ -68,46 +68,46 @@ module apb_slave_cdc #(
     logic              w_rsp_pslverr;
 
     apb_slave #(
-        .ADDR_WIDTH(32),
-        .DATA_WIDTH(32),
-        .STRB_WIDTH(4),
-        .PROT_WIDTH(3),
-        .DEPTH(2)
-    ) u_apb_slave (
+        .ADDR_WIDTH   (32),
+        .DATA_WIDTH   (32),
+        .STRB_WIDTH   (4),
+        .PROT_WIDTH   (3),
+        .DEPTH        (2)
+    ) u_apb_slave(
         // Clock and Reset
-        .pclk(pclk),
-        .presetn(presetn),
+        .pclk         (pclk),
+        .presetn      (presetn),
 
         // APB interface
-        .s_apb_PSEL(s_apb_PSEL),
+        .s_apb_PSEL   (s_apb_PSEL),
         .s_apb_PENABLE(s_apb_PENABLE),
-        .s_apb_PREADY(s_apb_PREADY),
-        .s_apb_PADDR(s_apb_PADDR),
-        .s_apb_PWRITE(s_apb_PWRITE),
-        .s_apb_PWDATA(s_apb_PWDATA),
-        .s_apb_PSTRB(s_apb_PSTRB),
-        .s_apb_PPROT(s_apb_PPROT),
-        .s_apb_PRDATA(s_apb_PRDATA),
+        .s_apb_PREADY (s_apb_PREADY),
+        .s_apb_PADDR  (s_apb_PADDR),
+        .s_apb_PWRITE (s_apb_PWRITE),
+        .s_apb_PWDATA (s_apb_PWDATA),
+        .s_apb_PSTRB  (s_apb_PSTRB),
+        .s_apb_PPROT  (s_apb_PPROT),
+        .s_apb_PRDATA (s_apb_PRDATA),
         .s_apb_PSLVERR(s_apb_PSLVERR),
 
         // Command Interface
-        .cmd_valid(w_cmd_valid),
-        .cmd_ready(w_cmd_ready),
-        .cmd_pwrite(w_cmd_pwrite),
-        .cmd_paddr(w_cmd_paddr),
-        .cmd_pwdata(w_cmd_pwdata),
-        .cmd_pstrb(w_cmd_pstrb),
-        .cmd_pprot(w_cmd_pprot),
+        .cmd_valid    (w_cmd_valid),
+        .cmd_ready    (w_cmd_ready),
+        .cmd_pwrite   (w_cmd_pwrite),
+        .cmd_paddr    (w_cmd_paddr),
+        .cmd_pwdata   (w_cmd_pwdata),
+        .cmd_pstrb    (w_cmd_pstrb),
+        .cmd_pprot    (w_cmd_pprot),
 
         // Response Interface
-        .rsp_valid(w_rsp_valid),
-        .rsp_ready(w_rsp_ready),
-        .rsp_prdata(w_rsp_prdata),
-        .rsp_pslverr(w_rsp_pslverr)
+        .rsp_valid    (w_rsp_valid),
+        .rsp_ready    (w_rsp_ready),
+        .rsp_prdata   (w_rsp_prdata),
+        .rsp_pslverr  (w_rsp_pslverr)
     );
 
     cdc_handshake #(
-        .DATA_WIDTH(APBCmdWidth)
+        .DATA_WIDTH      (APBCmdWidth)
     ) u_cmd_cdc_handshake (
         .clk_src         (pclk),
         .rst_src_n       (presetn),
@@ -124,7 +124,7 @@ module apb_slave_cdc #(
     );
 
     cdc_handshake #(
-        .DATA_WIDTH(APBRspWidth)
+        .DATA_WIDTH      (APBRspWidth)
     ) u_rsp_cdc_handshake (
         .clk_src         (aclk),
         .rst_src_n       (aresetn),

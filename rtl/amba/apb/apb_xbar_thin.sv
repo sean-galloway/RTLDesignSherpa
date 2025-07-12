@@ -115,16 +115,16 @@ module apb_xbar_thin #(
                 .MAX_THRESH  (16),
                 .CLIENTS     (M),
                 .WAIT_GNT_ACK(1)
-            ) arbiter_inst   (
-                .i_clk       (pclk),
-                .i_rst_n     (presetn),
-                .i_block_arb (1'b0),
-                .i_max_thresh(THRESHOLDS),
-                .i_req       (master_sel[s_arb]),
-                .gnt_valid(arb_gnt_valid[s_arb]),
-                .gnt      (arb_gnt[s_arb]),
-                .gnt_id   (arb_gnt_id[s_arb]),
-                .i_gnt_ack   (arb_gnt_ack)
+            ) arbiter_inst(
+                .clk         (pclk),
+                .rst_n       (presetn),
+                .block_arb   (1'b0),
+                .max_thresh  (THRESHOLDS),
+                .req         (master_sel[s_arb]),
+                .gnt_valid   (arb_gnt_valid[s_arb]),
+                .gnt         (arb_gnt[s_arb]),
+                .gnt_id      (arb_gnt_id[s_arb]),
+                .gnt_ack     (arb_gnt_ack)
             );
         end
     endgenerate
@@ -171,8 +171,6 @@ module apb_xbar_thin #(
                 $fdisplay(file, "Master Sel: mst_id=%0d s_mux=%0d arb_gnt_valid=%0b @ %0t ns",
                     mst_id, s_mux, arb_gnt_valid, $realtime / 1e3);
     // synopsys translate_on
-//                $fdisplay(file, "m_apb_psel=%0b m_apb_penable=%0b m_apb_pwrite=%0b m_apb_pprot=%0h m_apb_paddr=%0h m_apb_pwdata=%0h m_apb_pstrb=%0h",
-//                    m_apb_psel[mst_id], m_apb_penable[mst_id], m_apb_pwrite[mst_id], m_apb_pprot[mst_id], m_apb_paddr[mst_id], m_apb_pwdata[mst_id], m_apb_pstrb[mst_id]);
             end
         end
     endgenerate

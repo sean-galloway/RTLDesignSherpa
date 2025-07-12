@@ -309,22 +309,22 @@ class AXIMonitorTB(TBBase):
 
     async def _configure_monitor(self):
         """Configure the monitor with initial settings"""
-        self.dut.i_cfg_freq_sel.value = 0x3
-        self.dut.i_cfg_addr_cnt.value = 0x8
-        self.dut.i_cfg_data_cnt.value = 0x8
-        self.dut.i_cfg_resp_cnt.value = 0x8
+        self.dut.cfg_freq_sel.value = 0x3
+        self.dut.cfg_addr_cnt.value = 0x8
+        self.dut.cfg_data_cnt.value = 0x8
+        self.dut.cfg_resp_cnt.value = 0x8
 
         # Enable all packet types
-        self.dut.i_cfg_error_enable.value = 1
-        self.dut.i_cfg_compl_enable.value = 1
-        self.dut.i_cfg_threshold_enable.value = 1
-        self.dut.i_cfg_timeout_enable.value = 1
-        self.dut.i_cfg_perf_enable.value = 1
-        self.dut.i_cfg_debug_enable.value = 1
+        self.dut.cfg_error_enable.value = 1
+        self.dut.cfg_compl_enable.value = 1
+        self.dut.cfg_threshold_enable.value = 1
+        self.dut.cfg_timeout_enable.value = 1
+        self.dut.cfg_perf_enable.value = 1
+        self.dut.cfg_debug_enable.value = 1
 
         # Set thresholds
-        self.dut.i_cfg_active_trans_threshold.value = self.MAX_TRANSACTIONS // 2
-        self.dut.i_cfg_latency_threshold.value = 1000
+        self.dut.cfg_active_trans_threshold.value = self.MAX_TRANSACTIONS // 2
+        self.dut.cfg_latency_threshold.value = 1000
 
     async def _cleanup_completed_transactions(self):
         """Clean up any transactions that should be completed"""

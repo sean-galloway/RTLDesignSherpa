@@ -23,8 +23,8 @@ module apb_slave_cdc_cg #(
     input  logic              presetn,
 
     // Clock gating configuration
-    input  logic                          i_cfg_cg_enable,
-    input  logic [CG_IDLE_COUNT_WIDTH-1:0] i_cfg_cg_idle_count,
+    input  logic                          cfg_cg_enable,
+    input  logic [CG_IDLE_COUNT_WIDTH-1:0] cfg_cg_idle_count,
 
     // APB interface
     input  logic              s_apb_PSEL,
@@ -115,13 +115,13 @@ module apb_slave_cdc_cg #(
     // Instantiate PCLK domain clock gate controller
     amba_clock_gate_ctrl #(
         .CG_IDLE_COUNT_WIDTH(CG_IDLE_COUNT_WIDTH)
-    ) i_pclk_gate_ctrl (
+    ) pclk_gate_ctrl (
         .clk_in              (pclk),
         .aresetn             (presetn),
-        .i_cfg_cg_enable     (i_cfg_cg_enable),
-        .i_cfg_cg_idle_count (i_cfg_cg_idle_count),
-        .i_user_valid        (pclk_user_valid),
-        .i_axi_valid         (pclk_axi_valid),
+        .cfg_cg_enable     (cfg_cg_enable),
+        .cfg_cg_idle_count (cfg_cg_idle_count),
+        .user_valid        (pclk_user_valid),
+        .axi_valid         (pclk_axi_valid),
         .clk_out             (gated_pclk),
         .gating            (pclk_cg_gating),
         .idle              (pclk_cg_idle)
@@ -130,13 +130,13 @@ module apb_slave_cdc_cg #(
     // Instantiate ACLK domain clock gate controller
     amba_clock_gate_ctrl #(
         .CG_IDLE_COUNT_WIDTH(CG_IDLE_COUNT_WIDTH)
-    ) i_aclk_gate_ctrl (
+    ) aclk_gate_ctrl (
         .clk_in              (aclk),
         .aresetn             (aresetn),
-        .i_cfg_cg_enable     (i_cfg_cg_enable),
-        .i_cfg_cg_idle_count (i_cfg_cg_idle_count),
-        .i_user_valid        (aclk_user_valid),
-        .i_axi_valid         (aclk_axi_valid),
+        .cfg_cg_enable     (cfg_cg_enable),
+        .cfg_cg_idle_count (cfg_cg_idle_count),
+        .user_valid        (aclk_user_valid),
+        .axi_valid         (aclk_axi_valid),
         .clk_out             (gated_aclk),
         .gating            (aclk_cg_gating),
         .idle              (aclk_cg_idle)

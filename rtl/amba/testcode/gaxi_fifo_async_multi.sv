@@ -19,17 +19,17 @@ module gaxi_fifo_async_multi #(
     parameter int N = N_FLOP_CROSS
 ) (
     // clocks and resets
-    input  logic            i_axi_wr_aclk,
-                            i_axi_wr_aresetn,
-                            i_axi_rd_aclk,
-                            i_axi_rd_aresetn,
-    input  logic            i_wr_valid,
+    input  logic            axi_wr_aclk,
+                            axi_wr_aresetn,
+                            axi_rd_aclk,
+                            axi_rd_aresetn,
+    input  logic            wr_valid,
     output logic            wr_ready,   // not full
-    input  logic [AW-1:0]   i_wr_addr,
-    input  logic [CW-1:0]   i_wr_ctrl,
-    input  logic [DW-1:0]   i_wr_data0,
-    input  logic [DW-1:0]   i_wr_data1,
-    input  logic            i_rd_ready,
+    input  logic [AW-1:0]   wr_addr,
+    input  logic [CW-1:0]   wr_ctrl,
+    input  logic [DW-1:0]   wr_data0,
+    input  logic [DW-1:0]   wr_data1,
+    input  logic            rd_ready,
     output logic            rd_valid,   // not empty
     output logic [AW-1:0]   rd_addr,
     output logic [CW-1:0]   rd_ctrl,
@@ -56,18 +56,18 @@ module gaxi_fifo_async_multi #(
         .N                 (N_FLOP_CROSS)      // N flop cross alias
     ) u_gaxi_fifo_async (
         // Clocks and resets
-        .i_axi_wr_aclk     (i_axi_wr_aclk),    // Write clock
-        .i_axi_wr_aresetn  (i_axi_wr_aresetn), // Write reset (active low)
-        .i_axi_rd_aclk     (i_axi_rd_aclk),    // Read clock
-        .i_axi_rd_aresetn  (i_axi_rd_aresetn), // Read reset (active low)
+        .axi_wr_aclk     (axi_wr_aclk),    // Write clock
+        .axi_wr_aresetn  (axi_wr_aresetn), // Write reset (active low)
+        .axi_rd_aclk     (axi_rd_aclk),    // Read clock
+        .axi_rd_aresetn  (axi_rd_aresetn), // Read reset (active low)
 
         // Write interface
-        .i_wr_valid        (i_wr_valid),       // Write valid signal
+        .wr_valid        (wr_valid),       // Write valid signal
         .wr_ready        (wr_ready),       // Write ready (not full)
-        .i_wr_data         ({i_wr_addr, i_wr_ctrl, i_wr_data1, i_wr_data0}),        // Write data
+        .wr_data         ({wr_addr, wr_ctrl, wr_data1, wr_data0}),        // Write data
 
         // Read interface
-        .i_rd_ready        (i_rd_ready),       // Read ready signal
+        .rd_ready        (rd_ready),       // Read ready signal
         .rd_valid        (rd_valid),       // Read valid (not empty)
         .rd_data        ({rd_addr, rd_ctrl, rd_data1, rd_data0}),
         .rd_data         ({rd_addr,   rd_ctrl,  rd_data1,  rd_data0})

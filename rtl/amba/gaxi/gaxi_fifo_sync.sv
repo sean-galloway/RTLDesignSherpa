@@ -41,13 +41,13 @@ module gaxi_fifo_sync #(
     assign w_write = wr_valid && wr_ready;
 
     counter_bin #(
-        .WIDTH              (AW + 1),
-        .MAX                (D)
+        .WIDTH           (AW + 1),
+        .MAX             (D)
     ) write_pointer_inst(
-        .clk              (axi_aclk),
-        .rst_n            (axi_aresetn),
-        .enable           (w_write && !r_wr_full),
-        .counter_bin      (r_wr_ptr_bin),
+        .clk             (axi_aclk),
+        .rst_n           (axi_aresetn),
+        .enable          (w_write && !r_wr_full),
+        .counter_bin_curr(r_wr_ptr_bin),
         .counter_bin_next(w_wr_ptr_bin_next)
     );
 
@@ -56,38 +56,38 @@ module gaxi_fifo_sync #(
     logic w_read;
     assign w_read = rd_valid && rd_ready;
     counter_bin #(
-        .WIDTH              (AW + 1),
-        .MAX                (D)
+        .WIDTH           (AW + 1),
+        .MAX             (D)
     ) read_pointer_inst(
-        .clk              (axi_aclk),
-        .rst_n            (axi_aresetn),
-        .enable           (w_read && !r_rd_empty),
-        .counter_bin      (r_rd_ptr_bin),
+        .clk             (axi_aclk),
+        .rst_n           (axi_aresetn),
+        .enable          (w_read && !r_rd_empty),
+        .counter_bin_curr(r_rd_ptr_bin),
         .counter_bin_next(w_rd_ptr_bin_next)
     );
 
     /////////////////////////////////////////////////////////////////////////
     // Generate the Full/Empty signals
     fifo_control #(
-        .DEPTH              (D),
-        .ADDR_WIDTH         (AW),
-        .ALMOST_RD_MARGIN   (ALMOST_RD_MARGIN),
-        .ALMOST_WR_MARGIN   (ALMOST_WR_MARGIN),
-        .REGISTERED         (REGISTERED)
+        .DEPTH           (D),
+        .ADDR_WIDTH      (AW),
+        .ALMOST_RD_MARGIN(ALMOST_RD_MARGIN),
+        .ALMOST_WR_MARGIN(ALMOST_WR_MARGIN),
+        .REGISTERED      (REGISTERED)
     ) fifo_control_inst (
-        .wr_clk           (axi_aclk),
-        .wr_rst_n         (axi_aresetn),
-        .rd_clk           (axi_aclk),
-        .rd_rst_n         (axi_aresetn),
+        .wr_clk          (axi_aclk),
+        .wr_rst_n        (axi_aresetn),
+        .rd_clk          (axi_aclk),
+        .rd_rst_n        (axi_aresetn),
         .wr_ptr_bin      (w_wr_ptr_bin_next),
         .wdom_rd_ptr_bin (w_rd_ptr_bin_next),
         .rd_ptr_bin      (w_rd_ptr_bin_next),
         .rdom_wr_ptr_bin (w_wr_ptr_bin_next),
         .count           (count),
-        .wr_full          (r_wr_full),
-        .wr_almost_full   (r_wr_almost_full),
-        .rd_empty         (r_rd_empty),
-        .rd_almost_empty  (r_rd_almost_empty)
+        .wr_full         (r_wr_full),
+        .wr_almost_full  (r_wr_almost_full),
+        .rd_empty        (r_rd_empty),
+        .rd_almost_empty (r_rd_almost_empty)
     );
 
     assign wr_ready = !r_wr_full;

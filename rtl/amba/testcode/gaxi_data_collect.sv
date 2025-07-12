@@ -13,42 +13,42 @@ module gaxi_data_collect #(
     parameter int LOG2_CHUNKS = $clog2(CHUNKS)
 ) (
     // Global Clock and Reset
-    input  logic                    i_axi_aclk,
-    input  logic                    i_axi_aresetn,
+    input  logic                    axi_aclk,
+    input  logic                    axi_aresetn,
 
     // Arbiter weights (0-15 for each channel)
-    input  logic [3:0]              i_weight_a,
-    input  logic [3:0]              i_weight_b,
-    input  logic [3:0]              i_weight_c,
-    input  logic [3:0]              i_weight_d,
+    input  logic [3:0]              weight_a,
+    input  logic [3:0]              weight_b,
+    input  logic [3:0]              weight_c,
+    input  logic [3:0]              weight_d,
 
     // Input Channel A
-    input  logic                    i_a_valid,
+    input  logic                    a_valid,
     output logic                    a_ready,
-    input  logic [DW-1:0]           i_a_data,
-    input  logic [IDW-1:0]          i_a_id,
+    input  logic [DW-1:0]           a_data,
+    input  logic [IDW-1:0]          a_id,
 
     // Input Channel B
-    input  logic                    i_b_valid,
+    input  logic                    b_valid,
     output logic                    b_ready,
-    input  logic [DW-1:0]           i_b_data,
-    input  logic [IDW-1:0]          i_b_id,
+    input  logic [DW-1:0]           b_data,
+    input  logic [IDW-1:0]          b_id,
 
     // Input Channel C
-    input  logic                    i_c_valid,
+    input  logic                    c_valid,
     output logic                    c_ready,
-    input  logic [DW-1:0]           i_c_data,
-    input  logic [IDW-1:0]          i_c_id,
+    input  logic [DW-1:0]           c_data,
+    input  logic [IDW-1:0]          c_id,
 
     // Input Channel D
-    input  logic                    i_d_valid,
+    input  logic                    d_valid,
     output logic                    d_ready,
-    input  logic [DW-1:0]           i_d_data,
-    input  logic [IDW-1:0]          i_d_id,
+    input  logic [DW-1:0]           d_data,
+    input  logic [IDW-1:0]          d_id,
 
     // Output Channel E (FIFO)
     output logic                    e_valid,
-    input  logic                    i_e_ready,
+    input  logic                    e_ready,
     output logic [IDW+CHUNKS*DW-1:0] e_data
 );
 
@@ -87,7 +87,7 @@ module gaxi_data_collect #(
 
     // Weighted Round Robin Arbiter flattened weights (16 bits * 4 channels = 64 bits)
     logic [15:0]            w_arb_weights;
-    assign w_arb_weights = {i_weight_d, i_weight_c, i_weight_b, i_weight_a};
+    assign w_arb_weights = {weight_d, weight_c, weight_b, weight_a};
 
     // Data collection buffer using vectors
     logic [IDW-1:0]         r_id;
@@ -114,13 +114,13 @@ module gaxi_data_collect #(
         .DATA_WIDTH(DW + IDW),
         .DEPTH(SKID_DEPTH)
     ) a_skid_buffer (
-        .i_axi_aclk    (i_axi_aclk),
-        .i_axi_aresetn (i_axi_aresetn),
-        .i_wr_valid    (i_a_valid),
+        .axi_aclk    (axi_aclk),
+        .axi_aresetn (axi_aresetn),
+        .wr_valid    (a_valid),
         .wr_ready    (a_ready),
-        .i_wr_data     ({i_a_id, i_a_data}),
+        .wr_data     ({a_id, a_data}),
         .rd_valid    (w_a_skid_valid),
-        .i_rd_ready    (w_a_skid_ready),
+        .rd_ready    (w_a_skid_ready),
         .rd_data     ({w_a_skid_id, w_a_skid_data}),
         .count      (),
         .rd_count    ()
@@ -131,13 +131,13 @@ module gaxi_data_collect #(
         .DATA_WIDTH(DW + IDW),
         .DEPTH(SKID_DEPTH)
     ) b_skid_buffer (
-        .i_axi_aclk    (i_axi_aclk),
-        .i_axi_aresetn (i_axi_aresetn),
-        .i_wr_valid    (i_b_valid),
+        .axi_aclk    (axi_aclk),
+        .axi_aresetn (axi_aresetn),
+        .wr_valid    (b_valid),
         .wr_ready    (b_ready),
-        .i_wr_data     ({i_b_id, i_b_data}),
+        .wr_data     ({b_id, b_data}),
         .rd_valid    (w_b_skid_valid),
-        .i_rd_ready    (w_b_skid_ready),
+        .rd_ready    (w_b_skid_ready),
         .rd_data     ({w_b_skid_id, w_b_skid_data}),
         .count      (),
         .rd_count    ()
@@ -148,13 +148,13 @@ module gaxi_data_collect #(
         .DATA_WIDTH(DW + IDW),
         .DEPTH(SKID_DEPTH)
     ) c_skid_buffer (
-        .i_axi_aclk    (i_axi_aclk),
-        .i_axi_aresetn (i_axi_aresetn),
-        .i_wr_valid    (i_c_valid),
+        .axi_aclk    (axi_aclk),
+        .axi_aresetn (axi_aresetn),
+        .wr_valid    (c_valid),
         .wr_ready    (c_ready),
-        .i_wr_data     ({i_c_id, i_c_data}),
+        .wr_data     ({c_id, c_data}),
         .rd_valid    (w_c_skid_valid),
-        .i_rd_ready    (w_c_skid_ready),
+        .rd_ready    (w_c_skid_ready),
         .rd_data     ({w_c_skid_id, w_c_skid_data}),
         .count      (),
         .rd_count    ()
@@ -165,13 +165,13 @@ module gaxi_data_collect #(
         .DATA_WIDTH(DW + IDW),
         .DEPTH(SKID_DEPTH)
     ) d_skid_buffer (
-        .i_axi_aclk    (i_axi_aclk),
-        .i_axi_aresetn (i_axi_aresetn),
-        .i_wr_valid    (i_d_valid),
+        .axi_aclk    (axi_aclk),
+        .axi_aresetn (axi_aresetn),
+        .wr_valid    (d_valid),
         .wr_ready    (d_ready),
-        .i_wr_data     ({i_d_id, i_d_data}),
+        .wr_data     ({d_id, d_data}),
         .rd_valid    (w_d_skid_valid),
-        .i_rd_ready    (w_d_skid_ready),
+        .rd_ready    (w_d_skid_ready),
         .rd_data     ({w_d_skid_id, w_d_skid_data}),
         .count      (),
         .rd_count    ()
@@ -190,8 +190,8 @@ module gaxi_data_collect #(
     // Locked agent identification (persists during locked state)
     logic [1:0]             r_locked_agent_id;
 
-    always_ff @(posedge i_axi_aclk or negedge i_axi_aresetn) begin
-        if (!i_axi_aresetn) begin
+    always_ff @(posedge axi_aclk or negedge axi_aresetn) begin
+        if (!axi_aresetn) begin
             r_arb_locked <= 1'b0;
             r_locked_agent_id <= '0;
         end else begin
@@ -211,15 +211,15 @@ module gaxi_data_collect #(
         .CLIENTS(4),           // 4 input channels
         .WAIT_GNT_ACK(0)       // No grant acknowledge mechanism
     ) inst_arbiter (
-        .i_clk         (i_axi_aclk),
-        .i_rst_n       (i_axi_aresetn),
-        .i_block_arb   (r_arb_locked),
-        .i_max_thresh  (w_arb_weights),  // Weights for all channels
-        .i_req         (w_arb_req),      // Valid signals from all skid buffers
+        .clk         (axi_aclk),
+        .rst_n       (axi_aresetn),
+        .block_arb   (r_arb_locked),
+        .max_thresh  (w_arb_weights),  // Weights for all channels
+        .req         (w_arb_req),      // Valid signals from all skid buffers
         .gnt_valid  (w_arb_gnt_valid),
         .gnt        (w_arb_gnt),      // One-hot grant signal
         .gnt_id     (w_arb_gnt_id),   // Binary grant ID
-        .i_gnt_ack     (4'b0)          // Not using ack mechanism
+        .gnt_ack     (4'b0)          // Not using ack mechanism
     );
 
     // Buffer full detection - all slots filled
@@ -311,8 +311,8 @@ module gaxi_data_collect #(
     assign w_fifo_wr_data = {r_id, r_data};
 
     // Buffer control logic - collect data chunks and track their valid status
-    always_ff @(posedge i_axi_aclk or negedge i_axi_aresetn) begin
-        if (!i_axi_aresetn) begin
+    always_ff @(posedge axi_aclk or negedge axi_aresetn) begin
+        if (!axi_aresetn) begin
             r_valid <= '0;
             r_data <= '0;
             r_id <= '0;
@@ -344,14 +344,14 @@ module gaxi_data_collect #(
         .DATA_WIDTH(IDW + CHUNKS*DW),
         .DEPTH(OUTPUT_FIFO_DEPTH)
     ) output_fifo (
-        .i_axi_aclk     (i_axi_aclk),
-        .i_axi_aresetn  (i_axi_aresetn),
-        .i_wr_valid     (w_fifo_wr_valid),
+        .axi_aclk     (axi_aclk),
+        .axi_aresetn  (axi_aresetn),
+        .wr_valid     (w_fifo_wr_valid),
         .wr_ready     (w_fifo_wr_ready),
-        .i_wr_data      (w_fifo_wr_data),
+        .wr_data      (w_fifo_wr_data),
         .rd_valid     (e_valid),
         .rd_data      (e_data),
-        .i_rd_ready     (i_e_ready),
+        .rd_ready     (e_ready),
         .count       ()
     );
 
