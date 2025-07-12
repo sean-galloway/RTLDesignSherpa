@@ -43,45 +43,45 @@ module fifo_sync #(
         .clk                  (clk),
         .rst_n                (rst_n),
         .enable               (write && !wr_full),
-        .counter_bin          (r_wr_ptr_bin),
-        .counter_bin_next    (w_wr_ptr_bin_next)
+        .counter_bin_curr     (r_wr_ptr_bin),
+        .counter_bin_next     (w_wr_ptr_bin_next)
     );
 
     /////////////////////////////////////////////////////////////////////////
     // Read counter
     counter_bin #(
-        .WIDTH(AW + 1),
-        .MAX  (D)
-    ) read_pointer_inst (
-        .clk(clk),
-        .rst_n(rst_n),
-        .enable(read && !rd_empty),
-        .counter_bin(r_rd_ptr_bin),
-        .counter_bin_next(w_rd_ptr_bin_next)
+        .WIDTH                (AW + 1),
+        .MAX                  (D)
+    ) read_pointer_inst(
+        .clk                  (clk),
+        .rst_n                (rst_n),
+        .enable               (read && !rd_empty),
+        .counter_bin_curr     (r_rd_ptr_bin),
+        .counter_bin_next     (w_rd_ptr_bin_next)
     );
 
     /////////////////////////////////////////////////////////////////////////
     // Generate the Full/Empty signals
     fifo_control #(
-        .DEPTH              (D),
-        .ADDR_WIDTH         (AW),
-        .ALMOST_RD_MARGIN   (ALMOST_RD_MARGIN),
-        .ALMOST_WR_MARGIN   (ALMOST_WR_MARGIN),
-        .REGISTERED         (REGISTERED)
+        .DEPTH                (D),
+        .ADDR_WIDTH           (AW),
+        .ALMOST_RD_MARGIN     (ALMOST_RD_MARGIN),
+        .ALMOST_WR_MARGIN     (ALMOST_WR_MARGIN),
+        .REGISTERED           (REGISTERED)
     ) fifo_control_inst (
-        .wr_clk           (clk),
-        .wr_rst_n         (rst_n),
-        .rd_clk           (clk),
-        .rd_rst_n         (rst_n),
-        .wr_ptr_bin      (w_wr_ptr_bin_next),
-        .wdom_rd_ptr_bin (w_rd_ptr_bin_next),
-        .rd_ptr_bin      (w_rd_ptr_bin_next),
-        .rdom_wr_ptr_bin (w_wr_ptr_bin_next),
-        .count           (),
-        .wr_full          (wr_full),
-        .wr_almost_full   (wr_almost_full),
-        .rd_empty         (rd_empty),
-        .rd_almost_empty  (rd_almost_empty)
+        .wr_clk               (clk),
+        .wr_rst_n             (rst_n),
+        .rd_clk               (clk),
+        .rd_rst_n             (rst_n),
+        .wr_ptr_bin           (w_wr_ptr_bin_next),
+        .wdom_rd_ptr_bin      (w_rd_ptr_bin_next),
+        .rd_ptr_bin           (w_rd_ptr_bin_next),
+        .rdom_wr_ptr_bin      (w_wr_ptr_bin_next),
+        .count                (),
+        .wr_full              (wr_full),
+        .wr_almost_full       (wr_almost_full),
+        .rd_empty             (rd_empty),
+        .rd_almost_empty      (rd_almost_empty)
     );
 
     /////////////////////////////////////////////////////////////////////////

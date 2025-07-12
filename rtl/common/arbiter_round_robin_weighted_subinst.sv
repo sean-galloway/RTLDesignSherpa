@@ -4,10 +4,10 @@ module arbiter_round_robin_weighted_subinst #(
     parameter int WAIT_GNT_ACK = 0,
     parameter int C = CLIENTS
 ) (
-    input  logic clk,
-    input  logic rst_n,
+    input  logic         clk,
+    input  logic         rst_n,
     input  logic [C-1:0] req,
-    input  logic replenish,
+    input  logic         replenish,
     output logic [C-1:0] grant,
     input  logic [C-1:0] gnt_ack
 );

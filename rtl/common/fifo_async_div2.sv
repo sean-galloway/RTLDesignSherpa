@@ -48,91 +48,91 @@ module fifo_async_div2 #(
     /////////////////////////////////////////////////////////////////////////
     // Instantiate the binary counters for write and read pointers
     counter_bin #(
-        .MAX  (D),
-        .WIDTH(AW + 1)
-    ) wr_ptr_counter_bin (
-        .clk(wr_clk),
-        .rst_n(wr_rst_n),
-        .enable(write && !wr_full),
-        .counter_bin_next(w_wr_ptr_bin_next),
-        .counter_bin(r_wr_ptr_bin)
+        .MAX                 (D),
+        .WIDTH               (AW + 1)
+    ) wr_ptr_counter_bin(
+        .clk                 (wr_clk),
+        .rst_n               (wr_rst_n),
+        .enable              (write && !wr_full),
+        .counter_bin_next    (w_wr_ptr_bin_next),
+        .counter_bin_curr    (r_wr_ptr_bin)
     );
 
     counter_bin #(
-        .MAX  (D),
-        .WIDTH(AW + 1)
-    ) rd_ptr_counter_bin (
-        .clk(rd_clk),
-        .rst_n(rd_rst_n),
-        .enable(read && !rd_empty),
-        .counter_bin_next(w_rd_ptr_bin_next),
-        .counter_bin(r_rd_ptr_bin)
+        .MAX                 (D),
+        .WIDTH               (AW + 1)
+    ) rd_ptr_counter_bin(
+        .clk                 (rd_clk),
+        .rst_n               (rd_rst_n),
+        .enable              (read && !rd_empty),
+        .counter_bin_next    (w_rd_ptr_bin_next),
+        .counter_bin_curr    (r_rd_ptr_bin)
     );
 
     /////////////////////////////////////////////////////////////////////////
     // Instantiate the gray counters for write and read pointers
     counter_johnson #(
-        .WIDTH(JCW)
-    ) wr_ptr_counter_gray (
-        .clk(wr_clk),
-        .rst_n(wr_rst_n),
-        .enable(write && !wr_full),
-        .counter_gray(r_wr_ptr_gray)
+        .WIDTH               (JCW)
+    ) wr_ptr_counter_gray(
+        .clk                 (wr_clk),
+        .rst_n               (wr_rst_n),
+        .enable              (write && !wr_full),
+        .counter_gray        (r_wr_ptr_gray)
     );
 
     counter_johnson #(
-        .WIDTH(JCW)
-    ) rd_ptr_counter_gray (
-        .clk(rd_clk),
-        .rst_n(rd_rst_n),
-        .enable(read && !rd_empty),
-        .counter_gray(r_rd_ptr_gray)
+        .WIDTH               (JCW)
+    ) rd_ptr_counter_gray(
+        .clk                 (rd_clk),
+        .rst_n               (rd_rst_n),
+        .enable              (read && !rd_empty),
+        .counter_gray        (r_rd_ptr_gray)
     );
 
     /////////////////////////////////////////////////////////////////////////
     // Instantiate the clock crossing modules
     glitch_free_n_dff_arn #(
-        .FLOP_COUNT(N_FLOP_CROSS),
-        .WIDTH(JCW)
-    ) rd_ptr_gray_cross_inst (
-        .q(r_wdom_rd_ptr_gray),
-        .d(r_rd_ptr_gray),
-        .clk(wr_clk),
-        .rst_n(wr_rst_n)
+        .FLOP_COUNT          (N_FLOP_CROSS),
+        .WIDTH               (JCW)
+    ) rd_ptr_gray_cross_inst(
+        .q                   (r_wdom_rd_ptr_gray),
+        .d                   (r_rd_ptr_gray),
+        .clk                 (wr_clk),
+        .rst_n               (wr_rst_n)
     );
 
     // convert the gray rd ptr to binary
     grayj2bin #(
-        .JCW(JCW),
-        .WIDTH(AW + 1),
-        .INSTANCE_NAME("rd_ptr_johnson2bin_inst")
-    ) rd_ptr_gray2bin_inst (
-        .binary(w_wdom_rd_ptr_bin),
-        .gray(r_wdom_rd_ptr_gray),
-        .clk(wr_clk),
-        .rst_n(wr_rst_n)
+        .JCW                 (JCW),
+        .WIDTH               (AW + 1),
+        .INSTANCE_NAME       ("rd_ptr_johnson2bin_inst")
+    ) rd_ptr_gray2bin_inst(
+        .binary              (w_wdom_rd_ptr_bin),
+        .gray                (r_wdom_rd_ptr_gray),
+        .clk                 (wr_clk),
+        .rst_n               (wr_rst_n)
     );
 
     glitch_free_n_dff_arn #(
-        .FLOP_COUNT(N_FLOP_CROSS),
-        .WIDTH(JCW)
-    ) wr_ptr_gray_cross_inst (
-        .q(r_rdom_wr_ptr_gray),
-        .d(r_wr_ptr_gray),
-        .clk(rd_clk),
-        .rst_n(rd_rst_n)
+        .FLOP_COUNT          (N_FLOP_CROSS),
+        .WIDTH               (JCW)
+    ) wr_ptr_gray_cross_inst(
+        .q                   (r_rdom_wr_ptr_gray),
+        .d                   (r_wr_ptr_gray),
+        .clk                 (rd_clk),
+        .rst_n               (rd_rst_n)
     );
 
     // convert the gray wr ptr to binary
     grayj2bin #(
-        .JCW(JCW),
-        .WIDTH(AW + 1),
-        .INSTANCE_NAME("wr_ptr_gray2bin_inst")
-    ) wr_ptr_gray2bin_inst (
-        .binary(w_rdom_wr_ptr_bin),
-        .gray(r_rdom_wr_ptr_gray),
-        .clk(rd_clk),
-        .rst_n(rd_rst_n)
+        .JCW                 (JCW),
+        .WIDTH               (AW + 1),
+        .INSTANCE_NAME       ("wr_ptr_gray2bin_inst")
+    ) wr_ptr_gray2bin_inst(
+        .binary              (w_rdom_wr_ptr_bin),
+        .gray                (r_rdom_wr_ptr_gray),
+        .clk                 (rd_clk),
+        .rst_n               (rd_rst_n)
     );
 
     /////////////////////////////////////////////////////////////////////////

@@ -6,9 +6,9 @@ module arbiter_round_robin #(
     // Abbreviation
     parameter int N = $clog2(CLIENTS)
 ) (
-    input logic clk,
-    input logic rst_n,
-    input logic block_arb,
+    input  logic                clk,
+    input  logic                rst_n,
+    input  logic                block_arb,
 
     input  logic [CLIENTS-1:0]  req,
     output logic                gnt_valid,
@@ -44,10 +44,10 @@ module arbiter_round_robin #(
     leading_one_trailing_one #(
         .WIDTH(CLIENTS)
     ) u_req_leading_one_trailing_one (
-        .data               (w_req_win_mask),
-        .leadingone        (),
+        .data              (w_req_win_mask),
+        .leadingone        (w_req_location),
         .leadingone_vector (),
-        .trailingone       (w_req_location),
+        .trailingone       (),
         .trailingone_vector(),
         .all_zeroes        (),
         .all_ones          (),
@@ -57,10 +57,10 @@ module arbiter_round_robin #(
     leading_one_trailing_one #(
         .WIDTH(CLIENTS)
     ) u_reqm_leading_one_trailing_one (
-        .data               (w_req_masked),
-        .leadingone        (),
+        .data              (w_req_masked),
+        .leadingone        (w_reqm_location),
         .leadingone_vector (),
-        .trailingone       (w_reqm_location),
+        .trailingone       (),
         .trailingone_vector(),
         .all_zeroes        (),
         .all_ones          (),

@@ -1,0 +1,41 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Sat Jul 12 11:38:27 2025
+[*]
+[dumpfile] "/home/seang/github/RTLDesignSherpa/val/common/local_sim_build/test_leading_one_trailing_one_w08_full/dump.fst"
+[dumpfile_mtime] "Sat Jul 12 11:36:14 2025"
+[dumpfile_size] 2595
+[savefile] "/home/seang/github/RTLDesignSherpa/val/common/GTKW/leading_one_trailing_one_w08.gtkw"
+[timestart] 0
+[size] 2857 1350
+[pos] -1 -1
+*-14.670639 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[sst_width] 278
+[signals_width] 214
+[sst_expanded] 1
+[sst_vpaned_height] 418
+@420
+leading_one_trailing_one.N
+leading_one_trailing_one.WIDTH
+@200
+-inputs
+@22
+leading_one_trailing_one.data[7:0]
+@200
+-outputs
+@28
+leading_one_trailing_one.valid
+leading_one_trailing_one.leadingone[2:0]
+@22
+leading_one_trailing_one.leadingone_vector[7:0]
+@28
+leading_one_trailing_one.trailingone[2:0]
+@22
+leading_one_trailing_one.trailingone_vector[7:0]
+@28
+leading_one_trailing_one.all_zeroes
+@29
+leading_one_trailing_one.all_ones
+[pattern_trace] 1
+[pattern_trace] 0

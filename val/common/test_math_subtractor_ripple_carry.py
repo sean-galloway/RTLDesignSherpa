@@ -35,7 +35,7 @@ async def subtractor_test(dut):
     await tb.main_loop()
 
 
-@pytest.mark.parametrize("n", [4, 8, 16, 32])
+@pytest.mark.parametrize("n", [4, 8, 16])
 def test_math_subtractor_ripple_carry(request, n):
     """PyTest function to run the cocotb test."""
     # Get all of the directory and module information

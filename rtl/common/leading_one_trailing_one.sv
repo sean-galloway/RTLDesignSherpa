@@ -14,22 +14,20 @@ module leading_one_trailing_one #(
 );
     localparam int N = $clog2(WIDTH);  // Changed to match arbiter's definition
 
-    // Modified find_first_set instantiation
-    find_first_set #(
-        .WIDTH(WIDTH),
-        .INSTANCE_NAME(INSTANCE_NAME)
-    ) u_find_first_set (
-        .data(data),
-        .index(leadingone)
+    find_last_set #(
+        .WIDTH         (WIDTH),
+        .INSTANCE_NAME (INSTANCE_NAME)
+    ) u_find_last_set(
+        .data          (data),
+        .index         (leadingone)
     );
 
-    // Modified find_last_set instantiation
-    find_last_set #(
-        .WIDTH(WIDTH),
-        .INSTANCE_NAME(INSTANCE_NAME)
-    ) u_find_last_set (
-        .data(data),
-        .index(trailingone)
+    find_first_set #(
+        .WIDTH         (WIDTH),
+        .INSTANCE_NAME (INSTANCE_NAME)
+    ) u_find_first_set(
+        .data          (data),
+        .index         (trailingone)
     );
 
     always_comb begin

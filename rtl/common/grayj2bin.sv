@@ -12,12 +12,11 @@ module grayj2bin #(
 );
 
     localparam int N = $clog2(JCW);
+    localparam int PAD_WIDTH = (WIDTH > N+1) ? WIDTH-N-1 : 0;
 
     logic [N-1:0]     w_leading_one;
     logic [N-1:0]     w_trailing_one;
     logic [WIDTH-1:0] w_binary;
-    logic [WIDTH-1:0] w_padded_leading;
-    logic [WIDTH-1:0] w_padded_trailing;
     logic             w_all_zeroes;
     logic             w_all_ones;
     logic             w_valid;
@@ -27,7 +26,7 @@ module grayj2bin #(
         .WIDTH(JCW),
         .INSTANCE_NAME(INSTANCE_NAME)
     ) u_leading_one_trailing_one (
-        .data               (gray),
+        .data              (gray),
         .leadingone        (w_leading_one),
         .leadingone_vector (),
         .trailingone       (w_trailing_one),
@@ -37,27 +36,20 @@ module grayj2bin #(
         .valid             (w_valid)
     );
 
-    // Safe padded binary construction
-    logic [WIDTH-N-1:0] zero_padding_lead, zero_padding_trail;
-    logic [N-1:0]       trail_plus_1;
-
+    // Restore original working logic
     always_comb begin
-        zero_padding_lead  = '0;
-        zero_padding_trail = '0;
-        trail_plus_1       = w_trailing_one + 1;
-
-        w_padded_leading  = {zero_padding_lead,  w_leading_one};
-        w_padded_trailing = {zero_padding_trail, trail_plus_1};
-
-        if (w_all_zeroes || w_all_ones)
+        if (w_all_zeroes || w_all_ones) begin
             w_binary = {WIDTH{1'b0}};
-        else if (gray[JCW-1])
-            w_binary = w_padded_leading;
-        else
-            w_binary = w_padded_trailing;
+        end else if (gray[JCW-1]) begin
+            // Second half: use leading one position directly
+            w_binary = {{(WIDTH-N){1'b0}}, w_trailing_one};
+        end else begin
+            // First half: use trailing one + 1
+            w_binary = {{(WIDTH-N){1'b0}}, (w_leading_one + 1'b1)};
+        end
     end
 
-    assign binary[WIDTH-1]   = gray[JCW-1];               // MSB = wrap
+    assign binary[WIDTH-1]   = gray[JCW-1];                 // MSB = wrap
     assign binary[WIDTH-2:0] = w_binary[WIDTH-2:0];         // Lower binary
 
 endmodule : grayj2bin

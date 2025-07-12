@@ -106,15 +106,15 @@ module arbiter_round_robin_weighted #(
 
     // the masked version of requests will be fed into normal round robin arbiter
     arbiter_round_robin_weighted_subinst #(
-        .CLIENTS(CLIENTS),
+        .CLIENTS     (CLIENTS),
         .WAIT_GNT_ACK(WAIT_GNT_ACK)
-    ) u_rrb_arb (
+    ) u_rrb_arb(
         .clk,
         .rst_n,
-        .req(w_mask_req),
-        .replenish(w_replenish),
-        .grant(gnt),
-        .gnt_ack(gnt_ack)
+        .req         (w_mask_req),
+        .replenish   (w_replenish),
+        .grant       (gnt),
+        .gnt_ack     (gnt_ack)
     );
 
     // Compute the grant ID from the one-hot gnt signal

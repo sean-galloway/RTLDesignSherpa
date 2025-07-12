@@ -1,0 +1,59 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Sat Jul 12 09:13:31 2025
+[*]
+[dumpfile] "/home/seang/github/RTLDesignSherpa/val/common/local_sim_build/test_pwm_w08_c2_full/dump.fst"
+[dumpfile_mtime] "Sat Jul 12 09:13:29 2025"
+[dumpfile_size] 2033
+[savefile] "/home/seang/github/RTLDesignSherpa/val/common/GTKW/pwm_w08_c2.gtkw"
+[timestart] 0
+[size] 3104 1147
+[pos] 25 81
+*-17.986712 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .pwm.
+[sst_width] 278
+[signals_width] 182
+[sst_expanded] 1
+[sst_vpaned_height] 347
+@420
+pwm.CHANNELS
+pwm.WIDTH
+@28
+pwm.clk
+pwm.rst_n
+@200
+-inputs
+@28
+pwm.start[1:0]
+@22
+pwm.duty[15:0]
+pwm.period[15:0]
+pwm.repeat_count[15:0]
+@200
+-outputs
+@800029
+pwm.done[1:0]
+@29
+(0)pwm.done[1:0]
+(1)pwm.done[1:0]
+@1001201
+-group_end
+@28
+pwm.pwm_out[1:0]
+@200
+-channel0
+@100000028
+pwm.gen_channel[0].r_state[1:0]
+@22
+pwm.gen_channel[0].r_count[7:0]
+pwm.gen_channel[0].r_repeat_value[7:0]
+@200
+-channel1
+@100000028
+pwm.gen_channel[1].r_state[1:0]
+@22
+pwm.gen_channel[1].r_count[7:0]
+pwm.gen_channel[1].r_repeat_value[7:0]
+[pattern_trace] 1
+[pattern_trace] 0

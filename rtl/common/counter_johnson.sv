@@ -3,10 +3,10 @@
 module counter_johnson #(
     parameter int WIDTH = 4
 ) (
-    input wire clk,
-    input wire rst_n,
-    input wire enable,
-    output reg [WIDTH - 1:0] counter_gray
+    input  logic                clk,
+    input  logic                rst_n,
+    input  logic                enable,
+    output logic [WIDTH - 1:0]  counter_gray
 );
 
     always_ff @(posedge clk or negedge rst_n) begin
