@@ -326,7 +326,7 @@ class HammingECCTB(TBBase):
         return all_passed
 
     async def _test_decode(self, hamming_data, expected_data=None,
-                          expected_error=False, expected_double_error=False):
+                            expected_error=False, expected_double_error=False):
         """Test decoding for decoder module"""
         hamming_data &= ((1 << self.TOTAL_WIDTH) - 1)
 
@@ -340,17 +340,17 @@ class HammingECCTB(TBBase):
 
         # Enhanced debugging for failures
         success = self._check_decode_results(hamming_data, expected_data, expected_error, expected_double_error,
-                                           actual_data, actual_error, actual_double_error)
+                                            actual_data, actual_error, actual_double_error)
 
         # If this is a failure, dump detailed debug information
         if not success:
             await self._dump_debug_info(hamming_data, expected_data, expected_error, expected_double_error,
-                                      actual_data, actual_error, actual_double_error)
+                                        actual_data, actual_error, actual_double_error)
 
         return success
 
     async def _dump_debug_info(self, hamming_data, expected_data, expected_error, expected_double_error,
-                             actual_data, actual_error, actual_double_error):
+                                actual_data, actual_error, actual_double_error):
         """Dump comprehensive debug information for failed test cases"""
 
         self.log.error("="*80)
@@ -425,7 +425,7 @@ class HammingECCTB(TBBase):
             hamming_bit = (hamming_data >> bit_pos) & 1
 
             self.log.error(f"  Data bit {data_bit}: pos={bit_pos}, hamming_bit={hamming_bit}, " +
-                          f"expected={expected_bit}, actual={actual_bit}")
+                            f"expected={expected_bit}, actual={actual_bit}")
 
         self.log.error("="*80)
 
@@ -449,9 +449,11 @@ class HammingECCTB(TBBase):
     def _calculate_parity_for_bit(self, hamming_data, parity_bit):
         """Calculate parity for a specific parity bit"""
         covered_bits = self._get_covered_bits(parity_bit)
+        parity_pos = (2 ** parity_bit) - 1  # Position of this parity bit
         parity = 0
         for bit_pos in range(self.TOTAL_WIDTH):
-            if (covered_bits >> bit_pos) & 1:
+            # FIXED: Exclude the parity bit itself from the calculation (match RTL behavior)
+            if (covered_bits >> bit_pos) & 1 and bit_pos != parity_pos:
                 parity ^= (hamming_data >> bit_pos) & 1
         return parity
 
@@ -484,7 +486,7 @@ class HammingECCTB(TBBase):
 
         if success:
             self.log.debug(f"PASS: hamming=0x{hamming_data:x} → data=0x{actual_data:x}, " +
-                         f"err={actual_error}, derr={actual_double_error}")
+                            f"err={actual_error}, derr={actual_double_error}")
         else:
             self.log.error(f"FAIL: hamming=0x{hamming_data:x}")
             if not data_match and expected_data is not None:
@@ -570,7 +572,7 @@ class HammingECCTB(TBBase):
 
 
 @cocotb.test(timeout_time=10000, timeout_unit="us")
-async def hamming_ecc_test(dut):
+async def dataint_ecc_test(dut):
     """Unified test for Hamming ECC modules"""
     tb = HammingECCTB(dut)
 
@@ -606,9 +608,7 @@ def generate_params():
     """
     widths = [4, 8, 16]  # Different data widths
     modules = ['encoder', 'decoder']  # Module types
-    modules = ['decoder']  # Module types
-    test_levels = ['basic', 'medium', 'full']  # Test levels
-    test_levels = ['full']
+    test_levels = ['full']  # Test levels
 
     # For debugging, uncomment one of these:
     # return [(4, 'decoder', 'medium')]  # Single test
@@ -623,7 +623,7 @@ params = generate_params()
 
 
 @pytest.mark.parametrize("data_width, module_type, test_level", params)
-def test_hamming_ecc(request, data_width, module_type, test_level):
+def test_dataint_ecc(request, data_width, module_type, test_level):
     """
     Parameterized Hamming ECC test with configurable module type and test level.
 

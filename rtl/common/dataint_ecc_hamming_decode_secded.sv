@@ -49,7 +49,7 @@ module dataint_ecc_hamming_decode_secded #(
         integer j;
         begin
             get_covered_bits = 0;
-            // REVERTED: Back to original loop bound - SECDED bit should not be in parity calculations
+            // FIXED: Exclude SECDED bit from Hamming parity calculations
             for (j = 0; j < TotalWidth - 1; j++) begin
                 // Check if the k-th bit position is covered by the parity_bit
                 if (|(((j + 1) >> parity_bit) & 1)) get_covered_bits[j] = 1'b1;
@@ -73,7 +73,7 @@ module dataint_ecc_hamming_decode_secded #(
                 w_syndrome[i]    = 1'b0;
                 w_covered_bits   = get_covered_bits(i);
                 for (bit_index = 0; bit_index < TotalWidth; bit_index++)
-                    // FIXED: Exclude the parity bit itself from the syndrome calculation
+                    // Exclude the parity bit itself from the syndrome calculation
                     if (w_covered_bits[bit_index] && (bit_index != parity_pos))
                         w_syndrome[i] = w_syndrome[i] ^ hamming_data[bit_index];
                 // Then XOR with the stored parity bit to get the syndrome
@@ -122,19 +122,29 @@ module dataint_ecc_hamming_decode_secded #(
                     w_overall_parity_in,
                     w_syndrome
                 );
-            if ((w_overall_parity != w_overall_parity_in) &&
-                (w_syndrome != {ParityBits{1'b0}})) begin
-                // Single-bit error detected and corrected
-                r_data_with_parity[w_syndrome_0_based] <= ~hamming_data[w_syndrome_0_based];
+
+            // FIXED: Proper SECDED error detection logic
+            if (w_overall_parity != w_overall_parity_in) begin
+                // There is definitely an error (parity mismatch)
                 error_detected <= 1'b1;
-                if (DEBUG != 0)
-                    $display(
-                        "Single-bit error detected and corrected at position: %d",
-                        w_syndrome_0_based
-                    );
-            end else if ((w_overall_parity == w_overall_parity_in) &&
-                    (w_syndrome != {ParityBits{1'b0}})) begin
-                // Double-bit error detected
+
+                if (w_syndrome != {ParityBits{1'b0}}) begin
+                    // Non-zero syndrome: single-bit error in Hamming data
+                    // Correct the error using the syndrome
+                    r_data_with_parity[w_syndrome_0_based] <= ~hamming_data[w_syndrome_0_based];
+                    if (DEBUG != 0)
+                        $display(
+                            "Single-bit error detected and corrected at position: %d",
+                            w_syndrome_0_based
+                        );
+                end else begin
+                    // Zero syndrome with parity mismatch: single-bit error in SECDED bit
+                    // No correction needed for SECDED bit errors (they don't affect data)
+                    if (DEBUG != 0)
+                        $display("Single-bit error detected in SECDED bit (position %d)", TotalWidth-1);
+                end
+            end else if (w_syndrome != {ParityBits{1'b0}}) begin
+                // Parity matches but syndrome is non-zero: double-bit error
                 error_detected <= 1'b1;
                 double_error_detected <= 1'b1;
                 if (DEBUG != 0) $display("Double-bit error detected.");
