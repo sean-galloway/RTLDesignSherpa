@@ -11,20 +11,20 @@ module fifo_async #(
     parameter     INSTANCE_NAME = "DEADF1F0"  // verilog_lint: waive explicit-parameter-storage-type
 ) (
     // clocks and resets
-    input  logic                    i_wr_clk,
-                                    i_wr_rst_n,
-                                    i_rd_clk,
-                                    i_rd_rst_n,
-    // i_wr_clk domain
-    input  logic                    i_write,
-    input  logic [DATA_WIDTH-1:0]   i_wr_data,
-    output logic                    o_wr_full,
-    output logic                    o_wr_almost_full,
-    // i_rd_clk domain
-    input  logic                    i_read,
-    output logic [DATA_WIDTH-1:0]   o_rd_data,
-    output logic                    o_rd_empty,
-    output logic                    o_rd_almost_empty
+    input  logic                    wr_clk,
+                                    wr_rst_n,
+                                    rd_clk,
+                                    rd_rst_n,
+    // wr_clk domain
+    input  logic                    write,
+    input  logic [DATA_WIDTH-1:0]   wr_data,
+    output logic                    wr_full,
+    output logic                    wr_almost_full,
+    // rd_clk domain
+    input  logic                    read,
+    output logic [DATA_WIDTH-1:0]   rd_data,
+    output logic                    rd_empty,
+    output logic                    rd_almost_empty
 );
 
     localparam int DW = DATA_WIDTH;
@@ -48,23 +48,23 @@ module fifo_async #(
     counter_bingray #(
         .WIDTH(AW + 1)
     ) wr_ptr_counter_gray (
-        .i_clk(i_wr_clk),
-        .i_rst_n(i_wr_rst_n),
-        .i_enable(i_write && !o_wr_full),
-        .o_counter_bin(r_wr_ptr_bin),
-        .ow_counter_bin_next(w_wr_ptr_bin_next),
-        .o_counter_gray(r_wr_ptr_gray)
+        .clk(wr_clk),
+        .rst_n(wr_rst_n),
+        .enable(write && !wr_full),
+        .counter_bin(r_wr_ptr_bin),
+        .counter_bin_next(w_wr_ptr_bin_next),
+        .counter_gray(r_wr_ptr_gray)
     );
 
     counter_bingray #(
         .WIDTH(AW + 1)
     ) rd_ptr_counter_gray (
-        .i_clk(i_rd_clk),
-        .i_rst_n(i_rd_rst_n),
-        .i_enable(i_read && !o_rd_empty),
-        .o_counter_bin(r_rd_ptr_bin),
-        .ow_counter_bin_next(w_rd_ptr_bin_next),
-        .o_counter_gray(r_rd_ptr_gray)
+        .clk(rd_clk),
+        .rst_n(rd_rst_n),
+        .enable(read && !rd_empty),
+        .counter_bin(r_rd_ptr_bin),
+        .counter_bin_next(w_rd_ptr_bin_next),
+        .counter_gray(r_rd_ptr_gray)
     );
 
     /////////////////////////////////////////////////////////////////////////
@@ -73,36 +73,36 @@ module fifo_async #(
         .FLOP_COUNT(N_FLOP_CROSS),
         .WIDTH(AW + 1)
     ) rd_ptr_gray_cross_inst (
-        .o_q(r_wdom_rd_ptr_gray),
-        .i_d(r_rd_ptr_gray),
-        .i_clk(i_wr_clk),
-        .i_rst_n(i_wr_rst_n)
+        .q(r_wdom_rd_ptr_gray),
+        .d(r_rd_ptr_gray),
+        .clk(wr_clk),
+        .rst_n(wr_rst_n)
     );
 
     // convert the gray rd ptr to binary
     gray2bin #(
         .WIDTH(AW + 1)
     ) rd_ptr_gray2bin_inst (
-        .ow_binary(w_wdom_rd_ptr_bin),
-        .i_gray(r_wdom_rd_ptr_gray)
+        .binary(w_wdom_rd_ptr_bin),
+        .gray(r_wdom_rd_ptr_gray)
     );
 
     glitch_free_n_dff_arn #(
         .FLOP_COUNT(N_FLOP_CROSS),
         .WIDTH(AW + 1)
     ) wr_ptr_gray_cross_inst (
-        .o_q(r_rdom_wr_ptr_gray),
-        .i_d(r_wr_ptr_gray),
-        .i_clk(i_rd_clk),
-        .i_rst_n(i_rd_rst_n)
+        .q(r_rdom_wr_ptr_gray),
+        .d(r_wr_ptr_gray),
+        .clk(rd_clk),
+        .rst_n(rd_rst_n)
     );
 
     // convert the gray wr ptr to binary
     gray2bin #(
         .WIDTH(AW + 1)
     ) wr_ptr_gray2bin_inst (
-        .ow_binary(w_rdom_wr_ptr_bin),
-        .i_gray(r_rdom_wr_ptr_gray)
+        .binary(w_rdom_wr_ptr_bin),
+        .gray(r_rdom_wr_ptr_gray)
     );
 
     /////////////////////////////////////////////////////////////////////////
@@ -112,9 +112,9 @@ module fifo_async #(
 
     /////////////////////////////////////////////////////////////////////////
     // Memory Flops
-    always_ff @(posedge i_wr_clk) begin
-        if (i_write) begin
-            r_mem[r_wr_addr] <= i_wr_data;
+    always_ff @(posedge wr_clk) begin
+        if (write) begin
+            r_mem[r_wr_addr] <= wr_data;
         end
     end
 
@@ -125,15 +125,15 @@ module fifo_async #(
     generate
         if (REGISTERED != 0) begin : gen_flop_mode
             // Flop mode - registered output
-            always_ff @(posedge i_rd_clk or negedge i_rd_rst_n) begin
-                if (!i_rd_rst_n)
-                    o_rd_data <= 'b0;
+            always_ff @(posedge rd_clk or negedge rd_rst_n) begin
+                if (!rd_rst_n)
+                    rd_data <= 'b0;
                 else
-                    o_rd_data <= w_rd_data;
+                    rd_data <= w_rd_data;
             end
         end else begin : gen_mux_mode
             // Mux mode - non-registered output
-            assign o_rd_data = w_rd_data;
+            assign rd_data = w_rd_data;
         end
     endgenerate
 
@@ -147,19 +147,19 @@ module fifo_async #(
         .ALMOST_WR_MARGIN   (ALMOST_WR_MARGIN),
         .REGISTERED         (REGISTERED)
     ) fifo_control_inst (
-        .i_wr_clk           (i_wr_clk),
-        .i_wr_rst_n         (i_wr_rst_n),
-        .i_rd_clk           (i_rd_clk),
-        .i_rd_rst_n         (i_rd_rst_n),
-        .iw_wr_ptr_bin      (w_wr_ptr_bin_next),
-        .iw_wdom_rd_ptr_bin (w_wdom_rd_ptr_bin),
-        .iw_rd_ptr_bin      (w_rd_ptr_bin_next),
-        .iw_rdom_wr_ptr_bin (w_rdom_wr_ptr_bin),
-        .ow_count           (),
-        .o_wr_full          (o_wr_full),
-        .o_wr_almost_full   (o_wr_almost_full),
-        .o_rd_empty         (o_rd_empty),
-        .o_rd_almost_empty  (o_rd_almost_empty)
+        .wr_clk           (wr_clk),
+        .wr_rst_n         (wr_rst_n),
+        .rd_clk           (rd_clk),
+        .rd_rst_n         (rd_rst_n),
+        .wr_ptr_bin      (w_wr_ptr_bin_next),
+        .wdom_rd_ptr_bin (w_wdom_rd_ptr_bin),
+        .rd_ptr_bin      (w_rd_ptr_bin_next),
+        .rdom_wr_ptr_bin (w_rdom_wr_ptr_bin),
+        .count           (),
+        .wr_full          (wr_full),
+        .wr_almost_full   (wr_almost_full),
+        .rd_empty         (rd_empty),
+        .rd_almost_empty  (rd_almost_empty)
     );
 
     /////////////////////////////////////////////////////////////////////////
@@ -173,15 +173,15 @@ module fifo_async #(
         end
     endgenerate
 
-    always_ff @(posedge i_wr_clk) begin
-        if (!i_wr_rst_n && (i_write && o_wr_full) == 1'b1) begin
+    always_ff @(posedge wr_clk) begin
+        if (!wr_rst_n && (write && wr_full) == 1'b1) begin
             $timeformat(-9, 3, " ns", 10);
             $display("Error: %s write while fifo full, %t", INSTANCE_NAME, $time);
         end
     end
 
-    always_ff @(posedge i_rd_clk) begin
-        if (!i_wr_rst_n && (i_read && o_rd_empty) == 1'b1) begin
+    always_ff @(posedge rd_clk) begin
+        if (!wr_rst_n && (read && rd_empty) == 1'b1) begin
             $timeformat(-9, 3, " ns", 10);
             $display("Error: %s read while fifo empty, %t", INSTANCE_NAME, $time);
         end

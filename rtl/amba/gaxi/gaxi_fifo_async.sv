@@ -16,16 +16,16 @@ module gaxi_fifo_async #(
     parameter int N = N_FLOP_CROSS
 ) (
     // clocks and resets
-    input  logic            i_axi_wr_aclk,
-                            i_axi_wr_aresetn,
-                            i_axi_rd_aclk,
-                            i_axi_rd_aresetn,
-    input  logic            i_wr_valid,
-    output logic            o_wr_ready,   // not full
-    input  logic [DW-1:0]   i_wr_data,
-    input  logic            i_rd_ready,
-    output logic            o_rd_valid,   // not empty
-    output logic [DW-1:0]   o_rd_data
+    input  logic            axi_wr_aclk,
+                            axi_wr_aresetn,
+                            axi_rd_aclk,
+                            axi_rd_aresetn,
+    input  logic            wr_valid,
+    output logic            wr_ready,   // not full
+    input  logic [DW-1:0]   wr_data,
+    input  logic            rd_ready,
+    output logic            rd_valid,   // not empty
+    output logic [DW-1:0]   rd_data
     );
 
     /////////////////////////////////////////////////////////////////////////
@@ -45,28 +45,28 @@ module gaxi_fifo_async #(
 
     /////////////////////////////////////////////////////////////////////////
     // Instantiate the binary counters for write and read pointers
-    assign w_write = i_wr_valid && o_wr_ready;
+    assign w_write = wr_valid && wr_ready;
     counter_bin #(
         .MAX                (D),
         .WIDTH              (AW + 1)
     ) wr_ptr_counter_bin(
-        .i_clk              (i_axi_wr_aclk),
-        .i_rst_n            (i_axi_wr_aresetn),
-        .i_enable           (w_write && !r_wr_full),
-        .ow_counter_bin_next(w_wr_ptr_bin_next),
-        .o_counter_bin      (r_wr_ptr_bin)
+        .clk              (axi_wr_aclk),
+        .rst_n            (axi_wr_aresetn),
+        .enable           (w_write && !r_wr_full),
+        .counter_bin_next(w_wr_ptr_bin_next),
+        .counter_bin      (r_wr_ptr_bin)
     );
 
-    assign w_read = o_rd_valid && i_rd_ready;
+    assign w_read = rd_valid && rd_ready;
     counter_bin #(
         .MAX                (D),
         .WIDTH              (AW + 1)
     ) rd_ptr_counter_bin(
-        .i_clk              (i_axi_rd_aclk),
-        .i_rst_n            (i_axi_rd_aresetn),
-        .i_enable           (w_read && !r_rd_empty),
-        .ow_counter_bin_next(w_rd_ptr_bin_next),
-        .o_counter_bin      (r_rd_ptr_bin)
+        .clk              (axi_rd_aclk),
+        .rst_n            (axi_rd_aresetn),
+        .enable           (w_read && !r_rd_empty),
+        .counter_bin_next(w_rd_ptr_bin_next),
+        .counter_bin      (r_rd_ptr_bin)
     );
 
     /////////////////////////////////////////////////////////////////////////
@@ -74,19 +74,19 @@ module gaxi_fifo_async #(
     counter_johnson #(
         .WIDTH            (JCW)
     ) wr_ptr_counter_gray(
-        .i_clk            (i_axi_wr_aclk),
-        .i_rst_n          (i_axi_wr_aresetn),
-        .i_enable         (w_write && !r_wr_full),
-        .o_counter_gray   (r_wr_ptr_gray)
+        .clk            (axi_wr_aclk),
+        .rst_n          (axi_wr_aresetn),
+        .enable         (w_write && !r_wr_full),
+        .counter_gray   (r_wr_ptr_gray)
     );
 
     counter_johnson #(
         .WIDTH            (JCW)
     ) rd_ptr_counter_gray(
-        .i_clk            (i_axi_rd_aclk),
-        .i_rst_n          (i_axi_rd_aresetn),
-        .i_enable         (w_read && !r_rd_empty),
-        .o_counter_gray   (r_rd_ptr_gray)
+        .clk            (axi_rd_aclk),
+        .rst_n          (axi_rd_aresetn),
+        .enable         (w_read && !r_rd_empty),
+        .counter_gray   (r_rd_ptr_gray)
     );
 
     /////////////////////////////////////////////////////////////////////////
@@ -95,10 +95,10 @@ module gaxi_fifo_async #(
         .FLOP_COUNT          (N_FLOP_CROSS),
         .WIDTH               (JCW)
     ) rd_ptr_gray_cross_inst(
-        .o_q                 (r_wdom_rd_ptr_gray),
-        .i_d                 (r_rd_ptr_gray),
-        .i_clk               (i_axi_wr_aclk),
-        .i_rst_n             (i_axi_wr_aresetn)
+        .q                 (r_wdom_rd_ptr_gray),
+        .d                 (r_rd_ptr_gray),
+        .clk               (axi_wr_aclk),
+        .rst_n             (axi_wr_aresetn)
     );
 
     // convert the gray rd ptr to binary
@@ -107,20 +107,20 @@ module gaxi_fifo_async #(
         .WIDTH             (AW + 1),
         .INSTANCE_NAME     ("rd_ptr_johnson2bin_inst")
     ) rd_ptr_gray2bin_inst(
-        .ow_binary         (w_wdom_rd_ptr_bin),
-        .i_gray            (r_wdom_rd_ptr_gray),
-        .i_clk             (i_axi_wr_aclk),
-        .i_rst_n           (i_axi_wr_aresetn)
+        .binary         (w_wdom_rd_ptr_bin),
+        .gray            (r_wdom_rd_ptr_gray),
+        .clk             (axi_wr_aclk),
+        .rst_n           (axi_wr_aresetn)
     );
 
     glitch_free_n_dff_arn #(
         .FLOP_COUNT          (N_FLOP_CROSS),
         .WIDTH               (JCW)
     ) wr_ptr_gray_cross_inst(
-        .o_q                 (r_rdom_wr_ptr_gray),
-        .i_d                 (r_wr_ptr_gray),
-        .i_clk               (i_axi_rd_aclk),
-        .i_rst_n             (i_axi_rd_aresetn)
+        .q                 (r_rdom_wr_ptr_gray),
+        .d                 (r_wr_ptr_gray),
+        .clk               (axi_rd_aclk),
+        .rst_n             (axi_rd_aresetn)
     );
 
     // convert the gray wr ptr to binary
@@ -129,10 +129,10 @@ module gaxi_fifo_async #(
         .WIDTH             (AW + 1),
         .INSTANCE_NAME     ("wr_ptr_gray2bin_inst")
     ) wr_ptr_gray2bin_inst(
-        .ow_binary         (w_rdom_wr_ptr_bin),
-        .i_gray            (r_rdom_wr_ptr_gray),
-        .i_clk             (i_axi_rd_aclk),
-        .i_rst_n           (i_axi_rd_aresetn)
+        .binary         (w_rdom_wr_ptr_bin),
+        .gray            (r_rdom_wr_ptr_gray),
+        .clk             (axi_rd_aclk),
+        .rst_n           (axi_rd_aresetn)
     );
 
     /////////////////////////////////////////////////////////////////////////
@@ -142,8 +142,8 @@ module gaxi_fifo_async #(
 
     /////////////////////////////////////////////////////////////////////////
     // Memory Flops
-    always_ff @(posedge i_axi_wr_aclk) begin
-        if (w_write && !r_wr_full) r_mem[r_wr_addr] <= i_wr_data;
+    always_ff @(posedge axi_wr_aclk) begin
+        if (w_write && !r_wr_full) r_mem[r_wr_addr] <= wr_data;
     end
 
     assign w_rd_data = r_mem[r_rd_addr];
@@ -153,15 +153,15 @@ module gaxi_fifo_async #(
     generate
         if (REGISTERED != 0) begin : gen_flop_mode
             // Flop mode - registered output
-            always_ff @(posedge i_axi_rd_aclk or negedge i_axi_rd_aresetn) begin
-                if (!i_axi_rd_aresetn)
-                    o_rd_data <= 'b0;
+            always_ff @(posedge axi_rd_aclk or negedge axi_rd_aresetn) begin
+                if (!axi_rd_aresetn)
+                    rd_data <= 'b0;
                 else
-                    o_rd_data <= w_rd_data;
+                    rd_data <= w_rd_data;
             end
         end else begin : gen_mux_mode
             // Mux mode - non-registered output
-            assign o_rd_data = w_rd_data;
+            assign rd_data = w_rd_data;
         end
     endgenerate
 
@@ -174,23 +174,23 @@ module gaxi_fifo_async #(
         .ALMOST_WR_MARGIN   (ALMOST_WR_MARGIN),
         .REGISTERED         (REGISTERED)
     ) fifo_control_inst (
-        .i_wr_clk           (i_axi_wr_aclk),
-        .i_wr_rst_n         (i_axi_wr_aresetn),
-        .i_rd_clk           (i_axi_rd_aclk),
-        .i_rd_rst_n         (i_axi_rd_aresetn),
-        .iw_wr_ptr_bin      (w_wr_ptr_bin_next),
-        .iw_wdom_rd_ptr_bin (w_wdom_rd_ptr_bin),
-        .iw_rd_ptr_bin      (w_rd_ptr_bin_next),
-        .iw_rdom_wr_ptr_bin (w_rdom_wr_ptr_bin),
-        .o_wr_full          (r_wr_full),
-        .o_wr_almost_full   (r_wr_almost_full),
-        .o_rd_empty         (r_rd_empty),
-        .o_rd_almost_empty  (r_rd_almost_empty),
-        .ow_count           (w_count)
+        .wr_clk           (axi_wr_aclk),
+        .wr_rst_n         (axi_wr_aresetn),
+        .rd_clk           (axi_rd_aclk),
+        .rd_rst_n         (axi_rd_aresetn),
+        .wr_ptr_bin      (w_wr_ptr_bin_next),
+        .wdom_rd_ptr_bin (w_wdom_rd_ptr_bin),
+        .rd_ptr_bin      (w_rd_ptr_bin_next),
+        .rdom_wr_ptr_bin (w_rdom_wr_ptr_bin),
+        .wr_full          (r_wr_full),
+        .wr_almost_full   (r_wr_almost_full),
+        .rd_empty         (r_rd_empty),
+        .rd_almost_empty  (r_rd_almost_empty),
+        .count           (w_count)
     );
 
-    assign o_wr_ready = !r_wr_full;
-    assign o_rd_valid = !r_rd_empty;
+    assign wr_ready = !r_wr_full;
+    assign rd_valid = !r_rd_empty;
 
     /////////////////////////////////////////////////////////////////////////
     // Error checking and debug stuff
@@ -203,15 +203,15 @@ module gaxi_fifo_async #(
         end
     endgenerate
 
-    always @(posedge i_axi_wr_aclk) begin
-        if (!i_axi_wr_aresetn && (w_write && r_wr_full) == 1'b1) begin
+    always @(posedge axi_wr_aclk) begin
+        if (!axi_wr_aresetn && (w_write && r_wr_full) == 1'b1) begin
             $timeformat(-9, 3, " ns", 10);
             $display("Error: %s write while fifo full, %t", INSTANCE_NAME, $time);
         end
     end
 
-    always @(posedge i_axi_rd_aclk) begin
-        if (!i_axi_wr_aresetn && (w_read && r_rd_empty) == 1'b1) begin
+    always @(posedge axi_rd_aclk) begin
+        if (!axi_wr_aresetn && (w_read && r_rd_empty) == 1'b1) begin
             $timeformat(-9, 3, " ns", 10);
             $display("Error: %s read while fifo empty, %t", INSTANCE_NAME, $time);
         end

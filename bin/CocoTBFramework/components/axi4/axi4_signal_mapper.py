@@ -5,9 +5,9 @@ This is the lowest level component that handles the mapping from AXI4 signal nam
 to GAXI parameters that work with the updated SignalResolver.
 
 Key insight: The SignalResolver now includes pkt_prefix in control signals:
-    '{prefix}{in_prefix}{pkt_prefix}{bus_name}wr_valid',
-    '{prefix}{in_prefix}{pkt_prefix}{bus_name}valid',
-    '{prefix}{in_prefix}{pkt_prefix}{bus_name}m2s_valid',
+    '{prefix}{pkt_prefix}{bus_name}wr_valid',
+    '{prefix}{pkt_prefix}{bus_name}valid',
+    '{prefix}{pkt_prefix}{bus_name}m2s_valid',
 
 Strategy: Use your working parameter approach consistently.
 """
@@ -37,7 +37,7 @@ class AXI4SignalMapper:
 
     @staticmethod
     def get_channel_gaxi_params(axi4_prefix: str, channel: str,
-                                bus_name: str = "", in_prefix: str = "", out_prefix: str = "") -> Dict[str, str]:
+                                bus_name: str = "") -> Dict[str, str]:
         """
         Convert AXI4 prefix and channel to GAXI parameters for SignalResolver.
 
@@ -45,8 +45,6 @@ class AXI4SignalMapper:
             axi4_prefix: AXI4 prefix like 'm_axi', 's_axi'
             channel: AXI4 channel like 'AW', 'AR', 'W', 'R', 'B'
             bus_name: Optional bus identifier
-            in_prefix: Input prefix override (usually empty for AXI4)
-            out_prefix: Output prefix override (usually empty for AXI4)
 
         Returns:
             Dictionary of GAXI parameters for SignalResolver
@@ -56,8 +54,6 @@ class AXI4SignalMapper:
             {
                 'prefix': 'm_axi_',
                 'pkt_prefix': 'aw',
-                'in_prefix': '',
-                'out_prefix': '',
                 'bus_name': '',
                 'protocol_type': 'gaxi_master'
             }
@@ -78,8 +74,6 @@ class AXI4SignalMapper:
         return {
             'prefix': prefix,                    # 'm_axi_', 's_axi_'
             'pkt_prefix': channel.lower(),       # 'aw', 'ar', 'w', 'r', 'b'
-            'in_prefix': in_prefix,              # Usually empty for AXI4
-            'out_prefix': out_prefix,            # Usually empty for AXI4
             'bus_name': bus_name,                # Usually empty
             'protocol_type': protocol_type       # 'gaxi_master' or 'gaxi_slave'
         }

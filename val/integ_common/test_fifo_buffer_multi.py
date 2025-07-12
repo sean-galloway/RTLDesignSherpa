@@ -36,7 +36,7 @@ from CocoTBFramework.tbclasses.misc.utilities import get_paths, create_view_cmd
 @cocotb.test(timeout_time=5, timeout_unit="ms")  # Increased timeout for multi-signal testing
 async def fifo_multi_test(dut):
     '''Test the FIFO Buffer Multi-Signal comprehensively with FlexConfigGen randomizers'''
-    tb = FifoMultiBufferTB(dut, dut.i_clk, dut.i_rst_n, super_debug=False)
+    tb = FifoMultiBufferTB(dut, dut.clk, dut.rst_n, super_debug=False)
 
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
@@ -53,11 +53,11 @@ async def fifo_multi_test(dut):
 
     tb.log.info(f"Running multi-signal test level: {test_level.upper()}")
 
-    await tb.start_clock('i_clk', 10, 'ns')
+    await tb.start_clock('clk', 10, 'ns')
     await tb.assert_reset()
-    await tb.wait_clocks('i_clk', 5)
+    await tb.wait_clocks('clk', 5)
     await tb.deassert_reset()
-    await tb.wait_clocks('i_clk', 5)
+    await tb.wait_clocks('clk', 5)
     tb.log.info(f"Starting {test_level.upper()} FIFO multi-signal test...")
 
     # Get available randomizer configurations from FlexConfigGen

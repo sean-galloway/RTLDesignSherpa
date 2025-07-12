@@ -71,8 +71,8 @@ module axil_slave_rd_cg
     input  logic                       fub_error_ready,
 
     // Clock gating status
-    output logic                       o_cg_gating,         // Active gating indicator
-    output logic                       o_cg_idle            // All buffers empty indicator
+    output logic                       cg_gating,         // Active gating indicator
+    output logic                       cg_idle            // All buffers empty indicator
 );
 
     // Gated clock signal
@@ -103,13 +103,13 @@ module axil_slave_rd_cg
         .i_user_valid        (user_valid),
         .i_axi_valid         (axi_valid),
         .clk_out             (gated_aclk),
-        .o_gating            (o_cg_gating),
-        .o_idle              (o_cg_idle)
+        .gating            (cg_gating),
+        .idle              (cg_idle)
     );
 
     // Force ready signals to 0 when clock gating is active
-    assign fub_arready = o_cg_gating ? 1'b0 : int_fub_arready;
-    assign s_axil_rready = o_cg_gating ? 1'b0 : int_s_axil_rready;
+    assign fub_arready = cg_gating ? 1'b0 : int_fub_arready;
+    assign s_axil_rready = cg_gating ? 1'b0 : int_s_axil_rready;
 
     // Instantiate the base AXI-Lite slave read module with gated clock
     axil_slave_rd #(

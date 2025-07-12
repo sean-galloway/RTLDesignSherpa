@@ -57,22 +57,22 @@ class CRCTB(TBBase):
 
 
     def clear_interface(self):
-        self.dut.i_load_crc_start.value = 0
-        self.dut.i_load_from_cascade.value = 0
-        self.dut.i_cascade_sel.value = 0
-        self.dut.i_data.value = 0
+        self.dut.load_crc_start.value = 0
+        self.dut.load_from_cascade.value = 0
+        self.dut.cascade_sel.value = 0
+        self.dut.data.value = 0
         self.dut.POLY.value = self.crc_poly
         self.dut.POLY_INIT.value = self.crc_poly_initial
         self.dut.XOROUT.value = self.xor_output
 
 
     def assert_reset(self):
-        self.dut.i_rst_n.value = 0
+        self.dut.rst_n.value = 0
         self.clear_interface()
 
 
     def deassert_reset(self):
-        self.dut.i_rst_n.value = 1
+        self.dut.rst_n.value = 1
         self.log.info("Reset complete.")
 
 
@@ -148,24 +148,24 @@ class CRCTB(TBBase):
     async def main_loop(self):
         for data, expected_crc in self.test_data:
             # Test 1: Load initial CRC value and check
-            self.dut.i_load_crc_start.value = 1
-            await self.wait_clocks('i_clk',1)
-            self.dut.i_load_crc_start.value = 0
-            assert self.dut.o_crc.value == self.crc_poly_initial, "CRC initial value incorrect"
+            self.dut.load_crc_start.value = 1
+            await self.wait_clocks('clk',1)
+            self.dut.load_crc_start.value = 0
+            assert self.dut.crc.value == self.crc_poly_initial, "CRC initial value incorrect"
 
             # Test 2: Load data and validate CRC calculation
             # This step depends on having a known input-output pair for validation
-            self.dut.i_data.value = data
-            self.dut.i_load_from_cascade.value = 1
-            self.dut.i_cascade_sel.value = self.find_highest_byte_enable(self.data_width)
-            await self.wait_clocks('i_clk',1)
-            self.dut.i_data.value = 0
-            self.dut.i_load_from_cascade.value = 0
-            self.dut.i_cascade_sel.value = 0
-            await self.wait_clocks('i_clk',1)
+            self.dut.data.value = data
+            self.dut.load_from_cascade.value = 1
+            self.dut.cascade_sel.value = self.find_highest_byte_enable(self.data_width)
+            await self.wait_clocks('clk',1)
+            self.dut.data.value = 0
+            self.dut.load_from_cascade.value = 0
+            self.dut.cascade_sel.value = 0
+            await self.wait_clocks('clk',1)
             # Verify the CRC output matches the expected value
             # Note: You may need to adjust this depending on when the CRC output is valid
-            found_crc = self.dut.o_crc.value
+            found_crc = self.dut.crc.value
             msg = f'test_data=0x{hex(data)[2:].zfill(self.d_nybbles)}   expected_crc=0x{hex(expected_crc)[2:].zfill(self.nybbles)}  actual_crc=0x{hex(found_crc)[2:].zfill(self.nybbles)}'
             self.log.info(msg)
             assert hex(found_crc) == hex(expected_crc), f"Unexpected CRC result: data=0x{hex(data)[2:].zfill(self.d_nybbles)}  expected {hex(expected_crc)} --> found {hex(found_crc)}"

@@ -5,10 +5,10 @@ module glitch_free_n_dff_arn #(
     parameter int FLOP_COUNT = 3,
     parameter int WIDTH = 4
 ) (
-    input wire i_clk,
-    i_rst_n,
-    input wire [WIDTH-1:0] i_d,
-    output reg [WIDTH-1:0] o_q
+    input wire clk,
+    rst_n,
+    input wire [WIDTH-1:0] d,
+    output reg [WIDTH-1:0] q
 );
 
     localparam int FC = FLOP_COUNT;
@@ -18,13 +18,13 @@ module glitch_free_n_dff_arn #(
     // Packed array to hold the states
     logic [FC-1:0][WIDTH-1:0] r_q_array;
 
-    always_ff @(posedge i_clk or negedge i_rst_n) begin
-        if (!i_rst_n) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
             // Reset all the flip-flops
             r_q_array <= {FC{{DW{1'b0}}}};
         end else begin
             // Load new data
-            r_q_array[0] <= i_d;
+            r_q_array[0] <= d;
             // Shift the existing data
             for (int i = 1; i < FC; i++) begin
                 r_q_array[i] <= r_q_array[i-1];
@@ -34,7 +34,7 @@ module glitch_free_n_dff_arn #(
 
     ////////////////////////////////////////////////////////////////////////////
     // Output assignment
-    assign o_q = r_q_array[FC-1];
+    assign q = r_q_array[FC-1];
 
     wire [(DW*FC)-1:0] flat_r_q;
     genvar i;

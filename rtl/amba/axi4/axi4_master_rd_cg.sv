@@ -83,8 +83,8 @@ module axi4_master_rd_cg
     output logic                       m_axi_rready,
 
     // Clock gating status
-    output logic                       o_cg_gating,         // Active gating indicator
-    output logic                       o_cg_idle            // All buffers empty indicator
+    output logic                       cg_gating,         // Active gating indicator
+    output logic                       cg_idle            // All buffers empty indicator
 );
 
     // Gated clock signal
@@ -106,8 +106,8 @@ module axi4_master_rd_cg
     assign axi_valid = m_axi_arvalid || m_axi_rvalid;
 
     // Force ready signals to 0 when clock gating is active
-    assign fub_arready = o_cg_gating ? 1'b0 : int_arready;
-    assign m_axi_rready = o_cg_gating ? 1'b0 : int_rready;
+    assign fub_arready = cg_gating ? 1'b0 : int_arready;
+    assign m_axi_rready = cg_gating ? 1'b0 : int_rready;
 
     // Instantiate clock gate controller
     amba_clock_gate_ctrl #(
@@ -120,8 +120,8 @@ module axi4_master_rd_cg
         .i_user_valid        (user_valid),
         .i_axi_valid         (axi_valid),
         .clk_out             (gated_aclk),
-        .o_gating            (o_cg_gating),
-        .o_idle              (o_cg_idle)
+        .gating            (cg_gating),
+        .idle              (cg_idle)
     );
 
     // Instantiate the original AXI master read module with gated clock
@@ -183,7 +183,7 @@ module axi4_master_rd_cg
         .m_axi_rready         (int_rready),      // Connect to internal signal
 
         // A cycle is in flight
-        .o_busy               (int_busy)
+        .busy               (int_busy)
     );
 
 endmodule : axi4_master_rd_cg

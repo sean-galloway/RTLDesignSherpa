@@ -1,0 +1,45 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Sat Jul 12 04:54:37 2025
+[*]
+[dumpfile] "/home/seang/github/RTLDesignSherpa/val/common/local_sim_build/test_counter_load_clear_max0032_basic/dump.fst"
+[dumpfile_mtime] "Sat Jul 12 04:45:50 2025"
+[dumpfile_size] 949
+[savefile] "/home/seang/github/RTLDesignSherpa/val/common/GTKW/counter_load_clear_max0032.gtkw"
+[timestart] 0
+[size] 2113 1320
+[pos] -1 -1
+*-16.839649 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[sst_width] 406
+[signals_width] 385
+[sst_expanded] 1
+[sst_vpaned_height] 408
+@420
+counter_load_clear.MAX
+@28
+counter_load_clear.clk
+counter_load_clear.rst_n
+@200
+-inputs
+@28
+counter_load_clear.load
+@22
+counter_load_clear.loadval[4:0]
+@28
+counter_load_clear.clear
+counter_load_clear.increment
+@200
+-output
+@22
+counter_load_clear.count[4:0]
+@28
+counter_load_clear.done
+@200
+-internals
+@22
+counter_load_clear.r_match_val[4:0]
+@23
+counter_load_clear.w_next_count[4:0]
+[pattern_trace] 1
+[pattern_trace] 0

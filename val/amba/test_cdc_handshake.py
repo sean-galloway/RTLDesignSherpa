@@ -1,8 +1,8 @@
 """
-Enhanced CDC Handshake Main Test - test_enhanced_cdc_handshake.py
+CDC Handshake Main Test - test_cdc_handshake.py
 
 Main test file that should be placed in the tests directory.
-This integrates the enhanced CDC handshake testbench with sophisticated features.
+This integrates the CDC handshake testbench with sophisticated features.
 """
 
 import os
@@ -11,13 +11,13 @@ from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
-from CocoTBFramework.tbclasses.gaxi.cdc_handshake import CDCHandshakeTB
+from CocoTBFramework.tbclasses.amba.cdc_handshake import CDCHandshakeTB
 from CocoTBFramework.tbclasses.misc.utilities import get_paths, create_view_cmd
 
 
 @cocotb.test(timeout_time=30, timeout_unit="ms")
-async def enhanced_cdc_handshake_test(dut):
-    """Enhanced CDC handshake test with sophisticated patterns and analysis"""
+async def cdc_handshake_test(dut):
+    """CDC handshake test with sophisticated patterns and analysis"""
 
 
     tb = CDCHandshakeTB(dut)
@@ -177,9 +177,9 @@ def generate_cdc_test_params():
 
 
 @pytest.mark.parametrize("params", generate_cdc_test_params())
-def test_enhanced_cdc_handshake(request, params):
+def test_cdc_handshake(request, params):
     """
-    Enhanced CDC handshake test with comprehensive validation.
+    CDC handshake test with comprehensive validation.
 
     Features:
     - Test Levels: basic (2-3min), medium (5-8min), full (15-25min)
@@ -219,7 +219,7 @@ def test_enhanced_cdc_handshake(request, params):
         ratio_desc = "same"
 
     # Create descriptive test name
-    test_name_plus_params = (f"test_enhanced_cdc_handshake_"
+    test_name_plus_params = (f"test_cdc_handshake_"
                             f"src{src_period}ns_dst{dst_period}ns_"
                             f"{ratio_desc}_{test_level}")
 
@@ -294,9 +294,9 @@ def test_enhanced_cdc_handshake(request, params):
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
-    # Enhanced test execution with reporting
+    # test execution with reporting
     print(f"\n{'='*80}")
-    print(f"Enhanced CDC Handshake Test: {test_level.upper()}")
+    print(f"CDC Handshake Test: {test_level.upper()}")
     print(f"Clock Configuration: src={src_period}ns ({1000/src_period:.1f}MHz), dst={dst_period}ns ({1000/dst_period:.1f}MHz)")
     print(f"CDC Ratio: {ratio:.3f} ({extra_env['CDC_TYPE']})")
     print(f"Expected Duration: {timeout_ms/1000:.1f}s")

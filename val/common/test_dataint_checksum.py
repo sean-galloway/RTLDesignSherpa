@@ -51,12 +51,12 @@ class ChecksumTB(TBBase):
         random.seed(self.SEED)
 
         # Extract DUT signals
-        self.i_clk = self.dut.i_clk
-        self.i_rst_n = self.dut.i_rst_n
-        self.i_reset = self.dut.i_reset
-        self.i_valid = self.dut.i_valid
-        self.i_data = self.dut.i_data
-        self.o_chksum = self.dut.o_chksum
+        self.clk = self.dut.clk
+        self.rst_n = self.dut.rst_n
+        self.reset = self.dut.reset
+        self.valid = self.dut.valid
+        self.data = self.dut.data
+        self.chksum = self.dut.chksum
 
         # Log configuration
         self.log.info("Checksum TB initialized")
@@ -78,24 +78,24 @@ class ChecksumTB(TBBase):
         self.log.debug(f'Starting reset_dut @ {time_ns}ns')
 
         # Initialize inputs
-        self.i_valid.value = 0
-        self.i_data.value = 0
+        self.valid.value = 0
+        self.data.value = 0
 
         if use_async_reset:
             # Apply asynchronous reset
-            self.i_rst_n.value = 0
-            self.i_reset.value = 0
-            await self.wait_clocks('i_clk', 5)
-            self.i_rst_n.value = 1
+            self.rst_n.value = 0
+            self.reset.value = 0
+            await self.wait_clocks('clk', 5)
+            self.rst_n.value = 1
         else:
             # Apply synchronous reset
-            self.i_rst_n.value = 1
-            self.i_reset.value = 1
-            await self.wait_clocks('i_clk', 5)
-            self.i_reset.value = 0
+            self.rst_n.value = 1
+            self.reset.value = 1
+            await self.wait_clocks('clk', 5)
+            self.reset.value = 0
 
         # Wait for stabilization
-        await self.wait_clocks('i_clk', 10)
+        await self.wait_clocks('clk', 10)
 
         self.log.debug('Ending reset_dut')
 
@@ -130,16 +130,16 @@ class ChecksumTB(TBBase):
             masked_data = data & self.MAX_DATA
 
             # Drive the inputs
-            self.i_valid.value = 1
-            self.i_data.value = masked_data
-            await self.wait_clocks('i_clk', 1)
+            self.valid.value = 1
+            self.data.value = masked_data
+            await self.wait_clocks('clk', 1)
 
-            self.i_valid.value = 0
-            self.i_data.value = 0
-            await self.wait_clocks('i_clk', 1)
+            self.valid.value = 0
+            self.data.value = 0
+            await self.wait_clocks('clk', 1)
 
             # Check output on the next cycle
-            actual_checksum = int(self.o_chksum.value)
+            actual_checksum = int(self.chksum.value)
             expected_checksum = expected_checksums[i]
 
             # Store results
@@ -157,10 +157,10 @@ class ChecksumTB(TBBase):
                 self.log.info(f"Checksum match at step {i+1}: 0x{actual_checksum:x}")
 
         # Deassert valid
-        self.i_valid.value = 0
+        self.valid.value = 0
 
         # Wait a few cycles
-        await self.wait_clocks('i_clk', 5)
+        await self.wait_clocks('clk', 5)
 
         # Store test result
         self.test_results.append(test_result)
@@ -252,13 +252,13 @@ class ChecksumTB(TBBase):
 
         # Test asynchronous reset
         self.log.info("Testing asynchronous reset")
-        self.i_rst_n.value = 0
-        await self.wait_clocks('i_clk', 2)
-        self.i_rst_n.value = 1
-        await self.wait_clocks('i_clk', 2)
+        self.rst_n.value = 0
+        await self.wait_clocks('clk', 2)
+        self.rst_n.value = 1
+        await self.wait_clocks('clk', 2)
 
         # Check if checksum was reset
-        reset_checksum = int(self.o_chksum.value)
+        reset_checksum = int(self.chksum.value)
         if reset_checksum != 0:
             self.log.error(f"Asynchronous reset failed: checksum=0x{reset_checksum:x}, expected=0x0")
             return False
@@ -275,13 +275,13 @@ class ChecksumTB(TBBase):
 
         # Test synchronous reset
         self.log.info("Testing synchronous reset")
-        self.i_reset.value = 1
-        await self.wait_clocks('i_clk', 1)
-        self.i_reset.value = 0
-        await self.wait_clocks('i_clk', 1)
+        self.reset.value = 1
+        await self.wait_clocks('clk', 1)
+        self.reset.value = 0
+        await self.wait_clocks('clk', 1)
 
         # Check if checksum was reset
-        reset_checksum = int(self.o_chksum.value)
+        reset_checksum = int(self.chksum.value)
         if reset_checksum != 0:
             self.log.error(f"Synchronous reset failed: checksum=0x{reset_checksum:x}, expected=0x0")
             return False
@@ -464,7 +464,7 @@ async def comprehensive_test(dut):
     tb = ChecksumTB(dut)
 
     # Start clock with configured period
-    await tb.start_clock('i_clk', 10, 'ns')
+    await tb.start_clock('clk', 10, 'ns')
 
     # Run all tests
     passed = await tb.run_all_tests()

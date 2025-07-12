@@ -3,13 +3,13 @@
 module reverse_vector #(
     parameter int WIDTH = 32
 ) (
-    input        [WIDTH-1:0] i_vector,
-    output logic [WIDTH-1:0] o_vector
+    input        [WIDTH-1:0] vector,
+    output logic [WIDTH-1:0] vector
 );
 
     always_comb begin
         for (integer i = 0; i < WIDTH; i++) begin
-            o_vector[(WIDTH-1)-i] = i_vector[i];
+            vector[(WIDTH-1)-i] = vector[i];
         end
     end
 

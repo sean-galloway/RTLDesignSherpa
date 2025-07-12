@@ -25,11 +25,11 @@ async def fifo_data_collect_test(dut):
     tb.log.info(msg)
 
     # In your test, add this to check the signal properties:
-    print(f"DEBUG: o_e_data.value type: {type(dut.o_e_data.value)}")
-    print(f"DEBUG: o_e_data.value: {dut.o_e_data.value}")
-    print(f"DEBUG: o_e_data.value.integer: {getattr(dut.o_e_data.value, 'integer', 'N/A')}")
-    print(f"DEBUG: int(o_e_data.value): {int(dut.o_e_data.value)}")
-    print(f"DEBUG: o_e_data signal length: {len(dut.o_e_data)}")
+    print(f"DEBUG: e_data.value type: {type(dut.e_data.value)}")
+    print(f"DEBUG: e_data.value: {dut.e_data.value}")
+    print(f"DEBUG: e_data.value.integer: {getattr(dut.e_data.value, 'integer', 'N/A')}")
+    print(f"DEBUG: int(e_data.value): {int(dut.e_data.value)}")
+    print(f"DEBUG: e_data signal length: {len(dut.e_data)}")
 
     # Get test level from environment (default: basic)
     test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
@@ -41,7 +41,7 @@ async def fifo_data_collect_test(dut):
     tb.log.info(f"Running data collect test level: {test_level.upper()}")
 
     # Start clock
-    await tb.start_clock('i_clk', 10, 'ns')
+    await tb.start_clock('clk', 10, 'ns')
 
     # Get available randomizer configurations from FlexConfigGen
     config_names = tb.get_randomizer_config_names()

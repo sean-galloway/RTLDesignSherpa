@@ -13,7 +13,7 @@ module axi_monitor_timer (
     input  logic        aresetn,
 
     // Timer configuration
-    input  logic [3:0]  i_cfg_freq_sel,    // Frequency selection
+    input  logic [3:0]  cfg_freq_sel,    // Frequency selection
 
     // Timer outputs
     output logic        timer_tick,      // Timer tick signal
@@ -43,13 +43,13 @@ module axi_monitor_timer (
         .COUNTER_WIDTH (1),        // Only need 1-bit counter
         .PRESCALER_MAX (65536)     // Maximum prescaler value
     ) timer_counter(
-        .i_clk         (aclk),
-        .i_rst_n       (aresetn),
-        .i_sync_reset_n(1'b1),
-        .i_freq_sel    (i_cfg_freq_sel),
-        .o_tick        (w_timer_tick),
+        .clk         (aclk),
+        .rst_n       (aresetn),
+        .sync_reset_n(1'b1),
+        .freq_sel    (cfg_freq_sel),
+        .tick        (w_timer_tick),
         /* verilator lint_off PINCONNECTEMPTY */
-        .o_counter     ()             // Not used
+        .counter     ()             // Not used
         /* verilator lint_on PINCONNECTEMPTY */
     );
 

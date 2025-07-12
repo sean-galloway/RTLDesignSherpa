@@ -12,43 +12,43 @@ module fifo_data_collect #(
     parameter int LOG2_CHUNKS = $clog2(CHUNKS)
 ) (
     // Global Clock and Reset
-    input  logic                     i_clk,
-    input  logic                     i_rst_n,
+    input  logic                     clk,
+    input  logic                     rst_n,
 
     // Arbiter weights (0-15 for each channel)
-    input  logic [3:0]               i_weight_a,
-    input  logic [3:0]               i_weight_b,
-    input  logic [3:0]               i_weight_c,
-    input  logic [3:0]               i_weight_d,
+    input  logic [3:0]               weight_a,
+    input  logic [3:0]               weight_b,
+    input  logic [3:0]               weight_c,
+    input  logic [3:0]               weight_d,
 
     // Input Channel A
-    input  logic                     i_a_write,
-    output logic                     o_a_full,
-    input  logic [DW-1:0]            i_a_data,
-    input  logic [IDW-1:0]           i_a_id,
+    input  logic                     a_write,
+    output logic                     a_full,
+    input  logic [DW-1:0]            a_data,
+    input  logic [IDW-1:0]           a_id,
 
     // Input Channel B
-    input  logic                     i_b_write,
-    output logic                     o_b_full,
-    input  logic [DW-1:0]            i_b_data,
-    input  logic [IDW-1:0]           i_b_id,
+    input  logic                     b_write,
+    output logic                     b_full,
+    input  logic [DW-1:0]            b_data,
+    input  logic [IDW-1:0]           b_id,
 
     // Input Channel C
-    input  logic                     i_c_write,
-    output logic                     o_c_full,
-    input  logic [DW-1:0]            i_c_data,
-    input  logic [IDW-1:0]           i_c_id,
+    input  logic                     c_write,
+    output logic                     c_full,
+    input  logic [DW-1:0]            c_data,
+    input  logic [IDW-1:0]           c_id,
 
     // Input Channel D
-    input  logic                     i_d_write,
-    output logic                     o_d_full,
-    input  logic [DW-1:0]            i_d_data,
-    input  logic [IDW-1:0]           i_d_id,
+    input  logic                     d_write,
+    output logic                     d_full,
+    input  logic [DW-1:0]            d_data,
+    input  logic [IDW-1:0]           d_id,
 
     // Output Channel E (FIFO)
-    input  logic                     i_e_read,
-    output logic                     o_e_empty,
-    output logic [IDW+CHUNKS*DW-1:0] o_e_data
+    input  logic                     e_read,
+    output logic                     e_empty,
+    output logic [IDW+CHUNKS*DW-1:0] e_data
 );
 
     // ===========================================================================
@@ -90,7 +90,7 @@ module fifo_data_collect #(
 
     // Weighted Round Robin Arbiter flattened weights (16 bits * 4 channels = 64 bits)
     logic [15:0]            w_arb_weights;
-    assign w_arb_weights = {i_weight_d, i_weight_c, i_weight_b, i_weight_a};
+    assign w_arb_weights = {weight_d, weight_c, weight_b, weight_a};
 
     // Data collection buffer using vectors
     logic [IDW-1:0]         r_id;
@@ -118,16 +118,16 @@ module fifo_data_collect #(
         .DEPTH            (2),
         .INSTANCE_NAME    ("FIFO_A")
     ) a_fifo (
-        .i_clk            (i_clk),
-        .i_rst_n          (i_rst_n),
-        .i_write          (i_a_write),
-        .i_wr_data        ({i_a_id, i_a_data}),
-        .o_wr_full        (o_a_full),
-        .o_wr_almost_full (),
-        .i_read           (w_a_read),
-        .o_rd_data        ({ w_a_id, w_a_data}),
-        .o_rd_empty       (w_a_empty),
-        .o_rd_almost_empty()
+        .clk            (clk),
+        .rst_n          (rst_n),
+        .write          (a_write),
+        .wr_data        ({a_id, a_data}),
+        .wr_full        (a_full),
+        .wr_almost_full (),
+        .read           (w_a_read),
+        .rd_data        ({ w_a_id, w_a_data}),
+        .rd_empty       (w_a_empty),
+        .rd_almost_empty()
     );
 
     // Channel B FIFO
@@ -137,16 +137,16 @@ module fifo_data_collect #(
         .DEPTH            (2),
         .INSTANCE_NAME    ("FIFO_B")
     ) b_fifo (
-        .i_clk            (i_clk),
-        .i_rst_n          (i_rst_n),
-        .i_write          (i_b_write),
-        .i_wr_data        ({i_b_id, i_b_data}),
-        .o_wr_full        (o_b_full),
-        .o_wr_almost_full (),
-        .i_read           (w_b_read),
-        .o_rd_data        ({ w_b_id, w_b_data}),
-        .o_rd_empty       (w_b_empty),
-        .o_rd_almost_empty()
+        .clk            (clk),
+        .rst_n          (rst_n),
+        .write          (b_write),
+        .wr_data        ({b_id, b_data}),
+        .wr_full        (b_full),
+        .wr_almost_full (),
+        .read           (w_b_read),
+        .rd_data        ({ w_b_id, w_b_data}),
+        .rd_empty       (w_b_empty),
+        .rd_almost_empty()
     );
 
     // Channel C FIFO
@@ -156,16 +156,16 @@ module fifo_data_collect #(
         .DEPTH            (2),
         .INSTANCE_NAME    ("FIFO_C")
     ) c_fifo (
-        .i_clk            (i_clk),
-        .i_rst_n          (i_rst_n),
-        .i_write          (i_c_write),
-        .i_wr_data        ({i_c_id, i_c_data}),
-        .o_wr_full        (o_c_full),
-        .o_wr_almost_full (),
-        .i_read           (w_c_read),
-        .o_rd_data        ({ w_c_id, w_c_data}),
-        .o_rd_empty       (w_c_empty),
-        .o_rd_almost_empty()
+        .clk            (clk),
+        .rst_n          (rst_n),
+        .write          (c_write),
+        .wr_data        ({c_id, c_data}),
+        .wr_full        (c_full),
+        .wr_almost_full (),
+        .read           (w_c_read),
+        .rd_data        ({ w_c_id, w_c_data}),
+        .rd_empty       (w_c_empty),
+        .rd_almost_empty()
     );
 
     // Channel D FIFO
@@ -175,16 +175,16 @@ module fifo_data_collect #(
         .DEPTH            (2),
         .INSTANCE_NAME    ("FIFO_D")
     ) d_fifo (
-        .i_clk            (i_clk),
-        .i_rst_n          (i_rst_n),
-        .i_write          (i_d_write),
-        .i_wr_data        ({i_d_id, i_d_data}),
-        .o_wr_full        (o_d_full),
-        .o_wr_almost_full (),
-        .i_read           (w_d_read),
-        .o_rd_data        ({ w_d_id, w_d_data}),
-        .o_rd_empty       (w_d_empty),
-        .o_rd_almost_empty()
+        .clk            (clk),
+        .rst_n          (rst_n),
+        .write          (d_write),
+        .wr_data        ({d_id, d_data}),
+        .wr_full        (d_full),
+        .wr_almost_full (),
+        .read           (w_d_read),
+        .rd_data        ({ w_d_id, w_d_data}),
+        .rd_empty       (w_d_empty),
+        .rd_almost_empty()
     );
 
     // ===========================================================================
@@ -200,8 +200,8 @@ module fifo_data_collect #(
     // Locked agent identification (persists during locked state)
     logic [1:0]             r_locked_agent_id;
 
-    always_ff @(posedge i_clk or negedge i_rst_n) begin
-        if (!i_rst_n) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
             r_arb_locked <= 1'b0;
             r_locked_agent_id <= '0;
         end else begin
@@ -221,15 +221,15 @@ module fifo_data_collect #(
         .CLIENTS       (4),              // 4 input channels
         .WAIT_GNT_ACK  (0)               // No grant acknowledge mechanism
     ) inst_arbiter (
-        .i_clk         (i_clk),
-        .i_rst_n       (i_rst_n),
-        .i_block_arb   (r_arb_locked),
-        .i_max_thresh  (w_arb_weights),  // Weights for all channels
-        .i_req         (w_arb_req),      // Valid signals from all input FIFOs
-        .ow_gnt_valid  (w_arb_gnt_valid),
-        .ow_gnt        (w_arb_gnt),      // One-hot grant signal
-        .ow_gnt_id     (w_arb_gnt_id),   // Binary grant ID
-        .i_gnt_ack     (4'b0)            // Not using ack mechanism
+        .clk         (clk),
+        .rst_n       (rst_n),
+        .block_arb   (r_arb_locked),
+        .max_thresh  (w_arb_weights),  // Weights for all channels
+        .req         (w_arb_req),      // Valid signals from all input FIFOs
+        .gnt_valid  (w_arb_gnt_valid),
+        .gnt        (w_arb_gnt),      // One-hot grant signal
+        .gnt_id     (w_arb_gnt_id),   // Binary grant ID
+        .gnt_ack     (4'b0)            // Not using ack mechanism
     );
 
     // Buffer full detection - all slots filled
@@ -322,8 +322,8 @@ module fifo_data_collect #(
     assign w_output_data = {r_id, r_data};
 
     // Buffer control logic - collect data chunks and track their valid status
-    always_ff @(posedge i_clk or negedge i_rst_n) begin
-        if (!i_rst_n) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
             r_valid <= '0;
             r_data <= '0;
             r_id <= '0;
@@ -354,16 +354,16 @@ module fifo_data_collect #(
         .DEPTH            (OUTPUT_FIFO_DEPTH),
         .INSTANCE_NAME    ("FIFO_OUT")
     ) output_fifo (
-        .i_clk            (i_clk),
-        .i_rst_n          (i_rst_n),
-        .i_write          (w_output_write),
-        .i_wr_data        (w_output_data),
-        .o_wr_full        (w_output_full),
-        .o_wr_almost_full (),
-        .i_read           (i_e_read),
-        .o_rd_data        (o_e_data),
-        .o_rd_empty       (o_e_empty),
-        .o_rd_almost_empty()
+        .clk            (clk),
+        .rst_n          (rst_n),
+        .write          (w_output_write),
+        .wr_data        (w_output_data),
+        .wr_full        (w_output_full),
+        .wr_almost_full (),
+        .read           (e_read),
+        .rd_data        (e_data),
+        .rd_empty       (e_empty),
+        .rd_almost_empty()
     );
 
 endmodule : fifo_data_collect

@@ -122,14 +122,14 @@ module axil_slave_wr
         .i_resp_ready         (fub_bready),
 
         // Error outputs
-        .o_error_valid        (fub_error_valid),
+        .error_valid        (fub_error_valid),
         .i_error_ready        (fub_error_ready),
-        .o_error_type         (fub_error_type),
-        .o_error_addr         (fub_error_addr),
-        .o_error_id           (),
+        .error_type         (fub_error_type),
+        .error_addr         (fub_error_addr),
+        .error_id           (),
 
         // Flow control
-        .o_block_ready        (int_block_ready)
+        .block_ready        (int_block_ready)
     );
 
     // Instantiate AW Skid Buffer
@@ -140,12 +140,12 @@ module axil_slave_wr
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
         .i_wr_valid               (s_axil_awvalid),
-        .o_wr_ready               (int_awready),
+        .wr_ready               (int_awready),
         .i_wr_data                ({s_axil_awaddr, s_axil_awprot}),
-        .o_rd_valid               (fub_awvalid),
+        .rd_valid               (fub_awvalid),
         .i_rd_ready               (fub_awready),
-        .o_rd_count               (),
-        .o_rd_data                ({fub_awaddr, fub_awprot})
+        .rd_count               (),
+        .rd_data                ({fub_awaddr, fub_awprot})
     );
 
     // Instantiate W Skid Buffer
@@ -156,12 +156,12 @@ module axil_slave_wr
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
         .i_wr_valid               (s_axil_wvalid),
-        .o_wr_ready               (s_axil_wready),
+        .wr_ready               (s_axil_wready),
         .i_wr_data                ({s_axil_wdata, s_axil_wstrb}),
-        .o_rd_valid               (fub_wvalid),
+        .rd_valid               (fub_wvalid),
         .i_rd_ready               (fub_wready),
-        .o_rd_count               (),
-        .o_rd_data                ({fub_wdata, fub_wstrb})
+        .rd_count               (),
+        .rd_data                ({fub_wdata, fub_wstrb})
     );
 
     // Instantiate B channel for write response back to master
@@ -172,12 +172,12 @@ module axil_slave_wr
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
         .i_wr_valid               (fub_bvalid),
-        .o_wr_ready               (fub_bready),
+        .wr_ready               (fub_bready),
         .i_wr_data                (fub_bresp),
-        .o_rd_valid               (s_axil_bvalid),
+        .rd_valid               (s_axil_bvalid),
         .i_rd_ready               (s_axil_bready),
-        .o_rd_count               (),
-        .o_rd_data                (s_axil_bresp)
+        .rd_count               (),
+        .rd_data                (s_axil_bresp)
     );
 
 endmodule : axil_slave_wr

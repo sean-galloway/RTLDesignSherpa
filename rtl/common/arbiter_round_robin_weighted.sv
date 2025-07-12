@@ -12,15 +12,15 @@ module arbiter_round_robin_weighted #(
     parameter int CXMTW = CLIENTS*MAX_THRESH_WIDTH
 
 ) (
-    input  logic              i_clk,
-    input  logic              i_rst_n,
-    input  logic              i_block_arb,
-    input  logic [CXMTW-1:0]  i_max_thresh,
-    input  logic [C-1:0]      i_req,
-    output logic              ow_gnt_valid,
-    output logic [C-1:0]      ow_gnt,
-    output logic [N-1:0]      ow_gnt_id,
-    input  logic [C-1:0]      i_gnt_ack
+    input  logic              clk,
+    input  logic              rst_n,
+    input  logic              block_arb,
+    input  logic [CXMTW-1:0]  max_thresh,
+    input  logic [C-1:0]      req,
+    output logic              gnt_valid,
+    output logic [C-1:0]      gnt,
+    output logic [N-1:0]      gnt_id,
+    input  logic [C-1:0]      gnt_ack
 );
 
     // =======================================================================
@@ -34,10 +34,10 @@ module arbiter_round_robin_weighted #(
     logic             w_replenish;
     logic [C-1:0]     w_req_post;
 
-    assign w_req_post  = (i_block_arb) ? 'b0 : i_req;
+    assign w_req_post  = (block_arb) ? 'b0 : req;
 
     // when none of the asserted requests have credits, replenish all credit counters
-    assign w_replenish = ((i_req & w_has_crd) == '0) && (i_req != '0);
+    assign w_replenish = ((req & w_has_crd) == '0) && (req != '0);
 
     genvar i;
     generate
@@ -49,11 +49,11 @@ module arbiter_round_robin_weighted #(
 
 
             // FIX: Only allow credits for clients with non-zero weights
-            assign w_has_crd[i] = (w_crd_cnt_incr[EndIdx-:MTW] <= i_max_thresh[EndIdx-:MTW]) &&
-                                    (i_max_thresh[EndIdx-:MTW] > 0);
+            assign w_has_crd[i] = (w_crd_cnt_incr[EndIdx-:MTW] <= max_thresh[EndIdx-:MTW]) &&
+                                    (max_thresh[EndIdx-:MTW] > 0);
 
             // FIX: credit mask logic - ensure zero-weight clients never participate
-            assign w_mask_req[i] = (w_has_crd[i] | (w_replenish && i_max_thresh[EndIdx-:MTW] > 0)) &
+            assign w_mask_req[i] = (w_has_crd[i] | (w_replenish && max_thresh[EndIdx-:MTW] > 0)) &
                                     w_req_post[i];
 
             // Simplified next credit counter value calculation
@@ -61,14 +61,14 @@ module arbiter_round_robin_weighted #(
                 w_crd_cnt_next[EndIdx-:MTW] = r_crd_cnt[EndIdx-:MTW];
 
                 // Only process credits for clients with non-zero weights
-                if (i_max_thresh[EndIdx-:MTW] > 0) begin
+                if (max_thresh[EndIdx-:MTW] > 0) begin
                     if (w_replenish) begin
                         // During replenish, set credits based on grants
-                        if (ow_gnt[i])
+                        if (gnt[i])
                             w_crd_cnt_next[EndIdx-:MTW] = 1;
                         else
                             w_crd_cnt_next[EndIdx-:MTW] = 0;
-                    end else if (ow_gnt[i] && w_has_crd[i]) begin
+                    end else if (gnt[i] && w_has_crd[i]) begin
                         // Normal operation: increment credit counter when granted
                         w_crd_cnt_next[EndIdx-:MTW] = w_crd_cnt_incr[EndIdx-:MTW];
                     end
@@ -79,19 +79,19 @@ module arbiter_round_robin_weighted #(
             end
 
             // Modified credit counter update logic with better synchronization
-            always_ff @(posedge i_clk or negedge i_rst_n) begin
-                if (~i_rst_n) begin
+            always_ff @(posedge clk or negedge rst_n) begin
+                if (~rst_n) begin
                     r_crd_cnt[EndIdx-:MTW] <= '0;
                 end else begin
                     // Only update for clients with non-zero weights
-                    if (i_max_thresh[EndIdx-:MTW] > 0) begin
+                    if (max_thresh[EndIdx-:MTW] > 0) begin
                         // When replenish signal is active or this client is granted
-                        if ((w_replenish && ow_gnt[i]) || (ow_gnt[i] && w_has_crd[i])) begin
+                        if ((w_replenish && gnt[i]) || (gnt[i] && w_has_crd[i])) begin
                             // Only update when grant is acknowledged (if waiting for ack)
-                            if ((WAIT_GNT_ACK == 0) || i_gnt_ack[i]) begin
+                            if ((WAIT_GNT_ACK == 0) || gnt_ack[i]) begin
                                 r_crd_cnt[EndIdx-:MTW] <= w_crd_cnt_next[EndIdx-:MTW];
                             end
-                        end else if (w_replenish && !ow_gnt[i]) begin
+                        end else if (w_replenish && !gnt[i]) begin
                             // Reset credits for non-granted clients during replenish
                             r_crd_cnt[EndIdx-:MTW] <= '0;
                         end
@@ -109,26 +109,26 @@ module arbiter_round_robin_weighted #(
         .CLIENTS(CLIENTS),
         .WAIT_GNT_ACK(WAIT_GNT_ACK)
     ) u_rrb_arb (
-        .i_clk,
-        .i_rst_n,
-        .i_req(w_mask_req),
-        .i_replenish(w_replenish),
-        .ow_grant(ow_gnt),
-        .i_gnt_ack(i_gnt_ack)
+        .clk,
+        .rst_n,
+        .req(w_mask_req),
+        .replenish(w_replenish),
+        .grant(gnt),
+        .gnt_ack(gnt_ack)
     );
 
-    // Compute the grant ID from the one-hot ow_gnt signal
+    // Compute the grant ID from the one-hot gnt signal
     always_comb begin
-        ow_gnt_id = '0;  // Default value
+        gnt_id = '0;  // Default value
         for (int j = 0; j < C; j++) begin
-            if (ow_gnt[j]) begin
+            if (gnt[j]) begin
                 // FIX: Explicit casting from int to N bits
-                ow_gnt_id = N'(j);
+                gnt_id = N'(j);
             end
         end
     end
 
     // Generate grant valid signal
-    assign ow_gnt_valid = |ow_gnt;
+    assign gnt_valid = |gnt;
 
 endmodule : arbiter_round_robin_weighted

@@ -78,14 +78,14 @@ class ShifterLFSRTB(TBBase):
         random.seed(self.SEED)
 
         # Extract DUT signals
-        self.i_clk = self.dut.i_clk
-        self.i_rst_n = self.dut.i_rst_n
-        self.i_enable = self.dut.i_enable
-        self.i_seed_load = self.dut.i_seed_load
-        self.i_seed_data = self.dut.i_seed_data
-        self.i_taps = self.dut.i_taps
-        self.o_lfsr_out = self.dut.o_lfsr_out
-        self.ow_lfsr_done = self.dut.ow_lfsr_done
+        self.clk = self.dut.clk
+        self.rst_n = self.dut.rst_n
+        self.enable = self.dut.enable
+        self.seed_load = self.dut.seed_load
+        self.seed_data = self.dut.seed_data
+        self.taps = self.dut.taps
+        self.lfsr_out = self.dut.lfsr_out
+        self.lfsr_done = self.dut.lfsr_done
 
         # Log configuration
         self.log.info("LFSR Shifter TB initialized")
@@ -103,18 +103,18 @@ class ShifterLFSRTB(TBBase):
         self.log.debug(f'Starting reset_dut{self.get_time_ns_str()}')
 
         # Initialize inputs
-        self.i_enable.value = 0
-        self.i_seed_load.value = 0
-        self.i_seed_data.value = 0
+        self.enable.value = 0
+        self.seed_load.value = 0
+        self.seed_data.value = 0
 
         # Set up default taps
         self.set_taps([self.WIDTH, self.WIDTH//2, 2, 1])
 
         # Apply reset
-        self.i_rst_n.value = 0
-        await self.wait_clocks('i_clk', 5)
-        self.i_rst_n.value = 1
-        await self.wait_clocks('i_clk', 10)
+        self.rst_n.value = 0
+        await self.wait_clocks('clk', 5)
+        self.rst_n.value = 1
+        await self.wait_clocks('clk', 10)
 
         self.log.debug('Ending reset_dut')
 
@@ -137,7 +137,7 @@ class ShifterLFSRTB(TBBase):
             tap = min(tap, (1 << self.TAP_INDEX_WIDTH) - 1)
             tap_value |= tap << (i * self.TAP_INDEX_WIDTH)
 
-        self.i_taps.value = tap_value
+        self.taps.value = tap_value
 
         self.log.info(f"Set taps to: {taps}{self.get_time_ns_str()}")
 
@@ -153,18 +153,18 @@ class ShifterLFSRTB(TBBase):
         self.log.info(f"Loading seed: 0x{seed_value:x}{self.get_time_ns_str()}")
 
         # Enable seed loading
-        self.i_seed_load.value = 1
-        self.i_seed_data.value = seed_value
-        self.i_enable.value = 1
+        self.seed_load.value = 1
+        self.seed_data.value = seed_value
+        self.enable.value = 1
 
         # Wait a cycle
-        await self.wait_clocks('i_clk', 1)
+        await self.wait_clocks('clk', 1)
 
         # Disable seed loading
-        self.i_seed_load.value = 0
+        self.seed_load.value = 0
 
         # Wait a cycle
-        # await self.wait_clocks('i_clk', 2)
+        # await self.wait_clocks('clk', 2)
 
     async def run_lfsr(self, cycles, verify_sequence=True, expected_sequence=None):
         """
@@ -189,17 +189,17 @@ class ShifterLFSRTB(TBBase):
         }
 
         # Enable the LFSR
-        self.i_enable.value = 1
+        self.enable.value = 1
 
         # Run for the specified number of cycles
         for i in range(cycles):
             # Wait for clock edge
-            await self.wait_clocks('i_clk', 1)
+            await self.wait_clocks('clk', 1)
 
             # Read outputs
-            await self.wait_falling_clocks('i_clk', 1)
-            lfsr_value = int(self.o_lfsr_out.value)
-            done_bit = int(self.ow_lfsr_done.value)
+            await self.wait_falling_clocks('clk', 1)
+            lfsr_value = int(self.lfsr_out.value)
+            done_bit = int(self.lfsr_done.value)
 
             # Store results
             result['lfsr_values'].append(lfsr_value)
@@ -227,7 +227,7 @@ class ShifterLFSRTB(TBBase):
                 self.log.info(f"LFSR sequence verified successfully{self.get_time_ns_str()}")
 
         # Disable the LFSR
-        self.i_enable.value = 0
+        self.enable.value = 0
 
         # Store result
         self.test_results.append(result)
@@ -592,7 +592,7 @@ async def comprehensive_test(dut):
     tb = ShifterLFSRTB(dut)
 
     # Start clock with configured period
-    await tb.start_clock('i_clk', 10, 'ns')
+    await tb.start_clock('clk', 10, 'ns')
 
     # Run all tests
     passed = await tb.run_all_tests()
@@ -723,4 +723,4 @@ def test_shifter_lfsr(request, params):
         print(f"Test failed: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the Waveforms run this command: {cmd_filename}")
-        raise  # Re-raise exception to indicate failuredata = self.dut.i_seed_data
+        raise  # Re-raise exception to indicate failuredata = self.dut.seed_data

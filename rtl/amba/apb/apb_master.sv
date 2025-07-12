@@ -75,13 +75,13 @@ module apb_master #(
         .i_axi_aclk     (pclk),
         .i_axi_aresetn  (presetn),
         .i_wr_valid     (cmd_valid),
-        .o_wr_ready     (cmd_ready),
+        .wr_ready     (cmd_ready),
         .i_wr_data      (r_cmd_data_in),
-        .ow_count       (w_cmd_count),
-        .o_rd_valid     (r_cmd_valid),
+        .count       (w_cmd_count),
+        .rd_valid     (r_cmd_valid),
         .i_rd_ready     (w_cmd_ready),
-        .o_rd_data      (r_cmd_data_out),
-        .o_rd_count     ()
+        .rd_data      (r_cmd_data_out),
+        .rd_count     ()
     );
 
     // Response FIFO signals
@@ -100,13 +100,13 @@ module apb_master #(
         .i_axi_aclk     (pclk),
         .i_axi_aresetn  (presetn),
         .i_wr_valid     (w_rsp_valid),
-        .o_wr_ready     (r_rsp_ready),
+        .wr_ready     (r_rsp_ready),
         .i_wr_data      (r_rsp_data_in),
-        .ow_count       (),
-        .o_rd_valid     (rsp_valid),
+        .count       (),
+        .rd_valid     (rsp_valid),
         .i_rd_ready     (rsp_ready),
-        .o_rd_data      ({rsp_pslverr, rsp_prdata}),
-        .o_rd_count     ()
+        .rd_data      ({rsp_pslverr, rsp_prdata}),
+        .rd_count     ()
     );
 
     // APB FSM

@@ -27,12 +27,12 @@ module axi_monitor_timeout
     input  logic                     timer_tick,    // From frequency invariant timer
 
     // Timeout configuration
-    input  logic [3:0]               i_cfg_addr_cnt,  // Address phase timeout threshold
-    input  logic [3:0]               i_cfg_data_cnt,  // Data phase timeout threshold
-    input  logic [3:0]               i_cfg_resp_cnt,  // Response phase timeout threshold
+    input  logic [3:0]               cfg_addr_cnt,  // Address phase timeout threshold
+    input  logic [3:0]               cfg_data_cnt,  // Data phase timeout threshold
+    input  logic [3:0]               cfg_resp_cnt,  // Response phase timeout threshold
 
     // Packet type configuration
-    input  logic                     i_cfg_timeout_enable, // Enable dedicated timeout packets
+    input  logic                     cfg_timeout_enable, // Enable dedicated timeout packets
 
     // Output signals
     output logic [MAX_TRANSACTIONS-1:0] timeout_detected   // Indicates which transactions had timeouts
@@ -80,7 +80,7 @@ module axi_monitor_timeout
 
                             // Check for timeout
                             /* verilator lint_off WIDTHEXPAND */
-                            if (r_trans_table_local[idx].addr_timer >= {12'h0, i_cfg_addr_cnt}) begin
+                            if (r_trans_table_local[idx].addr_timer >= {12'h0, cfg_addr_cnt}) begin
                             /* verilator lint_on WIDTHEXPAND */
                                 r_trans_table_local[idx].state <= TRANS_ERROR;
                                 r_trans_table_local[idx].event_code <= EVT_CMD_TIMEOUT;
@@ -100,7 +100,7 @@ module axi_monitor_timeout
 
                             // Check for timeout
                             /* verilator lint_off WIDTHEXPAND */
-                            if (r_trans_table_local[idx].data_timer >= {12'h0, i_cfg_data_cnt}) begin
+                            if (r_trans_table_local[idx].data_timer >= {12'h0, cfg_data_cnt}) begin
                             /* verilator lint_on WIDTHEXPAND */
                                 r_trans_table_local[idx].state <= TRANS_ERROR;
                                 r_trans_table_local[idx].event_code <= EVT_DATA_TIMEOUT;
@@ -119,7 +119,7 @@ module axi_monitor_timeout
 
                             // Check for timeout
                             /* verilator lint_off WIDTHEXPAND */
-                            if (r_trans_table_local[idx].resp_timer >= {12'h0, i_cfg_resp_cnt}) begin
+                            if (r_trans_table_local[idx].resp_timer >= {12'h0, cfg_resp_cnt}) begin
                             /* verilator lint_on WIDTHEXPAND */
                                 r_trans_table_local[idx].state <= TRANS_ERROR;
                                 r_trans_table_local[idx].event_code <= EVT_RESP_TIMEOUT;

@@ -54,10 +54,10 @@ module apb_slave_cdc_cg #(
     input  logic              rsp_pslverr,
 
     // Clock gating status
-    output logic              o_pclk_cg_gating,
-    output logic              o_pclk_cg_idle,
-    output logic              o_aclk_cg_gating,
-    output logic              o_aclk_cg_idle
+    output logic              pclk_cg_gating,
+    output logic              pclk_cg_idle,
+    output logic              aclk_cg_gating,
+    output logic              aclk_cg_idle
 );
 
     // Local Parameters
@@ -97,7 +97,7 @@ module apb_slave_cdc_cg #(
     logic              w_rsp_pslverr;
 
     // Force PREADY to 0 when clock gating is active in PCLK domain
-    assign s_apb_PREADY = o_pclk_cg_gating ? 1'b0 : int_apb_PREADY;
+    assign s_apb_PREADY = pclk_cg_gating ? 1'b0 : int_apb_PREADY;
 
     // OR all PCLK domain valid signals for clock gating control
     assign pclk_user_valid = s_apb_PSEL || w_rsp_valid;
@@ -108,9 +108,9 @@ module apb_slave_cdc_cg #(
     assign aclk_axi_valid = cmd_valid || cmd_ready;
 
     // Force ready signals to 0 when clock gating is active in their respective domains
-    assign w_cmd_ready = o_pclk_cg_gating ? 1'b0 : int_cmd_ready;
-    assign rsp_ready = o_aclk_cg_gating ? 1'b0 : int_rsp_ready_aclk;
-    assign w_rsp_ready = o_pclk_cg_gating ? 1'b0 : int_rsp_ready_pclk;  // Fixed - force to 0 during gating
+    assign w_cmd_ready = pclk_cg_gating ? 1'b0 : int_cmd_ready;
+    assign rsp_ready = aclk_cg_gating ? 1'b0 : int_rsp_ready_aclk;
+    assign w_rsp_ready = pclk_cg_gating ? 1'b0 : int_rsp_ready_pclk;  // Fixed - force to 0 during gating
 
     // Instantiate PCLK domain clock gate controller
     amba_clock_gate_ctrl #(
@@ -123,8 +123,8 @@ module apb_slave_cdc_cg #(
         .i_user_valid        (pclk_user_valid),
         .i_axi_valid         (pclk_axi_valid),
         .clk_out             (gated_pclk),
-        .o_gating            (o_pclk_cg_gating),
-        .o_idle              (o_pclk_cg_idle)
+        .gating            (pclk_cg_gating),
+        .idle              (pclk_cg_idle)
     );
 
     // Instantiate ACLK domain clock gate controller
@@ -138,8 +138,8 @@ module apb_slave_cdc_cg #(
         .i_user_valid        (aclk_user_valid),
         .i_axi_valid         (aclk_axi_valid),
         .clk_out             (gated_aclk),
-        .o_gating            (o_aclk_cg_gating),
-        .o_idle              (o_aclk_cg_idle)
+        .gating            (aclk_cg_gating),
+        .idle              (aclk_cg_idle)
     );
 
     // Instantiate the APB slave with gated clock

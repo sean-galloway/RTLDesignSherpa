@@ -38,8 +38,6 @@ class GAXIMonitor(GAXIMonitorBase):
 
     def __init__(self, dut, title, prefix, clock, field_config, is_slave=False,
                     mode='skid',
-                    in_prefix='i_',
-                    out_prefix='o_',
                     bus_name='',
                     pkt_prefix='',
                     multi_sig=False,
@@ -56,8 +54,6 @@ class GAXIMonitor(GAXIMonitorBase):
             field_config: Field configuration
             is_slave: If True, monitor slave side; if False, monitor master side
             mode: GAXI mode ('skid', 'fifo_mux', 'fifo_flop') - for DUT parameter only
-            in_prefix: Input signal prefix
-            out_prefix: Output signal prefix
             bus_name: Bus/channel name
             pkt_prefix: Packet field prefix
             multi_sig: Whether using multi-signal mode
@@ -79,8 +75,6 @@ class GAXIMonitor(GAXIMonitorBase):
             clock=clock,
             field_config=field_config,
             mode=mode,
-            in_prefix=in_prefix,
-            out_prefix=out_prefix,
             bus_name=bus_name,
             pkt_prefix=pkt_prefix,
             multi_sig=multi_sig,

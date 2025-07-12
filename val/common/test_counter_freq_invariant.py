@@ -96,9 +96,9 @@ class CounterFreqInvariantTB(TBBase):
         random.seed(self.SEED)
 
         # Clock and reset signals
-        self.clock = self.dut.i_clk
-        self.reset_n = self.dut.i_rst_n
-        self.sync_reset_n = self.dut.i_sync_reset_n  # New synchronous reset signal
+        self.clock = self.dut.clk
+        self.reset_n = self.dut.rst_n
+        self.sync_reset_n = self.dut.sync_reset_n  # New synchronous reset signal
 
         # Log configuration
         self.log.info(f"Counter Frequency Invariant TB initialized with COUNTER_WIDTH={self.COUNTER_WIDTH}")
@@ -127,16 +127,16 @@ class CounterFreqInvariantTB(TBBase):
         # Reset DUT control signals
         self.reset_n.value = 0
         self.sync_reset_n.value = 1  # Keep sync reset inactive during async reset
-        self.dut.i_freq_sel.value = 0
+        self.dut.freq_sel.value = 0
 
         # Hold reset for multiple cycles
-        await self.wait_clocks('i_clk', 5)
+        await self.wait_clocks('clk', 5)
 
         # Release reset
         self.reset_n.value = 1
 
         # Wait for stabilization
-        await self.wait_clocks('i_clk', 10)
+        await self.wait_clocks('clk', 10)
 
         # Clear monitoring data
         self.counter_changes.clear()
@@ -155,13 +155,13 @@ class CounterFreqInvariantTB(TBBase):
         self.sync_reset_n.value = 0
 
         # Hold sync reset for multiple cycles
-        await self.wait_clocks('i_clk', 5)
+        await self.wait_clocks('clk', 5)
 
         # Release sync reset
         self.sync_reset_n.value = 1
 
         # Wait for stabilization
-        await self.wait_clocks('i_clk', 10)
+        await self.wait_clocks('clk', 10)
 
         # Clear monitoring data
         self.counter_changes.clear()
@@ -186,7 +186,7 @@ class CounterFreqInvariantTB(TBBase):
         self.tick_events.clear()
 
         # Initial values
-        prev_counter = int(self.dut.o_counter.value)
+        prev_counter = int(self.dut.counter.value)
         self.counter_changes.append((0, prev_counter))
 
         # Monitor for specified cycles
@@ -194,14 +194,14 @@ class CounterFreqInvariantTB(TBBase):
             await RisingEdge(self.clock)
 
             # Check counter value
-            current_counter = int(self.dut.o_counter.value)
+            current_counter = int(self.dut.counter.value)
             if current_counter != prev_counter:
                 self.counter_changes.append((cycle, current_counter))
                 self.log.debug(f"Cycle {cycle}: Counter changed to {current_counter}")
                 prev_counter = current_counter
 
             # Check tick signal
-            if int(self.dut.o_tick.value) == 1:
+            if int(self.dut.tick.value) == 1:
                 self.tick_events.append(cycle)
                 self.log.debug(f"Cycle {cycle}: Tick detected")
 
@@ -231,7 +231,7 @@ class CounterFreqInvariantTB(TBBase):
             freq_sel = 0
 
         # Set the selection value
-        self.dut.i_freq_sel.value = freq_sel
+        self.dut.freq_sel.value = freq_sel
         self.current_freq_sel = freq_sel
 
         # Update the current division factor
@@ -460,18 +460,18 @@ class CounterFreqInvariantTB(TBBase):
         self.set_frequency_selection(freq_sel)
 
         # Wait for counter to start incrementing
-        await self.wait_clocks('i_clk', 50)
+        await self.wait_clocks('clk', 50)
 
         # Capture counter value before sync reset
-        counter_before = int(self.dut.o_counter.value)
+        counter_before = int(self.dut.counter.value)
         self.log.info(f"Counter value before sync reset: {counter_before}")
 
         # Apply synchronous reset
         self.sync_reset_n.value = 0
-        await self.wait_clocks('i_clk', 5)  # Wait 1 cycle for the reset to take effect
+        await self.wait_clocks('clk', 5)  # Wait 1 cycle for the reset to take effect
 
         # Capture counter value during sync reset
-        counter_during = int(self.dut.o_counter.value)
+        counter_during = int(self.dut.counter.value)
         self.log.info(f"Counter value during sync reset: {counter_during}")
 
         # Verify counter is reset to 0 during sync reset
@@ -481,7 +481,7 @@ class CounterFreqInvariantTB(TBBase):
         self.sync_reset_n.value = 1
 
         # Wait for counter to start incrementing again
-        await self.wait_clocks('i_clk', 30)
+        await self.wait_clocks('clk', 30)
 
         # Monitor counter behavior after sync reset
         counter_changes, tick_events = await self.monitor_counter(100)
@@ -529,21 +529,21 @@ class CounterFreqInvariantTB(TBBase):
         self.set_frequency_selection(freq_sel)
 
         # Wait for counter to increment a few times
-        await self.wait_clocks('i_clk', 10)
+        await self.wait_clocks('clk', 10)
 
         # Start monitoring
         counter_values = []
         for _ in range(5):
-            counter_values.append(int(self.dut.o_counter.value))
-            await self.wait_clocks('i_clk', 1)
+            counter_values.append(int(self.dut.counter.value))
+            await self.wait_clocks('clk', 1)
 
         # Apply sync reset in the middle of operation
         self.sync_reset_n.value = 0
-        counter_during_reset = int(self.dut.o_counter.value)
-        await self.wait_clocks('i_clk', 5)
+        counter_during_reset = int(self.dut.counter.value)
+        await self.wait_clocks('clk', 5)
 
         # Verify counter is reset synchronously
-        counter_after_reset = int(self.dut.o_counter.value)
+        counter_after_reset = int(self.dut.counter.value)
 
         # Release sync reset
         self.sync_reset_n.value = 1
@@ -551,8 +551,8 @@ class CounterFreqInvariantTB(TBBase):
         # Monitor counter after reset
         post_reset_values = []
         for _ in range(10):
-            post_reset_values.append(int(self.dut.o_counter.value))
-            await self.wait_clocks('i_clk', 1)
+            post_reset_values.append(int(self.dut.counter.value))
+            await self.wait_clocks('clk', 1)
 
         # Verify counter was reset to 0
         reset_effective = (counter_after_reset == 0)
@@ -600,21 +600,21 @@ class CounterFreqInvariantTB(TBBase):
         self.set_frequency_selection(freq_sel)
 
         # Let counter run for a bit
-        await self.wait_clocks('i_clk', 50)
+        await self.wait_clocks('clk', 50)
 
         # Apply asynchronous reset
         self.reset_n.value = 0
-        await self.wait_clocks('i_clk', 1)
+        await self.wait_clocks('clk', 1)
 
         # Immediately check counter
-        counter_after_async = int(self.dut.o_counter.value)
+        counter_after_async = int(self.dut.counter.value)
 
         # Release async reset
-        await self.wait_clocks('i_clk', 5)
+        await self.wait_clocks('clk', 5)
         self.reset_n.value = 1
 
         # Wait for stabilization
-        await self.wait_clocks('i_clk', 20)
+        await self.wait_clocks('clk', 20)
 
         # Now test synchronous reset
         self.log.info("Testing synchronous reset behavior")
@@ -623,18 +623,18 @@ class CounterFreqInvariantTB(TBBase):
         self.set_frequency_selection(freq_sel)
 
         # Let counter run for a bit
-        await self.wait_clocks('i_clk', 50)
+        await self.wait_clocks('clk', 50)
 
         # Apply synchronous reset
         self.sync_reset_n.value = 0
-        await self.wait_clocks('i_clk', 1)
+        await self.wait_clocks('clk', 1)
 
         # Check counter immediately
-        counter_immediate_sync = int(self.dut.o_counter.value)
+        counter_immediate_sync = int(self.dut.counter.value)
 
         # Wait five clock cycles and check again
-        await self.wait_clocks('i_clk', 5)
-        counter_after_sync = int(self.dut.o_counter.value)
+        await self.wait_clocks('clk', 5)
+        counter_after_sync = int(self.dut.counter.value)
 
         # Release sync reset
         self.sync_reset_n.value = 1
@@ -685,7 +685,7 @@ class CounterFreqInvariantTB(TBBase):
         self.set_frequency_selection(initial_freq_sel)
 
         # Let counter run for a bit
-        await self.wait_clocks('i_clk', 100)
+        await self.wait_clocks('clk', 100)
 
         # Apply both frequency change and sync reset simultaneously
         new_freq_sel = 0x1  # 10:1 division
@@ -693,16 +693,16 @@ class CounterFreqInvariantTB(TBBase):
         self.sync_reset_n.value = 0
 
         # Wait five clock cycles
-        await self.wait_clocks('i_clk', 5)
+        await self.wait_clocks('clk', 5)
 
         # Check counter after sync reset
-        counter_after_reset = int(self.dut.o_counter.value)
+        counter_after_reset = int(self.dut.counter.value)
 
         # Release sync reset
         self.sync_reset_n.value = 1
 
         # Monitor counter behavior
-        await self.wait_clocks('i_clk', 30)
+        await self.wait_clocks('clk', 30)
         counter_changes, tick_events = await self.monitor_counter(200)
 
         # Verify reset was effective
@@ -750,7 +750,7 @@ async def counter_freq_invariant_sync_reset_test(dut):
 
     # Start the clock
     print('Starting clk')
-    await tb.start_clock('i_clk', 10, 'ns')
+    await tb.start_clock('clk', 10, 'ns')
 
     # Reset the DUT
     print('DUT reset')
@@ -782,14 +782,14 @@ async def counter_freq_invariant_sync_reset_test(dut):
         time_ns = get_sim_time('ns')
         assert passed, f"Frequency change with synchronous reset test failed @ {time_ns}ns"
 
-        await tb.wait_clocks('i_clk', 50)
+        await tb.wait_clocks('clk', 50)
         tb.log.info(f"Synchronous reset tests completed successfully @ {time_ns}ns")
 
     finally:
         # Set done flag
         tb.done = True
         # Wait for any pending tasks
-        await tb.wait_clocks('i_clk', 10)
+        await tb.wait_clocks('clk', 10)
 
 
 @pytest.mark.parametrize("counter_width",

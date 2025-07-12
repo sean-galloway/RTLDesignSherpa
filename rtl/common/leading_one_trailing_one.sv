@@ -3,14 +3,14 @@ module leading_one_trailing_one #(
     parameter int WIDTH = 8,
     parameter string INSTANCE_NAME = ""
 ) (
-    input  logic [WIDTH-1:0]     i_data,
-    output logic [$clog2(WIDTH)-1:0] ow_leadingone,       // Changed to match arbiter's N
-    output logic [WIDTH-1:0]     ow_leadingone_vector,
-    output logic [$clog2(WIDTH)-1:0] ow_trailingone,      // Changed to match arbiter's N
-    output logic [WIDTH-1:0]     ow_trailingone_vector,
-    output logic                 ow_all_zeroes,
-    output logic                 ow_all_ones,
-    output logic                 ow_valid
+    input  logic [WIDTH-1:0]     data,
+    output logic [$clog2(WIDTH)-1:0] leadingone,       // Changed to match arbiter's N
+    output logic [WIDTH-1:0]     leadingone_vector,
+    output logic [$clog2(WIDTH)-1:0] trailingone,      // Changed to match arbiter's N
+    output logic [WIDTH-1:0]     trailingone_vector,
+    output logic                 all_zeroes,
+    output logic                 all_ones,
+    output logic                 valid
 );
     localparam int N = $clog2(WIDTH);  // Changed to match arbiter's definition
 
@@ -19,8 +19,8 @@ module leading_one_trailing_one #(
         .WIDTH(WIDTH),
         .INSTANCE_NAME(INSTANCE_NAME)
     ) u_find_first_set (
-        .i_data(i_data),
-        .ow_index(ow_leadingone)
+        .data(data),
+        .index(leadingone)
     );
 
     // Modified find_last_set instantiation
@@ -28,27 +28,27 @@ module leading_one_trailing_one #(
         .WIDTH(WIDTH),
         .INSTANCE_NAME(INSTANCE_NAME)
     ) u_find_last_set (
-        .i_data(i_data),
-        .ow_index(ow_trailingone)
+        .data(data),
+        .index(trailingone)
     );
 
     always_comb begin
-        ow_leadingone_vector = '0;
-        ow_trailingone_vector = '0;
+        leadingone_vector = '0;
+        trailingone_vector = '0;
 
         // Only set vector bits if there is valid data
-        if (|i_data) begin
-            if (int'(ow_leadingone) < WIDTH) begin
-                ow_leadingone_vector[ow_leadingone] = 1'b1;
+        if (|data) begin
+            if (int'(leadingone) < WIDTH) begin
+                leadingone_vector[leadingone] = 1'b1;
             end
 
-            if (int'(ow_trailingone) < WIDTH) begin
-                ow_trailingone_vector[ow_trailingone] = 1'b1;
+            if (int'(trailingone) < WIDTH) begin
+                trailingone_vector[trailingone] = 1'b1;
             end
         end
     end
 
-    assign ow_all_ones = &i_data;
-    assign ow_all_zeroes = ~(|i_data);
-    assign ow_valid = |i_data;
+    assign all_ones = &data;
+    assign all_zeroes = ~(|data);
+    assign valid = |data;
 endmodule : leading_one_trailing_one

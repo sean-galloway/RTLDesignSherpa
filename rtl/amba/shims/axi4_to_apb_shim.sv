@@ -329,11 +329,11 @@ module axi4_to_apb_shim #(
         .m_apb_PSLVERR    (m_apb_PSLVERR),
         .m_apb_PREADY     (m_apb_PREADY),
         .i_cmd_valid      (w_cmd_valid_apb),
-        .o_cmd_ready      (r_cmd_ready_apb),
+        .cmd_ready      (r_cmd_ready_apb),
         .i_cmd_data       (r_cmd_data_apb),
-        .o_rsp_valid      (r_rsp_valid_apb),
+        .rsp_valid      (r_rsp_valid_apb),
         .i_rsp_ready      (w_rsp_ready_apb),
-        .o_rsp_data       (r_rsp_data_apb)
+        .rsp_data       (r_rsp_data_apb)
     );
 
 endmodule : axi4_to_apb_shim

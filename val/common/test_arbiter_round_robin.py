@@ -46,21 +46,21 @@ class EnhancedArbiterRoundRobinTB(TBBase):
         self.granted_reqs = 0
 
         # Clock and reset signals
-        self.clock = self.dut.i_clk
-        self.reset_n = self.dut.i_rst_n
+        self.clock = self.dut.clk
+        self.reset_n = self.dut.rst_n
 
         # Initialize the enhanced arbiter monitor
         self.monitor = RoundRobinArbiterMonitor(
             dut=dut,
             title="RR_Monitor",
-            clock=self.dut.i_clk,
-            reset_n=self.dut.i_rst_n,
-            req_signal=self.dut.i_req,
-            gnt_valid_signal=self.dut.o_gnt_valid,
-            gnt_signal=self.dut.o_gnt,
-            gnt_id_signal=self.dut.o_gnt_id,
-            gnt_ack_signal=self.dut.i_gnt_ack,
-            block_arb_signal=self.dut.i_block_arb,
+            clock=self.dut.clk,
+            reset_n=self.dut.rst_n,
+            req_signal=self.dut.req,
+            gnt_valid_signal=self.dut.gnt_valid,
+            gnt_signal=self.dut.gnt,
+            gnt_id_signal=self.dut.gnt_id,
+            gnt_ack_signal=self.dut.gnt_ack,
+            block_arb_signal=self.dut.block_arb,
             clients=self.CLIENTS,
             log=self.log,
             clock_period_ns=10
@@ -84,9 +84,9 @@ class EnhancedArbiterRoundRobinTB(TBBase):
 
     def clear_interface(self):
         """Clear all interface signals"""
-        self.dut.i_block_arb.value = 0
-        self.dut.i_req.value = 0
-        self.dut.i_gnt_ack.value = 0
+        self.dut.block_arb.value = 0
+        self.dut.req.value = 0
+        self.dut.gnt_ack.value = 0
         self.log.info('Clearing interface done.')
 
     async def reset_dut(self):
@@ -98,7 +98,7 @@ class EnhancedArbiterRoundRobinTB(TBBase):
         self.clear_interface()
 
         # Hold reset for multiple cycles
-        await self.wait_clocks('i_clk', 5)
+        await self.wait_clocks('clk', 5)
 
         # Release reset
         self.reset_n.value = 1
@@ -107,7 +107,7 @@ class EnhancedArbiterRoundRobinTB(TBBase):
         self.monitor.start_monitoring()
 
         # Wait for stabilization
-        await self.wait_clocks('i_clk', 5)
+        await self.wait_clocks('clk', 5)
 
         self.log.debug('Ending reset_dut')
 
@@ -129,30 +129,30 @@ class EnhancedArbiterRoundRobinTB(TBBase):
 
             # Add new requests to active requests
             self.active_reqs |= new_reqs
-            self.dut.i_req.value = self.active_reqs
+            self.dut.req.value = self.active_reqs
 
             if new_reqs:
                 req_str = bin(self.active_reqs)[2:].zfill(self.CLIENTS)
                 msg = f'    New reqs added: {bin(new_reqs)[2:].zfill(self.CLIENTS)}, Active reqs: {req_str}'
                 self.log.debug(msg)
 
-            await self.wait_clocks('i_clk', 1)
+            await self.wait_clocks('clk', 1)
 
     async def check_grants(self):
         """Monitor and verify grant signals (original functionality)"""
         while True:
-            await self.wait_clocks('i_clk', 1)
+            await self.wait_clocks('clk', 1)
 
-            if self.dut.o_gnt_valid.value == 1:
+            if self.dut.gnt_valid.value == 1:
                 time_ns = get_sim_time('ns')
-                grant_id = int(self.dut.o_gnt_id.value)
+                grant_id = int(self.dut.gnt_id.value)
                 expected_gnt = (1 << grant_id)
 
-                current_req = int(self.dut.i_req.value)
+                current_req = int(self.dut.req.value)
                 msg = f'Current req: 0x{current_req:x} @ {time_ns}ns'
                 self.log.debug(msg)
 
-                actual_gnt = int(self.dut.o_gnt.value)
+                actual_gnt = int(self.dut.gnt.value)
 
                 # Verify grant matches expected pattern
                 assert actual_gnt == expected_gnt, \
@@ -171,17 +171,17 @@ class EnhancedArbiterRoundRobinTB(TBBase):
                 if self.WAIT_GNT_ACK == 0:
                     # If no ACK needed, clear immediately
                     self.active_reqs &= ~(1 << grant_id)
-                    self.dut.i_req.value = self.active_reqs
+                    self.dut.req.value = self.active_reqs
                     msg = f'Cleared bit {grant_id} immediately, new req value: 0x{self.active_reqs:x}'
                     self.log.debug(msg)
 
     async def handle_grant_ack(self):
         """Handle grant acknowledge signals when WAIT_GNT_ACK is enabled"""
         while True:
-            await RisingEdge(self.dut.i_clk)
+            await RisingEdge(self.dut.clk)
 
-            if self.WAIT_GNT_ACK == 1 and self.dut.o_gnt_valid.value == 1:
-                grant_id = int(self.dut.o_gnt_id.value)
+            if self.WAIT_GNT_ACK == 1 and self.dut.gnt_valid.value == 1:
+                grant_id = int(self.dut.gnt_id.value)
                 grant_ack_delay = self.random_delay()
 
                 time_ns = get_sim_time('ns')
@@ -189,32 +189,32 @@ class EnhancedArbiterRoundRobinTB(TBBase):
 
                 # Wait for random delay before acknowledging
                 for _ in range(grant_ack_delay):
-                    await self.wait_clocks('i_clk', 1)
+                    await self.wait_clocks('clk', 1)
 
                 # Set acknowledge signal
                 ack_mask = (1 << grant_id)
-                self.dut.i_gnt_ack.value = ack_mask
+                self.dut.gnt_ack.value = ack_mask
 
                 time_ns = get_sim_time('ns')
                 self.log.debug(f"Sending grant ack 0x{ack_mask:x} @ {time_ns}ns")
 
                 # Clear the request only after acknowledge
                 self.active_reqs &= ~(1 << grant_id)
-                self.dut.i_req.value = self.active_reqs
+                self.dut.req.value = self.active_reqs
 
                 # Hold for one cycle then clear ack
-                await self.wait_clocks('i_clk', 1)
-                self.dut.i_gnt_ack.value = 0
+                await self.wait_clocks('clk', 1)
+                self.dut.gnt_ack.value = 0
 
     async def test_grant_signals(self):
         """Test that grant signals work correctly (original test)"""
         self.log.info("Starting grant signal test")
 
-        # Test each client one by one to verify correct o_gnt_id to o_gnt mapping
+        # Test each client one by one to verify correct gnt_id to gnt mapping
         for client_id in range(self.CLIENTS):
             # Set a request for just this client
             req_pattern = (1 << client_id)
-            self.dut.i_req.value = req_pattern
+            self.dut.req.value = req_pattern
             self.active_reqs = req_pattern
 
             self.log.info(f"Testing client {client_id}: req = 0b{bin(req_pattern)[2:].zfill(self.CLIENTS)}")
@@ -225,12 +225,12 @@ class EnhancedArbiterRoundRobinTB(TBBase):
             grant_received = False
 
             while cycle < max_cycles and not grant_received:
-                await RisingEdge(self.dut.i_clk)
+                await RisingEdge(self.dut.clk)
                 cycle += 1
 
-                if self.dut.o_gnt_valid.value == 1:
-                    grant_id = int(self.dut.o_gnt_id.value)
-                    grant_bus = int(self.dut.o_gnt.value)
+                if self.dut.gnt_valid.value == 1:
+                    grant_id = int(self.dut.gnt_id.value)
+                    grant_bus = int(self.dut.gnt.value)
 
                     self.log.info(f"Grant received on cycle {cycle}")
                     self.log.info(f"Grant ID: {grant_id}")
@@ -245,18 +245,18 @@ class EnhancedArbiterRoundRobinTB(TBBase):
 
                     # Handle acknowledge if needed
                     if self.WAIT_GNT_ACK == 1:
-                        self.dut.i_gnt_ack.value = req_pattern
-                        await self.wait_clocks('i_clk', 1)
-                        self.dut.i_gnt_ack.value = 0
+                        self.dut.gnt_ack.value = req_pattern
+                        await self.wait_clocks('clk', 1)
+                        self.dut.gnt_ack.value = 0
 
                     grant_received = True
 
             assert grant_received, f"No grant received for client {client_id}"
 
             # Clear the request and wait a cycle before the next client
-            self.dut.i_req.value = 0
+            self.dut.req.value = 0
             self.active_reqs = 0
-            await self.wait_clocks('i_clk', 5)
+            await self.wait_clocks('clk', 5)
 
         self.log.info("Grant signal test passed - all clients received grants with correct ID and bus values")
 
@@ -272,7 +272,7 @@ class EnhancedArbiterRoundRobinTB(TBBase):
         # Run for the specified number of cycles
         self.log.info(f"Running for {run_cycles} clock cycles")
         for _ in range(run_cycles):
-            await RisingEdge(self.dut.i_clk)
+            await RisingEdge(self.dut.clk)
 
         self.log.info("Test completed successfully")
 
@@ -286,18 +286,18 @@ class EnhancedArbiterRoundRobinTB(TBBase):
 
         # Set all requests active
         all_requests = (1 << self.CLIENTS) - 1
-        self.dut.i_req.value = all_requests
+        self.dut.req.value = all_requests
 
         self.log.info(f"Initial request pattern: 0b{bin(all_requests)[2:].zfill(self.CLIENTS)}")
 
         # Monitor grants
         for cycle in range(total_cycles):
-            await RisingEdge(self.dut.i_clk)
+            await RisingEdge(self.dut.clk)
 
-            if self.dut.o_gnt_valid.value == 1:
-                grant_id = int(self.dut.o_gnt_id.value)
+            if self.dut.gnt_valid.value == 1:
+                grant_id = int(self.dut.gnt_id.value)
                 grant_bit = (1 << grant_id)
-                req_value = int(self.dut.i_req.value)
+                req_value = int(self.dut.req.value)
 
                 # Increment count for this client
                 grant_counts[grant_id] += 1
@@ -309,18 +309,18 @@ class EnhancedArbiterRoundRobinTB(TBBase):
 
                 # Handle acknowledge if needed
                 if self.WAIT_GNT_ACK == 1:
-                    self.dut.i_gnt_ack.value = grant_bit
-                    await self.wait_clocks('i_clk', 1)
-                    self.dut.i_gnt_ack.value = 0
+                    self.dut.gnt_ack.value = grant_bit
+                    await self.wait_clocks('clk', 1)
+                    self.dut.gnt_ack.value = 0
 
                 # Clear the granted bit but keep all other bits set
-                self.dut.i_req.value = (req_value & ~grant_bit) | (all_requests & ~grant_bit)
+                self.dut.req.value = (req_value & ~grant_bit) | (all_requests & ~grant_bit)
 
                 # Wait one cycle
-                await self.wait_clocks('i_clk', 1)
+                await self.wait_clocks('clk', 1)
 
                 # Set all bits again
-                self.dut.i_req.value = all_requests
+                self.dut.req.value = all_requests
 
         # Get statistics from monitor
         monitor_stats = self.monitor.get_stats_summary()
@@ -361,30 +361,30 @@ class EnhancedArbiterRoundRobinTB(TBBase):
         self.log.info("Starting block_arb test")
 
         # First clear all requests
-        self.dut.i_req.value = 0
-        self.dut.i_block_arb.value = 0
-        await self.wait_clocks('i_clk', 5)
+        self.dut.req.value = 0
+        self.dut.block_arb.value = 0
+        await self.wait_clocks('clk', 5)
 
         # Set block_arb before setting any requests
-        self.dut.i_block_arb.value = 1
+        self.dut.block_arb.value = 1
         self.log.info("Asserted block_arb")
-        await self.wait_clocks('i_clk', 5)
+        await self.wait_clocks('clk', 5)
 
         # Now set some requests - these should not be granted while block_arb is active
         req_pattern = (1 << self.CLIENTS) - 1  # All bits set
-        self.dut.i_req.value = req_pattern
+        self.dut.req.value = req_pattern
         self.log.info(f"Set request pattern: 0b{bin(req_pattern)[2:].zfill(self.CLIENTS)} with block_arb asserted")
 
         # Wait several cycles and verify no grants are issued
         for i in range(20):
-            await self.wait_clocks('i_clk', 1)
-            assert self.dut.o_gnt_valid.value == 0, \
+            await self.wait_clocks('clk', 1)
+            assert self.dut.gnt_valid.value == 0, \
                 f"Grant was issued when block_arb was asserted at cycle {i}, time {get_sim_time('ns')}ns"
 
         self.log.info("No grants issued while block_arb was asserted - good!")
 
         # De-assert block_arb and ensure requests are still active
-        self.dut.i_block_arb.value = 0
+        self.dut.block_arb.value = 0
         self.log.info("De-asserted block_arb with active requests")
 
         # Check that grants resume
@@ -393,10 +393,10 @@ class EnhancedArbiterRoundRobinTB(TBBase):
         max_cycles = 20
 
         for i in range(max_cycles):
-            await self.wait_clocks('i_clk', 1)
+            await self.wait_clocks('clk', 1)
 
-            if self.dut.o_gnt_valid.value == 1:
-                grant_id = int(self.dut.o_gnt_id.value)
+            if self.dut.gnt_valid.value == 1:
+                grant_id = int(self.dut.gnt_id.value)
                 grant_bit = (1 << grant_id)
 
                 grant_issued = True
@@ -406,13 +406,13 @@ class EnhancedArbiterRoundRobinTB(TBBase):
 
                 # Handle acknowledge if needed
                 if self.WAIT_GNT_ACK == 1:
-                    self.dut.i_gnt_ack.value = grant_bit
-                    await self.wait_clocks('i_clk', 1)
-                    self.dut.i_gnt_ack.value = 0
+                    self.dut.gnt_ack.value = grant_bit
+                    await self.wait_clocks('clk', 1)
+                    self.dut.gnt_ack.value = 0
 
                 # Clear the granted bit but keep all other bits set
-                current_req = int(self.dut.i_req.value)
-                self.dut.i_req.value = current_req & ~grant_bit
+                current_req = int(self.dut.req.value)
+                self.dut.req.value = current_req & ~grant_bit
 
                 # If we've seen at least 3 grants, we can be confident that block_arb is working correctly
                 if grant_count >= 3:
@@ -427,14 +427,14 @@ class EnhancedArbiterRoundRobinTB(TBBase):
 
         # Initialize
         self.active_reqs = 0
-        self.dut.i_req.value = 0
+        self.dut.req.value = 0
 
         # Run through all adjacent pairs
         for i in range(self.CLIENTS - 1):
             # Create request pattern with two adjacent bits
             req_pattern = (1 << i) | (1 << (i + 1))
             self.active_reqs = req_pattern
-            self.dut.i_req.value = req_pattern
+            self.dut.req.value = req_pattern
 
             self.log.info(f"Testing adjacent requests {i}/{i+1}: 0b{bin(req_pattern)[2:].zfill(self.CLIENTS)}")
 
@@ -444,11 +444,11 @@ class EnhancedArbiterRoundRobinTB(TBBase):
             max_cycles = 100
 
             while granted_bits != req_pattern and cycles_waited < max_cycles:
-                await RisingEdge(self.dut.i_clk)
+                await RisingEdge(self.dut.clk)
                 cycles_waited += 1
 
-                if self.dut.o_gnt_valid.value == 1:
-                    grant_id = int(self.dut.o_gnt_id.value)
+                if self.dut.gnt_valid.value == 1:
+                    grant_id = int(self.dut.gnt_id.value)
                     grant_bit = (1 << grant_id)
 
                     self.log.debug(f"Got grant for bit {grant_id}")
@@ -456,19 +456,19 @@ class EnhancedArbiterRoundRobinTB(TBBase):
 
                     # Handle ACK if needed
                     if self.WAIT_GNT_ACK == 1:
-                        self.dut.i_gnt_ack.value = grant_bit
-                        await self.wait_clocks('i_clk', 1)
-                        self.dut.i_gnt_ack.value = 0
+                        self.dut.gnt_ack.value = grant_bit
+                        await self.wait_clocks('clk', 1)
+                        self.dut.gnt_ack.value = 0
 
                     # Clear the granted bit from the active requests
                     self.active_reqs &= ~grant_bit
-                    self.dut.i_req.value = self.active_reqs
+                    self.dut.req.value = self.active_reqs
 
             assert granted_bits == req_pattern, \
                 f"Not all bits in request pattern 0b{bin(req_pattern)[2:].zfill(self.CLIENTS)} were granted"
 
             # Wait a few cycles before moving to next pattern
-            await self.wait_clocks('i_clk', 5)
+            await self.wait_clocks('clk', 5)
 
         self.log.info("Walking adjacent requests test passed")
 
@@ -484,7 +484,7 @@ async def arbiter_round_robin_enhanced_test(dut):
     tb.log.info(f'Enhanced round robin test starting with seed {seed}')
 
     # Start the clock
-    await tb.start_clock('i_clk', 10, 'ns')
+    await tb.start_clock('clk', 10, 'ns')
 
     # Reset the DUT (this also starts the monitor)
     await tb.reset_dut()
@@ -535,7 +535,7 @@ async def arbiter_round_robin_enhanced_test(dut):
         raise
     finally:
         # Wait for any pending tasks
-        await tb.wait_clocks('i_clk', 10)
+        await tb.wait_clocks('clk', 10)
 
 
 @pytest.mark.parametrize("clients, wait_ack", [

@@ -24,32 +24,32 @@ module gaxi_data_collect #(
 
     // Input Channel A
     input  logic                    i_a_valid,
-    output logic                    o_a_ready,
+    output logic                    a_ready,
     input  logic [DW-1:0]           i_a_data,
     input  logic [IDW-1:0]          i_a_id,
 
     // Input Channel B
     input  logic                    i_b_valid,
-    output logic                    o_b_ready,
+    output logic                    b_ready,
     input  logic [DW-1:0]           i_b_data,
     input  logic [IDW-1:0]          i_b_id,
 
     // Input Channel C
     input  logic                    i_c_valid,
-    output logic                    o_c_ready,
+    output logic                    c_ready,
     input  logic [DW-1:0]           i_c_data,
     input  logic [IDW-1:0]          i_c_id,
 
     // Input Channel D
     input  logic                    i_d_valid,
-    output logic                    o_d_ready,
+    output logic                    d_ready,
     input  logic [DW-1:0]           i_d_data,
     input  logic [IDW-1:0]          i_d_id,
 
     // Output Channel E (FIFO)
-    output logic                    o_e_valid,
+    output logic                    e_valid,
     input  logic                    i_e_ready,
-    output logic [IDW+CHUNKS*DW-1:0] o_e_data
+    output logic [IDW+CHUNKS*DW-1:0] e_data
 );
 
     // ===========================================================================
@@ -117,13 +117,13 @@ module gaxi_data_collect #(
         .i_axi_aclk    (i_axi_aclk),
         .i_axi_aresetn (i_axi_aresetn),
         .i_wr_valid    (i_a_valid),
-        .o_wr_ready    (o_a_ready),
+        .wr_ready    (a_ready),
         .i_wr_data     ({i_a_id, i_a_data}),
-        .o_rd_valid    (w_a_skid_valid),
+        .rd_valid    (w_a_skid_valid),
         .i_rd_ready    (w_a_skid_ready),
-        .o_rd_data     ({w_a_skid_id, w_a_skid_data}),
-        .ow_count      (),
-        .o_rd_count    ()
+        .rd_data     ({w_a_skid_id, w_a_skid_data}),
+        .count      (),
+        .rd_count    ()
     );
 
     // Channel B Skid Buffer
@@ -134,13 +134,13 @@ module gaxi_data_collect #(
         .i_axi_aclk    (i_axi_aclk),
         .i_axi_aresetn (i_axi_aresetn),
         .i_wr_valid    (i_b_valid),
-        .o_wr_ready    (o_b_ready),
+        .wr_ready    (b_ready),
         .i_wr_data     ({i_b_id, i_b_data}),
-        .o_rd_valid    (w_b_skid_valid),
+        .rd_valid    (w_b_skid_valid),
         .i_rd_ready    (w_b_skid_ready),
-        .o_rd_data     ({w_b_skid_id, w_b_skid_data}),
-        .ow_count      (),
-        .o_rd_count    ()
+        .rd_data     ({w_b_skid_id, w_b_skid_data}),
+        .count      (),
+        .rd_count    ()
     );
 
     // Channel C Skid Buffer
@@ -151,13 +151,13 @@ module gaxi_data_collect #(
         .i_axi_aclk    (i_axi_aclk),
         .i_axi_aresetn (i_axi_aresetn),
         .i_wr_valid    (i_c_valid),
-        .o_wr_ready    (o_c_ready),
+        .wr_ready    (c_ready),
         .i_wr_data     ({i_c_id, i_c_data}),
-        .o_rd_valid    (w_c_skid_valid),
+        .rd_valid    (w_c_skid_valid),
         .i_rd_ready    (w_c_skid_ready),
-        .o_rd_data     ({w_c_skid_id, w_c_skid_data}),
-        .ow_count      (),
-        .o_rd_count    ()
+        .rd_data     ({w_c_skid_id, w_c_skid_data}),
+        .count      (),
+        .rd_count    ()
     );
 
     // Channel D Skid Buffer
@@ -168,13 +168,13 @@ module gaxi_data_collect #(
         .i_axi_aclk    (i_axi_aclk),
         .i_axi_aresetn (i_axi_aresetn),
         .i_wr_valid    (i_d_valid),
-        .o_wr_ready    (o_d_ready),
+        .wr_ready    (d_ready),
         .i_wr_data     ({i_d_id, i_d_data}),
-        .o_rd_valid    (w_d_skid_valid),
+        .rd_valid    (w_d_skid_valid),
         .i_rd_ready    (w_d_skid_ready),
-        .o_rd_data     ({w_d_skid_id, w_d_skid_data}),
-        .ow_count      (),
-        .o_rd_count    ()
+        .rd_data     ({w_d_skid_id, w_d_skid_data}),
+        .count      (),
+        .rd_count    ()
     );
 
     // ===========================================================================
@@ -216,9 +216,9 @@ module gaxi_data_collect #(
         .i_block_arb   (r_arb_locked),
         .i_max_thresh  (w_arb_weights),  // Weights for all channels
         .i_req         (w_arb_req),      // Valid signals from all skid buffers
-        .ow_gnt_valid  (w_arb_gnt_valid),
-        .ow_gnt        (w_arb_gnt),      // One-hot grant signal
-        .ow_gnt_id     (w_arb_gnt_id),   // Binary grant ID
+        .gnt_valid  (w_arb_gnt_valid),
+        .gnt        (w_arb_gnt),      // One-hot grant signal
+        .gnt_id     (w_arb_gnt_id),   // Binary grant ID
         .i_gnt_ack     (4'b0)          // Not using ack mechanism
     );
 
@@ -347,12 +347,12 @@ module gaxi_data_collect #(
         .i_axi_aclk     (i_axi_aclk),
         .i_axi_aresetn  (i_axi_aresetn),
         .i_wr_valid     (w_fifo_wr_valid),
-        .o_wr_ready     (w_fifo_wr_ready),
+        .wr_ready     (w_fifo_wr_ready),
         .i_wr_data      (w_fifo_wr_data),
-        .o_rd_valid     (o_e_valid),
-        .o_rd_data      (o_e_data),
+        .rd_valid     (e_valid),
+        .rd_data      (e_data),
         .i_rd_ready     (i_e_ready),
-        .ow_count       ()
+        .count       ()
     );
 
 endmodule : gaxi_data_collect

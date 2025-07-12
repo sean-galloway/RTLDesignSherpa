@@ -34,7 +34,7 @@ class CamTB(TBBase):
         for tag in tag_list:
             await self.mark_one_invalid(tag)
         self.clear_interface()
-        await self.wait_clocks('i_clk', 1)
+        await self.wait_clocks('clk', 1)
         self.check_empty()
         self.check_not_full()
 
@@ -56,9 +56,9 @@ class CamTB(TBBase):
         for tag in tag_list:
             await self.mark_one_valid(tag)
             # Verify tag was added successfully
-            self.dut.i_tag_in_status.value = tag
-            await self.wait_clocks('i_clk', 1)
-            if self.dut.ow_tag_status == 1:
+            self.dut.tag_in_status.value = tag
+            await self.wait_clocks('clk', 1)
+            if self.dut.tag_status == 1:
                 valid_tags.append(tag)
 
         self.check_not_empty()
@@ -86,71 +86,71 @@ class CamTB(TBBase):
         for tag in valid_tags:
             await self.mark_one_invalid(tag)
             # Verify tag is removed
-            self.dut.i_tag_in_status.value = tag
-            await self.wait_clocks('i_clk', 1)
-            assert self.dut.ow_tag_status == 0, f"Tag 0x{tag:x} was not properly removed"
+            self.dut.tag_in_status.value = tag
+            await self.wait_clocks('clk', 1)
+            assert self.dut.tag_status == 0, f"Tag 0x{tag:x} was not properly removed"
 
         self.clear_interface()
-        await self.wait_clocks('i_clk', 1)
+        await self.wait_clocks('clk', 1)
         self.check_empty()
         self.check_not_full()
 
     def clear_interface(self):
-        self.dut.i_tag_in_status.value = 0
-        self.dut.i_tag_in_valid.value = 0
-        self.dut.i_tag_in_invalid.value = 0
-        self.dut.i_mark_valid.value = 0
-        self.dut.i_mark_invalid.value = 0
+        self.dut.tag_in_status.value = 0
+        self.dut.tag_in_valid.value = 0
+        self.dut.tag_in_invalid.value = 0
+        self.dut.mark_valid.value = 0
+        self.dut.mark_invalid.value = 0
 
 
     def assert_reset(self):
-        self.dut.i_rst_n.value = 0
+        self.dut.rst_n.value = 0
         self.clear_interface()
 
 
     def deassert_reset(self):
-        self.dut.i_rst_n.value = 1
+        self.dut.rst_n.value = 1
         self.log.info("Reset complete.")
 
 
     def check_empty(self):
-        assert self.dut.ow_tags_empty == 1, f"CAM should be empty, but is not.{self.get_time_ns_str()}"
+        assert self.dut.tags_empty == 1, f"CAM should be empty, but is not.{self.get_time_ns_str()}"
 
 
     def check_not_empty(self):
-        assert self.dut.ow_tags_empty == 0, f"CAM should not be empty, but is.{self.get_time_ns_str()}"
+        assert self.dut.tags_empty == 0, f"CAM should not be empty, but is.{self.get_time_ns_str()}"
 
 
     def check_full(self):
-        assert self.dut.ow_tags_full == 1, f"CAM should be full, but is not.{self.get_time_ns_str()}"
+        assert self.dut.tags_full == 1, f"CAM should be full, but is not.{self.get_time_ns_str()}"
 
 
     def check_not_full(self):
-        assert self.dut.ow_tags_full == 0, f"CAM should not be full, but is{self.get_time_ns_str()}."
+        assert self.dut.tags_full == 0, f"CAM should not be full, but is{self.get_time_ns_str()}."
 
 
     async def mark_one_valid(self, tag_value):
         self.log.info(f"Marking Valid {self.hex_format(tag_value, self.max_val)}{self.get_time_ns_str()}")
-        self.dut.i_tag_in_valid.value = tag_value
-        self.dut.i_mark_valid.value = 1
-        await self.wait_clocks('i_clk', 1)
-        self.dut.i_tag_in_valid.value = 0
-        self.dut.i_mark_valid.value = 0
+        self.dut.tag_in_valid.value = tag_value
+        self.dut.mark_valid.value = 1
+        await self.wait_clocks('clk', 1)
+        self.dut.tag_in_valid.value = 0
+        self.dut.mark_valid.value = 0
 
 
     async def mark_one_invalid(self, tag_value):
         self.log.info(f"Marking Invalid {self.hex_format(tag_value, self.max_val)}{self.get_time_ns_str()}")
-        self.dut.i_tag_in_invalid.value = tag_value
-        self.dut.i_mark_invalid.value = 1
-        await self.wait_clocks('i_clk', 1)
-        self.dut.i_tag_in_invalid.value = 0
-        self.dut.i_mark_invalid.value = 0
+        self.dut.tag_in_invalid.value = tag_value
+        self.dut.mark_invalid.value = 1
+        await self.wait_clocks('clk', 1)
+        self.dut.tag_in_invalid.value = 0
+        self.dut.mark_invalid.value = 0
 
 
     async def check_tag(self, tag_value, check):
-        self.dut.i_tag_in_status.value = tag_value
-        await self.wait_clocks('i_clk', 1)
-        found = self.dut.ow_tag_status
+        self.dut.tag_in_status.value = tag_value
+        await self.wait_clocks('clk', 1)
+        found = self.dut.tag_status
         if check == 1:
             msg = f"Expected tag({self.hex_format(tag_value, self.max_val)}) to be True{self.get_time_ns_str()}"
         else:
@@ -181,9 +181,9 @@ class CamTB(TBBase):
         # First, find all valid entries in the CAM by checking each possible tag
         valid_tags = []
         for tag in range(1 << self.N):
-            self.dut.i_tag_in_status.value = tag
-            await self.wait_clocks('i_clk', 1)
-            if self.dut.ow_tag_status == 1:
+            self.dut.tag_in_status.value = tag
+            await self.wait_clocks('clk', 1)
+            if self.dut.tag_status == 1:
                 valid_tags.append(tag)
 
         # Now invalidate all discovered valid tags
@@ -193,7 +193,7 @@ class CamTB(TBBase):
 
         # Clear interface signals
         self.clear_interface()
-        await self.wait_clocks('i_clk', 1)
+        await self.wait_clocks('clk', 1)
 
         # Verify CAM is empty
         try:

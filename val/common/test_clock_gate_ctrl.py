@@ -123,10 +123,10 @@ class ClockGateCtrlTB(TBBase):
     def assert_reset(self):
         """Reset the DUT to known state"""
         self.reset_n.value = 0
-        self.dut.i_cfg_cg_enable.value = 0
-        self.dut.i_cfg_cg_idle_count.value = self.max_count
+        self.dut.cfg_cg_enable.value = 0
+        self.dut.cfg_cg_idle_count.value = self.max_count
         self.last_idle_count = self.max_count
-        self.dut.i_wakeup.value = 0
+        self.dut.wakeup.value = 0
         self.log.info('Assert reset done.')
 
     async def reset_dut(self):
@@ -221,17 +221,17 @@ class ClockGateCtrlTB(TBBase):
         time_ns = get_sim_time('ns')
         self.log.info(f"Starting systematic enable test @ {time_ns}ns")
 
-        self.dut.i_cfg_cg_enable.value = 1
-        self.dut.i_cfg_cg_idle_count.value = self.max_count  # Set max count to focus on wake
+        self.dut.cfg_cg_enable.value = 1
+        self.dut.cfg_cg_idle_count.value = self.max_count  # Set max count to focus on wake
 
         # Test wake=1 scenario (clock should be enabled immediately)
         self.log.info(f"Testing wake=1 @ {get_sim_time('ns')}ns")
-        self.dut.i_wakeup.value = 1
+        self.dut.wakeup.value = 1
         await self.verify_clock_gating('random', True, "Wake=1")
 
         # Test wake=0 scenario (clock should be gated after counter expires)
         self.log.info(f"Testing wake=0 @ {get_sim_time('ns')}ns")
-        self.dut.i_wakeup.value = 0
+        self.dut.wakeup.value = 0
 
         # First verify clock remains active during countdown
         await self.verify_clock_gating('random', True, "Wake=0 during countdown")
@@ -257,15 +257,15 @@ class ClockGateCtrlTB(TBBase):
             count = 1  # Use minimum meaningful count for this test
             
         self.log.info(f"Using count={count} for concurrent wake test")
-        self.dut.i_cfg_cg_enable.value = 1
-        self.dut.i_cfg_cg_idle_count.value = count
+        self.dut.cfg_cg_enable.value = 1
+        self.dut.cfg_cg_idle_count.value = count
 
         # Test concurrent assertion
-        self.dut.i_wakeup.value = 1
+        self.dut.wakeup.value = 1
         await self.verify_clock_gating('random', True, "Concurrent wake")  # Wake should dominate
 
         # Deassert wake, verify counter starts
-        self.dut.i_wakeup.value = 0
+        self.dut.wakeup.value = 0
         # Verify clock remains enabled during countdown (early part only)
         if count > 3:
             verify_cycles = min(count // 3, 5)  # Check early countdown only
@@ -285,7 +285,7 @@ class ClockGateCtrlTB(TBBase):
         time_ns = get_sim_time('ns')
         self.log.info(f"Starting systematic counter test @ {time_ns}ns")
 
-        self.dut.i_cfg_cg_enable.value = 1
+        self.dut.cfg_cg_enable.value = 1
         
         # Generate a mix of fixed and random test values
         test_values = [
@@ -304,11 +304,11 @@ class ClockGateCtrlTB(TBBase):
             msg = f"Testing idle count: {count} @ {time_ns}ns"
             self.log.info(msg)
 
-            self.dut.i_cfg_cg_idle_count.value = count
+            self.dut.cfg_cg_idle_count.value = count
             self.last_idle_count = count
 
             # Trigger wake with random timing
-            self.dut.i_wakeup.value = 1
+            self.dut.wakeup.value = 1
             wake_time = self.get_random_wait_cycles()
             await self.wait_clocks('clk_in', wake_time)
             
@@ -316,7 +316,7 @@ class ClockGateCtrlTB(TBBase):
             if count == 0:
                 # For count=0, clock should gate immediately when wake is deasserted
                 self.log.info(f"Special case: count=0 - expecting immediate gating")
-                self.dut.i_wakeup.value = 0
+                self.dut.wakeup.value = 0
                 
                 # Wait a couple cycles for gating to occur
                 await self.wait_clocks('clk_in', 2)
@@ -326,7 +326,7 @@ class ClockGateCtrlTB(TBBase):
                 
             else:
                 # Normal case: count > 0
-                self.dut.i_wakeup.value = 0
+                self.dut.wakeup.value = 0
 
                 # Test strategy:
                 # 1. Verify clock is active during early countdown (safe timing)
@@ -347,7 +347,7 @@ class ClockGateCtrlTB(TBBase):
                 await self.verify_clock_gating('random', False, f"Count={count} gated")
 
             # Add a brief pause between iterations
-            self.dut.i_wakeup.value = 1
+            self.dut.wakeup.value = 1
             pause_cycles = self.get_random_wait_cycles()
             await self.wait_clocks('clk_in', pause_cycles)
 
@@ -360,8 +360,8 @@ class ClockGateCtrlTB(TBBase):
         self.log.info(f"Starting counter timeout sweep test @ {time_ns}ns")
 
         timeout_value = self.get_random_idle_count()  # Use random timeout for sweep test
-        self.dut.i_cfg_cg_enable.value = 1
-        self.dut.i_cfg_cg_idle_count.value = timeout_value
+        self.dut.cfg_cg_enable.value = 1
+        self.dut.cfg_cg_idle_count.value = timeout_value
 
         # Test wakeup assertions with random offsets
         for _ in range(8):  # Test multiple random scenarios
@@ -371,16 +371,16 @@ class ClockGateCtrlTB(TBBase):
             self.log.info(msg)
 
             # Start countdown
-            self.dut.i_wakeup.value = 1
+            self.dut.wakeup.value = 1
             initial_wait = self.get_random_wait_cycles()
             await self.wait_clocks('clk_in', initial_wait)
-            self.dut.i_wakeup.value = 0
+            self.dut.wakeup.value = 0
 
             # Wait until just before the test point
             if offset < 0:
                 # For negative offsets, assert wakeup before timeout
                 await self.wait_clocks('clk_in', timeout_value + offset - 1)
-                self.dut.i_wakeup.value = 1
+                self.dut.wakeup.value = 1
                 await self.verify_clock_gating('random', True, f"Offset={offset}")
             else:
                 # For zero or positive offsets, wait for timeout then assert wakeup
@@ -392,11 +392,11 @@ class ClockGateCtrlTB(TBBase):
                     # Wait additional offset cycles
                     await self.wait_clocks('clk_in', offset - 1)
                 # Assert wakeup and verify clock becomes enabled
-                self.dut.i_wakeup.value = 1
+                self.dut.wakeup.value = 1
                 await self.verify_clock_gating('random', True, f"Offset={offset} (rewake)")
 
             # Cleanup with random timing
-            self.dut.i_wakeup.value = 0
+            self.dut.wakeup.value = 0
             cleanup_cycles = self.get_random_wait_cycles()
             await self.wait_clocks('clk_in', cleanup_cycles)
 
@@ -411,16 +411,16 @@ class ClockGateCtrlTB(TBBase):
         # Test 1: Zero idle count behavior
         time_ns = get_sim_time('ns')
         self.log.info(f"Testing zero idle count @ {time_ns}ns")
-        self.dut.i_cfg_cg_enable.value = 1
-        self.dut.i_cfg_cg_idle_count.value = 0
+        self.dut.cfg_cg_enable.value = 1
+        self.dut.cfg_cg_idle_count.value = 0
 
         # First, make sure clock is running with wake=1
-        self.dut.i_wakeup.value = 1
+        self.dut.wakeup.value = 1
         await self.verify_clock_gating('random', True, "Zero count, wake=1")
 
         # Then, deassert wake and check immediate gating behavior
         self.log.info("Zero count: expecting immediate gating when wake deasserted")
-        self.dut.i_wakeup.value = 0
+        self.dut.wakeup.value = 0
         
         # With zero count, gating should happen immediately - wait for it to settle
         await self.wait_clocks('clk_in', 2)
@@ -429,7 +429,7 @@ class ClockGateCtrlTB(TBBase):
         # Test 2: Rapid wake toggles with minimum idle count
         time_ns = get_sim_time('ns')
         self.log.info(f"Testing rapid toggles with min idle count @ {time_ns}ns")
-        self.dut.i_cfg_cg_idle_count.value = 1
+        self.dut.cfg_cg_idle_count.value = 1
 
         # Random number of toggle iterations
         toggle_count = random.randint(3, 8)
@@ -438,11 +438,11 @@ class ClockGateCtrlTB(TBBase):
             self.log.debug(f"Toggle {i} @ {time_ns}ns")
 
             # Assert wake, verify clock enabled
-            self.dut.i_wakeup.value = 1
+            self.dut.wakeup.value = 1
             await self.verify_clock_gating(1, True, f"Toggle {i}, wake=1")
 
             # Deassert wake, verify clock stays enabled for 1 cycle
-            self.dut.i_wakeup.value = 0
+            self.dut.wakeup.value = 0
             await self.verify_clock_gating(1, True, f"Toggle {i}, wake=0, counting")
 
             # Wait one more cycle and verify clock gating
@@ -458,8 +458,8 @@ class ClockGateCtrlTB(TBBase):
         self.log.info(f"Starting global enable test @ {time_ns}ns")
 
         # Verify clock enabled when global enable is off
-        self.dut.i_cfg_cg_enable.value = 0
-        self.dut.i_wakeup.value = 0
+        self.dut.cfg_cg_enable.value = 0
+        self.dut.wakeup.value = 0
         await self.verify_clock_gating('random', True, "Enable=0")
 
         # Configure idle count with global enable OFF (use random value but avoid 0)
@@ -468,17 +468,17 @@ class ClockGateCtrlTB(TBBase):
             test_count = 1  # Use minimum meaningful count for this test
             
         self.log.info(f"Using test_count={test_count} for global enable test")
-        self.dut.i_cfg_cg_idle_count.value = test_count
+        self.dut.cfg_cg_idle_count.value = test_count
         settle_cycles = self.get_random_wait_cycles()
         await self.wait_clocks('clk_in', settle_cycles)  # Wait for value to settle
 
         # Verify wake still works when global enable is on
-        self.dut.i_cfg_cg_enable.value = 1
-        self.dut.i_wakeup.value = 1
+        self.dut.cfg_cg_enable.value = 1
+        self.dut.wakeup.value = 1
         await self.verify_clock_gating('random', True, "Enable=1, Wake=1")
 
         # Turn off wake signal to start countdown
-        self.dut.i_wakeup.value = 0
+        self.dut.wakeup.value = 0
 
         # Verify clock remains enabled during early countdown
         if test_count > 3:
@@ -492,7 +492,7 @@ class ClockGateCtrlTB(TBBase):
         await self.verify_clock_gating('random', False, "Enable=1, After Expiration")
 
         # Verify clock immediately enabled when global enable turned off
-        self.dut.i_cfg_cg_enable.value = 0
+        self.dut.cfg_cg_enable.value = 0
         await self.verify_clock_gating('random', True, "Enable=0 after gating")
 
         time_ns = get_sim_time('ns')
@@ -517,14 +517,14 @@ class ClockGateCtrlTB(TBBase):
             
             idle_count = self.get_random_idle_count()
             
-            self.dut.i_cfg_cg_enable.value = int(enable_state)
-            self.dut.i_cfg_cg_idle_count.value = idle_count
+            self.dut.cfg_cg_enable.value = int(enable_state)
+            self.dut.cfg_cg_idle_count.value = idle_count
             
             # Random sequence of wake assertions
             wake_sequence_length = random.randint(3, 8)
             for wake_step in range(wake_sequence_length):
                 wake_state = random.choice([0, 1])
-                self.dut.i_wakeup.value = wake_state
+                self.dut.wakeup.value = wake_state
                 
                 wait_time = self.get_random_wait_cycles()
                 await self.wait_clocks('clk_in', wait_time)

@@ -55,22 +55,22 @@ class EnhancedWeightedRoundRobinTB(TBBase):
         self.credit_counters = [0] * self.CLIENTS
 
         # Clock and reset signals
-        self.clock = self.dut.i_clk
-        self.reset_n = self.dut.i_rst_n
+        self.clock = self.dut.clk
+        self.reset_n = self.dut.rst_n
 
         # Initialize the enhanced weighted arbiter monitor
         self.monitor = WeightedRoundRobinArbiterMonitor(
             dut=dut,
             title="WRR_Monitor",
-            clock=self.dut.i_clk,
-            reset_n=self.dut.i_rst_n,
-            req_signal=self.dut.i_req,
-            gnt_valid_signal=self.dut.ow_gnt_valid,
-            gnt_signal=self.dut.ow_gnt,
-            gnt_id_signal=self.dut.ow_gnt_id,
-            gnt_ack_signal=self.dut.i_gnt_ack,
-            block_arb_signal=self.dut.i_block_arb,
-            max_thresh_signal=self.dut.i_max_thresh,
+            clock=self.dut.clk,
+            reset_n=self.dut.rst_n,
+            req_signal=self.dut.req,
+            gnt_valid_signal=self.dut.gnt_valid,
+            gnt_signal=self.dut.gnt,
+            gnt_id_signal=self.dut.gnt_id,
+            gnt_ack_signal=self.dut.gnt_ack,
+            block_arb_signal=self.dut.block_arb,
+            max_thresh_signal=self.dut.max_thresh,
             clients=self.CLIENTS,
             log=self.log,
             clock_period_ns=10
@@ -94,9 +94,9 @@ class EnhancedWeightedRoundRobinTB(TBBase):
 
     def clear_interface(self):
         """Clear all interface signals"""
-        self.dut.i_block_arb.value = 0
-        self.dut.i_req.value = 0
-        self.dut.i_gnt_ack.value = 0
+        self.dut.block_arb.value = 0
+        self.dut.req.value = 0
+        self.dut.gnt_ack.value = 0
 
         # Set default thresholds (all equal)
         self.set_all_thresholds(1)
@@ -117,7 +117,7 @@ class EnhancedWeightedRoundRobinTB(TBBase):
         for i in range(self.CLIENTS):
             packed_thresholds |= (value << (i * self.MAX_THRESH_WIDTH))
 
-        self.dut.i_max_thresh.value = packed_thresholds
+        self.dut.max_thresh.value = packed_thresholds
         self.log.info(f"Set all client thresholds to {value} (packed: 0x{packed_thresholds:x})")
 
     def set_client_threshold(self, client_id, value):
@@ -143,7 +143,7 @@ class EnhancedWeightedRoundRobinTB(TBBase):
         formatted_binary = ' '.join(binary_str[i:i+self.MAX_THRESH_WIDTH]
                                     for i in range(0, len(binary_str), self.MAX_THRESH_WIDTH))
 
-        self.dut.i_max_thresh.value = packed_thresholds
+        self.dut.max_thresh.value = packed_thresholds
         self.log.info(f"Set client {client_id} threshold to {value}")
         self.log.info(f"New packed thresholds: 0x{packed_thresholds:x} ({formatted_binary})")
         self.log.info(f"Client thresholds: {self.client_thresholds}")
@@ -157,7 +157,7 @@ class EnhancedWeightedRoundRobinTB(TBBase):
         self.clear_interface()
 
         # Hold reset for multiple cycles
-        await self.wait_clocks('i_clk', 5)
+        await self.wait_clocks('clk', 5)
 
         # Release reset
         self.reset_n.value = 1
@@ -166,7 +166,7 @@ class EnhancedWeightedRoundRobinTB(TBBase):
         self.monitor.start_monitoring()
 
         # Wait for stabilization
-        await self.wait_clocks('i_clk', 5)
+        await self.wait_clocks('clk', 5)
 
         self.log.debug('Ending reset_dut')
 
@@ -188,32 +188,32 @@ class EnhancedWeightedRoundRobinTB(TBBase):
 
             # Add new requests to active requests
             self.active_reqs |= new_reqs
-            self.dut.i_req.value = self.active_reqs
+            self.dut.req.value = self.active_reqs
 
             if new_reqs:
                 req_str = bin(self.active_reqs)[2:].zfill(self.CLIENTS)
                 msg = f'    New reqs added: {bin(new_reqs)[2:].zfill(self.CLIENTS)}, Active reqs: {req_str}'
                 self.log.debug(msg)
 
-            await self.wait_clocks('i_clk', 1)
+            await self.wait_clocks('clk', 1)
 
     async def check_grants(self):
         """Monitor and verify grant signals (original functionality)"""
         while True:
             # Wait for clock edge before checking grants
-            await self.wait_clocks('i_clk', 1)
+            await self.wait_clocks('clk', 1)
 
             # Now check if there's a valid grant
-            if self.dut.ow_gnt_valid.value == 1:
+            if self.dut.gnt_valid.value == 1:
                 time_ns = get_sim_time('ns')
-                grant_id = int(self.dut.ow_gnt_id.value)
+                grant_id = int(self.dut.gnt_id.value)
                 expected_gnt = (1 << grant_id)
 
-                current_req = int(self.dut.i_req.value)
+                current_req = int(self.dut.req.value)
                 msg = f'Current req: 0x{current_req:x} @ {time_ns}ns'
                 self.log.debug(msg)
 
-                actual_gnt = int(self.dut.ow_gnt.value)
+                actual_gnt = int(self.dut.gnt.value)
 
                 # Verify grant matches expected pattern
                 assert actual_gnt == expected_gnt, \
@@ -236,17 +236,17 @@ class EnhancedWeightedRoundRobinTB(TBBase):
                 if self.WAIT_GNT_ACK == 0:
                     # If no ACK needed, clear immediately
                     self.active_reqs &= ~(1 << grant_id)
-                    self.dut.i_req.value = self.active_reqs
+                    self.dut.req.value = self.active_reqs
                     msg = f'Cleared bit {grant_id} immediately, new req value: 0x{self.active_reqs:x}'
                     self.log.debug(msg)
 
     async def handle_grant_ack(self):
         """Handle grant acknowledge signals when WAIT_GNT_ACK is enabled"""
         while True:
-            await self.wait_clocks('i_clk', 1)
+            await self.wait_clocks('clk', 1)
 
-            if self.WAIT_GNT_ACK == 1 and self.dut.ow_gnt_valid.value == 1:
-                grant_id = int(self.dut.ow_gnt_id.value)
+            if self.WAIT_GNT_ACK == 1 and self.dut.gnt_valid.value == 1:
+                grant_id = int(self.dut.gnt_id.value)
                 grant_ack_delay = self.random_delay()
 
                 time_ns = get_sim_time('ns')
@@ -254,32 +254,32 @@ class EnhancedWeightedRoundRobinTB(TBBase):
 
                 # Wait for random delay before acknowledging
                 for _ in range(grant_ack_delay):
-                    await self.wait_clocks('i_clk', 1)
+                    await self.wait_clocks('clk', 1)
 
                 # Set acknowledge signal
                 ack_mask = (1 << grant_id)
-                self.dut.i_gnt_ack.value = ack_mask
+                self.dut.gnt_ack.value = ack_mask
 
                 time_ns = get_sim_time('ns')
                 self.log.debug(f"Sending grant ack 0x{ack_mask:x} @ {time_ns}ns")
 
                 # Clear the request only after acknowledge
                 self.active_reqs &= ~(1 << grant_id)
-                self.dut.i_req.value = self.active_reqs
+                self.dut.req.value = self.active_reqs
 
                 # Hold for one cycle then clear ack
-                await self.wait_clocks('i_clk', 1)
-                self.dut.i_gnt_ack.value = 0
+                await self.wait_clocks('clk', 1)
+                self.dut.gnt_ack.value = 0
 
     async def test_grant_signals(self):
         """Test that grant signals work correctly (original test)"""
         self.log.info("Starting grant signal test")
 
-        # Test each client one by one to verify correct ow_gnt_id to ow_gnt mapping
+        # Test each client one by one to verify correct gnt_id to gnt mapping
         for client_id in range(self.CLIENTS):
             # Set a request for just this client
             req_pattern = (1 << client_id)
-            self.dut.i_req.value = req_pattern
+            self.dut.req.value = req_pattern
             self.active_reqs = req_pattern
 
             self.log.info(f"Testing client {client_id}: req = 0b{bin(req_pattern)[2:].zfill(self.CLIENTS)}")
@@ -290,12 +290,12 @@ class EnhancedWeightedRoundRobinTB(TBBase):
             grant_received = False
 
             while cycle < max_cycles and not grant_received:
-                await self.wait_clocks('i_clk', 1)
+                await self.wait_clocks('clk', 1)
                 cycle += 1
 
-                if self.dut.ow_gnt_valid.value == 1:
-                    grant_id = int(self.dut.ow_gnt_id.value)
-                    grant_bus = int(self.dut.ow_gnt.value)
+                if self.dut.gnt_valid.value == 1:
+                    grant_id = int(self.dut.gnt_id.value)
+                    grant_bus = int(self.dut.gnt.value)
 
                     self.log.info(f"Grant received on cycle {cycle}")
                     self.log.info(f"Grant ID: {grant_id}")
@@ -310,18 +310,18 @@ class EnhancedWeightedRoundRobinTB(TBBase):
 
                     # Handle acknowledge if needed
                     if self.WAIT_GNT_ACK == 1:
-                        self.dut.i_gnt_ack.value = req_pattern
-                        await self.wait_clocks('i_clk', 1)
-                        self.dut.i_gnt_ack.value = 0
+                        self.dut.gnt_ack.value = req_pattern
+                        await self.wait_clocks('clk', 1)
+                        self.dut.gnt_ack.value = 0
 
                     grant_received = True
 
             assert grant_received, f"No grant received for client {client_id}"
 
             # Clear the request and wait a cycle before the next client
-            self.dut.i_req.value = 0
+            self.dut.req.value = 0
             self.active_reqs = 0
-            await self.wait_clocks('i_clk', 5)
+            await self.wait_clocks('clk', 5)
 
         self.log.info("Grant signal test passed - all clients received grants with correct ID and bus values")
 
@@ -336,7 +336,7 @@ class EnhancedWeightedRoundRobinTB(TBBase):
 
         # Run for the specified number of cycles
         self.log.info(f"Running for {run_cycles} clock cycles")
-        await self.wait_clocks('i_clk', run_cycles)
+        await self.wait_clocks('clk', run_cycles)
 
         self.log.info("Test completed successfully")
 
@@ -357,7 +357,7 @@ class EnhancedWeightedRoundRobinTB(TBBase):
 
         # Set requests for the first two clients only
         req_pattern = 0b11 if self.CLIENTS >= 2 else 0b1
-        self.dut.i_req.value = req_pattern
+        self.dut.req.value = req_pattern
         self.active_reqs = req_pattern
 
         self.log.info(f"Setting up test with request pattern: 0b{bin(req_pattern)[2:].zfill(self.CLIENTS)}")
@@ -370,10 +370,10 @@ class EnhancedWeightedRoundRobinTB(TBBase):
         # Run the test for enough cycles to observe weight effects
         max_cycles = 20
         for cycle in range(max_cycles):
-            await self.wait_clocks('i_clk', 1)
+            await self.wait_clocks('clk', 1)
 
-            if self.dut.ow_gnt_valid.value == 1:
-                grant_id = int(self.dut.ow_gnt_id.value)
+            if self.dut.gnt_valid.value == 1:
+                grant_id = int(self.dut.gnt_id.value)
                 grants_sequence.append(grant_id)
 
                 self.log.info(f"Cycle {cycle}: Grant to client {grant_id}")
@@ -381,12 +381,12 @@ class EnhancedWeightedRoundRobinTB(TBBase):
                 # Handle acknowledge if needed
                 if self.WAIT_GNT_ACK == 1:
                     gnt_bit = (1 << grant_id)
-                    self.dut.i_gnt_ack.value = gnt_bit
-                    await self.wait_clocks('i_clk', 1)
-                    self.dut.i_gnt_ack.value = 0
+                    self.dut.gnt_ack.value = gnt_bit
+                    await self.wait_clocks('clk', 1)
+                    self.dut.gnt_ack.value = 0
 
                 # Keep requesting
-                self.dut.i_req.value = req_pattern
+                self.dut.req.value = req_pattern
 
                 # If we've seen 6+ grants, we can verify behavior
                 if len(grants_sequence) >= 6:
@@ -436,22 +436,22 @@ class EnhancedWeightedRoundRobinTB(TBBase):
 
         # Set all requests active
         all_requests = (1 << self.CLIENTS) - 1
-        self.dut.i_req.value = all_requests
+        self.dut.req.value = all_requests
 
         self.log.info(f"Initial request pattern: 0b{bin(all_requests)[2:].zfill(self.CLIENTS)}")
 
         # Monitor grants
         for cycle in range(total_cycles):
             # Wait for falling edge plus delay - sample in middle of clock period
-            await self.wait_falling_clocks('i_clk', 1, 100, 'ps')
+            await self.wait_falling_clocks('clk', 1, 100, 'ps')
 
             # Capture grant signals at a stable point in the clock period
-            gnt_valid = int(self.dut.ow_gnt_valid.value)
+            gnt_valid = int(self.dut.gnt_valid.value)
 
             if gnt_valid == 1:
                 # Read both the grant ID and one-hot signals for verification
-                gnt_id = int(self.dut.ow_gnt_id.value)
-                gnt_oh = int(self.dut.ow_gnt.value)
+                gnt_id = int(self.dut.gnt_id.value)
+                gnt_oh = int(self.dut.gnt.value)
 
                 # Verify the ID matches the one-hot encoding
                 expected_oh = (1 << gnt_id)
@@ -459,7 +459,7 @@ class EnhancedWeightedRoundRobinTB(TBBase):
                     self.log.warning(f"Grant ID {gnt_id} doesn't match one-hot signal 0x{gnt_oh:x}")
 
                 grant_bit = (1 << gnt_id)
-                req_value = int(self.dut.i_req.value)
+                req_value = int(self.dut.req.value)
 
                 # Increment count for this client
                 grant_counts[gnt_id] += 1
@@ -469,19 +469,19 @@ class EnhancedWeightedRoundRobinTB(TBBase):
                     self.log.info(f"Cycle {cycle}: Grant to ID {gnt_id}, counts {grant_counts}")
 
                 # Wait one cycle
-                await self.wait_clocks('i_clk', 1)
+                await self.wait_clocks('clk', 1)
 
                 # Handle acknowledge if needed
                 if self.WAIT_GNT_ACK == 1:
-                    self.dut.i_gnt_ack.value = grant_bit
-                    await self.wait_clocks('i_clk', 1)
-                    self.dut.i_gnt_ack.value = 0
+                    self.dut.gnt_ack.value = grant_bit
+                    await self.wait_clocks('clk', 1)
+                    self.dut.gnt_ack.value = 0
 
                 # Clear the granted bit but keep all other bits set
-                self.dut.i_req.value = (req_value & ~grant_bit) | (all_requests & ~grant_bit)
+                self.dut.req.value = (req_value & ~grant_bit) | (all_requests & ~grant_bit)
 
                 # Set all bits again
-                self.dut.i_req.value = all_requests
+                self.dut.req.value = all_requests
 
         # Get monitor statistics
         monitor_stats = self.monitor.get_stats_summary()
@@ -541,30 +541,30 @@ class EnhancedWeightedRoundRobinTB(TBBase):
         self.log.info("Starting block_arb test")
 
         # First clear all requests
-        self.dut.i_req.value = 0
-        self.dut.i_block_arb.value = 0
-        await self.wait_clocks('i_clk', 5)
+        self.dut.req.value = 0
+        self.dut.block_arb.value = 0
+        await self.wait_clocks('clk', 5)
 
         # Set block_arb before setting any requests
-        self.dut.i_block_arb.value = 1
+        self.dut.block_arb.value = 1
         self.log.info("Asserted block_arb")
-        await self.wait_clocks('i_clk', 5)
+        await self.wait_clocks('clk', 5)
 
         # Now set some requests - these should not be granted while block_arb is active
         req_pattern = (1 << self.CLIENTS) - 1  # All bits set
-        self.dut.i_req.value = req_pattern
+        self.dut.req.value = req_pattern
         self.log.info(f"Set request pattern: 0b{bin(req_pattern)[2:].zfill(self.CLIENTS)} with block_arb asserted")
 
         # Wait several cycles and verify no grants are issued
         for i in range(20):
-            await self.wait_clocks('i_clk', 1)
-            assert self.dut.ow_gnt_valid.value == 0, \
+            await self.wait_clocks('clk', 1)
+            assert self.dut.gnt_valid.value == 0, \
                 f"Grant was issued when block_arb was asserted at cycle {i}, time {get_sim_time('ns')}ns"
 
         self.log.info("No grants issued while block_arb was asserted - good!")
 
         # De-assert block_arb and ensure requests are still active
-        self.dut.i_block_arb.value = 0
+        self.dut.block_arb.value = 0
         self.log.info("De-asserted block_arb with active requests")
 
         # Check that grants resume
@@ -573,10 +573,10 @@ class EnhancedWeightedRoundRobinTB(TBBase):
         max_cycles = 20
 
         for _ in range(max_cycles):
-            await self.wait_clocks('i_clk', 1)
+            await self.wait_clocks('clk', 1)
 
-            if self.dut.ow_gnt_valid.value == 1:
-                grant_id = int(self.dut.ow_gnt_id.value)
+            if self.dut.gnt_valid.value == 1:
+                grant_id = int(self.dut.gnt_id.value)
                 grant_bit = (1 << grant_id)
 
                 grant_issued = True
@@ -586,13 +586,13 @@ class EnhancedWeightedRoundRobinTB(TBBase):
 
                 # Handle acknowledge if needed
                 if self.WAIT_GNT_ACK == 1:
-                    self.dut.i_gnt_ack.value = grant_bit
-                    await self.wait_clocks('i_clk', 1)
-                    self.dut.i_gnt_ack.value = 0
+                    self.dut.gnt_ack.value = grant_bit
+                    await self.wait_clocks('clk', 1)
+                    self.dut.gnt_ack.value = 0
 
                 # Clear the granted bit but keep all other bits set
-                current_req = int(self.dut.i_req.value)
-                self.dut.i_req.value = current_req & ~grant_bit
+                current_req = int(self.dut.req.value)
+                self.dut.req.value = current_req & ~grant_bit
 
                 # If we've seen at least 3 grants, we can be confident that block_arb is working correctly
                 if grant_count >= 3:
@@ -613,7 +613,7 @@ async def arbiter_round_robin_weighted_enhanced_test(dut):
     tb.log.info(f'Enhanced weighted round robin test starting with seed {seed}')
 
     # Start the clock
-    await tb.start_clock('i_clk', 10, 'ns')
+    await tb.start_clock('clk', 10, 'ns')
 
     # Reset the DUT (this also starts the monitor)
     await tb.reset_dut()
@@ -664,7 +664,7 @@ async def arbiter_round_robin_weighted_enhanced_test(dut):
         raise
     finally:
         # Wait for any pending tasks
-        await tb.wait_clocks('i_clk', 10)
+        await tb.wait_clocks('clk', 10)
 
 
 @pytest.mark.parametrize("clients, max_thresh, wait_ack", [

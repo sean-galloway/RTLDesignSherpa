@@ -3,22 +3,26 @@
 module clock_pulse #(
     parameter int WIDTH = 10  // Width of the generated pulse in clock cycles
 ) (
-    input  logic i_clk,    // Input clock signal
-    input  logic i_rst_n,  // Input reset signal
-    output logic o_pulse   // Output pulse signal
+    input  logic clk,    // Input clock signal
+    input  logic rst_n,  // Input reset signal
+    output logic pulse   // Output pulse signal
 );
 
     logic [WIDTH-1:0] r_counter;
+    logic [WIDTH-1:0] w_width_minus_one;
 
-    always_ff @(posedge i_clk or negedge i_rst_n) begin
-        if (!i_rst_n) begin
+    // Create a properly sized constant
+    assign w_width_minus_one = WIDTH[WIDTH-1:0] - 1'b1;
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
             r_counter <= 'b0;
-            o_pulse   <= 'b0;
+            pulse     <= 'b0;
         end else begin
-            if (r_counter < WIDTH - 1) r_counter <= r_counter + 1;
-            else r_counter <= 0;
+            if (r_counter < w_width_minus_one) r_counter <= r_counter + 1'b1;
+            else r_counter <= 'b0;
 
-            o_pulse <= (r_counter == WIDTH - 1);
+            pulse <= (r_counter == w_width_minus_one);
         end
     end
 

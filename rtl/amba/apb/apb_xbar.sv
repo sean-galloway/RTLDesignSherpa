@@ -136,11 +136,11 @@ module apb_xbar #(
                 .s_apb_PRDATA     (m_apb_prdata[m_port]),
                 .s_apb_PSLVERR    (m_apb_pslverr[m_port]),
                 .s_apb_PREADY     (m_apb_pready[m_port]),
-                .o_cmd_valid      (r_slv_cmd_valid[m_port]), // used
+                .cmd_valid      (r_slv_cmd_valid[m_port]), // used
                 .i_cmd_ready      (r_slv_cmd_ready[m_port]), // used
-                .o_cmd_data       (r_slv_cmd_data[m_port]),  // used
+                .cmd_data       (r_slv_cmd_data[m_port]),  // used
                 .i_rsp_valid      (r_slv_rsp_valid[m_port]), // used
-                .o_rsp_ready      (r_slv_rsp_ready[m_port]), // used
+                .rsp_ready      (r_slv_rsp_ready[m_port]), // used
                 .i_rsp_data       (r_slv_rsp_data[m_port])   // used
             );
 
@@ -154,9 +154,9 @@ module apb_xbar #(
                 .i_block_arb (1'b0),
                 .i_max_thresh(SLV_THRESHOLDS),
                 .i_req       (slave_sel[m_port]),          // used
-                .ow_gnt_valid(slv_arb_gnt_valid[m_port]),  // used
-                .ow_gnt      (slv_arb_gnt[m_port]),        // used
-                .ow_gnt_id   (slv_arb_gnt_id[m_port]),     // not needed for now
+                .gnt_valid(slv_arb_gnt_valid[m_port]),  // used
+                .gnt      (slv_arb_gnt[m_port]),        // used
+                .gnt_id   (slv_arb_gnt_id[m_port]),     // not needed for now
                 .i_gnt_ack   (slv_arb_gnt_ack)             // used
             );
 
@@ -227,11 +227,11 @@ module apb_xbar #(
                 .m_apb_PSLVERR  (s_apb_pslverr[s_port]),
                 .m_apb_PREADY   (s_apb_pready[s_port]),
                 .i_cmd_valid    (r_mst_cmd_valid[s_port]), // used
-                .o_cmd_ready    (r_mst_cmd_ready[s_port]), // used
+                .cmd_ready    (r_mst_cmd_ready[s_port]), // used
                 .i_cmd_data     (r_mst_cmd_data[s_port]),  // used
-                .o_rsp_valid    (r_mst_rsp_valid[s_port]), // used
+                .rsp_valid    (r_mst_rsp_valid[s_port]), // used
                 .i_rsp_ready    (r_mst_rsp_ready[s_port]), // used
-                .o_rsp_data     (r_mst_rsp_data[s_port])   // used
+                .rsp_data     (r_mst_rsp_data[s_port])   // used
             );
 
             // Instantiate axi_fifo_sync
@@ -242,11 +242,11 @@ module apb_xbar #(
                 .i_axi_aclk   (pclk),
                 .i_axi_aresetn(presetn),
                 .i_wr_valid   (r_mst_side_wr_valid[s_port]), // used
-                .o_wr_ready   (r_mst_side_wr_ready[s_port]), // used
+                .wr_ready   (r_mst_side_wr_ready[s_port]), // used
                 .i_wr_data    (r_mst_side_wr_data[s_port]),  // used
-                .o_rd_valid   (r_mst_side_rd_valid[s_port]), // used
+                .rd_valid   (r_mst_side_rd_valid[s_port]), // used
                 .i_rd_ready   (r_mst_side_rd_ready[s_port]), // used
-                .o_rd_data    (r_mst_side_rd_data[s_port])   // used
+                .rd_data    (r_mst_side_rd_data[s_port])   // used
             );
 
             arbiter_round_robin_weighted #(
@@ -259,9 +259,9 @@ module apb_xbar #(
                 .i_block_arb (1'b0),
                 .i_max_thresh(SLV_THRESHOLDS),
                 .i_req       (master_sel[s_port]),        // used
-                .ow_gnt_valid(mst_arb_gnt_valid[s_port]), // used
-                .ow_gnt      (mst_arb_gnt[s_port]),       // used
-                .ow_gnt_id   (mst_arb_gnt_id[s_port]),    // used
+                .gnt_valid(mst_arb_gnt_valid[s_port]), // used
+                .gnt      (mst_arb_gnt[s_port]),       // used
+                .gnt_id   (mst_arb_gnt_id[s_port]),    // used
                 .i_gnt_ack   (mst_arb_gnt_ack)            // used
             );
 

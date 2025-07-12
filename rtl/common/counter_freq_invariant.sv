@@ -9,12 +9,12 @@ module counter_freq_invariant
     parameter int COUNTER_WIDTH = 5,      // Width of the output counter
     parameter int PRESCALER_MAX = 65536   // Maximum value of the pre-scaler
 ) (
-    input  logic                        i_clk,         // Input clock
-    input  logic                        i_rst_n,       // Active low reset
-    input  logic                        i_sync_reset_n,// Synchronous reset signal
-    input  logic [3:0]                  i_freq_sel,    // Frequency selection (configurable)
-    output logic [COUNTER_WIDTH-1:0]    o_counter,     // 5-bit output counter
-    output logic                        o_tick         // Pulse every time counter increments
+    input  logic                        clk,         // Input clock
+    input  logic                        rst_n,       // Active low reset
+    input  logic                        sync_reset_n,// Synchronous reset signal
+    input  logic [3:0]                  freq_sel,    // Frequency selection (configurable)
+    output logic [COUNTER_WIDTH-1:0]    counter,     // 5-bit output counter
+    output logic                        tick         // Pulse every time counter increments
 );
 
     // Configuration registers (combinational)
@@ -27,9 +27,9 @@ module counter_freq_invariant
     // Internal counters (combinational)
     logic w_prescaler_done;
 
-    // Config lookup - Maps i_freq_sel to division factors
+    // Config lookup - Maps freq_sel to division factors
     always_comb begin
-        case (i_freq_sel)
+        case (freq_sel)
             4'b0000: w_division_factor = 16'd1;      // 1000MHz (1GHz)  - 1:1 division
             4'b0001: w_division_factor = 16'd10;     // 100MHz          - 10:1 division
             4'b0010: w_division_factor = 16'd20;     // 50MHz           - 20:1 division
@@ -51,16 +51,16 @@ module counter_freq_invariant
     end
 
     // Detect frequency selection changes
-    always_ff @(posedge i_clk or negedge i_rst_n) begin
-        if (!i_rst_n) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
             r_prev_freq_sel <= 4'b0;
             r_clear_pulse <= 1'b0;
         end
         else begin
-            r_prev_freq_sel <= i_freq_sel;
+            r_prev_freq_sel <= freq_sel;
 
-            // Pulse w_freq_sel_changed for one cycle when i_freq_sel changes
-            r_clear_pulse <= (i_freq_sel != r_prev_freq_sel) || !i_sync_reset_n;
+            // Pulse w_freq_sel_changed for one cycle when freq_sel changes
+            r_clear_pulse <= (freq_sel != r_prev_freq_sel) || !sync_reset_n;
         end
     end
 
@@ -68,35 +68,35 @@ module counter_freq_invariant
     counter_load_clear #(
         .MAX(PRESCALER_MAX)
     ) prescaler_counter (
-        .i_clk(i_clk),
-        .i_rst_n(i_rst_n),
-        .i_clear(r_clear_pulse),         // Clear the prescaler when frequency selection changes
-        .i_increment(1'b1),              // Always increment
-        .i_load(1'b1),                   // Always have a valid load value
-        .i_loadval(w_division_factor[$clog2(PRESCALER_MAX)-1:0] - 1'b1),
-        .ow_done(w_prescaler_done),
+        .clk(clk),
+        .rst_n(rst_n),
+        .clear(r_clear_pulse),         // Clear the prescaler when frequency selection changes
+        .increment(1'b1),              // Always increment
+        .load(1'b1),                   // Always have a valid load value
+        .loadval(w_division_factor[$clog2(PRESCALER_MAX)-1:0] - 1'b1),
+        .done(w_prescaler_done),
         /* verilator lint_off PINCONNECTEMPTY */
-        .o_count()
+        .count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
 
     // Generate tick signal and
     // COUNTER_WIDTH-bit output counter that increments on tick (flopped)
-    always_ff @(posedge i_clk or negedge i_rst_n) begin
-        if (!i_rst_n) begin
-            o_counter <= 'b0;
-            o_tick <= 'b0;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            counter <= 'b0;
+            tick <= 'b0;
         end
         else begin
-            if (w_prescaler_done && &o_counter)
-                o_tick <= 'b1;
+            if (w_prescaler_done && &counter)
+                tick <= 'b1;
             else
-                o_tick <= 'b0;
+                tick <= 'b0;
 
             if (r_clear_pulse)
-                o_counter <= 'b0;
+                counter <= 'b0;
             else if (w_prescaler_done)
-                o_counter <= o_counter + 1'b1;  // Will naturally roll over at 2^COUNTER_WIDTH
+                counter <= counter + 1'b1;  // Will naturally roll over at 2^COUNTER_WIDTH
         end
     end
 

@@ -82,15 +82,15 @@ module axi_slave_wr_stub
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
         .i_wr_valid               (s_axi_awvalid),
-        .o_wr_ready               (s_axi_awready),
+        .wr_ready               (s_axi_awready),
         .i_wr_data                ({s_axi_awid,s_axi_awaddr,s_axi_awlen,s_axi_awsize,s_axi_awburst,
                                     s_axi_awlock,s_axi_awcache,s_axi_awprot,s_axi_awqos,
                                     s_axi_awregion,s_axi_awuser}),
-        .o_rd_valid               (fub_axi_awvalid),
+        .rd_valid               (fub_axi_awvalid),
         .i_rd_ready               (fub_axi_awready),
-        .o_rd_count               (fub_axi_aw_count),
-        .o_rd_data                (fub_axi_aw_pkt),
-        .ow_count                 ()
+        .rd_count               (fub_axi_aw_count),
+        .rd_data                (fub_axi_aw_pkt),
+        .count                 ()
     );
 
     ///////////////////////////////////////////////////////////////////////////////////////////
@@ -99,13 +99,13 @@ module axi_slave_wr_stub
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
         .i_wr_valid               (s_axi_wvalid),
-        .o_wr_ready               (s_axi_wready),
+        .wr_ready               (s_axi_wready),
         .i_wr_data                ({s_axi_wdata,s_axi_wstrb,s_axi_wlast,s_axi_wuser}),
-        .o_rd_valid               (fub_axi_wvalid),
+        .rd_valid               (fub_axi_wvalid),
         .i_rd_ready               (fub_axi_wready),
-        .o_rd_data                (fub_axi_w_pkt),
-        .o_rd_count               (),
-        .ow_count                 ()
+        .rd_data                (fub_axi_w_pkt),
+        .rd_count               (),
+        .count                 ()
     );
 
     ///////////////////////////////////////////////////////////////////////////////////////////
@@ -114,13 +114,13 @@ module axi_slave_wr_stub
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
         .i_wr_valid               (fub_axi_bvalid),
-        .o_wr_ready               (fub_axi_bready),
+        .wr_ready               (fub_axi_bready),
         .i_wr_data                (fub_axi_b_pkt),
-        .o_rd_valid               (s_axi_bvalid),
+        .rd_valid               (s_axi_bvalid),
         .i_rd_ready               (s_axi_bready),
-        .o_rd_data                ({s_axi_bid,s_axi_bresp,s_axi_buser}),
-        .o_rd_count               (),
-        .ow_count                 ()
+        .rd_data                ({s_axi_bid,s_axi_bresp,s_axi_buser}),
+        .rd_count               (),
+        .count                 ()
     );
 
 endmodule : axi_slave_wr_stub

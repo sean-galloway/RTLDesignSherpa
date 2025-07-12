@@ -38,10 +38,10 @@ async def fifo_async_test(dut):
     # Create testbench with separate write and read clocks and reset signals
     tb = FifoBufferTB(
         dut,
-        wr_clk=dut.i_wr_clk,
-        wr_rstn=dut.i_wr_rst_n,
-        rd_clk=dut.i_rd_clk,
-        rd_rstn=dut.i_rd_rst_n
+        wr_clk=dut.wr_clk,
+        wr_rstn=dut.wr_rst_n,
+        rd_clk=dut.rd_clk,
+        rd_rstn=dut.rd_rst_n
     )
 
     # Use the seed for reproducibility
@@ -60,14 +60,14 @@ async def fifo_async_test(dut):
     tb.log.info(f"Running async div2 test level: {test_level.upper()}")
 
     # Start both clocks with possibly different periods - ASYNC SPECIFIC
-    await tb.start_clock('i_wr_clk', tb.TEST_CLK_WR, 'ns')
-    await tb.start_clock('i_rd_clk', tb.TEST_CLK_RD, 'ns')
+    await tb.start_clock('wr_clk', tb.TEST_CLK_WR, 'ns')
+    await tb.start_clock('rd_clk', tb.TEST_CLK_RD, 'ns')
 
     # Reset sequence - ASYNC SPECIFIC (both clock domains)
     await tb.assert_reset()
-    await tb.wait_clocks('i_wr_clk', 5)
+    await tb.wait_clocks('wr_clk', 5)
     await tb.deassert_reset()
-    await tb.wait_clocks('i_wr_clk', 5)
+    await tb.wait_clocks('wr_clk', 5)
     tb.log.info(f"Starting {test_level.upper()} ASYNC DIV2 FIFO test...")
 
     # Get available randomizer configurations from FlexConfigGen

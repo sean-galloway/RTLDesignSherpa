@@ -27,7 +27,7 @@ from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
-from CocoTBFramework.tbclasses.tbbase import TBBase
+from CocoTBFramework.tbclasses.misc.tbbase import TBBase
 from CocoTBFramework.tbclasses.gaxi.gaxi_buffer import GaxiBufferTB
 from CocoTBFramework.tbclasses.misc.utilities import get_paths, create_view_cmd
 
@@ -38,10 +38,10 @@ async def gaxi_async_test(dut):
     # For async, we need to pass both clock signals
     tb = GaxiBufferTB(
         dut,
-        wr_clk=dut.i_axi_wr_aclk,
-        wr_rstn=dut.i_axi_wr_aresetn,
-        rd_clk=dut.i_axi_rd_aclk,
-        rd_rstn=dut.i_axi_rd_aresetn
+        wr_clk=dut.axi_wr_aclk,
+        wr_rstn=dut.axi_wr_aresetn,
+        rd_clk=dut.axi_rd_aclk,
+        rd_rstn=dut.axi_rd_aresetn
     )
 
     # Use the seed for reproducibility
@@ -64,16 +64,16 @@ async def gaxi_async_test(dut):
     rd_clk_period = int(os.environ.get('TEST_CLK_RD', '10'))
 
     tb.log.info(f"Starting clocks: WR={wr_clk_period}ns, RD={rd_clk_period}ns")
-    await tb.start_clock('i_axi_wr_aclk', wr_clk_period, 'ns')
-    await tb.start_clock('i_axi_rd_aclk', rd_clk_period, 'ns')
+    await tb.start_clock('axi_wr_aclk', wr_clk_period, 'ns')
+    await tb.start_clock('axi_rd_aclk', rd_clk_period, 'ns')
 
     # Reset sequence for async
     await tb.assert_reset()
-    await tb.wait_clocks('i_axi_wr_aclk', 5)
-    await tb.wait_clocks('i_axi_rd_aclk', 5)
+    await tb.wait_clocks('axi_wr_aclk', 5)
+    await tb.wait_clocks('axi_rd_aclk', 5)
     await tb.deassert_reset()
-    await tb.wait_clocks('i_axi_wr_aclk', 5)
-    await tb.wait_clocks('i_axi_rd_aclk', 5)
+    await tb.wait_clocks('axi_wr_aclk', 5)
+    await tb.wait_clocks('axi_rd_aclk', 5)
 
     tb.log.info(f"Starting {test_level.upper()} GAXI ASYNC test...")
 

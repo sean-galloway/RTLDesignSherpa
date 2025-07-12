@@ -340,8 +340,6 @@ def create_axi4_channel(dut, clock, prefix: str, channel_name: str,
         'memory_model': memory_model,
         'log': log,
         'prefix': gaxi_params['prefix'],
-        'in_prefix': gaxi_params['in_prefix'],
-        'out_prefix': gaxi_params['out_prefix'],
         'bus_name': gaxi_params['bus_name'],
         'pkt_prefix': gaxi_params['pkt_prefix'],
         **kwargs  # Pass through additional arguments

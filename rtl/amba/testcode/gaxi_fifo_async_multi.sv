@@ -24,21 +24,21 @@ module gaxi_fifo_async_multi #(
                             i_axi_rd_aclk,
                             i_axi_rd_aresetn,
     input  logic            i_wr_valid,
-    output logic            o_wr_ready,   // not full
+    output logic            wr_ready,   // not full
     input  logic [AW-1:0]   i_wr_addr,
     input  logic [CW-1:0]   i_wr_ctrl,
     input  logic [DW-1:0]   i_wr_data0,
     input  logic [DW-1:0]   i_wr_data1,
     input  logic            i_rd_ready,
-    output logic            o_rd_valid,   // not empty
-    output logic [AW-1:0]   ow_rd_addr,
-    output logic [CW-1:0]   ow_rd_ctrl,
-    output logic [DW-1:0]   ow_rd_data0,
-    output logic [DW-1:0]   ow_rd_data1,
-    output logic [AW-1:0]   o_rd_addr,
-    output logic [CW-1:0]   o_rd_ctrl,
-    output logic [DW-1:0]   o_rd_data0,
-    output logic [DW-1:0]   o_rd_data1
+    output logic            rd_valid,   // not empty
+    output logic [AW-1:0]   rd_addr,
+    output logic [CW-1:0]   rd_ctrl,
+    output logic [DW-1:0]   rd_data0,
+    output logic [DW-1:0]   rd_data1,
+    output logic [AW-1:0]   rd_addr,
+    output logic [CW-1:0]   rd_ctrl,
+    output logic [DW-1:0]   rd_data0,
+    output logic [DW-1:0]   rd_data1
     );
 
 
@@ -63,14 +63,14 @@ module gaxi_fifo_async_multi #(
 
         // Write interface
         .i_wr_valid        (i_wr_valid),       // Write valid signal
-        .o_wr_ready        (o_wr_ready),       // Write ready (not full)
+        .wr_ready        (wr_ready),       // Write ready (not full)
         .i_wr_data         ({i_wr_addr, i_wr_ctrl, i_wr_data1, i_wr_data0}),        // Write data
 
         // Read interface
         .i_rd_ready        (i_rd_ready),       // Read ready signal
-        .o_rd_valid        (o_rd_valid),       // Read valid (not empty)
-        .ow_rd_data        ({ow_rd_addr, ow_rd_ctrl, ow_rd_data1, ow_rd_data0}),
-        .o_rd_data         ({o_rd_addr,   o_rd_ctrl,  o_rd_data1,  o_rd_data0})
+        .rd_valid        (rd_valid),       // Read valid (not empty)
+        .rd_data        ({rd_addr, rd_ctrl, rd_data1, rd_data0}),
+        .rd_data         ({rd_addr,   rd_ctrl,  rd_data1,  rd_data0})
     );
 
 

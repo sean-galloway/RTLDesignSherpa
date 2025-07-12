@@ -5,13 +5,13 @@ module clock_gate_ctrl #(
     // Inputs
     input logic          clk_in,
     input logic          aresetn,
-    input logic          i_cfg_cg_enable,     // Global clock gate enable
-    input logic  [N-1:0] i_cfg_cg_idle_count, // Idle countdown value
-    input logic          i_wakeup,            // Signal to wake up the block
+    input logic          cfg_cg_enable,     // Global clock gate enable
+    input logic  [N-1:0] cfg_cg_idle_count, // Idle countdown value
+    input logic          wakeup,            // Signal to wake up the block
 
     // Outputs
     output logic         clk_out,
-    output logic         o_gating          // clock gating indicator
+    output logic         gating          // clock gating indicator
 );
 
     // Internal signals
@@ -20,11 +20,11 @@ module clock_gate_ctrl #(
     // Counter logic
     always_ff @(posedge clk_in or negedge aresetn) begin
         if (!aresetn) begin
-            r_idle_counter <= i_cfg_cg_idle_count;
+            r_idle_counter <= cfg_cg_idle_count;
         end else begin
-            if (i_wakeup || !i_cfg_cg_enable) begin
+            if (wakeup || !cfg_cg_enable) begin
                 // On wakeup or global disable, reset counter
-                r_idle_counter <= i_cfg_cg_idle_count;
+                r_idle_counter <= cfg_cg_idle_count;
             end else if (r_idle_counter != 'h0) begin
                 // Normal counting operation - decrement when not zero
                 r_idle_counter <= r_idle_counter - 1'b1;
@@ -34,7 +34,7 @@ module clock_gate_ctrl #(
     end
 
     // Simple gating condition: gate when not in wakeup, globally enabled, and counter is zero
-    wire w_gate_enable = i_cfg_cg_enable && !i_wakeup && (r_idle_counter == 'h0);
+    wire w_gate_enable = cfg_cg_enable && !wakeup && (r_idle_counter == 'h0);
 
     // Instantiate the ICG cell
     icg u_icg (
@@ -43,6 +43,6 @@ module clock_gate_ctrl #(
         .gclk(clk_out)
     );
 
-    assign o_gating = w_gate_enable;
+    assign gating = w_gate_enable;
 
 endmodule : clock_gate_ctrl

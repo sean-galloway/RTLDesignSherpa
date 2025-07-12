@@ -36,8 +36,6 @@ class FIFOMonitor(FIFOMonitorBase):
 
     def __init__(self, dut, title, prefix, clock, field_config, is_slave=False,
                     mode='fifo_mux',
-                    in_prefix='i_',
-                    out_prefix='o_',
                     bus_name='',
                     pkt_prefix='',
                     multi_sig=False,
@@ -55,8 +53,6 @@ class FIFOMonitor(FIFOMonitorBase):
             field_config: Field configuration
             is_slave: If True, monitor read side; if False, monitor write side
             mode: FIFO mode ('fifo_mux' or 'fifo_flop')
-            in_prefix: Input signal prefix
-            out_prefix: Output signal prefix
             bus_name: Bus/channel name
             pkt_prefix: Packet field prefix
             multi_sig: Whether using multi-signal mode
@@ -80,8 +76,6 @@ class FIFOMonitor(FIFOMonitorBase):
             clock=clock,
             field_config=field_config,
             mode=mode,
-            in_prefix=in_prefix,
-            out_prefix=out_prefix,
             bus_name=bus_name,
             pkt_prefix=pkt_prefix,
             multi_sig=multi_sig,

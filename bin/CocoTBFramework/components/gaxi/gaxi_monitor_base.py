@@ -29,8 +29,6 @@ class GAXIMonitorBase(GAXIComponentBase, BusMonitor):
 
     def __init__(self, dut, title, prefix, clock, field_config,
                     mode='skid',
-                    in_prefix='i_',
-                    out_prefix='o_',
                     bus_name='',
                     pkt_prefix='',
                     multi_sig=False,
@@ -46,9 +44,6 @@ class GAXIMonitorBase(GAXIComponentBase, BusMonitor):
             prefix: Bus prefix
             clock: Clock signal
             field_config: Field configuration
-            mode: GAXI mode ('skid', 'fifo_mux', 'fifo_flop')
-            in_prefix: Input signal prefix
-            out_prefix: Output signal prefix
             bus_name: Bus/channel name
             pkt_prefix: Packet field prefix
             multi_sig: Whether using multi-signal mode
@@ -71,8 +66,6 @@ class GAXIMonitorBase(GAXIComponentBase, BusMonitor):
             field_config=field_config,
             protocol_type=protocol_type,
             mode=mode,
-            in_prefix=in_prefix,
-            out_prefix=out_prefix,
             bus_name=bus_name,
             pkt_prefix=pkt_prefix,
             multi_sig=multi_sig,

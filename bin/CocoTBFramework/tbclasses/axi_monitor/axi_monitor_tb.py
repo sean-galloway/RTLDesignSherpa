@@ -179,8 +179,6 @@ class AXIMonitorTB(TBBase):
             prefix="",
             bus_name="",
             pkt_prefix="cmd",
-            in_prefix='',
-            out_prefix='',
             clock=self.dut.aclk,
             field_config=self.cmd_field_config,
             timeout_cycles=self.TIMEOUT_CYCLES,
@@ -197,8 +195,6 @@ class AXIMonitorTB(TBBase):
             prefix="",
             bus_name="",
             pkt_prefix="data",
-            in_prefix='',
-            out_prefix='',
             clock=self.dut.aclk,
             field_config=self.data_field_config,
             timeout_cycles=self.TIMEOUT_CYCLES,
@@ -216,8 +212,6 @@ class AXIMonitorTB(TBBase):
                 prefix="",
                 bus_name="",
                 pkt_prefix="resp",
-                in_prefix='',
-                out_prefix='',
                 clock=self.dut.aclk,
                 field_config=self.resp_field_config,
                 timeout_cycles=self.TIMEOUT_CYCLES,
@@ -241,16 +235,12 @@ class AXIMonitorTB(TBBase):
         self.cmd_monitor = GAXIMonitor(
             dut=self.dut, title="CMD_Monitor", prefix="", bus_name="",
             pkt_prefix="cmd", clock=self.dut.aclk, field_config=self.cmd_field_config,
-            in_prefix='',
-            out_prefix='',
             mode='skid', log=self.log, super_debug=self.super_debug
         )
 
         self.data_monitor = GAXIMonitor(
             dut=self.dut, title="DATA_Monitor", prefix="", bus_name="",
             pkt_prefix="data", clock=self.dut.aclk, field_config=self.data_field_config,
-            in_prefix='',
-            out_prefix='',
             mode='skid', log=self.log, super_debug=self.super_debug
         )
 
@@ -258,8 +248,6 @@ class AXIMonitorTB(TBBase):
             self.resp_monitor = GAXIMonitor(
                 dut=self.dut, title="RESP_Monitor", prefix="", bus_name="",
                 pkt_prefix="resp", clock=self.dut.aclk, field_config=self.resp_field_config,
-                in_prefix='',
-                out_prefix='',
                 mode='skid', log=self.log, super_debug=self.super_debug
             )
 

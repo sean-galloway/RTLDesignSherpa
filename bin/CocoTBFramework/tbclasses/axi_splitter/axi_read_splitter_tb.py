@@ -440,8 +440,6 @@ class AxiReadSplitterTB(TBBase):
             field_config=self.addr_field_config,
             timeout_cycles=self.TIMEOUT_CYCLES,
             mode='skid',
-            in_prefix='',
-            out_prefix='',
             multi_sig=True,
             log=self.log,
             randomizer=FlexRandomizer(self.randomizer_dict['balanced']['master']),
@@ -459,8 +457,6 @@ class AxiReadSplitterTB(TBBase):
             field_config=self.data_field_config,
             timeout_cycles=self.TIMEOUT_CYCLES,
             mode='skid',
-            in_prefix='',
-            out_prefix='',
             multi_sig=True,
             log=self.log,
             randomizer=FlexRandomizer(self.randomizer_dict['balanced']['slave']),
@@ -478,8 +474,6 @@ class AxiReadSplitterTB(TBBase):
             field_config=self.addr_field_config,
             timeout_cycles=self.TIMEOUT_CYCLES,
             mode='skid',
-            in_prefix='',
-            out_prefix='',
             multi_sig=True,
             log=self.log,
             randomizer=FlexRandomizer(self.randomizer_dict['balanced']['slave']),
@@ -497,8 +491,6 @@ class AxiReadSplitterTB(TBBase):
             field_config=self.data_field_config,
             timeout_cycles=self.TIMEOUT_CYCLES,
             mode='skid',
-            in_prefix='',
-            out_prefix='',
             multi_sig=True,
             log=self.log,
             randomizer=FlexRandomizer(self.randomizer_dict['balanced']['master']),
@@ -516,8 +508,6 @@ class AxiReadSplitterTB(TBBase):
             field_config=self.split_field_config,
             timeout_cycles=self.TIMEOUT_CYCLES,
             mode='skid',
-            in_prefix='',
-            out_prefix='',
             multi_sig=True,
             log=self.log,
             randomizer=FlexRandomizer(self.randomizer_dict['balanced']['slave']),
@@ -528,31 +518,31 @@ class AxiReadSplitterTB(TBBase):
         self.fub_ar_monitor = GAXIMonitor(
             dut=self.dut, title="FUB_AR_Monitor", prefix="", bus_name='fub',
             pkt_prefix="ar", clock=self.dut.aclk, field_config=self.addr_field_config,
-            mode='skid', in_prefix='', out_prefix='', multi_sig=True, log=self.log, super_debug=self.super_debug
+            mode='skid', multi_sig=True, log=self.log, super_debug=self.super_debug
         )
 
         self.fub_r_monitor = GAXIMonitor(
             dut=self.dut, title="FUB_R_Monitor", prefix="", bus_name='fub',
             pkt_prefix="r", clock=self.dut.aclk, field_config=self.data_field_config,
-            mode='skid', in_prefix='', out_prefix='', multi_sig=True, log=self.log, super_debug=self.super_debug
+            mode='skid', multi_sig=True, log=self.log, super_debug=self.super_debug
         )
 
         self.m_axi_ar_monitor = GAXIMonitor(
             dut=self.dut, title="M_AXI_AR_Monitor", prefix="", bus_name='m_axi',
             pkt_prefix="ar", clock=self.dut.aclk, field_config=self.addr_field_config,
-            mode='skid', in_prefix='', out_prefix='', multi_sig=True, log=self.log, super_debug=self.super_debug
+            mode='skid', multi_sig=True, log=self.log, super_debug=self.super_debug
         )
 
         self.m_axi_r_monitor = GAXIMonitor(
             dut=self.dut, title="M_AXI_R_Monitor", prefix="", bus_name='m_axi',
             pkt_prefix="r", clock=self.dut.aclk, field_config=self.data_field_config,
-            mode='skid', in_prefix='', out_prefix='', multi_sig=True, log=self.log, super_debug=self.super_debug
+            mode='skid', multi_sig=True, log=self.log, super_debug=self.super_debug
         )
 
         self.fub_split_monitor = GAXIMonitor(
             dut=self.dut, title="FUB_Split_Monitor", prefix="", bus_name='fub',
             pkt_prefix="split", clock=self.dut.aclk, field_config=self.split_field_config,
-            mode='skid', in_prefix='', out_prefix='', multi_sig=True, log=self.log, super_debug=self.super_debug
+            mode='skid', multi_sig=True, log=self.log, super_debug=self.super_debug
         )
 
         # Create enhanced scoreboard with detailed error reporting

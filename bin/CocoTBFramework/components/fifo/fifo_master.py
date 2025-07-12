@@ -31,8 +31,6 @@ class FIFOMaster(FIFOComponentBase, BusDriver):
 
     def __init__(self, dut, title, prefix, clock, field_config,
                     timeout_cycles=1000, mode='fifo_mux',
-                    in_prefix='i_',
-                    out_prefix='o_',
                     bus_name='',
                     pkt_prefix='',
                     multi_sig=False,
@@ -51,8 +49,6 @@ class FIFOMaster(FIFOComponentBase, BusDriver):
             field_config=field_config,
             protocol_type='fifo_master',
             mode=mode,
-            in_prefix=in_prefix,
-            out_prefix=out_prefix,
             bus_name=bus_name,
             pkt_prefix=pkt_prefix,
             multi_sig=multi_sig,

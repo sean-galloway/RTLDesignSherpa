@@ -107,14 +107,14 @@ module axi4_slave_wr
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
         .i_wr_valid               (s_axi_awvalid),
-        .o_wr_ready               (int_awready),
+        .wr_ready               (int_awready),
         .i_wr_data                ({s_axi_awid, s_axi_awaddr, s_axi_awlen, s_axi_awsize,
                                     s_axi_awburst, s_axi_awlock, s_axi_awcache, s_axi_awprot,
                                     s_axi_awqos, s_axi_awregion, s_axi_awuser}),
-        .o_rd_valid               (fub_awvalid),
+        .rd_valid               (fub_awvalid),
         .i_rd_ready               (fub_awready),
-        .o_rd_count               (int_aw_count),
-        .o_rd_data                ({fub_awid, fub_awaddr, fub_awlen, fub_awsize,
+        .rd_count               (int_aw_count),
+        .rd_data                ({fub_awid, fub_awaddr, fub_awlen, fub_awsize,
                                     fub_awburst, fub_awlock, fub_awcache, fub_awprot,
                                     fub_awqos, fub_awregion, fub_awuser})
     );
@@ -127,12 +127,12 @@ module axi4_slave_wr
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
         .i_wr_valid               (s_axi_wvalid),
-        .o_wr_ready               (s_axi_wready),
+        .wr_ready               (s_axi_wready),
         .i_wr_data                ({s_axi_wdata, s_axi_wstrb, s_axi_wlast, s_axi_wuser}),
-        .o_rd_valid               (fub_wvalid),
+        .rd_valid               (fub_wvalid),
         .i_rd_ready               (fub_wready),
-        .o_rd_count               (int_w_count),
-        .o_rd_data                ({fub_wdata, fub_wstrb, fub_wlast, fub_wuser})
+        .rd_count               (int_w_count),
+        .rd_data                ({fub_wdata, fub_wstrb, fub_wlast, fub_wuser})
     );
 
     // Instantiate B channel for write response back to master
@@ -143,12 +143,12 @@ module axi4_slave_wr
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
         .i_wr_valid               (fub_bvalid),
-        .o_wr_ready               (fub_bready),
+        .wr_ready               (fub_bready),
         .i_wr_data                ({fub_bid, fub_bresp, fub_buser}),
-        .o_rd_valid               (s_axi_bvalid),
+        .rd_valid               (s_axi_bvalid),
         .i_rd_ready               (s_axi_bready),
-        .o_rd_count               (int_b_count),
-        .o_rd_data                ({s_axi_bid, s_axi_bresp, s_axi_buser})
+        .rd_count               (int_b_count),
+        .rd_data                ({s_axi_bid, s_axi_bresp, s_axi_buser})
     );
 
 endmodule : axi4_slave_wr

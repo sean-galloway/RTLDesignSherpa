@@ -9,7 +9,7 @@ from cocotb.utils import get_sim_time
 from cocotb.triggers import RisingEdge, Timer
 from cocotb_test.simulator import run
 
-from CocoTBFramework.tbclasses.tbbase import TBBase
+from CocoTBFramework.tbclasses.misc.tbbase import TBBase
 from CocoTBFramework.tbclasses.misc.utilities import get_paths, create_view_cmd
 
 
@@ -68,10 +68,10 @@ class AxiGenAddrTB(TBBase):
         random.seed(self.SEED)
 
         # Extract DUT signals
-        self.i_curr_addr = self.dut.i_curr_addr
-        self.i_size = self.dut.i_size
-        self.i_burst = self.dut.i_burst
-        self.i_len = self.dut.i_len
+        self.curr_addr = self.dut.curr_addr
+        self.size = self.dut.size
+        self.burst = self.dut.burst
+        self.len = self.dut.len
         self.ow_next_addr = self.dut.ow_next_addr
         self.ow_next_addr_align = self.dut.ow_next_addr_align
 
@@ -109,10 +109,10 @@ class AxiGenAddrTB(TBBase):
         self.log.info(f"Testing: addr=0x{curr_addr:08x}, size={size}, burst={burst}, len={length}")
 
         # Drive inputs
-        self.i_curr_addr.value = curr_addr
-        self.i_size.value = size
-        self.i_burst.value = burst
-        self.i_len.value = length
+        self.curr_addr.value = curr_addr
+        self.size.value = size
+        self.burst.value = burst
+        self.len.value = length
 
         # Wait a small time for combinational logic to settle
         await Timer(1, units='ns')
@@ -389,7 +389,7 @@ class AxiGenAddrTB(TBBase):
 
         # Add test cases to test data width handling
         if self.ODW > self.DW:
-            # When ODW > DW, increment is still based on i_size
+            # When ODW > DW, increment is still based on size
             test_cases.extend([
                 (0x00000000, 0, 1, 0),  # byte transfers, INCR burst
                 (0x00000000, 2, 1, 0),  # word transfers, INCR burst

@@ -3,32 +3,26 @@
 module encoder_priority_enable #(
     parameter int WIDTH = 8
 ) (
-    input  logic [        WIDTH-1:0] i_priority,
-    input  logic                     i_enable,
-    output logic [$clog2(WIDTH)-1:0] ow_encode
+    input  logic [        WIDTH-1:0] priority_in,
+    input  logic                     enable,
+    output logic [$clog2(WIDTH)-1:0] encode
 );
 
     logic found;
 
     always_comb begin
-        found = 0;  // Initialize found to 0
+        // Default assignments to prevent latches
+        encode = '0;
+        found = 1'b0;
 
-        if (i_enable == 0) begin  // Disable priority encoding
-            ow_encode = {$clog2(WIDTH) {1'b0}};
-        end else begin
-            logic [WIDTH-1:0] w_priority_levels;  // Intermediate variable
-
-            w_priority_levels = '0;  // Initialize w_priority_levels to all zeroes
-
-            for (integer i = 0; i < WIDTH; i++) begin
-                if (i_priority[i] == 1) begin
-                    w_priority_levels[i] = 1;
-                    found = 1;
+        if (enable == 1'b1) begin
+            // Find the highest priority bit using found flag to prevent overwrites
+            for (int i = WIDTH-1; i >= 0; i--) begin
+                if (priority_in[i] == 1'b1 && !found) begin
+                    encode = $clog2(WIDTH)'(i);
+                    found = 1'b1;
                 end
             end
-
-            if (found == 1) ow_encode = $onehot(w_priority_levels);  // Priority encoding
-            else ow_encode = {$clog2(WIDTH) {1'b0}};
         end
     end
 

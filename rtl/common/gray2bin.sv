@@ -3,14 +3,14 @@
 module gray2bin #(
     parameter int WIDTH = 4
 ) (
-    input  wire [WIDTH-1:0] i_gray,
-    output wire [WIDTH-1:0] ow_binary
+    input  wire [WIDTH-1:0] gray,
+    output wire [WIDTH-1:0] binary
 );
 
     genvar i;
     generate
         for (i = 0; i < WIDTH; i++) begin : gen_gray_to_bin
-            assign ow_binary[i] = ^(i_gray >> i);
+            assign binary[i] = ^(gray >> i);
         end
     endgenerate
 

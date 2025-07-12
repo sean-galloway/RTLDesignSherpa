@@ -64,13 +64,13 @@ module apb_slave #(
         .i_axi_aclk     (pclk),
         .i_axi_aresetn  (presetn),
         .i_wr_valid     (r_cmd_valid),
-        .o_wr_ready     (r_cmd_ready),
+        .wr_ready     (r_cmd_ready),
         .i_wr_data      (r_cmd_data_in),
-        .o_rd_valid     (cmd_valid),
+        .rd_valid     (cmd_valid),
         .i_rd_ready     (cmd_ready),
-        .o_rd_data      (r_cmd_data_out),
-        .ow_count       (r_cmd_count),
-        .o_rd_count     ()
+        .rd_data      (r_cmd_data_out),
+        .count       (r_cmd_count),
+        .rd_count     ()
     );
 
     // Extract response packet signals
@@ -92,13 +92,13 @@ module apb_slave #(
         .i_axi_aclk     (pclk),
         .i_axi_aresetn  (presetn),
         .i_wr_valid     (rsp_valid),
-        .o_wr_ready     (rsp_ready),
+        .wr_ready     (rsp_ready),
         .i_wr_data      (r_rsp_data_in),
-        .o_rd_valid     (r_rsp_valid),
+        .rd_valid     (r_rsp_valid),
         .i_rd_ready     (r_rsp_ready),
-        .o_rd_data      (r_rsp_data_out),
-        .ow_count       (r_rsp_count),
-        .o_rd_count     ()
+        .rd_data      (r_rsp_data_out),
+        .count       (r_rsp_count),
+        .rd_count     ()
     );
 
     // APB FSM

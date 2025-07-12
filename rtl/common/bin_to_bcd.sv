@@ -8,12 +8,12 @@ module bin_to_bcd #(
     parameter int WIDTH  = 8,
     parameter int DIGITS = 3
 ) (
-    input  logic                i_clk,     // Clock signal
-    input  logic                i_rst_n,   // Active-low reset signal
-    input  logic                i_start,
-    input  logic [   WIDTH-1:0] i_binary,
-    output logic [DIGITS*4-1:0] o_bcd,
-    output logic                o_done
+    input  logic                clk,     // Clock signal
+    input  logic                rst_n,   // Active-low reset signal
+    input  logic                start,
+    input  logic [   WIDTH-1:0] binary,
+    output logic [DIGITS*4-1:0] bcd,
+    output logic                done
 );
 
     typedef enum logic [5:0] {
@@ -45,8 +45,8 @@ module bin_to_bcd #(
     logic                         r_dv;
 
     // flop all of the registers
-    always_ff @(posedge i_clk or negedge i_rst_n) begin
-        if (!i_rst_n) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
             r_fsm_main <= IDLE;
             r_bcd <= '0;
             r_binary <= '0;
@@ -57,10 +57,10 @@ module bin_to_bcd #(
             r_dv <= 1'b0;
             // Next State for the FSM and wire versions of the various control signal
             casez (r_fsm_main)
-                // Stay in this state until i_start comes along
+                // Stay in this state until start comes along
                 IDLE: begin
-                    if (i_start == 1'b1) begin
-                        r_binary   <= i_binary;
+                    if (start == 1'b1) begin
+                        r_binary   <= binary;
                         r_fsm_main <= SHIFT;
                         r_bcd      <= 0;
                     end else r_fsm_main <= IDLE;
@@ -118,7 +118,7 @@ module bin_to_bcd #(
 
     assign w_bcd_digit = r_bcd[r_digit_index*4+:4];
 
-    assign o_bcd = r_bcd;
-    assign o_done = r_dv;
+    assign bcd = r_bcd;
+    assign done = r_dv;
 
 endmodule : bin_to_bcd

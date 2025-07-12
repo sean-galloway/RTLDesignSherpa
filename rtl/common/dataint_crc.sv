@@ -15,13 +15,13 @@ module dataint_crc #(
     input  logic [CRC_WIDTH-1:0]  POLY,
     input  logic [CRC_WIDTH-1:0]  POLY_INIT,
     input  logic [CRC_WIDTH-1:0]  XOROUT,
-    input  logic                  i_clk,
-    input  logic                  i_rst_n,
-    input  logic                  i_load_crc_start,
-    input  logic                  i_load_from_cascade,
-    input  logic [    CHUNKS-1:0] i_cascade_sel,        // one hot encoded
-    input  logic [DATA_WIDTH-1:0] i_data,
-    output logic [ CRC_WIDTH-1:0] o_crc
+    input  logic                  clk,
+    input  logic                  rst_n,
+    input  logic                  load_crc_start,
+    input  logic                  load_from_cascade,
+    input  logic [    CHUNKS-1:0] cascade_sel,        // one hot encoded
+    input  logic [DATA_WIDTH-1:0] data,
+    output logic [ CRC_WIDTH-1:0] crc
 );
 
     logic [CW-1:0] r_crc_value;
@@ -40,12 +40,12 @@ module dataint_crc #(
         if (REFIN != 0) begin : gen_reflect_inputs
             for (genvar i = 0; i < CH; i++) begin : gen_ch_reflect
                 for (genvar j = 0; j < 8; j++) begin : gen_bit_reflect
-                    assign w_block_data[i][j] = i_data[i*8+7-j];
+                    assign w_block_data[i][j] = data[i*8+7-j];
                 end
             end
         end else begin : gen_direct_assign_inputs
             for (genvar i = 0; i < CH; i++) begin : gen_ch_direct
-                assign w_block_data[i] = i_data[i*8+:8];
+                assign w_block_data[i] = data[i*8+:8];
             end
         end
     endgenerate
@@ -55,16 +55,16 @@ module dataint_crc #(
     always_comb begin
         w_selected_cascade_output = POLY_INIT;  // Default to initial value
         for (int i = 0; i < CH; i++) begin
-            if (i_cascade_sel[i]) begin
+            if (cascade_sel[i]) begin
                 w_selected_cascade_output = w_cascade[i];
             end
         end
     end
 
-    always_ff @(posedge i_clk or negedge i_rst_n) begin
-        if (~i_rst_n) r_crc_value <= POLY_INIT;
-        else if (i_load_crc_start) r_crc_value <= POLY_INIT;  // Reset the CRC to the initial value
-        else if (i_load_from_cascade)
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (~rst_n) r_crc_value <= POLY_INIT;
+        else if (load_crc_start) r_crc_value <= POLY_INIT;  // Reset the CRC to the initial value
+        else if (load_from_cascade)
             r_crc_value <= w_selected_cascade_output;  // Use pre-selected output
     end
 
@@ -76,19 +76,19 @@ module dataint_crc #(
                 dataint_crc_xor_shift_cascade #(
                     .CRC_WIDTH(CRC_WIDTH)
                 ) dataint_crc_xor_shift_cascade_0 (
-                    .i_block_input(r_crc_value),
-                    .i_poly(w_poly),
-                    .i_data_input(w_block_data[i]),
-                    .ow_block_output(w_cascade[i])
+                    .block_input(r_crc_value),
+                    .poly(w_poly),
+                    .data_input(w_block_data[i]),
+                    .block_output(w_cascade[i])
                 );
             end else begin : gen_xor_cascade_N
                 dataint_crc_xor_shift_cascade #(
                     .CRC_WIDTH(CRC_WIDTH)
                 ) dataint_crc_xor_shift_cascade_N (
-                    .i_block_input(w_cascade[i-1]),
-                    .i_poly(w_poly),
-                    .i_data_input(w_block_data[i]),
-                    .ow_block_output(w_cascade[i])
+                    .block_input(w_cascade[i-1]),
+                    .poly(w_poly),
+                    .data_input(w_block_data[i]),
+                    .block_output(w_cascade[i])
                 );
             end
         end
@@ -108,10 +108,10 @@ module dataint_crc #(
 
     ////////////////////////////////////////////////////////////////////////////
     // flop the output path
-    always_ff @(posedge i_clk or negedge i_rst_n) begin
-        if (~i_rst_n) o_crc <= 'b0;
-        else if (i_load_crc_start) o_crc <= POLY_INIT;  // Reset the CRC to the initial value
-        else o_crc <= w_result_xor;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (~rst_n) crc <= 'b0;
+        else if (load_crc_start) crc <= POLY_INIT;  // Reset the CRC to the initial value
+        else crc <= w_result_xor;
     end
 
     /////////////////////////////////////////////////////////////////////////

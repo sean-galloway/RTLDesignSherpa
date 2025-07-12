@@ -171,8 +171,8 @@ class MonbusPacket(GAXIPacket):
 
         # Add monitor-specific summary
         summary = (f"MonbusPacket: {self.get_packet_type_name()}.{self.get_event_code_name()} "
-                  f"ch={self.channel_id:02X} unit={self.unit_id:X} agent={self.agent_id:02X} "
-                  f"data=0x{self.data:010X}")
+                    f"ch={self.channel_id:02X} unit={self.unit_id:X} agent={self.agent_id:02X} "
+                    f"data=0x{self.data:010X}")
 
         if hasattr(self, 'timestamp') and self.timestamp > 0:
             summary += f" @{self.timestamp:.1f}ns"
@@ -304,7 +304,7 @@ class MonbusMaster(GAXIMaster):
         self.log.info(f"{title} initialized - UNIT_ID={self.unit_id:X}, AGENT_ID={self.agent_id:02X}")
 
     async def send_error_packet(self, event_code: int, channel_id: int = 0,
-                               address: int = 0) -> MonbusPacket:
+                                address: int = 0) -> MonbusPacket:
         """Send an error packet"""
         packet = MonbusPacket(timestamp=get_sim_time('ns'))
         packet.packet_type = MonbusPktType.ERROR.value
@@ -432,8 +432,6 @@ class MonbusSlave(GAXISlave):
             dut=dut,
             title=title,
             prefix=prefix,
-            in_prefix='',
-            out_prefix='',
             field_config=field_config,
             **kwargs
         )
@@ -636,7 +634,7 @@ class MonbusSlave(GAXISlave):
             'verification_error_list': self.verification_errors,
             'last_packet_time': self.packets_received[-1].timestamp if self.packets_received else 0,
             'monitoring_duration': (self.packets_received[-1].timestamp - self.packets_received[0].timestamp)
-                                  if len(self.packets_received) > 1 else 0
+                                    if len(self.packets_received) > 1 else 0
         }
         return stats
 

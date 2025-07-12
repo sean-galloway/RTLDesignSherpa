@@ -33,14 +33,12 @@ def create_gaxi_master(dut, title, prefix, clock, field_config=None, packet_clas
                         memory_fields=None, log=None, signal_map=None,
                         optional_signal_map=None, field_mode=False, multi_sig=False,
                         mode='skid', bus_name='', pkt_prefix='',
-                        in_prefix='', out_prefix='',  # Default to empty strings
                         **kwargs):
     """
     Create a GAXI Master component with simplified configuration.
 
     All existing parameters are preserved and passed through exactly as before.
     
-    Note: in_prefix and out_prefix default to '' which works for most cases.
 
     Args:
         dut: Device under test
@@ -60,8 +58,6 @@ def create_gaxi_master(dut, title, prefix, clock, field_config=None, packet_clas
         mode: Operating mode ('skid', 'fifo_mux', 'fifo_flop')
         bus_name: Bus/channel name
         pkt_prefix: Packet field prefix
-        in_prefix: Input signal prefix (default: '')
-        out_prefix: Output signal prefix (default: '')
         **kwargs: Additional arguments
 
     Returns:
@@ -85,8 +81,6 @@ def create_gaxi_master(dut, title, prefix, clock, field_config=None, packet_clas
         memory_model=memory_model,
         log=log,
         mode=mode,
-        in_prefix=in_prefix,      # Explicitly pass (defaults to '')
-        out_prefix=out_prefix,    # Explicitly pass (defaults to '')
         bus_name=bus_name,
         pkt_prefix=pkt_prefix,
         multi_sig=multi_sig,
@@ -99,14 +93,11 @@ def create_gaxi_slave(dut, title, prefix, clock, field_config=None, field_mode=F
                         memory_fields=None, log=None, mode='skid',
                         signal_map=None, optional_signal_map=None, multi_sig=False,
                         bus_name='', pkt_prefix='',
-                        in_prefix='', out_prefix='',  # Default to empty strings
                         **kwargs):
     """
     Create a GAXI Slave component with simplified configuration.
 
     All existing parameters are preserved and passed through exactly as before.
-    
-    Note: in_prefix and out_prefix default to '' which works for most cases.
 
     Args:
         dut: Device under test
@@ -126,8 +117,6 @@ def create_gaxi_slave(dut, title, prefix, clock, field_config=None, field_mode=F
         multi_sig: Whether using multi-signal mode
         bus_name: Bus/channel name
         pkt_prefix: Packet field prefix
-        in_prefix: Input signal prefix (default: '')
-        out_prefix: Output signal prefix (default: '')
         **kwargs: Additional arguments
 
     Returns:
@@ -151,8 +140,6 @@ def create_gaxi_slave(dut, title, prefix, clock, field_config=None, field_mode=F
         randomizer=randomizer,
         memory_model=memory_model,
         log=log,
-        in_prefix=in_prefix,      # Explicitly pass (defaults to '')
-        out_prefix=out_prefix,    # Explicitly pass (defaults to '')
         bus_name=bus_name,
         pkt_prefix=pkt_prefix,
         multi_sig=multi_sig,
@@ -162,16 +149,13 @@ def create_gaxi_slave(dut, title, prefix, clock, field_config=None, field_mode=F
 
 def create_gaxi_monitor(dut, title, prefix, clock, field_config=None,
                         is_slave=False, log=None, mode='skid',
-                        multi_sig=False,
                         bus_name='', pkt_prefix='',
-                        in_prefix='', out_prefix='',  # Default to empty strings
+                        multi_sig=False,
                         **kwargs):
     """
     Create a GAXI Monitor component with simplified configuration.
 
     All existing parameters are preserved and passed through exactly as before.
-    
-    Note: in_prefix and out_prefix default to '' which works for most cases.
 
     Args:
         dut: Device under test
@@ -189,8 +173,6 @@ def create_gaxi_monitor(dut, title, prefix, clock, field_config=None,
         multi_sig: Whether using multi-signal mode
         bus_name: Bus/channel name
         pkt_prefix: Packet field prefix
-        in_prefix: Input signal prefix (default: '')
-        out_prefix: Output signal prefix (default: '')
         **kwargs: Additional arguments
 
     Returns:
@@ -213,8 +195,6 @@ def create_gaxi_monitor(dut, title, prefix, clock, field_config=None,
         is_slave=is_slave,
         mode=mode,
         log=log,
-        in_prefix=in_prefix,      # Explicitly pass (defaults to '')
-        out_prefix=out_prefix,    # Explicitly pass (defaults to '')
         bus_name=bus_name,
         pkt_prefix=pkt_prefix,
         multi_sig=multi_sig,
@@ -246,14 +226,11 @@ def create_gaxi_components(dut, clock, title_prefix="", field_config=None, field
                             memory_model=None, log=None,
                             mode='skid', signal_map=None, optional_signal_map=None, multi_sig=False,
                             bus_name='', pkt_prefix='',
-                            in_prefix='', out_prefix='',  # Default to empty strings
                             **kwargs):
     """
     Create a complete set of GAXI components (master, slave, monitors, scoreboard).
 
     All existing parameters are preserved and passed through exactly as before.
-    
-    Note: in_prefix and out_prefix default to '' which works for most cases.
 
     Args:
         dut: Device under test
@@ -270,8 +247,6 @@ def create_gaxi_components(dut, clock, title_prefix="", field_config=None, field
         multi_sig: Whether using multi-signal mode
         bus_name: Bus/channel name
         pkt_prefix: Packet field prefix
-        in_prefix: Input signal prefix (default: '')
-        out_prefix: Output signal prefix (default: '')
         **kwargs: Additional configuration passed to all components
 
     Returns:
@@ -306,8 +281,6 @@ def create_gaxi_components(dut, clock, title_prefix="", field_config=None, field
         multi_sig=multi_sig,
         bus_name=bus_name,
         pkt_prefix=pkt_prefix,
-        in_prefix=in_prefix,
-        out_prefix=out_prefix,
         **kwargs
     )
 
@@ -323,9 +296,6 @@ def create_gaxi_components(dut, clock, title_prefix="", field_config=None, field
         optional_signal_map=optional_signal_map,
         multi_sig=multi_sig,
         bus_name=bus_name,
-        pkt_prefix=pkt_prefix,
-        in_prefix=in_prefix,
-        out_prefix=out_prefix,
         **kwargs
     )
 
@@ -342,8 +312,6 @@ def create_gaxi_components(dut, clock, title_prefix="", field_config=None, field
         multi_sig=multi_sig,
         bus_name=bus_name,
         pkt_prefix=pkt_prefix,
-        in_prefix=in_prefix,
-        out_prefix=out_prefix,
         **kwargs
     )
 
@@ -360,8 +328,6 @@ def create_gaxi_components(dut, clock, title_prefix="", field_config=None, field
         multi_sig=multi_sig,
         bus_name=bus_name,
         pkt_prefix=pkt_prefix,
-        in_prefix=in_prefix,
-        out_prefix=out_prefix,
         **kwargs
     )
 
@@ -385,14 +351,11 @@ def create_gaxi_components(dut, clock, title_prefix="", field_config=None, field
 def create_gaxi_system(dut, clock, title_prefix="", field_config=None,
                         memory_model=None, log=None,
                         bus_name='', pkt_prefix='',
-                        in_prefix='', out_prefix='',  # Default to empty strings
                         **kwargs):
     """
     Create a complete GAXI system with all components - alias for create_gaxi_components.
 
     This maintains backward compatibility while providing a cleaner name.
-    
-    Note: in_prefix and out_prefix default to '' which works for most cases.
 
     Args:
         dut: Device under test
@@ -403,8 +366,6 @@ def create_gaxi_system(dut, clock, title_prefix="", field_config=None,
         log: Logger instance (default: dut's logger)
         bus_name: Bus/channel name
         pkt_prefix: Packet field prefix
-        in_prefix: Input signal prefix (default: '')
-        out_prefix: Output signal prefix (default: '')
         **kwargs: Additional arguments passed to all components
 
     Returns:
@@ -419,31 +380,24 @@ def create_gaxi_system(dut, clock, title_prefix="", field_config=None,
         log=log,
         bus_name=bus_name,
         pkt_prefix=pkt_prefix,
-        in_prefix=in_prefix,
-        out_prefix=out_prefix,
         **kwargs
     )
 
 
 def create_gaxi_test_environment(dut, clock, 
                                 bus_name='', pkt_prefix='',
-                                in_prefix='', out_prefix='',  # Default to empty strings
                                 **kwargs):
     """
     Create a complete GAXI test environment ready for immediate use.
 
     This convenience function creates a full system with sensible defaults
     and commonly needed configurations for testing.
-    
-    Note: in_prefix and out_prefix default to '' which works for most cases.
 
     Args:
         dut: Device under test
         clock: Clock signal
         bus_name: Bus/channel name
         pkt_prefix: Packet field prefix
-        in_prefix: Input signal prefix (default: '')
-        out_prefix: Output signal prefix (default: '')
         **kwargs: Configuration overrides
 
     Returns:
@@ -479,8 +433,6 @@ def create_gaxi_test_environment(dut, clock,
         log=test_config['log'],
         bus_name=bus_name,
         pkt_prefix=pkt_prefix,
-        in_prefix=in_prefix,
-        out_prefix=out_prefix,
         **kwargs  # Pass through remaining configuration
     )
 

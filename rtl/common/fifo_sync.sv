@@ -12,16 +12,16 @@ module fifo_sync #(
     parameter int D = DEPTH,
     parameter int AW = $clog2(DEPTH)
 ) (
-    input  logic                    i_clk,
-                                    i_rst_n,
-    input  logic                    i_write,
-    input  logic [DATA_WIDTH-1:0]   i_wr_data,
-    output logic                    o_wr_full,
-    output logic                    o_wr_almost_full,
-    input  logic                    i_read,
-    output logic [DATA_WIDTH-1:0]   o_rd_data,
-    output logic                    o_rd_empty,
-    output logic                    o_rd_almost_empty
+    input  logic                    clk,
+                                    rst_n,
+    input  logic                    write,
+    input  logic [DATA_WIDTH-1:0]   wr_data,
+    output logic                    wr_full,
+    output logic                    wr_almost_full,
+    input  logic                    read,
+    output logic [DATA_WIDTH-1:0]   rd_data,
+    output logic                    rd_empty,
+    output logic                    rd_almost_empty
 );
 
     /////////////////////////////////////////////////////////////////////////
@@ -40,11 +40,11 @@ module fifo_sync #(
         .WIDTH  (AW + 1),
         .MAX    (D)
     ) write_pointer_inst (
-        .i_clk                  (i_clk),
-        .i_rst_n                (i_rst_n),
-        .i_enable               (i_write && !o_wr_full),
-        .o_counter_bin          (r_wr_ptr_bin),
-        .ow_counter_bin_next    (w_wr_ptr_bin_next)
+        .clk                  (clk),
+        .rst_n                (rst_n),
+        .enable               (write && !wr_full),
+        .counter_bin          (r_wr_ptr_bin),
+        .counter_bin_next    (w_wr_ptr_bin_next)
     );
 
     /////////////////////////////////////////////////////////////////////////
@@ -53,11 +53,11 @@ module fifo_sync #(
         .WIDTH(AW + 1),
         .MAX  (D)
     ) read_pointer_inst (
-        .i_clk(i_clk),
-        .i_rst_n(i_rst_n),
-        .i_enable(i_read && !o_rd_empty),
-        .o_counter_bin(r_rd_ptr_bin),
-        .ow_counter_bin_next(w_rd_ptr_bin_next)
+        .clk(clk),
+        .rst_n(rst_n),
+        .enable(read && !rd_empty),
+        .counter_bin(r_rd_ptr_bin),
+        .counter_bin_next(w_rd_ptr_bin_next)
     );
 
     /////////////////////////////////////////////////////////////////////////
@@ -69,19 +69,19 @@ module fifo_sync #(
         .ALMOST_WR_MARGIN   (ALMOST_WR_MARGIN),
         .REGISTERED         (REGISTERED)
     ) fifo_control_inst (
-        .i_wr_clk           (i_clk),
-        .i_wr_rst_n         (i_rst_n),
-        .i_rd_clk           (i_clk),
-        .i_rd_rst_n         (i_rst_n),
-        .iw_wr_ptr_bin      (w_wr_ptr_bin_next),
-        .iw_wdom_rd_ptr_bin (w_rd_ptr_bin_next),
-        .iw_rd_ptr_bin      (w_rd_ptr_bin_next),
-        .iw_rdom_wr_ptr_bin (w_wr_ptr_bin_next),
-        .ow_count           (),
-        .o_wr_full          (o_wr_full),
-        .o_wr_almost_full   (o_wr_almost_full),
-        .o_rd_empty         (o_rd_empty),
-        .o_rd_almost_empty  (o_rd_almost_empty)
+        .wr_clk           (clk),
+        .wr_rst_n         (rst_n),
+        .rd_clk           (clk),
+        .rd_rst_n         (rst_n),
+        .wr_ptr_bin      (w_wr_ptr_bin_next),
+        .wdom_rd_ptr_bin (w_rd_ptr_bin_next),
+        .rd_ptr_bin      (w_rd_ptr_bin_next),
+        .rdom_wr_ptr_bin (w_wr_ptr_bin_next),
+        .count           (),
+        .wr_full          (wr_full),
+        .wr_almost_full   (wr_almost_full),
+        .rd_empty         (rd_empty),
+        .rd_almost_empty  (rd_almost_empty)
     );
 
     /////////////////////////////////////////////////////////////////////////
@@ -92,9 +92,9 @@ module fifo_sync #(
 
     /////////////////////////////////////////////////////////////////////////
     // Memory Flops
-    always_ff @(posedge i_clk) begin
-        if (i_write) begin
-            r_mem[r_wr_addr] <= i_wr_data;
+    always_ff @(posedge clk) begin
+        if (write) begin
+            r_mem[r_wr_addr] <= wr_data;
         end
     end
 
@@ -105,15 +105,15 @@ module fifo_sync #(
     generate
         if (REGISTERED != 0) begin : gen_flop_mode
             // Flop mode - registered output
-            always_ff @(posedge i_clk or negedge i_rst_n) begin
-                if (!i_rst_n)
-                    o_rd_data <= 'b0;
+            always_ff @(posedge clk or negedge rst_n) begin
+                if (!rst_n)
+                    rd_data <= 'b0;
                 else
-                    o_rd_data <= w_rd_data;
+                    rd_data <= w_rd_data;
             end
         end else begin : gen_mux_mode
             // Mux mode - non-registered output
-            assign o_rd_data = w_rd_data;
+            assign rd_data = w_rd_data;
         end
     endgenerate
 
@@ -129,15 +129,15 @@ module fifo_sync #(
         end
     endgenerate
 
-    always_ff @(posedge i_clk) begin
-        if ((i_write && o_wr_full) == 1'b1) begin
+    always_ff @(posedge clk) begin
+        if ((write && wr_full) == 1'b1) begin
             $timeformat(-9, 3, " ns", 10);
             $display("Error: %s write while fifo full, %t", INSTANCE_NAME, $time);
         end
     end
 
-    always_ff @(posedge i_clk) begin
-        if ((i_read && o_rd_empty) == 1'b1) begin
+    always_ff @(posedge clk) begin
+        if ((read && rd_empty) == 1'b1) begin
             $timeformat(-9, 3, " ns", 10);
             if (REGISTERED == 1) begin
                 $display("Error: %s read while fifo empty (flop mode), %t", INSTANCE_NAME, $time);

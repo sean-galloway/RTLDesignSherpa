@@ -24,61 +24,61 @@ GAXI_VALID_MODES = ['skid', 'fifo_mux', 'fifo_flop']
 GAXI_BASE_PATTERNS = {
     # Master-side patterns (for masters and write monitors)
     'valid_base': [
-        '{prefix}{in_prefix}{bus_name}wr_valid',
-        '{prefix}{in_prefix}{bus_name}valid',
-        '{prefix}{in_prefix}{bus_name}m2s_valid',
+        '{prefix}{bus_name}wr_valid',
+        '{prefix}{bus_name}valid',
+        '{prefix}{bus_name}m2s_valid',
 
-        '{prefix}{in_prefix}{bus_name}{pkt_prefix}wr_valid',
-        '{prefix}{in_prefix}{bus_name}{pkt_prefix}valid',
-        '{prefix}{in_prefix}{bus_name}{pkt_prefix}m2s_valid',
+        '{prefix}{bus_name}{pkt_prefix}wr_valid',
+        '{prefix}{bus_name}{pkt_prefix}valid',
+        '{prefix}{bus_name}{pkt_prefix}m2s_valid',
     ],
     'ready_base': [
-        '{prefix}{out_prefix}{bus_name}wr_ready',
-        '{prefix}{out_prefix}{bus_name}ready',
-        '{prefix}{out_prefix}{bus_name}s2m_ready',
+        '{prefix}{bus_name}wr_ready',
+        '{prefix}{bus_name}ready',
+        '{prefix}{bus_name}s2m_ready',
 
-        '{prefix}{out_prefix}{bus_name}{pkt_prefix}wr_ready',
-        '{prefix}{out_prefix}{bus_name}{pkt_prefix}ready',
-        '{prefix}{out_prefix}{bus_name}{pkt_prefix}s2m_ready',    ],
+        '{prefix}{bus_name}{pkt_prefix}wr_ready',
+        '{prefix}{bus_name}{pkt_prefix}ready',
+        '{prefix}{bus_name}{pkt_prefix}s2m_ready',    ],
     'pkt_base': [
-        '{prefix}{in_prefix}{bus_name}wr_data',
-        '{prefix}{in_prefix}{bus_name}data',
-        '{prefix}{in_prefix}{bus_name}m2s_pkt',
+        '{prefix}{bus_name}wr_data',
+        '{prefix}{bus_name}data',
+        '{prefix}{bus_name}m2s_pkt',
     ],
     'field_base': [
-        '{prefix}{in_prefix}{bus_name}{pkt_prefix}{field_name}',
-        '{prefix}{in_prefix}{bus_name}{pkt_prefix}wr_{field_name}',
-        '{prefix}{in_prefix}{bus_name}m2s_pkt_{field_name}',
+        '{prefix}{bus_name}{pkt_prefix}{field_name}',
+        '{prefix}{bus_name}{pkt_prefix}wr_{field_name}',
+        '{prefix}{bus_name}m2s_pkt_{field_name}',
     ],
 
     # Slave-side patterns (for slaves and read monitors)
     'slave_valid_base': [
-        '{prefix}{out_prefix}{bus_name}rd_valid',
-        '{prefix}{out_prefix}{bus_name}valid',
-        '{prefix}{out_prefix}{bus_name}m2s_valid',
+        '{prefix}{bus_name}rd_valid',
+        '{prefix}{bus_name}valid',
+        '{prefix}{bus_name}m2s_valid',
 
-        '{prefix}{out_prefix}{bus_name}{pkt_prefix}rd_valid',
-        '{prefix}{out_prefix}{bus_name}{pkt_prefix}valid',
-        '{prefix}{out_prefix}{bus_name}{pkt_prefix}m2s_valid',
+        '{prefix}{bus_name}{pkt_prefix}rd_valid',
+        '{prefix}{bus_name}{pkt_prefix}valid',
+        '{prefix}{bus_name}{pkt_prefix}m2s_valid',
     ],
     'slave_ready_base': [
-        '{prefix}{in_prefix}{bus_name}rd_ready',
-        '{prefix}{in_prefix}{bus_name}ready',
-        '{prefix}{in_prefix}{bus_name}s2m_ready',
+        '{prefix}{bus_name}rd_ready',
+        '{prefix}{bus_name}ready',
+        '{prefix}{bus_name}s2m_ready',
 
-        '{prefix}{in_prefix}{bus_name}{pkt_prefix}rd_ready',
-        '{prefix}{in_prefix}{bus_name}{pkt_prefix}ready',
-        '{prefix}{in_prefix}{bus_name}{pkt_prefix}s2m_ready',
+        '{prefix}{bus_name}{pkt_prefix}rd_ready',
+        '{prefix}{bus_name}{pkt_prefix}ready',
+        '{prefix}{bus_name}{pkt_prefix}s2m_ready',
     ],
     'slave_pkt_base': [
-        '{prefix}{out_prefix}{bus_name}rd_data',
-        '{prefix}{out_prefix}{bus_name}data',
-        '{prefix}{out_prefix}{bus_name}m2s_pkt',
+        '{prefix}{bus_name}rd_data',
+        '{prefix}{bus_name}data',
+        '{prefix}{bus_name}m2s_pkt',
     ],
     'slave_field_base': [
-        '{prefix}{out_prefix}{bus_name}{pkt_prefix}{field_name}',
-        '{prefix}{out_prefix}{bus_name}{pkt_prefix}rd_{field_name}',
-        '{prefix}{out_prefix}{bus_name}m2s_pkt_{field_name}',
+        '{prefix}{bus_name}{pkt_prefix}{field_name}',
+        '{prefix}{bus_name}{pkt_prefix}rd_{field_name}',
+        '{prefix}{bus_name}m2s_pkt_{field_name}',
     ]
 }
 
@@ -86,36 +86,36 @@ GAXI_BASE_PATTERNS = {
 FIFO_BASE_PATTERNS = {
     # Write-side patterns (for masters and write monitors)
     'write_base': [
-        '{prefix}{in_prefix}{bus_name}write',
+        '{prefix}{bus_name}write',
     ],
     'wr_data_base': [
-        '{prefix}{in_prefix}{bus_name}wr_data',
-        '{prefix}{in_prefix}{bus_name}data',
+        '{prefix}{bus_name}wr_data',
+        '{prefix}{bus_name}data',
     ],
     'wr_field_base': [
-        '{prefix}{in_prefix}{bus_name}{pkt_prefix}{field_name}',
-        '{prefix}{in_prefix}{bus_name}{pkt_prefix}wr_{field_name}',
+        '{prefix}{bus_name}{pkt_prefix}{field_name}',
+        '{prefix}{bus_name}{pkt_prefix}wr_{field_name}',
     ],
     'full_base': [
-        '{prefix}{out_prefix}{bus_name}wr_full',
-        '{prefix}{out_prefix}{bus_name}full'
+        '{prefix}{bus_name}wr_full',
+        '{prefix}{bus_name}full'
     ],
 
     # Read-side patterns (for slaves and read monitors)
     'read_base': [
-        '{prefix}{in_prefix}{bus_name}read'
+        '{prefix}{bus_name}read'
     ],
     'rd_data_base': [
-        '{prefix}{out_prefix}{bus_name}rd_data',
-        '{prefix}{out_prefix}{bus_name}data'
+        '{prefix}{bus_name}rd_data',
+        '{prefix}{bus_name}data'
     ],
     'rd_field_base': [
-        '{prefix}{out_prefix}{bus_name}{pkt_prefix}{field_name}',
-        '{prefix}{out_prefix}{bus_name}{pkt_prefix}rd_{field_name}'
+        '{prefix}{bus_name}{pkt_prefix}{field_name}',
+        '{prefix}{bus_name}{pkt_prefix}rd_{field_name}'
     ],
     'empty_base': [
-        '{prefix}{out_prefix}{bus_name}rd_empty',
-        '{prefix}{out_prefix}{bus_name}empty'
+        '{prefix}{bus_name}rd_empty',
+        '{prefix}{bus_name}empty'
     ]
 }
 
@@ -196,7 +196,6 @@ class SignalResolver:
 
     def __init__(self, protocol_type: str, dut, bus, log, component_name: str,
                 prefix='', field_config=None, multi_sig: bool = False,
-                in_prefix: str = 'i_', out_prefix: str = 'o_',
                 bus_name: str = '', pkt_prefix: str = '', mode: str = None,
                 super_debug: bool = False, signal_map: Optional[Dict[str, str]] = None):
         """
@@ -211,8 +210,6 @@ class SignalResolver:
             prefix: Prefix that cocotb will prepend to signal names
             field_config: Field configuration (required for multi_sig=True)
             multi_sig: Whether using multi-signal mode
-            in_prefix: Input signal prefix
-            out_prefix: Output signal prefix
             bus_name: Bus/channel name
             pkt_prefix: Packet field prefix
             mode: Protocol mode (kept for RTL parameter)
@@ -280,7 +277,7 @@ class SignalResolver:
         else:
             # Generate parameter combinations (now includes prefix) - only for automatic discovery
             self.param_combinations = self._generate_parameter_combinations(
-                prefix, in_prefix, out_prefix, bus_name, pkt_prefix
+                prefix, bus_name, pkt_prefix
             )
             self._log_debug(f"Generated {len(self.param_combinations)} parameter combinations")
 
@@ -446,16 +443,12 @@ class SignalResolver:
             print(f"{level}: {message}")
         print("=== End Log Messages ===\n")
 
-    def _generate_parameter_combinations(self, prefix: str, in_prefix: str, out_prefix: str,
+    def _generate_parameter_combinations(self, prefix: str,
                                         bus_name: str, pkt_prefix: str) -> List[Dict[str, str]]:
         """Generate all parameter combinations including prefix variants."""
 
         # UPDATED: Create prefix variants - empty string if prefix is empty
         prefix_variants = [prefix] if prefix else ['']
-
-        # Create other parameter lists - empty string if parameter is empty
-        in_prefix_variants = [in_prefix] if in_prefix else ['']
-        out_prefix_variants = [out_prefix] if out_prefix else ['']
 
         # For bus_name and pkt_prefix, create variants with and without trailing underscore
         bus_name_variants = [''] if not bus_name else [bus_name, bus_name + '_']
@@ -463,13 +456,11 @@ class SignalResolver:
 
         # Generate all combinations (now includes prefix)
         combinations = []
-        for prefix_p, in_p, out_p, bus_n, pkt_p in product(
-            prefix_variants, in_prefix_variants, out_prefix_variants, bus_name_variants, pkt_prefix_variants
+        for prefix_p, bus_n, pkt_p in product(
+            prefix_variants, bus_name_variants, pkt_prefix_variants
         ):
             combinations.append({
                 'prefix': prefix_p,      # ADDED: Include prefix in combinations
-                'in_prefix': in_p,
-                'out_prefix': out_p,
                 'bus_name': bus_n,
                 'pkt_prefix': pkt_p
             })

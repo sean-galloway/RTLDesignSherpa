@@ -83,8 +83,8 @@ module axil_master_wr_cg
     input  logic                       fub_error_ready,
 
     // Clock gating status
-    output logic                       o_cg_gating,         // Active gating indicator
-    output logic                       o_cg_idle           // All buffers empty indicator
+    output logic                       cg_gating,         // Active gating indicator
+    output logic                       cg_idle           // All buffers empty indicator
 );
 
     // Gated clock signal
@@ -116,14 +116,14 @@ module axil_master_wr_cg
         .i_user_valid        (user_valid),
         .i_axi_valid         (axi_valid),
         .clk_out             (gated_aclk),
-        .o_gating            (o_cg_gating),
-        .o_idle              (o_cg_idle)
+        .gating            (cg_gating),
+        .idle              (cg_idle)
     );
 
     // Force ready signals to 0 when clock gating is active
-    assign fub_awready = o_cg_gating ? 1'b0 : int_fub_awready;
-    assign fub_wready = o_cg_gating ? 1'b0 : int_fub_wready;
-    assign m_axil_bready = o_cg_gating ? 1'b0 : int_m_axil_bready;
+    assign fub_awready = cg_gating ? 1'b0 : int_fub_awready;
+    assign fub_wready = cg_gating ? 1'b0 : int_fub_wready;
+    assign m_axil_bready = cg_gating ? 1'b0 : int_m_axil_bready;
 
     // Instantiate the base AXI-Lite master write module with gated clock
     axil_master_wr #(

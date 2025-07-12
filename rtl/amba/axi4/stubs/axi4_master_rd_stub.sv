@@ -67,16 +67,16 @@ module axi4_master_rd_stub
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
         .i_wr_valid               (fub_axi_arvalid),
-        .o_wr_ready               (fub_axi_arready),
+        .wr_ready               (fub_axi_arready),
         .i_wr_data                (fub_axi_ar_pkt),
-        .o_rd_valid               (m_axi_arvalid),
+        .rd_valid               (m_axi_arvalid),
         .i_rd_ready               (m_axi_arready),
-        .o_rd_data                ({m_axi_arid,m_axi_araddr,m_axi_arlen,m_axi_arsize,m_axi_arburst,
+        .rd_data                ({m_axi_arid,m_axi_araddr,m_axi_arlen,m_axi_arsize,m_axi_arburst,
                                     m_axi_arlock,m_axi_arcache,m_axi_arprot,m_axi_arqos,
                                     m_axi_arregion,m_axi_aruser}),
         /* verilator lint_off PINCONNECTEMPTY */
-        .ow_count                 (),
-        .o_rd_count               ()
+        .count                 (),
+        .rd_count               ()
         /* verilator lint_on PINCONNECTEMPTY */
     );
 
@@ -86,14 +86,14 @@ module axi4_master_rd_stub
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
         .i_wr_valid               (m_axi_rvalid),
-        .o_wr_ready               (m_axi_rready),
+        .wr_ready               (m_axi_rready),
         .i_wr_data                ({m_axi_rid,m_axi_rdata,m_axi_rresp,m_axi_rlast,m_axi_ruser}),
-        .o_rd_valid               (fub_axi_rvalid),
+        .rd_valid               (fub_axi_rvalid),
         .i_rd_ready               (fub_axi_rready),
-        .o_rd_data                (fub_axi_r_pkt),
+        .rd_data                (fub_axi_r_pkt),
         /* verilator lint_off PINCONNECTEMPTY */
-        .ow_count                 (),
-        .o_rd_count               ()
+        .count                 (),
+        .rd_count               ()
         /* verilator lint_on PINCONNECTEMPTY */
     );
 

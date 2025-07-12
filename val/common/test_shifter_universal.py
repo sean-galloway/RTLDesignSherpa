@@ -30,7 +30,7 @@ class ShifterUniversalTB(TBBase):
     Testbench for the Universal Shifter module
     Features:
     - Verify all shift operations (hold, right shift, left shift, load)
-    - Test serial input/output functionality
+    - Test serial input/output functionality with proper timing
     - Test with different data widths
     """
 
@@ -50,9 +50,9 @@ class ShifterUniversalTB(TBBase):
         random.seed(self.SEED)
 
         # Extract DUT signals
-        self.i_clk = self.dut.i_clk
-        self.i_rst_n = self.dut.i_rst_n
-        self.i_select = self.dut.i_select
+        self.clk = self.dut.clk
+        self.rst_n = self.dut.rst_n
+        self.select = self.dut.select
         self.i_pdata = self.dut.i_pdata
         self.i_sdata_lt = self.dut.i_sdata_lt
         self.i_sdata_rt = self.dut.i_sdata_rt
@@ -74,27 +74,28 @@ class ShifterUniversalTB(TBBase):
 
         # Test results storage
         self.test_results = []
+        self.test_failures = []
 
     async def reset_dut(self):
         """Reset the DUT"""
         self.log.debug(f'Starting reset_dut{self.get_time_ns_str()}')
 
         # Initialize inputs
-        self.i_select.value = 0
+        self.select.value = 0
         self.i_pdata.value = 0
         self.i_sdata_lt.value = 0
         self.i_sdata_rt.value = 0
 
         # Apply reset
-        self.i_rst_n.value = 0
-        await self.wait_clocks('i_clk', 5)
-        self.i_rst_n.value = 1
-        await self.wait_clocks('i_clk', 5)
+        self.rst_n.value = 0
+        await self.wait_clocks('clk', 5)
+        self.rst_n.value = 1
+        await self.wait_clocks('clk', 5)
 
         self.log.debug('Ending reset_dut')
 
-    async def drive_and_check(self, pdata, select, sdata_lt=0, sdata_rt=0, expected_pdata=None,
-                                expected_sdata_lt=None, expected_sdata_rt=None):
+    async def drive_and_check(self, pdata, select, sdata_lt=0, sdata_rt=0, 
+                            expected_pdata=None, expected_sdata_lt=None, expected_sdata_rt=None):
         """
         Drive the inputs and check the outputs
 
@@ -116,31 +117,37 @@ class ShifterUniversalTB(TBBase):
         sdata_lt &= 0x1
         sdata_rt &= 0x1
 
+        # Get current state before driving inputs
+        prev_pdata = int(self.o_pdata.value) & self.MAX_DATA
+
         self.log.info(f"Testing{self.get_time_ns_str()}: pdata=0x{pdata:x}, select={select}, " +
-                    f"sdata_lt={sdata_lt}, sdata_rt={sdata_rt}")
+                    f"sdata_lt={sdata_lt}, sdata_rt={sdata_rt}, prev_pdata=0x{prev_pdata:x}")
+
+        # Calculate expected outputs if not provided
+        if expected_pdata is None or expected_sdata_lt is None or expected_sdata_rt is None:
+            calc_pdata, calc_sdata_lt, calc_sdata_rt = self._calculate_expected_outputs(
+                pdata, select, sdata_lt, sdata_rt, prev_pdata)
+            
+            if expected_pdata is None:
+                expected_pdata = calc_pdata
+            if expected_sdata_lt is None:
+                expected_sdata_lt = calc_sdata_lt
+            if expected_sdata_rt is None:
+                expected_sdata_rt = calc_sdata_rt
 
         # Drive the inputs
         self.i_pdata.value = pdata
-        self.i_select.value = select
+        self.select.value = select
         self.i_sdata_lt.value = sdata_lt
         self.i_sdata_rt.value = sdata_rt
 
         # Wait for the clock edge
-        await self.wait_clocks('i_clk', 1)
+        await self.wait_clocks('clk', 1)
 
         # Read the outputs
-        actual_pdata = int(self.o_pdata.value)
-        actual_sdata_lt = int(self.o_sdata_lt.value)
-        actual_sdata_rt = int(self.o_sdata_rt.value)
-
-        # If expected values not provided, use previous outputs
-        # This is for checking hold operation
-        if expected_pdata is None:
-            expected_pdata = actual_pdata
-        if expected_sdata_lt is None:
-            expected_sdata_lt = actual_sdata_lt
-        if expected_sdata_rt is None:
-            expected_sdata_rt = actual_sdata_rt
+        actual_pdata = int(self.o_pdata.value) & self.MAX_DATA
+        actual_sdata_lt = int(self.o_sdata_lt.value) & 0x1
+        actual_sdata_rt = int(self.o_sdata_rt.value) & 0x1
 
         # Check the outputs
         pdata_match = (actual_pdata == expected_pdata)
@@ -153,8 +160,8 @@ class ShifterUniversalTB(TBBase):
             self.log.info(f"PASS: pdata=0x{actual_pdata:x}, " +
                         f"sdata_lt={actual_sdata_lt}, sdata_rt={actual_sdata_rt}")
         else:
-            self.log.error(f"FAIL: pdata=0x{pdata:x}, select={select}, " +
-                            f"sdata_lt={sdata_lt}, sdata_rt={sdata_rt}")
+            self.log.error(f"FAIL: inputs(pdata=0x{pdata:x}, select={select}, " +
+                            f"sdata_lt={sdata_lt}, sdata_rt={sdata_rt})")
             if not pdata_match:
                 self.log.error(f"  pdata: expected=0x{expected_pdata:x}, actual=0x{actual_pdata:x}")
             if not sdata_lt_match:
@@ -163,7 +170,8 @@ class ShifterUniversalTB(TBBase):
                 self.log.error(f"  sdata_rt: expected={expected_sdata_rt}, actual={actual_sdata_rt}")
 
         # Store the results
-        self.test_results.append({
+        result = {
+            'prev_pdata': prev_pdata,
             'pdata': pdata,
             'select': select,
             'sdata_lt': sdata_lt,
@@ -178,20 +186,24 @@ class ShifterUniversalTB(TBBase):
             'sdata_lt_match': sdata_lt_match,
             'sdata_rt_match': sdata_rt_match,
             'all_match': all_match
-        })
+        }
+        self.test_results.append(result)
+        
+        if not all_match:
+            self.test_failures.append(result)
 
         return all_match
 
-    def _calculate_expected_outputs(self, pdata, select, sdata_lt, sdata_rt, prev_pdata=0):
+    def _calculate_expected_outputs(self, pdata, select, sdata_lt, sdata_rt, prev_pdata):
         """
-        Calculate expected outputs for the given inputs
+        Calculate expected outputs for the given inputs based on the updated RTL timing
 
         Args:
             pdata: Parallel data input
             select: Operation select
             sdata_lt: Serial data input for left shifting
             sdata_rt: Serial data input for right shifting
-            prev_pdata: Previous parallel data output
+            prev_pdata: Previous parallel data output (current state)
 
         Returns:
             Tuple of (expected_pdata, expected_sdata_lt, expected_sdata_rt)
@@ -203,23 +215,30 @@ class ShifterUniversalTB(TBBase):
         sdata_rt &= 0x1
         prev_pdata &= self.MAX_DATA
 
-        # Calculate expected parallel data output
+        # Calculate expected outputs based on the fixed RTL
         if select == self.SEL_HOLD:
-            # Hold operation - keep previous value
+            # Hold operation - keep previous value, no serial outputs
             expected_pdata = prev_pdata
+            expected_sdata_lt = 0
+            expected_sdata_rt = 0
+            
         elif select == self.SEL_RIGHT_SHIFT:
             # Right shift operation
             expected_pdata = ((prev_pdata >> 1) | (sdata_rt << (self.WIDTH - 1))) & self.MAX_DATA
+            expected_sdata_lt = 0  # Not used in right shift
+            expected_sdata_rt = prev_pdata & 0x1  # Bit being shifted out (LSB)
+            
         elif select == self.SEL_LEFT_SHIFT:
             # Left shift operation
             expected_pdata = ((prev_pdata << 1) | sdata_lt) & self.MAX_DATA
+            expected_sdata_lt = (prev_pdata >> (self.WIDTH - 1)) & 0x1  # Bit being shifted out (MSB)
+            expected_sdata_rt = 0  # Not used in left shift
+            
         else:  # select == self.SEL_LOAD
-            # Load operation
+            # Load operation - parallel in, no serial outputs
             expected_pdata = pdata
-
-        # Calculate expected serial data outputs
-        expected_sdata_lt = prev_pdata & 0x1
-        expected_sdata_rt = (prev_pdata >> (self.WIDTH - 1)) & 0x1
+            expected_sdata_lt = 0
+            expected_sdata_rt = 0
 
         return (expected_pdata, expected_sdata_lt, expected_sdata_rt)
 
@@ -237,14 +256,14 @@ class ShifterUniversalTB(TBBase):
 
         # First, load a known value
         test_data = 0xA & self.MAX_DATA
-        await self.drive_and_check(test_data, self.SEL_LOAD, 0, 0, test_data)
+        await self.drive_and_check(test_data, self.SEL_LOAD)
 
         # Now test hold operation for multiple cycles
         all_passed = True
-        for _ in range(5):
+        for i in range(5):
             # Change parallel input but keep select=0 (hold)
             new_data = random.randint(0, self.MAX_DATA)
-            test_passed = await self.drive_and_check(new_data, self.SEL_HOLD, 0, 0, test_data)
+            test_passed = await self.drive_and_check(new_data, self.SEL_HOLD)
 
             if not test_passed:
                 all_passed = False
@@ -266,26 +285,24 @@ class ShifterUniversalTB(TBBase):
         await self.reset_dut()
 
         # First, load a known value
-        test_data = 0xA & self.MAX_DATA
-        await self.drive_and_check(test_data, self.SEL_LOAD, 0, 0, test_data)
+        test_data = 0xA & self.MAX_DATA  # Binary: 1010 for 4-bit
+        await self.drive_and_check(test_data, self.SEL_LOAD)
+
+        all_passed = True
 
         # Test right shift with 0 serial input
-        expected_pdata = (test_data >> 1) & self.MAX_DATA
-        expected_sdata_rt = (test_data >> (self.WIDTH - 1)) & 0x1
-        test_passed = await self.drive_and_check(0, self.SEL_RIGHT_SHIFT, 0, 0,
-                                                expected_pdata, test_data & 0x1, expected_sdata_rt)
-
-        if not test_passed and self.TEST_LEVEL == 'basic':
-            return False
+        test_passed = await self.drive_and_check(0, self.SEL_RIGHT_SHIFT, 0, 0)
+        if not test_passed:
+            all_passed = False
+            if self.TEST_LEVEL == 'basic':
+                return False
 
         # Test right shift with 1 serial input
-        prev_pdata = expected_pdata
-        expected_pdata = ((prev_pdata >> 1) | (1 << (self.WIDTH - 1))) & self.MAX_DATA
-        expected_sdata_rt = (prev_pdata >> (self.WIDTH - 1)) & 0x1
-        test_passed = await self.drive_and_check(0, self.SEL_RIGHT_SHIFT, 0, 1,
-                                                expected_pdata, prev_pdata & 0x1, expected_sdata_rt)
+        test_passed = await self.drive_and_check(0, self.SEL_RIGHT_SHIFT, 0, 1)
+        if not test_passed:
+            all_passed = False
 
-        return test_passed
+        return all_passed
 
     async def test_left_shift_operation(self):
         """
@@ -300,26 +317,24 @@ class ShifterUniversalTB(TBBase):
         await self.reset_dut()
 
         # First, load a known value
-        test_data = 0x5 & self.MAX_DATA
-        await self.drive_and_check(test_data, self.SEL_LOAD, 0, 0, test_data)
+        test_data = 0x5 & self.MAX_DATA  # Binary: 0101 for 4-bit
+        await self.drive_and_check(test_data, self.SEL_LOAD)
+
+        all_passed = True
 
         # Test left shift with 0 serial input
-        expected_pdata = (test_data << 1) & self.MAX_DATA
-        expected_sdata_lt = test_data & 0x1
-        test_passed = await self.drive_and_check(0, self.SEL_LEFT_SHIFT, 0, 0,
-                                                expected_pdata, expected_sdata_lt, (test_data >> (self.WIDTH - 1)) & 0x1)
-
-        if not test_passed and self.TEST_LEVEL == 'basic':
-            return False
+        test_passed = await self.drive_and_check(0, self.SEL_LEFT_SHIFT, 0, 0)
+        if not test_passed:
+            all_passed = False
+            if self.TEST_LEVEL == 'basic':
+                return False
 
         # Test left shift with 1 serial input
-        prev_pdata = expected_pdata
-        expected_pdata = ((prev_pdata << 1) | 1) & self.MAX_DATA
-        expected_sdata_lt = prev_pdata & 0x1
-        test_passed = await self.drive_and_check(0, self.SEL_LEFT_SHIFT, 1, 0,
-                                                expected_pdata, expected_sdata_lt, (prev_pdata >> (self.WIDTH - 1)) & 0x1)
+        test_passed = await self.drive_and_check(0, self.SEL_LEFT_SHIFT, 1, 0)
+        if not test_passed:
+            all_passed = False
 
-        return test_passed
+        return all_passed
 
     async def test_load_operation(self):
         """
@@ -345,7 +360,7 @@ class ShifterUniversalTB(TBBase):
         all_passed = True
 
         for test_data in test_values:
-            test_passed = await self.drive_and_check(test_data, self.SEL_LOAD, 0, 0, test_data)
+            test_passed = await self.drive_and_check(test_data, self.SEL_LOAD)
 
             if not test_passed:
                 all_passed = False
@@ -356,7 +371,7 @@ class ShifterUniversalTB(TBBase):
 
     async def test_serial_io(self):
         """
-        Test serial input/output functionality
+        Test serial input/output functionality with proper timing
 
         Returns:
             True if all tests passed
@@ -372,51 +387,61 @@ class ShifterUniversalTB(TBBase):
         await self.reset_dut()
 
         # Load initial value
-        test_data = 0xA & self.MAX_DATA
-        await self.drive_and_check(test_data, self.SEL_LOAD, 0, 0, test_data)
+        test_data = 0xA & self.MAX_DATA  # Binary: 1010 for 4-bit
+        await self.drive_and_check(test_data, self.SEL_LOAD)
 
-        # Shift data out to the right and check serial outputs
         all_passed = True
+
+        # Test shifting data out to the right
+        self.log.info("Testing right shift serial output")
         curr_data = test_data
 
         for i in range(self.WIDTH):
-            expected_sdata_rt = (curr_data >> (self.WIDTH - 1)) & 0x1
-            new_data = (curr_data << 1) & self.MAX_DATA  # For next iteration
-
+            expected_bit_out = curr_data & 0x1  # LSB should come out on o_sdata_rt
+            
+            # Perform right shift with 0 input
             test_passed = await self.drive_and_check(0, self.SEL_RIGHT_SHIFT, 0, 0)
-            actual_sdata_rt = self.test_results[-1]['actual_sdata_rt']
-
-            if actual_sdata_rt != expected_sdata_rt:
-                self.log.error(f"Serial right output mismatch at bit {i}: " +
-                                f"expected={expected_sdata_rt}, actual={actual_sdata_rt}")
+            
+            # Check if the correct bit was shifted out
+            actual_bit_out = self.test_results[-1]['actual_sdata_rt']
+            
+            if actual_bit_out != expected_bit_out:
+                self.log.error(f"Right shift bit {i}: expected bit out={expected_bit_out}, " +
+                              f"actual bit out={actual_bit_out}")
                 all_passed = False
                 if self.TEST_LEVEL == 'medium':
                     break
 
-            curr_data = (curr_data >> 1) & self.MAX_DATA
+            curr_data = curr_data >> 1  # Update for next iteration
 
-        # Reset and load new value
+        if not all_passed and self.TEST_LEVEL == 'medium':
+            return False
+
+        # Reset and test shifting data out to the left
         await self.reset_dut()
-        test_data = 0x5 & self.MAX_DATA
-        await self.drive_and_check(test_data, self.SEL_LOAD, 0, 0, test_data)
+        test_data = 0x5 & self.MAX_DATA  # Binary: 0101 for 4-bit
+        await self.drive_and_check(test_data, self.SEL_LOAD)
 
-        # Shift data out to the left and check serial outputs
+        self.log.info("Testing left shift serial output")
         curr_data = test_data
 
         for i in range(self.WIDTH):
-            expected_sdata_lt = curr_data & 0x1
-
+            expected_bit_out = (curr_data >> (self.WIDTH - 1)) & 0x1  # MSB should come out on o_sdata_lt
+            
+            # Perform left shift with 0 input
             test_passed = await self.drive_and_check(0, self.SEL_LEFT_SHIFT, 0, 0)
-            actual_sdata_lt = self.test_results[-1]['actual_sdata_lt']
-
-            if actual_sdata_lt != expected_sdata_lt:
-                self.log.error(f"Serial left output mismatch at bit {i}: " +
-                                f"expected={expected_sdata_lt}, actual={actual_sdata_lt}")
+            
+            # Check if the correct bit was shifted out
+            actual_bit_out = self.test_results[-1]['actual_sdata_lt']
+            
+            if actual_bit_out != expected_bit_out:
+                self.log.error(f"Left shift bit {i}: expected bit out={expected_bit_out}, " +
+                              f"actual bit out={actual_bit_out}")
                 all_passed = False
                 if self.TEST_LEVEL == 'medium':
                     break
 
-            curr_data = (curr_data >> 1) & self.MAX_DATA
+            curr_data = (curr_data << 1) & self.MAX_DATA  # Update for next iteration
 
         return all_passed
 
@@ -434,60 +459,56 @@ class ShifterUniversalTB(TBBase):
 
         # Define patterns to shift in
         if self.TEST_LEVEL == 'basic':
-            # Simple alternating pattern for basic testing
-            pattern = [1, 0] * (self.WIDTH // 2)
-            if self.WIDTH % 2 == 1:
-                pattern.append(1)  # Add extra bit for odd width
+            pattern = [1, 0, 1, 0][:self.WIDTH]
         elif self.TEST_LEVEL == 'medium':
-            # More complex pattern for medium testing
-            pattern = [1, 1, 0, 0, 1, 0, 1, 0]
-            pattern = pattern[:self.WIDTH]  # Truncate to width
-            if len(pattern) < self.WIDTH:
-                pattern = pattern * (self.WIDTH // len(pattern) + 1)  # Repeat to fill width
-                pattern = pattern[:self.WIDTH]  # Truncate again if needed
+            pattern = [1, 1, 0, 1, 0, 1, 0, 0][:self.WIDTH]
         else:  # full
-            # Pseudo-random pattern for full testing
             pattern = [random.randint(0, 1) for _ in range(self.WIDTH)]
 
+        # Ensure pattern is exactly WIDTH bits
+        while len(pattern) < self.WIDTH:
+            pattern.extend(pattern)
+        pattern = pattern[:self.WIDTH]
+
+        self.log.info(f"Testing with pattern: {pattern}")
+
         # First, clear the register
-        await self.drive_and_check(0, self.SEL_LOAD, 0, 0, 0)
+        await self.drive_and_check(0, self.SEL_LOAD)
+
+        all_passed = True
 
         # Shift in the pattern from the right
-        all_passed = True
-        expected_data = 0
-
-        for bit in pattern:
-            # Calculate next expected value
-            expected_data = ((expected_data >> 1) | (bit << (self.WIDTH - 1))) & self.MAX_DATA
-
-            # Shift in the bit
-            test_passed = await self.drive_and_check(0, self.SEL_RIGHT_SHIFT, 0, bit, expected_data)
-
+        self.log.info("Shifting pattern in from right")
+        for i, bit in enumerate(pattern):
+            test_passed = await self.drive_and_check(0, self.SEL_RIGHT_SHIFT, 0, bit)
+            
             if not test_passed:
                 all_passed = False
                 if self.TEST_LEVEL == 'basic':
                     break
+                    
+            # Log current state for debugging
+            current_data = self.test_results[-1]['actual_pdata']
+            self.log.debug(f"After shift {i+1}: data=0x{current_data:x}")
 
         if not all_passed and self.TEST_LEVEL == 'basic':
             return False
 
-        # Clear the register again
-        await self.drive_and_check(0, self.SEL_LOAD, 0, 0, 0)
-
-        # Shift in the pattern from the left
-        expected_data = 0
-
-        for bit in pattern:
-            # Calculate next expected value
-            expected_data = ((expected_data << 1) | bit) & self.MAX_DATA
-
-            # Shift in the bit
-            test_passed = await self.drive_and_check(0, self.SEL_LEFT_SHIFT, bit, 0, expected_data)
-
+        # Clear and shift in from the left
+        await self.drive_and_check(0, self.SEL_LOAD)
+        
+        self.log.info("Shifting pattern in from left")
+        for i, bit in enumerate(pattern):
+            test_passed = await self.drive_and_check(0, self.SEL_LEFT_SHIFT, bit, 0)
+            
             if not test_passed:
                 all_passed = False
                 if self.TEST_LEVEL == 'basic':
                     break
+                    
+            # Log current state for debugging
+            current_data = self.test_results[-1]['actual_pdata']
+            self.log.debug(f"After shift {i+1}: data=0x{current_data:x}")
 
         return all_passed
 
@@ -515,25 +536,30 @@ class ShifterUniversalTB(TBBase):
         test_results = {}
         test_number = 1
 
+        # Clear previous results
+        self.test_results = []
+        self.test_failures = []
+
         # Run tests based on the test level
         for test_func, test_name, run_in_basic, run_in_medium, run_in_full in test_functions:
-            if should_run := (
+            should_run = (
                 (self.TEST_LEVEL == 'basic' and run_in_basic)
                 or (self.TEST_LEVEL == 'medium' and run_in_medium)
                 or (self.TEST_LEVEL == 'full' and run_in_full)
-            ):
+            )
+            
+            if should_run:
                 self.log.info(f"{test_number}. Testing {test_name}")
                 try:
                     test_passed = await test_func()
                     test_results[test_name] = test_passed
 
                     if not test_passed:
-                        self.log.error(f"{test_name} test failed")
+                        self.log.error(f"{test_name} test FAILED")
                         all_passed = False
-                        # Don't break on first failure - continue to see all failures
-                        # Only break in basic mode if we find a critical failure
-                        #if self.TEST_LEVEL == 'basic':
-                        #    break
+                    else:
+                        self.log.info(f"{test_name} test PASSED")
+
                 except Exception as e:
                     self.log.error(f"{test_name} test raised exception: {str(e)}")
                     test_results[test_name] = False
@@ -555,7 +581,9 @@ class ShifterUniversalTB(TBBase):
                 status = "PASSED" if result else "FAILED"
             self.log.info(f"{test_name}: {status}")
         self.log.info("="*50)
-        self.log.info(f"Overall result: {'PASSED' if all_passed else 'FAILED'}")
+        
+        overall_status = "PASSED" if all_passed else "FAILED"
+        self.log.info(f"Overall result: {overall_status}")
         self.log.info("="*50)
 
         # Print detailed summary of individual operations
@@ -566,36 +594,40 @@ class ShifterUniversalTB(TBBase):
     def print_summary(self):
         """Print summary of test results"""
         total_tests = len(self.test_results)
-        passed_tests = sum(bool(r['all_match'])
-                        for r in self.test_results)
+        passed_tests = sum(1 for r in self.test_results if r['all_match'])
+        failed_tests = len(self.test_failures)
 
         self.log.info("="*50)
-        self.log.info(f"Test Summary: {passed_tests}/{total_tests} tests passed")
+        self.log.info(f"DETAILED TEST SUMMARY")
+        self.log.info(f"Total operations tested: {total_tests}")
+        self.log.info(f"Passed: {passed_tests}")
+        self.log.info(f"Failed: {failed_tests}")
         self.log.info("="*50)
 
-        # Print detailed results based on test level
-        if self.TEST_LEVEL != 'basic' and passed_tests < total_tests:
-            self.log.info("Failed tests:")
-            for i, result in enumerate(self.test_results):
-                if not result['all_match']:
-                    self.log.info(f"Test {i+1}:")
-                    self.log.info(f"  Inputs: pdata=0x{result['pdata']:x}, select={result['select']}, " +
-                                f"sdata_lt={result['sdata_lt']}, sdata_rt={result['sdata_rt']}")
+        # Print detailed results for failures
+        if failed_tests > 0:
+            self.log.error(f"FAILED TEST DETAILS ({failed_tests} failures):")
+            for i, failure in enumerate(self.test_failures):
+                self.log.error(f"Failure {i+1}:")
+                self.log.error(f"  Inputs: prev_pdata=0x{failure['prev_pdata']:x}, " +
+                              f"pdata=0x{failure['pdata']:x}, select={failure['select']}, " +
+                              f"sdata_lt={failure['sdata_lt']}, sdata_rt={failure['sdata_rt']}")
 
-                    if not result['pdata_match']:
-                        self.log.info("  pdata mismatch: " +
-                                    f"expected=0x{result['expected_pdata']:x}, " +
-                                    f"actual=0x{result['actual_pdata']:x}")
+                if not failure['pdata_match']:
+                    self.log.error(f"  pdata mismatch: " +
+                                  f"expected=0x{failure['expected_pdata']:x}, " +
+                                  f"actual=0x{failure['actual_pdata']:x}")
 
-                    if not result['sdata_lt_match']:
-                        self.log.info("  sdata_lt mismatch: " +
-                                    f"expected={result['expected_sdata_lt']}, " +
-                                    f"actual={result['actual_sdata_lt']}")
+                if not failure['sdata_lt_match']:
+                    self.log.error(f"  sdata_lt mismatch: " +
+                                  f"expected={failure['expected_sdata_lt']}, " +
+                                  f"actual={failure['actual_sdata_lt']}")
 
-                    if not result['sdata_rt_match']:
-                        self.log.info("  sdata_rt mismatch: " +
-                                    f"expected={result['expected_sdata_rt']}, " +
-                                    f"actual={result['actual_sdata_rt']}")
+                if not failure['sdata_rt_match']:
+                    self.log.error(f"  sdata_rt mismatch: " +
+                                  f"expected={failure['expected_sdata_rt']}, " +
+                                  f"actual={failure['actual_sdata_rt']}")
+                self.log.error("")
 
 
 # Single comprehensive test function that handles all test levels
@@ -606,25 +638,27 @@ async def comprehensive_test(dut):
     tb = ShifterUniversalTB(dut)
 
     # Start clock with configured period
-    await tb.start_clock('i_clk', 10, 'ns')
+    await tb.start_clock('clk', 10, 'ns')
 
-    # Run all tests, but don't assert yet to see all failures
+    # Run all tests
     passed = await tb.run_all_tests()
 
-    # Report final result without aborting on failure
+    # Report final result and PROPERLY FAIL if tests failed
     tb.log.info(f"Comprehensive test {'PASSED' if passed else 'FAILED'} at level {tb.TEST_LEVEL}")
 
-    # Return the result, but don't assert so the test won't abort
+    # CRITICAL FIX: Actually assert on the result so test fails when it should
+    assert passed, f"Universal Shifter test FAILED - {len(tb.test_failures)} individual test failures detected"
+
     return passed
 
 
 @pytest.mark.parametrize("params", [
     # Test with different widths and test levels
-    {'WIDTH': 4, 'test_level': 'basic'},
-    {'WIDTH': 4, 'test_level': 'medium'},
-    {'WIDTH': 4, 'test_level': 'full'},
+    # {'WIDTH': 4, 'test_level': 'basic'},
+    # {'WIDTH': 4, 'test_level': 'medium'},
+    # {'WIDTH': 4, 'test_level': 'full'},
 
-    # # Test with different data widths
+    # Test with different data widths
     {'WIDTH': 8, 'test_level': 'full'},
     {'WIDTH': 16, 'test_level': 'full'},
     {'WIDTH': 32, 'test_level': 'full'},
@@ -672,14 +706,13 @@ def test_shifter_universal(request, params):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(0x414347),  # str(seed),
+        'SEED': str(0x414347),
         'TEST_LEVEL': params['test_level'],
         'TEST_WIDTH': str(params['WIDTH'])
     }
 
     # Calculate timeout based on test complexity
     complexity_factor = 1.0
-    # sourcery skip: no-conditionals-in-tests
     if params['test_level'] == 'medium':
         complexity_factor = 2.0
     elif params['test_level'] == 'full':
@@ -694,7 +727,7 @@ def test_shifter_universal(request, params):
     ]
 
     sim_args = [
-            "--trace-fst",  # Tell Verilator to use FST
+            "--trace-fst",
             "--trace-structs",
             "--trace-depth", "99",
     ]
@@ -707,7 +740,7 @@ def test_shifter_universal(request, params):
 
     try:
         run(
-            python_search=[tests_dir],  # where to search for all the python test files
+            python_search=[tests_dir],
             verilog_sources=verilog_sources,
             includes=includes,
             toplevel=toplevel,

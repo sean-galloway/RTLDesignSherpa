@@ -32,8 +32,6 @@ class GAXIComponentBase:
     def __init__(self, dut, title, prefix, clock, field_config,
                     protocol_type,  # Must be specified by subclass
                     mode='skid',
-                    in_prefix='i_',
-                    out_prefix='o_',
                     bus_name='',
                     pkt_prefix='',
                     multi_sig=False,
@@ -54,8 +52,6 @@ class GAXIComponentBase:
             field_config: Field configuration (FieldConfig or dict)
             protocol_type: Protocol type ('gaxi_master' or 'gaxi_slave')
             mode: GAXI mode ('skid', 'fifo_mux', 'fifo_flop')
-            in_prefix: Input signal prefix
-            out_prefix: Output signal prefix
             bus_name: Bus/channel name
             pkt_prefix: Packet field prefix
             multi_sig: Whether using multi-signal mode
@@ -74,8 +70,6 @@ class GAXIComponentBase:
         self.clock = clock
         self.mode = mode
         self.super_debug = super_debug
-        self.in_prefix = in_prefix
-        self.out_prefix = out_prefix
         self.bus_name = bus_name
         self.pkt_prefix = pkt_prefix
         self.use_multi_signal = multi_sig
@@ -106,8 +100,6 @@ class GAXIComponentBase:
             prefix=prefix,
             field_config=self.field_config,
             multi_sig=self.use_multi_signal,
-            in_prefix=self.in_prefix,
-            out_prefix=self.out_prefix,
             bus_name=self.bus_name,
             pkt_prefix=self.pkt_prefix,
             mode=mode,

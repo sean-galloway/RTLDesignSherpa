@@ -53,16 +53,16 @@ class CamTagTB(CamTB):
         self.log.debug('Starting reset_dut')
 
         # Reset DUT control signals
-        self.dut.i_rst_n.value = 0
+        self.dut.rst_n.value = 0
 
         # Hold reset for multiple cycles
-        await self.wait_clocks('i_clk', 10)
+        await self.wait_clocks('clk', 10)
 
         # Release reset
-        self.dut.i_rst_n.value = 1
+        self.dut.rst_n.value = 1
 
         # Wait for stabilization
-        await self.wait_clocks('i_clk', 10)
+        await self.wait_clocks('clk', 10)
 
         self.log.debug('Ending reset_dut')
 
@@ -262,7 +262,7 @@ async def cam_tag_test(dut):
     tb.print_settings()
 
     # Start the clock
-    await tb.start_clock('i_clk', 10, 'ns')
+    await tb.start_clock('clk', 10, 'ns')
 
     # Reset the DUT
     await tb.reset_dut()
@@ -300,7 +300,7 @@ async def cam_tag_test(dut):
     finally:
         # Set done flag and wait for any pending tasks
         tb.done = True
-        await tb.wait_clocks('i_clk', 10)
+        await tb.wait_clocks('clk', 10)
 
 
 @pytest.mark.parametrize("n, depth", [

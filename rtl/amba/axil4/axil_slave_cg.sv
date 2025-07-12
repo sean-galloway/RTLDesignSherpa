@@ -118,10 +118,10 @@ module axil_slave_cg
     input  logic                       fub_rd_error_ready,
 
     // Clock gating status
-    output logic                       o_wr_cg_gating,        // Write path active gating indicator
-    output logic                       o_wr_cg_idle,          // Write path all buffers empty indicator
-    output logic                       o_rd_cg_gating,        // Read path active gating indicator
-    output logic                       o_rd_cg_idle           // Read path all buffers empty indicator
+    output logic                       wr_cg_gating,        // Write path active gating indicator
+    output logic                       wr_cg_idle,          // Write path all buffers empty indicator
+    output logic                       rd_cg_gating,        // Read path active gating indicator
+    output logic                       rd_cg_idle           // Read path all buffers empty indicator
 );
 
     // Instantiate AXI-Lite slave write clock-gated module
@@ -183,8 +183,8 @@ module axil_slave_cg
         .fub_error_ready      (fub_wr_error_ready),
 
         // Clock gating status
-        .o_cg_gating          (o_wr_cg_gating),
-        .o_cg_idle            (o_wr_cg_idle)
+        .cg_gating          (wr_cg_gating),
+        .cg_idle            (wr_cg_idle)
     );
 
     // Instantiate AXI-Lite slave read clock-gated module
@@ -236,8 +236,8 @@ module axil_slave_cg
         .fub_error_ready      (fub_rd_error_ready),
 
         // Clock gating status
-        .o_cg_gating          (o_rd_cg_gating),
-        .o_cg_idle            (o_rd_cg_idle)
+        .cg_gating          (rd_cg_gating),
+        .cg_idle            (rd_cg_idle)
     );
 
 endmodule : axil_slave_cg

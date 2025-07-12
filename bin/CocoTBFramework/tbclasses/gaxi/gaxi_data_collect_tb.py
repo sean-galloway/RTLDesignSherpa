@@ -419,8 +419,8 @@ class GAXIDataCollectTB(TBBase):
         random.seed(self.SEED)
 
         # Clock and reset signals - GAXI uses AXI naming
-        self.clock = self.dut.i_axi_aclk
-        self.reset_n = self.dut.i_axi_aresetn
+        self.clock = self.dut.axi_aclk
+        self.reset_n = self.dut.axi_aresetn
         self.super_debug = super_debug
 
         # Channel configuration
@@ -554,9 +554,9 @@ class GAXIDataCollectTB(TBBase):
 
         # Create specialized scoreboard for gaxi_data_collect
         self.scoreboard = GAXIDataCollectScoreboard('GAXI DataCollect Scoreboard',
-                                                   self.input_field_config,
-                                                   self.output_field_config,
-                                                   log=self.log)
+                                                    self.input_field_config,
+                                                    self.output_field_config,
+                                                    log=self.log)
 
         # Initialize the arbiter monitor with proper integration
         self.dut_arb = dut.inst_arbiter
@@ -565,16 +565,16 @@ class GAXIDataCollectTB(TBBase):
             self.arbiter_monitor = WeightedRoundRobinArbiterMonitor(
                 dut=self.dut_arb,
                 title="WRR Arbiter Monitor",
-                clock=self.dut_arb.i_clk,
+                clock=self.dut_arb.clk,
                 clock_period_ns=10,
-                reset_n=self.dut_arb.i_rst_n,
-                req_signal=self.dut_arb.i_req,
+                reset_n=self.dut_arb.rst_n,
+                req_signal=self.dut_arb.req,
                 gnt_valid_signal=self.dut_arb.ow_gnt_valid,
                 gnt_signal=self.dut_arb.ow_gnt,
                 gnt_id_signal=self.dut_arb.ow_gnt_id,
-                gnt_ack_signal=self.dut_arb.i_gnt_ack if hasattr(self.dut_arb, 'i_gnt_ack') else None,
-                block_arb_signal=self.dut_arb.i_block_arb,
-                max_thresh_signal=self.dut_arb.i_max_thresh,
+                gnt_ack_signal=self.dut_arb.gnt_ack if hasattr(self.dut_arb, 'gnt_ack') else None,
+                block_arb_signal=self.dut_arb.block_arb,
+                max_thresh_signal=self.dut_arb.max_thresh,
                 clients=self.dut_arb.CLIENTS,
                 log=self.log
             )
@@ -786,7 +786,7 @@ class GAXIDataCollectTB(TBBase):
         """Wait until the expected number of outputs have been received or timeout"""
         count = 0
         while len(self.monitor_e._recvQ) < expected_count and count < timeout_clocks:
-            await self.wait_clocks('i_axi_aclk', 1)
+            await self.wait_clocks('axi_aclk', 1)
             count += 1
 
             if count % 200 == 0:
@@ -828,10 +828,10 @@ class GAXIDataCollectTB(TBBase):
                 return
 
         # Set the weights
-        self.dut.i_weight_a.value = weight_a
-        self.dut.i_weight_b.value = weight_b
-        self.dut.i_weight_c.value = weight_c
-        self.dut.i_weight_d.value = weight_d
+        self.dut.weight_a.value = weight_a
+        self.dut.weight_b.value = weight_b
+        self.dut.weight_c.value = weight_c
+        self.dut.weight_d.value = weight_d
 
         # Store current weights for arbiter verification
         self.current_weights = weights
@@ -878,7 +878,7 @@ class GAXIDataCollectTB(TBBase):
     async def wait_for_all_masters_idle(self):
         """Wait until all masters have completed their transmissions"""
         while any(self.masters[channel_name].transfer_busy for channel_name in self.channel_names):
-            await self.wait_clocks('i_axi_aclk', 1)
+            await self.wait_clocks('axi_aclk', 1)
 
     def add_received_packets_to_scoreboard(self):
         """Add received packets from the output monitor to the scoreboard"""
@@ -925,9 +925,9 @@ class GAXIDataCollectTB(TBBase):
 
         # Reset system
         await self.assert_reset()
-        await self.wait_clocks('i_axi_aclk', 10)
+        await self.wait_clocks('axi_aclk', 10)
         await self.deassert_reset()
-        await self.wait_clocks('i_axi_aclk', 10)
+        await self.wait_clocks('axi_aclk', 10)
 
         # Set equal weights for all channels
         self.set_arbiter_weights(8, 8, 8, 8)
@@ -955,7 +955,7 @@ class GAXIDataCollectTB(TBBase):
         # Wait for expected outputs
         await self.wait_for_expected_outputs(total_expected_outputs)
         self.add_received_packets_to_scoreboard()
-        await self.wait_clocks('i_axi_aclk', 100)
+        await self.wait_clocks('axi_aclk', 100)
 
         # Verify arbiter weight compliance
         weight_compliance = self.verify_arbiter_behavior()
@@ -991,7 +991,7 @@ class GAXIDataCollectTB(TBBase):
             await tb.send_sequence(channel, data_list, base_id)
 
         # Wait for completion
-        await tb.wait_clocks('i_axi_aclk', packets_per_channel * 10 + 100)
+        await tb.wait_clocks('axi_aclk', packets_per_channel * 10 + 100)
         await tb.wait_for_all_masters_idle()
 
         # Calculate expected outputs
@@ -1001,7 +1001,7 @@ class GAXIDataCollectTB(TBBase):
         # Wait for outputs and verify
         await tb.wait_for_expected_outputs(expected_outputs)
         tb.add_received_packets_to_scoreboard()
-        await tb.wait_clocks('i_axi_aclk', 50)
+        await tb.wait_clocks('axi_aclk', 50)
 
         # Check scoreboard
         errors = tb.check_scoreboard()
@@ -1033,7 +1033,7 @@ class GAXIDataCollectTB(TBBase):
                 await tb.send_sequence(channel, data_list, base_id)
 
             # Wait for completion
-            await tb.wait_clocks('i_axi_aclk', packets_per_channel * 20 + 200)
+            await tb.wait_clocks('axi_aclk', packets_per_channel * 20 + 200)
             await tb.wait_for_all_masters_idle()
 
             # Calculate expected outputs and wait
@@ -1078,7 +1078,7 @@ class GAXIDataCollectTB(TBBase):
             await tb.send_sequence(channel, data_list, base_id)
 
         # Wait for completion with extended timeout
-        await tb.wait_clocks('i_axi_aclk', duration_packets * 30 + 500)
+        await tb.wait_clocks('axi_aclk', duration_packets * 30 + 500)
         await tb.wait_for_all_masters_idle()
 
         # Calculate expected outputs and wait
@@ -1115,7 +1115,7 @@ class GAXIDataCollectTB(TBBase):
             await tb.send_sequence(channel, data_list, base_id)
 
         # Wait for completion
-        await tb.wait_clocks('i_axi_aclk', packets_per_channel * 15 + 100)
+        await tb.wait_clocks('axi_aclk', packets_per_channel * 15 + 100)
         await tb.wait_for_all_masters_idle()
 
         # Calculate expected outputs and wait

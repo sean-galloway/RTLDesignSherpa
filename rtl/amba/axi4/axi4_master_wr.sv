@@ -233,16 +233,16 @@ module axi4_master_wr
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
         .i_wr_valid               (int_awvalid),
-        .o_wr_ready               (int_awready),
+        .wr_ready               (int_awready),
         .i_wr_data                (
             {int_awid, int_awaddr, int_awlen, int_awsize,
             int_awburst, int_awlock, int_awcache, int_awprot,
             int_awqos, int_awregion, int_awuser}),
-        .o_rd_valid               (int_skid_awvalid),
+        .rd_valid               (int_skid_awvalid),
         .i_rd_ready               (int_skid_awready),
-        .o_rd_count               (int_aw_count),
-        .o_rd_data                (int_aw_pkt),
-        .ow_count                 ()
+        .rd_count               (int_aw_count),
+        .rd_data                (int_aw_pkt),
+        .count                 ()
     );
 
     // Unpack AW signals from SKID buffer
@@ -260,14 +260,14 @@ module axi4_master_wr
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
         .i_wr_valid               (int_wvalid),
-        .o_wr_ready               (int_wready),
+        .wr_ready               (int_wready),
         .i_wr_data                (
             {int_wdata, int_wstrb, int_wlast, int_wuser}),
-        .o_rd_valid               (int_skid_wvalid),
+        .rd_valid               (int_skid_wvalid),
         .i_rd_ready               (int_skid_wready),
-        .o_rd_count               (int_w_count),
-        .o_rd_data                (int_w_pkt),
-        .ow_count                 ()
+        .rd_count               (int_w_count),
+        .rd_data                (int_w_pkt),
+        .count                 ()
 
     );
 
@@ -284,13 +284,13 @@ module axi4_master_wr
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
         .i_wr_valid               (m_axi_bvalid),
-        .o_wr_ready               (m_axi_bready),
+        .wr_ready               (m_axi_bready),
         .i_wr_data                ({m_axi_bid, m_axi_bresp, m_axi_buser}),
-        .o_rd_valid               (int_bvalid),
+        .rd_valid               (int_bvalid),
         .i_rd_ready               (int_bready),
-        .o_rd_count               (int_b_count),
-        .o_rd_data                ({int_bid, int_bresp, int_buser}),
-        .ow_count                 ()
+        .rd_count               (int_b_count),
+        .rd_data                ({int_bid, int_bresp, int_buser}),
+        .count                 ()
     );
 
 endmodule : axi4_master_wr

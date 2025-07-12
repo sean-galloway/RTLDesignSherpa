@@ -80,12 +80,12 @@ module axi_master_wr_stub
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
         .i_wr_valid               (fub_axi_awvalid),
-        .o_wr_ready               (fub_axi_awready),
+        .wr_ready               (fub_axi_awready),
         .i_wr_data                (fub_axi_aw_pkt),
-        .o_rd_valid               (m_axi_awvalid),
+        .rd_valid               (m_axi_awvalid),
         .i_rd_ready               (m_axi_awready),
-        .o_rd_count               (fub_axi_aw_count),
-        .o_rd_data                ({m_axi_awid,m_axi_awaddr,m_axi_awlen,m_axi_awsize,m_axi_awburst,
+        .rd_count               (fub_axi_aw_count),
+        .rd_data                ({m_axi_awid,m_axi_awaddr,m_axi_awlen,m_axi_awsize,m_axi_awburst,
                                     m_axi_awlock,m_axi_awcache,m_axi_awprot,m_axi_awqos,
                                     m_axi_awregion,m_axi_awuser})
     );
@@ -96,11 +96,11 @@ module axi_master_wr_stub
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
         .i_wr_valid               (fub_axi_wvalid),
-        .o_wr_ready               (fub_axi_wready),
+        .wr_ready               (fub_axi_wready),
         .i_wr_data                (fub_axi_w_pkt),
-        .o_rd_valid               (m_axi_wvalid),
+        .rd_valid               (m_axi_wvalid),
         .i_rd_ready               (m_axi_wready),
-        .o_rd_data                ({m_axi_wdata,m_axi_wstrb,m_axi_wlast,m_axi_wuser})
+        .rd_data                ({m_axi_wdata,m_axi_wstrb,m_axi_wlast,m_axi_wuser})
     );
 
     ///////////////////////////////////////////////////////////////////////////////////////////
@@ -109,11 +109,11 @@ module axi_master_wr_stub
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
         .i_wr_valid               (m_axi_bvalid),
-        .o_wr_ready               (m_axi_bready),
+        .wr_ready               (m_axi_bready),
         .i_wr_data                ({m_axi_bid,m_axi_bresp,m_axi_buser}),
-        .o_rd_valid               (fub_axi_bvalid),
+        .rd_valid               (fub_axi_bvalid),
         .i_rd_ready               (fub_axi_bready),
-        .o_rd_data                (fub_axi_b_pkt)
+        .rd_data                (fub_axi_b_pkt)
     );
 
 endmodule : axi_master_wr_stub

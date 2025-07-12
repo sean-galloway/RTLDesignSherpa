@@ -24,7 +24,7 @@ import cocotb
 from cocotb.triggers import Timer, RisingEdge
 from cocotb_test.simulator import run
 
-from CocoTBFramework.tbclasses.tbbase import TBBase
+from CocoTBFramework.tbclasses.misc.tbbase import TBBase
 from CocoTBFramework.tbclasses.misc.utilities import get_paths, create_view_cmd
 
 
@@ -838,13 +838,13 @@ def test_axi_split_realistic(request, params):
     # Get paths
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_cmn': 'rtl/common',
-        'rtl_amba_axi4_shared': 'rtl/amba/axi4/shared'
+        'rtl_amba_shared': 'rtl/amba/shared'
     })
 
     dut_name = "axi_split_combi"
     toplevel = dut_name
     verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba_axi4_shared'], "axi_split_combi.sv")
+        os.path.join(rtl_dict['rtl_amba_shared'], "axi_split_combi.sv")
     ]
 
     # Create test identifier

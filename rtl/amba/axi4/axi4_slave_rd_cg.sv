@@ -83,8 +83,8 @@ module axi4_slave_rd_cg
     input  logic                         s_axi_rready,
 
     // Clock gating status
-    output logic                       o_cg_gating,
-    output logic                       o_cg_idle
+    output logic                       cg_gating,
+    output logic                       cg_idle
 );
 
     // Gated clock signal
@@ -105,8 +105,8 @@ module axi4_slave_rd_cg
     assign axi_valid = s_axi_arvalid || s_axi_rvalid;
 
     // Force ready signals to 0 when clock gating is active
-    assign fub_arready = o_cg_gating ? 1'b0 : int_arready;
-    assign s_axi_rready = o_cg_gating ? 1'b0 : int_rready;
+    assign fub_arready = cg_gating ? 1'b0 : int_arready;
+    assign s_axi_rready = cg_gating ? 1'b0 : int_rready;
 
     // Instantiate clock gate controller
     amba_clock_gate_ctrl #(
@@ -119,8 +119,8 @@ module axi4_slave_rd_cg
         .i_user_valid        (user_valid),
         .i_axi_valid         (axi_valid),
         .clk_out             (gated_aclk),
-        .o_gating            (o_cg_gating),
-        .o_idle              (o_cg_idle)
+        .gating            (cg_gating),
+        .idle              (cg_idle)
     );
 
     // Instantiate the original AXI slave read module with gated clock

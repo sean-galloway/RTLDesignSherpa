@@ -466,8 +466,6 @@ class AxiWriteSplitterTB(TBBase):
             field_config=self.write_addr_field_config,
             timeout_cycles=self.TIMEOUT_CYCLES,
             mode='skid',
-            in_prefix='',
-            out_prefix='',
             multi_sig=True,
             log=self.log,
             randomizer=FlexRandomizer(self.randomizer_dict['balanced']['master']),
@@ -485,8 +483,6 @@ class AxiWriteSplitterTB(TBBase):
             field_config=self.write_data_field_config,
             timeout_cycles=self.TIMEOUT_CYCLES,
             mode='skid',
-            in_prefix='',
-            out_prefix='',
             multi_sig=True,
             log=self.log,
             randomizer=FlexRandomizer(self.randomizer_dict['balanced']['master']),
@@ -504,8 +500,6 @@ class AxiWriteSplitterTB(TBBase):
             field_config=self.write_resp_field_config,
             timeout_cycles=self.TIMEOUT_CYCLES,
             mode='skid',
-            in_prefix='',
-            out_prefix='',
             multi_sig=True,
             log=self.log,
             randomizer=FlexRandomizer(self.randomizer_dict['balanced']['slave']),
@@ -523,8 +517,6 @@ class AxiWriteSplitterTB(TBBase):
             field_config=self.write_addr_field_config,
             timeout_cycles=self.TIMEOUT_CYCLES,
             mode='skid',
-            in_prefix='',
-            out_prefix='',
             multi_sig=True,
             log=self.log,
             randomizer=FlexRandomizer(self.randomizer_dict['balanced']['slave']),
@@ -542,8 +534,6 @@ class AxiWriteSplitterTB(TBBase):
             field_config=self.write_data_field_config,
             timeout_cycles=self.TIMEOUT_CYCLES,
             mode='skid',
-            in_prefix='',
-            out_prefix='',
             multi_sig=True,
             log=self.log,
             randomizer=FlexRandomizer(self.randomizer_dict['balanced']['slave']),
@@ -561,8 +551,6 @@ class AxiWriteSplitterTB(TBBase):
             field_config=self.write_resp_field_config,
             timeout_cycles=self.TIMEOUT_CYCLES,
             mode='skid',
-            in_prefix='',
-            out_prefix='',
             multi_sig=True,
             log=self.log,
             randomizer=FlexRandomizer(self.randomizer_dict['balanced']['master']),
@@ -580,8 +568,7 @@ class AxiWriteSplitterTB(TBBase):
             field_config=self.split_field_config,
             timeout_cycles=self.TIMEOUT_CYCLES,
             mode='skid',
-            in_prefix='',
-            out_prefix='',
+
             multi_sig=True,
             log=self.log,
             randomizer=FlexRandomizer(self.randomizer_dict['balanced']['slave']),
@@ -592,43 +579,43 @@ class AxiWriteSplitterTB(TBBase):
         self.fub_aw_monitor = GAXIMonitor(
             dut=self.dut, title="FUB_AW_Monitor", prefix="", bus_name='fub',
             pkt_prefix="aw", clock=self.dut.aclk, field_config=self.write_addr_field_config,
-            mode='skid', in_prefix='', out_prefix='', multi_sig=True, log=self.log, super_debug=self.super_debug
+            mode='skid', multi_sig=True, log=self.log, super_debug=self.super_debug
         )
 
         self.fub_w_monitor = GAXIMonitor(
             dut=self.dut, title="FUB_W_Monitor", prefix="", bus_name='fub',
             pkt_prefix="w", clock=self.dut.aclk, field_config=self.write_data_field_config,
-            mode='skid', in_prefix='', out_prefix='', multi_sig=True, log=self.log, super_debug=self.super_debug
+            mode='skid', multi_sig=True, log=self.log, super_debug=self.super_debug
         )
 
         self.fub_b_monitor = GAXIMonitor(
             dut=self.dut, title="FUB_B_Monitor", prefix="", bus_name='fub',
             pkt_prefix="b", clock=self.dut.aclk, field_config=self.write_resp_field_config,
-            mode='skid', in_prefix='', out_prefix='', multi_sig=True, log=self.log, super_debug=self.super_debug
+            mode='skid', multi_sig=True, log=self.log, super_debug=self.super_debug
         )
 
         self.m_axi_aw_monitor = GAXIMonitor(
             dut=self.dut, title="M_AXI_AW_Monitor", prefix="", bus_name='m_axi',
             pkt_prefix="aw", clock=self.dut.aclk, field_config=self.write_addr_field_config,
-            mode='skid', in_prefix='', out_prefix='', multi_sig=True, log=self.log, super_debug=self.super_debug
+            mode='skid', multi_sig=True, log=self.log, super_debug=self.super_debug
         )
 
         self.m_axi_w_monitor = GAXIMonitor(
             dut=self.dut, title="M_AXI_W_Monitor", prefix="", bus_name='m_axi',
             pkt_prefix="w", clock=self.dut.aclk, field_config=self.write_data_field_config,
-            mode='skid', in_prefix='', out_prefix='', multi_sig=True, log=self.log, super_debug=self.super_debug
+            mode='skid', multi_sig=True, log=self.log, super_debug=self.super_debug
         )
 
         self.m_axi_b_monitor = GAXIMonitor(
             dut=self.dut, title="M_AXI_B_Monitor", prefix="", bus_name='m_axi',
             pkt_prefix="b", clock=self.dut.aclk, field_config=self.write_resp_field_config,
-            mode='skid', in_prefix='', out_prefix='', multi_sig=True, log=self.log, super_debug=self.super_debug
+            mode='skid', multi_sig=True, log=self.log, super_debug=self.super_debug
         )
 
         self.fub_split_monitor = GAXIMonitor(
             dut=self.dut, title="FUB_Split_Monitor", prefix="", bus_name='fub',
             pkt_prefix="split", clock=self.dut.aclk, field_config=self.split_field_config,
-            mode='skid', in_prefix='', out_prefix='', multi_sig=True, log=self.log, super_debug=self.super_debug
+            mode='skid', multi_sig=True, log=self.log, super_debug=self.super_debug
         )
 
         # Create enhanced scoreboard with detailed error reporting

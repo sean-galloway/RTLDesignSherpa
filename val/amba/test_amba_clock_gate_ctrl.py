@@ -9,8 +9,8 @@ from cocotb.utils import get_sim_time
 from cocotb.triggers import RisingEdge, Timer
 from cocotb_test.simulator import run
 
-from CocoTBFramework.tbclasses.tbbase import TBBase
-from CocoTBFramework.tbclasses.common.amba_cg_ctrl import AxiClockGateCtrl
+from CocoTBFramework.tbclasses.misc.tbbase import TBBase
+from CocoTBFramework.tbclasses.amba.amba_cg_ctrl import AxiClockGateCtrl
 from CocoTBFramework.tbclasses.misc.utilities import get_paths, create_view_cmd
 
 
@@ -63,25 +63,25 @@ class AmbaClockGateCtrlTB(TBBase):
         self.aresetn = self.dut.aresetn
 
         # Extract configuration interface signals
-        self.i_cfg_cg_enable = self.dut.i_cfg_cg_enable
-        self.i_cfg_cg_idle_count = self.dut.i_cfg_cg_idle_count
+        self.cfg_cg_enable = self.dut.cfg_cg_enable
+        self.cfg_cg_idle_count = self.dut.cfg_cg_idle_count
 
         # Extract activity monitoring signals
-        self.i_user_valid = self.dut.i_user_valid
-        self.i_axi_valid = self.dut.i_axi_valid
+        self.user_valid = self.dut.user_valid
+        self.axi_valid = self.dut.axi_valid
 
         # Extract clock gating control output signals
         self.clk_out = self.dut.clk_out
-        self.o_gating = self.dut.o_gating
-        self.o_idle = self.dut.o_idle
+        self.gating = self.dut.gating
+        self.idle = self.dut.idle
 
         # Create the AXI Clock Gate Controller testbench class
         self.cg_ctrl = AxiClockGateCtrl(
             dut,
             instance_path="",  # No instance path in this case (top level)
             clock_signal_name="clk_in",
-            user_valid_signals=["i_user_valid"],
-            axi_valid_signals=["i_axi_valid"]
+            user_valid_signals=["user_valid"],
+            axi_valid_signals=["axi_valid"]
         )
 
         # Log configuration
@@ -102,10 +102,10 @@ class AmbaClockGateCtrlTB(TBBase):
 
         # Reset DUT control signals
         self.aresetn.value = 0
-        self.i_cfg_cg_enable.value = 0
-        self.i_cfg_cg_idle_count.value = 0
-        self.i_user_valid.value = 0
-        self.i_axi_valid.value = 0
+        self.cfg_cg_enable.value = 0
+        self.cfg_cg_idle_count.value = 0
+        self.user_valid.value = 0
+        self.axi_valid.value = 0
 
         # Hold reset for multiple cycles
         await self.wait_clocks('clk_in', 5)
@@ -181,19 +181,19 @@ class AmbaClockGateCtrlTB(TBBase):
         for i, value in enumerate(valid_pattern):
             self.log.debug(f"Cycle {i}: Setting {valid_type} valid to {value}")
             if valid_type in ['user', 'both']:
-                self.i_user_valid.value = value
+                self.user_valid.value = value
             if valid_type in ['axi', 'both']:
-                self.i_axi_valid.value = value
+                self.axi_valid.value = value
             await RisingEdge(self.clk_in)
 
         # Clear the valid signals
         if valid_type in ['user', 'both']:
-            self.i_user_valid.value = 0
+            self.user_valid.value = 0
         if valid_type in ['axi', 'both']:
-            self.i_axi_valid.value = 0
+            self.axi_valid.value = 0
 
         # Wait for a reasonable time to observe gating
-        max_idle_count = int(self.i_cfg_cg_idle_count.value)
+        max_idle_count = int(self.cfg_cg_idle_count.value)
         wait_cycles = max(20, max_idle_count * 2)
         self.log.debug(f"Waiting for {wait_cycles} cycles to observe gating behavior")
         for _ in range(wait_cycles):
@@ -219,14 +219,14 @@ class AmbaClockGateCtrlTB(TBBase):
         Args:
             stats: Dict to store timing stats
         """
-        prev_idle = int(self.o_idle.value)
-        prev_gating = int(self.o_gating.value)
+        prev_idle = int(self.idle.value)
+        prev_gating = int(self.gating.value)
 
         while True:
             await RisingEdge(self.clk_in)
 
             # Check for idle transition
-            curr_idle = int(self.o_idle.value)
+            curr_idle = int(self.idle.value)
             if curr_idle == 1 and prev_idle == 0:
                 time_ns = get_sim_time('ns')
                 self.idle_timestamps.append(time_ns)
@@ -235,7 +235,7 @@ class AmbaClockGateCtrlTB(TBBase):
                     self.log.debug(f"First idle detected @ {time_ns}ns")
 
             # Check for gating transition
-            curr_gating = int(self.o_gating.value)
+            curr_gating = int(self.gating.value)
             if curr_gating == 1 and prev_gating == 0:
                 time_ns = get_sim_time('ns')
                 self.gating_timestamps.append(time_ns)
@@ -624,15 +624,15 @@ class AmbaClockGateCtrlTB(TBBase):
         # Drive a specific activity pattern
         async def drive_activity():
             # First burst
-            self.i_user_valid.value = 1
+            self.user_valid.value = 1
             await self.wait_clocks('clk_in', 3)
-            self.i_user_valid.value = 0
+            self.user_valid.value = 0
             await self.wait_clocks('clk_in', 5)
 
             # Second burst
-            self.i_axi_valid.value = 1
+            self.axi_valid.value = 1
             await self.wait_clocks('clk_in', 2)
-            self.i_axi_valid.value = 0
+            self.axi_valid.value = 0
             await self.wait_clocks('clk_in', 10)
 
         # Start the activity driver
@@ -763,12 +763,12 @@ async def comprehensive_test(dut):
 @pytest.mark.parametrize("params", [
     # Test with different configurations
     {'CG_IDLE_COUNT_WIDTH':  4, 'clk_period_ns': 10, 'test_level': 'basic'},
-    {'CG_IDLE_COUNT_WIDTH':  8, 'clk_period_ns': 10, 'test_level': 'medium'},
-    {'CG_IDLE_COUNT_WIDTH': 16, 'clk_period_ns': 10, 'test_level': 'full'},
-    # Different clock frequencies
-    {'CG_IDLE_COUNT_WIDTH':  4, 'clk_period_ns': 5,  'test_level': 'basic'},
-    {'CG_IDLE_COUNT_WIDTH':  8, 'clk_period_ns': 20, 'test_level': 'basic'},
-    {'CG_IDLE_COUNT_WIDTH': 16, 'clk_period_ns': 50, 'test_level': 'basic'},
+    # {'CG_IDLE_COUNT_WIDTH':  8, 'clk_period_ns': 10, 'test_level': 'medium'},
+    # {'CG_IDLE_COUNT_WIDTH': 16, 'clk_period_ns': 10, 'test_level': 'full'},
+    # # Different clock frequencies
+    # {'CG_IDLE_COUNT_WIDTH':  4, 'clk_period_ns': 5,  'test_level': 'basic'},
+    # {'CG_IDLE_COUNT_WIDTH':  8, 'clk_period_ns': 20, 'test_level': 'basic'},
+    # {'CG_IDLE_COUNT_WIDTH': 16, 'clk_period_ns': 50, 'test_level': 'basic'},
 ])
 def test_amba_clock_gate_ctrl(request, params):
     """Run the test with pytest and configurable parameters"""

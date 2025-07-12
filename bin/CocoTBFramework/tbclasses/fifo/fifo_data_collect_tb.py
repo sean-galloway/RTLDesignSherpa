@@ -425,8 +425,8 @@ class DataCollectTB(TBBase):
         random.seed(self.SEED)
 
         # Clock and reset signals
-        self.clock = self.dut.i_clk
-        self.reset_n = self.dut.i_rst_n
+        self.clock = self.dut.clk
+        self.reset_n = self.dut.rst_n
         self.super_debug = super_debug
 
         # Channel configuration
@@ -582,16 +582,16 @@ class DataCollectTB(TBBase):
             self.arbiter_monitor = WeightedRoundRobinArbiterMonitor(
                 dut=self.dut_arb,
                 title="WRR Arbiter Monitor",
-                clock=self.dut_arb.i_clk,
+                clock=self.dut_arb.clk,
                 clock_period_ns=10,
-                reset_n=self.dut_arb.i_rst_n,
-                req_signal=self.dut_arb.i_req,
-                gnt_valid_signal=self.dut_arb.ow_gnt_valid,
-                gnt_signal=self.dut_arb.ow_gnt,
-                gnt_id_signal=self.dut_arb.ow_gnt_id,
-                gnt_ack_signal=self.dut_arb.i_gnt_ack if hasattr(self.dut_arb, 'i_gnt_ack') else None,
-                block_arb_signal=self.dut_arb.i_block_arb,
-                max_thresh_signal=self.dut_arb.i_max_thresh,
+                reset_n=self.dut_arb.rst_n,
+                req_signal=self.dut_arb.req,
+                gnt_valid_signal=self.dut_arb.gnt_valid,
+                gnt_signal=self.dut_arb.gnt,
+                gnt_id_signal=self.dut_arb.gnt_id,
+                gnt_ack_signal=self.dut_arb.gnt_ack if hasattr(self.dut_arb, 'gnt_ack') else None,
+                block_arb_signal=self.dut_arb.block_arb,
+                max_thresh_signal=self.dut_arb.max_thresh,
                 clients=self.dut_arb.CLIENTS,
                 log=self.log
             )
@@ -775,10 +775,10 @@ class DataCollectTB(TBBase):
                 return
 
         # Set the weights
-        self.dut.i_weight_a.value = weight_a
-        self.dut.i_weight_b.value = weight_b
-        self.dut.i_weight_c.value = weight_c
-        self.dut.i_weight_d.value = weight_d
+        self.dut.weight_a.value = weight_a
+        self.dut.weight_b.value = weight_b
+        self.dut.weight_c.value = weight_c
+        self.dut.weight_d.value = weight_d
 
         # Store current weights for arbiter verification
         self.current_weights = weights
@@ -807,7 +807,7 @@ class DataCollectTB(TBBase):
         """Wait until the expected number of outputs have been received or timeout"""
         count = 0
         while len(self.monitor_e._recvQ) < expected_count and count < timeout_clocks:
-            await self.wait_clocks('i_clk', 1)
+            await self.wait_clocks('clk', 1)
             count += 1
 
             if count % 200 == 0:
@@ -918,7 +918,7 @@ class DataCollectTB(TBBase):
     async def wait_for_all_masters_idle(self):
         """Wait until all masters have completed their transmissions"""
         while any(self.masters[channel_name].transfer_busy for channel_name in self.channel_names):
-            await self.wait_clocks('i_clk', 1)
+            await self.wait_clocks('clk', 1)
 
     def add_received_packets_to_scoreboard(self):
         """Add received packets from the output monitor to the scoreboard"""
@@ -966,9 +966,9 @@ class DataCollectTB(TBBase):
 
         # Reset system
         await self.assert_reset()
-        await self.wait_clocks('i_clk', 10)
+        await self.wait_clocks('clk', 10)
         await self.deassert_reset()
-        await self.wait_clocks('i_clk', 10)
+        await self.wait_clocks('clk', 10)
 
         # Set equal weights for all channels
         self.set_arbiter_weights(8, 8, 8, 8)
@@ -1010,7 +1010,7 @@ class DataCollectTB(TBBase):
         # Wait for expected outputs
         await self.wait_for_expected_outputs(total_expected_outputs)
         self.add_received_packets_to_scoreboard()
-        await self.wait_clocks('i_clk', 100)
+        await self.wait_clocks('clk', 100)
 
         # Verify arbiter weight compliance
         weight_compliance = self.verify_arbiter_weight_compliance()
@@ -1058,9 +1058,9 @@ class DataCollectTB(TBBase):
             try:
                 # Reset system
                 await self.assert_reset()
-                await self.wait_clocks('i_clk', 10)
+                await self.wait_clocks('clk', 10)
                 await self.deassert_reset()
-                await self.wait_clocks('i_clk', 10)
+                await self.wait_clocks('clk', 10)
 
                 # Set equal weights for all channels
                 self.set_arbiter_weights(8, 8, 8, 8)
@@ -1097,7 +1097,7 @@ class DataCollectTB(TBBase):
                 # Wait for outputs
                 await self.wait_for_expected_outputs(expected_outputs)
                 self.add_received_packets_to_scoreboard()
-                await self.wait_clocks('i_clk', 50)
+                await self.wait_clocks('clk', 50)
 
                 # Check results
                 weight_compliance = self.verify_arbiter_weight_compliance()
@@ -1158,9 +1158,9 @@ class DataCollectTB(TBBase):
 
             # Reset system
             await self.assert_reset()
-            await self.wait_clocks('i_clk', 10)
+            await self.wait_clocks('clk', 10)
             await self.deassert_reset()
-            await self.wait_clocks('i_clk', 10)
+            await self.wait_clocks('clk', 10)
 
             # Set weights
             self.set_arbiter_weights(*weights)
@@ -1205,7 +1205,7 @@ class DataCollectTB(TBBase):
                     self.scoreboard.add_input_packet(pkt)
 
             await self.wait_for_all_masters_idle()
-            await self.wait_clocks('i_clk', 200)
+            await self.wait_clocks('clk', 200)
 
             # Wait for expected outputs
             success = await self.wait_for_expected_outputs(expected_outputs)
@@ -1216,7 +1216,7 @@ class DataCollectTB(TBBase):
                 results.append(False)
             else:
                 self.add_received_packets_to_scoreboard()
-                await self.wait_clocks('i_clk', 100)
+                await self.wait_clocks('clk', 100)
 
                 # Verify arbiter weight compliance
                 weight_compliance = self.verify_arbiter_weight_compliance(tolerance=0.3)

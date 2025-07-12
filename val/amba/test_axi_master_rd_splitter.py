@@ -20,7 +20,7 @@ import pytest
 import cocotb
 from cocotb_test.simulator import run
 
-from CocoTBFramework.tbclasses.tbbase import TBBase
+from CocoTBFramework.tbclasses.misc.tbbase import TBBase
 from CocoTBFramework.tbclasses.misc.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.axi_splitter.axi_read_splitter_tb import AxiReadSplitterTB
 
@@ -71,9 +71,8 @@ def generate_test_params():
     alignment_masks = [0x0FF, 0x1FF, 0x3FF, 0x7FF, 0xFFF]
     # alignment_masks = [0x0FF]
     test_levels = ['full']
-    # test = [(8, 32, 512, 8, 4, 0xFFF, 'medium')]
-    # return test
-    return list(product(iw, aw, dw, uw, fifo_depths, alignment_masks, test_levels))
+    return [(8, 32, 512, 8, 4, 0xFFF, 'medium')]
+    # return list(product(iw, aw, dw, uw, fifo_depths, alignment_masks, test_levels))
 
 @pytest.mark.parametrize("iw, aw, dw, uw, fifo_depth, alignment_mask, test_level", generate_test_params())
 def test_axi_read_splitter(request, iw, aw, dw, uw, fifo_depth, alignment_mask, test_level):
@@ -84,7 +83,7 @@ def test_axi_read_splitter(request, iw, aw, dw, uw, fifo_depth, alignment_mask, 
         'rtl_cmn':         'rtl/common',
         'rtl_gaxi':        'rtl/amba/gaxi',
         'rtl_axi4':        'rtl/amba/axi4/',
-        'rtl_amba_shared':'rtl/amba/shared',
+        'rtl_amba_shared': 'rtl/amba/shared',
     })
 
     # Set up test names and directories

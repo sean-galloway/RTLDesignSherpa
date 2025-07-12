@@ -97,8 +97,8 @@ module axi4_master_wr_cg
     output logic                       m_axi_bready,
 
     // Clock gating status
-    output logic                       o_cg_gating,
-    output logic                       o_cg_idle
+    output logic                       cg_gating,
+    output logic                       cg_idle
 );
 
     // Gated clock signal
@@ -121,9 +121,9 @@ module axi4_master_wr_cg
     assign axi_valid = m_axi_awvalid || m_axi_wvalid || m_axi_bvalid;
 
     // Force ready signals to 0 when clock gating is active
-    assign fub_awready = o_cg_gating ? 1'b0 : int_awready;
-    assign fub_wready = o_cg_gating ? 1'b0 : int_wready;
-    assign m_axi_bready = o_cg_gating ? 1'b0 : int_bready;
+    assign fub_awready = cg_gating ? 1'b0 : int_awready;
+    assign fub_wready = cg_gating ? 1'b0 : int_wready;
+    assign m_axi_bready = cg_gating ? 1'b0 : int_bready;
 
     // Instantiate clock gate controller
     amba_clock_gate_ctrl #(
@@ -136,8 +136,8 @@ module axi4_master_wr_cg
         .i_user_valid        (user_valid),
         .i_axi_valid         (axi_valid),
         .clk_out             (gated_aclk),
-        .o_gating            (o_cg_gating),
-        .o_idle              (o_cg_idle)
+        .gating            (cg_gating),
+        .idle              (cg_idle)
     );
 
     // Instantiate the original AXI master write module with gated clock
@@ -210,7 +210,7 @@ module axi4_master_wr_cg
         .m_axi_bready         (int_bready),      // Connect to internal signal
 
         // A cycle is in flight
-        .o_busy               (int_busy)
+        .busy               (int_busy)
     );
 
 endmodule : axi4_master_wr_cg

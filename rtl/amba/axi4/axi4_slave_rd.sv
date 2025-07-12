@@ -94,14 +94,14 @@ module axi4_slave_rd
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
         .i_wr_valid               (s_axi_arvalid),
-        .o_wr_ready               (int_arready),
+        .wr_ready               (int_arready),
         .i_wr_data                ({s_axi_arid, s_axi_araddr, s_axi_arlen, s_axi_arsize,
                                     s_axi_arburst, s_axi_arlock, s_axi_arcache, s_axi_arprot,
                                     s_axi_arqos, s_axi_arregion, s_axi_aruser}),
-        .o_rd_valid               (fub_arvalid),
+        .rd_valid               (fub_arvalid),
         .i_rd_ready               (fub_arready),
-        .o_rd_count               (int_ar_count),
-        .o_rd_data                ({fub_arid, fub_araddr, fub_arlen, fub_arsize,
+        .rd_count               (int_ar_count),
+        .rd_data                ({fub_arid, fub_araddr, fub_arlen, fub_arsize,
                                     fub_arburst, fub_arlock, fub_arcache, fub_arprot,
                                     fub_arqos, fub_arregion, fub_aruser})
     );
@@ -114,12 +114,12 @@ module axi4_slave_rd
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
         .i_wr_valid               (fub_rvalid),
-        .o_wr_ready               (fub_rready),
+        .wr_ready               (fub_rready),
         .i_wr_data                ({fub_rid, fub_rdata, fub_rresp, fub_rlast, fub_ruser}),
-        .o_rd_valid               (s_axi_rvalid),
+        .rd_valid               (s_axi_rvalid),
         .i_rd_ready               (s_axi_rready),
-        .o_rd_count               (int_r_count),
-        .o_rd_data                ({s_axi_rid, s_axi_rdata, s_axi_rresp, s_axi_rlast, s_axi_ruser})
+        .rd_count               (int_r_count),
+        .rd_data                ({s_axi_rid, s_axi_rdata, s_axi_rresp, s_axi_rlast, s_axi_ruser})
     );
 
 endmodule : axi4_slave_rd

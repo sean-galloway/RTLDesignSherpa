@@ -101,26 +101,26 @@ module axi_monitor_base
     input  logic                     resp_ready,   // Response ready
 
     // Timer configs
-    input  logic [3:0]               i_cfg_freq_sel, // Frequency selection (configurable)
-    input  logic [3:0]               i_cfg_addr_cnt, // ADDR match for a timeout
-    input  logic [3:0]               i_cfg_data_cnt, // DATA match for a timeout
-    input  logic [3:0]               i_cfg_resp_cnt, // RESP match for a timeout
+    input  logic [3:0]               cfg_freq_sel, // Frequency selection (configurable)
+    input  logic [3:0]               cfg_addr_cnt, // ADDR match for a timeout
+    input  logic [3:0]               cfg_data_cnt, // DATA match for a timeout
+    input  logic [3:0]               cfg_resp_cnt, // RESP match for a timeout
 
     // Packet type enables
-    input  logic                     i_cfg_error_enable,    // Enable error event packets
-    input  logic                     i_cfg_compl_enable,    // Enable transaction completion packets
-    input  logic                     i_cfg_threshold_enable,// Enable threshold crossed packets
-    input  logic                     i_cfg_timeout_enable,  // Enable timeout event packets
-    input  logic                     i_cfg_perf_enable,     // Enable performance metric packets
-    input  logic                     i_cfg_debug_enable,    // Enable debug/trace packets
+    input  logic                     cfg_error_enable,    // Enable error event packets
+    input  logic                     cfg_compl_enable,    // Enable transaction completion packets
+    input  logic                     cfg_threshold_enable,// Enable threshold crossed packets
+    input  logic                     cfg_timeout_enable,  // Enable timeout event packets
+    input  logic                     cfg_perf_enable,     // Enable performance metric packets
+    input  logic                     cfg_debug_enable,    // Enable debug/trace packets
 
     // Debug configuration (only used when ENABLE_DEBUG_MODULE=1)
-    input  logic [3:0]               i_cfg_debug_level, // Debug verbosity level
-    input  logic [15:0]              i_cfg_debug_mask,  // Event type mask
+    input  logic [3:0]               cfg_debug_level, // Debug verbosity level
+    input  logic [15:0]              cfg_debug_mask,  // Event type mask
 
     // Threshold configuration
-    input  logic [15:0]              i_cfg_active_trans_threshold, // Active transaction threshold
-    input  logic [31:0]              i_cfg_latency_threshold,      // Latency threshold
+    input  logic [15:0]              cfg_active_trans_threshold, // Active transaction threshold
+    input  logic [31:0]              cfg_latency_threshold,      // Latency threshold
 
     // Consolidated 64-bit event packet interface (monitor bus)
     output logic                     monbus_valid,  // Interrupt valid
@@ -176,7 +176,7 @@ module axi_monitor_base
         .IS_READ            (1'(IS_READ)),
         .IS_AXI             (1'(IS_AXI)),
         .ENABLE_PERF_PACKETS(1'(ENABLE_PERF_PACKETS))
-    ) i_trans_mgr(
+    ) trans_mgr(
         .aclk               (aclk),
         .aresetn            (aresetn),
         .cmd_valid          (cmd_valid),
@@ -202,10 +202,10 @@ module axi_monitor_base
     );
 
     // Invariant Timer using counter_freq_invariant
-    axi_monitor_timer i_timer (
+    axi_monitor_timer timer (
         .aclk          (aclk),
         .aresetn       (aresetn),
-        .i_cfg_freq_sel(i_cfg_freq_sel),
+        .cfg_freq_sel(cfg_freq_sel),
         .timer_tick    (w_timer_tick),
         .timestamp     (r_timestamp)
     );
@@ -215,15 +215,15 @@ module axi_monitor_base
         .MAX_TRANSACTIONS    (MAX_TRANSACTIONS),
         .ADDR_WIDTH          (ADDR_WIDTH),
         .IS_READ             (1'(IS_READ))
-    ) i_timeout(
+    ) timeout(
         .aclk                (aclk),
         .aresetn             (aresetn),
         .trans_table         (w_trans_table),
         .timer_tick          (w_timer_tick),
-        .i_cfg_addr_cnt      (i_cfg_addr_cnt),
-        .i_cfg_data_cnt      (i_cfg_data_cnt),
-        .i_cfg_resp_cnt      (i_cfg_resp_cnt),
-        .i_cfg_timeout_enable(i_cfg_timeout_enable),
+        .cfg_addr_cnt      (cfg_addr_cnt),
+        .cfg_data_cnt      (cfg_data_cnt),
+        .cfg_resp_cnt      (cfg_resp_cnt),
+        .cfg_timeout_enable(cfg_timeout_enable),
         .timeout_detected    (w_timeout_detected)
     );
 
@@ -236,24 +236,24 @@ module axi_monitor_base
         .IS_READ               (1'(IS_READ)),
         .ENABLE_PERF_PACKETS   (1'(ENABLE_PERF_PACKETS)),
         .INTR_FIFO_DEPTH       (INTR_FIFO_DEPTH)
-    ) i_reporter(
+    ) reporter(
         .aclk                  (aclk),
         .aresetn               (aresetn),
         .trans_table           (w_trans_table),
-        .i_cfg_error_enable    (i_cfg_error_enable),
-        .i_cfg_compl_enable    (i_cfg_compl_enable),
-        .i_cfg_threshold_enable(i_cfg_threshold_enable),
-        .i_cfg_timeout_enable  (i_cfg_timeout_enable),
-        .i_cfg_perf_enable     (i_cfg_perf_enable),
-        .i_cfg_debug_enable    (i_cfg_debug_enable),
+        .cfg_error_enable    (cfg_error_enable),
+        .cfg_compl_enable    (cfg_compl_enable),
+        .cfg_threshold_enable(cfg_threshold_enable),
+        .cfg_timeout_enable  (cfg_timeout_enable),
+        .cfg_perf_enable     (cfg_perf_enable),
+        .cfg_debug_enable    (cfg_debug_enable),
         .monbus_ready          (monbus_ready),
         .monbus_valid          (w_reporter_monbus_valid),
         .monbus_packet         (w_reporter_monbus_packet),
         .event_count           (w_event_count),
         .perf_completed_count  (r_perf_completed_count),
         .perf_error_count      (r_perf_error_count),
-        .active_trans_threshold(i_cfg_active_trans_threshold),
-        .latency_threshold     (i_cfg_latency_threshold)
+        .active_trans_threshold(cfg_active_trans_threshold),
+        .latency_threshold     (cfg_latency_threshold)
     );
 
     // -------------------------------------------------------------------------

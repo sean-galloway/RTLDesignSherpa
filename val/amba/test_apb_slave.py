@@ -17,7 +17,7 @@ from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master, c
 from CocoTBFramework.components.gaxi.gaxi_command_handler import GAXICommandHandler
 from CocoTBFramework.tbclasses.apb.apbgaxiconfig import APBGAXIConfig
 from CocoTBFramework.scoreboards.apb_gaxi_scoreboard import APBGAXIScoreboard
-from CocoTBFramework.tbclasses.tbbase import TBBase
+from CocoTBFramework.tbclasses.misc.tbbase import TBBase
 from CocoTBFramework.tbclasses.amba.amba_random_configs import (
     APB_MASTER_RANDOMIZER_CONFIGS,
     APB_SLAVE_RANDOMIZER_CONFIGS,
@@ -350,7 +350,7 @@ class APBGAXIDebugTB(TBBase):
         # Check GAXI command signals (what your refactor might have changed)
         cmd_signals = ['cmd_valid', 'cmd_ready', 'cmd_pwrite', 'cmd_paddr', 'cmd_pwdata', 'cmd_pstrb', 'cmd_pprot']
         for sig in cmd_signals:
-            for direction in ['i_', 'o_']:
+            for direction in ['', '']:
                 try:
                     signal_name = f'{direction}{sig}'
                     signal_obj = getattr(self.dut, signal_name)
@@ -363,7 +363,7 @@ class APBGAXIDebugTB(TBBase):
         # Check GAXI response signals
         rsp_signals = ['rsp_valid', 'rsp_ready', 'rsp_prdata', 'rsp_pslverr']
         for sig in rsp_signals:
-            for direction in ['i_', 'o_']:
+            for direction in ['', '']:
                 try:
                     signal_name = f'{direction}{sig}'
                     signal_obj = getattr(self.dut, signal_name)

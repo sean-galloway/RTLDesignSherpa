@@ -21,7 +21,7 @@ import pytest
 import cocotb
 from cocotb_test.simulator import run
 
-from CocoTBFramework.tbclasses.tbbase import TBBase
+from CocoTBFramework.tbclasses.misc.tbbase import TBBase
 from CocoTBFramework.tbclasses.misc.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.axi_splitter.axi_write_splitter_tb import AxiWriteSplitterTB
 
@@ -85,7 +85,7 @@ def test_axi_write_splitter(request, iw, aw, dw, uw, fifo_depth, alignment_mask,
         'rtl_cmn':         'rtl/common',
         'rtl_gaxi':        'rtl/amba/gaxi',
         'rtl_axi4':        'rtl/amba/axi4/',
-        'rtl_amba_shared':'rtl/amba/shared',
+        'rtl_amba_shared': 'rtl/amba/shared',
     })
 
     # Set up test names and directories

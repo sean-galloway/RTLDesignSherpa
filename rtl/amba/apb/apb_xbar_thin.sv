@@ -121,9 +121,9 @@ module apb_xbar_thin #(
                 .i_block_arb (1'b0),
                 .i_max_thresh(THRESHOLDS),
                 .i_req       (master_sel[s_arb]),
-                .ow_gnt_valid(arb_gnt_valid[s_arb]),
-                .ow_gnt      (arb_gnt[s_arb]),
-                .ow_gnt_id   (arb_gnt_id[s_arb]),
+                .gnt_valid(arb_gnt_valid[s_arb]),
+                .gnt      (arb_gnt[s_arb]),
+                .gnt_id   (arb_gnt_id[s_arb]),
                 .i_gnt_ack   (arb_gnt_ack)
             );
         end

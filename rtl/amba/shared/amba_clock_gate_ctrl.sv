@@ -10,17 +10,17 @@ module amba_clock_gate_ctrl #(
     input logic aresetn,
 
     // Configuration Interface
-    input logic         i_cfg_cg_enable,     // Global clock gate enable
-    input logic [ICW-1:0] i_cfg_cg_idle_count, // Idle countdown value
+    input logic         cfg_cg_enable,     // Global clock gate enable
+    input logic [ICW-1:0] cfg_cg_idle_count, // Idle countdown value
 
     // Activity Monitoring
-    input logic i_user_valid,  // Any user-side valid signal
-    input logic i_axi_valid,   // Any AXI-side valid signal
+    input logic user_valid,  // Any user-side valid signal
+    input logic axi_valid,   // Any AXI-side valid signal
 
     // Clock Gating Control Outputs
     output logic clk_out,   // Gated clock
-    output logic o_gating,  // Active gating indicator
-    output logic o_idle     // All buffers empty indicator
+    output logic gating,  // Active gating indicator
+    output logic idle     // All buffers empty indicator
 );
 
     // Internal signals
@@ -30,11 +30,11 @@ module amba_clock_gate_ctrl #(
     // flop the wakeup signal
     always_ff @(posedge clk_in or negedge aresetn) begin
         if (!aresetn) r_wakeup <= 'h1;
-        else r_wakeup <= i_user_valid || i_axi_valid;
+        else r_wakeup <= user_valid || axi_valid;
     end
 
     // Generate idle signal when no activity
-    assign o_idle = ~r_wakeup;
+    assign idle = ~r_wakeup;
 
     // Instantiate the base clock gate control
     clock_gate_ctrl #(
@@ -42,11 +42,11 @@ module amba_clock_gate_ctrl #(
     ) u_clock_gate_ctrl (
         .clk_in             (clk_in),
         .aresetn            (aresetn),
-        .i_cfg_cg_enable    (i_cfg_cg_enable),
-        .i_cfg_cg_idle_count(i_cfg_cg_idle_count),
-        .i_wakeup           (r_wakeup),
+        .cfg_cg_enable    (cfg_cg_enable),
+        .cfg_cg_idle_count(cfg_cg_idle_count),
+        .wakeup           (r_wakeup),
         .clk_out            (clk_out),
-        .o_gating           (o_gating)
+        .gating           (gating)
     );
 
 endmodule : amba_clock_gate_ctrl

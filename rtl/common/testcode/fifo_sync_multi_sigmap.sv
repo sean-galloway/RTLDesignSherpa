@@ -43,20 +43,20 @@ module fifo_sync_multi_sigmap #(
         .INSTANCE_NAME     ("fifo_multi")
     ) u_fifo_sync (
         // Clocks & Reset
-        .i_clk              (clk),
-        .i_rst_n            (rst_n),
+        .clk              (clk),
+        .rst_n            (rst_n),
 
         // Write side
-        .i_write            (write),
-        .i_wr_data          ({wr_siga, wr_sigb, wr_sigd, wr_sigc}),
-        .o_wr_full          (wr_full),
-        .o_wr_almost_full   (wr_almost_full),
+        .write            (write),
+        .wr_data          ({wr_siga, wr_sigb, wr_sigd, wr_sigc}),
+        .wr_full          (wr_full),
+        .wr_almost_full   (wr_almost_full),
 
         // Read side
-        .i_read             (read),
-        .o_rd_data          ({rd_sige,  rd_sigf,  rd_sigh,  rd_sigg}),
-        .o_rd_empty         (rd_empty),
-        .o_rd_almost_empty  (rd_almost_empty)
+        .read             (read),
+        .rd_data          ({rd_sige,  rd_sigf,  rd_sigh,  rd_sigg}),
+        .rd_empty         (rd_empty),
+        .rd_almost_empty  (rd_almost_empty)
     );
 
 endmodule : fifo_sync_multi_sigmap

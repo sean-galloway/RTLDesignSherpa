@@ -51,7 +51,7 @@ module apb_slave_cg #(
     input  logic [DW-1:0]     rsp_prdata,
     input  logic              rsp_pslverr,
     // Clock gating indicator
-    output logic              o_apb_clock_gating
+    output logic              apb_clock_gating
 );
 
     // local clock gating signals
@@ -76,8 +76,8 @@ module apb_slave_cg #(
         .i_user_valid        (r_wakeup),
         .i_axi_valid         ('b0),
         .clk_out             (gated_pclk),
-        .o_gating            (o_apb_clock_gating),
-        .o_idle              ()
+        .gating            (apb_clock_gating),
+        .idle              ()
     );
 
     apb_slave #(

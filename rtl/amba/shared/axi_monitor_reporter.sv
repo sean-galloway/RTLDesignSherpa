@@ -28,12 +28,12 @@ module axi_monitor_reporter
     input  bus_transaction_t         trans_table[MAX_TRANSACTIONS],
 
     // Configuration enables for different packet types
-    input  logic                     i_cfg_error_enable,    // Enable error packets
-    input  logic                     i_cfg_compl_enable,    // Enable completion packets
-    input  logic                     i_cfg_threshold_enable,// Enable threshold packets
-    input  logic                     i_cfg_timeout_enable,  // Enable timeout packets
-    input  logic                     i_cfg_perf_enable,     // Enable performance packets
-    input  logic                     i_cfg_debug_enable,    // Enable debug packets
+    input  logic                     cfg_error_enable,    // Enable error packets
+    input  logic                     cfg_compl_enable,    // Enable completion packets
+    input  logic                     cfg_threshold_enable,// Enable threshold packets
+    input  logic                     cfg_timeout_enable,  // Enable timeout packets
+    input  logic                     cfg_perf_enable,     // Enable performance packets
+    input  logic                     cfg_debug_enable,    // Enable debug packets
 
     // Interrupt bus output interface
     input  logic                     monbus_ready,  // Downstream ready
@@ -103,15 +103,15 @@ module axi_monitor_reporter
         .ALMOST_RD_MARGIN(1),
         .INSTANCE_NAME   ("INTR_FIFO")
     ) intr_fifo(
-        .i_axi_aclk      (aclk),
-        .i_axi_aresetn   (aresetn),
-        .i_wr_valid      (w_fifo_wr_valid),
-        .o_wr_ready      (w_fifo_wr_ready),
-        .i_wr_data       (w_fifo_wr_data),
-        .i_rd_ready      (w_fifo_rd_ready),
-        .ow_count        (w_fifo_count),
-        .o_rd_valid      (w_fifo_rd_valid),
-        .o_rd_data       (w_fifo_rd_data)
+        .axi_aclk      (aclk),
+        .axi_aresetn   (aresetn),
+        .wr_valid      (w_fifo_wr_valid),
+        .wr_ready      (w_fifo_wr_ready),
+        .wr_data       (w_fifo_wr_data),
+        .rd_ready      (w_fifo_rd_ready),
+        .count        (w_fifo_count),
+        .rd_valid      (w_fifo_rd_valid),
+        .rd_data       (w_fifo_rd_data)
     );
 
     // Output registers (flopped)
@@ -163,8 +163,8 @@ module axi_monitor_reporter
         // Scan for error events
         for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
             if (r_trans_table_local[idx].valid && !r_event_reported[idx] &&
-                    r_trans_table_local[idx].state == TRANS_ERROR && i_cfg_error_enable &&
-                    !(i_cfg_timeout_enable &&
+                    r_trans_table_local[idx].state == TRANS_ERROR && cfg_error_enable &&
+                    !(cfg_timeout_enable &&
                     (r_trans_table_local[idx].event_code == EVT_CMD_TIMEOUT ||
                         r_trans_table_local[idx].event_code == EVT_DATA_TIMEOUT ||
                         r_trans_table_local[idx].event_code == EVT_RESP_TIMEOUT))) begin
@@ -192,7 +192,7 @@ module axi_monitor_reporter
         // Scan for timeout events
         for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
             if (r_trans_table_local[idx].valid && !r_event_reported[idx] &&
-                r_trans_table_local[idx].state == TRANS_ERROR && i_cfg_timeout_enable &&
+                r_trans_table_local[idx].state == TRANS_ERROR && cfg_timeout_enable &&
                 (r_trans_table_local[idx].event_code == EVT_CMD_TIMEOUT ||
                     r_trans_table_local[idx].event_code == EVT_DATA_TIMEOUT ||
                     r_trans_table_local[idx].event_code == EVT_RESP_TIMEOUT)) begin
@@ -220,7 +220,7 @@ module axi_monitor_reporter
         // Scan for completion events
         for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
             if (r_trans_table_local[idx].valid && !r_event_reported[idx] &&
-                r_trans_table_local[idx].state == TRANS_COMPLETE && i_cfg_compl_enable) begin
+                r_trans_table_local[idx].state == TRANS_COMPLETE && cfg_compl_enable) begin
                 w_completion_events_detected[idx] = 1'b1;
             end
         end
@@ -323,7 +323,7 @@ module axi_monitor_reporter
         w_has_latency_event = 1'b0;
         w_total_latency = '0;
 
-        if (ENABLE_PERF_PACKETS && i_cfg_perf_enable && i_cfg_threshold_enable) begin
+        if (ENABLE_PERF_PACKETS && cfg_perf_enable && cfg_threshold_enable) begin
             for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
                 if (r_trans_table_local[idx].valid && r_trans_table_local[idx].state == TRANS_COMPLETE) begin
                     if (IS_READ) begin
@@ -371,7 +371,7 @@ module axi_monitor_reporter
         w_generate_perf_packet_completed = 1'b0;
         w_generate_perf_packet_errors = 1'b0;
 
-        if (ENABLE_PERF_PACKETS && i_cfg_perf_enable && !monbus_valid && w_fifo_rd_valid == 0) begin
+        if (ENABLE_PERF_PACKETS && cfg_perf_enable && !monbus_valid && w_fifo_rd_valid == 0) begin
             case (r_perf_report_state)
                 3'h0: begin // ADDR_LATENCY
                     w_next_perf_report_state = 3'h1;
@@ -463,7 +463,7 @@ module axi_monitor_reporter
             end
 
             // Generate threshold packets if enabled
-            if (i_cfg_threshold_enable) begin
+            if (cfg_threshold_enable) begin
                 // Active transaction count threshold
                 if (w_active_threshold_detection) begin
                     monbus_valid <= 1'b1;

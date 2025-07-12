@@ -12,18 +12,18 @@ module gaxi_fifo_sync_multi #(
     input  logic                i_axi_aresetn,
     // Write channel
     input  logic                i_wr_valid,
-    output logic                o_wr_ready,
+    output logic                wr_ready,
     input  logic [AW-1:0]       i_wr_addr,
     input  logic [CW-1:0]       i_wr_ctrl,
     input  logic [DW-1:0]       i_wr_data0,
     input  logic [DW-1:0]       i_wr_data1,
     // Read channel
-    output logic                o_rd_valid,
+    output logic                rd_valid,
     input  logic                i_rd_ready,
-    output logic [AW-1:0]       o_rd_addr,
-    output logic [CW-1:0]       o_rd_ctrl,
-    output logic [DW-1:0]       o_rd_data0,
-    output logic [DW-1:0]       o_rd_data1
+    output logic [AW-1:0]       rd_addr,
+    output logic [CW-1:0]       rd_ctrl,
+    output logic [DW-1:0]       rd_data0,
+    output logic [DW-1:0]       rd_data1
 );
 
     // Instantiate the original FIFO
@@ -34,12 +34,12 @@ module gaxi_fifo_sync_multi #(
         .i_axi_aclk    (i_axi_aclk),
         .i_axi_aresetn (i_axi_aresetn),
         .i_wr_valid    (i_wr_valid),
-        .o_wr_ready    (o_wr_ready),
+        .wr_ready    (wr_ready),
         .i_wr_data     ({i_wr_addr, i_wr_ctrl, i_wr_data1, i_wr_data0}),
-        .o_rd_valid    (o_rd_valid),
+        .rd_valid    (rd_valid),
         .i_rd_ready    (i_rd_ready),
-        .o_rd_data     ({o_rd_addr,   o_rd_ctrl,  o_rd_data1,  o_rd_data0}),
-        .ow_count      ()
+        .rd_data     ({rd_addr,   rd_ctrl,  rd_data1,  rd_data0}),
+        .count      ()
     );
 
 endmodule : gaxi_fifo_sync_multi

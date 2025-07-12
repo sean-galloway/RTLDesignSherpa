@@ -440,16 +440,16 @@ module axi_master_rd_splitter
         .DEPTH             (SPLIT_FIFO_DEPTH),
         .INSTANCE_NAME     ("SPLIT_FIFO")
     ) inst_split_info_fifo(
-        .i_axi_aclk        (aclk),
-        .i_axi_aresetn     (aresetn),
-        .i_wr_valid        (w_split_fifo_valid),
-        .i_wr_data         (split_fifo_din),
-        .i_rd_ready        (fub_split_ready),
-        .o_rd_valid        (fub_split_valid),
-        .o_rd_data         ({fub_split_addr, fub_split_id, fub_split_cnt}),
+        .axi_aclk        (aclk),
+        .axi_aresetn     (aresetn),
+        .wr_valid        (w_split_fifo_valid),
+        .wr_data         (split_fifo_din),
+        .rd_ready        (fub_split_ready),
+        .rd_valid        (fub_split_valid),
+        .rd_data         ({fub_split_addr, fub_split_id, fub_split_cnt}),
         /* verilator lint_off PINCONNECTEMPTY */
-        .o_wr_ready        (),  // Not used
-        .ow_count          ()    // Not used
+        .wr_ready        (),  // Not used
+        .count          ()    // Not used
         /* verilator lint_on PINCONNECTEMPTY */
     );
 

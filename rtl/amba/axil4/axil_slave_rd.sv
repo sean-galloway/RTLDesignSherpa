@@ -109,14 +109,14 @@ module axil_slave_rd
         .i_resp_ready         (1'b0),
 
         // Error outputs
-        .o_error_valid        (fub_error_valid),
+        .error_valid        (fub_error_valid),
         .i_error_ready        (fub_error_ready),
-        .o_error_type         (fub_error_type),
-        .o_error_addr         (fub_error_addr),
-        .o_error_id           (),
+        .error_type         (fub_error_type),
+        .error_addr         (fub_error_addr),
+        .error_id           (),
 
         // Flow control
-        .o_block_ready        (int_block_ready)
+        .block_ready        (int_block_ready)
     );
 
     // Instantiate AR Skid Buffer
@@ -127,12 +127,12 @@ module axil_slave_rd
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
         .i_wr_valid               (s_axil_arvalid),
-        .o_wr_ready               (int_arready),
+        .wr_ready               (int_arready),
         .i_wr_data                ({s_axil_araddr, s_axil_arprot}),
-        .o_rd_valid               (fub_arvalid),
+        .rd_valid               (fub_arvalid),
         .i_rd_ready               (fub_arready),
-        .o_rd_count               (),
-        .o_rd_data                ({fub_araddr, fub_arprot})
+        .rd_count               (),
+        .rd_data                ({fub_araddr, fub_arprot})
     );
 
     // Instantiate R channel for read data from memory back to the master
@@ -143,12 +143,12 @@ module axil_slave_rd
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
         .i_wr_valid               (fub_rvalid),
-        .o_wr_ready               (fub_rready),
+        .wr_ready               (fub_rready),
         .i_wr_data                ({fub_rdata, fub_rresp}),
-        .o_rd_valid               (s_axil_rvalid),
+        .rd_valid               (s_axil_rvalid),
         .i_rd_ready               (s_axil_rready),
-        .o_rd_count               (),
-        .o_rd_data                ({s_axil_rdata, s_axil_rresp})
+        .rd_count               (),
+        .rd_data                ({s_axil_rdata, s_axil_rresp})
     );
 
 

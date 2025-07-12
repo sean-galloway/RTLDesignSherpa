@@ -60,11 +60,11 @@ module apb_slave_stub #(
         .i_axi_aclk     (pclk),
         .i_axi_aresetn  (presetn),
         .i_wr_valid     (r_cmd_valid),
-        .o_wr_ready     (r_cmd_ready),
+        .wr_ready     (r_cmd_ready),
         .i_wr_data      (r_cmd_data),
-        .o_rd_valid     (cmd_valid),
+        .rd_valid     (cmd_valid),
         .i_rd_ready     (cmd_ready),
-        .o_rd_data      (cmd_data)
+        .rd_data      (cmd_data)
     );
 
 
@@ -84,11 +84,11 @@ module apb_slave_stub #(
         .i_axi_aclk     (pclk),
         .i_axi_aresetn  (presetn),
         .i_wr_valid     (rsp_valid),
-        .o_wr_ready     (rsp_ready),
+        .wr_ready     (rsp_ready),
         .i_wr_data      (rsp_data),
-        .o_rd_valid     (r_rsp_valid),
+        .rd_valid     (r_rsp_valid),
         .i_rd_ready     (r_rsp_ready),
-        .o_rd_data      (r_rsp_data)
+        .rd_data      (r_rsp_data)
     );
 
     // APB FSM

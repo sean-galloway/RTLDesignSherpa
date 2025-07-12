@@ -7,12 +7,12 @@ module axi_gen_addr
     parameter int ODW = 32, // ouptput data width
     parameter int LEN = 8
 )(
-    input  logic [AW-1:0]  i_curr_addr,
-    input  logic [2:0]     i_size,
-    input  logic [1:0]     i_burst,
-    input  logic [LEN-1:0] i_len,
-    output logic [AW-1:0]  ow_next_addr,
-    output logic [AW-1:0]  ow_next_addr_align
+    input  logic [AW-1:0]  curr_addr,
+    input  logic [2:0]     size,
+    input  logic [1:0]     burst,
+    input  logic [LEN-1:0] len,
+    output logic [AW-1:0]  next_addr,
+    output logic [AW-1:0]  next_addr_align
 );
 
 localparam int ODWBYTES = ODW / 8;
@@ -26,35 +26,35 @@ logic [AW-1:0] wrap_addr;
 
 always_comb begin
     // calculate the increment; scale the increment if there is a difference between the two data widths
-    increment_pre = (1 << i_size);
+    increment_pre = (1 << size);
     increment     = increment_pre;
     if (DW != ODW) begin
         if (AW'(increment_pre) > AW'(ODWBYTES))
             increment = AW'(ODWBYTES);
     end
 
-    // Calculate the wrap mask based on i_size and i_len
-    wrap_mask = (1 << (32'(i_size) + $clog2(i_len + 1))) - 1;
+    // Calculate the wrap mask based on size and len
+    wrap_mask = (1 << (32'(size) + $clog2(len + 1))) - 1;
 
     // Calculate the aligned address
-    aligned_addr = (i_curr_addr + increment) & ~(increment - 1);
+    aligned_addr = (curr_addr + increment) & ~(increment - 1);
 
     // Calculate the wrap address
-    wrap_addr = (i_curr_addr & ~wrap_mask) | (aligned_addr & wrap_mask);
+    wrap_addr = (curr_addr & ~wrap_mask) | (aligned_addr & wrap_mask);
 end
 
 always_comb begin
-    casez (i_burst)
-        2'b00: ow_next_addr = i_curr_addr;               // FIXED burst
-        2'b01: ow_next_addr = i_curr_addr + increment;   // INCR burst
-        2'b10: ow_next_addr = wrap_addr;                 // WRAP burst
-        default: ow_next_addr = i_curr_addr + increment; // Default to INCR burst
+    casez (burst)
+        2'b00: next_addr = curr_addr;               // FIXED burst
+        2'b01: next_addr = curr_addr + increment;   // INCR burst
+        2'b10: next_addr = wrap_addr;                 // WRAP burst
+        default: next_addr = curr_addr + increment; // Default to INCR burst
     endcase
 end
 
 // Calculate the aligned address
 wire [AW-1:0] w_alignment_mask = AW'(ODWBYTES) - 1;
 
-assign ow_next_addr_align = ow_next_addr & ~w_alignment_mask;
+assign next_addr_align = next_addr & ~w_alignment_mask;
 
 endmodule : axi_gen_addr

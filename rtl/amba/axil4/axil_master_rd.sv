@@ -115,14 +115,14 @@ module axil_master_rd
         .i_resp_ready         ('b0),
 
         // Error outputs
-        .o_error_valid        (fub_error_valid),
+        .error_valid        (fub_error_valid),
         .i_error_ready        (fub_error_ready),
-        .o_error_type         (fub_error_type),
-        .o_error_addr         (fub_error_addr),
-        .o_error_id           (),
+        .error_type         (fub_error_type),
+        .error_addr         (fub_error_addr),
+        .error_id           (),
 
         // Flow control
-        .o_block_ready        (int_block_ready)
+        .block_ready        (int_block_ready)
     );
 
 
@@ -134,12 +134,12 @@ module axil_master_rd
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
         .i_wr_valid               (fub_arvalid),
-        .o_wr_ready               (int_arready),
+        .wr_ready               (int_arready),
         .i_wr_data                ({fub_araddr, fub_arprot}),
-        .o_rd_valid               (m_axil_arvalid),
+        .rd_valid               (m_axil_arvalid),
         .i_rd_ready               (m_axil_arready),
-        .o_rd_count               (int_ar_count),
-        .o_rd_data                ({m_axil_araddr, m_axil_arprot})
+        .rd_count               (int_ar_count),
+        .rd_data                ({m_axil_araddr, m_axil_arprot})
     );
 
     // Instantiate R channel for read data back to master
@@ -150,12 +150,12 @@ module axil_master_rd
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
         .i_wr_valid               (m_axil_rvalid),
-        .o_wr_ready               (m_axil_rready),
+        .wr_ready               (m_axil_rready),
         .i_wr_data                ({m_axil_rdata, m_axil_rresp}),
-        .o_rd_valid               (fub_rvalid),
+        .rd_valid               (fub_rvalid),
         .i_rd_ready               (int_rready),
-        .o_rd_count               (int_r_count),
-        .o_rd_data                ({fub_rdata, fub_rresp})
+        .rd_count               (int_r_count),
+        .rd_data                ({fub_rdata, fub_rresp})
     );
 
 endmodule : axil_master_rd

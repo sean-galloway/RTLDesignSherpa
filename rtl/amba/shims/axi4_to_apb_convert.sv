@@ -228,8 +228,8 @@ module axi4_to_apb_convert #(
         .i_size             (r_axi_size),
         .i_burst            (r_axi_burst),
         .i_len              (r_axi_len),
-        .ow_next_addr       (w_next_addr_gen),
-        .ow_next_addr_align ()
+        .next_addr       (w_next_addr_gen),
+        .next_addr_align ()
     );
 
 
@@ -433,16 +433,14 @@ module axi4_to_apb_convert #(
 
     // Instantiate the side queue
     gaxi_fifo_sync #(.DATA_WIDTH(SideSize), .DEPTH(SIDE_DEPTH)) side_fifo_inst (
-        .i_axi_aclk               (aclk),
-        .i_axi_aresetn            (aresetn),
-        .i_wr_valid               (w_side_in_valid),
-        .o_wr_ready               (r_side_in_ready),
-        .i_wr_data                (r_side_in_data),
-        .o_rd_valid               (r_side_out_valid),
-        .i_rd_ready               (w_side_out_ready),
-        .ow_rd_data               (r_side_out_data),
-        .o_rd_data                (),
-        .ow_count                 ()
+        .axi_aclk               (aclk),
+        .axi_aresetn            (aresetn),
+        .wr_valid               (w_side_in_valid),
+        .wr_ready               (r_side_in_ready),
+        .wr_data                (r_side_in_data),
+        .rd_valid               (r_side_out_valid),
+        .rd_ready               (w_side_out_ready),
+        .rd_data                (r_side_out_data)
     );
 
 endmodule : axi4_to_apb_convert

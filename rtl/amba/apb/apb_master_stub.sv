@@ -70,13 +70,13 @@ module apb_master_stub #(
         .i_axi_aclk     (pclk),
         .i_axi_aresetn  (presetn),
         .i_wr_valid     (cmd_valid),
-        .o_wr_ready     (cmd_ready),
+        .wr_ready     (cmd_ready),
         .i_wr_data      (cmd_data),
-        .ow_count       (w_cmd_count),
-        .o_rd_valid     (r_cmd_valid),
+        .count       (w_cmd_count),
+        .rd_valid     (r_cmd_valid),
         .i_rd_ready     (w_cmd_ready),
-        .o_rd_data      (r_cmd_data),
-        .o_rd_count     ()
+        .rd_data      (r_cmd_data),
+        .rd_count     ()
     );
 
     // Extract response packet signals
@@ -95,13 +95,13 @@ module apb_master_stub #(
         .i_axi_aclk     (pclk),
         .i_axi_aresetn  (presetn),
         .i_wr_valid     (w_rsp_valid),
-        .o_wr_ready     (r_rsp_ready),
+        .wr_ready     (r_rsp_ready),
         .i_wr_data      (r_rsp_data),
-        .o_rd_valid     (rsp_valid),
+        .rd_valid     (rsp_valid),
         .i_rd_ready     (rsp_ready),
-        .o_rd_data      (rsp_data),
-        .ow_count       (),
-        .o_rd_count     ()
+        .rd_data      (rsp_data),
+        .count       (),
+        .rd_count     ()
     );
 
     // APB FSM

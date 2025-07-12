@@ -199,16 +199,16 @@ module axi4_master_rd
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
         .i_wr_valid               (int_arvalid),
-        .o_wr_ready               (int_arready),
+        .wr_ready               (int_arready),
         .i_wr_data                (
             {int_arid, int_araddr, int_arlen, int_arsize,
             int_arburst, int_arlock, int_arcache, int_arprot,
             int_arqos, int_arregion, int_aruser}),
-        .o_rd_valid               (int_skid_arvalid),
+        .rd_valid               (int_skid_arvalid),
         .i_rd_ready               (int_skid_arready),
-        .o_rd_count               (int_ar_count),
-        .o_rd_data                (int_ar_pkt),
-        .ow_count()
+        .rd_count               (int_ar_count),
+        .rd_data                (int_ar_pkt),
+        .count()
     );
 
     // Unpack AR signals from SKID buffer
@@ -226,13 +226,13 @@ module axi4_master_rd
         .i_axi_aclk               (aclk),
         .i_axi_aresetn            (aresetn),
         .i_wr_valid               (m_axi_rvalid),
-        .o_wr_ready               (m_axi_rready),
+        .wr_ready               (m_axi_rready),
         .i_wr_data                ({m_axi_rid, m_axi_rdata, m_axi_rresp, m_axi_rlast, m_axi_ruser}),
-        .o_rd_valid               (int_rvalid),
+        .rd_valid               (int_rvalid),
         .i_rd_ready               (int_rready),
-        .o_rd_count               (int_r_count),
-        .o_rd_data                ({int_rid, int_rdata, int_rresp, int_rlast, int_ruser}),
-        .ow_count()
+        .rd_count               (int_r_count),
+        .rd_data                ({int_rid, int_rdata, int_rresp, int_rlast, int_ruser}),
+        .count()
     );
 
 endmodule : axi4_master_rd

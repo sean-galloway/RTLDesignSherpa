@@ -26,7 +26,7 @@ from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
-from CocoTBFramework.tbclasses.tbbase import TBBase
+from CocoTBFramework.tbclasses.misc.tbbase import TBBase
 from CocoTBFramework.tbclasses.gaxi.gaxi_buffer import GaxiBufferTB
 from CocoTBFramework.tbclasses.misc.utilities import get_paths, create_view_cmd
 
@@ -34,7 +34,7 @@ from CocoTBFramework.tbclasses.misc.utilities import get_paths, create_view_cmd
 @cocotb.test(timeout_time=3, timeout_unit="ms")  # Increased timeout for comprehensive testing
 async def gaxi_test(dut):
     '''Test the GAXI Buffer comprehensively with FlexConfigGen randomizers'''
-    tb = GaxiBufferTB(dut, dut.i_axi_aclk, dut.i_axi_aresetn)
+    tb = GaxiBufferTB(dut, dut.axi_aclk, dut.axi_aresetn)
 
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
@@ -51,11 +51,11 @@ async def gaxi_test(dut):
 
     tb.log.info(f"Running test level: {test_level.upper()}")
 
-    await tb.start_clock('i_axi_aclk', 10, 'ns')
+    await tb.start_clock('axi_aclk', 10, 'ns')
     await tb.assert_reset()
-    await tb.wait_clocks('i_axi_aclk', 5)
+    await tb.wait_clocks('axi_aclk', 5)
     await tb.deassert_reset()
-    await tb.wait_clocks('i_axi_aclk', 5)
+    await tb.wait_clocks('axi_aclk', 5)
     tb.log.info(f"Starting {test_level.upper()} GAXI test...")
 
     # Get available randomizer configurations from FlexConfigGen

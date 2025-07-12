@@ -6,15 +6,15 @@ module arbiter_round_robin #(
     // Abbreviation
     parameter int N = $clog2(CLIENTS)
 ) (
-    input logic i_clk,
-    input logic i_rst_n,
-    input logic i_block_arb,
+    input logic clk,
+    input logic rst_n,
+    input logic block_arb,
 
-    input  logic [CLIENTS-1:0]  i_req,
-    output logic                o_gnt_valid,
-    output logic [CLIENTS-1:0]  o_gnt,
-    output logic [N-1:0]        o_gnt_id,
-    input  logic [CLIENTS-1:0]  i_gnt_ack
+    input  logic [CLIENTS-1:0]  req,
+    output logic                gnt_valid,
+    output logic [CLIENTS-1:0]  gnt,
+    output logic [N-1:0]        gnt_id,
+    input  logic [CLIENTS-1:0]  gnt_ack
 );
 
     // =======================================================================
@@ -32,9 +32,9 @@ module arbiter_round_robin #(
 
     // =======================================================================
     // Logic
-    assign w_req_post = (i_block_arb) ? 'b0 : i_req;
+    assign w_req_post = (block_arb) ? 'b0 : req;
     assign w_req_masked = w_req_post & r_mask;
-    assign w_req_win_mask = ($countones(i_req) > 1) ? (w_req_post & r_win_mask_only) :
+    assign w_req_win_mask = ($countones(req) > 1) ? (w_req_post & r_win_mask_only) :
             w_req_post;  // only look at the req's if there is only one
 
     // find highest set bit in both request and masked request; priority shifts
@@ -44,27 +44,27 @@ module arbiter_round_robin #(
     leading_one_trailing_one #(
         .WIDTH(CLIENTS)
     ) u_req_leading_one_trailing_one (
-        .i_data               (w_req_win_mask),
-        .ow_leadingone        (),
-        .ow_leadingone_vector (),
-        .ow_trailingone       (w_req_location),
-        .ow_trailingone_vector(),
-        .ow_all_zeroes        (),
-        .ow_all_ones          (),
-        .ow_valid             (w_vld_ffs_req)
+        .data               (w_req_win_mask),
+        .leadingone        (),
+        .leadingone_vector (),
+        .trailingone       (w_req_location),
+        .trailingone_vector(),
+        .all_zeroes        (),
+        .all_ones          (),
+        .valid             (w_vld_ffs_req)
     );
 
     leading_one_trailing_one #(
         .WIDTH(CLIENTS)
     ) u_reqm_leading_one_trailing_one (
-        .i_data               (w_req_masked),
-        .ow_leadingone        (),
-        .ow_leadingone_vector (),
-        .ow_trailingone       (w_reqm_location),
-        .ow_trailingone_vector(),
-        .ow_all_zeroes        (),
-        .ow_all_ones          (),
-        .ow_valid             (w_vld_ffs_reqm)
+        .data               (w_req_masked),
+        .leadingone        (),
+        .leadingone_vector (),
+        .trailingone       (w_reqm_location),
+        .trailingone_vector(),
+        .all_zeroes        (),
+        .all_ones          (),
+        .valid             (w_vld_ffs_reqm)
     );
 
     // determine the winner--either the masked version (because a lower-priority
@@ -88,9 +88,9 @@ module arbiter_round_robin #(
     // When considering the upper part of the vector for the start-over
     // case, we still need to mask off the bit that just won so we don't
     // grant to it twice in a row.
-    always_ff @(posedge i_clk or negedge i_rst_n)
-        if (!i_rst_n) r_win_mask_only <= '0;
-        else if (w_win_vld && (WAIT_GNT_ACK == 0 || i_gnt_ack[w_winner]))
+    always_ff @(posedge clk or negedge rst_n)
+        if (!rst_n) r_win_mask_only <= '0;
+        else if (w_win_vld && (WAIT_GNT_ACK == 0 || gnt_ack[w_winner]))
             r_win_mask_only <= ~({(CLIENTS - 1)'('d0), 1'b1} << w_winner);
         else
             r_win_mask_only <= {CLIENTS{1'b1}};
@@ -98,30 +98,30 @@ module arbiter_round_robin #(
     // Register:  r_mask
     //
     // The r_mask depends on the previous winner.
-    always_ff @(posedge i_clk or negedge i_rst_n)
-        if (!i_rst_n) r_mask <= '0;
-        else if (w_win_vld && (WAIT_GNT_ACK == 0 || i_gnt_ack[w_winner]))
+    always_ff @(posedge clk or negedge rst_n)
+        if (!rst_n) r_mask <= '0;
+        else if (w_win_vld && (WAIT_GNT_ACK == 0 || gnt_ack[w_winner]))
             r_mask <= ({(CLIENTS - 1)'('d0), 1'b1} << w_winner) - 1'b1;
 
-    // Register:  o_gnt
+    // Register:  gnt
     //
-    // Priority is given to lower bits i.e., those getting a o_gnt when using
+    // Priority is given to lower bits i.e., those getting a gnt when using
     // the mask vector.  If no lower bits are set, the unmasked request result
     // is used.
-    always_ff @(posedge i_clk or negedge i_rst_n)
-        if (!i_rst_n) begin
-            o_gnt       <= '0;
-            o_gnt_id    <= '0;
-            o_gnt_valid <= '0;
+    always_ff @(posedge clk or negedge rst_n)
+        if (!rst_n) begin
+            gnt       <= '0;
+            gnt_id    <= '0;
+            gnt_valid <= '0;
         end else if (w_win_vld) begin
-            o_gnt           <= '0;
-            o_gnt[w_winner] <= 1'b1;
-            o_gnt_id        <= w_winner[$clog2(CLIENTS)-1:0];
-            o_gnt_valid     <= '1;
+            gnt           <= '0;
+            gnt[w_winner] <= 1'b1;
+            gnt_id        <= w_winner[$clog2(CLIENTS)-1:0];
+            gnt_valid     <= '1;
         end else begin
-            o_gnt       <= '0;
-            o_gnt_id    <= '0;
-            o_gnt_valid <= '0;
+            gnt       <= '0;
+            gnt_id    <= '0;
+            gnt_valid <= '0;
         end
 
 endmodule : arbiter_round_robin

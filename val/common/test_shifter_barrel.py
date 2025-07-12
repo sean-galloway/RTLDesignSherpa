@@ -54,10 +54,10 @@ class ShifterBarrelTB(TBBase):
         random.seed(self.SEED)
 
         # Extract DUT signals
-        self.i_data = self.dut.i_data
-        self.i_ctrl = self.dut.i_ctrl
-        self.i_shift_amount = self.dut.i_shift_amount
-        self.ow_data_out = self.dut.ow_data_out
+        self.data = self.dut.data
+        self.ctrl = self.dut.ctrl
+        self.shift_amount = self.dut.shift_amount
+        self.data_out = self.dut.data_out
 
         # Control signal definitions for clarity
         self.CTRL_NO_SHIFT = 0
@@ -98,15 +98,15 @@ class ShifterBarrelTB(TBBase):
         self.log.info(f"Testing @ {time_ns}ns: data=0x{data:x}, ctrl={ctrl}, shift_amount={shift_amount}")
 
         # Drive the inputs
-        self.i_data.value = data
-        self.i_ctrl.value = ctrl
-        self.i_shift_amount.value = shift_amount
+        self.data.value = data
+        self.ctrl.value = ctrl
+        self.shift_amount.value = shift_amount
 
         # Wait a small time for combinational logic to settle
         await Timer(1, units='ns')
 
         # Read output
-        actual_output = int(self.ow_data_out.value)
+        actual_output = int(self.data_out.value)
 
         # Calculate expected output if not provided
         if expected is None:

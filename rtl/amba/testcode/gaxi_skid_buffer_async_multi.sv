@@ -20,23 +20,23 @@ module gaxi_skid_buffer_async_multi #(
 
     // input side
     input  logic          i_wr_valid,
-    output logic          o_wr_ready,
+    output logic          wr_ready,
     input  logic [AW-1:0] i_wr_addr,
     input  logic [CW-1:0] i_wr_ctrl,
     input  logic [DW-1:0] i_wr_data0,
     input  logic [DW-1:0] i_wr_data1,
 
     // output side
-    output logic          o_rd_valid,
+    output logic          rd_valid,
     input  logic          i_rd_ready,
-    output logic [AW-1:0] ow_rd_addr,
-    output logic [CW-1:0] ow_rd_ctrl,
-    output logic [DW-1:0] ow_rd_data0,
-    output logic [DW-1:0] ow_rd_data1,
-    output logic [AW-1:0] o_rd_addr,
-    output logic [CW-1:0] o_rd_ctrl,
-    output logic [DW-1:0] o_rd_data0,
-    output logic [DW-1:0] o_rd_data1
+    output logic [AW-1:0] rd_addr,
+    output logic [CW-1:0] rd_ctrl,
+    output logic [DW-1:0] rd_data0,
+    output logic [DW-1:0] rd_data1,
+    output logic [AW-1:0] rd_addr,
+    output logic [CW-1:0] rd_ctrl,
+    output logic [DW-1:0] rd_data0,
+    output logic [DW-1:0] rd_data1
 );
 
     logic                 r_xfer_valid;
@@ -49,13 +49,13 @@ module gaxi_skid_buffer_async_multi #(
         .i_axi_aclk   (i_axi_wr_aclk),
         .i_axi_aresetn(i_axi_wr_aresetn),
         .i_wr_valid   (i_wr_valid),
-        .o_wr_ready   (o_wr_ready),
+        .wr_ready   (wr_ready),
         .i_wr_data    ({i_wr_addr, i_wr_ctrl, i_wr_data1, i_wr_data0}),
-        .o_rd_valid   (r_xfer_valid),
+        .rd_valid   (r_xfer_valid),
         .i_rd_ready   (r_xfer_ready),
-        .o_rd_data    (r_xfer_data),
-        .ow_count     (),
-        .o_rd_count   ()
+        .rd_data    (r_xfer_data),
+        .count     (),
+        .rd_count   ()
 
     );
 
@@ -73,12 +73,12 @@ module gaxi_skid_buffer_async_multi #(
         .i_axi_rd_aclk   (i_axi_rd_aclk),
         .i_axi_rd_aresetn(i_axi_rd_aresetn),
         .i_wr_valid      (r_xfer_valid),
-        .o_wr_ready      (r_xfer_ready),
+        .wr_ready      (r_xfer_ready),
         .i_wr_data       (r_xfer_data),
         .i_rd_ready      (i_rd_ready),
-        .o_rd_valid      (o_rd_valid),
-        .ow_rd_data        ({ow_rd_addr, ow_rd_ctrl, ow_rd_data1, ow_rd_data0}),
-        .o_rd_data         ({o_rd_addr,   o_rd_ctrl,  o_rd_data1,  o_rd_data0})
+        .rd_valid      (rd_valid),
+        .rd_data        ({rd_addr, rd_ctrl, rd_data1, rd_data0}),
+        .rd_data         ({rd_addr,   rd_ctrl,  rd_data1,  rd_data0})
     );
 
 endmodule : gaxi_skid_buffer_async_multi
