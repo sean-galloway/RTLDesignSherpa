@@ -66,17 +66,17 @@ module counter_freq_invariant
 
     // Prescaler counter using the provided counter_load_clear
     counter_load_clear #(
-        .MAX(PRESCALER_MAX)
-    ) prescaler_counter (
-        .clk(clk),
-        .rst_n(rst_n),
-        .clear(r_clear_pulse),         // Clear the prescaler when frequency selection changes
-        .increment(1'b1),              // Always increment
-        .load(1'b1),                   // Always have a valid load value
-        .loadval(w_division_factor[$clog2(PRESCALER_MAX)-1:0] - 1'b1),
-        .done(w_prescaler_done),
+        .MAX            (PRESCALER_MAX)
+    ) prescaler_counter(
+        .clk            (clk),
+        .rst_n          (rst_n),
+        .clear          (r_clear_pulse),         // Clear the prescaler when frequency selection changes
+        .increment      (1'b1),              // Always increment
+        .load           (1'b1),                   // Always have a valid load value
+        .loadval        (w_division_factor[$clog2(PRESCALER_MAX)-1:0] - 1'b1),
+        .done           (w_prescaler_done),
         /* verilator lint_off PINCONNECTEMPTY */
-        .count()
+        .count          ()
         /* verilator lint_on PINCONNECTEMPTY */
     );
 

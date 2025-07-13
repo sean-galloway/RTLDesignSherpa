@@ -1,3 +1,5 @@
+`timescale 1ns / 1ps
+
 module clock_gate_ctrl #(
     parameter int IDLE_CNTR_WIDTH = 4, // Default width of idle counter
     parameter int N = IDLE_CNTR_WIDTH

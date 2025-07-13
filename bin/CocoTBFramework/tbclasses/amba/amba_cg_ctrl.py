@@ -1,8 +1,8 @@
 """
-Generic AXI Clock Gate Controller
+Enhanced Generic AXI Clock Gate Controller
 
-This module provides a generic class for controlling AXI clock gating
-with support for multiple valid signals from both user and interface sides.
+This module provides a flexible class for controlling AXI clock gating
+with support for configurable signal names and multiple clock domains.
 """
 
 import cocotb
@@ -12,22 +12,29 @@ from CocoTBFramework.tbclasses.misc.tbbase import TBBase
 
 class AxiClockGateCtrl(TBBase):
     """
-    Generic AXI Clock Gate Controller class.
+    Enhanced AXI Clock Gate Controller class.
 
     Controls clock gating based on activity from multiple valid signals
-    on both user and AXI interface sides.
+    with configurable signal names for different clock domains.
     """
 
-    def __init__(self, dut, instance_path="", clock_signal_name="clk_in", user_valid_signals=None, axi_valid_signals=None):
+    def __init__(self, dut, instance_path="", clock_signal_name="clk_in",
+                    user_valid_signals=None, axi_valid_signals=None,
+                    gating_signal_name="gating", idle_signal_name="idle",
+                    enable_signal_name="cfg_cg_enable", idle_count_signal_name="cfg_cg_idle_count"):
         """
         Initialize the AXI Clock Gate Controller.
 
         Args:
             dut: Device under test
-            instance_path: Path to the clock gate controller instance (e.g., "i_amba_clock_gate_ctrl")
+            instance_path: Path to the clock gate controller instance (e.g., "amba_clock_gate_ctrl")
             clock_signal_name: Name of the clock signal
             user_valid_signals: List of user-side valid signal names
             axi_valid_signals: List of AXI-side valid signal names
+            gating_signal_name: Name of the gating status signal (e.g., "pclk_cg_gating")
+            idle_signal_name: Name of the idle status signal (e.g., "pclk_cg_idle")
+            enable_signal_name: Name of the clock gating enable signal
+            idle_count_signal_name: Name of the idle count configuration signal
         """
         super().__init__(dut)
 
@@ -35,6 +42,10 @@ class AxiClockGateCtrl(TBBase):
         self.dut = dut
         self.instance_path = instance_path
         self.clock_signal_name = clock_signal_name
+        self.gating_signal_name = gating_signal_name
+        self.idle_signal_name = idle_signal_name
+        self.enable_signal_name = enable_signal_name
+        self.idle_count_signal_name = idle_count_signal_name
 
         # Default empty lists if not provided
         self.user_valid_signals = user_valid_signals or []
@@ -52,6 +63,15 @@ class AxiClockGateCtrl(TBBase):
         self.idle_count = 0
         self.is_gated = False
         self.is_idle = False
+
+        # Signal objects for direct access
+        self.clock_signal = None
+        self.gating_signal = None
+        self.idle_signal = None
+        self.enable_signal = None
+        self.idle_count_signal = None
+
+        self._cache_control_signals()
 
     def _register_signals(self):
         """Register all signal paths for user and AXI valid signals."""
@@ -73,6 +93,38 @@ class AxiClockGateCtrl(TBBase):
 
         self.log.info(f"Registered {len(self.user_valid_paths)} user valid signals and {len(self.axi_valid_paths)} AXI valid signals")
 
+    def _cache_control_signals(self):
+        """Cache frequently accessed control signals for performance."""
+        # Clock signal
+        clock_path = f"{self.instance_path}.{self.clock_signal_name}" if self.instance_path else self.clock_signal_name
+        self.clock_signal = self._get_signal(clock_path)
+
+        # Gating status signal
+        gating_path = f"{self.instance_path}.{self.gating_signal_name}" if self.instance_path else self.gating_signal_name
+        self.gating_signal = self._get_signal(gating_path)
+
+        # Idle status signal
+        idle_path = f"{self.instance_path}.{self.idle_signal_name}" if self.instance_path else self.idle_signal_name
+        self.idle_signal = self._get_signal(idle_path)
+
+        # Enable control signal
+        enable_path = f"{self.instance_path}.{self.enable_signal_name}" if self.instance_path else self.enable_signal_name
+        self.enable_signal = self._get_signal(enable_path)
+
+        # Idle count control signal
+        idle_count_path = f"{self.instance_path}.{self.idle_count_signal_name}" if self.instance_path else self.idle_count_signal_name
+        self.idle_count_signal = self._get_signal(idle_count_path)
+
+        # Log which signals were found
+        signals_found = []
+        if self.clock_signal: signals_found.append(f"clock({self.clock_signal_name})")
+        if self.gating_signal: signals_found.append(f"gating({self.gating_signal_name})")
+        if self.idle_signal: signals_found.append(f"idle({self.idle_signal_name})")
+        if self.enable_signal: signals_found.append(f"enable({self.enable_signal_name})")
+        if self.idle_count_signal: signals_found.append(f"idle_count({self.idle_count_signal_name})")
+
+        self.log.info(f"Cached control signals: {', '.join(signals_found)}")
+
     def _get_signal(self, signal_path):
         """
         Helper to get a signal by hierarchical path.
@@ -91,7 +143,7 @@ class AxiClockGateCtrl(TBBase):
             if hasattr(current, part):
                 current = getattr(current, part)
             else:
-                self.log.warning(f"Signal part not found: {part} in path {signal_path}")
+                self.log.debug(f"Signal part not found: {part} in path {signal_path}")
                 return None
 
         return current
@@ -103,14 +155,12 @@ class AxiClockGateCtrl(TBBase):
         Args:
             enable: True to enable clock gating, False to disable
         """
-        # signal_path = f"{self.instance_path}.i_cfg_cg_enable" if self.instance_path else "i_cfg_cg_enable"
-        signal_path = "i_cfg_cg_enable"
-        if signal := self._get_signal(signal_path):
-            signal.value = 1 if enable else 0
+        if self.enable_signal:
+            self.enable_signal.value = 1 if enable else 0
             self.is_enabled = enable
-            self.log.info(f"Clock gating {'enabled' if enable else 'disabled'}")
+            self.log.info(f"Clock gating {'enabled' if enable else 'disabled'} via {self.enable_signal_name}")
         else:
-            self.log.error(f"Clock gating enable signal not found: {signal_path}")
+            self.log.error(f"Clock gating enable signal not found: {self.enable_signal_name}")
 
     def set_idle_count(self, count):
         """
@@ -119,14 +169,12 @@ class AxiClockGateCtrl(TBBase):
         Args:
             count: Number of idle cycles before clock gating is activated
         """
-        # signal_path = f"{self.instance_path}.i_cfg_cg_idle_count" if self.instance_path else "i_cfg_cg_idle_count"
-        signal_path = "i_cfg_cg_idle_count"
-        if signal := self._get_signal(signal_path):
-            signal.value = count
+        if self.idle_count_signal:
+            self.idle_count_signal.value = count
             self.idle_count = count
-            self.log.info(f"Idle count set to {count}")
+            self.log.info(f"Idle count set to {count} via {self.idle_count_signal_name}")
         else:
-            self.log.error(f"Idle count signal not found: {signal_path}")
+            self.log.error(f"Idle count signal not found: {self.idle_count_signal_name}")
 
     async def monitor_activity(self, duration=1000, units='ns'):
         """
@@ -151,24 +199,13 @@ class AxiClockGateCtrl(TBBase):
         start_time = cocotb.utils.get_sim_time(units)
         end_time = start_time + duration
 
-        # Get clock signal
-        clock_signal_path = f"{self.instance_path}.{self.clock_signal_name}" if self.instance_path else self.clock_signal_name
-        clock_signal = self._get_signal(clock_signal_path)
-
-        if not clock_signal:
-            self.log.error(f"Clock signal not found: {clock_signal_path}")
+        if not self.clock_signal:
+            self.log.error(f"Clock signal not found: {self.clock_signal_name}")
             return stats
-
-        # Get gating and idle indicators if available
-        gating_signal_path = f"{self.instance_path}.o_gating" if self.instance_path else "o_gating"
-        gating_signal = self._get_signal(gating_signal_path)
-
-        idle_signal_path = f"{self.instance_path}.o_idle" if self.instance_path else "o_idle"
-        idle_signal = self._get_signal(idle_signal_path)
 
         while cocotb.utils.get_sim_time(units) < end_time:
             # Wait for clock edge
-            await RisingEdge(clock_signal)
+            await RisingEdge(self.clock_signal)
 
             # Increment total cycles
             stats['total_cycles'] += 1
@@ -188,15 +225,15 @@ class AxiClockGateCtrl(TBBase):
                 stats['active_cycles'] += 1
 
             # Track gating if signal available
-            if gating_signal and gating_signal.value == 1:
+            if self.gating_signal and self.gating_signal.value == 1:
                 stats['gated_cycles'] += 1
                 self.is_gated = True
             else:
                 self.is_gated = False
 
             # Track idle state if signal available
-            if idle_signal:
-                self.is_idle = (idle_signal.value == 1)
+            if self.idle_signal:
+                self.is_idle = (self.idle_signal.value == 1)
 
         # Calculate percentages
         if stats['total_cycles'] > 0:
@@ -216,23 +253,20 @@ class AxiClockGateCtrl(TBBase):
             Dict with current state information
         """
         # Update gating and idle state from signals if available
-        gating_signal_path = f"{self.instance_path}.o_gating" if self.instance_path else "o_gating"
-        gating_signal = self._get_signal(gating_signal_path)
+        if self.gating_signal:
+            self.is_gated = bool(self.gating_signal.value)
 
-        idle_signal_path = f"{self.instance_path}.o_idle" if self.instance_path else "o_idle"
-        idle_signal = self._get_signal(idle_signal_path)
-
-        if gating_signal:
-            self.is_gated = bool(gating_signal.value)
-
-        if idle_signal:
-            self.is_idle = bool(idle_signal.value)
+        if self.idle_signal:
+            self.is_idle = bool(self.idle_signal.value)
 
         return {
             'enabled': self.is_enabled,
             'idle_count': self.idle_count,
             'is_gated': self.is_gated,
-            'is_idle': self.is_idle
+            'is_idle': self.is_idle,
+            'domain': self.instance_path or 'top_level',
+            'gating_signal': self.gating_signal_name,
+            'idle_signal': self.idle_signal_name
         }
 
     def force_wakeup(self):
@@ -247,7 +281,7 @@ class AxiClockGateCtrl(TBBase):
                 original_values[signal_name] = signal.value
                 signal.value = 1
 
-        self.log.info("Forced wakeup by asserting all user valid signals")
+        self.log.info(f"Forced wakeup by asserting all user valid signals in {self.instance_path or 'top_level'}")
         return original_values
 
     def restore_signals(self, original_values):
@@ -261,7 +295,7 @@ class AxiClockGateCtrl(TBBase):
             if signal_name in original_values and hasattr(signal, 'value'):
                 signal.value = original_values[signal_name]
 
-        self.log.info("Restored signals to original values")
+        self.log.info(f"Restored signals to original values in {self.instance_path or 'top_level'}")
 
     async def wait_for_idle(self, timeout=1000, units='ns'):
         """
@@ -277,29 +311,25 @@ class AxiClockGateCtrl(TBBase):
         start_time = cocotb.utils.get_sim_time(units)
         end_time = start_time + timeout
 
-        # Get idle signal
-        idle_signal_path = f"{self.instance_path}.o_idle" if self.instance_path else "o_idle"
-        idle_signal = self._get_signal(idle_signal_path)
-
-        if not idle_signal:
-            self.log.error(f"Idle signal not found: {idle_signal_path}")
+        if not self.idle_signal:
+            self.log.error(f"Idle signal not found: {self.idle_signal_name}")
             return False
 
-        # Get clock signal for waiting
-        clock_signal_path = f"{self.instance_path}.{self.clock_signal_name}" if self.instance_path else self.clock_signal_name
-        clock_signal = self._get_signal(clock_signal_path)
+        if not self.clock_signal:
+            self.log.error(f"Clock signal not found: {self.clock_signal_name}")
+            return False
 
         while cocotb.utils.get_sim_time(units) < end_time:
             # Check if already idle
-            if idle_signal.value == 1:
+            if self.idle_signal.value == 1:
                 self.is_idle = True
-                self.log.info("Idle state reached")
+                self.log.info(f"Idle state reached in {self.instance_path or 'top_level'}")
                 return True
 
             # Wait for next clock
-            await RisingEdge(clock_signal)
+            await RisingEdge(self.clock_signal)
 
-        self.log.warning(f"Timeout waiting for idle state ({timeout} {units})")
+        self.log.warning(f"Timeout waiting for idle state ({timeout} {units}) in {self.instance_path or 'top_level'}")
         return False
 
     async def wait_for_gating(self, timeout=1000, units='ns'):
@@ -316,43 +346,168 @@ class AxiClockGateCtrl(TBBase):
         start_time = cocotb.utils.get_sim_time(units)
         end_time = start_time + timeout
 
-        # Get gating signal
-        gating_signal_path = f"{self.instance_path}.o_gating" if self.instance_path else "o_gating"
-        gating_signal = self._get_signal(gating_signal_path)
-
-        if not gating_signal:
-            self.log.error(f"Gating signal not found: {gating_signal_path}")
+        if not self.gating_signal:
+            self.log.error(f"Gating signal not found: {self.gating_signal_name}")
             return False
 
-        # Get clock signal for waiting
-        clock_signal_path = f"{self.instance_path}.{self.clock_signal_name}" if self.instance_path else self.clock_signal_name
-        clock_signal = self._get_signal(clock_signal_path)
+        if not self.clock_signal:
+            self.log.error(f"Clock signal not found: {self.clock_signal_name}")
+            return False
 
         while cocotb.utils.get_sim_time(units) < end_time:
             # Check if already gated
-            if gating_signal.value == 1:
+            if self.gating_signal.value == 1:
                 self.is_gated = True
-                self.log.info("Gated state reached")
+                self.log.info(f"Gated state reached in {self.instance_path or 'top_level'}")
                 return True
 
             # Wait for next clock
-            await RisingEdge(clock_signal)
+            await RisingEdge(self.clock_signal)
 
-        self.log.warning(f"Timeout waiting for gated state ({timeout} {units})")
+        self.log.warning(f"Timeout waiting for gated state ({timeout} {units}) in {self.instance_path or 'top_level'}")
         return False
 
-# # Create with multiple valid signals from both sides
-# clock_gate = AxiClockGateCtrl(
-#     dut,
-#     clock_gate_prefix="cg_",
-#     user_valid_signals=["s_axi_arvalid", "s_axi_rvalid"]
-#     axi_valid_signals=["m_axi_arvalid", "m_axi_rvalid"]
-# )
 
-# # Configure
-# clock_gate.enable_clock_gating(True)
-# clock_gate.set_idle_count(8)
+class MultiDomainClockGateCtrl:
+    """
+    Multi-domain clock gating controller that manages multiple AxiClockGateCtrl instances
+    for different clock domains (e.g., PCLK and ACLK).
+    """
 
-# # Monitor activity
-# stats = await clock_gate.monitor_activity(1000, 'ns')
-# print(f"Active: {stats['active_percent']}%, Gated: {stats['gated_percent']}%")
+    def __init__(self, controllers=None):
+        """
+        Initialize multi-domain clock gate controller.
+
+        Args:
+            controllers: Dict of domain_name -> AxiClockGateCtrl instances
+        """
+        self.controllers = controllers or {}
+        self.log = None
+
+        # Set up logging from first controller
+        if self.controllers:
+            first_ctrl = next(iter(self.controllers.values()))
+            self.log = first_ctrl.log
+
+    def add_controller(self, domain_name, controller):
+        """Add a clock gate controller for a specific domain."""
+        self.controllers[domain_name] = controller
+        if self.log is None:
+            self.log = controller.log
+
+    def enable_all_clock_gating(self, enable=True):
+        """Enable/disable clock gating for all domains."""
+        for domain, ctrl in self.controllers.items():
+            ctrl.enable_clock_gating(enable)
+
+    def set_all_idle_counts(self, idle_count):
+        """Set idle count for all domains."""
+        for domain, ctrl in self.controllers.items():
+            ctrl.set_idle_count(idle_count)
+
+    async def monitor_all_activity(self, duration=1000, units='ns'):
+        """Monitor activity across all domains."""
+        # Start monitoring tasks for all domains
+        tasks = {}
+        for domain, ctrl in self.controllers.items():
+            task = cocotb.start_soon(ctrl.monitor_activity(duration, units))
+            tasks[domain] = task
+
+        # Collect results
+        results = {}
+        for domain, task in tasks.items():
+            results[domain] = await task
+
+        return results
+
+    def get_all_states(self):
+        """Get current state of all controllers."""
+        states = {}
+        for domain, ctrl in self.controllers.items():
+            states[domain] = ctrl.get_current_state()
+        return states
+
+    async def wait_for_all_idle(self, timeout=1000, units='ns'):
+        """Wait for all domains to reach idle state."""
+        tasks = {}
+        for domain, ctrl in self.controllers.items():
+            task = cocotb.start_soon(ctrl.wait_for_idle(timeout, units))
+            tasks[domain] = task
+
+        results = {}
+        for domain, task in tasks.items():
+            results[domain] = await task
+
+        all_idle = all(results.values())
+        if self.log:
+            if all_idle:
+                self.log.info("All domains reached idle state")
+            else:
+                failed_domains = [d for d, r in results.items() if not r]
+                self.log.warning(f"Failed to reach idle in domains: {failed_domains}")
+
+        return all_idle
+
+    async def wait_for_all_gating(self, timeout=1000, units='ns'):
+        """Wait for all domains to reach gated state."""
+        tasks = {}
+        for domain, ctrl in self.controllers.items():
+            task = cocotb.start_soon(ctrl.wait_for_gating(timeout, units))
+            tasks[domain] = task
+
+        results = {}
+        for domain, task in tasks.items():
+            results[domain] = await task
+
+        all_gated = all(results.values())
+        if self.log:
+            if all_gated:
+                self.log.info("All domains reached gated state")
+            else:
+                failed_domains = [d for d, r in results.items() if not r]
+                self.log.warning(f"Failed to reach gated state in domains: {failed_domains}")
+
+        return all_gated
+
+
+# Example usage for CDC testbench:
+"""
+# Create controllers for both domains
+pclk_cg_ctrl = AxiClockGateCtrl(
+    dut,
+    instance_path="pclk_gate_ctrl",
+    clock_signal_name="pclk",
+    user_valid_signals=["s_apb_PSEL", "w_rsp_valid"],
+    axi_valid_signals=["w_cmd_valid"],
+    gating_signal_name="pclk_cg_gating",
+    idle_signal_name="pclk_cg_idle"
+)
+
+aclk_cg_ctrl = AxiClockGateCtrl(
+    dut,
+    instance_path="aclk_gate_ctrl",
+    clock_signal_name="aclk",
+    user_valid_signals=["rsp_valid"],
+    axi_valid_signals=["cmd_valid", "cmd_ready"],
+    gating_signal_name="aclk_cg_gating",
+    idle_signal_name="aclk_cg_idle"
+)
+
+# Create multi-domain controller
+multi_cg = MultiDomainClockGateCtrl({
+    'pclk': pclk_cg_ctrl,
+    'aclk': aclk_cg_ctrl
+})
+
+# Configure all domains
+multi_cg.enable_all_clock_gating(True)
+multi_cg.set_all_idle_counts(8)
+
+# Monitor activity across domains
+stats = await multi_cg.monitor_all_activity(1000, 'ns')
+print(f"PCLK: {stats['pclk']['gated_percent']:.1f}% gated")
+print(f"ACLK: {stats['aclk']['gated_percent']:.1f}% gated")
+
+# Wait for all domains to reach gated state
+all_gated = await multi_cg.wait_for_all_gating(2000, 'ns')
+"""

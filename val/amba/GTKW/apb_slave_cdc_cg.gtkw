@@ -1,0 +1,79 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Sun Jul 13 00:38:21 2025
+[*]
+[dumpfile] "/home/seang/github/RTLDesignSherpa/val/amba/local_sim_build/test_apb_cdc_cg_robust_apb_slave_cdc_cg_aw032_dw032_d002_cg04/dump.fst"
+[dumpfile_mtime] "Sun Jul 13 00:30:10 2025"
+[dumpfile_size] 6020
+[savefile] "/home/seang/github/RTLDesignSherpa/val/amba/GTKW/apb+slave_cdc_cg.gtkw"
+[timestart] 0
+[size] 2509 1442
+[pos] -1 -1
+*-22.306721 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[sst_width] 278
+[signals_width] 257
+[sst_expanded] 1
+[sst_vpaned_height] 450
+@420
+apb_slave_cdc_cg.DEPTH
+apb_slave_cdc_cg.PW
+apb_slave_cdc_cg.RPW
+apb_slave_cdc_cg.SW
+apb_slave_cdc_cg.AW
+apb_slave_cdc_cg.CPW
+apb_slave_cdc_cg.DW
+@200
+-apb interface
+@28
+apb_slave_cdc_cg.pclk
+apb_slave_cdc_cg.presetn
+apb_slave_cdc_cg.s_apb_PSEL
+apb_slave_cdc_cg.s_apb_PENABLE
+apb_slave_cdc_cg.s_apb_PREADY
+apb_slave_cdc_cg.s_apb_PWRITE
+@22
+apb_slave_cdc_cg.s_apb_PADDR[31:0]
+apb_slave_cdc_cg.s_apb_PSTRB[3:0]
+apb_slave_cdc_cg.s_apb_PWDATA[31:0]
+apb_slave_cdc_cg.s_apb_PRDATA[31:0]
+@28
+apb_slave_cdc_cg.s_apb_PSLVERR
+@200
+-apb clock gating
+@28
+apb_slave_cdc_cg.pclk_cg_idle
+apb_slave_cdc_cg.pclk_cg_gating
+apb_slave_cdc_cg.pclk_user_valid
+apb_slave_cdc_cg.pclk_axi_valid
+@200
+-aclk clock gating
+@28
+apb_slave_cdc_cg.aclk_cg_idle
+apb_slave_cdc_cg.aclk_cg_gating
+apb_slave_cdc_cg.aclk_user_valid
+apb_slave_cdc_cg.aclk_axi_valid
+@200
+-cmd interface
+@28
+apb_slave_cdc_cg.cmd_valid
+apb_slave_cdc_cg.cmd_ready
+apb_slave_cdc_cg.cmd_pwrite
+@22
+apb_slave_cdc_cg.cmd_paddr[31:0]
+apb_slave_cdc_cg.cmd_pwdata[31:0]
+apb_slave_cdc_cg.cmd_pstrb[3:0]
+@28
+apb_slave_cdc_cg.cmd_pprot[2:0]
+apb_slave_cdc_cg.cmd_pprot[2:0]
+@200
+-rsp interface
+@28
+apb_slave_cdc_cg.rsp_valid
+apb_slave_cdc_cg.rsp_ready
+@22
+apb_slave_cdc_cg.rsp_prdata[31:0]
+@29
+apb_slave_cdc_cg.rsp_pslverr
+[pattern_trace] 1
+[pattern_trace] 0

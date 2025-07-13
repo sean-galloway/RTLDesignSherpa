@@ -23,7 +23,7 @@ module apb_slave_cdc_cg #(
     input  logic              presetn,
 
     // Clock gating configuration
-    input  logic                          cfg_cg_enable,
+    input  logic                           cfg_cg_enable,
     input  logic [CG_IDLE_COUNT_WIDTH-1:0] cfg_cg_idle_count,
 
     // APB interface
@@ -105,7 +105,7 @@ module apb_slave_cdc_cg #(
 
     // OR all ACLK domain valid signals for clock gating control
     assign aclk_user_valid = rsp_valid;
-    assign aclk_axi_valid = cmd_valid || cmd_ready;
+    assign aclk_axi_valid = cmd_valid || cmd_ready || s_apb_PSEL;
 
     // Force ready signals to 0 when clock gating is active in their respective domains
     assign w_cmd_ready = pclk_cg_gating ? 1'b0 : int_cmd_ready;
@@ -115,76 +115,76 @@ module apb_slave_cdc_cg #(
     // Instantiate PCLK domain clock gate controller
     amba_clock_gate_ctrl #(
         .CG_IDLE_COUNT_WIDTH(CG_IDLE_COUNT_WIDTH)
-    ) pclk_gate_ctrl (
-        .clk_in              (pclk),
-        .aresetn             (presetn),
-        .cfg_cg_enable     (cfg_cg_enable),
-        .cfg_cg_idle_count (cfg_cg_idle_count),
-        .user_valid        (pclk_user_valid),
-        .axi_valid         (pclk_axi_valid),
-        .clk_out             (gated_pclk),
-        .gating            (pclk_cg_gating),
-        .idle              (pclk_cg_idle)
+    ) pclk_gate_ctrl(
+        .clk_in             (pclk),
+        .aresetn            (presetn),
+        .cfg_cg_enable      (cfg_cg_enable),
+        .cfg_cg_idle_count  (cfg_cg_idle_count),
+        .user_valid         (pclk_user_valid),
+        .axi_valid          (pclk_axi_valid),
+        .clk_out            (gated_pclk),
+        .gating             (pclk_cg_gating),
+        .idle               (pclk_cg_idle)
     );
 
     // Instantiate ACLK domain clock gate controller
     amba_clock_gate_ctrl #(
-        .CG_IDLE_COUNT_WIDTH(CG_IDLE_COUNT_WIDTH)
-    ) aclk_gate_ctrl (
+        .CG_IDLE_COUNT_WIDTH (CG_IDLE_COUNT_WIDTH)
+    ) aclk_gate_ctrl(
         .clk_in              (aclk),
         .aresetn             (aresetn),
-        .cfg_cg_enable     (cfg_cg_enable),
-        .cfg_cg_idle_count (cfg_cg_idle_count),
-        .user_valid        (aclk_user_valid),
-        .axi_valid         (aclk_axi_valid),
+        .cfg_cg_enable       (cfg_cg_enable),
+        .cfg_cg_idle_count   (cfg_cg_idle_count),
+        .user_valid          (aclk_user_valid),
+        .axi_valid           (aclk_axi_valid),
         .clk_out             (gated_aclk),
-        .gating            (aclk_cg_gating),
-        .idle              (aclk_cg_idle)
+        .gating              (aclk_cg_gating),
+        .idle                (aclk_cg_idle)
     );
 
     // Instantiate the APB slave with gated clock
     apb_slave #(
-        .ADDR_WIDTH(ADDR_WIDTH),
-        .DATA_WIDTH(DATA_WIDTH),
-        .STRB_WIDTH(STRB_WIDTH),
-        .PROT_WIDTH(PROT_WIDTH),
-        .DEPTH(DEPTH)
-    ) u_apb_slave (
+        .ADDR_WIDTH   (ADDR_WIDTH),
+        .DATA_WIDTH   (DATA_WIDTH),
+        .STRB_WIDTH   (STRB_WIDTH),
+        .PROT_WIDTH   (PROT_WIDTH),
+        .DEPTH        (DEPTH)
+    ) u_apb_slave(
         // Clock and Reset
-        .pclk(gated_pclk),       // Use gated clock
-        .presetn(presetn),
+        .pclk         (gated_pclk),       // Use gated clock
+        .presetn      (presetn),
 
         // APB interface
-        .s_apb_PSEL(s_apb_PSEL),
+        .s_apb_PSEL   (s_apb_PSEL),
         .s_apb_PENABLE(s_apb_PENABLE),
-        .s_apb_PREADY(int_apb_PREADY),  // Connect to internal signal
-        .s_apb_PADDR(s_apb_PADDR),
-        .s_apb_PWRITE(s_apb_PWRITE),
-        .s_apb_PWDATA(s_apb_PWDATA),
-        .s_apb_PSTRB(s_apb_PSTRB),
-        .s_apb_PPROT(s_apb_PPROT),
-        .s_apb_PRDATA(s_apb_PRDATA),
+        .s_apb_PREADY (int_apb_PREADY),  // Connect to internal signal
+        .s_apb_PADDR  (s_apb_PADDR),
+        .s_apb_PWRITE (s_apb_PWRITE),
+        .s_apb_PWDATA (s_apb_PWDATA),
+        .s_apb_PSTRB  (s_apb_PSTRB),
+        .s_apb_PPROT  (s_apb_PPROT),
+        .s_apb_PRDATA (s_apb_PRDATA),
         .s_apb_PSLVERR(s_apb_PSLVERR),
 
         // Command Interface
-        .cmd_valid(w_cmd_valid),
-        .cmd_ready(w_cmd_ready),
-        .cmd_pwrite(w_cmd_pwrite),
-        .cmd_paddr(w_cmd_paddr),
-        .cmd_pwdata(w_cmd_pwdata),
-        .cmd_pstrb(w_cmd_pstrb),
-        .cmd_pprot(w_cmd_pprot),
+        .cmd_valid    (w_cmd_valid),
+        .cmd_ready    (w_cmd_ready),
+        .cmd_pwrite   (w_cmd_pwrite),
+        .cmd_paddr    (w_cmd_paddr),
+        .cmd_pwdata   (w_cmd_pwdata),
+        .cmd_pstrb    (w_cmd_pstrb),
+        .cmd_pprot    (w_cmd_pprot),
 
         // Response Interface
-        .rsp_valid(w_rsp_valid),
-        .rsp_ready(int_rsp_ready_pclk),  // Fixed - connect to internal signal
-        .rsp_prdata(w_rsp_prdata),
-        .rsp_pslverr(w_rsp_pslverr)
+        .rsp_valid    (w_rsp_valid),
+        .rsp_ready    (int_rsp_ready_pclk),  // Fixed - connect to internal signal
+        .rsp_prdata   (w_rsp_prdata),
+        .rsp_pslverr  (w_rsp_pslverr)
     );
 
     // Use clock domain crossing handshake for command path
     cdc_handshake #(
-        .DATA_WIDTH(APBCmdWidth)
+        .DATA_WIDTH      (APBCmdWidth)
     ) u_cmd_cdc_handshake (
         .clk_src         (gated_pclk),       // Use gated clock
         .rst_src_n       (presetn),
@@ -201,7 +201,7 @@ module apb_slave_cdc_cg #(
 
     // Use clock domain crossing handshake for response path
     cdc_handshake #(
-        .DATA_WIDTH(APBRspWidth)
+        .DATA_WIDTH      (APBRspWidth)
     ) u_rsp_cdc_handshake (
         .clk_src         (gated_aclk),       // Use gated clock
         .rst_src_n       (aresetn),

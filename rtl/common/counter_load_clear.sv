@@ -7,15 +7,15 @@
 module counter_load_clear #(
     parameter int MAX = 32'd32  // Fixed: Explicitly specify as 32-bit value
 ) (
-    input logic clk,
-    input logic rst_n,
-    input logic clear,
-    input logic increment,
-    input logic load,
-    input logic [$clog2(MAX)-1:0] loadval,
+    input logic                     clk,
+    input logic                     rst_n,
+    input logic                     clear,
+    input logic                     increment,
+    input logic                     load,
+    input logic [$clog2(MAX)-1:0]   loadval,
     // this loads the match value for ending the counter
-    output logic [$clog2(MAX)-1:0] count,
-    output logic done
+    output logic [$clog2(MAX)-1:0]  count,
+    output logic                    done
 );
     // Match value register (flopped)
     logic [$clog2(MAX)-1:0] r_match_val;
