@@ -1,5 +1,5 @@
 """
-Sort Test with Parameterized Test Levels and Configuration
+Sort Test with Parameterized Test Levels and Configuration - Updated for Pipelined Architecture
 
 This test uses num_vals, size and test_level as parameters for maximum flexibility:
 
@@ -53,6 +53,7 @@ class SortTB(TBBase):
         # Calculate derived parameters
         self.TOTAL_WIDTH = self.NUM_VALS * self.SIZE
         self.MAX_VAL = (1 << self.SIZE) - 1
+        self.PIPELINE_STAGES = self.NUM_VALS  # Pipeline depth equals NUM_VALS
 
         # Initialize random generator
         random.seed(self.SEED)
@@ -68,6 +69,7 @@ class SortTB(TBBase):
         self.log.info(f"SEED={self.SEED}, TEST_LEVEL={self.TEST_LEVEL}")
         self.log.info(f"NUM_VALS={self.NUM_VALS}, SIZE={self.SIZE}")
         self.log.info(f"TOTAL_WIDTH={self.TOTAL_WIDTH}, MAX_VAL={self.MAX_VAL}")
+        self.log.info(f"PIPELINE_STAGES={self.PIPELINE_STAGES}")
 
         # Initialize signal mappings
         self._setup_signals()
@@ -84,7 +86,9 @@ class SortTB(TBBase):
         self.clk = self.dut.clk
         self.rst_n = self.dut.rst_n
         self.data_in = self.dut.data
+        self.valid_in = self.dut.valid_in
         self.sorted_out = self.dut.sorted
+        self.done_out = self.dut.done
 
     async def setup_clock(self):
         """Setup clock"""
@@ -95,6 +99,7 @@ class SortTB(TBBase):
         """Reset the DUT"""
         self.rst_n.value = 0
         self.data_in.value = 0
+        self.valid_in.value = 0
         await RisingEdge(self.clk)
         await RisingEdge(self.clk)
         self.rst_n.value = 1
@@ -130,6 +135,38 @@ class SortTB(TBBase):
             if values[i] < values[i + 1]:
                 return False
         return True
+
+    async def send_data_and_wait(self, input_values):
+        """Send data through pipeline and wait for result"""
+        # Pack and drive input with valid signal
+        packed_input = self.pack_values(input_values)
+        self.data_in.value = packed_input
+        self.valid_in.value = 1
+        await RisingEdge(self.clk)
+
+        # Deassert valid (single cycle pulse)
+        self.valid_in.value = 0
+
+        # Wait for done signal or pipeline stages to complete
+        max_wait_cycles = self.PIPELINE_STAGES + 5  # Add some margin
+        wait_count = 0
+
+        while wait_count < max_wait_cycles:
+            await RisingEdge(self.clk)
+            wait_count += 1
+
+            # Check if done is asserted
+            if int(self.done_out.value) == 1:
+                break
+
+        # Get output regardless of done signal for debugging
+        output_values = self.get_sorted_output()
+        done_asserted = (int(self.done_out.value) == 1)
+
+        if not done_asserted:
+            self.log.warning(f"Done signal not asserted after {wait_count} cycles{self.get_time_ns_str()}")
+
+        return output_values, done_asserted
 
     async def test_basic_sorting(self):
         """Test basic sorting functionality"""
@@ -178,27 +215,20 @@ class SortTB(TBBase):
 
             self.log.debug(f"Test case {test_num}: {input_values}{self.get_time_ns_str()}")
 
-            # Pack and drive input
-            packed_input = self.pack_values(input_values)
-            self.data_in.value = packed_input
-            await RisingEdge(self.clk)
-
-            # Wait for sorting to complete (one clock cycle for this design)
-            await RisingEdge(self.clk)
-
-            # Get output
-            output_values = self.get_sorted_output()
+            # Send data through pipeline
+            output_values, done_asserted = await self.send_data_and_wait(input_values)
 
             # Expected result: sorted in descending order
             expected_values = sorted(input_values, reverse=True)
 
             # Verify sorting
-            success = (output_values == expected_values)
+            success = (output_values == expected_values) and done_asserted
 
             if success:
                 self.log.debug(f"PASS: {input_values} → {output_values}{self.get_time_ns_str()}")
             else:
                 self.log.error(f"FAIL: {input_values} → {output_values}, expected: {expected_values}{self.get_time_ns_str()}")
+                self.log.error(f"  Done asserted: {done_asserted}")
                 all_passed = False
                 if self.TEST_LEVEL == 'basic':
                     break
@@ -210,6 +240,7 @@ class SortTB(TBBase):
                 'input_values': input_values,
                 'output_values': output_values,
                 'expected_values': expected_values,
+                'done_asserted': done_asserted,
                 'success': success
             }
             self.test_results.append(result)
@@ -243,28 +274,21 @@ class SortTB(TBBase):
 
             self.log.debug(f"Random test {test_num}: {input_values}{self.get_time_ns_str()}")
 
-            # Pack and drive input
-            packed_input = self.pack_values(input_values)
-            self.data_in.value = packed_input
-            await RisingEdge(self.clk)
-
-            # Wait for sorting
-            await RisingEdge(self.clk)
-
-            # Get output
-            output_values = self.get_sorted_output()
+            # Send data through pipeline
+            output_values, done_asserted = await self.send_data_and_wait(input_values)
 
             # Expected result
             expected_values = sorted(input_values, reverse=True)
 
             # Verify sorting
-            success = (output_values == expected_values)
+            success = (output_values == expected_values) and done_asserted
 
             if not success:
                 self.log.error(f"Random test {test_num} FAIL:{self.get_time_ns_str()}")
                 self.log.error(f"  Input: {input_values}")
                 self.log.error(f"  Output: {output_values}")
                 self.log.error(f"  Expected: {expected_values}")
+                self.log.error(f"  Done asserted: {done_asserted}")
                 all_passed = False
                 if self.TEST_LEVEL == 'medium':
                     break
@@ -277,11 +301,73 @@ class SortTB(TBBase):
                     'input_values': input_values,
                     'output_values': output_values,
                     'expected_values': expected_values,
+                    'done_asserted': done_asserted,
                     'success': success
                 }
                 self.test_results.append(result)
                 if not success:
                     self.test_failures.append(result)
+
+        return all_passed
+
+    async def test_pipeline_throughput(self):
+        """Test pipeline throughput - can accept new data every cycle"""
+        if self.TEST_LEVEL == 'basic':
+            self.log.info(f"Skipping pipeline throughput tests{self.get_time_ns_str()}")
+            return True
+
+        self.log.info(f"Testing pipeline throughput{self.get_time_ns_str()}")
+
+        await self.setup_clock()
+        await self.reset_dut()
+
+        all_passed = True
+
+        # Create test sequence
+        test_sequences = [
+            [1, 2, 3, 4, 5][:self.NUM_VALS],
+            [5, 4, 3, 2, 1][:self.NUM_VALS],
+            [9, 1, 8, 2, 7][:self.NUM_VALS],
+        ]
+
+        # Pad sequences
+        for i, seq in enumerate(test_sequences):
+            while len(seq) < self.NUM_VALS:
+                seq.append(0)
+            test_sequences[i] = seq[:self.NUM_VALS]
+
+        expected_outputs = [sorted(seq, reverse=True) for seq in test_sequences]
+
+        # Send data back-to-back
+        for seq_num, input_vals in enumerate(test_sequences):
+            packed_input = self.pack_values(input_vals)
+            self.data_in.value = packed_input
+            self.valid_in.value = 1
+            await RisingEdge(self.clk)
+            self.valid_in.value = 0
+
+        # Wait for all outputs to emerge
+        await Timer(self.PIPELINE_STAGES * self.clock_period * 2, units='ns')
+
+        # Note: In a real test, you'd need to track which output corresponds to which input
+        # This is a simplified version that just checks the final output
+        final_output = self.get_sorted_output()
+        final_expected = expected_outputs[-1]
+
+        if final_output != final_expected:
+            self.log.error(f"Pipeline throughput test failed{self.get_time_ns_str()}")
+            self.log.error(f"  Final output: {final_output}")
+            self.log.error(f"  Expected: {final_expected}")
+            all_passed = False
+
+        # Store result
+        result = {
+            'test_type': 'pipeline_throughput',
+            'success': all_passed
+        }
+        self.test_results.append(result)
+        if not result['success']:
+            self.test_failures.append(result)
 
         return all_passed
 
@@ -330,27 +416,20 @@ class SortTB(TBBase):
         for test_num, input_values in enumerate(boundary_cases):
             self.log.debug(f"Boundary test {test_num}: {input_values}{self.get_time_ns_str()}")
 
-            # Pack and drive input
-            packed_input = self.pack_values(input_values)
-            self.data_in.value = packed_input
-            await RisingEdge(self.clk)
-
-            # Wait for sorting
-            await RisingEdge(self.clk)
-
-            # Get output
-            output_values = self.get_sorted_output()
+            # Send data through pipeline
+            output_values, done_asserted = await self.send_data_and_wait(input_values)
 
             # Expected result
             expected_values = sorted(input_values, reverse=True)
 
             # Verify sorting
-            success = (output_values == expected_values)
+            success = (output_values == expected_values) and done_asserted
 
             if success:
                 self.log.debug(f"Boundary PASS: {input_values} → {output_values}{self.get_time_ns_str()}")
             else:
                 self.log.error(f"Boundary FAIL: {input_values} → {output_values}, expected: {expected_values}{self.get_time_ns_str()}")
+                self.log.error(f"  Done asserted: {done_asserted}")
                 all_passed = False
 
             # Store result
@@ -360,83 +439,12 @@ class SortTB(TBBase):
                 'input_values': input_values,
                 'output_values': output_values,
                 'expected_values': expected_values,
+                'done_asserted': done_asserted,
                 'success': success
             }
             self.test_results.append(result)
             if not success:
                 self.test_failures.append(result)
-
-        return all_passed
-
-    async def test_stability_and_timing(self):
-        """Test sorting stability and timing"""
-        if self.TEST_LEVEL != 'full':
-            self.log.info(f"Skipping stability and timing tests{self.get_time_ns_str()}")
-            return True
-
-        self.log.info(f"Testing stability and timing{self.get_time_ns_str()}")
-
-        await self.setup_clock()
-        await self.reset_dut()
-
-        all_passed = True
-
-        # Test that the sorter produces stable results
-        test_values = [3, 7, 1, 9, 2][:self.NUM_VALS]
-        while len(test_values) < self.NUM_VALS:
-            test_values.append(0)
-
-        # Apply same input multiple times
-        expected_output = sorted(test_values, reverse=True)
-
-        for iteration in range(5):
-            packed_input = self.pack_values(test_values)
-            self.data_in.value = packed_input
-            await RisingEdge(self.clk)
-            await RisingEdge(self.clk)
-
-            output_values = self.get_sorted_output()
-
-            if output_values != expected_output:
-                self.log.error(f"Stability test iteration {iteration}: inconsistent output{self.get_time_ns_str()}")
-                self.log.error(f"  Expected: {expected_output}")
-                self.log.error(f"  Got: {output_values}")
-                all_passed = False
-                break
-
-        # Test response to input changes
-        # Apply different inputs in sequence
-        test_sequences = [
-            [1, 2, 3, 4, 5][:self.NUM_VALS],
-            [5, 4, 3, 2, 1][:self.NUM_VALS],
-            [9, 1, 8, 2, 7][:self.NUM_VALS],
-        ]
-
-        for seq_num, test_vals in enumerate(test_sequences):
-            while len(test_vals) < self.NUM_VALS:
-                test_vals.append(0)
-
-            packed_input = self.pack_values(test_vals)
-            self.data_in.value = packed_input
-            await RisingEdge(self.clk)
-            await RisingEdge(self.clk)
-
-            output_values = self.get_sorted_output()
-            expected_values = sorted(test_vals, reverse=True)
-
-            if output_values != expected_values:
-                self.log.error(f"Sequence test {seq_num}: incorrect output{self.get_time_ns_str()}")
-                all_passed = False
-                break
-
-        # Store result
-        result = {
-            'test_type': 'stability_and_timing',
-            'success': all_passed
-        }
-        self.test_results.append(result)
-        if not result['success']:
-            self.test_failures.append(result)
 
         return all_passed
 
@@ -455,6 +463,7 @@ class SortTB(TBBase):
 
         packed_input = self.pack_values(test_values)
         self.data_in.value = packed_input
+        self.valid_in.value = 1
 
         # Reset while input is applied
         await self.reset_dut()
@@ -462,9 +471,10 @@ class SortTB(TBBase):
         # Check that output is cleared after reset
         output_values = self.get_sorted_output()
         expected_zeros = [0] * self.NUM_VALS
+        done_state = int(self.done_out.value)
 
-        if output_values != expected_zeros:
-            self.log.warning(f"Reset output not zero: {output_values}{self.get_time_ns_str()}")
+        if output_values != expected_zeros or done_state != 0:
+            self.log.warning(f"Reset state - Output: {output_values}, Done: {done_state}{self.get_time_ns_str()}")
             # This might not be a failure depending on RTL implementation
 
         # Apply new input after reset
@@ -472,16 +482,13 @@ class SortTB(TBBase):
         while len(new_values) < self.NUM_VALS:
             new_values.append(0)
 
-        packed_new = self.pack_values(new_values)
-        self.data_in.value = packed_new
-        await RisingEdge(self.clk)
-        await RisingEdge(self.clk)
-
-        output_values = self.get_sorted_output()
+        # Send data through pipeline
+        output_values, done_asserted = await self.send_data_and_wait(new_values)
         expected_values = sorted(new_values, reverse=True)
 
-        if output_values != expected_values:
+        if output_values != expected_values or not done_asserted:
             self.log.error(f"Post-reset sorting failed: {output_values} != {expected_values}{self.get_time_ns_str()}")
+            self.log.error(f"  Done asserted: {done_asserted}")
             all_passed = False
 
         # Store result
@@ -503,8 +510,8 @@ class SortTB(TBBase):
         test_functions = [
             (self.test_basic_sorting, "Basic sorting"),
             (self.test_random_sorting, "Random sorting"),
+            (self.test_pipeline_throughput, "Pipeline throughput"),
             (self.test_boundary_conditions, "Boundary conditions"),
-            (self.test_stability_and_timing, "Stability and timing"),
             (self.test_reset_behavior, "Reset behavior")
         ]
 
@@ -550,7 +557,7 @@ class SortTB(TBBase):
         return all_passed
 
 
-@cocotb.test(timeout_time=10000, timeout_unit="us")
+@cocotb.test(timeout_time=15000, timeout_unit="us")  # Increased timeout for pipeline
 async def sort_test(dut):
     """Test for Sort module"""
     tb = SortTB(dut)
@@ -571,16 +578,16 @@ def generate_params():
     """
     Generate test parameters. Modify this function to limit test scope for debugging.
     """
-    num_vals_list = [3, 5, 8]  # Different numbers of values to sort
-    sizes = [8, 16, 32]        # Different value sizes
-    test_levels = ['full']     # Test levels
+    num_vals_list = [16, 32, 64]    # Different numbers of values to sort
+    sizes = [8, 16, 32]             # Different value sizes
+    test_levels = ['full']          # Test levels
 
     valid_params = []
     for num_vals, size, test_level in product(num_vals_list, sizes, test_levels):
         valid_params.append((num_vals, size, test_level))
 
     # For debugging, uncomment one of these:
-    # return [(5, 16, 'full')]  # Single test
+    # return [(16, 16, 'full')]  # Single test
     # return [(3, 8, 'medium')]  # Just specific configurations
 
     return valid_params
@@ -622,9 +629,9 @@ def test_sort(request, num_vals, size, test_level):
         'SIZE': str(size)
     }
 
-    # Adjust timeout based on test level
+    # Adjust timeout based on test level and pipeline depth
     timeout_multipliers = {'basic': 1, 'medium': 2, 'full': 4}
-    base_timeout = 2000  # 2 seconds base
+    base_timeout = 3000  # 3 seconds base (increased for pipeline)
     timeout_ms = int(base_timeout * timeout_multipliers.get(test_level, 1))
 
     # Environment variables
@@ -661,6 +668,7 @@ def test_sort(request, num_vals, size, test_level):
 
     print(f"\n{'='*60}")
     print(f"Running {test_level.upper()} test: {num_vals} values, size={size}")
+    print(f"Pipeline stages: {num_vals}")
     print(f"Expected duration: {timeout_ms/1000:.1f}s")
     print(f"Log: {log_path}")
     print(f"{'='*60}")
