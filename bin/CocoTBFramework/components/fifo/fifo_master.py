@@ -174,7 +174,7 @@ class FIFOMaster(FIFOComponentBase, BusDriver):
         """Phase 2: Drive signals and wait for not full - EXACT WORKING LOGIC"""
         # Drive signals for this transaction - UNIFIED CALL
         if not self._drive_signals(transaction):
-            self.log.error(f"Failed to drive signals for transaction: {transaction.formatted()}")
+            self.log.error(f"Failed to drive signals for transaction: {transaction.formatted(compact=True)}")
             self.transfer_busy = False
             return False
 

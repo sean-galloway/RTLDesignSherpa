@@ -13,7 +13,7 @@ import cocotb
 from cocotb.triggers import Timer, RisingEdge, FallingEdge, ClockCycles
 from cocotb.clock import Clock
 from cocotb.utils import get_sim_time
-from CocoTBFramework.tbclasses.misc.tbbase import TBBase
+from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 
 class DividerTB(TBBase):
     """Base Testbench for various divider implementations

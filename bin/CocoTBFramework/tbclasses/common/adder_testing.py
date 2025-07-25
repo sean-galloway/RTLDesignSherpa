@@ -10,7 +10,7 @@ import itertools
 
 from cocotb.triggers import Timer
 from cocotb.utils import get_sim_time
-from CocoTBFramework.tbclasses.misc.tbbase import TBBase
+from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 
 class AdderTB(TBBase):
     """Base Testbench for various adder implementations

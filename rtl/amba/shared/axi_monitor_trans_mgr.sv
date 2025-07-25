@@ -1,14 +1,12 @@
 `timescale 1ns / 1ps
 
 /**
- * AXI Monitor Bus Transaction Manager
+ * AXI Monitor Bus Transaction Manager - Updated for Generic Monitor Package
  *
  * This module manages the transaction tracking table, tracking each AXI
  * transaction through its lifecycle and handling all of the protocol
  * complexities including out-of-order phase arrivals.
- *
- * When ENABLE_PERF_PACKETS is set, additional performance tracking is enabled.
- * Includes state change detection to support debug functionality.
+ * Updated to work with the enhanced monitor_pkg that supports multiple protocols.
  */
 module axi_monitor_trans_mgr
     import monitor_pkg::*;
@@ -240,6 +238,7 @@ module axi_monitor_trans_mgr
                 if (w_addr_trans_idx < 0 && w_addr_free_idx >= 0) begin
                     // Create new transaction entry immediately when valid asserted
                     r_trans_table[w_addr_free_idx].valid <= 1'b1;
+                    r_trans_table[w_addr_free_idx].protocol <= PROTOCOL_AXI;  // Updated: Set protocol type
                     r_trans_table[w_addr_free_idx].state <= TRANS_ADDR_PHASE;
                     r_trans_table[w_addr_free_idx].id <= '0;
                     r_trans_table[w_addr_free_idx].id[IW-1:0] <= cmd_id;
@@ -256,7 +255,7 @@ module axi_monitor_trans_mgr
                     r_trans_table[w_addr_free_idx].data_started <= 1'b0;
                     r_trans_table[w_addr_free_idx].data_completed <= 1'b0;
                     r_trans_table[w_addr_free_idx].resp_received <= 1'b0;
-                    r_trans_table[w_addr_free_idx].event_code <= EVT_NONE;
+                    r_trans_table[w_addr_free_idx].event_code <= EVT_NONE;  // Updated: Use unified event code
                     r_trans_table[w_addr_free_idx].event_reported <= 1'b0;
                     r_trans_table[w_addr_free_idx].data_timer <= '0;
                     r_trans_table[w_addr_free_idx].resp_timer <= '0;
@@ -265,6 +264,12 @@ module axi_monitor_trans_mgr
                     r_trans_table[w_addr_free_idx].data_beat_count <= '0;
                     r_trans_table[w_addr_free_idx].channel <= 6'(w_addr_chan_idx);
     
+                    // Initialize enhanced tracking fields for AXI protocol
+                    r_trans_table[w_addr_free_idx].eos_seen <= 1'b0;
+                    r_trans_table[w_addr_free_idx].parity_error <= 1'b0;
+                    r_trans_table[w_addr_free_idx].credit_at_start <= 8'h0;
+                    r_trans_table[w_addr_free_idx].retry_count <= 3'h0;
+
                     // Increment active count
                     r_active_count <= r_active_count + 1'b1;
                 end
@@ -336,13 +341,14 @@ module axi_monitor_trans_mgr
                         // Check for data response error
                         if (data_resp[1]) begin
                             r_trans_table[w_data_trans_idx].state <= TRANS_ERROR;
-                            // Properly distinguish between SLVERR and DECERR
-                            r_trans_table[w_data_trans_idx].event_code <= (data_resp[0]) ? EVT_RESP_DECERR : EVT_RESP_SLVERR;
+                            // Updated: Use unified event code with proper AXI event
+                            r_trans_table[w_data_trans_idx].event_code.axi_code <= (data_resp[0]) ? EVT_RESP_DECERR : EVT_RESP_SLVERR;
                         end
                     end else if (IS_AXI && w_data_free_idx >= 0) begin
                         // Orphaned read data - create entry to track it
                         // Create orphaned transaction
                         r_trans_table[w_data_free_idx].valid <= 1'b1;
+                        r_trans_table[w_data_free_idx].protocol <= PROTOCOL_AXI;
                         r_trans_table[w_data_free_idx].state <= TRANS_ORPHANED;
                         r_trans_table[w_data_free_idx].id <= '0;
                         r_trans_table[w_data_free_idx].id[IW-1:0] <= data_id;
@@ -350,7 +356,7 @@ module axi_monitor_trans_mgr
                         r_trans_table[w_data_free_idx].data_completed <= data_last;
                         r_trans_table[w_data_free_idx].data_beat_count <= 8'h1;
                         r_trans_table[w_data_free_idx].data_timestamp <= timestamp;
-                        r_trans_table[w_data_free_idx].event_code <= EVT_DATA_ORPHAN;
+                        r_trans_table[w_data_free_idx].event_code.axi_code <= EVT_DATA_ORPHAN;
                         /* verilator lint_off WIDTHTRUNC */
                         r_trans_table[w_data_free_idx].channel <= 6'(({24'h0, data_id} % 64));
                         /* verilator lint_on WIDTHTRUNC */
@@ -389,6 +395,7 @@ module axi_monitor_trans_mgr
                         // For AXI-Lite, create an orphaned entry for data-before-address
                         // Create orphaned transaction
                         r_trans_table[w_data_free_idx].valid <= 1'b1;
+                        r_trans_table[w_data_free_idx].protocol <= PROTOCOL_AXI;
                         r_trans_table[w_data_free_idx].state <= TRANS_ORPHANED;
                         r_trans_table[w_data_free_idx].id <= '0; // No ID for AXI-Lite
                         r_trans_table[w_data_free_idx].data_started <= 1'b1;
@@ -396,7 +403,7 @@ module axi_monitor_trans_mgr
                         r_trans_table[w_data_free_idx].data_beat_count <= 8'h1;
                         r_trans_table[w_data_free_idx].expected_beats <= 8'h1; // AXI-Lite is single beat
                         r_trans_table[w_data_free_idx].data_timestamp <= timestamp;
-                        r_trans_table[w_data_free_idx].event_code <= EVT_DATA_ORPHAN;
+                        r_trans_table[w_data_free_idx].event_code.axi_code <= EVT_DATA_ORPHAN;
                         r_trans_table[w_data_free_idx].channel <= 6'h0; // AXI-Lite always channel 0
 
                         // Increment active count
@@ -429,8 +436,8 @@ module axi_monitor_trans_mgr
                             // Check for response error
                             if (resp_code[1]) begin
                                 r_trans_table[w_resp_trans_idx].state <= TRANS_ERROR;
-                                // Properly distinguish between SLVERR and DECERR
-                                r_trans_table[w_resp_trans_idx].event_code <= (resp_code[0]) ? EVT_RESP_DECERR : EVT_RESP_SLVERR;
+                                // Updated: Use unified event code with proper AXI event
+                                r_trans_table[w_resp_trans_idx].event_code.axi_code <= (resp_code[0]) ? EVT_RESP_DECERR : EVT_RESP_SLVERR;
                             end else if (r_trans_table[w_resp_trans_idx].data_completed) begin
                                 // Transaction completed successfully
                                 if (r_trans_table[w_resp_trans_idx].state != TRANS_ERROR) begin
@@ -444,23 +451,24 @@ module axi_monitor_trans_mgr
                             end else if (r_trans_table[w_resp_trans_idx].data_started) begin
                                 // Response received before data completion (protocol violation)
                                 r_trans_table[w_resp_trans_idx].state <= TRANS_ERROR;
-                                r_trans_table[w_resp_trans_idx].event_code <= EVT_PROTOCOL;
+                                r_trans_table[w_resp_trans_idx].event_code.axi_code <= EVT_PROTOCOL;
                             end else begin
                                 // Response received before data started (protocol violation)
                                 r_trans_table[w_resp_trans_idx].state <= TRANS_ERROR;
-                                r_trans_table[w_resp_trans_idx].event_code <= EVT_PROTOCOL;
+                                r_trans_table[w_resp_trans_idx].event_code.axi_code <= EVT_PROTOCOL;
                             end
                         end else if (w_resp_free_idx >= 0) begin
                             if (IS_AXI) begin
                                 // Orphaned response (no matching transaction) - create entry
                                 // Create orphaned transaction
                                 r_trans_table[w_resp_free_idx].valid <= 1'b1;
+                                r_trans_table[w_resp_free_idx].protocol <= PROTOCOL_AXI;
                                 r_trans_table[w_resp_free_idx].state <= TRANS_ORPHANED;
                                 r_trans_table[w_resp_free_idx].id <= '0;
                                 r_trans_table[w_resp_free_idx].id[IW-1:0] <= resp_id;
                                 r_trans_table[w_resp_free_idx].resp_received <= 1'b1;
                                 r_trans_table[w_resp_free_idx].resp_timestamp <= timestamp;
-                                r_trans_table[w_resp_free_idx].event_code <= EVT_RESP_ORPHAN;
+                                r_trans_table[w_resp_free_idx].event_code.axi_code <= EVT_RESP_ORPHAN;
                                 /* verilator lint_off WIDTHTRUNC */
                                 r_trans_table[w_resp_free_idx].channel <= 6'(resp_id % 64);
                                 /* verilator lint_on WIDTHTRUNC */
@@ -468,11 +476,12 @@ module axi_monitor_trans_mgr
                                 // For AXI-Lite, orphaned response
                                 // Create orphaned transaction
                                 r_trans_table[w_resp_free_idx].valid <= 1'b1;
+                                r_trans_table[w_resp_free_idx].protocol <= PROTOCOL_AXI;
                                 r_trans_table[w_resp_free_idx].state <= TRANS_ORPHANED;
                                 r_trans_table[w_resp_free_idx].id <= '0; // No ID for AXI-Lite
                                 r_trans_table[w_resp_free_idx].resp_received <= 1'b1;
                                 r_trans_table[w_resp_free_idx].resp_timestamp <= timestamp;
-                                r_trans_table[w_resp_free_idx].event_code <= EVT_RESP_ORPHAN;
+                                r_trans_table[w_resp_free_idx].event_code.axi_code <= EVT_RESP_ORPHAN;
                                 r_trans_table[w_resp_free_idx].channel <= 6'h0; // AXI-Lite always channel 0
                             end
 

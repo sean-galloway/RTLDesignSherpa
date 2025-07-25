@@ -7,7 +7,7 @@ with support for configurable signal names and multiple clock domains.
 
 import cocotb
 from cocotb.triggers import RisingEdge, FallingEdge, Timer
-from CocoTBFramework.tbclasses.misc.tbbase import TBBase
+from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 
 
 class AxiClockGateCtrl(TBBase):

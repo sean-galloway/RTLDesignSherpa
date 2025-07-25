@@ -1,0 +1,55 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Sun Jul 20 18:53:01 2025
+[*]
+[dumpfile] "(null)"
+[savefile] "/home/seang/github/RTLDesignSherpa/val/common/GTKW/arbiter_round_robin_weighted.gtkw"
+[timestart] 108200
+[size] 2612 1544
+[pos] 17 100
+*-15.641221 210000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[sst_width] 401
+[signals_width] 271
+[sst_expanded] 1
+[sst_vpaned_height] 698
+@420
+arbiter_round_robin.CLIENTS
+arbiter_round_robin.WAIT_GNT_ACK
+@28
+arbiter_round_robin.clk
+arbiter_round_robin.rst_n
+arbiter_round_robin.block_arb
+@202
+-inputs
+@22
+arbiter_round_robin.req[3:0]
+arbiter_round_robin.grant_ack[3:0]
+@202
+-outputs
+@22
+arbiter_round_robin.grant_valid
+@23
+arbiter_round_robin.grant_id[1:0]
+@22
+arbiter_round_robin.gnt[3:0]
+arbiter_round_robin.last_grant[3:0]
+@202
+-flops
+@22
+arbiter_round_robin.r_mask[3:0]
+arbiter_round_robin.r_win_mask_only[3:0]
+@202
+-wires
+@22
+arbiter_round_robin.w_req_location[1:0]
+arbiter_round_robin.w_req_masked[3:0]
+arbiter_round_robin.w_req_post[3:0]
+arbiter_round_robin.w_req_win_mask[3:0]
+arbiter_round_robin.w_reqm_location[1:0]
+arbiter_round_robin.w_vld_ffs_req
+arbiter_round_robin.w_vld_ffs_reqm
+arbiter_round_robin.w_win_vld
+arbiter_round_robin.w_winner[1:0]
+[pattern_trace] 1
+[pattern_trace] 0

@@ -18,7 +18,7 @@ Key improvements:
 import os
 import random
 
-from CocoTBFramework.tbclasses.misc.tbbase import TBBase
+from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.components.shared.field_config import FieldConfig, FieldDefinition
 from CocoTBFramework.components.shared.flex_config_gen import FlexConfigGen
 
@@ -106,7 +106,7 @@ class GaxiFieldBufferTB(TBBase):
         })
 
         # Create proper FieldConfig with FieldDefinition objects
-        self.field_config = FieldConfig()
+        self.field_config = FieldConfig(lsb_first=True)
 
         # Add fields with proper bit assignments for field-based testing
         self.field_config.add_field(FieldDefinition(

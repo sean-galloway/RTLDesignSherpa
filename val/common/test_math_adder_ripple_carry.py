@@ -7,7 +7,7 @@ import subprocess
 import pytest
 import cocotb
 from cocotb_test.simulator import run
-from CocoTBFramework.tbclasses.misc.utilities import get_paths, create_view_cmd
+from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
 # Import the base AdderTB class
 from CocoTBFramework.tbclasses.common.adder_testing import AdderTB

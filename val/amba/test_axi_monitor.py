@@ -22,8 +22,8 @@ import pytest
 import cocotb
 from cocotb_test.simulator import run
 
-from CocoTBFramework.tbclasses.misc.tbbase import TBBase
-from CocoTBFramework.tbclasses.misc.utilities import get_paths, create_view_cmd
+from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.axi_monitor.axi_monitor_tb import AXIMonitorTB
 
 
@@ -52,7 +52,7 @@ async def axi_monitor_test(dut):
 
     protocol_str = "AXI4" if is_axi4 else "AXI-Lite"
     monitor_type = "READ" if is_read else "WRITE"
-    
+
     tb.log.info(f"Starting {test_level.upper()} {protocol_str} {monitor_type} monitor test...")
     tb.log.info(f"Parameters: IW={tb.IW}, AW={tb.AW}, DW={tb.DW}, UW={tb.UW}")
     tb.log.info(f"Max Transactions={tb.MAX_TRANSACTIONS}, Unit ID={tb.UNIT_ID}, Agent ID={tb.AGENT_ID}")
@@ -68,7 +68,7 @@ async def axi_monitor_test(dut):
 
 def generate_test_params():
     """Generate comprehensive test parameter combinations"""
-    
+
     # Test configurations based on complexity
     basic_params = {
         'iw': [8],
@@ -82,7 +82,7 @@ def generate_test_params():
         'agent_id': [99],
         'test_levels': ['basic']
     }
-    
+
     medium_params = {
         'iw': [4, 8, 12],
         'aw': [32, 40],
@@ -95,7 +95,7 @@ def generate_test_params():
         'agent_id': [99, 127],
         'test_levels': ['medium']
     }
-    
+
     full_params = {
         'iw': [4, 8, 12, 16],
         'aw': [32, 40, 48],
@@ -108,10 +108,10 @@ def generate_test_params():
         'agent_id': [99, 127, 255],
         'test_levels': ['full']
     }
-    
+
     # Determine which test level to run
     test_level = 'basic'
-    
+
     if test_level == 'basic':
         params = basic_params
     elif test_level == 'medium':
@@ -121,11 +121,11 @@ def generate_test_params():
     else:
         print(f"Warning: Unknown test level '{test_level}', using 'basic'")
         params = basic_params
-    
+
     # Generate all combinations
     combinations = list(product(
         params['iw'],
-        params['aw'], 
+        params['aw'],
         params['dw'],
         params['uw'],
         params['max_transactions'],
@@ -135,18 +135,18 @@ def generate_test_params():
         params['agent_id'],
         params['test_levels']
     ))
-    
+
     # For quick testing, limit combinations in basic mode
     if test_level == 'basic':
         # Select a representative subset
         combinations = combinations[:4]  # First 4 combinations
     elif test_level == 'medium':
         combinations = combinations[:16]  # First 16 combinations
-    
+
     return combinations
 
 
-@pytest.mark.parametrize("iw, aw, dw, uw, max_transactions, is_read, is_axi, unit_id, agent_id, test_level", 
+@pytest.mark.parametrize("iw, aw, dw, uw, max_transactions, is_read, is_axi, unit_id, agent_id, test_level",
                             generate_test_params())
 def test_axi_monitor(request, iw, aw, dw, uw, max_transactions, is_read, is_axi, unit_id, agent_id, test_level):
     """Test AXI monitor with parametrized configurations"""
@@ -155,7 +155,7 @@ def test_axi_monitor(request, iw, aw, dw, uw, max_transactions, is_read, is_axi,
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_cmn':           'rtl/common',
         'rtl_gaxi':          'rtl/amba/gaxi',
-        'rtl_amba_shared':  'rtl/amba/shared',
+        'rtl_amba_shared':   'rtl/amba/shared',
         'rtl_amba_includes': 'rtl/amba/includes',
     })
 
@@ -170,7 +170,7 @@ def test_axi_monitor(request, iw, aw, dw, uw, max_transactions, is_read, is_axi,
     mt_str = TBBase.format_dec(max_transactions, 2)
     protocol_str = "axi4" if is_axi else "axil"
     monitor_type = "rd" if is_read else "wr"
-    
+
     test_name_plus_params = (f"test_axi_monitor_"
                             f"iw{iw_str}_aw{aw_str}_dw{dw_str}_uw{uw_str}_"
                             f"mt{mt_str}_{protocol_str}_{monitor_type}_"
@@ -189,17 +189,17 @@ def test_axi_monitor(request, iw, aw, dw, uw, max_transactions, is_read, is_axi,
         os.path.join(rtl_dict['rtl_cmn'], "counter_load_clear.sv"),
         os.path.join(rtl_dict['rtl_cmn'], "counter_freq_invariant.sv"),
         os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
-        
+
         # GAXI dependencies
         os.path.join(rtl_dict['rtl_gaxi'], "gaxi_fifo_sync.sv"),
-        
+
         # Monitor-specific files (based on the document structure)
         os.path.join(rtl_dict['rtl_amba_includes'], "monitor_pkg.sv"),
         os.path.join(rtl_dict['rtl_amba_shared'],   "axi_monitor_timer.sv"),
         os.path.join(rtl_dict['rtl_amba_shared'],   "axi_monitor_timeout.sv"),
         os.path.join(rtl_dict['rtl_amba_shared'],   "axi_monitor_trans_mgr.sv"),
         os.path.join(rtl_dict['rtl_amba_shared'],   "axi_monitor_reporter.sv"),
-        
+
         # Main DUT
         os.path.join(rtl_dict['rtl_amba_shared'], f"{dut_name}.sv")
     ]
@@ -213,17 +213,17 @@ def test_axi_monitor(request, iw, aw, dw, uw, max_transactions, is_read, is_axi,
         'ADDR_WIDTH': str(aw),
         'ID_WIDTH': str(iw),
         'ADDR_BITS_IN_PKT': str(min(aw, 38)),  # Limited by interrupt packet format
-        
+
         # Configuration options
         'IS_READ': str(is_read),
         'IS_AXI': str(is_axi),
         'ENABLE_PERF_PACKETS': '1',
         'ENABLE_DEBUG_MODULE': '1',
-        
+
         # FIFO depths
         'INTR_FIFO_DEPTH': '8',
         'DEBUG_FIFO_DEPTH': '8',
-        
+
         # Short names for convenience
         'AW': str(aw),
         'IW': str(iw),
@@ -237,8 +237,8 @@ def test_axi_monitor(request, iw, aw, dw, uw, max_transactions, is_read, is_axi,
     id_complexity = max(1.0, iw / 8.0)  # More IDs = more complex
     transaction_complexity = max(1.0, max_transactions / 16.0)  # More transactions = more complex
     protocol_complexity = 1.5 if is_axi else 1.0  # AXI4 is more complex than AXI-Lite
-    
-    total_complexity = (complexity_factor * id_complexity * 
+
+    total_complexity = (complexity_factor * id_complexity *
                        transaction_complexity * protocol_complexity)
     timeout_s = int(30 * total_complexity)  # Base 30s timeout
 
@@ -266,7 +266,7 @@ def test_axi_monitor(request, iw, aw, dw, uw, max_transactions, is_read, is_axi,
         'TEST_AGENT_ID': str(agent_id),
         'TEST_CLOCK_PERIOD': '10',  # 10ns = 100MHz
         'TEST_TIMEOUT_CYCLES': '1000',
-        
+
         # Safety limits for complex tests
         'TB_MAX_DURATION_MIN': str(timeout_s // 60 + 1),
         'TB_MAX_MEMORY_MB': '4096',
@@ -277,7 +277,7 @@ def test_axi_monitor(request, iw, aw, dw, uw, max_transactions, is_read, is_axi,
     includes = [os.path.join(rtl_dict['rtl_amba_includes'])]
     compile_args = [
         "--trace-fst",
-        "--trace-structs", 
+        "--trace-structs",
         "--trace-depth", "99",
         "-Wall",
         "-Wno-UNUSED",
@@ -297,7 +297,7 @@ def test_axi_monitor(request, iw, aw, dw, uw, max_transactions, is_read, is_axi,
 
     protocol_name = "AXI4" if is_axi else "AXI-Lite"
     monitor_name = "READ" if is_read else "WRITE"
-    
+
     print(f"\n{'='*80}")
     print(f"Running {test_level.upper()} {protocol_name} {monitor_name} Monitor test")
     print(f"Parameters: IW={iw}, AW={aw}, DW={dw}, UW={uw}")

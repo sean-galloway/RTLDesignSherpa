@@ -26,7 +26,7 @@ import cocotb
 from cocotb.triggers import RisingEdge, Timer
 from cocotb.utils import get_sim_time
 
-from CocoTBFramework.tbclasses.misc.tbbase import TBBase
+from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.gaxi.gaxi_master import GAXIMaster
 from CocoTBFramework.components.gaxi.gaxi_slave import GAXISlave

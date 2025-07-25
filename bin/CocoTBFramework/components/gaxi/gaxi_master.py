@@ -185,7 +185,7 @@ class GAXIMaster(GAXIComponentBase, BusDriver):
         Maintains exact cocotb driver interface and timing.
         """
         # Add transaction to queue
-        self.log.debug(f'Master({self.title}): Adding transaction to queue: {transaction}')
+        self.log.debug(f'Master({self.title}): Adding transaction to queue: {transaction.formatted(compact=True)}')
         self.transmit_queue.append(transaction)
         
         self._log_pipeline_transition("idle", "queued", "transaction added", 
@@ -319,7 +319,7 @@ class GAXIMaster(GAXIComponentBase, BusDriver):
         
         # Drive signals for this transaction
         if not self._drive_signals(transaction):
-            self.log.error(f"Failed to drive signals for transaction: {transaction.formatted()}")
+            self.log.error(f"Failed to drive signals for transaction: {transaction.formatted(compact=True)}")
             self.phase_statistics['error_count'] += 1
             return False
 

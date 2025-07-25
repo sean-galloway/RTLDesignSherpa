@@ -10,6 +10,7 @@ FIXED: Now passes resolved signals directly to DataStrategies, eliminating guess
 ADDED: Optional signal_map parameter for manual signal mapping override.
 """
 
+from cocotb.utils import get_sim_time
 from ..shared.field_config import FieldConfig
 from ..shared.signal_mapping_helper import SignalResolver
 from ..shared.data_strategies import DataCollectionStrategy, DataDrivingStrategy
@@ -239,7 +240,8 @@ class GAXIComponentBase:
             True if successful, False otherwise
         """
         if self.data_driver:
-            self.log.debug(f"Driving transaction: {transaction}")
+            current_time = get_sim_time('ns')
+            self.log.debug(f"Driving transaction @ {current_time}ns: {transaction.formatted(compact=True)}")
             return self.data_driver.drive_transaction(transaction)
         return False
 

@@ -11,7 +11,7 @@ Key fixes:
 import os
 import random
 
-from CocoTBFramework.tbclasses.misc.tbbase import TBBase
+from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.components.shared.field_config import FieldConfig, FieldDefinition
 from CocoTBFramework.components.shared.flex_config_gen import FlexConfigGen
 
@@ -137,7 +137,7 @@ class GaxiMultiSigMapBufferTB(TBBase):
         })
 
         # Create normalized field configuration
-        self.field_config = FieldConfig.validate_and_create(base_config)
+        self.field_config = FieldConfig.validate_and_create(field_dict=base_config, lsb_first=True)
 
         # Update field widths from test parameters
         self.field_config.update_field_width('addr', self.AW)

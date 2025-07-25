@@ -14,7 +14,7 @@ import time
 import cocotb
 from collections import deque
 
-from CocoTBFramework.tbclasses.misc.tbbase import TBBase
+from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.components.shared.field_config import FieldConfig, FieldDefinition
 from CocoTBFramework.components.fifo.fifo_packet import FIFOPacket
 from CocoTBFramework.components.fifo.fifo_master import FIFOMaster
@@ -22,7 +22,7 @@ from CocoTBFramework.components.fifo.fifo_slave import FIFOSlave
 from CocoTBFramework.components.fifo.fifo_monitor import FIFOMonitor
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 from CocoTBFramework.components.shared.flex_config_gen import FlexConfigGen
-from CocoTBFramework.components.misc.arbiter_monitor import WeightedRoundRobinArbiterMonitor
+from CocoTBFramework.components.shared.arbiter_monitor import WeightedRoundRobinArbiterMonitor
 
 
 # [DataCollectScoreboard class remains unchanged - no randomization logic]
@@ -37,12 +37,12 @@ class DataCollectScoreboard:
 
         # Convert to FieldConfig if received as dictionaries
         if isinstance(input_field_config, dict):
-            self.input_field_config = FieldConfig.validate_and_create(input_field_config)
+            self.input_field_config = FieldConfig.validate_and_create(input_field_config, lsb_first=True)
         else:
             self.input_field_config = input_field_config
 
         if isinstance(output_field_config, dict):
-            self.output_field_config = FieldConfig.validate_and_create(output_field_config)
+            self.output_field_config = FieldConfig.validate_and_create(output_field_config, lsb_first=True)
         else:
             self.output_field_config = output_field_config
 
@@ -463,7 +463,7 @@ class DataCollectTB(TBBase):
         ))
 
         # Define field configuration for output channel (id + CHUNKS data fields)
-        self.output_field_config = FieldConfig()
+        self.output_field_config = FieldConfig(lsb_first=True)
 
         for i in range(self.CHUNKS):
             self.output_field_config.add_field(FieldDefinition(

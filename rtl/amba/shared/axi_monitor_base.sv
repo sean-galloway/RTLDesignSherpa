@@ -1,9 +1,10 @@
 `timescale 1ns / 1ps
 /**
- * AXI Monitor Bus Base Module
+ * AXI Monitor Bus Base Module - Updated for Generic Monitor Package
  *
  * This module provides a robust implementation for tracking AXI/AXI-Lite
  * transactions and reporting events and errors through the monitor bus.
+ * Updated to work with the enhanced monitor_pkg that supports multiple protocols.
  *
  * Features:
  * - Transaction-based tracking for both AXI and AXI-Lite
@@ -12,37 +13,7 @@
  * - Complete protocol compliance
  * - Consolidated 64-bit event packet output for system event bus
  * - Optional performance metrics tracking
-
-### Assumption 1: Address is always aligned to the data bus width
-**Assumption**: All AXI transactions are aligned to the data bus width.
-
-- **Implication**: `AxADDRESS` is always set to match the data bus width
-    - if DATA_WIDTH = 512bits, `AxADDRESS` is always 64-byte aligned
-
-### Assumption 2: Fixed Transfer Size
-**Assumption**: All AXI transfers use the maximum transfer size equal to the bus width.
-
-- **Implication**: `AxSIZE` is always set to match the data bus width
-- **Rationale**: Maximizes bus utilization and simplifies address alignment
-- **Implementation**:
-    - 32-bit bus → `AxSIZE = 3'b010` (4 bytes)
-    - 64-bit bus → `AxSIZE = 3'b011` (8 bytes)
-    - 128-bit bus → `AxSIZE = 3'b100` (16 bytes)
-
-### Assumption 3: Incrementing Bursts Only
-**Assumption**: All AXI bursts use incrementing address mode (`AxBURST = 2'b01`).
-
-- **Implication**: No FIXED (`2'b00`) or WRAP (`2'b10`) bursts supported
-- **Rationale**: Simplifies address generation logic and covers most use cases
-- **Benefit**: Eliminates wrap boundary calculations and fixed address handling
-
-### Assumption 4: No Address Wraparound
-**Assumption**: Transactions never wrap around the top of address space (0xFFFFFFFF -> 0x00000000).
-
-- **Implication**: No wraparound handling in boundary crossing logic
-- **Rationale**: Real systems never allow this condition due to memory layout and software design
-- **Benefit**: Dramatically simplified boundary crossing detection logic
-
+ * - Updated for multi-protocol monitor package
  */
 module axi_monitor_base
 #(
@@ -220,10 +191,10 @@ module axi_monitor_base
         .aresetn             (aresetn),
         .trans_table         (w_trans_table),
         .timer_tick          (w_timer_tick),
-        .cfg_addr_cnt      (cfg_addr_cnt),
-        .cfg_data_cnt      (cfg_data_cnt),
-        .cfg_resp_cnt      (cfg_resp_cnt),
-        .cfg_timeout_enable(cfg_timeout_enable),
+        .cfg_addr_cnt        (cfg_addr_cnt),
+        .cfg_data_cnt        (cfg_data_cnt),
+        .cfg_resp_cnt        (cfg_resp_cnt),
+        .cfg_timeout_enable  (cfg_timeout_enable),
         .timeout_detected    (w_timeout_detected)
     );
 
@@ -240,12 +211,12 @@ module axi_monitor_base
         .aclk                  (aclk),
         .aresetn               (aresetn),
         .trans_table           (w_trans_table),
-        .cfg_error_enable    (cfg_error_enable),
-        .cfg_compl_enable    (cfg_compl_enable),
-        .cfg_threshold_enable(cfg_threshold_enable),
-        .cfg_timeout_enable  (cfg_timeout_enable),
-        .cfg_perf_enable     (cfg_perf_enable),
-        .cfg_debug_enable    (cfg_debug_enable),
+        .cfg_error_enable      (cfg_error_enable),
+        .cfg_compl_enable      (cfg_compl_enable),
+        .cfg_threshold_enable  (cfg_threshold_enable),
+        .cfg_timeout_enable    (cfg_timeout_enable),
+        .cfg_perf_enable       (cfg_perf_enable),
+        .cfg_debug_enable      (cfg_debug_enable),
         .monbus_ready          (monbus_ready),
         .monbus_valid          (w_reporter_monbus_valid),
         .monbus_packet         (w_reporter_monbus_packet),

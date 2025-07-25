@@ -3,6 +3,8 @@ APB-GAXI Configuration Module
 
 This module provides configurable APB-GAXI interface configurations using the FieldConfig
 framework. It supports parameterized field configurations and signal mappings.
+
+UPDATED: All field additions reversed to use MSB-first ordering scheme.
 """
 
 from typing import Dict, Any, Optional
@@ -35,51 +37,11 @@ class APBGAXIConfig:
         Create command interface field configuration.
 
         Returns:
-            FieldConfig with cmd, addr, data, and strb fields
+            FieldConfig with cmd, addr, data, and strb fields in MSB-first order
         """
         config = FieldConfig()
 
-        # pwrite field - 1 bit indicating read (0) or write (1)
-        config.add_field(FieldDefinition(
-            name="pwrite",
-            bits=1,
-            default=0,
-            format="dec",
-            description="Write enable (0=read, 1=write)",
-            encoding={0: "READ", 1: "WRITE"}
-        ))
-
-        # paddr field - address field
-        config.add_field(FieldDefinition(
-            name="paddr",
-            bits=self.addr_width,
-            default=0,
-            format="hex",
-            display_width=(self.addr_width + 3) // 4,  # Hex digits needed
-            description=f"Address ({self.addr_width}-bit)"
-        ))
-
-        # pwdata field - write data
-        config.add_field(FieldDefinition(
-            name="pwdata",
-            bits=self.data_width,
-            default=0,
-            format="hex",
-            display_width=(self.data_width + 3) // 4,  # Hex digits needed
-            description=f"Write data ({self.data_width}-bit)"
-        ))
-
-        # pstrb field - byte strobes
-        config.add_field(FieldDefinition(
-            name="pstrb",
-            bits=self.strb_width,
-            default=(1 << self.strb_width) - 1,  # All strobes enabled by default
-            format="bin",
-            display_width=self.strb_width,
-            description=f"Byte strobes ({self.strb_width}-bit)"
-        ))
-
-        # pprot field - protection attributes
+        # REVERSED ORDER: pprot field first (gets MSB positions)
         prot_width = 3
         config.add_field(FieldDefinition(
             name="pprot",
@@ -100,6 +62,46 @@ class APBGAXIConfig:
             } if prot_width >= 3 else None
         ))
 
+        # pstrb field - byte strobes
+        config.add_field(FieldDefinition(
+            name="pstrb",
+            bits=self.strb_width,
+            default=(1 << self.strb_width) - 1,  # All strobes enabled by default
+            format="bin",
+            display_width=self.strb_width,
+            description=f"Byte strobes ({self.strb_width}-bit)"
+        ))
+
+        # pwdata field - write data
+        config.add_field(FieldDefinition(
+            name="pwdata",
+            bits=self.data_width,
+            default=0,
+            format="hex",
+            display_width=(self.data_width + 3) // 4,  # Hex digits needed
+            description=f"Write data ({self.data_width}-bit)"
+        ))
+
+        # paddr field - address field
+        config.add_field(FieldDefinition(
+            name="paddr",
+            bits=self.addr_width,
+            default=0,
+            format="hex",
+            display_width=(self.addr_width + 3) // 4,  # Hex digits needed
+            description=f"Address ({self.addr_width}-bit)"
+        ))
+
+        # pwrite field - 1 bit indicating read (0) or write (1) (gets LSB position)
+        config.add_field(FieldDefinition(
+            name="pwrite",
+            bits=1,
+            default=0,
+            format="dec",
+            description="Write enable (0=read, 1=write)",
+            encoding={0: "READ", 1: "WRITE"}
+        ))
+
         return config
 
     def create_rsp_field_config(self) -> FieldConfig:
@@ -107,21 +109,11 @@ class APBGAXIConfig:
         Create response interface field configuration.
 
         Returns:
-            FieldConfig with data and err fields
+            FieldConfig with data and err fields in MSB-first order
         """
         config = FieldConfig()
 
-        # prdata field - read data
-        config.add_field(FieldDefinition(
-            name="prdata",
-            bits=self.data_width,
-            default=0,
-            format="hex",
-            display_width=(self.data_width + 3) // 4,  # Hex digits needed
-            description=f"Read data ({self.data_width}-bit)"
-        ))
-
-        # pslverr field - slave error
+        # REVERSED ORDER: pslverr field first (gets MSB position)
         config.add_field(FieldDefinition(
             name="pslverr",
             bits=1,
@@ -129,6 +121,16 @@ class APBGAXIConfig:
             format="dec",
             description="Slave error (0=OK, 1=ERROR)",
             encoding={0: "OK", 1: "ERROR"}
+        ))
+
+        # prdata field - read data (gets LSB positions)
+        config.add_field(FieldDefinition(
+            name="prdata",
+            bits=self.data_width,
+            default=0,
+            format="hex",
+            display_width=(self.data_width + 3) // 4,  # Hex digits needed
+            description=f"Read data ({self.data_width}-bit)"
         ))
 
         return config

@@ -28,7 +28,8 @@ import cocotb
 from cocotb.triggers import RisingEdge, Timer, FallingEdge
 from cocotb.utils import get_sim_time
 
-from CocoTBFramework.tbclasses.misc.tbbase import TBBase
+from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from CocoTBFramework.tbclasses.monbus.monbus_components import MonbusProtocol
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.shared.flex_config_gen import quick_config
 
@@ -42,7 +43,7 @@ from .axi_monitor_packets import (
     create_axi_write_data_field_config, create_axi_write_response_field_config
 )
 from .ready_controller import ReadyController
-from ..misc.monbus_components import MonbusSlave
+from ..monbus.monbus_components import MonbusSlave
 
 
 class AXITransactionContext:
@@ -260,6 +261,7 @@ class AXIMonitorTB(TBBase):
             clock=self.dut.aclk,
             expected_unit_id=self.UNIT_ID,
             expected_agent_id=self.AGENT_ID,
+            expected_protocol=MonbusProtocol.AXI,  # NEW: Expect AXI protocol
             timeout_cycles=self.TIMEOUT_CYCLES,
             log=self.log,
             super_debug=self.super_debug

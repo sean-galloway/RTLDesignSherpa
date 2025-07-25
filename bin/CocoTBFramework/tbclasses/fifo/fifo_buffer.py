@@ -10,7 +10,7 @@ import os
 import random
 import cocotb
 
-from CocoTBFramework.tbclasses.misc.tbbase import TBBase
+from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.components.shared.field_config import FieldConfig
 
 from CocoTBFramework.components.fifo.fifo_packet import FIFOPacket
@@ -73,7 +73,7 @@ class FifoBufferTB(TBBase):
         self.randomizer_manager = self._create_robust_randomizer_manager()
 
         # Define field configuration with correct data width
-        self.field_config = FieldConfig.from_dict({'data': {'bits': self.DW, 'default': 0}})
+        self.field_config = FieldConfig.from_dict(field_dict={'data': {'bits': self.DW, 'default': 0}}, lsb_first=True)
 
         self.log.debug(f"\n{self.field_config}")
 

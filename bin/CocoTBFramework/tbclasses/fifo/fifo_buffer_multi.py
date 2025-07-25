@@ -10,7 +10,7 @@ import os
 import random
 import cocotb
 
-from CocoTBFramework.tbclasses.misc.tbbase import TBBase
+from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.components.shared.field_config import FieldConfig
 
 from CocoTBFramework.components.fifo.fifo_packet import FIFOPacket
@@ -89,7 +89,7 @@ class FifoMultiBufferTB(TBBase):
         self.randomizer_manager = self._create_robust_randomizer_manager()
 
         # Create field configuration
-        self.field_config = FieldConfig.from_dict(FIELD_CONFIGS['field'])
+        self.field_config = FieldConfig.from_dict(field_dict=FIELD_CONFIGS['field'], lsb_first=True)
         self.field_config.update_field_width('addr', self.AW)
         self.field_config.update_field_width('ctrl', self.CW)
         self.field_config.update_field_width('data0', self.DW)

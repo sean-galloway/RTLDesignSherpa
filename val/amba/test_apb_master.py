@@ -19,9 +19,9 @@ from CocoTBFramework.components.gaxi.gaxi_factories import \
 from CocoTBFramework.tbclasses.apb.apbgaxiconfig import APBGAXIConfig
 # from CocoTBFramework.scoreboards.apb_gaxi_scoreboard import APBGAXIScoreboard  # Use improved version below
 from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
-from CocoTBFramework.tbclasses.misc.tbbase import TBBase
+from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.amba.amba_random_configs import APB_SLAVE_RANDOMIZER_CONFIGS, AXI_RANDOMIZER_CONFIGS
-from CocoTBFramework.tbclasses.misc.utilities import get_paths, create_view_cmd
+from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
 # NOTE: Use the improved APBGAXIScoreboard from the artifact above instead of the original
 # Replace the import above with your improved scoreboard once it's integrated

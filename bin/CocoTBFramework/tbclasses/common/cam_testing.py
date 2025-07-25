@@ -2,7 +2,7 @@ import os
 import random
 
 from cocotb.utils import get_sim_time
-from CocoTBFramework.tbclasses.misc.tbbase import TBBase
+from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 
 
 class CamTB(TBBase):

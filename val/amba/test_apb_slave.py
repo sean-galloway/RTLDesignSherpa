@@ -17,13 +17,13 @@ from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master, c
 from CocoTBFramework.components.gaxi.gaxi_command_handler import GAXICommandHandler
 from CocoTBFramework.tbclasses.apb.apbgaxiconfig import APBGAXIConfig
 from CocoTBFramework.scoreboards.apb_gaxi_scoreboard import APBGAXIScoreboard
-from CocoTBFramework.tbclasses.misc.tbbase import TBBase
+from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.amba.amba_random_configs import (
     APB_MASTER_RANDOMIZER_CONFIGS,
     APB_SLAVE_RANDOMIZER_CONFIGS,
     AXI_RANDOMIZER_CONFIGS
 )
-from CocoTBFramework.tbclasses.misc.utilities import get_paths, create_view_cmd
+from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
 
 class APBGAXIDebugTB(TBBase):
@@ -171,12 +171,17 @@ class APBGAXIDebugTB(TBBase):
 
         try:
             self.rsp_master = create_gaxi_master(
-                self.dut, 'RSP Master', '', self.dut.pclk,
+                self.dut,
+                'RSP Master',
+                '',
+                self.dut.pclk,
                 field_config=self.rsp_field_config,
                 pkt_prefix='rsp',
                 randomizer=FlexRandomizer(AXI_RANDOMIZER_CONFIGS['fixed']['master']),
                 memory_model=None,
-                log=self.log, super_debug=True, multi_sig=True
+                log=self.log,
+                super_debug=True,
+                multi_sig=True
             )
             self.log.info("✓ RSP Master created")
 

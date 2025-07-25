@@ -1,18 +1,15 @@
 """
-AXI4/AXIL Monitor Packet Definitions - Clean Implementation
+AXI4/AXIL Monitor Packet Definitions - FIXED FORWARD REFERENCES
 
-Comprehensive packet classes for AXI monitor verification, supporting:
-- AXI4 and AXI-Lite transactions (AR, AW, R, W, B channels)
-- Monitor interrupt bus packets
-- Configuration and status packets
-- Error and event reporting
-- Performance metrics
-
-These packets extend GAXIPacket and use field configurations for consistency
-with the testbench framework.
+Updated to align with the enhanced monitor_pkg.sv changes:
+1. Updated packet format with protocol field (2 bits at [59:58])
+2. Event data reduced from 38 bits to 36 bits
+3. Support for unified event codes and multi-protocol support
+4. Enhanced packet types and threshold events
+5. FIXED: Reorganized class definitions to resolve forward reference issues
 """
 
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Union
 from dataclasses import dataclass
 from enum import Enum
 import time
@@ -22,7 +19,7 @@ from CocoTBFramework.components.shared.field_config import FieldConfig, FieldDef
 
 
 class AXITransactionState(Enum):
-    """AXI Transaction state tracking"""
+    """AXI Transaction state tracking (unchanged)"""
     EMPTY = "empty"
     ADDR_PHASE = "addr_phase"
     DATA_PHASE = "data_phase"
@@ -33,7 +30,7 @@ class AXITransactionState(Enum):
 
 
 class MonitorEventCode(Enum):
-    """Monitor event codes matching RTL definitions"""
+    """Monitor event codes matching RTL definitions (AXI-specific)"""
     NONE = 0x0
     CMD_TIMEOUT = 0x1
     DATA_TIMEOUT = 0x2
@@ -51,17 +48,28 @@ class MonitorEventCode(Enum):
 
 
 class InterruptPacketType(Enum):
-    """Interrupt bus packet types"""
+    """Interrupt bus packet types (updated with new types)"""
     ERROR = 0x0
     COMPLETION = 0x1
     THRESHOLD = 0x2
     TIMEOUT = 0x3
     PERF = 0x4
+    CREDIT = 0x5      # New: Credit status (packet protocols)
+    CHANNEL = 0x6     # New: Channel status (packet protocols)
+    STREAM = 0x7      # New: Stream event (packet protocols)
     DEBUG = 0xF
 
 
+class ProtocolType(Enum):
+    """Protocol types from monitor_pkg.sv"""
+    AXI = 0x0
+    PKT = 0x1  # Packet-based protocol
+    APB = 0x2
+    CUSTOM = 0x3
+
+
 class PerformanceMetric(Enum):
-    """Performance metric types"""
+    """Performance metric types (updated with new metrics)"""
     ADDR_LATENCY = 0x0
     DATA_LATENCY = 0x1
     RESP_LATENCY = 0x2
@@ -71,14 +79,72 @@ class PerformanceMetric(Enum):
     ACTIVE_COUNT = 0x6
     COMPLETED_COUNT = 0x7
     ERROR_COUNT = 0x8
+    CREDIT_EFFICIENCY = 0x9  # New: Credit utilization (packet protocols)
+    CHANNEL_UTIL = 0xA       # New: Channel utilization (packet protocols)
+    PACKET_RATE = 0xB        # New: Packet rate (packet protocols)
+    CUSTOM = 0xF
+
+
+class ThresholdEvent(Enum):
+    """Threshold event types (updated with new events)"""
+    ACTIVE_COUNT = 0x0
+    LATENCY = 0x1
+    ERROR_RATE = 0x2
+    BUFFER_LEVEL = 0x3
+    CREDIT_LOW = 0x4         # New: Credit low threshold (packet protocols)
+    PACKET_RATE = 0x5        # New: Packet rate threshold (packet protocols)
+    CHANNEL_STALL = 0x6      # New: Channel stall threshold (packet protocols)
+    CUSTOM = 0xF
 
 
 # =============================================================================
-# Field Configuration Functions
+# Field Configuration Functions (updated for new packet format)
 # =============================================================================
+
+def create_interrupt_packet_field_config() -> FieldConfig:
+    """Create interrupt bus packet field configuration (64-bit) - Updated format"""
+    config = FieldConfig()
+
+    config.add_field(FieldDefinition(
+        name="packet_type", bits=4, format="hex",
+        description="Packet type (error, completion, etc.)"
+    ))
+    
+    config.add_field(FieldDefinition(
+        name="protocol", bits=2, format="hex",
+        description="Protocol type (AXI/PKT/APB/Custom)"
+    ))
+    
+    config.add_field(FieldDefinition(
+        name="event_code", bits=4, format="hex",
+        description="Event/error code"
+    ))
+    
+    config.add_field(FieldDefinition(
+        name="channel_id", bits=6, format="hex",
+        description="Channel/ID information"
+    ))
+    
+    config.add_field(FieldDefinition(
+        name="unit_id", bits=4, format="hex",
+        description="Unit identifier"
+    ))
+    
+    config.add_field(FieldDefinition(
+        name="agent_id", bits=8, format="hex",
+        description="Agent identifier"
+    ))
+    
+    config.add_field(FieldDefinition(
+        name="data", bits=36, format="hex",  # Updated from 38 to 36 bits
+        description="Event data (address, metric, etc.)"
+    ))
+
+    return config
+
 
 def create_axi_command_field_config(id_width: int = 8, addr_width: int = 32, user_width: int = 1) -> FieldConfig:
-    """Create AXI address channel field configuration (AR/AW)"""
+    """Create AXI address channel field configuration (AR/AW) - Unchanged"""
     config = FieldConfig()
 
     config.add_field(FieldDefinition(
@@ -133,7 +199,7 @@ def create_axi_command_field_config(id_width: int = 8, addr_width: int = 32, use
 
 
 def create_axi_read_data_field_config(id_width: int = 8, data_width: int = 32, user_width: int = 1) -> FieldConfig:
-    """Create AXI read data channel field configuration (R)"""
+    """Create AXI read data channel field configuration (R) - Unchanged"""
     config = FieldConfig()
 
     config.add_field(FieldDefinition(
@@ -164,7 +230,7 @@ def create_axi_read_data_field_config(id_width: int = 8, data_width: int = 32, u
 
 
 def create_axi_write_data_field_config(data_width: int = 32, user_width: int = 1) -> FieldConfig:
-    """Create AXI write data channel field configuration (W)"""
+    """Create AXI write data channel field configuration (W) - Unchanged"""
     config = FieldConfig()
 
     config.add_field(FieldDefinition(
@@ -190,7 +256,7 @@ def create_axi_write_data_field_config(data_width: int = 32, user_width: int = 1
 
 
 def create_axi_write_response_field_config(id_width: int = 8, user_width: int = 1) -> FieldConfig:
-    """Create AXI write response channel field configuration (B)"""
+    """Create AXI write response channel field configuration (B) - Unchanged"""
     config = FieldConfig()
 
     config.add_field(FieldDefinition(
@@ -212,40 +278,8 @@ def create_axi_write_response_field_config(id_width: int = 8, user_width: int = 
     return config
 
 
-def create_interrupt_packet_field_config() -> FieldConfig:
-    """Create interrupt bus packet field configuration (64-bit)"""
-    config = FieldConfig()
-
-    config.add_field(FieldDefinition(
-        name="packet_type", bits=4, format="hex",
-        description="Packet type (error, completion, etc.)"
-    ))
-    config.add_field(FieldDefinition(
-        name="event_code", bits=4, format="hex",
-        description="Event/error code"
-    ))
-    config.add_field(FieldDefinition(
-        name="channel_id", bits=6, format="hex",
-        description="Channel/ID information"
-    ))
-    config.add_field(FieldDefinition(
-        name="unit_id", bits=4, format="hex",
-        description="Unit identifier"
-    ))
-    config.add_field(FieldDefinition(
-        name="agent_id", bits=8, format="hex",
-        description="Agent identifier"
-    ))
-    config.add_field(FieldDefinition(
-        name="data", bits=38, format="hex",
-        description="Event data (address, metric, etc.)"
-    ))
-
-    return config
-
-
 def create_monitor_config_field_config() -> FieldConfig:
-    """Create monitor configuration field configuration"""
+    """Create monitor configuration field configuration - Unchanged"""
     config = FieldConfig()
 
     config.add_field(FieldDefinition(
@@ -301,7 +335,7 @@ def create_monitor_config_field_config() -> FieldConfig:
 
 
 # =============================================================================
-# AXI Packet Classes
+# AXI Packet Classes - MOVED BEFORE MonitoredTransaction to fix forward references
 # =============================================================================
 
 class AXICommandPacket(GAXIPacket):
@@ -318,27 +352,6 @@ class AXICommandPacket(GAXIPacket):
     def from_dict(cls, data: Dict[str, Any], field_config: Optional[FieldConfig] = None):
         """Create packet from dictionary"""
         return cls(field_config=field_config, **data)
-
-    def get_burst_type_name(self) -> str:
-        """Get human-readable burst type name"""
-        burst_map = {0: "FIXED", 1: "INCR", 2: "WRAP"}
-        return burst_map.get(self.burst, f"UNKNOWN({self.burst})")
-
-    def calculate_total_bytes(self) -> int:
-        """Calculate total bytes in this transaction"""
-        bytes_per_beat = 1 << self.size
-        num_beats = self.len + 1
-        return bytes_per_beat * num_beats
-
-    def calculate_end_address(self) -> int:
-        """Calculate end address of this transaction"""
-        return self.addr + self.calculate_total_bytes() - 1
-
-    def will_cross_boundary(self, boundary_size: int) -> bool:
-        """Check if transaction crosses a boundary"""
-        start_boundary = self.addr // boundary_size
-        end_boundary = self.calculate_end_address() // boundary_size
-        return start_boundary != end_boundary
 
 
 class AXIReadDataPacket(GAXIPacket):
@@ -415,8 +428,12 @@ class AXIWriteResponsePacket(GAXIPacket):
         return self.resp in [2, 3]  # SLVERR or DECERR
 
 
+# =============================================================================
+# Interrupt Packet Class
+# =============================================================================
+
 class InterruptPacket(GAXIPacket):
-    """Monitor Interrupt Bus packet (64-bit consolidated format)"""
+    """Monitor Interrupt Bus packet (64-bit consolidated format) - Updated"""
 
     def __init__(self, field_config: Optional[FieldConfig] = None, **kwargs):
         if field_config is None:
@@ -432,26 +449,35 @@ class InterruptPacket(GAXIPacket):
 
     @classmethod
     def from_64bit_value(cls, value: int) -> 'InterruptPacket':
-        """Create packet from 64-bit interrupt bus value"""
+        """Create packet from 64-bit interrupt bus value (updated format)"""
         return cls(
             packet_type=(value >> 60) & 0xF,
-            event_code=(value >> 56) & 0xF,
-            channel_id=(value >> 50) & 0x3F,
-            unit_id=(value >> 46) & 0xF,
-            agent_id=(value >> 38) & 0xFF,
-            data=value & 0x3FFFFFFFFF  # 38 bits
+            protocol=(value >> 58) & 0x3,        # NEW: Protocol field
+            event_code=(value >> 54) & 0xF,       # Shifted
+            channel_id=(value >> 48) & 0x3F,      # Shifted
+            unit_id=(value >> 44) & 0xF,          # Shifted
+            agent_id=(value >> 36) & 0xFF,        # Shifted
+            data=value & 0xFFFFFFFFF              # 36 bits instead of 38
         )
 
     def to_64bit_value(self) -> int:
-        """Convert packet to 64-bit interrupt bus value"""
+        """Convert packet to 64-bit interrupt bus value (updated format)"""
         return (
             (self.packet_type << 60) |
-            (self.event_code << 56) |
-            (self.channel_id << 50) |
-            (self.unit_id << 46) |
-            (self.agent_id << 38) |
-            (self.data & 0x3FFFFFFFFF)
+            (self.protocol << 58) |        # NEW: Protocol field
+            (self.event_code << 54) |      # Shifted
+            (self.channel_id << 48) |      # Shifted
+            (self.unit_id << 44) |         # Shifted
+            (self.agent_id << 36) |        # Shifted
+            (self.data & 0xFFFFFFFFF)      # 36 bits instead of 38
         )
+
+    def get_protocol_name(self) -> str:
+        """Get human-readable protocol name"""
+        try:
+            return ProtocolType(self.protocol).name
+        except ValueError:
+            return f"UNKNOWN_PROTOCOL({self.protocol:X})"
 
     def get_packet_type_name(self) -> str:
         """Get human-readable packet type name"""
@@ -461,17 +487,28 @@ class InterruptPacket(GAXIPacket):
             0x2: "THRESHOLD",
             0x3: "TIMEOUT",
             0x4: "PERF",
+            0x5: "CREDIT",     # New
+            0x6: "CHANNEL",    # New
+            0x7: "STREAM",     # New
             0xF: "DEBUG"
         }
         return type_map.get(self.packet_type, f"UNKNOWN({self.packet_type:X})")
 
     def get_event_code_name(self) -> str:
-        """Get human-readable event code name"""
-        try:
-            event = MonitorEventCode(self.event_code)
-            return event.name
-        except ValueError:
-            return f"UNKNOWN({self.event_code:X})"
+        """Get human-readable event code name (protocol-aware)"""
+        if self.protocol == ProtocolType.AXI.value:
+            try:
+                event = MonitorEventCode(self.event_code)
+                return event.name
+            except ValueError:
+                return f"UNKNOWN_AXI_EVENT({self.event_code:X})"
+        else:
+            # For other protocols, use generic naming
+            return f"EVENT_{self.event_code:X}"
+
+    def is_axi_protocol(self) -> bool:
+        """Check if this is an AXI protocol packet"""
+        return self.protocol == ProtocolType.AXI.value
 
     def is_error_packet(self) -> bool:
         """Check if this is an error packet"""
@@ -489,9 +526,22 @@ class InterruptPacket(GAXIPacket):
         """Check if this is a performance packet"""
         return self.packet_type == InterruptPacketType.PERF.value
 
+    def is_credit_packet(self) -> bool:
+        """Check if this is a credit packet (new)"""
+        return self.packet_type == InterruptPacketType.CREDIT.value
+
+    def is_channel_packet(self) -> bool:
+        """Check if this is a channel packet (new)"""
+        return self.packet_type == InterruptPacketType.CHANNEL.value
+
+    def is_stream_packet(self) -> bool:
+        """Check if this is a stream packet (new)"""
+        return self.packet_type == InterruptPacketType.STREAM.value
+
     def get_address_value(self, addr_width: int = 32) -> int:
-        """Extract address value from data field"""
-        return self.data & ((1 << addr_width) - 1)
+        """Extract address value from data field (max 36 bits now)"""
+        max_addr_bits = min(addr_width, 36)  # Updated from 38 to 36
+        return self.data & ((1 << max_addr_bits) - 1)
 
     def get_metric_value(self) -> int:
         """Extract metric value from data field"""
@@ -499,7 +549,7 @@ class InterruptPacket(GAXIPacket):
 
 
 class MonitorConfigPacket(GAXIPacket):
-    """Monitor Configuration packet"""
+    """Monitor Configuration packet - Unchanged"""
 
     def __init__(self, field_config: Optional[FieldConfig] = None, **kwargs):
         if field_config is None:
@@ -532,25 +582,26 @@ class MonitorConfigPacket(GAXIPacket):
 
 
 # =============================================================================
-# Transaction Tracking
+# Transaction Tracking (MOVED AFTER all packet class definitions)
 # =============================================================================
 
 @dataclass
 class MonitoredTransaction:
-    """Complete monitored AXI transaction with all phases"""
+    """Complete monitored AXI transaction with all phases (updated)"""
 
     # Transaction identification
     transaction_id: int
     is_read: bool
     is_axi4: bool  # True for AXI4, False for AXI-Lite
+    protocol: ProtocolType = ProtocolType.AXI  # NEW: Protocol type
 
     # Address phase
     address_packet: Optional[AXICommandPacket] = None
     address_timestamp: Optional[float] = None
 
     # Data phase
-    data_packets: List = None  # List[AXIReadDataPacket] or List[AXIWriteDataPacket]
-    data_timestamps: List[float] = None
+    data_packets: Optional[List[Union[AXIReadDataPacket, AXIWriteDataPacket]]] = None
+    data_timestamps: Optional[List[float]] = None
 
     # Response phase (write only)
     response_packet: Optional[AXIWriteResponsePacket] = None
@@ -562,8 +613,8 @@ class MonitoredTransaction:
     completion_time: Optional[float] = None
 
     # Error tracking
-    errors: List[str] = None
-    events: List[InterruptPacket] = None
+    errors: Optional[List[str]] = None
+    events: Optional[List[InterruptPacket]] = None
 
     # Performance metrics
     address_latency: Optional[float] = None
@@ -584,7 +635,7 @@ class MonitoredTransaction:
         if self.start_time == 0.0:
             self.start_time = time.time()
 
-    def add_data_packet(self, packet, timestamp: float):
+    def add_data_packet(self, packet: Union[AXIReadDataPacket, AXIWriteDataPacket], timestamp: float):
         """Add a data packet with timestamp"""
         self.data_packets.append(packet)
         self.data_timestamps.append(timestamp)
@@ -644,10 +695,10 @@ class MonitoredTransaction:
     def get_transaction_summary(self) -> str:
         """Get a summary string for this transaction"""
         txn_type = "READ" if self.is_read else "WRITE"
-        protocol = "AXI4" if self.is_axi4 else "AXI-Lite"
+        protocol_name = self.protocol.name if hasattr(self.protocol, 'name') else str(self.protocol)
         beats = f"{self.get_actual_data_beats()}/{self.get_expected_data_beats()}"
         
-        summary = f"{protocol} {txn_type} ID={self.transaction_id:02X} "
+        summary = f"{protocol_name} {txn_type} ID={self.transaction_id:02X} "
         summary += f"state={self.state.value} beats={beats}"
         
         if self.has_errors():
@@ -660,11 +711,11 @@ class MonitoredTransaction:
 
 
 # =============================================================================
-# Conversion Functions
+# Conversion Functions (updated)
 # =============================================================================
 
 def convert_gaxi_to_axi_address(gaxi_packet, field_config: Optional[FieldConfig] = None) -> AXICommandPacket:
-    """Convert GAXI packet to AXI address packet"""
+    """Convert GAXI packet to AXI address packet - Unchanged"""
     packet_data = {}
     for field_name in ['id', 'addr', 'len', 'size', 'burst', 'lock', 'cache', 'prot', 'qos', 'region', 'user']:
         if hasattr(gaxi_packet, field_name):
@@ -673,7 +724,7 @@ def convert_gaxi_to_axi_address(gaxi_packet, field_config: Optional[FieldConfig]
 
 
 def convert_gaxi_to_axi_read_data(gaxi_packet, field_config: Optional[FieldConfig] = None) -> AXIReadDataPacket:
-    """Convert GAXI packet to AXI read data packet"""
+    """Convert GAXI packet to AXI read data packet - Unchanged"""
     packet_data = {}
     for field_name in ['id', 'data', 'resp', 'last', 'user']:
         if hasattr(gaxi_packet, field_name):
@@ -682,7 +733,7 @@ def convert_gaxi_to_axi_read_data(gaxi_packet, field_config: Optional[FieldConfi
 
 
 def convert_gaxi_to_axi_write_data(gaxi_packet, field_config: Optional[FieldConfig] = None) -> AXIWriteDataPacket:
-    """Convert GAXI packet to AXI write data packet"""
+    """Convert GAXI packet to AXI write data packet - Unchanged"""
     packet_data = {}
     for field_name in ['data', 'strb', 'last', 'user']:
         if hasattr(gaxi_packet, field_name):
@@ -691,7 +742,7 @@ def convert_gaxi_to_axi_write_data(gaxi_packet, field_config: Optional[FieldConf
 
 
 def convert_gaxi_to_axi_write_response(gaxi_packet, field_config: Optional[FieldConfig] = None) -> AXIWriteResponsePacket:
-    """Convert GAXI packet to AXI write response packet"""
+    """Convert GAXI packet to AXI write response packet - Unchanged"""
     packet_data = {}
     
     # Handle standard fields
@@ -711,16 +762,16 @@ def convert_gaxi_to_axi_write_response(gaxi_packet, field_config: Optional[Field
 
 
 def convert_raw_to_interrupt_packet(raw_value: int) -> InterruptPacket:
-    """Convert raw 64-bit value to interrupt packet"""
+    """Convert raw 64-bit value to interrupt packet (updated format)"""
     return InterruptPacket.from_64bit_value(raw_value)
 
 
 # =============================================================================
-# Utility Functions
+# Utility Functions (updated)
 # =============================================================================
 
 def create_default_config_packet(**overrides) -> MonitorConfigPacket:
-    """Create a monitor configuration packet with default values"""
+    """Create a monitor configuration packet with default values - Unchanged"""
     defaults = {
         'freq_sel': 3,
         'addr_cnt': 8,
@@ -740,7 +791,7 @@ def create_default_config_packet(**overrides) -> MonitorConfigPacket:
 
 
 def validate_packet_consistency(packet) -> List[str]:
-    """Validate packet field consistency and return list of issues"""
+    """Validate packet field consistency and return list of issues (updated)"""
     issues = []
     
     if isinstance(packet, AXICommandPacket):
@@ -758,19 +809,23 @@ def validate_packet_consistency(packet) -> List[str]:
             issues.append(f"Invalid response code: {packet.resp}")
             
     elif isinstance(packet, InterruptPacket):
-        # Validate interrupt packet
+        # Validate interrupt packet (updated for new format)
         if packet.packet_type > 0xF:
             issues.append(f"Invalid packet type: {packet.packet_type:X}")
+        if packet.protocol > 0x3:  # NEW: Validate protocol field
+            issues.append(f"Invalid protocol: {packet.protocol:X}")
         if packet.event_code > 0xF:
             issues.append(f"Invalid event code: {packet.event_code:X}")
         if packet.channel_id > 0x3F:
             issues.append(f"Invalid channel ID: {packet.channel_id:X}")
+        if packet.data > 0xFFFFFFFFF:  # Updated: 36 bits instead of 38
+            issues.append(f"Invalid data field (too large): {packet.data:X}")
     
     return issues
 
 
 def format_packet_summary(packet) -> str:
-    """Generate a concise summary string for any packet type"""
+    """Generate a concise summary string for any packet type (updated)"""
     if isinstance(packet, AXICommandPacket):
         return f"CMD(ID={packet.id:02X}, ADDR=0x{packet.addr:X}, LEN={packet.len})"
     elif isinstance(packet, AXIReadDataPacket):
@@ -780,9 +835,26 @@ def format_packet_summary(packet) -> str:
     elif isinstance(packet, AXIWriteResponsePacket):
         return f"WRESP(ID={packet.id:02X}, RESP={packet.get_response_name()})"
     elif isinstance(packet, InterruptPacket):
-        return f"INTR({packet.get_packet_type_name()}.{packet.get_event_code_name()}, CH={packet.channel_id:02X})"
+        # Updated to include protocol
+        return f"INTR({packet.get_protocol_name()}.{packet.get_packet_type_name()}.{packet.get_event_code_name()}, CH={packet.channel_id:02X})"
     elif isinstance(packet, MonitorConfigPacket):
         features = ','.join(packet.get_enabled_features())
         return f"CONFIG({features})"
     else:
         return f"UNKNOWN({type(packet).__name__})"
+
+
+def create_axi_interrupt_packet(packet_type: InterruptPacketType, event_code: MonitorEventCode,
+                               channel_id: int = 0, unit_id: int = 9, agent_id: int = 99,
+                               address_or_data: int = 0) -> InterruptPacket:
+    """Helper function to create AXI-specific interrupt packets (new)"""
+    packet = InterruptPacket()
+    packet.packet_type = packet_type.value
+    packet.protocol = ProtocolType.AXI.value
+    packet.event_code = event_code.value
+    packet.channel_id = channel_id & 0x3F
+    packet.unit_id = unit_id & 0xF
+    packet.agent_id = agent_id & 0xFF
+    packet.data = address_or_data & 0xFFFFFFFFF  # 36 bits max
+    packet.timestamp = time.time()
+    return packet

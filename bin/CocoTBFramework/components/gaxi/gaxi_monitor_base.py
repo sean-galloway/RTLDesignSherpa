@@ -147,6 +147,7 @@ class GAXIMonitorBase(GAXIComponentBase, BusMonitor):
         packet_str = (packet.formatted(compact=True)
                         if hasattr(packet, 'formatted')
                         else str(packet))
+        current_time = get_sim_time('ns')
         self.log.debug(f"GAXIMonitorBase({self.title}) Transaction at {current_time}ns: {packet_str}")
 
         # ESSENTIAL: Use cocotb _recv method to add to _recvQ and trigger callbacks

@@ -9,9 +9,9 @@ from cocotb.utils import get_sim_time
 from cocotb.triggers import RisingEdge, Timer
 from cocotb_test.simulator import run
 
-from CocoTBFramework.tbclasses.misc.tbbase import TBBase
+from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.amba.amba_cg_ctrl import AxiClockGateCtrl
-from CocoTBFramework.tbclasses.misc.utilities import get_paths, create_view_cmd
+from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
 
 class AmbaClockGateCtrlConfig:

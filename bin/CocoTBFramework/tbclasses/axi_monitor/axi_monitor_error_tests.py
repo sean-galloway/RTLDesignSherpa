@@ -1,8 +1,11 @@
 """
-AXI Monitor Error Detection Tests
+AXI Monitor Error Detection Tests - FIXED NAMING INCONSISTENCIES
 
 Focused test suite for comprehensive error detection and handling verification.
 Tests the monitor's ability to detect, report, and correlate various error conditions.
+
+FIXED: All references to packet types now correctly use InterruptPacketType enum
+instead of incorrectly using InterruptPacket class name.
 
 Test Categories:
 1. Response Error Detection (SLVERR, DECERR)
@@ -29,7 +32,7 @@ from cocotb.utils import get_sim_time
 
 from .axi_monitor_base_test import AXIMonitorBaseTest, TransactionPattern, ErrorScenario
 from .axi_monitor_packets import (
-    MonitorEventCode, InterruptPacketType, AXITransactionState
+    MonitorEventCode, InterruptPacketType, AXITransactionState  # FIXED: Import InterruptPacketType
 )
 
 
@@ -194,6 +197,7 @@ class ResponseErrorDetectionTest(AXIMonitorBaseTest):
             error_found = False
 
             for interrupt in self.scoreboard.interrupt_packets:
+                # FIXED: Use InterruptPacketType enum instead of InterruptPacket class
                 if (interrupt.packet_type == InterruptPacketType.ERROR.value and
                     interrupt.channel_id == expected_error['transaction_id']):
 
@@ -350,6 +354,7 @@ class ProtocolViolationTest(AXIMonitorBaseTest):
             violation_found = False
 
             for interrupt in self.scoreboard.interrupt_packets:
+                # FIXED: Use InterruptPacketType enum instead of InterruptPacket class
                 if (interrupt.packet_type == InterruptPacketType.ERROR.value and
                     interrupt.event_code == violation['expected_event']):
                     violation['detected'] = True

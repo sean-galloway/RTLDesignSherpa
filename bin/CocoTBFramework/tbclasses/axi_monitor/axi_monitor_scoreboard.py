@@ -1,19 +1,8 @@
 """
-AXI4/AXIL Monitor Scoreboard - COMPREHENSIVE PROTOCOL VERIFICATION
+AXI4/AXIL Monitor Scoreboard - FIXED NAMING INCONSISTENCIES
 
-This scoreboard provides comprehensive verification of AXI monitor functionality:
-1. Transaction lifecycle tracking (address → data → response)
-2. Protocol compliance verification
-3. Error detection validation
-4. Interrupt bus packet correlation
-5. Timeout behavior verification
-6. Performance metrics validation
-7. Configuration compliance checking
-
-TIMING FIXES:
-- Use cocotb get_sim_time directly for consistent timing
-- Proper simulation time formatting
-- No dependency on external timing updates
+Fixed the naming inconsistency between InterruptPacket (class) and InterruptPacketType (enum).
+All references to packet types now correctly use InterruptPacketType enum.
 """
 
 import os
@@ -26,7 +15,7 @@ from cocotb.utils import get_sim_time
 from .axi_monitor_packets import (
     AXICommandPacket, AXIReadDataPacket, AXIWriteDataPacket, AXIWriteResponsePacket,
     InterruptPacket, MonitorConfigPacket, MonitoredTransaction,
-    AXITransactionState, MonitorEventCode, InterruptPacketType, PerformanceMetric,
+    AXITransactionState, MonitorEventCode, InterruptPacketType, PerformanceMetric,  # FIXED: Use InterruptPacketType
     convert_gaxi_to_axi_address, convert_gaxi_to_axi_read_data,
     convert_gaxi_to_axi_write_data, convert_gaxi_to_axi_write_response,
     convert_raw_to_interrupt_packet,
@@ -40,6 +29,7 @@ class AXIMonitorScoreboard:
     """
     Comprehensive AXI Monitor Scoreboard with protocol verification,
     error detection validation, and interrupt bus correlation.
+    FIXED: All packet type references now use InterruptPacketType enum.
     """
 
     def __init__(self, log=None, component_name: str = "AXI_MONITOR_SB",
@@ -72,7 +62,7 @@ class AXIMonitorScoreboard:
         self.orphaned_packets = []  # Packets without matching transactions
 
         # Interrupt bus tracking
-        self.interrupt_packets = []  # List[InterruptPacket]
+        self.interrupt_packets = []  # List[InterruptPacket] - FIXED: This is correct (list of packet instances)
         self.interrupt_correlation = {}  # Maps interrupt packets to transactions
 
         # Configuration tracking
@@ -573,6 +563,7 @@ class AXIMonitorScoreboard:
             if has_response_error:
                 error_interrupt_found = False
                 for event in txn.events:
+                    # FIXED: Use InterruptPacketType enum
                     if (event.packet_type == InterruptPacketType.ERROR.value and
                         event.event_code in [MonitorEventCode.RESP_SLVERR.value,
                                             MonitorEventCode.RESP_DECERR.value]):
@@ -596,7 +587,7 @@ class AXIMonitorScoreboard:
 
         timeout_interrupts = [
             pkt for pkt in self.interrupt_packets
-            if pkt.packet_type == InterruptPacketType.TIMEOUT.value
+            if pkt.packet_type == InterruptPacketType.TIMEOUT.value  # FIXED: Use InterruptPacketType enum
         ]
 
         for timeout_int in timeout_interrupts:

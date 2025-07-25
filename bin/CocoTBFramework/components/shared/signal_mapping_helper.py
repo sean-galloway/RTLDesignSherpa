@@ -7,6 +7,7 @@ to find the correct signal mappings automatically.
 UPDATED: Now properly handles 'prefix' parameter for both signal discovery and cocotb compatibility.
 ADDED: Optional signal_map parameter for manual signal mapping override.
 ADDED: Full FIFO protocol support for signal_map functionality.
+FIXED: Missing comma in FIFO patterns and enhanced validation for critical data signals.
 """
 from typing import Dict, List, Optional, Any, Union
 from itertools import product
@@ -24,26 +25,26 @@ GAXI_VALID_MODES = ['skid', 'fifo_mux', 'fifo_flop']
 GAXI_BASE_PATTERNS = {
     # Master-side patterns (for masters and write monitors)
     'valid_base': [
-        '{prefix}{bus_name}wr_valid',
         '{prefix}{bus_name}valid',
+        '{prefix}{bus_name}wr_valid',
         '{prefix}{bus_name}m2s_valid',
-
-        '{prefix}{bus_name}{pkt_prefix}wr_valid',
         '{prefix}{bus_name}{pkt_prefix}valid',
+        '{prefix}{bus_name}{pkt_prefix}wr_valid',
         '{prefix}{bus_name}{pkt_prefix}m2s_valid',
     ],
     'ready_base': [
-        '{prefix}{bus_name}wr_ready',
         '{prefix}{bus_name}ready',
+        '{prefix}{bus_name}wr_ready',
         '{prefix}{bus_name}s2m_ready',
-
-        '{prefix}{bus_name}{pkt_prefix}wr_ready',
         '{prefix}{bus_name}{pkt_prefix}ready',
-        '{prefix}{bus_name}{pkt_prefix}s2m_ready',    ],
+        '{prefix}{bus_name}{pkt_prefix}wr_ready',
+        '{prefix}{bus_name}{pkt_prefix}s2m_ready',
+    ],
     'pkt_base': [
-        '{prefix}{bus_name}wr_data',
         '{prefix}{bus_name}data',
+        '{prefix}{bus_name}packet',
         '{prefix}{bus_name}m2s_pkt',
+        '{prefix}{bus_name}wr_data',
     ],
     'field_base': [
         '{prefix}{bus_name}{pkt_prefix}{field_name}',
@@ -53,26 +54,25 @@ GAXI_BASE_PATTERNS = {
 
     # Slave-side patterns (for slaves and read monitors)
     'slave_valid_base': [
-        '{prefix}{bus_name}rd_valid',
         '{prefix}{bus_name}valid',
+        '{prefix}{bus_name}rd_valid',
         '{prefix}{bus_name}m2s_valid',
-
-        '{prefix}{bus_name}{pkt_prefix}rd_valid',
         '{prefix}{bus_name}{pkt_prefix}valid',
+        '{prefix}{bus_name}{pkt_prefix}rd_valid',
         '{prefix}{bus_name}{pkt_prefix}m2s_valid',
     ],
     'slave_ready_base': [
-        '{prefix}{bus_name}rd_ready',
         '{prefix}{bus_name}ready',
+        '{prefix}{bus_name}rd_ready',
         '{prefix}{bus_name}s2m_ready',
-
-        '{prefix}{bus_name}{pkt_prefix}rd_ready',
         '{prefix}{bus_name}{pkt_prefix}ready',
+        '{prefix}{bus_name}{pkt_prefix}rd_ready',
         '{prefix}{bus_name}{pkt_prefix}s2m_ready',
     ],
     'slave_pkt_base': [
-        '{prefix}{bus_name}rd_data',
         '{prefix}{bus_name}data',
+        '{prefix}{bus_name}rd_data',
+        '{prefix}{bus_name}packet',
         '{prefix}{bus_name}m2s_pkt',
     ],
     'slave_field_base': [
@@ -82,7 +82,7 @@ GAXI_BASE_PATTERNS = {
     ]
 }
 
-# FIFO base signal patterns - UPDATED to include prefix
+# FIFO base signal patterns - UPDATED to include prefix and FIXED missing comma
 FIFO_BASE_PATTERNS = {
     # Write-side patterns (for masters and write monitors)
     'write_base': [
@@ -91,6 +91,7 @@ FIFO_BASE_PATTERNS = {
     'wr_data_base': [
         '{prefix}{bus_name}wr_data',
         '{prefix}{bus_name}data',
+        '{prefix}{bus_name}packet',
     ],
     'wr_field_base': [
         '{prefix}{bus_name}{pkt_prefix}{field_name}',
@@ -107,7 +108,8 @@ FIFO_BASE_PATTERNS = {
     ],
     'rd_data_base': [
         '{prefix}{bus_name}rd_data',
-        '{prefix}{bus_name}data'
+        '{prefix}{bus_name}data',      # FIXED: Added missing comma
+        '{prefix}{bus_name}packet'
     ],
     'rd_field_base': [
         '{prefix}{bus_name}{pkt_prefix}{field_name}',
@@ -192,6 +194,7 @@ class SignalResolver:
     UPDATED: Now properly handles 'prefix' parameter for both signal discovery and cocotb compatibility.
     ADDED: Optional signal_map parameter for manual signal mapping override.
     ADDED: Full FIFO protocol support for signal_map functionality.
+    FIXED: Enhanced validation for critical data signals with hard failure.
     """
 
     def __init__(self, protocol_type: str, dut, bus, log, component_name: str,
@@ -665,7 +668,11 @@ class SignalResolver:
         return "Unknown"
 
     def _validate_required_signals(self):
-        """Validate that all required signals were found and no conflicts exist."""
+        """
+        Validate that all required signals were found and no conflicts exist.
+        
+        ENHANCED: Adds critical validation for data signals in single-signal mode.
+        """
         errors = []
 
         # Check for missing required signals
@@ -681,6 +688,68 @@ class SignalResolver:
                 '\n'.join(error_details) +
                 f"\nAvailable ports: {available_ports}"
             )
+
+        # ENHANCED: Critical validation for data signals in single-signal mode
+        if not self.multi_sig:
+            data_signal_found = any(
+                name.endswith('_sig') and 'data' in name 
+                for name, signal in self.resolved_signals.items() 
+                if signal is not None
+            )
+            
+            if not data_signal_found:
+                # Find available data-like signals for troubleshooting
+                available_data_signals = [
+                    name for name in self.top_level_ports.keys() 
+                    if 'data' in name.lower()
+                ]
+                
+                # This should be a CRITICAL ERROR for single-signal mode
+                critical_error = [
+                    f"🚨 CRITICAL: No data signal found for {self.component_name} in single-signal mode!",
+                    f"",
+                    f"Component: {self.component_name}",
+                    f"Protocol: {self.protocol_type}",
+                    f"Mode: single-signal (multi_sig=False)",
+                    f"Bus name: '{self.bus_name}' (empty means no bus prefix)",
+                    f"",
+                    f"This component REQUIRES a data signal for proper operation.",
+                    f"Without it, the component cannot send/receive packet data.",
+                    f"",
+                    f"💡 TROUBLESHOOTING:",
+                    f"1. Check signal naming - expected patterns:",
+                    f"   - {self.bus_name}data (current bus_name + 'data')",
+                    f"   - {self.bus_name}rd_data (for read-side)",
+                    f"   - {self.bus_name}packet",
+                ]
+                
+                if available_data_signals:
+                    critical_error.extend([
+                        f"",
+                        f"2. Available data-like signals found on DUT:",
+                        f"   {', '.join(available_data_signals)}",
+                        f"",
+                        f"3. Use manual signal_map to specify correct signal:",
+                        f"   signal_map={{'data': '{available_data_signals[0] if available_data_signals else 'your_data_signal'}'}}",
+                    ])
+                else:
+                    critical_error.extend([
+                        f"",
+                        f"2. No data-like signals found on DUT!",
+                        f"   Available signals: {', '.join(sorted(self.top_level_ports.keys())[:10])}{'...' if len(self.top_level_ports) > 10 else ''}",
+                        f"",
+                        f"3. Verify your DUT has the expected data output signal",
+                    ])
+                
+                critical_error.extend([
+                    f"",
+                    f"4. Check bus_name parameter - currently: '{self.bus_name}'",
+                    f"   If your signals have a different prefix, update bus_name",
+                    f"",
+                    f"This error prevents component initialization to avoid runtime failures.",
+                ])
+                
+                errors.append('\n'.join(critical_error))
 
         # Check for signal conflicts
         if self.signal_conflicts:
@@ -767,7 +836,11 @@ class SignalResolver:
         return logical_name
 
     def apply_to_component(self, component):
-        """Apply resolved signals to component as attributes with hard fail validation."""
+        """
+        Apply resolved signals to component as attributes with enhanced validation for critical signals.
+        
+        ENHANCED: Hard fail validation for missing critical data signals with detailed troubleshooting.
+        """
         if self.bus is None:
             raise ValueError(f"{self.component_name}: Bus must be set before applying signals")
 
@@ -783,6 +856,7 @@ class SignalResolver:
         # Track ALL failed signal linkages for comprehensive error reporting
         failed_signals = []
         successful_linkages = []
+        missing_critical_data = False
 
         # Apply signal mappings and track failures
         for logical_name, signal_obj in self.resolved_signals.items():
@@ -790,7 +864,17 @@ class SignalResolver:
 
             # Determine signal type for reporting
             is_required = logical_name in self.config['signal_map']
-            signal_type = "REQUIRED" if is_required else "DATA/OPTIONAL"
+            is_data_signal = 'data' in logical_name.lower()
+            
+            # ENHANCED: Determine signal criticality
+            if is_data_signal and not self.multi_sig:
+                signal_type = "CRITICAL_DATA"
+                if signal_obj is None:
+                    missing_critical_data = True
+            elif is_required:
+                signal_type = "REQUIRED"
+            else:
+                signal_type = "DATA/OPTIONAL"
 
             if signal_obj is not None:
                 # Get the signal from the bus using the STRIPPED signal name (without prefix)
@@ -835,11 +919,83 @@ class SignalResolver:
                 setattr(component, attr_name, bus_signal)
             else:
                 # Signal was not resolved in the first place
+                if signal_type == "CRITICAL_DATA":
+                    missing_critical_data = True
+                    failed_signals.append({
+                        'logical_name': logical_name,
+                        'signal_name': 'NOT_FOUND',
+                        'cocotb_signal_name': 'NOT_FOUND',
+                        'attr_name': attr_name,
+                        'signal_type': signal_type,
+                        'error': 'Signal not found during discovery'
+                    })
+                
                 setattr(component, attr_name, None)
                 self._log_debug(f"Set {attr_name} = None (signal not resolved)")
 
-        # HARD FAIL: Generate comprehensive error report if ANY signals failed
-        if failed_signals:
+        # ENHANCED: Hard fail for missing critical data signals
+        if missing_critical_data:
+            critical_failures = [f for f in failed_signals if f['signal_type'] == 'CRITICAL_DATA']
+            
+            error_lines = [
+                f"\n🚨 CRITICAL FAILURE: Missing data signals for {self.component_name} 🚨",
+                f"Component configured for single-signal mode but no data signal found.",
+                f"This will cause runtime failures and incorrect behavior.",
+                f"Signal source: {'Manual signal_map' if self.signal_map else 'Automatic discovery'}",
+                f"Protocol: {self.protocol_type}",
+                f"Bus name: '{self.bus_name}' (empty = no prefix)",
+                f""
+            ]
+            
+            for failure in critical_failures:
+                error_lines.append(f"❌ MISSING CRITICAL SIGNAL: {failure['logical_name']}")
+                error_lines.append(f"   Target attribute: {failure['attr_name']}")
+                if 'error' in failure:
+                    error_lines.append(f"   Error: {failure['error']}")
+                else:
+                    error_lines.append(f"   DUT signal: {failure['signal_name']}")
+                    error_lines.append(f"   Cocotb signal: {failure['cocotb_signal_name']}")
+            
+            # Find available data signals for troubleshooting
+            available_data_signals = [
+                name for name in self.top_level_ports.keys() 
+                if 'data' in name.lower()
+            ]
+            
+            error_lines.extend([
+                f"\n💡 TROUBLESHOOTING:",
+                f"1. Check signal naming - expected patterns:",
+                f"   - {self.bus_name}data",
+                f"   - {self.bus_name}rd_data (for slaves)",
+                f"   - {self.bus_name}packet",
+                f""
+            ])
+            
+            if available_data_signals:
+                error_lines.extend([
+                    f"2. Available data signals on DUT: {available_data_signals}",
+                    f"",
+                    f"3. Use manual signal_map to specify correct signal:",
+                    f"   signal_map={{'data': '{available_data_signals[0]}'}}",
+                ])
+            else:
+                error_lines.extend([
+                    f"2. No data signals found on DUT!",
+                    f"   Available signals: {list(self.top_level_ports.keys())[:5]}...",
+                    f"   Verify your DUT has the expected data signal",
+                ])
+            
+            error_lines.extend([
+                f"",
+                f"4. Check bus_name parameter: '{self.bus_name}'",
+                f"5. Verify DUT module has expected interface",
+                f""
+            ])
+            
+            raise RuntimeError('\n'.join(error_lines))
+
+        # HARD FAIL: Generate comprehensive error report if ANY other signals failed
+        if failed_signals and not missing_critical_data:  # Don't double-report critical data failures
             mapping_source = "Manual signal_map" if self.signal_map else "Automatic discovery"
             error_lines = [
                 f"\n🚨 CRITICAL SIGNAL LINKAGE FAILURE for {self.component_name} 🚨",

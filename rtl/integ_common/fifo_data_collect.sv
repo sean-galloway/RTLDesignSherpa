@@ -113,10 +113,10 @@ module fifo_data_collect #(
 
     // Channel A FIFO
     fifo_sync #(
-        .REGISTERED       (0),
-        .DATA_WIDTH       (DW + IDW),
-        .DEPTH            (2),
-        .INSTANCE_NAME    ("FIFO_A")
+        .REGISTERED     (0),
+        .DATA_WIDTH     (DW + IDW),
+        .DEPTH          (2),
+        .INSTANCE_NAME  ("FIFO_A")
     ) a_fifo (
         .clk            (clk),
         .rst_n          (rst_n),
@@ -132,10 +132,10 @@ module fifo_data_collect #(
 
     // Channel B FIFO
     fifo_sync #(
-        .REGISTERED       (0),
-        .DATA_WIDTH       (DW + IDW),
-        .DEPTH            (2),
-        .INSTANCE_NAME    ("FIFO_B")
+        .REGISTERED     (0),
+        .DATA_WIDTH     (DW + IDW),
+        .DEPTH          (2),
+        .INSTANCE_NAME  ("FIFO_B")
     ) b_fifo (
         .clk            (clk),
         .rst_n          (rst_n),
@@ -151,10 +151,10 @@ module fifo_data_collect #(
 
     // Channel C FIFO
     fifo_sync #(
-        .REGISTERED       (0),
-        .DATA_WIDTH       (DW + IDW),
-        .DEPTH            (2),
-        .INSTANCE_NAME    ("FIFO_C")
+        .REGISTERED     (0),
+        .DATA_WIDTH     (DW + IDW),
+        .DEPTH          (2),
+        .INSTANCE_NAME  ("FIFO_C")
     ) c_fifo (
         .clk            (clk),
         .rst_n          (rst_n),
@@ -170,10 +170,10 @@ module fifo_data_collect #(
 
     // Channel D FIFO
     fifo_sync #(
-        .REGISTERED       (0),
-        .DATA_WIDTH       (DW + IDW),
-        .DEPTH            (2),
-        .INSTANCE_NAME    ("FIFO_D")
+        .REGISTERED     (0),
+        .DATA_WIDTH     (DW + IDW),
+        .DEPTH          (2),
+        .INSTANCE_NAME  ("FIFO_D")
     ) d_fifo (
         .clk            (clk),
         .rst_n          (rst_n),
@@ -221,15 +221,15 @@ module fifo_data_collect #(
         .CLIENTS       (4),              // 4 input channels
         .WAIT_GNT_ACK  (0)               // No grant acknowledge mechanism
     ) inst_arbiter (
-        .clk         (clk),
-        .rst_n       (rst_n),
-        .block_arb   (r_arb_locked),
-        .max_thresh  (w_arb_weights),  // Weights for all channels
-        .req         (w_arb_req),      // Valid signals from all input FIFOs
-        .gnt_valid  (w_arb_gnt_valid),
-        .gnt        (w_arb_gnt),      // One-hot grant signal
-        .gnt_id     (w_arb_gnt_id),   // Binary grant ID
-        .gnt_ack     (4'b0)            // Not using ack mechanism
+        .clk           (clk),
+        .rst_n         (rst_n),
+        .block_arb     (r_arb_locked),
+        .max_thresh    (w_arb_weights),  // Weights for all channels
+        .req           (w_arb_req),      // Valid signals from all input FIFOs
+        .gnt_valid     (w_arb_gnt_valid),
+        .gnt           (w_arb_gnt),      // One-hot grant signal
+        .gnt_id        (w_arb_gnt_id),   // Binary grant ID
+        .gnt_ack       (4'b0)            // Not using ack mechanism
     );
 
     // Buffer full detection - all slots filled
@@ -349,10 +349,10 @@ module fifo_data_collect #(
     // Output FIFO
 
     fifo_sync #(
-        .REGISTERED       (0),
-        .DATA_WIDTH       (IDW + CHUNKS*DW),
-        .DEPTH            (OUTPUT_FIFO_DEPTH),
-        .INSTANCE_NAME    ("FIFO_OUT")
+        .REGISTERED     (0),
+        .DATA_WIDTH     (IDW + CHUNKS*DW),
+        .DEPTH          (OUTPUT_FIFO_DEPTH),
+        .INSTANCE_NAME  ("FIFO_OUT")
     ) output_fifo (
         .clk            (clk),
         .rst_n          (rst_n),

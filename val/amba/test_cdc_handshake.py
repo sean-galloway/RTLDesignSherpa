@@ -12,7 +12,7 @@ import pytest
 import cocotb
 from cocotb_test.simulator import run
 from CocoTBFramework.tbclasses.amba.cdc_handshake import CDCHandshakeTB
-from CocoTBFramework.tbclasses.misc.utilities import get_paths, create_view_cmd
+from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
 
 @cocotb.test(timeout_time=30, timeout_unit="ms")

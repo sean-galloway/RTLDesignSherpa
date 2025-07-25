@@ -1,12 +1,12 @@
 `timescale 1ns / 1ps
 
 /**
- * AXI Monitor Bus Reporter
+ * AXI Monitor Bus Reporter - Updated for Generic Monitor Package
  *
  * This module reports events and errors through a shared monitor bus.
  * It detects conditions from the AXI transaction table and formats them into
  * standard 64-bit interrupt packet format for system-wide event notification.
- * Optionally tracks performance metrics when ENABLE_PERF_PACKETS is enabled.
+ * Updated to work with the enhanced monitor_pkg that supports multiple protocols.
  */
 module axi_monitor_reporter
     import monitor_pkg::*;
@@ -77,12 +77,12 @@ module axi_monitor_reporter
     // Performance report state machine (flopped)
     logic [2:0] r_perf_report_state;
 
-    // Interrupt FIFO entry type
+    // Interrupt FIFO entry type - Updated with new packet format
     typedef struct packed {
-        logic [3:0]            packet_type;  // Packet type
-        logic [3:0]            event_code;   // Event code or metric type
+        logic [3:0]            packet_type;  // Packet type (updated bit allocation)
+        logic [3:0]            event_code;   // Event code or metric type  
         logic [5:0]            channel;      // Channel information
-        logic [37:0]           data;         // Address or metric value - fixed to 38 bits
+        logic [37:0]           data;         // Address or metric value (updated to 38 bits)
     } monbus_entry_t;
 
     // FIFO signals (combinational)
@@ -117,7 +117,7 @@ module axi_monitor_reporter
     // Output registers (flopped)
     logic [3:0]  r_packet_type;
     logic [3:0]  r_event_code;
-    logic [37:0] r_event_data;  // Fixed width to 38 bits for proper packet format
+    logic [37:0] r_event_data;  // Updated to 38 bits to match new packet format
     logic [5:0]  r_event_channel;
 
     // Event detection signals - One for each type of event to report (combinational)
@@ -154,7 +154,7 @@ module axi_monitor_reporter
     logic w_generate_perf_packet_errors;
     logic [2:0] w_next_perf_report_state;
 
-    // Error event detection
+    // Error event detection - Updated to use unified event codes
     always_comb begin
         w_error_events_detected = '0;
         w_selected_error_idx = '0;
@@ -165,9 +165,9 @@ module axi_monitor_reporter
             if (r_trans_table_local[idx].valid && !r_event_reported[idx] &&
                     r_trans_table_local[idx].state == TRANS_ERROR && cfg_error_enable &&
                     !(cfg_timeout_enable &&
-                    (r_trans_table_local[idx].event_code == EVT_CMD_TIMEOUT ||
-                        r_trans_table_local[idx].event_code == EVT_DATA_TIMEOUT ||
-                        r_trans_table_local[idx].event_code == EVT_RESP_TIMEOUT))) begin
+                    (r_trans_table_local[idx].event_code.axi_code == EVT_CMD_TIMEOUT ||
+                        r_trans_table_local[idx].event_code.axi_code == EVT_DATA_TIMEOUT ||
+                        r_trans_table_local[idx].event_code.axi_code == EVT_RESP_TIMEOUT))) begin
                 w_error_events_detected[idx] = 1'b1;
             end
         end
@@ -183,7 +183,7 @@ module axi_monitor_reporter
         end
     end
 
-    // Timeout event detection
+    // Timeout event detection - Updated to use unified event codes
     always_comb begin
         w_timeout_events_detected = '0;
         w_selected_timeout_idx = '0;
@@ -193,9 +193,9 @@ module axi_monitor_reporter
         for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
             if (r_trans_table_local[idx].valid && !r_event_reported[idx] &&
                 r_trans_table_local[idx].state == TRANS_ERROR && cfg_timeout_enable &&
-                (r_trans_table_local[idx].event_code == EVT_CMD_TIMEOUT ||
-                    r_trans_table_local[idx].event_code == EVT_DATA_TIMEOUT ||
-                    r_trans_table_local[idx].event_code == EVT_RESP_TIMEOUT)) begin
+                (r_trans_table_local[idx].event_code.axi_code == EVT_CMD_TIMEOUT ||
+                    r_trans_table_local[idx].event_code.axi_code == EVT_DATA_TIMEOUT ||
+                    r_trans_table_local[idx].event_code.axi_code == EVT_RESP_TIMEOUT)) begin
                 w_timeout_events_detected[idx] = 1'b1;
             end
         end
@@ -236,7 +236,7 @@ module axi_monitor_reporter
         end
     end
 
-    // FIFO write interface - combines all event detections
+    // FIFO write interface - combines all event detections - Updated to use unified event codes
     always_comb begin
         w_fifo_wr_valid = 1'b0;
         w_fifo_wr_data = '{default: '0};
@@ -245,7 +245,7 @@ module axi_monitor_reporter
         if (w_has_error_event) begin
             w_fifo_wr_valid = 1'b1;
             w_fifo_wr_data.packet_type = PktTypeError;
-            w_fifo_wr_data.event_code = r_trans_table_local[w_selected_error_idx].event_code;
+            w_fifo_wr_data.event_code = r_trans_table_local[w_selected_error_idx].event_code.axi_code;
             w_fifo_wr_data.channel = r_trans_table_local[w_selected_error_idx].channel[5:0];
             /* verilator lint_off WIDTHTRUNC */
             w_fifo_wr_data.data = {{(38-ADDR_WIDTH){1'b0}}, r_trans_table_local[w_selected_error_idx].addr[ADDR_WIDTH-1:0]};
@@ -253,7 +253,7 @@ module axi_monitor_reporter
         end else if (w_has_timeout_event) begin
             w_fifo_wr_valid = 1'b1;
             w_fifo_wr_data.packet_type = PktTypeTimeout;
-            w_fifo_wr_data.event_code = r_trans_table_local[w_selected_timeout_idx].event_code;
+            w_fifo_wr_data.event_code = r_trans_table_local[w_selected_timeout_idx].event_code.axi_code;
             w_fifo_wr_data.channel = r_trans_table_local[w_selected_timeout_idx].channel[5:0];
             /* verilator lint_off WIDTHTRUNC */
             w_fifo_wr_data.data = {{(38-ADDR_WIDTH){1'b0}}, r_trans_table_local[w_selected_timeout_idx].addr[ADDR_WIDTH-1:0]};
@@ -515,24 +515,26 @@ module axi_monitor_reporter
         end
     end
 
-    // Construct the 64-bit monitor bus packet
+    // Construct the 64-bit monitor bus packet - Updated bit allocation according to new format
     always_comb begin
-        // 64-bit packet format:
+        // Updated 64-bit packet format from monitor_pkg.sv:
         // - packet_type: 4 bits  [63:60] (error, completion, threshold, etc.)
-        // - event_code:  4 bits  [59:56] (specific error or event code)
-        // - channel_id:  6 bits  [55:50] (channel ID and AXI ID)
-        // - unit_id:     4 bits  [49:46] (subsystem identifier)
-        // - agent_id:    8 bits  [45:38] (module identifier)
-        // - data:        38 bits [37:0]  (address or metric value)
+        // - protocol:    2 bits  [59:58] (AXI/PKT/APB/Custom) 
+        // - event_code:  4 bits  [57:54] (specific error or event code)
+        // - channel_id:  6 bits  [53:48] (channel ID and AXI ID)
+        // - unit_id:     4 bits  [47:44] (subsystem identifier)
+        // - agent_id:    8 bits  [43:36] (module identifier)
+        // - event_data:  36 bits [35:0]  (event-specific data)
 
         monbus_packet[63:60] = r_packet_type;
-        monbus_packet[59:56] = r_event_code;
-        monbus_packet[55:50] = r_event_channel;
-        monbus_packet[49:46] = UNIT_ID[3:0];  // 4-bit Unit ID
-        monbus_packet[45:38] = AGENT_ID[7:0]; // 8-bit Agent ID
+        monbus_packet[59:58] = PROTOCOL_AXI;        // Always AXI protocol for this monitor
+        monbus_packet[57:54] = r_event_code;
+        monbus_packet[53:48] = r_event_channel;
+        monbus_packet[47:44] = UNIT_ID[3:0];        // 4-bit Unit ID
+        monbus_packet[43:36] = AGENT_ID[7:0];       // 8-bit Agent ID
 
-        // Address/data field (up to 38 bits)
-        monbus_packet[37:0] = r_event_data;
+        // Event data field (36 bits instead of 38)
+        monbus_packet[35:0] = r_event_data[35:0];
     end
 
 endmodule : axi_monitor_reporter
