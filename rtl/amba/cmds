@@ -1,0 +1,4 @@
+pie 's/\bi_//g' *.sv
+pie 's/\biw_//g' *.sv
+pie 's/\bo_//g' *.sv
+pie 's/\bow_//g' *.sv

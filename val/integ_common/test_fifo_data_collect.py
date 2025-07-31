@@ -176,8 +176,8 @@ def test_fifo_data_collect(request, data_width, id_width, output_fifo_depth, tes
     toplevel = dut_name
 
     verilog_sources = [
-        os.path.join(rtl_dict['rtl_cmn'], "arbiter_round_robin_weighted_fixed_priority.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "arbiter_round_robin_weighted_subinst.sv"),
+        os.path.join(rtl_dict['rtl_cmn'], "arbiter_priority_encoder.sv"),
+        os.path.join(rtl_dict['rtl_cmn'], "arbiter_round_robin.sv"),
         os.path.join(rtl_dict['rtl_cmn'], "arbiter_round_robin_weighted.sv"),
         os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
         os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),

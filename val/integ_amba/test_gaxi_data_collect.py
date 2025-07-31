@@ -253,8 +253,8 @@ def test_gaxi_data_collect_with_arbitration(request, data_width, id_width, fifo_
     # Get verilog sources
     verilog_sources = [
         # Arbiter components
-        os.path.join(rtl_dict['rtl_cmn'], "arbiter_round_robin_weighted_fixed_priority.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "arbiter_round_robin_weighted_subinst.sv"),
+        os.path.join(rtl_dict['rtl_cmn'], "arbiter_priority_encoder.sv"),
+        os.path.join(rtl_dict['rtl_cmn'], "arbiter_round_robin.sv"),
         os.path.join(rtl_dict['rtl_cmn'], "arbiter_round_robin_weighted.sv"),
 
         # FIFO components

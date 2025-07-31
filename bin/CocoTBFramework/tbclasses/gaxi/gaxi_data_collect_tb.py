@@ -1,6 +1,6 @@
 """
-Enhanced testbench for gaxi_data_collect module using modern framework with FlexConfigGen
-Updated to use FlexConfigGen returning FlexRandomizer instances directly
+testbench for gaxi_data_collect module using modern framework with FlexConfigGen
+Updated to use enhanced arbiter monitor capabilities with comprehensive reporting
 """
 import os
 import logging
@@ -22,7 +22,7 @@ from CocoTBFramework.components.shared.arbiter_monitor import WeightedRoundRobin
 
 class GAXIDataCollectScoreboard:
     """
-    Specialized scoreboard for gaxi_data_collect module with enhanced field validation and error detection.
+    Specialized scoreboard for gaxi_data_collect module with field validation and error detection.
     Updated to use modern framework components with GAXI protocol.
     """
     def __init__(self, title, input_field_config, output_field_config, log=None):
@@ -246,7 +246,7 @@ class GAXIDataCollectScoreboard:
         self._check_next_packet()
 
     def _check_next_packet(self):
-        """Check the next output packet against expected data with enhanced field validation"""
+        """Check the next output packet against expected data with field validation"""
         if not self.actual_queue:
             return
 
@@ -401,7 +401,8 @@ class GAXIDataCollectScoreboard:
 
 class GAXIDataCollectTB(TBBase):
     """
-    Enhanced testbench for the gaxi_data_collect module using modern framework with FlexConfigGen.
+    testbench for the gaxi_data_collect module using modern framework with FlexConfigGen.
+    Enhanced with improved arbiter monitor integration.
     """
 
     def __init__(self, dut, super_debug=False):
@@ -558,21 +559,21 @@ class GAXIDataCollectTB(TBBase):
                                                     self.output_field_config,
                                                     log=self.log)
 
-        # Initialize the arbiter monitor with proper integration
+        # Initialize the enhanced arbiter monitor with proper integration
         self.dut_arb = dut.inst_arbiter
         try:
-            # Create Arbiter Monitor
+            # Create Enhanced Arbiter Monitor with improved capabilities
             self.arbiter_monitor = WeightedRoundRobinArbiterMonitor(
                 dut=self.dut_arb,
                 title="WRR Arbiter Monitor",
                 clock=self.dut_arb.clk,
                 clock_period_ns=10,
                 reset_n=self.dut_arb.rst_n,
-                req_signal=self.dut_arb.req,
-                gnt_valid_signal=self.dut_arb.ow_gnt_valid,
-                gnt_signal=self.dut_arb.ow_gnt,
-                gnt_id_signal=self.dut_arb.ow_gnt_id,
-                gnt_ack_signal=self.dut_arb.gnt_ack if hasattr(self.dut_arb, 'gnt_ack') else None,
+                req_signal=self.dut_arb.request,
+                gnt_valid_signal=self.dut_arb.grant_valid,
+                gnt_signal=self.dut_arb.grant,
+                gnt_id_signal=self.dut_arb.grant_id,
+                gnt_ack_signal=self.dut_arb.grant_ack if hasattr(self.dut_arb, 'grant_ack') else None,
                 block_arb_signal=self.dut_arb.block_arb,
                 max_thresh_signal=self.dut_arb.max_thresh,
                 clients=self.dut_arb.CLIENTS,
@@ -585,7 +586,7 @@ class GAXIDataCollectTB(TBBase):
             # Current weight configuration for verification
             self.current_weights = [0, 0, 0, 0]
 
-            self.log.info("Arbiter monitor initialized successfully")
+            self.log.info("Enhanced arbiter monitor initialized successfully")
         except (ImportError, AttributeError) as e:
             self.log.warning(f"WRR Monitor not available: {e}, skipping arbiter monitoring")
             self.arbiter_monitor = None
@@ -606,6 +607,7 @@ class GAXIDataCollectTB(TBBase):
 
         self.log.info(f"Testbench initialized with {len(self.masters)} input masters and {len(self.monitors)} input monitors")
 
+    # [_create_randomizer_manager and related methods remain unchanged]
     def _create_randomizer_manager(self):
         """Create FlexConfigGen manager that returns FlexRandomizer instances directly"""
 
@@ -735,10 +737,10 @@ class GAXIDataCollectTB(TBBase):
         """Start the arbiter monitoring if available"""
         if self.arbiter_monitor:
             self.arbiter_monitor.start_monitoring()
-            self.log.info("Arbiter monitoring started")
+            self.log.info("Enhanced arbiter monitoring started")
 
     def get_arbiter_statistics(self):
-        """Get statistics from the arbiter monitor"""
+        """Get statistics from the enhanced arbiter monitor"""
         if self.arbiter_monitor:
             stats = self.arbiter_monitor.get_stats_summary()
             fairness = self.arbiter_monitor.get_fairness_index()
@@ -759,17 +761,90 @@ class GAXIDataCollectTB(TBBase):
 
         return self.scoreboard.verify_arbiter_weights(self.current_weights, tolerance)
 
+    # NEW: Enhanced arbiter reporting methods using improved monitor capabilities
+    def print_arbiter_comprehensive_report(self):
+        """Print comprehensive arbiter statistics using enhanced monitor"""
+        if self.arbiter_monitor:
+            self.arbiter_monitor.print_comprehensive_stats()
+        else:
+            self.log.warning("No arbiter monitor available for comprehensive reporting")
+
+    def print_arbiter_static_period_report(self):
+        """Print static period statistics using enhanced monitor"""
+        if self.arbiter_monitor:
+            self.arbiter_monitor.print_static_period_stats()
+        else:
+            self.log.warning("No arbiter monitor available for static period reporting")
+
+    def print_weight_compliance_report(self, requesting_clients=None):
+        """Print weight compliance analysis using enhanced monitor"""
+        if self.arbiter_monitor:
+            self.arbiter_monitor.print_weight_compliance_analysis(self.current_weights, requesting_clients)
+        else:
+            self.log.warning("No arbiter monitor available for weight compliance reporting")
+
+    def analyze_arbiter_patterns(self):
+        """Get comprehensive arbiter pattern analysis using enhanced monitor"""
+        if not self.arbiter_monitor:
+            return {}
+
+        # Use enhanced monitor capabilities for pattern analysis
+        comprehensive_stats = self.arbiter_monitor.get_comprehensive_stats()
+
+        # Extract key pattern analysis data
+        pattern_analysis = {
+            'burst_analysis': comprehensive_stats.get('burst_analysis', {}),
+            'starvation_analysis': comprehensive_stats.get('starvation_analysis', {}),
+            'coverage_analysis': comprehensive_stats.get('coverage_analysis', {}),
+            'performance_analysis': comprehensive_stats.get('performance_analysis', {}),
+            'fairness_index': comprehensive_stats.get('fairness_index', 0.0)
+        }
+
+        return pattern_analysis
+
+    def enable_static_weight_monitoring(self):
+        """Enable static period monitoring for weight compliance testing"""
+        if self.arbiter_monitor:
+            self.arbiter_monitor.set_static_period(True)
+            self.arbiter_monitor.reset_static_stats()
+            self.log.info("Static period weight monitoring enabled")
+
+    def disable_static_weight_monitoring(self):
+        """Disable static period monitoring"""
+        if self.arbiter_monitor:
+            self.arbiter_monitor.set_static_period(False)
+            self.log.info("Static period weight monitoring disabled")
+
+    def get_static_weight_compliance(self, requesting_clients=None):
+        """Get weight compliance analysis for static period"""
+        if not self.arbiter_monitor:
+            return {'status': 'no_monitor'}
+
+        return self.arbiter_monitor.analyze_static_weight_compliance(self.current_weights, requesting_clients)
+
+    # [Rest of the methods remain largely unchanged, but now use enhanced monitor capabilities]
+
     def reset_statistics(self):
-        """Reset all statistics"""
+        """Reset all statistics including enhanced arbiter monitor"""
         self.scoreboard.clear()
         for channel in self.channel_names:
             self.stats['arbiter_decisions'][channel] = 0
         self.stats['verification_errors'] = 0
 
+        # Reset enhanced arbiter monitor statistics
+        if self.arbiter_monitor:
+            self.arbiter_monitor.reset_pattern_tracking()
+
     def get_statistics(self):
-        """Get comprehensive statistics"""
+        """Get comprehensive statistics including enhanced arbiter analysis"""
         stats = self.stats.copy()
         stats.update(self.get_component_statistics())
+
+        # Add enhanced arbiter pattern analysis
+        if self.arbiter_monitor:
+            pattern_analysis = self.analyze_arbiter_patterns()
+            stats['arbiter_pattern_analysis'] = pattern_analysis
+
         return stats
 
     def log_error(self, error_type, details):
@@ -920,7 +995,7 @@ class GAXIDataCollectTB(TBBase):
         return stats
 
     async def run_simple_test(self, packets_per_channel=40, expected_outputs=10):
-        """Run a simple test with equal packets on all channels"""
+        """Run a simple test with equal packets on all channels - Enhanced with arbiter reporting"""
         self.log.info(f"Starting simple test with {packets_per_channel} packets per channel{self.get_time_ns_str()}")
 
         # Reset system
@@ -932,6 +1007,9 @@ class GAXIDataCollectTB(TBBase):
         # Set equal weights for all channels
         self.set_arbiter_weights(8, 8, 8, 8)
         self.start_arbiter_monitoring()
+
+        # Enable static period monitoring for weight compliance
+        self.enable_static_weight_monitoring()
         self.scoreboard.clear()
 
         # Set randomizers to moderate for stable test
@@ -957,6 +1035,18 @@ class GAXIDataCollectTB(TBBase):
         self.add_received_packets_to_scoreboard()
         await self.wait_clocks('axi_aclk', 100)
 
+        # Disable static monitoring and get comprehensive reports
+        self.disable_static_weight_monitoring()
+
+        # Print enhanced arbiter reports
+        self.log.info("="*60)
+        self.log.info("ENHANCED ARBITER ANALYSIS REPORTS")
+        self.log.info("="*60)
+
+        self.print_arbiter_comprehensive_report()
+        self.print_arbiter_static_period_report()
+        self.print_weight_compliance_report()
+
         # Verify arbiter weight compliance
         weight_compliance = self.verify_arbiter_behavior()
         if not weight_compliance:
@@ -966,16 +1056,19 @@ class GAXIDataCollectTB(TBBase):
         # Check scoreboard
         errors = self.check_scoreboard()
 
-        # Get and report statistics
-        stats = self.get_component_statistics()
-        self.log.info(f"Test Statistics: {stats}")
+        # Get and report enhanced statistics
+        stats = self.get_statistics()
+        self.log.info(f"Enhanced Test Statistics: {stats}")
 
         return errors == 0 and weight_compliance
 
-    # Add helper methods to the testbench through monkey patching for compatibility
+    # Add helper methods to leverage enhanced monitor capabilities
     async def run_basic_arbitration_test(self, packets_per_channel, weights, profile):
-        """Run basic arbitration test with specified parameters"""
-        tb = self  # For clarity
+        """Run basic arbitration test with enhanced arbiter monitoring"""
+        tb = self
+
+        # Enable static period monitoring
+        tb.enable_static_weight_monitoring()
 
         # Send packets on all active channels
         active_channels = []
@@ -1003,15 +1096,26 @@ class GAXIDataCollectTB(TBBase):
         tb.add_received_packets_to_scoreboard()
         await tb.wait_clocks('axi_aclk', 50)
 
+        # Disable static monitoring and analyze results
+        tb.disable_static_weight_monitoring()
+
+        # Get weight compliance analysis
+        compliance = tb.get_static_weight_compliance(requesting_clients=set(range(len(active_channels))))
+        if compliance.get('status') == 'analyzed' and not compliance.get('is_compliant', False):
+            tb.log.error(f"Weight compliance failed: {compliance}")
+            tb.stats['verification_errors'] += 1
+
+        # Print detailed compliance report
+        tb.print_weight_compliance_report(requesting_clients=set(range(len(active_channels))))
+
         # Check scoreboard
         errors = tb.check_scoreboard()
         if errors > 0:
             tb.log.error(f"Basic arbitration test failed with {errors} errors")
             tb.stats['verification_errors'] += errors
 
-
     async def run_fairness_analysis_test(self, profiles):
-        """Run fairness analysis across multiple profiles"""
+        """Run fairness analysis across multiple profiles with enhanced reporting"""
         tb = self
 
         fairness_results = []
@@ -1024,6 +1128,7 @@ class GAXIDataCollectTB(TBBase):
             # Use equal weights for fairness testing
             tb.set_arbiter_weights(8, 8, 8, 8)
             tb.start_arbiter_monitoring()
+            tb.enable_static_weight_monitoring()
 
             # Send packets on all channels
             packets_per_channel = 40
@@ -1041,10 +1146,17 @@ class GAXIDataCollectTB(TBBase):
             await tb.wait_for_expected_outputs(expected_outputs)
             tb.add_received_packets_to_scoreboard()
 
-            # Analyze fairness
-            stats = tb.get_statistics()
-            fairness_score = tb.calculate_fairness_score()
+            # Disable static monitoring and analyze fairness
+            tb.disable_static_weight_monitoring()
+
+            # Use enhanced monitor for comprehensive fairness analysis
+            comprehensive_stats = tb.arbiter_monitor.get_comprehensive_stats() if tb.arbiter_monitor else {}
+            fairness_score = comprehensive_stats.get('fairness_index', 0.0)
             fairness_results.append((profile, fairness_score))
+
+            # Print detailed fairness report for this profile
+            tb.log.info(f"=== FAIRNESS ANALYSIS FOR PROFILE: {profile} ===")
+            tb.print_arbiter_comprehensive_report()
 
             tb.log.info(f"Profile {profile} fairness score: {fairness_score:.3f}")
 
@@ -1059,9 +1171,8 @@ class GAXIDataCollectTB(TBBase):
 
         return fairness_results
 
-
     async def run_stress_arbitration_test(self, duration_packets):
-        """Run stress test with high contention"""
+        """Run stress test with enhanced burst and starvation analysis"""
         tb = self
 
         tb.log.info(f"Running stress test with {duration_packets} packets per channel")
@@ -1070,6 +1181,7 @@ class GAXIDataCollectTB(TBBase):
         # Use biased weights to test arbitration under stress
         tb.set_arbiter_weights(12, 4, 2, 1)
         tb.start_arbiter_monitoring()
+        tb.enable_static_weight_monitoring()
 
         # Send many packets on all channels to create contention
         for channel in ['A', 'B', 'C', 'D']:
@@ -1086,6 +1198,24 @@ class GAXIDataCollectTB(TBBase):
         await tb.wait_for_expected_outputs(expected_outputs, timeout_clocks=duration_packets * 50)
         tb.add_received_packets_to_scoreboard()
 
+        # Disable static monitoring and get comprehensive analysis
+        tb.disable_static_weight_monitoring()
+
+        # Print enhanced stress test analysis
+        tb.log.info("=== STRESS TEST COMPREHENSIVE ANALYSIS ===")
+        tb.print_arbiter_comprehensive_report()
+
+        # Analyze burst behavior and starvation
+        pattern_analysis = tb.analyze_arbiter_patterns()
+        burst_analysis = pattern_analysis.get('burst_analysis', {})
+        starvation_analysis = pattern_analysis.get('starvation_analysis', {})
+
+        if burst_analysis.get('bursts_detected', 0) > 0:
+            tb.log.warning(f"Burst behavior detected: {burst_analysis}")
+
+        if starvation_analysis.get('starved_clients'):
+            tb.log.warning(f"Client starvation detected: {starvation_analysis}")
+
         # Verify stress test results
         errors = tb.check_scoreboard()
         if errors > 0:
@@ -1095,9 +1225,8 @@ class GAXIDataCollectTB(TBBase):
         stats = tb.get_statistics()
         tb.log.info(f"Stress test completed: {stats}")
 
-
     async def run_zero_weight_test(self):
-        """Test zero-weight channel behavior"""
+        """Test zero-weight channel behavior with enhanced arbiter monitoring"""
         tb = self
 
         tb.log.info("Testing zero-weight channel behavior")
@@ -1106,6 +1235,9 @@ class GAXIDataCollectTB(TBBase):
         # Set weights: only B and C active
         tb.set_arbiter_weights(0, 10, 10, 0)
         tb.start_arbiter_monitoring()
+
+        # Enable static period monitoring for detailed zero-weight analysis
+        tb.enable_static_weight_monitoring()
 
         # Send packets only on active channels
         packets_per_channel = 20
@@ -1123,23 +1255,63 @@ class GAXIDataCollectTB(TBBase):
         await tb.wait_for_expected_outputs(expected_outputs)
         tb.add_received_packets_to_scoreboard()
 
-        # Verify zero-weight channels got no grants
-        stats = tb.get_statistics()
-        a_decisions = stats['arbiter_decisions']['A']
-        d_decisions = stats['arbiter_decisions']['D']
-        total_decisions = sum(stats['arbiter_decisions'].values())
+        # Disable static monitoring and get enhanced analysis
+        tb.disable_static_weight_monitoring()
 
-        if total_decisions > 0:
-            a_ratio = a_decisions / total_decisions
-            d_ratio = d_decisions / total_decisions
+        # Enhanced zero-weight verification using arbiter monitor
+        tb.log.info("=== ZERO-WEIGHT CHANNEL ANALYSIS ===")
+        tb.print_arbiter_comprehensive_report()
 
-            if a_ratio > 0.05:  # Allow 5% tolerance
-                tb.log.error(f"Channel A (weight=0) got too many decisions: {a_decisions} ({a_ratio:.1%})")
-                tb.stats['verification_errors'] += 1
+        # Analyze requesting clients (only B and C should be active)
+        requesting_clients = {1, 2}  # B=1, C=2
+        tb.print_weight_compliance_report(requesting_clients=requesting_clients)
 
-            if d_ratio > 0.05:  # Allow 5% tolerance
-                tb.log.error(f"Channel D (weight=0) got too many decisions: {d_decisions} ({d_ratio:.1%})")
-                tb.stats['verification_errors'] += 1
+        # Get detailed pattern analysis for zero-weight verification
+        pattern_analysis = tb.analyze_arbiter_patterns()
+        starvation_analysis = pattern_analysis.get('starvation_analysis', {})
+
+        # Verify zero-weight channels got no grants using enhanced statistics
+        if tb.arbiter_monitor:
+            comprehensive_stats = tb.arbiter_monitor.get_comprehensive_stats()
+            client_stats = comprehensive_stats.get('client_stats', [])
+
+            # Check grants per client from enhanced monitor
+            for client_stat in client_stats:
+                client_id = client_stat['client_id']
+                grants = client_stat['grants']
+                percentage = client_stat['percentage']
+
+                if client_id in [0, 3]:  # A and D channels (zero weight)
+                    if grants > 0:
+                        tb.log.error(f"Channel {['A', 'B', 'C', 'D'][client_id]} (weight=0) got {grants} grants ({percentage:.1f}%)")
+                        tb.stats['verification_errors'] += 1
+                    else:
+                        tb.log.info(f"✓ Channel {['A', 'B', 'C', 'D'][client_id]} correctly got 0 grants")
+                elif client_id in [1, 2]:  # B and C channels (active)
+                    tb.log.info(f"✓ Channel {['A', 'B', 'C', 'D'][client_id]} got {grants} grants ({percentage:.1f}%)")
+        else:
+            # Fallback to original verification method
+            stats = tb.get_statistics()
+            a_decisions = stats['arbiter_decisions']['A']
+            d_decisions = stats['arbiter_decisions']['D']
+            total_decisions = sum(stats['arbiter_decisions'].values())
+
+            if total_decisions > 0:
+                a_ratio = a_decisions / total_decisions
+                d_ratio = d_decisions / total_decisions
+
+                if a_ratio > 0.05:  # Allow 5% tolerance
+                    tb.log.error(f"Channel A (weight=0) got too many decisions: {a_decisions} ({a_ratio:.1%})")
+                    tb.stats['verification_errors'] += 1
+
+                if d_ratio > 0.05:  # Allow 5% tolerance
+                    tb.log.error(f"Channel D (weight=0) got too many decisions: {d_decisions} ({d_ratio:.1%})")
+                    tb.stats['verification_errors'] += 1
+
+        # Check for any starvation of active channels
+        starved_clients = starvation_analysis.get('starved_clients', [])
+        if any(client in [1, 2] for client in starved_clients):
+            tb.log.warning(f"Active channels were starved: {starved_clients}")
 
         # Check scoreboard
         errors = tb.check_scoreboard()
@@ -1147,11 +1319,19 @@ class GAXIDataCollectTB(TBBase):
             tb.log.warning(f"Zero-weight test had {errors} verification errors")
             tb.stats['verification_errors'] += errors
 
+        # Verify weight compliance for active channels only
+        compliance = tb.get_static_weight_compliance(requesting_clients=requesting_clients)
+        if compliance.get('status') == 'analyzed' and not compliance.get('is_compliant', False):
+            tb.log.warning(f"Weight compliance failed for active channels: {compliance}")
+
         tb.log.info("✓ Zero-weight channels correctly limited")
 
-
     def calculate_fairness_score(self):
-        """Calculate fairness score based on arbiter decisions"""
+        """Calculate fairness score - enhanced to use arbiter monitor if available"""
+        if self.arbiter_monitor:
+            return self.arbiter_monitor.get_fairness_index()
+
+        # Fallback to local calculation
         decisions = self.stats['arbiter_decisions']
         total = sum(decisions.values())
 

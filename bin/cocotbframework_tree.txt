@@ -43,10 +43,10 @@ CocoTBFramework
 │   │   ├── gaxi_packet.py
 │   │   ├── gaxi_sequence.py
 │   │   └── gaxi_slave.py
-│   ├── misc
-│   │   └── arbiter_monitor.py
 │   ├── shared
 │   │   ├── __init__.py
+│   │   ├── arbiter_monitor copy.py
+│   │   ├── arbiter_monitor.py
 │   │   ├── data_strategies.py
 │   │   ├── debug_object.py
 │   │   ├── field_config.py
@@ -125,7 +125,8 @@ CocoTBFramework
     ├── common
     │   ├── __init__.py
     │   ├── adder_testing.py
-    │   ├── arbiter_wrr_test_tb.py
+    │   ├── arbiter_round_robin_tb.py
+    │   ├── arbiter_round_robin_weighted_tb.py
     │   ├── cam_testing.py
     │   ├── crc_testing.py
     │   ├── divider_testing.py
@@ -150,7 +151,6 @@ CocoTBFramework
     │   └── gaxi_data_collect_tb.py
     ├── monbus
     │   ├── __init__.py
-    │   ├── monbus_components.py.HOLD
     │   ├── monbus_event_factories.py
     │   ├── monbus_packet.py
     │   ├── monbus_slave.py
@@ -158,6 +158,7 @@ CocoTBFramework
     │   └── monbus_validators.py
     ├── shared
     │   ├── advanced_monitoring.py
+    │   ├── flex_randomizer.py
     │   ├── tbbase.py
     │   └── utilities.py
     └── wavedrom_user

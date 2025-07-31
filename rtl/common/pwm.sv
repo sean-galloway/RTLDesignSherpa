@@ -6,6 +6,7 @@ module pwm #(
 ) (
     input  logic                      clk,
     input  logic                      rst_n,
+    input  logic                      sync_rst_n,     // Synchronous reset
     input  logic [      CHANNELS-1:0] start,         // Start the PWM for each channel
     input  logic [CHANNELS*WIDTH-1:0] duty,          // Max count for keeping PWM high per channel
     input  logic [CHANNELS*WIDTH-1:0] period,        // Max total count per channel
@@ -47,8 +48,13 @@ module pwm #(
 
             // Edge detection for start signal
             always_ff @(posedge clk or negedge rst_n) begin
-                if (!rst_n) r_start_prev <= 1'b0;
-                else r_start_prev <= start[i];
+                if (!rst_n) begin
+                    r_start_prev <= 1'b0;
+                end else if (!sync_rst_n) begin
+                    r_start_prev <= 1'b0;
+                end else begin
+                    r_start_prev <= start[i];
+                end
             end
             assign w_start_edge = start[i] && !r_start_prev;
 
@@ -62,6 +68,8 @@ module pwm #(
             // State machine
             always_ff @(posedge clk or negedge rst_n) begin
                 if (!rst_n) begin
+                    r_state <= IDLE;
+                end else if (!sync_rst_n) begin
                     r_state <= IDLE;
                 end else begin
                     case (r_state)
@@ -92,6 +100,8 @@ module pwm #(
             always_ff @(posedge clk or negedge rst_n) begin
                 if (!rst_n) begin
                     r_count <= '0;
+                end else if (!sync_rst_n) begin
+                    r_count <= '0;
                 end else begin
                     case (r_state)
                         IDLE: begin
@@ -120,6 +130,8 @@ module pwm #(
             // Repeat counter logic
             always_ff @(posedge clk or negedge rst_n) begin
                 if (!rst_n) begin
+                    r_repeat_value <= '0;
+                end else if (!sync_rst_n) begin
                     r_repeat_value <= '0;
                 end else begin
                     case (r_state)

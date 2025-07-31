@@ -82,6 +82,7 @@ class PWMTB(TBBase):
         """Setup signal mappings"""
         self.clk = self.dut.clk
         self.rst_n = self.dut.rst_n
+        self.sync_rst_n = self.dut.sync_rst_n
         self.start = self.dut.start
         self.duty = self.dut.duty
         self.period = self.dut.period
@@ -97,6 +98,7 @@ class PWMTB(TBBase):
     async def reset_dut(self):
         """Reset the DUT"""
         self.rst_n.value = 0
+        self.sync_rst_n.value = 1
         self.start.value = 0
         self.duty.value = 0
         self.period.value = 0
@@ -147,6 +149,138 @@ class PWMTB(TBBase):
             cycle_count += 1
 
         raise TimeoutError(f"Channel {channel} done not asserted within {timeout_cycles} cycles")
+
+    async def test_sync_reset_functionality(self):
+        """Test synchronous reset functionality"""
+        self.log.info(f"Testing synchronous reset functionality{self.get_time_ns_str()}")
+
+        await self.setup_clock()
+        await self.reset_dut()
+
+        all_passed = True
+
+        # Setup PWM parameters for a relatively long running PWM
+        duty_val = 10
+        period_val = 20
+        repeat_val = 5  # Multiple repeats so we have time to test reset
+
+        channel = 0
+        duty_packed = self.pack_channel_data([duty_val] + [0] * (self.CHANNELS - 1))
+        period_packed = self.pack_channel_data([period_val] + [0] * (self.CHANNELS - 1))
+        repeat_packed = self.pack_channel_data([repeat_val] + [0] * (self.CHANNELS - 1))
+
+        self.duty.value = duty_packed
+        self.period.value = period_packed
+        self.repeat_count.value = repeat_packed
+
+        # Start PWM
+        self.start.value = 1 << channel
+        await RisingEdge(self.clk)
+        self.start.value = 0
+
+        # Wait for PWM to start and run for a few cycles
+        pwm_started = False
+        start_cycle = 0
+        for cycle in range(10):
+            await RisingEdge(self.clk)
+            pwm_state = self.get_channel_pwm(channel)
+            if pwm_state == 1:
+                pwm_started = True
+                start_cycle = cycle
+                self.log.debug(f"PWM started at cycle {cycle}{self.get_time_ns_str()}")
+                break
+
+        if not pwm_started:
+            self.log.error(f"PWM did not start within 10 cycles{self.get_time_ns_str()}")
+            all_passed = False
+            # Store failed result
+            result = {
+                'test_type': 'sync_reset_functionality',
+                'error': 'PWM did not start',
+                'success': False
+            }
+            self.test_results.append(result)
+            self.test_failures.append(result)
+            return all_passed
+
+        # Let it run for several more cycles to get into the middle of operation
+        for cycle in range(period_val // 2):  # Run for half a period
+            await RisingEdge(self.clk)
+
+        # Verify PWM is still running before reset
+        pwm_before_reset = self.get_channel_pwm(channel)
+        done_before_reset = self.get_channel_done(channel)
+
+        self.log.debug(f"Before sync reset: PWM={pwm_before_reset}, Done={done_before_reset}{self.get_time_ns_str()}")
+
+        # Apply synchronous reset (should reset on next clock edge)
+        self.sync_rst_n.value = 0
+        await RisingEdge(self.clk)
+
+        # Check immediately after sync reset
+        pwm_after_reset = self.get_channel_pwm(channel)
+        done_after_reset = self.get_channel_done(channel)
+
+        self.log.debug(f"After sync reset: PWM={pwm_after_reset}, Done={done_after_reset}{self.get_time_ns_str()}")
+
+        # PWM should be reset to 0, done should be 0 (back to IDLE state)
+        if pwm_after_reset != 0:
+            self.log.error(f"PWM not reset: expected 0, got {pwm_after_reset}{self.get_time_ns_str()}")
+            all_passed = False
+
+        if done_after_reset != 0:
+            self.log.error(f"Done not reset: expected 0, got {done_after_reset}{self.get_time_ns_str()}")
+            all_passed = False
+
+        # Release sync reset
+        self.sync_rst_n.value = 1
+        await RisingEdge(self.clk)
+
+        # PWM should remain off after releasing sync reset (since start is not asserted)
+        pwm_after_release = self.get_channel_pwm(channel)
+        done_after_release = self.get_channel_done(channel)
+
+        if pwm_after_release != 0:
+            self.log.error(f"PWM active after sync reset release without start: {pwm_after_release}{self.get_time_ns_str()}")
+            all_passed = False
+
+        if done_after_release != 0:
+            self.log.error(f"Done active after sync reset release: {done_after_release}{self.get_time_ns_str()}")
+            all_passed = False
+
+        # Verify we can restart PWM after sync reset
+        self.start.value = 1 << channel
+        await RisingEdge(self.clk)
+        self.start.value = 0
+
+        # Wait for PWM to restart
+        pwm_restarted = False
+        for cycle in range(10):
+            await RisingEdge(self.clk)
+            pwm_state = self.get_channel_pwm(channel)
+            if pwm_state == 1:
+                pwm_restarted = True
+                self.log.debug(f"PWM restarted after sync reset at cycle {cycle}{self.get_time_ns_str()}")
+                break
+
+        if not pwm_restarted:
+            self.log.error(f"PWM did not restart after sync reset{self.get_time_ns_str()}")
+            all_passed = False
+
+        # Store result
+        result = {
+            'test_type': 'sync_reset_functionality',
+            'pwm_stopped_by_reset': pwm_after_reset == 0,
+            'done_reset_properly': done_after_reset == 0,
+            'pwm_stayed_off_after_release': pwm_after_release == 0,
+            'pwm_restarted_properly': pwm_restarted,
+            'success': all_passed
+        }
+        self.test_results.append(result)
+        if not result['success']:
+            self.test_failures.append(result)
+
+        return all_passed
 
     async def test_basic_pwm_generation(self):
         """Test basic PWM generation"""
@@ -400,20 +534,20 @@ class PWMTB(TBBase):
             await RisingEdge(self.clk)
             total_cycles_monitored += 1
             cycles_since_period_start += 1
-            
+
             current_pwm_state = self.get_channel_pwm(channel)
-            
+
             # Detect period completion by counting cycles
             # A period is complete when we've seen period_val cycles of PWM activity
             if cycles_since_period_start >= period_val:
                 periods_completed += 1
                 cycles_since_period_start = 0
                 self.log.debug(f"Period {periods_completed} completed at total cycle {total_cycles_monitored}{self.get_time_ns_str()}")
-                
+
                 # After completing expected repeats, check if PWM stops
                 if periods_completed >= repeat_val:
                     break
-            
+
             prev_pwm_state = current_pwm_state
 
         # Now check if done signal is asserted
@@ -421,12 +555,12 @@ class PWMTB(TBBase):
         done_asserted = False
         done_check_cycles = 0
         max_done_wait = 10
-        
+
         while done_check_cycles < max_done_wait:
             await RisingEdge(self.clk)
             done_check_cycles += 1
             done_state = self.get_channel_done(channel)
-            
+
             if done_state == 1:
                 done_asserted = True
                 self.log.debug(f"Done signal asserted after {done_check_cycles} additional cycles{self.get_time_ns_str()}")
@@ -436,11 +570,11 @@ class PWMTB(TBBase):
         if periods_completed < repeat_val:
             self.log.error(f"Insufficient periods completed: {periods_completed}, expected: {repeat_val}{self.get_time_ns_str()}")
             all_passed = False
-        
+
         if not done_asserted:
             self.log.error(f"Done signal not asserted after {repeat_val} periods{self.get_time_ns_str()}")
             all_passed = False
-        
+
         # Additional check: PWM should stop generating after done is asserted
         if done_asserted:
             # Check that PWM output is now inactive
@@ -614,6 +748,7 @@ class PWMTB(TBBase):
         # Define test functions
         test_functions = [
             (self.test_basic_pwm_generation, "Basic PWM generation"),
+            (self.test_sync_reset_functionality, "Synchronous reset functionality"),
             (self.test_multiple_channels, "Multiple channels"),
             (self.test_repeat_functionality, "Repeat functionality"),
             (self.test_edge_cases, "Edge cases"),

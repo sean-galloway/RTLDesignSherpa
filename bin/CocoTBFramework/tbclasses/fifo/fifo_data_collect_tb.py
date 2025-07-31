@@ -1,11 +1,6 @@
 """
-Enhanced testbench for data_collect module - Refactored to use FlexConfigGen only
-
-Key changes:
-- Eliminated manual FlexRandomizer instantiation
-- FlexConfigGen now returns FlexRandomizer instances directly via return_flexrandomizer=True  
-- Simplified randomizer management with direct instance access
-- Cleaner architecture using single randomization source
+testbench for data_collect module - Enhanced with improved arbiter monitor capabilities
+Updated to leverage comprehensive reporting, pattern analysis, and weight compliance checking
 """
 import os
 import logging
@@ -28,7 +23,7 @@ from CocoTBFramework.components.shared.arbiter_monitor import WeightedRoundRobin
 # [DataCollectScoreboard class remains unchanged - no randomization logic]
 class DataCollectScoreboard:
     """
-    Specialized scoreboard for data_collect module with enhanced field validation and error detection.
+    Specialized scoreboard for data_collect module with field validation and error detection.
     Updated to use modern framework components.
     """
     def __init__(self, title, input_field_config, output_field_config, log=None):
@@ -252,7 +247,7 @@ class DataCollectScoreboard:
         self._check_next_packet()
 
     def _check_next_packet(self):
-        """Check the next output packet against expected data with enhanced field validation"""
+        """Check the next output packet against expected data with field validation"""
         if not self.actual_queue:
             return
 
@@ -407,7 +402,8 @@ class DataCollectScoreboard:
 
 class DataCollectTB(TBBase):
     """
-    Enhanced testbench for the data_collect module using FlexConfigGen only for randomization.
+    testbench for the data_collect module using FlexConfigGen only for randomization.
+    Enhanced with improved arbiter monitor integration for comprehensive analysis.
     """
 
     def __init__(self, dut, super_debug=False):
@@ -575,21 +571,21 @@ class DataCollectTB(TBBase):
                                                 self.output_field_config,
                                                 log=self.log)
 
-        # Initialize the arbiter monitor with proper integration
+        # Initialize the enhanced arbiter monitor with proper integration
         self.dut_arb = dut.inst_arbiter
         try:
-            # Create Arbiter Monitor
+            # Create Enhanced Arbiter Monitor with improved capabilities
             self.arbiter_monitor = WeightedRoundRobinArbiterMonitor(
                 dut=self.dut_arb,
                 title="WRR Arbiter Monitor",
                 clock=self.dut_arb.clk,
                 clock_period_ns=10,
                 reset_n=self.dut_arb.rst_n,
-                req_signal=self.dut_arb.req,
-                gnt_valid_signal=self.dut_arb.gnt_valid,
-                gnt_signal=self.dut_arb.gnt,
-                gnt_id_signal=self.dut_arb.gnt_id,
-                gnt_ack_signal=self.dut_arb.gnt_ack if hasattr(self.dut_arb, 'gnt_ack') else None,
+                req_signal=self.dut_arb.request,
+                gnt_valid_signal=self.dut_arb.grant_valid,
+                gnt_signal=self.dut_arb.grant,
+                gnt_id_signal=self.dut_arb.grant_id,
+                gnt_ack_signal=self.dut_arb.grant_ack if hasattr(self.dut_arb, 'grant_ack') else None,
                 block_arb_signal=self.dut_arb.block_arb,
                 max_thresh_signal=self.dut_arb.max_thresh,
                 clients=self.dut_arb.CLIENTS,
@@ -602,7 +598,7 @@ class DataCollectTB(TBBase):
             # Current weight configuration for verification
             self.current_weights = [0, 0, 0, 0]
 
-            self.log.info("Arbiter monitor initialized successfully")
+            self.log.info("Enhanced arbiter monitor initialized successfully")
         except (ImportError, AttributeError) as e:
             self.log.warning(f"WRR Monitor not available: {e}, skipping arbiter monitoring")
             self.arbiter_monitor = None
@@ -730,10 +726,10 @@ class DataCollectTB(TBBase):
         """Start the arbiter monitoring if available"""
         if self.arbiter_monitor:
             self.arbiter_monitor.start_monitoring()
-            self.log.info("Arbiter monitoring started")
+            self.log.info("Enhanced arbiter monitoring started")
 
     def get_arbiter_statistics(self):
-        """Get statistics from the arbiter monitor"""
+        """Get statistics from the enhanced arbiter monitor"""
         if self.arbiter_monitor:
             stats = self.arbiter_monitor.get_stats_summary()
             fairness = self.arbiter_monitor.get_fairness_index()
@@ -753,6 +749,67 @@ class DataCollectTB(TBBase):
             return True
 
         return self.scoreboard.verify_arbiter_weights(self.current_weights, tolerance)
+
+    # NEW: Enhanced arbiter reporting methods using improved monitor capabilities
+    def print_arbiter_comprehensive_report(self):
+        """Print comprehensive arbiter statistics using enhanced monitor"""
+        if self.arbiter_monitor:
+            self.arbiter_monitor.print_comprehensive_stats()
+        else:
+            self.log.warning("No arbiter monitor available for comprehensive reporting")
+
+    def print_arbiter_static_period_report(self):
+        """Print static period statistics using enhanced monitor"""
+        if self.arbiter_monitor:
+            self.arbiter_monitor.print_static_period_stats()
+        else:
+            self.log.warning("No arbiter monitor available for static period reporting")
+
+    def print_weight_compliance_report(self, requesting_clients=None):
+        """Print weight compliance analysis using enhanced monitor"""
+        if self.arbiter_monitor:
+            self.arbiter_monitor.print_weight_compliance_analysis(self.current_weights, requesting_clients)
+        else:
+            self.log.warning("No arbiter monitor available for weight compliance reporting")
+
+    def analyze_arbiter_patterns(self):
+        """Get comprehensive arbiter pattern analysis using enhanced monitor"""
+        if not self.arbiter_monitor:
+            return {}
+
+        # Use enhanced monitor capabilities for pattern analysis
+        comprehensive_stats = self.arbiter_monitor.get_comprehensive_stats()
+
+        # Extract key pattern analysis data
+        pattern_analysis = {
+            'burst_analysis': comprehensive_stats.get('burst_analysis', {}),
+            'starvation_analysis': comprehensive_stats.get('starvation_analysis', {}),
+            'coverage_analysis': comprehensive_stats.get('coverage_analysis', {}),
+            'performance_analysis': comprehensive_stats.get('performance_analysis', {}),
+            'fairness_index': comprehensive_stats.get('fairness_index', 0.0)
+        }
+
+        return pattern_analysis
+
+    def enable_static_weight_monitoring(self):
+        """Enable static period monitoring for weight compliance testing"""
+        if self.arbiter_monitor:
+            self.arbiter_monitor.set_static_period(True)
+            self.arbiter_monitor.reset_static_stats()
+            self.log.info("Static period weight monitoring enabled")
+
+    def disable_static_weight_monitoring(self):
+        """Disable static period monitoring"""
+        if self.arbiter_monitor:
+            self.arbiter_monitor.set_static_period(False)
+            self.log.info("Static period weight monitoring disabled")
+
+    def get_static_weight_compliance(self, requesting_clients=None):
+        """Get weight compliance analysis for static period"""
+        if not self.arbiter_monitor:
+            return {'status': 'no_monitor'}
+
+        return self.arbiter_monitor.analyze_static_weight_compliance(self.current_weights, requesting_clients)
 
     def log_error(self, error_type, details):
         """Log an error with timestamp for later analysis"""
@@ -800,8 +857,6 @@ class DataCollectTB(TBBase):
         self.slave_e.set_randomizer(read_randomizer)
 
         self.log.info(f"Set all randomizers to config '{config_name}' using FlexConfigGen instances")
-
-    # [All other methods remain largely the same, but use FlexConfigGen instances...]
 
     async def wait_for_expected_outputs(self, expected_count, timeout_clocks=5000):
         """Wait until the expected number of outputs have been received or timeout"""
@@ -961,7 +1016,7 @@ class DataCollectTB(TBBase):
         return stats
 
     async def run_simple_test(self, packets_per_channel=40, expected_outputs=10):
-        """Run a simple test with equal packets on all channels"""
+        """Run a simple test with equal packets on all channels - Enhanced with arbiter reporting"""
         self.log.info(f"Starting simple test with {packets_per_channel} packets per channel{self.get_time_ns_str()}")
 
         # Reset system
@@ -973,6 +1028,9 @@ class DataCollectTB(TBBase):
         # Set equal weights for all channels
         self.set_arbiter_weights(8, 8, 8, 8)
         self.start_arbiter_monitoring()
+
+        # Enable static period monitoring for weight compliance
+        self.enable_static_weight_monitoring()
         self.scoreboard.clear()
 
         # Set randomizers to moderate for stable test using FlexConfigGen instances
@@ -1012,6 +1070,18 @@ class DataCollectTB(TBBase):
         self.add_received_packets_to_scoreboard()
         await self.wait_clocks('clk', 100)
 
+        # Disable static monitoring and get comprehensive reports
+        self.disable_static_weight_monitoring()
+
+        # Print enhanced arbiter reports
+        self.log.info("="*60)
+        self.log.info("ENHANCED ARBITER ANALYSIS REPORTS")
+        self.log.info("="*60)
+
+        self.print_arbiter_comprehensive_report()
+        self.print_arbiter_static_period_report()
+        self.print_weight_compliance_report()
+
         # Verify arbiter weight compliance
         weight_compliance = self.verify_arbiter_weight_compliance()
         if not weight_compliance:
@@ -1021,14 +1091,15 @@ class DataCollectTB(TBBase):
         # Check scoreboard
         errors = self.check_scoreboard()
 
-        # Get and report statistics
+        # Get and report enhanced statistics
         stats = self.get_component_statistics()
-        self.log.info(f"Test Statistics: {stats}")
+        stats['arbiter_pattern_analysis'] = self.analyze_arbiter_patterns()
+        self.log.info(f"Enhanced Test Statistics: {stats}")
 
         return errors == 0 and weight_compliance
 
     async def run_comprehensive_randomizer_sweep(self, packets_per_config=20):
-        """Test all available randomizer configurations using FlexConfigGen instances"""
+        """Test all available randomizer configurations using FlexConfigGen instances with enhanced reporting"""
         self.log.info('='*80)
         self.log.info(f'Running comprehensive data collection randomizer sweep with {packets_per_config} packets per config')
 
@@ -1065,6 +1136,7 @@ class DataCollectTB(TBBase):
                 # Set equal weights for all channels
                 self.set_arbiter_weights(8, 8, 8, 8)
                 self.start_arbiter_monitoring()
+                self.enable_static_weight_monitoring()
                 self.scoreboard.clear()
 
                 # Set randomizers using FlexConfigGen instances
@@ -1099,25 +1171,37 @@ class DataCollectTB(TBBase):
                 self.add_received_packets_to_scoreboard()
                 await self.wait_clocks('clk', 50)
 
+                # Disable static monitoring and analyze
+                self.disable_static_weight_monitoring()
+
+                # Get enhanced pattern analysis
+                pattern_analysis = self.analyze_arbiter_patterns()
+
                 # Check results
                 weight_compliance = self.verify_arbiter_weight_compliance()
                 errors = self.check_scoreboard()
 
                 if errors > 0 or not weight_compliance:
                     self.log.error(f'✗ Data collection config {config_name} failed: {errors} errors, weight_compliance={weight_compliance}')
+                    # Print detailed failure analysis
+                    self.print_arbiter_comprehensive_report()
                     failures += 1
                 else:
                     self.log.info(f'✓ Data collection config {config_name} passed')
+                    # Log brief success stats
+                    fairness = pattern_analysis.get('fairness_index', 0.0)
+                    burst_count = pattern_analysis.get('burst_analysis', {}).get('bursts_detected', 0)
+                    self.log.info(f'  Fairness: {fairness:.3f}, Bursts: {burst_count}')
 
             except Exception as e:
                 self.log.error(f'✗ Data collection config {config_name} failed: {e}')
                 failures += 1
 
-        self.log.info(f"Randomizer sweep completed: {total_configs - failures}/{total_configs} configs passed")
+        self.log.info(f"Enhanced randomizer sweep completed: {total_configs - failures}/{total_configs} configs passed")
         return failures == 0
 
     async def run_weighted_arbiter_test(self, weights_list=None):
-        """Run a test with different arbiter weight configurations"""
+        """Run a test with different arbiter weight configurations - Enhanced with detailed reporting"""
         if weights_list is None:
             # Get test level for configuration filtering
             test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
@@ -1165,6 +1249,7 @@ class DataCollectTB(TBBase):
             # Set weights
             self.set_arbiter_weights(*weights)
             self.start_arbiter_monitoring()
+            self.enable_static_weight_monitoring()
             self.scoreboard.clear()
 
             # Set randomizers to fast for efficient testing
@@ -1173,13 +1258,15 @@ class DataCollectTB(TBBase):
             # Calculate packets per channel based on weights
             base_count = 24  # Multiple of CHUNKS for clean testing
             packets_per_channel = []
-            for weight in weights:
+            active_channels = []
+            for j, weight in enumerate(weights):
                 if weight == 0:
                     packets_per_channel.append(0)
                 else:
                     # Ensure multiples of CHUNKS for clean testing
                     count = (base_count * weight // self.CHUNKS) * self.CHUNKS
                     packets_per_channel.append(count)
+                    active_channels.append(j)
 
             expected_outputs = sum(packets_per_channel) // self.CHUNKS
 
@@ -1218,22 +1305,184 @@ class DataCollectTB(TBBase):
                 self.add_received_packets_to_scoreboard()
                 await self.wait_clocks('clk', 100)
 
-                # Verify arbiter weight compliance
+                # Disable static monitoring for analysis
+                self.disable_static_weight_monitoring()
+
+                # Enhanced verification with detailed reporting
+                self.log.info(f"=== DETAILED ANALYSIS FOR WEIGHTS {weights} ===")
+                self.print_arbiter_comprehensive_report()
+                self.print_weight_compliance_report(requesting_clients=set(active_channels))
+
+                # Get detailed compliance analysis
+                compliance = self.get_static_weight_compliance(requesting_clients=set(active_channels))
+                pattern_analysis = self.analyze_arbiter_patterns()
+
+                # Verify results
                 weight_compliance = self.verify_arbiter_weight_compliance(tolerance=0.3)
                 errors = self.check_scoreboard()
 
-                if errors > 0 or not weight_compliance:
-                    self.log.error(f"Test {i+1} failed: {errors} errors, weight_compliance={weight_compliance}{self.get_time_ns_str()}")
+                # Enhanced pass/fail criteria
+                fairness_ok = pattern_analysis.get('fairness_index', 0.0) > 0.7
+                burst_ok = pattern_analysis.get('burst_analysis', {}).get('bursts_detected', 0) < 3
+                starvation_ok = not pattern_analysis.get('starvation_analysis', {}).get('starved_clients', [])
+
+                if errors > 0 or not weight_compliance or not fairness_ok:
+                    self.log.error(f"Test {i+1} failed: errors={errors}, weight_compliance={weight_compliance}, fairness={fairness_ok}{self.get_time_ns_str()}")
                     all_passed = False
                     results.append(False)
                 else:
-                    self.log.info(f"Test {i+1} passed{self.get_time_ns_str()}")
+                    self.log.info(f"Test {i+1} passed (fairness={pattern_analysis.get('fairness_index', 0.0):.3f}){self.get_time_ns_str()}")
                     results.append(True)
 
-            # Get statistics
+            # Get enhanced statistics
             stats = self.get_component_statistics()
-            self.log.info(f"Test {i+1} Statistics: {stats}")
+            stats['arbiter_pattern_analysis'] = self.analyze_arbiter_patterns()
+            self.log.info(f"Test {i+1} Enhanced Statistics: {stats}")
 
         self.log.info(f"Weighted arbiter test results: {results}")
         self.log.info(f"Overall result: {'Passed' if all_passed else 'Failed'}")
         return all_passed
+
+    async def run_zero_weight_test(self):
+        """Test zero-weight channel behavior with enhanced arbiter monitoring"""
+        tb = self
+
+        tb.log.info("Testing zero-weight channel behavior")
+        tb.reset_statistics()
+
+        # Set weights: only B and C active
+        tb.set_arbiter_weights(0, 10, 10, 0)
+        tb.start_arbiter_monitoring()
+
+        # Enable static period monitoring for detailed zero-weight analysis
+        tb.enable_static_weight_monitoring()
+
+        # Send packets only on active channels using the enhanced send method
+        packets_per_channel = 20
+        send_tasks = []
+        for i, channel in enumerate(['B', 'C']):
+            channel_index = ord(channel) - ord('A')  # B=1, C=2
+            base_data = 0x100 + channel_index * 0x10
+            base_id = {'B': 0xBB, 'C': 0xCC}[channel]
+
+            task = cocotb.start_soon(
+                tb.send_packets_on_channel(
+                    channel, packets_per_channel,
+                    id_value=base_id,
+                    base_data=base_data,
+                    expected_weight=10  # Both B and C have weight 10
+                )
+            )
+            send_tasks.append(task)
+
+        # Wait for all sending tasks and add packets to scoreboard
+        for task in send_tasks:
+            sent_packets = await task
+            for pkt in sent_packets:
+                tb.scoreboard.add_input_packet(pkt)
+
+        # Wait for completion
+        await tb.wait_clocks('clk', packets_per_channel * 15 + 100)
+        await tb.wait_for_all_masters_idle()
+
+        # Calculate expected outputs and wait
+        expected_outputs = (packets_per_channel * 2) // tb.CHUNKS
+        await tb.wait_for_expected_outputs(expected_outputs)
+        tb.add_received_packets_to_scoreboard()
+
+        # Disable static monitoring and get enhanced analysis
+        tb.disable_static_weight_monitoring()
+
+        # Enhanced zero-weight verification using arbiter monitor
+        tb.log.info("=== ZERO-WEIGHT CHANNEL ANALYSIS ===")
+        tb.print_arbiter_comprehensive_report()
+
+        # Analyze requesting clients (only B and C should be active)
+        requesting_clients = {1, 2}  # B=1, C=2
+        tb.print_weight_compliance_report(requesting_clients=requesting_clients)
+
+        # Get detailed pattern analysis for zero-weight verification
+        pattern_analysis = tb.analyze_arbiter_patterns()
+        starvation_analysis = pattern_analysis.get('starvation_analysis', {})
+
+        # Verify zero-weight channels got no grants using enhanced statistics
+        if tb.arbiter_monitor:
+            comprehensive_stats = tb.arbiter_monitor.get_comprehensive_stats()
+            client_stats = comprehensive_stats.get('client_stats', [])
+
+            # Check grants per client from enhanced monitor
+            for client_stat in client_stats:
+                client_id = client_stat['client_id']
+                grants = client_stat['grants']
+                percentage = client_stat['percentage']
+
+                if client_id in [0, 3]:  # A and D channels (zero weight)
+                    if grants > 0:
+                        tb.log.error(f"Channel {['A', 'B', 'C', 'D'][client_id]} (weight=0) got {grants} grants ({percentage:.1f}%)")
+                        tb.stats['verification_errors'] += 1
+                    else:
+                        tb.log.info(f"✓ Channel {['A', 'B', 'C', 'D'][client_id]} correctly got 0 grants")
+                elif client_id in [1, 2]:  # B and C channels (active)
+                    tb.log.info(f"✓ Channel {['A', 'B', 'C', 'D'][client_id]} got {grants} grants ({percentage:.1f}%)")
+        else:
+            # Fallback to original verification method - need to adapt for FIFO TB structure
+            if hasattr(tb, 'stats') and 'arbiter_decisions' in tb.stats:
+                stats = tb.get_statistics()
+                a_decisions = stats.get('arbiter_decisions', {}).get('A', 0)
+                d_decisions = stats.get('arbiter_decisions', {}).get('D', 0)
+                total_decisions = sum(stats.get('arbiter_decisions', {}).values())
+
+                if total_decisions > 0:
+                    a_ratio = a_decisions / total_decisions
+                    d_ratio = d_decisions / total_decisions
+
+                    if a_ratio > 0.05:  # Allow 5% tolerance
+                        tb.log.error(f"Channel A (weight=0) got too many decisions: {a_decisions} ({a_ratio:.1%})")
+                        tb.total_errors += 1
+
+                    if d_ratio > 0.05:  # Allow 5% tolerance
+                        tb.log.error(f"Channel D (weight=0) got too many decisions: {d_decisions} ({d_ratio:.1%})")
+                        tb.total_errors += 1
+
+        # Check for any starvation of active channels
+        starved_clients = starvation_analysis.get('starved_clients', [])
+        if any(client in [1, 2] for client in starved_clients):
+            tb.log.warning(f"Active channels were starved: {starved_clients}")
+
+        # Check scoreboard
+        errors = tb.check_scoreboard()
+        if errors > 0:
+            tb.log.warning(f"Zero-weight test had {errors} verification errors")
+            tb.total_errors += errors
+
+        # Verify weight compliance for active channels only
+        compliance = tb.get_static_weight_compliance(requesting_clients=requesting_clients)
+        if compliance.get('status') == 'analyzed' and not compliance.get('is_compliant', False):
+            tb.log.warning(f"Weight compliance failed for active channels: {compliance}")
+
+        tb.log.info("✓ Zero-weight channels correctly limited")
+
+    def calculate_fairness_score(self):
+        """Calculate fairness score - enhanced to use arbiter monitor if available"""
+        if self.arbiter_monitor:
+            return self.arbiter_monitor.get_fairness_index()
+
+        # Fallback to local calculation
+        if hasattr(self, 'stats') and 'arbiter_decisions' in self.stats:
+            decisions = self.stats['arbiter_decisions']
+            total = sum(decisions.values())
+
+            if total == 0:
+                return 1.0
+
+            # Calculate fairness using Jain's fairness index
+            sum_squared = sum(count**2 for count in decisions.values())
+            sum_linear = sum(decisions.values())
+
+            if sum_linear == 0:
+                return 1.0
+
+            fairness = (sum_linear**2) / (4 * sum_squared)  # 4 = number of channels
+            return fairness
+
+        return 1.0  # Default if no statistics available

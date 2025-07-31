@@ -182,13 +182,13 @@ module arbiter_round_robin #(
     endgenerate
 
     // =======================================================================
-    // Streamlined state registers
+    // Streamlined state registers (pending ACK now unified with grant)
     // =======================================================================
 
-    logic [N-1:0]       r_last_winner;        // Track last winner (smaller than full mask)
-    logic               r_mask_valid;         // Is there a valid mask state?
-    logic               r_pending_ack;        // ACK mode state
-    logic [N-1:0]       r_pending_client;     // Which client has pending ACK
+    logic [N-1:0]       r_last_grant_id;        // Track last winner (smaller than full mask)
+    logic               r_last_valid;         // Indiactor if the last winner should be used
+    logic               r_pending_ack;        // ACK mode state (managed with grant)
+    logic [N-1:0]       r_pending_client;     // Which client has pending ACK (managed with grant)
 
     // =======================================================================
     // Fast request preprocessing
@@ -199,20 +199,21 @@ module arbiter_round_robin #(
     logic [CLIENTS-1:0] w_requests_unmasked;
     logic               w_any_requests;
     logic               w_any_masked_requests;
+    logic [CLIENTS-1:0] w_curr_mask_decode;
 
     // Single LUT level for request gating
     assign w_requests_gated = block_arb ? '0 : request;
     assign w_any_requests = |w_requests_gated;
 
     // Fast mask application using LUT
-    assign w_requests_masked = r_mask_valid ?
-                            (w_requests_gated & w_win_mask_decode[r_last_winner]) : '0;
+    assign w_curr_mask_decode = grant_valid ? w_win_mask_decode[grant_id] : 
+                                r_last_valid ? w_win_mask_decode[r_last_grant_id] : CLIENTS'(1);
+    assign w_requests_masked = (w_requests_gated & w_curr_mask_decode);
     assign w_requests_unmasked = w_requests_gated;
     assign w_any_masked_requests = |w_requests_masked;
 
     // =======================================================================
     // Single stage priority encoder
-    // Use external optimized priority encoder module
     // =======================================================================
 
     logic [N-1:0] w_winner;
@@ -230,10 +231,11 @@ module arbiter_round_robin #(
     );
 
     // =======================================================================
-    // Ack detection
+    // ACK detection (simplified - no separate state management)
     // =======================================================================
     logic w_ack_received;
     logic w_can_grant;
+    logic [CLIENTS-1:0] w_other_requests;  // Requests excluding ACK'd client
 
     generate
         if (WAIT_GNT_ACK == 1) begin : gen_ack_optimized
@@ -241,65 +243,21 @@ module arbiter_round_robin #(
             // Fast ACK detection (single LUT)
             assign w_ack_received = r_pending_ack && grant_ack[r_pending_client];
 
-            // Grant permission logic
-            assign w_can_grant = !r_pending_ack || w_ack_received;
+            // Calculate other requests (excluding ACK'd client)
+            assign w_other_requests = w_requests_gated & ~(CLIENTS'(1) << r_pending_client);
 
-            // ACK state management
-            always_ff @(posedge clk or negedge rst_n) begin
-                if (!rst_n) begin
-                    r_pending_ack <= 1'b0;
-                    r_pending_client <= '0;
-                end else begin
-                    if (!r_pending_ack && w_winner_valid && w_any_requests && w_can_grant) begin
-                        // New grant issued
-                        r_pending_ack <= 1'b1;
-                        r_pending_client <= w_winner;
-                    end else if (w_ack_received) begin
-                        // ACK received, clear pending
-                        r_pending_ack <= 1'b0;
-                        r_pending_client <= '0;
-                    end
-                end
-            end
+            // Grant permission logic - allow arbitration when no ACK pending or during ACK cycle
+            assign w_can_grant = !r_pending_ack || w_ack_received;
 
         end else begin : gen_no_ack_optimized
             assign w_ack_received = 1'b0;
             assign w_can_grant = 1'b1;
+            assign w_other_requests = '0;
         end
     endgenerate
 
     // =======================================================================
-    // Mask update
-    // Use LUT instead of arithmetic for mask generation
-    // =======================================================================
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            r_last_winner <= '0;
-            r_mask_valid <= 1'b0;
-        end else begin
-            if (WAIT_GNT_ACK == 0) begin
-                // No-ACK: update when grant issued
-                if (w_winner_valid && w_any_requests && w_can_grant) begin
-                    r_last_winner <= w_winner;
-                    r_mask_valid <= 1'b1;
-                end
-            end else begin
-                // ACK mode: update on ACK completion
-                if (w_ack_received) begin
-                    r_last_winner <= r_pending_client;
-                    r_mask_valid <= 1'b1;
-                end else if (!r_pending_ack && w_winner_valid && w_any_requests) begin
-                    // First grant
-                    r_last_winner <= w_winner;
-                    r_mask_valid <= 1'b1;
-                end
-            end
-        end
-    end
-
-    // =======================================================================
-    // Output generation
-    // Minimize final output stage logic depth
+    // Output generation with atomic updates
     // =======================================================================
     logic w_should_grant;
     logic [CLIENTS-1:0] w_next_grant;
@@ -309,56 +267,92 @@ module arbiter_round_robin #(
     // Grant decision logic (minimal depth)
     assign w_should_grant = w_winner_valid && w_any_requests && w_can_grant;
 
-    // Grant vector generation (direct decode)
+    // Grant vector generation with atomic assignment
     always_comb begin
         w_next_grant = '0;
+        w_next_grant_id = '0;  // Always initialize to prevent X propagation
+
         if (w_should_grant) begin
             w_next_grant[w_winner] = 1'b1;
+            w_next_grant_id = w_winner;  // Atomic: Both grant and grant_id from same source
         end
+        // If not granting, both remain 0 (no partial updates)
     end
 
-    assign w_next_grant_id = w_should_grant ? w_winner : '0;
     assign w_next_grant_valid = w_should_grant;
 
-    // Final output registers
+    // =======================================================================
+    // Grant outputs and pending ACK state in single always_ff
+    // =======================================================================
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            grant <= '0;
-            grant_id <= '0;
-            grant_valid <= 1'b0;
-            last_grant <= '0;
+            grant            <= '0;
+            grant_id         <= '0;
+            grant_valid      <= 1'b0;
+            last_grant       <= '0;
+            r_last_grant_id  <= '0;
+            r_last_valid     <= '0;
+            r_pending_ack    <= 1'b0;
+            r_pending_client <= '0;
         end else begin
-            last_grant <= grant;
+            r_last_valid <= grant_valid;
 
             if (WAIT_GNT_ACK == 0) begin
-                // No-ACK mode: direct assignment
-                grant <= w_next_grant;
-                grant_id <= w_next_grant_id;
-                grant_valid <= w_next_grant_valid;
-
+                // No-ACK mode: direct atomic assignment
+                grant           <= w_next_grant;
+                grant_id        <= w_next_grant_id;
+                grant_valid     <= w_next_grant_valid;
+                last_grant      <= grant;
+                r_last_grant_id <= grant_id;
+                
             end else begin
-                // ACK mode: handle pending grants
-                if (r_pending_ack && !w_ack_received) begin
-                    // Maintain current grant until ACK
-                    // grant, grant_id, grant_valid unchanged
-                end else if (w_ack_received) begin
-                    // ACK received: handle dead cycle for single request
-                    if (w_any_requests && $countones(w_requests_gated) > 1) begin
-                        // Multiple requests: immediate next grant
-                        grant <= w_next_grant;
-                        grant_id <= w_next_grant_id;
-                        grant_valid <= w_next_grant_valid;
-                    end else begin
-                        // Single/no request: dead cycle
-                        grant <= '0;
-                        grant_id <= '0;
-                        grant_valid <= 1'b0;
+                // ACK mode: follow the four rules AND manage pending ACK state unified
+                if (grant_valid == 1'b0) begin
+                    // Rule 1: grant_valid = 0 → allow new values
+                    grant           <= w_next_grant;
+                    grant_id        <= w_next_grant_id;
+                    grant_valid     <= w_next_grant_valid;
+                    last_grant      <= grant;
+                    r_last_grant_id <= grant_id;
+                    
+                    // UNIFIED: Update pending ACK state when issuing new grant
+                    if (w_next_grant_valid) begin
+                        r_pending_ack    <= 1'b1;
+                        r_pending_client <= w_next_grant_id;
                     end
-                end else begin
-                    // Normal grant issuance
-                    grant <= w_next_grant;
-                    grant_id <= w_next_grant_id;
-                    grant_valid <= w_next_grant_valid;
+
+                end else if (grant_valid == 1'b1 && !w_ack_received) begin
+                    // Rule 2: grant_valid = 1 and no ack → hold all values
+                    // grant, grant_id, grant_valid unchanged
+                    // r_pending_ack, r_pending_client unchanged
+
+                end else if (grant_valid == 1'b1 && w_ack_received && (w_other_requests == '0)) begin
+                    // Rule 3: grant_valid = 1, ack occurs, only pending client requesting → clear all
+                    grant            <= '0;
+                    grant_id         <= '0;
+                    grant_valid      <= 1'b0;
+                    last_grant       <= grant;
+                    r_last_grant_id  <= grant_id;
+                    r_pending_ack    <= 1'b0;
+                    r_pending_client <= '0;
+
+                end else if (grant_valid == 1'b1 && w_ack_received && (w_other_requests != '0)) begin
+                    // Rule 4: grant_valid = 1, ack occurs, other requests → take new values or clear if none
+                    if (w_next_grant_valid) begin
+                        grant            <= w_next_grant;
+                        grant_id         <= w_next_grant_id;
+                        grant_valid      <= w_next_grant_valid;
+                        last_grant       <= grant;
+                        r_last_grant_id  <= grant_id;
+                        r_pending_ack    <= 1'b1;
+                        r_pending_client <= w_next_grant_id;
+                    end else begin
+                        grant            <= '0;
+                        grant_id         <= '0;
+                        grant_valid      <= 1'b0;
+                        r_pending_ack    <= 1'b0;
+                        r_pending_client <= '0;
+                    end
                 end
             end
         end

@@ -217,7 +217,7 @@ module fifo_data_collect #(
     end
 
     arbiter_round_robin_weighted #(
-        .MAX_THRESH    (16),             // Weight range 0-15
+        .MAX_LEVELS    (16),             // Weight range 0-15
         .CLIENTS       (4),              // 4 input channels
         .WAIT_GNT_ACK  (0)               // No grant acknowledge mechanism
     ) inst_arbiter (
@@ -225,11 +225,11 @@ module fifo_data_collect #(
         .rst_n         (rst_n),
         .block_arb     (r_arb_locked),
         .max_thresh    (w_arb_weights),  // Weights for all channels
-        .req           (w_arb_req),      // Valid signals from all input FIFOs
-        .gnt_valid     (w_arb_gnt_valid),
-        .gnt           (w_arb_gnt),      // One-hot grant signal
-        .gnt_id        (w_arb_gnt_id),   // Binary grant ID
-        .gnt_ack       (4'b0)            // Not using ack mechanism
+        .request       (w_arb_req),      // Valid signals from all input FIFOs
+        .grant_valid   (w_arb_gnt_valid),
+        .grant         (w_arb_gnt),      // One-hot grant signal
+        .grant_id      (w_arb_gnt_id),   // Binary grant ID
+        .grant_ack     (4'b0)            // Not using ack mechanism
     );
 
     // Buffer full detection - all slots filled

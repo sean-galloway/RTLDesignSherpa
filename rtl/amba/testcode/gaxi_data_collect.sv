@@ -13,42 +13,42 @@ module gaxi_data_collect #(
     parameter int LOG2_CHUNKS = $clog2(CHUNKS)
 ) (
     // Global Clock and Reset
-    input  logic                    axi_aclk,
-    input  logic                    axi_aresetn,
+    input  logic                     axi_aclk,
+    input  logic                     axi_aresetn,
 
     // Arbiter weights (0-15 for each channel)
-    input  logic [3:0]              weight_a,
-    input  logic [3:0]              weight_b,
-    input  logic [3:0]              weight_c,
-    input  logic [3:0]              weight_d,
+    input  logic [3:0]               weight_a,
+    input  logic [3:0]               weight_b,
+    input  logic [3:0]               weight_c,
+    input  logic [3:0]               weight_d,
 
     // Input Channel A
-    input  logic                    a_valid,
-    output logic                    a_ready,
-    input  logic [DW-1:0]           a_data,
-    input  logic [IDW-1:0]          a_id,
+    input  logic                     a_valid,
+    output logic                     a_ready,
+    input  logic [DW-1:0]            a_data,
+    input  logic [IDW-1:0]           a_id,
 
     // Input Channel B
-    input  logic                    b_valid,
-    output logic                    b_ready,
-    input  logic [DW-1:0]           b_data,
-    input  logic [IDW-1:0]          b_id,
+    input  logic                     b_valid,
+    output logic                     b_ready,
+    input  logic [DW-1:0]            b_data,
+    input  logic [IDW-1:0]           b_id,
 
     // Input Channel C
-    input  logic                    c_valid,
-    output logic                    c_ready,
-    input  logic [DW-1:0]           c_data,
-    input  logic [IDW-1:0]          c_id,
+    input  logic                     c_valid,
+    output logic                     c_ready,
+    input  logic [DW-1:0]            c_data,
+    input  logic [IDW-1:0]           c_id,
 
     // Input Channel D
-    input  logic                    d_valid,
-    output logic                    d_ready,
-    input  logic [DW-1:0]           d_data,
-    input  logic [IDW-1:0]          d_id,
+    input  logic                     d_valid,
+    output logic                     d_ready,
+    input  logic [DW-1:0]            d_data,
+    input  logic [IDW-1:0]           d_id,
 
     // Output Channel E (FIFO)
-    output logic                    e_valid,
-    input  logic                    e_ready,
+    output logic                     e_valid,
+    input  logic                     e_ready,
     output logic [IDW+CHUNKS*DW-1:0] e_data
 );
 
@@ -207,7 +207,7 @@ module gaxi_data_collect #(
     end
 
     arbiter_round_robin_weighted #(
-        .MAX_THRESH(16),       // Weight range 0-15
+        .MAX_LEVELS(16),       // Weight range 0-15
         .CLIENTS(4),           // 4 input channels
         .WAIT_GNT_ACK(0)       // No grant acknowledge mechanism
     ) inst_arbiter (
@@ -215,11 +215,11 @@ module gaxi_data_collect #(
         .rst_n       (axi_aresetn),
         .block_arb   (r_arb_locked),
         .max_thresh  (w_arb_weights),  // Weights for all channels
-        .req         (w_arb_req),      // Valid signals from all skid buffers
-        .gnt_valid  (w_arb_gnt_valid),
-        .gnt        (w_arb_gnt),      // One-hot grant signal
-        .gnt_id     (w_arb_gnt_id),   // Binary grant ID
-        .gnt_ack     (4'b0)          // Not using ack mechanism
+        .request     (w_arb_req),      // Valid signals from all skid buffers
+        .grant_valid (w_arb_gnt_valid),
+        .grant       (w_arb_gnt),      // One-hot grant signal
+        .grant_id    (w_arb_gnt_id),   // Binary grant ID
+        .grant_ack   (4'b0)          // Not using ack mechanism
     );
 
     // Buffer full detection - all slots filled

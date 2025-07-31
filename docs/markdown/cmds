@@ -1,0 +1,4 @@
+find ./RTLAmba/         -name "*.md" -exec echo "Checking: {}" \; -exec markdown-link-check {} \;  > RTLAmba_link_report.txt
+find ./RTLCommon/       -name "*.md" -exec echo "Checking: {}" \; -exec markdown-link-check {} \;  > RTLCommon_link_report.txt
+find ./CocoTBFramework/ -name "*.md" -exec echo "Checking: {}" \; -exec markdown-link-check {} \;  > cocotbframework_link_report.txt
+find ./Scripts/         -name "*.md" -exec echo "Checking: {}" \; -exec markdown-link-check {} \;  > Scripts_link_report.txt
