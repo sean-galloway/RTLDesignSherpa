@@ -1,31 +1,6 @@
+git add    bin/CocoTBFramework/components/shared/arbiter_master.py
 git add    bin/CocoTBFramework/tbclasses/common/arbiter_round_robin_tb.py
-git add    bin/CocoTBFramework/tbclasses/fifo/fifo_data_collect_tb.py
-git add    bin/CocoTBFramework/tbclasses/gaxi/gaxi_data_collect_tb.py
-git add    bin/CocoTBFramework/tbclasses/shared/tbbase.py
-git add    bin/cocotbframework_tree.txt
-git add    rtl/amba/testcode/gaxi_data_collect.sv
-git add    rtl/common/arbiter_round_robin.sv
-git add    rtl/common/pwm.sv
-git add    rtl/integ_common/fifo_data_collect.sv
-git add    val/common/GTKW/arbiter_round_robin_c04.gtkw
-git add     val/common/GTKW/arbiter_round_robin_weighted.gtkw
-git add     val/common/GTKW/arbiter_wrr_test_mt04_c4_pw08_w0_full.gtkw
-git add     val/common/GTKW/arbiter_wrr_test_mt08_c4_pw08_w0_full.gtkw
+git add    status.txt
 git add    val/common/test_arbiter_round_robin.py
-git add    val/common/test_pwm.py
-git add    val/integ_amba/test_gaxi_data_collect.py
-git add    val/integ_common/test_fifo_data_collect.py
+git add     val/common/test_arbiter_round_robin.py.HOLD
 
-git add 	.github/
-git add 	bin/CocoTBFramework/components/shared/arbiter_compliance.py
-git add 	bin/CocoTBFramework/components/shared/arbiter_master.py
-git add 	bin/CocoTBFramework/tbclasses/common/arbiter_round_robin_tb copy.py
-git add 	docs/markdown/cmds
-git add 	rtl/amba/cmds
-git add 	status.txt
-git add 	val/amba/STAGED/
-git add 	val/common/GTKW/arbiter_round_robin_c08.gtkw
-git add 	val/common/test_arbiter_round_robin copy.py
-git add 	val/common/test_arbiter_round_robin.py.HOLD
-git add 	val/integ_amba/cmds
-git add 

@@ -202,53 +202,121 @@ class ArbiterMaster:
         for client_id in client_list:
             self.disable_client(client_id)
 
-    def set_walking_mode(self, active_client: int):
-        """ENHANCED: Set up for walking test - only one client active with proper manual control"""
+    def set_walking_mode(self, active_client: int, auto_ack: bool = None, ack_delay: int = None):
+        """ENHANCED: Set up for walking test with automatic ACK support
+
+        Args:
+            active_client: Client to enable for walking test
+            auto_ack: Enable automatic ACK for manual requests (default: use ACK mode setting)
+            ack_delay: ACK delay in clocks 0-3 (default: random)
+        """
         # Disable all clients first
         for client_id in range(self.num_clients):
             self.disable_client(client_id)
-            # Ensure they're in IDLE state
             self.client_states[client_id] = ClientState.IDLE
             self.client_timers[client_id] = 0
 
         # Clear all request signals
         self._update_all_request_signals()
 
-        # Enable only the specified client with manual profile
+        # Clear any existing manual ACK configs
+        self.clear_manual_ack_config()
+
+        # Enable only the specified client with manual profile and auto-ACK
         if active_client < self.num_clients:
             self.client_configs[active_client].enabled = True
             self.client_configs[active_client].randomizer_profile = 'manual'
 
-            # CRITICAL: Set to IDLE state initially (don't start countdown)
+            # Set to IDLE state initially, manual control will override when needed
             self.client_states[active_client] = ClientState.IDLE
             self.client_timers[active_client] = 0
 
-            self.log.info(f"ArbiterMaster({self.title}): Walking mode: only client {active_client} enabled for manual control")
+            # Set up auto-ACK if requested
+            if auto_ack is True or (auto_ack is None and self.ack_mode):
+                if ack_delay is None:
+                    import random
+                    ack_delay = random.randint(0, 3)
+                else:
+                    ack_delay = max(0, min(3, int(ack_delay)))
+
+                if not hasattr(self, '_manual_ack_config'):
+                    self._manual_ack_config = {}
+
+                self._manual_ack_config[active_client] = {
+                    'enabled': True,
+                    'delay_clocks': ack_delay,
+                    'grant_detected': False,
+                    'ack_pending': False
+                }
+
+                self.log.info(f"ArbiterMaster({self.title}): Walking mode: client {active_client} ready with auto-ACK (delay={ack_delay})")
+            else:
+                self.log.info(f"ArbiterMaster({self.title}): Walking mode: client {active_client} ready for manual control (no auto-ACK)")
         else:
             self.log.error(f"ArbiterMaster({self.title}): Invalid client {active_client} for walking mode")
 
     # ADDITIONAL METHOD: For debugging walking tests
-    def force_client_request(self, client_id: int, enable: bool = True):
-        """FIXED: Force a client request signal with proper manual control"""
+    def force_client_request(self, client_id: int, enable: bool = True, auto_ack: bool = None, ack_delay: int = None):
+        """ENHANCED: Force a client request signal with automatic ACK support
+
+        Args:
+            client_id: Client to control
+            enable: True to assert request, False to clear
+            auto_ack: If True, automatically ACK grants. If None, use current ACK mode setting
+            ack_delay: Delay in clocks before ACK (0-3). If None, random 0-3
+        """
         if client_id >= self.num_clients:
             self.log.error(f"ArbiterMaster({self.title}): Invalid client_id {client_id}")
             return
 
-        self.log.debug(f"ArbiterMaster({self.title}): FORCE REQUEST - client_id={client_id} enable={enable}{self.get_time_ns_str()}")
+        self.log.debug(f"ArbiterMaster({self.title}): FORCE REQUEST - client_id={client_id} enable={enable} auto_ack={auto_ack} ack_delay={ack_delay}{self.get_time_ns_str()}")
 
         if enable:
             # Set to manual control state to bypass automatic state machine
             self.client_states[client_id] = ClientState.MANUAL_CONTROL
             self.client_timers[client_id] = 0  # Clear any timer
-            self.log.debug(f"ArbiterMaster({self.title}): Client {client_id} set to MANUAL_CONTROL state")
+
+            # NEW: Set up automatic ACK if requested
+            if auto_ack is True or (auto_ack is None and self.ack_mode):
+                # Determine ACK delay
+                if ack_delay is None:
+                    import random
+                    ack_delay = random.randint(0, 3)  # Random 0-3 clocks
+                else:
+                    ack_delay = max(0, min(3, int(ack_delay)))  # Clamp to 0-3
+
+                # Store manual ACK configuration
+                if not hasattr(self, '_manual_ack_config'):
+                    self._manual_ack_config = {}
+
+                self._manual_ack_config[client_id] = {
+                    'enabled': True,
+                    'delay_clocks': ack_delay,
+                    'grant_detected': False,
+                    'ack_pending': False
+                }
+
+                self.log.info(f"ArbiterMaster({self.title}): Client {client_id} manual control with auto-ACK enabled (delay={ack_delay} clocks)")
+            else:
+                # Clear any existing manual ACK config
+                if hasattr(self, '_manual_ack_config') and client_id in self._manual_ack_config:
+                    del self._manual_ack_config[client_id]
+
+                self.log.debug(f"ArbiterMaster({self.title}): Client {client_id} set to MANUAL_CONTROL state (no auto-ACK)")
+
         else:
-            # Return to IDLE state
+            # Return to IDLE state and clear manual ACK config
             self.client_states[client_id] = ClientState.IDLE
             self.client_timers[client_id] = 0
-            self.log.debug(f"ArbiterMaster({self.title}): Client {client_id} set to IDLE state")
+
+            if hasattr(self, '_manual_ack_config') and client_id in self._manual_ack_config:
+                del self._manual_ack_config[client_id]
+
+            self.log.debug(f"ArbiterMaster({self.title}): Client {client_id} set to IDLE state (manual control cleared)")
 
         # Update signals immediately
         self._update_all_request_signals()
+
 
     def update_request_profiles(self, new_profiles: Dict):
         """FIXED: Update request randomizer profiles using correct API with robust error handling"""
@@ -486,11 +554,14 @@ class ArbiterMaster:
         self.log.info("ArbiterMaster started")
 
     async def shutdown(self):
-        """Clean shutdown of arbiter master"""
+        """ENHANCED: Clean shutdown of arbiter master including manual ACK cleanup"""
         if not self.active:
             return
 
         self.active = False
+
+        # Clear manual ACK configurations
+        self.clear_manual_ack_config()
 
         # Cancel background tasks
         if self._request_task and not self._request_task.done():
@@ -576,7 +647,7 @@ class ArbiterMaster:
             self._update_all_request_signals()
 
     async def _grant_monitor(self):
-        """FIXED: Monitor grants and handle ACK generation - handle MANUAL_CONTROL state"""
+        """ENHANCED: Monitor grants and handle ACK generation including manual control auto-ACK"""
         while self.active:
             await RisingEdge(self.clock)
 
@@ -588,11 +659,24 @@ class ArbiterMaster:
                     (state == ClientState.REQUESTING or state == ClientState.MANUAL_CONTROL)):
 
                     if self.ack_mode:
-                        self.client_states[client_id] = ClientState.WAITING_ACK
-                        # Schedule ACK based on correct FlexRandomizer usage
-                        if client_id not in self.pending_acks:
-                            self.pending_acks.add(client_id)
-                            cocotb.start_soon(self._generate_ack(client_id))
+                        # Check if this is manual control with auto-ACK
+                        if (state == ClientState.MANUAL_CONTROL and
+                            hasattr(self, '_manual_ack_config') and
+                            client_id in self._manual_ack_config):
+
+                            config = self._manual_ack_config[client_id]
+                            if config['enabled'] and not config['ack_pending']:
+                                # Start manual auto-ACK process
+                                config['ack_pending'] = True
+                                config['grant_detected'] = True
+                                cocotb.start_soon(self._generate_manual_ack(client_id))
+                                self.log.debug(f"ArbiterMaster({self.title}): Started manual auto-ACK for client {client_id}")
+                        else:
+                            # Normal ACK mode processing
+                            self.client_states[client_id] = ClientState.WAITING_ACK
+                            if client_id not in self.pending_acks:
+                                self.pending_acks.add(client_id)
+                                cocotb.start_soon(self._generate_ack(client_id))
                     else:
                         # No-ACK mode: completion handling
                         if state == ClientState.MANUAL_CONTROL:
@@ -601,6 +685,50 @@ class ArbiterMaster:
                         else:
                             # For automatic clients, restart countdown
                             self._restart_client_countdown(client_id)
+
+    async def _generate_manual_ack(self, client_id: int):
+        """Generate ACK signal for manual control with configurable delay"""
+        try:
+            if not hasattr(self, '_manual_ack_config') or client_id not in self._manual_ack_config:
+                self.log.error(f"ArbiterMaster({self.title}): No manual ACK config for client {client_id}")
+                return
+
+            config = self._manual_ack_config[client_id]
+            delay_cycles = config['delay_clocks']
+
+            self.log.debug(f"ArbiterMaster({self.title}): Generating manual ACK for client {client_id} with {delay_cycles} cycle delay")
+
+            # Wait for specified delay
+            if delay_cycles > 0:
+                await ClockCycles(self.clock, delay_cycles)
+
+            # Assert ACK if still active and grant still present
+            if (self.active and
+                config['grant_detected'] and
+                self._check_grant_signal(client_id)):
+
+                self._set_ack_signal(client_id, 1)
+                self.log.info(f"ArbiterMaster({self.title}): Client {client_id} manual ACK asserted (delay={delay_cycles} cycles){self.get_time_ns_str()}")
+
+                # Hold ACK for one cycle
+                await ClockCycles(self.clock, 1)
+                self._set_ack_signal(client_id, 0)
+
+                self.log.debug(f"ArbiterMaster({self.title}): Client {client_id} manual ACK completed{self.get_time_ns_str()}")
+            else:
+                self.log.warning(f"ArbiterMaster({self.title}): Manual ACK for client {client_id} cancelled - grant no longer present")
+
+            # Clean up manual ACK config
+            config['ack_pending'] = False
+            config['grant_detected'] = False
+
+        except Exception as e:
+            self.log.error(f"ArbiterMaster({self.title}): Manual ACK generation error for client {client_id}: {e}{self.get_time_ns_str()}")
+
+            # Cleanup on error
+            if hasattr(self, '_manual_ack_config') and client_id in self._manual_ack_config:
+                self._manual_ack_config[client_id]['ack_pending'] = False
+                self._manual_ack_config[client_id]['grant_detected'] = False
 
     async def _generate_ack(self, client_id: int):
         """Generate ACK signal with correct FlexRandomizer timing"""
@@ -649,56 +777,70 @@ class ArbiterMaster:
             await RisingEdge(self.clock)
         return False
 
-    async def manual_request(self, client_id: int, cycles: int = 1):
-        """FIXED: Manually assert request for specified cycles (for walking tests)"""
+    async def manual_request(self, client_id: int, cycles: int = 1, auto_ack: bool = None, ack_delay: int = None):
+        """FIXED: Manually assert request for specified cycles with automatic ACK support"""
         if client_id >= self.num_clients:
             self.log.error(f"ArbiterMaster({self.title}): Invalid client_id {client_id} for manual request")
             return
 
-        self.log.debug(f"ArbiterMaster({self.title}): Manual Request - client_id={client_id} cycles={cycles}{self.get_time_ns_str()}")
+        self.log.debug(f"ArbiterMaster({self.title}): Manual Request - client_id={client_id} cycles={cycles} auto_ack={auto_ack} ack_delay={ack_delay}{self.get_time_ns_str()}")
 
         # Store original state for restoration
         original_state = self.client_states[client_id]
         original_timer = self.client_timers[client_id]
 
-        # CRITICAL FIX: Set to requesting state and disable automatic countdown
-        self.client_states[client_id] = ClientState.REQUESTING
-        self.client_timers[client_id] = cycles  # Use the cycles as duration
-
-        # Apply the request immediately
-        self._update_all_request_signals()
-
-        self.log.debug(f"ArbiterMaster({self.title}): Manual request started for client {client_id}, duration={cycles} cycles")
+        # Set up manual control with automatic ACK
+        self.force_client_request(client_id, enable=True, auto_ack=auto_ack, ack_delay=ack_delay)
 
         # Wait for the specified cycles while monitoring
+        grant_received = False
         for cycle in range(cycles):
             await RisingEdge(self.clock)
 
             # Check if grant was received
             if self._check_grant_signal(client_id):
+                grant_received = True
                 self.log.debug(f"ArbiterMaster({self.title}): Manual request for client {client_id} received grant at cycle {cycle}")
 
-                if self.ack_mode:
-                    # In ACK mode, start the ACK process
-                    if client_id not in self.pending_acks:
-                        self.client_states[client_id] = ClientState.WAITING_ACK
-                        self.pending_acks.add(client_id)
-                        cocotb.start_soon(self._generate_ack(client_id))
-                        self.log.debug(f"ArbiterMaster({self.title}): Started ACK process for manual request client {client_id}")
-                    break
-                else:
-                    # In no-ACK mode, request can complete
-                    self.log.debug(f"ArbiterMaster({self.title}): Manual request completed for client {client_id} (no-ACK mode)")
-                    break
+                # Mark grant detected for auto-ACK processing
+                if hasattr(self, '_manual_ack_config') and client_id in self._manual_ack_config:
+                    self._manual_ack_config[client_id]['grant_detected'] = True
 
-        # CRITICAL FIX: Don't call _restart_client_countdown() after manual request
-        # Instead, set the client to IDLE state and wait for explicit control
-        if not self.ack_mode or client_id not in self.pending_acks:
-            self.client_states[client_id] = ClientState.IDLE
-            self.client_timers[client_id] = 0
-            self._update_all_request_signals()  # Clear the request
+                break
 
-            self.log.debug(f"ArbiterMaster({self.title}): Manual request ended for client {client_id}, set to IDLE")
+        # FIXED: Don't clear the request immediately if we have auto-ACK enabled
+        # Let the grant monitor handle the ACK first
+        if grant_received and hasattr(self, '_manual_ack_config') and client_id in self._manual_ack_config:
+            config = self._manual_ack_config[client_id]
+            if config['enabled']:
+                self.log.debug(f"ArbiterMaster({self.title}): Grant received for client {client_id}, waiting for auto-ACK to complete")
+
+                # Just clear the request signal but keep the ACK config
+                self.client_states[client_id] = ClientState.MANUAL_CONTROL  # Keep in manual control
+                self._update_all_request_signals()  # This will clear the request since not REQUESTING state
+
+                # Wait for ACK to complete
+                ack_delay_cycles = config['delay_clocks']
+                total_wait = ack_delay_cycles + 5  # ACK delay + ACK duration + margin
+                await ClockCycles(self.clock, total_wait)
+
+                # Now clean up
+                if client_id in self._manual_ack_config:
+                    del self._manual_ack_config[client_id]
+
+                self.log.debug(f"ArbiterMaster({self.title}): Manual request completed for client {client_id}, auto-ACK should be done")
+            else:
+                # No auto-ACK, clear immediately
+                self.force_client_request(client_id, enable=False)
+        else:
+            # No grant received or no auto-ACK, clear immediately
+            self.force_client_request(client_id, enable=False)
+            self.log.debug(f"ArbiterMaster({self.title}): Manual request ended for client {client_id}, grant_received={grant_received}")
+
+        # Restore to IDLE state
+        self.client_states[client_id] = ClientState.IDLE
+        self.client_timers[client_id] = 0
+        self._update_all_request_signals()
 
     # ADDITIONAL FIX: Add a method to check if manual request was successful
     def check_manual_request_success(self, client_id: int) -> bool:
@@ -709,8 +851,8 @@ class ArbiterMaster:
             return False
 
     def get_stats(self) -> Dict:
-        """Get current statistics"""
-        return {
+        """ENHANCED: Get current statistics including manual ACK status"""
+        base_stats = {
             'active': self.active,
             'num_clients': self.num_clients,
             'ack_mode': self.ack_mode,
@@ -725,29 +867,11 @@ class ArbiterMaster:
             } for i in range(self.num_clients)}
         }
 
-    def set_walking_mode(self, active_client: int):
-        """ENHANCED: Set up for walking test with proper manual control"""
-        # Disable all clients first
-        for client_id in range(self.num_clients):
-            self.disable_client(client_id)
-            self.client_states[client_id] = ClientState.IDLE
-            self.client_timers[client_id] = 0
+        # Add manual ACK status if available
+        if hasattr(self, '_manual_ack_config') and self._manual_ack_config:
+            base_stats['manual_ack_configs'] = self._manual_ack_config.copy()
 
-        # Clear all request signals
-        self._update_all_request_signals()
-
-        # Enable only the specified client with manual profile
-        if active_client < self.num_clients:
-            self.client_configs[active_client].enabled = True
-            self.client_configs[active_client].randomizer_profile = 'manual'
-
-            # CRITICAL: Set to IDLE state initially, manual control will override when needed
-            self.client_states[active_client] = ClientState.IDLE
-            self.client_timers[active_client] = 0
-
-            self.log.info(f"ArbiterMaster({self.title}): Walking mode: client {active_client} ready for manual control")
-        else:
-            self.log.error(f"ArbiterMaster({self.title}): Invalid client {active_client} for walking mode")
+        return base_stats
 
     # Add debug method for checking manual control status
     def get_manual_control_status(self):
@@ -761,3 +885,38 @@ class ArbiterMaster:
                     'timer': self.client_timers[client_id]
                 }
         return manual_clients
+
+    def get_manual_ack_status(self, client_id: int = None):
+        """Get status of manual ACK configuration
+
+        Args:
+            client_id: If specified, get status for specific client. If None, get all clients.
+
+        Returns:
+            Dictionary with manual ACK status
+        """
+        if not hasattr(self, '_manual_ack_config'):
+            return {} if client_id is None else None
+
+        if client_id is not None:
+            return self._manual_ack_config.get(client_id, None)
+        else:
+            return self._manual_ack_config.copy()
+
+    def clear_manual_ack_config(self, client_id: int = None):
+        """Clear manual ACK configuration
+
+        Args:
+            client_id: If specified, clear config for specific client. If None, clear all.
+        """
+        if not hasattr(self, '_manual_ack_config'):
+            return
+
+        if client_id is not None:
+            if client_id in self._manual_ack_config:
+                del self._manual_ack_config[client_id]
+                self.log.debug(f"ArbiterMaster({self.title}): Cleared manual ACK config for client {client_id}")
+        else:
+            self._manual_ack_config.clear()
+            self.log.debug(f"ArbiterMaster({self.title}): Cleared all manual ACK configs")
+

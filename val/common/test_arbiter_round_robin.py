@@ -117,17 +117,17 @@ async def arbiter_round_robin_test(dut):
 
 @pytest.mark.parametrize("clients, wait_ack", [
     ( 4, 0),   #  4 clients, no ACK mode
-    # ( 5, 0),   #  5 clients, no ACK mode
-    # ( 6, 0),   #  6 clients, no ACK mode
-    # ( 8, 0),   #  8 clients, no ACK mode
-    # (16, 0),   # 16 clients, no ACK mode
-    # (32, 0),   # 32 clients, no ACK mode
-    # ( 4, 1),   #  4 clients, ACK mode
-    # ( 5, 1),   #  5 clients, ACK mode
-    # ( 6, 1),   #  6 clients, ACK mode
-    # ( 8, 1),   #  8 clients, ACK mode
-    # (16, 1),   # 16 clients, ACK mode
-    # (32, 1),   # 32 clients, ACK mode
+    ( 5, 0),   #  5 clients, no ACK mode
+    ( 6, 0),   #  6 clients, no ACK mode
+    ( 8, 0),   #  8 clients, no ACK mode
+    (16, 0),   # 16 clients, no ACK mode
+    (32, 0),   # 32 clients, no ACK mode
+    ( 4, 1),   #  4 clients, ACK mode
+    ( 5, 1),   #  5 clients, ACK mode
+    ( 6, 1),   #  6 clients, ACK mode
+    ( 8, 1),   #  8 clients, ACK mode
+    (16, 1),   # 16 clients, ACK mode
+    (32, 1),   # 32 clients, ACK mode
 ])
 def test_arbiter_round_robin(request, clients, wait_ack):
     """Run the enhanced round robin test with new clean ArbiterMaster"""
@@ -174,7 +174,7 @@ def test_arbiter_round_robin(request, clients, wait_ack):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',  # Reduced log noise with new clean master
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(4347), # str(random.randint(0, 100000))
+        'SEED': str(random.randint(0, 100000))
     }
 
     compile_args = [
