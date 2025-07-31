@@ -1,6 +1,6 @@
 """
-Fixed Arbiter Master Driver with Correct FlexRandomizer Usage
-Maintains all required randomization features while following the FlexRandomizer API correctly
+Unified Arbiter Master Driver supporting both weighted and non-weighted arbiters
+Maintains all existing functionality while adding weight support based on parameters
 """
 
 import cocotb
@@ -9,7 +9,7 @@ from cocotb.clock import Clock
 from cocotb.utils import get_sim_time
 
 from dataclasses import dataclass
-from typing import Dict, Optional, Set
+from typing import Dict, Optional, Set, List
 from enum import Enum
 
 # Import the existing flex randomizer system
@@ -30,16 +30,18 @@ class ClientConfig:
 
 class ArbiterMaster:
     """
-    Fixed async arbiter master driver with correct FlexRandomizer usage
-    Maintains all required randomization features
+    Unified async arbiter master driver supporting both weighted and non-weighted arbiters
+    Automatically adapts to weighted mode based on is_weighted parameter
     """
 
-    def __init__(self, dut, title, clock, num_clients: int, ack_mode: bool = True, log=None):
+    def __init__(self, dut, title, clock, num_clients: int, ack_mode: bool = True, 
+                 is_weighted: bool = False, log=None):
         self.dut = dut
         self.title = title
         self.clock = clock
         self.num_clients = num_clients
         self.ack_mode = ack_mode
+        self.is_weighted = is_weighted  # NEW: Support weighted arbiters
         if log:
             self.log = log
         else:
@@ -50,10 +52,16 @@ class ArbiterMaster:
         self.client_timers: Dict[int, int] = {}
         self.client_states: Dict[int, ClientState] = {}
 
-        # FIXED: Create separate FlexRandomizers for each profile
+        # Create separate FlexRandomizers for each profile
         self.client_randomizers: Dict[str, FlexRandomizer] = {}
         self.ack_randomizers: Dict[str, FlexRandomizer] = {}
         self.current_ack_profile = "immediate"
+
+        # NEW: Weight management for weighted arbiters
+        self.weight_randomizers: Dict[str, FlexRandomizer] = {}
+        self.current_weight_profile = "static"
+        self.current_weights = [1] * num_clients  # Default equal weights
+        self.weight_change_pending = False
 
         # Setup default profiles using correct FlexRandomizer API
         self._setup_default_profiles()
@@ -65,6 +73,7 @@ class ArbiterMaster:
         # Tasks
         self._request_task = None
         self._grant_task = None
+        self._weight_task = None  # NEW: Weight management task
 
         # Initialize all clients
         for client_id in range(num_clients):
@@ -78,16 +87,15 @@ class ArbiterMaster:
         return f' @ {time_ns}ns'
 
     def _setup_default_profiles(self):
-        """Setup default randomization profiles using correct FlexRandomizer API"""
+        """Setup default randomization profiles for both client requests and weights"""
 
-        # FIXED: Create separate FlexRandomizer instances for each client profile
-        # Each profile is its own FlexRandomizer with the correct constraint format
-
+        # === CLIENT REQUEST PROFILES (existing) ===
+        
         # Default profile
         default_constraints = {
             'inter_request_delay': ([(5, 10), (15, 20)], [0.7, 0.3]),
             'request_duration': ([(1, 2), (3, 3)], [0.8, 0.2]),
-            'enabled_probability': ([(1, 1)], [1.0])  # Always enabled
+            'enabled_probability': ([(1, 1)], [1.0])
         }
         self.client_randomizers['default'] = FlexRandomizer(default_constraints)
 
@@ -107,54 +115,89 @@ class ArbiterMaster:
         }
         self.client_randomizers['slow'] = FlexRandomizer(slow_constraints)
 
-        # Disabled profile - always generates zero for enabled_probability
+        # Disabled profile
         disabled_constraints = {
-            'inter_request_delay': ([(1000, 1000)], [1.0]),  # Very long delay
+            'inter_request_delay': ([(1000, 1000)], [1.0]),
             'request_duration': ([(1, 1)], [1.0]),
-            'enabled_probability': ([(0, 0)], [1.0])  # Never enabled
+            'enabled_probability': ([(0, 0)], [1.0])
         }
         self.client_randomizers['disabled'] = FlexRandomizer(disabled_constraints)
 
-        # Manual profile for walking tests - disabled by default
+        # Manual profile for walking tests
         manual_constraints = {
-            'inter_request_delay': ([(1000, 1000)], [1.0]),  # Long delay - manual control takes over
-            'request_duration': ([(1, 1)], [1.0]),           # Short duration by default
-            'enabled_probability': ([(1, 1)], [1.0])         # ✅ ENABLED - manual control decides when to request
+            'inter_request_delay': ([(1000, 1000)], [1.0]),
+            'request_duration': ([(1, 1)], [1.0]),
+            'enabled_probability': ([(1, 1)], [1.0])
         }
         self.client_randomizers['manual'] = FlexRandomizer(manual_constraints)
 
-        # FIXED: Create separate FlexRandomizer instances for ACK profiles
-
-        # Immediate ACK (same cycle)
+        # === ACK PROFILES (existing) ===
+        
+        # Immediate ACK
         immediate_ack_constraints = {
             'ack_delay': ([(0, 0)], [1.0]),
             'ack_duration': ([(1, 1)], [1.0])
         }
         self.ack_randomizers['immediate'] = FlexRandomizer(immediate_ack_constraints)
 
-        # Fast ACK with small delays
+        # Fast ACK
         fast_ack_constraints = {
             'ack_delay': ([(0, 0), (1, 2)], [0.7, 0.3]),
             'ack_duration': ([(1, 1)], [1.0])
         }
         self.ack_randomizers['fast'] = FlexRandomizer(fast_ack_constraints)
 
-        # Random ACK delays
+        # Random ACK
         random_ack_constraints = {
             'ack_delay': ([(1, 2), (3, 5)], [0.6, 0.4]),
             'ack_duration': ([(1, 1)], [1.0])
         }
         self.ack_randomizers['random'] = FlexRandomizer(random_ack_constraints)
 
-        # Slow ACK for stress testing
+        # Slow ACK
         slow_ack_constraints = {
             'ack_delay': ([(5, 10), (10, 15)], [0.7, 0.3]),
             'ack_duration': ([(1, 1)], [1.0])
         }
         self.ack_randomizers['slow'] = FlexRandomizer(slow_ack_constraints)
 
+        # === WEIGHT PROFILES (NEW: only used if is_weighted=True) ===
+        if self.is_weighted:
+            self._setup_weight_profiles()
+
+    def _setup_weight_profiles(self):
+        """Setup weight randomization profiles for weighted arbiters"""
+        
+        # Static weights - no changes
+        static_constraints = {
+            'weight_change_interval': ([(10000, 10000)], [1.0]),  # Very long interval = no changes
+            'weight_hold_duration': ([(1000, 1000)], [1.0])
+        }
+        self.weight_randomizers['static'] = FlexRandomizer(static_constraints)
+
+        # Slow weight changes
+        slow_weight_constraints = {
+            'weight_change_interval': ([(2000, 5000)], [1.0]),
+            'weight_hold_duration': ([(100, 200)], [1.0])
+        }
+        self.weight_randomizers['slow_changes'] = FlexRandomizer(slow_weight_constraints)
+
+        # Fast weight changes
+        fast_weight_constraints = {
+            'weight_change_interval': ([(500, 1000)], [1.0]),
+            'weight_hold_duration': ([(50, 100)], [1.0])
+        }
+        self.weight_randomizers['fast_changes'] = FlexRandomizer(fast_weight_constraints)
+
+        # Rapid weight changes (stress test)
+        rapid_weight_constraints = {
+            'weight_change_interval': ([(100, 300)], [1.0]),
+            'weight_hold_duration': ([(20, 50)], [1.0])
+        }
+        self.weight_randomizers['rapid_changes'] = FlexRandomizer(rapid_weight_constraints)
+
     # =============================================================================
-    # CONFIGURATION API - FIXED to use correct FlexRandomizer API
+    # CONFIGURATION API - Extended for weight support
     # =============================================================================
 
     def set_client_profile(self, client_id: int, profile_name: str):
@@ -173,6 +216,55 @@ class ArbiterMaster:
         else:
             self.log.warning(f"ArbiterMaster({self.title}): Invalid ACK profile '{profile_name}'")
 
+    def set_weight_profile(self, profile_name: str):
+        """NEW: Set weight randomization profile (only for weighted arbiters)"""
+        if not self.is_weighted:
+            self.log.warning(f"ArbiterMaster({self.title}): Weight profile ignored - not a weighted arbiter")
+            return
+            
+        if profile_name in self.weight_randomizers:
+            self.current_weight_profile = profile_name
+            self.log.debug(f"ArbiterMaster({self.title}): Weight profile set to '{profile_name}'")
+        else:
+            self.log.warning(f"ArbiterMaster({self.title}): Invalid weight profile '{profile_name}'")
+
+    def set_static_weights(self, weights: List[int]):
+        """NEW: Set static weights for weighted arbiters"""
+        if not self.is_weighted:
+            self.log.warning(f"ArbiterMaster({self.title}): Static weights ignored - not a weighted arbiter")
+            return
+            
+        if len(weights) != self.num_clients:
+            self.log.error(f"ArbiterMaster({self.title}): Weight list length ({len(weights)}) != num_clients ({self.num_clients})")
+            return
+            
+        if any(w < 0 for w in weights):
+            self.log.error(f"ArbiterMaster({self.title}): All weights must be >= 0")
+            return
+            
+        self.current_weights = weights.copy()
+        self._apply_weights_to_dut()
+        self.log.info(f"ArbiterMaster({self.title}): Static weights set to {weights}")
+
+    def get_current_weights(self) -> List[int]:
+        """NEW: Get current weight configuration"""
+        return self.current_weights.copy() if self.is_weighted else []
+
+    def trigger_weight_change(self, new_weights: List[int], delay_cycles: int = 0):
+        """NEW: Trigger a specific weight change after delay"""
+        if not self.is_weighted:
+            self.log.warning(f"ArbiterMaster({self.title}): Weight change ignored - not a weighted arbiter")
+            return
+            
+        if len(new_weights) != self.num_clients:
+            self.log.error(f"ArbiterMaster({self.title}): New weight list length mismatch")
+            return
+            
+        # Schedule weight change
+        cocotb.start_soon(self._scheduled_weight_change(new_weights, delay_cycles))
+        self.log.info(f"ArbiterMaster({self.title}): Weight change scheduled: {new_weights} in {delay_cycles} cycles")
+
+    # Existing methods remain unchanged
     def enable_client(self, client_id: int):
         """Enable a client and start its countdown"""
         if client_id < self.num_clients:
@@ -181,15 +273,12 @@ class ArbiterMaster:
             self.log.debug(f"ArbiterMaster({self.title}): Client {client_id} enabled")
 
     def disable_client(self, client_id: int):
-        """Disable a client and clear its request - FIXED VERSION"""
+        """Disable a client and clear its request"""
         if client_id < self.num_clients:
             self.client_configs[client_id].enabled = False
             self.client_states[client_id] = ClientState.IDLE
             self.client_timers[client_id] = 0
-
-            # FIXED: Use the new method to update all signals
             self._update_all_request_signals()
-
             self.log.debug(f"ArbiterMaster({self.title}): Client {client_id} disabled")
 
     def enable_clients(self, client_list):
@@ -203,31 +292,20 @@ class ArbiterMaster:
             self.disable_client(client_id)
 
     def set_walking_mode(self, active_client: int, auto_ack: bool = None, ack_delay: int = None):
-        """ENHANCED: Set up for walking test with automatic ACK support
-
-        Args:
-            active_client: Client to enable for walking test
-            auto_ack: Enable automatic ACK for manual requests (default: use ACK mode setting)
-            ack_delay: ACK delay in clocks 0-3 (default: random)
-        """
+        """Set up for walking test with automatic ACK support"""
         # Disable all clients first
         for client_id in range(self.num_clients):
             self.disable_client(client_id)
             self.client_states[client_id] = ClientState.IDLE
             self.client_timers[client_id] = 0
 
-        # Clear all request signals
         self._update_all_request_signals()
-
-        # Clear any existing manual ACK configs
         self.clear_manual_ack_config()
 
-        # Enable only the specified client with manual profile and auto-ACK
+        # Enable only the specified client
         if active_client < self.num_clients:
             self.client_configs[active_client].enabled = True
             self.client_configs[active_client].randomizer_profile = 'manual'
-
-            # Set to IDLE state initially, manual control will override when needed
             self.client_states[active_client] = ClientState.IDLE
             self.client_timers[active_client] = 0
 
@@ -255,16 +333,8 @@ class ArbiterMaster:
         else:
             self.log.error(f"ArbiterMaster({self.title}): Invalid client {active_client} for walking mode")
 
-    # ADDITIONAL METHOD: For debugging walking tests
     def force_client_request(self, client_id: int, enable: bool = True, auto_ack: bool = None, ack_delay: int = None):
-        """ENHANCED: Force a client request signal with automatic ACK support
-
-        Args:
-            client_id: Client to control
-            enable: True to assert request, False to clear
-            auto_ack: If True, automatically ACK grants. If None, use current ACK mode setting
-            ack_delay: Delay in clocks before ACK (0-3). If None, random 0-3
-        """
+        """Force a client request signal with automatic ACK support"""
         if client_id >= self.num_clients:
             self.log.error(f"ArbiterMaster({self.title}): Invalid client_id {client_id}")
             return
@@ -272,20 +342,17 @@ class ArbiterMaster:
         self.log.debug(f"ArbiterMaster({self.title}): FORCE REQUEST - client_id={client_id} enable={enable} auto_ack={auto_ack} ack_delay={ack_delay}{self.get_time_ns_str()}")
 
         if enable:
-            # Set to manual control state to bypass automatic state machine
             self.client_states[client_id] = ClientState.MANUAL_CONTROL
-            self.client_timers[client_id] = 0  # Clear any timer
+            self.client_timers[client_id] = 0
 
-            # NEW: Set up automatic ACK if requested
+            # Set up automatic ACK if requested
             if auto_ack is True or (auto_ack is None and self.ack_mode):
-                # Determine ACK delay
                 if ack_delay is None:
                     import random
-                    ack_delay = random.randint(0, 3)  # Random 0-3 clocks
+                    ack_delay = random.randint(0, 3)
                 else:
-                    ack_delay = max(0, min(3, int(ack_delay)))  # Clamp to 0-3
+                    ack_delay = max(0, min(3, int(ack_delay)))
 
-                # Store manual ACK configuration
                 if not hasattr(self, '_manual_ack_config'):
                     self._manual_ack_config = {}
 
@@ -298,14 +365,12 @@ class ArbiterMaster:
 
                 self.log.info(f"ArbiterMaster({self.title}): Client {client_id} manual control with auto-ACK enabled (delay={ack_delay} clocks)")
             else:
-                # Clear any existing manual ACK config
                 if hasattr(self, '_manual_ack_config') and client_id in self._manual_ack_config:
                     del self._manual_ack_config[client_id]
 
                 self.log.debug(f"ArbiterMaster({self.title}): Client {client_id} set to MANUAL_CONTROL state (no auto-ACK)")
 
         else:
-            # Return to IDLE state and clear manual ACK config
             self.client_states[client_id] = ClientState.IDLE
             self.client_timers[client_id] = 0
 
@@ -314,32 +379,27 @@ class ArbiterMaster:
 
             self.log.debug(f"ArbiterMaster({self.title}): Client {client_id} set to IDLE state (manual control cleared)")
 
-        # Update signals immediately
         self._update_all_request_signals()
 
-
     def update_request_profiles(self, new_profiles: Dict):
-        """FIXED: Update request randomizer profiles using correct API with robust error handling"""
+        """Update request randomizer profiles using correct API with robust error handling"""
         for profile_name, constraints in new_profiles.items():
             try:
                 self.log.debug(f"ArbiterMaster({self.title}): Adding profile '{profile_name}' with constraints: {constraints}")
 
-                # FIXED: Convert the profile format to FlexRandomizer constraints
                 flex_constraints = self._convert_profile_to_constraints(constraints)
                 self.log.debug(f"ArbiterMaster({self.title}): Converted constraints for '{profile_name}': {flex_constraints}")
 
-                # Validate that we have the required fields
                 required_fields = ['inter_request_delay', 'request_duration', 'enabled_probability']
                 for field in required_fields:
                     if field not in flex_constraints:
                         self.log.error(f"ArbiterMaster({self.title}): Profile '{profile_name}' missing required field: {field}")
                         continue
 
-                # Create the FlexRandomizer
                 self.client_randomizers[profile_name] = FlexRandomizer(flex_constraints)
                 self.log.info(f"ArbiterMaster({self.title}): Successfully added request profile '{profile_name}'")
 
-                # Test the randomizer to make sure it works
+                # Test the randomizer
                 test_randomizer = self.client_randomizers[profile_name]
                 test_values = test_randomizer.next()
                 self.log.debug(f"ArbiterMaster({self.title}): Test generation for '{profile_name}': {test_values}")
@@ -350,34 +410,83 @@ class ArbiterMaster:
                 self.log.error(f"ArbiterMaster({self.title}): Traceback: {traceback.format_exc()}")
 
     def update_ack_profiles(self, new_profiles: Dict):
-        """FIXED: Update ACK randomizer profiles using correct API"""
+        """Update ACK randomizer profiles using correct API"""
         for profile_name, constraints in new_profiles.items():
             try:
-                # Convert the profile format to FlexRandomizer constraints
                 flex_constraints = self._convert_profile_to_constraints(constraints)
                 self.ack_randomizers[profile_name] = FlexRandomizer(flex_constraints)
                 self.log.debug(f"ArbiterMaster({self.title}): Added ACK profile '{profile_name}'")
             except Exception as e:
                 self.log.error(f"ArbiterMaster({self.title}): Failed to add ACK profile '{profile_name}': {e}")
 
+    def update_weight_profiles(self, new_profiles: Dict):
+        """NEW: Update weight randomizer profiles (only for weighted arbiters)"""
+        if not self.is_weighted:
+            self.log.warning(f"ArbiterMaster({self.title}): Weight profiles ignored - not a weighted arbiter")
+            return
+            
+        for profile_name, constraints in new_profiles.items():
+            try:
+                flex_constraints = self._convert_profile_to_constraints(constraints)
+                self.weight_randomizers[profile_name] = FlexRandomizer(flex_constraints)
+                self.log.debug(f"ArbiterMaster({self.title}): Added weight profile '{profile_name}'")
+            except Exception as e:
+                self.log.error(f"ArbiterMaster({self.title}): Failed to add weight profile '{profile_name}': {e}")
+
+    # =============================================================================
+    # INTERNAL METHODS - Extended for weight support
+    # =============================================================================
+
+    def _apply_weights_to_dut(self):
+        """NEW: Apply current weights to DUT max_thresh signal"""
+        if not self.is_weighted:
+            return
+            
+        try:
+            if hasattr(self.dut, 'max_thresh'):
+                # Pack weights into max_thresh signal based on arbiter's width requirements
+                # Assuming each weight is MAX_LEVELS_WIDTH bits
+                packed_weights = 0
+                max_levels_width = getattr(self.dut, 'MAX_LEVELS_WIDTH', 4)  # Default 4 bits per weight
+                
+                for i, weight in enumerate(self.current_weights):
+                    # Clamp weight to fit in allocated bits
+                    max_weight = (1 << max_levels_width) - 1
+                    clamped_weight = min(weight, max_weight)
+                    packed_weights |= (clamped_weight << (i * max_levels_width))
+                
+                self.dut.max_thresh.value = packed_weights
+                self.log.debug(f"ArbiterMaster({self.title}): Applied weights {self.current_weights} as 0x{packed_weights:x}")
+            else:
+                self.log.warning(f"ArbiterMaster({self.title}): max_thresh signal not found - cannot apply weights")
+        except Exception as e:
+            self.log.error(f"ArbiterMaster({self.title}): Error applying weights: {e}")
+
+    async def _scheduled_weight_change(self, new_weights: List[int], delay_cycles: int):
+        """NEW: Execute scheduled weight change after delay"""
+        if delay_cycles > 0:
+            await ClockCycles(self.clock, delay_cycles)
+            
+        old_weights = self.current_weights.copy()
+        self.current_weights = new_weights.copy()
+        self._apply_weights_to_dut()
+        
+        self.log.info(f"ArbiterMaster({self.title}): Weight change executed: {old_weights} -> {new_weights}{self.get_time_ns_str()}")
+
     def _update_all_request_signals(self):
-        """FIXED: Update the entire request vector based on current client states"""
+        """Update the entire request vector based on current client states"""
         request_vector = 0
         for client_id in range(self.num_clients):
-            # CRITICAL FIX: Include MANUAL_CONTROL state in request generation
             if (self.client_states[client_id] == ClientState.REQUESTING or
                 self.client_states[client_id] == ClientState.WAITING_ACK or
-                self.client_states[client_id] == ClientState.MANUAL_CONTROL):  # NEW
+                self.client_states[client_id] == ClientState.MANUAL_CONTROL):
                 request_vector |= (1 << client_id)
 
         try:
-            # Support both vector and individual signals
             if hasattr(self.dut, 'request'):
-                # Vector signal - drive the complete vector
                 self.dut.request.value = request_vector
                 self.log.debug(f"ArbiterMaster({self.title}): Updated request vector to 0x{request_vector:x}")
             else:
-                # Individual signals - drive each one
                 for client_id in range(self.num_clients):
                     bit_value = 1 if (request_vector & (1 << client_id)) else 0
                     req_signal = getattr(self.dut, f'request_{client_id}', None)
@@ -390,7 +499,7 @@ class ArbiterMaster:
             self.log.warning(f"ArbiterMaster({self.title}): Could not set request signals: {e}")
 
     def _convert_profile_to_constraints(self, profile_dict: Dict) -> Dict:
-        """FIXED: Convert profile dictionary to FlexRandomizer constraint format with robust validation"""
+        """Convert profile dictionary to FlexRandomizer constraint format with robust validation"""
         constraints = {}
 
         self.log.debug(f"ArbiterMaster({self.title}): Converting profile dict: {profile_dict}")
@@ -399,10 +508,8 @@ class ArbiterMaster:
             self.log.debug(f"ArbiterMaster({self.title}): Processing parameter '{param_name}': {param_config}")
 
             if isinstance(param_config, tuple) and len(param_config) == 2:
-                # Already in correct format (bins, weights)
                 bins, weights = param_config
 
-                # Validate bins and weights
                 if not isinstance(bins, list) or not isinstance(weights, list):
                     self.log.error(f"ArbiterMaster({self.title}): Invalid bins/weights format for {param_name}: bins={bins}, weights={weights}")
                     continue
@@ -415,19 +522,15 @@ class ArbiterMaster:
                 self.log.debug(f"ArbiterMaster({self.title}): Used existing format for {param_name}: {param_config}")
 
             elif isinstance(param_config, list):
-                # Convert list to single bin with equal weights
                 if len(param_config) == 0:
                     self.log.warning(f"ArbiterMaster({self.title}): Empty list for parameter {param_name}, skipping")
                     continue
 
-                # FIXED: Create bins from consecutive values - handle both single values and ranges
                 bins = []
                 for val in param_config:
                     if isinstance(val, (int, float)):
-                        # Single value - create a range [val, val]
                         bins.append((int(val), int(val)))
                     elif isinstance(val, (tuple, list)) and len(val) == 2:
-                        # Already a range
                         bins.append((int(val[0]), int(val[1])))
                     else:
                         self.log.error(f"ArbiterMaster({self.title}): Invalid value in list for {param_name}: {val}")
@@ -443,15 +546,10 @@ class ArbiterMaster:
         self.log.debug(f"ArbiterMaster({self.title}): Final converted constraints: {constraints}")
         return constraints
 
-    # =============================================================================
-    # INTERNAL METHODS - FIXED to use correct FlexRandomizer API
-    # =============================================================================
-
     def _restart_client_countdown(self, client_id: int):
-        """FIXED: Start new countdown for client - but only if not in manual control"""
+        """Start new countdown for client - but only if not in manual control"""
         config = self.client_configs[client_id]
 
-        # CRITICAL FIX: Don't restart countdown for clients in manual control
         if self.client_states[client_id] == ClientState.MANUAL_CONTROL:
             self.log.debug(f"ArbiterMaster({self.title}): Skipping countdown restart for client {client_id} - in manual control")
             return
@@ -459,7 +557,6 @@ class ArbiterMaster:
         self.log.debug(f"ArbiterMaster({self.title}): _restart_client_countdown: client_id={client_id}, enabled={config.enabled}, profile={config.randomizer_profile}")
 
         if config.enabled:
-            # ... rest of existing countdown logic ...
             profile_name = config.randomizer_profile
             if profile_name in self.client_randomizers:
                 try:
@@ -487,19 +584,15 @@ class ArbiterMaster:
     def _check_grant_signal(self, client_id: int) -> bool:
         """Check if grant is asserted for client"""
         try:
-            # Support multiple grant signal formats
             if hasattr(self.dut, 'grant_valid') and hasattr(self.dut, 'grant_id'):
-                # grant_valid + grant_id interface
                 grant_valid = int(self.dut.grant_valid.value) if self.dut.grant_valid.value.is_resolvable else 0
                 if grant_valid:
                     grant_id = int(self.dut.grant_id.value) if self.dut.grant_id.value.is_resolvable else -1
                     return grant_id == client_id
             elif hasattr(self.dut, 'grant'):
-                # Vector grant signal
                 grant_val = int(self.dut.grant.value) if self.dut.grant.value.is_resolvable else 0
                 return bool(grant_val & (1 << client_id))
             else:
-                # Individual grant signals
                 grant_signal = getattr(self.dut, f'grant_{client_id}', None)
                 if grant_signal is None:
                     grant_signal = getattr(self.dut, f'gnt_{client_id}', None)
@@ -511,14 +604,12 @@ class ArbiterMaster:
         return False
 
     def _set_ack_signal(self, client_id: int, value: int):
-        """Set ACK signal for client - FIXED to not call _set_request_signal"""
+        """Set ACK signal for client"""
         if not self.ack_mode:
             return
 
         try:
-            # Support both vector and individual ACK signals
             if hasattr(self.dut, 'grant_ack'):
-                # Vector ACK signal
                 current_val = int(self.dut.grant_ack.value) if self.dut.grant_ack.value.is_resolvable else 0
                 if value:
                     new_val = current_val | (1 << client_id)
@@ -526,7 +617,6 @@ class ArbiterMaster:
                     new_val = current_val & ~(1 << client_id)
                 self.dut.grant_ack.value = new_val
             else:
-                # Individual ACK signals
                 ack_signal = getattr(self.dut, f'ack_{client_id}', None)
                 if ack_signal is None:
                     ack_signal = getattr(self.dut, f'grant_ack_{client_id}', None)
@@ -536,7 +626,7 @@ class ArbiterMaster:
             self.log.warning(f"ArbiterMaster({self.title}): Could not set ACK signal for client {client_id}: {e}")
 
     # =============================================================================
-    # ASYNC BACKGROUND PROCESSES - FIXED to use correct FlexRandomizer API
+    # ASYNC BACKGROUND PROCESSES - Extended for weight support
     # =============================================================================
 
     async def startup(self):
@@ -550,11 +640,15 @@ class ArbiterMaster:
         # Start background processes
         self._request_task = cocotb.start_soon(self._request_generator())
         self._grant_task = cocotb.start_soon(self._grant_monitor())
+        
+        # NEW: Start weight management task for weighted arbiters
+        if self.is_weighted:
+            self._weight_task = cocotb.start_soon(self._weight_manager())
 
-        self.log.info("ArbiterMaster started")
+        self.log.info(f"ArbiterMaster started (weighted: {self.is_weighted})")
 
     async def shutdown(self):
-        """ENHANCED: Clean shutdown of arbiter master including manual ACK cleanup"""
+        """Clean shutdown of arbiter master including weight management cleanup"""
         if not self.active:
             return
 
@@ -568,6 +662,8 @@ class ArbiterMaster:
             self._request_task.cancel()
         if self._grant_task and not self._grant_task.done():
             self._grant_task.cancel()
+        if self._weight_task and not self._weight_task.done():  # NEW
+            self._weight_task.cancel()
 
         # Clear all signals
         await self.reset_signals()
@@ -575,7 +671,7 @@ class ArbiterMaster:
         self.log.info(f"ArbiterMaster stopped{self.get_time_ns_str()}")
 
     async def reset_signals(self):
-        """Reset all signals and state - FIXED VERSION"""
+        """Reset all signals and state"""
         await RisingEdge(self.clock)
 
         # Reset internal state first
@@ -588,7 +684,7 @@ class ArbiterMaster:
                 self.client_states[client_id] = ClientState.IDLE
                 self.client_timers[client_id] = 0
 
-        # FIXED: Clear all request signals using the new method
+        # Clear all request signals
         self._update_all_request_signals()
 
         # Clear ACK signals if needed
@@ -596,7 +692,6 @@ class ArbiterMaster:
             if hasattr(self.dut, 'grant_ack'):
                 self.dut.grant_ack.value = 0
             else:
-                # Individual ACK signals
                 for client_id in range(self.num_clients):
                     ack_signal = getattr(self.dut, f'ack_{client_id}', None)
                     if ack_signal is None:
@@ -604,8 +699,12 @@ class ArbiterMaster:
                     if ack_signal is not None:
                         ack_signal.value = 0
 
+        # NEW: Apply initial weights for weighted arbiters
+        if self.is_weighted:
+            self._apply_weights_to_dut()
+
     async def _request_generator(self):
-        """FIXED: Generate requests based on correct FlexRandomizer usage - SKIP MANUAL_CONTROL clients"""
+        """Generate requests based on correct FlexRandomizer usage - SKIP MANUAL_CONTROL clients"""
         while self.active:
             await RisingEdge(self.clock)
 
@@ -613,19 +712,15 @@ class ArbiterMaster:
                 config = self.client_configs[client_id]
                 state = self.client_states[client_id]
 
-                # CRITICAL FIX: Skip clients in MANUAL_CONTROL state
                 if state == ClientState.MANUAL_CONTROL:
-                    continue  # Don't interfere with manual control
+                    continue
 
-                # Skip disabled clients
                 if not config.enabled:
                     continue
 
-                # Update client state machine for automatic clients only
                 if state == ClientState.COUNTING:
                     self.client_timers[client_id] -= 1
                     if self.client_timers[client_id] <= 0:
-                        # Get request duration from correct randomizer
                         profile_name = config.randomizer_profile
                         if profile_name in self.client_randomizers:
                             randomizer = self.client_randomizers[profile_name]
@@ -638,53 +733,86 @@ class ArbiterMaster:
                 elif state == ClientState.REQUESTING:
                     self.client_timers[client_id] -= 1
                     if self.client_timers[client_id] <= 0 and client_id not in self.pending_acks:
-                        # Request duration expired, but no grant yet
                         if not self.ack_mode:
-                            # In no-ACK mode, restart immediately
                             self._restart_client_countdown(client_id)
 
-            # Update ALL request signals once per clock cycle
             self._update_all_request_signals()
 
     async def _grant_monitor(self):
-        """ENHANCED: Monitor grants and handle ACK generation including manual control auto-ACK"""
+        """Monitor grants and handle ACK generation including manual control auto-ACK"""
         while self.active:
             await RisingEdge(self.clock)
 
             for client_id in range(self.num_clients):
                 state = self.client_states[client_id]
 
-                # Check for new grant - include MANUAL_CONTROL state
                 if (self._check_grant_signal(client_id) and
                     (state == ClientState.REQUESTING or state == ClientState.MANUAL_CONTROL)):
 
                     if self.ack_mode:
-                        # Check if this is manual control with auto-ACK
                         if (state == ClientState.MANUAL_CONTROL and
                             hasattr(self, '_manual_ack_config') and
                             client_id in self._manual_ack_config):
 
                             config = self._manual_ack_config[client_id]
                             if config['enabled'] and not config['ack_pending']:
-                                # Start manual auto-ACK process
                                 config['ack_pending'] = True
                                 config['grant_detected'] = True
                                 cocotb.start_soon(self._generate_manual_ack(client_id))
                                 self.log.debug(f"ArbiterMaster({self.title}): Started manual auto-ACK for client {client_id}")
                         else:
-                            # Normal ACK mode processing
                             self.client_states[client_id] = ClientState.WAITING_ACK
                             if client_id not in self.pending_acks:
                                 self.pending_acks.add(client_id)
                                 cocotb.start_soon(self._generate_ack(client_id))
                     else:
-                        # No-ACK mode: completion handling
                         if state == ClientState.MANUAL_CONTROL:
-                            # For manual control, just log the grant but stay in manual control
                             self.log.debug(f"ArbiterMaster({self.title}): Manual client {client_id} received grant, staying in manual control")
                         else:
-                            # For automatic clients, restart countdown
                             self._restart_client_countdown(client_id)
+
+    async def _weight_manager(self):
+        """NEW: Background weight management for weighted arbiters"""
+        if not self.is_weighted:
+            return
+            
+        weight_timer = 0
+        
+        while self.active:
+            await RisingEdge(self.clock)
+            
+            # Check if we should trigger weight changes based on current profile
+            if self.current_weight_profile in self.weight_randomizers:
+                if weight_timer <= 0:
+                    # Generate next weight change timing
+                    randomizer = self.weight_randomizers[self.current_weight_profile]
+                    params = randomizer.next()
+                    weight_timer = params.get('weight_change_interval', 10000)
+                    
+                    # Only trigger changes for non-static profiles
+                    if self.current_weight_profile != 'static' and not self.weight_change_pending:
+                        self._trigger_random_weight_change()
+                else:
+                    weight_timer -= 1
+
+    def _trigger_random_weight_change(self):
+        """NEW: Trigger a random weight change based on current configuration"""
+        # Generate new random weights
+        import random
+        max_weight = 8  # Reasonable maximum
+        new_weights = [random.randint(1, max_weight) for _ in range(self.num_clients)]
+        
+        # Schedule the change with small delay to avoid race conditions
+        delay_cycles = random.randint(5, 20)
+        cocotb.start_soon(self._scheduled_weight_change(new_weights, delay_cycles))
+        
+        self.weight_change_pending = True
+        cocotb.start_soon(self._clear_weight_change_pending(delay_cycles + 10))
+
+    async def _clear_weight_change_pending(self, delay_cycles: int):
+        """NEW: Clear weight change pending flag after delay"""
+        await ClockCycles(self.clock, delay_cycles)
+        self.weight_change_pending = False
 
     async def _generate_manual_ack(self, client_id: int):
         """Generate ACK signal for manual control with configurable delay"""
@@ -698,11 +826,9 @@ class ArbiterMaster:
 
             self.log.debug(f"ArbiterMaster({self.title}): Generating manual ACK for client {client_id} with {delay_cycles} cycle delay")
 
-            # Wait for specified delay
             if delay_cycles > 0:
                 await ClockCycles(self.clock, delay_cycles)
 
-            # Assert ACK if still active and grant still present
             if (self.active and
                 config['grant_detected'] and
                 self._check_grant_signal(client_id)):
@@ -710,7 +836,6 @@ class ArbiterMaster:
                 self._set_ack_signal(client_id, 1)
                 self.log.info(f"ArbiterMaster({self.title}): Client {client_id} manual ACK asserted (delay={delay_cycles} cycles){self.get_time_ns_str()}")
 
-                # Hold ACK for one cycle
                 await ClockCycles(self.clock, 1)
                 self._set_ack_signal(client_id, 0)
 
@@ -718,14 +843,12 @@ class ArbiterMaster:
             else:
                 self.log.warning(f"ArbiterMaster({self.title}): Manual ACK for client {client_id} cancelled - grant no longer present")
 
-            # Clean up manual ACK config
             config['ack_pending'] = False
             config['grant_detected'] = False
 
         except Exception as e:
             self.log.error(f"ArbiterMaster({self.title}): Manual ACK generation error for client {client_id}: {e}{self.get_time_ns_str()}")
 
-            # Cleanup on error
             if hasattr(self, '_manual_ack_config') and client_id in self._manual_ack_config:
                 self._manual_ack_config[client_id]['ack_pending'] = False
                 self._manual_ack_config[client_id]['grant_detected'] = False
@@ -733,27 +856,22 @@ class ArbiterMaster:
     async def _generate_ack(self, client_id: int):
         """Generate ACK signal with correct FlexRandomizer timing"""
         try:
-            # FIXED: Get ACK timing from correct randomizer
             if self.current_ack_profile in self.ack_randomizers:
                 ack_randomizer = self.ack_randomizers[self.current_ack_profile]
                 params = ack_randomizer.next()
                 delay_cycles = params.get('ack_delay', 0)
                 duration_cycles = params.get('ack_duration', 1)
 
-                # Wait for delay if not immediate
                 if delay_cycles > 0:
                     await ClockCycles(self.clock, delay_cycles)
 
-                # Assert ACK
                 if self.active and client_id in self.pending_acks:
                     self._set_ack_signal(client_id, 1)
                     self.log.debug(f"ArbiterMaster({self.title}): Client {client_id} ACK asserted (delay={delay_cycles}, profile={self.current_ack_profile}){self.get_time_ns_str()}")
 
-                    # Hold ACK for specified duration
                     await ClockCycles(self.clock, duration_cycles)
                     self._set_ack_signal(client_id, 0)
 
-                    # Complete transaction
                     self.pending_acks.discard(client_id)
                     self._restart_client_countdown(client_id)
                     self.log.debug(f"ArbiterMaster({self.title}): Client {client_id} transaction complete{self.get_time_ns_str()}")
@@ -762,11 +880,10 @@ class ArbiterMaster:
 
         except Exception as e:
             self.log.error(f"ArbiterMaster({self.title}): ACK generation error for client {client_id}: {e}{self.get_time_ns_str()}")
-            # Cleanup on error
             self.pending_acks.discard(client_id)
 
     # =============================================================================
-    # TEST UTILITY METHODS
+    # TEST UTILITY METHODS - Extended for weight support
     # =============================================================================
 
     async def wait_for_grant(self, client_id: int, timeout_cycles: int = 100) -> bool:
@@ -778,71 +895,57 @@ class ArbiterMaster:
         return False
 
     async def manual_request(self, client_id: int, cycles: int = 1, auto_ack: bool = None, ack_delay: int = None):
-        """FIXED: Manually assert request for specified cycles with automatic ACK support"""
+        """Manually assert request for specified cycles with automatic ACK support"""
         if client_id >= self.num_clients:
             self.log.error(f"ArbiterMaster({self.title}): Invalid client_id {client_id} for manual request")
             return
 
         self.log.debug(f"ArbiterMaster({self.title}): Manual Request - client_id={client_id} cycles={cycles} auto_ack={auto_ack} ack_delay={ack_delay}{self.get_time_ns_str()}")
 
-        # Store original state for restoration
         original_state = self.client_states[client_id]
         original_timer = self.client_timers[client_id]
 
-        # Set up manual control with automatic ACK
         self.force_client_request(client_id, enable=True, auto_ack=auto_ack, ack_delay=ack_delay)
 
-        # Wait for the specified cycles while monitoring
         grant_received = False
         for cycle in range(cycles):
             await RisingEdge(self.clock)
 
-            # Check if grant was received
             if self._check_grant_signal(client_id):
                 grant_received = True
                 self.log.debug(f"ArbiterMaster({self.title}): Manual request for client {client_id} received grant at cycle {cycle}")
 
-                # Mark grant detected for auto-ACK processing
                 if hasattr(self, '_manual_ack_config') and client_id in self._manual_ack_config:
                     self._manual_ack_config[client_id]['grant_detected'] = True
 
                 break
 
-        # FIXED: Don't clear the request immediately if we have auto-ACK enabled
-        # Let the grant monitor handle the ACK first
         if grant_received and hasattr(self, '_manual_ack_config') and client_id in self._manual_ack_config:
             config = self._manual_ack_config[client_id]
             if config['enabled']:
                 self.log.debug(f"ArbiterMaster({self.title}): Grant received for client {client_id}, waiting for auto-ACK to complete")
 
-                # Just clear the request signal but keep the ACK config
-                self.client_states[client_id] = ClientState.MANUAL_CONTROL  # Keep in manual control
-                self._update_all_request_signals()  # This will clear the request since not REQUESTING state
+                self.client_states[client_id] = ClientState.MANUAL_CONTROL
+                self._update_all_request_signals()
 
-                # Wait for ACK to complete
                 ack_delay_cycles = config['delay_clocks']
-                total_wait = ack_delay_cycles + 5  # ACK delay + ACK duration + margin
+                total_wait = ack_delay_cycles + 5
                 await ClockCycles(self.clock, total_wait)
 
-                # Now clean up
                 if client_id in self._manual_ack_config:
                     del self._manual_ack_config[client_id]
 
                 self.log.debug(f"ArbiterMaster({self.title}): Manual request completed for client {client_id}, auto-ACK should be done")
             else:
-                # No auto-ACK, clear immediately
                 self.force_client_request(client_id, enable=False)
         else:
-            # No grant received or no auto-ACK, clear immediately
             self.force_client_request(client_id, enable=False)
             self.log.debug(f"ArbiterMaster({self.title}): Manual request ended for client {client_id}, grant_received={grant_received}")
 
-        # Restore to IDLE state
         self.client_states[client_id] = ClientState.IDLE
         self.client_timers[client_id] = 0
         self._update_all_request_signals()
 
-    # ADDITIONAL FIX: Add a method to check if manual request was successful
     def check_manual_request_success(self, client_id: int) -> bool:
         """Check if the last manual request for a client was successful (received grant)"""
         try:
@@ -851,11 +954,12 @@ class ArbiterMaster:
             return False
 
     def get_stats(self) -> Dict:
-        """ENHANCED: Get current statistics including manual ACK status"""
+        """Get current statistics including weight status for weighted arbiters"""
         base_stats = {
             'active': self.active,
             'num_clients': self.num_clients,
             'ack_mode': self.ack_mode,
+            'is_weighted': self.is_weighted,  # NEW
             'pending_acks': list(self.pending_acks),
             'current_ack_profile': self.current_ack_profile,
             'available_client_profiles': list(self.client_randomizers.keys()),
@@ -867,13 +971,21 @@ class ArbiterMaster:
             } for i in range(self.num_clients)}
         }
 
+        # NEW: Add weight-specific stats
+        if self.is_weighted:
+            base_stats.update({
+                'current_weights': self.current_weights.copy(),
+                'current_weight_profile': self.current_weight_profile,
+                'available_weight_profiles': list(self.weight_randomizers.keys()),
+                'weight_change_pending': self.weight_change_pending
+            })
+
         # Add manual ACK status if available
         if hasattr(self, '_manual_ack_config') and self._manual_ack_config:
             base_stats['manual_ack_configs'] = self._manual_ack_config.copy()
 
         return base_stats
 
-    # Add debug method for checking manual control status
     def get_manual_control_status(self):
         """Get status of all clients in manual control"""
         manual_clients = {}
@@ -887,14 +999,7 @@ class ArbiterMaster:
         return manual_clients
 
     def get_manual_ack_status(self, client_id: int = None):
-        """Get status of manual ACK configuration
-
-        Args:
-            client_id: If specified, get status for specific client. If None, get all clients.
-
-        Returns:
-            Dictionary with manual ACK status
-        """
+        """Get status of manual ACK configuration"""
         if not hasattr(self, '_manual_ack_config'):
             return {} if client_id is None else None
 
@@ -904,11 +1009,7 @@ class ArbiterMaster:
             return self._manual_ack_config.copy()
 
     def clear_manual_ack_config(self, client_id: int = None):
-        """Clear manual ACK configuration
-
-        Args:
-            client_id: If specified, clear config for specific client. If None, clear all.
-        """
+        """Clear manual ACK configuration"""
         if not hasattr(self, '_manual_ack_config'):
             return
 
@@ -919,4 +1020,3 @@ class ArbiterMaster:
         else:
             self._manual_ack_config.clear()
             self.log.debug(f"ArbiterMaster({self.title}): Cleared all manual ACK configs")
-

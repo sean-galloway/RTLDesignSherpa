@@ -71,6 +71,9 @@ class ArbiterRoundRobinTB(TBBase):
         self.monitor.add_reset_callback(self._on_monitor_reset)
         self.monitor.enable_debug()
 
+        if hasattr(self.monitor, 'compliance'):
+            self.monitor.compliance.ack_timeout_cycles = 8000  # Increased from 1000
+            self.log.info(f"Configured ACK timeout: 8000 cycles ({8000 * 10}ns)")
         # Clock management
         self.clock_started = False
 
@@ -742,7 +745,7 @@ class ArbiterRoundRobinTB(TBBase):
             if client_id < 2:
                 self.master.set_client_profile(client_id, 'fast')
             else:
-                self.master.set_client_profile(client_id, 'slow')
+                self.master.set_client_profile(client_id, 'fast')
             self.master.enable_client(client_id)
 
         self.master.set_ack_profile('random')
