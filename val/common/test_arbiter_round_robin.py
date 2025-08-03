@@ -78,13 +78,13 @@ async def arbiter_round_robin_test(dut):
 
         if not report_success:
             raise AssertionError("Final report validation failed")
-        
+
         tb.log.info("=== ALL COMPREHENSIVE TESTS PASSED ===")
 
     except AssertionError as e:
         tb.log.error(f"Comprehensive test failed: {str(e)}")
 
-        # Enhanced debug info on failure
+        # debug info on failure
         try:
             # Monitor statistics
             final_stats = tb.monitor.get_comprehensive_stats()
@@ -102,7 +102,7 @@ async def arbiter_round_robin_test(dut):
             tb.log.error(f"Error generating debug info: {debug_e}")
 
         raise
-    
+
     finally:
         # Gracefully stop master and monitor
         try:
@@ -130,7 +130,7 @@ async def arbiter_round_robin_test(dut):
     (32, 1),   # 32 clients, ACK mode
 ])
 def test_arbiter_round_robin(request, clients, wait_ack):
-    """Run the enhanced round robin test with new clean ArbiterMaster"""
+    """Run the round robin test with new clean ArbiterMaster"""
     # Get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_cmn': 'rtl/common'
@@ -148,7 +148,7 @@ def test_arbiter_round_robin(request, clients, wait_ack):
     # Create a human readable test identifier
     c_str = TBBase.format_dec(clients, 2)
     w_str = TBBase.format_dec(wait_ack, 1)
-    test_name_plus_params = f"test_{dut_name}_master_c{c_str}_w{w_str}"
+    test_name_plus_params = f"test_{dut_name}_c{c_str}_w{w_str}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Use it in the simbuild path
@@ -212,7 +212,7 @@ def test_arbiter_round_robin(request, clients, wait_ack):
             plusargs=plusargs,
         )
     except Exception as e:
-        # Enhanced error reporting for new master
+        # error reporting for new master
         print(f"Round robin test with clean ArbiterMaster failed: {str(e)}")
         print(f"Test configuration: {clients} clients, ACK mode {wait_ack}")
         print(f"Logs preserved at: {log_path}")

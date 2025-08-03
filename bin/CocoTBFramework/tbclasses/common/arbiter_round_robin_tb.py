@@ -1,5 +1,5 @@
 """
-Fixed Round Robin Testbench with Correct FlexRandomizer Usage
+Round Robin Testbench with Correct FlexRandomizer Usage
 Maintains all test functionality while using the FlexRandomizer API correctly
 """
 
@@ -10,14 +10,14 @@ from cocotb.utils import get_sim_time
 from cocotb.triggers import RisingEdge, FallingEdge, Timer, ClockCycles
 from cocotb.clock import Clock
 
-# Import the fixed ArbiterMaster and existing monitor
+# Import the ArbiterMaster and existing monitor
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.components.shared.arbiter_monitor import RoundRobinArbiterMonitor
-from CocoTBFramework.components.shared.arbiter_master import ArbiterMaster  # Fixed implementation
+from CocoTBFramework.components.shared.arbiter_master import ArbiterMaster  # implementation
 
 class ArbiterRoundRobinTB(TBBase):
     """
-    FIXED: Round Robin Arbiter Testbench using correct FlexRandomizer API
+    Round Robin Arbiter Testbench using correct FlexRandomizer API
     Maintains all test functionality while properly using FlexRandomizer
     """
 
@@ -55,7 +55,7 @@ class ArbiterRoundRobinTB(TBBase):
             clock_period_ns=10
         )
 
-        # Initialize the FIXED arbiter master with correct FlexRandomizer usage
+        # Initialize the arbiter master with correct FlexRandomizer usage
         self.master = ArbiterMaster(
             dut=dut,
             title="RR Driver",
@@ -95,7 +95,7 @@ class ArbiterRoundRobinTB(TBBase):
         self.log.debug(f"Monitor reset event: {reset_type}{self.get_time_ns_str()}")
 
     async def start_clock(self, clock_name: str, period: int, units: str = 'ns'):
-        """Start the clock - adapted for fixed master"""
+        """Start the clock - adapted for master"""
         if not self.clock_started:
             clock_gen = Clock(getattr(self.dut, clock_name), period, units=units)
             cocotb.start_soon(clock_gen.start())
@@ -112,7 +112,7 @@ class ArbiterRoundRobinTB(TBBase):
         self.dut.rst_n.value = 1
         await ClockCycles(self.dut.clk, 5)
 
-        # Start the FIXED master
+        # Start the master
         await self.master.startup()
 
         # Monitor starts automatically via BusMonitor inheritance
@@ -129,7 +129,7 @@ class ArbiterRoundRobinTB(TBBase):
         return f" @ {get_sim_time('ns'):.1f}ns"
 
     # =============================================================================
-    # FIXED TEST METHODS using correct FlexRandomizer API
+    # TEST METHODS using correct FlexRandomizer API
     # =============================================================================
 
     def set_walking_mode(self, active_client: int):
@@ -147,7 +147,7 @@ class ArbiterRoundRobinTB(TBBase):
 
 
     async def test_walking_requests(self):
-        """FIXED: Test walking requests with automatic ACK support"""
+        """Test walking requests with automatic ACK support"""
         self.log.info(f"Starting walking adjacent requests test{self.get_time_ns_str()}")
 
         # Ensure master is running
@@ -262,60 +262,6 @@ class ArbiterRoundRobinTB(TBBase):
         except Exception as e:
             self.log.warning(f"Error checking activity ({context}): {e}")
 
-    async def _enhanced_manual_request_test_with_auto_ack(self, client_id: int, context: str, auto_ack_enabled: bool, ack_delay: int) -> bool:
-        """UPDATED: Enhanced manual request test with automatic ACK support"""
-        self.log.debug(f"=== Enhanced manual request test with auto-ACK for {context} ===")
-
-        # Step 1: Verify client is properly set up
-        stats = self.master.get_stats()
-        config = stats['client_configs'][client_id]
-        state = stats['client_states'][client_id]
-
-        self.log.debug(f"{context}: Pre-request state check")
-        self.log.debug(f"  enabled={config['enabled']}, profile={config['profile']}, state={state}")
-
-        if not config['enabled']:
-            self.log.error(f"{context}: Client not enabled{self.get_time_ns_str()}")
-            return False
-
-        # Check manual ACK configuration
-        if auto_ack_enabled:
-            manual_ack_status = self.master.get_manual_ack_status(client_id)
-            if manual_ack_status:
-                self.log.debug(f"{context}: Manual ACK config - enabled={manual_ack_status['enabled']}, delay={manual_ack_status['delay_clocks']}")
-            else:
-                self.log.warning(f"{context}: Auto-ACK enabled but no manual ACK config found")
-
-        # Step 2: Use the enhanced manual_request method with auto-ACK
-        self.log.debug(f"{context}: Starting manual request with auto_ack={auto_ack_enabled}, ack_delay={ack_delay}")
-
-        # Use the enhanced manual_request method
-        await self.master.manual_request(
-            client_id=client_id,
-            cycles=20,  # Give more time for grant/ACK sequence
-            auto_ack=auto_ack_enabled,
-            ack_delay=ack_delay
-        )
-
-        # Step 3: Wait a bit more for ACK to complete if needed
-        if auto_ack_enabled and self.WAIT_GNT_ACK == 1:
-            self.log.debug(f"{context}: Waiting for ACK completion...")
-            await self.wait_clocks('clk', ack_delay + 5)  # Wait for ACK delay + margin
-
-        # Step 4: Check if grant was received
-        # Since the manual_request method handles the grant detection internally,
-        # we need to check the master's statistics or monitor for confirmation
-        await self.wait_clocks('clk', 5)  # Brief settling time
-
-        # Check monitor for recent grants to this client
-        grant_received = self._check_recent_grant_for_client(client_id, context)
-
-        if not grant_received:
-            self.log.error(f"{context}: No grant detected")
-            await self._debug_walking_test_state(client_id, f"{context}_no_grant")
-
-        return grant_received
-
     def _check_grant_for_client(self, client_id: int) -> bool:
         """Helper method to check if a specific client received a grant"""
         try:
@@ -414,7 +360,7 @@ class ArbiterRoundRobinTB(TBBase):
         self.log.error(f"=== END WALKING TEST DEBUG ===")
 
     async def test_grant_signals(self):
-        """FIXED: Test basic grant signal functionality with explicit auto-ACK"""
+        """Test basic grant signal functionality with explicit auto-ACK"""
         self.log.info(f"Starting grant signals test{self.get_time_ns_str()}")
 
         # Disable automatic requests for controlled testing
@@ -428,12 +374,12 @@ class ArbiterRoundRobinTB(TBBase):
         for client_id in range(self.CLIENTS):
             self.log.info(f"Testing grant signal for client {client_id}")
 
-            # FIXED: Explicitly enable auto-ACK for ACK mode
+            # Explicitly enable auto-ACK for ACK mode
             if self.WAIT_GNT_ACK == 1:
                 # ACK mode - explicitly enable auto-ACK
                 await self.master.manual_request(
-                    client_id=client_id, 
-                    cycles=10, 
+                    client_id=client_id,
+                    cycles=10,
                     auto_ack=True,      # ← Explicitly enable auto-ACK
                     ack_delay=1         # ← 1 clock delay
                 )
@@ -451,7 +397,7 @@ class ArbiterRoundRobinTB(TBBase):
         self.log.info(f"Grant signals test passed{self.get_time_ns_str()}")
 
     async def run_basic_arbitration_test(self, duration_cycles: int = 800):
-        """FIXED: Simplified basic arbitration test"""
+        """Simplified basic arbitration test"""
         self.log.info(f"Starting basic arbitration test for {duration_cycles} cycles{self.get_time_ns_str()}")
 
         # Simple approach - use default profiles for all clients
@@ -485,7 +431,7 @@ class ArbiterRoundRobinTB(TBBase):
         self.log.info(f"Basic arbitration test passed{self.get_time_ns_str()}")
 
     async def test_block_arb(self):
-        """FIXED: Test block_arb functionality with reliable grant counting"""
+        """Test block_arb functionality with reliable grant counting"""
         self.log.info(f"Starting block_arb test{self.get_time_ns_str()}")
 
         # Enable all clients with fast profiles
@@ -539,10 +485,10 @@ class ArbiterRoundRobinTB(TBBase):
         self.log.info(f"Block_arb test passed{self.get_time_ns_str()}")
 
     async def test_fairness(self):
-        """FIXED: Test fairness using correct grant counting methods"""
+        """Test fairness using correct grant counting methods"""
         self.log.info(f"Starting fairness test{self.get_time_ns_str()}")
 
-        # FIXED: Create fairness test profile using correct constraint format
+        # Create fairness test profile using correct constraint format
         fairness_profile = {
             'inter_request_delay': ([(8, 12), (16, 16)], [0.8, 0.2]),
             'request_duration': ([(2, 2), (3, 3)], [0.6, 0.4]),
@@ -559,7 +505,7 @@ class ArbiterRoundRobinTB(TBBase):
 
         self.master.set_ack_profile('fast')
 
-        # FIXED: Use multiple counting methods and choose the most reliable one
+        # Use multiple counting methods and choose the most reliable one
         initial_len = len(self.monitor)
         initial_transaction_count = self.monitor.get_transaction_count()
         initial_comprehensive_stats = self.monitor.get_comprehensive_stats()
@@ -579,7 +525,7 @@ class ArbiterRoundRobinTB(TBBase):
         test_cycles = 2000
         await self.wait_clocks('clk', test_cycles)
 
-        # FIXED: Get final counts using all available methods
+        # Get final counts using all available methods
         final_len = len(self.monitor)
         final_transaction_count = self.monitor.get_transaction_count()
         final_comprehensive_stats = self.monitor.get_comprehensive_stats()
@@ -607,7 +553,7 @@ class ArbiterRoundRobinTB(TBBase):
         self.log.info(f"  Method 3 (stats):       {grants_stats_method}")
         self.log.info(f"  Method 4 (cycle):       {grants_cycle_method}")
 
-        # FIXED: Use the best available count (maximum of all methods)
+        # Use the best available count (maximum of all methods)
         total_new_grants = max(
             grants_len_method,
             grants_transaction_method,
@@ -626,45 +572,45 @@ class ArbiterRoundRobinTB(TBBase):
 
         self.log.info(f"Fairness test: {total_new_grants} grants, fairness index: {fairness_index:.3f}{self.get_time_ns_str()}")
 
-        # FIXED: More lenient assertion with better error handling
+        # More lenient assertion with better error handling
         if total_new_grants <= 0:
             # Additional debugging before failing
             self.log.error("No grants detected during fairness test! Debugging...")
-            
+
             # Check master state
             master_stats = self.master.get_stats()
             self.log.error(f"Master state: active={master_stats['active']}")
             for client_id, config in master_stats['client_configs'].items():
                 state = master_stats['client_states'][client_id]
                 self.log.error(f"  Client {client_id}: enabled={config['enabled']}, profile={config['profile']}, state={state}")
-            
+
             # Check DUT signals
             try:
                 req_val = int(self.dut.request.value) if self.dut.request.value.is_resolvable else 0
                 gnt_valid = int(self.dut.grant_valid.value) if self.dut.grant_valid.value.is_resolvable else 0
                 gnt_vec = int(self.dut.grant.value) if self.dut.grant.value.is_resolvable else 0
                 block = int(self.dut.block_arb.value) if self.dut.block_arb.value.is_resolvable else 0
-                
+
                 self.log.error(f"DUT signals: request=0x{req_val:x}, grant_valid={gnt_valid}, grant=0x{gnt_vec:x}, block_arb={block}")
             except Exception as e:
                 self.log.error(f"Error reading DUT signals: {e}")
-            
+
             # Try waiting longer and re-checking
             self.log.warning("Trying extended wait for fairness test...")
             await self.wait_clocks('clk', 1000)  # Wait another 1000 cycles
-            
+
             # Re-check grants
             extended_len = len(self.monitor)
             extended_transaction_count = self.monitor.get_transaction_count()
             extended_comprehensive_stats = self.monitor.get_comprehensive_stats()
             extended_grants_from_stats = extended_comprehensive_stats.get('total_grants', 0)
-            
+
             additional_grants = max(
                 extended_len - final_len,
                 extended_transaction_count - final_transaction_count,
                 extended_grants_from_stats - final_grants_from_stats
             )
-            
+
             if additional_grants > 0:
                 total_new_grants = additional_grants
                 fairness_index = extended_comprehensive_stats.get('fairness_index', 0)
@@ -676,7 +622,7 @@ class ArbiterRoundRobinTB(TBBase):
                     total_new_grants = 100  # Set to minimum threshold
                     fairness_index = extended_comprehensive_stats.get('fairness_index', 0)
 
-        # FIXED: More reasonable thresholds
+        # More reasonable thresholds
         min_grants_threshold = 50  # Reduced from 100
         min_fairness_threshold = 0.25  # Reduced from 0.3
 
@@ -684,7 +630,7 @@ class ArbiterRoundRobinTB(TBBase):
             f"Insufficient activity for fairness test: {total_new_grants} grants < {min_grants_threshold} "
             f"(test duration: {test_cycles} cycles)"
         )
-        
+
         assert fairness_index > min_fairness_threshold, (
             f"Poor fairness: {fairness_index:.3f} < {min_fairness_threshold}"
         )
@@ -692,7 +638,7 @@ class ArbiterRoundRobinTB(TBBase):
         self.log.info(f"✓ Fairness test passed: {total_new_grants} grants, fairness: {fairness_index:.3f}")
 
     async def test_single_client_saturation(self):
-        """FIXED: Test single client saturation with better grant detection"""
+        """Test single client saturation with better grant detection"""
         self.log.info(f"Starting single client saturation test{self.get_time_ns_str()}")
 
         # Disable all clients except one
@@ -736,7 +682,7 @@ class ArbiterRoundRobinTB(TBBase):
         self.log.info(f"Single client saturation test passed{self.get_time_ns_str()}")
 
     async def test_bursty_traffic_pattern(self):
-        """FIXED: Test bursty traffic patterns with reliable profiles"""
+        """Test bursty traffic patterns with reliable profiles"""
         self.log.info(f"Starting bursty traffic pattern test{self.get_time_ns_str()}")
 
         # Use existing fast/slow profiles instead of creating new ones
@@ -768,7 +714,7 @@ class ArbiterRoundRobinTB(TBBase):
         self.log.info(f"Bursty traffic pattern test completed{self.get_time_ns_str()}")
 
     async def test_rapid_request_changes(self):
-        """FIXED: Test rapid request changes"""
+        """Test rapid request changes"""
         self.log.info(f"Starting rapid request changes test{self.get_time_ns_str()}")
 
         # Use fast profiles for rapid changes
@@ -917,8 +863,8 @@ class ArbiterRoundRobinTB(TBBase):
             raise AssertionError(f"Monitor errors: {self.monitor_errors}")
 
     async def handle_test_transition_ack_cleanup(self):
-        """Handle test transitions - no cleanup needed with fixed master"""
-        # The fixed master handles cleanup automatically
+        """Handle test transitions - no cleanup needed with master"""
+        # The master handles cleanup automatically
         await self.wait_clocks('clk', 10)  # Brief settling time
 
     def generate_final_report(self):
@@ -957,7 +903,7 @@ class ArbiterRoundRobinTB(TBBase):
             return False
 
     async def cleanup_between_phases(self, phase_name: str, restart_master: bool = False):
-        """Clean phase transitions - simplified with fixed master"""
+        """Clean phase transitions - simplified with master"""
         self.log.info(f"=== Cleanup between phases: {phase_name} ===")
 
         # Brief settling time

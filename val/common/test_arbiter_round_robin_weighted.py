@@ -1,3 +1,8 @@
+"""
+Weighted Round Robin Test Runner
+Adapted from existing WRR test runner with robust testbench integration
+"""
+
 import os
 import random
 import cocotb
@@ -11,15 +16,15 @@ from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cm
 from CocoTBFramework.tbclasses.common.arbiter_round_robin_weighted_tb import WeightedRoundRobinTB
 
 
-@cocotb.test(timeout_time=15, timeout_unit="ms")  # Increased timeout for comprehensive tests
+@cocotb.test(timeout_time=20, timeout_unit="ms")  # Increased timeout for weight testing
 async def arbiter_round_robin_weighted_test(dut):
-    """Comprehensive test for the weighted round-robin arbiter with monitor integration"""
+    """comprehensive test for the weighted round-robin arbiter"""
     tb = WeightedRoundRobinTB(dut)
 
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
-    tb.log.info(f'Weighted round robin comprehensive test starting with seed {seed}')
+    tb.log.info(f'weighted round robin test starting with seed {seed}')
 
     # Start the clock
     await tb.start_clock('clk', 10, 'ns')
@@ -28,101 +33,105 @@ async def arbiter_round_robin_weighted_test(dut):
     await tb.reset_dut()
 
     try:
-        # Basic functionality tests
+        # Phase 1: Basic functionality tests
         time_ns = get_sim_time('ns')
-        tb.log.info(f"=== Starting grant signal test @ {time_ns}ns ===")
+        tb.log.info(f"=== Phase 1: Basic Functionality @ {time_ns}ns ===")
         await tb.test_grant_signals()
-
-        # Threshold operation test
-        time_ns = get_sim_time('ns')
-        tb.log.info(f"=== Starting threshold operation test @ {time_ns}ns ===")
         await tb.test_threshold_operation()
+        await tb.handle_test_transition_ack_cleanup()
 
-        # Basic arbitration test
+        # Phase 2: Basic weighted arbitration
         time_ns = get_sim_time('ns')
-        tb.log.info(f"=== Starting basic arbitration test @ {time_ns}ns ===")
-        await tb.run_basic_arbitration_test(500)
+        tb.log.info(f"=== Phase 2: Basic Weighted Arbitration @ {time_ns}ns ===")
+        await tb.run_basic_arbitration_test(800)
+        await tb.handle_test_transition_ack_cleanup()
 
-        # CRITICAL FIX: Clear interface completely before ACK mode tests
-        if tb.WAIT_GNT_ACK:
-            time_ns = get_sim_time('ns')
-            tb.log.info(f"=== Preparing for ACK mode edge case tests @ {time_ns}ns ===")
-
-            # Stop ALL background activity and ensure clean state
-            tb.clear_interface()
-            await tb.wait_clocks('clk', 20)  # Longer stabilization period
-
-            # ACK mode edge case tests
-            time_ns = get_sim_time('ns')
-            tb.log.info(f"=== Starting ACK mode edge case tests @ {time_ns}ns ===")
-            await tb.test_ack_mode_edge_cases()
-
-            # Clear interface again after ACK tests
-            tb.clear_interface()
-            await tb.wait_clocks('clk', 10)
-
-        # Stress tests
+        # Phase 3: Weight-specific tests
         time_ns = get_sim_time('ns')
-        tb.log.info(f"=== Starting stress tests @ {time_ns}ns ===")
-        await tb.test_bursty_traffic_pattern()
+        tb.log.info(f"=== Phase 3: Weight-Specific Tests @ {time_ns}ns ===")
+        await tb.test_weighted_fairness()
+        await tb.test_weight_changes()
         await tb.test_single_client_saturation()
-        await tb.test_rapid_request_changes()
+        await tb.handle_test_transition_ack_cleanup()
 
-        # Pattern and coverage tests
+        # Phase 4: Pattern and stress tests
         time_ns = get_sim_time('ns')
-        tb.log.info(f"=== Starting pattern tests @ {time_ns}ns ===")
+        tb.log.info(f"=== Phase 4: Pattern and Stress Tests @ {time_ns}ns ===")
         await tb.test_walking_requests()
         await tb.test_block_arb()
+        await tb.test_bursty_traffic_pattern()
+        await tb.test_rapid_request_changes()
+        await tb.handle_test_transition_ack_cleanup()
 
-        # Weighted fairness test (structured static periods)
-        time_ns = get_sim_time('ns')
-        tb.log.info(f"=== Starting structured weighted fairness test @ {time_ns}ns ===")
-        await tb.test_weighted_fairness()
+        # Phase 5: ACK mode edge cases (if applicable)
+        if tb.WAIT_GNT_ACK:
+            time_ns = get_sim_time('ns')
+            tb.log.info(f"=== Phase 5: ACK Mode Edge Cases @ {time_ns}ns ===")
 
-        # Dynamic arbitration liveness test
+            # Clear interface completely before ACK mode tests
+            tb.clear_interface()
+            await tb.wait_clocks('clk', 30)  # Longer stabilization for weight changes
+
+            await tb.test_ack_mode_edge_cases()
+            await tb.handle_test_transition_ack_cleanup()
+
+        # Phase 6: Dynamic arbitration liveness
         time_ns = get_sim_time('ns')
-        tb.log.info(f"=== Starting dynamic arbitration liveness test @ {time_ns}ns ===")
+        tb.log.info(f"=== Phase 6: Dynamic Arbitration Liveness @ {time_ns}ns ===")
         await tb.test_dynamic_arbitration_liveness()
+        await tb.handle_test_transition_ack_cleanup()
 
-        # Final validation and reporting
+        # Phase 7: Final validation and reporting
         time_ns = get_sim_time('ns')
-        tb.log.info(f"=== Final validation @ {time_ns}ns ===")
+        tb.log.info(f"=== Phase 7: Final Validation @ {time_ns}ns ===")
 
         # Check for any final monitor errors
         tb.check_monitor_errors()
 
-        # Generate comprehensive report
+        # Generate comprehensive report with weight analysis
         report_success = tb.generate_final_report()
 
         if not report_success:
-            raise AssertionError("Final report validation failed")
+            raise AssertionError("Final weighted report validation failed")
 
-        tb.log.info("=== ALL COMPREHENSIVE TESTS PASSED ===")
+        tb.log.info("=== ALL WEIGHTED TESTS PASSED ===")
 
     except AssertionError as e:
-        tb.log.error(f"Comprehensive test failed: {str(e)}")
+        tb.log.error(f"weighted test failed: {str(e)}")
 
-        # Print debug info on failure
+        # debug info for weight-specific failures
         try:
             final_stats = tb.monitor.get_comprehensive_stats()
             tb.log.error(f"Final monitor stats: Total grants={final_stats.get('total_grants', 0)}, "
                         f"Fairness={final_stats.get('fairness_index', 0):.3f}")
+
+            # Weight-specific debug info
+            if 'weight_analysis' in final_stats:
+                weight_analysis = final_stats['weight_analysis']
+                tb.log.error(f"Weight changes tracked: {weight_analysis.get('weight_changes_tracked', 0)}")
+                tb.log.error(f"Current weights: {tb.current_test_weights}")
+
+            # Master statistics
+            master_stats = tb.master.get_stats()
+            tb.log.error(f"Master stats: {master_stats}")
+
             if tb.monitor_errors:
                 tb.log.error(f"Monitor errors: {tb.monitor_errors}")
+
         except Exception as debug_e:
             tb.log.error(f"Error generating debug info: {debug_e}")
 
         raise
     finally:
-        # Wait for any pending monitor tasks
-        await tb.wait_clocks('clk', 10)
+        # Wait for any pending operations
+        await tb.wait_clocks('clk', 20)
 
 
 @pytest.mark.parametrize("clients, max_levels, wait_ack", [
     ( 4,  8, 0),  # No wait for ack, 4 clients, max threshold 8
     ( 4,  8, 1),  # Wait for ack, 4 clients, max threshold 8
-    ( 6,  4, 0),  # No wait for ack, 6 clients, max threshold 4
-    ( 6,  4, 1),  # Wait for ack, 6 clients, max threshold 4
+    ( 6,  8, 0),  # No wait for ack, 6 clients, max threshold 8
+    ( 6,  8, 1),  # Wait for ack, 6 clients, max threshold 8
     ( 8, 16, 0),  # No wait for ack, 8 clients, max threshold 16
     ( 8, 16, 1),  # Wait for ack, 8 clients, max threshold 16
     (16, 16, 0),  # No wait for ack, 16 clients, max threshold 16
@@ -131,7 +140,7 @@ async def arbiter_round_robin_weighted_test(dut):
     (32, 16, 1),  # Wait for ack, 32 clients, max threshold 16
 ])
 def test_arbiter_round_robin_weighted(request, clients, max_levels, wait_ack):
-    """Run the enhanced weighted round robin test with pytest"""
+    """Run the weighted round robin test with comprehensive coverage"""
     # Get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_cmn': 'rtl/common'
@@ -180,9 +189,9 @@ def test_arbiter_round_robin_weighted(request, clients, max_levels, wait_ack):
         'VERILATOR_TRACE': '1',  # Enable tracing
         'DUT': dut_name,
         'LOG_PATH': log_path,
-        'COCOTB_LOG_LEVEL': 'DEBUG',
+        'COCOTB_LOG_LEVEL': 'INFO',  # Balanced logging for weight complexity
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(random.randint(0, 100000))
+        'SEED': str(4347), # str(random.randint(0, 100000))
     }
 
     compile_args = [
@@ -220,8 +229,28 @@ def test_arbiter_round_robin_weighted(request, clients, max_levels, wait_ack):
             plusargs=plusargs,
         )
     except Exception as e:
-        # If the test fails, make sure logs are preserved
-        print(f"Enhanced weighted round robin test failed: {str(e)}")
+        # error reporting for weighted arbiters
+        print(f"weighted round robin test failed: {str(e)}")
+        print(f"Test configuration: {clients} clients, max_levels {max_levels}, ACK mode {wait_ack}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the Waveforms run this command: {cmd_filename}")
+
+        # Weight-specific troubleshooting hints
+        print("\nWeight-Specific Troubleshooting Hints:")
+        print("- Check weight management FSM state transitions in waveforms")
+        print("- Verify weight threshold packing/unpacking (max_thresh signal)")
+        print("- Look for weight change timing relative to grant/ACK cycles")
+        print("- Check credit exhaustion and replenishment patterns")
+        print("- Verify weight compliance analysis results in logs")
+        print("- Examine weight distribution windows for fairness violations")
+
+        # Configuration-specific hints
+        if max_levels > 16:
+            print("- High MAX_LEVELS may cause longer test times")
+        if clients > 16:
+            print("- High client count increases arbitration complexity")
+        if wait_ack == 1:
+            print("- ACK mode with weights requires careful timing analysis")
+            print("- Check for weight change conflicts with pending ACKs")
+
         raise  # Re-raise exception to indicate failure

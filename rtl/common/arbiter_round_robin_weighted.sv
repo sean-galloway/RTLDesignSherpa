@@ -4,7 +4,7 @@
 Weighted Round Robin Arbiter Complete Arbitration Rules
 ================================================================================
 
-This module implements a parameterizable weighted round-robin arbiter with 
+This module implements a parameterizable weighted round-robin arbiter with
 dynamic weight change support and optional ACK protocol. The arbiter combines
 credit-based weighting with fair round-robin arbitration, ensuring each client
 receives grants proportional to its assigned weight while preventing starvation.
@@ -163,25 +163,32 @@ module arbiter_round_robin_weighted #(
 );
 
     // =======================================================================
-    // Weight Management FSM (Same as before)
+    // Local Parameters for Magic Numbers
+    // =======================================================================
+    localparam int WEIGHT_STABILIZE_CYCLES = 3;  // Stabilization period after weight change
+    localparam int WEIGHT_DRAIN_CYCLES = 2;      // Drain period before weight update
+    localparam int WEIGHT_TIMEOUT_CYCLES = 15;   // Timeout for weight change operations
+
+    // =======================================================================
+    // Weight Management FSM
     // =======================================================================
 
-    typedef enum logic [2:0] {
-        WEIGHT_IDLE        = 3'b000,  // Normal operation
-        WEIGHT_BLOCK       = 3'b001,  // Block new grants
-        WEIGHT_DRAIN       = 3'b010,  // Wait for pending grants to complete
-        WEIGHT_UPDATE      = 3'b011,  // Atomic weight update
-        WEIGHT_STABILIZE   = 3'b100   // Allow system to stabilize
+    typedef enum logic [4:0] {
+        WEIGHT_IDLE        = 5'b00001,  // Normal operation
+        WEIGHT_BLOCK       = 5'b00010,  // Block new grants
+        WEIGHT_DRAIN       = 5'b00100,  // Wait for pending grants to complete
+        WEIGHT_UPDATE      = 5'b01000,  // Atomic weight update
+        WEIGHT_STABILIZE   = 5'b10000   // Allow system to stabilize
     } weight_fsm_t;
 
     weight_fsm_t r_weight_state;
-    logic [3:0] r_weight_timer;  // Timer for state transitions
+    logic [3:0]  r_weight_timer;  // Timer for state transitions
 
     // =======================================================================
-    // Weight Management with Shadow Registers (Same as before)
+    // Weight Management with Shadow Registers
     // =======================================================================
 
-    logic [CXMTW-1:0] r_safe_max_thresh;    // Active weights (shadow register)
+    logic [CXMTW-1:0] r_safe_max_thresh;     // Active weights (shadow register)
     logic             w_weight_change_req;   // Weight change requested
     logic             w_pending_grants;      // Any grants pending completion
 
@@ -191,14 +198,14 @@ module arbiter_round_robin_weighted #(
     // Detect pending grants (for ACK mode)
     assign w_pending_grants = (WAIT_GNT_ACK == 1) ? (grant_valid && (grant_ack & grant) == '0) : 1'b0;
 
-    // weight change FSM (same as before)
+    // Weight change FSM with local parameters
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             r_weight_state <= WEIGHT_IDLE;
             r_safe_max_thresh <= {CXMTW{1'b1}};  // Default to weight=1 for all clients
             r_weight_timer <= 4'h0;
         end else begin
-            case (r_weight_state)
+            casez (r_weight_state)
                 WEIGHT_IDLE: begin
                     if (w_weight_change_req) begin
                         r_weight_state <= WEIGHT_BLOCK;
@@ -210,8 +217,8 @@ module arbiter_round_robin_weighted #(
                     // Block new grants, wait for current grants to complete
                     if (!w_pending_grants) begin
                         r_weight_state <= WEIGHT_DRAIN;
-                        r_weight_timer <= 4'h2;  // Short drain period
-                    end else if (r_weight_timer < 4'hF) begin
+                        r_weight_timer <= WEIGHT_DRAIN_CYCLES[3:0];
+                    end else if (r_weight_timer < WEIGHT_TIMEOUT_CYCLES[3:0]) begin
                         r_weight_timer <= r_weight_timer + 4'h1;
                     end else begin
                         // Timeout - force transition
@@ -233,7 +240,7 @@ module arbiter_round_robin_weighted #(
                     // Atomic weight update
                     r_safe_max_thresh <= max_thresh;
                     r_weight_state <= WEIGHT_STABILIZE;
-                    r_weight_timer <= 4'h3;  // Stabilization period
+                    r_weight_timer <= WEIGHT_STABILIZE_CYCLES[3:0];  // Use local parameter
                 end
 
                 WEIGHT_STABILIZE: begin
@@ -254,110 +261,139 @@ module arbiter_round_robin_weighted #(
     end
 
     // =======================================================================
-    // Proper Credit Management System
+    // Pre-computed Helper Signals (Optimizations)
+    // =======================================================================
+
+    logic [MTW-1:0] client_weight [C];           // Per-client weights (for easier access)
+    logic           w_normal_operation;          // Normal operation state
+    logic [C-1:0]   w_valid_clients;             // Clients with non-zero weights
+    logic [C-1:0]   w_invalid_clients;           // Clients with zero weights
+    logic [C-1:0]   w_req_post;                  // Post-block requests
+
+    // Extract client weights for easier access
+    generate
+        for (genvar j = 0; j < CLIENTS; j++) begin : gen_weights
+            assign client_weight[j] = r_safe_max_thresh[(j+1)*MTW-1 -: MTW];
+            assign w_valid_clients[j] = (client_weight[j] > 0);
+            assign w_invalid_clients[j] = (client_weight[j] == 0);
+        end
+    endgenerate
+
+    // commonly used conditions
+    assign w_normal_operation = (r_weight_state == WEIGHT_IDLE);
+    assign w_req_post = block_arb ? '0 : request;
+
+    // =======================================================================
+    // Credit Management System
     // =======================================================================
 
     logic [MTW-1:0] r_credit_counter [C];        // Credit counters
     logic [C-1:0]   w_has_crd;                   // Credit availability
-    logic [C-1:0]   w_req_post;                  // Post-block requests
-    logic           w_weight_change_active;      // Weight change in progress
+    logic           w_global_replenish;
 
-    // Global replenish logic - centralized decision making
-    logic [C-1:0]   w_requesting_with_credits;   // Clients that are requesting AND have credits
-    logic           w_global_replenish;          // Trigger global credit replenish
-    logic [MTW-1:0] client_weight [C];           // Per-client weights (for easier access)
+    // =======================================================================
+    // Credit Counter Combinational Logic
+    // =======================================================================
 
-    assign w_req_post = block_arb ? '0 : request;
-    assign w_weight_change_active = (r_weight_state != WEIGHT_IDLE);
-
-    // Extract client weights for easier access
+    logic [MTW-1:0] w_credit_counter [C];        // Next credit counter values
+    logic [C-1:0]   w_grant_completed;           // Grant completion per client
+    
+    // Pre-compute grant completion for all clients
     generate
-        for (genvar j = 0; j < CLIENTS; j++) begin : gen_weight_extract
-            assign client_weight[j] = r_safe_max_thresh[(j+1)*MTW-1 -: MTW];
+        for (genvar i = 0; i < CLIENTS; i++) begin : gen_grant_completion
+            assign w_grant_completed[i] = (WAIT_GNT_ACK == 0) ? 
+                                         (grant[i] && grant_valid) :                    // No-ACK: immediate completion
+                                         (grant[i] && grant_valid && grant_ack[i]);     // ACK mode: wait for ACK
+        end
+    endgenerate
+    
+    generate
+        for (genvar i = 0; i < CLIENTS; i++) begin : gen_credit_combo_logic
+            
+            always_comb begin
+                // Default: hold current value
+                w_credit_counter[i] = r_credit_counter[i];
+                
+                case (r_weight_state)
+                    WEIGHT_IDLE: begin
+                        if (w_global_replenish) begin
+                            // Global replenish - reload all clients with their weights
+                            w_credit_counter[i] = client_weight[i];
+                        end else if (w_grant_completed[i] && r_credit_counter[i] > 0) begin
+                            // Grant completed for this client - decrement credit
+                            w_credit_counter[i] = r_credit_counter[i] - MTW'(1);
+                        end
+                    end
+
+                    WEIGHT_STABILIZE: begin
+                        // Reset credits to new weights during weight update
+                        if (client_weight[i] > 0) begin
+                            w_credit_counter[i] = client_weight[i];  // Set to new weight
+                        end else begin
+                            w_credit_counter[i] = MTW'(0);  // Disable client
+                        end
+                    end
+
+                    default: begin
+                        // During weight change states, preserve credits
+                        w_credit_counter[i] = r_credit_counter[i];
+                    end
+                endcase
+            end
         end
     endgenerate
 
-    // Global replenish decision (centralized)
-    always_comb begin
-        w_requesting_with_credits = '0;
-        for (int j = 0; j < CLIENTS; j++) begin
-            // Client has credits AND is requesting AND has non-zero weight
-            w_requesting_with_credits[j] = (r_credit_counter[j] > 0) &&
-                                        w_req_post[j] &&
-                                        (client_weight[j] > 0);
-        end
-    end
+    // =======================================================================
+    // Credit Counter Registers
+    // =======================================================================
 
-    // Global replenish: No requesting clients have credits, but some are requesting
-    assign w_global_replenish = (w_requesting_with_credits == '0) &&
-                            (w_req_post != '0) &&
-                            (r_weight_state == WEIGHT_IDLE);
+    // Pre-declare the signals outside the generate block
+    logic [C-1:0] w_has_one_credit;      // Which clients have exactly 1 credit
+    logic [C-1:0] w_has_any_credits;     // Which clients have any credits (> 0)
+    logic         w_last_credit;         // Only ONE client has exactly 1 credit left
 
-    // Credit availability and management
     generate
-        for (genvar i = 0; i < CLIENTS; i++) begin : gen_credit_logic
+        for (genvar i = 0; i < CLIENTS; i++) begin : gen_credit_registers
 
             // Credit availability - has remaining credits AND weight > 0 AND normal operation
             assign w_has_crd[i] = (r_credit_counter[i] > 0) &&
                                     (client_weight[i] > 0) &&
-                                    (r_weight_state == WEIGHT_IDLE);
+                                    (w_normal_operation);
+            
+            // Per-client credit state detection
+            assign w_has_one_credit[i] = (r_credit_counter[i] == MTW'(1)) && (client_weight[i] > 0);
+            assign w_has_any_credits[i] = (r_credit_counter[i] > MTW'(0)) && (client_weight[i] > 0);
 
-            // Simplified and correct credit counter management
+            // Simple register - just assigns the combinational value
             always_ff @(posedge clk or negedge rst_n) begin
                 if (!rst_n) begin
                     r_credit_counter[i] <= MTW'(1);  // Start with 1 credit (will be corrected on first replenish)
                 end else begin
-                    case (r_weight_state)
-                        WEIGHT_IDLE: begin
-                            if (w_global_replenish) begin
-                                // Global replenish - reload all clients with their weights
-                                r_credit_counter[i] <= client_weight[i];
-                            end else if (grant[i] && grant_valid) begin
-                                // Grant issued to this client
-                                logic grant_completed;
-
-                                if (WAIT_GNT_ACK == 0) begin
-                                    grant_completed = 1'b1;  // Immediate completion
-                                end else begin
-                                    grant_completed = grant_ack[i];  // Wait for ACK
-                                end
-
-                                if (grant_completed && r_credit_counter[i] > 0) begin
-                                    // Simple decrement - can reach zero
-                                    r_credit_counter[i] <= r_credit_counter[i] - MTW'(1);
-                                end
-                            end
-                        end
-
-                        WEIGHT_UPDATE: begin
-                            // Reset credits to new weights during weight update
-                            if (client_weight[i] > 0) begin
-                                r_credit_counter[i] <= client_weight[i];  // Set to new weight
-                            end else begin
-                                r_credit_counter[i] <= MTW'(0);  // Disable client
-                            end
-                        end
-
-                        default: begin
-                            // During weight change states, preserve credits
-                            // No changes to credit counters
-                        end
-                    endcase
+                    r_credit_counter[i] <= w_credit_counter[i];  // Simple assignment from combo logic
                 end
             end
         end
     endgenerate
+
+    // Global last credit detection (outside generate block)
+    // w_last_credit = 1 when exactly ONE client has exactly 1 credit left
+    assign w_last_credit = ($countones(w_has_any_credits) == 1) &&     // Only 1 client has any credits
+                            ($countones(w_has_one_credit) == 1) &&     // Only 1 client has exactly 1 credit  
+                            (w_has_any_credits == w_has_one_credit);   // Same client for both conditions
+    // replenish the counters on a grant for the last credit or when idle
+    assign w_global_replenish = (w_normal_operation && !w_pending_grants && (w_last_credit && grant_valid));
 
     // =======================================================================
     // Request Masking (Proper Grant Logic with Fairness)
     // =======================================================================
 
     logic [C-1:0]   w_mask_req;               // Filtered requests to sub-arbiter
+    logic [C-1:0]   w_mask_multi_req;
+    logic [C-1:0]   w_mask_last_client;
     logic [C-1:0]   w_requesting_eligible;    // Clients eligible for grants
     logic [C-1:0]   r_last_grant;             // Last grant from sub-arbiter
 
     // masking to prevent consecutive grants
-    logic [C-1:0]   r_actual_last_grant;      // Track what was actually granted
     logic [C-1:0]   w_clients_with_credits_count;
     logic           w_multiple_eligible;      // Multiple clients eligible (need fairness)
 
@@ -374,56 +410,30 @@ module arbiter_round_robin_weighted #(
     // Check if multiple clients are eligible (need fairness enforcement)
     assign w_multiple_eligible = ($countones(w_clients_with_credits_count) > 1);
 
-    // Track the actual last grant (what was actually granted, not sub-arbiter's pointer)
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            r_actual_last_grant <= '0;
-        end else if (r_weight_state == WEIGHT_IDLE) begin
-            if (grant_valid && |grant) begin
-                if (WAIT_GNT_ACK == 0) begin
-                    // No-ACK mode: Update masking immediately for next request evaluation
-                    // But only if multiple clients are eligible for fairness
-                    if (w_multiple_eligible) begin
-                        r_actual_last_grant <= grant;
-                    end else begin
-                        // If only one client eligible, don't mask (let it keep getting grants)
-                        r_actual_last_grant <= '0;
-                    end
-                end else begin
-                    // ACK mode: Use normal update timing
-                    r_actual_last_grant <= grant;
-                end
-            end else if (w_global_replenish) begin
-                r_actual_last_grant <= '0;   // Clear on replenish for fresh start
-            end
-        end else begin
-            // During weight changes, clear the last grant to avoid stale masking
-            r_actual_last_grant <= '0;
-        end
-    end
-
     // Request masking logic with proper fairness
     generate
         for (genvar j = 0; j < CLIENTS; j++) begin : gen_request_logic
 
             // Clients eligible for grants: requesting AND (has credits OR global replenish)
+            // assign w_requesting_eligible[j] = w_req_post[j] &&
+            //                                 ((w_has_crd[j]) ||
+            //                                     (r_global_replenish && client_weight[j] > 0));
             assign w_requesting_eligible[j] = w_req_post[j] &&
-                                            ((w_has_crd[j]) ||
-                                                (w_global_replenish && client_weight[j] > 0));
-
+                                                ((w_has_crd[j]) ||
+                                                    (w_global_replenish && w_valid_clients[j]));
             // Request masking for sub-arbiter:
             // 1. Client must be requesting and eligible
             // 2. If multiple clients eligible, exclude last granted for fairness
             // 3. If only one client eligible, ignore masking (let it have all grants)
             // 4. Only apply during normal operation
-            assign w_mask_req[j] = w_requesting_eligible[j] &&
-                                    (r_weight_state == WEIGHT_IDLE) &&
-                                    (!w_multiple_eligible || !r_actual_last_grant[j]);
+            assign w_mask_multi_req[j] = w_requesting_eligible[j] && !grant[j];
+            assign w_mask_last_client[j] = (!w_multiple_eligible && w_requesting_eligible[j] && (r_credit_counter[j] > MTW'(1)));
+            assign w_mask_req[j] = w_mask_multi_req[j] || w_mask_last_client[j];
         end
     endgenerate
 
     // =======================================================================
-    // FIXED: Sub-Arbiter Instance - instantiate the base round-robin arbiter
+    // Sub-Arbiter Instance - instantiate the base round-robin arbiter
     // =======================================================================
 
     logic w_sub_block_arb;  // Block signal for sub-arbiter
@@ -431,7 +441,7 @@ module arbiter_round_robin_weighted #(
     // Block sub-arbiter during weight changes
     assign w_sub_block_arb = (r_weight_state != WEIGHT_IDLE);
 
-    // CORRECTED: Use the actual arbiter_round_robin module instead of non-existent subinst
+    // Use the actual arbiter_round_robin module
     arbiter_round_robin #(
         .CLIENTS         (CLIENTS),
         .WAIT_GNT_ACK    (WAIT_GNT_ACK)
@@ -446,83 +456,5 @@ module arbiter_round_robin_weighted #(
         .grant_id        (grant_id),
         .last_grant      (r_last_grant)
     );
-
-    // =======================================================================
-    // Debug and Monitoring
-    // =======================================================================
-
-    // synthesis translate_off
-
-    // grant and replenish monitoring
-    always @(posedge clk) begin
-        if (r_weight_state == WEIGHT_IDLE) begin
-            // Monitor global replenish events
-            if (w_global_replenish) begin
-                $display("GLOBAL_REPLENISH at %0t: All clients reloaded", $time);
-                $display("  request=0x%h, requesting_with_credits=0x%h",
-                        w_req_post, w_requesting_with_credits);
-                for (int i = 0; i < CLIENTS; i++) begin
-                    $display("    Client %0d: weight=%0d, credit_before=%0d, credit_after=%0d",
-                            i, client_weight[i], r_credit_counter[i], client_weight[i]);
-                end
-            end
-
-            // grant monitoring with masking debug
-            if (grant_valid && |grant) begin
-                $display("MAIN_ARBITER GRANT at %0t: client=%0d, grant=0x%h", $time, grant_id, grant);
-                $display("  eligible=0x%h, mask_req=0x%h, actual_last=0x%h",
-                        w_requesting_eligible, w_mask_req, r_actual_last_grant);
-                $display("  multiple_eligible=%0b, has_crd=0x%h",
-                        w_multiple_eligible, w_has_crd);
-
-                // Check for potential consecutive grants
-                if (|(r_actual_last_grant & grant)) begin
-                    $warning("POTENTIAL CONSECUTIVE GRANT: client %0d granted again, last=0x%h, current=0x%h",
-                            grant_id, r_actual_last_grant, grant);
-                end
-            end
-
-            // Monitor grant stalls
-            if ((request != '0) && (grant == '0) && !block_arb) begin
-                $warning("Grant stall detected: request=0x%h, mask_req=0x%h at %0t",
-                        request, w_mask_req, $time);
-                $display("  has_crd=0x%h, eligible=0x%h, global_replenish=%0b",
-                        w_has_crd, w_requesting_eligible, w_global_replenish);
-                $display("  actual_last_grant=0x%h, multiple_eligible=%0b, weight_state=%s",
-                        r_actual_last_grant, w_multiple_eligible, r_weight_state.name());
-
-                // Show per-client debug info
-                for (int i = 0; i < CLIENTS; i++) begin
-                    $display("    Client %0d: request=%0b, weight=%0d, credit=%0d, has_crd=%0b, eligible=%0b, masked=%0b",
-                            i, request[i], client_weight[i], r_credit_counter[i], w_has_crd[i],
-                            w_requesting_eligible[i], !w_mask_req[i]);
-                end
-            end
-        end
-    end
-
-    // weight change monitoring (same as before)
-    always @(posedge clk) begin
-        if (r_weight_state != WEIGHT_IDLE) begin
-            $display("WEIGHT_FSM at %0t: state=%s, timer=%0d, pending=%0b",
-                    $time, r_weight_state.name(), r_weight_timer, w_pending_grants);
-
-            if (r_weight_state == WEIGHT_UPDATE) begin
-                $display("  Weight Update:");
-                $display("    Old: 0x%h", r_safe_max_thresh);
-                $display("    New: 0x%h", max_thresh);
-                for (int i = 0; i < CLIENTS; i++) begin
-                    logic [MTW-1:0] old_weight = r_safe_max_thresh[(i+1)*MTW-1 -: MTW];
-                    logic [MTW-1:0] new_weight = max_thresh[(i+1)*MTW-1 -: MTW];
-                    if (old_weight != new_weight) begin
-                        $display("      Client %0d: %0d -> %0d (credit was %0d)",
-                                i, old_weight, new_weight, r_credit_counter[i]);
-                    end
-                end
-            end
-        end
-    end
-
-    // synthesis translate_on
 
 endmodule : arbiter_round_robin_weighted

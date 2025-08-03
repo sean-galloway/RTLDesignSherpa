@@ -647,11 +647,11 @@ class ArbiterCompliance:
                         del self.pending_mask_updates[grant_time]
 
     # =======================================================================
-    # STATIC PERIOD MANAGEMENT - Enhanced for weight support
+    # STATIC PERIOD MANAGEMENT - weight support
     # =======================================================================
 
     def start_static_period(self, expected_weights=None):
-        """Start tracking static period for compliance analysis - ENHANCED"""
+        """Start tracking static period for compliance analysis"""
         self.is_static_period = True
         current_time = get_sim_time('ns')
 
@@ -667,7 +667,7 @@ class ArbiterCompliance:
             self.log.debug(f"ArbiterCompliance({self.title}): Static period started with {weights_str} @ {current_time}ns")
 
     def end_static_period(self):
-        """End static period tracking - ENHANCED"""
+        """End static period tracking"""
         if not self.is_static_period:
             return
 
@@ -812,7 +812,7 @@ class ArbiterCompliance:
         return compliance_result['overall_compliance'] >= threshold
 
     # =======================================================================
-    # UTILITY AND REPORTING - Enhanced for weight support
+    # UTILITY AND REPORTING for weight support
     # =======================================================================
 
     def _record_warning(self, warning):
@@ -848,7 +848,7 @@ class ArbiterCompliance:
         }
 
     def get_comprehensive_analysis(self):
-        """Get comprehensive compliance analysis - ENHANCED with weight support"""
+        """Get comprehensive compliance analysis with weight support"""
         base_analysis = {
             'basic_stats': {
                 'total_grants': self.total_grants,
