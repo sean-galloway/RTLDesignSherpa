@@ -236,6 +236,7 @@ class SignalResolver:
         self.protocol_type = protocol_type
         self.dut = dut
         self.bus = bus
+        self.bus_name = bus_name
         self.pkt_prefix = pkt_prefix
         self.log = log
         self.component_name = component_name
@@ -313,12 +314,12 @@ class SignalResolver:
             logical_name = logical_mapping.get(simple_key)
             if logical_name is None:
                 raise ValueError(f"Unknown signal key '{simple_key}' in signal_map for {self.component_name}. "
-                               f"Valid keys: {list(logical_mapping.keys())}")
+                            f"Valid keys: {list(logical_mapping.keys())}")
 
             # Check if signal exists on DUT
             if dut_signal_name not in self.top_level_ports:
                 raise ValueError(f"Signal '{dut_signal_name}' (for '{simple_key}') not found on DUT. "
-                               f"Available ports: {list(self.top_level_ports.keys())}")
+                            f"Available ports: {list(self.top_level_ports.keys())}")
 
             # Store the resolved signal
             signal_obj = self.top_level_ports[dut_signal_name]
@@ -364,13 +365,13 @@ class SignalResolver:
         missing_keys = required_keys - set(self.signal_map.keys())
         if missing_keys:
             raise ValueError(f"signal_map missing required keys: {missing_keys}. "
-                           f"Required: {required_keys}, Provided: {list(self.signal_map.keys())}")
+                        f"Required: {required_keys}, Provided: {list(self.signal_map.keys())}")
 
         # Check for unexpected keys
         unexpected_keys = set(self.signal_map.keys()) - required_keys
         if unexpected_keys:
             raise ValueError(f"signal_map contains unexpected keys: {unexpected_keys}. "
-                           f"Valid keys: {required_keys}")
+                        f"Valid keys: {required_keys}")
 
     def _create_logical_mapping(self):
         """Create mapping from simplified keys to internal logical names."""

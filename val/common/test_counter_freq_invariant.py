@@ -9,24 +9,86 @@ from cocotb_test.simulator import run
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
-# Division factor mapping for each frequency selection value
+# Division factor mapping for each frequency selection value (microsecond-based)
+# Each value represents clock cycles needed for 1 microsecond
 FACTOR_MAP = {
-    0x0: 1,       # 1000MHz (1GHz)  - 1:1 division
-    0x1: 10,      # 100MHz          - 10:1 division
-    0x2: 20,      # 50MHz           - 20:1 division
-    0x3: 25,      # 40MHz           - 25:1 division
-    0x4: 40,      # 25MHz           - 40:1 division
-    0x5: 50,      # 20MHz           - 50:1 division
-    0x6: 80,      # 12.5MHz         - 80:1 division
-    0x7: 100,     # 10MHz           - 100:1 division
-    0x8: 125,     # 8MHz            - 125:1 division
-    0x9: 200,     # 5MHz            - 200:1 division
-    0xA: 250,     # 4MHz            - 250:1 division
-    0xB: 500,     # 2MHz            - 500:1 division
-    0xC: 1000,    # 1MHz            - 1000:1 division
-    0xD: 2000,    # 500kHz          - 2000:1 division
-    0xE: 5000,    # 200kHz          - 5000:1 division
-    0xF: 10000,   # 100kHz          - 10000:1 division
+    # 100-200 MHz range
+    0:   100,    # 100MHz   -> 100 cycles/μs
+    1:   105,    # 105MHz   -> 105 cycles/μs
+    2:   110,    # 110MHz   -> 110 cycles/μs
+    3:   115,    # 115MHz   -> 115 cycles/μs
+    4:   120,    # 120MHz   -> 120 cycles/μs
+    5:   125,    # 125MHz   -> 125 cycles/μs
+    6:   130,    # 130MHz   -> 130 cycles/μs
+    7:   135,    # 135MHz   -> 135 cycles/μs
+    8:   140,    # 140MHz   -> 140 cycles/μs
+    9:   145,    # 145MHz   -> 145 cycles/μs
+    10:  150,    # 150MHz   -> 150 cycles/μs
+    11:  160,    # 160MHz   -> 160 cycles/μs
+    12:  170,    # 170MHz   -> 170 cycles/μs
+    13:  180,    # 180MHz   -> 180 cycles/μs
+    14:  190,    # 190MHz   -> 190 cycles/μs
+    15:  200,    # 200MHz   -> 200 cycles/μs
+
+    # 200-500 MHz range
+    16:  220,    # 220MHz   -> 220 cycles/μs
+    17:  240,    # 240MHz   -> 240 cycles/μs
+    18:  250,    # 250MHz   -> 250 cycles/μs
+    19:  260,    # 260MHz   -> 260 cycles/μs
+    20:  280,    # 280MHz   -> 280 cycles/μs
+    21:  300,    # 300MHz   -> 300 cycles/μs
+    22:  320,    # 320MHz   -> 320 cycles/μs
+    23:  340,    # 340MHz   -> 340 cycles/μs
+    24:  360,    # 360MHz   -> 360 cycles/μs
+    25:  380,    # 380MHz   -> 380 cycles/μs
+    26:  400,    # 400MHz   -> 400 cycles/μs
+    27:  420,    # 420MHz   -> 420 cycles/μs
+    28:  440,    # 440MHz   -> 440 cycles/μs
+    29:  460,    # 460MHz   -> 460 cycles/μs
+    30:  480,    # 480MHz   -> 480 cycles/μs
+    31:  500,    # 500MHz   -> 500 cycles/μs
+
+    # 500MHz-1GHz range
+    32:  520,    # 520MHz   -> 520 cycles/μs
+    33:  540,    # 540MHz   -> 540 cycles/μs
+    34:  560,    # 560MHz   -> 560 cycles/μs
+    35:  580,    # 580MHz   -> 580 cycles/μs
+    36:  600,    # 600MHz   -> 600 cycles/μs
+    37:  620,    # 620MHz   -> 620 cycles/μs
+    38:  640,    # 640MHz   -> 640 cycles/μs
+    39:  660,    # 660MHz   -> 660 cycles/μs
+    40:  680,    # 680MHz   -> 680 cycles/μs
+    41:  700,    # 700MHz   -> 700 cycles/μs
+    42:  750,    # 750MHz   -> 750 cycles/μs
+    43:  800,    # 800MHz   -> 800 cycles/μs
+    44:  850,    # 850MHz   -> 850 cycles/μs
+    45:  900,    # 900MHz   -> 900 cycles/μs
+    46:  950,    # 950MHz   -> 950 cycles/μs
+    47:  1000,   # 1000MHz  -> 1000 cycles/μs
+
+    # 1GHz-1.5GHz range
+    48:  1050,   # 1050MHz  -> 1050 cycles/μs
+    49:  1100,   # 1100MHz  -> 1100 cycles/μs
+    50:  1150,   # 1150MHz  -> 1150 cycles/μs
+    51:  1200,   # 1200MHz  -> 1200 cycles/μs
+    52:  1250,   # 1250MHz  -> 1250 cycles/μs
+    53:  1300,   # 1300MHz  -> 1300 cycles/μs
+    54:  1350,   # 1350MHz  -> 1350 cycles/μs
+    55:  1400,   # 1400MHz  -> 1400 cycles/μs
+    56:  1450,   # 1450MHz  -> 1450 cycles/μs
+    57:  1500,   # 1500MHz  -> 1500 cycles/μs
+
+    # 1.5GHz-2GHz range
+    58:  1550,   # 1550MHz  -> 1550 cycles/μs
+    59:  1600,   # 1600MHz  -> 1600 cycles/μs
+    60:  1650,   # 1650MHz  -> 1650 cycles/μs
+    61:  1700,   # 1700MHz  -> 1700 cycles/μs
+    62:  1750,   # 1750MHz  -> 1750 cycles/μs
+    63:  1800,   # 1800MHz  -> 1800 cycles/μs
+    64:  1850,   # 1850MHz  -> 1850 cycles/μs
+    65:  1900,   # 1900MHz  -> 1900 cycles/μs
+    66:  1950,   # 1950MHz  -> 1950 cycles/μs
+    67:  2000,   # 2000MHz  -> 2000 cycles/μs
 }
 
 class CounterFreqConfig:
@@ -70,16 +132,16 @@ class CounterFreqConfig:
 
     def _get_division_factor(self, freq_sel):
         """Get the expected division factor for a given frequency selection"""
-        return FACTOR_MAP.get(freq_sel, 1)  # Default to 1 if invalid
+        return FACTOR_MAP.get(freq_sel, 1000)  # Default to 1GHz if invalid
 
 
 class CounterFreqInvariantTB(TBBase):
     """
-    Testbench for the counter_freq_invariant module
+    Testbench for the enhanced counter_freq_invariant module
     Features:
-    - Frequency selection testing
+    - Microsecond-based frequency selection testing (100MHz to 2GHz)
     - Counter output verification
-    - Tick signal monitoring
+    - Tick signal monitoring (1MHz rate)
     - Frequency change verification
     - Synchronous reset testing
     """
@@ -89,7 +151,7 @@ class CounterFreqInvariantTB(TBBase):
         super().__init__(dut)
 
         # Get test parameters from environment variables
-        self.COUNTER_WIDTH = self.convert_to_int(os.environ.get('TEST_COUNTER_WIDTH', '5'))
+        self.COUNTER_WIDTH = self.convert_to_int(os.environ.get('TEST_COUNTER_WIDTH', '16'))
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
 
         # Initialize random generator
@@ -98,11 +160,12 @@ class CounterFreqInvariantTB(TBBase):
         # Clock and reset signals
         self.clock = self.dut.clk
         self.reset_n = self.dut.rst_n
-        self.sync_reset_n = self.dut.sync_reset_n  # New synchronous reset signal
+        self.sync_reset_n = self.dut.sync_reset_n
 
         # Log configuration
-        self.log.info(f"Counter Frequency Invariant TB initialized with COUNTER_WIDTH={self.COUNTER_WIDTH}")
+        self.log.info(f"Enhanced Counter Frequency Invariant TB initialized with COUNTER_WIDTH={self.COUNTER_WIDTH}")
         self.log.info(f"SEED={self.SEED}")
+        self.log.info("Supports frequencies from 100MHz to 2GHz with microsecond tick generation")
 
         # Test completion flag
         self.done = False
@@ -111,14 +174,14 @@ class CounterFreqInvariantTB(TBBase):
         self.counter_changes = []
         self.tick_events = []
         self.current_freq_sel = 0
-        self.current_division_factor = 1
+        self.current_division_factor = 1000
 
         # Calculate the rollover value
         self.counter_max = (2 ** self.COUNTER_WIDTH) - 1
 
     def _get_division_factor(self, freq_sel):
         """Get the expected division factor for a given frequency selection"""
-        return FACTOR_MAP.get(freq_sel, 1)  # Default to 1 if invalid
+        return FACTOR_MAP.get(freq_sel, 1000)  # Default to 1GHz if invalid
 
     async def reset_dut(self):
         """Reset the DUT using the asynchronous reset"""
@@ -126,23 +189,21 @@ class CounterFreqInvariantTB(TBBase):
 
         # Reset DUT control signals
         self.reset_n.value = 0
-        self.sync_reset_n.value = 1  # Keep sync reset inactive during async reset
+        self.sync_reset_n.value = 0  # Start with sync reset active (programming model)
         self.dut.freq_sel.value = 0
 
         # Hold reset for multiple cycles
-        await self.wait_clocks('clk', 5)
-
-        # Release reset
-        self.reset_n.value = 1
-
-        # Wait for stabilization
         await self.wait_clocks('clk', 10)
+
+        # Release async reset but keep sync reset active
+        self.reset_n.value = 1
+        await self.wait_clocks('clk', 5)
 
         # Clear monitoring data
         self.counter_changes.clear()
         self.tick_events.clear()
 
-        self.log.debug('Ending asynchronous reset_dut')
+        self.log.debug('Ending asynchronous reset_dut (sync_reset_n still active)')
 
     async def sync_reset_dut(self):
         """Reset the DUT using the synchronous reset"""
@@ -205,9 +266,8 @@ class CounterFreqInvariantTB(TBBase):
                 self.tick_events.append(cycle)
                 self.log.debug(f"Cycle {cycle}: Tick detected")
 
-            # If we already have a lot of counter changes, we can stop early
-            # This helps prevent excessive runtime for low division factors
-            if len(self.counter_changes) > 50 and self.current_division_factor <= 10:
+            # For higher frequencies, we can stop early once we have enough data
+            if len(self.counter_changes) > 20 and self.current_division_factor >= 1000:
                 self.log.info(f"Collected enough data points ({len(self.counter_changes)}), stopping early")
                 break
 
@@ -220,15 +280,19 @@ class CounterFreqInvariantTB(TBBase):
     def set_frequency_selection(self, freq_sel):
         """
         Set the frequency selection value and update the current division factor
+        Following the programming model: set freq_sel, then activate sync_reset_n
 
         Args:
-            freq_sel: Frequency selection value (0-15)
+            freq_sel: Frequency selection value (0-67)
         """
         # Validate range
-        if freq_sel < 0 or freq_sel > 15:
+        if freq_sel < 0 or freq_sel > 67:
             time_ns = get_sim_time('ns')
             self.log.error(f"Invalid frequency selection: {freq_sel} @ {time_ns}ns")
-            freq_sel = 0
+            freq_sel = 47  # Default to 1GHz
+
+        # Set sync reset active first (programming model)
+        self.sync_reset_n.value = 0
 
         # Set the selection value
         self.dut.freq_sel.value = freq_sel
@@ -237,15 +301,30 @@ class CounterFreqInvariantTB(TBBase):
         # Update the current division factor
         self.current_division_factor = self._get_division_factor(freq_sel)
 
-        self.log.info(f"Set frequency selection to {freq_sel} (division factor: {self.current_division_factor})")
+        # Calculate expected frequency
+        expected_freq_mhz = self.current_division_factor  # Since division factor = MHz for microsecond timing
+
+        self.log.info(f"Set frequency selection to {freq_sel} (division factor: {self.current_division_factor}, freq: {expected_freq_mhz}MHz)")
+
+    async def activate_frequency(self):
+        """
+        Activate the configured frequency by releasing sync_reset_n
+        """
+        # Release sync reset to activate the frequency
+        self.sync_reset_n.value = 1
+
+        # Wait for stabilization
+        await self.wait_clocks('clk', 10)
+
+        self.log.info(f"Activated frequency selection {self.current_freq_sel}")
 
     def verify_counter_changes(self, counter_changes, expected_division_factor):
         """
-        Verify that counter changes occur at the expected intervals
+        Verify that counter changes occur at the expected intervals (microsecond rate)
 
         Args:
             counter_changes: List of (cycle, value) tuples
-            expected_division_factor: Expected division factor
+            expected_division_factor: Expected division factor (cycles per microsecond)
 
         Returns:
             True if verification passed, False otherwise
@@ -273,20 +352,19 @@ class CounterFreqInvariantTB(TBBase):
             self.log.info(f"Interval std deviation: {std_dev:.2f} cycles ({rel_std_dev:.1f}%)")
 
             # High variation indicates inconsistent timing
-            if rel_std_dev > 20 and expected_division_factor > 1:
+            if rel_std_dev > 15 and expected_division_factor > 100:
                 self.log.warning(f"High variation in counter intervals: {rel_std_dev:.1f}%")
 
-        # Allow variation in the division factor based on the expected factor
-        # Higher division factors need more flexibility due to sampling effects
-        base_tolerance = 0.1  # 10% base tolerance
-
-        # Scale tolerance based on division factor
-        if expected_division_factor <= 10:
-            tolerance = base_tolerance
-        elif expected_division_factor <= 100:
-            tolerance = base_tolerance * 1.5
+        # Tolerance for microsecond-based timing
+        # Lower frequencies (higher division factors) get more tolerance
+        if expected_division_factor <= 200:
+            tolerance = 0.05  # 5% for low frequencies
+        elif expected_division_factor <= 500:
+            tolerance = 0.08  # 8% for medium frequencies
+        elif expected_division_factor <= 1000:
+            tolerance = 0.10  # 10% for high frequencies
         else:
-            tolerance = base_tolerance * 2
+            tolerance = 0.12  # 12% for very high frequencies
 
         min_acceptable = expected_division_factor * (1 - tolerance)
         max_acceptable = expected_division_factor * (1 + tolerance)
@@ -324,8 +402,7 @@ class CounterFreqInvariantTB(TBBase):
         errors = 0
         error_details = []
 
-        # We'll analyze individual segments of the counter sequence
-        # This handles cases where we have discontinuities due to frequency changes
+        # Analyze segments of the counter sequence
         segments = []
         current_segment = [values_with_cycles[0]]
 
@@ -336,11 +413,13 @@ class CounterFreqInvariantTB(TBBase):
 
             # If the cycle difference is much larger than usual, this might be
             # due to a frequency change or monitoring gap
-            if i > 1 and cycle_diff > 5 * (values_with_cycles[i-1][0] - values_with_cycles[i-2][0]):
-                # Large gap detected, end current segment and start a new one
-                segments.append(current_segment)
-                current_segment = [(cycle, value)]
-                continue
+            if i > 1:
+                prev_cycle_diff = values_with_cycles[i-1][0] - values_with_cycles[i-2][0]
+                if cycle_diff > 3 * prev_cycle_diff and prev_cycle_diff > 0:
+                    # Large gap detected, end current segment and start a new one
+                    segments.append(current_segment)
+                    current_segment = [(cycle, value)]
+                    continue
 
             # Check if the value follows the expected sequence
             expected_value = (prev_value + 1) & self.counter_max
@@ -377,7 +456,7 @@ class CounterFreqInvariantTB(TBBase):
 
     def verify_tick_signal(self, tick_events, counter_changes):
         """
-        Verify that tick signal occurs at the correct times
+        Verify that tick signal occurs at the correct times (every microsecond)
 
         Args:
             tick_events: List of cycle numbers when tick was high
@@ -387,65 +466,49 @@ class CounterFreqInvariantTB(TBBase):
             True if verification passed, False otherwise
         """
         if not tick_events:
-            # With the RTL, we might not see tick events for short monitoring periods
-            # or for specific counter sequences, so this isn't necessarily an error
-            self.log.info("No tick events recorded - this is expected for short monitoring periods")
+            self.log.info("No tick events recorded - this might be expected for short monitoring periods")
             return True
 
-        # Convert counter changes to a dict for easier lookup
-        counter_dict = dict(counter_changes)
+        # In the updated RTL, tick occurs every microsecond when prescaler is done
+        # and also when counter reaches maximum value
+        self.log.info(f"Recorded {len(tick_events)} tick events: {tick_events}")
 
-        # In the updated RTL, tick signal occurs when the counter rolls over from max to 0
-        # Find cycles where counter is 0 (after rollover)
-        rollover_cycles = []
-        for i in range(1, len(counter_changes)):
-            curr_cycle, curr_value = counter_changes[i]
-            prev_cycle, prev_value = counter_changes[i-1]
+        # For microsecond timing, we expect ticks every division_factor cycles
+        expected_tick_interval = self.current_division_factor
 
-            # If current value is 0 and previous value was counter_max, this is a rollover
-            if curr_value == 0 and prev_value == self.counter_max:
-                rollover_cycles.append(curr_cycle)
-                self.log.debug(f"Counter rollover detected at cycle {curr_cycle}")
+        if len(tick_events) >= 2:
+            # Check intervals between tick events
+            tick_intervals = []
+            for i in range(1, len(tick_events)):
+                interval = tick_events[i] - tick_events[i-1]
+                tick_intervals.append(interval)
+                self.log.debug(f"Tick interval {i}: {interval} cycles")
 
-        # Check if we have rollovers to verify
-        if not rollover_cycles:
-            self.log.info("No counter rollovers detected - tick verification skipped")
-            return True
+            # Calculate average tick interval
+            avg_tick_interval = sum(tick_intervals) / len(tick_intervals)
 
-        # The tick should occur one cycle after a counter change to maximum value
-        # And also when prescaler is done (which we can't directly observe)
-        errors = 0
-        time_ns = get_sim_time('ns')
+            # Allow some tolerance for tick timing
+            tolerance = 0.15  # 15% tolerance
+            min_acceptable = expected_tick_interval * (1 - tolerance)
+            max_acceptable = expected_tick_interval * (1 + tolerance)
 
-        for tick_cycle in tick_events:
-            found_match = any(
-                tick_cycle >= rollover_cycle and tick_cycle <= rollover_cycle + 2
-                for rollover_cycle in rollover_cycles
-            )
-            if not found_match:
-                if closest_changes := [
-                    c for c, v in counter_changes if c <= tick_cycle
-                ]:
-                    last_change_cycle = max(closest_changes)
-                    last_value = counter_dict[last_change_cycle]
+            self.log.info(f"Average tick interval: {avg_tick_interval:.2f}, Expected: {expected_tick_interval} " +
+                            f"(range: {min_acceptable:.2f} - {max_acceptable:.2f})")
 
-                    if last_value == 0:  # Counter just rolled over
-                        found_match = True
-
-            if not found_match:
-                self.log.error(f"Tick at cycle {tick_cycle} not associated with a counter rollover or max value @ {time_ns}ns")
-                errors += 1
-
-        if errors == 0:
-            self.log.info("Tick signal verification passed")
-            return True
+            if min_acceptable <= avg_tick_interval <= max_acceptable:
+                self.log.info("Tick signal timing verification passed")
+                return True
+            else:
+                time_ns = get_sim_time('ns')
+                self.log.error(f"Tick signal timing verification failed @ {time_ns}ns")
+                return False
         else:
-            self.log.error(f"Tick signal verification failed: {errors} errors @ {time_ns}ns")
-            return False
+            self.log.info("Only one tick event recorded - timing verification skipped")
+            return True
 
     async def run_sync_reset_test(self):
         """
-        Test the synchronous reset functionality
+        Test the synchronous reset functionality with programming model
 
         Returns:
             True if test passed, False otherwise
@@ -455,47 +518,78 @@ class CounterFreqInvariantTB(TBBase):
         # Reset for clean state
         await self.reset_dut()
 
-        # Set a moderate frequency for testing
-        freq_sel = 0x1  # 10:1 division
+        # Set a moderate frequency (500MHz)
+        freq_sel = 31  # 500MHz
         self.set_frequency_selection(freq_sel)
+        await self.activate_frequency()
 
         # Wait for counter to start incrementing
-        await self.wait_clocks('clk', 50)
+        await self.wait_clocks('clk', 1000)
 
         # Capture counter value before sync reset
         counter_before = int(self.dut.counter.value)
         self.log.info(f"Counter value before sync reset: {counter_before}")
 
-        # Apply synchronous reset
+        # Apply synchronous reset (following programming model)
         self.sync_reset_n.value = 0
-        await self.wait_clocks('clk', 5)  # Wait 1 cycle for the reset to take effect
 
-        # Capture counter value during sync reset
+        # Wait one cycle for the sync reset to propagate
+        await self.wait_clocks('clk', 1)
+
+        # Check counter immediately after sync reset assertion
+        counter_immediate = int(self.dut.counter.value)
+        tick_immediate = int(self.dut.tick.value)
+        self.log.info(f"Counter immediately after sync_reset_n=0: {counter_immediate}")
+        self.log.info(f"Tick immediately after sync_reset_n=0: {tick_immediate}")
+
+        # Wait a few more cycles to ensure reset is stable
+        await self.wait_clocks('clk', 4)
+
+        # Capture counter value during sync reset (should be stable at 0)
         counter_during = int(self.dut.counter.value)
+        tick_during = int(self.dut.tick.value)
         self.log.info(f"Counter value during sync reset: {counter_during}")
+        self.log.info(f"Tick value during sync reset: {tick_during}")
 
-        # Verify counter is reset to 0 during sync reset
-        sync_reset_effective = (counter_during == 0)
+        # Verify counter and tick are held at 0 during sync reset
+        sync_reset_effective = (counter_during == 0 and tick_during == 0)
 
         # Release sync reset
         self.sync_reset_n.value = 1
 
+        # Wait one cycle for sync reset release to propagate
+        await self.wait_clocks('clk', 1)
+
+        # Check counter immediately after sync reset release
+        counter_after_release = int(self.dut.counter.value)
+        tick_after_release = int(self.dut.tick.value)
+        self.log.info(f"Counter immediately after sync_reset_n=1: {counter_after_release}")
+        self.log.info(f"Tick immediately after sync_reset_n=1: {tick_after_release}")
+
+        # Wait a bit for the prescaler to stabilize
+        await self.wait_clocks('clk', 10)
+
+        # Check initial state after sync reset release
+        counter_initial = int(self.dut.counter.value)
+        self.log.info(f"Counter value after stabilization: {counter_initial}")
+
         # Wait for counter to start incrementing again
-        await self.wait_clocks('clk', 30)
+        await self.wait_clocks('clk', 1000)
 
         # Monitor counter behavior after sync reset
-        counter_changes, tick_events = await self.monitor_counter(100)
+        counter_changes, tick_events = await self.monitor_counter(2000)
 
-        # Verify counter starts from 0 after sync reset
-        counter_restart_ok = len(counter_changes) > 1 and counter_changes[0][0] == 0
-        self.log.debug(f"{counter_changes=}")
-
-        # Verify counter increments correctly after sync reset
+        # Verify counter is incrementing correctly after sync reset
+        counter_restart_ok = len(counter_changes) > 1
         sequence_ok = self.verify_counter_sequence(counter_changes)
 
+        # Additional check: verify counter is incrementing at correct rate
+        timing_ok = True
+        if len(counter_changes) >= 3:
+            timing_ok = self.verify_counter_changes(counter_changes, self.current_division_factor)
+
         # Return overall test status
-        test_passed = sync_reset_effective and counter_restart_ok and sequence_ok
-        self.log.debug(f"{sync_reset_effective=} {counter_restart_ok=} {sequence_ok=}")
+        test_passed = sync_reset_effective and counter_restart_ok and sequence_ok and timing_ok
 
         if test_passed:
             self.log.info("Synchronous reset test passed")
@@ -504,286 +598,197 @@ class CounterFreqInvariantTB(TBBase):
             self.log.error(f"Synchronous reset test failed @ {time_ns}ns")
 
             if not sync_reset_effective:
-                self.log.error(f"Counter was not reset to 0 during sync reset (value: {counter_during})")
+                self.log.error(f"Counter/tick not held at 0 during sync reset (counter: {counter_during}, tick: {tick_during})")
             if not counter_restart_ok:
-                self.log.error("Counter did not restart from 0 after sync reset")
+                self.log.error("Counter did not restart incrementing after sync reset")
             if not sequence_ok:
                 self.log.error("Counter sequence incorrect after sync reset")
+            if not timing_ok:
+                self.log.error("Counter timing incorrect after sync reset")
 
         return test_passed
 
-    async def run_sync_reset_during_operation_test(self):
+    async def run_frequency_sweep_test(self):
         """
-        Test the synchronous reset during counter operation
+        Test multiple frequencies to verify microsecond timing
 
         Returns:
             True if test passed, False otherwise
         """
-        self.log.info("=== Testing synchronous reset during operation ===")
+        self.log.info("=== Testing frequency sweep (microsecond timing) ===")
+
+        # Test a representative set of frequencies
+        test_frequencies = [
+            0,   # 100MHz
+            15,  # 200MHz
+            31,  # 500MHz
+            47,  # 1000MHz (1GHz)
+            57,  # 1500MHz
+            67,  # 2000MHz (2GHz)
+        ]
+
+        all_passed = True
+
+        for freq_sel in test_frequencies:
+            self.log.info(f"--- Testing frequency selection {freq_sel} ---")
+
+            # Reset and configure frequency
+            await self.reset_dut()
+            self.set_frequency_selection(freq_sel)
+            await self.activate_frequency()
+
+            # Calculate cycles needed to see counter changes
+            division_factor = self._get_division_factor(freq_sel)
+            monitor_cycles = min(division_factor * 10, 10000)  # Monitor for up to 10 microseconds
+
+            self.log.info(f"Monitoring {monitor_cycles} cycles for {division_factor} cycles/μs")
+
+            # Monitor counter behavior
+            counter_changes, tick_events = await self.monitor_counter(monitor_cycles)
+
+            # Verify timing
+            if len(counter_changes) >= 3:
+                timing_ok = self.verify_counter_changes(counter_changes, division_factor)
+                sequence_ok = self.verify_counter_sequence(counter_changes)
+                tick_ok = self.verify_tick_signal(tick_events, counter_changes)
+
+                freq_passed = timing_ok and sequence_ok and tick_ok
+
+                if not freq_passed:
+                    self.log.error(f"Frequency {freq_sel} test failed")
+                    all_passed = False
+                else:
+                    self.log.info(f"Frequency {freq_sel} test passed")
+            else:
+                self.log.warning(f"Insufficient data for frequency {freq_sel} verification")
+
+        if all_passed:
+            self.log.info("Frequency sweep test passed")
+        else:
+            self.log.error("Frequency sweep test failed")
+
+        return all_passed
+
+    async def run_programming_model_test(self):
+        """
+        Test the programming model: sync_reset_n=0 by default, set freq_sel, then sync_reset_n=1
+
+        Returns:
+            True if test passed, False otherwise
+        """
+        self.log.info("=== Testing programming model ===")
 
         # Reset for clean state
         await self.reset_dut()
 
-        # Set a low frequency for immediate counter changes
-        freq_sel = 0x0  # 1:1 division
-        self.set_frequency_selection(freq_sel)
-
-        # Wait for counter to increment a few times
-        await self.wait_clocks('clk', 10)
-
-        # Start monitoring
-        counter_values = []
-        for _ in range(5):
-            counter_values.append(int(self.dut.counter.value))
-            await self.wait_clocks('clk', 1)
-
-        # Apply sync reset in the middle of operation
+        # Verify that sync_reset_n=0 keeps counter at 0
         self.sync_reset_n.value = 0
-        counter_during_reset = int(self.dut.counter.value)
-        await self.wait_clocks('clk', 5)
-
-        # Verify counter is reset synchronously
-        counter_after_reset = int(self.dut.counter.value)
-
-        # Release sync reset
-        self.sync_reset_n.value = 1
-
-        # Monitor counter after reset
-        post_reset_values = []
-        for _ in range(10):
-            post_reset_values.append(int(self.dut.counter.value))
-            await self.wait_clocks('clk', 1)
-
-        # Verify counter was reset to 0
-        reset_effective = (counter_after_reset == 0)
-
-        # Verify counter increments again after reset
-        counter_incrementing = any(val > 0 for val in post_reset_values[1:])
-
-        # Log results
-        self.log.info(f"Counter values before reset: {counter_values}")
-        self.log.info(f"Counter during reset application: {counter_during_reset}")
-        self.log.info(f"Counter after reset application: {counter_after_reset}")
-        self.log.info(f"Counter values after reset release: {post_reset_values}")
-
-        # Return test result
-        test_passed = reset_effective and counter_incrementing
-
-        if test_passed:
-            self.log.info("Synchronous reset during operation test passed")
-        else:
-            time_ns = get_sim_time('ns')
-            self.log.error(f"Synchronous reset during operation test failed @ {time_ns}ns")
-
-            if not reset_effective:
-                self.log.error(f"Counter was not reset to 0 (value: {counter_after_reset})")
-
-            if not counter_incrementing:
-                self.log.error("Counter did not increment after reset release")
-
-        return test_passed
-
-    async def run_sync_vs_async_reset_test(self):
-        """
-        Compare synchronous and asynchronous reset behavior
-
-        Returns:
-            True if test passed, False otherwise
-        """
-        self.log.info("=== Testing synchronous vs asynchronous reset behavior ===")
-
-        # First, test asynchronous reset
-        self.log.info("Testing asynchronous reset behavior")
-
-        # Set a moderate frequency
-        freq_sel = 0x1  # 10:1 division
-        self.set_frequency_selection(freq_sel)
-
-        # Let counter run for a bit
-        await self.wait_clocks('clk', 50)
-
-        # Apply asynchronous reset
-        self.reset_n.value = 0
-        await self.wait_clocks('clk', 1)
-
-        # Immediately check counter
-        counter_after_async = int(self.dut.counter.value)
-
-        # Release async reset
-        await self.wait_clocks('clk', 5)
-        self.reset_n.value = 1
-
-        # Wait for stabilization
-        await self.wait_clocks('clk', 20)
-
-        # Now test synchronous reset
-        self.log.info("Testing synchronous reset behavior")
-
-        # Set same frequency
-        self.set_frequency_selection(freq_sel)
-
-        # Let counter run for a bit
-        await self.wait_clocks('clk', 50)
-
-        # Apply synchronous reset
-        self.sync_reset_n.value = 0
-        await self.wait_clocks('clk', 1)
-
-        # Check counter immediately
-        counter_immediate_sync = int(self.dut.counter.value)
-
-        # Wait five clock cycles and check again
-        await self.wait_clocks('clk', 5)
-        counter_after_sync = int(self.dut.counter.value)
-
-        # Release sync reset
-        self.sync_reset_n.value = 1
-
-        # Log results
-        self.log.info(f"Counter value immediately after async reset: {counter_after_async}")
-        self.log.info(f"Counter value immediately after sync reset: {counter_immediate_sync}")
-        self.log.info(f"Counter value one cycle after sync reset: {counter_after_sync}")
-
-        # Verify async reset is immediate
-        async_immediate = (counter_after_async == 0)
-
-        # Verify sync reset takes effect after a clock cycle
-        sync_delayed = (counter_after_sync == 0)
-
-        # Return test result
-        test_passed = async_immediate and sync_delayed
-        self.log.debug(f'{async_immediate=} {sync_delayed=}')
-
-        if test_passed:
-            self.log.info("Synchronous vs asynchronous reset behavior test passed")
-        else:
-            time_ns = get_sim_time('ns')
-            self.log.error(f"Synchronous vs asynchronous reset behavior test failed @ {time_ns}ns")
-
-            if not async_immediate:
-                self.log.error(f"Asynchronous reset did not reset counter immediately (value: {counter_after_async})")
-
-            if not sync_delayed:
-                self.log.error(f"Synchronous reset did not reset counter after a clock cycle (value: {counter_after_sync})")
-
-        return test_passed
-
-    async def run_freq_change_with_sync_reset_test(self):
-        """
-        Test frequency change combined with synchronous reset
-
-        Returns:
-            True if test passed, False otherwise
-        """
-        self.log.info("=== Testing frequency change with synchronous reset ===")
-
-        # Reset for clean state
-        await self.reset_dut()
-
-        # Set initial frequency
-        initial_freq_sel = 0x7  # 100:1 division
-        self.set_frequency_selection(initial_freq_sel)
-
-        # Let counter run for a bit
+        self.dut.freq_sel.value = 47  # 1GHz
         await self.wait_clocks('clk', 100)
 
-        # Apply both frequency change and sync reset simultaneously
-        new_freq_sel = 0x1  # 10:1 division
-        self.set_frequency_selection(new_freq_sel)
-        self.sync_reset_n.value = 0
+        counter_during_reset = int(self.dut.counter.value)
+        tick_during_reset = int(self.dut.tick.value)
 
-        # Wait five clock cycles
-        await self.wait_clocks('clk', 5)
+        # Counter should be 0 and tick should be 0 during reset
+        reset_holds_counter = (counter_during_reset == 0)
+        reset_holds_tick = (tick_during_reset == 0)
 
-        # Check counter after sync reset
-        counter_after_reset = int(self.dut.counter.value)
+        self.log.info(f"During sync_reset_n=0: counter={counter_during_reset}, tick={tick_during_reset}")
 
-        # Release sync reset
+        # Now activate by setting sync_reset_n=1
         self.sync_reset_n.value = 1
+        await self.wait_clocks('clk', 2000)
 
-        # Monitor counter behavior
-        await self.wait_clocks('clk', 30)
-        counter_changes, tick_events = await self.monitor_counter(200)
+        # Monitor to verify operation
+        counter_changes, tick_events = await self.monitor_counter(2000)
 
-        # Verify reset was effective
-        reset_effective = (counter_after_reset == 0)
+        # Verify counter starts operating
+        counter_operating = len(counter_changes) > 1
 
-        # Verify counter operates at new frequency
-        if len(counter_changes) >= 3:
-            freq_change_effective = self.verify_counter_changes(counter_changes, self.current_division_factor)
-        else:
-            self.log.warning("Not enough counter changes to verify frequency")
-            freq_change_effective = True  # Assume it's OK if we don't have enough data
+        # Verify tick signal is generated
+        tick_operating = len(tick_events) > 0
 
-        # Verify counter sequence
-        sequence_ok = self.verify_counter_sequence(counter_changes)
+        self.log.info(f"After sync_reset_n=1: {len(counter_changes)} counter changes, {len(tick_events)} tick events")
 
-        # Return test result
-        test_passed = reset_effective and freq_change_effective and sequence_ok
+        # Test changing frequency while running
+        self.log.info("Testing frequency change during operation")
+
+        # Change frequency (this should trigger internal reset)
+        old_freq = 47
+        new_freq = 15  # 200MHz
+
+        self.set_frequency_selection(new_freq)
+        await self.activate_frequency()
+
+        # Monitor new frequency operation
+        counter_changes_new, tick_events_new = await self.monitor_counter(1000)
+
+        # Verify new frequency works
+        new_freq_operating = len(counter_changes_new) > 1
+
+        # Overall test result
+        test_passed = (reset_holds_counter and reset_holds_tick and
+                      counter_operating and tick_operating and new_freq_operating)
 
         if test_passed:
-            self.log.info("Frequency change with synchronous reset test passed")
+            self.log.info("Programming model test passed")
         else:
             time_ns = get_sim_time('ns')
-            self.log.error(f"Frequency change with synchronous reset test failed @ {time_ns}ns")
+            self.log.error(f"Programming model test failed @ {time_ns}ns")
 
-            if not reset_effective:
-                self.log.error(f"Synchronous reset did not reset counter (value: {counter_after_reset})")
-
-            if not freq_change_effective:
-                self.log.error("Counter not operating at new frequency after reset and frequency change")
-
-            if not sequence_ok:
-                self.log.error("Counter sequence incorrect after reset and frequency change")
+            if not reset_holds_counter:
+                self.log.error("sync_reset_n=0 did not hold counter at 0")
+            if not reset_holds_tick:
+                self.log.error("sync_reset_n=0 did not hold tick at 0")
+            if not counter_operating:
+                self.log.error("Counter did not operate after sync_reset_n=1")
+            if not tick_operating:
+                self.log.error("Tick signal not generated after sync_reset_n=1")
+            if not new_freq_operating:
+                self.log.error("Counter did not operate correctly after frequency change")
 
         return test_passed
 
 
-@cocotb.test(timeout_time=50, timeout_unit="ms")
-async def counter_freq_invariant_sync_reset_test(dut):
-    """Test synchronous reset functionality"""
+@cocotb.test(timeout_time=100, timeout_unit="ms")
+async def counter_freq_invariant_enhanced_test(dut):
+    """Test enhanced frequency invariant counter with microsecond timing"""
     tb = CounterFreqInvariantTB(dut)
 
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '42'))
     random.seed(seed)
 
-    # Start the clock
+    # Start the clock (1ns period = 1GHz for testing)
     print('Starting clk')
-    await tb.start_clock('clk', 10, 'ns')
+    await tb.start_clock('clk', 1, 'ns')
 
     # Reset the DUT
     print('DUT reset')
     await tb.reset_dut()
 
     try:
-        print('# Test 1: Basic synchronous reset test')
+        print('# Test 1: Programming model test')
         time_ns = get_sim_time('ns')
-        tb.log.info(f"=== Test 1: Basic synchronous reset test @ {time_ns}ns ===")
+        tb.log.info(f"=== Test 1: Programming model test @ {time_ns}ns ===")
+        passed = await tb.run_programming_model_test()
+        time_ns = get_sim_time('ns')
+        assert passed, f"Programming model test failed @ {time_ns}ns"
+
+        print('# Test 2: Synchronous reset test')
+        tb.log.info("=== Test 2: Synchronous reset test ===")
         passed = await tb.run_sync_reset_test()
         time_ns = get_sim_time('ns')
-        assert passed, f"Basic synchronous reset test failed @ {time_ns}ns"
+        assert passed, f"Synchronous reset test failed @ {time_ns}ns"
 
-        print('# Test 2: Synchronous reset during operation test')
-        tb.log.info("=== Test 2: Synchronous reset during operation test ===")
-        passed = await tb.run_sync_reset_during_operation_test()
+        print('# Test 3: Frequency sweep test')
+        tb.log.info("=== Test 3: Frequency sweep test ===")
+        passed = await tb.run_frequency_sweep_test()
         time_ns = get_sim_time('ns')
-        assert passed, f"Synchronous reset during operation test failed @ {time_ns}ns"
+        assert passed, f"Frequency sweep test failed @ {time_ns}ns"
 
-        print('# Test 3: Synchronous vs asynchronous reset test')
-        tb.log.info("=== Test 3: Synchronous vs asynchronous reset test ===")
-        passed = await tb.run_sync_vs_async_reset_test()
-        time_ns = get_sim_time('ns')
-        assert passed, f"Synchronous vs asynchronous reset test failed @ {time_ns}ns"
-
-        print('# Test 4: Frequency change with synchronous reset test')
-        tb.log.info("=== Test 4: Frequency change with synchronous reset test ===")
-        passed = await tb.run_freq_change_with_sync_reset_test()
-        time_ns = get_sim_time('ns')
-        assert passed, f"Frequency change with synchronous reset test failed @ {time_ns}ns"
-
-        await tb.wait_clocks('clk', 50)
-        tb.log.info(f"Synchronous reset tests completed successfully @ {time_ns}ns")
+        await tb.wait_clocks('clk', 100)
+        tb.log.info(f"Enhanced frequency invariant counter tests completed successfully @ {time_ns}ns")
 
     finally:
         # Set done flag
@@ -794,11 +799,12 @@ async def counter_freq_invariant_sync_reset_test(dut):
 
 @pytest.mark.parametrize("counter_width",
     [
-        5,  # Standard width
-        8,  # Wider counter
+        8,   # 256 microseconds rollover
+        16,  # 65.5 milliseconds rollover
+        24,  # 16.7 seconds rollover
     ])
-def test_counter_freq_invariant(request, counter_width):
-    """Run the test with pytest"""
+def test_counter_freq_invariant_enhanced(request, counter_width):
+    """Run the enhanced test with pytest"""
     # Get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths(
         {
@@ -815,7 +821,7 @@ def test_counter_freq_invariant(request, counter_width):
 
     # Create a human readable test identifier
     cw_str = TBBase.format_dec(counter_width, 3)
-    test_name_plus_params = f"test_{dut_name}_cw{cw_str}"
+    test_name_plus_params = f"test_{dut_name}_enhanced_cw{cw_str}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Use it in the simbuild path
@@ -832,7 +838,8 @@ def test_counter_freq_invariant(request, counter_width):
 
     # RTL parameters
     rtl_parameters = {
-        "COUNTER_WIDTH": str(counter_width)
+        "COUNTER_WIDTH": str(counter_width),
+        "PRESCALER_MAX": "2048"  # Support up to 2GHz
     }
 
     # Environment variables

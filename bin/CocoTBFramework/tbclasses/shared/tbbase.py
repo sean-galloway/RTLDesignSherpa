@@ -687,6 +687,11 @@ class TBBase:
         return format(int(value), f'0{hex_width}X')
 
     @staticmethod
+    def format_hex(value, max_value):
+        hex_width = (max_value.bit_length() + 3) // 4
+        return format(int(value), f'0{hex_width}X')
+
+    @staticmethod
     def generate_alternating_ones(n):
         """Generate a number with alternating '1's up to position N"""
         num = 0

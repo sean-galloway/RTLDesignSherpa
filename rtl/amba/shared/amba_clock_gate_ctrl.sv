@@ -38,15 +38,15 @@ module amba_clock_gate_ctrl #(
 
     // Instantiate the base clock gate control
     clock_gate_ctrl #(
-        .N(ICW)
+        .N                  (ICW)
     ) u_clock_gate_ctrl (
         .clk_in             (clk_in),
         .aresetn            (aresetn),
-        .cfg_cg_enable    (cfg_cg_enable),
-        .cfg_cg_idle_count(cfg_cg_idle_count),
-        .wakeup           (r_wakeup),
+        .cfg_cg_enable      (cfg_cg_enable),
+        .cfg_cg_idle_count  (cfg_cg_idle_count),
+        .wakeup             (r_wakeup),
         .clk_out            (clk_out),
-        .gating           (gating)
+        .gating             (gating)
     );
 
 endmodule : amba_clock_gate_ctrl

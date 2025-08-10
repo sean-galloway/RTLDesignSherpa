@@ -45,7 +45,8 @@ CocoTBFramework
 │   │   └── gaxi_slave.py
 │   ├── shared
 │   │   ├── __init__.py
-│   │   ├── arbiter_monitor copy.py
+│   │   ├── arbiter_compliance.py
+│   │   ├── arbiter_master.py
 │   │   ├── arbiter_monitor.py
 │   │   ├── data_strategies.py
 │   │   ├── debug_object.py
@@ -81,6 +82,16 @@ CocoTBFramework
     │   ├── amba_cg_ctrl.py
     │   ├── amba_random_configs.py
     │   ├── cdc_handshake.py
+    │   ├── arbiter_monbus
+    │   │   ├── arbiter_monbus_common_tb.py
+    │   │   ├── basic_tests.py
+    │   │   ├── corner_case_tests.py
+    │   │   ├── error_tests.py
+    │   │   ├── monitor_config.py
+    │   │   ├── performance_tests.py
+    │   │   ├── stress_tests.py
+    │   │   ├── test_framework.py
+    │   │   └── threshold_tests.py
     │   └── arbiter_wrr_pwm_monbus
     │       ├── __init__.py
     │       ├── arbiter_fairness_tests.py

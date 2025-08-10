@@ -1,8 +1,6 @@
 `timescale 1ns / 1ps
 /**
  * Counter with Load and Clear functionality
- *
- * Updated with proper naming conventions: w_ for combo, r_ for flopped
  */
 module counter_load_clear #(
     parameter int MAX = 32'd32  // Fixed: Explicitly specify as 32-bit value
