@@ -39,7 +39,8 @@ def collect_markdown(index_path, collected=None, depth=0):
             if match:
                 title = match.group(1).strip()
 
-        match = re.match(r'^\s*\[.*?\]\((.*?)\)\s*$', line)
+        # match = re.match(r'^\s*\[.*?\]\((.*?)\)\s*$', line)
+        match = re.match(r'^\s*-?\s*\[.*?\]\((.*?)\)\s*$', line)
         if match:
             included_file = base_dir / match.group(1).strip()
             if included_file.exists():
