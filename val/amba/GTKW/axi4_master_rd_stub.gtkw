@@ -1,0 +1,50 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Sat Aug 30 23:36:47 2025
+[*]
+[dumpfile] "/mnt/data/github/rtldesignsherpa/val/amba/local_sim_build/test_axi4_read_master_i08_a32_d032_u1_ard2_rd4_basic/dump.fst"
+[dumpfile_mtime] "Sat Aug 30 23:35:31 2025"
+[dumpfile_size] 8280
+[savefile] "/mnt/data/github/rtldesignsherpa/val/amba/GTKW/axi4_master_rd_stub.gtkw"
+[timestart] 0
+[size] 2293 903
+[pos] -1 -1
+*-20.435455 400000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .axi4_master_rd_stub.
+[sst_width] 278
+[signals_width] 336
+[sst_expanded] 1
+[sst_vpaned_height] 266
+@28
+axi4_master_rd_stub.aclk
+axi4_master_rd_stub.aresetn
+axi4_master_rd_stub.fub_axi_arvalid
+axi4_master_rd_stub.fub_axi_arready
+@22
+axi4_master_rd_stub.fub_axi_ar_pkt[69:0]
+@28
+axi4_master_rd_stub.fub_axi_rvalid
+axi4_master_rd_stub.fub_axi_rready
+@22
+axi4_master_rd_stub.fub_axi_r_pkt[43:0]
+@28
+axi4_master_rd_stub.m_axi_arvalid
+axi4_master_rd_stub.m_axi_arready
+@22
+axi4_master_rd_stub.m_axi_araddr[31:0]
+axi4_master_rd_stub.m_axi_arlen[7:0]
+axi4_master_rd_stub.m_axi_arid[7:0]
+@28
+axi4_master_rd_stub.m_axi_rvalid
+axi4_master_rd_stub.m_axi_rready
+axi4_master_rd_stub.m_axi_rresp[1:0]
+@22
+axi4_master_rd_stub.m_axi_rdata[31:0]
+axi4_master_rd_stub.m_axi_rid[7:0]
+@29
+axi4_master_rd_stub.m_axi_rlast
+@28
+axi4_master_rd_stub.m_axi_ruser[0]
+[pattern_trace] 1
+[pattern_trace] 0

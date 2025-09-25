@@ -1,11 +1,11 @@
 `timescale 1ns / 1ps
 
 module apb_slave_cdc #(
-    parameter int ADDR_WIDTH      = 32,
-    parameter int DATA_WIDTH      = 32,
-    parameter int STRB_WIDTH      = DATA_WIDTH / 8,
-    parameter int PROT_WIDTH      = 3,
-    parameter int DEPTH      = 2,
+    parameter int ADDR_WIDTH  = 32,
+    parameter int DATA_WIDTH  = 32,
+    parameter int STRB_WIDTH  = DATA_WIDTH / 8,
+    parameter int PROT_WIDTH  = 3,
+    parameter int DEPTH       = 2,
     // Short Parameters
     parameter int DW  = DATA_WIDTH,
     parameter int AW  = ADDR_WIDTH,
@@ -48,10 +48,6 @@ module apb_slave_cdc #(
     input  logic              rsp_pslverr
 );
 
-    // Local Parameters
-    localparam int APBCmdWidth = 1 + AW + DW + SW + PW;
-    localparam int APBRspWidth = 1 + DW;
-
     // local signal to pass between the handshake
     logic              w_cmd_valid;
     logic              w_cmd_ready;
@@ -68,11 +64,11 @@ module apb_slave_cdc #(
     logic              w_rsp_pslverr;
 
     apb_slave #(
-        .ADDR_WIDTH   (32),
-        .DATA_WIDTH   (32),
-        .STRB_WIDTH   (4),
-        .PROT_WIDTH   (3),
-        .DEPTH        (2)
+        .ADDR_WIDTH   (AW),
+        .DATA_WIDTH   (DW),
+        .STRB_WIDTH   (SW),
+        .PROT_WIDTH   (PW),
+        .DEPTH        (DEPTH)
     ) u_apb_slave(
         // Clock and Reset
         .pclk         (pclk),
@@ -107,7 +103,7 @@ module apb_slave_cdc #(
     );
 
     cdc_handshake #(
-        .DATA_WIDTH      (APBCmdWidth)
+        .DATA_WIDTH      (CPW)
     ) u_cmd_cdc_handshake (
         .clk_src         (pclk),
         .rst_src_n       (presetn),
@@ -124,7 +120,7 @@ module apb_slave_cdc #(
     );
 
     cdc_handshake #(
-        .DATA_WIDTH      (APBRspWidth)
+        .DATA_WIDTH      (RPW)
     ) u_rsp_cdc_handshake (
         .clk_src         (aclk),
         .rst_src_n       (aresetn),

@@ -197,7 +197,7 @@ module axi4_to_apb_convert #(
             r_side_last, r_side_user} = r_side_out_data;
 
     // Assign the side outputs to the responses to the AXI slave
-    assign w_data_read    = (axi2abpratio == 1) ? r_apb_rsp_pkt_prdata : w_axi_data_shift;
+    assign w_data_read = (axi2abpratio == 1) ? {{(DW-APBDW){1'b0}}, r_apb_rsp_pkt_prdata} : w_axi_data_shift;
     assign w_resp_rd      = (w_pslverr) ? 2'b10 : 2'b00;
     assign w_resp_wr      = (w_pslverr | r_pslverr) ? 2'b10 : 2'b00;
     assign r_s_axi_r_pkt  = {r_side_id, w_data_read, w_resp_rd, r_side_last, r_side_user};
@@ -224,12 +224,14 @@ module axi4_to_apb_convert #(
         .ODW                (APBDW),
         .LEN                (8)
     ) axi_gen_addr_common (
-        .i_curr_addr        (r_apb_paddr),
-        .i_size             (r_axi_size),
-        .i_burst            (r_axi_burst),
-        .i_len              (r_axi_len),
-        .next_addr       (w_next_addr_gen),
-        .next_addr_align ()
+        .curr_addr          (r_apb_paddr),
+        .size               (r_axi_size),
+        .burst              (r_axi_burst),
+        .len                (r_axi_len),
+        .next_addr          (w_next_addr_gen),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .next_addr_align    ()
+        /* verilator lint_on PINCONNECTEMPTY */
     );
 
 
@@ -259,7 +261,7 @@ module axi4_to_apb_convert #(
 
             if ((r_rsp_state == RSP_ACTIVE) && r_rsp_valid && w_rsp_ready) begin
                 if (axi2abpratio == 1) begin
-                    r_axi_data_shift <= r_apb_rsp_pkt_prdata;
+                    r_axi_data_shift <= {{(DW-APBDW){1'b0}}, r_apb_rsp_pkt_prdata};
                 end else begin
                     r_axi_data_shift[r_axi_rsp_data_pointer*APBDW +: APBDW] <= r_apb_rsp_pkt_prdata;
                     r_axi_rsp_data_pointer <= r_axi_rsp_data_pointer + 1;
@@ -310,11 +312,11 @@ module axi4_to_apb_convert #(
         w_cmd_valid                = 1'b0;
         w_side_in_valid            = 1'b0;
         w_apb_cmd_pkt_pwrite       = 1'b0;
-        w_apb_cmd_pkt_pwdata       = (axi2abpratio == 1)    ? r_s_axi_wdata  :
-                                        r_s_axi_wdata[r_axi_wr_data_pointer*APBDW +: APBDW];
-        w_apb_cmd_pkt_pstrb        = (w_apb_cmd_pkt_pwrite == 1'b0) ? {SW{1'b1}} :
-                                        (axi2abpratio == 1) ? r_s_axi_wstrb  :
-                                        r_s_axi_wstrb[r_axi_wr_data_pointer*APBSW +: APBSW];
+        w_apb_cmd_pkt_pwdata = (axi2abpratio == 1) ? r_s_axi_wdata[APBDW-1:0] :
+                                r_s_axi_wdata[r_axi_wr_data_pointer*APBDW +: APBDW];
+        w_apb_cmd_pkt_pstrb = (w_apb_cmd_pkt_pwrite == 1'b0) ? {APBSW{1'b1}} :
+                                (axi2abpratio == 1) ? r_s_axi_wstrb[APBSW-1:0] :
+                                r_s_axi_wstrb[r_axi_wr_data_pointer*APBSW +: APBSW];
         w_apb_cmd_pkt_pprot        = (r_apb_state  == READ) ? r_s_axi_arprot : r_s_axi_awprot;
         w_apb_cmd_pkt_paddr        = r_apb_paddr & ~w_alignment_mask;
         w_apb_cmd_pkt_first        = 1'b0;
@@ -385,8 +387,16 @@ module axi4_to_apb_convert #(
                     w_cmd_valid     = 'b1;
                     w_next_addr     = w_next_addr_gen;
                     w_side_in_valid = 1'b1;
-                    if (r_apb_last_state == IDLE)
+
+                    // REPLACE THIS SECTION:
+                    if (r_apb_last_state == IDLE)           // ← OLD LOGIC - REMOVE
+                        w_apb_cmd_pkt_first = 1'b1;         // ← OLD LOGIC - REMOVE
+
+                    // WITH THIS NEW LOGIC:
+                    if (r_axi_rd_data_pointer == 0 && r_burst_count == r_s_axi_arlen)
                         w_apb_cmd_pkt_first = 1'b1;
+
+                    // Rest of READ logic stays the same...
                     if (r_axi_rd_data_pointer == PTR_WIDTH'(axi2abpratio-1)) begin
                         w_axi_rd_data_pointer = 'b0;
                         if (r_burst_count == 0) begin
@@ -408,8 +418,16 @@ module axi4_to_apb_convert #(
                     w_cmd_valid = 'b1;
                     w_next_addr = w_next_addr_gen;
                     w_side_in_valid = 1'b1;
-                    if (r_apb_last_state == IDLE)
+
+                    // REPLACE THIS SECTION:
+                    if (r_apb_last_state == IDLE)           // ← OLD LOGIC - REMOVE
+                        w_apb_cmd_pkt_first = 1'b1;         // ← OLD LOGIC - REMOVE
+
+                    // WITH THIS NEW LOGIC:
+                    if (r_axi_wr_data_pointer == 0 && r_burst_count == r_s_axi_awlen)
                         w_apb_cmd_pkt_first = 1'b1;
+
+                    // Rest of WRITE logic stays the same...
                     if (r_axi_wr_data_pointer == PTR_WIDTH'(axi2abpratio-1)) begin
                         if (r_burst_count == 0) begin
                             w_apb_next_state      = IDLE;
@@ -440,7 +458,10 @@ module axi4_to_apb_convert #(
         .wr_data                (r_side_in_data),
         .rd_valid               (r_side_out_valid),
         .rd_ready               (w_side_out_ready),
-        .rd_data                (r_side_out_data)
+        .rd_data                (r_side_out_data),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count                  ()
+        /* verilator lint_on PINCONNECTEMPTY */
     );
 
 endmodule : axi4_to_apb_convert

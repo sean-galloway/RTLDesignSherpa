@@ -643,6 +643,9 @@ class AxiWriteSplitterTB(TBBase):
         self.m_axi_w_slave.add_callback(self._handle_m_axi_w_data)
 
         # Apply reset
+        await self.fub_aw_master.reset_bus()
+        await self.fub_w_master.reset_bus()
+        await self.m_axi_b_master.reset_bus()
         self.dut.aresetn.value = 0
         self.dut.alignment_mask.value = self.ALIGNMENT_MASK
         self.dut.block_ready.value = 0

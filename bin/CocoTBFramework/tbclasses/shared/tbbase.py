@@ -553,6 +553,25 @@ class TBBase:
             await Timer(100, units='ps')
             self.mark_progress(f"Clock {clk_name} started")
 
+    def clock_gen(self, clk_signal, period: int = 10, units: str = 'ns'):
+        """
+        Generate clock with safety monitoring.
+
+        Args:
+            clk_signal: Clock signal to drive
+            period: Clock period
+            units: Time units for period
+
+        Returns:
+            Coroutine that can be used with cocotb.start_soon()
+        """
+        self.log.debug(f"Creating clock generator with period {period} {units}")
+        self.mark_progress(f"Clock generator created")
+
+        # Return the clock start coroutine
+        clock = Clock(clk_signal, period, units=units)
+        return clock.start()
+
     async def wait_clocks(self, clk_name: str, count: int = 1, delay: int = 100, units: str = 'ps'):
         """Wait for clock edges with safety monitoring"""
         await self.safe_wait_clocks(clk_name, count, None, delay, units)
@@ -564,7 +583,7 @@ class TBBase:
             for i in range(count):
                 await FallingEdge(clk_signal)
                 await Timer(delay, units=units)
-                if i % 100 == 0:
+                if i % 1000 == 0:
                     self.mark_progress(f"wait_falling_clocks {i}/{count}")
 
     async def wait_time(self, delay: int = 100, units: str = 'ps'):

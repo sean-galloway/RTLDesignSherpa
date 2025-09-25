@@ -69,8 +69,10 @@ module apb_slave #(
         .rd_valid     (cmd_valid),
         .rd_ready     (cmd_ready),
         .rd_data      (r_cmd_data_out),
-        .count       (r_cmd_count),
+        .count        (r_cmd_count),
+        /* verilator lint_off PINCONNECTEMPTY */
         .rd_count     ()
+        /* verilator lint_on PINCONNECTEMPTY */
     );
 
     // Extract response packet signals
@@ -97,8 +99,10 @@ module apb_slave #(
         .rd_valid     (r_rsp_valid),
         .rd_ready     (r_rsp_ready),
         .rd_data      (r_rsp_data_out),
-        .count       (r_rsp_count),
+        .count        (r_rsp_count),
+        /* verilator lint_off PINCONNECTEMPTY */
         .rd_count     ()
+        /* verilator lint_on PINCONNECTEMPTY */
     );
 
     // APB FSM

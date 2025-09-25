@@ -31,32 +31,32 @@ async def crc_basic_test(dut):
 
 
 # @pytest.mark.parametrize("params", [
-#     # Standard parameter sets from the crc_parameters list
+#     # Only use the first entry from crc_parameters list
 #     {
-#         'algo_name': entry[0],
-#         'data_width': entry[1],
-#         'crc_width': entry[2],
-#         'poly': entry[3],
-#         'poly_init': entry[4],
-#         'refin': entry[5],
-#         'refout': entry[6],
-#         'xorout': entry[7],
+#         'algo_name': crc_parameters[0][0],
+#         'data_width': crc_parameters[0][1],
+#         'crc_width': crc_parameters[0][2],
+#         'poly': crc_parameters[0][3],
+#         'poly_init': crc_parameters[0][4],
+#         'refin': crc_parameters[0][5],
+#         'refout': crc_parameters[0][6],
+#         'xorout': crc_parameters[0][7],
 #         'test_level': 'basic'
-#     } for entry in crc_parameters
+#     }
 # ])
 @pytest.mark.parametrize("params", [
-    # Only use the first entry from crc_parameters list
+    # Standard parameter sets from the crc_parameters list
     {
-        'algo_name': crc_parameters[0][0],
-        'data_width': crc_parameters[0][1],
-        'crc_width': crc_parameters[0][2],
-        'poly': crc_parameters[0][3],
-        'poly_init': crc_parameters[0][4],
-        'refin': crc_parameters[0][5],
-        'refout': crc_parameters[0][6],
-        'xorout': crc_parameters[0][7],
+        'algo_name': entry[0],
+        'data_width': entry[1],
+        'crc_width': entry[2],
+        'poly': entry[3],
+        'poly_init': entry[4],
+        'refin': entry[5],
+        'refout': entry[6],
+        'xorout': entry[7],
         'test_level': 'basic'
-    }
+    } for entry in crc_parameters
 ])
 def test_dataint_crc(request, params):
     """Run the test with pytest and configurable parameters"""

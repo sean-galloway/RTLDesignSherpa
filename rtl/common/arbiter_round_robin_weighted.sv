@@ -297,23 +297,23 @@ module arbiter_round_robin_weighted #(
 
     logic [MTW-1:0] w_credit_counter [C];        // Next credit counter values
     logic [C-1:0]   w_grant_completed;           // Grant completion per client
-    
+
     // Pre-compute grant completion for all clients
     generate
         for (genvar i = 0; i < CLIENTS; i++) begin : gen_grant_completion
-            assign w_grant_completed[i] = (WAIT_GNT_ACK == 0) ? 
+            assign w_grant_completed[i] = (WAIT_GNT_ACK == 0) ?
                                          (grant[i] && grant_valid) :                    // No-ACK: immediate completion
                                          (grant[i] && grant_valid && grant_ack[i]);     // ACK mode: wait for ACK
         end
     endgenerate
-    
+
     generate
         for (genvar i = 0; i < CLIENTS; i++) begin : gen_credit_combo_logic
-            
+
             always_comb begin
                 // Default: hold current value
                 w_credit_counter[i] = r_credit_counter[i];
-                
+
                 case (r_weight_state)
                     WEIGHT_IDLE: begin
                         if (w_global_replenish) begin
@@ -359,7 +359,7 @@ module arbiter_round_robin_weighted #(
             assign w_has_crd[i] = (r_credit_counter[i] > 0) &&
                                     (client_weight[i] > 0) &&
                                     (w_normal_operation);
-            
+
             // Per-client credit state detection
             assign w_has_one_credit[i] = (r_credit_counter[i] == MTW'(1)) && (client_weight[i] > 0);
             assign w_has_any_credits[i] = (r_credit_counter[i] > MTW'(0)) && (client_weight[i] > 0);
@@ -378,10 +378,24 @@ module arbiter_round_robin_weighted #(
     // Global last credit detection (outside generate block)
     // w_last_credit = 1 when exactly ONE client has exactly 1 credit left
     assign w_last_credit = ($countones(w_has_any_credits) == 1) &&     // Only 1 client has any credits
-                            ($countones(w_has_one_credit) == 1) &&     // Only 1 client has exactly 1 credit  
+                            ($countones(w_has_one_credit) == 1) &&     // Only 1 client has exactly 1 credit
                             (w_has_any_credits == w_has_one_credit);   // Same client for both conditions
-    // replenish the counters on a grant for the last credit or when idle
-    assign w_global_replenish = (w_normal_operation && !w_pending_grants && (w_last_credit && grant_valid));
+
+    // Where w_requesting_clients_with_credits is computed as:
+    logic w_requesting_clients_with_credits;
+
+    always_comb begin
+        w_requesting_clients_with_credits = 1'b0;
+        for (int i = 0; i < CLIENTS; i++) begin
+            if (w_req_post[i] && w_has_crd[i]) begin
+                w_requesting_clients_with_credits = 1'b1;
+            end
+        end
+    end
+
+    // replenish when no requesting clients have credits
+    assign w_global_replenish = (w_normal_operation && !w_pending_grants && 
+                            (|w_req_post) && !w_requesting_clients_with_credits);
 
     // =======================================================================
     // Request Masking (Proper Grant Logic with Fairness)

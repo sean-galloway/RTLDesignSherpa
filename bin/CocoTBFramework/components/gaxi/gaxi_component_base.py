@@ -51,7 +51,7 @@ class GAXIComponentBase:
             prefix: Bus prefix
             clock: Clock signal
             field_config: Field configuration (FieldConfig or dict)
-            protocol_type: Protocol type ('gaxi_master' or 'gaxi_slave')
+            protocol_type: Protocol type ('gaxi_master', 'gaxi_slave', 'axis_master', or 'axis_slave')
             mode: GAXI mode ('skid', 'fifo_mux', 'fifo_flop')
             bus_name: Bus/channel name
             pkt_prefix: Packet field prefix
@@ -78,8 +78,9 @@ class GAXIComponentBase:
         self.signal_map = signal_map  # NEW: Store signal map
 
         # Validate protocol_type
-        if protocol_type not in ['gaxi_master', 'gaxi_slave']:
-            raise ValueError(f"protocol_type must be 'gaxi_master' or 'gaxi_slave', got: {protocol_type}")
+        valid_types = ['gaxi_master', 'gaxi_slave', 'axis_master', 'axis_slave']
+        if protocol_type not in valid_types:
+            raise ValueError(f"protocol_type must be one of {valid_types}, got: {protocol_type}")
         self.protocol_type = protocol_type
 
         # Normalize field_config - handle dict conversion uniformly

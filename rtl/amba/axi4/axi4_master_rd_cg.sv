@@ -2,26 +2,25 @@
 
 module axi4_master_rd_cg
 #(
-    // AXI parameters
+    parameter int SKID_DEPTH_AR     = 2,
+    parameter int SKID_DEPTH_R      = 4,
+
     parameter int AXI_ID_WIDTH      = 8,
     parameter int AXI_ADDR_WIDTH    = 32,
     parameter int AXI_DATA_WIDTH    = 32,
     parameter int AXI_USER_WIDTH    = 1,
-
-    // Skid buffer depths
-    parameter int SKID_DEPTH_AR     = 2,
-    parameter int SKID_DEPTH_R      = 4,
-
-    // Clock gating parameters
-    parameter int CG_IDLE_COUNT_WIDTH = 4,  // Width of idle counter
-
-    // Derived parameters
+    parameter int AXI_WSTRB_WIDTH   = AXI_DATA_WIDTH / 8,
+    // Short and calculated params
     parameter int AW       = AXI_ADDR_WIDTH,
     parameter int DW       = AXI_DATA_WIDTH,
     parameter int IW       = AXI_ID_WIDTH,
+    parameter int SW       = AXI_WSTRB_WIDTH,
     parameter int UW       = AXI_USER_WIDTH,
     parameter int ARSize   = IW+AW+8+3+2+1+4+3+4+4+UW,
-    parameter int RSize    = IW+DW+2+1+UW
+    parameter int RSize    = IW+DW+2+1+UW,
+
+    // Clock gating parameters
+    parameter int CG_IDLE_COUNT_WIDTH = 4   // Width of idle counter
 )
 (
     // Global Clock and Reset
@@ -29,38 +28,38 @@ module axi4_master_rd_cg
     input  logic aresetn,
 
     // Clock gating configuration
-    input  logic                           i_cfg_cg_enable,
-    input  logic [CG_IDLE_COUNT_WIDTH-1:0] i_cfg_cg_idle_count,
+    input  logic                           cfg_cg_enable,
+    input  logic [CG_IDLE_COUNT_WIDTH-1:0] cfg_cg_idle_count,
 
     // Slave AXI Interface (Input Side)
     // Read address channel (AR)
-    input  logic [AXI_ID_WIDTH-1:0]    fub_arid,
-    input  logic [AXI_ADDR_WIDTH-1:0]  fub_araddr,
-    input  logic [7:0]                 fub_arlen,
-    input  logic [2:0]                 fub_arsize,
-    input  logic [1:0]                 fub_arburst,
-    input  logic                       fub_arlock,
-    input  logic [3:0]                 fub_arcache,
-    input  logic [2:0]                 fub_arprot,
-    input  logic [3:0]                 fub_arqos,
-    input  logic [3:0]                 fub_arregion,
-    input  logic [AXI_USER_WIDTH-1:0]  fub_aruser,
-    input  logic                       fub_arvalid,
-    output logic                       fub_arready,
+    input  logic [IW-1:0]              fub_axi_arid,
+    input  logic [AW-1:0]              fub_axi_araddr,
+    input  logic [7:0]                 fub_axi_arlen,
+    input  logic [2:0]                 fub_axi_arsize,
+    input  logic [1:0]                 fub_axi_arburst,
+    input  logic                       fub_axi_arlock,
+    input  logic [3:0]                 fub_axi_arcache,
+    input  logic [2:0]                 fub_axi_arprot,
+    input  logic [3:0]                 fub_axi_arqos,
+    input  logic [3:0]                 fub_axi_arregion,
+    input  logic [UW-1:0]              fub_axi_aruser,
+    input  logic                       fub_axi_arvalid,
+    output logic                       fub_axi_arready,
 
     // Read data channel (R)
-    output logic [AXI_ID_WIDTH-1:0]    fub_rid,
-    output logic [AXI_DATA_WIDTH-1:0]  fub_rdata,
-    output logic [1:0]                 fub_rresp,
-    output logic                       fub_rlast,
-    output logic [AXI_USER_WIDTH-1:0]  fub_ruser,
-    output logic                       fub_rvalid,
-    input  logic                       fub_rready,
+    output logic [IW-1:0]              fub_axi_rid,
+    output logic [DW-1:0]              fub_axi_rdata,
+    output logic [1:0]                 fub_axi_rresp,
+    output logic                       fub_axi_rlast,
+    output logic [UW-1:0]              fub_axi_ruser,
+    output logic                       fub_axi_rvalid,
+    input  logic                       fub_axi_rready,
 
     // Master AXI Interface (Output Side)
     // Read address channel (AR)
-    output logic [AXI_ID_WIDTH-1:0]    m_axi_arid,
-    output logic [AXI_ADDR_WIDTH-1:0]  m_axi_araddr,
+    output logic [IW-1:0]              m_axi_arid,
+    output logic [AW-1:0]              m_axi_araddr,
     output logic [7:0]                 m_axi_arlen,
     output logic [2:0]                 m_axi_arsize,
     output logic [1:0]                 m_axi_arburst,
@@ -69,16 +68,16 @@ module axi4_master_rd_cg
     output logic [2:0]                 m_axi_arprot,
     output logic [3:0]                 m_axi_arqos,
     output logic [3:0]                 m_axi_arregion,
-    output logic [AXI_USER_WIDTH-1:0]  m_axi_aruser,
+    output logic [UW-1:0]              m_axi_aruser,
     output logic                       m_axi_arvalid,
     input  logic                       m_axi_arready,
 
     // Read data channel (R)
-    input  logic [AXI_ID_WIDTH-1:0]    m_axi_rid,
-    input  logic [AXI_DATA_WIDTH-1:0]  m_axi_rdata,
+    input  logic [IW-1:0]              m_axi_rid,
+    input  logic [DW-1:0]              m_axi_rdata,
     input  logic [1:0]                 m_axi_rresp,
     input  logic                       m_axi_rlast,
-    input  logic [AXI_USER_WIDTH-1:0]  m_axi_ruser,
+    input  logic [UW-1:0]              m_axi_ruser,
     input  logic                       m_axi_rvalid,
     output logic                       m_axi_rready,
 
@@ -94,19 +93,19 @@ module axi4_master_rd_cg
     logic user_valid;
     logic axi_valid;
 
-    // Internal ready signals
+    // Internal ready signals from base module
     logic int_arready;
     logic int_rready;
     logic int_busy;
 
     // OR all user-side valid signals
-    assign user_valid = fub_arvalid || int_busy;
+    assign user_valid = fub_axi_arvalid || fub_axi_rready || int_busy;
 
     // OR all AXI-side valid signals
     assign axi_valid = m_axi_arvalid || m_axi_rvalid;
 
     // Force ready signals to 0 when clock gating is active
-    assign fub_arready = cg_gating ? 1'b0 : int_arready;
+    assign fub_axi_arready = cg_gating ? 1'b0 : int_arready;
     assign m_axi_rready = cg_gating ? 1'b0 : int_rready;
 
     // Instantiate clock gate controller
@@ -115,75 +114,74 @@ module axi4_master_rd_cg
     ) i_amba_clock_gate_ctrl (
         .clk_in              (aclk),
         .aresetn             (aresetn),
-        .i_cfg_cg_enable     (i_cfg_cg_enable),
-        .i_cfg_cg_idle_count (i_cfg_cg_idle_count),
-        .i_user_valid        (user_valid),
-        .i_axi_valid         (axi_valid),
+        .cfg_cg_enable       (cfg_cg_enable),
+        .cfg_cg_idle_count   (cfg_cg_idle_count),
+        .user_valid          (user_valid),
+        .axi_valid           (axi_valid),
         .clk_out             (gated_aclk),
-        .gating            (cg_gating),
-        .idle              (cg_idle)
+        .gating              (cg_gating),
+        .idle                (cg_idle)
     );
 
-    // Instantiate the original AXI master read module with gated clock
-    axi_master_rd #(
-        .AXI_ID_WIDTH         (AXI_ID_WIDTH),
-        .AXI_ADDR_WIDTH       (AXI_ADDR_WIDTH),
-        .AXI_DATA_WIDTH       (AXI_DATA_WIDTH),
-        .AXI_USER_WIDTH       (AXI_USER_WIDTH),
-        .SKID_DEPTH_AR        (SKID_DEPTH_AR),
-        .SKID_DEPTH_R         (SKID_DEPTH_R)
+    // Instantiate the base AXI master read module with gated clock
+    axi4_master_rd #(
+        .AXI_ID_WIDTH             (AXI_ID_WIDTH),
+        .AXI_ADDR_WIDTH           (AXI_ADDR_WIDTH),
+        .AXI_DATA_WIDTH           (AXI_DATA_WIDTH),
+        .AXI_USER_WIDTH           (AXI_USER_WIDTH),
+        .SKID_DEPTH_AR            (SKID_DEPTH_AR),
+        .SKID_DEPTH_R             (SKID_DEPTH_R)
     ) i_axi_master_rd (
-        .aclk                 (gated_aclk),      // Use gated clock
-        .aresetn              (aresetn),
+        .aclk                     (gated_aclk),      // Use gated clock
+        .aresetn                  (aresetn),
 
-        // Slave AXI Interface (Input Side)
-        .fub_arid             (fub_arid),
-        .fub_araddr           (fub_araddr),
-        .fub_arlen            (fub_arlen),
-        .fub_arsize           (fub_arsize),
-        .fub_arburst          (fub_arburst),
-        .fub_arlock           (fub_arlock),
-        .fub_arcache          (fub_arcache),
-        .fub_arprot           (fub_arprot),
-        .fub_arqos            (fub_arqos),
-        .fub_arregion         (fub_arregion),
-        .fub_aruser           (fub_aruser),
-        .fub_arvalid          (fub_arvalid),
-        .fub_arready          (int_arready),     // Connect to internal signal
+        // Slave AXI Interface    (Input Side)
+        .fub_axi_arid             (fub_axi_arid),
+        .fub_axi_araddr           (fub_axi_araddr),
+        .fub_axi_arlen            (fub_axi_arlen),
+        .fub_axi_arsize           (fub_axi_arsize),
+        .fub_axi_arburst          (fub_axi_arburst),
+        .fub_axi_arlock           (fub_axi_arlock),
+        .fub_axi_arcache          (fub_axi_arcache),
+        .fub_axi_arprot           (fub_axi_arprot),
+        .fub_axi_arqos            (fub_axi_arqos),
+        .fub_axi_arregion         (fub_axi_arregion),
+        .fub_axi_aruser           (fub_axi_aruser),
+        .fub_axi_arvalid          (fub_axi_arvalid),
+        .fub_axi_arready          (int_arready),     // Connect to internal signal
 
-        .fub_rid              (fub_rid),
-        .fub_rdata            (fub_rdata),
-        .fub_rresp            (fub_rresp),
-        .fub_rlast            (fub_rlast),
-        .fub_ruser            (fub_ruser),
-        .fub_rvalid           (fub_rvalid),
-        .fub_rready           (fub_rready),
+        .fub_axi_rid              (fub_axi_rid),
+        .fub_axi_rdata            (fub_axi_rdata),
+        .fub_axi_rresp            (fub_axi_rresp),
+        .fub_axi_rlast            (fub_axi_rlast),
+        .fub_axi_ruser            (fub_axi_ruser),
+        .fub_axi_rvalid           (fub_axi_rvalid),
+        .fub_axi_rready           (fub_axi_rready),
 
-        // Master AXI Interface (Output Side)
-        .m_axi_arid           (m_axi_arid),
-        .m_axi_araddr         (m_axi_araddr),
-        .m_axi_arlen          (m_axi_arlen),
-        .m_axi_arsize         (m_axi_arsize),
-        .m_axi_arburst        (m_axi_arburst),
-        .m_axi_arlock         (m_axi_arlock),
-        .m_axi_arcache        (m_axi_arcache),
-        .m_axi_arprot         (m_axi_arprot),
-        .m_axi_arqos          (m_axi_arqos),
-        .m_axi_arregion       (m_axi_arregion),
-        .m_axi_aruser         (m_axi_aruser),
-        .m_axi_arvalid        (m_axi_arvalid),
-        .m_axi_arready        (m_axi_arready),
+        // Master AXI Interface   (Output Side)
+        .m_axi_arid               (m_axi_arid),
+        .m_axi_araddr             (m_axi_araddr),
+        .m_axi_arlen              (m_axi_arlen),
+        .m_axi_arsize             (m_axi_arsize),
+        .m_axi_arburst            (m_axi_arburst),
+        .m_axi_arlock             (m_axi_arlock),
+        .m_axi_arcache            (m_axi_arcache),
+        .m_axi_arprot             (m_axi_arprot),
+        .m_axi_arqos              (m_axi_arqos),
+        .m_axi_arregion           (m_axi_arregion),
+        .m_axi_aruser             (m_axi_aruser),
+        .m_axi_arvalid            (m_axi_arvalid),
+        .m_axi_arready            (m_axi_arready),
 
-        .m_axi_rid            (m_axi_rid),
-        .m_axi_rdata          (m_axi_rdata),
-        .m_axi_rresp          (m_axi_rresp),
-        .m_axi_rlast          (m_axi_rlast),
-        .m_axi_ruser          (m_axi_ruser),
-        .m_axi_rvalid         (m_axi_rvalid),
-        .m_axi_rready         (int_rready),      // Connect to internal signal
+        .m_axi_rid                (m_axi_rid),
+        .m_axi_rdata              (m_axi_rdata),
+        .m_axi_rresp              (m_axi_rresp),
+        .m_axi_rlast              (m_axi_rlast),
+        .m_axi_ruser              (m_axi_ruser),
+        .m_axi_rvalid             (m_axi_rvalid),
+        .m_axi_rready             (int_rready),      // Connect to internal signal
 
-        // A cycle is in flight
-        .busy               (int_busy)
+        .busy                     (int_busy)
     );
 
 endmodule : axi4_master_rd_cg

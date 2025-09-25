@@ -34,13 +34,11 @@ class GAXIMaster(GAXIComponentBase, BusDriver):
     """
 
     def __init__(self, dut, title, prefix, clock, field_config,
-                    timeout_cycles=1000, mode='skid',
-                    bus_name='',
-                    pkt_prefix='',
-                    multi_sig=False,
-                    randomizer=None, memory_model=None, log=None, 
-                    super_debug=False, pipeline_debug=False,
-                    signal_map=None, **kwargs):
+                timeout_cycles=1000, mode='skid',
+                bus_name='', pkt_prefix='', multi_sig=False,
+                randomizer=None, memory_model=None, log=None,
+                super_debug=False, pipeline_debug=False,
+                signal_map=None, protocol_type='gaxi_master', **kwargs):
         """
         Initialize GAXI Master with structured pipeline support.
 
@@ -50,49 +48,43 @@ class GAXIMaster(GAXIComponentBase, BusDriver):
             prefix: Bus prefix
             clock: Clock signal
             field_config: Field configuration
-            timeout_cycles: Timeout for handshake operations
-            mode: GAXI mode ('skid', 'fifo_mux', 'fifo_flop')
+            timeout_cycles: Maximum cycles to wait for responses
+            mode: Protocol mode ('skid', 'blocking', etc.)
             bus_name: Bus/channel name
             pkt_prefix: Packet field prefix
             multi_sig: Whether using multi-signal mode
-            randomizer: Optional randomizer for timing
-            memory_model: Optional memory model for transactions
+            randomizer: FlexRandomizer instance for delays
+            memory_model: Memory model for testing
             log: Logger instance
             super_debug: Enable detailed debugging
-            pipeline_debug: Enable pipeline phase debugging
-            **kwargs: Additional arguments
+            pipeline_debug: Enable pipeline-specific debugging
+            signal_map: Optional manual signal mapping
+            **kwargs: Additional arguments for BusDriver
         """
-        # Extract protocol_type from kwargs to avoid duplicate argument error
-        kwargs.pop('protocol_type', None)
-
         # Initialize base class with all parameters preserved
         GAXIComponentBase.__init__(
             self,
             dut=dut,
             title=title,
-            prefix=prefix,
+            prefix=prefix,  # Keep for our internal signal discovery
             clock=clock,
             field_config=field_config,
-            protocol_type='gaxi_master',
+            protocol_type=protocol_type,
             mode=mode,
             bus_name=bus_name,
             pkt_prefix=pkt_prefix,
             multi_sig=multi_sig,
-            randomizer=randomizer,
             memory_model=memory_model,
+            randomizer=randomizer,
             log=log,
             super_debug=super_debug,
             signal_map=signal_map,
             **kwargs
         )
 
-        # Master-specific attributes - keeping original working setup
-        self.tick_delay = 100
-        self.tick_units = 'ps'
         self.timeout_cycles = timeout_cycles
-        self.reset_occurring = False
 
-        # Pipeline debugging and state tracking
+        # Pipeline logging and state tracking
         self.pipeline_debug = pipeline_debug or super_debug
         self.pipeline_state = "idle"
         self.phase_timings = {}
@@ -104,8 +96,18 @@ class GAXIMaster(GAXIComponentBase, BusDriver):
             'error_count': 0
         }
 
-        # Initialize parent BusDriver
-        BusDriver.__init__(self, dut, prefix, clock, **kwargs)
+        # Remove custom parameters that shouldn't go to BusDriver
+        custom_params = ['bus_name', 'pkt_prefix', 'memory_model', 'randomizer',
+                        'signal_map', 'super_debug', 'pipeline_debug']
+        for param in custom_params:
+            kwargs.pop(param, None)
+
+        # Remove prefix from kwargs so it doesn't get passed to BusDriver/BusMonitor
+        kwargs.pop('prefix', None)
+
+        # CLEAN APPROACH: Explicitly pass empty prefix to cocotb
+        # Our signal lists already contain full signal names
+        BusDriver.__init__(self, dut, '', clock, **kwargs)
         self.log = log or self._log
 
         # Complete base class initialization now that bus is available
@@ -146,11 +148,11 @@ class GAXIMaster(GAXIComponentBase, BusDriver):
             current_time = get_sim_time('ns')
             self.pipeline_state = to_state
             self.phase_timings[to_state] = current_time
-            
+
             context_str = ", ".join(f"{k}={v}" for k, v in context.items()) if context else ""
             reason_str = f" ({reason})" if reason else ""
             context_suffix = f" [{context_str}]" if context_str else ""
-            
+
             self.log.debug(f"Master({self.title}) Pipeline: {from_state} -> {to_state}{reason_str}{context_suffix} @ {current_time}ns")
 
     async def reset_bus(self):
@@ -176,7 +178,7 @@ class GAXIMaster(GAXIComponentBase, BusDriver):
         self.sent_queue = deque()
         self.transmit_coroutine = None
         self.transfer_busy = False
-        
+
         self._log_pipeline_transition("reset", "idle", "reset complete")
 
     async def _driver_send(self, transaction, sync=True, hold=False, **kwargs):
@@ -187,8 +189,8 @@ class GAXIMaster(GAXIComponentBase, BusDriver):
         # Add transaction to queue
         self.log.debug(f'Master({self.title}): Adding transaction to queue: {transaction.formatted(compact=True)}')
         self.transmit_queue.append(transaction)
-        
-        self._log_pipeline_transition("idle", "queued", "transaction added", 
+
+        self._log_pipeline_transition("idle", "queued", "transaction added",
                                     queue_length=len(self.transmit_queue))
 
         # Start transmission pipeline if not already running
@@ -218,20 +220,20 @@ class GAXIMaster(GAXIComponentBase, BusDriver):
     async def _transmit_pipeline(self):
         """
         Enhanced transmission pipeline with structured phases and debugging.
-        
+
         Maintains exact timing behavior while adding structured phases,
         better error recovery, and optional debugging.
         """
         self.log.debug(f'Master({self.title}): Transmit pipeline started, queue length: {len(self.transmit_queue)}')
         self._log_pipeline_transition("queued", "pipeline_active", "starting transmission pipeline")
-        
+
         self.transfer_busy = True
         await self.wait_cycles(1)  # Exact original timing
 
         while len(self.transmit_queue):
             transaction = self.transmit_queue.popleft()
             transaction.start_time = get_sim_time('ns')
-            
+
             self._log_pipeline_transition("pipeline_active", "transaction_start", "processing transaction",
                                         transaction_id=id(transaction))
 
@@ -246,7 +248,7 @@ class GAXIMaster(GAXIComponentBase, BusDriver):
                 # Phase 2: Drive signals and wait for handshake
                 self._log_pipeline_transition("phase1", "phase2", "driving signals and waiting for handshake")
                 success = await self._xmit_phase2(transaction)
-                
+
                 if not success:
                     self._log_pipeline_transition("phase2", "error_recovery", "handshake failed or timeout")
                     continue  # Skip to next transaction
@@ -258,13 +260,13 @@ class GAXIMaster(GAXIComponentBase, BusDriver):
                 # Complete statistics recording
                 bytes_transferred = self._calculate_bytes_transferred(transaction)
                 self.stats.record_transaction_complete(start_time, bytes_transferred)
-                
+
                 self._log_pipeline_transition("phase3", "transaction_complete", "transaction successful")
 
             except Exception as e:
                 self.log.error(f"Master({self.title}) Pipeline exception: {e}")
                 self._log_pipeline_transition("any", "error_recovery", f"exception: {e}")
-                
+
                 # Error recovery - ensure signals are clean
                 self._assign_valid_value(0)
                 self._clear_data_bus()
@@ -273,7 +275,7 @@ class GAXIMaster(GAXIComponentBase, BusDriver):
 
         self.log.debug(f"Master({self.title}) Transmit pipeline completed")
         self._log_pipeline_transition("pipeline_active", "idle", "queue empty")
-        
+
         self.transfer_busy = False
         self.transmit_coroutine = None
 
@@ -288,20 +290,20 @@ class GAXIMaster(GAXIComponentBase, BusDriver):
         """
         phase_start = get_sim_time('ns')
         self.phase_statistics['phase1_count'] += 1
-        
+
         # Get delay from randomizer - exact original logic
         delay_dict = self.randomizer.next()
         valid_delay = delay_dict.get('valid_delay', 0)
-        
+
         if self.pipeline_debug:
             self.log.debug(f"Master({self.title}) Phase1: applying delay {valid_delay} cycles")
-        
+
         if valid_delay > 0:
             # Deassert valid and clear data - exact original logic
             self._assign_valid_value(0)
             self._clear_data_bus()
             await self.wait_cycles(valid_delay)
-        
+
         if self.pipeline_debug:
             phase_duration = get_sim_time('ns') - phase_start
             self.log.debug(f"Master({self.title}) Phase1: completed in {phase_duration}ns")
@@ -310,13 +312,13 @@ class GAXIMaster(GAXIComponentBase, BusDriver):
         """
         Phase 2: Drive signals and wait for handshake with enhanced error handling.
         Maintains exact original timing and logic.
-        
+
         Returns:
             bool: True if handshake successful, False if timeout or error
         """
         phase_start = get_sim_time('ns')
         self.phase_statistics['phase2_count'] += 1
-        
+
         # Drive signals for this transaction
         if not self._drive_signals(transaction):
             self.log.error(f"Failed to drive signals for transaction: {transaction.formatted(compact=True)}")
@@ -370,18 +372,18 @@ class GAXIMaster(GAXIComponentBase, BusDriver):
         """
         phase_start = get_sim_time('ns')
         self.phase_statistics['phase3_count'] += 1
-        
+
         # Handshake completed – capture completion time
         current_time_ns = get_sim_time('ns')
         transaction.end_time = current_time_ns
-        
+
         if self.pipeline_debug:
             transaction_duration = current_time_ns - transaction.start_time
             self.log.debug(f"Master({self.title}) Phase3: transaction completed in {transaction_duration}ns")
-        
+
         self.log.debug(f"Master({self.title}) Transaction completed at {current_time_ns}ns: "
                       f"{transaction.formatted(compact=True)}")
-        
+
         self.sent_queue.append(transaction)
 
         # Deassert valid
@@ -389,7 +391,7 @@ class GAXIMaster(GAXIComponentBase, BusDriver):
 
         # Clear the data bus
         self._clear_data_bus()
-        
+
         if self.pipeline_debug:
             phase_duration = get_sim_time('ns') - phase_start
             self.log.debug(f"Master({self.title}) Phase3: cleanup completed in {phase_duration}ns")

@@ -3,7 +3,9 @@
 module gaxi_skid_buffer #(
     parameter int DATA_WIDTH = 32,
     parameter int DEPTH = 2, // Must be one of {2, 4, 6, 8}
+    /* verilator lint_off UNUSEDPARAM */
     parameter     INSTANCE_NAME = "DEADF1F0",  // verilog_lint: waive explicit-parameter-storage-type
+    /* verilator lint_on UNUSEDPARAM */
     parameter int DW = DATA_WIDTH,
     parameter int BUF_WIDTH = DATA_WIDTH * DEPTH,
     parameter int BW = BUF_WIDTH

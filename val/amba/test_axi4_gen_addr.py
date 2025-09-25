@@ -72,8 +72,8 @@ class AxiGenAddrTB(TBBase):
         self.size = self.dut.size
         self.burst = self.dut.burst
         self.len = self.dut.len
-        self.ow_next_addr = self.dut.ow_next_addr
-        self.ow_next_addr_align = self.dut.ow_next_addr_align
+        self.next_addr = self.dut.next_addr
+        self.next_addr_align = self.dut.next_addr_align
 
         # Log configuration
         self.log.info("AXI Address Generator TB initialized")
@@ -118,8 +118,8 @@ class AxiGenAddrTB(TBBase):
         await Timer(1, units='ns')
 
         # Read outputs
-        actual_next = int(self.ow_next_addr.value)
-        actual_align = int(self.ow_next_addr_align.value)
+        actual_next = int(self.next_addr.value)
+        actual_align = int(self.next_addr_align.value)
 
         # Calculate expected outputs if not provided
         if expected_next is None:
@@ -566,13 +566,13 @@ async def comprehensive_test(dut):
 
 @pytest.mark.parametrize("params", [
     # Test with standard configurations
-    {'AW': 32, 'DW': 32, 'ODW': 32, 'LEN': 8, 'test_level': 'basic'},
-    {'AW': 32, 'DW': 32, 'ODW': 32, 'LEN': 8, 'test_level': 'medium'},
+    # {'AW': 32, 'DW': 32, 'ODW': 32, 'LEN': 8, 'test_level': 'basic'},
+    # {'AW': 32, 'DW': 32, 'ODW': 32, 'LEN': 8, 'test_level': 'medium'},
     {'AW': 32, 'DW': 32, 'ODW': 32, 'LEN': 8, 'test_level': 'full'},
 
     # Test with different data widths
-    {'AW': 32, 'DW': 64, 'ODW': 32, 'LEN': 8, 'test_level': 'basic'},  # DW > ODW
-    {'AW': 32, 'DW': 32, 'ODW': 64, 'LEN': 8, 'test_level': 'basic'},  # DW < ODW
+    {'AW': 32, 'DW': 64, 'ODW': 32, 'LEN': 8, 'test_level': 'full'},  # DW > ODW
+    {'AW': 32, 'DW': 32, 'ODW': 64, 'LEN': 8, 'test_level': 'full'},  # DW < ODW
 
     # Test with different address widths
     {'AW': 24, 'DW': 32, 'ODW': 32, 'LEN': 8, 'test_level': 'basic'},

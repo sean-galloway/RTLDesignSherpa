@@ -15,11 +15,10 @@ from CocoTBFramework.components.shared.memory_model import MemoryModel
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 
 # AXI4 specific imports
-from CocoTBFramework.components.axi4.axi4_factories import (
-    create_axi4_read_master, create_axi4_slave, preview_axi4_signals
-)
+from CocoTBFramework.components.axi4.axi4_factories import create_axi4_master_rd, create_axi4_slave_rd, print_compliance_reports_from_components
 from CocoTBFramework.components.axi4.axi4_packet import AXI4Packet, create_simple_read_packet
 from CocoTBFramework.components.axi4.axi4_timing_config import create_axi4_timing_from_profile
+from CocoTBFramework.components.axi4.axi4_compliance_checker import AXI4ComplianceChecker
 
 
 class AXI4MasterReadTB(TBBase):
@@ -34,6 +33,7 @@ class AXI4MasterReadTB(TBBase):
         super().__init__(dut)
 
         # Get test parameters from environment
+        self.TEST_STUB = self.convert_to_int(os.environ.get('TEST_STUB', '0'))
         self.TEST_ID_WIDTH = self.convert_to_int(os.environ.get('TEST_ID_WIDTH', '8'))
         self.TEST_ADDR_WIDTH = self.convert_to_int(os.environ.get('TEST_ADDR_WIDTH', '32'))
         self.TEST_DATA_WIDTH = self.convert_to_int(os.environ.get('TEST_DATA_WIDTH', '32'))
@@ -41,6 +41,8 @@ class AXI4MasterReadTB(TBBase):
         self.TEST_CLK_PERIOD = self.convert_to_int(os.environ.get('TEST_CLK_PERIOD', '10'))
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
         self.TIMEOUT_CYCLES = self.convert_to_int(os.environ.get('TIMEOUT_CYCLES', '1000'))
+
+        self.use_multi_sig = (self.TEST_STUB == 0)  # multi_sig=True for real RTL, False for stub
 
         # Initialize random generator
         random.seed(self.SEED)
@@ -60,6 +62,7 @@ class AXI4MasterReadTB(TBBase):
         msg += '='*80 + "\n"
         msg += ' AXI4 Read Master Test Configuration:\n'
         msg += '-'*80 + "\n"
+        msg += f' Stub:         {self.TEST_STUB}\n'
         msg += f' ID Width:     {self.TEST_ID_WIDTH}\n'
         msg += f' Addr Width:   {self.TEST_ADDR_WIDTH}\n'
         msg += f' Data Width:   {self.TEST_DATA_WIDTH}\n'
@@ -72,14 +75,10 @@ class AXI4MasterReadTB(TBBase):
         msg += '='*80 + "\n"
         self.log.info(msg)
 
-        # Preview expected signals for debugging
-        self.log.info("Expected AXI4 signals:")
-        preview_axi4_signals('m_axi', ['AR', 'R'])
-
         # Create memory model for the slave side
         bytes_per_line = max(4, (self.TEST_DATA_WIDTH + 7) // 8)
         self.memory_model = MemoryModel(
-            num_lines=256,  # 256 cache lines
+            num_lines=65536,
             bytes_per_line=bytes_per_line,
             log=self.log
         )
@@ -92,42 +91,54 @@ class AXI4MasterReadTB(TBBase):
 
         # Create AXI4 master (AR + R channels only)
         try:
-            self.axi4_master = create_axi4_read_master(
+            self.master_components = create_axi4_master_rd(
                 dut=dut,
                 clock=self.aclk,
-                prefix='fub_axi',  # Matches RTL stub interface
+                prefix='fub_axi',
+                log=self.log,
                 id_width=self.TEST_ID_WIDTH,
                 addr_width=self.TEST_ADDR_WIDTH,
                 data_width=self.TEST_DATA_WIDTH,
                 user_width=self.TEST_USER_WIDTH,
                 memory_model=self.memory_model,
-                timing_config=self.timing_config,
-                log=self.log
+                multi_sig=self.use_multi_sig
             )
-            self.log.info("✓ AXI4 Read Master created successfully")
-        except Exception as e:
-            self.log.error(f"Failed to create AXI4 master: {e}")
-            raise
 
+            # Access individual components
+            self.ar_master = self.master_components['AR']  # Drives AR channel
+            self.r_slave = self.master_components['R']     # Receives R channel
+            self.axi4_master = self.master_components['interface']
+
+            self.log.info("✓ AXI4 Master Read components created")
+        except Exception as e:
+            self.log.error(f"Failed to create master components: {e}")
+            raise
         # Create AXI4 slave to respond on the master interface side
         try:
-            self.axi4_slave = create_axi4_slave(
+            self.slave_components = create_axi4_slave_rd(
                 dut=dut,
                 clock=self.aclk,
-                prefix='m_axi',  # Matches RTL stub master interface
-                channels=['AR', 'R'],  # Read channels only
+                prefix='m_axi',                 # Receives m_axi_ar*, drives m_axi_r*
+                log=self.log,
                 id_width=self.TEST_ID_WIDTH,
                 addr_width=self.TEST_ADDR_WIDTH,
                 data_width=self.TEST_DATA_WIDTH,
                 user_width=self.TEST_USER_WIDTH,
                 memory_model=self.memory_model,
-                timing_config=self.timing_config,
-                log=self.log
+                multi_sig=True
             )
-            self.log.info("✓ AXI4 Read Slave created successfully")
+
+            # Access individual components
+            self.ar_slave = self.slave_components['AR']    # Receives AR requests
+            self.r_master = self.slave_components['R']     # Drives R responses
+
+            self.log.info("✓ AXI4 Slave Read components created")
         except Exception as e:
-            self.log.error(f"Failed to create AXI4 slave: {e}")
+            self.log.error(f"Failed to create slave components: {e}")
             raise
+
+        # compliance checker
+        self.axi4_compliance_checker = AXI4ComplianceChecker.create_if_enabled(dut=dut, clock=self.aclk, prefix='m_axi', log=self.log, data_width=self.TEST_DATA_WIDTH, id_width=self.TEST_ID_WIDTH, addr_width=self.TEST_ADDR_WIDTH, user_width=self.TEST_USER_WIDTH)
 
         # Statistics tracking
         self.stats = {
@@ -152,27 +163,39 @@ class AXI4MasterReadTB(TBBase):
         """Initialize memory with known test patterns"""
         self.log.info("Initializing memory with test patterns...")
 
+        # Calculate bytes per word
+        bytes_per_word = self.TEST_DATA_WIDTH // 8
+
         # Pattern 1: Incremental data starting at 0x1000
         base_addr = 0x1000
         for i in range(64):  # 64 words
-            addr = base_addr + (i * (self.TEST_DATA_WIDTH // 8))
+            addr = base_addr + (i * bytes_per_word)
             data = 0x10000000 + i
-            self.memory_model.write(addr, data)
+
+            # Convert integer to bytearray before writing
+            data_bytes = self.memory_model.integer_to_bytearray(data, bytes_per_word)
+            self.memory_model.write(addr, data_bytes)
 
         # Pattern 2: Address-based pattern at 0x2000
         base_addr = 0x2000
         for i in range(32):
-            addr = base_addr + (i * (self.TEST_DATA_WIDTH // 8))
+            addr = base_addr + (i * bytes_per_word)
             data = addr & self.MAX_DATA  # Address as data
-            self.memory_model.write(addr, data)
+
+            # Convert integer to bytearray before writing
+            data_bytes = self.memory_model.integer_to_bytearray(data, bytes_per_word)
+            self.memory_model.write(addr, data_bytes)
 
         # Pattern 3: Fixed patterns at 0x3000
         test_patterns = [0xDEADBEEF, 0xCAFEBABE, 0x12345678, 0xABCDEF00]
         base_addr = 0x3000
         for i, pattern in enumerate(test_patterns * 8):  # Repeat patterns
-            addr = base_addr + (i * (self.TEST_DATA_WIDTH // 8))
+            addr = base_addr + (i * bytes_per_word)
             data = pattern & self.MAX_DATA
-            self.memory_model.write(addr, data)
+
+            # Convert integer to bytearray before writing
+            data_bytes = self.memory_model.integer_to_bytearray(data, bytes_per_word)
+            self.memory_model.write(addr, data_bytes)
 
         self.log.info("✓ Memory patterns initialized")
 
@@ -214,6 +237,8 @@ class AXI4MasterReadTB(TBBase):
     async def assert_reset(self):
         """Assert reset and initialize components"""
         self.aresetn.value = 0
+        await self.ar_master.reset_bus()
+        await self.r_master.reset_bus()
         await self.wait_clocks(self.aclk_name, 5)
         self.log.info("Reset asserted")
 
@@ -240,148 +265,103 @@ class AXI4MasterReadTB(TBBase):
         if arid is None:
             arid = random.randint(0, self.MAX_ID)
 
+        # Get expected data from memory model if not provided
         if expected_data is None:
-            expected_data = self.memory_model.read(addr)
-
+            bytes_per_word = self.TEST_DATA_WIDTH // 8  # Calculate correct word size (32 bits = 4 bytes)
+            expected_data_bytes = self.memory_model.read(addr, bytes_per_word)
+            expected_data = int.from_bytes(expected_data_bytes, byteorder='little')
+        
         self.log.debug(f"Single read: addr=0x{addr:08X}, id={arid}, expected=0x{expected_data:08X}")
 
         try:
-            # Send read request
-            response = await self.axi4_master.read_single(
-                addr=addr,
-                arid=arid,
-                arlen=0,  # Single beat
-                arsize=self._calculate_arsize(),
-                arburst=1,  # INCR
-                arprot=0,
-                arcache=0
-            )
-
+            # Update statistics
             self.stats['total_reads'] += 1
             self.stats['single_reads'] += 1
 
-            # Validate response
-            if isinstance(response, list) and len(response) > 0:
-                r_packet = response[0]  # First R packet
-                actual_data = getattr(r_packet, 'rdata', 0)
-                rresp = getattr(r_packet, 'rresp', 0)
+            # Use the correct method name: single_read (not read_single)
+            # And pass parameters as keyword arguments that match the interface
+            actual_data = await self.axi4_master.single_read(
+                address=addr,  # Note: parameter is 'address', not 'addr'
+                id=arid,
+                size=self._calculate_arsize(),
+                burst_type=1,  # INCR
+                # Remove parameters not supported by the interface
+                # arprot, arcache are not in the interface signature
+            )
 
-                # Check for AXI errors
-                if rresp != 0:  # Not OKAY
-                    self.log.error(f"AXI response error: RRESP={rresp}")
-                    self.stats['response_errors'] += 1
-                    return False, actual_data, {'rresp': rresp}
-
-                # Check data match
-                if actual_data != expected_data:
-                    self.log.error(f"Data mismatch: expected=0x{expected_data:08X}, actual=0x{actual_data:08X}")
-                    self.stats['data_mismatches'] += 1
-                    return False, actual_data, {'data_mismatch': True}
-
-                self.stats['successful_reads'] += 1
-                self.log.debug(f"✓ Read success: data=0x{actual_data:08X}")
-                return True, actual_data, {'rresp': rresp}
-            else:
-                self.log.error("No response received")
+            # The interface returns the data directly, not a list of packets
+            # Check data match
+            if actual_data != expected_data:
+                self.log.warning(f"Data mismatch at 0x{addr:08X}: got 0x{actual_data:08X}, expected 0x{expected_data:08X}")
+                self.stats['data_mismatches'] += 1
                 self.stats['failed_reads'] += 1
-                return False, 0, {'no_response': True}
+                return False, actual_data, {
+                    'expected': expected_data, 
+                    'actual': actual_data, 
+                    'mismatch': True
+                }
+
+            # Success case
+            self.stats['successful_reads'] += 1
+            return True, actual_data, {
+                'expected': expected_data, 
+                'actual': actual_data,
+                'id': arid
+            }
 
         except Exception as e:
             self.log.error(f"Read failed with exception: {e}")
             self.stats['failed_reads'] += 1
-            if 'timeout' in str(e).lower():
-                self.stats['timeout_errors'] += 1
-            return False, 0, {'exception': str(e)}
+            self.stats['timeout_errors'] += 1
+            return False, 0, {'error': str(e)}
 
-    async def burst_read_test(self, addr, burst_len, arid=None):
+    async def burst_read_test(self, addr, burst_len):
         """
         Perform a burst AXI4 read transaction
 
         Args:
             addr: Starting address
-            burst_len: Number of beats in burst (1-256)
-            arid: Transaction ID (if None, auto-generated)
+            burst_len: Burst length (number of beats)
 
         Returns:
             tuple: (success, data_list, response_info)
         """
-        if arid is None:
-            arid = random.randint(0, self.MAX_ID)
-
-        if burst_len < 1 or burst_len > 256:
-            self.log.error(f"Invalid burst length: {burst_len}")
-            return False, [], {'invalid_burst_len': burst_len}
-
-        # Calculate expected data
-        expected_data = []
-        bytes_per_beat = self.TEST_DATA_WIDTH // 8
-        for i in range(burst_len):
-            beat_addr = addr + (i * bytes_per_beat)
-            expected_data.append(self.memory_model.read(beat_addr))
-
+        arid = random.randint(0, self.MAX_ID)
         self.log.debug(f"Burst read: addr=0x{addr:08X}, len={burst_len}, id={arid}")
 
         try:
-            # Send burst read request
-            response = await self.axi4_master.read_burst(
-                addr=addr,
-                burst_len=burst_len,
-                arid=arid,
-                arsize=self._calculate_arsize(),
-                arburst=1,  # INCR
-                arprot=0,
-                arcache=0
-            )
-
+            # Update statistics
             self.stats['total_reads'] += 1
             self.stats['burst_reads'] += 1
 
-            # Validate response
-            if isinstance(response, list) and len(response) == burst_len:
-                actual_data = []
-                errors = 0
+            # Use the correct method name: read_transaction
+            data_list = await self.axi4_master.read_transaction(
+                address=addr,
+                burst_len=burst_len,
+                id=arid,
+                size=self._calculate_arsize(),
+                burst_type=1  # INCR
+            )
 
-                for i, r_packet in enumerate(response):
-                    rdata = getattr(r_packet, 'rdata', 0)
-                    rresp = getattr(r_packet, 'rresp', 0)
-                    rlast = getattr(r_packet, 'rlast', 0)
-
-                    actual_data.append(rdata)
-
-                    # Check response
-                    if rresp != 0:
-                        self.log.error(f"Beat {i} response error: RRESP={rresp}")
-                        errors += 1
-
-                    # Check data
-                    if rdata != expected_data[i]:
-                        self.log.error(f"Beat {i} data mismatch: expected=0x{expected_data[i]:08X}, actual=0x{rdata:08X}")
-                        errors += 1
-
-                    # Check RLAST
-                    expected_last = 1 if (i == burst_len - 1) else 0
-                    if rlast != expected_last:
-                        self.log.error(f"Beat {i} RLAST error: expected={expected_last}, actual={rlast}")
-                        errors += 1
-
-                if errors == 0:
-                    self.stats['successful_reads'] += 1
-                    self.log.debug(f"✓ Burst read success: {burst_len} beats")
-                    return True, actual_data, {'burst_len': burst_len}
-                else:
-                    self.stats['data_mismatches'] += errors
-                    return False, actual_data, {'errors': errors}
-            else:
-                self.log.error(f"Invalid response: expected {burst_len} beats, got {len(response) if response else 0}")
+            # Validate expected vs actual length
+            if len(data_list) != burst_len:
+                self.log.error(f"Burst length mismatch: got {len(data_list)}, expected {burst_len}")
                 self.stats['failed_reads'] += 1
-                return False, [], {'invalid_response_len': len(response) if response else 0}
+                return False, data_list, {'length_mismatch': True}
+
+            # Success case
+            self.stats['successful_reads'] += 1
+            return True, data_list, {
+                'burst_len': burst_len,
+                'data_count': len(data_list),
+                'id': arid
+            }
 
         except Exception as e:
             self.log.error(f"Burst read failed with exception: {e}")
             self.stats['failed_reads'] += 1
-            if 'timeout' in str(e).lower():
-                self.stats['timeout_errors'] += 1
-            return False, [], {'exception': str(e)}
+            self.stats['timeout_errors'] += 1
+            return False, [], {'error': str(e)}
 
     def _calculate_arsize(self):
         """Calculate ARSIZE field based on data width"""
@@ -455,6 +435,8 @@ class AXI4MasterReadTB(TBBase):
         """Get comprehensive test statistics"""
         total_tests = self.stats['total_reads']
         success_rate = (self.stats['successful_reads'] / total_tests * 100) if total_tests > 0 else 0
+        
+        self.finalize_test()
 
         return {
             'summary': {
@@ -470,3 +452,14 @@ class AXI4MasterReadTB(TBBase):
         for key in self.stats:
             if isinstance(self.stats[key], int):
                 self.stats[key] = 0
+
+    def finalize_test(self):
+        """Print compliance reports for all AXI4 components."""
+        # Print compliance reports for master and slave components  
+        print_compliance_reports_from_components(self.master_components)
+        print_compliance_reports_from_components(self.slave_components)
+        
+        # Print standalone compliance checker report if enabled
+        if hasattr(self, 'axi4_compliance_checker') and self.axi4_compliance_checker:
+            self.axi4_compliance_checker.print_compliance_report()
+

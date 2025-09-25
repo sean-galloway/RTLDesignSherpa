@@ -77,7 +77,9 @@ module apb_slave_cg #(
         .axi_valid           ('b0),
         .clk_out             (gated_pclk),
         .gating              (apb_clock_gating),
+        /* verilator lint_off PINCONNECTEMPTY */
         .idle                ()
+        /* verilator lint_on PINCONNECTEMPTY */
     );
 
     apb_slave #(

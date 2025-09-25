@@ -1,11 +1,11 @@
 `timescale 1ns / 1ps
 
 module axi4_to_apb_shim #(
-    parameter int DEPTH_AW     = 2,
-    parameter int DEPTH_W      = 4,
-    parameter int DEPTH_B      = 2,
-    parameter int DEPTH_AR     = 2,
-    parameter int DEPTH_R      = 4,
+    parameter int DEPTH_AW          = 2,
+    parameter int DEPTH_W           = 4,
+    parameter int DEPTH_B           = 2,
+    parameter int DEPTH_AR          = 2,
+    parameter int DEPTH_R           = 4,
     parameter int SIDE_DEPTH        = 4,
     parameter int APB_CMD_DEPTH     = 4,
     parameter int APB_RSP_DEPTH     = 4,
@@ -147,13 +147,13 @@ module axi4_to_apb_shim #(
     logic                      w_rsp_ready_apb;
     logic [APBRspWidth-1:0]    r_rsp_data_apb;
 
-    // Instantiate the axi_slave_stub
-    axi_slave_stub #                   (
-        .DEPTH_AW                 (DEPTH_AW),
-        .DEPTH_W                  (DEPTH_W),
-        .DEPTH_B                  (DEPTH_B),
-        .DEPTH_AR                 (DEPTH_AR),
-        .DEPTH_R                  (DEPTH_R),
+    // Instantiate the axi4_slave_stub
+    axi4_slave_stub #                   (
+        .SKID_DEPTH_AW            (DEPTH_AW),
+        .SKID_DEPTH_W             (DEPTH_W),
+        .SKID_DEPTH_B             (DEPTH_B),
+        .SKID_DEPTH_AR            (DEPTH_AR),
+        .SKID_DEPTH_R             (DEPTH_R),
         .AXI_ID_WIDTH             (IW),
         .AXI_ADDR_WIDTH           (AW),
         .AXI_DATA_WIDTH           (DW),
@@ -212,27 +212,27 @@ module axi4_to_apb_shim #(
         .s_axi_rready             (s_axi_rready),
         // Stub Outputs/Inputs
         // AW interface
-        .r_s_axi_awvalid          (r_s_axi_awvalid),
-        .r_s_axi_awready          (w_s_axi_awready),
-        .r_s_axi_aw_count         (r_s_axi_aw_count),
-        .r_s_axi_aw_pkt           (r_s_axi_aw_pkt),
+        .fub_axi_awvalid          (r_s_axi_awvalid),
+        .fub_axi_awready          (w_s_axi_awready),
+        .fub_axi_aw_count         (r_s_axi_aw_count),
+        .fub_axi_aw_pkt           (r_s_axi_aw_pkt),
         // W interface
-        .r_s_axi_wvalid           (r_s_axi_wvalid),
-        .r_s_axi_wready           (w_s_axi_wready),
-        .r_s_axi_w_pkt            (r_s_axi_w_pkt),
+        .fub_axi_wvalid           (r_s_axi_wvalid),
+        .fub_axi_wready           (w_s_axi_wready),
+        .fub_axi_w_pkt            (r_s_axi_w_pkt),
         // B interface
-        .r_s_axi_bvalid           (w_s_axi_bvalid),
-        .r_s_axi_bready           (r_s_axi_bready),
-        .r_s_axi_b_pkt            (r_s_axi_b_pkt),
+        .fub_axi_bvalid           (w_s_axi_bvalid),
+        .fub_axi_bready           (r_s_axi_bready),
+        .fub_axi_b_pkt            (r_s_axi_b_pkt),
         // AR interface
-        .r_s_axi_arvalid          (r_s_axi_arvalid),
-        .r_s_axi_arready          (w_s_axi_arready),
-        .r_s_axi_ar_count         (r_s_axi_ar_count),
-        .r_s_axi_ar_pkt           (r_s_axi_ar_pkt),
+        .fub_axi_arvalid          (r_s_axi_arvalid),
+        .fub_axi_arready          (w_s_axi_arready),
+        .fub_axi_ar_count         (r_s_axi_ar_count),
+        .fub_axi_ar_pkt           (r_s_axi_ar_pkt),
         // R interface
-        .r_s_axi_rvalid           (w_s_axi_rvalid),
-        .r_s_axi_rready           (r_s_axi_rready),
-        .r_s_axi_r_pkt            (r_s_axi_r_pkt)
+        .fub_axi_rvalid           (w_s_axi_rvalid),
+        .fub_axi_rready           (r_s_axi_rready),
+        .fub_axi_r_pkt            (r_s_axi_r_pkt)
     );
 
     // Instantiate the AXI to APB conversion module
@@ -328,12 +328,12 @@ module axi4_to_apb_shim #(
         .m_apb_PRDATA     (m_apb_PRDATA),
         .m_apb_PSLVERR    (m_apb_PSLVERR),
         .m_apb_PREADY     (m_apb_PREADY),
-        .i_cmd_valid      (w_cmd_valid_apb),
-        .cmd_ready      (r_cmd_ready_apb),
-        .i_cmd_data       (r_cmd_data_apb),
-        .rsp_valid      (r_rsp_valid_apb),
-        .i_rsp_ready      (w_rsp_ready_apb),
-        .rsp_data       (r_rsp_data_apb)
+        .cmd_valid        (w_cmd_valid_apb),
+        .cmd_ready        (r_cmd_ready_apb),
+        .cmd_data         (r_cmd_data_apb),
+        .rsp_valid        (r_rsp_valid_apb),
+        .rsp_ready        (w_rsp_ready_apb),
+        .rsp_data         (r_rsp_data_apb)
     );
 
 endmodule : axi4_to_apb_shim

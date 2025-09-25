@@ -40,7 +40,7 @@ class AXI4FieldConfigHelper:
 
         # Required AXI4 AW fields in specification order
         config.add_field(FieldDefinition(
-            name="awid",
+            name="id",
             bits=id_width,
             default=0,
             format="hex",
@@ -48,7 +48,7 @@ class AXI4FieldConfigHelper:
         ))
 
         config.add_field(FieldDefinition(
-            name="awaddr",
+            name="addr",
             bits=addr_width,
             default=0,
             format="hex",
@@ -56,7 +56,7 @@ class AXI4FieldConfigHelper:
         ))
 
         config.add_field(FieldDefinition(
-            name="awlen",
+            name="len",
             bits=8,
             default=0,
             format="dec",
@@ -64,7 +64,7 @@ class AXI4FieldConfigHelper:
         ))
 
         config.add_field(FieldDefinition(
-            name="awsize",
+            name="size",
             bits=3,
             default=2,
             format="dec",
@@ -72,7 +72,7 @@ class AXI4FieldConfigHelper:
         ))
 
         config.add_field(FieldDefinition(
-            name="awburst",
+            name="burst",
             bits=2,
             default=1,
             format="dec",
@@ -81,7 +81,7 @@ class AXI4FieldConfigHelper:
         ))
 
         config.add_field(FieldDefinition(
-            name="awlock",
+            name="lock",
             bits=1,
             default=0,
             format="bin",
@@ -90,7 +90,7 @@ class AXI4FieldConfigHelper:
         ))
 
         config.add_field(FieldDefinition(
-            name="awcache",
+            name="cache",
             bits=4,
             default=0,
             format="bin",
@@ -98,7 +98,7 @@ class AXI4FieldConfigHelper:
         ))
 
         config.add_field(FieldDefinition(
-            name="awprot",
+            name="prot",
             bits=3,
             default=0,
             format="bin",
@@ -106,7 +106,7 @@ class AXI4FieldConfigHelper:
         ))
 
         config.add_field(FieldDefinition(
-            name="awqos",
+            name="qos",
             bits=4,
             default=0,
             format="dec",
@@ -114,7 +114,7 @@ class AXI4FieldConfigHelper:
         ))
 
         config.add_field(FieldDefinition(
-            name="awregion",
+            name="region",
             bits=4,
             default=0,
             format="dec",
@@ -123,7 +123,7 @@ class AXI4FieldConfigHelper:
 
         if user_width > 0:
             config.add_field(FieldDefinition(
-                name="awuser",
+                name="user",
                 bits=user_width,
                 default=0,
                 format="bin",
@@ -148,7 +148,7 @@ class AXI4FieldConfigHelper:
         config = FieldConfig()
 
         config.add_field(FieldDefinition(
-            name="wdata",
+            name="data",
             bits=data_width,
             default=0,
             format="hex",
@@ -156,7 +156,7 @@ class AXI4FieldConfigHelper:
         ))
 
         config.add_field(FieldDefinition(
-            name="wstrb",
+            name="strb",
             bits=strb_width,
             default=(1 << strb_width) - 1,  # All bytes enabled by default
             format="bin",
@@ -164,7 +164,7 @@ class AXI4FieldConfigHelper:
         ))
 
         config.add_field(FieldDefinition(
-            name="wlast",
+            name="last",
             bits=1,
             default=1,
             format="bin",
@@ -174,7 +174,7 @@ class AXI4FieldConfigHelper:
 
         if user_width > 0:
             config.add_field(FieldDefinition(
-                name="wuser",
+                name="user",
                 bits=user_width,
                 default=0,
                 format="bin",
@@ -198,7 +198,7 @@ class AXI4FieldConfigHelper:
         config = FieldConfig()
 
         config.add_field(FieldDefinition(
-            name="bid",
+            name="id",
             bits=id_width,
             default=0,
             format="hex",
@@ -206,7 +206,7 @@ class AXI4FieldConfigHelper:
         ))
 
         config.add_field(FieldDefinition(
-            name="bresp",
+            name="resp",
             bits=2,
             default=0,
             format="dec",
@@ -216,7 +216,7 @@ class AXI4FieldConfigHelper:
 
         if user_width > 0:
             config.add_field(FieldDefinition(
-                name="buser",
+                name="user",
                 bits=user_width,
                 default=0,
                 format="bin",
@@ -242,7 +242,7 @@ class AXI4FieldConfigHelper:
 
         # Required AXI4 AR fields (mirror AW fields with AR prefix)
         config.add_field(FieldDefinition(
-            name="arid",
+            name="id",
             bits=id_width,
             default=0,
             format="hex",
@@ -250,7 +250,7 @@ class AXI4FieldConfigHelper:
         ))
 
         config.add_field(FieldDefinition(
-            name="araddr",
+            name="addr",
             bits=addr_width,
             default=0,
             format="hex",
@@ -258,7 +258,7 @@ class AXI4FieldConfigHelper:
         ))
 
         config.add_field(FieldDefinition(
-            name="arlen",
+            name="len",
             bits=8,
             default=0,
             format="dec",
@@ -266,7 +266,7 @@ class AXI4FieldConfigHelper:
         ))
 
         config.add_field(FieldDefinition(
-            name="arsize",
+            name="size",
             bits=3,
             default=2,
             format="dec",
@@ -274,7 +274,7 @@ class AXI4FieldConfigHelper:
         ))
 
         config.add_field(FieldDefinition(
-            name="arburst",
+            name="burst",
             bits=2,
             default=1,
             format="dec",
@@ -283,7 +283,7 @@ class AXI4FieldConfigHelper:
         ))
 
         config.add_field(FieldDefinition(
-            name="arlock",
+            name="lock",
             bits=1,
             default=0,
             format="bin",
@@ -292,7 +292,7 @@ class AXI4FieldConfigHelper:
         ))
 
         config.add_field(FieldDefinition(
-            name="arcache",
+            name="cache",
             bits=4,
             default=0,
             format="bin",
@@ -300,7 +300,7 @@ class AXI4FieldConfigHelper:
         ))
 
         config.add_field(FieldDefinition(
-            name="arprot",
+            name="prot",
             bits=3,
             default=0,
             format="bin",
@@ -308,7 +308,7 @@ class AXI4FieldConfigHelper:
         ))
 
         config.add_field(FieldDefinition(
-            name="arqos",
+            name="qos",
             bits=4,
             default=0,
             format="dec",
@@ -316,7 +316,7 @@ class AXI4FieldConfigHelper:
         ))
 
         config.add_field(FieldDefinition(
-            name="arregion",
+            name="region",
             bits=4,
             default=0,
             format="dec",
@@ -325,7 +325,7 @@ class AXI4FieldConfigHelper:
 
         if user_width > 0:
             config.add_field(FieldDefinition(
-                name="aruser",
+                name="user",
                 bits=user_width,
                 default=0,
                 format="bin",
@@ -350,7 +350,7 @@ class AXI4FieldConfigHelper:
         config = FieldConfig()
 
         config.add_field(FieldDefinition(
-            name="rid",
+            name="id",
             bits=id_width,
             default=0,
             format="hex",
@@ -358,7 +358,7 @@ class AXI4FieldConfigHelper:
         ))
 
         config.add_field(FieldDefinition(
-            name="rdata",
+            name="data",
             bits=data_width,
             default=0,
             format="hex",
@@ -366,7 +366,7 @@ class AXI4FieldConfigHelper:
         ))
 
         config.add_field(FieldDefinition(
-            name="rresp",
+            name="resp",
             bits=2,
             default=0,
             format="dec",
@@ -375,7 +375,7 @@ class AXI4FieldConfigHelper:
         ))
 
         config.add_field(FieldDefinition(
-            name="rlast",
+            name="last",
             bits=1,
             default=1,
             format="bin",
@@ -385,7 +385,7 @@ class AXI4FieldConfigHelper:
 
         if user_width > 0:
             config.add_field(FieldDefinition(
-                name="ruser",
+                name="user",
                 bits=user_width,
                 default=0,
                 format="bin",
@@ -465,8 +465,8 @@ class AXI4FieldConfigHelper:
 
     @staticmethod
     def preview_field_configs(id_width: int = 8, addr_width: int = 32,
-                             data_width: int = 32, user_width: int = 1,
-                             channels: List[str] = ['AW', 'W', 'B', 'AR', 'R']) -> None:
+                            data_width: int = 32, user_width: int = 1,
+                            channels: List[str] = ['AW', 'W', 'B', 'AR', 'R']) -> None:
         """
         Preview field configurations for debugging.
 
@@ -505,7 +505,7 @@ class AXI4FieldConfigHelper:
 
 # Convenience functions for common use cases
 def create_channel_field_config(channel: str, id_width: int = 8, addr_width: int = 32,
-                               data_width: int = 32, user_width: int = 1) -> FieldConfig:
+                            data_width: int = 32, user_width: int = 1) -> FieldConfig:
     """
     Convenience function to create field config for a single channel.
 
@@ -517,8 +517,8 @@ def create_channel_field_config(channel: str, id_width: int = 8, addr_width: int
 
 
 def get_axi4_field_configs(id_width: int = 8, addr_width: int = 32,
-                          data_width: int = 32, user_width: int = 1,
-                          channels: List[str] = ['AW', 'W', 'B', 'AR', 'R']) -> Dict[str, FieldConfig]:
+                        data_width: int = 32, user_width: int = 1,
+                        channels: List[str] = ['AW', 'W', 'B', 'AR', 'R']) -> Dict[str, FieldConfig]:
     """
     Get AXI4 field configurations for all specified channels.
     

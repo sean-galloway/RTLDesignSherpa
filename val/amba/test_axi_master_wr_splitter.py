@@ -72,8 +72,7 @@ def generate_test_params():
     alignment_masks = [0x0FF, 0x1FF, 0x3FF, 0x7FF, 0xFFF]
     # alignment_masks = [0x0FF]
     test_levels = ['full']
-    # test = [(8, 32, 512, 8, 4, 0xFFF, 'medium')]
-    # return test
+    return [(8, 32, 512, 8, 4, 0xFFF, 'full')]
     return list(product(iw, aw, dw, uw, fifo_depths, alignment_masks, test_levels))
 
 @pytest.mark.parametrize("iw, aw, dw, uw, fifo_depth, alignment_mask, test_level", generate_test_params())

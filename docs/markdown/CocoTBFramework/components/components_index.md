@@ -9,6 +9,9 @@ This directory contains the core verification components for the CocoTBFramework
 
 ### Bus Protocols
 - [**APB Components**](apb/components_apb_index.md) - Advanced Peripheral Bus protocol components with comprehensive transaction support
+- [**AXI4 Components**](axi4/index.md) - Full AXI4 protocol components with burst transactions, outstanding operations, and compliance checking
+- [**AXIL4 Components**](axil4/index.md) - AXI4-Lite protocol components optimized for register-oriented memory-mapped interfaces
+- [**AXIS4 Components**](axis4/index.md) - AXI4-Stream protocol components for packet-based streaming data verification
 - [**FIFO Components**](fifo/components_fifo_index.md) - First-In-First-Out protocol components for buffer and queue verification
 - [**GAXI Components**](gaxi/components_gaxi_index.md) - Generic AXI-like protocol components with simplified interface
 
@@ -62,7 +65,11 @@ memory = MemoryModel(num_lines=256, bytes_per_line=4)
 ┌─────────────────────────────────────────────────────────┐
 │                 Protocol Components                    │
 │   ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │
-│   │     APB     │ │    GAXI     │ │    FIFO     │     │
+│   │     APB     │ │    AXI4     │ │   AXIL4     │     │
+│   │ Components  │ │ Components  │ │ Components  │     │
+│   └─────────────┘ └─────────────┘ └─────────────┘     │
+│   ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │
+│   │   AXIS4     │ │    GAXI     │ │    FIFO     │     │
 │   │ Components  │ │ Components  │ │ Components  │     │
 │   └─────────────┘ └─────────────┘ └─────────────┘     │
 └─────────────────────────────────────────────────────────┘
@@ -90,6 +97,9 @@ memory = MemoryModel(num_lines=256, bytes_per_line=4)
 
 ### Protocol Coverage
 - **APB**: Advanced Peripheral Bus with multi-slave support and register testing
+- **AXI4**: Full AXI4 memory-mapped protocol with burst transactions and outstanding operations
+- **AXIL4**: AXI4-Lite simplified protocol optimized for register access and configuration
+- **AXIS4**: AXI4-Stream protocol for high-performance packet-based streaming data
 - **GAXI**: Generic AXI-like interface with simplified handshaking
 - **FIFO**: Buffer and queue protocols with flow control
 - **Extensible**: Framework for adding new protocols

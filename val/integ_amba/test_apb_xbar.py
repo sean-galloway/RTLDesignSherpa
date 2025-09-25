@@ -585,8 +585,8 @@ def test_apb_xbar_wrap(request, model_type, m, s, addr_width, data_width, num_tr
 
     # Select appropriate RTL sources based on model type
     common_sources = [
-        os.path.join(rtl_dict['rtl_cmn'], "arbiter_round_robin_weighted_fixed_priority.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "arbiter_round_robin_weighted_subinst.sv"),
+        os.path.join(rtl_dict['rtl_cmn'], "arbiter_priority_encoder.sv"),
+        os.path.join(rtl_dict['rtl_cmn'], "arbiter_round_robin.sv"),
         os.path.join(rtl_dict['rtl_cmn'], "arbiter_round_robin_weighted.sv"),
     ]
 

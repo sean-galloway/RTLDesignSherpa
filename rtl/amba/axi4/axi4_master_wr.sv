@@ -2,27 +2,23 @@
 
 module axi4_master_wr
 #(
-    // AXI parameters
-    parameter int AXI_ID_WIDTH      = 8,
-    parameter int AXI_ADDR_WIDTH    = 32,
-    parameter int AXI_DATA_WIDTH    = 32,
-    parameter int AXI_USER_WIDTH    = 1,
-
-    // Skid buffer depths
     parameter int SKID_DEPTH_AW     = 2,
     parameter int SKID_DEPTH_W      = 4,
     parameter int SKID_DEPTH_B      = 2,
 
-    // FIFO parameters
-    parameter int SPLIT_FIFO_DEPTH  = 2,
-
-    // Derived parameters
+    parameter int AXI_ID_WIDTH      = 8,
+    parameter int AXI_ADDR_WIDTH    = 32,
+    parameter int AXI_DATA_WIDTH    = 32,
+    parameter int AXI_USER_WIDTH    = 1,
+    parameter int AXI_WSTRB_WIDTH   = AXI_DATA_WIDTH / 8,
+    // Short and calculated params
     parameter int AW       = AXI_ADDR_WIDTH,
     parameter int DW       = AXI_DATA_WIDTH,
     parameter int IW       = AXI_ID_WIDTH,
+    parameter int SW       = AXI_WSTRB_WIDTH,
     parameter int UW       = AXI_USER_WIDTH,
     parameter int AWSize   = IW+AW+8+3+2+1+4+3+4+4+UW,
-    parameter int WSize    = DW+(DW/8)+1+UW,
+    parameter int WSize    = DW+SW+1+UW,
     parameter int BSize    = IW+2+UW
 )
 (
@@ -30,39 +26,36 @@ module axi4_master_wr
     input  logic                       aclk,
     input  logic                       aresetn,
 
-    // Alignment mask signal (12-bit)
-    input  logic [11:0]                alignment_mask,
-
     // Slave AXI Interface (Input Side)
     // Write address channel (AW)
-    input  logic [IW-1:0]              fub_awid,
-    input  logic [AW-1:0]              fub_awaddr,
-    input  logic [7:0]                 fub_awlen,
-    input  logic [2:0]                 fub_awsize,
-    input  logic [1:0]                 fub_awburst,
-    input  logic                       fub_awlock,
-    input  logic [3:0]                 fub_awcache,
-    input  logic [2:0]                 fub_awprot,
-    input  logic [3:0]                 fub_awqos,
-    input  logic [3:0]                 fub_awregion,
-    input  logic [UW-1:0]              fub_awuser,
-    input  logic                       fub_awvalid,
-    output logic                       fub_awready,
+    input  logic [IW-1:0]              fub_axi_awid,
+    input  logic [AW-1:0]              fub_axi_awaddr,
+    input  logic [7:0]                 fub_axi_awlen,
+    input  logic [2:0]                 fub_axi_awsize,
+    input  logic [1:0]                 fub_axi_awburst,
+    input  logic                       fub_axi_awlock,
+    input  logic [3:0]                 fub_axi_awcache,
+    input  logic [2:0]                 fub_axi_awprot,
+    input  logic [3:0]                 fub_axi_awqos,
+    input  logic [3:0]                 fub_axi_awregion,
+    input  logic [UW-1:0]              fub_axi_awuser,
+    input  logic                       fub_axi_awvalid,
+    output logic                       fub_axi_awready,
 
     // Write data channel (W)
-    input  logic [DW-1:0]              fub_wdata,
-    input  logic [DW/8-1:0]            fub_wstrb,
-    input  logic                       fub_wlast,
-    input  logic [UW-1:0]              fub_wuser,
-    input  logic                       fub_wvalid,
-    output logic                       fub_wready,
+    input  logic [DW-1:0]              fub_axi_wdata,
+    input  logic [SW-1:0]              fub_axi_wstrb,
+    input  logic                       fub_axi_wlast,
+    input  logic [UW-1:0]              fub_axi_wuser,
+    input  logic                       fub_axi_wvalid,
+    output logic                       fub_axi_wready,
 
     // Write response channel (B)
-    output logic [AXI_ID_WIDTH-1:0]    fub_bid,
-    output logic [1:0]                 fub_bresp,
-    output logic [AXI_USER_WIDTH-1:0]  fub_buser,
-    output logic                       fub_bvalid,
-    input  logic                       fub_bready,
+    output logic [IW-1:0]              fub_axi_bid,
+    output logic [1:0]                 fub_axi_bresp,
+    output logic [UW-1:0]              fub_axi_buser,
+    output logic                       fub_axi_bvalid,
+    input  logic                       fub_axi_bready,
 
     // Master AXI Interface (Output Side)
     // Write address channel (AW)
@@ -82,7 +75,7 @@ module axi4_master_wr
 
     // Write data channel (W)
     output logic [DW-1:0]              m_axi_wdata,
-    output logic [DW/8-1:0]            m_axi_wstrb,
+    output logic [SW-1:0]              m_axi_wstrb,
     output logic                       m_axi_wlast,
     output logic [UW-1:0]              m_axi_wuser,
     output logic                       m_axi_wvalid,
@@ -95,41 +88,9 @@ module axi4_master_wr
     input  logic                       m_axi_bvalid,
     output logic                       m_axi_bready,
 
-    // Output split information with FIFO interface
-    output logic [AW-1:0]              fub_split_addr,
-    output logic [IW-1:0]              fub_split_id,
-    output logic [7:0]                 fub_split_cnt,
-    output logic                       fub_split_valid,
-    input  logic                       fub_split_ready
+    // Status outputs for clock gating
+    output logic                       busy
 );
-
-    // Internal connections between splitter and skid buffer
-    logic [IW-1:0]              int_awid;
-    logic [AW-1:0]              int_awaddr;
-    logic [7:0]                 int_awlen;
-    logic [2:0]                 int_awsize;
-    logic [1:0]                 int_awburst;
-    logic                       int_awlock;
-    logic [3:0]                 int_awcache;
-    logic [2:0]                 int_awprot;
-    logic [3:0]                 int_awqos;
-    logic [3:0]                 int_awregion;
-    logic [UW-1:0]              int_awuser;
-    logic                       int_awvalid;
-    logic                       int_awready;
-
-    logic [DW-1:0]              int_wdata;
-    logic [DW/8-1:0]            int_wstrb;
-    logic                       int_wlast;
-    logic [UW-1:0]              int_wuser;
-    logic                       int_wvalid;
-    logic                       int_wready;
-
-    logic [IW-1:0]              int_bid;
-    logic [1:0]                 int_bresp;
-    logic [UW-1:0]              int_buser;
-    logic                       int_bvalid;
-    logic                       int_bready;
 
     // SKID buffer connections
     logic [3:0]                 int_aw_count;
@@ -147,102 +108,30 @@ module axi4_master_wr
     logic                       int_skid_bvalid;
     logic                       int_skid_bready;
 
-    // Instantiate AXI write master splitter with FIFO interface
-    axi_master_wr_splitter #(
-        .AXI_ID_WIDTH         (AXI_ID_WIDTH),
-        .AXI_ADDR_WIDTH       (AXI_ADDR_WIDTH),
-        .AXI_DATA_WIDTH       (AXI_DATA_WIDTH),
-        .AXI_USER_WIDTH       (AXI_USER_WIDTH),
-        .SPLIT_FIFO_DEPTH     (SPLIT_FIFO_DEPTH)
-    ) i_axi_master_wr_splitter (
-        .aclk                 (aclk),
-        .aresetn              (aresetn),
-        .alignment_mask       (alignment_mask),
-
-        .block_ready          (1'b1),  // Always ready since no error monitor
-
-        // Slave interface (input)
-        .fub_awid             (fub_awid),
-        .fub_awaddr           (fub_awaddr),
-        .fub_awlen            (fub_awlen),
-        .fub_awsize           (fub_awsize),
-        .fub_awburst          (fub_awburst),
-        .fub_awlock           (fub_awlock),
-        .fub_awcache          (fub_awcache),
-        .fub_awprot           (fub_awprot),
-        .fub_awqos            (fub_awqos),
-        .fub_awregion         (fub_awregion),
-        .fub_awuser           (fub_awuser),
-        .fub_awvalid          (fub_awvalid),
-        .fub_awready          (fub_awready),
-
-        .fub_wdata            (fub_wdata),
-        .fub_wstrb            (fub_wstrb),
-        .fub_wlast            (fub_wlast),
-        .fub_wuser            (fub_wuser),
-        .fub_wvalid           (fub_wvalid),
-        .fub_wready           (fub_wready),
-
-        .fub_bid              (fub_bid),
-        .fub_bresp            (fub_bresp),
-        .fub_buser            (fub_buser),
-        .fub_bvalid           (fub_bvalid),
-        .fub_bready           (fub_bready),
-
-        // Master interface (to skid buffers)
-        .m_axi_awid           (int_awid),
-        .m_axi_awaddr         (int_awaddr),
-        .m_axi_awlen          (int_awlen),
-        .m_axi_awsize         (int_awsize),
-        .m_axi_awburst        (int_awburst),
-        .m_axi_awlock         (int_awlock),
-        .m_axi_awcache        (int_awcache),
-        .m_axi_awprot         (int_awprot),
-        .m_axi_awqos          (int_awqos),
-        .m_axi_awregion       (int_awregion),
-        .m_axi_awuser         (int_awuser),
-        .m_axi_awvalid        (int_awvalid),
-        .m_axi_awready        (int_awready),
-
-        .m_axi_wdata          (int_wdata),
-        .m_axi_wstrb          (int_wstrb),
-        .m_axi_wlast          (int_wlast),
-        .m_axi_wuser          (int_wuser),
-        .m_axi_wvalid         (int_wvalid),
-        .m_axi_wready         (int_wready),
-
-        .m_axi_bid            (int_bid),
-        .m_axi_bresp          (int_bresp),
-        .m_axi_buser          (int_buser),
-        .m_axi_bvalid         (int_bvalid),
-        .m_axi_bready         (int_bready),
-
-        // Split information with FIFO interface
-        .fub_split_addr       (fub_split_addr),
-        .fub_split_id         (fub_split_id),
-        .fub_split_cnt        (fub_split_cnt),
-        .fub_split_valid      (fub_split_valid),
-        .fub_split_ready      (fub_split_ready)
-    );
+    // Busy signal indicates activity in the buffers
+    assign busy = (int_aw_count > 0) || (int_w_count > 0) || (int_b_count > 0) ||
+                    fub_axi_awvalid || fub_axi_wvalid || m_axi_bvalid;
 
     // Instantiate AW Skid Buffer
     gaxi_skid_buffer #(
         .DEPTH(SKID_DEPTH_AW),
-        .DATA_WIDTH(AWSize)
-    ) i_aw_channel (
-        .i_axi_aclk               (aclk),
-        .i_axi_aresetn            (aresetn),
-        .i_wr_valid               (int_awvalid),
-        .wr_ready               (int_awready),
-        .i_wr_data                (
-            {int_awid, int_awaddr, int_awlen, int_awsize,
-            int_awburst, int_awlock, int_awcache, int_awprot,
-            int_awqos, int_awregion, int_awuser}),
+        .DATA_WIDTH(AWSize),
+        .INSTANCE_NAME("AW_SKID")
+    ) aw_channel (
+        .axi_aclk               (aclk),
+        .axi_aresetn            (aresetn),
+        .wr_valid               (fub_axi_awvalid),
+        .wr_ready               (fub_axi_awready),
+        .wr_data                ({fub_axi_awid, fub_axi_awaddr, fub_axi_awlen, fub_axi_awsize,
+                                    fub_axi_awburst, fub_axi_awlock, fub_axi_awcache, fub_axi_awprot,
+                                    fub_axi_awqos, fub_axi_awregion, fub_axi_awuser}),
         .rd_valid               (int_skid_awvalid),
-        .i_rd_ready               (int_skid_awready),
+        .rd_ready               (int_skid_awready),
         .rd_count               (int_aw_count),
         .rd_data                (int_aw_pkt),
-        .count                 ()
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count                  ()
+        /* verilator lint_on PINCONNECTEMPTY */
     );
 
     // Unpack AW signals from SKID buffer
@@ -255,20 +144,21 @@ module axi4_master_wr
     // Instantiate W Skid Buffer
     gaxi_skid_buffer #(
         .DEPTH(SKID_DEPTH_W),
-        .DATA_WIDTH(WSize)
-    ) i_w_channel (
-        .i_axi_aclk               (aclk),
-        .i_axi_aresetn            (aresetn),
-        .i_wr_valid               (int_wvalid),
-        .wr_ready               (int_wready),
-        .i_wr_data                (
-            {int_wdata, int_wstrb, int_wlast, int_wuser}),
+        .DATA_WIDTH(WSize),
+        .INSTANCE_NAME("W_SKID")
+    ) w_channel (
+        .axi_aclk               (aclk),
+        .axi_aresetn            (aresetn),
+        .wr_valid               (fub_axi_wvalid),
+        .wr_ready               (fub_axi_wready),
+        .wr_data                ({fub_axi_wdata, fub_axi_wstrb, fub_axi_wlast, fub_axi_wuser}),
         .rd_valid               (int_skid_wvalid),
-        .i_rd_ready               (int_skid_wready),
+        .rd_ready               (int_skid_wready),
         .rd_count               (int_w_count),
         .rd_data                (int_w_pkt),
-        .count                 ()
-
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count                  ()
+        /* verilator lint_on PINCONNECTEMPTY */
     );
 
     // Unpack W signals from SKID buffer
@@ -276,21 +166,27 @@ module axi4_master_wr
     assign m_axi_wvalid = int_skid_wvalid;
     assign int_skid_wready = m_axi_wready;
 
-    // Instantiate B channel for write response back to splitter
+    // Instantiate B channel for write response back
     gaxi_skid_buffer #(
         .DEPTH(SKID_DEPTH_B),
-        .DATA_WIDTH(BSize)
-    ) i_b_channel (
-        .i_axi_aclk               (aclk),
-        .i_axi_aresetn            (aresetn),
-        .i_wr_valid               (m_axi_bvalid),
+        .DATA_WIDTH(BSize),
+        .INSTANCE_NAME("B_SKID")
+    ) b_channel (
+        .axi_aclk               (aclk),
+        .axi_aresetn            (aresetn),
+        .wr_valid               (m_axi_bvalid),
         .wr_ready               (m_axi_bready),
-        .i_wr_data                ({m_axi_bid, m_axi_bresp, m_axi_buser}),
-        .rd_valid               (int_bvalid),
-        .i_rd_ready               (int_bready),
+        .wr_data                ({m_axi_bid, m_axi_bresp, m_axi_buser}),
+        .rd_valid               (int_skid_bvalid),
+        .rd_ready               (int_skid_bready),
         .rd_count               (int_b_count),
-        .rd_data                ({int_bid, int_bresp, int_buser}),
-        .count                 ()
+        .rd_data                ({fub_axi_bid, fub_axi_bresp, fub_axi_buser}),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count                  ()
+        /* verilator lint_on PINCONNECTEMPTY */
     );
+
+    assign fub_axi_bvalid = int_skid_bvalid;
+    assign int_skid_bready = fub_axi_bready;
 
 endmodule : axi4_master_wr

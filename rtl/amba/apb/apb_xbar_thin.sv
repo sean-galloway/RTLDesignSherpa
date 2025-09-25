@@ -99,20 +99,35 @@ module apb_xbar_thin #(
     // Using $clog2(M) instead of $clog2(M):0
     logic [S-1:0][$clog2(M)-1:0] arb_gnt_id;
 
-    logic [M-1:0]                arb_gnt_ack;
+    // Generate per-slave, per-master ACK signals
+    logic [S-1:0][M-1:0] arb_gnt_ack;
 
-    // assert the gnt_ack
-    always_ff @(posedge pclk or negedge presetn) begin
-        if (~presetn)
-            arb_gnt_ack <= '0;
-        else
-            arb_gnt_ack <= m_apb_pready & m_apb_penable & m_apb_penable;
-    end
+    // Generate ACK logic 
+    generate
+        for (genvar s_ack = 0; s_ack < S; s_ack++) begin : gen_ack_logic
+            for (genvar m_ack = 0; m_ack < M; m_ack++) begin : gen_master_ack
+                always_ff @(posedge pclk or negedge presetn) begin
+                    if (~presetn)
+                        arb_gnt_ack[s_ack][m_ack] <= 1'b0;
+                    else begin
+                        // ACK only if:
+                        // 1. This slave arbiter granted access to this master
+                        // 2. The transaction on this slave completed
+                        arb_gnt_ack[s_ack][m_ack] <= arb_gnt[s_ack][m_ack] && 
+                                                    s_apb_pready[s_ack] && 
+                                                    s_apb_psel[s_ack] && 
+                                                    s_apb_penable[s_ack];
+                    end
+                end
+            end
+        end
+    endgenerate
 
+    // Connect each arbiter to its ACK signals
     generate
         for (genvar s_arb = 0; s_arb < S; s_arb++) begin : gen_arbiters
             arbiter_round_robin_weighted #(
-                .MAX_THRESH  (16),
+                .MAX_LEVELS  (16),
                 .CLIENTS     (M),
                 .WAIT_GNT_ACK(1)
             ) arbiter_inst(
@@ -120,11 +135,11 @@ module apb_xbar_thin #(
                 .rst_n       (presetn),
                 .block_arb   (1'b0),
                 .max_thresh  (THRESHOLDS),
-                .req         (master_sel[s_arb]),
-                .gnt_valid   (arb_gnt_valid[s_arb]),
-                .gnt         (arb_gnt[s_arb]),
-                .gnt_id      (arb_gnt_id[s_arb]),
-                .gnt_ack     (arb_gnt_ack)
+                .request     (master_sel[s_arb]),
+                .grant_valid (arb_gnt_valid[s_arb]),
+                .grant       (arb_gnt[s_arb]),
+                .grant_id    (arb_gnt_id[s_arb]),
+                .grant_ack   (arb_gnt_ack[s_arb])  // ← Now [M-1:0] per slave
             );
         end
     endgenerate

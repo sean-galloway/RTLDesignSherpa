@@ -1,0 +1,67 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Fri Jul 25 22:52:18 2025
+[*]
+[dumpfile] "/home/seang/github/RTLDesignSherpa/val/amba/local_sim_build/test_integration_c04_w0_a10_u0/dump.fst"
+[dumpfile_mtime] "Fri Jul 25 22:51:43 2025"
+[dumpfile_size] 3567
+[savefile] "/home/seang/github/RTLDesignSherpa/val/amba/GTKW/arbiter_rr_pwm_monbus.gtkw"
+[timestart] 0
+[size] 2694 1523
+[pos] -1 -1
+*-26.425264 788520000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[sst_width] 403
+[signals_width] 296
+[sst_expanded] 1
+[sst_vpaned_height] 478
+@420
+arbiter_rr_pwm_monbus.CLIENTS
+arbiter_rr_pwm_monbus.MON_AGENT_ID
+arbiter_rr_pwm_monbus.MON_UNIT_ID
+arbiter_rr_pwm_monbus.PWM_WIDTH
+arbiter_rr_pwm_monbus.WAIT_GNT_ACK
+@28
+arbiter_rr_pwm_monbus.clk
+arbiter_rr_pwm_monbus.rst_n
+@22
+arbiter_rr_pwm_monbus.cfg_mon_active[15:0]
+@28
+arbiter_rr_pwm_monbus.cfg_mon_enable
+@22
+arbiter_rr_pwm_monbus.cfg_mon_fairness[15:0]
+arbiter_rr_pwm_monbus.cfg_mon_latency[15:0]
+arbiter_rr_pwm_monbus.cfg_mon_period[7:0]
+arbiter_rr_pwm_monbus.cfg_mon_pkt_type_enable[15:0]
+arbiter_rr_pwm_monbus.cfg_mon_starvation[15:0]
+arbiter_rr_pwm_monbus.cfg_pwm_duty[15:0]
+arbiter_rr_pwm_monbus.cfg_pwm_period[15:0]
+arbiter_rr_pwm_monbus.cfg_pwm_repeat_count[15:0]
+@28
+arbiter_rr_pwm_monbus.cfg_pwm_start
+arbiter_rr_pwm_monbus.cfg_sts_pwm_done
+@200
+-inputs
+@22
+arbiter_rr_pwm_monbus.request[3:0]
+arbiter_rr_pwm_monbus.grant_ack[3:0]
+@200
+-outputs
+@28
+arbiter_rr_pwm_monbus.grant_valid
+arbiter_rr_pwm_monbus.grant_id[1:0]
+@22
+arbiter_rr_pwm_monbus.grant[3:0]
+@200
+-monbus
+@28
+arbiter_rr_pwm_monbus.monbus_valid
+arbiter_rr_pwm_monbus.monbus_ready
+@22
+arbiter_rr_pwm_monbus.monbus_packet[63:0]
+@200
+-internal
+@29
+arbiter_rr_pwm_monbus.block_arb_internal
+[pattern_trace] 1
+[pattern_trace] 0

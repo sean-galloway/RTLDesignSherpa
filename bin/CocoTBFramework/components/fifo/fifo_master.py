@@ -65,6 +65,9 @@ class FIFOMaster(FIFOComponentBase, BusDriver):
         self.timeout_cycles = timeout_cycles
         self.reset_occurring = False
 
+        # Remove prefix from kwargs so it doesn't get passed to BusDriver/BusMonitor
+        kwargs.pop('prefix', None)
+
         # Initialize parent BusDriver - MUST BE CALLED WITH EXACT PATTERN
         BusDriver.__init__(self, dut, prefix, clock, **kwargs)
         self.log = log or self._log

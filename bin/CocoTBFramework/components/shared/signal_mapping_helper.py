@@ -21,6 +21,68 @@ FIFO_VALID_MODES = ['fifo_mux', 'fifo_flop']
 # Standard GAXI modes (kept for parameter passing to RTL)
 GAXI_VALID_MODES = ['skid', 'fifo_mux', 'fifo_flop']
 
+# AXIS base signal patterns - NEW for AXIS protocol support
+AXIS_BASE_PATTERNS = {
+    # Master-side patterns (for AXIS masters)
+    'valid_base': [
+        '{prefix}{bus_name}tvalid',
+        '{prefix}{bus_name}axis_tvalid',
+        '{prefix}{bus_name}{pkt_prefix}tvalid',
+    ],
+    'ready_base': [
+        '{prefix}{bus_name}tready',
+        '{prefix}{bus_name}axis_tready',
+        '{prefix}{bus_name}{pkt_prefix}tready',
+    ],
+    'data_base': [
+        '{prefix}{bus_name}tdata',
+        '{prefix}{bus_name}axis_tdata',
+        '{prefix}{bus_name}{pkt_prefix}tdata',
+    ],
+    'strb_base': [
+        '{prefix}{bus_name}tstrb',
+        '{prefix}{bus_name}axis_tstrb',
+        '{prefix}{bus_name}{pkt_prefix}tstrb',
+    ],
+    'last_base': [
+        '{prefix}{bus_name}tlast',
+        '{prefix}{bus_name}axis_tlast',
+        '{prefix}{bus_name}{pkt_prefix}tlast',
+    ],
+    'id_base': [
+        '{prefix}{bus_name}tid',
+        '{prefix}{bus_name}axis_tid',
+        '{prefix}{bus_name}{pkt_prefix}tid',
+    ],
+    'dest_base': [
+        '{prefix}{bus_name}tdest',
+        '{prefix}{bus_name}axis_tdest',
+        '{prefix}{bus_name}{pkt_prefix}tdest',
+    ],
+    'user_base': [
+        '{prefix}{bus_name}tuser',
+        '{prefix}{bus_name}axis_tuser',
+        '{prefix}{bus_name}{pkt_prefix}tuser',
+    ],
+
+    # Slave-side patterns (for AXIS slaves) - same patterns but different logical mapping
+    'slave_valid_base': [
+        '{prefix}{bus_name}tvalid',
+        '{prefix}{bus_name}axis_tvalid',
+        '{prefix}{bus_name}{pkt_prefix}tvalid',
+    ],
+    'slave_ready_base': [
+        '{prefix}{bus_name}tready',
+        '{prefix}{bus_name}axis_tready',
+        '{prefix}{bus_name}{pkt_prefix}tready',
+    ],
+    'slave_data_base': [
+        '{prefix}{bus_name}tdata',
+        '{prefix}{bus_name}axis_tdata',
+        '{prefix}{bus_name}{pkt_prefix}tdata',
+    ],
+}
+
 # GAXI base signal patterns - UPDATED to include prefix
 GAXI_BASE_PATTERNS = {
     # Master-side patterns (for masters and write monitors)
@@ -42,8 +104,10 @@ GAXI_BASE_PATTERNS = {
     ],
     'pkt_base': [
         '{prefix}{bus_name}data',
+        '{prefix}{bus_name}pkt',
         '{prefix}{bus_name}packet',
         '{prefix}{bus_name}m2s_pkt',
+        '{prefix}{bus_name}{pkt_prefix}_pkt',
         '{prefix}{bus_name}wr_data',
     ],
     'field_base': [
@@ -72,8 +136,10 @@ GAXI_BASE_PATTERNS = {
     'slave_pkt_base': [
         '{prefix}{bus_name}data',
         '{prefix}{bus_name}rd_data',
+        '{prefix}{bus_name}pkt',
         '{prefix}{bus_name}packet',
         '{prefix}{bus_name}m2s_pkt',
+        '{prefix}{bus_name}{pkt_prefix}_pkt',
     ],
     'slave_field_base': [
         '{prefix}{bus_name}{pkt_prefix}{field_name}',
@@ -122,6 +188,36 @@ FIFO_BASE_PATTERNS = {
 }
 
 PROTOCOL_SIGNAL_CONFIGS = {
+    'axis_master': {
+        'signal_map': {
+            'o_valid':    AXIS_BASE_PATTERNS['valid_base'],   # Master drives tvalid
+            'i_ready':    AXIS_BASE_PATTERNS['ready_base']    # Master reads tready
+        },
+        'optional_signal_map': {
+            'multi_sig_false': AXIS_BASE_PATTERNS['data_base'],   # Single tdata signal
+            'multi_sig_true':  [  # For field-based patterns
+                '{prefix}{bus_name}{pkt_prefix}t{field_name}',
+                '{prefix}{bus_name}axis_t{field_name}',
+                '{prefix}{bus_name}t{field_name}',
+            ]
+        }
+    },
+
+    'axis_slave': {
+        'signal_map': {
+            'i_valid':    AXIS_BASE_PATTERNS['slave_valid_base'],  # Slave reads tvalid
+            'o_ready':    AXIS_BASE_PATTERNS['slave_ready_base']   # Slave drives tready
+        },
+        'optional_signal_map': {
+            'multi_sig_false': AXIS_BASE_PATTERNS['slave_data_base'],  # Single tdata signal
+            'multi_sig_true':  [  # For field-based patterns
+                '{prefix}{bus_name}{pkt_prefix}t{field_name}',
+                '{prefix}{bus_name}axis_t{field_name}',
+                '{prefix}{bus_name}t{field_name}',
+            ]
+        }
+    },
+
     'fifo_master': {
         'signal_map': {
             'i_write':   FIFO_BASE_PATTERNS['write_base'],
@@ -217,7 +313,7 @@ class SignalResolver:
             pkt_prefix: Packet field prefix
             mode: Protocol mode (kept for RTL parameter)
             super_debug: Enable detailed signal resolution debugging
-            signal_map: Optional manual signal mapping. 
+            signal_map: Optional manual signal mapping.
                 Keys for GAXI: 'valid', 'ready', 'data' (or field names for multi_sig=True).
                 Keys for FIFO Master: 'write', 'full', 'data' (or field names for multi_sig=True).
                 Keys for FIFO Slave: 'read', 'empty', 'data' (or field names for multi_sig=True).
@@ -271,17 +367,24 @@ class SignalResolver:
 
         # Storage for resolved signals
         self.resolved_signals = {}
+
+    def get_signal_lists(self):
+        """Get signals for cocotb Bus initialization.
+
+        Returns:
+            Tuple of (required_signals, optional_signals) lists for cocotb Bus
+        """
         self.signal_conflicts = {}  # Track multiple matches
         self.missing_signals = []
 
         # Choose resolution method based on signal_map
-        if signal_map is not None:
-            self._log_info(f"Using manual signal mapping with {len(signal_map)} signals")
+        if self.signal_map is not None:
+            self._log_info(f"Using manual signal mapping with {len(self.signal_map)} signals")
             self._resolve_signals_from_map()
         else:
             # Generate parameter combinations (now includes prefix) - only for automatic discovery
             self.param_combinations = self._generate_parameter_combinations(
-                prefix, bus_name, pkt_prefix
+                self.prefix, self.bus_name, self.pkt_prefix
             )
             self._log_debug(f"Generated {len(self.param_combinations)} parameter combinations")
 
@@ -294,6 +397,9 @@ class SignalResolver:
 
         # Prepare signal lists for cocotb Bus initialization (strips prefix)
         self._signals, self._optional_signals = self._prepare_signal_lists()
+
+        # Return the signal lists
+        return self._signals, self._optional_signals
 
     def _resolve_signals_from_map(self):
         """
@@ -328,7 +434,7 @@ class SignalResolver:
 
     def _validate_signal_map(self):
         """Validate that signal_map contains all required signals."""
-        if self.protocol_type.startswith('gaxi'):
+        if self.protocol_type.startswith('axis') or self.protocol_type.startswith('gaxi'):
             required_keys = {'valid', 'ready'}
 
             if self.multi_sig:
@@ -377,7 +483,13 @@ class SignalResolver:
         """Create mapping from simplified keys to internal logical names."""
         logical_mapping = {}
 
-        if self.protocol_type == 'gaxi_master':
+        if self.protocol_type == 'axis_master':
+            logical_mapping['valid'] = 'o_valid'  # Master drives tvalid
+            logical_mapping['ready'] = 'i_ready'  # Master reads tready
+        elif self.protocol_type == 'axis_slave':
+            logical_mapping['valid'] = 'i_valid'  # Slave reads tvalid
+            logical_mapping['ready'] = 'o_ready'  # Slave drives tready
+        elif self.protocol_type == 'gaxi_master':
             logical_mapping['valid'] = 'o_valid'  # Master drives valid
             logical_mapping['ready'] = 'i_ready'  # Master reads ready
         elif self.protocol_type == 'gaxi_slave':
@@ -397,7 +509,9 @@ class SignalResolver:
                 logical_mapping[field_name] = f'field_{field_name}_sig'
         else:
             # Single-signal mode: map 'data' to appropriate data signal
-            if self.protocol_type in ['gaxi_master', 'gaxi_slave']:
+            if self.protocol_type in ['axis_master', 'axis_slave']:
+                logical_mapping['data'] = 'data_sig'
+            elif self.protocol_type in ['gaxi_master', 'gaxi_slave']:
                 logical_mapping['data'] = 'data_sig'
             elif self.protocol_type == 'fifo_master':
                 logical_mapping['data'] = 'data_sig'
@@ -451,8 +565,15 @@ class SignalResolver:
                                         bus_name: str, pkt_prefix: str) -> List[Dict[str, str]]:
         """Generate all parameter combinations including prefix variants."""
 
-        # UPDATED: Create prefix variants - empty string if prefix is empty
-        prefix_variants = [prefix] if prefix else ['']
+        # Create prefix variants with automatic underscore handling
+        if prefix:
+            # If prefix doesn't end with underscore, create both variants
+            if prefix.endswith('_'):
+                prefix_variants = [prefix]
+            else:
+                prefix_variants = [prefix, prefix + '_']
+        else:
+            prefix_variants = ['']
 
         # For bus_name and pkt_prefix, create variants with and without trailing underscore
         bus_name_variants = [''] if not bus_name else [bus_name, bus_name + '_']
@@ -514,7 +635,10 @@ class SignalResolver:
                     self.resolved_signals[logical_name] = signal_obj
             else:
                 # Single signal mode: resolve data signal
-                if self.protocol_type in ['gaxi_master', 'gaxi_slave']:
+                if self.protocol_type in ['axis_master', 'axis_slave']:
+                    signal_obj = self._find_signal_match('data_sig', patterns, required=False)
+                    self.resolved_signals['data_sig'] = signal_obj
+                elif self.protocol_type in ['gaxi_master', 'gaxi_slave']:
                     signal_obj = self._find_signal_match('data_sig', patterns, required=False)
                     self.resolved_signals['data_sig'] = signal_obj
                 elif self.protocol_type == 'fifo_master':
@@ -671,7 +795,7 @@ class SignalResolver:
     def _validate_required_signals(self):
         """
         Validate that all required signals were found and no conflicts exist.
-        
+
         ENHANCED: Adds critical validation for data signals in single-signal mode.
         """
         errors = []
@@ -693,18 +817,18 @@ class SignalResolver:
         # ENHANCED: Critical validation for data signals in single-signal mode
         if not self.multi_sig:
             data_signal_found = any(
-                name.endswith('_sig') and 'data' in name 
-                for name, signal in self.resolved_signals.items() 
+                name.endswith('_sig') and 'data' in name
+                for name, signal in self.resolved_signals.items()
                 if signal is not None
             )
-            
+
             if not data_signal_found:
                 # Find available data-like signals for troubleshooting
                 available_data_signals = [
-                    name for name in self.top_level_ports.keys() 
+                    name for name in self.top_level_ports.keys()
                     if 'data' in name.lower()
                 ]
-                
+
                 # This should be a CRITICAL ERROR for single-signal mode
                 critical_error = [
                     f"🚨 CRITICAL: No data signal found for {self.component_name} in single-signal mode!",
@@ -723,7 +847,7 @@ class SignalResolver:
                     f"   - {self.bus_name}rd_data (for read-side)",
                     f"   - {self.bus_name}packet",
                 ]
-                
+
                 if available_data_signals:
                     critical_error.extend([
                         f"",
@@ -741,7 +865,7 @@ class SignalResolver:
                         f"",
                         f"3. Verify your DUT has the expected data output signal",
                     ])
-                
+
                 critical_error.extend([
                     f"",
                     f"4. Check bus_name parameter - currently: '{self.bus_name}'",
@@ -749,7 +873,7 @@ class SignalResolver:
                     f"",
                     f"This error prevents component initialization to avoid runtime failures.",
                 ])
-                
+
                 errors.append('\n'.join(critical_error))
 
         # Check for signal conflicts
@@ -770,39 +894,33 @@ class SignalResolver:
     def _prepare_signal_lists(self):
         """
         Prepare _signals and _optional_signals lists for cocotb Bus initialization.
-
-        UPDATED: Now strips prefix from signal names since cocotb Bus will add it back.
         """
         _signals = []
         _optional_signals = []
 
-        # Add required signals that were found (strip prefix)
+        # Add required signals that were found
         for logical_name in self.config['signal_map'].keys():
             if self.resolved_signals.get(logical_name) is not None:
                 signal_name = self._find_signal_name(self.resolved_signals[logical_name])
-                cocotb_signal_name = self._strip_prefix_from_signal_name(signal_name)  # UPDATED
-                _signals.append(cocotb_signal_name)
+                _signals.append(signal_name)  # Use full signal name
 
-        # Add optional signals that were found (strip prefix)
+        # FIX: Define optional_signals before using it
         optional_signals = [name for name in self.resolved_signals.keys()
                             if name not in self.config['signal_map']]
 
-        for logical_name in optional_signals:
+        # Add optional signals that were found
+        for logical_name in optional_signals:  # ← Now this works
             if self.resolved_signals.get(logical_name) is not None:
                 signal_name = self._find_signal_name(self.resolved_signals[logical_name])
-                cocotb_signal_name = self._strip_prefix_from_signal_name(signal_name)  # UPDATED
-                _optional_signals.append(cocotb_signal_name)
+                _optional_signals.append(signal_name)  # Use full signal name
 
         if self.super_debug:
             self._log_info(f"Prepared signal lists - "
                             f"_signals: {_signals}, _optional_signals: {_optional_signals}")
-            self._log_info(f"Prefix handling: prefix='{self.prefix}' will be prepended by cocotb Bus")
+            self._log_info(f"Using full signal names with prefix='' to cocotb")
 
         return _signals, _optional_signals
 
-    def get_signal_lists(self):
-        """Get the _signals and _optional_signals lists for cocotb Bus initialization."""
-        return self._signals, self._optional_signals
 
     def _derive_attribute_name(self, logical_name: str) -> str:
         """Derive attribute name from logical signal name."""
@@ -837,260 +955,13 @@ class SignalResolver:
         return logical_name
 
     def apply_to_component(self, component):
-        """
-        Apply resolved signals to component as attributes with enhanced validation for critical signals.
-        
-        ENHANCED: Hard fail validation for missing critical data signals with detailed troubleshooting.
-        """
-        if self.bus is None:
-            raise ValueError(f"{self.component_name}: Bus must be set before applying signals")
-
-        # DEBUG: Check bus object
-        self._log_debug(f"Bus object: {self.bus}")
-        self._log_debug(f"Bus type: {type(self.bus)}")
-
-        # DEBUG: List all available signals on the bus
-        if hasattr(self.bus, '__dict__'):
-            bus_attrs = [attr for attr in dir(self.bus) if not attr.startswith('_')]
-            self._log_debug(f"Available bus attributes: {bus_attrs}")
-
-        # Track ALL failed signal linkages for comprehensive error reporting
-        failed_signals = []
-        successful_linkages = []
-        missing_critical_data = False
-
-        # Apply signal mappings and track failures
         for logical_name, signal_obj in self.resolved_signals.items():
-            attr_name = self._derive_attribute_name(logical_name)
-
-            # Determine signal type for reporting
-            is_required = logical_name in self.config['signal_map']
-            is_data_signal = 'data' in logical_name.lower()
-            
-            # ENHANCED: Determine signal criticality
-            if is_data_signal and not self.multi_sig:
-                signal_type = "CRITICAL_DATA"
-                if signal_obj is None:
-                    missing_critical_data = True
-            elif is_required:
-                signal_type = "REQUIRED"
-            else:
-                signal_type = "DATA/OPTIONAL"
-
             if signal_obj is not None:
-                # Get the signal from the bus using the STRIPPED signal name (without prefix)
+                attr_name = self._derive_attribute_name(logical_name)
                 signal_name = self._find_signal_name(signal_obj)
-                cocotb_signal_name = self._strip_prefix_from_signal_name(signal_name)  # UPDATED
-
-                self._log_debug(f"{self.component_name} Signal Resolver: {signal_name} -> cocotb: {cocotb_signal_name}")
-
-                # Try to get the signal from the bus using the stripped name
-                bus_signal = getattr(self.bus, cocotb_signal_name, None)
-
-                # DEBUG: Check the bus_signal result
-                self._log_debug(f"bus_signal for '{cocotb_signal_name}': {bus_signal}")
-                self._log_debug(f"bus_signal type: {type(bus_signal)}")
-
-                if bus_signal is None:
-                    # Track the failure with detailed information
-                    failure_info = {
-                        'logical_name': logical_name,
-                        'signal_name': signal_name,
-                        'cocotb_signal_name': cocotb_signal_name,  # ADDED
-                        'attr_name': attr_name,
-                        'signal_type': signal_type,
-                        'has_attr': hasattr(self.bus, cocotb_signal_name),
-                        'bus_attr_type': type(getattr(self.bus, cocotb_signal_name, 'NOT_FOUND'))
-                    }
-
-                    failed_signals.append(failure_info)
-                    self._log_error(f"❌ CRITICAL: {signal_type} signal '{logical_name}' -> '{cocotb_signal_name}' cannot be linked to Bus!")
-                else:
-                    # Success!
-                    successful_linkages.append({
-                        'logical_name': logical_name,
-                        'signal_name': signal_name,
-                        'cocotb_signal_name': cocotb_signal_name,  # ADDED
-                        'attr_name': attr_name,
-                        'signal_type': signal_type
-                    })
-                    self._log_debug(f"✅ Linked {attr_name} = bus.{cocotb_signal_name}")
-
-                # Set the attribute regardless (None if failed)
+                # Use the full signal name directly
+                bus_signal = getattr(self.bus, signal_name)
                 setattr(component, attr_name, bus_signal)
-            else:
-                # Signal was not resolved in the first place
-                if signal_type == "CRITICAL_DATA":
-                    missing_critical_data = True
-                    failed_signals.append({
-                        'logical_name': logical_name,
-                        'signal_name': 'NOT_FOUND',
-                        'cocotb_signal_name': 'NOT_FOUND',
-                        'attr_name': attr_name,
-                        'signal_type': signal_type,
-                        'error': 'Signal not found during discovery'
-                    })
-                
-                setattr(component, attr_name, None)
-                self._log_debug(f"Set {attr_name} = None (signal not resolved)")
-
-        # ENHANCED: Hard fail for missing critical data signals
-        if missing_critical_data:
-            critical_failures = [f for f in failed_signals if f['signal_type'] == 'CRITICAL_DATA']
-            
-            error_lines = [
-                f"\n🚨 CRITICAL FAILURE: Missing data signals for {self.component_name} 🚨",
-                f"Component configured for single-signal mode but no data signal found.",
-                f"This will cause runtime failures and incorrect behavior.",
-                f"Signal source: {'Manual signal_map' if self.signal_map else 'Automatic discovery'}",
-                f"Protocol: {self.protocol_type}",
-                f"Bus name: '{self.bus_name}' (empty = no prefix)",
-                f""
-            ]
-            
-            for failure in critical_failures:
-                error_lines.append(f"❌ MISSING CRITICAL SIGNAL: {failure['logical_name']}")
-                error_lines.append(f"   Target attribute: {failure['attr_name']}")
-                if 'error' in failure:
-                    error_lines.append(f"   Error: {failure['error']}")
-                else:
-                    error_lines.append(f"   DUT signal: {failure['signal_name']}")
-                    error_lines.append(f"   Cocotb signal: {failure['cocotb_signal_name']}")
-            
-            # Find available data signals for troubleshooting
-            available_data_signals = [
-                name for name in self.top_level_ports.keys() 
-                if 'data' in name.lower()
-            ]
-            
-            error_lines.extend([
-                f"\n💡 TROUBLESHOOTING:",
-                f"1. Check signal naming - expected patterns:",
-                f"   - {self.bus_name}data",
-                f"   - {self.bus_name}rd_data (for slaves)",
-                f"   - {self.bus_name}packet",
-                f""
-            ])
-            
-            if available_data_signals:
-                error_lines.extend([
-                    f"2. Available data signals on DUT: {available_data_signals}",
-                    f"",
-                    f"3. Use manual signal_map to specify correct signal:",
-                    f"   signal_map={{'data': '{available_data_signals[0]}'}}",
-                ])
-            else:
-                error_lines.extend([
-                    f"2. No data signals found on DUT!",
-                    f"   Available signals: {list(self.top_level_ports.keys())[:5]}...",
-                    f"   Verify your DUT has the expected data signal",
-                ])
-            
-            error_lines.extend([
-                f"",
-                f"4. Check bus_name parameter: '{self.bus_name}'",
-                f"5. Verify DUT module has expected interface",
-                f""
-            ])
-            
-            raise RuntimeError('\n'.join(error_lines))
-
-        # HARD FAIL: Generate comprehensive error report if ANY other signals failed
-        if failed_signals and not missing_critical_data:  # Don't double-report critical data failures
-            mapping_source = "Manual signal_map" if self.signal_map else "Automatic discovery"
-            error_lines = [
-                f"\n🚨 CRITICAL SIGNAL LINKAGE FAILURE for {self.component_name} 🚨",
-                f"SignalResolver found signals, but Bus linkage failed!",
-                f"Signal source: {mapping_source}",
-                f"Prefix used: '{self.prefix}'",  # ADDED
-                f""
-            ]
-
-            # Separate required vs data/optional failures for clarity
-            required_failures = [f for f in failed_signals if f['signal_type'] == 'REQUIRED']
-            data_failures = [f for f in failed_signals if f['signal_type'] == 'DATA/OPTIONAL']
-
-            if required_failures:
-                error_lines.append("❌ FAILED CONTROL SIGNALS:")
-                for failure in required_failures:
-                    error_lines.append(f"  • {failure['logical_name']}")
-                    error_lines.append(f"    - DUT signal: '{failure['signal_name']}'")
-                    error_lines.append(f"    - Cocotb signal: '{failure['cocotb_signal_name']}'")  # ADDED
-                    error_lines.append(f"    - Target attribute: component.{failure['attr_name']}")
-                    error_lines.append(f"    - Bus has attribute: {failure['has_attr']}")
-
-            if data_failures:
-                error_lines.append(f"\n❌ FAILED DATA SIGNALS:")
-                for failure in data_failures:
-                    error_lines.append(f"  • {failure['logical_name']}")
-                    error_lines.append(f"    - DUT signal: '{failure['signal_name']}'")
-                    error_lines.append(f"    - Cocotb signal: '{failure['cocotb_signal_name']}'")  # ADDED
-                    error_lines.append(f"    - Target attribute: component.{failure['attr_name']}")
-                    error_lines.append(f"    - Bus has attribute: {failure['has_attr']}")
-
-            # Successful linkages (if any)
-            if successful_linkages:
-                error_lines.append(f"\n✅ SUCCESSFUL LINKAGES:")
-                for success in successful_linkages:
-                    error_lines.append(f"  • {success['logical_name']} -> '{success['cocotb_signal_name']}' ({success['signal_type']})")
-
-            # Bus diagnostic information
-            bus_attrs = [attr for attr in dir(self.bus) if not attr.startswith('_')]
-            bus_signals = [attr for attr in bus_attrs if hasattr(getattr(self.bus, attr, None), 'value')]
-
-            error_lines.extend([
-                f"\n🔍 BUS DIAGNOSTIC INFORMATION:",
-                f"  Bus type: {type(self.bus)}",
-                f"  Bus attributes: {bus_attrs}",
-                f"  Bus signals (have .value): {bus_signals}",
-                f""
-            ])
-
-            # Show prefix handling information
-            resolved_signal_names = [self._find_signal_name(sig) for sig in self.resolved_signals.values() if sig is not None]
-            cocotb_signal_names = [self._strip_prefix_from_signal_name(name) for name in resolved_signal_names]
-            error_lines.extend([
-                f"🔍 PREFIX HANDLING:",
-                f"  Prefix: '{self.prefix}'",
-                f"  DUT signals found: {resolved_signal_names}",
-                f"  Cocotb signals expected: {cocotb_signal_names}",
-                f"  Bus actually has: {bus_signals}",
-                f"  Missing from Bus: {set(cocotb_signal_names) - set(bus_signals)}",
-                f""
-            ])
-
-            # Show the actual signal lists passed to Bus
-            error_lines.extend([
-                f"🔍 SIGNAL LISTS PASSED TO BUS:",
-                f"  _signals: {getattr(self, '_signals', 'NOT_SET')}",
-                f"  _optional_signals: {getattr(self, '_optional_signals', 'NOT_SET')}",
-                f""
-            ])
-
-            # Show signal mapping source info
-            if self.signal_map:
-                error_lines.extend([
-                    f"🔍 MANUAL SIGNAL MAP:",
-                    f"  Provided mapping: {self.signal_map}",
-                    f""
-                ])
-
-            raise RuntimeError('\n'.join(error_lines))
-
-        # SUCCESS: Log successful initialization
-        success_count = len(successful_linkages)
-        total_resolved = len([s for s in self.resolved_signals.values() if s is not None])
-        required_count = len([name for name in self.config['signal_map'].keys()
-                            if self.resolved_signals.get(name) is not None])
-        data_count = success_count - required_count
-        mapping_source = "Manual signal_map" if self.signal_map else "Automatic discovery"
-
-        self._log_info(f"✅ Signal linkage SUCCESS: {success_count}/{total_resolved} signals linked")
-        self._log_info(f"✅ Control signals: {required_count}, Data signals: {data_count}")
-        self._log_info(f"✅ Signal source: {mapping_source}")
-        self._log_info(f"✅ Protocol: {self.protocol_type}")
-        self._log_info(f"✅ Prefix handling: '{self.prefix}' correctly handled")  # ADDED
-        self._log_info(f"✅ {self.component_name} ready for operation!")
 
     def get_signal(self, logical_name: str):
         """Get a resolved signal by logical name."""

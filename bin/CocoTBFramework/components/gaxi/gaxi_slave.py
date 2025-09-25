@@ -43,9 +43,9 @@ class GAXISlave(GAXIMonitorBase):
                     bus_name='',
                     pkt_prefix='',
                     multi_sig=False,
-                    randomizer=None, memory_model=None, log=None, 
+                    randomizer=None, memory_model=None, log=None,
                     super_debug=False, pipeline_debug=False,
-                    signal_map=None, **kwargs):
+                    signal_map=None, protocol_type='gaxi_slave', **kwargs):
         """
         Initialize GAXI Slave with structured pipeline support.
 
@@ -95,7 +95,7 @@ class GAXISlave(GAXIMonitorBase):
             bus_name=bus_name,
             pkt_prefix=pkt_prefix,
             multi_sig=multi_sig,
-            protocol_type='gaxi_slave',  # Slave monitors slave side
+            protocol_type=protocol_type,  # Use the provided protocol type
             memory_model=memory_model,
             randomizer=randomizer,
             log=log,

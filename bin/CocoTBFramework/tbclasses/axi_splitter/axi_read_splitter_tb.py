@@ -567,6 +567,8 @@ class AxiReadSplitterTB(TBBase):
         self.m_axi_ar_slave.add_callback(self._handle_m_axi_ar_request)
 
         # Apply reset
+        await self.fub_ar_master.reset_bus()
+        await self.m_axi_r_master.reset_bus()
         self.dut.aresetn.value = 0
         self.dut.alignment_mask.value = self.ALIGNMENT_MASK
         self.dut.block_ready.value = 0

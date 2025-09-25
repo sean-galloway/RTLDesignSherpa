@@ -10,7 +10,7 @@ module axi4_master_rd_stub
     parameter int AXI_DATA_WIDTH    = 32,
     parameter int AXI_USER_WIDTH    = 1,
     parameter int AXI_WSTRB_WIDTH   = AXI_DATA_WIDTH / 8,
-    // Short and aclculated params
+    // Short and calculated params
     parameter int AW       = AXI_ADDR_WIDTH,
     parameter int DW       = AXI_DATA_WIDTH,
     parameter int IW       = AXI_ID_WIDTH,
@@ -64,13 +64,13 @@ module axi4_master_rd_stub
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Read address channel (AR)
     gaxi_skid_buffer #(.DEPTH(SKID_DEPTH_AR), .DATA_WIDTH(ARSize), .INSTANCE_NAME("AR-Phase")) inst_ar_phase (
-        .i_axi_aclk               (aclk),
-        .i_axi_aresetn            (aresetn),
-        .i_wr_valid               (fub_axi_arvalid),
+        .axi_aclk               (aclk),
+        .axi_aresetn            (aresetn),
+        .wr_valid               (fub_axi_arvalid),
         .wr_ready               (fub_axi_arready),
-        .i_wr_data                (fub_axi_ar_pkt),
+        .wr_data                (fub_axi_ar_pkt),
         .rd_valid               (m_axi_arvalid),
-        .i_rd_ready               (m_axi_arready),
+        .rd_ready               (m_axi_arready),
         .rd_data                ({m_axi_arid,m_axi_araddr,m_axi_arlen,m_axi_arsize,m_axi_arburst,
                                     m_axi_arlock,m_axi_arcache,m_axi_arprot,m_axi_arqos,
                                     m_axi_arregion,m_axi_aruser}),
@@ -83,13 +83,13 @@ module axi4_master_rd_stub
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Read data channel (R)
     gaxi_skid_buffer #(.DEPTH(SKID_DEPTH_R), .DATA_WIDTH(RSize), .INSTANCE_NAME("R-Phase")) inst_r_phase (
-        .i_axi_aclk               (aclk),
-        .i_axi_aresetn            (aresetn),
-        .i_wr_valid               (m_axi_rvalid),
+        .axi_aclk               (aclk),
+        .axi_aresetn            (aresetn),
+        .wr_valid               (m_axi_rvalid),
         .wr_ready               (m_axi_rready),
-        .i_wr_data                ({m_axi_rid,m_axi_rdata,m_axi_rresp,m_axi_rlast,m_axi_ruser}),
+        .wr_data                ({m_axi_rid,m_axi_rdata,m_axi_rresp,m_axi_rlast,m_axi_ruser}),
         .rd_valid               (fub_axi_rvalid),
-        .i_rd_ready               (fub_axi_rready),
+        .rd_ready               (fub_axi_rready),
         .rd_data                (fub_axi_r_pkt),
         /* verilator lint_off PINCONNECTEMPTY */
         .count                 (),
