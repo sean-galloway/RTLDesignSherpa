@@ -1,0 +1,13 @@
+payload_bytes,configuration,bandwidth_gbps,per_channel_gbps,effective_pipeline_depth,sram_limited,sram_per_channel_kb,total_sram_kb,cycles_per_burst,limited_by
+256,baseline_pp,15.283582089552239,0.9552238805970149,1,False,0.5,8.0,268.0,timing
+256,optimized_pp,20.07843137254902,1.2549019607843137,2,True,0.5,8.0,204.0,timing_SRAM_limited
+256,optimized_mono,20.07843137254902,1.2549019607843137,4,False,4.0,64.0,204.0,timing
+512,baseline_pp,24.38095238095238,1.5238095238095237,1,False,1.0,16.0,336.0,timing
+512,optimized_pp,39.38461538461539,2.4615384615384617,2,True,1.0,16.0,208.0,timing_SRAM_limited
+512,optimized_mono,39.38461538461539,2.4615384615384617,4,False,4.0,64.0,208.0,timing
+1024,baseline_pp,34.71186440677966,2.169491525423729,1,False,2.0,32.0,472.0,timing
+1024,optimized_pp,57.6,4.0,2,True,2.0,32.0,216.0,AXI_peak_SRAM_limited
+1024,optimized_mono,57.6,4.0,4,False,4.0,64.0,216.0,AXI_peak
+2048,baseline_pp,44.043010752688176,2.752688172043011,1,False,4.0,64.0,744.0,timing
+2048,optimized_pp,57.6,4.0,2,True,4.0,64.0,232.0,AXI_peak_SRAM_limited
+2048,optimized_mono,57.6,4.0,2,True,4.0,64.0,232.0,AXI_peak_SRAM_limited

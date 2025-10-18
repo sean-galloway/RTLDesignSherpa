@@ -21,6 +21,177 @@ FIFO_VALID_MODES = ['fifo_mux', 'fifo_flop']
 # Standard GAXI modes (kept for parameter passing to RTL)
 GAXI_VALID_MODES = ['skid', 'fifo_mux', 'fifo_flop']
 
+# AXI4 base signal patterns - NEW for full AXI4 protocol support with channel-specific prefixes
+AXI4_BASE_PATTERNS = {
+    # AR Channel (Address Read) - Master drives arvalid, Slave drives arready
+    'ar_valid_base': [
+        '{prefix}arvalid',
+        '{prefix}ar_valid',
+        '{prefix}{bus_name}arvalid',
+        '{prefix}{bus_name}ar_valid',
+        '{prefix}{pkt_prefix}valid',       # Covers ar_valid when pkt_prefix="ar_"
+        '{prefix}{pkt_prefix}arvalid',
+        '{prefix}axi_arvalid',
+    ],
+    'ar_ready_base': [
+        '{prefix}arready',
+        '{prefix}ar_ready',
+        '{prefix}{bus_name}arready',
+        '{prefix}{bus_name}ar_ready',
+        '{prefix}{pkt_prefix}ready',       # Covers ar_ready when pkt_prefix="ar_"
+        '{prefix}{pkt_prefix}arready',
+        '{prefix}axi_arready',
+    ],
+
+    # R Channel (Read Data) - Slave drives rvalid, Master drives rready
+    'r_valid_base': [
+        '{prefix}rvalid',
+        '{prefix}r_valid',
+        '{prefix}{bus_name}rvalid',
+        '{prefix}{bus_name}r_valid',
+        '{prefix}{pkt_prefix}valid',       # Covers r_valid when pkt_prefix="r_"
+        '{prefix}{pkt_prefix}rvalid',
+        '{prefix}axi_rvalid',
+    ],
+    'r_ready_base': [
+        '{prefix}rready',
+        '{prefix}r_ready',
+        '{prefix}{bus_name}rready',
+        '{prefix}{bus_name}r_ready',
+        '{prefix}{pkt_prefix}ready',       # Covers r_ready when pkt_prefix="r_"
+        '{prefix}{pkt_prefix}rready',
+        '{prefix}axi_rready',
+    ],
+    'r_data_base': [
+        '{prefix}rdata',
+        '{prefix}r_data',
+        '{prefix}{bus_name}rdata',
+        '{prefix}{bus_name}r_data',
+        '{prefix}{pkt_prefix}data',
+        '{prefix}axi_rdata',
+    ],
+
+    # AW Channel (Address Write) - Master drives awvalid, Slave drives awready
+    'aw_valid_base': [
+        '{prefix}awvalid',
+        '{prefix}aw_valid',
+        '{prefix}{bus_name}awvalid',
+        '{prefix}{bus_name}aw_valid',
+        '{prefix}{pkt_prefix}valid',       # Covers aw_valid when pkt_prefix="aw_"
+        '{prefix}{pkt_prefix}awvalid',
+        '{prefix}axi_awvalid',
+    ],
+    'aw_ready_base': [
+        '{prefix}awready',
+        '{prefix}aw_ready',
+        '{prefix}{bus_name}awready',
+        '{prefix}{bus_name}aw_ready',
+        '{prefix}{pkt_prefix}ready',       # Covers aw_ready when pkt_prefix="aw_"
+        '{prefix}{pkt_prefix}awready',
+        '{prefix}axi_awready',
+    ],
+
+    # W Channel (Write Data) - Master drives wvalid, Slave drives wready
+    'w_valid_base': [
+        '{prefix}wvalid',
+        '{prefix}w_valid',
+        '{prefix}{bus_name}wvalid',
+        '{prefix}{bus_name}w_valid',
+        '{prefix}{pkt_prefix}valid',       # Covers w_valid when pkt_prefix="w_"
+        '{prefix}{pkt_prefix}wvalid',
+        '{prefix}axi_wvalid',
+    ],
+    'w_ready_base': [
+        '{prefix}wready',
+        '{prefix}w_ready',
+        '{prefix}{bus_name}wready',
+        '{prefix}{bus_name}w_ready',
+        '{prefix}{pkt_prefix}ready',       # Covers w_ready when pkt_prefix="w_"
+        '{prefix}{pkt_prefix}wready',
+        '{prefix}axi_wready',
+    ],
+    'w_data_base': [
+        '{prefix}wdata',
+        '{prefix}w_data',
+        '{prefix}{bus_name}wdata',
+        '{prefix}{bus_name}w_data',
+        '{prefix}{pkt_prefix}data',
+        '{prefix}axi_wdata',
+    ],
+
+    # B Channel (Write Response) - Slave drives bvalid, Master drives bready
+    'b_valid_base': [
+        '{prefix}bvalid',
+        '{prefix}b_valid',
+        '{prefix}{bus_name}bvalid',
+        '{prefix}{bus_name}b_valid',
+        '{prefix}{pkt_prefix}valid',       # Covers b_valid when pkt_prefix="b_"
+        '{prefix}{pkt_prefix}bvalid',
+        '{prefix}axi_bvalid',
+    ],
+    'b_ready_base': [
+        '{prefix}bready',
+        '{prefix}b_ready',
+        '{prefix}{bus_name}bready',
+        '{prefix}{bus_name}b_ready',
+        '{prefix}{pkt_prefix}ready',       # Covers b_ready when pkt_prefix="b_"
+        '{prefix}{pkt_prefix}bready',
+        '{prefix}axi_bready',
+    ],
+
+    # Field patterns for multi-signal mode
+    'ar_field_base': [
+        '{prefix}ar{field_name}',
+        '{prefix}ar_{field_name}',
+        '{prefix}{bus_name}ar{field_name}',
+        '{prefix}{bus_name}ar_{field_name}',
+        '{prefix}{bus_name}_ar{field_name}',   # For s_axi_ar_addr style
+        '{prefix}{pkt_prefix}{field_name}',
+        '{prefix}axi_ar{field_name}',
+        '{prefix}axi4_ar{field_name}',          # For axi4_araddr style
+    ],
+    'r_field_base': [
+        '{prefix}r{field_name}',
+        '{prefix}r_{field_name}',
+        '{prefix}{bus_name}r{field_name}',
+        '{prefix}{bus_name}r_{field_name}',
+        '{prefix}{bus_name}_r{field_name}',   # For s_axi_r_data style
+        '{prefix}{pkt_prefix}{field_name}',
+        '{prefix}axi_r{field_name}',
+        '{prefix}axi4_r{field_name}',          # For axi4_rdata style
+    ],
+    'aw_field_base': [
+        '{prefix}aw{field_name}',
+        '{prefix}aw_{field_name}',
+        '{prefix}{bus_name}aw{field_name}',
+        '{prefix}{bus_name}aw_{field_name}',
+        '{prefix}{bus_name}_aw{field_name}',   # For s_axi_aw_addr style
+        '{prefix}{pkt_prefix}{field_name}',
+        '{prefix}axi_aw{field_name}',
+        '{prefix}axi4_aw{field_name}',          # For axi4_awaddr style
+    ],
+    'w_field_base': [
+        '{prefix}w{field_name}',
+        '{prefix}w_{field_name}',
+        '{prefix}{bus_name}w{field_name}',
+        '{prefix}{bus_name}w_{field_name}',
+        '{prefix}{bus_name}_w{field_name}',   # For s_axi_w_data style
+        '{prefix}{pkt_prefix}{field_name}',
+        '{prefix}axi_w{field_name}',
+        '{prefix}axi4_w{field_name}',          # For axi4_wdata style
+    ],
+    'b_field_base': [
+        '{prefix}b{field_name}',
+        '{prefix}b_{field_name}',
+        '{prefix}{bus_name}b{field_name}',
+        '{prefix}{bus_name}b_{field_name}',
+        '{prefix}{bus_name}_b{field_name}',   # For s_axi_b_resp style
+        '{prefix}{pkt_prefix}{field_name}',
+        '{prefix}axi_b{field_name}',
+        '{prefix}axi4_b{field_name}',          # For axi4_bresp style
+    ],
+}
+
 # AXIS base signal patterns - NEW for AXIS protocol support
 AXIS_BASE_PATTERNS = {
     # Master-side patterns (for AXIS masters)
@@ -188,6 +359,127 @@ FIFO_BASE_PATTERNS = {
 }
 
 PROTOCOL_SIGNAL_CONFIGS = {
+    # ===========================================================================
+    # AXI4 PROTOCOL CONFIGURATIONS - NEW
+    # ===========================================================================
+    # AXI4 has channel-specific signal naming (ar_, aw_, r_, w_, b_)
+    # These configs allow GAXI components to correctly find AXI4 signals
+
+    'axi4_ar_slave': {
+        'signal_map': {
+            'i_valid':    AXI4_BASE_PATTERNS['ar_valid_base'],
+            'o_ready':    AXI4_BASE_PATTERNS['ar_ready_base']
+        },
+        'optional_signal_map': {
+            'multi_sig_false': AXI4_BASE_PATTERNS['r_data_base'],  # Not used for AR
+            'multi_sig_true':  AXI4_BASE_PATTERNS['ar_field_base']
+        }
+    },
+
+    'axi4_r_master': {
+        'signal_map': {
+            'o_valid':    AXI4_BASE_PATTERNS['r_valid_base'],
+            'i_ready':    AXI4_BASE_PATTERNS['r_ready_base']
+        },
+        'optional_signal_map': {
+            'multi_sig_false': AXI4_BASE_PATTERNS['r_data_base'],
+            'multi_sig_true':  AXI4_BASE_PATTERNS['r_field_base']
+        }
+    },
+
+    'axi4_aw_slave': {
+        'signal_map': {
+            'i_valid':    AXI4_BASE_PATTERNS['aw_valid_base'],
+            'o_ready':    AXI4_BASE_PATTERNS['aw_ready_base']
+        },
+        'optional_signal_map': {
+            'multi_sig_false': [],  # AW doesn't have data
+            'multi_sig_true':  AXI4_BASE_PATTERNS['aw_field_base']
+        }
+    },
+
+    'axi4_w_slave': {
+        'signal_map': {
+            'i_valid':    AXI4_BASE_PATTERNS['w_valid_base'],
+            'o_ready':    AXI4_BASE_PATTERNS['w_ready_base']
+        },
+        'optional_signal_map': {
+            'multi_sig_false': AXI4_BASE_PATTERNS['w_data_base'],
+            'multi_sig_true':  AXI4_BASE_PATTERNS['w_field_base']
+        }
+    },
+
+    'axi4_b_master': {
+        'signal_map': {
+            'o_valid':    AXI4_BASE_PATTERNS['b_valid_base'],
+            'i_ready':    AXI4_BASE_PATTERNS['b_ready_base']
+        },
+        'optional_signal_map': {
+            'multi_sig_false': [],  # B doesn't have data (just resp)
+            'multi_sig_true':  AXI4_BASE_PATTERNS['b_field_base']
+        }
+    },
+
+    # AXI4 Master variants (inverse roles)
+    'axi4_ar_master': {
+        'signal_map': {
+            'o_valid':    AXI4_BASE_PATTERNS['ar_valid_base'],  # Master drives arvalid
+            'i_ready':    AXI4_BASE_PATTERNS['ar_ready_base']   # Master reads arready
+        },
+        'optional_signal_map': {
+            'multi_sig_false': [],  # AR doesn't have data
+            'multi_sig_true':  AXI4_BASE_PATTERNS['ar_field_base']
+        }
+    },
+
+    'axi4_r_slave': {
+        'signal_map': {
+            'i_valid':    AXI4_BASE_PATTERNS['r_valid_base'],  # Slave reads rvalid
+            'o_ready':    AXI4_BASE_PATTERNS['r_ready_base']   # Slave drives rready
+        },
+        'optional_signal_map': {
+            'multi_sig_false': AXI4_BASE_PATTERNS['r_data_base'],
+            'multi_sig_true':  AXI4_BASE_PATTERNS['r_field_base']
+        }
+    },
+
+    'axi4_aw_master': {
+        'signal_map': {
+            'o_valid':    AXI4_BASE_PATTERNS['aw_valid_base'],  # Master drives awvalid
+            'i_ready':    AXI4_BASE_PATTERNS['aw_ready_base']   # Master reads awready
+        },
+        'optional_signal_map': {
+            'multi_sig_false': [],  # AW doesn't have data
+            'multi_sig_true':  AXI4_BASE_PATTERNS['aw_field_base']
+        }
+    },
+
+    'axi4_w_master': {
+        'signal_map': {
+            'o_valid':    AXI4_BASE_PATTERNS['w_valid_base'],  # Master drives wvalid
+            'i_ready':    AXI4_BASE_PATTERNS['w_ready_base']   # Master reads wready
+        },
+        'optional_signal_map': {
+            'multi_sig_false': AXI4_BASE_PATTERNS['w_data_base'],
+            'multi_sig_true':  AXI4_BASE_PATTERNS['w_field_base']
+        }
+    },
+
+    'axi4_b_slave': {
+        'signal_map': {
+            'i_valid':    AXI4_BASE_PATTERNS['b_valid_base'],  # Slave reads bvalid
+            'o_ready':    AXI4_BASE_PATTERNS['b_ready_base']   # Slave drives bready
+        },
+        'optional_signal_map': {
+            'multi_sig_false': [],  # B doesn't have data (just resp)
+            'multi_sig_true':  AXI4_BASE_PATTERNS['b_field_base']
+        }
+    },
+
+    # ===========================================================================
+    # AXIS PROTOCOL CONFIGURATIONS
+    # ===========================================================================
+
     'axis_master': {
         'signal_map': {
             'o_valid':    AXIS_BASE_PATTERNS['valid_base'],   # Master drives tvalid
@@ -259,6 +551,149 @@ PROTOCOL_SIGNAL_CONFIGS = {
         'optional_signal_map': {
             'multi_sig_false': GAXI_BASE_PATTERNS['slave_pkt_base'],
             'multi_sig_true':  GAXI_BASE_PATTERNS['slave_field_base']
+        }
+    },
+
+    # ===========================================================================
+    # WAVEDROM PROTOCOL CONFIGURATIONS
+    # ===========================================================================
+    # These configurations are for wavedrom temporal constraint matching.
+    # They use simplified signal mappings (no i_/o_ prefixes) since wavedrom
+    # just needs to monitor signals, not drive them.
+
+    'gaxi_wavedrom': {
+        'signal_map': {
+            'valid': GAXI_BASE_PATTERNS['valid_base'],
+            'ready': GAXI_BASE_PATTERNS['ready_base']
+        },
+        'optional_signal_map': {
+            # For single data signal: try data, wr_data, rd_data, packet variations
+            'multi_sig_false': [
+                '{prefix}{bus_name}data',
+                '{prefix}{bus_name}wr_data',
+                '{prefix}{bus_name}rd_data',
+                '{prefix}{bus_name}pkt',
+                '{prefix}{bus_name}packet',
+                '{prefix}{bus_name}m2s_pkt',
+                '{prefix}{bus_name}s2m_pkt',
+            ],
+            'multi_sig_true': GAXI_BASE_PATTERNS['field_base']
+        }
+    },
+
+    'apb_wavedrom': {
+        'signal_map': {
+            'psel': [
+                '{prefix}psel',
+                '{prefix}apb_psel',
+                '{prefix}{bus_name}psel',
+                '{prefix}{bus_name}PSEL',
+                '{prefix}{bus_name}_PSEL',
+                '{prefix}s_apb_PSEL',
+            ],
+            'penable': [
+                '{prefix}penable',
+                '{prefix}apb_penable',
+                '{prefix}{bus_name}penable',
+                '{prefix}{bus_name}PENABLE',
+                '{prefix}{bus_name}_PENABLE',
+                '{prefix}s_apb_PENABLE',
+            ],
+            'pwrite': [
+                '{prefix}pwrite',
+                '{prefix}apb_pwrite',
+                '{prefix}{bus_name}pwrite',
+                '{prefix}{bus_name}PWRITE',
+                '{prefix}{bus_name}_PWRITE',
+                '{prefix}s_apb_PWRITE',
+            ],
+            'pready': [
+                '{prefix}pready',
+                '{prefix}apb_pready',
+                '{prefix}{bus_name}pready',
+                '{prefix}{bus_name}PREADY',
+                '{prefix}{bus_name}_PREADY',
+                '{prefix}s_apb_PREADY',
+            ],
+            'paddr': [
+                '{prefix}paddr',
+                '{prefix}apb_paddr',
+                '{prefix}{bus_name}paddr',
+                '{prefix}{bus_name}PADDR',
+                '{prefix}{bus_name}_PADDR',
+                '{prefix}s_apb_PADDR',
+            ],
+            'pwdata': [
+                '{prefix}pwdata',
+                '{prefix}apb_pwdata',
+                '{prefix}{bus_name}pwdata',
+                '{prefix}{bus_name}PWDATA',
+                '{prefix}{bus_name}_PWDATA',
+                '{prefix}s_apb_PWDATA',
+            ],
+            'prdata': [
+                '{prefix}prdata',
+                '{prefix}apb_prdata',
+                '{prefix}{bus_name}prdata',
+                '{prefix}{bus_name}PRDATA',
+                '{prefix}{bus_name}_PRDATA',
+                '{prefix}s_apb_PRDATA',
+            ],
+        },
+        'optional_signal_map': {
+            'multi_sig_false': [],  # APB doesn't use multi-sig mode
+            'multi_sig_true': []
+        }
+    },
+
+    'axis_wavedrom': {
+        'signal_map': {
+            'valid': AXIS_BASE_PATTERNS['valid_base'],
+            'ready': AXIS_BASE_PATTERNS['ready_base']
+        },
+        'optional_signal_map': {
+            'multi_sig_false': AXIS_BASE_PATTERNS['data_base'],
+            'multi_sig_true': [
+                '{prefix}{bus_name}{pkt_prefix}t{field_name}',
+                '{prefix}{bus_name}axis_t{field_name}',
+                '{prefix}{bus_name}t{field_name}',
+            ]
+        }
+    },
+
+    'axi4_read_wavedrom': {
+        'signal_map': {
+            'arvalid': [
+                '{prefix}arvalid',
+                '{prefix}axi_arvalid',
+                '{prefix}{bus_name}arvalid',
+            ],
+            'arready': [
+                '{prefix}arready',
+                '{prefix}axi_arready',
+                '{prefix}{bus_name}arready',
+            ],
+            'rvalid': [
+                '{prefix}rvalid',
+                '{prefix}axi_rvalid',
+                '{prefix}{bus_name}rvalid',
+            ],
+            'rready': [
+                '{prefix}rready',
+                '{prefix}axi_rready',
+                '{prefix}{bus_name}rready',
+            ],
+        },
+        'optional_signal_map': {
+            'multi_sig_false': [],  # Use field_config for multi-signal
+            'multi_sig_true': [
+                '{prefix}ar{field_name}',        # AXI4 AR channel pattern
+                '{prefix}axi_ar{field_name}',
+                '{prefix}{bus_name}ar{field_name}',
+                '{prefix}r{field_name}',         # AXI4 R channel pattern
+                '{prefix}axi_r{field_name}',
+                '{prefix}{bus_name}r{field_name}',
+            ]
         }
     }
 }
@@ -446,6 +881,24 @@ class SignalResolver:
                 # Single-sig mode: need data signal
                 required_keys.add('data')
 
+        elif self.protocol_type == 'apb_wavedrom':
+            # APB wavedrom: all signals are explicit
+            required_keys = {'psel', 'penable', 'pready', 'paddr', 'pwdata', 'prdata'}
+            # Optional: pwrite, pslverr can be added but not required
+
+        elif self.protocol_type == 'axi4_read_wavedrom':
+            # AXI4 read wavedrom: AR and R channel signals
+            required_keys = {'arvalid', 'arready', 'rvalid', 'rready'}
+
+            if self.multi_sig:
+                # Multi-sig mode: need field names
+                if not self.field_config:
+                    raise ValueError(f"field_config required for multi_sig=True with signal_map")
+                required_keys.update(self.field_config.field_names())
+            else:
+                # Single-sig mode: not typically used for AXI4
+                pass
+
         elif self.protocol_type.startswith('fifo'):
             # FIFO protocols support
             if self.protocol_type == 'fifo_master':
@@ -501,6 +954,20 @@ class SignalResolver:
         elif self.protocol_type == 'fifo_slave':
             logical_mapping['read'] = 'i_read'    # Slave drives read
             logical_mapping['empty'] = 'o_rd_empty'  # Slave reads empty
+        elif self.protocol_type == 'apb_wavedrom':
+            # APB wavedrom: all signals use their natural names
+            logical_mapping['psel'] = 'psel'
+            logical_mapping['penable'] = 'penable'
+            logical_mapping['pready'] = 'pready'
+            logical_mapping['paddr'] = 'paddr'
+            logical_mapping['pwdata'] = 'pwdata'
+            logical_mapping['prdata'] = 'prdata'
+        elif self.protocol_type == 'axi4_read_wavedrom':
+            # AXI4 read wavedrom: AR and R channel signals
+            logical_mapping['arvalid'] = 'arvalid'
+            logical_mapping['arready'] = 'arready'
+            logical_mapping['rvalid'] = 'rvalid'
+            logical_mapping['rready'] = 'rready'
 
         # Handle data signals based on multi_sig mode
         if self.multi_sig and self.field_config:
@@ -635,10 +1102,10 @@ class SignalResolver:
                     self.resolved_signals[logical_name] = signal_obj
             else:
                 # Single signal mode: resolve data signal
-                if self.protocol_type in ['axis_master', 'axis_slave']:
+                if self.protocol_type in ['axis_master', 'axis_slave', 'axis_wavedrom']:
                     signal_obj = self._find_signal_match('data_sig', patterns, required=False)
                     self.resolved_signals['data_sig'] = signal_obj
-                elif self.protocol_type in ['gaxi_master', 'gaxi_slave']:
+                elif self.protocol_type in ['gaxi_master', 'gaxi_slave', 'gaxi_wavedrom']:
                     signal_obj = self._find_signal_match('data_sig', patterns, required=False)
                     self.resolved_signals['data_sig'] = signal_obj
                 elif self.protocol_type == 'fifo_master':
@@ -647,6 +1114,9 @@ class SignalResolver:
                 elif self.protocol_type == 'fifo_slave':
                     signal_obj = self._find_signal_match('data_sig', patterns, required=False)
                     self.resolved_signals['data_sig'] = signal_obj
+                elif self.protocol_type == 'axi4_read_wavedrom':
+                    # AXI4 read doesn't use data_sig in single mode
+                    pass
 
     def _find_signal_match(self, logical_name: str, patterns: List[str],
                             required: bool = True, field_name: str = None) -> Optional[Any]:

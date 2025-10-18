@@ -110,6 +110,9 @@ module axi_monitor_base
     // Transaction tracking table - Fixed: Use unpacked array consistently
     bus_transaction_t w_trans_table[MAX_TRANSACTIONS];
 
+    // FIX-001: Event reported feedback from reporter to trans_mgr
+    logic [MAX_TRANSACTIONS-1:0] w_event_reported_flags;
+
     // Transaction statistics (combinational)
     logic [7:0]  w_active_count;
     logic [15:0] w_event_count;
@@ -167,6 +170,7 @@ module axi_monitor_base
         .resp_id            (resp_id),
         .resp_code          (resp_code),
         .timestamp          (r_timestamp),
+        .i_event_reported_flags(w_event_reported_flags),  // FIX-001: Feedback from reporter
         .trans_table        (w_trans_table),
         .active_count       (w_active_count),
         .state_change       (w_state_change_detected)
@@ -211,6 +215,7 @@ module axi_monitor_base
         .aclk                  (aclk),
         .aresetn               (aresetn),
         .trans_table           (w_trans_table),
+        .timeout_detected      (w_timeout_detected),  // Pass timeout flags
         .cfg_error_enable      (cfg_error_enable),
         .cfg_compl_enable      (cfg_compl_enable),
         .cfg_threshold_enable  (cfg_threshold_enable),
@@ -224,7 +229,8 @@ module axi_monitor_base
         .perf_completed_count  (r_perf_completed_count),
         .perf_error_count      (r_perf_error_count),
         .active_trans_threshold(cfg_active_trans_threshold),
-        .latency_threshold     (cfg_latency_threshold)
+        .latency_threshold     (cfg_latency_threshold),
+        .event_reported_flags  (w_event_reported_flags)  // TASK-001: Feedback to trans_mgr
     );
 
     // -------------------------------------------------------------------------
@@ -250,7 +256,7 @@ module axi_monitor_base
     // -------------------------------------------------------------------------
 
     // Flow control - block when too many outstanding transactions
-    assign block_ready = ({24'h0, w_active_count} >= (MAX_TRANSACTIONS - 2));
+    assign block_ready = (MAX_TRANSACTIONS > 2) ? ({24'h0, w_active_count} >= (MAX_TRANSACTIONS - 2)) : 1'b0;
 
     // Busy signal
     assign busy = (w_active_count > 0);

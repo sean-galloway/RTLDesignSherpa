@@ -1,0 +1,90 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Wed Oct  1 08:29:11 2025
+[*]
+[dumpfile] "/mnt/data/github/rtldesignsherpa/val/amba/local_sim_build/test_axi_monitor_completion/dump.fst"
+[dumpfile_mtime] "Wed Oct  1 08:26:14 2025"
+[dumpfile_size] 21930
+[savefile] "/mnt/data/github/rtldesignsherpa/val/amba/GTKW/axi_monitor.gtkw"
+[timestart] 0
+[size] 1965 1931
+[pos] -1 -1
+*-23.568069 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[sst_width] 583
+[signals_width] 302
+[sst_expanded] 1
+[sst_vpaned_height] 209
+@420
+axi_monitor_base.AW
+axi_monitor_base.IS_AXI
+axi_monitor_base.IS_READ
+axi_monitor_base.IW
+axi_monitor_base.UNIT_ID
+axi_monitor_base.AGENT_ID
+@28
+axi_monitor_base.aclk
+axi_monitor_base.aresetn
+@200
+-config
+@22
+axi_monitor_base.cfg_active_trans_threshold[15:0]
+axi_monitor_base.cfg_addr_cnt[3:0]
+@28
+axi_monitor_base.cfg_compl_enable
+@22
+axi_monitor_base.cfg_data_cnt[3:0]
+@28
+axi_monitor_base.cfg_debug_enable
+@22
+axi_monitor_base.cfg_debug_level[3:0]
+axi_monitor_base.cfg_debug_mask[15:0]
+@28
+axi_monitor_base.cfg_error_enable
+@22
+axi_monitor_base.cfg_freq_sel[3:0]
+axi_monitor_base.cfg_latency_threshold[31:0]
+@28
+axi_monitor_base.cfg_perf_enable
+@22
+axi_monitor_base.cfg_resp_cnt[3:0]
+@28
+axi_monitor_base.cfg_threshold_enable
+axi_monitor_base.cfg_timeout_enable
+@200
+-CMD
+@28
+axi_monitor_base.cmd_valid
+axi_monitor_base.cmd_ready
+axi_monitor_base.cmd_burst[1:0]
+@22
+axi_monitor_base.cmd_id[3:0]
+axi_monitor_base.cmd_len[7:0]
+@200
+-DATA
+@28
+axi_monitor_base.data_valid
+axi_monitor_base.data_ready
+@22
+axi_monitor_base.data_id[3:0]
+@28
+axi_monitor_base.data_last
+axi_monitor_base.data_resp[1:0]
+@200
+-RESP
+@28
+axi_monitor_base.resp_valid
+axi_monitor_base.resp_ready
+@22
+axi_monitor_base.resp_id[3:0]
+@28
+axi_monitor_base.resp_code[1:0]
+@200
+-monbus
+@28
+axi_monitor_base.monbus_valid
+axi_monitor_base.monbus_ready
+@23
+axi_monitor_base.monbus_packet[63:0]
+[pattern_trace] 1
+[pattern_trace] 0

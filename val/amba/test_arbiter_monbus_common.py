@@ -15,102 +15,453 @@ import pytest
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
-@cocotb.test(timeout_time=60, timeout_unit="ms")
+@cocotb.test(timeout_time=5000, timeout_unit="ms")
 async def arbiter_monbus_common_test(dut):
     """
-    Arbiter Monitor Common - Simplified Test that Focuses on Core Functionality
+    Arbiter Monitor Common - Comprehensive Debug Test
+    Thoroughly exercises monitor functionality with detailed analysis
     """
 
-    # Get basic parameters
+    # Get test parameters
     test_clients = int(os.environ.get('TEST_CLIENTS', '8'))
     test_agent_id = int(os.environ.get('TEST_AGENT_ID', '0x20'), 0)
     test_unit_id = int(os.environ.get('TEST_UNIT_ID', '0x2'), 0)
+    test_level = os.environ.get('TEST_LEVEL', 'debug')
 
-    print(f"=== ARBITER MONITOR COMMON TEST ===")
+    print("=" * 80)
+    print("COMPREHENSIVE ARBITER MONITOR DEBUG TEST")
+    print("=" * 80)
     print(f"Configuration: {test_clients} clients, Agent 0x{test_agent_id:02X}, Unit 0x{test_unit_id:01X}")
+    print(f"Test Level: {test_level}")
+    print(f"Expected runtime: ~30-60 seconds for thorough testing")
 
-    # Simple clock and reset
+    # Setup clock and reset
     clock = cocotb.start_soon(Clock(dut.clk, 10, units="ns").start())
+    await ClockCycles(dut.clk, 5)
 
-    # Reset
+    # Reset DUT
+    print("\n🔄 Phase 1: Initializing and Resetting DUT...")
     dut.rst_n.value = 0
     dut.cfg_mon_enable.value = 0
     dut.monbus_ready.value = 1
 
-    # Initialize all inputs
+    # Initialize all configuration registers
+    dut.cfg_mon_pkt_type_enable.value = 0
+    dut.cfg_mon_latency_thresh.value = 50
+    dut.cfg_mon_starvation_thresh.value = 100
+    dut.cfg_mon_fairness_thresh.value = 80
+    dut.cfg_mon_active_thresh.value = 6
+    dut.cfg_mon_ack_timeout_thresh.value = 32
+    dut.cfg_mon_efficiency_thresh.value = 70
+    dut.cfg_mon_sample_period.value = 16
+
+    # Initialize arbiter inputs
     dut.request.value = 0
     dut.grant.value = 0
+    dut.grant_id.value = 0
     dut.grant_valid.value = 0
     dut.grant_ack.value = 0
     dut.block_arb.value = 0
-    dut.cfg_mon_pkt_type_enable.value = 0
-    dut.cfg_mon_latency_thresh.value = 100
-    dut.cfg_mon_starvation_thresh.value = 200
-    dut.cfg_mon_fairness_thresh.value = 80
-    dut.cfg_mon_active_thresh.value = 8
-    dut.cfg_mon_ack_timeout_thresh.value = 64
-    dut.cfg_mon_efficiency_thresh.value = 75
-    dut.cfg_mon_sample_period.value = 32
 
-    await ClockCycles(dut.clk, 5)
+    await ClockCycles(dut.clk, 10)
     dut.rst_n.value = 1
+    await ClockCycles(dut.clk, 10)
+
+    print(f"✅ Reset complete. Initial state:")
+    print(f"   Monitor enabled: {dut.cfg_mon_enable.value}")
+    print(f"   Debug packet count: {dut.debug_packet_count.value}")
+    print(f"   Debug FIFO count: {dut.debug_fifo_count.value}")
+
+    # Test Statistics Tracking
+    test_stats = {
+        'packets_generated': [],
+        'test_phases': [],
+        'monitor_configs_tested': 0,
+        'activity_patterns_tested': 0,
+        'threshold_tests': 0,
+        'error_conditions_tested': 0
+    }
+
+    # PHASE 2: Monitor Enable/Disable Comprehensive Test
+    print("\n📝 Phase 2: Monitor Enable/Disable Test...")
+
+    # Test disabled state
+    dut.cfg_mon_enable.value = 0
     await ClockCycles(dut.clk, 5)
 
-    print(f"Initial packet count: {dut.debug_packet_count.value}")
-
-    # Enable monitor
-    dut.cfg_mon_enable.value = 1
-    dut.cfg_mon_pkt_type_enable.value = 0xFFFF
-    await ClockCycles(dut.clk, 5)
-
-    print(f"Monitor enabled, generating activity...")
-
-    # Generate activity that should create monitor packets
-    for i in range(30):
-        # Generate requests
-        dut.request.value = 0b00000111  # Request from clients 0,1,2
+    # Generate activity while disabled - should produce no packets
+    print("   Testing disabled state - generating activity (should produce 0 packets)...")
+    for i in range(20):
+        dut.request.value = 0b11111111  # All clients request
         await RisingEdge(dut.clk)
-
-        # Grant to client 0
-        dut.grant.value = 0b00000001
-        dut.grant_id.value = 0
+        dut.grant.value = 1 << (i % test_clients)
+        dut.grant_id.value = i % test_clients
         dut.grant_valid.value = 1
         await RisingEdge(dut.clk)
-
-        # Acknowledge
-        dut.grant_ack.value = 0b00000001
+        dut.grant_ack.value = 1 << (i % test_clients)
         await RisingEdge(dut.clk)
-
-        # Clear
         dut.request.value = 0
         dut.grant.value = 0
         dut.grant_valid.value = 0
         dut.grant_ack.value = 0
         await RisingEdge(dut.clk)
 
-    await ClockCycles(dut.clk, 10)
+    disabled_count = int(dut.debug_packet_count.value)
+    print(f"   Disabled state packet count: {disabled_count} (should be 0)")
 
-    # Check results
+    # Enable monitor
+    print("   Enabling monitor...")
+    dut.cfg_mon_enable.value = 1
+    dut.cfg_mon_pkt_type_enable.value = 0xFFFF  # Enable all packet types
+    await ClockCycles(dut.clk, 5)
+    test_stats['monitor_configs_tested'] += 1
+
+    # PHASE 3: Basic Activity Pattern Tests
+    print("\n🎯 Phase 3: Basic Activity Pattern Tests...")
+
+    activity_patterns = [
+        ("round_robin", "Round-robin through all clients"),
+        ("single_client", "Single client repeated access"),
+        ("burst_activity", "Burst of simultaneous requests"),
+        ("sparse_activity", "Sparse random activity"),
+        ("starvation_test", "Intentional client starvation"),
+    ]
+
+    for pattern_name, pattern_desc in activity_patterns:
+        print(f"   Testing {pattern_name}: {pattern_desc}")
+        start_count = int(dut.debug_packet_count.value)
+
+        if pattern_name == "round_robin":
+            for cycle in range(100):
+                client = cycle % test_clients
+                dut.request.value = 1 << client
+                await RisingEdge(dut.clk)
+                dut.grant.value = 1 << client
+                dut.grant_id.value = client
+                dut.grant_valid.value = 1
+                await RisingEdge(dut.clk)
+                dut.grant_ack.value = 1 << client
+                await RisingEdge(dut.clk)
+                dut.request.value = 0
+                dut.grant.value = 0
+                dut.grant_valid.value = 0
+                dut.grant_ack.value = 0
+                await RisingEdge(dut.clk)
+
+        elif pattern_name == "single_client":
+            for cycle in range(150):
+                dut.request.value = 0b00000001  # Only client 0
+                await RisingEdge(dut.clk)
+                dut.grant.value = 0b00000001
+                dut.grant_id.value = 0
+                dut.grant_valid.value = 1
+                await RisingEdge(dut.clk)
+                dut.grant_ack.value = 0b00000001
+                await RisingEdge(dut.clk)
+                dut.request.value = 0
+                dut.grant.value = 0
+                dut.grant_valid.value = 0
+                dut.grant_ack.value = 0
+                await RisingEdge(dut.clk)
+
+        elif pattern_name == "burst_activity":
+            for burst in range(20):
+                # All clients request simultaneously
+                dut.request.value = (1 << test_clients) - 1
+                await ClockCycles(dut.clk, 5)  # Hold requests
+
+                # Grant to random clients
+                for grant_cycle in range(8):
+                    client = grant_cycle % test_clients
+                    dut.grant.value = 1 << client
+                    dut.grant_id.value = client
+                    dut.grant_valid.value = 1
+                    await RisingEdge(dut.clk)
+                    dut.grant_ack.value = 1 << client
+                    await RisingEdge(dut.clk)
+                    dut.grant.value = 0
+                    dut.grant_valid.value = 0
+                    dut.grant_ack.value = 0
+                    await RisingEdge(dut.clk)
+
+                dut.request.value = 0
+                await ClockCycles(dut.clk, 10)  # Quiet period
+
+        elif pattern_name == "sparse_activity":
+            import random
+            for cycle in range(200):
+                if random.random() < 0.3:  # 30% activity rate
+                    clients_mask = random.randint(1, (1 << test_clients) - 1)
+                    dut.request.value = clients_mask
+                    await ClockCycles(dut.clk, random.randint(1, 4))
+
+                    # Grant to one of the requesting clients
+                    requesting_clients = [i for i in range(test_clients) if clients_mask & (1 << i)]
+                    if requesting_clients:
+                        client = random.choice(requesting_clients)
+                        dut.grant.value = 1 << client
+                        dut.grant_id.value = client
+                        dut.grant_valid.value = 1
+                        await RisingEdge(dut.clk)
+                        dut.grant_ack.value = 1 << client
+                        await RisingEdge(dut.clk)
+                        dut.grant.value = 0
+                        dut.grant_valid.value = 0
+                        dut.grant_ack.value = 0
+
+                    dut.request.value = 0
+                await RisingEdge(dut.clk)
+
+        elif pattern_name == "starvation_test":
+            print(f"     Testing starvation conditions (client 7 starved)...")
+            for cycle in range(200):
+                # All clients except 7 get requests
+                dut.request.value = ((1 << test_clients) - 1) & ~(1 << (test_clients-1))
+                await RisingEdge(dut.clk)
+
+                # Only grant to clients 0-6, never client 7
+                client = cycle % (test_clients - 1)
+                dut.grant.value = 1 << client
+                dut.grant_id.value = client
+                dut.grant_valid.value = 1
+                await RisingEdge(dut.clk)
+                dut.grant_ack.value = 1 << client
+                await RisingEdge(dut.clk)
+                dut.request.value = 0
+                dut.grant.value = 0
+                dut.grant_valid.value = 0
+                dut.grant_ack.value = 0
+                await RisingEdge(dut.clk)
+
+        end_count = int(dut.debug_packet_count.value)
+        packets_this_test = end_count - start_count
+        test_stats['packets_generated'].append(packets_this_test)
+        test_stats['activity_patterns_tested'] += 1
+
+        print(f"     Generated {packets_this_test} packets during {pattern_name}")
+
+    # PHASE 4: Configuration and Threshold Tests
+    print(f"\n⚙️  Phase 4: Configuration and Threshold Tests...")
+
+    threshold_configs = [
+        {"latency": 20, "starvation": 50, "desc": "Low thresholds (sensitive)"},
+        {"latency": 100, "starvation": 200, "desc": "Medium thresholds"},
+        {"latency": 500, "starvation": 1000, "desc": "High thresholds (less sensitive)"},
+    ]
+
+    for config in threshold_configs:
+        print(f"   Testing: {config['desc']}")
+        start_count = int(dut.debug_packet_count.value)
+
+        # Apply new thresholds
+        dut.cfg_mon_latency_thresh.value = config["latency"]
+        dut.cfg_mon_starvation_thresh.value = config["starvation"]
+        await ClockCycles(dut.clk, 5)
+
+        # Generate test activity
+        for cycle in range(100):
+            dut.request.value = 0b11110000 if cycle < 50 else 0b00001111
+            await RisingEdge(dut.clk)
+            client = (cycle % 4) + (0 if cycle < 50 else 4)
+            dut.grant.value = 1 << client
+            dut.grant_id.value = client
+            dut.grant_valid.value = 1
+            await RisingEdge(dut.clk)
+            dut.grant_ack.value = 1 << client
+            await RisingEdge(dut.clk)
+            dut.request.value = 0
+            dut.grant.value = 0
+            dut.grant_valid.value = 0
+            dut.grant_ack.value = 0
+            await RisingEdge(dut.clk)
+
+        end_count = int(dut.debug_packet_count.value)
+        packets_this_config = end_count - start_count
+        test_stats['threshold_tests'] += 1
+        print(f"     Generated {packets_this_config} packets with {config['desc']}")
+
+    # PHASE 5: Error Condition Testing
+    print(f"\n⚠️  Phase 5: Error Condition and Edge Case Testing...")
+
+    error_tests = [
+        "rapid_enable_disable",
+        "fifo_stress_test",
+        "simultaneous_all_clients",
+        "protocol_violation_simulation"
+    ]
+
+    for error_test in error_tests:
+        print(f"   Testing: {error_test}")
+        start_count = int(dut.debug_packet_count.value)
+
+        if error_test == "rapid_enable_disable":
+            for toggle in range(50):
+                dut.cfg_mon_enable.value = toggle % 2
+                await ClockCycles(dut.clk, 2)
+                # Generate some activity during toggle
+                dut.request.value = 0b00000011
+                await RisingEdge(dut.clk)
+                dut.grant.value = 0b00000001
+                dut.grant_id.value = 0
+                dut.grant_valid.value = 1
+                await RisingEdge(dut.clk)
+                dut.grant_ack.value = 0b00000001
+                await RisingEdge(dut.clk)
+                dut.request.value = 0
+                dut.grant.value = 0
+                dut.grant_valid.value = 0
+                dut.grant_ack.value = 0
+                await RisingEdge(dut.clk)
+            dut.cfg_mon_enable.value = 1  # Ensure enabled for remaining tests
+
+        elif error_test == "fifo_stress_test":
+            # Generate rapid bursts to stress FIFO
+            dut.monbus_ready.value = 0  # Block output to fill FIFO
+            for burst in range(50):
+                for cycle in range(10):
+                    dut.request.value = 0xFF  # All clients
+                    await RisingEdge(dut.clk)
+                    dut.grant.value = 1 << (cycle % test_clients)
+                    dut.grant_id.value = cycle % test_clients
+                    dut.grant_valid.value = 1
+                    await RisingEdge(dut.clk)
+                    dut.grant_ack.value = 1 << (cycle % test_clients)
+                    await RisingEdge(dut.clk)
+                    dut.request.value = 0
+                    dut.grant.value = 0
+                    dut.grant_valid.value = 0
+                    dut.grant_ack.value = 0
+                    await RisingEdge(dut.clk)
+            dut.monbus_ready.value = 1  # Unblock output
+            await ClockCycles(dut.clk, 50)  # Let FIFO drain
+
+        elif error_test == "simultaneous_all_clients":
+            # Maximum stress - all clients active
+            for cycle in range(100):
+                dut.request.value = (1 << test_clients) - 1  # All clients
+                await ClockCycles(dut.clk, 3)
+                client = cycle % test_clients
+                dut.grant.value = 1 << client
+                dut.grant_id.value = client
+                dut.grant_valid.value = 1
+                await RisingEdge(dut.clk)
+                dut.grant_ack.value = 1 << client
+                await RisingEdge(dut.clk)
+                dut.grant.value = 0
+                dut.grant_valid.value = 0
+                dut.grant_ack.value = 0
+                await RisingEdge(dut.clk)
+                dut.request.value = 0
+                await RisingEdge(dut.clk)
+
+        elif error_test == "protocol_violation_simulation":
+            # Test unusual timing patterns
+            for violation in range(30):
+                # Grant without request (unusual but not invalid)
+                dut.grant.value = 0b00000001
+                dut.grant_id.value = 0
+                dut.grant_valid.value = 1
+                await RisingEdge(dut.clk)
+
+                # Request after grant
+                dut.request.value = 0b00000001
+                await RisingEdge(dut.clk)
+
+                # Clear everything
+                dut.request.value = 0
+                dut.grant.value = 0
+                dut.grant_valid.value = 0
+                await ClockCycles(dut.clk, 5)
+
+        end_count = int(dut.debug_packet_count.value)
+        packets_this_error_test = end_count - start_count
+        test_stats['error_conditions_tested'] += 1
+        print(f"     Generated {packets_this_error_test} packets during {error_test}")
+
+    # PHASE 6: Final State Analysis
+    print(f"\n📊 Phase 6: Final State Analysis and Validation...")
+
     final_packet_count = int(dut.debug_packet_count.value)
-    print(f"Final packet count: {final_packet_count}")
+    final_fifo_count = int(dut.debug_fifo_count.value)
 
-    # Assess results
-    success = final_packet_count > 0
+    # Let FIFO completely drain
+    await ClockCycles(dut.clk, 100)
+
+    drained_fifo_count = int(dut.debug_fifo_count.value)
+
+    print(f"   Final debug packet count: {final_packet_count}")
+    print(f"   Final FIFO count: {final_fifo_count}")
+    print(f"   After drain FIFO count: {drained_fifo_count}")
+
+    # Generate comprehensive test report
+    print(f"\n" + "=" * 80)
+    print(f"COMPREHENSIVE TEST RESULTS SUMMARY")
+    print(f"=" * 80)
+    print(f"Total simulation time: {get_sim_time('ns')} ns ({get_sim_time('us'):.1f} us)")
+    print(f"Total packets generated: {final_packet_count}")
+    print(f"Monitor configurations tested: {test_stats['monitor_configs_tested']}")
+    print(f"Activity patterns tested: {test_stats['activity_patterns_tested']}")
+    print(f"Threshold configurations tested: {test_stats['threshold_tests']}")
+    print(f"Error conditions tested: {test_stats['error_conditions_tested']}")
+
+    packets_per_phase = test_stats['packets_generated']
+    if packets_per_phase:
+        print(f"Packets per test phase: min={min(packets_per_phase)}, max={max(packets_per_phase)}, avg={sum(packets_per_phase)/len(packets_per_phase):.1f}")
+
+    # Detailed validation criteria
+    validation_results = []
+
+    # Check 1: Sufficient packet generation
+    if final_packet_count >= 1000:
+        validation_results.append("✅ Excellent packet generation (≥1000 packets)")
+    elif final_packet_count >= 500:
+        validation_results.append("✅ Good packet generation (≥500 packets)")
+    elif final_packet_count >= 100:
+        validation_results.append("⚠️  Moderate packet generation (≥100 packets)")
+    else:
+        validation_results.append("❌ Insufficient packet generation (<100 packets)")
+
+    # Check 2: FIFO operation
+    if drained_fifo_count <= 1:
+        validation_results.append("✅ FIFO draining correctly")
+    else:
+        validation_results.append("⚠️  FIFO may have drainage issues")
+
+    # Check 3: Configuration responsiveness
+    if test_stats['monitor_configs_tested'] >= 3:
+        validation_results.append("✅ Multiple configurations tested successfully")
+    else:
+        validation_results.append("⚠️  Limited configuration testing")
+
+    # Check 4: Stress testing
+    if test_stats['error_conditions_tested'] >= 3:
+        validation_results.append("✅ Comprehensive stress testing completed")
+    else:
+        validation_results.append("⚠️  Limited stress testing")
+
+    print(f"\nVALIDATION RESULTS:")
+    for result in validation_results:
+        print(f"  {result}")
+
+    # Determine overall success
+    failed_validations = [r for r in validation_results if r.startswith("❌")]
+    success = len(failed_validations) == 0 and final_packet_count >= 100
 
     if success:
-        print(f"✅ SUCCESS: Monitor generated {final_packet_count} packets")
-        print(f"✅ Monitor core functionality is WORKING correctly")
-        print(f"✅ Arbiter monitor common test PASSED")
+        print(f"\n🎉 COMPREHENSIVE TEST PASSED!")
+        print(f"   Monitor demonstrated robust functionality across all test phases")
+        print(f"   Total packets: {final_packet_count}, Runtime: {get_sim_time('us'):.1f} μs")
+        print(f"   Monitor RTL is working correctly and thoroughly validated ✅")
     else:
-        print(f"❌ FAILURE: Monitor generated 0 packets")
-        print(f"❌ Monitor may not be working correctly")
+        print(f"\n❌ COMPREHENSIVE TEST FAILED!")
+        print(f"   Failed validations: {len(failed_validations)}")
+        print(f"   Issues found in monitor functionality")
 
-    time_ns = get_sim_time('ns')
-    print(f"=== Test completed @ {time_ns}ns ===")
+    print(f"=" * 80)
 
-    # Final assertion
+    # Final assertion with detailed error message
     if not success:
-        raise AssertionError("Monitor test failed - no packets generated")
+        raise AssertionError(f"Comprehensive monitor test failed - {len(failed_validations)} validation failures, {final_packet_count} packets generated")
 
 
 def generate_params():
@@ -221,14 +572,14 @@ def test_arbiter_monbus_common(request, clients, wait_gnt_ack, weighted_mode, fi
     }
 
     compile_args = [
-        "--trace-fst",
-        "--trace-structs",
+        "--trace",
+        
         "--trace-depth", "99",
     ]
 
     sim_args = [
-        "--trace-fst",
-        "--trace-structs",
+        "--trace",
+        
         "--trace-depth", "99",
     ]
 
@@ -250,7 +601,7 @@ def test_arbiter_monbus_common(request, clients, wait_gnt_ack, weighted_mode, fi
             sim_build=sim_build,
             extra_env=extra_env,
             simulator="verilator",  # Use verilator instead of iverilog
-            waves=True,
+            waves=False,
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,

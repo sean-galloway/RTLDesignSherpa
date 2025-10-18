@@ -1,0 +1,31 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Generated: Wed Oct 15 03:46:34 2025
+[*]
+[dumpfile] "(null)"
+[savefile] "/mnt/data/github/rtldesignsherpa/val/common/GTKW/counter_freq_invariant.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] -1 -1
+*-20.0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .counter_freq_invariant.
+[sst_width] 401
+[signals_width] 250
+[sst_expanded] 1
+[sst_vpaned_height] 400
+@420
+counter_freq_invariant.COUNTER_WIDTH
+counter_freq_invariant.PRESCALER_MAX
+@200
+-Internal Registers
+@28
+counter_freq_invariant.r_clear_pulse
+counter_freq_invariant.r_prev_freq_sel
+@200
+-Internal Wires
+@28
+counter_freq_invariant.w_division_factor
+counter_freq_invariant.w_prescaler_done
+[pattern_trace] 1
+[pattern_trace] 0

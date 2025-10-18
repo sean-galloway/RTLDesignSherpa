@@ -32,7 +32,7 @@
 
 ### Transaction Splitting Flow Documentation
 
-**Overview**: This module accepts AXI read transactions on the fub interface and splits them 
+**Overview**: This module accepts AXI read transactions on the fub interface and splits them
 across boundary crossings before forwarding to the master AXI interface.
 
 **FUB_ARREADY Assertion Strategy**:
@@ -73,7 +73,7 @@ across boundary crossings before forwarding to the master AXI interface.
 **Example Split Sequence** (4KB boundary, 64-byte beats):
 ```
 Original: ADDR=0x0FC0, LEN=7 (8 beats, 512 bytes total)
-→ Split 1: ADDR=0x0FC0, LEN=0 (1 beat, to boundary at 0x1000)  
+→ Split 1: ADDR=0x0FC0, LEN=0 (1 beat, to boundary at 0x1000)
 → Split 2: ADDR=0x1000, LEN=6 (7 beats, remaining data)
 ```
 */
@@ -262,7 +262,7 @@ module axi_master_rd_splitter
     //===========================================================================
     // State Management
     //===========================================================================
-    
+
     // Determine if we're sending the final split transaction
     logic w_is_final_split;
     assign w_is_final_split = (r_split_state == SPLITTING) && !w_split_required;
@@ -273,7 +273,7 @@ module axi_master_rd_splitter
             r_current_addr <= '0;
             r_current_len <= '0;
             r_split_count <= 8'd0;
-            
+
             // Reset buffered transaction
             r_orig_arid <= '0;
             r_orig_araddr <= '0;
@@ -422,13 +422,13 @@ module axi_master_rd_splitter
     always_comb begin
         if (r_split_state == IDLE) begin
             // IDLE state: use live inputs (original transaction)
-            split_fifo_din = {fub_araddr, 
-                                fub_arid, 
+            split_fifo_din = {fub_araddr,
+                                fub_arid,
                                 w_new_split_needed ? 8'd2 : 8'd1};  // Estimate split count
         end else begin
-            // SPLITTING state: use buffered original transaction data  
-            split_fifo_din = {r_orig_araddr, 
-                                r_orig_arid, 
+            // SPLITTING state: use buffered original transaction data
+            split_fifo_din = {r_orig_araddr,
+                                r_orig_arid,
                                 r_split_count};  // Actual split count
         end
     end

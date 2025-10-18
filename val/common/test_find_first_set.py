@@ -509,13 +509,13 @@ def test_find_first_set(request, width, test_level):
     }
 
     compile_args = [
-        "--trace-fst",
+        "--trace",
         "--trace-structs",
         "--trace-depth", "99",
     ]
 
     sim_args = [
-        "--trace-fst",
+        "--trace",
         "--trace-structs",
         "--trace-depth", "99",
     ]
@@ -541,7 +541,7 @@ def test_find_first_set(request, width, test_level):
             parameters=parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=True,
+            waves=False,
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,

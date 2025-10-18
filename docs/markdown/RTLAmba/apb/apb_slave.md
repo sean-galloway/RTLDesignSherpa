@@ -182,6 +182,54 @@ WAIT → IDLE: Automatic (1 cycle completion)
 | Buffer Depth | 4 entries | With default DEPTH=2 |
 | Concurrent Transactions | Up to buffer depth | Limited by backend capacity |
 
+## Waveforms
+
+The following timing diagrams show the comprehensive APB slave behavior across 7 scenarios:
+
+### Scenario 1: Basic Write Transaction
+
+![APB Write](../../assets/WAVES/apb_slave/apb_write_sequence_001.png)
+
+**WaveJSON:** [apb_write_sequence_001.json](../../assets/WAVES/apb_slave/apb_write_sequence_001.json)
+
+### Scenario 2: Basic Read Transaction
+
+![APB Read](../../assets/WAVES/apb_slave/apb_read_sequence_001.png)
+
+**WaveJSON:** [apb_read_sequence_001.json](../../assets/WAVES/apb_slave/apb_read_sequence_001.json)
+
+### Scenario 3: Back-to-Back Writes
+
+![B2B Writes](../../assets/WAVES/apb_slave/apb_back_to_back_writes_001.png)
+
+**WaveJSON:** [apb_back_to_back_writes_001.json](../../assets/WAVES/apb_slave/apb_back_to_back_writes_001.json)
+
+### Scenario 4: Back-to-Back Reads
+
+![B2B Reads](../../assets/WAVES/apb_slave/apb_back_to_back_reads_001.png)
+
+**WaveJSON:** [apb_back_to_back_reads_001.json](../../assets/WAVES/apb_slave/apb_back_to_back_reads_001.json)
+
+### Scenario 5: Write-to-Read Transition
+
+![Write-to-Read](../../assets/WAVES/apb_slave/apb_write_to_read_001.png)
+
+**WaveJSON:** [apb_write_to_read_001.json](../../assets/WAVES/apb_slave/apb_write_to_read_001.json)
+
+### Scenario 6: Read-to-Write Transition
+
+![Read-to-Write](../../assets/WAVES/apb_slave/apb_read_to_write_001.png)
+
+**WaveJSON:** [apb_read_to_write_001.json](../../assets/WAVES/apb_slave/apb_read_to_write_001.json)
+
+### Scenario 7: Error Response
+
+![Error](../../assets/WAVES/apb_slave/apb_error_001.png)
+
+**WaveJSON:** [apb_error_001.json](../../assets/WAVES/apb_slave/apb_error_001.json)
+
+---
+
 ## Usage Examples
 
 ### Basic Register Block Interface

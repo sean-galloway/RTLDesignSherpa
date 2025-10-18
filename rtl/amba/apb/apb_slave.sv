@@ -113,6 +113,7 @@ module apb_slave #(
     } apb_state_t;
 
     apb_state_t r_apb_state;
+    logic r_penable_prev;  // Track previous PENABLE to detect rising edge
 
     always_ff @(posedge pclk or negedge presetn) begin
         if (!presetn) begin
@@ -122,19 +123,22 @@ module apb_slave #(
             s_apb_PRDATA  <= 'b0;
             r_cmd_valid   <= 1'b0;
             r_rsp_ready   <= 1'b0;
+            r_penable_prev <= 1'b0;
         end else begin
             // default states
             r_apb_state <= r_apb_state;
             s_apb_PREADY  <= 'b0;
             s_apb_PSLVERR <= 'b0;
-            s_apb_PRDATA  <= 'b0;
+            // s_apb_PRDATA  <= 'b0;  // Don't clear - APB requires it to be stable
             r_cmd_valid   <= 1'b0;
             r_rsp_ready   <= 1'b0;
+            r_penable_prev <= s_apb_PENABLE;
 
             casez (r_apb_state)
 
                 IDLE: begin
-                    if (s_apb_PSEL && s_apb_PENABLE && r_cmd_ready) begin
+                    // Only capture on rising edge of PENABLE (SETUP->ACCESS transition)
+                    if (s_apb_PSEL && s_apb_PENABLE && !r_penable_prev && r_cmd_ready) begin
                         r_cmd_valid <= 1'b1;
                         r_apb_state <= BUSY;
                     end

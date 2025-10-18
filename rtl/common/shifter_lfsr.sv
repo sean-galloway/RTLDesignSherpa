@@ -1,5 +1,74 @@
 `timescale 1ns / 1ps
 
+//==============================================================================
+// Module: shifter_lfsr
+//==============================================================================
+// Description:
+//   Generic XOR-Shift Linear Feedback Shift Register (LFSR) with XNOR feedback.
+//   Includes reference table of maximal-length polynomials for widths 3-168.
+//   Uses left-shift architecture with XNOR feedback applied at LSB. Suitable for
+//   pseudo-random number generation following standard LFSR polynomials.
+//
+//------------------------------------------------------------------------------
+// Parameters:
+//------------------------------------------------------------------------------
+//   WIDTH:
+//     Description: LFSR register width in bits
+//     Type: int
+//     Range: 2 to 168 (see polynomial table below)
+//     Default: 8
+//     Constraints: Determines sequence length (2^WIDTH - 1 states for maximal taps)
+//
+//   TAP_INDEX_WIDTH:
+//     Description: Bit width for tap position indices
+//     Type: int
+//     Range: $clog2(WIDTH) to 16
+//     Default: 12
+//     Constraints: Must be wide enough to represent WIDTH (TAP_INDEX_WIDTH >= $clog2(WIDTH))
+//
+//   TAP_COUNT:
+//     Description: Number of feedback tap positions
+//     Type: int
+//     Range: 1 to 8
+//     Default: 4
+//     Constraints: Use maximal-length tap sets from polynomial table for full period
+//
+//   Derived Parameters (localparam):
+//     TIW: Alias for TAP_INDEX_WIDTH (used for array sizing)
+//
+//------------------------------------------------------------------------------
+// Polynomial Table Reference:
+//------------------------------------------------------------------------------
+//   The table below lists maximal-length LFSR polynomials (XNOR feedback) for
+//   various widths. These produce sequences of period 2^n - 1.
+//
+//   Example: For WIDTH=8, use taps [8,6,5,4] for maximal-length sequence
+//   Tap notation: tap position n corresponds to bit index n-1 in SystemVerilog
+//
+//------------------------------------------------------------------------------
+// Notes:
+//------------------------------------------------------------------------------
+//   - XNOR feedback: Uses inverted XOR (~^) for tap feedback
+//   - Left-shift operation: feedback applied to LSB, bits shift left
+//   - Maximal-length polynomials produce sequences of period (2^WIDTH - 1)
+//   - lfsr_done pulses when LFSR returns to seed value
+//   - Tap positions are 1-indexed (tap 1 = bit 0, tap WIDTH = bit WIDTH-1)
+//   - Initializes to all zeros (not maximal-length state)
+//
+//------------------------------------------------------------------------------
+// Related Modules:
+//------------------------------------------------------------------------------
+//   - shifter_lfsr_galois.sv - Galois LFSR (internal XOR feedback)
+//   - shifter_lfsr_fibonacci.sv - Fibonacci LFSR (external XOR feedback)
+//
+//------------------------------------------------------------------------------
+// Test:
+//------------------------------------------------------------------------------
+//   Location: val/common/test_shifter_lfsr.py
+//   Run: pytest val/common/test_shifter_lfsr.py -v
+//
+//==============================================================================
+
 // LFSR Polynomials
 // +----+--------------+----+-------------+-----+-----------------+-----+-----------------+
 // | n  |  XNOR from   | n  |  XNOR from  |  n  |    XNOR from    |  n  |    XNOR from    |

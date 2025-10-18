@@ -1,3 +1,5 @@
+**[← Back to Main Index](../index.md)** | **[CocoTBFramework Index](index.md)**
+
 # CocoTBFramework Overview
 
 The CocoTBFramework is a comprehensive verification framework built on top of CocoTB that provides a complete ecosystem for digital design verification. It combines protocol-specific components, advanced scoreboards, and complete testbench environments into a unified framework that scales from simple unit tests to complex system-level verification.

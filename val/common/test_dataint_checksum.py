@@ -546,13 +546,13 @@ def test_dataint_checksum(request, params): # sourcery skip: no-conditionals-in-
 
 
     compile_args = [
-            "--trace-fst",
+            "--trace",
             "--trace-structs",
             "--trace-depth", "99",
     ]
 
     sim_args = [
-            "--trace-fst",  # Tell Verilator to use FST
+            "--trace",  # Tell Verilator to use FST
             "--trace-structs",
             "--trace-depth", "99",
     ]
@@ -573,7 +573,7 @@ def test_dataint_checksum(request, params): # sourcery skip: no-conditionals-in-
             parameters=parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=True,
+            waves=False,
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,

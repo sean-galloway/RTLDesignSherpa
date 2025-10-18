@@ -1,0 +1,57 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Generated: Wed Oct 15 03:46:34 2025
+[*]
+[dumpfile] "(null)"
+[savefile] "/mnt/data/github/rtldesignsherpa/val/common/GTKW/fifo_sync.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] -1 -1
+*-20.0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .fifo_sync.
+[sst_width] 401
+[signals_width] 250
+[sst_expanded] 1
+[sst_vpaned_height] 400
+@420
+fifo_sync.REGISTERED
+fifo_sync.DATA_WIDTH
+fifo_sync.DEPTH
+fifo_sync.ALMOST_WR_MARGIN
+fifo_sync.ALMOST_RD_MARGIN
+fifo_sync.INSTANCE_NAME
+fifo_sync.DW
+fifo_sync.D
+fifo_sync.AW
+@200
+-Clock and Reset
+@28
+fifo_sync.clk
+@200
+-Inputs
+@28
+fifo_sync.write
+fifo_sync.wr_data
+fifo_sync.read
+@200
+-Outputs
+@28
+fifo_sync.wr_full
+fifo_sync.wr_almost_full
+fifo_sync.rd_data
+fifo_sync.rd_empty
+fifo_sync.rd_almost_empty
+@200
+-Internal Registers
+@28
+fifo_sync.r_mem
+fifo_sync.r_wr_addr
+fifo_sync.r_wr_ptr_bin
+@200
+-Internal Wires
+@28
+fifo_sync.w_rd_data
+fifo_sync.w_wr_ptr_bin_next
+[pattern_trace] 1
+[pattern_trace] 0

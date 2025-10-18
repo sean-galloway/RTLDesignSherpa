@@ -507,15 +507,15 @@ def test_axil4_slave_write_cg(addr_width, data_width, aw_depth, w_depth, b_depth
     # Simulation settings
     includes = [sim_build]
     compile_args = [
-        "--trace-fst",
-        "--trace-structs",
+        "--trace",
+        
         "--trace-depth", "99",
         "-Wall",
         "-Wno-UNUSED",
         "-Wno-DECLFILENAME",
         "-Wno-PINMISSING",
     ]
-    sim_args = ["--trace-fst", "--trace-structs", "--trace-depth", "99"]
+    sim_args = ["--trace", "--trace-depth", "99"]
     plusargs = ["+trace"]
 
     # Create command file for viewing results
@@ -540,7 +540,7 @@ def test_axil4_slave_write_cg(addr_width, data_width, aw_depth, w_depth, b_depth
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=True,
+            waves=False,
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,

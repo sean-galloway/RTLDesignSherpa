@@ -160,12 +160,12 @@ module cdc_handshake #(
             case (r_dst_state)
                 D_IDLE: begin
                     r_ack_dst <= 1'b0;
-                    if (w_req_sync) begin  
-                        r_dst_data   <= r_async_data;  
-                        dst_valid    <= 1'b1;          
+                    if (w_req_sync) begin
+                        r_dst_data   <= r_async_data;
+                        dst_valid    <= 1'b1;
                         r_dst_state  <= D_WAIT_READY;      // Always go to WAIT_READY first
                     end else begin
-                        dst_valid <= 1'b0;  
+                        dst_valid <= 1'b0;
                     end
                 end
                 D_WAIT_READY: begin

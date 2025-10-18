@@ -1,0 +1,51 @@
+# Vivado Build Artifacts
+vivado_project/
+.Xil/
+*.log
+*.jou
+*.str
+*.xpr.user
+
+# Synthesis and Implementation
+.srcs/
+.cache/
+.hw/
+.ip_user_files/
+.sim/
+
+# Reports (optional - may want to track these)
+# reports/
+
+# Bitstream
+*.bit
+*.bin
+*.mcs
+
+# Simulation
+sim/sim_build/
+sim/obj_dir/
+sim/*.vcd
+sim/*.fst
+sim/logs/*.log
+sim/__pycache__/
+sim/.pytest_cache/
+
+# Waveforms (optional - usually too large)
+*.vcd
+*.fst
+*.ghw
+*.vcd.hier
+*.fst.hier
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Temporary files
+*~
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

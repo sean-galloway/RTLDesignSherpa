@@ -176,8 +176,8 @@ def test_gaxi_buffer_field(request, addr_width, ctrl_width, data_width, depth, m
 
     # Simulation settings
     includes = [sim_build]
-    compile_args = ["--trace-fst", "--trace-structs", "--trace-depth", "99", "-Wall", "-Wno-UNUSED", "-Wno-DECLFILENAME"]
-    sim_args = ["--trace-fst", "--trace-structs", "--trace-depth", "99"]
+    compile_args = ["--trace", "--trace-structs", "--trace-depth", "99", "-Wall", "-Wno-UNUSED", "-Wno-DECLFILENAME"]
+    sim_args = ["--trace", "--trace-structs", "--trace-depth", "99"]
     plusargs = ["+trace"]
 
     cmd_filename = create_view_cmd(os.path.dirname(log_path), log_path, sim_build, module, test_name_plus_params)
@@ -199,7 +199,7 @@ def test_gaxi_buffer_field(request, addr_width, ctrl_width, data_width, depth, m
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=True,
+            waves=False,
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,

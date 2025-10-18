@@ -1,5 +1,64 @@
 `timescale 1ns / 1ps
 
+//==============================================================================
+// Module: grayj2bin
+//==============================================================================
+// Description:
+//   Converts Johnson counter Gray code to binary representation. Johnson counters
+//   produce a special form of Gray code where only one bit changes between states,
+//   making them ideal for asynchronous clock domain crossing. This module decodes
+//   the Johnson code back to standard binary for address generation.
+//
+//------------------------------------------------------------------------------
+// Parameters:
+//------------------------------------------------------------------------------
+//   JCW:
+//     Description: Johnson Counter Width (number of bits in Johnson code)
+//     Type: int
+//     Range: 2 to 128
+//     Default: 10
+//     Constraints: Typically equal to DEPTH for even-numbered FIFO depths
+//
+//   WIDTH:
+//     Description: Binary output width in bits
+//     Type: int
+//     Range: 1 to 32
+//     Default: 4
+//     Constraints: Must be $clog2(JCW) + 1 to represent full count range
+//
+//   INSTANCE_NAME:
+//     Description: Instance name for debug/waveform identification
+//     Type: string
+//     Default: ""
+//     Constraints: String identifier (debugging only)
+//
+//   Derived Parameters (localparam - computed automatically):
+//     N: Bit width for leading/trailing one position ($clog2(JCW))
+//     PAD_WIDTH: Zero-padding width for output alignment
+//
+//------------------------------------------------------------------------------
+// Notes:
+//------------------------------------------------------------------------------
+//   - Johnson counter creates 2*JCW unique states with JCW flip-flops
+//   - Single bit transition property ensures CDC safety
+//   - Decoding uses leading_one_trailing_one module for position detection
+//   - MSB of binary output indicates wrap-around (second half of sequence)
+//   - Used in fifo_async_div2 for pointer conversion
+//
+//------------------------------------------------------------------------------
+// Related Modules:
+//------------------------------------------------------------------------------
+//   - counter_johnson.sv - Generates Johnson counter sequences
+//   - leading_one_trailing_one.sv - Position detection helper
+//   - fifo_async_div2.sv - Primary user of this converter
+//
+//------------------------------------------------------------------------------
+// Test:
+//------------------------------------------------------------------------------
+//   Location: val/common/test_grayj2bin.py
+//   Run: pytest val/common/test_grayj2bin.py -v
+//
+//==============================================================================
 module grayj2bin #(
     parameter int    JCW = 10,
     parameter int    WIDTH = 4,

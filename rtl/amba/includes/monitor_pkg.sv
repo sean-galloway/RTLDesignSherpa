@@ -575,22 +575,22 @@ package monitor_pkg;
         CORE_ERR_CREDIT_UNDERFLOW      = 4'h4,  // Credit system violation
         CORE_ERR_STATE_MACHINE         = 4'h5,  // Invalid FSM state transition
         CORE_ERR_DESCRIPTOR_ENGINE     = 4'h6,  // Descriptor engine FSM error
-        CORE_ERR_FLAG_ENGINE           = 4'h7,  // Flag engine FSM error
-        CORE_ERR_PROGRAM_ENGINE        = 4'h8,  // Program engine FSM error
+        CORE_ERR_FLAG_ENGINE           = 4'h7,  // Flag engine FSM error (legacy - pre-ctrlrd)
+        CORE_ERR_CTRLWR_ENGINE         = 4'h8,  // Control write engine FSM error
         CORE_ERR_DATA_ENGINE           = 4'h9,  // Data engine error
         CORE_ERR_CHANNEL_INVALID       = 4'hA,  // Invalid channel ID
         CORE_ERR_CONTROL_VIOLATION     = 4'hB,  // Control register violation
         CORE_ERR_OVERFLOW              = 4'hC,  // Overflow
-        CORE_ERR_RESERVED_D            = 4'hD,  // Reserved
-        CORE_ERR_RESERVED_E            = 4'hE,  // Reserved
+        CORE_ERR_CTRLRD_MAX_RETRIES    = 4'hD,  // Control read max retries exceeded
+        CORE_ERR_CTRLRD_ENGINE         = 4'hE,  // Control read engine FSM error
         CORE_ERR_USER_DEFINED          = 4'hF   // User-defined error
     } core_error_code_t;
 
     // CORE Timeout Events (packet_type = PktTypeTimeout, protocol = PROTOCOL_CORE)
     typedef enum logic [3:0] {
         CORE_TIMEOUT_DESCRIPTOR_FETCH  = 4'h0,  // Descriptor fetch timeout
-        CORE_TIMEOUT_FLAG_RETRY        = 4'h1,  // Flag comparison retry timeout
-        CORE_TIMEOUT_PROGRAM_WRITE     = 4'h2,  // Program write timeout
+        CORE_TIMEOUT_CTRLRD_RETRY      = 4'h1,  // Control read retry timeout
+        CORE_TIMEOUT_CTRLWR_WRITE      = 4'h2,  // Control write timeout
         CORE_TIMEOUT_DATA_TRANSFER     = 4'h3,  // Data transfer timeout
         CORE_TIMEOUT_CREDIT_WAIT       = 4'h4,  // Credit wait timeout
         CORE_TIMEOUT_CONTROL_WAIT      = 4'h5,  // Control enable wait timeout
@@ -610,8 +610,8 @@ package monitor_pkg;
     typedef enum logic [3:0] {
         CORE_COMPL_DESCRIPTOR_LOADED   = 4'h0,  // Descriptor successfully loaded
         CORE_COMPL_DESCRIPTOR_CHAIN    = 4'h1,  // Descriptor chain completed
-        CORE_COMPL_FLAG_MATCHED        = 4'h2,  // Flag comparison successful
-        CORE_COMPL_PROGRAM_COMPLETED   = 4'h3,  // Post-programming completed
+        CORE_COMPL_CTRLRD_COMPLETED    = 4'h2,  // Control read completed (with match)
+        CORE_COMPL_CTRLWR_COMPLETED    = 4'h3,  // Control write completed
         CORE_COMPL_DATA_TRANSFER       = 4'h4,  // Data transfer completed
         CORE_COMPL_CREDIT_CYCLE        = 4'h5,  // Credit cycle completed
         CORE_COMPL_CHANNEL_COMPLETE    = 4'h6,  // Channel processing complete
@@ -655,7 +655,7 @@ package monitor_pkg;
         CORE_PERF_CREDIT_EXHAUSTED     = 4'h4,  // Credit blocking execution
         CORE_PERF_STATE_TRANSITION     = 4'h5,  // FSM state change
         CORE_PERF_DESCRIPTOR_ACTIVE    = 4'h6,  // Data processing started
-        CORE_PERF_FLAG_RETRY           = 4'h7,  // Flag comparison retry
+        CORE_PERF_CTRLRD_RETRY         = 4'h7,  // Control read retry attempt
         CORE_PERF_CHANNEL_ENABLE       = 4'h8,  // Channel enabled by software
         CORE_PERF_CHANNEL_DISABLE      = 4'h9,  // Channel disabled by software
         CORE_PERF_CREDIT_UTILIZATION   = 4'hA,  // Credit utilization metric
@@ -670,8 +670,8 @@ package monitor_pkg;
     typedef enum logic [3:0] {
         CORE_DEBUG_FSM_STATE_CHANGE    = 4'h0,  // Descriptor FSM state change
         CORE_DEBUG_DESCRIPTOR_CONTENT  = 4'h1,  // Descriptor content trace
-        CORE_DEBUG_FLAG_ENGINE_STATE   = 4'h2,  // Flag engine state trace
-        CORE_DEBUG_PROGRAM_ENGINE_STATE = 4'h3,  // Program engine state trace
+        CORE_DEBUG_CTRLRD_ENGINE_STATE = 4'h2,  // Control read engine state trace
+        CORE_DEBUG_CTRLWR_ENGINE_STATE = 4'h3,  // Control write engine state trace
         CORE_DEBUG_CREDIT_OPERATION    = 4'h4,  // Credit system operation
         CORE_DEBUG_CONTROL_REGISTER    = 4'h5,  // Control register access
         CORE_DEBUG_ENGINE_HANDSHAKE    = 4'h6,  // Engine handshake trace
@@ -734,7 +734,7 @@ package monitor_pkg;
 
     // Enhanced 64-bit monitor packet format:
     // [63:60] - packet_type: 4 bits (error, timeout, completion, etc.)
-    // [59:57] - protocol:    3 bits (AXI/MNOC/APB/ARB/CORE)
+    // [59:57] - protocol:    3 bits (AXI/Network/APB/ARB/CORE)
     // [56:53] - event_code:  4 bits (specific error or event code)
     // [52:47] - channel_id:  6 bits (channel ID and AXI ID)
     // [46:43] - unit_id:     4 bits (subsystem identifier)
@@ -1380,5 +1380,74 @@ package monitor_pkg;
                         protocol_str, packet_type_str, event_name,
                         agent_id, unit_id, channel_id, event_data);
     endfunction
+
+    // =============================================================================
+    // AXI MONITOR TRANSACTION STRUCTURE AND LEGACY EVENT CONSTANTS
+    // =============================================================================
+    // Added for compatibility with existing AXI monitor RTL
+
+    // Transaction state enumeration for AXI monitoring (must be defined first)
+    typedef enum logic [2:0] {
+        TRANS_IDLE       = 3'h0,  // Transaction slot is idle/free
+        TRANS_ADDR_PHASE = 3'h1,  // Address phase in progress
+        TRANS_DATA_PHASE = 3'h2,  // Data phase in progress
+        TRANS_COMPLETE   = 3'h3,  // Transaction completed successfully
+        TRANS_ERROR      = 3'h4,  // Transaction has error
+        TRANS_ORPHANED   = 3'h5   // Orphaned transaction (no matching phase)
+    } transaction_state_t;
+
+    // Event code union for different protocols
+    typedef union packed {
+        axi_error_code_t      axi_error;
+        axi_timeout_code_t    axi_timeout;
+        axi_completion_code_t axi_completion;
+        axi_threshold_code_t  axi_threshold;
+        axi_performance_code_t axi_performance;
+        logic [3:0]           raw_code;
+    } event_code_union_t;
+
+    // Bus transaction structure for AXI monitoring
+    typedef struct packed {
+        logic        valid;              // Transaction slot is valid/active
+        logic        cmd_received;       // Address phase completed
+        logic        data_started;       // Data phase started
+        logic        data_completed;     // Data phase completed
+        logic        resp_received;      // Response phase completed
+        logic        event_reported;     // Event has been reported to monitor bus
+        logic        eos_seen;           // End of stream seen (last beat)
+
+        transaction_state_t state;       // Current transaction state
+
+        logic [31:0] addr;               // Transaction address
+        logic [7:0]  id;                 // Transaction ID
+        logic [7:0]  len;                // Burst length
+        logic [2:0]  size;               // Burst size
+        logic [1:0]  burst;              // Burst type
+        logic [5:0]  channel;            // Channel identifier
+
+        logic [31:0] addr_timer;         // Address phase timer
+        logic [31:0] data_timer;         // Data phase timer
+        logic [31:0] resp_timer;         // Response phase timer
+        logic [31:0] addr_timestamp;     // Address phase timestamp
+        logic [31:0] data_timestamp;     // Data phase timestamp
+        logic [31:0] resp_timestamp;     // Response phase timestamp
+
+        logic [7:0]  expected_beats;     // Expected number of data beats
+        logic [7:0]  data_beat_count;    // Current data beat count
+
+        event_code_union_t event_code;   // Event code for this transaction
+    } bus_transaction_t;
+
+    // Legacy event constants for backward compatibility - use proper enums
+    localparam logic [3:0] EVT_NONE                    = 4'h0;  // No event (generic)
+    localparam axi_timeout_code_t EVT_CMD_TIMEOUT      = AXI_TIMEOUT_CMD;
+    localparam axi_timeout_code_t EVT_DATA_TIMEOUT     = AXI_TIMEOUT_DATA;
+    localparam axi_timeout_code_t EVT_RESP_TIMEOUT     = AXI_TIMEOUT_RESP;
+    localparam axi_completion_code_t EVT_TRANS_COMPLETE = AXI_COMPL_TRANS_COMPLETE;
+    localparam axi_error_code_t EVT_RESP_SLVERR        = AXI_ERR_RESP_SLVERR;
+    localparam axi_error_code_t EVT_RESP_DECERR        = AXI_ERR_RESP_DECERR;
+    localparam axi_error_code_t EVT_DATA_ORPHAN        = AXI_ERR_DATA_ORPHAN;
+    localparam axi_error_code_t EVT_RESP_ORPHAN        = AXI_ERR_RESP_ORPHAN;
+    localparam axi_error_code_t EVT_PROTOCOL           = AXI_ERR_PROTOCOL;
 
 endpackage : monitor_pkg

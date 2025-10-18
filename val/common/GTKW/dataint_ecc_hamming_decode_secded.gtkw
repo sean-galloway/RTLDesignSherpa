@@ -1,0 +1,49 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Generated: Wed Oct 15 03:46:34 2025
+[*]
+[dumpfile] "(null)"
+[savefile] "/mnt/data/github/rtldesignsherpa/val/common/GTKW/dataint_ecc_hamming_decode_secded.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] -1 -1
+*-20.0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .dataint_ecc_hamming_decode_secded.
+[sst_width] 401
+[signals_width] 250
+[sst_expanded] 1
+[sst_vpaned_height] 400
+@420
+dataint_ecc_hamming_decode_secded.WIDTH
+dataint_ecc_hamming_decode_secded.DEBUG
+@200
+-Clock and Reset
+@28
+dataint_ecc_hamming_decode_secded.clk
+@200
+-Inputs
+@28
+dataint_ecc_hamming_decode_secded.enable
+dataint_ecc_hamming_decode_secded.hamming_data
+@200
+-Outputs
+@28
+dataint_ecc_hamming_decode_secded.data
+dataint_ecc_hamming_decode_secded.error_detected
+dataint_ecc_hamming_decode_secded.double_error_detected
+@200
+-Internal Registers
+@28
+dataint_ecc_hamming_decode_secded.r_data_with_parity
+@200
+-Internal Wires
+@28
+dataint_ecc_hamming_decode_secded.w_covered_bits
+dataint_ecc_hamming_decode_secded.w_overall_parity
+dataint_ecc_hamming_decode_secded.w_overall_parity_in
+dataint_ecc_hamming_decode_secded.w_syndrome
+dataint_ecc_hamming_decode_secded.w_syndrome_0_based
+dataint_ecc_hamming_decode_secded.w_syndrome_in
+[pattern_trace] 1
+[pattern_trace] 0

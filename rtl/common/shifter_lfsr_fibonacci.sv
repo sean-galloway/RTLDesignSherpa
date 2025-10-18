@@ -1,6 +1,64 @@
 `timescale 1ns / 1ps
 
-// Fibonacci LFSR, parameteried
+//==============================================================================
+// Module: shifter_lfsr_fibonacci
+//==============================================================================
+// Description:
+//   Fibonacci-configuration Linear Feedback Shift Register (LFSR) with configurable
+//   tap positions. Uses right-shift architecture with XOR feedback applied at the
+//   MSB. Suitable for pseudo-random number generation, scrambling, and pattern
+//   generation.
+//
+//------------------------------------------------------------------------------
+// Parameters:
+//------------------------------------------------------------------------------
+//   WIDTH:
+//     Description: LFSR register width in bits
+//     Type: int
+//     Range: 2 to 128
+//     Default: 8
+//     Constraints: Determines sequence length (2^WIDTH - 1 states for maximal taps)
+//
+//   TAP_INDEX_WIDTH:
+//     Description: Bit width for tap position indices
+//     Type: int
+//     Range: $clog2(WIDTH) to 16
+//     Default: 12
+//     Constraints: Must be wide enough to represent WIDTH (TAP_INDEX_WIDTH >= $clog2(WIDTH))
+//
+//   TAP_COUNT:
+//     Description: Number of feedback tap positions
+//     Type: int
+//     Range: 1 to 8
+//     Default: 4
+//     Constraints: Determines feedback complexity. Use maximal-length tap sets for full period.
+//
+//   Derived Parameters (localparam):
+//     TIW: Alias for TAP_INDEX_WIDTH (used for array sizing)
+//
+//------------------------------------------------------------------------------
+// Notes:
+//------------------------------------------------------------------------------
+//   - Fibonacci LFSRs apply feedback at the MSB only (external feedback)
+//   - Right-shift operation: MSB=feedback, all bits shift right
+//   - Maximal-length tap sets produce sequences of period (2^WIDTH - 1)
+//   - lfsr_done pulses when LFSR returns to seed value
+//   - Tap positions are 1-indexed (tap 1 = bit 0, tap WIDTH = bit WIDTH-1)
+//   - Different feedback than Galois LFSR (see shifter_lfsr_galois.sv)
+//
+//------------------------------------------------------------------------------
+// Related Modules:
+//------------------------------------------------------------------------------
+//   - shifter_lfsr_galois.sv - Galois LFSR (internal feedback)
+//   - shifter_lfsr.sv - Generic LFSR wrapper
+//
+//------------------------------------------------------------------------------
+// Test:
+//------------------------------------------------------------------------------
+//   Location: val/common/test_shifter_lfsr_fibonacci.py
+//   Run: pytest val/common/test_shifter_lfsr_fibonacci.py -v
+//
+//==============================================================================
 module shifter_lfsr_fibonacci #(
     parameter int WIDTH           = 8,   // Width of the LFSR
     parameter int TAP_INDEX_WIDTH = 12,

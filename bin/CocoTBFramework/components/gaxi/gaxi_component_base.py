@@ -77,8 +77,16 @@ class GAXIComponentBase:
         self.memory_model = memory_model
         self.signal_map = signal_map  # NEW: Store signal map
 
-        # Validate protocol_type
-        valid_types = ['gaxi_master', 'gaxi_slave', 'axis_master', 'axis_slave']
+        # Validate protocol_type - allow GAXI, AXIS, and AXI4 protocol types
+        valid_types = [
+            'gaxi_master', 'gaxi_slave',
+            'axis_master', 'axis_slave',
+            'axi4_ar_master', 'axi4_ar_slave',
+            'axi4_r_master', 'axi4_r_slave',
+            'axi4_aw_master', 'axi4_aw_slave',
+            'axi4_w_master', 'axi4_w_slave',
+            'axi4_b_master', 'axi4_b_slave'
+        ]
         if protocol_type not in valid_types:
             raise ValueError(f"protocol_type must be one of {valid_types}, got: {protocol_type}")
         self.protocol_type = protocol_type
@@ -183,7 +191,7 @@ class GAXIComponentBase:
         self._setup_data_strategies()
 
         # Log successful initialization
-        side_description = "slave" if self.protocol_type == 'gaxi_slave' else "master"
+        side_description = "slave" if "slave" in self.protocol_type else "master"
         signal_source = "manual signal_map" if self.signal_map else "automatic discovery"
         if self.log:
             self.log.info(f"GAXIComponentBase '{self.title}' initialized: {side_description} side, "

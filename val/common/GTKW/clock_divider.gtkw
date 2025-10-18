@@ -1,0 +1,45 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Generated: Wed Oct 15 03:46:34 2025
+[*]
+[dumpfile] "(null)"
+[savefile] "/mnt/data/github/rtldesignsherpa/val/common/GTKW/clock_divider.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] -1 -1
+*-20.0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .clock_divider.
+[sst_width] 401
+[signals_width] 250
+[sst_expanded] 1
+[sst_vpaned_height] 400
+@420
+clock_divider.N
+clock_divider.PO_WIDTH
+clock_divider.COUNTER_WIDTH
+@200
+-Clock and Reset
+@28
+clock_divider.clk
+clock_divider.rst_n
+@200
+-Inputs
+@28
+clock_divider.pickoff_points
+@200
+-Outputs
+@28
+clock_divider.divided_clk
+@200
+-Internal Registers
+@28
+clock_divider.r_divider_counters
+@200
+-Internal Wires
+@28
+clock_divider.w_counter_width_sized
+clock_divider.w_pickoff_addr
+clock_divider.w_pickoff_raw
+[pattern_trace] 1
+[pattern_trace] 0

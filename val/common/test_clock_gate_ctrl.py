@@ -690,7 +690,7 @@ def test_clock_gate_ctrl(request, counter_width):
     }
 
     compile_args = [
-        "--trace-fst",
+        "--trace",
         "--trace-structs",
         "--trace-depth", "99",
     ]
@@ -703,7 +703,7 @@ def test_clock_gate_ctrl(request, counter_width):
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
     sim_args = [
-                "--trace-fst",  # Tell Verilator to use FST
+                "--trace",  # Tell Verilator to use FST
                 "--trace-structs",
                 "--trace-depth", "99",
     ]

@@ -1,0 +1,75 @@
+{
+  "signal": [
+    {
+      "name": "apb_pclk",
+      "wave": "p......."
+    },
+    {
+      "name": "apb_presetn",
+      "wave": "1......."
+    },
+    [
+      "APB",
+      {
+        "name": "psel",
+        "wave": "1......."
+      },
+      {
+        "name": "penable",
+        "wave": "1......."
+      },
+      {
+        "name": "pwrite",
+        "wave": "1......."
+      },
+      {
+        "name": "pready",
+        "wave": "0......1"
+      },
+      {
+        "name": "paddr",
+        "wave": "2.......",
+        "data": [
+          "0x00001000"
+        ]
+      },
+      {
+        "name": "pwdata",
+        "wave": "2.......",
+        "data": [
+          "0xDEADBEEF"
+        ]
+      },
+      {
+        "name": "prdata",
+        "wave": "0......."
+      },
+      {
+        "name": "pstrb",
+        "wave": "2.......",
+        "data": [
+          "0b1111"
+        ]
+      },
+      {
+        "name": "pprot",
+        "wave": "0......."
+      },
+      {
+        "name": "pslverr",
+        "wave": "0......1"
+      }
+    ]
+  ],
+  "head": {
+    "text": "APB Apb Error Sequence",
+    "tick": 0,
+    "every": 2
+  },
+  "foot": {
+    "text": "Modular: 1 events, sequence, 1 cycles | CP-SAT Solved"
+  },
+  "config": {
+    "hscale": 2
+  }
+}

@@ -1,5 +1,49 @@
 `timescale 1ns / 1ps
 
+//==============================================================================
+// Module: sort
+//==============================================================================
+// Description:
+//   Pipelined sorting network for multiple values using odd-even transposition
+//   sort algorithm. Sorts NUM_VALS values in ascending order over NUM_VALS
+//   pipeline stages. Each stage performs parallel comparisons and swaps.
+//   Fully pipelined for high throughput with deterministic latency.
+//
+//------------------------------------------------------------------------------
+// Parameters:
+//------------------------------------------------------------------------------
+//   NUM_VALS:
+//     Description: Number of values to sort
+//     Type: int
+//     Range: 2 to 16
+//     Default: 5
+//     Constraints: Determines pipeline depth (NUM_VALS stages)
+//
+//   Derived Parameters (localparam - computed automatically):
+//     STAGES: Number of pipeline stages (equal to NUM_VALS)
+//
+//------------------------------------------------------------------------------
+// Notes:
+//------------------------------------------------------------------------------
+//   - Pipelined operation: NUM_VALS clock cycles latency
+//   - Input: Concatenated values [NUM_VALS*SIZE-1:0] (value 0 at LSB)
+//   - Output: Sorted ascending order (smallest at LSB)
+//   - Throughput: One sort result per clock cycle (fully pipelined)
+//   - Algorithm: Odd-even transposition sort (compare-swap network)
+//   - Resource usage: O(NUM_VALS^2) comparators, O(NUM_VALS^2 * SIZE) registers
+//
+//------------------------------------------------------------------------------
+// Related Modules:
+//------------------------------------------------------------------------------
+//   - None (standalone sorting implementation)
+//
+//------------------------------------------------------------------------------
+// Test:
+//------------------------------------------------------------------------------
+//   Location: val/common/test_sort.py
+//   Run: pytest val/common/test_sort.py -v
+//
+//==============================================================================
 module sort #(
     parameter int NUM_VALS = 5,
     parameter int SIZE     = 16

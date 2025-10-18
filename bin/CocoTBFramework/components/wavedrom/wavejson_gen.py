@@ -41,6 +41,7 @@ class TemporalAnnotation:
     name: str
     cycle: int
     description: str = ""
+    signal_name: Optional[str] = None  # Signal this event is associated with
 
 
 class WaveJSONGenerator:
@@ -195,7 +196,8 @@ class WaveJSONGenerator:
                          subtitle: str = "",
                          temporal_annotations: List[TemporalAnnotation] = None,
                          config_options: Dict[str, Any] = None,
-                         protocol_hint: str = None) -> Dict[str, Any]:
+                         protocol_hint: str = None,
+                         signal_order: List[str] = None) -> Dict[str, Any]:
         """
         Generate complete WaveJSON from signal data with FieldConfig integration.
 
@@ -206,6 +208,7 @@ class WaveJSONGenerator:
             temporal_annotations: List of temporal event annotations
             config_options: Additional WaveDrom configuration options
             protocol_hint: Protocol hint for better formatting
+            signal_order: Optional list specifying signal order (may include '|' for grouping)
 
         Returns:
             Complete WaveJSON dictionary
@@ -231,8 +234,8 @@ class WaveJSONGenerator:
         if unconfigured_signals:
             self.auto_configure_signals(unconfigured_signals)
 
-        # Generate signal array with formatting
-        signals = self._generate_signal_array(signal_data, window_size)
+        # Generate signal array with formatting (respecting signal_order if provided)
+        signals = self._generate_signal_array(signal_data, window_size, signal_order)
 
         # Create base WaveJSON structure
         wavejson = {
@@ -310,10 +313,81 @@ class WaveJSONGenerator:
         return self._get_format_style(field_def.name)
 
     def _generate_signal_array(self, signal_data: Dict[str, List[int]],
-                              window_size: int) -> List[Any]:
-        """Generate the signal array for WaveJSON with FieldConfig support"""
+                              window_size: int,
+                              signal_order: List[str] = None) -> List[Any]:
+        """
+        Generate the signal array for WaveJSON with FieldConfig support.
+
+        If signal_order is provided, signals are ordered and grouped according to that list.
+        The '|' character in signal_order creates a visual separator.
+        """
         signals = []
 
+        # If signal_order is provided, use it for ordering and grouping
+        if signal_order:
+            for item in signal_order:
+                # Handle grouping separator
+                if item == '|':
+                    # Add empty object for visual separator (WaveDrom convention)
+                    signals.append({})
+                    continue
+
+                # Handle nested arrays for labeled groups: ['GroupName', 'sig1', 'sig2', ...]
+                if isinstance(item, list):
+                    if len(item) < 2:
+                        continue  # Skip empty or malformed groups
+
+                    group_label = item[0]
+                    group_signals = []
+
+                    # Process each signal in the group
+                    for sig_name in item[1:]:
+                        if sig_name not in signal_data:
+                            continue
+
+                        # Generate signal based on type
+                        config = self.signal_configs.get(sig_name)
+                        if config and config.signal_type == SignalType.CLOCK:
+                            clock_wave = self._generate_clock_wave(window_size)
+                            group_signals.append({
+                                "name": config.display_name,
+                                "wave": clock_wave
+                            })
+                        else:
+                            signal_dict = self._generate_signal_dict(sig_name, signal_data[sig_name])
+                            if signal_dict:
+                                group_signals.append(signal_dict)
+
+                    # Add labeled group if it has signals
+                    if group_signals:
+                        signals.append([group_label, *group_signals])
+                    continue
+
+                # Handle string signal names (backward compatibility)
+                sig_name = item
+
+                # Skip if signal not in data
+                if sig_name not in signal_data:
+                    continue
+
+                # Generate signal based on type
+                config = self.signal_configs.get(sig_name)
+                if config and config.signal_type == SignalType.CLOCK:
+                    # Clock signal
+                    clock_wave = self._generate_clock_wave(window_size)
+                    signals.append({
+                        "name": config.display_name,
+                        "wave": clock_wave
+                    })
+                else:
+                    # Regular signal
+                    signal_dict = self._generate_signal_dict(sig_name, signal_data[sig_name])
+                    if signal_dict:
+                        signals.append(signal_dict)
+
+            return signals
+
+        # Original behavior: auto-group by interface
         # Add clock signal first if present
         clock_signals = [name for name in signal_data.keys()
                         if self.signal_configs.get(name, SignalConfig("", "", SignalType.SINGLE_BIT)).signal_type == SignalType.CLOCK]
@@ -453,18 +527,22 @@ class WaveJSONGenerator:
         if config.field_definition:
             field_def = config.field_definition
 
+            # Mask value to field width for cleaner display
+            mask = (1 << field_def.bits) - 1
+            masked_value = value & mask
+
             # Check for encoding first
-            if hasattr(field_def, 'encoding') and field_def.encoding and value in field_def.encoding:
-                return field_def.encoding[value]
+            if hasattr(field_def, 'encoding') and field_def.encoding and masked_value in field_def.encoding:
+                return field_def.encoding[masked_value]
 
             # Use FieldConfig format
             if field_def.format == "bin":
-                return f"0b{value:0{field_def.bits}b}"
+                return f"0b{masked_value:0{field_def.bits}b}"
             elif field_def.format == "dec":
-                return str(value)
+                return str(masked_value)
             else:  # hex
                 width = (field_def.bits + 3) // 4
-                return f"0x{value:0{width}X}"
+                return f"0x{masked_value:0{width}X}"
 
         # Fall back to original formatting
         return self._format_data_value(value, config)
@@ -522,14 +600,11 @@ class WaveJSONGenerator:
         """Get display name for signal (fallback)"""
         display_name = signal_name
 
-        # Remove interface prefix if present
+        # IMPORTANT: Keep wr_/rd_ prefixes for clarity
+        # Only remove the interface_prefix if explicitly specified
         if interface_prefix and signal_name.startswith(interface_prefix + "_"):
             display_name = signal_name[len(interface_prefix) + 1:]
-        elif "_" in signal_name:
-            # Remove common prefixes
-            parts = signal_name.split("_")
-            if len(parts) > 1:
-                display_name = parts[-1]
+        # Otherwise keep the full signal name (preserves wr_valid, rd_ready, etc.)
 
         return display_name
 
@@ -580,82 +655,112 @@ class WaveJSONGenerator:
         # Sort annotations by cycle
         sorted_annotations = sorted(annotations, key=lambda x: x.cycle)
 
-        # Find a representative signal to place nodes on (prefer control signals)
-        node_signal = None
-        control_patterns = ['psel', 'sel', 'valid', 'enable', 'penable', 'ready']
+        # NEW: Distribute nodes across different signals based on event names
+        # This creates arrows BETWEEN signals showing causality
+        wave_length = len(next(iter(signal_data.values()))) if signal_data else 0
 
-        for pattern in control_patterns:
-            for signal_name in signal_data.keys():
-                if pattern in signal_name.lower():
-                    node_signal = signal_name
-                    break
-            if node_signal:
-                break
+        for i, annotation in enumerate(sorted_annotations):
+            cycle = annotation.cycle
+            if cycle >= wave_length:
+                continue
 
-        if not node_signal and signal_data:
-            # Fall back to first signal
-            node_signal = list(signal_data.keys())[0]
+            node_char = chr(ord('a') + i)
 
-        if node_signal:
-            # Create node string for the selected signal
-            wave_length = len(signal_data[node_signal])
-            nodes = ['.'] * wave_length
+            # Try to place node on the signal specified in annotation first
+            node_placed = False
 
-            for i, annotation in enumerate(sorted_annotations):
-                cycle = annotation.cycle
-                if cycle < wave_length:
-                    node_char = chr(ord('a') + i)
-                    nodes[cycle] = node_char
+            if annotation.signal_name and annotation.signal_name in signal_data:
+                if annotation.signal_name not in signal_nodes:
+                    signal_nodes[annotation.signal_name] = ['.'] * wave_length
+                signal_nodes[annotation.signal_name][cycle] = node_char
+                node_placed = True
+            else:
+                # Fallback: try to match signal name in event name
+                event_name_lower = annotation.name.lower()
 
-            signal_nodes[node_signal] = ''.join(nodes)
+                for signal_name in signal_data.keys():
+                    signal_lower = signal_name.lower()
+                    # Match signal name in event name (e.g., "wr_valid" in "write_start")
+                    if signal_lower in event_name_lower or any(part in event_name_lower for part in signal_lower.split('_')):
+                        if signal_name not in signal_nodes:
+                            signal_nodes[signal_name] = ['.'] * wave_length
+                        signal_nodes[signal_name][cycle] = node_char
+                        node_placed = True
+                        break
 
-            # Create improved edge annotations with various arrow types and vertical spacing
-            if len(sorted_annotations) >= 2:
-                # IMPROVED: Main sequence span with different arrow style
-                start_node = chr(ord('a'))
-                end_node = chr(ord('a') + len(sorted_annotations) - 1)
-                duration = sorted_annotations[-1].cycle - sorted_annotations[0].cycle + 1
-                edges.append(f"{start_node}<->{end_node} Sequence: {duration} cycles")
+            # Fallback: place on control signal if no match
+            if not node_placed:
+                control_patterns = ['valid', 'sel', 'enable', 'ready', 'penable', 'psel']
+                for pattern in control_patterns:
+                    for signal_name in signal_data.keys():
+                        if pattern in signal_name.lower():
+                            if signal_name not in signal_nodes:
+                                signal_nodes[signal_name] = ['.'] * wave_length
+                            signal_nodes[signal_name][cycle] = node_char
+                            node_placed = True
+                            break
+                    if node_placed:
+                        break
 
-                # IMPROVED: Individual transitions with vertical offsets and different arrow types
-                arrow_types = ["~>", "->", "->>", "=>", "<->", "<~>"]  # Different WaveDrom arrow types
+            # Last resort: first signal
+            if not node_placed and signal_data:
+                first_signal = list(signal_data.keys())[0]
+                if first_signal not in signal_nodes:
+                    signal_nodes[first_signal] = ['.'] * wave_length
+                signal_nodes[first_signal][cycle] = node_char
 
-                for i, annotation in enumerate(sorted_annotations):
-                    if i < len(sorted_annotations) - 1:
-                        current_node = chr(ord('a') + i)
-                        next_node = chr(ord('a') + i + 1)
+        # Convert node lists to strings
+        for sig_name in signal_nodes:
+            if isinstance(signal_nodes[sig_name], list):
+                signal_nodes[sig_name] = ''.join(signal_nodes[sig_name])
 
-                        # Clean up the label
-                        label = annotation.description or annotation.name
-                        label = label.replace('_', ' ').title()
+        # Create edge annotations - ONE meaningful arrow per constraint
+        # Only create arrows if we have nodes placed on signals
+        if len(sorted_annotations) >= 2 and signal_nodes:
+            start_node = chr(ord('a'))
+            end_node = chr(ord('a') + len(sorted_annotations) - 1)
+            duration = sorted_annotations[-1].cycle - sorted_annotations[0].cycle + 1
 
-                        # IMPROVED: Use different arrow types and add vertical spacing
-                        arrow_type = arrow_types[i % len(arrow_types)]
+            # Verify nodes were actually placed before creating edge
+            nodes_placed = any(start_node in ''.join(nodes) for nodes in signal_nodes.values())
 
-                        # Add vertical offset by appending multiple edge entries with slight variations
-                        if i == 0:
-                            edges.append(f"{current_node}{arrow_type}{next_node} {label}")
-                        elif i == 1:
-                            edges.append(f"{current_node}{arrow_type}{next_node} {label}")
-                        elif i == 2:
-                            edges.append(f"{current_node}{arrow_type}{next_node} {label}")
-                        else:
-                            edges.append(f"{current_node}{arrow_type}{next_node} {label}")
+            if nodes_placed:
+                # Determine arrow type based on constraint relationship and signals
+                # Check if this looks like a handshake (valid/ready pattern)
+                signal_names = list(signal_data.keys())
+                has_valid = any('valid' in s.lower() for s in signal_names)
+                has_ready = any('ready' in s.lower() for s in signal_names)
 
-                # IMPROVED: Add phase annotations for APB protocol
-                if 'apb' in node_signal.lower() and len(sorted_annotations) >= 4:
-                    # Add protocol-specific phase labels
-                    setup_node = chr(ord('a'))
-                    access_node = chr(ord('a') + 2) if len(sorted_annotations) > 2 else chr(ord('a') + 1)
-                    edges.append(f"{setup_node}..{access_node} Setup→Access")
+                # Check for APB protocol
+                is_apb = any('psel' in s.lower() or 'penable' in s.lower() for s in signal_names)
 
-                    if len(sorted_annotations) >= 5:  # Has completion
-                        complete_node = chr(ord('a') + 4)
-                        edges.append(f"{access_node}.~.{complete_node} Access→Complete")
+                # Generate ONE primary arrow with appropriate type and label
+                if has_valid and has_ready:
+                    # GAXI/AXI handshake - use squiggly arrow for async relationship
+                    label = sorted_annotations[0].description or sorted_annotations[0].name
+                    label = label.replace('_', ' ').title()
 
-            if self.debug_level >= 2:
-                print(f"Generated nodes for {node_signal}: {signal_nodes[node_signal]}")
-                print(f"Generated edges: {edges}")
+                    # Special case: backpressure/blocking - use direct arrow for blocking period
+                    if 'blocked' in label.lower() or 'ready_drops' in sorted_annotations[0].name.lower():
+                        edges.append(f"{start_node}->{end_node} Write Blocked")
+                    else:
+                        edges.append(f"{start_node}~>{end_node} {label}")
+                elif is_apb:
+                    # APB protocol - use direct arrow for sequential relationship
+                    if len(sorted_annotations) == 2:
+                        # Simple setup -> access
+                        edges.append(f"{start_node}->{end_node} Psel Active→Enable")
+                    else:
+                        # Multi-phase
+                        edges.append(f"{start_node}<->{end_node} APB Sequence: {duration} cycles")
+                else:
+                    # Generic sequence - use bidirectional arrow with duration
+                    edges.append(f"{start_node}<->{end_node} Sequence: {duration} cycles")
+
+        if self.debug_level >= 2:
+            for sig, nodes in signal_nodes.items():
+                print(f"Generated nodes for {sig}: {nodes}")
+            print(f"Generated edges: {edges}")
 
         return edges, signal_nodes
 

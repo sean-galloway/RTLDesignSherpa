@@ -1,6 +1,125 @@
 `timescale 1ns / 1ps
 
-// Paramerized Asynchronous FIFO -- This works for any even depth
+//==============================================================================
+// Module: fifo_async_div2
+//==============================================================================
+// Description:
+//   Asynchronous FIFO with independent read and write clock domains. Uses
+//   Johnson counter (Gray code variant) for CDC-safe pointer synchronization.
+//   Optimized for depths that are even numbers. Provides almost-full and
+//   almost-empty flags for flow control.
+//
+// Features:
+//   - Independent read/write clock domains (full CDC support)
+//   - Johnson counter Gray code for pointer synchronization
+//   - Configurable almost-full/almost-empty thresholds
+//   - Optional registered output (mux or flop mode)
+//   - Parameterized data width and depth
+//   - Dual-port RAM implementation
+//
+//------------------------------------------------------------------------------
+// Parameters:
+//------------------------------------------------------------------------------
+//   REGISTERED:
+//     Description: Output register mode
+//     Type: int
+//     Range: 0 or 1
+//     Default: 0
+//     Constraints: 0 = Mux mode (combinational read), 1 = Flop mode (registered read)
+//
+//   DATA_WIDTH:
+//     Description: FIFO data path width in bits
+//     Type: int
+//     Range: 1 to 512
+//     Default: 8
+//     Constraints: Any positive integer
+//
+//   DEPTH:
+//     Description: FIFO depth (number of entries)
+//     Type: int
+//     Range: 2 to 65536 (must be even for div2 optimization)
+//     Default: 10
+//     Constraints: Must be even number for Johnson counter operation
+//
+//   N_FLOP_CROSS:
+//     Description: Number of synchronizer flops for CDC
+//     Type: int
+//     Range: 2 to 5
+//     Default: 2
+//     Constraints: 2 = minimum for metastability, 3+ for higher MTBF
+//
+//   ALMOST_WR_MARGIN:
+//     Description: Almost-full threshold (entries from full)
+//     Type: int
+//     Range: 1 to DEPTH-1
+//     Default: 1
+//     Constraints: wr_almost_full asserts when (used >= DEPTH - ALMOST_WR_MARGIN)
+//
+//   ALMOST_RD_MARGIN:
+//     Description: Almost-empty threshold (entries from empty)
+//     Type: int
+//     Range: 1 to DEPTH-1
+//     Default: 1
+//     Constraints: rd_almost_empty asserts when (used <= ALMOST_RD_MARGIN)
+//
+//   INSTANCE_NAME:
+//     Description: Instance name for debug/waveform identification
+//     Type: string
+//     Default: "DEADF1F0"
+//     Constraints: String identifier (debugging only)
+//
+//   Derived Parameters (localparam - computed automatically):
+//     DW: Alias for DATA_WIDTH
+//     D: Alias for DEPTH
+//     AW: Address width ($clog2(DEPTH))
+//     JCW: Johnson Counter Width (same as DEPTH)
+//     N: Alias for N_FLOP_CROSS
+//
+//------------------------------------------------------------------------------
+// Ports:
+//------------------------------------------------------------------------------
+//   Write Clock Domain:
+//     wr_clk:           Write clock
+//     wr_rst_n:         Write domain active-low reset
+//     write:            Write enable
+//     wr_data:          Write data input [DATA_WIDTH-1:0]
+//     wr_full:          FIFO full flag (do not write when asserted)
+//     wr_almost_full:   Almost-full warning flag
+//
+//   Read Clock Domain:
+//     rd_clk:           Read clock
+//     rd_rst_n:         Read domain active-low reset
+//     read:             Read enable
+//     rd_data:          Read data output [DATA_WIDTH-1:0]
+//     rd_empty:         FIFO empty flag (do not read when asserted)
+//     rd_almost_empty:  Almost-empty warning flag
+//
+//------------------------------------------------------------------------------
+// Notes:
+//------------------------------------------------------------------------------
+//   - DEPTH must be even for Johnson counter optimization
+//   - Johnson counters provide Gray code properties for CDC safety
+//   - N_FLOP_CROSS=2 is minimum; use 3+ for high-speed clock domain crossings
+//   - ALMOST_* margins enable proactive flow control
+//   - REGISTERED=1 adds one cycle read latency but improves timing
+//   - Write when (!wr_full && write), read when (!rd_empty && read)
+//   - Independent resets for write and read domains
+//
+//------------------------------------------------------------------------------
+// Related Modules:
+//------------------------------------------------------------------------------
+//   - fifo_async.sv - General async FIFO (any depth)
+//   - fifo_sync.sv - Synchronous FIFO (single clock domain)
+//   - counter_johnson.sv - Johnson counter (used internally)
+//   - grayj2bin.sv - Johnson-to-binary converter (used internally)
+//
+//------------------------------------------------------------------------------
+// Test:
+//------------------------------------------------------------------------------
+//   Location: val/common/test_fifo_async_div2.py
+//   Run: pytest val/common/test_fifo_async_div2.py -v
+//
+//==============================================================================
 module fifo_async_div2 #(
     parameter int REGISTERED = 0,  // 0 = mux mode, 1 = flop mode
     parameter int DATA_WIDTH = 8,

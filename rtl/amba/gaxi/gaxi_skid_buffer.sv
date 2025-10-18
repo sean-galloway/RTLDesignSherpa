@@ -42,19 +42,23 @@ module gaxi_skid_buffer #(
             r_data <= 'b0;
             r_data_count <= 'b0;
         end else begin
-            if (w_wr_xfer & ~w_rd_xfer) begin
-                // Shift in new data at the highest available position
-                r_data[(DW * r_data_count) +: DW] <= wr_data;
-                r_data_count <= r_data_count + 1;
-            end else if (~w_wr_xfer & w_rd_xfer) begin
-                // Shift out old data
-                r_data <= {zeros, r_data[BUF_WIDTH-1:DW]};
-                r_data_count <= r_data_count - 1;
-            end else if (w_wr_xfer & w_rd_xfer) begin
-                // Shift in new data and shift out old data
-                r_data <= {zeros, r_data[BUF_WIDTH-1:DW]};
-                r_data[(DW * (32'(r_data_count) - 1)) +: DW] <= wr_data;
-            end
+            case ({w_wr_xfer, w_rd_xfer})
+                2'b10: begin  // Write only
+                    r_data[(DW * r_data_count) +: DW] <= wr_data;
+                    r_data_count <= r_data_count + 1;
+                end
+                2'b01: begin  // Read only
+                    r_data <= {zeros, r_data[BUF_WIDTH-1:DW]};
+                    r_data_count <= r_data_count - 1;
+                end
+                2'b11: begin  // Simultaneous write and read
+                    r_data <= {zeros, r_data[BUF_WIDTH-1:DW]};
+                    r_data[(DW * (32'(r_data_count) - 1)) +: DW] <= wr_data;
+                end
+                default: begin  // 2'b00: No operation
+                    // No changes to r_data or r_data_count
+                end
+            endcase
         end
     end
 

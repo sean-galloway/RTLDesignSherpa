@@ -23,7 +23,7 @@ module gaxi_skid_buffer_multi_sigmap #(
     output logic [AW-1:0]       rd_sige,    // addr
     output logic [CW-1:0]       rd_sigf,    // ctrl
     output logic [DW-1:0]       rd_sigg,    // data0
-    output logic [DW-1:0]       rd_sigh     // data1  
+    output logic [DW-1:0]       rd_sigh     // data1
 );
 
     // Instantiate the original skid buffer

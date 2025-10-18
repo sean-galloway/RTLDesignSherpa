@@ -1,0 +1,159 @@
+@startuml scheduler_fsm
+!theme plain
+title Scheduler FSM (scheduler.sv)
+
+skinparam state {
+  BackgroundColor LightGreen
+  BorderColor DarkGreen
+  ArrowColor DarkGreen
+  ArrowFontColor Black
+  ArrowFontSize 10
+}
+
+[*] --> SCHED_IDLE
+
+state SCHED_IDLE {
+  SCHED_IDLE : Idle state - waiting for descriptor
+  SCHED_IDLE : • No active transfer
+  SCHED_IDLE : • Ready for new descriptor
+  SCHED_IDLE : • Transaction limits not exceeded
+}
+state SCHED_REQUEST_DESC {
+  SCHED_REQUEST_DESC : Request descriptor from descriptor engine
+  SCHED_REQUEST_DESC : Arbiter determines channel access
+  SCHED_REQUEST_DESC : Wait for descriptor fetch
+}
+state SCHED_PARSE_DESC {
+  SCHED_PARSE_DESC : Parse descriptor fields
+  SCHED_PARSE_DESC : Extract src_addr, dst_addr, length
+  SCHED_PARSE_DESC : Validate descriptor parameters
+  SCHED_PARSE_DESC : Check for chained descriptors
+}
+state SCHED_EXECUTE_TRANSFER {
+  SCHED_EXECUTE_TRANSFER : Active data transfer
+  SCHED_EXECUTE_TRANSFER : Monitor read/write progress
+  SCHED_EXECUTE_TRANSFER : Track beats completed
+  SCHED_EXECUTE_TRANSFER : Generate MonBus progress packets
+}
+state SCHED_WAIT_COMPLETION {
+  SCHED_WAIT_COMPLETION : Wait for data engines to complete
+  SCHED_WAIT_COMPLETION : Verify beats transferred
+  SCHED_WAIT_COMPLETION : Check for errors
+}
+state SCHED_CHAIN_CHECK {
+  SCHED_CHAIN_CHECK : Check for next descriptor
+  SCHED_CHAIN_CHECK : If next_descriptor_ptr != 0: fetch next
+  SCHED_CHAIN_CHECK : If last flag set or ptr == 0: complete
+}
+state SCHED_COMPLETE {
+  SCHED_COMPLETE : Transfer complete
+  SCHED_COMPLETE : Generate completion MonBus packet
+  SCHED_COMPLETE : Generate interrupt if enabled
+  SCHED_COMPLETE : Clear channel state
+}
+state SCHED_ERROR {
+  SCHED_ERROR : Error state
+  SCHED_ERROR : AXI error or timeout
+  SCHED_ERROR : Descriptor format error
+}
+
+SCHED_IDLE -down-> SCHED_REQUEST_DESC : cfg_enable & channel_enabled
+SCHED_IDLE -down-> SCHED_ERROR : error_conditions
+SCHED_REQUEST_DESC -down-> SCHED_PARSE_DESC : desc_valid & desc_ready
+SCHED_REQUEST_DESC -down-> SCHED_ERROR : desc_timeout | desc_error
+SCHED_PARSE_DESC -down-> SCHED_EXECUTE_TRANSFER : descriptor_valid & !descriptor_error
+SCHED_PARSE_DESC -down-> SCHED_ERROR : descriptor_error
+SCHED_EXECUTE_TRANSFER -right-> SCHED_WAIT_COMPLETION : transfer_started
+SCHED_EXECUTE_TRANSFER -down-> SCHED_ERROR : axi_error | timeout
+SCHED_WAIT_COMPLETION -down-> SCHED_CHAIN_CHECK : beats_remaining == 0 & !error
+SCHED_WAIT_COMPLETION -down-> SCHED_ERROR : error_conditions
+SCHED_CHAIN_CHECK -left-> SCHED_REQUEST_DESC : next_descriptor_ptr != 0 & !last_flag
+SCHED_CHAIN_CHECK -down-> SCHED_COMPLETE : next_descriptor_ptr == 0 | last_flag
+SCHED_COMPLETE -up-> SCHED_IDLE : completion_acknowledged
+SCHED_ERROR -up-> SCHED_IDLE : error_cleared
+
+note bottom
+<b>Signal Definitions (scheduler.sv):</b>
+
+cfg_enable = global enable for STREAM
+channel_enabled = per-channel enable
+descriptor_valid = descriptor available from descriptor engine
+desc_ready = scheduler ready to accept descriptor
+
+transfer_started = data engines activated
+beats_remaining = remaining beats in current descriptor
+next_descriptor_ptr = address of next descriptor (0 = last)
+last_flag = descriptor last flag
+
+error_conditions = axi_error | timeout | descriptor_error
+
+<b>Descriptor Fields (256-bit):</b>
+src_addr[63:0] - Source memory address
+dst_addr[127:64] - Destination memory address
+length[159:128] - Transfer length in BEATS
+next_descriptor_ptr[191:160] - Next descriptor address
+valid[192] - Valid descriptor flag
+interrupt[193] - Generate interrupt on completion
+last[194] - Last descriptor in chain
+channel_id[199:196] - Channel ID
+priority[207:200] - Transfer priority
+
+<b>State Functions:</b>
+
+SCHED_IDLE:
+- Wait for channel enable and global enable
+- Monitor for descriptor request trigger
+- Ensure no transaction limit violations
+
+SCHED_REQUEST_DESC:
+- Request descriptor from descriptor engine
+- Arbiter grants access to one channel
+- Wait for descriptor fetch via AXI
+
+SCHED_PARSE_DESC:
+- Extract descriptor fields
+- Validate src_addr and dst_addr alignment
+- Check length is non-zero and valid
+- Prepare for data transfer
+
+SCHED_EXECUTE_TRANSFER:
+- Activate AXI read engine (source data)
+- Activate AXI write engine (destination data)
+- Monitor progress via done_strobe signals
+- Generate MonBus progress packets
+
+SCHED_WAIT_COMPLETION:
+- Wait for all beats to transfer
+- Verify no errors from AXI engines
+- Ensure SRAM buffer drained
+
+SCHED_CHAIN_CHECK:
+- Check next_descriptor_ptr field
+- If != 0 and !last: fetch next descriptor
+- If == 0 or last: complete transfer
+
+SCHED_COMPLETE:
+- Generate completion MonBus packet
+- Trigger interrupt if descriptor.interrupt set
+- Clear channel state for next operation
+- Update statistics
+
+SCHED_ERROR:
+- Handle all error conditions
+- Generate MonBus error packet
+- Wait for software acknowledgment
+- Clear error state
+
+<b>Key Simplifications from RAPIDS:</b>
+- No control read/write engines (direct APB config)
+- No credit management complexity (simple transaction limits)
+- No network interfaces (pure memory-to-memory)
+- Aligned addresses only (no alignment fixup)
+- Length in beats (not chunks)
+
+<b>Data Engine Coordination:</b>
+The scheduler coordinates shared AXI engines via arbiters:
+- Read arbiter: Grants channel access to AXI read engine
+- Write arbiter: Grants channel access to AXI write engine
+- SRAM controller: Buffers data between read and write
+@enduml

@@ -224,13 +224,13 @@ def test_axi_skid_buffer_multi_sigmap(request, addr_width, ctrl_width, data_widt
     extra_env['TEST_MODE'] = 'skid'  # Always 'skid' mode for skid buffer
 
     compile_args = [
-        "--trace-fst",
+        "--trace",
         "--trace-structs",
         "--trace-depth", "99",
     ]
 
     sim_args = [
-        "--trace-fst",  # Tell Verilator to use FST
+        "--trace",  # Tell Verilator to use FST
         "--trace-structs",
         "--trace-depth", "99",
     ]
@@ -251,7 +251,7 @@ def test_axi_skid_buffer_multi_sigmap(request, addr_width, ctrl_width, data_widt
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=True,
+            waves=False,
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,

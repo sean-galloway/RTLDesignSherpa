@@ -366,8 +366,9 @@ def test_axi4_slave_read_cg(id_width, addr_width, data_width, user_width, ar_dep
     # Clock gated module details
     dut_name = "axi4_slave_rd_cg"
     
-    id_str = f"ID{id_width}_ADDR{addr_width}_DATA{data_width}_USER{user_width}_AR{ar_depth}_R{r_depth}_{test_level}_{cg_test_mode}"
-    # Create unique test name
+    # Format parameters with leading zeros for consistent sorting
+    id_str = f"id{id_width:03d}_aw{addr_width:03d}_dw{data_width:03d}_uw{user_width:03d}_ard{ar_depth:03d}_rd{r_depth:03d}_{test_level}_{cg_test_mode}"
+    # Create unique test name following pattern: test_<module>_<params>
     test_name_plus_params = f"test_axi4_slave_rd_cg_{id_str}"
 
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
@@ -435,15 +436,15 @@ def test_axi4_slave_read_cg(id_width, addr_width, data_width, user_width, ar_dep
     # Simulation settings
     includes = [sim_build]
     compile_args = [
-        "--trace-fst",
-        "--trace-structs",
+        "--trace",
+        
         "--trace-depth", "99",
         "-Wall",
         "-Wno-UNUSED",
         "-Wno-DECLFILENAME",
         "-Wno-PINMISSING",  # Allow unconnected pins for stub testing
     ]
-    sim_args = ["--trace-fst", "--trace-structs", "--trace-depth", "99"]
+    sim_args = ["--trace", "--trace-depth", "99"]
     plusargs = ["+trace"]
 
     # Create command file for viewing results
@@ -467,7 +468,7 @@ def test_axi4_slave_read_cg(id_width, addr_width, data_width, user_width, ar_dep
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=True,
+            waves=False,
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,

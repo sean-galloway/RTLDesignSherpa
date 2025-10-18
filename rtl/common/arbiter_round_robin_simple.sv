@@ -1,4 +1,4 @@
-
+`timescale 1ns / 1ps
 
 // Generic rotating-priority arbiter with masking/rotation (no if/case ladders in priority path)
 // - Parameterizable number of agents N (N >= 1)

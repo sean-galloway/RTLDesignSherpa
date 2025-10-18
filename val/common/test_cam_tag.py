@@ -362,13 +362,13 @@ def test_cam_tag(request, n, depth):
 
 
     compile_args = [
-            "--trace-fst",
+            "--trace",
             "--trace-structs",
             "--trace-depth", "99",
     ]
 
     sim_args = [
-            "--trace-fst",  # Tell Verilator to use FST
+            "--trace",  # Tell Verilator to use FST
             "--trace-structs",
             "--trace-depth", "99",
     ]
@@ -389,7 +389,7 @@ def test_cam_tag(request, n, depth):
             parameters=parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=True,
+            waves=False,
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,

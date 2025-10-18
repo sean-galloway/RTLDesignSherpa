@@ -1165,7 +1165,7 @@ def test_apb_slave_cdc_cg_robust(request, addr_width, data_width, depth, cg_idle
     dw_str = TBBase.format_dec(data_width, 3)
     d_str = TBBase.format_dec(depth, 3)
     cg_str = TBBase.format_dec(cg_idle_count_width, 2)
-    test_name_plus_params = f"test_apb_cdc_cg_robust_{dut_name}_aw{aw_str}_dw{dw_str}_d{d_str}_cg{cg_str}"
+    test_name_plus_params = f"test_{dut_name}_aw{aw_str}_dw{dw_str}_d{d_str}_cg{cg_str}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
@@ -1194,16 +1194,16 @@ def test_apb_slave_cdc_cg_robust(request, addr_width, data_width, depth, cg_idle
     }
 
     compile_args = [
-        "--trace-fst",
-        "--trace-structs",
+        "--trace",
+        
         "--trace-depth", "99",
         "--trace-max-array", "1024",
         "--trace-max-width", "512",
     ]
 
     sim_args = [
-        "--trace-fst",
-        "--trace-structs", 
+        "--trace",
+        
         "--trace-depth", "99",
     ]
 
@@ -1221,7 +1221,7 @@ def test_apb_slave_cdc_cg_robust(request, addr_width, data_width, depth, cg_idle
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=True,
+            waves=False,
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,

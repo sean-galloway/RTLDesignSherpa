@@ -1,0 +1,128 @@
+@startuml scheduler_fsm
+!theme plain
+title Main Scheduler FSM (scheduler.sv)
+
+skinparam state {
+  BackgroundColor LightGreen
+  BorderColor DarkGreen
+  ArrowColor DarkGreen
+  ArrowFontColor Black
+  ArrowFontSize 10
+}
+
+[*] --> SCHED_IDLE
+
+state SCHED_IDLE {
+  SCHED_IDLE : scheduler_idle = true when:
+  SCHED_IDLE : • FSM in SCHED_IDLE state
+  SCHED_IDLE : • No pending operations
+  SCHED_IDLE : • !r_channel_reset_active
+}
+state SCHED_WAIT_FOR_CONTROL {
+  SCHED_WAIT_FOR_CONTROL : Wait for channel control signals
+  SCHED_WAIT_FOR_CONTROL : Check cfg_channel_wait and cfg_channel_enable
+  SCHED_WAIT_FOR_CONTROL : Determine if ctrlrd needed
+}
+state SCHED_ISSUE_CTRLRD {
+  SCHED_ISSUE_CTRLRD : Issue control read (pre-descriptor)
+  SCHED_ISSUE_CTRLRD : Wait for read data match or error
+  SCHED_ISSUE_CTRLRD : Ctrlrd engine handles retry mechanism
+}
+state SCHED_DESCRIPTOR_ACTIVE {
+  SCHED_DESCRIPTOR_ACTIVE : Data transfer operations
+  SCHED_DESCRIPTOR_ACTIVE : EOS completion monitoring
+  SCHED_DESCRIPTOR_ACTIVE : Timeout detection
+  SCHED_DESCRIPTOR_ACTIVE : Address alignment FSM runs in parallel
+}
+state SCHED_ISSUE_CTRLWR0 {
+  SCHED_ISSUE_CTRLWR0 : Send Ctrlwr 0 to write engine
+  SCHED_ISSUE_CTRLWR0 : Wait for write completion (post-descriptor)
+}
+state SCHED_ISSUE_CTRLWR1 {
+  SCHED_ISSUE_CTRLWR1 : Send Ctrlwr 1 to write engine
+  SCHED_ISSUE_CTRLWR1 : Wait for write completion (post-descriptor)
+}
+state SCHED_ERROR {
+  SCHED_ERROR : Error recovery state
+  SCHED_ERROR : All error sources must clear
+}
+
+SCHED_IDLE -down-> SCHED_WAIT_FOR_CONTROL : descriptor_valid & w_credit_available & !cfg_idle_mode & !r_channel_reset_active
+SCHED_IDLE -down-> SCHED_ERROR : descriptor_valid & !w_credit_available & cfg_use_credit | error_conditions
+SCHED_WAIT_FOR_CONTROL -down-> SCHED_ISSUE_CTRLRD : !cfg_channel_wait & cfg_channel_enable & w_ctrlrd_needed
+SCHED_WAIT_FOR_CONTROL -down-> SCHED_DESCRIPTOR_ACTIVE : !cfg_channel_wait & cfg_channel_enable & !w_ctrlrd_needed
+SCHED_WAIT_FOR_CONTROL -down-> SCHED_ERROR : error_conditions
+SCHED_ISSUE_CTRLRD -down-> SCHED_DESCRIPTOR_ACTIVE : ctrlrd_ready & !ctrlrd_error
+SCHED_ISSUE_CTRLRD -down-> SCHED_ERROR : ctrlrd_ready & ctrlrd_error
+SCHED_DESCRIPTOR_ACTIVE -right-> SCHED_ISSUE_CTRLWR0 : w_descriptor_complete & w_ctrlwr0_needed
+SCHED_DESCRIPTOR_ACTIVE -down-> SCHED_ISSUE_CTRLWR1 : w_descriptor_complete & !w_ctrlwr0_needed & w_ctrlwr1_needed
+SCHED_DESCRIPTOR_ACTIVE -up-> SCHED_IDLE : w_descriptor_complete & !w_ctrlwr0_needed & !w_ctrlwr1_needed
+SCHED_DESCRIPTOR_ACTIVE -down-> SCHED_ERROR : error_conditions
+SCHED_ISSUE_CTRLWR0 -right-> SCHED_ISSUE_CTRLWR1 : ctrlwr_ready & w_ctrlwr1_needed
+SCHED_ISSUE_CTRLWR0 -up-> SCHED_IDLE : ctrlwr_ready & !w_ctrlwr1_needed | channel_reset_complete
+SCHED_ISSUE_CTRLWR1 -up-> SCHED_IDLE : ctrlwr_ready | channel_reset_complete
+SCHED_ERROR -up-> SCHED_IDLE : !data_error & !ctrlrd_error & !ctrlwr_error & !descriptor_error & !w_timeout_expired & !r_data_error_sticky & !r_ctrlrd_error_sticky & !r_ctrlwr_error_sticky
+
+note bottom
+<b>Signal Definitions (scheduler.sv):</b>
+
+descriptor_valid = descriptor_valid input from descriptor engine
+w_credit_available = cfg_use_credit ? (r_descriptor_credit_counter > 0) : 1'b1
+cfg_idle_mode = configuration input to disable scheduling
+r_channel_reset_active = channel reset state flag
+
+w_descriptor_complete = w_descriptor_complete_by_length | w_descriptor_complete_by_eos
+- w_descriptor_complete_by_length = (r_data_length == 32'h0)
+- w_descriptor_complete_by_eos = r_packet_eos_received | r_stream_boundary_pending
+
+w_ctrlrd_needed = (r_ctrlrd_addr != 64'h0)
+w_ctrlwr0_needed = (r_ctrlwr0_addr != 64'h0)
+w_ctrlwr1_needed = (r_ctrlwr1_addr != 64'h0)
+
+error_conditions = data_error | ctrlrd_error | ctrlwr_error | descriptor_error | w_timeout_expired | r_data_error_sticky | r_ctrlrd_error_sticky | r_ctrlwr_error_sticky
+
+channel_reset_complete = r_channel_reset_active & ctrlwr_ready (for CTRLWR states)
+
+<b>State Functions:</b>
+
+SCHED_IDLE:
+- Monitor for new descriptor requests
+- Check credit availability for flow control
+- Handle channel reset coordination
+
+SCHED_WAIT_FOR_CONTROL:
+- Wait for cfg_channel_wait to deassert
+- Verify cfg_channel_enable is asserted
+- Transition to active processing
+
+SCHED_ISSUE_CTRLRD:
+- Execute control read operation (pre-descriptor)
+- Ctrlrd engine performs read-and-compare with retry
+- Wait for read data match (ctrlrd_ready && !ctrlrd_error)
+- Enter error state on max retries or AXI error
+
+SCHED_DESCRIPTOR_ACTIVE:
+- Execute data transfer operations
+- Monitor for completion via length or EOS
+- Run address alignment FSM in parallel
+- Handle timeout detection
+
+SCHED_ISSUE_CTRLWR0/1:
+- Sequential control write engine coordination
+- Wait for write completion
+- Support channel reset during control writes
+
+SCHED_ERROR:
+- Comprehensive error state
+- Sticky error flags for persistent tracking
+- Recovery when all error sources clear
+
+<b>Credit Management:</b>
+- Credit system for flow control
+- Atomic credit operations
+- Timeout counter for deadlock prevention
+
+<b>Parallel Operation:</b>
+During SCHED_DESCRIPTOR_ACTIVE, the address alignment FSM runs
+in parallel to pre-calculate alignment information
+@enduml

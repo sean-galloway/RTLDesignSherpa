@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `monitor_pkg` package provides a comprehensive monitoring and error detection framework for multi-protocol bus systems. It defines standardized data structures, event codes, and packet formats for real-time monitoring, error detection, performance analysis, and debug capabilities across heterogeneous bus architectures including AXI, MNOC (Multi-Node On-Chip), APB, and custom protocols.
+The `monitor_pkg` package provides a comprehensive monitoring and error detection framework for multi-protocol bus systems. It defines standardized data structures, event codes, and packet formats for real-time monitoring, error detection, performance analysis, and debug capabilities across heterogeneous bus architectures including AXI, Network (Multi-Node On-Chip), APB, and custom protocols.
 
 ## Package Declaration
 
@@ -132,29 +132,29 @@ typedef enum logic [3:0] {
 } apb_event_code_t;
 ```
 
-### MNOC Event Code Enumeration
+### Network Event Code Enumeration
 
 Specialized event codes for Multi-Node On-Chip protocol monitoring:
 
 ```systemverilog
 typedef enum logic [3:0] {
-    MNOC_EVT_NONE           = 4'h0,  // No event
-    MNOC_EVT_COMPLETE       = 4'h1,  // Transaction/packet completed successfully
-    MNOC_EVT_TIMEOUT        = 4'h2,  // Timeout occurred (ACK/Credit/Packet)
-    MNOC_EVT_PARITY_ERR     = 4'h3,  // Parity error (Header/Payload/ACK)
-    MNOC_EVT_PROTOCOL_ERR   = 4'h4,  // Protocol violation
-    MNOC_EVT_OVERFLOW       = 4'h5,  // Buffer/Credit overflow
-    MNOC_EVT_UNDERFLOW      = 4'h6,  // Buffer/Credit underflow
-    MNOC_EVT_THRESHOLD      = 4'h7,  // Threshold crossed
-    MNOC_EVT_STALL          = 4'h8,  // Channel/Credit stall
-    MNOC_EVT_ORPHAN         = 4'h9,  // Orphaned packet/ACK
-    MNOC_EVT_INVALID        = 4'hA,  // Invalid type/channel/payload
-    MNOC_EVT_STREAM         = 4'hB,  // Stream event (start/end/abort)
-    MNOC_EVT_EFFICIENCY     = 4'hC,  // Efficiency/utilization metric
-    MNOC_EVT_COUNT          = 4'hD,  // Count milestone
-    MNOC_EVT_STATE          = 4'hE,  // State change
-    MNOC_EVT_USER           = 4'hF   // User defined
-} mnoc_event_code_t;
+    NETWORK_EVT_NONE           = 4'h0,  // No event
+    NETWORK_EVT_COMPLETE       = 4'h1,  // Transaction/packet completed successfully
+    NETWORK_EVT_TIMEOUT        = 4'h2,  // Timeout occurred (ACK/Credit/Packet)
+    NETWORK_EVT_PARITY_ERR     = 4'h3,  // Parity error (Header/Payload/ACK)
+    NETWORK_EVT_PROTOCOL_ERR   = 4'h4,  // Protocol violation
+    NETWORK_EVT_OVERFLOW       = 4'h5,  // Buffer/Credit overflow
+    NETWORK_EVT_UNDERFLOW      = 4'h6,  // Buffer/Credit underflow
+    NETWORK_EVT_THRESHOLD      = 4'h7,  // Threshold crossed
+    NETWORK_EVT_STALL          = 4'h8,  // Channel/Credit stall
+    NETWORK_EVT_ORPHAN         = 4'h9,  // Orphaned packet/ACK
+    NETWORK_EVT_INVALID        = 4'hA,  // Invalid type/channel/payload
+    NETWORK_EVT_STREAM         = 4'hB,  // Stream event (start/end/abort)
+    NETWORK_EVT_EFFICIENCY     = 4'hC,  // Efficiency/utilization metric
+    NETWORK_EVT_COUNT          = 4'hD,  // Count milestone
+    NETWORK_EVT_STATE          = 4'hE,  // State change
+    NETWORK_EVT_USER           = 4'hF   // User defined
+} network_event_code_t;
 ```
 
 ### Unified Event Code System
@@ -163,7 +163,7 @@ typedef enum logic [3:0] {
 typedef union packed {
     axi_event_code_t  axi_code;   // 4-bit AXI event code
     apb_event_code_t  apb_code;   // 4-bit APB event code
-    mnoc_event_code_t mnoc_code;  // 4-bit MNOC event code
+    network_event_code_t network_code;  // 4-bit Network event code
     logic [3:0]       raw_code;   // Raw 4-bit code
 } unified_event_code_t;
 ```
@@ -192,28 +192,28 @@ typedef enum logic [2:0] {
 } apb_prot_t;
 ```
 
-## MNOC Protocol-Specific Types
+## Network Protocol-Specific Types
 
-### MNOC Payload Types
+### Network Payload Types
 
 ```systemverilog
 typedef enum logic [1:0] {
-    MNOC_PAYLOAD_CONFIG = 2'b00,  // CONFIG_PKT
-    MNOC_PAYLOAD_TS     = 2'b01,  // TS_PKT (Timestamp)
-    MNOC_PAYLOAD_RDA    = 2'b10,  // RDA_PKT (Remote Direct Access)
-    MNOC_PAYLOAD_RAW    = 2'b11   // RAW_PKT
-} mnoc_payload_type_t;
+    NETWORK_PAYLOAD_CONFIG = 2'b00,  // CONFIG_PKT
+    NETWORK_PAYLOAD_TS     = 2'b01,  // TS_PKT (Timestamp)
+    NETWORK_PAYLOAD_RDA    = 2'b10,  // RDA_PKT (Remote Direct Access)
+    NETWORK_PAYLOAD_RAW    = 2'b11   // RAW_PKT
+} network_payload_type_t;
 ```
 
-### MNOC ACK Types
+### Network ACK Types
 
 ```systemverilog
 typedef enum logic [1:0] {
-    MNOC_ACK_STOP       = 2'b00,  // MSAP_STOP
-    MNOC_ACK_START      = 2'b01,  // MSAP_START
-    MNOC_ACK_CREDIT_ON  = 2'b10,  // MSAP_CREDIT_ON
-    MNOC_ACK_STOP_AT_EOS = 2'b11  // MSAP_STOP_AT_EOS
-} mnoc_ack_type_t;
+    NETWORK_ACK_STOP       = 2'b00,  // MSAP_STOP
+    NETWORK_ACK_START      = 2'b01,  // MSAP_START
+    NETWORK_ACK_CREDIT_ON  = 2'b10,  // MSAP_CREDIT_ON
+    NETWORK_ACK_STOP_AT_EOS = 2'b11  // MSAP_STOP_AT_EOS
+} network_ack_type_t;
 ```
 
 ## Transaction State Management
@@ -223,19 +223,19 @@ typedef enum logic [1:0] {
 ```systemverilog
 typedef enum logic [2:0] {
     TRANS_EMPTY          = 3'b000,  // Unused entry
-    TRANS_ADDR_PHASE     = 3'b001,  // Address phase active (AXI) / Packet sent (MNOC)
-    TRANS_DATA_PHASE     = 3'b010,  // Data phase active (AXI) / Waiting for ACK (MNOC)
-    TRANS_RESP_PHASE     = 3'b011,  // Response phase active (AXI) / ACK received (MNOC)
+    TRANS_ADDR_PHASE     = 3'b001,  // Address phase active (AXI) / Packet sent (Network)
+    TRANS_DATA_PHASE     = 3'b010,  // Data phase active (AXI) / Waiting for ACK (Network)
+    TRANS_RESP_PHASE     = 3'b011,  // Response phase active (AXI) / ACK received (Network)
     TRANS_COMPLETE       = 3'b100,  // Transaction complete
     TRANS_ERROR          = 3'b101,  // Transaction has error
     TRANS_ORPHANED       = 3'b110,  // Orphaned transaction
-    TRANS_CREDIT_STALL   = 3'b111   // Credit stall (MNOC only)
+    TRANS_CREDIT_STALL   = 3'b111   // Credit stall (Network only)
 } trans_state_t;
 ```
 
 ### State Mapping by Protocol
 
-| State | AXI Meaning | MNOC Meaning | APB Meaning | Common Usage |
+| State | AXI Meaning | Network Meaning | APB Meaning | Common Usage |
 |-------|-------------|--------------|-------------|--------------|
 | `TRANS_EMPTY` | Unused table entry | Unused table entry | Unused table entry | Initial/recycled state |
 | `TRANS_ADDR_PHASE` | Address phase active | Packet sent | Setup phase (PSEL) | Command/request phase |
@@ -244,7 +244,7 @@ typedef enum logic [2:0] {
 | `TRANS_COMPLETE` | Transaction finished | Stream/transaction complete | Transaction complete | Successful completion |
 | `TRANS_ERROR` | Error detected | Protocol/parity error | PSLVERR or timeout | Error condition |
 | `TRANS_ORPHANED` | Lost transaction | Orphaned packet/ACK | Invalid PSEL state | Invalid/lost transaction |
-| `TRANS_CREDIT_STALL` | N/A | Credit exhaustion | N/A | MNOC-specific stall |
+| `TRANS_CREDIT_STALL` | N/A | Credit exhaustion | N/A | Network-specific stall |
 
 ## Enhanced Transaction Tracking Structure
 
@@ -253,13 +253,13 @@ typedef enum logic [2:0] {
 ```systemverilog
 typedef struct packed {
     logic                   valid;           // Entry is valid
-    protocol_type_t         protocol;        // Protocol type (AXI/MNOC/APB/Custom)
+    protocol_type_t         protocol;        // Protocol type (AXI/Network/APB/Custom)
     trans_state_t           state;           // Transaction state
-    logic [31:0]            id;              // Transaction ID (AXI) / Sequence (MNOC)
+    logic [31:0]            id;              // Transaction ID (AXI) / Sequence (Network)
     logic [63:0]            addr;            // Transaction address / Channel addr
-    logic [7:0]             len;             // Burst length (AXI) / Packet count (MNOC)
-    logic [2:0]             size;            // Access size (AXI) / Reserved (MNOC)
-    logic [1:0]             burst;           // Burst type (AXI) / Payload type (MNOC)
+    logic [7:0]             len;             // Burst length (AXI) / Packet count (Network)
+    logic [2:0]             size;            // Access size (AXI) / Reserved (Network)
+    logic [1:0]             burst;           // Burst type (AXI) / Payload type (Network)
 
     // Phase completion flags
     logic                   cmd_received;    // Address phase received / Packet sent
@@ -285,19 +285,19 @@ typedef struct packed {
     logic [7:0]             data_beat_count; // Data beats received / Packets sent
     logic [7:0]             expected_beats;  // Expected beats / Expected packets
 
-    // Enhanced tracking for MNOC
-    logic [5:0]             channel;         // Channel ID (AXI ID / MNOC channel)
-    logic                   eos_seen;        // EOS marker seen (MNOC only)
-    logic                   parity_error;    // Parity error detected (MNOC only)
-    logic [7:0]             credit_at_start; // Credits available at start (MNOC only)
-    logic [2:0]             retry_count;     // Number of retries (MNOC only)
+    // Enhanced tracking for Network
+    logic [5:0]             channel;         // Channel ID (AXI ID / Network channel)
+    logic                   eos_seen;        // EOS marker seen (Network only)
+    logic                   parity_error;    // Parity error detected (Network only)
+    logic [7:0]             credit_at_start; // Credits available at start (Network only)
+    logic [2:0]             retry_count;     // Number of retries (Network only)
 } bus_transaction_t;
 ```
 
 ### Field Usage by Protocol
 
 #### Core Fields
-| Field | AXI Usage | MNOC Usage | APB Usage |
+| Field | AXI Usage | Network Usage | APB Usage |
 |-------|-----------|------------|-----------|
 | `protocol` | `PROTOCOL_AXI` | `PROTOCOL_MNOC` | `PROTOCOL_APB` |
 | `id` | AWID/ARID | Sequence number | PSEL encoding |
@@ -314,7 +314,7 @@ typedef struct packed {
 | `size` | Transfer size | PSTRB width indicator |
 | `len` | Always 0 | Single transfer only |
 
-#### MNOC-Specific Fields
+#### Network-Specific Fields
 | Field | Purpose | Usage |
 |-------|---------|-------|
 | `eos_seen` | End-of-stream detection | Track stream completion |
@@ -338,7 +338,7 @@ typedef logic [63:0] monitor_packet_t;
 Bit Range | Field Name    | Width | Description
 ----------|---------------|-------|------------------------------------------
 [63:60]   | packet_type   | 4     | Type of packet (error, completion, etc.)
-[59:58]   | protocol      | 2     | Protocol type (AXI/MNOC/APB/Custom)
+[59:58]   | protocol      | 2     | Protocol type (AXI/Network/APB/Custom)
 [57:54]   | event_code    | 4     | Specific event or error code
 [53:48]   | channel_id    | 6     | Channel and transaction ID identifier
 [47:44]   | unit_id       | 4     | Subsystem identifier
@@ -400,24 +400,24 @@ localparam logic [3:0] PktTypeCompletion = 4'h1;  // Transaction completion
 localparam logic [3:0] PktTypeThreshold  = 4'h2;  // Threshold crossed
 localparam logic [3:0] PktTypeTimeout    = 4'h3;  // Timeout event
 localparam logic [3:0] PktTypePerf       = 4'h4;  // Performance metric event
-localparam logic [3:0] PktTypeCredit     = 4'h5;  // Credit status (MNOC)
-localparam logic [3:0] PktTypeChannel    = 4'h6;  // Channel status (MNOC)
-localparam logic [3:0] PktTypeStream     = 4'h7;  // Stream event (MNOC)
+localparam logic [3:0] PktTypeCredit     = 4'h5;  // Credit status (Network)
+localparam logic [3:0] PktTypeChannel    = 4'h6;  // Channel status (Network)
+localparam logic [3:0] PktTypeStream     = 4'h7;  // Stream event (Network)
 localparam logic [3:0] PktTypeDebug      = 4'hF;  // Debug/trace event
 ```
 
 ### Packet Type Usage Matrix
 
-| Packet Type | AXI Support | MNOC Support | APB Support | Primary Use Case |
+| Packet Type | AXI Support | Network Support | APB Support | Primary Use Case |
 |-------------|-------------|--------------|-------------|------------------|
 | `PktTypeError` | ✓ | ✓ | ✓ | Protocol violations, decode errors |
 | `PktTypeCompletion` | ✓ | ✓ | ✓ | Successful transaction completion |
 | `PktTypeThreshold` | ✓ | ✓ | ✓ | Configurable threshold monitoring |
 | `PktTypeTimeout` | ✓ | ✓ | ✓ | Timeout detection |
 | `PktTypePerf` | ✓ | ✓ | ✓ | Performance metrics |
-| `PktTypeCredit` | - | ✓ | - | MNOC credit management |
-| `PktTypeChannel` | - | ✓ | - | MNOC channel status |
-| `PktTypeStream` | - | ✓ | - | MNOC stream events |
+| `PktTypeCredit` | - | ✓ | - | Network credit management |
+| `PktTypeChannel` | - | ✓ | - | Network channel status |
+| `PktTypeStream` | - | ✓ | - | Network stream events |
 | `PktTypeDebug` | ✓ | ✓ | ✓ | Debug and trace |
 
 ## Performance Monitoring
@@ -435,9 +435,9 @@ typedef enum logic [3:0] {
     PERF_ACTIVE_COUNT      = 4'h6,  // Current active transaction count
     PERF_COMPLETED_COUNT   = 4'h7,  // Total completed transaction count
     PERF_ERROR_COUNT       = 4'h8,  // Total error transaction count
-    PERF_CREDIT_EFFICIENCY = 4'h9,  // Credit utilization (MNOC)
-    PERF_CHANNEL_UTIL      = 4'hA,  // Channel utilization (MNOC)
-    PERF_PACKET_RATE       = 4'hB,  // Packet rate (MNOC)
+    PERF_CREDIT_EFFICIENCY = 4'h9,  // Credit utilization (Network)
+    PERF_CHANNEL_UTIL      = 4'hA,  // Channel utilization (Network)
+    PERF_PACKET_RATE       = 4'hB,  // Packet rate (Network)
     PERF_CUSTOM            = 4'hF   // Custom performance metric
 } perf_metric_t;
 ```
@@ -480,9 +480,9 @@ typedef enum logic [3:0] {
     DEBUG_TRANS_CREATE  = 4'h6,  // Transaction created
     DEBUG_TRANS_REMOVE  = 4'h7,  // Transaction removed
     DEBUG_COUNTER       = 4'h8,  // Counter event
-    DEBUG_CREDIT_CHANGE = 4'h9,  // Credit change (MNOC)
-    DEBUG_PACKET_TRACE  = 4'hA,  // Packet trace (MNOC)
-    DEBUG_ACK_TRACE     = 4'hB,  // ACK trace (MNOC)
+    DEBUG_CREDIT_CHANGE = 4'h9,  // Credit change (Network)
+    DEBUG_PACKET_TRACE  = 4'hA,  // Packet trace (Network)
+    DEBUG_ACK_TRACE     = 4'hB,  // ACK trace (Network)
     DEBUG_CUSTOM        = 4'hF   // Custom debug event
 } debug_event_t;
 ```
@@ -497,14 +497,14 @@ typedef enum logic [3:0] {
     THRESH_LATENCY        = 4'h1,  // Latency threshold
     THRESH_ERROR_RATE     = 4'h2,  // Error rate threshold
     THRESH_BUFFER_LEVEL   = 4'h3,  // Buffer fill level threshold
-    THRESH_CREDIT_LOW     = 4'h4,  // Credit low threshold (MNOC)
-    THRESH_PACKET_RATE    = 4'h5,  // Packet rate threshold (MNOC)
-    THRESH_CHANNEL_STALL  = 4'h6,  // Channel stall threshold (MNOC)
+    THRESH_CREDIT_LOW     = 4'h4,  // Credit low threshold (Network)
+    THRESH_PACKET_RATE    = 4'h5,  // Packet rate threshold (Network)
+    THRESH_CHANNEL_STALL  = 4'h6,  // Channel stall threshold (Network)
     THRESH_CUSTOM         = 4'hF   // Custom threshold
 } threshold_event_t;
 ```
 
-## MNOC-Specific Event Types
+## Network-Specific Event Types
 
 ### Credit Event Types
 
@@ -615,8 +615,8 @@ monitor_packet_t apb_error_packet = create_monitor_packet(
     36'h4000_DEF0           // event_data (APB address)
 );
 
-// MNOC credit exhausted packet
-monitor_packet_t mnoc_credit_packet = create_monitor_packet(
+// Network credit exhausted packet
+monitor_packet_t network_credit_packet = create_monitor_packet(
     PktTypeCredit,          // packet_type
     PROTOCOL_MNOC,          // protocol
     CREDIT_EXHAUSTED,       // event_code
@@ -626,8 +626,8 @@ monitor_packet_t mnoc_credit_packet = create_monitor_packet(
     {28'h0, 8'h10}         // event_data (credit count)
 );
 
-// MNOC stream end packet
-monitor_packet_t mnoc_stream_packet = create_monitor_packet(
+// Network stream end packet
+monitor_packet_t network_stream_packet = create_monitor_packet(
     PktTypeStream,          // packet_type
     PROTOCOL_MNOC,          // protocol
     STREAM_END,             // event_code
@@ -666,18 +666,18 @@ apb_transaction.size = pstrb_width;        // Based on PSTRB
 apb_transaction.burst = pprot;             // Protection attributes
 apb_transaction.expected_beats = 8'h1;     // Always 1 for APB
 apb_transaction.event_code.apb_code = APB_EVT_NONE;
-// Initialize MNOC transaction entry
-bus_transaction_t mnoc_transaction;
-mnoc_transaction.valid = 1'b1;
-mnoc_transaction.protocol = PROTOCOL_MNOC;
-mnoc_transaction.state = TRANS_ADDR_PHASE;
-mnoc_transaction.id = packet_sequence;
-mnoc_transaction.addr = channel_address;
-mnoc_transaction.len = packet_count;
-mnoc_transaction.burst = mnoc_payload_type;
-mnoc_transaction.event_code.mnoc_code = MNOC_EVT_NONE;
-mnoc_transaction.credit_at_start = current_credits;
-mnoc_transaction.eos_seen = 1'b0;
+// Initialize Network transaction entry
+bus_transaction_t network_transaction;
+network_transaction.valid = 1'b1;
+network_transaction.protocol = PROTOCOL_MNOC;
+network_transaction.state = TRANS_ADDR_PHASE;
+network_transaction.id = packet_sequence;
+network_transaction.addr = channel_address;
+network_transaction.len = packet_count;
+network_transaction.burst = network_payload_type;
+network_transaction.event_code.network_code = NETWORK_EVT_NONE;
+network_transaction.credit_at_start = current_credits;
+network_transaction.eos_seen = 1'b0;
 ```
 
 ### Protocol-Specific State Transitions
@@ -706,22 +706,22 @@ always_ff @(posedge clk) begin
     end
 end
 
-// MNOC state transition
+// Network state transition
 always_ff @(posedge clk) begin
-    if (mnoc_trans.protocol == PROTOCOL_MNOC) begin
-        case (mnoc_trans.state)
+    if (network_trans.protocol == PROTOCOL_MNOC) begin
+        case (network_trans.state)
             TRANS_ADDR_PHASE: begin
                 if (packet_sent) begin
-                    mnoc_trans.state <= TRANS_DATA_PHASE;
-                    mnoc_trans.cmd_received <= 1'b1;
-                    mnoc_trans.addr_timestamp <= timestamp_counter;
+                    network_trans.state <= TRANS_DATA_PHASE;
+                    network_trans.cmd_received <= 1'b1;
+                    network_trans.addr_timestamp <= timestamp_counter;
                 end
             end
             TRANS_DATA_PHASE: begin
                 if (ack_received) begin
-                    mnoc_trans.state <= TRANS_RESP_PHASE;
-                    mnoc_trans.data_completed <= 1'b1;
-                    mnoc_trans.data_timestamp <= timestamp_counter;
+                    network_trans.state <= TRANS_RESP_PHASE;
+                    network_trans.data_completed <= 1'b1;
+                    network_trans.data_timestamp <= timestamp_counter;
                 end
             end
             // ... other states
@@ -751,8 +751,8 @@ module universal_bus_monitor #(
     
     // Protocol-specific signals
     input  logic [7:0]  axi_id,
-    input  logic [7:0]  mnoc_credits,
-    input  logic        mnoc_eos,
+    input  logic [7:0]  network_credits,
+    input  logic        network_eos,
     
     // Monitor packet output
     output logic                monitor_packet_valid,
@@ -772,7 +772,7 @@ always_comb begin
             // AXI-specific monitoring logic
         end
         PROTOCOL_MNOC: begin
-            // MNOC-specific monitoring logic
+            // Network-specific monitoring logic
         end
         PROTOCOL_APB: begin
             // APB-specific monitoring logic
@@ -797,9 +797,9 @@ module system_monitor_hub (
     input logic                 axi_packet_valid,
     input monitor_packet_t      axi_packet_data,
     
-    // MNOC monitor inputs
-    input logic                 mnoc_packet_valid,
-    input monitor_packet_t      mnoc_packet_data,
+    // Network monitor inputs
+    input logic                 network_packet_valid,
+    input monitor_packet_t      network_packet_data,
     
     // APB monitor inputs
     input logic                 apb_packet_valid,
@@ -811,7 +811,7 @@ module system_monitor_hub (
     
     // Protocol-specific interrupts
     output logic               axi_error_interrupt,
-    output logic               mnoc_credit_interrupt,
+    output logic               network_credit_interrupt,
     output logic               apb_timeout_interrupt,
     output logic               system_threshold_interrupt
 );
@@ -828,9 +828,9 @@ always_comb begin
             end
         end
         PROTOCOL_MNOC: begin
-            // MNOC-specific interrupt logic
+            // Network-specific interrupt logic
             if (get_packet_type(input_packet) == PktTypeCredit) begin
-                mnoc_credit_interrupt = 1'b1;
+                network_credit_interrupt = 1'b1;
             end
         end
         // ... other protocols
@@ -852,7 +852,7 @@ endmodule
 1. **Separate transaction tables** for different protocols if needed
 2. **Protocol-aware packet filtering** to reduce monitoring overhead
 3. **Configurable monitoring depth** per protocol type
-4. **Efficient credit tracking** for MNOC protocols
+4. **Efficient credit tracking** for Network protocols
 
 ### Verification and Debug
 1. **Protocol-specific checkers** for packet format validation

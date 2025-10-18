@@ -66,11 +66,16 @@ def setup_apb_boundaries(wave_solver: TemporalConstraintSolver,
             wave_solver.configure_protocol_field_config("apb", field_config)
 
 def create_apb_signals_list() -> List[str]:
-    """Get APB signals for waveform display"""
+    """
+    Get APB signals for waveform display with clock, reset, and grouping.
+
+    Returns clock/reset as individual signals, APB protocol signals in labeled group.
+    """
     return [
-        "apb_psel", "apb_penable", "apb_pready", "apb_pwrite",
-        "apb_paddr", "apb_pwdata", "apb_prdata", "apb_pstrb",
-        "apb_pprot", "apb_pslverr"
+        "apb_pclk",      # Clock (individual)
+        "apb_presetn",   # Reset (individual)
+        ["APB", "apb_psel", "apb_penable", "apb_pwrite", "apb_pready",
+         "apb_paddr", "apb_pwdata", "apb_prdata", "apb_pstrb", "apb_pprot", "apb_pslverr"]
     ]
 
 
@@ -352,6 +357,130 @@ class APBConstraints:
         )
 
     @staticmethod
+    def back_to_back_writes(max_cycles: int = 40,
+                           required: bool = False,
+                           clock_group: str = "default",
+                           field_config: Optional['FieldConfig'] = None,
+                           post_match_cycles: int = 3) -> TemporalConstraint:
+        """Two consecutive APB write transactions - matched by seeing two PSEL cycles"""
+        events = [
+            # First transaction
+            create_temporal_event("psel1_rise", create_transition_pattern("apb_psel", 0, 1)),
+            create_temporal_event("psel1_fall", create_transition_pattern("apb_psel", 1, 0)),
+            # Second transaction
+            create_temporal_event("psel2_rise", create_transition_pattern("apb_psel", 0, 1)),
+        ]
+
+        constraint = TemporalConstraint(
+            name="apb_back_to_back_writes",
+            events=events,
+            temporal_relation=TemporalRelation.SEQUENCE,
+            max_window_size=max_cycles,
+            required=required,
+            clock_group=clock_group,
+            signals_to_show=create_apb_signals_list(),
+            min_sequence_duration=4,
+            field_config=field_config,
+            protocol_hint="apb"
+        )
+        constraint.post_match_cycles = post_match_cycles
+        constraint.skip_boundary_detection = True
+        return constraint
+
+    @staticmethod
+    def back_to_back_reads(max_cycles: int = 40,
+                          required: bool = False,
+                          clock_group: str = "default",
+                          field_config: Optional['FieldConfig'] = None,
+                          post_match_cycles: int = 3) -> TemporalConstraint:
+        """Two consecutive APB read transactions - matched by seeing two PSEL cycles"""
+        events = [
+            # First transaction
+            create_temporal_event("psel1_rise", create_transition_pattern("apb_psel", 0, 1)),
+            create_temporal_event("psel1_fall", create_transition_pattern("apb_psel", 1, 0)),
+            # Second transaction
+            create_temporal_event("psel2_rise", create_transition_pattern("apb_psel", 0, 1)),
+        ]
+
+        constraint = TemporalConstraint(
+            name="apb_back_to_back_reads",
+            events=events,
+            temporal_relation=TemporalRelation.SEQUENCE,
+            max_window_size=max_cycles,
+            required=required,
+            clock_group=clock_group,
+            signals_to_show=create_apb_signals_list(),
+            min_sequence_duration=4,
+            field_config=field_config,
+            protocol_hint="apb"
+        )
+        constraint.post_match_cycles = post_match_cycles
+        constraint.skip_boundary_detection = True
+        return constraint
+
+    @staticmethod
+    def write_to_read(max_cycles: int = 40,
+                     required: bool = False,
+                     clock_group: str = "default",
+                     field_config: Optional['FieldConfig'] = None,
+                     post_match_cycles: int = 3) -> TemporalConstraint:
+        """Write transaction followed by read transaction"""
+        events = [
+            # First transaction
+            create_temporal_event("psel1_rise", create_transition_pattern("apb_psel", 0, 1)),
+            create_temporal_event("psel1_fall", create_transition_pattern("apb_psel", 1, 0)),
+            # Second transaction
+            create_temporal_event("psel2_rise", create_transition_pattern("apb_psel", 0, 1)),
+        ]
+
+        constraint = TemporalConstraint(
+            name="apb_write_to_read",
+            events=events,
+            temporal_relation=TemporalRelation.SEQUENCE,
+            max_window_size=max_cycles,
+            required=required,
+            clock_group=clock_group,
+            signals_to_show=create_apb_signals_list(),
+            min_sequence_duration=4,
+            field_config=field_config,
+            protocol_hint="apb"
+        )
+        constraint.post_match_cycles = post_match_cycles
+        constraint.skip_boundary_detection = True
+        return constraint
+
+    @staticmethod
+    def read_to_write(max_cycles: int = 40,
+                     required: bool = False,
+                     clock_group: str = "default",
+                     field_config: Optional['FieldConfig'] = None,
+                     post_match_cycles: int = 3) -> TemporalConstraint:
+        """Read transaction followed by write transaction"""
+        events = [
+            # First transaction
+            create_temporal_event("psel1_rise", create_transition_pattern("apb_psel", 0, 1)),
+            create_temporal_event("psel1_fall", create_transition_pattern("apb_psel", 1, 0)),
+            # Second transaction
+            create_temporal_event("psel2_rise", create_transition_pattern("apb_psel", 0, 1)),
+        ]
+
+        constraint = TemporalConstraint(
+            name="apb_read_to_write",
+            events=events,
+            temporal_relation=TemporalRelation.SEQUENCE,
+            max_window_size=max_cycles,
+            required=required,
+            clock_group=clock_group,
+            signals_to_show=create_apb_signals_list(),
+            min_sequence_duration=4,
+            field_config=field_config,
+            protocol_hint="apb"
+        )
+        constraint.post_match_cycles = post_match_cycles
+        constraint.skip_boundary_detection = True
+        return constraint
+
+    @staticmethod
     def wait_state_sequence(max_cycles: int = 30,
                            required: bool = False,
                            clock_group: str = "default",
@@ -604,7 +733,8 @@ def setup_apb_constraints_with_boundaries(wave_solver: TemporalConstraintSolver,
                                                   addr_width: int = 32,
                                                   enable_packet_callbacks: bool = True,
                                                   use_signal_names: bool = True,
-                                                  post_match_cycles: int = 2):
+                                                  post_match_cycles: int = 2,
+                                                  error_required: bool = True):
     """
     Helper function to set up APB constraints with post-match extension.
 
@@ -618,6 +748,7 @@ def setup_apb_constraints_with_boundaries(wave_solver: TemporalConstraintSolver,
         enable_packet_callbacks: Whether to enable APB packet-based callbacks
         use_signal_names: Whether to use signal names (True) vs descriptions (False)
         post_match_cycles: Extra cycles to include after sequence match (default: 2)
+        error_required: Whether error scenario is required (False for master tests)
 
     Returns:
         Number of constraints added
@@ -661,33 +792,32 @@ def setup_apb_constraints_with_boundaries(wave_solver: TemporalConstraintSolver,
         # setup_apb_boundaries(wave_solver, ['apb_write_sequence', 'apb_read_sequence'], field_config)
 
     elif preset_name == "comprehensive":
+        # User-requested 7 focused scenarios: basic write/read, back-to-back writes/reads,
+        # write-to-read, read-to-write, and error
         constraints = [
-            # Required basic transactions with post-match extension
+            # 1. Basic write
             create_apb_write_sequence_constraint(max_cycles, True, clock_group, field_config, post_match_cycles),
+            # 2. Basic read
             create_apb_read_sequence_constraint(max_cycles, True, clock_group, field_config, post_match_cycles),
-
-            # Phase analysis (optional) - these can have boundaries
-            APBConstraints.setup_phase(max_cycles=max_cycles, required=False, clock_group=clock_group, field_config=field_config),
-            APBConstraints.access_phase(max_cycles=max_cycles, required=False, clock_group=clock_group, field_config=field_config),
-
-            # Completion analysis (optional)
-            APBConstraints.write_completion(max_cycles=max_cycles, required=False, clock_group=clock_group, field_config=field_config),
-            APBConstraints.read_completion(max_cycles=max_cycles, required=False, clock_group=clock_group, field_config=field_config),
-
-            # Complete transaction sequences (optional)
-            APBConstraints.complete_transaction(max_cycles=max_cycles+5, required=False, clock_group=clock_group, field_config=field_config),
-
-            # Error handling
-            APBConstraints.error_transaction(max_cycles=max_cycles, required=False, clock_group=clock_group, field_config=field_config)
+            # 3. Back-to-back writes
+            APBConstraints.back_to_back_writes(max_cycles=max_cycles+10, required=True, clock_group=clock_group, field_config=field_config, post_match_cycles=post_match_cycles),
+            # 4. Back-to-back reads
+            APBConstraints.back_to_back_reads(max_cycles=max_cycles+10, required=True, clock_group=clock_group, field_config=field_config, post_match_cycles=post_match_cycles),
+            # 5. Write-to-read transition
+            APBConstraints.write_to_read(max_cycles=max_cycles+10, required=True, clock_group=clock_group, field_config=field_config, post_match_cycles=post_match_cycles),
+            # 6. Read-to-write transition
+            APBConstraints.read_to_write(max_cycles=max_cycles+10, required=True, clock_group=clock_group, field_config=field_config, post_match_cycles=post_match_cycles),
+            # 7. Error response (optional for master tests since they don't control errors)
+            APBConstraints.error_transaction(max_cycles=max_cycles, required=error_required, clock_group=clock_group, field_config=field_config)
         ]
         for constraint in constraints:
             wave_solver.add_constraint(constraint)
-        # Only set boundaries for non-main sequences
-        optional_constraints = [
-            'apb_setup', 'apb_access', 'apb_write_completion', 'apb_read_completion',
-            'apb_complete_transaction', 'apb_error'
+        # Set boundaries only for single-transaction constraints
+        # Multi-transaction constraints span across PSEL edges, so don't use auto-boundary
+        single_txn_constraints = [
+            'apb_write_sequence', 'apb_read_sequence', 'apb_error'
         ]
-        setup_apb_boundaries(wave_solver, optional_constraints, field_config)
+        setup_apb_boundaries(wave_solver, single_txn_constraints, field_config)
 
     elif preset_name == "debug":
         constraints = APBPresets.debug_test(max_cycles, clock_group, field_config)
@@ -725,6 +855,129 @@ def setup_apb_constraints_with_boundaries(wave_solver: TemporalConstraintSolver,
     return len(constraints)
 
 
+class APBWaveDromTemplate:
+    """
+    Dead-simple APB wavedrom with automatic signal binding.
+
+    Uses SignalResolver methodology for automatic signal discovery with
+    manual override capability.
+    """
+
+    def __init__(self, dut,
+                 signal_prefix: str = "apb_",
+                 data_width: int = 32,
+                 addr_width: int = 32,
+                 preset: str = "comprehensive",
+                 bus_name: str = '',
+                 signal_map: Optional[Dict[str, str]] = None,
+                 clock_signal = None):
+        """
+        Initialize APB wavedrom with automatic signal binding.
+
+        Args:
+            dut: CocoTB DUT handle
+            signal_prefix: Signal prefix (e.g., 'apb_', 's_apb_', '')
+            data_width: APB data width (default: 32)
+            addr_width: APB address width (default: 32)
+            preset: Constraint preset ('basic_rw', 'comprehensive', 'debug', 'timing', 'error')
+            bus_name: Bus/channel name if signals have additional prefix
+            signal_map: Manual signal override (e.g., {'psel': 'my_psel', 'penable': 'my_penable', ...})
+            clock_signal: Clock signal (auto-detected if None)
+
+        Example:
+            # Automatic discovery (most common):
+            apb_wave = APBWaveDromTemplate(dut, signal_prefix="apb_", data_width=32, addr_width=32)
+
+            # Manual override for non-standard naming:
+            apb_wave = APBWaveDromTemplate(
+                dut,
+                signal_prefix="",
+                signal_map={
+                    'psel': 'custom_psel',
+                    'penable': 'custom_penable',
+                    'pwrite': 'wr_en',
+                    'pready': 'slave_ready',
+                    'paddr': 'address',
+                    'pwdata': 'write_data',
+                    'prdata': 'read_data'
+                }
+            )
+        """
+        self.dut = dut
+        self.signal_prefix = signal_prefix
+
+        # Create field configuration
+        self.field_config = get_apb_field_config(
+            data_width=data_width,
+            addr_width=addr_width,
+            strb_width=data_width // 8,
+            use_signal_names=True
+        )
+
+        # Create wave generator
+        self.wave_generator = create_apb_wavejson_generator(
+            self.field_config,
+            signal_prefix=signal_prefix
+        )
+
+        # Create constraint solver
+        self.wave_solver = TemporalConstraintSolver(
+            dut=dut,
+            log=dut._log,
+            wavejson_generator=self.wave_generator,
+            default_field_config=self.field_config
+        )
+
+        # Auto-detect clock if not provided
+        if clock_signal is None:
+            clock_signal = (getattr(dut, 'pclk', None) or
+                          getattr(dut, 'apb_pclk', None) or
+                          getattr(dut, 'i_clk', None) or
+                          getattr(dut, 'clk', None))
+
+        if clock_signal is None:
+            raise ValueError("Could not auto-detect clock signal. Please provide clock_signal parameter.")
+
+        # Add clock group
+        self.wave_solver.add_clock_group('default', clock_signal)
+
+        # 🎯 AUTO-BIND ALL SIGNALS (The magic!)
+        self.num_signals = self.wave_solver.auto_bind_signals(
+            protocol_type='apb',
+            signal_prefix=signal_prefix,
+            bus_name=bus_name,
+            field_config=self.field_config,
+            signal_map=signal_map
+        )
+
+        # Setup constraints with boundaries
+        self.num_constraints = setup_apb_constraints_with_boundaries(
+            wave_solver=self.wave_solver,
+            preset_name=preset,
+            data_width=data_width,
+            addr_width=addr_width
+        )
+
+        dut._log.info(f"✓ APB wavedrom configured: {self.num_signals} signals, {self.num_constraints} constraints")
+
+    async def start_sampling(self):
+        """Start wavedrom sampling"""
+        if self.wave_solver:
+            await self.wave_solver.start_sampling()
+
+    async def stop_sampling(self):
+        """Stop wavedrom sampling and get results"""
+        if self.wave_solver:
+            await self.wave_solver.stop_sampling()
+            return self.wave_solver.get_results()
+        return None
+
+    def get_status(self):
+        """Get wavedrom status"""
+        if self.wave_solver:
+            self.wave_solver.debug_status()
+
+
 # Export classes and functions
 __all__ = [
     # Signal lists and utilities
@@ -747,4 +1000,7 @@ __all__ = [
 
     # Setup function
     'setup_apb_constraints_with_boundaries',
+
+    # Template class (NEW)
+    'APBWaveDromTemplate',
 ]

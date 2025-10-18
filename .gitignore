@@ -195,6 +195,7 @@ openai/
 *OLD.md
 bin_OLD/
 profile.txt
+sim_build/
 local_sim_build/
 regression/
 junk_*
@@ -204,5 +205,30 @@ rtl/axi/REWORK/*
 val/unit_axi/FIX_TESTS*
 HOLD/
 .obsidian
-*mnoc*
-*miop*
+status.txt
+
+# Allow documentation files for Claude Code
+# PRD.md - Product Requirements Documents
+# TASKS.md - Task tracking
+# CLAUDE.md - AI assistance guides
+# But block local scratch files
+PNG
+SVG
+*_LOCAL.md
+*_SCRATCH.md
+*_TEMP.md
+generated/
+PRD*
+CLAUDE*
+TASK*
+
+# Scratch/temporary test files (keep in scratch/ directory instead)
+/cocotb_*.py
+/simple_*.py
+/run_*.py
+/test_scratch*.py
+/debug_*.py
+scratch/
+sandbox/
+temp/
+

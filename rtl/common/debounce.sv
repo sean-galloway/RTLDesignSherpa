@@ -1,5 +1,60 @@
 `timescale 1ns / 1ps
 
+//==============================================================================
+// Module: debounce
+//==============================================================================
+// Description:
+//   Multi-channel button/signal debouncer using shift register sampling. Samples
+//   input signals at regular tick intervals and outputs stable signal only when
+//   input has been stable for the configured debounce delay. Supports both
+//   normally-open (NO) and normally-closed (NC) button configurations.
+//
+//------------------------------------------------------------------------------
+// Parameters:
+//------------------------------------------------------------------------------
+//   N:
+//     Description: Number of input signals/buttons to debounce
+//     Type: int
+//     Range: 1 to 32
+//     Default: 4
+//     Constraints: Each signal gets independent shift register
+//
+//   DEBOUNCE_DELAY:
+//     Description: Debounce delay in tick cycles
+//     Type: int
+//     Range: 2 to 16
+//     Default: 4
+//     Constraints: Number of consecutive stable samples required before output changes
+//
+//   PRESSED_STATE:
+//     Description: Logic level when button is pressed
+//     Type: bit
+//     Range: 0 or 1
+//     Default: 1
+//     Constraints: 1 = Normally Open (NO), 0 = Normally Closed (NC)
+//
+//------------------------------------------------------------------------------
+// Notes:
+//------------------------------------------------------------------------------
+//   - Requires external tick generator (typically ~10ms interval)
+//   - Shift register samples input on each tick pulse
+//   - Output asserts only when all samples match pressed state
+//   - PRESSED_STATE=1: Button pressed = logic 1 (normally-open, pull-down)
+//   - PRESSED_STATE=0: Button pressed = logic 0 (normally-closed, pull-up)
+//   - Typical config: N=4, DEBOUNCE_DELAY=4, tick=10ms → 40ms debounce
+//
+//------------------------------------------------------------------------------
+// Related Modules:
+//------------------------------------------------------------------------------
+//   - counter_freq_invariant.sv - Can generate tick signal
+//
+//------------------------------------------------------------------------------
+// Test:
+//------------------------------------------------------------------------------
+//   Location: val/common/test_debounce.py
+//   Run: pytest val/common/test_debounce.py -v
+//
+//==============================================================================
 module debounce #(
     parameter int N              = 4,  // Number of buttons (input signals)
     parameter int DEBOUNCE_DELAY = 4,  // Debounce delay in tick cycles

@@ -1,3 +1,5 @@
+**[← Back to Main Index](../index.md)** | **[RTLAmba Overview](overview.md)**
+
 # RTL AMBA Modules Index
 
 This directory contains documentation for the AMBA (Advanced Microcontroller Bus Architecture) RTL library, providing comprehensive implementations of ARM AMBA bus protocols including APB, AXI4, AXI4-Lite, and AXI4-Stream.
@@ -124,7 +126,7 @@ This directory contains documentation for the AMBA (Advanced Microcontroller Bus
 - **[apb_pkg](includes/apb_pkg.md)** - APB protocol definitions and constants
 - **[axi_pkg](includes/axi_pkg.md)** - AXI protocol definitions and constants
 - **[monitor_pkg](includes/monitor_pkg.md)** - Monitoring infrastructure definitions
-- **[monitor_mnoc_pkg](includes/monitor_mnoc_pkg.md)** - MNOC monitoring package definitions
+- **[monitor_network_pkg](includes/monitor_network_pkg.md)** - Network monitoring package definitions
 
 ## Quick Reference
 

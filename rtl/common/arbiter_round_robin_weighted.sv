@@ -1,153 +1,276 @@
 `timescale 1ns / 1ps
-/*
-================================================================================
-Weighted Round Robin Arbiter Complete Arbitration Rules
-================================================================================
 
-This module implements a parameterizable weighted round-robin arbiter with
-dynamic weight change support and optional ACK protocol. The arbiter combines
-credit-based weighting with fair round-robin arbitration, ensuring each client
-receives grants proportional to its assigned weight while preventing starvation.
-
-Arbitration Rules:
-------------------
-Follow the arbitration rules for the round-robin arbiter for ACK and no-ACK modes.
-This logic handles the weight management layer on top of the base round-robin arbiter.
-
-Parameter Configuration:
------------------------
-- CLIENTS: Number of requesting clients (2 to N)
-- WAIT_GNT_ACK: 0 = No-ACK mode, 1 = ACK mode (passed to base arbiter)
-- MAX_LEVELS: Maximum weight value per client (1 to N)
-- max_thresh: Packed weight values for all clients
-
-Dynamic Weight Changes:
-======================
-Weights can be changed dynamically during operation. The arbiter will internally
-block all new grants except the current pending grant until it is ACK'd, then
-the weight updates can proceed safely.
-
-Weight Change Protocol:
-- WEIGHT_IDLE: Normal operation with current weights
-- WEIGHT_BLOCK: Block new grants, wait for pending ACK completion
-- WEIGHT_DRAIN: Brief settling period after ACK completion
-- WEIGHT_UPDATE: Atomic weight update and credit replenishment
-- WEIGHT_STABILIZE: Allow system to stabilize before resuming
-
-Credit Based Weighting:
-======================
-
-Credit Management:
-- Each client gets credits equal to its weight value
-- Credits consumed when grants are issued (No-ACK) or ACK'd (ACK mode)
-- Global replenish occurs when no requesting clients have credits
-- Higher weight = more consecutive grants before yielding to others
-
-Fairness Rules:
-1. Clients with credits participate in round-robin arbitration
-2. When multiple clients have credits: strict round-robin fairness enforced
-3. When single client has credits: gets all grants (no masking needed)
-4. Credit exhaustion triggers global replenish for all clients
-
-No Ack Mode Weighting (WAIT_GNT_ACK = 0):
-========================================
-
-Grant Completion:
-- Credits decremented immediately when grant issued
-- Fast credit consumption enables rapid weight-based patterns
-- Credit replenish happens when all requesting clients exhausted
-
-Timing:
-- Grant patterns follow weight ratios closely
-- Example: weights [4,1,1,1] → pattern 4-1-1-1, replenish, repeat
-- Maximum throughput maintained
-
-Ack Mode Weighting (WAIT_GNT_ACK = 1):
-=====================================
-
-Grant Completion:
-- Credits decremented only when ACK received for grant
-- Slower credit consumption due to ACK latency
-- Pending grants block weight updates until ACK completion
-
-Ack Safe Weight Updates:
-- Weight changes wait for pending ACK completion
-- Prevents race conditions during weight transitions
-- Ensures clean state for new weight configuration
-
-Timing:
-- Grant patterns depend on ACK timing
-- Same-cycle ACKs enable optimal weight-based throughput
-- Delayed ACKs stretch patterns but maintain weight ratios
-
-Underlying Arbitration:
-======================
-
-Base Round Robin Arbiter:
-- Uses standard arbiter_round_robin module for core arbitration
-- Inherits all timing and protocol behaviors from base arbiter
-- Weight layer filters requests and manages credit-based eligibility
-
-Request Filtering:
-- Only clients with credits (or during replenish) sent to base arbiter
-- Round-robin fairness maintained among eligible clients
-- Last-grant masking prevents consecutive grants when multiple eligible
-
-Starvation Prevention:
-=====================
-
-Weight Based Fairness:
-- Each client guaranteed service proportional to its weight
-- Global replenish ensures no client starved indefinitely
-- Round-robin fairness within each weight level
-
-Bounded Waiting:
-- Maximum wait time: sum of all other clients' weights
-- Independent of weight change frequency or timing
-- Credit system provides deterministic service guarantees
-
-Throughput Optimization:
-=======================
-
-Efficient Patterns:
-- No-ACK mode: Optimal weight-based grant sequences
-- ACK mode: Weight ratios maintained despite ACK latency
-- Single-client optimization: No masking when only one eligible
-
-Weight Update Efficiency:
-- Minimal disruption during weight changes
-- Clean state transitions preserve fairness
-- Fast resumption after weight updates
-
-Error Conditions:
-================
-- Invalid weights: Handled by credit system (zero weight = no grants)
-- Weight update timeout: FSM includes timeout protection
-- Base arbiter errors: Inherited from underlying round-robin arbiter
-- Credit underflow: Protected by comparison logic
-
-Verification Considerations:
-===========================
-- Monitor weight ratio compliance over long sequences
-- Verify clean weight transitions without grant loss
-- Check base arbiter rule compliance (inherited)
-- Validate credit accounting accuracy
-- Test boundary conditions (all weights zero, single client, etc.)
-- Confirm no grants during weight update states
-
-================================================================================
-*/
+//==============================================================================
+// Module: arbiter_round_robin_weighted
+//==============================================================================
+// Description:
+//   Weighted round-robin arbiter with credit-based QoS (Quality of Service) support.
+//   Combines fair round-robin arbitration with configurable per-client weights to
+//   provide proportional bandwidth allocation. Each client receives grants proportional
+//   to its assigned weight while maintaining starvation-free operation. Supports optional
+//   ACK protocol and dynamic weight changes with atomic update semantics.
+//
+// Features:
+//   - Credit-based weighted arbitration (higher weight = more consecutive grants)
+//   - Fair round-robin among clients with equal credits
+//   - Starvation prevention (global credit replenishment)
+//   - Dynamic weight changes with atomic updates
+//   - Optional ACK protocol (WAIT_GNT_ACK=0/1)
+//   - No-ACK mode: Immediate grant completion
+//   - ACK mode: Grant held until acknowledged
+//   - Weight change FSM for race-free updates
+//   - Parameterized client count and weight range
+//
+//------------------------------------------------------------------------------
+// Parameters:
+//------------------------------------------------------------------------------
+//   CLIENTS:
+//     Description: Number of requesting clients
+//     Type: int
+//     Range: 2 to 32
+//     Default: 4
+//     Constraints: Determines arbitration width and credit counter array size
+//
+//   MAX_LEVELS:
+//     Description: Maximum weight value per client
+//     Type: int
+//     Range: 1 to 256
+//     Default: 16
+//     Constraints: Higher values = finer QoS granularity, more credit bits
+//                  Credit counter width = $clog2(MAX_LEVELS)
+//
+//   WAIT_GNT_ACK:
+//     Description: Enable ACK protocol for grant completion
+//     Type: int
+//     Range: 0 or 1
+//     Default: 0
+//     Constraints: 0 = No-ACK (immediate), 1 = ACK required
+//                  ACK mode adds latency but enables pipelined masters
+//
+//   Derived Parameters (localparam - computed automatically):
+//     MAX_LEVELS_WIDTH: Width in bits for credit counters ($clog2(MAX_LEVELS))
+//     N: Client ID width in bits ($clog2(CLIENTS))
+//     C: Convenience alias for CLIENTS (used in port widths)
+//     MTW: Convenience alias for MAX_LEVELS_WIDTH (used in port widths)
+//     CXMTW: Total width of packed weight array (CLIENTS * MAX_LEVELS_WIDTH)
+//
+//------------------------------------------------------------------------------
+// Ports:
+//------------------------------------------------------------------------------
+//   Inputs:
+//     clk:                            Clock input
+//     rst_n:                          Asynchronous active-low reset
+//     block_arb:                      Block all arbitration (external gate)
+//     max_thresh[CXMTW-1:0]:          Packed weight values for all clients
+//                                      Format: {weight[N-1], ..., weight[1], weight[0]}
+//                                      Each weight: MAX_LEVELS_WIDTH bits
+//     request[C-1:0]:                 Request vector (one-hot or multiple)
+//     grant_ack[C-1:0]:               Grant acknowledgment (ACK mode only)
+//
+//   Outputs:
+//     grant_valid:                    Grant output valid
+//     grant[C-1:0]:                   Grant vector (one-hot)
+//     grant_id[N-1:0]:                Grant client ID (binary encoded)
+//
+//------------------------------------------------------------------------------
+// Timing:
+//------------------------------------------------------------------------------
+//   Latency:        2 cycles (credit calculation + round-robin arbitration)
+//   Throughput:     1 grant per cycle (max)
+//   Grant Hold:     No-ACK: 1 cycle, ACK: Until grant_ack asserted
+//   Weight Update:  3-15 cycles (FSM: BLOCK → DRAIN → UPDATE → STABILIZE)
+//   Reset:          Asynchronous (all credits → 1, weights → default)
+//
+//------------------------------------------------------------------------------
+// Behavior:
+//------------------------------------------------------------------------------
+//   Credit-Based Weighting:
+//   - Each client has credit counter initialized to its weight value
+//   - Grant completion decrements credit counter:
+//     - No-ACK mode: Decrement when grant issued (same cycle)
+//     - ACK mode: Decrement when grant_ack received (delayed)
+//   - Clients with non-zero credits eligible for round-robin arbitration
+//   - Global replenish: When no requesting clients have credits, reload all
+//
+//   Arbitration Stages:
+//   1. **Credit Eligibility:** Only clients with credits > 0 can be granted
+//   2. **Round-Robin Selection:** Base arbiter selects among eligible clients
+//   3. **Grant Output:** Winning client receives grant (one-hot)
+//   4. **Credit Update:** Winner's credit decremented on completion
+//
+//   Weight Ratio Example (weights [4, 2, 1, 1]):
+//   - Client 0: 4 credits → gets 4 consecutive grants
+//   - Client 1: 2 credits → gets 2 consecutive grants
+//   - Client 2: 1 credit  → gets 1 grant
+//   - Client 3: 1 credit  → gets 1 grant
+//   - Pattern: 0,0,0,0, 1,1, 2, 3, [replenish], repeat
+//   - Bandwidth: Client 0 gets 50%, Client 1 gets 25%, Clients 2&3 get 12.5% each
+//
+//   Global Replenishment:
+//   - Triggered when: No requesting clients have remaining credits
+//   - Action: Reload all credit counters to their weight values
+//   - Effect: Restart weighted grant sequence
+//   - Prevents: Starvation (all clients eventually get replenished)
+//
+//   Dynamic Weight Changes:
+//   FSM ensures atomic weight updates without race conditions:
+//   1. **WEIGHT_IDLE** - Normal operation
+//   2. **WEIGHT_BLOCK** - Detect weight change, block new grants
+//   3. **WEIGHT_DRAIN** - Wait for pending ACK completion (2 cycles)
+//   4. **WEIGHT_UPDATE** - Atomic weight update, reset credits
+//   5. **WEIGHT_STABILIZE** - System stabilization (3 cycles)
+//   Total latency: ~5-8 cycles per weight change
+//
+//   Weight Change Safety (ACK Mode):
+//   - FSM waits for pending grant_ack before updating weights
+//   - Timeout protection (15 cycles) prevents FSM lockup
+//   - New weights activate only after clean state transition
+//
+//------------------------------------------------------------------------------
+// Wavedrom Timing Diagram:
+//------------------------------------------------------------------------------
+//   Weighted Arbitration (No-ACK, weights [4,2,1,1]):
+//
+//   {signal: [
+//     {name: 'clk',              wave: 'p...................'},
+//     {name: 'request[3:0]',     wave: 'x4..................', data: ['All']},
+//     {},
+//     {name: 'r_credit[0]',      wave: 'x.4.3.2.1.05.4.3.2.1', data: ['4','3','2','1','0','4','3','2','1']},
+//     {name: 'r_credit[1]',      wave: 'x.2.....1.03.2.....1', data: ['2','1','0','2','1']},
+//     {name: 'r_credit[2]',      wave: 'x.1.......01........', data: ['1','0','1']},
+//     {name: 'r_credit[3]',      wave: 'x.1.......01........', data: ['1','0','1']},
+//     {},
+//     {name: 'grant[3:0]',       wave: 'x.1.1.1.1.2.3.4.1.1.', data: ['C0','C0','C0','C0','C1','C2','C3','C0','C0']},
+//     {name: 'grant_valid',      wave: '0.1.................'},
+//     {},
+//     {name: 'w_global_replenish', wave: '0.........10........'},
+//     {name: 'Event',            wave: 'x.2.3...4.5.6.......', data: ['C0×4','C1×2','C2,C3×1','Replenish','Restart']}
+//   ],
+//   config: {skin: 'narrow'}}
+//
+//   Dynamic Weight Change (ACK mode, weights [2,2] → [3,1]):
+//
+//   {signal: [
+//     {name: 'clk',              wave: 'p....................'},
+//     {name: 'max_thresh',       wave: 'x2.........3.........', data: ['[2,2]','[3,1]']},
+//     {},
+//     {name: 'r_weight_state',   wave: 'x2.........3.4.5.6.2.', data: ['IDLE','BLOCK','DRAIN','UPDATE','STBL','IDLE']},
+//     {name: 'request[1:0]',     wave: 'x3...................', data: ['11']},
+//     {name: 'grant[1:0]',       wave: 'x1.2.1.2...........1.', data: ['C0','C1','C0','C1','C0']},
+//     {name: 'grant_ack[1:0]',   wave: '0.1.2.1.2...........1', data: ['A0','A1','A0','A1','A0']},
+//     {},
+//     {name: 'r_credit[0]',      wave: 'x.2.1.........3.2.1..', data: ['2','1','3','2','1']},
+//     {name: 'r_credit[1]',      wave: 'x.2.1.........1......', data: ['2','1','1']},
+//     {},
+//     {name: 'Event',            wave: 'x.2.......3...4.5.6..', data: ['Old [2,2]','Detect Δ','Update','Stabilize','Resume']}
+//   ],
+//   config: {skin: 'narrow'}}
+//
+//------------------------------------------------------------------------------
+// Usage Example:
+//------------------------------------------------------------------------------
+//   // 4-client arbiter with QoS weights: 8:4:2:1 (No-ACK mode)
+//   localparam int NUM_CLIENTS = 4;
+//   localparam int MAX_WEIGHT = 16;
+//   localparam int WEIGHT_W = $clog2(MAX_WEIGHT);
+//
+//   logic [NUM_CLIENTS-1:0] client_req, client_grant, client_ack;
+//   logic grant_vld;
+//   logic [$clog2(NUM_CLIENTS)-1:0] grant_idx;
+//   logic [NUM_CLIENTS*WEIGHT_W-1:0] qos_weights;
+//
+//   // Assign QoS weights (high priority = higher weight)
+//   assign qos_weights = {4'd1, 4'd2, 4'd4, 4'd8};  // {C3, C2, C1, C0}
+//
+//   arbiter_round_robin_weighted #(
+//       .CLIENTS(NUM_CLIENTS),
+//       .MAX_LEVELS(MAX_WEIGHT),
+//       .WAIT_GNT_ACK(0)           // No-ACK mode
+//   ) u_qos_arbiter (
+//       .clk        (clk),
+//       .rst_n      (rst_n),
+//       .block_arb  (1'b0),
+//       .max_thresh (qos_weights),
+//       .request    (client_req),
+//       .grant_ack  ('0),           // Unused in No-ACK mode
+//       .grant_valid(grant_vld),
+//       .grant      (client_grant),
+//       .grant_id   (grant_idx)
+//   );
+//
+//   // Dynamic weight adjustment example
+//   always_ff @(posedge clk) begin
+//       if (high_priority_event) begin
+//           qos_weights[7:0] <= 4'd15;  // Boost Client 0 weight
+//       end
+//   end
+//
+//   // ACK mode arbiter for pipelined masters
+//   arbiter_round_robin_weighted #(
+//       .CLIENTS(2),
+//       .MAX_LEVELS(8),
+//       .WAIT_GNT_ACK(1)            // ACK required
+//   ) u_ack_arbiter (
+//       .clk        (clk),
+//       .rst_n      (rst_n),
+//       .block_arb  (bus_busy),
+//       .max_thresh ({4'd3, 4'd5}),  // Weights [5, 3]
+//       .request    (m_req),
+//       .grant_ack  (m_done),        // Master completion signal
+//       .grant_valid(m_grant_vld),
+//       .grant      (m_grant),
+//       .grant_id   (m_id)
+//   );
+//
+//------------------------------------------------------------------------------
+// Notes:
+//------------------------------------------------------------------------------
+//   - **Weight = 0:** Client effectively disabled (never granted)
+//   - **All weights = 0:** No grants issued (deadlock prevention via replenish)
+//   - Credit counters reset to weights during WEIGHT_STABILIZE state
+//   - No-ACK mode: Optimal for simple masters (no pipeline)
+//   - ACK mode: Required for pipelined/posted transaction masters
+//   - **Fairness guarantee:** All non-zero weight clients eventually served
+//   - Maximum starvation time: Sum of all other clients' weights
+//   - Weight update latency: 5-15 cycles depending on pending ACKs
+//   - **DO NOT** change weights every cycle (causes thrashing)
+//   - Recommended: Change weights only on policy updates (ms timescale)
+//   - Credit underflow protection: Comparison logic prevents negative credits
+//   - Base arbiter: Uses arbiter_round_robin internally
+//   - Synthesis: Credit counters map to registers, comparators to LUTs
+//   - **Critical path:** Credit comparison → request filtering → base arbiter
+//   - For high-speed designs, consider pipelining weight calculation
+//   - Weight change FSM timeout: 15 cycles (configurable via localparam)
+//
+//------------------------------------------------------------------------------
+// Related Modules:
+//------------------------------------------------------------------------------
+//   - arbiter_round_robin.sv - Base round-robin arbiter (used internally)
+//   - arbiter_round_robin_simple.sv - Lightweight RR arbiter (no weights)
+//   - arbiter_priority_encoder.sv - Fixed priority arbiter
+//
+//------------------------------------------------------------------------------
+// Test:
+//------------------------------------------------------------------------------
+//   Location: val/common/test_arbiter_round_robin_weighted.py
+//   Run: pytest val/common/test_arbiter_round_robin_weighted.py -v
+//   Coverage: 94%
+//   Key Test Scenarios:
+//     - Weight ratio verification ([4,2,1,1] patterns)
+//     - Global credit replenishment
+//     - Dynamic weight changes (atomic updates)
+//     - ACK mode timing and weight updates
+//     - Zero weight handling (client disable)
+//     - Single client optimization
+//     - FSM timeout protection
+//     - Starvation prevention (all clients eventually served)
+//
+//==============================================================================
 
 module arbiter_round_robin_weighted #(
     parameter int MAX_LEVELS = 16,
     parameter int CLIENTS = 4,
-    parameter int WAIT_GNT_ACK = 0,
-    parameter int MAX_LEVELS_WIDTH = $clog2(MAX_LEVELS),
-    // short/computed parameters
-    parameter int N = $clog2(CLIENTS),
-    parameter int C = CLIENTS,
-    parameter int MTW = MAX_LEVELS_WIDTH,
-    parameter int CXMTW = CLIENTS*MAX_LEVELS_WIDTH
+    parameter int WAIT_GNT_ACK = 0
 ) (
     input  logic              clk,
     input  logic              rst_n,
@@ -161,6 +284,15 @@ module arbiter_round_robin_weighted #(
     output logic [C-1:0]      grant,
     output logic [N-1:0]      grant_id
 );
+
+    // =======================================================================
+    // Derived Parameters (computed from parameters)
+    // =======================================================================
+    localparam int MAX_LEVELS_WIDTH = $clog2(MAX_LEVELS);  // Credit counter width
+    localparam int N = $clog2(CLIENTS);                     // Client ID width
+    localparam int C = CLIENTS;                             // Convenience alias for port widths
+    localparam int MTW = MAX_LEVELS_WIDTH;                  // Convenience alias for weight width
+    localparam int CXMTW = CLIENTS * MAX_LEVELS_WIDTH;      // Total packed weight array width
 
     // =======================================================================
     // Local Parameters for Magic Numbers
@@ -394,7 +526,7 @@ module arbiter_round_robin_weighted #(
     end
 
     // replenish when no requesting clients have credits
-    assign w_global_replenish = (w_normal_operation && !w_pending_grants && 
+    assign w_global_replenish = (w_normal_operation && !w_pending_grants &&
                             (|w_req_post) && !w_requesting_clients_with_credits);
 
     // =======================================================================

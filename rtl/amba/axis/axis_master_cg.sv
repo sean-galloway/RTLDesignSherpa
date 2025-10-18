@@ -7,10 +7,10 @@ module axis_master_cg
     parameter int AXIS_ID_WIDTH      = 8,
     parameter int AXIS_DEST_WIDTH    = 4,
     parameter int AXIS_USER_WIDTH    = 1,
-    
+
     // Clock gating parameters
     parameter int CG_IDLE_COUNT_WIDTH = 4,  // Width of idle counter
-    
+
     // Short and calculated params
     parameter int DW       = AXIS_DATA_WIDTH,
     parameter int IW       = AXIS_ID_WIDTH,

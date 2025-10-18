@@ -1,0 +1,36 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Generated: Wed Oct 15 03:46:34 2025
+[*]
+[dumpfile] "(null)"
+[savefile] "/mnt/data/github/rtldesignsherpa/val/common/GTKW/shifter_barrel.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] -1 -1
+*-20.0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .shifter_barrel.
+[sst_width] 401
+[signals_width] 250
+[sst_expanded] 1
+[sst_vpaned_height] 400
+@420
+shifter_barrel.WIDTH
+@200
+-Inputs
+@28
+shifter_barrel.data
+shifter_barrel.ctrl
+shifter_barrel.shift_amount
+@200
+-Outputs
+@28
+shifter_barrel.data_out
+@200
+-Internal Wires
+@28
+shifter_barrel.w_array_ls
+shifter_barrel.w_array_rs
+shifter_barrel.w_data_double
+[pattern_trace] 1
+[pattern_trace] 0

@@ -1,10 +1,12 @@
 #!/bin/bash
 # Load project-specific environment for Python + RTL tools
+source venv/bin/activate 
 
 # Ensure this is sourced: `source env_python` (don't just run it)
 
 # Set the root of the git repo as REPO_ROOT
-export REPO_ROOT=$(git rev-parse --show-toplevel)
+# export REPO_ROOT=$(git rev-parse --show-toplevel)
+export REPO_ROOT=/mnt/data/github/rtldesignsherpa/
 
 # Add Verible binaries to PATH
 export PATH="$PATH:/home/seang/github/verible-v0.0-3999-g93adb37c/bin/"
@@ -21,6 +23,9 @@ export PYTHONPATH="$REPO_ROOT/bin/rtl_generators:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/bin/val_project:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/bin/vcd2wavedrom2:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/bin/rtl_generators/axi:$PYTHONPATH"
+
+# Add RAPIDS DV directory for self-contained project imports
+export PYTHONPATH="$REPO_ROOT/projects/components/rapids/dv:$PYTHONPATH"
 
 # Set default simulation tool
 export SIM=verilator

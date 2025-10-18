@@ -219,8 +219,8 @@ def test_simple_lfsr_generate(request, params):
         'TEST_COUNT': str(params['COUNT'])
     }
     
-    compile_args = ["--trace-fst", "--trace-structs", "--trace-depth", "99"]
-    sim_args = ["--trace-fst", "--trace-structs", "--trace-depth", "99"]
+    compile_args = ["--trace", "--trace-structs", "--trace-depth", "99"]
+    sim_args = ["--trace", "--trace-structs", "--trace-depth", "99"]
     plusargs = ["+trace"]
     
     try:
@@ -232,7 +232,7 @@ def test_simple_lfsr_generate(request, params):
             parameters=parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=True,
+            waves=False,
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,

@@ -1,0 +1,49 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Generated: Wed Oct 15 03:46:34 2025
+[*]
+[dumpfile] "(null)"
+[savefile] "/mnt/data/github/rtldesignsherpa/val/common/GTKW/arbiter_round_robin.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] -1 -1
+*-20.0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .arbiter_round_robin.
+[sst_width] 401
+[signals_width] 250
+[sst_expanded] 1
+[sst_vpaned_height] 400
+@420
+arbiter_round_robin.CLIENTS
+arbiter_round_robin.WAIT_GNT_ACK
+arbiter_round_robin.N
+@200
+-Internal Registers
+@28
+arbiter_round_robin.r_last_grant_id
+arbiter_round_robin.r_last_valid
+arbiter_round_robin.r_pending_ack
+arbiter_round_robin.r_pending_client
+@200
+-Internal Wires
+@28
+arbiter_round_robin.w_ack_received
+arbiter_round_robin.w_any_masked_requests
+arbiter_round_robin.w_any_requests
+arbiter_round_robin.w_can_grant
+arbiter_round_robin.w_curr_mask_decode
+arbiter_round_robin.w_mask_decode
+arbiter_round_robin.w_next_grant
+arbiter_round_robin.w_next_grant_id
+arbiter_round_robin.w_next_grant_valid
+arbiter_round_robin.w_other_requests
+arbiter_round_robin.w_requests_gated
+arbiter_round_robin.w_requests_masked
+arbiter_round_robin.w_requests_unmasked
+arbiter_round_robin.w_should_grant
+arbiter_round_robin.w_win_mask_decode
+arbiter_round_robin.w_winner
+arbiter_round_robin.w_winner_valid
+[pattern_trace] 1
+[pattern_trace] 0

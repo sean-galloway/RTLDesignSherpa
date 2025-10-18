@@ -48,21 +48,23 @@ logic [N-1:0] r_sync_reg = {N{1'b0}};
 ```
 An N-stage shift register initialized to all zeros provides the synchronization delay.
 
-### Reset Logic (Key Implementation Note)
+### Reset Logic (Corrected Implementation)
 ```systemverilog
 always_ff @(posedge clk or negedge rst_n) begin
-    if (rst_n) begin                              // When rst_n is HIGH (inactive)
-        r_sync_reg <= {N{1'b0}};                 // Clear register (prepare for sync)
-    end else begin                                // When rst_n is LOW (active)  
-        r_sync_reg <= {r_sync_reg[N-2:0], 1'b1}; // Shift in 1's
+    if (!rst_n) begin                             // When rst_n is LOW (active reset)
+        r_sync_reg <= {N{1'b0}};                 // Clear register (reset asserted)
+    end else begin                                // When rst_n is HIGH (inactive)
+        r_sync_reg <= {r_sync_reg[N-2:0], 1'b1}; // Shift in 1's (releasing reset)
     end
 end
 ```
 
-**Important**: The logic appears inverted because:
-- When `rst_n` is LOW (reset active): shift register shifts in 1's
-- When `rst_n` is HIGH (reset inactive): shift register is cleared to 0's
-- This creates the proper synchronous deassertion behavior
+**Critical Bug Fix (2025-10-14):**
+- **Original bug**: Logic was inverted (`if (rst_n)` instead of `if (!rst_n)`)
+- **Impact**: Module was completely non-functional - reset never worked correctly
+- **Discovered by**: Comprehensive test suite (val/common/test_reset_sync.py)
+- **Fix**: Corrected reset polarity check
+- **Verification**: All 4 test configurations passing (N=2, 3, 4, 5)
 
 ### Output Assignment
 ```systemverilog
@@ -315,6 +317,40 @@ endproperty
 - Reset release with different clock phases
 - Multiple consecutive reset cycles
 - Parameter variation coverage (different N values)
+
+## Test Verification
+
+### Test Coverage
+The reset_sync module has comprehensive test coverage via:
+- **Testbench Class**: `bin/CocoTBFramework/tbclasses/reset_sync_tb.py`
+- **Test Runner**: `val/common/test_reset_sync.py`
+
+### Test Scenarios
+✅ **Basic Reset Synchronization** - Verifies N-cycle synchronization delay
+✅ **Immediate Reset Assertion** - Verifies asynchronous assertion behavior
+✅ **Multiple Reset Cycles** - Tests repeated reset/release sequences
+✅ **Reset Glitch Filtering** - Validates recovery from short reset pulses
+
+### Running Tests
+```bash
+# Run all reset_sync tests (4 configurations: N=2,3,4,5)
+pytest val/common/test_reset_sync.py -v
+
+# Run specific configuration
+pytest val/common/test_reset_sync.py::test_reset_sync[2-min] -v
+
+# Run with waveform generation
+pytest val/common/test_reset_sync.py -v -s
+```
+
+### Test Results
+All 4 parameter configurations passing (100% success rate):
+- N=2 (min) - ✅ PASSED
+- N=3 (typical) - ✅ PASSED
+- N=4 (safe) - ✅ PASSED
+- N=5 (max) - ✅ PASSED
+
+**Bug Discovery**: The comprehensive test suite discovered a critical RTL bug during initial test run (inverted reset polarity), demonstrating the value of thorough verification.
 
 ## Related Modules
 

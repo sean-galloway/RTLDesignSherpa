@@ -1,0 +1,36 @@
+{
+  "signal": [
+    {
+      "name": "aclk",
+      "wave": "p............."
+    },
+    {
+      "name": "aresetn",
+      "wave": "1............."
+    },
+    {},
+    [
+      "AR",
+      {
+        "name": "fub_axi_arvalid",
+        "wave": "0....10.......",
+        "node": ".....a........"
+      },
+      {
+        "name": "fub_axi_arready",
+        "wave": "1............."
+      }
+    ]
+  ],
+  "head": {
+    "text": "Protocol Arvalid Simple Sequence",
+    "tick": 0,
+    "every": 2
+  },
+  "foot": {
+    "text": "Modular: 1 events, sequence, 1 cycles | CP-SAT Solved"
+  },
+  "config": {
+    "hscale": 2
+  }
+}

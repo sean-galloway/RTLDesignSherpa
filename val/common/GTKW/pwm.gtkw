@@ -1,0 +1,51 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Generated: Wed Oct 15 03:46:34 2025
+[*]
+[dumpfile] "(null)"
+[savefile] "/mnt/data/github/rtldesignsherpa/val/common/GTKW/pwm.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] -1 -1
+*-20.0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .pwm.
+[sst_width] 401
+[signals_width] 250
+[sst_expanded] 1
+[sst_vpaned_height] 400
+@420
+pwm.WIDTH
+pwm.CHANNELS
+@200
+-Clock and Reset
+@28
+pwm.clk
+pwm.rst_n
+pwm.sync_rst_n
+@200
+-Inputs
+@28
+pwm.start
+pwm.duty
+pwm.period
+pwm.repeat_count
+@200
+-Outputs
+@28
+pwm.done
+pwm.pwm_out
+@200
+-Internal Registers
+@28
+pwm.r_count
+pwm.r_repeat_value
+pwm.r_start_prev
+@200
+-Internal Wires
+@28
+pwm.w_all_repeats_done
+pwm.w_period_complete
+pwm.w_start_edge
+[pattern_trace] 1
+[pattern_trace] 0

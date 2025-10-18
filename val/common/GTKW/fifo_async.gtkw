@@ -1,0 +1,56 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Generated: Wed Oct 15 03:46:34 2025
+[*]
+[dumpfile] "(null)"
+[savefile] "/mnt/data/github/rtldesignsherpa/val/common/GTKW/fifo_async.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] -1 -1
+*-20.0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .fifo_async.
+[sst_width] 401
+[signals_width] 250
+[sst_expanded] 1
+[sst_vpaned_height] 400
+@420
+fifo_async.REGISTERED
+fifo_async.DATA_WIDTH
+fifo_async.DEPTH
+fifo_async.N_FLOP_CROSS
+fifo_async.ALMOST_WR_MARGIN
+fifo_async.ALMOST_RD_MARGIN
+fifo_async.INSTANCE_NAME
+@200
+-Clock and Reset
+@28
+fifo_async.wr_clk
+@200
+-Inputs
+@28
+fifo_async.write
+fifo_async.wr_data
+fifo_async.read
+@200
+-Outputs
+@28
+fifo_async.wr_full
+fifo_async.wr_almost_full
+fifo_async.rd_data
+fifo_async.rd_empty
+fifo_async.rd_almost_empty
+@200
+-Internal Registers
+@28
+fifo_async.r_mem
+fifo_async.r_wr_addr
+fifo_async.r_wr_ptr_bin
+fifo_async.r_wr_ptr_gray
+@200
+-Internal Wires
+@28
+fifo_async.w_rd_data
+fifo_async.w_wr_ptr_bin_next
+[pattern_trace] 1
+[pattern_trace] 0

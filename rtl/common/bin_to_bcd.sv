@@ -1,5 +1,50 @@
 `timescale 1ns / 1ps
 
+//==============================================================================
+// Module: bin_to_bcd
+//==============================================================================
+// Description:
+//   Binary to Binary Coded Decimal (BCD) converter using shift-and-add-3
+//   algorithm (Double Dabble). Converts binary input to multi-digit BCD output
+//   over multiple clock cycles using a state machine. Each BCD digit represents
+//   0-9 in 4 bits. Commonly used for decimal display interfaces.
+//
+//   Original source: http://www.nandland.com (with fixes applied)
+//
+//------------------------------------------------------------------------------
+// Parameters:
+//------------------------------------------------------------------------------
+//   WIDTH:
+//     Description: Binary input width in bits
+//     Type: int
+//     Range: 1 to 32
+//     Default: 8
+//     Constraints: Determines conversion time (WIDTH clock cycles)
+//
+//   Derived Parameters (localparam - computed automatically):
+//     DIGIT_INDEX_WIDTH: Width of digit counter ($clog2(DIGITS))
+//
+//------------------------------------------------------------------------------
+// Notes:
+//------------------------------------------------------------------------------
+//   - Multi-cycle operation: Conversion takes WIDTH + overhead clock cycles
+//   - Start pulse initiates conversion, done pulse indicates completion
+//   - Uses FSM with states: IDLE, SHIFT, CK_S_IDX, ADD, CK_D_IDX, BCD_DONE
+//   - Algorithm: Shift left, add 3 to any BCD digit >= 5, repeat WIDTH times
+//   - Each BCD digit occupies 4 bits (nibble), supports 0-9 range
+//
+//------------------------------------------------------------------------------
+// Related Modules:
+//------------------------------------------------------------------------------
+//   - hex_to_7seg.sv - 7-segment display encoder
+//
+//------------------------------------------------------------------------------
+// Test:
+//------------------------------------------------------------------------------
+//   Location: val/common/test_bin_to_bcd.py
+//   Run: pytest val/common/test_bin_to_bcd.py -v
+//
+//==============================================================================
 ///////////////////////////////////////////////////////////////////////////////
 // File Downloaded from http://www.nandland.com
 // lots and lots of fixes needed to get this clean and working

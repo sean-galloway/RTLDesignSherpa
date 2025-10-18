@@ -42,7 +42,7 @@ class AXI4MasterReadTB(TBBase):
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
         self.TIMEOUT_CYCLES = self.convert_to_int(os.environ.get('TIMEOUT_CYCLES', '1000'))
 
-        self.use_multi_sig = (self.TEST_STUB == 0)  # multi_sig=True for real RTL, False for stub
+        self.use_multi_sig = True  # AXI4 always uses individual signals (arvalid, arready, etc.)
 
         # Initialize random generator
         random.seed(self.SEED)

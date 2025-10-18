@@ -52,14 +52,14 @@ CocoTBFramework
 │   │   ├── gaxi_packet.py
 │   │   ├── gaxi_sequence.py
 │   │   └── gaxi_slave.py
-│   ├── mnoc
+│   ├── network
 │   │   ├── __init__.py
-│   │   ├── mnoc_compliance_checker.py
-│   │   ├── mnoc_example_test.py
-│   │   ├── mnoc_factories.py
-│   │   ├── mnoc_field_configs.py
-│   │   ├── mnoc_interfaces.py
-│   │   └── mnoc_packet.py
+│   │   ├── network_compliance_checker.py
+│   │   ├── network_example_test.py
+│   │   ├── network_factories.py
+│   │   ├── network_field_configs.py
+│   │   ├── network_interfaces.py
+│   │   └── network_packet.py
 │   ├── shared
 │   │   ├── __init__.py
 │   │   ├── arbiter_compliance.py

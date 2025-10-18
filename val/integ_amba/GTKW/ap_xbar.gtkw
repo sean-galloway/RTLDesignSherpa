@@ -1,152 +1,98 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Tue Sep  2 15:35:09 2025
+[*] Mon Oct 13 00:46:50 2025
 [*]
-[dumpfile] "/mnt/data/github/rtldesignsherpa/val/integ_amba/local_sim_build/test_apb_xbar_thin_wrap_m10_s10_m003_s006_aw032_dw032/dump.fst"
-[dumpfile_mtime] "Tue Sep  2 15:34:36 2025"
-[dumpfile_size] 10932
+[dumpfile] "/mnt/data/github/rtldesignsherpa/val/integ_amba/local_sim_build/test_apb_xbar_wrap_m10_s10_m002_s004_aw032_dw032/dump.vcd"
+[dumpfile_mtime] "Sun Oct 12 22:13:57 2025"
+[dumpfile_size] 928024
 [savefile] "/mnt/data/github/rtldesignsherpa/val/integ_amba/GTKW/ap_xbar.gtkw"
 [timestart] 0
-[size] 3046 1951
-[pos] -1 9
-*-17.717205 1060100 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
-[treeopen] .
-[treeopen] .apb_xbar_thin_wrap_m10_s10.
-[treeopen] .apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.
-[treeopen] .apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.gen_arbiters[0].
+[size] 2249 1373
+[pos] -1 -1
+*-18.615570 1060100 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [sst_width] 409
 [signals_width] 345
 [sst_expanded] 1
 [sst_vpaned_height] 627
-@420
-apb_xbar_thin_wrap_m10_s10.ADDR_WIDTH
-apb_xbar_thin_wrap_m10_s10.AW
-apb_xbar_thin_wrap_m10_s10.DATA_WIDTH
-apb_xbar_thin_wrap_m10_s10.DW
-apb_xbar_thin_wrap_m10_s10.M
-apb_xbar_thin_wrap_m10_s10.S
-apb_xbar_thin_wrap_m10_s10.STRB_WIDTH
-apb_xbar_thin_wrap_m10_s10.SW
-@22
-apb_xbar_thin_wrap_m10_s10.m0_apb_paddr[31:0]
 @28
-apb_xbar_thin_wrap_m10_s10.m0_apb_penable
-apb_xbar_thin_wrap_m10_s10.m0_apb_pprot[2:0]
-@22
-apb_xbar_thin_wrap_m10_s10.m0_apb_prdata[31:0]
+pclk
+presetn
+@200
+-m0
 @28
-apb_xbar_thin_wrap_m10_s10.m0_apb_pready
-apb_xbar_thin_wrap_m10_s10.m0_apb_psel
-apb_xbar_thin_wrap_m10_s10.m0_apb_pslverr
+m0_apb_psel
+m0_apb_penable
+m0_apb_pready
+m0_apb_pwrite
 @22
-apb_xbar_thin_wrap_m10_s10.m0_apb_pstrb[3:0]
-apb_xbar_thin_wrap_m10_s10.m0_apb_pwdata[31:0]
+m0_apb_paddr[31:0]
+m0_apb_pwdata[31:0]
+m0_apb_prdata[31:0]
 @28
-apb_xbar_thin_wrap_m10_s10.m0_apb_pwrite
-@22
-apb_xbar_thin_wrap_m10_s10.m1_apb_paddr[31:0]
+m0_apb_pslverr
+@200
+-m1
 @28
-apb_xbar_thin_wrap_m10_s10.m1_apb_penable
-apb_xbar_thin_wrap_m10_s10.m1_apb_pprot[2:0]
+m1_apb_psel
+m1_apb_penable
+m1_apb_pready
+m1_apb_pwrite
 @22
-apb_xbar_thin_wrap_m10_s10.m1_apb_prdata[31:0]
+m1_apb_paddr[31:0]
+m1_apb_pwdata[31:0]
+m1_apb_prdata[31:0]
 @28
-apb_xbar_thin_wrap_m10_s10.m1_apb_pready
-apb_xbar_thin_wrap_m10_s10.m1_apb_psel
-apb_xbar_thin_wrap_m10_s10.m1_apb_pslverr
-@22
-apb_xbar_thin_wrap_m10_s10.m1_apb_pstrb[3:0]
-apb_xbar_thin_wrap_m10_s10.m1_apb_pwdata[31:0]
+m1_apb_pslverr
+@200
+-s0
 @28
-apb_xbar_thin_wrap_m10_s10.m1_apb_pwrite
+s0_apb_psel
+s0_apb_penable
+s0_apb_pready
+s0_apb_pwrite
 @22
-apb_xbar_thin_wrap_m10_s10.m2_apb_paddr[31:0]
+s0_apb_paddr[31:0]
+s0_apb_pwdata[31:0]
+s0_apb_prdata[31:0]
 @28
-apb_xbar_thin_wrap_m10_s10.m2_apb_penable
-apb_xbar_thin_wrap_m10_s10.m2_apb_pprot[2:0]
-@22
-apb_xbar_thin_wrap_m10_s10.m2_apb_prdata[31:0]
+s0_apb_pslverr
+@201
+-s1
 @28
-apb_xbar_thin_wrap_m10_s10.m2_apb_pready
-apb_xbar_thin_wrap_m10_s10.m2_apb_psel
-apb_xbar_thin_wrap_m10_s10.m2_apb_pslverr
+s1_apb_psel
+s1_apb_penable
+s1_apb_pready
+s1_apb_pwrite
 @22
-apb_xbar_thin_wrap_m10_s10.m2_apb_pstrb[3:0]
-apb_xbar_thin_wrap_m10_s10.m2_apb_pwdata[31:0]
+s1_apb_paddr[31:0]
+s1_apb_pwdata[31:0]
+s1_apb_prdata[31:0]
 @28
-apb_xbar_thin_wrap_m10_s10.m2_apb_pwrite
-apb_xbar_thin_wrap_m10_s10.pclk
-apb_xbar_thin_wrap_m10_s10.presetn
-@22
-apb_xbar_thin_wrap_m10_s10.s0_apb_paddr[31:0]
+s1_apb_pslverr
+-s2
 @28
-apb_xbar_thin_wrap_m10_s10.s0_apb_penable
-apb_xbar_thin_wrap_m10_s10.s0_apb_pprot[2:0]
+s2_apb_psel
+s2_apb_penable
+s2_apb_pready
+s2_apb_pwrite
 @22
-apb_xbar_thin_wrap_m10_s10.s0_apb_prdata[31:0]
+s2_apb_paddr[31:0]
+s2_apb_pwdata[31:0]
+s2_apb_prdata[31:0]
 @28
-apb_xbar_thin_wrap_m10_s10.s0_apb_pready
-apb_xbar_thin_wrap_m10_s10.s0_apb_psel
-apb_xbar_thin_wrap_m10_s10.s0_apb_pslverr
-@22
-apb_xbar_thin_wrap_m10_s10.s0_apb_pstrb[3:0]
-apb_xbar_thin_wrap_m10_s10.s0_apb_pwdata[31:0]
+s2_apb_pslverr
+-s3
 @28
-apb_xbar_thin_wrap_m10_s10.s0_apb_pwrite
+s3_apb_psel
+s3_apb_penable
+s3_apb_pready
+s3_apb_pwrite
 @22
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.arb_gnt[0][9:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.arb_gnt[1][9:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.arb_gnt[2][9:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.arb_gnt[3][9:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.arb_gnt[4][9:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.arb_gnt[5][9:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.arb_gnt[6][9:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.arb_gnt[7][9:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.arb_gnt[8][9:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.arb_gnt[9][9:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.arb_gnt_ack[9:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.arb_gnt_id[0][3:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.arb_gnt_id[1][3:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.arb_gnt_id[2][3:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.arb_gnt_id[3][3:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.arb_gnt_id[4][3:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.arb_gnt_id[5][3:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.arb_gnt_id[6][3:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.arb_gnt_id[7][3:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.arb_gnt_id[8][3:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.arb_gnt_id[9][3:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.arb_gnt_mst[0][9:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.arb_gnt_mst[1][9:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.arb_gnt_mst[2][9:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.arb_gnt_mst[3][9:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.arb_gnt_mst[4][9:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.arb_gnt_mst[5][9:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.arb_gnt_mst[6][9:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.arb_gnt_mst[7][9:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.arb_gnt_mst[8][9:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.arb_gnt_mst[9][9:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.arb_gnt_valid[9:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.master_sel[0][9:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.gen_arbiters[0].arbiter_inst.request[9:0]
+s3_apb_paddr[31:0]
+s3_apb_pwdata[31:0]
+s3_apb_prdata[31:0]
 @28
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.gen_arbiters[0].arbiter_inst.block_arb
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.gen_arbiters[0].arbiter_inst.grant_valid
-@22
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.gen_arbiters[0].arbiter_inst.request[9:0]
-@28
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.gen_arbiters[0].arbiter_inst.rst_n
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.gen_arbiters[0].arbiter_inst.clk
-@23
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.gen_arbiters[0].arbiter_inst.grant_ack[9:0]
-@22
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.master_sel[1][9:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.master_sel[2][9:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.master_sel[3][9:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.master_sel[4][9:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.master_sel[5][9:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.master_sel[6][9:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.master_sel[7][9:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.master_sel[8][9:0]
-apb_xbar_thin_wrap_m10_s10.apb_xbar_thin_inst.master_sel[9][9:0]
+s3_apb_pslverr
+@201
 [pattern_trace] 1
 [pattern_trace] 0

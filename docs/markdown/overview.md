@@ -1,350 +1,779 @@
-# RTL Design Sherpa: Technical Overview
+# RTL Design Sherpa: Learning Hardware Design Through Practice
 
-*Professional-grade RTL development framework built entirely with open-source tools*
+*A progressive learning framework for RTL development using open-source tools*
 
-## Executive Summary
+**📚 [Documentation Index](../DOCUMENTATION_INDEX.md)** - Complete guide to all documentation, organized by type
 
-RTL Design Sherpa represents a comprehensive approach to modern hardware design, providing a complete ecosystem that bridges the gap between academic learning and professional IC development. Built exclusively with open-source tools, the framework delivers industry-standard design practices, automated verification flows, and production-quality IP blocks.
+---
 
-The framework addresses a critical need in the digital design community: access to professional-grade development tools and methodologies without the barrier of expensive commercial EDA licenses. By leveraging proven open-source tools like Verilator, Verible, and CocoTB, RTL Design Sherpa creates a development environment that rivals commercial solutions while maintaining complete transparency and extensibility.
+## Project Mission
 
-## Framework Architecture
+**RTL Design Sherpa guides you through digital hardware design with 
+hands-on learning from first principles.**
 
-### Design Philosophy
+We start with fundamental building blocks (adders, multipliers, FIFOs), 
+progress to protocol-specific modules (AXI, DMA engines), and culminate 
+in complete FPGA-ready systems. Every module is both educational and 
+production-quality - meeting real timing and resource constraints.
 
-The framework is built on four core principles that reflect modern industry practices:
+**What makes RTL Design Sherpa different:**
 
-**1. Verification-Driven Development**
-Every RTL module includes comprehensive test suites from the outset. This isn't an afterthought—it's the foundation of the development process. Each module includes:
-- Unit tests covering all parameter combinations
-- Edge case testing and boundary condition validation
-- Performance characterization across frequency ranges
-- Protocol compliance verification where applicable
+- **From scratch**: Python generators → SystemVerilog → synthesis. 
+  No black boxes, every design decision explained.
 
-**2. Automated Quality Assurance**
-Code quality is maintained through automated tools integrated into the development flow:
-- **Verible Integration**: Automated linting and style checking ensure consistent code quality
-- **Regression Testing**: Automated nightly runs with comprehensive reporting
-- **Coverage Analysis**: Both code and functional coverage tracking
-- **Documentation Generation**: Automated waveform and timing diagram creation
+- **Safety net for exploration**: Comprehensive test suites at every 
+  level (unit, integration, formal) let you experiment with confidence. 
+  Try different optimizations - the tests catch regressions.
 
-**3. Modular IP Architecture**
-The framework emphasizes reusable, parameterized IP blocks:
-- **Interface-Based Design**: Clean abstraction using SystemVerilog interfaces
-- **Parameter-Driven Configuration**: Modules adapt to various system requirements
-- **Hierarchical Organization**: Clear separation of concerns and dependencies
-- **Protocol Compliance**: Full adherence to industry standards (AMBA, etc.)
+- **Performance-driven**: Multiple implementations of key modules, 
+  with measured area/speed tradeoffs. SimPy models predict behavior 
+  before writing RTL.
 
-**4. Professional Development Practices**
-The toolchain and workflows mirror those used in commercial IC development:
-- **Version Control Integration**: Git-based workflows with automated testing
-- **Continuous Integration**: Automated testing on code changes
-- **Documentation Standards**: Comprehensive module documentation with examples
-- **Performance Analysis**: Timing, area, and power characterization
+- **Industry practices**: Open-source tools (cocotb, Verilator, Yosys) 
+  demonstrating verification methodologies used in production.
 
-### Technical Stack
+- **Complete transparency**: Build systems, Makefiles, debugging 
+  sessions - all the "hidden knowledge" made visible.
 
-#### Core Simulation and Analysis
-- **Verilator**: High-performance simulation engine with VCD/FST waveform generation
-- **GTKWave**: Professional waveform viewer with pre-configured signal groups
-- **Verible**: Industry-standard SystemVerilog parsing, linting, and formatting
+Whether you're learning your first Verilog module or optimizing a 
+high-speed interconnect, RTL Design Sherpa provides the detailed 
+explanations, working examples, and verification infrastructure to 
+build understanding from the ground up.
 
-#### Verification Framework
-- **CocoTB**: Python-based verification with full SystemVerilog integration
-- **pytest**: Test discovery, execution, and reporting infrastructure
-- **Custom VIP**: Protocol-specific verification IP for AMBA and other standards
+### Learning Path
 
-#### Development Tools
-- **Python 3.8+**: Automation, code generation, and analysis scripts
-- **Makefile Integration**: Standardized build and test execution
-- **JSON Configuration**: Flexible tool and test configuration management
+```
+Level 1: Common Building Blocks (90 modules)
+    ↓
+    Learn: Counters, FIFOs, Arbiters, Math, Data Integrity
 
-## IP Block Ecosystem
+Level 2: AMBA Protocol Infrastructure (106 modules)
+    ↓
+    Apply: APB, AXI4, AXI4-Lite, AXI-Stream protocols
 
-### RTL Common Library (86+ Modules)
+Level 3: Integration Examples
+    ↓
+    Integrate: CDC Counter Display, APB Crossbar
 
-The common library provides fundamental building blocks organized by function:
+Level 4: Production Components (2+ components)
+    ↓
+    Build: APB HPET Timer, RAPIDS DMA Engine
 
-#### Arithmetic and Mathematical Operations
-- **Advanced Adders**: Brent-Kung parallel prefix, carry-select, and optimized ripple carry
-- **High-Performance Multipliers**: Wallace tree and Dadda implementations with configurable pipelines
-- **Division Circuits**: Non-restoring and SRT division algorithms
-- **Mathematical Functions**: Square root, logarithm approximations, and trigonometric functions
+Level 5: Complete FPGA Projects
+    ↓
+    Deploy: Full SoC designs with verification
+```
 
-#### Data Structures and Storage
-- **FIFO Implementations**: Synchronous, asynchronous, and multi-clock domain variants
-- **Memory Controllers**: SRAM interfaces with configurable timing and width
-- **Shift Registers**: Linear feedback (LFSR) and standard shift register implementations
-- **Content Addressable Memory**: Fully associative CAM with configurable depth
+---
 
-#### Control and Interface Logic
-- **Arbitration**: Round-robin, weighted, and priority-based arbiters
-- **Encoding/Decoding**: Priority encoders, gray code converters, and Hamming ECC
-- **Clock and Reset Management**: ICG modules, reset synchronizers, and CDC utilities
-- **Protocol Bridges**: Interface converters and protocol adapters
+## Quick Navigation
 
-#### Signal Processing and Communication
-- **CRC Engines**: Generic CRC calculation supporting 300+ industry standards
-- **Data Integrity**: Parity checkers, error detection, and correction circuits
-- **Communication Interfaces**: UART, SPI, I2C controllers with configurable parameters
+### 📚 Documentation
+- **[Component Projects](docs/markdown/projects/index.md)** - Production-ready peripherals: HPET, DMA Engines (STREAM, RAPIDS)
+- **[Component Overview](docs/markdown/projects/overview.md)** - Component ecosystem and patterns
+- **[APB HPET Documentation](docs/markdown/projects/apb_hpet.md)** - High Precision Event Timer details
 
-### AMBA Protocol Suite (66+ Modules)
+### 🏗️ RTL Source Code
+- **[Common Library](rtl/common/)** (90 modules) - [Documentation](rtl/common/PRD.md) - [AI Guide](rtl/common/CLAUDE.md)
+  - Fundamental building blocks: counters, FIFOs, arbiters, math, data integrity
+- **[AMBA Infrastructure](rtl/amba/)** (106 modules) - [Documentation](rtl/amba/PRD.md) - [AI Guide](rtl/amba/CLAUDE.md)
+  - APB, AXI4, AXI4-Lite, AXI-Stream protocols and infrastructure
 
-Complete implementation of ARM AMBA specifications:
+### 🧪 Integration Examples
+- **[Common Integration](rtl/integ_common/)** - Multi-module integration examples
+- **[AMBA Integration](rtl/integ_amba/)** - Protocol integration (crossbars, bridges)
+
+### 🎯 Component Projects
+- **[APB HPET](projects/components/apb_hpet/)** - High Precision Event Timer - [PRD](projects/components/apb_hpet/PRD.md) | [Guide](projects/components/apb_hpet/CLAUDE.md) | [Docs](docs/markdown/projects/apb_hpet.md)
+- **[RAPIDS DMA](projects/components/rapids/)** - Memory I/O Processor - [PRD](projects/components/rapids/PRD.md) | [Guide](projects/components/rapids/CLAUDE.md)
+
+### ✅ Verification
+- **[Common Tests](val/common/)** - Unit tests for common modules
+- **[AMBA Tests](val/amba/)** - Protocol compliance and integration tests
+- **[CocoTB Framework](bin/CocoTBFramework/)** - Reusable testbench infrastructure
+
+### 🛠️ Tools and Automation
+- **[Code Generation](bin/)** - Math circuits, register files, documentation
+- **[Analysis Tools](bin/)** - Linting, dependency analysis, UML generation
+
+---
+
+## Progressive Learning Approach
+
+### Level 1: Common Building Blocks (Foundation)
+
+**Location:** [`rtl/common/`](rtl/common/) | **Documentation:** [PRD](rtl/common/PRD.md) | [CLAUDE Guide](rtl/common/CLAUDE.md)
+
+Learn fundamental RTL design patterns through 90 reusable modules:
+
+#### Arithmetic and Math
+- **Counters:** Binary, Gray code, Johnson, Ring, Load/Clear variants
+- **Adders:** Brent-Kung, Carry-lookahead, optimized implementations
+- **Math:** Leading zeros, bit reversal, parity, CRC
+
+#### Data Structures
+- **FIFOs:** Synchronous, asynchronous, dual-clock domain
+- **Shift Registers:** LFSR (Fibonacci/Galois), universal shifters
+- **Memory:** CAM (Content Addressable Memory), buffers
+
+#### Control Logic
+- **Arbiters:** Round-robin (simple, weighted, PWM), priority encoders
+- **Encoders/Decoders:** Priority encoding, address decoding
+- **Clock Management:** Dividers, gate control, pulse generation
+- **Reset:** Synchronizers, CDC utilities
+
+#### Data Integrity
+- **CRC Engines:** Generic CRC supporting 300+ standards
+- **ECC:** Hamming code (SECDED), parity checkers
+- **Checksums:** Various checksum algorithms
+
+**Example Module:** `counter_bin.sv`
+```systemverilog
+// Simple binary counter - foundation for timers, state machines
+module counter_bin #(
+    parameter WIDTH = 8
+) (
+    input  logic             i_clk,
+    input  logic             i_rst_n,
+    input  logic             i_enable,
+    output logic [WIDTH-1:0] o_count
+);
+```
+
+**Tests:** [`val/common/`](val/common/) - Every module has comprehensive CocoTB tests
+
+---
+
+### Level 2: AMBA Protocol Infrastructure
+
+**Location:** [`rtl/amba/`](rtl/amba/) | **Documentation:** [PRD](rtl/amba/PRD.md) | [CLAUDE Guide](rtl/amba/CLAUDE.md)
+
+Apply common building blocks to implement industry-standard protocols (106 modules):
 
 #### APB (Advanced Peripheral Bus)
-- **APB Masters**: Command/response interfaces with FIFO buffering
-- **APB Slaves**: Register interfaces with configurable address decoding
-- **APB Interconnect**: Multi-master/multi-slave crossbar with weighted arbitration
-- **APB Bridges**: Protocol conversion and clock domain crossing
+- **[APB Masters](rtl/amba/apb/)** - Command/response interfaces with FIFO buffering
+- **[APB Slaves](rtl/amba/apb/)** - Register interfaces with address decoding
+- **[APB Interconnect](rtl/integ_amba/)** - Multi-master/multi-slave crossbar
+- **[APB Bridges](rtl/amba/apb/)** - Protocol conversion, CDC
+
+**Example:** APB register slave demonstrates parameter-driven design
+```systemverilog
+apb_slave #(
+    .ADDR_WIDTH(12),
+    .DATA_WIDTH(32)
+) u_apb_slave (
+    .pclk, .presetn, .paddr, .psel, .penable, .pwrite,
+    .pwdata, .pready, .prdata, .pslverr
+);
+```
 
 #### AXI4 Full Protocol
-- **AXI4 Masters**: Read/write masters with dual skid buffer architecture
-- **AXI4 Slaves**: Configurable response generation and address decoding
-- **Performance Optimizations**: Pipeline stages and buffer management for high throughput
-- **Advanced Features**: Outstanding transaction tracking and QoS support
+- **[AXI4 Masters](rtl/amba/axi4/)** - Read/write with dual skid buffers
+- **[AXI4 Slaves](rtl/amba/axi4/)** - Response generation, address decoding
+- **[AXI4 Infrastructure](rtl/amba/gaxi/)** - FIFOs, skid buffers, arbiters
+- **[Monitoring](rtl/amba/axi4/)** - Protocol compliance checkers
 
-#### AXI4-Lite Register Interface
-- **Simplified Protocol**: Register-optimized masters and slaves
-- **Configuration Registers**: Standardized register map implementation
-- **Error Handling**: Comprehensive error detection and reporting
-- **Integration Support**: Easy connection to APB and other protocols
+#### AXI4-Lite (Simplified Register Interface)
+- **[AXI4-Lite Masters](rtl/amba/axil4/)** - Register-optimized masters
+- **[AXI4-Lite Slaves](rtl/amba/axil4/)** - Configuration registers
+- **[Protocol Bridges](rtl/amba/adapters/)** - APB ↔ AXI-Lite conversion
 
-#### AXI4-Stream Data Flow
-- **Streaming Masters/Slaves**: High-throughput data transfer interfaces
-- **Flow Control**: Backpressure handling and buffer management
-- **Sideband Signals**: Full support for TID, TDEST, TUSER, and TSTRB
-- **Performance Optimization**: Configurable buffer depths and pipeline stages
+#### AXI4-Stream (High-Throughput Data)
+- **[Stream Masters/Slaves](rtl/amba/axis/)** - Streaming interfaces
+- **[Flow Control](rtl/amba/axis/)** - Backpressure, buffering
+- **[Sideband Support](rtl/amba/axis/)** - TID, TDEST, TUSER, TSTRB
 
-#### Infrastructure and Utilities
-- **GAXI Buffers**: Generic AXI infrastructure for skid buffers and FIFOs
-- **Monitoring**: Protocol compliance checkers and performance analyzers
-- **Arbitration**: Advanced round-robin and weighted arbitration schemes
-- **System Integration**: Address decoders, protocol bridges, and interconnects
+#### Shared Infrastructure
+- **[GAXI Buffers](rtl/amba/gaxi/)** - Generic skid buffers, FIFOs, CDC
+- **[Monitors](rtl/amba/shared/)** - Transaction monitoring, performance analysis
+- **[Arbiters](rtl/amba/shared/)** - Advanced arbitration for monitor buses
+
+**Tests:** [`val/amba/`](val/amba/) - Protocol compliance and integration tests
+
+---
+
+### Level 3: Integration Examples
+
+**Locations:** [`rtl/integ_common/`](rtl/integ_common/) | [`rtl/integ_amba/`](rtl/integ_amba/)
+
+Practice integrating multiple modules into working systems:
+
+#### Simple Integrations (`integ_common`)
+- **CDC Counter Display** - Cross clock domain counter with display logic
+- **Multi-Clock Systems** - Demonstrate CDC techniques
+
+**Example:** CDC Counter Display
+```
+Clock Domain A (Fast)    Clock Domain B (Slow)
+    Counter      →  CDC  →    Display
+   @ 100MHz         Sync      @ 10MHz
+```
+
+#### Protocol Integrations (`integ_amba`)
+- **APB Crossbar** - Multi-master to multi-slave interconnect
+  - 1-to-1, 1-to-4, 2-to-1, 2-to-4 configurations
+  - Address decoding, weighted arbitration
+- **APB Bridges** - Protocol conversion examples
+- **AXI Systems** - Multi-component integration
+
+**Tests:** [`val/integ_common/`](val/integ_common/) | [`val/integ_amba/`](val/integ_amba/)
+
+---
+
+### Level 4: Production Components
+
+**Location:** [`projects/components/`](projects/components/) | **Documentation:** [Component Index](docs/markdown/projects/index.md) | [Overview](docs/markdown/projects/overview.md)
+
+Build complete, production-ready peripherals for FPGA deployment:
+
+#### APB HPET - High Precision Event Timer
+
+**Status:** ✅ Production Ready (5/6 configs 100% passing)
+**Location:** [`projects/components/apb_hpet/`](projects/components/apb_hpet/)
+**Documentation:** [PRD](projects/components/apb_hpet/PRD.md) | [AI Guide](projects/components/apb_hpet/CLAUDE.md) | [Component Docs](docs/markdown/projects/apb_hpet.md)
+
+**Features:**
+- **Configurable Timers:** 2, 3, or 8 independent hardware timers
+- **64-bit Resolution:** High-precision counter and comparators
+- **Dual Modes:** One-shot and periodic timer operation
+- **Clock Domain Crossing:** Optional async APB/timer clocks
+- **PeakRDL Registers:** Auto-generated register file from SystemRDL
+- **APB4 Interface:** Standard AMBA peripheral bus
+
+**What You Learn:**
+- Multi-timer state machine design
+- 64-bit register access from 32-bit bus
+- PeakRDL register generation workflow
+- Optional CDC implementation
+- Comprehensive 3-level test hierarchy (12 tests/config)
+- Production component structure
+
+**Example Use Cases:**
+- System tick generation for RTOS
+- Precise event timing
+- Watchdog timers
+- Performance profiling
+
+**Architecture:**
+```
+APB Interface → Config Regs → HPET Core
+   (pclk)       (PeakRDL)    (64-bit counter + N timers)
+                                     ↓
+                              Per-Timer Interrupts
+```
+
+**Testing:** 6 configurations × 12 tests = 72 test scenarios
+- Basic (4): Register access, simple operations
+- Medium (5): Periodic mode, multiple timers, 64-bit features
+- Full (3): Stress testing, CDC, edge cases
+
+---
+
+#### RAPIDS DMA - Memory I/O Processor
+
+**Status:** 🚧 In Development
+**Location:** [`projects/components/rapids/`](projects/components/rapids/)
+**Documentation:** [PRD](projects/components/rapids/PRD.md) | [AI Guide](projects/components/rapids/CLAUDE.md)
+
+**Features:**
+- **DMA Engine:** Multi-channel direct memory access
+- **Scatter-Gather:** Descriptor-based transfers
+- **AXI Master:** High-performance memory interface
+- **Scheduler:** Task scheduling and prioritization
+
+**What You Learn:**
+- Complex state machine design
+- DMA descriptor processing
+- AXI4 master implementation
+- Performance optimization techniques
+- Large-scale verification
+
+---
+
+### Level 5: Complete FPGA Projects (Future)
+
+**Planned:** Full SoC designs combining all levels:
+
+- **Simple SoC:** APB HPET + Memory + UART
+- **DMA System:** RAPIDS DMA + Multi-bank memory
+- **Communication Hub:** Ethernet MAC + DMA + Buffers
+- **Processing Subsystem:** Custom accelerators + Interconnect
+
+---
 
 ## Verification Methodology
 
-### CocoTB-Based Verification
+### CocoTB-Based Testing
 
-The framework employs a sophisticated verification methodology built on CocoTB:
+Every module demonstrates professional verification practices:
 
-#### Testbench Architecture
+**Test Structure:**
 ```python
-class ModuleTestbench:
-    """Professional testbench structure"""
+# Reusable testbench class (in bin/CocoTBFramework/tbclasses/)
+class ModuleTB(TBBase):
     def __init__(self, dut):
-        self.dut = dut
-        self.clock = Clock(dut.clk, 10, units="ns")
-        self.drivers = self._create_drivers()
-        self.monitors = self._create_monitors()
-        self.scoreboards = self._create_scoreboards()
+        super().__init__(dut)
+        self.setup_drivers()
+        self.setup_monitors()
+        self.setup_scoreboards()
 
-    async def reset_sequence(self):
-        """Standardized reset procedure"""
+    async def setup_clocks_and_reset(self):
+        """Standard clock and reset initialization"""
 
-    async def configure(self, **params):
-        """Parameter-driven configuration"""
+    async def write_register(self, addr, data):
+        """Protocol-specific register write"""
 
-    async def run_test_sequence(self, test_vector):
-        """Execute parameterized test"""
+# Test suite (organized by level)
+class ModuleBasicTests:
+    async def test_register_access(self): ...
+    async def run_all_basic_tests(self): ...
+
+class ModuleMediumTests:
+    async def test_complex_scenario(self): ...
+    async def run_all_medium_tests(self): ...
+
+class ModuleFullTests:
+    async def test_stress(self): ...
+    async def run_all_full_tests(self): ...
 ```
 
-#### Verification IP (VIP)
-Custom verification IP provides:
-- **Protocol Drivers**: Automated stimulus generation for AMBA protocols
-- **Intelligent Monitors**: Transaction-level monitoring with compliance checking
-- **Scoreboards**: Expected vs. actual result comparison with detailed reporting
-- **Coverage Collectors**: Functional coverage tracking and analysis
+**Test Hierarchy:**
+1. **Basic Tests** - Register access, reset behavior, simple operations
+2. **Medium Tests** - Complex features, multi-component interactions
+3. **Full Tests** - Stress testing, CDC, edge cases
 
-#### Test Methodologies
-- **Directed Testing**: Specific test cases targeting known scenarios
-- **Constrained Random**: Intelligent stimulus generation with realistic constraints
-- **Protocol Compliance**: Automated checking against specification requirements
-- **Performance Testing**: Bandwidth, latency, and stress testing scenarios
+**Test Configuration (conftest.py):**
+- Auto-creates logs directory
+- Registers pytest markers (basic, medium, full)
+- Preserves all logs
+- Parametrized test fixtures
 
-### Automated Regression Framework
-
-#### Test Execution Engine
-```python
-# Example regression configuration
-{
-    "test_suites": {
-        "nightly_regression": {
-            "common_modules": ["counter", "fifo", "arbiter", "crc"],
-            "amba_protocols": ["apb_master", "axi4_slave", "axis_master"],
-            "integration_tests": ["multi_master_system", "protocol_bridge"]
-        }
-    },
-    "configurations": {
-        "parameter_sweep": True,
-        "randomize_seeds": True,
-        "coverage_collection": True
-    }
-}
-```
-
-#### Reporting and Analysis
-- **Automated Reports**: HTML and text-based test result summaries
-- **Coverage Analysis**: Line, branch, and functional coverage tracking
-- **Performance Metrics**: Frequency characterization and resource utilization
-- **Trend Analysis**: Historical performance and quality tracking
-
-## Development Tools Ecosystem
-
-### Code Generation and Analysis
-
-#### Mathematical Circuit Generation
-Automated RTL generation for complex arithmetic:
-```python
-# Generate optimized 64-bit Brent-Kung adder
-python3 bin/math_generate.py --type brent_kung --buswidth 64 --path ./generated/
-
-# Generate Wallace tree multiplier
-python3 bin/math_generate.py --type wallace_fa --buswidth 32 --path ./generated/
-```
-
-#### SystemVerilog Analysis Tools
-- **AXI Split Calculator**: Precise calculation of AXI transaction boundary splitting
-- **Interface Flattener**: Convert SystemVerilog interfaces to Verilator-compatible signals
-- **Dependency Analyzer**: Module instantiation and hierarchy analysis
-- **UML Generator**: Automated architecture diagram generation
-
-### Quality Assurance Integration
-
-#### Automated Code Quality
+**Running Tests:**
 ```bash
-# Comprehensive code quality check
-python3 bin/lint_wrap.py --format --lint
+# Run all tests for a module
+pytest val/common/test_counter_bin.py -v
 
-# Project-wide analysis
-python3 bin/struct_test_script.py --analyze --report
+# Run specific test level
+pytest val/amba/ -v -m basic      # Basic tests only
+pytest val/amba/ -v -m medium     # Medium tests only
+pytest val/amba/ -v -m full       # Full tests only
+
+# Run component tests
+pytest projects/components/apb_hpet/dv/tests/ -v
 ```
-
-#### Documentation Generation
-- **Wavedrom Integration**: VCD to timing diagram conversion
-- **Markdown Processing**: Automated documentation formatting and linking
-- **Performance Visualization**: Automated chart and graph generation
-
-### Workflow Automation
-
-#### Test Automation Framework
-```bash
-# Single module test
-python3 bin/ipynb/run_test_wrap.py --test val/unit_common/test_counter --tag verification
-
-# Full regression suite
-python3 bin/ipynb/run_test_wrap.py --testlist nightly_regression --randomize
-```
-
-#### Integration with CI/CD
-The framework provides hooks and scripts for integration with continuous integration systems:
-- **Pre-commit Hooks**: Automated quality checking before code commits
-- **Regression Triggers**: Automatic testing on code changes
-- **Performance Monitoring**: Continuous performance characterization
-- **Documentation Updates**: Automatic documentation regeneration
-
-## Performance Characteristics
-
-### Frequency and Timing Analysis
-
-The framework has been characterized across multiple FPGA and ASIC technologies:
-
-#### Module Performance Ranges
-| Module Category | Frequency Range | Resource Usage | Typical Applications |
-|----------------|-----------------|----------------|---------------------|
-| Basic Logic | 100-800 MHz | Minimal | Counters, registers, simple control |
-| Advanced Arithmetic | 200-600 MHz | Moderate | DSP, mathematical operations |
-| Memory Interfaces | 300-500 MHz | High | DDR controllers, cache interfaces |
-| Protocol Bridges | 200-400 MHz | Variable | System integration, protocol conversion |
-| Streaming Interfaces | 400-600 MHz | Moderate | Video, networking, high-throughput data |
-
-#### Synthesis Results
-Regular synthesis characterization across multiple tools ensures optimal results:
-- **Area Optimization**: Resource-constrained implementations available
-- **Speed Optimization**: Pipeline variants for high-frequency operation
-- **Power Optimization**: Clock gating and power-aware design techniques
-- **Technology Portability**: Tested across FPGA and ASIC synthesis flows
-
-### Quality Metrics
-
-#### Test Coverage Analysis
-- **Line Coverage**: >95% across all RTL modules
-- **Branch Coverage**: >90% with focus on critical decision points
-- **Functional Coverage**: 100% for protocol compliance requirements
-- **Parameter Coverage**: Comprehensive testing across all configuration options
-
-#### Verification Completeness
-- **Unit Test Coverage**: Every module includes comprehensive test suites
-- **Integration Testing**: Multi-module systems tested with realistic scenarios
-- **Protocol Compliance**: Full specification compliance verification
-- **Performance Validation**: Timing and resource utilization characterized
-
-## Industry Applications
-
-### Educational and Academic Use
-
-The framework serves as an excellent platform for:
-- **Digital Design Courses**: Complete ecosystem for learning RTL development
-- **Verification Training**: Professional-grade verification methodologies
-- **Industry Preparation**: Hands-on experience with real-world tools and practices
-- **Research Projects**: Foundation for hardware architecture research
-
-### Professional Development
-
-Industry professionals use the framework for:
-- **IP Development**: Starting point for commercial IP development
-- **Prototype Development**: Rapid development of proof-of-concept designs
-- **Tool Evaluation**: Comparing open-source vs. commercial tool capabilities
-- **Skill Development**: Learning new verification techniques and methodologies
-
-### Technology Startups
-
-Startup companies leverage the framework for:
-- **Rapid Prototyping**: Quick development of hardware IP
-- **Cost-Effective Development**: Eliminating expensive EDA tool licenses
-- **Team Training**: Standardized development practices and workflows
-- **IP Portfolio Building**: Foundation for developing valuable IP assets
-
-## Future Roadmap
-
-### Planned Enhancements
-
-#### Extended Protocol Support
-- **PCIe Controllers**: Complete PCIe endpoint and root complex implementations
-- **Ethernet MAC**: 1G/10G Ethernet media access controllers
-- **USB Controllers**: USB 2.0/3.0 device and host controllers
-- **DDR Interfaces**: Complete DDR3/DDR4/DDR5 memory controller implementations
-
-#### Advanced Verification Features
-- **Formal Verification**: Integration with open-source formal verification tools
-- **Coverage-Driven Verification**: Automated test generation based on coverage holes
-- **System-Level Testing**: Complete SoC verification environments
-- **Performance Modeling**: Cycle-accurate performance analysis tools
-
-#### Tool Ecosystem Expansion
-- **Synthesis Integration**: Direct integration with open-source synthesis tools
-- **Place and Route**: Integration with open-source P&R flows
-- **Timing Analysis**: Static timing analysis integration
-- **Power Analysis**: Power consumption analysis and optimization tools
-
-### Community Development
-
-#### Open Source Contributions
-- **Module Contributions**: Community-contributed IP blocks
-- **Verification IP**: Shared verification components and testbenches
-- **Tool Development**: Community-developed analysis and automation tools
-- **Documentation**: Community-maintained tutorials and examples
-
-#### Educational Partnerships
-- **University Collaborations**: Partnerships with academic institutions
-- **Industry Mentorship**: Professional guidance for student projects
-- **Certification Programs**: Structured learning paths with validation
-- **Conference Presentations**: Regular updates and presentations at industry events
 
 ---
 
-RTL Design Sherpa represents a fundamental shift in how hardware development is approached, democratizing access to professional-grade tools and methodologies while maintaining the quality and rigor expected in commercial IC development. The framework continues to evolve, driven by both community contributions and industry needs, ensuring its relevance and value for both educational and professional applications.
+## Technology Stack
+
+### Core Tools (All Open-Source)
+
+#### Simulation and Analysis
+- **[Verilator](https://verilator.org/)** - High-performance RTL simulator
+  - Supports SystemVerilog
+  - VCD/FST waveform generation
+  - Fast execution for large designs
+- **[GTKWave](http://gtkwave.sourceforge.net/)** - Waveform viewer
+  - Pre-configured signal groups
+  - Professional visualization
+- **[Verible](https://github.com/chipsalliance/verible)** - SystemVerilog tools
+  - Linting and style checking
+  - Code formatting
+  - Parsing and analysis
+
+#### Verification Framework
+- **[CocoTB](https://docs.cocotb.org/)** - Python-based testbench framework
+  - Intuitive Python test writing
+  - Full SystemVerilog integration
+  - Extensive protocol libraries
+- **[pytest](https://pytest.org/)** - Test runner and framework
+  - Test discovery and execution
+  - Parametrized testing
+  - Rich reporting
+- **Custom VIP** - Verification IP for protocols
+  - APB, AXI4, AXI4-Lite, AXI-Stream drivers/monitors
+  - Scoreboards and coverage collectors
+
+#### Register Generation
+- **[PeakRDL](https://peakrdl.readthedocs.io/)** - SystemRDL tools
+  - Register file generation from specifications
+  - APB4, AXI4-Lite interface generation
+  - C header generation
+  - Documentation generation
+
+#### Development and Automation
+- **Python 3.8+** - Scripting and automation
+  - Code generation (math circuits, register files)
+  - Analysis tools (dependency, UML)
+  - Documentation generation (Wavedrom)
+- **Make** - Build automation
+- **Git** - Version control with CI/CD integration
 
 ---
 
-*For detailed implementation guides, tutorials, and API documentation, explore the comprehensive documentation sections linked throughout this overview.*
+## Repository Structure
+
+```
+rtldesignsherpa/
+├── rtl/                          # RTL source code
+│   ├── common/                   # 90 fundamental building blocks
+│   │   ├── PRD.md               # Product requirements
+│   │   ├── CLAUDE.md            # AI assistant guide
+│   │   └── *.sv                 # RTL modules
+│   │
+│   ├── amba/                     # 106 AMBA protocol modules
+│   │   ├── apb/                 # APB protocol
+│   │   ├── axi4/                # AXI4 full protocol
+│   │   ├── axil4/               # AXI4-Lite
+│   │   ├── axis/                # AXI4-Stream
+│   │   ├── gaxi/                # Generic AXI infrastructure
+│   │   ├── shared/              # Shared utilities (CDC, monitors)
+│   │   ├── adapters/            # Protocol bridges (PeakRDL adapter)
+│   │   ├── PRD.md               # AMBA documentation
+│   │   └── CLAUDE.md            # AI guide
+│   │
+│   ├── integ_common/            # Common module integration examples
+│   └── integ_amba/              # AMBA integration examples (crossbars)
+│
+├── projects/                     # Component projects
+│   └── components/              # Production-ready components
+│       ├── apb_hpet/            # High Precision Event Timer
+│       │   ├── rtl/             # RTL source
+│       │   ├── dv/              # Design verification
+│       │   │   ├── tests/       # Test runners (conftest.py + test_*.py)
+│       │   │   ├── tbclasses/   # → in bin/CocoTBFramework/
+│       │   │   └── scoreboards/ # Verification scoreboards
+│       │   ├── docs/            # Implementation docs
+│       │   ├── known_issues/    # Issue tracking
+│       │   ├── PRD.md           # Requirements
+│       │   ├── CLAUDE.md        # AI guide
+│       │   └── TASKS.md         # Work tracking
+│       │
+│       └── rapids/              # RAPIDS DMA Engine (similar structure)
+│
+├── val/                          # Validation/Test suites
+│   ├── common/                  # Common module tests
+│   ├── amba/                    # AMBA protocol tests
+│   └── integ_*/                 # Integration tests
+│
+├── bin/                          # Tools and automation
+│   ├── CocoTBFramework/         # Reusable testbench infrastructure
+│   │   ├── tbclasses/           # Testbench classes (by subsystem)
+│   │   ├── components/          # Protocol BFMs (drivers/monitors)
+│   │   └── scoreboards/         # Verification scoreboards
+│   │
+│   ├── math_generate.py         # Generate optimized math circuits
+│   ├── lint_wrap.py             # Code quality automation
+│   └── rtl_generators/          # Register file generators
+│
+├── docs/                         # Documentation
+│   ├── markdown/                # Technical documentation
+│   │   └── projects/            # Component documentation
+│   │       ├── index.md         # Component index
+│   │       ├── overview.md      # Ecosystem overview
+│   │       └── apb_hpet.md      # HPET detailed docs
+│   │
+│   └── reports/                 # Test reports and analysis
+│
+├── PRD.md                        # Master requirements document
+├── CLAUDE.md                     # Repository AI guide
+└── README.md                     # This file
+```
+
+---
+
+## Getting Started
+
+### Installation
+
+**1. Install Prerequisites:**
+```bash
+# Ubuntu/Debian
+sudo apt update
+sudo apt install -y verilator gtkwave python3 python3-pip git make
+
+# Fedora/RHEL
+sudo dnf install -y verilator gtkwave python3 python3-pip git make
+
+# macOS (via Homebrew)
+brew install verilator gtkwave python3 git make
+```
+
+**2. Install Python Dependencies:**
+```bash
+pip3 install cocotb pytest cocotb-test
+pip3 install peakrdl peakrdl-regblock  # For register generation
+```
+
+**3. Clone Repository:**
+```bash
+git clone https://github.com/yourusername/rtldesignsherpa.git
+cd rtldesignsherpa
+```
+
+### Quick Start Examples
+
+#### Level 1: Test a Simple Counter
+```bash
+# Run basic counter test
+pytest val/common/test_counter_bin.py -v
+
+# View waveforms (after test generates VCD)
+gtkwave val/common/local_sim_build/test_counter_bin/dump.vcd
+```
+
+#### Level 2: Test APB Slave
+```bash
+# Run APB slave tests
+pytest val/amba/test_apb_slave.py -v
+
+# Run only basic tests
+pytest val/amba/test_apb_slave.py -v -m basic
+```
+
+#### Level 3: Test APB Crossbar Integration
+```bash
+# Run 2-to-4 crossbar test
+pytest val/integ_amba/test_apb_xbar.py -v -k "2to4"
+```
+
+#### Level 4: Test APB HPET Component
+```bash
+# Run all HPET configurations
+pytest projects/components/apb_hpet/dv/tests/ -v
+
+# Run specific configuration
+pytest "projects/components/apb_hpet/dv/tests/test_apb_hpet.py::test_hpet[2-32902-1-0-full-2-timer Intel-like]" -v
+```
+
+---
+
+## Learning Resources
+
+### Documentation by Level
+
+**Level 1 - Common Modules:**
+- [Common Library PRD](rtl/common/PRD.md) - Requirements and specifications
+- [Common CLAUDE Guide](rtl/common/CLAUDE.md) - AI-assisted development
+- [Common Tests](val/common/) - Example test patterns
+
+**Level 2 - AMBA Protocols:**
+- [AMBA Infrastructure PRD](rtl/amba/PRD.md) - Protocol specifications
+- [AMBA CLAUDE Guide](rtl/amba/CLAUDE.md) - Implementation patterns
+- [AMBA Tests](val/amba/) - Protocol compliance tests
+
+**Level 3 - Integration:**
+- [Integration Examples](rtl/integ_amba/) - Working multi-module designs
+- [Integration Tests](val/integ_amba/) - System-level verification
+
+**Level 4 - Components:**
+- [Component Index](docs/markdown/projects/index.md) - All components
+- [Component Overview](docs/markdown/projects/overview.md) - Design patterns
+- [APB HPET Docs](docs/markdown/projects/apb_hpet.md) - Complete HPET guide
+
+### External References
+
+**Standards:**
+- [AMBA Specifications](https://developer.arm.com/architectures/system-architectures/amba) - ARM protocols
+- [SystemRDL 2.0](https://www.accellera.org/downloads/standards/systemrdl) - Register specification
+
+**Tools:**
+- [CocoTB Documentation](https://docs.cocotb.org/) - Verification framework
+- [Verilator Manual](https://verilator.org/guide/latest/) - Simulator guide
+- [PeakRDL Docs](https://peakrdl.readthedocs.io/) - Register generation
+
+**Books Referenced:**
+- *Advanced FPGA Design* by Steve Kilts
+- *Synthesis of Arithmetic Circuits* by Deschamps, Bioul, Sutter
+
+---
+
+## Development Workflow
+
+### Creating a New Module
+
+**1. Design the Module (choose your level):**
+```systemverilog
+// rtl/common/my_module.sv (Level 1)
+// or
+// rtl/amba/my_protocol.sv (Level 2)
+module my_module #(
+    parameter WIDTH = 8
+) (
+    input  logic             i_clk,
+    input  logic             i_rst_n,
+    // ... ports
+);
+```
+
+**2. Create Testbench:**
+```python
+# bin/CocoTBFramework/tbclasses/{subsystem}/my_module_tb.py
+class MyModuleTB(TBBase):
+    def __init__(self, dut):
+        super().__init__(dut)
+
+    async def setup_clocks_and_reset(self):
+        # Clock and reset initialization
+        pass
+
+# bin/CocoTBFramework/tbclasses/{subsystem}/my_module_tests_basic.py
+class MyModuleBasicTests:
+    async def test_basic_functionality(self):
+        # Test implementation
+        pass
+```
+
+**3. Create Test Runner:**
+```python
+# val/{subsystem}/test_my_module.py
+import cocotb
+import pytest
+from cocotb_test.simulator import run
+
+from CocoTBFramework.tbclasses.{subsystem}.my_module_tb import MyModuleTB
+from CocoTBFramework.tbclasses.{subsystem}.my_module_tests_basic import MyModuleBasicTests
+
+@cocotb.test()
+async def my_module_test(dut):
+    tb = MyModuleTB(dut)
+    await tb.setup_clocks_and_reset()
+    tests = MyModuleBasicTests(tb)
+    result = await tests.run_all_basic_tests()
+    assert result
+
+@pytest.mark.parametrize("width", [8, 16, 32])
+def test_my_module(request, width):
+    run(verilog_sources=[...], parameters={'WIDTH': width}, ...)
+```
+
+**4. Run Tests:**
+```bash
+pytest val/{subsystem}/test_my_module.py -v
+```
+
+**5. Document:**
+- Add to subsystem PRD.md
+- Update CLAUDE.md with patterns
+- Create examples in documentation
+
+---
+
+## Performance and Quality
+
+### Test Coverage
+
+**Current Status:**
+- **Common Library:** >95% line coverage, >90% branch coverage
+- **AMBA Protocols:** >95% line coverage, 100% protocol compliance
+- **APB HPET:** 5/6 configurations at 100% (12 tests each)
+- **Integration:** Full system-level verification
+
+### Module Counts
+
+- **90 Common Modules** - Fundamental building blocks
+- **106 AMBA Modules** - Protocol infrastructure
+- **2 Production Components** - APB HPET (complete), RAPIDS (in progress)
+- **Hundreds of Integration Examples** - Working multi-module systems
+
+### Synthesis Results
+
+Modules have been characterized across FPGA technologies:
+
+| Category | Fmax Range | Use Cases |
+|----------|------------|-----------|
+| Basic Logic | 100-800 MHz | Counters, registers, control |
+| Advanced Math | 200-600 MHz | DSP, arithmetic operations |
+| Protocol Masters/Slaves | 200-500 MHz | APB, AXI interfaces |
+| Integration Examples | 100-400 MHz | Multi-module systems |
+| Production Components | 100-200 MHz | Complete peripherals |
+
+---
+
+## Contributing
+
+We welcome contributions at all levels:
+
+**Level 1-2:** New building blocks or protocol modules
+**Level 3:** Integration examples and use cases
+**Level 4:** Production components
+**Level 5:** Complete FPGA projects
+
+**Guidelines:**
+- Follow existing module structure and naming
+- Include comprehensive CocoTB tests (3-level hierarchy)
+- Document in PRD.md and CLAUDE.md
+- Achieve >95% test coverage
+- Provide integration examples
+
+---
+
+## Use Cases
+
+### Educational
+- **University Courses:** Complete RTL design curriculum
+- **Self-Learning:** Progressive path from basics to production
+- **Industry Preparation:** Professional verification practices
+
+### Professional
+- **IP Development:** Starting point for commercial IP
+- **Prototyping:** Rapid hardware proof-of-concept
+- **Tool Evaluation:** Open-source vs. commercial comparison
+
+### Startup/Small Teams
+- **Cost-Effective Development:** No expensive EDA licenses
+- **Team Training:** Standardized practices and workflows
+- **IP Portfolio:** Foundation for valuable hardware assets
+
+---
+
+## Roadmap
+
+### Immediate (Current)
+- ✅ Complete APB HPET verification (5/6 configs at 100%)
+- 🚧 RAPIDS DMA Engine development
+- 📋 Additional integration examples
+
+### Near-Term
+- PCIe endpoint controllers
+- Ethernet MAC implementations
+- USB 2.0/3.0 controllers
+- DDR3/DDR4 memory controllers
+
+### Long-Term
+- Complete SoC reference designs
+- Formal verification integration
+- Synthesis flow automation
+- FPGA implementation guides
+
+---
+
+## Project Philosophy
+
+**RTL Design Sherpa believes that:**
+
+1. **Learning by Doing** - Best way to learn hardware design is building real circuits
+2. **Progressive Complexity** - Start simple, build up systematically
+3. **Verification First** - Quality comes from comprehensive testing
+4. **Open Source** - Knowledge should be accessible to everyone
+5. **Industry Practices** - Teach real-world professional techniques
+
+**The journey from a simple counter to a complete DMA engine teaches not just RTL, but the entire hardware development process.**
+
+---
+
+## License
+
+[Your License Here]
+
+---
+
+## Contact and Support
+
+- **GitHub Issues:** [Report issues or request features]
+- **Documentation:** [Link to docs]
+- **Community:** [Link to discussions/forum]
+
+---
+
+*RTL Design Sherpa: Guiding you from first principles to production-ready hardware design.*

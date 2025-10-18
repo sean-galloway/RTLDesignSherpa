@@ -203,14 +203,14 @@ def test_axis_slave(request, skid_depth, data_width, id_width, dest_width, user_
     }
 
     compile_args = [
-        "--trace-fst",
-        "--trace-structs",
+        "--trace",
+        
         "--trace-depth", "99",
     ]
 
     sim_args = [
-        "--trace-fst",  # Tell Verilator to use FST
-        "--trace-structs",
+        "--trace",  # Tell Verilator to use FST
+        
         "--trace-depth", "99",
     ]
 
@@ -230,7 +230,7 @@ def test_axis_slave(request, skid_depth, data_width, id_width, dest_width, user_
             parameters=parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=True,
+            waves=False,
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,

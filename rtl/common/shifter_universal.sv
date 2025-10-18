@@ -28,32 +28,32 @@ module shifter_universal #(
         w_pdata = o_pdata;
         w_sdata_lt = 1'b0;  // No bit shifted out by default
         w_sdata_rt = 1'b0;  // No bit shifted out by default
-        
+
         casez (select)
             2'b00: begin  // Hold (Do nothing)
                 w_pdata = o_pdata;
                 w_sdata_lt = 1'b0;  // No shift, no output
                 w_sdata_rt = 1'b0;  // No shift, no output
             end
-            
+
             2'b01: begin  // Right Shift
                 w_pdata = {i_sdata_rt, o_pdata[WIDTH-1:1]};
                 w_sdata_lt = 1'b0;                    // Left output not used in right shift
                 w_sdata_rt = o_pdata[0];              // Bit being shifted out to the right
             end
-            
+
             2'b10: begin  // Left Shift
                 w_pdata = {o_pdata[WIDTH-2:0], i_sdata_lt};
                 w_sdata_lt = o_pdata[WIDTH-1];        // Bit being shifted out to the left
                 w_sdata_rt = 1'b0;                    // Right output not used in left shift
             end
-            
+
             2'b11: begin  // Parallel Load
                 w_pdata = i_pdata;
                 w_sdata_lt = 1'b0;  // No shift, no output
                 w_sdata_rt = 1'b0;  // No shift, no output
             end
-            
+
             default: begin  // Handle X cases - hold current value
                 w_pdata = o_pdata;
                 w_sdata_lt = 1'b0;

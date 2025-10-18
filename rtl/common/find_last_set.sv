@@ -1,4 +1,49 @@
 `timescale 1ns / 1ps
+
+//==============================================================================
+// Module: find_last_set
+//==============================================================================
+// Description:
+//   Finds the position (index) of the most significant '1' bit in the input
+//   vector. Scans from MSB (bit WIDTH-1) to LSB, returning the index of the
+//   first set bit encountered. Returns 0 if no bits are set. Commonly used in
+//   count leading zeros (CLZ) and normalization operations.
+//
+//------------------------------------------------------------------------------
+// Parameters:
+//------------------------------------------------------------------------------
+//   WIDTH:
+//     Description: Input vector width in bits
+//     Type: int
+//     Range: 2 to 256
+//     Default: 32
+//     Constraints: Determines output index width ($clog2(WIDTH))
+//
+//   Derived Parameters (localparam - computed automatically):
+//     N: Output index width ($clog2(WIDTH))
+//
+//------------------------------------------------------------------------------
+// Notes:
+//------------------------------------------------------------------------------
+//   - Combinational logic (no clock/reset required)
+//   - Returns index 0 if input is all zeros (no bit set)
+//   - For count leading zeros: CLZ = WIDTH - 1 - index
+//   - Priority: Higher bit indices have higher priority
+//
+//------------------------------------------------------------------------------
+// Related Modules:
+//------------------------------------------------------------------------------
+//   - find_first_set.sv - Finds LSB set bit (trailing one)
+//   - leading_one_trailing_one.sv - Combined leading/trailing detection
+//   - count_leading_zeros.sv - Dedicated CLZ implementation
+//
+//------------------------------------------------------------------------------
+// Test:
+//------------------------------------------------------------------------------
+//   Location: val/common/test_find_last_set.py
+//   Run: pytest val/common/test_find_last_set.py -v
+//
+//==============================================================================
 module find_last_set #(
     parameter int WIDTH = 32,
     parameter string INSTANCE_NAME = "FLS"

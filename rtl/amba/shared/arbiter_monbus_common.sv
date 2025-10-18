@@ -330,7 +330,7 @@ module arbiter_monbus_common #(
     logic [31:0] w_efficiency_raw_calc;
 
     // Calculate raw efficiency percentage
-    assign w_efficiency_raw_calc = (r_total_grants > 0) ? 
+    assign w_efficiency_raw_calc = (r_total_grants > 0) ?
         (32'(r_total_completed_grants) * 32'd100 / 32'(r_total_grants)) : 32'd100;
 
     // Clamp to valid range (0-100%)

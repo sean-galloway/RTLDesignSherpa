@@ -82,9 +82,24 @@ class TemporalConstraint:
     min_sequence_duration: int = 1    # Minimum cycles for sequence
     max_sequence_duration: int = 15   # Maximum cycles for sequence
 
+    # Window trimming/margin control
+    context_cycles_before: Optional[int] = None  # Dead/setup cycles before match (None = auto)
+    context_cycles_after: Optional[int] = None   # Dead/setup cycles after match (None = auto)
+
+    # Match selection
+    prefer_latest: bool = False  # If True, select LAST match instead of FIRST match
+
+    # Scenario isolation
+    boundary_min_idle_cycles: int = 0  # Minimum idle cycles before match to consider it isolated
+
     # FieldConfig integration
     field_config: Optional[FieldConfig] = None
     protocol_hint: Optional[str] = None
+
+    # WaveDrom arrows/edges to show signal relationships
+    # Format: list of (from_signal, to_signal, arrow_type, label)
+    # arrow_type: '->' (regular), '~>' (curved), '-~>' (spline), etc.
+    edges: List[tuple] = field(default_factory=list)
 
     def __post_init__(self):
         if not self.signals_to_show:
@@ -282,10 +297,22 @@ class TemporalConstraintSolver:
             # Configure WaveJSON generator
             if self.wavejson_generator:
                 if field_definition:
-                    # Create temporary FieldConfig for this signal
-                    temp_config = FieldConfig()
-                    temp_config.add_field(field_definition)
-                    self.wavejson_generator.configure_from_field_config(temp_config)
+                    # Directly configure signal with field definition
+                    signal_type = self.wavejson_generator._classify_signal_from_field_def(field_definition)
+                    from ..wavedrom.wavejson_gen import SignalConfig
+
+                    config = SignalConfig(
+                        name=signal_name,
+                        display_name=signal_name,
+                        signal_type=signal_type,
+                        format_style=self.wavejson_generator._get_format_style_from_field_def(field_definition),
+                        bit_width=field_definition.bits,
+                        field_definition=field_definition
+                    )
+                    self.wavejson_generator.signal_configs[signal_name] = config
+
+                    if self.debug_level >= 2:
+                        self.log.info(f"  Configured {signal_name} with {field_definition.bits}-bit field definition")
                 else:
                     # Fallback to auto-configuration
                     self.wavejson_generator.auto_configure_signals([signal_name])
@@ -322,6 +349,60 @@ class TemporalConstraintSolver:
                 # Fallback to interface group
                 interface_title = f"{name.upper()} Interface"
                 self.wavejson_generator.add_interface_group(interface_title, signal_names)
+
+    def auto_bind_signals(self, protocol_type: str,
+                         signal_prefix: str = '',
+                         bus_name: str = '',
+                         pkt_prefix: str = '',
+                         field_config: Optional[FieldConfig] = None,
+                         signal_map: Optional[Dict[str, str]] = None,
+                         super_debug: bool = False) -> int:
+        """
+        Automatically discover and bind signals using SignalResolver methodology.
+
+        This method provides automatic signal discovery with manual override capability
+        for wavedrom temporal constraint matching. It uses the proven SignalResolver
+        pattern-matching infrastructure to find signals on the DUT and bind them.
+
+        Args:
+            protocol_type: Protocol type ('gaxi', 'apb', 'axis', 'axi4_read', 'axi4_write')
+            signal_prefix: Prefix for all signals (e.g., 's_', 'wr_', 'm_axi_')
+            bus_name: Bus/channel name for additional prefix handling
+            pkt_prefix: Packet field prefix for multi-field protocols
+            field_config: FieldConfig for multi-signal protocols
+            signal_map: Manual override dict. Keys: simplified signal names ('valid', 'ready', 'data')
+                       Values: actual DUT signal names. If provided, bypasses automatic discovery.
+            super_debug: Enable detailed signal resolution debugging
+
+        Returns:
+            Number of signals successfully bound
+
+        Example:
+            # Automatic discovery:
+            solver.auto_bind_signals('gaxi', signal_prefix='wr_', field_config=config)
+
+            # Manual override:
+            solver.auto_bind_signals(
+                'gaxi',
+                signal_prefix='',
+                signal_map={'valid': 'my_valid', 'ready': 'my_ready', 'data': 'my_data'}
+            )
+        """
+        from .signal_binder import WavedromSignalBinder
+
+        binder = WavedromSignalBinder(
+            dut=self.dut,
+            log=self.log,
+            protocol_type=protocol_type,
+            signal_prefix=signal_prefix,
+            bus_name=bus_name,
+            pkt_prefix=pkt_prefix,
+            field_config=field_config,
+            signal_map=signal_map,
+            super_debug=super_debug
+        )
+
+        return binder.bind_to_solver(self)
 
     def add_constraint(self, constraint: TemporalConstraint):
         """Add temporal constraint with FieldConfig integration"""
@@ -471,6 +552,80 @@ class TemporalConstraintSolver:
 
         self.clock_tasks.clear()
         self.log.info("Stopped temporal sampling")
+
+    async def solve_and_generate(self):
+        """
+        Solve all constraints with current window data and generate waveforms.
+        Does NOT clear windows - call clear_windows() after if needed.
+
+        This forces constraint solving even if windows are not full, useful for
+        segmented scenario capture where you want to solve immediately after
+        a specific scenario completes.
+
+        Usage:
+            await wave_solver.start_sampling()
+            # ... run test scenario ...
+            await wave_solver.stop_sampling()
+            await wave_solver.solve_and_generate()  # Generate waveforms now
+            wave_solver.clear_windows()              # Clear for next scenario
+        """
+        for constraint_name, constraint in self.constraints.items():
+            # Check if we already have enough matches
+            current_matches = len([s for s in self.solutions if s.constraint_name == constraint_name])
+            if current_matches >= constraint.max_matches:
+                if self.debug_level >= 2:
+                    self.log.info(f"Skipping {constraint_name}: already has {current_matches} matches")
+                continue
+
+            # Check if window has enough data
+            windows = self.constraint_windows[constraint_name]
+            if not windows:
+                if self.debug_level >= 2:
+                    self.log.info(f"Skipping {constraint_name}: no window data")
+                continue
+
+            first_signal = list(windows.keys())[0]
+            window_size = len(windows[first_signal])
+
+            if window_size < 5:  # Minimum window for meaningful solve
+                if self.debug_level >= 2:
+                    self.log.info(f"Skipping {constraint_name}: window too small ({window_size} cycles)")
+                continue
+
+            if self.debug_level >= 1:
+                self.log.info(f"Force solving {constraint_name} with window size {window_size}")
+
+            # Solve the constraint
+            await self._solve_temporal_constraint(constraint_name, constraint)
+
+    def clear_windows(self, constraint_names: Optional[List[str]] = None):
+        """
+        Clear rolling windows for specified constraints (or all if None).
+
+        Args:
+            constraint_names: List of constraint names to clear, or None for all
+
+        This is useful for segmented scenario capture where you want to reset
+        windows between different test scenarios to avoid spurious matches.
+
+        Usage:
+            wave_solver.clear_windows()  # Clear all
+            wave_solver.clear_windows(['constraint1', 'constraint2'])  # Clear specific
+        """
+        targets = constraint_names or list(self.constraints.keys())
+
+        cleared_count = 0
+        for name in targets:
+            if name in self.constraint_windows:
+                self._clear_constraint_windows(name)
+                self.constraint_cycle_counters[name] = 0
+                cleared_count += 1
+
+                if self.debug_level >= 2:
+                    self.log.info(f"Cleared windows for constraint '{name}'")
+
+        if self.debug_level >= 1:
+            self.log.info(f"Cleared windows for {cleared_count} constraint(s)")
 
     async def _sample_clock_group(self, clock_group: ClockGroup):
         """Sample signals for one clock group"""
@@ -822,8 +977,31 @@ class TemporalConstraintSolver:
             if self.debug_level >= 1:
                 self.log.info(f"Found {len(solution_collector.solutions)} temporal solutions for '{constraint_name}'")
 
-            # Create solution from first temporal solution
-            temporal_solution = solution_collector.solutions[0]
+            # Filter solutions based on boundary_min_idle_cycles if specified
+            filtered_solutions = solution_collector.solutions
+            if constraint.boundary_min_idle_cycles > 0:
+                filtered_solutions = self._filter_solutions_by_idle_boundary(
+                    solution_collector.solutions,
+                    signal_data,
+                    constraint.boundary_min_idle_cycles,
+                    constraint_name
+                )
+                if not filtered_solutions:
+                    self.log.warning(f"No solutions found with {constraint.boundary_min_idle_cycles} idle cycles before match, using all solutions")
+                    filtered_solutions = solution_collector.solutions
+
+            # Select solution based on prefer_latest flag
+            if constraint.prefer_latest and len(filtered_solutions) > 1:
+                # Select LAST match instead of FIRST
+                temporal_solution = filtered_solutions[-1]
+                if self.debug_level >= 1:
+                    self.log.info(f"  Using LAST match (prefer_latest=True) from {len(filtered_solutions)} filtered solutions")
+            else:
+                # Default: use first match
+                temporal_solution = filtered_solutions[0]
+                if self.debug_level >= 1 and constraint.boundary_min_idle_cycles > 0:
+                    self.log.info(f"  Using FIRST match from {len(filtered_solutions)} filtered solutions (min {constraint.boundary_min_idle_cycles} idle cycles)")
+
             adjusted_signal_data = self._adjust_window_for_sequence(
                 signal_data, temporal_solution, constraint.max_window_size, constraint
             )
@@ -902,6 +1080,51 @@ class TemporalConstraintSolver:
                         if self.debug_level >= 2:
                             self.log.info(f"Auto-boundary at cycle {boundary_cycle} after {transition_signal} {from_val}→{to_val}")
 
+    def _filter_solutions_by_idle_boundary(self, solutions: List[Dict],
+                                           signal_data: Dict[str, List[int]],
+                                           min_idle_cycles: int,
+                                           constraint_name: str) -> List[Dict]:
+        """
+        Filter solutions to only include those with sufficient idle cycles before match.
+
+        Idle is defined as: wr_valid=0 AND rd_ready=0 (no activity on either interface)
+        """
+        filtered = []
+
+        for solution in solutions:
+            # Get the start cycle of this match
+            start_cycle = solution['sequence_start']
+
+            # Check if we have enough idle cycles before this match
+            if start_cycle < min_idle_cycles:
+                # Not enough room before match to have idle period
+                continue
+
+            # Check if the cycles before start_cycle are idle
+            is_idle = True
+            check_start = max(0, start_cycle - min_idle_cycles)
+
+            # Define idle as: wr_valid=0 AND rd_ready=0
+            wr_valid_data = signal_data.get('wr_valid', [])
+            rd_ready_data = signal_data.get('rd_ready', [])
+
+            for cycle in range(check_start, start_cycle):
+                wr_active = wr_valid_data[cycle] if cycle < len(wr_valid_data) else 0
+                rd_active = rd_ready_data[cycle] if cycle < len(rd_ready_data) else 0
+
+                if wr_active != 0 or rd_active != 0:
+                    is_idle = False
+                    break
+
+            if is_idle:
+                filtered.append(solution)
+                if self.debug_level >= 2:
+                    self.log.info(f"  Solution at cycle {start_cycle} has {min_idle_cycles}+ idle cycles before it ✓")
+            elif self.debug_level >= 2:
+                self.log.info(f"  Solution at cycle {start_cycle} rejected (insufficient idle before)")
+
+        return filtered
+
     def _adjust_window_for_sequence(self, signal_data: Dict[str, List[int]],
                                    temporal_solution: Dict, window_size: int,
                                    constraint: TemporalConstraint = None) -> Dict[str, List[int]]:
@@ -912,8 +1135,16 @@ class TemporalConstraintSolver:
         seq_start = temporal_solution['sequence_start']
         seq_end = temporal_solution['sequence_end']
 
-        context_before = max(3, window_size // 4)
-        context_after = max(3, window_size // 4)
+        # Use configurable context cycles if specified, otherwise auto-calculate
+        if constraint and constraint.context_cycles_before is not None:
+            context_before = constraint.context_cycles_before
+        else:
+            context_before = max(3, window_size // 4)
+
+        if constraint and constraint.context_cycles_after is not None:
+            context_after = constraint.context_cycles_after
+        else:
+            context_after = max(3, window_size // 4)
 
         # Check for post-match cycles extension
         post_match_cycles = 0
@@ -979,11 +1210,19 @@ class TemporalConstraintSolver:
         # Method 3: Modular WaveJSON generator
         if not wavejson and self.wavejson_generator:
             try:
-                # Create temporal annotations
+                # Create temporal annotations with signal names from events
                 annotations = []
                 event_timing = temporal_solution.get('event_timing', {})
                 for event_name, cycle in event_timing.items():
-                    annotations.append(TemporalAnnotation(event_name, cycle))
+                    # Find the corresponding event to get its signal name
+                    signal_name = None
+                    for event in constraint.events:
+                        if event.name == event_name:
+                            # Extract signal from event's pattern
+                            if hasattr(event.pattern, 'signal'):
+                                signal_name = event.pattern.signal
+                            break
+                    annotations.append(TemporalAnnotation(event_name, cycle, signal_name=signal_name))
 
                 # Generate title and subtitle
                 interface_name = "Protocol"
@@ -997,13 +1236,50 @@ class TemporalConstraintSolver:
                 relation = constraint.temporal_relation.value
                 subtitle = f"Modular: {len(constraint.events)} events, {relation}, {seq_duration} cycles | CP-SAT Solved"
 
+                # CRITICAL: Filter signal_data to only include signals_to_show
+                # This prevents unwanted signals from appearing in waveforms
+                if constraint.signals_to_show:
+                    filtered_signal_data = {}
+                    for item in constraint.signals_to_show:
+                        # Skip grouping separators ('|')
+                        if item == '|':
+                            continue
+                        # Handle nested arrays (labeled groups): ['GroupName', 'sig1', 'sig2', ...]
+                        if isinstance(item, list):
+                            # First element is group name, rest are signals
+                            for sig_name in item[1:]:  # Skip group name
+                                if sig_name in signal_data:
+                                    filtered_signal_data[sig_name] = signal_data[sig_name]
+                                else:
+                                    self.log.warning(f"Signal '{sig_name}' in group '{item[0]}' not found in signal_data")
+                        else:
+                            # Regular signal name (string)
+                            if item in signal_data:
+                                filtered_signal_data[item] = signal_data[item]
+                            else:
+                                self.log.warning(f"Signal '{item}' in signals_to_show not found in signal_data")
+                    signal_data_for_json = filtered_signal_data
+                else:
+                    signal_data_for_json = signal_data
+
                 wavejson = self.wavejson_generator.generate_wavejson(
-                    signal_data=signal_data,
+                    signal_data=signal_data_for_json,
                     title=title,
                     subtitle=subtitle,
                     temporal_annotations=annotations,
-                    protocol_hint=constraint.protocol_hint
+                    protocol_hint=constraint.protocol_hint,
+                    signal_order=constraint.signals_to_show if constraint.signals_to_show else None
                 )
+
+                # Add edges from constraint definition
+                if constraint.edges and wavejson:
+                    edges, node_updates = self._generate_edges_from_constraint(constraint, signal_data_for_json)
+                    if edges:
+                        wavejson["edge"] = edges
+                        # Update signal nodes
+                        if node_updates:
+                            self._add_nodes_to_signals(wavejson["signal"], node_updates)
+
             except Exception as e:
                 self.log.error(f"WaveJSON generation failed for {constraint_name}: {e}")
 
@@ -1012,11 +1288,19 @@ class TemporalConstraintSolver:
             # Force the WaveJSON generator to re-apply node mappings
             if self.wavejson_generator:
                 try:
-                    # Create temporal annotations
+                    # Create temporal annotations with signal names from events
                     annotations = []
                     event_timing = temporal_solution.get('event_timing', {})
                     for event_name, cycle in event_timing.items():
-                        annotations.append(TemporalAnnotation(event_name, cycle))
+                        # Find the corresponding event to get its signal name
+                        signal_name = None
+                        for event in constraint.events:
+                            if event.name == event_name:
+                                # Extract signal from event's pattern
+                                if hasattr(event.pattern, 'signal'):
+                                    signal_name = event.pattern.signal
+                                break
+                        annotations.append(TemporalAnnotation(event_name, cycle, signal_name=signal_name))
 
                     # Re-generate edge annotations with proper node mappings
                     edges, node_mappings = self.wavejson_generator._generate_edge_annotations(
@@ -1046,7 +1330,27 @@ class TemporalConstraintSolver:
                     with open(filename, 'w') as f:
                         json.dump(wavejson, f, indent=2)
                     if self.debug_level >= 1:
-                        self.log.info(f"Generated: {filename}")
+                        self.log.info(f"Generated WaveJSON: {filename}")
+
+                # If prefer_latest is True, delete earlier matches (keep only latest)
+                if constraint.prefer_latest and '_' in filename:
+                    import os
+                    import glob
+                    # Extract base name and number
+                    base_name = filename.rsplit('_', 1)[0]
+                    current_num = int(filename.rsplit('_', 1)[1].replace('.json', ''))
+
+                    # Delete all earlier numbered files
+                    for old_file in glob.glob(f"{base_name}_*.json"):
+                        if old_file != filename:
+                            try:
+                                old_num = int(old_file.rsplit('_', 1)[1].replace('.json', ''))
+                                if old_num < current_num:
+                                    os.remove(old_file)
+                                    if self.debug_level >= 1:
+                                        self.log.info(f"  Deleted earlier match: {old_file}")
+                            except (ValueError, IndexError):
+                                pass  # Skip files that don't match pattern
             except Exception as e:
                 self.log.error(f"Failed to save WaveJSON {filename}: {e}")
 
@@ -1104,6 +1408,158 @@ class TemporalConstraintSolver:
         # Process the signal list
         apply_to_signal_list(signals)
         return signals
+
+    def _generate_edges_from_constraint(self, constraint: TemporalConstraint, signal_data: Dict[str, List[int]]):
+        """
+        Generate WaveDrom edges and node markers from constraint edge definitions.
+
+        WaveDrom requires:
+        1. Signals have "node" field with markers: "...a..." (mark at position 3 with 'a')
+        2. Edges reference node labels: "a~b ->" means arrow from node 'a' to node 'b'
+
+        Args:
+            constraint: TemporalConstraint with edges list
+            signal_data: Signal data to determine cycle positions
+
+        Returns:
+            Tuple of (edge_list, node_updates_dict)
+            edge_list: List of edge strings like ["a~b ->", "c~d ~>"]
+            node_updates: Dict mapping signal_name -> (node_label, cycle_position)
+        """
+        edges = []
+        node_updates = {}
+
+        if not constraint.edges:
+            return edges, node_updates
+
+        # Find interesting transition points for each signal
+        signal_transitions = {}
+        for sig_name, values in signal_data.items():
+            transitions = []
+            for i in range(1, len(values)):
+                if values[i] != values[i-1]:
+                    transitions.append(i)
+            signal_transitions[sig_name] = transitions
+
+        # Assign unique node labels to each signal involved in edges
+        node_label = ord('a')  # Start with 'a'
+        signal_to_node = {}
+
+        # First pass: assign node labels to all signals in edges
+        for edge_def in constraint.edges:
+            if len(edge_def) < 3:
+                continue
+
+            from_sig, to_sig = edge_def[0], edge_def[1]
+
+            # Skip if signals don't exist
+            if from_sig not in signal_data or to_sig not in signal_data:
+                continue
+
+            # Assign node labels
+            if from_sig not in signal_to_node:
+                signal_to_node[from_sig] = chr(node_label)
+                node_label += 1
+
+            if to_sig not in signal_to_node:
+                signal_to_node[to_sig] = chr(node_label)
+                node_label += 1
+
+        # Second pass: create edges and node positions
+        # Track used positions to avoid overlapping arrows
+        used_positions = {}
+
+        for i, edge_def in enumerate(constraint.edges):
+            if len(edge_def) < 3:
+                continue
+
+            from_sig, to_sig, arrow_type = edge_def[0], edge_def[1], edge_def[2]
+            label = edge_def[3] if len(edge_def) > 3 else ""
+
+            # Skip if signals don't exist
+            if from_sig not in signal_data or to_sig not in signal_data:
+                continue
+
+            # Get node labels
+            from_node = signal_to_node[from_sig]
+            to_node = signal_to_node[to_sig]
+
+            # Find good cycle positions for nodes
+            # Strategy: use first transition, but offset if already used to avoid overlap
+            from_transitions = signal_transitions.get(from_sig, [])
+            to_transitions = signal_transitions.get(to_sig, [])
+
+            # Default: first transition or middle
+            from_cycle = from_transitions[0] if from_transitions else len(signal_data[from_sig]) // 2
+            to_cycle = to_transitions[0] if to_transitions else len(signal_data[to_sig]) // 2
+
+            # Adjust positions to avoid collisions
+            if from_sig not in node_updates:
+                # Find unused position for from_signal
+                while from_cycle in used_positions.get(from_sig, []):
+                    from_cycle += 1
+                    if from_cycle >= len(signal_data[from_sig]):
+                        from_cycle = len(signal_data[from_sig]) - 1
+                        break
+                node_updates[from_sig] = (from_node, from_cycle)
+                if from_sig not in used_positions:
+                    used_positions[from_sig] = []
+                used_positions[from_sig].append(from_cycle)
+
+            if to_sig not in node_updates:
+                # Find unused position for to_signal, prefer different from from_cycle
+                if to_cycle == from_cycle and len(signal_data[to_sig]) > 1:
+                    to_cycle = (to_cycle + 1) % len(signal_data[to_sig])
+
+                while to_cycle in used_positions.get(to_sig, []):
+                    to_cycle += 1
+                    if to_cycle >= len(signal_data[to_sig]):
+                        to_cycle = len(signal_data[to_sig]) - 1
+                        break
+                node_updates[to_sig] = (to_node, to_cycle)
+                if to_sig not in used_positions:
+                    used_positions[to_sig] = []
+                used_positions[to_sig].append(to_cycle)
+
+            # Create edge string in WaveDrom format: "from_node~to_node arrow_type [label]"
+            # If label exists, format as: "from_node~to_node label" (WaveDrom infers arrow from ~)
+            # If no label, include arrow type: "from_node~to_node arrow_type"
+            if label:
+                edge_str = f"{from_node}~{to_node} {label}"
+            else:
+                edge_str = f"{from_node}~{to_node} {arrow_type}"
+            edges.append(edge_str)
+
+        return edges, node_updates
+
+    def _add_nodes_to_signals(self, signals, node_updates):
+        """
+        Add node markers to signals in WaveJSON signal array.
+
+        Args:
+            signals: WaveJSON signal array (may contain nested groups)
+            node_updates: Dict mapping signal_name -> (node_label, cycle_position)
+        """
+        def add_node_to_signal_list(signal_list):
+            for item in signal_list:
+                if isinstance(item, dict) and "name" in item:
+                    # Found a signal dict
+                    sig_name = item["name"]
+                    if sig_name in node_updates:
+                        node_label, cycle = node_updates[sig_name]
+                        # Get wave length
+                        wave = item.get("wave", "")
+                        if wave:
+                            # Create node string: "...a..." means node 'a' at position 3
+                            node_str = "." * len(wave)
+                            if cycle < len(node_str):
+                                node_str = node_str[:cycle] + node_label + node_str[cycle+1:]
+                            item["node"] = node_str
+                elif isinstance(item, list):
+                    # Nested group, recursively process
+                    add_node_to_signal_list(item)
+
+        add_node_to_signal_list(signals)
 
     def get_results(self) -> Dict:
         """Get final results"""

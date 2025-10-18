@@ -60,19 +60,40 @@ class APBMonitor(BusMonitor):
         return hasattr(self.bus, signal_name) and getattr(self.bus, signal_name) is not None
 
     def print(self, transaction):
-        msg = f'{self.title} - APB Transaction: '
+        msg = f'{self.title} - APB Transaction #{self.count}: '
         msg += transaction.formatted(compact=True)
         self.log.debug(msg)
 
     async def _monitor_recv(self):
+        # Track previous state to detect transaction boundaries
+        # APB Protocol: PSEL -> PSEL+PENABLE -> PSEL+PENABLE+PREADY (completion)
+        prev_psel = 0
+        prev_penable = 0
+        prev_pready = 0
+
         while True:
             await FallingEdge(self.clock)
             await Timer(200, units='ps')
-            if self.bus.PSEL.value.is_resolvable and \
-                    self.bus.PSEL.value.integer and \
-                    self.bus.PENABLE.value.integer and \
-                    self.bus.PREADY.value.is_resolvable and \
-                    self.bus.PREADY.value.integer:
+
+            # Sample current bus state
+            curr_psel = self.bus.PSEL.value.integer if self.bus.PSEL.value.is_resolvable else 0
+            curr_penable = self.bus.PENABLE.value.integer
+            curr_pready = self.bus.PREADY.value.integer if self.bus.PREADY.value.is_resolvable else 0
+
+            # APB transaction completes when:
+            # 1. PSEL & PENABLE & PREADY are ALL high (completion condition)
+            # 2. In previous cycle, EITHER:
+            #    a) PREADY was low (most common - PREADY asserted this cycle), OR
+            #    b) PENABLE was low (back-to-back transactions where PREADY stays high)
+            # This stricter check prevents spurious captures
+            transaction_complete = curr_psel and curr_penable and curr_pready
+
+            # Valid completion edges:
+            # - PREADY 0->1 (normal case: slave responds)
+            # - PENABLE 0->1 while PREADY already high (back-to-back with fast slave)
+            valid_edge = transaction_complete and (not prev_pready or not prev_penable)
+
+            if valid_edge:
                 start_time = get_sim_time('ns')
                 address    = self.bus.PADDR.value.integer
                 direction  = pwrite[self.bus.PWRITE.value.integer]
@@ -90,7 +111,7 @@ class APBMonitor(BusMonitor):
                 pprot = self.bus.PPROT.value.integer if self.is_signal_present('PPROT') else 0
                 self.count += 1
 
-                # Create APBPacket instead of APBCycle
+                # Create APBPacket and capture immediately (data is stable)
                 transaction = APBPacket(
                     start_time=start_time,
                     count=self.count,
@@ -103,9 +124,14 @@ class APBMonitor(BusMonitor):
                     pslverr=error
                 )
 
-                # signal to the callback
+                # Dispatch immediately - APB data is stable when PREADY asserts
                 self._recv(transaction)
                 self.print(transaction)
+
+            # Update previous state for next iteration
+            prev_psel = curr_psel
+            prev_penable = curr_penable
+            prev_pready = curr_pready
 
 
 class APBSlave(BusMonitor):

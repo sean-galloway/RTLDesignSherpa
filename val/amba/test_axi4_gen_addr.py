@@ -604,7 +604,8 @@ def test_axi_gen_addr(request, params):
     t_odw = params['ODW']
     t_len = params['LEN']
     t_name = params['test_level']
-    test_name_plus_params = f"test_{dut_name}_AW{t_aw}_DW{t_dw}_ODW{t_odw}_LEN{t_len}_{t_name}"
+    # Format parameters with lowercase and zero-padding for consistent sorting
+    test_name_plus_params = f"test_{dut_name}_aw{t_aw:03d}_dw{t_dw:03d}_odw{t_odw:03d}_len{t_len:02d}_{t_name}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Use it in the simbuild path
@@ -662,14 +663,14 @@ def test_axi_gen_addr(request, params):
 
 
     compile_args = [
-            "--trace-fst",
-            "--trace-structs",
+            "--trace",
+            
             "--trace-depth", "99",
     ]
 
     sim_args = [
-            "--trace-fst",  # Tell Verilator to use FST
-            "--trace-structs",
+            "--trace",  # Tell Verilator to use FST
+            
             "--trace-depth", "99",
     ]
 
@@ -689,7 +690,7 @@ def test_axi_gen_addr(request, params):
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=True,
+            waves=False,
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,

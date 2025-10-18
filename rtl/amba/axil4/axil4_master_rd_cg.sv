@@ -72,7 +72,7 @@ module axil4_master_rd_cg
     // OR all user-side valid signals
     assign user_valid = fub_arvalid || fub_rready || int_busy;
 
-    // OR all AXI-side valid signals  
+    // OR all AXI-side valid signals
     assign axi_valid = m_axil_arvalid || m_axil_rvalid;
 
     // Force ready signals to 0 when clock gating is active

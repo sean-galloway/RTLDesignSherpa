@@ -1,3 +1,5 @@
+**[← Back to Components Index](../components_index.md)** | **[CocoTBFramework Index](../../index.md)** | **[Main Index](../../../index.md)**
+
 # AXIL4 Components
 
 The AXIL4 (AXI4-Lite) components provide comprehensive verification capabilities for AXI4-Lite protocol implementations. Built on the robust GAXI infrastructure, these components offer simplified memory-mapped transaction generation, protocol compliance checking, and comprehensive verification features optimized for lightweight AXI4-Lite implementations.

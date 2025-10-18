@@ -62,8 +62,10 @@ module apb_slave_stub #(
         .wr_valid     (r_cmd_valid),
         .wr_ready     (r_cmd_ready),
         .wr_data      (r_cmd_data),
+        .count        (),  // Unused monitoring output
         .rd_valid     (cmd_valid),
         .rd_ready     (cmd_ready),
+        .rd_count     (),  // Unused monitoring output
         .rd_data      (cmd_data)
     );
 
@@ -86,8 +88,10 @@ module apb_slave_stub #(
         .wr_valid     (rsp_valid),
         .wr_ready     (rsp_ready),
         .wr_data      (rsp_data),
+        .count        (),  // Unused monitoring output
         .rd_valid     (r_rsp_valid),
         .rd_ready     (r_rsp_ready),
+        .rd_count     (),  // Unused monitoring output
         .rd_data      (r_rsp_data)
     );
 

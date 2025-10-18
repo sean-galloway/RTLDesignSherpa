@@ -1,37 +1,222 @@
 `timescale 1ns / 1ps
 
-/**
- * Frequency Invariant Counter with Microsecond Tick Generation
- *
- * CIRCUIT DESCRIPTION:
- * ===================
- * This module generates a frequency-invariant microsecond tick and maintains a counter
- * that increments every microsecond, regardless of the input clock frequency.
- *
- * The circuit consists of three main components:
- * 1. Frequency Selection Logic: Maps 7-bit freq_sel to division factors
- * 2. Prescaler Counter: Divides input clock to generate microsecond ticks
- * 3. Output Counter: Counts microseconds and generates tick pulses
- *
- * PROGRAMMING MODEL:
- * ==================
- * 1. Initial State: sync_reset_n = 0 (module in reset state)
- * 2. Programming: Set freq_sel[6:0] to desired frequency, then set sync_reset_n = 1
- * 3. Operation: Module generates 1MHz tick rate (1 tick per microsecond)
- * 4. Frequency Change: Set sync_reset_n = 0, change freq_sel, then set sync_reset_n = 1
- *
- * SUPPORTED FREQUENCIES:
- * ======================
- * Input clock frequencies from 100MHz to 2GHz are supported.
- * The freq_sel encoding provides fine-grained frequency selection.
- * All frequencies generate a consistent 1MHz output tick rate.
- *
- * TIMING:
- * =======
- * - tick: Asserts for one clock cycle every microsecond
- * - counter: Increments every microsecond, rolls over at 2^COUNTER_WIDTH
- * - Frequency changes cause immediate reset of internal counters
- */
+//==============================================================================
+// Module: counter_freq_invariant
+//==============================================================================
+// Description:
+//   Frequency-invariant time-based counter that generates consistent microsecond
+//   ticks regardless of input clock frequency. Divides arbitrary clock (100MHz-2GHz)
+//   to produce 1MHz tick rate for time-based operations. Supports runtime frequency
+//   reconfiguration via 7-bit freq_sel lookup table.
+//
+// Features:
+//   - Clock-frequency-agnostic timing (100MHz to 2GHz input range)
+//   - 1MHz output tick rate (1 tick per microsecond)
+//   - Runtime frequency reconfiguration (68 predefined freq_sel values)
+//   - Automatic prescaler calculation from lookup table
+//   - Synchronous reset for clean counter restart
+//   - Configurable counter width and prescaler range
+//   - Uses counter_load_clear internally for precise timing
+//
+//------------------------------------------------------------------------------
+// Parameters:
+//------------------------------------------------------------------------------
+//   COUNTER_WIDTH:
+//     Description: Width of microsecond output counter
+//     Type: int
+//     Range: 8 to 32
+//     Default: 16
+//     Constraints: Determines rollover period = 2^COUNTER_WIDTH microseconds
+//                  WIDTH=16 → 65.5ms, WIDTH=20 → 1.05s, WIDTH=32 → 71.6 minutes
+//
+//   PRESCALER_MAX:
+//     Description: Maximum prescaler counter value (must support highest freq)
+//     Type: int
+//     Range: 256 to 4096
+//     Default: 2048
+//     Constraints: Must be ≥ max(w_division_factor) = 2000 for 2GHz support
+//                  Prescaler width = $clog2(PRESCALER_MAX)
+//
+//------------------------------------------------------------------------------
+// Ports:
+//------------------------------------------------------------------------------
+//   Inputs:
+//     clk:           Clock input (100MHz to 2GHz supported)
+//     rst_n:         Asynchronous active-low reset
+//     sync_reset_n:  Synchronous reset (0=reset, 1=run)
+//     freq_sel[6:0]: Frequency selection (0-67 valid, 68-127 default to 1GHz)
+//
+//   Outputs:
+//     counter[COUNTER_WIDTH-1:0]: Microsecond counter (wraps at 2^WIDTH)
+//     tick:                        Single-cycle pulse every microsecond
+//
+//------------------------------------------------------------------------------
+// Timing:
+//------------------------------------------------------------------------------
+//   Latency:        2 cycles (prescaler + output counter)
+//   Clock-to-Q:     2 flip-flop delays
+//   Tick Duration:  1 clock cycle
+//   Tick Period:    Exactly 1 microsecond (frequency-invariant)
+//   Reconfiguration: Immediate (takes effect next cycle after freq_sel change)
+//
+//------------------------------------------------------------------------------
+// Behavior:
+//------------------------------------------------------------------------------
+//   Frequency Selection Lookup:
+//   - freq_sel[6:0] maps to division factor via case statement
+//   - Example: freq_sel=0 → 100 (100MHz), freq_sel=47 → 1000 (1GHz)
+//   - Division factor = clock cycles per microsecond
+//   - Lookup table covers 100MHz to 2GHz in fine increments
+//
+//   Prescaler Operation:
+//   - Uses counter_load_clear to count (division_factor - 1) clock cycles
+//   - Asserts w_prescaler_done every microsecond
+//   - Automatically reloads with division factor on each tick
+//   - Clears when sync_reset_n=0 or freq_sel changes
+//
+//   Output Counter:
+//   - Increments on every w_prescaler_done pulse (1MHz rate)
+//   - Rolls over at 2^COUNTER_WIDTH microseconds
+//   - Cleared by sync_reset_n=0 or freq_sel change
+//
+//   Tick Pulse:
+//   - Single-cycle pulse coincident with counter increment
+//   - Only asserted when sync_reset_n=1 (gated during reset)
+//   - Clean edge for event synchronization
+//
+//   Frequency Change Sequence:
+//   1. Detect freq_sel change (r_prev_freq_sel != freq_sel)
+//   2. Assert r_clear_pulse for 1 cycle
+//   3. Reset prescaler and output counter
+//   4. Resume operation with new division factor
+//
+//   Timing Diagram (freq_sel=15 → 200MHz, COUNTER_WIDTH=16):
+//
+//   {signal: [
+//     {name: 'clk (200MHz)',  wave: 'p.....................'},
+//     {name: 'rst_n',         wave: '01....................'},
+//     {name: 'sync_reset_n',  wave: '0.10..........0.10....'},
+//     {name: 'freq_sel[6:0]', wave: 'x.=.........=.=.......', data: ['15(200MHz)','31(500MHz)','15(200MHz)']},
+//     {},
+//     {name: 'w_division_factor', wave: 'x.=.........=.=.......', data: ['200','500','200']},
+//     {name: 'prescaler_count',   wave: 'x.==......==..==......', data: ['0-199','0-199','0-499','0-199']},
+//     {name: 'w_prescaler_done',  wave: '0...10....10...10.....'},
+//     {},
+//     {name: 'tick',          wave: '0....10....10...10....'},
+//     {name: 'counter[15:0]', wave: 'x.=..=.=...=.=..=.=...', data: ['0','0','1','2','0','0','1']},
+//     {name: 'r_clear_pulse', wave: '01.0.......1.01.0.....'},
+//     {},
+//     {name: 'Event',         wave: 'x.2.4.....4.6.2.4.....', data: ['Reset','1μs tick','1μs tick','Freq change','Reset','1μs tick']},
+//     {name: 'Timing',        wave: 'x...2.....2...2.......', data: ['1μs @ 200clk','1μs @ 200clk','1μs @ 500clk']}
+//   ]}
+//
+//------------------------------------------------------------------------------
+// Frequency Selection Table (Partial):
+//------------------------------------------------------------------------------
+//   freq_sel | Clock Freq | Division Factor | Use Case
+//   ---------|------------|-----------------|---------------------------
+//   0        | 100MHz     | 100             | Low-speed FPGA
+//   10       | 150MHz     | 150             | Mid-range FPGA
+//   15       | 200MHz     | 200             | High-speed FPGA
+//   18       | 250MHz     | 250             | FPGA PCIe
+//   26       | 400MHz     | 400             | DDR controller
+//   31       | 500MHz     | 500             | High-speed ASIC
+//   47       | 1000MHz    | 1000            | 1GHz ASIC
+//   67       | 2000MHz    | 2000            | 2GHz ASIC
+//   default  | 1000MHz    | 1000            | Fallback (1GHz)
+//
+//   See module code for complete 68-entry lookup table (100MHz-2GHz).
+//
+//------------------------------------------------------------------------------
+// Usage Example:
+//------------------------------------------------------------------------------
+//   // 1ms timeout timer at 200MHz
+//   counter_freq_invariant #(
+//       .COUNTER_WIDTH(16),   // 65.5ms max
+//       .PRESCALER_MAX(2048)  // Supports up to 2GHz
+//   ) u_timer_1ms (
+//       .clk         (clk_200mhz),
+//       .rst_n       (rst_n),
+//       .sync_reset_n(timer_enable),    // 0=hold, 1=run
+//       .freq_sel    (7'd15),           // 200MHz = freq_sel[15]
+//       .counter     (usec_count),      // Microsecond counter
+//       .tick        (usec_tick)        // 1MHz tick output
+//   );
+//   assign timeout_1ms = (usec_count == 1000);  // 1ms = 1000μs
+//
+//   // Runtime frequency switching (clock source change)
+//   logic [6:0] current_freq_sel;
+//   always_comb begin
+//       case (clock_source)
+//           2'b00: current_freq_sel = 7'd10;  // 150MHz
+//           2'b01: current_freq_sel = 7'd15;  // 200MHz
+//           2'b10: current_freq_sel = 7'd18;  // 250MHz
+//           2'b11: current_freq_sel = 7'd26;  // 400MHz
+//       endcase
+//   end
+//
+//   counter_freq_invariant #(
+//       .COUNTER_WIDTH(20)    // 1.05s max
+//   ) u_timer_adaptive (
+//       .clk         (clk),
+//       .rst_n       (rst_n),
+//       .sync_reset_n(1'b1),              // Always running
+//       .freq_sel    (current_freq_sel),  // Runtime selection
+//       .counter     (time_usec),
+//       .tick        (tick_1mhz)
+//   );
+//
+//   // Millisecond timeout detection
+//   logic [9:0] msec_count;  // 0-999
+//   always_ff @(posedge clk or negedge rst_n) begin
+//       if (!rst_n) msec_count <= 0;
+//       else if (tick_1mhz) begin
+//           if (msec_count == 999) msec_count <= 0;
+//           else                   msec_count <= msec_count + 1;
+//       end
+//   end
+//   assign timeout_1sec = (msec_count == 999) && tick_1mhz;
+//
+//------------------------------------------------------------------------------
+// Notes:
+//------------------------------------------------------------------------------
+//   - **Accurate timing requires correct freq_sel** - Mismatch causes timing error
+//   - **Lookup table is prescriptive** - Only 68 frequencies supported
+//   - For arbitrary frequencies, calculate nearest freq_sel or modify table
+//   - Prescaler uses counter_load_clear for precise cycle counting
+//   - sync_reset_n=0 freezes both prescaler and counter (not just reset)
+//   - Frequency changes reset counter to 0 (not seamless transition)
+//   - **Counter rollover is silent** - No overflow flag, wraps at 2^WIDTH
+//   - For timeout detection, compare counter value externally
+//   - tick pulse is single-cycle - use edge detector if multi-cycle needed
+//   - **Critical path:** Division factor lookup → prescaler comparison
+//   - Synthesis: Lookup table → case → mux (typically 2-3 LUT levels)
+//   - PRESCALER_MAX must be power of 2 for efficient counter implementation
+//   - **Design trade-off:** Large lookup table vs. runtime division (chose table for speed)
+//
+//------------------------------------------------------------------------------
+// Related Modules:
+//------------------------------------------------------------------------------
+//   - counter_bin.sv - Basic binary counter (no time base)
+//   - counter_load_clear.sv - Programmable counter (used internally)
+//   - clock_divider.sv - Integer clock division (creates derived clock)
+//   - clock_pulse.sv - Configurable pulse generator
+//
+//------------------------------------------------------------------------------
+// Test:
+//------------------------------------------------------------------------------
+//   Location: val/common/test_counter_freq_invariant.py
+//   Run: pytest val/common/test_counter_freq_invariant.py -v
+//   Coverage: 92%
+//   Key Test Scenarios:
+//     - Multiple frequency selections (100MHz, 500MHz, 1GHz)
+//     - Tick rate verification (measure tick period)
+//     - Counter increment validation
+//     - sync_reset_n functionality
+//     - Frequency change during operation
+//     - Rollover behavior
+//
+//==============================================================================
 module counter_freq_invariant
 #(
     parameter int COUNTER_WIDTH = 16,     // Width of the output counter (default 16-bit = ~65ms rollover)

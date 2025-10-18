@@ -179,8 +179,8 @@ def test_arbiter_round_robin_weighted(request, clients, max_levels, wait_ack):
     parameters = {
         'CLIENTS': clients,
         'MAX_LEVELS': max_levels,
-        'MAX_LEVELS_WIDTH': (max_levels-1).bit_length(),  # Calculate log2 for MAX_LEVELS_WIDTH
         'WAIT_GNT_ACK': wait_ack
+        # MAX_LEVELS_WIDTH now computed automatically as localparam ($clog2(MAX_LEVELS))
     }
 
     # Environment variables
@@ -195,13 +195,13 @@ def test_arbiter_round_robin_weighted(request, clients, max_levels, wait_ack):
     }
 
     compile_args = [
-        "--trace-fst",
+        "--trace",
         "--trace-structs",
         "--trace-depth", "99",
     ]
 
     sim_args = [
-        "--trace-fst",  # Tell Verilator to use FST
+        "--trace",  # Tell Verilator to use FST
         "--trace-structs",
         "--trace-depth", "99",
     ]
@@ -222,7 +222,7 @@ def test_arbiter_round_robin_weighted(request, clients, max_levels, wait_ack):
             parameters=parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=True,
+            waves=False,
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,

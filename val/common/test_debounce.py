@@ -649,13 +649,13 @@ def test_debounce(request, num_buttons, debounce_delay, pressed_state, test_leve
     }
 
     compile_args = [
-        "--trace-fst",
+        "--trace",
         "--trace-structs",
         "--trace-depth", "99",
     ]
 
     sim_args = [
-        "--trace-fst",
+        "--trace",
         "--trace-structs",
         "--trace-depth", "99",
     ]
@@ -680,7 +680,7 @@ def test_debounce(request, num_buttons, debounce_delay, pressed_state, test_leve
             parameters=parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=True,
+            waves=False,
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,

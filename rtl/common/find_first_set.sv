@@ -1,4 +1,49 @@
 `timescale 1ns / 1ps
+
+//==============================================================================
+// Module: find_first_set
+//==============================================================================
+// Description:
+//   Finds the position (index) of the least significant '1' bit in the input
+//   vector. Scans from LSB (bit 0) to MSB, returning the index of the first
+//   set bit encountered. Returns 0 if no bits are set. Commonly used in priority
+//   encoding and arbitration logic.
+//
+//------------------------------------------------------------------------------
+// Parameters:
+//------------------------------------------------------------------------------
+//   WIDTH:
+//     Description: Input vector width in bits
+//     Type: int
+//     Range: 2 to 256
+//     Default: 32
+//     Constraints: Determines output index width ($clog2(WIDTH))
+//
+//   Derived Parameters (localparam - computed automatically):
+//     N: Output index width ($clog2(WIDTH))
+//
+//------------------------------------------------------------------------------
+// Notes:
+//------------------------------------------------------------------------------
+//   - Combinational logic (no clock/reset required)
+//   - Returns index 0 if input is all zeros (no bit set)
+//   - For trailing zeros count, complement input first: ~data
+//   - Priority: Lower bit indices have higher priority
+//
+//------------------------------------------------------------------------------
+// Related Modules:
+//------------------------------------------------------------------------------
+//   - find_last_set.sv - Finds MSB set bit (leading one)
+//   - leading_one_trailing_one.sv - Combined leading/trailing detection
+//   - priority_encoder.sv - Alternative priority encoding
+//
+//------------------------------------------------------------------------------
+// Test:
+//------------------------------------------------------------------------------
+//   Location: val/common/test_find_first_set.py
+//   Run: pytest val/common/test_find_first_set.py -v
+//
+//==============================================================================
 module find_first_set #(
     parameter int WIDTH = 32,
     parameter string INSTANCE_NAME = "FFS"

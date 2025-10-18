@@ -43,7 +43,7 @@ class AXI4MasterRead:
         self.id_width = kwargs.get('id_width', 8)
         self.addr_width = kwargs.get('addr_width', 32)
         self.user_width = kwargs.get('user_width', 1)
-        self.multi_sig = kwargs.get('multi_sig', False)
+        self.multi_sig = kwargs.get('multi_sig', True)  # AXI4 uses individual signals by default
 
         # AR Channel (Address Read) - Master drives
         self.ar_channel = GAXIMaster(
@@ -56,6 +56,7 @@ class AXI4MasterRead:
             ),
             pkt_prefix="ar",
             multi_sig=self.multi_sig,
+            protocol_type='axi4_ar_master',  # Use AXI4-specific patterns
             super_debug=self.super_debug,
             log=log
         )
@@ -71,6 +72,7 @@ class AXI4MasterRead:
             ),
             pkt_prefix="r",
             multi_sig=self.multi_sig,
+            protocol_type='axi4_r_slave',  # Use AXI4-specific patterns
             super_debug=self.super_debug,
             log=log
         )
@@ -196,7 +198,7 @@ class AXI4MasterWrite:
         self.id_width = kwargs.get('id_width', 8)
         self.addr_width = kwargs.get('addr_width', 32)
         self.user_width = kwargs.get('user_width', 1)
-        self.multi_sig = kwargs.get('multi_sig', False)
+        self.multi_sig = kwargs.get('multi_sig', True)  # AXI4 uses individual signals by default
 
         # AW Channel (Address Write) - Master drives
         self.aw_channel = GAXIMaster(
@@ -209,6 +211,7 @@ class AXI4MasterWrite:
             ),
             pkt_prefix="aw",
             multi_sig=self.multi_sig,
+            protocol_type='axi4_aw_master',  # Use AXI4-specific patterns
             log=log
         )
 
@@ -223,6 +226,7 @@ class AXI4MasterWrite:
             ),
             pkt_prefix="w",
             multi_sig=self.multi_sig,
+            protocol_type='axi4_w_master',  # Use AXI4-specific patterns
             log=log
         )
 
@@ -237,6 +241,7 @@ class AXI4MasterWrite:
             ),
             pkt_prefix="b",
             multi_sig=self.multi_sig,
+            protocol_type='axi4_b_slave',  # Use AXI4-specific patterns
             log=log
         )
 
@@ -399,7 +404,7 @@ class AXI4SlaveRead:
         self.id_width = kwargs.get('id_width', 8)
         self.addr_width = kwargs.get('addr_width', 32)
         self.user_width = kwargs.get('user_width', 1)
-        self.multi_sig = kwargs.get('multi_sig', False)
+        self.multi_sig = kwargs.get('multi_sig', True)  # AXI4 uses individual signals by default
 
         # Store memory model if provided
         self.memory_model = kwargs.get('memory_model')
@@ -418,6 +423,7 @@ class AXI4SlaveRead:
             ),
             pkt_prefix="ar",
             multi_sig=self.multi_sig,
+            protocol_type='axi4_ar_slave',  # Use AXI4-specific patterns
             log=log,
         )
 
@@ -432,6 +438,7 @@ class AXI4SlaveRead:
             ),
             pkt_prefix="r",
             multi_sig=self.multi_sig,
+            protocol_type='axi4_r_master',  # Use AXI4-specific patterns
             log=log,
         )
 
@@ -569,7 +576,7 @@ class AXI4SlaveWrite:
         self.id_width = kwargs.get('id_width', 8)
         self.addr_width = kwargs.get('addr_width', 32)
         self.user_width = kwargs.get('user_width', 1)
-        self.multi_sig = kwargs.get('multi_sig', False)
+        self.multi_sig = kwargs.get('multi_sig', True)  # AXI4 uses individual signals by default
 
         # Store memory model if provided
         self.memory_model = kwargs.get('memory_model')
@@ -588,6 +595,7 @@ class AXI4SlaveWrite:
             ),
             pkt_prefix="aw",
             multi_sig=self.multi_sig,
+            protocol_type='axi4_aw_slave',  # Use AXI4-specific patterns
             log=log,
         )
 
@@ -602,6 +610,7 @@ class AXI4SlaveWrite:
             ),
             pkt_prefix="w",
             multi_sig=self.multi_sig,
+            protocol_type='axi4_w_slave',  # Use AXI4-specific patterns
             log=log,
         )
 
@@ -616,6 +625,7 @@ class AXI4SlaveWrite:
             ),
             pkt_prefix="b",
             multi_sig=self.multi_sig,
+            protocol_type='axi4_b_master',  # Use AXI4-specific patterns
             log=log,
         )
 

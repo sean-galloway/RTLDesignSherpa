@@ -90,13 +90,13 @@ def test_math_adder_brent_kung(request, n):
     # Create command file for viewing waveforms
 
     compile_args = [
-        "--trace-fst",
+        "--trace",
         "--trace-structs",
         "--trace-depth", "99",
     ]
 
     sim_args = [
-        "--trace-fst",  # Tell Verilator to use FST
+        "--trace",  # Tell Verilator to use FST
         "--trace-structs",
         "--trace-depth", "99",
     ]
@@ -118,7 +118,7 @@ def test_math_adder_brent_kung(request, n):
             parameters=parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=True,
+            waves=False,
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,

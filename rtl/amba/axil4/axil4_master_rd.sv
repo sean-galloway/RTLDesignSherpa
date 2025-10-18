@@ -63,7 +63,7 @@ module axil4_master_rd
     logic                      int_skid_rready;
 
     // Busy signal indicates activity in the buffers
-    assign busy = (int_ar_count > 0) || (int_r_count > 0) || 
+    assign busy = (int_ar_count > 0) || (int_r_count > 0) ||
                 fub_arvalid || m_axil_rvalid;
 
     // Instantiate AR Skid Buffer

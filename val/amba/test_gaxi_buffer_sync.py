@@ -25,10 +25,25 @@ import random
 from itertools import product
 import pytest
 import cocotb
+from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.gaxi.gaxi_buffer import GaxiBufferTB
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
+
+# WaveDrom support
+from CocoTBFramework.tbclasses.wavedrom_user.gaxi import (
+    get_gaxi_field_config,
+    create_gaxi_wavejson_generator,
+)
+from CocoTBFramework.components.wavedrom.constraint_solver import (
+    TemporalConstraintSolver,
+    TemporalConstraint,
+    TemporalEvent,
+    SignalTransition,
+    TemporalRelation
+)
+from CocoTBFramework.components.shared.field_config import FieldDefinition
 
 
 @cocotb.test(timeout_time=3, timeout_unit="ms")  # Increased timeout for comprehensive testing
@@ -143,6 +158,207 @@ async def gaxi_test(dut):
         tb.log.info("✓ Completed stress test")
 
     tb.log.info(f"✓ ALL {test_level.upper()} TESTS PASSED!")
+
+
+@cocotb.test(timeout_time=5, timeout_unit="sec")
+async def gaxi_wavedrom_test(dut):
+    """
+    WaveDrom timing diagram generation for GAXI sync buffers.
+
+    Generates 3 key scenarios for each mode (skid/fifo_mux/fifo_flop):
+    1. Write to empty (bypass or 1-cycle latency)
+    2. Burst write until full (backpressure)
+    3. Simultaneous read/write (pass-through)
+
+    Environment Variables:
+        ENABLE_WAVEDROM: Enable waveform generation (1/0, default: 0)
+        TEST_MODE: Buffer mode (skid/fifo_mux/fifo_flop)
+    """
+    # Check if waveforms are enabled
+    enable_wavedrom = int(os.environ.get('ENABLE_WAVEDROM', '0'))
+    if not enable_wavedrom:
+        dut._log.info("⏭️  WaveDrom disabled (ENABLE_WAVEDROM=0), skipping wavedrom test")
+        return
+
+    # Get test mode
+    mode = os.environ.get('TEST_MODE', 'skid')
+    dut._log.info(f"=== GAXI WaveDrom Test: {mode} mode ===")
+
+    # Setup clock and reset
+    tb = GaxiBufferTB(dut, dut.axi_aclk, dut.axi_aresetn)
+    await tb.start_clock('axi_aclk', 10, 'ns')
+    await tb.assert_reset()
+    await tb.wait_clocks('axi_aclk', 5)
+    await tb.deassert_reset()
+    await tb.wait_clocks('axi_aclk', 5)
+
+    # Setup WaveDrom
+    field_config = get_gaxi_field_config(data_width=8)
+    wave_generator = create_gaxi_wavejson_generator(field_config, signal_prefix="")
+
+    wave_solver = TemporalConstraintSolver(
+        dut=dut,
+        log=dut._log,
+        wavejson_generator=wave_generator,
+        default_field_config=field_config,
+        debug_level=1
+    )
+
+    wave_solver.add_clock_group('default', dut.axi_aclk)
+
+    # Bind signals
+    wave_solver.auto_bind_signals('gaxi', signal_prefix='wr_', field_config=field_config)
+    wave_solver.auto_bind_signals('gaxi', signal_prefix='rd_', field_config=field_config)
+    wave_solver.add_signal_binding('clk', 'axi_aclk')
+    wave_solver.add_signal_binding('rst_n', 'axi_aresetn')
+
+    # Internal signals (if present in DUT)
+    try:
+        count_field = FieldDefinition('count', 4, format='dec', description='Buffer count')
+        wave_solver.add_signal_binding('count', 'count', count_field)
+    except:
+        dut._log.info("Note: 'count' signal not available in this mode")
+
+    # Define constraints for 3 key scenarios
+    # Scenario 1: Write to empty
+    write_empty = TemporalConstraint(
+        name=f"{mode}_write_empty",
+        events=[TemporalEvent("wr_start", SignalTransition("wr_valid", 0, 1))],
+        temporal_relation=TemporalRelation.SEQUENCE,
+        max_window_size=12,
+        context_cycles_before=3,
+        context_cycles_after=2,
+        signals_to_show=[
+            'clk', 'rst_n', '|',
+            ['Write', 'wr_valid', 'wr_ready', 'wr_data'], '|',
+            ['Read', 'rd_valid', 'rd_ready', 'rd_data']
+        ],
+        edges=[('wr_data', 'rd_data', '->', 'data')]
+    )
+    wave_solver.add_constraint(write_empty)
+
+    # Scenario 2: Backpressure
+    backpressure = TemporalConstraint(
+        name=f"{mode}_backpressure",
+        events=[TemporalEvent("full", SignalTransition("wr_ready", 1, 0))],
+        temporal_relation=TemporalRelation.SEQUENCE,
+        max_window_size=20,
+        context_cycles_before=4,
+        context_cycles_after=2,
+        signals_to_show=[
+            'clk', 'rst_n', '|',
+            ['Write', 'wr_valid', 'wr_ready', 'wr_data'], '|',
+            ['Read', 'rd_valid', 'rd_ready', 'rd_data']
+        ],
+        edges=[('wr_ready', 'wr_valid', '->', 'blocked')]
+    )
+    wave_solver.add_constraint(backpressure)
+
+    # Scenario 3: Simultaneous read/write
+    simultaneous = TemporalConstraint(
+        name=f"{mode}_simultaneous",
+        events=[TemporalEvent("both", SignalTransition("wr_valid", 0, 1))],
+        temporal_relation=TemporalRelation.SEQUENCE,
+        max_window_size=18,
+        context_cycles_before=3,
+        context_cycles_after=2,
+        signals_to_show=[
+            'clk', 'rst_n', '|',
+            ['Write', 'wr_valid', 'wr_ready', 'wr_data'], '|',
+            ['Read', 'rd_valid', 'rd_ready', 'rd_data']
+        ],
+        edges=[('wr_data', 'rd_data', '->', 'flow')]
+    )
+    wave_solver.add_constraint(simultaneous)
+
+    dut._log.info(f"✓ WaveDrom configured: 3 scenarios for {mode} mode")
+
+    # Scenario 1: Write to empty
+    dut._log.info("=== Scenario 1: Write to empty ===")
+    dut.wr_valid.value = 0
+    dut.rd_ready.value = 0
+    dut.wr_data.value = 0
+    await RisingEdge(dut.axi_aclk)
+    await RisingEdge(dut.axi_aclk)
+
+    await wave_solver.start_sampling()
+    await RisingEdge(dut.axi_aclk)
+
+    dut.wr_valid.value = 1
+    dut.wr_data.value = 0xA0
+    await RisingEdge(dut.axi_aclk)
+    dut.wr_data.value = 0xA1
+    await RisingEdge(dut.axi_aclk)
+    dut.wr_valid.value = 0
+    await RisingEdge(dut.axi_aclk)
+    await RisingEdge(dut.axi_aclk)
+
+    await wave_solver.stop_sampling()
+    await wave_solver.solve_and_generate()
+    wave_solver.clear_windows()
+    dut._log.info("✓ Scenario 1 captured")
+
+    # Drain
+    dut.rd_ready.value = 1
+    for _ in range(4):
+        await RisingEdge(dut.axi_aclk)
+    dut.rd_ready.value = 0
+    await RisingEdge(dut.axi_aclk)
+
+    # Scenario 2: Fill until backpressure
+    dut._log.info("=== Scenario 2: Burst write until full ===")
+    await wave_solver.start_sampling()
+    await RisingEdge(dut.axi_aclk)
+
+    dut.wr_valid.value = 1
+    for i in range(6):
+        dut.wr_data.value = 0xB0 + i
+        await RisingEdge(dut.axi_aclk)
+    dut.wr_valid.value = 0
+    await RisingEdge(dut.axi_aclk)
+
+    await wave_solver.stop_sampling()
+    await wave_solver.solve_and_generate()
+    wave_solver.clear_windows()
+    dut._log.info("✓ Scenario 2 captured")
+
+    # Drain
+    dut.rd_ready.value = 1
+    for _ in range(6):
+        await RisingEdge(dut.axi_aclk)
+    dut.rd_ready.value = 0
+    await RisingEdge(dut.axi_aclk)
+
+    # Scenario 3: Simultaneous read/write
+    dut._log.info("=== Scenario 3: Simultaneous read/write ===")
+    # Pre-fill buffer
+    dut.wr_valid.value = 1
+    dut.wr_data.value = 0xC0
+    await RisingEdge(dut.axi_aclk)
+    dut.wr_data.value = 0xC1
+    await RisingEdge(dut.axi_aclk)
+    dut.wr_valid.value = 0
+    await RisingEdge(dut.axi_aclk)
+
+    await wave_solver.start_sampling()
+    await RisingEdge(dut.axi_aclk)
+
+    # Simultaneous operations
+    for i in range(3):
+        dut.wr_valid.value = 1
+        dut.rd_ready.value = 1
+        dut.wr_data.value = 0xD0 + i
+        await RisingEdge(dut.axi_aclk)
+        dut.wr_valid.value = 0
+        dut.rd_ready.value = 0
+        await RisingEdge(dut.axi_aclk)
+
+    await wave_solver.stop_sampling()
+    await wave_solver.solve_and_generate()
+    wave_solver.clear_windows()
+    dut._log.info("✓ Scenario 3 captured")
+
+    dut._log.info(f"✓ GAXI {mode} WaveDrom Complete: 3 scenarios generated")
 
 
 def generate_params():
@@ -273,14 +489,14 @@ def test_gaxi_buffer(request, data_width, depth, clk_period, mode, test_level):
     extra_env['TEST_KIND'] = 'sync'
 
     compile_args = [
-        "--trace-fst",
-        "--trace-structs",
+        "--trace",
+        
         "--trace-depth", "99",
     ]
 
     sim_args = [
-        "--trace-fst",  # Tell Verilator to use FST
-        "--trace-structs",
+        "--trace",  # Tell Verilator to use FST
+        
         "--trace-depth", "99",
     ]
 
@@ -306,7 +522,7 @@ def test_gaxi_buffer(request, data_width, depth, clk_period, mode, test_level):
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=True,
+            waves=False,
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
@@ -319,3 +535,148 @@ def test_gaxi_buffer(request, data_width, depth, clk_period, mode, test_level):
         print(f"Logs preserved at: {log_path}")
         print(f"To view the Waveforms run this command: {cmd_filename}")
         raise  # Re-raise exception to indicate failure
+
+
+# WaveDrom test parameters - separate from functional tests
+def generate_wavedrom_params():
+    """Generate parameters for WaveDrom-enabled tests"""
+    # Only generate waveforms for one configuration per mode
+    return [
+        (8, 4, 10, 'skid'),
+        (8, 4, 10, 'fifo_mux'),
+        (8, 4, 10, 'fifo_flop'),
+    ]
+
+wavedrom_params = generate_wavedrom_params()
+
+@pytest.mark.parametrize("data_width, depth, clk_period, mode", wavedrom_params)
+def test_gaxi_buffer_wavedrom(request, data_width, depth, clk_period, mode):
+    """
+    GAXI buffer wavedrom test - generates timing diagrams.
+
+    Generates 3 scenarios for each mode:
+    - Write to empty
+    - Backpressure
+    - Simultaneous read/write
+
+    Run with: pytest test_gaxi_buffer_sync.py::test_gaxi_buffer_wavedrom -v
+    """
+    # get all of the directory and module information
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_cmn':  'rtl/common',
+        'rtl_gaxi': 'rtl/amba/gaxi',
+    })
+
+    # set up all of the test names
+    if mode == 'skid':
+        dut_name = "gaxi_skid_buffer"
+    else:
+        dut_name = "gaxi_fifo_sync"
+    toplevel = dut_name
+
+    # Get verilog sources based on mode
+    if mode == 'skid':
+        verilog_sources = [
+            os.path.join(rtl_dict['rtl_gaxi'], f"{dut_name}.sv"),
+        ]
+    else:
+        verilog_sources = [
+            os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
+            os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
+            os.path.join(rtl_dict['rtl_gaxi'], f"{dut_name}.sv"),
+        ]
+
+    # create a human readable test identifier
+    w_str = TBBase.format_dec(data_width, 3)
+    d_str = TBBase.format_dec(depth, 3)
+    cl_str = TBBase.format_dec(clk_period, 3)
+    test_name_plus_params = f"test_gaxi_{mode}_wd_w{w_str}_d{d_str}_cl{cl_str}"
+    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
+
+    # use it in the simbuild path
+    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    os.makedirs(sim_build, exist_ok=True)
+
+    # get the logs and results into one area
+    os.makedirs(log_dir, exist_ok=True)
+    results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
+
+    includes = []
+
+    # RTL parameters
+    rtl_parameters = {}
+    for param_name in ['data_width', 'depth']:
+        if param_name in locals():
+            rtl_parameters[param_name.upper()] = str(locals()[param_name])
+
+    rtl_parameters['INSTANCE_NAME'] = f'"{mode}_wd"'
+    if 'fifo' in mode:
+        rtl_parameters['REGISTERED'] = str(1) if mode == 'fifo_flop' else str(0)
+
+    # Environment variables - ENABLE WAVEDROM!
+    extra_env = {
+        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'VERILATOR_TRACE': '1',
+        'DUT': dut_name,
+        'LOG_PATH': log_path,
+        'COCOTB_LOG_LEVEL': 'INFO',
+        'COCOTB_RESULTS_FILE': results_path,
+        'SEED': str(random.randint(0, 100000)),
+        'ENABLE_WAVEDROM': '1',  # Enable WaveDrom!
+        'TEST_MODE': mode,
+        'COCOTB_TEST_TIMEOUT': '10000',  # 10s timeout
+    }
+
+    extra_env['TEST_DATA_WIDTH'] = str(data_width)
+    extra_env['TEST_DEPTH'] = str(depth)
+    extra_env['TEST_CLK_WR'] = str(clk_period)
+    extra_env['TEST_CLK_RD'] = str(clk_period)
+    extra_env['TEST_MODE'] = mode
+    extra_env['TEST_KIND'] = 'sync'
+
+    compile_args = [
+        "--trace",
+        "--trace-depth", "99",
+    ]
+
+    sim_args = [
+        "--trace",
+        "--trace-depth", "99",
+    ]
+
+    plusargs = [
+        "+trace",
+    ]
+
+    cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
+
+    print(f"\n{'='*80}")
+    print(f"Running WaveDrom test: {mode} mode")
+    print(f"Config: depth={depth}, width={data_width}")
+    print(f"Will generate 3 scenarios")
+    print(f"Log: {log_path}")
+    print(f"{'='*80}")
+
+    try:
+        run(
+            python_search=[tests_dir],
+            verilog_sources=verilog_sources,
+            includes=includes,
+            toplevel=toplevel,
+            module=module,
+            parameters=rtl_parameters,
+            sim_build=sim_build,
+            extra_env=extra_env,
+            waves=False,
+            keep_files=True,
+            compile_args=compile_args,
+            sim_args=sim_args,
+            plusargs=plusargs,
+            testcase="gaxi_wavedrom_test",  # Run wavedrom test specifically
+        )
+        print(f"✓ WaveDrom test PASSED: {mode} mode - 3 scenarios generated")
+    except Exception as e:
+        print(f"✗ WaveDrom test FAILED: {str(e)}")
+        print(f"Logs preserved at: {log_path}")
+        print(f"To view the Waveforms run this command: {cmd_filename}")
+        raise

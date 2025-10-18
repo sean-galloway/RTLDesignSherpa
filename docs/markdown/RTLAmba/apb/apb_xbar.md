@@ -155,9 +155,11 @@ Master 2 ──┘    Switch    ├── Slave 1
 1. **APB Slave Stubs**: Convert APB protocol to command/response interface (master side)
 2. **APB Master Stubs**: Convert command/response interface to APB protocol (slave side)
 3. **Address Decoders**: Route transactions based on configurable address ranges
-4. **Round-Robin Arbiters**: Manage access conflicts with weighted fairness
+4. **Round-Robin Arbiters**: Uses proven `arbiter_round_robin` module with ACK-based transaction locking
 5. **Side Queues**: Buffer master IDs for response routing
 6. **Multiplexers/Demultiplexers**: Route commands and responses
+
+**Note:** Generated crossbars (1to1, 2to1, 1to4, 2to4) use the proven `arbiter_round_robin` module from `rtl/common/` with WAIT_GNT_ACK=1 mode for reliable arbitration.
 
 ### Data Flow
 
@@ -187,13 +189,15 @@ if (SLAVE_ENABLE[s] &&
 end
 ```
 
-### Weighted Round-Robin Arbitration
+### Round-Robin Arbitration with ACK Mode
 
-Each arbitration point uses configurable thresholds:
-- **MST_THRESHOLDS**: Controls master access fairness
-- **SLV_THRESHOLDS**: Controls slave response fairness
+Generated crossbars use the `arbiter_round_robin` module from `rtl/common/`:
+- **WAIT_GNT_ACK=1**: Grant locks until transaction completes
+- **Grant ACK**: `grant && rsp_valid && rsp_ready` signals transaction completion
+- **Request Vector**: Built from `cmd_valid` and address match (for multi-slave)
+- **Fair Rotation**: Priority rotates after each transaction
 
-Higher threshold values provide more access opportunities.
+**Note:** The full `apb_xbar` module with weighted thresholds is separate from the generated crossbars. Generated crossbars (1to1, 2to1, 1to4, 2to4) use standard round-robin for simplicity and reliability.
 
 ### Transaction Buffering
 
@@ -573,9 +577,18 @@ localparam [31:0] SLAVE_BASES [8] = '{
 ## Related Modules
 
 - **apb_xbar_thin**: Lightweight crossbar for simple configurations
-- **apb_master**: APB master for crossbar input
-- **apb_slave**: APB slave for crossbar output
-- **arbiter_round_robin_weighted**: Underlying arbitration logic
+- **apb_master**: APB master for crossbar output side (cmd/rsp to APB)
+- **apb_slave**: APB slave for crossbar input side (APB to cmd/rsp)
+- **arbiter_round_robin**: Proven round-robin arbiter used in generated crossbars
+- **arbiter_priority_encoder**: Dependency of arbiter_round_robin
+- **encoder**: Used for address decoding in multi-slave crossbars
 - **apb_monitor**: APB protocol monitoring and debugging
+
+**Generated Crossbar Dependencies:**
+- `rtl/amba/gaxi/gaxi_fifo_sync.sv` (used by apb_slave/apb_master)
+- `rtl/amba/gaxi/gaxi_skid_buffer.sv` (used by apb_slave/apb_master)
+- `rtl/common/arbiter_round_robin.sv` (arbitration)
+- `rtl/common/arbiter_priority_encoder.sv` (arbiter dependency)
+- `rtl/common/encoder.sv` (multi-slave address decode)
 
 The `apb_xbar` module provides a complete, high-performance solution for multi-master, multi-slave APB systems with advanced arbitration, flexible address decoding, and comprehensive system integration capabilities.

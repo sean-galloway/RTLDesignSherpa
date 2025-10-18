@@ -87,6 +87,7 @@ class GAXIMaster(GAXIComponentBase, BusDriver):
         # Pipeline logging and state tracking
         self.pipeline_debug = pipeline_debug or super_debug
         self.pipeline_state = "idle"
+        self.reset_occurring = False  # Track reset state
         self.phase_timings = {}
         self.phase_statistics = {
             'phase1_count': 0,

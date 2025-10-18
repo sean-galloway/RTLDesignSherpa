@@ -151,6 +151,9 @@ class APBCrossbarScoreboard:
 
         if self.log:
             self.log.debug(f"Routed transaction from master {master_id} to slave {slave_idx}: addr=0x{addr:08X}")
+            # Extra logging for slave 0
+            if slave_idx == 0:
+                self.log.info(f"SLAVE0_EXPECTED: Master {master_id} -> Slave 0, addr=0x{addr:08X}, {transaction.formatted(compact=True)}")
 
     def add_slave_transaction(self, transaction, slave_idx):
         """
@@ -163,6 +166,10 @@ class APBCrossbarScoreboard:
         if 0 <= slave_idx < self.num_slaves:
             scoreboard = self.slave_scoreboards[slave_idx]
             scoreboard.add_actual(transaction)
+
+            # Extra logging for slave 0
+            if self.log and slave_idx == 0:
+                self.log.info(f"SLAVE0_ACTUAL: Slave 0 received transaction: {transaction.formatted(compact=True)}")
 
     def all_empty(self):
         """
@@ -201,9 +208,21 @@ class APBCrossbarScoreboard:
         all_passed = True
         for i, sb in enumerate(self.slave_scoreboards):
             result = sb.result()
+            expected_remaining = len(sb.expected_queue)
+            actual_remaining = len(sb.actual_queue)
+
             if result < 1.0:
                 all_passed = False
-                lines.append(f"Slave {i}: FAIL ({result:.2f})")
+                lines.append(f"Slave {i}: FAIL ({result:.2f}) - Transactions: {sb.transaction_count}, Errors: {sb.error_count}, Expected_left: {expected_remaining}, Actual_left: {actual_remaining}")
+
+                # Extra detail for slave 0
+                if i == 0 and self.log:
+                    self.log.error(f"SLAVE0_REPORT: transaction_count={sb.transaction_count}, error_count={sb.error_count}")
+                    self.log.error(f"SLAVE0_REPORT: expected_queue length={expected_remaining}, actual_queue length={actual_remaining}")
+                    if sb.mismatched:
+                        self.log.error(f"SLAVE0_REPORT: {len(sb.mismatched)} mismatched transactions:")
+                        for idx, (exp, act) in enumerate(sb.mismatched[:5]):  # Show first 5
+                            self.log.error(f"  Mismatch {idx}: Expected={exp.formatted(compact=True)}, Actual={act.formatted(compact=True)}")
             else:
                 lines.append(f"Slave {i}: PASS")
 

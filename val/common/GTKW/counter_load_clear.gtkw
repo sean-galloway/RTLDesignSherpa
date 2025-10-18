@@ -1,0 +1,45 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Generated: Wed Oct 15 03:46:34 2025
+[*]
+[dumpfile] "(null)"
+[savefile] "/mnt/data/github/rtldesignsherpa/val/common/GTKW/counter_load_clear.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] -1 -1
+*-20.0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .counter_load_clear.
+[sst_width] 401
+[signals_width] 250
+[sst_expanded] 1
+[sst_vpaned_height] 400
+@420
+counter_load_clear.MAX
+@200
+-Clock and Reset
+@28
+counter_load_clear.clk
+counter_load_clear.rst_n
+@200
+-Inputs
+@28
+counter_load_clear.clear
+counter_load_clear.increment
+counter_load_clear.load
+counter_load_clear.loadval
+@200
+-Outputs
+@28
+counter_load_clear.count
+counter_load_clear.done
+@200
+-Internal Registers
+@28
+counter_load_clear.r_match_val
+@200
+-Internal Wires
+@28
+counter_load_clear.w_next_count
+[pattern_trace] 1
+[pattern_trace] 0

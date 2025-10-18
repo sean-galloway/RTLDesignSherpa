@@ -159,6 +159,90 @@ Response Interface ← Response FIFO ← APB Response Processing
 | Command Buffering | 64 transactions | With default FIFO depth |
 | Response Buffering | 64 transactions | With default FIFO depth |
 
+## Waveforms
+
+The following timing diagrams show comprehensive APB master behavior across 7 scenarios:
+
+### Scenario 1: Basic Write Transaction
+
+Shows APB write with command FIFO and response handling:
+
+![APB Write](../../assets/WAVES/apb_master/apb_write_sequence_001.png)
+
+**WaveJSON:** [apb_write_sequence_001.json](../../assets/WAVES/apb_master/apb_write_sequence_001.json)
+
+**Key Observations:**
+- Command accepted into CMD FIFO
+- APB SETUP phase (PSEL=1)
+- APB ACCESS phase (PENABLE=1)
+- Response captured in RSP FIFO
+
+### Scenario 2: Basic Read Transaction
+
+![APB Read](../../assets/WAVES/apb_master/apb_read_sequence_001.png)
+
+**WaveJSON:** [apb_read_sequence_001.json](../../assets/WAVES/apb_master/apb_read_sequence_001.json)
+
+**Key Observations:**
+- Read command with PWRITE=0
+- APB protocol phases
+- Read data returned via response interface
+
+### Scenario 3: Back-to-Back Writes
+
+![B2B Writes](../../assets/WAVES/apb_master/apb_back_to_back_writes_001.png)
+
+**WaveJSON:** [apb_back_to_back_writes_001.json](../../assets/WAVES/apb_master/apb_back_to_back_writes_001.json)
+
+**Key Observations:**
+- Multiple commands queued in CMD FIFO
+- Sequential APB transactions
+- Pipelined command/response flow
+
+### Scenario 4: Back-to-Back Reads
+
+![B2B Reads](../../assets/WAVES/apb_master/apb_back_to_back_reads_001.png)
+
+**WaveJSON:** [apb_back_to_back_reads_001.json](../../assets/WAVES/apb_master/apb_back_to_back_reads_001.json)
+
+**Key Observations:**
+- Multiple read commands queued
+- Response FIFO accumulates read data
+- Burst read performance
+
+### Scenario 5: Write-to-Read Transition
+
+![Write-to-Read](../../assets/WAVES/apb_master/apb_write_to_read_001.png)
+
+**WaveJSON:** [apb_write_to_read_001.json](../../assets/WAVES/apb_master/apb_write_to_read_001.json)
+
+**Key Observations:**
+- Transition between write and read operations
+- No dead cycles between transaction types
+
+### Scenario 6: Read-to-Write Transition
+
+![Read-to-Write](../../assets/WAVES/apb_master/apb_read_to_write_001.png)
+
+**WaveJSON:** [apb_read_to_write_001.json](../../assets/WAVES/apb_master/apb_read_to_write_001.json)
+
+**Key Observations:**
+- Seamless transition from read to write
+- Protocol state machine efficiency
+
+### Scenario 7: Error Response
+
+![Error Response](../../assets/WAVES/apb_master/apb_error_001.png)
+
+**WaveJSON:** [apb_error_001.json](../../assets/WAVES/apb_master/apb_error_001.json)
+
+**Key Observations:**
+- PSLVERR assertion by slave
+- Error propagated through response interface
+- Master continues operation after error
+
+---
+
 ## Usage Examples
 
 ### Basic APB Master Configuration

@@ -1,0 +1,60 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Generated: Wed Oct 15 03:46:34 2025
+[*]
+[dumpfile] "(null)"
+[savefile] "/mnt/data/github/rtldesignsherpa/val/common/GTKW/fifo_control.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] -1 -1
+*-20.0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .fifo_control.
+[sst_width] 401
+[signals_width] 250
+[sst_expanded] 1
+[sst_vpaned_height] 400
+@420
+fifo_control.ADDR_WIDTH
+fifo_control.DEPTH
+fifo_control.ALMOST_WR_MARGIN
+fifo_control.ALMOST_RD_MARGIN
+fifo_control.REGISTERED
+@200
+-Clock and Reset
+@28
+fifo_control.wr_clk
+@200
+-Inputs
+@28
+fifo_control.wr_ptr_bin
+fifo_control.wdom_rd_ptr_bin
+fifo_control.rd_ptr_bin
+fifo_control.rdom_wr_ptr_bin
+@200
+-Outputs
+@28
+fifo_control.count
+fifo_control.wr_full
+fifo_control.wr_almost_full
+fifo_control.rd_empty
+fifo_control.rd_almost_empty
+@200
+-Internal Registers
+@28
+fifo_control.r_rdom_wr_ptr_bin_delayed
+@200
+-Internal Wires
+@28
+fifo_control.w_almost_empty_count
+fifo_control.w_almost_full_count
+fifo_control.w_rd_almost_empty_d
+fifo_control.w_rd_empty_d
+fifo_control.w_rdom_ptr_xor
+fifo_control.w_rdom_ptr_xor_for_empty
+fifo_control.w_wdom_ptr_xor
+fifo_control.w_wr_almost_full_d
+fifo_control.w_wr_full_d
+fifo_control.w_wr_ptr_for_empty
+[pattern_trace] 1
+[pattern_trace] 0

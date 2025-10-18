@@ -1,0 +1,94 @@
+// Verilated -*- C++ -*-
+// DESCRIPTION: Verilator output: Symbol table internal header
+//
+// Internal details; most calling programs do not need this header,
+// unless using verilator public meta comments.
+
+#ifndef VERILATED_VTOP__SYMS_H_
+#define VERILATED_VTOP__SYMS_H_  // guard
+
+#include "verilated.h"
+
+// INCLUDE MODEL CLASS
+
+#include "Vtop.h"
+
+// INCLUDE MODULE CLASSES
+#include "Vtop___024root.h"
+#include "Vtop_monitor_pkg.h"
+
+// DPI TYPES for DPI Export callbacks (Internal use)
+
+// SYMS CLASS (contains all model state)
+class alignas(VL_CACHE_LINE_BYTES)Vtop__Syms final : public VerilatedSyms {
+  public:
+    // INTERNAL STATE
+    Vtop* const __Vm_modelp;
+    bool __Vm_activity = false;  ///< Used by trace routines to determine change occurred
+    uint32_t __Vm_baseCode = 0;  ///< Used by trace routines when tracing multiple models
+    VlDeleter __Vm_deleter;
+    bool __Vm_didInit = false;
+
+    // MODULE INSTANCE STATE
+    Vtop___024root                 TOP;
+    Vtop_monitor_pkg               TOP__monitor_pkg;
+
+    // SCOPE NAMES
+    VerilatedScope __Vscope_TOP;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi4_master_rd_inst;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi4_master_rd_inst__ar_channel;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi4_master_rd_inst__r_channel;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__reporter;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__reporter__intr_fifo;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__reporter__intr_fifo__fifo_control_inst;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__reporter__intr_fifo__fifo_control_inst__gen_flop_mode;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__reporter__intr_fifo__read_pointer_inst;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__reporter__intr_fifo__write_pointer_inst;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__reporter__unnamedblk1;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__reporter__unnamedblk10;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__reporter__unnamedblk11;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__reporter__unnamedblk12;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__reporter__unnamedblk2;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__reporter__unnamedblk3;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__reporter__unnamedblk4;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__reporter__unnamedblk5;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__reporter__unnamedblk6;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__reporter__unnamedblk7;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__reporter__unnamedblk8;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__reporter__unnamedblk9;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__timeout;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__timeout__unnamedblk1;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__timeout__unnamedblk2;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__timeout__unnamedblk3;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__timer;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__timer__timer_counter;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__timer__timer_counter__prescaler_counter;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__trans_mgr;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__trans_mgr__unnamedblk1;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__trans_mgr__unnamedblk10;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__trans_mgr__unnamedblk11;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__trans_mgr__unnamedblk12;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__trans_mgr__unnamedblk2;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__trans_mgr__unnamedblk3;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__trans_mgr__unnamedblk5;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__trans_mgr__unnamedblk8;
+    VerilatedScope __Vscope_axi4_master_rd_lp_mon__lp_core_inst__axi4_master_rd_mon_inst__axi_monitor_inst__u_axi_monitor_base__trans_mgr__unnamedblk9;
+    VerilatedScope __Vscope_monitor_pkg;
+
+    // SCOPE HIERARCHY
+    VerilatedHierarchy __Vhier;
+
+    // CONSTRUCTORS
+    Vtop__Syms(VerilatedContext* contextp, const char* namep, Vtop* modelp);
+    ~Vtop__Syms();
+
+    // METHODS
+    const char* name() { return TOP.name(); }
+};
+
+#endif  // guard

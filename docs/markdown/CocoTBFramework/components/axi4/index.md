@@ -1,3 +1,5 @@
+**[← Back to Components Index](../components_index.md)** | **[CocoTBFramework Index](../../index.md)** | **[Main Index](../../../index.md)**
+
 # AXI4 Components
 
 The AXI4 (AXI4-Full) components provide comprehensive verification capabilities for AXI4 protocol implementations. Built on the robust GAXI infrastructure, these components offer advanced memory-mapped transaction generation, protocol compliance checking, and comprehensive verification features for full AXI4 implementations.

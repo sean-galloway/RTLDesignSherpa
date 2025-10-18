@@ -298,13 +298,13 @@ def test_fifo_buffer_multi(request, addr_width, ctrl_width, data_width, depth, w
     extra_env['TEST_KIND'] = 'sync'
 
     compile_args = [
-        "--trace-fst",
+        "--trace",
         "--trace-structs",
         "--trace-depth", "99",
     ]
 
     sim_args = [
-        "--trace-fst",  # Tell Verilator to use FST
+        "--trace",  # Tell Verilator to use FST
         "--trace-structs",
         "--trace-depth", "99",
     ]
@@ -332,7 +332,7 @@ def test_fifo_buffer_multi(request, addr_width, ctrl_width, data_width, depth, w
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=True,
+            waves=False,
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,

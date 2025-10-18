@@ -178,13 +178,13 @@ def test_arbiter_round_robin(request, clients, wait_ack):
     }
 
     compile_args = [
-        "--trace-fst",
+        "--trace",
         "--trace-structs",
         "--trace-depth", "99",
     ]
 
     sim_args = [
-        "--trace-fst",  # Tell Verilator to use FST
+        "--trace",  # Tell Verilator to use FST
         "--trace-structs",
         "--trace-depth", "99",
     ]
@@ -205,7 +205,7 @@ def test_arbiter_round_robin(request, clients, wait_ack):
             parameters=parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=True,
+            waves=False,
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,

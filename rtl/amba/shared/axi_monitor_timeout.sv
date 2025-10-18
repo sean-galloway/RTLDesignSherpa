@@ -61,7 +61,7 @@ module axi_monitor_timeout
                 // If this transaction has a state change to non-active, mark it as no longer timing out
                 if (trans_table[idx].state == TRANS_COMPLETE ||
                     trans_table[idx].state == TRANS_ERROR ||
-                    trans_table[idx].state == TRANS_EMPTY) begin
+                    trans_table[idx].state == TRANS_IDLE) begin
                     r_timeout_detected[idx] <= 1'b0;
                 end
             end
@@ -83,7 +83,7 @@ module axi_monitor_timeout
                             if (r_trans_table_local[idx].addr_timer >= {12'h0, cfg_addr_cnt}) begin
                             /* verilator lint_on WIDTHEXPAND */
                                 r_trans_table_local[idx].state <= TRANS_ERROR;
-                                r_trans_table_local[idx].event_code <= EVT_CMD_TIMEOUT;
+                                r_trans_table_local[idx].event_code.axi_timeout <= EVT_CMD_TIMEOUT;
                                 r_timeout_detected[idx] <= 1'b1;
                             end
                         end
@@ -103,7 +103,7 @@ module axi_monitor_timeout
                             if (r_trans_table_local[idx].data_timer >= {12'h0, cfg_data_cnt}) begin
                             /* verilator lint_on WIDTHEXPAND */
                                 r_trans_table_local[idx].state <= TRANS_ERROR;
-                                r_trans_table_local[idx].event_code <= EVT_DATA_TIMEOUT;
+                                r_trans_table_local[idx].event_code.axi_timeout <= EVT_DATA_TIMEOUT;
                                 r_timeout_detected[idx] <= 1'b1;
                             end
                         end
@@ -122,7 +122,7 @@ module axi_monitor_timeout
                             if (r_trans_table_local[idx].resp_timer >= {12'h0, cfg_resp_cnt}) begin
                             /* verilator lint_on WIDTHEXPAND */
                                 r_trans_table_local[idx].state <= TRANS_ERROR;
-                                r_trans_table_local[idx].event_code <= EVT_RESP_TIMEOUT;
+                                r_trans_table_local[idx].event_code.axi_timeout <= EVT_RESP_TIMEOUT;
                                 r_timeout_detected[idx] <= 1'b1;
                             end
                         end

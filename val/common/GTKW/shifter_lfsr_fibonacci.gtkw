@@ -1,0 +1,50 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Generated: Wed Oct 15 03:46:34 2025
+[*]
+[dumpfile] "(null)"
+[savefile] "/mnt/data/github/rtldesignsherpa/val/common/GTKW/shifter_lfsr_fibonacci.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] -1 -1
+*-20.0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .shifter_lfsr_fibonacci.
+[sst_width] 401
+[signals_width] 250
+[sst_expanded] 1
+[sst_vpaned_height] 400
+@420
+shifter_lfsr_fibonacci.WIDTH
+shifter_lfsr_fibonacci.TAP_INDEX_WIDTH
+shifter_lfsr_fibonacci.TAP_COUNT
+shifter_lfsr_fibonacci.TIW
+@200
+-Clock and Reset
+@28
+shifter_lfsr_fibonacci.clk
+shifter_lfsr_fibonacci.rst_n
+@200
+-Inputs
+@28
+shifter_lfsr_fibonacci.enable
+shifter_lfsr_fibonacci.seed_load
+shifter_lfsr_fibonacci.seed_data
+shifter_lfsr_fibonacci.taps
+@200
+-Outputs
+@28
+shifter_lfsr_fibonacci.lfsr_out
+shifter_lfsr_fibonacci.lfsr_done
+@200
+-Internal Registers
+@28
+shifter_lfsr_fibonacci.r_lfsr
+@200
+-Internal Wires
+@28
+shifter_lfsr_fibonacci.w_feedback
+shifter_lfsr_fibonacci.w_tap_positions
+shifter_lfsr_fibonacci.w_taps
+[pattern_trace] 1
+[pattern_trace] 0

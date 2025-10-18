@@ -1,152 +1,257 @@
 `timescale 1ns / 1ps
 
-/*
-================================================================================
-Round Robin Arbiter Complete Arbitration Rules
-================================================================================
-
-This module implements a parameterizable round-robin arbiter with optional ACK
-protocol support. The arbiter ensures fairness by rotating priority among clients
-after each grant, preventing starvation while maintaining high throughput.
-
-Core Round Robin Algorithm:
----------------------------
-1. Uses dual-priority scheme with masked and unmasked request processing
-2. Priority mask rotates after each successful grant to ensure fairness
-3. Lower-indexed clients have tie-breaking priority within the same priority level
-4. Supports both immediate grants (no-ACK) and transaction-based grants (ACK mode)
-
-Parameter Configuration:
------------------------
-- CLIENTS: Number of requesting clients (2 to N)
-- WAIT_GNT_ACK: 0 = No-ACK mode, 1 = ACK mode
-
-No Ack Mode Rules (WAIT_GNT_ACK = 0):
-====================================
-
-Grant Generation:
-- Grant issued immediately when client wins arbitration
-- Grant valid for exactly one cycle
-- No handshake required - grant implies acceptance
-
-Priority Rotation:
-- Round-robin mask updates immediately when grant is issued
-- Next cycle, priority rotates to next client in sequence
-- Rotation order: 0 → 1 → 2 → ... → (CLIENTS-1) → 0
-
-Arbitration Logic:
-1. First check masked requests (clients above last granted client)
-2. If no masked winners, check all requests (wrap-around)
-3. Winner selection uses find-first-set on processed requests
-4. Grant and grant_id output immediately when winner found
-
-Timing:
-- Grant appears same cycle as arbitration decision
-- No waiting for acknowledgment
-- Continuous operation - can grant every cycle if requests present
-
-FAIRNESS GUARANTEE:
-- Each requesting client guaranteed service within CLIENTS cycles
-- No starvation possible if client continuously requests
-- Statistical fairness maintained over time
-
-ACK MODE RULES (WAIT_GNT_ACK = 1):
-==================================
-
-GRANT GENERATION:
-- Grant issued when client wins arbitration AND no ACK pending
-- Grant remains asserted until corresponding ACK received
-- Only one grant can be pending at a time (no overlapping grants)
-
-ACK PROTOCOL:
-- Testbench must assert grant_ack with matching grant vector
-- ACK can be asserted same cycle as grant (same-cycle ACK)
-- ACK can be delayed multiple cycles after grant
-- ACK must be deasserted after one cycle (pulse protocol)
-
-Priority Rotation:
-- Round-robin mask updates when ACK is received (not when grant issued)
-- Rotation happens on ACK completion, maintaining fairness
-- Prevents priority advancement during pending transactions
-
-Arbitration Logic:
-1. If ACK pending: maintain current grant, wait for ACK
-2. If no ACK pending and requests present: perform normal arbitration
-3. Winner gets grant, enters pending state until ACK received
-4. ACK completion triggers priority rotation and enables next arbitration
-
-Dead Cycle Handling:
-- Single request + ACK completion = mandatory dead cycle
-- Prevents phantom grants when request deasserts after ACK
-- Multiple requests + ACK completion = immediate next grant (no dead cycle)
-- Optimizes throughput while maintaining protocol correctness
-
-Ack Timing Scenarios:
-Same-cycle ACK:  GRANT ←→ ACK (same cycle, optimal throughput)
-Delayed ACK:     GRANT → ... → ACK (multi-cycle transaction)
-Back-to-back:    ACK1 → GRANT2 → ACK2 (rapid succession)
-
-Fairness Guarantee:
-- Each requesting client guaranteed service within CLIENTS transactions
-- No starvation even with varying ACK delays
-- ACK delays don't affect fairness order, only overall throughput
-
-Common Rules Both Modes:
-=========================
-
-Block Arbitration:
-- block_arb signal immediately stops all grant generation
-- Pending ACK transactions continue normally during block
-- Block has priority over all arbitration logic
-
-Request Handling:
-- Requests can assert/deassert at any time
-- Requests must be stable during grant cycle for proper operation
-- No minimum assertion time required
-
-Grant Properties:
-- grant vector is always one-hot (exactly one bit set)
-- grant_id indicates binary-encoded winner client
-- grant_valid indicates when grant/grant_id are meaningful
-- last_grant provides previous cycle's grant for debugging
-
-Reset Behavior:
-- All state cleared on reset (masks, pending ACK, grants)
-- First post-reset arbitration starts with client 0 having highest priority
-- Deterministic startup behavior for consistent testing
-
-Mask Update Algorithm:
-- After client N wins: mask = ~((1 << N) - 1)
-- This masks clients 0 through N, giving priority to N+1 and above
-- Wrap-around handled by unmasked arbiter when no masked winners
-
-Starvation Prevention:
-- Round-robin rotation guarantees bounded waiting time
-- Maximum wait: (CLIENTS - 1) grants for any continuously requesting client
-- Independent of request patterns or system load
-
-Throughput Optimization:
-- No-ACK mode: Up to 100% throughput (grant every cycle)
-- ACK mode: Throughput limited by ACK latency and protocol
-- Same-cycle ACKs enable near-optimal throughput in ACK mode
-- Back-to-back transactions supported for maximum efficiency
-
-Error Conditions:
-- Multiple simultaneous grants: Design prevents this (one-hot guarantee)
-- ACK timeout: External monitor responsibility
-- Invalid grant_id: Protected by parameter bounds checking
-- Request during block: Ignored until block released
-
-Verification Considerations:
-- Monitor grant fairness over rolling windows
-- Verify round-robin order compliance with competition
-- Check ACK protocol timing in ACK mode
-- Validate no grants during block_arb assertion
-- Confirm one-hot grant vector property
-- Test boundary conditions (1 client, max clients)
-
-================================================================================
-*/
+//==============================================================================
+// Module: arbiter_round_robin
+//==============================================================================
+// Description:
+//   Parameterizable round-robin arbiter with optional ACK protocol support.
+//   Ensures fairness by rotating priority among clients after each grant,
+//   preventing starvation while maintaining high throughput. Supports both
+//   immediate grants (no-ACK mode) and transaction-based grants (ACK mode).
+//
+// Features:
+//   - Configurable number of clients (2 to N)
+//   - Dual-priority scheme (masked and unmasked requests)
+//   - Two operation modes: No-ACK (fire-and-forget) and ACK (handshake)
+//   - Guaranteed fairness: each client served within CLIENTS cycles
+//   - One-hot grant vector with binary-encoded grant_id
+//   - Block arbitration support
+//   - Starvation prevention with bounded waiting time
+//
+//------------------------------------------------------------------------------
+// Parameters:
+//------------------------------------------------------------------------------
+//   CLIENTS:
+//     Description: Number of requesting clients
+//     Type: int
+//     Range: 2 to 1024 (practical limit)
+//     Default: 4
+//     Constraints: Must be ≥ 2 for meaningful arbitration
+//
+//   WAIT_GNT_ACK:
+//     Description: ACK protocol mode selection
+//     Type: int
+//     Range: 0 or 1
+//     Default: 0
+//     Values:
+//       0 = No-ACK mode (grants are immediate, no handshake)
+//       1 = ACK mode (grants require acknowledgment before next grant)
+//
+//   N:
+//     Description: Derived parameter for grant_id width
+//     Type: int
+//     Default: $clog2(CLIENTS)
+//     Constraints: Automatically calculated, do not override
+//
+//------------------------------------------------------------------------------
+// Ports:
+//------------------------------------------------------------------------------
+//   Inputs:
+//     clk:            Clock input (rising edge active)
+//     rst_n:          Asynchronous active-low reset
+//     block_arb:      Block arbitration (active-high, immediate effect)
+//     request[CLIENTS-1:0]:  Request vector (one bit per client)
+//     grant_ack[CLIENTS-1:0]: Grant acknowledgment vector (ACK mode only)
+//
+//   Outputs:
+//     grant_valid:    Grant outputs are valid (high when grant asserted)
+//     grant[CLIENTS-1:0]:  One-hot grant vector (exactly one bit set when valid)
+//     grant_id[N-1:0]:     Binary-encoded winner client ID
+//     last_grant[CLIENTS-1:0]: Previous cycle's grant (for debugging)
+//
+//------------------------------------------------------------------------------
+// Timing:
+//------------------------------------------------------------------------------
+//   No-ACK Mode:
+//     Latency: 1 cycle (grant issued immediately after arbitration)
+//     Throughput: Up to 100% (grant every cycle if requests present)
+//     Grant Duration: Exactly 1 cycle
+//
+//   ACK Mode:
+//     Latency: 1 cycle to issue grant + variable ACK delay
+//     Throughput: Limited by ACK latency
+//     Grant Duration: Held until ACK received
+//     Same-cycle ACK: Enables near-optimal throughput
+//
+//------------------------------------------------------------------------------
+// Behavior:
+//------------------------------------------------------------------------------
+//   NO-ACK MODE (WAIT_GNT_ACK = 0):
+//   -------------------------------
+//   1. Grant Generation:
+//      - Grant issued immediately when client wins arbitration
+//      - Grant valid for exactly one cycle (fire-and-forget)
+//      - No handshake required - grant implies acceptance
+//
+//   2. Priority Rotation:
+//      - Round-robin mask updates immediately when grant is issued
+//      - Next cycle, priority rotates to next client in sequence
+//      - Rotation order: 0 → 1 → 2 → ... → (CLIENTS-1) → 0
+//
+//   3. Arbitration Logic:
+//      a. First check masked requests (clients above last granted client)
+//      b. If no masked winners, check all requests (wrap-around)
+//      c. Winner selection uses priority encoder on processed requests
+//      d. Grant and grant_id output immediately when winner found
+//
+//   4. Timing:
+//      - Grant appears same cycle as arbitration decision
+//      - Continuous operation - can grant every cycle if requests present
+//
+//   ACK MODE (WAIT_GNT_ACK = 1):
+//   ----------------------------
+//   1. Grant Generation:
+//      - Grant issued when client wins AND no ACK pending
+//      - Grant remains asserted until corresponding ACK received
+//      - Only one grant can be pending at a time
+//
+//   2. ACK Protocol:
+//      - Testbench must assert grant_ack with matching grant vector
+//      - ACK can be asserted same cycle as grant (optimal)
+//      - ACK can be delayed multiple cycles after grant
+//      - ACK must be deasserted after one cycle (pulse protocol)
+//
+//   3. Priority Rotation:
+//      - Mask updates when ACK is received (not when grant issued)
+//      - Prevents priority advancement during pending transactions
+//
+//   4. Dead Cycle Handling:
+//      - Single request + ACK completion = mandatory dead cycle
+//      - Multiple requests + ACK completion = immediate next grant
+//      - Optimizes throughput while maintaining correctness
+//
+//   COMMON BEHAVIOR (BOTH MODES):
+//   -----------------------------
+//   - Block Arbitration: block_arb immediately stops all grant generation
+//   - Request Handling: Requests can assert/deassert at any time
+//   - Grant Properties: grant vector is always one-hot when valid
+//   - Reset: All state cleared, first arbitration gives client 0 priority
+//
+//   FAIRNESS GUARANTEE:
+//   - Each requesting client guaranteed service within CLIENTS cycles/transactions
+//   - No starvation possible if client continuously requests
+//   - Maximum wait: (CLIENTS - 1) grants for any continuously requesting client
+//
+//   Timing Diagram (No-ACK Mode, CLIENTS=4):
+//
+//   {signal: [
+//     {name: 'clk',         wave: 'p..........'},
+//     {name: 'rst_n',       wave: '01.........'},
+//     {name: 'request[3:0]', wave: 'x.3.4.5.6..', data: ['0001', '0011', '0111', '1111']},
+//     {},
+//     {name: 'grant[3:0]',  wave: 'x..2.4.8.2.', data: ['0001', '0010', '1000', '0001']},
+//     {name: 'grant_id',    wave: 'x..=.=.=.=.', data: ['0', '1', '3', '0']},
+//     {name: 'grant_valid', wave: '0..1.1.1.1.'},
+//     {},
+//     {name: 'Priority',    wave: 'x..2.4.6.2.', data: ['Cli 0', 'Cli 1', 'Cli 3', 'Cli 0 (wrap)']},
+//     {},
+//     {name: 'Note',        wave: 'x..2.......', data: ['Round-robin rotation']}
+//   ]}
+//
+//   Timing Diagram (ACK Mode, CLIENTS=4, Same-Cycle ACK):
+//
+//   {signal: [
+//     {name: 'clk',          wave: 'p..........'},
+//     {name: 'rst_n',        wave: '01.........'},
+//     {name: 'request[3:0]', wave: 'x.3.4.5....', data: ['0001', '0011', '0111']},
+//     {},
+//     {name: 'grant[3:0]',   wave: 'x..2.4.8...', data: ['0001', '0010', '1000']},
+//     {name: 'grant_valid',  wave: '0..1.1.1.0.'},
+//     {name: 'grant_ack[3:0]', wave: 'x..2.4.8...', data: ['0001', '0010', '1000']},
+//     {},
+//     {name: 'ACK Status',   wave: 'x..2.4.6.x.', data: ['ACK0', 'ACK1', 'ACK3']}
+//   ]}
+//
+//------------------------------------------------------------------------------
+// Usage Example:
+//------------------------------------------------------------------------------
+//   // No-ACK mode (simple arbitration)
+//   arbiter_round_robin #(
+//       .CLIENTS(4),
+//       .WAIT_GNT_ACK(0)
+//   ) u_arbiter_simple (
+//       .clk         (clk),
+//       .rst_n       (rst_n),
+//       .block_arb   (1'b0),
+//       .request     (req_vector),
+//       .grant_ack   (4'b0),              // Unused in No-ACK mode
+//       .grant_valid (grant_valid),
+//       .grant       (grant_vector),
+//       .grant_id    (winner_id),
+//       .last_grant  (prev_grant)
+//   );
+//
+//   // ACK mode (transaction-based arbitration)
+//   arbiter_round_robin #(
+//       .CLIENTS(8),
+//       .WAIT_GNT_ACK(1)
+//   ) u_arbiter_ack (
+//       .clk         (clk),
+//       .rst_n       (rst_n),
+//       .block_arb   (pause_arb),
+//       .request     (master_req),
+//       .grant_ack   (master_ack),        // Required in ACK mode
+//       .grant_valid (grant_valid),
+//       .grant       (grant_vector),
+//       .grant_id    (winner_id),
+//       .last_grant  (prev_grant)
+//   );
+//
+//   // Extract grant for specific client
+//   assign client_2_granted = grant[2] & grant_valid;
+//
+//------------------------------------------------------------------------------
+// Notes:
+//------------------------------------------------------------------------------
+//   - **Use No-ACK mode when:** Grants are immediately serviced (e.g., mux selection)
+//   - **Use ACK mode when:** Grants initiate transactions requiring completion feedback
+//   - Grant vector is ALWAYS one-hot (exactly one bit set) when grant_valid=1
+//   - In ACK mode, testbench MUST provide timely ACK or arbiter will stall
+//   - block_arb has immediate effect - use for flow control or debugging
+//   - Priority encoder uses "find-first-set" - lower indices win ties
+//   - Mask algorithm: After client N wins, mask = ~((1 << N) - 1)
+//   - **Synthesis:** Infers efficient priority encoder and minimal state registers
+//   - **Area:** O(CLIENTS) for priority logic, O(log2(CLIENTS)) for state
+//   - **Timing:** Single-cycle grant path, critical path through priority encoder
+//
+//------------------------------------------------------------------------------
+// Related Modules:
+//------------------------------------------------------------------------------
+//   - arbiter_round_robin_simple.sv - Simplified version without ACK protocol
+//   - arbiter_round_robin_weighted.sv - Weighted round-robin for QoS
+//   - arbiter_priority_encoder.sv - Fixed priority arbiter (used internally)
+//   - counter_bin.sv - Alternative round-robin implementation using counters
+//
+//------------------------------------------------------------------------------
+// Test:
+//------------------------------------------------------------------------------
+//   Location: val/common/test_arbiter_round_robin.py
+//   Run: pytest val/common/test_arbiter_round_robin.py -v
+//   Coverage: 95%
+//   Key Test Scenarios:
+//     - Round-robin fairness verification
+//     - ACK protocol timing (same-cycle, delayed)
+//     - Block arbitration behavior
+//     - Back-to-back transactions
+//     - Single client operation
+//     - Maximum client scaling (CLIENTS=16)
+//
+//------------------------------------------------------------------------------
+// References:
+//------------------------------------------------------------------------------
+//   - "Arbiters: Design Ideas and Coding Styles" - Matt Weber, SNUG 2001
+//   - "Synthesis and Scripting Techniques for Designing Multi-Asynchronous
+//     Clock Designs" - Cliff Cummings, SNUG 2001
+//   - Round-robin scheduling algorithms - Operating Systems literature
+//
+//------------------------------------------------------------------------------
+// Version History:
+//------------------------------------------------------------------------------
+//   2025-09-15: Optimized ACK mode with unified state management
+//   2025-09-01: Added ACK protocol support
+//   2025-08-15: Initial implementation
+//
+//==============================================================================
 
 module arbiter_round_robin #(
     parameter int CLIENTS      = 4,
@@ -206,7 +311,7 @@ module arbiter_round_robin #(
     assign w_any_requests = |w_requests_gated;
 
     // Fast mask application using LUT
-    assign w_curr_mask_decode = grant_valid ? w_win_mask_decode[grant_id] : 
+    assign w_curr_mask_decode = grant_valid ? w_win_mask_decode[grant_id] :
                                 r_last_valid ? w_win_mask_decode[r_last_grant_id] : CLIENTS'(1);
     assign w_requests_masked = (w_requests_gated & w_curr_mask_decode);
     assign w_requests_unmasked = w_requests_gated;
@@ -304,7 +409,7 @@ module arbiter_round_robin #(
                 grant_valid     <= w_next_grant_valid;
                 last_grant      <= grant;
                 r_last_grant_id <= grant_id;
-                
+
             end else begin
                 // ACK mode: follow the four rules AND manage pending ACK state unified
                 if (grant_valid == 1'b0) begin
@@ -314,7 +419,7 @@ module arbiter_round_robin #(
                     grant_valid     <= w_next_grant_valid;
                     last_grant      <= grant;
                     r_last_grant_id <= grant_id;
-                    
+
                     // UNIFIED: Update pending ACK state when issuing new grant
                     if (w_next_grant_valid) begin
                         r_pending_ack    <= 1'b1;

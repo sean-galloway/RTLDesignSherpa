@@ -100,23 +100,31 @@ module arbiter_wrr_pwm_monbus #(
     output logic                          cfg_pwm_sts_done,
     output logic                          pwm_out,
 
-    // Monitor bus configuration
+    // Monitor bus configuration (updated to match modern interface)
     input  logic                          cfg_mon_enable,
     input  logic [15:0]                   cfg_mon_pkt_type_enable,
-    input  logic [15:0]                   cfg_mon_latency,
-    input  logic [15:0]                   cfg_mon_starvation,
-    input  logic [15:0]                   cfg_mon_fairness,
-    input  logic [15:0]                   cfg_mon_active,
-    input  logic [7:0]                    cfg_mon_period,
+    input  logic [15:0]                   cfg_mon_latency_thresh,
+    input  logic [15:0]                   cfg_mon_starvation_thresh,
+    input  logic [15:0]                   cfg_mon_fairness_thresh,
+    input  logic [15:0]                   cfg_mon_active_thresh,
+    input  logic [15:0]                   cfg_mon_ack_timeout_thresh,
+    input  logic [15:0]                   cfg_mon_efficiency_thresh,
+    input  logic [7:0]                    cfg_mon_sample_period,
 
     // Monitor bus output - 64-bit event packet interface
     output logic                          monbus_valid,
     input  logic                          monbus_ready,
     output logic [63:0]                   monbus_packet,
 
-    // Optional debug outputs (sized for standardized FIFO depth)
-    output logic [$clog2(MON_FIFO_DEPTH+1)-1:0] debug_fifo_count,
-    output logic [15:0]                   debug_packet_count
+    // Enhanced debug outputs for silicon debug (matching modern interface)
+    output logic [$clog2(MON_FIFO_DEPTH):0] debug_fifo_count,
+    output logic [15:0]                     debug_packet_count,
+    output logic [CLIENTS-1:0]              debug_ack_timeout,
+    output logic [15:0]                     debug_protocol_violations,
+    output logic [15:0]                     debug_grant_efficiency,
+    output logic [CLIENTS-1:0]              debug_client_starvation,
+    output logic [15:0]                     debug_fairness_deviation,
+    output logic [2:0]                      debug_monitor_state
 );
 
     // =========================================================================
@@ -174,6 +182,9 @@ module arbiter_wrr_pwm_monbus #(
 
     arbiter_monbus_common #(
         .CLIENTS                 (CLIENTS),                    // User configurable
+        .WAIT_GNT_ACK            (WAIT_GNT_ACK),              // ACK protocol support
+        .WEIGHTED_MODE           (1),                          // Enable weighted mode
+        .MAX_LEVELS              (MAX_LEVELS),                 // Pass WRR MAX_LEVELS parameter
         .MON_AGENT_ID            (MON_AGENT_ID),              // User configurable (default 8'h10)
         .MON_UNIT_ID             (MON_UNIT_ID),               // User configurable (default 4'h0)
         .MON_FIFO_DEPTH          (MON_FIFO_DEPTH),            // Standardized to 16
@@ -185,29 +196,39 @@ module arbiter_wrr_pwm_monbus #(
         .rst_n                   (rst_n),
 
         // Arbiter interface - using standardized signal names
+        .cfg_max_thresh          (cfg_arb_max_thresh),        // Weight thresholds
         .request                 (request),
         .grant_valid             (grant_valid),
         .grant                   (grant),
         .grant_id                (grant_id),
+        .grant_ack               (grant_ack),                 // ACK signals
         .block_arb               (block_arb_internal),
 
-        // Monitor configuration
+        // Monitor configuration - modern interface names
         .cfg_mon_enable          (cfg_mon_enable),
         .cfg_mon_pkt_type_enable (cfg_mon_pkt_type_enable),
-        .cfg_mon_latency         (cfg_mon_latency),
-        .cfg_mon_starvation      (cfg_mon_starvation),
-        .cfg_mon_fairness        (cfg_mon_fairness),
-        .cfg_mon_active          (cfg_mon_active),
-        .cfg_mon_period          (cfg_mon_period),
+        .cfg_mon_latency_thresh  (cfg_mon_latency_thresh),
+        .cfg_mon_starvation_thresh (cfg_mon_starvation_thresh),
+        .cfg_mon_fairness_thresh (cfg_mon_fairness_thresh),
+        .cfg_mon_active_thresh   (cfg_mon_active_thresh),
+        .cfg_mon_ack_timeout_thresh (cfg_mon_ack_timeout_thresh),
+        .cfg_mon_efficiency_thresh (cfg_mon_efficiency_thresh),
+        .cfg_mon_sample_period   (cfg_mon_sample_period),
 
         // Monitor bus output
         .monbus_valid            (monbus_valid),
         .monbus_ready            (monbus_ready),
         .monbus_packet           (monbus_packet),
 
-        // Debug outputs
+        // Enhanced debug outputs
         .debug_fifo_count        (debug_fifo_count),
-        .debug_packet_count      (debug_packet_count)
+        .debug_packet_count      (debug_packet_count),
+        .debug_ack_timeout       (debug_ack_timeout),
+        .debug_protocol_violations (debug_protocol_violations),
+        .debug_grant_efficiency  (debug_grant_efficiency),
+        .debug_client_starvation (debug_client_starvation),
+        .debug_fairness_deviation (debug_fairness_deviation),
+        .debug_monitor_state     (debug_monitor_state)
     );
 
     // =========================================================================

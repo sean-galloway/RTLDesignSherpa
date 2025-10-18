@@ -562,8 +562,8 @@ def test_axi2abp_shim(request, id_width, addr_width, data_width, user_width, apb
 
     extra_env.update({f'TEST_{k}': str(v) for k, v in rtl_parameters.items()})
 
-    compile_args = ["--trace-fst", "--trace-structs", "--trace-depth", "99"]
-    sim_args = ["--trace-fst", "--trace-structs", "--trace-depth", "99"]
+    compile_args = ["--trace", "--trace-structs", "--trace-depth", "99"]
+    sim_args = ["--trace", "--trace-structs", "--trace-depth", "99"]
     plusargs = ["+trace"]
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
@@ -578,7 +578,7 @@ def test_axi2abp_shim(request, id_width, addr_width, data_width, user_width, apb
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=True,
+            waves=False,
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,

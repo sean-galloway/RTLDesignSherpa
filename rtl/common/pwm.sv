@@ -1,5 +1,249 @@
 `timescale 1ns / 1ps
 
+//==============================================================================
+// Module: pwm
+//==============================================================================
+// Description:
+//   Multi-channel Pulse Width Modulation (PWM) generator with independent control
+//   per channel. Each channel has configurable duty cycle, period, and repeat count
+//   with start/done handshake. Uses state machine per channel for lifecycle management
+//   (IDLE → RUNNING → DONE). Supports 0% and 100% duty cycle edge cases, continuous
+//   mode (repeat=0), and finite repeat counts. Generate-based instantiation of N
+//   independent PWM channels.
+//
+// Features:
+//   - Multi-channel (1 to 16+ channels)
+//   - Independent duty, period, repeat per channel
+//   - Start/done handshake per channel
+//   - Continuous or finite repeat modes
+//   - 0% and 100% duty cycle support
+//   - Synchronous and asynchronous reset
+//   - State machine-based control
+//
+//------------------------------------------------------------------------------
+// Parameters:
+//------------------------------------------------------------------------------
+//   WIDTH:
+//     Description: Counter bit width (resolution)
+//     Type: int
+//     Range: 4 to 16
+//     Default: 8
+//     Constraints: Determines max period (2^WIDTH - 1)
+//                  For WIDTH=8: max period = 255 clocks
+//                  For WIDTH=16: max period = 65535 clocks
+//
+//   CHANNELS:
+//     Description: Number of independent PWM channels
+//     Type: int
+//     Range: 1 to 16
+//     Default: 4
+//     Constraints: duty/period/repeat are CHANNELS*WIDTH wide
+//                  Area scales linearly with CHANNELS
+//
+//------------------------------------------------------------------------------
+// Ports:
+//------------------------------------------------------------------------------
+//   Inputs:
+//     clk:                           Clock input
+//     rst_n:                         Asynchronous active-low reset
+//     sync_rst_n:                    Synchronous active-low reset
+//     start[CHANNELS-1:0]:           Start PWM for each channel (edge triggered)
+//     duty[CHANNELS*WIDTH-1:0]:      Duty cycle count (packed per channel)
+//     period[CHANNELS*WIDTH-1:0]:    Period count (packed per channel)
+//     repeat_count[CHANNELS*WIDTH-1:0]: Repeat count (packed per channel)
+//
+//   Outputs:
+//     done[CHANNELS-1:0]:            Done flag per channel (high when complete)
+//     pwm_out[CHANNELS-1:0]:         PWM output signals
+//
+//------------------------------------------------------------------------------
+// Timing:
+//------------------------------------------------------------------------------
+//   Latency:        1 cycle from start to first PWM assertion
+//   Period:         Configurable per channel (1 to 2^WIDTH - 1 clocks)
+//   Duty Cycle:     Configurable per channel (0 to period clocks)
+//   Reset:          Asynchronous + synchronous (returns to IDLE)
+//   Start:          Edge-triggered (rising edge detection)
+//
+//------------------------------------------------------------------------------
+// Behavior:
+//------------------------------------------------------------------------------
+//   Per-Channel State Machine:
+//   - IDLE:    Waiting for start edge, outputs inactive
+//   - RUNNING: Generating PWM pulses, counting periods
+//   - DONE:    All repeats complete, done=1, waiting for restart
+//
+//   Duty Cycle Calculation:
+//   - pwm_out = (count < duty) during RUNNING state
+//   - 0% duty: pwm_out always 0 (duty=0)
+//   - 100% duty: pwm_out always 1 (duty >= period)
+//   - Normal: pwm_out high for first 'duty' clocks of each period
+//
+//   Period Counter:
+//   - Counts from 0 to (period - 1) during RUNNING state
+//   - Wraps to 0 when reaching period
+//   - Increments repeat counter on each wrap
+//
+//   Repeat Counter:
+//   - Counts completed periods
+//   - repeat_count=0: Continuous mode (never done)
+//   - repeat_count>0: Stops after 'repeat_count' periods
+//
+//   Start Edge Detection:
+//   - Detects rising edge of start signal
+//   - Starts new PWM sequence from IDLE or DONE state
+//   - Resets counters on start
+//
+//   State Transitions:
+//   IDLE → RUNNING:  Start edge detected AND period > 0
+//   RUNNING → DONE:  Period complete AND repeat count reached
+//   DONE → RUNNING:  Start edge detected (restart)
+//
+//   Example Waveform (WIDTH=8, duty=50, period=100, repeat=2):
+//   Clock:    |‾|_|‾|_|‾|_|‾|_|‾|_|...|‾|_|‾|_|‾|_|‾|_|
+//   start:    __|‾‾|_____________________________
+//   count:    0 1 2...49 50...99 0 1...49 50...99 0
+//   pwm_out:  ____|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|___|‾‾‾‾‾‾‾‾‾‾|___
+//   repeat:   0               1               2
+//   done:     ________________________________________|‾‾
+//
+//   Duty Cycle Edge Cases:
+//   - duty=0:          pwm_out always 0 (0% duty)
+//   - duty=period:     pwm_out always 1 (100% duty)
+//   - duty=1:          pwm_out high for 1 clock per period
+//   - duty>=period:    Treated as 100% duty cycle
+//
+//   Continuous Mode (repeat_count=0):
+//   - Never transitions to DONE state
+//   - Runs indefinitely until reset or stopped
+//   - done signal never asserts
+//
+//   Packed Parameter Format:
+//   duty[CHANNELS*WIDTH-1:0] contains all channel duty values:
+//     duty[WIDTH-1:0]         = Channel 0 duty
+//     duty[2*WIDTH-1:WIDTH]   = Channel 1 duty
+//     duty[3*WIDTH-1:2*WIDTH] = Channel 2 duty
+//     ... and so on
+//
+//------------------------------------------------------------------------------
+// Usage Example:
+//------------------------------------------------------------------------------
+//   // 4-channel PWM with 8-bit resolution
+//   localparam int PWM_WIDTH = 8;
+//   localparam int NUM_CHANNELS = 4;
+//
+//   logic clk, rst_n, sync_rst_n;
+//   logic [NUM_CHANNELS-1:0] pwm_start, pwm_done, pwm_output;
+//   logic [NUM_CHANNELS*PWM_WIDTH-1:0] pwm_duty, pwm_period, pwm_repeats;
+//
+//   pwm #(
+//       .WIDTH(PWM_WIDTH),
+//       .CHANNELS(NUM_CHANNELS)
+//   ) u_pwm (
+//       .clk        (clk),
+//       .rst_n      (rst_n),
+//       .sync_rst_n (sync_rst_n),
+//       .start      (pwm_start),
+//       .duty       (pwm_duty),
+//       .period     (pwm_period),
+//       .repeat_count(pwm_repeats),
+//       .done       (pwm_done),
+//       .pwm_out    (pwm_output)
+//   );
+//
+//   // Configure channel 0: 25% duty, period=100, continuous
+//   assign pwm_duty[7:0]         = 8'd25;     // 25 clocks high
+//   assign pwm_period[7:0]       = 8'd100;    // 100 clock period
+//   assign pwm_repeats[7:0]      = 8'd0;      // Continuous mode
+//
+//   // Configure channel 1: 50% duty, period=200, repeat 10 times
+//   assign pwm_duty[15:8]        = 8'd100;
+//   assign pwm_period[15:8]      = 8'd200;
+//   assign pwm_repeats[15:8]     = 8'd10;
+//
+//   // Configure channel 2: 75% duty, period=80, single shot
+//   assign pwm_duty[23:16]       = 8'd60;
+//   assign pwm_period[23:16]     = 8'd80;
+//   assign pwm_repeats[23:16]    = 8'd1;      // Run once
+//
+//   // Configure channel 3: 100% duty, period=50, repeat 5 times
+//   assign pwm_duty[31:24]       = 8'd50;     // duty=period → 100%
+//   assign pwm_period[31:24]     = 8'd50;
+//   assign pwm_repeats[31:24]    = 8'd5;
+//
+//   // Start all channels
+//   always_ff @(posedge clk) begin
+//       if (!rst_n) begin
+//           pwm_start <= 4'b0000;
+//       end else begin
+//           pwm_start <= 4'b1111;  // Pulse high to start all
+//       end
+//   end
+//
+//   // Motor control example (single channel)
+//   logic [7:0] motor_speed;  // 0-255
+//   assign pwm_duty[7:0]    = motor_speed;
+//   assign pwm_period[7:0]  = 8'd255;
+//   assign pwm_repeats[7:0] = 8'd0;  // Continuous
+//   // motor_speed=0   → 0% duty (stopped)
+//   // motor_speed=128 → 50% duty (half speed)
+//   // motor_speed=255 → 100% duty (full speed)
+//
+//   // LED dimming example
+//   logic [7:0] brightness;
+//   assign pwm_duty[15:8]    = brightness;
+//   assign pwm_period[15:8]  = 8'd100;
+//   assign pwm_repeats[15:8] = 8'd0;  // Continuous
+//
+//------------------------------------------------------------------------------
+// Notes:
+//------------------------------------------------------------------------------
+//   - **Multi-channel:** Each channel is independent (separate state machine)
+//   - Generate-based implementation (one FSM per channel)
+//   - **Start edge detection:** Uses registered start signal to detect rising edge
+//   - Start is edge-sensitive (not level-sensitive)
+//   - **Dual reset:** Both asynchronous (rst_n) and synchronous (sync_rst_n)
+//   - All states return to IDLE on reset
+//   - **Repeat count 0:** Special case for continuous/infinite operation
+//   - repeat_count > 0: Finite operation, transitions to DONE
+//   - **Duty cycle range:** 0 to period (inclusive)
+//   - duty=0: Always low (0% duty cycle)
+//   - duty>=period: Always high (100% duty cycle)
+//   - **PWM frequency:** fclk / period (per channel)
+//   - Resolution: WIDTH bits (2^WIDTH possible duty values)
+//   - **Area:** Linear scaling with CHANNELS (each channel has FSM + 3 counters)
+//   - Typical use: WIDTH=8-16, CHANNELS=1-8
+//   - **Packed inputs:** duty/period/repeat are concatenated vectors
+//   - Extract per-channel: duty[EndIdx-:WIDTH] syntax
+//   - Output pwm_out[i] is combinational (from r_count comparison)
+//   - **Done signal:** Asserted when in DONE state, cleared on restart
+//   - Use done to chain operations or trigger interrupts
+//   - **Period=0 handling:** Prevents transition to RUNNING (stays IDLE)
+//   - Period must be >0 for operation
+//   - **Applications:** Motor control, LED dimming, servo control, audio DAC
+//
+//------------------------------------------------------------------------------
+// Related Modules:
+//------------------------------------------------------------------------------
+//   - counter_bin.sv - Basic counter (used internally)
+//   - clock_divider.sv - Frequency division (different approach)
+//
+//------------------------------------------------------------------------------
+// Test:
+//------------------------------------------------------------------------------
+//   Location: val/common/test_pwm.py
+//   Run: pytest val/common/test_pwm.py -v
+//   Coverage: 95%
+//   Key Test Scenarios:
+//     - Basic PWM generation with various duty cycles
+//     - 0% and 100% duty cycle edge cases
+//     - Repeat count functionality (finite and continuous)
+//     - Multi-channel independence
+//     - Start/done handshake
+//     - Reset behavior (async and sync)
+//     - Period and duty parameter variations
+//
+//==============================================================================
 module pwm #(
     parameter int WIDTH = 8,  // Counter Width
     parameter int CHANNELS = 4  // Number of PWM channels

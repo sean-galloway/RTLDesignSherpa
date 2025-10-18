@@ -1,3 +1,5 @@
+**[← Back to Main Index](../index.md)**
+
 # RTL Testing Tutorial
 
 A comprehensive guide to testing RTL designs using CocoTB, pytest, and the RTL Design Sherpa testing framework, with practical examples and best practices for digital design verification.
@@ -738,9 +740,12 @@ if not validation_passed:
 Now that you understand the basics, explore:
 
 1. **[Advanced CocoTB Examples](advanced_examples.md)** - Complex verification scenarios
-2. **[AMBA Protocol Testing](amba_testing.md)** - AXI4, APB, AXI4-Stream verification
-3. **[System Level Testing](system_testing.md)** - Full system verification
-4. **[Custom Test Classes](custom_classes.md)** - Building reusable verification IP
+2. **[GAXI Multi-Field Integration Tutorial](gaxi_multi_field_integration.md)** - Using structured data with GAXI buffers and FIFOs
+3. **[GAXI Field Configuration Guide](gaxi_field_configuration.md)** - Advanced patterns for multi-field GAXI modules
+4. **[WaveDrom GAXI Example](wavedrom_gaxi_example.md)** - Generating timing diagrams for GAXI protocols
+5. **[AMBA Protocol Testing](amba_testing.md)** - AXI4, APB, AXI4-Stream verification
+6. **[System Level Testing](system_testing.md)** - Full system verification
+7. **[Custom Test Classes](custom_classes.md)** - Building reusable verification IP
 
 ---
 

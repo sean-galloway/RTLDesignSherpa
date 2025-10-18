@@ -284,12 +284,12 @@ module apb_monitor
             // Command handshake - start new transaction
             if (w_cmd_handshake && w_has_free_slot) begin
                 r_trans_table[w_free_idx].valid <= 1'b1;
-                r_trans_table[w_free_idx].protocol <= PROTOCOL_APB;
+                // Protocol is handled at packet construction time
                 r_trans_table[w_free_idx].state <= TRANS_ADDR_PHASE;
                 r_trans_table[w_free_idx].addr <= {{(64-AW){1'b0}}, cmd_paddr};
                 r_trans_table[w_free_idx].burst <= {{1'b0}, cmd_pwrite};
-                r_trans_table[w_free_idx].pprot_value <= cmd_pprot;
-                r_trans_table[w_free_idx].pstrb_value <= cmd_pstrb[3:0];
+                // APB-specific fields stored in burst and channel fields
+                r_trans_table[w_free_idx].channel <= {cmd_pprot, cmd_pstrb[2:0]};
                 r_trans_table[w_free_idx].cmd_received <= 1'b1;
                 r_trans_table[w_free_idx].data_started <= cmd_pwrite; // For writes, data is with command
                 r_trans_table[w_free_idx].addr_timestamp <= r_timestamp;
@@ -311,7 +311,8 @@ module apb_monitor
                 r_trans_table[w_active_idx].data_completed <= 1'b1;
                 r_trans_table[w_active_idx].resp_received <= 1'b1;
                 r_trans_table[w_active_idx].resp_timestamp <= r_timestamp;
-                r_trans_table[w_active_idx].pslverr_seen <= rsp_pslverr;
+                // APB slave error stored in channel field MSB
+                if (rsp_pslverr) r_trans_table[w_active_idx].channel[5] <= 1'b1;
 
                 if (rsp_pslverr && cfg_slverr_enable) begin
                     r_trans_table[w_active_idx].state <= TRANS_ERROR;
@@ -516,7 +517,7 @@ module apb_monitor
         end else if (w_generate_perf_event) begin
             w_fifo_wr_valid = 1'b1;
             w_fifo_wr_data.packet_type = PktTypePerf;
-            w_fifo_wr_data.event_code = APB_PERF_TOTAL_LATENCY;
+            w_fifo_wr_data.event_code = cmd_pwrite ? APB_PERF_WRITE_LATENCY : APB_PERF_READ_LATENCY;
             w_fifo_wr_data.event_data = w_current_latency;
             w_fifo_wr_data.aux_data = {4'h0, cmd_pprot, cmd_pwrite};
         end else if (w_generate_debug_event) begin
@@ -563,15 +564,15 @@ module apb_monitor
     assign w_monbus_pkt_valid = w_fifo_rd_valid;
     assign w_fifo_rd_ready = w_monbus_pkt_ready;
 
-    // Construct 64-bit monitor packet according to monitor_pkg format
+    // Construct 64-bit monitor packet according to modern monitor_pkg format
     assign w_monbus_pkt_data[63:60] = w_fifo_rd_data.packet_type;    // packet_type
-    assign w_monbus_pkt_data[59:58] = PROTOCOL_APB;                  // protocol
-    assign w_monbus_pkt_data[57:54] = w_fifo_rd_data.event_code;     // event_code
-    assign w_monbus_pkt_data[53:48] = 6'h0;                          // channel_id (not used for APB)
-    assign w_monbus_pkt_data[47:44] = UNIT_ID[3:0];                  // unit_id
-    assign w_monbus_pkt_data[43:36] = AGENT_ID[7:0];                 // agent_id
-    assign w_monbus_pkt_data[35:4]  = w_fifo_rd_data.event_data;     // event_data[31:0]
-    assign w_monbus_pkt_data[3:0]   = w_fifo_rd_data.aux_data[3:0];  // aux_data[3:0]
+    assign w_monbus_pkt_data[59:57] = PROTOCOL_APB;                  // protocol (3-bit, modern format)
+    assign w_monbus_pkt_data[56:53] = w_fifo_rd_data.event_code;     // event_code (shifted due to 3-bit protocol)
+    assign w_monbus_pkt_data[52:47] = 6'h0;                          // channel_id (not used for APB, shifted)
+    assign w_monbus_pkt_data[46:43] = UNIT_ID[3:0];                  // unit_id (shifted)
+    assign w_monbus_pkt_data[42:35] = AGENT_ID[7:0];                 // agent_id (shifted)
+    assign w_monbus_pkt_data[34:3]  = w_fifo_rd_data.event_data;     // event_data[31:0] (shifted)
+    assign w_monbus_pkt_data[2:0]   = w_fifo_rd_data.aux_data[2:0];  // aux_data[2:0] (reduced due to shifts)
 
     // Monitor bus output skid buffer
     gaxi_skid_buffer #(

@@ -163,32 +163,21 @@ module apb_master #(
 
                 // Wait for slave to respond with PREADY
                 if (m_apb_PREADY) begin
-                    // For read operations, store the response
-                    if (!r_cmd_pwrite) begin
-                        // Only write to response FIFO if it's ready
-                        if (r_rsp_ready) begin
-                            w_rsp_valid = 1'b1;
-                            w_cmd_ready = 1'b1;
-
-                            // Go back to IDLE or directly start a new transaction
-                            if (w_cmd_count > 1 && r_cmd_valid)
-                                w_apb_next_state = SETUP;
-                            else
-                                w_apb_next_state = IDLE;
-                        end
-                    else
-                        // Response FIFO not ready, stay in ACCESS state
-                        w_apb_next_state = ACCESS;
-                    end
-                    else begin
-                        // For write operations, just complete the transaction
+                    // Both reads and writes need to send response back
+                    // Only proceed if response FIFO is ready
+                    if (r_rsp_ready) begin
+                        w_rsp_valid = 1'b1;
                         w_cmd_ready = 1'b1;
 
                         // Go back to IDLE or directly start a new transaction
-                        if (w_cmd_count > 1 && r_cmd_valid)
+                        // Check if there are more commands AFTER popping this one
+                        if (w_cmd_count > 1)
                             w_apb_next_state = SETUP;
                         else
                             w_apb_next_state = IDLE;
+                    end else begin
+                        // Response FIFO not ready, stay in ACCESS state
+                        w_apb_next_state = ACCESS;
                     end
                 end
             end

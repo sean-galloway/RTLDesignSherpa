@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(python:*)",
+      "Bash(chmod:*)",
+      "Bash(awk:*)",
+      "Bash(python3:*)",
+      "Read(//mnt/data/github/rtldesignsherpa/**)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nrefactor(dma_model): Reorganize project structure with bin/ directory and organized outputs\n\nMajor reorganization for better project organization and usability:\n\nDIRECTORY STRUCTURE:\n- Moved all Python scripts and packages to bin/ directory\n- Created organized output directories:\n  • csv/ for all CSV data files\n  • assets/ for all PNG visualization files\n  • reports/ for markdown reports (reserved)\n\nSCRIPTS REORGANIZED:\n- bin/comprehensive_analysis.py - Main READ+WRITE analysis\n- bin/generate_optimization_plots.py - Visualization generator\n- bin/run_payload_sweep.py - Payload sweep analysis\n- bin/clean_analysis.py - Simple READ/WRITE analysis\n- bin/quick_start.py - Quick examples\n- bin/run_complete_analysis.py - Full analysis with SimPy\n- bin/config_explorer.py - Interactive configuration tool\n- bin/example_both_paths.py - Example script\n\nPACKAGES REORGANIZED:\n- bin/pyperf/ - Performance calculation library\n- bin/analytical/ - Analytical model code\n- bin/simpy_model/ - SimPy simulation code\n\nOUTPUT ORGANIZATION:\n- All scripts updated to save CSV files to csv/ directory\n- All scripts updated to save PNG files to assets/ directory\n- Auto-create directories if they don''t exist\n\nMASTER RUN SCRIPT:\n- Created run_analysis.sh - comprehensive bash script\n- Active by default:\n  • Comprehensive READ+WRITE analysis\n  • Optimization visualization generation\n  • Payload sweep analysis\n- Commented out but available:\n  • Quick start examples\n  • SimPy validation\n  • Model comparison\n  • Full validation suite\n- Color-coded output with progress indicators\n- Detailed comments for all command options\n\nDOCUMENTATION:\n- Added OUTPUT_ORGANIZATION.md - Complete file organization guide\n- Added REORGANIZATION_SUMMARY.md - Migration and quick reference\n- Updated README.md - New directory structure and usage\n\nBENEFITS:\n- Clean root directory (only docs and run script visible)\n- Clear separation of code vs data vs visualizations\n- Single entry point (run_analysis.sh)\n- Professional industry-standard structure\n- Easy navigation and maintenance\n\nGenerated with Claude Code\nhttps://claude.com/claude-code\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

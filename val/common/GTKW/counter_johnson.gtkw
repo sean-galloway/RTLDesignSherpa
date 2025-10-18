@@ -1,0 +1,33 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Generated: Wed Oct 15 03:46:34 2025
+[*]
+[dumpfile] "(null)"
+[savefile] "/mnt/data/github/rtldesignsherpa/val/common/GTKW/counter_johnson.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] -1 -1
+*-20.0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .counter_johnson.
+[sst_width] 401
+[signals_width] 250
+[sst_expanded] 1
+[sst_vpaned_height] 400
+@420
+counter_johnson.WIDTH
+@200
+-Clock and Reset
+@28
+counter_johnson.clk
+counter_johnson.rst_n
+@200
+-Inputs
+@28
+counter_johnson.enable
+@200
+-Outputs
+@28
+counter_johnson.counter_gray
+[pattern_trace] 1
+[pattern_trace] 0

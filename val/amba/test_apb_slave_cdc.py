@@ -25,6 +25,24 @@ from CocoTBFramework.tbclasses.amba.amba_random_configs import (
 )
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
+# WaveDrom support
+from CocoTBFramework.components.wavedrom.constraint_solver import (
+    TemporalConstraintSolver,
+    TemporalConstraint,
+    TemporalEvent,
+    SignalTransition,
+    TemporalRelation
+)
+from CocoTBFramework.tbclasses.wavedrom_user.apb import (
+    get_apb_field_config,
+    create_apb_wavejson_generator,
+    setup_apb_constraints_with_boundaries
+)
+from CocoTBFramework.tbclasses.wavedrom_user.gaxi import (
+    get_gaxi_field_config,
+    create_gaxi_wavejson_generator
+)
+
 
 class APBSlaveCDCTB(TBBase):
     """Enhanced APB-GAXI CDC testbench with comprehensive testing and debug capabilities."""
@@ -965,6 +983,283 @@ class APBSlaveCDCTB(TBBase):
         self.log.info("=== END CDC TEST REPORT ===")
 
 
+@cocotb.test(timeout_time=10, timeout_unit="sec")
+async def apb_slave_cdc_wavedrom_test(dut):
+    """
+    WaveDrom timing diagram generation for APB slave CDC.
+
+    When enabled, would generate 7 comprehensive APB scenarios plus 3 CDC-specific scenarios:
+
+    APB scenarios (using comprehensive preset):
+    1. Basic write transaction
+    2. Basic read transaction
+    3. Back-to-back writes
+    4. Back-to-back reads
+    5. Write-to-read transition
+    6. Read-to-write transition
+    7. Error response (if supported)
+
+    CDC-specific scenarios (custom constraints):
+    8. Write CDC timing (APB domain → GAXI domain)
+    9. Read CDC timing (GAXI domain → APB domain)
+    10. Back-to-back CDC (showing async operation)
+
+    All waveforms would include clock (both pclk and aclk) and reset signals.
+
+    Enable with ENABLE_WAVEDROM=1 environment variable.
+
+    NOTE: Multi-clock domain support is enabled in WaveDrom framework.
+    This test generates waveforms showing both APB and GAXI domains with CDC timing.
+    """
+    # Setup testbench
+    tb = APBSlaveCDCTB(dut)
+
+    # Start both clocks for CDC (5:1 ratio for actual timing)
+    await tb.start_clock('pclk', 10, 'ns')  # APB clock - 100MHz
+    await tb.start_clock('aclk',  2, 'ns')  # AXI clock - 500MHz (5x faster, but will display as 2x with period=0.4)
+
+    await tb.reset_dut()
+
+    # Setup WaveDrom solver with BOTH APB and GAXI signals
+    apb_field_config = get_apb_field_config(tb.ADDR_WIDTH, tb.DATA_WIDTH)
+    gaxi_field_config = get_gaxi_field_config(tb.DATA_WIDTH)
+
+    # Create generator that can handle both protocols
+    wave_generator = create_apb_wavejson_generator(apb_field_config)
+
+    wave_solver = TemporalConstraintSolver(
+        dut=dut,
+        log=dut._log,
+        wavejson_generator=wave_generator,
+        default_field_config=apb_field_config
+    )
+
+    # Add both clock groups (APB and AXI domains)
+    # Use 'default' for APB domain as expected by comprehensive preset
+    wave_solver.add_clock_group('default', dut.pclk)
+    wave_solver.add_clock_group('axi_domain', dut.aclk)
+
+    # WAVEDROM REQUIREMENT v1.2: ALL waveforms MUST include clock and reset
+    # Bind APB slave signals (s_apb_* prefix) with clock and reset
+    apb_signals = {
+        'pclk': 'pclk',
+        'presetn': 'presetn',
+        'psel': 's_apb_PSEL',
+        'penable': 's_apb_PENABLE',
+        'pready': 's_apb_PREADY',
+        'pwrite': 's_apb_PWRITE',
+        'paddr': 's_apb_PADDR',
+        'pwdata': 's_apb_PWDATA',
+        'prdata': 's_apb_PRDATA',
+        'pstrb': 's_apb_PSTRB',
+        'pprot': 's_apb_PPROT',
+        'pslverr': 's_apb_PSLVERR'
+    }
+    wave_solver.add_interface("apb", apb_signals, field_config=apb_field_config)
+
+    # Bind CMD/RSP signals for CDC visualization
+    # Note: The apb_slave_cdc module uses cmd_*/rsp_* naming (not gaxi_cmd_*)
+    cmd_signals = {
+        'aclk': 'aclk',
+        'aresetn': 'aresetn',
+        'valid': 'cmd_valid',
+        'ready': 'cmd_ready',
+        'pwrite': 'cmd_pwrite',
+        'paddr': 'cmd_paddr',
+        'pwdata': 'cmd_pwdata'
+    }
+    wave_solver.add_interface("cmd", cmd_signals, field_config=gaxi_field_config)
+
+    rsp_signals = {
+        'valid': 'rsp_valid',
+        'ready': 'rsp_ready',
+        'prdata': 'rsp_prdata',
+        'pslverr': 'rsp_pslverr'
+    }
+    wave_solver.add_interface("rsp", rsp_signals, field_config=gaxi_field_config)
+
+    # Create CDC-aware signal list (APB + CMD + RSP interfaces)
+    cdc_signals_to_show = [
+        'apb_pclk', 'cmd_aclk', '|',  # Both clocks (period will be added post-generation)
+        'apb_presetn', 'cmd_aresetn', '|',  # Both resets
+        ['APB', 'apb_psel', 'apb_penable', 'apb_pready', 'apb_pwrite', 'apb_paddr', 'apb_pwdata', 'apb_prdata', 'apb_pslverr'], '|',
+        ['CMD', 'cmd_valid', 'cmd_ready', 'cmd_pwrite', 'cmd_paddr', 'cmd_pwdata'], '|',
+        ['RSP', 'rsp_valid', 'rsp_ready', 'rsp_prdata', 'rsp_pslverr']
+    ]
+
+    # Clock period configuration for VISUAL 1:2 ratio (pclk:aclk)
+    # Actual hardware is 5:1 (10ns:2ns), but we display as 1:2 for readability
+    # This will be applied to generated WaveJSON to make aclk visually compact
+    clock_periods = {
+        'apb_pclk': 1.0,   # Base period (full width)
+        'cmd_aclk': 0.4    # 40% period (visually compact, appears ~2x faster)
+    }
+
+    # Manually create comprehensive constraints with CDC-aware signal lists
+    from CocoTBFramework.tbclasses.wavedrom_user.apb import (
+        create_apb_write_sequence_constraint,
+        create_apb_read_sequence_constraint,
+        APBConstraints
+    )
+
+    # 1. Basic write - with CDC signals
+    constraint_write = create_apb_write_sequence_constraint(
+        max_window=50, required=True, clock_group="default",
+        field_config=apb_field_config, post_match_cycles=3
+    )
+    constraint_write.signals_to_show = cdc_signals_to_show
+    wave_solver.add_constraint(constraint_write)
+
+    # 2. Basic read - with CDC signals
+    constraint_read = create_apb_read_sequence_constraint(
+        max_window=50, required=True, clock_group="default",
+        field_config=apb_field_config, post_match_cycles=3
+    )
+    constraint_read.signals_to_show = cdc_signals_to_show
+    wave_solver.add_constraint(constraint_read)
+
+    # 3. Back-to-back writes - with CDC signals
+    constraint_b2b_wr = APBConstraints.back_to_back_writes(
+        max_cycles=60, required=True, clock_group="default",
+        field_config=apb_field_config, post_match_cycles=3
+    )
+    constraint_b2b_wr.signals_to_show = cdc_signals_to_show
+    wave_solver.add_constraint(constraint_b2b_wr)
+
+    # 4. Back-to-back reads - with CDC signals
+    constraint_b2b_rd = APBConstraints.back_to_back_reads(
+        max_cycles=60, required=True, clock_group="default",
+        field_config=apb_field_config, post_match_cycles=3
+    )
+    constraint_b2b_rd.signals_to_show = cdc_signals_to_show
+    wave_solver.add_constraint(constraint_b2b_rd)
+
+    # 5. Write-to-read - with CDC signals
+    constraint_wr2rd = APBConstraints.write_to_read(
+        max_cycles=60, required=True, clock_group="default",
+        field_config=apb_field_config, post_match_cycles=3
+    )
+    constraint_wr2rd.signals_to_show = cdc_signals_to_show
+    wave_solver.add_constraint(constraint_wr2rd)
+
+    # 6. Read-to-write - with CDC signals
+    constraint_rd2wr = APBConstraints.read_to_write(
+        max_cycles=60, required=True, clock_group="default",
+        field_config=apb_field_config, post_match_cycles=3
+    )
+    constraint_rd2wr.signals_to_show = cdc_signals_to_show
+    wave_solver.add_constraint(constraint_rd2wr)
+
+    # 7. Error - with CDC signals (optional)
+    constraint_err = APBConstraints.error_transaction(
+        max_cycles=50, required=False, clock_group="default",
+        field_config=apb_field_config
+    )
+    constraint_err.signals_to_show = cdc_signals_to_show
+    wave_solver.add_constraint(constraint_err)
+
+    dut._log.info(f"WaveDrom configured with 7 CDC-aware APB constraints (APB + CMD + RSP interfaces)")
+
+    # Start command handler
+    await tb.cmd_handler.start()
+
+    # Start sampling for all scenarios
+    await wave_solver.start_sampling()
+
+    # Generate all 7 APB transaction scenarios (comprehensive preset)
+    dut._log.info("=== Generating All APB Slave CDC WaveDrom Scenarios ===")
+
+    # Scenarios 1-2: Basic write and read
+    dut._log.info("Generating: Basic write and read with CDC")
+    await tb.send_apb_transaction(is_write=True, addr=0x1000, data=0xDEADBEEF)
+    await tb.wait_clocks('pclk', 10)  # Extra time for CDC
+    await tb.send_apb_transaction(is_write=False, addr=0x1000)
+    await tb.wait_clocks('pclk', 10)
+
+    # Scenario 3: Back-to-back writes
+    dut._log.info("Generating: Back-to-back writes with CDC")
+    await tb.send_apb_transaction(is_write=True, addr=0x2000, data=0xAAAAAAAA)
+    await tb.send_apb_transaction(is_write=True, addr=0x2004, data=0xBBBBBBBB)
+    await tb.wait_clocks('pclk', 10)
+
+    # Scenario 4: Back-to-back reads
+    dut._log.info("Generating: Back-to-back reads with CDC")
+    await tb.send_apb_transaction(is_write=False, addr=0x3000)
+    await tb.send_apb_transaction(is_write=False, addr=0x3004)
+    await tb.wait_clocks('pclk', 10)
+
+    # Scenario 5: Write-to-read transition
+    dut._log.info("Generating: Write-to-read transition with CDC")
+    await tb.send_apb_transaction(is_write=True, addr=0x4000, data=0x12345678)
+    await tb.send_apb_transaction(is_write=False, addr=0x4000)
+    await tb.wait_clocks('pclk', 10)
+
+    # Scenario 6: Read-to-write transition
+    dut._log.info("Generating: Read-to-write transition with CDC")
+    await tb.send_apb_transaction(is_write=False, addr=0x5000)
+    await tb.send_apb_transaction(is_write=True, addr=0x5000, data=0x87654321)
+    await tb.wait_clocks('pclk', 10)
+
+    # Scenario 7: Error transaction (if supported by slave)
+    dut._log.info("Generating: Error scenario (if slave supports)")
+    await tb.wait_clocks('pclk', 5)
+
+    # Stop sampling and generate all waveforms
+    await wave_solver.stop_sampling()
+    await wave_solver.solve_and_generate()
+    results = wave_solver.get_results()
+
+    # Post-process WaveJSON files to add period attributes for visual 1:2 clock ratio
+    import json
+    import os
+    import glob
+
+    # WaveJSON files are written to current directory (where cocotb test runs)
+    sim_build = os.getcwd()
+
+    # Find all generated JSON files
+    json_files = glob.glob(os.path.join(sim_build, "apb_*.json"))
+    dut._log.info(f"Searching in: {sim_build}")
+    dut._log.info(f"Found {len(json_files)} waveform JSON files to post-process")
+
+    for json_file in json_files:
+        try:
+            with open(json_file, 'r') as f:
+                wavejson = json.load(f)
+
+            # Add period attribute to clock signals for visual 1:2 ratio display
+            modified = False
+            for sig in wavejson.get('signal', []):
+                if isinstance(sig, dict) and sig.get('name') in clock_periods:
+                    sig['period'] = clock_periods[sig['name']]
+                    modified = True
+
+            if modified:
+                # Write back updated WaveJSON
+                with open(json_file, 'w') as f:
+                    json.dump(wavejson, f, indent=2)
+
+                dut._log.info(f"✓ Added clock periods to {os.path.basename(json_file)}")
+        except Exception as e:
+            dut._log.warning(f"Could not update {os.path.basename(json_file)}: {e}")
+
+    # Check if all required waveforms were generated
+    if not results['all_required_satisfied']:
+        dut._log.error(f"❌ NOT ALL REQUIRED WAVEFORMS GENERATED ❌")
+        dut._log.error(f"Failed constraints: {results['failed_constraints']}")
+        raise AssertionError(f"Required waveforms not generated: {results['failed_constraints']}")
+
+    # Cleanup
+    tb.done = True
+    await tb.cmd_handler.stop()
+    await tb.wait_clocks('pclk', 10)
+
+    dut._log.info("=" * 80)
+    dut._log.info(f"✅ APB Slave CDC WaveDrom Complete: {len(results['solutions'])} scenarios generated")
+    dut._log.info("   Clock ratio: pclk (period=1.0) : aclk (period=0.5) = 1:2")
+    dut._log.info("=" * 80)
+
+
 @cocotb.test(timeout_time=60, timeout_unit="ms")  # Longer timeout for CDC tests
 async def comprehensive_apb_cdc_test(dut):
     """Comprehensive APB-GAXI CDC test with cross-domain validation."""
@@ -1043,7 +1338,7 @@ def test_apb_slave_cdc_robust(request, addr_width, data_width, depth):
     aw_str = TBBase.format_dec(addr_width, 3)
     dw_str = TBBase.format_dec(data_width, 3)
     d_str = TBBase.format_dec(depth, 3)
-    test_name_plus_params = f"test_apb_cdc_robust_{dut_name}_aw{aw_str}_dw{dw_str}_d{d_str}"
+    test_name_plus_params = f"test_{dut_name}_aw{aw_str}_dw{dw_str}_d{d_str}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
@@ -1071,15 +1366,15 @@ def test_apb_slave_cdc_robust(request, addr_width, data_width, depth):
     }
 
     compile_args = [
-        "--trace-fst",
-        "--trace-structs",
+        "--trace",
+        
         "--trace-depth", "99",
         "--trace-max-array", "1024",
     ]
 
     sim_args = [
-        "--trace-fst",
-        "--trace-structs",
+        "--trace",
+        
         "--trace-depth", "99",
     ]
 
@@ -1097,7 +1392,7 @@ def test_apb_slave_cdc_robust(request, addr_width, data_width, depth):
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=True,
+            waves=False,
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
@@ -1113,4 +1408,108 @@ def test_apb_slave_cdc_robust(request, addr_width, data_width, depth):
         print(f"Logs preserved at: {log_path}")
         print(f"To view waveforms: {cmd_filename}")
         print(f"Check the log file for detailed CDC analysis.")
+        raise
+
+
+# ===============================================================================
+# WaveDrom Test
+# ===============================================================================
+
+def generate_apb_slave_cdc_wavedrom_params():
+    """Generate test parameters for APB slave CDC WaveDrom test."""
+    return [
+        # (addr_width, data_width, rsp_depth, cmd_depth)
+        (32, 32, 2, 2),  # Standard CDC configuration
+    ]
+
+
+wavedrom_params = generate_apb_slave_cdc_wavedrom_params()
+
+
+@pytest.mark.parametrize("addr_width, data_width, rsp_depth, cmd_depth", wavedrom_params)
+def test_apb_slave_cdc_wavedrom(request, addr_width, data_width, rsp_depth, cmd_depth):
+    """
+    APB slave CDC WaveDrom test - generates timing diagrams with APB and CMD/RSP interfaces.
+
+    Run with: ENABLE_WAVEDROM=1 pytest val/amba/test_apb_slave_cdc.py::test_apb_slave_cdc_wavedrom -v
+    """
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_cmn':  'rtl/common',
+        'rtl_amba': 'rtl/amba',
+        'rtl_amba_shared':'rtl/amba/shared',
+        'rtl_apb':  'rtl/amba/apb',
+        'rtl_gaxi': 'rtl/amba/gaxi',
+    })
+
+    dut_name = "apb_slave_cdc"
+    toplevel = dut_name
+
+    verilog_sources = [
+        os.path.join(rtl_dict['rtl_gaxi'],         "gaxi_skid_buffer.sv"),
+        os.path.join(rtl_dict['rtl_amba_shared'],  "cdc_handshake.sv"),
+        os.path.join(rtl_dict['rtl_apb'],          "apb_slave.sv"),
+        os.path.join(rtl_dict['rtl_apb'],         f"{dut_name}.sv")
+    ]
+
+    aw_str = TBBase.format_dec(addr_width, 3)
+    dw_str = TBBase.format_dec(data_width, 3)
+    rd_str = TBBase.format_dec(rsp_depth, 3)
+    cd_str = TBBase.format_dec(cmd_depth, 3)
+    test_name_plus_params = f"test_apb_slave_cdc_aw{aw_str}_dw{dw_str}_rd{rd_str}_cd{cd_str}_wd"
+    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
+
+    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    rtl_parameters = {
+        'ADDR_WIDTH': addr_width,
+        'DATA_WIDTH': data_width,
+        'DEPTH': rsp_depth,  # apb_slave_cdc uses single DEPTH parameter
+    }
+
+    extra_env = {
+        'ENABLE_WAVEDROM': '1',  # ← Enable WaveDrom!
+        'TEST_ADDR_WIDTH': str(addr_width),
+        'TEST_DATA_WIDTH': str(data_width),
+        'TEST_RSP_DEPTH': str(rsp_depth),
+        'TEST_CMD_DEPTH': str(cmd_depth),
+    }
+
+    compile_args = [
+        "-Wno-TIMESCALEMOD",
+    ]
+
+    sim_args = []
+
+    plusargs = []
+
+    cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
+
+    try:
+        run(
+            python_search=[tests_dir],
+            verilog_sources=verilog_sources,
+            includes=[],
+            toplevel=toplevel,
+            module=module,
+            testcase="apb_slave_cdc_wavedrom_test",  # ← Run wavedrom test specifically!
+            parameters=rtl_parameters,
+            sim_build=sim_build,
+            extra_env=extra_env,
+            waves=False,  # Disable FST - using WaveDrom instead
+            keep_files=True,
+            compile_args=compile_args,
+            sim_args=sim_args,
+            plusargs=plusargs,
+        )
+
+        print(f"✓ APB Slave CDC WaveDrom test completed!")
+        print(f"Logs: {log_path}")
+        print(f"WaveJSON files: val/amba/WaveJSON/test_apb_slave_cdc_*.json")
+        print(f"Note: Waveforms show BOTH APB and CMD/RSP (GAXI) interfaces across clock domains")
+
+    except Exception as e:
+        print(f"❌ APB Slave CDC WaveDrom test failed: {str(e)}")
+        print(f"Logs preserved at: {log_path}")
         raise

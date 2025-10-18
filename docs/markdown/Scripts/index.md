@@ -1,3 +1,5 @@
+**[← Back to Main Index](../index.md)**
+
 # Python Scripts and Tools
 
 This directory contains comprehensive documentation for all Python scripts and tools in the RTL Design Sherpa framework. These tools support RTL design, verification, analysis, and automation workflows.

@@ -5,7 +5,7 @@ from collections import deque, defaultdict
 import pytest
 import cocotb
 from cocotb.utils import get_sim_time
-from cocotb.triggers import Timer
+from cocotb.triggers import Timer, RisingEdge
 from cocotb_test.simulator import run
 
 from CocoTBFramework.components.shared.memory_model import MemoryModel
@@ -22,6 +22,18 @@ from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.amba.amba_random_configs import APB_SLAVE_RANDOMIZER_CONFIGS, AXI_RANDOMIZER_CONFIGS
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
+
+# WaveDrom support
+from CocoTBFramework.components.wavedrom.constraint_solver import (
+    TemporalConstraintSolver,
+    TemporalConstraint,
+    TemporalEvent,
+    SignalTransition,
+    TemporalRelation
+)
+from CocoTBFramework.components.wavedrom.wavejson_gen import create_apb_wavejson_generator
+from CocoTBFramework.components.wavedrom.utility import get_apb_field_config
+from CocoTBFramework.tbclasses.wavedrom_user.apb import setup_apb_constraints_with_boundaries
 
 # NOTE: Use the improved APBGAXIScoreboard from the artifact above instead of the original
 # Replace the import above with your improved scoreboard once it's integrated
@@ -779,6 +791,149 @@ class APBMasterTB(TBBase):
         )
 
 
+@cocotb.test(timeout_time=10, timeout_unit="sec")
+async def apb_master_wavedrom_test(dut):
+    """
+    WaveDrom timing diagram generation for APB master.
+
+    Generates 7 comprehensive scenarios:
+    1. Basic write transaction
+    2. Basic read transaction
+    3. Back-to-back writes
+    4. Back-to-back reads
+    5. Write-to-read transition
+    6. Read-to-write transition
+    7. Error response (if supported)
+
+    All waveforms include clock and reset signals with APB signals grouped.
+
+    Environment Variables:
+        ENABLE_WAVEDROM: Enable waveform generation (1/0, default: 0)
+    """
+    # Check if waveforms are enabled
+    enable_wavedrom = int(os.environ.get('ENABLE_WAVEDROM', '0'))
+    if not enable_wavedrom:
+        dut._log.info("⏭️  WaveDrom disabled (ENABLE_WAVEDROM=0), skipping wavedrom test")
+        return
+
+    dut._log.info("=== APB Master WaveDrom Test ===")
+
+    # Setup testbench
+    tb = APBMasterTB(dut)
+    await tb.start_clock('pclk', 10, 'ns')
+    await tb.reset_dut()
+    await tb.wait_clocks('pclk', 5)
+
+    # Setup WaveDrom with comprehensive 7-scenario preset
+    addr_width = tb.ADDR_WIDTH
+    data_width = tb.DATA_WIDTH
+    field_config = get_apb_field_config(addr_width, data_width)
+    wave_generator = create_apb_wavejson_generator(field_config)
+
+    wave_solver = TemporalConstraintSolver(
+        dut=dut,
+        log=dut._log,
+        wavejson_generator=wave_generator,
+        default_field_config=field_config
+    )
+
+    wave_solver.add_clock_group('default', dut.pclk)
+
+    # WAVEDROM REQUIREMENT v1.2: ALL waveforms MUST include clock and reset
+    # Bind APB master signals (m_apb_* prefix) with clock and reset
+    apb_signals = {
+        'pclk': 'pclk',
+        'presetn': 'presetn',
+        'psel': 'm_apb_PSEL',
+        'penable': 'm_apb_PENABLE',
+        'pready': 'm_apb_PREADY',
+        'pwrite': 'm_apb_PWRITE',
+        'paddr': 'm_apb_PADDR',
+        'pwdata': 'm_apb_PWDATA',
+        'prdata': 'm_apb_PRDATA',
+        'pstrb': 'm_apb_PSTRB',
+        'pprot': 'm_apb_PPROT',
+        'pslverr': 'm_apb_PSLVERR'
+    }
+    wave_solver.add_interface("apb", apb_signals, field_config=field_config)
+
+    # Use comprehensive preset with all 7 standard APB scenarios
+    # Error scenario is optional for master tests since we don't control slave error responses
+    num_constraints = setup_apb_constraints_with_boundaries(
+        wave_solver=wave_solver,
+        preset_name="comprehensive",
+        max_cycles=30,
+        clock_group="default",
+        data_width=data_width,
+        addr_width=addr_width,
+        enable_packet_callbacks=True,
+        use_signal_names=True,
+        post_match_cycles=3,
+        error_required=False  # Master doesn't control slave error responses
+    )
+
+    dut._log.info(f"WaveDrom configured with {num_constraints} comprehensive APB constraints")
+
+    # Start sampling for all scenarios
+    await wave_solver.start_sampling()
+
+    # Generate all 7 transaction scenarios
+    dut._log.info("=== Generating All APB Master WaveDrom Scenarios ===")
+
+    # Scenarios 1-2: Basic write and read
+    dut._log.info("Generating: Basic write and read")
+    await tb.send_gaxi_cmd(is_write=True, addr=0x1000, data=0xDEADBEEF)
+    await tb.wait_clocks('pclk', 5)
+    await tb.send_gaxi_cmd(is_write=False, addr=0x1000)
+    await tb.wait_clocks('pclk', 10)
+
+    # Scenario 3: Back-to-back writes
+    dut._log.info("Generating: Back-to-back writes")
+    await tb.send_gaxi_cmd(is_write=True, addr=0x2000, data=0xAAAAAAAA)
+    await tb.send_gaxi_cmd(is_write=True, addr=0x2004, data=0xBBBBBBBB)
+    await tb.wait_clocks('pclk', 10)
+
+    # Scenario 4: Back-to-back reads
+    dut._log.info("Generating: Back-to-back reads")
+    await tb.send_gaxi_cmd(is_write=False, addr=0x3000)
+    await tb.send_gaxi_cmd(is_write=False, addr=0x3004)
+    await tb.wait_clocks('pclk', 10)
+
+    # Scenario 5: Write-to-read transition
+    dut._log.info("Generating: Write-to-read transition")
+    await tb.send_gaxi_cmd(is_write=True, addr=0x4000, data=0x12345678)
+    await tb.send_gaxi_cmd(is_write=False, addr=0x4000)
+    await tb.wait_clocks('pclk', 10)
+
+    # Scenario 6: Read-to-write transition
+    dut._log.info("Generating: Read-to-write transition")
+    await tb.send_gaxi_cmd(is_write=False, addr=0x5000)
+    await tb.send_gaxi_cmd(is_write=True, addr=0x5000, data=0x87654321)
+    await tb.wait_clocks('pclk', 10)
+
+    # Scenario 7: Error transaction (if supported by slave)
+    # Note: Error generation depends on slave configuration
+    dut._log.info("Generating: Error scenario (if slave supports)")
+    await tb.wait_clocks('pclk', 5)
+
+    # Stop sampling and generate all waveforms
+    await wave_solver.stop_sampling()
+    await wave_solver.solve_and_generate()
+    results = wave_solver.get_results()
+
+    # Check if all required waveforms were generated
+    if not results['all_required_satisfied']:
+        dut._log.error(f"❌ NOT ALL REQUIRED WAVEFORMS GENERATED ❌")
+        dut._log.error(f"Failed constraints: {results['failed_constraints']}")
+        raise AssertionError(f"Required waveforms not generated: {results['failed_constraints']}")
+
+    dut._log.info(f"✓ APB Master WaveDrom Complete: {len(results['solutions'])} scenarios generated")
+
+    # Set done flag
+    tb.done = True
+    await tb.wait_clocks('pclk', 10)
+
+
 @cocotb.test(timeout_time=100, timeout_unit="us")  # Increased timeout
 async def apb_master_test(dut):
     tb = APBMasterTB(dut)
@@ -934,14 +1089,14 @@ def test_apb_master(request, addr_width, data_width, cmd_depth, rsp_depth):
     extra_env['TEST_RSP_DEPTH'] = str(rsp_depth)
 
     compile_args = [
-            "--trace-fst",
-            "--trace-structs",
+            "--trace",
+            
             "--trace-depth", "99",
     ]
 
     sim_args = [
-            "--trace-fst",  # Tell Verilator to use FST
-            "--trace-structs",
+            "--trace",  # Tell Verilator to use FST
+            
             "--trace-depth", "99",
     ]
 
@@ -961,7 +1116,7 @@ def test_apb_master(request, addr_width, data_width, cmd_depth, rsp_depth):
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=True,
+            waves=False,
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
@@ -973,3 +1128,93 @@ def test_apb_master(request, addr_width, data_width, cmd_depth, rsp_depth):
         print(f"Logs preserved at: {log_path}")
         print(f"To view the Waveforms run this command: {cmd_filename}")
         raise  # Re-raise exception to indicate failure
+
+
+# WaveDrom test parameters
+def generate_apb_master_wavedrom_params():
+    """Generate parameters for APB master WaveDrom tests"""
+    return [
+        # addr_width, data_width, cmd_depth, rsp_depth
+        (32, 32, 6, 6),
+    ]
+
+wavedrom_params = generate_apb_master_wavedrom_params()
+
+@pytest.mark.parametrize("addr_width, data_width, cmd_depth, rsp_depth", wavedrom_params)
+def test_apb_master_wavedrom(request, addr_width, data_width, cmd_depth, rsp_depth):
+    """APB master wavedrom test - generates timing diagrams."""
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_cmn': 'rtl/common',
+        'rtl_gaxi': 'rtl/amba/gaxi',
+        'rtl_apb': 'rtl/amba/apb',
+    })
+
+    toplevel = "apb_master"
+
+    verilog_sources = [
+        os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
+        os.path.join(rtl_dict['rtl_cmn'], "counter_load_clear.sv"),
+        os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
+        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_fifo_sync.sv"),
+        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"),
+        os.path.join(rtl_dict['rtl_apb'], "apb_master.sv"),
+    ]
+
+    aw_str = TBBase.format_dec(addr_width, 3)
+    dw_str = TBBase.format_dec(data_width, 3)
+    cmd_str = TBBase.format_dec(cmd_depth, 3)
+    rsp_str = TBBase.format_dec(rsp_depth, 3)
+
+    test_name_plus_params = f"test_apb_master_aw{aw_str}_dw{dw_str}_cmd{cmd_str}_rsp{rsp_str}_wd"
+    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
+    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+    results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
+
+    includes = []
+
+    rtl_parameters = {}
+    for param_name in ['addr_width', 'data_width', 'cmd_depth', 'rsp_depth']:
+        if param_name in locals():
+            rtl_parameters[param_name.upper()] = str(locals()[param_name])
+
+    extra_env = {
+        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'VERILATOR_TRACE': '1',
+        'DUT': 'apb_master',
+        'LOG_PATH': log_path,
+        'COCOTB_LOG_LEVEL': 'INFO',
+        'COCOTB_RESULTS_FILE': results_path,
+        'SEED': str(random.randint(0, 100000)),
+        'ENABLE_WAVEDROM': '1',  # Enable WaveDrom!
+        'TEST_ADDR_WIDTH': str(addr_width),
+        'TEST_DATA_WIDTH': str(data_width),
+        'TEST_CMD_DEPTH': str(cmd_depth),
+        'TEST_RSP_DEPTH': str(rsp_depth),
+    }
+
+    compile_args = [
+        "-Wno-TIMESCALEMOD",
+    ]
+
+    sim_args = []
+
+    plusargs = []
+
+    run(
+        python_search=[tests_dir],
+        verilog_sources=verilog_sources,
+        includes=includes,
+        toplevel=toplevel,
+        module=module,
+        parameters=rtl_parameters,
+        sim_build=sim_build,
+        extra_env=extra_env,
+        waves=False,  # Disable FST - using WaveDrom instead
+        keep_files=True,
+        compile_args=compile_args,
+        sim_args=sim_args,
+        plusargs=plusargs,
+        testcase="apb_master_wavedrom_test",  # Run wavedrom test specifically!
+    )

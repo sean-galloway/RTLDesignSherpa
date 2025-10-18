@@ -1,0 +1,49 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Fri Oct 17 19:33:13 2025
+[*]
+[dumpfile] "/mnt/data/github/rtldesignsherpa/val/amba/local_sim_build/test_gaxi_drop_fifo_sync_dw8_d8_r1_minimal-flop/dump.vcd"
+[dumpfile_mtime] "Fri Oct 17 19:30:43 2025"
+[dumpfile_size] 169913
+[savefile] "/mnt/data/github/rtldesignsherpa/val/amba/GTKW/gaxi_drop_fifo.gtkw"
+[timestart] 0
+[size] 1922 1331
+[pos] -1 -1
+*-21.650768 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] gaxi_drop_fifo_sync.
+[sst_width] 278
+[signals_width] 230
+[sst_expanded] 1
+[sst_vpaned_height] 412
+@28
+axi_aclk
+axi_aresetn
+@200
+-write
+@28
+wr_valid
+wr_ready
+@22
+wr_data[7:0]
+@200
+-read
+@28
+rd_valid
+rd_ready
+@22
+rd_data[7:0]
+@200
+-drop
+@28
+drop_valid
+drop_ready
+@22
+drop_count[3:0]
+@28
+drop_all
+@22
+count[3:0]
+@201
+-internals
+[pattern_trace] 1
+[pattern_trace] 0

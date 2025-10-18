@@ -847,12 +847,15 @@ def test_axi_split_realistic(request, params):
         os.path.join(rtl_dict['rtl_amba_shared'], "axi_split_combi.sv")
     ]
 
-    # Create test identifier
+    # Create test identifier following pattern: test_<module>_<params>
     t_aw = params['AW']
     t_dw = params['DW']
     t_level = params['test_level']
     t_mode = params['test_mode']
-    test_name_plus_params = f"realistic_{dut_name}_AW{t_aw}_DW{t_dw}_{t_level}_{t_mode}"
+    # Format: test_axi_split_combi_aw032_dw064_basic_realistic
+    aw_str = f"{t_aw:03d}"
+    dw_str = f"{t_dw:03d}"
+    test_name_plus_params = f"test_{dut_name}_aw{aw_str}_dw{dw_str}_{t_level}_{t_mode}"
 
     # Setup paths
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
@@ -889,11 +892,11 @@ def test_axi_split_realistic(request, params):
 
     # Compilation arguments
     compile_args = [
-        "--trace-fst", "--trace-structs", "--trace-depth", "99",
+        "--trace", "--trace-depth", "99",
         "-Wall", "-Wno-WIDTHEXPAND"
     ]
 
-    sim_args = ["--trace-fst", "--trace-structs", "--trace-depth", "99"]
+    sim_args = ["--trace", "--trace-depth", "99"]
     plusargs = ["+trace"]
 
     # Create view command
@@ -908,7 +911,7 @@ def test_axi_split_realistic(request, params):
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=True,
+            waves=False,
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,

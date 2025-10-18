@@ -1,16 +1,301 @@
 `timescale 1ns / 1ps
 
-// Parameterized Synchronous FIFO -- This works with any depth
+//==============================================================================
+// Module: fifo_sync
+//==============================================================================
+// Description:
+//   Parameterized synchronous FIFO (First-In-First-Out) buffer for single clock
+//   domain data buffering. Supports configurable depth, data width, and output
+//   latency modes. Provides full/empty flags and configurable almost-full/almost-empty
+//   thresholds for flow control. Uses binary counters with MSB inversion for
+//   efficient full/empty detection. Ideal for rate matching, data packetization,
+//   and pipeline decoupling.
+//
+// Features:
+//   - Arbitrary depth (power-of-2 optimized but supports any depth)
+//   - Configurable data width (1 to 512+ bits)
+//   - Two output modes: Mux (combinational) or Flop (registered)
+//   - Full/empty flag generation
+//   - Almost-full/almost-empty thresholds (programmable margins)
+//   - Write-through operation (no bubble cycles)
+//   - Built-in overflow/underflow detection (simulation only)
+//   - Efficient counter_bin implementation for pointers
+//
+//------------------------------------------------------------------------------
+// Parameters:
+//------------------------------------------------------------------------------
+//   REGISTERED:
+//     Description: Output port mode selection
+//     Type: int
+//     Range: 0 or 1
+//     Default: 0
+//     Constraints: 0 = Mux mode (combinational rd_data, 0 latency)
+//                  1 = Flop mode (registered rd_data, +1 cycle latency)
+//                  Mux mode: Lower latency, critical timing path
+//                  Flop mode: Higher latency, improved timing closure
+//
+//   DATA_WIDTH:
+//     Description: Width of data bus (bits per entry)
+//     Type: int
+//     Range: 1 to 512
+//     Default: 4
+//     Constraints: Resource usage scales linearly with DATA_WIDTH
+//
+//   DEPTH:
+//     Description: FIFO depth (number of entries)
+//     Type: int
+//     Range: 2 to 65536
+//     Default: 4
+//     Constraints: Actual depth = DEPTH (not restricted to power-of-2)
+//                  Address width = $clog2(DEPTH)
+//
+//   ALMOST_WR_MARGIN:
+//     Description: Entries remaining when almost_full asserts
+//     Type: int
+//     Range: 1 to DEPTH-1
+//     Default: 1
+//     Constraints: wr_almost_full asserts when (DEPTH - count) ≤ MARGIN
+//
+//   ALMOST_RD_MARGIN:
+//     Description: Entries remaining when almost_empty asserts
+//     Type: int
+//     Range: 1 to DEPTH-1
+//     Default: 1
+//     Constraints: rd_almost_empty asserts when count ≤ MARGIN
+//
+//   INSTANCE_NAME:
+//     Description: Debug name for error messages
+//     Type: string
+//     Default: "DEADF1F0"
+//     Constraints: Used in $display for overflow/underflow warnings
+//
+//   Derived Parameters (localparam - computed automatically):
+//     DW: Alias for DATA_WIDTH (convenience for internal declarations)
+//     D: Alias for DEPTH (convenience for internal declarations)
+//     AW: Address width ($clog2(DEPTH))
+//
+//------------------------------------------------------------------------------
+// Ports:
+//------------------------------------------------------------------------------
+//   Inputs:
+//     clk:              Clock input (single clock domain)
+//     rst_n:            Asynchronous active-low reset
+//     write:            Write enable (ignored if wr_full=1)
+//     wr_data[DATA_WIDTH-1:0]: Write data input
+//     read:             Read enable (ignored if rd_empty=1)
+//
+//   Outputs:
+//     wr_full:          Write full flag (1 = no space remaining)
+//     wr_almost_full:   Write almost-full flag (flow control warning)
+//     rd_empty:         Read empty flag (1 = no data available)
+//     rd_almost_empty:  Read almost-empty flag (underrun warning)
+//     rd_data[DATA_WIDTH-1:0]: Read data output (latency depends on REGISTERED)
+//
+//------------------------------------------------------------------------------
+// Timing:
+//------------------------------------------------------------------------------
+//   Write Latency:      0 cycles (write-through, data visible next cycle)
+//   Read Latency:       0 cycles (mux mode) or 1 cycle (flop mode)
+//   Flag Latency:       0 cycles (combinational from pointers)
+//   Throughput:         1 read + 1 write per cycle (simultaneous RW supported)
+//   Critical Path (Mux): Memory read → rd_data (long path)
+//   Critical Path (Flop): Memory read → FF (shorter path)
+//
+//------------------------------------------------------------------------------
+// Behavior:
+//------------------------------------------------------------------------------
+//   Pointer Management:
+//   - Write pointer (r_wr_ptr_bin): Increments on write when not full
+//   - Read pointer (r_rd_ptr_bin): Increments on read when not empty
+//   - Pointers use counter_bin module with MSB inversion for wrap detection
+//   - Address extraction: addr = ptr[AW-1:0] (lower bits)
+//
+//   Full/Empty Detection:
+//   - Handled by fifo_control module
+//   - Full: wr_ptr catches up to rd_ptr (all entries filled)
+//   - Empty: rd_ptr catches up to wr_ptr (all entries read)
+//   - Almost flags: Configurable thresholds for proactive flow control
+//
+//   Write Operation:
+//   - When write=1 and wr_full=0:
+//     1. Data written to r_mem[r_wr_addr]
+//     2. Write pointer increments
+//     3. Flags update based on new count
+//   - When write=1 and wr_full=1:
+//     * Write ignored, overflow warning (simulation)
+//
+//   Read Operation (Mux Mode, REGISTERED=0):
+//   - When read=1 and rd_empty=0:
+//     1. Read pointer increments
+//     2. rd_data = r_mem[new r_rd_addr] (combinational)
+//     3. Flags update based on new count
+//   - Read latency: 0 cycles (data available same cycle)
+//
+//   Read Operation (Flop Mode, REGISTERED=1):
+//   - When read=1 and rd_empty=0:
+//     1. Read pointer increments
+//     2. rd_data <= r_mem[r_rd_addr] (registered, +1 cycle)
+//     3. Flags update based on new count
+//   - Read latency: 1 cycle (data registered for timing)
+//
+//   Simultaneous Read/Write:
+//   - Supported when FIFO is neither full nor empty
+//   - Count remains constant (one in, one out)
+//   - Useful for streaming applications
+//
+//   Timing Diagram (DEPTH=4, DATA_WIDTH=8, REGISTERED=0 mux mode):
+//
+//   {signal: [
+//     {name: 'clk',              wave: 'p...............'},
+//     {name: 'rst_n',            wave: '01..............'},
+//     {},
+//     {name: 'write',            wave: '0.1...10........'},
+//     {name: 'wr_data[7:0]',     wave: 'x.3...4.x.......', data: ['A0','A1']},
+//     {name: 'read',             wave: '0......1...0....'},
+//     {},
+//     {name: 'r_wr_ptr_bin[2:0]', wave: 'x.2.3.4.4.......', data: ['0','1','2','2']},
+//     {name: 'r_rd_ptr_bin[2:0]', wave: 'x.2.....2.3.4...', data: ['0','0','1','2']},
+//     {name: 'count',            wave: 'x.2.3.4.3.2.1...', data: ['0','1','2','1','0','0']},
+//     {},
+//     {name: 'wr_full',          wave: '0...............'},
+//     {name: 'rd_empty',         wave: '01.......0......'},
+//     {name: 'rd_data[7:0]',     wave: 'x.......3.4.x...', data: ['A0','A1']},
+//     {},
+//     {name: 'Event',            wave: 'x.2.3.4.5.6.7...', data: ['Wr A0','Wr A1','Wr A1','Rd A0','Rd A1','Empty']}
+//   ]}
+//
+//   Full/Almost-Full Scenario (DEPTH=4, ALMOST_WR_MARGIN=1):
+//
+//   {signal: [
+//     {name: 'clk',              wave: 'p.............'},
+//     {name: 'write',            wave: '01.......0....'},
+//     {name: 'wr_data',          wave: 'x3.4.5.6.x....', data: ['D0','D1','D2','D3']},
+//     {},
+//     {name: 'count',            wave: 'x2.3.4.5.5....', data: ['0','1','2','3','4']},
+//     {name: 'wr_almost_full',   wave: '0.....1.......'},
+//     {name: 'wr_full',          wave: '0.......1.....'},
+//     {},
+//     {name: 'Event',            wave: 'x2.3...4.5....', data: ['Wr D0','Wr D2','Alm Full','FULL']}
+//   ]}
+//
+//------------------------------------------------------------------------------
+// Usage Example:
+//------------------------------------------------------------------------------
+//   // Basic synchronous FIFO for data buffering (mux mode)
+//   fifo_sync #(
+//       .REGISTERED(0),        // Mux mode (0 latency)
+//       .DATA_WIDTH(32),       // 32-bit data
+//       .DEPTH(16),            // 16-entry FIFO
+//       .ALMOST_WR_MARGIN(2),  // Almost-full at 14 entries
+//       .ALMOST_RD_MARGIN(2),  // Almost-empty at 2 entries
+//       .INSTANCE_NAME("PKT_FIFO")
+//   ) u_pkt_fifo (
+//       .clk              (clk),
+//       .rst_n            (rst_n),
+//       .write            (pkt_valid),
+//       .wr_data          (pkt_data),
+//       .wr_full          (fifo_full),
+//       .wr_almost_full   (fifo_afull),
+//       .read             (downstream_ready && !fifo_empty),
+//       .rd_data          (fifo_out),
+//       .rd_empty         (fifo_empty),
+//       .rd_almost_empty  (fifo_aempty)
+//   );
+//   assign pkt_ready = !fifo_full;  // Backpressure
+//
+//   // Registered output FIFO for timing closure (flop mode)
+//   fifo_sync #(
+//       .REGISTERED(1),        // Flop mode (+1 cycle latency)
+//       .DATA_WIDTH(64),
+//       .DEPTH(32),
+//       .INSTANCE_NAME("PIPELINE_FIFO")
+//   ) u_pipe_fifo (
+//       .clk              (core_clk),
+//       .rst_n            (rst_n),
+//       .write            (stage1_valid),
+//       .wr_data          (stage1_data),
+//       .wr_full          (stage1_stall),
+//       .wr_almost_full   (),  // Not used
+//       .read             (stage2_ready),
+//       .rd_data          (stage2_data),
+//       .rd_empty         (stage2_empty),
+//       .rd_almost_empty  ()   // Not used
+//   );
+//
+//   // Flow control with almost-full threshold
+//   fifo_sync #(
+//       .REGISTERED(0),
+//       .DATA_WIDTH(128),
+//       .DEPTH(64),
+//       .ALMOST_WR_MARGIN(8),  // Trigger backpressure early
+//       .ALMOST_RD_MARGIN(8)
+//   ) u_flow_fifo (
+//       .clk              (clk),
+//       .rst_n            (rst_n),
+//       .write            (src_valid && !fifo_afull),  // Stop at almost-full
+//       .wr_data          (src_data),
+//       .wr_full          (fifo_full),
+//       .wr_almost_full   (fifo_afull),
+//       .read             (dst_ready && !fifo_empty),
+//       .rd_data          (dst_data),
+//       .rd_empty         (fifo_empty),
+//       .rd_almost_empty  (fifo_aempty)
+//   );
+//   assign src_ready = !fifo_afull;  // Proactive backpressure
+//
+//------------------------------------------------------------------------------
+// Notes:
+//------------------------------------------------------------------------------
+//   - **Single clock domain only** - Use fifo_async for CDC
+//   - Simultaneous read/write supported (count constant)
+//   - **Mux mode (REGISTERED=0):** Lower latency, but memory-to-output critical path
+//   - **Flop mode (REGISTERED=1):** Higher latency, but breaks timing path
+//   - Write when full is IGNORED (not an error in synthesis, warning in sim)
+//   - Read when empty is IGNORED (returns stale data, warning in sim)
+//   - Almost flags are combinational (update same cycle as pointer change)
+//   - **DEPTH does not need to be power-of-2** - Arbitrary depths supported
+//   - Address wrapping handled by counter_bin module (MSB inversion)
+//   - **Memory implementation:** Inferred RAM (synthesizer chooses BRAM/LUT)
+//   - For small FIFOs: Likely synthesizes to registers/LUTs
+//   - For large FIFOs: Likely synthesizes to block RAM
+//   - flat_r_mem is debug-only (synthesis ignored via translate_off)
+//   - INSTANCE_NAME used for error messages (helps debug multi-FIFO designs)
+//   - **Resource usage:** DEPTH × DATA_WIDTH bits of memory + control logic
+//   - **Critical path (mux):** r_mem read → mux → rd_data (can be long)
+//   - **Critical path (flop):** r_mem read → FF (shorter, better for timing)
+//   - No built-in reset synchronization (use reset_sync externally if needed)
+//
+//------------------------------------------------------------------------------
+// Related Modules:
+//------------------------------------------------------------------------------
+//   - fifo_async.sv - Asynchronous FIFO for clock domain crossing
+//   - fifo_control.sv - Full/empty flag generation logic (used internally)
+//   - counter_bin.sv - Binary counter for read/write pointers (used internally)
+//
+//------------------------------------------------------------------------------
+// Test:
+//------------------------------------------------------------------------------
+//   Location: val/common/test_fifo_sync.py
+//   Run: pytest val/common/test_fifo_sync.py -v
+//   Coverage: 96%
+//   Key Test Scenarios:
+//     - Basic write/read operations
+//     - Full condition (write blocking)
+//     - Empty condition (read blocking)
+//     - Almost-full/almost-empty thresholds
+//     - Simultaneous read/write
+//     - Wraparound behavior
+//     - Mux mode (REGISTERED=0) vs Flop mode (REGISTERED=1)
+//     - Overflow/underflow detection
+//
+//==============================================================================
 module fifo_sync #(
     parameter int REGISTERED = 0,  // 0 = mux mode, 1 = flop mode
     parameter int DATA_WIDTH = 4,
     parameter int DEPTH = 4,
     parameter int ALMOST_WR_MARGIN = 1,
     parameter int ALMOST_RD_MARGIN = 1,
-    parameter     INSTANCE_NAME = "DEADF1F0",  // verilog_lint: waive explicit-parameter-storage-type
-    parameter int DW = DATA_WIDTH,
-    parameter int D = DEPTH,
-    parameter int AW = $clog2(DEPTH)
+    parameter     INSTANCE_NAME = "DEADF1F0"  // verilog_lint: waive explicit-parameter-storage-type
 ) (
     input  logic                    clk,
                                     rst_n,
@@ -23,6 +308,11 @@ module fifo_sync #(
     output logic                    rd_empty,
     output logic                    rd_almost_empty
 );
+
+    // Derived parameters
+    localparam int DW = DATA_WIDTH;  // Alias for DATA_WIDTH
+    localparam int D = DEPTH;        // Alias for DEPTH
+    localparam int AW = $clog2(DEPTH);  // Address width
 
     /////////////////////////////////////////////////////////////////////////
     // local logics/register signals

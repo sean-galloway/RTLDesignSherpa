@@ -268,8 +268,8 @@ def test_cdc_handshake(request, params):
     }
 
     compile_args = [
-        "--trace-fst",
-        "--trace-structs",
+        "--trace",
+        
         "--trace-depth", "99",
         "--trace-max-array", "1024",
         "--trace-underscore",
@@ -277,8 +277,8 @@ def test_cdc_handshake(request, params):
     ]
 
     sim_args = [
-        "--trace-fst",
-        "--trace-structs",
+        "--trace",
+        
         "--trace-depth", "99",
         "--trace-max-array", "1024",
         "--trace-underscore",
@@ -312,7 +312,7 @@ def test_cdc_handshake(request, params):
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=True,
+            waves=False,
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,

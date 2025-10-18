@@ -1,0 +1,113 @@
+@startuml ctrlwr_engine_fsm
+!theme plain
+title Control Write Engine FSM (ctrlwr_engine.sv)
+
+skinparam state {
+  BackgroundColor LightBlue
+  BorderColor Navy
+  ArrowColor Navy
+  ArrowFontColor Black
+  ArrowFontSize 10
+}
+
+[*] --> WRITE_IDLE
+
+state WRITE_IDLE {
+  WRITE_IDLE : ctrlwr_engine_idle = true when:
+  WRITE_IDLE : • FSM in WRITE_IDLE state
+  WRITE_IDLE : • Ctrlwr request FIFO empty
+  WRITE_IDLE : • No active AXI transactions
+  WRITE_IDLE : • !r_channel_reset_active
+}
+state WRITE_ISSUE_ADDR {
+  WRITE_ISSUE_ADDR : Execute AXI write transaction
+  WRITE_ISSUE_ADDR : Address and data phases
+  WRITE_ISSUE_ADDR : 4-byte alignment validation
+}
+state WRITE_WAIT_RESP {
+  WRITE_WAIT_RESP : Waiting for AXI write completion
+  WRITE_WAIT_RESP : Monitor response with our channel ID
+  WRITE_WAIT_RESP : Channel reset waits for completion
+}
+state WRITE_ERROR {
+  WRITE_ERROR : Error recovery state
+  WRITE_ERROR : Address or AXI response errors
+}
+
+WRITE_IDLE -down-> WRITE_ISSUE_ADDR : w_ctrlwr_req_skid_valid_out & !w_null_address & !r_channel_reset_active
+WRITE_IDLE -right-> WRITE_IDLE : w_ctrlwr_req_skid_valid_out & w_null_address
+WRITE_IDLE -down-> WRITE_ERROR : w_ctrlwr_req_skid_valid_out & w_address_error & !r_channel_reset_active
+WRITE_ISSUE_ADDR -down-> WRITE_WAIT_RESP : w_both_phases_issued
+WRITE_ISSUE_ADDR -right-> WRITE_ERROR : aw_timeout | w_timeout
+WRITE_WAIT_RESP -right-> WRITE_IDLE : w_transaction_complete & !w_axi_response_error | r_channel_reset_active
+WRITE_WAIT_RESP -down-> WRITE_ERROR : w_transaction_complete & w_axi_response_error & !r_channel_reset_active
+WRITE_ERROR -up-> WRITE_IDLE : error_acknowledged | r_channel_reset_active
+
+note bottom
+<b>Signal Definitions (ctrlwr_engine.sv):</b>
+
+w_ctrlwr_req_skid_valid_out = control write request available in skid buffer
+w_null_address = (ctrlwr_pkt_addr == 64'h0) // Skip operation
+w_address_error = (ctrlwr_pkt_addr[1:0] != 2'b00) & !w_null_address // Not 4-byte aligned
+r_channel_reset_active = channel reset state flag
+
+w_both_phases_issued = r_addr_issued & r_data_issued
+- r_addr_issued = aw_valid & aw_ready (address phase completed)
+- r_data_issued = w_valid & w_ready (data phase completed)
+
+w_transaction_complete = w_our_axi_response & b_valid
+w_our_axi_response = b_valid & (b_id == r_expected_axi_id)
+w_axi_response_error = (b_resp != 2'b00) // Not OKAY
+
+r_expected_axi_id = {{(AXI_ID_WIDTH-CHAN_WIDTH){1'b0}}, CHANNEL_ID[CHAN_WIDTH-1:0]}
+
+<b>State Functions:</b>
+
+WRITE_IDLE:
+- Monitor control write request FIFO
+- Null address handling (conditional control writes)
+- Address validation and error detection
+- Channel reset coordination
+
+WRITE_ISSUE_ADDR:
+- AXI write address and data phases
+- 32-bit write operations
+- Transaction phase tracking
+- Timeout monitoring
+
+WRITE_WAIT_RESP:
+- AXI response monitoring with channel ID matching
+- Response validation (OKAY/SLVERR/DECERR)
+- Channel reset completion handling
+
+WRITE_ERROR:
+- Address alignment errors
+- AXI response errors (SLVERR/DECERR)
+- Recovery through system reset or channel reset
+
+<b>Multi-Channel AXI Support:</b>
+- Shared AXI interface with ID-based response routing
+- Channel ID encoded in lower bits of AXI ID
+- Response filtering by expected channel ID
+
+<b>Null Address Handling:</b>
+- Address 0x0 operations skipped immediately
+- Immediate completion without AXI transaction
+- Supports conditional control write patterns
+
+<b>Address Validation:</b>
+- 4-byte alignment requirement for 32-bit writes
+- Graceful error handling for misaligned addresses
+- Monitor event generation for all error types
+
+<b>Channel Reset Behavior:</b>
+- Graceful shutdown with AXI transaction completion
+- Safe state transitions during reset
+- WRITE_WAIT_RESP allows completion before reset
+
+<b>Monitor Integration:</b>
+- Control write completion events
+- Address validation errors
+- AXI response error reporting
+- Null address operation tracking
+@enduml

@@ -1,5 +1,62 @@
 `timescale 1ns / 1ps
 
+//==============================================================================
+// Module: cam_tag
+//==============================================================================
+// Description:
+//   Content Addressable Memory (CAM) for tag tracking and management. Provides
+//   associative lookup to check if a tag is currently valid/active. Supports
+//   marking tags as valid (allocate) and invalid (free) with full/empty status.
+//   Commonly used for transaction ID tracking in protocol monitors.
+//
+//------------------------------------------------------------------------------
+// Parameters:
+//------------------------------------------------------------------------------
+//   ENABLE:
+//     Description: Global enable for CAM functionality
+//     Type: int
+//     Range: 0 or 1
+//     Default: 1
+//     Constraints: 0 = CAM disabled (always empty), 1 = CAM functional
+//
+//   N:
+//     Description: Tag width in bits
+//     Type: int
+//     Range: 1 to 32
+//     Default: 8
+//     Constraints: Must match width of tags being tracked
+//
+//   DEPTH:
+//     Description: Number of tag entries in the CAM
+//     Type: int
+//     Range: 1 to 256
+//     Default: 16
+//     Constraints: Determines maximum concurrent active tags
+//
+//------------------------------------------------------------------------------
+// Notes:
+//------------------------------------------------------------------------------
+//   - Fully associative search (checks all entries in parallel)
+//   - Priority encoder finds first free slot for new tags
+//   - Priority encoder finds matching entry for status queries
+//   - tags_empty: All entries are free (no active tags)
+//   - tags_full: All entries are occupied (cannot allocate more)
+//   - tag_status: Returns 1 if queried tag is currently valid
+//   - Mark operations: mark_valid allocates tag, mark_invalid frees tag
+//
+//------------------------------------------------------------------------------
+// Related Modules:
+//------------------------------------------------------------------------------
+//   - Used by: axi4_master_rd_mon.sv, axi4_master_wr_mon.sv (ID tracking)
+//   - Used by: rapids_scheduler.sv (task descriptor tracking)
+//
+//------------------------------------------------------------------------------
+// Test:
+//------------------------------------------------------------------------------
+//   Location: val/common/test_cam_tag.py
+//   Run: pytest val/common/test_cam_tag.py -v
+//
+//==============================================================================
 module cam_tag #(
     parameter int ENABLE = 1,
     parameter int N = 8,       // Width of the TAG
