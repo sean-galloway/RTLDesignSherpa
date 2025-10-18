@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: PerformanceReporter
+# Purpose: STREAM DMA Performance Reporting Module
+#
+# Documentation: projects/components/stream/PRD.md
+# Subsystem: stream
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """
 STREAM DMA Performance Reporting Module
 

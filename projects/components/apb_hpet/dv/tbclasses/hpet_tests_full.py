@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: HPETFullTests
+# Purpose: HPET Full Tests
+#
+# Documentation: projects/components/apb_hpet/PRD.md
+# Subsystem: apb_hpet
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """
 HPET Full Tests
 

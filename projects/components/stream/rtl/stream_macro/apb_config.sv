@@ -1,32 +1,17 @@
-//////////////////////////////////////////////////////////////////////////////////
-// Company:  Cornami, Inc.
-//           Copyright (c) 2025 by Cornami, Inc. All rights reserved.
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
-// Engineer: STREAM RTL v1.0
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module Name   : apb_config
-// Project Name  : STREAM - Scatter-gather Transfer Rapid Engine for AXI Memory
-// Target Devices: ASIC/FPGA
-// Tool versions : Verilator compatible
-// Description   : APB Configuration Interface for STREAM
-//                 - 8 independent channels with configuration registers
-//                 - Single APB write to CHx_CTRL kicks off descriptor chain
-//                 - Configurable burst lengths per channel (per user requirement)
-//                 - Status monitoring per channel
+// Module: apb_config
+// Purpose: Apb Config module
 //
-// Register Map:
-//   0x00: GLOBAL_CTRL    - Global enable, reset
-//   0x04: GLOBAL_STATUS  - Global status
-//   Channel registers (8 channels × 16 bytes = 0x80 bytes)
-//   0x10: CH0_CTRL       - Channel 0 descriptor address (write to kick off)
-//   0x14: CH0_STATUS     - Channel 0 status
-//   0x18: CH0_RD_BURST   - Channel 0 read burst length
-//   0x1C: CH0_WR_BURST   - Channel 0 write burst length
-//   0x20: CH1_CTRL       - Channel 1 descriptor address
-//   ...
-//   0x90: CH7_CTRL       - Channel 7 descriptor address
+// Documentation: projects/components/stream_macro/PRD.md
+// Subsystem: stream_macro
 //
-//////////////////////////////////////////////////////////////////////////////////
+// Author: sean galloway
+// Created: 2025-10-18
 
 `timescale 1ns / 1ps
 

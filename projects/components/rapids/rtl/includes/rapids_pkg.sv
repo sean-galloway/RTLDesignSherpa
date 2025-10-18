@@ -1,19 +1,17 @@
-//////////////////////////////////////////////////////////////////////////////////
-// Company:  Cornami, Inc.
-//           Copyright (c) 2025 by Cornami, Inc. All rights reserved.
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
-// Engineer: RAPIDS RTL v3.2 - FIXED: All Verilator Width Issues
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Package Name  : rapids_pkg
-// Project Name  : Next Generation RAPIDS
-// Target Devices: ASIC/FPGA
-// Tool versions : Verilator compatible
-// Description   : RAPIDS Common Types Package v3.2 - FIXED: Verilator Warnings
-//                 - FIXED: All width truncation and expansion warnings
-//                 - FIXED: Missing structure members
-//                 - MAINTAINED: All functionality with proper width handling
+// Module: rapids_pkg
+// Purpose: Rapids Pkg module
 //
-//////////////////////////////////////////////////////////////////////////////////
+// Documentation: projects/components/includes/PRD.md
+// Subsystem: includes
+//
+// Author: sean galloway
+// Created: 2025-10-18
 
 `timescale 1ns / 1ps
 

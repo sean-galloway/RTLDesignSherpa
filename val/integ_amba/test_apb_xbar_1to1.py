@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: test_apb_xbar_1to1
+# Purpose: Test for 1-to-1 APB Crossbar
+#
+# Documentation: PRD.md
+# Subsystem: tests
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """
 Test for 1-to-1 APB Crossbar
 

@@ -1,4 +1,18 @@
-// axi_fifo_sync_multi.sv: Wrapper for multi-signal FIFO (synchronous)
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
+//
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
+//
+// Module: gaxi_fifo_sync_multi
+// Purpose: Gaxi Fifo Sync Multi module
+//
+// Documentation: rtl/amba/PRD.md
+// Subsystem: amba
+//
+// Author: sean galloway
+// Created: 2025-10-18
+
 module gaxi_fifo_sync_multi #(
     parameter integer ADDR_WIDTH = 4,
     parameter integer CTRL_WIDTH = 4,

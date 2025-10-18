@@ -1,3 +1,18 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
+//
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
+//
+// Module: decoder
+// Purpose: //   Binary to one-hot decoder. Converts M-bit binary input to 2^M one-hot output
+//
+// Documentation: rtl/common/PRD.md
+// Subsystem: common
+//
+// Author: sean galloway
+// Created: 2025-10-18
+
 `timescale 1ns / 1ps
 
 //==============================================================================

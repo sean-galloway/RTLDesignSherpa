@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: AXIL4MasterReadCGTB
+# Purpose: AXIL4 Master Read Clock Gated Test Runner
+#
+# Documentation: PRD.md
+# Subsystem: tests
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """
 AXIL4 Master Read Clock Gated Test Runner
 

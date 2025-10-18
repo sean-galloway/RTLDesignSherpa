@@ -1,4 +1,18 @@
-// axi_skid_buffer_multi.sv: Wrapper for multi-signal skid buffer
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
+//
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
+//
+// Module: gaxi_skid_buffer_multi_sigmap
+// Purpose: Gaxi Skid Buffer Multi Sigmap module
+//
+// Documentation: rtl/amba/PRD.md
+// Subsystem: amba
+//
+// Author: sean galloway
+// Created: 2025-10-18
+
 module gaxi_skid_buffer_multi_sigmap #(
     parameter integer ADDR_WIDTH = 4,
     parameter integer CTRL_WIDTH = 4,

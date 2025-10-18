@@ -1,6 +1,17 @@
-# HP/LP Test Functions - Future Development
-# These functions were moved from test_axi4_matrix_integration.py
-# when HP/LP RTL modules were moved to FUTURE directory
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: lp_hp_test_functions
+# Purpose: Test high-performance features
+#
+# Documentation: PRD.md
+# Subsystem: tests
+#
+# Author: sean galloway
+# Created: 2025-10-18
 
 async def _test_high_performance(dut, matrix_config, test_scenario, enable_features):
     """Test high-performance features"""

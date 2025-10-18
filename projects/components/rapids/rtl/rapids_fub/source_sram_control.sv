@@ -1,23 +1,17 @@
-//////////////////////////////////////////////////////////////////////////////////
-// Company:  Cornami, Inc.
-//           Copyright (c) 2025 by Cornami, Inc. All rights reserved.
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
-// Engineer: RAPIDS RTL v2.0 - Enhanced with EOS Support Only
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module Name   : source_sram_control
-// Project Name  : Next Generation RAPIDS
-// Target Devices: ASIC/FPGA
-// Tool versions : Verilator compatible
-// Description   : Source SRAM Control v2.0 - Updated for EOS only
-//                 - UPDATED: SRAM format reduced from 533 to 531 bits (removed EOL/EOD)
-//                 - NEW: loaded_lines signal for Network master channel selection
-//                 - MAINTAINED: All existing chunk enables and preallocation functionality
-//                 - STANDARDIZED: Monitor bus parameters matching other blocks
-//                 - NEW: Channel availability interface for flow control
-//                 - FIXED: All Verilator width issues
-//                 - FIXED: Break statements replaced with synthesizable priority encoders
+// Module: source_sram_control
+// Purpose: Source Sram Control module
 //
-//////////////////////////////////////////////////////////////////////////////////
+// Documentation: projects/components/rapids_fub/PRD.md
+// Subsystem: rapids_fub
+//
+// Author: sean galloway
+// Created: 2025-10-18
 
 `timescale 1ns / 1ps
 

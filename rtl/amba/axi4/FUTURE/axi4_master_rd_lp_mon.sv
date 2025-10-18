@@ -1,3 +1,18 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
+//
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
+//
+// Module: axi4_master_rd_lp_mon
+// Purpose: Axi4 Master Rd Lp Mon module
+//
+// Documentation: rtl/amba/PRD.md
+// Subsystem: amba
+//
+// Author: sean galloway
+// Created: 2025-10-18
+
 `timescale 1ns / 1ps
 
 /**

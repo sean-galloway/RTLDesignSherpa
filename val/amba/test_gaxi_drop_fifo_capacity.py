@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: test_gaxi_drop_fifo_capacity
+# Purpose: Simple test to verify basic FIFO capacity (no drop operations).
+#
+# Documentation: PRD.md
+# Subsystem: tests
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """
 Simple test to verify basic FIFO capacity (no drop operations).
 

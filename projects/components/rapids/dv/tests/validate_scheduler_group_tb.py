@@ -1,4 +1,19 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: MockDUT
+# Purpose: RAPIDS Scheduler Group TB Validation Script
+#
+# Documentation: projects/components/rapids/PRD.md
+# Subsystem: rapids
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """
 RAPIDS Scheduler Group TB Validation Script
 

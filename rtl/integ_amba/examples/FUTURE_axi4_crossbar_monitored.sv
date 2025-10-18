@@ -1,30 +1,17 @@
-// ============================================================================
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
+//
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
+//
 // Module: axi4_crossbar_monitored
+// Purpose: Future Axi4 Crossbar Monitored module
 //
-// Description:
-//   Simple AXI4 2x3 crossbar with comprehensive monitoring on all interfaces.
-//   Demonstrates integration of AXI4 monitors in a realistic SoC interconnect.
+// Documentation: PRD.md
+// Subsystem: integ_amba
 //
-// Features:
-//   - 2 AXI4 master interfaces (CPU, DMA)
-//   - 3 AXI4 slave interfaces (Memory, Peripherals, Debug)
-//   - Monitors on all 5 interfaces (2 master-side, 3 slave-side)
-//   - Aggregated monitor bus output
-//   - Address-based routing
-//
-// Address Map:
-//   0x0000_0000 - 0x3FFF_FFFF: Memory (Slave 0)
-//   0x4000_0000 - 0x7FFF_FFFF: Peripherals (Slave 1)
-//   0x8000_0000 - 0xFFFF_FFFF: Debug (Slave 2)
-//
-// Integration Example:
-//   This module shows how to:
-//   1. Instantiate multiple AXI4 monitors
-//   2. Aggregate monitor packets from multiple sources
-//   3. Handle monitor bus arbitration
-//   4. Connect monitors to downstream processing
-//
-// ============================================================================
+// Author: sean galloway
+// Created: 2025-10-18
 
 module axi4_crossbar_monitored #(
     // AXI Parameters

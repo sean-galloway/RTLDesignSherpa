@@ -1,18 +1,17 @@
-// =============================================================================
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
+//
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
+//
 // Module: apb_peripheral_subsystem
-// Description: Simple APB peripheral subsystem with monitor integration
+// Purpose: Apb Peripheral Subsystem module
 //
-// This example demonstrates:
-// - Three simple APB peripherals (register file, timer, GPIO)
-// - Monitor on each peripheral slave interface
-// - Simple arbiter for 3 monitor streams
-// - Minimal example for learning basics
+// Documentation: PRD.md
+// Subsystem: integ_amba
 //
-// Status: ✅ EDUCATIONAL EXAMPLE
-// Complexity: Simple - Best starting point
-//
-// Location: rtl/integ_amba/examples/apb_peripheral_subsystem.sv
-// =============================================================================
+// Author: sean galloway
+// Created: 2025-10-18
 
 `timescale 1ns / 1ps
 

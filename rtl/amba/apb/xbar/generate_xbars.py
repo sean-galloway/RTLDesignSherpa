@@ -1,4 +1,19 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: generate_xbars
+# Purpose: Convenience script to generate all APB crossbar variants.
+#
+# Documentation: rtl/amba/PRD.md
+# Subsystem: amba
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """
 Convenience script to generate all APB crossbar variants.
 

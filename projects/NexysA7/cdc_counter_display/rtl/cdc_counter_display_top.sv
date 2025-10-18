@@ -1,3 +1,18 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
+//
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
+//
+// Module: cdc_counter_display_top
+// Purpose: //   Nexys A7 FPGA demonstration of clock domain crossing (CDC) using async
+//
+// Documentation: PRD.md
+// Subsystem: cdc_counter_display_top.sv
+//
+// Author: sean galloway
+// Created: 2025-10-18
+
 `timescale 1ns / 1ps
 
 //==============================================================================

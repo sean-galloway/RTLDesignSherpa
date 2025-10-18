@@ -1,19 +1,17 @@
-// =============================================================================
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
+//
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
+//
 // Module: apb_xbar_monitored
-// Description: APB crossbar with comprehensive monitor integration
+// Purpose: Apb Xbar Monitored module
 //
-// This example demonstrates:
-// - APB crossbar (3 masters × 4 slaves)
-// - Monitor on every interface (7 total monitors)
-// - Round-robin arbiter for monitor packet aggregation
-// - FIFO buffering for downstream handling
-// - Proper configuration and agent ID assignment
+// Documentation: PRD.md
+// Subsystem: integ_amba
 //
-// Status: ✅ TESTED - Based on working apb_xbar_thin implementation
-// Test: val/integ_amba/test_apb_xbar.py (PASSED)
-//
-// Location: rtl/integ_amba/examples/apb_xbar_monitored.sv
-// =============================================================================
+// Author: sean galloway
+// Created: 2025-10-18
 
 `timescale 1ns / 1ps
 

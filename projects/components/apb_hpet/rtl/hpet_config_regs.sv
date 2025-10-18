@@ -1,3 +1,18 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
+//
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
+//
+// Module: hpet_config_regs
+// Purpose: Hpet Config Regs module
+//
+// Documentation: projects/components/hpet_config_regs.sv/PRD.md
+// Subsystem: hpet_config_regs.sv
+//
+// Author: sean galloway
+// Created: 2025-10-18
+
 /**
 * ============================================================================
 * HPET Configuration Registers - PeakRDL Wrapper

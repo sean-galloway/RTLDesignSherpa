@@ -1,49 +1,17 @@
-//////////////////////////////////////////////////////////////////////////////////
-// Company:  Cornami, Inc.
-//           Copyright (c) 2025 by Cornami, Inc. All rights reserved.
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
-// Engineer: RAPIDS RTL v2.1 - EOS Flow Corrected, EOL/EOD Removed, FIFO Interfaces Added
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module Name   : sink_sram_control
-// Project Name  : Next Generation RAPIDS
-// Target Devices: ASIC/FPGA
-// Tool versions : Verilator compatible
-// Description   : Sink SRAM Control v2.1 - CORRECTED EOS HANDLING + FIFO INTERFACES
-//                 - FIXED: EOS NOT stored in SRAM (used for completion signaling only)
-//                 - REMOVED: EOL/EOD from SRAM storage and interfaces
-//                 - REMOVED: EOL/EOD barrier logic (not needed in sink path)
-//                 - ADDED: rd_lines_for_transfer for write engine arbitration control
-//                 - MAINTAINED: Multi-channel read for AXI engine
-//                 - ENHANCED: Proper descriptor completion with EOS control signaling
-//                 - UPDATED: FIFO interfaces for data_consumed, eos_completion, and monitor
-//                 - FIXED: Width expansion issues in address calculations with proper intermediate signals
-//                 - FIXED: Width truncation issues in monitor packet construction
-//                 - FIXED: Unsigned arithmetic warning in overflow detection
-//                 - FIXED: Break statements replaced with synthesizable priority encoders
+// Module: sink_sram_control
+// Purpose: Sink Sram Control module
 //
-// FIFO Interface Updates:
-// ======================
-// 1. Data Consumption FIFO: Queues data consumption notifications for credit return
-// 2. EOS Completion FIFO: Queues EOS completion signals for scheduler
-// 3. Monitor Bus FIFO: Queues monitor events for external monitoring system
+// Documentation: projects/components/rapids_fub/PRD.md
+// Subsystem: rapids_fub
 //
-// EOS Flow Documentation:
-// ======================
-// 1. EOS Detection: Network packets arrive with EOS bit in packet structure
-// 2. EOS Processing: EOS triggers descriptor completion logic (control only)
-// 3. EOS Storage: EOS is NOT stored in SRAM - only payload data is stored
-// 4. EOS Control: EOS used for completion signaling to scheduler
-// 5. EOS Transfer: Write engine gets EOS from scheduler, not from SRAM reads
-//
-// Data Size Tracking (RAPIDS SINK):
-// ===============================
-// - Descriptor completion driven SOLELY by Data_Size reaching zero
-// - EOS bit has NO effect on RAPIDS_SINK descriptor completion (per spec)
-// - Each Network packet decrements Data_Size by 64 bytes (16 words)
-// - When Data_Size = 0, descriptor marked complete with LAST bit
-// - EOS serves as stream boundary marker but does NOT override Data_Size
-//
-//////////////////////////////////////////////////////////////////////////////////
+// Author: sean galloway
+// Created: 2025-10-18
 
 `timescale 1ns / 1ps
 

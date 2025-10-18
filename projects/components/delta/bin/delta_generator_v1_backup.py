@@ -1,4 +1,19 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: DeltaConfig
+# Purpose: Delta: AXI-Stream Crossbar Generator
+#
+# Documentation: projects/components/delta/PRD.md
+# Subsystem: delta
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """
 Delta: AXI-Stream Crossbar Generator
 Generates parameterized AXI-Stream switches in flat crossbar and tree topologies

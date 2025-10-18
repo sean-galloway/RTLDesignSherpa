@@ -1,20 +1,17 @@
-//////////////////////////////////////////////////////////////////////////////////
-// Company:  Cornami, Inc.
-//           Copyright (c) 2025 by Cornami, Inc. All rights reserved.
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
-// Engineer: STREAM RTL v1.0
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Package Name  : stream_pkg
-// Project Name  : STREAM - Scatter-gather Transfer Rapid Engine for AXI Memory
-// Target Devices: ASIC/FPGA
-// Tool versions : Verilator compatible
-// Description   : STREAM Common Types Package
-//                 - Simplified memory-to-memory DMA with scatter-gather support
-//                 - Descriptor-based operation with chaining (no circular buffers)
-//                 - Aligned addresses only (tutorial-friendly)
-//                 - 8 independent channels maximum
+// Module: stream_pkg
+// Purpose: Stream Pkg module
 //
-//////////////////////////////////////////////////////////////////////////////////
+// Documentation: projects/components/includes/PRD.md
+// Subsystem: includes
+//
+// Author: sean galloway
+// Created: 2025-10-18
 
 `timescale 1ns / 1ps
 

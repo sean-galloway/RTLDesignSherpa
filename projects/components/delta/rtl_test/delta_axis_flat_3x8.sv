@@ -1,3 +1,18 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
+//
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
+//
+// Module: delta_axis_flat_3x8
+// Purpose: AXI-Stream 3×8 Flat Crossbar Switch
+//
+// Documentation: projects/components/delta/PRD.md
+// Subsystem: delta
+//
+// Author: sean galloway
+// Created: 2025-10-18
+
 `timescale 1ns / 1ps
 
 module delta_axis_flat_3x8 #(parameter int  DATA_WIDTH = 64,

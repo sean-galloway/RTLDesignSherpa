@@ -1,12 +1,17 @@
-// =============================================================================
-// HPET Register Wrapper
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
-// Wraps PeakRDL-generated HPET register block with cmd/rsp valid/ready interface
-// using the generic peakrdl_passthrough_to_cmdrsp adapter.
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
 //
-// This wrapper demonstrates how to use PeakRDL-generated registers with
-// rtldesignsherpa's standard cmd/rsp interface.
-// =============================================================================
+// Module: hpet_regs_wrapper
+// Purpose: Hpet Regs Wrapper module
+//
+// Documentation: projects/components/peakrdl/PRD.md
+// Subsystem: peakrdl
+//
+// Author: sean galloway
+// Created: 2025-10-18
 
 module hpet_regs_wrapper #(
     parameter int VENDOR_ID = 1,

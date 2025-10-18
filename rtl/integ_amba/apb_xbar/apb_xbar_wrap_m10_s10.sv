@@ -1,3 +1,17 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
+//
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
+//
+// Module: apb_xbar_wrap_m10_s10
+// Purpose: Apb Xbar Wrap M10 S10 module
+//
+// Documentation: PRD.md
+// Subsystem: integ_amba
+//
+// Author: sean galloway
+// Created: 2025-10-18
 
 `timescale 1ns / 1ps
 

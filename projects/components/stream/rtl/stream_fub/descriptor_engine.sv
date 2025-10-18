@@ -1,20 +1,17 @@
-//////////////////////////////////////////////////////////////////////////////////
-// Company:  Cornami, Inc.
-//           Copyright (c) 2025 by Cornami, Inc. All rights reserved.
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
-// Engineer: STREAM RTL v1.0 - Adapted from RAPIDS Descriptor Engine
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module Name   : descriptor_engine
-// Project Name  : STREAM - Scatter-gather Transfer Rapid Engine for AXI Memory
-// Target Devices: ASIC/FPGA
-// Tool versions : Verilator compatible
-// Description   : Descriptor Engine for STREAM - Adapted from RAPIDS v3.0
-//                 - Fetches descriptors from memory via AXI4
-//                 - Simplified for STREAM: no RDA packets (APB-only mode)
-//                 - 256-bit descriptor format with length in BEATS
-//                 - Channel reset support for clean shutdown
+// Module: descriptor_engine
+// Purpose: Descriptor Engine module
 //
-//////////////////////////////////////////////////////////////////////////////////
+// Documentation: projects/components/stream_fub/PRD.md
+// Subsystem: stream_fub
+//
+// Author: sean galloway
+// Created: 2025-10-18
 
 `timescale 1ns / 1ps
 

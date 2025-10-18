@@ -1,20 +1,17 @@
-//////////////////////////////////////////////////////////////////////////////////
-// Company:  Cornami, Inc.
-//           Copyright (c) 2025 by Cornami, Inc. All rights reserved.
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
-// Engineer: Based on RAPIDS architecture patterns
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module Name   : ctrlwr_engine
-// Project Name  : Next Generation RAPIDS
-// Target Devices: ASIC/FPGA
-// Tool versions : Verilator compatible
-// Description   : Control Write Engine - 4-state machine for post-descriptor control writes
-//                 Updated to use gaxi_skid_buffer instead of custom FIFOs
-//                 Enhanced with standardized monitor bus parameters
-//                 FIXED: Channel reset functionality restored
-//                 UPDATED: Uses RAPIDS package types instead of local definitions
+// Module: ctrlwr_engine
+// Purpose: Ctrlwr Engine module
 //
-//////////////////////////////////////////////////////////////////////////////////
+// Documentation: projects/components/rapids_fub/PRD.md
+// Subsystem: rapids_fub
+//
+// Author: sean galloway
+// Created: 2025-10-18
 
 `timescale 1ns / 1ps
 

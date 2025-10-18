@@ -1,3 +1,18 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
+//
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
+//
+// Module: dataint_ecc_hamming_encode_secded
+// Purpose: //   Hamming SECDED (Single Error Correction, Double Error Detection) encoder.
+//
+// Documentation: rtl/common/PRD.md
+// Subsystem: common
+//
+// Author: sean galloway
+// Created: 2025-10-18
+
 `timescale 1ns / 1ps
 
 //==============================================================================

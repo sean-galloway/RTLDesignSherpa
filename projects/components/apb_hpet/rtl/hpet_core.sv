@@ -1,3 +1,18 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
+//
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
+//
+// Module: hpet_core
+// Purpose: Hpet Core module
+//
+// Documentation: projects/components/hpet_core.sv/PRD.md
+// Subsystem: hpet_core.sv
+//
+// Author: sean galloway
+// Created: 2025-10-18
+
 /**
  * ============================================================================
  * HPET Timer Core (High Speed Domain)

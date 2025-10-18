@@ -1,3 +1,18 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
+//
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
+//
+// Module: arbiter_round_robin_simple
+// Purpose: Arbiter Round Robin Simple module
+//
+// Documentation: rtl/common/PRD.md
+// Subsystem: common
+//
+// Author: sean galloway
+// Created: 2025-10-18
+
 `timescale 1ns / 1ps
 
 // Generic rotating-priority arbiter with masking/rotation (no if/case ladders in priority path)

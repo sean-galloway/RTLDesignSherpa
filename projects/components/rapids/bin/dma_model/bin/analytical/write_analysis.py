@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: write_analysis
+# Purpose: Analytical Model for AXI4 Write Path
+#
+# Documentation: projects/components/rapids/PRD.md
+# Subsystem: rapids
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """
 Analytical Model for AXI4 Write Path
 

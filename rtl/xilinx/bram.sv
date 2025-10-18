@@ -1,3 +1,18 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
+//
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
+//
+// Module: bram
+// Purpose: Bram module
+//
+// Documentation: PRD.md
+// Subsystem: xilinx
+//
+// Author: sean galloway
+// Created: 2025-10-18
+
 module bram #(
     parameter int RAM_WIDTH = 8,
     parameter int RAM_ADDR_BITS = 13,

@@ -1,5 +1,18 @@
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Verilog Operators
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
+//
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
+//
+// Module: verilog_operators
+// Purpose: Verilog Condensed Lrm module
+//
+// Documentation: rtl/common/PRD.md
+// Subsystem: common
+//
+// Author: sean galloway
+// Created: 2025-10-18
+
 module verilog_operators // verilog_lint: waive module-filename
 (
     input  logic [7:0] a, b,
@@ -130,13 +143,15 @@ module MooreFSM_4State // verilog_lint: waive module-filename
 );
 
 // Define FSM states as parameters
-parameter logic [1:0] S0 = 2'b00;
-parameter logic [1:0] S1 = 2'b01;
-parameter logic [1:0] S2 = 2'b10;
-parameter logic [1:0] S3 = 2'b11;
+typedef enum logic [1:0] {
+    S0 = 2'b00,
+    S1 = 2'b01,
+    S2 = 2'b10,
+    S3 = 2'b11
+} states_fsm_t;
 
 // Define FSM state register
-logic [1:0] state;
+states_fsm_t state;
 
 // State transition and output logic
 always_ff @(posedge clk or posedge reset) begin

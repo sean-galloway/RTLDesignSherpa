@@ -1,19 +1,17 @@
-//////////////////////////////////////////////////////////////////////////////////
-// Company:  Cornami, Inc.
-//           Copyright (c) 2025 by Cornami, Inc. All rights reserved.
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
-// Engineer: Based on RAPIDS architecture patterns
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module Name   : ctrlrd_engine
-// Project Name  : Next Generation RAPIDS
-// Target Devices: ASIC/FPGA
-// Tool versions : Verilator compatible
-// Description   : Control Read Engine - Read-and-compare with retry mechanism
-//                 Pre-descriptor control read operations with masked comparison
-//                 Configurable retry count with 1µs delays between attempts
-//                 Uses gaxi_skid_buffer for request handling
+// Module: ctrlrd_engine
+// Purpose: Ctrlrd Engine module
 //
-//////////////////////////////////////////////////////////////////////////////////
+// Documentation: projects/components/rapids_fub/PRD.md
+// Subsystem: rapids_fub
+//
+// Author: sean galloway
+// Created: 2025-10-18
 
 `timescale 1ns / 1ps
 

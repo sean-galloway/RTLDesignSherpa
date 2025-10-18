@@ -1,3 +1,18 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
+//
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
+//
+// Module: apb_xbar_2to1
+// Purpose: Apb Xbar 2To1 module
+//
+// Documentation: rtl/amba/PRD.md
+// Subsystem: amba
+//
+// Author: sean galloway
+// Created: 2025-10-18
+
 `timescale 1ns / 1ps
 
 // 2-to-1 APB crossbar with address decoding and arbitration

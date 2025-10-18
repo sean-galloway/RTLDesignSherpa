@@ -1,23 +1,17 @@
-//////////////////////////////////////////////////////////////////////////////////
-// Company:  Cornami, Inc.
-//           Copyright (c) 2025 by Cornami, Inc. All rights reserved.
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
-// Engineer: RAPIDS RTL v4.0 - FIXED: Monitor Constants and Missing Parameters
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module Name   : sink_axi_write_engine
-// Project Name  : Next Generation RAPIDS
-// Target Devices: ASIC/FPGA
-// Tool versions : Verilator compatible
-// Description   : Sink AXI Write Engine v4.0 - PURE PIPELINE - FIXED
-//                 - FIXED: Added missing MAX_OUTSTANDING parameter
-//                 - FIXED: Monitor constants to use correct package definitions
-//                 - FIXED: Width expansion and truncation issues
-//                 - REMOVED: All FSM overhead - pure combinational + pipeline
-//                 - PERFORMANCE: Zero-cycle arbitration to AXI address issue
-//                 - PERFORMANCE: Perfect AXI streaming with natural backpressure
-//                 - ARCHITECTURE: Arbiter → Immediate AXI → Pipelined Data Flow
+// Module: sink_axi_write_engine
+// Purpose: Sink Axi Write Engine module
 //
-//////////////////////////////////////////////////////////////////////////////////
+// Documentation: projects/components/rapids_fub/PRD.md
+// Subsystem: rapids_fub
+//
+// Author: sean galloway
+// Created: 2025-10-18
 
 `timescale 1ns / 1ps
 

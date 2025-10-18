@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: SchedulerState
+# Purpose: RAPIDS Scheduler Testbench - v1.0
+#
+# Documentation: projects/components/rapids/PRD.md
+# Subsystem: rapids
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """
 RAPIDS Scheduler Testbench - v1.0
 

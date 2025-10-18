@@ -1,21 +1,17 @@
-//////////////////////////////////////////////////////////////////////////////////
-// Company:  Cornami, Inc.
-//           Copyright (c) 2025 by Cornami, Inc. All rights reserved.
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
-// Engineer: RAPIDS RTL v3.0 - FIXED: Channel Reset and Enhanced EOS/EOL/EOD Support
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module Name   : descriptor_engine
-// Project Name  : Next Generation RAPIDS
-// Target Devices: ASIC/FPGA
-// Tool versions : Verilator compatible
-// Description   : Descriptor Engine v3.0 - FIXED: All Channel Reset Issues
-//                 - FIXED: Channel reset functionality restored and improved
-//                 - FIXED: Safe reset with proper cleanup sequence
-//                 - ENHANCED: EOS/EOL/EOD support for streaming control
-//                 - UPDATED: Uses RAPIDS package types instead of local definitions
-//                 - MAINTAINED: APB and RDA dual operation support
+// Module: descriptor_engine
+// Purpose: Descriptor Engine module
 //
-//////////////////////////////////////////////////////////////////////////////////
+// Documentation: projects/components/rapids_fub/PRD.md
+// Subsystem: rapids_fub
+//
+// Author: sean galloway
+// Created: 2025-10-18
 
 `timescale 1ns / 1ps
 

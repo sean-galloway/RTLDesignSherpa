@@ -1,4 +1,19 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: check_unique_names
+# Purpose: Check for duplicate test_name_plus_params across all AMBA test files.
+#
+# Documentation: PRD.md
+# Subsystem: tests
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """
 Check for duplicate test_name_plus_params across all AMBA test files.
 This ensures tests can run in parallel without conflicting sim_build directories.

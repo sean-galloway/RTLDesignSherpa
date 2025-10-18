@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: test_source_sram_control
+# Purpose: RAPIDS Source SRAM Control FUB Test
+#
+# Documentation: projects/components/rapids/PRD.md
+# Subsystem: rapids
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """
 RAPIDS Source SRAM Control FUB Test
 

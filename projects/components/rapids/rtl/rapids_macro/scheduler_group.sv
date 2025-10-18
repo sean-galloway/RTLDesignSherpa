@@ -1,20 +1,17 @@
-//////////////////////////////////////////////////////////////////////////////////
-// Company:  Cornami, Inc.
-//           Copyright (c) 2025 by Cornami, Inc. All rights reserved.
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
-// Engineer: RAPIDS RTL v3.0 - UPDATED: Uses RAPIDS Package and Enhanced Data Interface
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module Name   : scheduler_group
-// Project Name  : Next Generation RAPIDS
-// Target Devices: ASIC/FPGA
-// Tool versions : Verilator compatible
-// Description   : Scheduler Group v3.0 - UPDATED: Enhanced Data Interface
-//                 - UPDATED: Uses rapids_imports.svh and RAPIDS package types
-//                 - UPDATED: Enhanced data interface with alignment bus
-//                 - UPDATED: Added ctrlrd/ctrlwr interfaces for control operations
-//                 - MAINTAINED: Complete descriptor, program, and scheduler integration
+// Module: scheduler_group
+// Purpose: Scheduler Group module
 //
-//////////////////////////////////////////////////////////////////////////////////
+// Documentation: projects/components/rapids_macro/PRD.md
+// Subsystem: rapids_macro
+//
+// Author: sean galloway
+// Created: 2025-10-18
 
 `timescale 1ns / 1ps
 

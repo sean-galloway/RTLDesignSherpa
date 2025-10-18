@@ -1,22 +1,17 @@
-//////////////////////////////////////////////////////////////////////////////////
-// Company:  Cornami, Inc.
-//           Copyright (c) 2025 by Cornami, Inc. All rights reserved.
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
-// Engineer: STREAM RTL v1.0
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module Name   : scheduler
-// Project Name  : STREAM - Scatter-gather Transfer Rapid Engine for AXI Memory
-// Target Devices: ASIC/FPGA
-// Tool versions : Verilator compatible
-// Description   : STREAM Scheduler - Simplified from RAPIDS
-//                 - Coordinates descriptor-based transfers (memory-to-memory only)
-//                 - No credit management (simple transaction limits)
-//                 - No address alignment fixup (aligned addresses required)
-//                 - No control engines (ctrlrd/ctrlwr)
-//                 - Configurable burst lengths via registers
-//                 - 8 channels maximum
+// Module: scheduler
+// Purpose: Scheduler module
 //
-//////////////////////////////////////////////////////////////////////////////////
+// Documentation: projects/components/stream_fub/PRD.md
+// Subsystem: stream_fub
+//
+// Author: sean galloway
+// Created: 2025-10-18
 
 `timescale 1ns / 1ps
 

@@ -1,26 +1,17 @@
-//////////////////////////////////////////////////////////////////////////////////
-// Company:  Cornami, Inc.
-//           Copyright (c) 2025 by Cornami, Inc. All rights reserved.
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
-// Engineer: RAPIDS RTL v3.0
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module Name   : scheduler_group_array
-// Project Name  : Next Generation RAPIDS
-// Target Devices: ASIC/FPGA
-// Tool versions : Verilator compatible
-// Description   : Scheduler Group Array v2.0 - UPDATED: Control Engine Architecture
-//                 - Instantiates CHANNEL_COUNT scheduler_group instances
-//                 - 3 shared AXI4 masters with MonBus monitoring:
-//                   1. Descriptor Engine (read - 512-bit data)
-//                   2. Control Read Engine (read - 32-bit data)
-//                   3. Control Write Engine (write - 32-bit data)
-//                 - NOTE: Program engine REMOVED from scheduler_group (tied off)
-//                 - Round-robin AXI arbitration with ID-based response routing
-//                 - AXI ID encoding: Lower CHAN_WIDTH bits = channel ID, upper bits = 0
-//                 - MonBus aggregation: CHANNEL_COUNT groups + 3 AXI masters (35 sources)
-//                 - Control engines (ctrlrd/ctrlwr) replace legacy program engine
+// Module: scheduler_group_array
+// Purpose: Scheduler Group Array module
 //
-//////////////////////////////////////////////////////////////////////////////////
+// Documentation: projects/components/rapids_macro/PRD.md
+// Subsystem: rapids_macro
+//
+// Author: sean galloway
+// Created: 2025-10-18
 
 `timescale 1ns / 1ps
 

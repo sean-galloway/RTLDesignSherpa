@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: test_ctrlwr_engine_simple
+# Purpose: Simple RAPIDS Control Write Engine FUB Test
+#
+# Documentation: projects/components/rapids/PRD.md
+# Subsystem: rapids
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """
 Simple RAPIDS Control Write Engine FUB Test
 

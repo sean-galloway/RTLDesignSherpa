@@ -1,19 +1,17 @@
-//////////////////////////////////////////////////////////////////////////////////
-// Company:  Cornami, Inc.
-//           Copyright (c) 2025 by Cornami, Inc. All rights reserved.
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
-// Engineer: RAPIDS RTL v4.2 - FIXED: All Verilator Width Issues
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module Name   : source_axi_read_engine
-// Project Name  : Next Generation RAPIDS
-// Target Devices: ASIC/FPGA
-// Tool versions : Verilator compatible
-// Description   : Source AXI Read Engine v4.2 - FIXED: Verilator Warnings
-//                 - FIXED: All width truncation and expansion issues
-//                 - FIXED: Proper width casting throughout
-//                 - MAINTAINED: 4B chunk length support and dynamic AXI sizing
+// Module: source_axi_read_engine
+// Purpose: Source Axi Read Engine module
 //
-//////////////////////////////////////////////////////////////////////////////////
+// Documentation: projects/components/rapids_fub/PRD.md
+// Subsystem: rapids_fub
+//
+// Author: sean galloway
+// Created: 2025-10-18
 
 `timescale 1ns / 1ps
 

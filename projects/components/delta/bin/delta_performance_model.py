@@ -1,4 +1,19 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: CrossbarConfig
+# Purpose: Delta Performance Modeling
+#
+# Documentation: projects/components/delta/PRD.md
+# Subsystem: delta
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """
 Delta Performance Modeling
 Analytical and simulation-based performance models for AXI-Stream crossbars

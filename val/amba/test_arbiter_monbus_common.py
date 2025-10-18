@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: test_arbiter_monbus_common
+# Purpose: Updated Test Runner for Arbiter MonBus Common Module
+#
+# Documentation: PRD.md
+# Subsystem: tests
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """
 Updated Test Runner for Arbiter MonBus Common Module
 Properly handles test failures and integrates with enhanced testbench

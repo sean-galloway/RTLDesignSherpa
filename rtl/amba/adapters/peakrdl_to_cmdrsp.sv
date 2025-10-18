@@ -1,15 +1,17 @@
-// =============================================================================
-// PeakRDL to CMD/RSP Adapter
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
-// Generic, reusable adapter that bridges PeakRDL's passthrough CPU interface
-// to cmd/rsp valid/ready protocol used throughout rtldesignsherpa designs.
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
 //
-// This adapter can be used with ANY PeakRDL-generated register block that
-// uses the passthrough cpuif option.
+// Module: peakrdl_to_cmdrsp
+// Purpose: Peakrdl To Cmdrsp module
 //
-// Author: Claude Code / RTL Design Sherpa Project
-// License: MIT
-// =============================================================================
+// Documentation: rtl/amba/PRD.md
+// Subsystem: amba
+//
+// Author: sean galloway
+// Created: 2025-10-18
 
 module peakrdl_to_cmdrsp #(
     parameter int ADDR_WIDTH = 12,  // Address width for cmd/rsp interface

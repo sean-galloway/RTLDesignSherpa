@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: test_dataint_ecc_hamming_secded
+# Purpose: Test runner for dataint_ecc_hamming_secded modules (encoder + decoder pair)
+#
+# Documentation: PRD.md
+# Subsystem: tests
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """
 Test runner for dataint_ecc_hamming_secded modules (encoder + decoder pair)
 

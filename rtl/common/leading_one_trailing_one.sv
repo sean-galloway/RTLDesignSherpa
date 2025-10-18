@@ -1,3 +1,18 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
+//
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
+//
+// Module: leading_one_trailing_one
+// Purpose: //   Combined leading and trailing '1' bit position detector. Finds both the
+//
+// Documentation: rtl/common/PRD.md
+// Subsystem: common
+//
+// Author: sean galloway
+// Created: 2025-10-18
+
 `timescale 1ns / 1ps
 
 //==============================================================================

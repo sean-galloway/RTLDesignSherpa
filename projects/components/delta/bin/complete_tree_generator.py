@@ -1,4 +1,19 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: complete_tree_generator
+# Purpose: Complete Tree Topology Generator for Delta
+#
+# Documentation: projects/components/delta/PRD.md
+# Subsystem: delta
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """
 Complete Tree Topology Generator for Delta
 Generates both fan-out (1→N) and fan-in (N→1) tree structures

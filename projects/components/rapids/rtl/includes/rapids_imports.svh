@@ -1,21 +1,18 @@
-//////////////////////////////////////////////////////////////////////////////////
-// Company:  Cornami, Inc.
-//           Copyright (c) 2025 by Cornami, Inc. All rights reserved.
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
-// Engineer: RAPIDS RTL v3.0 - Common Imports Header
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
 //
-// File Name     : rapids_imports.svh
-// Project Name  : Next Generation RAPIDS
-// Target Devices: ASIC/FPGA
-// Tool versions : Verilator compatible
-// Description   : RAPIDS Common Imports Header
-//                 - Global import of monitor and RAPIDS packages
-//                 - Include guards to prevent multiple imports
-//                 - Central location for all package dependencies
+// Module: rapids_imports
+// Purpose: Rapids Imports module
 //
-//////////////////////////////////////////////////////////////////////////////////
+// Documentation: projects/components/includes/PRD.md
+// Subsystem: includes
+//
+// Author: sean galloway
+// Created: 2025-10-18
 
-// Include guard for monitor package
 `ifndef MONITOR_PKG_IMPORTED
 `define MONITOR_PKG_IMPORTED
 // Import monitor package once globally

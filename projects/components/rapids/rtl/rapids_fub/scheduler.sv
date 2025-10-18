@@ -1,20 +1,17 @@
-//////////////////////////////////////////////////////////////////////////////////
-// Company:  Cornami, Inc.
-//           Copyright (c) 2025 by Cornami, Inc. All rights reserved.
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
-// Engineer: RAPIDS RTL v3.0 - FIXED: Verilator Width Issues
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module Name   : scheduler
-// Project Name  : Next Generation RAPIDS
-// Target Devices: ASIC/FPGA
-// Tool versions : Verilator compatible
-// Description   : Scheduler v3.0 - FIXED: All Width Warnings
-//                 - FIXED: Width truncation in chunk calculation
-//                 - FIXED: Incomplete case coverage for alignment FSM
-//                 - MAINTAINED: Complete Address Alignment FSM functionality
-//                 - UPDATED: Uses RAPIDS Package with proper width handling
+// Module: scheduler
+// Purpose: Scheduler module
 //
-//////////////////////////////////////////////////////////////////////////////////
+// Documentation: projects/components/rapids_fub/PRD.md
+// Subsystem: rapids_fub
+//
+// Author: sean galloway
+// Created: 2025-10-18
 
 `timescale 1ns / 1ps
 

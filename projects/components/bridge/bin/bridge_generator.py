@@ -1,4 +1,19 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: BridgeConfig
+# Purpose: Bridge: AXI4 Full Crossbar Generator (Framework Version)
+#
+# Documentation: projects/components/bridge/PRD.md
+# Subsystem: bridge
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """
 Bridge: AXI4 Full Crossbar Generator (Framework Version)
 Generates parameterized AXI4 crossbars using the unified verilog framework
@@ -276,42 +291,583 @@ class BridgeFlatCrossbar(Module):
         self.instruction("end")
         self.instruction("")
 
-    def generate_arbiter_skeleton(self):
+    def generate_aw_arbiter(self):
         """
-        Generate placeholder for arbiter logic
+        Generate AW (Write Address) channel arbiter logic
 
-        FULL IMPLEMENTATION NEEDED:
-        - 5 separate arbiters per slave (AW, W, B, AR, R)
-        - W channel locked to AW grant
-        - B/R channels routed by ID (need transaction tables)
-        - Burst locking (grant held until xlast)
+        Similar to Delta arbiter but adapted for AXI4:
+        - Round-robin arbitration among requesting masters
+        - Grant held until AW handshake completes (AWVALID && AWREADY)
+        - Transaction stored in ID table (Phase 2)
         """
         self.comment("==========================================================================")
-        self.comment("Per-Slave Arbitration (SKELETON - NEEDS FULL IMPLEMENTATION)")
+        self.comment("AW Channel Arbitration (Write Address)")
         self.comment("==========================================================================")
-        self.comment("TODO: Implement 5 separate arbiters per slave:")
-        self.comment("  1. AW arbiter - Write address channel")
-        self.comment("  2. W arbiter  - Write data channel (locked to AW grant)")
-        self.comment("  3. B demux    - Write response channel (ID-based routing)")
-        self.comment("  4. AR arbiter - Read address channel")
-        self.comment("  5. R demux    - Read data channel (ID-based routing)")
-        self.comment("")
-        self.comment("KEY DIFFERENCES from Delta (AXIS):")
-        self.comment("  - Delta: 1 arbiter per slave (simple)")
-        self.comment("  - Bridge: 5 arbiters per slave (5× complexity)")
-        self.comment("  - Bridge needs ID tables for B/R response routing")
-        self.comment("  - Bridge needs W channel locking to AW grant")
+        self.comment("Round-robin arbiter per slave for write address channel")
+        self.comment("Similar to Delta but for memory-mapped addresses (not streaming)")
+        self.comment("Grant held until AWVALID && AWREADY handshake completes")
         self.comment("==========================================================================")
         self.instruction("")
 
-        self.instruction("// Placeholder: Grant matrices for each channel")
         self.instruction("logic [NUM_MASTERS-1:0] aw_grant_matrix [NUM_SLAVES];")
-        self.instruction("logic [NUM_MASTERS-1:0] ar_grant_matrix [NUM_SLAVES];")
+        self.instruction("logic [$clog2(NUM_MASTERS)-1:0] aw_last_grant [NUM_SLAVES];")
+        self.instruction("logic aw_grant_active [NUM_SLAVES];  // Grant in progress")
         self.instruction("")
 
-        self.instruction("// TODO: Implement full arbitration logic")
-        self.instruction("// TODO: Implement ID tracking tables")
-        self.instruction("// TODO: Implement response demux logic")
+        self.comment("AW Arbitration logic for each slave")
+        self.instruction("generate")
+        self.instruction("    for (genvar s = 0; s < NUM_SLAVES; s++) begin : gen_aw_arbiter")
+        self.instruction("        always_ff @(posedge aclk or negedge aresetn) begin")
+        self.instruction("            if (!aresetn) begin")
+        self.instruction("                aw_grant_matrix[s] <= '0;")
+        self.instruction("                aw_last_grant[s] <= '0;")
+        self.instruction("                aw_grant_active[s] <= 1'b0;")
+        self.instruction("            end else begin")
+        self.instruction("                if (aw_grant_active[s]) begin")
+        self.instruction("                    // Hold grant until AW handshake completes")
+        self.instruction("                    if (m_axi_awvalid[s] && m_axi_awready[s]) begin")
+        self.instruction("                        aw_grant_active[s] <= 1'b0;")
+        self.instruction("                        aw_grant_matrix[s] <= '0;")
+        self.instruction("                        // TODO Phase 2: Store master ID in transaction table")
+        self.instruction("                    end")
+        self.instruction("                end else if (|aw_request_matrix[s]) begin")
+        self.instruction("                    // Round-robin arbitration (same algorithm as Delta)")
+        self.instruction("                    aw_grant_matrix[s] = '0;")
+        self.instruction("                    for (int i = 0; i < NUM_MASTERS; i++) begin")
+        self.instruction("                        int m;")
+        self.instruction("                        m = (aw_last_grant[s] + 1 + i) % NUM_MASTERS;")
+        self.instruction("                        if (aw_request_matrix[s][m] && aw_grant_matrix[s] == '0) begin")
+        self.instruction("                            aw_grant_matrix[s][m] = 1'b1;")
+        self.instruction("                            aw_last_grant[s] = m[$clog2(NUM_MASTERS)-1:0];")
+        self.instruction("                            aw_grant_active[s] = 1'b1;")
+        self.instruction("                        end")
+        self.instruction("                    end")
+        self.instruction("                end else begin")
+        self.instruction("                    aw_grant_matrix[s] <= '0;")
+        self.instruction("                end")
+        self.instruction("            end")
+        self.instruction("        end")
+        self.instruction("    end")
+        self.instruction("endgenerate")
+        self.instruction("")
+
+    def generate_ar_arbiter(self):
+        """
+        Generate AR (Read Address) channel arbiter logic
+
+        Independent from AW arbiter (separate read/write paths)
+        Same round-robin algorithm
+        """
+        self.comment("==========================================================================")
+        self.comment("AR Channel Arbitration (Read Address)")
+        self.comment("==========================================================================")
+        self.comment("Independent from write path - no head-of-line blocking")
+        self.comment("Round-robin arbiter per slave for read address channel")
+        self.comment("Grant held until ARVALID && ARREADY handshake completes")
+        self.comment("==========================================================================")
+        self.instruction("")
+
+        self.instruction("logic [NUM_MASTERS-1:0] ar_grant_matrix [NUM_SLAVES];")
+        self.instruction("logic [$clog2(NUM_MASTERS)-1:0] ar_last_grant [NUM_SLAVES];")
+        self.instruction("logic ar_grant_active [NUM_SLAVES];  // Grant in progress")
+        self.instruction("")
+
+        self.comment("AR Arbitration logic for each slave")
+        self.instruction("generate")
+        self.instruction("    for (genvar s = 0; s < NUM_SLAVES; s++) begin : gen_ar_arbiter")
+        self.instruction("        always_ff @(posedge aclk or negedge aresetn) begin")
+        self.instruction("            if (!aresetn) begin")
+        self.instruction("                ar_grant_matrix[s] <= '0;")
+        self.instruction("                ar_last_grant[s] <= '0;")
+        self.instruction("                ar_grant_active[s] <= 1'b0;")
+        self.instruction("            end else begin")
+        self.instruction("                if (ar_grant_active[s]) begin")
+        self.instruction("                    // Hold grant until AR handshake completes")
+        self.instruction("                    if (m_axi_arvalid[s] && m_axi_arready[s]) begin")
+        self.instruction("                        ar_grant_active[s] <= 1'b0;")
+        self.instruction("                        ar_grant_matrix[s] <= '0;")
+        self.instruction("                        // TODO Phase 2: Store master ID in transaction table")
+        self.instruction("                    end")
+        self.instruction("                end else if (|ar_request_matrix[s]) begin")
+        self.instruction("                    // Round-robin arbitration")
+        self.instruction("                    ar_grant_matrix[s] = '0;")
+        self.instruction("                    for (int i = 0; i < NUM_MASTERS; i++) begin")
+        self.instruction("                        int m;")
+        self.instruction("                        m = (ar_last_grant[s] + 1 + i) % NUM_MASTERS;")
+        self.instruction("                        if (ar_request_matrix[s][m] && ar_grant_matrix[s] == '0) begin")
+        self.instruction("                            ar_grant_matrix[s][m] = 1'b1;")
+        self.instruction("                            ar_last_grant[s] = m[$clog2(NUM_MASTERS)-1:0];")
+        self.instruction("                            ar_grant_active[s] = 1'b1;")
+        self.instruction("                        end")
+        self.instruction("                    end")
+        self.instruction("                end else begin")
+        self.instruction("                    ar_grant_matrix[s] <= '0;")
+        self.instruction("                end")
+        self.instruction("            end")
+        self.instruction("        end")
+        self.instruction("    end")
+        self.instruction("endgenerate")
+        self.instruction("")
+
+    def generate_aw_channel_mux(self):
+        """
+        Generate AW channel multiplexer
+        Routes granted master's AW signals to slave
+        """
+        self.comment("==========================================================================")
+        self.comment("AW Channel Multiplexing")
+        self.comment("==========================================================================")
+        self.comment("Mux granted master's write address signals to slave")
+        self.comment("Similar to Delta data mux but for AW channel signals")
+        self.comment("==========================================================================")
+        self.instruction("")
+
+        self.instruction("generate")
+        self.instruction("    for (genvar s = 0; s < NUM_SLAVES; s++) begin : gen_aw_mux")
+        self.instruction("        always_comb begin")
+        self.instruction("            // Default: all zeros")
+        self.instruction("            m_axi_awaddr[s]  = '0;")
+        self.instruction("            m_axi_awid[s]    = '0;")
+        self.instruction("            m_axi_awlen[s]   = '0;")
+        self.instruction("            m_axi_awsize[s]  = '0;")
+        self.instruction("            m_axi_awburst[s] = '0;")
+        self.instruction("            m_axi_awlock[s]  = '0;")
+        self.instruction("            m_axi_awcache[s] = '0;")
+        self.instruction("            m_axi_awprot[s]  = '0;")
+        self.instruction("            m_axi_awvalid[s] = 1'b0;")
+        self.instruction("")
+        self.instruction("            // Multiplex granted master to this slave")
+        self.instruction("            for (int m = 0; m < NUM_MASTERS; m++) begin")
+        self.instruction("                if (aw_grant_matrix[s][m]) begin")
+        self.instruction("                    m_axi_awaddr[s]  = s_axi_awaddr[m];")
+        self.instruction("                    m_axi_awid[s]    = s_axi_awid[m];")
+        self.instruction("                    m_axi_awlen[s]   = s_axi_awlen[m];")
+        self.instruction("                    m_axi_awsize[s]  = s_axi_awsize[m];")
+        self.instruction("                    m_axi_awburst[s] = s_axi_awburst[m];")
+        self.instruction("                    m_axi_awlock[s]  = s_axi_awlock[m];")
+        self.instruction("                    m_axi_awcache[s] = s_axi_awcache[m];")
+        self.instruction("                    m_axi_awprot[s]  = s_axi_awprot[m];")
+        self.instruction("                    m_axi_awvalid[s] = s_axi_awvalid[m];")
+        self.instruction("                end")
+        self.instruction("            end")
+        self.instruction("        end")
+        self.instruction("    end")
+        self.instruction("endgenerate")
+        self.instruction("")
+
+        self.comment("AWREADY backpressure routing")
+        self.instruction("generate")
+        self.instruction("    for (genvar m = 0; m < NUM_MASTERS; m++) begin : gen_awready")
+        self.instruction("        always_comb begin")
+        self.instruction("            s_axi_awready[m] = 1'b0;")
+        self.instruction("            for (int s = 0; s < NUM_SLAVES; s++) begin")
+        self.instruction("                if (aw_grant_matrix[s][m]) begin")
+        self.instruction("                    s_axi_awready[m] = m_axi_awready[s];")
+        self.instruction("                end")
+        self.instruction("            end")
+        self.instruction("        end")
+        self.instruction("    end")
+        self.instruction("endgenerate")
+        self.instruction("")
+
+    def generate_w_channel_mux(self):
+        """
+        Generate W channel multiplexer
+
+        W channel follows AW grant:
+        - When AW handshake completes, W grant locks to that master
+        - W grant held until WLAST && WVALID && WREADY
+        - No independent arbitration (depends on AW)
+        """
+        self.comment("==========================================================================")
+        self.comment("W Channel Multiplexing (Write Data)")
+        self.comment("==========================================================================")
+        self.comment("W channel follows AW grant (no independent arbitration)")
+        self.comment("Grant locked to master until WLAST completes")
+        self.comment("Similar to Delta but with burst support via WLAST")
+        self.comment("==========================================================================")
+        self.instruction("")
+
+        self.instruction("logic [NUM_MASTERS-1:0] w_grant_matrix [NUM_SLAVES];")
+        self.instruction("logic w_burst_active [NUM_SLAVES];  // W burst in progress")
+        self.instruction("")
+
+        self.comment("W grant tracking - lock to master that won AW arbitration")
+        self.instruction("generate")
+        self.instruction("    for (genvar s = 0; s < NUM_SLAVES; s++) begin : gen_w_grant")
+        self.instruction("        always_ff @(posedge aclk or negedge aresetn) begin")
+        self.instruction("            if (!aresetn) begin")
+        self.instruction("                w_grant_matrix[s] <= '0;")
+        self.instruction("                w_burst_active[s] <= 1'b0;")
+        self.instruction("            end else begin")
+        self.instruction("                if (w_burst_active[s]) begin")
+        self.instruction("                    // Hold W grant until WLAST completes")
+        self.instruction("                    if (m_axi_wvalid[s] && m_axi_wready[s] && m_axi_wlast[s]) begin")
+        self.instruction("                        w_burst_active[s] <= 1'b0;")
+        self.instruction("                        w_grant_matrix[s] <= '0;")
+        self.instruction("                    end")
+        self.instruction("                end else if (aw_grant_active[s] && m_axi_awvalid[s] && m_axi_awready[s]) begin")
+        self.instruction("                    // AW completed - lock W to the same master")
+        self.instruction("                    w_grant_matrix[s] <= aw_grant_matrix[s];")
+        self.instruction("                    w_burst_active[s] <= 1'b1;")
+        self.instruction("                end")
+        self.instruction("            end")
+        self.instruction("        end")
+        self.instruction("    end")
+        self.instruction("endgenerate")
+        self.instruction("")
+
+        self.comment("W data multiplexing")
+        self.instruction("generate")
+        self.instruction("    for (genvar s = 0; s < NUM_SLAVES; s++) begin : gen_w_mux")
+        self.instruction("        always_comb begin")
+        self.instruction("            // Default: all zeros")
+        self.instruction("            m_axi_wdata[s]  = '0;")
+        self.instruction("            m_axi_wstrb[s]  = '0;")
+        self.instruction("            m_axi_wlast[s]  = 1'b0;")
+        self.instruction("            m_axi_wvalid[s] = 1'b0;")
+        self.instruction("")
+        self.instruction("            // Multiplex W signals from locked master")
+        self.instruction("            for (int m = 0; m < NUM_MASTERS; m++) begin")
+        self.instruction("                if (w_grant_matrix[s][m]) begin")
+        self.instruction("                    m_axi_wdata[s]  = s_axi_wdata[m];")
+        self.instruction("                    m_axi_wstrb[s]  = s_axi_wstrb[m];")
+        self.instruction("                    m_axi_wlast[s]  = s_axi_wlast[m];")
+        self.instruction("                    m_axi_wvalid[s] = s_axi_wvalid[m];")
+        self.instruction("                end")
+        self.instruction("            end")
+        self.instruction("        end")
+        self.instruction("    end")
+        self.instruction("endgenerate")
+        self.instruction("")
+
+        self.comment("WREADY backpressure routing")
+        self.instruction("generate")
+        self.instruction("    for (genvar m = 0; m < NUM_MASTERS; m++) begin : gen_wready")
+        self.instruction("        always_comb begin")
+        self.instruction("            s_axi_wready[m] = 1'b0;")
+        self.instruction("            for (int s = 0; s < NUM_SLAVES; s++) begin")
+        self.instruction("                if (w_grant_matrix[s][m]) begin")
+        self.instruction("                    s_axi_wready[m] = m_axi_wready[s];")
+        self.instruction("                end")
+        self.instruction("            end")
+        self.instruction("        end")
+        self.instruction("    end")
+        self.instruction("endgenerate")
+        self.instruction("")
+
+    def generate_id_tables(self):
+        """
+        Generate transaction ID tracking tables (Phase 2)
+
+        Purpose: Map {slave_index, transaction_id} → master_index for response routing
+
+        Implementation: Distributed RAM (simple, suitable for small ID_WIDTH)
+        - write_id_table: Maps AW transactions to master for B response routing
+        - read_id_table: Maps AR transactions to master for R response routing
+
+        Table updates:
+        - Written on AW/AR handshake completion
+        - Read on B/R response arrival
+        - Cleared implicitly on overwrite (ID reuse)
+
+        Complexity: 2 slaves × 2 tables × 16 entries × 1 bit = 64 flip-flops (2x2, ID_WIDTH=4)
+        """
+        self.comment("==========================================================================")
+        self.comment("Transaction ID Tracking Tables (Phase 2)")
+        self.comment("==========================================================================")
+        self.comment("Purpose: Enable ID-based response routing (out-of-order support)")
+        self.comment("")
+        self.comment("Structure: Distributed RAM")
+        self.comment(f"  - {self.cfg.num_slaves} slaves × 2 tables (write, read)")
+        self.comment(f"  - 2^{self.cfg.id_width} = {2**self.cfg.id_width} entries per table")
+        self.comment(f"  - Each entry: $clog2({self.cfg.num_masters}) = {math.ceil(math.log2(self.cfg.num_masters))} bits (master index)")
+        self.comment("")
+        self.comment("Write ID Table: Stores master index for AW transactions → B routing")
+        self.comment("Read ID Table:  Stores master index for AR transactions → R routing")
+        self.comment("==========================================================================")
+        self.instruction("")
+
+        # Declare ID tables
+        master_bits = f"$clog2(NUM_MASTERS)" if self.cfg.num_masters > 1 else "0"
+        self.instruction(f"// Transaction ID tables: [slave][transaction_id] → master_index")
+        self.instruction(f"logic [{master_bits}:0] write_id_table [NUM_SLAVES][2**ID_WIDTH];")
+        self.instruction(f"logic [{master_bits}:0] read_id_table [NUM_SLAVES][2**ID_WIDTH];")
+        self.instruction("")
+
+        # Generate table write logic
+        self.comment("ID Table Write Logic")
+        self.comment("Store master index when AW/AR handshakes complete")
+        self.instruction("generate")
+        self.instruction("    for (genvar s = 0; s < NUM_SLAVES; s++) begin : gen_id_table_write")
+        self.instruction("        always_ff @(posedge aclk or negedge aresetn) begin")
+        self.instruction("            if (!aresetn) begin")
+        self.instruction("                // Tables don't need explicit reset (overwritten on use)")
+        self.instruction("            end else begin")
+        self.instruction("                // Write ID table: Record master for completed AW transactions")
+        self.instruction("                if (m_axi_awvalid[s] && m_axi_awready[s]) begin")
+        self.instruction("                    for (int m = 0; m < NUM_MASTERS; m++) begin")
+        self.instruction("                        if (aw_grant_matrix[s][m]) begin")
+        if self.cfg.num_masters > 1:
+            self.instruction(f"                            write_id_table[s][m_axi_awid[s]] <= m[{master_bits}:0];")
+        else:
+            self.instruction("                            write_id_table[s][m_axi_awid[s]] <= 1'b0;  // Only 1 master")
+        self.instruction("                        end")
+        self.instruction("                    end")
+        self.instruction("                end")
+        self.instruction("")
+        self.instruction("                // Read ID table: Record master for completed AR transactions")
+        self.instruction("                if (m_axi_arvalid[s] && m_axi_arready[s]) begin")
+        self.instruction("                    for (int m = 0; m < NUM_MASTERS; m++) begin")
+        self.instruction("                        if (ar_grant_matrix[s][m]) begin")
+        if self.cfg.num_masters > 1:
+            self.instruction(f"                            read_id_table[s][m_axi_arid[s]] <= m[{master_bits}:0];")
+        else:
+            self.instruction("                            read_id_table[s][m_axi_arid[s]] <= 1'b0;  // Only 1 master")
+        self.instruction("                        end")
+        self.instruction("                    end")
+        self.instruction("                end")
+        self.instruction("            end")
+        self.instruction("        end")
+        self.instruction("    end")
+        self.instruction("endgenerate")
+        self.instruction("")
+
+    def generate_b_channel_demux(self):
+        """
+        Generate B channel demux (Phase 3 - Write Response)
+
+        KEY CHALLENGE: ID-based routing, not grant-based
+        - Lookup master ID from write_id_table using {slave, BID}
+        - Route B response to correct master
+        - Handle multiple simultaneous responses from different slaves
+
+        Complexity: Each slave can send B responses to any master (out-of-order)
+        """
+        self.comment("==========================================================================")
+        self.comment("B Channel Demux (Write Response) - Phase 3")
+        self.comment("==========================================================================")
+        self.comment("ID-based routing: Lookup master from write_id_table[slave][bid]")
+        self.comment("KEY DIFFERENCE from grant-based: Responses can be out-of-order")
+        self.comment("Multiple slaves can respond simultaneously to different masters")
+        self.comment("==========================================================================")
+        self.instruction("")
+
+        # B channel signals to masters (combinational routing)
+        self.instruction("// B channel response routing to masters")
+        self.instruction("logic [ID_WIDTH-1:0]     b_routed_id    [NUM_MASTERS];")
+        self.instruction("logic [1:0]              b_routed_resp  [NUM_MASTERS];")
+        self.instruction("logic                    b_routed_valid [NUM_MASTERS];")
+        self.instruction("")
+
+        self.instruction("always_comb begin")
+        self.instruction("    // Initialize all master B channels to idle")
+        self.instruction("    for (int m = 0; m < NUM_MASTERS; m++) begin")
+        self.instruction("        b_routed_id[m]    = '0;")
+        self.instruction("        b_routed_resp[m]  = 2'b00;")
+        self.instruction("        b_routed_valid[m] = 1'b0;")
+        self.instruction("    end")
+        self.instruction("")
+        self.instruction("    // Route B responses from each slave to target master")
+        self.instruction("    for (int s = 0; s < NUM_SLAVES; s++) begin")
+        master_bits_expr = "$clog2(NUM_MASTERS)-1" if self.cfg.num_masters > 1 else "0"
+        self.instruction(f"        int target_master;  // Master index for this B response")
+        self.instruction("        if (m_axi_bvalid[s]) begin")
+        self.instruction("            // Lookup which master this transaction belongs to")
+        self.instruction(f"            target_master = int'(write_id_table[s][m_axi_bid[s]]);")
+        self.instruction("")
+        self.instruction("            // Route to target master (ID-based, not grant-based)")
+        self.instruction("            b_routed_id[target_master]    = m_axi_bid[s];")
+        self.instruction("            b_routed_resp[target_master]  = m_axi_bresp[s];")
+        self.instruction("            b_routed_valid[target_master] = 1'b1;")
+        self.instruction("        end else begin")
+        self.instruction("            target_master = 0;  // Default when no valid")
+        self.instruction("        end")
+        self.instruction("    end")
+        self.instruction("end")
+        self.instruction("")
+
+        # Assign to output ports
+        self.instruction("// Assign routed B signals to master output ports")
+        self.instruction("generate")
+        self.instruction("    for (genvar m = 0; m < NUM_MASTERS; m++) begin : gen_b_output")
+        self.instruction("        assign s_axi_bid[m]    = b_routed_id[m];")
+        self.instruction("        assign s_axi_bresp[m]  = b_routed_resp[m];")
+        self.instruction("        assign s_axi_bvalid[m] = b_routed_valid[m];")
+        self.instruction("    end")
+        self.instruction("endgenerate")
+        self.instruction("")
+
+        # B channel backpressure routing (BREADY)
+        self.comment("B channel backpressure: Route master's BREADY to slave")
+        self.instruction("generate")
+        self.instruction("    for (genvar s = 0; s < NUM_SLAVES; s++) begin : gen_b_ready")
+        self.instruction("        always_comb begin")
+        self.instruction("            int target_master;")
+        self.instruction("            m_axi_bready[s] = 1'b0;")
+        self.instruction("            if (m_axi_bvalid[s]) begin")
+        self.instruction("                // Find which master this B response goes to")
+        self.instruction(f"                target_master = int'(write_id_table[s][m_axi_bid[s]]);")
+        self.instruction("                m_axi_bready[s] = s_axi_bready[target_master];")
+        self.instruction("            end else begin")
+        self.instruction("                target_master = 0;  // Default when no valid")
+        self.instruction("            end")
+        self.instruction("        end")
+        self.instruction("    end")
+        self.instruction("endgenerate")
+        self.instruction("")
+
+    def generate_r_channel_demux(self):
+        """
+        Generate R channel demux (Phase 3 - Read Data/Response)
+
+        Similar to B channel but with burst handling:
+        - Lookup master ID from read_id_table using {slave, RID}
+        - Route R data/response to correct master
+        - Handle RLAST (last beat of read burst)
+        - Multiple R beats per transaction, all routed to same master
+
+        Complexity: Burst transactions mean multiple R beats with same RID
+        """
+        self.comment("==========================================================================")
+        self.comment("R Channel Demux (Read Data/Response) - Phase 3")
+        self.comment("==========================================================================")
+        self.comment("ID-based routing: Lookup master from read_id_table[slave][rid]")
+        self.comment("Burst support: Multiple R beats (RLAST indicates last beat)")
+        self.comment("Similar to B channel but with DATA_WIDTH data payload")
+        self.comment("==========================================================================")
+        self.instruction("")
+
+        # R channel signals to masters (combinational routing)
+        self.instruction("// R channel response routing to masters")
+        self.instruction("logic [DATA_WIDTH-1:0]   r_routed_data  [NUM_MASTERS];")
+        self.instruction("logic [ID_WIDTH-1:0]     r_routed_id    [NUM_MASTERS];")
+        self.instruction("logic [1:0]              r_routed_resp  [NUM_MASTERS];")
+        self.instruction("logic                    r_routed_last  [NUM_MASTERS];")
+        self.instruction("logic                    r_routed_valid [NUM_MASTERS];")
+        self.instruction("")
+
+        self.instruction("always_comb begin")
+        self.instruction("    // Initialize all master R channels to idle")
+        self.instruction("    for (int m = 0; m < NUM_MASTERS; m++) begin")
+        self.instruction("        r_routed_data[m]  = '0;")
+        self.instruction("        r_routed_id[m]    = '0;")
+        self.instruction("        r_routed_resp[m]  = 2'b00;")
+        self.instruction("        r_routed_last[m]  = 1'b0;")
+        self.instruction("        r_routed_valid[m] = 1'b0;")
+        self.instruction("    end")
+        self.instruction("")
+        self.instruction("    // Route R responses from each slave to target master")
+        self.instruction("    for (int s = 0; s < NUM_SLAVES; s++) begin")
+        self.instruction(f"        int target_master;  // Master index for this R response")
+        self.instruction("        if (m_axi_rvalid[s]) begin")
+        self.instruction("            // Lookup which master this transaction belongs to")
+        self.instruction(f"            target_master = int'(read_id_table[s][m_axi_rid[s]]);")
+        self.instruction("")
+        self.instruction("            // Route to target master (ID-based, burst-aware)")
+        self.instruction("            r_routed_data[target_master]  = m_axi_rdata[s];")
+        self.instruction("            r_routed_id[target_master]    = m_axi_rid[s];")
+        self.instruction("            r_routed_resp[target_master]  = m_axi_rresp[s];")
+        self.instruction("            r_routed_last[target_master]  = m_axi_rlast[s];")
+        self.instruction("            r_routed_valid[target_master] = 1'b1;")
+        self.instruction("        end else begin")
+        self.instruction("            target_master = 0;  // Default when no valid")
+        self.instruction("        end")
+        self.instruction("    end")
+        self.instruction("end")
+        self.instruction("")
+
+        # Assign to output ports
+        self.instruction("// Assign routed R signals to master output ports")
+        self.instruction("generate")
+        self.instruction("    for (genvar m = 0; m < NUM_MASTERS; m++) begin : gen_r_output")
+        self.instruction("        assign s_axi_rdata[m]  = r_routed_data[m];")
+        self.instruction("        assign s_axi_rid[m]    = r_routed_id[m];")
+        self.instruction("        assign s_axi_rresp[m]  = r_routed_resp[m];")
+        self.instruction("        assign s_axi_rlast[m]  = r_routed_last[m];")
+        self.instruction("        assign s_axi_rvalid[m] = r_routed_valid[m];")
+        self.instruction("    end")
+        self.instruction("endgenerate")
+        self.instruction("")
+
+        # R channel backpressure routing (RREADY)
+        self.comment("R channel backpressure: Route master's RREADY to slave")
+        self.instruction("generate")
+        self.instruction("    for (genvar s = 0; s < NUM_SLAVES; s++) begin : gen_r_ready")
+        self.instruction("        always_comb begin")
+        self.instruction("            int target_master;")
+        self.instruction("            m_axi_rready[s] = 1'b0;")
+        self.instruction("            if (m_axi_rvalid[s]) begin")
+        self.instruction("                // Find which master this R response goes to")
+        self.instruction(f"                target_master = int'(read_id_table[s][m_axi_rid[s]]);")
+        self.instruction("                m_axi_rready[s] = s_axi_rready[target_master];")
+        self.instruction("            end else begin")
+        self.instruction("                target_master = 0;  // Default when no valid")
+        self.instruction("            end")
+        self.instruction("        end")
+        self.instruction("    end")
+        self.instruction("endgenerate")
+        self.instruction("")
+
+    def generate_ar_channel_mux(self):
+        """
+        Generate AR channel multiplexer
+        Routes granted master's AR signals to slave
+        """
+        self.comment("==========================================================================")
+        self.comment("AR Channel Multiplexing")
+        self.comment("==========================================================================")
+        self.comment("Mux granted master's read address signals to slave")
+        self.comment("Independent from AW channel (separate read/write paths)")
+        self.comment("==========================================================================")
+        self.instruction("")
+
+        self.instruction("generate")
+        self.instruction("    for (genvar s = 0; s < NUM_SLAVES; s++) begin : gen_ar_mux")
+        self.instruction("        always_comb begin")
+        self.instruction("            // Default: all zeros")
+        self.instruction("            m_axi_araddr[s]  = '0;")
+        self.instruction("            m_axi_arid[s]    = '0;")
+        self.instruction("            m_axi_arlen[s]   = '0;")
+        self.instruction("            m_axi_arsize[s]  = '0;")
+        self.instruction("            m_axi_arburst[s] = '0;")
+        self.instruction("            m_axi_arlock[s]  = '0;")
+        self.instruction("            m_axi_arcache[s] = '0;")
+        self.instruction("            m_axi_arprot[s]  = '0;")
+        self.instruction("            m_axi_arvalid[s] = 1'b0;")
+        self.instruction("")
+        self.instruction("            // Multiplex granted master to this slave")
+        self.instruction("            for (int m = 0; m < NUM_MASTERS; m++) begin")
+        self.instruction("                if (ar_grant_matrix[s][m]) begin")
+        self.instruction("                    m_axi_araddr[s]  = s_axi_araddr[m];")
+        self.instruction("                    m_axi_arid[s]    = s_axi_arid[m];")
+        self.instruction("                    m_axi_arlen[s]   = s_axi_arlen[m];")
+        self.instruction("                    m_axi_arsize[s]  = s_axi_arsize[m];")
+        self.instruction("                    m_axi_arburst[s] = s_axi_arburst[m];")
+        self.instruction("                    m_axi_arlock[s]  = s_axi_arlock[m];")
+        self.instruction("                    m_axi_arcache[s] = s_axi_arcache[m];")
+        self.instruction("                    m_axi_arprot[s]  = s_axi_arprot[m];")
+        self.instruction("                    m_axi_arvalid[s] = s_axi_arvalid[m];")
+        self.instruction("                end")
+        self.instruction("            end")
+        self.instruction("        end")
+        self.instruction("    end")
+        self.instruction("endgenerate")
+        self.instruction("")
+
+        self.comment("ARREADY backpressure routing")
+        self.instruction("generate")
+        self.instruction("    for (genvar m = 0; m < NUM_MASTERS; m++) begin : gen_arready")
+        self.instruction("        always_comb begin")
+        self.instruction("            s_axi_arready[m] = 1'b0;")
+        self.instruction("            for (int s = 0; s < NUM_SLAVES; s++) begin")
+        self.instruction("                if (ar_grant_matrix[s][m]) begin")
+        self.instruction("                    s_axi_arready[m] = m_axi_arready[s];")
+        self.instruction("                end")
+        self.instruction("            end")
+        self.instruction("        end")
+        self.instruction("    end")
+        self.instruction("endgenerate")
         self.instruction("")
 
     def verilog(self, file_path):
@@ -319,9 +875,24 @@ class BridgeFlatCrossbar(Module):
         # Generate header comment
         self.generate_header_comment()
 
-        # Generate logic sections
+        # Generate address decode
         self.generate_address_decode()
-        self.generate_arbiter_skeleton()
+
+        # Generate write path (AW + W channels)
+        self.generate_aw_arbiter()
+        self.generate_aw_channel_mux()
+        self.generate_w_channel_mux()  # Full implementation
+
+        # Generate read path (AR + R channels)
+        self.generate_ar_arbiter()
+        self.generate_ar_channel_mux()
+
+        # Phase 2: Transaction ID tracking tables
+        self.generate_id_tables()
+
+        # Phase 3: Generate response channels (B, R)
+        self.generate_b_channel_demux()  # Phase 3: Full B channel implementation
+        self.generate_r_channel_demux()  # Phase 3: Full R channel implementation with bursts
 
         # Module framework handles module header/footer
         self.start()  # Auto-generates module header with ports/params
