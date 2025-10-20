@@ -1,0 +1,101 @@
+@startuml hpet_core_fsm
+
+title HPET Core Timer FSM (Per-Timer Instance)
+
+[*] --> IDLE : Reset / Power-On
+
+state IDLE {
+  IDLE : Entry: timer_fired = 0
+  IDLE : timer_irq = STATUS bit
+  IDLE : Wait for timer enable
+}
+
+state ARMED {
+  ARMED : Entry: Sample comparator value
+  ARMED : Monitor counter vs comparator
+  ARMED : timer_irq = STATUS bit (if previously fired)
+}
+
+state FIRE {
+  FIRE : Entry: Set timer_fired flag
+  FIRE : Set STATUS bit (interrupt)
+  FIRE : timer_irq asserts
+  FIRE : Duration: 1 clock cycle
+}
+
+state PERIODIC_RELOAD {
+  PERIODIC_RELOAD : Entry: comparator += period
+  PERIODIC_RELOAD : Prepare for next fire
+  PERIODIC_RELOAD : Duration: 1 clock cycle
+}
+
+state ONE_SHOT_COMPLETE {
+  ONE_SHOT_COMPLETE : Entry: Timer complete
+  ONE_SHOT_COMPLETE : Wait for software clear + reconfigure
+  ONE_SHOT_COMPLETE : timer_irq = STATUS bit (sticky)
+}
+
+IDLE --> ARMED : HPET enabled &&\nTimer enabled\n(CONFIG[0] = 1)
+
+ARMED --> FIRE : counter >= comparator
+
+FIRE --> PERIODIC_RELOAD : Periodic mode\n(CONFIG[2] = 1)
+
+FIRE --> ONE_SHOT_COMPLETE : One-shot mode\n(CONFIG[2] = 0)
+
+PERIODIC_RELOAD --> ARMED : Always\n(automatic transition)
+
+ONE_SHOT_COMPLETE --> IDLE : Timer disabled\n(CONFIG[0] = 0)
+
+ONE_SHOT_COMPLETE --> ARMED : Comparator updated &&\nTimer remains enabled
+
+ARMED --> IDLE : HPET disabled ||\nTimer disabled
+
+note right of FIRE
+  **Fire Event:**
+  - Asserts timer_fired flag
+  - Sets STATUS bit (W1C)
+  - Interrupt output follows STATUS
+
+  **Timing:**
+  - Fire detected on rising edge
+  - One cycle latency
+end note
+
+note right of PERIODIC_RELOAD
+  **Auto-Reload:**
+  comparator_next =
+    comparator_current + period
+
+  **Continuous Operation:**
+  Timer fires indefinitely at
+  fixed intervals until disabled
+end note
+
+note right of ONE_SHOT_COMPLETE
+  **One-Shot Completion:**
+  - Timer fires once
+  - Interrupt remains asserted
+    until software clears STATUS
+
+  **Reconfiguration:**
+  - Update comparator
+  - Re-enable timer
+  - Returns to ARMED
+end note
+
+note left of ARMED
+  **Match Detection:**
+  fire_condition =
+    (counter >= comparator) &&
+    timer_enabled &&
+    hpet_enabled
+
+  **Comparator Sampling:**
+  Latched on entry to ARMED
+  Updates on:
+  - Timer enable edge
+  - Comparator write
+end note
+
+@enduml

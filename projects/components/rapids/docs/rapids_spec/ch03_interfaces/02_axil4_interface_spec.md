@@ -76,19 +76,19 @@ AXI4-Lite protocol inherently provides the following constraints:
 
 | Signal | Width | Direction | Required Values | Description |
 |--------|-------|-----------|-----------------|-------------|
-| `ar_addr` | `ADDR_WIDTH` | Master→Slave | **8-byte aligned** | Read address |
-| `ar_prot` | 3 | Master→Slave | Implementation specific | Protection attributes |
-| `ar_valid` | 1 | Master→Slave | 0 or 1 | Address valid |
-| `ar_ready` | 1 | Slave→Master | 0 or 1 | Address ready |
+| `ar_addr` | `ADDR_WIDTH` | Master->Slave | **8-byte aligned** | Read address |
+| `ar_prot` | 3 | Master->Slave | Implementation specific | Protection attributes |
+| `ar_valid` | 1 | Master->Slave | 0 or 1 | Address valid |
+| `ar_ready` | 1 | Slave->Master | 0 or 1 | Address ready |
 
 ### Read Data Channel (R)
 
 | Signal | Width | Direction | Description |
 |--------|-------|-----------|-------------|
-| `r_data` | 64 | Slave→Master | Read data |
-| `r_resp` | 2 | Slave→Master | Read response |
-| `r_valid` | 1 | Slave→Master | Read data valid |
-| `r_ready` | 1 | Master→Slave | Read data ready |
+| `r_data` | 64 | Slave->Master | Read data |
+| `r_resp` | 2 | Slave->Master | Read response |
+| `r_valid` | 1 | Slave->Master | Read data valid |
+| `r_ready` | 1 | Master->Slave | Read data ready |
 
 ### AXI4-Lite Simplifications (Read)
 
@@ -113,27 +113,27 @@ AXI4-Lite protocol inherently provides the following constraints:
 
 | Signal | Width | Direction | Required Values | Description |
 |--------|-------|-----------|-----------------|-------------|
-| `aw_addr` | `ADDR_WIDTH` | Master→Slave | **8-byte aligned** | Write address |
-| `aw_prot` | 3 | Master→Slave | Implementation specific | Protection attributes |
-| `aw_valid` | 1 | Master→Slave | 0 or 1 | Address valid |
-| `aw_ready` | 1 | Slave→Master | 0 or 1 | Address ready |
+| `aw_addr` | `ADDR_WIDTH` | Master->Slave | **8-byte aligned** | Write address |
+| `aw_prot` | 3 | Master->Slave | Implementation specific | Protection attributes |
+| `aw_valid` | 1 | Master->Slave | 0 or 1 | Address valid |
+| `aw_ready` | 1 | Slave->Master | 0 or 1 | Address ready |
 
 ### Write Data Channel (W)
 
 | Signal | Width | Direction | Description |
 |--------|-------|-----------|-------------|
-| `w_data` | 32 | Master→Slave | Write data |
-| `w_strb` | 4 | Master→Slave | Write strobes (byte enables) |
-| `w_valid` | 1 | Master→Slave | Write data valid |
-| `w_ready` | 1 | Slave→Master | Write data ready |
+| `w_data` | 32 | Master->Slave | Write data |
+| `w_strb` | 4 | Master->Slave | Write strobes (byte enables) |
+| `w_valid` | 1 | Master->Slave | Write data valid |
+| `w_ready` | 1 | Slave->Master | Write data ready |
 
 ### Write Response Channel (B)
 
 | Signal | Width | Direction | Description |
 |--------|-------|-----------|-------------|
-| `b_resp` | 2 | Slave→Master | Write response |
-| `b_valid` | 1 | Slave→Master | Response valid |
-| `b_ready` | 1 | Master→Slave | Response ready |
+| `b_resp` | 2 | Slave->Master | Write response |
+| `b_valid` | 1 | Slave->Master | Response valid |
+| `b_ready` | 1 | Master->Slave | Response ready |
 
 ### AXI4-Lite Simplifications (Write)
 
@@ -339,7 +339,7 @@ AXI4-Lite protocol inherently provides the following constraints:
 |-----------|-------|-------------|
 | **Bus Width** | 64 bits (8 bytes) | Data bus configuration |
 | **Target Address** | 0x1004 (misaligned) | Invalid address |
-| **Expected Behavior** | Address decode detects misalignment → DECERR response → No register access | Error handling |
+| **Expected Behavior** | Address decode detects misalignment -> DECERR response -> No register access | Error handling |
 
 ## Common Use Cases
 

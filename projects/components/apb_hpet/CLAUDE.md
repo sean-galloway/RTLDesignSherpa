@@ -18,7 +18,23 @@
 
 ## Critical Rules for This Component
 
-### Rule #0: TESTBENCH ARCHITECTURE - MANDATORY SEPARATION
+### Rule #0: Attribution Format for Git Commits
+
+**IMPORTANT:** When creating git commit messages for APB HPET documentation or code:
+
+**Use:**
+```
+Documentation and implementation support by Claude.
+```
+
+**Do NOT use:**
+```
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+**Rationale:** APB HPET receives AI assistance for structure and clarity, while design concepts and architectural decisions remain human-authored.
+
+### Rule #0.1: TESTBENCH ARCHITECTURE - MANDATORY SEPARATION
 
 **⚠️ THIS IS A HARD REQUIREMENT - NO EXCEPTIONS ⚠️**
 
@@ -29,22 +45,36 @@ The same testbench logic is reused across multiple test scenarios. Having testbe
 **MANDATORY Structure:**
 
 ```
-bin/CocoTBFramework/tbclasses/amba/apb_hpet/
-├── hpet_testbench.py       ← REUSABLE TB CLASS
-├── hpet_tests_basic.py     ← REUSABLE test suite (basic level)
-├── hpet_tests_medium.py    ← REUSABLE test suite (medium level)
-└── hpet_tests_full.py      ← REUSABLE test suite (full level)
-
-projects/components/apb_hpet/dv/tests/
-└── test_apb_hpet.py        ← TEST RUNNER ONLY (imports TB + test suites)
+projects/components/apb_hpet/dv/
+├── tbclasses/                    # ★ HPET TB classes HERE (not framework!)
+│   ├── hpet_tb.py                # ← REUSABLE TB CLASS
+│   ├── hpet_tests_basic.py       # ← REUSABLE test suite (basic level)
+│   ├── hpet_tests_medium.py      # ← REUSABLE test suite (medium level)
+│   └── hpet_tests_full.py        # ← REUSABLE test suite (full level)
+│
+└── tests/                        # Test runners (import TB classes from project area)
+    └── test_apb_hpet.py          # ← TEST RUNNER ONLY (imports TB + test suites)
 ```
+
+**✅ CRITICAL: All HPET TB classes are in the PROJECT AREA, not the framework!**
 
 **Test Runner Pattern (CORRECT):**
 ```python
 # projects/components/apb_hpet/dv/tests/test_apb_hpet.py
-from CocoTBFramework.tbclasses.amba.apb_hpet.hpet_testbench import HPETTestbench
-from CocoTBFramework.tbclasses.amba.apb_hpet.hpet_tests_basic import HPETTestsBasic
-from CocoTBFramework.tbclasses.amba.apb_hpet.hpet_tests_medium import HPETTestsMedium
+
+# Add repo root to Python path
+import os, sys
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
+sys.path.insert(0, repo_root)
+
+# Import from PROJECT AREA (not framework!)
+from projects.components.apb_hpet.dv.tbclasses.hpet_tb import HPETTB, HPETRegisterMap
+from projects.components.apb_hpet.dv.tbclasses.hpet_tests_basic import HPETBasicTests
+from projects.components.apb_hpet.dv.tbclasses.hpet_tests_medium import HPETMediumTests
+
+# Shared framework utilities
+from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
 @cocotb.test()
 async def cocotb_test_basic(dut):
@@ -64,10 +94,10 @@ def test_hpet(request, num_timers, vendor_id, ...):
 
 **Testbench Class Pattern (CORRECT):**
 ```python
-# bin/CocoTBFramework/tbclasses/amba/apb_hpet/hpet_testbench.py
+# projects/components/apb_hpet/dv/tbclasses/hpet_tb.py ✅ CORRECT LOCATION!
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 
-class HPETTestbench(TBBase):
+class HPETTB(TBBase):
     """Reusable testbench for APB HPET validation"""
 
     def __init__(self, dut, **kwargs):
@@ -630,11 +660,16 @@ pytest projects/components/apb_hpet/dv/tests/ -v -m "not stress"
 ```python
 # projects/components/apb_hpet/dv/tests/test_apb_hpet.py
 
-# Imports
-from CocoTBFramework.tbclasses.amba.apb_hpet.hpet_testbench import HPETTestbench
-from CocoTBFramework.tbclasses.amba.apb_hpet.hpet_tests_basic import HPETTestsBasic
-from CocoTBFramework.tbclasses.amba.apb_hpet.hpet_tests_medium import HPETTestsMedium
-from CocoTBFramework.tbclasses.amba.apb_hpet.hpet_tests_full import HPETTestsFull
+# Add repo root to Python path
+import os, sys
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
+sys.path.insert(0, repo_root)
+
+# Imports from PROJECT AREA
+from projects.components.apb_hpet.dv.tbclasses.hpet_tb import HPETTB, HPETRegisterMap
+from projects.components.apb_hpet.dv.tbclasses.hpet_tests_basic import HPETBasicTests
+from projects.components.apb_hpet.dv.tbclasses.hpet_tests_medium import HPETMediumTests
+from projects.components.apb_hpet.dv.tbclasses.hpet_tests_full import HPETFullTests
 
 # CocoTB test functions (prefix with "cocotb_")
 @cocotb.test(timeout_time=100, timeout_unit="ms")
@@ -778,7 +813,7 @@ await self.tb.write_register(HPETRegisterMap.HPET_COUNTER_HI, 0x0)
 - `projects/components/apb_hpet/docs/IMPLEMENTATION_STATUS.md` - Test results
 
 **Testbench Infrastructure:**
-- `bin/CocoTBFramework/tbclasses/amba/apb_hpet/` - Reusable TB classes
+- `projects/components/apb_hpet/dv/tbclasses/` - Reusable TB classes (project area!)
 
 **Root:**
 - `/CLAUDE.md` - Repository guide
@@ -816,13 +851,36 @@ cat projects/components/apb_hpet/docs/IMPLEMENTATION_STATUS.md
 1. 🧹 **MANDATORY: Clean up counter** - Reset counter to 0 at end of every test
 2. ⏱️ **Calculate timeouts properly** - Account for timer periods and test overhead
 3. 📖 **Reference PRD.md** - Complete specification in `projects/components/apb_hpet/PRD.md`
-4. 🏗️ **Testbench reuse** - TB classes in `bin/CocoTBFramework/tbclasses/amba/apb_hpet/`
+4. 🏗️ **Testbench reuse** - TB classes in `projects/components/apb_hpet/dv/tbclasses/` (project area!)
 5. ✅ **100% success required** - All tests must pass, partial success indicates bugs
 6. 🔁 **W1C for STATUS** - Write 1s to clear interrupt flags, not 0s
 7. 📊 **Test hierarchy** - Basic (4) → Medium (5) → Full (3) tests
 8. 🔀 **CDC variants** - Test both synchronous and asynchronous clock configurations
 9. 🎯 **PeakRDL integration** - Registers generated from SystemRDL spec
 10. 🔌 **Per-timer buses** - Dedicated data paths prevent timer corruption
+
+---
+
+## PDF Generation Location
+
+**IMPORTANT: PDF files should be generated in the docs directory:**
+```
+/mnt/data/github/rtldesignsherpa/projects/components/apb_hpet/docs/
+```
+
+**Quick Command:** Use the provided shell script:
+```bash
+cd /mnt/data/github/rtldesignsherpa/projects/components/apb_hpet/docs
+./generate_pdf.sh
+```
+
+The shell script will automatically:
+1. Use the md_to_docx.py tool from bin/
+2. Process the specification index file
+3. Generate both DOCX and PDF files in the docs/ directory
+4. Create table of contents and title page
+
+**📖 See:** `bin/md_to_docx.py` for complete implementation details
 
 ---
 

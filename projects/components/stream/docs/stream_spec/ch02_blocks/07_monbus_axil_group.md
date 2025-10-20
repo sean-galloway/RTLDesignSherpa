@@ -2,37 +2,43 @@
 
 **Module:** `monbus_axil_group.sv`
 **Location:** `rtl/stream_macro/`
-**Source:** Copied from RAPIDS (identical)
+**Source:** Simplified from RAPIDS
 
 ---
 
 ## Overview
 
-The MonBus AXIL Group provides monitoring and error reporting for STREAM. It aggregates monitor bus packets from all channels and provides AXIL interfaces for error/interrupt handling and packet logging to memory.
+The MonBus AXIL Group provides monitoring and error reporting for STREAM. It receives monitor bus packets from STREAM channels and provides AXIL interfaces for error/interrupt handling and packet logging to memory.
 
 ### Key Features
 
-- **Multiple MonBus inputs:** One per STREAM channel
+- **Single MonBus input:** Simplified from RAPIDS (which has source + sink)
 - **Error FIFO:** Buffers error packets for software polling
 - **AXIL slave:** Read error/interrupt packets
 - **AXIL master:** Write monitor packets to system memory
 - **Interrupt output:** Asserted when error FIFO not empty
-- **Identical to RAPIDS:** Proven design, no modifications
+- **Protocol filtering:** Per-protocol packet type filtering (AXI, AXIS, CORE)
 
 ---
 
 ## Differences from RAPIDS
 
-**None.** This module is functionally identical to RAPIDS `monbus_axil_group.sv`.
+**CRITICAL DIFFERENCE:** STREAM has **ONE** monitor bus input (not two like RAPIDS)
 
-**Only Change:**
-- Header comment updated to mention STREAM
-- Functionally unchanged
+**RAPIDS:**
+- Source data path → source monitor bus
+- Sink data path → sink monitor bus
+- **TWO** inputs requiring arbitration
 
-**Why Identical:**
-- MonBus protocol standardized across all projects
-- Error/interrupt handling proven in RAPIDS
-- AXIL interface patterns reused
+**STREAM:**
+- Memory-to-memory only → single monitor bus
+- **ONE** input, no arbitration needed
+- Simpler, more efficient
+
+**Other Changes:**
+- Removed internal arbiter (not needed with single input)
+- Direct connection from input to filter logic
+- Reduced area and latency
 
 ---
 
@@ -41,86 +47,93 @@ The MonBus AXIL Group provides monitoring and error reporting for STREAM. It agg
 ### Parameters
 
 ```systemverilog
-parameter int NUM_CHANNELS = 8;         // Number of monitor bus inputs
-parameter int MONBUS_WIDTH = 64;        // Monitor bus packet width
-parameter int AXIL_ADDR_WIDTH = 32;     // AXIL address width
-parameter int AXIL_DATA_WIDTH = 32;     // AXIL data width
-parameter int ERROR_FIFO_DEPTH = 64;    // Error packet FIFO depth
+parameter int FIFO_DEPTH_ERR    = 64;   // Error/interrupt FIFO depth
+parameter int FIFO_DEPTH_WRITE  = 32;   // Master write FIFO depth
+parameter int ADDR_WIDTH        = 32;   // AXI address width
+parameter int DATA_WIDTH        = 32;   // AXI data width (32 or 64)
+parameter int NUM_PROTOCOLS     = 3;    // Number of protocols (AXI, AXIS, CORE)
 ```
 
 ### Ports
 
 **Clock and Reset:**
 ```systemverilog
-input  logic                        aclk;
-input  logic                        aresetn;
+input  logic                    axi_aclk;
+input  logic                    axi_aresetn;
 ```
 
-**Monitor Bus Inputs (per channel):**
+**Monitor Bus Input (single input):**
 ```systemverilog
-input  logic [NUM_CHANNELS-1:0]     ch_monbus_valid;
-output logic [NUM_CHANNELS-1:0]     ch_monbus_ready;
-input  logic [NUM_CHANNELS-1:0][MONBUS_WIDTH-1:0]
-                                    ch_monbus_packet;
+input  logic                    monbus_valid;
+output logic                    monbus_ready;
+input  logic [63:0]             monbus_packet;
 ```
 
 **AXIL Slave (Error/Interrupt FIFO Read):**
 ```systemverilog
 // AR channel
-input  logic [AXIL_ADDR_WIDTH-1:0]  s_axil_araddr;
-input  logic                        s_axil_arvalid;
-output logic                        s_axil_arready;
+input  logic [ADDR_WIDTH-1:0]   s_axil_araddr;
+input  logic [2:0]              s_axil_arprot;
+input  logic                    s_axil_arvalid;
+output logic                    s_axil_arready;
 
 // R channel
-output logic [AXIL_DATA_WIDTH-1:0]  s_axil_rdata;
-output logic [1:0]                  s_axil_rresp;
-output logic                        s_axil_rvalid;
-input  logic                        s_axil_rready;
+output logic [DATA_WIDTH-1:0]   s_axil_rdata;
+output logic [1:0]              s_axil_rresp;
+output logic                    s_axil_rvalid;
+input  logic                    s_axil_rready;
 ```
 
 **AXIL Master (Monitor Packet Writes to Memory):**
 ```systemverilog
 // AW channel
-output logic [AXIL_ADDR_WIDTH-1:0]  m_axil_awaddr;
-output logic                        m_axil_awvalid;
-input  logic                        m_axil_awready;
+output logic [ADDR_WIDTH-1:0]   m_axil_awaddr;
+output logic [2:0]              m_axil_awprot;
+output logic                    m_axil_awvalid;
+input  logic                    m_axil_awready;
 
 // W channel
-output logic [AXIL_DATA_WIDTH-1:0]  m_axil_wdata;
-output logic [3:0]                  m_axil_wstrb;
-output logic                        m_axil_wvalid;
-input  logic                        m_axil_wready;
+output logic [DATA_WIDTH-1:0]   m_axil_wdata;
+output logic [DATA_WIDTH/8-1:0] m_axil_wstrb;
+output logic                    m_axil_wvalid;
+input  logic                    m_axil_wready;
 
 // B channel
-input  logic [1:0]                  m_axil_bresp;
-input  logic                        m_axil_bvalid;
-output logic                        m_axil_bready;
+input  logic [1:0]              m_axil_bresp;
+input  logic                    m_axil_bvalid;
+output logic                    m_axil_bready;
 ```
 
 **Interrupt Output:**
 ```systemverilog
-output logic                        irq_out;
+output logic                    irq_out;  // Asserted when error FIFO not empty
 ```
 
-**Configuration:**
+**Configuration Inputs:**
 ```systemverilog
-input  logic [AXIL_ADDR_WIDTH-1:0]  cfg_log_base_addr;    // Base addr for logging
-input  logic                        cfg_log_enable;       // Enable memory logging
-input  logic                        cfg_error_irq_enable; // Enable error interrupts
+input  logic [ADDR_WIDTH-1:0]   cfg_base_addr;   // Base address for master writes
+input  logic [ADDR_WIDTH-1:0]   cfg_limit_addr;  // Limit address for master writes
+
+// Per-protocol configuration (AXI, AXIS, CORE)
+input  logic [15:0]             cfg_<proto>_pkt_mask;     // Drop mask
+input  logic [15:0]             cfg_<proto>_err_select;   // Error FIFO select
+input  logic [15:0]             cfg_<proto>_<type>_mask;  // Event-specific masks
 ```
 
 ---
 
 ## Operation
 
-### Monitor Packet Flow
+### Monitor Packet Flow (Simplified - No Arbitration)
 
 ```
-Channel MonBus -> Packet Classifier -> [Error FIFO | Log FIFO]
-                                          |            |
-                                    AXIL Slave   AXIL Master
-                                    (CPU read)  (Memory write)
+MonBus Input -> Packet Classifier -> [Error FIFO | Write FIFO]
+                                        |            |
+                                  AXIL Slave   AXIL Master
+                                  (CPU read)  (Memory write)
 ```
+
+**STREAM Advantage:** Direct path from input to filter (no arbiter delay)
 
 ### Packet Classification
 
@@ -228,33 +241,52 @@ assign irq_out = cfg_error_irq_enable && !error_fifo_empty;
 
 ```systemverilog
 monbus_axil_group #(
-    .NUM_CHANNELS(8)
+    .FIFO_DEPTH_ERR(64),
+    .FIFO_DEPTH_WRITE(32),
+    .ADDR_WIDTH(32),
+    .DATA_WIDTH(32),
+    .NUM_PROTOCOLS(3)
 ) u_monbus (
-    .aclk(aclk),
-    .aresetn(aresetn),
+    .axi_aclk(aclk),
+    .axi_aresetn(aresetn),
 
-    // MonBus inputs from channels
-    .ch_monbus_valid({ch7_mon_valid, ..., ch0_mon_valid}),
-    .ch_monbus_ready({ch7_mon_ready, ..., ch0_mon_ready}),
-    .ch_monbus_packet({ch7_mon_pkt, ..., ch0_mon_pkt}),
+    // Single monitor bus input (from STREAM channel arbiter)
+    .monbus_valid(stream_mon_valid),
+    .monbus_ready(stream_mon_ready),
+    .monbus_packet(stream_mon_packet),
 
     // AXIL slave (CPU access to error FIFO)
     .s_axil_araddr(cpu_araddr),
+    .s_axil_arprot(3'b000),
     .s_axil_arvalid(cpu_arvalid),
-    // ... AXIL slave signals
+    .s_axil_arready(cpu_arready),
+    .s_axil_rdata(cpu_rdata),
+    .s_axil_rresp(cpu_rresp),
+    .s_axil_rvalid(cpu_rvalid),
+    .s_axil_rready(cpu_rready),
 
     // AXIL master (log to memory)
     .m_axil_awaddr(log_awaddr),
+    .m_axil_awprot(log_awprot),
     .m_axil_awvalid(log_awvalid),
-    // ... AXIL master signals
+    .m_axil_awready(log_awready),
+    .m_axil_wdata(log_wdata),
+    .m_axil_wstrb(log_wstrb),
+    .m_axil_wvalid(log_wvalid),
+    .m_axil_wready(log_wready),
+    .m_axil_bresp(log_bresp),
+    .m_axil_bvalid(log_bvalid),
+    .m_axil_bready(log_bready),
 
     // Interrupt
     .irq_out(stream_irq),
 
     // Configuration
-    .cfg_log_base_addr(32'h8000_0000),
-    .cfg_log_enable(1'b1),
-    .cfg_error_irq_enable(1'b1)
+    .cfg_base_addr(32'h8000_0000),
+    .cfg_limit_addr(32'h8FFF_FFFF),
+    .cfg_axi_pkt_mask(16'h0000),
+    .cfg_axi_err_select(16'h0001),  // Route errors to error FIFO
+    // ... other protocol configurations
 );
 ```
 

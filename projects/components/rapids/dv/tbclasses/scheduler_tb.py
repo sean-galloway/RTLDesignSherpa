@@ -23,7 +23,7 @@ Features:
 - Exponential credit encoding validation (0→1, 1→2, 2→4, ..., 15→∞)
 - Credit management with increment/decrement
 - Descriptor acceptance flow control
-- Program sequencing (prog0/prog1)
+- Control sequencing (ctrlrd/ctrlwr) via descriptor control fields
 - Address alignment FSM coordination
 - EOS boundary handling
 - RDA completion flow
@@ -42,24 +42,34 @@ from enum import Enum
 from cocotb.triggers import RisingEdge, ClockCycles
 from cocotb.utils import get_sim_time
 
-# Framework imports
+# Framework imports (shared infrastructure)
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.components.gaxi.gaxi_slave import GAXISlave
 from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master
 from CocoTBFramework.components.shared.field_config import FieldConfig, FieldDefinition
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.tbclasses.amba.amba_random_configs import AXI_RANDOMIZER_CONFIGS
-from CocoTBFramework.components.rapids.data_mover_bfm import DataMoverBFM
+
+# RAPIDS-specific imports from PROJECT AREA (use relative import within dv/)
+from components.data_mover_bfm import DataMoverBFM
 
 
 class SchedulerState(Enum):
-    """Scheduler FSM states (from RAPIDS package)"""
+    """Scheduler FSM states (from RAPIDS package)
+
+    UPDATED: 2025-10-18 - Fixed to match RTL state definitions from rapids_pkg.sv
+    - Added SCHED_ISSUE_CTRLRD (0x04)
+    - Renamed SCHED_ISSUE_PROGRAM0/1 to SCHED_ISSUE_CTRLWR0/1
+    - Fixed SCHED_ERROR value (was 0x20, now 0x40)
+    - SCHED_DESCRIPTOR_ACTIVE moved to 0x08 (was 0x04)
+    """
     SCHED_IDLE = 0x01
     SCHED_WAIT_FOR_CONTROL = 0x02
-    SCHED_DESCRIPTOR_ACTIVE = 0x04
-    SCHED_ISSUE_PROGRAM0 = 0x08
-    SCHED_ISSUE_PROGRAM1 = 0x10
-    SCHED_ERROR = 0x20
+    SCHED_ISSUE_CTRLRD = 0x04
+    SCHED_DESCRIPTOR_ACTIVE = 0x08
+    SCHED_ISSUE_CTRLWR0 = 0x10
+    SCHED_ISSUE_CTRLWR1 = 0x20
+    SCHED_ERROR = 0x40
 
 
 class TestMode(Enum):
@@ -67,7 +77,7 @@ class TestMode(Enum):
     CREDIT_ENCODING = "credit_encoding"      # Test exponential credit encoding
     CREDIT_MANAGEMENT = "credit_management"  # Test credit increment/decrement
     DESCRIPTOR_FLOW = "descriptor_flow"      # Test descriptor processing
-    PROGRAM_SEQUENCE = "program_sequence"    # Test program sequencing
+    PROGRAM_SEQUENCE = "program_sequence"    # Test control sequencing (ctrlrd/ctrlwr)
     ERROR_HANDLING = "error_handling"        # Test error detection/recovery
     STRESS_TEST = "stress_test"              # Stress testing with backpressure
     CONCURRENT_OPS = "concurrent_ops"        # Multiple simultaneous operations
@@ -81,7 +91,7 @@ class SchedulerTB(TBBase):
     - Exponential credit encoding (16 test cases: 0-15)
     - Credit-based flow control
     - Descriptor acceptance and processing
-    - Program sequencing (prog0, prog1)
+    - Control sequencing (ctrlrd, ctrlwr via descriptor control fields)
     - FSM state machine validation
     - Error injection and recovery
     - Timeout detection
@@ -128,7 +138,7 @@ class SchedulerTB(TBBase):
         self.descriptors_accepted = 0
         self.descriptors_completed = 0
         # data_transfers_completed is now a property accessing data_mover_bfm.transfers_completed
-        self.program_operations_completed = 0
+        self.control_operations_completed = 0
         self.alignment_calculations = 0
         self.monitor_packets_received = []
         self.test_errors = []
@@ -162,10 +172,11 @@ class SchedulerTB(TBBase):
             (15, 0, "DISABLED mode (no credits, blocks operations)")
         ]
 
-        # GAXI components for data and program interfaces (framework-aligned approach)
+        # GAXI components for data and control interfaces (framework-aligned approach)
         # These components handle valid/ready protocols properly with predefined timing configs
         self.data_slave = None   # Will be initialized after clock setup
-        self.program_slave = None  # Will be initialized after clock setup
+        self.ctrlrd_slave = None  # Control Read interface
+        self.ctrlwr_slave = None  # Control Write interface
         self.descriptor_master = None  # Will be initialized after clock setup
 
         # RAPIDS BFM components - reusable across different test scenarios
@@ -211,8 +222,10 @@ class SchedulerTB(TBBase):
         self.log.info("Resetting GAXI BFMs...")
         if self.data_slave:
             await self.data_slave.reset_bus()
-        if self.program_slave:
-            await self.program_slave.reset_bus()
+        if self.ctrlrd_slave:
+            await self.ctrlrd_slave.reset_bus()
+        if self.ctrlwr_slave:
+            await self.ctrlwr_slave.reset_bus()
         if self.descriptor_master:
             await self.descriptor_master.reset_bus()
         self.log.info("GAXI BFMs reset complete")
@@ -220,13 +233,17 @@ class SchedulerTB(TBBase):
         self.log.info("Clocks and reset setup complete")
 
     async def initialize_gaxi_components(self):
-        """Initialize GAXI slave components for data and program interfaces
+        """Initialize GAXI slave components for data and control interfaces
 
         This method creates GAXISlave components for proper valid/ready protocol handling
         using the framework's proven infrastructure. This replaces manual signal toggling
         with robust, tested components.
+
+        Control Interfaces:
+        - ctrlrd (Control Read): Reads from control registers
+        - ctrlwr (Control Write): Writes to control registers
         """
-        self.log.info("Initializing GAXI components for data and program interfaces...")
+        self.log.info("Initializing GAXI components for data and control interfaces...")
 
         # Create GAXISlave for data interface
         # Note: Signal names use prefix (data_*) per RTL scheduler module
@@ -255,33 +272,58 @@ class SchedulerTB(TBBase):
             multi_sig=True  # Multi-signal mode for multiple data fields
         )
 
-        # Create GAXISlave for program interface
-        # Note: Signal names use prefix (program_*) per RTL scheduler module
-        self.log.info("Creating GAXI Program Slave...")
-        self.program_slave = GAXISlave(
+        # Create GAXISlave for Control Read interface
+        self.log.info("Creating GAXI Control Read Slave...")
+        self.ctrlrd_slave = GAXISlave(
             dut=self.dut,
-            title="program_engine",
-            prefix="program",
+            title="ctrlrd_engine",
+            prefix="ctrlrd",
+            clock=self.clk,
+            field_config={
+                'addr': {'bits': 64, 'format': 'hex'},
+                'data': {'bits': 32, 'format': 'hex'},
+                'mask': {'bits': 32, 'format': 'hex'}
+            },
+            signal_map={
+                'valid': 'ctrlrd_valid',
+                'ready': 'ctrlrd_ready',
+                'addr': 'ctrlrd_addr',
+                'data': 'ctrlrd_data',
+                'mask': 'ctrlrd_mask'
+            },
+            randomizer=FlexRandomizer(AXI_RANDOMIZER_CONFIGS['fixed']['slave']),
+            mode='skid',
+            log=self.log,
+            multi_sig=True
+        )
+        self.log.info(f"✓ GAXI Control Read Slave initialized: {self.ctrlrd_slave}")
+
+        # Create GAXISlave for Control Write interface
+        self.log.info("Creating GAXI Control Write Slave...")
+        self.ctrlwr_slave = GAXISlave(
+            dut=self.dut,
+            title="ctrlwr_engine",
+            prefix="ctrlwr",
             clock=self.clk,
             field_config={
                 'addr': {'bits': 64, 'format': 'hex'},
                 'data': {'bits': 32, 'format': 'hex'}
             },
             signal_map={
-                'valid': 'program_valid',
-                'ready': 'program_ready',
-                'addr': 'program_addr',
-                'data': 'program_data'
+                'valid': 'ctrlwr_valid',
+                'ready': 'ctrlwr_ready',
+                'addr': 'ctrlwr_addr',
+                'data': 'ctrlwr_data'
             },
             randomizer=FlexRandomizer(AXI_RANDOMIZER_CONFIGS['fixed']['slave']),
             mode='skid',
             log=self.log,
-            multi_sig=True  # Multi-signal mode for addr and data fields
+            multi_sig=True
         )
-        self.log.info(f"✓ GAXI Program Slave initialized: {self.program_slave}")
+        self.log.info(f"✓ GAXI Control Write Slave initialized: {self.ctrlwr_slave}")
 
-        if self.program_slave is None:
-            raise RuntimeError("GAXI Program Slave creation returned None!")
+        if self.ctrlrd_slave is None or self.ctrlwr_slave is None:
+            raise RuntimeError("GAXI Control Read/Write Slave creation returned None!")
 
         self.log.info("GAXI Slave components initialized successfully")
 
@@ -373,7 +415,7 @@ class SchedulerTB(TBBase):
         after setup_clocks_and_reset() in each test.
 
         FRAMEWORK-ALIGNED APPROACH:
-        Uses GAXI components for data and program interfaces instead of
+        Uses GAXI components for data and control (ctrlrd/ctrlwr) interfaces instead of
         manual signal toggling. This provides robust, tested protocol handling.
         """
         self.log.info("=== Initializing Scheduler Test ===")
@@ -386,8 +428,9 @@ class SchedulerTB(TBBase):
             # Start Data Mover BFM for data transfer processing
             cocotb.start_soon(self.data_mover_bfm.run())
 
-            # Start program operations processor
-            cocotb.start_soon(self.process_program_operations())
+            # Start control operations processors
+            cocotb.start_soon(self.process_ctrlrd_operations())
+            cocotb.start_soon(self.process_ctrlwr_operations())
 
             cocotb.start_soon(self.simulate_alignment_bus())
             cocotb.start_soon(self.monitor_monitor_bus())
@@ -430,9 +473,12 @@ class SchedulerTB(TBBase):
         # EOS completion interface
         self.dut.eos_completion_ready.value = 1
 
-        # Program engine interface
-        self.dut.program_ready.value = 1
-        self.dut.program_error.value = 0
+        # Control Read/Write Engine interfaces
+        self.dut.ctrlrd_ready.value = 1
+        self.dut.ctrlrd_error.value = 0
+        self.dut.ctrlrd_result.value = 0
+        self.dut.ctrlwr_ready.value = 1
+        self.dut.ctrlwr_error.value = 0
 
         # RDA completion interface
         self.dut.rda_complete_ready.value = 1
@@ -444,9 +490,16 @@ class SchedulerTB(TBBase):
         self.log.info("Scheduler configured and signals initialized")
 
     def create_descriptor(self, data_addr=0x1000, data_length=0x1000,
-                         prog0_addr=0x0, prog0_data=0x0,
-                         prog1_addr=0x0, prog1_data=0x0):
-        """Create a test descriptor packet"""
+                         ctrlrd_data=0x0, ctrlrd_addr=0x0,
+                         ctrlwr_addr=0x0, ctrlwr_data=0x0):
+        """Create a test descriptor packet
+
+        RAPIDS Control Fields:
+        - ctrlrd_addr: Control Read address (descriptor bits 223:192)
+        - ctrlrd_data: Control Read data (descriptor bits 287:224)
+        - ctrlwr_addr: Control Write address (descriptor bits 351:288)
+        - ctrlwr_data: Control Write data (descriptor bits 383:352)
+        """
         descriptor = 0
 
         # Data address (bits 95:32)
@@ -458,17 +511,17 @@ class SchedulerTB(TBBase):
         # Next descriptor address (bits 159:96)
         descriptor |= ((data_addr + 0x40) & 0xFFFFFFFFFFFFFFFF) << 96
 
-        # Prog0 address (bits 287:224)
-        descriptor |= (prog0_addr & 0xFFFFFFFFFFFFFFFF) << 224
+        # Control Read data (descriptor bits 287:224)
+        descriptor |= (ctrlrd_data & 0xFFFFFFFFFFFFFFFF) << 224
 
-        # Prog0 data (bits 223:192)
-        descriptor |= (prog0_data & 0xFFFFFFFF) << 192
+        # Control Read address (descriptor bits 223:192)
+        descriptor |= (ctrlrd_addr & 0xFFFFFFFF) << 192
 
-        # Prog1 address (bits 351:288)
-        descriptor |= (prog1_addr & 0xFFFFFFFFFFFFFFFF) << 288
+        # Control Write address (descriptor bits 351:288)
+        descriptor |= (ctrlwr_addr & 0xFFFFFFFFFFFFFFFF) << 288
 
-        # Prog1 data (bits 383:352) - FIXED: Was bits 319:288 which was wrong
-        descriptor |= (prog1_data & 0xFFFFFFFF) << 352
+        # Control Write data (descriptor bits 383:352)
+        descriptor |= (ctrlwr_data & 0xFFFFFFFF) << 352
 
         return descriptor
 
@@ -482,7 +535,7 @@ class SchedulerTB(TBBase):
         credit_before = int(self.dut.descriptor_credit_counter.value)
 
         # DEBUG: Log what we're sending
-        self.log.info(f"📤 Sending descriptor: data_length=0x{descriptor_data & 0xFFFFFFFF:x}, prog0_addr=0x{(descriptor_data >> 224) & 0xFFFFFFFFFFFFFFFF:x}, prog1_addr=0x{(descriptor_data >> 288) & 0xFFFFFFFFFFFFFFFF:x}")
+        self.log.info(f"📤 Sending descriptor: data_length=0x{descriptor_data & 0xFFFFFFFF:x}, ctrlrd_data=0x{(descriptor_data >> 224) & 0xFFFFFFFFFFFFFFFF:x}, ctrlwr_addr=0x{(descriptor_data >> 288) & 0xFFFFFFFFFFFFFFFF:x}")
 
         # Create packet with all descriptor fields
         # Field names match the FieldConfig (without descriptor_ prefix)
@@ -513,9 +566,10 @@ class SchedulerTB(TBBase):
 
         # DEBUG: Check what scheduler actually received
         r_data_length = int(self.dut.r_data_length.value)
-        r_prog0_addr = int(self.dut.r_prog0_addr.value)
-        r_prog1_addr = int(self.dut.r_prog1_addr.value)
-        self.log.info(f"📥 Scheduler received: r_data_length=0x{r_data_length:x}, r_prog0_addr=0x{r_prog0_addr:x}, r_prog1_addr=0x{r_prog1_addr:x}")
+        r_ctrlrd_addr = int(self.dut.r_ctrlrd_addr.value)
+        r_ctrlwr0_addr = int(self.dut.r_ctrlwr0_addr.value)
+        r_ctrlwr1_addr = int(self.dut.r_ctrlwr1_addr.value)
+        self.log.info(f"📥 Scheduler received: r_data_length=0x{r_data_length:x}, r_ctrlrd_addr=0x{r_ctrlrd_addr:x}, r_ctrlwr0_addr=0x{r_ctrlwr0_addr:x}, r_ctrlwr1_addr=0x{r_ctrlwr1_addr:x}")
 
         if int(self.dut.cfg_use_credit.value) == 1 and not inject_error:
             expected_credit = credit_before - 1
@@ -569,9 +623,9 @@ class SchedulerTB(TBBase):
                     # Enhanced logging for DESCRIPTOR_ACTIVE state
                     if state_enum == SchedulerState.SCHED_DESCRIPTOR_ACTIVE:
                         r_data_length = int(self.dut.r_data_length.value)
-                        r_prog0_addr = int(self.dut.r_prog0_addr.value)
-                        r_prog1_addr = int(self.dut.r_prog1_addr.value)
-                        self.log.info(f"🔍 FSM: {SchedulerState(last_state).name} → {state_enum.name} | r_data_length=0x{r_data_length:x}, prog0_addr=0x{r_prog0_addr:x}, prog1_addr=0x{r_prog1_addr:x}")
+                        r_ctrlrd_addr = int(self.dut.r_ctrlrd_addr.value)
+                        r_ctrlwr0_addr = int(self.dut.r_ctrlwr0_addr.value)
+                        self.log.info(f"🔍 FSM: {SchedulerState(last_state).name} → {state_enum.name} | r_data_length=0x{r_data_length:x}, ctrlrd_addr=0x{r_ctrlrd_addr:x}, ctrlwr0_addr=0x{r_ctrlwr0_addr:x}")
                     else:
                         self.log.info(f"🔍 FSM: {SchedulerState(last_state).name} → {state_enum.name} (0x{current_state:02x})")
                 except ValueError:
@@ -602,54 +656,84 @@ class SchedulerTB(TBBase):
         """Get number of data transfers completed (from BFM)"""
         return self.data_mover_bfm.transfers_completed if self.data_mover_bfm else 0
 
-    async def process_program_operations(self):
-        """Process program operations with GAXI-controlled backpressure
+    async def process_ctrlrd_operations(self):
+        """Process Control Read operations with GAXI-controlled backpressure
 
         FRAMEWORK-ALIGNED APPROACH:
-        GAXI slave handles program_ready timing automatically. We just monitor
-        for handshakes (program_valid & program_ready both high) and count operations.
-
-        KEY FIX: By using GAXI, program_ready is NEVER randomly lowered at wrong times.
-        The FSM can reliably transition PROGRAM0 → PROGRAM1 without timing races.
-
-        TIMING FIX: Sample signals immediately on clock edge to capture current state,
-        not after FSM has transitioned to next state.
+        GAXI slave handles ctrlrd_ready timing automatically. We just monitor
+        for handshakes (ctrlrd_valid & ctrlrd_ready both high) and count operations.
         """
         # Track last seen transaction to avoid double-counting
         last_addr = None
-        last_data = None
 
-        self.log.info("🔍 Program operations monitor STARTED")
+        self.log.info("🔍 Control Read operations monitor STARTED")
 
         while True:
             # Wait for rising edge of clock
             await RisingEdge(self.clk)
 
             # Sample signals IMMEDIATELY on clock edge (before FSM updates)
-            program_valid = int(self.dut.program_valid.value)
-            program_ready = int(self.dut.program_ready.value)
+            ctrlrd_valid = int(self.dut.ctrlrd_valid.value)
+            ctrlrd_ready = int(self.dut.ctrlrd_ready.value)
 
-            # DEBUG: Log when program_valid asserts
-            if program_valid == 1:
-                prog_addr = int(self.dut.program_addr.value)
-                prog_data = int(self.dut.program_data.value)
-                self.log.info(f"🔍 program_valid=1, program_ready={program_ready}, addr=0x{prog_addr:x}, data=0x{prog_data:x}")
+            # DEBUG: Log when ctrlrd_valid asserts
+            if ctrlrd_valid == 1:
+                ctrlrd_addr = int(self.dut.ctrlrd_addr.value)
+                ctrlrd_data = int(self.dut.ctrlrd_data.value)
+                ctrlrd_mask = int(self.dut.ctrlrd_mask.value)
+                self.log.info(f"🔍 ctrlrd_valid=1, ctrlrd_ready={ctrlrd_ready}, addr=0x{ctrlrd_addr:x}, data=0x{ctrlrd_data:x}, mask=0x{ctrlrd_mask:x}")
 
             # Check for handshake (GAXI has already handled ready timing)
-            if program_valid == 1 and program_ready == 1:
-                # Capture program operation data NOW (at this exact clock edge)
-                prog_addr = int(self.dut.program_addr.value)
-                prog_data = int(self.dut.program_data.value)
+            if ctrlrd_valid == 1 and ctrlrd_ready == 1:
+                # Capture control read operation data NOW (at this exact clock edge)
+                ctrlrd_addr = int(self.dut.ctrlrd_addr.value)
 
-                # Only count if this is a NEW transaction (different addr/data)
-                if (prog_addr, prog_data) != (last_addr, last_data):
-                    self.program_operations_completed += 1
-                    self.log.info(f"✅ Program engine: Handshake #{self.program_operations_completed} addr=0x{prog_addr:x} data=0x{prog_data:x}")
-                    self.log.debug(f"Program engine: Operation #{self.program_operations_completed} complete")
+                # Only count if this is a NEW transaction (different addr)
+                if ctrlrd_addr != last_addr:
+                    self.control_operations_completed += 1
+                    self.log.info(f"✅ Control Read: Handshake #{self.control_operations_completed} addr=0x{ctrlrd_addr:x}")
 
                     # Track this transaction
-                    last_addr = prog_addr
-                    last_data = prog_data
+                    last_addr = ctrlrd_addr
+
+    async def process_ctrlwr_operations(self):
+        """Process Control Write operations with GAXI-controlled backpressure
+
+        FRAMEWORK-ALIGNED APPROACH:
+        GAXI slave handles ctrlwr_ready timing automatically. We just monitor
+        for handshakes (ctrlwr_valid & ctrlwr_ready both high) and count operations.
+        """
+        # Track last seen transaction to avoid double-counting
+        last_addr = None
+
+        self.log.info("🔍 Control Write operations monitor STARTED")
+
+        while True:
+            # Wait for rising edge of clock
+            await RisingEdge(self.clk)
+
+            # Sample signals IMMEDIATELY on clock edge (before FSM updates)
+            ctrlwr_valid = int(self.dut.ctrlwr_valid.value)
+            ctrlwr_ready = int(self.dut.ctrlwr_ready.value)
+
+            # DEBUG: Log when ctrlwr_valid asserts
+            if ctrlwr_valid == 1:
+                ctrlwr_addr = int(self.dut.ctrlwr_addr.value)
+                ctrlwr_data = int(self.dut.ctrlwr_data.value)
+                self.log.info(f"🔍 ctrlwr_valid=1, ctrlwr_ready={ctrlwr_ready}, addr=0x{ctrlwr_addr:x}, data=0x{ctrlwr_data:x}")
+
+            # Check for handshake (GAXI has already handled ready timing)
+            if ctrlwr_valid == 1 and ctrlwr_ready == 1:
+                # Capture control write operation data NOW (at this exact clock edge)
+                ctrlwr_addr = int(self.dut.ctrlwr_addr.value)
+
+                # Only count if this is a NEW transaction (different addr)
+                if ctrlwr_addr != last_addr:
+                    self.control_operations_completed += 1
+                    self.log.info(f"✅ Control Write: Handshake #{self.control_operations_completed} addr=0x{ctrlwr_addr:x}")
+
+                    # Track this transaction
+                    last_addr = ctrlwr_addr
 
     async def simulate_alignment_bus(self):
         """Simulate alignment bus interface"""
@@ -858,34 +942,45 @@ class SchedulerTB(TBBase):
 
         return completed == num_descriptors
 
-    async def test_program_sequencing(self):
-        """Test program sequencing (prog0, prog1)
+    async def test_ctrl_sequencing(self):
+        """Test control sequencing (ctrlrd, ctrlwr)
 
-        FIXED: prog1_data now correctly reads from bits [383:352] (was [287:256] overlapping with prog0_addr).
-        All three test cases now work: prog0 only, prog1 only, and both prog0+prog1.
+        RENAMED: program → ctrl per RAPIDS naming conventions
+        - ctrlrd_data → triggers ctrlrd (Control Read)
+        - ctrlwr_addr → triggers ctrlwr (Control Write)
+
+        Descriptor field mapping:
+        - Bits 223:192 → ctrlrd_addr
+        - Bits 287:224 → ctrlrd_data
+        - Bits 351:288 → ctrlwr_addr
+        - Bits 383:352 → ctrlwr_data
+
+        All three test cases now work: ctrlrd only, ctrlwr only, and both ctrlrd+ctrlwr.
 
         CRITICAL FIX: Disable DataMoverBFM to prevent automatic data_done_strobe.
-        The scheduler must complete program operations BEFORE data transfer completion.
-        With BFM enabled, data completes immediately and scheduler skips program states.
+        The scheduler must complete control operations BEFORE data transfer completion.
+        With BFM enabled, data completes immediately and scheduler skips control states.
+
+        FIXED: Use unique addresses in Test 3 to avoid duplicate detection by monitors.
         """
-        self.log.info("=== Testing Program Sequencing ===")
+        self.log.info("=== Testing Control Sequencing ===")
 
-        # CRITICAL: Disable DataMoverBFM so data doesn't complete before programs
+        # CRITICAL: Disable DataMoverBFM so data doesn't complete before control operations
         self.enable_data_mover_bfm(False)
-        self.log.info("DataMoverBFM disabled for program sequencing test")
+        self.log.info("DataMoverBFM disabled for control sequencing test")
 
-        # Test case 1: Only prog0
-        self.log.info("Test 1: prog0 only")
+        # Test case 1: Only ctrlrd (ctrlrd_data triggers control read)
+        self.log.info("Test 1: ctrlrd only (ctrlrd_data=0x2000)")
         descriptor = self.create_descriptor(
             data_addr=0x1000,
             data_length=0x100,
-            prog0_addr=0x2000,
-            prog0_data=0xDEADBEEF,
-            prog1_addr=0x0
+            ctrlrd_data=0x2000,       # ← Triggers ctrlrd
+            ctrlrd_addr=0xDEADBEEF,
+            ctrlwr_addr=0x0           # ← No ctrlwr
         )
         await self.send_descriptor(descriptor)
 
-        # Wait for program operation, then manually strobe data_done
+        # Wait for control operation, then manually strobe data_done
         await self.wait_clocks(self.clk_name, 20)
         self.dut.data_transfer_length.value = 0x100
         self.dut.data_done_strobe.value = 1
@@ -893,18 +988,18 @@ class SchedulerTB(TBBase):
         self.dut.data_done_strobe.value = 0
         await self.wait_for_idle()
 
-        # Test case 2: Only prog1
-        self.log.info("Test 2: prog1 only")
+        # Test case 2: Only ctrlwr (ctrlwr_addr triggers control write)
+        self.log.info("Test 2: ctrlwr only (ctrlwr_addr=0x3000)")
         descriptor = self.create_descriptor(
             data_addr=0x1000,
             data_length=0x100,
-            prog0_addr=0x0,
-            prog1_addr=0x3000,
-            prog1_data=0xCAFEBABE
+            ctrlrd_data=0x0,          # ← No ctrlrd
+            ctrlwr_addr=0x3000,       # ← Triggers ctrlwr
+            ctrlwr_data=0xCAFEBABE
         )
         await self.send_descriptor(descriptor)
 
-        # Wait for program operation, then manually strobe data_done
+        # Wait for control operation, then manually strobe data_done
         await self.wait_clocks(self.clk_name, 20)
         self.dut.data_transfer_length.value = 0x100
         self.dut.data_done_strobe.value = 1
@@ -912,19 +1007,19 @@ class SchedulerTB(TBBase):
         self.dut.data_done_strobe.value = 0
         await self.wait_for_idle()
 
-        # Test case 3: Both prog0 and prog1 (NOW WORKING AFTER FIX!)
-        self.log.info("Test 3: Both prog0 and prog1")
+        # Test 3: Both ctrlrd and ctrlwr (FIXED: use unique addresses!)
+        self.log.info("Test 3: Both ctrlrd and ctrlwr (ctrlrd_addr=0xBEEFCAFE, ctrlwr_addr=0x5000)")
         descriptor = self.create_descriptor(
             data_addr=0x1000,
             data_length=0x100,
-            prog0_addr=0x2000,
-            prog0_data=0xDEADBEEF,
-            prog1_addr=0x3000,
-            prog1_data=0xCAFEBABE
+            ctrlrd_data=0x4000,       # ← ctrlrd_data (different from Test 1)
+            ctrlrd_addr=0xBEEFCAFE,   # ← ctrlrd_addr (DIFFERENT from Test 1's 0xDEADBEEF)
+            ctrlwr_addr=0x5000,       # ← ctrlwr_addr (DIFFERENT from Test 2's 0x3000)
+            ctrlwr_data=0xCAFEBABE
         )
         await self.send_descriptor(descriptor)
 
-        # Wait for BOTH program operations, then manually strobe data_done
+        # Wait for BOTH control operations, then manually strobe data_done
         await self.wait_clocks(self.clk_name, 30)
         self.dut.data_transfer_length.value = 0x100
         self.dut.data_done_strobe.value = 1
@@ -936,9 +1031,9 @@ class SchedulerTB(TBBase):
         self.enable_data_mover_bfm(True)
         self.log.info("DataMoverBFM re-enabled")
 
-        self.log.info(f"Program operations completed: {self.program_operations_completed}")
-        # Expect 4 operations total: 1 (test1) + 1 (test2) + 2 (test3) = 4
-        return self.program_operations_completed >= 4
+        self.log.info(f"Control operations completed: {self.control_operations_completed}")
+        # Expect 4 operations total: 1 (test1 ctrlrd) + 1 (test2 ctrlwr) + 2 (test3 ctrlrd+ctrlwr) = 4
+        return self.control_operations_completed >= 4
 
     async def test_eos_handling(self):
         """Test EOS (End of Stream) boundary handling"""
@@ -1141,7 +1236,7 @@ class SchedulerTB(TBBase):
         return completed >= int(count * 0.9)  # 90% success threshold
 
     async def test_random_backpressure(self, count=15):
-        """Test with random backpressure from data/program engines
+        """Test with random backpressure from data and control engines
 
         FRAMEWORK-ALIGNED APPROACH:
         Uses GAXI timing configurations instead of manual signal toggling.
@@ -1151,7 +1246,7 @@ class SchedulerTB(TBBase):
 
         # Apply constrained timing to both interfaces (includes realistic delays)
         self.set_data_timing('constrained')
-        self.set_program_timing('constrained')
+        self.set_ctrlwr_timing('constrained')
 
         completed = 0
 
@@ -1159,8 +1254,8 @@ class SchedulerTB(TBBase):
             descriptor = self.create_descriptor(
                 data_addr=0xB0000 + i*0x200,
                 data_length=0x100 + random.randint(0, 0x100),
-                prog0_addr=0xC0000 if random.random() > 0.5 else 0,
-                prog0_data=0xDEAD0000 + i
+                ctrlrd_data=0xC0000 if random.random() > 0.5 else 0,
+                ctrlrd_addr=0xDEAD0000 + i
             )
 
             await self.send_descriptor(descriptor)
@@ -1175,7 +1270,7 @@ class SchedulerTB(TBBase):
 
         # Restore default timing
         self.set_data_timing('fixed')
-        self.set_program_timing('fixed')
+        self.set_ctrlwr_timing('fixed')
 
         self.log.info(f"Backpressure test: {completed}/{count} completed")
         return completed >= int(count * 0.85)  # 85% success threshold
@@ -1208,8 +1303,8 @@ class SchedulerTB(TBBase):
             self.data_slave.set_randomizer(FlexRandomizer(custom_config))
             self.log.info(f"Data timing set to custom mode: {ready_delay}")
 
-    def set_program_timing(self, config_name):
-        """Change program interface timing configuration
+    def set_ctrlrd_timing(self, config_name):
+        """Change Control Read interface timing configuration
 
         FRAMEWORK-ALIGNED APPROACH:
         Allows dynamic configuration of GAXISlave timing using predefined
@@ -1218,11 +1313,27 @@ class SchedulerTB(TBBase):
         Args:
             config_name: One of 'fixed', 'constrained', 'backtoback', 'slow_consumer', etc.
         """
-        if self.program_slave:
-            self.program_slave.set_randomizer(
+        if self.ctrlrd_slave:
+            self.ctrlrd_slave.set_randomizer(
                 FlexRandomizer(AXI_RANDOMIZER_CONFIGS[config_name]['slave'])
             )
-            self.log.info(f"Program timing set to '{config_name}' mode")
+            self.log.info(f"Control Read timing set to '{config_name}' mode")
+
+    def set_ctrlwr_timing(self, config_name):
+        """Change Control Write interface timing configuration
+
+        FRAMEWORK-ALIGNED APPROACH:
+        Allows dynamic configuration of GAXISlave timing using predefined
+        configs from amba_random_configs.py.
+
+        Args:
+            config_name: One of 'fixed', 'constrained', 'backtoback', 'slow_consumer', etc.
+        """
+        if self.ctrlwr_slave:
+            self.ctrlwr_slave.set_randomizer(
+                FlexRandomizer(AXI_RANDOMIZER_CONFIGS[config_name]['slave'])
+            )
+            self.log.info(f"Control Write timing set to '{config_name}' mode")
 
     def enable_data_mover_bfm(self, enabled=True):
         """Enable or disable the Data Mover BFM
@@ -1410,40 +1521,69 @@ class SchedulerTB(TBBase):
         return True
 
     # =========================================================================
-    # ADDITIONAL TEST CASES - Program Engine Error
+    # ADDITIONAL TEST CASES - Control Write Engine Error
     # =========================================================================
 
-    async def test_program_engine_error(self):
-        """Test handling of program engine errors"""
-        self.log.info("=== Testing Program Engine Error ===")
+    async def test_ctrlwr_engine_error(self):
+        """Test handling of Control Write engine errors
 
-        # Send descriptor with program operation
-        descriptor = self.create_descriptor(
-            data_addr=0xF0000,
-            data_length=0x100,
-            prog0_addr=0xF1000,
-            prog0_data=0xDEADBEEF
-        )
+        FIXED: Wait for ctrlwr_valid assertion instead of fixed delay.
+        The error must be injected synchronously when the scheduler
+        requests the control write operation.
+
+        FIXED: Create descriptor with correct ctrlwr0 field positions.
+        ctrlwr0_addr is at bits [351:288], ctrlwr0_data at bits [383:352].
+        """
+        self.log.info("=== Testing Control Write Engine Error ===")
+
+        # Create descriptor with ctrlwr0 fields directly
+        # NOTE: Manually construct descriptor to ensure correct bit positions
+        # We need to set ctrlwr0 fields at correct positions (bits 288-383)
+        descriptor = 0
+
+        # Data operation fields (bits 0-95)
+        descriptor |= 0x100  # data_length
+        descriptor |= (0xF0000 & 0xFFFFFFFFFFFFFFFF) << 32  # data_addr
+
+        # Next descriptor address (bits 96-159)
+        descriptor |= ((0xF0000 + 0x40) & 0xFFFFFFFFFFFFFFFF) << 96
+
+        # Control Write 0 fields (bits 288-383) - CORRECT POSITIONS!
+        ctrlwr0_addr = 0xF1000
+        ctrlwr0_data = 0xDEADBEEF
+        descriptor |= (ctrlwr0_addr & 0xFFFFFFFFFFFFFFFF) << 288  # bits [351:288]
+        descriptor |= (ctrlwr0_data & 0xFFFFFFFF) << 352  # bits [383:352]
 
         await self.send_descriptor(descriptor)
 
-        # Wait for program operation to start
-        await self.wait_clocks(self.clk_name, 30)
+        # FIXED: Wait for ctrlwr_valid to assert (scheduler requesting control write)
+        # This ensures we inject the error at the right time
+        timeout = 0
+        while int(self.dut.ctrlwr_valid.value) != 1 and timeout < 100:
+            await self.wait_clocks(self.clk_name, 1)
+            timeout += 1
 
-        # Inject program engine error
-        self.dut.program_error.value = 1
+        if timeout >= 100:
+            self.log.error("  ❌ ctrlwr_valid never asserted")
+            return False
+
+        self.log.info(f"  ctrlwr_valid asserted after {timeout} cycles")
+
+        # Inject control write engine error synchronously
+        # The error must be present when ctrlwr_ready=1 during the handshake
+        self.dut.ctrlwr_error.value = 1
         await self.wait_clocks(self.clk_name, 5)
-        self.dut.program_error.value = 0
+        self.dut.ctrlwr_error.value = 0
 
         # Check ERROR state
         await self.wait_clocks(self.clk_name, 10)
         fsm_state = int(self.dut.fsm_state.value)
 
         if fsm_state == SchedulerState.SCHED_ERROR.value:
-            self.log.info("  ✅ Scheduler detected program engine error")
+            self.log.info("  ✅ Scheduler detected Control Write engine error")
             return True
         else:
-            self.log.warning("  ⚠️  Scheduler did not detect program engine error")
+            self.log.warning("  ⚠️  Scheduler did not detect Control Write engine error")
             return False
 
     # =========================================================================
@@ -1766,14 +1906,14 @@ class SchedulerTB(TBBase):
         # Clear state history
         self.fsm_state_history.clear()
 
-        # Send descriptor with program operations to exercise all states
+        # Send descriptor with control operations to exercise all states
         descriptor = self.create_descriptor(
             data_addr=0xA0000,
             data_length=0x200,
-            prog0_addr=0xA1000,
-            prog0_data=0xDEAD0000,
-            prog1_addr=0xA2000,
-            prog1_data=0xBEEF0000
+            ctrlrd_data=0xA1000,
+            ctrlrd_addr=0xDEAD0000,
+            ctrlwr_addr=0xA2000,
+            ctrlwr_data=0xBEEF0000
         )
 
         await self.send_descriptor(descriptor)
@@ -1881,7 +2021,7 @@ class SchedulerTB(TBBase):
         self.log.info(f"Descriptors sent: {self.descriptors_sent}")
         self.log.info(f"Descriptors completed: {self.descriptors_completed}")
         self.log.info(f"Data transfers: {self.data_transfers_completed}")
-        self.log.info(f"Program operations: {self.program_operations_completed}")
+        self.log.info(f"Control operations: {self.control_operations_completed}")
         self.log.info(f"Alignment calculations: {self.alignment_calculations}")
         self.log.info(f"Monitor packets: {len(self.monitor_packets_received)}")
         self.log.info(f"Credit increments: {self.credit_increments}")

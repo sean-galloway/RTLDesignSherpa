@@ -44,7 +44,7 @@ from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.network.network_factories import (
     create_network_slave, create_network_master, send_packet_sequence, validate_network_packet
 )
-from CocoTBFramework.components.network.network_interfaces import MNOC_PKT_TYPES, MNOC_ACK_TYPES
+from CocoTBFramework.components.network.network_interfaces import NETWORK_PKT_TYPES, NETWORK_ACK_TYPES
 from CocoTBFramework.components.network.network_packet import MNOCPacket
 from CocoTBFramework.components.network.network_field_configs import MNOCFieldConfigHelper
 from CocoTBFramework.components.network.network_compliance_checker import MNOCComplianceChecker

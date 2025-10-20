@@ -119,7 +119,7 @@ The Network Slave receives and processes packets from the Network network with c
 
 The Network Slave implements a sophisticated six-state ACK generation finite state machine that ensures bulletproof acknowledgment handling with zero ACK loss guarantees through dual FIFO-based queuing architecture. The FSM manages priority-based ACK arbitration between packet acknowledgments (higher priority for immediate response) and credit acknowledgments (lower priority for flow control), preventing priority inversion and ACK loss under network congestion conditions.
 
-![Network Slave FSM](/mnt/data/github/tsunami/design/rapids/markdown/rapids_spec/ch02_blocks/puml/network_slave_ack_fsm.png)
+![Network Slave FSM](../assets/puml/mnoc_slave_ack_fsm.png)
 
 **Key States:**
 - **ACK_IDLE**: Ready for new ACK generation requests with priority evaluation
@@ -136,7 +136,7 @@ The FSM coordinates with comprehensive packet validation including multi-layer p
 ##### Four-Stage Processing Pipeline
 
 ```
-Network Network → Input Validation → Packet Classification → Output Routing → ACK Generation
+Network Network -> Input Validation -> Packet Classification -> Output Routing -> ACK Generation
       ↓              ↓                    ↓                   ↓              ↓
    Parity Check   Protocol Check    FC/TS/RAW/RDA        FUB/RDA        FIFO-based
    Format Valid   Address Valid     Type Detection      Interfaces     ACK System
@@ -160,9 +160,9 @@ assign w_rda_is_read   = pkt_addr[59];               // Read/Write direction bit
 
 The module automatically routes packets based on type and destination:
 
-1. **FC/TS/RAW Packets** → FUB interface → Sink SRAM Control
-2. **RDA Read Packets** → RDA Source interface → Descriptor Engine
-3. **RDA Write Packets** → RDA Sink interface → Descriptor Engine
+1. **FC/TS/RAW Packets** -> FUB interface -> Sink SRAM Control
+2. **RDA Read Packets** -> RDA Source interface -> Descriptor Engine
+3. **RDA Write Packets** -> RDA Sink interface -> Descriptor Engine
 
 #### ACK Generation System
 
@@ -300,7 +300,7 @@ The module generates comprehensive monitor events for system visibility:
 #### Performance Characteristics
 
 ##### Throughput Analysis
-- **Peak Bandwidth**: 512 bits × 1 GHz = 512 Gbps per channel
+- **Peak Bandwidth**: 512 bits x 1 GHz = 512 Gbps per channel
 - **Sustained Rate**: 100% pipeline utilization with deep buffering
 - **Multi-Channel**: Up to 32 channels with independent processing
 - **Efficiency**: Deep skid buffers enable sustained operation under congestion

@@ -4,7 +4,7 @@
 
 The Ctrlwr Engine manages post-processing write operations for each virtual channel after descriptor completion. The module implements a four-state state machine that handles ctrlwr address writes with configurable data values to support notification, control, and cleanup operations with comprehensive timeout mechanisms and robust error handling.
 
-![descriptor engine](/mnt/data/github/tsunami/design/rapids/markdown/rapids_spec/draw.io/png/ctrlwr_engine.png)
+![descriptor engine](draw.io/png/ctrlwr_engine.png)
 
 #### Key Features
 
@@ -98,7 +98,7 @@ The Ctrlwr Engine implements a streamlined four-state finite state machine that 
 
 The FSM supports conditional ctrlwr through graceful null address handling, where operations are skipped immediately when ctrlwr addresses are 64'h0, enabling descriptor-driven conditional execution. Address validation ensures 4-byte alignment compliance, while the shared AXI interface uses ID-based response routing for proper multi-channel operation. Channel reset coordination provides graceful shutdown capabilities, completing any in-flight AXI write transactions before asserting idle status, enabling runtime reconfiguration without system disruption.
 
-![Ctrlwr Engine FSM](/mnt/data/github/tsunami/design/rapids/markdown/rapids_spec/ch02_blocks/puml/ctrlwr_engine_fsm.png)
+![Ctrlwr Engine FSM](../assets/puml/ctrlwr_engine_fsm.png)
 
 ##### State Definitions
 
@@ -112,14 +112,14 @@ The FSM supports conditional ctrlwr through graceful null address handling, wher
 ##### State Transitions
 
 ```
-WRITE_IDLE → WRITE_ISSUE_ADDR: Valid ctrlwr request with non-null address
-WRITE_IDLE → WRITE_IDLE: Valid ctrlwr request with null address (skip operation)
-WRITE_IDLE → WRITE_ERROR: Valid ctrlwr request with address error
-WRITE_ISSUE_ADDR → WRITE_WAIT_RESP: Both AXI address and data phases complete
-WRITE_ISSUE_ADDR → WRITE_ERROR: AXI transaction timeout
-WRITE_WAIT_RESP → WRITE_IDLE: AXI response received successfully
-WRITE_WAIT_RESP → WRITE_ERROR: AXI response indicates error
-WRITE_ERROR → WRITE_IDLE: Error acknowledged or channel reset
+WRITE_IDLE -> WRITE_ISSUE_ADDR: Valid ctrlwr request with non-null address
+WRITE_IDLE -> WRITE_IDLE: Valid ctrlwr request with null address (skip operation)
+WRITE_IDLE -> WRITE_ERROR: Valid ctrlwr request with address error
+WRITE_ISSUE_ADDR -> WRITE_WAIT_RESP: Both AXI address and data phases complete
+WRITE_ISSUE_ADDR -> WRITE_ERROR: AXI transaction timeout
+WRITE_WAIT_RESP -> WRITE_IDLE: AXI response received successfully
+WRITE_WAIT_RESP -> WRITE_ERROR: AXI response indicates error
+WRITE_ERROR -> WRITE_IDLE: Error acknowledged or channel reset
 ```
 
 ##### Operation Flow

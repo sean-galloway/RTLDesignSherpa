@@ -32,8 +32,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 
 | Aspect | Requirement |
 |--------|-------------|
-| **Organization Rule** | Protocol → Packet Type → Event Code hierarchy |
-| **Event Space** | Each protocol × packet type combination has exactly 16 event codes |
+| **Organization Rule** | Protocol -> Packet Type -> Event Code hierarchy |
+| **Event Space** | Each protocol x packet type combination has exactly 16 event codes |
 | **Mapping** | 1:1 mapping between packet types and event codes |
 | **Rationale** | Provides clear, scalable event organization |
 
@@ -70,30 +70,30 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 
 | Signal | Width | Direction | Description |
 |--------|-------|-----------|-------------|
-| `mon_packet` | 64 | Monitor→System | Monitor packet data |
-| `mon_valid` | 1 | Monitor→System | Packet valid signal |
-| `mon_ready` | 1 | System→Monitor | Ready to accept packet |
-| `mon_error` | 1 | Monitor→System | Monitor error condition |
+| `mon_packet` | 64 | Monitor->System | Monitor packet data |
+| `mon_valid` | 1 | Monitor->System | Packet valid signal |
+| `mon_ready` | 1 | System->Monitor | Ready to accept packet |
+| `mon_error` | 1 | Monitor->System | Monitor error condition |
 
 ### Protocol Input Interfaces
 
 | Signal | Width | Direction | Description |
 |--------|-------|-----------|-------------|
-| `axi_event` | 64 | AXI Monitor→Bus | AXI event packet |
-| `axi_event_valid` | 1 | AXI Monitor→Bus | AXI event valid |
-| `axi_event_ready` | 1 | Bus→AXI Monitor | Ready for AXI event |
-| `apb_event` | 64 | APB Monitor→Bus | APB event packet |
-| `apb_event_valid` | 1 | APB Monitor→Bus | APB event valid |
-| `apb_event_ready` | 1 | Bus→APB Monitor | Ready for APB event |
-| `network_event` | 64 | Network Monitor→Bus | Network event packet |
-| `network_event_valid` | 1 | Network Monitor→Bus | Network event valid |
-| `network_event_ready` | 1 | Bus→Network Monitor | Ready for Network event |
-| `arb_event` | 64 | ARB Monitor→Bus | ARB event packet |
-| `arb_event_valid` | 1 | ARB Monitor→Bus | ARB event valid |
-| `arb_event_ready` | 1 | Bus→ARB Monitor | Ready for ARB event |
-| `core_event` | 64 | CORE Monitor→Bus | CORE event packet |
-| `core_event_valid` | 1 | CORE Monitor→Bus | CORE event valid |
-| `core_event_ready` | 1 | Bus→CORE Monitor | Ready for CORE event |
+| `axi_event` | 64 | AXI Monitor->Bus | AXI event packet |
+| `axi_event_valid` | 1 | AXI Monitor->Bus | AXI event valid |
+| `axi_event_ready` | 1 | Bus->AXI Monitor | Ready for AXI event |
+| `apb_event` | 64 | APB Monitor->Bus | APB event packet |
+| `apb_event_valid` | 1 | APB Monitor->Bus | APB event valid |
+| `apb_event_ready` | 1 | Bus->APB Monitor | Ready for APB event |
+| `network_event` | 64 | Network Monitor->Bus | Network event packet |
+| `network_event_valid` | 1 | Network Monitor->Bus | Network event valid |
+| `network_event_ready` | 1 | Bus->Network Monitor | Ready for Network event |
+| `arb_event` | 64 | ARB Monitor->Bus | ARB event packet |
+| `arb_event_valid` | 1 | ARB Monitor->Bus | ARB event valid |
+| `arb_event_ready` | 1 | Bus->ARB Monitor | Ready for ARB event |
+| `core_event` | 64 | CORE Monitor->Bus | CORE event packet |
+| `core_event_valid` | 1 | CORE Monitor->Bus | CORE event valid |
+| `core_event_ready` | 1 | Bus->CORE Monitor | Ready for CORE event |
 
 ### Control and Status Signals
 
@@ -922,8 +922,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 
 | Signal | Width | Purpose |
 |--------|-------|---------|
-| **debug_packet_counts** | 32 × 16 | Packet count per type |
-| **debug_protocol_counts** | 32 × 5 | Packet count per protocol |
+| **debug_packet_counts** | 32 x 16 | Packet count per type |
+| **debug_protocol_counts** | 32 x 5 | Packet count per protocol |
 | **debug_error_counts** | 32 | Total error packet count |
 | **debug_local_memory_level** | 16 | Local memory usage level |
 | **debug_external_memory_level** | 16 | External memory usage level |
@@ -943,10 +943,10 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 
 | Protocol | Error | Timeout | Completion | Threshold | Performance | Debug | Protocol-Specific |
 |----------|-------|---------|------------|-----------|-------------|-------|------------------|
-| **AXI** | ✅ 16 | ✅ 16 | ✅ 16 | ✅ 16 | ✅ 16 | ✅ 16 | AddrMatch ✅ 16 |
-| **Network** | ✅ 16 | ✅ 16 | ✅ 16 | ❌ 0 | ❌ 0 | ❌ 0 | Credit/Channel/Stream ✅ 48 |
-| **APB** | ✅ 16 | ✅ 16 | ✅ 16 | ✅ 16 | ✅ 16 | ✅ 16 | None |
-| **ARB** | ✅ 16 | ✅ 16 | ✅ 16 | ✅ 16 | ✅ 16 | ✅ 16 | None |
-| **CORE** | ✅ 16 | ✅ 16 | ✅ 16 | ✅ 16 | ✅ 16 | ✅ 16 | None |
+| **AXI** | [PASS] 16 | [PASS] 16 | [PASS] 16 | [PASS] 16 | [PASS] 16 | [PASS] 16 | AddrMatch [PASS] 16 |
+| **Network** | [PASS] 16 | [PASS] 16 | [PASS] 16 | [FAIL] 0 | [FAIL] 0 | [FAIL] 0 | Credit/Channel/Stream [PASS] 48 |
+| **APB** | [PASS] 16 | [PASS] 16 | [PASS] 16 | [PASS] 16 | [PASS] 16 | [PASS] 16 | None |
+| **ARB** | [PASS] 16 | [PASS] 16 | [PASS] 16 | [PASS] 16 | [PASS] 16 | [PASS] 16 | None |
+| **CORE** | [PASS] 16 | [PASS] 16 | [PASS] 16 | [PASS] 16 | [PASS] 16 | [PASS] 16 | None |
 
 **Total Event Codes**: 544 defined across all protocols and packet types.

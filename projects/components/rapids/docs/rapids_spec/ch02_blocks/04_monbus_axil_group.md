@@ -147,7 +147,7 @@ The master write interface maintains an address counter that:
 
 The Monitor Bus AXI-Lite Group implements a dedicated master write state machine that manages efficient logging of filtered monitor packets to external memory through configurable AXI-Lite write operations. The FSM coordinates 64-bit monitor packet adaptation to both 32-bit and 64-bit AXI-Lite data buses with sophisticated address management and comprehensive error handling for reliable system observability.
 
-![Monitor Bus Write FSM](/mnt/data/github/tsunami/design/rapids/markdown/rapids_spec/ch02_blocks/puml/monbus_filter_fsm.png)
+![Monitor Bus Write FSM](../assets/puml/monbus_filter_fsm.png)
 
 **Key Operations:**
 - **Write Transaction Management**: AXI4-Lite compliant write operations with proper address and data phase coordination for reliable monitor packet logging

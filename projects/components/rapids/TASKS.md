@@ -716,6 +716,131 @@ module miop_perf_monitor #(
 
 ---
 
+### TASK-010: Rename RDA to CDA (Compute Direct Access)
+**Status:** 🟡 Planned
+**Priority:** P2 (Medium)
+**Effort:** 4-6 hours
+**Assigned:** Unassigned
+
+**Description:**
+Rename all references to RDA (Read Direct Access) to CDA (Compute Direct Access) throughout RAPIDS codebase and documentation. This renaming clarifies that the descriptor mechanism supports in-band compute operations, not just read operations.
+
+**Scope:**
+1. **RTL Signal Names**
+   - `rda_valid` → `cda_valid`
+   - `rda_ready` → `cda_ready`
+   - `rda_packet` → `cda_packet`
+   - `rda_*` → `cda_*` (all related signals)
+
+2. **RTL Comments and Documentation**
+   - Update all comments referencing RDA
+   - Update port descriptions
+   - Update signal explanations
+
+3. **Test Files**
+   - Update test variable names
+   - Update test function names
+   - Update test comments
+
+4. **Specification Documents**
+   - `projects/components/rapids/docs/rapids_spec/` - All references
+   - `projects/components/rapids/PRD.md` - All references
+   - `projects/components/rapids/CLAUDE.md` - All references
+   - `projects/components/rapids/README.md` - All references (once created)
+
+**Files Requiring Updates:**
+```
+RTL Files:
+- projects/components/rapids/rtl/rapids_fub/descriptor_engine.sv
+- projects/components/rapids/rtl/rapids_fub/program_engine.sv
+- projects/components/rapids/rtl/rapids_fub/scheduler.sv
+- projects/components/rapids/rtl/rapids_macro/scheduler_group.sv
+- projects/components/rapids/rtl/rapids_macro/scheduler_group_array.sv
+- projects/components/rapids/rtl/includes/rapids_pkg.sv
+
+Test Files:
+- projects/components/rapids/dv/tests/fub_tests/descriptor_engine/test_desc_engine.py
+- projects/components/rapids/dv/tests/fub_tests/program_engine/test_prog_engine.py
+- projects/components/rapids/dv/tests/fub_tests/scheduler/test_scheduler.py
+- projects/components/rapids/dv/tbclasses/* (once created per TASK-003)
+
+Documentation:
+- projects/components/rapids/docs/rapids_spec/ch02_blocks/*.md
+- projects/components/rapids/docs/rapids_spec/ch03_interfaces/*.md
+- projects/components/rapids/PRD.md
+- projects/components/rapids/CLAUDE.md
+```
+
+**Implementation Steps:**
+
+1. **RTL Updates** (1-2 hours)
+   - [ ] Find all `rda_` signal instances
+   - [ ] Rename to `cda_` systematically
+   - [ ] Update port descriptions
+   - [ ] Update internal comments
+
+2. **Test Updates** (1-2 hours)
+   - [ ] Update test variable names
+   - [ ] Update test assertions
+   - [ ] Verify tests still pass
+
+3. **Documentation Updates** (2 hours)
+   - [ ] Update specification markdown files
+   - [ ] Update PRD.md
+   - [ ] Update CLAUDE.md
+   - [ ] Update known_issues/ if referenced
+
+4. **Verification** (1 hour)
+   - [ ] Search for remaining RDA references: `grep -r "rda" projects/components/rapids/`
+   - [ ] Verify no broken references
+   - [ ] Run full test suite
+   - [ ] Verify documentation consistency
+
+**Search Commands:**
+```bash
+# Find all RDA references in RTL
+grep -r "rda" projects/components/rapids/rtl/ --include="*.sv" --include="*.svh"
+
+# Find all RDA references in tests
+grep -r "rda" projects/components/rapids/dv/ --include="*.py"
+
+# Find all RDA references in documentation
+grep -r "rda" projects/components/rapids/docs/ --include="*.md"
+grep -r "RDA" projects/components/rapids/ --include="*.md"
+```
+
+**Verification Steps:**
+1. Search for all RDA references before starting
+2. Systematically rename in each file category
+3. Run RTL lint: `verilator --lint-only projects/components/rapids/rtl/**/*.sv`
+4. Run full test suite: `pytest projects/components/rapids/dv/tests/ -v`
+5. Search for remaining RDA references after completion
+6. Verify documentation builds/renders correctly
+
+**Related Files:**
+- Update: All RTL files with RDA signals
+- Update: All test files with RDA references
+- Update: All documentation with RDA mentions
+
+**Dependencies:**
+- None (can be done independently)
+
+**Completion Criteria:**
+- [ ] All RTL signals renamed (rda → cda)
+- [ ] All test references updated
+- [ ] All documentation updated
+- [ ] No remaining RDA references found
+- [ ] All tests passing
+- [ ] RTL linting clean
+
+**Notes:**
+- **Rationale:** "Compute Direct Access" better reflects the in-band descriptor capability for compute operations
+- **Breaking Change:** This is a naming convention update - external interfaces remain compatible
+- **Systematic Approach:** Use search-and-replace with verification at each step
+- **Case Sensitivity:** Handle both lowercase `rda` and uppercase `RDA`
+
+---
+
 ## Task Dependencies Graph
 
 ```
@@ -819,8 +944,227 @@ cat projects/components/rapids/docs/rapids_spec/miop_index.md
 
 ---
 
+## New Tasks (2025-10-19)
+
+### TASK-011: Implement Autonomous Descriptor Chaining
+**Status:** 🟡 Planned
+**Priority:** P1 (High)
+**Effort:** 8-12 hours
+**Assigned:** Unassigned
+
+**Description:**
+Implement autonomous descriptor chaining in RAPIDS descriptor_engine to automatically fetch chained descriptors without scheduler intervention. This matches the architecture implemented in STREAM.
+
+**Background:**
+- STREAM descriptor_engine now implements autonomous chaining via descriptor read address FIFO
+- When descriptor fetch completes, check `next_descriptor_ptr` and `last` flag
+- If chaining conditions met, automatically queue next descriptor fetch
+- APB interface blocked during active descriptor chains
+
+**Required Architecture:**
+
+```systemverilog
+// In descriptor_engine.sv:
+// 1. Add descriptor read address FIFO (parameterizable depth, e.g., 2-deep)
+parameter int DESC_ADDR_FIFO_DEPTH = 2,
+
+// 2. Add channel_idle input
+input  logic                        channel_idle,  // From scheduler_group (scheduler_idle && desc_idle)
+
+// 3. Implement autonomous chaining logic
+// - APB skid → Descriptor Addr FIFO (initial kick-off)
+// - Completed descriptor → Check next_descriptor_ptr and last flag
+// - If (next_descriptor_ptr != 0 && !last && !error) → Push to Descriptor Addr FIFO
+// - Address validation against cfg_addr0/1_base/limit before pushing
+// - APB blocked when !channel_idle (descriptor chain active)
+
+// 4. Error handling
+// - On AXI response error: stop chaining, set error flag, block descriptor_valid
+```
+
+**Chaining Logic:**
+
+```systemverilog
+// Chaining decision
+wire w_should_chain = (w_next_descriptor_ptr != '0) && !w_desc_last &&
+                      w_next_addr_valid && !r_descriptor_error &&
+                      w_desc_fifo_wr_ready;
+
+// Address validation
+wire w_next_addr_valid = (w_next_descriptor_ptr >= cfg_addr0_base && w_next_descriptor_ptr <= cfg_addr0_limit) ||
+                          (w_next_descriptor_ptr >= cfg_addr1_base && w_next_descriptor_ptr <= cfg_addr1_limit);
+
+// APB blocking
+assign apb_ready = w_apb_skid_ready_in && !r_channel_reset_active &&
+                    w_desc_addr_fifo_empty && channel_idle;
+```
+
+**Integration Requirements:**
+
+At scheduler_group level:
+```systemverilog
+// Compute channel_idle from both engines
+assign channel_idle = scheduler_idle && descriptor_engine_idle;
+```
+
+**Verification Steps:**
+1. Add `DESC_ADDR_FIFO_DEPTH` parameter to descriptor_engine.sv
+2. Add `channel_idle` input port
+3. Implement descriptor read address FIFO
+4. Add autonomous chaining logic (check next_descriptor_ptr and last)
+5. Add address validation before pushing to FIFO
+6. Implement error handling (stop chaining, flag error, block descriptor_valid)
+7. Block APB when !channel_idle
+8. Update scheduler_group to drive channel_idle = scheduler_idle && descriptor_engine_idle
+9. Update testbenches to drive channel_idle signal
+10. Create test for autonomous chaining with 2-3 chained descriptors
+
+**Related Files:**
+- Modify: `projects/components/rapids/rtl/rapids_fub/descriptor_engine.sv`
+- Modify: `projects/components/rapids/rtl/rapids_macro/scheduler_group.sv`
+- Update: `projects/components/rapids/dv/tbclasses/descriptor_engine_tb.py`
+- Create: `projects/components/rapids/dv/tests/fub_tests/descriptor_engine/test_autonomous_chaining.py`
+- Update: `projects/components/rapids/PRD.md` (document chaining architecture)
+
+**Dependencies:**
+- None
+
+**Completion Criteria:**
+- [ ] Descriptor read address FIFO implemented
+- [ ] Autonomous chaining logic implemented (check next_descriptor_ptr and last)
+- [ ] Address validation implemented
+- [ ] Error handling implemented
+- [ ] APB blocking when !channel_idle working
+- [ ] channel_idle signal integrated at scheduler_group level
+- [ ] All tests passing
+- [ ] Documentation updated
+
+**Notes:**
+- STREAM implementation (projects/components/stream/rtl/stream_fub/descriptor_engine.sv) serves as reference
+- This enables chained descriptor sequences without software intervention
+- Improves throughput by eliminating per-descriptor software latency
+
+---
+
+### TASK-012: Implement Channel Idle Signal Composition
+**Status:** 🟡 Planned
+**Priority:** P1 (High)
+**Effort:** 2-3 hours
+**Assigned:** Unassigned
+
+**Description:**
+Implement channel_idle signal at scheduler_group level as logical AND of scheduler_idle and all engine idle signals. This ensures the channel is truly idle only when all components are quiescent.
+
+**Architecture:**
+
+```systemverilog
+// At scheduler_group level
+assign channel_idle = scheduler_idle &&
+                      descriptor_engine_idle &&
+                      program_engine_idle &&  // If applicable
+                      ctrlrd_engine_idle &&   // If applicable
+                      ctrlwr_engine_idle;     // If applicable
+```
+
+**Why Both Signals Matter:**
+
+| Signal | Indicates | Used For |
+|--------|-----------|----------|
+| `scheduler_idle` | No active data transfers, all descriptors processed | Prevents new operations during active transfer |
+| `descriptor_engine_idle` | No pending descriptor fetches (FIFO empty) | Prevents new operations during descriptor fetch |
+| `program_engine_idle` | No pending program operations | Prevents new operations during programming |
+| `channel_idle` (AND of all) | Channel fully quiescent | **Gates external interfaces (APB, RDA, CDA)** |
+
+**Usage in Descriptor Engine:**
+
+```systemverilog
+// Descriptor engine blocks APB when channel not idle
+assign apb_ready = apb_skid_ready_in &&
+                   !r_channel_reset_active &&
+                   w_desc_addr_fifo_empty &&
+                   channel_idle;  // ← Blocks APB during active chains
+```
+
+**Example Scenario:**
+
+```
+1. Software writes APB/RDA/CDA → descriptor_addr = 0x1000
+   - channel_idle = 1 (all engines idle)
+   - Request accepted
+
+2. Descriptor engine fetches descriptor @ 0x1000
+   - descriptor_engine_idle = 0 (fetch in progress)
+   - channel_idle = 0
+   - APB/RDA/CDA BLOCKED
+
+3. Descriptor pushed to scheduler
+   - descriptor_engine_idle = 1 (fetch complete)
+   - scheduler_idle = 0 (transfer starting)
+   - channel_idle = 0
+   - APB/RDA/CDA BLOCKED
+
+4. Scheduler completes data transfer
+   - Descriptor has next_descriptor_ptr = 0x1100 (chained!)
+   - Descriptor engine autonomously fetches @ 0x1100
+   - descriptor_engine_idle = 0 (autonomous fetch)
+   - channel_idle = 0
+   - APB/RDA/CDA BLOCKED
+
+5. Final descriptor completes (last = 1 OR next_ptr = 0)
+   - scheduler_idle = 1 (transfer done)
+   - descriptor_engine_idle = 1 (no more fetches)
+   - all other engines idle = 1
+   - channel_idle = 1
+   - APB/RDA/CDA UNBLOCKED (ready for next transfer!)
+```
+
+**Implementation Steps:**
+1. Add scheduler_idle output to scheduler.sv (if not already present)
+2. Add descriptor_engine_idle output to descriptor_engine.sv
+3. Add program_engine_idle output to program_engine.sv (if applicable)
+4. Update scheduler_group.sv to AND all idle signals
+5. Connect channel_idle to all relevant engines (descriptor_engine, program_engine)
+6. Update testbenches to drive channel_idle
+7. Create integration test verifying APB/RDA/CDA blocking during active chains
+
+**Verification Steps:**
+1. Verify each engine correctly asserts its idle signal
+2. Verify scheduler_group correctly ANDs all idle signals
+3. Verify APB interface blocks when !channel_idle
+4. Verify RDA interface blocks when !channel_idle (if present)
+5. Verify CDA interface blocks when !channel_idle (if present)
+6. Test multi-descriptor chain scenario (software blocked until chain completes)
+7. Test error scenarios (channel_idle behavior on errors)
+
+**Related Files:**
+- Modify: `projects/components/rapids/rtl/rapids_fub/scheduler.sv`
+- Modify: `projects/components/rapids/rtl/rapids_fub/descriptor_engine.sv`
+- Modify: `projects/components/rapids/rtl/rapids_fub/program_engine.sv`
+- Modify: `projects/components/rapids/rtl/rapids_macro/scheduler_group.sv`
+- Update: `projects/components/rapids/PRD.md` (document channel_idle architecture)
+- Create: `projects/components/rapids/dv/tests/integration_tests/test_channel_idle.py`
+
+**Dependencies:**
+- TASK-011 (autonomous chaining uses channel_idle)
+
+**Completion Criteria:**
+- [ ] All engines output their idle signals
+- [ ] scheduler_group ANDs all idle signals to create channel_idle
+- [ ] channel_idle connected to all relevant engines
+- [ ] APB/RDA/CDA interfaces block when !channel_idle
+- [ ] Integration tests passing
+- [ ] Documentation updated
+
+**Notes:**
+- This architecture ensures software cannot interrupt active descriptor chains
+- STREAM implementation (projects/components/stream/PRD.md Section 5.2) serves as reference
+- Critical for reliable autonomous chaining operation
+
+---
+
 **Version History:**
 - v1.0 (2025-10-11): Initial creation with 9 tasks
+- v1.1 (2025-10-19): Added TASK-011 (autonomous chaining) and TASK-012 (channel_idle)
 
 **Maintained By:** RTL Design Sherpa Project
-**Last Review:** 2025-10-11
+**Last Review:** 2025-10-19

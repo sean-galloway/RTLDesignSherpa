@@ -140,9 +140,9 @@ Used for high-bandwidth data interfaces that need to handle arbitrary address al
 | Aspect | Requirement |
 |--------|-------------|
 | **Alignment Goal** | Align to 64-byte boundaries for optimal bus utilization |
-| **Alignment Sequence** | Use progressive sizes: 4 → 8 → 16 → 32 → 64 bytes |
+| **Alignment Sequence** | Use progressive sizes: 4 -> 8 -> 16 -> 32 -> 64 bytes |
 | **Optimization** | Choose largest possible transfer size at each step |
-| **Example** | Address 0x1004: 4-byte transfer → aligned to 0x1008, then larger transfers |
+| **Example** | Address 0x1004: 4-byte transfer -> aligned to 0x1008, then larger transfers |
 
 ### Assumption 4: Chunk Enable Support
 
@@ -171,7 +171,7 @@ Used for high-bandwidth data interfaces that need to handle arbitrary address al
 | Aspect | Requirement |
 |--------|-------------|
 | **Wraparound Rule** | Transactions never wrap around top of address space |
-| **Example** | No 0xFFFFFFFF → 0x00000000 transitions |
+| **Example** | No 0xFFFFFFFF -> 0x00000000 transitions |
 | **Rationale** | Real systems never allow this due to memory layout |
 | **Benefit** | Dramatically simplified boundary crossing detection logic |
 
@@ -181,7 +181,7 @@ Used for high-bandwidth data interfaces that need to handle arbitrary address al
 
 ### Progressive Alignment Examples
 
-**Example 1: Address 0x1004 → 0x1040 (64-byte boundary)**
+**Example 1: Address 0x1004 -> 0x1040 (64-byte boundary)**
 
 | Step | Address | Size | AxSIZE | Length | Bytes Transferred | Notes |
 |------|---------|------|--------|--------|-------------------|-------|
@@ -189,19 +189,19 @@ Used for high-bandwidth data interfaces that need to handle arbitrary address al
 | 2 | 0x1008 | 8 bytes | 3'b011 | 1 beat | 8 | Progressive alignment |
 | 3 | 0x1010 | 16 bytes | 3'b100 | 1 beat | 16 | Progressive alignment |
 | 4 | 0x1020 | 32 bytes | 3'b101 | 1 beat | 32 | Progressive alignment |
-| 5 | 0x1040 | **64 bytes** | 3'b110 | N beats | 64×N | **Optimal transfers** |
+| 5 | 0x1040 | **64 bytes** | 3'b110 | N beats | 64xN | **Optimal transfers** |
 
-**Example 2: Address 0x1010 → 0x1040 (64-byte boundary)**
+**Example 2: Address 0x1010 -> 0x1040 (64-byte boundary)**
 
 | Step | Address | Size | AxSIZE | Length | Bytes Transferred | Notes |
 |------|---------|------|--------|--------|-------------------|-------|
 | 1 | 0x1010 | 16 bytes | 3'b100 | 1 beat | 16 | Optimal initial size |
 | 2 | 0x1020 | 32 bytes | 3'b101 | 1 beat | 32 | Progressive alignment |
-| 3 | 0x1040 | **64 bytes** | 3'b110 | N beats | 64×N | **Optimal transfers** |
+| 3 | 0x1040 | **64 bytes** | 3'b110 | N beats | 64xN | **Optimal transfers** |
 
 ### Chunk Enable Pattern Examples
 
-**512-bit Bus with 16×32-bit chunks**
+**512-bit Bus with 16x32-bit chunks**
 
 | Transfer Size | Address Offset | Chunk Pattern | Description |
 |---------------|----------------|---------------|-------------|
@@ -219,31 +219,31 @@ Used for high-bandwidth data interfaces that need to handle arbitrary address al
 
 | Signal | Width | Direction | Simplified Mode | Flexible Mode | Description |
 |--------|-------|-----------|-----------------|---------------|-------------|
-| `ar_addr` | `ADDR_WIDTH` | Master→Slave | **Bus-width aligned** | **4-byte aligned** | Read address |
-| `ar_len` | 8 | Master→Slave | 0-255 | 0-255 | Burst length - 1 |
-| `ar_size` | 3 | Master→Slave | **Fixed per bus** | **Variable: 4-64 bytes** | Transfer size |
-| `ar_burst` | 2 | Master→Slave | **2'b01 (INCR only)** | **2'b01 (INCR only)** | Burst type |
-| `ar_id` | `ID_WIDTH` | Master→Slave | Any | Any | Transaction ID |
-| `ar_lock` | 1 | Master→Slave | 1'b0 | 1'b0 | Lock type (normal) |
-| `ar_cache` | 4 | Master→Slave | Implementation specific | 4'b0011 | Cache attributes |
-| `ar_prot` | 3 | Master→Slave | Implementation specific | 3'b000 | Protection attributes |
-| `ar_qos` | 4 | Master→Slave | 4'b0000 | 4'b0000 | Quality of Service |
-| `ar_region` | 4 | Master→Slave | 4'b0000 | 4'b0000 | Region identifier |
-| `ar_user` | `USER_WIDTH` | Master→Slave | Optional | Optional | User-defined |
-| `ar_valid` | 1 | Master→Slave | 0 or 1 | 0 or 1 | Address valid |
-| `ar_ready` | 1 | Slave→Master | 0 or 1 | 0 or 1 | Address ready |
+| `ar_addr` | `ADDR_WIDTH` | Master->Slave | **Bus-width aligned** | **4-byte aligned** | Read address |
+| `ar_len` | 8 | Master->Slave | 0-255 | 0-255 | Burst length - 1 |
+| `ar_size` | 3 | Master->Slave | **Fixed per bus** | **Variable: 4-64 bytes** | Transfer size |
+| `ar_burst` | 2 | Master->Slave | **2'b01 (INCR only)** | **2'b01 (INCR only)** | Burst type |
+| `ar_id` | `ID_WIDTH` | Master->Slave | Any | Any | Transaction ID |
+| `ar_lock` | 1 | Master->Slave | 1'b0 | 1'b0 | Lock type (normal) |
+| `ar_cache` | 4 | Master->Slave | Implementation specific | 4'b0011 | Cache attributes |
+| `ar_prot` | 3 | Master->Slave | Implementation specific | 3'b000 | Protection attributes |
+| `ar_qos` | 4 | Master->Slave | 4'b0000 | 4'b0000 | Quality of Service |
+| `ar_region` | 4 | Master->Slave | 4'b0000 | 4'b0000 | Region identifier |
+| `ar_user` | `USER_WIDTH` | Master->Slave | Optional | Optional | User-defined |
+| `ar_valid` | 1 | Master->Slave | 0 or 1 | 0 or 1 | Address valid |
+| `ar_ready` | 1 | Slave->Master | 0 or 1 | 0 or 1 | Address ready |
 
 ### Read Data Channel (R)
 
 | Signal | Width | Direction | Description |
 |--------|-------|-----------|-------------|
-| `r_data` | `DATA_WIDTH` | Slave→Master | Read data |
-| `r_id` | `ID_WIDTH` | Slave→Master | Transaction ID |
-| `r_resp` | 2 | Slave→Master | Read response |
-| `r_last` | 1 | Slave→Master | Last transfer in burst |
-| `r_user` | `USER_WIDTH` | Slave→Master | User-defined (optional) |
-| `r_valid` | 1 | Slave→Master | Read data valid |
-| `r_ready` | 1 | Master→Slave | Read data ready |
+| `r_data` | `DATA_WIDTH` | Slave->Master | Read data |
+| `r_id` | `ID_WIDTH` | Slave->Master | Transaction ID |
+| `r_resp` | 2 | Slave->Master | Read response |
+| `r_last` | 1 | Slave->Master | Last transfer in burst |
+| `r_user` | `USER_WIDTH` | Slave->Master | User-defined (optional) |
+| `r_valid` | 1 | Slave->Master | Read data valid |
+| `r_ready` | 1 | Master->Slave | Read data ready |
 
 ---
 
@@ -253,40 +253,40 @@ Used for high-bandwidth data interfaces that need to handle arbitrary address al
 
 | Signal | Width | Direction | Simplified Mode | Flexible Mode | Description |
 |--------|-------|-----------|-----------------|---------------|-------------|
-| `aw_addr` | `ADDR_WIDTH` | Master→Slave | **Bus-width aligned** | **4-byte aligned** | Write address |
-| `aw_len` | 8 | Master→Slave | 0-255 | 0-255 | Burst length - 1 |
-| `aw_size` | 3 | Master→Slave | **Fixed per bus** | **Variable: 4-64 bytes** | Transfer size |
-| `aw_burst` | 2 | Master→Slave | **2'b01 (INCR only)** | **2'b01 (INCR only)** | Burst type |
-| `aw_id` | `ID_WIDTH` | Master→Slave | Any | Any | Transaction ID |
-| `aw_lock` | 1 | Master→Slave | 1'b0 | 1'b0 | Lock type (normal) |
-| `aw_cache` | 4 | Master→Slave | Implementation specific | 4'b0011 | Cache attributes |
-| `aw_prot` | 3 | Master→Slave | Implementation specific | 3'b000 | Protection attributes |
-| `aw_qos` | 4 | Master→Slave | 4'b0000 | 4'b0000 | Quality of Service |
-| `aw_region` | 4 | Master→Slave | 4'b0000 | 4'b0000 | Region identifier |
-| `aw_user` | `USER_WIDTH` | Master→Slave | Optional | Optional | User-defined |
-| `aw_valid` | 1 | Master→Slave | 0 or 1 | 0 or 1 | Address valid |
-| `aw_ready` | 1 | Slave→Master | 0 or 1 | 0 or 1 | Address ready |
+| `aw_addr` | `ADDR_WIDTH` | Master->Slave | **Bus-width aligned** | **4-byte aligned** | Write address |
+| `aw_len` | 8 | Master->Slave | 0-255 | 0-255 | Burst length - 1 |
+| `aw_size` | 3 | Master->Slave | **Fixed per bus** | **Variable: 4-64 bytes** | Transfer size |
+| `aw_burst` | 2 | Master->Slave | **2'b01 (INCR only)** | **2'b01 (INCR only)** | Burst type |
+| `aw_id` | `ID_WIDTH` | Master->Slave | Any | Any | Transaction ID |
+| `aw_lock` | 1 | Master->Slave | 1'b0 | 1'b0 | Lock type (normal) |
+| `aw_cache` | 4 | Master->Slave | Implementation specific | 4'b0011 | Cache attributes |
+| `aw_prot` | 3 | Master->Slave | Implementation specific | 3'b000 | Protection attributes |
+| `aw_qos` | 4 | Master->Slave | 4'b0000 | 4'b0000 | Quality of Service |
+| `aw_region` | 4 | Master->Slave | 4'b0000 | 4'b0000 | Region identifier |
+| `aw_user` | `USER_WIDTH` | Master->Slave | Optional | Optional | User-defined |
+| `aw_valid` | 1 | Master->Slave | 0 or 1 | 0 or 1 | Address valid |
+| `aw_ready` | 1 | Slave->Master | 0 or 1 | 0 or 1 | Address ready |
 
 ### Write Data Channel (W)
 
 | Signal | Width | Direction | Simplified Mode | Flexible Mode | Description |
 |--------|-------|-----------|-----------------|---------------|-------------|
-| `w_data` | `DATA_WIDTH` | Master→Slave | Write data | Write data | Write data |
-| `w_strb` | `DATA_WIDTH/8` | Master→Slave | **All 1's** | **From chunk enables** | Write strobes |
-| `w_last` | 1 | Master→Slave | Last transfer | Last transfer | Last transfer in burst |
-| `w_user` | `USER_WIDTH` | Master→Slave | Optional | Optional | User-defined |
-| `w_valid` | 1 | Master→Slave | 0 or 1 | 0 or 1 | Write data valid |
-| `w_ready` | 1 | Slave→Master | 0 or 1 | 0 or 1 | Write data ready |
+| `w_data` | `DATA_WIDTH` | Master->Slave | Write data | Write data | Write data |
+| `w_strb` | `DATA_WIDTH/8` | Master->Slave | **All 1's** | **From chunk enables** | Write strobes |
+| `w_last` | 1 | Master->Slave | Last transfer | Last transfer | Last transfer in burst |
+| `w_user` | `USER_WIDTH` | Master->Slave | Optional | Optional | User-defined |
+| `w_valid` | 1 | Master->Slave | 0 or 1 | 0 or 1 | Write data valid |
+| `w_ready` | 1 | Slave->Master | 0 or 1 | 0 or 1 | Write data ready |
 
 ### Write Response Channel (B)
 
 | Signal | Width | Direction | Description |
 |--------|-------|-----------|-------------|
-| `b_id` | `ID_WIDTH` | Slave→Master | Transaction ID |
-| `b_resp` | 2 | Slave→Master | Write response |
-| `b_user` | `USER_WIDTH` | Slave→Master | User-defined (optional) |
-| `b_valid` | 1 | Slave→Master | Response valid |
-| `b_ready` | 1 | Master→Slave | Response ready |
+| `b_id` | `ID_WIDTH` | Slave->Master | Transaction ID |
+| `b_resp` | 2 | Slave->Master | Write response |
+| `b_user` | `USER_WIDTH` | Slave->Master | User-defined (optional) |
+| `b_valid` | 1 | Slave->Master | Response valid |
+| `b_ready` | 1 | Master->Slave | Response ready |
 
 ---
 
@@ -297,7 +297,7 @@ Used for high-bandwidth data interfaces that need to handle arbitrary address al
 | Parameter | Formula | Description |
 |-----------|---------|-------------|
 | **First Address** | Must be bus-width aligned | Starting address |
-| **Address N** | First_Address + (N × Bus_Width_Bytes) | Address for beat N |
+| **Address N** | First_Address + (N x Bus_Width_Bytes) | Address for beat N |
 | **Alignment Check** | (Address % Bus_Width_Bytes) == 0 | Must always be true |
 
 ### Flexible Mode Address Generation
@@ -305,9 +305,9 @@ Used for high-bandwidth data interfaces that need to handle arbitrary address al
 | Parameter | Formula | Description |
 |-----------|---------|-------------|
 | **First Address** | Must be 4-byte aligned | Starting address |
-| **Address N** | First_Address + (N × Transfer_Size) | Address for beat N |
+| **Address N** | First_Address + (N x Transfer_Size) | Address for beat N |
 | **Alignment Check** | (Address % 4) == 0 | Must always be true |
-| **Progressive Alignment** | Choose largest size ≤ bytes_to_boundary | Optimization strategy |
+| **Progressive Alignment** | Choose largest size <= bytes_to_boundary | Optimization strategy |
 
 ### 4KB Boundary Considerations (Both Modes)
 
@@ -333,7 +333,7 @@ Used for high-bandwidth data interfaces that need to handle arbitrary address al
 **From Chunk Enables (512-bit bus example):**
 
 ```verilog
-// Convert 16×32-bit chunk enables to 64×8-bit write strobes
+// Convert 16x32-bit chunk enables to 64x8-bit write strobes
 for (int chunk = 0; chunk < 16; chunk++) begin
     if (chunk_enable[chunk]) begin
         w_strb[chunk*4 +: 4] = 4'hF; // 4 bytes per chunk

@@ -46,7 +46,13 @@ from cocotb_test.simulator import run
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
-from dv.tbclasses.scheduler_group_array_tb import SchedulerGroupArrayTB
+
+# Add dv directory to path so we can import from tbclasses/
+dv_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if dv_dir not in sys.path:
+    sys.path.insert(0, dv_dir)
+
+from tbclasses.scheduler_group_array_tb import SchedulerGroupArrayTB
 
 
 # ===========================================================================

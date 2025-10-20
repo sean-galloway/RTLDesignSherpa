@@ -27,7 +27,7 @@ Test Organization:
 - Stress tests (back-to-back, backpressure, mixed types)
 
 This test file imports the reusable SchedulerTB class from:
-  bin/CocoTBFramework/tbclasses/rapids/scheduler_tb.py
+  projects/components/rapids/dv/tbclasses/scheduler_tb.py (PROJECT AREA - CORRECT!)
 
 STRUCTURE FOLLOWS AMBA PATTERN:
   - CocoTB test functions at top (prefixed with cocotb_)
@@ -37,11 +37,19 @@ STRUCTURE FOLLOWS AMBA PATTERN:
 
 import os
 import sys
+
+# Add RAPIDS DV directory to path to import project-area testbench classes
+# This makes the import work regardless of whether env_python is sourced
+rapids_dv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
+if rapids_dv_path not in sys.path:
+    sys.path.insert(0, rapids_dv_path)
+
 import pytest
 import cocotb
 from cocotb_test.simulator import run
 
-from CocoTBFramework.tbclasses.rapids.scheduler_tb import SchedulerTB
+# Import TB class from PROJECT AREA (not framework!)
+from tbclasses.scheduler_tb import SchedulerTB
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
@@ -302,13 +310,13 @@ async def cocotb_test_eos_handling(dut):
 
 
 @cocotb.test(timeout_time=100, timeout_unit="ms")
-async def cocotb_test_program_sequencing(dut):
-    """Test program sequencing (prog0 → prog1)"""
+async def cocotb_test_ctrl_sequencing(dut):
+    """Test control sequencing (ctrlrd, ctrlwr) - RENAMED from program"""
     tb = SchedulerTB(dut)
     await tb.setup_clocks_and_reset()
     await tb.initialize_test()
-    result = await tb.test_program_sequencing()
-    assert result, "Program sequencing test failed"
+    result = await tb.test_ctrl_sequencing()
+    assert result, "Control sequencing test failed"
 
 
 @cocotb.test(timeout_time=100, timeout_unit="ms")
@@ -347,12 +355,12 @@ async def cocotb_test_data_engine_error(dut):
 
 @cocotb.test(timeout_time=100, timeout_unit="ms")
 async def cocotb_test_program_engine_error(dut):
-    """Test handling of program engine errors"""
+    """Test handling of control write engine errors"""
     tb = SchedulerTB(dut)
     await tb.setup_clocks_and_reset()
     await tb.initialize_test()
-    result = await tb.test_program_engine_error()
-    assert result, "Program engine error test failed"
+    result = await tb.test_ctrlwr_engine_error()
+    assert result, "Control write engine error test failed"
 
 
 # NOTE: Timeout test removed from main suite - use standalone test_scheduler_timeout.py instead
@@ -796,9 +804,9 @@ def test_eos(request, channel_id, num_channels, data_width, credit_width):
 @pytest.mark.fub
 @pytest.mark.scheduler
 @pytest.mark.parametrize("channel_id, num_channels, data_width, credit_width", scheduler_params)
-def test_program_seq(request, channel_id, num_channels, data_width, credit_width):
-    """Pytest: Test program sequencing"""
-    _run_scheduler_test(request, "cocotb_test_program_sequencing",
+def test_ctrl_seq(request, channel_id, num_channels, data_width, credit_width):
+    """Pytest: Test control sequencing (ctrlrd, ctrlwr) - RENAMED from program"""
+    _run_scheduler_test(request, "cocotb_test_ctrl_sequencing",
                        channel_id, num_channels, data_width, credit_width)
 
 

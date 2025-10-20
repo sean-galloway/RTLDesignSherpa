@@ -2,20 +2,23 @@
 
 #### Overview
 
-The Sink Data Path provides a complete integrated data reception and processing pipeline that combines Network packet reception, multi-channel SRAM buffering, multi-channel AXI write arbitration, and comprehensive monitor bus aggregation. This wrapper manages the complete data flow from Network network reception through final AXI memory writes.
+The Sink Data Path provides a complete integrated data reception and processing pipeline that combines AXI-Stream packet reception, multi-channel SRAM buffering, multi-channel AXI write arbitration, and comprehensive monitor bus aggregation. This wrapper manages the complete data flow from AXIS interface reception through final AXI memory writes.
 
-The wrapper implements sophisticated EOS (End of Stream) flow control where packet-level EOS is managed by SRAM control and descriptor-level EOS completion is coordinated with the scheduler, ensuring proper stream boundary handling throughout the pipeline.
+**RTL Module:** `rtl/amba/axis/axis_slave.sv` (AXIS interface) + RAPIDS sink components
 
-![sink data path](/mnt/data/github/tsunami/design/rapids/markdown/rapids_spec/draw.io/png/sink_data_path.png)
+The wrapper implements sophisticated TLAST (End of Stream) flow control where packet-level TLAST is managed by SRAM control and descriptor-level EOS completion is coordinated with the scheduler, ensuring proper stream boundary handling throughout the pipeline.
+
+![sink data path](draw.io/png/sink_data_path.png)
 
 #### Key Features
 
-- **Complete Data Reception Pipeline**: From Network packets to AXI memory writes
+- **Complete Data Reception Pipeline**: From AXIS packets to AXI memory writes
+- **Standard AXIS Interface**: Industry-standard AXI-Stream protocol (no custom credits/ACKs)
 - **Multi-Channel SRAM Buffering**: Independent buffering for up to 32 channels
 - **Advanced AXI Write Engine**: Multi-channel arbitration with transfer strategy optimization
-- **EOS Flow Management**: Packet-level and descriptor-level EOS coordination
+- **TLAST Flow Management**: Packet-level and descriptor-level boundary coordination
 - **RDA Packet Routing**: Direct RDA packet interfaces bypassing SRAM buffering
-- **Monitor Bus Aggregation**: Unified monitoring from Network slave, SRAM control, and AXI engine
+- **Monitor Bus Aggregation**: Unified monitoring from AXIS slave, SRAM control, and AXI engine
 - **Enhanced Scheduler Interface**: Address alignment bus support for optimal AXI performance
 
 #### Interface Specification
@@ -27,30 +30,24 @@ The wrapper implements sophisticated EOS (End of Stream) flow control where pack
 | **clk** | logic | 1 | Input | Yes | System clock |
 | **rst_n** | logic | 1 | Input | Yes | Active-low asynchronous reset |
 
-##### Network Network Interface
+##### AXI-Stream Slave Interface (RX)
 
 | Signal Name | Type | Width | Direction | Required | Description |
 |-------------|------|-------|-----------|----------|-------------|
-| **s_network_pkt_addr** | logic | ADDR_WIDTH | Input | Yes | Network packet address |
-| **s_network_pkt_addr_par** | logic | 1 | Input | Yes | Network packet address parity |
-| **s_network_pkt_data** | logic | DATA_WIDTH | Input | Yes | Network packet data |
-| **s_network_pkt_type** | logic | 2 | Input | Yes | Network packet type |
-| **s_network_pkt_chunk_enables** | logic | NUM_CHUNKS | Input | Yes | Network packet chunk enables |
-| **s_network_pkt_eos** | logic | 1 | Input | Yes | Network packet End of Stream |
-| **s_network_pkt_par** | logic | 1 | Input | Yes | Network packet data parity |
-| **s_network_pkt_valid** | logic | 1 | Input | Yes | Network packet valid |
-| **s_network_pkt_ready** | logic | 1 | Output | Yes | Network packet ready |
+| **axis_snk_rx_tdata** | logic | DATA_WIDTH | Input | Yes | Stream data payload |
+| **axis_snk_rx_tstrb** | logic | DATA_WIDTH/8 | Input | Yes | Byte strobes (write enables) |
+| **axis_snk_rx_tlast** | logic | 1 | Input | Yes | Last transfer in packet |
+| **axis_snk_rx_tvalid** | logic | 1 | Input | Yes | Stream data valid |
+| **axis_snk_rx_tready** | logic | 1 | Output | Yes | Stream ready (backpressure) |
+| **axis_snk_rx_tuser** | logic | 16 | Input | Yes | User sideband (packet metadata) |
 
-##### Network ACK Interface
+**TUSER Encoding (Sink RX):**
+```
+[15:8] - Channel ID
+[7:0]  - Packet type/flags
+```
 
-| Signal Name | Type | Width | Direction | Required | Description |
-|-------------|------|-------|-----------|----------|-------------|
-| **m_network_ack_addr** | logic | ADDR_WIDTH | Output | Yes | Network ACK address |
-| **m_network_ack_addr_par** | logic | 1 | Output | Yes | Network ACK address parity |
-| **m_network_ack_ack** | logic | 2 | Output | Yes | Network ACK type |
-| **m_network_ack_par** | logic | 1 | Output | Yes | Network ACK parity |
-| **m_network_ack_valid** | logic | 1 | Output | Yes | Network ACK valid |
-| **m_network_ack_ready** | logic | 1 | Input | Yes | Network ACK ready |
+**Note:** AXIS uses standard `tvalid/tready` backpressure. No ACK channels or custom credit mechanisms.
 
 ##### RDA Interfaces (Direct Bypass)
 
@@ -73,11 +70,11 @@ The wrapper implements sophisticated EOS (End of Stream) flow control where pack
 |-------------|------|-------|-----------|----------|-------------|
 | **data_valid** | logic | NUM_CHANNELS | Input | Yes | Data transfer request per channel |
 | **data_ready** | logic | NUM_CHANNELS | Output | Yes | Data transfer ready per channel |
-| **data_address** | logic | ADDR_WIDTH × NUM_CHANNELS | Input | Yes | Data address per channel |
-| **data_length** | logic | 32 × NUM_CHANNELS | Input | Yes | Data length per channel |
-| **data_type** | logic | 2 × NUM_CHANNELS | Input | Yes | Data type per channel |
+| **data_address** | logic | ADDR_WIDTH x NUM_CHANNELS | Input | Yes | Data address per channel |
+| **data_length** | logic | 32 x NUM_CHANNELS | Input | Yes | Data length per channel |
+| **data_type** | logic | 2 x NUM_CHANNELS | Input | Yes | Data type per channel |
 | **data_eos** | logic | NUM_CHANNELS | Input | Yes | End of Stream per channel |
-| **data_transfer_length** | logic | 32 × NUM_CHANNELS | Output | Yes | Actual transfer length per channel |
+| **data_transfer_length** | logic | 32 x NUM_CHANNELS | Output | Yes | Actual transfer length per channel |
 | **data_done_strobe** | logic | NUM_CHANNELS | Output | Yes | Transfer completion per channel |
 | **data_error** | logic | NUM_CHANNELS | Output | Yes | Transfer error per channel |
 
@@ -151,25 +148,25 @@ The wrapper implements sophisticated EOS (End of Stream) flow control where pack
 
 ##### Internal Components
 
-- **Network Slave**: Packet reception, validation, and routing with bulletproof ACK generation
-- **Sink SRAM Control**: Multi-channel buffering with EOS completion signaling
+- **AXIS Slave**: Packet reception, validation, and routing with standard AXIS flow control
+- **Sink SRAM Control**: Multi-channel buffering with TLAST/EOS completion signaling
 - **Sink AXI Write Engine**: Multi-channel arbitration and AXI write operations
 - **Monitor Bus Aggregator**: Round-robin aggregation from all three components
 
 ##### Data Flow Pipeline
 
-1. **Network Packet Reception**: Network slave receives and validates incoming packets
+1. **AXIS Packet Reception**: AXIS slave receives and validates incoming packets
 2. **Packet Classification**: Packets routed to SRAM (FC/TS/RAW) or RDA bypass (RDA packets)
 3. **Multi-Channel Buffering**: SRAM control provides independent per-channel buffering
 4. **AXI Write Arbitration**: AXI engine arbitrates between channels using scheduler inputs
-5. **EOS Completion**: Packet-level EOS triggers descriptor completion notification
+5. **TLAST Completion**: Packet-level TLAST triggers descriptor completion notification
 
-##### EOS Flow Management
+##### TLAST Flow Management
 
-The sink data path implements sophisticated EOS handling:
-- **Packet-Level EOS**: Detected by Network slave, managed by SRAM control
+The sink data path implements sophisticated stream boundary handling:
+- **Packet-Level TLAST**: Detected by AXIS slave, managed by SRAM control
 - **EOS Completion Interface**: SRAM control notifies scheduler of descriptor completion
-- **Stream Boundaries**: EOS triggers proper completion signaling and credit return
+- **Stream Boundaries**: TLAST triggers proper completion signaling (maps to internal EOS)
 
 ##### Address Alignment Integration
 
@@ -184,11 +181,23 @@ The AXI write engine implements sophisticated arbitration:
 - **Round-Robin Base**: Fair arbitration across active channels
 - **Transfer Strategy**: Precision/aligned/forced/single transfer modes
 - **Buffer-Aware**: Considers SRAM buffer status for optimal performance
-- **Chunk-Aware Strobes**: Precise write strobes based on chunk enables
+- **TSTRB-Based Strobes**: Precise write strobes based on AXIS byte strobes
 
-#### Network 2.0 Support
+#### AXIS Integration
 
-The sink data path fully supports the Network 2.0 protocol specification, using chunk enables instead of the older start/len approach for indicating valid data chunks within each 512-bit packet. This provides more flexible and precise control over partial data transfers.
+The sink data path uses standard AXI-Stream (AXIS4) protocol for packet reception:
+
+**Key Benefits:**
+1. **Industry Standard**: AXIS is widely supported, well-documented protocol
+2. **Simplified Flow Control**: Standard `tvalid/tready` backpressure (no custom ACK channels)
+3. **Cleaner Byte Qualification**: Standard `tstrb` replaces custom chunk enables
+4. **Packet Framing**: Standard `tlast` replaces custom EOS markers
+5. **Better Tool Support**: Standard protocol enables better IP integration and verification
+
+**TSTRB vs Legacy Chunk Enables:**
+- AXIS: 64-bit byte strobes for 512-bit data (byte-level granularity)
+- Legacy: 16-bit chunk enables (32-bit chunk granularity)
+- TSTRB provides finer control and maps directly to AXI4 `wstrb`
 
 #### Usage Guidelines
 
@@ -202,15 +211,15 @@ The sink data path fully supports the Network 2.0 protocol specification, using 
 ##### Error Handling
 
 The wrapper provides comprehensive error reporting:
-- Monitor parity errors for data integrity
+- Monitor TSTRB errors for data integrity
 - Check buffer overflow conditions
-- Verify ACK generation and delivery
+- Verify AXIS protocol compliance
 - Track per-channel error statistics
 
-##### EOS Processing
+##### TLAST Processing
 
-Proper EOS handling requires:
-1. Monitor packet-level EOS from Network slave
-2. Track EOS completion notifications to scheduler
+Proper stream boundary handling requires:
+1. Monitor packet-level TLAST from AXIS slave
+2. Track EOS completion notifications to scheduler (TLAST -> EOS mapping)
 3. Coordinate descriptor completion with stream boundaries
-4. Ensure proper credit return for flow control
+4. Use standard AXIS backpressure (`tready`) for flow control

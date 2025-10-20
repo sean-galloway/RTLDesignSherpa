@@ -1,6 +1,6 @@
 # Delta: AXI-Stream Crossbar Generator
 
-**Project Status:** ✅ Active Development
+**Project Status:** [PASS] Active Development
 **Version:** 1.0
 **Last Updated:** 2025-10-18
 
@@ -11,11 +11,11 @@
 **Delta** is a Python-based AXI-Stream crossbar generator that produces parameterized SystemVerilog RTL for routing data between multiple masters and slaves. The name follows the water theme (like RAPIDS) - river deltas branch into multiple channels, just like crossbar routing.
 
 **Key Features:**
-- 🔧 Python code generation (similar to APB crossbar automation)
-- 📊 Performance modeling (analytical + simulation)
-- 🏗️ Dual topology support (flat crossbar + tree)
-- 📚 Complete specifications and documentation
-- ✅ Educational focus with rigor
+-  Python code generation (similar to APB crossbar automation)
+-  Performance modeling (analytical + simulation)
+-  Dual topology support (flat crossbar + tree)
+-  Complete specifications and documentation
+- [PASS] Educational focus with rigor
 
 ---
 
@@ -27,7 +27,7 @@
 # Navigate to Delta
 cd projects/components/delta
 
-# Generate flat 4×16 crossbar for RISC cores + DSP arrays
+# Generate flat 4x16 crossbar for RISC cores + DSP arrays
 python bin/delta_generator.py \
     --topology flat \
     --masters 4 \
@@ -74,16 +74,16 @@ python bin/delta_generator.py \
 
 ```
 projects/components/delta/
-├── bin/                              # Automation and modeling
-│   ├── delta_generator.py            # RTL generator (Python)
-│   └── delta_performance_model.py    # Performance analysis
-├── docs/                             # Documentation
-├── rtl/                              # Generated RTL (created on demand)
-│   ├── delta_axis_flat_4x16.sv
-│   └── delta_axis_tree_4x16.sv
-├── dv/tests/                         # Verification (CocoTB)
-├── PRD.md                            # Product Requirements Document
-└── README.md                         # This file
++-- bin/                              # Automation and modeling
+|   +-- delta_generator.py            # RTL generator (Python)
+|   +-- delta_performance_model.py    # Performance analysis
++-- docs/                             # Documentation
++-- rtl/                              # Generated RTL (created on demand)
+|   +-- delta_axis_flat_4x16.sv
+|   +-- delta_axis_tree_4x16.sv
++-- dv/tests/                         # Verification (CocoTB)
++-- PRD.md                            # Product Requirements Document
++-- README.md                         # This file
 ```
 
 ---
@@ -98,7 +98,7 @@ You mentioned having existing APB crossbar automation. Here's how Delta compares
 |-----------|--------------|--------------|-----------------|
 | **Request generation** | Address range decode | TDEST decode | 5 min (simpler!) |
 | **Per-slave arbitration** | Round-robin | Round-robin | 0 min (identical) |
-| **Grant matrix** | M×N grants | M×N grants | 0 min (identical) |
+| **Grant matrix** | MxN grants | MxN grants | 0 min (identical) |
 | **Data multiplexing** | Mux PRDATA | Mux TDATA+signals | 10 min (more signals) |
 | **Backpressure** | PREADY propagation | TREADY propagation | 2 min (rename) |
 
@@ -225,7 +225,7 @@ class DeltaGenerator:
 
 ## Performance Comparison
 
-### Flat Crossbar (4×16 @ 64-bit)
+### Flat Crossbar (4x16 @ 64-bit)
 
 ```
 Latency:    2 cycles (20 ns @ 100 MHz)
@@ -237,7 +237,7 @@ Use Case:   Production systems (RISC cores + DSP arrays)
             Low latency critical
 ```
 
-### Tree Topology (4×16 @ 64-bit)
+### Tree Topology (4x16 @ 64-bit)
 
 ```
 Latency:    6 cycles (60 ns @ 100 MHz)
@@ -279,7 +279,7 @@ delta_axis_flat_4x16 #(
     .aclk       (sys_clk),
     .aresetn    (sys_rst_n),
 
-    // RISC Core 0 → Master 0
+    // RISC Core 0 -> Master 0
     .s_axis_tdata[0]  (risc0_tdata),
     .s_axis_tvalid[0] (risc0_tvalid),
     .s_axis_tready[0] (risc0_tready),
@@ -289,7 +289,7 @@ delta_axis_flat_4x16 #(
 
     // ... RISC cores 1-3 ...
 
-    // DSP Array 0 → Slave 0
+    // DSP Array 0 -> Slave 0
     .m_axis_tdata[0]  (dsp0_tdata),
     .m_axis_tvalid[0] (dsp0_tvalid),
     .m_axis_tready[0] (dsp0_tready),
@@ -374,7 +374,7 @@ verilator --lint-only rtl/delta_axis_flat_4x16.sv
 pytest dv/tests/test_delta_axis_flat_4x16.py -v
 
 # Test coverage:
-# - All 4×16 = 64 master-slave combinations
+# - All 4x16 = 64 master-slave combinations
 # - Concurrent traffic scenarios
 # - Backpressure stress tests
 # - Packet atomicity verification
@@ -427,23 +427,23 @@ Delta demonstrates best practices in:
 ## Next Steps
 
 ### Immediate (Week 1)
-- ✅ Generator script (DONE)
-- ✅ Performance models (DONE)
-- ✅ Specifications (DONE)
-- 🔲 CocoTB testbench framework
-- 🔲 Generate test RTL variants
+- [PASS] Generator script (DONE)
+- [PASS] Performance models (DONE)
+- [PASS] Specifications (DONE)
+- [ ] CocoTB testbench framework
+- [ ] Generate test RTL variants
 
 ### Near-Term (Week 2-3)
-- 🔲 RISC + DSP integration example
-- 🔲 Complete verification suite
-- 🔲 Performance validation report
-- 🔲 User guide with examples
+- [ ] RISC + DSP integration example
+- [ ] Complete verification suite
+- [ ] Performance validation report
+- [ ] User guide with examples
 
 ### Future Enhancements
-- 🔲 Weighted round-robin arbitration
-- 🔲 Optional FIFO insertion
-- 🔲 Unified APB + AXIS generator
-- 🔲 GUI configuration tool
+- [ ] Weighted round-robin arbitration
+- [ ] Optional FIFO insertion
+- [ ] Unified APB + AXIS generator
+- [ ] GUI configuration tool
 
 ---
 
@@ -484,11 +484,11 @@ See `/tmp/APB_TO_AXIS_AUTOMATION_GUIDE.md`
 ## Summary
 
 Delta provides:
-- ✅ **Working RTL generator** (tested, produces lint-clean SystemVerilog)
-- ✅ **Performance models** (analytical + simulation)
-- ✅ **Complete specifications** (PRD + technical docs)
-- ✅ **~95% code reuse** from your APB crossbar automation
-- ✅ **Educational rigor** (specs + models demonstrate best practices)
+- [PASS] **Working RTL generator** (tested, produces lint-clean SystemVerilog)
+- [PASS] **Performance models** (analytical + simulation)
+- [PASS] **Complete specifications** (PRD + technical docs)
+- [PASS] **~95% code reuse** from your APB crossbar automation
+- [PASS] **Educational rigor** (specs + models demonstrate best practices)
 
 **Ready to use for your 4 RISC cores + 16 DSP arrays project!**
 
@@ -499,4 +499,4 @@ python bin/delta_generator.py --topology flat --masters 4 --slaves 16 --data-wid
 
 ---
 
-**Project Delta - Where data flows branch like river deltas 🌊**
+**Project Delta - Where data flows branch like river deltas **

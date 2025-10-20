@@ -18,7 +18,23 @@
 
 ## Critical Rules for This Subsystem
 
-### Rule #0: TESTBENCH ARCHITECTURE - MANDATORY SEPARATION
+### Rule #0: Attribution Format for Git Commits
+
+**IMPORTANT:** When creating git commit messages for RAPIDS documentation or code:
+
+**Use:**
+```
+Documentation and implementation support by Claude.
+```
+
+**Do NOT use:**
+```
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+**Rationale:** RAPIDS receives AI assistance for structure and clarity, while design concepts and architectural decisions remain human-authored.
+
+### Rule #0.1: TESTBENCH ARCHITECTURE - MANDATORY SEPARATION
 
 **⚠️ THIS IS A HARD REQUIREMENT - NO EXCEPTIONS ⚠️**
 
@@ -29,27 +45,36 @@ The same testbench logic will be reused across multiple test scenarios. Having t
 **MANDATORY Structure:**
 
 ```
-bin/CocoTBFramework/tbclasses/
-└── rapids/
-    ├── scheduler_tb.py           ← REUSABLE TB CLASS
-    ├── descriptor_engine_tb.py   ← REUSABLE TB CLASS
-    ├── rapids_integration_tb.py    ← REUSABLE TB CLASS
-    └── [component]_tb.py         ← REUSABLE TB CLASS
-
-projects/components/rapids/dv/tests/
-├── fub_tests/
-│   ├── scheduler/
-│   │   └── test_scheduler.py     ← TEST RUNNER ONLY (imports TB)
-│   ├── descriptor_engine/
-│   │   └── test_desc_engine.py   ← TEST RUNNER ONLY (imports TB)
-└── integration_tests/
-    └── test_miop_integration.py  ← TEST RUNNER ONLY (imports TB)
+projects/components/rapids/dv/
+├── tbclasses/                    # ★ RAPIDS TB classes HERE (not framework!)
+│   ├── scheduler_tb.py           # ← REUSABLE TB CLASS
+│   ├── descriptor_engine_tb.py   # ← REUSABLE TB CLASS
+│   ├── rapids_integration_tb.py  # ← REUSABLE TB CLASS
+│   └── [component]_tb.py         # ← REUSABLE TB CLASS
+│
+└── tests/                        # Test runners (import TB classes from project area)
+    ├── fub_tests/
+    │   ├── scheduler/
+    │   │   └── test_scheduler.py     # ← TEST RUNNER ONLY (imports TB from project area)
+    │   ├── descriptor_engine/
+    │   │   └── test_desc_engine.py   # ← TEST RUNNER ONLY (imports TB from project area)
+    └── integration_tests/
+        └── test_miop_integration.py  # ← TEST RUNNER ONLY (imports TB from project area)
 ```
+
+**✅ CRITICAL: All RAPIDS TB classes are in the PROJECT AREA, not the framework!**
 
 **Test Runner Pattern (CORRECT):**
 ```python
 # projects/components/rapids/dv/tests/fub_tests/scheduler/test_scheduler.py
-from CocoTBFramework.tbclasses.rapids.scheduler_tb import SchedulerTB
+
+# Add repo root to Python path
+import os, sys
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
+sys.path.insert(0, repo_root)
+
+# Import from PROJECT AREA (not framework!)
+from projects.components.rapids.dv.tbclasses.scheduler_tb import SchedulerTB
 
 @cocotb.test()
 async def scheduler_test(dut):
@@ -67,7 +92,7 @@ def test_scheduler(request, credit_mode, ...):
 
 **Testbench Class Pattern (CORRECT):**
 ```python
-# bin/CocoTBFramework/tbclasses/rapids/scheduler_tb.py
+# projects/components/rapids/dv/tbclasses/scheduler_tb.py ✅ CORRECT LOCATION!
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 
 class SchedulerTB(TBBase):
@@ -105,8 +130,15 @@ import pytest
 import cocotb
 from cocotb_test.simulator import run
 
-# Import REUSABLE testbench class (NOT defined in this file!)
-from CocoTBFramework.tbclasses.rapids.scheduler_tb import SchedulerTB
+# Add repo root to Python path
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
+import sys
+sys.path.insert(0, repo_root)
+
+# Import REUSABLE testbench class from PROJECT AREA (NOT framework!)
+from projects.components.rapids.dv.tbclasses.scheduler_tb import SchedulerTB
+
+# Shared framework utilities
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 
@@ -216,13 +248,15 @@ def test_basic_flow(request, channel_id, num_channels, data_width, credit_width)
 
 **File Structure Requirements:**
 
-1. **Testbench location:** `bin/CocoTBFramework/tbclasses/rapids/{module}_tb.py`
+1. **✅ Testbench location:** `projects/components/rapids/dv/tbclasses/{module}_tb.py` (PROJECT AREA!)
 2. **Test location:** `projects/components/rapids/dv/tests/fub_tests/{module}/test_{module}.py`
 3. **CocoTB functions:** At top, prefixed with `cocotb_` to avoid pytest collection
 4. **Parameter generation:** Near bottom, function + variable
 5. **Pytest wrappers:** At bottom, use `@pytest.mark.parametrize()`
 6. **Unique test names:** Use `TBBase.format_dec()` for formatting
 7. **Parallel execution:** Handle `PYTEST_XDIST_WORKER` environment variable
+
+**📖 Complete Documentation:** See `projects/components/rapids/PRD.md` Section 2.4 for organizational standards
 
 **📖 See:**
 - `val/amba/test_apb_slave.py` - Reference AMBA example (lines 1251-1346)
@@ -1560,6 +1594,111 @@ return success_rate >= 100  # Must receive ALL expected outputs
 - Partial success indicates bugs, not acceptable tolerance
 - RTL should be deterministic - 100% success is achievable
 - Lower thresholds mask real issues
+
+---
+
+## Documentation Generation
+
+### Generating PDF/DOCX from Specification
+
+**Tool:** `/mnt/data/github/rtldesignsherpa/bin/md_to_docx.py`
+
+Use this tool to convert the linked specification index into a single all-inclusive PDF or DOCX file.
+
+**Basic Usage:**
+
+```bash
+# Generate DOCX from rapids_spec index
+python bin/md_to_docx.py \
+    projects/components/rapids/docs/rapids_spec/rapids_index.md \
+    -o projects/components/rapids/docs/RAPIDS_Specification_v0.25.docx \
+    --toc \
+    --title-page
+
+# Generate both DOCX and PDF
+python bin/md_to_docx.py \
+    projects/components/rapids/docs/rapids_spec/rapids_index.md \
+    -o projects/components/rapids/docs/RAPIDS_Specification_v0.25.docx \
+    --toc \
+    --title-page \
+    --pdf
+
+# With custom template (optional)
+python bin/md_to_docx.py \
+    projects/components/rapids/docs/rapids_spec/rapids_index.md \
+    -o projects/components/rapids/docs/RAPIDS_Specification_v0.25.docx \
+    -t path/to/template.dotx \
+    --toc \
+    --title-page \
+    --pdf
+```
+
+**Key Features:**
+- **Recursive Collection:** Follows all markdown links in the index file
+- **Heading Demotion:** Automatically adjusts heading levels for included files
+- **Table of Contents:** `--toc` flag generates automatic ToC
+- **Title Page:** `--title-page` flag creates title page from first heading
+- **PDF Export:** `--pdf` flag generates both DOCX and PDF
+- **Image Support:** Resolves images relative to source directory
+- **Template Support:** Optional custom DOCX/DOTX template via `-t` flag
+
+**Common Workflow:**
+
+```bash
+# 1. Update version number in index file (rapids_index.md)
+# 2. Generate documentation
+cd /mnt/data/github/rtldesignsherpa
+python bin/md_to_docx.py \
+    projects/components/rapids/docs/rapids_spec/rapids_index.md \
+    -o projects/components/rapids/docs/RAPIDS_Specification_v0.25.docx \
+    --toc --title-page --pdf
+
+# 3. Output files created:
+#    - RAPIDS_Specification_v0.25.docx
+#    - RAPIDS_Specification_v0.25.pdf (if --pdf used)
+```
+
+**Debug Mode:**
+
+```bash
+# Generate debug markdown to see combined output
+python bin/md_to_docx.py \
+    projects/components/rapids/docs/rapids_spec/rapids_index.md \
+    -o output.docx \
+    --debug-md
+
+# This creates debug.md showing the complete merged content
+```
+
+**Tool Requirements:**
+- Python 3.6+
+- Pandoc installed and in PATH
+- For PDF generation: LaTeX (e.g., texlive) or use Pandoc's built-in PDF writer
+
+**📖 See:** `/mnt/data/github/rtldesignsherpa/bin/md_to_docx.py` for complete implementation details
+
+---
+
+## PDF Generation Location
+
+**IMPORTANT: PDF files should be generated in the docs directory:**
+```
+/mnt/data/github/rtldesignsherpa/projects/components/rapids/docs/
+```
+
+**Quick Command:** Use the provided shell script:
+```bash
+cd /mnt/data/github/rtldesignsherpa/projects/components/rapids/docs
+./generate_pdf.sh
+```
+
+The shell script will automatically:
+1. Use the md_to_docx.py tool from bin/
+2. Process the rapids_spec index file
+3. Generate both DOCX and PDF files in the docs/ directory
+4. Create table of contents and title page
+
+**📖 See:** `bin/md_to_docx.py` for complete implementation details
 
 ---
 

@@ -8,7 +8,7 @@ The Scheduler Group provides a complete integrated channel processing unit that 
 
 The wrapper implements coordinated reset handling across all components, enhanced data interface with alignment bus support using RAPIDS package types, and unified monitor bus aggregation for comprehensive system visibility.
 
-![scheduler_group](/mnt/data/github/tsunami/design/rapids/markdown/rapids_spec/draw.io/png/scheduler_group.png)
+![scheduler_group](draw.io/png/scheduler_group.png)
 
 #### Key Features
 
@@ -63,7 +63,7 @@ The wrapper implements coordinated reset handling across all components, enhance
 | **cfg_channel_wait** | logic | 1 | Input | Yes | Channel wait control |
 | **cfg_channel_enable** | logic | 1 | Input | Yes | Channel enable control |
 | **cfg_use_credit** | logic | 1 | Input | Yes | Credit mode enable |
-| **cfg_initial_credit** | logic | 4 | Input | Yes | Initial credit values (exponential encoding: 0→1, 1→2, 2→4, ..., 14→16384, 15→∞) |
+| **cfg_initial_credit** | logic | 4 | Input | Yes | Initial credit values (exponential encoding: 0->1, 1->2, 2->4, ..., 14->16384, 15->infinity) |
 | **credit_increment** | logic | 1 | Input | Yes | Credit increment request |
 | **cfg_prefetch_enable** | logic | 1 | Input | Yes | Descriptor prefetch enable |
 | **cfg_fifo_threshold** | logic | 4 | Input | Yes | Descriptor FIFO threshold |

@@ -47,7 +47,7 @@ from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.network.network_factories import (
     create_network_master, create_network_slave, send_packet_sequence, validate_network_packet
 )
-from CocoTBFramework.components.network.network_interfaces import MNOC_PKT_TYPES, MNOC_ACK_TYPES
+from CocoTBFramework.components.network.network_interfaces import NETWORK_PKT_TYPES, NETWORK_ACK_TYPES
 from CocoTBFramework.components.network.network_packet import MNOCPacket
 from CocoTBFramework.components.network.network_field_configs import MNOCFieldConfigHelper
 from CocoTBFramework.components.network.network_compliance_checker import MNOCComplianceChecker
@@ -365,7 +365,7 @@ class SnkDatapathTB(TBBase):
                 await self.network_master['interface'].send_packet(
                     channel=packet.addr,
                     data=packet.get_data_fields(),
-                    packet_type=MNOC_PKT_TYPES.TS_PKT,
+                    packet_type=NETWORK_PKT_TYPES.TS_PKT,
                     eos=False  # Only EOS, no EOL/EOD
                 )
 
@@ -425,7 +425,7 @@ class SnkDatapathTB(TBBase):
                 await self.network_master['interface'].send_packet(
                     channel=packet.addr,
                     data=packet.get_data_fields(),
-                    packet_type=MNOC_PKT_TYPES.TS_PKT,
+                    packet_type=NETWORK_PKT_TYPES.TS_PKT,
                     eos=True  # EOS set - should trigger completion processing
                 )
 
@@ -509,7 +509,7 @@ class SnkDatapathTB(TBBase):
                 await self.network_master['interface'].send_packet(
                     channel=packet.addr,
                     data=packet.get_data_fields(),
-                    packet_type=MNOC_PKT_TYPES.TS_PKT,
+                    packet_type=NETWORK_PKT_TYPES.TS_PKT,
                     eos=False
                 )
 
@@ -592,7 +592,7 @@ class SnkDatapathTB(TBBase):
                 await self.network_master['interface'].send_packet(
                     channel=packet.addr,
                     data=packet.get_data_fields(),
-                    packet_type=MNOC_PKT_TYPES.TS_PKT,
+                    packet_type=NETWORK_PKT_TYPES.TS_PKT,
                     eos=False
                 )
 
@@ -665,7 +665,7 @@ class SnkDatapathTB(TBBase):
                 await self.network_master['interface'].send_packet(
                     channel=packet.addr,
                     data=packet.get_data_fields(),
-                    packet_type=MNOC_PKT_TYPES.TS_PKT,
+                    packet_type=NETWORK_PKT_TYPES.TS_PKT,
                     eos=False
                 )
 
@@ -745,7 +745,7 @@ class SnkDatapathTB(TBBase):
                 await self.network_master['interface'].send_packet(
                     channel=packet.addr,
                     data=packet.get_data_fields(),
-                    packet_type=MNOC_PKT_TYPES.TS_PKT,
+                    packet_type=NETWORK_PKT_TYPES.TS_PKT,
                     eos=eos  # Only EOS flag - no EOL/EOD
                 )
 
@@ -818,7 +818,7 @@ class SnkDatapathTB(TBBase):
                 await self.network_master['interface'].send_packet(
                     channel=packet.addr,
                     data=packet.get_data_fields(),
-                    packet_type=MNOC_PKT_TYPES.TS_PKT,
+                    packet_type=NETWORK_PKT_TYPES.TS_PKT,
                     eos=False
                 )
 
@@ -873,7 +873,7 @@ class SnkDatapathTB(TBBase):
                 await self.network_master['interface'].send_packet(
                     channel=packet.addr,
                     data=packet.get_data_fields(),
-                    packet_type=MNOC_PKT_TYPES.TS_PKT,
+                    packet_type=NETWORK_PKT_TYPES.TS_PKT,
                     eos=False
                 )
 
@@ -948,7 +948,7 @@ class SnkDatapathTB(TBBase):
                         chunk_enables=chunk_enables,
                         field_config=field_config
                     )
-                    pkt_type = MNOC_PKT_TYPES.TS_PKT
+                    pkt_type = NETWORK_PKT_TYPES.TS_PKT
                 elif op_type == 'rda':
                     packet = MNOCPacket.create_rda_packet(
                         channel=channel,
@@ -956,14 +956,14 @@ class SnkDatapathTB(TBBase):
                         chunk_enables=chunk_enables,
                         field_config=field_config
                     )
-                    pkt_type = MNOC_PKT_TYPES.RDA_PKT
+                    pkt_type = NETWORK_PKT_TYPES.RDA_PKT
                 else:  # raw or config
                     packet = MNOCPacket.create_raw_packet(
                         channel=channel,
                         raw_data=random.randint(0, 0xFFFFFFFF),
                         field_config=field_config
                     )
-                    pkt_type = MNOC_PKT_TYPES.RAW_PKT
+                    pkt_type = NETWORK_PKT_TYPES.RAW_PKT
 
                 # Send packet
                 await self.network_master['interface'].send_packet(
@@ -1074,7 +1074,7 @@ class SnkDatapathTB(TBBase):
                 await self.network_master['interface'].send_packet(
                     channel=packet.addr,
                     data=packet.get_data_fields(),
-                    packet_type=MNOC_PKT_TYPES.TS_PKT,
+                    packet_type=NETWORK_PKT_TYPES.TS_PKT,
                     eos=False
                 )
 

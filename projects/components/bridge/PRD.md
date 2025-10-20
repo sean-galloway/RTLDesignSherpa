@@ -771,6 +771,49 @@ Configuration:
 
 ---
 
+## 12. Attribution and Contribution Guidelines
+
+### 12.1 Git Commit Attribution
+
+When creating git commits for Bridge documentation or implementation:
+
+**Use:**
+```
+Documentation and implementation support by Claude.
+```
+
+**Do NOT use:**
+```
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+**Rationale:** Bridge documentation and organization receives AI assistance for structure and clarity, while design concepts and architectural decisions remain human-authored.
+
+---
+
+## 12.2 PDF Generation Location
+
+**IMPORTANT: PDF files should be generated in the docs directory:**
+```
+/mnt/data/github/rtldesignsherpa/projects/components/bridge/docs/
+```
+
+**Quick Command:** Use the provided shell script:
+```bash
+cd /mnt/data/github/rtldesignsherpa/projects/components/bridge/docs
+./generate_pdf.sh
+```
+
+The shell script will automatically:
+1. Use the md_to_docx.py tool from bin/
+2. Process the bridge_spec index file
+3. Generate both DOCX and PDF files in the docs/ directory
+4. Create table of contents and title page
+
+**📖 See:** `bin/md_to_docx.py` for complete implementation details
+
+---
+
 ## 13. Future Enhancements
 
 ### 13.1 Short-Term (Post-Initial Release)

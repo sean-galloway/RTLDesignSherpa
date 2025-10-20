@@ -52,11 +52,11 @@ The Source AXI Read Engine orchestrates read transactions from external memory w
 |-------------|------|-------|-----------|----------|-------------|
 | **data_valid** | logic | NUM_CHANNELS | Input | Yes | Data transfer request per channel |
 | **data_ready** | logic | NUM_CHANNELS | Output | Yes | Data engine ready per channel |
-| **data_address** | logic | ADDR_WIDTH × NUM_CHANNELS | Input | Yes | Transfer address per channel |
-| **data_length** | logic | 32 × NUM_CHANNELS | Input | Yes | Transfer length per channel (4-byte chunks) |
-| **data_type** | logic | 2 × NUM_CHANNELS | Input | Yes | Packet type per channel |
+| **data_address** | logic | ADDR_WIDTH x NUM_CHANNELS | Input | Yes | Transfer address per channel |
+| **data_length** | logic | 32 x NUM_CHANNELS | Input | Yes | Transfer length per channel (4-byte chunks) |
+| **data_type** | logic | 2 x NUM_CHANNELS | Input | Yes | Packet type per channel |
 | **data_eos** | logic | NUM_CHANNELS | Input | Yes | End of Stream per channel |
-| **data_transfer_length** | logic | 32 × NUM_CHANNELS | Output | Yes | Actual transfer length per channel |
+| **data_transfer_length** | logic | 32 x NUM_CHANNELS | Output | Yes | Actual transfer length per channel |
 | **data_error** | logic | NUM_CHANNELS | Output | Yes | Data transfer error per channel |
 | **data_done_strobe** | logic | NUM_CHANNELS | Output | Yes | Transfer completed pulse per channel |
 
@@ -75,7 +75,7 @@ The Source AXI Read Engine orchestrates read transactions from external memory w
 
 | Signal Name | Type | Width | Direction | Required | Description |
 |-------------|------|-------|-----------|----------|-------------|
-| **available_lines** | logic | COUNT_BITS × NUM_CHANNELS | Input | Yes | Available SRAM lines per channel |
+| **available_lines** | logic | COUNT_BITS x NUM_CHANNELS | Input | Yes | Available SRAM lines per channel |
 | **channel_ready_for_prealloc** | logic | NUM_CHANNELS | Input | Yes | Channel ready for preallocation |
 
 ##### SRAM Preallocation Interface
@@ -145,7 +145,7 @@ The Source AXI Read Engine orchestrates read transactions from external memory w
 The source AXI read engine implements a revolutionary pure pipeline architecture without traditional FSM overhead:
 
 ```
-Channel Selection → Preallocation → AXI Address → Data Reception → SRAM Write
+Channel Selection -> Preallocation -> AXI Address -> Data Reception -> SRAM Write
         ↓               ↓              ↓              ↓               ↓
    Multi-Channel    Deadlock        Alignment      Chunk Enable    Stream 
    Arbitration      Prevention      Optimized      Generation      Boundary
@@ -411,7 +411,7 @@ assign data_error = w_axi_error | w_timeout_error | w_alignment_error;
 #### Performance Characteristics
 
 ##### Throughput Analysis
-- **Peak Bandwidth**: 512 bits × 1 GHz = 512 Gbps theoretical maximum
+- **Peak Bandwidth**: 512 bits x 1 GHz = 512 Gbps theoretical maximum
 - **Sustained Rate**: >90% efficiency with optimal alignment and buffering
 - **Multi-Channel**: Concurrent operation across active channels
 - **Pipeline Efficiency**: Zero FSM overhead in critical path

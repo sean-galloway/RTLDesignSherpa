@@ -6,11 +6,21 @@ following the established repository patterns while adding RAPIDS-specific setti
 """
 
 import os
+import sys
 import logging
 import pytest
 
 # Configure pytest to always collect logs
 def pytest_configure(config):
+    # Add RAPIDS DV directory to path BEFORE pytest imports test modules
+    # CRITICAL: Must be at position 0, even if already in sys.path from PYTHONPATH
+    rapids_dv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
+
+    # Remove if already present (from PYTHONPATH), then insert at position 0
+    if rapids_dv_path in sys.path:
+        sys.path.remove(rapids_dv_path)
+    sys.path.insert(0, rapids_dv_path)
+
     # Create logs directory if it doesn't exist
     log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
     os.makedirs(log_dir, exist_ok=True)

@@ -373,26 +373,26 @@ Traditional verification struggles with **corner case coverage**. Controllable b
 ### **System-Level Monitoring Architecture**
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Arbiter #1    │    │   Arbiter #2    │    │   Arbiter #N    │
-│  (Memory Ctrl)  │    │  (NoC Router)   │    │  (Peripheral)   │
-├─────────────────┤    ├─────────────────┤    ├─────────────────┤
-│ Monitor FIFO    │    │ Monitor FIFO    │    │ Monitor FIFO    │
-│ Agent ID: 0x10  │    │ Agent ID: 0x20  │    │ Agent ID: 0xN0  │
-└─────┬───────────┘    └─────┬───────────┘    └─────┬───────────┘
-      │                      │                      │
-      └──────────────────────┼──────────────────────┘
-                             │
-                   ┌─────────▼──────────┐
-                   │  Monitor Bus       │
-                   │  Aggregator        │
-                   │                    │
-                   └─────────┬──────────┘
-                             │
-                   ┌─────────▼──────────┐
-                   │  System Monitor    │
-                   │  and Analytics     │
-                   └────────────────────┘
++-----------------+    +-----------------+    +-----------------+
+|   Arbiter #1    |    |   Arbiter #2    |    |   Arbiter #N    |
+|  (Memory Ctrl)  |    |  (NoC Router)   |    |  (Peripheral)   |
++-----------------+    +-----------------+    +-----------------+
+| Monitor FIFO    |    | Monitor FIFO    |    | Monitor FIFO    |
+| Agent ID: 0x10  |    | Agent ID: 0x20  |    | Agent ID: 0xN0  |
++-----+-----------+    +-----+-----------+    +-----+-----------+
+      |                      |                      |
+      +----------------------+----------------------+
+                             |
+                   +---------▼----------+
+                   |  Monitor Bus       |
+                   |  Aggregator        |
+                   |                    |
+                   +---------+----------+
+                             |
+                   +---------▼----------+
+                   |  System Monitor    |
+                   |  and Analytics     |
+                   +--------------------+
 ```
 
 ### **Event Correlation Strategies**

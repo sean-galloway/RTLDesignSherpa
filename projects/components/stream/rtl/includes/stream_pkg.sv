@@ -46,11 +46,11 @@ package stream_pkg;
     //   [191:160] - next_descriptor_ptr: Address of next descriptor (0 = last)
     //   [255:192] - control: Control bits
     //       [192]     - valid: Descriptor is valid
-    //       [193]     - interrupt: Generate interrupt on completion
+    //       [193]     - gen_irq: Generate interrupt on completion
     //       [194]     - last: Last descriptor in chain
     //       [195]     - error: Error flag (used for status)
     //       [199:196] - channel_id: Channel ID (INFORMATIONAL ONLY - for MonBus/debug)
-    //       [207:200] - priority: Transfer priority
+    //       [207:200] - desc_priority: Transfer priority
     //       [255:208] - reserved: Reserved for future use
     //
     // NOTE: Channel selection is determined by APB register address, NOT by channel_id field.
@@ -59,11 +59,11 @@ package stream_pkg;
 
     typedef struct packed {
         logic [63:0]  reserved;              // [255:192] Reserved
-        logic [7:0]   priority;              // [207:200] Priority
+        logic [7:0]   desc_priority;         // [207:200] Transfer priority (renamed from 'priority' - reserved keyword)
         logic [3:0]   channel_id;            // [199:196] Channel ID (informational only)
         logic         error;                 // [195] Error flag
         logic         last;                  // [194] Last in chain
-        logic         interrupt;             // [193] Generate interrupt
+        logic         gen_irq;               // [193] Generate interrupt (renamed from 'interrupt' - C++ keyword)
         logic         valid;                 // [192] Valid descriptor
         logic [31:0]  next_descriptor_ptr;   // [191:160] Next descriptor address
         logic [31:0]  length;                // [159:128] Length in BEATS
@@ -180,7 +180,11 @@ package stream_pkg;
         input logic [63:0] address,
         input logic [5:0]  align_bits
     );
-        return (address[align_bits-1:0] == '0);
+        // Use mask-based approach (Verilator-compatible)
+        // Create mask with align_bits lower bits set, check if those bits are zero
+        logic [63:0] mask;
+        mask = (64'h1 << align_bits) - 64'h1;
+        return ((address & mask) == 64'h0);
     endfunction
 
     //=========================================================================
@@ -214,7 +218,7 @@ package stream_pkg;
 
     // Check if descriptor requests interrupt
     function automatic logic needs_interrupt(input descriptor_t desc);
-        return desc.interrupt;
+        return desc.gen_irq;
     endfunction
 
     // Validate descriptor

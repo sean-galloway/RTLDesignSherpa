@@ -2,7 +2,7 @@
 
 **Date:** 2025-10-18
 **Version:** 2.0 (Framework-based)
-**Status:** ✅ Complete
+**Status:** [PASS] Complete
 
 ---
 
@@ -57,7 +57,7 @@ automatic int m = (last_grant[s] + 1 + i) % NUM_MASTERS;
 int m;
 m = (last_grant[s] + 1 + i) % NUM_MASTERS;
 ```
-**Result:** ✅ Passes Verilator lint
+**Result:** [PASS] Passes Verilator lint
 
 #### 2. Simplified Arbiter Logic
 **Original:**
@@ -79,15 +79,15 @@ m = (last_grant[s] + 1 + i) % NUM_MASTERS;
 ```bash
 verilator --lint-only -Wno-WIDTHEXPAND rtl/delta_axis_flat_4x16.sv
 ```
-✅ **PASS** (original failed with `automatic` error)
+[PASS] **PASS** (original failed with `automatic` error)
 
 ### Multiple Configurations Tested
 | Configuration | Status |
 |---------------|--------|
-| 2×4  | ✅ PASS |
-| 3×8  | ✅ PASS |
-| 4×16 | ✅ PASS |
-| 2×16 | ✅ PASS |
+| 2x4  | [PASS] PASS |
+| 3x8  | [PASS] PASS |
+| 4x16 | [PASS] PASS |
+| 2x16 | [PASS] PASS |
 
 All configurations pass Verilator lint cleanly.
 
@@ -100,7 +100,7 @@ All configurations pass Verilator lint cleanly.
 lines.append("                    end else begin")
 lines.append("                        // Round-robin arbitration (same as APB)")
 lines.append("                        grant_matrix[s] = '0;")
-lines.append("                        automatic logic grant_found = 1'b0;")  # ❌ ERROR
+lines.append("                        automatic logic grant_found = 1'b0;")  # [FAIL] ERROR
 lines.append("                        for (int i = 0; i < NUM_MASTERS; i++) begin")
 lines.append("                            automatic int m = (last_grant[s] + 1 + i) % NUM_MASTERS;")
 lines.append("                            if (request_matrix[s][m] && !grant_found) begin")
@@ -115,15 +115,15 @@ lines.append("                    end")
 
 ### Refactored Arbiter Logic (delta_generator.py, lines 187-200)
 ```python
-self.instruction("                end else if (|request_matrix[s]) begin")  # ✅ NEW: efficiency check
+self.instruction("                end else if (|request_matrix[s]) begin")  # [PASS] NEW: efficiency check
 self.instruction("                    // Round-robin arbitration (same as APB)")
 self.instruction("                    grant_matrix[s] = '0;")
 self.instruction("                    for (int i = 0; i < NUM_MASTERS; i++) begin")
-self.instruction("                        int m;")  # ✅ FIXED: no automatic keyword
+self.instruction("                        int m;")  # [PASS] FIXED: no automatic keyword
 self.instruction("                        m = (last_grant[s] + 1 + i) % NUM_MASTERS;")
 self.instruction("                        if (request_matrix[s][m] && grant_matrix[s] == '0) begin")
 self.instruction("                            grant_matrix[s][m] = 1'b1;")
-self.instruction("                            last_grant[s] = m[$clog2(NUM_MASTERS)-1:0];")  # ✅ FIXED: explicit width
+self.instruction("                            last_grant[s] = m[$clog2(NUM_MASTERS)-1:0];")  # [PASS] FIXED: explicit width
 self.instruction("                            packet_active[s] = 1'b1;")
 self.instruction("                        end")
 self.instruction("                    end")
@@ -133,10 +133,10 @@ self.instruction("                end")
 ```
 
 **Key Improvements:**
-1. ✅ Added `if (|request_matrix[s])` check for efficiency
-2. ✅ Removed buggy `automatic` keyword
-3. ✅ Simplified logic (no separate `grant_found` flag)
-4. ✅ Explicit bit slicing to avoid width warnings
+1. [PASS] Added `if (|request_matrix[s])` check for efficiency
+2. [PASS] Removed buggy `automatic` keyword
+3. [PASS] Simplified logic (no separate `grant_found` flag)
+4. [PASS] Explicit bit slicing to avoid width warnings
 
 ---
 
@@ -166,7 +166,7 @@ self.instruction("                end")
 - **Refactored:** 9.3 KB (slightly larger due to added comments and efficiency checks)
 
 ### Functional Equivalence
-✅ **Logic is identical** except for:
+[PASS] **Logic is identical** except for:
 1. Fixed `automatic` syntax error
 2. Added request check optimization
 3. Explicit bit slicing (cleaner, no warnings)
@@ -180,7 +180,7 @@ self.instruction("                end")
 ## Next Steps
 
 ### Immediate
-1. ✅ **Delta flat topology:** Refactored and tested
+1. [PASS] **Delta flat topology:** Refactored and tested
 2. ⏳ **Delta tree topology:** Update `complete_tree_generator.py` to use framework
 3. ⏳ **Bridge generator:** Apply same framework patterns to AXI4 crossbar
 
@@ -195,11 +195,11 @@ self.instruction("                end")
 
 The Delta refactoring successfully demonstrates the value of the unified RTL generation framework:
 
-✅ **Fixed bugs** in original generator
-✅ **Improved code structure** and maintainability
-✅ **Achieved consistency** with other generators
-✅ **Verified functionality** with multiple configurations
-✅ **Ready for Bridge** using same patterns
+[PASS] **Fixed bugs** in original generator
+[PASS] **Improved code structure** and maintainability
+[PASS] **Achieved consistency** with other generators
+[PASS] **Verified functionality** with multiple configurations
+[PASS] **Ready for Bridge** using same patterns
 
 **Impact:** All future RTL generators will use this consistent, maintainable approach.
 
@@ -212,6 +212,6 @@ The Delta refactoring successfully demonstrates the value of the unified RTL gen
 - `REFACTOR_NOTES.md` - This document
 
 **Verification:**
-- ✅ All configurations (2×4, 3×8, 4×16, 2×16) pass Verilator lint
-- ✅ Generated RTL functionally equivalent to original
-- ✅ Fixed syntax error that caused original to fail
+- [PASS] All configurations (2x4, 3x8, 4x16, 2x16) pass Verilator lint
+- [PASS] Generated RTL functionally equivalent to original
+- [PASS] Fixed syntax error that caused original to fail

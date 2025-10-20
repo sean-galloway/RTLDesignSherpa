@@ -9,10 +9,10 @@ The Source SRAM Control manages multi-channel SRAM buffering for data read opera
 - **Multi-Channel SRAM Management**: Unified SRAM with per-channel addressing and arbitration
 - **Stream Boundary Support**: Complete EOS tracking and processing (EOS-only format)
 - **Preallocation System**: Deadlock prevention with configurable margins
-- **Credit Management**: Network credit coordination with consumption notifications
+- **Standard AXIS Flow Control**: AXIS backpressure coordination with consumption notifications
 - **Priority Arbitration**: Stream boundary priority with threshold-based scheduling
 - **Flow Control**: Channel availability interface with backpressure coordination
-- **Network 2.0 Protocol**: Chunk enables vs start/length for precise data handling
+- **Chunk Enable Support**: Chunk enables for precise AXIS TSTRB generation
 
 #### Module Interface
 
@@ -45,23 +45,23 @@ The Source SRAM Control manages multi-channel SRAM buffering for data read opera
 |-------------|------|-------|-----------|----------|-------------|
 | **wr_valid** | logic | `CHANNELS` | Input | Yes | Write request valid per channel |
 | **wr_ready** | logic | `CHANNELS` | Output | Yes | Write request ready per channel |
-| **wr_data** | logic | `DATA_WIDTH` × `CHANNELS` | Input | Yes | Write data per channel |
-| **wr_channel** | logic | `CHAN_BITS` × `CHANNELS` | Input | Yes | Target channel per request |
-| **wr_type** | logic | 2 × `CHANNELS` | Input | Yes | Packet type per channel |
+| **wr_data** | logic | `DATA_WIDTH` x `CHANNELS` | Input | Yes | Write data per channel |
+| **wr_channel** | logic | `CHAN_BITS` x `CHANNELS` | Input | Yes | Target channel per request |
+| **wr_type** | logic | 2 x `CHANNELS` | Input | Yes | Packet type per channel |
 | **wr_eos** | logic | `CHANNELS` | Input | Yes | End of Stream per channel |
-| **wr_chunk_en** | logic | `NUM_CHUNKS` × `CHANNELS` | Input | Yes | Chunk enable mask per channel |
+| **wr_chunk_en** | logic | `NUM_CHUNKS` x `CHANNELS` | Input | Yes | Chunk enable mask per channel |
 
-##### Multi-Channel Read Interface (To Network Engine)
+##### Multi-Channel Read Interface (To AXIS Master)
 
 | Signal Name | Type | Width | Direction | Required | Description |
 |-------------|------|-------|-----------|----------|-------------|
 | **rd_valid** | logic | `CHANNELS` | Output | Yes | Read data valid per channel |
 | **rd_ready** | logic | `CHANNELS` | Input | Yes | Read data ready per channel |
-| **rd_data** | logic | `DATA_WIDTH` × `CHANNELS` | Output | Yes | Read data per channel |
-| **rd_type** | logic | 2 × `CHANNELS` | Output | Yes | Packet type per channel |
+| **rd_data** | logic | `DATA_WIDTH` x `CHANNELS` | Output | Yes | Read data per channel |
+| **rd_type** | logic | 2 x `CHANNELS` | Output | Yes | Packet type per channel |
 | **rd_eos** | logic | `CHANNELS` | Output | Yes | End of Stream per channel |
-| **rd_chunk_valid** | logic | `NUM_CHUNKS` × `CHANNELS` | Output | Yes | Chunk enables per channel |
-| **rd_used_count** | logic | 8 × `CHANNELS` | Output | Yes | Used entries per channel |
+| **rd_chunk_valid** | logic | `NUM_CHUNKS` x `CHANNELS` | Output | Yes | Chunk enables per channel (for TSTRB) |
+| **rd_used_count** | logic | 8 x `CHANNELS` | Output | Yes | Used entries per channel |
 
 ##### Preallocation Interface
 
@@ -69,16 +69,16 @@ The Source SRAM Control manages multi-channel SRAM buffering for data read opera
 |-------------|------|-------|-----------|----------|-------------|
 | **prealloc_valid** | logic | `CHANNELS` | Input | Yes | Preallocation request per channel |
 | **prealloc_ready** | logic | `CHANNELS` | Output | Yes | Preallocation ready per channel |
-| **prealloc_beats** | logic | `COUNT_BITS` × `CHANNELS` | Input | Yes | Beats to preallocate per channel |
+| **prealloc_beats** | logic | `COUNT_BITS` x `CHANNELS` | Input | Yes | Beats to preallocate per channel |
 
 ##### Channel Availability Interface
 
 | Signal Name | Type | Width | Direction | Required | Description |
 |-------------|------|-------|-----------|----------|-------------|
 | **available_lines_valid** | logic | `CHANNELS` | Output | Yes | Channel availability valid |
-| **available_lines** | logic | `COUNT_BITS` × `CHANNELS` | Output | Yes | Available space per channel |
+| **available_lines** | logic | `COUNT_BITS` x `CHANNELS` | Output | Yes | Available space per channel |
 | **loaded_lines** | logic | `CHANNELS` | Output | Yes | Channel has loaded data |
-| **prealloc_beats** | logic | `COUNT_BITS` × `CHANNELS` | Output | Yes | Preallocated beats per channel |
+| **prealloc_beats** | logic | `COUNT_BITS` x `CHANNELS` | Output | Yes | Preallocated beats per channel |
 
 ##### Configuration and Status
 
@@ -135,19 +135,19 @@ assign w_sram_rd_addr[i] = (i * LINES_PER_CHANNEL) + r_rd_pointer[i][PTR_BITS-2:
 
 #### Source SRAM Control Resource Management
 
-The Source SRAM Control operates through a sophisticated resource management pattern rather than a traditional FSM. It implements concurrent multi-channel operations with advanced preallocation and flow control mechanisms that coordinate channel availability, credit management, and stream boundary processing for optimal Network egress performance.
+The Source SRAM Control operates through a sophisticated resource management pattern rather than a traditional FSM. It implements concurrent multi-channel operations with advanced preallocation and flow control mechanisms that coordinate channel availability, AXIS backpressure management, and stream boundary processing for optimal AXIS stream egress performance.
 
-![Source SRAM Control FSM](/mnt/data/github/tsunami/design/rapids/markdown/rapids_spec/ch02_blocks/puml/source_sram_control_fsm.png)
+![Source SRAM Control FSM](../assets/puml/source_sram_control_fsm.png)
 
 **Key Operations:**
-- **Resource Monitoring**: Continuous channel availability tracking with real-time space calculation and loaded lines generation for Network Master channel selection
-- **Write Validation & Execution**: Multi-channel write acceptance with space verification, preallocation credit checking, and concurrent SRAM write operations across up to 32 channels
-- **Read Arbitration & Service**: Network Master interface with complete data and metadata extraction, chunk enable forwarding, and pointer management
-- **Preallocation Management**: Credit-based write authorization with deadlock prevention margins, threshold monitoring, and dynamic credit allocation/release
-- **Consumption Updates**: Processing consumption notifications from Network Master, releasing preallocation credits, and updating available space calculations
+- **Resource Monitoring**: Continuous channel availability tracking with real-time space calculation and loaded lines generation for AXIS Master channel selection
+- **Write Validation & Execution**: Multi-channel write acceptance with space verification, preallocation checking, and concurrent SRAM write operations across up to 32 channels
+- **Read Arbitration & Service**: AXIS Master interface with complete data and metadata extraction, chunk enable forwarding for TSTRB generation, and pointer management
+- **Preallocation Management**: Buffer-based write authorization with deadlock prevention margins, threshold monitoring, and dynamic allocation/release
+- **Consumption Updates**: Processing consumption notifications from AXIS Master, releasing preallocation credits, and updating available space calculations
 - **Error Handling**: Overflow condition management, threshold violation monitoring, and comprehensive monitor bus error reporting
 
-The resource management architecture eliminates traditional FSM state transitions in favor of concurrent multi-channel operations, enabling higher throughput with sophisticated credit-based flow control. The design provides dynamic channel availability tracking through the `loaded_lines` interface, allowing Network Master to make intelligent channel selection decisions while maintaining optimal buffer utilization and preventing resource deadlocks through preallocation margin management.
+The resource management architecture eliminates traditional FSM state transitions in favor of concurrent multi-channel operations, enabling higher throughput with sophisticated buffer-based flow control. The design provides dynamic channel availability tracking through the `loaded_lines` interface, allowing AXIS Master to make intelligent channel selection decisions while maintaining optimal buffer utilization and preventing resource deadlocks through preallocation margin management.
 
 ##### EOS Flow Management
 
@@ -155,9 +155,9 @@ The resource management architecture eliminates traditional FSM state transition
 
 1. **EOS Detection**: AXI engine packets arrive with EOS bit in write interface
 2. **EOS Storage**: EOS stored in 531-bit SRAM format for forwarding
-3. **EOS Processing**: EOS triggers stream completion logic for Network transmission
-4. **EOS Forwarding**: EOS passed to Network Master with complete packet metadata
-5. **Resource Release**: EOS completion triggers credit return and space availability updates
+3. **EOS Processing**: EOS triggers stream completion logic for AXIS transmission
+4. **EOS Forwarding**: EOS passed to AXIS Master with complete packet metadata (mapped to TLAST)
+5. **Resource Release**: EOS completion triggers space availability updates
 
 ##### Multi-Channel Buffer Management
 
@@ -215,16 +215,16 @@ end
 
 #### Read Processing
 
-##### Network Master Interface
+##### AXIS Master Interface
 
 ```systemverilog
-// Read data provision to Network Master
+// Read data provision to AXIS Master
 generate
     for (genvar i = 0; i < CHANNELS; i++) begin : gen_rd_interface
         assign rd_valid[i] = (r_used_count[i] > 0) && cfg_channel_enable[i];
         assign rd_data[i] = w_sram_rd_data[i][DATA_WIDTH-1:0];
-        assign rd_chunk_valid[i] = w_sram_rd_data[i][DATA_WIDTH+NUM_CHUNKS-1:DATA_WIDTH];
-        assign rd_eos[i] = w_sram_rd_data[i][DATA_WIDTH+NUM_CHUNKS];
+        assign rd_chunk_valid[i] = w_sram_rd_data[i][DATA_WIDTH+NUM_CHUNKS-1:DATA_WIDTH];  // For TSTRB generation
+        assign rd_eos[i] = w_sram_rd_data[i][DATA_WIDTH+NUM_CHUNKS];  // Maps to TLAST
     end
 endgenerate
 
@@ -328,13 +328,13 @@ end
 #### Data Flow Architecture
 
 ```
-AXI Engines → Source SRAM Control → Network Master → Network
+AXI Engines -> Source SRAM Control -> AXIS Master -> AXIS TX
      ↓              ↓                    ↓
 Multi-Channel   531-bit Storage    Chunk-Based Read
-Write Interface  + EOS Boundaries   + Credit Return
+Write Interface  + EOS Boundaries   + TSTRB Generation
      ↓              ↓                    ↓
 Preallocation   Resource Management   Channel Selection
-Credit System   + Flow Control      + Loaded Lines
+Buffer System   + Flow Control      + Loaded Lines
 ```
 
 #### Performance Characteristics

@@ -4,16 +4,16 @@
 
 | FSM Name | Module File | States | PlantUML Status | Purpose |
 |----------|-------------|--------|-----------------|---------|
-| **Scheduler FSM** | `scheduler.sv` | 6 states | ✅ **CURRENT** | Descriptor execution, credit management, program sequencing |
-| **Address Alignment FSM** | `scheduler.sv` | 7 states | ✅ **CURRENT** | Address alignment calculation and transfer planning |
-| **Descriptor Engine FSM** | `descriptor_engine.sv` | 6 states | ✅ **CURRENT** | APB/RDA descriptor processing, AXI read operations |
-| **Program Write Engine FSM** | `program_engine.sv` | 4 states | ✅ **CURRENT** | Post-processing program writes, AXI write operations |
-| **Sink AXI Write Engine FSM** | `sink_axi_write_engine.sv` | 7 states | ✅ **CURRENT** | Multi-channel AXI write arbitration and data transfer |
-| **Source SRAM Control** | `source_sram_control.sv` | Resource Mgmt | ✅ **CURRENT** | Multi-channel SRAM resource management and EOS handling |
-| **Sink SRAM Control FSM** | `sink_sram_control.sv` | 8 states | ✅ **CURRENT** | Single-write/multi-read SRAM control with stream boundaries |
-| **Network Master FSM** | `network_master.sv` | Pipeline stages | ✅ **CURRENT** | Credit-based Network packet transmission |
-| **Network Slave ACK FSM** | `network_slave.sv` | 6 states | ✅ **CURRENT** | ACK generation and priority arbitration |
-| **Monitor Bus Write FSM** | `monbus_axil_group.sv` | 5 states | ✅ **CURRENT** | AXI4-Lite master write for monitor events |
+| **Scheduler FSM** | `scheduler.sv` | 6 states | CURRENT | Descriptor execution, credit management, program sequencing |
+| **Address Alignment FSM** | `scheduler.sv` | 7 states | CURRENT | Address alignment calculation and transfer planning |
+| **Descriptor Engine FSM** | `descriptor_engine.sv` | 6 states | CURRENT | APB/RDA descriptor processing, AXI read operations |
+| **Program Write Engine FSM** | `program_engine.sv` | 4 states | CURRENT | Post-processing program writes, AXI write operations |
+| **Sink AXI Write Engine FSM** | `sink_axi_write_engine.sv` | 7 states | CURRENT | Multi-channel AXI write arbitration and data transfer |
+| **Source SRAM Control** | `source_sram_control.sv` | Resource Mgmt | CURRENT | Multi-channel SRAM resource management and EOS handling |
+| **Sink SRAM Control FSM** | `sink_sram_control.sv` | 8 states | CURRENT | Single-write/multi-read SRAM control with stream boundaries |
+| **Network Master FSM** | `network_master.sv` | Pipeline stages | CURRENT | Credit-based Network packet transmission |
+| **Network Slave ACK FSM** | `network_slave.sv` | 6 states | CURRENT | ACK generation and priority arbitration |
+| **Monitor Bus Write FSM** | `monbus_axil_group.sv` | 5 states | CURRENT | AXI4-Lite master write for monitor events |
 
 #### State Machine Details
 
@@ -164,10 +164,10 @@
 #### FSM Interactions and Dependencies
 
 ##### Primary Data Flow FSMs
-1. **Descriptor Engine** → **Scheduler** → **Program Write Engine**
-2. **Network Slave** → **Sink SRAM Control** → **Sink AXI Write Engine**
-3. **Source AXI Read Engine** → **Source SRAM Control** → **Network Master**
-4. **Scheduler** → **Address Alignment FSM** (parallel operation)
+1. **Descriptor Engine** -> **Scheduler** -> **Program Write Engine**
+2. **Network Slave** -> **Sink SRAM Control** -> **Sink AXI Write Engine**
+3. **Source AXI Read Engine** -> **Source SRAM Control** -> **Network Master**
+4. **Scheduler** -> **Address Alignment FSM** (parallel operation)
 
 ##### Support/Infrastructure FSMs
 1. **Network Slave ACK FSM** - Supports packet reception

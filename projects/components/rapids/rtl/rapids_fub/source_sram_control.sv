@@ -55,7 +55,7 @@ module source_sram_control #(
     input  logic [1:0]                  prealloc_type,
     input  logic [CHAN_BITS-1:0]        prealloc_channel,
 
-    // Enhanced Read Interface (To Network Master) with EOS only
+    // Enhanced Read Interface (To AXIS Master FUB Interface) with EOS only
     output logic                        rd_valid,
     input  logic                        rd_ready,
     output logic [DATA_WIDTH-1:0]       rd_data,
@@ -65,17 +65,12 @@ module source_sram_control #(
     output logic [CHAN_BITS-1:0]        rd_channel,
     output logic [COUNT_BITS-1:0]       rd_used_count,
 
-    // NEW: Channel Data Availability for Network Master
+    // NEW: Channel Data Availability for AXIS Master
     output logic [CHANNELS-1:0]         loaded_lines,
 
     // Sub-line Read Interface (for address alignment)
     input  logic [CHANNELS-1:0]         alignment_active,
     input  logic [5:0]                  alignment_size [CHANNELS],
-
-    // Network Credit Return Interface
-    input  logic                        credit_return_valid,
-    output logic                        credit_return_ready,
-    input  logic [CHAN_BITS-1:0]        credit_return_channel,
 
     // Control and Status
     input  logic                        cfg_enable,
@@ -94,10 +89,10 @@ module source_sram_control #(
     output logic [63:0]                 mon_packet
 );
 
-    // Monitor event codes
-    localparam logic [3:0] MON_EOS_STORED = NETWORK_COMPL_STREAM_END;
-    localparam logic [3:0] MON_OVERFLOW_WARNING = CORE_THRESH_THROUGHPUT;
-    localparam logic [3:0] MON_CREDIT_RETURN = NETWORK_CREDIT_RETURNED;
+    // Monitor event codes - AXIS optimized
+    localparam logic [3:0] MON_EOS_STORED = AXIS_COMPL_STREAM_END;        // Stream end completion
+    localparam logic [3:0] MON_OVERFLOW_WARNING = CORE_THRESH_THROUGHPUT; // Buffer overflow warning
+    localparam logic [3:0] MON_BACKPRESSURE = AXIS_CREDIT_BACKPRESSURE;   // AXIS backpressure event
     localparam logic [3:0] MON_PREALLOC_BLOCKED = CORE_ERR_OVERFLOW;
 
     //=========================================================================
@@ -177,7 +172,7 @@ module source_sram_control #(
     endgenerate
 
     //=========================================================================
-    // NEW: Loaded Lines Signal for Network Master Channel Selection
+    // NEW: Loaded Lines Signal for AXIS Master Channel Selection
     //=========================================================================
 
     generate
@@ -455,12 +450,6 @@ module source_sram_control #(
     end
 
     //=========================================================================
-    // Credit Return Acknowledgment
-    //=========================================================================
-
-    assign credit_return_ready = 1'b1; // Always ready to accept credit returns
-
-    //=========================================================================
     // Error Detection and Status
     //=========================================================================
 
@@ -570,20 +559,6 @@ module source_sram_control #(
                     MON_UNIT_ID,
                     MON_AGENT_ID,
                     {17'h0, wr_type[w_wr_grant_id], 16'h0}  // FIXED: pad to 35 bits
-                );
-            end
-
-            // Credit return events
-            if (!r_mon_valid && credit_return_valid && credit_return_ready) begin
-                r_mon_valid <= 1'b1;
-                r_mon_packet <= create_monitor_packet(
-                    PktTypeCredit,
-                    PROTOCOL_AXIS,
-                    MON_CREDIT_RETURN,
-                    MON_CHANNEL_ID + credit_return_channel,
-                    MON_UNIT_ID,
-                    MON_AGENT_ID,
-                    35'h0  // FIXED: use 35-bit literal
                 );
             end
 

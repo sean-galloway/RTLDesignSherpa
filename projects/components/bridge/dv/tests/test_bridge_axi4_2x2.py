@@ -21,321 +21,55 @@ simple queue-based verification:
 - Send transactions using GAXI masters
 - Receive transactions using GAXI slaves/monitors
 - Compare transmit queues with receive queues
+
+Test Pattern: Runner-only - imports TB class from project area
 """
 
 import os
 import sys
-import random
 import pytest
 import cocotb
-from cocotb.clock import Clock
-from cocotb.triggers import RisingEdge, Timer
+from cocotb.triggers import Timer
 from cocotb_test.simulator import run
 
-# Add CocoTB framework to path
+# Add framework to path
 repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../..'))
 sys.path.insert(0, os.path.join(repo_root, 'bin'))
 
-from CocoTBFramework.components.gaxi.gaxi_master import GAXIMaster
-from CocoTBFramework.components.gaxi.gaxi_slave import GAXISlave
-from CocoTBFramework.components.axi4.axi4_field_configs import AXI4FieldConfigHelper
+# Import TB class from PROJECT AREA (not framework!)
+sys.path.insert(0, repo_root)
+from projects.components.bridge.dv.tbclasses.bridge_axi4_flat_tb import BridgeAXI4FlatTB
+from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
+from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 
 
-class Bridge2x2TB:
-    """Testbench for 2x2 AXI4 Bridge Crossbar - Queue-based verification"""
-
-    def __init__(self, dut, log):
-        self.dut = dut
-        self.log = log
-        self.clock = dut.aclk
-
-        # Bridge configuration
-        self.num_masters = 2
-        self.num_slaves = 2
-        self.data_width = 32
-        self.addr_width = 32
-        self.id_width = 4
-
-        # Address map
-        self.slave_base_addrs = [0x00000000, 0x10000000]
-        self.slave_addr_range = 0x10000000
-
-        # Master-side transmitters (send AW, W from masters)
-        self.aw_masters = []
-        self.w_masters = []
-        self.b_slaves = []  # Receive B responses
-        self.ar_masters = []
-        self.r_slaves = []  # Receive R responses
-
-        for m in range(self.num_masters):
-            # AW channel - master drives
-            aw_master = GAXIMaster(
-                dut=dut,
-                title=f"AW_M{m}",
-                prefix=f"s{m}_axi4_",
-                clock=self.clock,
-                field_config=AXI4FieldConfigHelper.create_aw_field_config(
-                    self.id_width, self.addr_width, 1
-                ),
-                pkt_prefix="aw",
-                multi_sig=True,
-                log=log
-            )
-            self.aw_masters.append(aw_master)
-
-            # W channel - master drives
-            w_master = GAXIMaster(
-                dut=dut,
-                title=f"W_M{m}",
-                prefix=f"s{m}_axi4_",
-                clock=self.clock,
-                field_config=AXI4FieldConfigHelper.create_w_field_config(
-                    self.data_width, 1
-                ),
-                pkt_prefix="w",
-                multi_sig=True,
-                log=log
-            )
-            self.w_masters.append(w_master)
-
-            # B channel - master receives responses
-            b_slave = GAXISlave(
-                dut=dut,
-                title=f"B_M{m}",
-                prefix=f"s{m}_axi4_",
-                clock=self.clock,
-                field_config=AXI4FieldConfigHelper.create_b_field_config(
-                    self.id_width, 1
-                ),
-                pkt_prefix="b",
-                multi_sig=True,
-                log=log
-            )
-            self.b_slaves.append(b_slave)
-
-            # AR channel - master drives
-            ar_master = GAXIMaster(
-                dut=dut,
-                title=f"AR_M{m}",
-                prefix=f"s{m}_axi4_",
-                clock=self.clock,
-                field_config=AXI4FieldConfigHelper.create_ar_field_config(
-                    self.id_width, self.addr_width, 1
-                ),
-                pkt_prefix="ar",
-                multi_sig=True,
-                log=log
-            )
-            self.ar_masters.append(ar_master)
-
-            # R channel - master receives responses
-            r_slave = GAXISlave(
-                dut=dut,
-                title=f"R_M{m}",
-                prefix=f"s{m}_axi4_",
-                clock=self.clock,
-                field_config=AXI4FieldConfigHelper.create_r_field_config(
-                    self.id_width, self.data_width, 1
-                ),
-                pkt_prefix="r",
-                multi_sig=True,
-                log=log
-            )
-            self.r_slaves.append(r_slave)
-
-        # Slave-side receivers (receive AW, W on slaves, send B, R back)
-        self.aw_slaves = []
-        self.w_slaves = []
-        self.b_masters = []  # Send B responses
-        self.ar_slaves = []
-        self.r_masters = []  # Send R responses
-
-        for s in range(self.num_slaves):
-            # AW channel - slave receives
-            aw_slave = GAXISlave(
-                dut=dut,
-                title=f"AW_S{s}",
-                prefix=f"m{s}_axi4_",
-                clock=self.clock,
-                field_config=AXI4FieldConfigHelper.create_aw_field_config(
-                    self.id_width, self.addr_width, 1
-                ),
-                pkt_prefix="aw",
-                multi_sig=True,
-                log=log
-            )
-            # Add callback to generate B response
-            aw_slave.add_callback(self._create_b_responder(s))
-            self.aw_slaves.append(aw_slave)
-
-            # W channel - slave receives
-            w_slave = GAXISlave(
-                dut=dut,
-                title=f"W_S{s}",
-                prefix=f"m{s}_axi4_",
-                clock=self.clock,
-                field_config=AXI4FieldConfigHelper.create_w_field_config(
-                    self.data_width, 1
-                ),
-                pkt_prefix="w",
-                multi_sig=True,
-                log=log
-            )
-            self.w_slaves.append(w_slave)
-
-            # B channel - slave sends responses
-            b_master = GAXIMaster(
-                dut=dut,
-                title=f"B_S{s}",
-                prefix=f"m{s}_axi4_",
-                clock=self.clock,
-                field_config=AXI4FieldConfigHelper.create_b_field_config(
-                    self.id_width, 1
-                ),
-                pkt_prefix="b",
-                multi_sig=True,
-                log=log
-            )
-            self.b_masters.append(b_master)
-
-            # AR channel - slave receives
-            ar_slave = GAXISlave(
-                dut=dut,
-                title=f"AR_S{s}",
-                prefix=f"m{s}_axi4_",
-                clock=self.clock,
-                field_config=AXI4FieldConfigHelper.create_ar_field_config(
-                    self.id_width, self.addr_width, 1
-                ),
-                pkt_prefix="ar",
-                multi_sig=True,
-                log=log
-            )
-            # Add callback to generate R response
-            ar_slave.add_callback(self._create_r_responder(s))
-            self.ar_slaves.append(ar_slave)
-
-            # R channel - slave sends responses
-            r_master = GAXIMaster(
-                dut=dut,
-                title=f"R_S{s}",
-                prefix=f"m{s}_axi4_",
-                clock=self.clock,
-                field_config=AXI4FieldConfigHelper.create_r_field_config(
-                    self.id_width, self.data_width, 1
-                ),
-                pkt_prefix="r",
-                multi_sig=True,
-                log=log
-            )
-            self.r_masters.append(r_master)
-
-    def _create_b_responder(self, slave_idx):
-        """Create callback to send B response when AW received"""
-        def b_responder(aw_pkt):
-            # Schedule B response
-            cocotb.start_soon(self._send_b_response(slave_idx, aw_pkt))
-        return b_responder
-
-    async def _send_b_response(self, slave_idx, aw_pkt):
-        """Send B response for received AW"""
-        await RisingEdge(self.clock)
-        b_pkt = self.b_masters[slave_idx].create_packet(
-            id=aw_pkt.id,
-            resp=0
-        )
-        await self.b_masters[slave_idx].send(b_pkt)
-
-    def _create_r_responder(self, slave_idx):
-        """Create callback to send R response when AR received"""
-        def r_responder(ar_pkt):
-            # Schedule R response
-            cocotb.start_soon(self._send_r_response(slave_idx, ar_pkt))
-        return r_responder
-
-    async def _send_r_response(self, slave_idx, ar_pkt):
-        """Send R response for received AR"""
-        await RisingEdge(self.clock)
-        burst_len = ar_pkt.len + 1
-        for i in range(burst_len):
-            # Echo address as data for easy verification
-            data = ar_pkt.addr + (i * 4)
-            r_pkt = self.r_masters[slave_idx].create_packet(
-                id=ar_pkt.id,
-                data=data,
-                resp=0,
-                last=1 if i == burst_len - 1 else 0
-            )
-            await self.r_masters[slave_idx].send(r_pkt)
-
-    async def reset(self):
-        """Perform bridge reset"""
-        self.dut.aresetn.value = 0
-        await Timer(100, units="ns")
-        self.dut.aresetn.value = 1
-        await RisingEdge(self.clock)
-        self.log.info("Bridge reset complete")
-
-    def get_slave_index(self, address):
-        """Determine which slave based on address"""
-        for s in range(self.num_slaves):
-            if self.slave_base_addrs[s] <= address < (self.slave_base_addrs[s] + self.slave_addr_range):
-                return s
-        return 0
-
-    async def write_transaction(self, master_idx, address, data, txn_id=0):
-        """Send write transaction (AW + W)"""
-        # Send AW
-        aw_pkt = self.aw_masters[master_idx].create_packet(
-            addr=address,
-            id=txn_id,
-            len=0,  # Single beat
-            size=2,  # 4 bytes
-            burst=1
-        )
-        await self.aw_masters[master_idx].send(aw_pkt)
-
-        # Send W
-        w_pkt = self.w_masters[master_idx].create_packet(
-            data=data,
-            last=1,
-            strb=0xF
-        )
-        await self.w_masters[master_idx].send(w_pkt)
-
-        return aw_pkt, w_pkt
-
-    async def read_transaction(self, master_idx, address, txn_id=0):
-        """Send read transaction (AR)"""
-        ar_pkt = self.ar_masters[master_idx].create_packet(
-            addr=address,
-            id=txn_id,
-            len=0,  # Single beat
-            size=2,  # 4 bytes
-            burst=1
-        )
-        await self.ar_masters[master_idx].send(ar_pkt)
-        return ar_pkt
-
+# ===========================================================================
+# COCOTB TEST FUNCTIONS - Prefix with "cocotb_" to prevent pytest collection
+# ===========================================================================
 
 @cocotb.test(timeout_time=100, timeout_unit='us')
-async def bridge_2x2_test(dut):
-    """Comprehensive test for 2x2 AXI4 Bridge - Queue-based verification"""
+async def cocotb_test_basic_bridge_functionality(dut):
+    """Comprehensive test for NxM AXI4 Bridge - Queue-based verification"""
+
+    # Get configuration from DUT parameters
+    num_masters = int(dut.NUM_MASTERS.value)
+    num_slaves = int(dut.NUM_SLAVES.value)
+    data_width = int(dut.DATA_WIDTH.value)
+    addr_width = int(dut.ADDR_WIDTH.value)
+    id_width = int(dut.ID_WIDTH.value)
 
     log = dut._log
     log.info("=" * 80)
-    log.info("Starting 2x2 AXI4 Bridge Crossbar Test")
+    log.info(f"Starting {num_masters}x{num_slaves} AXI4 Bridge Crossbar Test")
+    log.info(f"  Config: DW={data_width}, AW={addr_width}, ID={id_width}")
     log.info("=" * 80)
 
-    # Start clock
-    clock = Clock(dut.aclk, 10, units="ns")
-    cocotb.start_soon(clock.start())
+    # Create testbench with configuration from DUT
+    tb = BridgeAXI4FlatTB(dut, num_masters=num_masters, num_slaves=num_slaves,
+                          data_width=data_width, addr_width=addr_width, id_width=id_width)
 
-    # Create testbench
-    tb = Bridge2x2TB(dut, log)
-
-    # Reset
-    await tb.reset()
+    # Complete initialization
+    await tb.setup_clocks_and_reset()
     await Timer(100, units="ns")
 
     # TEST 1: Basic write to each slave
@@ -395,23 +129,141 @@ async def bridge_2x2_test(dut):
     log.info("=" * 80)
 
 
-# =============================================================================
-# Pytest Wrapper
-# =============================================================================
+@cocotb.test(timeout_time=100, timeout_unit='us')
+async def cocotb_test_address_routing(dut):
+    """Test address-based routing to slaves"""
+    # Get configuration from DUT parameters
+    num_masters = int(dut.NUM_MASTERS.value)
+    num_slaves = int(dut.NUM_SLAVES.value)
+    data_width = int(dut.DATA_WIDTH.value)
+    addr_width = int(dut.ADDR_WIDTH.value)
+    id_width = int(dut.ID_WIDTH.value)
 
-@pytest.mark.parametrize("num_masters,num_slaves,data_width,addr_width,id_width", [
-    (2, 2, 32, 32, 4),
-])
-def test_bridge_axi4_2x2(request, num_masters, num_slaves, data_width, addr_width, id_width):
-    """Pytest wrapper for 2x2 Bridge test"""
+    tb = BridgeAXI4FlatTB(dut, num_masters=num_masters, num_slaves=num_slaves,
+                          data_width=data_width, addr_width=addr_width, id_width=id_width)
+    await tb.setup_clocks_and_reset()
 
-    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../..'))
+    result = await tb.test_basic_routing(num_transactions=10)
+    assert result, "Address routing test failed"
+
+
+@cocotb.test(timeout_time=100, timeout_unit='us')
+async def cocotb_test_id_routing(dut):
+    """Test transaction ID routing through B/R channels"""
+    # Get configuration from DUT parameters
+    num_masters = int(dut.NUM_MASTERS.value)
+    num_slaves = int(dut.NUM_SLAVES.value)
+    data_width = int(dut.DATA_WIDTH.value)
+    addr_width = int(dut.ADDR_WIDTH.value)
+    id_width = int(dut.ID_WIDTH.value)
+
+    tb = BridgeAXI4FlatTB(dut, num_masters=num_masters, num_slaves=num_slaves,
+                          data_width=data_width, addr_width=addr_width, id_width=id_width)
+    await tb.setup_clocks_and_reset()
+
+    result = await tb.test_id_routing(num_transactions=10)
+    assert result, "ID routing test failed"
+
+
+@cocotb.test(timeout_time=150, timeout_unit='us')
+async def cocotb_test_concurrent_masters(dut):
+    """Test concurrent transactions from multiple masters"""
+    # Get configuration from DUT parameters
+    num_masters = int(dut.NUM_MASTERS.value)
+    num_slaves = int(dut.NUM_SLAVES.value)
+    data_width = int(dut.DATA_WIDTH.value)
+    addr_width = int(dut.ADDR_WIDTH.value)
+    id_width = int(dut.ID_WIDTH.value)
+
+    tb = BridgeAXI4FlatTB(dut, num_masters=num_masters, num_slaves=num_slaves,
+                          data_width=data_width, addr_width=addr_width, id_width=id_width)
+    await tb.setup_clocks_and_reset()
+
+    result = await tb.test_concurrent_masters(transactions_per_master=5)
+    assert result, "Concurrent masters test failed"
+
+
+# ===========================================================================
+# PARAMETER GENERATION - At bottom of file
+# ===========================================================================
+
+def generate_bridge_test_params():
+    """
+    Generate test parameters for bridge tests
+
+    Returns list of tuples: (num_masters, num_slaves, data_width, addr_width, id_width, test_case)
+
+    Configurations:
+    - 2x2: Basic 2 masters, 2 slaves crossbar
+    - 2x4: 2 masters, 4 slaves (fan-out)
+    - 4x2: 4 masters, 2 slaves (convergence)
+    - 4x4: Full 4x4 crossbar (comprehensive)
+
+    Test cases:
+    - basic: Quick smoke test (included in all configs)
+    - medium: Moderate traffic (4x4 only)
+    - full: Comprehensive stress test (future)
+    """
+    params = []
+
+    # Basic 2x2 configuration
+    params.append((2, 2, 32, 32, 4, "basic"))
+
+    # 2x4 configuration (fan-out scenario)
+    params.append((2, 4, 32, 32, 4, "basic"))
+
+    # 4x2 configuration (convergence scenario)
+    params.append((4, 2, 32, 32, 4, "basic"))
+
+    # Full 4x4 configuration
+    params.append((4, 4, 32, 32, 4, "basic"))
+    # params.append((4, 4, 32, 32, 4, "medium"))  # Uncomment for more coverage
+
+    return params
+
+bridge_params = generate_bridge_test_params()
+
+
+# ===========================================================================
+# PYTEST WRAPPER FUNCTIONS - At bottom of file
+# ===========================================================================
+
+@pytest.mark.bridge
+@pytest.mark.routing
+@pytest.mark.parametrize("num_masters,num_slaves,data_width,addr_width,id_width,test_case", bridge_params)
+def test_basic_bridge_functionality(request, num_masters, num_slaves, data_width, addr_width, id_width, test_case):
+    """Pytest wrapper for basic bridge functionality test"""
+
+    # Get paths using utilities
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_bridge': '../../rtl'
+    })
+
+    dut_name = f"bridge_axi4_flat_{num_masters}x{num_slaves}"
 
     verilog_sources = [
-        os.path.join(repo_root, 'projects', 'components', 'bridge', 'rtl', 'bridge_axi4_flat_2x2.sv'),
+        os.path.join(rtl_dict['rtl_bridge'], f'{dut_name}.sv'),
     ]
 
-    parameters = {
+    # Format parameters for unique test name
+    nm_str = TBBase.format_dec(num_masters, 2)
+    ns_str = TBBase.format_dec(num_slaves, 2)
+    dw_str = TBBase.format_dec(data_width, 3)
+    aw_str = TBBase.format_dec(addr_width, 3)
+    id_str = TBBase.format_dec(id_width, 2)
+    test_name_plus_params = f"test_{dut_name}_nm{nm_str}_ns{ns_str}_dw{dw_str}_aw{aw_str}_id{id_str}_{test_case}"
+
+    # Handle pytest-xdist parallel execution
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
+
+    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
+    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    rtl_parameters = {
         'NUM_MASTERS': num_masters,
         'NUM_SLAVES': num_slaves,
         'DATA_WIDTH': data_width,
@@ -430,22 +282,113 @@ def test_bridge_axi4_2x2(request, num_masters, num_slaves, data_width, addr_widt
         "-Wno-BLKSEQ",
     ]
 
-    module = os.path.splitext(os.path.basename(__file__))[0]
-    sim_build = os.path.join(repo_root, 'projects', 'components', 'bridge', 'dv',
-                             'local_sim_build',
-                             f'test_bridge_axi4_{num_masters}x{num_slaves}_'
-                             f'dw{data_width:03d}_aw{addr_width:03d}_id{id_width:02d}')
+    extra_env = {
+        'LOG_PATH': log_path,
+    }
 
-    run(
-        verilog_sources=verilog_sources,
-        toplevel="bridge_axi4_flat_2x2",
-        module=module,
-        parameters=parameters,
-        simulator="verilator",
-        compile_args=compile_args,
-        sim_build=sim_build,
-        work_dir=sim_build,
-    )
+    cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
+
+    try:
+        run(
+            python_search=[tests_dir],
+            verilog_sources=verilog_sources,
+            toplevel=dut_name,
+            module=module,
+            testcase="cocotb_test_basic_bridge_functionality",  # ← cocotb function name
+            parameters=rtl_parameters,
+            simulator="verilator",
+            compile_args=compile_args,
+            sim_build=sim_build,
+            work_dir=sim_build,
+            extra_env=extra_env,
+            waves=False,
+            keep_files=True,
+        )
+        print(f"✓ Test completed! Logs: {log_path}")
+    except Exception as e:
+        print(f"❌ Test failed: {str(e)}")
+        print(f"Logs: {log_path}")
+        raise
+
+
+@pytest.mark.bridge
+@pytest.mark.routing
+@pytest.mark.parametrize("num_masters,num_slaves,data_width,addr_width,id_width,test_case", bridge_params)
+def test_address_routing(request, num_masters, num_slaves, data_width, addr_width, id_width, test_case):
+    """Pytest wrapper for address routing test"""
+
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_bridge': '../../rtl'
+    })
+
+    dut_name = f"bridge_axi4_flat_{num_masters}x{num_slaves}"
+
+    verilog_sources = [
+        os.path.join(rtl_dict['rtl_bridge'], f'{dut_name}.sv'),
+    ]
+
+    nm_str = TBBase.format_dec(num_masters, 2)
+    ns_str = TBBase.format_dec(num_slaves, 2)
+    dw_str = TBBase.format_dec(data_width, 3)
+    aw_str = TBBase.format_dec(addr_width, 3)
+    id_str = TBBase.format_dec(id_width, 2)
+    test_name_plus_params = f"test_routing_{dut_name}_nm{nm_str}_ns{ns_str}_dw{dw_str}_aw{aw_str}_id{id_str}_{test_case}"
+
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
+
+    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
+    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    rtl_parameters = {
+        'NUM_MASTERS': num_masters,
+        'NUM_SLAVES': num_slaves,
+        'DATA_WIDTH': data_width,
+        'ADDR_WIDTH': addr_width,
+        'ID_WIDTH': id_width,
+    }
+
+    compile_args = [
+        "--trace",
+        "--trace-structs",
+        "--trace-depth", "99",
+        "--no-timing",
+        "-Wno-WIDTHEXPAND",
+        "-Wno-UNUSEDSIGNAL",
+        "-Wno-UNSIGNED",
+        "-Wno-BLKSEQ",
+    ]
+
+    extra_env = {
+        'LOG_PATH': log_path,
+    }
+
+    cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
+
+    try:
+        run(
+            python_search=[tests_dir],
+            verilog_sources=verilog_sources,
+            toplevel=dut_name,
+            module=module,
+            testcase="cocotb_test_address_routing",
+            parameters=rtl_parameters,
+            simulator="verilator",
+            compile_args=compile_args,
+            sim_build=sim_build,
+            work_dir=sim_build,
+            extra_env=extra_env,
+            waves=False,
+            keep_files=True,
+        )
+        print(f"✓ Test completed! Logs: {log_path}")
+    except Exception as e:
+        print(f"❌ Test failed: {str(e)}")
+        print(f"Logs: {log_path}")
+        raise
 
 
 if __name__ == "__main__":

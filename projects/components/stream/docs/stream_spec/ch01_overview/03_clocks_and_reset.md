@@ -47,8 +47,11 @@ STREAM operates in a single clock domain with a single asynchronous active-low r
 
 **CDC Implementation:**
 - Use `apb_slave_cdc` wrapper (like HPET example)
-- Dual-flop synchronizers for control signals
-- Async FIFO for data paths (if needed)
+- `apb_slave_cdc` implements **handshake-based CDC** using `cdc_handshake` modules
+  - One `cdc_handshake` for command interface (APB → core)
+  - One `cdc_handshake` for response interface (core → APB)
+  - Full req/ack handshake protocol (NOT async FIFO)
+  - Works across all frequency ratios (slow-to-fast, fast-to-slow, any ratio)
 
 ---
 
@@ -244,14 +247,19 @@ apb_slave_cdc #(
 );
 ```
 
-**CDC for control signals:**
-- Use dual-flop synchronizers (2-3 stages)
-- Add ASYNC_REG attribute for timing tools
-- Ensure proper constraints in SDC/XDC
+**CDC Mechanism:**
+- `apb_slave_cdc` uses **handshake-based CDC** via `cdc_handshake` modules (NOT async FIFOs)
+- **Command path** (`pclk` → `aclk`): APB write/read commands cross via req/ack handshake
+- **Response path** (`aclk` → `pclk`): APB read data crosses back via req/ack handshake
+- **Internal synchronizers**: Dual-flop synchronizers (2-3 stages) for handshake signals
+- **ASYNC_REG attribute**: Applied to synchronizer stages for timing tools
+- **Timing constraints**: Proper constraints required in SDC/XDC for synchronizer paths
 
-**CDC for data paths:**
-- Use async FIFOs with gray code pointers
-- Ensure proper full/empty flag synchronization
+**Handshake Protocol Benefits:**
+- Works across **all frequency ratios** (slow-to-fast, fast-to-slow, arbitrary ratios)
+- Guaranteed data integrity (req/ack ensures data stability before sampling)
+- No FIFO depth management or gray code pointer complexity
+- Latency: 4-6 APB clock cycles for register access (handshake round-trip)
 
 ### No CDC Required
 

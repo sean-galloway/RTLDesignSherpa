@@ -17,11 +17,11 @@
 RAPIDS Descriptor Engine Testbench - v1.1
 
 Testbench for the descriptor engine following RAPIDS/AMBA framework patterns.
-Tests both APB programming interface and RDA packet reception paths.
+Tests both APB programming interface and CDA packet reception paths.
 
 Features:
 - APB programming interface → AXI read → Descriptor output flow
-- RDA packet reception → Descriptor output flow (bypass AXI)
+- CDA packet reception → Descriptor output flow (bypass AXI)
 - Channel filtering and validation
 - Error injection and handling
 - Uses AXI4 factory (create_axi4_slave_rd) for AXI read slave responder
@@ -60,8 +60,8 @@ class DelayProfile(Enum):
 class TestClass(Enum):
     """Test class definitions"""
     APB_ONLY = "apb_only"        # APB → AXI → Descriptor flow only
-    RDA_ONLY = "rda_only"        # RDA → Descriptor flow only
-    MIXED = "mixed"              # Concurrent APB and RDA operations
+    CDA_ONLY = "cda_only"        # CDA → Descriptor flow only
+    MIXED = "mixed"              # Concurrent APB and CDA operations
 
 
 class DescriptorEngineTB(TBBase):
@@ -71,11 +71,11 @@ class DescriptorEngineTB(TBBase):
     Tests comprehensive descriptor engine functionality:
     - APB programming interface for descriptor fetches
     - AXI read operations from memory
-    - RDA packet reception (Network slave interface)
+    - CDA packet reception (Network slave interface)
     - Descriptor output validation
     - Channel filtering and validation
     - Error handling and flow control
-    - Concurrent APB + RDA operation
+    - Concurrent APB + CDA operation
     """
 
     def __init__(self, dut, clk=None, rst_n=None):
@@ -107,7 +107,7 @@ class DescriptorEngineTB(TBBase):
             'enable_compliance_check': self.convert_to_int(os.environ.get('DESCRIPTOR_COMPLIANCE_CHECK', '1')),
             'validate_all_channels': self.convert_to_int(os.environ.get('VALIDATE_ALL_CHANNELS', '1')),
             'apb_error_injection': self.convert_to_int(os.environ.get('APB_ERROR_INJECTION', '1')),
-            'rda_stress_test': self.convert_to_int(os.environ.get('RDA_STRESS_TEST', '1')),
+            'cda_stress_test': self.convert_to_int(os.environ.get('CDA_STRESS_TEST', '1')),
             'concurrent_operations': self.convert_to_int(os.environ.get('CONCURRENT_OPERATIONS', '1')),
             'descriptor_backpressure': self.convert_to_int(os.environ.get('DESCRIPTOR_BACKPRESSURE', '1'))
         }
@@ -117,13 +117,13 @@ class DescriptorEngineTB(TBBase):
         self.r_slave = None
         self.memory_model = None
 
-        # GAXI Master BFMs for APB and RDA interfaces
+        # GAXI Master BFMs for APB and CDA interfaces
         self.apb_master = None  # Will be initialized after clock setup
-        self.rda_master = None  # Will be initialized after clock setup
+        self.cda_master = None  # Will be initialized after clock setup
 
         # Test tracking
         self.apb_requests_sent = 0
-        self.rda_packets_sent = 0
+        self.cda_packets_sent = 0
         self.descriptors_received = 0
         self.axi_reads_completed = 0
         self.test_errors = []
@@ -221,7 +221,7 @@ class DescriptorEngineTB(TBBase):
 
         # Test data storage
         self.pending_apb_requests = []
-        self.pending_rda_packets = []
+        self.pending_cda_packets = []
         self.received_descriptors = []
 
     async def initialize_test(self):
@@ -285,38 +285,38 @@ class DescriptorEngineTB(TBBase):
             if self.apb_master is None:
                 raise RuntimeError("GAXI APB Master creation returned None!")
 
-            # Create GAXI Master for RDA interface
+            # Create GAXI Master for CDA interface
             # IMPORTANT: Field names must NOT include prefix!
-            # With prefix="rda", field "packet" maps to RTL signal "rda_packet"
-            rda_field_config = FieldConfig()
-            rda_field_config.add_field(FieldDefinition(
-                name='packet',  # Maps to "rda_packet" (prefix + field_name)
+            # With prefix="cda", field "packet" maps to RTL signal "cda_packet"
+            cda_field_config = FieldConfig()
+            cda_field_config.add_field(FieldDefinition(
+                name='packet',  # Maps to "cda_packet" (prefix + field_name)
                 bits=self.TEST_DATA_WIDTH,
                 format='hex',
-                description='RDA packet data'
+                description='CDA packet data'
             ))
-            rda_field_config.add_field(FieldDefinition(
-                name='channel',  # Maps to "rda_channel" (prefix + field_name)
+            cda_field_config.add_field(FieldDefinition(
+                name='channel',  # Maps to "cda_channel" (prefix + field_name)
                 bits=6,  # Channel ID width
                 format='hex',
-                description='RDA channel ID'
+                description='CDA channel ID'
             ))
 
-            self.log.info("Creating GAXI RDA Master...")
-            self.rda_master = create_gaxi_master(
+            self.log.info("Creating GAXI CDA Master...")
+            self.cda_master = create_gaxi_master(
                 dut=self.dut,
-                title="RDAMaster",
-                prefix="rda",
+                title="CDAMaster",
+                prefix="cda",
                 clock=self.clk,
-                field_config=rda_field_config,
+                field_config=cda_field_config,
                 log=self.log,
                 mode='skid',
                 multi_sig=True
             )
-            self.log.info(f"✓ GAXI RDA Master initialized: {self.rda_master}")
+            self.log.info(f"✓ GAXI CDA Master initialized: {self.cda_master}")
 
-            if self.rda_master is None:
-                raise RuntimeError("GAXI RDA Master creation returned None!")
+            if self.cda_master is None:
+                raise RuntimeError("GAXI CDA Master creation returned None!")
 
             # Initialize DUT configuration
             await self.configure_descriptor_engine()
@@ -339,13 +339,13 @@ class DescriptorEngineTB(TBBase):
         self.dut.cfg_addr1_limit.value = 0x2FFFF
         self.dut.cfg_channel_reset.value = 0     # No channel reset
 
-        # Note: APB and RDA interface signals now managed by GAXI Master BFMs
+        # Note: APB and CDA interface signals now managed by GAXI Master BFMs
         # (No manual initialization needed - BFMs handle valid/ready handshaking)
 
         self.dut.descriptor_ready.value = 1  # Ready to receive descriptors
 
         await self.wait_clocks(self.clk_name, 10)
-        self.log.info("Descriptor engine configured (BFMs handle APB/RDA signals)")
+        self.log.info("Descriptor engine configured (BFMs handle APB/CDA signals)")
 
     def write_memory(self, addr, data):
         """Write data to memory model"""
@@ -405,9 +405,9 @@ class DescriptorEngineTB(TBBase):
         self.log.info(f"APB Basic Test complete: {descriptors_received}/{num_requests} descriptors received")
         return descriptors_received == num_requests
 
-    async def run_rda_basic_test(self, num_packets=5):
-        """Run basic RDA→Descriptor flow test using GAXI RDA Master BFM with continuous monitoring"""
-        self.log.info(f"=== RDA Basic Test: {num_packets} packets ===")
+    async def run_cda_basic_test(self, num_packets=5):
+        """Run basic CDA→Descriptor flow test using GAXI CDA Master BFM with continuous monitoring"""
+        self.log.info(f"=== CDA Basic Test: {num_packets} packets ===")
 
         descriptors_collected = []
         monitor_active = True
@@ -420,36 +420,36 @@ class DescriptorEngineTB(TBBase):
                 if int(self.dut.descriptor_valid.value) == 1:
                     desc_data = int(self.dut.descriptor_packet.value)
                     descriptors_collected.append(desc_data)
-                    self.log.info(f"  📦 RDA Descriptor {len(descriptors_collected)}: data=0x{desc_data:X}")
+                    self.log.info(f"  📦 CDA Descriptor {len(descriptors_collected)}: data=0x{desc_data:X}")
 
         # Start background descriptor monitor
         monitor_task = cocotb.start_soon(descriptor_monitor())
 
-        # Send all RDA packets
+        # Send all CDA packets
         for i in range(num_packets):
             # Generate varied test data and channels
             test_data = 0x1234567800000000 + (i << 32) + (i * 0x1111)
             test_channel = i % min(self.TEST_NUM_CHANNELS, 4)  # Rotate through available channels
 
-            self.log.info(f"RDA packet {i+1}: ch={test_channel}, data=0x{test_data:X}")
+            self.log.info(f"CDA packet {i+1}: ch={test_channel}, data=0x{test_data:X}")
 
-            # Send RDA packet using GAXI Master BFM
-            packet = self.rda_master.create_packet(
-                packet=test_data,  # Fixed: Use "packet" not "rda_packet"
-                channel=test_channel  # Fixed: Use "channel" not "rda_channel"
+            # Send CDA packet using GAXI Master BFM
+            packet = self.cda_master.create_packet(
+                packet=test_data,  # Fixed: Use "packet" not "cda_packet"
+                channel=test_channel  # Fixed: Use "channel" not "cda_channel"
             )
             try:
-                await self.rda_master.send(packet)
-                self.rda_packets_sent += 1
+                await self.cda_master.send(packet)
+                self.cda_packets_sent += 1
             except Exception as e:
-                self.log.error(f"Failed to send RDA packet: {str(e)}")
-                self.test_errors.append(f"RDA packet {i+1} send failed")
+                self.log.error(f"Failed to send CDA packet: {str(e)}")
+                self.test_errors.append(f"CDA packet {i+1} send failed")
                 continue
 
             await self.wait_clocks(self.clk_name, 3)
 
         # Wait for all descriptors to be collected
-        self.log.info(f"RDA packets sent, waiting for descriptors ({len(descriptors_collected)}/{num_packets} so far)")
+        self.log.info(f"CDA packets sent, waiting for descriptors ({len(descriptors_collected)}/{num_packets} so far)")
         for cycle in range(500):  # Extended timeout for all descriptors
             await self.wait_clocks(self.clk_name, 1)
             if len(descriptors_collected) >= num_packets:
@@ -466,22 +466,22 @@ class DescriptorEngineTB(TBBase):
 
         if descriptors_received < num_packets:
             self.log.error(f"❌ Only received {descriptors_received}/{num_packets} descriptors")
-            self.test_errors.append(f"RDA test incomplete: {descriptors_received}/{num_packets}")
+            self.test_errors.append(f"CDA test incomplete: {descriptors_received}/{num_packets}")
 
-        self.log.info(f"RDA Basic Test complete: {descriptors_received}/{num_packets} descriptors received")
+        self.log.info(f"CDA Basic Test complete: {descriptors_received}/{num_packets} descriptors received")
         return descriptors_received == num_packets
 
     async def run_concurrent_test(self):
-        """Run sequential APB (startup) then RDA (normal operation) test
+        """Run sequential APB (startup) then CDA (normal operation) test
 
-        IMPORTANT: APB has highest priority by design and will starve RDA if
+        IMPORTANT: APB has highest priority by design and will starve CDA if
         sent concurrently. The descriptor engine is designed for:
         1. APB startup phase: APB requests only (programming)
-        2. Normal operation: RDA packets only (no APB trickle)
+        2. Normal operation: CDA packets only (no APB trickle)
 
         This test validates both phases sequentially (not truly concurrent).
         """
-        self.log.info("=== Sequential APB (Startup) + RDA (Operation) Test ===")
+        self.log.info("=== Sequential APB (Startup) + CDA (Operation) Test ===")
 
         descriptors_collected = []
         monitor_active = True
@@ -493,9 +493,9 @@ class DescriptorEngineTB(TBBase):
                 await self.wait_clocks(self.clk_name, 1)
                 if int(self.dut.descriptor_valid.value) == 1:
                     desc_data = int(self.dut.descriptor_packet.value)
-                    desc_is_rda = int(self.dut.descriptor_is_rda.value)
-                    descriptors_collected.append({'data': desc_data, 'is_rda': desc_is_rda})
-                    self.log.info(f"  📦 Descriptor captured: data=0x{desc_data:X}, is_rda={desc_is_rda}")
+                    desc_is_cda = int(self.dut.descriptor_is_cda.value)
+                    descriptors_collected.append({'data': desc_data, 'is_cda': desc_is_cda})
+                    self.log.info(f"  📦 Descriptor captured: data=0x{desc_data:X}, is_cda={desc_is_cda}")
 
         # Start background descriptor monitor BEFORE sending packets
         monitor_task = cocotb.start_soon(descriptor_monitor())
@@ -515,7 +515,7 @@ class DescriptorEngineTB(TBBase):
         apb_received = False
         for timeout in range(100):
             await self.wait_clocks(self.clk_name, 1)
-            if len(descriptors_collected) > 0 and descriptors_collected[-1]['is_rda'] == 0:
+            if len(descriptors_collected) > 0 and descriptors_collected[-1]['is_cda'] == 0:
                 self.log.info(f"✓ APB descriptor received: data=0x{descriptors_collected[-1]['data']:X}")
                 apb_received = True
                 break
@@ -535,16 +535,16 @@ class DescriptorEngineTB(TBBase):
             # Check both idle signal and operation flags
             engine_idle = int(self.dut.descriptor_engine_idle.value)
             apb_active = int(self.dut.r_apb_operation_active.value)
-            rda_active = int(self.dut.r_rda_operation_active.value)
+            cda_active = int(self.dut.r_cda_operation_active.value)
 
-            if engine_idle == 1 and apb_active == 0 and rda_active == 0:
+            if engine_idle == 1 and apb_active == 0 and cda_active == 0:
                 self.log.info(f"✓ Descriptor engine fully idle after {idle_timeout} cycles (FSM=IDLE, no active operations)")
                 break
             idle_timeout += 1
 
         if idle_timeout >= 200:
-            self.log.error(f"❌ Descriptor engine did not reach fully idle state (idle={engine_idle}, apb_active={apb_active}, rda_active={rda_active})")
-            self.test_errors.append("Descriptor engine idle timeout between APB and RDA phases")
+            self.log.error(f"❌ Descriptor engine did not reach fully idle state (idle={engine_idle}, apb_active={apb_active}, cda_active={cda_active})")
+            self.test_errors.append("Descriptor engine idle timeout between APB and CDA phases")
             monitor_active = False
             await self.wait_clocks(self.clk_name, 2)
             return False
@@ -552,36 +552,36 @@ class DescriptorEngineTB(TBBase):
         # Additional safety margin after idle detected
         await self.wait_clocks(self.clk_name, 10)
 
-        # Phase 2: RDA normal operation (after startup)
-        self.log.info("Phase 2: RDA normal operation")
-        rda_data = 0xC0CCEAAEAD12345
-        rda_channel = 2
+        # Phase 2: CDA normal operation (after startup)
+        self.log.info("Phase 2: CDA normal operation")
+        cda_data = 0xC0CCEAAEAD12345
+        cda_channel = 2
 
-        # Record how many descriptors we have before RDA phase
-        descriptors_before_rda = len(descriptors_collected)
+        # Record how many descriptors we have before CDA phase
+        descriptors_before_cda = len(descriptors_collected)
 
-        # Send RDA packet
-        rda_packet = self.rda_master.create_packet(
-            packet=rda_data,
-            channel=rda_channel
+        # Send CDA packet
+        cda_packet = self.cda_master.create_packet(
+            packet=cda_data,
+            channel=cda_channel
         )
-        await self.rda_master.send(rda_packet)
-        self.rda_packets_sent += 1
+        await self.cda_master.send(cda_packet)
+        self.cda_packets_sent += 1
 
-        # Wait for RDA descriptor (background monitor will catch it)
-        rda_received = False
+        # Wait for CDA descriptor (background monitor will catch it)
+        cda_received = False
         for timeout in range(100):
             await self.wait_clocks(self.clk_name, 1)
-            if len(descriptors_collected) > descriptors_before_rda:
+            if len(descriptors_collected) > descriptors_before_cda:
                 # New descriptor appeared
                 new_desc = descriptors_collected[-1]
-                if new_desc['is_rda'] == 1:
-                    self.log.info(f"✓ RDA descriptor received: data=0x{new_desc['data']:X}")
-                    rda_received = True
+                if new_desc['is_cda'] == 1:
+                    self.log.info(f"✓ CDA descriptor received: data=0x{new_desc['data']:X}")
+                    cda_received = True
                     break
 
-        if not rda_received:
-            self.test_errors.append("RDA operation phase timeout")
+        if not cda_received:
+            self.test_errors.append("CDA operation phase timeout")
             monitor_active = False
             await self.wait_clocks(self.clk_name, 2)
             return False
@@ -593,14 +593,14 @@ class DescriptorEngineTB(TBBase):
         # Update global counter
         self.descriptors_received += len(descriptors_collected)
 
-        self.log.info(f"Sequential test complete: APB={'✓' if apb_received else '✗'}, RDA={'✓' if rda_received else '✗'}")
-        return apb_received and rda_received  # Both phases must succeed
+        self.log.info(f"Sequential test complete: APB={'✓' if apb_received else '✗'}, CDA={'✓' if cda_received else '✗'}")
+        return apb_received and cda_received  # Both phases must succeed
 
     def generate_final_report(self):
         """Generate comprehensive test report"""
         self.log.info("\n=== DESCRIPTOR ENGINE TEST REPORT ===")
         self.log.info(f"APB requests sent: {self.apb_requests_sent}")
-        self.log.info(f"RDA packets sent: {self.rda_packets_sent}")
+        self.log.info(f"CDA packets sent: {self.cda_packets_sent}")
         self.log.info(f"Descriptors received: {self.descriptors_received}")
         self.log.info(f"AXI reads completed: {self.axi_reads_completed}")
 
@@ -672,14 +672,14 @@ class DescriptorEngineTB(TBBase):
 
             # Reset counters for this profile run
             initial_apb_sent = self.apb_requests_sent
-            initial_rda_sent = self.rda_packets_sent
+            initial_cda_sent = self.cda_packets_sent
             initial_desc_received = self.descriptors_received
 
             try:
                 if test_class == TestClass.APB_ONLY:
                     success = await self.run_apb_only_test(num_packets, profile)
-                elif test_class == TestClass.RDA_ONLY:
-                    success = await self.run_rda_only_test(num_packets, profile)
+                elif test_class == TestClass.CDA_ONLY:
+                    success = await self.run_cda_only_test(num_packets, profile)
                 elif test_class == TestClass.MIXED:
                     success = await self.run_mixed_test(num_packets, profile)
                 else:
@@ -687,19 +687,19 @@ class DescriptorEngineTB(TBBase):
 
                 # Calculate statistics for this profile
                 apb_sent = self.apb_requests_sent - initial_apb_sent
-                rda_sent = self.rda_packets_sent - initial_rda_sent
+                cda_sent = self.cda_packets_sent - initial_cda_sent
                 desc_received = self.descriptors_received - initial_desc_received
 
                 test_results[profile] = {
                     'success': success,
                     'apb_sent': apb_sent,
-                    'rda_sent': rda_sent,
+                    'cda_sent': cda_sent,
                     'descriptors_received': desc_received,
-                    'efficiency': (desc_received / max(apb_sent + rda_sent, 1)) * 100
+                    'efficiency': (desc_received / max(apb_sent + cda_sent, 1)) * 100
                 }
 
                 result_str = "✅ PASSED" if success else "❌ FAILED"
-                self.log.info(f"   {profile.value}: {result_str} - {desc_received}/{apb_sent + rda_sent} descriptors ({test_results[profile]['efficiency']:.1f}% efficiency)")
+                self.log.info(f"   {profile.value}: {result_str} - {desc_received}/{apb_sent + cda_sent} descriptors ({test_results[profile]['efficiency']:.1f}% efficiency)")
 
             except Exception as e:
                 self.log.error(f"   {profile.value}: ❌ ERROR - {str(e)}")
@@ -707,7 +707,7 @@ class DescriptorEngineTB(TBBase):
                     'success': False,
                     'error': str(e),
                     'apb_sent': 0,
-                    'rda_sent': 0,
+                    'cda_sent': 0,
                     'descriptors_received': 0,
                     'efficiency': 0
                 }
@@ -829,9 +829,9 @@ class DescriptorEngineTB(TBBase):
 
         return success_rate >= 100  # Must receive ALL descriptors
 
-    async def run_rda_only_test(self, num_packets: int, profile: DelayProfile):
-        """Run enhanced RDA-only test with extensive randomization cycles"""
-        self.log.info(f"🔸 Enhanced RDA Only Test: {num_packets} packets with {profile.value} timing profile")
+    async def run_cda_only_test(self, num_packets: int, profile: DelayProfile):
+        """Run enhanced CDA-only test with extensive randomization cycles"""
+        self.log.info(f"🔸 Enhanced CDA Only Test: {num_packets} packets with {profile.value} timing profile")
 
         params = self.delay_params[profile]
         descriptors_collected = []  # List to collect descriptors
@@ -854,7 +854,7 @@ class DescriptorEngineTB(TBBase):
                     desc_data = int(self.dut.descriptor_packet.value)
                     descriptors_collected.append(desc_data)
                     if len(descriptors_collected) % 5 == 1 or len(descriptors_collected) <= 3:
-                        self.log.info(f"   📦 RDA Descriptor {len(descriptors_collected)}: data=0x{desc_data:X}")
+                        self.log.info(f"   📦 CDA Descriptor {len(descriptors_collected)}: data=0x{desc_data:X}")
 
         # Start background descriptor monitor
         monitor_task = cocotb.start_soon(descriptor_monitor())
@@ -882,16 +882,16 @@ class DescriptorEngineTB(TBBase):
             await self.wait_clocks(self.clk_name, producer_delay)
             total_cycles += producer_delay
 
-            # Send RDA packet using GAXI Master BFM
-            packet = self.rda_master.create_packet(
-                packet=test_data,  # Fixed: Use "packet" not "rda_packet"
-                channel=test_channel  # Fixed: Use "channel" not "rda_channel"
+            # Send CDA packet using GAXI Master BFM
+            packet = self.cda_master.create_packet(
+                packet=test_data,  # Fixed: Use "packet" not "cda_packet"
+                channel=test_channel  # Fixed: Use "channel" not "cda_channel"
             )
             try:
-                await self.rda_master.send(packet)
-                self.rda_packets_sent += 1
+                await self.cda_master.send(packet)
+                self.cda_packets_sent += 1
             except Exception as e:
-                self.test_errors.append(f"RDA packet {i+1} send failed: {str(e)}")
+                self.test_errors.append(f"CDA packet {i+1} send failed: {str(e)}")
                 continue
 
             # Enhanced burst timing with inter-burst delays
@@ -918,7 +918,7 @@ class DescriptorEngineTB(TBBase):
                     total_cycles += stall_cycles
 
         # Wait for final descriptors with background monitor still running
-        self.log.info(f"🔸 RDA test: Waiting for remaining descriptors ({len(descriptors_collected)}/{num_packets} so far)")
+        self.log.info(f"🔸 CDA test: Waiting for remaining descriptors ({len(descriptors_collected)}/{num_packets} so far)")
         final_collection_window = 1000 + (randomization_cycles * 4)  # Scale with randomization level
 
         for cycle in range(final_collection_window):
@@ -941,7 +941,7 @@ class DescriptorEngineTB(TBBase):
         success_rate = (descriptors_received / num_packets) * 100
         avg_cycles_per_packet = total_cycles / max(num_packets, 1)
 
-        self.log.info(f"🔸 Enhanced RDA Only Test Complete: {descriptors_received}/{num_packets} descriptors "
+        self.log.info(f"🔸 Enhanced CDA Only Test Complete: {descriptors_received}/{num_packets} descriptors "
                      f"({success_rate:.1f}%) - Total cycles: {total_cycles}, Avg per packet: {avg_cycles_per_packet:.1f}")
 
         return success_rate >= 100  # Must receive ALL descriptors
@@ -954,17 +954,17 @@ class DescriptorEngineTB(TBBase):
         descriptors_collected = []  # List to collect descriptors
         total_cycles = 0
         apb_packets = num_packets // 2
-        rda_packets = num_packets - apb_packets
+        cda_packets = num_packets - apb_packets
         randomization_cycles = params.get('randomization_cycles', 50)
         apb_sent = 0
-        rda_sent = 0
+        cda_sent = 0
         monitor_active = True  # Flag to control background monitor
 
         # Log profile details for comprehensive coverage
         self.log.info(f"   📊 Profile configuration: producer_delay={params['producer_delay']}, "
                      f"consumer_delay={params['consumer_delay']}, burst_size={params['burst_size']}, "
                      f"randomization_cycles={randomization_cycles}")
-        self.log.info(f"   🔀 Mixed operations: {apb_packets} APB + {rda_packets} RDA packets")
+        self.log.info(f"   🔀 Mixed operations: {apb_packets} APB + {cda_packets} CDA packets")
 
         # Background coroutine to continuously monitor and collect descriptors
         async def descriptor_monitor():
@@ -980,14 +980,14 @@ class DescriptorEngineTB(TBBase):
         # Start background descriptor monitor
         monitor_task = cocotb.start_soon(descriptor_monitor())
 
-        # Enhanced interleaved APB and RDA operations with randomization
-        for i in range(max(apb_packets, rda_packets)):
+        # Enhanced interleaved APB and CDA operations with randomization
+        for i in range(max(apb_packets, cda_packets)):
             # Determine operation mix - sometimes do both, sometimes just one
-            do_apb = i < apb_packets and (random.random() > 0.3 or i >= rda_packets)
-            do_rda = i < rda_packets and (random.random() > 0.3 or i >= apb_packets)
+            do_apb = i < apb_packets and (random.random() > 0.3 or i >= cda_packets)
+            do_cda = i < cda_packets and (random.random() > 0.3 or i >= apb_packets)
 
             # Mixed timing pre-delay with contention simulation
-            if do_apb and do_rda:
+            if do_apb and do_cda:
                 # Concurrent operations - add contention delay
                 contention_delay = random.randint(2, 10)
                 await self.wait_clocks(self.clk_name, contention_delay)
@@ -1018,8 +1018,8 @@ class DescriptorEngineTB(TBBase):
                 except Exception as e:
                     self.test_errors.append(f"Mixed APB packet {i+1} send failed: {str(e)}")
 
-            # RDA operation with enhanced timing
-            if do_rda:
+            # CDA operation with enhanced timing
+            if do_cda:
                 test_data = 0x3333444400000000 + (i << 32) + random.randint(0, 0xFFFF)
                 test_channel = i % min(self.TEST_NUM_CHANNELS, 12)  # Use more channels
 
@@ -1037,17 +1037,17 @@ class DescriptorEngineTB(TBBase):
                 await self.wait_clocks(self.clk_name, producer_delay)
                 total_cycles += producer_delay
 
-                # Send RDA packet using GAXI Master BFM
-                packet = self.rda_master.create_packet(
-                    packet=test_data,  # Fixed: Use "packet" not "rda_packet"
-                    channel=test_channel  # Fixed: Use "channel" not "rda_channel"
+                # Send CDA packet using GAXI Master BFM
+                packet = self.cda_master.create_packet(
+                    packet=test_data,  # Fixed: Use "packet" not "cda_packet"
+                    channel=test_channel  # Fixed: Use "channel" not "cda_channel"
                 )
                 try:
-                    await self.rda_master.send(packet)
-                    rda_sent += 1
-                    self.rda_packets_sent += 1
+                    await self.cda_master.send(packet)
+                    cda_sent += 1
+                    self.cda_packets_sent += 1
                 except Exception as e:
-                    self.test_errors.append(f"Mixed RDA packet {i+1} send failed: {str(e)}")
+                    self.test_errors.append(f"Mixed CDA packet {i+1} send failed: {str(e)}")
 
             # Inter-packet delays and pipeline stalls
             inter_packet_delay = self.get_delay_value(params.get('inter_burst_delay', (3, 10)))
@@ -1061,7 +1061,7 @@ class DescriptorEngineTB(TBBase):
                 total_cycles += stall_cycles
 
         # Wait for final descriptors with background monitor still running
-        self.log.info(f"🔶 Mixed test: Waiting for remaining descriptors ({len(descriptors_collected)}/{apb_sent + rda_sent} so far)")
+        self.log.info(f"🔶 Mixed test: Waiting for remaining descriptors ({len(descriptors_collected)}/{apb_sent + cda_sent} so far)")
         final_collection_window = 1000 + (randomization_cycles * 4)  # Scale with randomization level
 
         for cycle in range(final_collection_window):
@@ -1069,7 +1069,7 @@ class DescriptorEngineTB(TBBase):
             total_cycles += 1
 
             # Exit early if all descriptors received
-            total_sent = apb_sent + rda_sent
+            total_sent = apb_sent + cda_sent
             if len(descriptors_collected) >= total_sent:
                 self.log.info(f"✅ All {total_sent} descriptors collected at cycle {total_cycles}")
                 break
@@ -1082,12 +1082,12 @@ class DescriptorEngineTB(TBBase):
         descriptors_received = len(descriptors_collected)
         self.descriptors_received += descriptors_received
 
-        total_sent = apb_sent + rda_sent
+        total_sent = apb_sent + cda_sent
         success_rate = (descriptors_received / max(total_sent, 1)) * 100
         avg_cycles_per_packet = total_cycles / max(total_sent, 1)
 
         self.log.info(f"🔶 Enhanced Mixed Test Complete: {descriptors_received}/{total_sent} descriptors "
-                     f"({success_rate:.1f}%) - APB: {apb_sent}, RDA: {rda_sent}")
+                     f"({success_rate:.1f}%) - APB: {apb_sent}, CDA: {cda_sent}")
         self.log.info(f"   Total cycles: {total_cycles}, Avg per packet: {avg_cycles_per_packet:.1f}")
 
         return success_rate >= 100  # Must receive ALL descriptors
@@ -1109,7 +1109,7 @@ class DescriptorEngineTB(TBBase):
 
             self.log.info(f"   {profile.value:15} | {status} | "
                          f"APB: {result.get('apb_sent', 0):3d} | "
-                         f"RDA: {result.get('rda_sent', 0):3d} | "
+                         f"CDA: {result.get('cda_sent', 0):3d} | "
                          f"DESC: {result.get('descriptors_received', 0):3d} | "
                          f"Eff: {efficiency:5.1f}%")
 

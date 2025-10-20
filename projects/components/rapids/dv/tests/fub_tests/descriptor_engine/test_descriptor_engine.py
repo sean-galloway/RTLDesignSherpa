@@ -17,9 +17,9 @@
 Descriptor Engine Test Runner
 
 Test runner for the descriptor_engine.sv module using the CocoTB framework.
-Tests both APB programming interface and RDA packet reception paths.
+Tests both APB programming interface and CDA packet reception paths.
 
-The descriptor engine converts APB requests to AXI reads and passes RDA packets
+The descriptor engine converts APB requests to AXI reads and passes CDA packets
 directly through to descriptor outputs with proper channel filtering.
 
 Based on the AMBA/RAPIDS test runner pattern.
@@ -27,6 +27,13 @@ Based on the AMBA/RAPIDS test runner pattern.
 
 import os
 import sys
+
+# Add RAPIDS DV directory to path to import project-area testbench classes
+# This makes the import work regardless of whether env_python is sourced
+rapids_dv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
+if rapids_dv_path not in sys.path:
+    sys.path.insert(0, rapids_dv_path)
+
 import random
 import shutil
 import time
@@ -34,12 +41,12 @@ from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+
+# Import TB class from PROJECT AREA (not framework!)
+from tbclasses.descriptor_engine_tb import DescriptorEngineTB, TestClass, DelayProfile
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
-
-# Import the testbench
-from tbclasses.descriptor_engine_tb import DescriptorEngineTB, TestClass, DelayProfile
 
 
 @cocotb.test(timeout_time=600, timeout_unit="sec")
@@ -89,10 +96,10 @@ async def descriptor_engine_test(dut):
                 tb.log.error("Basic APB test failed")
                 overall_success = False
 
-            # Quick RDA validation (10 packets)
-            rda_success = await tb.run_rda_basic_test(num_packets=10)
-            if not rda_success:
-                tb.log.error("Basic RDA test failed")
+            # Quick CDA validation (10 packets)
+            cda_success = await tb.run_cda_basic_test(num_packets=10)
+            if not cda_success:
+                tb.log.error("Basic CDA test failed")
                 overall_success = False
 
             # Quick concurrent test
@@ -117,7 +124,7 @@ async def descriptor_engine_test(dut):
             # Reduced from 50 to 20 packets for faster execution while maintaining coverage
             tb.log.info("=== FULL LEVEL: Maximum profile coverage with efficient packet count ===")
             tb.log.info("🚀 Running 20 packets per delay profile across ALL 10 delay profiles")
-            tb.log.info("🎯 Testing all 3 test classes: APB Only, RDA Only, Mixed")
+            tb.log.info("🎯 Testing all 3 test classes: APB Only, CDA Only, Mixed")
             tb.log.info("⏱️  Target completion: <5 minutes")
 
             # Test Class 1: APB Only (20 packets per delay profile, all profiles)
@@ -131,12 +138,12 @@ async def descriptor_engine_test(dut):
             # Wait between test classes
             await tb.wait_clocks('clk', 100)
 
-            # Test Class 2: RDA Only (20 packets per delay profile, all profiles)
-            tb.log.info("\n🎯 === COMPREHENSIVE RDA ONLY TEST CLASS (20 packets/profile) ===")
+            # Test Class 2: CDA Only (20 packets per delay profile, all profiles)
+            tb.log.info("\n🎯 === COMPREHENSIVE CDA ONLY TEST CLASS (20 packets/profile) ===")
             tb.log.info("🔍 Each delay profile will run 20 packets for good randomization coverage")
-            rda_class_success = await tb.run_comprehensive_test_class(TestClass.RDA_ONLY, num_packets=20, test_level="full")
-            if not rda_class_success:
-                tb.log.error("RDA Only test class failed")
+            cda_class_success = await tb.run_comprehensive_test_class(TestClass.CDA_ONLY, num_packets=20, test_level="full")
+            if not cda_class_success:
+                tb.log.error("CDA Only test class failed")
                 overall_success = False
 
             # Wait between test classes
@@ -303,7 +310,7 @@ def test_descriptor_engine(request, test_level, num_channels, addr_width, data_w
     print(f"📊 Configuration: {num_channels} channels, {addr_width}-bit addr, {data_width}-bit data, {axi_id_width}-bit ID")
     print(f"📋 Test Level: {test_level}")
     if test_level == 'full':
-        print(f"🎯 Test Classes: APB Only, RDA Only, Mixed (20 packets each)")
+        print(f"🎯 Test Classes: APB Only, CDA Only, Mixed (20 packets each)")
         print(f"📈 Delay Profiles: ALL {len([p for p in DelayProfile])} profiles per class (maximum coverage)")
         print(f"📦 Total Packets: ~{20 * len([p for p in DelayProfile]) * 3} packets")
         print(f"⏱️  Estimated time: <5 minutes")

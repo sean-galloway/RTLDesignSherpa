@@ -1,4 +1,4 @@
-# RAPIDS Top-Level Interfaces v2.1 - CORRECTED & COMPLETE
+# RAPIDS Top-Level Interfaces v3.0 - AXIS4 Migration
 
 ## Clock and Reset
 | Signal | IO | Description |
@@ -107,23 +107,23 @@
 | `axil_src_cfg_r_data[31:0]` | O | Read data |
 | `axil_src_cfg_r_resp[1:0]` | O | Read response |
 
-### Network Master Interface v2.1 - CORRECTED
+### AXI4-Stream Master Interface (TX) - NEW v3.0
 | Signal | IO | Description |
 |--------|-----------|-------------|
-| `network_src_mst_pkt_valid` | O | Network packet valid |
-| `network_src_mst_pkt_ready` | I | Network ready to accept packet |
-| `network_src_mst_pkt_data[511:0]` | O | **Network packet data (chunk_enables embedded at [510:495])** |
-| `network_src_mst_pkt_type[1:0]` | O | Packet type |
-| `network_src_mst_pkt_addr[7:0]` | O | Channel address |
-| `network_src_mst_pkt_addr_par` | O | Address parity |
-| `network_src_mst_pkt_eos` | O | End of stream marker |
-| `network_src_mst_pkt_par` | O | Data parity |
-| `network_src_mst_ack_valid` | I | Network ACK valid |
-| `network_src_mst_ack_ready` | O | Ready to accept ACK |
-| `network_src_mst_ack_ack[1:0]` | I | ACK type |
-| `network_src_mst_ack_addr[7:0]` | I | ACK channel address |
-| `network_src_mst_ack_addr_par` | I | ACK address parity |
-| `network_src_mst_ack_par` | I | ACK parity |
+| `axis_src_tx_tdata[511:0]` | O | Stream data payload |
+| `axis_src_tx_tstrb[63:0]` | O | Byte strobes (write enables) |
+| `axis_src_tx_tlast` | O | Last transfer in packet |
+| `axis_src_tx_tvalid` | O | Stream data valid |
+| `axis_src_tx_tready` | I | Stream ready (backpressure) |
+| `axis_src_tx_tuser[15:0]` | O | User sideband (packet metadata) |
+
+**TUSER Encoding (Source TX):**
+```
+[15:8] - Reserved for future use
+[7:0]  - Packet type/flags
+```
+
+**Note:** AXIS uses standard `tstrb` for byte-level validity instead of custom chunk_enables. All credits and ACK mechanisms removed from streaming interface.
 
 ## Sink Data Path
 
@@ -195,7 +195,7 @@
 | `axi_snk_desc_ar_id[7:0]` | O | Transaction ID |
 | `axi_snk_desc_ar_lock` | O | Lock type |
 | `axi_snk_desc_ar_cache[3:0]` | O | Cache attributes |
-| `axi_snk_desc_ar_prot[2:0]` | O | Protection attributes |
+| `axi_snk_desc_ar_prot[2:0]` | Protection attributes |
 | `axi_snk_desc_ar_qos[3:0]` | O | Quality of Service |
 | `axi_snk_desc_ar_region[3:0]` | O | Region identifier |
 | `axi_snk_desc_ar_user` | O | User-defined |
@@ -230,23 +230,23 @@
 | `axil_snk_cfg_r_data[31:0]` | O | Read data |
 | `axil_snk_cfg_r_resp[1:0]` | O | Read response |
 
-### Network Slave Interface v2.1 - CORRECTED
+### AXI4-Stream Slave Interface (RX) - NEW v3.0
 | Signal | IO | Description |
 |--------|-----------|-------------|
-| `network_snk_slv_pkt_valid` | I | Network packet valid |
-| `network_snk_slv_pkt_ready` | O | Ready to accept packet |
-| `network_snk_slv_pkt_data[511:0]` | I | **Network packet data (chunk_enables embedded at [510:495])** |
-| `network_snk_slv_pkt_type[1:0]` | I | Packet type |
-| `network_snk_slv_pkt_addr[7:0]` | I | Channel address |
-| `network_snk_slv_pkt_addr_par` | I | Address parity |
-| `network_snk_slv_pkt_eos` | I | End of stream marker |
-| `network_snk_slv_pkt_par` | I | Data parity |
-| `network_snk_slv_ack_valid` | O | Network ACK valid |
-| `network_snk_slv_ack_ready` | I | Ready to accept ACK |
-| `network_snk_slv_ack_ack[1:0]` | O | ACK type |
-| `network_snk_slv_ack_addr[7:0]` | O | ACK channel address |
-| `network_snk_slv_ack_addr_par` | O | ACK address parity |
-| `network_snk_slv_ack_par` | O | ACK parity |
+| `axis_snk_rx_tdata[511:0]` | I | Stream data payload |
+| `axis_snk_rx_tstrb[63:0]` | I | Byte strobes (write enables) |
+| `axis_snk_rx_tlast` | I | Last transfer in packet |
+| `axis_snk_rx_tvalid` | I | Stream data valid |
+| `axis_snk_rx_tready` | O | Stream ready (backpressure) |
+| `axis_snk_rx_tuser[15:0]` | I | User sideband (packet metadata) |
+
+**TUSER Encoding (Sink RX):**
+```
+[15:8] - Reserved for future use
+[7:0]  - Packet type/flags
+```
+
+**Note:** AXIS uses standard `tstrb` for byte-level validity instead of custom chunk_enables. All credits and ACK mechanisms removed from streaming interface.
 
 ## Monitor Bus AXI4-Lite Group Interfaces
 
@@ -300,32 +300,57 @@
 | `axil4_mon_cfg_r_data[31:0]` | O | Read data |
 | `axil4_mon_cfg_r_resp[1:0]` | O | Read response |
 
-## Key Interface Changes from v2.0
+## Key Interface Changes from v2.1 to v3.0
 
-### **REMOVED SIGNALS (Non-Standard):**
-- ~~`network_*_pkt_chunk_enables[15:0]`~~ - Now embedded in `pkt_data[510:495]`
-- ~~`network_*_pkt_ctrl[3:0]`~~ - Replaced by embedded format
-- ~~EOL/EOD signals~~ - Removed from sink path (not used)
+### **REMOVED - Custom Network Protocol:**
+- ~~`network_*_pkt_valid/ready`~~ - Replaced by standard `axis_*_tvalid/tready`
+- ~~`network_*_pkt_data[511:0]`~~ - Replaced by `axis_*_tdata[511:0]`
+- ~~`network_*_pkt_type[1:0]`~~ - Moved to `axis_*_tuser[7:0]`
+- ~~`network_*_pkt_addr[7:0]`~~ - Removed (no addressing in streaming)
+- ~~`network_*_pkt_addr_par`~~ - Removed (parity optional via TUSER if needed)
+- ~~`network_*_pkt_eos`~~ - Replaced by `axis_*_tlast`
+- ~~`network_*_pkt_par`~~ - Removed (parity optional via TUSER if needed)
+- ~~**ALL ACK signals**~~ - Removed completely (no credit/ACK on streaming)
+  - ~~`network_*_ack_valid/ready`~~
+  - ~~`network_*_ack_ack[1:0]`~~
+  - ~~`network_*_ack_addr[7:0]`~~
+  - ~~`network_*_ack_addr_par`~~
+  - ~~`network_*_ack_par`~~
+- ~~Embedded chunk_enables format~~ - Replaced by standard `axis_*_tstrb[63:0]`
 
-### **ADDED SIGNALS v2.1:**
-- **Embedded chunk_enables** in `network_*_pkt_data[510:495]`
-- **EOS markers** `network_*_pkt_eos` for stream boundary detection
-- **Parity signals** for address and data error detection
-- **Complete AXI4-Lite interfaces** for source/sink configuration
-- **Monitor bus AXI4-Lite group** for event aggregation and filtering
+### **ADDED - Standard AXIS4 Protocol:**
+- **`axis_src_tx_tdata[511:0]`** - Source TX data stream
+- **`axis_src_tx_tstrb[63:0]`** - Byte-level write enables (64 bytes for 512-bit bus)
+- **`axis_src_tx_tlast`** - Packet boundary marker
+- **`axis_src_tx_tvalid/tready`** - Standard handshake protocol
+- **`axis_src_tx_tuser[15:0]`** - Optional metadata sideband
+- **`axis_snk_rx_tdata[511:0]`** - Sink RX data stream
+- **`axis_snk_rx_tstrb[63:0]`** - Byte-level write enables
+- **`axis_snk_rx_tlast`** - Packet boundary marker
+- **`axis_snk_rx_tvalid/tready`** - Standard handshake protocol
+- **`axis_snk_rx_tuser[15:0]`** - Optional metadata sideband
 
-### **Embedded Chunk Enables Format:**
-```systemverilog
-// Non-RAW Packet Data Layout:
-pkt_data[511:0] bit allocation:
-[511]     - Reserved (1 bit)
-[510:495] - chunk_enables[15:0] (16 bits) ← EMBEDDED HERE
-[494:480] - Control flags (15 bits)
-[479:0]   - Data fields (15 × 32-bit chunks)
+### **Migration Benefits:**
+1. **Industry Standard**: AXIS4 is widely supported, well-documented standard protocol
+2. **Simplified Flow Control**: Standard `tvalid/tready` backpressure, no custom ACK channels
+3. **Cleaner Byte Qualification**: Standard `tstrb` replaces embedded chunk_enables
+4. **Packet Framing**: Standard `tlast` replaces custom EOS markers
+5. **Reduced Complexity**: Eliminated custom packet types, addresses, parity, ACK logic
+6. **Tool Support**: Better IP integration, simulation, and verification tool support
+7. **No Interface Credits**: Simplified interface - credits remain only in scheduler (internal)
 
-// RAW Packet Data Layout:
-pkt_data[511:0] = Raw data (512 bits, chunk_enables not applicable)
-```
+### **AXIS4 vs Custom Network Protocol Mapping:**
+
+| Custom Network v2.1 | AXIS4 v3.0 | Notes |
+|---------------------|------------|-------|
+| `network_*_pkt_data[511:0]` | `axis_*_tdata[511:0]` | Direct data payload |
+| `network_*_pkt_chunk_enables[15:0]` (embedded) | `axis_*_tstrb[63:0]` | Byte-level granularity |
+| `network_*_pkt_eos` | `axis_*_tlast` | Standard packet boundary |
+| `network_*_pkt_valid/ready` | `axis_*_tvalid/tready` | Standard handshake |
+| `network_*_pkt_type[1:0]` | `axis_*_tuser[7:0]` | Metadata in sideband |
+| `network_*_pkt_addr[7:0]` | **REMOVED** | No addressing in streaming |
+| `network_*_pkt_par` | **REMOVED** | Optional via TUSER if needed |
+| `network_*_ack_*` (all) | **REMOVED** | No ACK/credit on interface |
 
 ## Interface Summary
 
@@ -334,13 +359,57 @@ pkt_data[511:0] = Raw data (512 bits, chunk_enables not applicable)
 - **Sink:** 3 AXI4 Masters (data write, ctrl write, desc read) + 1 AXI4-Lite Slave (config)
 - **Monitor:** 1 AXI4-Lite Master (write) + 2 AXI4-Lite Slaves (error read, config)
 
-### **Total Network Interfaces:**
-- **Source:** 1 Network Master (packet + ack)
-- **Sink:** 1 Network Slave (packet + ack)
+### **Total AXIS Interfaces (NEW v3.0):**
+- **Source:** 1 AXIS4 Master (TX streaming)
+- **Sink:** 1 AXIS4 Slave (RX streaming)
 
 ### **Key Features:**
-- **v2.1 Network Protocol** with embedded chunk_enables
+- **Standard AXIS4 Protocol** for high-bandwidth streaming
 - **Comprehensive AXI4-Lite Configuration** for all subsystems
 - **Monitor Bus Aggregation** with configurable filtering
 - **Error/Interrupt Handling** via dedicated AXI4-Lite interface
 - **Proper Clock/Reset** with `core_clk` and `core_rstn`
+- **Simplified Flow Control** - No custom ACK or credit mechanisms on streaming interfaces
+- **Industry-Standard Interfaces** - Better tool support and IP reuse
+
+## AXIS Data Path Integration
+
+### Source Data Path (Memory -> AXIS TX):
+```
+AXI4 Read Master (512-bit)
+    ↓ Read data from system memory
+Source SRAM Control
+    ↓ Buffer management
+AXIS Master (rtl/amba/axis/axis_master.sv)
+    ↓ axis_src_tx_* signals
+External AXIS Receiver
+```
+
+**Key Points:**
+- SRAM control writes to `axis_master` FUB interface (`fub_axis_tdata/tstrb/tlast/tvalid`)
+- AXIS master outputs external `m_axis_*` signals
+- Backpressure: `axis_src_tx_tready=0` -> SRAM control stalls
+- Packet framing: SRAM sets `tlast` on final beat
+
+### Sink Data Path (AXIS RX -> Memory):
+```
+External AXIS Transmitter
+    ↓ axis_snk_rx_* signals
+AXIS Slave (rtl/amba/axis/axis_slave.sv)
+    ↓ Internal FUB interface
+Sink SRAM Control
+    ↓ Buffer management
+AXI4 Write Master (512-bit)
+    ↓ Write to system memory
+```
+
+**Key Points:**
+- AXIS slave receives external `s_axis_*` signals
+- Outputs to SRAM via FUB interface (`fub_axis_tdata/tstrb/tlast/tvalid`)
+- Backpressure: SRAM full -> `axis_snk_rx_tready=0` -> upstream stalls
+- Packet framing: `tlast=1` triggers SRAM to finalize packet
+
+**See: See:**
+- `ch03_interfaces/04_axis4_interface_spec.md` - Complete AXIS4 specification
+- `rtl/amba/axis/axis_master.sv` - AXIS master RTL
+- `rtl/amba/axis/axis_slave.sv` - AXIS slave RTL

@@ -1,0 +1,67 @@
+// HPET CDC (Clock Domain Crossing) Handshake Flow
+// Render with: dot -Tpng cdc_handshake.dot -o cdc_handshake.png
+
+digraph cdc_handshake {
+    rankdir=TB;
+    node [shape=box, style="rounded,filled", fillcolor=lightblue, fontname="Arial"];
+    edge [fontname="Arial"];
+
+    // Subgraphs for clock domains
+    subgraph cluster_apb {
+        label="APB Clock Domain (pclk)";
+        style=filled;
+        fillcolor=lightcyan;
+
+        start [label="APB Transaction\nBegins", shape=ellipse, fillcolor=lightgreen];
+        apb_request [label="APB Slave CDC\nAsserts Request"];
+        apb_wait [label="Wait for\nAcknowledge"];
+        apb_sync_ack [label="Synchronize\nAcknowledge\n(2-3 cycles)"];
+        apb_complete [label="APB Transaction\nCompletes\npready asserted"];
+        apb_end [label="APB Done", shape=ellipse, fillcolor=lightgreen];
+    }
+
+    subgraph cluster_hpet {
+        label="HPET Clock Domain (hpet_clk)";
+        style=filled;
+        fillcolor=lightyellow;
+
+        hpet_idle [label="HPET Idle\nWaiting for request"];
+        hpet_sync_req [label="Synchronize Request\n(2-3 cycles)"];
+        hpet_execute [label="Execute Register\nAccess\n(read/write)"];
+        hpet_assert_ack [label="Assert\nAcknowledge"];
+        hpet_wait_clear [label="Wait for Request\nto Clear"];
+    }
+
+    // Flow
+    start -> apb_request;
+    apb_request -> apb_wait;
+    apb_wait -> apb_sync_ack;
+    apb_sync_ack -> apb_complete;
+    apb_complete -> apb_end;
+
+    hpet_idle -> hpet_sync_req;
+    hpet_sync_req -> hpet_execute;
+    hpet_execute -> hpet_assert_ack;
+    hpet_assert_ack -> hpet_wait_clear;
+    hpet_wait_clear -> hpet_idle;
+
+    // Cross-domain signals
+    apb_request -> hpet_idle [label="request →", style=dashed, color=blue];
+    hpet_assert_ack -> apb_wait [label="← ack", style=dashed, color=red];
+
+    // Timing diagram reference
+    timing [label="Timing Sequence:\n\n1. APB: request ↑\n2. HPET: sync request (2-3 hpet_clk)\n3. HPET: execute access\n4. HPET: ack ↑\n5. APB: sync ack (2-3 pclk)\n6. APB: complete transaction\n7. APB: request ↓\n8. HPET: sync clear (2-3 hpet_clk)\n9. HPET: ack ↓\n\nTotal latency: 4-6 APB cycles",
+           shape=box, fillcolor=white, style=filled];
+
+    // Notes
+    note1 [label="CDC Required When:\n• pclk and hpet_clk\n  are asynchronous\n• Frequency ratio\n  is not constant\n• CDC_ENABLE = 1",
+           shape=note, fillcolor=yellow, style=filled];
+
+    note2 [label="Synchronizer:\n• Gray code counters\n• Handshake FSMs\n• Metastability protection",
+           shape=note, fillcolor=lightyellow, style=filled];
+
+    note3 [label="Latency Impact:\n• No CDC: 2 cycles\n• With CDC: 4-6 cycles",
+           shape=note, fillcolor=lightcoral, style=filled];
+
+    {rank=same; apb_wait; timing;}
+}

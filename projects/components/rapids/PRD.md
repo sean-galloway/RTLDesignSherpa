@@ -96,6 +96,103 @@ This PRD provides a high-level overview. **Detailed specifications are maintaine
 
 ---
 
+## 2.4 Organizational Standards - RAPIDS Code Location
+
+**⚠️ MANDATORY: All RAPIDS-specific code must be in the project area ⚠️**
+
+### Code Organization Principle
+
+**"All RAPIDS-specific verification code MUST reside in `projects/components/rapids/dv/` for easy discovery."**
+
+This subsystem follows the repository-wide organizational standard (see `/PRD.md` Section 2.3) requiring all project-specific code to be located in the project area, NOT the framework area.
+
+### RAPIDS Directory Structure
+
+```
+projects/components/rapids/
+├── rtl/                          # RTL source code
+│   ├── includes/                 # RAPIDS packages (rapids_pkg.sv)
+│   ├── rapids_fub/               # Functional unit blocks
+│   └── rapids_macro/             # Top-level integration
+│
+└── dv/                           # Design verification (all RAPIDS-specific)
+    ├── tbclasses/                # ★ RAPIDS TB classes HERE (not framework!)
+    │   ├── scheduler_tb.py       # Scheduler testbench class
+    │   ├── descriptor_engine_tb.py
+    │   ├── program_engine_tb.py
+    │   └── rapids_integration_tb.py
+    │
+    ├── components/               # ★ RAPIDS-specific BFMs
+    │   └── (project-specific components if needed)
+    │
+    ├── scoreboards/              # ★ RAPIDS-specific scoreboards
+    │   └── (verification scoreboards)
+    │
+    └── tests/                    # Test runners (import TB classes)
+        ├── fub_tests/            # Functional unit block tests
+        │   ├── scheduler/
+        │   │   └── test_scheduler.py
+        │   ├── descriptor_engine/
+        │   └── program_engine/
+        ├── integration_tests/    # Multi-block scenarios
+        └── system_tests/         # Full RAPIDS operation
+```
+
+### What Goes Where?
+
+| Code Type | ✅ CORRECT Location | ❌ WRONG Location |
+|-----------|---------------------|-------------------|
+| **RAPIDS TB Classes** | `projects/components/rapids/dv/tbclasses/` | `bin/CocoTBFramework/tbclasses/rapids/` |
+| **RAPIDS-Specific BFMs** | `projects/components/rapids/dv/components/` | `bin/CocoTBFramework/components/rapids/` |
+| **RAPIDS Scoreboards** | `projects/components/rapids/dv/scoreboards/` | `bin/CocoTBFramework/scoreboards/rapids/` |
+| **Test Runners** | `projects/components/rapids/dv/tests/` | Anywhere else |
+| **Shared AXI4/APB BFMs** | `bin/CocoTBFramework/components/{protocol}/` | Project area |
+
+### Import Pattern for RAPIDS Tests
+
+**✅ CORRECT - Import from Project Area:**
+```python
+# Add repo root to Python path
+import os, sys
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
+sys.path.insert(0, repo_root)
+
+# Import RAPIDS TB classes from PROJECT AREA
+from projects.components.rapids.dv.tbclasses.scheduler_tb import SchedulerTB
+from projects.components.rapids.dv.tbclasses.descriptor_engine_tb import DescriptorEngineTB
+
+# Shared framework infrastructure
+from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from CocoTBFramework.components.axi4.axi4_master import AXI4Master
+```
+
+**❌ WRONG - Don't Import from Framework:**
+```python
+# DON'T DO THIS!
+from CocoTBFramework.tbclasses.rapids.scheduler_tb import SchedulerTB  # ❌ WRONG!
+```
+
+### Benefits of This Organization
+
+1. **Easy Discovery** - All RAPIDS code in ONE place: `projects/components/rapids/`
+2. **Clear Ownership** - RAPIDS team owns their `dv/` area completely
+3. **No Confusion** - Never wonder "where does this TB class live?"
+4. **Maintainability** - Changes isolated to RAPIDS area don't affect other projects
+5. **Framework Stays Clean** - Only truly shared cross-project code in framework
+
+### Compliance Status
+
+✅ **RAPIDS is now compliant** - All TB classes moved to project area as of 2025-10-18
+
+**Migration History:**
+- **Before:** TB classes incorrectly in `bin/CocoTBFramework/tbclasses/rapids/`
+- **After:** TB classes correctly in `projects/components/rapids/dv/tbclasses/`
+- **Test Imports:** Updated to import from project area
+
+**📖 Complete Documentation:** See `/PRD.md` Section 2.3 for repository-wide organizational standards.
+
+---
+
 ## 3. Architecture Overview
 
 ### 3.1 Top-Level Block Diagram
@@ -847,7 +944,132 @@ RAPIDS demonstrates:
 
 ---
 
-## 16. References
+## 15. Attribution and Contribution Guidelines
+
+### 15.1 Git Commit Attribution
+
+When creating git commits for RAPIDS documentation or implementation:
+
+**Use:**
+```
+Documentation and implementation support by Claude.
+```
+
+**Do NOT use:**
+```
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+**Rationale:** RAPIDS documentation and organization receives AI assistance for structure and clarity, while design concepts and architectural decisions remain human-authored.
+
+---
+
+## 16. Documentation Generation
+
+### 16.1 Generating PDF/DOCX from Specification
+
+**Tool:** `/mnt/data/github/rtldesignsherpa/bin/md_to_docx.py`
+
+Use this tool to convert the linked specification index into a single all-inclusive PDF or DOCX file.
+
+**Basic Usage:**
+
+```bash
+# Generate DOCX from rapids_spec index
+python bin/md_to_docx.py \
+    projects/components/rapids/docs/rapids_spec/rapids_index.md \
+    -o projects/components/rapids/docs/RAPIDS_Specification_v0.25.docx \
+    --toc \
+    --title-page
+
+# Generate both DOCX and PDF
+python bin/md_to_docx.py \
+    projects/components/rapids/docs/rapids_spec/rapids_index.md \
+    -o projects/components/rapids/docs/RAPIDS_Specification_v0.25.docx \
+    --toc \
+    --title-page \
+    --pdf
+
+# With custom template (optional)
+python bin/md_to_docx.py \
+    projects/components/rapids/docs/rapids_spec/rapids_index.md \
+    -o projects/components/rapids/docs/RAPIDS_Specification_v0.25.docx \
+    -t path/to/template.dotx \
+    --toc \
+    --title-page \
+    --pdf
+```
+
+**Key Features:**
+- **Recursive Collection:** Follows all markdown links in the index file
+- **Heading Demotion:** Automatically adjusts heading levels for included files
+- **Table of Contents:** `--toc` flag generates automatic ToC
+- **Title Page:** `--title-page` flag creates title page from first heading
+- **PDF Export:** `--pdf` flag generates both DOCX and PDF
+- **Image Support:** Resolves images relative to source directory
+- **Template Support:** Optional custom DOCX/DOTX template via `-t` flag
+
+**Common Workflow:**
+
+```bash
+# 1. Update version number in index file (rapids_index.md)
+# 2. Generate documentation
+cd /mnt/data/github/rtldesignsherpa
+python bin/md_to_docx.py \
+    projects/components/rapids/docs/rapids_spec/rapids_index.md \
+    -o projects/components/rapids/docs/RAPIDS_Specification_v0.25.docx \
+    --toc --title-page --pdf
+
+# 3. Output files created:
+#    - RAPIDS_Specification_v0.25.docx
+#    - RAPIDS_Specification_v0.25.pdf (if --pdf used)
+```
+
+**Debug Mode:**
+
+```bash
+# Generate debug markdown to see combined output
+python bin/md_to_docx.py \
+    projects/components/rapids/docs/rapids_spec/rapids_index.md \
+    -o output.docx \
+    --debug-md
+
+# This creates debug.md showing the complete merged content
+```
+
+**Tool Requirements:**
+- Python 3.6+
+- Pandoc installed and in PATH
+- For PDF generation: LaTeX (e.g., texlive) or use Pandoc's built-in PDF writer
+
+**📖 See:** `/mnt/data/github/rtldesignsherpa/bin/md_to_docx.py` for complete implementation details
+
+---
+
+## 16.2 PDF Generation Location
+
+**IMPORTANT: PDF files should be generated in the docs directory:**
+```
+/mnt/data/github/rtldesignsherpa/projects/components/rapids/docs/
+```
+
+**Quick Command:** Use the provided shell script:
+```bash
+cd /mnt/data/github/rtldesignsherpa/projects/components/rapids/docs
+./generate_pdf.sh
+```
+
+The shell script will automatically:
+1. Use the md_to_docx.py tool from bin/
+2. Process the rapids_spec index file
+3. Generate both DOCX and PDF files in the docs/ directory
+4. Create table of contents and title page
+
+**📖 See:** `bin/md_to_docx.py` for complete implementation details
+
+---
+
+## 17. References
 
 ### 16.1 Internal Documentation
 

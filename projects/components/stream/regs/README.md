@@ -22,9 +22,9 @@ regs/
 
 ## Register Generation Workflow
 
-### Phase 1: Manual Placeholder (Current)
+### Phase 1: Define Register Map (Future)
 
-The current `rtl/stream_macro/apb_config.sv` is a placeholder with manual register implementation.
+Create `stream_regs.rdl` following the same pattern as `apb_hpet`.
 
 ### Phase 2: PeakRDL-Generated Registers (Future)
 
@@ -56,12 +56,13 @@ Following the same pattern as `projects/components/apb_hpet/`:
 2. **Generate RTL**
    ```bash
    cd projects/components/stream/regs
-   peakrdl regblock stream_regs.rdl -o generated/rtl/stream_regs.sv
+   ../../bin/peakrdl_generate.py stream_regs.rdl --copy-rtl ../rtl/stream_macro
    ```
 
-3. **Update APB Config Wrapper**
-   - Replace manual register logic in `apb_config.sv` with instantiation of generated `stream_regs.sv`
-   - Add CDC wrapper if needed (like HPET `apb_hpet.sv` wraps `apb_slave_cdc`)
+3. **Create APB Config Wrapper**
+   - Instantiate generated register block (similar to `apb_hpet.sv`)
+   - Add `apb_slave_cdc` wrapper if clock domain crossing needed
+   - Wire register outputs to STREAM control signals
 
 ---
 
@@ -96,33 +97,7 @@ Each channel (0-7) has a 16-byte register block starting at `0x10 + (channel_id 
 
 ## Integration Pattern
 
-### Current (Phase 1 - Manual):
-
-```systemverilog
-// rtl/stream_macro/apb_config.sv
-module apb_config (
-    // APB interface
-    input  logic [ADDR_WIDTH-1:0] paddr,
-    input  logic                  psel,
-    // ...
-
-    // Configuration outputs
-    output logic [NUM_CHANNELS-1:0] ch_enable,
-    // ...
-);
-    // Manual register implementation
-    always_ff @(posedge pclk) begin
-        if (psel && penable && pwrite) begin
-            case (paddr)
-                CH0_CTRL: ch_desc_addr[0] <= pwdata;
-                // ... manual register logic
-            endcase
-        end
-    end
-endmodule
-```
-
-### Future (Phase 2 - PeakRDL):
+### PeakRDL-Generated Implementation (Future):
 
 ```systemverilog
 // rtl/stream_macro/apb_config.sv

@@ -1,0 +1,49 @@
+// HPET One-Shot Timer Operation
+// Render with: dot -Tpng oneshot_timer.dot -o oneshot_timer.png
+
+digraph oneshot_timer {
+    rankdir=TB;
+    node [shape=box, style="rounded,filled", fillcolor=lightblue, fontname="Arial"];
+    edge [fontname="Arial"];
+
+    start [label="Timer Configured\n(One-Shot Mode)", shape=ellipse, fillcolor=lightgreen];
+    end [label="Timer Idle\n(Must Reconfigure)", shape=ellipse, fillcolor=orange];
+
+    start -> timer_enabled;
+
+    timer_enabled [label="Timer Enabled\nTIMER_CONFIG.enable = 1\nTIMER_CONFIG.type = 0"];
+    timer_enabled -> counter_running;
+
+    counter_running [label="Main Counter Running\nIncrements every hpet_clk", fillcolor=lightcyan];
+    counter_running -> compare;
+
+    compare [label="Compare:\ncounter >= comparator?", shape=diamond, fillcolor=lightyellow];
+    compare -> wait_cycle [label="No"];
+    compare -> fire_detect [label="Yes"];
+
+    wait_cycle [label="Wait 1 Cycle", fillcolor=white];
+    wait_cycle -> counter_running;
+
+    fire_detect [label="Timer Fires!\n• IRQ asserts\n• Edge detection (0→1)\n• Comparator unchanged", fillcolor=lightcoral];
+    fire_detect -> irq_check;
+
+    irq_check [label="Interrupt\nenabled?", shape=diamond, fillcolor=lightyellow];
+    irq_check -> irq_assert [label="Yes"];
+    irq_check -> timer_idle [label="No"];
+
+    irq_assert [label="Interrupt Asserted\ntimer_irq[i] = 1\nHPET_STATUS[i] = 1", fillcolor=red, fontcolor=white];
+    irq_assert -> timer_idle;
+
+    timer_idle [label="Timer Goes Idle\n• No more fires\n• IRQ stays asserted\n• Comparator unchanged", fillcolor=orange];
+    timer_idle -> sw_clear;
+
+    sw_clear [label="Software Clears IRQ\nWRITE(HPET_STATUS, 1<<i)\n(Write-1-to-Clear)", fillcolor=lightgreen];
+    sw_clear -> end;
+
+    // Notes
+    note1 [label="Note: One-shot timers\nfire ONCE then stop", shape=note, fillcolor=lightyellow, style=filled];
+    note2 [label="Note: Software must\nreconfigure for next fire", shape=note, fillcolor=lightyellow, style=filled];
+
+    {rank=same; timer_enabled; note1;}
+    {rank=same; timer_idle; note2;}
+}

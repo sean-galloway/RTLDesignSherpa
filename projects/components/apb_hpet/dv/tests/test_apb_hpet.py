@@ -40,10 +40,16 @@ from cocotb_test.simulator import run
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
-from CocoTBFramework.tbclasses.amba.apb_hpet.hpet_tb import HPETTB, HPETRegisterMap
-from CocoTBFramework.tbclasses.amba.apb_hpet.hpet_tests_basic import HPETBasicTests
-from CocoTBFramework.tbclasses.amba.apb_hpet.hpet_tests_medium import HPETMediumTests
-from CocoTBFramework.tbclasses.amba.apb_hpet.hpet_tests_full import HPETFullTests
+# Add repo root to Python path
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
+import sys
+sys.path.insert(0, repo_root)
+
+# Import from PROJECT AREA (not framework!)
+from projects.components.apb_hpet.dv.tbclasses.hpet_tb import HPETTB, HPETRegisterMap
+from projects.components.apb_hpet.dv.tbclasses.hpet_tests_basic import HPETBasicTests
+from projects.components.apb_hpet.dv.tbclasses.hpet_tests_medium import HPETMediumTests
+from projects.components.apb_hpet.dv.tbclasses.hpet_tests_full import HPETFullTests
 
 
 @cocotb.test(timeout_time=400, timeout_unit="us")

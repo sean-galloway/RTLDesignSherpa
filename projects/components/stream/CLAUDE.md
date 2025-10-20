@@ -18,7 +18,23 @@
 
 ## Critical Rules for This Subsystem
 
-### Rule #0: TUTORIAL FOCUS - Intentional Simplifications
+### Rule #0: Attribution Format for Git Commits
+
+**IMPORTANT:** When creating git commit messages for STREAM documentation or code:
+
+**Use:**
+```
+Documentation and implementation support by Claude.
+```
+
+**Do NOT use:**
+```
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+**Rationale:** STREAM receives AI assistance for structure and clarity, while design concepts and architectural decisions remain human-authored.
+
+### Rule #0.1: TUTORIAL FOCUS - Intentional Simplifications
 
 **⚠️ STREAM is INTENTIONALLY SIMPLIFIED for educational purposes ⚠️**
 
@@ -42,24 +58,26 @@
 Follow the same pattern as RAPIDS and AMBA subsystems:
 
 ```
-bin/CocoTBFramework/tbclasses/
-└── stream/
-    ├── scheduler_tb.py           ← REUSABLE TB CLASS
-    ├── descriptor_engine_tb.py   ← REUSABLE TB CLASS
-    ├── axi_engine_tb.py          ← REUSABLE TB CLASS
-    └── stream_integration_tb.py  ← REUSABLE TB CLASS
-
-projects/components/stream/dv/tests/
-├── fub_tests/
-│   ├── scheduler/
-│   │   └── test_scheduler.py     ← TEST RUNNER ONLY (imports TB)
-│   ├── descriptor_engine/
-│   │   └── test_desc_engine.py   ← TEST RUNNER ONLY (imports TB)
-└── integration_tests/
-    └── test_stream_integration.py ← TEST RUNNER ONLY (imports TB)
+projects/components/stream/dv/
+├── tbclasses/                    # ★ STREAM TB classes HERE (not framework!)
+│   ├── scheduler_tb.py           # ← REUSABLE TB CLASS
+│   ├── descriptor_engine_tb.py   # ← REUSABLE TB CLASS
+│   ├── axi_engine_tb.py          # ← REUSABLE TB CLASS
+│   └── stream_integration_tb.py  # ← REUSABLE TB CLASS
+│
+└── tests/                        # Test runners (import TB classes from project area)
+    ├── fub_tests/
+    │   ├── scheduler/
+    │   │   └── test_scheduler.py     # ← TEST RUNNER ONLY (imports from project area)
+    │   ├── descriptor_engine/
+    │   │   └── test_desc_engine.py   # ← TEST RUNNER ONLY (imports from project area)
+    └── integration_tests/
+        └── test_stream_integration.py # ← TEST RUNNER ONLY (imports from project area)
 ```
 
-**📖 Complete Pattern:** See `projects/components/rapids/CLAUDE.md` Rule #0 for detailed testbench architecture requirements.
+**✅ CRITICAL: All STREAM TB classes are in the PROJECT AREA, not the framework!**
+
+**📖 Complete Pattern:** See `projects/components/rapids/CLAUDE.md` Rule #0 and `/PRD.md` Section 2.3 for organizational standards.
 
 ### Rule #0.2: MANDATORY TB INITIALIZATION METHODS
 
@@ -110,7 +128,7 @@ class StreamSchedulerTB(TBBase):
 - ⚠️ AXI engines - **Create simplified versions** (no alignment fixup)
 
 **Create New for STREAM:**
-- 📝 APB config interface - Simpler than RAPIDS (8 channels, kick-off registers)
+- 📝 APB config interface - PeakRDL-generated (like HPET), 8 channels, kick-off registers
 - 📝 Top-level integration - Different interface set
 
 **Always Ask Yourself:** "Can I reuse from RAPIDS instead of creating new?"
@@ -622,6 +640,29 @@ find projects/components/stream/rtl/ -name "*.sv" -exec grep -H "^module" {} \;
 6. 🎯 **8 channels** - Shared resources, arbitration required
 7. 🔍 **MonBus standard** - Same format as AMBA/RAPIDS
 8. 🏗️ **Testbench reuse** - Always create TB classes in `bin/CocoTBFramework/tbclasses/stream/`
+
+---
+
+## PDF Generation Location
+
+**IMPORTANT: PDF files should be generated in the docs directory:**
+```
+/mnt/data/github/rtldesignsherpa/projects/components/stream/docs/
+```
+
+**Quick Command:** Use the provided shell script:
+```bash
+cd /mnt/data/github/rtldesignsherpa/projects/components/stream/docs
+./generate_pdf.sh
+```
+
+The shell script will automatically:
+1. Use the md_to_docx.py tool from bin/
+2. Process the stream_spec index file
+3. Generate both DOCX and PDF files in the docs/ directory
+4. Create table of contents and title page
+
+**📖 See:** `bin/md_to_docx.py` for complete implementation details
 
 ---
 

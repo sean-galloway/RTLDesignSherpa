@@ -2,17 +2,17 @@
 
 #### Overview
 
-The Sink SRAM Control provides sophisticated buffering and flow control for incoming data streams from the Network network. The module implements single-writer architecture with multi-channel read capabilities, comprehensive stream boundary management, and precise chunk forwarding for optimal AXI write performance.
+The Sink SRAM Control provides sophisticated buffering and flow control for incoming data streams from the AXIS slave interface. The module implements single-writer architecture with multi-channel read capabilities, comprehensive stream boundary management, and precise byte strobe forwarding for optimal AXI write performance.
 
 #### Key Features
 
-- **Single Write Interface**: Simplified architecture with Network Slave as sole writer
-- **Multi-Channel Read**: Parallel read interfaces for maximum AXI engine throughput  
-- **Stream Boundary Management**: Complete EOS lifecycle tracking and completion signaling
-- **Chunk Forwarding**: Precise chunk enables storage and forwarding for AXI write strobes
+- **Single Write Interface**: Simplified architecture with AXIS Slave as sole writer
+- **Multi-Channel Read**: Parallel read interfaces for maximum AXI engine throughput
+- **Stream Boundary Management**: Complete TLAST lifecycle tracking and completion signaling
+- **Byte Strobe Forwarding**: Precise TSTRB storage and forwarding for AXI write strobes
 - **SRAM Storage**: 530-bit entries with complete packet metadata
 - **Buffer Flow Control**: Stream-aware backpressure and overflow prevention
-- **Credit Return**: Consumption notification for proper Network flow control
+- **Standard AXIS Backpressure**: FUB interface uses `tvalid/tready` for flow control
 - **Monitor Integration**: Rich monitor events for system visibility
 
 #### Interface Specification
@@ -38,17 +38,16 @@ The Sink SRAM Control provides sophisticated buffering and flow control for inco
 | **clk** | logic | 1 | Input | Yes | System clock |
 | **rst_n** | logic | 1 | Input | Yes | Active-low asynchronous reset |
 
-##### Write Interface (From Network Slave FUB)
+##### Write Interface (From AXIS Slave FUB)
 
 | Signal Name | Type | Width | Direction | Required | Description |
 |-------------|------|-------|-----------|----------|-------------|
-| **wr_valid** | logic | 1 | Input | Yes | Write request valid |
-| **wr_ready** | logic | 1 | Output | Yes | Write request ready |
-| **wr_data** | logic | DATA_WIDTH | Input | Yes | Write data |
-| **wr_channel** | logic | CHAN_BITS | Input | Yes | Target channel |
-| **wr_type** | logic | 2 | Input | Yes | Packet type |
-| **wr_eos** | logic | 1 | Input | Yes | End of Stream |
-| **wr_chunk_en** | logic | NUM_CHUNKS | Input | Yes | Chunk enable mask |
+| **fub_axis_tvalid** | logic | 1 | Input | Yes | FUB write request valid |
+| **fub_axis_tready** | logic | 1 | Output | Yes | FUB write request ready |
+| **fub_axis_tdata** | logic | DATA_WIDTH | Input | Yes | FUB write data |
+| **fub_axis_tstrb** | logic | DATA_WIDTH/8 | Input | Yes | FUB byte strobes (write enables) |
+| **fub_axis_tlast** | logic | 1 | Input | Yes | FUB last beat (end of packet) |
+| **fub_axis_tuser** | logic | 16 | Input | Yes | FUB metadata (channel, type) |
 
 ##### Multi-Channel Read Interface (To AXI Engines)
 
@@ -56,12 +55,12 @@ The Sink SRAM Control provides sophisticated buffering and flow control for inco
 |-------------|------|-------|-----------|----------|-------------|
 | **rd_valid** | logic | CHANNELS | Output | Yes | Read data valid per channel |
 | **rd_ready** | logic | CHANNELS | Input | Yes | Read data ready per channel |
-| **rd_data** | logic | DATA_WIDTH × CHANNELS | Output | Yes | Read data per channel |
-| **rd_type** | logic | 2 × CHANNELS | Output | Yes | Packet type per channel |
-| **rd_eos** | logic | CHANNELS | Output | Yes | End of Stream per channel |
-| **rd_chunk_valid** | logic | NUM_CHUNKS × CHANNELS | Output | Yes | Chunk enables per channel |
-| **rd_used_count** | logic | 8 × CHANNELS | Output | Yes | Used entries per channel |
-| **rd_lines_for_transfer** | logic | 8 × CHANNELS | Output | Yes | Lines available for transfer per channel |
+| **rd_data** | logic | DATA_WIDTH x CHANNELS | Output | Yes | Read data per channel |
+| **rd_type** | logic | 2 x CHANNELS | Output | Yes | Packet type per channel |
+| **rd_eos** | logic | CHANNELS | Output | Yes | End of Stream per channel (from TLAST) |
+| **rd_tstrb** | logic | (DATA_WIDTH/8) x CHANNELS | Output | Yes | Byte strobes per channel |
+| **rd_used_count** | logic | 8 x CHANNELS | Output | Yes | Used entries per channel |
+| **rd_lines_for_transfer** | logic | 8 x CHANNELS | Output | Yes | Lines available for transfer per channel |
 
 ##### Data Consumption Notification
 
@@ -101,44 +100,44 @@ The Sink SRAM Control provides sophisticated buffering and flow control for inco
 
 #### Sink SRAM Control FSM
 
-The Sink SRAM Control operates through a sophisticated flow control and arbitration state machine that manages multi-channel buffer operations with stream-aware priority scheduling and comprehensive boundary processing. The FSM coordinates single-writer operations from the Network slave interface with multi-channel read arbitration for AXI write engines, implementing priority-based scheduling that favors channels with pending stream boundaries over threshold-based normal operations.
+The Sink SRAM Control operates through a sophisticated flow control and arbitration state machine that manages multi-channel buffer operations with stream-aware priority scheduling and comprehensive boundary processing. The FSM coordinates single-writer operations from the AXIS slave FUB interface with multi-channel read arbitration for AXI write engines, implementing priority-based scheduling that favors channels with pending stream boundaries over threshold-based normal operations.
 
-![Sink SRAM FSM](/mnt/data/github/tsunami/design/rapids/markdown/rapids_spec/ch02_blocks/puml/sink_sram_control_fsm.png)
+![Sink SRAM FSM](../assets/puml/sink_sram_control_fsm.png)
 
 **Key Operations:**
 - **Write State Management**: Single-writer flow control with overflow prevention and metadata embedding for 530-bit SRAM entries
 - **Read Arbitration**: Multi-level priority arbitration favoring EOS/EOL/EOD pending channels, then threshold-based scheduling, then round-robin fairness
-- **Stream Boundary Processing**: Complete EOS lifecycle tracking with dedicated completion signaling and consumption notification coordination
+- **Stream Boundary Processing**: Complete TLAST lifecycle tracking with dedicated completion signaling and consumption notification coordination
 - **Buffer Management**: Per-channel pointer management with wrap detection, used count tracking, and configurable threshold monitoring
-- **Flow Control Coordination**: Backpressure generation, overflow warning, and credit return triggering for proper Network flow control
+- **Flow Control Coordination**: Standard AXIS backpressure (`fub_axis_tready`) to upstream, overflow warning, and completion notifications
 
-The FSM implements stream-aware buffer management where EOS boundaries receive highest priority processing to ensure timely descriptor completion signaling, while sophisticated pointer arithmetic and buffer status tracking prevent overflow conditions and coordinate with upstream Network credit management. The architecture eliminates traditional multi-writer arbitration complexity through the single-writer design while maintaining optimal multi-channel read performance through priority-based scheduling algorithms.
+The FSM implements stream-aware buffer management where TLAST boundaries receive highest priority processing to ensure timely descriptor completion signaling, while sophisticated pointer arithmetic and buffer status tracking prevent overflow conditions and coordinate with upstream AXIS flow control. The architecture eliminates traditional multi-writer arbitration complexity through the single-writer design while maintaining optimal multi-channel read performance through priority-based scheduling algorithms.
 
-##### Storage Format (530 bits total)
+##### Storage Format (594 bits total)
 
 The SRAM stores complete packet metadata alongside data for precise forwarding:
 
 ```systemverilog
 // SRAM entry format:
-// {TYPE[1:0], CHUNK_VALID[15:0], DATA[511:0]} = 530 bits total
-localparam int EXTENDED_SRAM_WIDTH = 2 + NUM_CHUNKS + DATA_WIDTH;
+// {TYPE[7:0], TSTRB[63:0], DATA[511:0]} = 594 bits total
+localparam int EXTENDED_SRAM_WIDTH = 8 + (DATA_WIDTH/8) + DATA_WIDTH;
 
-// Write data composition
+// Write data composition (from AXIS FUB interface)
 assign w_sram_wr_data = {
-    wr_type,                         // Bits 529:528: Packet type
-    wr_chunk_en,                     // Bits 527:512: Chunk enables
-    wr_data                          // Bits 511:0: Data payload
+    fub_axis_tuser[7:0],             // Bits 593:586: Packet type from TUSER
+    fub_axis_tstrb,                  // Bits 585:522: Byte strobes (64 bits for 512-bit data)
+    fub_axis_tdata                   // Bits 521:0: Data payload
 };
 ```
 
-##### EOS Flow Management
+##### TLAST Flow Management
 
-**Critical Design Decision**: EOS is NOT stored in SRAM but used for completion signaling:
+**Critical Design Decision**: TLAST is NOT stored in SRAM but used for completion signaling:
 
-1. **EOS Detection**: Network packets arrive with EOS bit in packet structure
-2. **EOS Processing**: EOS triggers descriptor completion logic (control only)
-3. **EOS Storage**: EOS is NOT stored in SRAM - only payload data is stored
-4. **EOS Control**: EOS used for completion signaling to scheduler
+1. **TLAST Detection**: AXIS packets arrive with TLAST in beat structure (`fub_axis_tlast`)
+2. **TLAST Processing**: TLAST triggers descriptor completion logic (control only)
+3. **TLAST Storage**: TLAST is NOT stored in SRAM - only payload data is stored
+4. **TLAST Control**: TLAST used for completion signaling to scheduler (maps to internal EOS)
 5. **EOS Completion**: Dedicated FIFO interface for EOS completion notifications
 
 ##### Multi-Channel Buffer Management
@@ -155,9 +154,12 @@ Each channel maintains independent:
 ##### Write Acceptance Logic
 
 ```systemverilog
-// Write acceptance based on buffer availability and barriers
-assign wr_ready = !w_channel_full[wr_channel] && 
-                  (r_used_count[wr_channel] < (LINES_PER_CHANNEL - OVERFLOW_MARGIN));
+// Write acceptance based on buffer availability (standard AXIS backpressure)
+logic [CHAN_WIDTH-1:0] w_channel;
+assign w_channel = fub_axis_tuser[15:8];  // Extract channel from TUSER
+
+assign fub_axis_tready = !w_channel_full[w_channel] &&
+                         (r_used_count[w_channel] < (LINES_PER_CHANNEL - OVERFLOW_MARGIN));
 ```
 
 ##### Read Arbitration
@@ -178,17 +180,17 @@ assign w_drain_priority = drain_enable && (r_used_count[i] > 0);
 
 ##### Stream Boundary Processing
 
-EOS boundaries trigger special processing:
+TLAST boundaries trigger special processing:
 
 ```systemverilog
-// EOS completion signaling
+// TLAST completion signaling (maps to internal EOS)
 always_ff @(posedge clk) begin
     if (!rst_n) begin
         r_eos_pending <= '0;
     end else begin
-        // Set EOS pending when EOS packet written
-        if (wr_valid && wr_ready && wr_eos) begin
-            r_eos_pending[wr_channel] <= 1'b1;
+        // Set EOS pending when TLAST packet written
+        if (fub_axis_tvalid && fub_axis_tready && fub_axis_tlast) begin
+            r_eos_pending[w_channel] <= 1'b1;
         end
         // Clear EOS pending when completion signaled
         if (eos_completion_valid && eos_completion_ready) begin
@@ -201,20 +203,33 @@ end
 #### Data Flow Architecture
 
 ```
-FC/TS Packets: Network Slave FUB → Sink SRAM Control → AXI Write Engine
+FC/TS Packets: AXIS Slave FUB -> Sink SRAM Control -> AXI Write Engine
                     ↓              ↓                    ↓
-               Single Write    530-bit Storage    Multi-Channel Read
-               Interface       + Packet Metadata  + Chunk Forwarding
+               Single Write    594-bit Storage    Multi-Channel Read
+               FUB Interface   + Packet Metadata  + TSTRB Forwarding
+               (AXIS-like)     (TYPE + TSTRB)
 
-EOS Flow:      EOS Detection → Completion Signaling → Scheduler Notification
+TLAST Flow:    TLAST Detection -> Completion Signaling -> Scheduler Notification
                     ↓              ↓                    ↓
                Packet-Level    Control-Only         Descriptor-Level
-               EOS in Network     Processing           Completion
+               TLAST in AXIS      Processing       Completion (EOS)
 ```
 
-#### Network 2.0 Support
+#### AXIS Integration
 
-The sink SRAM control fully supports the Network 2.0 protocol specification, using chunk enables instead of the older start/len approach for indicating valid data chunks within each 512-bit packet. This provides more flexible and precise control over partial data transfers.
+The sink SRAM control integrates with standard AXI-Stream protocol via the FUB interface from `axis_slave.sv`:
+
+**TSTRB (Byte Strobes):**
+- Standard AXIS uses 64-bit byte strobes for 512-bit data
+- `tstrb[i] = 1` indicates byte `i` is valid
+- Stored in SRAM and forwarded to AXI write engine for precise `wstrb` generation
+- More fine-grained than legacy chunk enables (byte-level vs 32-bit chunk-level)
+
+**TLAST (Packet Boundary):**
+- Standard AXIS uses TLAST to mark final beat of packet
+- Maps to internal EOS for completion signaling
+- NOT stored in SRAM (control-only signal)
+- Triggers descriptor completion to scheduler
 
 #### Monitor Bus Events
 
@@ -240,14 +255,14 @@ The module generates comprehensive monitor events:
 ##### Throughput Metrics
 - **Write Throughput**: 1 write per cycle when space available
 - **Read Throughput**: 1 read per cycle per channel with proper SRAM implementation
-- **Metadata Overhead**: 3.5% (18 metadata bits / 530 total bits)
+- **Metadata Overhead**: 13.9% (82 metadata bits / 594 total bits)
 - **Buffer Efficiency**: 95%+ utilization with stream-aware flow control
 
 ##### Latency Characteristics
 - **Write Latency**: 1 cycle for data acceptance
 - **Read Arbitration**: 1-3 cycles depending on priority and contention
-- **EOS Processing**: 1 cycle for EOS completion signaling
-- **Credit Return**: 2-4 cycles from consumption to credit notification
+- **TLAST Processing**: 1 cycle for EOS completion signaling
+- **Completion Notification**: 2-4 cycles from consumption to scheduler notification
 
 #### Implementation Notes
 
@@ -264,8 +279,8 @@ The current implementation provides a foundation for multi-channel reads but req
 Each channel operates independently with:
 - **Independent Pointer Management**: Separate read/write pointers per channel
 - **Per-Channel Flow Control**: Individual full/empty status tracking
-- **EOS State Management**: Per-channel EOS pending tracking
-- **Credit Return Coordination**: Channel-specific consumption notifications
+- **TLAST State Management**: Per-channel EOS pending tracking (derived from TLAST)
+- **Completion Coordination**: Channel-specific consumption notifications
 
 #### Usage Guidelines
 
@@ -273,13 +288,15 @@ Each channel operates independently with:
 
 - Configure `USED_THRESHOLD` based on AXI engine requirements
 - Set `OVERFLOW_MARGIN` to prevent buffer overflow under burst conditions
-- Use EOS completion interface for proper stream boundary coordination
+- Use EOS completion interface for proper stream boundary coordination (TLAST -> EOS)
 - Monitor backpressure warnings to optimize buffer utilization
+- Leverage standard AXIS flow control (`fub_axis_tready`) for upstream coordination
 
 ##### Error Handling
 
 The module provides comprehensive error detection:
 - Monitor channel overflow conditions
 - Check buffer pointer consistency
-- Verify EOS completion flow
+- Verify TLAST/EOS completion flow
 - Track per-channel error statistics through monitor events
+- Validate TSTRB patterns for data integrity

@@ -9,36 +9,36 @@ The monitor bus system provides comprehensive event monitoring, error detection,
 ### System Components
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        SoC Unit                                 │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐           │
-│  │   AXI   │  │  Network   │  │   APB   │  │ Custom  │           │
-│  │Interface│  │Interface│  │Interface│  │Interface│           │
-│  └────┬────┘  └────┬────┘  └────┬────┘  └────┬────┘           │
-│       │            │            │            │                │
-│       └────────────┼────────────┼────────────┘                │
-│                    │            │                             │
-│              ┌─────▼────────────▼─────┐                       │
-│              │  Monitor Bus Arbiter   │                       │
-│              │   (Packet Router)      │                       │
-│              └─────┬──────────────────┘                       │
-│                    │                                          │
-├────────────────────┼──────────────────────────────────────────┤
-│                    ▼                                          │
-│  ┌─────────────────────────────────────────────────────────┐  │
-│  │              Central Monitor Hub                       │  │
-│  │                                                         │  │
-│  │  ┌─────────────────┐    ┌─────────────────────────────┐ │  │
-│  │  │ Interrupt       │    │ Memory-Mapped Event Buffer │ │  │
-│  │  │ Controller      │    │                             │ │  │
-│  │  │                 │    │ ┌─────────┐ ┌─────────────┐ │ │  │
-│  │  │ • ERROR Events  │    │ │  Base   │ │   Limit     │ │ │  │
-│  │  │ • TIMEOUT Events│    │ │Register │ │  Register   │ │ │  │
-│  │  │                 │    │ └─────────┘ └─────────────┘ │ │  │
-│  │  └─────────────────┘    └─────────────────────────────┘ │  │
-│  └─────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
++-----------------------------------------------------------------+
+|                        SoC Unit                                 |
++-----------------------------------------------------------------+
+|  +---------+  +---------+  +---------+  +---------+           |
+|  |   AXI   |  |  Network   |  |   APB   |  | Custom  |           |
+|  |Interface|  |Interface|  |Interface|  |Interface|           |
+|  +----+----+  +----+----+  +----+----+  +----+----+           |
+|       |            |            |            |                |
+|       +------------+------------+------------+                |
+|                    |            |                             |
+|              +-----▼------------▼-----+                       |
+|              |  Monitor Bus Arbiter   |                       |
+|              |   (Packet Router)      |                       |
+|              +-----+------------------+                       |
+|                    |                                          |
++--------------------+------------------------------------------+
+|                    ▼                                          |
+|  +---------------------------------------------------------+  |
+|  |              Central Monitor Hub                       |  |
+|  |                                                         |  |
+|  |  +-----------------+    +-----------------------------+ |  |
+|  |  | Interrupt       |    | Memory-Mapped Event Buffer | |  |
+|  |  | Controller      |    |                             | |  |
+|  |  |                 |    | +---------+ +-------------+ | |  |
+|  |  | • ERROR Events  |    | |  Base   | |   Limit     | | |  |
+|  |  | • TIMEOUT Events|    | |Register | |  Register   | | |  |
+|  |  |                 |    | +---------+ +-------------+ | |  |
+|  |  +-----------------+    +-----------------------------+ |  |
+|  +---------------------------------------------------------+  |
++-----------------------------------------------------------------+
 ```
 
 ### Packet Routing Logic
@@ -47,20 +47,20 @@ The monitor bus system provides comprehensive event monitoring, error detection,
 2. **Central Collection**: Packets are routed to a central monitor hub
 3. **Classification**: Packets are classified based on `packet_type` field
 4. **Routing Decision**:
-   - **ERROR/TIMEOUT packets** → Interrupt Controller (64-bit packet only)
-   - **All other packets** → Memory-mapped circular buffer (64-bit packet + 32-bit timestamp = 96 bits total)
+   - **ERROR/TIMEOUT packets** -> Interrupt Controller (64-bit packet only)
+   - **All other packets** -> Memory-mapped circular buffer (64-bit packet + 32-bit timestamp = 96 bits total)
 
 ## Monitor Packet Format
 
 ### 64-bit Packet Structure
 
 ```
-┌─────────┬──────────┬────────────┬────────────┬──────────┬──────────┬──────────────────────────────────┐
-│  63:60  │  59:58   │   57:54    │   53:48    │  47:44   │  43:36   │              35:0                │
-├─────────┼──────────┼────────────┼────────────┼──────────┼──────────┼──────────────────────────────────┤
-│Pkt Type │ Protocol │ Event Code │ Channel ID │ Unit ID  │ Agent ID │           Event Data             │
-│ 4 bits  │  2 bits  │   4 bits   │   6 bits   │  4 bits  │  8 bits  │            36 bits               │
-└─────────┴──────────┴────────────┴────────────┴──────────┴──────────┴──────────────────────────────────┘
++---------+----------+------------+------------+----------+----------+----------------------------------+
+|  63:60  |  59:58   |   57:54    |   53:48    |  47:44   |  43:36   |              35:0                |
++---------+----------+------------+------------+----------+----------+----------------------------------+
+|Pkt Type | Protocol | Event Code | Channel ID | Unit ID  | Agent ID |           Event Data             |
+| 4 bits  |  2 bits  |   4 bits   |   6 bits   |  4 bits  |  8 bits  |            36 bits               |
++---------+----------+------------+------------+----------+----------+----------------------------------+
 ```
 
 ### Field Descriptions
@@ -79,17 +79,17 @@ The monitor bus system provides comprehensive event monitoring, error detection,
 
 | Packet Type | Value | Routing Destination | Interrupt Generated | Size |
 |-------------|-------|-------------------|-------------------|------|
-| **PktTypeError** | 4'h0 | Interrupt Controller | ✅ Yes | 64 bits |
-| **PktTypeTimeout** | 4'h3 | Interrupt Controller | ✅ Yes | 64 bits |
-| **PktTypeCompletion** | 4'h1 | Memory Buffer + Timestamp | ❌ No | 96 bits |
-| **PktTypeThreshold** | 4'h2 | Memory Buffer + Timestamp | ❌ No | 96 bits |
-| **PktTypePerf** | 4'h4 | Memory Buffer + Timestamp | ❌ No | 96 bits |
-| **PktTypeCredit** | 4'h5 | Memory Buffer + Timestamp | ❌ No | 96 bits |
-| **PktTypeChannel** | 4'h6 | Memory Buffer + Timestamp | ❌ No | 96 bits |
-| **PktTypeStream** | 4'h7 | Memory Buffer + Timestamp | ❌ No | 96 bits |
-| **PktTypeAddrMatch** | 4'h8 | Memory Buffer + Timestamp | ❌ No | 96 bits |
-| **PktTypeAPB** | 4'h9 | Memory Buffer + Timestamp | ❌ No | 96 bits |
-| **PktTypeDebug** | 4'hF | Memory Buffer + Timestamp | ❌ No | 96 bits |
+| **PktTypeError** | 4'h0 | Interrupt Controller | [PASS] Yes | 64 bits |
+| **PktTypeTimeout** | 4'h3 | Interrupt Controller | [PASS] Yes | 64 bits |
+| **PktTypeCompletion** | 4'h1 | Memory Buffer + Timestamp | [FAIL] No | 96 bits |
+| **PktTypeThreshold** | 4'h2 | Memory Buffer + Timestamp | [FAIL] No | 96 bits |
+| **PktTypePerf** | 4'h4 | Memory Buffer + Timestamp | [FAIL] No | 96 bits |
+| **PktTypeCredit** | 4'h5 | Memory Buffer + Timestamp | [FAIL] No | 96 bits |
+| **PktTypeChannel** | 4'h6 | Memory Buffer + Timestamp | [FAIL] No | 96 bits |
+| **PktTypeStream** | 4'h7 | Memory Buffer + Timestamp | [FAIL] No | 96 bits |
+| **PktTypeAddrMatch** | 4'h8 | Memory Buffer + Timestamp | [FAIL] No | 96 bits |
+| **PktTypeAPB** | 4'h9 | Memory Buffer + Timestamp | [FAIL] No | 96 bits |
+| **PktTypeDebug** | 4'hF | Memory Buffer + Timestamp | [FAIL] No | 96 bits |
 
 ## Protocol-Specific Event Codes
 
@@ -161,13 +161,13 @@ When non-ERROR/TIMEOUT packets are written to the memory buffer, they are expand
 
 ```
 Memory Buffer Entry (96 bits):
-┌──────────────────────────────────────────────────────────────────┬──────────────────────────────────┐
-│                    Original Monitor Packet                      │         Timestamp                │
-│                         64 bits                                 │         32 bits                  │
-├──────────────────────────────────────────────────────────────────┼──────────────────────────────────┤
-│ PktType │ Protocol │ EventCode │ ChannelID │ UnitID │ AgentID │ EventData │      Hardware Timestamp      │
-│  4 bits │  2 bits  │  4 bits   │  6 bits   │ 4 bits │ 8 bits │  36 bits  │           32 bits            │
-└──────────────────────────────────────────────────────────────────┴──────────────────────────────────┘
++------------------------------------------------------------------+----------------------------------+
+|                    Original Monitor Packet                      |         Timestamp                |
+|                         64 bits                                 |         32 bits                  |
++------------------------------------------------------------------+----------------------------------+
+| PktType | Protocol | EventCode | ChannelID | UnitID | AgentID | EventData |      Hardware Timestamp      |
+|  4 bits |  2 bits  |  4 bits   |  6 bits   | 4 bits | 8 bits |  36 bits  |           32 bits            |
++------------------------------------------------------------------+----------------------------------+
 ```
 
 **Note**: ERROR and TIMEOUT packets routed to the interrupt controller remain as 64-bit packets without timestamp addition.
@@ -178,22 +178,22 @@ The memory-mapped event buffer operates as a circular buffer with configurable b
 
 ```
 Memory Layout:
-┌─────────────────────────────────────────┐ ← Limit Register
-│                                         │
-│         Available Buffer Space          │
-│                                         │
-├─────────────────────────────────────────┤ ← Current Write Pointer
-│    96-bit Event Entry (Packet + TS)     │
-├─────────────────────────────────────────┤
-│    96-bit Event Entry (Packet + TS)     │
-├─────────────────────────────────────────┤
-│    96-bit Event Entry (Packet + TS)     │
-│                ...                      │
-├─────────────────────────────────────────┤ ← Current Read Pointer
-│    96-bit Event Entry (Packet + TS)     │
-├─────────────────────────────────────────┤
-│    96-bit Event Entry (Packet + TS)     │
-└─────────────────────────────────────────┘ ← Base Register
++-----------------------------------------+ <- Limit Register
+|                                         |
+|         Available Buffer Space          |
+|                                         |
++-----------------------------------------+ <- Current Write Pointer
+|    96-bit Event Entry (Packet + TS)     |
++-----------------------------------------+
+|    96-bit Event Entry (Packet + TS)     |
++-----------------------------------------+
+|    96-bit Event Entry (Packet + TS)     |
+|                ...                      |
++-----------------------------------------+ <- Current Read Pointer
+|    96-bit Event Entry (Packet + TS)     |
++-----------------------------------------+
+|    96-bit Event Entry (Packet + TS)     |
++-----------------------------------------+ <- Base Register
 ```
 
 ### Buffer Configuration Registers
@@ -254,7 +254,7 @@ When the write pointer reaches the limit address:
 initial begin
     // Configure buffer for 96-bit entries
     write_reg(BASE_ADDR_REG, 32'h1000_0000);
-    write_reg(LIMIT_ADDR_REG, 32'h1000_1800);  // 6KB buffer (512 × 96-bit entries)
+    write_reg(LIMIT_ADDR_REG, 32'h1000_1800);  // 6KB buffer (512 x 96-bit entries)
     
     // Generate test packets
     for (int i = 0; i < 1000; i++) begin

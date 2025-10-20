@@ -286,11 +286,11 @@ The scheduler_group_array instantiates and connects the following components:
 
 ```
 AXI ID Field Encoding:
-┌────────────────────┬──────────────────────┐
-│ Upper Bits (0)     │ Lower Bits (Ch ID)   │
-│ [AXI_ID_WIDTH-1:   │ [CHAN_WIDTH-1:0]     │
-│  CHAN_WIDTH]       │                      │
-└────────────────────┴──────────────────────┘
++--------------------+----------------------+
+| Upper Bits (0)     | Lower Bits (Ch ID)   |
+| [AXI_ID_WIDTH-1:   | [CHAN_WIDTH-1:0]     |
+|  CHAN_WIDTH]       |                      |
++--------------------+----------------------+
 ```
 
 **Encoding Formula:**
@@ -342,7 +342,7 @@ channel_id = axi_id[CHAN_WIDTH-1:0];
 1. Channels assert `ctrlrd_valid` when control read needed
 2. Round-robin arbiter selects one channel
 3. Custom ctrlrd interface converted to AXI AR channel:
-   - `ctrlrd_addr` → `araddr`
+   - `ctrlrd_addr` -> `araddr`
    - Fixed `arlen=0` (single transfer)
    - Fixed `arsize=3'b010` (4 bytes, 32-bit)
    - **Channel ID encoded in lower bits** of `arid`
@@ -351,8 +351,8 @@ channel_id = axi_id[CHAN_WIDTH-1:0];
 1. AXI R response received
 2. **Channel ID extracted from lower bits** of `rid`
 3. R channel converted back to custom ctrlrd interface:
-   - `rdata` → `ctrlrd_result`
-   - `rresp != OKAY` → `ctrlrd_error`
+   - `rdata` -> `ctrlrd_result`
+   - `rresp != OKAY` -> `ctrlrd_error`
 4. Response routed to correct channel
 
 ###### Control Write Engine (Write)
@@ -361,8 +361,8 @@ channel_id = axi_id[CHAN_WIDTH-1:0];
 1. Channels assert `ctrlwr_valid` when control write needed
 2. Round-robin arbiter selects one channel
 3. Custom ctrlwr interface converted to AXI AW/W channels:
-   - `ctrlwr_addr` → `awaddr`
-   - `ctrlwr_data` → `wdata`
+   - `ctrlwr_addr` -> `awaddr`
+   - `ctrlwr_data` -> `wdata`
    - Fixed `awlen=0`, `wlast=1` (single transfer)
    - Fixed `wstrb=4'b1111` (all bytes valid)
    - **Channel ID encoded in lower bits** of `awid`
@@ -371,7 +371,7 @@ channel_id = axi_id[CHAN_WIDTH-1:0];
 1. AXI B response received
 2. **Channel ID extracted from lower bits** of `bid`
 3. B channel converted to custom ctrlwr interface:
-   - `bresp != OKAY` → `ctrlwr_error`
+   - `bresp != OKAY` -> `ctrlwr_error`
 4. Error routed to correct channel
 
 ##### MonBus Aggregation Architecture
@@ -379,12 +379,12 @@ channel_id = axi_id[CHAN_WIDTH-1:0];
 ```
 MonBus Source Organization (35 total sources for 32 channels):
 
-Source Index  │ Component               │ Agent ID     │ Description
-──────────────┼─────────────────────────┼──────────────┼────────────────────
-0-31          │ Scheduler Groups        │ Variable*    │ Per-channel monitor packets
-32            │ Desc AXI Master Monitor │ 0x0A         │ Descriptor read monitoring
-33            │ Ctrl Read AXI Monitor   │ 0x0C         │ Control read monitoring
-34            │ Ctrl Write AXI Monitor  │ 0x0D         │ Control write monitoring
+Source Index  | Component               | Agent ID     | Description
+--------------+-------------------------+--------------+--------------------
+0-31          | Scheduler Groups        | Variable*    | Per-channel monitor packets
+32            | Desc AXI Master Monitor | 0x0A         | Descriptor read monitoring
+33            | Ctrl Read AXI Monitor   | 0x0C         | Control read monitoring
+34            | Ctrl Write AXI Monitor  | 0x0D         | Control write monitoring
 
 * Each scheduler_group internally aggregates 3 sources:
   - Descriptor Engine (agent ID: DESC_MON_AGENT_BASE + ch)
@@ -682,9 +682,9 @@ AXI_ID_WIDTH >= CHAN_WIDTH = $clog2(CHANNEL_COUNT)
 ```
 
 **Examples:**
-- 32 channels → CHAN_WIDTH = 5 → AXI_ID_WIDTH ≥ 5
-- 64 channels → CHAN_WIDTH = 6 → AXI_ID_WIDTH ≥ 6
-- 128 channels → CHAN_WIDTH = 7 → AXI_ID_WIDTH ≥ 7
+- 32 channels -> CHAN_WIDTH = 5 -> AXI_ID_WIDTH >= 5
+- 64 channels -> CHAN_WIDTH = 6 -> AXI_ID_WIDTH >= 6
+- 128 channels -> CHAN_WIDTH = 7 -> AXI_ID_WIDTH >= 7
 
 **Recommended:** Set `AXI_ID_WIDTH = 8` for flexibility up to 256 channels.
 

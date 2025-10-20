@@ -57,8 +57,8 @@ module scheduler #(
     input  logic [DATA_WIDTH-1:0]       descriptor_packet,
     input  logic                        descriptor_same,
     input  logic                        descriptor_error,
-    input  logic                        descriptor_is_rda,
-    input  logic [CHAN_WIDTH-1:0]       descriptor_rda_channel,
+    input  logic                        descriptor_is_cda,
+    input  logic [CHAN_WIDTH-1:0]       descriptor_cda_channel,
     input  logic                        descriptor_eos,
     input  logic                        descriptor_eol,
     input  logic                        descriptor_eod,
@@ -104,10 +104,10 @@ module scheduler #(
     output transfer_phase_t             data_transfer_phase,
     output logic                        data_sequence_complete,
 
-    // RDA Completion Interface
-    output logic                        rda_complete_valid,
-    input  logic                        rda_complete_ready,
-    output logic [CHAN_WIDTH-1:0]       rda_complete_channel,
+    // CDA Completion Interface
+    output logic                        cda_complete_valid,
+    input  logic                        cda_complete_ready,
+    output logic [CHAN_WIDTH-1:0]       cda_complete_channel,
 
     // Monitor Bus Interface
     output logic                        mon_valid,
@@ -676,12 +676,14 @@ module scheduler #(
                 r_timeout_counter <= 32'h0;
             end
 
-            // Error tracking
+            // Error tracking - capture errors when they occur
             if (data_error) r_data_error_sticky <= 1'b1;
             if (ctrlrd_error) r_ctrlrd_error_sticky <= 1'b1;
             if (ctrlwr_error) r_ctrlwr_error_sticky <= 1'b1;
 
-            if (r_current_state == SCHED_IDLE) begin
+            // Clear sticky errors only when transitioning FROM error state TO idle
+            // This ensures errors are held long enough to trigger ERROR state
+            if (r_current_state == SCHED_ERROR && w_next_state == SCHED_IDLE) begin
                 r_data_error_sticky <= 1'b0;
                 r_ctrlrd_error_sticky <= 1'b0;
                 r_ctrlwr_error_sticky <= 1'b0;

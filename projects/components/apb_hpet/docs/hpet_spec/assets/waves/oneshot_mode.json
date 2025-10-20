@@ -1,0 +1,55 @@
+{
+  "signal": [
+    {
+      "name": "hpet_clk",
+      "wave": "p..................",
+      "period": 1
+    },
+    {},
+    {
+      "name": "counter[31:0]",
+      "wave": "2.3.4.5.6.7.8.9....",
+      "data": ["295", "296", "297", "298", "299", "300", "301", "302"]
+    },
+    {
+      "name": "timer2_comparator",
+      "wave": "2..................",
+      "data": ["300"]
+    },
+    {
+      "name": "timer2_config.type",
+      "wave": "0..................",
+      "node": ".................A"
+    },
+    {
+      "name": "timer2_config.enable",
+      "wave": "1.................."
+    },
+    {},
+    {
+      "name": "timer2_irq",
+      "wave": "0..........1.......",
+      "node": "...........B"
+    },
+    {},
+    {
+      "name": "Note",
+      "wave": "x..........2...3...",
+      "data": ["Fire Once", "Stays Idle"]
+    }
+  ],
+  "edge": [
+    "A~>B One-Shot: Fire once, no auto-increment"
+  ],
+  "config": {
+    "hscale": 2
+  },
+  "head": {
+    "text": "HPET One-Shot Timer Mode",
+    "tick": 0
+  },
+  "foot": {
+    "text": "One-Shot Mode: Timer fires at counter=300, stays idle (no comparator auto-increment)",
+    "tock": 0
+  }
+}

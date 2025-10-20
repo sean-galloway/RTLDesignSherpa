@@ -45,11 +45,11 @@ The Sink AXI Write Engine provides high-performance multi-channel AXI write oper
 |-------------|------|-------|-----------|----------|-------------|
 | **data_valid** | logic | NUM_CHANNELS | Input | Yes | Data transfer request per channel |
 | **data_ready** | logic | NUM_CHANNELS | Output | Yes | Data transfer ready per channel |
-| **data_address** | logic | ADDR_WIDTH × NUM_CHANNELS | Input | Yes | Data address per channel |
-| **data_length** | logic | 32 × NUM_CHANNELS | Input | Yes | Data length per channel (in 4-byte chunks) |
-| **data_type** | logic | 2 × NUM_CHANNELS | Input | Yes | Data type per channel |
+| **data_address** | logic | ADDR_WIDTH x NUM_CHANNELS | Input | Yes | Data address per channel |
+| **data_length** | logic | 32 x NUM_CHANNELS | Input | Yes | Data length per channel (in 4-byte chunks) |
+| **data_type** | logic | 2 x NUM_CHANNELS | Input | Yes | Data type per channel |
 | **data_eos** | logic | NUM_CHANNELS | Input | Yes | End of Stream per channel |
-| **data_transfer_length** | logic | 32 × NUM_CHANNELS | Output | Yes | Actual transfer length per channel |
+| **data_transfer_length** | logic | 32 x NUM_CHANNELS | Output | Yes | Actual transfer length per channel |
 | **data_done_strobe** | logic | NUM_CHANNELS | Output | Yes | Transfer completion per channel |
 | **data_error** | logic | NUM_CHANNELS | Output | Yes | Transfer error per channel |
 
@@ -70,11 +70,11 @@ The Sink AXI Write Engine provides high-performance multi-channel AXI write oper
 |-------------|------|-------|-----------|----------|-------------|
 | **rd_valid** | logic | NUM_CHANNELS | Input | Yes | Read data valid per channel |
 | **rd_ready** | logic | NUM_CHANNELS | Output | Yes | Read data ready per channel |
-| **rd_data** | logic | DATA_WIDTH × NUM_CHANNELS | Input | Yes | Read data per channel |
-| **rd_type** | logic | 2 × NUM_CHANNELS | Input | Yes | Packet type per channel |
-| **rd_chunk_valid** | logic | NUM_CHUNKS × NUM_CHANNELS | Input | Yes | Chunk enables per channel |
-| **rd_used_count** | logic | 8 × NUM_CHANNELS | Input | Yes | Used entries per channel |
-| **rd_lines_for_transfer** | logic | 8 × NUM_CHANNELS | Input | Yes | Lines available for transfer per channel |
+| **rd_data** | logic | DATA_WIDTH x NUM_CHANNELS | Input | Yes | Read data per channel |
+| **rd_type** | logic | 2 x NUM_CHANNELS | Input | Yes | Packet type per channel |
+| **rd_chunk_valid** | logic | NUM_CHUNKS x NUM_CHANNELS | Input | Yes | Chunk enables per channel |
+| **rd_used_count** | logic | 8 x NUM_CHANNELS | Input | Yes | Used entries per channel |
+| **rd_lines_for_transfer** | logic | 8 x NUM_CHANNELS | Input | Yes | Lines available for transfer per channel |
 
 ##### AXI4 Master Write Interface
 
@@ -134,7 +134,7 @@ The Sink AXI Write Engine provides high-performance multi-channel AXI write oper
 The engine implements a revolutionary pure pipeline architecture:
 
 ```
-Channel Arbitration → Immediate AXI Address → Pipelined Data Flow → Natural Backpressure
+Channel Arbitration -> Immediate AXI Address -> Pipelined Data Flow -> Natural Backpressure
         ↓                      ↓                       ↓                      ↓
    Round-Robin           Zero-Cycle Issue        Perfect AXI Streaming    Backpressure Flow
    Fair Selection         No FSM Overhead        Optimal Bandwidth        Clean Interface
@@ -347,7 +347,7 @@ end
 #### Performance Characteristics
 
 ##### Throughput Analysis
-- **Peak Bandwidth**: 512 bits × 1 GHz = 512 Gbps theoretical maximum
+- **Peak Bandwidth**: 512 bits x 1 GHz = 512 Gbps theoretical maximum
 - **Sustained Rate**: >95% efficiency with proper buffer management
 - **Multi-Channel**: Full bandwidth utilization across active channels
 - **Zero-Cycle Arbitration**: No arbitration overhead in critical path

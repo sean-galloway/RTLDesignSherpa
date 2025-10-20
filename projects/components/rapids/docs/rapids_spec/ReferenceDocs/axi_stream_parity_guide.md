@@ -119,7 +119,7 @@ TKEEP_PARITY = ^8'b11110000   // = 0 (even parity)
 // Transmitted: TKEEP = 8'b11110000, TKEEP_PARITY = 0
 // Received:    TKEEP = 8'b11010000, TKEEP_PARITY = 0  (bit 2 flipped)
 // Computed:    ^8'b11010000 = 1
-// Error:       Received parity (0) ≠ Computed parity (1) → ERROR!
+// Error:       Received parity (0) != Computed parity (1) -> ERROR!
 ```
 
 **Implementation**:
@@ -141,8 +141,8 @@ wire tkeep_parity_error = (tkeep_parity != tkeep_parity_check);
 - `TVALID`: Data validity signal
 
 **Why Critical**: 
-- Corrupted `TVALID` → Receiver might miss data or process invalid data
-- Corrupted `TLAST` → Packet boundary errors, framing issues
+- Corrupted `TVALID` -> Receiver might miss data or process invalid data
+- Corrupted `TLAST` -> Packet boundary errors, framing issues
 
 ```verilog
 // Control signal combination
@@ -159,14 +159,14 @@ wire tctrl_parity_error = (tctrl_parity != tctrl_parity_check);
 **Example Scenarios**:
 ```
 Scenario 1 - Normal Operation:
-TLAST=1, TVALID=1 → TCTRL_PARITY = 1^1 = 0
-Received correctly → No error
+TLAST=1, TVALID=1 -> TCTRL_PARITY = 1^1 = 0
+Received correctly -> No error
 
 Scenario 2 - TLAST Corruption:
 Transmitted: TLAST=1, TVALID=1, TCTRL_PARITY=0
 Received:    TLAST=0, TVALID=1, TCTRL_PARITY=0  (TLAST corrupted)
 Computed:    0^1 = 1
-Error:       Received parity (0) ≠ Computed parity (1) → ERROR!
+Error:       Received parity (0) != Computed parity (1) -> ERROR!
 Result:      Receiver knows TLAST is corrupted
 ```
 
@@ -747,8 +747,8 @@ end
 
 ```verilog
 // Critical path analysis
-// Standard AXI4-Stream: TDATA → routing decision → TDATA_out
-// With parity: TDATA → parity_check → routing decision → parity_gen → TDATA_out
+// Standard AXI4-Stream: TDATA -> routing decision -> TDATA_out
+// With parity: TDATA -> parity_check -> routing decision -> parity_gen -> TDATA_out
 
 // Estimated delays (technology dependent):
 // Parity generation: ~2-3 LUT delays
@@ -795,10 +795,10 @@ Overhead percentage: ~17.5% for signals + error handling logic
 // Error case: Depends on recovery strategy
 
 // Strategy 1: Drop corrupted packets
-// Throughput = Base_throughput × (1 - Error_rate)
+// Throughput = Base_throughput x (1 - Error_rate)
 
 // Strategy 2: Retransmission
-// Throughput = Base_throughput × (1 - Error_rate) / (1 + Retrans_overhead)
+// Throughput = Base_throughput x (1 - Error_rate) / (1 + Retrans_overhead)
 
 // Strategy 3: Forward with error flag  
 // Throughput = Base_throughput (maintained)
@@ -809,8 +809,8 @@ Overhead percentage: ~17.5% for signals + error handling logic
 // Error rate: 1e-6 (1 error per million)
 // Retransmission overhead: 10%
 // 
-// Drop strategy: 1 Gbps × (1 - 1e-6) ≈ 1 Gbps (negligible impact)
-// Retrans strategy: 1 Gbps × 0.999999 / 1.1 ≈ 0.909 Gbps
+// Drop strategy: 1 Gbps x (1 - 1e-6) ≈ 1 Gbps (negligible impact)
+// Retrans strategy: 1 Gbps x 0.999999 / 1.1 ≈ 0.909 Gbps
 ```
 
 ### Power Consumption

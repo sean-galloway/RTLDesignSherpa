@@ -41,11 +41,11 @@ module descriptor_engine #(
     output logic                        apb_ready,
     input  logic [ADDR_WIDTH-1:0]       apb_addr,
 
-    // RDA Packet Interface (from Network Slave)
-    input  logic                        rda_valid,
-    output logic                        rda_ready,
-    input  logic [DATA_WIDTH-1:0]       rda_packet,
-    input  logic [CHAN_WIDTH-1:0]       rda_channel,
+    // CDA Packet Interface (from Network Slave)
+    input  logic                        cda_valid,
+    output logic                        cda_ready,
+    input  logic [DATA_WIDTH-1:0]       cda_packet,
+    input  logic [CHAN_WIDTH-1:0]       cda_channel,
 
     // Enhanced Scheduler Interface (with EOS/EOL/EOD support)
     output logic                        descriptor_valid,
@@ -53,8 +53,8 @@ module descriptor_engine #(
     output logic [DATA_WIDTH-1:0]       descriptor_packet,
     output logic                        descriptor_same,
     output logic                        descriptor_error,
-    output logic                        descriptor_is_rda,
-    output logic [CHAN_WIDTH-1:0]       descriptor_rda_channel,
+    output logic                        descriptor_is_cda,
+    output logic [CHAN_WIDTH-1:0]       descriptor_cda_channel,
 
     // NEW: Enhanced control signal outputs
     output logic                        descriptor_eos,        // End of Stream
@@ -121,8 +121,8 @@ module descriptor_engine #(
     typedef struct packed {
         logic [DATA_WIDTH-1:0]     data;        // Descriptor data
         logic                      same_flag;   // Same descriptor flag
-        logic                      is_rda;      // RDA packet indicator
-        logic [CHAN_WIDTH-1:0]     rda_channel; // RDA channel ID
+        logic                      is_cda;      // CDA packet indicator
+        logic [CHAN_WIDTH-1:0]     cda_channel; // CDA channel ID
         logic                      eos;         // NEW: End of Stream
         logic                      eol;         // NEW: End of Line
         logic                      eod;         // NEW: End of Data
@@ -148,10 +148,17 @@ module descriptor_engine #(
     logic w_apb_skid_valid_out, w_apb_skid_ready_out;
     logic [ADDR_WIDTH-1:0] w_apb_skid_dout;
 
-    // RDA skid buffer signals
-    logic w_rda_skid_valid_in, w_rda_skid_ready_in;
-    logic w_rda_skid_valid_out, w_rda_skid_ready_out;
-    logic [DATA_WIDTH + CHAN_WIDTH - 1:0] w_rda_skid_din, w_rda_skid_dout;
+    // CDA skid buffer signals
+    logic w_cda_skid_valid_in, w_cda_skid_ready_in;
+    logic w_cda_skid_valid_out, w_cda_skid_ready_out;
+    logic [DATA_WIDTH + CHAN_WIDTH - 1:0] w_cda_skid_din, w_cda_skid_dout;
+
+    // Descriptor read address FIFO (for APB initial + autonomous chaining)
+    localparam int DESC_ADDR_FIFO_DEPTH = 2;
+    logic w_desc_addr_fifo_wr_valid, w_desc_addr_fifo_wr_ready;
+    logic w_desc_addr_fifo_rd_valid, w_desc_addr_fifo_rd_ready;
+    logic [ADDR_WIDTH-1:0] w_desc_addr_fifo_wr_data, w_desc_addr_fifo_rd_data;
+    logic w_desc_addr_fifo_empty;
 
     // Descriptor FIFO signals
     logic w_desc_fifo_wr_valid, w_desc_fifo_wr_ready;
@@ -160,7 +167,7 @@ module descriptor_engine #(
 
     // Operation tracking
     logic r_apb_operation_active;
-    logic r_rda_operation_active;
+    logic r_cda_operation_active;
 
     // AXI transaction tracking
     logic r_axi_read_active;
@@ -171,10 +178,16 @@ module descriptor_engine #(
     logic [DATA_WIDTH-1:0] r_descriptor_data;
     logic [ADDR_WIDTH-1:0] r_saved_next_addr;
 
+    // Autonomous chaining tracking (APB ONLY - CDA never chains)
+    logic r_descriptor_from_apb;  // Track if current descriptor came from APB path
+    logic w_should_chain;          // Should fetch next descriptor autonomously?
+    logic w_chain_addr_valid;      // Is chain address valid?
+
     // Enhanced field extraction
     logic w_desc_eos, w_desc_eol, w_desc_eod;
     logic [1:0] w_desc_type;
     logic [ADDR_WIDTH-1:0] w_next_addr;
+    logic w_desc_last;  // Last descriptor in chain flag
 
     // Validation signals
     logic w_validation_passed;
@@ -202,16 +215,17 @@ module descriptor_engine #(
         end
     end
 
-    // Safe to reset conditions
-    assign w_fifos_empty = !w_apb_skid_valid_out && !w_rda_skid_valid_out && !w_desc_fifo_rd_valid;
-    assign w_no_active_operations = !r_apb_operation_active && !r_rda_operation_active && !r_axi_read_active;
+    // Safe to reset conditions (now includes descriptor address FIFO)
+    assign w_fifos_empty = !w_apb_skid_valid_out && !w_cda_skid_valid_out &&
+                          !w_desc_fifo_rd_valid && !w_desc_addr_fifo_rd_valid;
+    assign w_no_active_operations = !r_apb_operation_active && !r_cda_operation_active && !r_axi_read_active;
     assign w_safe_to_reset = w_fifos_empty && w_no_active_operations && (r_current_state == read_IDLE);
 
-    // Engine idle signal
+    // Engine idle signal (includes address FIFO)
     assign descriptor_engine_idle = (r_current_state == read_IDLE) && !r_channel_reset_active && w_fifos_empty;
 
     //=========================================================================
-    // APB Skid Buffer
+    // APB Skid Buffer (feeds descriptor address FIFO)
     //=========================================================================
 
     // Input side: Accept APB when not in reset
@@ -235,43 +249,111 @@ module descriptor_engine #(
         .rd_count()
     );
 
-    assign w_apb_skid_ready_out = (r_current_state == read_IDLE) && !r_rda_operation_active && !r_channel_reset_active;
+    // APB skid buffer feeds descriptor address FIFO (when FIFO has space)
+    assign w_apb_skid_ready_out = w_desc_addr_fifo_wr_ready && !r_channel_reset_active;
 
     //=========================================================================
-    // RDA Skid Buffer
+    // CDA Skid Buffer
     //=========================================================================
 
-    // Input side: Accept RDA when not in reset
-    assign w_rda_skid_valid_in = rda_valid && !r_channel_reset_active;
-    assign rda_ready = w_rda_skid_ready_in && !r_channel_reset_active;
-    assign w_rda_skid_din = {rda_packet, rda_channel};
+    // Input side: Accept CDA when not in reset
+    assign w_cda_skid_valid_in = cda_valid && !r_channel_reset_active;
+    assign cda_ready = w_cda_skid_ready_in && !r_channel_reset_active;
+    assign w_cda_skid_din = {cda_packet, cda_channel};
 
     gaxi_skid_buffer #(
         .DATA_WIDTH(DATA_WIDTH + CHAN_WIDTH),
         .DEPTH(2),
-        .INSTANCE_NAME("RDA_PKT_SKID")
-    ) i_rda_skid_buffer (
+        .INSTANCE_NAME("CDA_PKT_SKID")
+    ) i_cda_skid_buffer (
         .axi_aclk(clk),
         .axi_aresetn(rst_n),
-        .wr_valid(w_rda_skid_valid_in),
-        .wr_ready(w_rda_skid_ready_in),
-        .wr_data(w_rda_skid_din),
-        .rd_valid(w_rda_skid_valid_out),
-        .rd_ready(w_rda_skid_ready_out),
-        .rd_data(w_rda_skid_dout),
+        .wr_valid(w_cda_skid_valid_in),
+        .wr_ready(w_cda_skid_ready_in),
+        .wr_data(w_cda_skid_din),
+        .rd_valid(w_cda_skid_valid_out),
+        .rd_ready(w_cda_skid_ready_out),
+        .rd_data(w_cda_skid_dout),
         .count(),
         .rd_count()
     );
 
-    assign w_rda_skid_ready_out = (r_current_state == read_IDLE) && !r_apb_operation_active && !r_channel_reset_active;
+    assign w_cda_skid_ready_out = (r_current_state == read_IDLE) && !r_apb_operation_active && !r_channel_reset_active;
+
+    //=========================================================================
+    // Descriptor Read Address FIFO (APB initial + autonomous chaining)
+    //=========================================================================
+    // This FIFO holds addresses for descriptor fetches:
+    // - Initial APB writes (from APB skid buffer)
+    // - Autonomous chain fetches (from completed descriptor's next_descriptor_ptr)
+    //
+    // CRITICAL: Only APB-initiated descriptors can chain. CDA descriptors never chain.
+
+    // Write side: Two sources can write to address FIFO
+    // 1. APB skid buffer output (initial descriptor fetch)
+    // 2. Autonomous chaining logic (next_descriptor_ptr from APB-sourced descriptor)
+    assign w_desc_addr_fifo_wr_valid = (w_apb_skid_valid_out && w_apb_skid_ready_out) ||
+                                       (w_should_chain && w_chain_addr_valid);
+
+    // Mux between APB initial address and autonomous chain address
+    assign w_desc_addr_fifo_wr_data = (w_apb_skid_valid_out && w_apb_skid_ready_out) ?
+                                      w_apb_skid_dout : r_saved_next_addr;
+
+    // Read side: FSM reads when ready to issue AXI request
+    assign w_desc_addr_fifo_rd_ready = (r_current_state == read_IDLE) &&
+                                       !r_cda_operation_active &&
+                                       !r_channel_reset_active;
+
+    gaxi_fifo_sync #(
+        .DATA_WIDTH(ADDR_WIDTH),
+        .DEPTH(DESC_ADDR_FIFO_DEPTH),
+        .INSTANCE_NAME("DESC_ADDR_FIFO")
+    ) i_desc_addr_fifo (
+        .axi_aclk(clk),
+        .axi_aresetn(rst_n),
+        .wr_valid(w_desc_addr_fifo_wr_valid),
+        .wr_ready(w_desc_addr_fifo_wr_ready),
+        .wr_data(w_desc_addr_fifo_wr_data),
+        .rd_valid(w_desc_addr_fifo_rd_valid),
+        .rd_ready(w_desc_addr_fifo_rd_ready),
+        .rd_data(w_desc_addr_fifo_rd_data),
+        .count()
+    );
+
+    // FIFO empty when no valid data available (rd_valid = 0)
+    assign w_desc_addr_fifo_empty = !w_desc_addr_fifo_rd_valid;
+
+    //=========================================================================
+    // Autonomous Chaining Logic (APB descriptors ONLY)
+    //=========================================================================
+    // Check if we should autonomously fetch the next descriptor
+    // ONLY for APB-sourced descriptors (never for CDA)
+
+    // Address range validation for chain address
+    assign w_chain_addr_valid = ((r_saved_next_addr >= cfg_addr0_base && r_saved_next_addr <= cfg_addr0_limit) ||
+                                 (r_saved_next_addr >= cfg_addr1_base && r_saved_next_addr <= cfg_addr1_limit));
+
+    // Should chain if:
+    // 1. Descriptor came from APB (not CDA)
+    // 2. Not marked as last descriptor
+    // 3. next_descriptor_ptr is non-zero
+    // 4. Chain address passes validation
+    // 5. Address FIFO has space
+    // 6. Just completed a descriptor fetch
+    assign w_should_chain = r_descriptor_from_apb &&              // APB-sourced only
+                           !w_desc_last &&                        // Not last
+                           (r_saved_next_addr != '0) &&          // Has next ptr
+                           w_chain_addr_valid &&                  // Valid address
+                           w_desc_addr_fifo_wr_ready &&          // FIFO has space
+                           (r_current_state == read_COMPLETE);   // Just completed
 
     //=========================================================================
     // Enhanced Descriptor FIFO with EOS/EOL/EOD Support
     //=========================================================================
 
     // FIFO ready for writes when not in reset
-    assign w_desc_fifo_wr_valid = ((r_current_state == read_COMPLETE) || 
-                                   (w_rda_skid_valid_out && w_rda_skid_ready_out)) && 
+    assign w_desc_fifo_wr_valid = ((r_current_state == read_COMPLETE) ||
+                                   (w_cda_skid_valid_out && w_cda_skid_ready_out)) &&
                                    !r_channel_reset_active;
 
     assign w_desc_fifo_rd_ready = descriptor_ready && !r_channel_reset_active;
@@ -304,14 +386,22 @@ module descriptor_engine #(
         w_desc_eod = 1'b0;
         w_desc_type = 2'b00;
         w_next_addr = 64'h0;
+        w_desc_last = 1'b1;  // Default to last
 
-        // Extract fields based on descriptor format
-        // Assuming descriptor has control fields in upper bits
+        // Extract fields based on RAPIDS descriptor format
+        // Assuming similar format to STREAM with control fields in upper bits
         w_desc_eos = r_descriptor_data[511];        // Bit 511: EOS
         w_desc_eol = r_descriptor_data[510];        // Bit 510: EOL
         w_desc_eod = r_descriptor_data[509];        // Bit 509: EOD
+        w_desc_last = r_descriptor_data[506];       // Bit 506: Last descriptor flag
         w_desc_type = r_descriptor_data[508:507];   // Bits 508:507: Type
-        w_next_addr = r_descriptor_data[ADDR_WIDTH-1:0]; // Next descriptor address
+
+        // Next descriptor pointer (lower 32 bits or 64 bits depending on ADDR_WIDTH)
+        if (ADDR_WIDTH <= 32) begin
+            w_next_addr = {{(ADDR_WIDTH-32){1'b0}}, r_descriptor_data[31:0]};
+        end else begin
+            w_next_addr = r_descriptor_data[ADDR_WIDTH-1:0];
+        end
     end
 
     //=========================================================================
@@ -359,10 +449,11 @@ module descriptor_engine #(
             read_IDLE: begin
                 if (r_channel_reset_active) begin
                     w_next_state = read_IDLE; // Stay in idle during reset
-                end else if (w_apb_skid_valid_out && w_apb_skid_ready_out) begin
+                end else if (w_desc_addr_fifo_rd_valid && w_desc_addr_fifo_rd_ready) begin
+                    // Address FIFO has descriptor fetch address (APB initial or autonomous chain)
                     w_next_state = read_ISSUE_ADDR;
-                end else if (w_rda_skid_valid_out && w_rda_skid_ready_out && w_desc_fifo_wr_ready) begin
-                    w_next_state = read_IDLE; // RDA packets processed immediately
+                end else if (w_cda_skid_valid_out && w_cda_skid_ready_out && w_desc_fifo_wr_ready) begin
+                    w_next_state = read_IDLE; // CDA packets processed immediately (never chain)
                 end
             end
 
@@ -409,23 +500,26 @@ module descriptor_engine #(
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             r_apb_operation_active <= 1'b0;
-            r_rda_operation_active <= 1'b0;
+            r_cda_operation_active <= 1'b0;
             r_axi_read_active <= 1'b0;
             r_axi_read_addr <= 64'h0;
             r_axi_read_resp <= 2'b00;
             r_descriptor_data <= '0;
             r_saved_next_addr <= 64'h0;
             r_descriptor_error <= 1'b0;
+            r_descriptor_from_apb <= 1'b0;
         end else begin
             case (r_current_state)
                 read_IDLE: begin
-                    if (w_apb_skid_valid_out && w_apb_skid_ready_out) begin
-                        // Start APB operation
+                    if (w_desc_addr_fifo_rd_valid && w_desc_addr_fifo_rd_ready) begin
+                        // Start descriptor fetch from address FIFO (APB initial or autonomous chain)
                         r_apb_operation_active <= 1'b1;
-                        r_axi_read_addr <= w_apb_skid_dout;
-                    end else if (w_rda_skid_valid_out && w_rda_skid_ready_out) begin
-                        // Process RDA packet immediately
-                        r_rda_operation_active <= 1'b1;
+                        r_descriptor_from_apb <= 1'b1;  // Mark as APB-sourced (can chain)
+                        r_axi_read_addr <= w_desc_addr_fifo_rd_data;
+                    end else if (w_cda_skid_valid_out && w_cda_skid_ready_out) begin
+                        // Process CDA packet immediately (never chains)
+                        r_cda_operation_active <= 1'b1;
+                        r_descriptor_from_apb <= 1'b0;  // Mark as CDA-sourced (no chain)
                     end
                     r_descriptor_error <= 1'b0;
                 end
@@ -440,7 +534,13 @@ module descriptor_engine #(
                     if (w_our_axi_response && r_valid) begin
                         r_descriptor_data <= r_data;
                         r_axi_read_resp <= r_resp;
-                        r_saved_next_addr <= w_next_addr;
+                        // Save next address for potential autonomous chaining
+                        // Extract during AXI response to have it ready for chaining decision
+                        if (ADDR_WIDTH <= 32) begin
+                            r_saved_next_addr <= {{(ADDR_WIDTH-32){1'b0}}, r_data[31:0]};
+                        end else begin
+                            r_saved_next_addr <= r_data[ADDR_WIDTH-1:0];
+                        end
                     end
                 end
 
@@ -454,7 +554,7 @@ module descriptor_engine #(
                 read_ERROR: begin
                     r_descriptor_error <= 1'b1;
                     r_apb_operation_active <= 1'b0;
-                    r_rda_operation_active <= 1'b0;
+                    r_cda_operation_active <= 1'b0;
                     r_axi_read_active <= 1'b0;
                 end
 
@@ -463,17 +563,18 @@ module descriptor_engine #(
                 end
             endcase
 
-            // Handle RDA packet completion
-            if (r_rda_operation_active && w_desc_fifo_wr_ready && (r_current_state == read_IDLE)) begin
-                r_rda_operation_active <= 1'b0;
+            // Handle CDA packet completion
+            if (r_cda_operation_active && w_desc_fifo_wr_ready && (r_current_state == read_IDLE)) begin
+                r_cda_operation_active <= 1'b0;
             end
 
             // FIXED: Reset all operations during channel reset
             if (r_channel_reset_active) begin
                 r_apb_operation_active <= 1'b0;
-                r_rda_operation_active <= 1'b0;
+                r_cda_operation_active <= 1'b0;
                 r_axi_read_active <= 1'b0;
                 r_descriptor_error <= 1'b0;
+                r_descriptor_from_apb <= 1'b0;
             end
         end
     end
@@ -489,23 +590,23 @@ module descriptor_engine #(
             // APB-fetched descriptor
             w_desc_fifo_wr_data.data = r_descriptor_data;
             w_desc_fifo_wr_data.same_flag = 1'b0; // APB descriptors are never "same"
-            w_desc_fifo_wr_data.is_rda = 1'b0;
-            w_desc_fifo_wr_data.rda_channel = '0;
+            w_desc_fifo_wr_data.is_cda = 1'b0;
+            w_desc_fifo_wr_data.cda_channel = '0;
             w_desc_fifo_wr_data.eos = w_desc_eos;
             w_desc_fifo_wr_data.eol = w_desc_eol;
             w_desc_fifo_wr_data.eod = w_desc_eod;
             w_desc_fifo_wr_data.pkt_type = w_desc_type;
-        end else if (w_rda_skid_valid_out && w_rda_skid_ready_out) begin
-            // RDA packet (direct pass-through)
-            w_desc_fifo_wr_data.data = w_rda_skid_dout[DATA_WIDTH + CHAN_WIDTH - 1:CHAN_WIDTH];
-            w_desc_fifo_wr_data.same_flag = 1'b1; // RDA packets marked as "same"
-            w_desc_fifo_wr_data.is_rda = 1'b1;
-            w_desc_fifo_wr_data.rda_channel = w_rda_skid_dout[CHAN_WIDTH-1:0];
-            // Extract EOS/EOL/EOD from RDA packet
-            w_desc_fifo_wr_data.eos = w_rda_skid_dout[DATA_WIDTH + CHAN_WIDTH - 1]; // MSB
-            w_desc_fifo_wr_data.eol = w_rda_skid_dout[DATA_WIDTH + CHAN_WIDTH - 2];
-            w_desc_fifo_wr_data.eod = w_rda_skid_dout[DATA_WIDTH + CHAN_WIDTH - 3];
-            w_desc_fifo_wr_data.pkt_type = w_rda_skid_dout[DATA_WIDTH + CHAN_WIDTH - 4:DATA_WIDTH + CHAN_WIDTH - 5];
+        end else if (w_cda_skid_valid_out && w_cda_skid_ready_out) begin
+            // CDA packet (direct pass-through)
+            w_desc_fifo_wr_data.data = w_cda_skid_dout[DATA_WIDTH + CHAN_WIDTH - 1:CHAN_WIDTH];
+            w_desc_fifo_wr_data.same_flag = 1'b1; // CDA packets marked as "same"
+            w_desc_fifo_wr_data.is_cda = 1'b1;
+            w_desc_fifo_wr_data.cda_channel = w_cda_skid_dout[CHAN_WIDTH-1:0];
+            // Extract EOS/EOL/EOD from CDA packet
+            w_desc_fifo_wr_data.eos = w_cda_skid_dout[DATA_WIDTH + CHAN_WIDTH - 1]; // MSB
+            w_desc_fifo_wr_data.eol = w_cda_skid_dout[DATA_WIDTH + CHAN_WIDTH - 2];
+            w_desc_fifo_wr_data.eod = w_cda_skid_dout[DATA_WIDTH + CHAN_WIDTH - 3];
+            w_desc_fifo_wr_data.pkt_type = w_cda_skid_dout[DATA_WIDTH + CHAN_WIDTH - 4:DATA_WIDTH + CHAN_WIDTH - 5];
         end
     end
 
@@ -582,8 +683,8 @@ module descriptor_engine #(
     assign descriptor_valid = w_desc_fifo_rd_valid;
     assign descriptor_packet = w_desc_fifo_rd_data.data;
     assign descriptor_same = w_desc_fifo_rd_data.same_flag;
-    assign descriptor_is_rda = w_desc_fifo_rd_data.is_rda;
-    assign descriptor_rda_channel = w_desc_fifo_rd_data.rda_channel;
+    assign descriptor_is_cda = w_desc_fifo_rd_data.is_cda;
+    assign descriptor_cda_channel = w_desc_fifo_rd_data.cda_channel;
     assign descriptor_error = r_descriptor_error;
 
     // NEW: Enhanced control signal outputs
@@ -604,7 +705,7 @@ module descriptor_engine #(
     // Operation exclusivity
     property operation_exclusive;
         @(posedge clk) disable iff (!rst_n)
-        !(r_apb_operation_active && r_rda_operation_active);
+        !(r_apb_operation_active && r_cda_operation_active);
     endproperty
     assert property (operation_exclusive);
 
@@ -632,13 +733,13 @@ module descriptor_engine #(
     // FIXED: Channel reset properties
     property channel_reset_blocks_inputs;
         @(posedge clk) disable iff (!rst_n)
-        r_channel_reset_active |-> (!w_apb_skid_ready_out && !w_rda_skid_ready_out);
+        r_channel_reset_active |-> (!w_apb_skid_ready_out && !w_cda_skid_ready_out);
     endproperty
     assert property (channel_reset_blocks_inputs);
 
     property channel_reset_clears_operations;
         @(posedge clk) disable iff (!rst_n)
-        r_channel_reset_active |-> ##[1:10] (!r_apb_operation_active && !r_rda_operation_active);
+        r_channel_reset_active |-> ##[1:10] (!r_apb_operation_active && !r_cda_operation_active);
     endproperty
     assert property (channel_reset_clears_operations);
 

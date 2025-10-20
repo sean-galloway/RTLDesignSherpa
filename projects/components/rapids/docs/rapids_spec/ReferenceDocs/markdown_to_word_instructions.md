@@ -52,15 +52,15 @@ Your markdown directory must contain:
 
 ```
 docs/
-├── index.md                 # Structure definition
-├── introduction.md          # Chapter content
-├── getting-started.md       # Chapter content
-├── advanced-topics.md       # Chapter content
-├── best-practices.md        # Chapter content
-└── images/                  # Image assets
-    ├── diagram1.png
-    ├── screenshot1.jpg
-    └── logo.svg
++-- index.md                 # Structure definition
++-- introduction.md          # Chapter content
++-- getting-started.md       # Chapter content
++-- advanced-topics.md       # Chapter content
++-- best-practices.md        # Chapter content
++-- images/                  # Image assets
+    +-- diagram1.png
+    +-- screenshot1.jpg
+    +-- logo.svg
 ```
 
 ## Creating index.md
@@ -205,9 +205,9 @@ Create a basic document from a few markdown files:
 **Directory structure:**
 ```
 my-docs/
-├── index.md
-├── intro.md
-└── conclusion.md
++-- index.md
++-- intro.md
++-- conclusion.md
 ```
 
 **index.md content:**
@@ -233,16 +233,16 @@ Create a multi-chapter technical manual:
 **Directory structure:**
 ```
 technical-manual/
-├── index.md
-├── chapters/
-│   ├── 01-introduction.md
-│   ├── 02-installation.md
-│   ├── 03-configuration.md
-│   ├── 04-usage.md
-│   └── 05-troubleshooting.md
-└── assets/
-    ├── screenshots/
-    └── diagrams/
++-- index.md
++-- chapters/
+|   +-- 01-introduction.md
+|   +-- 02-installation.md
+|   +-- 03-configuration.md
+|   +-- 04-usage.md
+|   +-- 05-troubleshooting.md
++-- assets/
+    +-- screenshots/
+    +-- diagrams/
 ```
 
 **index.md content:**
@@ -275,16 +275,16 @@ Convert API documentation with code examples:
 **Directory structure:**
 ```
 api-docs/
-├── index.md
-├── overview.md
-├── authentication.md
-├── endpoints/
-│   ├── users.md
-│   ├── projects.md
-│   └── reports.md
-└── examples/
-    ├── curl-examples.md
-    └── python-examples.md
++-- index.md
++-- overview.md
++-- authentication.md
++-- endpoints/
+|   +-- users.md
+|   +-- projects.md
+|   +-- reports.md
++-- examples/
+    +-- curl-examples.md
+    +-- python-examples.md
 ```
 
 **Command:**

@@ -1,19 +1,24 @@
 # APB Config Specification
 
-**Module:** `apb_config.sv`
-**Location:** `rtl/stream_macro/`
-**Status:** Placeholder (PeakRDL generation planned)
+**Module:** `stream_regs.rdl` (PeakRDL definition) + wrapper
+**Location:** `regs/` (definition), `rtl/stream_macro/` (wrapper)
+**Status:** Future - PeakRDL generation planned (following HPET pattern)
 
 ---
 
 ## Overview
 
-The APB Config module provides the APB slave interface for STREAM configuration and control. It wraps PeakRDL-generated registers and optionally includes clock domain crossing (CDC) logic.
+The APB Config provides the APB slave interface for STREAM configuration and control. Following the same pattern as `apb_hpet`, this will be implemented using:
+1. PeakRDL register definition (`stream_regs.rdl`)
+2. Auto-generated register RTL (`peakrdl_generate.py`)
+3. Wrapper module with optional CDC (`apb_slave_cdc`)
 
-### Current Status
+### Implementation Status
 
-**Phase 1 (Current):** Manual placeholder implementation
-**Phase 2 (Future):** PeakRDL-generated registers with wrapper
+**Current:** Not yet implemented - deferred until after Phase 2 RTL completion
+**Future:** Will follow HPET pattern with PeakRDL-generated registers
+
+**Reference:** See `projects/components/apb_hpet/` for proven implementation pattern
 
 ### Key Features
 
@@ -186,20 +191,24 @@ end
 
 ---
 
-## PeakRDL Integration (Future)
+## PeakRDL Generation Workflow
 
-### Generation Workflow
+### Step-by-Step Process
 
-**See:** `regs/README.md` for complete workflow
+**See:** `regs/README.md` for complete workflow details
 
-1. **Create:** `regs/stream_regs.rdl`
-2. **Generate:** `peakrdl regblock stream_regs.rdl -o regs/generated/`
-3. **Update:** `apb_config.sv` to instantiate generated registers
+1. **Create:** `regs/stream_regs.rdl` (register definition)
+2. **Generate:**
+   ```bash
+   cd projects/components/stream/regs
+   ../../bin/peakrdl_generate.py stream_regs.rdl --copy-rtl ../rtl/stream_macro
+   ```
+3. **Create Wrapper:** `rtl/stream_macro/apb_config.sv` to instantiate generated registers
 
-### Wrapper Pattern
+### Wrapper Pattern (Future Implementation)
 
 ```systemverilog
-// Future: apb_config.sv becomes wrapper
+// apb_config.sv wrapper (to be created)
 module apb_config (
     // APB interface
     input  logic        pclk,

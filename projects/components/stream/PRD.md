@@ -150,26 +150,124 @@ STREAM (Scatter-gather Transfer Rapid Engine for AXI Memory)
 
 ## 5. Key Components
 
-### 5.1 Descriptor Engine
+### 5.1 Descriptor Engine (APB-Only for STREAM)
 
-**Source:** Direct copy from RAPIDS `descriptor_engine.sv`
+**Source:** Adapted from RAPIDS `descriptor_engine.sv`
 
 **Purpose:**
-- FIFO-based descriptor storage
-- APB interface for descriptor writes
-- RDA (Read Descriptor Array) interface for AXI descriptor fetch
-- Descriptor parsing and distribution
+- Autonomous descriptor fetch and chaining
+- APB interface for initial descriptor address
+- AXI read interface for descriptor memory fetches
+- Descriptor FIFO storage and distribution
 
-**Why Reuse:**
-- Proven, tested design from RAPIDS
-- 100% test pass rate (14/14 tests)
-- Comprehensive APB and RDA path coverage
+**Key Features:**
+- ✅ **Autonomous chaining:** Automatically fetches next descriptor if `next_descriptor_ptr != 0` AND `last == 0`
+- ✅ **Address validation:** Validates next descriptor addresses against `cfg_addr0/1_base/limit`
+- ✅ **APB blocking:** APB blocked until `channel_idle == 1` (channel fully idle)
+- ✅ **Error handling:** AXI errors stop chaining, set `descriptor_error`, block `descriptor_valid`
 
-**Adaptation:**
-- Update package import (`stream_imports.svh` instead of `rapids_imports.svh`)
-- Minimal changes to core logic
+**Adaptations from RAPIDS:**
+- ❌ **RDA removed:** STREAM is memory-to-memory only (no network interfaces)
+- ✅ **APB-only:** Single APB write kicks off entire descriptor chain
+- ✅ **Descriptor Read Address FIFO:** 2-deep FIFO stores addresses for AXI fetch (APB + chaining)
+- ✅ **Chaining logic:** Descriptor engine autonomously manages `next_descriptor_ptr` chaining
 
-### 5.2 Scheduler (Simplified from RAPIDS)
+**Idle Signal:**
+- `descriptor_engine_idle` asserted when:
+  - FSM in `RD_IDLE` state
+  - No pending descriptor fetches (address FIFO empty)
+  - No active AXI transactions
+
+### 5.2 Scheduler Group (Integration Wrapper)
+
+**Purpose:** Wraps descriptor engine and scheduler into a single channel processing unit
+
+**Architecture:**
+```systemverilog
+scheduler_group (
+    // APB interface (from APB config slave)
+    .apb_valid         (apb_valid),
+    .apb_ready         (apb_ready),   // Blocked when channel not idle
+    .apb_addr          (descriptor_addr),
+
+    // Channel idle signal composition (CRITICAL!)
+    .channel_idle      (channel_idle),
+
+    // Descriptor → Scheduler flow
+    .descriptor_valid  (desc_valid),
+    .descriptor_ready  (desc_ready),
+    .descriptor_packet (desc_packet),
+
+    // Data engine interfaces
+    .datard_*          (datard_*),    // Read engine
+    .datawr_*          (datawr_*),    // Write engine
+
+    // Status
+    .scheduler_idle    (sched_idle),
+    .descriptor_idle   (desc_idle)
+);
+```
+
+**Channel Idle Signal Composition:**
+
+```systemverilog
+// Channel is idle ONLY when BOTH sub-blocks are idle
+assign channel_idle = scheduler_idle && descriptor_engine_idle;
+```
+
+**Why Both Signals Matter:**
+
+| Signal | Indicates | Used For |
+|--------|-----------|----------|
+| `scheduler_idle` | No active data transfers, all descriptors processed | Prevents new APB request during active transfer |
+| `descriptor_engine_idle` | No pending descriptor fetches (FIFO empty) | Prevents new APB request during chaining |
+| `channel_idle` (AND of both) | Channel fully quiescent | **Gates APB interface** |
+
+**APB Blocking Logic:**
+
+```systemverilog
+// Descriptor engine blocks APB when channel not idle
+assign apb_ready = apb_skid_ready_in &&
+                   !r_channel_reset_active &&
+                   w_desc_addr_fifo_empty &&    // No pending fetches
+                   channel_idle;                 // Scheduler + descriptor idle
+```
+
+**Example Scenario:**
+
+```
+1. Software writes APB → descriptor_addr = 0x1000
+   - channel_idle = 1 (both idle)
+   - APB accepted
+
+2. Descriptor engine fetches descriptor @ 0x1000
+   - descriptor_engine_idle = 0 (fetch in progress)
+   - channel_idle = 0
+   - APB BLOCKED
+
+3. Descriptor pushed to scheduler
+   - descriptor_engine_idle = 1 (fetch complete)
+   - scheduler_idle = 0 (transfer starting)
+   - channel_idle = 0
+   - APB BLOCKED
+
+4. Scheduler completes data transfer
+   - Descriptor has next_descriptor_ptr = 0x1100 (chained!)
+   - Descriptor engine autonomously fetches @ 0x1100
+   - descriptor_engine_idle = 0 (autonomous fetch)
+   - channel_idle = 0
+   - APB BLOCKED
+
+5. Final descriptor completes (last = 1 OR next_ptr = 0)
+   - scheduler_idle = 1 (transfer done)
+   - descriptor_engine_idle = 1 (no more fetches)
+   - channel_idle = 1
+   - APB UNBLOCKED (ready for next transfer!)
+```
+
+**Key Insight:** The AND gate ensures software cannot interrupt a descriptor chain in progress!
+
+### 5.3 Scheduler (Simplified from RAPIDS)
 
 **Purpose:**
 - Coordinate descriptor-to-data-transfer flow
@@ -649,6 +747,49 @@ projects/components/stream/dv/tests/
 ### 16.4 SRAM Partitioning
 - **Q:** Single shared SRAM, or per-channel SRAMs?
 - **A (pending):** Propose single shared SRAM with arbitration (matches RAPIDS pattern)
+
+---
+
+## 16. Attribution and Contribution Guidelines
+
+### 16.1 Git Commit Attribution
+
+When creating git commits for STREAM documentation or implementation:
+
+**Use:**
+```
+Documentation and implementation support by Claude.
+```
+
+**Do NOT use:**
+```
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+**Rationale:** STREAM documentation and organization receives AI assistance for structure and clarity, while design concepts and architectural decisions remain human-authored.
+
+---
+
+## 16.2 PDF Generation Location
+
+**IMPORTANT: PDF files should be generated in the docs directory:**
+```
+/mnt/data/github/rtldesignsherpa/projects/components/stream/docs/
+```
+
+**Quick Command:** Use the provided shell script:
+```bash
+cd /mnt/data/github/rtldesignsherpa/projects/components/stream/docs
+./generate_pdf.sh
+```
+
+The shell script will automatically:
+1. Use the md_to_docx.py tool from bin/
+2. Process the stream_spec index file
+3. Generate both DOCX and PDF files in the docs/ directory
+4. Create table of contents and title page
+
+**📖 See:** `bin/md_to_docx.py` for complete implementation details
 
 ---
 

@@ -2,18 +2,24 @@
 
 #### Overview
 
-The Descriptor Engine manages descriptor fetching and buffering operations with sophisticated dual-path processing for APB and RDA requests. The module implements a six-state state machine that handles descriptor address management, AXI read operations, descriptor parsing, and prefetch optimization with comprehensive stream boundary support and channel reset coordination.
+The Descriptor Engine manages descriptor fetching and buffering operations with sophisticated dual-path processing for APB and CDA (Compute Direct Access packet) requests. The module implements a six-state state machine that handles descriptor address management, AXI read operations, descriptor parsing, and prefetch optimization with comprehensive stream boundary support and channel reset coordination.
 
-![descriptor engine](/mnt/data/github/tsunami/design/rapids/markdown/rapids_spec/draw.io/png/descriptor_engine.png)
+**Delta Network Integration:**
+- **CDA Interface:** The CDA (Compute Direct Access) packet interface receives CDA packets from HIVE-C via the Delta Network
+- **Inband Descriptor Injection:** HIVE-C injects descriptors as CDA packets (TUSER=2'b01) through Delta Network virtual tile 16
+- **Priority Processing:** CDA packets processed with higher priority than APB requests for low-latency descriptor delivery
+- **Packet Type Validation:** CDA packets validated for TUSER=2'b01 before descriptor extraction
+
+![descriptor engine](draw.io/png/descriptor_engine.png)
 
 #### Key Features
 
-- **Dual-Path Processing**: Handles both APB programming interface and RDA packet interface
+- **Dual-Path Processing**: Handles both APB programming interface and CDA packet interface
 - **Six-State State Machine**: Comprehensive descriptor lifecycle management
 - **Stream Boundary Support**: Complete EOS/EOL/EOD field extraction and propagation
 - **AXI Read Coordination**: Shared AXI interface with channel ID-based response routing
 - **4-Deep Descriptor FIFO**: Maintains descriptor flow for continuous operation
-- **Priority Handling**: RDA packets prioritized over APB requests
+- **Priority Handling**: CDA packets prioritized over APB requests
 - **Channel Reset Support**: Graceful shutdown with proper AXI transaction completion
 - **Monitor Integration**: Rich monitor events for descriptor processing visibility
 
@@ -45,14 +51,16 @@ The Descriptor Engine manages descriptor fetching and buffering operations with 
 | **apb_ready** | logic | 1 | Output | Yes | APB request ready |
 | **apb_addr** | logic | `ADDR_WIDTH` | Input | Yes | Descriptor address |
 
-##### RDA Packet Interface (From Network Slave)
+##### CDA Packet Interface (CDA Packets from HIVE-C via Delta Network)
+
+**Note:** CDA (Compute Direct Access) interface receives CDA packets with TUSER=2'b01 from HIVE-C routed through Delta Network to RAPIDS virtual tile 16.
 
 | Signal Name | Type | Width | Direction | Required | Description |
 |-------------|------|-------|-----------|----------|-------------|
-| **rda_valid** | logic | 1 | Input | Yes | RDA packet valid |
-| **rda_ready** | logic | 1 | Output | Yes | RDA packet ready |
-| **rda_packet** | logic | `DATA_WIDTH` | Input | Yes | RDA packet data |
-| **rda_channel** | logic | `CHAN_WIDTH` | Input | Yes | RDA channel identifier |
+| **cda_valid** | logic | 1 | Input | Yes | CDA packet valid (from HIVE-C) |
+| **cda_ready** | logic | 1 | Output | Yes | Ready to accept CDA packet |
+| **cda_packet** | logic | `DATA_WIDTH` | Input | Yes | CDA packet data (256-bit descriptor) |
+| **cda_channel** | logic | `CHAN_WIDTH` | Input | Yes | Channel identifier from CDA packet |
 
 ##### Scheduler Interface
 
@@ -63,8 +71,8 @@ The Descriptor Engine manages descriptor fetching and buffering operations with 
 | **descriptor_packet** | logic | `DATA_WIDTH` | Output | Yes | Descriptor data |
 | **descriptor_same** | logic | 1 | Output | Yes | Same descriptor flag |
 | **descriptor_error** | logic | 1 | Output | Yes | Descriptor error |
-| **descriptor_is_rda** | logic | 1 | Output | Yes | RDA packet indicator |
-| **descriptor_rda_channel** | logic | `CHAN_WIDTH` | Output | Yes | RDA channel identifier |
+| **descriptor_is_cda** | logic | 1 | Output | Yes | CDA packet indicator |
+| **descriptor_cda_channel** | logic | `CHAN_WIDTH` | Output | Yes | CDA channel identifier |
 | **descriptor_eos** | logic | 1 | Output | Yes | End of Stream |
 | **descriptor_eol** | logic | 1 | Output | Yes | End of Line |
 | **descriptor_eod** | logic | 1 | Output | Yes | End of Data |
@@ -155,7 +163,7 @@ The Descriptor Engine manages descriptor fetching and buffering operations with 
 
 | State | Description |
 |-------|-------------|
-| **IDLE** | Ready for APB or RDA requests, monitor operation exclusivity |
+| **IDLE** | Ready for APB or CDA requests, monitor operation exclusivity |
 | **ISSUE_ADDR** | Issue AXI read transaction for APB requests |
 | **WAIT_DATA** | Wait for AXI read completion with channel ID matching |
 | **COMPLETE** | Process descriptor data and generate output |
@@ -165,27 +173,34 @@ The Descriptor Engine manages descriptor fetching and buffering operations with 
 
 The Descriptor Engine implements sophisticated priority processing:
 
-1. **RDA Priority**: RDA packets always processed before APB requests
+1. **CDA Packet Priority**: CDA packets from HIVE-C always processed before APB requests
+   - **Rationale:** Low-latency descriptor injection from HIVE-C control processor
+   - **Mechanism:** CDA packets bypass APB queue when both interfaces active
 2. **Operation Exclusivity**: Only one operation type active at a time
 3. **Channel Reset Coordination**: Graceful shutdown with AXI completion
+
+**Delta Network Integration Benefits:**
+- **Zero-polling overhead:** HIVE-C pushes descriptors via CDA packets instead of RAPIDS polling memory
+- **Sub-microsecond latency:** CDA packets traverse Delta Network in ~10-20 cycles
+- **Priority-based scheduling:** CDA packet TID field carries descriptor priority (0=highest, 15=lowest)
 
 #### Architecture
 
 #### Descriptor Engine FSM
 
-The Descriptor Engine implements a sophisticated six-state finite state machine that orchestrates descriptor fetching and processing operations with dual-path support for both APB programming interface requests and RDA packet interface operations. The FSM manages the complete descriptor lifecycle from initial request validation through AXI read transactions, descriptor parsing, and final output generation.
+The Descriptor Engine implements a sophisticated six-state finite state machine that orchestrates descriptor fetching and processing operations with dual-path support for both APB programming interface requests and CDA packet interface operations. The FSM manages the complete descriptor lifecycle from initial request validation through AXI read transactions, descriptor parsing, and final output generation.
 
-![Descriptor Engine FSM](/mnt/data/github/tsunami/design/rapids/markdown/rapids_spec/ch02_blocks/puml/descriptor_engine_fsm.png)
+![Descriptor Engine FSM](../assets/puml/descriptor_engine_fsm.png)
 
 **Key States:**
-- **DESC_IDLE**: Ready for APB or RDA requests with operation exclusivity monitoring
-- **DESC_AXI_READ**: Issues AXI read transactions for APB descriptor fetch requests  
+- **DESC_IDLE**: Ready for APB or CDA requests with operation exclusivity monitoring
+- **DESC_AXI_READ**: Issues AXI read transactions for APB descriptor fetch requests
 - **DESC_WAIT_READ**: Waits for AXI read completion with channel ID-based response routing
 - **DESC_CHECK**: Validates descriptor content and extracts stream boundary information
 - **DESC_LOAD**: Processes descriptor data and generates enhanced output with metadata
 - **DESC_ERROR**: Handles error conditions with comprehensive recovery capabilities
 
-The FSM implements intelligent priority processing where RDA packets always take precedence over APB requests, ensuring optimal network responsiveness. Stream boundary support includes complete EOS/EOL/EOD field extraction and propagation, while the 4-deep descriptor FIFO maintains continuous operation flow. Channel reset coordination provides graceful shutdown capabilities, completing any in-flight AXI transactions before asserting idle status for system-level reset coordination.
+The FSM implements intelligent priority processing where CDA packets always take precedence over APB requests, ensuring optimal network responsiveness. Stream boundary support includes complete EOS/EOL/EOD field extraction and propagation, while the 4-deep descriptor FIFO maintains continuous operation flow. Channel reset coordination provides graceful shutdown capabilities, completing any in-flight AXI transactions before asserting idle status for system-level reset coordination.
 
 ##### FIFO Management
 
@@ -211,23 +226,23 @@ gaxi_skid_buffer #(
 );
 ```
 
-###### RDA Packet Skid Buffer
+###### CDA Packet Skid Buffer
 
 ```systemverilog
-// RDA packet skid buffer (4-deep)
+// CDA packet skid buffer (4-deep)
 gaxi_skid_buffer #(
     .DATA_WIDTH(DATA_WIDTH + CHAN_WIDTH),
     .DEPTH(4),
-    .INSTANCE_NAME("RDA_PKT_SKID")
-) i_rda_packet_skid_buffer (
+    .INSTANCE_NAME("CDA_PKT_SKID")
+) i_cda_packet_skid_buffer (
     .axi_aclk(clk),
     .axi_aresetn(rst_n),
-    .wr_valid(rda_valid),
-    .wr_ready(rda_ready),
-    .wr_data({rda_packet, rda_channel}),
-    .rd_valid(w_rda_skid_valid_out),
-    .rd_ready(w_rda_skid_ready_out),
-    .rd_data(w_rda_skid_dout),
+    .wr_valid(cda_valid),
+    .wr_ready(cda_ready),
+    .wr_data({cda_packet, cda_channel}),
+    .rd_valid(w_cda_skid_valid_out),
+    .rd_ready(w_cda_skid_ready_out),
+    .rd_data(w_cda_skid_dout),
     .count(),
     .rd_count()
 );
@@ -274,11 +289,11 @@ gaxi_skid_buffer #(
 ##### Processing Rates
 - **Descriptor Throughput**: 1 descriptor per cycle when FIFO space available
 - **AXI Read Latency**: 10-20 cycles depending on arbitration and memory response
-- **RDA Processing**: 1-2 cycles for direct processing without AXI
+- **CDA Processing**: 1-2 cycles for direct processing without AXI
 - **Validation Overhead**: <1 cycle for comprehensive validation
 
 ##### Resource Utilization
-- **Skid Buffers**: 2-deep APB + 4-deep RDA + 4-deep output = 10 total entries
+- **Skid Buffers**: 2-deep APB + 4-deep CDA + 4-deep output = 10 total entries
 - **State Machine**: 6 states with efficient encoding
 - **AXI Interface**: Standard AXI4 signals with channel ID embedding
 - **Validation Logic**: Minimal overhead for address and stream boundary checking

@@ -30,8 +30,7 @@ module sink_sram_control #(
     parameter int MON_AGENT_ID = 8'h11,
     parameter int MON_UNIT_ID = 4'h3,
     parameter int MON_CHANNEL_ID = 6'h1,
-    // FIFO depths
-    parameter int DATA_CONSUMED_FIFO_DEPTH = 8,
+    // FIFO depths (DATA_CONSUMED_FIFO removed for AXIS - direct passthrough)
     parameter int EOS_COMPLETION_FIFO_DEPTH = 8,
     parameter int MONITOR_FIFO_DEPTH = 16
     /* verilator lint_on UNUSEDPARAM */
@@ -40,7 +39,7 @@ module sink_sram_control #(
     input  logic                                    clk,
     input  logic                                    rst_n,
 
-    // Write Interface (From Network Slave) - SINGLE SIGNALS, EOS for completion only
+    // Write Interface (From AXIS Slave FUB Interface) - SINGLE SIGNALS, EOS for completion only
     input  logic                                    wr_valid,
     output logic                                    wr_ready,
     input  logic [DATA_WIDTH-1:0]                   wr_data,
@@ -60,7 +59,7 @@ module sink_sram_control #(
     // NEW: Lines available for transfer (arbitration control)
     output logic [7:0]                              rd_lines_for_transfer [CHANNELS],
 
-    // Data Consumption Notification FIFO (to Network Slave for credit return)
+    // Data Consumption Notification FIFO (to AXIS Slave for credit return if applicable)
     output logic                                    data_consumed_valid,
     input  logic                                    data_consumed_ready,
     output logic [CHAN_BITS-1:0]                    data_consumed_channel,
@@ -91,7 +90,7 @@ module sink_sram_control #(
     localparam int TOTAL_SRAM_DEPTH = CHANNELS * LINES_PER_CHANNEL;
 
     // CORRECTED SRAM width: Only data + type + chunk enables (NO EOS/EOL/EOD)
-    // {TYPE[1:0], CHUNK_VALID[15:0], DATA[511:0]} = 528 bits total
+    // {TYPE[1:0], CHUNK_VALID[15:0], DATA[511:0]} = 530 bits total (2 + 16 + 512)
     localparam int EXTENDED_SRAM_WIDTH = 2 + NUM_CHUNKS + DATA_WIDTH;
 
     // FIXED: Address calculation helper parameters
@@ -134,14 +133,9 @@ module sink_sram_control #(
     logic [CHANNELS-1:0] w_channel_overflow;
     logic [CHANNELS-1:0] w_backpressure_warning;
 
-    // Data consumption FIFO signals
-    logic w_data_consumed_fifo_wr_valid;
-    logic w_data_consumed_fifo_wr_ready;
-    logic w_data_consumed_fifo_rd_valid;
-    logic w_data_consumed_fifo_rd_ready;
-    logic [CHAN_BITS-1:0] w_data_consumed_fifo_wr_data;
-    logic [CHAN_BITS-1:0] w_data_consumed_fifo_rd_data;
-    logic [$clog2(DATA_CONSUMED_FIFO_DEPTH+1)-1:0] w_data_consumed_fifo_count;
+    // Data consumption signals (direct passthrough for AXIS - no FIFO buffering needed)
+    logic w_data_consumed_valid;
+    logic [CHAN_BITS-1:0] w_data_consumed_channel;
 
     // EOS completion FIFO signals
     logic w_eos_completion_fifo_wr_valid;
@@ -343,31 +337,14 @@ module sink_sram_control #(
         end
     end
 
-    assign w_data_consumed_fifo_wr_valid = w_data_consumed_found;
-    assign w_data_consumed_fifo_wr_data = w_data_consumed_channel_encoded;
+    // Direct passthrough for AXIS - no FIFO buffering needed
+    assign w_data_consumed_valid = w_data_consumed_found;
+    assign w_data_consumed_channel = w_data_consumed_channel_encoded;
 
-    // Data consumption FIFO
-    gaxi_fifo_sync #(
-        .DATA_WIDTH     (CHAN_BITS),
-        .DEPTH          (DATA_CONSUMED_FIFO_DEPTH),
-        .REGISTERED     (0),
-        .INSTANCE_NAME  ("DATA_CONSUMED_FIFO")
-    ) data_consumed_fifo_inst (
-        .axi_aclk       (clk),
-        .axi_aresetn    (rst_n),
-        .wr_valid       (w_data_consumed_fifo_wr_valid),
-        .wr_ready       (w_data_consumed_fifo_wr_ready),
-        .wr_data        (w_data_consumed_fifo_wr_data),
-        .rd_ready       (data_consumed_ready),
-        .count          (w_data_consumed_fifo_count),
-        .rd_valid       (w_data_consumed_fifo_rd_valid),
-        .rd_data        (w_data_consumed_fifo_rd_data)
-    );
-
-    // Data consumption interface assignments
-    assign data_consumed_valid = w_data_consumed_fifo_rd_valid;
-    assign w_data_consumed_fifo_rd_ready = data_consumed_ready;
-    assign data_consumed_channel = w_data_consumed_fifo_rd_data;
+    // Data consumption interface assignments (direct passthrough for AXIS)
+    assign data_consumed_valid = w_data_consumed_valid;
+    assign data_consumed_channel = w_data_consumed_channel;
+    // Note: data_consumed_ready is ignored for AXIS (standard backpressure via tready)
 
     //=========================================================================
     // EOS Completion FIFO Logic - FIXED: Priority encoder without break

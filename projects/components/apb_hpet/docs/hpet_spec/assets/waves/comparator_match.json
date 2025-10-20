@@ -1,0 +1,62 @@
+{
+  "signal": [
+    {
+      "name": "hpet_clk",
+      "wave": "p................",
+      "period": 1
+    },
+    {},
+    {
+      "name": "counter[31:0]",
+      "wave": "2.3.4.5.6.7.8....",
+      "data": ["697", "698", "699", "700", "701", "702", "703"]
+    },
+    {
+      "name": "counter[63:32]",
+      "wave": "2................",
+      "data": ["0x0000_0001"]
+    },
+    {},
+    {
+      "name": "timer0_comparator[31:0]",
+      "wave": "2................",
+      "data": ["700"]
+    },
+    {
+      "name": "timer0_comparator[63:32]",
+      "wave": "2................",
+      "data": ["0x0000_0001"]
+    },
+    {},
+    {
+      "name": "match_logic",
+      "wave": "x......2..........",
+      "data": ["64-bit >="]
+    },
+    {
+      "name": "timer0_irq",
+      "wave": "0......1..........",
+      "node": ".......A"
+    },
+    {},
+    {
+      "name": "Note",
+      "wave": "x......2..........",
+      "data": ["Match!"]
+    }
+  ],
+  "edge": [
+    "A Full 64-bit comparison: 0x00000001_000002BC >= 0x00000001_000002BC"
+  ],
+  "config": {
+    "hscale": 2
+  },
+  "head": {
+    "text": "HPET 64-bit Comparator Match Behavior",
+    "tick": 0
+  },
+  "foot": {
+    "text": "64-bit Comparison: counter[63:0] >= comparator[63:0]",
+    "tock": 0
+  }
+}

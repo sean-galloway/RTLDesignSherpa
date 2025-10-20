@@ -4,7 +4,7 @@
 
 The Scheduler orchestrates data movement operations by managing descriptor execution, coordinating with data engines, and controlling program sequences. The module implements two sophisticated state machines: a main scheduler FSM for descriptor execution and an address alignment FSM that runs in parallel to pre-calculate optimal transfer parameters for maximum AXI performance.
 
-![scheduler](/mnt/data/github/tsunami/design/rapids/markdown/rapids_spec/draw.io/png/scheduler.png)
+![scheduler](draw.io/png/scheduler.png)
 
 #### Key Features
 
@@ -159,7 +159,7 @@ The Scheduler orchestrates data movement operations by managing descriptor execu
 
 ##### Main Scheduler FSM
 
-![Address Alignment FSM](/mnt/data/github/tsunami/design/rapids/markdown/rapids_spec/ch02_blocks/puml/scheduler_fsm.png)
+![Address Alignment FSM](../assets/puml/scheduler_fsm.png)
 
 **States:**
 - **SCHED_IDLE**: Ready for new descriptor, all operations complete
@@ -172,13 +172,13 @@ The Scheduler orchestrates data movement operations by managing descriptor execu
 
 **Operation Sequence:**
 ```
-IDLE → WAIT_FOR_CONTROL → ISSUE_CTRLRD (if needed) →
-  DESCRIPTOR_ACTIVE → ISSUE_CTRLWR0 (if needed) → ISSUE_CTRLWR1 (if needed) → IDLE
+IDLE -> WAIT_FOR_CONTROL -> ISSUE_CTRLRD (if needed) ->
+  DESCRIPTOR_ACTIVE -> ISSUE_CTRLWR0 (if needed) -> ISSUE_CTRLWR1 (if needed) -> IDLE
 ```
 
 ##### Address Alignment FSM (Parallel Operation)
 
-![Address Alignment FSM](/mnt/data/github/tsunami/design/rapids/markdown/rapids_spec/ch02_blocks/puml/address_alignment_fsm.png)
+![Address Alignment FSM](../assets/puml/address_alignment_fsm.png)
 
 **States:**
 - **ALIGN_IDLE**: Ready for new alignment calculation
@@ -271,10 +271,10 @@ typedef enum logic [2:0] {
 - `ctrlwr1_data` [479:448] - 32-bit data for second control write
 
 **Operation Sequence:**
-1. **Control Read (ctrlrd)**: Executed FIRST, before data operations (if ctrlrd_addr ≠ 0)
+1. **Control Read (ctrlrd)**: Executed FIRST, before data operations (if ctrlrd_addr != 0)
 2. **Data Operation**: Memory transfer operation (source/sink data path)
-3. **Control Write 0 (ctrlwr0)**: Executed after data completion (if ctrlwr0_addr ≠ 0)
-4. **Control Write 1 (ctrlwr1)**: Executed after ctrlwr0 completion (if ctrlwr1_addr ≠ 0)
+3. **Control Write 0 (ctrlwr0)**: Executed after data completion (if ctrlwr0_addr != 0)
+4. **Control Write 1 (ctrlwr1)**: Executed after ctrlwr0 completion (if ctrlwr1_addr != 0)
 
 **Null Address Handling:** Setting any control address field to 64'h0 skips that operation.
 
@@ -367,8 +367,8 @@ The scheduler implements **exponential credit encoding** for the `cfg_initial_cr
 always_ff @(posedge clk) begin
     if (!rst_n) begin
         // Exponential credit encoding:
-        //   0→1, 1→2, 2→4, 3→8, ..., 14→16384 (exponential: 2^n)
-        //   15→0 (special case: DISABLED - no credits, blocks all operations)
+        //   0->1, 1->2, 2->4, 3->8, ..., 14->16384 (exponential: 2^n)
+        //   15->0 (special case: DISABLED - no credits, blocks all operations)
         r_descriptor_credit_counter <= (cfg_initial_credit == 4'hF) ? 32'h00000000 :
                                       (cfg_initial_credit == 4'h0) ? 32'h00000001 :
                                       (32'h1 << cfg_initial_credit);
@@ -450,9 +450,9 @@ assign ctrlrd_mask = r_ctrlrd_mask;  // Mask/flags for operation
 ```
 
 **Ctrlrd Operation Details:**
-- **Match Success**: `ctrlrd_ready` asserts when read data matches expected value → Proceed to DESCRIPTOR_ACTIVE
+- **Match Success**: `ctrlrd_ready` asserts when read data matches expected value -> Proceed to DESCRIPTOR_ACTIVE
 - **Retry Loop**: Ctrlrd engine automatically retries reads up to `cfg_ctrlrd_max_try` times
-- **Timeout/Error**: `ctrlrd_ready && ctrlrd_error` indicates failure → Enter SCHED_ERROR state
+- **Timeout/Error**: `ctrlrd_ready && ctrlrd_error` indicates failure -> Enter SCHED_ERROR state
 - **Use Cases**: Flag polling, synchronization checks, pre-condition validation
 
 ##### Control Write Operations (Post-Descriptor)
@@ -510,9 +510,9 @@ All control operations support conditional execution via null address checking:
 
 ```systemverilog
 // Null address = skip operation
-// ctrlrd_addr = 64'h0 → Skip control read operation
-// ctrlwr0_addr = 64'h0 → Skip control write 0 operation
-// ctrlwr1_addr = 64'h0 → Skip control write 1 operation
+// ctrlrd_addr = 64'h0 -> Skip control read operation
+// ctrlwr0_addr = 64'h0 -> Skip control write 0 operation
+// ctrlwr1_addr = 64'h0 -> Skip control write 1 operation
 ```
 
 This enables descriptor-driven conditional control operations without additional configuration.
@@ -563,36 +563,112 @@ end
 
 ##### Sticky Error Flags
 
+The scheduler implements **sticky error registers** to capture transient error signals from engines and hold them until the FSM can process the error condition. This ensures errors are never missed due to timing mismatches between engine error assertion and FSM state checking.
+
+**Sticky Error Registers:**
+- `r_data_error_sticky` - Captures errors from data engine
+- `r_ctrlrd_error_sticky` - Captures errors from control read engine
+- `r_ctrlwr_error_sticky` - Captures errors from control write engine
+
+**Purpose:** Engine error signals (e.g., `ctrlwr_error`) may assert synchronously with ready signals during handshakes. If the FSM transitions to a new state before checking the error, the transient error signal could be lost. Sticky registers hold errors until the FSM explicitly processes them.
+
 ```systemverilog
-// Persistent error tracking
+// Persistent error tracking with sticky registers
 logic r_data_error_sticky;
-logic r_program_error_sticky;
+logic r_ctrlrd_error_sticky;
+logic r_ctrlwr_error_sticky;
 
 // Sticky error flag management
 always_ff @(posedge clk) begin
-    if (!rst_n || r_channel_reset_active) begin
+    if (!rst_n) begin
         r_data_error_sticky <= 1'b0;
-        r_program_error_sticky <= 1'b0;
+        r_ctrlrd_error_sticky <= 1'b0;
+        r_ctrlwr_error_sticky <= 1'b0;
     end else begin
+        // Capture errors when they occur
         if (data_error) r_data_error_sticky <= 1'b1;
-        if (program_error) r_program_error_sticky <= 1'b1;
+        if (ctrlrd_error) r_ctrlrd_error_sticky <= 1'b1;
+        if (ctrlwr_error) r_ctrlwr_error_sticky <= 1'b1;
+
+        // Clear sticky errors only when transitioning FROM error state TO idle
+        // This ensures errors are held long enough to trigger ERROR state
+        if (r_current_state == SCHED_ERROR && w_next_state == SCHED_IDLE) begin
+            r_data_error_sticky <= 1'b0;
+            r_ctrlrd_error_sticky <= 1'b0;
+            r_ctrlwr_error_sticky <= 1'b0;
+        end
     end
 end
 ```
 
+**Critical Timing:** Sticky errors are cleared **only during ERROR->IDLE transition**, NOT on IDLE state entry. This prevents the following timing bug:
+
+**[FAIL] Wrong Timing (Bug):**
+```
+Cycle N:   FSM in SCHED_ISSUE_CTRLWR0, ctrlwr_error=1 & ctrlwr_ready=1
+           FSM transitions to SCHED_IDLE (missed error check!)
+           r_ctrlwr_error_sticky <= 1 (takes effect next cycle)
+Cycle N+1: FSM in SCHED_IDLE, r_ctrlwr_error_sticky=1
+           Clear on IDLE entry -> r_ctrlwr_error_sticky <= 0
+           Error lost before detection logic sees it!
+```
+
+**[PASS] Correct Timing (Fixed):**
+```
+Cycle N:   FSM in SCHED_ISSUE_CTRLWR0, ctrlwr_error=1 & ctrlwr_ready=1
+           General error detection sees ctrlwr_error=1 OR r_ctrlwr_error_sticky=1
+           FSM transitions to SCHED_ERROR (error caught!)
+Cycle N+1: FSM in SCHED_ERROR
+           Process error state...
+Cycle N+M: FSM transitions ERROR->IDLE
+           Clear sticky errors now that error has been processed
+```
+
+##### Error Detection Logic
+
+**General Error Detection (applies in all states):**
+```systemverilog
+// Check transient errors OR sticky errors
+if (data_error || ctrlrd_error || ctrlwr_error || descriptor_error ||
+    w_timeout_expired || r_data_error_sticky || r_ctrlrd_error_sticky || r_ctrlwr_error_sticky) begin
+    w_next_state = SCHED_ERROR;
+end
+```
+
+**State-Specific Error Checking (for ctrlrd):**
+```systemverilog
+// SCHED_ISSUE_CTRLRD state has explicit error checking
+SCHED_ISSUE_CTRLRD: begin
+    if (ctrlrd_ready && !ctrlrd_error) begin
+        w_next_state = SCHED_DESCRIPTOR_ACTIVE;  // Success
+    end else if (ctrlrd_ready && ctrlrd_error) begin
+        w_next_state = SCHED_ERROR;  // Error detected
+    end
+end
+```
+
+**Note:** Control write states (SCHED_ISSUE_CTRLWR0/CTRLWR1) rely on general error detection logic, not state-specific checks. The sticky error registers ensure ctrlwr errors are captured even if the FSM transitions before checking.
+
 ##### Error Recovery
 
 ```systemverilog
-// Error state exit conditions
-logic w_all_errors_clear = !data_error && !program_error && 
+// Error state exit conditions - check both transient and sticky errors
+logic w_all_errors_clear = !data_error && !ctrlrd_error && !ctrlwr_error &&
                           !descriptor_error && !w_timeout_expired &&
-                          !r_data_error_sticky && !r_program_error_sticky;
+                          !r_data_error_sticky && !r_ctrlrd_error_sticky && !r_ctrlwr_error_sticky;
 
 // Error state recovery to IDLE
 if ((r_current_state == SCHED_ERROR) && w_all_errors_clear && w_credit_available) begin
-    w_next_state = SCHED_IDLE;
+    w_next_state = SCHED_IDLE;  // Sticky errors cleared during this transition
 end
 ```
+
+**Error Recovery Sequence:**
+1. Error detected (transient or sticky) -> Enter SCHED_ERROR state
+2. Wait in SCHED_ERROR until all error sources clear
+3. Transition SCHED_ERROR -> SCHED_IDLE
+4. Sticky error registers cleared during this transition
+5. Ready for new descriptor processing
 
 #### Performance Benefits of Address Alignment FSM
 

@@ -59,25 +59,25 @@
 
 ### 2.1 Flat Crossbar Topology
 
-**Description:** Full M×N crossbar with per-slave arbiters
+**Description:** Full MxN crossbar with per-slave arbiters
 
 **Characteristics:**
 - **Latency:** 2 cycles (arbitration + output register)
 - **Throughput:** High aggregate (each slave independent)
-- **Resources:** ~1,920 LUTs for 4×16 @ 64-bit
+- **Resources:** ~1,920 LUTs for 4x16 @ 64-bit
 - **Best For:** Production systems requiring low latency
 
 **Block Diagram:**
 ```
 Masters (M)          Arbiters (N)         Slaves (N)
 
-M0 ──────┬──────────┬─[Arbiter_S0]───── S0
-         │          │
-M1 ──────┤          ├─[Arbiter_S1]───── S1
-         │          │
-M2 ──────┤          ├─[Arbiter_S2]───── S2
-         │          │
-M3 ──────┘          └─[Arbiter_S15]──── S15
+M0 ------+----------+-[Arbiter_S0]----- S0
+         |          |
+M1 ------+          +-[Arbiter_S1]----- S1
+         |          |
+M2 ------+          +-[Arbiter_S2]----- S2
+         |          |
+M3 ------+          +-[Arbiter_S15]---- S15
 
 Request Matrix      Grant Matrix
 (decode TDEST)      (round-robin)
@@ -90,20 +90,20 @@ Request Matrix      Grant Matrix
 **Characteristics:**
 - **Latency:** 4-6 cycles (multi-stage pipeline)
 - **Throughput:** Lower aggregate (bottleneck at root)
-- **Resources:** ~1,600 LUTs for 4×16 @ 64-bit (fewer LUTs but more instances)
+- **Resources:** ~1,600 LUTs for 4x16 @ 64-bit (fewer LUTs but more instances)
 - **Best For:** Educational examples, demonstrating modularity
 
 **Block Diagram:**
 ```
 Masters     Mergers        Splitters       Slaves
 
-M0 ──┐
-     ├─[2:1]──[1:2]──┬─[1:2]──┬─ S0
-M1 ──┘              │         └─ S1
-                    │
-M2 ──┐              ├─[1:2]──┬─ S2
-     ├─[2:1]────────┘         └─ S3
-M3 ──┘
+M0 --+
+     +-[2:1]--[1:2]--+-[1:2]--+- S0
+M1 --+              |         +- S1
+                    |
+M2 --+              +-[1:2]--+- S2
+     +-[2:1]--------+         +- S3
+M3 --+
 
 Tree depth: log2(N) stages
 ```
@@ -125,14 +125,14 @@ Tree depth: log2(N) stages
 - **Both:** Generate both variants with `--topology both`
 
 **REQ-GEN-003:** Generated RTL shall be parameterized
-- NUM_MASTERS, NUM_SLAVES (up to 32×256)
+- NUM_MASTERS, NUM_SLAVES (up to 32x256)
 - DATA_WIDTH (8, 16, 32, 64, 128, 256, 512, 1024 bits)
 - DEST_WIDTH, ID_WIDTH (auto-calculated)
 
 **REQ-GEN-004:** Generator shall follow APB crossbar patterns
 - ~95% code reuse from APB automation
 - Same request generation, arbitration, mux patterns
-- Signal name mapping (pclk→aclk, psel→tvalid, etc.)
+- Signal name mapping (pclk->aclk, psel->tvalid, etc.)
 
 ### 3.2 Performance Modeling
 
@@ -174,15 +174,15 @@ Tree depth: log2(N) stages
 
 ### 4.1 Performance Targets
 
-**NFR-PERF-001:** Flat crossbar latency ≤ 2 cycles
-**NFR-PERF-002:** Flat crossbar Fmax ≥ 300 MHz (UltraScale+)
-**NFR-PERF-003:** Tree topology latency ≤ 6 cycles
-**NFR-PERF-004:** Throughput ≥ 0.7 transfers/cycle under mixed traffic
+**NFR-PERF-001:** Flat crossbar latency <= 2 cycles
+**NFR-PERF-002:** Flat crossbar Fmax >= 300 MHz (UltraScale+)
+**NFR-PERF-003:** Tree topology latency <= 6 cycles
+**NFR-PERF-004:** Throughput >= 0.7 transfers/cycle under mixed traffic
 
 ### 4.2 Resource Targets
 
-**NFR-RES-001:** Flat 4×16 @ 64-bit ≤ 2,500 LUTs
-**NFR-RES-002:** Tree 4×16 @ 64-bit ≤ 2,000 LUTs
+**NFR-RES-001:** Flat 4x16 @ 64-bit <= 2,500 LUTs
+**NFR-RES-002:** Tree 4x16 @ 64-bit <= 2,000 LUTs
 **NFR-RES-003:** No BRAM usage (pure logic implementation)
 
 ### 4.3 Code Quality
@@ -284,11 +284,11 @@ Tree depth: log2(N) stages
 
 | Component | APB Crossbar | Delta (AXIS) | Reusable? |
 |-----------|--------------|--------------|-----------|
-| Request generation | Address decode | TDEST decode | ✅ Pattern same |
-| Per-slave arbitration | Round-robin | Round-robin | ✅ Identical logic |
-| Grant matrix | M×N grants | M×N grants | ✅ Identical |
-| Data multiplexing | Mux PRDATA | Mux TDATA/TVALID/TLAST | ✅ Same pattern |
-| Backpressure | PREADY | TREADY | ✅ Renamed only |
+| Request generation | Address decode | TDEST decode | [PASS] Pattern same |
+| Per-slave arbitration | Round-robin | Round-robin | [PASS] Identical logic |
+| Grant matrix | MxN grants | MxN grants | [PASS] Identical |
+| Data multiplexing | Mux PRDATA | Mux TDATA/TVALID/TLAST | [PASS] Same pattern |
+| Backpressure | PREADY | TREADY | [PASS] Renamed only |
 
 ### 7.2 Differences
 
@@ -310,7 +310,7 @@ Tree depth: log2(N) stages
 3. Add packet atomicity logic (15 min)
 4. Add new signals (TLAST, TID, TUSER) to ports and mux (10 min)
 5. Update module naming (5 min)
-6. Test with 2×2 configuration (30 min)
+6. Test with 2x2 configuration (30 min)
 
 ---
 
@@ -353,7 +353,7 @@ Tree depth: log2(N) stages
 **Configuration:**
 - RAPIDS handles descriptor-based memory transfers
 - Delta routes compute tasks between processors
-- Protocol adapter (Network 2.0 ↔ AXI-Stream)
+- Protocol adapter (Network 2.0 <-> AXI-Stream)
 
 **Benefits:**
 - Separate concerns (memory vs compute)
@@ -381,7 +381,7 @@ Tree depth: log2(N) stages
 
 **Approach:**
 1. CocoTB testbench framework (reuse AMBA patterns)
-2. Test all M×S routing combinations
+2. Test all MxS routing combinations
 3. Concurrent traffic scenarios
 4. Backpressure stress tests
 5. Packet atomicity verification
@@ -446,37 +446,37 @@ Tree depth: log2(N) stages
 
 ### 11.1 Functional Metrics
 
-- ✅ Generator produces lint-clean RTL
-- ✅ All routing combinations verified
-- ✅ No protocol violations
-- ✅ Packet atomicity enforced
+- [PASS] Generator produces lint-clean RTL
+- [PASS] All routing combinations verified
+- [PASS] No protocol violations
+- [PASS] Packet atomicity enforced
 
 ### 11.2 Performance Metrics
 
-- ✅ Flat crossbar: 2-cycle latency
-- ✅ Tree topology: ≤6-cycle latency
-- ✅ Throughput: ≥0.7 transfers/cycle
-- ✅ Fmax: ≥300 MHz
+- [PASS] Flat crossbar: 2-cycle latency
+- [PASS] Tree topology: <=6-cycle latency
+- [PASS] Throughput: >=0.7 transfers/cycle
+- [PASS] Fmax: >=300 MHz
 
 ### 11.3 Quality Metrics
 
-- ✅ Code reuse: ≥90% from APB generator
-- ✅ Model accuracy: ±10% vs RTL
-- ✅ Resource estimate: ±20% vs synthesis
-- ✅ Documentation: Complete and clear
+- [PASS] Code reuse: >=90% from APB generator
+- [PASS] Model accuracy: ±10% vs RTL
+- [PASS] Resource estimate: ±20% vs synthesis
+- [PASS] Documentation: Complete and clear
 
 ---
 
 ## 12. Timeline and Milestones
 
 ### Week 1: Generator and Models
-- ✅ Python generator (flat topology)
-- ✅ Analytical performance model
-- ✅ Simulation model (SimPy)
-- ✅ Specifications
+- [PASS] Python generator (flat topology)
+- [PASS] Analytical performance model
+- [PASS] Simulation model (SimPy)
+- [PASS] Specifications
 
 ### Week 2: RTL and Verification
-- Generate RTL variants (flat 4×16, tree 4×16)
+- Generate RTL variants (flat 4x16, tree 4x16)
 - CocoTB testbench framework
 - Basic functional tests
 - Performance validation
@@ -510,11 +510,136 @@ Tree depth: log2(N) stages
 
 ---
 
+## 15. Attribution and Contribution Guidelines
+
+### 15.1 Git Commit Attribution
+
+When creating git commits for Delta documentation or implementation:
+
+**Use:**
+```
+Documentation and implementation support by Claude.
+```
+
+**Do NOT use:**
+```
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+**Rationale:** Delta documentation and organization receives AI assistance for structure and clarity, while design concepts and architectural decisions remain human-authored.
+
+---
+
+## 16. Documentation Generation
+
+### 16.1 Generating PDF/DOCX from Specification
+
+**Tool:** `/mnt/data/github/rtldesignsherpa/bin/md_to_docx.py`
+
+Use this tool to convert the linked specification index into a single all-inclusive PDF or DOCX file.
+
+**Basic Usage:**
+
+```bash
+# Generate DOCX from delta_spec index
+python bin/md_to_docx.py \
+    projects/components/delta/docs/delta_spec/delta_index.md \
+    -o projects/components/delta/docs/Delta_Specification_v0.25.docx \
+    --toc \
+    --title-page
+
+# Generate both DOCX and PDF
+python bin/md_to_docx.py \
+    projects/components/delta/docs/delta_spec/delta_index.md \
+    -o projects/components/delta/docs/Delta_Specification_v0.25.docx \
+    --toc \
+    --title-page \
+    --pdf
+
+# With custom template (optional)
+python bin/md_to_docx.py \
+    projects/components/delta/docs/delta_spec/delta_index.md \
+    -o projects/components/delta/docs/Delta_Specification_v0.25.docx \
+    -t path/to/template.dotx \
+    --toc \
+    --title-page \
+    --pdf
+```
+
+**Key Features:**
+- **Recursive Collection:** Follows all markdown links in the index file
+- **Heading Demotion:** Automatically adjusts heading levels for included files
+- **Table of Contents:** `--toc` flag generates automatic ToC
+- **Title Page:** `--title-page` flag creates title page from first heading
+- **PDF Export:** `--pdf` flag generates both DOCX and PDF
+- **Image Support:** Resolves images relative to source directory
+- **Template Support:** Optional custom DOCX/DOTX template via `-t` flag
+
+**Common Workflow:**
+
+```bash
+# 1. Update version number in index file (delta_index.md)
+# 2. Generate documentation
+cd /mnt/data/github/rtldesignsherpa
+python bin/md_to_docx.py \
+    projects/components/delta/docs/delta_spec/delta_index.md \
+    -o projects/components/delta/docs/Delta_Specification_v0.25.docx \
+    --toc --title-page --pdf
+
+# 3. Output files created:
+#    - Delta_Specification_v0.25.docx
+#    - Delta_Specification_v0.25.pdf (if --pdf used)
+```
+
+**Debug Mode:**
+
+```bash
+# Generate debug markdown to see combined output
+python bin/md_to_docx.py \
+    projects/components/delta/docs/delta_spec/delta_index.md \
+    -o output.docx \
+    --debug-md
+
+# This creates debug.md showing the complete merged content
+```
+
+**Tool Requirements:**
+- Python 3.6+
+- Pandoc installed and in PATH
+- For PDF generation: LaTeX (e.g., texlive) or use Pandoc's built-in PDF writer
+
+**📖 See:** `/mnt/data/github/rtldesignsherpa/bin/md_to_docx.py` for complete implementation details
+
+---
+
+## 16.2 PDF Generation Location
+
+**IMPORTANT: PDF files should be generated in the docs directory:**
+```
+/mnt/data/github/rtldesignsherpa/projects/components/delta/docs/
+```
+
+**Quick Command:** Use the provided shell script:
+```bash
+cd /mnt/data/github/rtldesignsherpa/projects/components/delta/docs
+./generate_pdf.sh
+```
+
+The shell script will automatically:
+1. Use the md_to_docx.py tool from bin/
+2. Process the delta_spec index file
+3. Generate both DOCX and PDF files in the docs/ directory
+4. Create table of contents and title page
+
+**📖 See:** `bin/md_to_docx.py` for complete implementation details
+
+---
+
 ## Appendix A: Glossary
 
 - **AXIS:** AXI-Stream (streaming variant of AXI protocol)
 - **Delta:** Project name (river delta = branching flow, like crossbar routing)
-- **Flat Topology:** Full M×N crossbar with all connections
+- **Flat Topology:** Full MxN crossbar with all connections
 - **Tree Topology:** Hierarchical composition of 1:2 and 2:1 nodes
 - **Packet Atomicity:** Locking grant until TLAST (prevent interleaving)
 - **TDEST:** Transaction destination (slave ID in AXI-Stream)

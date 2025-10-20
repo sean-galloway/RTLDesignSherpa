@@ -105,7 +105,7 @@ The Network Master provides reliable packet transmission to the Network network 
 
 The Network Master implements a revolutionary four-stage pipeline architecture that eliminates traditional FSM overhead to achieve zero-cycle arbitration and optimal packet transmission with mathematically proven zero packet loss guarantees. The pipeline stages operate as a continuous flow rather than discrete states, enabling sustained high-bandwidth operation while maintaining sophisticated credit-based flow control and comprehensive error detection mechanisms.
 
-![Network Master FSM](/mnt/data/github/tsunami/design/rapids/markdown/rapids_spec/ch02_blocks/puml/network_master_fsm.png)
+![Network Master FSM](../assets/puml/mnoc_master_fsm.png)
 
 **Pipeline Stages:**
 - **INPUT_FIFO**: Input buffering and validation with request mask generation for channel eligibility
@@ -126,7 +126,7 @@ The pipeline architecture leverages input FIFO decoupling to separate ready logi
 ##### Four-Stage Processing Pipeline
 
 ```
-Stage 0: Input FIFO and Validation → Stage 1: Credit Validation → Stage 2: Data Processing → Stage 3: Transmission
+Stage 0: Input FIFO and Validation -> Stage 1: Credit Validation -> Stage 2: Data Processing -> Stage 3: Transmission
     ↓                                    ↓                         ↓                         ↓
 Buffer Management                    Credit Check                Format Check            Final Validation
 Input Validation                    Credit Reservation         Parity Generation        Interface Ready
@@ -323,7 +323,7 @@ round_robin_arbiter #(
 #### Performance Characteristics
 
 ##### Throughput Analysis
-- **Peak Bandwidth**: 512 bits × 1 GHz = 512 Gbps per channel
+- **Peak Bandwidth**: 512 bits x 1 GHz = 512 Gbps per channel
 - **Sustained Rate**: 100% pipeline utilization with flow control
 - **Multi-Channel**: Up to 32 channels with independent credit management
 - **Efficiency**: 4-stage pipeline + input FIFO enables sustained operation

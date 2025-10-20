@@ -78,32 +78,32 @@ APB protocol inherently provides the following constraints:
 
 | Signal | Width | Direction | Required Values | Description |
 |--------|-------|-----------|-----------------|-------------|
-| `src_addr` | 11 bits | Master→Slave | **Aligned per transfer size** | Peripheral address (2KB space) |
-| `src_sel` | 1 | Master→Slave | 0 or 1 | Peripheral select |
-| `src_enable` | 1 | Master→Slave | 0 or 1 | Enable signal |
-| `src_write` | 1 | Master→Slave | 0 or 1 | Write enable (1=write, 0=read) |
-| `snk_addr` | 11 bits | Master→Slave | **Aligned per transfer size** | Peripheral address (2KB space) |
-| `snk_sel` | 1 | Master→Slave | 0 or 1 | Peripheral select |
-| `snk_enable` | 1 | Master→Slave | 0 or 1 | Enable signal |
-| `snk_write` | 1 | Master→Slave | 0 or 1 | Write enable (1=write, 0=read) |
+| `src_addr` | 11 bits | Master->Slave | **Aligned per transfer size** | Peripheral address (2KB space) |
+| `src_sel` | 1 | Master->Slave | 0 or 1 | Peripheral select |
+| `src_enable` | 1 | Master->Slave | 0 or 1 | Enable signal |
+| `src_write` | 1 | Master->Slave | 0 or 1 | Write enable (1=write, 0=read) |
+| `snk_addr` | 11 bits | Master->Slave | **Aligned per transfer size** | Peripheral address (2KB space) |
+| `snk_sel` | 1 | Master->Slave | 0 or 1 | Peripheral select |
+| `snk_enable` | 1 | Master->Slave | 0 or 1 | Enable signal |
+| `snk_write` | 1 | Master->Slave | 0 or 1 | Write enable (1=write, 0=read) |
 
 ### Data Signals
 
 | Signal | Width | Direction | Description |
 |--------|-------|-----------|-------------|
-| `src_wdata` | 32 | Master→Slave | Write data |
-| `src_rdata` | 32 | Slave→Master | Read data |
-| `snk_wdata` | 32 | Master→Slave | Write data |
-| `snk_rdata` | 32 | Slave→Master | Read data |
+| `src_wdata` | 32 | Master->Slave | Write data |
+| `src_rdata` | 32 | Slave->Master | Read data |
+| `snk_wdata` | 32 | Master->Slave | Write data |
+| `snk_rdata` | 32 | Slave->Master | Read data |
 
 ### Response Signals
 
 | Signal | Width | Direction | Description |
 |--------|-------|-----------|-------------|
-| `src_ready` | 1 | Slave→Master | Transfer ready |
-| `src_slverr` | 1 | Slave→Master | Slave error |
-| `snk_ready` | 1 | Slave→Master | Transfer ready |
-| `snk_slverr` | 1 | Slave→Master | Slave error |
+| `src_ready` | 1 | Slave->Master | Transfer ready |
+| `src_slverr` | 1 | Slave->Master | Slave error |
+| `snk_ready` | 1 | Slave->Master | Transfer ready |
+| `snk_slverr` | 1 | Slave->Master | Slave error |
 
 ## Address Space Configuration
 

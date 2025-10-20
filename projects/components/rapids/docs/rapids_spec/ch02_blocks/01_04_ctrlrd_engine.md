@@ -4,7 +4,7 @@
 
 The Ctrlrd Engine manages pre-processing read operations for each virtual channel before descriptor execution. The module implements a retry-capable read-and-compare mechanism that polls a control address until the read value matches an expected value, or a maximum retry count is exceeded. This enables synchronization, flag polling, and pre-condition validation before data operations begin.
 
-![ctrlrd engine](/mnt/data/github/tsunami/design/rapids/markdown/rapids_spec/draw.io/png/ctrlrd_engine.png)
+![ctrlrd engine](draw.io/png/ctrlrd_engine.png)
 
 #### Key Features
 
@@ -99,7 +99,7 @@ The Ctrlrd Engine manages pre-processing read operations for each virtual channe
 
 The Ctrlrd Engine implements a retry-capable read-compare-retry finite state machine that manages control read operations before descriptor execution.
 
-![Ctrlrd Engine FSM](/mnt/data/github/tsunami/design/rapids/markdown/rapids_spec/ch02_blocks/puml/ctrlrd_engine_fsm.png)
+![Ctrlrd Engine FSM](../assets/puml/ctrlrd_engine_fsm.png)
 
 ##### State Definitions
 
@@ -116,17 +116,17 @@ The Ctrlrd Engine implements a retry-capable read-compare-retry finite state mac
 ##### State Transitions
 
 ```
-READ_IDLE → READ_ISSUE_ADDR: Valid ctrlrd request with non-null address
-READ_IDLE → READ_MATCH: Valid ctrlrd request with null address (skip operation)
-READ_ISSUE_ADDR → READ_WAIT_DATA: AXI address phase complete
-READ_WAIT_DATA → READ_COMPARE: AXI read data received
-READ_WAIT_DATA → READ_ERROR: AXI response error (SLVERR, DECERR)
-READ_COMPARE → READ_MATCH: Read data matches expected value (success)
-READ_COMPARE → READ_RETRY_WAIT: Mismatch and retries remaining
-READ_COMPARE → READ_ERROR: Mismatch and max retries exceeded
-READ_RETRY_WAIT → READ_ISSUE_ADDR: 1µs elapsed, retry read
-READ_MATCH → READ_IDLE: Success acknowledged by scheduler
-READ_ERROR → READ_IDLE: Error acknowledged or channel reset
+READ_IDLE -> READ_ISSUE_ADDR: Valid ctrlrd request with non-null address
+READ_IDLE -> READ_MATCH: Valid ctrlrd request with null address (skip operation)
+READ_ISSUE_ADDR -> READ_WAIT_DATA: AXI address phase complete
+READ_WAIT_DATA -> READ_COMPARE: AXI read data received
+READ_WAIT_DATA -> READ_ERROR: AXI response error (SLVERR, DECERR)
+READ_COMPARE -> READ_MATCH: Read data matches expected value (success)
+READ_COMPARE -> READ_RETRY_WAIT: Mismatch and retries remaining
+READ_COMPARE -> READ_ERROR: Mismatch and max retries exceeded
+READ_RETRY_WAIT -> READ_ISSUE_ADDR: 1µs elapsed, retry read
+READ_MATCH -> READ_IDLE: Success acknowledged by scheduler
+READ_ERROR -> READ_IDLE: Error acknowledged or channel reset
 ```
 
 ##### Operation Flow
@@ -378,8 +378,8 @@ assign w_ctrlrd_req_skid_ready_out = (r_current_state == READ_IDLE) &&
 ##### Latency Analysis
 - **Null Ctrlrd**: 1 cycle (immediate completion)
 - **Match on First Try**: 6-10 cycles (AXI address + data + compare)
-- **Match After Retries**: (6-10 + N × 1µs) where N = retry count
-- **Max Retries Exceeded**: (6-10 + cfg_ctrlrd_max_try × 1µs) + error handling
+- **Match After Retries**: (6-10 + N x 1µs) where N = retry count
+- **Max Retries Exceeded**: (6-10 + cfg_ctrlrd_max_try x 1µs) + error handling
 
 ##### Retry Behavior
 - **1µs Delay**: Fixed 1 microsecond delay between retry attempts

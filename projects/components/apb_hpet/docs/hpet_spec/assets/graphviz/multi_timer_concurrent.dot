@@ -1,0 +1,92 @@
+// HPET Multi-Timer Concurrent Operation
+// Render with: dot -Tpng multi_timer_concurrent.dot -o multi_timer_concurrent.png
+
+digraph multi_timer_concurrent {
+    rankdir=TB;
+    node [shape=box, style="rounded,filled", fillcolor=lightblue, fontname="Arial"];
+    edge [fontname="Arial"];
+
+    start [label="Configure Multiple Timers", shape=ellipse, fillcolor=lightgreen];
+
+    start -> disable_all;
+
+    disable_all [label="1. Disable HPET\nWRITE(HPET_CONFIG, 0x0)"];
+    disable_all -> reset_counter;
+
+    reset_counter [label="2. Reset Counter\nWRITE(HPET_COUNTER_LO, 0)\nWRITE(HPET_COUNTER_HI, 0)"];
+    reset_counter -> config_timer0;
+
+    config_timer0 [label="3a. Configure Timer 0\ncomparator = 100\nmode = one-shot", fillcolor=lightcyan];
+    config_timer0 -> config_timer1;
+
+    config_timer1 [label="3b. Configure Timer 1\ncomparator = 200\nmode = periodic", fillcolor=lightcyan];
+    config_timer1 -> config_timer2;
+
+    config_timer2 [label="3c. Configure Timer 2\ncomparator = 700\nmode = one-shot", fillcolor=lightcyan];
+    config_timer2 -> enable_hpet;
+
+    enable_hpet [label="4. Enable HPET\nWRITE(HPET_CONFIG, 0x1)"];
+    enable_hpet -> counter_runs;
+
+    counter_runs [label="Counter Increments\n0 → 1 → 2 → 3 → ...", fillcolor=lightyellow];
+    counter_runs -> timeline;
+
+    timeline [label="Timeline (all concurrent)", shape=box3d, fillcolor=lightgreen];
+    timeline -> timer0_fires;
+
+    timer0_fires [label="Counter = 100\nTimer 0 Fires\n(one-shot → idle)", fillcolor=lightcoral];
+    timer0_fires -> irq0;
+
+    irq0 [label="IRQ[0] Asserts\nHPET_STATUS[0] = 1", fillcolor=red, fontcolor=white];
+    irq0 -> continue1;
+
+    continue1 [label="Counter continues\n100 → 101 → ...", fillcolor=lightyellow];
+    continue1 -> timer1_fires;
+
+    timer1_fires [label="Counter = 200\nTimer 1 Fires (1st)\n(periodic → reload)", fillcolor=lightcoral];
+    timer1_fires -> irq1;
+
+    irq1 [label="IRQ[1] Asserts\nComparator[1] = 400", fillcolor=red, fontcolor=white];
+    irq1 -> continue2;
+
+    continue2 [label="Counter continues\n200 → 201 → ...", fillcolor=lightyellow];
+    continue2 -> timer1_fires2;
+
+    timer1_fires2 [label="Counter = 400\nTimer 1 Fires (2nd)\n(periodic → reload)", fillcolor=lightcoral];
+    timer1_fires2 -> irq1_2;
+
+    irq1_2 [label="IRQ[1] Asserts again\nComparator[1] = 600", fillcolor=red, fontcolor=white];
+    irq1_2 -> continue3;
+
+    continue3 [label="Counter continues\n400 → 401 → ...", fillcolor=lightyellow];
+    continue3 -> timer1_fires3;
+
+    timer1_fires3 [label="Counter = 600\nTimer 1 Fires (3rd)", fillcolor=lightcoral];
+    timer1_fires3 -> continue4;
+
+    continue4 [label="Counter continues\n600 → 601 → ...", fillcolor=lightyellow];
+    continue4 -> timer2_fires;
+
+    timer2_fires [label="Counter = 700\nTimer 2 Fires\n(one-shot → idle)", fillcolor=lightcoral];
+    timer2_fires -> irq2;
+
+    irq2 [label="IRQ[2] Asserts\nHPET_STATUS[2] = 1", fillcolor=red, fontcolor=white];
+    irq2 -> final_state;
+
+    final_state [label="Final State:\n• Timer 0: Idle (fired at 100)\n• Timer 1: Active (fires at 800, 1000, ...)\n• Timer 2: Idle (fired at 700)", fillcolor=lightyellow];
+    final_state -> sw_handles;
+
+    sw_handles [label="Software ISR\nHandles all IRQs\n(see interrupt_handling.dot)", fillcolor=lightgreen];
+    sw_handles -> end;
+
+    end [label="Timers Running\nIndependently", shape=ellipse, fillcolor=lightgreen];
+
+    // Notes
+    note1 [label="Key Point: All timers\nshare same counter\nbut compare independently", shape=note, fillcolor=yellow, style=filled];
+    note2 [label="Note: Periodic timers\ncontinue indefinitely\nOne-shot timers stop", shape=note, fillcolor=lightyellow, style=filled];
+    note3 [label="Critical: Multiple IRQs\ncan be pending\nsimultaneously", shape=note, fillcolor=lightcoral, style=filled];
+
+    {rank=same; counter_runs; note1;}
+    {rank=same; timer1_fires2; note2;}
+    {rank=same; sw_handles; note3;}
+}

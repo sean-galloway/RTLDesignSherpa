@@ -40,6 +40,10 @@ from typing import List, Dict, Any, Tuple, Optional, Union
 import time
 from collections import defaultdict, deque
 
+# CocoTB imports
+import cocotb
+from cocotb.triggers import Combine
+
 # Framework imports
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.components.shared.memory_model import MemoryModel
@@ -197,6 +201,9 @@ class MonbusAxilGroupTB(TBBase):
         """Setup all interface components following datapath patterns"""
         self.log.info("Setting up MonBus AXIL Group interfaces...")
 
+        # Initialize all configuration signals to safe defaults
+        await self.initialize_config_signals()
+
         # Create MonBus field configuration
         monbus_config = create_monbus_field_config()
 
@@ -248,6 +255,48 @@ class MonbusAxilGroupTB(TBBase):
         self.set_timing_profile('normal')
 
         self.log.info("✅ All interfaces setup completed")
+
+    async def initialize_config_signals(self):
+        """Initialize all RTL configuration signals to safe defaults"""
+        self.log.info("Initializing configuration signals to defaults...")
+
+        # Set configuration base/limit addresses for master writes
+        self.dut.cfg_base_addr.value = 0x10000000
+        self.dut.cfg_limit_addr.value = 0x1000FFFF
+
+        # AXI protocol (protocol 0): Allow all packets, route errors to error FIFO
+        self.dut.cfg_axi_pkt_mask.value = 0x0000  # Don't drop any packets
+        self.dut.cfg_axi_err_select.value = 0x0001  # Route ERROR packets to error FIFO
+        self.dut.cfg_axi_error_mask.value = 0x0000  # Don't mask any error events
+        self.dut.cfg_axi_timeout_mask.value = 0x0000
+        self.dut.cfg_axi_compl_mask.value = 0x0000
+        self.dut.cfg_axi_thresh_mask.value = 0x0000
+        self.dut.cfg_axi_perf_mask.value = 0x0000
+        self.dut.cfg_axi_addr_mask.value = 0x0000
+        self.dut.cfg_axi_debug_mask.value = 0x0000
+
+        # AXIS protocol (protocol 1): Allow all packets, none to error FIFO
+        self.dut.cfg_axis_pkt_mask.value = 0x0000
+        self.dut.cfg_axis_err_select.value = 0x0000
+        self.dut.cfg_axis_error_mask.value = 0x0000
+        self.dut.cfg_axis_timeout_mask.value = 0x0000
+        self.dut.cfg_axis_compl_mask.value = 0x0000
+        self.dut.cfg_axis_credit_mask.value = 0x0000
+        self.dut.cfg_axis_channel_mask.value = 0x0000
+        self.dut.cfg_axis_stream_mask.value = 0x0000
+
+        # CORE protocol (protocol 2 - used for ARB): Allow all packets, none to error FIFO
+        self.dut.cfg_core_pkt_mask.value = 0x0000
+        self.dut.cfg_core_err_select.value = 0x0000
+        self.dut.cfg_core_error_mask.value = 0x0000
+        self.dut.cfg_core_timeout_mask.value = 0x0000
+        self.dut.cfg_core_compl_mask.value = 0x0000
+        self.dut.cfg_core_thresh_mask.value = 0x0000
+        self.dut.cfg_core_perf_mask.value = 0x0000
+        self.dut.cfg_core_debug_mask.value = 0x0000
+
+        await self.wait_clocks(self.clk_name, 1)  # Let defaults settle
+        self.log.info("✅ Configuration signals initialized")
 
     def set_timing_profile(self, profile_name: str):
         """Set timing profile for test components"""
@@ -303,14 +352,35 @@ class MonbusAxilGroupTB(TBBase):
             self.log.error(f"Failed to send sink packet: {e}")
             return False
 
+    async def check_error_fifo_status(self) -> Dict[str, Any]:
+        """Check error FIFO status signals"""
+        status = {
+            'empty': int(self.dut.err_fifo_empty.value),
+            'full': int(self.dut.err_fifo_full.value),
+            'count': int(self.dut.err_fifo_count.value),
+            'rd_valid': int(self.dut.err_fifo_rd_valid.value),
+            'irq_out': int(self.dut.irq_out.value)
+        }
+        return status
+
     async def read_error_fifo(self, address: int = 0x0) -> Optional[int]:
         """Read from error FIFO via AXI-Lite slave interface"""
         try:
-            result = await self.error_fifo_reader['simple_read'](address)
-            if result['success']:
-                self.stats['error_fifo_reads'] += 1
-                return result['data']
-            return None
+            # Check FIFO status before reading
+            status = await self.check_error_fifo_status()
+            self.log.debug(f"Error FIFO status before read: {status}")
+
+            if status['empty']:
+                self.log.warning("Error FIFO is empty, read will likely fail")
+
+            # AXIL4 simple_read returns int directly, not a dict
+            data = await self.error_fifo_reader['simple_read'](address)
+
+            # Update statistics
+            self.stats['error_fifo_reads'] += 1
+            self.log.debug(f"Successfully read from error FIFO: 0x{data:016X}")
+            return data
+
         except Exception as e:
             self.log.error(f"Failed to read error FIFO: {e}")
             return None
@@ -318,11 +388,23 @@ class MonbusAxilGroupTB(TBBase):
     async def configure_protocol_filtering(self, protocol: ProtocolType,
                                          pkt_mask: int = 0x0000,
                                          err_select: int = 0xFFFF) -> bool:
-        """Configure protocol-specific filtering (simplified for testbench)"""
-        # In a real implementation, this would write to configuration registers
-        # For this testbench, we'll simulate the configuration
+        """Configure protocol-specific filtering by driving RTL config signals"""
         self.log.info(f"Configuring {protocol.name}: pkt_mask=0x{pkt_mask:04X}, err_select=0x{err_select:04X}")
+
+        # Drive RTL configuration signals based on protocol
+        if protocol == ProtocolType.PROTOCOL_AXI:
+            self.dut.cfg_axi_pkt_mask.value = pkt_mask
+            self.dut.cfg_axi_err_select.value = err_select
+        elif protocol == ProtocolType.PROTOCOL_AXIS:
+            self.dut.cfg_axis_pkt_mask.value = pkt_mask
+            self.dut.cfg_axis_err_select.value = err_select
+        elif protocol == ProtocolType.PROTOCOL_ARB:
+            # ARB is protocol 2 (CORE in RTL)
+            self.dut.cfg_core_pkt_mask.value = pkt_mask
+            self.dut.cfg_core_err_select.value = err_select
+
         self.stats['config_operations'] += 1
+        await self.wait_clocks(self.clk_name, 1)  # Let configuration settle
         return True
 
     async def wait_for_interrupt(self, timeout_cycles: int = 1000) -> bool:
@@ -330,7 +412,7 @@ class MonbusAxilGroupTB(TBBase):
         for _ in range(timeout_cycles):
             if hasattr(self.dut, 'interrupt') and self.dut.interrupt.value:
                 return True
-            await self.wait_clock_cycles(1)
+            await self.wait_clocks(self.clk_name, 1)
         return False
 
     async def initialize_test(self):
@@ -438,7 +520,7 @@ class MonbusAxilGroupTB(TBBase):
         await self.configure_protocol_filtering(
             ProtocolType.PROTOCOL_AXI,
             pkt_mask=0x0000,  # Don't drop any packets
-            err_select=0x0001  # Route ERROR packets to error FIFO
+            err_select=0x0001  # Route ERROR packets (bit 0) to error FIFO
         )
 
         # Send error packets
@@ -457,23 +539,42 @@ class MonbusAxilGroupTB(TBBase):
                 error_packets_sent += 1
                 self.expected_error_packets.append(packet_dict)
 
-            await self.wait_clock_cycles(2)
+            await self.wait_clocks(self.clk_name, 2)
 
-        # Wait for packets to propagate
-        await self.wait_clock_cycles(20)
+        # Wait for packets to propagate through arbitration and filtering
+        await self.wait_clocks(self.clk_name, 50)
+
+        # Check FIFO status before attempting reads
+        status = await self.check_error_fifo_status()
+        self.log.info(f"Error FIFO status after sending packets: {status}")
+
+        if status['empty']:
+            self.log.error("ERROR: FIFO is empty after sending packets - filtering may not be working!")
+            # Debug: Check internal filtering signals
+            self.log.error(f"Debug - arb_monbus_valid: {int(self.dut.arb_monbus_valid.value)}")
+            self.log.error(f"Debug - pkt_to_err_fifo: {int(self.dut.pkt_to_err_fifo.value)}")
+            self.log.error(f"Debug - err_fifo_wr_valid: {int(self.dut.err_fifo_wr_valid.value)}")
+
+        # Wait for interrupt to assert if FIFO has data
+        if not status['empty'] and status['irq_out']:
+            self.log.info("✅ Interrupt asserted, FIFO has data")
+        elif not status['empty']:
+            self.log.warning("FIFO has data but interrupt not asserted")
 
         # Try to read from error FIFO
         error_packets_read = 0
-        for i in range(error_packets_sent + 5):  # Try a few extra reads
+        for i in range(min(error_packets_sent, status['count']) + 2):  # Read actual count + margin
             data = await self.read_error_fifo()
             if data is not None and data != 0:
                 error_packets_read += 1
                 self.received_error_packets.append(data)
-            await self.wait_clock_cycles(2)
+                self.log.info(f"Read packet {error_packets_read}: 0x{data:016X}")
+            await self.wait_clocks(self.clk_name, 2)
 
         test_stats = {
             'packets_sent': error_packets_sent,
             'packets_read': error_packets_read,
+            'fifo_count': status['count'],
             'success_rate': error_packets_read / error_packets_sent if error_packets_sent > 0 else 0.0
         }
 
@@ -508,10 +609,10 @@ class MonbusAxilGroupTB(TBBase):
             if success:
                 self.expected_write_packets.append(packet_dict)
 
-            await self.wait_clock_cycles(3)
+            await self.wait_clocks(self.clk_name, 3)
 
         # Wait for master writes to complete
-        await self.wait_clock_cycles(50)
+        await self.wait_clocks(self.clk_name, 50)
 
         # Check if master write slave received transactions
         # (In a real test, you'd check the slave's received transactions)
@@ -554,7 +655,7 @@ class MonbusAxilGroupTB(TBBase):
                 if success:
                     dropped_count += 1
 
-                await self.wait_clock_cycles(2)
+                await self.wait_clocks(self.clk_name, 2)
 
             test_results[protocol.name] = {
                 'packets_sent': dropped_count,
@@ -571,15 +672,15 @@ class MonbusAxilGroupTB(TBBase):
         """Test concurrent packet streams from source and sink"""
         self.log.info(f"Testing concurrent packet streams for {duration_cycles} cycles...")
 
-        # Start concurrent packet injection
-        source_task = asyncio.create_task(self._inject_source_packets(duration_cycles // 2))
-        sink_task = asyncio.create_task(self._inject_sink_packets(duration_cycles // 2))
+        # Start concurrent packet injection using CocoTB's event loop
+        source_task = cocotb.start_soon(self._inject_source_packets(duration_cycles // 2))
+        sink_task = cocotb.start_soon(self._inject_sink_packets(duration_cycles // 2))
 
-        # Wait for both streams to complete
-        await asyncio.gather(source_task, sink_task)
+        # Wait for both streams to complete using CocoTB's Combine
+        await Combine(source_task, sink_task)
 
         # Wait for all packets to propagate
-        await self.wait_clock_cycles(50)
+        await self.wait_clocks(self.clk_name, 50)
 
         test_stats = {
             'source_packets': self.stats['packets_sent']['source'],
@@ -601,7 +702,7 @@ class MonbusAxilGroupTB(TBBase):
                 data=0x4000 + i
             )
             await self.send_source_packet(packet_dict)
-            await self.wait_clock_cycles(random.randint(1, 4))
+            await self.wait_clocks(self.clk_name, random.randint(1, 4))
 
     async def _inject_sink_packets(self, count: int):
         """Helper to inject sink packets"""
@@ -614,7 +715,7 @@ class MonbusAxilGroupTB(TBBase):
                 data=0x5000 + i
             )
             await self.send_sink_packet(packet_dict)
-            await self.wait_clock_cycles(random.randint(1, 4))
+            await self.wait_clocks(self.clk_name, random.randint(1, 4))
 
     async def stress_test(self, iterations: int = 100) -> Tuple[bool, Dict[str, Any]]:
         """Run stress test with mixed operations"""
@@ -653,7 +754,7 @@ class MonbusAxilGroupTB(TBBase):
                 stress_stats['failed_ops'] += 1
 
             # Brief pause between iterations
-            await self.wait_clock_cycles(random.randint(5, 15))
+            await self.wait_clocks(self.clk_name, random.randint(5, 15))
 
         stress_stats['total_packets'] = self.stats['packets_sent']['source'] + self.stats['packets_sent']['sink']
         stress_stats['success_rate'] = stress_stats['successful_ops'] / iterations if iterations > 0 else 0.0

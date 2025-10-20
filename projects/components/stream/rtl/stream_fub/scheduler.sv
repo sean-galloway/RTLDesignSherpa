@@ -5,7 +5,28 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: scheduler
-// Purpose: Scheduler module
+// Purpose: Per-Channel Descriptor Scheduler with State Machine
+//
+// Description:
+//   Coordinates descriptor-based DMA transfers for a single channel:
+//   1. Receives descriptors from descriptor_engine
+//   2. Orchestrates read-then-write data flow through AXI engines
+//   3. Tracks transfer progress via completion strobes
+//   4. Handles descriptor chaining (next_descriptor_ptr)
+//   5. Monitors timeouts and errors from all components
+//
+// Key Features:
+//   - Simple FSM: IDLE → FETCH_DESC → READ_DATA → WRITE_DATA → COMPLETE
+//   - Beat-based tracking (simplified from RAPIDS' chunk-based)
+//   - No credit management (tutorial simplification)
+//   - Aligned addresses only (no fixup logic)
+//   - MonBus event reporting at state transitions
+//
+// Interface Protocol:
+//   - Scheduler tells engines "total beats remaining" (not burst length)
+//   - Engines decide burst sizes autonomously
+//   - Engines report back "beats completed" via done strobes
+//   - Scheduler decrements counters until zero
 //
 // Documentation: projects/components/stream_fub/PRD.md
 // Subsystem: stream_fub
@@ -46,6 +67,7 @@ module scheduler #(
     input  logic                        descriptor_valid,
     output logic                        descriptor_ready,
     input  logic [DATA_WIDTH-1:0]       descriptor_packet,
+    input  logic                        descriptor_error,      // Error signal FROM descriptor engine
 
     // Data Read Interface (to AXI Read Engine via Arbiter)
     // NOTE: Engine decides burst length internally, scheduler just tracks beats remaining
@@ -84,6 +106,18 @@ module scheduler #(
     //=========================================================================
 
     // Descriptor field offsets (from stream_pkg.sv)
+    // STREAM descriptor format: 512-bit packet (matches DATA_WIDTH parameter)
+    //
+    // Bit Layout:
+    //   [63:0]    - src_addr:            Source address (must be 64B aligned)
+    //   [127:64]  - dst_addr:            Destination address (must be 64B aligned)
+    //   [159:128] - length:              Transfer length in BEATS (not bytes!)
+    //   [191:160] - next_descriptor_ptr: Address of next descriptor (0 = last)
+    //   [192]     - valid:               Descriptor valid flag
+    //   [193]     - gen_irq:             Generate interrupt on completion
+    //   [194]     - last:                Last descriptor in chain flag
+    //   [511:195] - Reserved for future use
+    //
     localparam int DESC_SRC_ADDR_LO  = 0;
     localparam int DESC_SRC_ADDR_HI  = 63;
     localparam int DESC_DST_ADDR_LO  = 64;
@@ -93,7 +127,7 @@ module scheduler #(
     localparam int DESC_NEXT_PTR_LO  = 160;
     localparam int DESC_NEXT_PTR_HI  = 191;
     localparam int DESC_VALID_BIT    = 192;
-    localparam int DESC_INTERRUPT    = 193;
+    localparam int DESC_GEN_IRQ      = 193;  // Changed from DESC_INTERRUPT to match stream_pkg.sv
     localparam int DESC_LAST         = 194;
 
     //=========================================================================
@@ -101,38 +135,49 @@ module scheduler #(
     //=========================================================================
 
     // Scheduler FSM (using STREAM package enum)
+    // States: CH_IDLE → CH_FETCH_DESC → CH_READ_DATA → CH_WRITE_DATA →
+    //         CH_COMPLETE → CH_NEXT_DESC (if chained) or back to CH_IDLE
     channel_state_t r_current_state, w_next_state;
 
     // Channel reset management
+    // Registered to cleanly handle cfg_channel_reset assertion
     logic r_channel_reset_active;
 
     // Descriptor fields
+    // Latched from descriptor_packet in CH_IDLE state when descriptor_valid
     descriptor_t r_descriptor;
-    logic r_descriptor_loaded;
+    logic r_descriptor_loaded;  // Flag indicating descriptor successfully loaded
 
     // Transfer tracking
-    logic [ADDR_WIDTH-1:0] r_src_addr;
-    logic [ADDR_WIDTH-1:0] r_dst_addr;
-    logic [31:0] r_beats_remaining;
-    logic [31:0] r_read_beats_remaining;
-    logic [31:0] r_write_beats_remaining;
+    // Working copies of descriptor fields, updated as transfer progresses
+    logic [ADDR_WIDTH-1:0] r_src_addr;            // Current source address
+    logic [ADDR_WIDTH-1:0] r_dst_addr;            // Current destination address
+    logic [31:0] r_beats_remaining;               // Total beats remaining (for reference)
+    logic [31:0] r_read_beats_remaining;          // Beats left to read from source
+    logic [31:0] r_write_beats_remaining;         // Beats left to write to destination
 
     // Timeout tracking
+    // Counts clock cycles while waiting for engine grant (datard_ready/datawr_ready)
+    // Prevents deadlock if engines don't respond
     logic [31:0] r_timeout_counter;
-    logic w_timeout_expired;
+    logic w_timeout_expired;                      // Asserted when counter >= TIMEOUT_CYCLES
 
     // Error tracking
-    logic r_read_error_sticky;
-    logic r_write_error_sticky;
+    // Sticky error flags - set on error, cleared on return to CH_IDLE
+    logic r_read_error_sticky;                    // Read engine reported error
+    logic r_write_error_sticky;                   // Write engine reported error
+    logic r_descriptor_error;                     // Descriptor engine or internal error
 
     // Monitor packet generation
+    // Registered outputs for MonBus interface
     logic r_mon_valid;
     logic [63:0] r_mon_packet;
 
     // Completion flags
-    logic w_read_complete;
-    logic w_write_complete;
-    logic w_transfer_complete;
+    // Combinational checks for phase completion (beats_remaining == 0)
+    logic w_read_complete;                        // All source data read
+    logic w_write_complete;                       // All destination data written
+    logic w_transfer_complete;                    // Both read and write complete
 
     //=========================================================================
     // Channel Reset Management
@@ -160,74 +205,96 @@ module scheduler #(
     end
 
     // Next state logic
+    // FSM Flow: IDLE → FETCH_DESC → READ_DATA → WRITE_DATA → COMPLETE → (chain?) → IDLE
+    // Error transitions: Any error condition → CH_ERROR → (cleared?) → CH_IDLE
     always_comb begin
-        w_next_state = r_current_state;
+        w_next_state = r_current_state;  // Default: hold current state
 
-        // Force idle during reset
+        // Priority 1: Channel reset overrides all other transitions
         if (r_channel_reset_active) begin
             w_next_state = CH_IDLE;
         end else begin
-            // Error handling
-            if (datard_error || datawr_error || r_read_error_sticky || r_write_error_sticky || w_timeout_expired) begin
+            // Priority 2: Error handling - aggregate errors from all sources
+            // Sources: descriptor_engine (descriptor_error)
+            //          read_engine (datard_error)
+            //          write_engine (datawr_error)
+            //          scheduler internal (timeout, sticky errors)
+            if (descriptor_error || datard_error || datawr_error ||
+                r_read_error_sticky || r_write_error_sticky || w_timeout_expired) begin
                 w_next_state = CH_ERROR;
             end else begin
+                // Priority 3: Normal state machine transitions
                 case (r_current_state)
                     CH_IDLE: begin
-                        // Wait for descriptor and channel enable
+                        // Wait for:
+                        // 1. descriptor_valid (descriptor engine has descriptor ready)
+                        // 2. cfg_channel_enable (software has enabled this channel)
                         if (descriptor_valid && cfg_channel_enable) begin
                             w_next_state = CH_FETCH_DESC;
                         end
                     end
 
                     CH_FETCH_DESC: begin
-                        // Descriptor fetched in one cycle
-                        // Check for chained descriptor or start transfer
+                        // Descriptor latched from descriptor_packet in one cycle
+                        // Validate descriptor.valid bit before proceeding
                         if (r_descriptor.valid) begin
-                            w_next_state = CH_READ_DATA;
+                            w_next_state = CH_READ_DATA;  // Valid descriptor → start read phase
                         end else begin
-                            w_next_state = CH_ERROR;  // Invalid descriptor
+                            w_next_state = CH_ERROR;      // Invalid descriptor → error
                         end
                     end
 
                     CH_READ_DATA: begin
-                        // Reading source data
+                        // Read phase: Transfer data from source address to SRAM
+                        // datard_valid asserted, engine reports progress via datard_done_strobe
+                        // Transition when r_read_beats_remaining reaches 0
                         if (w_read_complete) begin
                             w_next_state = CH_WRITE_DATA;
                         end
+                        // Note: Stays in READ_DATA until complete or error
                     end
 
                     CH_WRITE_DATA: begin
-                        // Writing destination data
+                        // Write phase: Transfer data from SRAM to destination address
+                        // datawr_valid asserted, engine reports progress via datawr_done_strobe
+                        // Transition when r_write_beats_remaining reaches 0
                         if (w_write_complete) begin
                             w_next_state = CH_COMPLETE;
                         end
+                        // Note: Stays in WRITE_DATA until complete or error
                     end
 
                     CH_COMPLETE: begin
-                        // Check for chained descriptor
+                        // Descriptor complete - check for chaining
+                        // Chain if: next_descriptor_ptr != 0 AND last flag not set
                         if (r_descriptor.next_descriptor_ptr != 32'h0 && !r_descriptor.last) begin
-                            w_next_state = CH_NEXT_DESC;
+                            w_next_state = CH_NEXT_DESC;  // Fetch next descriptor in chain
                         end else begin
-                            w_next_state = CH_IDLE;
+                            w_next_state = CH_IDLE;       // Transfer complete, return to idle
                         end
                     end
 
                     CH_NEXT_DESC: begin
-                        // Fetch next chained descriptor
-                        // Note: Descriptor engine will fetch based on next_descriptor_ptr
+                        // Wait for descriptor engine to fetch next chained descriptor
+                        // descriptor_engine uses r_descriptor.next_descriptor_ptr as fetch address
                         if (descriptor_valid) begin
-                            w_next_state = CH_FETCH_DESC;
+                            w_next_state = CH_FETCH_DESC;  // Next descriptor ready
                         end
+                        // Note: Stays in NEXT_DESC until descriptor_valid
                     end
 
                     CH_ERROR: begin
-                        // Error state - wait for reset or error clear
-                        if (!datard_error && !datawr_error && !r_read_error_sticky && !r_write_error_sticky) begin
+                        // Error state - wait for all error sources to clear
+                        // Errors clear automatically on transition to CH_IDLE
+                        if (!datard_error && !datawr_error &&
+                            !r_read_error_sticky && !r_write_error_sticky) begin
                             w_next_state = CH_IDLE;
                         end
+                        // Note: Timeout doesn't need explicit check (counter resets when not active)
                     end
 
                     default: begin
+                        // Safety: undefined state → error
                         w_next_state = CH_ERROR;
                     end
                 endcase
@@ -238,6 +305,14 @@ module scheduler #(
     //=========================================================================
     // Descriptor Register Updates
     //=========================================================================
+    // State-dependent register updates for descriptor fields and transfer tracking
+    //
+    // Key State Actions:
+    //   CH_IDLE:      Latch incoming descriptor from descriptor_packet
+    //   CH_FETCH_DESC: Initialize working registers from latched descriptor
+    //   CH_READ_DATA:  Decrement read counter on datard_done_strobe
+    //   CH_WRITE_DATA: Decrement write counter on datawr_done_strobe
+    //   CH_COMPLETE:   Clear descriptor_loaded flag
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -251,14 +326,16 @@ module scheduler #(
         end else begin
             case (r_current_state)
                 CH_IDLE: begin
+                    // Descriptor capture: Sample descriptor_packet when both valid and ready
                     if (descriptor_valid && descriptor_ready) begin
-                        // Latch descriptor
+                        // Extract fields from 512-bit descriptor packet
+                        // (Bit ranges defined by DESC_* localparams above)
                         r_descriptor.src_addr <= descriptor_packet[DESC_SRC_ADDR_HI:DESC_SRC_ADDR_LO];
                         r_descriptor.dst_addr <= descriptor_packet[DESC_DST_ADDR_HI:DESC_DST_ADDR_LO];
                         r_descriptor.length <= descriptor_packet[DESC_LENGTH_HI:DESC_LENGTH_LO];
                         r_descriptor.next_descriptor_ptr <= descriptor_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO];
                         r_descriptor.valid <= descriptor_packet[DESC_VALID_BIT];
-                        r_descriptor.interrupt <= descriptor_packet[DESC_INTERRUPT];
+                        r_descriptor.gen_irq <= descriptor_packet[DESC_GEN_IRQ];
                         r_descriptor.last <= descriptor_packet[DESC_LAST];
 
                         r_descriptor_loaded <= 1'b1;
@@ -266,7 +343,8 @@ module scheduler #(
                 end
 
                 CH_FETCH_DESC: begin
-                    // Initialize transfer tracking
+                    // Transfer initialization: Copy descriptor fields to working registers
+                    // These working registers will be updated as transfer progresses
                     r_src_addr <= r_descriptor.src_addr;
                     r_dst_addr <= r_descriptor.dst_addr;
                     r_beats_remaining <= r_descriptor.length;
@@ -275,31 +353,39 @@ module scheduler #(
                 end
 
                 CH_READ_DATA: begin
-                    // Update on read completion strobe
+                    // Read progress tracking: Engine reports beats completed via strobe
+                    // Engine may complete multiple beats per burst (burst length decided by engine)
                     if (datard_done_strobe) begin
+                        // Decrement by number of beats engine completed
+                        // Saturate at 0 (safety check, shouldn't underflow)
                         r_read_beats_remaining <= (r_read_beats_remaining >= datard_beats_done) ?
                                                  (r_read_beats_remaining - datard_beats_done) : 32'h0;
                     end
                 end
 
                 CH_WRITE_DATA: begin
-                    // Update on write completion strobe
+                    // Write progress tracking: Engine reports beats completed via strobe
+                    // Engine may complete multiple beats per burst (burst length decided by engine)
                     if (datawr_done_strobe) begin
+                        // Decrement by number of beats engine completed
+                        // Saturate at 0 (safety check, shouldn't underflow)
                         r_write_beats_remaining <= (r_write_beats_remaining >= datawr_beats_done) ?
                                                   (r_write_beats_remaining - datawr_beats_done) : 32'h0;
                     end
                 end
 
                 CH_COMPLETE: begin
+                    // Transfer complete: Clear descriptor_loaded flag
+                    // Ready to accept next descriptor (or chain to next)
                     r_descriptor_loaded <= 1'b0;
                 end
 
                 default: begin
-                    // Maintain state
+                    // Other states: Maintain register values
                 end
             endcase
 
-            // Reset tracking during channel reset
+            // Channel reset: Clear state regardless of FSM state
             if (r_channel_reset_active) begin
                 r_descriptor_loaded <= 1'b0;
                 r_read_beats_remaining <= 32'h0;
@@ -349,50 +435,100 @@ module scheduler #(
     //=========================================================================
     // Timeout and Error Management
     //=========================================================================
+    // Timeout: Prevents deadlock if AXI engines don't respond with ready/grant
+    // Errors: Sticky flags capture transient errors for graceful FSM transition
+    //
+    // Error Sources:
+    //   1. descriptor_error  - Descriptor engine fetch error (AXI R error, invalid descriptor)
+    //   2. datard_error      - Read engine error (AXI R error, SRAM full)
+    //   3. datawr_error      - Write engine error (AXI B error, SRAM empty)
+    //   4. w_timeout_expired - Scheduler timeout (engines not granting access)
+    //
+    // Error Handling Flow:
+    //   Error detected → sticky flag set → FSM transition to CH_ERROR
+    //   CH_ERROR state → wait for external errors to clear → FSM to CH_IDLE
+    //   CH_IDLE entry → clear all sticky flags
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             r_timeout_counter <= 32'h0;
             r_read_error_sticky <= 1'b0;
             r_write_error_sticky <= 1'b0;
+            r_descriptor_error <= 1'b0;
         end else begin
-            // Timeout counter
+            // Timeout counter: Increments while waiting for engine grant
+            // Counts cycles where datard_valid or datawr_valid is high but ready is low
+            // Prevents deadlock if arbiter/engine doesn't respond
             if ((datard_valid && !datard_ready) || (datawr_valid && !datawr_ready)) begin
                 r_timeout_counter <= r_timeout_counter + 1;
             end else begin
-                r_timeout_counter <= 32'h0;
+                r_timeout_counter <= 32'h0;  // Reset when not waiting or grant received
             end
 
-            // Error tracking
-            if (datard_error) r_read_error_sticky <= 1'b1;
-            if (datawr_error) r_write_error_sticky <= 1'b1;
+            // Error capture: Latch errors from external components
+            // Sticky flags ensure errors aren't lost due to transient de-assertion
+            if (descriptor_error) r_descriptor_error <= 1'b1;   // Descriptor engine error
+            if (datard_error) r_read_error_sticky <= 1'b1;       // Read engine error
+            if (datawr_error) r_write_error_sticky <= 1'b1;      // Write engine error
 
-            // Clear errors on idle
+            // Also set descriptor_error flag for ANY scheduler-internal error
+            // This ensures consistent error reporting via MonBus
+            if (datard_error || datawr_error || w_timeout_expired) begin
+                r_descriptor_error <= 1'b1;
+            end
+
+            // Error clearing: All sticky flags clear on transition to CH_IDLE
+            // This prepares scheduler for next descriptor
             if (r_current_state == CH_IDLE) begin
                 r_read_error_sticky <= 1'b0;
                 r_write_error_sticky <= 1'b0;
+                r_descriptor_error <= 1'b0;
             end
         end
     end
 
+    // Timeout threshold: Compare counter to parameterized limit
     assign w_timeout_expired = (r_timeout_counter >= TIMEOUT_CYCLES);
 
     //=========================================================================
     // Monitor Packet Generation
     //=========================================================================
+    // Generates 64-bit MonBus packets at key FSM state transitions
+    //
+    // MonBus Packet Format (from monitor_pkg.sv):
+    //   [63:56] - agent_id:    STREAM Scheduler Agent ID (0x40)
+    //   [55:52] - unit_id:     Unit identifier (0x1)
+    //   [51:46] - channel_id:  Channel number (0-7)
+    //   [45:42] - event_code:  STREAM-specific event code
+    //   [41:40] - protocol:    PROTOCOL_CORE (0x0)
+    //   [39:38] - pkt_type:    PktTypeCompletion (0x0) or PktTypeError (0x3)
+    //   [37:0]  - payload:     Event-specific data
+    //
+    // STREAM Event Codes (from stream_pkg.sv):
+    //   DESC_START:       Descriptor processing started
+    //   READ_COMPLETE:    Read phase complete (all data in SRAM)
+    //   WRITE_COMPLETE:   Write phase complete (all data written)
+    //   DESC_COMPLETE:    Descriptor complete (ready for next/idle)
+    //   ERROR:            Error detected (payload = error flags)
+    //
+    // Packet Generation Strategy:
+    //   - Generate on state entry (registered in state)
+    //   - One packet per state transition
+    //   - Clear valid after one cycle (downstream must sample)
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             r_mon_valid <= 1'b0;
             r_mon_packet <= 64'h0;
         end else begin
-            // Default: clear monitor packet
+            // Default: Clear monitor packet (single-cycle pulse)
             r_mon_valid <= 1'b0;
             r_mon_packet <= 64'h0;
 
             case (r_current_state)
                 CH_FETCH_DESC: begin
-                    // Log descriptor start
+                    // Event: Descriptor processing started
+                    // Payload: Transfer length in beats
                     r_mon_valid <= 1'b1;
                     r_mon_packet <= create_monitor_packet(
                         PktTypeCompletion,
@@ -401,13 +537,14 @@ module scheduler #(
                         MON_CHANNEL_ID,
                         MON_UNIT_ID,
                         MON_AGENT_ID,
-                        {3'h0, r_descriptor.length}  // Log transfer length
+                        {3'h0, r_descriptor.length}  // Payload: 32-bit length
                     );
                 end
 
                 CH_READ_DATA: begin
+                    // Event: Read phase complete (generate only when complete)
+                    // Payload: Total beats transferred
                     if (w_read_complete) begin
-                        // Log read phase complete
                         r_mon_valid <= 1'b1;
                         r_mon_packet <= create_monitor_packet(
                             PktTypeCompletion,
@@ -416,14 +553,15 @@ module scheduler #(
                             MON_CHANNEL_ID,
                             MON_UNIT_ID,
                             MON_AGENT_ID,
-                            {3'h0, r_descriptor.length}
+                            {3'h0, r_descriptor.length}  // Payload: 32-bit length
                         );
                     end
                 end
 
                 CH_WRITE_DATA: begin
+                    // Event: Write phase complete (generate only when complete)
+                    // Payload: Total beats transferred
                     if (w_write_complete) begin
-                        // Log write phase complete
                         r_mon_valid <= 1'b1;
                         r_mon_packet <= create_monitor_packet(
                             PktTypeCompletion,
@@ -432,13 +570,14 @@ module scheduler #(
                             MON_CHANNEL_ID,
                             MON_UNIT_ID,
                             MON_AGENT_ID,
-                            {3'h0, r_descriptor.length}
+                            {3'h0, r_descriptor.length}  // Payload: 32-bit length
                         );
                     end
                 end
 
                 CH_COMPLETE: begin
-                    // Log descriptor complete
+                    // Event: Descriptor complete (ready for next descriptor or idle)
+                    // Payload: Total beats transferred
                     r_mon_valid <= 1'b1;
                     r_mon_packet <= create_monitor_packet(
                         PktTypeCompletion,
@@ -447,12 +586,13 @@ module scheduler #(
                         MON_CHANNEL_ID,
                         MON_UNIT_ID,
                         MON_AGENT_ID,
-                        {3'h0, r_descriptor.length}
+                        {3'h0, r_descriptor.length}  // Payload: 32-bit length
                     );
                 end
 
                 CH_ERROR: begin
-                    // Log error
+                    // Event: Error detected (any source)
+                    // Payload: Error flags [35] = write_error, [34] = read_error
                     r_mon_valid <= 1'b1;
                     r_mon_packet <= create_monitor_packet(
                         PktTypeError,
@@ -461,12 +601,12 @@ module scheduler #(
                         MON_CHANNEL_ID,
                         MON_UNIT_ID,
                         MON_AGENT_ID,
-                        {r_write_error_sticky, r_read_error_sticky, 33'h0}
+                        {r_write_error_sticky, r_read_error_sticky, 33'h0}  // Error flags
                     );
                 end
 
                 default: begin
-                    // No monitor packet
+                    // No monitor packet for other states
                 end
             endcase
         end

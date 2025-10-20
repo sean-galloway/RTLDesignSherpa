@@ -49,9 +49,9 @@
 
 ### Bus Definitions
 
-- [AXIL4](ch03_interfaces/02_axil_interface_spec.md)
+- [AXIL4](ch03_interfaces/02_axil4_interface_spec.md)
 - [AXI4](ch03_interfaces/03_axi4_interface_spec.md)
-- [Network](ch03_interfaces/04_network_interface_spec.md)
+- [AXIS4 (AXI4-Stream)](ch03_interfaces/04_axis4_interface_spec.md)
 - [MONBUS](ch03_interfaces/05_monbus_interface_spec.md)
 
 ## Chapter 4: Programming Models

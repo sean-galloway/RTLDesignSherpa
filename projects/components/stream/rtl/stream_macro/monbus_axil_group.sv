@@ -19,20 +19,23 @@
 ================================================================================
 Monitor Bus AXI-Lite Group (STREAM)
 ================================================================================
-Adapted from RAPIDS - Functionally identical, used for STREAM monitoring
+Simplified from RAPIDS - STREAM has only ONE monitor bus input (not two)
 
-This module aggregates monitor bus streams from multiple STREAM channels,
+RAPIDS has source + sink data paths → TWO monitor buses
+STREAM has memory-to-memory only → ONE monitor bus
+
+This module receives monitor bus packets from STREAM channels,
 applies configurable filtering based on protocol and packet types, and
 routes filtered packets to either:
 - Error/Interrupt FIFO (slave read interface) - generates interrupt when not empty
 - Master Write FIFO - writes to configurable address range
 
 Features:
-- Round-robin arbitration between source and sink monitor streams
+- Single monitor bus input (no arbitration needed)
 - Per-protocol configurable packet filtering (drop, error/interrupt, master write)
 - Separate FIFOs for error/interrupt vs master write paths
 - Configurable address range for master write operations
-- Protocol support: AXI, Network, CORE (3 protocols)
+- Protocol support: AXI, AXIS, CORE (3 protocols)
 - Built-in AXI-Lite skid buffering for timing closure
 
 Configuration Registers (per protocol):
@@ -54,15 +57,10 @@ module monbus_axil_group #(
     input  logic                    axi_aclk,
     input  logic                    axi_aresetn,
 
-    // Source Monitor Bus Input
-    input  logic                    source_monbus_valid,
-    output logic                    source_monbus_ready,
-    input  logic [63:0]             source_monbus_packet,
-
-    // Sink Monitor Bus Input
-    input  logic                    sink_monbus_valid,
-    output logic                    sink_monbus_ready,
-    input  logic [63:0]             sink_monbus_packet,
+    // Monitor Bus Input (single input - STREAM is memory-to-memory only)
+    input  logic                    monbus_valid,
+    output logic                    monbus_ready,
+    input  logic [63:0]             monbus_packet,
 
     // Error/Interrupt FIFO (Slave Read Interface)
     input  logic                    s_axil_arvalid,
@@ -148,10 +146,10 @@ module monbus_axil_group #(
     // Internal Signals
     // =======================================================================
 
-    // Arbitrated monitor bus
-    logic                    arb_monbus_valid;
-    logic                    arb_monbus_ready;
-    logic [63:0]             arb_monbus_packet;
+    // Input monitor bus (no arbitration - single input)
+    logic                    input_monbus_valid;
+    logic                    input_monbus_ready;
+    logic [63:0]             input_monbus_packet;
 
     // Packet analysis
     logic [3:0]              pkt_type;
@@ -213,46 +211,23 @@ module monbus_axil_group #(
     logic                    addr_counter_enable;
 
     // =======================================================================
-    // Monitor Bus Arbitration
+    // Monitor Bus Input (No Arbitration Needed - Single Input)
     // =======================================================================
 
-    monbus_arbiter #(
-        .CLIENTS            (2),
-        .INPUT_SKID_ENABLE  (1),
-        .OUTPUT_SKID_ENABLE (1),
-        .INPUT_SKID_DEPTH   (2),
-        .OUTPUT_SKID_DEPTH  (2)
-    ) u_arbiter (
-        .axi_aclk           (axi_aclk),
-        .axi_aresetn        (axi_aresetn),
-        .block_arb          (1'b0),
-
-        // Inputs
-        .monbus_valid_in    ({sink_monbus_valid, source_monbus_valid}),
-        .monbus_ready_in    ({sink_monbus_ready, source_monbus_ready}),
-        .monbus_packet_in   ({sink_monbus_packet, source_monbus_packet}),
-
-        // Output
-        .monbus_valid       (arb_monbus_valid),
-        .monbus_ready       (arb_monbus_ready),
-        .monbus_packet      (arb_monbus_packet),
-
-        // Debug (unused)
-        .grant_valid        (),
-        .grant              (),
-        .grant_id           (),
-        .last_grant         ()
-    );
+    // Direct connection - no arbitration needed for single input
+    assign input_monbus_valid = monbus_valid;
+    assign monbus_ready = input_monbus_ready;
+    assign input_monbus_packet = monbus_packet;
 
     // =======================================================================
     // Packet Analysis and Filtering
     // =======================================================================
 
     // Extract packet fields
-    assign pkt_type = get_packet_type(arb_monbus_packet);
-    assign pkt_protocol = arb_monbus_packet[59:57]; // 3-bit protocol field
-    assign pkt_event_code = get_event_code(arb_monbus_packet);
-    assign pkt_event_data = get_event_data(arb_monbus_packet);
+    assign pkt_type = get_packet_type(input_monbus_packet);
+    assign pkt_protocol = input_monbus_packet[59:57]; // 3-bit protocol field
+    assign pkt_event_code = get_event_code(input_monbus_packet);
+    assign pkt_event_data = get_event_data(input_monbus_packet);
 
     // Filter logic
     always_comb begin
@@ -262,7 +237,7 @@ module monbus_axil_group #(
         pkt_event_masked = 1'b0;
 
         // Only process supported protocols - fix width expansion warning
-        if ({29'b0, pkt_protocol} < NUM_PROTOCOLS && arb_monbus_valid) begin
+        if ({29'b0, pkt_protocol} < NUM_PROTOCOLS && input_monbus_valid) begin
 
             // Protocol-specific filtering
             case (pkt_protocol)
@@ -332,17 +307,17 @@ module monbus_axil_group #(
         end
     end
 
-    // Arbitrated ready based on FIFO availability
-    assign arb_monbus_ready = pkt_drop ||
-                            (pkt_to_err_fifo && err_fifo_wr_ready) ||
-                            (pkt_to_write_fifo && write_fifo_wr_ready);
+    // Input ready based on FIFO availability
+    assign input_monbus_ready = pkt_drop ||
+                                (pkt_to_err_fifo && err_fifo_wr_ready) ||
+                                (pkt_to_write_fifo && write_fifo_wr_ready);
 
     // =======================================================================
     // Error/Interrupt FIFO
     // =======================================================================
 
-    assign err_fifo_wr_valid = arb_monbus_valid && pkt_to_err_fifo && !pkt_drop;
-    assign err_fifo_wr_data = arb_monbus_packet;
+    assign err_fifo_wr_valid = input_monbus_valid && pkt_to_err_fifo && !pkt_drop;
+    assign err_fifo_wr_data = input_monbus_packet;
 
     gaxi_fifo_sync #(
         .REGISTERED     (0),
@@ -371,8 +346,8 @@ module monbus_axil_group #(
     // Master Write FIFO
     // =======================================================================
 
-    assign write_fifo_wr_valid = arb_monbus_valid && pkt_to_write_fifo && !pkt_drop;
-    assign write_fifo_wr_data = arb_monbus_packet;
+    assign write_fifo_wr_valid = input_monbus_valid && pkt_to_write_fifo && !pkt_drop;
+    assign write_fifo_wr_data = input_monbus_packet;
 
     gaxi_fifo_sync #(
         .REGISTERED     (0),

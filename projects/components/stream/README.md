@@ -150,10 +150,10 @@ write_apb(ADDR_CH2_CTRL, desc2_address);  // Channel 2 (APB addr selects)
 projects/components/stream/
 ├── rtl/
 │   ├── stream_fub/         # Functional unit blocks
-│   ├── stream_macro/       # Top-level integration (includes apb_config)
+│   ├── stream_macro/       # Top-level integration
 │   └── includes/           # Packages and imports
 ├── regs/                   # PeakRDL register definitions (future)
-│   ├── README.md           # Register generation guide
+│   ├── README.md           # Register generation guide (similar to apb_hpet)
 │   └── generated/          # PeakRDL-generated RTL (future)
 ├── dv/
 │   └── tests/

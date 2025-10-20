@@ -181,7 +181,7 @@ SRAM buffering handles rate differences
 
 ---
 
-## 6. APB Configuration (Deferred)
+## 6. APB Configuration (PeakRDL-Generated, Deferred)
 
 ### 6.1 Why Deferred
 
@@ -193,14 +193,29 @@ From user feedback:
 - Configuration details defined after functional validation
 - Consistency with HPET register approach
 
-### 6.2 Current Placeholder
+### 6.2 PeakRDL-Based Approach (Following HPET Pattern)
 
-The `apb_config.sv` module (`rtl/stream_macro/apb_config.sv`) exists but is:
-- Placeholder design at integration/macro level
-- Will wrap PeakRDL-generated registers (like HPET wraps `apb_slave_cdc`)
-- May include CDC wrapper for clock domain crossing
-- Not critical path for Phase 1 implementation
-- **Location:** `stream_macro/` (integration wrapper), generated regs in `regs/generated/`
+**Implementation Pattern:**
+- Define register map in `stream_regs.rdl`
+- Generate RTL using `peakrdl_generate.py` (similar to HPET)
+- Create APB wrapper with optional CDC (`apb_slave_cdc`)
+- Wire register outputs to STREAM control signals
+
+**Workflow:**
+```bash
+cd projects/components/stream/regs
+../../bin/peakrdl_generate.py stream_regs.rdl --copy-rtl ../rtl/stream_macro
+```
+
+**Reference Implementation:**
+- `projects/components/apb_hpet/peakrdl/hpet_regs.rdl` - Register definition example
+- `projects/components/apb_hpet/rtl/apb_hpet.sv` - Wrapper with CDC example
+- `projects/components/stream/regs/README.md` - STREAM-specific workflow
+
+**Location:**
+- Register definition: `regs/stream_regs.rdl` (to be created)
+- Generated RTL: `regs/generated/rtl/` (auto-generated)
+- Integration wrapper: `rtl/stream_macro/` (to be created)
 
 ---
 
