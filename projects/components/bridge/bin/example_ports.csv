@@ -1,0 +1,29 @@
+# Bridge Port Configuration
+# Defines each master and slave port with protocol, widths, and address ranges
+#
+# Columns:
+#   port_name    - Unique identifier for this port
+#   direction    - master or slave
+#   protocol     - axi4 or apb
+#   prefix       - Signal prefix (e.g., "rapids_m_axi_", "apb0_")
+#   data_width   - Data width in bits (32, 64, 128, 256, 512, etc.)
+#   addr_width   - Address width in bits (typically 32 or 64)
+#   id_width     - ID width for AXI4 (N/A for APB)
+#   base_addr    - Base address for slave (hex, N/A for masters)
+#   addr_range   - Address range size for slave (hex, N/A for masters)
+#
+# Notes:
+#   - Masters don't have base_addr/addr_range (use N/A)
+#   - APB slaves have id_width=N/A (APB doesn't use transaction IDs)
+#   - Hex values can use 0x prefix or plain hex
+#   - Width converters inserted automatically when data widths differ
+
+port_name,direction,protocol,prefix,data_width,addr_width,id_width,base_addr,addr_range
+rapids_master,master,axi4,rapids_m_axi_,512,64,8,N/A,N/A
+stream_master,master,axi4,stream_m_axi_,512,64,8,N/A,N/A
+cpu_master,master,axi4,cpu_m_axi_,64,32,4,N/A,N/A
+apb_periph0,slave,apb,apb0_,32,32,N/A,0x00000000,0x00010000
+apb_periph1,slave,apb,apb1_,32,32,N/A,0x00010000,0x00010000
+apb_periph2,slave,apb,apb2_,32,32,N/A,0x00020000,0x00010000
+ddr_controller,slave,axi4,ddr_s_axi_,512,64,8,0x80000000,0x80000000
+sram_buffer,slave,axi4,sram_s_axi_,512,48,8,0x40000000,0x10000000

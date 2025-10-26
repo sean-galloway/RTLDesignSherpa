@@ -1,0 +1,32 @@
+# Bridge Port Configuration with Channel-Specific Masters
+# Demonstrates write-only and read-only masters (like RAPIDS)
+#
+# Columns:
+#   port_name    - Unique identifier for this port
+#   direction    - master or slave
+#   protocol     - axi4 or apb
+#   channels     - rw (read+write), wr (write-only), rd (read-only)
+#   prefix       - Signal prefix (e.g., "rapids_descr_m_axi_")
+#   data_width   - Data width in bits (32, 64, 128, 256, 512, etc.)
+#   addr_width   - Address width in bits (typically 32 or 64)
+#   id_width     - ID width for AXI4 (N/A for APB)
+#   base_addr    - Base address for slave (hex, N/A for masters)
+#   addr_range   - Address range size for slave (hex, N/A for masters)
+#
+# Notes:
+#   - Use 'wr' for write-only masters (generates AW, W, B channels only)
+#   - Use 'rd' for read-only masters (generates AR, R channels only)
+#   - Use 'rw' for full read/write masters (generates all 5 channels)
+#   - Slaves always have 'rw' (must support both directions)
+#   - Width converters only instantiated for needed directions
+#   - Backward compatible: 'channels' column optional, defaults to 'rw'
+
+port_name,direction,protocol,channels,prefix,data_width,addr_width,id_width,base_addr,addr_range
+rapids_descr_wr,master,axi4,wr,rapids_descr_m_axi_,512,64,8,N/A,N/A
+rapids_sink_wr,master,axi4,wr,rapids_sink_m_axi_,512,64,8,N/A,N/A
+rapids_src_rd,master,axi4,rd,rapids_src_m_axi_,512,64,8,N/A,N/A
+stream_master,master,axi4,rw,stream_m_axi_,512,64,8,N/A,N/A
+cpu_master,master,axi4,rw,cpu_m_axi_,64,32,4,N/A,N/A
+apb_periph0,slave,apb,rw,apb0_,32,32,N/A,0x00000000,0x00010000
+ddr_controller,slave,axi4,rw,ddr_s_axi_,512,64,8,0x80000000,0x80000000
+sram_buffer,slave,axi4,rw,sram_s_axi_,512,48,8,0x40000000,0x10000000
