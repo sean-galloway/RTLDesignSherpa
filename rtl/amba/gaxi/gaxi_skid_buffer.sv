@@ -15,6 +15,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module gaxi_skid_buffer #(
     parameter int DATA_WIDTH = 32,
     parameter int DEPTH = 2, // Must be one of {2, 4, 6, 8}
@@ -52,8 +54,8 @@ module gaxi_skid_buffer #(
     assign w_wr_xfer = wr_valid & wr_ready;
     assign w_rd_xfer = rd_valid & rd_ready;
 
-    always_ff @(posedge axi_aclk or negedge axi_aresetn) begin
-        if (~axi_aresetn) begin
+    `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
+if (`RST_ASSERTED(axi_aresetn)) begin
             r_data <= 'b0;
             r_data_count <= 'b0;
         end else begin
@@ -75,22 +77,24 @@ module gaxi_skid_buffer #(
                 end
             endcase
         end
-    end
+    )
 
-    always_ff @(posedge axi_aclk or negedge axi_aresetn) begin
-        if (~axi_aresetn) begin
+
+    `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
+if (`RST_ASSERTED(axi_aresetn)) begin
             wr_ready <= 1'b0;
             rd_valid <= 1'b0;
         end else begin
             wr_ready <= (32'(r_data_count) <= DEPTH-2) ||
                             (32'(r_data_count) == DEPTH-1 && (~w_wr_xfer || w_rd_xfer)) ||
                             (32'(r_data_count) == DEPTH && w_rd_xfer);
-
+        
             rd_valid <= (r_data_count >= 2) ||
                             (r_data_count == 4'b0001 && (~w_rd_xfer || w_wr_xfer)) ||
                             (r_data_count == 4'b0000 && w_wr_xfer);
         end
-    end
+    )
+
 
     assign rd_data  = r_data[DW-1:0];
     assign rd_count = r_data_count;

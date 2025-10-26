@@ -258,3 +258,8 @@ Some implementations use different position detection algorithms:
 - **Priority encoders**: Find first/last set bit
 - **Thermometer decoders**: Convert 1-hot positions
 - **LUT-based**: For small, fixed widths
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

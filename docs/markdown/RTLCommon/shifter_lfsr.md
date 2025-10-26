@@ -189,3 +189,8 @@ scrambled_data = input_data ^ lfsr_out;
 - Spread spectrum communications
 - Test vector generation
 - Noise generation for audio applications
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

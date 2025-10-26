@@ -41,7 +41,8 @@ from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
 # Add repo root to Python path
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
+# From test file: tests -> dv -> apb_hpet -> components -> projects -> repo_root
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../..'))
 import sys
 sys.path.insert(0, repo_root)
 
@@ -227,8 +228,8 @@ def test_hpet(request, num_timers, vendor_id, revision_id, cdc_enable, test_leve
         os.path.join(rtl_dict['rtl_apb'],           "apb_slave.sv"),
         os.path.join(rtl_dict['rtl_apb'],           "apb_slave_cdc.sv"),
 
-        # PeakRDL adapter
-        os.path.join(rtl_dict.get('rtl_amba_shared', 'rtl/amba/shared'), "../adapters/peakrdl_to_cmdrsp.sv"),
+        # PeakRDL adapter (from shims component)
+        os.path.join(repo_root, "projects/components/shims/rtl/peakrdl_to_cmdrsp.sv"),
 
         # HPET modules (PeakRDL-based configuration registers)
         os.path.join(rtl_dict.get('rtl_hpet', 'rtl/hpet'), "hpet_regs_pkg.sv"),    # PeakRDL package

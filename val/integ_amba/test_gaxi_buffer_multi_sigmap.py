@@ -181,6 +181,7 @@ def test_axi_skid_buffer_multi_sigmap(request, addr_width, ctrl_width, data_widt
             'rtl_amba':      'rtl/amba',
             'rtl_gaxi':      'rtl/amba/gaxi',
             'rtl_amba_test': 'rtl/amba/testcode',
+            'rtl_amba_includes': 'rtl/amba/includes',
         })
 
     # Set up all of the test names
@@ -209,7 +210,7 @@ def test_axi_skid_buffer_multi_sigmap(request, addr_width, ctrl_width, data_widt
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes = []
+    includes=[rtl_dict['rtl_amba_includes']]
 
     # RTL parameters
     rtl_parameters = {

@@ -51,6 +51,8 @@
 
 // Import STREAM packages
 `include "stream_imports.svh"
+`include "reset_defs.svh"
+
 
 module apbtodescr #(
     parameter int ADDR_WIDTH = 32,
@@ -126,13 +128,14 @@ module apbtodescr #(
     // FSM State Register
     //=========================================================================
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_state <= IDLE;
         end else begin
             r_state <= w_next_state;
         end
-    end
+    )
+
 
     //=========================================================================
     // FSM Next State Logic
@@ -182,8 +185,8 @@ module apbtodescr #(
     // Transaction Capture (IDLE state)
     //=========================================================================
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_channel_id <= 3'h0;
             r_wdata <= '0;
             r_error <= 1'b0;
@@ -192,7 +195,7 @@ module apbtodescr #(
                 // Latch transaction info
                 r_channel_id <= channel_id;
                 r_wdata <= apb_cmd_wdata;
-
+        
                 // Latch error conditions
                 if (!apb_cmd_write) begin
                     r_error <= 1'b1;  // Read not supported
@@ -203,7 +206,8 @@ module apbtodescr #(
                 end
             end
         end
-    end
+    )
+
 
     //=========================================================================
     // APB CMD Interface Outputs

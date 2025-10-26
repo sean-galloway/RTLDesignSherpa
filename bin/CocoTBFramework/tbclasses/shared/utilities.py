@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: utilities
+# Purpose: Returns module, repo_root, test_dir (relative to the calling file), log_dir, and
+#
+# Documentation: bin/CocoTBFramework/README.md
+# Subsystem: framework
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 '''Various Utilities for the CocoTB Flow'''
 import os
 import subprocess

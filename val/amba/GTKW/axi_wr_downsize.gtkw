@@ -1,0 +1,67 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Sun Oct 19 22:59:10 2025
+[*]
+[dumpfile] "/mnt/data/github/rtldesignsherpa/val/amba/local_sim_build/test_axi4_dwidth_converter_128to32_downsize_4x_full/dump.vcd"
+[dumpfile_mtime] "Sun Oct 19 22:37:43 2025"
+[dumpfile_size] 3075823
+[savefile] "/mnt/data/github/rtldesignsherpa/val/amba/GTKW/axi_wr_downsize.gtkw"
+[timestart] 114860600
+[size] 3495 1081
+[pos] -1 -1
+*-16.557371 115060200 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi4_dwidth_converter_wr.
+[sst_width] 278
+[signals_width] 311
+[sst_expanded] 1
+[sst_vpaned_height] 325
+@28
+axi4_dwidth_converter_wr.aclk
+axi4_dwidth_converter_wr.aresetn
+@200
+-slave-aw
+@28
+axi4_dwidth_converter_wr.s_axi_awvalid
+axi4_dwidth_converter_wr.s_axi_awready
+@22
+axi4_dwidth_converter_wr.s_axi_awaddr[31:0]
+axi4_dwidth_converter_wr.s_axi_awlen[7:0]
+@200
+-slave-w
+@28
+axi4_dwidth_converter_wr.s_axi_wvalid
+axi4_dwidth_converter_wr.s_axi_wready
+@22
+axi4_dwidth_converter_wr.s_axi_wdata[127:0]
+axi4_dwidth_converter_wr.s_axi_wstrb[15:0]
+@28
+axi4_dwidth_converter_wr.s_axi_wlast
+@200
+-master-aw
+@28
+axi4_dwidth_converter_wr.m_axi_awvalid
+axi4_dwidth_converter_wr.m_axi_awready
+@22
+axi4_dwidth_converter_wr.m_axi_awaddr[31:0]
+axi4_dwidth_converter_wr.m_axi_awlen[7:0]
+@200
+-master-w
+@28
+axi4_dwidth_converter_wr.m_axi_wvalid
+axi4_dwidth_converter_wr.m_axi_wready
+@22
+axi4_dwidth_converter_wr.m_axi_wdata[31:0]
+axi4_dwidth_converter_wr.m_axi_wstrb[3:0]
+@29
+axi4_dwidth_converter_wr.m_axi_wlast
+@200
+-internals
+@28
+axi4_dwidth_converter_wr.gen_w_downsize.r_wide_beat_buffered
+axi4_dwidth_converter_wr.gen_w_downsize.r_write_beat_ptr[1:0]
+@22
+axi4_dwidth_converter_wr.gen_w_downsize.r_wdata_buffer[127:0]
+@28
+axi4_dwidth_converter_wr.gen_w_downsize.r_wlast_buffered
+[pattern_trace] 1
+[pattern_trace] 0

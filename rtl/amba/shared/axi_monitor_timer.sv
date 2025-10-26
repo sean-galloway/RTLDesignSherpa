@@ -22,6 +22,8 @@
  * timing ticks based on the frequency selection provided, allowing the
  * timeout thresholds to remain consistent across different clock frequencies.
  */
+
+`include "reset_defs.svh"
 module axi_monitor_timer (
     // Global Clock and Reset
     input  logic        aclk,
@@ -44,14 +46,15 @@ module axi_monitor_timer (
     assign timer_tick = w_timer_tick;
 
     // Timestamp counter generation
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+if (`RST_ASSERTED(aresetn)) begin
             r_timestamp <= '0;
         end else begin
             // Increment timestamp counter every clock cycle
             r_timestamp <= r_timestamp + 1'b1;
         end
-    end
+    )
+
 
     // Use counter_freq_invariant for generating timer ticks
     counter_freq_invariant #(
@@ -64,7 +67,7 @@ module axi_monitor_timer (
         .freq_sel    (cfg_freq_sel),
         .tick        (w_timer_tick),
         /* verilator lint_off PINCONNECTEMPTY */
-        .counter     ()             // Not used
+        .o_counter   ()             // Not used
         /* verilator lint_on PINCONNECTEMPTY */
     );
 

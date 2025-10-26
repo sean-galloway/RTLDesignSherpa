@@ -17,15 +17,50 @@
 Test for the carry-save multiplier module.
 """
 import os
+import sys
 import random
 import subprocess
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+
+# Add repo root to path for CocoTBFramework imports
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if os.path.join(repo_root, 'bin') not in sys.path:
+    sys.path.insert(0, os.path.join(repo_root, 'bin'))
+
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
 # Import the base MultiplierTB class
 from CocoTBFramework.tbclasses.common.multiplier_testing import MultiplierTB
+
+
+def get_multiplier_params():
+    """Generate multiplier test parameters based on REG_LEVEL."""
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+
+    if reg_level == 'GATE':
+        return [
+            {'WIDTH': 8, 'test_level': 'basic'},  # GATE: Minimal - just 8-bit basic
+        ]
+    elif reg_level == 'FUNC':
+        return [
+            {'WIDTH': 8, 'test_level': 'basic'},  # FUNC: Small and medium widths
+            {'WIDTH': 16, 'test_level': 'basic'},
+        ]
+    else:  # FULL
+        return [
+            # Basic tests with different widths
+            {'WIDTH':  8, 'test_level': 'basic'},
+            {'WIDTH': 16, 'test_level': 'basic'},
+            {'WIDTH': 32, 'test_level': 'basic'},
+            # More comprehensive testing
+            {'WIDTH':  8, 'test_level': 'medium'},
+            {'WIDTH': 16, 'test_level': 'medium'},
+            {'WIDTH': 32, 'test_level': 'medium'},
+            # Full test suite
+            {'WIDTH': 16, 'test_level': 'full'},
+        ]
 
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
@@ -50,20 +85,7 @@ async def multiplier_test(dut):
     await tb.run_comprehensive_tests()
 
 
-@pytest.mark.parametrize("params", [
-    # Basic tests with different widths
-    {'WIDTH':  8, 'test_level': 'basic'},   # Basic test level
-    {'WIDTH': 16, 'test_level': 'basic'},
-    {'WIDTH': 32, 'test_level': 'basic'},
-
-    # More comprehensive testing
-    {'WIDTH':  8, 'test_level': 'medium'},  # More thorough tests
-    {'WIDTH': 16, 'test_level': 'medium'},
-    {'WIDTH': 32, 'test_level': 'medium'},
-
-    # Full test suite (only run selectively due to time)
-    {'WIDTH': 16, 'test_level': 'full'},    # Complete test suite
-])
+@pytest.mark.parametrize("params", get_multiplier_params())
 def test_math_multiplier_carry_save(request, params):
     """PyTest function to run the cocotb test."""
     # Get all of the directory and module information
@@ -77,10 +99,19 @@ def test_math_multiplier_carry_save(request, params):
         os.path.join(rtl_dict['rtl_cmn'], f"{dut_name}.sv"),
     ]
 
+    # Get REG_LEVEL before creating test name
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()  # GATE, FUNC, or FULL
+
     # Create human-readable test identifier
     t_width = params['WIDTH']
     t_name = params['test_level']
-    test_name_plus_params = f"test_{dut_name}_W{t_width:03d}_{t_name}"
+    test_name_plus_params = f"test_{dut_name}_W{t_width:03d}_{t_name}_{reg_level}"
+
+    # Add worker ID for pytest-xdist parallel execution
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
+
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Define simulation build and log paths

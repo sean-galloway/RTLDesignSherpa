@@ -426,3 +426,8 @@ assert property (clz_correctness);
 - Find first set (FFS) / Find last set (FLS)
 - Priority encoders
 - Barrel shifters
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

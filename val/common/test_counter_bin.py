@@ -18,25 +18,25 @@ Binary Counter Test with Parameterized Test Levels and Configuration
 
 This test uses WIDTH and MAX as parameters for maximum flexibility:
 
-CONFIGURATION:
-    WIDTH: Counter width in bits (4, 5, 8, 16)
-    MAX:   Maximum count value before wrap (8, 16, 32, 255)
+TEST LEVELS (per-test depth):
+    basic (30s-2min):  Quick verification during development
+    medium (2-5 min):  Integration testing for CI/branches
+    full (5-15 min):   Comprehensive validation for regression
 
-TEST LEVELS:
-    basic (1-2 min):   Quick verification during development
-    medium (3-5 min):  Integration testing for CI/branches
-    full (8-15 min):   Comprehensive validation for regression
+REG_LEVEL Control (parameter combinations):
+    GATE: 2 tests (~5 min) - smoke test (small + large counter)
+    FUNC: 9 tests (~20 min) - functional coverage - DEFAULT
+    FULL: 27 tests (~2 hours) - comprehensive validation
 
 PARAMETER COMBINATIONS:
-    - WIDTH: [4, 5, 8, 16]
-    - MAX: [8, 16, 32, 255]
-    - test_level: [basic, medium, full]
+    GATE: 2 configs (small + large) × 1 level = 2 tests
+    FUNC: 3 widths × 3 max_vals × 1 level = 9 tests (basic level only)
+    FULL: 3 widths × 3 max_vals × 3 levels = 27 tests
 
 Environment Variables:
-    TEST_LEVEL: Set test level in cocotb (basic/medium/full)
+    REG_LEVEL: GATE|FUNC|FULL - controls parameter combinations (default: FUNC)
+    TEST_LEVEL: basic|medium|full - controls per-test depth (set by REG_LEVEL)
     SEED: Set random seed for reproducibility
-    TEST_WIDTH: Counter width in bits
-    TEST_MAX: Maximum count value
 
 COUNTER_BIN BEHAVIOR:
     Binary counter with special wrap behavior:
@@ -46,6 +46,7 @@ COUNTER_BIN BEHAVIOR:
 """
 
 import os
+import sys
 import random
 import math
 from itertools import product
@@ -54,6 +55,12 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, Timer
 from cocotb_test.simulator import run
+
+# Add repo root to path for CocoTBFramework imports
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if os.path.join(repo_root, 'bin') not in sys.path:
+    sys.path.insert(0, os.path.join(repo_root, 'bin'))
+
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
@@ -508,23 +515,54 @@ async def counter_bin_test(dut):
 
 def generate_params():
     """
-    Generate test parameters. Modify this function to limit test scope for debugging.
+    Generate counter_bin parameter combinations based on REG_LEVEL.
+
+    REG_LEVEL=GATE: 2 tests (smoke test - small + large)
+    REG_LEVEL=FUNC: 9 tests (functional coverage) - default
+    REG_LEVEL=FULL: 27 tests (comprehensive validation)
+
+    Parameters: (width, max_val, test_level)
+
+    Counter constraint: MAX must fit in WIDTH-1 bits (MSB is special)
     """
-    widths = [4, 5, 8]  # Different counter widths
-    maxs = [8, 16, 32]  # Different maximum count values
-    test_levels = ['basic', 'medium', 'full']  # Test levels
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
 
-    valid_params = []
-    for width, max_val, test_level in product(widths, maxs, test_levels):
-        # Ensure MAX fits in WIDTH-1 bits (since MSB is special)
-        if max_val < (1 << (width - 1)):
-            valid_params.append((width, max_val, test_level))
+    if reg_level == 'GATE':
+        # Minimal - just prove basic functionality
+        # 2 tests: small counter + large counter, basic level only
+        params = [
+            (5, 10, 'basic'),   # Small counter (5 bits, max 10)
+            (8, 128, 'basic'),  # Larger counter (8 bits, max 128)
+        ]
 
-    # For debugging, uncomment one of these:
-    # return [(5, 8, 'full')]  # Single test
-    return [(5, 10, 'full'), (6, 12, 'full')]  # Just specific configurations
+    elif reg_level == 'FUNC':
+        # Functional coverage - test variety of widths/maxs with basic level
+        # 3 widths × 3 maxs × 1 level = 9 tests
+        widths = [4, 5, 8]
+        maxs = [8, 10, 16]
+        test_levels = ['basic']  # Keep tests fast for functional check
 
-    # return valid_params
+        params = []
+        for width, max_val in product(widths, maxs):
+            # Ensure MAX fits in WIDTH-1 bits (since MSB is special)
+            if max_val < (1 << (width - 1)):
+                for level in test_levels:
+                    params.append((width, max_val, level))
+
+    else:  # FULL
+        # Comprehensive testing - multiple widths, maxs, and all test levels
+        # 3 widths × 3 maxs × 3 levels = 27 tests
+        widths = [4, 5, 8]
+        maxs = [8, 10, 16]
+        test_levels = ['basic', 'medium', 'full']
+
+        params = []
+        for width, max_val, level in product(widths, maxs, test_levels):
+            # Ensure MAX fits in WIDTH-1 bits
+            if max_val < (1 << (width - 1)):
+                params.append((width, max_val, level))
+
+    return params
 
 
 params = generate_params()
@@ -543,7 +581,7 @@ def test_counter_bin(request, width, max_val, test_level):
     Counter behavior: Binary counter with special wrap (toggle MSB, clear others)
     """
     # Get directory and module information
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common'})
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common', 'rtl_amba_includes': 'rtl/amba/includes'})
 
     # DUT information
     dut_name = "counter_bin"
@@ -617,7 +655,7 @@ def test_counter_bin(request, width, max_val, test_level):
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[],
+            includes=[rtl_dict['rtl_amba_includes']],
             toplevel=toplevel,
             module=module,
             parameters=parameters,

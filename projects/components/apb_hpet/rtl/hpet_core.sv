@@ -34,6 +34,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module hpet_core #(
     parameter int NUM_TIMERS = 3
 )(
@@ -76,8 +78,8 @@ module hpet_core #(
     // ============================================================================
     logic [63:0] r_main_counter;
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_main_counter <= '0;
         end else begin
             if (counter_write) begin
@@ -88,21 +90,35 @@ module hpet_core #(
                 r_main_counter <= r_main_counter + 1'b1;
             end
         end
-    end
+    )
+
 
     assign counter_rdata = r_main_counter;
 
     // ============================================================================
     // Timer Comparator Registers (64-bit fixed)
     // ============================================================================
+    // FPGA Synthesis Attributes: Use distributed RAM for low latency
+    // (typically 2-8 timers, small array)
+`ifdef XILINX
+    (* ram_style = "distributed" *)
+`elsif INTEL
+    /* synthesis ramstyle = "MLAB" */
+`endif
     logic [63:0] r_timer_comparator [NUM_TIMERS];
+
+`ifdef XILINX
+    (* ram_style = "distributed" *)
+`elsif INTEL
+    /* synthesis ramstyle = "MLAB" */
+`endif
     logic [63:0] r_timer_period [NUM_TIMERS];  // Store original period for periodic mode
 
     genvar i;
     generate
         for (i = 0; i < NUM_TIMERS; i++) begin : gen_timer_comparators
-            always_ff @(posedge clk or negedge rst_n) begin
-                if (!rst_n) begin
+            `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
                     r_timer_comparator[i] <= '0;
                     r_timer_period[i] <= '0;
                 end else begin
@@ -110,7 +126,7 @@ module hpet_core #(
                         // Handle partial writes from 32-bit APB interface
                         // Config_regs sends {32'h0, data} for low writes, {data, 32'h0} for high writes
                         // timer_comp_write_high indicates which half is being written
-
+                
                         if (timer_comp_write_high) begin
                             // Writing to high 32 bits
                             r_timer_comparator[i][63:32] <= timer_comp_wdata[i][63:32];
@@ -126,7 +142,8 @@ module hpet_core #(
                         r_timer_comparator[i] <= r_timer_comparator[i] + r_timer_period[i];
                     end
                 end
-            end
+            )
+
 
             assign timer_comp_rdata[i] = r_timer_comparator[i];
         end
@@ -157,13 +174,14 @@ module hpet_core #(
     endgenerate
 
     // Store previous match state for edge detection
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_timer_match_prev <= '0;
         end else begin
             r_timer_match_prev <= w_timer_match;
         end
-    end
+    )
+
 
     // ============================================================================
     // Timer Mode Handling and Comparator Updates
@@ -175,13 +193,14 @@ module hpet_core #(
     assign w_timer_fire = w_timer_match & ~r_timer_match_prev;
 
     // Internal timer enable (can be disabled by one-shot completion)
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_timer_enable_int <= '0;
         end else begin
             r_timer_enable_int <= timer_enable;
         end
-    end
+    )
+
 
     // Timer mode handling merged into comparator logic to avoid conflicts
 
@@ -194,8 +213,8 @@ module hpet_core #(
     generate
         for (i = 0; i < NUM_TIMERS; i++) begin : gen_interrupt_logic
             // Interrupt status register (sticky)
-            always_ff @(posedge clk or negedge rst_n) begin
-                if (!rst_n) begin
+            `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
                     r_interrupt_status[i] <= 1'b0;
                 end else begin
                     if (timer_int_clear[i]) begin
@@ -206,11 +225,12 @@ module hpet_core #(
                         r_interrupt_status[i] <= 1'b1;
                     end
                 end
-            end
+            )
+
 
             // Interrupt output generation
-            always_ff @(posedge clk or negedge rst_n) begin
-                if (!rst_n) begin
+            `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
                     r_interrupt_output[i] <= 1'b0;
                 end else begin
                     if (timer_int_clear[i]) begin
@@ -224,7 +244,8 @@ module hpet_core #(
                         r_interrupt_output[i] <= 1'b0;
                     end
                 end
-            end
+            )
+
         end
     endgenerate
 

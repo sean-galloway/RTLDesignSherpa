@@ -239,3 +239,8 @@ For a polynomial P(x) = x^n + x^a + x^b + ... + 1:
 - Very few taps (2 taps or less)
 - Area is more critical than speed
 - Debugging capabilities are important
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

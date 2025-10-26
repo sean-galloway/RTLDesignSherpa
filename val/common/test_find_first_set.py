@@ -42,6 +42,7 @@ FIND FIRST SET BEHAVIOR:
 """
 
 import os
+import sys
 import random
 import math
 from itertools import product
@@ -50,6 +51,12 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import Timer
 from cocotb_test.simulator import run
+
+# Add repo root to path for CocoTBFramework imports
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if os.path.join(repo_root, 'bin') not in sys.path:
+    sys.path.insert(0, os.path.join(repo_root, 'bin'))
+
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
@@ -456,8 +463,19 @@ async def find_first_set_test(dut):
 
 
 def generate_params():
-    """Generate test parameters"""
-    widths = [8, 16, 32, 64]
+    """Generate test parameters based on REG_LEVEL"""
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+
+    if reg_level == 'GATE':
+        # GATE: Minimal - just 8-bit
+        widths = [8]
+    elif reg_level == 'FUNC':
+        # FUNC: Small and medium widths
+        widths = [8, 16]
+    else:  # FULL
+        # FULL: All widths
+        widths = [8, 16, 32, 64]
+
     test_levels = ['full']
 
     valid_params = []
@@ -487,7 +505,15 @@ def test_find_first_set(request, width, test_level):
 
     # Create human-readable test identifier
     width_str = TBBase.format_dec(width, 2)
-    test_name_plus_params = f"test_find_first_set_w{width_str}_{test_level}"
+    # Get REG_LEVEL before creating test name
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()  # GATE, FUNC, or FULL
+
+    test_name_plus_params = f"test_find_first_set_w{width_str}_{test_level}_{reg_level}"
+
+    # Add worker ID for pytest-xdist parallel execution
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Setup directories

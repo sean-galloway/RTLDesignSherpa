@@ -683,10 +683,14 @@ def test_gaxi_wavedrom_example(data_width, depth, trim_mode, enable_wavedrom):
         trim_mode: Waveform trimming (minimal/default/moderate)
         enable_wavedrom: Generate waveforms (True/False)
     """
+
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_amba': 'rtl/amba',
         'rtl_common': 'rtl/common'
-    })
+    , 'rtl_amba_includes': 'rtl/amba/includes'})
 
     dut_name = "gaxi_skid_buffer"
     verilog_sources = [
@@ -700,7 +704,7 @@ def test_gaxi_wavedrom_example(data_width, depth, trim_mode, enable_wavedrom):
 
     # Include data width and depth in test name for clarity
     wd_flag = "wd" if enable_wavedrom else "nowd"
-    test_name = f"test_{dut_name}_w{data_width}_d{depth}_{trim_mode}_{wd_flag}"
+    test_name = f"test_{worker_id}_{dut_name}_w{data_width}_d{depth}_{trim_mode}_{wd_flag}"
 
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
     os.makedirs(sim_build, exist_ok=True)
@@ -733,6 +737,7 @@ def test_gaxi_wavedrom_example(data_width, depth, trim_mode, enable_wavedrom):
         extra_env=extra_env,
         waves=False,
         testcase="gaxi_comprehensive_wavedrom_test",
+        includes=[rtl_dict['rtl_amba_includes']]
     )
 
 

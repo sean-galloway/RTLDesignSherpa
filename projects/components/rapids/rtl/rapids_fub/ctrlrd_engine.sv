@@ -17,6 +17,8 @@
 
 // Import common RAPIDS and monitor packages
 `include "rapids_imports.svh"
+`include "reset_defs.svh"
+
 
 module ctrlrd_engine #(
     parameter int CHANNEL_ID = 0,
@@ -159,13 +161,14 @@ module ctrlrd_engine #(
     //=========================================================================
 
     // Channel reset active tracking
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_channel_reset_active <= 1'b0;
         end else begin
             r_channel_reset_active <= cfg_channel_reset;
         end
-    end
+    )
+
 
     // Safe to reset conditions
     assign w_fifo_empty = !w_ctrlrd_req_skid_valid_out;
@@ -245,13 +248,14 @@ module ctrlrd_engine #(
     //=========================================================================
 
     // State register
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_current_state <= READ_IDLE;
         end else begin
             r_current_state <= w_next_state;
         end
-    end
+    )
+
 
     // Next state logic with channel reset support
     always_comb begin
@@ -325,8 +329,8 @@ module ctrlrd_engine #(
     // State Machine Registers and Control
     //=========================================================================
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_ctrlrd_addr <= 64'h0;
             r_expected_data <= 32'h0;
             r_mask <= 32'h0;
@@ -351,13 +355,13 @@ module ctrlrd_engine #(
                     r_read_resp <= 2'b00;
                     r_retry_wait_complete <= 1'b0;
                 end
-
+        
                 READ_ISSUE_ADDR: begin
                     if (!w_null_address && ar_ready) begin
                         r_addr_issued <= 1'b1;
                     end
                 end
-
+        
                 READ_WAIT_DATA: begin
                     if (w_transaction_complete) begin
                         r_axi_read_data <= r_data[31:0]; // Capture lower 32 bits
@@ -365,34 +369,34 @@ module ctrlrd_engine #(
                         r_addr_issued <= 1'b0; // Clear for next attempt
                     end
                 end
-
+        
                 READ_COMPARE: begin
                     // Decrement retry counter if we need to retry
                     if (!w_data_match && w_retries_remaining && !w_axi_response_error) begin
                         r_retry_counter <= r_retry_counter - 1;
                     end
                 end
-
+        
                 READ_RETRY_WAIT: begin
                     // Wait for 1µs tick
                     if (tick_1us) begin
                         r_retry_wait_complete <= 1'b1;
                     end
                 end
-
+        
                 READ_MATCH: begin
                     r_ctrlrd_error <= 1'b0; // Success - no error
                 end
-
+        
                 READ_ERROR: begin
                     r_ctrlrd_error <= 1'b1; // Set error flag
                 end
-
+        
                 default: begin
                     // Maintain state
                 end
             endcase
-
+        
             // Reset all state during channel reset
             if (r_channel_reset_active) begin
                 r_addr_issued <= 1'b0;
@@ -402,7 +406,8 @@ module ctrlrd_engine #(
                 r_ctrlrd_error <= 1'b0;
             end
         end
-    end
+    )
+
 
     //=========================================================================
     // AXI Read Address Channel Output
@@ -436,15 +441,15 @@ module ctrlrd_engine #(
     // Monitor Packet Generation
     //=========================================================================
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_mon_valid <= 1'b0;
             r_mon_packet <= 64'h0;
         end else begin
             // Default: clear monitor packet
             r_mon_valid <= 1'b0;
             r_mon_packet <= 64'h0;
-
+        
             case (r_current_state)
                 READ_ERROR: begin
                     if (w_axi_response_error) begin
@@ -473,7 +478,7 @@ module ctrlrd_engine #(
                         );
                     end
                 end
-
+        
                 READ_MATCH: begin
                     if (!w_null_address) begin
                         // Log successful completion
@@ -489,7 +494,7 @@ module ctrlrd_engine #(
                         );
                     end
                 end
-
+        
                 READ_RETRY_WAIT: begin
                     // Log retry attempt (using PktTypePerf for retry tracking)
                     r_mon_valid <= 1'b1;
@@ -503,13 +508,14 @@ module ctrlrd_engine #(
                         {26'h0, r_retry_counter}
                     );
                 end
-
+        
                 default: begin
                     // No monitor packet
                 end
             endcase
         end
-    end
+    )
+
 
     //=========================================================================
     // Output Assignments

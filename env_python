@@ -24,8 +24,17 @@ export PYTHONPATH="$REPO_ROOT/bin/val_project:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/bin/vcd2wavedrom2:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/bin/rtl_generators/axi:$PYTHONPATH"
 
+# Add STREAM DV directory for self-contained project imports
+export PYTHONPATH="$REPO_ROOT/projects/components/stream/dv:$PYTHONPATH"
+
 # Add RAPIDS DV directory for self-contained project imports
 export PYTHONPATH="$REPO_ROOT/projects/components/rapids/dv:$PYTHONPATH"
+
+# Add DELTA DV directory for self-contained project imports
+export PYTHONPATH="$REPO_ROOT/projects/components/delta/dv:$PYTHONPATH"
+
+# Add BRIDGE DV directory for self-contained project imports
+export PYTHONPATH="$REPO_ROOT/projects/components/bridge/dv:$PYTHONPATH"
 
 # Set default simulation tool
 export SIM=verilator

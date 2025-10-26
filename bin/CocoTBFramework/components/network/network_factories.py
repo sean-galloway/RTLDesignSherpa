@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: network_factories
+# Purpose: Network Factory Functions - Following AXIL4 Pattern
+#
+# Documentation: bin/CocoTBFramework/README.md
+# Subsystem: framework
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """
 Network Factory Functions - Following AXIL4 Pattern
 

@@ -36,9 +36,15 @@ Author: RTL Design Sherpa Project
 """
 
 import os
+import sys
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+
+# Add repo root to path for CocoTBFramework imports
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if os.path.join(repo_root, 'bin') not in sys.path:
+    sys.path.insert(0, os.path.join(repo_root, 'bin'))
 
 from CocoTBFramework.tbclasses.dataint_ecc_hamming_secded_tb import DataintEccHammingSecDedTB
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
@@ -63,15 +69,30 @@ async def cocotb_ecc_secded_test(dut):
 # ===========================================================================
 
 def generate_test_params():
-    """Generate test parameter combinations"""
-    return [
-        # (WIDTH, test_mode)
+    """
+    Generate test parameter combinations based on REG_LEVEL.
+
+    REG_LEVEL=GATE: 2 tests (4, 8-bit)
+    REG_LEVEL=FUNC: 5 tests (all widths) - default
+    REG_LEVEL=FULL: 5 tests (same as FUNC)
+
+    Returns:
+        List of tuples: (width, test_mode)
+    """
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+
+    all_configs = [
         (4, 'minimal'),      # Minimal width for quick verification
         (8, 'byte'),         # Byte-width (common)
         (16, 'word'),        # Word-width
         (32, 'dword'),       # Double-word
         (64, 'qword'),       # Quad-word
     ]
+
+    if reg_level == 'GATE':
+        return [all_configs[0], all_configs[1]]  # 4, 8-bit
+    else:  # FUNC or FULL (same for this test)
+        return all_configs
 
 
 # ===========================================================================
@@ -91,7 +112,7 @@ def test_dataint_ecc_hamming_secded(request, width, test_mode):
     """
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_common': 'rtl/common'
-    })
+    , 'rtl_amba_includes': 'rtl/amba/includes'})
 
     # Need both encoder and decoder modules
     encoder_name = "dataint_ecc_hamming_encode_secded"
@@ -197,6 +218,7 @@ endmodule
             compile_args=["-Wno-TIMESCALEMOD"],
             sim_args=[],
             plusargs=[],
+            includes=[rtl_dict['rtl_amba_includes']]
         )
         print(f"✓ Test completed! Logs: {log_path}")
     except Exception as e:

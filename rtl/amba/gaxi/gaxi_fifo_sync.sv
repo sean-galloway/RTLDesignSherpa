@@ -15,17 +15,27 @@
 
 `timescale 1ns / 1ps
 
+`include "fifo_defs.svh"
+`include "reset_defs.svh"
+
+
 // Parameterized Synchronous FIFO -- This works with any depth
 module gaxi_fifo_sync #(
-    parameter int REGISTERED = 0,  // 0 = mux mode, 1 = flop mode
-    parameter int DATA_WIDTH = 4,
-    parameter int DEPTH = 4,
-    parameter int ALMOST_WR_MARGIN = 1,
-    parameter int ALMOST_RD_MARGIN = 1,
-    parameter     INSTANCE_NAME = "DEADF1F0",  // verilog_lint: waive explicit-parameter-storage-type
-    parameter int DW = DATA_WIDTH,
-    parameter int D = DEPTH,
-    parameter int AW = $clog2(DEPTH)
+    // ---------------------------------------------------------------------
+    // Memory implementation selector (from fifo_defs.svh)
+    // ---------------------------------------------------------------------
+    parameter fifo_mem_t MEM_STYLE = FIFO_AUTO,
+
+    // Configuration
+    parameter int  REGISTERED        = 0,   // 0=mux mode, 1=flop mode
+    parameter int  DATA_WIDTH        = 4,
+    parameter int  DEPTH             = 4,
+    parameter int  ALMOST_WR_MARGIN  = 1,
+    parameter int  ALMOST_RD_MARGIN  = 1,
+    parameter string INSTANCE_NAME   = "DEADF1F0", // for $display debug
+    parameter int  DW = DATA_WIDTH,
+    parameter int  D  = DEPTH,
+    parameter int  AW = $clog2(DEPTH)
 ) (
     input  logic            axi_aclk,
     input  logic            axi_aresetn,
@@ -38,130 +48,200 @@ module gaxi_fifo_sync #(
     output logic [DW-1:0]   rd_data
 );
 
-
-    /////////////////////////////////////////////////////////////////////////
-    // local logics/register signals
+    // ---------------------------------------------------------------------
+    // Local signals
+    // ---------------------------------------------------------------------
     logic [AW-1:0] r_wr_addr, r_rd_addr;
     logic [AW:0]   r_wr_ptr_bin, r_rd_ptr_bin;
     logic [AW:0]   w_wr_ptr_bin_next, w_rd_ptr_bin_next;
     logic          r_wr_full, r_wr_almost_full, r_rd_empty, r_rd_almost_empty;
-
-    // The flop storage
-    logic [DW-1:0] r_mem[0:((1<<AW)-1)];  // verilog_lint: waive unpacked-dimensions-range-ordering
     logic [DW-1:0] w_rd_data;
 
-    /////////////////////////////////////////////////////////////////////////
-    // Write counter
-    logic w_write;
+    // ---------------------------------------------------------------------
+    // Write/Read enables
+    // ---------------------------------------------------------------------
+    logic w_write, w_read;
     assign w_write = wr_valid && wr_ready;
+    assign w_read  = rd_valid && rd_ready;
 
+    // ---------------------------------------------------------------------
+    // Write pointer
+    // ---------------------------------------------------------------------
     counter_bin #(
-        .WIDTH           (AW + 1),
-        .MAX             (D)
-    ) write_pointer_inst(
-        .clk             (axi_aclk),
-        .rst_n           (axi_aresetn),
-        .enable          (w_write && !r_wr_full),
-        .counter_bin_curr(r_wr_ptr_bin),
-        .counter_bin_next(w_wr_ptr_bin_next)
+        .WIDTH (AW + 1),
+        .MAX   (D)
+    ) write_pointer_inst (
+        .clk              (axi_aclk),
+        .rst_n            (axi_aresetn),
+        .enable           (w_write && !r_wr_full),
+        .counter_bin_curr (r_wr_ptr_bin),
+        .counter_bin_next (w_wr_ptr_bin_next)
     );
 
-    /////////////////////////////////////////////////////////////////////////
-    // Read counter
-    logic w_read;
-    assign w_read = rd_valid && rd_ready;
+    // ---------------------------------------------------------------------
+    // Read pointer
+    // ---------------------------------------------------------------------
     counter_bin #(
-        .WIDTH           (AW + 1),
-        .MAX             (D)
-    ) read_pointer_inst(
-        .clk             (axi_aclk),
-        .rst_n           (axi_aresetn),
-        .enable          (w_read && !r_rd_empty),
-        .counter_bin_curr(r_rd_ptr_bin),
-        .counter_bin_next(w_rd_ptr_bin_next)
+        .WIDTH (AW + 1),
+        .MAX   (D)
+    ) read_pointer_inst (
+        .clk              (axi_aclk),
+        .rst_n            (axi_aresetn),
+        .enable           (w_read && !r_rd_empty),
+        .counter_bin_curr (r_rd_ptr_bin),
+        .counter_bin_next (w_rd_ptr_bin_next)
     );
 
-    /////////////////////////////////////////////////////////////////////////
-    // Generate the Full/Empty signals
+    // ---------------------------------------------------------------------
+    // Control block (full/empty, almost flags, count)
+    // ---------------------------------------------------------------------
     fifo_control #(
-        .DEPTH           (D),
-        .ADDR_WIDTH      (AW),
-        .ALMOST_RD_MARGIN(ALMOST_RD_MARGIN),
-        .ALMOST_WR_MARGIN(ALMOST_WR_MARGIN),
-        .REGISTERED      (REGISTERED)
+        .DEPTH             (D),
+        .ADDR_WIDTH        (AW),
+        .ALMOST_RD_MARGIN  (ALMOST_RD_MARGIN),
+        .ALMOST_WR_MARGIN  (ALMOST_WR_MARGIN),
+        .REGISTERED        (REGISTERED)
     ) fifo_control_inst (
-        .wr_clk          (axi_aclk),
-        .wr_rst_n        (axi_aresetn),
-        .rd_clk          (axi_aclk),
-        .rd_rst_n        (axi_aresetn),
-        .wr_ptr_bin      (w_wr_ptr_bin_next),
-        .wdom_rd_ptr_bin (w_rd_ptr_bin_next),
-        .rd_ptr_bin      (w_rd_ptr_bin_next),
-        .rdom_wr_ptr_bin (w_wr_ptr_bin_next),
-        .count           (count),
-        .wr_full         (r_wr_full),
-        .wr_almost_full  (r_wr_almost_full),
-        .rd_empty        (r_rd_empty),
-        .rd_almost_empty (r_rd_almost_empty)
+        .wr_clk           (axi_aclk),
+        .wr_rst_n         (axi_aresetn),
+        .rd_clk           (axi_aclk),
+        .rd_rst_n         (axi_aresetn),
+        .wr_ptr_bin       (w_wr_ptr_bin_next),
+        .wdom_rd_ptr_bin  (w_rd_ptr_bin_next),
+        .rd_ptr_bin       (w_rd_ptr_bin_next),
+        .rdom_wr_ptr_bin  (w_wr_ptr_bin_next),
+        .count            (count),
+        .wr_full          (r_wr_full),
+        .wr_almost_full   (r_wr_almost_full),
+        .rd_empty         (r_rd_empty),
+        .rd_almost_empty  (r_rd_almost_empty)
     );
 
     assign wr_ready = !r_wr_full;
     assign rd_valid = !r_rd_empty;
 
-    /////////////////////////////////////////////////////////////////////////
-    // Get the write/read address to the memory
-    // Memory operations using the extracted addresses
-    assign r_wr_addr  = r_wr_ptr_bin[AW-1:0];
-    assign r_rd_addr  = r_rd_ptr_bin[AW-1:0];
+    // ---------------------------------------------------------------------
+    // Address extraction
+    // ---------------------------------------------------------------------
+    assign r_wr_addr = r_wr_ptr_bin[AW-1:0];
+    assign r_rd_addr = r_rd_ptr_bin[AW-1:0];
 
-    /////////////////////////////////////////////////////////////////////////
-    // Memory Flops
-    always_ff @(posedge axi_aclk) begin
-        if (w_write) begin
-            r_mem[r_wr_addr] <= wr_data;
-        end
-    end
-
-    assign w_rd_data = r_mem[r_rd_addr];
-
-    /////////////////////////////////////////////////////////////////////////
-    // Read Port
+    // ---------------------------------------------------------------------
+    // Memory implementation (scoped per MEM_STYLE)
+    // ---------------------------------------------------------------------
     generate
-        if (REGISTERED != 0) begin : gen_flop_mode
-            // Flop mode - registered output
-            always_ff @(posedge axi_aclk or negedge axi_aresetn) begin
-                if (!axi_aresetn)
-                    rd_data <= 'b0;
-                else
-                    rd_data <= w_rd_data;
+        if (MEM_STYLE == FIFO_SRL) begin : gen_srl
+            `ifdef XILINX
+                (* shreg_extract = "yes", ram_style = "distributed" *)
+            `elsif INTEL
+                /* synthesis ramstyle = "MLAB" */
+            `endif
+            logic [DATA_WIDTH-1:0] mem [DEPTH];
+
+            // Write path
+            always_ff @(posedge axi_aclk) begin
+                if (w_write && !r_wr_full) begin
+                    mem[r_wr_addr] <= wr_data;
+                end
             end
-        end else begin : gen_mux_mode
-            // Mux mode - non-registered output
-            assign rd_data = w_rd_data;
+
+            // Read path
+            if (REGISTERED != 0) begin : g_flop
+                `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
+                    if (!axi_aresetn) w_rd_data <= '0;
+                    else              w_rd_data <= mem[r_rd_addr];
+                )
+
+            end else begin : g_mux
+                always_comb w_rd_data = mem[r_rd_addr];
+            end
+
+            // synopsys translate_off
+            logic [(DW*DEPTH)-1:0] flat_mem_srl;
+            genvar i_srl;
+            for (i_srl = 0; i_srl < DEPTH; i_srl++) begin : gen_flatten_srl
+                assign flat_mem_srl[i_srl*DW+:DW] = mem[i_srl];
+            end
+            // synopsys translate_on
+        end
+        else if (MEM_STYLE == FIFO_BRAM) begin : gen_bram
+            `ifdef XILINX
+                (* ram_style = "block" *)
+            `elsif INTEL
+                /* synthesis ramstyle = "M20K" */
+            `endif
+            logic [DATA_WIDTH-1:0] mem [DEPTH];
+
+            // Write path
+            always_ff @(posedge axi_aclk) begin
+                if (w_write && !r_wr_full) begin
+                    mem[r_wr_addr] <= wr_data;
+                end
+            end
+
+            // Synchronous read (flop output)
+            `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
+                if (!axi_aresetn) w_rd_data <= '0;
+                else              w_rd_data <= mem[r_rd_addr];
+            )
+
+
+            // synopsys translate_off
+            logic [(DW*DEPTH)-1:0] flat_mem_bram;
+            genvar i_bram;
+            for (i_bram = 0; i_bram < DEPTH; i_bram++) begin : gen_flatten_bram
+                assign flat_mem_bram[i_bram*DW+:DW] = mem[i_bram];
+            end
+            // synopsys translate_on
+
+            initial begin
+                if (REGISTERED == 0)
+                    $display("NOTE: %s BRAM style uses synchronous read (+1 cycle latency)",
+                            INSTANCE_NAME);
+            end
+        end
+        else begin : gen_auto
+            logic [DATA_WIDTH-1:0] mem [DEPTH];
+
+            // Write path
+            always_ff @(posedge axi_aclk) begin
+                if (w_write && !r_wr_full) begin
+                    mem[r_wr_addr] <= wr_data;
+                end
+            end
+
+            if (REGISTERED != 0) begin : g_flop
+                `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
+                    if (!axi_aresetn) w_rd_data <= '0;
+                    else              w_rd_data <= mem[r_rd_addr];
+                )
+
+            end else begin : g_mux
+                always_comb w_rd_data = mem[r_rd_addr];
+            end
+
+            // synopsys translate_off
+            logic [(DW*DEPTH)-1:0] flat_mem_auto;
+            genvar i_auto;
+            for (i_auto = 0; i_auto < DEPTH; i_auto++) begin : gen_flatten_auto
+                assign flat_mem_auto[i_auto*DW+:DW] = mem[i_auto];
+            end
+            // synopsys translate_on
         end
     endgenerate
 
-    /////////////////////////////////////////////////////////////////////////
-    // error checking
+    assign rd_data = w_rd_data;
+
+    // ---------------------------------------------------------------------
+    // Simulation-only overflow/underflow messages
+    // ---------------------------------------------------------------------
     // synopsys translate_off
-    // Generate a version of the memory for waveforms
-    logic [(DW*DEPTH)-1:0] flat_r_mem;
-    genvar i;
-    generate
-        for (i = 0; i < DEPTH; i++) begin : gen_flatten_memory
-            assign flat_r_mem[i*DW+:DW] = r_mem[i];
-        end
-    endgenerate
-
-    always @(posedge axi_aclk) begin
-        if ((w_write && r_wr_full) == 1'b1) begin
+    always_ff @(posedge axi_aclk) begin
+        if (w_write && r_wr_full) begin
             $timeformat(-9, 3, " ns", 10);
             $display("Error: %s write while fifo full, %t", INSTANCE_NAME, $time);
         end
-    end
-
-    always @(posedge axi_aclk) begin
-        if ((w_read && r_rd_empty) == 1'b1) begin
+        if (w_read && r_rd_empty) begin
             $timeformat(-9, 3, " ns", 10);
             $display("Error: %s read while fifo empty, %t", INSTANCE_NAME, $time);
         end

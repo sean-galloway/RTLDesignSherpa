@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: AXI4SlaveReadTB
+# Purpose: AXI4 Slave Read Testbench
+#
+# Documentation: bin/CocoTBFramework/README.md
+# Subsystem: framework
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """
 AXI4 Slave Read Testbench
 
@@ -45,7 +60,10 @@ class AXI4SlaveReadTB(TBBase):
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
         self.TIMEOUT_CYCLES = self.convert_to_int(os.environ.get('TIMEOUT_CYCLES', '1000'))
 
-        self.use_multi_sig = True  # AXI4 always uses individual signals (arvalid, rdata, etc.)
+        # CRITICAL FIX: Stub uses packed signals, direct module uses individual signals
+        # stub=1 → packed mode (multi_sig=False): s_axi_ar_pkt, s_axi_r_pkt
+        # stub=0 → individual mode (multi_sig=True): s_axi_arid, s_axi_araddr, etc.
+        self.use_multi_sig = (self.TEST_STUB == 0)  # stub=0: individual signals, stub=1: packed signals
 
         # Initialize random generator
         random.seed(self.SEED)

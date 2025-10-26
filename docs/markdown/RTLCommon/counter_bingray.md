@@ -358,3 +358,120 @@ end
 2. **Logic Analyzer**: Capture actual transitions in hardware
 3. **Timing Analysis**: Check setup/hold requirements
 4. **Cross-Domain Checks**: Verify synchronizer timing
+
+## WaveDrom Visualization
+
+**High-quality waveforms showcasing Binary-Gray counter operation are available!**
+
+The following timing diagrams demonstrate the dual-output counter design across 4 key scenarios:
+
+### Scenario 1: Binary vs Gray Code Comparison
+
+![BinGray Comparison](../../assets/WAVES/counter_bingray/bingray_counter_binary_vs_gray.png)
+
+**WaveJSON:** [bingray_counter_binary_vs_gray.json](../../assets/WAVES/counter_bingray/bingray_counter_binary_vs_gray.json)
+
+Side-by-side comparison of both outputs:
+- Binary: Normal sequential counting (0→1→2→3→...)
+- Gray: Single-bit transitions between values
+- Shows full cycle demonstrating encoding differences
+- Illustrates why Gray code is CDC-safe
+
+### Scenario 2: Single-Bit Transitions (CDC Safety) ⭐ **KEY FEATURE**
+
+![BinGray Single-Bit Transitions](../../assets/WAVES/counter_bingray/bingray_counter_single_bit_transitions.png)
+
+**WaveJSON:** [bingray_counter_single_bit_transitions.json](../../assets/WAVES/counter_bingray/bingray_counter_single_bit_transitions.json)
+
+Gray code CDC safety property:
+- Each Gray transition changes EXACTLY one bit
+- Hamming distance = 1 between adjacent values
+- **Critical for fifo_async CDC mechanism**
+- Prevents metastability in clock domain crossing
+
+### Scenario 3: Lookahead Signal (counter_bin_next)
+
+![BinGray Lookahead](../../assets/WAVES/counter_bingray/bingray_counter_lookahead.png)
+
+**WaveJSON:** [bingray_counter_lookahead.json](../../assets/WAVES/counter_bingray/bingray_counter_lookahead.json)
+
+Combinational lookahead feature:
+- Predicts next binary value one cycle ahead
+- Useful for FIFO full/empty prediction
+- Shows enable gating behavior
+- Enables early decision-making
+
+### Scenario 4: Enable and Reset Control
+
+![BinGray Enable and Reset](../../assets/WAVES/counter_bingray/bingray_counter_enable_reset.png)
+
+**WaveJSON:** [bingray_counter_enable_reset.json](../../assets/WAVES/counter_bingray/bingray_counter_enable_reset.json)
+
+Control signal behavior:
+- Both outputs hold when enable=0
+- Asynchronous reset to zero
+- Clean state transitions
+- Reset during counting demonstration
+
+---
+
+**To regenerate these waveforms:**
+```bash
+pytest val/common/test_counter_bingray_wavedrom.py -v
+# Then convert JSON to PNG:
+cd docs/markdown/assets/WAVES/counter_bingray
+for f in *.json; do wavedrom-cli -i "$f" -p "${f%.json}.png"; done
+```
+
+**What Makes Binary-Gray Counters Special:**
+
+The waveforms highlight the unique dual-output design:
+- **Dual Encoding**: Binary for arithmetic, Gray for CDC safety
+- **Single-Bit Transitions**: Gray code changes one bit at a time
+- **Lookahead**: counter_bin_next provides one-cycle prediction
+- **CDC-Safe**: Safe for asynchronous clock domain crossing
+
+**Relationship to fifo_async:**
+
+Binary-Gray counters are the foundation of the standard `fifo_async` module:
+- **fifo_async** uses this counter for read/write pointers
+- Gray outputs cross clock domains safely
+- Binary outputs used for arithmetic (occupancy, address generation)
+- Logarithmic width (`$clog2(DEPTH) + 1`) for resource efficiency
+
+**Comparison Table:**
+
+| Feature | BinGray Counter | Johnson Counter |
+|---------|----------------|-----------------|
+| **Output Width** | `$clog2(DEPTH) + 1` bits | `DEPTH` bits |
+| **CDC Method** | Standard Gray code | Johnson code |
+| **Depth Support** | Power-of-2 only | Any even number |
+| **Resource Efficiency** | Logarithmic (better for large depths) | Linear |
+| **Conversion** | XOR tree (simple) | Position detection (complex) |
+| **Used In** | `fifo_async` (standard) | `fifo_async_div2` (flexible) |
+
+**Comparison with Other Modules:**
+
+- `test_counter_johnson_wavedrom.py` - Johnson counter (even depths, linear width)
+- `test_fifo_async_wavedrom.py` - BinGray counter in action (async FIFO, power-of-2)
+- `test_fifo_async_div2_wavedrom.py` - Johnson counter in action (async FIFO, even depths)
+
+## Test and Verification
+
+**Comprehensive Test Suite:**
+- `val/common/test_counter_bingray.py` - Full functional verification
+- `val/common/test_counter_bingray_wavedrom.py` - WaveDrom timing diagrams ⭐
+
+**Run Tests:**
+```bash
+# Full functional test (basic/medium/full levels)
+pytest val/common/test_counter_bingray.py -v
+
+# WaveDrom waveform generation
+pytest val/common/test_counter_bingray_wavedrom.py -v
+```
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

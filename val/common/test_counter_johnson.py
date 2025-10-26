@@ -21,16 +21,23 @@ This test uses WIDTH as parameter for maximum flexibility:
 CONFIGURATION:
     WIDTH: Counter width in bits (4, 5, 8, 12)
 
-TEST LEVELS:
+TEST LEVELS (per-test depth):
     basic (1-2 min):   Quick verification during development
     medium (3-5 min):  Integration testing for CI/branches
     full (8-15 min):   Comprehensive validation for regression
 
+REG_LEVEL Control (parameter combinations):
+    GATE: 1 test (~2 min) - smoke test (4-bit, basic)
+    FUNC: 4 tests (~8 min) - functional coverage - DEFAULT
+    FULL: 12 tests (~2 hours) - comprehensive validation
+
 PARAMETER COMBINATIONS:
-    - WIDTH: [4, 5, 8, 12]
-    - test_level: [basic, medium, full]
+    GATE: 1 width × 1 level = 1 test
+    FUNC: 4 widths × 1 level = 4 tests (all widths, basic only)
+    FULL: 4 widths × 3 levels = 12 tests
 
 Environment Variables:
+    REG_LEVEL: Control parameter combinations (GATE/FUNC/FULL)
     TEST_LEVEL: Set test level in cocotb (basic/medium/full)
     SEED: Set random seed for reproducibility
     TEST_WIDTH: Counter width in bits
@@ -44,6 +51,7 @@ COUNTER_JOHNSON BEHAVIOR:
 """
 
 import os
+import sys
 import random
 import math
 from itertools import product
@@ -52,6 +60,12 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, Timer
 from cocotb_test.simulator import run
+
+# Add repo root to path for CocoTBFramework imports
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if os.path.join(repo_root, 'bin') not in sys.path:
+    sys.path.insert(0, os.path.join(repo_root, 'bin'))
+
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
@@ -652,20 +666,35 @@ async def counter_johnson_test(dut):
 
 def generate_params():
     """
-    Generate test parameters. Modify this function to limit test scope for debugging.
+    Generate test parameter combinations based on REG_LEVEL.
+
+    REG_LEVEL=GATE: 1 test (4-bit, basic level)
+    REG_LEVEL=FUNC: 4 tests (all widths, basic level) - default
+    REG_LEVEL=FULL: 12 tests (all widths, all test levels)
+
+    Returns:
+        List of tuples: (width, test_level)
     """
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+
     widths = [4, 5, 8, 12]  # Different counter widths
     test_levels = ['basic', 'medium', 'full']  # Test levels
 
-    valid_params = []
-    for width, test_level in product(widths, test_levels):
-        valid_params.append((width, test_level))
+    if reg_level == 'GATE':
+        # Quick smoke test: 4-bit, basic only
+        params = [(4, 'basic')]
 
-    # For debugging, uncomment one of these:
-    # return [(4, 'full')]  # Single test
-    return [(4, 'full'), (5, 'full')]  # Just specific configurations
+    elif reg_level == 'FUNC':
+        # Functional coverage: all widths, basic level only
+        params = [(width, 'basic') for width in widths]
 
-    # return valid_params
+    else:  # FULL
+        # Comprehensive: all combinations
+        params = []
+        for width, test_level in product(widths, test_levels):
+            params.append((width, test_level))
+
+    return params
 
 
 params = generate_params()
@@ -684,7 +713,7 @@ def test_counter_johnson(request, width, test_level):
     Counter behavior: Johnson counter (twisted ring) with sequence length 2*WIDTH
     """
     # Get directory and module information
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common'})
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common', 'rtl_amba_includes': 'rtl/amba/includes'})
 
     # DUT information
     dut_name = "counter_johnson"
@@ -756,7 +785,7 @@ def test_counter_johnson(request, width, test_level):
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[],
+            includes=[rtl_dict['rtl_amba_includes']],
             toplevel=toplevel,
             module=module,
             parameters=parameters,

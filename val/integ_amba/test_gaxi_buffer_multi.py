@@ -206,6 +206,7 @@ def test_axi_buffer_multi(request, addr_width, ctrl_width, data_width, depth, mo
             'rtl_amba':      'rtl/amba',
             'rtl_gaxi':      'rtl/amba/gaxi',
             'rtl_amba_test': 'rtl/amba/testcode',
+            'rtl_amba_includes': 'rtl/amba/includes',
         })
 
     # Set up all of the test names
@@ -219,6 +220,7 @@ def test_axi_buffer_multi(request, addr_width, ctrl_width, data_width, depth, mo
         ]
     else:
         verilog_sources = [
+            os.path.join(rtl_dict['rtl_amba_includes'], "fifo_imports.svh"),
             os.path.join(rtl_dict['rtl_cmn'],        "counter_bin.sv"),
             os.path.join(rtl_dict['rtl_cmn'],        "fifo_control.sv"),
             os.path.join(rtl_dict['rtl_gaxi'],       "gaxi_fifo_sync.sv"),
@@ -242,7 +244,7 @@ def test_axi_buffer_multi(request, addr_width, ctrl_width, data_width, depth, mo
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes = []
+    includes=[rtl_dict['rtl_amba_includes']]
 
     # RTL parameters
     rtl_parameters = {

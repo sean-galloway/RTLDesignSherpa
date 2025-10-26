@@ -25,6 +25,8 @@
  * Designed to attach to the cmd/rsp interfaces which are timing-convenient
  * proxies for the actual APB signals.
  */
+
+`include "reset_defs.svh"
 module apb_monitor
     import monitor_pkg::*;
 #(
@@ -185,13 +187,14 @@ module apb_monitor
     // -------------------------------------------------------------------------
     // Timestamp Counter
     // -------------------------------------------------------------------------
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+if (`RST_ASSERTED(aresetn)) begin
             r_timestamp <= '0;
         end else begin
             r_timestamp <= r_timestamp + 1'b1;
         end
-    end
+    )
+
 
     // -------------------------------------------------------------------------
     // Transaction State Machine
@@ -224,13 +227,14 @@ module apb_monitor
 
     assign w_state_change = (w_next_trans_state != r_trans_state);
 
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+if (`RST_ASSERTED(aresetn)) begin
             r_trans_state <= CMD_RSP_IDLE;
         end else begin
             r_trans_state <= w_next_trans_state;
         end
-    end
+    )
+
 
     // -------------------------------------------------------------------------
     // Transaction Table Management
@@ -286,8 +290,8 @@ module apb_monitor
     // -------------------------------------------------------------------------
     // Transaction Lifecycle Management
     // -------------------------------------------------------------------------
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+if (`RST_ASSERTED(aresetn)) begin
             for (int i = 0; i < MAX_TRANSACTIONS; i++) begin
                 r_trans_table[i] <= '0;
             end
@@ -295,7 +299,7 @@ module apb_monitor
             r_transaction_count <= '0;
             r_cmd_start_time <= '0;
         end else begin
-
+        
             // Command handshake - start new transaction
             if (w_cmd_handshake && w_has_free_slot) begin
                 r_trans_table[w_free_idx].valid <= 1'b1;
@@ -312,15 +316,15 @@ module apb_monitor
                 r_trans_table[w_free_idx].event_reported <= 1'b0;
                 r_trans_table[w_free_idx].addr_timer <= '0;
                 r_trans_table[w_free_idx].resp_timer <= '0;
-
+        
                 r_active_count <= r_active_count + 1'b1;
                 r_cmd_start_time <= r_timestamp;
-
+        
                 // Transition to data phase immediately for APB
                 r_trans_table[w_free_idx].state <= TRANS_DATA_PHASE;
                 r_trans_table[w_free_idx].data_timestamp <= r_timestamp;
             end
-
+        
             // Response handshake - complete transaction
             if (w_rsp_handshake && w_has_active_trans) begin
                 r_trans_table[w_active_idx].data_completed <= 1'b1;
@@ -328,7 +332,7 @@ module apb_monitor
                 r_trans_table[w_active_idx].resp_timestamp <= r_timestamp;
                 // APB slave error stored in channel field MSB
                 if (rsp_pslverr) r_trans_table[w_active_idx].channel[5] <= 1'b1;
-
+        
                 if (rsp_pslverr && cfg_slverr_enable) begin
                     r_trans_table[w_active_idx].state <= TRANS_ERROR;
                     r_trans_table[w_active_idx].event_code <= APB_ERR_PSLVERR;
@@ -337,10 +341,10 @@ module apb_monitor
                     r_trans_table[w_active_idx].state <= TRANS_COMPLETE;
                     r_trans_table[w_active_idx].event_code <= APB_COMPL_TRANS_COMPLETE;
                 end
-
+        
                 r_transaction_count <= r_transaction_count + 1'b1;
             end
-
+        
             // Clean up completed transactions
             for (int i = 0; i < MAX_TRANSACTIONS; i++) begin
                 if (w_completed_trans[i]) begin
@@ -349,13 +353,14 @@ module apb_monitor
                 end
             end
         end
-    end
+    )
+
 
     // -------------------------------------------------------------------------
     // Timeout Detection
     // -------------------------------------------------------------------------
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+if (`RST_ASSERTED(aresetn)) begin
             r_cmd_timeout_timer <= '0;
             r_rsp_timeout_timer <= '0;
         end else begin
@@ -365,7 +370,7 @@ module apb_monitor
             end else begin
                 r_cmd_timeout_timer <= '0;
             end
-
+        
             // Response timeout - waiting for rsp handshake
             if (r_trans_state == CMD_RSP_CMD_SENT && (!rsp_valid || !rsp_ready)) begin
                 r_rsp_timeout_timer <= r_rsp_timeout_timer + 1'b1;
@@ -373,7 +378,8 @@ module apb_monitor
                 r_rsp_timeout_timer <= '0;
             end
         end
-    end
+    )
+
 
     // Timeout detection
     assign w_cmd_timeout = cfg_timeout_enable &&
@@ -418,23 +424,24 @@ module apb_monitor
     end
 
     // Throughput tracking
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+if (`RST_ASSERTED(aresetn)) begin
             r_throughput_counter <= '0;
             r_throughput_timer <= '0;
         end else begin
             r_throughput_timer <= r_throughput_timer + 1'b1;
-
+        
             if (w_rsp_handshake) begin
                 r_throughput_counter <= r_throughput_counter + 1'b1;
             end
-
+        
             // Reset every 65536 cycles for throughput calculation
             if (r_throughput_timer[15:0] == 16'hFFFF) begin
                 r_throughput_counter <= '0;
             end
         end
-    end
+    )
+
 
     // -------------------------------------------------------------------------
     // Event Generation Logic
@@ -551,8 +558,8 @@ module apb_monitor
     end
 
     // Mark events as reported when they're written to FIFO
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+if (`RST_ASSERTED(aresetn)) begin
             // Reset handled in transaction management
         end else begin
             // Mark events as reported when packets are generated
@@ -564,7 +571,8 @@ module apb_monitor
                 end
             end
         end
-    end
+    )
+
 
     // -------------------------------------------------------------------------
     // Monitor Bus Packet Construction and Skid Buffer Output

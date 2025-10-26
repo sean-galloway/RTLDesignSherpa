@@ -28,6 +28,8 @@
  * - Performance monitoring with clock gating statistics
  * - Fine-grained power management controls
  */
+
+`include "reset_defs.svh"
 module axi4_master_wr_mon_cg
     import monitor_pkg::*;
 #(
@@ -236,8 +238,8 @@ module axi4_master_wr_mon_cg
                          !cfg_cg_force_on && (timer_idle_count >= cfg_cg_idle_threshold);
 
     // Activity counters
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+if (`RST_ASSERTED(aresetn)) begin
             monitor_idle_count <= '0;
             reporter_idle_count <= '0;
             timer_idle_count <= '0;
@@ -248,14 +250,14 @@ module axi4_master_wr_mon_cg
             end else if (monitor_idle_count < 8'hFF) begin
                 monitor_idle_count <= monitor_idle_count + 1'b1;
             end
-
+        
             // Reporter idle counter
             if (reporter_activity) begin
                 reporter_idle_count <= '0;
             end else if (reporter_idle_count < 8'hFF) begin
                 reporter_idle_count <= reporter_idle_count + 1'b1;
             end
-
+        
             // Timer idle counter
             if (timer_activity) begin
                 timer_idle_count <= '0;
@@ -263,11 +265,12 @@ module axi4_master_wr_mon_cg
                 timer_idle_count <= timer_idle_count + 1'b1;
             end
         end
-    end
+    )
+
 
     // Power savings tracking
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+if (`RST_ASSERTED(aresetn)) begin
             total_cycles <= '0;
             gated_cycles <= '0;
         end else begin
@@ -276,7 +279,8 @@ module axi4_master_wr_mon_cg
                 gated_cycles <= gated_cycles + 1'b1;
             end
         end
-    end
+    )
+
 
     // Clock gating cells (simplified model - in real design these would be ICG cells)
     generate

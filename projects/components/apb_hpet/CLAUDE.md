@@ -34,6 +34,30 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 **Rationale:** APB HPET receives AI assistance for structure and clarity, while design concepts and architectural decisions remain human-authored.
 
+### Rule #0.05: Reset Macro Standards - MANDATORY
+
+**⚠️ APB HPET NOW USES RESET MACROS - ALL FUTURE CHANGES MUST MAINTAIN THIS ⚠️**
+
+**Status:** As of 2025-10-25, APB HPET RTL has been converted to use standardized reset macros from `rtl/amba/includes/reset_defs.svh`.
+
+**What Changed:**
+- `hpet_core.sv`: 6 always_ff blocks converted to `ALWAYS_FF_RST` macro
+- `hpet_config_regs.sv`: 3 always_ff blocks converted to `ALWAYS_FF_RST` macro
+- Both files now include `reset_defs.svh`
+- All reset tests remain functionally equivalent (verified via regression)
+
+**HARD REQUIREMENT for Future Work:**
+1. **ALL modifications** to HPET RTL must preserve reset macro usage
+2. **NO manual** `always_ff @(posedge clk or negedge rst_n)` patterns allowed
+3. **PRs will be REJECTED** if they revert to manual reset handling
+4. **See** `projects/components/CLAUDE.md` Rule #0 for complete reset macro standards
+
+**Why This Matters for HPET:**
+- HPET targets FPGA implementation (reset inference critical for timing)
+- Multi-clock domain design (pclk + hpet_clk) requires consistent reset handling
+- Timer precision depends on proper reset sequencing
+- CDC variant needs FPGA-friendly reset synchronization
+
 ### Rule #0.1: TESTBENCH ARCHITECTURE - MANDATORY SEPARATION
 
 **⚠️ THIS IS A HARD REQUIREMENT - NO EXCEPTIONS ⚠️**

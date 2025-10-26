@@ -207,7 +207,7 @@ class Axi2ApbTB(TBBase):
                 # size = log2(number of bytes being transferred)
                 actual_bytes = len(data_list)
                 size_field = (actual_bytes - 1).bit_length() - 1 if actual_bytes > 1 else 0
-                
+
                 self.log.debug(f"Single word write: data=0x{data_word:08X}, size={size_field}, bytes={actual_bytes}")
 
                 result = await self.axi_write_interface.single_write(
@@ -521,7 +521,7 @@ async def axi2apb_shim_test(dut):
 def test_axi2abp_shim(request, id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width):
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
-        'rtl_cmn': 'rtl/common',
+        'rtl_cmn':  'rtl/common',
         'rtl_amba': 'rtl/amba',
     })
 
@@ -531,9 +531,10 @@ def test_axi2abp_shim(request, id_width, addr_width, data_width, user_width, apb
     verilog_sources = [
         os.path.join(rtl_dict['rtl_amba'], "shared/cdc_handshake.sv"),
         os.path.join(rtl_dict['rtl_amba'], "gaxi/gaxi_skid_buffer.sv"),
+        os.path.join(rtl_dict['rtl_amba'], "apb/apb_master.sv"),
         os.path.join(rtl_dict['rtl_amba'], "apb/apb_master_stub.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
+        os.path.join(rtl_dict['rtl_cmn'],  "counter_bin.sv"),
+        os.path.join(rtl_dict['rtl_cmn'],  "fifo_control.sv"),
         os.path.join(rtl_dict['rtl_amba'], "gaxi/gaxi_fifo_sync.sv"),
         os.path.join(rtl_dict['rtl_amba'], "shared/axi_gen_addr.sv"),
         os.path.join(rtl_dict['rtl_amba'], "shims/axi4_to_apb_convert.sv"),

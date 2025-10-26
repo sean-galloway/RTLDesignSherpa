@@ -19,6 +19,7 @@ Clean implementation following existing test runner pattern with flex randomizer
 """
 
 import os
+import sys
 import random
 import cocotb
 from cocotb.triggers import RisingEdge, FallingEdge, Timer
@@ -27,6 +28,12 @@ from cocotb_test.simulator import run
 import pytest
 
 # Import the adapted testbench and utilities
+
+# Add repo root to path for CocoTBFramework imports
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if os.path.join(repo_root, 'bin') not in sys.path:
+    sys.path.insert(0, os.path.join(repo_root, 'bin'))
+
 from CocoTBFramework.tbclasses.common.arbiter_round_robin_tb import ArbiterRoundRobinTB
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
@@ -130,26 +137,45 @@ async def arbiter_round_robin_test(dut):
         # Wait for any pending operations
         await tb.wait_clocks('clk', 10)
 
-@pytest.mark.parametrize("clients, wait_ack", [
-    ( 4, 0),   #  4 clients, no ACK mode
-    ( 5, 0),   #  5 clients, no ACK mode
-    ( 6, 0),   #  6 clients, no ACK mode
-    ( 8, 0),   #  8 clients, no ACK mode
-    (16, 0),   # 16 clients, no ACK mode
-    (32, 0),   # 32 clients, no ACK mode
-    ( 4, 1),   #  4 clients, ACK mode
-    ( 5, 1),   #  5 clients, ACK mode
-    ( 6, 1),   #  6 clients, ACK mode
-    ( 8, 1),   #  8 clients, ACK mode
-    (16, 1),   # 16 clients, ACK mode
-    (32, 1),   # 32 clients, ACK mode
-])
+def generate_test_params():
+    """
+    Generate test parameter combinations based on REG_LEVEL.
+
+    REG_LEVEL=GATE: 2 tests (4 clients, both ack modes)
+    REG_LEVEL=FUNC: 6 tests (all clients, no-ack only) - default
+    REG_LEVEL=FULL: 12 tests (all clients × all ack modes)
+
+    Returns:
+        List of tuples: (clients, wait_ack)
+    """
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+
+    client_counts = [4, 5, 6, 8, 16, 32]
+
+    if reg_level == 'GATE':
+        # Quick smoke test: 4 clients, both modes
+        return [(4, 0), (4, 1)]
+
+    elif reg_level == 'FUNC':
+        # Functional coverage: all clients, no-ack only
+        return [(c, 0) for c in client_counts]
+
+    else:  # FULL
+        # Comprehensive: all clients × all ack modes
+        params = []
+        for clients in client_counts:
+            params.append((clients, 0))  # no ACK
+            params.append((clients, 1))  # wait for ACK
+        return params
+
+
+@pytest.mark.parametrize("clients, wait_ack", generate_test_params())
 def test_arbiter_round_robin(request, clients, wait_ack):
     """Run the round robin test with new clean ArbiterMaster"""
     # Get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_cmn': 'rtl/common'
-    })
+    , 'rtl_amba_includes': 'rtl/amba/includes'})
 
     dut_name = "arbiter_round_robin"
     toplevel = dut_name
@@ -164,6 +190,12 @@ def test_arbiter_round_robin(request, clients, wait_ack):
     c_str = TBBase.format_dec(clients, 2)
     w_str = TBBase.format_dec(wait_ack, 1)
     test_name_plus_params = f"test_{dut_name}_c{c_str}_w{w_str}"
+
+    # Handle pytest-xdist parallel execution
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
+
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Use it in the simbuild path
@@ -176,8 +208,7 @@ def test_arbiter_round_robin(request, clients, wait_ack):
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes = []
-
+    includes = [rtl_dict['rtl_amba_includes']]
     # RTL parameters for ROUND ROBIN
     parameters = {'CLIENTS': clients, 'WAIT_GNT_ACK': wait_ack}
 

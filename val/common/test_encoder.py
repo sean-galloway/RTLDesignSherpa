@@ -40,12 +40,19 @@ Note: The encoder has a bug in the original code - 'out' should be 'data'
 """
 
 import os
+import sys
 import random
 import math
 from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+
+# Add repo root to path for CocoTBFramework imports
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if os.path.join(repo_root, 'bin') not in sys.path:
+    sys.path.insert(0, os.path.join(repo_root, 'bin'))
+
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
@@ -489,24 +496,21 @@ async def encoder_test(dut):
 
 
 def generate_params():
-    """
-    Generate test parameters. Modify this function to limit test scope for debugging.
+    """Generate test parameters based on REG_LEVEL"""
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
 
-    Examples for quick debugging:
-        # Single test case:
-        return [(8, 'basic')]
-
-        # Test only specific width:
-        return [(8, 'basic'), (8, 'medium'), (8, 'full')]
-    """
-    input_widths = [4, 8, 16, 32]  # Different input widths (powers of 2)
-    test_levels = ['basic', 'medium', 'full']  # Test levels
-    test_levels = ['full']
-
-    # For debugging, uncomment one of these:
-    # return [(8, 'basic')]  # Single test
-    # return [(8, 'full'), (16, 'full')]  # Just specific configurations
-    # test_levels = ['basic']  # Test only basic level
+    if reg_level == 'GATE':
+        # GATE: Minimal - just 4-bit
+        input_widths = [4]
+        test_levels = ['full']
+    elif reg_level == 'FUNC':
+        # FUNC: Small and medium widths
+        input_widths = [4, 8]
+        test_levels = ['full']
+    else:  # FULL
+        # FULL: All widths
+        input_widths = [4, 8, 16, 32]
+        test_levels = ['full']
 
     return [(width, level) for width, level in product(input_widths, test_levels)]
 
@@ -531,7 +535,7 @@ def test_encoder(request, input_width, test_level):
     - full: Comprehensive validation (8-15 min)
     """
     # Get directory and module information
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common'})
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common', 'rtl_amba_includes': 'rtl/amba/includes'})
 
     # DUT information
     dut_name = "encoder"
@@ -542,7 +546,16 @@ def test_encoder(request, input_width, test_level):
 
     # Create human-readable test identifier
     output_width = int(math.log2(input_width))
-    test_name_plus_params = f"test_encoder_{input_width}to{output_width}_{test_level}"
+    # Get REG_LEVEL before creating test name
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()  # GATE, FUNC, or FULL
+
+    test_name_plus_params = f"test_encoder_{input_width}to{output_width}_{test_level}_{reg_level}"
+
+    # Add worker ID for pytest-xdist parallel execution
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
+
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Setup directories

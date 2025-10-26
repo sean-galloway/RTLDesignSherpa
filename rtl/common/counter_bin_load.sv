@@ -114,6 +114,8 @@
 //
 //==============================================================================
 
+`include "reset_defs.svh"
+
 module counter_bin_load #(
     parameter int WIDTH = 5,
     parameter int MAX   = 10
@@ -176,11 +178,12 @@ module counter_bin_load #(
     end
 
     // Registered counter output
-    always_ff @(posedge clk or negedge rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
         if (!rst_n)
             counter_bin_curr <= 'b0;
         else
             counter_bin_curr <= counter_bin_next;
-    end
+    )
+
 
 endmodule : counter_bin_load

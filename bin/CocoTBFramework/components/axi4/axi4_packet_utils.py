@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: axi4_packet_utils
+# Purpose: AXI4 Packet Utilities - FIXED to use generic field names consistently
+#
+# Documentation: bin/CocoTBFramework/README.md
+# Subsystem: framework
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """
 AXI4 Packet Utilities - FIXED to use generic field names consistently
 

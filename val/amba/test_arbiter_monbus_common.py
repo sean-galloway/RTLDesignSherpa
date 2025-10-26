@@ -510,6 +510,14 @@ def test_arbiter_monbus_common(request, clients, wait_gnt_ack, weighted_mode, fi
 
     This test runner properly handles pass/fail status from the enhanced testbench.
     """
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
+    """
+    Run the Enhanced MonBus Common test with various configurations
+
+    This test runner properly handles pass/fail status from the enhanced testbench.
+    """
 
     # Get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -543,7 +551,7 @@ def test_arbiter_monbus_common(request, clients, wait_gnt_ack, weighted_mode, fi
     f_str = TBBase.format_dec(fifo_depth, 3)
     a_str = TBBase.format_hex(mon_agent_id, 2)
     u_str = TBBase.format_hex(mon_unit_id, 1)
-    test_name_plus_params = f"test_{dut_name}_enhanced_c{c_str}_ack{ack_str}_w{weighted_str}_f{f_str}_a{a_str}_u{u_str}_{test_level}"
+    test_name_plus_params = f"test_{worker_id}_{dut_name}_enhanced_c{c_str}_ack{ack_str}_w{weighted_str}_f{f_str}_a{a_str}_u{u_str}_{test_level}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Use it in the simbuild path

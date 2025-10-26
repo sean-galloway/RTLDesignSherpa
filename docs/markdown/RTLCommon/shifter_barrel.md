@@ -172,3 +172,8 @@ Output: 8'b10110110  (bits wrap around)
 - Bit manipulation engines
 - Network packet processing
 - Data alignment circuits
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

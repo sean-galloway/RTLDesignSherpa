@@ -14,11 +14,18 @@
 # Created: 2025-10-18
 
 import os
+import sys
 import random
 
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+
+
+# Add repo root to path for CocoTBFramework imports
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if os.path.join(repo_root, 'bin') not in sys.path:
+    sys.path.insert(0, os.path.join(repo_root, 'bin'))
 
 from CocoTBFramework.tbclasses.common.crc_testing import CRCTB, crc_parameters
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
@@ -59,25 +66,50 @@ async def crc_basic_test(dut):
 #         'test_level': 'basic'
 #     }
 # ])
-@pytest.mark.parametrize("params", [
-    # Standard parameter sets from the crc_parameters list
-    {
-        'algo_name': entry[0],
-        'data_width': entry[1],
-        'crc_width': entry[2],
-        'poly': entry[3],
-        'poly_init': entry[4],
-        'refin': entry[5],
-        'refout': entry[6],
-        'xorout': entry[7],
-        'test_level': 'basic'
-    } for entry in crc_parameters
-])
+def generate_test_params():
+    """
+    Generate test parameter combinations based on REG_LEVEL.
+
+    REG_LEVEL=GATE: 2 CRC algorithms
+    REG_LEVEL=FUNC: 10 CRC algorithms - default
+    REG_LEVEL=FULL: all CRC algorithms (~20)
+
+    Returns:
+        List of dicts with CRC parameters
+    """
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+
+    if reg_level == 'GATE':
+        # Quick smoke test: CRC-8 and CRC-16
+        selected = crc_parameters[0:2]
+    elif reg_level == 'FUNC':
+        # Functional coverage: first 10 algorithms
+        selected = crc_parameters[0:10]
+    else:  # FULL
+        # Comprehensive: all algorithms
+        selected = crc_parameters
+
+    return [
+        {
+            'algo_name': entry[0],
+            'data_width': entry[1],
+            'crc_width': entry[2],
+            'poly': entry[3],
+            'poly_init': entry[4],
+            'refin': entry[5],
+            'refout': entry[6],
+            'xorout': entry[7],
+            'test_level': 'basic'
+        } for entry in selected
+    ]
+
+
+@pytest.mark.parametrize("params", generate_test_params())
 def test_dataint_crc(request, params):
     """Run the test with pytest and configurable parameters"""
     # Get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths(
-        {'rtl_cmn': 'rtl/common'}
+        {'rtl_cmn': 'rtl/common', 'rtl_amba_includes': 'rtl/amba/includes'}
     )
 
     dut_name = "dataint_crc"
@@ -98,6 +130,12 @@ def test_dataint_crc(request, params):
     t_name = params['test_level']
 
     test_name_plus_params = f"test_{dut_name}_{algorithm}_DW{data_w}_CW{crc_w}_RI{refin}_RO{refout}_{t_name}"
+
+    # Handle pytest-xdist parallel execution
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
+
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Use it in the simbuild path
@@ -110,8 +148,7 @@ def test_dataint_crc(request, params):
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes = []
-
+    includes = [rtl_dict['rtl_amba_includes']]
     # RTL parameters
     parameters = {
         # 'ALGO_NAME': params['algo_name'],

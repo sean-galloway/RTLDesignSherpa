@@ -16,9 +16,29 @@ The APB HPET provides a memory-mapped register interface accessible via the APB 
 
 Each timer occupies a 32-byte (0x20) register block, supporting up to 8 timers.
 
+**Timing Diagrams:**
+
+The following timing diagrams illustrate key register access sequences:
+
+![APB Write Timer Config](../assets/png/apb_write_timer_config.png)
+
+*Figure 1: APB write to TIMER0_CONFIG register (0x100). [Source: assets/wavedrom/apb_write_timer_config.json](../assets/wavedrom/apb_write_timer_config.json)*
+
+![APB Read Counter](../assets/png/apb_read_counter.png)
+
+*Figure 2: APB read of 64-bit counter (two 32-bit reads from COUNTER_LO and COUNTER_HI). [Source: assets/wavedrom/apb_read_counter.json](../assets/wavedrom/apb_read_counter.json)*
+
+![Interrupt W1C Sequence](../assets/png/interrupt_w1c_sequence.png)
+
+*Figure 3: Timer interrupt generation and W1C (Write-1-to-Clear) status clearing sequence. [Source: assets/wavedrom/interrupt_w1c_sequence.json](../assets/wavedrom/interrupt_w1c_sequence.json)*
+
+![Timer Setup Sequence](../assets/png/timer_setup_sequence.png)
+
+*Figure 4: Complete timer setup sequence: disable HPET, reset counter, configure comparator, enable timer, enable HPET. [Source: assets/wavedrom/timer_setup_sequence.json](../assets/wavedrom/timer_setup_sequence.json)*
+
 ### Block Diagram
 
-![APB HPET Block Diagram](../assets/draw.io/apb_hpet.drawio.png)
+![APB HPET Block Diagram](../assets/draw.io/apb_hpet_blocks.png)
 
 *Figure 1: APB HPET top-level architecture showing APB interface, configuration registers, HPET core, and timer outputs.*
 
@@ -614,7 +634,7 @@ void hpet_interrupt_handler(void) {
 
 ### Additional Diagrams
 
-- [Block Diagram](../assets/draw.io/apb_hpet.drawio.png) - Top-level architecture
+- [Block Diagram](../assets/draw.io/apb_hpet_blocks.png) - Top-level architecture
 - [One-Shot Timer](../assets/graphviz/oneshot_timer.png) - One-shot mode operation
 - [Periodic Timer](../assets/graphviz/periodic_timer.png) - Periodic mode operation
 - [Software Init](../assets/graphviz/software_init.png) - Initialization sequence

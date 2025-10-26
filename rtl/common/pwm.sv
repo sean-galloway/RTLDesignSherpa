@@ -259,6 +259,8 @@
 //     - Period and duty parameter variations
 //
 //==============================================================================
+
+`include "reset_defs.svh"
 module pwm #(
     parameter int WIDTH = 8,  // Counter Width
     parameter int CHANNELS = 4  // Number of PWM channels
@@ -306,15 +308,16 @@ module pwm #(
             logic r_start_prev;
 
             // Edge detection for start signal
-            always_ff @(posedge clk or negedge rst_n) begin
-                if (!rst_n) begin
+            `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
                     r_start_prev <= 1'b0;
                 end else if (!sync_rst_n) begin
                     r_start_prev <= 1'b0;
                 end else begin
                     r_start_prev <= start[i];
                 end
-            end
+            )
+
             assign w_start_edge = start[i] && !r_start_prev;
 
             // Period completion detection
@@ -325,8 +328,8 @@ module pwm #(
                                         (r_repeat_value >= local_repeat);
 
             // State machine
-            always_ff @(posedge clk or negedge rst_n) begin
-                if (!rst_n) begin
+            `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
                     r_state <= IDLE;
                 end else if (!sync_rst_n) begin
                     r_state <= IDLE;
@@ -337,27 +340,28 @@ module pwm #(
                                 r_state <= RUNNING;
                             end
                         end
-
+                
                         RUNNING: begin
                             if (w_period_complete && w_all_repeats_done) begin
                                 r_state <= DONE;
                             end
                         end
-
+                
                         DONE: begin
                             if (w_start_edge) begin
                                 r_state <= RUNNING;
                             end
                         end
-
+                
                         default: r_state <= IDLE;
                     endcase
                 end
-            end
+            )
+
 
             // Counter logic
-            always_ff @(posedge clk or negedge rst_n) begin
-                if (!rst_n) begin
+            `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
                     r_count <= '0;
                 end else if (!sync_rst_n) begin
                     r_count <= '0;
@@ -366,7 +370,7 @@ module pwm #(
                         IDLE: begin
                             r_count <= '0;
                         end
-
+                
                         RUNNING: begin
                             if (w_period_complete) begin
                                 r_count <= '0;
@@ -374,21 +378,22 @@ module pwm #(
                                 r_count <= r_count + 1;
                             end
                         end
-
+                
                         DONE: begin
                             if (w_start_edge) begin
                                 r_count <= '0;
                             end
                         end
-
+                
                         default: r_count <= '0;
                     endcase
                 end
-            end
+            )
+
 
             // Repeat counter logic
-            always_ff @(posedge clk or negedge rst_n) begin
-                if (!rst_n) begin
+            `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
                     r_repeat_value <= '0;
                 end else if (!sync_rst_n) begin
                     r_repeat_value <= '0;
@@ -397,23 +402,24 @@ module pwm #(
                         IDLE: begin
                             r_repeat_value <= '0;
                         end
-
+                
                         RUNNING: begin
                             if (w_period_complete) begin
                                 r_repeat_value <= r_repeat_value + 1;
                             end
                         end
-
+                
                         DONE: begin
                             if (w_start_edge) begin
                                 r_repeat_value <= '0;
                             end
                         end
-
+                
                         default: r_repeat_value <= '0;
                     endcase
                 end
-            end
+            )
+
 
             // PWM output logic
             always_comb begin

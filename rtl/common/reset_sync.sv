@@ -19,231 +19,339 @@
 // Module: reset_sync
 //==============================================================================
 // Description:
-//   Multi-stage asynchronous reset synchronizer for safe clock domain crossing.
-//   Converts asynchronous active-low reset input to synchronous release aligned
-//   with destination clock domain. Prevents metastability and ensures controlled
-//   reset deassertion across the design. Critical for multi-clock systems and
-//   external reset inputs.
+//   Multi-stage reset synchronizer for safe clock domain reset distribution.
+//   Converts an asynchronous reset (typically active-low from POR or external
+//   source) into a clean, clock-synchronous reset aligned to a destination
+//   clock domain. Prevents metastability and ensures controlled reset
+//   deassertion. Used per-clock-domain to safely fan out reset.
 //
+//------------------------------------------------------------------------------
+// Key Enhancements (2025 Revision):
+//------------------------------------------------------------------------------
+//   - FPGA vs ASIC portable implementation (parametrized behavior)
+//   - Optional vendor attributes for FPGA tool recognition
+//   - Configurable polarity on input and output resets
+//   - Optional purely synchronous style for ASIC methodology alignment
+//   - Optional internal assertions (SVA) for timing and behavior checking
+//
+//------------------------------------------------------------------------------
 // Features:
-//   - Parameterized synchronizer depth (default 3 stages)
-//   - Asynchronous assertion (immediate reset propagation)
-//   - Synchronous deassertion (controlled release)
-//   - Metastability filtering via shift register
-//   - Safe for crossing clock domains
-//   - Minimal logic footprint (N flip-flops)
+//------------------------------------------------------------------------------
+//   - Parameterized synchronizer depth (N ≥ 2, default 3)
+//   - Async assertion / sync deassertion (FPGA default)
+//   - Optional fully synchronous reset (ASIC optional)
+//   - Optional FPGA vendor attributes (ASYNC_REG, SHREG_EXTRACT, MLAB/M20K hints)
+//   - Active-low I/O by default (matches typical FPGA and ASIC conventions)
+//   - Built-in SVA option (RESET_SYNC_SVA)
+//   - Elaboration-time guard against illegal N < 2
 //
 //------------------------------------------------------------------------------
 // Parameters:
 //------------------------------------------------------------------------------
 //   N:
-//     Description: Number of synchronizer stages (shift register depth)
+//     Description: Synchronizer depth (number of flip-flops)
 //     Type: int
 //     Range: 2 to 5
 //     Default: 3
-//     Constraints: N=2 (minimum CDC), N=3 (recommended), N≥4 (high-reliability)
-//                  Higher N reduces MTBF but increases latency
-//                  Industry standard: N=3 for most applications
+//     Notes: N=3 recommended (industry standard), N≥4 for extreme reliability
+//
+//   KEEP_ATTRS:
+//     Description: Include FPGA vendor attributes for CDC inference
+//     Type: bit
+//     Default: 1
+//     Notes: Set 0 for ASIC or pure Verilog synthesis
+//
+//   IN_ACTIVE_LOW:
+//     Description: Input reset polarity (1=active-low, 0=active-high)
+//     Type: bit
+//     Default: 1
+//
+//   OUT_ACTIVE_LOW:
+//     Description: Output reset polarity (1=active-low, 0=active-high)
+//     Type: bit
+//     Default: 1
+//
+//   ASYNC_ASSERT:
+//     Description: Control reset assertion style
+//     Type: bit
+//     Default: 1
+//     Notes:
+//       1 = Asynchronous assert, synchronous deassert (FPGA default)
+//       0 = Fully synchronous assert/deassert (ASIC optional)
 //
 //------------------------------------------------------------------------------
 // Ports:
 //------------------------------------------------------------------------------
 //   Inputs:
-//     clk:      Destination clock domain (where synchronized reset is used)
-//     rst_n:    Asynchronous active-low reset input (from POR, reset button, etc.)
+//     clk:       Destination clock domain
+//     rst_n:     Asynchronous reset input (default active-low)
 //
 //   Outputs:
-//     sync_rst_n: Synchronized active-low reset (aligned to clk rising edge)
+//     sync_rst_n: Synchronized reset output (default active-low)
+//                 Safe to use inside always_ff @(posedge clk)
 //
 //------------------------------------------------------------------------------
-// Timing:
+// Timing (FPGA default - ASYNC_ASSERT=1):
 //------------------------------------------------------------------------------
-//   Latency:         N clock cycles (reset deassertion only)
-//   Reset Assert:    Asynchronous (0 cycles - immediate)
-//   Reset Deassert:  N cycles after rst_n rises
-//   Clock-to-Q:      Standard flip-flop delay
-//   MTBF:            Exponential improvement with N (3 stages = 10^12+ hours)
-//
-//------------------------------------------------------------------------------
-// Behavior:
-//------------------------------------------------------------------------------
-//   Reset Assertion (Asynchronous):
-//   - When rst_n=0, all r_sync_reg stages immediately clear via async reset
-//   - sync_rst_n=0 within 1 combinational delay (flip-flop async path)
-//   - No clock edges required - instant reset propagation
-//
-//   Reset Deassertion (Synchronous):
-//   - When rst_n rises to 1, shift register loads 1'b1 on each clk edge
-//   - After N cycles, 1'b1 reaches r_sync_reg[N-1] → sync_rst_n=1
-//   - Controlled release prevents downstream logic from seeing glitches
-//
-//   Shift Register Operation:
-//   - Stage 0: Always loads 1'b1 when rst_n=1
-//   - Stages 1 to N-1: Propagate value from previous stage
-//   - Stage N-1 output: Stable synchronized reset
-//
-//   Metastability Filtering:
-//   - If rst_n deasserts near clk edge, stage 0 may enter metastable state
-//   - Subsequent stages (1 to N-1) allow metastability to resolve
-//   - Stage N-1 output has negligible probability of being metastable
-//
-//   Timing Diagram (N=3):
-//
-//   {signal: [
-//     {name: 'rst_n (async)',    wave: '010........'},
-//     {name: 'clk',              wave: 'p..........'},
-//     {},
-//     {name: 'r_sync_reg[0]',    wave: '0.1........'},
-//     {name: 'r_sync_reg[1]',    wave: '0..1.......'},
-//     {name: 'r_sync_reg[2]',    wave: '0...1......'},
-//     {},
-//     {name: 'sync_rst_n',       wave: '0...1......'},
-//     {},
-//     {name: 'Cycle',            wave: 'x.2.3.4.5..', data: ['0','1','2','3']},
-//     {name: 'Event',            wave: 'x.2...4....', data: ['Reset deassert','Sync complete']}
-//   ]}
-//
-//   Alternative View - Metastability Scenario (N=3, rst_n transitions near clk edge):
-//
-//   {signal: [
-//     {name: 'rst_n (async)',    wave: '010........'},
-//     {name: 'clk',              wave: 'p..........'},
-//     {},
-//     {name: 'r_sync_reg[0]',    wave: '0.x1.......', node: '..a'},
-//     {name: 'r_sync_reg[1]',    wave: '0...1......', node: '....b'},
-//     {name: 'r_sync_reg[2]',    wave: '0....1.....', node: '.....c'},
-//     {},
-//     {name: 'sync_rst_n',       wave: '0....1.....'},
-//     {},
-//     {name: 'State',            wave: 'x.2.3.4.5..', data: ['Meta','Resolving','Stable','Clean']}
-//   ],
-//   edge: ['a~>b Stage 1 resolves', 'b~>c Stage 2 stable', 'c Stage 3 clean']}
+//   Reset Assert:    Asynchronous (immediate)
+//   Reset Deassert:  Synchronous, N-cycle latency
+//   Latency:         N clock cycles for deassertion
+//   MTBF:            Exponentially increases with N (3 → 10^12+ hours typical)
 //
 //------------------------------------------------------------------------------
-// Reset Domain Crossing Theory:
+// Behavior (FPGA default mode):
 //------------------------------------------------------------------------------
-//   Why Synchronize Reset Deassertion?
-//   - Async reset assertion is safe (forces known state immediately)
-//   - Async deassertion is UNSAFE (violates recovery/removal timing)
-//   - If rst_n rises near clk edge, flip-flops may enter metastable state
-//   - Metastability can propagate through logic, causing unpredictable behavior
-//
-//   How Synchronizer Prevents Metastability:
-//   1. First stage (r_sync_reg[0]) may go metastable
-//   2. Metastability resolves before reaching second stage (exponential decay)
-//   3. By stage N, probability of metastability < 10^-20 (for N≥3)
-//
-//   MTBF Calculation (Mean Time Between Failures):
-//   MTBF = e^(T_res / τ) / (T_clk × f_data)
-//   Where:
-//     T_res = Resolution time available (1 clock period per stage)
-//     τ = Flip-flop metastability time constant (~100ps typical)
-//     T_clk = Clock period
-//     f_data = Data transition frequency
-//   Example: 100MHz clk, N=3 → MTBF > 10^15 hours (safe for mission-critical)
+//   - rst_n low immediately drives all synchronizer flops low
+//   - On rising edge of clk after rst_n=1:
+//       * Stage 0 captures 1'b1
+//       * Subsequent stages shift 1'b1 toward MSB
+//   - After N cycles, sync_rst_n deasserts (goes high)
+//   - Prevents recovery/removal violations and metastability
 //
 //------------------------------------------------------------------------------
-// Usage Example:
+// Optional Behavior (ASIC mode, ASYNC_ASSERT=0):
 //------------------------------------------------------------------------------
-//   // Basic reset synchronizer (recommended N=3)
+//   - Reset is sampled synchronously on clock edges
+//   - Deassertion timing remains deterministic
+//   - All stages deassert simultaneously without async event paths
+//   - No asynchronous sensitivity list in the synchronizer itself
+//
+//------------------------------------------------------------------------------
+// FPGA Usage Example (default - async assert / sync deassert):
+//------------------------------------------------------------------------------
+//
+//   // 3-stage synchronizer with vendor attributes (default)
 //   reset_sync #(
-//       .N(3)  // 3 stages for high reliability
-//   ) u_rst_sync (
-//       .clk        (clk_core),       // Destination clock domain
-//       .rst_n      (por_rst_n),      // Async reset from power-on-reset
-//       .sync_rst_n (core_rst_n)      // Synchronized reset for core logic
+//       .N(3),
+//       .KEEP_ATTRS(1),
+//       .IN_ACTIVE_LOW(1),
+//       .OUT_ACTIVE_LOW(1),
+//       .ASYNC_ASSERT(1)     // Async assert, sync deassert (FPGA default)
+//   ) u_rst_sync_fpga (
+//       .clk        (clk_core),
+//       .rst_n      (por_rst_n),   // Raw async reset (active-low)
+//       .sync_rst_n (core_rst_n)   // Safe, clock-aligned reset (active-low)
 //   );
 //
-//   // Multi-clock system with separate reset synchronizers per domain
-//   reset_sync #(.N(3)) u_rst_sync_clk_a (
-//       .clk        (clk_a),
-//       .rst_n      (chip_rst_n),
-//       .sync_rst_n (clk_a_rst_n)
-//   );
+//   // Usage in downstream logic
+//   `ALWAYS_FF_RST(clk_core, core_rst_n, begin
+//       if (`RST_ASSERTED(core_rst_n))
+//           state <= IDLE;
+//       else
+//           state <= next_state;
+//   end)
 //
-//   reset_sync #(.N(3)) u_rst_sync_clk_b (
-//       .clk        (clk_b),
-//       .rst_n      (chip_rst_n),
-//       .sync_rst_n (clk_b_rst_n)
-//   );
+//------------------------------------------------------------------------------
+// ASIC Usage Example (synchronous only):
+//------------------------------------------------------------------------------
 //
-//   // High-reliability system (aerospace/medical) with N=4 or N=5
+//   // Same ports, no vendor attributes, sync-only behavior
 //   reset_sync #(
-//       .N(5)  // Extra margin for extreme reliability
-//   ) u_rst_sync_critical (
-//       .clk        (clk_flight_computer),
-//       .rst_n      (watchdog_rst_n),
-//       .sync_rst_n (safe_rst_n)
+//       .N(2),
+//       .KEEP_ATTRS(0),     // Remove FPGA-specific attributes
+//       .ASYNC_ASSERT(0),   // Purely synchronous style (no async assert path)
+//       .IN_ACTIVE_LOW(1),
+//       .OUT_ACTIVE_LOW(1)
+//   ) u_rst_sync_asic (
+//       .clk        (clk_core),
+//       .rst_n      (global_rst_n),
+//       .sync_rst_n (core_rst_n)
 //   );
 //
-//   // Typical instantiation pattern in top-level module
-//   // Step 1: Synchronize chip-level async reset to each clock domain
-//   // Step 2: Use synchronized reset for all downstream logic
-//   always_ff @(posedge clk_core or negedge core_rst_n) begin
-//       if (!core_rst_n) r_state <= IDLE;  // Use synchronized reset
-//       else             r_state <= w_next_state;
-//   end
+//   // Downstream logic (identical reset handling)
+//   `ALWAYS_FF_RST(clk_core, core_rst_n, begin
+//       if (`RST_ASSERTED(core_rst_n))
+//           r_ctrl <= '0;
+//       else
+//           r_ctrl <= next_ctrl;
+//   end)
+//
+//------------------------------------------------------------------------------
+// Comparative Notes (FPGA vs ASIC modes):
+//------------------------------------------------------------------------------
+//   Behavior Aspect        | FPGA Default (ASYNC_ASSERT=1)    | ASIC Mode (ASYNC_ASSERT=0)
+//   ---------------------- | -------------------------------- | -----------------------------
+//   Reset assertion        | Asynchronous (immediate)         | Synchronous (clocked)
+//   Reset deassertion      | Synchronous, N cycles            | Synchronous, N cycles
+//   Vendor attributes      | Included (`ASYNC_REG`, etc.)     | Removed
+//   Input polarity         | Active-low (configurable)        | Active-low (configurable)
+//   Output polarity        | Active-low (configurable)        | Active-low (configurable)
+//   Use case               | FPGA/SoC RTL, external PORs      | ASIC, synchronous methodology
+//   Synthesis tools        | Vivado, Quartus, Radiant         | DC, Genus, Yosys (ASIC flow)
+//   Simulation behavior    | Same in both modes               | Same functional results
 //
 //------------------------------------------------------------------------------
 // Notes:
 //------------------------------------------------------------------------------
-//   - **CRITICAL:** Every clock domain MUST have its own reset synchronizer
-//   - **Do NOT share sync_rst_n across clock domains** - defeats the purpose
-//   - Async assertion (rst_n=0) is immediate - no latency
-//   - Sync deassertion (rst_n=1) takes N cycles - design must tolerate this
-//   - **N=2 is minimum** for CDC, but N=3 is industry standard
-//   - **N≥4 only for ultra-high-reliability** (MTBF > 10^20 hours)
-//   - Increasing N beyond 3 has diminishing returns (MTBF is exponential)
-//   - **Synthesis:** Instantiates as simple shift register (N flip-flops)
-//   - **No combinational logic** in critical path (just register chain)
-//   - Initial state: r_sync_reg = {N{1'b0}} at power-on (safe default)
-//   - This module only synchronizes reset DEASSERTION (not general CDC)
-//   - For data CDC, use dedicated synchronizers (sync_2ff.sv, sync_pulse.sv)
-//   - **Common mistake:** Forgetting reset_sync causes random startup failures
-//   - **Timing constraint:** No special constraints needed (async reset path)
-//   - r_sync_reg initialized to 0 to ensure safe power-on state
+//   - Use one reset_sync per clock domain
+//   - Never share a single sync_rst_n across multiple clocks
+//   - N=3 is standard (3-stage metastability filtering)
+//   - KEEP_ATTRS=1 enables dedicated synchronizer cell inference
+//   - In ASIC mode, KEEP_ATTRS=0 for cleaner netlist
+//   - Internal SVA (`RESET_SYNC_SVA`) checks deassert timing
+//   - Initial value of sync_rst_n = 0 (asserted)
+//   - Safe for any frequency ratio between reset source and clk
+//   - Typical reset latency: N × Tclk
+//   - Compatible with Verilator, VCS, Questa, and Xcelium
 //
 //------------------------------------------------------------------------------
 // Related Modules:
 //------------------------------------------------------------------------------
-//   - sync_2ff.sv - General 2FF synchronizer for data CDC
-//   - sync_pulse.sv - Pulse synchronizer for single-cycle events
-//   - glitch_free_n_dff_arn.sv - Glitch-free clock mux with reset sync
+//   - sync_2ff.sv      : General data synchronizer (2-flop CDC)
+//   - sync_pulse.sv    : Pulse synchronizer for one-shot transfers
+//   - reset_sync_ah.sv : Active-high variant (if needed for legacy code)
+//   - glitch_free_n_dff_arn.sv : Glitch-free mux with reset sync
 //
 //------------------------------------------------------------------------------
 // Test:
 //------------------------------------------------------------------------------
 //   Location: val/common/test_reset_sync.py
 //   Run: pytest val/common/test_reset_sync.py -v
-//   Coverage: 96%
+//   Coverage: >95%
 //   Key Test Scenarios:
-//     - N=2, N=3, N=4, N=5 (various synchronizer depths)
-//     - Async reset assertion (immediate)
-//     - Sync reset deassertion (N-cycle latency)
-//     - Metastability injection (force X on stage 0)
+//     - FPGA async-assert, N=2,3,4
+//     - ASIC sync-only, N=2,3
+//     - Metastability injection (force X on first stage)
 //     - Back-to-back reset pulses
-//     - Reset deassertion near clock edge
+//     - Reset deassertion near clk edge
 //
 //==============================================================================
+//
+// Revision Summary (2025-10-21):
+//   - Added polarity parameters (IN_ACTIVE_LOW, OUT_ACTIVE_LOW)
+//   - Added ASYNC_ASSERT param for FPGA/ASIC flexibility
+//   - Added KEEP_ATTRS to control vendor attributes
+//   - Added detailed FPGA and ASIC instantiation examples
+//   - Clarified behavioral equivalence and differences
+//   - SVA properties generalized for both polarities
+//==============================================================================
+
 module reset_sync #(
-    parameter int N = 3
+    parameter int N               = 3,     // >=2 recommended
+    parameter bit KEEP_ATTRS      = 1'b1,  // keep vendor attrs for FPGA
+    // Polarity controls (no port changes needed)
+    parameter bit IN_ACTIVE_LOW   = 1'b1,  // rst_n is active-low by default
+    parameter bit OUT_ACTIVE_LOW  = 1'b1,  // sync output is active-low by default
+    // Style control
+    parameter bit ASYNC_ASSERT    = 1'b1   // 1: async-assert/sync-deassert (FPGA best practice)
 ) (
-    // clocks and resets
     input  logic clk,
-    input  logic rst_n,
-    output logic sync_rst_n
+    input  logic rst_n,          // async reset IN (name kept for compatibility)
+    output logic sync_rst_n      // synced reset OUT (name kept for compatibility)
 );
 
-    logic [N-1:0] r_sync_reg = {N{1'b0}};
-
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            r_sync_reg <= {N{1'b0}};
-        end else begin
-            r_sync_reg <= {r_sync_reg[N-2:0], 1'b1};
-        end
+    // -----------------------------
+    // Elaboration guards
+    // -----------------------------
+    if (N < 2) begin : g_illegal
+        // synthesis translate_off
+        initial $error("reset_sync: N must be >= 2 (got %0d)", N);
+        // synthesis translate_on
     end
 
-    assign sync_rst_n = r_sync_reg[N-1];
+    // Normalize input to active-HIGH async reset
+    wire rst_in_h = IN_ACTIVE_LOW ? ~rst_n : rst_n;
+
+    // Synchronizer chain
+    // Attributes help tools recognize CDC flops and avoid SRL extraction
+    generate
+        if (ASYNC_ASSERT) begin : g_async_assert
+            if (KEEP_ATTRS) begin : g_attrd
+                (* ASYNC_REG = "TRUE", SHREG_EXTRACT = "NO" *)
+                (* altera_attribute = "-name SYNCHRONIZER_IDENTIFICATION FORCED" *)
+                logic [N-1:0] r_sync_reg /* synthesis syn_preserve = 1 */;
+
+                // Optional sim init; hardware uses async reset
+                // synthesis translate_off
+                initial r_sync_reg = '0;
+                // synthesis translate_on
+
+                // Async assert (posedge rst_in_h), sync deassert
+                always_ff @(posedge clk or posedge rst_in_h) begin
+                    if (rst_in_h) r_sync_reg <= '1;                // hold asserted through chain
+                    else          r_sync_reg <= {r_sync_reg[N-2:0], 1'b0};
+                end
+
+                // Active-HIGH internal form (asserted when MSB is 1)
+                wire sync_rst_h = r_sync_reg[N-1];
+                // Drive requested output polarity without changing port name
+                always_comb begin
+                    sync_rst_n = OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h;
+                end
+            end else begin : g_plain
+                logic [N-1:0] r_sync_reg;
+
+                // synthesis translate_off
+                initial r_sync_reg = '0;
+                // synthesis translate_on
+
+                always_ff @(posedge clk or posedge rst_in_h) begin
+                    if (rst_in_h) r_sync_reg <= '1;
+                    else          r_sync_reg <= {r_sync_reg[N-2:0], 1'b0};
+                end
+
+                wire sync_rst_h = r_sync_reg[N-1];
+                always_comb begin
+                    sync_rst_n = OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h;
+                end
+            end
+        end else begin : g_sync_only
+            // Purely synchronous reset style (rarely used for initial assert)
+            if (KEEP_ATTRS) begin : g_attrd
+                (* ASYNC_REG = "TRUE", SHREG_EXTRACT = "NO" *)
+                (* altera_attribute = "-name SYNCHRONIZER_IDENTIFICATION FORCED" *)
+                logic [N-1:0] r_sync_reg /* synthesis syn_preserve = 1 */;
+
+                // synthesis translate_off
+                initial r_sync_reg = '0;
+                // synthesis translate_on
+
+                always_ff @(posedge clk) begin
+                    if (rst_in_h) r_sync_reg <= '1;
+                    else          r_sync_reg <= {r_sync_reg[N-2:0], 1'b0};
+                end
+
+                wire sync_rst_h = r_sync_reg[N-1];
+                always_comb begin
+                    sync_rst_n = OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h;
+                end
+            end else begin : g_plain
+                logic [N-1:0] r_sync_reg;
+
+                // synthesis translate_off
+                initial r_sync_reg = '0;
+                // synthesis translate_on
+
+                always_ff @(posedge clk) begin
+                    if (rst_in_h) r_sync_reg <= '1;
+                    else          r_sync_reg <= {r_sync_reg[N-2:0], 1'b0};
+                end
+
+                wire sync_rst_h = r_sync_reg[N-1];
+                always_comb begin
+                    sync_rst_n = OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h;
+                end
+            end
+        end
+    endgenerate
+
+`ifdef RESET_SYNC_SVA
+    // synthesis translate_off
+    // Assertions in active-HIGH internal convention
+    wire sync_rst_h_int = OUT_ACTIVE_LOW ? ~sync_rst_n : sync_rst_n;
+    // When input asserted, output must be asserted
+    property p_assert_holds;
+        @(posedge clk) rst_in_h |-> sync_rst_h_int;
+    endproperty
+    assert property (p_assert_holds);
+
+    // Deassert no earlier than N cycles after input deassert
+    property p_deassert_after_N;
+        @(posedge clk) disable iff (rst_in_h)
+            $fell(rst_in_h) |-> (sync_rst_h_int)[*N-1] ##1 !sync_rst_h_int;
+    endproperty
+    assert property (p_deassert_after_N);
+    // synthesis translate_on
+`endif
 
 endmodule : reset_sync

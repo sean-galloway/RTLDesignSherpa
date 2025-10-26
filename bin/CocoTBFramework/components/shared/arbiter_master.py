@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: ClientState
+# Purpose: ArbiterMaster with Unified Behavior and Drain/Idle Functionality
+#
+# Documentation: bin/CocoTBFramework/README.md
+# Subsystem: framework
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """
 ArbiterMaster with Unified Behavior and Drain/Idle Functionality
 Identical behavior for weighted/unweighted arbiters except weight signal management

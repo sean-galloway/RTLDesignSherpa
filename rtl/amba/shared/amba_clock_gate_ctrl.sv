@@ -15,6 +15,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module amba_clock_gate_ctrl #(
     parameter int CG_IDLE_COUNT_WIDTH = 4,                   // Default width of idle counter
     parameter int ICW                 = CG_IDLE_COUNT_WIDTH
@@ -43,17 +45,18 @@ module amba_clock_gate_ctrl #(
 
     // Combine activity signals
     // flop the wakeup signal
-    always_ff @(posedge clk_in or negedge aresetn) begin
+    `ALWAYS_FF_RST(clk_in, aresetn,
         if (!aresetn) r_wakeup <= 'h1;
         else r_wakeup <= user_valid || axi_valid;
-    end
+    )
+
 
     // Generate idle signal when no activity
     assign idle = ~r_wakeup;
 
     // Instantiate the base clock gate control
     clock_gate_ctrl #(
-        .N                  (ICW)
+        .IDLE_CNTR_WIDTH    (ICW)
     ) u_clock_gate_ctrl (
         .clk_in             (clk_in),
         .aresetn            (aresetn),

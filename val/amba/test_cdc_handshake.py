@@ -206,11 +206,14 @@ def test_cdc_handshake(request, params):
 
     For debugging: Modify generate_cdc_test_params() to limit test scope
     """
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
     # Get directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_cmn': 'rtl/common',
         'rtl_amba_shared':'rtl/amba/shared',
-    })
+     'rtl_amba_includes': 'rtl/amba/includes'})
 
     dut_name = "cdc_handshake"
     toplevel = dut_name
@@ -234,7 +237,7 @@ def test_cdc_handshake(request, params):
         ratio_desc = "same"
 
     # Create descriptive test name
-    test_name_plus_params = (f"test_cdc_handshake_"
+    test_name_plus_params = (f"test_{worker_id}_cdc_handshake_"
                             f"src{src_period}ns_dst{dst_period}ns_"
                             f"{ratio_desc}_{test_level}")
 
@@ -248,8 +251,7 @@ def test_cdc_handshake(request, params):
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes = []
-
+    includes = [rtl_dict['rtl_amba_includes']]
     # RTL parameters
     total_width = 32 + 32 + 32//8 + 1 + 3  # addr + data + strb + write + prot
     rtl_parameters = {

@@ -43,6 +43,7 @@ Environment Variables:
 """
 
 import os
+import sys
 import random
 import math
 from itertools import product
@@ -50,6 +51,12 @@ import pytest
 import cocotb
 from cocotb.triggers import RisingEdge, Timer, FallingEdge
 from cocotb_test.simulator import run
+
+# Add repo root to path for CocoTBFramework imports
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if os.path.join(repo_root, 'bin') not in sys.path:
+    sys.path.insert(0, os.path.join(repo_root, 'bin'))
+
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
@@ -178,7 +185,8 @@ class ClockDividerTB(TBBase):
 
         # Use bit 0 and 1 which change frequently
         # Bit 0 toggles every 2 cycles, bit 1 toggles every 4 cycles
-        test_pickoffs = [0, 1, 0, 1][:self.N]  # Use low bits that change often, limit to available channels
+        # Repeat pattern to cover all N channels
+        test_pickoffs = [(i % 2) for i in range(self.N)]  # Alternating [0, 1, 0, 1, ...] for all N channels
         
         self.pickoff_points.value = self._pack_pickoff_points(test_pickoffs)
         await RisingEdge(self.clk)
@@ -257,14 +265,14 @@ class ClockDividerTB(TBBase):
         # Define test pickoff points based on test level
         if self.TEST_LEVEL == 'basic':
             test_cases = [
-                [0, 1, 2, 3][:self.N],
-                [1, 2, 3, 4][:self.N]
+                [i for i in range(self.N)],  # [0, 1, 2, ..., N-1]
+                [i+1 for i in range(self.N)]  # [1, 2, 3, ..., N]
             ]
         elif self.TEST_LEVEL == 'medium':
             test_cases = [
-                [0, 1, 2, 3][:self.N],
-                [1, 2, 3, 4][:self.N],
-                [2, 4, 6, 8][:self.N],
+                [i for i in range(self.N)],  # [0, 1, 2, ..., N-1]
+                [i+1 for i in range(self.N)],  # [1, 2, 3, ..., N]
+                [i*2 for i in range(self.N)],  # [0, 2, 4, ..., 2*(N-1)]
                 [min(i*2, self.MAX_PICKOFF) for i in range(self.N)]
             ]
         else:  # full
@@ -485,24 +493,58 @@ async def clock_divider_test(dut):
 
 
 def generate_params():
-    """Generate test parameters for different configurations"""
+    """
+    Generate test parameter combinations based on REG_LEVEL.
+
+    REG_LEVEL=GATE: 3 tests (quick smoke at basic level)
+    REG_LEVEL=FUNC: ~12 tests (all valid configs, basic level) - default
+    REG_LEVEL=FULL: ~36 tests (all valid configs, all levels)
+
+    Returns:
+        List of tuples: (n, po_width, counter_width, test_level)
+
+    RTL Constraint: PO_WIDTH > $clog2(COUNTER_WIDTH) to avoid truncation
+                    Equivalently: PO_WIDTH >= $clog2(COUNTER_WIDTH + 1)
+                    This ensures PO_WIDTH can hold the value COUNTER_WIDTH
+
+    Examples:
+        COUNTER_WIDTH=16 → needs PO_WIDTH >= 5 (since $clog2(16)=4, $clog2(17)=5)
+        COUNTER_WIDTH=32 → needs PO_WIDTH >= 6 (since $clog2(32)=5, $clog2(33)=6)
+        COUNTER_WIDTH=64 → needs PO_WIDTH >= 7 (since $clog2(64)=6, $clog2(65)=7)
+    """
+    import math
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+
     n_values = [1, 2, 4, 8]           # Number of output clocks
     po_width_values = [4, 6, 8]       # Width of pickoff registers
     counter_width_values = [16, 32, 64]  # Width of counter
-    test_levels = ['full']       # Test levels
+    test_levels = ['basic', 'medium', 'full']
 
-    # Filter valid combinations
-    valid_params = []
-    for n, po_width, counter_width, test_level in product(n_values, po_width_values, counter_width_values, test_levels):
-        # Ensure pickoff width can address counter bits
-        if po_width <= counter_width:
-            valid_params.append((n, po_width, counter_width, test_level))
+    # Generate valid combinations respecting RTL constraint
+    valid_configs = []
+    for n, po_width, counter_width in product(n_values, po_width_values, counter_width_values):
+        # RTL constraint: PO_WIDTH > $clog2(COUNTER_WIDTH)
+        # Equivalently: PO_WIDTH >= $clog2(COUNTER_WIDTH + 1)
+        # This prevents truncation when comparing w_pickoff_raw < w_counter_width_sized
+        min_po_width = math.ceil(math.log2(counter_width + 1))
+        if po_width >= min_po_width:
+            valid_configs.append((n, po_width, counter_width))
 
-    # For debugging, uncomment one of these:
-    # return [(4, 8, 64, 'medium')]  # Single test
-    return [(2, 6, 32, 'full'), (4, 8, 64, 'full')]  # Just specific configurations
+    if reg_level == 'GATE':
+        # Quick smoke test: 3 different configs at basic level
+        return [(valid_configs[0] + ('basic',)),
+                (valid_configs[len(valid_configs)//2] + ('basic',)),
+                (valid_configs[-1] + ('basic',))]
 
-    # return valid_params
+    elif reg_level == 'FUNC':
+        # All valid configs at basic level only
+        return [(n, po, cw, 'basic') for n, po, cw in valid_configs]
+
+    else:  # FULL
+        # All valid configs at all test levels
+        return [(n, po, cw, level)
+                for n, po, cw in valid_configs
+                for level in test_levels]
 
 
 params = generate_params()
@@ -519,7 +561,7 @@ def test_clock_divider(request, n, po_width, counter_width, test_level):
     Test level controls the depth and breadth of testing.
     """
     # Get directory and module information
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common'})
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common', 'rtl_amba_includes': 'rtl/amba/includes'})
 
     # DUT information
     dut_name = "clock_divider"
@@ -533,6 +575,12 @@ def test_clock_divider(request, n, po_width, counter_width, test_level):
     po_str = TBBase.format_dec(po_width, 1)
     cw_str = TBBase.format_dec(counter_width, 2)
     test_name_plus_params = f"test_clock_divider_n{n_str}_po{po_str}_cw{cw_str}_{test_level}"
+
+    # Handle pytest-xdist parallel execution
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
+
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Setup directories
@@ -597,7 +645,7 @@ def test_clock_divider(request, n, po_width, counter_width, test_level):
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[],
+            includes=[rtl_dict['rtl_amba_includes']],
             toplevel=toplevel,
             module=module,
             parameters=parameters,

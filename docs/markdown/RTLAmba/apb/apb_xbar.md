@@ -592,3 +592,10 @@ localparam [31:0] SLAVE_BASES [8] = '{
 - `rtl/common/encoder.sv` (multi-slave address decode)
 
 The `apb_xbar` module provides a complete, high-performance solution for multi-master, multi-slave APB systems with advanced arbitration, flexible address decoding, and comprehensive system integration capabilities.
+
+---
+
+## Navigation
+
+- **[← Back to RTLAmba Index](../index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

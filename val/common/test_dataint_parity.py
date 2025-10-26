@@ -43,12 +43,19 @@ Environment Variables:
 """
 
 import os
+import sys
 import random
 import math
 from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+
+# Add repo root to path for CocoTBFramework imports
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if os.path.join(repo_root, 'bin') not in sys.path:
+    sys.path.insert(0, os.path.join(repo_root, 'bin'))
+
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
@@ -522,36 +529,46 @@ async def parity_test(dut):
 
 def generate_params():
     """
-    Generate test parameters. Modify this function to limit test scope for debugging.
+    Generate test parameter combinations based on REG_LEVEL.
 
-    Examples for quick debugging:
-        # Single test case:
-        return [(32, 4, 1, 'basic')]
+    REG_LEVEL=GATE: 4 tests (16/32-bit, 1/2 chunks, even parity, basic)
+    REG_LEVEL=FUNC: ~20 tests (varied configs, basic) - default
+    REG_LEVEL=FULL: ~60 tests (all valid combinations, all levels)
 
-        # Test only specific width:
-        return [(16, 2, 1, 'basic'), (16, 2, 1, 'medium'), (16, 2, 1, 'full')]
-
-        # Test only odd parity:
-        return [(w, c, 0, l) for w, c, l in product([16, 32], [2, 4], ['basic', 'medium'])]
+    Returns:
+        List of tuples: (data_width, chunks, parity_type, test_level)
     """
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+
     widths = [8, 16, 32, 64]      # Different data widths
     chunks_list = [1, 2, 4, 8]    # Different chunk counts
     parity_types = [0, 1]         # Odd and Even parity
-    test_levels = ['full']  # Test levels
+    test_levels = ['basic', 'medium', 'full']
 
-    # Filter valid combinations (width must be >= chunks and divisible for best results)
-    valid_params = []
-    for width, chunks, parity_type, test_level in product(widths, chunks_list, parity_types, test_levels):
-        if chunks <= width:  # Must have at least 1 bit per chunk
-            valid_params.append((width, chunks, parity_type, test_level))
+    if reg_level == 'GATE':
+        # Quick smoke test: 16/32-bit, simple chunks, even parity, basic
+        return [
+            (16, 1, 1, 'basic'),
+            (16, 2, 1, 'basic'),
+            (32, 1, 1, 'basic'),
+            (32, 2, 1, 'basic'),
+        ]
 
-    # For debugging, uncomment one of these:
-    # return [(32, 4, 1, 'medium')]  # Single test
-    # return [(16, 2, 1, 'full'), (32, 4, 1, 'full')]  # Just specific configurations
-    # test_levels = ['basic']  # Test only basic level
-    # parity_types = [1]  # Test only even parity
+    elif reg_level == 'FUNC':
+        # Functional coverage: varied configs, basic level, even parity only
+        valid_params = []
+        for width, chunks in product(widths, chunks_list):
+            if chunks <= width:
+                valid_params.append((width, chunks, 1, 'basic'))  # even parity only
+        return valid_params
 
-    return valid_params
+    else:  # FULL
+        # Comprehensive: all valid combinations
+        valid_params = []
+        for width, chunks, parity_type, test_level in product(widths, chunks_list, parity_types, test_levels):
+            if chunks <= width:
+                valid_params.append((width, chunks, parity_type, test_level))
+        return valid_params
 
 
 params = generate_params()
@@ -576,7 +593,7 @@ def test_dataint_parity(request, data_width, chunks, parity_type, test_level):
     - full: Comprehensive validation (8-15 min)
     """
     # Get directory and module information
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common'})
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common', 'rtl_amba_includes': 'rtl/amba/includes'})
 
     # DUT information
     dut_name = "dataint_parity"
@@ -590,6 +607,12 @@ def test_dataint_parity(request, data_width, chunks, parity_type, test_level):
     c_str = TBBase.format_dec(chunks, 1)
     p_str = "even" if parity_type else "odd"
     test_name_plus_params = f"test_parity_w{w_str}_c{c_str}_{p_str}_{test_level}"
+
+    # Handle pytest-xdist parallel execution
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
+
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Setup directories

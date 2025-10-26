@@ -2,7 +2,10 @@
 # Location: rtl/amba/components/hpet/filelists/integration/apb_hpet.f
 # Purpose: Complete APB-interfaced HPET timer (all components)
 
-# Include component-level file lists (automatically pulls in dependencies)
+# Header files with macros (MUST be compiled first, needed by GAXI modules)
+$REPO_ROOT/rtl/amba/includes/fifo_defs.svh
+
+# Include component-level file lists (automatically pulls in dependencies including reset_defs.svh)
 -f $REPO_ROOT/rtl/amba/components/hpet/filelists/component/hpet_core.f
 -f $REPO_ROOT/rtl/amba/components/hpet/filelists/component/hpet_config_regs.f
 

@@ -96,3 +96,8 @@ end
 - **Tick frequency**: `long_tick` should be much slower than bounce duration
 - **Multiple buttons**: All buttons share same debounce parameters
 - **Reset behavior**: All outputs go low on reset, regardless of button states
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

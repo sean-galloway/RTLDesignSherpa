@@ -23,6 +23,8 @@
  * complexities including out-of-order phase arrivals.
  * Updated to work with the enhanced monitor_pkg that supports multiple protocols.
  */
+
+`include "reset_defs.svh"
 module axi_monitor_trans_mgr
     import monitor_pkg::*;
 #(
@@ -216,8 +218,8 @@ module axi_monitor_trans_mgr
     // -------------------------------------------------------------------------
     // State Change Detection
     // -------------------------------------------------------------------------
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+if (`RST_ASSERTED(aresetn)) begin
             for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
                 r_trans_table_prev[idx] <= '0;
             end
@@ -225,7 +227,7 @@ module axi_monitor_trans_mgr
         end else begin
             // Update previous state for change detection
             r_trans_table_prev <= r_trans_table;
-
+        
             // Detect state changes
             for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
                 if (r_trans_table[idx].valid && r_trans_table_prev[idx].valid) begin
@@ -239,19 +241,20 @@ module axi_monitor_trans_mgr
                 end
             end
         end
-    end
+    )
+
 
     // -------------------------------------------------------------------------
     // Address Phase Processor
     // -------------------------------------------------------------------------
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+if (`RST_ASSERTED(aresetn)) begin
             for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
                 r_trans_table[idx].valid <= 1'b0;
             end
             r_active_count <= '0;
         end else begin
-
+        
             // =====================================================================
             // STEP 1: Create transaction when cmd_valid asserted (before handshake)
             // =====================================================================
@@ -269,11 +272,11 @@ module axi_monitor_trans_mgr
                     r_trans_table[w_addr_free_idx].len <= cmd_len;
                     r_trans_table[w_addr_free_idx].size <= cmd_size;
                     r_trans_table[w_addr_free_idx].burst <= cmd_burst;
-
+        
                     // CRITICAL: Set cmd_received immediately if handshake completes in same cycle
                     r_trans_table[w_addr_free_idx].cmd_received <= cmd_ready ? 1'b1 : 1'b0;
                     r_trans_table[w_addr_free_idx].addr_timer <= '0;       // Start timer immediately
-
+        
                     r_trans_table[w_addr_free_idx].data_started <= 1'b0;
                     r_trans_table[w_addr_free_idx].data_completed <= 1'b0;
                     r_trans_table[w_addr_free_idx].resp_received <= 1'b0;
@@ -285,18 +288,18 @@ module axi_monitor_trans_mgr
                     r_trans_table[w_addr_free_idx].expected_beats <= IS_AXI ? (cmd_len + 8'h1) : 8'h1;
                     r_trans_table[w_addr_free_idx].data_beat_count <= '0;
                     r_trans_table[w_addr_free_idx].channel <= w_addr_chan_idx;
-
+        
                     // Initialize enhanced tracking fields for AXI protocol
                     r_trans_table[w_addr_free_idx].eos_seen <= 1'b0;
                     // parity_error not in modern bus_transaction_t
                     // credit_at_start not in modern bus_transaction_t
                     // retry_count not in modern bus_transaction_t
-
+        
                     // Increment active count
                     r_active_count <= r_active_count + 1'b1;
                 end
             end
-
+        
             // =====================================================================
             // STEP 2: Mark address received when handshake completes
             // =====================================================================
@@ -308,7 +311,7 @@ module axi_monitor_trans_mgr
                     r_trans_table[w_addr_trans_idx].addr_timestamp <= timestamp;
                 end
             end
-
+        
             // Clean up completed transactions
             for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
                 if (r_trans_table[idx].valid && w_can_cleanup[idx]) begin
@@ -316,7 +319,7 @@ module axi_monitor_trans_mgr
                     r_active_count <= r_active_count - 1'b1;
                 end
             end
-
+        
             // FIX-001: Update event_reported field from reporter feedback
             // This enables proper transaction cleanup by allowing trans_mgr to know
             // when events have been reported and transactions can be safely cleaned up
@@ -326,13 +329,14 @@ module axi_monitor_trans_mgr
                 end
             end
         end
-    end
+    )
+
 
     // -------------------------------------------------------------------------
     // Data Phase Processor
     // -------------------------------------------------------------------------
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+if (`RST_ASSERTED(aresetn)) begin
             // Reset handled by address processor
         end else begin
             // Process data phase transactions
@@ -344,21 +348,21 @@ module axi_monitor_trans_mgr
                         r_trans_table[w_data_trans_idx].data_started <= 1'b1;
                         r_trans_table[w_data_trans_idx].data_beat_count <=
                             r_trans_table[w_data_trans_idx].data_beat_count + 1'b1;
-
+        
                         // Reset data timeout timer
                         r_trans_table[w_data_trans_idx].data_timer <= '0;
-
+        
                         // Update state
                         if (r_trans_table[w_data_trans_idx].state != TRANS_ERROR) begin
                             r_trans_table[w_data_trans_idx].state <= TRANS_DATA_PHASE;
                         end
-
+        
                         // Check if data completed (last beat)
                         if (data_last) begin
                             r_trans_table[w_data_trans_idx].data_completed <= 1'b1;
                             r_trans_table[w_data_trans_idx].data_timestamp <= timestamp;
                         end
-
+        
                         // Check for data response error FIRST - overrides completion
                         if (data_resp[1]) begin
                             r_trans_table[w_data_trans_idx].state <= TRANS_ERROR;
@@ -369,7 +373,7 @@ module axi_monitor_trans_mgr
                         else if (data_last) begin
                             // For reads, transaction is complete once last data beat arrives
                             r_trans_table[w_data_trans_idx].state <= TRANS_COMPLETE;
-
+        
                             // Performance metrics - calculate and store latencies
                             if (ENABLE_PERF_PACKETS) begin
                                 // Additional performance tracking can be added here
@@ -397,7 +401,7 @@ module axi_monitor_trans_mgr
                         r_trans_table[w_data_free_idx].data_beat_count <= 8'h1;
                         r_trans_table[w_data_free_idx].data_timestamp <= timestamp;
                         r_trans_table[w_data_free_idx].event_code.axi_error <= EVT_DATA_ORPHAN;
-
+        
                         // Increment active count
                         r_active_count <= r_active_count + 1'b1;
                     end
@@ -408,21 +412,21 @@ module axi_monitor_trans_mgr
                         r_trans_table[w_data_trans_idx].data_started <= 1'b1;
                         r_trans_table[w_data_trans_idx].data_beat_count <=
                             r_trans_table[w_data_trans_idx].data_beat_count + 1'b1;
-
+        
                         // Reset data timeout timer
                         r_trans_table[w_data_trans_idx].data_timer <= '0;
-
+        
                         // Update state
                         if (r_trans_table[w_data_trans_idx].state != TRANS_ERROR) begin
                             r_trans_table[w_data_trans_idx].state <= TRANS_DATA_PHASE;
                         end
-
+        
                         // Check if data completed (last beat or expected count reached)
                         if (data_last || r_trans_table[w_data_trans_idx].data_beat_count + 1 ==
                                         r_trans_table[w_data_trans_idx].expected_beats) begin
                             r_trans_table[w_data_trans_idx].data_completed <= 1'b1;
                             r_trans_table[w_data_trans_idx].data_timestamp <= timestamp;
-
+        
                             // Performance metrics - data phase latency
                             if (ENABLE_PERF_PACKETS) begin
                                 // Additional performance tracking can be added here
@@ -442,22 +446,23 @@ module axi_monitor_trans_mgr
                         r_trans_table[w_data_free_idx].data_timestamp <= timestamp;
                         r_trans_table[w_data_free_idx].event_code.axi_error <= EVT_DATA_ORPHAN;
                         r_trans_table[w_data_free_idx].channel <= 6'h0; // AXI-Lite always channel 0
-
+        
                         // Increment active count
                         r_active_count <= r_active_count + 1'b1;
                     end
                 end
             end
         end
-    end
+    )
+
 
     // -------------------------------------------------------------------------
     // Response Phase Processor (write only)
     // -------------------------------------------------------------------------
     generate
         if (!IS_READ) begin : gen_resp_processor
-            always_ff @(posedge aclk or negedge aresetn) begin
-                if (!aresetn) begin
+            `ALWAYS_FF_RST(aclk, aresetn,
+if (`RST_ASSERTED(aresetn)) begin
                     // Reset handled by address processor
                 end else begin
                     // Process response phase
@@ -466,10 +471,10 @@ module axi_monitor_trans_mgr
                             // Update transaction response info
                             r_trans_table[w_resp_trans_idx].resp_received <= 1'b1;
                             r_trans_table[w_resp_trans_idx].resp_timestamp <= timestamp;
-
+                
                             // Reset response timeout timer
                             r_trans_table[w_resp_trans_idx].resp_timer <= '0;
-
+                
                             // Check for response error
                             if (resp_code[1]) begin
                                 r_trans_table[w_resp_trans_idx].state <= TRANS_ERROR;
@@ -479,7 +484,7 @@ module axi_monitor_trans_mgr
                                 // Transaction completed successfully
                                 if (r_trans_table[w_resp_trans_idx].state != TRANS_ERROR) begin
                                     r_trans_table[w_resp_trans_idx].state <= TRANS_COMPLETE;
-
+                
                                     // Performance metrics - calculate and store latencies
                                     if (ENABLE_PERF_PACKETS) begin
                                         // Additional performance tracking can be added here
@@ -521,13 +526,14 @@ module axi_monitor_trans_mgr
                                 r_trans_table[w_resp_free_idx].event_code.axi_error <= EVT_RESP_ORPHAN;
                                 r_trans_table[w_resp_free_idx].channel <= 6'h0; // AXI-Lite always channel 0
                             end
-
+                
                             // Increment active count
                             r_active_count <= r_active_count + 1'b1;
                         end
                     end
                 end
-            end
+            )
+
         end
     endgenerate
 

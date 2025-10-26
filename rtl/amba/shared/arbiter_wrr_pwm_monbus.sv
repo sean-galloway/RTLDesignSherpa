@@ -158,8 +158,7 @@ module arbiter_wrr_pwm_monbus #(
     arbiter_round_robin_weighted #(
         .MAX_LEVELS      (MAX_LEVELS),
         .CLIENTS         (CLIENTS),
-        .WAIT_GNT_ACK    (WAIT_GNT_ACK),
-        .MAX_LEVELS_WIDTH(MAX_LEVELS_WIDTH)
+        .WAIT_GNT_ACK    (WAIT_GNT_ACK)
     ) u_arbiter (
         .clk         (clk),
         .rst_n       (rst_n),

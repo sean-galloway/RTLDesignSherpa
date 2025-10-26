@@ -219,8 +219,67 @@ always_ff @(posedge wr_clk) begin
 end
 ```
 
+## WaveDrom Visualization
+
+**High-quality waveforms showcasing Gray code CDC mechanism are available!**
+
+Run the WaveDrom test to generate detailed timing diagrams:
+
+```bash
+# Generate Gray code waveforms (standard async FIFO implementation)
+pytest val/common/test_fifo_async_wavedrom.py -v
+```
+
+**Waveform Scenarios Generated:**
+
+1. **Write-Fill-Read-Empty Cycle**
+   - Standard async FIFO operation
+   - Gray code pointer progression
+   - Power-of-2 depth utilization
+
+2. **Gray Code Synchronization**
+   - Efficient Gray code CDC
+   - Logarithmic pointer width (vs. linear for Johnson)
+   - Cross-domain pointer transitions
+
+3. **Power-of-2 Depth Utilization**
+   - Efficient addressing with power-of-2 depths
+   - Full depth wraparound behavior
+   - Resource-efficient pointer management
+
+**Key Differences from Johnson Counter Variant:**
+
+- **Pointer Width**: Logarithmic (`$clog2(DEPTH) + 1`) vs. linear (`DEPTH`) for Johnson
+- **Depth Restriction**: Power-of-2 only vs. any even number for Johnson
+- **Resource Efficiency**: Better for large depths (>32) vs. Johnson's flexibility for small depths
+
+**Comparison Tests:**
+
+- `test_fifo_async_div2_wavedrom.py` - Johnson counter CDC (flexible even depths)
+- `test_fifo_sync_wavedrom.py` - Synchronous FIFO (single clock, no CDC)
+
 ## Related Modules
 - **fifo_async_div2**: For non-power-of-2 depths using Johnson counters
 - **fifo_sync**: For single clock domain applications
 - **counter_bingray**: Binary-Gray counter implementation
 - **glitch_free_n_dff_arn**: Multi-stage synchronizer
+
+## Test and Verification
+
+**Comprehensive Test Suite:**
+- `val/common/test_fifo_buffer_async.py` - Full functional verification
+- `val/common/test_fifo_async_wavedrom.py` - WaveDrom timing diagrams
+
+**Run Tests:**
+```bash
+# Full functional test (basic/medium/full levels)
+pytest val/common/test_fifo_buffer_async.py -v
+
+# WaveDrom waveform generation
+pytest val/common/test_fifo_async_wavedrom.py -v
+```
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

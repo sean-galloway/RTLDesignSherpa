@@ -63,11 +63,42 @@ async def axil4_master_rd_mon_cg_test(dut):
 # ============================================================================
 # PyTest Test Runner
 # ============================================================================
-@pytest.mark.parametrize("test_level", [
-    "basic",
-])
+def generate_axil4_monitor_cg_params():
+    """
+    Generate AXIL4 monitor CG parameter combinations based on REG_LEVEL.
+
+    REG_LEVEL values:
+        GATE: 1 test - Quick smoke test (basic)
+        FUNC: 3 tests - Functional validation (basic, medium, full)
+        FULL: 3 tests - Comprehensive testing (basic, medium, full)
+
+    Returns:
+        list: Test level values for pytest.mark.parametrize
+    """
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+
+    if reg_level == 'GATE':
+        return ['basic']
+    else:  # FUNC or FULL
+        return ['basic', 'medium', 'full']
+
+
+@pytest.mark.parametrize("test_level", generate_axil4_monitor_cg_params())
 def test_axil4_master_rd_mon_cg(test_level):
-    """Integration test runner for AXIL4 master read monitor CG"""
+    """
+    Integration test runner for CG version.
+
+    Controlled by REG_LEVEL environment variable:
+        GATE: 1 test  - Quick smoke test
+        FUNC: 3 tests - Functional validation (default)
+        FULL: 3 tests - Comprehensive testing
+    """
+
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_axil4': 'rtl/amba/axil4/',
@@ -75,10 +106,10 @@ def test_axil4_master_rd_mon_cg(test_level):
         'rtl_includes': 'rtl/amba/includes',
         'rtl_common': 'rtl/common',
         'rtl_shared': 'rtl/amba/shared',
-    })
+     'rtl_amba_includes': 'rtl/amba/includes'})
 
     dut_name = "axil4_master_rd_mon_cg"
-    test_name = f"test_{dut_name}_{test_level}"
+    test_name = f"test_{worker_id}_{worker_id}_{dut_name}_{test_level}"
 
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
@@ -149,6 +180,7 @@ def test_axil4_master_rd_mon_cg(test_level):
             "-Wno-BLKANDNBLK",
             "--timescale", "1ns/1ps",
         ],
+        includes=[rtl_dict['rtl_amba_includes']]
     )
 
 

@@ -121,6 +121,8 @@
 //
 //==============================================================================
 
+`include "reset_defs.svh"
+
 module sync_pulse #(
     parameter int SYNC_STAGES = 3    // Synchronizer depth (2-4)
 ) (
@@ -151,13 +153,14 @@ module sync_pulse #(
     (* ASYNC_REG = "TRUE" *) logic r_src_toggle;
 
     // Toggle register on each input pulse
-    always_ff @(posedge i_src_clk or negedge i_src_rst_n) begin
-        if (!i_src_rst_n) begin
+    `ALWAYS_FF_RST(i_src_clk, i_src_rst_n,
+if (`RST_ASSERTED(i_src_rst_n)) begin
             r_src_toggle <= 1'b0;
         end else if (i_pulse) begin
             r_src_toggle <= ~r_src_toggle;  // Toggle state
         end
-    end
+    )
+
 
     //==========================================================================
     // Destination Clock Domain: Synchronize Toggle
@@ -166,13 +169,14 @@ module sync_pulse #(
     (* ASYNC_REG = "TRUE" *) logic [SYNC_STAGES-1:0] r_sync;
 
     // Multi-stage synchronizer
-    always_ff @(posedge i_dst_clk or negedge i_dst_rst_n) begin
-        if (!i_dst_rst_n) begin
+    `ALWAYS_FF_RST(i_dst_clk, i_dst_rst_n,
+if (`RST_ASSERTED(i_dst_rst_n)) begin
             r_sync <= '0;
         end else begin
             r_sync <= {r_sync[SYNC_STAGES-2:0], r_src_toggle};
         end
-    end
+    )
+
 
     //==========================================================================
     // Destination Clock Domain: Edge Detection
@@ -181,13 +185,14 @@ module sync_pulse #(
     logic r_sync_prev;
 
     // Delay synchronized toggle by one cycle
-    always_ff @(posedge i_dst_clk or negedge i_dst_rst_n) begin
-        if (!i_dst_rst_n) begin
+    `ALWAYS_FF_RST(i_dst_clk, i_dst_rst_n,
+if (`RST_ASSERTED(i_dst_rst_n)) begin
             r_sync_prev <= 1'b0;
         end else begin
             r_sync_prev <= r_sync[SYNC_STAGES-1];
         end
-    end
+    )
+
 
     // Detect toggle edge (XOR of consecutive values)
     assign o_pulse = r_sync[SYNC_STAGES-1] ^ r_sync_prev;

@@ -29,6 +29,8 @@
 
 // Import common STREAM and monitor packages
 `include "stream_imports.svh"
+`include "reset_defs.svh"
+
 
 module sram_controller #(
     parameter int NUM_CHANNELS = 8,                 // Number of channels
@@ -129,8 +131,8 @@ module sram_controller #(
     assign sram_wr_data = axi_rd_data;
 
     // Update write pointer
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             for (int i = 0; i < NUM_CHANNELS; i++) begin
                 r_wr_ptr[i] <= '0;
             end
@@ -144,15 +146,16 @@ module sram_controller #(
                 end
             end
         end
-    end
+    )
+
 
     //=========================================================================
     // Pre-Allocation Logic
     //=========================================================================
     // Reserves space before AXI read data arrives to prevent overwrites
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             for (int i = 0; i < NUM_CHANNELS; i++) begin
                 r_wr_reserved[i] <= '0;
             end
@@ -162,14 +165,15 @@ module sram_controller #(
                 if (rd_space_req[i] && rd_space_grant[i]) begin
                     r_wr_reserved[i] <= r_wr_reserved[i] + SEG_COUNT_WIDTH'(rd_xfer_count[i]);
                 end
-
+        
                 // Commit reservation when data arrives
                 if (sram_wr_en && (w_wr_channel == CHAN_WIDTH'(i))) begin
                     r_wr_reserved[i] <= r_wr_reserved[i] - 1'b1;
                 end
             end
         end
-    end
+    )
+
 
     //=========================================================================
     // Occupancy Calculation
@@ -235,8 +239,8 @@ module sram_controller #(
     assign sram_rd_addr = w_sram_rd_addr;
 
     // Track pending read for 1-cycle SRAM latency
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             for (int i = 0; i < NUM_CHANNELS; i++) begin
                 r_rd_pending[i] <= 1'b0;
             end
@@ -246,18 +250,19 @@ module sram_controller #(
             for (int i = 0; i < NUM_CHANNELS; i++) begin
                 r_rd_pending[i] <= 1'b0;
             end
-
+        
             // Set pending for requested channel
             if (sram_rd_en) begin
                 r_rd_pending[w_rd_req_channel] <= 1'b1;
                 r_rd_channel <= w_rd_req_channel;
             end
         end
-    end
+    )
+
 
     // Update read pointer
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             for (int i = 0; i < NUM_CHANNELS; i++) begin
                 r_rd_ptr[i] <= '0;
             end
@@ -271,7 +276,8 @@ module sram_controller #(
                 end
             end
         end
-    end
+    )
+
 
     // Read data distribution (1-cycle latency)
     always_comb begin

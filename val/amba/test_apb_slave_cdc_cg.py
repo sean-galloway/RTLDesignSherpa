@@ -1155,13 +1155,19 @@ async def comprehensive_apb_cdc_cg_test(dut):
 def test_apb_slave_cdc_cg_robust(request, addr_width, data_width, depth, cg_idle_count_width):
     """Robust APB-GAXI CDC + Clock Gating test with comprehensive validation."""
 
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_cmn':        'rtl/common',
         'rtl_amba':       'rtl/amba',
         'rtl_amba_shared':'rtl/amba/shared',
         'rtl_apb':        'rtl/amba/apb',
         'rtl_gaxi':       'rtl/amba/gaxi',
-    })
+     'rtl_amba_includes': 'rtl/amba/includes'})
 
     dut_name = "apb_slave_cdc_cg"
     toplevel = dut_name
@@ -1180,7 +1186,7 @@ def test_apb_slave_cdc_cg_robust(request, addr_width, data_width, depth, cg_idle
     dw_str = TBBase.format_dec(data_width, 3)
     d_str = TBBase.format_dec(depth, 3)
     cg_str = TBBase.format_dec(cg_idle_count_width, 2)
-    test_name_plus_params = f"test_{dut_name}_aw{aw_str}_dw{dw_str}_d{d_str}_cg{cg_str}"
+    test_name_plus_params = f"test_{worker_id}_{dut_name}_aw{aw_str}_dw{dw_str}_d{d_str}_cg{cg_str}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
@@ -1230,7 +1236,112 @@ def test_apb_slave_cdc_cg_robust(request, addr_width, data_width, depth, cg_idle
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[],
+            includes=[rtl_dict['rtl_amba_includes']],
+            toplevel=toplevel,
+            module=module,
+            parameters=rtl_parameters,
+            sim_build=sim_build,
+            extra_env=extra_env,
+            waves=False,
+            keep_files=True,
+            compile_args=compile_args,
+            sim_args=sim_args,
+            plusargs=plusargs,
+        )
+
+        print(f"✓ APB-GAXI CDC + Clock Gating robust test completed!")
+        print(f"Logs: {log_path}")
+        print(f"Waveforms: {cmd_filename}")
+        print(f"Clock Gating Analysis Available in Logs")
+
+    except Exception as e:
+        print(f"❌ APB-GAXI CDC + Clock Gating robust test failed: {str(e)}")
+        print(f"Logs preserved at: {log_path}")
+        print(f"To view waveforms: {cmd_filename}")
+        print(f"Check the log file for detailed CDC + Clock Gating analysis.")
+        raise
+
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
+    """Robust APB-GAXI CDC + Clock Gating test with comprehensive validation."""
+
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_cmn':        'rtl/common',
+        'rtl_amba':       'rtl/amba',
+        'rtl_amba_shared':'rtl/amba/shared',
+        'rtl_apb':        'rtl/amba/apb',
+        'rtl_gaxi':       'rtl/amba/gaxi',
+     'rtl_amba_includes': 'rtl/amba/includes'})
+
+    dut_name = "apb_slave_cdc_cg"
+    toplevel = dut_name
+
+    verilog_sources = [
+        os.path.join(rtl_dict['rtl_cmn'],          "icg.sv"),
+        os.path.join(rtl_dict['rtl_cmn'],          "clock_gate_ctrl.sv"),
+        os.path.join(rtl_dict['rtl_gaxi'],         "gaxi_skid_buffer.sv"),
+        os.path.join(rtl_dict['rtl_amba_shared'],  "cdc_handshake.sv"),
+        os.path.join(rtl_dict['rtl_amba_shared'],  "amba_clock_gate_ctrl.sv"),
+        os.path.join(rtl_dict['rtl_apb'],          "apb_slave.sv"),
+        os.path.join(rtl_dict['rtl_apb'],         f"{dut_name}.sv")
+    ]
+
+    aw_str = TBBase.format_dec(addr_width, 3)
+    dw_str = TBBase.format_dec(data_width, 3)
+    d_str = TBBase.format_dec(depth, 3)
+    cg_str = TBBase.format_dec(cg_idle_count_width, 2)
+    test_name_plus_params = f"test_{worker_id}_{dut_name}_aw{aw_str}_dw{dw_str}_d{d_str}_cg{cg_str}"
+    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
+
+    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
+
+    rtl_parameters = {
+        k.upper(): str(v) for k, v in locals().items()
+        if k in ["addr_width", "data_width", "depth", "cg_idle_count_width"]
+    }
+
+    extra_env = {
+        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'VERILATOR_TRACE': '1',
+        'DUT': dut_name,
+        'LOG_PATH': log_path,
+        'COCOTB_LOG_LEVEL': 'INFO',
+        'COCOTB_RESULTS_FILE': results_path,
+        'SEED': str(42),
+        'TEST_ADDR_WIDTH': str(addr_width),
+        'TEST_DATA_WIDTH': str(data_width),
+        'TEST_DEPTH': str(depth),
+        'TEST_CG_IDLE_COUNT_WIDTH': str(cg_idle_count_width),
+    }
+
+    compile_args = [
+        "--trace",
+        
+        "--trace-depth", "99",
+        "--trace-max-array", "1024",
+        "--trace-max-width", "512",
+    ]
+
+    sim_args = [
+        "--trace",
+        
+        "--trace-depth", "99",
+    ]
+
+    plusargs = ["+trace"]
+
+    cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
+
+    try:
+        run(
+            python_search=[tests_dir],
+            verilog_sources=verilog_sources,
+            includes=[rtl_dict['rtl_amba_includes']],
             toplevel=toplevel,
             module=module,
             parameters=rtl_parameters,

@@ -30,6 +30,83 @@ from CocoTBFramework.tbclasses.axi4.monitor.axi4_master_monitor_tb import AXI4Ma
 from CocoTBFramework.tbclasses.shared.utilities import get_paths
 
 
+def validate_addr_width(addr_width):
+    """
+    Validate address width meets AXI4 specification constraints.
+
+    Args:
+        addr_width: Address width value (int or str)
+
+    Raises:
+        ValueError: If address width exceeds 64-bits
+    """
+    addr_w = int(addr_width)
+    if addr_w > 64:
+        raise ValueError(
+            f"Invalid AXI4 configuration: AXI_ADDR_WIDTH={addr_w} exceeds maximum of 64-bits. "
+            f"AXI4 specification limits address width to 64-bits."
+        )
+
+
+def generate_axi4_write_monitor_params():
+    """
+    Generate AXI4 write monitor parameter combinations based on REG_LEVEL.
+
+    Parameter tuple: (id_width, addr_width, data_width, user_width, wstrb_width, max_trans, skid_aw, skid_w, skid_b, test_level)
+
+    REG_LEVEL values:
+        GATE: 1 test - Quick smoke test
+        FUNC: 3 tests - Functional validation with variations
+        FULL: 9 tests - Comprehensive testing
+
+    Returns:
+        list: Parameter tuples for pytest.mark.parametrize
+
+    Raises:
+        ValueError: If generated parameters violate AXI4 constraints
+    """
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+
+    if reg_level == 'GATE':
+        # Quick smoke test - basic configuration
+        params = [
+            (8, 32, 32, 1, 4, 16, 2, 4, 2, 'basic'),
+        ]
+
+    elif reg_level == 'FUNC':
+        # Functional validation - variations in depth and test_level
+        params = [
+            (8, 32, 32, 1, 4, 16, 2, 4, 2, 'basic'),   # Standard config
+            (8, 32, 32, 1, 4, 16, 4, 8, 4, 'medium'),  # Deeper skid buffers
+            (8, 32, 32, 1, 4, 32, 2, 4, 2, 'medium'),  # More transactions
+        ]
+
+    else:  # FULL
+        # Comprehensive testing - all test_levels × configurations
+        test_levels = ['basic', 'medium', 'full']
+        configs = [
+            (8, 32, 32, 1, 4, 16, 2, 4, 2),  # Standard
+            (8, 32, 32, 1, 4, 16, 4, 8, 4),  # Deep skid
+            (8, 32, 32, 1, 4, 32, 2, 4, 2),  # Many transactions
+        ]
+        params = [
+            (id_w, addr_w, data_w, user_w, wstrb_w, max_t, skid_aw, skid_w, skid_b, level)
+            for (id_w, addr_w, data_w, user_w, wstrb_w, max_t, skid_aw, skid_w, skid_b) in configs
+            for level in test_levels
+        ]
+
+    # Validate all parameters
+    for param in params:
+        _, addr_w, _, _, _, _, _, _, _, _ = param
+        if addr_w > 64:
+            raise ValueError(
+                f"Invalid AXI4 configuration: addr_width={addr_w} exceeds maximum of 64-bits. "
+                f"Full parameter set: {param}"
+            )
+
+    return params
+
+
 @cocotb.test(timeout_time=30, timeout_unit="sec")
 async def axi4_master_wr_mon_test(dut):
     """AXI4 master write monitor integration test"""
@@ -203,11 +280,25 @@ async def axi4_master_wr_mon_wavedrom_test(dut):
 # ============================================================================
 # PyTest Test Runner
 # ============================================================================
-@pytest.mark.parametrize("test_level", [
-    "full",
-])
-def test_axi4_master_wr_mon(test_level):
-    """Integration test runner for AXI4 master write monitor"""
+@pytest.mark.parametrize(
+    "id_width, addr_width, data_width, user_width, wstrb_width, max_trans, skid_aw, skid_w, skid_b, test_level",
+    generate_axi4_write_monitor_params()
+)
+def test_axi4_master_wr_mon(id_width, addr_width, data_width, user_width, wstrb_width, max_trans, skid_aw, skid_w, skid_b, test_level):
+    """
+    Integration test runner for AXI4 master write monitor.
+
+    Controlled by REG_LEVEL environment variable:
+        GATE: 1 test  - Quick smoke test
+        FUNC: 3 tests - Functional validation (default)
+        FULL: 9 tests - Comprehensive testing
+    """
+
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_axi4': 'rtl/amba/axi4/',
@@ -215,10 +306,10 @@ def test_axi4_master_wr_mon(test_level):
         'rtl_includes': 'rtl/amba/includes',
         'rtl_common': 'rtl/common',
         'rtl_shared': 'rtl/amba/shared',
-    })
+     'rtl_amba_includes': 'rtl/amba/includes'})
 
     dut_name = "axi4_master_wr_mon"
-    test_name = f"test_{dut_name}_{test_level}"
+    test_name = f"test_{worker_id}_{worker_id}_{dut_name}_iw{id_width}_aw{addr_width}_dw{data_width}_mt{max_trans}_sk{skid_aw}x{skid_w}x{skid_b}_{test_level}"
 
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
@@ -249,37 +340,40 @@ def test_axi4_master_wr_mon(test_level):
         if not os.path.exists(src):
             raise FileNotFoundError(f"RTL source not found: {src}")
 
-    # RTL parameters
+    # RTL parameters (from test parameters)
     rtl_parameters = {
-        'AXI_ID_WIDTH': '8',
-        'AXI_ADDR_WIDTH': '32',
-        'AXI_DATA_WIDTH': '32',
-        'AXI_USER_WIDTH': '1',
-        'AXI_WSTRB_WIDTH': '4',
+        'AXI_ID_WIDTH': str(id_width),
+        'AXI_ADDR_WIDTH': str(addr_width),
+        'AXI_DATA_WIDTH': str(data_width),
+        'AXI_USER_WIDTH': str(user_width),
+        'AXI_WSTRB_WIDTH': str(wstrb_width),
         'UNIT_ID': '1',
         'AGENT_ID': '11',
-        'MAX_TRANSACTIONS': '16',
+        'MAX_TRANSACTIONS': str(max_trans),
         'ENABLE_FILTERING': '1',
-        'SKID_DEPTH_AW': '2',
-        'SKID_DEPTH_W': '4',
-        'SKID_DEPTH_B': '2',
+        'SKID_DEPTH_AW': str(skid_aw),
+        'SKID_DEPTH_W': str(skid_w),
+        'SKID_DEPTH_B': str(skid_b),
     }
+
+    # Validate address width meets AXI4 specification
+    validate_addr_width(rtl_parameters['AXI_ADDR_WIDTH'])
 
     extra_env = {
         'DUT': dut_name,
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'TEST_LEVEL': test_level,
-        'TEST_ID_WIDTH': '8',
-        'TEST_ADDR_WIDTH': '32',
-        'TEST_DATA_WIDTH': '32',
+        'TEST_ID_WIDTH': str(id_width),
+        'TEST_ADDR_WIDTH': str(addr_width),
+        'TEST_DATA_WIDTH': str(data_width),
         'TEST_STUB': '0',  # Not stub - real RTL
         'SEED': str(random.randint(0, 100000)),
         'TEST_CLK_PERIOD': '10',
     }
 
     compile_args = [
-        "-Wall", "-Wno-UNUSED", "-Wno-DECLFILENAME", "-Wno-PINMISSING",
+        "-Wall", "-Wno-SYNCASYNCNET", "-Wno-UNUSED", "-Wno-DECLFILENAME", "-Wno-PINMISSING",
         "-Wno-UNDRIVEN", "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC",
         "-Wno-SELRANGE", "-Wno-CASEINCOMPLETE", "-Wno-TIMESCALEMOD",
     ]

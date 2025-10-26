@@ -950,3 +950,8 @@ endmodule
 7. **Document Timing**: Clearly specify pulse rates and relationships
 
 The clock pulse generator provides a simple, reliable solution for periodic timing generation, essential for many digital system functions requiring precise, regular timing events.
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

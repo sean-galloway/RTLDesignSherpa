@@ -32,6 +32,8 @@
 
 // Import common STREAM and monitor packages
 `include "stream_imports.svh"
+`include "reset_defs.svh"
+
 
 module axi_write_engine #(
     parameter int ADDR_WIDTH = 64,
@@ -168,8 +170,8 @@ module axi_write_engine #(
 
     assign datawr_ready = !r_aw_inflight && !r_aw_valid && !r_b_pending;
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_aw_addr <= '0;
             r_aw_len <= '0;
             r_aw_channel_id <= '0;
@@ -184,18 +186,19 @@ module axi_write_engine #(
                 r_aw_valid <= 1'b1;
                 r_aw_inflight <= 1'b1;  // Mark transaction inflight
             end
-
+        
             // AXI AW handshake
             if (r_aw_valid && m_axi_awready) begin
                 r_aw_valid <= 1'b0;
             end
-
+        
             // Clear inflight when B response received
             if (m_axi_bvalid && m_axi_bready) begin
                 r_aw_inflight <= 1'b0;
             end
         end
-    end
+    )
+
 
     // AXI AW Channel Outputs
     assign m_axi_awid    = {4'h0, r_aw_channel_id};
@@ -210,8 +213,8 @@ module axi_write_engine #(
     //=========================================================================
     // Streaming pipeline: Read from SRAM, send data continuously
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_beats_sent <= '0;
             r_expected_beats <= '0;
             r_w_active <= 1'b0;
@@ -222,29 +225,31 @@ module axi_write_engine #(
                 r_beats_sent <= '0;
                 r_w_active <= 1'b1;
             end
-
+        
             // Send beats as SRAM data becomes available
             if (r_w_active && m_axi_wvalid && m_axi_wready) begin
                 r_beats_sent <= r_beats_sent + 8'h1;
-
+        
                 // End W phase on last beat
                 if (m_axi_wlast) begin
                     r_w_active <= 1'b0;
                     r_beats_sent <= '0;
                 end
             end
-        end
+    )
+
     end
 
     // SRAM Read Request
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_sram_rd_req <= 1'b0;
         end else begin
             // Request SRAM read one cycle before W transfer
             r_sram_rd_req <= r_w_active && (r_beats_sent < r_expected_beats);
         end
-    end
+    )
+
 
     // AXI W Channel Outputs
     assign m_axi_wvalid = r_w_active && sram_rd_valid;
@@ -257,21 +262,22 @@ module axi_write_engine #(
     //=========================================================================
     // Streaming pipeline: Read data from SRAM as needed for W channel
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_sram_rd_ptr <= '0;
         end else begin
             // Read from SRAM when W channel can accept data
             if (r_sram_rd_req) begin
                 r_sram_rd_ptr <= r_sram_rd_ptr + 1'b1;
-
+        
                 // Wrap SRAM pointer
                 if (r_sram_rd_ptr == SRAM_ADDR_WIDTH'(SRAM_DEPTH - 1)) begin
                     r_sram_rd_ptr <= '0;
                 end
             end
         end
-    end
+    )
+
 
     // SRAM Read Outputs
     assign sram_rd_en = r_sram_rd_req;
@@ -284,8 +290,8 @@ module axi_write_engine #(
 
     assign m_axi_bready = 1'b1;  // Always ready for response
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_b_pending <= 1'b0;
             r_error_detected <= 1'b0;
             r_error_resp <= 2'b00;
@@ -294,11 +300,11 @@ module axi_write_engine #(
             if (m_axi_wvalid && m_axi_wready && m_axi_wlast) begin
                 r_b_pending <= 1'b1;
             end
-
+        
             // B response received
             if (m_axi_bvalid && m_axi_bready) begin
                 r_b_pending <= 1'b0;
-
+        
                 // Check for error response
                 if (m_axi_bresp != 2'b00) begin  // OKAY = 00
                     r_error_detected <= 1'b1;
@@ -308,28 +314,30 @@ module axi_write_engine #(
                 end
             end
         end
-    end
+    )
+
 
     //=========================================================================
     // Completion Strobe Generation
     //=========================================================================
     // Report back to scheduler when burst completes
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_done_strobe <= 1'b0;
             r_beats_done <= '0;
         end else begin
             // Generate strobe on B response
             r_done_strobe <= m_axi_bvalid && m_axi_bready;
-
+        
             if (m_axi_bvalid && m_axi_bready) begin
                 r_beats_done <= {24'h0, r_expected_beats};
             end else begin
                 r_beats_done <= '0;
             end
         end
-    end
+    )
+
 
     assign datawr_done_strobe = r_done_strobe;
     assign datawr_beats_done = r_beats_done;

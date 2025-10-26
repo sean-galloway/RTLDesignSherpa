@@ -1,0 +1,100 @@
+{
+  "signal": [
+    {
+      "name": "clk",
+      "wave": "p...."
+    },
+    {
+      "name": "rst_n",
+      "wave": "1...."
+    },
+    {},
+    [
+      "Write",
+      {
+        "name": "wr_valid",
+        "wave": "10101",
+        "node": "..a.."
+      },
+      {
+        "name": "wr_ready",
+        "wave": "1...."
+      },
+      {
+        "name": "wr_data",
+        "wave": "2.3.4",
+        "data": [
+          "0x62",
+          "0x63",
+          "0x64"
+        ],
+        "node": "..a.."
+      }
+    ],
+    {},
+    [
+      "Read",
+      {
+        "name": "rd_valid",
+        "wave": "1....",
+        "node": "..a.."
+      },
+      {
+        "name": "rd_ready",
+        "wave": "01010"
+      },
+      {
+        "name": "rd_data",
+        "wave": "2.3.4",
+        "data": [
+          "0x60",
+          "0x61",
+          "0x62"
+        ],
+        "node": "...b."
+      }
+    ],
+    {},
+    [
+      "Internal",
+      {
+        "name": "count",
+        "wave": "23456",
+        "data": [
+          "2",
+          "3",
+          "2",
+          "3",
+          "2"
+        ],
+        "node": "..d.."
+      },
+      {
+        "name": "wr_xfer",
+        "wave": "10101",
+        "node": ".c..."
+      },
+      {
+        "name": "rd_xfer",
+        "wave": "01010",
+        "node": ".e..."
+      }
+    ]
+  ],
+  "head": {
+    "text": "Protocol Zero Latency Bypass Sequence",
+    "tick": 0,
+    "every": 2
+  },
+  "foot": {
+    "text": "Modular: 1 events, sequence, 1 cycles | CP-SAT Solved"
+  },
+  "config": {
+    "hscale": 2
+  },
+  "edge": [
+    "a~b data",
+    "c~d wr+",
+    "e~d rd-"
+  ]
+}

@@ -24,6 +24,8 @@
 //   Slave 2: [0x10020000, 0x1002FFFF]
 //   Slave 3: [0x10030000, 0x1003FFFF]
 
+`include "reset_defs.svh"
+
 module apb_xbar_2to4 #(
     parameter int ADDR_WIDTH = 32,
     parameter int DATA_WIDTH = 32,
@@ -230,8 +232,8 @@ module apb_xbar_2to4 #(
     end
 
     // Register slave selection for each master when command accepted
-    always_ff @(posedge pclk or negedge presetn) begin
-        if (!presetn) begin
+    `ALWAYS_FF_RST(pclk, presetn,
+if (`RST_ASSERTED(presetn)) begin
             r_m0_slave_sel <= 2'd0;
             r_m1_slave_sel <= 2'd0;
         end else begin
@@ -242,7 +244,8 @@ module apb_xbar_2to4 #(
                 r_m1_slave_sel <= m1_slave_sel;
             end
         end
-    end
+    )
+
 
     // Arbitration and command routing for each slave
     // Each slave has independent round-robin arbitration between the masters

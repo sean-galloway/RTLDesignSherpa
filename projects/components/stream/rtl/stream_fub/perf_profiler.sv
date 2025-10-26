@@ -62,6 +62,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module perf_profiler #(
     parameter int NUM_CHANNELS = 8,
     parameter int CHANNEL_WIDTH = $clog2(NUM_CHANNELS),
@@ -153,15 +155,16 @@ module perf_profiler #(
     // Increments every cycle when profiling enabled
     // Wraps around at 2^32 - 1 (software must handle rollover)
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_timestamp_counter <= '0;
         end else if (cfg_clear) begin
             r_timestamp_counter <= '0;
         end else if (cfg_enable) begin
             r_timestamp_counter <= r_timestamp_counter + 1'b1;
         end
-    end
+    )
+
 
     //=========================================================================
     // Edge Detection
@@ -170,13 +173,14 @@ module perf_profiler #(
     // Rising edge (active → idle): Channel completes operation, becomes idle
     // Falling edge (idle → active): Channel starts operation
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_idle_prev <= '1;  // Initialize to all idle
         end else if (cfg_enable) begin
             r_idle_prev <= channel_idle;
         end
-    end
+    )
+
 
     assign w_idle_rising  = channel_idle & ~r_idle_prev;  // 0→1: Active → Idle
     assign w_idle_falling = ~channel_idle & r_idle_prev;  // 1→0: Idle → Active
@@ -197,8 +201,8 @@ module perf_profiler #(
     genvar ch;
     generate
         for (ch = 0; ch < NUM_CHANNELS; ch++) begin : gen_channel_tracking
-            always_ff @(posedge clk or negedge rst_n) begin
-                if (!rst_n) begin
+            `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
                     r_start_time[ch] <= '0;
                     r_channel_active[ch] <= 1'b0;
                 end else if (cfg_clear) begin
@@ -216,7 +220,8 @@ module perf_profiler #(
                         r_channel_active[ch] <= 1'b0;
                     end
                 end
-            end
+            )
+
         end
     endgenerate
 
@@ -380,8 +385,8 @@ module perf_profiler #(
     //
     // This ensures atomic access to 36-bit FIFO entries across two 32-bit reads.
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_fifo_data_latched <= '0;
         end else if (cfg_clear) begin
             r_fifo_data_latched <= '0;
@@ -389,7 +394,8 @@ module perf_profiler #(
             // Latch FIFO data when read strobe asserted
             r_fifo_data_latched <= w_fifo_rd_data;
         end
-    end
+    )
+
 
     // Split 36-bit latched data into two 32-bit outputs
     assign perf_fifo_data_low  = r_fifo_data_latched[31:0];   // Timestamp or elapsed time

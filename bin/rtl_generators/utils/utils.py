@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: utils
+# Purpose: Utils implementation
+#
+# Documentation: rtl/common/PRD.md
+# Subsystem: common
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 from rtl_generators.adders.brentkung.pg import PG
 from rtl_generators.adders.brentkung.bitwise_pg_logic import BitwisePGLogic
 from rtl_generators.adders.brentkung.group_pg_logic import GroupPGLogic

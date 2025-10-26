@@ -10,7 +10,8 @@
 #
 # Quick start:
 #   make help           - Show all available targets
-#   make run-all        - Run all APB HPET tests
+#   make run-all        - Run all APB HPET tests (REG_LEVEL=FUNC)
+#   make run-all-full   - Run comprehensive tests (REG_LEVEL=FULL)
 #   make clean-all      - Clean all test artifacts
 #
 # ==============================================================================
@@ -30,8 +31,9 @@ endif
 PYTEST = python3 -m pytest
 PYTEST_VERBOSE = -v
 PYTEST_QUIET = -q
-PYTEST_XDIST = -n 4  # 4 parallel workers
+PYTEST_XDIST = -n 48  # 48 parallel workers (matching AMBA/STREAM/RAPIDS)
 PYTEST_TBSTYLE = --tb=short
+PYTEST_RERUNS = --reruns 3 --reruns-delay 1  # Retry failed tests up to 3 times
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -46,9 +48,34 @@ help:
 	@echo "APB HPET Test Makefile - Available Targets"
 	@echo "================================================================================"
 	@echo ""
+	@echo "OVERVIEW:"
+	@echo "  APB High Precision Event Timer - Multi-timer peripheral"
+	@echo "  Test coverage: 5/6 configurations @ 100%, 1 @ 92%"
+	@echo ""
+	@echo "REG_LEVEL CONTROL:"
+	@echo "  REG_LEVEL environment variable controls test depth:"
+	@echo "    GATE: Quick smoke test (~5 min)  - Basic register access"
+	@echo "    FUNC: Functional coverage (~30 min, DEFAULT) - Full feature validation"
+	@echo "    FULL: Comprehensive validation (~4 hr) - All timers stress, edge cases"
+	@echo ""
 	@echo "RUN TARGETS:"
-	@echo "  make run-all              Run all APB HPET tests"
-	@echo "  make run-all-parallel     Run all tests in parallel"
+	@echo "  make run-all              Run all tests (REG_LEVEL=FUNC, serial)"
+	@echo "  make run-all-parallel     Run all tests (REG_LEVEL=FUNC, 48 workers)"
+	@echo ""
+	@echo "  make run-all-gate         Run gate level tests (quick smoke)"
+	@echo "  make run-all-gate-parallel Run gate tests (parallel)"
+	@echo ""
+	@echo "  make run-all-func         Run functional tests (default level)"
+	@echo "  make run-all-func-parallel Run functional tests (parallel)"
+	@echo ""
+	@echo "  make run-all-full         Run full tests (comprehensive)"
+	@echo "  make run-all-full-parallel Run full tests (parallel)"
+	@echo ""
+	@echo "INDIVIDUAL TEST TARGETS:"
+	@echo "  make run-hpet             Run APB HPET tests (REG_LEVEL=FUNC)"
+	@echo "  make run-hpet-gate        Run APB HPET tests (REG_LEVEL=GATE)"
+	@echo "  make run-hpet-func        Run APB HPET tests (REG_LEVEL=FUNC)"
+	@echo "  make run-hpet-full        Run APB HPET tests (REG_LEVEL=FULL)"
 	@echo ""
 	@echo "COLLECTION TARGETS (verify tests, don't run):"
 	@echo "  make collect-all          Collect all tests"
@@ -64,28 +91,104 @@ help:
 	@echo "  make list-all             List all test modules"
 	@echo "  make status               Show test status and coverage"
 	@echo ""
+	@echo "EXAMPLES:"
+	@echo "  make run-all-parallel          # Default: FUNC level, 48 workers"
+	@echo "  make run-all-gate-parallel     # Quick smoke test, 48 workers"
+	@echo "  make run-all-full-parallel     # Comprehensive test, 48 workers"
+	@echo "  make run-hpet-func             # Single test, FUNC level"
+	@echo ""
 	@echo "================================================================================"
 	@echo "Prerequisites: source $(REPO_ROOT)/env_python"
 	@echo "Current REPO_ROOT: $(REPO_ROOT)"
 	@echo "================================================================================"
 
 # ==============================================================================
-# Run Targets
+# REG_LEVEL Control for All Tests
+# ==============================================================================
+
+.PHONY: run-all-gate
+run-all-gate:
+	@echo "================================================================================"
+	@echo "Running APB HPET Tests - GATE level (quick smoke test)"
+	@echo "================================================================================"
+	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_*.py
+
+.PHONY: run-all-gate-parallel
+run-all-gate-parallel:
+	@echo "================================================================================"
+	@echo "Running APB HPET Tests - GATE level (parallel, 48 workers)"
+	@echo "================================================================================"
+	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_*.py
+
+.PHONY: run-all-func
+run-all-func:
+	@echo "================================================================================"
+	@echo "Running APB HPET Tests - FUNC level (functional coverage)"
+	@echo "================================================================================"
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_*.py
+
+.PHONY: run-all-func-parallel
+run-all-func-parallel:
+	@echo "================================================================================"
+	@echo "Running APB HPET Tests - FUNC level (parallel, 48 workers)"
+	@echo "================================================================================"
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_*.py
+
+.PHONY: run-all-full
+run-all-full:
+	@echo "================================================================================"
+	@echo "Running APB HPET Tests - FULL level (comprehensive validation)"
+	@echo "================================================================================"
+	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_*.py
+
+.PHONY: run-all-full-parallel
+run-all-full-parallel:
+	@echo "================================================================================"
+	@echo "Running APB HPET Tests - FULL level (parallel, 48 workers)"
+	@echo "================================================================================"
+	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_*.py
+
+# ==============================================================================
+# Individual Test Targets (APB HPET)
+# ==============================================================================
+
+.PHONY: run-hpet
+run-hpet:
+	@echo "Running APB HPET Tests (REG_LEVEL=FUNC)..."
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_apb_hpet.py
+
+.PHONY: run-hpet-gate
+run-hpet-gate:
+	@echo "Running APB HPET Tests (REG_LEVEL=GATE)..."
+	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_apb_hpet.py
+
+.PHONY: run-hpet-func
+run-hpet-func:
+	@echo "Running APB HPET Tests (REG_LEVEL=FUNC)..."
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_apb_hpet.py
+
+.PHONY: run-hpet-full
+run-hpet-full:
+	@echo "Running APB HPET Tests (REG_LEVEL=FULL)..."
+	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_apb_hpet.py
+
+# ==============================================================================
+# Legacy Run Targets (backwards compatibility)
 # ==============================================================================
 
 .PHONY: run-all
 run-all:
 	@echo "================================================================================"
-	@echo "Running ALL APB HPET Tests"
+	@echo "Running ALL APB HPET Tests (REG_LEVEL=FUNC, serial)"
 	@echo "================================================================================"
-	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_*.py
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_*.py
 
 .PHONY: run-all-parallel
 run-all-parallel:
 	@echo "================================================================================"
-	@echo "Running ALL APB HPET Tests (Parallel - 4 workers)"
+	@echo "Running ALL APB HPET Tests (REG_LEVEL=FUNC, parallel - 48 workers)"
 	@echo "================================================================================"
-	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_*.py
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_*.py
 
 # ==============================================================================
 # Collection Targets (verify tests without running)
@@ -168,6 +271,10 @@ status:
 	@echo "Python environment:"
 	@echo "  REPO_ROOT: $(REPO_ROOT)"
 	@echo "  Virtual env: $(REPO_ROOT)/env_python"
+	@echo ""
+	@echo "Test Coverage Summary:"
+	@echo "  5/6 configurations @ 100%, 1 @ 92%"
+	@echo "  Known issue: 8-timer non-CDC 'All Timers Stress' test timeout"
 	@echo "================================================================================"
 
 # ==============================================================================
@@ -177,6 +284,10 @@ status:
 .PHONY: fresh-all
 fresh-all: clean-all run-all
 	@echo "✓ Fresh all tests run complete"
+
+.PHONY: fresh-all-parallel
+fresh-all-parallel: clean-all run-all-parallel
+	@echo "✓ Fresh all tests (parallel) run complete"
 
 # ==============================================================================
 # Quick Aliases

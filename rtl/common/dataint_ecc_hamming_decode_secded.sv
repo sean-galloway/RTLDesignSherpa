@@ -233,6 +233,8 @@
 //     - Syndrome calculation verification
 //
 //==============================================================================
+
+`include "reset_defs.svh"
 module dataint_ecc_hamming_decode_secded #(
     parameter int WIDTH = 4,
     parameter int DEBUG = 0
@@ -337,55 +339,55 @@ module dataint_ecc_hamming_decode_secded #(
 
     ////////////////////////////////////////////////////////////////////////////
     // Correct the data if there is a single-bit error
-    always_ff @(posedge clk or negedge rst_n)
-    begin : correct_the_data_and_flag_errors_output_data
-        if (!rst_n) begin
-            r_data_with_parity      <= 'b0;
-            error_detected        <= 'b0;
-            double_error_detected <= 'b0;
-        end else if (enable) begin
-            r_data_with_parity      <= hamming_data;
-            error_detected        <= 'b0;
-            double_error_detected <= 'b0;
-            if (DEBUG != 0)
-                $display(
-                    "w_overall_parity, w_overall_parity_in, w_syndrome %b %b %b",
-                    w_overall_parity,
-                    w_overall_parity_in,
-                    w_syndrome
-                );
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
+                   r_data_with_parity      <= 'b0;
+                   error_detected        <= 'b0;
+                   double_error_detected <= 'b0;
+               end else if (enable) begin
+                   r_data_with_parity      <= hamming_data;
+                   error_detected        <= 'b0;
+                   double_error_detected <= 'b0;
+                   if (DEBUG != 0)
+                       $display(
+                           "w_overall_parity, w_overall_parity_in, w_syndrome %b %b %b",
+                           w_overall_parity,
+                           w_overall_parity_in,
+                           w_syndrome
+                       );
+        
+                   // FIXED: Proper SECDED error detection logic
+                   if (w_overall_parity != w_overall_parity_in) begin
+                       // There is definitely an error (parity mismatch)
+                       error_detected <= 1'b1;
+        
+                       if (w_syndrome != {ParityBits{1'b0}}) begin
+                           // Non-zero syndrome: single-bit error in Hamming data
+                           // Correct the error using the syndrome
+                           r_data_with_parity[w_syndrome_0_based] <= ~hamming_data[w_syndrome_0_based];
+                           if (DEBUG != 0)
+                               $display(
+                                   "Single-bit error detected and corrected at position: %d",
+                                   w_syndrome_0_based
+                               );
+                       end else begin
+                           // Zero syndrome with parity mismatch: single-bit error in SECDED bit
+                           // No correction needed for SECDED bit errors (they don't affect data)
+                           if (DEBUG != 0)
+                               $display("Single-bit error detected in SECDED bit (position %d)", TotalWidth-1);
+                       end
+                   end else if (w_syndrome != {ParityBits{1'b0}}) begin
+                       // Parity matches but syndrome is non-zero: double-bit error
+                       error_detected <= 1'b1;
+                       double_error_detected <= 1'b1;
+                       if (DEBUG != 0) $display("Double-bit error detected.");
+                   end else begin
+                       // No error detected
+                       if (DEBUG != 0) $display("No error detected.");
+                   end
+               end
+    )
 
-            // FIXED: Proper SECDED error detection logic
-            if (w_overall_parity != w_overall_parity_in) begin
-                // There is definitely an error (parity mismatch)
-                error_detected <= 1'b1;
-
-                if (w_syndrome != {ParityBits{1'b0}}) begin
-                    // Non-zero syndrome: single-bit error in Hamming data
-                    // Correct the error using the syndrome
-                    r_data_with_parity[w_syndrome_0_based] <= ~hamming_data[w_syndrome_0_based];
-                    if (DEBUG != 0)
-                        $display(
-                            "Single-bit error detected and corrected at position: %d",
-                            w_syndrome_0_based
-                        );
-                end else begin
-                    // Zero syndrome with parity mismatch: single-bit error in SECDED bit
-                    // No correction needed for SECDED bit errors (they don't affect data)
-                    if (DEBUG != 0)
-                        $display("Single-bit error detected in SECDED bit (position %d)", TotalWidth-1);
-                end
-            end else if (w_syndrome != {ParityBits{1'b0}}) begin
-                // Parity matches but syndrome is non-zero: double-bit error
-                error_detected <= 1'b1;
-                double_error_detected <= 1'b1;
-                if (DEBUG != 0) $display("Double-bit error detected.");
-            end else begin
-                // No error detected
-                if (DEBUG != 0) $display("No error detected.");
-            end
-        end
-    end
 
     ////////////////////////////////////////////////////////////////////////////
     // Extract the corrected data

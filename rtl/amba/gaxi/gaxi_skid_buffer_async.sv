@@ -15,8 +15,11 @@
 
 `timescale 1ns / 1ps
 
+`include "fifo_defs.svh"
+
 // AXI Skid buffer where all ports are driven or received by a flop
 module gaxi_skid_buffer_async #(
+    parameter fifo_mem_t MEM_STYLE = FIFO_AUTO,
     parameter int REGISTERED = 0,  // 0 = mux mode, 1 = flop mode
     parameter int DATA_WIDTH    = 32,
     parameter int DEPTH         = 2,
@@ -63,6 +66,7 @@ module gaxi_skid_buffer_async #(
 
     // Instantiate the axi_fifo_async module
     gaxi_fifo_async #(
+        .MEM_STYLE       (MEM_STYLE),
         .DATA_WIDTH      (DW),
         .DEPTH           (DEPTH),
         .N_FLOP_CROSS    (N_FLOP_CROSS),

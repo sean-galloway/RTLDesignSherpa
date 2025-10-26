@@ -37,6 +37,11 @@
 
 `timescale 1ns / 1ps
 
+/* verilator lint_off SYNCASYNCNET */
+// Note: rst_n connects to both async reset (line 203) and peakrdl_to_cmdrsp (sync reset via macros).
+// This is intentional - both uses are in the same clock domain.
+
+`include "reset_defs.svh"
 module hpet_config_regs #(
     parameter int VENDOR_ID = 1,
     parameter int REVISION_ID = 1,
@@ -200,8 +205,8 @@ module hpet_config_regs #(
     assign counter_lo_written = regblk_req && regblk_req_is_wr && (regblk_addr[8:0] == 9'h010);
     assign counter_hi_written = regblk_req && regblk_req_is_wr && (regblk_addr[8:0] == 9'h014);
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             last_sw_counter_lo <= '0;
             last_sw_counter_hi <= '0;
         end else begin
@@ -213,7 +218,8 @@ module hpet_config_regs #(
                 last_sw_counter_hi <= regblk_wr_data;
             end
         end
-    end
+    )
+
 
     assign counter_wdata = {last_sw_counter_hi, last_sw_counter_lo};
 
@@ -227,15 +233,16 @@ module hpet_config_regs #(
             assign timer_value_set[i]  = hwif_out.TIMER[i].TIMER_CONFIG.timer_value_set.value;
 
             // Comparator write detection
-            always_ff @(posedge clk or negedge rst_n) begin
-                if (!rst_n) begin
+            `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
                     prev_timer_comp_lo[i] <= '0;
                     prev_timer_comp_hi[i] <= '0;
                 end else begin
                     prev_timer_comp_lo[i] <= hwif_out.TIMER[i].TIMER_COMPARATOR_LO.timer_comp_lo.value;
                     prev_timer_comp_hi[i] <= hwif_out.TIMER[i].TIMER_COMPARATOR_HI.timer_comp_hi.value;
                 end
-            end
+            )
+
 
             assign timer_comp_write[i] = (hwif_out.TIMER[i].TIMER_COMPARATOR_LO.timer_comp_lo.value != prev_timer_comp_lo[i]) ||
                                         (hwif_out.TIMER[i].TIMER_COMPARATOR_HI.timer_comp_hi.value != prev_timer_comp_hi[i]);
@@ -282,13 +289,14 @@ module hpet_config_regs #(
     logic [NUM_TIMERS-1:0] prev_timer_int_status;
     logic [NUM_TIMERS-1:0] timer_int_rising_edge;
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             prev_timer_int_status <= '0;
         end else begin
             prev_timer_int_status <= timer_int_status;
         end
-    end
+    )
+
 
     // Detect rising edge (0->1 transition) for hwset pulse
     assign timer_int_rising_edge = timer_int_status & ~prev_timer_int_status;
@@ -304,4 +312,5 @@ module hpet_config_regs #(
     // When SW writes 1 to clear (W1C), we need to tell HPET core to deassert its status
     assign timer_int_clear = {NUM_TIMERS{hwif_out.HPET_STATUS.timer_int_status.swmod}} & timer_int_status;
 
+/* verilator lint_on SYNCASYNCNET */
 endmodule

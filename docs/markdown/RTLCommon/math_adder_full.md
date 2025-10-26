@@ -283,3 +283,8 @@ endmodule
 - **Accumulator Circuits**: Used in digital signal processing
 
 The `math_adder_full` module provides the essential functionality for binary addition and serves as a critical building block in digital arithmetic circuits.
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

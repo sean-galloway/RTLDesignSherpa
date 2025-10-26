@@ -1,4 +1,19 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: SVModuleParser
+# Purpose: Generate GTKWave Save Files for RTL Common Library
+#
+# Documentation: rtl/common/PRD.md
+# Subsystem: common
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """
 Generate GTKWave Save Files for RTL Common Library
 

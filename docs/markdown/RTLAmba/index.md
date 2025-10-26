@@ -23,10 +23,6 @@ This directory contains documentation for the AMBA (Advanced Microcontroller Bus
 - **[apb_slave_cdc](apb/apb_slave_cdc.md)** - APB slave with clock domain crossing support
 - **[apb_slave_cdc_cg](apb/apb_slave_cdc_cg.md)** - Clock-gated CDC APB slave
 
-#### Interconnect
-- **[apb_xbar](apb/apb_xbar.md)** - APB crossbar switch for multi-slave systems
-- **[apb_xbar_thin](apb/apb_xbar_thin.md)** - Lightweight APB crossbar for simple configurations
-
 #### Test and Development
 - **[apb_master_stub](apb/apb_master_stub.md)** - APB master stub for testing and simulation
 - **[apb_slave_stub](apb/apb_slave_stub.md)** - APB slave stub for testing and simulation
@@ -113,13 +109,6 @@ This directory contains documentation for the AMBA (Advanced Microcontroller Bus
 - **[axi4_to_apb_convert](fabric/axi4_to_apb_convert.md)** - AXI4 to APB protocol converter
 - **[axi4_to_apb_shim](fabric/axi4_to_apb_shim.md)** - Lightweight AXI4 to APB shim
 
-### System Components
-
-#### HPET (High Precision Event Timer)
-- **[apb_hpet](apb/apb_hpet.md)** - APB-based High Precision Event Timer
-- **[hpet_core](apb/hpet_core.md)** - HPET core timer logic
-- **[hpet_config_regs](apb/hpet_config_regs.md)** - HPET configuration registers
-
 ### Package Definitions
 
 #### Protocol Packages
@@ -131,15 +120,16 @@ This directory contains documentation for the AMBA (Advanced Microcontroller Bus
 ## Quick Reference
 
 ### Module Count by Protocol
-- **APB Components**: 11 modules
+- **APB Components**: 7 modules (moved: apb_xbar, apb_xbar_thin, apb_hpet to projects/components)
 - **AXI4 Components**: 8 modules + 6 stubs
 - **AXI4-Lite Components**: 8 modules
 - **AXI4-Stream Components**: 4 modules
 - **GAXI Infrastructure**: 5 modules
 - **Shared Utilities**: 15 modules
 - **Protocol Bridges**: 2 modules
-- **System Components**: 3 modules
 - **Package Definitions**: 4 modules
+
+**Note:** APB HPET and APB Crossbar have moved to production components. See [Component Projects](../projects/index.md) for complete documentation.
 
 ### Performance Characteristics
 

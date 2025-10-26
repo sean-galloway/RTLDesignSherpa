@@ -1,4 +1,18 @@
 #!/usr/bin/python3
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: list_test_wrap
+# Purpose: Test suite for List Wrap
+#
+# Documentation: rtl/common/PRD.md
+# Subsystem: common
+#
+# Author: sean galloway
+# Created: 2025-10-18
 
 import argparse
 from bin.ipynb.list_test import TestList  # Assuming your class is at val_project/test_list.py

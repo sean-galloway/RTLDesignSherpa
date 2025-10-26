@@ -24,6 +24,8 @@
 //   Slave 2: [0x10020000, 0x1002FFFF]
 //   Slave 3: [0x10030000, 0x1003FFFF]
 
+`include "reset_defs.svh"
+
 module apb_xbar_1to4 #(
     parameter int ADDR_WIDTH = 32,
     parameter int DATA_WIDTH = 32,
@@ -166,15 +168,16 @@ module apb_xbar_1to4 #(
     end
 
     // Register slave selection for each master when command accepted
-    always_ff @(posedge pclk or negedge presetn) begin
-        if (!presetn) begin
+    `ALWAYS_FF_RST(pclk, presetn,
+if (`RST_ASSERTED(presetn)) begin
             r_m0_slave_sel <= 2'd0;
         end else begin
             if (m0_cmd_valid && m0_cmd_ready) begin
                 r_m0_slave_sel <= m0_slave_sel;
             end
         end
-    end
+    )
+
 
     // Single master - command routing based on address decode
     assign s0_cmd_valid = m0_cmd_valid && m0_addr_in_range && (m0_slave_sel == 2'd0);

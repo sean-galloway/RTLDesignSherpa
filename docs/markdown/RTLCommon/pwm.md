@@ -206,3 +206,8 @@ repeat_count = 1;         // Single pulse
 - Audio signal generation
 - Power supply switching
 - Heating element control
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

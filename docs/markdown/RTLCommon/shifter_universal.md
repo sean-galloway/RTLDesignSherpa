@@ -268,3 +268,8 @@ endcase
 - Scan chain testing
 - FIFO buffer implementation
 - Digital signal processing pipelines
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

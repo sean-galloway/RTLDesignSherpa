@@ -14,11 +14,18 @@
 # Created: 2025-10-18
 
 import os
+import sys
 import random
 import pytest
 import cocotb
 from cocotb.utils import get_sim_time
 from cocotb_test.simulator import run
+
+
+# Add repo root to path for CocoTBFramework imports
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if os.path.join(repo_root, 'bin') not in sys.path:
+    sys.path.insert(0, os.path.join(repo_root, 'bin'))
 
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
@@ -656,14 +663,33 @@ async def clock_gate_ctrl_test(dut):
         await tb.wait_clocks('clk_in', 10)
 
 
-@pytest.mark.parametrize("counter_width", [4, 8])
+def generate_test_params():
+    """
+    Generate test parameter combinations based on REG_LEVEL.
+
+    REG_LEVEL=GATE: 1 test (4-bit)
+    REG_LEVEL=FUNC: 2 tests (4, 8-bit) - default
+    REG_LEVEL=FULL: 2 tests (same as FUNC)
+
+    Returns:
+        List of counter widths
+    """
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+
+    if reg_level == 'GATE':
+        return [4]
+    else:  # FUNC or FULL (same for this test)
+        return [4, 8]
+
+
+@pytest.mark.parametrize("counter_width", generate_test_params())
 def test_clock_gate_ctrl(request, counter_width):
     """Run the test with pytest"""
     # Get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths(
         {
             'rtl_cmn': 'rtl/common'
-    })
+    , 'rtl_amba_includes': 'rtl/amba/includes'})
 
     dut_name = "clock_gate_ctrl"
     toplevel = dut_name
@@ -676,6 +702,12 @@ def test_clock_gate_ctrl(request, counter_width):
     # Create a human readable test identifier
     n_str = TBBase.format_dec(counter_width, 2)
     test_name_plus_params = f"test_{dut_name}_n{n_str}"
+
+    # Handle pytest-xdist parallel execution
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
+
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Use it in the simbuild path
@@ -688,10 +720,9 @@ def test_clock_gate_ctrl(request, counter_width):
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes = []
-
+    includes = [rtl_dict['rtl_amba_includes']]
     # RTL parameters
-    parameters = {'N': counter_width}
+    parameters = {'IDLE_CNTR_WIDTH': counter_width}
 
     # Environment variables
     extra_env = {

@@ -409,13 +409,19 @@ def generate_axil4_cg_params():
 def test_axil4_slave_read_cg(addr_width, data_width, ar_depth, r_depth, test_level, cg_test_mode):
     """Test AXIL4 slave read clock gated with specified parameters"""
 
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
     # Get paths and setup
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_cmn':  'rtl/common',
         'rtl_axil4': 'rtl/amba/axil4/',
         'rtl_gaxi': 'rtl/amba/gaxi',
         'rtl_amba_shared':'rtl/amba/shared',
-    })
+     'rtl_amba_includes': 'rtl/amba/includes'})
 
     # Clock gated module details
     dut_name = "axil4_slave_rd_cg"
@@ -426,7 +432,7 @@ def test_axil4_slave_read_cg(addr_width, data_width, ar_depth, r_depth, test_lev
     ard_str = TBBase.format_dec(ar_depth, 1)
     rd_str = TBBase.format_dec(r_depth, 1)
     
-    test_name_plus_params = f"test_{dut_name}_a{aw_str}_d{dw_str}_ard{ard_str}_rd{rd_str}_{test_level}_{cg_test_mode}"
+    test_name_plus_params = f"test_{worker_id}_{dut_name}_a{aw_str}_d{dw_str}_ard{ard_str}_rd{rd_str}_{test_level}_{cg_test_mode}"
 
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
@@ -487,12 +493,12 @@ def test_axil4_slave_read_cg(addr_width, data_width, ar_depth, r_depth, test_lev
     }
 
     # Simulation settings
-    includes = [sim_build]
+    includes = [rtl_dict['rtl_amba_includes']]
     compile_args = [
         "--trace",
         
         "--trace-depth", "99",
-        "-Wall",
+        "-Wall", "-Wno-SYNCASYNCNET",
         "-Wno-UNUSED",
         "-Wno-DECLFILENAME",
         "-Wno-PINMISSING",

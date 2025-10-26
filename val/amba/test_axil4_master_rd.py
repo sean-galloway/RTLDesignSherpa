@@ -210,26 +210,31 @@ async def axil4_read_master_test(dut):
 
 
 def generate_axil4_params():
-    """Generate AXIL4 parameter combinations for testing"""
+    """
+    Generate AXIL4 parameter combinations based on REG_LEVEL.
 
-    # Define parameter ranges (simplified vs AXI4 - no ID, USER fields)
-    addr_widths = [32, 64]  # Common AXIL4 address widths
-    data_widths = [32, 64]  # Common AXIL4 data widths
-    ar_depths = [2, 4, 8]   # AR channel buffer depths
-    r_depths = [2, 4, 8]    # R channel buffer depths
-    test_levels = ['basic', 'medium', 'full']
+    Parameter tuple: (addr_width, data_width, ar_depth, r_depth, test_level)
 
-    # For debugging/quick testing, return a smaller subset
-    debug_mode = True
-    if debug_mode:
-        return [
-            # (32, 32, 2, 4, 'full'),
-            (32, 32, 4, 4, 'basic'),
-            # (64, 64, 4, 8, 'medium'),
-        ]
+    REG_LEVEL values:
+        GATE: 1 test - Quick smoke test
+        FUNC: 3 tests - Functional validation with variations
+        FULL: 18 tests - Comprehensive testing (2 addr × 3 depth combos × 3 test_levels)
 
-    # Full parameter sweep for comprehensive testing
-    return list(product(addr_widths, data_widths, ar_depths, r_depths, test_levels))
+    Returns:
+        list: Parameter tuples for pytest.mark.parametrize
+    """
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+
+    if reg_level == 'GATE':
+        params = [(32, 32, 4, 4, 'basic')]
+    elif reg_level == 'FUNC':
+        params = [(32, 32, 4, 4, 'basic'), (32, 32, 4, 8, 'medium'), (64, 64, 4, 4, 'medium')]
+    else:  # FULL
+        test_levels = ['basic', 'medium', 'full']
+        configs = [(32, 32, 4, 4), (32, 32, 4, 8), (64, 64, 4, 4), (32, 64, 2, 4), (64, 32, 8, 4), (64, 64, 8, 8)]
+        params = [(aw, dw, ar, r, level) for (aw, dw, ar, r) in configs for level in test_levels]
+
+    return params
 
 
 @pytest.mark.parametrize("addr_width, data_width, ar_depth, r_depth, test_level",
@@ -237,11 +242,14 @@ def generate_axil4_params():
 def test_axil4_read_master(request, addr_width, data_width, ar_depth, r_depth, test_level):
     """Test AXIL4 read master with different parameter combinations"""
 
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
     # Get paths and setup
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_axil4': 'rtl/amba/axil4/',
         'rtl_gaxi': 'rtl/amba/gaxi',
-    })
+     'rtl_amba_includes': 'rtl/amba/includes'})
 
     # AXIL4 module details (no stub versions)
     dut_name = "axil4_master_rd"
@@ -252,7 +260,7 @@ def test_axil4_read_master(request, addr_width, data_width, ar_depth, r_depth, t
     ard_str = TBBase.format_dec(ar_depth, 1)
     rd_str = TBBase.format_dec(r_depth, 1)
 
-    test_name_plus_params = f"test_{dut_name}_a{aw_str}_d{dw_str}_ard{ard_str}_rd{rd_str}_{test_level}"
+    test_name_plus_params = f"test_{worker_id}_{dut_name}_a{aw_str}_d{dw_str}_ard{ard_str}_rd{rd_str}_{test_level}"
 
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
@@ -317,12 +325,144 @@ def test_axil4_read_master(request, addr_width, data_width, ar_depth, r_depth, t
     }
 
     # Simulation settings
-    includes = [sim_build]
+    includes = [rtl_dict['rtl_amba_includes']]
     compile_args = [
         "--trace",
         
         "--trace-depth", "99",
-        "-Wall",
+        "-Wall", "-Wno-SYNCASYNCNET",
+        "-Wno-UNUSED",
+        "-Wno-DECLFILENAME",
+        "-Wno-PINMISSING",  # Allow unconnected pins
+    ]
+    sim_args = ["--trace", "--trace-depth", "99"]
+    plusargs = ["+trace"]
+
+    # Create command file for viewing results
+    cmd_filename = create_view_cmd(os.path.dirname(log_path), log_path, sim_build,
+                                    module, test_name_plus_params)
+
+    print(f"\n{'='*80}")
+    print(f"Running {test_level.upper()} AXIL4 Read Master test: {dut_name}")
+    print(f"AXIL4 Config: ADDR={addr_width}, DATA={data_width}")
+    print(f"Buffer Depths: AR={ar_depth}, R={r_depth}")
+    print(f"Expected duration: {timeout_ms/1000:.1f}s")
+    print(f"{'='*80}")
+
+    try:
+        run(
+            python_search=[tests_dir],
+            verilog_sources=verilog_sources,
+            includes=includes,
+            toplevel=dut_name,
+            module=module,
+            parameters=rtl_parameters,
+            sim_build=sim_build,
+            extra_env=extra_env,
+            waves=False,
+            keep_files=True,
+            compile_args=compile_args,
+            sim_args=sim_args,
+            plusargs=plusargs,
+        )
+        print(f"✓ {test_level.upper()} AXIL4 Read Master test PASSED")
+    except Exception as e:
+        print(f"✗ {test_level.upper()} AXIL4 Read Master test FAILED: {str(e)}")
+        print(f"Logs preserved at: {log_path}")
+        print(f"To view the waveforms run: {cmd_filename}")
+        raise
+
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
+    """Test AXIL4 read master with different parameter combinations"""
+
+    # Get paths and setup
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_axil4': 'rtl/amba/axil4/',
+        'rtl_gaxi': 'rtl/amba/gaxi',
+     'rtl_amba_includes': 'rtl/amba/includes'})
+
+    # AXIL4 module details (no stub versions)
+    dut_name = "axil4_master_rd"
+    
+    # Create descriptive test name
+    aw_str = TBBase.format_dec(addr_width, 2)
+    dw_str = TBBase.format_dec(data_width, 2)
+    ard_str = TBBase.format_dec(ar_depth, 1)
+    rd_str = TBBase.format_dec(r_depth, 1)
+
+    test_name_plus_params = f"test_{worker_id}_{dut_name}_a{aw_str}_d{dw_str}_ard{ard_str}_rd{rd_str}_{test_level}"
+
+    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
+    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+    results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
+
+    # Verilog sources - include dependencies for gaxi_skid_buffer
+    verilog_sources = [
+        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"),
+        os.path.join(rtl_dict['rtl_axil4'], f"{dut_name}.sv"),
+    ]
+
+    # Check that files exist
+    for src in verilog_sources:
+        if not os.path.exists(src):
+            raise FileNotFoundError(f"RTL source not found: {src}")
+
+    # RTL parameters (simplified for AXIL4)
+    ar_size = addr_width + 3  # ARADDR + ARPROT
+    r_size = data_width + 2   # RDATA + RRESP
+
+    rtl_parameters = {
+        'SKID_DEPTH_AR': str(ar_depth),
+        'SKID_DEPTH_R': str(r_depth),
+        'AXIL_ADDR_WIDTH': str(addr_width),
+        'AXIL_DATA_WIDTH': str(data_width),
+        # Calculated parameters
+        'AW': str(addr_width),
+        'DW': str(data_width),
+        'ARSize': str(ar_size),
+        'RSize': str(r_size),
+    }
+
+    # Calculate timeout based on complexity
+    timeout_multipliers = {'basic': 1, 'medium': 2, 'full': 4}
+    complexity_factor = (data_width + addr_width) / 100.0
+    timeout_ms = int(5000 * timeout_multipliers.get(test_level, 1) * max(1.0, complexity_factor))
+
+    # Environment variables
+    extra_env = {
+        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'VERILATOR_TRACE': '1',
+        'DUT': dut_name,
+        'LOG_PATH': log_path,
+        'COCOTB_LOG_LEVEL': 'INFO',
+        'COCOTB_RESULTS_FILE': results_path,
+        'SEED': str(random.randint(0, 100000)),
+        'TEST_LEVEL': test_level,
+        'COCOTB_TEST_TIMEOUT': str(timeout_ms),
+
+        # AXIL4 test parameters
+        'TEST_ADDR_WIDTH': str(addr_width),
+        'TEST_DATA_WIDTH': str(data_width),
+        'TEST_CLK_PERIOD': '10',  # 10ns = 100MHz
+        'TIMEOUT_CYCLES': '2000',
+
+        # Buffer depth parameters
+        'TEST_AR_DEPTH': str(ar_depth),
+        'TEST_R_DEPTH': str(r_depth),
+        'AXIL4_COMPLIANCE_CHECK': '1',
+    }
+
+    # Simulation settings
+    includes = [rtl_dict['rtl_amba_includes']]
+    compile_args = [
+        "--trace",
+        
+        "--trace-depth", "99",
+        "-Wall", "-Wno-SYNCASYNCNET",
         "-Wno-UNUSED",
         "-Wno-DECLFILENAME",
         "-Wno-PINMISSING",  # Allow unconnected pins

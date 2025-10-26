@@ -14,11 +14,18 @@
 # Created: 2025-10-18
 
 import os
+import sys
 import random
 
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+
+
+# Add repo root to path for CocoTBFramework imports
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if os.path.join(repo_root, 'bin') not in sys.path:
+    sys.path.insert(0, os.path.join(repo_root, 'bin'))
 
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
@@ -667,21 +674,41 @@ async def comprehensive_test(dut):
     return passed
 
 
-@pytest.mark.parametrize("params", [
-    # Test with different widths and test levels
-    # {'WIDTH': 4, 'test_level': 'basic'},
-    # {'WIDTH': 4, 'test_level': 'medium'},
-    # {'WIDTH': 4, 'test_level': 'full'},
+def generate_test_params():
+    """
+    Generate test parameters based on REG_LEVEL.
 
-    # Test with different data widths
-    {'WIDTH': 8, 'test_level': 'full'},
-    {'WIDTH': 16, 'test_level': 'full'},
-    {'WIDTH': 32, 'test_level': 'full'},
-])
+    REG_LEVEL=GATE: 1 test (8-bit, basic)
+    REG_LEVEL=FUNC: 1 test (8-bit, full) - default
+    REG_LEVEL=FULL: 3 tests (8, 16, 32-bit, full)
+
+    Returns:
+        List of dicts with WIDTH, test_level
+    """
+    import os
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+
+    if reg_level == 'GATE':
+        return [
+            {'WIDTH': 8, 'test_level': 'basic'},
+        ]
+    elif reg_level == 'FUNC':
+        return [
+            {'WIDTH': 8, 'test_level': 'full'},
+        ]
+    else:  # FULL
+        return [
+            {'WIDTH': 8, 'test_level': 'full'},
+            {'WIDTH': 16, 'test_level': 'full'},
+            {'WIDTH': 32, 'test_level': 'full'},
+        ]
+
+
+@pytest.mark.parametrize("params", generate_test_params())
 def test_shifter_universal(request, params):
     """Run the test with pytest and configurable parameters"""
     # Get all of the directory and module information
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common'})
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common', 'rtl_amba_includes': 'rtl/amba/includes'})
 
     dut_name = "shifter_universal"
     toplevel = dut_name
@@ -694,6 +721,12 @@ def test_shifter_universal(request, params):
     t_width = params['WIDTH']
     t_name = params['test_level']
     test_name_plus_params = f"test_{dut_name}_W{t_width}_{t_name}"
+
+    # Handle pytest-xdist parallel execution
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
+
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Use it in the simbuild path
@@ -706,8 +739,7 @@ def test_shifter_universal(request, params):
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes = []
-
+    includes = [rtl_dict['rtl_amba_includes']]
     # RTL parameters
     parameters = {
         'WIDTH': params['WIDTH']

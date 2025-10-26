@@ -1113,3 +1113,8 @@ System Level (Longest timeout)
 5. **Power Profiling**: Measure current consumption with/without gating
 
 The clock gate controller provides an essential power management capability, enabling significant dynamic power reduction with minimal area overhead and design complexity. Proper implementation requires careful attention to timing, safety, and verification to ensure reliable operation while maximizing power savings.
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

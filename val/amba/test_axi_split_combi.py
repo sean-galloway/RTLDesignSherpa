@@ -850,6 +850,9 @@ def generate_realistic_test_params():
 def test_axi_split_realistic(request, params):
     """Run realistic test with pytest"""
 
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
     # Get paths
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_cmn': 'rtl/common',
@@ -870,7 +873,7 @@ def test_axi_split_realistic(request, params):
     # Format: test_axi_split_combi_aw032_dw064_basic_realistic
     aw_str = f"{t_aw:03d}"
     dw_str = f"{t_dw:03d}"
-    test_name_plus_params = f"test_{dut_name}_aw{aw_str}_dw{dw_str}_{t_level}_{t_mode}"
+    test_name_plus_params = f"test_{worker_id}_{dut_name}_aw{aw_str}_dw{dw_str}_{t_level}_{t_mode}"
 
     # Setup paths
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
@@ -908,7 +911,100 @@ def test_axi_split_realistic(request, params):
     # Compilation arguments
     compile_args = [
         "--trace", "--trace-depth", "99",
-        "-Wall", "-Wno-WIDTHEXPAND"
+        "-Wall", "-Wno-SYNCASYNCNET", "-Wno-WIDTHEXPAND"
+    ]
+
+    sim_args = ["--trace", "--trace-depth", "99"]
+    plusargs = ["+trace"]
+
+    # Create view command
+    cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
+
+    try:
+        run(
+            python_search=[tests_dir],
+            verilog_sources=verilog_sources,
+            toplevel=toplevel,
+            module=module,
+            parameters=rtl_parameters,
+            sim_build=sim_build,
+            extra_env=extra_env,
+            waves=False,
+            keep_files=True,
+            compile_args=compile_args,
+            sim_args=sim_args,
+            plusargs=plusargs,
+        )
+    except Exception as e:
+        print(f"Realistic test failed: {str(e)}")
+        print(f"Logs at: {log_path}")
+        print(f"View waveforms: {cmd_filename}")
+        raise
+
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
+    """Run realistic test with pytest"""
+
+    # Get paths
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_cmn': 'rtl/common',
+        'rtl_amba_shared': 'rtl/amba/shared'
+    })
+
+    dut_name = "axi_split_combi"
+    toplevel = dut_name
+    verilog_sources = [
+        os.path.join(rtl_dict['rtl_amba_shared'], "axi_split_combi.sv")
+    ]
+
+    # Create test identifier following pattern: test_<module>_<params>
+    t_aw = params['AW']
+    t_dw = params['DW']
+    t_level = params['test_level']
+    t_mode = params['test_mode']
+    # Format: test_axi_split_combi_aw032_dw064_basic_realistic
+    aw_str = f"{t_aw:03d}"
+    dw_str = f"{t_dw:03d}"
+    test_name_plus_params = f"test_{worker_id}_{dut_name}_aw{aw_str}_dw{dw_str}_{t_level}_{t_mode}"
+
+    # Setup paths
+    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
+    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
+
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    # RTL parameters
+    rtl_parameters = {
+        'AW': str(params['AW']),
+        'DW': str(params['DW'])
+    }
+
+    # Environment
+    extra_env = {
+        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'VERILATOR_TRACE': '1',
+        'DUT': dut_name,
+        'LOG_PATH': log_path,
+        'COCOTB_LOG_LEVEL': 'INFO',
+        'COCOTB_RESULTS_FILE': results_path,
+        'SEED': str(random.randint(0, 100000)),
+        'TEST_LEVEL': params['test_level'],
+        'TEST_MODE': params['test_mode'],
+        'TEST_AW': str(params['AW']),
+        'TEST_DW': str(params['DW']),
+    }
+
+    # Realistic timeout
+    timeout_multiplier = 8.0 if params['test_level'] == 'full' else 4.0
+    extra_env['COCOTB_TIMEOUT_MULTIPLIER'] = str(timeout_multiplier)
+
+    # Compilation arguments
+    compile_args = [
+        "--trace", "--trace-depth", "99",
+        "-Wall", "-Wno-SYNCASYNCNET", "-Wno-WIDTHEXPAND"
     ]
 
     sim_args = ["--trace", "--trace-depth", "99"]

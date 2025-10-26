@@ -787,12 +787,15 @@ async def comprehensive_test(dut):
 ])
 def test_amba_clock_gate_ctrl(request, params):
     """Run the test with pytest and configurable parameters"""
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
     # Get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths(
         {
             'rtl_cmn': 'rtl/common',
             'rtl_amba_shared':'rtl/amba/shared',
-        })
+         'rtl_amba_includes': 'rtl/amba/includes'})
 
     dut_name = "amba_clock_gate_ctrl"
     toplevel = dut_name
@@ -807,7 +810,7 @@ def test_amba_clock_gate_ctrl(request, params):
     t_clk = params['clk_period_ns']
     t_name = params['test_level']
     t_icw = params['CG_IDLE_COUNT_WIDTH']
-    test_name_plus_params = f"test_{dut_name}_clk{t_clk}_icw{t_icw}_{t_name}"
+    test_name_plus_params = f"test_{worker_id}_{dut_name}_clk{t_clk}_icw{t_icw}_{t_name}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Use it in the simbuild path
@@ -820,8 +823,7 @@ def test_amba_clock_gate_ctrl(request, params):
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes = []
-
+    includes = [rtl_dict['rtl_amba_includes']]
     # RTL parameters
     rtl_parameters = {k.upper(): str(v) for k, v in locals().items() if k in ["CG_IDLE_COUNT_WIDTH"]}
 

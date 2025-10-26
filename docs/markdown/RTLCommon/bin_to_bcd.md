@@ -1129,3 +1129,8 @@ end
 ```
 
 This comprehensive documentation provides everything needed to understand, implement, verify, and optimize the Binary to BCD converter module. The Double-Dabble algorithm, while sequential in nature, provides reliable and predictable conversion suitable for a wide range of digital display applications.
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

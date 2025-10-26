@@ -37,6 +37,7 @@ Environment Variables:
 """
 
 import os
+import sys
 import random
 import math
 from itertools import product
@@ -44,6 +45,12 @@ import pytest
 import cocotb
 from cocotb.triggers import Timer
 from cocotb_test.simulator import run
+
+# Add repo root to path for CocoTBFramework imports
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if os.path.join(repo_root, 'bin') not in sys.path:
+    sys.path.insert(0, os.path.join(repo_root, 'bin'))
+
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
@@ -439,20 +446,25 @@ async def count_leading_zeros_test(dut):
 
 
 def generate_params():
-    """
-    Generate test parameters. Modify this function to limit test scope for debugging.
-    """
-    widths = [8, 16, 32, 64]  # Different data widths
-    test_levels = ['basic', 'medium', 'full']  # Test levels
-    test_levels = ['full']
+    """Generate test parameters based on REG_LEVEL"""
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+
+    if reg_level == 'GATE':
+        # GATE: Minimal - just 8-bit
+        widths = [8]
+        test_levels = ['full']
+    elif reg_level == 'FUNC':
+        # FUNC: Small and medium widths
+        widths = [8, 16]
+        test_levels = ['full']
+    else:  # FULL
+        # FULL: All widths
+        widths = [8, 16, 32, 64]
+        test_levels = ['full']
 
     valid_params = []
     for width, test_level in product(widths, test_levels):
         valid_params.append((width, test_level))
-
-    # For debugging, uncomment one of these:
-    # return [(8, 'full')]  # Single test
-    # return [(16, 'medium')]  # Just specific configurations
 
     return valid_params
 
@@ -466,7 +478,7 @@ def test_count_leading_zeros(request, width, test_level):
     Parameterized Count Leading Zeros test with configurable width and test level.
     """
     # Get directory and module information
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common'})
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common', 'rtl_amba_includes': 'rtl/amba/includes'})
 
     # DUT information
     dut_name = "count_leading_zeros"
@@ -477,7 +489,16 @@ def test_count_leading_zeros(request, width, test_level):
 
     # Create human-readable test identifier
     w_str = TBBase.format_dec(width, 2)
-    test_name_plus_params = f"test_count_leading_zeros_w{w_str}_{test_level}"
+    # Get REG_LEVEL before creating test name
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()  # GATE, FUNC, or FULL
+
+    test_name_plus_params = f"test_count_leading_zeros_w{w_str}_{test_level}_{reg_level}"
+
+    # Add worker ID for pytest-xdist parallel execution
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
+
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Setup directories

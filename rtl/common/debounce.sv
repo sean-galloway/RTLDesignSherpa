@@ -70,6 +70,8 @@
 //   Run: pytest val/common/test_debounce.py -v
 //
 //==============================================================================
+
+`include "reset_defs.svh"
 module debounce #(
     parameter int N              = 4,  // Number of buttons (input signals)
     parameter int DEBOUNCE_DELAY = 4,  // Debounce delay in tick cycles
@@ -88,8 +90,8 @@ module debounce #(
     logic [             N-1:0] w_debounced_signals;
 
     // Debounce logic for each button
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             for (int i = 0; i < N; i++) begin
                 r_shift_regs[i] <= {DEBOUNCE_DELAY{1'b0}};
             end
@@ -100,7 +102,8 @@ module debounce #(
                 };
             end
         end
-    end
+    )
+
 
     // Generate debounced output based on shift register state
     // For both NO and NC, all 1s in shift register means button is pressed
@@ -113,12 +116,13 @@ module debounce #(
     end
 
     // Update output signals
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             button_out <= {N{1'b0}};
         end else begin
             button_out <= w_debounced_signals;
         end
-    end
+    )
+
 
 endmodule : debounce

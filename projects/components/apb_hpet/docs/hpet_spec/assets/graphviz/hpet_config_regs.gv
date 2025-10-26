@@ -1,0 +1,67 @@
+// HPET Config Registers Block Diagram
+// Module: hpet_config_regs
+// Purpose: APB register interface with edge detection and bus mapping
+
+digraph hpet_config_regs {
+    rankdir=TB;
+    node [shape=box, style="rounded,filled", fillcolor=lightblue];
+    edge [fontsize=10];
+
+    // APB Interface
+    apb_if [label="APB Interface\nPSEL, PENABLE\nPADDR, PWDATA\nPRDATA, PREADY", shape=doubleoctagon, fillcolor=lightgreen];
+
+    // PeakRDL Generated Registers
+    peak_regs [label="hpet_regs\n(PeakRDL Generated)\n\nHPET_CONFIG\nHPET_STATUS (W1C)\nHPET_COUNTER_LO/HI\nHPET_CAPABILITIES\nTIMER[i]_CONFIG\nTIMER[i]_COMPARATOR_LO/HI", fillcolor=lightyellow];
+
+    // Edge Detection Logic
+    subgraph cluster_edge {
+        label="Edge Detection (Write Strobes)";
+        style=filled;
+        fillcolor=lightcyan;
+
+        edge_detect [label="Edge Detectors\n\ncounter_wr_edge\ntimer_comp_wr_edge[i]\ntimer_cfg_wr_edge[i]", shape=diamond];
+        prev_regs [label="Previous Values\nr_prev_swacc\nr_prev_timer_swacc[i]", fillcolor=white];
+    }
+
+    // Per-Timer Data Buses
+    subgraph cluster_buses {
+        label="Per-Timer Data Buses (Prevent Corruption)";
+        style=filled;
+        fillcolor=lightgoldenrod;
+
+        timer_data [label="Dedicated Buses\n\ntimer_comparator_data[i]\ntimer_config_data[i]\n\n(One bus per timer)", shape=parallelogram];
+    }
+
+    // Output Signals to hpet_core
+    core_if [label="To hpet_core\n\nhpet_enable\ncounter_write (pulse)\ncounter_wdata[63:0]\ntimer_enable[i]\ntimer_comp_write[i] (pulse)\ntimer_comp_wdata[i][63:0]", shape=ellipse, fillcolor=pink];
+
+    // Input Signals from hpet_core
+    core_status [label="From hpet_core\n\ncounter_rdata[63:0]\ntimer_comp_rdata[i][63:0]\ntimer_int_status[i]", shape=ellipse, fillcolor=lightgreen];
+
+    // Dataflow
+    apb_if -> peak_regs [label="APB transactions", style=bold];
+    peak_regs -> edge_detect [label="hwif.*.swacc\n(register access)"];
+    edge_detect -> prev_regs [label="store previous"];
+    edge_detect -> core_if [label="write pulses\n(1 clk wide)", style=bold, color=red];
+
+    peak_regs -> timer_data [label="register values"];
+    timer_data -> core_if [label="per-timer data\n(avoid corruption)", style=bold];
+
+    core_status -> peak_regs [label="status updates"];
+    peak_regs -> apb_if [label="APB read data"];
+
+    // W1C Status Clear
+    status_clear [label="W1C Logic\n\nWrite-1-to-Clear\nfor interrupt status", shape=hexagon, fillcolor=lightcoral];
+    peak_regs -> status_clear [label="STATUS write"];
+    status_clear -> core_if [label="timer_int_clear[i]"];
+
+    // Legend
+    subgraph cluster_legend {
+        label="Legend";
+        style=filled;
+        fillcolor=white;
+
+        leg_pulse [label="Pulse Signals (1 clk)", style=bold, color=red];
+        leg_level [label="Level Signals", style=solid];
+    }
+}

@@ -15,6 +15,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module gaxi_skid_buffer_struct #(
     parameter type STRUCT_TYPE = logic [31:0], // Generic struct type parameter
     parameter int  DEPTH = 2,                  // Must be one of {2, 4, 6, 8}
@@ -59,8 +61,8 @@ module gaxi_skid_buffer_struct #(
     assign w_rd_xfer = rd_valid & rd_ready;
 
     // Data shift register logic
-    always_ff @(posedge axi_aclk or negedge axi_aresetn) begin
-        if (~axi_aresetn) begin
+    `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
+if (`RST_ASSERTED(axi_aresetn)) begin
             for (int i = 0; i < DEPTH; i++) begin
                 r_data[i] <= '0;
             end
@@ -87,11 +89,12 @@ module gaxi_skid_buffer_struct #(
                 // Count stays the same since we're adding and removing one
             end
         end
-    end
+    )
+
 
     // Ready and valid signal generation
-    always_ff @(posedge axi_aclk or negedge axi_aresetn) begin
-        if (~axi_aresetn) begin
+    `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
+if (`RST_ASSERTED(axi_aresetn)) begin
             wr_ready <= 1'b0;
             rd_valid <= 1'b0;
         end else begin
@@ -99,13 +102,14 @@ module gaxi_skid_buffer_struct #(
             wr_ready <= (32'(r_data_count) <= DEPTH-2) ||
                         (32'(r_data_count) == DEPTH-1 && (~w_wr_xfer || w_rd_xfer)) ||
                         (32'(r_data_count) == DEPTH && w_rd_xfer);
-
+        
             // rd_valid: Can provide read if buffer has data or will have data next cycle
             rd_valid <= (r_data_count >= 2) ||
                         (r_data_count == 4'b0001 && (~w_rd_xfer || w_wr_xfer)) ||
                         (r_data_count == 4'b0000 && w_wr_xfer);
         end
-    end
+    )
+
 
     // Output assignments
     assign rd_data  = r_data[0];  // Always read from the bottom of the buffer

@@ -279,3 +279,8 @@ end
 - **find_first_set**: LSB-priority search
 - **encoder_priority_enable**: Enhanced priority encoder
 - **leading_one_trailing_one**: Position detection for Johnson counters
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

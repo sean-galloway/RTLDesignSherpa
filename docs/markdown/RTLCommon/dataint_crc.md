@@ -12,14 +12,15 @@ The `dataint_crc` module implements a comprehensive CRC calculation engine suita
 module dataint_crc #(
     parameter string ALGO_NAME = "DEADF1F0",  // Algorithm identifier
     parameter int DATA_WIDTH = 64,            // Input data width
-    parameter int CHUNKS = DATA_WIDTH / 8,    // Number of byte chunks
     parameter int CRC_WIDTH = 64,             // CRC polynomial width
     parameter int REFIN = 1,                  // Reflect input data
-    parameter int REFOUT = 1,                 // Reflect output data
-    parameter int CW = CRC_WIDTH,             // CRC width alias
-    parameter int DW = DATA_WIDTH,            // Data width alias
-    parameter int CH = CHUNKS                 // Chunks alias
+    parameter int REFOUT = 1                  // Reflect output data
 ) (
+    // Derived localparam (computed internally - not user-settable):
+    // localparam int CHUNKS = DATA_WIDTH / 8;  // Number of byte chunks
+    // localparam int CW = CRC_WIDTH;           // CRC width alias
+    // localparam int DW = DATA_WIDTH;          // Data width alias
+    // localparam int CH = CHUNKS;              // Chunks alias
     input  logic [CRC_WIDTH-1:0]  POLY,             // CRC polynomial
     input  logic [CRC_WIDTH-1:0]  POLY_INIT,        // Initial CRC value
     input  logic [CRC_WIDTH-1:0]  XOROUT,           // Output XOR mask
@@ -35,14 +36,25 @@ module dataint_crc #(
 
 ## Parameters
 
+### User-Settable Parameters
+
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | ALGO_NAME | string | "DEADF1F0" | Algorithm identifier for documentation |
-| DATA_WIDTH | int | 64 | Input data width in bits |
-| CHUNKS | int | DATA_WIDTH/8 | Number of 8-bit processing chunks |
-| CRC_WIDTH | int | 64 | CRC polynomial width in bits |
+| DATA_WIDTH | int | 64 | Input data width in bits (must be multiple of 8) |
+| CRC_WIDTH | int | 64 | CRC polynomial width in bits (8, 16, 32, or 64) |
 | REFIN | int | 1 | Reflect input data bytes (1=reflect, 0=direct) |
 | REFOUT | int | 1 | Reflect output CRC (1=reflect, 0=direct) |
+
+### Derived Localparam (Computed Internally)
+
+| Localparam | Computation | Description |
+|------------|-------------|-------------|
+| CHUNKS (CH) | DATA_WIDTH/8 | Number of 8-bit processing chunks per cycle |
+| CW | CRC_WIDTH | Convenience alias for CRC width |
+| DW | DATA_WIDTH | Convenience alias for data width |
+
+**Note:** CHUNKS, CW, DW, and CH are computed internally and cannot be overridden by users.
 
 ## Ports
 
@@ -342,3 +354,8 @@ cascade_timing: assert property (
 - **dataint_parity**: Simpler parity-based error detection
 
 The `dataint_crc` module provides a comprehensive, high-performance solution for CRC-based data integrity checking with the flexibility to support a wide range of CRC standards and applications.
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

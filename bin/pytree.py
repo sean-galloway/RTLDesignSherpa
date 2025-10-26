@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: pytree
+# Purpose: Recursively prints directory structure like the UNIX `tree` command.
+#
+# Documentation: rtl/common/PRD.md
+# Subsystem: common
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 import argparse
 from pathlib import Path
 

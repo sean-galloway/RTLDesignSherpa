@@ -1,7 +1,17 @@
-# ============================================================================
-# CONSOLIDATED MONITOR CONFIGURATION AND TEST INFRASTRUCTURE
-# ============================================================================
-# This should be saved as: CocoTBFramework/tbclasses/amba/arbiter_monbus/monitor_config.py
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: TestResult
+# Purpose: Centralized Monitor Configuration and Test Infrastructure
+#
+# Documentation: bin/CocoTBFramework/README.md
+# Subsystem: framework
+#
+# Author: sean galloway
+# Created: 2025-10-18
 
 """
 Centralized Monitor Configuration and Test Infrastructure

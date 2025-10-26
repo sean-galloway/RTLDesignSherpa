@@ -376,8 +376,113 @@ end
 - **Efficient**: Minimal logic switching
 - **Clock Gating**: Use enable for power savings
 
+## WaveDrom Visualization
+
+**High-quality waveforms showcasing Johnson counter operation are available!**
+
+The following timing diagrams demonstrate the unique properties of Johnson counters across 4 key scenarios:
+
+### Scenario 1: Walking Ones and Walking Zeros Pattern
+
+![Johnson Walking Pattern](../../assets/WAVES/counter_johnson/johnson_counter_walking_pattern.png)
+
+**WaveJSON:** [johnson_counter_walking_pattern.json](../../assets/WAVES/counter_johnson/johnson_counter_walking_pattern.json)
+
+Complete 2×WIDTH state cycle (8 states for WIDTH=4):
+- Walking ones: 0000 → 0001 → 0011 → 0111 → 1111
+- Walking zeros: 1111 → 1110 → 1100 → 1000 → 0000
+- Demonstrates predictable sequential progression
+
+### Scenario 2: Single-Bit Transitions (CDC Safety) ⭐ **KEY FEATURE**
+
+![Johnson Single-Bit Transitions](../../assets/WAVES/counter_johnson/johnson_counter_single_bit_transitions.png)
+
+**WaveJSON:** [johnson_counter_single_bit_transitions.json](../../assets/WAVES/counter_johnson/johnson_counter_single_bit_transitions.json)
+
+Each transition changes only ONE bit:
+- CDC-safe like Gray codes
+- **Critical for fifo_async_div2 CDC mechanism**
+- Prevents metastability in clock domain crossing
+- Hamming distance = 1 between all adjacent states
+
+### Scenario 3: Enable Control
+
+![Johnson Enable Control](../../assets/WAVES/counter_johnson/johnson_counter_enable_control.png)
+
+**WaveJSON:** [johnson_counter_enable_control.json](../../assets/WAVES/counter_johnson/johnson_counter_enable_control.json)
+
+Enable control and state holding:
+- Counter advances when enable=1
+- Counter holds state when enable=0
+- Clean enable/disable transitions
+- Demonstrates conditional counting
+
+### Scenario 4: Reset Behavior
+
+![Johnson Reset Behavior](../../assets/WAVES/counter_johnson/johnson_counter_reset_behavior.png)
+
+**WaveJSON:** [johnson_counter_reset_behavior.json](../../assets/WAVES/counter_johnson/johnson_counter_reset_behavior.json)
+
+Reset and initialization:
+- Asynchronous reset to all zeros (0000)
+- Immediate reset effect
+- Clean restart from reset state
+- Reset during counting operation
+
+---
+
+**To regenerate these waveforms:**
+```bash
+pytest val/common/test_counter_johnson_wavedrom.py -v
+# Then convert JSON to PNG:
+cd docs/markdown/assets/WAVES/counter_johnson
+for f in *.json; do wavedrom-cli -i "$f" -p "${f%.json}.png"; done
+```
+
+**What Makes Johnson Counters Special:**
+
+The waveforms highlight the unique properties that make Johnson counters useful:
+- **Single-Bit Transitions**: Only one bit changes per state, making them CDC-safe
+- **2×WIDTH States**: More efficient than one-hot (N states with N/2 flip-flops)
+- **Walking Pattern**: Natural "fill then empty" sequence useful for visual effects
+- **Self-Starting**: Recovers from invalid states automatically
+
+**Relationship to fifo_async_div2:**
+
+Johnson counters are the foundation of the `fifo_async_div2` CDC mechanism:
+- **fifo_async_div2** uses Johnson counters for pointer synchronization
+- Single-bit transitions enable safe clock domain crossing
+- Linear width scaling (DEPTH bits) allows flexible even depths
+- See `test_fifo_async_div2_wavedrom.py` for CDC application
+
+**Comparison with Other Counters:**
+
+- `test_counter_bingray_wavedrom.py` - Binary-Gray counter (power-of-2 depths, logarithmic width)
+- `test_fifo_async_wavedrom.py` - Gray code in action (async FIFO)
+- `test_fifo_async_div2_wavedrom.py` - Johnson counter in action (async FIFO, even depths)
+
 ## Related Modules
 - `counter_ring`: Different shift register pattern
 - `counter_bingray`: Binary and Gray code counter
 - `counter`: Simple binary counter
 - Standard shift register implementations
+
+## Test and Verification
+
+**Comprehensive Test Suite:**
+- `val/common/test_counter_johnson.py` - Full functional verification
+- `val/common/test_counter_johnson_wavedrom.py` - WaveDrom timing diagrams ⭐
+
+**Run Tests:**
+```bash
+# Full functional test (basic/medium/full levels)
+pytest val/common/test_counter_johnson.py -v
+
+# WaveDrom waveform generation
+pytest val/common/test_counter_johnson_wavedrom.py -v
+```
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: AXIL4SlaveWriteTB
+# Purpose: AXIL4 Slave Write Testbench
+#
+# Documentation: bin/CocoTBFramework/README.md
+# Subsystem: framework
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """
 AXIL4 Slave Write Testbench
 
@@ -527,9 +542,12 @@ class AXIL4SlaveWriteTB(TBBase):
         """Test slave write responses with known register patterns"""
         self.log.info("Running AXIL4 register write pattern validation test...")
 
+        # Calculate byte stride based on data width (capture in lambda closure)
+        bytes_per_reg = self.TEST_DATA_WIDTH // 8
+
         pattern_tests = [
             ("Incremental Pattern", 0x4000, 8, lambda i: 0x10000000 + i),
-            ("Address Pattern", 0x5000, 8, lambda i: (0x5000 + i*4) & self.MAX_DATA),
+            ("Address Pattern", 0x5000, 8, lambda i, bpr=bytes_per_reg: (0x5000 + i*bpr) & self.MAX_DATA),
             ("Fixed Patterns", 0x6000, 4, lambda i: [0xDEADBEEF, 0xCAFEBABE, 0x12345678, 0xABCDEF00][i % 4]),
             ("Alternating Pattern", 0x7000, 8, lambda i: 0x55555555 if i % 2 == 0 else 0xAAAAAAAA)
         ]

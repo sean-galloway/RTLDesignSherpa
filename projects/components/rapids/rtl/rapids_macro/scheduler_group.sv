@@ -44,11 +44,11 @@ module scheduler_group #(
     output logic                        apb_ready,
     input  logic [ADDR_WIDTH-1:0]       apb_addr,
 
-    // RDA Packet Interface (from Network Slave)
-    input  logic                        rda_valid,
-    output logic                        rda_ready,
-    input  logic [DATA_WIDTH-1:0]       rda_packet,
-    input  logic [CHAN_WIDTH-1:0]       rda_channel,
+    // CDA Packet Interface (from Network Slave) - formerly RDA
+    input  logic                        cda_valid,
+    output logic                        cda_ready,
+    input  logic [DATA_WIDTH-1:0]       cda_packet,
+    input  logic [CHAN_WIDTH-1:0]       cda_channel,
 
     // EOS Completion Interface (from SRAM Control - packet-level EOS)
     input  logic                        eos_completion_valid,
@@ -194,8 +194,8 @@ module scheduler_group #(
     logic [DATA_WIDTH-1:0]       desceng_to_sched_packet;
     logic                        desceng_to_sched_same;
     logic                        desceng_to_sched_error;
-    logic                        desceng_to_sched_is_rda;
-    logic [CHAN_WIDTH-1:0]       desceng_to_sched_rda_channel;
+    logic                        desceng_to_sched_is_cda;
+    logic [CHAN_WIDTH-1:0]       desceng_to_sched_cda_channel;
     logic                        desceng_to_sched_eos;
     logic                        desceng_to_sched_eol;
     logic                        desceng_to_sched_eod;
@@ -240,17 +240,19 @@ module scheduler_group #(
         .apb_valid              (apb_valid),
         .apb_ready              (apb_ready),
         .apb_addr               (apb_addr),
-        .rda_valid              (rda_valid),
-        .rda_ready              (rda_ready),
-        .rda_packet             (rda_packet),
-        .rda_channel            (rda_channel),
+        // CDA Packet Interface (formerly RDA)
+        .cda_valid              (cda_valid),
+        .cda_ready              (cda_ready),
+        .cda_packet             (cda_packet),
+        .cda_channel            (cda_channel),
         .descriptor_valid       (desceng_to_sched_valid),
         .descriptor_ready       (desceng_to_sched_ready),
         .descriptor_packet      (desceng_to_sched_packet),
         .descriptor_same        (desceng_to_sched_same),
         .descriptor_error       (desceng_to_sched_error),
-        .descriptor_is_rda      (desceng_to_sched_is_rda),
-        .descriptor_rda_channel (desceng_to_sched_rda_channel),
+        // RDA renamed to CDA (Control Descriptor Arrival)
+        .descriptor_is_cda      (desceng_to_sched_is_cda),
+        .descriptor_cda_channel (desceng_to_sched_cda_channel),
         .descriptor_eos         (desceng_to_sched_eos),
         .descriptor_eol         (desceng_to_sched_eol),
         .descriptor_eod         (desceng_to_sched_eod),
@@ -345,8 +347,9 @@ module scheduler_group #(
         .descriptor_packet      (desceng_to_sched_packet),
         .descriptor_same        (desceng_to_sched_same),
         .descriptor_error       (desceng_to_sched_error),
-        .descriptor_is_rda      (desceng_to_sched_is_rda),
-        .descriptor_rda_channel (desceng_to_sched_rda_channel),
+        // RDA renamed to CDA (Control Descriptor Arrival)
+        .descriptor_is_cda      (desceng_to_sched_is_cda),
+        .descriptor_cda_channel (desceng_to_sched_cda_channel),
         .descriptor_eos         (desceng_to_sched_eos),
         .descriptor_eol         (desceng_to_sched_eol),
         .descriptor_eod         (desceng_to_sched_eod),
@@ -389,10 +392,15 @@ module scheduler_group #(
         .data_alignment_next    (data_alignment_next),
         .data_transfer_phase    (data_transfer_phase),
         .data_sequence_complete (data_sequence_complete),
-        
-        .rda_complete_valid     (rda_complete_valid),
-        .rda_complete_ready     (rda_complete_ready),
-        .rda_complete_channel   (rda_complete_channel),
+
+        // RDA completion interface removed from scheduler
+        // .rda_complete_valid     (rda_complete_valid),
+        // .rda_complete_ready     (rda_complete_ready),
+        // .rda_complete_channel   (rda_complete_channel),
+        // Use CDA completion interface instead
+        .cda_complete_valid     (cda_complete_valid),
+        .cda_complete_ready     (cda_complete_ready),
+        .cda_complete_channel   (cda_complete_channel),
         .mon_valid              (sched_mon_valid),
         .mon_ready              (sched_mon_ready),
         .mon_packet             (sched_mon_packet),

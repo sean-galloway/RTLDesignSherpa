@@ -4,8 +4,8 @@
 # RTL Design Sherpa - Industry-Standard RTL Design and Verification
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
-# Module: CounterFreqConfig
-# Purpose: Configuration class for counter frequency tests
+# Module: test_counter_freq_invariant
+# Purpose: Test runner for counter_freq_invariant module
 #
 # Documentation: PRD.md
 # Subsystem: tests
@@ -13,13 +13,44 @@
 # Author: sean galloway
 # Created: 2025-10-18
 
+"""
+Test runner for counter_freq_invariant module.
+
+This module provides pytest test functions for validating a frequency-invariant
+counter that generates microsecond ticks independent of input clock frequency.
+
+Test Scenarios:
+- Programming model (sync_reset_n control)
+- Synchronous reset functionality
+- Frequency sweep (100MHz to 2GHz)
+- Microsecond tick generation
+- Counter sequence verification
+
+REG_LEVEL Control (parameter combinations):
+    GATE: 1 test (~2 min) - smoke test (8-bit counter)
+    FUNC: 2 tests (~5 min) - functional coverage - DEFAULT
+    FULL: 3 tests (~10 min) - comprehensive validation
+
+PARAMETER COMBINATIONS:
+    GATE: 1 width = 1 test
+    FUNC: 2 widths = 2 tests (8, 16-bit)
+    FULL: 3 widths = 3 tests (8, 16, 24-bit)
+"""
+
 import os
+import sys
 import random
 import pytest
 import cocotb
 from cocotb.utils import get_sim_time
 from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
+
+
+# Add repo root to path for CocoTBFramework imports
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if os.path.join(repo_root, 'bin') not in sys.path:
+    sys.path.insert(0, os.path.join(repo_root, 'bin'))
 
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
@@ -812,19 +843,49 @@ async def counter_freq_invariant_enhanced_test(dut):
         await tb.wait_clocks('clk', 10)
 
 
-@pytest.mark.parametrize("counter_width",
-    [
+def generate_test_parameters():
+    """
+    Generate test parameter combinations based on REG_LEVEL.
+
+    REG_LEVEL=GATE: 1 test (8-bit counter)
+    REG_LEVEL=FUNC: 2 tests (functional coverage) - default
+    REG_LEVEL=FULL: 3 tests (all configurations)
+
+    Returns:
+        List of counter widths
+    """
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+
+    # All available configurations
+    all_widths = [
         8,   # 256 microseconds rollover
         16,  # 65.5 milliseconds rollover
         24,  # 16.7 seconds rollover
-    ])
+    ]
+
+    if reg_level == 'GATE':
+        # Quick smoke test: 8-bit only
+        widths = [all_widths[0]]
+
+    elif reg_level == 'FUNC':
+        # Functional coverage: 8, 16-bit
+        widths = all_widths[:2]
+
+    else:  # FULL
+        # Comprehensive: all widths
+        widths = all_widths
+
+    return widths
+
+
+@pytest.mark.parametrize("counter_width", generate_test_parameters())
 def test_counter_freq_invariant_enhanced(request, counter_width):
     """Run the enhanced test with pytest"""
     # Get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths(
         {
             'rtl_cmn': 'rtl/common'
-    })
+    , 'rtl_amba_includes': 'rtl/amba/includes'})
 
     dut_name = "counter_freq_invariant"
     toplevel = dut_name
@@ -849,8 +910,7 @@ def test_counter_freq_invariant_enhanced(request, counter_width):
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes = []
-
+    includes = [rtl_dict['rtl_amba_includes']]
     # RTL parameters
     rtl_parameters = {
         "COUNTER_WIDTH": str(counter_width),

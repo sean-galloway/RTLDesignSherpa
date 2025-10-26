@@ -37,6 +37,7 @@ Environment Variables:
 """
 
 import os
+import sys
 import random
 import math
 from itertools import product
@@ -44,6 +45,12 @@ import pytest
 import cocotb
 from cocotb.triggers import RisingEdge, Timer, FallingEdge
 from cocotb_test.simulator import run
+
+# Add repo root to path for CocoTBFramework imports
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if os.path.join(repo_root, 'bin') not in sys.path:
+    sys.path.insert(0, os.path.join(repo_root, 'bin'))
+
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
@@ -504,19 +511,32 @@ async def clock_pulse_test(dut):
 
 
 def generate_params():
-    """Generate test parameters for different configurations"""
+    """
+    Generate test parameter combinations based on REG_LEVEL.
+
+    REG_LEVEL=GATE: 2 tests (4, 8-bit, basic level)
+    REG_LEVEL=FUNC: 4 tests (all widths, basic level) - default
+    REG_LEVEL=FULL: 12 tests (all widths × all levels)
+
+    Returns:
+        List of tuples: (width, test_level)
+    """
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+
     width_values = [4, 8, 16, 32]      # Different pulse widths
-    test_levels = ['full']       # Test levels
+    test_levels = ['basic', 'medium', 'full']
 
-    valid_params = []
-    for width, test_level in product(width_values, test_levels):
-        valid_params.append((width, test_level))
+    if reg_level == 'GATE':
+        # Quick smoke test
+        return [(4, 'basic'), (8, 'basic')]
 
-    # For debugging, uncomment one of these:
-    # return [(10, 'medium')]  # Single test
-    # return [(8, 'full'), (16, 'full')]  # Just specific configurations
+    elif reg_level == 'FUNC':
+        # Functional coverage: all widths, basic level only
+        return [(w, 'basic') for w in width_values]
 
-    return valid_params
+    else:  # FULL
+        # Comprehensive: all combinations
+        return [(w, level) for w, level in product(width_values, test_levels)]
 
 
 params = generate_params()
@@ -531,7 +551,7 @@ def test_clock_pulse(request, width, test_level):
     Test level controls the depth and breadth of testing.
     """
     # Get directory and module information
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common'})
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common', 'rtl_amba_includes': 'rtl/amba/includes'})
 
     # DUT information
     dut_name = "clock_pulse"
@@ -543,6 +563,12 @@ def test_clock_pulse(request, width, test_level):
     # Create human-readable test identifier
     w_str = TBBase.format_dec(width, 2)
     test_name_plus_params = f"test_clock_pulse_w{w_str}_{test_level}"
+
+    # Handle pytest-xdist parallel execution
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
+
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Setup directories
@@ -603,7 +629,7 @@ def test_clock_pulse(request, width, test_level):
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[],
+            includes=[rtl_dict['rtl_amba_includes']],
             toplevel=toplevel,
             module=module,
             parameters=parameters,

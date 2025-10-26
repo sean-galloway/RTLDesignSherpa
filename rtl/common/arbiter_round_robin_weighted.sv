@@ -282,6 +282,8 @@
 //
 //==============================================================================
 
+`include "reset_defs.svh"
+
 module arbiter_round_robin_weighted #(
     parameter int MAX_LEVELS = 16,
     parameter int CLIENTS = 4,
@@ -346,8 +348,8 @@ module arbiter_round_robin_weighted #(
     assign w_pending_grants = (WAIT_GNT_ACK == 1) ? (grant_valid && (grant_ack & grant) == '0) : 1'b0;
 
     // Weight change FSM with local parameters
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_weight_state <= WEIGHT_IDLE;
             r_safe_max_thresh <= {CXMTW{1'b1}};  // Default to weight=1 for all clients
             r_weight_timer <= 4'h0;
@@ -359,7 +361,7 @@ module arbiter_round_robin_weighted #(
                         r_weight_timer <= 4'h0;
                     end
                 end
-
+        
                 WEIGHT_BLOCK: begin
                     // Block new grants, wait for current grants to complete
                     if (!w_pending_grants) begin
@@ -373,7 +375,7 @@ module arbiter_round_robin_weighted #(
                         r_weight_timer <= 4'h0;
                     end
                 end
-
+        
                 WEIGHT_DRAIN: begin
                     // Wait for system to settle
                     if (r_weight_timer == 4'h0) begin
@@ -382,14 +384,14 @@ module arbiter_round_robin_weighted #(
                         r_weight_timer <= r_weight_timer - 4'h1;
                     end
                 end
-
+        
                 WEIGHT_UPDATE: begin
                     // Atomic weight update
                     r_safe_max_thresh <= max_thresh;
                     r_weight_state <= WEIGHT_STABILIZE;
                     r_weight_timer <= WEIGHT_STABILIZE_CYCLES[3:0];  // Use local parameter
                 end
-
+        
                 WEIGHT_STABILIZE: begin
                     // Allow system to stabilize after weight change
                     if (r_weight_timer == 4'h0) begin
@@ -398,14 +400,15 @@ module arbiter_round_robin_weighted #(
                         r_weight_timer <= r_weight_timer - 4'h1;
                     end
                 end
-
+        
                 default: begin
                     r_weight_state <= WEIGHT_IDLE;
                     r_weight_timer <= 4'h0;
                 end
             endcase
         end
-    end
+    )
+
 
     // =======================================================================
     // Pre-computed Helper Signals (Optimizations)
@@ -512,13 +515,14 @@ module arbiter_round_robin_weighted #(
             assign w_has_any_credits[i] = (r_credit_counter[i] > MTW'(0)) && (client_weight[i] > 0);
 
             // Simple register - just assigns the combinational value
-            always_ff @(posedge clk or negedge rst_n) begin
-                if (!rst_n) begin
+            `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
                     r_credit_counter[i] <= MTW'(1);  // Start with 1 credit (will be corrected on first replenish)
                 end else begin
                     r_credit_counter[i] <= w_credit_counter[i];  // Simple assignment from combo logic
                 end
-            end
+            )
+
         end
     endgenerate
 

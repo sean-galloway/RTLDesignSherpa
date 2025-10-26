@@ -433,3 +433,8 @@ end
 - `counter`: Basic counter without load/clear
 - `counter_freq_invariant`: Uses this module for prescaling
 - Standard timer and PWM controller implementations
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

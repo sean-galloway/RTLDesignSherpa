@@ -2,9 +2,13 @@
 
 #### Overview
 
-The HPET core (`hpet_core.sv`) implements the fundamental timer functionality: a 64-bit free-running counter, per-timer comparators, timer control FSMs, and interrupt generation. This module operates entirely in the `hpet_clk` domain and contains all timing-critical logic.
+The HPET core (`hpet_core.sv`) implements the fundamental timer functionality: a 64-bit free-running counter, per-timer comparators, and interrupt generation. This module operates entirely in the `hpet_clk` domain and contains all timing-critical logic.
 
-![HPET Core FSM](../assets/puml/hpet_core_fsm.png)
+**Block Diagram:**
+
+![HPET Core Block Diagram](../assets/png/hpet_core.png)
+
+*Figure: HPET Core architecture showing main counter, timer comparators, match detection, and interrupt generation. [Source: assets/graphviz/hpet_core.gv](../assets/graphviz/hpet_core.gv) | [SVG](../assets/svg/hpet_core.svg)*
 
 #### Key Features
 

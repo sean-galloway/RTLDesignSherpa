@@ -1,3 +1,17 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: Module
+# Purpose: inputs: [dict{ port: ? , connector: ?}]
+#
+# Documentation: rtl/common/PRD.md
+# Subsystem: common
+#
+# Author: sean galloway
+# Created: 2025-10-18
 
 from .signal import Signal
 from .param import Param

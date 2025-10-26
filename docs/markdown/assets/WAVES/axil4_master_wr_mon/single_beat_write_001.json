@@ -1,0 +1,115 @@
+{
+  "signal": [
+    {
+      "name": "aclk",
+      "wave": "p........................"
+    },
+    {
+      "name": "aresetn",
+      "wave": "1........................"
+    },
+    {},
+    [
+      "AW Channel",
+      {
+        "name": "m_axil_awvalid",
+        "wave": "0.....1..0...............",
+        "node": "......a.................."
+      },
+      {
+        "name": "m_axil_awready",
+        "wave": "0.......10..............."
+      },
+      {
+        "name": "m_axil_awaddr",
+        "wave": "0.....2..0...............",
+        "data": [
+          "0x00001000"
+        ]
+      },
+      {
+        "name": "m_axil_awprot",
+        "wave": "0.....2..0...............",
+        "data": [
+          "0x0"
+        ]
+      }
+    ],
+    {},
+    [
+      "W Channel",
+      {
+        "name": "m_axil_wvalid",
+        "wave": "0.....1..0...............",
+        "node": "......w.................."
+      },
+      {
+        "name": "m_axil_wready",
+        "wave": "0.......10..............."
+      },
+      {
+        "name": "m_axil_wdata",
+        "wave": "0.....2..0...............",
+        "data": [
+          "0xCAFEBABE"
+        ]
+      },
+      {
+        "name": "m_axil_wstrb",
+        "wave": "0.....2..0...............",
+        "data": [
+          "0xF"
+        ]
+      }
+    ],
+    {},
+    [
+      "B Channel",
+      {
+        "name": "m_axil_bvalid",
+        "wave": "0..........10............"
+      },
+      {
+        "name": "m_axil_bready",
+        "wave": "1........................"
+      },
+      {
+        "name": "m_axil_bresp",
+        "wave": "0..........20............",
+        "data": [
+          "OKAY"
+        ]
+      }
+    ],
+    {},
+    [
+      "Monitor Bus",
+      {
+        "name": "monbus_valid",
+        "wave": "0.............1.0........"
+      },
+      {
+        "name": "monbus_ready",
+        "wave": "1........................"
+      },
+      {
+        "name": "monbus_data",
+        "wave": "0.............2.0........",
+        "data": [
+          "COMPL"
+        ]
+      }
+    ]
+  ],
+  "head": {
+    "text": "AXIL4 Single Beat Write Transaction",
+    "tick": 0,
+    "every": 2
+  },
+  "foot": {
+    "text": "Basic write: AW+W handshake → B response → Monitor completion packet"
+  },
+  "config": {
+    "hscale": 2
+  }
+}

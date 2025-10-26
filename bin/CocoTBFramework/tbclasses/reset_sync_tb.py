@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: ResetSyncTB
+# Purpose: Reset Synchronizer Testbench Class
+#
+# Documentation: bin/CocoTBFramework/README.md
+# Subsystem: framework
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """
 Reset Synchronizer Testbench Class
 
@@ -49,6 +64,7 @@ class ResetSyncTB(TBBase):
         # Start with reset asserted
         self.dut.rst_n.value = 0
         await RisingEdge(self.dut.clk)
+        await Timer(1, units='ns')  # Allow combinational output to settle
 
         # sync_rst_n should be 0
         assert self.dut.sync_rst_n.value == 0, "sync_rst_n should be 0 during reset"
@@ -56,20 +72,32 @@ class ResetSyncTB(TBBase):
         # Deassert reset
         self.dut.rst_n.value = 1
         await RisingEdge(self.dut.clk)
+        await Timer(1, units='ns')  # Allow combinational output to settle
 
         # sync_rst_n should still be 0 (not synchronized yet)
         assert self.dut.sync_rst_n.value == 0, f"sync_rst_n should remain 0 for {self.N} clocks"
 
-        # Wait N clock cycles for synchronization
+        # Wait N-1 more clock cycles for synchronization (already waited 1 above)
         for i in range(self.N - 1):
             await RisingEdge(self.dut.clk)
-            # Still should be 0
+            await Timer(1, units='ns')  # Allow combinational output to settle
+
+            # Log current state for debugging
+            current_val = int(self.dut.sync_rst_n.value)
+            self.log.debug(f"  After edge {i+2}, sync_rst_n = {current_val}")
+
+            # Should still be 0 until the last cycle
             if i < self.N - 2:
                 assert self.dut.sync_rst_n.value == 0, f"sync_rst_n should be 0 at cycle {i+1}/{self.N}"
 
-        # After N clocks, sync_rst_n should be 1
+        # After N total clocks (1 above + N-1 in loop), wait one more edge for the last stage to propagate
         await RisingEdge(self.dut.clk)
-        assert self.dut.sync_rst_n.value == 1, f"sync_rst_n should be 1 after {self.N} clocks"
+        await Timer(1, units='ns')  # Allow combinational output to settle
+
+        current_val = int(self.dut.sync_rst_n.value)
+        self.log.debug(f"  After final edge (total {self.N+1}), sync_rst_n = {current_val}")
+
+        assert self.dut.sync_rst_n.value == 1, f"sync_rst_n should be 1 after {self.N+1} total clock edges"
 
         self.log.info("✅ Basic synchronization: PASSED")
         return True
@@ -82,11 +110,13 @@ class ResetSyncTB(TBBase):
         self.dut.rst_n.value = 1
         for _ in range(self.N + 2):
             await RisingEdge(self.dut.clk)
+        await Timer(1, units='ns')  # Allow combinational output to settle
         assert self.dut.sync_rst_n.value == 1, "Setup: sync_rst_n should be 1"
 
         # Assert reset
         self.dut.rst_n.value = 0
         await RisingEdge(self.dut.clk)
+        await Timer(1, units='ns')  # Allow combinational output to settle
 
         # sync_rst_n should immediately go to 0 (asynchronous reset)
         assert self.dut.sync_rst_n.value == 0, "sync_rst_n should go to 0 immediately on reset"
@@ -102,17 +132,20 @@ class ResetSyncTB(TBBase):
             # Assert reset
             self.dut.rst_n.value = 0
             await RisingEdge(self.dut.clk)
+            await Timer(1, units='ns')  # Allow combinational output to settle
             assert self.dut.sync_rst_n.value == 0, f"Cycle {cycle}: sync_rst_n should be 0"
 
             # Deassert and wait for sync
             self.dut.rst_n.value = 1
             for _ in range(self.N + 1):
                 await RisingEdge(self.dut.clk)
+            await Timer(1, units='ns')  # Allow combinational output to settle
             assert self.dut.sync_rst_n.value == 1, f"Cycle {cycle}: sync_rst_n should be 1 after sync"
 
             # Hold for a few clocks
             for _ in range(5):
                 await RisingEdge(self.dut.clk)
+                await Timer(1, units='ns')  # Allow combinational output to settle
                 assert self.dut.sync_rst_n.value == 1, f"Cycle {cycle}: sync_rst_n should remain 1"
 
         self.log.info("✅ Multiple reset cycles: PASSED")
@@ -126,17 +159,20 @@ class ResetSyncTB(TBBase):
         self.dut.rst_n.value = 1
         for _ in range(self.N + 2):
             await RisingEdge(self.dut.clk)
+        await Timer(1, units='ns')  # Allow combinational output to settle
         assert self.dut.sync_rst_n.value == 1
 
         # Create a short glitch (< N clocks)
         self.dut.rst_n.value = 0
         await RisingEdge(self.dut.clk)
+        await Timer(1, units='ns')  # Allow combinational output to settle
         self.dut.rst_n.value = 1
 
         # The glitch should propagate immediately due to async reset
         # but recovery should take N clocks
         for i in range(self.N):
             await RisingEdge(self.dut.clk)
+            await Timer(1, units='ns')  # Allow combinational output to settle
             if i < self.N - 1:
                 # Should still be recovering
                 current_val = self.dut.sync_rst_n.value.integer
@@ -144,6 +180,7 @@ class ResetSyncTB(TBBase):
 
         # After N clocks, should be back to 1
         await RisingEdge(self.dut.clk)
+        await Timer(1, units='ns')  # Allow combinational output to settle
         assert self.dut.sync_rst_n.value == 1, "Should recover to 1 after N clocks"
 
         self.log.info("✅ Reset glitch filtering: PASSED")

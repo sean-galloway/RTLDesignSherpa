@@ -1,5 +1,17 @@
-#@PydevCodeAnalysisIgnore
-
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: data_str
+# Purpose: parameter add_extra_instr  = 1,  //use extra instructions 
+#
+# Documentation: rtl/common/PRD.md
+# Subsystem: common
+#
+# Author: sean galloway
+# Created: 2025-10-18
 
 tstParam01 = """
     parameter add_extra_instr  = 1,  //use extra instructions 

@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: GlitchFreeNDffArnTB
+# Purpose: Testbench for glitch_free_n_dff_arn module
+#
+# Documentation: bin/CocoTBFramework/README.md
+# Subsystem: framework
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """
 Testbench for glitch_free_n_dff_arn module
 
@@ -150,6 +165,9 @@ class GlitchFreeNDffArnTB(TBBase):
         # Assert reset
         await self.assert_reset()
         await RisingEdge(self.dut.clk)
+
+        # Allow time for combinational output to settle
+        await Timer(1, units='ns')
 
         # Output should be zero immediately after reset
         reset_output = int(self.dut.q.value)

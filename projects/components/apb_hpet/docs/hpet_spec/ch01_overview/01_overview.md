@@ -4,7 +4,7 @@
 
 The APB High Precision Event Timer (HPET) is a configurable multi-timer peripheral designed for precise timing and event generation in embedded systems. It provides up to 8 independent hardware timers with one-shot and periodic modes, accessible via APB interface with optional clock domain crossing support.
 
-![APB HPET Block Diagram](../draw.io/png/apb_hpet_blocks.png)
+![APB HPET Block Diagram](../assets/draw.io/apb_hpet_blocks.png)
 
 #### Key Features
 

@@ -15,6 +15,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module shifter_universal #(
     parameter int WIDTH = 4
 ) (
@@ -78,8 +80,8 @@ module shifter_universal #(
     end
 
     // Sequential logic - update outputs on clock edge
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             o_pdata    <= '0;
             o_sdata_lt <= 1'b0;
             o_sdata_rt <= 1'b0;
@@ -88,6 +90,7 @@ module shifter_universal #(
             o_sdata_lt <= w_sdata_lt;
             o_sdata_rt <= w_sdata_rt;
         end
-    end
+    )
+
 
 endmodule : shifter_universal

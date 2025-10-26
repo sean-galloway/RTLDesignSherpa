@@ -265,19 +265,25 @@ def generate_axis_cg_params():
 def test_axis_slave_cg(skid_depth, data_width, id_width, dest_width, user_width, test_level, cg_test_mode):
     """Test AXIS slave clock gated with specified parameters"""
 
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
     # Get paths and setup
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_cmn': 'rtl/common',
-        'rtl_axis': 'rtl/amba/axis/',
+        'rtl_axis': 'rtl/amba/axis4/',
         'rtl_gaxi': 'rtl/amba/gaxi',
         'rtl_amba_shared': 'rtl/amba/shared',
-    })
+     'rtl_amba_includes': 'rtl/amba/includes'})
 
     # Clock gated module details
     dut_name = "axis_slave_cg"
 
     id_str = f"sd{skid_depth}_dw{data_width:03d}_iw{id_width:02d}_destw{dest_width}_uw{user_width}_{test_level}_{cg_test_mode}"
-    test_name_plus_params = f"test_axis_slave_cg_{id_str}"
+    test_name_plus_params = f"test_{worker_id}_axis_slave_cg_{id_str}"
 
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
@@ -338,12 +344,12 @@ def test_axis_slave_cg(skid_depth, data_width, id_width, dest_width, user_width,
     }
 
     # Simulation settings
-    includes = [sim_build]
+    includes = [rtl_dict['rtl_amba_includes']]
     compile_args = [
         "--trace",
         
         "--trace-depth", "99",
-        "-Wall",
+        "-Wall", "-Wno-SYNCASYNCNET",
         "-Wno-UNUSED",
         "-Wno-DECLFILENAME",
         "-Wno-PINMISSING",  # Allow unconnected pins

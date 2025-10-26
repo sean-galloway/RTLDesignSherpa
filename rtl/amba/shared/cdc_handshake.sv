@@ -15,6 +15,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module cdc_handshake #(
     parameter int DATA_WIDTH = 8  // Width of the data bus for transfer
 ) (
@@ -74,13 +76,14 @@ module cdc_handshake #(
     //-------------------------------------------------------------------------
     // Synchronize the destination ack signal (r_ack_dst) into the source clock domain (clk_src).
     // This uses a 3-stage shift register to safely transfer the asynchronous r_ack_dst signal.
-    always_ff @(posedge clk_src or negedge rst_src_n) begin
-        if (!rst_src_n) begin
+    `ALWAYS_FF_RST(clk_src, rst_src_n,
+if (`RST_ASSERTED(rst_src_n)) begin
             r_ack_sync <= 3'b000;
         end else begin
             r_ack_sync <= {r_ack_sync[1:0], r_ack_dst};
         end
-    end
+    )
+
 
     assign w_ack_sync = r_ack_sync[2];  // Synchronized ack signal in clk_src domain
 
@@ -88,8 +91,8 @@ module cdc_handshake #(
     // Source Domain Handshake FSM (clk_src)
     //-------------------------------------------------------------------------
     // Handles incoming src_valid/src_data, drives request and generates src_ready after handshake completes.
-    always_ff @(posedge clk_src or negedge rst_src_n) begin
-        if (!rst_src_n) begin
+    `ALWAYS_FF_RST(clk_src, rst_src_n,
+if (`RST_ASSERTED(rst_src_n)) begin
             // Asynchronous reset (active low)
             r_src_state   <= S_IDLE;
             r_req_src     <= 1'b0;
@@ -108,7 +111,7 @@ module cdc_handshake #(
                         r_src_state  <= S_WAIT_ACK;
                     end
                 end
-
+        
                 S_WAIT_ACK: begin
                     src_ready <= 1'b0;      // Busy waiting for ack, hold src_ready low
                     if (w_ack_sync) begin
@@ -122,7 +125,7 @@ module cdc_handshake #(
                         r_src_state  <= S_WAIT_ACK;
                     end
                 end
-
+        
                 S_WAIT_ACK_CLR: begin
                     src_ready <= 1'b0;      // Still busy until ack is cleared
                     r_req_src <= 1'b0;      // Ensure request remains deasserted
@@ -142,20 +145,22 @@ module cdc_handshake #(
                 end
             endcase
         end
-    end
+    )
+
 
     //-------------------------------------------------------------------------
     // Destination Domain Synchronizer (Source -> Destination Req)
     //-------------------------------------------------------------------------
     // Synchronize the source request signal (r_req_src) into the destination clock domain (clk_dst).
     // Also using a 3-stage shift register for metastability protection.
-    always_ff @(posedge clk_dst or negedge rst_dst_n) begin
-        if (!rst_dst_n) begin
+    `ALWAYS_FF_RST(clk_dst, rst_dst_n,
+if (`RST_ASSERTED(rst_dst_n)) begin
             r_req_sync <= 3'b000;
         end else begin
             r_req_sync <= {r_req_sync[1:0], r_req_src};
         end
-    end
+    )
+
 
     assign w_req_sync = r_req_sync[2];  // Synchronized request signal in clk_dst domain
 
@@ -164,8 +169,8 @@ module cdc_handshake #(
     //-------------------------------------------------------------------------
     // Waits for synchronized request, then, if the local receiver is ready, latches data and asserts dst_valid and ack.
     // Holds dst_valid high until dst_ready is asserted by the receiver, and waits for source to drop request (acknowledged back).
-    always_ff @(posedge clk_dst or negedge rst_dst_n) begin
-        if (!rst_dst_n) begin
+    `ALWAYS_FF_RST(clk_dst, rst_dst_n,
+if (`RST_ASSERTED(rst_dst_n)) begin
             // Asynchronous reset (active low)
             r_dst_state <= D_IDLE;
             r_ack_dst   <= 1'b0;
@@ -197,7 +202,7 @@ module cdc_handshake #(
                         r_dst_state  <= D_IDLE;
                     end
                 end
-
+        
                 D_WAIT_REQ_CLR: begin
                     // At this point, ack is high but dst_valid is now low
                     dst_valid <= 1'b0;  // Keep dst_valid low in this state
@@ -217,7 +222,8 @@ module cdc_handshake #(
                 end
             endcase
         end
-    end
+    )
+
 
     // Drive the output data bus in destination domain from the latched register
     assign dst_data = r_dst_data;

@@ -14,10 +14,17 @@
 # Created: 2025-10-18
 
 import os
+import sys
 import random
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+
+# Add repo root to path for CocoTBFramework imports
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if os.path.join(repo_root, 'bin') not in sys.path:
+    sys.path.insert(0, os.path.join(repo_root, 'bin'))
+
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
@@ -187,19 +194,49 @@ async def simple_generate_test(dut):
     assert len(values) == expected_count, f"Expected {expected_count} values, got {len(values)}"
 
 
-@pytest.mark.parametrize("params", [
-    {'WIDTH': 8, 'COUNT': 100},
-    {'WIDTH': 16, 'COUNT': 100},
-    {'WIDTH': 32, 'COUNT': 50},
-    {'WIDTH': 64, 'COUNT': 50},
-    {'WIDTH': 128, 'COUNT': 25},
-    {'WIDTH': 256, 'COUNT': 25},
-    {'WIDTH': 512, 'COUNT': 10},
-])
+def generate_test_params():
+    """
+    Generate test parameters based on REG_LEVEL.
+
+    REG_LEVEL=GATE: 2 tests (8, 16-bit)
+    REG_LEVEL=FUNC: 4 tests (8, 16, 32, 64-bit) - default
+    REG_LEVEL=FULL: 7 tests (all widths up to 512-bit)
+
+    Returns:
+        List of dicts with WIDTH, COUNT
+    """
+    import os
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+
+    if reg_level == 'GATE':
+        return [
+            {'WIDTH': 8, 'COUNT': 100},
+            {'WIDTH': 16, 'COUNT': 100},
+        ]
+    elif reg_level == 'FUNC':
+        return [
+            {'WIDTH': 8, 'COUNT': 100},
+            {'WIDTH': 16, 'COUNT': 100},
+            {'WIDTH': 32, 'COUNT': 50},
+            {'WIDTH': 64, 'COUNT': 50},
+        ]
+    else:  # FULL
+        return [
+            {'WIDTH': 8, 'COUNT': 100},
+            {'WIDTH': 16, 'COUNT': 100},
+            {'WIDTH': 32, 'COUNT': 50},
+            {'WIDTH': 64, 'COUNT': 50},
+            {'WIDTH': 128, 'COUNT': 25},
+            {'WIDTH': 256, 'COUNT': 25},
+            {'WIDTH': 512, 'COUNT': 10},
+        ]
+
+
+@pytest.mark.parametrize("params", generate_test_params())
 def test_simple_lfsr_generate(request, params):
     """Parameterized test for different LFSR widths"""
     # Get paths
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common'})
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common', 'rtl_amba_includes': 'rtl/amba/includes'})
     
     dut_name = "shifter_lfsr_galois"
     toplevel = dut_name
@@ -210,6 +247,12 @@ def test_simple_lfsr_generate(request, params):
     
     # Test name
     test_name = f"simple_lfsr_W{params['WIDTH']}_C{params['COUNT']}"
+
+    # Handle pytest-xdist parallel execution
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        test_name = f"{test_name}_{worker_id}"
+
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
     log_path = os.path.join(log_dir, f'{test_name}.log')
     
@@ -252,6 +295,7 @@ def test_simple_lfsr_generate(request, params):
             compile_args=compile_args,
             sim_args=sim_args,
             plusargs=plusargs,
+            includes=[rtl_dict['rtl_amba_includes']]
         )
     except Exception as e:
         print(f"Test failed: {str(e)}")

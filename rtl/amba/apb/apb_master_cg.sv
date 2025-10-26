@@ -15,6 +15,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module apb_master_cg #(
     parameter int ADDR_WIDTH      = 32,
     parameter int DATA_WIDTH      = 32,
@@ -75,14 +77,15 @@ module apb_master_cg #(
     logic  r_wakeup;
     logic  gated_pclk;
 
-    always_ff @(posedge pclk or negedge presetn) begin
+    `ALWAYS_FF_RST(pclk, presetn,
         if (!presetn)
             r_wakeup <= 1'b1;
         else
             // Wake up when there's a command, a response pending,
             // or when the master is in the middle of a transaction
             r_wakeup <= cmd_valid || rsp_valid || m_apb_PSEL || m_apb_PENABLE;
-    end
+    )
+
 
     // Instantiate clock gate controller
     amba_clock_gate_ctrl #(

@@ -119,6 +119,7 @@ def test_gaxi_buffer_field(request, addr_width, ctrl_width, data_width, depth, m
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_cmn': 'rtl/common',
         'rtl_gaxi': 'rtl/amba/gaxi',
+        'rtl_amba_includes': 'rtl/amba/includes',
     })
 
     # Set up test names and directories  
@@ -141,6 +142,7 @@ def test_gaxi_buffer_field(request, addr_width, ctrl_width, data_width, depth, m
         verilog_sources = [os.path.join(rtl_dict['rtl_gaxi'], f"{dut_name}.sv")]
     else:
         verilog_sources = [
+            os.path.join(rtl_dict['rtl_amba_includes'], "fifo_imports.svh"),
             os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
             os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
             os.path.join(rtl_dict['rtl_gaxi'], f"{dut_name}.sv"),
@@ -190,7 +192,7 @@ def test_gaxi_buffer_field(request, addr_width, ctrl_width, data_width, depth, m
     }
 
     # Simulation settings
-    includes = [sim_build]
+    includes=[sim_build, rtl_dict['rtl_amba_includes']]
     compile_args = ["--trace", "--trace-structs", "--trace-depth", "99", "-Wall", "-Wno-UNUSED", "-Wno-DECLFILENAME"]
     sim_args = ["--trace", "--trace-structs", "--trace-depth", "99"]
     plusargs = ["+trace"]

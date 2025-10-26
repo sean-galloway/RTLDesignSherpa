@@ -30,6 +30,8 @@
  * - Power budget tracking and enforcement
  * - Ultra-selective filtering for critical events only
  */
+
+`include "reset_defs.svh"
 module axi4_master_rd_lp_mon
     import monitor_pkg::*;
 #(
@@ -361,15 +363,15 @@ module axi4_master_rd_lp_mon
     // Power Management State Machine
     // =========================================================================
 
-    always_ff @(posedge aclk_lp or negedge aresetn_lp) begin
-        if (!aresetn_lp) begin
+    `ALWAYS_FF_RST(aclk_lp, aresetn_lp,
+if (`RST_ASSERTED(aresetn_lp)) begin
             pm_state <= PM_ACTIVE;
             idle_counter <= '0;
             wake_counter <= '0;
             vf_switch_counter <= '0;
         end else begin
             pm_state <= pm_state_next;
-
+        
             case (pm_state)
                 PM_ACTIVE: begin
                     if (busy || (active_transactions > 0)) begin
@@ -380,37 +382,37 @@ module axi4_master_rd_lp_mon
                     wake_counter <= '0;
                     vf_switch_counter <= '0;
                 end
-
+        
                 PM_IDLE: begin
                     idle_counter <= idle_counter + 1'b1;
                     wake_counter <= '0;
                     vf_switch_counter <= '0;
                 end
-
+        
                 PM_SLEEP_ENTRY: begin
                     idle_counter <= '0;
                     wake_counter <= '0;
                     vf_switch_counter <= '0;
                 end
-
+        
                 PM_SLEEP: begin
                     idle_counter <= '0;
                     wake_counter <= '0;
                     vf_switch_counter <= '0;
                 end
-
+        
                 PM_WAKE_UP: begin
                     idle_counter <= '0;
                     wake_counter <= wake_counter + 1'b1;
                     vf_switch_counter <= '0;
                 end
-
+        
                 PM_VF_SWITCH: begin
                     idle_counter <= '0;
                     wake_counter <= '0;
                     vf_switch_counter <= vf_switch_counter + 1'b1;
                 end
-
+        
                 default: begin
                     idle_counter <= '0;
                     wake_counter <= '0;
@@ -418,7 +420,8 @@ module axi4_master_rd_lp_mon
                 end
             endcase
         end
-    end
+    )
+
 
     // State machine logic
     always_comb begin
@@ -483,8 +486,8 @@ module axi4_master_rd_lp_mon
                                (monbus_valid && monbus_ready);
 
             // Power budget counter
-            always_ff @(posedge aclk_lp or negedge aresetn_lp) begin
-                if (!aresetn_lp) begin
+            `ALWAYS_FF_RST(aclk_lp, aresetn_lp,
+if (`RST_ASSERTED(aresetn_lp)) begin
                     power_budget_counter <= '0;
                     power_window_counter <= '0;
                 end else begin
@@ -498,7 +501,8 @@ module axi4_master_rd_lp_mon
                         end
                     end
                 end
-            end
+            )
+
 
             assign power_consumption = power_budget_counter;
             assign power_budget_exceeded = (power_budget_counter > cfg_power_budget_limit);

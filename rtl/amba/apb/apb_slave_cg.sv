@@ -15,18 +15,20 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module apb_slave_cg #(
     parameter int ADDR_WIDTH      = 32,
     parameter int DATA_WIDTH      = 32,
     parameter int STRB_WIDTH      = 32 / 8,
-    parameter int PPROT_WIDTH     = 3,
+    parameter int PROT_WIDTH      = 3,
     parameter int DEPTH      = 2,
     parameter int CG_IDLE_COUNT_WIDTH = 4,  // Default width of idle counter
     // Short Parameters
     parameter int DW  = DATA_WIDTH,
     parameter int AW  = ADDR_WIDTH,
     parameter int SW  = STRB_WIDTH,
-    parameter int PW  = PPROT_WIDTH,
+    parameter int PW  = PROT_WIDTH,
     parameter int ICW = CG_IDLE_COUNT_WIDTH,
     parameter int CPW = AW + DW + SW + PW + 1,
     parameter int RPW = DW + 1
@@ -73,16 +75,18 @@ module apb_slave_cg #(
     logic  r_wakeup;
     logic  gated_pclk;
 
-    always_ff @(posedge pclk or negedge presetn) begin
+    `ALWAYS_FF_RST(pclk, presetn,
         if (!presetn)
             r_wakeup <= 1'b1;
         else
-            r_wakeup <= s_apb_PSEL || cmd_valid || rsp_valid || (r_apb_state == BUSY);
-    end
+            // Keep active when APB transaction in progress or command/response activity
+            r_wakeup <= s_apb_PSEL || s_apb_PENABLE || cmd_valid || rsp_valid;
+    )
+
 
     // Instantiate clock gate controller
     amba_clock_gate_ctrl #(
-        .N                   (CG_IDLE_COUNT_WIDTH)
+        .CG_IDLE_COUNT_WIDTH (CG_IDLE_COUNT_WIDTH)
     ) amba_clock_gate_ctrl(
         .clk_in              (pclk),
         .aresetn             (presetn),
@@ -101,7 +105,7 @@ module apb_slave_cg #(
         .ADDR_WIDTH       (ADDR_WIDTH),
         .DATA_WIDTH       (DATA_WIDTH),
         .STRB_WIDTH       (STRB_WIDTH),
-        .PPROT_WIDTH      (PPROT_WIDTH),
+        .PROT_WIDTH       (PROT_WIDTH),
         .DEPTH            (DEPTH)
     ) u_apb_slave(
         // Clock / Reset

@@ -20,9 +20,16 @@ Tests the reset_sync module with various synchronization depths.
 """
 
 import os
+import sys
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+
+
+# Add repo root to path for CocoTBFramework imports
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if os.path.join(repo_root, 'bin') not in sys.path:
+    sys.path.insert(0, os.path.join(repo_root, 'bin'))
 
 from CocoTBFramework.tbclasses.reset_sync_tb import ResetSyncTB
 from CocoTBFramework.tbclasses.shared.utilities import get_paths
@@ -66,7 +73,16 @@ def test_reset_sync(n, test_mode):
     })
 
     dut_name = "reset_sync"
-    test_name = f"test_reset_sync_n{n}_{test_mode}"
+    # Get REG_LEVEL before creating test name
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()  # GATE, FUNC, or FULL
+
+    test_name = f"test_reset_sync_n{n}_{test_mode}_{reg_level}"
+
+    # Add worker ID for pytest-xdist parallel execution
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        test_name = f"{test_name}_{worker_id}"
+
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
     os.makedirs(sim_build, exist_ok=True)
@@ -89,7 +105,12 @@ def test_reset_sync(n, test_mode):
 
     compile_args = [
         "-Wall", "-Wno-UNUSED", "-Wno-DECLFILENAME",
+        "--trace",  # Enable VCD trace
+        "--trace-depth", "99",  # Trace all hierarchy levels
     ]
+
+    # Force VCD format (not FST) - cocotb will use this
+    extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
 
     print(f"\n{'='*80}")
     print(f"Reset Sync Test: {test_mode} (N={n})")
@@ -104,15 +125,17 @@ def test_reset_sync(n, test_mode):
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,
+            waves=False,  # We're handling tracing manually with compile_args
             keep_files=True,
             compile_args=compile_args,
         )
         print(f"✓ PASSED: {test_name}")
+        print(f"Waveform: {sim_build}/dump.vcd")
     except Exception as e:
         print(f"✗ FAILED: {test_name}")
         print(f"Error: {str(e)}")
         print(f"Log: {log_path}")
+        print(f"Waveform: {sim_build}/dump.vcd")
         raise
 
 

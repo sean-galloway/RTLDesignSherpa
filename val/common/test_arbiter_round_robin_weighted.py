@@ -19,12 +19,19 @@ Adapted from existing WRR test runner with robust testbench integration
 """
 
 import os
+import sys
 import random
 import cocotb
 from cocotb.triggers import RisingEdge, FallingEdge, Timer
 from cocotb.utils import get_sim_time
 from cocotb_test.simulator import run
 import pytest
+
+
+# Add repo root to path for CocoTBFramework imports
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if os.path.join(repo_root, 'bin') not in sys.path:
+    sys.path.insert(0, os.path.join(repo_root, 'bin'))
 
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
@@ -142,24 +149,52 @@ async def arbiter_round_robin_weighted_test(dut):
         await tb.wait_clocks('clk', 20)
 
 
-@pytest.mark.parametrize("clients, max_levels, wait_ack", [
-    ( 4,  8, 0),  # No wait for ack, 4 clients, max threshold 8
-    ( 4,  8, 1),  # Wait for ack, 4 clients, max threshold 8
-    ( 6,  8, 0),  # No wait for ack, 6 clients, max threshold 8
-    ( 6,  8, 1),  # Wait for ack, 6 clients, max threshold 8
-    ( 8, 16, 0),  # No wait for ack, 8 clients, max threshold 16
-    ( 8, 16, 1),  # Wait for ack, 8 clients, max threshold 16
-    (16, 16, 0),  # No wait for ack, 16 clients, max threshold 16
-    (16, 16, 1),  # Wait for ack, 16 clients, max threshold 16
-    (32, 16, 0),  # No wait for ack, 32 clients, max threshold 16
-    (32, 16, 1),  # Wait for ack, 32 clients, max threshold 16
-])
+def generate_test_params():
+    """
+    Generate test parameter combinations based on REG_LEVEL.
+
+    REG_LEVEL=GATE: 2 tests (4 clients, both ack modes)
+    REG_LEVEL=FUNC: 6 tests (3 client counts, both ack modes) - default
+    REG_LEVEL=FULL: 10 tests (all combinations)
+
+    Returns:
+        List of tuples: (clients, max_levels, wait_ack)
+    """
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+
+    all_configs = [
+        ( 4,  8, 0),  # No wait for ack, 4 clients, max threshold 8
+        ( 4,  8, 1),  # Wait for ack, 4 clients, max threshold 8
+        ( 6,  8, 0),  # No wait for ack, 6 clients, max threshold 8
+        ( 6,  8, 1),  # Wait for ack, 6 clients, max threshold 8
+        ( 8, 16, 0),  # No wait for ack, 8 clients, max threshold 16
+        ( 8, 16, 1),  # Wait for ack, 8 clients, max threshold 16
+        (16, 16, 0),  # No wait for ack, 16 clients, max threshold 16
+        (16, 16, 1),  # Wait for ack, 16 clients, max threshold 16
+        (32, 16, 0),  # No wait for ack, 32 clients, max threshold 16
+        (32, 16, 1),  # Wait for ack, 32 clients, max threshold 16
+    ]
+
+    if reg_level == 'GATE':
+        # Quick smoke test: 4 clients, both modes
+        return [all_configs[0], all_configs[1]]
+
+    elif reg_level == 'FUNC':
+        # Functional coverage: 4, 6, 8 clients, both modes
+        return all_configs[0:6]
+
+    else:  # FULL
+        # Comprehensive: all configurations
+        return all_configs
+
+
+@pytest.mark.parametrize("clients, max_levels, wait_ack", generate_test_params())
 def test_arbiter_round_robin_weighted(request, clients, max_levels, wait_ack):
     """Run the weighted round robin test with comprehensive coverage"""
     # Get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_cmn': 'rtl/common'
-    })
+    , 'rtl_amba_includes': 'rtl/amba/includes'})
 
     dut_name = "arbiter_round_robin_weighted"
     toplevel = dut_name
@@ -176,6 +211,12 @@ def test_arbiter_round_robin_weighted(request, clients, max_levels, wait_ack):
     m_str = TBBase.format_dec(max_levels, 2)
     w_str = TBBase.format_dec(wait_ack, 1)
     test_name_plus_params = f"test_{dut_name}_c{c_str}_m{m_str}_w{w_str}"
+
+    # Handle pytest-xdist parallel execution
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
+
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Use it in the simbuild path
@@ -188,8 +229,7 @@ def test_arbiter_round_robin_weighted(request, clients, max_levels, wait_ack):
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes = []
-
+    includes = [rtl_dict['rtl_amba_includes']]
     # RTL parameters for WEIGHTED ROUND ROBIN
     parameters = {
         'CLIENTS': clients,

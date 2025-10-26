@@ -1,0 +1,82 @@
+{
+  "signal": [
+    {
+      "name": "pclk",
+      "wave": "p................",
+      "period": 1.0
+    },
+    {},
+    {
+      "name": "presetn",
+      "wave": "1................"
+    },
+    {},
+    [
+      "APB Write to TIMER0_CONFIG (0x100)",
+      {
+        "name": "psel",
+        "wave": "01..............0"
+      },
+      {
+        "name": "penable",
+        "wave": "0.1.............0"
+      },
+      {
+        "name": "pready",
+        "wave": "0..1............0"
+      },
+      {
+        "name": "pwrite",
+        "wave": "01..............0"
+      },
+      {
+        "name": "paddr",
+        "wave": "x2..............x",
+        "data": [
+          "0x100"
+        ]
+      },
+      {
+        "name": "pwdata",
+        "wave": "x2..............x",
+        "data": [
+          "0x07"
+        ]
+      }
+    ],
+    {},
+    [
+      "HPET Core Response",
+      {
+        "name": "timer0_enable",
+        "wave": "0...1...........",
+        "node": "....a"
+      },
+      {
+        "name": "timer0_int_enable",
+        "wave": "0...1...........",
+        "node": "....b"
+      },
+      {
+        "name": "timer0_type",
+        "wave": "0...1...........",
+        "node": "....c"
+      }
+    ]
+  ],
+  "head": {
+    "text": "APB Write to Timer Configuration Register",
+    "tick": 0,
+    "every": 1
+  },
+  "foot": {
+    "text": "Timer Config: 0x07 = enable(1) + int_enable(1) + periodic(1)"
+  },
+  "config": {
+    "hscale": 2
+  },
+  "edge": [
+    "a-~>b Enable + Interrupt",
+    "b-~>c Periodic Mode"
+  ]
+}

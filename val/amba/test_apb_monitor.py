@@ -525,6 +525,9 @@ async def simple_apb_monitor_test(dut):
 def test_apb_monitor():
     """Simple parametrized test for APB monitor"""
 
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
     # Get paths
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_cmn':           'rtl/common',
@@ -539,7 +542,7 @@ def test_apb_monitor():
     unit_id, agent_id = 4, 8
     max_transactions = 4
 
-    test_name = f"test_apb_monitor_basic"
+    test_name = f"test_{worker_id}_apb_monitor_basic"
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
     log_path = os.path.join(log_dir, f'{test_name}.log')
 
@@ -587,7 +590,7 @@ def test_apb_monitor():
     # Compile settings
     compile_args = [
         "--trace", "--trace-depth", "99",
-        "-Wall", "-Wno-UNUSED", "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC",
+        "-Wall", "-Wno-SYNCASYNCNET", "-Wno-UNUSED", "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC",
         "-Wno-SELRANGE", "-Wno-PINCONNECTEMPTY", "--no-timing"
     ]
 

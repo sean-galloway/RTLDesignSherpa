@@ -4,10 +4,11 @@
 
 The `hpet_config_regs` module serves as the critical bridge between the PeakRDL-generated register file (`hpet_regs.sv`) and the HPET core timer logic (`hpet_core.sv`). This wrapper handles interface adaptation, per-timer data bus isolation, and register write edge detection.
 
-**Architecture:**
-```
-Command/Response Interface -> Adapter -> hpet_regs -> hwif -> Mapping -> HPET Core
-```
+**Block Diagram:**
+
+![HPET Config Registers Block Diagram](../assets/png/hpet_config_regs.png)
+
+*Figure: HPET Config Registers architecture showing APB interface, PeakRDL registers, edge detection, per-timer data buses, and W1C logic. [Source: assets/graphviz/hpet_config_regs.gv](../assets/graphviz/hpet_config_regs.gv) | [SVG](../assets/svg/hpet_config_regs.svg)*
 
 #### Key Responsibilities
 

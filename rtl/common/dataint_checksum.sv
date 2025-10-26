@@ -16,6 +16,8 @@
 `timescale 1ns / 1ps
 
 // Generic Checksum Module
+
+`include "reset_defs.svh"
 module dataint_checksum #(
     parameter int WIDTH = 8
 ) (
@@ -29,11 +31,12 @@ module dataint_checksum #(
 
     logic [WIDTH-1:0] r_count;
 
-    always_ff @(posedge clk or negedge rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
         if (!rst_n) r_count <= 'b0;
         else if (reset) r_count <= 'b0;
         else if (valid) r_count <= r_count + data;
-    end
+    )
+
 
     assign chksum = r_count;
 

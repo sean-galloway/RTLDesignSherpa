@@ -168,7 +168,12 @@
 //
 //==============================================================================
 
+`include "fifo_defs.svh"
+`include "reset_defs.svh"
+
+
 module gaxi_drop_fifo_sync #(
+    parameter fifo_mem_t MEM_STYLE = FIFO_AUTO,
     parameter int REGISTERED = 0,  // 0 = mux mode, 1 = flop mode
     parameter int DATA_WIDTH = 4,
     parameter int DEPTH = 4,
@@ -216,18 +221,18 @@ module gaxi_drop_fifo_sync #(
     logic          w_drop_active;      // FSM is processing drop
     logic          w_use_drop_ptr;     // Trigger drop operation in counters
 
-    // The flop storage
-    logic [DW-1:0] r_mem[0:((1<<AW)-1)];  // verilog_lint: waive unpacked-dimensions-range-ordering
+    // Common read-data wire driven inside the active MEM_STYLE branch
     logic [DW-1:0] w_rd_data;
 
     /////////////////////////////////////////////////////////////////////////
     // Drop FSM
-    always_ff @(posedge axi_aclk or negedge axi_aresetn) begin
+    `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
         if (!axi_aresetn)
             r_drop_state <= IDLE;
         else
             r_drop_state <= w_drop_state_next;
-    end
+    )
+
 
     always_comb begin
         w_drop_state_next = r_drop_state;  // Default: hold state
@@ -342,34 +347,117 @@ module gaxi_drop_fifo_sync #(
     assign r_rd_addr = (REGISTERED == 0) ? w_rd_ptr_selected[AW-1:0] : r_rd_ptr_bin[AW-1:0];
 
     /////////////////////////////////////////////////////////////////////////
-    // Memory Flops
-    always_ff @(posedge axi_aclk) begin
-        if (w_write) begin
-            r_mem[r_wr_addr] <= wr_data;
+    // Memory implementation (scoped per MEM_STYLE)
+    // Note: Drop FIFO uses special pointer logic, but memory can still
+    //       benefit from FPGA-specific inference hints
+    /////////////////////////////////////////////////////////////////////////
+    generate
+        if (MEM_STYLE == FIFO_SRL) begin : gen_srl
+            `ifdef XILINX
+                (* shreg_extract = "yes", ram_style = "distributed" *)
+            `elsif INTEL
+                /* synthesis ramstyle = "MLAB" */
+            `endif
+            logic [DATA_WIDTH-1:0] mem [0:DEPTH-1];
+
+            // Write path
+            always_ff @(posedge axi_aclk) begin
+                if (w_write && !r_wr_full) begin
+                    mem[r_wr_addr] <= wr_data;
+                end
+            end
+
+            // Read path - combinational for drop FIFO (always mux mode for memory)
+            always_comb w_rd_data = mem[r_rd_addr];
+
+            // synopsys translate_off
+            logic [(DW*DEPTH)-1:0] flat_mem_srl;
+            genvar i_srl;
+            for (i_srl = 0; i_srl < DEPTH; i_srl++) begin : gen_flatten_srl
+                assign flat_mem_srl[i_srl*DW+:DW] = mem[i_srl];
+            end
+            // synopsys translate_on
         end
-    end
+        else if (MEM_STYLE == FIFO_BRAM) begin : gen_bram
+            `ifdef XILINX
+                (* ram_style = "block" *)
+            `elsif INTEL
+                /* synthesis ramstyle = "M20K" */
+            `endif
+            logic [DATA_WIDTH-1:0] mem [0:DEPTH-1];
 
-    assign w_rd_data = r_mem[r_rd_addr];
+            // Write path
+            always_ff @(posedge axi_aclk) begin
+                if (w_write && !r_wr_full) begin
+                    mem[r_wr_addr] <= wr_data;
+                end
+            end
 
-    // Debug: Track memory reads
+            // Read path - synchronous read for BRAM (forces registered output)
+            `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
+                if (!axi_aresetn) w_rd_data <= '0;
+                else              w_rd_data <= mem[r_rd_addr];
+            )
+
+            // synopsys translate_off
+            logic [(DW*DEPTH)-1:0] flat_mem_bram;
+            genvar i_bram;
+            for (i_bram = 0; i_bram < DEPTH; i_bram++) begin : gen_flatten_bram
+                assign flat_mem_bram[i_bram*DW+:DW] = mem[i_bram];
+            end
+            // synopsys translate_on
+
+            initial begin
+                if (REGISTERED == 0)
+                    $display("NOTE: %s BRAM style uses synchronous read (+1 cycle latency)",
+                            INSTANCE_NAME);
+            end
+        end
+        else begin : gen_auto
+            // Let tool decide (LUTRAM vs BRAM). Allow comb read for drop logic.
+            logic [DATA_WIDTH-1:0] mem [0:DEPTH-1];
+
+            // Write path
+            always_ff @(posedge axi_aclk) begin
+                if (w_write && !r_wr_full) begin
+                    mem[r_wr_addr] <= wr_data;
+                end
+            end
+
+            // Read path - combinational
+            always_comb w_rd_data = mem[r_rd_addr];
+
+            // synopsys translate_off
+            logic [(DW*DEPTH)-1:0] flat_mem_auto;
+            genvar i_auto;
+            for (i_auto = 0; i_auto < DEPTH; i_auto++) begin : gen_flatten_auto
+                assign flat_mem_auto[i_auto*DW+:DW] = mem[i_auto];
+            end
+            // synopsys translate_on
+        end
+    endgenerate
+
+    // Debug: Track memory reads (outside generate block)
+    // synopsys translate_off
     always @(posedge axi_aclk) begin
         if (rd_valid && rd_ready) begin
             $display("DEBUG %t: READ - rd_addr=%0d, w_rd_data=0x%02X, r_rd_ptr_bin=%0d, w_rd_ptr_selected=%0d",
                      $time, r_rd_addr, w_rd_data, r_rd_ptr_bin, w_rd_ptr_selected);
         end
     end
+    // synopsys translate_on
 
     /////////////////////////////////////////////////////////////////////////
-    // Read Port
+    // Read Port (final output register)
     generate
         if (REGISTERED != 0) begin : gen_flop_mode
             // Flop mode - registered output
-            always_ff @(posedge axi_aclk or negedge axi_aresetn) begin
+            `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
                 if (!axi_aresetn)
                     rd_data <= 'b0;
                 else
                     rd_data <= w_rd_data;
-            end
+            )
         end else begin : gen_mux_mode
             // Mux mode - non-registered output
             assign rd_data = w_rd_data;
@@ -379,14 +467,8 @@ module gaxi_drop_fifo_sync #(
     /////////////////////////////////////////////////////////////////////////
     // Error checking
     // synopsys translate_off
-    // Generate a version of the memory for waveforms
-    logic [(DW*DEPTH)-1:0] flat_r_mem;
-    genvar i;
-    generate
-        for (i = 0; i < DEPTH; i++) begin : gen_flatten_memory
-            assign flat_r_mem[i*DW+:DW] = r_mem[i];
-        end
-    endgenerate
+    // Note: flat_mem_* signals for waveform viewing are generated inside
+    //       each MEM_STYLE branch above (flat_mem_srl, flat_mem_bram, flat_mem_auto)
 
     // Protocol violation check: drop_valid must stay asserted until drop_ready
     // DISABLED: This checker was overly strict and caused false positives due to
@@ -396,14 +478,15 @@ module gaxi_drop_fifo_sync #(
     // TODO: Revisit if a proper timing-aware checker is needed.
     /*
     logic r_drop_valid_seen;
-    always_ff @(posedge axi_aclk or negedge axi_aresetn) begin
+    `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
         if (!axi_aresetn)
             r_drop_valid_seen <= 1'b0;
         else if (drop_valid && !drop_ready)
             r_drop_valid_seen <= 1'b1;
         else if (drop_ready)
             r_drop_valid_seen <= 1'b0;
-    end
+    )
+
 
     always @(posedge axi_aclk) begin
         if (r_drop_valid_seen && !drop_valid && !drop_ready) begin

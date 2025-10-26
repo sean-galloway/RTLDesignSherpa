@@ -163,3 +163,8 @@ encoder_priority_enable #(.WIDTH(4)) error_encoder (
 - **Basic Encoder**: Simpler version without enable or true priority
 - **Find Last Set**: Similar MSB-first search functionality
 - **Arbiter**: Often uses priority encoders for grant generation
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

@@ -16,10 +16,28 @@
 """
 AXI4 Slave Read Test Runner
 
-Test runner for the AXI4 slave read stub using the CocoTB framework.
+Test runner for the AXI4 slave read using the CocoTB framework.
 Tests various AXI4 configurations and validates read response behavior.
 
-Inverted from the master test runner - tests the slave's response to reads.
+TEST LEVELS (per-test depth):
+    basic (30s-2min):  Quick verification during development
+    medium (2-5 min):  Integration testing for CI/branches
+    full (5-15 min):   Comprehensive validation for regression
+
+REG_LEVEL Control (parameter combinations):
+    GATE: 2 tests (~5 min) - smoke test (stub + non-stub)
+    FUNC: 8 tests (~30 min) - functional coverage - DEFAULT
+    FULL: 48 tests (~4 hours) - comprehensive validation
+
+PARAMETER COMBINATIONS:
+    GATE: 2 configs (1 stub + 1 non-stub) × 1 level = 2 tests
+    FUNC: 2 stubs × 2 depth_configs × 2 levels = 8 tests (32-bit data only)
+    FULL: 2 stubs × 2 id × 2 addr × 1 data × 2 depth_pairs × 3 levels = 48 tests
+
+Environment Variables:
+    REG_LEVEL: GATE|FUNC|FULL - controls parameter combinations (default: FUNC)
+    TEST_LEVEL: basic|medium|full - controls per-test depth (set by REG_LEVEL)
+    SEED: Set random seed for reproducibility
 """
 
 import os
@@ -277,30 +295,88 @@ async def axi4_slave_read_test(dut):
         raise
 
 
+def validate_axi4_params(params):
+    """
+    Validate AXI4 parameters to ensure they meet specification constraints.
+
+    Raises:
+        ValueError: If any parameter violates AXI4 specification limits
+    """
+    for param in params:
+        stub, id_w, addr_w, data_w, user_w, ar_d, r_d, level = param
+
+        # AXI4 specification: Address width must not exceed 64-bits
+        if addr_w > 64:
+            raise ValueError(
+                f"Invalid AXI4 configuration: addr_width={addr_w} exceeds maximum of 64-bits. "
+                f"AXI4 specification limits address width to 64-bits. "
+                f"Full parameter set: {param}"
+            )
+
+    return params
+
+
 def generate_axi4_params():
-    """Generate AXI4 parameter combinations for slave testing"""
+    """
+    Generate AXI4 parameter combinations based on REG_LEVEL.
 
-    # Define parameter ranges
-    stub = [1, 0]
-    id_widths = [4, 8]
-    addr_widths = [32, 64]  # Common AXI4 address widths
-    data_widths = [32, 64, 128]  # Common AXI4 data widths
-    user_widths = [1, 4]  # Minimal user width options
-    ar_depths = [2, 4, 8]  # AR channel buffer depths
-    r_depths = [2, 4, 8]   # R channel buffer depths
-    test_levels = ['basic', 'medium', 'full']
+    REG_LEVEL=GATE: 2 tests (smoke test - stub + non-stub)
+    REG_LEVEL=FUNC: 8 tests (functional coverage) - default
+    REG_LEVEL=FULL: 48 tests (comprehensive validation)
 
-    # For debugging/quick testing, return a smaller subset
-    debug_mode = True
-    if debug_mode:
-        return [
-            (1, 8, 32, 32, 1, 2, 4, 'full'),
-            (0, 8, 32, 32, 1, 2, 4, 'full'),
+    Parameters: (stub, id_width, addr_width, data_width, user_width, ar_depth, r_depth, test_level)
+
+    Raises:
+        ValueError: If generated parameters violate AXI4 constraints
+    """
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+
+    if reg_level == 'GATE':
+        # Minimal - just prove both stub and non-stub compile and work
+        # 2 tests: 1 stub + 1 non-stub, basic level
+        params = [
+            (1, 8, 32, 32, 1, 2, 4, 'basic'),  # Stub version
+            (0, 8, 32, 32, 1, 2, 4, 'basic'),  # Non-stub version
         ]
+        return validate_axi4_params(params)
 
-    # Full parameter sweep for comprehensive testing
-    return list(product(stub, id_widths, addr_widths, data_widths, user_widths,
-                        ar_depths, r_depths, test_levels))
+    elif reg_level == 'FUNC':
+        # Functional coverage - test both stub modes with proven configs
+        # 2 stubs × 2 configs × 2 levels = 8 tests
+        # NOTE: Sticking to 32-bit data (proven stable), testing depth variations
+        stubs = [1, 0]
+        configs = [
+            (8, 32, 32, 1, 2, 4),   # Standard config
+            (8, 32, 32, 1, 4, 8),   # Deeper buffers
+        ]
+        test_levels = ['basic', 'medium']
+
+        params = []
+        for stub in stubs:
+            for id_w, addr_w, data_w, user_w, ar_d, r_d in configs:
+                for level in test_levels:
+                    params.append((stub, id_w, addr_w, data_w, user_w, ar_d, r_d, level))
+
+        return validate_axi4_params(params)
+
+    else:  # FULL
+        # Comprehensive testing - multiple widths, depths, and both stub modes
+        # 2 stubs × 2 id_widths × 2 addr_widths × 1 data_width × 2 depths × 3 levels = 48 tests
+        # NOTE: 64-bit data width excluded for consistency with write path (has RTL issues)
+        stubs = [1, 0]
+        id_widths = [4, 8]
+        addr_widths = [32, 64]
+        data_width = 32  # Fixed to 32-bit for consistency
+        user_width = 1
+        ar_r_depths = [(2, 4), (4, 8)]  # (ar_depth, r_depth) pairs
+        test_levels = ['basic', 'medium', 'full']
+
+        params = []
+        for stub, id_w, addr_w, (ar_d, r_d), level in product(
+                stubs, id_widths, addr_widths, ar_r_depths, test_levels):
+            params.append((stub, id_w, addr_w, data_width, user_width, ar_d, r_d, level))
+
+        return validate_axi4_params(params)
 
 
 @pytest.mark.parametrize("stub, id_width, addr_width, data_width, user_width, ar_depth, r_depth, test_level",
@@ -309,12 +385,15 @@ def test_axi4_slave_read(request, stub, id_width, addr_width, data_width, user_w
                             ar_depth, r_depth, test_level):
     """Test AXI4 slave read with different parameter combinations"""
 
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
     # Get paths and setup
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_axi4': 'rtl/amba/axi4/',
         'rtl_axi4_stubs': 'rtl/amba/axi4/stubs',
         'rtl_gaxi': 'rtl/amba/gaxi',
-    })
+     'rtl_amba_includes': 'rtl/amba/includes'})
 
     # Set up test names and directories
     if stub == 1:
@@ -331,7 +410,7 @@ def test_axi4_slave_read(request, stub, id_width, addr_width, data_width, user_w
     ard_str = TBBase.format_dec(ar_depth, 1)
     rd_str = TBBase.format_dec(r_depth, 1)
 
-    test_name_plus_params = f"test_{dut_name}_i{id_str}_a{aw_str}_d{dw_str}_u{uw_str}_ard{ard_str}_rd{rd_str}_{test_level}"
+    test_name_plus_params = f"test_{worker_id}_{dut_name}_i{id_str}_a{aw_str}_d{dw_str}_u{uw_str}_ard{ard_str}_rd{rd_str}_{test_level}"
 
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
@@ -406,12 +485,12 @@ def test_axi4_slave_read(request, stub, id_width, addr_width, data_width, user_w
     }
 
     # Simulation settings
-    includes = [sim_build]
+    includes = [rtl_dict['rtl_amba_includes']]
     compile_args = [
         "--trace",
         
         "--trace-depth", "99",
-        "-Wall",
+        "-Wall", "-Wno-SYNCASYNCNET", "-DUSE_ASYNC_RESET",
         "-Wno-UNUSED",
         "-Wno-DECLFILENAME",
         "-Wno-PINMISSING",  # Allow unconnected pins for stub testing

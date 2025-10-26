@@ -242,3 +242,8 @@ find_first_set #(.WIDTH(NUM_RULES)) rule_matcher (
 - **find_last_set**: MSB-first search variant
 - **encoder**: Basic priority encoder
 - **encoder_priority_enable**: Enhanced priority encoder with enable
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

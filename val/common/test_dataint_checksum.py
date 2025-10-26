@@ -14,12 +14,19 @@
 # Created: 2025-10-18
 
 import os
+import sys
 import random
 
 import pytest
 import cocotb
 from cocotb.utils import get_sim_time
 from cocotb_test.simulator import run
+
+
+# Add repo root to path for CocoTBFramework imports
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if os.path.join(repo_root, 'bin') not in sys.path:
+    sys.path.insert(0, os.path.join(repo_root, 'bin'))
 
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
@@ -488,24 +495,50 @@ async def comprehensive_test(dut):
     assert passed, f"Comprehensive test failed at level {tb.TEST_LEVEL}"
 
 
-@pytest.mark.parametrize("params", [
-    # Test with different widths and test levels
-    {'WIDTH': 8, 'test_level': 'basic'},
-    {'WIDTH': 8, 'test_level': 'medium'},
-    {'WIDTH': 8, 'test_level': 'full'},
+def generate_test_params():
+    """
+    Generate test parameter combinations based on REG_LEVEL.
 
-    # Test with different data widths
-    {'WIDTH':  4, 'test_level': 'medium'},
-    {'WIDTH': 16, 'test_level': 'medium'},
-    {'WIDTH': 32, 'test_level': 'medium'},
-])
+    REG_LEVEL=GATE: 2 tests (8-bit, basic+medium)
+    REG_LEVEL=FUNC: 4 tests (varied widths, medium) - default
+    REG_LEVEL=FULL: 6 tests (all combinations)
+
+    Returns:
+        List of dicts with WIDTH and test_level
+    """
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+
+    if reg_level == 'GATE':
+        return [
+            {'WIDTH': 8, 'test_level': 'basic'},
+            {'WIDTH': 8, 'test_level': 'medium'},
+        ]
+    elif reg_level == 'FUNC':
+        return [
+            {'WIDTH':  4, 'test_level': 'medium'},
+            {'WIDTH':  8, 'test_level': 'medium'},
+            {'WIDTH': 16, 'test_level': 'medium'},
+            {'WIDTH': 32, 'test_level': 'medium'},
+        ]
+    else:  # FULL
+        return [
+            {'WIDTH': 8, 'test_level': 'basic'},
+            {'WIDTH': 8, 'test_level': 'medium'},
+            {'WIDTH': 8, 'test_level': 'full'},
+            {'WIDTH':  4, 'test_level': 'medium'},
+            {'WIDTH': 16, 'test_level': 'medium'},
+            {'WIDTH': 32, 'test_level': 'medium'},
+        ]
+
+
+@pytest.mark.parametrize("params", generate_test_params())
 def test_dataint_checksum(request, params): # sourcery skip: no-conditionals-in-tests
     """Run the test with pytest and configurable parameters"""
     # Get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths(
         {
             'rtl_cmn': 'rtl/common'
-    })
+    , 'rtl_amba_includes': 'rtl/amba/includes'})
 
     dut_name = "dataint_checksum"
     toplevel = dut_name
@@ -518,6 +551,12 @@ def test_dataint_checksum(request, params): # sourcery skip: no-conditionals-in-
     t_width = params['WIDTH']
     t_name = params['test_level']
     test_name_plus_params = f"test_{dut_name}_W{t_width}_{t_name}"
+
+    # Handle pytest-xdist parallel execution
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
+
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Use it in the simbuild path
@@ -530,8 +569,7 @@ def test_dataint_checksum(request, params): # sourcery skip: no-conditionals-in-
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes = []
-
+    includes = [rtl_dict['rtl_amba_includes']]
     # RTL parameters
     parameters = {
         'WIDTH': params['WIDTH']

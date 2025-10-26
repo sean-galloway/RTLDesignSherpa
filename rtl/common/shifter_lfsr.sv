@@ -133,6 +133,8 @@
 // +----+--------------+----+-------------+-----+-----------------+-----+-----------------+
 
 // a generic Xor-Shift LFSR
+
+`include "reset_defs.svh"
 module shifter_lfsr #(
     parameter int WIDTH           = 8,   // Width of the LFSR
     parameter int TAP_INDEX_WIDTH = 12,
@@ -151,7 +153,7 @@ module shifter_lfsr #(
     logic [WIDTH-1:0] w_taps;
     logic [WIDTH-1:0] r_lfsr;
     logic w_feedback;
-    logic [TIW-1:0]    w_tap_positions [0:TAP_COUNT-1]; // verilog_lint: waive unpacked-dimensions-range-ordering
+    logic [TIW-1:0]    w_tap_positions [TAP_COUNT]; // verilog_lint: waive unpacked-dimensions-range-ordering
 
     ////////////////////////////////////////////////////////////////////////////
     // Split concatenated tap positions into separate groups for each tap
@@ -175,8 +177,8 @@ module shifter_lfsr #(
     // observe when the lfsr has looped back
     assign lfsr_done = (lfsr_out == seed_data) ? 1'b1 : 1'b0;
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (~rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_lfsr <= 'b0;
         end else begin
             if (enable) begin
@@ -186,7 +188,8 @@ module shifter_lfsr #(
                 end
             end
         end
-    end
+    )
+
 
     assign lfsr_out = r_lfsr;
 

@@ -17,15 +17,34 @@
 Test for the full N-bit subtractor module.
 """
 import os
+import sys
 import random
 import subprocess
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+
+# Add repo root to path for CocoTBFramework imports
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if os.path.join(repo_root, 'bin') not in sys.path:
+    sys.path.insert(0, os.path.join(repo_root, 'bin'))
+
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
 # Import the base SubtractorTB class
 from CocoTBFramework.tbclasses.common.subtractor_testing import SubtractorTB
+
+
+def get_width_params():
+    """Generate width parameters based on REG_LEVEL."""
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+
+    if reg_level == 'GATE':
+        return [4]  # GATE: Minimal - just 4-bit
+    elif reg_level == 'FUNC':
+        return [4, 8]  # FUNC: Small and medium widths
+    else:  # FULL
+        return [4, 8, 16, 32]  # FULL: All widths
 
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
@@ -50,7 +69,7 @@ async def subtractor_test(dut):
     await tb.main_loop()
 
 
-@pytest.mark.parametrize("n", [4, 8, 16, 32])
+@pytest.mark.parametrize("n", get_width_params())
 def test_math_subtractor_full_nbit(request, n):
     """PyTest function to run the cocotb test."""
     # Get all of the directory and module information
@@ -69,8 +88,16 @@ def test_math_subtractor_full_nbit(request, n):
     # Define test parameters
     parameters = {'N': n}
 
+    # Get REG_LEVEL before creating test name
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()  # GATE, FUNC, or FULL
+
     # Create human-readable test identifier
-    test_name_plus_params = f"test_{dut_name}_N{parameters['N']}"
+    test_name_plus_params = f"test_{dut_name}_N{parameters['N']}_{reg_level}"
+
+    # Add worker ID for pytest-xdist parallel execution
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
 
     # Define simulation build and log paths
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)

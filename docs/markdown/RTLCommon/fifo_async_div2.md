@@ -272,10 +272,62 @@ fifo_async_div2 #(.DEPTH(1500)) packet_buffer (...);
 - **Timing closure**: Account for conversion logic delay
 - **Power consumption**: Wider counters consume more power
 
+## WaveDrom Visualization
+
+**High-quality waveforms showcasing Johnson counter CDC mechanism are available!**
+
+Run the WaveDrom test to generate detailed timing diagrams:
+
+```bash
+# Generate Johnson counter waveforms (showcases unique CDC implementation)
+pytest val/common/test_fifo_async_div2_wavedrom.py -v
+```
+
+**Waveform Scenarios Generated:**
+
+1. **Write-Fill-Read-Empty Cycle**
+   - Complete FIFO lifecycle
+   - Johnson counter state progression
+   - Flag transitions (wr_full, rd_empty)
+   - Demonstrates end-to-end operation
+
+2. **Cross-Domain Synchronization** ⭐ **KEY SCENARIO**
+   - Johnson counter transitions (single-bit changes only)
+   - Write pointer sync from wr_clk to rd_clk domain
+   - Read pointer sync from rd_clk to wr_clk domain
+   - CDC latency visualization
+   - **THIS IS THE UNIQUE FEATURE** distinguishing from Gray code
+
+3. **Back-to-Back Operations**
+   - Dual pointer architecture in action
+   - Binary pointers for memory addressing
+   - Johnson pointers for CDC safety
+   - Simultaneous read/write capability
+
+4. **Almost-Full/Almost-Empty Flags**
+   - Flow control signaling
+   - Threshold-based flag assertion
+   - Proactive backpressure indication
+
+**What Makes These Waveforms Special:**
+
+The test specifically highlights the **Johnson counter CDC mechanism** which is the unique differentiator of `fifo_async_div2`:
+
+- **Johnson Counter States**: Shows the one-hot-like rotation pattern
+- **Single-Bit Transitions**: Demonstrates CDC safety (only one bit changes at a time)
+- **Even-Depth Flexibility**: Works with depths like 6, 10, 14 (not just powers of 2)
+- **Dual Pointer System**: Binary for addressing, Johnson for CDC
+
+**Comparison with Standard Async FIFO:**
+
+For comparison, also see:
+- `test_fifo_async_wavedrom.py` - Standard Gray code CDC (power-of-2 depths)
+- `test_fifo_sync_wavedrom.py` - Synchronous FIFO (single clock, no CDC)
+
 ## Error Detection
 Same simulation-based error checking as other FIFO variants:
 - Write-while-full detection
-- Read-while-empty detection  
+- Read-while-empty detection
 - Timing-aware error reporting
 
 ## Related Modules
@@ -283,3 +335,23 @@ Same simulation-based error checking as other FIFO variants:
 - **counter_johnson**: Johnson counter implementation
 - **grayj2bin**: Johnson-to-binary converter
 - **leading_one_trailing_one**: Position detection helper
+
+## Test and Verification
+
+**Comprehensive Test Suite:**
+- `val/common/test_fifo_buffer_async_div2.py` - Full functional verification
+- `val/common/test_fifo_async_div2_wavedrom.py` - WaveDrom timing diagrams ⭐
+
+**Run Tests:**
+```bash
+# Full functional test (basic/medium/full levels)
+pytest val/common/test_fifo_buffer_async_div2.py -v
+
+# WaveDrom waveform generation
+pytest val/common/test_fifo_async_div2_wavedrom.py -v
+```
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

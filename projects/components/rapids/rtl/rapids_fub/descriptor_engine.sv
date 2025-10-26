@@ -17,6 +17,8 @@
 
 // Import common RAPIDS and monitor packages
 `include "rapids_imports.svh"
+`include "reset_defs.svh"
+
 
 module descriptor_engine #(
     parameter int CHANNEL_ID = 0,
@@ -207,13 +209,14 @@ module descriptor_engine #(
     //=========================================================================
 
     // Channel reset active tracking
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_channel_reset_active <= 1'b0;
         end else begin
             r_channel_reset_active <= cfg_channel_reset;
         end
-    end
+    )
+
 
     // Safe to reset conditions (now includes descriptor address FIFO)
     assign w_fifos_empty = !w_apb_skid_valid_out && !w_cda_skid_valid_out &&
@@ -433,13 +436,14 @@ module descriptor_engine #(
     //=========================================================================
 
     // State register
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_current_state <= read_IDLE;
         end else begin
             r_current_state <= w_next_state;
         end
-    end
+    )
+
 
     // Next state logic with channel reset support
     always_comb begin
@@ -497,8 +501,8 @@ module descriptor_engine #(
     // State Machine Registers and Control
     //=========================================================================
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_apb_operation_active <= 1'b0;
             r_cda_operation_active <= 1'b0;
             r_axi_read_active <= 1'b0;
@@ -523,13 +527,13 @@ module descriptor_engine #(
                     end
                     r_descriptor_error <= 1'b0;
                 end
-
+        
                 read_ISSUE_ADDR: begin
                     if (ar_ready) begin
                         r_axi_read_active <= 1'b1;
                     end
                 end
-
+        
                 read_WAIT_DATA: begin
                     if (w_our_axi_response && r_valid) begin
                         r_descriptor_data <= r_data;
@@ -543,31 +547,31 @@ module descriptor_engine #(
                         end
                     end
                 end
-
+        
                 read_COMPLETE: begin
                     if (w_desc_fifo_wr_ready) begin
                         r_apb_operation_active <= 1'b0;
                         r_axi_read_active <= 1'b0;
                     end
                 end
-
+        
                 read_ERROR: begin
                     r_descriptor_error <= 1'b1;
                     r_apb_operation_active <= 1'b0;
                     r_cda_operation_active <= 1'b0;
                     r_axi_read_active <= 1'b0;
                 end
-
+        
                 default: begin
                     // Maintain state
                 end
             endcase
-
+        
             // Handle CDA packet completion
             if (r_cda_operation_active && w_desc_fifo_wr_ready && (r_current_state == read_IDLE)) begin
                 r_cda_operation_active <= 1'b0;
             end
-
+        
             // FIXED: Reset all operations during channel reset
             if (r_channel_reset_active) begin
                 r_apb_operation_active <= 1'b0;
@@ -577,7 +581,8 @@ module descriptor_engine #(
                 r_descriptor_from_apb <= 1'b0;
             end
         end
-    end
+    )
+
 
     //=========================================================================
     // Enhanced Descriptor FIFO Write Data Generation
@@ -630,15 +635,15 @@ module descriptor_engine #(
     // Monitor Packet Generation
     //=========================================================================
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_mon_valid <= 1'b0;
             r_mon_packet <= 64'h0;
         end else begin
             // Default: clear monitor packet
             r_mon_valid <= 1'b0;
             r_mon_packet <= 64'h0;
-
+        
             case (r_current_state)
                 read_COMPLETE: begin
                     // Log successful descriptor fetch
@@ -653,7 +658,7 @@ module descriptor_engine #(
                         r_axi_read_addr[34:0]
                     );
                 end
-
+        
                 read_ERROR: begin
                     // Log descriptor fetch error
                     r_mon_valid <= 1'b1;
@@ -667,13 +672,14 @@ module descriptor_engine #(
                         {16'h0, r_axi_read_resp, 17'h0}
                     );
                 end
-
+        
                 default: begin
                     // No monitor packet
                 end
             endcase
         end
-    end
+    )
+
 
     //=========================================================================
     // Output Assignments

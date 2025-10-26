@@ -261,9 +261,10 @@ module scheduler_group_array #(
 
     // Combined MonBus arrays (9 sources: 8 channels + 1 desc AXI monitor)
     localparam int MONBUS_SOURCES = NUM_CHANNELS + 1;
-    logic [MONBUS_SOURCES-1:0]                   monbus_valid_all;
-    logic [MONBUS_SOURCES-1:0]                   monbus_ready_all;
-    logic [MONBUS_SOURCES-1:0][63:0]             monbus_packet_all;
+    // Use unpacked arrays to match monbus_arbiter port types
+    logic                    monbus_valid_all[MONBUS_SOURCES];
+    logic                    monbus_ready_all[MONBUS_SOURCES];
+    logic [63:0]             monbus_packet_all[MONBUS_SOURCES];
 
     //=========================================================================
     // Scheduler Group Array Instantiation
@@ -589,49 +590,84 @@ module scheduler_group_array #(
         .AXI_ID_WIDTH           (AXI_ID_WIDTH),
         .AXI_ADDR_WIDTH         (ADDR_WIDTH),
         .AXI_DATA_WIDTH         (DATA_WIDTH),
-        .MON_AGENT_ID           (8'(DESC_AXI_MON_AGENT_ID)),
-        .MON_UNIT_ID            (4'(MON_UNIT_ID)),
-        .MON_CHANNEL_ID         (6'h3F)  // 0x3F - Special ID for descriptor AXI master
+        .AXI_USER_WIDTH         (1),
+        .UNIT_ID                (4'(MON_UNIT_ID)),
+        .AGENT_ID               (8'(DESC_AXI_MON_AGENT_ID)),
+        .MAX_TRANSACTIONS       (16),
+        .ENABLE_FILTERING       (1)
     ) u_desc_axi_monitor (
-        .axi_aclk               (clk),
-        .axi_aresetn            (rst_n),
+        .aclk                   (clk),
+        .aresetn                (rst_n),
 
-        // Configuration
-        .cfg_enable             (1'b1),
-        .cfg_protocol_enable    (1'b1),
+        // FUB side (input to monitor) - AR Channel
+        .fub_axi_arid           (desc_axi_int_arid),
+        .fub_axi_araddr         (desc_axi_int_araddr),
+        .fub_axi_arlen          (desc_axi_int_arlen),
+        .fub_axi_arsize         (desc_axi_int_arsize),
+        .fub_axi_arburst        (desc_axi_int_arburst),
+        .fub_axi_arlock         (desc_axi_int_arlock),
+        .fub_axi_arcache        (desc_axi_int_arcache),
+        .fub_axi_arprot         (desc_axi_int_arprot),
+        .fub_axi_arqos          (desc_axi_int_arqos),
+        .fub_axi_arregion       (desc_axi_int_arregion),
+        .fub_axi_aruser         (1'b0),
+        .fub_axi_arvalid        (desc_axi_int_arvalid),
+        .fub_axi_arready        (desc_axi_int_arready),
+
+        // FUB side (input to monitor) - R Channel
+        .fub_axi_rid            (desc_axi_int_rid),
+        .fub_axi_rdata          (desc_axi_int_rdata),
+        .fub_axi_rresp          (desc_axi_int_rresp),
+        .fub_axi_rlast          (desc_axi_int_rlast),
+        .fub_axi_ruser          (1'b0),
+        .fub_axi_rvalid         (desc_axi_int_rvalid),
+        .fub_axi_rready         (desc_axi_int_rready),
+
+        // Master side (output from monitor) - leave floating, observation-only
+        .m_axi_arid             (),
+        .m_axi_araddr           (),
+        .m_axi_arlen            (),
+        .m_axi_arsize           (),
+        .m_axi_arburst          (),
+        .m_axi_arlock           (),
+        .m_axi_arcache          (),
+        .m_axi_arprot           (),
+        .m_axi_arqos            (),
+        .m_axi_arregion         (),
+        .m_axi_aruser           (),
+        .m_axi_arvalid          (),
+        .m_axi_arready          (1'b1),
+        .m_axi_rid              ({AXI_ID_WIDTH{1'b0}}),
+        .m_axi_rdata            ({DATA_WIDTH{1'b0}}),
+        .m_axi_rresp            (2'b00),
+        .m_axi_rlast            (1'b0),
+        .m_axi_ruser            (1'b0),
+        .m_axi_rvalid           (1'b0),
+        .m_axi_rready           (),
+
+        // Monitor Configuration
+        .cfg_monitor_enable     (1'b1),
         .cfg_error_enable       (cfg_daxmon_err_enable),
-        .cfg_compl_enable       (cfg_daxmon_compl_enable),
-        .cfg_perf_enable        (cfg_daxmon_perf_enable),
         .cfg_timeout_enable     (cfg_daxmon_timeout_enable),
-        .cfg_debug_enable       (cfg_daxmon_debug_enable),
-        .cfg_timeout_cycles     (cfg_sched_timeout_cycles),  // Use scheduler timeout
+        .cfg_perf_enable        (cfg_daxmon_perf_enable),
+        .cfg_timeout_cycles     (cfg_sched_timeout_cycles),
+        .cfg_latency_threshold  (32'hFFFFFFFF),
 
-        // AXI AR channel
-        .axi_arvalid            (desc_axi_int_arvalid),
-        .axi_arready            (desc_axi_int_arready),
-        .axi_araddr             (desc_axi_int_araddr),
-        .axi_arlen              (desc_axi_int_arlen),
-        .axi_arsize             (desc_axi_int_arsize),
-        .axi_arburst            (desc_axi_int_arburst),
-        .axi_arid               (desc_axi_int_arid),
-        .axi_arlock             (desc_axi_int_arlock),
-        .axi_arcache            (desc_axi_int_arcache),
-        .axi_arprot             (desc_axi_int_arprot),
-        .axi_arqos              (desc_axi_int_arqos),
-        .axi_arregion           (desc_axi_int_arregion),
-
-        // AXI R channel
-        .axi_rvalid             (desc_axi_int_rvalid),
-        .axi_rready             (desc_axi_int_rready),
-        .axi_rdata              (desc_axi_int_rdata),
-        .axi_rresp              (desc_axi_int_rresp),
-        .axi_rlast              (desc_axi_int_rlast),
-        .axi_rid                (desc_axi_int_rid),
+        // AXI Protocol Filtering Configuration
+        .cfg_axi_pkt_mask       (16'h0000),
+        .cfg_axi_err_select     (16'h0000),
+        .cfg_axi_error_mask     (16'h0000),
+        .cfg_axi_timeout_mask   (16'h0000),
+        .cfg_axi_compl_mask     (16'h0000),
+        .cfg_axi_thresh_mask    (16'h0000),
+        .cfg_axi_perf_mask      (16'h0000),
+        .cfg_axi_addr_mask      (16'h0000),
+        .cfg_axi_debug_mask     (16'h0000),
 
         // Monitor bus
-        .mon_valid              (desc_axi_mon_valid),
-        .mon_ready              (desc_axi_mon_ready),
-        .mon_packet             (desc_axi_mon_packet)
+        .monbus_valid           (desc_axi_mon_valid),
+        .monbus_ready           (desc_axi_mon_ready),
+        .monbus_packet          (desc_axi_mon_packet)
     );
 
     // Connect descriptor AXI internal to external (pass-through after monitor)

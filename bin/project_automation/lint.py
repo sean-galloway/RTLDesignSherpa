@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: Lint
+# Purpose: A class for performing linting and formatting operations on RTL code.
+#
+# Documentation: rtl/common/PRD.md
+# Subsystem: common
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 import os
 import subprocess
 from os import listdir
@@ -140,7 +155,13 @@ class Lint(object):
 
 
     def _run_lint_single(self, dut: str, path_in: str, path_rpt: str, rpt: str):
-        my_command = f'yowasp-yosys -Q -p "read_verilog -sv {path_in}/{dut}; ; proc;"'
+        # Try to find yowasp-yosys in venv first, fall back to PATH
+        yosys_cmd = 'yowasp-yosys'
+        venv_yosys = f'{self.repo_root}/venv/bin/yowasp-yosys'
+        if os.path.exists(venv_yosys):
+            yosys_cmd = venv_yosys
+
+        my_command = f'{yosys_cmd} -Q -p "read_verilog -sv {path_in}/{dut}; ; proc;"'
         rpt = dut.replace('.sv', '.txt')
         output_file = f'{path_rpt}/{rpt}'
 

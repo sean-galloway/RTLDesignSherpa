@@ -28,6 +28,8 @@
  * - Simplified for AXIL4-Lite (lower activity than full AXI4)
  * - Fine-grained power management controls
  */
+
+`include "reset_defs.svh"
 module axil4_slave_wr_mon_cg
     import monitor_pkg::*;
 #(
@@ -222,13 +224,14 @@ module axil4_slave_wr_mon_cg
     // -------------------------------------------------------------------------
     logic [31:0] idle_cycles;
 
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+if (`RST_ASSERTED(aresetn)) begin
             idle_cycles <= '0;
         end else if (cfg_cg_enable && !busy) begin
             idle_cycles <= idle_cycles + 1'b1;
         end
-    end
+    )
+
 
     assign cg_cycles_saved = idle_cycles;
 

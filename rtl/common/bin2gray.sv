@@ -158,6 +158,119 @@
 //   - Minimum Hamming distance = 1 between consecutive codes
 //
 //------------------------------------------------------------------------------
+// FPGA-Specific Synthesis and Implementation Notes:
+//------------------------------------------------------------------------------
+//   **Synthesis on FPGAs:**
+//   - Maps to LUT logic (1 LUT per bit, except MSB passthrough)
+//   - WIDTH=8: 7 LUTs (one XOR per bit 0-6)
+//   - WIDTH=16: 15 LUTs
+//   - No special primitives needed - pure combinational logic
+//   - Xilinx: Implements as LUT1 (XOR function)
+//   - Intel: Implements as adaptive LUT in ALM
+//
+//   **Critical Timing Considerations:**
+//   - This module is combinational - timing depends on where it's used
+//   - **FPGA Best Practice:** Register the Gray code output immediately!
+//
+//   Example (CORRECT for FPGA timing closure):
+//   ```systemverilog
+//   // BAD: Combinational path from counter to CDC synchronizer
+//   bin2gray #(.WIDTH(8)) u_gray (.binary(counter), .gray(gray_code));
+//   sync_2ff #(.WIDTH(8)) u_sync (.d(gray_code), ...);  // Long combo path!
+//
+//   // GOOD: Register Gray code before CDC (breaks long path)
+//   logic [7:0] gray_code, gray_reg;
+//   bin2gray #(.WIDTH(8)) u_gray (.binary(counter), .gray(gray_code));
+//   always_ff @(posedge src_clk) gray_reg <= gray_code;  // Register!
+//   sync_2ff #(.WIDTH(8)) u_sync (.d(gray_reg), ...);    // Clean CDC
+//   ```
+//
+//   **Why Register the Output:**
+//   - Counter logic + bin2gray XORs = long combinational path
+//   - Can cause setup violations on fast clocks (>200 MHz)
+//   - Registering adds 1 cycle latency but ensures timing closure
+//   - Registered output is stable for CDC synchronizers
+//
+//   **Timing Constraints (XDC/SDC):**
+//   ```tcl
+//   # If Gray code crosses domains, set max delay on synchronizer input
+//   set_max_delay -datapath_only \
+//     -from [get_cells gray_reg_reg[*]] \
+//     -to   [get_cells sync_stage0_reg[*]] \
+//     [expr {2 * $clk_period}]
+//
+//   # Optional: Multicycle if Gray code generation is slow
+//   set_multicycle_path 2 -setup \
+//     -from [get_cells counter_reg[*]] \
+//     -to   [get_cells gray_reg_reg[*]]
+//   set_multicycle_path 1 -hold \
+//     -from [get_cells counter_reg[*]] \
+//     -to   [get_cells gray_reg_reg[*]]
+//   ```
+//
+//   **Synthesis Attributes (Optional):**
+//   - Generally not needed - logic is simple enough
+//   - If synthesis tool warns about optimization:
+//   ```systemverilog
+//   (* keep = "true" *) wire [WIDTH-1:0] gray;  // Xilinx: prevent optimization
+//   (* preserve *) wire [WIDTH-1:0] gray;       // Intel: preserve logic
+//   ```
+//
+//   **FIFO Pointer Synchronization (Most Common Use):**
+//   - Async FIFOs use Gray-coded pointers for CDC
+//   - Typical flow:
+//     1. Binary pointer increments in write clock domain
+//     2. bin2gray converts to Gray (this module)
+//     3. Gray code registered in source domain
+//     4. Gray code synchronized to destination domain (2-FF sync)
+//     5. gray2bin converts back to binary
+//   - **Critical:** Gray code must be stable before synchronization!
+//   - Always register Gray output before sending across domains
+//
+//   **Verification on FPGA:**
+//   - Use ILA (Xilinx) or SignalTap (Intel) to capture:
+//     * Binary input
+//     * Gray output
+//     * Verify single-bit changes
+//   - Check for glitches on Gray code signals (should be clean)
+//   - Verify timing closure in implementation reports
+//
+//   **Common FPGA Mistakes:**
+//   1. ❌ Not registering Gray output before CDC
+//      → Timing violations, metastability risk
+//   2. ❌ Using Gray code for arithmetic operations
+//      → Must convert back to binary first!
+//   3. ❌ Assuming Gray code is "free" timing-wise
+//      → XOR delays add up, especially for wide buses
+//   4. ❌ Not pairing with gray2bin after synchronization
+//      → Destination gets garbage values
+//
+//   **When to Use Vendor IP Instead:**
+//   - For async FIFOs: Consider Xilinx FIFO Generator or Intel DCFIFO
+//   - Vendor IP includes:
+//     * Built-in Gray code conversion
+//     * Optimized pointer management
+//     * Status flag generation
+//     * Better timing closure
+//   - Use custom bin2gray when:
+//     * Building educational/portable design
+//     * Need fine control over CDC methodology
+//     * Vendor IP doesn't fit requirements
+//
+//   **Resource Usage (Typical FPGA):**
+//   - WIDTH=4:  3 LUTs (minimal)
+//   - WIDTH=8:  7 LUTs
+//   - WIDTH=16: 15 LUTs
+//   - WIDTH=32: 31 LUTs
+//   - No registers consumed (combinational only)
+//   - Negligible power impact
+//
+//   **Performance:**
+//   - Propagation delay: ~0.2-0.5 ns on modern FPGAs (one LUT level)
+//   - Not on critical path if output is registered
+//   - Scales linearly with WIDTH (one XOR per bit)
+//
+//------------------------------------------------------------------------------
 // Related Modules:
 //------------------------------------------------------------------------------
 //   - gray2bin.sv - Gray to binary converter (reverse operation)

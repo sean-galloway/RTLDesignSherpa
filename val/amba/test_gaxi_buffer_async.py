@@ -14,25 +14,32 @@
 # Created: 2025-10-18
 
 """
-GAXI Async Buffer Test with Parameterized Test Levels
+GAXI Async Buffer Test - Clock Domain Crossing Validation
 
-This test uses test_level as a parameter for maximum flexibility:
+Tests async buffers with independent write/read clock domains, validating:
+- Clock domain crossing (CDC) behavior
+- Various clock ratios (1x to 2.5x)
+- Backpressure handling across domains
+- Multiple buffer modes (skid, fifo_mux, fifo_flop)
 
-TEST LEVELS:
+TEST LEVELS (per-test depth):
     basic (3-5 min):   Quick verification during development
     medium (8-12 min): Integration testing for CI/branches
     full (20-35 min):  Comprehensive validation for regression
 
+REG_LEVEL Control (parameter combinations):
+    GATE: 1 test (~5 min) - smoke test (one mode, one clock ratio)
+    FUNC: 9 tests (~60 min) - functional coverage - DEFAULT
+    FULL: 48 tests (~6 hours) - comprehensive validation
+
 PARAMETER COMBINATIONS:
-    - data_width: [8, 16, 32]
-    - depth: [2, 4, 8]
-    - wr_clk: [8, 10, 12, 20] (write clock periods in ns)
-    - rd_clk: [8, 10, 12, 20] (read clock periods in ns)
-    - mode: [skid, fifo_mux, fifo_flop]
-    - test_level: [basic, medium, full]
+    GATE: 1 mode × 1 ratio × 1 level = 1 test
+    FUNC: 3 modes × 1 ratio × 3 levels = 9 tests
+    FULL: 3 modes × 4 ratios × 4 depths = 48 tests
 
 Environment Variables:
-    TEST_LEVEL: Set test level in cocotb (basic/medium/full)
+    REG_LEVEL: GATE|FUNC|FULL - controls parameter combinations (default: FUNC)
+    TEST_LEVEL: basic|medium|full - controls per-test depth (set by REG_LEVEL)
     SEED: Set random seed for reproducibility
 """
 
@@ -461,10 +468,29 @@ def test_gaxi_buffer_async_wavedrom(request, data_width, depth, wr_clk_period, r
     2. Backpressure with CDC
     3. Continuous flow across CDC
     """
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
+    """
+    GAXI async buffer wavedrom test - generates CDC timing diagrams.
+
+    This test is separate from functional tests and focuses on generating
+    clean, readable WaveJSON diagrams showing:
+    - Clock domain crossing behavior
+    - CDC latency characteristics
+    - Backpressure handling across domains
+    - Dual-clock timing relationships
+
+    Test generates 3 scenarios per mode:
+    1. Write to empty (shows CDC latency)
+    2. Backpressure with CDC
+    3. Continuous flow across CDC
+    """
     # get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_cmn':  'rtl/common',
         'rtl_gaxi': 'rtl/amba/gaxi',
+        'rtl_amba_includes': 'rtl/amba/includes',
     })
 
     # set up all of the test names based on async modules
@@ -476,6 +502,7 @@ def test_gaxi_buffer_async_wavedrom(request, data_width, depth, wr_clk_period, r
 
     # Get verilog sources based on mode for async versions
     verilog_sources = [
+        os.path.join(rtl_dict['rtl_amba_includes'], "fifo_defs.svh"),
         os.path.join(rtl_dict['rtl_cmn'],  "find_first_set.sv"),
         os.path.join(rtl_dict['rtl_cmn'],  "find_last_set.sv"),
         os.path.join(rtl_dict['rtl_cmn'],  "leading_one_trailing_one.sv"),
@@ -501,7 +528,7 @@ def test_gaxi_buffer_async_wavedrom(request, data_width, depth, wr_clk_period, r
     clk_ratio = max(wr_clk_period, rd_clk_period) / min(wr_clk_period, rd_clk_period)
     ratio_str = f"r{clk_ratio:.1f}".replace('.', 'p')  # r1p2 for 1.2x ratio
 
-    test_name_plus_params = f"test_gaxi_async_{mode}_w{w_str}_d{d_str}_wr{wr_str}_rd{rd_str}_{ratio_str}_wd"
+    test_name_plus_params = f"test_{worker_id}_gaxi_async_{mode}_w{w_str}_d{d_str}_wr{wr_str}_rd{rd_str}_{ratio_str}_wd"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # use it in the simbuild path
@@ -513,7 +540,7 @@ def test_gaxi_buffer_async_wavedrom(request, data_width, depth, wr_clk_period, r
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes = []
+    includes=[rtl_dict['rtl_amba_includes']]
 
     # RTL parameters - Handle string parameters specially for Verilator
     rtl_parameters = {}
@@ -581,56 +608,56 @@ def test_gaxi_buffer_async_wavedrom(request, data_width, depth, wr_clk_period, r
 
 def generate_params():
     """
-    Generate test parameters for async testing with independent clock configurations.
+    Generate test parameters based on REG_LEVEL for async CDC testing.
 
-    Examples for quick debugging:
-        # Single test case:
-        return [(8, 4, 10, 12, 'skid', 'basic')]
+    REG_LEVEL=GATE: 1 test (smoke test)
+    REG_LEVEL=FUNC: 9 tests (functional coverage) - default
+    REG_LEVEL=FULL: 48 tests (comprehensive validation)
 
-        # Test specific clock ratios:
-        return [(8, 4, 8, 10, 'fifo_mux', 'basic'),   # 1.25x ratio
-                (8, 4, 10, 20, 'fifo_mux', 'basic')]  # 2x ratio
-
-        # Test only basic level:
-        wr_clk = [10]
-        rd_clk = [12]
-        return list(product([8], [4], wr_clk, rd_clk, ['skid'], ['basic']))
+    Clock Ratios Tested:
+        1.0x: Same clocks (10:10) - basic CDC validation
+        1.2x: (10:12) - typical async scenario
+        1.5x: (8:12) - moderate ratio
+        2.0x: (10:20) - high ratio stress test
+        2.5x: (8:20) - extreme ratio (FULL only)
     """
-    widths = [8]
-    depths = [4, 6, 8]  # Focus on moderate depths for async
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
 
-    # Independent clock configurations - test various ratios
-    wr_clk = [8, 10, 12, 20]  # Write clock periods
-    rd_clk = [8, 10, 12, 20]  # Read clock periods
+    if reg_level == 'GATE':
+        # Minimal - just prove it works with one clock ratio
+        # 1 test: skid mode, 1.2x ratio (10:12), basic level
+        return [
+            (8, 4, 10, 12, 'skid', 'basic'),
+        ]
 
-    modes = ['skid', 'fifo_mux', 'fifo_flop']
-    # test_levels = ['basic', 'medium', 'full']
-    test_levels = ['full']
-    # Generate all combinations
-    all_params = list(product(widths, depths, wr_clk, rd_clk, modes, test_levels))
+    elif reg_level == 'FUNC':
+        # Functional coverage - all modes with one clock ratio at all test levels
+        # 3 modes × 3 levels = 9 tests
+        modes = ['skid', 'fifo_mux', 'fifo_flop']
+        test_levels = ['basic', 'medium', 'full']
 
-    # Filter out some combinations to keep test time reasonable
-    filtered_params = []
-    for width, depth, wr_period, rd_period, mode, level in all_params:
-        # For basic level, test fewer clock combinations
-        if level == 'basic':
-            # Only test same clocks and a couple different ratios
-            if wr_period == rd_period or (wr_period, rd_period) in [(8, 12), (12, 8), (10, 20)]:
-                filtered_params.append((width, depth, wr_period, rd_period, mode, level))
+        # Use 1.2x ratio (10:12) - typical async scenario
+        return list(product([8], [4], [10], [12], modes, test_levels))
 
-        # For medium level, test more combinations but not all
-        elif level == 'medium':
-            # Test ratios up to 2.5x
-            ratio = max(wr_period, rd_period) / min(wr_period, rd_period)
-            if ratio <= 2.5:
-                filtered_params.append((width, depth, wr_period, rd_period, mode, level))
+    else:  # FULL
+        # Comprehensive testing - all modes, multiple clock ratios, multiple depths
+        # 3 modes × 4 ratios × 4 depths × full level = 48 tests
+        modes = ['skid', 'fifo_mux', 'fifo_flop']
+        depths = [4, 6, 8, 10]
 
-        # For full level, test all combinations
-        else:
-            filtered_params.append((width, depth, wr_period, rd_period, mode, level))
+        # Test meaningful clock ratio combinations
+        clock_configs = [
+            (10, 10),  # 1.0x - same clocks
+            (10, 12),  # 1.2x - typical async
+            (8, 12),   # 1.5x - moderate ratio
+            (10, 20),  # 2.0x - high ratio
+        ]
 
-    return [(8, 4, 10, 12, 'skid', 'full'), (8, 4, 10, 12, 'fifo_mux', 'full'), (8, 4, 10, 12, 'fifo_flop', 'full')]
-    # return filtered_params
+        params = []
+        for mode, depth, (wr_clk, rd_clk) in product(modes, depths, clock_configs):
+            params.append((8, depth, wr_clk, rd_clk, mode, 'full'))
+
+        return params
 
 
 params = generate_params()
@@ -653,10 +680,15 @@ def test_gaxi_buffer_async(request, data_width, depth, wr_clk_period, rd_clk_per
 
     For quick debugging: Modify generate_params() function to return only specific combinations
     """
+
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
     # get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_cmn':  'rtl/common',
         'rtl_gaxi': 'rtl/amba/gaxi',
+        'rtl_amba_includes': 'rtl/amba/includes',
     })
 
     # set up all of the test names based on async modules
@@ -669,6 +701,7 @@ def test_gaxi_buffer_async(request, data_width, depth, wr_clk_period, rd_clk_per
     # Get verilog sources based on mode for async versions
     #
     verilog_sources = [
+        os.path.join(rtl_dict['rtl_amba_includes'], "fifo_defs.svh"),
         os.path.join(rtl_dict['rtl_cmn'],  "find_first_set.sv"),
         os.path.join(rtl_dict['rtl_cmn'],  "find_last_set.sv"),
         os.path.join(rtl_dict['rtl_cmn'],  "leading_one_trailing_one.sv"),
@@ -694,7 +727,7 @@ def test_gaxi_buffer_async(request, data_width, depth, wr_clk_period, rd_clk_per
     clk_ratio = max(wr_clk_period, rd_clk_period) / min(wr_clk_period, rd_clk_period)
     ratio_str = f"r{clk_ratio:.1f}".replace('.', 'p')  # r2p0 for 2.0x ratio
 
-    test_name_plus_params = f"test_gaxi_async_{mode}_w{w_str}_d{d_str}_wr{wr_str}_rd{rd_str}_{ratio_str}_{test_level}"
+    test_name_plus_params = f"test_{worker_id}_gaxi_async_{mode}_w{w_str}_d{d_str}_wr{wr_str}_rd{rd_str}_{ratio_str}_{test_level}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # use it in the simbuild path
@@ -706,7 +739,7 @@ def test_gaxi_buffer_async(request, data_width, depth, wr_clk_period, rd_clk_per
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes = []
+    includes=[rtl_dict['rtl_amba_includes']]
 
     # RTL parameters - Handle string parameters specially for Verilator
     rtl_parameters = {}

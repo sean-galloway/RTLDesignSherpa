@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: WeightedRoundRobinTB
+# Purpose: Proper Weighted Round Robin Testbench with Clean Weight Testing Methodology
+#
+# Documentation: bin/CocoTBFramework/README.md
+# Subsystem: framework
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """
 Proper Weighted Round Robin Testbench with Clean Weight Testing Methodology
 Follows the correct process: idle -> set weights -> enable all -> run -> disable -> validate

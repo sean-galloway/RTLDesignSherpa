@@ -1,0 +1,3 @@
+✓ RTL Common lint passed
+
+All 90 files passed lint checks

@@ -463,3 +463,8 @@ ring_out <= 'b1;      // Correct - sized automatically
 - `counter_bingray`: Binary/Gray counter for different applications
 - Standard shift register implementations
 - One-hot state machines
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

@@ -11,7 +11,7 @@ $REPO_ROOT/rtl/amba/includes/monitor_pkg.sv
 $REPO_ROOT/projects/components/rapids/rtl/includes/rapids_pkg.sv
 
 # Monitor bus arbiter
-$REPO_ROOT/rtl/amba/components/monbus_arbiter.sv
+$REPO_ROOT/rtl/amba/shared/monbus_arbiter.sv
 
 # GAXI FIFO (used for error and write FIFOs)
 $REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv

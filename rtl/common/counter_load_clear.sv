@@ -189,6 +189,8 @@
 //
 //==============================================================================
 
+`include "reset_defs.svh"
+
 module counter_load_clear #(
     parameter int MAX = 32'd32  // Maximum count value (determines width)
 ) (
@@ -205,15 +207,15 @@ module counter_load_clear #(
     logic [$clog2(MAX)-1:0] r_match_val;
 
     // Main counter register and match value update
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             count <= 'b0;
             r_match_val <= 'b0;
         end else begin
             // Load match value (independent of counting)
             if (load)
                 r_match_val <= loadval;
-
+        
             // Count logic with priority: clear > increment
             if (clear) begin
                 count <= 'b0;
@@ -222,7 +224,8 @@ module counter_load_clear #(
             end
             // Else: hold current count
         end
-    end
+    )
+
 
     // Done flag (combinational)
     assign done = (count == r_match_val);

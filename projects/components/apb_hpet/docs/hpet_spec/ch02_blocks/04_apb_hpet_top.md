@@ -4,6 +4,12 @@
 
 The `apb_hpet` module is the top-level system integration point that combines APB slave interface, configuration registers, and timer core into a complete HPET peripheral. It provides parameterized clock domain crossing (CDC) support and exposes a unified external interface.
 
+**Top-Level Block Diagram:**
+
+![APB HPET Top-Level Block Diagram](../assets/png/apb_hpet.png)
+
+*Figure: APB HPET top-level integration showing dual clock domains (PCLK and HPET_CLK), optional CDC, configuration registers, HPET core, and interrupt outputs. [Source: assets/graphviz/apb_hpet.gv](../assets/graphviz/apb_hpet.gv) | [SVG](../assets/svg/apb_hpet.svg)*
+
 **Key Integration Features:**
 - Conditional APB slave instantiation (CDC or non-CDC)
 - Clock domain management

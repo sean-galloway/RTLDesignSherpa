@@ -287,3 +287,8 @@ endgroup
 - `counter`: Basic counter without wrap behavior
 - `counter_load_clear`: Loadable counter with different wrap behavior
 - Standard FIFO controllers that use this addressing scheme
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

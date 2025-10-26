@@ -17,11 +17,18 @@
 Test for the full adder module.
 """
 import os
+import sys
 import random
 import subprocess
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+
+# Add repo root to path for CocoTBFramework imports
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if os.path.join(repo_root, 'bin') not in sys.path:
+    sys.path.insert(0, os.path.join(repo_root, 'bin'))
+
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
 # Import the base AdderTB class
@@ -68,8 +75,16 @@ def test_math_adder_full(request):
     # Define test parameters
     parameters = {'N': 1}
 
+    # Get REG_LEVEL before creating test name
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()  # GATE, FUNC, or FULL
+
     # Create human-readable test identifier
-    test_name_plus_params = f"test_{dut_name}_N{parameters['N']}"
+    test_name_plus_params = f"test_{dut_name}_N{parameters['N']}_{reg_level}"
+
+    # Add worker ID for pytest-xdist parallel execution
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
 
     # Define simulation build and log paths
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)

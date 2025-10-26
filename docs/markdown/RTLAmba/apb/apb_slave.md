@@ -583,3 +583,10 @@ apb_slave_cdc #(
 - **apb_xbar**: APB crossbar for multi-slave systems
 
 The `apb_slave` module provides a complete, high-performance solution for APB slave functionality with advanced buffering, full protocol compliance, and flexible backend integration capabilities.
+
+---
+
+## Navigation
+
+- **[← Back to RTLAmba Index](../index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

@@ -277,3 +277,8 @@ binary_out <= converted_value;
 - **counter_bingray**: Combined binary/Gray counter
 - **fifo_async**: Uses Gray codes for CDC
 - **grayj2bin**: Johnson counter to binary converter (different algorithm)
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

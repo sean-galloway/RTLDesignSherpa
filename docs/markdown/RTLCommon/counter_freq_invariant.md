@@ -457,3 +457,8 @@ counter_freq_invariant power_timer (
 2. **Logic Analyzer**: Capture actual tick timing in hardware
 3. **Frequency Counter**: Measure actual output frequency
 4. **Reset Analysis**: Check reset propagation and synchronization
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

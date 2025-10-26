@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: SignalResolver
+# Purpose: Simplified GAXI/FIFO Signal Mapping - Pattern Matching Against Top-Level Ports
+#
+# Documentation: bin/CocoTBFramework/README.md
+# Subsystem: framework
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """
 Simplified GAXI/FIFO Signal Mapping - Pattern Matching Against Top-Level Ports
 
@@ -42,6 +57,16 @@ AXI4_BASE_PATTERNS = {
         '{prefix}{pkt_prefix}arready',
         '{prefix}axi_arready',
     ],
+    # AR Channel packet patterns (for stub packed mode)
+    # Note: AR has NO data field, only address/control fields packed into ar_pkt
+    'ar_pkt_base': [
+        '{prefix}_ar_pkt',          # Matches fub_axi_ar_pkt
+        '{prefix}ar_pkt',
+        '{prefix}{bus_name}_ar_pkt',
+        '{prefix}{bus_name}ar_pkt',
+        '{prefix}{pkt_prefix}_pkt',
+        '{prefix}{pkt_prefix}pkt',
+    ],
 
     # R Channel (Read Data) - Slave drives rvalid, Master drives rready
     'r_valid_base': [
@@ -70,6 +95,17 @@ AXI4_BASE_PATTERNS = {
         '{prefix}{pkt_prefix}data',
         '{prefix}axi_rdata',
     ],
+    # R Channel packet patterns (for stub packed mode)
+    'r_pkt_base': [
+        '{prefix}_r_pkt',           # Matches fub_axi_r_pkt
+        '{prefix}r_pkt',
+        '{prefix}_rdata',
+        '{prefix}rdata',
+        '{prefix}{bus_name}_r_pkt',
+        '{prefix}{bus_name}r_pkt',
+        '{prefix}{pkt_prefix}_pkt',
+        '{prefix}{pkt_prefix}pkt',
+    ],
 
     # AW Channel (Address Write) - Master drives awvalid, Slave drives awready
     'aw_valid_base': [
@@ -89,6 +125,16 @@ AXI4_BASE_PATTERNS = {
         '{prefix}{pkt_prefix}ready',       # Covers aw_ready when pkt_prefix="aw_"
         '{prefix}{pkt_prefix}awready',
         '{prefix}axi_awready',
+    ],
+    # AW Channel packet patterns (for stub packed mode)
+    # Note: AW has NO data field, only address/control fields packed into aw_pkt
+    'aw_pkt_base': [
+        '{prefix}_aw_pkt',          # Matches fub_axi_aw_pkt
+        '{prefix}aw_pkt',
+        '{prefix}{bus_name}_aw_pkt',
+        '{prefix}{bus_name}aw_pkt',
+        '{prefix}{pkt_prefix}_pkt',
+        '{prefix}{pkt_prefix}pkt',
     ],
 
     # W Channel (Write Data) - Master drives wvalid, Slave drives wready
@@ -118,6 +164,18 @@ AXI4_BASE_PATTERNS = {
         '{prefix}{pkt_prefix}data',
         '{prefix}axi_wdata',
     ],
+    # W Channel packet patterns (for stub packed mode)
+    # Note: W channel DOES have data field, along with strobe/last packed into w_pkt
+    'w_pkt_base': [
+        '{prefix}_w_pkt',           # Matches fub_axi_w_pkt
+        '{prefix}w_pkt',
+        '{prefix}_wdata',           # Alternative: some designs use wdata for packed W
+        '{prefix}wdata',
+        '{prefix}{bus_name}_w_pkt',
+        '{prefix}{bus_name}w_pkt',
+        '{prefix}{pkt_prefix}_pkt',
+        '{prefix}{pkt_prefix}pkt',
+    ],
 
     # B Channel (Write Response) - Slave drives bvalid, Master drives bready
     'b_valid_base': [
@@ -137,6 +195,16 @@ AXI4_BASE_PATTERNS = {
         '{prefix}{pkt_prefix}ready',       # Covers b_ready when pkt_prefix="b_"
         '{prefix}{pkt_prefix}bready',
         '{prefix}axi_bready',
+    ],
+    # B Channel packet patterns (for stub packed mode)
+    # Note: B has NO data field, only response fields (bresp, bid) packed into b_pkt
+    'b_pkt_base': [
+        '{prefix}_b_pkt',           # Matches fub_axi_b_pkt
+        '{prefix}b_pkt',
+        '{prefix}{bus_name}_b_pkt',
+        '{prefix}{bus_name}b_pkt',
+        '{prefix}{pkt_prefix}_pkt',
+        '{prefix}{pkt_prefix}pkt',
     ],
 
     # Field patterns for multi-signal mode
@@ -427,7 +495,18 @@ PROTOCOL_SIGNAL_CONFIGS = {
             'i_ready':    AXI4_BASE_PATTERNS['ar_ready_base']   # Master reads arready
         },
         'optional_signal_map': {
-            'multi_sig_false': [],  # AR doesn't have data
+            'multi_sig_false': AXI4_BASE_PATTERNS['ar_pkt_base'],  # Packed AR packet for stubs
+            'multi_sig_true':  AXI4_BASE_PATTERNS['ar_field_base']
+        }
+    },
+
+    'axi4_ar_slave': {
+        'signal_map': {
+            'i_valid':    AXI4_BASE_PATTERNS['ar_valid_base'],  # Slave reads arvalid
+            'o_ready':    AXI4_BASE_PATTERNS['ar_ready_base']   # Slave drives arready
+        },
+        'optional_signal_map': {
+            'multi_sig_false': AXI4_BASE_PATTERNS['ar_pkt_base'],  # Packed AR packet for stubs
             'multi_sig_true':  AXI4_BASE_PATTERNS['ar_field_base']
         }
     },
@@ -438,7 +517,18 @@ PROTOCOL_SIGNAL_CONFIGS = {
             'o_ready':    AXI4_BASE_PATTERNS['r_ready_base']   # Slave drives rready
         },
         'optional_signal_map': {
-            'multi_sig_false': AXI4_BASE_PATTERNS['r_data_base'],
+            'multi_sig_false': AXI4_BASE_PATTERNS['r_pkt_base'],  # Packed R packet for stubs
+            'multi_sig_true':  AXI4_BASE_PATTERNS['r_field_base']
+        }
+    },
+
+    'axi4_r_master': {
+        'signal_map': {
+            'o_valid':    AXI4_BASE_PATTERNS['r_valid_base'],  # Master drives rvalid
+            'i_ready':    AXI4_BASE_PATTERNS['r_ready_base']   # Master reads rready
+        },
+        'optional_signal_map': {
+            'multi_sig_false': AXI4_BASE_PATTERNS['r_pkt_base'],  # Packed R packet for stubs
             'multi_sig_true':  AXI4_BASE_PATTERNS['r_field_base']
         }
     },
@@ -449,7 +539,18 @@ PROTOCOL_SIGNAL_CONFIGS = {
             'i_ready':    AXI4_BASE_PATTERNS['aw_ready_base']   # Master reads awready
         },
         'optional_signal_map': {
-            'multi_sig_false': [],  # AW doesn't have data
+            'multi_sig_false': AXI4_BASE_PATTERNS['aw_pkt_base'],  # Packed AW packet for stubs
+            'multi_sig_true':  AXI4_BASE_PATTERNS['aw_field_base']
+        }
+    },
+
+    'axi4_aw_slave': {
+        'signal_map': {
+            'i_valid':    AXI4_BASE_PATTERNS['aw_valid_base'],  # Slave reads awvalid
+            'o_ready':    AXI4_BASE_PATTERNS['aw_ready_base']   # Slave drives awready
+        },
+        'optional_signal_map': {
+            'multi_sig_false': AXI4_BASE_PATTERNS['aw_pkt_base'],  # Packed AW packet for stubs
             'multi_sig_true':  AXI4_BASE_PATTERNS['aw_field_base']
         }
     },
@@ -460,7 +561,18 @@ PROTOCOL_SIGNAL_CONFIGS = {
             'i_ready':    AXI4_BASE_PATTERNS['w_ready_base']   # Master reads wready
         },
         'optional_signal_map': {
-            'multi_sig_false': AXI4_BASE_PATTERNS['w_data_base'],
+            'multi_sig_false': AXI4_BASE_PATTERNS['w_pkt_base'],  # Packed W packet for stubs
+            'multi_sig_true':  AXI4_BASE_PATTERNS['w_field_base']
+        }
+    },
+
+    'axi4_w_slave': {
+        'signal_map': {
+            'i_valid':    AXI4_BASE_PATTERNS['w_valid_base'],  # Slave reads wvalid
+            'o_ready':    AXI4_BASE_PATTERNS['w_ready_base']   # Slave drives wready
+        },
+        'optional_signal_map': {
+            'multi_sig_false': AXI4_BASE_PATTERNS['w_pkt_base'],  # Packed W packet for stubs
             'multi_sig_true':  AXI4_BASE_PATTERNS['w_field_base']
         }
     },
@@ -471,7 +583,18 @@ PROTOCOL_SIGNAL_CONFIGS = {
             'o_ready':    AXI4_BASE_PATTERNS['b_ready_base']   # Slave drives bready
         },
         'optional_signal_map': {
-            'multi_sig_false': [],  # B doesn't have data (just resp)
+            'multi_sig_false': AXI4_BASE_PATTERNS['b_pkt_base'],  # Packed B packet for stubs
+            'multi_sig_true':  AXI4_BASE_PATTERNS['b_field_base']
+        }
+    },
+
+    'axi4_b_master': {
+        'signal_map': {
+            'o_valid':    AXI4_BASE_PATTERNS['b_valid_base'],  # Master drives bvalid
+            'i_ready':    AXI4_BASE_PATTERNS['b_ready_base']   # Master reads bready
+        },
+        'optional_signal_map': {
+            'multi_sig_false': AXI4_BASE_PATTERNS['b_pkt_base'],  # Packed B packet for stubs
             'multi_sig_true':  AXI4_BASE_PATTERNS['b_field_base']
         }
     },
@@ -1106,6 +1229,15 @@ class SignalResolver:
                     signal_obj = self._find_signal_match('data_sig', patterns, required=False)
                     self.resolved_signals['data_sig'] = signal_obj
                 elif self.protocol_type in ['gaxi_master', 'gaxi_slave', 'gaxi_wavedrom']:
+                    signal_obj = self._find_signal_match('data_sig', patterns, required=False)
+                    self.resolved_signals['data_sig'] = signal_obj
+                elif self.protocol_type in ['axi4_ar_master', 'axi4_ar_slave',
+                                           'axi4_aw_master', 'axi4_aw_slave',
+                                           'axi4_r_master', 'axi4_r_slave',
+                                           'axi4_w_master', 'axi4_w_slave',
+                                           'axi4_b_master', 'axi4_b_slave']:
+                    # AXI4 channel protocols use packed signals in stub mode
+                    # Each channel has its own packet signal: ar_pkt, r_pkt, aw_pkt, w_pkt, b_pkt
                     signal_obj = self._find_signal_match('data_sig', patterns, required=False)
                     self.resolved_signals['data_sig'] = signal_obj
                 elif self.protocol_type == 'fifo_master':

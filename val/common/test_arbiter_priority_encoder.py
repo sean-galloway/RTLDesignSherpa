@@ -27,13 +27,25 @@ Test Configurations:
 - clients=5: Generic loop-based implementation
 - clients=12: Generic loop-based implementation
 
+REG_LEVEL Control:
+    GATE: 2 tests (~3 min) - smoke test (4 optimized, 5 generic)
+    FUNC: 6 tests (~10 min) - functional coverage - DEFAULT
+    FULL: 6 tests (~10 min) - same as FUNC (no depth parameter)
+
 Author: RTL Design Sherpa Project
 """
 
 import os
+import sys
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+
+
+# Add repo root to path for CocoTBFramework imports
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if os.path.join(repo_root, 'bin') not in sys.path:
+    sys.path.insert(0, os.path.join(repo_root, 'bin'))
 
 from CocoTBFramework.tbclasses.arbiter_priority_encoder_tb import ArbiterPriorityEncoderTB
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
@@ -58,8 +70,20 @@ async def cocotb_arbiter_priority_encoder_test(dut):
 # ===========================================================================
 
 def generate_test_params():
-    """Generate test parameter combinations"""
-    return [
+    """
+    Generate test parameter combinations based on REG_LEVEL.
+
+    REG_LEVEL=GATE: 2 tests (4 optimized, 5 generic)
+    REG_LEVEL=FUNC: 6 tests (all configurations) - default
+    REG_LEVEL=FULL: 6 tests (same as FUNC)
+
+    Returns:
+        List of tuples: (clients, test_mode)
+    """
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+
+    # All available configurations
+    all_configs = [
         # (CLIENTS, test_mode)
         (4, 'optimized'),    # Optimized unrolled casez
         (8, 'optimized'),    # Optimized unrolled casez
@@ -68,6 +92,14 @@ def generate_test_params():
         (5, 'generic'),      # Generic loop-based
         (12, 'generic'),     # Generic loop-based
     ]
+
+    if reg_level == 'GATE':
+        # Quick smoke test: one optimized + one generic
+        return [all_configs[0], all_configs[4]]  # 4 optimized, 5 generic
+
+    else:  # FUNC or FULL (same for this test)
+        # Full coverage: all configurations
+        return all_configs
 
 
 # ===========================================================================

@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: PacketFactory
+# Purpose: Generic Packet Factory - Works across all protocols (GAXI, FIFO, APB, etc.)
+#
+# Documentation: bin/CocoTBFramework/README.md
+# Subsystem: framework
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """Generic Packet Factory - Works across all protocols (GAXI, FIFO, APB, etc.)"""
 from typing import Type, Optional, Dict, Any, Union, List, Callable
 from .packet import Packet

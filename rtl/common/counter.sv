@@ -15,6 +15,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module counter #(
     parameter int MAX = 32767
 ) (
@@ -25,8 +27,8 @@ module counter #(
 
     logic [$clog2(MAX+1)-1:0] r_count;
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_count <= '0;
         end else begin
             if (r_count == MAX[$clog2(MAX+1)-1:0]) begin
@@ -35,7 +37,8 @@ module counter #(
                 r_count <= r_count + 1'b1;
             end
         end
-    end
+    )
+
 
     assign tick = (r_count == MAX[$clog2(MAX+1)-1:0]);
 

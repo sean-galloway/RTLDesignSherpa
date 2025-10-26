@@ -125,3 +125,8 @@ encoder #(.N(16)) grant_encoder (
 - **For-loop order**: Creates LSB-to-MSB priority (higher index wins)
 - **Default assignment**: Ensures output has known value for all inputs
 - **Type casting**: `$clog2(N)'(i)` ensures proper bit width matching
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

@@ -15,6 +15,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module delta_axis_flat_4x16 #(parameter int  DATA_WIDTH = 64,
 parameter int  DEST_WIDTH = 4,
 parameter int  ID_WIDTH = 2,
@@ -109,8 +111,8 @@ logic packet_active [NUM_SLAVES];  // NEW vs APB: Track packet in progress
 // Arbitration logic for each slave
 generate
     for (genvar s = 0; s < NUM_SLAVES; s++) begin : gen_arbiter
-        always_ff @(posedge aclk or negedge aresetn) begin
-            if (!aresetn) begin
+        `ALWAYS_FF_RST(aclk, aresetn,
+if (`RST_ASSERTED(aresetn)) begin
                 grant_matrix[s] <= '0;
                 last_grant[s] <= '0;
                 packet_active[s] <= 1'b0;
@@ -137,7 +139,8 @@ generate
                     grant_matrix[s] <= '0;
                 end
             end
-        end
+        )
+
     end
 endgenerate
 
@@ -209,22 +212,24 @@ logic [31:0] pkt_count_slave [NUM_SLAVES];
 generate
     // Master packet counters
     for (genvar m = 0; m < NUM_MASTERS; m++) begin : gen_master_counters
-        always_ff @(posedge aclk or negedge aresetn) begin
+        `ALWAYS_FF_RST(aclk, aresetn,
             if (!aresetn)
                 pkt_count_master[m] <= '0;
             else if (s_axis_tvalid[m] && s_axis_tready[m] && s_axis_tlast[m])
                 pkt_count_master[m] <= pkt_count_master[m] + 1;
-        end
+        )
+
     end
 
     // Slave packet counters
     for (genvar s = 0; s < NUM_SLAVES; s++) begin : gen_slave_counters
-        always_ff @(posedge aclk or negedge aresetn) begin
+        `ALWAYS_FF_RST(aclk, aresetn,
             if (!aresetn)
                 pkt_count_slave[s] <= '0;
             else if (m_axis_tvalid[s] && m_axis_tready[s] && m_axis_tlast[s])
                 pkt_count_slave[s] <= pkt_count_slave[s] + 1;
-        end
+        )
+
     end
 endgenerate
 

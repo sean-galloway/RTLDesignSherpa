@@ -1,4 +1,17 @@
-# monbus_types.py - UPDATED FOR 3-BIT PROTOCOL FIELD
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: ProtocolType
+# Purpose: Monitor Bus Type Definitions - Updated for 3-bit Protocol Field
+#
+# Documentation: bin/CocoTBFramework/README.md
+# Subsystem: framework
+#
+# Author: sean galloway
+# Created: 2025-10-18
 
 """
 Monitor Bus Type Definitions - Updated for 3-bit Protocol Field

@@ -64,6 +64,8 @@
 // File Downloaded from http://www.nandland.com
 // lots and lots of fixes needed to get this clean and working
 ///////////////////////////////////////////////////////////////////////////////
+
+`include "reset_defs.svh"
 module bin_to_bcd #(
     parameter int WIDTH  = 8,
     parameter int DIGITS = 3
@@ -106,8 +108,8 @@ module bin_to_bcd #(
     logic       r_dv;
 
     // flop all of the registers
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_fsm_main    <= IDLE;
             r_bcd         <= '0;
             r_binary      <= '0;
@@ -116,7 +118,7 @@ module bin_to_bcd #(
             r_dv          <= '0;
         end else begin
             r_dv <= 1'b0;  // Default: done is low
-
+        
             // Next State for the FSM and wire versions of the various control signal
             casez (r_fsm_main)
                 // Stay in this state until start comes along
@@ -131,7 +133,7 @@ module bin_to_bcd #(
                         r_fsm_main <= IDLE;
                     end
                 end
-
+        
                 // Always shift the BCD Vector until we have shifted all bits through
                 // Shift the most significant bit of r_binary into r_bcd lowest bit.
                 SHIFT: begin
@@ -140,7 +142,7 @@ module bin_to_bcd #(
                     r_binary   <= r_binary << 1;
                     r_fsm_main <= CK_S_IDX;
                 end
-
+        
                 // Check if we are done with shifting in r_binary vector
                 CK_S_IDX: begin
                     if (r_loop_count == LOOP_COUNT_WIDTH'(WIDTH - 1)) begin
@@ -152,7 +154,7 @@ module bin_to_bcd #(
                         r_fsm_main   <= ADD;
                     end
                 end
-
+        
                 // Break down each BCD Digit individually. Check them one-by-one to
                 // see if they are greater than 4. If they are, increment by 3.
                 // Put the result back into r_bcd Vector.
@@ -162,7 +164,7 @@ module bin_to_bcd #(
                     end
                     r_fsm_main <= CK_D_IDX;
                 end
-
+        
                 // Check if we are done incrementing all of the BCD Digits
                 CK_D_IDX: begin
                     if (r_digit_index == DIGIT_INDEX_WIDTH'(DIGITS - 1)) begin
@@ -173,18 +175,19 @@ module bin_to_bcd #(
                         r_fsm_main    <= ADD;
                     end
                 end
-
+        
                 BCD_DONE: begin
                     r_dv       <= 1'b1;
                     r_fsm_main <= IDLE;
                 end
-
+        
                 default: begin
                     r_fsm_main <= IDLE;
                 end
             endcase
         end
-    end
+    )
+
 
     assign w_bcd_digit = r_bcd[r_digit_index*4+:4];
 

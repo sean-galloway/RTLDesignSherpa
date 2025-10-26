@@ -19,24 +19,32 @@ Counter Load Clear Test with Parameterized Test Levels and Configuration
 This test uses max_value and test_level as parameters for maximum flexibility:
 
 CONFIGURATION:
-    max_value:   Maximum count value (32, 255, 1023, 32767)
+    max_value:   Maximum count value (32, 255, 1023)
 
-TEST LEVELS:
+TEST LEVELS (per-test depth):
     basic (1-2 min):   Quick verification during development
     medium (3-5 min):  Integration testing for CI/branches
     full (8-15 min):   Comprehensive validation for regression
 
+REG_LEVEL Control (parameter combinations):
+    GATE: 1 test (~2 min) - smoke test (max=32, basic)
+    FUNC: 3 tests (~6 min) - functional coverage - DEFAULT
+    FULL: 9 tests (~1 hour) - comprehensive validation
+
 PARAMETER COMBINATIONS:
-    - max_value: [32, 255, 1023, 32767]
-    - test_level: [basic, medium, full]
+    GATE: 1 max_value × 1 level = 1 test
+    FUNC: 3 max_values × 1 level = 3 tests (all max_values, basic only)
+    FULL: 3 max_values × 3 levels = 9 tests
 
 Environment Variables:
+    REG_LEVEL: Control parameter combinations (GATE/FUNC/FULL)
     TEST_LEVEL: Set test level in cocotb (basic/medium/full)
     SEED: Set random seed for reproducibility
     TEST_MAX_VALUE: Maximum count value for counter
 """
 
 import os
+import sys
 import random
 import math
 from itertools import product
@@ -45,6 +53,12 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, Timer
 from cocotb_test.simulator import run
+
+# Add repo root to path for CocoTBFramework imports
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if os.path.join(repo_root, 'bin') not in sys.path:
+    sys.path.insert(0, os.path.join(repo_root, 'bin'))
+
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
@@ -651,21 +665,35 @@ async def counter_load_clear_test(dut):
 
 def generate_params():
     """
-    Generate test parameters. Modify this function to limit test scope for debugging.
+    Generate test parameter combinations based on REG_LEVEL.
+
+    REG_LEVEL=GATE: 1 test (max=32, basic level)
+    REG_LEVEL=FUNC: 3 tests (all max_values, basic level) - default
+    REG_LEVEL=FULL: 9 tests (all max_values, all test levels)
+
+    Returns:
+        List of tuples: (max_value, test_level)
     """
-    max_values = [32, 255, 1023]  # Different maximum count values  
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+
+    max_values = [32, 255, 1023]  # Different maximum count values
     test_levels = ['basic', 'medium', 'full']  # Test levels
-    test_levels = ['full']  # Test levels
 
-    valid_params = []
-    for max_value, test_level in product(max_values, test_levels):
-        valid_params.append((max_value, test_level))
+    if reg_level == 'GATE':
+        # Quick smoke test: max=32, basic only
+        params = [(32, 'basic')]
 
-    # For debugging, uncomment one of these:
-    # return [(32, 'basic')]  # Single test
-    # return [(32, 'full')]  # Just specific configurations
+    elif reg_level == 'FUNC':
+        # Functional coverage: all max_values, basic level only
+        params = [(max_val, 'basic') for max_val in max_values]
 
-    return valid_params
+    else:  # FULL
+        # Comprehensive: all combinations
+        params = []
+        for max_value, test_level in product(max_values, test_levels):
+            params.append((max_value, test_level))
+
+    return params
 
 
 params = generate_params()
@@ -677,7 +705,7 @@ def test_counter_load_clear(request, max_value, test_level):
     Parameterized Counter Load Clear test with configurable max value and test level.
     """
     # Get directory and module information
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common'})
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common', 'rtl_amba_includes': 'rtl/amba/includes'})
 
     # DUT information
     dut_name = "counter_load_clear"
@@ -749,7 +777,7 @@ def test_counter_load_clear(request, max_value, test_level):
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[],
+            includes=[rtl_dict['rtl_amba_includes']],
             toplevel=toplevel,
             module=module,
             parameters=parameters,

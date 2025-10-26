@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: ArbiterMonitor
+# Purpose: Unified Arbiter Monitor supporting both weighted and non-weighted arbiters
+#
+# Documentation: bin/CocoTBFramework/README.md
+# Subsystem: framework
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """
 Unified Arbiter Monitor supporting both weighted and non-weighted arbiters
 Automatically adapts based on is_weighted parameter with cycle-level grant reporting

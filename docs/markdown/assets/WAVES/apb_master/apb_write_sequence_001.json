@@ -1,0 +1,73 @@
+{
+  "signal": [
+    {
+      "name": "apb_pclk",
+      "wave": "p.............."
+    },
+    {
+      "name": "apb_presetn",
+      "wave": "1.............."
+    },
+    {},
+    [
+      "APB Interface",
+      {
+        "name": "pslverr",
+        "wave": "0.............."
+      },
+      {
+        "name": "pprot",
+        "wave": "0.............."
+      },
+      {
+        "name": "pstrb",
+        "wave": "0......2.......",
+        "data": [
+          "0b1111"
+        ]
+      },
+      {
+        "name": "prdata",
+        "wave": "0.............."
+      },
+      {
+        "name": "pwdata",
+        "wave": "0......2.......",
+        "data": [
+          "0xAAAAAAAA"
+        ]
+      },
+      {
+        "name": "paddr",
+        "wave": "0......2.......",
+        "data": [
+          "0x00002000"
+        ]
+      },
+      {
+        "name": "pwrite",
+        "wave": "0......1......."
+      },
+      {
+        "name": "pready",
+        "wave": "0.............1"
+      },
+      {
+        "name": "penable",
+        "wave": "0........1....."
+      },
+      {
+        "name": "psel",
+        "wave": "0......1......."
+      }
+    ]
+  ],
+  "head": {
+    "text": "APB READ Transaction",
+    "tick": 0,
+    "every": 2
+  },
+  "config": {
+    "hscale": 2
+  }
+}

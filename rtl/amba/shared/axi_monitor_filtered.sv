@@ -33,6 +33,8 @@
  * - Optional pipeline stage for timing closure
  * - Pass-through interface compatibility with axi_monitor_base
  */
+
+`include "reset_defs.svh"
 module axi_monitor_filtered
     import monitor_pkg::*;
 #(
@@ -283,8 +285,8 @@ module axi_monitor_filtered
             logic pipe_valid_reg;
             logic [63:0] pipe_packet_reg;
 
-            always_ff @(posedge aclk or negedge aresetn) begin
-                if (!aresetn) begin
+            `ALWAYS_FF_RST(aclk, aresetn,
+if (`RST_ASSERTED(aresetn)) begin
                     pipe_valid_reg <= 1'b0;
                     pipe_packet_reg <= '0;
                 end else begin
@@ -293,7 +295,8 @@ module axi_monitor_filtered
                         pipe_packet_reg <= base_monbus_packet;
                     end
                 end
-            end
+            )
+
 
             assign pipe_valid = pipe_valid_reg;
             assign pipe_packet = pipe_packet_reg;

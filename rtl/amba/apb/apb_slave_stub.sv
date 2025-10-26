@@ -15,6 +15,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module apb_slave_stub #(
     parameter int DEPTH    = 4,
     parameter int DATA_WIDTH    = 32,
@@ -118,13 +120,14 @@ module apb_slave_stub #(
 
     apb_state_t r_apb_state, w_apb_next_state;
 
-    always_ff @(posedge pclk or negedge presetn) begin
-        if (!presetn) begin
+    `ALWAYS_FF_RST(pclk, presetn,
+if (`RST_ASSERTED(presetn)) begin
             r_apb_state <= IDLE;
         end else begin
             r_apb_state <= w_apb_next_state;
         end
-    end
+    )
+
 
     always_comb begin
         w_apb_next_state   = r_apb_state;

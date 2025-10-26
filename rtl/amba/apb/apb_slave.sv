@@ -15,6 +15,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module apb_slave #(
     parameter int ADDR_WIDTH      = 32,
     parameter int DATA_WIDTH      = 32,
@@ -130,8 +132,8 @@ module apb_slave #(
     apb_state_t r_apb_state;
     logic r_penable_prev;  // Track previous PENABLE to detect rising edge
 
-    always_ff @(posedge pclk or negedge presetn) begin
-        if (!presetn) begin
+    `ALWAYS_FF_RST(pclk, presetn,
+if (`RST_ASSERTED(presetn)) begin
             r_apb_state   <= IDLE;
             s_apb_PREADY  <= 'b0;
             s_apb_PSLVERR <= 'b0;
@@ -148,9 +150,9 @@ module apb_slave #(
             r_cmd_valid   <= 1'b0;
             r_rsp_ready   <= 1'b0;
             r_penable_prev <= s_apb_PENABLE;
-
+        
             casez (r_apb_state)
-
+        
                 IDLE: begin
                     // Only capture on rising edge of PENABLE (SETUP->ACCESS transition)
                     if (s_apb_PSEL && s_apb_PENABLE && !r_penable_prev && r_cmd_ready) begin
@@ -158,7 +160,7 @@ module apb_slave #(
                         r_apb_state <= BUSY;
                     end
                 end
-
+        
                 BUSY: begin
                     if (r_rsp_valid) begin
                         s_apb_PREADY   <= 1'b1;
@@ -169,11 +171,12 @@ module apb_slave #(
                     end
                 end
                 WAIT: r_apb_state <= IDLE;
-
+        
                 default: r_apb_state <= IDLE;
-
+        
             endcase
         end
-    end
+    )
+
 
 endmodule : apb_slave

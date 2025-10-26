@@ -230,6 +230,8 @@
 //     - Gating indicator correctness
 //
 //==============================================================================
+
+`include "reset_defs.svh"
 module clock_gate_ctrl #(
     parameter int IDLE_CNTR_WIDTH = 4 // Default width of idle counter
 ) (
@@ -252,8 +254,8 @@ module clock_gate_ctrl #(
     logic [N-1:0] r_idle_counter;
 
     // Counter logic
-    always_ff @(posedge clk_in or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(clk_in, aresetn,
+if (`RST_ASSERTED(aresetn)) begin
             r_idle_counter <= cfg_cg_idle_count;
         end else begin
             if (wakeup || !cfg_cg_enable) begin
@@ -265,7 +267,8 @@ module clock_gate_ctrl #(
             end
             // When counter reaches zero, it stays at zero
         end
-    end
+    )
+
 
     // Simple gating condition: gate when not in wakeup, globally enabled, and counter is zero
     wire w_gate_enable = cfg_cg_enable && !wakeup && (r_idle_counter == 'h0);

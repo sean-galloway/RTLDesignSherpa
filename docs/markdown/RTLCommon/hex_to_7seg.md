@@ -301,3 +301,8 @@ assert(all_segments_used == 7'b1111111);  // All segments used somewhere
 - **ASCII to 7-segment**: Extended character set support
 - **Display multiplexer**: Time-division multiplexing controller
 - **PWM brightness controller**: Dynamic brightness adjustment
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

@@ -49,9 +49,12 @@
 //     Type: int
 //     Range: 4 to 8
 //     Default: 8
-//     Constraints: Must be ≥ $clog2(COUNTER_WIDTH)
+//     Constraints: Must be > $clog2(COUNTER_WIDTH) to avoid truncation
+//                  Equivalently: PO_WIDTH >= $clog2(COUNTER_WIDTH + 1)
+//                  This ensures PO_WIDTH can hold the value COUNTER_WIDTH
 //                  Larger values allow finer counter bit selection
-//                  Typical: PO_WIDTH=8 for COUNTER_WIDTH up to 256
+//                  Examples: CW=16 needs PO≥5, CW=32 needs PO≥6, CW=64 needs PO≥7
+//                  Typical: PO_WIDTH=8 for COUNTER_WIDTH up to 128
 //
 //   COUNTER_WIDTH:
 //     Description: Width of binary counter (determines max division)
@@ -252,6 +255,8 @@
 //     - Edge case: pickoff=COUNTER_WIDTH-1 (slowest division)
 //
 //==============================================================================
+
+`include "reset_defs.svh"
 module clock_divider #(
     parameter int N             = 4,  // Number of output clocks
     parameter int PO_WIDTH      = 8,  // Width of the Pick off registers
@@ -268,10 +273,25 @@ module clock_divider #(
     // Calculate the width needed to address all counter bits
     localparam int ADDR_WIDTH = $clog2(COUNTER_WIDTH);
 
-    always_ff @(posedge clk or negedge rst_n) begin
+    // Parameter validation: Verify PO_WIDTH can hold COUNTER_WIDTH value without truncation
+    // PO_WIDTH must be > $clog2(COUNTER_WIDTH) to prevent truncation when comparing
+    // w_pickoff_raw < w_counter_width_sized (lines 289-291)
+    initial begin
+        if (PO_WIDTH <= $clog2(COUNTER_WIDTH)) begin
+            $error("clock_divider: Invalid parameter combination!");
+            $error("  PO_WIDTH=%0d is too small for COUNTER_WIDTH=%0d", PO_WIDTH, COUNTER_WIDTH);
+            $error("  Required: PO_WIDTH > $clog2(COUNTER_WIDTH)");
+            $error("  Required: PO_WIDTH >= $clog2(COUNTER_WIDTH + 1) = %0d", $clog2(COUNTER_WIDTH + 1));
+            $error("  This prevents truncation in pickoff point comparison.");
+            $fatal(1, "Simulation cannot continue with invalid parameters");
+        end
+    end
+
+    `ALWAYS_FF_RST(clk, rst_n,
         if (!rst_n) r_divider_counters <= 0;
         else r_divider_counters <= r_divider_counters + 1;
-    end
+    )
+
 
     genvar i;
     generate
@@ -289,10 +309,11 @@ module clock_divider #(
                                     w_pickoff_raw[ADDR_WIDTH-1:0] :
                                     ADDR_WIDTH'(COUNTER_WIDTH - 1);
 
-            always_ff @(posedge clk or negedge rst_n) begin
+            `ALWAYS_FF_RST(clk, rst_n,
                 if (!rst_n) divided_clk[i] <= 0;
                 else divided_clk[i] <= r_divider_counters[w_pickoff_addr];
-            end
+            )
+
         end
     endgenerate
 

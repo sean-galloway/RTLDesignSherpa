@@ -222,6 +222,53 @@
 //   gray2bin #(.WIDTH(8)) u_g2b (.gray(sync_gray_count), .bin(bin_count));
 //
 //------------------------------------------------------------------------------
+// FPGA-Specific Synthesis and Implementation Notes:
+//------------------------------------------------------------------------------
+//   **Synthesis Attributes (FPGA CDC Recognition):**
+//   - Xilinx: Add (* ASYNC_REG = "TRUE" *) to r_q_array declaration
+//             Prevents SRL inference, ensures dedicated FF pairs
+//             Enables timing analysis exceptions for CDC paths
+//   - Intel:  Use (* altera_attribute = "-name SYNCHRONIZER_IDENTIFICATION AUTO" *)
+//             Or set_instance_assignment -name SYNCHRONIZER_IDENTIFICATION ON
+//   - Lattice: Use (* syn_preserve = 1 *) to prevent optimization
+//
+//   Example with attributes:
+//   (* ASYNC_REG = "TRUE", SHREG_EXTRACT = "NO" *)
+//   logic [FC-1:0][WIDTH-1:0] r_q_array;
+//
+//   **Timing Constraints (Critical for FPGA):**
+//   - Xilinx: set_max_delay -datapath_only [expr {2 * [get_property PERIOD $clk]}] \
+//             -from [get_pins -hier *r_q_array_reg[0]*/C] \
+//             -to   [get_pins -hier *r_q_array_reg[1]*/D]
+//   - Set false path on async input d: set_false_path -from [get_ports d]
+//   - Allow 2× clock period for first stage metastability resolution
+//
+//   **MTBF Calculation for FPGA:**
+//   - Modern FPGAs: τ (metastability constant) ≈ 100-200ps (7-series, UltraScale)
+//   - FLOP_COUNT=2: MTBF ≈ 10^6 hours (acceptable for low-speed control)
+//   - FLOP_COUNT=3: MTBF ≈ 10^12+ hours (industry standard, recommended)
+//   - FLOP_COUNT≥4: Ultra-reliable for safety-critical (aerospace, medical)
+//   - MTBF improves exponentially with each stage added
+//
+//   **Physical Placement (Advanced):**
+//   - Xilinx: Use RLOC or PBLOCK to place CDC flops close together
+//   - Reduces routing delay between stages (improves MTBF)
+//   - Example: set_property LOC SLICE_X0Y0 [get_cells r_q_array_reg[*][*]]
+//   - Not required for correctness, but improves reliability margin
+//
+//   **Reset Behavior in FPGA:**
+//   - Uses `ALWAYS_FF_RST macro (typically asynchronous reset)
+//   - Maps to FPGA primitives: DSP (optional), FDCE (async clear), FDRE (sync reset)
+//   - Async reset ensures immediate initialization at power-on
+//   - Compatible with both global reset networks (BUFG) and local resets
+//
+//   **Simulation vs Synthesis:**
+//   - Verilator: Models deterministic behavior (no X states)
+//   - Real FPGA: First stage may enter metastability (X) after setup/hold violation
+//   - Subsequent stages resolve metastability exponentially
+//   - Simulation MTBF testing: Force X on stage 0, verify stage 1+ resolve cleanly
+//
+//------------------------------------------------------------------------------
 // Notes:
 //------------------------------------------------------------------------------
 //   - **CRITICAL:** Only for quasi-static signals (infrequent changes)
@@ -265,6 +312,8 @@
 //     - Edge case: WIDTH=32 (wide bus)
 //
 //==============================================================================
+
+`include "reset_defs.svh"
 module glitch_free_n_dff_arn #(
     parameter int FLOP_COUNT = 3,
     parameter int WIDTH = 4
@@ -282,8 +331,8 @@ module glitch_free_n_dff_arn #(
     // Packed array to hold the states
     logic [FC-1:0][WIDTH-1:0] r_q_array;
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             // Reset all the flip-flops
             r_q_array <= {FC{{DW{1'b0}}}};
         end else begin
@@ -294,7 +343,8 @@ module glitch_free_n_dff_arn #(
                 r_q_array[i] <= r_q_array[i-1];
             end
         end
-    end
+    )
+
 
     ////////////////////////////////////////////////////////////////////////////
     // Output assignment

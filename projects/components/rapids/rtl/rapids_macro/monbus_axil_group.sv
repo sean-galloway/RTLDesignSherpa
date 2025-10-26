@@ -42,6 +42,8 @@ Configuration Registers (per protocol):
 ================================================================================
 */
 
+`include "reset_defs.svh"
+
 module monbus_axil_group #(
     parameter int FIFO_DEPTH_ERR    = 64,   // Error/interrupt FIFO depth
     parameter int FIFO_DEPTH_WRITE  = 32,   // Master write FIFO depth
@@ -470,13 +472,14 @@ module monbus_axil_group #(
         end
     end
 
-    always_ff @(posedge axi_aclk or negedge axi_aresetn) begin
-        if (!axi_aresetn) begin
+    `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
+if (`RST_ASSERTED(axi_aresetn)) begin
             current_write_addr <= cfg_base_addr;
         end else if (addr_counter_enable) begin
             current_write_addr <= next_write_addr;
         end
-    end
+    )
+
 
     // =======================================================================
     // AXI-Lite Master Write Interface
@@ -537,8 +540,8 @@ module monbus_axil_group #(
     logic [63:0]  current_packet;
     logic         upper_word_pending;
 
-    always_ff @(posedge axi_aclk or negedge axi_aresetn) begin
-        if (!axi_aresetn) begin
+    `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
+if (`RST_ASSERTED(axi_aresetn)) begin
             write_state <= WRITE_IDLE;
             current_packet <= '0;
             upper_word_pending <= 1'b0;
@@ -551,19 +554,19 @@ module monbus_axil_group #(
                         upper_word_pending <= (DATA_WIDTH == 32);
                     end
                 end
-
+        
                 WRITE_ADDR: begin
                     if (fub_wr_awvalid && fub_wr_awready) begin
                         write_state <= WRITE_DATA_LOW;
                     end
                 end
-
+        
                 WRITE_DATA_LOW: begin
                     if (fub_wr_wvalid && fub_wr_wready) begin
                         write_state <= WRITE_RESP;
                     end
                 end
-
+        
                 WRITE_RESP: begin
                     if (fub_wr_bvalid && fub_wr_bready) begin
                         if (upper_word_pending && DATA_WIDTH == 32) begin
@@ -576,13 +579,14 @@ module monbus_axil_group #(
                         end
                     end
                 end
-
+        
                 default: begin
                     write_state <= WRITE_IDLE;
                 end
             endcase
         end
-    end
+    )
+
 
     // Backend interface control
     assign fub_wr_awvalid = (write_state == WRITE_ADDR);

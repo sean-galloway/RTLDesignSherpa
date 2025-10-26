@@ -15,6 +15,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module apb_xbar_thin #(
     // Number of APB masters (from the master))
     parameter int M = 2,
@@ -121,7 +123,7 @@ module apb_xbar_thin #(
     generate
         for (genvar s_ack = 0; s_ack < S; s_ack++) begin : gen_ack_logic
             for (genvar m_ack = 0; m_ack < M; m_ack++) begin : gen_master_ack
-                always_ff @(posedge pclk or negedge presetn) begin
+                `ALWAYS_FF_RST(pclk, presetn,
                     if (~presetn)
                         arb_gnt_ack[s_ack][m_ack] <= 1'b0;
                     else begin
@@ -133,7 +135,8 @@ module apb_xbar_thin #(
                                                     s_apb_psel[s_ack] &&
                                                     s_apb_penable[s_ack];
                     end
-                end
+                )
+
             end
         end
     endgenerate

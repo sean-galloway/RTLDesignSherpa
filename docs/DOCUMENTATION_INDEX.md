@@ -46,7 +46,8 @@ Experimental work, optimizations attempted, lessons learned:
 Detailed reference documentation (auto-generated and curated):
 
 #### Component Projects
-- **[projects/index.md](markdown/projects/index.md)** - Production-ready components index
+- **[projects/components/index.md](../projects/components/index.md)** - Master component index (all components)
+- **[projects/index.md](markdown/projects/index.md)** - Component documentation index
 - **[projects/overview.md](markdown/projects/overview.md)** - Component ecosystem and patterns
 - **[projects/apb_hpet.md](markdown/projects/apb_hpet.md)** - APB HPET Timer detailed documentation
 
@@ -75,7 +76,7 @@ Detailed reference documentation (auto-generated and curated):
 
 1. **[../README.md](../README.md)** - Start here! Understand the learning levels and project structure
 2. **[guides/VERIFICATION_ARCHITECTURE_GUIDE.md](guides/VERIFICATION_ARCHITECTURE_GUIDE.md)** - Learn the verification methodology
-3. **[markdown/projects/index.md](markdown/projects/index.md)** - Browse available components
+3. **[../projects/components/index.md](../projects/components/index.md)** - Browse all available components
 
 **Looking for specific information?**
 
@@ -124,11 +125,13 @@ Integrate: Multi-module systems
 - Protocol bridges
 
 ### Level 4: Production Components (2+ components)
-**Location:** `projects/components/` | **Docs:** [markdown/projects/index.md](markdown/projects/index.md)
+**Location:** `projects/components/` | **Docs:** [Component Index](../projects/components/index.md) | [Documentation Index](markdown/projects/index.md)
 
 Build: Complete peripherals
 - **APB HPET** - High Precision Event Timer (✅ Production Ready)
-- **RAPIDS DMA** - Memory I/O Processor (🚧 In Development)
+- **APB Crossbar** - MxN APB Interconnect (✅ Production Ready)
+- **STREAM DMA** - Tutorial DMA Engine (🟡 In Development)
+- **RAPIDS DMA** - Advanced DMA with Network (🟢 Functional)
 
 ### Level 5: Complete FPGA Projects
 **Status:** Planned
@@ -183,7 +186,8 @@ Each subdirectory has its own detailed README:
 ### RTL Module Documentation
 - **Common Library** (90 modules): [../rtl/common/PRD.md](../rtl/common/PRD.md)
 - **AMBA Infrastructure** (106 modules): [../rtl/amba/PRD.md](../rtl/amba/PRD.md)
-- **Component Projects**: [markdown/projects/index.md](markdown/projects/index.md)
+- **Component Projects** (Master Index): [../projects/components/index.md](../projects/components/index.md)
+- **Component Documentation**: [markdown/projects/index.md](markdown/projects/index.md)
 
 ### Verification Resources
 - **Test Methodology**: [guides/VERIFICATION_ARCHITECTURE_GUIDE.md](guides/VERIFICATION_ARCHITECTURE_GUIDE.md)

@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: gaxi_buffer_configs
+# Purpose: Shared Field Configurations for GAXI Buffer Tests
+#
+# Documentation: bin/CocoTBFramework/README.md
+# Subsystem: framework
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """Shared Field Configurations for GAXI Buffer Tests
 
 Simplified to only contain field configurations. Randomization is now handled

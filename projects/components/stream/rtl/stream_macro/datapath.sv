@@ -35,6 +35,8 @@
 
 // Import STREAM and monitor packages
 `include "stream_imports.svh"
+`include "reset_defs.svh"
+
 
 module datapath #(
     parameter int NUM_CHANNELS = 8,
@@ -386,18 +388,23 @@ module datapath #(
     );
 
     // SRAM read data valid (1-cycle latency)
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             sram_rd_data_valid <= 1'b0;
         end else begin
             sram_rd_data_valid <= sram_rd_en;
         end
-    end
+    )
+
 
     //=========================================================================
     // AXI4 Master Read Monitor Instance
     //=========================================================================
+    // NOTE: Commented out - these _mon modules instantiate their own AXI engines,
+    // but datapath just has AXI interface ports (engines are external).
+    // TODO: Use proper observation-only monitors or integrate at higher level.
 
+    /*
     axi4_master_rd_mon #(
         .AXI_ID_WIDTH           (ID_WIDTH),
         .AXI_ADDR_WIDTH         (ADDR_WIDTH),
@@ -410,50 +417,90 @@ module datapath #(
         .aclk                   (clk),
         .aresetn                (rst_n),
 
-        // AXI4 AR Channel
-        .axi_arid               (m_axi_rd_arid),
-        .axi_araddr             (m_axi_rd_araddr),
-        .axi_arlen              (m_axi_rd_arlen),
-        .axi_arsize             (m_axi_rd_arsize),
-        .axi_arburst            (m_axi_rd_arburst),
-        .axi_arlock             (1'b0),  // Normal access
-        .axi_arcache            (4'h0),  // Non-cacheable
-        .axi_arprot             (3'h0),  // Unprivileged, secure, data
-        .axi_arqos              (4'h0),  // No QoS
-        .axi_arregion           (4'h0),  // Default region
-        .axi_arvalid            (m_axi_rd_arvalid),
-        .axi_arready            (m_axi_rd_arready),
+        // FUB side (input to monitor) - AR Channel
+        .fub_axi_arid           (m_axi_rd_arid),
+        .fub_axi_araddr         (m_axi_rd_araddr),
+        .fub_axi_arlen          (m_axi_rd_arlen),
+        .fub_axi_arsize         (m_axi_rd_arsize),
+        .fub_axi_arburst        (m_axi_rd_arburst),
+        .fub_axi_arlock         (1'b0),  // Normal access
+        .fub_axi_arcache        (4'h0),  // Non-cacheable
+        .fub_axi_arprot         (3'h0),  // Unprivileged, secure, data
+        .fub_axi_arqos          (4'h0),  // No QoS
+        .fub_axi_arregion       (4'h0),  // Default region
+        .fub_axi_aruser         ({AXI_USER_WIDTH{1'b0}}),
+        .fub_axi_arvalid        (m_axi_rd_arvalid),
+        .fub_axi_arready        (m_axi_rd_arready),
 
-        // AXI4 R Channel
-        .axi_rid                (m_axi_rd_rid),
-        .axi_rdata              (m_axi_rd_rdata),
-        .axi_rresp              (m_axi_rd_rresp),
-        .axi_rlast              (m_axi_rd_rlast),
-        .axi_rvalid             (m_axi_rd_rvalid),
-        .axi_rready             (m_axi_rd_rready),
+        // FUB side (input to monitor) - R Channel
+        .fub_axi_rid            (m_axi_rd_rid),
+        .fub_axi_rdata          (m_axi_rd_rdata),
+        .fub_axi_rresp          (m_axi_rd_rresp),
+        .fub_axi_rlast          (m_axi_rd_rlast),
+        .fub_axi_ruser          ({AXI_USER_WIDTH{1'b0}}),
+        .fub_axi_rvalid         (m_axi_rd_rvalid),
+        .fub_axi_rready         (m_axi_rd_rready),
+
+        // Master side (output from monitor) - connect to actual AXI bus
+        // For now, leave floating - monitor is observation-only
+        .m_axi_arid             (),
+        .m_axi_araddr           (),
+        .m_axi_arlen            (),
+        .m_axi_arsize           (),
+        .m_axi_arburst          (),
+        .m_axi_arlock           (),
+        .m_axi_arcache          (),
+        .m_axi_arprot           (),
+        .m_axi_arqos            (),
+        .m_axi_arregion         (),
+        .m_axi_aruser           (),
+        .m_axi_arvalid          (),
+        .m_axi_arready          (1'b1),
+        .m_axi_rid              ({ID_WIDTH{1'b0}}),
+        .m_axi_rdata            ({DATA_WIDTH{1'b0}}),
+        .m_axi_rresp            (2'b00),
+        .m_axi_rlast            (1'b0),
+        .m_axi_ruser            ({AXI_USER_WIDTH{1'b0}}),
+        .m_axi_rvalid           (1'b0),
+        .m_axi_rready           (),
 
         // Monitor Configuration
+        .cfg_monitor_enable     (1'b1),
         .cfg_error_enable       (cfg_rdmon_err_enable),
-        .cfg_compl_enable       (cfg_rdmon_compl_enable),
         .cfg_timeout_enable     (cfg_rdmon_timeout_enable),
         .cfg_perf_enable        (cfg_rdmon_perf_enable),
-        .cfg_debug_enable       (cfg_rdmon_debug_enable),
         .cfg_timeout_cycles     (cfg_rdmon_timeout_cycles),
+        .cfg_latency_threshold  (32'hFFFFFFFF),
+
+        // AXI Protocol Filtering Configuration
+        .cfg_axi_pkt_mask       (16'h0000),
+        .cfg_axi_err_select     (16'h0000),
+        .cfg_axi_error_mask     (16'h0000),
+        .cfg_axi_timeout_mask   (16'h0000),
+        .cfg_axi_compl_mask     (16'h0000),
+        .cfg_axi_thresh_mask    (16'h0000),
+        .cfg_axi_perf_mask      (16'h0000),
+        .cfg_axi_addr_mask      (16'h0000),
+        .cfg_axi_debug_mask     (16'h0000),
 
         // Monitor Bus Output
-        .monbus_pkt_valid       (rd_mon_valid),
-        .monbus_pkt_ready       (rd_mon_ready),
-        .monbus_pkt_data        (rd_mon_packet)
+        .monbus_valid           (rd_mon_valid),
+        .monbus_ready           (rd_mon_ready),
+        .monbus_packet          (rd_mon_packet)
     );
+    */
 
     //=========================================================================
     // AXI4 Master Write Monitor Instance
     //=========================================================================
+    // NOTE: Commented out - same reason as read monitor above.
 
+    /*
     axi4_master_wr_mon #(
         .AXI_ID_WIDTH           (ID_WIDTH),
         .AXI_ADDR_WIDTH         (ADDR_WIDTH),
         .AXI_DATA_WIDTH         (DATA_WIDTH),
+        .AXI_USER_WIDTH         (1),
         .UNIT_ID                (MON_UNIT_ID[3:0]),
         .AGENT_ID               (WR_MON_AGENT_ID[7:0]),
         .MAX_TRANSACTIONS       (MAX_TRANSACTIONS),
@@ -462,51 +509,95 @@ module datapath #(
         .aclk                   (clk),
         .aresetn                (rst_n),
 
-        // AXI4 AW Channel
-        .axi_awid               (m_axi_wr_awid),
-        .axi_awaddr             (m_axi_wr_awaddr),
-        .axi_awlen              (m_axi_wr_awlen),
-        .axi_awsize             (m_axi_wr_awsize),
-        .axi_awburst            (m_axi_wr_awburst),
-        .axi_awlock             (1'b0),
-        .axi_awcache            (4'h0),
-        .axi_awprot             (3'h0),
-        .axi_awqos              (4'h0),
-        .axi_awregion           (4'h0),
-        .axi_awvalid            (m_axi_wr_awvalid),
-        .axi_awready            (m_axi_wr_awready),
+        // FUB side (input to monitor) - AW Channel
+        .fub_axi_awid           (m_axi_wr_awid),
+        .fub_axi_awaddr         (m_axi_wr_awaddr),
+        .fub_axi_awlen          (m_axi_wr_awlen),
+        .fub_axi_awsize         (m_axi_wr_awsize),
+        .fub_axi_awburst        (m_axi_wr_awburst),
+        .fub_axi_awlock         (1'b0),
+        .fub_axi_awcache        (4'h0),
+        .fub_axi_awprot         (3'h0),
+        .fub_axi_awqos          (4'h0),
+        .fub_axi_awregion       (4'h0),
+        .fub_axi_awuser         (1'b0),
+        .fub_axi_awvalid        (m_axi_wr_awvalid),
+        .fub_axi_awready        (m_axi_wr_awready),
 
-        // AXI4 W Channel
-        .axi_wdata              (m_axi_wr_wdata),
-        .axi_wstrb              (m_axi_wr_wstrb),
-        .axi_wlast              (m_axi_wr_wlast),
-        .axi_wvalid             (m_axi_wr_wvalid),
-        .axi_wready             (m_axi_wr_wready),
+        // FUB side (input to monitor) - W Channel
+        .fub_axi_wdata          (m_axi_wr_wdata),
+        .fub_axi_wstrb          (m_axi_wr_wstrb),
+        .fub_axi_wlast          (m_axi_wr_wlast),
+        .fub_axi_wuser          (1'b0),
+        .fub_axi_wvalid         (m_axi_wr_wvalid),
+        .fub_axi_wready         (m_axi_wr_wready),
 
-        // AXI4 B Channel
-        .axi_bid                (m_axi_wr_bid),
-        .axi_bresp              (m_axi_wr_bresp),
-        .axi_bvalid             (m_axi_wr_bvalid),
-        .axi_bready             (m_axi_wr_bready),
+        // FUB side (input to monitor) - B Channel
+        .fub_axi_bid            (m_axi_wr_bid),
+        .fub_axi_bresp          (m_axi_wr_bresp),
+        .fub_axi_buser          (1'b0),
+        .fub_axi_bvalid         (m_axi_wr_bvalid),
+        .fub_axi_bready         (m_axi_wr_bready),
+
+        // Master side (output from monitor) - connect to actual AXI bus
+        // For now, leave floating - monitor is observation-only
+        .m_axi_awid             (),
+        .m_axi_awaddr           (),
+        .m_axi_awlen            (),
+        .m_axi_awsize           (),
+        .m_axi_awburst          (),
+        .m_axi_awlock           (),
+        .m_axi_awcache          (),
+        .m_axi_awprot           (),
+        .m_axi_awqos            (),
+        .m_axi_awregion         (),
+        .m_axi_awuser           (),
+        .m_axi_awvalid          (),
+        .m_axi_awready          (1'b1),
+        .m_axi_wdata            (),
+        .m_axi_wstrb            (),
+        .m_axi_wlast            (),
+        .m_axi_wuser            (),
+        .m_axi_wvalid           (),
+        .m_axi_wready           (1'b1),
+        .m_axi_bid              ({ID_WIDTH{1'b0}}),
+        .m_axi_bresp            (2'b00),
+        .m_axi_buser            (1'b0),
+        .m_axi_bvalid           (1'b0),
+        .m_axi_bready           (),
 
         // Monitor Configuration
+        .cfg_monitor_enable     (1'b1),
         .cfg_error_enable       (cfg_wrmon_err_enable),
-        .cfg_compl_enable       (cfg_wrmon_compl_enable),
         .cfg_timeout_enable     (cfg_wrmon_timeout_enable),
         .cfg_perf_enable        (cfg_wrmon_perf_enable),
-        .cfg_debug_enable       (cfg_wrmon_debug_enable),
         .cfg_timeout_cycles     (cfg_wrmon_timeout_cycles),
+        .cfg_latency_threshold  (32'hFFFFFFFF),
+
+        // AXI Protocol Filtering Configuration
+        .cfg_axi_pkt_mask       (16'h0000),
+        .cfg_axi_err_select     (16'h0000),
+        .cfg_axi_error_mask     (16'h0000),
+        .cfg_axi_timeout_mask   (16'h0000),
+        .cfg_axi_compl_mask     (16'h0000),
+        .cfg_axi_thresh_mask    (16'h0000),
+        .cfg_axi_perf_mask      (16'h0000),
+        .cfg_axi_addr_mask      (16'h0000),
+        .cfg_axi_debug_mask     (16'h0000),
 
         // Monitor Bus Output
-        .monbus_pkt_valid       (wr_mon_valid),
-        .monbus_pkt_ready       (wr_mon_ready),
-        .monbus_pkt_data        (wr_mon_packet)
+        .monbus_valid           (wr_mon_valid),
+        .monbus_ready           (wr_mon_ready),
+        .monbus_packet          (wr_mon_packet)
     );
+    */
 
     //=========================================================================
     // Monitor Bus Arbiter Instance (2 sources: rd_mon, wr_mon)
     //=========================================================================
+    // NOTE: Commented out - depends on monitors above.
 
+    /*
     monbus_arbiter #(
         .CLIENTS                (2),
         .INPUT_SKID_ENABLE      (1),
@@ -524,11 +615,16 @@ module datapath #(
         .monbus_valid           (mon_valid),
         .monbus_ready           (mon_ready),
         .monbus_packet          (mon_packet),
-        .grant_valid            (/* UNUSED */),
-        .grant                  (/* UNUSED */),
-        .grant_id               (/* UNUSED */),
-        .last_grant             (/* UNUSED */)
+        .grant_valid            (),
+        .grant                  (),
+        .grant_id               (),
+        .last_grant             ()
     );
+    */
+
+    // Temporary: tie off monitor bus outputs since monitors are commented out
+    assign mon_valid = 1'b0;
+    assign mon_packet = 64'h0;
 
     //=========================================================================
     // Pre-Allocation Logic Placeholder

@@ -35,7 +35,13 @@ module simple_sram #(
 );
 
     // Memory array - initialized to zero
-    logic [DATA_WIDTH-1:0] mem [0:DEPTH-1] = '{default:0};
+    // FPGA hint: Auto-select RAM style (distributed for small, block for large)
+    `ifdef XILINX
+        (* ram_style = "auto" *)
+    `elsif INTEL
+        /* synthesis ramstyle = "AUTO" */
+    `endif
+    logic [DATA_WIDTH-1:0] mem [DEPTH] = '{default:0};
 
     // Read pipeline - initialize signals
     logic [ADDR_WIDTH-1:0] rd_addr_q = '0;

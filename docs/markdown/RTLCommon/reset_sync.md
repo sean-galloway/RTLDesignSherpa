@@ -365,3 +365,8 @@ All 4 parameter configurations passing (100% success rate):
 - PLL/clock management units
 - Power management controllers
 - System controllers and reset managers
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

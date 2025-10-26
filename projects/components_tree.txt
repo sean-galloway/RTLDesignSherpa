@@ -1,0 +1,868 @@
+components
+├── README.md
+├── STATUS.md
+├── apb_hpet
+│   ├── CLAUDE.md
+│   ├── PRD.md
+│   ├── STATUS.md
+│   ├── TASKS.md
+│   ├── bin
+│   ├── docs
+│   │   ├── HPET_Specification_v0.25.docx
+│   │   ├── HPET_Specification_v0.25.pdf
+│   │   ├── IMPLEMENTATION_STATUS.md
+│   │   ├── generate_pdf.sh
+│   │   └── hpet_spec
+│   │       ├── hpet_index.md
+│   │       ├── assets
+│   │       │   ├── draw.io
+│   │       │   │   ├── .xdp-.$apb_hpet.drawio.bkp-9s0td0
+│   │       │   │   ├── apb_hpet.drawio
+│   │       │   │   └── apb_hpet_blocks.png
+│   │       │   ├── graphviz
+│   │       │   │   ├── Makefile
+│   │       │   │   ├── README.md
+│   │       │   │   ├── cdc_handshake.dot
+│   │       │   │   ├── cdc_handshake.png
+│   │       │   │   ├── interrupt_handling.dot
+│   │       │   │   ├── interrupt_handling.png
+│   │       │   │   ├── multi_timer_concurrent.dot
+│   │       │   │   ├── multi_timer_concurrent.png
+│   │       │   │   ├── oneshot_timer.dot
+│   │       │   │   ├── oneshot_timer.png
+│   │       │   │   ├── periodic_timer.dot
+│   │       │   │   ├── periodic_timer.png
+│   │       │   │   ├── software_init.dot
+│   │       │   │   ├── software_init.png
+│   │       │   │   ├── timer_mode_switch.dot
+│   │       │   │   └── timer_mode_switch.png
+│   │       │   ├── images
+│   │       │   ├── puml
+│   │       │   │   ├── hpet_core_fsm.png
+│   │       │   │   └── hpet_core_fsm.puml
+│   │       │   ├── wavedrom
+│   │       │   │   ├── README.md
+│   │       │   │   ├── hpet_registers.html
+│   │       │   │   └── hpet_registers.json
+│   │       │   └── waves
+│   │       │       ├── comparator_match.json
+│   │       │       ├── config_register_write.json
+│   │       │       ├── interrupt_generation.json
+│   │       │       ├── oneshot_mode.json
+│   │       │       ├── periodic_timer.json
+│   │       │       └── timer_initialization.json
+│   │       ├── ch01_overview
+│   │       │   ├── 01_overview.md
+│   │       │   ├── 02_architecture.md
+│   │       │   ├── 03_clocks_and_reset.md
+│   │       │   ├── 04_acronyms.md
+│   │       │   └── 05_references.md
+│   │       ├── ch02_blocks
+│   │       │   ├── 00_overview.md
+│   │       │   ├── 01_hpet_core.md
+│   │       │   ├── 02_hpet_config_regs.md
+│   │       │   ├── 03_hpet_regs.md
+│   │       │   ├── 04_apb_hpet_top.md
+│   │       │   └── 05_fsm_summary.md
+│   │       ├── ch03_interfaces
+│   │       ├── ch04_programming
+│   │       └── ch05_registers
+│   │           └── 01_register_map.md
+│   ├── dv
+│   │   ├── __init__.py
+│   │   ├── components
+│   │   │   └── __init__.py
+│   │   ├── scoreboards
+│   │   │   └── __init__.py
+│   │   ├── tbclasses
+│   │   │   ├── __init__.py
+│   │   │   ├── hpet_tb.py
+│   │   │   ├── hpet_tests_basic.py
+│   │   │   ├── hpet_tests_full.py
+│   │   │   └── hpet_tests_medium.py
+│   │   └── tests
+│   │       ├── Makefile
+│   │       ├── __init__.py
+│   │       ├── conftest.py
+│   │       └── test_apb_hpet.py
+│   ├── known_issues
+│   │   ├── README.md
+│   │   ├── active
+│   │   └── resolved
+│   │       └── timer_cleanup_issue.md
+│   └── rtl
+│       ├── Makefile
+│       ├── README.md
+│       ├── apb_hpet.sv
+│       ├── hpet_config_regs.sv
+│       ├── hpet_config_regs.sv.OLD
+│       ├── hpet_core.sv
+│       ├── hpet_regs.sv
+│       ├── hpet_regs_pkg.sv
+│       ├── filelists
+│       │   ├── README.md
+│       │   ├── component
+│       │   │   ├── hpet_config_regs.f
+│       │   │   ├── hpet_core.f
+│       │   │   └── hpet_regs.f
+│       │   └── integration
+│       │       └── apb_hpet.f
+│       └── peakrdl
+│           ├── README.md
+│           ├── hpet_regs.rdl
+│           ├── hpet_regs.rdl.v1
+│           ├── hpet_regs_v2.rdl
+│           ├── hpet_regs_wrapper.sv
+│           └── generated_v2
+│               ├── docs
+│               ├── headers
+│               └── rtl
+│                   └── hpet_regs.sv
+│                       ├── hpet_regs.sv
+│                       └── hpet_regs_pkg.sv
+├── apb_xbar
+│   ├── CLAUDE.md
+│   ├── PRD.md
+│   ├── README.md
+│   ├── bin
+│   │   └── generate_xbars.py
+│   ├── docs
+│   │   └── apb_xbar_spec
+│   ├── dv
+│   │   └── tests
+│   │       ├── Makefile
+│   │       ├── conftest.py
+│   │       ├── test_apb_xbar_1to1.py
+│   │       ├── test_apb_xbar_1to4.py
+│   │       ├── test_apb_xbar_2to1.py
+│   │       ├── test_apb_xbar_2to4.py
+│   │       └── GTKW
+│   │           ├── ap_xbar.gtkw
+│   │           └── apb_xbar_2_to_4.gtkw
+│   ├── rtl
+│   │   ├── Makefile
+│   │   ├── apb_xbar_1to1.sv
+│   │   ├── apb_xbar_1to4.sv
+│   │   ├── apb_xbar_2to1.sv
+│   │   ├── apb_xbar_2to4.sv
+│   │   ├── apb_xbar_thin.sv
+│   │   ├── filelists
+│   │   │   ├── core
+│   │   │   │   ├── apb_xbar_1to1.f
+│   │   │   │   ├── apb_xbar_1to4.f
+│   │   │   │   ├── apb_xbar_2to1.f
+│   │   │   │   ├── apb_xbar_2to4.f
+│   │   │   │   └── apb_xbar_common.f
+│   │   │   └── wrapper
+│   │   │       ├── apb_xbar_1to1_wrap.f
+│   │   │       ├── apb_xbar_1to4_wrap.f
+│   │   │       ├── apb_xbar_2to1_wrap.f
+│   │   │       └── apb_xbar_2to4_wrap.f
+│   │   └── wrappers
+│   │       ├── apb_xbar_1to1_wrap.sv
+│   │       ├── apb_xbar_1to4_wrap.sv
+│   │       ├── apb_xbar_2to1_wrap.sv
+│   │       ├── apb_xbar_2to4_wrap.sv
+│   │       ├── apb_xbar_thin_wrap_m10_s10.sv
+│   │       ├── apb_xbar_wrap.sv
+│   │       └── apb_xbar_wrap_m10_s10.sv
+│   └── val
+│       └── integ_amba
+├── bridge
+│   ├── CLAUDE.md
+│   ├── IMPLEMENTATION_STATUS.md
+│   ├── PRD.md
+│   ├── STATUS.md
+│   ├── TASKS.md
+│   ├── bin
+│   │   └── bridge_generator.py
+│   ├── docs
+│   │   ├── generate_pdf.sh
+│   │   └── bridge_spec
+│   │       └── assets
+│   │           ├── images
+│   │           ├── puml
+│   │           └── waves
+│   ├── dv
+│   │   ├── __init__.py
+│   │   ├── components
+│   │   │   └── __init__.py
+│   │   ├── scoreboards
+│   │   │   └── __init__.py
+│   │   ├── tbclasses
+│   │   │   ├── __init__.py
+│   │   │   └── bridge_axi4_flat_tb.py
+│   │   └── tests
+│   │       ├── Makefile
+│   │       ├── conftest.py
+│   │       └── test_bridge_axi4_2x2.py
+│   └── rtl
+│       ├── Makefile
+│       └── bridge_axi4_flat_2x2.sv
+├── converters
+│   ├── docs
+│   ├── dv
+│   │   └── tests
+│   │       ├── Makefile
+│   │       ├── test_axi4_dwidth_converter_rd.py
+│   │       └── test_axi4_dwidth_converter_wr.py
+│   └── rtl
+│       ├── axi4_dwidth_converter.sv
+│       ├── axi4_dwidth_converter_rd.sv
+│       └── axi4_dwidth_converter_wr.sv
+├── delta
+│   ├── CLAUDE.md
+│   ├── DELTA_COMPLETE_SUMMARY.md
+│   ├── PRD.md
+│   ├── QUICK_START.md
+│   ├── README.md
+│   ├── REFACTOR_NOTES.md
+│   ├── STATUS.md
+│   ├── TASKS.md
+│   ├── TREE_TOPOLOGY_TEST_RESULTS.md
+│   ├── delta_index.md
+│   ├── bin
+│   │   ├── complete_tree_generator.py
+│   │   ├── delta_generator.py
+│   │   ├── delta_generator_v1_backup.py
+│   │   └── delta_performance_model.py
+│   ├── docs
+│   │   ├── Delta_Specification_v1.0.pdf
+│   │   ├── delta_specification_v0.25.md
+│   │   ├── generate_pdf.sh
+│   │   └── delta_spec
+│   │       ├── appendix_a_coordinates.md
+│   │       ├── appendix_b_commands.md
+│   │       ├── appendix_c_performance.md
+│   │       ├── delta_index.md
+│   │       ├── assets
+│   │       │   ├── images
+│   │       │   ├── puml
+│   │       │   └── waves
+│   │       ├── ch01_overview
+│   │       │   ├── 01_executive_summary.md
+│   │       │   ├── 02_system_integration.md
+│   │       │   ├── 03_packet_type_routing.md
+│   │       │   └── 04_acronyms.md
+│   │       ├── ch02_blocks
+│   │       │   ├── 00_block_overview.md
+│   │       │   ├── 01_router_architecture.md
+│   │       │   ├── 02_network_interface.md
+│   │       │   ├── 03_packet_classifier.md
+│   │       │   ├── 04_virtual_channel_allocator.md
+│   │       │   └── 05_crossbar_switch.md
+│   │       ├── ch03_interfaces
+│   │       │   ├── 01_axis_interface_spec.md
+│   │       │   ├── 02_packet_format.md
+│   │       │   └── 03_external_entities.md
+│   │       ├── ch04_programming_models
+│   │       │   ├── 01_virtual_contexts.md
+│   │       │   ├── 02_context_switching.md
+│   │       │   ├── 03_configuration_commands.md
+│   │       │   └── 04_system_flow.md
+│   │       ├── ch05_registers
+│   │       │   ├── 01_config_registers.md
+│   │       │   ├── 02_status_registers.md
+│   │       │   └── 03_performance_counters.md
+│   │       └── images
+│   ├── dv
+│   │   └── tests
+│   ├── rtl
+│   │   ├── Makefile
+│   │   └── delta_axis_flat_4x16.sv
+│   └── rtl_test
+│       ├── delta_axis_flat_2x16.sv
+│       ├── delta_axis_flat_2x4.sv
+│       ├── delta_axis_flat_3x8.sv
+│       └── delta_axis_flat_4x16.sv
+├── hive
+│   ├── CLAUDE.md
+│   ├── PRD.md
+│   ├── STATUS.md
+│   ├── TASKS.md
+│   └── docs
+│       ├── generate_pdf.sh
+│       ├── hive_specification.md
+│       └── hive_spec
+│           ├── hive_index.md
+│           ├── assets
+│           │   ├── images
+│           │   ├── puml
+│           │   └── waves
+│           ├── ch01_overview
+│           │   ├── 01_overview.md
+│           │   ├── 02_architectural_requirements.md
+│           │   ├── 03_clocks_and_reset.md
+│           │   ├── 04_acronyms.md
+│           │   └── 05_references.md
+│           ├── ch02_blocks
+│           │   └── 00_overview.md
+│           ├── ch03_interfaces
+│           ├── ch04_programming_models
+│           └── ch05_performance
+├── rapids
+│   ├── CLAUDE.md
+│   ├── PRD.md
+│   ├── STATUS.md
+│   ├── TASKS.md
+│   ├── bin
+│   │   └── dma_model
+│   │       ├── .run.log.swp
+│   │       ├── OUTPUT_ORGANIZATION.md
+│   │       ├── README.md
+│   │       ├── REORGANIZATION_SUMMARY.md
+│   │       ├── project_summary.md
+│   │       ├── run.log
+│   │       ├── run_analysis.sh
+│   │       ├── .claude
+│   │       │   └── settings.local.json
+│   │       ├── assets
+│   │       │   ├── bottleneck_analysis.png
+│   │       │   ├── example_baseline.png
+│   │       │   ├── example_comparison.png
+│   │       │   ├── example_optimized.png
+│   │       │   ├── optimization_waterfall.png
+│   │       │   ├── payload_sweep_separate.png
+│   │       │   ├── sram_vs_performance.png
+│   │       │   └── write_path_analysis.png
+│   │       ├── bin
+│   │       │   ├── clean_analysis.py
+│   │       │   ├── comprehensive_analysis.py
+│   │       │   ├── config_explorer.py
+│   │       │   ├── example_both_paths.py
+│   │       │   ├── generate_optimization_plots.py
+│   │       │   ├── quick_start.py
+│   │       │   ├── run_complete_analysis.py
+│   │       │   ├── run_payload_sweep.py
+│   │       │   ├── analytical
+│   │       │   │   ├── __init__.py
+│   │       │   │   ├── current_design.py
+│   │       │   │   ├── sram_analysis.py
+│   │       │   │   ├── sram_visualizations.py
+│   │       │   │   └── write_analysis.py
+│   │       │   ├── pyperf
+│   │       │   │   ├── __init__.py
+│   │       │   │   ├── performance.py
+│   │       │   │   └── visualization.py
+│   │       │   └── simpy_model
+│   │       │       ├── __init__.py
+│   │       │       ├── compare.py
+│   │       │       ├── current_design.py
+│   │       │       ├── optimizations.py
+│   │       │       ├── validate.py
+│   │       │       └── write_model.py
+│   │       ├── csv
+│   │       │   ├── analysis_read_path.csv
+│   │       │   ├── analysis_write_path.csv
+│   │       │   └── payload_sweep_analytical.csv
+│   │       ├── docs
+│   │       │   ├── complete_rw_analysis.md
+│   │       │   ├── design_specification.md
+│   │       │   ├── fixes_summary.md
+│   │       │   ├── rw_integration_summary.md
+│   │       │   └── sram_insights.md
+│   │       └── reports
+│   ├── docs
+│   │   ├── RAPIDS_Validation_Status_Report.md
+│   │   ├── generate_pdf.sh
+│   │   ├── rapids_specification_hive_context.md
+│   │   ├── test_clean.docx
+│   │   ├── assets
+│   │   │   ├── rapids_blocks-Control Read Engine.drawio.png
+│   │   │   ├── rapids_blocks-control write engine.drawio.png
+│   │   │   ├── rapids_blocks-descriptor engine.drawio.png
+│   │   │   ├── rapids_blocks-monitor_group.drawio.png
+│   │   │   ├── rapids_blocks-rapids.drawio.png
+│   │   │   ├── rapids_blocks-scheduler.drawio.png
+│   │   │   ├── rapids_blocks-scheduler_group.drawio.png
+│   │   │   ├── rapids_blocks-sink data path.drawio.png
+│   │   │   ├── rapids_blocks-sink_data_path.drawio.png
+│   │   │   ├── rapids_blocks-source data path.drawio.png
+│   │   │   ├── rapids_blocks-source_data_path.drawio.png
+│   │   │   └── draw.io
+│   │   │       ├── .xdp-.$miop_blocks.drawio.bkp-BVcxV4
+│   │   │       ├── .xdp-.$miop_blocks.drawio.bkp-nif0BX
+│   │   │       ├── .xdp-.$rapids_blocks.drawio.bkp-8OK86m
+│   │   │       ├── rapids_blocks.drawio
+│   │   │       └── png
+│   │   └── rapids_spec
+│   │       ├── RAPIDS_Specification_v0.26.docx
+│   │       ├── RAPIDS_Specification_v0.26.pdf
+│   │       ├── rapids_index.md
+│   │       ├── rapids_index_v0.25.md
+│   │       ├── rapids_index_v0.25_text.md
+│   │       ├── ReferenceDocs
+│   │       │   ├── axi_stream_parity_guide.md
+│   │       │   ├── markdown_to_word_instructions.md
+│   │       │   ├── soc_arbiter_blocking_analysis.md
+│   │       │   └── packets
+│   │       │       └── monitor_bus_validation_guide.md
+│   │       ├── assets
+│   │       │   ├── images
+│   │       │   ├── puml
+│   │       │   │   ├── address_alignment_fsm.png
+│   │       │   │   ├── address_alignment_fsm.puml
+│   │       │   │   ├── ctrlrd_engine_fsm.png
+│   │       │   │   ├── ctrlrd_engine_fsm.puml
+│   │       │   │   ├── ctrlwr_engine_fsm.png
+│   │       │   │   ├── ctrlwr_engine_fsm.puml
+│   │       │   │   ├── descriptor_engine_fsm.png
+│   │       │   │   ├── descriptor_engine_fsm.puml
+│   │       │   │   ├── mnoc_master_fsm.png
+│   │       │   │   ├── mnoc_slave_ack_fsm.png
+│   │       │   │   ├── monbus_filter_fsm.png
+│   │       │   │   ├── monbus_filter_fsm.puml
+│   │       │   │   ├── network_master_fsm.puml
+│   │       │   │   ├── network_slave_ack_fsm.puml
+│   │       │   │   ├── scheduler_fsm.png
+│   │       │   │   ├── scheduler_fsm.puml
+│   │       │   │   ├── sink_sram_control_fsm.png
+│   │       │   │   ├── sink_sram_control_fsm.puml
+│   │       │   │   ├── source_sram_control_fsm.png
+│   │       │   │   └── source_sram_control_fsm.puml
+│   │       │   └── waves
+│   │       ├── ch01_overview
+│   │       │   ├── 01_overview.md
+│   │       │   ├── 02_architectural_requirements.md
+│   │       │   ├── 03_clocks_and_reset.md
+│   │       │   ├── 04_acronyms.md
+│   │       │   └── 05_references.md
+│   │       ├── ch02_blocks
+│   │       │   ├── 00_overview.md
+│   │       │   ├── 01_00_scheduler_group.md
+│   │       │   ├── 01_01_scheduler.md
+│   │       │   ├── 01_02_descriptor_engine.md
+│   │       │   ├── 01_03_ctrlwr_engine.md
+│   │       │   ├── 01_04_ctrlrd_engine.md
+│   │       │   ├── 01_05_scheduler_group_array.md
+│   │       │   ├── 02_00_sink_data_path.md
+│   │       │   ├── 02_01_axis_slave.md
+│   │       │   ├── 02_01_network_slave.md
+│   │       │   ├── 02_02_sink_sram_control.md
+│   │       │   ├── 02_03_sink_axi_write_engine.md
+│   │       │   ├── 03_00_source_data_path.md
+│   │       │   ├── 03_01_axis_master.md
+│   │       │   ├── 03_01_network_master.md
+│   │       │   ├── 03_02_source_sram_control.md
+│   │       │   ├── 03_03_source_axi_read_engine.md
+│   │       │   ├── 04_monbus_axil_group.md
+│   │       │   └── 05_fsm_summary_table.md
+│   │       ├── ch03_interfaces
+│   │       │   ├── 01_top_level.md
+│   │       │   ├── 02_axil4_interface_spec.md
+│   │       │   ├── 03_axi4_interface_spec.md
+│   │       │   ├── 04_axis4_interface_spec.md
+│   │       │   ├── 05_monbus_interface_spec.md
+│   │       │   └── apb_interface_spec.md
+│   │       ├── ch04_programming_models
+│   │       │   └── 01_programming.md
+│   │       ├── ch05_registers
+│   │       │   └── 01_registers.md
+│   │       ├── draw.io
+│   │       │   ├── .xdp-.$rapids_blocks.drawio.bkp-BVcxV4
+│   │       │   ├── .xdp-.$rapids_blocks.drawio.bkp-nif0BX
+│   │       │   └── png
+│   │       ├── images
+│   │       │   ├── address_alignment_fsm.png
+│   │       │   ├── ctrlrd_engine_fsm.png
+│   │       │   ├── ctrlwr_engine_fsm.png
+│   │       │   ├── descriptor_engine_fsm.png
+│   │       │   ├── mnoc_master_fsm.png
+│   │       │   ├── mnoc_slave_ack_fsm.png
+│   │       │   ├── monbus_filter_fsm.png
+│   │       │   ├── scheduler_fsm.png
+│   │       │   ├── sink_sram_control_fsm.png
+│   │       │   └── source_sram_control_fsm.png
+│   │       └── visio
+│   ├── dv
+│   │   ├── __init__.py
+│   │   ├── components
+│   │   │   ├── __init__.py
+│   │   │   └── data_mover_bfm.py
+│   │   ├── scoreboards
+│   │   ├── tbclasses
+│   │   │   ├── __init__.py
+│   │   │   ├── ctrlrd_engine_tb.py
+│   │   │   ├── ctrlwr_engine_tb.py
+│   │   │   ├── descriptor_engine_tb.py
+│   │   │   ├── monbus_axil_group_tb.py
+│   │   │   ├── program_engine_tb.py
+│   │   │   ├── scheduler_group_array_tb.py
+│   │   │   ├── scheduler_group_tb.py
+│   │   │   ├── scheduler_tb.py
+│   │   │   ├── sink_datapath_tb.py
+│   │   │   └── source_datapath_tb.py
+│   │   └── tests
+│   │       ├── Makefile
+│   │       ├── README.md
+│   │       ├── __init__.py
+│   │       ├── conftest.py
+│   │       ├── test_scheduler_group.py.deprecated
+│   │       ├── validate_complete_integration_test.py
+│   │       ├── validate_scheduler_group_tb.py
+│   │       ├── fub_tests
+│   │       │   ├── README_ctrlrd_engine.md
+│   │       │   ├── __init__.py
+│   │       │   ├── __init___scheduler.py
+│   │       │   ├── conftest_axi_engines.py
+│   │       │   ├── conftest_ctrlrd_engine.py
+│   │       │   ├── conftest_ctrlwr_engine.py
+│   │       │   ├── conftest_descriptor_engine.py
+│   │       │   ├── conftest_network_interfaces.py
+│   │       │   ├── conftest_scheduler.py
+│   │       │   ├── conftest_simple_sram.py
+│   │       │   ├── conftest_source_sram_control.py
+│   │       │   ├── conftest_sram_control.py
+│   │       │   ├── test_ctrlrd_engine.py
+│   │       │   ├── test_ctrlrd_engine_simple.py
+│   │       │   ├── test_ctrlwr_engine.py
+│   │       │   ├── test_ctrlwr_engine_simple.py
+│   │       │   ├── test_descriptor_engine.py
+│   │       │   ├── test_network_master.py
+│   │       │   ├── test_network_master_simple.py
+│   │       │   ├── test_network_slave.py
+│   │       │   ├── test_scheduler.py
+│   │       │   ├── test_scheduler_timeout.py
+│   │       │   ├── test_simple_sram.py
+│   │       │   ├── test_sink_axi_write_engine_hbm3e_configs.py
+│   │       │   ├── test_sink_axi_write_engine_simple.py
+│   │       │   ├── test_sink_sram_control_performance.py
+│   │       │   ├── test_source_axi_read_engine_simple.py
+│   │       │   ├── test_source_sram_control.py
+│   │       │   ├── GTKW_ctrlwr_engine
+│   │       │   │   └── program_engine.gtkw
+│   │       │   └── GTKW_descriptor_engine
+│   │       │       └── descriptor_engine.gtkw
+│   │       ├── macro_tests
+│   │       │   ├── conftest.py
+│   │       │   ├── test_monbus_axil_group.py
+│   │       │   ├── test_scheduler_group.py
+│   │       │   ├── test_scheduler_group_array.py
+│   │       │   ├── test_scheduler_group_ctrlrd.py
+│   │       │   ├── test_sink_datapath.py
+│   │       │   └── test_source_datapath.py
+│   │       ├── projects
+│   │       │   └── components
+│   │       │       └── rapids
+│   │       │           └── known_issues
+│   │       └── system_tests
+│   │           └── test_end_to_end_system.py
+│   ├── known_issues
+│   │   ├── README.md
+│   │   ├── scheduler_group_signal_naming_conflicts.md
+│   │   ├── active
+│   │   │   ├── sink_data_path.md
+│   │   │   └── sink_sram_control.md
+│   │   └── resolved
+│   │       ├── descriptor_engine_apb_rda_sequential.md
+│   │       ├── program_engine_bugs_found.md
+│   │       └── scheduler.md
+│   ├── reports
+│   │   ├── AXIS_SRAM_OPTIMIZATION_ANALYSIS.md
+│   │   └── lint
+│   │       ├── README.md
+│   │       ├── SUMMARY.txt
+│   │       ├── verible
+│   │       │   ├── ctrlrd_engine.txt
+│   │       │   ├── ctrlwr_engine.txt
+│   │       │   ├── descriptor_engine.txt
+│   │       │   ├── monbus_axil_group.txt
+│   │       │   ├── scheduler.txt
+│   │       │   ├── scheduler_group.txt
+│   │       │   ├── scheduler_group_array.txt
+│   │       │   ├── simple_sram.txt
+│   │       │   ├── sink_axi_write_engine.txt
+│   │       │   ├── sink_sram_control.txt
+│   │       │   ├── source_axi_read_engine.txt
+│   │       │   └── source_sram_control.txt
+│   │       ├── verilator
+│   │       │   ├── ctrlrd_engine.txt
+│   │       │   ├── ctrlwr_engine.txt
+│   │       │   ├── descriptor_engine.txt
+│   │       │   ├── monbus_axil_group.txt
+│   │       │   ├── scheduler.txt
+│   │       │   ├── scheduler_group.txt
+│   │       │   ├── scheduler_group_array.txt
+│   │       │   ├── simple_sram.txt
+│   │       │   ├── sink_axi_write_engine.txt
+│   │       │   ├── sink_sram_control.txt
+│   │       │   ├── source_axi_read_engine.txt
+│   │       │   └── source_sram_control.txt
+│   │       └── yosys
+│   │           ├── ctrlrd_engine.txt
+│   │           ├── ctrlwr_engine.txt
+│   │           ├── descriptor_engine.txt
+│   │           ├── monbus_axil_group.txt
+│   │           ├── scheduler.txt
+│   │           ├── scheduler_group.txt
+│   │           ├── scheduler_group_array.txt
+│   │           ├── simple_sram.txt
+│   │           ├── sink_axi_write_engine.txt
+│   │           ├── sink_sram_control.txt
+│   │           ├── source_axi_read_engine.txt
+│   │           └── source_sram_control.txt
+│   └── rtl
+│       ├── Makefile
+│       ├── signal_conflicts_report.md
+│       ├── filelists
+│       │   ├── fub
+│       │   │   ├── ctrlrd_engine.f
+│       │   │   ├── ctrlwr_engine.f
+│       │   │   ├── descriptor_engine.f
+│       │   │   └── scheduler.f
+│       │   └── macro
+│       │       ├── monbus_axil_group.f
+│       │       ├── scheduler_group.f
+│       │       └── scheduler_group_array.f
+│       ├── includes
+│       │   ├── rapids_imports.svh
+│       │   └── rapids_pkg.sv
+│       ├── rapids_fub
+│       │   ├── ctrlrd_engine.sv
+│       │   ├── ctrlwr_engine.sv
+│       │   ├── descriptor_engine.sv
+│       │   ├── scheduler.sv
+│       │   ├── simple_sram.sv
+│       │   ├── sink_axi_write_engine.sv
+│       │   ├── sink_sram_control.sv
+│       │   ├── source_axi_read_engine.sv
+│       │   └── source_sram_control.sv
+│       └── rapids_macro
+│           ├── monbus_axil_group.sv
+│           ├── scheduler_group.sv
+│           └── scheduler_group_array.sv
+├── shims
+│   ├── docs
+│   │   └── peakrdl_adapter_README.md
+│   ├── dv
+│   │   └── tests
+│   │       ├── Makefile
+│   │       └── test_peakrdl_to_cmdrsp.py
+│   └── rtl
+│       ├── axi4_to_apb_convert.sv
+│       ├── axi4_to_apb_shim.sv
+│       └── peakrdl_to_cmdrsp.sv
+└── stream
+    ├── CLAUDE.md
+    ├── PRD.md
+    ├── README.md
+    ├── STATUS.md
+    ├── TASKS.md
+    ├── bin
+    │   └── dma_model
+    │       ├── ENHANCEMENTS.md
+    │       ├── README.md
+    │       ├── assets
+    │       │   ├── high_comparison.png
+    │       │   ├── high_read.png
+    │       │   ├── high_write.png
+    │       │   ├── low_comparison.png
+    │       │   ├── low_read.png
+    │       │   ├── low_write.png
+    │       │   ├── medium_comparison.png
+    │       │   ├── medium_read.png
+    │       │   ├── medium_write.png
+    │       │   └── mode_comparison.png
+    │       ├── bin
+    │       │   ├── comprehensive_analysis.py
+    │       │   ├── pyperf
+    │       │   │   ├── __init__.py
+    │       │   │   ├── performance.py
+    │       │   │   ├── reporting.py
+    │       │   │   └── visualization.py
+    │       │   └── reports
+    │       │       ├── stream_dma_high_report.md
+    │       │       ├── stream_dma_low_report.md
+    │       │       ├── stream_dma_medium_report.md
+    │       │       └── stream_dma_perfect_report.md
+    │       └── csv
+    ├── docs
+    │   ├── ARCHITECTURAL_NOTES.md
+    │   ├── PERF_PROFILER_TEST_SUMMARY.md
+    │   ├── generate_pdf.sh
+    │   └── stream_spec
+    │       ├── STREAM_Specification_v0.26.docx
+    │       ├── STREAM_Specification_v0.26.pdf
+    │       ├── stream_index.md
+    │       ├── assets
+    │       │   ├── draw.io
+    │       │   │   ├── .xdp-.$stream_blocks.drawio.bkp-uMdI9E
+    │       │   │   └── stream_blocks.drawio
+    │       │   ├── images
+    │       │   ├── puml
+    │       │   └── waves
+    │       ├── ch01_overview
+    │       │   └── 03_clocks_and_reset.md
+    │       ├── ch02_blocks
+    │       │   ├── 00_apbtodescr.md
+    │       │   ├── 01_01_descriptor_engine.md
+    │       │   ├── 01_02_scheduler.md
+    │       │   ├── 02_01_axi_read_engine.md
+    │       │   ├── 02_02_axi_write_engine.md
+    │       │   ├── 03_sram_controller.md
+    │       │   ├── 04_simple_sram.md
+    │       │   ├── 05_channel_arbiter.md
+    │       │   ├── 06_apb_config.md
+    │       │   ├── 07_monbus_axil_group.md
+    │       │   ├── 08_stream_top.md
+    │       │   ├── 09_perf_profiler.md
+    │       │   └── puml
+    │       │       ├── axi_read_engine_fsm.puml
+    │       │       ├── axi_write_engine_fsm.puml
+    │       │       ├── descriptor_engine_fsm.puml
+    │       │       └── scheduler_fsm.puml
+    │       ├── ch03_interfaces
+    │       ├── ch03_registers
+    │       │   └── register_map.md
+    │       ├── ch04_programming_models
+    │       └── ch05_registers
+    ├── dv
+    │   ├── __init__.py
+    │   ├── components
+    │   │   └── __init__.py
+    │   ├── scoreboards
+    │   │   └── __init__.py
+    │   ├── tbclasses
+    │   │   ├── __init__.py
+    │   │   ├── apbtodescr_tb.py
+    │   │   ├── axi_read_engine_tb.py
+    │   │   ├── axi_write_engine_tb.py
+    │   │   ├── descriptor_engine_tb.py
+    │   │   ├── monbus_axil_group_tb.py
+    │   │   ├── perf_profiler_tb.py
+    │   │   ├── scheduler_tb.py
+    │   │   ├── simple_sram_tb.py
+    │   │   └── sram_controller_tb.py
+    │   └── tests
+    │       ├── Makefile
+    │       ├── __init__.py
+    │       ├── fub_tests
+    │       │   ├── README_apbtodescr.md
+    │       │   ├── README_perf_profiler.md
+    │       │   ├── cocotb_tests.py
+    │       │   ├── conftest_descriptor_engine.py
+    │       │   ├── conftest_perf_profiler.py
+    │       │   ├── conftest_scheduler.py
+    │       │   ├── test_apbtodescr.py
+    │       │   ├── test_axi_read_engine.py
+    │       │   ├── test_axi_write_engine.py
+    │       │   ├── test_descriptor_engine.py
+    │       │   ├── test_perf_profiler.py
+    │       │   ├── test_scheduler.py
+    │       │   ├── test_simple_sram.py
+    │       │   ├── test_sram_controller.py
+    │       │   └── sim_build
+    │       │       ├── 6jabx26b_results.xml
+    │       │       ├── Vtop.cpp
+    │       │       ├── Vtop.h
+    │       │       ├── Vtop.mk
+    │       │       ├── Vtop__ALL.a
+    │       │       ├── Vtop__ALL.cpp
+    │       │       ├── Vtop__ALL.d
+    │       │       ├── Vtop__ALL.o
+    │       │       ├── Vtop__Dpi.cpp
+    │       │       ├── Vtop__Dpi.h
+    │       │       ├── Vtop__Syms.cpp
+    │       │       ├── Vtop__Syms.h
+    │       │       ├── Vtop___024root.h
+    │       │       ├── Vtop___024root__DepSet_h84412442__0.cpp
+    │       │       ├── Vtop___024root__DepSet_h84412442__0__Slow.cpp
+    │       │       ├── Vtop___024root__DepSet_heccd7ead__0.cpp
+    │       │       ├── Vtop___024root__DepSet_heccd7ead__0__Slow.cpp
+    │       │       ├── Vtop___024root__Slow.cpp
+    │       │       ├── Vtop___024unit.h
+    │       │       ├── Vtop___024unit__DepSet_hff17caec__0__Slow.cpp
+    │       │       ├── Vtop___024unit__Slow.cpp
+    │       │       ├── Vtop__pch.h
+    │       │       ├── Vtop__ver.d
+    │       │       ├── Vtop__verFiles.dat
+    │       │       ├── Vtop_classes.mk
+    │       │       ├── Vtop_monitor_pkg.h
+    │       │       ├── Vtop_monitor_pkg__DepSet_he7167729__0__Slow.cpp
+    │       │       ├── Vtop_monitor_pkg__Slow.cpp
+    │       │       ├── Vtop_stream_pkg.h
+    │       │       ├── Vtop_stream_pkg__DepSet_h801792c1__0__Slow.cpp
+    │       │       ├── Vtop_stream_pkg__Slow.cpp
+    │       │       ├── apbtodescr
+    │       │       ├── verilated.d
+    │       │       ├── verilated.o
+    │       │       ├── verilated_dpi.d
+    │       │       ├── verilated_dpi.o
+    │       │       ├── verilated_threads.d
+    │       │       ├── verilated_threads.o
+    │       │       ├── verilated_vpi.d
+    │       │       ├── verilated_vpi.o
+    │       │       ├── verilator.d
+    │       │       └── verilator.o
+    │       ├── macro_tests
+    │       │   ├── conftest.py
+    │       │   └── test_monbus_axil_group.py
+    │       └── sim_build
+    │           ├── Vtop.cpp
+    │           ├── Vtop.h
+    │           ├── Vtop.mk
+    │           ├── Vtop__ALL.a
+    │           ├── Vtop__ALL.cpp
+    │           ├── Vtop__ALL.d
+    │           ├── Vtop__ALL.o
+    │           ├── Vtop__Dpi.cpp
+    │           ├── Vtop__Dpi.h
+    │           ├── Vtop__Syms.cpp
+    │           ├── Vtop__Syms.h
+    │           ├── Vtop___024root.h
+    │           ├── Vtop___024root__DepSet_h84412442__0.cpp
+    │           ├── Vtop___024root__DepSet_h84412442__0__Slow.cpp
+    │           ├── Vtop___024root__DepSet_heccd7ead__0.cpp
+    │           ├── Vtop___024root__DepSet_heccd7ead__0__Slow.cpp
+    │           ├── Vtop___024root__Slow.cpp
+    │           ├── Vtop___024unit.h
+    │           ├── Vtop___024unit__DepSet_hff17caec__0__Slow.cpp
+    │           ├── Vtop___024unit__Slow.cpp
+    │           ├── Vtop__pch.h
+    │           ├── Vtop__ver.d
+    │           ├── Vtop__verFiles.dat
+    │           ├── Vtop_classes.mk
+    │           ├── Vtop_monitor_pkg.h
+    │           ├── Vtop_monitor_pkg__DepSet_he7167729__0__Slow.cpp
+    │           ├── Vtop_monitor_pkg__Slow.cpp
+    │           ├── Vtop_stream_pkg.h
+    │           ├── Vtop_stream_pkg__DepSet_h801792c1__0__Slow.cpp
+    │           ├── Vtop_stream_pkg__Slow.cpp
+    │           ├── apbtodescr
+    │           ├── dw2yg16y_results.xml
+    │           ├── verilated.d
+    │           ├── verilated.o
+    │           ├── verilated_dpi.d
+    │           ├── verilated_dpi.o
+    │           ├── verilated_threads.d
+    │           ├── verilated_threads.o
+    │           ├── verilated_vpi.d
+    │           ├── verilated_vpi.o
+    │           ├── verilator.d
+    │           └── verilator.o
+    ├── known_issues
+    ├── regs
+    │   └── README.md
+    └── rtl
+        ├── Makefile
+        ├── filelists
+        │   └── fub
+        │       └── perf_profiler.f
+        ├── includes
+        │   ├── stream_imports.svh
+        │   └── stream_pkg.sv
+        ├── stream_fub
+        │   ├── axi_read_engine.sv
+        │   ├── axi_write_engine.sv
+        │   ├── descriptor_engine.sv
+        │   ├── perf_profiler.sv
+        │   ├── scheduler.sv
+        │   ├── simple_sram.sv
+        │   └── sram_controller.sv
+        └── stream_macro
+            ├── apbtodescr.sv
+            ├── datapath.sv
+            ├── monbus_axil_group.sv
+            ├── scheduler_group.sv
+            ├── scheduler_group_array.sv
+            └── stream_regs.rdl

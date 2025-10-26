@@ -268,6 +268,8 @@
 //
 //==============================================================================
 
+`include "reset_defs.svh"
+
 module arbiter_round_robin #(
     parameter int CLIENTS      = 4,
     parameter int WAIT_GNT_ACK = 0,
@@ -404,8 +406,8 @@ module arbiter_round_robin #(
     // =======================================================================
     // Grant outputs and pending ACK state in single always_ff
     // =======================================================================
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             grant            <= '0;
             grant_id         <= '0;
             grant_valid      <= 1'b0;
@@ -416,7 +418,7 @@ module arbiter_round_robin #(
             r_pending_client <= '0;
         end else begin
             r_last_valid <= grant_valid;
-
+        
             if (WAIT_GNT_ACK == 0) begin
                 // No-ACK mode: direct atomic assignment
                 grant           <= w_next_grant;
@@ -424,7 +426,7 @@ module arbiter_round_robin #(
                 grant_valid     <= w_next_grant_valid;
                 last_grant      <= grant;
                 r_last_grant_id <= grant_id;
-
+        
             end else begin
                 // ACK mode: follow the four rules AND manage pending ACK state unified
                 if (grant_valid == 1'b0) begin
@@ -434,18 +436,18 @@ module arbiter_round_robin #(
                     grant_valid     <= w_next_grant_valid;
                     last_grant      <= grant;
                     r_last_grant_id <= grant_id;
-
+        
                     // UNIFIED: Update pending ACK state when issuing new grant
                     if (w_next_grant_valid) begin
                         r_pending_ack    <= 1'b1;
                         r_pending_client <= w_next_grant_id;
                     end
-
+        
                 end else if (grant_valid == 1'b1 && !w_ack_received) begin
                     // Rule 2: grant_valid = 1 and no ack → hold all values
                     // grant, grant_id, grant_valid unchanged
                     // r_pending_ack, r_pending_client unchanged
-
+        
                 end else if (grant_valid == 1'b1 && w_ack_received && (w_other_requests == '0)) begin
                     // Rule 3: grant_valid = 1, ack occurs, only pending client requesting → clear all
                     grant            <= '0;
@@ -455,7 +457,7 @@ module arbiter_round_robin #(
                     r_last_grant_id  <= grant_id;
                     r_pending_ack    <= 1'b0;
                     r_pending_client <= '0;
-
+        
                 end else if (grant_valid == 1'b1 && w_ack_received && (w_other_requests != '0)) begin
                     // Rule 4: grant_valid = 1, ack occurs, other requests → take new values or clear if none
                     if (w_next_grant_valid) begin
@@ -476,6 +478,7 @@ module arbiter_round_robin #(
                 end
             end
         end
-    end
+    )
+
 
 endmodule : arbiter_round_robin

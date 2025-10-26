@@ -207,3 +207,10 @@ apb_slave_cdc #(
 ---
 
 **Last Updated:** 2025-10-09
+
+---
+
+## Navigation
+
+- **[← Back to RTLAmba Index](../index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

@@ -37,11 +37,18 @@ Environment Variables:
 """
 
 import os
+import sys
 import random
 from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+
+# Add repo root to path for CocoTBFramework imports
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if os.path.join(repo_root, 'bin') not in sys.path:
+    sys.path.insert(0, os.path.join(repo_root, 'bin'))
+
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.fifo.fifo_buffer import FifoBufferTB
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
@@ -177,34 +184,42 @@ async def fifo_async_test(dut):
 
 def generate_params():
     """
-    Generate test parameters. Modify this function to limit test scope for debugging.
-    
+    Generate test parameters based on REG_LEVEL.
+
+    REG_LEVEL=GATE: 2 tests (depth 4, both clocks, both modes, basic)
+    REG_LEVEL=FUNC: ~8 tests (depths 4, 8, both clocks, both modes, basic+medium) - default
+    REG_LEVEL=FULL: ~36 tests (depths 4, 8, 16, both clocks, both modes, all levels)
+
     Examples for quick debugging:
         # Single test case:
         return [(8, 4, 10, 8, 0, 'basic')]
-        
-        # Just test one mode:
-        return [(8, 4, 10, 8, 0, 'basic'), (8, 4, 10, 8, 1, 'basic')]
-        
-        # Test only basic level:
-        widths = [8]
-        depths = [4, 8, 16]
-        wr_clk_periods = [10]
+    """
+    import os
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+
+    widths = [8]
+    wr_clk_periods = [10]
+
+    if reg_level == 'GATE':
+        # Quick smoke test
+        depths = [4]  # Power of 2
+        rd_clk_periods = [8, 12]  # Different clocks to test async
+        registered = [0, 1]
+        test_levels = ['basic']
+    elif reg_level == 'FUNC':
+        # Functional coverage (default)
+        depths = [4, 8]  # Power of 2 depths for Gray counters
         rd_clk_periods = [8, 12]
         registered = [0, 1]
-        test_levels = ['basic']  # Only basic
-        return list(product(widths, depths, wr_clk_periods, rd_clk_periods, registered, test_levels))
-    """
-    widths = [8]
-    depths = [4, 8, 16]  # Power of 2 depths for standard async FIFOs with gray counters
-    wr_clk_periods = [10]
-    rd_clk_periods = [8, 12]  # Different read clock periods to test async behavior
-    registered = [0, 1]  # ADDED - matches sync version (0=mux, 1=flop)
-    # test_levels = ['basic', 'medium', 'full']  # All test levels
-    test_levels =['full']
+        test_levels = ['basic', 'medium']
+    else:  # FULL
+        # Comprehensive validation
+        depths = [4, 8, 16]  # Power of 2 depths for standard async FIFOs
+        rd_clk_periods = [8, 12]
+        registered = [0, 1]
+        test_levels = ['basic', 'medium', 'full']
 
-    return [(8, 6, 10, 8, 0, 'full'), (8, 6, 10, 8, 1, 'full'), (8, 6, 8, 10, 0, 'full'), (8, 6, 8, 10, 1, 'full')]
-    # return list(product(widths, depths, wr_clk_periods, rd_clk_periods, registered, test_levels))
+    return list(product(widths, depths, wr_clk_periods, rd_clk_periods, registered, test_levels))
 
 params = generate_params()
 
@@ -222,7 +237,8 @@ def test_fifo_async(request, data_width, depth, wr_clk_period, rd_clk_period, re
     """
     # get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
-        'rtl_cmn': 'rtl/common'
+        'rtl_cmn': 'rtl/common',
+        'rtl_amba_includes': 'rtl/amba/includes',
     })
     
     # Generate mode string from registered parameter (matches sync version exactly)
@@ -234,6 +250,8 @@ def test_fifo_async(request, data_width, depth, wr_clk_period, rd_clk_period, re
     toplevel = dut_name
 
     verilog_sources = [
+        os.path.join(rtl_dict['rtl_amba_includes'], "fifo_defs.svh"),
+        os.path.join(rtl_dict['rtl_amba_includes'], "reset_defs.svh"),
         os.path.join(rtl_dict['rtl_cmn'], "glitch_free_n_dff_arn.sv"),
         os.path.join(rtl_dict['rtl_cmn'], "gray2bin.sv"),
         os.path.join(rtl_dict['rtl_cmn'], "counter_bingray.sv"),
@@ -248,6 +266,12 @@ def test_fifo_async(request, data_width, depth, wr_clk_period, rd_clk_period, re
     rcl_str = TBBase.format_dec(rd_clk_period, 3)
     # Updated test name format: includes test level in the main name (matches sync version)
     test_name_plus_params = f"test_fifo_async_w{w_str}_d{d_str}_wcl{wcl_str}_rcl{rcl_str}_{mode}_{test_level}"
+
+    # Handle pytest-xdist parallel execution
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
+
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # use it in the simbuild path
@@ -259,7 +283,7 @@ def test_fifo_async(request, data_width, depth, wr_clk_period, rd_clk_period, re
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes = []
+    includes=[rtl_dict['rtl_amba_includes']]
 
     # RTL parameters - Handle string parameters specially for Verilator (matches sync version)
     rtl_parameters = {}

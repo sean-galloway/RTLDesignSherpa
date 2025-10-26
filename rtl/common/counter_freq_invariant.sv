@@ -232,6 +232,8 @@
 //     - Rollover behavior
 //
 //==============================================================================
+
+`include "reset_defs.svh"
 module counter_freq_invariant
 #(
     parameter int COUNTER_WIDTH = 16,     // Width of the output counter (default 16-bit = ~65ms rollover)
@@ -241,7 +243,7 @@ module counter_freq_invariant
     input  logic                        rst_n,       // Active low reset
     input  logic                        sync_reset_n,// Synchronous reset (0=reset, 1=run)
     input  logic [6:0]                  freq_sel,    // Frequency selection (7-bit for fine control)
-    output logic [COUNTER_WIDTH-1:0]    counter,     // Output counter (increments every microsecond)
+    output logic [COUNTER_WIDTH-1:0]    o_counter,   // Output counter (increments every microsecond)
     output logic                        tick         // Pulse every microsecond
 );
 
@@ -343,20 +345,21 @@ module counter_freq_invariant
     end
 
     // Detect frequency selection changes and sync reset
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_prev_freq_sel <= 7'b0;
             r_clear_pulse <= 1'b1;  // Start in reset state
         end
         else begin
             r_prev_freq_sel <= freq_sel;
-
+        
             // Generate clear pulse when:
             // 1. Frequency selection changes
             // 2. sync_reset_n is deasserted (synchronous reset active)
             r_clear_pulse <= (freq_sel != r_prev_freq_sel) || !sync_reset_n;
         end
-    end
+    )
+
 
     // Prescaler counter using the provided counter_load_clear
     // This generates a done pulse every microsecond
@@ -376,22 +379,22 @@ module counter_freq_invariant
     );
 
     // Generate microsecond tick signal and maintain output counter
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            counter <= 'b0;
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
+            o_counter <= 'b0;
             tick <= 1'b0;
         end
         else begin
             // Clear has highest priority - reset counter when in sync reset or frequency changes
             if (r_clear_pulse) begin
-                counter <= 'b0;
+                o_counter <= 'b0;
                 tick <= 1'b0;
             end
             else begin
                 // Generate tick pulse every microsecond (only when not in sync reset)
                 if (w_prescaler_done && sync_reset_n) begin
                     tick <= 1'b1;
-                    counter <= counter + 1'b1;  // Increment counter every microsecond
+                    o_counter <= o_counter + 1'b1;  // Increment counter every microsecond
                 end
                 else begin
                     tick <= 1'b0;
@@ -399,6 +402,7 @@ module counter_freq_invariant
                 end
             end
         end
-    end
+    )
+
 
 endmodule : counter_freq_invariant

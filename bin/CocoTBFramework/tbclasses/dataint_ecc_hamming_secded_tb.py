@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: DataintEccHammingSecDedTB
+# Purpose: Testbench for dataint_ecc_hamming_encode_secded and dataint_ecc_hamming_decode_s
+#
+# Documentation: bin/CocoTBFramework/README.md
+# Subsystem: framework
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """
 Testbench for dataint_ecc_hamming_encode_secded and dataint_ecc_hamming_decode_secded modules
 

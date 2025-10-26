@@ -196,3 +196,8 @@ For N=4 with requests [3:0]:
 - `encoder_priority_enable`: Priority encoding utility module
 
 The `arbiter_round_robin_simple` module provides an efficient and fair arbitration solution suitable for most round-robin arbitration needs in digital systems.
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

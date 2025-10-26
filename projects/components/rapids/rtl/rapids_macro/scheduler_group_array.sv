@@ -87,11 +87,11 @@ module scheduler_group_array
     output logic [CHANNEL_COUNT-1:0]    apb_ready,
     input  logic [ADDR_WIDTH-1:0]       apb_addr [CHANNEL_COUNT],
 
-    // RDA Packet Interface (from Network Slave) - per channel
-    input  logic [CHANNEL_COUNT-1:0]    rda_valid,
-    output logic [CHANNEL_COUNT-1:0]    rda_ready,
-    input  logic [DATA_WIDTH-1:0]       rda_packet [CHANNEL_COUNT],
-    input  logic [CHAN_WIDTH-1:0]       rda_channel [CHANNEL_COUNT],
+    // CDA Packet Interface (from Network Slave) - per channel, formerly RDA
+    input  logic [CHANNEL_COUNT-1:0]    cda_valid,
+    output logic [CHANNEL_COUNT-1:0]    cda_ready,
+    input  logic [DATA_WIDTH-1:0]       cda_packet [CHANNEL_COUNT],
+    input  logic [CHAN_WIDTH-1:0]       cda_channel [CHANNEL_COUNT],
 
     // EOS Completion Interface (from SRAM Control) - per channel
     input  logic [CHANNEL_COUNT-1:0]    eos_completion_valid,
@@ -484,11 +484,11 @@ module scheduler_group_array
                 .apb_ready                  (apb_ready[ch]),
                 .apb_addr                   (apb_addr[ch]),
 
-                // RDA Packet Interface
-                .rda_valid                  (rda_valid[ch]),
-                .rda_ready                  (rda_ready[ch]),
-                .rda_packet                 (rda_packet[ch]),
-                .rda_channel                (rda_channel[ch]),
+                // CDA Packet Interface (formerly RDA)
+                .cda_valid                  (cda_valid[ch]),
+                .cda_ready                  (cda_ready[ch]),
+                .cda_packet                 (cda_packet[ch]),
+                .cda_channel                (cda_channel[ch]),
 
                 // EOS Completion Interface
                 .eos_completion_valid       (eos_completion_valid[ch]),

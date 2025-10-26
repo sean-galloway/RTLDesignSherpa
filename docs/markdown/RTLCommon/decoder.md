@@ -103,3 +103,8 @@ decoder #(.M(3), .N(8)) state_decoder (
 - No error checking for invalid inputs (though all combinations are valid)
 - Output initialization ensures clean power-up behavior
 - Generate loop structure scales efficiently to any required size
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

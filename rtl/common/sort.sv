@@ -59,6 +59,8 @@
 //   Run: pytest val/common/test_sort.py -v
 //
 //==============================================================================
+
+`include "reset_defs.svh"
 module sort #(
     parameter int NUM_VALS = 5,
     parameter int SIZE     = 16
@@ -80,8 +82,8 @@ module sort #(
     logic r_stage_valid [1:STAGES];
 
     // Wire signals for combinational logic (wires start with w_)
-    logic [SIZE-1:0] w_values [0:STAGES][0:NUM_VALS-1];
-    logic [SIZE-1:0] w_next_values [1:STAGES][0:NUM_VALS-1];
+    logic [SIZE-1:0] w_values [STAGES+1][NUM_VALS];
+    logic [SIZE-1:0] w_next_values [1:STAGES][NUM_VALS];
 
     // Input stage wires (not registered)
     logic [NUM_VALS*SIZE-1:0] w_stage_data_0;
@@ -142,8 +144,8 @@ module sort #(
             end
 
             // Flop the results (r_ registers)
-            always_ff @(posedge clk or negedge rst_n) begin
-                if (!rst_n) begin
+            `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
                     r_stage_data[stage] <= '0;
                     r_stage_valid[stage] <= 1'b0;
                 end else begin
@@ -153,13 +155,14 @@ module sort #(
                     end else begin
                         r_stage_valid[stage] <= r_stage_valid[stage-1];
                     end
-
+                
                     // Pack sorted values back to data bus
                     for (int i = 0; i < NUM_VALS; i++) begin
                         r_stage_data[stage][i*SIZE +: SIZE] <= w_next_values[stage][i];
                     end
                 end
-            end
+            )
+
         end
     endgenerate
 

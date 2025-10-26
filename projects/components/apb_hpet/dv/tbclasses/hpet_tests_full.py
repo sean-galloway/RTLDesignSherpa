@@ -120,9 +120,19 @@ class HPETFullTests:
 
                         # For one-shot timers, re-enable after a delay
                         if not config['is_periodic'] and config['fire_count'] < 3:
-                            # Restart one-shot timer
+                            # Restart one-shot timer with updated comparator
+                            # DON'T reset the main counter - that breaks higher-numbered timers!
                             await Timer(50, units="ns")
-                            await self.tb.write_register(HPETRegisterMap.HPET_COUNTER_LO, 0x00000000)
+
+                            # Read current counter value
+                            _, counter_lo = await self.tb.read_register(HPETRegisterMap.HPET_COUNTER_LO)
+
+                            # Set new comparator = current_counter + period
+                            new_comp = counter_lo + config['period']
+                            comp_lo_addr = HPETRegisterMap.get_timer_comp_lo_addr(timer_id)
+                            await self.tb.write_register(comp_lo_addr, new_comp)
+
+                            # Re-enable timer
                             await self.tb.write_register(config['config_addr'], config['config_value'])
 
                 await Timer(10, units="ns")

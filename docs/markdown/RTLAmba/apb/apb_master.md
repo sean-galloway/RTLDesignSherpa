@@ -161,7 +161,7 @@ Response Interface ← Response FIFO ← APB Response Processing
 
 ## Waveforms
 
-The following timing diagrams show comprehensive APB master behavior across 7 scenarios:
+The following timing diagrams show comprehensive APB master behavior across 6 scenarios:
 
 ### Scenario 1: Basic Write Transaction
 
@@ -229,17 +229,6 @@ Shows APB write with command FIFO and response handling:
 **Key Observations:**
 - Seamless transition from read to write
 - Protocol state machine efficiency
-
-### Scenario 7: Error Response
-
-![Error Response](../../assets/WAVES/apb_master/apb_error_001.png)
-
-**WaveJSON:** [apb_error_001.json](../../assets/WAVES/apb_master/apb_error_001.json)
-
-**Key Observations:**
-- PSLVERR assertion by slave
-- Error propagated through response interface
-- Master continues operation after error
 
 ---
 
@@ -539,3 +528,10 @@ apb_master_cg #(
 - **apb_monitor**: APB protocol monitor and analyzer
 
 The `apb_master` module provides a complete, high-performance solution for APB master functionality with advanced buffering, full protocol compliance, and comprehensive system integration capabilities.
+
+---
+
+## Navigation
+
+- **[← Back to RTLAmba Index](../index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

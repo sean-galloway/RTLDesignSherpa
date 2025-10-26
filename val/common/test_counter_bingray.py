@@ -18,22 +18,25 @@ Binary-Gray Counter Test with Parameterized Test Levels and Configuration
 
 This test uses WIDTH as parameter for maximum flexibility:
 
-CONFIGURATION:
-    WIDTH: Counter width in bits (4, 5, 8, 12)
+TEST LEVELS (per-test depth):
+    basic (30s-2min):  Quick verification during development
+    medium (2-5 min):  Integration testing for CI/branches
+    full (5-15 min):   Comprehensive validation for regression
 
-TEST LEVELS:
-    basic (1-2 min):   Quick verification during development
-    medium (3-5 min):  Integration testing for CI/branches
-    full (8-15 min):   Comprehensive validation for regression
+REG_LEVEL Control (parameter combinations):
+    GATE: 2 tests (~5 min) - smoke test (small + large counter)
+    FUNC: 4 tests (~15 min) - functional coverage - DEFAULT
+    FULL: 12 tests (~2 hours) - comprehensive validation
 
 PARAMETER COMBINATIONS:
-    - WIDTH: [4, 5, 8, 12]
-    - test_level: [basic, medium, full]
+    GATE: 2 widths × 1 level = 2 tests
+    FUNC: 4 widths × 1 level = 4 tests (basic level only)
+    FULL: 4 widths × 3 levels = 12 tests
 
 Environment Variables:
-    TEST_LEVEL: Set test level in cocotb (basic/medium/full)
+    REG_LEVEL: GATE|FUNC|FULL - controls parameter combinations (default: FUNC)
+    TEST_LEVEL: basic|medium|full - controls per-test depth (set by REG_LEVEL)
     SEED: Set random seed for reproducibility
-    TEST_WIDTH: Counter width in bits
 
 COUNTER_BINGRAY BEHAVIOR:
     Binary counter with Gray code output:
@@ -43,6 +46,7 @@ COUNTER_BINGRAY BEHAVIOR:
 """
 
 import os
+import sys
 import random
 import math
 from itertools import product
@@ -51,6 +55,12 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, Timer
 from cocotb_test.simulator import run
+
+# Add repo root to path for CocoTBFramework imports
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if os.path.join(repo_root, 'bin') not in sys.path:
+    sys.path.insert(0, os.path.join(repo_root, 'bin'))
+
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
@@ -612,20 +622,46 @@ async def counter_bingray_test(dut):
 
 def generate_params():
     """
-    Generate test parameters. Modify this function to limit test scope for debugging.
+    Generate counter_bingray parameter combinations based on REG_LEVEL.
+
+    REG_LEVEL=GATE: 2 tests (smoke test - small + large)
+    REG_LEVEL=FUNC: 4 tests (functional coverage) - default
+    REG_LEVEL=FULL: 12 tests (comprehensive validation)
+
+    Parameters: (width, test_level)
     """
-    widths = [4, 5, 8, 12]  # Different counter widths
-    test_levels = ['full']  # Test levels
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
 
-    valid_params = []
-    for width, test_level in product(widths, test_levels):
-        valid_params.append((width, test_level))
+    if reg_level == 'GATE':
+        # Minimal - just prove basic functionality
+        # 2 tests: small + large counter, basic level only
+        params = [
+            (4, 'basic'),    # Small counter (4 bits)
+            (8, 'basic'),    # Larger counter (8 bits)
+        ]
 
-    # For debugging, uncomment one of these:
-    # return [(4, 'full')]  # Single test
-    return [(5, 'full'), (7, 'full')]  # Just specific configurations
+    elif reg_level == 'FUNC':
+        # Functional coverage - test variety of widths with basic level
+        # 4 widths × 1 level = 4 tests
+        widths = [4, 5, 8, 12]
+        test_levels = ['basic']  # Keep tests fast for functional check
 
-    # return valid_params
+        params = []
+        for width in widths:
+            for level in test_levels:
+                params.append((width, level))
+
+    else:  # FULL
+        # Comprehensive testing - multiple widths and all test levels
+        # 4 widths × 3 levels = 12 tests
+        widths = [4, 5, 8, 12]
+        test_levels = ['basic', 'medium', 'full']
+
+        params = []
+        for width, level in product(widths, test_levels):
+            params.append((width, level))
+
+    return params
 
 
 params = generate_params()
@@ -644,7 +680,7 @@ def test_counter_bingray(request, width, test_level):
     Counter behavior: Binary counter with Gray code output
     """
     # Get directory and module information
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common'})
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common', 'rtl_amba_includes': 'rtl/amba/includes'})
 
     # DUT information
     dut_name = "counter_bingray"

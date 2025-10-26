@@ -40,12 +40,19 @@ Environment Variables:
 """
 
 import os
+import sys
 import random
 import math
 from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+
+# Add repo root to path for CocoTBFramework imports
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if os.path.join(repo_root, 'bin') not in sys.path:
+    sys.path.insert(0, os.path.join(repo_root, 'bin'))
+
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
@@ -609,29 +616,32 @@ async def dataint_ecc_test(dut):
 
 def generate_params():
     """
-    Generate test parameters. Modify this function to limit test scope for debugging.
+    Generate test parameter combinations based on REG_LEVEL.
 
-    Examples for quick debugging:
-        # Single test case:
-        return [(4, 'encoder', 'basic')]
+    REG_LEVEL=GATE: 2 tests (4-bit, both modules, basic)
+    REG_LEVEL=FUNC: 6 tests (all widths, both modules, basic) - default
+    REG_LEVEL=FULL: 18 tests (all combinations)
 
-        # Test only encoder:
-        return [(4, 'encoder', 'basic'), (4, 'encoder', 'medium'), (4, 'encoder', 'full')]
-
-        # Test only specific width:
-        return [(8, 'encoder', 'full'), (8, 'decoder', 'full'), (8, 'both', 'medium')]
+    Returns:
+        List of tuples: (data_width, module_type, test_level)
     """
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+
     widths = [4, 8, 16]  # Different data widths
     modules = ['encoder', 'decoder']  # Module types
-    test_levels = ['full']  # Test levels
+    test_levels = ['basic', 'medium', 'full']
 
-    # For debugging, uncomment one of these:
-    # return [(4, 'decoder', 'medium')]  # Single test
-    # return [(4, 'encoder', 'full'), (4, 'decoder', 'full')]  # Just 4-bit modules
-    # modules = ['encoder']  # Test only encoder
-    # test_levels = ['basic']  # Test only basic level
+    if reg_level == 'GATE':
+        # Quick smoke test: 4-bit, both modules, basic level
+        return [(4, 'encoder', 'basic'), (4, 'decoder', 'basic')]
 
-    return list(product(widths, modules, test_levels))
+    elif reg_level == 'FUNC':
+        # Functional coverage: all widths, both modules, basic level only
+        return list(product(widths, modules, ['basic']))
+
+    else:  # FULL
+        # Comprehensive: all combinations
+        return list(product(widths, modules, test_levels))
 
 
 params = generate_params()
@@ -652,7 +662,7 @@ def test_dataint_ecc(request, data_width, module_type, test_level):
     - full: Comprehensive validation (8-15 min)
     """
     # Get directory and module information
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common'})
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common', 'rtl_amba_includes': 'rtl/amba/includes'})
 
     # Select DUT and sources based on module_type
     if module_type == 'encoder':
@@ -671,6 +681,12 @@ def test_dataint_ecc(request, data_width, module_type, test_level):
     # Create human-readable test identifier
     w_str = TBBase.format_dec(data_width, 2)
     test_name_plus_params = f"test_hamming_{module_type}_w{w_str}_{test_level}"
+
+    # Handle pytest-xdist parallel execution
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
+
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Setup directories
@@ -733,7 +749,7 @@ def test_dataint_ecc(request, data_width, module_type, test_level):
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[],
+            includes=[rtl_dict['rtl_amba_includes']],
             toplevel=toplevel,
             module=module,
             parameters=parameters,

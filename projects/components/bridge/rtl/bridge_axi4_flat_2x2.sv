@@ -15,6 +15,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module bridge_axi4_flat_2x2 #(parameter int  NUM_MASTERS = 2,
 parameter int  NUM_SLAVES = 2,
 parameter int  DATA_WIDTH = 32,
@@ -197,8 +199,8 @@ logic aw_grant_active [NUM_SLAVES];  // Grant in progress
 // AW Arbitration logic for each slave
 generate
     for (genvar s = 0; s < NUM_SLAVES; s++) begin : gen_aw_arbiter
-        always_ff @(posedge aclk or negedge aresetn) begin
-            if (!aresetn) begin
+        `ALWAYS_FF_RST(aclk, aresetn,
+if (`RST_ASSERTED(aresetn)) begin
                 aw_grant_matrix[s] <= '0;
                 aw_last_grant[s] <= '0;
                 aw_grant_active[s] <= 1'b0;
@@ -226,7 +228,8 @@ generate
                     aw_grant_matrix[s] <= '0;
                 end
             end
-        end
+        )
+
     end
 endgenerate
 
@@ -297,8 +300,8 @@ logic w_burst_active [NUM_SLAVES];  // W burst in progress
 // W grant tracking - lock to master that won AW arbitration
 generate
     for (genvar s = 0; s < NUM_SLAVES; s++) begin : gen_w_grant
-        always_ff @(posedge aclk or negedge aresetn) begin
-            if (!aresetn) begin
+        `ALWAYS_FF_RST(aclk, aresetn,
+if (`RST_ASSERTED(aresetn)) begin
                 w_grant_matrix[s] <= '0;
                 w_burst_active[s] <= 1'b0;
             end else begin
@@ -314,7 +317,8 @@ generate
                     w_burst_active[s] <= 1'b1;
                 end
             end
-        end
+        )
+
     end
 endgenerate
 
@@ -370,8 +374,8 @@ logic ar_grant_active [NUM_SLAVES];  // Grant in progress
 // AR Arbitration logic for each slave
 generate
     for (genvar s = 0; s < NUM_SLAVES; s++) begin : gen_ar_arbiter
-        always_ff @(posedge aclk or negedge aresetn) begin
-            if (!aresetn) begin
+        `ALWAYS_FF_RST(aclk, aresetn,
+if (`RST_ASSERTED(aresetn)) begin
                 ar_grant_matrix[s] <= '0;
                 ar_last_grant[s] <= '0;
                 ar_grant_active[s] <= 1'b0;
@@ -399,7 +403,8 @@ generate
                     ar_grant_matrix[s] <= '0;
                 end
             end
-        end
+        )
+
     end
 endgenerate
 
@@ -478,8 +483,8 @@ logic [$clog2(NUM_MASTERS):0] read_id_table [NUM_SLAVES][2**ID_WIDTH];
 // Store master index when AW/AR handshakes complete
 generate
     for (genvar s = 0; s < NUM_SLAVES; s++) begin : gen_id_table_write
-        always_ff @(posedge aclk or negedge aresetn) begin
-            if (!aresetn) begin
+        `ALWAYS_FF_RST(aclk, aresetn,
+if (`RST_ASSERTED(aresetn)) begin
                 // Tables don't need explicit reset (overwritten on use)
             end else begin
                 // Write ID table: Record master for completed AW transactions
@@ -490,7 +495,7 @@ generate
                         end
                     end
                 end
-
+            
                 // Read ID table: Record master for completed AR transactions
                 if (m_axi_arvalid[s] && m_axi_arready[s]) begin
                     for (int m = 0; m < NUM_MASTERS; m++) begin
@@ -500,7 +505,8 @@ generate
                     end
                 end
             end
-        end
+        )
+
     end
 endgenerate
 

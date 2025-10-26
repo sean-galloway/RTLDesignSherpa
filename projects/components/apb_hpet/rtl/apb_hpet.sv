@@ -135,6 +135,10 @@
 
 `timescale 1ns / 1ps
 
+/* verilator lint_off SYNCASYNCNET */
+// Note: presetn and hpet_resetn connect to modules with different reset styles.
+// hpet_config_regs uses async reset, peakrdl_to_cmdrsp uses sync reset.
+// This is intentional - both modules are in same clock domain.
 module apb_hpet #(
     parameter int VENDOR_ID = 1,
     parameter int REVISION_ID = 1,
@@ -373,4 +377,5 @@ hpet_core #(
     .timer_irq            (timer_irq)
 );
 
+/* verilator lint_on SYNCASYNCNET */
 endmodule : apb_hpet

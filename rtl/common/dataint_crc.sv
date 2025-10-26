@@ -236,6 +236,8 @@
 //     - Multi-cycle packet processing
 //
 //==============================================================================
+
+`include "reset_defs.svh"
 module dataint_crc #(
     parameter string ALGO_NAME = "DEADF1F0",  // verilog_lint: waive explicit-parameter-storage-type
     parameter int DATA_WIDTH = 64,     // Adjustable data width
@@ -265,8 +267,8 @@ module dataint_crc #(
 
     logic [CW-1:0] r_crc_value;
     logic [CW-1:0] w_poly;
-    logic [7:0]    w_block_data[0:CH-1];  // verilog_lint: waive unpacked-dimensions-range-ordering
-    logic [CW-1:0] w_cascade[0:CH-1];  // verilog_lint: waive unpacked-dimensions-range-ordering
+    logic [7:0]    w_block_data[CH];  // verilog_lint: waive unpacked-dimensions-range-ordering
+    logic [CW-1:0] w_cascade[CH];  // verilog_lint: waive unpacked-dimensions-range-ordering
     logic [CW-1:0] w_result, w_result_xor, w_selected_cascade_output;
 
     assign w_poly = POLY;
@@ -300,12 +302,13 @@ module dataint_crc #(
         end
     end
 
-    always_ff @(posedge clk or negedge rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
         if (~rst_n) r_crc_value <= POLY_INIT;
         else if (load_crc_start) r_crc_value <= POLY_INIT;  // Reset the CRC to the initial value
         else if (load_from_cascade)
             r_crc_value <= w_selected_cascade_output;  // Use pre-selected output
-    end
+    )
+
 
     ////////////////////////////////////////////////////////////////////////////
     // Generate dataint_xor_shift_cascades dynamically based on DATA_WIDTH
@@ -347,11 +350,12 @@ module dataint_crc #(
 
     ////////////////////////////////////////////////////////////////////////////
     // flop the output path
-    always_ff @(posedge clk or negedge rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
         if (~rst_n) crc <= 'b0;
         else if (load_crc_start) crc <= POLY_INIT;  // Reset the CRC to the initial value
         else crc <= w_result_xor;
-    end
+    )
+
 
     /////////////////////////////////////////////////////////////////////////
     // error checking

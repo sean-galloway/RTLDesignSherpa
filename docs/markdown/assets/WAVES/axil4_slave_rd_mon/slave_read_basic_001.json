@@ -1,0 +1,88 @@
+{
+  "signal": [
+    {
+      "name": "aclk",
+      "wave": "p........................"
+    },
+    {
+      "name": "aresetn",
+      "wave": "1........................"
+    },
+    {},
+    [
+      "AR Channel (Slave Perspective)",
+      {
+        "name": "s_axil_arvalid",
+        "wave": "0.....1..0...............",
+        "node": "......a.................."
+      },
+      {
+        "name": "s_axil_arready",
+        "wave": "0.......10..............."
+      },
+      {
+        "name": "s_axil_araddr",
+        "wave": "0.....2..0...............",
+        "data": [
+          "0x00001000"
+        ]
+      }
+    ],
+    {},
+    [
+      "R Channel (Slave Perspective)",
+      {
+        "name": "s_axil_rvalid",
+        "wave": "0..........10............"
+      },
+      {
+        "name": "s_axil_rready",
+        "wave": "1........................"
+      },
+      {
+        "name": "s_axil_rdata",
+        "wave": "0..........20............",
+        "data": [
+          "0x55AA55AA"
+        ]
+      },
+      {
+        "name": "s_axil_rresp",
+        "wave": "0..........20............",
+        "data": [
+          "OKAY"
+        ]
+      }
+    ],
+    {},
+    [
+      "Monitor Bus",
+      {
+        "name": "monbus_valid",
+        "wave": "0.............1.0........"
+      },
+      {
+        "name": "monbus_ready",
+        "wave": "1........................"
+      },
+      {
+        "name": "monbus_data",
+        "wave": "0.............2.0........",
+        "data": [
+          "COMPL"
+        ]
+      }
+    ]
+  ],
+  "head": {
+    "text": "AXIL4 Slave Read Transaction",
+    "tick": 0,
+    "every": 2
+  },
+  "foot": {
+    "text": "Slave perspective: Receive AR → Generate R response → Monitor completion"
+  },
+  "config": {
+    "hscale": 2
+  }
+}

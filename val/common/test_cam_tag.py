@@ -14,11 +14,18 @@
 # Created: 2025-10-18
 
 import os
+import sys
 import random
 import pytest
 import cocotb
 from cocotb.utils import get_sim_time
 from cocotb_test.simulator import run
+
+
+# Add repo root to path for CocoTBFramework imports
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if os.path.join(repo_root, 'bin') not in sys.path:
+    sys.path.insert(0, os.path.join(repo_root, 'bin'))
 
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
@@ -318,19 +325,26 @@ async def cam_tag_test(dut):
         await tb.wait_clocks('clk', 10)
 
 
-@pytest.mark.parametrize("n, depth", [
-    (8, 16),
-    (4, 8),
-    (8, 32),
-    (8, 64)
-])
+def get_cam_params():
+    """Generate CAM test parameters based on REG_LEVEL."""
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+
+    if reg_level == 'GATE':
+        return [(4, 8)]  # GATE: Minimal - just 4-bit, depth 8
+    elif reg_level == 'FUNC':
+        return [(8, 16), (4, 8)]  # FUNC: Small and medium
+    else:  # FULL
+        return [(8, 16), (4, 8), (8, 32), (8, 64)]  # FULL: All configurations
+
+
+@pytest.mark.parametrize("n, depth", get_cam_params())
 def test_cam_tag(request, n, depth):
     """Run the test with pytest"""
     # Get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths(
         {
             'rtl_cmn': 'rtl/common'
-    })
+    , 'rtl_amba_includes': 'rtl/amba/includes'})
 
     dut_name = "cam_tag"
     toplevel = dut_name
@@ -339,10 +353,19 @@ def test_cam_tag(request, n, depth):
         os.path.join(rtl_dict['rtl_cmn'], f"{dut_name}.sv"),
     ]
 
+    # Get REG_LEVEL before creating test name
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()  # GATE, FUNC, or FULL
+
     # Create a human readable test identifier
     n_str = TBBase.format_dec(n, 2)
     d_str = TBBase.format_dec(depth, 3)
-    test_name_plus_params = f"test_{dut_name}_n{n_str}_d{d_str}"
+    test_name_plus_params = f"test_{dut_name}_n{n_str}_d{d_str}_{reg_level}"
+
+    # Add worker ID for pytest-xdist parallel execution
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
+
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Use it in the simbuild path
@@ -355,8 +378,7 @@ def test_cam_tag(request, n, depth):
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes = []
-
+    includes = [rtl_dict['rtl_amba_includes']]
     # RTL parameters
     parameters = {'N': n, 'DEPTH': depth}
 

@@ -149,3 +149,8 @@ endgenerate
 - **Conflicts**: No protection against duplicate tag insertion
 - **Performance**: Search time is constant regardless of occupancy
 - **Power**: All entries are searched simultaneously (high power for large depths)
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

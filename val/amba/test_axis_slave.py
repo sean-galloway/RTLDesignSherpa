@@ -155,10 +155,13 @@ async def axis_slave_test(dut):
 def test_axis_slave(request, skid_depth, data_width, id_width, dest_width, user_width):
     """Run the AXIS slave test with different configurations"""
 
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
     # Get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_amba': 'rtl/amba'
-    })
+    , 'rtl_amba_includes': 'rtl/amba/includes'})
 
     dut_name = "axis_slave"
     toplevel = dut_name
@@ -166,7 +169,7 @@ def test_axis_slave(request, skid_depth, data_width, id_width, dest_width, user_
     # Verilog sources for AXIS slave
     verilog_sources = [
         os.path.join(rtl_dict['rtl_amba'], "gaxi", "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_amba'], "axis", f"{dut_name}.sv"),
+        os.path.join(rtl_dict['rtl_amba'], "axis4", f"{dut_name}.sv"),
     ]
 
     # Create a human readable test identifier
@@ -176,7 +179,7 @@ def test_axis_slave(request, skid_depth, data_width, id_width, dest_width, user_
     destw_str = TBBase.format_dec(dest_width, 1)
     uw_str = TBBase.format_dec(user_width, 1)
 
-    test_name_plus_params = f"test_{dut_name}_sd{sd_str}_dw{dw_str}_iw{iw_str}_destw{destw_str}_uw{uw_str}"
+    test_name_plus_params = f"test_{worker_id}_{dut_name}_sd{sd_str}_dw{dw_str}_iw{iw_str}_destw{destw_str}_uw{uw_str}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Use it in the simbuild path
@@ -189,8 +192,123 @@ def test_axis_slave(request, skid_depth, data_width, id_width, dest_width, user_
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes = []
+    includes = [rtl_dict['rtl_amba_includes']]
+    # RTL parameters for AXIS slave
+    parameters = {
+        'SKID_DEPTH': skid_depth,
+        'AXIS_DATA_WIDTH': data_width,
+        'AXIS_ID_WIDTH': id_width,
+        'AXIS_DEST_WIDTH': dest_width,
+        'AXIS_USER_WIDTH': user_width
+    }
 
+    # Environment variables
+    extra_env = {
+        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'VERILATOR_TRACE': '1',  # Enable tracing
+        'DUT': dut_name,
+        'LOG_PATH': log_path,
+        'COCOTB_LOG_LEVEL': 'INFO',
+        'COCOTB_RESULTS_FILE': results_path,
+        'SEED': str(random.randint(0, 100000)),
+        'TEST_SKID_DEPTH': str(skid_depth),
+        'TEST_DATA_WIDTH': str(data_width),
+        'TEST_ID_WIDTH': str(id_width),
+        'TEST_DEST_WIDTH': str(dest_width),
+        'TEST_USER_WIDTH': str(user_width),
+        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'basic')
+    }
+
+    compile_args = [
+        "--trace",
+        
+        "--trace-depth", "99",
+    ]
+
+    sim_args = [
+        "--trace",  # Tell Verilator to use FST
+        
+        "--trace-depth", "99",
+    ]
+
+    plusargs = [
+        "+trace",
+    ]
+
+    cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
+
+    try:
+        run(
+            python_search=[tests_dir],  # where to search for all the python test files
+            verilog_sources=verilog_sources,
+            includes=includes,
+            toplevel=toplevel,
+            module=module,
+            parameters=parameters,
+            sim_build=sim_build,
+            extra_env=extra_env,
+            waves=False,
+            keep_files=True,
+            compile_args=compile_args,
+            sim_args=sim_args,
+            plusargs=plusargs,
+        )
+    except Exception as e:
+        print(f"AXIS slave test failed: {str(e)}")
+        print(f"Test configuration: SKID_DEPTH={skid_depth}, DATA_WIDTH={data_width}")
+        print(f"ID_WIDTH={id_width}, DEST_WIDTH={dest_width}, USER_WIDTH={user_width}")
+        print(f"Logs preserved at: {log_path}")
+        print(f"To view the waveforms run this command: {cmd_filename}")
+
+        print("\nTroubleshooting hints for AXIS slave:")
+        print("- Check that gaxi_skid_buffer.sv is present")
+        print("- Verify AXIS signal connectivity")
+        print("- Look for signal interface compatibility issues")
+        print("- Check ready signal propagation")
+        print("- Check busy signal behavior")
+        print("- Verify skid buffer depth configuration")
+
+        raise  # Re-raise exception to indicate failure
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
+    """Run the AXIS slave test with different configurations"""
+
+    # Get all of the directory and module information
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_amba': 'rtl/amba'
+    , 'rtl_amba_includes': 'rtl/amba/includes'})
+
+    dut_name = "axis_slave"
+    toplevel = dut_name
+
+    # Verilog sources for AXIS slave
+    verilog_sources = [
+        os.path.join(rtl_dict['rtl_amba'], "gaxi", "gaxi_skid_buffer.sv"),
+        os.path.join(rtl_dict['rtl_amba'], "axis4", f"{dut_name}.sv"),
+    ]
+
+    # Create a human readable test identifier
+    sd_str = TBBase.format_dec(skid_depth, 1)
+    dw_str = TBBase.format_dec(data_width, 3)
+    iw_str = TBBase.format_dec(id_width, 2)
+    destw_str = TBBase.format_dec(dest_width, 1)
+    uw_str = TBBase.format_dec(user_width, 1)
+
+    test_name_plus_params = f"test_{worker_id}_{dut_name}_sd{sd_str}_dw{dw_str}_iw{iw_str}_destw{destw_str}_uw{uw_str}"
+    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
+
+    # Use it in the simbuild path
+    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+
+    # Make sim_build directory
+    os.makedirs(sim_build, exist_ok=True)
+
+    # Get the logs and results into one area
+    os.makedirs(log_dir, exist_ok=True)
+    results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
+
+    includes = [rtl_dict['rtl_amba_includes']]
     # RTL parameters for AXIS slave
     parameters = {
         'SKID_DEPTH': skid_depth,

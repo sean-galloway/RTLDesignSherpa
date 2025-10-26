@@ -30,6 +30,8 @@
  * - Advanced filtering with ML classification
  * - Predictive timeout and congestion detection
  */
+
+`include "reset_defs.svh"
 module axi4_master_rd_hp_mon
     import monitor_pkg::*;
 #(
@@ -362,17 +364,18 @@ module axi4_master_rd_hp_mon
     // =========================================================================
 
     // Cycle counter
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+if (`RST_ASSERTED(aresetn)) begin
             cycle_counter <= '0;
         end else begin
             cycle_counter <= cycle_counter + 1'b1;
         end
-    end
+    )
+
 
     // Transaction timing
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+if (`RST_ASSERTED(aresetn)) begin
             transaction_start_time <= '0;
             current_latency <= '0;
             latency_accumulator <= '0;
@@ -382,14 +385,15 @@ module axi4_master_rd_hp_mon
             if (fub_axi_arvalid && fub_axi_arready) begin
                 transaction_start_time <= cycle_counter;
             end
-
+        
             // End timing on R last handshake
             if (fub_axi_rvalid && fub_axi_rready && fub_axi_rlast) begin
                 current_latency <= cycle_counter - transaction_start_time;
                 latency_accumulator <= latency_accumulator + (cycle_counter - transaction_start_time);
                 latency_sample_count <= latency_sample_count + 1'b1;
             end
-        end
+    )
+
     end
 
     // Calculate average latency
@@ -402,8 +406,8 @@ module axi4_master_rd_hp_mon
     assign qos_violation = (current_latency > cfg_qos_timeout_cycles) && qos_high_priority;
 
     // QoS counters
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+if (`RST_ASSERTED(aresetn)) begin
             qos_high_count <= '0;
             qos_low_count <= '0;
             qos_violation_count <= '0;
@@ -415,12 +419,13 @@ module axi4_master_rd_hp_mon
                     qos_low_count <= qos_low_count + 1'b1;
                 end
             end
-
+        
             if (qos_violation) begin
                 qos_violation_count <= qos_violation_count + 1'b1;
             end
         end
-    end
+    )
+
 
     // =========================================================================
     // Histogram Generation
@@ -436,8 +441,8 @@ module axi4_master_rd_hp_mon
             assign qos_bin = current_qos;
 
             // Histogram update logic
-            always_ff @(posedge aclk or negedge aresetn) begin
-                if (!aresetn) begin
+            `ALWAYS_FF_RST(aclk, aresetn,
+if (`RST_ASSERTED(aresetn)) begin
                     latency_histogram <= '0;
                     qos_histogram <= '0;
                 end else begin
@@ -445,13 +450,14 @@ module axi4_master_rd_hp_mon
                     if (fub_axi_rvalid && fub_axi_rready && fub_axi_rlast) begin
                         latency_histogram[latency_bin] <= latency_histogram[latency_bin] + 1'b1;
                     end
-
+                
                     // Update QoS histogram on transaction start
                     if (fub_axi_arvalid && fub_axi_arready) begin
                         qos_histogram[qos_bin] <= qos_histogram[qos_bin] + 1'b1;
                     end
                 end
-            end
+            )
+
 
         end else begin : gen_no_histograms
 

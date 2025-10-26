@@ -190,3 +190,8 @@ After seed reload with 4'b1001:
 
 ### Usage Note
 The same polynomial can be used for both Fibonacci and Galois LFSRs, but they will produce different (but equivalent) pseudo-random sequences.
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

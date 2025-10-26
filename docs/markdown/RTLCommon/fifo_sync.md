@@ -196,7 +196,72 @@ end
 - **Occupancy**: 0 to DEPTH words
 - **Efficiency**: 100% bandwidth utilization possible
 
+## WaveDrom Visualization
+
+**High-quality waveforms showcasing synchronous FIFO operation are available!**
+
+Run the WaveDrom test to generate detailed timing diagrams:
+
+```bash
+# Generate synchronous FIFO waveforms (single clock domain)
+pytest val/common/test_fifo_sync_wavedrom.py -v
+```
+
+**Waveform Scenarios Generated:**
+
+1. **Write-Fill-Read-Empty Cycle**
+   - Basic synchronous FIFO operation
+   - Simple binary pointer management
+   - No CDC complexity (single clock domain)
+
+2. **Back-to-Back Operations**
+   - Maximum throughput demonstration
+   - Minimal inter-transaction delays
+   - Sequential write and read bursts
+
+3. **Simultaneous Write-Read (Ping-Pong)**
+   - Read and write in same cycle
+   - Steady-state FIFO operation
+   - Demonstrating simultaneous access capability
+
+4. **Flag Transitions**
+   - Full/empty flag behavior at boundaries
+   - Almost-full/almost-empty thresholds
+   - Flow control signaling
+
+**Key Characteristics vs. Async FIFOs:**
+
+- **Single Clock Domain**: No CDC complexity, simpler design
+- **Binary Pointers**: Direct addressing, no Gray code conversion
+- **Zero CDC Latency**: Flags update immediately (no synchronization delay)
+- **Simultaneous Access**: Can read and write in same cycle
+
+**Comparison Tests:**
+
+- `test_fifo_async_wavedrom.py` - Gray code CDC (power-of-2 depths)
+- `test_fifo_async_div2_wavedrom.py` - Johnson counter CDC (flexible even depths)
+
 ## Related Modules
 - **fifo_async**: For clock domain crossing applications
 - **fifo_control**: Shared status flag generation logic
 - **counter_bin**: Binary counter implementation
+
+## Test and Verification
+
+**Comprehensive Test Suite:**
+- `val/common/test_fifo_buffer.py` - Full functional verification
+- `val/common/test_fifo_sync_wavedrom.py` - WaveDrom timing diagrams
+
+**Run Tests:**
+```bash
+# Full functional test (basic/medium/full levels)
+pytest val/common/test_fifo_buffer.py -v
+
+# WaveDrom waveform generation
+pytest val/common/test_fifo_sync_wavedrom.py -v
+```
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

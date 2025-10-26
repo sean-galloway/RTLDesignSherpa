@@ -73,6 +73,8 @@
 //   Run: pytest val/common/test_shifter_lfsr_galois.py -v
 //
 //==============================================================================
+
+`include "reset_defs.svh"
 module shifter_lfsr_galois #(
     parameter int WIDTH = 8,           // Width of the LFSR
     parameter int TAP_INDEX_WIDTH = 12,
@@ -90,7 +92,7 @@ module shifter_lfsr_galois #(
 );
 
     logic [WIDTH-1:0]  r_lfsr;
-    logic [TIW-1:0]    w_tap_positions [0:TAP_COUNT-1];  // verilog_lint: waive unpacked-dimensions-range-ordering
+    logic [TIW-1:0]    w_tap_positions [TAP_COUNT];  // verilog_lint: waive unpacked-dimensions-range-ordering
     logic              w_feedback;
     logic [WIDTH-1:0]  next_lfsr;
 
@@ -127,8 +129,8 @@ module shifter_lfsr_galois #(
     end
 
     // Update LFSR state
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (~rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             // Reset LFSR to a non-zero value
             r_lfsr <= {WIDTH{1'b1}};  // initialization to all 1's
         end else if (enable) begin
@@ -139,7 +141,8 @@ module shifter_lfsr_galois #(
                 r_lfsr <= next_lfsr;
             end
         end
-    end
+    )
+
 
     assign lfsr_out = r_lfsr[WIDTH-1:0];
 

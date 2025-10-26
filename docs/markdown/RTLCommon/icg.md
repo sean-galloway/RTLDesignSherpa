@@ -291,3 +291,8 @@ Main Clock → ICG → Local Clock Tree → Registers
 - `reset_sync`: Reset synchronization for gated clock domains
 
 The `icg` module provides a fundamental building block for power-efficient digital design, enabling significant power savings through controlled clock gating while maintaining design safety and functionality.
+
+## Navigation
+
+- **[← Back to RTLCommon Index](index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

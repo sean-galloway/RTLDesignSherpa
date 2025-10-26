@@ -32,6 +32,8 @@
 
 // Import common STREAM and monitor packages
 `include "stream_imports.svh"
+`include "reset_defs.svh"
+
 
 module axi_read_engine #(
     parameter int ADDR_WIDTH = 64,
@@ -158,8 +160,8 @@ module axi_read_engine #(
 
     assign datard_ready = !r_ar_inflight && !r_ar_valid;
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_ar_addr <= '0;
             r_ar_len <= '0;
             r_ar_channel_id <= '0;
@@ -174,18 +176,19 @@ module axi_read_engine #(
                 r_ar_valid <= 1'b1;
                 r_ar_inflight <= 1'b1;  // Mark transaction inflight
             end
-
+        
             // AXI AR handshake
             if (r_ar_valid && m_axi_arready) begin
                 r_ar_valid <= 1'b0;
             end
-
+        
             // Clear inflight when last beat received
             if (m_axi_rvalid && m_axi_rready && m_axi_rlast) begin
                 r_ar_inflight <= 1'b0;
             end
         end
-    end
+    )
+
 
     // AXI AR Channel Outputs
     assign m_axi_arid    = {4'h0, r_ar_channel_id};
@@ -204,8 +207,8 @@ module axi_read_engine #(
     assign m_axi_rready = sram_wr_ready;
 
     // Beat counter tracks progress through burst
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_beats_received <= '0;
             r_expected_beats <= '0;
             r_error_detected <= 1'b0;
@@ -216,17 +219,17 @@ module axi_read_engine #(
                 r_expected_beats <= r_ar_len + 8'h1;  // arlen is (beats - 1)
                 r_beats_received <= '0;
             end
-
+        
             // Count beats as they arrive
             if (m_axi_rvalid && m_axi_rready) begin
                 r_beats_received <= r_beats_received + 8'h1;
-
+        
                 // Check for error response
                 if (m_axi_rresp != 2'b00) begin  // OKAY = 00
                     r_error_detected <= 1'b1;
                     r_error_resp <= m_axi_rresp;
                 end
-
+        
                 // Clear error on last beat
                 if (m_axi_rlast) begin
                     r_beats_received <= '0;
@@ -236,28 +239,30 @@ module axi_read_engine #(
                 end
             end
         end
-    end
+    )
+
 
     //=========================================================================
     // SRAM Write Logic
     //=========================================================================
     // Streaming pipeline: Write data directly to SRAM as it arrives
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_sram_wr_ptr <= '0;
         end else begin
             // Write to SRAM when R channel data arrives
             if (m_axi_rvalid && m_axi_rready) begin
                 r_sram_wr_ptr <= r_sram_wr_ptr + 1'b1;
-
+        
                 // Wrap SRAM pointer
                 if (r_sram_wr_ptr == SRAM_ADDR_WIDTH'(SRAM_DEPTH - 1)) begin
                     r_sram_wr_ptr <= '0;
                 end
             end
         end
-    end
+    )
+
 
     // SRAM Write Outputs
     assign sram_wr_en = m_axi_rvalid && m_axi_rready;
@@ -269,21 +274,22 @@ module axi_read_engine #(
     //=========================================================================
     // Report back to scheduler when burst completes
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_done_strobe <= 1'b0;
             r_beats_done <= '0;
         end else begin
             // Generate strobe on last beat
             r_done_strobe <= m_axi_rvalid && m_axi_rready && m_axi_rlast;
-
+        
             if (m_axi_rvalid && m_axi_rready && m_axi_rlast) begin
                 r_beats_done <= {24'h0, r_expected_beats};
             end else begin
                 r_beats_done <= '0;
             end
         end
-    end
+    )
+
 
     assign datard_done_strobe = r_done_strobe;
     assign datard_beats_done = r_beats_done;

@@ -16,6 +16,8 @@
 `timescale 1ns / 1ps
 
 // Generic Ring Counter Module
+
+`include "reset_defs.svh"
 module counter_ring #(
     parameter int WIDTH = 4  // Width of the ring counter, determines the number of stages
 ) (
@@ -27,13 +29,14 @@ module counter_ring #(
 
     // On reset, initialize the ring counter to have the first bit set and all others clear.
     // When enabled, rotate the bits to the right in each clock cycle.
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             ring_out <= 'b1;  // This should set the LSB, which is '1'
         end else if (enable) begin
             // Right rotate operation
             ring_out <= {ring_out[0], ring_out[WIDTH-1:1]};
         end
-    end
+    )
+
 
 endmodule : counter_ring

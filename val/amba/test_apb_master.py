@@ -1051,9 +1051,12 @@ async def apb_master_test(dut):
         )
     ])
 def test_apb_master(request, addr_width, data_width, cmd_depth, rsp_depth):
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
 
     # get all of the directory and module information
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common', 'rtl_amba': 'rtl/amba'})
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common', 'rtl_amba': 'rtl/amba', 'rtl_amba_includes': 'rtl/amba/includes'})
 
     dut_name = "apb_master"
     toplevel = dut_name
@@ -1068,7 +1071,7 @@ def test_apb_master(request, addr_width, data_width, cmd_depth, rsp_depth):
     dw_str = TBBase.format_dec(data_width, 3)
     cd_str = TBBase.format_dec(cmd_depth, 3)
     rd_str = TBBase.format_dec(rsp_depth, 3)
-    test_name_plus_params = f"test_{dut_name}_aw{aw_str}_dw{dw_str}_cd{cd_str}_rd{rd_str}"
+    test_name_plus_params = f"test_{worker_id}_{dut_name}_aw{aw_str}_dw{dw_str}_cd{cd_str}_rd{rd_str}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # use it int he simbuild path
@@ -1081,8 +1084,7 @@ def test_apb_master(request, addr_width, data_width, cmd_depth, rsp_depth):
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes = []
-
+    includes = [rtl_dict['rtl_amba_includes']]
     # RTL parameters
     rtl_parameters = {k.upper(): str(v) for k, v in locals().items() if k in ["addr_width", "data_width", "cmd_depth", "rsp_depth"]}
 
@@ -1158,11 +1160,14 @@ wavedrom_params = generate_apb_master_wavedrom_params()
 @pytest.mark.parametrize("addr_width, data_width, cmd_depth, rsp_depth", wavedrom_params)
 def test_apb_master_wavedrom(request, addr_width, data_width, cmd_depth, rsp_depth):
     """APB master wavedrom test - generates timing diagrams."""
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_cmn': 'rtl/common',
         'rtl_gaxi': 'rtl/amba/gaxi',
         'rtl_apb': 'rtl/amba/apb',
-    })
+     'rtl_amba_includes': 'rtl/amba/includes'})
 
     toplevel = "apb_master"
 
@@ -1180,15 +1185,14 @@ def test_apb_master_wavedrom(request, addr_width, data_width, cmd_depth, rsp_dep
     cmd_str = TBBase.format_dec(cmd_depth, 3)
     rsp_str = TBBase.format_dec(rsp_depth, 3)
 
-    test_name_plus_params = f"test_apb_master_aw{aw_str}_dw{dw_str}_cmd{cmd_str}_rsp{rsp_str}_wd"
+    test_name_plus_params = f"test_{worker_id}_apb_master_aw{aw_str}_dw{dw_str}_cmd{cmd_str}_rsp{rsp_str}_wd"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes = []
-
+    includes = [rtl_dict['rtl_amba_includes']]
     rtl_parameters = {}
     for param_name in ['addr_width', 'data_width', 'cmd_depth', 'rsp_depth']:
         if param_name in locals():

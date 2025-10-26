@@ -40,6 +40,7 @@ Environment Variables:
 """
 
 import os
+import sys
 import random
 import math
 from itertools import product
@@ -48,6 +49,12 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, Timer
 from cocotb_test.simulator import run
+
+# Add repo root to path for CocoTBFramework imports
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if os.path.join(repo_root, 'bin') not in sys.path:
+    sys.path.insert(0, os.path.join(repo_root, 'bin'))
+
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
@@ -617,7 +624,7 @@ def test_sort(request, num_vals, size, test_level):
     Parameterized Sort test with configurable num_vals, size and test level.
     """
     # Get directory and module information
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common'})
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common', 'rtl_amba_includes': 'rtl/amba/includes'})
 
     # DUT information
     dut_name = "sort"
@@ -629,7 +636,15 @@ def test_sort(request, num_vals, size, test_level):
     # Create human-readable test identifier
     n_str = TBBase.format_dec(num_vals, 1)
     s_str = TBBase.format_dec(size, 2)
-    test_name_plus_params = f"test_sort_n{n_str}_s{s_str}_{test_level}"
+    # Get REG_LEVEL before creating test name
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()  # GATE, FUNC, or FULL
+
+    test_name_plus_params = f"test_sort_n{n_str}_s{s_str}_{test_level}_{reg_level}"
+
+    # Add worker ID for pytest-xdist parallel execution
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Setup directories
@@ -692,7 +707,7 @@ def test_sort(request, num_vals, size, test_level):
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[],
+            includes=[rtl_dict['rtl_amba_includes']],
             toplevel=toplevel,
             module=module,
             parameters=parameters,

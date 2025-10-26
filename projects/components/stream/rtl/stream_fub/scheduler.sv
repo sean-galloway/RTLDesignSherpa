@@ -38,6 +38,7 @@
 
 // Import common STREAM and monitor packages
 `include "stream_imports.svh"
+`include "reset_defs.svh"
 
 module scheduler #(
     parameter int CHANNEL_ID = 0,
@@ -183,26 +184,26 @@ module scheduler #(
     // Channel Reset Management
     //=========================================================================
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
             r_channel_reset_active <= 1'b0;
         end else begin
             r_channel_reset_active <= cfg_channel_reset;
         end
-    end
+    )
 
     //=========================================================================
     // Scheduler FSM
     //=========================================================================
 
     // State register
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
             r_current_state <= CH_IDLE;
         end else begin
             r_current_state <= w_next_state;
         end
-    end
+    )
 
     // Next state logic
     // FSM Flow: IDLE → FETCH_DESC → READ_DATA → WRITE_DATA → COMPLETE → (chain?) → IDLE
@@ -314,8 +315,8 @@ module scheduler #(
     //   CH_WRITE_DATA: Decrement write counter on datawr_done_strobe
     //   CH_COMPLETE:   Clear descriptor_loaded flag
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_descriptor <= '0;
             r_descriptor_loaded <= 1'b0;
             r_src_addr <= 64'h0;
@@ -337,11 +338,11 @@ module scheduler #(
                         r_descriptor.valid <= descriptor_packet[DESC_VALID_BIT];
                         r_descriptor.gen_irq <= descriptor_packet[DESC_GEN_IRQ];
                         r_descriptor.last <= descriptor_packet[DESC_LAST];
-
+        
                         r_descriptor_loaded <= 1'b1;
                     end
                 end
-
+        
                 CH_FETCH_DESC: begin
                     // Transfer initialization: Copy descriptor fields to working registers
                     // These working registers will be updated as transfer progresses
@@ -351,7 +352,7 @@ module scheduler #(
                     r_read_beats_remaining <= r_descriptor.length;
                     r_write_beats_remaining <= r_descriptor.length;
                 end
-
+        
                 CH_READ_DATA: begin
                     // Read progress tracking: Engine reports beats completed via strobe
                     // Engine may complete multiple beats per burst (burst length decided by engine)
@@ -362,7 +363,7 @@ module scheduler #(
                                                  (r_read_beats_remaining - datard_beats_done) : 32'h0;
                     end
                 end
-
+        
                 CH_WRITE_DATA: begin
                     // Write progress tracking: Engine reports beats completed via strobe
                     // Engine may complete multiple beats per burst (burst length decided by engine)
@@ -373,18 +374,18 @@ module scheduler #(
                                                   (r_write_beats_remaining - datawr_beats_done) : 32'h0;
                     end
                 end
-
+        
                 CH_COMPLETE: begin
                     // Transfer complete: Clear descriptor_loaded flag
                     // Ready to accept next descriptor (or chain to next)
                     r_descriptor_loaded <= 1'b0;
                 end
-
+        
                 default: begin
                     // Other states: Maintain register values
                 end
             endcase
-
+        
             // Channel reset: Clear state regardless of FSM state
             if (r_channel_reset_active) begin
                 r_descriptor_loaded <= 1'b0;
@@ -392,7 +393,8 @@ module scheduler #(
                 r_write_beats_remaining <= 32'h0;
             end
         end
-    end
+    )
+
 
     //=========================================================================
     // Completion Logic
@@ -449,8 +451,8 @@ module scheduler #(
     //   CH_ERROR state → wait for external errors to clear → FSM to CH_IDLE
     //   CH_IDLE entry → clear all sticky flags
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_timeout_counter <= 32'h0;
             r_read_error_sticky <= 1'b0;
             r_write_error_sticky <= 1'b0;
@@ -464,19 +466,19 @@ module scheduler #(
             end else begin
                 r_timeout_counter <= 32'h0;  // Reset when not waiting or grant received
             end
-
+        
             // Error capture: Latch errors from external components
             // Sticky flags ensure errors aren't lost due to transient de-assertion
             if (descriptor_error) r_descriptor_error <= 1'b1;   // Descriptor engine error
             if (datard_error) r_read_error_sticky <= 1'b1;       // Read engine error
             if (datawr_error) r_write_error_sticky <= 1'b1;      // Write engine error
-
+        
             // Also set descriptor_error flag for ANY scheduler-internal error
             // This ensures consistent error reporting via MonBus
             if (datard_error || datawr_error || w_timeout_expired) begin
                 r_descriptor_error <= 1'b1;
             end
-
+        
             // Error clearing: All sticky flags clear on transition to CH_IDLE
             // This prepares scheduler for next descriptor
             if (r_current_state == CH_IDLE) begin
@@ -485,7 +487,8 @@ module scheduler #(
                 r_descriptor_error <= 1'b0;
             end
         end
-    end
+    )
+
 
     // Timeout threshold: Compare counter to parameterized limit
     assign w_timeout_expired = (r_timeout_counter >= TIMEOUT_CYCLES);
@@ -516,15 +519,15 @@ module scheduler #(
     //   - One packet per state transition
     //   - Clear valid after one cycle (downstream must sample)
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_mon_valid <= 1'b0;
             r_mon_packet <= 64'h0;
         end else begin
             // Default: Clear monitor packet (single-cycle pulse)
             r_mon_valid <= 1'b0;
             r_mon_packet <= 64'h0;
-
+        
             case (r_current_state)
                 CH_FETCH_DESC: begin
                     // Event: Descriptor processing started
@@ -540,7 +543,7 @@ module scheduler #(
                         {3'h0, r_descriptor.length}  // Payload: 32-bit length
                     );
                 end
-
+        
                 CH_READ_DATA: begin
                     // Event: Read phase complete (generate only when complete)
                     // Payload: Total beats transferred
@@ -557,7 +560,7 @@ module scheduler #(
                         );
                     end
                 end
-
+        
                 CH_WRITE_DATA: begin
                     // Event: Write phase complete (generate only when complete)
                     // Payload: Total beats transferred
@@ -574,7 +577,7 @@ module scheduler #(
                         );
                     end
                 end
-
+        
                 CH_COMPLETE: begin
                     // Event: Descriptor complete (ready for next descriptor or idle)
                     // Payload: Total beats transferred
@@ -589,7 +592,7 @@ module scheduler #(
                         {3'h0, r_descriptor.length}  // Payload: 32-bit length
                     );
                 end
-
+        
                 CH_ERROR: begin
                     // Event: Error detected (any source)
                     // Payload: Error flags [35] = write_error, [34] = read_error
@@ -604,13 +607,14 @@ module scheduler #(
                         {r_write_error_sticky, r_read_error_sticky, 33'h0}  // Error flags
                     );
                 end
-
+        
                 default: begin
                     // No monitor packet for other states
                 end
             endcase
         end
-    end
+    )
+
 
     //=========================================================================
     // Status Outputs

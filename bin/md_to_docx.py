@@ -1,145 +1,296 @@
 #!/usr/bin/env python3
-import os
-import re
-import subprocess
-import shutil
-import tempfile
-import logging
+"""
+md_to_docx.py — Convert Markdown (single file or expanded index) to DOCX/PDF via Pandoc.
+
+Features (no draw.io auto-fixes):
+- --expand-index: parse an index.md and inline linked chapter .md files in order
+- --title-page [path]: prepend a title page (auto if no path given)
+- --assets-dir (repeatable): added to Pandoc --resource-path
+- --pagebreak: insert page breaks between concatenated files
+- Emoji mapping for PDF robustness (✅ -> ✓, etc.)
+- Force a Unicode-friendly PDF engine (xelatex) by default
+- Wavedrom .json "images": render to SVG (python-wavedrom or wavedrom-cli) or degrade to links
+- Font controls for XeLaTeX/LuaLaTeX: --mainfont/--monofont/--sansfont/--mathfont
+"""
+
 import argparse
-from pathlib import Path
-from zipfile import ZipFile
+import pathlib
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+from datetime import date
 
-def extract_links_from_markdown(md_text):
-    return re.findall(r'^\s*\[.*?\]\((.*?)\)\s*$', md_text, re.MULTILINE)
+# ---------------------------
+# Config / Helpers
+# ---------------------------
 
-def demote_headings(md_text, level_shift=1):
-    def replacer(match):
-        hashes = match.group(1)
-        return '#' * (len(hashes) + level_shift) + match.group(2)
-    return re.sub(r'^(#{1,6})(.*?)$', replacer, md_text, flags=re.MULTILINE)
+MD_LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+\.md)(#[^)]+)?\)", re.IGNORECASE)
+IMG_JSON_RE = re.compile(r'!\[([^\]]*)\]\(([^)]+\.json)\)')
 
-def collect_markdown(index_path, collected=None, depth=0):
-    if collected is None:
-        collected = set()
-    index_path = Path(index_path).resolve()
-    if index_path in collected:
-        return ""
-    collected.add(index_path)
+EMOJI_MAP = {
+    "✅": "✓",
+    "❌": "✗",
+    "➕": "+",
+    "➖": "−",
+    "⚠️": "⚠",
+    "ℹ️": "ℹ",
+    "🛠️": "🛠",
+    "📌": "",
+    "🚧": "",
+}
 
-    with open(index_path, encoding='utf-8') as f:
-        lines = f.readlines()
+def log(*a, **k):
+    if not k.pop("_quiet", False):
+        print(*a, **k, file=sys.stderr)
 
-    base_dir = index_path.parent
-    output_lines = []
-    title = None
+def read_text(p: pathlib.Path) -> str:
+    return p.read_text(encoding="utf-8")
 
-    for line in lines:
-        if depth == 0 and not title:
-            match = re.match(r'^#\s+(.*)', line)
-            if match:
-                title = match.group(1).strip()
+def write_text(p: pathlib.Path, s: str):
+    p.write_text(s, encoding="utf-8")
 
-        # match = re.match(r'^\s*\[.*?\]\((.*?)\)\s*$', line)
-        match = re.match(r'^\s*-?\s*\[.*?\]\((.*?)\)\s*$', line)
-        if match:
-            included_file = base_dir / match.group(1).strip()
-            if included_file.exists():
-                included_text = collect_markdown(included_file, collected, depth + 1)
-                included_text = demote_headings(included_text, level_shift=1)
-                output_lines.append(included_text)
-            else:
-                output_lines.append(f'<!-- Missing file: {included_file} -->\n')
-        else:
-            output_lines.append(line)
+def strip_or_map_emoji(s: str) -> str:
+    for k, v in EMOJI_MAP.items():
+        s = s.replace(k, v)
+    return s
 
-    if depth == 0:
-        return "".join(output_lines), title
+def collect_from_index(index_path: pathlib.Path) -> list[pathlib.Path]:
+    """
+    Scan the index markdown for links to .md files and return them in order.
+    Keeps only links that resolve relative to the index folder.
+    Ensures index itself is first.
+    """
+    root = index_path.parent
+    content = read_text(index_path)
+    links = []
+    seen = set()
+
+    # Inline comment include directive support:  <!-- include: path/to/file.md -->
+    for inc in re.findall(r'<!--\s*include:\s*([^\s>]+\.md)\s*-->', content, flags=re.IGNORECASE):
+        p = (root / inc).resolve()
+        if p.exists() and p.suffix.lower() == ".md" and p not in seen:
+            links.append(p); seen.add(p)
+
+    for m in MD_LINK_RE.finditer(content):
+        rel = m.group(2).strip()
+        if "://" in rel or rel.startswith("#"):
+            continue
+        p = (root / rel).resolve()
+        if p.suffix.lower() == ".md" and p.exists() and p not in seen:
+            links.append(p); seen.add(p)
+
+    idx = index_path.resolve()
+    if idx not in seen:
+        links = [idx] + links
     else:
-        return "".join(output_lines)
+        links = [idx] + [p for p in links if p != idx]
+    return links
 
-def convert_dotx_to_docx(dotx_path, output_path):
-    with tempfile.TemporaryDirectory() as tmpdir:
-        with ZipFile(dotx_path, 'r') as zip_ref:
-            zip_ref.extractall(tmpdir)
-        content_types_path = Path(tmpdir) / "[Content_Types].xml"
-        with open(content_types_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-        content = content.replace(
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"
+def concat_markdown(files: list[pathlib.Path], pagebreak: bool) -> str:
+    parts = []
+    for i, f in enumerate(files):
+        text = read_text(f).rstrip() + "\n"
+        parts.append(text)
+        if pagebreak and i < len(files) - 1:
+            parts.append('\n::: {.pagebreak}\n:::\n')
+    return "\n".join(parts)
+
+# ---- Wavedrom handling ----
+
+def try_render_wavedrom_python(json_path: pathlib.Path) -> str | None:
+    try:
+        import wavedrom
+        svg = wavedrom.render_file(str(json_path))  # returns SVG string in recent versions
+        return svg if isinstance(svg, str) else None
+    except Exception:
+        return None
+
+def try_render_wavedrom_cli(json_path: pathlib.Path, out_svg: pathlib.Path) -> bool:
+    if not shutil.which("wavedrom-cli"):
+        return False
+    try:
+        subprocess.run(
+            ["wavedrom-cli", str(json_path), "-s", "-o", str(out_svg)],
+            check=True
         )
-        with open(content_types_path, 'w', encoding='utf-8') as f:
-            f.write(content)
-        shutil.make_archive(output_path.with_suffix(""), 'zip', tmpdir)
-    os.rename(output_path.with_suffix(".zip"), output_path)
+        return out_svg.exists()
+    except subprocess.CalledProcessError:
+        return False
 
-def write_combined_markdown(text, path):
-    with open(path, 'w', encoding='utf-8') as f:
-        f.write(text)
+def rewrite_wavedrom_images(md_text: str, base_dir: pathlib.Path, tmp_img_dir: pathlib.Path) -> str:
+    def _sub(m):
+        alt, rel = m.group(1), m.group(2)
+        jp = (base_dir / rel).resolve()
+        if not jp.exists():
+            return f"[{alt or 'diagram (wavedrom)'}]({rel})"
+        svg_text = try_render_wavedrom_python(jp)
+        if svg_text:
+            out_svg = tmp_img_dir / (jp.stem + ".svg")
+            write_text(out_svg, svg_text)
+            return f"![{alt}]({out_svg.as_posix()})"
+        out_svg = tmp_img_dir / (jp.stem + ".svg")
+        if try_render_wavedrom_cli(jp, out_svg):
+            return f"![{alt}]({out_svg.as_posix()})"
+        return f"[{alt or 'diagram (wavedrom)'}]({rel})"
+    return IMG_JSON_RE.sub(_sub, md_text)
 
-def insert_title_page(title):
-    abstract = "<w:p><w:r><w:br w:type=\"page\"/></w:r></w:p>"
-    yaml_block = f"""---
-title: "{title}"
-author: "Generated by md_to_docx.py"
-date: today
-abstract: '{abstract}'
----\n\n"""
-    return yaml_block
+# ---------------------------
+# Pandoc runners
+# ---------------------------
 
-def run_pandoc(input_path, output_path, reference_doc=None, pdf=False, toc=False):
-    cmd = ['pandoc', str(input_path), '-o', str(output_path), '-s']
-    if reference_doc:
-        cmd += ['--reference-doc', str(reference_doc)]
-    if toc:
-        cmd.append('--toc')
+def build_resource_path(args, input_path: pathlib.Path) -> str:
+    paths = [str(pathlib.Path(a).resolve()) for a in args.assets_dir]
+    paths.append(str(input_path.resolve().parent))
+    seen = set()
+    dedup = []
+    for p in paths:
+        if p not in seen:
+            seen.add(p)
+            dedup.append(p)
+    return ":".join(dedup)
+
+def run_pandoc_docx(md_path: pathlib.Path, out_docx: pathlib.Path, args):
+    pandoc = shutil.which("pandoc")
+    if not pandoc:
+        raise RuntimeError("pandoc not found on PATH")
+    cmd = [pandoc, str(md_path), "-o", str(out_docx)]
+    if args.reference_doc:
+        cmd += ["--reference-doc", args.reference_doc]
+    if args.toc:
+        cmd += ["--toc"]
+    if args.quiet:
+        cmd += ["--quiet"]
+    cmd += ["--resource-path", build_resource_path(args, pathlib.Path(args.input))]
+    cmd += ["-V", "graphics=true"]  # help Pandoc with figures/pagebreaks
     subprocess.run(cmd, check=True)
 
-    if pdf:
-        pdf_path = output_path.with_suffix('.pdf')
-        subprocess.run(['pandoc', str(input_path), '-o', str(pdf_path), '-s'], check=True)
+def run_pandoc_pdf(md_path: pathlib.Path, out_pdf: pathlib.Path, args):
+    pandoc = shutil.which("pandoc")
+    if not pandoc:
+        raise RuntimeError("pandoc not found on PATH")
+    engine = args.pdf_engine or "xelatex"
+    cmd = [
+        pandoc, str(md_path), "-o", str(out_pdf), "-s",
+        "--from", "gfm+yaml_metadata_block",
+        f"--pdf-engine={engine}",
+        "--resource-path", build_resource_path(args, pathlib.Path(args.input)),
+    ]
+    if args.toc:
+        cmd += ["--toc"]
+    if args.quiet:
+        cmd += ["--quiet"]
+
+    # --- Font controls: sensible defaults for wide Unicode coverage ---
+    default_main = "DejaVu Serif"
+    default_mono = "DejaVu Sans Mono"
+    mainfont = args.mainfont or default_main
+    monofont = args.monofont or default_mono
+    cmd += ["-V", f"mainfont={mainfont}", "-V", f"monofont={monofont}"]
+    if args.sansfont:
+        cmd += ["-V", f"sansfont={args.sansfont}"]
+    if args.mathfont:
+        cmd += ["-V", f"mathfont={args.mathfont}"]
+
+    subprocess.run(cmd, check=True)
+
+# ---------------------------
+# Main
+# ---------------------------
+
+def parse_args():
+    p = argparse.ArgumentParser(
+        description="Convert Markdown (single file or expanded index) to DOCX/PDF via Pandoc."
+    )
+    p.add_argument("input", help="Input Markdown file (index or chapter).")
+    p.add_argument("output", help="Output .docx filename (PDF uses same basename).")
+    p.add_argument("--reference-doc", help="Path to a DOCX reference (template).")
+    p.add_argument("--pdf", action="store_true", help="Also emit a PDF with same basename.")
+    p.add_argument("--toc", action="store_true", help="Include a table of contents.")
+    p.add_argument("--quiet", action="store_true", help="Reduce Pandoc chatter.")
+    p.add_argument("--pagebreak", action="store_true", help="Insert page breaks between concatenated files.")
+    p.add_argument("--assets-dir", action="append", default=[],
+                help="Add an assets/resource directory (repeatable).")
+    p.add_argument("--title-page", nargs="?", const="__AUTO__",
+                help="Prepend a title page. If value omitted, auto-generate; otherwise treat as path to a .md file.")
+    p.add_argument("--expand-index", action="store_true",
+                help="Parse the input index and inline linked chapter .md files in order.")
+    p.add_argument("--pdf-engine", default=None,
+                help="Override PDF engine (default: xelatex).")
+    # Font controls (XeLaTeX/LuaLaTeX)
+    p.add_argument("--mainfont", default=None, help="Main text font (e.g., 'DejaVu Serif', 'Noto Serif').")
+    p.add_argument("--monofont", default=None, help="Monospace font (e.g., 'DejaVu Sans Mono', 'Noto Sans Mono').")
+    p.add_argument("--sansfont", default=None, help="Sans-serif font (optional).")
+    p.add_argument("--mathfont", default=None, help="Math font (optional).")
+    return p.parse_args()
+
+def make_title_page(auto_token: str, primary_input: pathlib.Path) -> str:
+    if auto_token != "__AUTO__":
+        tp = pathlib.Path(auto_token)
+        return read_text(tp)
+    title = primary_input.stem.replace("_", " ").replace("-", " ").title()
+    today = date.today().isoformat()
+    return f"# {title}\n\n**Generated:** {today}\n\n"
 
 def main():
-    parser = argparse.ArgumentParser(description="Markdown to DOCX compiler with template and TOC support")
-    parser.add_argument('input', type=Path, help="Path to the index markdown file")
-    parser.add_argument('-t', '--template', type=Path, help="Path to DOTX or DOCX reference file")
-    parser.add_argument('-o', '--output', type=Path, default=Path("output.docx"), help="Output DOCX path")
-    parser.add_argument('--title-page', action='store_true', help="Add a title page from the first heading")
-    parser.add_argument('--toc', action='store_true', help="Include table of contents")
-    parser.add_argument('--pdf', action='store_true', help="Also export to PDF")
-    parser.add_argument('--debug-md', action='store_true', help="Output combined markdown to debug.md")
-    parser.add_argument('--verbose', '-v', action='store_true', help="Verbose logging")
-    args = parser.parse_args()
+    args = parse_args()
+    in_path = pathlib.Path(args.input).resolve()
+    out_docx = pathlib.Path(args.output).with_suffix(".docx")
+    out_pdf  = out_docx.with_suffix(".pdf")
 
-    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO)
+    with tempfile.TemporaryDirectory() as td:
+        tmp_dir = pathlib.Path(td)
+        build_md = tmp_dir / "build.md"
+        tmp_imgs = tmp_dir / "gen_images"
+        tmp_imgs.mkdir(exist_ok=True)
 
-    logging.info(f"Collecting markdown from: {args.input}")
-    combined_md, title = collect_markdown(args.input)
-
-    if args.title_page and title:
-        combined_md = insert_title_page(title) + combined_md
-
-    temp_md_path = Path(tempfile.mkstemp(suffix=".md")[1])
-    write_combined_markdown(combined_md, temp_md_path)
-
-    reference_docx = None
-    if args.template:
-        if args.template.suffix == '.dotx':
-            reference_docx = args.template.with_suffix('.docx')
-            logging.info(f"Converting {args.template} to {reference_docx}")
-            convert_dotx_to_docx(args.template, reference_docx)
+        # Determine source set
+        if args.expand_index:
+            files = collect_from_index(in_path)
+            if not files:
+                files = [in_path]
         else:
-            reference_docx = args.template
+            files = [in_path]
 
-    if args.debug_md:
-        debug_path = Path("debug.md")
-        logging.info(f"Writing debug markdown to {debug_path}")
-        write_combined_markdown(combined_md, debug_path)
+        # Build merged markdown
+        chunks = []
+        if args.title_page:
+            chunks.append(make_title_page(args.title_page, in_path))
 
-    logging.info(f"Generating DOCX to {args.output}")
-    run_pandoc(temp_md_path, args.output, reference_doc=reference_docx, pdf=args.pdf, toc=args.toc)
+        merged = concat_markdown(files, args.pagebreak)
+        merged = strip_or_map_emoji(merged)
+        merged = rewrite_wavedrom_images(merged, in_path.parent, tmp_imgs)
 
-    logging.info("Done.")
+        chunks.append(merged)
+        final_md = ("\n".join(chunks)).strip() + "\n"
+        write_text(build_md, final_md)
 
-if __name__ == '__main__':
-    main()
+        # Generate DOCX
+        run_pandoc_docx(build_md, out_docx, args)
+
+        # Optional PDF
+        if args.pdf:
+            try:
+                run_pandoc_pdf(build_md, out_pdf, args)
+            except subprocess.CalledProcessError:
+                # Fallback: LibreOffice convert from DOCX, if present
+                soffice = shutil.which("soffice")
+                if not soffice:
+                    raise
+                subprocess.run([
+                    soffice, "--headless", "--convert-to", "pdf",
+                    "--outdir", str(out_pdf.parent), str(out_docx)
+                ], check=True)
+
+    if not args.quiet:
+        log(f"✓ Wrote {out_docx}")
+        if args.pdf:
+            log(f"✓ Wrote {out_pdf}")
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        sys.exit(1)

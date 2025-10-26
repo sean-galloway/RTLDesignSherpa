@@ -1,4 +1,19 @@
 #!/usr/bin/python3.11
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: search_and_replace_directory
+# Purpose: Search reursively through a root directory for some specified REGEXs and replace
+#
+# Documentation: rtl/common/PRD.md
+# Subsystem: common
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """Search reursively through a root directory for some specified REGEXs and replace them with new text"""
 
 import os

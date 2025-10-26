@@ -23,6 +23,8 @@
  * It uses the timer tick from the frequency invariant timer and the
  * configurable timeout thresholds.
  */
+
+`include "reset_defs.svh"
 module axi_monitor_timeout
     import monitor_pkg::*;
 #(
@@ -61,8 +63,8 @@ module axi_monitor_timeout
     assign timeout_detected = r_timeout_detected;
 
     // Timeout detection logic
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+if (`RST_ASSERTED(aresetn)) begin
             // Reset local table
             for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
                 r_trans_table_local[idx] <= '0;
@@ -72,7 +74,7 @@ module axi_monitor_timeout
             // Update local table from input and process individually
             for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
                 r_trans_table_local[idx] <= trans_table[idx];
-
+        
                 // If this transaction has a state change to non-active, mark it as no longer timing out
                 if (trans_table[idx].state == TRANS_COMPLETE ||
                     trans_table[idx].state == TRANS_ERROR ||
@@ -80,19 +82,19 @@ module axi_monitor_timeout
                     r_timeout_detected[idx] <= 1'b0;
                 end
             end
-
+        
             // If timer tick, check for timeouts
             if (timer_tick) begin
                 for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
                     if (r_trans_table_local[idx].valid && !r_timeout_detected[idx]) begin
-
+        
                         // Address phase timeout detection
                         if (r_trans_table_local[idx].state == TRANS_ADDR_PHASE &&
                             !r_trans_table_local[idx].cmd_received) begin
-
+        
                             // Increment address timer
                             r_trans_table_local[idx].addr_timer <= r_trans_table_local[idx].addr_timer + 1'b1;
-
+        
                             // Check for timeout
                             /* verilator lint_off WIDTHEXPAND */
                             if (r_trans_table_local[idx].addr_timer >= {12'h0, cfg_addr_cnt}) begin
@@ -102,17 +104,17 @@ module axi_monitor_timeout
                                 r_timeout_detected[idx] <= 1'b1;
                             end
                         end
-
+        
                         // Data phase timeout detection
                         if ((r_trans_table_local[idx].state == TRANS_ADDR_PHASE ||
                                 r_trans_table_local[idx].state == TRANS_DATA_PHASE) &&
                                 r_trans_table_local[idx].cmd_received &&
                                 r_trans_table_local[idx].data_started &&
                                 !r_trans_table_local[idx].data_completed) begin
-
+        
                             // Increment data timer
                             r_trans_table_local[idx].data_timer <= r_trans_table_local[idx].data_timer + 1'b1;
-
+        
                             // Check for timeout
                             /* verilator lint_off WIDTHEXPAND */
                             if (r_trans_table_local[idx].data_timer >= {12'h0, cfg_data_cnt}) begin
@@ -122,16 +124,16 @@ module axi_monitor_timeout
                                 r_timeout_detected[idx] <= 1'b1;
                             end
                         end
-
+        
                         // Response phase timeout detection (write only)
                         if (!IS_READ &&
                             r_trans_table_local[idx].state == TRANS_DATA_PHASE &&
                             r_trans_table_local[idx].data_completed &&
                             !r_trans_table_local[idx].resp_received) begin
-
+        
                             // Increment response timer
                             r_trans_table_local[idx].resp_timer <= r_trans_table_local[idx].resp_timer + 1'b1;
-
+        
                             // Check for timeout
                             /* verilator lint_off WIDTHEXPAND */
                             if (r_trans_table_local[idx].resp_timer >= {12'h0, cfg_resp_cnt}) begin
@@ -145,6 +147,7 @@ module axi_monitor_timeout
                 end
             end
         end
-    end
+    )
+
 
 endmodule : axi_monitor_timeout

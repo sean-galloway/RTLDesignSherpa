@@ -11,31 +11,34 @@ This directory contains documentation for the common RTL modules library, provid
 ### Arithmetic and Math Operations
 
 #### Basic Arithmetic
-- **[math_adder_full](math_adder_full.md)** - Single-bit full adder with carry-in/carry-out
-- **[math_adder_half](math_adder_half.md)** - Single-bit half adder (2-input)
+- **[math_adder_basic](math_adder_basic.md)** - Single-bit adders (full and half adder)
+  - Includes: `math_adder_full.sv`, `math_adder_half.sv`, `math_adder_full_nbit.sv`
 - **[math_adder_ripple_carry](math_adder_ripple_carry.md)** - Multi-bit ripple carry adder
 - **[math_adder_carry_lookahead](math_adder_carry_lookahead.md)** - Fast carry lookahead adder
 - **[math_adder_carry_save](math_adder_carry_save.md)** - Carry-save adder for multiple operands
-- **[math_adder_kogge_stone_nbit](math_adder_kogge_stone_nbit.md)** - High-speed Kogge-Stone parallel prefix adder
+  - Includes: `math_adder_carry_save.sv`, `math_adder_carry_save_nbit.sv`
+- **[math_adder_kogge_stone](math_adder_kogge_stone.md)** - High-speed Kogge-Stone parallel prefix adder
+  - Includes: `math_adder_kogge_stone_nbit.sv`
 
 #### Advanced Adders
-- **[math_adder_brent_kung_008](math_adder_brent_kung_008.md)** - 8-bit Brent-Kung parallel prefix adder
-- **[math_adder_brent_kung_016](math_adder_brent_kung_016.md)** - 16-bit Brent-Kung parallel prefix adder
-- **[math_adder_brent_kung_032](math_adder_brent_kung_032.md)** - 32-bit Brent-Kung parallel prefix adder
-- **[math_addsub_full_nbit](math_addsub_full_nbit.md)** - Combined N-bit adder/subtractor
+- **[math_adder_brent_kung](math_adder_brent_kung.md)** - Brent-Kung parallel prefix adder family (8/16/32-bit)
+  - Includes: `math_adder_brent_kung_008.sv`, `math_adder_brent_kung_016.sv`, `math_adder_brent_kung_032.sv`
+  - Sub-modules: `math_adder_brent_kung_pg.sv`, `math_adder_brent_kung_black.sv`, `math_adder_brent_kung_gray.sv`, `math_adder_brent_kung_bitwisepg.sv`, `math_adder_brent_kung_grouppg_*.sv`, `math_adder_brent_kung_sum.sv`
+- **[math_addsub](math_addsub.md)** - Combined adder/subtractor
+  - Includes: `math_addsub_full_nbit.sv`
 
 #### Subtraction
-- **[math_subtractor_full](math_subtractor_full.md)** - Single-bit full subtractor
-- **[math_subtractor_half](math_subtractor_half.md)** - Single-bit half subtractor
-- **[math_subtractor_ripple_carry](math_subtractor_ripple_carry.md)** - Multi-bit ripple carry subtractor
+- **[math_subtractor](math_subtractor.md)** - Subtractor family (single-bit and multi-bit)
+  - Includes: `math_subtractor_full.sv`, `math_subtractor_half.sv`, `math_subtractor_full_nbit.sv`, `math_subtractor_ripple_carry.sv`, `math_subtractor_carry_lookahead.sv`
 
 #### Multiplication
-- **[math_multiplier_wallace_tree_008](math_multiplier_wallace_tree_008.md)** - 8-bit Wallace tree multiplier
-- **[math_multiplier_wallace_tree_016](math_multiplier_wallace_tree_016.md)** - 16-bit Wallace tree multiplier
-- **[math_multiplier_wallace_tree_032](math_multiplier_wallace_tree_032.md)** - 32-bit Wallace tree multiplier
-- **[math_multiplier_dadda_tree_008](math_multiplier_dadda_tree_008.md)** - 8-bit Dadda tree multiplier
-- **[math_multiplier_dadda_tree_016](math_multiplier_dadda_tree_016.md)** - 16-bit Dadda tree multiplier
-- **[math_multiplier_dadda_tree_032](math_multiplier_dadda_tree_032.md)** - 32-bit Dadda tree multiplier
+- **[math_multiplier_wallace_tree](math_multiplier_wallace_tree.md)** - Wallace tree multiplier family (8/16/32-bit)
+  - Includes: `math_multiplier_wallace_tree_008.sv`, `math_multiplier_wallace_tree_016.sv`, `math_multiplier_wallace_tree_032.sv`
+  - CSA variants: `math_multiplier_wallace_tree_csa_008.sv`, `math_multiplier_wallace_tree_csa_016.sv`, `math_multiplier_wallace_tree_csa_032.sv`
+- **[math_multiplier_dadda_tree](math_multiplier_dadda_tree.md)** - Dadda tree multiplier family (8/16/32-bit)
+  - Includes: `math_multiplier_dadda_tree_008.sv`, `math_multiplier_dadda_tree_016.sv`, `math_multiplier_dadda_tree_032.sv`
+- **[math_multiplier_basic](math_multiplier_basic.md)** - Basic multiplier components
+  - Includes: `math_multiplier_basic_cell.sv`, `math_multiplier_carry_save.sv`
 
 ### Data Integrity and Error Correction
 
@@ -69,6 +72,7 @@ This directory contains documentation for the common RTL modules library, provid
 #### Reset and Synchronization
 - **[reset_sync](reset_sync.md)** - Synchronous reset generation
 - **[glitch_free_n_dff_arn](glitch_free_n_dff_arn.md)** - Glitch-free N-bit D flip-flop with async reset
+- **[sync_pulse](sync_pulse.md)** - Pulse synchronizer for clock domain crossing
 - **[debounce](debounce.md)** - Input signal debouncing
 
 ### Counters and Sequences
@@ -82,6 +86,7 @@ This directory contains documentation for the common RTL modules library, provid
 
 #### Specialized Counters
 - **[counter_bingray](counter_bingray.md)** - Binary to Gray counter
+- **[counter_bin_load](counter_bin_load.md)** - Binary counter with load capability
 - **[counter_load_clear](counter_load_clear.md)** - Counter with load and clear
 
 ### Data Conversion and Encoding

@@ -1,7 +1,7 @@
 # RTL Design Sherpa - Components Directory
 
-**Version:** 1.0
-**Last Updated:** 2025-10-18
+**Version:** 1.1
+**Last Updated:** 2025-10-24
 **Purpose:** Overview of demonstration components and design examples
 
 ---
@@ -24,9 +24,12 @@ The `projects/components/` directory contains demonstration components showcasin
 | Component | Type | Status | Purpose | Complexity |
 |-----------|------|--------|---------|------------|
 | **[apb_hpet](#apb_hpet)** | Peripheral | ✅ Complete | Multi-timer with 64-bit counter | Medium |
+| **[apb_xbar](#apb_xbar)** | Generator | ✅ Complete | APB crossbar interconnect | Medium |
 | **[bridge](#bridge)** | Generator | 🔧 In Progress | AXI4 full crossbar generator | High |
+| **[converters](#converters)** | Converters | ✅ Complete | AXI4 data width converters | Medium |
 | **[delta](#delta)** | Generator | 🔧 In Progress | AXI-Stream crossbar generator | Medium |
 | **[rapids](#rapids)** | Accelerator | 🔧 In Progress | DMA with network integration | Very High |
+| **[shims](#shims)** | Adapter | ✅ Complete | Protocol conversion adapters | Low-Medium |
 | **[stream](#stream)** | DMA Engine | 🔧 In Progress | Tutorial-focused scatter-gather DMA | Medium-High |
 
 ---
@@ -66,6 +69,57 @@ Configurable multi-timer peripheral with up to 8 independent hardware timers. Fe
 
 ---
 
+### apb_xbar
+
+**APB Crossbar Generator**
+
+**Status:** ✅ Complete (all configurations passing)
+
+**Description:**
+Python-based code generator producing parameterized APB crossbar RTL for connecting multiple APB masters to multiple slaves. Pre-generated variants available for common configurations (1×1, 2×1, 1×4, 2×4).
+
+**Key Features:**
+- Python code generation for custom M×N configurations
+- Pre-generated modules for common sizes (1×1, 2×1, 1×4, 2×4, thin variant)
+- Round-robin arbitration per slave with grant locking
+- Fixed 64KB address regions per slave
+- Configurable base address parameter
+- Comprehensive test coverage (100% passing)
+
+**Available Pre-Generated Modules:**
+- `apb_xbar_1to1.sv` - Passthrough/protocol conversion
+- `apb_xbar_2to1.sv` - Multi-master arbitration
+- `apb_xbar_1to4.sv` - Address decode for peripherals
+- `apb_xbar_2to4.sv` - Full crossbar (CPU + DMA)
+- `apb_xbar_thin.sv` - Minimal overhead variant
+
+**Address Map:**
+- Slave 0: BASE_ADDR + 0x0000_0000 (64KB)
+- Slave 1: BASE_ADDR + 0x0001_0000 (64KB)
+- Slave N: BASE_ADDR + N × 0x10000
+
+**Applications:**
+- SoC peripheral interconnects
+- Multi-master APB fabrics
+- CPU + DMA peripheral access
+- Address decode and arbitration
+
+**Resources:**
+- RTL: `rtl/apb_xbar_*.sv` (pre-generated)
+- Generator: `bin/generate_xbars.py`
+- Tests: `dv/tests/test_apb_xbar_*.py`
+- Documentation: `PRD.md`, `CLAUDE.md`
+
+**Generation Example:**
+```bash
+cd apb_xbar/bin/
+python generate_xbars.py --masters 3 --slaves 6 --output ../rtl/apb_xbar_3to6.sv
+```
+
+**📖 See:** [`apb_xbar/PRD.md`](apb_xbar/PRD.md) for complete specification
+
+---
+
 ### bridge
 
 **AXI4 Full Crossbar Generator**
@@ -99,6 +153,44 @@ Python-based code generator producing parameterized AXI4 full crossbar RTL for c
 - Documentation: `PRD.md`
 
 **📖 See:** [`bridge/PRD.md`](bridge/PRD.md) for complete specification
+
+---
+
+### converters
+
+**AXI4 Data Width Converters**
+
+**Status:** ✅ Complete (all tests passing)
+
+**Description:**
+AXI4 data width up/down conversion modules for interfacing components with different data bus widths. Supports read and write path conversion with proper handling of strobes, bursts, and alignment.
+
+**Key Features:**
+- Read data width converter (narrow master → wide slave)
+- Write data width converter (wide master → narrow slave)
+- Automatic burst decomposition/composition
+- Strobe (WSTRB) alignment handling
+- Full AXI4 protocol compliance
+- Parameterized data widths (must be power-of-2 multiples)
+
+**Supported Conversions:**
+- 32-bit ↔ 64-bit
+- 32-bit ↔ 128-bit
+- 64-bit ↔ 256-bit
+- Any power-of-2 ratio
+
+**Use Cases:**
+- Connecting 32-bit CPU to 64-bit memory controller
+- Interfacing 128-bit accelerator to 32-bit peripheral bus
+- Width adaptation in multi-width SoC fabrics
+- Performance optimization (wider memory interfaces)
+
+**Resources:**
+- RTL: `rtl/axi4_dwidth_converter_rd.sv`, `rtl/axi4_dwidth_converter_wr.sv`
+- Tests: `dv/tests/test_axi4_dwidth_converter_rd.py`, `test_axi4_dwidth_converter_wr.py`
+- Documentation: Design comments in RTL
+
+**📖 See:** Component tests for usage examples
 
 ---
 
@@ -182,6 +274,45 @@ Complex hardware accelerator demonstrating descriptor-based DMA operations with 
 
 ---
 
+### shims
+
+**Protocol Conversion and Glue Logic Adapters**
+
+**Status:** ✅ Complete (all tests passing)
+
+**Description:**
+Collection of protocol conversion adapters and glue logic modules for interfacing between different register file standards and custom protocols.
+
+**Key Components:**
+
+**PeakRDL-to-CmdRsp Adapter:**
+- Converts PeakRDL-generated APB register interfaces to custom CmdRsp protocol
+- Simplifies register integration in custom accelerators
+- Maintains timing and protocol semantics
+- Fully tested and validated
+
+**Key Features:**
+- Protocol adaptation (APB ↔ CmdRsp)
+- Minimal latency overhead
+- Full address and data width support
+- Error response mapping
+- Ready for production use
+
+**Use Cases:**
+- Integrating PeakRDL registers with custom engines
+- APB-to-custom protocol bridges
+- Glue logic for heterogeneous systems
+- Register file adaptation
+
+**Resources:**
+- RTL: `rtl/peakrdl_to_cmdrsp.sv`
+- Tests: `dv/tests/test_peakrdl_to_cmdrsp.py`
+- Documentation: Inline RTL comments
+
+**📖 See:** Component tests for usage examples
+
+---
+
 ### stream
 
 **STREAM - Scatter-gather Transfer Rapid Engine for AXI Memory**
@@ -232,22 +363,28 @@ Simplified DMA engine designed as a beginner-friendly tutorial demonstrating des
 
 ### Protocol and Interface Support
 
-| Component | APB | AXI4 | AXI4-Lite | AXI-Stream | Network | MonBus |
-|-----------|-----|------|-----------|------------|---------|--------|
-| **apb_hpet** | ✅ Slave | - | - | - | - | - |
-| **bridge** | - | ✅ Crossbar | - | - | - | - |
-| **delta** | - | - | - | ✅ Crossbar | - | - |
-| **rapids** | - | ✅ Master | ✅ Slave | - | ✅ M/S | ✅ Master |
-| **stream** | ✅ Slave | ✅ Master | - | - | - | ✅ Master |
+| Component | APB | AXI4 | AXI4-Lite | AXI-Stream | Network | MonBus | Other |
+|-----------|-----|------|-----------|------------|---------|--------|-------|
+| **apb_hpet** | ✅ Slave | - | - | - | - | - | - |
+| **apb_xbar** | ✅ Crossbar | - | - | - | - | - | - |
+| **bridge** | - | ✅ Crossbar | - | - | - | - | - |
+| **converters** | - | ✅ Converter | - | - | - | - | - |
+| **delta** | - | - | - | ✅ Crossbar | - | - | - |
+| **rapids** | - | ✅ Master | ✅ Slave | - | ✅ M/S | ✅ Master | - |
+| **shims** | ✅ Adapter | - | - | - | - | - | ✅ CmdRsp |
+| **stream** | ✅ Slave | ✅ Master | - | - | - | ✅ Master | - |
 
 ### Complexity and Scope
 
 | Component | RTL Modules | Test Coverage | Primary Focus | Educational Value |
 |-----------|-------------|---------------|---------------|-------------------|
 | **apb_hpet** | 4 | 92-100% | Production peripheral | Medium |
+| **apb_xbar** | 5 pre-gen + generator | 100% | Crossbar interconnect | High |
 | **bridge** | Generated | TBD | Code generation | High |
+| **converters** | 2 | 100% | Data width adaptation | Medium |
 | **delta** | Generated | TBD | Topology comparison | High |
 | **rapids** | 17 | ~85% | Complex accelerator | Very High |
+| **shims** | 1 | 100% | Protocol conversion | Low-Medium |
 | **stream** | 8-10 (est.) | TBD | Tutorial DMA | High |
 
 ### Resource Utilization (Estimates)
@@ -255,9 +392,12 @@ Simplified DMA engine designed as a beginner-friendly tutorial demonstrating des
 | Component | LUTs | FFs | BRAM | Notes |
 |-----------|------|-----|------|-------|
 | **apb_hpet** | ~500-1200 | ~300-800 | 0 | Depends on timer count |
+| **apb_xbar** | ~150-600 | ~200-500 | 0 | Depends on M×N size |
 | **bridge** | ~2,500 | ~3,000 | 0 | 4×4 @ 512-bit |
+| **converters** | ~200-400 | ~150-300 | 0 | Per converter, depends on width ratio |
 | **delta** | ~1,600-1,920 | ~1,200 | 0 | 4×16 @ 64-bit |
 | **rapids** | ~10K | ~8K | 0 | Plus SRAM (dominant) |
+| **shims** | ~50-100 | ~50-100 | 0 | Minimal glue logic |
 | **stream** | ~5K (est.) | ~4K (est.) | 0 | Plus SRAM |
 
 ---
@@ -332,10 +472,42 @@ projects/components/
 
 ### Quick Start Examples
 
+#### Running Component Tests with Makefiles
+
+All component test directories now include comprehensive Makefiles with REG_LEVEL support for controlled test depth:
+
+```bash
+# Using make targets (RECOMMENDED)
+cd projects/components/{component}/dv/tests/
+
+# Quick smoke test (~5 min)
+make run-all-gate-parallel
+
+# Default functional coverage (~30 min)
+make run-all-func-parallel
+
+# Comprehensive validation (~4 hr)
+make run-all-full-parallel
+
+# View all available targets
+make help
+```
+
+**REG_LEVEL Control:**
+- **GATE**: Quick smoke test - Basic connectivity validation
+- **FUNC**: Functional coverage (DEFAULT) - Standard test suite
+- **FULL**: Comprehensive validation - Stress tests and edge cases
+
 #### Running APB HPET Tests
 
 ```bash
-# Run all HPET tests
+# Using make targets (RECOMMENDED)
+cd projects/components/apb_hpet/dv/tests/
+make run-all-func-parallel        # FUNC level, 48 workers
+make run-hpet-gate                # Quick smoke test
+make run-hpet-full                # Comprehensive test
+
+# Direct pytest invocation
 pytest projects/components/apb_hpet/dv/tests/ -v
 
 # Run specific configuration
@@ -349,14 +521,17 @@ gtkwave hpet_debug.vcd
 #### Running RAPIDS Tests
 
 ```bash
-# FUB (unit) tests
+# Using make targets (RECOMMENDED)
+cd projects/components/rapids/dv/tests/
+make run-fub-func-parallel          # FUB tests, 48 workers
+make run-macro-func-parallel        # Macro tests, 48 workers
+make run-system-func-parallel       # System tests, 48 workers
+make run-all-gate-parallel          # Quick smoke test
+
+# Direct pytest invocation
 pytest projects/components/rapids/dv/tests/fub_tests/scheduler/ -v
 pytest projects/components/rapids/dv/tests/fub_tests/descriptor_engine/ -v
-
-# Integration tests
 pytest projects/components/rapids/dv/tests/integration_tests/ -v
-
-# All RAPIDS tests
 pytest projects/components/rapids/dv/tests/ -v
 ```
 
@@ -554,7 +729,14 @@ When adding new components or modifying existing ones:
 # View component specification
 cat projects/components/{component}/PRD.md
 
-# Run component tests
+# Run component tests with Makefile (RECOMMENDED)
+cd projects/components/{component}/dv/tests/
+make run-all-func-parallel       # Default: FUNC level, 48 workers
+make run-all-gate-parallel       # Quick smoke test
+make run-all-full-parallel       # Comprehensive validation
+make help                        # View all available targets
+
+# Run component tests with pytest (direct)
 pytest projects/components/{component}/dv/tests/ -v
 
 # Lint component RTL
@@ -568,6 +750,27 @@ python3 comprehensive_analysis.py --report
 gtkwave {test_output}.vcd
 ```
 
+### Makefile Targets Reference
+
+All component Makefiles provide consistent targets:
+
+```bash
+# REG_LEVEL variants
+make run-all-gate[-parallel]     # Quick smoke test (~5 min)
+make run-all-func[-parallel]     # Functional coverage (~30 min, DEFAULT)
+make run-all-full[-parallel]     # Comprehensive validation (~4 hr)
+
+# Individual module targets
+make run-{module}-{gate|func|full}   # Run specific module at test level
+
+# Utility targets
+make collect-all                 # Verify tests without running
+make clean-all                   # Remove all test artifacts
+make status                      # Show test status summary
+make list-all                    # List all test modules
+make help                        # Show all available targets
+```
+
 ### Status Legend
 
 - ✅ **Complete** - Fully tested, ready for use
@@ -576,9 +779,16 @@ gtkwave {test_output}.vcd
 
 ---
 
-**Version:** 1.0
-**Last Updated:** 2025-10-18
+**Version:** 1.1
+**Last Updated:** 2025-10-24
 **Maintained By:** RTL Design Sherpa Project
+
+**Recent Updates:**
+- Added apb_xbar, converters, and shims components
+- Comprehensive Makefile infrastructure with REG_LEVEL support across all components
+- Increased parallel test execution (48 workers)
+- Automatic retry mechanism for intermittent failures
+- Unified testing methodology matching val/common and val/amba patterns
 
 ---
 

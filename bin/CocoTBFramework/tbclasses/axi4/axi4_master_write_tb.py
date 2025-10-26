@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: AXI4MasterWriteTB
+# Purpose: AXI4 Write Master Testbench - FIXED VERSION
+#
+# Documentation: bin/CocoTBFramework/README.md
+# Subsystem: framework
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """
 AXI4 Write Master Testbench - FIXED VERSION
 
@@ -42,7 +57,10 @@ class AXI4MasterWriteTB(TBBase):
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
         self.TIMEOUT_CYCLES = self.convert_to_int(os.environ.get('TIMEOUT_CYCLES', '1000'))
 
-        self.use_multi_sig = True  # AXI4 always uses individual signals (awvalid, wdata, etc.)
+        # CRITICAL FIX: Stub uses packed signals, direct module uses individual signals
+        # stub=1 → packed mode (multi_sig=False): fub_axi_aw_pkt, fub_axi_w_pkt, fub_axi_b_pkt
+        # stub=0 → individual mode (multi_sig=True): fub_axi_awid, fub_axi_awaddr, etc.
+        self.use_multi_sig = (self.TEST_STUB == 0)  # stub=0: individual signals, stub=1: packed signals
 
         # Initialize random generator
         random.seed(self.SEED)

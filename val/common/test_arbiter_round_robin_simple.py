@@ -19,6 +19,7 @@ Simplified implementation without ACK protocol and block_arb functionality
 """
 
 import os
+import sys
 import random
 import cocotb
 from cocotb.triggers import RisingEdge, FallingEdge, Timer
@@ -27,6 +28,12 @@ from cocotb_test.simulator import run
 import pytest
 
 # Import the testbench and utilities
+
+# Add repo root to path for CocoTBFramework imports
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if os.path.join(repo_root, 'bin') not in sys.path:
+    sys.path.insert(0, os.path.join(repo_root, 'bin'))
+
 from CocoTBFramework.tbclasses.common.arbiter_round_robin_simple_tb import ArbiterRoundRobinSimpleTB
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
@@ -126,18 +133,37 @@ async def arbiter_round_robin_simple_test(dut):
         # Wait for any pending operations
         await tb.wait_clocks('clk', 10)
 
-@pytest.mark.parametrize("clients", [
-    4,   # 4 clients
-    5,   # 5 clients (non-power-of-2)
-    6,   # 6 clients (non-power-of-2)
-    8,   # 8 clients
-    16,  # 16 clients
-])
+def generate_test_params():
+    """
+    Generate test parameter combinations based on REG_LEVEL.
+
+    REG_LEVEL=GATE: 2 tests (4, 8 clients)
+    REG_LEVEL=FUNC: 5 tests (all client counts) - default
+    REG_LEVEL=FULL: 5 tests (same as FUNC)
+
+    Returns:
+        List of client counts
+    """
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+
+    all_clients = [4, 5, 6, 8, 16]
+
+    if reg_level == 'GATE':
+        # Quick smoke test: power-of-2 sizes
+        return [4, 8]
+
+    else:  # FUNC or FULL (same for this test)
+        # Full coverage: all client counts
+        return all_clients
+
+
+@pytest.mark.parametrize("clients", generate_test_params())
 def test_arbiter_round_robin_simple(request, clients):
     """Run the simple round robin test"""
     # Get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
-        'rtl_cmn': 'rtl/common'
+        'rtl_cmn': 'rtl/common',
+        'rtl_amba_includes': 'rtl/amba/includes',
     })
 
     dut_name = "arbiter_round_robin_simple"
@@ -151,6 +177,12 @@ def test_arbiter_round_robin_simple(request, clients):
     # Create a human readable test identifier
     c_str = TBBase.format_dec(clients, 2)
     test_name_plus_params = f"test_{dut_name}_c{c_str}"
+
+    # Handle pytest-xdist parallel execution
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
+
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Use it in the simbuild path
@@ -163,7 +195,7 @@ def test_arbiter_round_robin_simple(request, clients):
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes = []
+    includes=[rtl_dict['rtl_amba_includes']]
 
     # RTL parameters for SIMPLE ROUND ROBIN (only N parameter)
     parameters = {'N': clients}

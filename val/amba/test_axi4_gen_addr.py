@@ -599,6 +599,10 @@ async def comprehensive_test(dut):
 ])
 def test_axi_gen_addr(request, params):
     """Run the test with pytest and configurable parameters"""
+
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
     # Get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths(
         {
@@ -620,7 +624,7 @@ def test_axi_gen_addr(request, params):
     t_len = params['LEN']
     t_name = params['test_level']
     # Format parameters with lowercase and zero-padding for consistent sorting
-    test_name_plus_params = f"test_{dut_name}_aw{t_aw:03d}_dw{t_dw:03d}_odw{t_odw:03d}_len{t_len:02d}_{t_name}"
+    test_name_plus_params = f"test_{worker_id}_{dut_name}_aw{t_aw:03d}_dw{t_dw:03d}_odw{t_odw:03d}_len{t_len:02d}_{t_name}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Use it in the simbuild path

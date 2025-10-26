@@ -23,7 +23,10 @@ ifndef REPO_ROOT
 $(error REPO_ROOT is not set. Please run: source $$REPO_ROOT/env_python)
 endif
 
-# Find all SystemVerilog files
+# Master filelist for component-level linting
+MASTER_FILELIST = filelists/stream_all.f
+
+# Find all SystemVerilog files (for status reporting)
 SV_FILES := $(shell find . -name "*.sv" -type f)
 SV_COUNT := $(words $(SV_FILES))
 
@@ -90,21 +93,20 @@ verilator:
 	@echo "Running Verilator Lint on STREAM RTL ($(SV_COUNT) files)"
 	@echo "================================================================================"
 	@mkdir -p $(VERILATOR_DIR)
-	@echo "Lint results:" > $(VERILATOR_DIR)/summary.txt
-	@pass_count=0; fail_count=0; \
-	for file in $(SV_FILES); do \
-		echo "Linting $$file..."; \
-		if $(VERILATOR) $(VERILATOR_FLAGS) $$file > $(VERILATOR_DIR)/$$(basename $$file .sv).log 2>&1; then \
-			echo "✓ $$file" >> $(VERILATOR_DIR)/summary.txt; \
-			pass_count=$$((pass_count + 1)); \
-		else \
-			echo "✗ $$file" >> $(VERILATOR_DIR)/summary.txt; \
-			fail_count=$$((fail_count + 1)); \
-		fi; \
-	done; \
-	echo "" >> $(VERILATOR_DIR)/summary.txt; \
-	echo "Summary: $$pass_count passed, $$fail_count failed" >> $(VERILATOR_DIR)/summary.txt; \
-	cat $(VERILATOR_DIR)/summary.txt
+	@echo "Linting using master filelist: $(MASTER_FILELIST)"
+	@if $(VERILATOR) $(VERILATOR_FLAGS) -f $(MASTER_FILELIST) > $(VERILATOR_DIR)/stream_all.log 2>&1; then \
+		echo "✓ STREAM RTL lint passed" | tee $(VERILATOR_DIR)/summary.txt; \
+		echo "" >> $(VERILATOR_DIR)/summary.txt; \
+		echo "Summary: 1 passed, 0 failed" >> $(VERILATOR_DIR)/summary.txt; \
+	else \
+		echo "✗ STREAM RTL lint failed" | tee $(VERILATOR_DIR)/summary.txt; \
+		echo "" >> $(VERILATOR_DIR)/summary.txt; \
+		echo "Summary: 0 passed, 1 failed" >> $(VERILATOR_DIR)/summary.txt; \
+		echo ""; \
+		echo "Error log:"; \
+		cat $(VERILATOR_DIR)/stream_all.log; \
+		exit 1; \
+	fi
 	@echo "✓ Verilator lint complete. Reports: $(VERILATOR_DIR)/"
 
 # ==============================================================================

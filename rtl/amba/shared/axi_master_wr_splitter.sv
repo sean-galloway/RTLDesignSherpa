@@ -108,6 +108,8 @@ Original: ADDR=0x0FC0, LEN=7 (8 beats, 512 bytes total)
 ```
 */
 
+`include "reset_defs.svh"
+
 module axi_master_wr_splitter
 #(
     // AXI parameters
@@ -333,13 +335,13 @@ module axi_master_wr_splitter
 
     assign w_split_boundary_reached = (r_beat_counter + 1 >= r_expected_beats);
 
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+if (`RST_ASSERTED(aresetn)) begin
             r_split_state <= IDLE;
             r_current_addr <= '0;
             r_current_len <= '0;
             r_split_count <= 8'd0;
-
+        
             // Reset buffered transaction
             r_orig_awid <= '0;
             r_orig_awaddr <= '0;
@@ -352,12 +354,12 @@ module axi_master_wr_splitter
             r_orig_awqos <= '0;
             r_orig_awregion <= '0;
             r_orig_awuser <= '0;
-
+        
             // Reset data channel tracking
             r_expected_beats <= '0;
             r_beat_counter <= '0;
             r_data_splitting <= 1'b0;
-
+        
             // Reset response consolidation state
             r_expected_response_count <= '0;
             r_received_response_count <= '0;
@@ -365,7 +367,7 @@ module axi_master_wr_splitter
             r_original_txn_id <= '0;
             r_consolidated_resp_status <= 2'b00; // OKAY
             r_consolidated_buser <= '0;
-
+        
         end else begin
             case (r_split_state)
                 IDLE: begin
@@ -382,24 +384,24 @@ module axi_master_wr_splitter
                         r_orig_awqos <= fub_awqos;
                         r_orig_awregion <= fub_awregion;
                         r_orig_awuser <= fub_awuser;
-
+        
                         // Setup response consolidation for this transaction
                         r_original_txn_id <= fub_awid;
                         r_consolidated_resp_status <= 2'b00; // Start with OKAY
                         r_consolidated_buser <= fub_awuser;
-
+        
                         if (w_new_split_needed) begin
                             // Splitting required - transition to SPLITTING state
                             r_split_state <= SPLITTING;
                             r_current_addr <= w_next_boundary_addr;
                             r_current_len <= w_remaining_len_after_split;
                             r_split_count <= 8'd2; // First split sent, second split next
-
+        
                             // Setup data tracking for first split
                             r_expected_beats <= w_split_len + 1; // Convert AXI encoding to beat count
                             r_beat_counter <= '0;
                             r_data_splitting <= 1'b1;
-
+        
                             // RESPONSE CONSOLIDATION: Setup for multiple responses
                             r_expected_response_count <= 8'd2; // Start with 2, will update as more splits found
                             r_received_response_count <= '0;
@@ -409,7 +411,7 @@ module axi_master_wr_splitter
                             r_expected_beats <= fub_awlen + 1;
                             r_beat_counter <= '0;
                             r_data_splitting <= 1'b0;
-
+        
                             // RESPONSE CONSOLIDATION: Single response expected (pass-through mode)
                             r_expected_response_count <= 8'd1;
                             r_received_response_count <= '0;
@@ -417,7 +419,7 @@ module axi_master_wr_splitter
                         end
                     end
                 end
-
+        
                 SPLITTING: begin
                     if (m_axi_awvalid && m_axi_awready) begin
                         if (w_split_required) begin
@@ -425,33 +427,33 @@ module axi_master_wr_splitter
                             r_current_addr <= w_next_boundary_addr;
                             r_current_len <= w_remaining_len_after_split;
                             r_split_count <= r_split_count + 8'd1;
-
+        
                             // RESPONSE CONSOLIDATION: Increment expected response count
                             r_expected_response_count <= r_expected_response_count + 8'd1;
-
+        
                             // Note: beat tracking updated in data section below
                         end else begin
                             // Final split transaction completed - return to IDLE
                             r_split_state <= IDLE;
                             r_split_count <= 8'd0;
-
+        
                             // Note: beat tracking updated in data section below
                         end
                     end
                 end
-
+        
                 default: r_split_state <= IDLE;
             endcase
-
+        
             // Data beat counter management
             if (m_axi_wvalid && m_axi_wready) begin
                 r_beat_counter <= r_beat_counter + 1;
-
+        
                 // Check if we've completed the current split
                 if (w_split_boundary_reached) begin
                     // Current split done - reset counter and setup for next split
                     r_beat_counter <= '0;
-
+        
                     // Update expected beats for next split
                     if (r_split_state == SPLITTING) begin
                         if (w_split_required) begin
@@ -467,18 +469,18 @@ module axi_master_wr_splitter
                     end
                 end
             end
-
+        
             // RESPONSE CONSOLIDATION: Process incoming split responses
             if (m_axi_bvalid && m_axi_bready) begin
                 // Received a split response - consolidate it
                 r_received_response_count <= r_received_response_count + 8'd1;
-
+        
                 // OR together error conditions - keep worst response status
                 // Priority: DECERR (3) > SLVERR (2) > EXOKAY (1) > OKAY (0)
                 if (m_axi_bresp > r_consolidated_resp_status) begin
                     r_consolidated_resp_status <= m_axi_bresp;
                 end
-
+        
                 // Check if this was the final response to consolidate
                 if (r_received_response_count + 8'd1 >= r_expected_response_count) begin
                     // All responses received - ready to send consolidated response
@@ -489,7 +491,8 @@ module axi_master_wr_splitter
                 end
             end
         end
-    end
+    )
+
 
     //===========================================================================
     // AXI Signal Assignments - Address Channel

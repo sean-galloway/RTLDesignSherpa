@@ -38,9 +38,15 @@ Author: RTL Design Sherpa Project
 """
 
 import os
+import sys
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+
+# Add repo root to path for CocoTBFramework imports
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if os.path.join(repo_root, 'bin') not in sys.path:
+    sys.path.insert(0, os.path.join(repo_root, 'bin'))
 
 from CocoTBFramework.tbclasses.glitch_free_n_dff_arn_tb import GlitchFreeNDffArnTB
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
@@ -93,7 +99,7 @@ def test_glitch_free_n_dff_arn(request, flop_count, width, test_mode):
     """
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_common': 'rtl/common'
-    })
+    , 'rtl_amba_includes': 'rtl/amba/includes'})
 
     dut_name = "glitch_free_n_dff_arn"
     verilog_sources = [
@@ -103,7 +109,15 @@ def test_glitch_free_n_dff_arn(request, flop_count, width, test_mode):
     # Format parameters for unique test name
     fc_str = TBBase.format_dec(flop_count, 1)
     w_str = TBBase.format_dec(width, 2)
-    test_name_plus_params = f"test_{dut_name}_fc{fc_str}_w{w_str}_{test_mode}"
+    # Get REG_LEVEL before creating test name
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()  # GATE, FUNC, or FULL
+
+    test_name_plus_params = f"test_{dut_name}_fc{fc_str}_w{w_str}_{test_mode}_{reg_level}"
+
+    # Add worker ID for pytest-xdist parallel execution
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -143,6 +157,7 @@ def test_glitch_free_n_dff_arn(request, flop_count, width, test_mode):
             compile_args=["-Wno-TIMESCALEMOD"],
             sim_args=[],
             plusargs=[],
+            includes=[rtl_dict['rtl_amba_includes']]
         )
         print(f"✓ Test completed! Logs: {log_path}")
     except Exception as e:

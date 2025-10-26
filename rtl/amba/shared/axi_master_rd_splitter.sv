@@ -92,6 +92,8 @@ Original: ADDR=0x0FC0, LEN=7 (8 beats, 512 bytes total)
 → Split 2: ADDR=0x1000, LEN=6 (7 beats, remaining data)
 ```
 */
+
+`include "reset_defs.svh"
 module axi_master_rd_splitter
 #(
     // AXI parameters
@@ -282,13 +284,13 @@ module axi_master_rd_splitter
     logic w_is_final_split;
     assign w_is_final_split = (r_split_state == SPLITTING) && !w_split_required;
 
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+if (`RST_ASSERTED(aresetn)) begin
             r_split_state <= IDLE;
             r_current_addr <= '0;
             r_current_len <= '0;
             r_split_count <= 8'd0;
-
+        
             // Reset buffered transaction
             r_orig_arid <= '0;
             r_orig_araddr <= '0;
@@ -317,7 +319,7 @@ module axi_master_rd_splitter
                         r_orig_arqos <= fub_arqos;
                         r_orig_arregion <= fub_arregion;
                         r_orig_aruser <= fub_aruser;
-
+        
                         if (w_new_split_needed) begin
                             // Splitting required - transition to SPLITTING state
                             r_split_state <= SPLITTING;
@@ -328,7 +330,7 @@ module axi_master_rd_splitter
                         // If no split needed, stay in IDLE (pass-through transaction)
                     end
                 end
-
+        
                 SPLITTING: begin
                     if (m_axi_arvalid && m_axi_arready) begin
                         if (w_split_required) begin
@@ -344,11 +346,12 @@ module axi_master_rd_splitter
                         end
                     end
                 end
-
+        
                 default: r_split_state <= IDLE;
             endcase
         end
-    end
+    )
+
 
     //===========================================================================
     // AXI Signal Assignments

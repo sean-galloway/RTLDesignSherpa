@@ -387,9 +387,14 @@ async def run_basic_test(dut):
 
 def test_gaxi_drop_fifo_wavedrom():
     """Pytest runner for WaveDrom test"""
+
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_amba': 'rtl/amba',
-        'rtl_cmn': 'rtl/common'
+        'rtl_cmn': 'rtl/common',
+        'rtl_amba_includes': 'rtl/amba/includes',
     })
 
     # Test parameters - small FIFO for clear waveforms
@@ -399,17 +404,20 @@ def test_gaxi_drop_fifo_wavedrom():
 
     dut_name = "gaxi_drop_fifo_sync"
     verilog_sources = [
+        os.path.join(rtl_dict['rtl_amba_includes'], "fifo_defs.svh"),
         os.path.join(rtl_dict['rtl_amba'], 'gaxi/gaxi_drop_fifo_sync.sv'),
         os.path.join(rtl_dict['rtl_cmn'], 'counter_bin.sv'),
         os.path.join(rtl_dict['rtl_cmn'], 'counter_bin_load.sv'),
         os.path.join(rtl_dict['rtl_cmn'], 'fifo_control.sv'),
     ]
 
-    test_name = f"test_gaxi_drop_fifo_wavedrom_dw{data_width}_d{depth}"
+    test_name = f"test_{worker_id}_gaxi_drop_fifo_wavedrom_dw{data_width}_d{depth}"
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
+
+    includes=[rtl_dict['rtl_amba_includes']]
 
     parameters = {
         'DATA_WIDTH': str(data_width),
@@ -445,6 +453,7 @@ def test_gaxi_drop_fifo_wavedrom():
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
+            includes=includes,
             toplevel=dut_name,
             module=module,
             parameters=parameters,

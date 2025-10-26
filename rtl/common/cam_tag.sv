@@ -72,6 +72,8 @@
 //   Run: pytest val/common/test_cam_tag.py -v
 //
 //==============================================================================
+
+`include "reset_defs.svh"
 module cam_tag #(
     parameter int ENABLE = 1,
     parameter int N = 8,       // Width of the TAG
@@ -89,7 +91,7 @@ module cam_tag #(
     output logic               tag_status
 );
 
-    logic [N-1:0]     r_tag_array [0:DEPTH-1]; // verilog_lint: waive unpacked-dimensions-range-ordering
+    logic [N-1:0]     r_tag_array [DEPTH]; // verilog_lint: waive unpacked-dimensions-range-ordering
     logic [DEPTH-1:0] r_valid;
 
     integer w_next_valid_loc, w_match_loc, w_match_invalid_loc;
@@ -123,8 +125,8 @@ module cam_tag #(
 
     ///////////////////////////////////////////////////////////////////////////
     // Flop the valid and the tag
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_valid <= 'b0;
             for (int i = 0; i < DEPTH; i++) begin
                 r_tag_array[i] <= 'b0;
@@ -138,7 +140,8 @@ module cam_tag #(
                 r_valid[w_match_invalid_loc] <= 1'b0;
             end
         end
-    end
+    )
+
 
     assign tag_status = (w_match_loc >= 0) ? r_valid[w_match_loc] : 1'b0;
     assign tags_empty = ~|r_valid;

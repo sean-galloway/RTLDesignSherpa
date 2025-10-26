@@ -440,13 +440,19 @@ def generate_axi4_cg_params():
 def test_axi4_master_read_cg(id_width, addr_width, data_width, user_width, ar_depth, r_depth, test_level, cg_test_mode):
     """Test AXI4 master read clock gated with specified parameters"""
 
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
     # Get paths and setup
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_cmn':  'rtl/common',
         'rtl_axi4': 'rtl/amba/axi4/',
         'rtl_gaxi': 'rtl/amba/gaxi',
         'rtl_amba_shared':'rtl/amba/shared',
-    })
+     'rtl_amba_includes': 'rtl/amba/includes'})
 
     # Clock gated module details
     dut_name = "axi4_master_rd_cg"
@@ -454,7 +460,7 @@ def test_axi4_master_read_cg(id_width, addr_width, data_width, user_width, ar_de
     # Format parameters with leading zeros for consistent sorting
     id_str = f"id{id_width:03d}_aw{addr_width:03d}_dw{data_width:03d}_uw{user_width:03d}_ard{ar_depth:03d}_rd{r_depth:03d}_{test_level}_{cg_test_mode}"
     # Create unique test name following pattern: test_<module>_<params>
-    test_name_plus_params = f"test_axi4_master_rd_cg_{id_str}"
+    test_name_plus_params = f"test_{worker_id}_axi4_master_rd_cg_{id_str}"
 
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
@@ -519,12 +525,12 @@ def test_axi4_master_read_cg(id_width, addr_width, data_width, user_width, ar_de
     }
 
     # Simulation settings
-    includes = [sim_build]
+    includes = [rtl_dict['rtl_amba_includes']]
     compile_args = [
         "--trace",
         
         "--trace-depth", "99",
-        "-Wall",
+        "-Wall", "-Wno-SYNCASYNCNET",
         "-Wno-UNUSED",
         "-Wno-DECLFILENAME",
         "-Wno-PINMISSING",  # Allow unconnected pins for stub testing

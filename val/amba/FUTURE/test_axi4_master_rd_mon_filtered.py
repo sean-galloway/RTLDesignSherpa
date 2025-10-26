@@ -205,7 +205,7 @@ def test_axi4_master_rd_mon_filtering(test_config, filter_level, randomize):
         'rtl_includes': 'rtl/amba/includes',
         'rtl_common': 'rtl/common',
         'rtl_shared': 'rtl/amba/shared',
-    })
+     'rtl_amba_includes': 'rtl/amba/includes'})
 
     # Set up test names and directories
     dut_name = "axi4_master_rd_mon"

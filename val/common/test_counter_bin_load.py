@@ -25,6 +25,16 @@ Test Scenarios:
 - Load operation (directly set counter value)
 - Load priority over enable
 - Hold state when disabled
+
+REG_LEVEL Control (parameter combinations):
+    GATE: 2 tests (~5 min) - smoke test (minimal + small FIFO)
+    FUNC: 3 tests (~10 min) - functional coverage - DEFAULT
+    FULL: 5 tests (~20 min) - comprehensive validation
+
+PARAMETER COMBINATIONS:
+    GATE: 2 configs = 2 tests
+    FUNC: 3 configs = 3 tests (small, medium, non-pow2)
+    FULL: 5 configs = 5 tests (all configurations)
 """
 
 import os
@@ -34,6 +44,11 @@ import cocotb
 import random
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, ClockCycles
+
+# Add repo root to path for CocoTBFramework imports
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if os.path.join(repo_root, 'bin') not in sys.path:
+    sys.path.insert(0, os.path.join(repo_root, 'bin'))
 
 # Import run function for pytest
 from cocotb_test.simulator import run
@@ -47,7 +62,7 @@ from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cm
 ##############################################################################
 
 @cocotb.test()
-async def test_basic_counting(dut):
+async def cocotb_basic_counting(dut):
     """Test basic counting from 0 to MAX-1."""
     # Get parameters
     WIDTH = int(dut.WIDTH.value)
@@ -79,7 +94,7 @@ async def test_basic_counting(dut):
 
 
 @cocotb.test()
-async def test_fifo_wraparound(dut):
+async def cocotb_fifo_wraparound(dut):
     """Test FIFO-style wraparound (MSB toggle, lower bits clear)."""
     WIDTH = int(dut.WIDTH.value)
     MAX = int(dut.MAX.value)
@@ -140,7 +155,7 @@ async def test_fifo_wraparound(dut):
 
 
 @cocotb.test()
-async def test_load_operation(dut):
+async def cocotb_load_operation(dut):
     """Test load operation to directly set counter value."""
     WIDTH = int(dut.WIDTH.value)
     MAX = int(dut.MAX.value)
@@ -177,7 +192,7 @@ async def test_load_operation(dut):
 
 
 @cocotb.test()
-async def test_load_priority(dut):
+async def cocotb_load_priority(dut):
     """Test that load takes priority over enable."""
     WIDTH = int(dut.WIDTH.value)
     MAX = int(dut.MAX.value)
@@ -220,7 +235,7 @@ async def test_load_priority(dut):
 
 
 @cocotb.test()
-async def test_hold_when_disabled(dut):
+async def cocotb_hold_when_disabled(dut):
     """Test that counter holds value when enable=0."""
     WIDTH = int(dut.WIDTH.value)
     MAX = int(dut.MAX.value)
@@ -238,9 +253,11 @@ async def test_hold_when_disabled(dut):
     dut.rst_n.value = 1
     await ClockCycles(dut.clk, 2)
 
-    # Load a value
+    # Load a value that fits in WIDTH bits
+    # Use a safe value: min of (MAX-1, 2^WIDTH-1, 15) to ensure it fits
+    test_value = min(15, MAX-1, (1 << WIDTH) - 1)
     dut.load.value = 1
-    dut.load_value.value = 15
+    dut.load_value.value = test_value
     await RisingEdge(dut.clk)
     dut.load.value = 0
 
@@ -249,7 +266,7 @@ async def test_hold_when_disabled(dut):
     for _ in range(10):
         await RisingEdge(dut.clk)
         curr = int(dut.counter_bin_curr.value)
-        assert curr == 15, f"Counter changed while disabled: got {curr}, expected 15"
+        assert curr == test_value, f"Counter changed while disabled: got {curr}, expected {test_value}"
 
     dut._log.info("✅ Hold when disabled test PASSED")
 
@@ -260,23 +277,48 @@ async def test_hold_when_disabled(dut):
 
 def generate_test_parameters():
     """
-    Generate test parameter combinations.
+    Generate test parameter combinations based on REG_LEVEL.
+
+    REG_LEVEL=GATE: 2 tests (minimal + small FIFO)
+    REG_LEVEL=FUNC: 3 tests (functional coverage) - default
+    REG_LEVEL=FULL: 5 tests (all configurations)
 
     Returns:
         List of tuples: (width, max_value, test_id)
     """
-    test_params = []
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
 
-    # Various width and MAX combinations
-    configs = [
+    # All available configurations
+    # IMPORTANT: MAX must be <= 2^(WIDTH-1) per module constraint
+    all_configs = [
         # (WIDTH, MAX, Description)
         (3,  4,   "min-fifo"),      # Minimal FIFO (2-bit address + MSB)
         (4,  8,   "small-fifo"),    # Small FIFO (8 entries)
         (5,  16,  "medium-fifo"),   # Medium FIFO (16 entries)
         (6,  32,  "large-fifo"),    # Large FIFO (32 entries)
-        (4,  10,  "non-pow2"),      # Non-power-of-2 MAX
+        (4,  6,   "non-pow2"),      # Non-power-of-2 MAX (< 2^3=8)
     ]
 
+    if reg_level == 'GATE':
+        # Quick smoke test: minimal + small
+        configs = [
+            all_configs[0],  # min-fifo
+            all_configs[1],  # small-fifo
+        ]
+
+    elif reg_level == 'FUNC':
+        # Functional coverage: small, medium, non-pow2
+        configs = [
+            all_configs[1],  # small-fifo
+            all_configs[2],  # medium-fifo
+            all_configs[4],  # non-pow2
+        ]
+
+    else:  # FULL
+        # Comprehensive: all configurations
+        configs = all_configs
+
+    test_params = []
     for width, max_val, test_id in configs:
         test_params.append((width, max_val, test_id))
 
@@ -297,7 +339,7 @@ def test_counter_bin_load(request, width, max_value, test_id):
     """
 
     # Get directory and module information
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common'})
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common', 'rtl_amba_includes': 'rtl/amba/includes'})
 
     # DUT information
     dut_name = "counter_bin_load"
@@ -358,7 +400,7 @@ def test_counter_bin_load(request, width, max_value, test_id):
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[],
+            includes=[rtl_dict['rtl_amba_includes']],
             toplevel=toplevel,
             module=module,
             parameters=parameters,

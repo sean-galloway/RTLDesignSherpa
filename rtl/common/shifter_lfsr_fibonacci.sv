@@ -74,6 +74,8 @@
 //   Run: pytest val/common/test_shifter_lfsr_fibonacci.py -v
 //
 //==============================================================================
+
+`include "reset_defs.svh"
 module shifter_lfsr_fibonacci #(
     parameter int WIDTH           = 8,   // Width of the LFSR
     parameter int TAP_INDEX_WIDTH = 12,
@@ -93,7 +95,7 @@ module shifter_lfsr_fibonacci #(
     logic [WIDTH-1:0] w_taps;
     logic [WIDTH-1:0] r_lfsr;
     logic w_feedback;
-    logic [TIW-1:0]   w_tap_positions [0:TAP_COUNT-1]; // verilog_lint: waive unpacked-dimensions-range-ordering
+    logic [TIW-1:0]   w_tap_positions [TAP_COUNT]; // verilog_lint: waive unpacked-dimensions-range-ordering
 
     ////////////////////////////////////////////////////////////////////////////
     // Split concatenated tap positions into separate groups for each tap
@@ -120,8 +122,8 @@ module shifter_lfsr_fibonacci #(
     // Output value immediately
     assign lfsr_out = r_lfsr;
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (~rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+if (`RST_ASSERTED(rst_n)) begin
             r_lfsr <= 'b0;  // initialization to all 0's
         end else begin
             if (enable) begin
@@ -133,6 +135,7 @@ module shifter_lfsr_fibonacci #(
                 end
             end
         end
-    end
+    )
+
 
 endmodule : shifter_lfsr_fibonacci

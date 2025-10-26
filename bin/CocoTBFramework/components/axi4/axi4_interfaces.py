@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: AXI4MasterRead
+# Purpose: AXI4 Interface Classes - Enhanced with Integrated Compliance Checking
+#
+# Documentation: bin/CocoTBFramework/README.md
+# Subsystem: framework
+#
+# Author: sean galloway
+# Created: 2025-10-18
+
 """
 AXI4 Interface Classes - Enhanced with Integrated Compliance Checking
 
@@ -78,7 +93,8 @@ class AXI4MasterRead:
         )
 
         # Store parameters for transaction methods
-        self.timeout_cycles = kwargs.get('timeout_cycles', 1000)
+        # Large timeout to handle worst-case backpressure through skid buffers
+        self.timeout_cycles = kwargs.get('timeout_cycles', 5000)
 
         # ENHANCEMENT: Integrate compliance checker automatically
         self.compliance_checker = AXI4ComplianceChecker.create_if_enabled(
@@ -246,7 +262,8 @@ class AXI4MasterWrite:
         )
 
         # Store parameters for transaction methods
-        self.timeout_cycles = kwargs.get('timeout_cycles', 1000)
+        # Large timeout to handle worst-case backpressure through skid buffers
+        self.timeout_cycles = kwargs.get('timeout_cycles', 5000)
 
         # ENHANCEMENT: Integrate compliance checker automatically
         self.compliance_checker = AXI4ComplianceChecker.create_if_enabled(

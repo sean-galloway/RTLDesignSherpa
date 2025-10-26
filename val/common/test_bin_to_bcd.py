@@ -45,6 +45,7 @@ BCD CONVERSION BEHAVIOR:
 """
 
 import os
+import sys
 import random
 import math
 from itertools import product
@@ -53,6 +54,12 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, Timer, FallingEdge
 from cocotb_test.simulator import run
+
+# Add repo root to path for CocoTBFramework imports
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if os.path.join(repo_root, 'bin') not in sys.path:
+    sys.path.insert(0, os.path.join(repo_root, 'bin'))
+
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
@@ -607,7 +614,9 @@ async def bin_to_bcd_test(dut):
 
 
 def generate_params():
-    """Generate test parameters"""
+    """Generate test parameters based on REG_LEVEL"""
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+
     # Valid parameter combinations based on typical usage
     param_combinations = [
         (8, 3),   # 8-bit binary (0-255) -> 3 BCD digits (000-255)
@@ -615,15 +624,21 @@ def generate_params():
         (16, 5),  # 16-bit binary (0-65535) -> 5 BCD digits (00000-65535)
     ]
 
-    test_levels = ['full']
+    if reg_level == 'GATE':
+        # GATE: Minimal - just 8-bit
+        param_combinations = [(8, 3)]
+        test_levels = ['full']
+    elif reg_level == 'FUNC':
+        # FUNC: Small and medium widths
+        param_combinations = [(8, 3), (12, 4)]
+        test_levels = ['full']
+    else:  # FULL
+        # FULL: All widths
+        test_levels = ['full']
 
     valid_params = []
     for (width, digits), test_level in product(param_combinations, test_levels):
         valid_params.append((width, digits, test_level))
-
-    # For debugging, uncomment one of these:
-    # return [(8, 3, 'full')]  # Single test
-    # return [(8, 3, 'medium'), (12, 4, 'medium')]  # Specific configurations
 
     return valid_params
 
@@ -637,7 +652,7 @@ def test_bin_to_bcd(request, width, digits, test_level):
     Parameterized Binary to BCD Converter test
     """
     # Get directory and module information
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common'})
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common', 'rtl_amba_includes': 'rtl/amba/includes'})
 
     # DUT information
     dut_name = "bin_to_bcd"
@@ -646,10 +661,19 @@ def test_bin_to_bcd(request, width, digits, test_level):
     ]
     toplevel = dut_name
 
+    # Get REG_LEVEL before creating test name
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()  # GATE, FUNC, or FULL
+
     # Create human-readable test identifier
     width_str = TBBase.format_dec(width, 2)
     digits_str = TBBase.format_dec(digits, 1)
-    test_name_plus_params = f"test_bin_to_bcd_w{width_str}_d{digits_str}_{test_level}"
+    test_name_plus_params = f"test_bin_to_bcd_w{width_str}_d{digits_str}_{test_level}_{reg_level}"
+
+    # Add worker ID for pytest-xdist parallel execution
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
+
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Setup directories
@@ -718,7 +742,7 @@ def test_bin_to_bcd(request, width, digits, test_level):
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[],
+            includes=[rtl_dict['rtl_amba_includes']],
             toplevel=toplevel,
             module=module,
             parameters=parameters,

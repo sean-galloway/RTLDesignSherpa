@@ -129,6 +129,8 @@ def run_monbus_axil_test(testcase_name, fifo_depth_err, fifo_depth_write, addr_w
         os.path.join(repo_root, 'rtl', 'amba', 'components', 'monbus_arbiter.sv'),
 
         # GAXI FIFO (used for error and write FIFOs)
+        os.path.join(repo_root, 'rtl', 'amba', 'includes', 'reset_defs.svh'),
+        os.path.join(repo_root, 'rtl', 'amba', 'includes', 'fifo_defs.svh'),
         os.path.join(repo_root, 'rtl', 'amba', 'gaxi', 'gaxi_fifo_sync.sv'),
         os.path.join(repo_root, 'rtl', 'common', 'fifo_sync.sv'),
         os.path.join(repo_root, 'rtl', 'common', 'fifo_control.sv'),

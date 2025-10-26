@@ -224,7 +224,8 @@ def test_fifo_buffer_field(request, addr_width, ctrl_width, data_width, depth, w
     """
     # get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
-        'rtl_cmn': 'rtl/common'
+        'rtl_cmn': 'rtl/common',
+        'rtl_amba_includes': 'rtl/amba/includes',
     })
     mode_list = ['fifo_mux', 'fifo_flop']
     mode = mode_list[registered]
@@ -234,6 +235,7 @@ def test_fifo_buffer_field(request, addr_width, ctrl_width, data_width, depth, w
     toplevel = dut_name
 
     verilog_sources = [
+        os.path.join(rtl_dict['rtl_amba_includes'], "fifo_imports.svh"),
         os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
         os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
         os.path.join(rtl_dict['rtl_cmn'], f"{dut_name}.sv"),
@@ -259,7 +261,7 @@ def test_fifo_buffer_field(request, addr_width, ctrl_width, data_width, depth, w
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes = []
+    includes=[rtl_dict['rtl_amba_includes']]
 
     # RTL parameters - Handle string parameters specially for Verilator
     rtl_parameters = {}
