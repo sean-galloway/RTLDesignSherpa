@@ -50,6 +50,7 @@ if os.path.join(repo_root, 'bin') not in sys.path:
     sys.path.insert(0, os.path.join(repo_root, 'bin'))
 
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 from CocoTBFramework.tbclasses.fifo.fifo_buffer import FifoBufferTB
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
@@ -249,15 +250,11 @@ def test_fifo_async(request, data_width, depth, wr_clk_period, rd_clk_period, re
     dut_name = "fifo_async"
     toplevel = dut_name
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba_includes'], "fifo_defs.svh"),
-        os.path.join(rtl_dict['rtl_amba_includes'], "reset_defs.svh"),
-        os.path.join(rtl_dict['rtl_cmn'], "glitch_free_n_dff_arn.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "gray2bin.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "counter_bingray.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], f"{dut_name}.sv"),
-    ]
+    # Get verilog sources and includes from filelist
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='rtl/common/filelists/fifo_async.f'
+    )
 
     # create a human readable test identifier with test level (matches sync version exactly)
     w_str = TBBase.format_dec(data_width, 3)
@@ -282,8 +279,6 @@ def test_fifo_async(request, data_width, depth, wr_clk_period, rd_clk_period, re
     # get the logs and results into one area
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
-
-    includes=[rtl_dict['rtl_amba_includes']]
 
     # RTL parameters - Handle string parameters specially for Verilator (matches sync version)
     rtl_parameters = {}

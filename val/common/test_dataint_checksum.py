@@ -29,6 +29,7 @@ if os.path.join(repo_root, 'bin') not in sys.path:
     sys.path.insert(0, os.path.join(repo_root, 'bin'))
 
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
 
@@ -543,9 +544,11 @@ def test_dataint_checksum(request, params): # sourcery skip: no-conditionals-in-
     dut_name = "dataint_checksum"
     toplevel = dut_name
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_cmn'], f"{dut_name}.sv")
-    ]
+    # Get verilog sources and includes from filelist
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='rtl/common/filelists/dataint_checksum.f'
+    )
 
     # Create a human-readable test identifier
     t_width = params['WIDTH']
@@ -568,8 +571,6 @@ def test_dataint_checksum(request, params): # sourcery skip: no-conditionals-in-
     # Get the logs and results into one area
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
-
-    includes = [rtl_dict['rtl_amba_includes']]
     # RTL parameters
     parameters = {
         'WIDTH': params['WIDTH']
@@ -583,7 +584,7 @@ def test_dataint_checksum(request, params): # sourcery skip: no-conditionals-in-
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(0x414347),  # str(seed),
+        'SEED': str(0x414347),
         'TEST_LEVEL': params['test_level'],
         'TEST_WIDTH': str(params['WIDTH'])
     }

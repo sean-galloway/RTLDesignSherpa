@@ -165,7 +165,7 @@ if (`RST_ASSERTED(rst_n)) begin
                 if (rd_space_req[i] && rd_space_grant[i]) begin
                     r_wr_reserved[i] <= r_wr_reserved[i] + SEG_COUNT_WIDTH'(rd_xfer_count[i]);
                 end
-        
+
                 // Commit reservation when data arrives
                 if (sram_wr_en && (w_wr_channel == CHAN_WIDTH'(i))) begin
                     r_wr_reserved[i] <= r_wr_reserved[i] - 1'b1;
@@ -250,7 +250,7 @@ if (`RST_ASSERTED(rst_n)) begin
             for (int i = 0; i < NUM_CHANNELS; i++) begin
                 r_rd_pending[i] <= 1'b0;
             end
-        
+
             // Set pending for requested channel
             if (sram_rd_en) begin
                 r_rd_pending[w_rd_req_channel] <= 1'b1;

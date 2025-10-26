@@ -150,7 +150,7 @@ module sink_axi_write_engine #(
     // Release grant when sequence completes
     generate
         for (genvar i = 0; i < NUM_CHANNELS; i++) begin : gen_grant_ack
-            assign w_grant_ack[i] = w_grant[i] && data_sequence_complete[i] && 
+            assign w_grant_ack[i] = w_grant[i] && data_sequence_complete[i] &&
                                 w_address_accepted && w_data_complete;
         end
     endgenerate
@@ -208,7 +208,7 @@ module sink_axi_write_engine #(
     always_comb begin
         // Default to 64-byte transfers for optimal performance
         w_axi_size = 3'b110;  // 64 bytes per beat
-        
+
         // BUT: Use 4-byte transfers for alignment phases to support partial beats
         if (w_grant_valid) begin
             case (data_transfer_phase[w_grant_id])
@@ -326,7 +326,7 @@ module sink_axi_write_engine #(
                 r_outstanding_ids.push_back(w_axi_id);
                 r_outstanding_count <= r_outstanding_count + 1;
             end
-            
+
             // Pop ID when response received
             if (b_valid && b_ready) begin
                 // Remove matching ID from queue (should be FIFO order)
@@ -365,7 +365,7 @@ module sink_axi_write_engine #(
     // Request next alignment when current transfer completes and more in sequence
     generate
         for (genvar i = 0; i < NUM_CHANNELS; i++) begin : gen_alignment_next
-            assign data_alignment_next[i] = w_data_complete && 
+            assign data_alignment_next[i] = w_data_complete &&
                                         (r_addr_granted_channel == i) &&
                                         !data_sequence_complete[i];
         end
@@ -374,8 +374,8 @@ module sink_axi_write_engine #(
     // Data ready when not actively transferring or when sequence completes
     generate
         for (genvar i = 0; i < NUM_CHANNELS; i++) begin : gen_data_ready
-            assign data_ready[i] = !w_grant[i] || 
-                                (w_data_complete && (r_addr_granted_channel == i) && 
+            assign data_ready[i] = !w_grant[i] ||
+                                (w_data_complete && (r_addr_granted_channel == i) &&
                                 data_sequence_complete[i]);
         end
     endgenerate
@@ -394,10 +394,10 @@ module sink_axi_write_engine #(
         end else begin
             // Increment bytes when data accepted
             if (w_valid && w_ready) begin
-                r_channel_bytes_transferred[r_addr_granted_channel] <= 
+                r_channel_bytes_transferred[r_addr_granted_channel] <=
                     r_channel_bytes_transferred[r_addr_granted_channel] + 64;
             end
-            
+
             // Reset when sequence completes - FIXED: Width expansion issue
             for (int i = 0; i < NUM_CHANNELS; i++) begin
                 /* verilator lint_off WIDTHEXPAND */
@@ -413,7 +413,7 @@ module sink_axi_write_engine #(
     generate
         for (genvar i = 0; i < NUM_CHANNELS; i++) begin : gen_completion
             assign data_transfer_length[i] = r_channel_bytes_transferred[i];
-            assign data_done_strobe[i] = w_data_complete && (r_addr_granted_channel == i) && 
+            assign data_done_strobe[i] = w_data_complete && (r_addr_granted_channel == i) &&
                                     data_sequence_complete[i];
             assign data_error[i] = b_valid && (b_id[CHAN_WIDTH-1:0] == i) && (b_resp != 2'b00);
         end

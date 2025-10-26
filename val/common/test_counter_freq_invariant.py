@@ -53,6 +53,7 @@ if os.path.join(repo_root, 'bin') not in sys.path:
     sys.path.insert(0, os.path.join(repo_root, 'bin'))
 
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
 # Division factor mapping for each frequency selection value (microsecond-based)
@@ -293,7 +294,7 @@ class CounterFreqInvariantTB(TBBase):
         self.tick_events.clear()
 
         # Initial values
-        prev_counter = int(self.dut.counter.value)
+        prev_counter = int(self.dut.o_counter.value)
         self.counter_changes.append((0, prev_counter))
 
         # Monitor for specified cycles
@@ -301,7 +302,7 @@ class CounterFreqInvariantTB(TBBase):
             await RisingEdge(self.clock)
 
             # Check counter value
-            current_counter = int(self.dut.counter.value)
+            current_counter = int(self.dut.o_counter.value)
             if current_counter != prev_counter:
                 self.counter_changes.append((cycle, current_counter))
                 self.log.debug(f"Cycle {cycle}: Counter changed to {current_counter}")
@@ -573,7 +574,7 @@ class CounterFreqInvariantTB(TBBase):
         await self.wait_clocks('clk', 1000)
 
         # Capture counter value before sync reset
-        counter_before = int(self.dut.counter.value)
+        counter_before = int(self.dut.o_counter.value)
         self.log.info(f"Counter value before sync reset: {counter_before}")
 
         # Apply synchronous reset (following programming model)
@@ -583,7 +584,7 @@ class CounterFreqInvariantTB(TBBase):
         await self.wait_clocks('clk', 1)
 
         # Check counter immediately after sync reset assertion
-        counter_immediate = int(self.dut.counter.value)
+        counter_immediate = int(self.dut.o_counter.value)
         tick_immediate = int(self.dut.tick.value)
         self.log.info(f"Counter immediately after sync_reset_n=0: {counter_immediate}")
         self.log.info(f"Tick immediately after sync_reset_n=0: {tick_immediate}")
@@ -592,7 +593,7 @@ class CounterFreqInvariantTB(TBBase):
         await self.wait_clocks('clk', 4)
 
         # Capture counter value during sync reset (should be stable at 0)
-        counter_during = int(self.dut.counter.value)
+        counter_during = int(self.dut.o_counter.value)
         tick_during = int(self.dut.tick.value)
         self.log.info(f"Counter value during sync reset: {counter_during}")
         self.log.info(f"Tick value during sync reset: {tick_during}")
@@ -607,7 +608,7 @@ class CounterFreqInvariantTB(TBBase):
         await self.wait_clocks('clk', 1)
 
         # Check counter immediately after sync reset release
-        counter_after_release = int(self.dut.counter.value)
+        counter_after_release = int(self.dut.o_counter.value)
         tick_after_release = int(self.dut.tick.value)
         self.log.info(f"Counter immediately after sync_reset_n=1: {counter_after_release}")
         self.log.info(f"Tick immediately after sync_reset_n=1: {tick_after_release}")
@@ -616,7 +617,7 @@ class CounterFreqInvariantTB(TBBase):
         await self.wait_clocks('clk', 10)
 
         # Check initial state after sync reset release
-        counter_initial = int(self.dut.counter.value)
+        counter_initial = int(self.dut.o_counter.value)
         self.log.info(f"Counter value after stabilization: {counter_initial}")
 
         # Wait for counter to start incrementing again
@@ -732,7 +733,7 @@ class CounterFreqInvariantTB(TBBase):
         self.dut.freq_sel.value = 47  # 1GHz
         await self.wait_clocks('clk', 100)
 
-        counter_during_reset = int(self.dut.counter.value)
+        counter_during_reset = int(self.dut.o_counter.value)
         tick_during_reset = int(self.dut.tick.value)
 
         # Counter should be 0 and tick should be 0 during reset
@@ -890,10 +891,11 @@ def test_counter_freq_invariant_enhanced(request, counter_width):
     dut_name = "counter_freq_invariant"
     toplevel = dut_name
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_cmn'], "counter_load_clear.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], f"{dut_name}.sv")
-    ]
+    # Get verilog sources and includes from filelist
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='rtl/common/filelists/counter_freq_invariant.f'
+    )
 
     # Create a human readable test identifier
     cw_str = TBBase.format_dec(counter_width, 3)
@@ -909,8 +911,6 @@ def test_counter_freq_invariant_enhanced(request, counter_width):
     # Get the logs and results into one area
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
-
-    includes = [rtl_dict['rtl_amba_includes']]
     # RTL parameters
     rtl_parameters = {
         "COUNTER_WIDTH": str(counter_width),

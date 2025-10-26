@@ -186,12 +186,12 @@ if (`RST_ASSERTED(rst_n)) begin
                 r_aw_valid <= 1'b1;
                 r_aw_inflight <= 1'b1;  // Mark transaction inflight
             end
-        
+
             // AXI AW handshake
             if (r_aw_valid && m_axi_awready) begin
                 r_aw_valid <= 1'b0;
             end
-        
+
             // Clear inflight when B response received
             if (m_axi_bvalid && m_axi_bready) begin
                 r_aw_inflight <= 1'b0;
@@ -225,11 +225,11 @@ if (`RST_ASSERTED(rst_n)) begin
                 r_beats_sent <= '0;
                 r_w_active <= 1'b1;
             end
-        
+
             // Send beats as SRAM data becomes available
             if (r_w_active && m_axi_wvalid && m_axi_wready) begin
                 r_beats_sent <= r_beats_sent + 8'h1;
-        
+
                 // End W phase on last beat
                 if (m_axi_wlast) begin
                     r_w_active <= 1'b0;
@@ -269,7 +269,7 @@ if (`RST_ASSERTED(rst_n)) begin
             // Read from SRAM when W channel can accept data
             if (r_sram_rd_req) begin
                 r_sram_rd_ptr <= r_sram_rd_ptr + 1'b1;
-        
+
                 // Wrap SRAM pointer
                 if (r_sram_rd_ptr == SRAM_ADDR_WIDTH'(SRAM_DEPTH - 1)) begin
                     r_sram_rd_ptr <= '0;
@@ -300,11 +300,11 @@ if (`RST_ASSERTED(rst_n)) begin
             if (m_axi_wvalid && m_axi_wready && m_axi_wlast) begin
                 r_b_pending <= 1'b1;
             end
-        
+
             // B response received
             if (m_axi_bvalid && m_axi_bready) begin
                 r_b_pending <= 1'b0;
-        
+
                 // Check for error response
                 if (m_axi_bresp != 2'b00) begin  // OKAY = 00
                     r_error_detected <= 1'b1;
@@ -329,7 +329,7 @@ if (`RST_ASSERTED(rst_n)) begin
         end else begin
             // Generate strobe on B response
             r_done_strobe <= m_axi_bvalid && m_axi_bready;
-        
+
             if (m_axi_bvalid && m_axi_bready) begin
                 r_beats_done <= {24'h0, r_expected_beats};
             end else begin

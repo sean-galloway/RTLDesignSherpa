@@ -150,9 +150,9 @@ if (`RST_ASSERTED(presetn)) begin
             r_cmd_valid   <= 1'b0;
             r_rsp_ready   <= 1'b0;
             r_penable_prev <= s_apb_PENABLE;
-        
+
             casez (r_apb_state)
-        
+
                 IDLE: begin
                     // Only capture on rising edge of PENABLE (SETUP->ACCESS transition)
                     if (s_apb_PSEL && s_apb_PENABLE && !r_penable_prev && r_cmd_ready) begin
@@ -160,7 +160,7 @@ if (`RST_ASSERTED(presetn)) begin
                         r_apb_state <= BUSY;
                     end
                 end
-        
+
                 BUSY: begin
                     if (r_rsp_valid) begin
                         s_apb_PREADY   <= 1'b1;
@@ -171,9 +171,9 @@ if (`RST_ASSERTED(presetn)) begin
                     end
                 end
                 WAIT: r_apb_state <= IDLE;
-        
+
                 default: r_apb_state <= IDLE;
-        
+
             endcase
         end
     )

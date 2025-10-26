@@ -47,6 +47,7 @@ from tbclasses.descriptor_engine_tb import DescriptorEngineTB, DelayProfile
 # Shared framework utilities
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 
 # ===========================================================================
 # SECTION 1: COCOTB TEST FUNCTIONS - prefix with "cocotb_"
@@ -119,19 +120,11 @@ def run_descriptor_engine_test(test_name, channel_id, num_channels, addr_width, 
     })
 
     dut_name = "descriptor_engine"
-    verilog_sources = [
-        # Packages (MUST be first)
-        os.path.join(repo_root, 'rtl', 'amba', 'includes', 'monitor_pkg.sv'),
-        os.path.join(repo_root, 'projects', 'components', 'stream', 'rtl', 'includes', 'stream_pkg.sv'),
-        # Descriptor engine module
-        os.path.join(repo_root, 'projects', 'components', 'stream', 'rtl', 'stream_fub', f'{dut_name}.sv'),
-        # Dependencies - GAXI components
-        os.path.join(repo_root, 'rtl', 'amba', 'gaxi', 'gaxi_skid_buffer.sv'),
-        os.path.join(repo_root, 'rtl', 'amba', 'gaxi', 'gaxi_fifo_sync.sv'),
-        # Dependencies - Common modules
-        os.path.join(repo_root, 'rtl', 'common', 'counter_bin.sv'),
-        os.path.join(repo_root, 'rtl', 'common', 'fifo_control.sv'),
-    ]
+    # Get verilog sources and includes from filelist
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='projects/components/stream/rtl/filelists/fub/descriptor_engine.f'
+    )
 
     # Format parameters for unique test name
     cid_str = TBBase.format_dec(channel_id, 2)
@@ -177,10 +170,7 @@ def run_descriptor_engine_test(test_name, channel_id, num_channels, addr_width, 
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[
-                os.path.join(repo_root, 'projects', 'components', 'stream', 'rtl', 'includes'),
-                os.path.join(repo_root, 'rtl', 'amba', 'includes'),
-            ],
+            includes=includes,  # From filelist via get_sources_from_filelist()
             toplevel=dut_name,
             module=module,
             testcase=f"cocotb_{test_name}",  # ← cocotb function name

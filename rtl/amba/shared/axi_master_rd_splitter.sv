@@ -290,7 +290,7 @@ if (`RST_ASSERTED(aresetn)) begin
             r_current_addr <= '0;
             r_current_len <= '0;
             r_split_count <= 8'd0;
-        
+
             // Reset buffered transaction
             r_orig_arid <= '0;
             r_orig_araddr <= '0;
@@ -319,7 +319,7 @@ if (`RST_ASSERTED(aresetn)) begin
                         r_orig_arqos <= fub_arqos;
                         r_orig_arregion <= fub_arregion;
                         r_orig_aruser <= fub_aruser;
-        
+
                         if (w_new_split_needed) begin
                             // Splitting required - transition to SPLITTING state
                             r_split_state <= SPLITTING;
@@ -330,7 +330,7 @@ if (`RST_ASSERTED(aresetn)) begin
                         // If no split needed, stay in IDLE (pass-through transaction)
                     end
                 end
-        
+
                 SPLITTING: begin
                     if (m_axi_arvalid && m_axi_arready) begin
                         if (w_split_required) begin
@@ -346,7 +346,7 @@ if (`RST_ASSERTED(aresetn)) begin
                         end
                     end
                 end
-        
+
                 default: r_split_state <= IDLE;
             endcase
         end

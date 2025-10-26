@@ -491,6 +491,9 @@ if (`RST_ASSERTED(aresetn)) begin
                     mon_ready[3] = monbus_ready;
                 end
             end
+            default: begin
+                // All 2-bit values covered above; default maintains initialization
+            end
         endcase
     end
 

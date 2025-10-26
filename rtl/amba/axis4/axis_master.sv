@@ -96,37 +96,37 @@ module axis_master
     // Unpack T signals from SKID buffer with conditional assignments
     // Handle all combinations of zero-width signals
     generate
-        if (IW > 0 && DESTW > 0 && UW > 0) begin : full_signals
+        if (IW > 0 && DESTW > 0 && UW > 0) begin : g_full_signals
             assign {m_axis_tdata, m_axis_tstrb, m_axis_tlast,
                     m_axis_tid, m_axis_tdest, m_axis_tuser} = int_t_pkt;
-        end else if (IW > 0 && DESTW > 0 && UW == 0) begin : no_user
+        end else if (IW > 0 && DESTW > 0 && UW == 0) begin : g_no_user
             assign {m_axis_tdata, m_axis_tstrb, m_axis_tlast,
                     m_axis_tid, m_axis_tdest} = int_t_pkt[TSize-1:1];
             assign m_axis_tuser = '0;
-        end else if (IW > 0 && DESTW == 0 && UW > 0) begin : no_dest
+        end else if (IW > 0 && DESTW == 0 && UW > 0) begin : g_no_dest
             assign {m_axis_tdata, m_axis_tstrb, m_axis_tlast,
                     m_axis_tid, m_axis_tuser} = int_t_pkt[TSize-1:1];
             assign m_axis_tdest = '0;
-        end else if (IW == 0 && DESTW > 0 && UW > 0) begin : no_id
+        end else if (IW == 0 && DESTW > 0 && UW > 0) begin : g_no_id
             assign {m_axis_tdata, m_axis_tstrb, m_axis_tlast,
                     m_axis_tdest, m_axis_tuser} = int_t_pkt[TSize-1:1];
             assign m_axis_tid = '0;
-        end else if (IW > 0 && DESTW == 0 && UW == 0) begin : no_dest_no_user
+        end else if (IW > 0 && DESTW == 0 && UW == 0) begin : g_no_dest_no_user
             assign {m_axis_tdata, m_axis_tstrb, m_axis_tlast,
                     m_axis_tid} = int_t_pkt[TSize-1:2];
             assign m_axis_tdest = '0;
             assign m_axis_tuser = '0;
-        end else if (IW == 0 && DESTW > 0 && UW == 0) begin : no_id_no_user
+        end else if (IW == 0 && DESTW > 0 && UW == 0) begin : g_no_id_no_user
             assign {m_axis_tdata, m_axis_tstrb, m_axis_tlast,
                     m_axis_tdest} = int_t_pkt[TSize-1:2];
             assign m_axis_tid = '0;
             assign m_axis_tuser = '0;
-        end else if (IW == 0 && DESTW == 0 && UW > 0) begin : no_id_no_dest
+        end else if (IW == 0 && DESTW == 0 && UW > 0) begin : g_no_id_no_dest
             assign {m_axis_tdata, m_axis_tstrb, m_axis_tlast,
                     m_axis_tuser} = int_t_pkt[TSize-1:2];
             assign m_axis_tid = '0;
             assign m_axis_tdest = '0;
-        end else begin : no_id_no_dest_no_user
+        end else begin : g_no_id_no_dest_no_user
             assign {m_axis_tdata, m_axis_tstrb, m_axis_tlast} = int_t_pkt[TSize-1:3];
             assign m_axis_tid = '0;
             assign m_axis_tdest = '0;

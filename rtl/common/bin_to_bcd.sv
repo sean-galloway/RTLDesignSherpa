@@ -118,7 +118,7 @@ if (`RST_ASSERTED(rst_n)) begin
             r_dv          <= '0;
         end else begin
             r_dv <= 1'b0;  // Default: done is low
-        
+
             // Next State for the FSM and wire versions of the various control signal
             casez (r_fsm_main)
                 // Stay in this state until start comes along
@@ -133,7 +133,7 @@ if (`RST_ASSERTED(rst_n)) begin
                         r_fsm_main <= IDLE;
                     end
                 end
-        
+
                 // Always shift the BCD Vector until we have shifted all bits through
                 // Shift the most significant bit of r_binary into r_bcd lowest bit.
                 SHIFT: begin
@@ -142,7 +142,7 @@ if (`RST_ASSERTED(rst_n)) begin
                     r_binary   <= r_binary << 1;
                     r_fsm_main <= CK_S_IDX;
                 end
-        
+
                 // Check if we are done with shifting in r_binary vector
                 CK_S_IDX: begin
                     if (r_loop_count == LOOP_COUNT_WIDTH'(WIDTH - 1)) begin
@@ -154,7 +154,7 @@ if (`RST_ASSERTED(rst_n)) begin
                         r_fsm_main   <= ADD;
                     end
                 end
-        
+
                 // Break down each BCD Digit individually. Check them one-by-one to
                 // see if they are greater than 4. If they are, increment by 3.
                 // Put the result back into r_bcd Vector.
@@ -164,7 +164,7 @@ if (`RST_ASSERTED(rst_n)) begin
                     end
                     r_fsm_main <= CK_D_IDX;
                 end
-        
+
                 // Check if we are done incrementing all of the BCD Digits
                 CK_D_IDX: begin
                     if (r_digit_index == DIGIT_INDEX_WIDTH'(DIGITS - 1)) begin
@@ -175,12 +175,12 @@ if (`RST_ASSERTED(rst_n)) begin
                         r_fsm_main    <= ADD;
                     end
                 end
-        
+
                 BCD_DONE: begin
                     r_dv       <= 1'b1;
                     r_fsm_main <= IDLE;
                 end
-        
+
                 default: begin
                     r_fsm_main <= IDLE;
                 end

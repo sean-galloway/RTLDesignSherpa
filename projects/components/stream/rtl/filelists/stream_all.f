@@ -18,9 +18,31 @@ $REPO_ROOT/projects/components/stream/rtl/includes/stream_pkg.sv
 # Common dependencies (order matters - dependencies first)
 $REPO_ROOT/rtl/common/counter_bin.sv
 $REPO_ROOT/rtl/common/fifo_control.sv
-$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
+$REPO_ROOT/rtl/common/gray2bin.sv
+$REPO_ROOT/rtl/common/bin2gray.sv
+$REPO_ROOT/rtl/common/counter_bingray.sv
 
-# AMBA monitoring infrastructure (used by macro modules)
+# GAXI infrastructure (needed by STREAM)
+$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
+$REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
+
+# AXI4 protocol components (needed by monitors and engines)
+$REPO_ROOT/rtl/amba/axi4/axi4_master_rd.sv
+$REPO_ROOT/rtl/amba/axi4/axi4_master_wr.sv
+
+# AXIL4 protocol components (needed by monbus_axil_group)
+$REPO_ROOT/rtl/amba/axil4/axil4_slave_rd.sv
+$REPO_ROOT/rtl/amba/axil4/axil4_slave_wr.sv
+$REPO_ROOT/rtl/amba/axil4/axil4_master_rd.sv
+$REPO_ROOT/rtl/amba/axil4/axil4_master_wr.sv
+
+# AMBA monitoring infrastructure
+$REPO_ROOT/rtl/amba/shared/axi_monitor_base.sv
+$REPO_ROOT/rtl/amba/shared/axi_monitor_filtered.sv
+$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter.sv
+$REPO_ROOT/rtl/amba/shared/axi_monitor_trans_mgr.sv
+$REPO_ROOT/rtl/amba/shared/axi_monitor_timeout.sv
+$REPO_ROOT/rtl/amba/shared/axi_monitor_timer.sv
 $REPO_ROOT/rtl/amba/axi4/axi4_master_rd_mon.sv
 $REPO_ROOT/rtl/amba/axi4/axi4_master_wr_mon.sv
 $REPO_ROOT/rtl/amba/shared/monbus_arbiter.sv

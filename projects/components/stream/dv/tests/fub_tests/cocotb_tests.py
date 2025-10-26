@@ -10,7 +10,7 @@ import os
 import sys
 
 # Add project testbench classes to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../tbclasses'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../tbclasses'))
 
 from apbtodescr_tb import APBToDescrTB
 

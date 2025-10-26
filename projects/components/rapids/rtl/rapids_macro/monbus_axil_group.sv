@@ -554,19 +554,19 @@ if (`RST_ASSERTED(axi_aresetn)) begin
                         upper_word_pending <= (DATA_WIDTH == 32);
                     end
                 end
-        
+
                 WRITE_ADDR: begin
                     if (fub_wr_awvalid && fub_wr_awready) begin
                         write_state <= WRITE_DATA_LOW;
                     end
                 end
-        
+
                 WRITE_DATA_LOW: begin
                     if (fub_wr_wvalid && fub_wr_wready) begin
                         write_state <= WRITE_RESP;
                     end
                 end
-        
+
                 WRITE_RESP: begin
                     if (fub_wr_bvalid && fub_wr_bready) begin
                         if (upper_word_pending && DATA_WIDTH == 32) begin
@@ -579,7 +579,7 @@ if (`RST_ASSERTED(axi_aresetn)) begin
                         end
                     end
                 end
-        
+
                 default: begin
                     write_state <= WRITE_IDLE;
                 end

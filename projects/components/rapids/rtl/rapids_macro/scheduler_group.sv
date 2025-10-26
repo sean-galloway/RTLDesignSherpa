@@ -144,7 +144,7 @@ module scheduler_group #(
     // ========================================================================
     // UPDATED: Enhanced Data Mover Interface with Alignment Bus - RAPIDS Types
     // ========================================================================
-    
+
     // Basic Data Interface (EXISTING - unchanged for compatibility)
     output logic                        data_valid,
     input  logic                        data_ready,
@@ -384,7 +384,7 @@ module scheduler_group #(
         .data_transfer_length   (data_transfer_length),
         .data_error             (data_error),
         .data_done_strobe       (data_done_strobe),
-        
+
         // NEW: Address Alignment Bus Interface (using RAPIDS package types)
         .data_alignment_info    (data_alignment_info),
         .data_alignment_valid   (data_alignment_valid),
@@ -490,7 +490,7 @@ module scheduler_group #(
     // NEW: Enhanced alignment bus properties using RAPIDS package types
     property alignment_info_consistency;
         @(posedge clk) disable iff (!rst_n)
-        data_alignment_valid |-> (data_alignment_info.total_transfers > 0) && 
+        data_alignment_valid |-> (data_alignment_info.total_transfers > 0) &&
                                (data_alignment_info.payload_bytes > 0);
     endproperty
     assert property (alignment_info_consistency);

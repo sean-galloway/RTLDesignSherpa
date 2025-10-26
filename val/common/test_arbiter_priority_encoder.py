@@ -50,6 +50,7 @@ if os.path.join(repo_root, 'bin') not in sys.path:
 from CocoTBFramework.tbclasses.arbiter_priority_encoder_tb import ArbiterPriorityEncoderTB
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 
 
 # ===========================================================================
@@ -122,9 +123,11 @@ def test_arbiter_priority_encoder(request, clients, test_mode):
     })
 
     dut_name = "arbiter_priority_encoder"
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_common'], f'{dut_name}.sv'),
-    ]
+    # Get verilog sources and includes from filelist
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='rtl/common/filelists/arbiter_priority_encoder.f'
+    )
 
     # Format parameters for unique test name
     cl_str = TBBase.format_dec(clients, 2)

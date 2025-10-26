@@ -299,7 +299,7 @@ if (`RST_ASSERTED(aresetn)) begin
             r_transaction_count <= '0;
             r_cmd_start_time <= '0;
         end else begin
-        
+
             // Command handshake - start new transaction
             if (w_cmd_handshake && w_has_free_slot) begin
                 r_trans_table[w_free_idx].valid <= 1'b1;
@@ -316,15 +316,15 @@ if (`RST_ASSERTED(aresetn)) begin
                 r_trans_table[w_free_idx].event_reported <= 1'b0;
                 r_trans_table[w_free_idx].addr_timer <= '0;
                 r_trans_table[w_free_idx].resp_timer <= '0;
-        
+
                 r_active_count <= r_active_count + 1'b1;
                 r_cmd_start_time <= r_timestamp;
-        
+
                 // Transition to data phase immediately for APB
                 r_trans_table[w_free_idx].state <= TRANS_DATA_PHASE;
                 r_trans_table[w_free_idx].data_timestamp <= r_timestamp;
             end
-        
+
             // Response handshake - complete transaction
             if (w_rsp_handshake && w_has_active_trans) begin
                 r_trans_table[w_active_idx].data_completed <= 1'b1;
@@ -332,7 +332,7 @@ if (`RST_ASSERTED(aresetn)) begin
                 r_trans_table[w_active_idx].resp_timestamp <= r_timestamp;
                 // APB slave error stored in channel field MSB
                 if (rsp_pslverr) r_trans_table[w_active_idx].channel[5] <= 1'b1;
-        
+
                 if (rsp_pslverr && cfg_slverr_enable) begin
                     r_trans_table[w_active_idx].state <= TRANS_ERROR;
                     r_trans_table[w_active_idx].event_code <= APB_ERR_PSLVERR;
@@ -341,10 +341,10 @@ if (`RST_ASSERTED(aresetn)) begin
                     r_trans_table[w_active_idx].state <= TRANS_COMPLETE;
                     r_trans_table[w_active_idx].event_code <= APB_COMPL_TRANS_COMPLETE;
                 end
-        
+
                 r_transaction_count <= r_transaction_count + 1'b1;
             end
-        
+
             // Clean up completed transactions
             for (int i = 0; i < MAX_TRANSACTIONS; i++) begin
                 if (w_completed_trans[i]) begin
@@ -370,7 +370,7 @@ if (`RST_ASSERTED(aresetn)) begin
             end else begin
                 r_cmd_timeout_timer <= '0;
             end
-        
+
             // Response timeout - waiting for rsp handshake
             if (r_trans_state == CMD_RSP_CMD_SENT && (!rsp_valid || !rsp_ready)) begin
                 r_rsp_timeout_timer <= r_rsp_timeout_timer + 1'b1;
@@ -430,11 +430,11 @@ if (`RST_ASSERTED(aresetn)) begin
             r_throughput_timer <= '0;
         end else begin
             r_throughput_timer <= r_throughput_timer + 1'b1;
-        
+
             if (w_rsp_handshake) begin
                 r_throughput_counter <= r_throughput_counter + 1'b1;
             end
-        
+
             // Reset every 65536 cycles for throughput calculation
             if (r_throughput_timer[15:0] == 16'hFFFF) begin
                 r_throughput_counter <= '0;

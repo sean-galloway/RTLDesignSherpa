@@ -39,6 +39,7 @@ from tbclasses.sram_controller_tb import SRAMControllerTB
 # Shared framework utilities
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 
 # ===========================================================================
 # COCOTB TEST FUNCTIONS - prefix with "cocotb_" to prevent pytest collection
@@ -121,11 +122,11 @@ def test_basic_write(request, num_channels, sram_depth, data_width, id_width):
     })
 
     dut_name = "sram_controller"
-    verilog_sources = [
-        os.path.join(repo_root, 'rtl', 'amba', 'includes', 'monitor_pkg.sv'),
-        os.path.join(repo_root, 'projects', 'components', 'stream', 'rtl', 'includes', 'stream_pkg.sv'),
-        os.path.join(repo_root, 'projects', 'components', 'stream', 'rtl', 'stream_fub', f'{dut_name}.sv'),
-    ]
+    # Get verilog sources and includes from filelist
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='projects/components/stream/rtl/filelists/fub/sram_controller.f'
+    )
 
     # Format parameters for unique test name
     nc_str = TBBase.format_dec(num_channels, 2)
@@ -163,10 +164,7 @@ def test_basic_write(request, num_channels, sram_depth, data_width, id_width):
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[
-                os.path.join(repo_root, 'projects', 'components', 'stream', 'rtl', 'includes'),
-                os.path.join(repo_root, 'rtl', 'amba', 'includes'),
-            ],
+            includes=includes,  # From filelist via get_sources_from_filelist()
             toplevel=dut_name,
             module=module,
             testcase="cocotb_test_basic_write",
@@ -193,11 +191,11 @@ def test_basic_read(request, num_channels, sram_depth, data_width, id_width):
     })
 
     dut_name = "sram_controller"
-    verilog_sources = [
-        os.path.join(repo_root, 'rtl', 'amba', 'includes', 'monitor_pkg.sv'),
-        os.path.join(repo_root, 'projects', 'components', 'stream', 'rtl', 'includes', 'stream_pkg.sv'),
-        os.path.join(repo_root, 'projects', 'components', 'stream', 'rtl', 'stream_fub', f'{dut_name}.sv'),
-    ]
+    # Get verilog sources and includes from filelist
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='projects/components/stream/rtl/filelists/fub/sram_controller.f'
+    )
 
     # Format parameters for unique test name
     nc_str = TBBase.format_dec(num_channels, 2)
@@ -234,10 +232,7 @@ def test_basic_read(request, num_channels, sram_depth, data_width, id_width):
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[
-                os.path.join(repo_root, 'projects', 'components', 'stream', 'rtl', 'includes'),
-                os.path.join(repo_root, 'rtl', 'amba', 'includes'),
-            ],
+            includes=includes,  # From filelist via get_sources_from_filelist()
             toplevel=dut_name,
             module=module,
             testcase="cocotb_test_basic_read",
@@ -264,11 +259,11 @@ def test_multi_channel(request, num_channels, sram_depth, data_width, id_width):
     })
 
     dut_name = "sram_controller"
-    verilog_sources = [
-        os.path.join(repo_root, 'rtl', 'amba', 'includes', 'monitor_pkg.sv'),
-        os.path.join(repo_root, 'projects', 'components', 'stream', 'rtl', 'includes', 'stream_pkg.sv'),
-        os.path.join(repo_root, 'projects', 'components', 'stream', 'rtl', 'stream_fub', f'{dut_name}.sv'),
-    ]
+    # Get verilog sources and includes from filelist
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='projects/components/stream/rtl/filelists/fub/sram_controller.f'
+    )
 
     # Format parameters for unique test name
     nc_str = TBBase.format_dec(num_channels, 2)
@@ -305,10 +300,7 @@ def test_multi_channel(request, num_channels, sram_depth, data_width, id_width):
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[
-                os.path.join(repo_root, 'projects', 'components', 'stream', 'rtl', 'includes'),
-                os.path.join(repo_root, 'rtl', 'amba', 'includes'),
-            ],
+            includes=includes,  # From filelist via get_sources_from_filelist()
             toplevel=dut_name,
             module=module,
             testcase="cocotb_test_multi_channel",

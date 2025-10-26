@@ -126,7 +126,7 @@ def run_monbus_axil_test(testcase_name, fifo_depth_err, fifo_depth_write, addr_w
         os.path.join(repo_root, 'projects', 'components', 'stream', 'rtl', 'includes', 'stream_pkg.sv'),
 
         # Monitor bus arbiter
-        os.path.join(repo_root, 'rtl', 'amba', 'components', 'monbus_arbiter.sv'),
+        os.path.join(repo_root, 'rtl', 'amba', 'shared', 'monbus_arbiter.sv'),
 
         # GAXI FIFO (used for error and write FIFOs)
         os.path.join(repo_root, 'rtl', 'amba', 'includes', 'reset_defs.svh'),

@@ -340,19 +340,19 @@ if (`RST_ASSERTED(rst_n)) begin
                                 r_state <= RUNNING;
                             end
                         end
-                
+
                         RUNNING: begin
                             if (w_period_complete && w_all_repeats_done) begin
                                 r_state <= DONE;
                             end
                         end
-                
+
                         DONE: begin
                             if (w_start_edge) begin
                                 r_state <= RUNNING;
                             end
                         end
-                
+
                         default: r_state <= IDLE;
                     endcase
                 end
@@ -370,7 +370,7 @@ if (`RST_ASSERTED(rst_n)) begin
                         IDLE: begin
                             r_count <= '0;
                         end
-                
+
                         RUNNING: begin
                             if (w_period_complete) begin
                                 r_count <= '0;
@@ -378,13 +378,13 @@ if (`RST_ASSERTED(rst_n)) begin
                                 r_count <= r_count + 1;
                             end
                         end
-                
+
                         DONE: begin
                             if (w_start_edge) begin
                                 r_count <= '0;
                             end
                         end
-                
+
                         default: r_count <= '0;
                     endcase
                 end
@@ -402,19 +402,19 @@ if (`RST_ASSERTED(rst_n)) begin
                         IDLE: begin
                             r_repeat_value <= '0;
                         end
-                
+
                         RUNNING: begin
                             if (w_period_complete) begin
                                 r_repeat_value <= r_repeat_value + 1;
                             end
                         end
-                
+
                         DONE: begin
                             if (w_start_edge) begin
                                 r_repeat_value <= '0;
                             end
                         end
-                
+
                         default: r_repeat_value <= '0;
                     endcase
                 end

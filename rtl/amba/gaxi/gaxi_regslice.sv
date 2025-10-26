@@ -13,10 +13,10 @@
 `include "reset_defs.svh"
 
 module gaxi_regslice #(
-    parameter int DATA_WIDTH   = 32,
-    parameter     INSTANCE_NAME = "REGSL1D",
+    parameter int    DATA_WIDTH   = 32,
+    parameter string INSTANCE_NAME = "REGSL1D",
     // Derived (kept for parity with your style)
-    parameter int DW          = DATA_WIDTH
+    parameter int    DW          = DATA_WIDTH
 ) (
     // Global Clock and Reset
     input  logic          axi_aclk,

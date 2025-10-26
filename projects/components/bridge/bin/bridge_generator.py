@@ -243,8 +243,12 @@ class BridgeFlatCrossbar(Module):
             end = base + size
 
             self.instruction(f"            // Slave {slave_idx}: {name} (0x{base:08X} - 0x{end-1:08X})")
-            self.instruction(f"            if (s_axi_awaddr[m] >= {self.cfg.addr_width}'h{base:X} &&")
-            self.instruction(f"                s_axi_awaddr[m] < {self.cfg.addr_width}'h{end:X})")
+            # Skip redundant >= 0 check for unsigned addresses
+            if base == 0:
+                self.instruction(f"            if (s_axi_awaddr[m] < {self.cfg.addr_width}'h{end:X})")
+            else:
+                self.instruction(f"            if (s_axi_awaddr[m] >= {self.cfg.addr_width}'h{base:X} &&")
+                self.instruction(f"                s_axi_awaddr[m] < {self.cfg.addr_width}'h{end:X})")
             self.instruction(f"                aw_request_matrix[{slave_idx}][m] = 1'b1;")
             self.instruction("")
 
@@ -281,8 +285,12 @@ class BridgeFlatCrossbar(Module):
             end = base + size
 
             self.instruction(f"            // Slave {slave_idx}: {name} (0x{base:08X} - 0x{end-1:08X})")
-            self.instruction(f"            if (s_axi_araddr[m] >= {self.cfg.addr_width}'h{base:X} &&")
-            self.instruction(f"                s_axi_araddr[m] < {self.cfg.addr_width}'h{end:X})")
+            # Skip redundant >= 0 check for unsigned addresses
+            if base == 0:
+                self.instruction(f"            if (s_axi_araddr[m] < {self.cfg.addr_width}'h{end:X})")
+            else:
+                self.instruction(f"            if (s_axi_araddr[m] >= {self.cfg.addr_width}'h{base:X} &&")
+                self.instruction(f"                s_axi_araddr[m] < {self.cfg.addr_width}'h{end:X})")
             self.instruction(f"                ar_request_matrix[{slave_idx}][m] = 1'b1;")
             self.instruction("")
 
@@ -335,7 +343,7 @@ class BridgeFlatCrossbar(Module):
         self.instruction("                    aw_grant_matrix[s] = '0;")
         self.instruction("                    for (int i = 0; i < NUM_MASTERS; i++) begin")
         self.instruction("                        int m;")
-        self.instruction("                        m = (aw_last_grant[s] + 1 + i) % NUM_MASTERS;")
+        self.instruction("                        m = (int'(aw_last_grant[s]) + 1 + i) % NUM_MASTERS;")
         self.instruction("                        if (aw_request_matrix[s][m] && aw_grant_matrix[s] == '0) begin")
         self.instruction("                            aw_grant_matrix[s][m] = 1'b1;")
         self.instruction("                            aw_last_grant[s] = m[$clog2(NUM_MASTERS)-1:0];")
@@ -393,7 +401,7 @@ class BridgeFlatCrossbar(Module):
         self.instruction("                    ar_grant_matrix[s] = '0;")
         self.instruction("                    for (int i = 0; i < NUM_MASTERS; i++) begin")
         self.instruction("                        int m;")
-        self.instruction("                        m = (ar_last_grant[s] + 1 + i) % NUM_MASTERS;")
+        self.instruction("                        m = (int'(ar_last_grant[s]) + 1 + i) % NUM_MASTERS;")
         self.instruction("                        if (ar_request_matrix[s][m] && ar_grant_matrix[s] == '0) begin")
         self.instruction("                            ar_grant_matrix[s][m] = 1'b1;")
         self.instruction("                            ar_last_grant[s] = m[$clog2(NUM_MASTERS)-1:0];")

@@ -91,7 +91,7 @@ class CounterFreqInvariantWaveDromTB(TBBase):
         self.rst_n = self.dut.rst_n
         self.sync_reset_n = self.dut.sync_reset_n
         self.freq_sel = self.dut.freq_sel
-        self.counter = self.dut.counter
+        self.counter = self.dut.o_counter
         self.tick = self.dut.tick
 
         # Clock configuration - use 10ns for simulation (100MHz nominal)

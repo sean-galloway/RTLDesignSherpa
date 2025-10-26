@@ -8,11 +8,14 @@
 
 ## Quick Context
 
-**What:** AXI4 Bridge Crossbar - Configurable NxM crossbar for connecting multiple AXI4 masters to multiple slaves
-**Status:** 🟡 Active development - Infrastructure complete, initial validation in progress
-**Your Role:** Help users understand architecture, create tests, and validate functionality
+**What:** Bridge - CSV-based AXI4 Crossbar Generator - Generates parameterized SystemVerilog crossbars from CSV configuration
+**Status:** 🟢 Phase 2 Complete - CSV generator with channel-specific masters
+**Your Role:** Help users configure CSV files, generate bridges, understand architecture, and create tests
 
-**📖 Complete Specification:** `projects/components/bridge/PRD.md` ← **Always reference this for technical details**
+**📖 Complete Specification:**
+- `projects/components/bridge/PRD.md` ← Overall product requirements
+- `projects/components/bridge/docs/bridge_spec/bridge_index.md` ← Detailed specification
+- `projects/components/bridge/CSV_BRIDGE_STATUS.md` ← Implementation status and features
 
 ---
 
@@ -310,6 +313,237 @@ memory_model = MemoryModel()  # Unnecessary complexity
 - ❌ Single-master systems → Use queue access
 - ✅ Complex out-of-order scenarios → Memory model may help
 - ✅ Multi-master with address overlap → Memory model tracks state
+
+---
+
+## CSV-Based Bridge Generator (Phase 2 Complete)
+
+### Overview
+
+The Bridge CSV generator creates parameterized SystemVerilog crossbars from simple CSV configuration files, eliminating manual RTL editing for complex interconnects.
+
+**Key Benefits:**
+- **Human-readable configuration** - CSV files instead of code
+- **Custom signal prefixes** - Each port has unique prefix (rapids_m_axi_, apb0_, etc.)
+- **Channel-specific masters** - Write-only (wr), read-only (rd), or full (rw)
+- **Automatic converters** - Width and protocol conversion inserted automatically
+- **Resource efficient** - Only generates needed channels and converters
+
+### Quick Start
+
+**1. Create ports.csv:**
+```csv
+port_name,direction,protocol,channels,prefix,data_width,addr_width,id_width,base_addr,addr_range
+rapids_descr_wr,master,axi4,wr,rapids_descr_m_axi_,512,64,8,N/A,N/A
+rapids_sink_wr,master,axi4,wr,rapids_sink_m_axi_,512,64,8,N/A,N/A
+rapids_src_rd,master,axi4,rd,rapids_src_m_axi_,512,64,8,N/A,N/A
+cpu_master,master,axi4,rw,cpu_m_axi_,64,32,4,N/A,N/A
+ddr_controller,slave,axi4,rw,ddr_s_axi_,512,64,8,0x80000000,0x80000000
+apb_periph0,slave,apb,rw,apb0_,32,32,N/A,0x00000000,0x00010000
+```
+
+**2. Create connectivity.csv:**
+```csv
+master\slave,ddr_controller,apb_periph0
+rapids_descr_wr,1,0
+rapids_sink_wr,1,0
+rapids_src_rd,1,0
+cpu_master,1,1
+```
+
+**3. Generate bridge:**
+```bash
+cd projects/components/bridge/bin
+python3 bridge_csv_generator.py \
+    --ports my_ports.csv \
+    --connectivity my_connectivity.csv \
+    --name my_bridge \
+    --output ../rtl/
+```
+
+**Result:** Complete SystemVerilog module with:
+- Custom port prefixes per port
+- Only needed AXI4 channels (wr/rd/rw optimized)
+- Width converters for data mismatches
+- Internal crossbar instantiation
+- APB converter integration points
+
+### CSV Format Details
+
+**ports.csv Columns:**
+- `port_name` - Unique identifier (rapids_descr_wr, cpu_master, etc.)
+- `direction` - master or slave
+- `protocol` - axi4 or apb
+- `channels` - **rw** (all 5 channels), **wr** (write-only: AW,W,B), **rd** (read-only: AR,R)
+- `prefix` - Signal prefix (rapids_descr_m_axi_, apb0_, etc.)
+- `data_width` - Data width in bits (32, 64, 512, etc.)
+- `addr_width` - Address width in bits
+- `id_width` - AXI4 ID width (N/A for APB)
+- `base_addr` - Slave base address (N/A for masters)
+- `addr_range` - Slave address range (N/A for masters)
+
+**connectivity.csv Format:**
+```csv
+master\slave,slave0,slave1,slave2
+master0,1,0,1
+master1,0,1,1
+```
+- `1` = connected, `0` = not connected
+- Partial connectivity supported (not all masters to all slaves)
+
+### Channel-Specific Masters (Phase 2 Feature)
+
+**Why Channel-Specific?**
+Real hardware often has dedicated read or write masters. Generating all 5 AXI4 channels wastes resources:
+
+**Traditional (wasteful):**
+```systemverilog
+// Write-only master gets unused read channels
+input  logic [63:0]  rapids_descr_m_axi_awaddr,  // ✅ USED
+input  logic [511:0] rapids_descr_m_axi_wdata,   // ✅ USED
+output logic [7:0]   rapids_descr_m_axi_bid,     // ✅ USED
+input  logic [63:0]  rapids_descr_m_axi_araddr,  // ❌ UNUSED (50% waste!)
+output logic [511:0] rapids_descr_m_axi_rdata,   // ❌ UNUSED
+```
+
+**Channel-Specific (optimized):**
+```csv
+rapids_descr_wr,master,axi4,wr,rapids_descr_m_axi_,512,64,8,N/A,N/A
+```
+
+**Generated:**
+```systemverilog
+// Write-only master - only AW, W, B channels
+input  logic [63:0]  rapids_descr_m_axi_awaddr,
+input  logic [511:0] rapids_descr_m_axi_wdata,
+output logic [7:0]   rapids_descr_m_axi_bid,
+// ✅ NO READ CHANNELS (araddr, rdata, etc.)
+```
+
+**Resource Savings:**
+- 40-60% fewer ports for dedicated masters
+- Only necessary width converters instantiated
+- Channel-aware direct connection wiring
+- Faster synthesis, smaller netlists
+
+### Example: RAPIDS-Style Configuration
+
+**RAPIDS Architecture:**
+- Descriptor write master (wr) - Writes descriptors to memory
+- Sink write master (wr) - Writes incoming packets to memory
+- Source read master (rd) - Reads outgoing packets from memory
+- CPU master (rw) - Full access for configuration
+
+**CSV Configuration:**
+```csv
+port_name,direction,protocol,channels,prefix,data_width,addr_width,id_width,base_addr,addr_range
+rapids_descr_wr,master,axi4,wr,rapids_descr_m_axi_,512,64,8,N/A,N/A
+rapids_sink_wr,master,axi4,wr,rapids_sink_m_axi_,512,64,8,N/A,N/A
+rapids_src_rd,master,axi4,rd,rapids_src_m_axi_,512,64,8,N/A,N/A
+stream_master,master,axi4,rw,stream_m_axi_,512,64,8,N/A,N/A
+cpu_master,master,axi4,rw,cpu_m_axi_,64,32,4,N/A,N/A
+ddr_controller,slave,axi4,rw,ddr_s_axi_,512,64,8,0x80000000,0x80000000
+apb_periph0,slave,apb,rw,apb0_,32,32,N/A,0x00000000,0x00010000
+```
+
+**Generated RTL Features:**
+- rapids_descr_wr: 37 signals (write channels only) vs 61 signals (full) = **39% reduction**
+- rapids_sink_wr: 37 signals (write channels only) vs 61 signals (full) = **39% reduction**
+- rapids_src_rd: 24 signals (read channels only) vs 61 signals (full) = **61% reduction**
+- cpu_master: Width converters for 64b→512b upsize (both wr and rd converters)
+- ddr_controller: Direct 512b connection (no conversion)
+- apb_periph0: APB converter placeholder (Phase 3)
+
+### Common User Questions
+
+**Q: "How do I generate a bridge?"**
+
+**A: Three steps:**
+
+1. Create two CSV files (ports.csv and connectivity.csv)
+2. Run bridge_csv_generator.py
+3. Use generated SystemVerilog module
+
+```bash
+python3 bridge_csv_generator.py \
+    --ports my_ports.csv \
+    --connectivity my_connectivity.csv \
+    --name my_bridge \
+    --output ../rtl/
+```
+
+**Q: "What's the difference between wr/rd/rw channels?"**
+
+**A: Number of AXI4 channels generated:**
+
+- **rw** (read/write) - All 5 channels: AW, W, B, AR, R
+- **wr** (write-only) - 3 channels: AW, W, B (no read channels)
+- **rd** (read-only) - 2 channels: AR, R (no write channels)
+
+**Benefits:** 40-60% fewer ports for dedicated masters, less logic, faster synthesis
+
+**Q: "Can I mix AXI4 and APB slaves?"**
+
+**A: Yes, use protocol field:**
+
+```csv
+ddr_controller,slave,axi4,rw,ddr_s_axi_,512,64,8,0x80000000,0x80000000
+apb_periph0,slave,apb,rw,apb0_,32,32,N/A,0x00000000,0x00010000
+```
+
+Generator inserts AXI2APB converters automatically (Phase 3 for full implementation).
+
+**Q: "What if data widths don't match?"**
+
+**A: Generator inserts width converters automatically:**
+
+```csv
+cpu_master,master,axi4,rw,cpu_m_axi_,64,32,4,N/A,N/A  # 64b master
+# Crossbar uses 512b internal width
+# Generator creates axi4_dwidth_converter_wr and axi4_dwidth_converter_rd
+```
+
+**Q: "Do all masters need to connect to all slaves?"**
+
+**A: No, use partial connectivity:**
+
+```csv
+master\slave,ddr,sram,apb
+rapids_descr,1,1,0     # Connects to ddr and sram only
+cpu_master,1,1,1       # Connects to all three
+```
+
+### Generator Output Structure
+
+**Generated File Contains:**
+
+1. **Module Header** - Parameterized with NUM_MASTERS, NUM_SLAVES, widths
+2. **Port Declarations** - Custom prefix per port, channel-specific signals
+3. **Internal Signals** - Crossbar interface arrays (xbar_m_*, xbar_s_*)
+4. **Width Converters** - Master-side upsize instances (channel-aware)
+5. **Crossbar Instance** - Internal AXI4 full crossbar
+6. **Direct Connections** - For matching-width interfaces
+7. **APB Converters** - Placeholder TODO comments (Phase 3)
+
+**Example Output Size:**
+- Simple 2x2 bridge: ~400 lines
+- Complex 5x3 with mixed protocols: ~900 lines
+- Includes comprehensive comments and structure
+
+### Testing Generated Bridges
+
+**For Pure AXI4 Bridges (Working Now):**
+```bash
+# Generate bridge
+python3 bridge_csv_generator.py --ports ports.csv --connectivity conn.csv --name my_bridge --output ../rtl/
+
+# Create testbench (use BridgeAXI4FlatTB from dv/tbclasses/)
+cd ../dv/tests/fub_tests/basic
+pytest test_my_bridge.py -v
+```
+
+**For Mixed AXI4/APB (Requires Phase 3):**
+APB converter placeholders need implementation before end-to-end testing.
 
 ---
 

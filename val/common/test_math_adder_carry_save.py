@@ -30,6 +30,7 @@ if os.path.join(repo_root, 'bin') not in sys.path:
     sys.path.insert(0, os.path.join(repo_root, 'bin'))
 
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
+from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 
 # Import the base AdderTB class
 from CocoTBFramework.tbclasses.common.adder_testing import AdderTB
@@ -68,9 +69,11 @@ def test_math_adder_carry_save(request):
     dut_name = "math_adder_carry_save"
     toplevel = dut_name
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_cmn'], f"{dut_name}.sv"),
-    ]
+    # Get verilog sources and includes from filelist
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='rtl/common/filelists/math_adder_carry_save.f'
+    )
 
     # Define test parameters
     parameters = {}

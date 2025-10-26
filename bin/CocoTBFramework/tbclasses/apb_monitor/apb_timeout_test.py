@@ -98,7 +98,7 @@ class APBTimeoutTest(APBMonitorCoreTB):
 
         # Send a transaction that should timeout due to delayed ready signals
         addr = 0x4000
-        data = 0xDEADTIME  # Dead time :)
+        data = 0xDEADCAFE  # Dead cafe :)
 
         self.log.info(f"Sending transaction with delayed ready to trigger timeout: addr=0x{addr:08X}")
 

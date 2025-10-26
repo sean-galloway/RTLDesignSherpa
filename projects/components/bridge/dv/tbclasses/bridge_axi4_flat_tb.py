@@ -18,7 +18,7 @@ Reusable Testbench for AXI4 Bridge Crossbar
 
 This testbench provides infrastructure for testing AXI4 Bridge crossbars
 with configurable masters and slaves. Uses queue-based verification with
-GAXI components for protocol handling.
+proper AXI4 interface components (AXI4MasterWrite/Read, AXI4SlaveWrite/Read).
 """
 
 import os
@@ -32,9 +32,11 @@ repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../..
 sys.path.insert(0, os.path.join(repo_root, 'bin'))
 
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
-from CocoTBFramework.components.gaxi.gaxi_master import GAXIMaster
-from CocoTBFramework.components.gaxi.gaxi_slave import GAXISlave
-from CocoTBFramework.components.axi4.axi4_field_configs import AXI4FieldConfigHelper
+from CocoTBFramework.components.axi4.axi4_factories import (
+    create_axi4_master_wr, create_axi4_master_rd,
+    create_axi4_slave_wr, create_axi4_slave_rd
+)
+from CocoTBFramework.components.shared.memory_model import MemoryModel
 
 
 class BridgeAXI4FlatTB(TBBase):
@@ -42,14 +44,15 @@ class BridgeAXI4FlatTB(TBBase):
     Reusable Testbench for AXI4 Bridge Crossbar Validation
 
     Provides infrastructure for testing NxM bridge crossbars with:
-    - GAXI Master/Slave components for all 5 AXI4 channels
-    - Queue-based verification (no memory models)
-    - Automatic response generation
+    - AXI4MasterWrite/Read components for master ports (drives AW/W/AR, receives B/R)
+    - AXI4SlaveWrite/Read components for slave ports (receives AW/W/AR, drives B/R)
+    - Queue-based verification (no memory models for simple tests)
+    - Automatic response generation via AXI4 framework callbacks
     - Configurable address map
 
     Architecture:
-    - Master-side: AW/W masters send, B/R slaves receive
-    - Slave-side: AW/W slaves receive, B/R masters send
+    - Master-side: AXI4MasterWrite handles AW/W→B, AXI4MasterRead handles AR→R
+    - Slave-side: AXI4SlaveWrite handles AW/W→B, AXI4SlaveRead handles AR→R
 
     Usage:
         tb = BridgeAXI4FlatTB(dut, num_masters=2, num_slaves=2)
@@ -90,221 +93,137 @@ class BridgeAXI4FlatTB(TBBase):
         for s in range(num_slaves):
             self.slave_base_addrs.append(s * self.slave_addr_range)
 
-        # Component lists
-        self.aw_masters = []  # Master-side AW transmitters
-        self.w_masters = []   # Master-side W transmitters
-        self.b_slaves = []    # Master-side B receivers
-        self.ar_masters = []  # Master-side AR transmitters
-        self.r_slaves = []    # Master-side R receivers
+        # AXI4 Interface Components
+        self.master_write_if = []  # AXI4MasterWrite for each master port
+        self.master_read_if = []   # AXI4MasterRead for each master port
+        self.slave_write_if = []   # AXI4SlaveWrite for each slave port
+        self.slave_read_if = []    # AXI4SlaveRead for each slave port
 
-        self.aw_slaves = []   # Slave-side AW receivers
-        self.w_slaves = []    # Slave-side W receivers
-        self.b_masters = []   # Slave-side B transmitters
-        self.ar_slaves = []   # Slave-side AR receivers
-        self.r_masters = []   # Slave-side R transmitters
+        # Statistics tracking - one set per slave for route verification
+        self.slave_stats = []
+        for s in range(num_slaves):
+            self.slave_stats.append({
+                'aw_received': 0,
+                'w_received': 0,
+                'b_sent': 0,
+                'ar_received': 0,
+                'r_sent': 0,
+                # Capture actual values for verification
+                'addresses': [],      # List of addresses received
+                'data_values': [],    # List of data values received
+                'write_ids': [],      # List of transaction IDs
+                'read_addresses': [], # List of read addresses
+                'read_ids': [],       # List of read transaction IDs
+            })
+
+        # Global statistics
+        self.stats = {
+            'writes_sent': 0,
+            'reads_sent': 0,
+            'b_responses_received': 0,
+            'r_responses_received': 0,
+        }
 
         # Initialize components
         self._init_master_side_components()
         self._init_slave_side_components()
 
-        self.log.info(f"Initialized {num_masters}x{num_slaves} Bridge testbench")
+        self.log.info(f"Initialized {num_masters}x{num_slaves} Bridge testbench with AXI4 framework")
         self.log.info(f"  Data Width: {data_width}, Addr Width: {addr_width}, ID Width: {id_width}")
+        self.log.info(f"  Statistics-based verification with {num_slaves} slave counters")
 
     def _init_master_side_components(self):
-        """Initialize master-side GAXI components (masters drive AW/W/AR, slaves receive B/R)"""
+        """Initialize master-side AXI4 interface components using factory functions"""
         for m in range(self.num_masters):
-            # AW channel - master drives
-            aw_master = GAXIMaster(
+            # Master write interface (handles AW/W channels, receives B responses)
+            master_write = create_axi4_master_wr(
                 dut=self.dut,
-                title=f"AW_M{m}",
-                prefix=f"s{m}_axi4_",
                 clock=self.clk,
-                field_config=AXI4FieldConfigHelper.create_aw_field_config(
-                    self.id_width, self.addr_width, 1
-                ),
-                pkt_prefix="aw",
-                multi_sig=True,
-                log=self.log
+                prefix=f"s{m}_axi_",  # s0_axi_, s1_axi_, etc.
+                log=self.log,
+                data_width=self.data_width,
+                id_width=self.id_width,
+                addr_width=self.addr_width,
+                user_width=1,
+                multi_sig=True
             )
-            self.aw_masters.append(aw_master)
+            self.master_write_if.append(master_write)
 
-            # W channel - master drives
-            w_master = GAXIMaster(
+            # Master read interface (handles AR channel, receives R responses)
+            master_read = create_axi4_master_rd(
                 dut=self.dut,
-                title=f"W_M{m}",
-                prefix=f"s{m}_axi4_",
                 clock=self.clk,
-                field_config=AXI4FieldConfigHelper.create_w_field_config(
-                    self.data_width, 1
-                ),
-                pkt_prefix="w",
-                multi_sig=True,
-                log=self.log
+                prefix=f"s{m}_axi_",  # s0_axi_, s1_axi_, etc.
+                log=self.log,
+                data_width=self.data_width,
+                id_width=self.id_width,
+                addr_width=self.addr_width,
+                user_width=1,
+                multi_sig=True
             )
-            self.w_masters.append(w_master)
-
-            # B channel - master receives responses
-            b_slave = GAXISlave(
-                dut=self.dut,
-                title=f"B_M{m}",
-                prefix=f"s{m}_axi4_",
-                clock=self.clk,
-                field_config=AXI4FieldConfigHelper.create_b_field_config(
-                    self.id_width, 1
-                ),
-                pkt_prefix="b",
-                multi_sig=True,
-                log=self.log
-            )
-            self.b_slaves.append(b_slave)
-
-            # AR channel - master drives
-            ar_master = GAXIMaster(
-                dut=self.dut,
-                title=f"AR_M{m}",
-                prefix=f"s{m}_axi4_",
-                clock=self.clk,
-                field_config=AXI4FieldConfigHelper.create_ar_field_config(
-                    self.id_width, self.addr_width, 1
-                ),
-                pkt_prefix="ar",
-                multi_sig=True,
-                log=self.log
-            )
-            self.ar_masters.append(ar_master)
-
-            # R channel - master receives responses
-            r_slave = GAXISlave(
-                dut=self.dut,
-                title=f"R_M{m}",
-                prefix=f"s{m}_axi4_",
-                clock=self.clk,
-                field_config=AXI4FieldConfigHelper.create_r_field_config(
-                    self.id_width, self.data_width, 1
-                ),
-                pkt_prefix="r",
-                multi_sig=True,
-                log=self.log
-            )
-            self.r_slaves.append(r_slave)
+            self.master_read_if.append(master_read)
 
     def _init_slave_side_components(self):
-        """Initialize slave-side GAXI components (slaves receive AW/W/AR, masters send B/R)"""
+        """Initialize slave-side AXI4 interface components using factory functions with stat tracking"""
         for s in range(self.num_slaves):
-            # AW channel - slave receives
-            aw_slave = GAXISlave(
+            # Slave write interface (receives AW/W channels, drives B responses)
+            # No memory model - use statistics for verification
+            slave_write = create_axi4_slave_wr(
                 dut=self.dut,
-                title=f"AW_S{s}",
-                prefix=f"m{s}_axi4_",
                 clock=self.clk,
-                field_config=AXI4FieldConfigHelper.create_aw_field_config(
-                    self.id_width, self.addr_width, 1
-                ),
-                pkt_prefix="aw",
+                prefix=f"m{s}_axi_",  # m0_axi_, m1_axi_, etc.
+                log=self.log,
+                data_width=self.data_width,
+                id_width=self.id_width,
+                addr_width=self.addr_width,
+                user_width=1,
                 multi_sig=True,
-                log=self.log
+                memory_model=None,  # Statistics-based verification, no memory model
+                response_delay=1     # 1 cycle delay for B responses
             )
-            # Add callback to generate B response
-            aw_slave.add_callback(self._create_b_responder(s))
-            self.aw_slaves.append(aw_slave)
+            self.slave_write_if.append(slave_write)
 
-            # W channel - slave receives
-            w_slave = GAXISlave(
+            # Set up callback to track AW packets (capture address and ID)
+            def make_aw_callback(slave_idx):
+                def aw_callback(pkt):
+                    self.slave_stats[slave_idx]['aw_received'] += 1
+                    self.slave_stats[slave_idx]['addresses'].append(pkt.addr)
+                    self.slave_stats[slave_idx]['write_ids'].append(pkt.id)
+                return aw_callback
+            slave_write['AW'].add_callback(make_aw_callback(s))
+
+            # Set up callback to track W packets (capture data)
+            def make_w_callback(slave_idx):
+                def w_callback(pkt):
+                    self.slave_stats[slave_idx]['w_received'] += 1
+                    self.slave_stats[slave_idx]['data_values'].append(pkt.data)
+                return w_callback
+            slave_write['W'].add_callback(make_w_callback(s))
+
+            # Slave read interface (receives AR channel, drives R responses)
+            slave_read = create_axi4_slave_rd(
                 dut=self.dut,
-                title=f"W_S{s}",
-                prefix=f"m{s}_axi4_",
                 clock=self.clk,
-                field_config=AXI4FieldConfigHelper.create_w_field_config(
-                    self.data_width, 1
-                ),
-                pkt_prefix="w",
+                prefix=f"m{s}_axi_",  # m0_axi_, m1_axi_, etc.
+                log=self.log,
+                data_width=self.data_width,
+                id_width=self.id_width,
+                addr_width=self.addr_width,
+                user_width=1,
                 multi_sig=True,
-                log=self.log
+                memory_model=None,  # Statistics-based verification
+                response_delay=1     # 1 cycle delay for R responses
             )
-            self.w_slaves.append(w_slave)
+            self.slave_read_if.append(slave_read)
 
-            # B channel - slave sends responses
-            b_master = GAXIMaster(
-                dut=self.dut,
-                title=f"B_S{s}",
-                prefix=f"m{s}_axi4_",
-                clock=self.clk,
-                field_config=AXI4FieldConfigHelper.create_b_field_config(
-                    self.id_width, 1
-                ),
-                pkt_prefix="b",
-                multi_sig=True,
-                log=self.log
-            )
-            self.b_masters.append(b_master)
-
-            # AR channel - slave receives
-            ar_slave = GAXISlave(
-                dut=self.dut,
-                title=f"AR_S{s}",
-                prefix=f"m{s}_axi4_",
-                clock=self.clk,
-                field_config=AXI4FieldConfigHelper.create_ar_field_config(
-                    self.id_width, self.addr_width, 1
-                ),
-                pkt_prefix="ar",
-                multi_sig=True,
-                log=self.log
-            )
-            # Add callback to generate R response
-            ar_slave.add_callback(self._create_r_responder(s))
-            self.ar_slaves.append(ar_slave)
-
-            # R channel - slave sends responses
-            r_master = GAXIMaster(
-                dut=self.dut,
-                title=f"R_S{s}",
-                prefix=f"m{s}_axi4_",
-                clock=self.clk,
-                field_config=AXI4FieldConfigHelper.create_r_field_config(
-                    self.id_width, self.data_width, 1
-                ),
-                pkt_prefix="r",
-                multi_sig=True,
-                log=self.log
-            )
-            self.r_masters.append(r_master)
-
-    def _create_b_responder(self, slave_idx):
-        """Create callback to send B response when AW received"""
-        def b_responder(aw_pkt):
-            cocotb.start_soon(self._send_b_response(slave_idx, aw_pkt))
-        return b_responder
-
-    async def _send_b_response(self, slave_idx, aw_pkt):
-        """Send B response for received AW"""
-        await RisingEdge(self.clk)
-        b_pkt = self.b_masters[slave_idx].create_packet(
-            id=aw_pkt.id,
-            resp=0
-        )
-        await self.b_masters[slave_idx].send(b_pkt)
-
-    def _create_r_responder(self, slave_idx):
-        """Create callback to send R response when AR received"""
-        def r_responder(ar_pkt):
-            cocotb.start_soon(self._send_r_response(slave_idx, ar_pkt))
-        return r_responder
-
-    async def _send_r_response(self, slave_idx, ar_pkt):
-        """Send R response for received AR"""
-        await RisingEdge(self.clk)
-        burst_len = ar_pkt.len + 1
-        for i in range(burst_len):
-            # Echo address as data for easy verification
-            data = ar_pkt.addr + (i * 4)
-            r_pkt = self.r_masters[slave_idx].create_packet(
-                id=ar_pkt.id,
-                data=data,
-                resp=0,
-                last=1 if i == burst_len - 1 else 0
-            )
-            await self.r_masters[slave_idx].send(r_pkt)
+            # Set up callback to track AR packets (capture read address and ID)
+            def make_ar_callback(slave_idx):
+                def ar_callback(pkt):
+                    self.slave_stats[slave_idx]['ar_received'] += 1
+                    self.slave_stats[slave_idx]['read_addresses'].append(pkt.addr)
+                    self.slave_stats[slave_idx]['read_ids'].append(pkt.id)
+                return ar_callback
+            slave_read['AR'].add_callback(make_ar_callback(s))
 
     # =========================================================================
     # MANDATORY METHODS - Required by TBBase
@@ -327,6 +246,7 @@ class BridgeAXI4FlatTB(TBBase):
         await self.wait_clocks(self.clk_name, 5)   # Stabilization time
 
         self.log.info("Reset sequence complete")
+        self.log.info("AXI4 framework will handle all ready signals and response generation automatically")
 
     async def assert_reset(self):
         """Assert reset signal (active-low)"""
@@ -351,7 +271,7 @@ class BridgeAXI4FlatTB(TBBase):
 
     async def write_transaction(self, master_idx, address, data, txn_id=0):
         """
-        Send write transaction (AW + W)
+        Send write transaction (AW + W) using AXI4 framework
 
         Args:
             master_idx: Master port index (0 to num_masters-1)
@@ -362,30 +282,34 @@ class BridgeAXI4FlatTB(TBBase):
         Returns:
             Tuple of (aw_pkt, w_pkt)
         """
+        # Get channel references from factory dictionary
+        aw_channel = self.master_write_if[master_idx]['AW']
+        w_channel = self.master_write_if[master_idx]['W']
+
         # Send AW
-        aw_pkt = self.aw_masters[master_idx].create_packet(
+        aw_pkt = aw_channel.create_packet(
             addr=address,
             id=txn_id,
             len=0,  # Single beat
             size=2,  # 4 bytes
             burst=1
         )
-        await self.aw_masters[master_idx].send(aw_pkt)
+        await aw_channel.send(aw_pkt)
 
         # Send W
-        w_pkt = self.w_masters[master_idx].create_packet(
+        w_pkt = w_channel.create_packet(
             data=data,
             last=1,
             strb=0xF
         )
-        await self.w_masters[master_idx].send(w_pkt)
+        await w_channel.send(w_pkt)
 
         self.log.debug(f"M{master_idx} write: addr=0x{address:X}, data=0x{data:X}, id={txn_id}")
         return aw_pkt, w_pkt
 
     async def read_transaction(self, master_idx, address, txn_id=0):
         """
-        Send read transaction (AR)
+        Send read transaction (AR) using AXI4 framework
 
         Args:
             master_idx: Master port index (0 to num_masters-1)
@@ -395,14 +319,17 @@ class BridgeAXI4FlatTB(TBBase):
         Returns:
             ar_pkt
         """
-        ar_pkt = self.ar_masters[master_idx].create_packet(
+        # Get channel reference from factory dictionary
+        ar_channel = self.master_read_if[master_idx]['AR']
+
+        ar_pkt = ar_channel.create_packet(
             addr=address,
             id=txn_id,
             len=0,  # Single beat
             size=2,  # 4 bytes
             burst=1
         )
-        await self.ar_masters[master_idx].send(ar_pkt)
+        await ar_channel.send(ar_pkt)
 
         self.log.debug(f"M{master_idx} read: addr=0x{address:X}, id={txn_id}")
         return ar_pkt
@@ -413,7 +340,7 @@ class BridgeAXI4FlatTB(TBBase):
 
     async def test_basic_routing(self, num_transactions=10):
         """
-        Test basic address routing from masters to slaves
+        Test basic address routing from masters to slaves with address/data verification
 
         Args:
             num_transactions: Number of transactions to send
@@ -423,6 +350,9 @@ class BridgeAXI4FlatTB(TBBase):
         """
         self.log.info(f"Starting basic routing test ({num_transactions} transactions)")
 
+        # Track expected transactions per slave
+        expected_writes = [[] for _ in range(self.num_slaves)]  # List of (address, data, id) per slave
+
         # Send writes to alternating slaves
         for i in range(num_transactions):
             slave_idx = i % self.num_slaves
@@ -430,28 +360,63 @@ class BridgeAXI4FlatTB(TBBase):
             address = self.slave_base_addrs[slave_idx] + (i * 4)
             data = 0xA0000000 + i
 
+            # Record expected values
+            expected_writes[slave_idx].append((address, data, i))
+
+            # Send write transaction (callbacks capture actual values)
             await self.write_transaction(master_idx, address, data, txn_id=i)
+            self.stats['writes_sent'] += 1
 
         # Wait for all transactions to complete
         await self.wait_clocks(self.clk_name, 50)
 
-        # Verify routing
+        # Verify routing using captured addresses and data
         success = True
         for s in range(self.num_slaves):
-            expected_count = (num_transactions + self.num_slaves - 1 - s) // self.num_slaves
-            actual_count = len(self.aw_slaves[s]._recvQ)
+            # Check transaction count
+            actual_count = self.slave_stats[s]['aw_received']
+            expected_count = len(expected_writes[s])
 
             if actual_count != expected_count:
-                self.log.error(f"Slave {s}: Expected {expected_count} transactions, got {actual_count}")
+                self.log.error(f"Slave {s}: Expected {expected_count} AW transactions, got {actual_count}")
                 success = False
-            else:
-                self.log.info(f"✓ Slave {s}: Received {actual_count} transactions as expected")
+                continue
+
+            # Verify addresses and data
+            for idx, (expected_addr, expected_data, expected_id) in enumerate(expected_writes[s]):
+                actual_addr = self.slave_stats[s]['addresses'][idx]
+                actual_data = self.slave_stats[s]['data_values'][idx]
+                actual_id = self.slave_stats[s]['write_ids'][idx]
+
+                # Check address
+                if actual_addr != expected_addr:
+                    self.log.error(f"Slave {s} Transaction {idx}: Address mismatch - "
+                                   f"expected 0x{expected_addr:X}, got 0x{actual_addr:X}")
+                    success = False
+
+                # Check data
+                if actual_data != expected_data:
+                    self.log.error(f"Slave {s} Transaction {idx}: Data mismatch - "
+                                   f"expected 0x{expected_data:X}, got 0x{actual_data:X}")
+                    success = False
+
+                # Check ID
+                if actual_id != expected_id:
+                    self.log.error(f"Slave {s} Transaction {idx}: ID mismatch - "
+                                   f"expected {expected_id}, got {actual_id}")
+                    success = False
+
+            if success:
+                self.log.info(f"✓ Slave {s}: Received {actual_count} transactions with correct addresses/data")
+
+        if success:
+            self.log.info(f"✓ All {num_transactions} writes routed correctly with matching addresses and data")
 
         return success
 
     async def test_id_routing(self, num_transactions=10):
         """
-        Test transaction ID routing through B and R channels
+        Test transaction ID routing with address/data verification
 
         Args:
             num_transactions: Number of transactions to send
@@ -461,6 +426,9 @@ class BridgeAXI4FlatTB(TBBase):
         """
         self.log.info(f"Starting ID routing test ({num_transactions} transactions)")
 
+        # Track expected writes per slave
+        expected_writes = [[] for _ in range(self.num_slaves)]  # List of (address, data, id) per slave
+
         # Send transactions with different IDs
         for i in range(num_transactions):
             master_idx = 0  # Use first master
@@ -469,23 +437,61 @@ class BridgeAXI4FlatTB(TBBase):
             data = 0xB0000000 + i
             txn_id = i % (2 ** self.id_width)  # Cycle through IDs
 
+            # Record expected values
+            expected_writes[slave_idx].append((address, data, txn_id))
+
             await self.write_transaction(master_idx, address, data, txn_id=txn_id)
+            self.stats['writes_sent'] += 1
 
         # Wait for all responses
         await self.wait_clocks(self.clk_name, 50)
 
-        # Verify all B responses received
-        b_count = len(self.b_slaves[0]._recvQ)
-        if b_count != num_transactions:
-            self.log.error(f"Expected {num_transactions} B responses, got {b_count}")
-            return False
+        # Verify all writes routed correctly with address/data/ID matching
+        success = True
+        total_aw = 0
+        for s in range(self.num_slaves):
+            actual_count = self.slave_stats[s]['aw_received']
+            expected_count = len(expected_writes[s])
+            total_aw += actual_count
 
-        self.log.info(f"✓ All {num_transactions} B responses received")
-        return True
+            if actual_count != expected_count:
+                self.log.error(f"Slave {s}: Expected {expected_count} AW transactions, got {actual_count}")
+                success = False
+                continue
+
+            # Verify each transaction's address, data, and ID
+            for idx, (expected_addr, expected_data, expected_id) in enumerate(expected_writes[s]):
+                actual_addr = self.slave_stats[s]['addresses'][idx]
+                actual_data = self.slave_stats[s]['data_values'][idx]
+                actual_id = self.slave_stats[s]['write_ids'][idx]
+
+                if actual_addr != expected_addr:
+                    self.log.error(f"Slave {s} Transaction {idx}: Address mismatch - "
+                                   f"expected 0x{expected_addr:X}, got 0x{actual_addr:X}")
+                    success = False
+
+                if actual_data != expected_data:
+                    self.log.error(f"Slave {s} Transaction {idx}: Data mismatch - "
+                                   f"expected 0x{expected_data:X}, got 0x{actual_data:X}")
+                    success = False
+
+                if actual_id != expected_id:
+                    self.log.error(f"Slave {s} Transaction {idx}: ID mismatch - "
+                                   f"expected {expected_id}, got {actual_id}")
+                    success = False
+
+        if success and total_aw == num_transactions:
+            self.log.info(f"✓ All {num_transactions} transactions routed correctly with matching IDs, addresses, and data")
+        else:
+            if total_aw != num_transactions:
+                self.log.error(f"Expected {num_transactions} total AW transactions, got {total_aw}")
+            success = False
+
+        return success
 
     async def test_concurrent_masters(self, transactions_per_master=5):
         """
-        Test concurrent transactions from multiple masters
+        Test concurrent transactions from multiple masters with address/data verification
 
         Args:
             transactions_per_master: Number of transactions from each master
@@ -495,14 +501,26 @@ class BridgeAXI4FlatTB(TBBase):
         """
         self.log.info(f"Starting concurrent masters test ({transactions_per_master} per master)")
 
+        # Track expected writes - use dictionary keyed by (address, data, id)
+        # to handle concurrent non-deterministic ordering
+        expected_txns = {}  # {slave_idx: set of (address, data, id)}
+        for s in range(self.num_slaves):
+            expected_txns[s] = set()
+
         # Send transactions from all masters concurrently
         tasks = []
         for m in range(self.num_masters):
             async def send_from_master(master_idx):
                 for i in range(transactions_per_master):
-                    address = self.slave_base_addrs[i % self.num_slaves] + (i * 4)
+                    slave_idx = i % self.num_slaves
+                    address = self.slave_base_addrs[slave_idx] + (master_idx * 1024) + (i * 4)
                     data = 0xC0000000 + (master_idx << 16) + i
-                    await self.write_transaction(master_idx, address, data, txn_id=i)
+                    txn_id = i
+
+                    # Record expected transaction (before sending to avoid race)
+                    expected_txns[slave_idx].add((address, data, txn_id))
+
+                    await self.write_transaction(master_idx, address, data, txn_id=txn_id)
 
             tasks.append(cocotb.start_soon(send_from_master(m)))
 
@@ -513,13 +531,45 @@ class BridgeAXI4FlatTB(TBBase):
         # Wait for completion
         await self.wait_clocks(self.clk_name, 100)
 
-        # Verify total transactions
+        # Verify total transactions and address/data correctness
         total_expected = self.num_masters * transactions_per_master
-        total_actual = sum(len(slave._recvQ) for slave in self.aw_slaves)
+        total_actual = sum(self.slave_stats[s]['aw_received'] for s in range(self.num_slaves))
 
+        success = True
         if total_actual != total_expected:
-            self.log.error(f"Expected {total_expected} total transactions, got {total_actual}")
-            return False
+            self.log.error(f"Expected {total_expected} total AW transactions, got {total_actual}")
+            success = False
+        else:
+            self.log.info(f"✓ All {total_expected} concurrent transactions completed")
 
-        self.log.info(f"✓ All {total_expected} concurrent transactions completed")
-        return True
+        # Verify each slave's transactions match expectations (unordered)
+        for s in range(self.num_slaves):
+            actual_count = self.slave_stats[s]['aw_received']
+            expected_count = len(expected_txns[s])
+
+            if actual_count != expected_count:
+                self.log.error(f"Slave {s}: Expected {expected_count} transactions, got {actual_count}")
+                success = False
+                continue
+
+            # Build set of actual transactions
+            actual_txns = set()
+            for idx in range(actual_count):
+                addr = self.slave_stats[s]['addresses'][idx]
+                data = self.slave_stats[s]['data_values'][idx]
+                txn_id = self.slave_stats[s]['write_ids'][idx]
+                actual_txns.add((addr, data, txn_id))
+
+            # Compare sets (order doesn't matter for concurrent test)
+            if actual_txns != expected_txns[s]:
+                missing = expected_txns[s] - actual_txns
+                extra = actual_txns - expected_txns[s]
+                if missing:
+                    self.log.error(f"Slave {s}: Missing transactions: {missing}")
+                if extra:
+                    self.log.error(f"Slave {s}: Extra transactions: {extra}")
+                success = False
+            else:
+                self.log.info(f"  ✓ Slave {s}: {actual_count} transactions with correct addresses/data/IDs")
+
+        return success

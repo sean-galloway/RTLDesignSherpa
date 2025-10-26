@@ -235,14 +235,14 @@ if (`RST_ASSERTED(aresetn)) begin
             end else if (monitor_idle_count < 8'hFF) begin
                 monitor_idle_count <= monitor_idle_count + 1'b1;
             end
-        
+
             // Reporter idle counter
             if (reporter_activity) begin
                 reporter_idle_count <= '0;
             end else if (reporter_idle_count < 8'hFF) begin
                 reporter_idle_count <= reporter_idle_count + 1'b1;
             end
-        
+
             // Timer idle counter
             if (timer_activity) begin
                 timer_idle_count <= '0;

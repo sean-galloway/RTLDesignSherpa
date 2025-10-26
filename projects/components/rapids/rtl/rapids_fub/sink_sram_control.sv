@@ -300,7 +300,7 @@ module sink_sram_control #(
     always_comb begin
         w_data_consumed_channel_encoded = '0;
         w_data_consumed_found = 1'b0;
-        
+
         // Priority encoder using if-else chain (synthesizable)
         if (rd_valid[0] && rd_ready[0]) begin
             w_data_consumed_channel_encoded = CHAN_BITS'(0);
@@ -357,7 +357,7 @@ module sink_sram_control #(
     always_comb begin
         w_eos_completion_channel_encoded = '0;
         w_eos_completion_found = 1'b0;
-        
+
         // Priority encoder using if-else chain (synthesizable)
         if (r_eos_pending[0]) begin
             w_eos_completion_channel_encoded = CHAN_BITS'(0);
@@ -434,7 +434,7 @@ module sink_sram_control #(
     always_comb begin
         w_overflow_channel_encoded = '0;
         w_overflow_found = 1'b0;
-        
+
         if (w_channel_overflow[0]) begin
             w_overflow_channel_encoded = CHAN_BITS'(0);
             w_overflow_found = 1'b1;
@@ -473,7 +473,7 @@ module sink_sram_control #(
     always_comb begin
         w_backpressure_channel_encoded = '0;
         w_backpressure_found = 1'b0;
-        
+
         if (w_backpressure_warning[0]) begin
             w_backpressure_channel_encoded = CHAN_BITS'(0);
             w_backpressure_found = 1'b1;
@@ -513,7 +513,7 @@ module sink_sram_control #(
         w_monitor_overflow_event = w_overflow_found;
         w_monitor_backpressure_event = !w_overflow_found && w_backpressure_found;
         w_monitor_write_event = !w_overflow_found && !w_backpressure_found && (wr_valid && wr_ready);
-        
+
         if (w_overflow_found) begin
             w_monitor_event_channel = w_overflow_channel_encoded;
             w_monitor_event_packet = {

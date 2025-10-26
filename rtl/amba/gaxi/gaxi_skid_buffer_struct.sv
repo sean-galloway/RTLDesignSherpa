@@ -102,7 +102,7 @@ if (`RST_ASSERTED(axi_aresetn)) begin
             wr_ready <= (32'(r_data_count) <= DEPTH-2) ||
                         (32'(r_data_count) == DEPTH-1 && (~w_wr_xfer || w_rd_xfer)) ||
                         (32'(r_data_count) == DEPTH && w_rd_xfer);
-        
+
             // rd_valid: Can provide read if buffer has data or will have data next cycle
             rd_valid <= (r_data_count >= 2) ||
                         (r_data_count == 4'b0001 && (~w_rd_xfer || w_wr_xfer)) ||

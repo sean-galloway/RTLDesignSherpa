@@ -30,6 +30,7 @@ if os.path.join(repo_root, 'bin') not in sys.path:
     sys.path.insert(0, os.path.join(repo_root, 'bin'))
 
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
+from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 
 # Import the base MultiplierTB class
 from CocoTBFramework.tbclasses.common.multiplier_testing import MultiplierTB
@@ -94,10 +95,11 @@ def test_math_multiplier_carry_save(request, params):
     dut_name = "math_multiplier_carry_save"
     toplevel = dut_name
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_cmn'], "math_multiplier_basic_cell.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], f"{dut_name}.sv"),
-    ]
+    # Get verilog sources and includes from filelist
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='rtl/common/filelists/math_multiplier_carry_save.f'
+    )
 
     # Get REG_LEVEL before creating test name
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()  # GATE, FUNC, or FULL

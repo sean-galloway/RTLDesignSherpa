@@ -55,6 +55,7 @@ from cocotb_test.simulator import run
 
 # Import path utilities
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
+from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 
 
 ##############################################################################
@@ -343,9 +344,11 @@ def test_counter_bin_load(request, width, max_value, test_id):
 
     # DUT information
     dut_name = "counter_bin_load"
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_cmn'], f"{dut_name}.sv")
-    ]
+    # Get verilog sources and includes from filelist
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='rtl/common/filelists/counter_bin_load.f'
+    )
     toplevel = dut_name
 
     # Create human-readable test identifier
@@ -400,7 +403,7 @@ def test_counter_bin_load(request, width, max_value, test_id):
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[rtl_dict['rtl_amba_includes']],
+            includes=includes,  # From filelist via get_sources_from_filelist()
             toplevel=toplevel,
             module=module,
             parameters=parameters,

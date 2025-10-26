@@ -338,11 +338,11 @@ if (`RST_ASSERTED(rst_n)) begin
                         r_descriptor.valid <= descriptor_packet[DESC_VALID_BIT];
                         r_descriptor.gen_irq <= descriptor_packet[DESC_GEN_IRQ];
                         r_descriptor.last <= descriptor_packet[DESC_LAST];
-        
+
                         r_descriptor_loaded <= 1'b1;
                     end
                 end
-        
+
                 CH_FETCH_DESC: begin
                     // Transfer initialization: Copy descriptor fields to working registers
                     // These working registers will be updated as transfer progresses
@@ -352,7 +352,7 @@ if (`RST_ASSERTED(rst_n)) begin
                     r_read_beats_remaining <= r_descriptor.length;
                     r_write_beats_remaining <= r_descriptor.length;
                 end
-        
+
                 CH_READ_DATA: begin
                     // Read progress tracking: Engine reports beats completed via strobe
                     // Engine may complete multiple beats per burst (burst length decided by engine)
@@ -363,7 +363,7 @@ if (`RST_ASSERTED(rst_n)) begin
                                                  (r_read_beats_remaining - datard_beats_done) : 32'h0;
                     end
                 end
-        
+
                 CH_WRITE_DATA: begin
                     // Write progress tracking: Engine reports beats completed via strobe
                     // Engine may complete multiple beats per burst (burst length decided by engine)
@@ -374,18 +374,18 @@ if (`RST_ASSERTED(rst_n)) begin
                                                   (r_write_beats_remaining - datawr_beats_done) : 32'h0;
                     end
                 end
-        
+
                 CH_COMPLETE: begin
                     // Transfer complete: Clear descriptor_loaded flag
                     // Ready to accept next descriptor (or chain to next)
                     r_descriptor_loaded <= 1'b0;
                 end
-        
+
                 default: begin
                     // Other states: Maintain register values
                 end
             endcase
-        
+
             // Channel reset: Clear state regardless of FSM state
             if (r_channel_reset_active) begin
                 r_descriptor_loaded <= 1'b0;
@@ -466,19 +466,19 @@ if (`RST_ASSERTED(rst_n)) begin
             end else begin
                 r_timeout_counter <= 32'h0;  // Reset when not waiting or grant received
             end
-        
+
             // Error capture: Latch errors from external components
             // Sticky flags ensure errors aren't lost due to transient de-assertion
             if (descriptor_error) r_descriptor_error <= 1'b1;   // Descriptor engine error
             if (datard_error) r_read_error_sticky <= 1'b1;       // Read engine error
             if (datawr_error) r_write_error_sticky <= 1'b1;      // Write engine error
-        
+
             // Also set descriptor_error flag for ANY scheduler-internal error
             // This ensures consistent error reporting via MonBus
             if (datard_error || datawr_error || w_timeout_expired) begin
                 r_descriptor_error <= 1'b1;
             end
-        
+
             // Error clearing: All sticky flags clear on transition to CH_IDLE
             // This prepares scheduler for next descriptor
             if (r_current_state == CH_IDLE) begin
@@ -527,7 +527,7 @@ if (`RST_ASSERTED(rst_n)) begin
             // Default: Clear monitor packet (single-cycle pulse)
             r_mon_valid <= 1'b0;
             r_mon_packet <= 64'h0;
-        
+
             case (r_current_state)
                 CH_FETCH_DESC: begin
                     // Event: Descriptor processing started
@@ -543,7 +543,7 @@ if (`RST_ASSERTED(rst_n)) begin
                         {3'h0, r_descriptor.length}  // Payload: 32-bit length
                     );
                 end
-        
+
                 CH_READ_DATA: begin
                     // Event: Read phase complete (generate only when complete)
                     // Payload: Total beats transferred
@@ -560,7 +560,7 @@ if (`RST_ASSERTED(rst_n)) begin
                         );
                     end
                 end
-        
+
                 CH_WRITE_DATA: begin
                     // Event: Write phase complete (generate only when complete)
                     // Payload: Total beats transferred
@@ -577,7 +577,7 @@ if (`RST_ASSERTED(rst_n)) begin
                         );
                     end
                 end
-        
+
                 CH_COMPLETE: begin
                     // Event: Descriptor complete (ready for next descriptor or idle)
                     // Payload: Total beats transferred
@@ -592,7 +592,7 @@ if (`RST_ASSERTED(rst_n)) begin
                         {3'h0, r_descriptor.length}  // Payload: 32-bit length
                     );
                 end
-        
+
                 CH_ERROR: begin
                     // Event: Error detected (any source)
                     // Payload: Error flags [35] = write_error, [34] = read_error
@@ -607,7 +607,7 @@ if (`RST_ASSERTED(rst_n)) begin
                         {r_write_error_sticky, r_read_error_sticky, 33'h0}  // Error flags
                     );
                 end
-        
+
                 default: begin
                     // No monitor packet for other states
                 end

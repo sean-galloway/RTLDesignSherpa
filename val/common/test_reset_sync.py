@@ -33,6 +33,7 @@ if os.path.join(repo_root, 'bin') not in sys.path:
 
 from CocoTBFramework.tbclasses.reset_sync_tb import ResetSyncTB
 from CocoTBFramework.tbclasses.shared.utilities import get_paths
+from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 
 
 @cocotb.test(timeout_time=100, timeout_unit="us")
@@ -88,9 +89,11 @@ def test_reset_sync(n, test_mode):
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_common'], "reset_sync.sv"),
-    ]
+    # Get verilog sources and includes from filelist
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='rtl/common/filelists/reset_sync.f'
+    )
 
     rtl_parameters = {
         'N': str(n),

@@ -28,7 +28,7 @@ module math_subtractor_carry_lookahead #(
 );
 
     logic [N-1:0] w_g, w_p;
-    logic         w_lookahead_borrow [0:N];
+    logic         w_lookahead_borrow [N+1];
 
     // Generate and propagate
     genvar i;

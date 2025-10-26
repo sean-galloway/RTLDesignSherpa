@@ -86,7 +86,7 @@ module debounce #(
     output logic [N-1:0] button_out     // Debounced output signals
 );
 
-    logic [DEBOUNCE_DELAY-1:0] r_shift_regs        [N-1:0];  // Shift registers for each button
+    logic [DEBOUNCE_DELAY-1:0] r_shift_regs        [N];  // Shift registers for each button
     logic [             N-1:0] w_debounced_signals;
 
     // Debounce logic for each button

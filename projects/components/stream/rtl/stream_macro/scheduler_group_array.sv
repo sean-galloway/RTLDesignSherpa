@@ -619,31 +619,31 @@ module scheduler_group_array #(
         .fub_axi_rdata          (desc_axi_int_rdata),
         .fub_axi_rresp          (desc_axi_int_rresp),
         .fub_axi_rlast          (desc_axi_int_rlast),
-        .fub_axi_ruser          (1'b0),
+        .fub_axi_ruser          (),  // Unused, leave floating
         .fub_axi_rvalid         (desc_axi_int_rvalid),
         .fub_axi_rready         (desc_axi_int_rready),
 
-        // Master side (output from monitor) - leave floating, observation-only
-        .m_axi_arid             (),
-        .m_axi_araddr           (),
-        .m_axi_arlen            (),
-        .m_axi_arsize           (),
-        .m_axi_arburst          (),
-        .m_axi_arlock           (),
-        .m_axi_arcache          (),
-        .m_axi_arprot           (),
-        .m_axi_arqos            (),
-        .m_axi_arregion         (),
-        .m_axi_aruser           (),
-        .m_axi_arvalid          (),
-        .m_axi_arready          (1'b1),
-        .m_axi_rid              ({AXI_ID_WIDTH{1'b0}}),
-        .m_axi_rdata            ({DATA_WIDTH{1'b0}}),
-        .m_axi_rresp            (2'b00),
-        .m_axi_rlast            (1'b0),
-        .m_axi_ruser            (1'b0),
-        .m_axi_rvalid           (1'b0),
-        .m_axi_rready           (),
+        // Master side (output from monitor) - connect to external AXI for pass-through
+        .m_axi_arid             (desc_axi_arid),
+        .m_axi_araddr           (desc_axi_araddr),
+        .m_axi_arlen            (desc_axi_arlen),
+        .m_axi_arsize           (desc_axi_arsize),
+        .m_axi_arburst          (desc_axi_arburst),
+        .m_axi_arlock           (desc_axi_arlock),
+        .m_axi_arcache          (desc_axi_arcache),
+        .m_axi_arprot           (desc_axi_arprot),
+        .m_axi_arqos            (desc_axi_arqos),
+        .m_axi_arregion         (desc_axi_arregion),
+        .m_axi_aruser           (),  // Unused
+        .m_axi_arvalid          (desc_axi_arvalid),
+        .m_axi_arready          (desc_axi_arready),
+        .m_axi_rid              (desc_axi_rid),
+        .m_axi_rdata            (desc_axi_rdata),
+        .m_axi_rresp            (desc_axi_rresp),
+        .m_axi_rlast            (desc_axi_rlast),
+        .m_axi_ruser            (1'b0),  // Input, tie to constant
+        .m_axi_rvalid           (desc_axi_rvalid),
+        .m_axi_rready           (desc_axi_rready),
 
         // Monitor Configuration
         .cfg_monitor_enable     (1'b1),
@@ -670,26 +670,8 @@ module scheduler_group_array #(
         .monbus_packet          (desc_axi_mon_packet)
     );
 
-    // Connect descriptor AXI internal to external (pass-through after monitor)
-    assign desc_axi_arvalid = desc_axi_int_arvalid;
-    assign desc_axi_int_arready = desc_axi_arready;
-    assign desc_axi_araddr = desc_axi_int_araddr;
-    assign desc_axi_arlen = desc_axi_int_arlen;
-    assign desc_axi_arsize = desc_axi_int_arsize;
-    assign desc_axi_arburst = desc_axi_int_arburst;
-    assign desc_axi_arid = desc_axi_int_arid;
-    assign desc_axi_arlock = desc_axi_int_arlock;
-    assign desc_axi_arcache = desc_axi_int_arcache;
-    assign desc_axi_arprot = desc_axi_int_arprot;
-    assign desc_axi_arqos = desc_axi_int_arqos;
-    assign desc_axi_arregion = desc_axi_int_arregion;
-
-    assign desc_axi_int_rvalid = desc_axi_rvalid;
-    assign desc_axi_rready = desc_axi_int_rready;
-    assign desc_axi_int_rdata = desc_axi_rdata;
-    assign desc_axi_int_rresp = desc_axi_rresp;
-    assign desc_axi_int_rlast = desc_axi_rlast;
-    assign desc_axi_int_rid = desc_axi_rid;
+    // Monitor handles pass-through from desc_axi_int_* (FUB) to desc_axi_* (Master) internally
+    // No additional assigns needed - monitor connects both sides
 
     //=========================================================================
     // Monitor Bus Aggregation

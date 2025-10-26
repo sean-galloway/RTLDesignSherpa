@@ -361,7 +361,7 @@ if (`RST_ASSERTED(rst_n)) begin
                         r_weight_timer <= 4'h0;
                     end
                 end
-        
+
                 WEIGHT_BLOCK: begin
                     // Block new grants, wait for current grants to complete
                     if (!w_pending_grants) begin
@@ -375,7 +375,7 @@ if (`RST_ASSERTED(rst_n)) begin
                         r_weight_timer <= 4'h0;
                     end
                 end
-        
+
                 WEIGHT_DRAIN: begin
                     // Wait for system to settle
                     if (r_weight_timer == 4'h0) begin
@@ -384,14 +384,14 @@ if (`RST_ASSERTED(rst_n)) begin
                         r_weight_timer <= r_weight_timer - 4'h1;
                     end
                 end
-        
+
                 WEIGHT_UPDATE: begin
                     // Atomic weight update
                     r_safe_max_thresh <= max_thresh;
                     r_weight_state <= WEIGHT_STABILIZE;
                     r_weight_timer <= WEIGHT_STABILIZE_CYCLES[3:0];  // Use local parameter
                 end
-        
+
                 WEIGHT_STABILIZE: begin
                     // Allow system to stabilize after weight change
                     if (r_weight_timer == 4'h0) begin
@@ -400,7 +400,7 @@ if (`RST_ASSERTED(rst_n)) begin
                         r_weight_timer <= r_weight_timer - 4'h1;
                     end
                 end
-        
+
                 default: begin
                     r_weight_state <= WEIGHT_IDLE;
                     r_weight_timer <= 4'h0;

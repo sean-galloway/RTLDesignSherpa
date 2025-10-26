@@ -23,10 +23,10 @@ module math_multiplier_carry_save #(
     output logic [2*N-1:0] ow_product
 );
     // Arrays for carry-save multiplication - FIXED: Use [N-1:0] instead of [N:0]
-    logic [N-1:0] w_cin  [N-1:0] /*verilator isolate_assignments*/;
-    logic [N-1:0] w_pin  [N-1:0] /*verilator isolate_assignments*/;
-    logic [N-1:0] w_cout [N-1:0] /*verilator isolate_assignments*/;
-    logic [N-1:0] w_pout [N-1:0] /*verilator isolate_assignments*/;
+    logic [N-1:0] w_cin  [N] /*verilator isolate_assignments*/;
+    logic [N-1:0] w_pin  [N] /*verilator isolate_assignments*/;
+    logic [N-1:0] w_cout [N] /*verilator isolate_assignments*/;
+    logic [N-1:0] w_pout [N] /*verilator isolate_assignments*/;
     logic [N-1:0] w_product;
 
     genvar i, j;

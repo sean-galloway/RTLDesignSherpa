@@ -30,6 +30,7 @@ if os.path.join(repo_root, 'bin') not in sys.path:
     sys.path.insert(0, os.path.join(repo_root, 'bin'))
 
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
+from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 
 # Import the base SubtractorTB class
 from CocoTBFramework.tbclasses.common.subtractor_testing import SubtractorTB
@@ -80,9 +81,11 @@ def test_math_subtractor_carry_lookahead(request, n):
     dut_name = "math_subtractor_carry_lookahead"
     toplevel = dut_name
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_cmn'], f"{dut_name}.sv"),
-    ]
+    # Get verilog sources and includes from filelist
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='rtl/common/filelists/math_subtractor_carry_lookahead.f'
+    )
 
     # Define test parameters
     parameters = {'N': n}

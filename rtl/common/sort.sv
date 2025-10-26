@@ -95,15 +95,15 @@ module sort #(
 
     // Unpack input into wire arrays
     generate
-        for (genvar i = 0; i < NUM_VALS; i++) begin : unpack_input
+        for (genvar i = 0; i < NUM_VALS; i++) begin : g_unpack_input
             assign w_values[0][i] = w_stage_data_0[i*SIZE +: SIZE];
         end
     endgenerate
 
     // Unpack pipeline stage data into wire arrays
     generate
-        for (genvar stage = 1; stage <= STAGES; stage++) begin : unpack_stages
-            for (genvar i = 0; i < NUM_VALS; i++) begin : unpack_stage_data
+        for (genvar stage = 1; stage <= STAGES; stage++) begin : g_unpack_stages
+            for (genvar i = 0; i < NUM_VALS; i++) begin : g_unpack_stage_data
                 assign w_values[stage][i] = r_stage_data[stage][i*SIZE +: SIZE];
             end
         end
@@ -111,7 +111,7 @@ module sort #(
 
     // Pipeline stages implementing odd-even sort
     generate
-        for (genvar stage = 1; stage <= STAGES; stage++) begin : pipeline_stages
+        for (genvar stage = 1; stage <= STAGES; stage++) begin : g_pipeline_stages
 
             // Determine if this is an odd or even pass
             localparam bit IS_ODD_PASS = ((stage-1) % 2) == 0;
@@ -155,7 +155,7 @@ if (`RST_ASSERTED(rst_n)) begin
                     end else begin
                         r_stage_valid[stage] <= r_stage_valid[stage-1];
                     end
-                
+
                     // Pack sorted values back to data bus
                     for (int i = 0; i < NUM_VALS; i++) begin
                         r_stage_data[stage][i*SIZE +: SIZE] <= w_next_values[stage][i];

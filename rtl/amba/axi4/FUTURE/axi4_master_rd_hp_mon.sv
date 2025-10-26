@@ -15,6 +15,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 /**
  * AXI4 Master Read High-Performance with Advanced Monitoring
  *

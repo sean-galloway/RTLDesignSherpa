@@ -352,7 +352,7 @@ if (`RST_ASSERTED(rst_n)) begin
         end
         else begin
             r_prev_freq_sel <= freq_sel;
-        
+
             // Generate clear pulse when:
             // 1. Frequency selection changes
             // 2. sync_reset_n is deasserted (synchronous reset active)

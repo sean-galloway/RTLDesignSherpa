@@ -192,7 +192,7 @@ module descriptor_engine #(
     logic w_desc_last;  // Last descriptor in chain flag
 
     // Validation signals
-    logic w_validation_passed;
+    // logic w_validation_passed;  // UNUSED, commented out
     logic w_addr_range_valid;
     logic w_our_axi_response;
     logic w_axi_response_ok;
@@ -416,7 +416,7 @@ if (`RST_ASSERTED(rst_n)) begin
                                  (r_axi_read_addr >= cfg_addr1_base && r_axi_read_addr <= cfg_addr1_limit));
 
     // Overall validation
-    assign w_validation_passed = w_addr_range_valid && w_axi_response_ok;
+    // assign w_validation_passed = w_addr_range_valid && w_axi_response_ok;  // UNUSED, commented out
 
     //=========================================================================
     // AXI Response Monitoring
@@ -527,13 +527,13 @@ if (`RST_ASSERTED(rst_n)) begin
                     end
                     r_descriptor_error <= 1'b0;
                 end
-        
+
                 read_ISSUE_ADDR: begin
                     if (ar_ready) begin
                         r_axi_read_active <= 1'b1;
                     end
                 end
-        
+
                 read_WAIT_DATA: begin
                     if (w_our_axi_response && r_valid) begin
                         r_descriptor_data <= r_data;
@@ -547,31 +547,31 @@ if (`RST_ASSERTED(rst_n)) begin
                         end
                     end
                 end
-        
+
                 read_COMPLETE: begin
                     if (w_desc_fifo_wr_ready) begin
                         r_apb_operation_active <= 1'b0;
                         r_axi_read_active <= 1'b0;
                     end
                 end
-        
+
                 read_ERROR: begin
                     r_descriptor_error <= 1'b1;
                     r_apb_operation_active <= 1'b0;
                     r_cda_operation_active <= 1'b0;
                     r_axi_read_active <= 1'b0;
                 end
-        
+
                 default: begin
                     // Maintain state
                 end
             endcase
-        
+
             // Handle CDA packet completion
             if (r_cda_operation_active && w_desc_fifo_wr_ready && (r_current_state == read_IDLE)) begin
                 r_cda_operation_active <= 1'b0;
             end
-        
+
             // FIXED: Reset all operations during channel reset
             if (r_channel_reset_active) begin
                 r_apb_operation_active <= 1'b0;
@@ -643,7 +643,7 @@ if (`RST_ASSERTED(rst_n)) begin
             // Default: clear monitor packet
             r_mon_valid <= 1'b0;
             r_mon_packet <= 64'h0;
-        
+
             case (r_current_state)
                 read_COMPLETE: begin
                     // Log successful descriptor fetch
@@ -658,7 +658,7 @@ if (`RST_ASSERTED(rst_n)) begin
                         r_axi_read_addr[34:0]
                     );
                 end
-        
+
                 read_ERROR: begin
                     // Log descriptor fetch error
                     r_mon_valid <= 1'b1;
@@ -672,7 +672,7 @@ if (`RST_ASSERTED(rst_n)) begin
                         {16'h0, r_axi_read_resp, 17'h0}
                     );
                 end
-        
+
                 default: begin
                     // No monitor packet
                 end

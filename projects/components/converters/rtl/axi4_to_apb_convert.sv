@@ -269,13 +269,13 @@ if (`RST_ASSERTED(aresetn)) begin
             r_axi_rd_data_pointer  <= w_axi_rd_data_pointer;
             r_axi_wr_data_pointer  <= w_axi_wr_data_pointer;
             r_axi_rsp_data_pointer <= w_axi_rsp_data_pointer;
-        
+
             if (r_rsp_state == RSP_IDLE) begin
                 r_pslverr <= 1'b0;
                 r_axi_rsp_data_pointer <= 'b0;
             end else
                 r_pslverr <= r_pslverr | w_pslverr;  // TODO: only assert w_pslverr when rsp is vld
-        
+
             if ((r_rsp_state == RSP_ACTIVE) && r_rsp_valid && w_rsp_ready) begin
                 if (axi2abpratio == 1) begin
                     r_axi_data_shift <= {{(DW-APBDW){1'b0}}, r_apb_rsp_pkt_prdata};
@@ -287,7 +287,7 @@ if (`RST_ASSERTED(aresetn)) begin
                     end
                 end
             end
-        
+
             if ((r_apb_state == IDLE) && (w_apb_next_state == READ)) begin
                 // Fix bit width mismatch with proper casting
                 r_apb_paddr           <= APBAW'(r_s_axi_araddr & ~{{(AW-APBAW){1'b0}}, w_alignment_mask});
@@ -300,7 +300,7 @@ if (`RST_ASSERTED(aresetn)) begin
                 r_burst_count         <= r_s_axi_awlen;
                 r_axi_wr_data_pointer <= 'b0;
             end
-        
+
             if (r_cmd_ready && (r_apb_state != IDLE)) begin
                 r_apb_paddr   <= w_next_addr;
                 r_burst_count <= w_burst_count;

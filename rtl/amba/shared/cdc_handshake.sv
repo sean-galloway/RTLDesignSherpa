@@ -111,7 +111,7 @@ if (`RST_ASSERTED(rst_src_n)) begin
                         r_src_state  <= S_WAIT_ACK;
                     end
                 end
-        
+
                 S_WAIT_ACK: begin
                     src_ready <= 1'b0;      // Busy waiting for ack, hold src_ready low
                     if (w_ack_sync) begin
@@ -125,7 +125,7 @@ if (`RST_ASSERTED(rst_src_n)) begin
                         r_src_state  <= S_WAIT_ACK;
                     end
                 end
-        
+
                 S_WAIT_ACK_CLR: begin
                     src_ready <= 1'b0;      // Still busy until ack is cleared
                     r_req_src <= 1'b0;      // Ensure request remains deasserted
@@ -202,7 +202,7 @@ if (`RST_ASSERTED(rst_dst_n)) begin
                         r_dst_state  <= D_IDLE;
                     end
                 end
-        
+
                 D_WAIT_REQ_CLR: begin
                     // At this point, ack is high but dst_valid is now low
                     dst_valid <= 1'b0;  // Keep dst_valid low in this state

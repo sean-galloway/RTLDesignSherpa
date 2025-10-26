@@ -371,7 +371,7 @@ if (`RST_ASSERTED(aresetn_lp)) begin
             vf_switch_counter <= '0;
         end else begin
             pm_state <= pm_state_next;
-        
+
             case (pm_state)
                 PM_ACTIVE: begin
                     if (busy || (active_transactions > 0)) begin
@@ -382,37 +382,37 @@ if (`RST_ASSERTED(aresetn_lp)) begin
                     wake_counter <= '0;
                     vf_switch_counter <= '0;
                 end
-        
+
                 PM_IDLE: begin
                     idle_counter <= idle_counter + 1'b1;
                     wake_counter <= '0;
                     vf_switch_counter <= '0;
                 end
-        
+
                 PM_SLEEP_ENTRY: begin
                     idle_counter <= '0;
                     wake_counter <= '0;
                     vf_switch_counter <= '0;
                 end
-        
+
                 PM_SLEEP: begin
                     idle_counter <= '0;
                     wake_counter <= '0;
                     vf_switch_counter <= '0;
                 end
-        
+
                 PM_WAKE_UP: begin
                     idle_counter <= '0;
                     wake_counter <= wake_counter + 1'b1;
                     vf_switch_counter <= '0;
                 end
-        
+
                 PM_VF_SWITCH: begin
                     idle_counter <= '0;
                     wake_counter <= '0;
                     vf_switch_counter <= vf_switch_counter + 1'b1;
                 end
-        
+
                 default: begin
                     idle_counter <= '0;
                     wake_counter <= '0;
@@ -469,6 +469,10 @@ if (`RST_ASSERTED(aresetn_lp)) begin
                 if (!cfg_lp_enable) begin
                     pm_state_next = PM_ACTIVE;
                 end
+            end
+            default: begin
+                // All states covered above; default maintains current state
+                pm_state_next = pm_state;
             end
         endcase
     end

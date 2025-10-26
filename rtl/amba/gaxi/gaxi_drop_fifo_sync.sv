@@ -358,7 +358,7 @@ module gaxi_drop_fifo_sync #(
             `elsif INTEL
                 /* synthesis ramstyle = "MLAB" */
             `endif
-            logic [DATA_WIDTH-1:0] mem [0:DEPTH-1];
+            logic [DATA_WIDTH-1:0] mem [DEPTH];
 
             // Write path
             always_ff @(posedge axi_aclk) begin
@@ -384,7 +384,7 @@ module gaxi_drop_fifo_sync #(
             `elsif INTEL
                 /* synthesis ramstyle = "M20K" */
             `endif
-            logic [DATA_WIDTH-1:0] mem [0:DEPTH-1];
+            logic [DATA_WIDTH-1:0] mem [DEPTH];
 
             // Write path
             always_ff @(posedge axi_aclk) begin
@@ -415,7 +415,7 @@ module gaxi_drop_fifo_sync #(
         end
         else begin : gen_auto
             // Let tool decide (LUTRAM vs BRAM). Allow comb read for drop logic.
-            logic [DATA_WIDTH-1:0] mem [0:DEPTH-1];
+            logic [DATA_WIDTH-1:0] mem [DEPTH];
 
             // Write path
             always_ff @(posedge axi_aclk) begin

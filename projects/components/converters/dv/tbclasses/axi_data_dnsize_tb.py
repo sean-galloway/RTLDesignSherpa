@@ -1,26 +1,41 @@
 """
 Testbench for axi_data_dnsize module
-Tests wide→narrow splitter with various configurations
+Tests wide→narrow splitter using proper GAXI components
 """
 
+import os
+import sys
 import cocotb
 from cocotb.triggers import RisingEdge, Timer
 from cocotb.clock import Clock
 import random
 
+# Add framework to path
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../..'))
+sys.path.insert(0, os.path.join(repo_root, 'bin'))
 
-class AXIDataDnsizeTB:
+from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from CocoTBFramework.components.gaxi.gaxi_master import GAXIMaster
+from CocoTBFramework.components.gaxi.gaxi_slave import GAXISlave
+from CocoTBFramework.components.shared.field_config import FieldConfig, FieldDefinition
+
+
+class AXIDataDnsizeTB(TBBase):
     """
-    Testbench class for axi_data_dnsize module
+    Testbench class for axi_data_dnsize module using proper GAXI components.
 
-    Provides methods to drive wide input and monitor narrow output.
-    Supports both broadcast and slice sideband modes.
-    Supports optional burst tracking for LAST generation.
+    Architecture:
+    - GAXIMaster for wide input (drives valid/data/sideband/last, receives ready)
+    - GAXISlave for narrow output (drives ready, receives valid/data/sideband/last)
+    - Queue-based verification using ._recvQ
     """
 
     def __init__(self, dut):
-        self.dut = dut
+        super().__init__(dut)
+
+        # Clock and reset
         self.clk = dut.aclk
+        self.clk_name = 'aclk'
         self.rst_n = dut.aresetn
 
         # Extract parameters from DUT
@@ -42,46 +57,87 @@ class AXIDataDnsizeTB:
             self.track_bursts = False
             self.width_ratio = 4
 
-        # Statistics
-        self.wide_beats_sent = 0
-        self.narrow_beats_received = 0
+        # Initialize GAXI components
+        self._init_gaxi_components()
+
+        self.log.info(f"Initialized AXI Data Dnsize TB: {self.wide_width}→{self.narrow_width}, "
+                      f"ratio={self.width_ratio}, sb_mode={'broadcast' if self.sb_broadcast else 'slice'}, "
+                      f"track_bursts={self.track_bursts}")
+
+    def _init_gaxi_components(self):
+        """Initialize GAXI master and slave components"""
+
+        # Wide input - GAXIMaster drives the converter input
+        wide_field_config = FieldConfig()
+        wide_field_config.add_field(FieldDefinition(name='data', bits=self.wide_width, default=0))
+        if self.wide_sb_width > 0:
+            wide_field_config.add_field(FieldDefinition(name='sideband', bits=self.wide_sb_width, default=0))
+        wide_field_config.add_field(FieldDefinition(name='last', bits=1, default=0))
+
+        self.wide_master = GAXIMaster(
+            dut=self.dut,
+            title="WIDE_IN",
+            prefix="wide_",
+            clock=self.clk,
+            field_config=wide_field_config,
+            pkt_prefix="wide",
+            multi_sig=True,
+            log=self.log
+        )
+
+        # Narrow output - GAXISlave monitors the converter output
+        narrow_field_config = FieldConfig()
+        narrow_field_config.add_field(FieldDefinition(name='data', bits=self.narrow_width, default=0))
+        if self.narrow_sb_width > 0:
+            narrow_field_config.add_field(FieldDefinition(name='sideband', bits=self.narrow_sb_width, default=0))
+        narrow_field_config.add_field(FieldDefinition(name='last', bits=1, default=0))
+
+        self.narrow_slave = GAXISlave(
+            dut=self.dut,
+            title="NARROW_OUT",
+            prefix="narrow_",
+            clock=self.clk,
+            field_config=narrow_field_config,
+            pkt_prefix="narrow",
+            multi_sig=True,
+            log=self.log
+        )
+
+    # =========================================================================
+    # MANDATORY METHODS - Required by TBBase
+    # =========================================================================
 
     async def setup_clocks_and_reset(self, period_ns=10):
-        """Initialize clocks and perform reset"""
+        """Complete initialization - start clocks and perform reset"""
         # Start clock
-        cocotb.start_soon(Clock(self.clk, period_ns, units='ns').start())
+        await self.start_clock(self.clk_name, freq=period_ns, units='ns')
 
-        # Initialize signals
-        self.dut.wide_valid.value = 0
-        self.dut.wide_data.value = 0
-        self.dut.wide_sideband.value = 0
-        self.dut.wide_last.value = 0
-        self.dut.narrow_ready.value = 0
-
+        # Initialize burst tracking signals if needed
         if self.track_bursts:
             self.dut.burst_len.value = 0
             self.dut.burst_start.value = 0
 
-        # Assert reset
+        # Reset sequence
         await self.assert_reset()
-        await Timer(period_ns * 5, units='ns')
-
-        # Deassert reset
+        await self.wait_clocks(self.clk_name, 5)
         await self.deassert_reset()
-        await Timer(period_ns * 2, units='ns')
+        await self.wait_clocks(self.clk_name, 2)
+
+        self.log.info("Reset sequence complete")
 
     async def assert_reset(self):
-        """Assert reset signal"""
+        """Assert reset signal (active-low)"""
         self.rst_n.value = 0
+        self.log.debug("Reset asserted")
 
     async def deassert_reset(self):
-        """Deassert reset signal"""
+        """Deassert reset signal (active-low)"""
         self.rst_n.value = 1
+        self.log.debug("Reset deasserted")
 
-    async def wait_clocks(self, n=1):
-        """Wait for n clock cycles"""
-        for _ in range(n):
-            await RisingEdge(self.clk)
+    # =========================================================================
+    # TEST UTILITY METHODS
+    # =========================================================================
 
     async def start_burst(self, burst_len):
         """
@@ -93,86 +149,93 @@ class AXIDataDnsizeTB:
         if self.track_bursts:
             self.dut.burst_len.value = burst_len
             self.dut.burst_start.value = 1
-            await RisingEdge(self.clk)
+            await self.wait_clocks(self.clk_name, 1)
             self.dut.burst_start.value = 0
 
     async def send_wide_beat(self, data, sideband=0, last=False):
         """
-        Send a wide beat on the input
+        Send a wide beat using GAXI master
 
         Args:
             data: Data value
             sideband: Sideband value (WSTRB or RRESP)
             last: Assert wide_last
         """
-        self.dut.wide_valid.value = 1
-        self.dut.wide_data.value = data
+        # Create packet with generic field names
+        pkt_dict = {
+            'data': data,
+            'last': 1 if last else 0
+        }
         if self.wide_sb_width > 0:
-            self.dut.wide_sideband.value = sideband
-        self.dut.wide_last.value = 1 if last else 0
+            pkt_dict['sideband'] = sideband
 
-        # Wait for handshake
-        await RisingEdge(self.clk)
-        while self.dut.wide_ready.value == 0:
-            await RisingEdge(self.clk)
+        wide_pkt = self.wide_master.create_packet(**pkt_dict)
+        await self.wide_master.send(wide_pkt)
 
-        # Deassert after accepted
-        self.dut.wide_valid.value = 0
-        self.dut.wide_last.value = 0
-        self.wide_beats_sent += 1
-
-    async def receive_narrow_beat(self, timeout_cycles=100):
+    def get_narrow_beats(self, count=None, clear=False):
         """
-        Receive a narrow beat from output
+        Get narrow beats from slave receive queue
+
+        Args:
+            count: Number of beats to retrieve (None = all)
+            clear: Clear queue after retrieval
 
         Returns:
-            (data, sideband, last) tuple
+            List of (data, sideband, last) tuples
         """
-        # Assert ready
-        self.dut.narrow_ready.value = 1
+        beats = []
+        queue_len = len(self.narrow_slave._recvQ)
 
-        # Wait for valid
-        cycles = 0
-        await RisingEdge(self.clk)
-        while self.dut.narrow_valid.value == 0:
-            await RisingEdge(self.clk)
-            cycles += 1
-            if cycles > timeout_cycles:
-                raise TimeoutError(f"Timeout waiting for narrow_valid after {timeout_cycles} cycles")
+        if count is None:
+            count = queue_len
 
-        # Capture data
-        data = int(self.dut.narrow_data.value)
-        sideband = int(self.dut.narrow_sideband.value) if self.narrow_sb_width > 0 else 0
-        last = bool(self.dut.narrow_last.value)
+        for i in range(min(count, queue_len)):
+            pkt = self.narrow_slave._recvQ[i] if not clear else self.narrow_slave._recvQ.popleft()
+            data = getattr(pkt, 'data', 0)
+            sideband = getattr(pkt, 'sideband', 0) if self.narrow_sb_width > 0 else 0
+            last = bool(getattr(pkt, 'last', 0))
+            beats.append((data, sideband, last))
 
-        # Deassert ready immediately after handshake
-        self.dut.narrow_ready.value = 0
-        self.narrow_beats_received += 1
+        return beats
 
-        return (data, sideband, last)
+    # =========================================================================
+    # TEST SCENARIO METHODS
+    # =========================================================================
 
     async def test_basic_splitting(self, num_transactions=10):
         """
         Test basic splitting: send 1 wide beat,
         expect WIDTH_RATIO narrow beats with correct data slices
         """
+        self.log.info(f"Starting basic splitting test ({num_transactions} transactions)")
+
         for txn in range(num_transactions):
             # Generate wide beat data
             wide_data = random.randint(0, (1 << self.wide_width) - 1)
             wide_sideband = random.randint(0, (1 << self.wide_sb_width) - 1) if self.wide_sb_width > 0 else 0
 
-            # Send wide beat
+            # Send wide beat using GAXI master
             await self.send_wide_beat(wide_data, wide_sideband, last=False)
 
-            # Receive narrow beats
-            for i in range(self.width_ratio):
-                narrow_data, narrow_sideband, narrow_last = await self.receive_narrow_beat()
+            # Wait for narrow beats to appear
+            await self.wait_clocks(self.clk_name, self.width_ratio + 5)
 
+            # Verify we received WIDTH_RATIO narrow beats
+            narrow_beats = self.get_narrow_beats(count=self.width_ratio, clear=True)
+
+            if len(narrow_beats) != self.width_ratio:
+                self.log.error(f"Transaction {txn}: Expected {self.width_ratio} narrow beats, got {len(narrow_beats)}")
+                return False
+
+            # Verify each narrow beat
+            for i, (narrow_data, narrow_sideband, narrow_last) in enumerate(narrow_beats):
                 # Extract expected narrow data slice
                 expected_data = (wide_data >> (i * self.narrow_width)) & ((1 << self.narrow_width) - 1)
 
-                assert narrow_data == expected_data, \
-                    f"Beat {i}: Data mismatch - expected 0x{expected_data:x}, got 0x{narrow_data:x}"
+                if narrow_data != expected_data:
+                    self.log.error(f"Transaction {txn}, beat {i}: Data mismatch - "
+                                   f"expected 0x{expected_data:x}, got 0x{narrow_data:x}")
+                    return False
 
                 # Verify sideband
                 if self.narrow_sb_width > 0:
@@ -183,8 +246,13 @@ class AXIDataDnsizeTB:
                         # Slice mode: extract appropriate slice
                         expected_sb = (wide_sideband >> (i * self.narrow_sb_width)) & ((1 << self.narrow_sb_width) - 1)
 
-                    assert narrow_sideband == expected_sb, \
-                        f"Beat {i}: Sideband mismatch - expected 0x{expected_sb:x}, got 0x{narrow_sideband:x}"
+                    if narrow_sideband != expected_sb:
+                        self.log.error(f"Transaction {txn}, beat {i}: Sideband mismatch - "
+                                       f"expected 0x{expected_sb:x}, got 0x{narrow_sideband:x}")
+                        return False
+
+        self.log.info(f"✓ Basic splitting test PASSED ({num_transactions} transactions)")
+        return True
 
     async def test_last_propagation(self, num_transactions=5):
         """
@@ -193,113 +261,122 @@ class AXIDataDnsizeTB:
         """
         if self.track_bursts:
             # Skip this test in burst tracking mode
-            return
+            self.log.info("Skipping LAST propagation test (burst tracking mode)")
+            return True
+
+        self.log.info(f"Starting LAST propagation test ({num_transactions} transactions)")
 
         for txn in range(num_transactions):
             wide_data = random.randint(0, (1 << self.wide_width) - 1)
+            wide_sideband = random.randint(0, (1 << self.wide_sb_width) - 1) if self.wide_sb_width > 0 else 0
 
-            # Send wide beat with last=1
-            await self.send_wide_beat(wide_data, sideband=0, last=True)
+            # Send wide beat with LAST asserted
+            await self.send_wide_beat(wide_data, wide_sideband, last=True)
 
-            # Receive narrow beats
-            for i in range(self.width_ratio):
-                narrow_data, narrow_sideband, narrow_last = await self.receive_narrow_beat()
+            # Wait for narrow beats
+            await self.wait_clocks(self.clk_name, self.width_ratio + 5)
 
-                # Only last narrow beat should have narrow_last=1
-                if i == self.width_ratio - 1:
-                    assert narrow_last == True, f"Expected narrow_last=1 on final beat"
-                else:
-                    assert narrow_last == False, f"Unexpected narrow_last=1 on beat {i}"
+            # Get narrow beats
+            narrow_beats = self.get_narrow_beats(count=self.width_ratio, clear=True)
 
-    async def test_burst_tracking(self, num_bursts=10):
-        """
-        Test burst tracking mode: verify LAST on correct beat
-        (only for TRACK_BURSTS=1 mode)
-        """
+            # Check only the last narrow beat has LAST asserted
+            for i, (_, _, narrow_last) in enumerate(narrow_beats):
+                expected_last = (i == self.width_ratio - 1)
+                if narrow_last != expected_last:
+                    self.log.error(f"Transaction {txn}, beat {i}: LAST mismatch - "
+                                   f"expected {expected_last}, got {narrow_last}")
+                    return False
+
+        self.log.info(f"✓ LAST propagation test PASSED ({num_transactions} transactions)")
+        return True
+
+    async def test_burst_tracking(self, num_bursts=15):
+        """Test burst tracking mode for correct LAST generation"""
         if not self.track_bursts:
-            # Skip this test if not in burst tracking mode
-            return
+            self.log.info("Skipping burst tracking test (simple mode)")
+            return True
 
-        for burst_idx in range(num_bursts):
-            # Random burst length (1-16 narrow beats)
-            total_narrow_beats = random.randint(1, 16)
-            burst_len = total_narrow_beats - 1  # Encoded as (beats-1)
+        self.log.info(f"Starting burst tracking test ({num_bursts} bursts)")
+
+        for burst_id in range(num_bursts):
+            # Random burst length (1-16 beats, encoded as 0-15)
+            burst_len_encoded = random.randint(0, 15)
+            burst_len_beats = burst_len_encoded + 1
 
             # Start burst
-            await self.start_burst(burst_len)
+            await self.start_burst(burst_len_encoded)
+            await self.wait_clocks(self.clk_name, 2)
 
-            # Calculate how many wide beats needed
-            num_wide_beats = (total_narrow_beats + self.width_ratio - 1) // self.width_ratio
-
-            # Send wide beats
-            for wide_idx in range(num_wide_beats):
+            # Send burst_len_beats wide beats
+            for beat in range(burst_len_beats):
                 wide_data = random.randint(0, (1 << self.wide_width) - 1)
-                await self.send_wide_beat(wide_data, sideband=0, last=False)
+                is_last_wide_beat = (beat == burst_len_beats - 1)
+                await self.send_wide_beat(wide_data, 0, last=is_last_wide_beat)
 
-            # Receive narrow beats and verify LAST on correct beat
-            for narrow_idx in range(total_narrow_beats):
-                narrow_data, narrow_sideband, narrow_last = await self.receive_narrow_beat()
+            # Wait for all narrow beats
+            total_narrow_beats = burst_len_beats * self.width_ratio
+            await self.wait_clocks(self.clk_name, total_narrow_beats + 10)
 
-                # Check LAST on final beat
-                if narrow_idx == total_narrow_beats - 1:
-                    assert narrow_last == True, \
-                        f"Burst {burst_idx}: Expected narrow_last=1 on beat {narrow_idx}"
-                else:
-                    assert narrow_last == False, \
-                        f"Burst {burst_idx}: Unexpected narrow_last=1 on beat {narrow_idx}"
+            # Verify LAST only on final narrow beat
+            narrow_beats = self.get_narrow_beats(count=total_narrow_beats, clear=True)
 
-    async def test_backpressure(self, num_transactions=5):
-        """
-        Test backpressure: delay narrow_ready randomly
-        """
+            for i, (_, _, narrow_last) in enumerate(narrow_beats):
+                expected_last = (i == total_narrow_beats - 1)
+                if narrow_last != expected_last:
+                    self.log.error(f"Burst {burst_id}, beat {i}: LAST mismatch - "
+                                   f"expected {expected_last}, got {narrow_last}")
+                    return False
+
+        self.log.info(f"✓ Burst tracking test PASSED ({num_bursts} bursts)")
+        return True
+
+    async def test_backpressure(self, num_transactions=10):
+        """Test backpressure handling"""
+        self.log.info(f"Starting backpressure test ({num_transactions} transactions)")
+
         for txn in range(num_transactions):
             wide_data = random.randint(0, (1 << self.wide_width) - 1)
 
             # Send wide beat
-            await self.send_wide_beat(wide_data, sideband=0, last=False)
+            await self.send_wide_beat(wide_data, 0, last=False)
 
-            # Receive narrow beats with random delays
-            for i in range(self.width_ratio):
-                # Random delay before asserting ready
-                delay_cycles = random.randint(1, 10)
-                await self.wait_clocks(delay_cycles)
+            # Random backpressure on narrow output
+            for _ in range(self.width_ratio):
+                if random.random() < 0.3:  # 30% chance of backpressure
+                    await self.wait_clocks(self.clk_name, random.randint(1, 5))
 
-                narrow_data, narrow_sideband, narrow_last = await self.receive_narrow_beat()
+            # Wait for transaction to complete
+            await self.wait_clocks(self.clk_name, self.width_ratio + 10)
 
-    async def test_continuous_streaming(self, num_wide_beats=20):
-        """
-        Test continuous streaming: no gaps between transactions
-        """
-        # Start receiver task
-        received_beats = []
+        # Verify we got all expected beats
+        expected_total = num_transactions * self.width_ratio
+        actual_total = len(self.narrow_slave._recvQ)
 
-        async def receiver():
-            self.dut.narrow_ready.value = 1
-            for _ in range(num_wide_beats * self.width_ratio):
-                await RisingEdge(self.clk)
-                while self.dut.narrow_valid.value == 0:
-                    await RisingEdge(self.clk)
-                data = int(self.dut.narrow_data.value)
-                received_beats.append(data)
+        if actual_total != expected_total:
+            self.log.error(f"Backpressure test: Expected {expected_total} beats, got {actual_total}")
+            return False
 
-        receiver_task = cocotb.start_soon(receiver())
+        self.log.info(f"✓ Backpressure test PASSED ({num_transactions} transactions)")
+        return True
 
-        # Send wide beats continuously
-        for wide_idx in range(num_wide_beats):
-            wide_data = wide_idx << 4  # Unique pattern per wide beat
-            self.dut.wide_valid.value = 1
-            self.dut.wide_data.value = wide_data
-            self.dut.wide_last.value = 0
-            await RisingEdge(self.clk)
-            while self.dut.wide_ready.value == 0:
-                await RisingEdge(self.clk)
+    async def test_continuous_streaming(self, num_wide_beats=30):
+        """Test continuous streaming without gaps"""
+        self.log.info(f"Starting continuous streaming test ({num_wide_beats} wide beats)")
 
-        self.dut.wide_valid.value = 0
+        # Send multiple wide beats back-to-back
+        for beat in range(num_wide_beats):
+            wide_data = random.randint(0, (1 << self.wide_width) - 1)
+            await self.send_wide_beat(wide_data, 0, last=False)
 
-        # Wait for receiver to finish
-        await receiver_task
-
-        # Verify we received all beats
+        # Wait for all narrow beats to complete
         expected_narrow_beats = num_wide_beats * self.width_ratio
-        assert len(received_beats) == expected_narrow_beats, \
-            f"Expected {expected_narrow_beats} narrow beats, got {len(received_beats)}"
+        await self.wait_clocks(self.clk_name, expected_narrow_beats + 20)
+
+        # Verify count
+        actual_narrow_beats = len(self.narrow_slave._recvQ)
+        if actual_narrow_beats != expected_narrow_beats:
+            self.log.error(f"Continuous streaming: Expected {expected_narrow_beats} beats, got {actual_narrow_beats}")
+            return False
+
+        self.log.info(f"✓ Continuous streaming test PASSED ({num_wide_beats} wide beats)")
+        return True

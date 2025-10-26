@@ -12,6 +12,13 @@ import pytest
 import os
 import sys
 
+# Setup Python path
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
+sys.path.insert(0, repo_root)
+
+# Import filelist utility
+from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
+
 # Pytest wrapper for running with parameters
 @pytest.mark.parametrize("params", [
     {"ADDR_WIDTH": 32, "DATA_WIDTH": 32, "NUM_CHANNELS": 8},
@@ -35,29 +42,22 @@ def test_apbtodescr(params):
 
     # Module and toplevel
     tests_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.abspath(os.path.join(tests_dir, '../../../../../../..'))
-    rtl_dir = os.path.join(project_root, 'projects/components/stream/rtl/stream_macro')
-    inc_dir = os.path.join(project_root, 'projects/components/stream/rtl/includes')
 
-    # Package dependencies
-    amba_inc_dir = os.path.join(project_root, 'rtl/amba/includes')
+    # Get verilog sources and includes from filelist
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='projects/components/stream/rtl/filelists/macro/apbtodescr.f'
+    )
 
     # Compile and run
     from cocotb_test.simulator import run
 
     # Add test directory to Python path for cocotb to find cocotb_tests.py
-    import sys
     sys.path.insert(0, tests_dir)
 
     run(
-        verilog_sources=[
-            os.path.join(amba_inc_dir, 'monitor_pkg.sv'),
-            os.path.join(inc_dir, 'stream_pkg.sv'),
-            os.path.join(rtl_dir, 'apbtodescr.sv'),
-        ],
-        includes=[
-            inc_dir,
-        ],
+        verilog_sources=verilog_sources,
+        includes=includes,  # From filelist via get_sources_from_filelist()
         toplevel="apbtodescr",
         module="cocotb_tests",  # Load cocotb tests from cocotb_tests.py
         simulator="verilator",

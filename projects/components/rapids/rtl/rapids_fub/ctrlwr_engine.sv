@@ -327,7 +327,7 @@ if (`RST_ASSERTED(rst_n)) begin
                     // Error should persist until reset or channel_reset (handled below)
                     // r_ctrlwr_error <= 1'b0;  // REMOVED
                 end
-        
+
                 WRITE_ISSUE_ADDR: begin
                     if (w_address_error) begin
                         r_ctrlwr_error <= 1'b1;
@@ -335,13 +335,13 @@ if (`RST_ASSERTED(rst_n)) begin
                         r_addr_issued <= 1'b1;
                     end
                 end
-        
+
                 WRITE_ISSUE_DATA: begin
                     if (w_ready) begin
                         r_data_issued <= 1'b1;
                     end
                 end
-        
+
                 WRITE_WAIT_RESP: begin
                     if (w_transaction_complete) begin
                         r_write_resp <= b_resp;
@@ -350,16 +350,16 @@ if (`RST_ASSERTED(rst_n)) begin
                         end
                     end
                 end
-        
+
                 WRITE_ERROR: begin
                     r_ctrlwr_error <= 1'b1;
                 end
-        
+
                 default: begin
                     // Maintain state
                 end
             endcase
-        
+
             // FIXED: Reset all state during channel reset
             if (r_channel_reset_active) begin
                 r_addr_issued <= 1'b0;
@@ -408,7 +408,7 @@ if (`RST_ASSERTED(rst_n)) begin
             // Default: clear monitor packet
             r_mon_valid <= 1'b0;
             r_mon_packet <= 64'h0;
-        
+
             case (r_current_state)
                 WRITE_ERROR: begin
                     if (w_address_error) begin
@@ -437,7 +437,7 @@ if (`RST_ASSERTED(rst_n)) begin
                         );
                     end
                 end
-        
+
                 WRITE_COMPLETE: begin
                     if (!w_null_address) begin
                         // Log successful completion
@@ -453,7 +453,7 @@ if (`RST_ASSERTED(rst_n)) begin
                         );
                     end
                 end
-        
+
                 default: begin
                     // No monitor packet
                 end

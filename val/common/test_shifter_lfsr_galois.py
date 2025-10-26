@@ -29,6 +29,7 @@ if os.path.join(repo_root, 'bin') not in sys.path:
     sys.path.insert(0, os.path.join(repo_root, 'bin'))
 
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
 
@@ -924,9 +925,11 @@ def test_shifter_lfsr_galois(request, params):
     dut_name = "shifter_lfsr_galois"
     toplevel = dut_name
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_cmn'], f"{dut_name}.sv")
-    ]
+    # Get verilog sources and includes from filelist
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='rtl/common/filelists/shifter_lfsr_galois.f'
+    )
 
     # Create a human-readable test identifier
     t_width = params['WIDTH']
@@ -951,8 +954,6 @@ def test_shifter_lfsr_galois(request, params):
     # Get the logs and results into one area
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
-
-    includes = [rtl_dict['rtl_amba_includes']]
     # RTL parameters
     parameters = {
         'WIDTH': params['WIDTH'],

@@ -352,10 +352,10 @@ if (`RST_ASSERTED(aresetn)) begin
                 end else begin
                     logic accepting_wide_beat;
                     logic sending_narrow_beat;
-                
+
                     accepting_wide_beat = int_w_valid && int_w_ready;
                     sending_narrow_beat = m_axi_wvalid && m_axi_wready;
-                
+
                     // Load new wide beat (resets counter to 0)
                     if (accepting_wide_beat) begin
                         r_wdata_buffer <= int_wdata;
@@ -407,18 +407,18 @@ if (`RST_ASSERTED(aresetn)) begin
                     logic accepting_new_beat;
                     logic sending_master_beat;
                     logic buffer_completing;  // Buffer fills or gets last beat
-                
+
                     accepting_new_beat = int_w_valid && int_w_ready;
                     sending_master_beat = m_axi_wvalid && m_axi_wready;
                     buffer_completing = accepting_new_beat && (r_write_beat_ptr == PTR_WIDTH'(WIDTH_RATIO-1) || int_wlast);
-                
+
                     if (accepting_new_beat) begin
                         // Accumulate data into buffer
                         r_wdata_buffer[r_write_beat_ptr*S_AXI_DATA_WIDTH +: S_AXI_DATA_WIDTH] <= int_wdata;
                         r_wstrb_buffer[r_write_beat_ptr*S_STRB_WIDTH +: S_STRB_WIDTH] <= int_wstrb;
                         r_wuser_buffer <= int_wuser;
                         r_wlast_buffered <= int_wlast;
-                
+
                         if (r_write_beat_ptr == PTR_WIDTH'(WIDTH_RATIO-1) || int_wlast) begin
                             // Buffer will be full after this beat
                             r_write_beat_ptr <= '0;

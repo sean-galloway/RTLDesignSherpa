@@ -38,6 +38,7 @@ from tbclasses.simple_sram_tb import SimpleSRAMTB
 # Shared framework utilities
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 
 # ===========================================================================
 # COCOTB TEST FUNCTIONS - prefix with "cocotb_" to prevent pytest collection
@@ -101,9 +102,12 @@ def test_basic(request, addr_width, data_width, num_chunks):
     })
 
     dut_name = "simple_sram"
-    verilog_sources = [
-        os.path.join(repo_root, 'projects', 'components', 'stream', 'rtl', 'stream_fub', f'{dut_name}.sv'),
-    ]
+
+    # Get verilog sources and includes from filelist
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='projects/components/stream/rtl/filelists/fub/simple_sram.f'
+    )
 
     # Format parameters for unique test name
     aw_str = TBBase.format_dec(addr_width, 2)
@@ -140,6 +144,7 @@ def test_basic(request, addr_width, data_width, num_chunks):
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
+            includes=includes,  # From filelist via get_sources_from_filelist()
             toplevel=dut_name,
             module=module,
             testcase="cocotb_test_basic",
@@ -166,9 +171,12 @@ def test_dual_port(request, addr_width, data_width, num_chunks):
     })
 
     dut_name = "simple_sram"
-    verilog_sources = [
-        os.path.join(repo_root, 'projects', 'components', 'stream', 'rtl', 'stream_fub', f'{dut_name}.sv'),
-    ]
+
+    # Get verilog sources and includes from filelist
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='projects/components/stream/rtl/filelists/fub/simple_sram.f'
+    )
 
     # Format parameters for unique test name
     aw_str = TBBase.format_dec(addr_width, 2)
@@ -205,6 +213,7 @@ def test_dual_port(request, addr_width, data_width, num_chunks):
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
+            includes=includes,  # From filelist via get_sources_from_filelist()
             toplevel=dut_name,
             module=module,
             testcase="cocotb_test_dual_port",

@@ -51,6 +51,7 @@ if os.path.join(repo_root, 'bin') not in sys.path:
 from CocoTBFramework.tbclasses.glitch_free_n_dff_arn_tb import GlitchFreeNDffArnTB
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 
 
 # ===========================================================================
@@ -102,9 +103,11 @@ def test_glitch_free_n_dff_arn(request, flop_count, width, test_mode):
     , 'rtl_amba_includes': 'rtl/amba/includes'})
 
     dut_name = "glitch_free_n_dff_arn"
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_common'], f'{dut_name}.sv'),
-    ]
+    # Get verilog sources and includes from filelist
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='rtl/common/filelists/glitch_free_n_dff_arn.f'
+    )
 
     # Format parameters for unique test name
     fc_str = TBBase.format_dec(flop_count, 1)
@@ -157,7 +160,7 @@ def test_glitch_free_n_dff_arn(request, flop_count, width, test_mode):
             compile_args=["-Wno-TIMESCALEMOD"],
             sim_args=[],
             plusargs=[],
-            includes=[rtl_dict['rtl_amba_includes']]
+            includes=includes,  # From filelist via get_sources_from_filelist()
         )
         print(f"✓ Test completed! Logs: {log_path}")
     except Exception as e:

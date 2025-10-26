@@ -440,7 +440,7 @@ if (`RST_ASSERTED(rst_n)) begin
                         r_monitor_state <= MON_ACTIVE;
                     end
                 end
-        
+
                 MON_ACTIVE: begin
                     if (!cfg_mon_enable) begin
                         r_monitor_state <= MON_IDLE;
@@ -448,19 +448,19 @@ if (`RST_ASSERTED(rst_n)) begin
                         r_monitor_state <= MON_SAMPLE;
                     end
                 end
-        
+
                 MON_SAMPLE: begin
                     r_monitor_state <= MON_ANALYZE;
                 end
-        
+
                 MON_ANALYZE: begin
                     r_monitor_state <= MON_FAIRNESS;
                 end
-        
+
                 MON_FAIRNESS: begin
                     r_monitor_state <= MON_ACTIVE;
                 end
-        
+
                 MON_ERROR: begin
                     if (cfg_mon_enable) begin
                         r_monitor_state <= MON_ACTIVE;
@@ -468,7 +468,7 @@ if (`RST_ASSERTED(rst_n)) begin
                         r_monitor_state <= MON_IDLE;
                     end
                 end
-        
+
                 default: r_monitor_state <= MON_IDLE;
             endcase
         end
@@ -497,7 +497,7 @@ if (`RST_ASSERTED(rst_n)) begin
                     end
                 end
             end
-        
+
             // Track completions (ACK received or immediate completion if no ACK required)
             if (WAIT_GNT_ACK == 0) begin
                 // Immediate completion
@@ -540,67 +540,67 @@ if (`RST_ASSERTED(rst_n)) begin
             end
         end else begin
             r_fairness_timer <= r_fairness_timer + 16'h1;
-        
+
             if (r_fairness_timer >= 16'(FAIRNESS_REPORT_CYCLES)) begin
                 // Calculate fairness metrics
                 r_fairness_timer <= 16'h0;
-        
+
                 // Update expected weights from current configuration
                 for (int i = 0; i < CLIENTS; i++) begin
                     r_expected_weights[i] <= 16'(client_weight[i]);
                 end
-        
+
                 // Calculate actual weights based on grant distribution
                 if (r_total_grants >= 16'(MIN_GRANTS_FOR_FAIRNESS)) begin
                     for (int i = 0; i < CLIENTS; i++) begin
                         r_actual_weights[i] <= (r_grant_counters[i] * 16) / r_total_grants;
                     end
-        
+
                     // Calculate maximum deviation
                     if (r_total_grants >= 16'(MIN_GRANTS_FOR_FAIRNESS)) begin
                         // Calculate actual weights based on grant distribution
                         for (int i = 0; i < CLIENTS; i++) begin
                             r_actual_weights[i] <= (r_grant_counters[i] * 16) / r_total_grants;
                         end
-        
+
                         // Calculate maximum fairness deviation
                         max_deviation_temp = 16'h0;
                         total_weight = 16'h0;
-        
+
                         // Calculate total weight
                         for (int j = 0; j < CLIENTS; j++) begin
                             if (client_weight[j] > 0) begin
                                 total_weight = total_weight + 16'(client_weight[j]);
                             end
                         end
-        
+
                         // Calculate deviations for each client
                         for (int i = 0; i < CLIENTS; i++) begin
                             if (total_weight > 0 && client_weight[i] > 0) begin
                                 logic [15:0] expected_percentage;
                                 logic [15:0] actual_percentage;
                                 logic [15:0] deviation;
-        
+
                                 // Expected percentage = (client_weight / total_weight) * 100
                                 expected_percentage = (16'(client_weight[i]) * 100) / total_weight;
-        
+
                                 // Actual percentage = (client_grants / total_grants) * 100
                                 actual_percentage = (r_grant_counters[i] * 100) / r_total_grants;
-        
+
                                 // Calculate absolute deviation
                                 if (actual_percentage >= expected_percentage) begin
                                     deviation = actual_percentage - expected_percentage;
                                 end else begin
                                     deviation = expected_percentage - actual_percentage;
                                 end
-        
+
                                 // Track maximum deviation
                                 if (deviation > max_deviation_temp) begin
                                     max_deviation_temp = deviation;
                                 end
                             end
                         end
-        
+
                         r_max_fairness_deviation <= max_deviation_temp;
                     end
                 end
@@ -626,7 +626,7 @@ if (`RST_ASSERTED(rst_n)) begin
                     // Request pending - increment counters
                     r_latency_counters[i] <= r_latency_counters[i] + 16'h1;
                     r_starvation_counters[i] <= r_starvation_counters[i] + 16'h1;
-        
+
                     // Check for starvation
                     if (r_starvation_counters[i] >= cfg_mon_starvation_thresh) begin
                         r_starvation_detected[i] <= 1'b1;

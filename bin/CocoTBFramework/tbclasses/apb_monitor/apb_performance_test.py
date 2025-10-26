@@ -96,7 +96,7 @@ class APBPerformanceTest(APBMonitorCoreTB):
 
         # Send a transaction with delays to trigger performance events
         addr = 0x5000
-        data = 0xFAST1234  # Fast transaction that should be slow due to delays
+        data = 0xBEEF1234  # Fast transaction that should be slow due to delays
 
         self.log.info(f"Sending transaction with delays to trigger performance events: addr=0x{addr:08X}")
 

@@ -36,6 +36,7 @@ if os.path.join(repo_root, 'bin') not in sys.path:
 
 from CocoTBFramework.tbclasses.common.arbiter_round_robin_tb import ArbiterRoundRobinTB
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
 @cocotb.test(timeout_time=20, timeout_unit="ms")
@@ -181,10 +182,11 @@ def test_arbiter_round_robin(request, clients, wait_ack):
     toplevel = dut_name
 
     # Verilog sources for ROUND ROBIN arbiter
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_cmn'], "arbiter_priority_encoder.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], f"{dut_name}.sv"),
-    ]
+    # Get verilog sources and includes from filelist
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='rtl/common/filelists/arbiter_round_robin.f'
+    )
 
     # Create a human readable test identifier
     c_str = TBBase.format_dec(clients, 2)
@@ -207,8 +209,6 @@ def test_arbiter_round_robin(request, clients, wait_ack):
     # Get the logs and results into one area
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
-
-    includes = [rtl_dict['rtl_amba_includes']]
     # RTL parameters for ROUND ROBIN
     parameters = {'CLIENTS': clients, 'WAIT_GNT_ACK': wait_ack}
 

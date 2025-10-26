@@ -215,7 +215,7 @@ if (`RST_ASSERTED(rst_n)) begin
             // Load match value (independent of counting)
             if (load)
                 r_match_val <= loadval;
-        
+
             // Count logic with priority: clear > increment
             if (clear) begin
                 count <= 'b0;

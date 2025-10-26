@@ -355,13 +355,13 @@ if (`RST_ASSERTED(rst_n)) begin
                     r_read_resp <= 2'b00;
                     r_retry_wait_complete <= 1'b0;
                 end
-        
+
                 READ_ISSUE_ADDR: begin
                     if (!w_null_address && ar_ready) begin
                         r_addr_issued <= 1'b1;
                     end
                 end
-        
+
                 READ_WAIT_DATA: begin
                     if (w_transaction_complete) begin
                         r_axi_read_data <= r_data[31:0]; // Capture lower 32 bits
@@ -369,34 +369,34 @@ if (`RST_ASSERTED(rst_n)) begin
                         r_addr_issued <= 1'b0; // Clear for next attempt
                     end
                 end
-        
+
                 READ_COMPARE: begin
                     // Decrement retry counter if we need to retry
                     if (!w_data_match && w_retries_remaining && !w_axi_response_error) begin
                         r_retry_counter <= r_retry_counter - 1;
                     end
                 end
-        
+
                 READ_RETRY_WAIT: begin
                     // Wait for 1µs tick
                     if (tick_1us) begin
                         r_retry_wait_complete <= 1'b1;
                     end
                 end
-        
+
                 READ_MATCH: begin
                     r_ctrlrd_error <= 1'b0; // Success - no error
                 end
-        
+
                 READ_ERROR: begin
                     r_ctrlrd_error <= 1'b1; // Set error flag
                 end
-        
+
                 default: begin
                     // Maintain state
                 end
             endcase
-        
+
             // Reset all state during channel reset
             if (r_channel_reset_active) begin
                 r_addr_issued <= 1'b0;
@@ -449,7 +449,7 @@ if (`RST_ASSERTED(rst_n)) begin
             // Default: clear monitor packet
             r_mon_valid <= 1'b0;
             r_mon_packet <= 64'h0;
-        
+
             case (r_current_state)
                 READ_ERROR: begin
                     if (w_axi_response_error) begin
@@ -478,7 +478,7 @@ if (`RST_ASSERTED(rst_n)) begin
                         );
                     end
                 end
-        
+
                 READ_MATCH: begin
                     if (!w_null_address) begin
                         // Log successful completion
@@ -494,7 +494,7 @@ if (`RST_ASSERTED(rst_n)) begin
                         );
                     end
                 end
-        
+
                 READ_RETRY_WAIT: begin
                     // Log retry attempt (using PktTypePerf for retry tracking)
                     r_mon_valid <= 1'b1;
@@ -508,7 +508,7 @@ if (`RST_ASSERTED(rst_n)) begin
                         {26'h0, r_retry_counter}
                     );
                 end
-        
+
                 default: begin
                     // No monitor packet
                 end

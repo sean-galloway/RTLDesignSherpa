@@ -29,6 +29,7 @@ if os.path.join(repo_root, 'bin') not in sys.path:
 
 from CocoTBFramework.tbclasses.common.crc_testing import CRCTB, crc_parameters
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
+from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
@@ -115,11 +116,11 @@ def test_dataint_crc(request, params):
     dut_name = "dataint_crc"
     toplevel = dut_name
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_cmn'], "dataint_crc_xor_shift.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "dataint_crc_xor_shift_cascade.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "dataint_crc.sv"),
-    ]
+    # Get verilog sources and includes from filelist
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='rtl/common/filelists/dataint_crc.f'
+    )
 
     # Create a human-readable test identifier
     algorithm = params['algo_name']
@@ -147,8 +148,6 @@ def test_dataint_crc(request, params):
     # Get the logs and results into one area
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
-
-    includes = [rtl_dict['rtl_amba_includes']]
     # RTL parameters
     parameters = {
         # 'ALGO_NAME': params['algo_name'],

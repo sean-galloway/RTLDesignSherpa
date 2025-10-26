@@ -176,12 +176,12 @@ if (`RST_ASSERTED(rst_n)) begin
                 r_ar_valid <= 1'b1;
                 r_ar_inflight <= 1'b1;  // Mark transaction inflight
             end
-        
+
             // AXI AR handshake
             if (r_ar_valid && m_axi_arready) begin
                 r_ar_valid <= 1'b0;
             end
-        
+
             // Clear inflight when last beat received
             if (m_axi_rvalid && m_axi_rready && m_axi_rlast) begin
                 r_ar_inflight <= 1'b0;
@@ -219,17 +219,17 @@ if (`RST_ASSERTED(rst_n)) begin
                 r_expected_beats <= r_ar_len + 8'h1;  // arlen is (beats - 1)
                 r_beats_received <= '0;
             end
-        
+
             // Count beats as they arrive
             if (m_axi_rvalid && m_axi_rready) begin
                 r_beats_received <= r_beats_received + 8'h1;
-        
+
                 // Check for error response
                 if (m_axi_rresp != 2'b00) begin  // OKAY = 00
                     r_error_detected <= 1'b1;
                     r_error_resp <= m_axi_rresp;
                 end
-        
+
                 // Clear error on last beat
                 if (m_axi_rlast) begin
                     r_beats_received <= '0;
@@ -254,7 +254,7 @@ if (`RST_ASSERTED(rst_n)) begin
             // Write to SRAM when R channel data arrives
             if (m_axi_rvalid && m_axi_rready) begin
                 r_sram_wr_ptr <= r_sram_wr_ptr + 1'b1;
-        
+
                 // Wrap SRAM pointer
                 if (r_sram_wr_ptr == SRAM_ADDR_WIDTH'(SRAM_DEPTH - 1)) begin
                     r_sram_wr_ptr <= '0;
@@ -281,7 +281,7 @@ if (`RST_ASSERTED(rst_n)) begin
         end else begin
             // Generate strobe on last beat
             r_done_strobe <= m_axi_rvalid && m_axi_rready && m_axi_rlast;
-        
+
             if (m_axi_rvalid && m_axi_rready && m_axi_rlast) begin
                 r_beats_done <= {24'h0, r_expected_beats};
             end else begin

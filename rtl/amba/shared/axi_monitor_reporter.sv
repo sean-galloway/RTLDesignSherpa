@@ -438,21 +438,21 @@ if (`RST_ASSERTED(aresetn)) begin
             monbus_valid <= 1'b0;
             r_event_count <= '0;
             r_event_reported <= '0;
-        
+
             // Reset performance counters
             r_perf_completed_count <= '0;
             r_perf_error_count <= '0;
-        
+
             // Reset threshold flags
             r_active_threshold_crossed <= 1'b0;
             r_latency_threshold_crossed <= 1'b0;
-        
+
             // Initialize packet construction registers
             r_packet_type <= PktTypeError;
             r_event_code <= EVT_NONE;
             r_event_data <= '0;
             r_event_channel <= '0;
-        
+
             // Initialize performance report state
             r_perf_report_state <= 3'h0;
         end else begin
@@ -460,12 +460,12 @@ if (`RST_ASSERTED(aresetn)) begin
             for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
                 r_trans_table_local[idx] <= trans_table[idx];
             end
-        
+
             // Handle packet output
             if (monbus_valid && monbus_ready) begin
                 monbus_valid <= 1'b0;
             end
-        
+
             // Present next packet from FIFO
             if (!monbus_valid && w_fifo_rd_valid) begin
                 monbus_valid <= 1'b1;
@@ -474,7 +474,7 @@ if (`RST_ASSERTED(aresetn)) begin
                 r_event_data <= w_fifo_rd_data.data;
                 r_event_channel <= w_fifo_rd_data.channel;
             end
-        
+
             // Mark events as reported and update counters
             for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
                 // FIX-001: Clear event_reported flag when transaction becomes invalid
@@ -485,7 +485,7 @@ if (`RST_ASSERTED(aresetn)) begin
                     r_event_reported[idx] <= 1'b1;
                     r_event_count <= r_event_count + 1'b1;
                 end
-        
+
                 // Update performance counters
                 if (ENABLE_PERF_PACKETS) begin
                     if (w_error_events[idx]) begin
@@ -496,7 +496,7 @@ if (`RST_ASSERTED(aresetn)) begin
                     end
                 end
             end
-        
+
             // Generate threshold packets if enabled
             if (cfg_threshold_enable) begin
                 // Active transaction count threshold
@@ -513,7 +513,7 @@ if (`RST_ASSERTED(aresetn)) begin
                 /* verilator lint_on WIDTHEXPAND */
                     r_active_threshold_crossed <= 1'b0;
                 end
-        
+
                 // Latency threshold
                 if (w_has_latency_event && !monbus_valid && w_fifo_rd_valid == 0) begin
                     monbus_valid <= 1'b1;
@@ -525,7 +525,7 @@ if (`RST_ASSERTED(aresetn)) begin
                     r_event_count <= r_event_count + 1'b1;
                 end
             end
-        
+
             // Generate performance packets if enabled
             if (w_generate_perf_packet_completed) begin
                 monbus_valid <= 1'b1;
@@ -534,7 +534,7 @@ if (`RST_ASSERTED(aresetn)) begin
                 r_event_data <= {6'h0, {16'h0, r_perf_completed_count}};  // Zero-extend to 38 bits
                 r_event_channel <= '0;
             end
-        
+
             if (w_generate_perf_packet_errors) begin
                 monbus_valid <= 1'b1;
                 r_packet_type <= PktTypePerf;
@@ -542,7 +542,7 @@ if (`RST_ASSERTED(aresetn)) begin
                 r_event_data <= {6'h0, {16'h0, r_perf_error_count}};     // Zero-extend to 38 bits
                 r_event_channel <= '0;
             end
-        
+
             // Update performance report state
             r_perf_report_state <= w_next_perf_report_state;
         end

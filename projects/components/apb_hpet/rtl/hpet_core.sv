@@ -126,7 +126,7 @@ if (`RST_ASSERTED(rst_n)) begin
                         // Handle partial writes from 32-bit APB interface
                         // Config_regs sends {32'h0, data} for low writes, {data, 32'h0} for high writes
                         // timer_comp_write_high indicates which half is being written
-                
+
                         if (timer_comp_write_high) begin
                             // Writing to high 32 bits
                             r_timer_comparator[i][63:32] <= timer_comp_wdata[i][63:32];

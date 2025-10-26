@@ -355,12 +355,12 @@ if (`RST_ASSERTED(rst_n)) begin
                            w_overall_parity_in,
                            w_syndrome
                        );
-        
+
                    // FIXED: Proper SECDED error detection logic
                    if (w_overall_parity != w_overall_parity_in) begin
                        // There is definitely an error (parity mismatch)
                        error_detected <= 1'b1;
-        
+
                        if (w_syndrome != {ParityBits{1'b0}}) begin
                            // Non-zero syndrome: single-bit error in Hamming data
                            // Correct the error using the syndrome

@@ -195,7 +195,7 @@ if (`RST_ASSERTED(rst_n)) begin
                 // Latch transaction info
                 r_channel_id <= channel_id;
                 r_wdata <= apb_cmd_wdata;
-        
+
                 // Latch error conditions
                 if (!apb_cmd_write) begin
                     r_error <= 1'b1;  // Read not supported

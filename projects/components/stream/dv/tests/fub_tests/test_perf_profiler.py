@@ -42,6 +42,7 @@ from tbclasses.perf_profiler_tb import PerfProfilerTB
 # Shared framework utilities
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 
 
 # ===========================================================================
@@ -359,16 +360,12 @@ def run_perf_profiler_test(test_name, num_channels, timestamp_width, fifo_depth)
     })
 
     dut_name = "perf_profiler"
-    verilog_sources = [
-        # Dependencies - GAXI FIFO
-        os.path.join(repo_root, 'rtl', 'amba', 'includes', 'reset_defs.svh'),
-        os.path.join(repo_root, 'rtl', 'amba', 'includes', 'fifo_defs.svh'),
-        os.path.join(repo_root, 'rtl', 'amba', 'gaxi', 'gaxi_fifo_sync.sv'),
-        os.path.join(repo_root, 'rtl', 'common', 'counter_bin.sv'),
-        os.path.join(repo_root, 'rtl', 'common', 'fifo_control.sv'),
-        # Performance profiler module
-        os.path.join(repo_root, 'projects', 'components', 'stream', 'rtl', 'stream_fub', f'{dut_name}.sv'),
-    ]
+
+    # Get verilog sources and includes from filelist
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='projects/components/stream/rtl/filelists/fub/perf_profiler.f'
+    )
 
     # Format parameters for unique test name
     nc_str = TBBase.format_dec(num_channels, 2)
@@ -414,7 +411,7 @@ def run_perf_profiler_test(test_name, num_channels, timestamp_width, fifo_depth)
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[],
+            includes=includes,  # From filelist via get_sources_from_filelist()
             toplevel=dut_name,
             module=module,
             testcase=f"cocotb_{test_name}",  # ← cocotb function name

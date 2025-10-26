@@ -38,7 +38,7 @@ if (`RST_ASSERTED(rst_n)) begin
         end else begin
             if (r_counter < w_width_minus_one) r_counter <= r_counter + 1'b1;
             else r_counter <= 'b0;
-        
+
             pulse <= (r_counter == w_width_minus_one);
         end
     )

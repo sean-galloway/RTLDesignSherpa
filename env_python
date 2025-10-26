@@ -11,6 +11,9 @@ export REPO_ROOT=/mnt/data/github/rtldesignsherpa/
 # Add Verible binaries to PATH
 export PATH="$PATH:/home/seang/github/verible-v0.0-3999-g93adb37c/bin/"
 
+# Configure Verible style waivers (for parameter/localparam naming)
+export VERIBLE_WAIVER_FILES="$REPO_ROOT/tools/lint/verible_style_waivers.txt"
+
 # Add REPO-specific tools to PATH
 export PATH="$REPO_ROOT/bin:$PATH"
 export PATH="$REPO_ROOT/bin/vcd2wavedrom2:$PATH"

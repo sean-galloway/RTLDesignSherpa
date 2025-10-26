@@ -221,7 +221,7 @@ module descriptor_engine #(
 
     // Validation signals
     // Combinational checks for descriptor validity
-    logic w_validation_passed;            // Overall validation (address + AXI response)
+    // logic w_validation_passed;            // Overall validation (address + AXI response) - UNUSED, commented out
     logic w_addr_range_valid;             // Address within configured ranges
     logic w_our_axi_response;             // AXI R channel response matches our ID
     logic w_axi_response_ok;              // AXI R channel response = OKAY
@@ -485,7 +485,7 @@ if (`RST_ASSERTED(rst_n)) begin
                                  (r_axi_read_addr >= cfg_addr1_base && r_axi_read_addr <= cfg_addr1_limit));
 
     // Overall validation
-    assign w_validation_passed = w_addr_range_valid && w_axi_response_ok;
+    // assign w_validation_passed = w_addr_range_valid && w_axi_response_ok;  // UNUSED, commented out
 
     //=========================================================================
     // AXI Response Monitoring
@@ -633,13 +633,13 @@ if (`RST_ASSERTED(rst_n)) begin
                     end
                     r_descriptor_error <= 1'b0;
                 end
-        
+
                 RD_ISSUE_ADDR: begin
                     if (ar_ready) begin
                         r_axi_read_active <= 1'b1;
                     end
                 end
-        
+
                 RD_WAIT_DATA: begin
                     if (w_our_axi_response && r_valid) begin
                         r_descriptor_data <= r_data;
@@ -647,25 +647,25 @@ if (`RST_ASSERTED(rst_n)) begin
                         r_saved_next_addr <= {{(ADDR_WIDTH-32){1'b0}}, w_next_addr};  // Zero-extend 32→64 bit
                     end
                 end
-        
+
                 RD_COMPLETE: begin
                     if (w_desc_fifo_wr_ready) begin
                         r_apb_operation_active <= 1'b0;
                         r_axi_read_active <= 1'b0;
                     end
                 end
-        
+
                 RD_ERROR: begin
                     r_descriptor_error <= 1'b1;
                     r_apb_operation_active <= 1'b0;
                     r_axi_read_active <= 1'b0;
                 end
-        
+
                 default: begin
                     // Maintain state
                 end
             endcase
-        
+
             // Reset all operations during channel reset
             if (r_channel_reset_active) begin
                 r_apb_operation_active <= 1'b0;
@@ -721,7 +721,7 @@ if (`RST_ASSERTED(rst_n)) begin
             // Default: clear monitor packet
             r_mon_valid <= 1'b0;
             r_mon_packet <= 64'h0;
-        
+
             case (r_current_state)
                 RD_COMPLETE: begin
                     // Log successful descriptor fetch
@@ -736,7 +736,7 @@ if (`RST_ASSERTED(rst_n)) begin
                         r_axi_read_addr[34:0]
                     );
                 end
-        
+
                 RD_ERROR: begin
                     // Log descriptor fetch error
                     r_mon_valid <= 1'b1;
@@ -750,7 +750,7 @@ if (`RST_ASSERTED(rst_n)) begin
                         {16'h0, r_axi_read_resp, 17'h0}
                     );
                 end
-        
+
                 default: begin
                     // No monitor packet
                 end

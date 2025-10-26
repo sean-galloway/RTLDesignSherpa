@@ -56,6 +56,7 @@ if os.path.join(repo_root, 'bin') not in sys.path:
     sys.path.insert(0, os.path.join(repo_root, 'bin'))
 
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
 
@@ -628,9 +629,11 @@ def test_sort(request, num_vals, size, test_level):
 
     # DUT information
     dut_name = "sort"
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_cmn'], f"{dut_name}.sv")
-    ]
+    # Get verilog sources and includes from filelist
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='rtl/common/filelists/sort.f'
+    )
     toplevel = dut_name
 
     # Create human-readable test identifier
@@ -707,7 +710,7 @@ def test_sort(request, num_vals, size, test_level):
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[rtl_dict['rtl_amba_includes']],
+            includes=includes,  # From filelist via get_sources_from_filelist()
             toplevel=toplevel,
             module=module,
             parameters=parameters,

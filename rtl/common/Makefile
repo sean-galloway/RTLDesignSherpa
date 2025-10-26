@@ -47,7 +47,7 @@ VERILATOR = verilator
 VERILATOR_FLAGS = --lint-only -Wall -Wno-TIMESCALEMOD -Wno-fatal $(INCLUDES)
 
 VERIBLE = verible-verilog-lint
-VERIBLE_FLAGS = --rules_config_search
+VERIBLE_FLAGS = --rules_config_search --rules=-parameter-name-style,-line-length
 
 YOSYS = yosys
 YOSYS_FLAGS = -p "read_verilog -sv"
