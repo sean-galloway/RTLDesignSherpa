@@ -501,7 +501,7 @@ def test_axi4_master_read_cg(id_width, addr_width, data_width, user_width, ar_de
 
     # Environment variables
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'TRACE_FILE': f"{sim_build}/dump.vcd",
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'LOG_PATH': log_path,
@@ -526,6 +526,9 @@ def test_axi4_master_read_cg(id_width, addr_width, data_width, user_width, ar_de
 
     # Simulation settings
     includes = [rtl_dict['rtl_amba_includes']]
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
         "--trace",
         
@@ -536,7 +539,7 @@ def test_axi4_master_read_cg(id_width, addr_width, data_width, user_width, ar_de
         "-Wno-PINMISSING",  # Allow unconnected pins for stub testing
     ]
     sim_args = ["--trace", "--trace-depth", "99"]
-    plusargs = ["+trace"]
+    plusargs = ["--trace"]
 
     # Create command file for viewing results
     cmd_filename = create_view_cmd(os.path.dirname(log_path), log_path, sim_build,
@@ -559,7 +562,7 @@ def test_axi4_master_read_cg(id_width, addr_width, data_width, user_width, ar_de
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,
+            waves=False,  # VCD controlled by compile_args, not cocotb-test
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,

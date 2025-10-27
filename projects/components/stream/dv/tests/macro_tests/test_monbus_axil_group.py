@@ -204,9 +204,20 @@ def run_monbus_axil_test(testcase_name, fifo_depth_err, fifo_depth_write, addr_w
             extra_env=extra_env,
             waves=False,
             keep_files=True,
-            compile_args=["-Wno-TIMESCALEMOD"],
-            sim_args=[],
-            plusargs=[],
+            compile_args=[
+                "--trace",
+                "--trace-structs",
+                "--trace-depth", "99",
+                "-Wno-TIMESCALEMOD",
+            ],
+            sim_args=[
+                "--trace",
+                "--trace-structs",
+                "--trace-depth", "99",
+            ],
+            plusargs=[
+                "--trace",
+            ]
         )
         print(f"✓ {testcase_name} completed! Logs: {log_path}")
     except Exception as e:

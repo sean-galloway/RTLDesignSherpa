@@ -173,9 +173,20 @@ def test_basic_write(request, num_channels, sram_depth, data_width, id_width):
             extra_env=extra_env,
             waves=False,
             keep_files=True,
-            compile_args=["-Wno-TIMESCALEMOD"],
-            sim_args=[],
-            plusargs=[],
+            compile_args=[
+                "--trace",
+                "--trace-structs",
+                "--trace-depth", "99",
+                "-Wno-TIMESCALEMOD",
+            ],
+            sim_args=[
+                "--trace",
+                "--trace-structs",
+                "--trace-depth", "99",
+            ],
+            plusargs=[
+                "--trace",
+            ]
         )
         print(f"✓ Test completed! Logs: {log_path}")
     except Exception as e:
@@ -241,9 +252,20 @@ def test_basic_read(request, num_channels, sram_depth, data_width, id_width):
             extra_env=extra_env,
             waves=False,
             keep_files=True,
-            compile_args=["-Wno-TIMESCALEMOD"],
-            sim_args=[],
-            plusargs=[],
+            compile_args=[
+                "--trace",
+                "--trace-structs",
+                "--trace-depth", "99",
+                "-Wno-TIMESCALEMOD",
+            ],
+            sim_args=[
+                "--trace",
+                "--trace-structs",
+                "--trace-depth", "99",
+            ],
+            plusargs=[
+                "--trace",
+            ]
         )
         print(f"✓ Test completed! Logs: {log_path}")
     except Exception as e:
@@ -309,9 +331,20 @@ def test_multi_channel(request, num_channels, sram_depth, data_width, id_width):
             extra_env=extra_env,
             waves=False,
             keep_files=True,
-            compile_args=["-Wno-TIMESCALEMOD"],
-            sim_args=[],
-            plusargs=[],
+            compile_args=[
+                "--trace",
+                "--trace-structs",
+                "--trace-depth", "99",
+                "-Wno-TIMESCALEMOD",
+            ],
+            sim_args=[
+                "--trace",
+                "--trace-structs",
+                "--trace-depth", "99",
+            ],
+            plusargs=[
+                "--trace",
+            ]
         )
         print(f"✓ Test completed! Logs: {log_path}")
     except Exception as e:

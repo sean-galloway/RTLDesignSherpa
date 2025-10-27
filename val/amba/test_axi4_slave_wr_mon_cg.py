@@ -204,6 +204,9 @@ def test_axi4_slave_wr_mon_cg(id_width, addr_width, data_width, user_width, wstr
     validate_addr_width(parameters['AXI_ADDR_WIDTH'])
 
     # Compile options
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
         '-Wall', '-Wno-SYNCASYNCNET',
         '-Wno-UNUSED',

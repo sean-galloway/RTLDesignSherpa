@@ -1,0 +1,37 @@
+# Bridge Port Configuration with OOO Support
+# Demonstrates out-of-order slave response support via bridge_cam
+#
+# Columns:
+#   port_name    - Unique identifier for this port
+#   direction    - master or slave
+#   protocol     - axi4 or apb
+#   channels     - rw (read+write), wr (write-only), rd (read-only)
+#   prefix       - Signal prefix (e.g., "rapids_descr_m_axi_")
+#   data_width   - Data width in bits (32, 64, 128, 256, 512, etc.)
+#   addr_width   - Address width in bits (typically 32 or 64)
+#   id_width     - ID width for AXI4 (N/A for APB)
+#   base_addr    - Base address for slave (hex, N/A for masters)
+#   addr_range   - Address range size for slave (hex, N/A for masters)
+#   ooo          - Out-of-order support for slaves (0 or 1, N/A for masters)
+#
+# OOO (Out-of-Order) Support:
+#   - ooo=0: Slave responds in-order (default, simple routing)
+#   - ooo=1: Slave may respond out-of-order (uses bridge_cam for tracking)
+#   - Generator automatically instantiates bridge_cam when ooo=1
+#   - CAM tracks transaction IDs and routes responses to correct master
+#   - Mode 2 FIFO ordering ensures correctness with duplicate IDs
+#
+# Examples:
+#   - DDR controllers: ooo=1 (out-of-order responses common)
+#   - SRAM/peripherals: ooo=0 (typically in-order)
+#   - APB slaves: ooo=0 (protocol is inherently in-order)
+
+port_name,direction,protocol,channels,prefix,data_width,addr_width,id_width,base_addr,addr_range,ooo
+rapids_descr_wr,master,axi4,wr,rapids_descr_m_axi_,512,64,8,N/A,N/A,N/A
+rapids_sink_wr,master,axi4,wr,rapids_sink_m_axi_,512,64,8,N/A,N/A,N/A
+rapids_src_rd,master,axi4,rd,rapids_src_m_axi_,512,64,8,N/A,N/A,N/A
+stream_master,master,axi4,rw,stream_m_axi_,512,64,8,N/A,N/A,N/A
+cpu_master,master,axi4,rw,cpu_m_axi_,64,32,4,N/A,N/A,N/A
+ddr_controller,slave,axi4,rw,ddr_s_axi_,512,64,8,0x80000000,0x80000000,1
+sram_buffer,slave,axi4,rw,sram_s_axi_,512,48,8,0x40000000,0x10000000,0
+apb_periph0,slave,apb,rw,apb0_,32,32,N/A,0x00000000,0x00010000,0

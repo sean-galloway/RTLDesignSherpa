@@ -32,11 +32,8 @@ import sys
 import os
 from pathlib import Path
 
-# Add generator to path
-repo_root = Path(__file__).parents[4]
-sys.path.insert(0, str(repo_root / 'bin' / 'rtl_generators'))
-
-from amba.apb_xbar_generator import generate_apb_xbar
+# Import generator from local bin directory
+from apb_xbar_generator import generate_apb_xbar
 
 
 def generate_all_standard():

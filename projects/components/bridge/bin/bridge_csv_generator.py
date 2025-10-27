@@ -58,11 +58,14 @@ class PortSpec:
     id_width: int = 0       # ID width (0 for APB)
     base_addr: int = 0      # Base address for slave (N/A for master)
     addr_range: int = 0     # Address range for slave (N/A for master)
+    ooo: bool = False       # Out-of-order support (slaves only)
 
     # Internal fields (filled during generation)
     needs_axi2apb: bool = False      # True if APB slave (needs AXI2APB converter)
     needs_width_conv: bool = False   # True if width doesn't match crossbar
     converter_name: str = ''         # Name of converter instance
+    needs_bridge_cam: bool = False   # True if ooo=1 (needs bridge_cam)
+    cam_instance_name: str = ''      # Name of bridge_cam instance
 
     def has_write_channels(self) -> bool:
         """True if this port has write channels (AW, W, B)"""
@@ -71,6 +74,10 @@ class PortSpec:
     def has_read_channels(self) -> bool:
         """True if this port has read channels (AR, R)"""
         return self.channels in ['rw', 'rd']
+
+    def requires_cam(self) -> bool:
+        """True if this slave requires bridge_cam for OOO support"""
+        return self.direction == 'slave' and self.ooo and self.protocol == 'axi4'
 
 
 @dataclass
@@ -84,6 +91,9 @@ class BridgeCSVConfig:
     crossbar_data_width: int = 0    # Common data width for internal crossbar
     crossbar_addr_width: int = 0    # Common address width for internal crossbar
     crossbar_id_width: int = 0      # Common ID width for internal crossbar
+
+    # Optional features
+    expose_arbiter_signals: bool = False  # Expose arbiter grant signals for testing/debugging
 
 
 def parse_csv_value(value: str, field_name: str):
@@ -165,6 +175,17 @@ def parse_ports_csv(csv_path: str) -> Tuple[List[PortSpec], List[PortSpec]]:
             base_addr_val = parse_csv_value(row['base_addr'], 'base_addr')
             addr_range_val = parse_csv_value(row['addr_range'], 'addr_range')
 
+            # Parse ooo column (backward compatible)
+            ooo_val = False
+            if 'ooo' in row and row['ooo']:
+                ooo_str = row['ooo'].strip().lower()
+                if ooo_str not in ['n/a', 'na', '']:
+                    try:
+                        ooo_val = int(ooo_str) == 1
+                    except ValueError:
+                        print(f"  WARNING: Invalid ooo value '{ooo_str}' for {port_name}, defaulting to 0")
+                        ooo_val = False
+
             # Validate channels value
             if channels not in ['rw', 'rd', 'wr']:
                 print(f"  WARNING: Invalid channels '{channels}' for {port_name}, defaulting to 'rw'")
@@ -181,7 +202,8 @@ def parse_ports_csv(csv_path: str) -> Tuple[List[PortSpec], List[PortSpec]]:
                 addr_width=addr_width,
                 id_width=id_width_val if id_width_val is not None else 0,
                 base_addr=base_addr_val if base_addr_val is not None else 0,
-                addr_range=addr_range_val if addr_range_val is not None else 0
+                addr_range=addr_range_val if addr_range_val is not None else 0,
+                ooo=ooo_val
             )
 
             # Add to appropriate list
@@ -191,7 +213,8 @@ def parse_ports_csv(csv_path: str) -> Tuple[List[PortSpec], List[PortSpec]]:
                 print(f"  Master: {port_name} ({protocol.upper()}, {data_width}b data, {channels.upper()}, prefix: {prefix})")
             elif direction == 'slave':
                 slaves.append(port)
-                print(f"  Slave:  {port_name} ({protocol.upper()}, {data_width}b data, 0x{base_addr_val:08X}-0x{base_addr_val+addr_range_val-1:08X}, prefix: {prefix})")
+                ooo_str = " [OOO]" if port.ooo else ""
+                print(f"  Slave:  {port_name} ({protocol.upper()}, {data_width}b data, 0x{base_addr_val:08X}-0x{base_addr_val+addr_range_val-1:08X}, prefix: {prefix}){ooo_str}")
             else:
                 raise ValueError(f"Invalid direction '{direction}' for port {port_name}")
 
@@ -549,6 +572,47 @@ class BridgeCSVGenerator(Module):
             else:
                 raise ValueError(f"Unsupported slave protocol: {slave.protocol}")
 
+        # Optional arbiter debug/testing signals
+        if self.cfg.expose_arbiter_signals:
+            self.generate_arbiter_signal_ports()
+
+    def generate_arbiter_signal_ports(self):
+        """Generate optional arbiter grant signal outputs for testing/debugging"""
+        nm = len(self.cfg.masters)
+        ns = len(self.cfg.slaves)
+        master_idx_width = max(1, (nm - 1).bit_length())  # $clog2(NUM_MASTERS)
+
+        # Add comment
+        self.ports.add_port_string(",  // End of functional ports")
+        self.ports.add_port_string("")
+        self.ports.add_port_string("    // ========== ARBITER DEBUG/TEST SIGNALS ==========")
+        self.ports.add_port_string("    // These signals expose internal arbitration state")
+        self.ports.add_port_string("    // for testing and tracking mechanism implementation")
+
+        # AW arbiter signals (per slave)
+        self.ports.add_port_string(",  // AW Grant signals (one-hot per slave)")
+        for idx, slave in enumerate(self.cfg.slaves):
+            if slave.protocol != 'axi4':
+                continue
+            port_str = f",    output logic [{nm-1}:0] dbg_aw_grant_{slave.port_name}"
+            self.ports.add_port_string(port_str)
+            port_str = f",    output logic dbg_aw_grant_valid_{slave.port_name}"
+            self.ports.add_port_string(port_str)
+            port_str = f",    output logic [{master_idx_width-1}:0] dbg_aw_grant_id_{slave.port_name}"
+            self.ports.add_port_string(port_str)
+
+        # AR arbiter signals (per slave)
+        self.ports.add_port_string(",  // AR Grant signals (one-hot per slave)")
+        for idx, slave in enumerate(self.cfg.slaves):
+            if slave.protocol != 'axi4':
+                continue
+            port_str = f",    output logic [{nm-1}:0] dbg_ar_grant_{slave.port_name}"
+            self.ports.add_port_string(port_str)
+            port_str = f",    output logic dbg_ar_grant_valid_{slave.port_name}"
+            self.ports.add_port_string(port_str)
+            port_str = f",    output logic [{master_idx_width-1}:0] dbg_ar_grant_id_{slave.port_name}"
+            self.ports.add_port_string(port_str)
+
     def generate_internal_signals(self):
         """Generate internal signal declarations for crossbar connections"""
         xbar_dw = self.cfg.crossbar_data_width
@@ -655,6 +719,62 @@ class BridgeCSVGenerator(Module):
             logic                 xbar_s_rready [NUM_SLAVES];
         '''
         self.instruction(sig_str)
+        self.instruction("")
+
+        # Tracking mechanism signals for response routing
+        self.comment("Transaction Tracking Signals (CAM for OOO slaves, FIFO for in-order slaves)")
+
+        # Generate signals for each slave's tracking mechanism
+        for idx, slave in enumerate(self.cfg.slaves):
+            if slave.protocol != 'axi4':
+                continue  # Only AXI4 slaves need tracking
+
+            master_idx_width = max(1, (nm - 1).bit_length())  # $clog2(NUM_MASTERS)
+
+            if slave.requires_cam():
+                # CAM signals for OOO slave
+                self.comment(f"CAM signals for OOO slave {idx}: {slave.port_name}")
+                cam_sig_str = f'''
+            // CAM allocation signals (AW/AR grant to {slave.port_name})
+            logic                         cam_{slave.port_name}_allocate;
+            logic [{xbar_iw-1}:0]         cam_{slave.port_name}_allocate_tag;
+            logic [{master_idx_width-1}:0] cam_{slave.port_name}_allocate_data;
+
+            // CAM deallocation signals (B/R response from {slave.port_name})
+            logic                         cam_{slave.port_name}_deallocate;
+            logic [{xbar_iw-1}:0]         cam_{slave.port_name}_deallocate_tag;
+            logic                         cam_{slave.port_name}_deallocate_valid;
+            logic [{master_idx_width-1}:0] cam_{slave.port_name}_deallocate_data;
+            logic [3:0]                   cam_{slave.port_name}_deallocate_count;
+
+            // CAM status signals
+            logic                         cam_{slave.port_name}_hit;
+            logic                         cam_{slave.port_name}_empty;
+            logic                         cam_{slave.port_name}_full;
+            logic [4:0]                   cam_{slave.port_name}_count;
+                '''
+                self.instruction(cam_sig_str)
+            else:
+                # FIFO tracker signals for in-order slave
+                self.comment(f"FIFO tracker signals for in-order slave {idx}: {slave.port_name}")
+                fifo_sig_str = f'''
+            // FIFO write signals (AW/AR grant to {slave.port_name})
+            logic                         fifo_{slave.port_name}_wr_valid;
+            logic [{master_idx_width-1}:0] fifo_{slave.port_name}_wr_data;
+            logic                         fifo_{slave.port_name}_wr_ready;
+
+            // FIFO read signals (B/R response from {slave.port_name})
+            logic                         fifo_{slave.port_name}_rd_valid;
+            logic [{master_idx_width-1}:0] fifo_{slave.port_name}_rd_data;
+            logic                         fifo_{slave.port_name}_rd_ready;
+
+            // FIFO status signals
+            logic                         fifo_{slave.port_name}_full;
+            logic                         fifo_{slave.port_name}_empty;
+            logic [4:0]                   fifo_{slave.port_name}_count;
+                '''
+                self.instruction(fifo_sig_str)
+
         self.instruction("")
 
     def generate_width_converter_master(self, idx, master):
@@ -1112,6 +1232,283 @@ class BridgeCSVGenerator(Module):
         self.instruction(inst_str)
         self.instruction("")
 
+    def generate_tracking_mechanisms(self):
+        """Generate CAM or FIFO tracker instances for each slave"""
+        self.comment("="*78)
+        self.comment("Transaction Tracking Mechanisms")
+        self.comment("="*78)
+        self.comment("CAM instances for out-of-order slaves (ooo=1)")
+        self.comment("FIFO instances for in-order slaves (ooo=0)")
+        self.instruction("")
+
+        # Generate tracking mechanism for each AXI4 slave
+        for idx, slave in enumerate(self.cfg.slaves):
+            if slave.protocol != 'axi4':
+                continue  # Only AXI4 slaves need tracking
+
+            if slave.requires_cam():
+                # Generate CAM instance for OOO slave
+                comment = generate_bridge_cam_comment(
+                    slave,
+                    len(self.cfg.masters),
+                    self.cfg.crossbar_id_width
+                )
+                self.instruction(comment)
+
+                cam_instance = generate_bridge_cam_instance(
+                    slave,
+                    len(self.cfg.masters),
+                    self.cfg.crossbar_id_width,
+                    idx
+                )
+                self.instruction(cam_instance)
+                self.instruction("")
+
+                # Generate allocation and deallocation signal assignments
+                self.generate_cam_connections(slave, idx)
+
+            else:
+                # Generate FIFO tracker instance for in-order slave
+                comment = generate_fifo_tracker_comment(
+                    slave,
+                    len(self.cfg.masters)
+                )
+                self.instruction(comment)
+
+                fifo_instance = generate_fifo_tracker_instance(
+                    slave,
+                    len(self.cfg.masters),
+                    idx
+                )
+                self.instruction(fifo_instance)
+                self.instruction("")
+
+                # Generate FIFO connection signal assignments
+                self.generate_fifo_connections(slave, idx)
+
+        # Generate arbiter grant tracking logic if requested
+        if self.cfg.expose_arbiter_signals:
+            self.generate_arbiter_grant_tracking()
+
+    def generate_arbiter_grant_tracking(self):
+        """Generate wrapper-level arbiter grant tracking logic"""
+        nm = len(self.cfg.masters)
+        master_idx_width = max(1, (nm - 1).bit_length())
+
+        self.comment("="*78)
+        self.comment("Arbiter Grant Tracking Logic (Wrapper Level)")
+        self.comment("="*78)
+        self.comment("Tracks which master was granted access to each slave")
+        self.comment("by monitoring transaction handshakes and IDs")
+        self.instruction("")
+
+        for idx, slave in enumerate(self.cfg.slaves):
+            if slave.protocol != 'axi4':
+                continue
+
+            self.comment(f"Grant tracking for slave {idx}: {slave.port_name}")
+
+            # Generate AW grant tracking
+            aw_track = f'''
+// AW Grant Tracking for {slave.port_name}
+// Detect when a master transaction is granted to this slave
+logic aw_handshake_{slave.port_name};
+logic [{master_idx_width}-1:0] aw_granted_master_{slave.port_name};
+
+assign aw_handshake_{slave.port_name} = xbar_s_awvalid[{idx}] & xbar_s_awready[{idx}];
+
+// Decode master index from transaction ID
+// TODO: This requires knowledge of ID mapping from internal crossbar
+// Placeholder: use lower bits of ID (assumes ID[master_idx_width-1:0] == master_idx)
+assign aw_granted_master_{slave.port_name} = xbar_s_awid[{idx}][{master_idx_width}-1:0];
+
+// Grant signals (one-hot encoding from master index)
+assign dbg_aw_grant_{slave.port_name} = (1'b1 << aw_granted_master_{slave.port_name}) & {{NUM_MASTERS{{aw_handshake_{slave.port_name}}}}};
+assign dbg_aw_grant_valid_{slave.port_name} = aw_handshake_{slave.port_name};
+assign dbg_aw_grant_id_{slave.port_name} = aw_granted_master_{slave.port_name};
+            '''
+            self.instruction(aw_track)
+
+            # Generate AR grant tracking
+            ar_track = f'''
+// AR Grant Tracking for {slave.port_name}
+// Detect when a master transaction is granted to this slave
+logic ar_handshake_{slave.port_name};
+logic [{master_idx_width}-1:0] ar_granted_master_{slave.port_name};
+
+assign ar_handshake_{slave.port_name} = xbar_s_arvalid[{idx}] & xbar_s_arready[{idx}];
+
+// Decode master index from transaction ID
+// TODO: This requires knowledge of ID mapping from internal crossbar
+// Placeholder: use lower bits of ID (assumes ID[master_idx_width-1:0] == master_idx)
+assign ar_granted_master_{slave.port_name} = xbar_s_arid[{idx}][{master_idx_width}-1:0];
+
+// Grant signals (one-hot encoding from master index)
+assign dbg_ar_grant_{slave.port_name} = (1'b1 << ar_granted_master_{slave.port_name}) & {{NUM_MASTERS{{ar_handshake_{slave.port_name}}}}};
+assign dbg_ar_grant_valid_{slave.port_name} = ar_handshake_{slave.port_name};
+assign dbg_ar_grant_id_{slave.port_name} = ar_granted_master_{slave.port_name};
+            '''
+            self.instruction(ar_track)
+            self.instruction("")
+
+    def generate_cam_connections(self, slave: PortSpec, slave_idx: int):
+        """Generate CAM allocation and deallocation signal assignments"""
+        master_idx_width = max(1, (len(self.cfg.masters) - 1).bit_length())
+
+        self.comment(f"CAM Signal Connections for {slave.port_name}")
+        self.instruction("")
+
+        self.comment("TODO: CAM Allocation Signals - Connect to Crossbar Arbitration")
+        self.comment("IMPLEMENTATION REQUIRED:")
+        self.comment(f"  1. Detect when AW/AR transaction is granted to slave {slave_idx}")
+        self.comment("  2. Extract which master index was granted")
+        self.comment("  3. Extract transaction ID from the granted master")
+        self.comment("")
+        self.comment("APPROACH A: Modify crossbar to expose grant signals")
+        self.comment(f"  - Crossbar should output: aw_grant_valid[{slave_idx}], aw_grant_id[{slave_idx}][{master_idx_width}-1:0]")
+        self.comment(f"  - Connect: cam_{slave.port_name}_allocate = aw_grant_valid[{slave_idx}] & aw_handshake")
+        self.comment("")
+        self.comment("APPROACH B: Wrapper-level grant tracking")
+        self.comment(f"  - Monitor xbar_s_awvalid[{slave_idx}] & xbar_s_awready[{slave_idx}]")
+        self.comment(f"  - Decode xbar_s_awid[{slave_idx}] to determine source master index")
+        self.comment("  - Requires ID mapping knowledge from crossbar implementation")
+        self.instruction("")
+
+        # Generate allocation assignments
+        if self.cfg.expose_arbiter_signals:
+            # Use exposed arbiter signals for allocation
+            alloc_str = f'''
+// CAM allocation for {slave.port_name} using exposed arbiter signals
+assign cam_{slave.port_name}_allocate = aw_handshake_{slave.port_name};  // AW grant detected
+assign cam_{slave.port_name}_allocate_tag = xbar_s_awid[{slave_idx}];  // Transaction ID
+assign cam_{slave.port_name}_allocate_data = aw_granted_master_{slave.port_name};  // Master index from grant tracking
+            '''
+        else:
+            # Placeholder assignments
+            alloc_str = f'''
+// PLACEHOLDER: CAM allocation for {slave.port_name}
+// Replace with actual crossbar grant detection logic
+assign cam_{slave.port_name}_allocate = 1'b0;  // TODO: Connect to AW/AR grant valid
+assign cam_{slave.port_name}_allocate_tag = 'b0;  // TODO: Connect to transaction ID
+assign cam_{slave.port_name}_allocate_data = 'b0;  // TODO: Connect to master index
+            '''
+        self.instruction(alloc_str)
+
+        self.comment("TODO: CAM Deallocation Signals - Connect to Response Channels")
+        self.comment("Write Response (B channel):")
+        self.comment(f"  - Detect: xbar_s_bvalid[{slave_idx}] & xbar_s_bready[{slave_idx}]")
+        self.comment(f"  - Transaction ID: xbar_s_bid[{slave_idx}]")
+        self.comment("Read Response (R channel - deallocate on RLAST):")
+        self.comment(f"  - Detect: xbar_s_rvalid[{slave_idx}] & xbar_s_rready[{slave_idx}] & xbar_s_rlast[{slave_idx}]")
+        self.comment(f"  - Transaction ID: xbar_s_rid[{slave_idx}]")
+        self.instruction("")
+
+        # Generate deallocation assignments
+        if self.cfg.expose_arbiter_signals:
+            # Use actual response channel connections
+            dealloc_str = f'''
+// CAM deallocation for {slave.port_name} from response channels
+logic b_handshake_{slave.port_name};
+logic r_handshake_{slave.port_name};
+
+assign b_handshake_{slave.port_name} = xbar_s_bvalid[{slave_idx}] & xbar_s_bready[{slave_idx}];
+assign r_handshake_{slave.port_name} = xbar_s_rvalid[{slave_idx}] & xbar_s_rready[{slave_idx}] & xbar_s_rlast[{slave_idx}];
+
+// Deallocate on B or R response (RLAST)
+assign cam_{slave.port_name}_deallocate = b_handshake_{slave.port_name} | r_handshake_{slave.port_name};
+assign cam_{slave.port_name}_deallocate_tag = b_handshake_{slave.port_name} ?
+                                              xbar_s_bid[{slave_idx}] :
+                                              xbar_s_rid[{slave_idx}];
+            '''
+        else:
+            # Placeholder assignments for deallocation
+            dealloc_str = f'''
+// PLACEHOLDER: CAM deallocation for {slave.port_name}
+// Replace with actual response channel detection
+assign cam_{slave.port_name}_deallocate = 1'b0;  // TODO: Connect to B/R response handshake
+assign cam_{slave.port_name}_deallocate_tag = 'b0;  // TODO: Connect to response ID
+            '''
+        self.instruction(dealloc_str)
+
+        self.comment(f"TODO: Use cam_{slave.port_name}_deallocate_valid and cam_{slave.port_name}_deallocate_data")
+        self.comment("for response routing - route B/R responses to correct master based on CAM output")
+        self.instruction("")
+
+    def generate_fifo_connections(self, slave: PortSpec, slave_idx: int):
+        """Generate FIFO tracker allocation and deallocation signal assignments"""
+        master_idx_width = max(1, (len(self.cfg.masters) - 1).bit_length())
+
+        self.comment(f"FIFO Tracker Signal Connections for {slave.port_name}")
+        self.instruction("")
+
+        self.comment("TODO: FIFO Write Signals - Connect to Crossbar Arbitration")
+        self.comment("IMPLEMENTATION REQUIRED:")
+        self.comment(f"  1. Detect when AW/AR transaction is granted to slave {slave_idx}")
+        self.comment("  2. Extract which master index was granted")
+        self.comment("  3. Push master index to FIFO (in-order tracking)")
+        self.comment("")
+        self.comment("APPROACH A: Modify crossbar to expose grant signals")
+        self.comment(f"  - Connect: fifo_{slave.port_name}_wr_valid = aw_grant_valid[{slave_idx}] & aw_handshake")
+        self.comment(f"  - Connect: fifo_{slave.port_name}_wr_data = aw_grant_master_idx[{slave_idx}]")
+        self.comment("")
+        self.comment("APPROACH B: Wrapper-level grant tracking")
+        self.comment(f"  - Monitor xbar_s_awvalid[{slave_idx}] & xbar_s_awready[{slave_idx}]")
+        self.comment(f"  - Decode xbar_s_awid[{slave_idx}] to determine source master index")
+        self.instruction("")
+
+        # Generate write assignments
+        if self.cfg.expose_arbiter_signals:
+            # Use exposed arbiter signals
+            wr_str = f'''
+// FIFO write for {slave.port_name} using exposed arbiter signals
+assign fifo_{slave.port_name}_wr_valid = aw_handshake_{slave.port_name};  // AW grant detected
+assign fifo_{slave.port_name}_wr_data = aw_granted_master_{slave.port_name};  // Master index from grant tracking
+            '''
+        else:
+            # Placeholder assignments
+            wr_str = f'''
+// PLACEHOLDER: FIFO write for {slave.port_name}
+// Replace with actual crossbar grant detection logic
+assign fifo_{slave.port_name}_wr_valid = 1'b0;  // TODO: Connect to AW/AR grant valid
+assign fifo_{slave.port_name}_wr_data = 'b0;  // TODO: Connect to master index
+            '''
+        self.instruction(wr_str)
+
+        self.comment("TODO: FIFO Read Signals - Connect to Response Channels")
+        self.comment("Read from FIFO when response arrives (in-order):")
+        self.comment("Write Response (B channel):")
+        self.comment(f"  - Trigger: xbar_s_bvalid[{slave_idx}] & xbar_s_bready[{slave_idx}]")
+        self.comment("Read Response (R channel - read on RLAST):")
+        self.comment(f"  - Trigger: xbar_s_rvalid[{slave_idx}] & xbar_s_rready[{slave_idx}] & xbar_s_rlast[{slave_idx}]")
+        self.instruction("")
+
+        # Generate read assignments
+        if self.cfg.expose_arbiter_signals:
+            # Use actual response channel connections
+            rd_str = f'''
+// FIFO read for {slave.port_name} from response channels
+logic fifo_b_handshake_{slave.port_name};
+logic fifo_r_handshake_{slave.port_name};
+
+assign fifo_b_handshake_{slave.port_name} = xbar_s_bvalid[{slave_idx}] & xbar_s_bready[{slave_idx}];
+assign fifo_r_handshake_{slave.port_name} = xbar_s_rvalid[{slave_idx}] & xbar_s_rready[{slave_idx}] & xbar_s_rlast[{slave_idx}];
+
+// Pop FIFO on B or R response (RLAST) - in-order slave returns responses in FIFO order
+assign fifo_{slave.port_name}_rd_valid = fifo_b_handshake_{slave.port_name} | fifo_r_handshake_{slave.port_name};
+            '''
+        else:
+            # Placeholder assignments for read
+            rd_str = f'''
+// PLACEHOLDER: FIFO read for {slave.port_name}
+// Replace with actual response channel detection
+assign fifo_{slave.port_name}_rd_valid = 1'b0;  // TODO: Connect to B/R response handshake
+            '''
+        self.instruction(rd_str)
+
+        self.comment(f"TODO: Use fifo_{slave.port_name}_rd_data for response routing")
+        self.comment("Route B/R responses to master index indicated by FIFO output (FIFO order)")
+        self.instruction("")
+
     def generate_converter_instances(self):
         """Generate AXI2APB and width converter instances"""
         # Width converters and AXI2APB converters will be added in separate methods
@@ -1165,6 +1562,9 @@ class BridgeCSVGenerator(Module):
         # Generate crossbar instance
         self.generate_crossbar_instance()
 
+        # Generate transaction tracking mechanisms (CAM/FIFO)
+        self.generate_tracking_mechanisms()
+
         # Generate master-side connections (external masters -> crossbar)
         self.generate_master_connections()
 
@@ -1176,6 +1576,202 @@ class BridgeCSVGenerator(Module):
 
         # Write to file
         self.write(file_path, f'{self.module_name}.sv')
+
+
+def generate_bridge_cam_comment(slave: PortSpec, num_masters: int, id_width: int) -> str:
+    """
+    Generate comment block for bridge_cam instance
+
+    Args:
+        slave: Slave port specification with ooo=1
+        num_masters: Number of masters in the bridge
+        id_width: Transaction ID width
+
+    Returns:
+        Comment block string
+    """
+    data_width = max(1, (num_masters - 1).bit_length())  # $clog2(NUM_MASTERS)
+
+    comment = f"""
+// =============================================================================
+// Bridge CAM for Out-of-Order Slave: {slave.port_name}
+// =============================================================================
+//
+// Purpose:
+//   Tracks transaction IDs for {slave.port_name} (out-of-order responses)
+//   Routes response transactions (B/R channels) back to the correct master
+//
+// Configuration:
+//   TAG_WIDTH  = {id_width}  (matches crossbar ID width)
+//   DATA_WIDTH = {data_width}  ($clog2({num_masters} masters))
+//   DEPTH      = 16 (configurable via parameter)
+//   MODE       = 2 (FIFO ordering for duplicate IDs)
+//
+// Operation:
+//   Allocation   : When master issues AW/AR to this slave
+//   Deallocation : When slave returns B/R response
+//   Routing      : deallocate_data indicates which master to route to
+//
+"""
+    return comment
+
+
+def generate_bridge_cam_instance(slave: PortSpec, num_masters: int, id_width: int, slave_idx: int) -> str:
+    """
+    Generate bridge_cam instance for an out-of-order slave
+
+    Args:
+        slave: Slave port specification with ooo=1
+        num_masters: Number of masters in the bridge
+        id_width: Transaction ID width
+        slave_idx: Index of this slave
+
+    Returns:
+        SystemVerilog instance code
+    """
+    if not slave.requires_cam():
+        return ""
+
+    cam_name = f"u_{slave.port_name}_cam"
+    slave.cam_instance_name = cam_name
+    slave.needs_bridge_cam = True
+
+    # Calculate CAM parameters
+    tag_width = id_width
+    data_width = max(1, (num_masters - 1).bit_length())  # $clog2(NUM_MASTERS)
+    depth = 16  # TODO: Make configurable via CSV
+    allow_duplicates = 1  # Mode 2: FIFO ordering for OOO slaves
+    pipeline_evict = 0  # Start with combinational
+
+    # Create Module instance for bridge_cam
+    cam_module = Module(module_name='bridge_cam', instance_name=cam_name)
+
+    # Set parameters using add_param_string
+    cam_module.params.add_param_string(f'parameter int TAG_WIDTH = {tag_width}')
+    cam_module.params.add_param_string(f'parameter int DATA_WIDTH = {data_width}')
+    cam_module.params.add_param_string(f'parameter int DEPTH = {depth}')
+    cam_module.params.add_param_string(f'parameter int ALLOW_DUPLICATES = {allow_duplicates}')
+    cam_module.params.add_param_string(f'parameter int PIPELINE_EVICT = {pipeline_evict}')
+
+    # Define port connections
+    inputs = [
+        Module.in_connector('clk', 'aclk'),
+        Module.in_connector('rst_n', 'aresetn'),
+        # Entry port (allocation)
+        Module.in_connector('allocate', f'cam_{slave.port_name}_allocate'),
+        Module.in_connector('allocate_tag', f'cam_{slave.port_name}_allocate_tag'),
+        Module.in_connector('allocate_data', f'cam_{slave.port_name}_allocate_data'),
+        # Eviction port (deallocation)
+        Module.in_connector('deallocate', f'cam_{slave.port_name}_deallocate'),
+        Module.in_connector('deallocate_tag', f'cam_{slave.port_name}_deallocate_tag'),
+    ]
+
+    outputs = [
+        # Eviction port outputs
+        Module.out_connector('deallocate_valid', f'cam_{slave.port_name}_deallocate_valid'),
+        Module.out_connector('deallocate_data', f'cam_{slave.port_name}_deallocate_data'),
+        Module.out_connector('deallocate_count', f'cam_{slave.port_name}_deallocate_count'),
+        # Status
+        Module.out_connector('cam_hit', f'cam_{slave.port_name}_hit'),
+        Module.out_connector('tags_empty', f'cam_{slave.port_name}_empty'),
+        Module.out_connector('tags_full', f'cam_{slave.port_name}_full'),
+        Module.out_connector('tags_count', f'cam_{slave.port_name}_count'),
+    ]
+
+    # Generate instance string
+    instance = cam_module.instantiate(cam_name, inputs, outputs)
+
+    return instance
+
+
+def generate_fifo_tracker_comment(slave: PortSpec, num_masters: int) -> str:
+    """
+    Generate comment block for FIFO tracker instance (in-order slaves)
+
+    Args:
+        slave: Slave port specification with ooo=0
+        num_masters: Number of masters in the bridge
+
+    Returns:
+        Comment block string
+    """
+    data_width = max(1, (num_masters - 1).bit_length())  # $clog2(NUM_MASTERS)
+
+    comment = f"""
+// =============================================================================
+// FIFO Tracker for In-Order Slave: {slave.port_name}
+// =============================================================================
+//
+// Purpose:
+//   Simple FIFO-based tracking for {slave.port_name} (in-order responses)
+//   Stores master indices in request order
+//   Routes response transactions back in FIFO order
+//
+// Configuration:
+//   DATA_WIDTH = {data_width}  ($clog2({num_masters} masters))
+//   DEPTH      = 16 (matches expected outstanding transactions)
+//
+// Operation:
+//   Push : When master's AW/AR is granted to this slave
+//   Pop  : When slave returns B/R response (FIFO order)
+//
+"""
+    return comment
+
+
+def generate_fifo_tracker_instance(slave: PortSpec, num_masters: int, slave_idx: int) -> str:
+    """
+    Generate FIFO tracker instance for an in-order slave
+
+    Args:
+        slave: Slave port specification with ooo=0
+        num_masters: Number of masters in the bridge
+        slave_idx: Index of this slave
+
+    Returns:
+        SystemVerilog instance code
+    """
+    if slave.requires_cam():
+        return ""  # OOO slaves use CAM, not FIFO
+
+    tracker_name = f"u_{slave.port_name}_tracker"
+    data_width = max(1, (num_masters - 1).bit_length())  # $clog2(NUM_MASTERS)
+    depth = 16  # TODO: Make configurable via CSV
+
+    # Create Module instance for gaxi_fifo_sync
+    fifo_module = Module(module_name='gaxi_fifo_sync', instance_name=tracker_name)
+
+    # Set parameters using add_param_string
+    fifo_module.params.add_param_string(f'parameter int DATA_WIDTH = {data_width}')
+    fifo_module.params.add_param_string(f'parameter int DEPTH = {depth}')
+
+    # Define port connections
+    inputs = [
+        Module.in_connector('clk', 'aclk'),
+        Module.in_connector('rst_n', 'aresetn'),
+        # Write port (allocation)
+        Module.in_connector('i_wr_valid', f'fifo_{slave.port_name}_wr_valid'),
+        Module.in_connector('i_wr_data', f'fifo_{slave.port_name}_wr_data'),
+        # Read port (deallocation)
+        Module.in_connector('i_rd_valid', f'fifo_{slave.port_name}_rd_valid'),
+    ]
+
+    outputs = [
+        # Write port output
+        Module.out_connector('o_wr_ready', f'fifo_{slave.port_name}_wr_ready'),
+        # Read port outputs
+        Module.out_connector('o_rd_data', f'fifo_{slave.port_name}_rd_data'),
+        Module.out_connector('o_rd_ready', f'fifo_{slave.port_name}_rd_ready'),
+        # Status
+        Module.out_connector('o_full', f'fifo_{slave.port_name}_full'),
+        Module.out_connector('o_empty', f'fifo_{slave.port_name}_empty'),
+        Module.out_connector('o_count', f'fifo_{slave.port_name}_count'),
+    ]
+
+    # Generate instance string
+    instance = fifo_module.instantiate(tracker_name, inputs, outputs)
+
+    return instance
 
 
 def main():
@@ -1200,6 +1796,8 @@ Configuration Files:
     parser.add_argument("--connectivity", type=str, required=True, help="Path to connectivity.csv configuration file")
     parser.add_argument("--name", type=str, default=None, help="Output module name (default: auto-generated)")
     parser.add_argument("--output-dir", type=str, default="../rtl", help="Output directory for generated RTL")
+    parser.add_argument("--expose-arbiter-signals", action="store_true",
+                        help="Expose arbiter grant signals as outputs for testing/debugging")
 
     args = parser.parse_args()
 
@@ -1224,7 +1822,8 @@ Configuration Files:
     config = BridgeCSVConfig(
         masters=masters,
         slaves=slaves,
-        connectivity=connectivity
+        connectivity=connectivity,
+        expose_arbiter_signals=args.expose_arbiter_signals
     )
 
     # Determine crossbar configuration

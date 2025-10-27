@@ -231,9 +231,24 @@ def test_basic_bridge_functionality(request, num_masters, num_slaves, data_width
     dut_name = f"bridge_wrapper_{num_masters}x{num_slaves}"
     core_name = f"bridge_axi4_flat_{num_masters}x{num_slaves}"
 
+    # Collect all required RTL dependencies
     verilog_sources = [
+        # Bridge wrapper and core
         os.path.join(rtl_dict['rtl_bridge'], f'{dut_name}.sv'),
         os.path.join(rtl_dict['rtl_bridge'], f'{core_name}.sv'),
+
+        # AMBA AXI4 components (axi4_slave_wr/rd, axi4_master_wr/rd)
+        os.path.join(repo_root, 'rtl/amba/axi4/axi4_slave_wr.sv'),
+        os.path.join(repo_root, 'rtl/amba/axi4/axi4_slave_rd.sv'),
+        os.path.join(repo_root, 'rtl/amba/axi4/axi4_master_wr.sv'),
+        os.path.join(repo_root, 'rtl/amba/axi4/axi4_master_rd.sv'),
+
+        # GAXI skid buffers (used by axi4_slave/master)
+        os.path.join(repo_root, 'rtl/amba/gaxi/gaxi_skid_buffer.sv'),
+
+        # Arbiter and dependencies
+        os.path.join(repo_root, 'rtl/common/arbiter_round_robin.sv'),
+        os.path.join(repo_root, 'rtl/common/arbiter_priority_encoder.sv'),
     ]
 
     # Format parameters for unique test name
@@ -271,6 +286,7 @@ def test_basic_bridge_functionality(request, num_masters, num_slaves, data_width
         "-Wno-UNUSEDSIGNAL",
         "-Wno-UNSIGNED",
         "-Wno-BLKSEQ",
+        f"-I{repo_root}/rtl/amba/includes",  # Include path for reset_defs.svh
     ]
 
     extra_env = {
@@ -315,9 +331,24 @@ def test_address_routing(request, num_masters, num_slaves, data_width, addr_widt
     dut_name = f"bridge_wrapper_{num_masters}x{num_slaves}"
     core_name = f"bridge_axi4_flat_{num_masters}x{num_slaves}"
 
+    # Collect all required RTL dependencies
     verilog_sources = [
+        # Bridge wrapper and core
         os.path.join(rtl_dict['rtl_bridge'], f'{dut_name}.sv'),
         os.path.join(rtl_dict['rtl_bridge'], f'{core_name}.sv'),
+
+        # AMBA AXI4 components (axi4_slave_wr/rd, axi4_master_wr/rd)
+        os.path.join(repo_root, 'rtl/amba/axi4/axi4_slave_wr.sv'),
+        os.path.join(repo_root, 'rtl/amba/axi4/axi4_slave_rd.sv'),
+        os.path.join(repo_root, 'rtl/amba/axi4/axi4_master_wr.sv'),
+        os.path.join(repo_root, 'rtl/amba/axi4/axi4_master_rd.sv'),
+
+        # GAXI skid buffers (used by axi4_slave/master)
+        os.path.join(repo_root, 'rtl/amba/gaxi/gaxi_skid_buffer.sv'),
+
+        # Arbiter and dependencies
+        os.path.join(repo_root, 'rtl/common/arbiter_round_robin.sv'),
+        os.path.join(repo_root, 'rtl/common/arbiter_priority_encoder.sv'),
     ]
 
     nm_str = TBBase.format_dec(num_masters, 2)
@@ -353,6 +384,7 @@ def test_address_routing(request, num_masters, num_slaves, data_width, addr_widt
         "-Wno-UNUSEDSIGNAL",
         "-Wno-UNSIGNED",
         "-Wno-BLKSEQ",
+        f"-I{repo_root}/rtl/amba/includes",  # Include path for reset_defs.svh
     ]
 
     extra_env = {

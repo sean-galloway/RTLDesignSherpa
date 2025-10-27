@@ -265,61 +265,79 @@ end
 
 ## Architecture by Performance Mode
 
-### Low Performance Implementation
+**IMPORTANT:** This engine uses **STREAMING PIPELINE architecture**, NOT FSM!
+
+See `puml/axi_write_engine_pipeline.puml` for detailed pipeline flow diagram.
+
+### Low Performance Implementation (v1 - ACTUAL RTL)
+
+**Flag-Based Control (NO state machine):**
 
 ```systemverilog
-// Simple state machine for transaction control
-typedef enum logic [2:0] {
-    IDLE      = 3'b000,
-    ISSUE_AW  = 3'b001,
-    STREAM_W  = 3'b010,
-    WAIT_B    = 3'b011
-} state_t;
+// Control flags (NOT FSM states!)
+logic r_aw_inflight;     // Transaction in flight
+logic r_aw_valid;        // AW channel has valid data
+logic r_w_active;        // W channel streaming
+logic r_b_pending;       // B response pending
+logic [7:0] r_beats_sent;
+logic [7:0] r_expected_beats;
 
-state_t r_state;
+// Ready signal - can accept new request when:
+assign datawr_ready = !r_aw_inflight && !r_aw_valid && !r_b_pending;
 
-always_ff @(posedge aclk or negedge aresetn) begin
-    if (!aresetn) begin
-        r_state <= IDLE;
-    end else begin
-        case (r_state)
-            IDLE: begin
-                if (datawr_valid && sram_rd_avail >= cfg_burst_len)
-                    r_state <= ISSUE_AW;
-            end
+// Streaming pipeline operation:
+// 1. Accept request → set r_aw_inflight
+// 2. Issue AW → clear r_aw_valid when handshake, activate W channel
+// 3. Stream W data → m_axi_wvalid = r_w_active && sram_rd_valid
+// 4. On wlast → set r_b_pending
+// 5. On B response → clear all flags, assert done_strobe
+// 6. Immediately ready for next request (ZERO bubbles!)
 
-            ISSUE_AW: begin
-                if (m_axi_awvalid && m_axi_awready)
-                    r_state <= STREAM_W;
-            end
+// Actual implementation (axi_write_engine.sv:171-200):
+if (datawr_valid && datawr_ready) begin
+    r_aw_addr <= datawr_addr;
+    r_aw_len <= w_capped_burst_len;
+    r_aw_channel_id <= datawr_channel_id;
+    r_aw_valid <= 1'b1;
+    r_aw_inflight <= 1'b1;  // Mark transaction active
+end
 
-            STREAM_W: begin
-                if (m_axi_wvalid && m_axi_wlast && m_axi_wready)
-                    r_state <= WAIT_B;
-            end
+// AXI AW handshake
+if (r_aw_valid && m_axi_awready) begin
+    r_aw_valid <= 1'b0;
+    r_expected_beats <= r_aw_len + 8'h1;
+    r_w_active <= 1'b1;     // Start W streaming
+end
 
-            WAIT_B: begin
-                if (m_axi_bvalid && m_axi_bready)
-                    r_state <= (datawr_beats_remaining > 0) ? ISSUE_AW : IDLE;
-            end
-        endcase
-    end
+// Clear inflight when B response received
+if (m_axi_bvalid && m_axi_bready) begin
+    r_aw_inflight <= 1'b0;
+    r_b_pending <= 1'b0;
 end
 ```
 
-### Medium Performance Implementation
+**Streaming Data Path (axi_write_engine.sv:255-258):**
+- `assign m_axi_wvalid = r_w_active && sram_rd_valid;` (direct gating!)
+- `assign m_axi_wdata = sram_rd_data;` (passthrough!)
+- `assign m_axi_wstrb = {(DATA_WIDTH/8){1'b1}};` (full strobes!)
+- `assign m_axi_wlast = (r_beats_sent == (r_expected_beats - 8'h1));`
 
-- Outstanding transaction counter
-- AW/W/B channel decoupling
+**Performance Advantage:** Zero-bubble operation with AW/W/B channel pipelining.
+
+### Medium Performance Implementation (Future)
+
+- Outstanding transaction counter (track multiple AW/W/B triplets)
+- AW/W/B channel decoupling (multiple outstanding)
 - Adaptive burst sizing based on SRAM data availability
+- Still NO FSM - uses enhanced flag-based control
 
-### High Performance Implementation
+### High Performance Implementation (Future)
 
-- Full AW/W/B channel pipelining
-- Transaction ID tracking
-- Out-of-order completion handling
+- Full AW/W/B channel pipelining (deep outstanding queue)
+- Transaction ID tracking (out-of-order completion)
 - Dynamic burst optimization
-- SRAM read prefetch
+- SRAM read prefetch with lookahead
+- Still NO FSM - uses credit-based streaming control
 
 ---
 

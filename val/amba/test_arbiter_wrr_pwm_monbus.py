@@ -527,7 +527,7 @@ def test_arbiter_wrr_pwm_monbus(request, clients, max_levels, wait_gnt_ack, agen
 
     # Environment variables
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'TRACE_FILE': f"{sim_build}/dump.vcd",
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'LOG_PATH': log_path,
@@ -541,6 +541,9 @@ def test_arbiter_wrr_pwm_monbus(request, clients, max_levels, wait_gnt_ack, agen
         'TEST_LEVEL': test_level
     }
 
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
         "--trace",
         
@@ -552,7 +555,7 @@ def test_arbiter_wrr_pwm_monbus(request, clients, max_levels, wait_gnt_ack, agen
         
     ]
 
-    plusargs = ["+trace"]
+    plusargs = ["--trace"]
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
@@ -567,7 +570,7 @@ def test_arbiter_wrr_pwm_monbus(request, clients, max_levels, wait_gnt_ack, agen
             sim_build=sim_build,
             extra_env=extra_env,
             simulator="verilator",  # Specify verilator explicitly
-            waves=False,
+            waves=False,  # VCD controlled by compile_args, not cocotb-test
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
@@ -663,7 +666,7 @@ if __name__ == "__main__":
 
     # Environment variables
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'TRACE_FILE': f"{sim_build}/dump.vcd",
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'LOG_PATH': log_path,
@@ -677,6 +680,9 @@ if __name__ == "__main__":
         'TEST_LEVEL': test_level
     }
 
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
         "--trace",
         
@@ -688,7 +694,7 @@ if __name__ == "__main__":
         
     ]
 
-    plusargs = ["+trace"]
+    plusargs = ["--trace"]
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
@@ -703,7 +709,7 @@ if __name__ == "__main__":
             sim_build=sim_build,
             extra_env=extra_env,
             simulator="verilator",  # Specify verilator explicitly
-            waves=False,
+            waves=False,  # VCD controlled by compile_args, not cocotb-test
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,

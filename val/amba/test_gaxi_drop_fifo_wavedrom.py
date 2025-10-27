@@ -437,6 +437,9 @@ def test_gaxi_drop_fifo_wavedrom():
         'TRIM_MODE': 'default',
     }
 
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
         "--trace",
         "--trace-structs",

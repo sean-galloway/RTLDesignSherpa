@@ -102,6 +102,10 @@ help:
 	@echo "  make clean-build          Remove simulation build directories"
 	@echo "  make clean-vcd            Remove VCD waveform files"
 	@echo ""
+	@echo "DEVELOPMENT TARGETS:"
+	@echo "  make ptw-fub              Run pytest-watch for FUB tests (auto-rerun)"
+	@echo "  make ptw-macro            Run pytest-watch for macro tests (auto-rerun)"
+	@echo ""
 	@echo "UTILITY TARGETS:"
 	@echo "  make list-fub             List all FUB test modules"
 	@echo "  make list-macro           List all macro test modules"
@@ -296,6 +300,26 @@ run-all-full-parallel:
 	@echo "Running ALL STREAM Tests - FULL level PARALLEL (48 workers)"
 	@echo "================================================================================"
 	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) $(FUB_TESTS_DIR)/test_*.py $(MACRO_TESTS_DIR)/test_*.py
+
+# ==============================================================================
+# Development Targets - pytest-watch for auto-rerunning tests
+# ==============================================================================
+
+.PHONY: ptw-fub
+ptw-fub:
+	@echo "================================================================================"
+	@echo "Starting pytest-watch for STREAM FUB tests"
+	@echo "Tests will auto-rerun when files change. Press Ctrl+C to stop."
+	@echo "================================================================================"
+	@cd $(FUB_TESTS_DIR) && $(MAKE) ptw
+
+.PHONY: ptw-macro
+ptw-macro:
+	@echo "================================================================================"
+	@echo "Starting pytest-watch for STREAM macro tests"
+	@echo "Tests will auto-rerun when files change. Press Ctrl+C to stop."
+	@echo "================================================================================"
+	@cd $(MACRO_TESTS_DIR) && $(MAKE) ptw
 
 # ==============================================================================
 # Run Targets - Individual Test Modules (flattened structure)

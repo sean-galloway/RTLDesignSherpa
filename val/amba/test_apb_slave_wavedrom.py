@@ -994,6 +994,9 @@ def test_comprehensive_apb_slave(request, addr_width, data_width, depth):
     }
 
     # Disable FST tracing to avoid Verilator bug
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = []
     sim_args = []
     plusargs = []
@@ -1068,6 +1071,9 @@ def test_comprehensive_apb_slave(request, addr_width, data_width, depth):
     }
 
     # Disable FST tracing to avoid Verilator bug
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = []
     sim_args = []
     plusargs = []

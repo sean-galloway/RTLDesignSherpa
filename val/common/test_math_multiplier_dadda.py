@@ -133,7 +133,7 @@ def test_math_multiplier_dadda_tree(request, params):
     seed = random.randint(0, 100000)
 
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'TRACE_FILE': f"{sim_build}/dump.vcd",
         'VERILATOR_TRACE': '1',  # Enable tracing
         'DUT': dut_name,
         'LOG_PATH': log_path,
@@ -146,25 +146,32 @@ def test_math_multiplier_dadda_tree(request, params):
 
     # Create command file for viewing waveforms
 
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
         "--trace",
         "--trace-structs",
         "--trace-depth", "99",
     ]
-
     sim_args = [
-        "--trace",  # Tell Verilator to use FST
+        "--trace",  # VCD waveform format
         "--trace-structs",
         "--trace-depth", "99",
     ]
 
     plusargs = [
-        "+trace",
+        "--trace",
     ]
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
     # Launch the simulation
+
+    # Conditionally set COCOTB_TRACE_FILE for VCD generation
+    if bool(int(os.environ.get('WAVES', '0'))):
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
+
     try:
         run(
             python_search=[tests_dir],  # where to search for all the python test files
@@ -175,7 +182,7 @@ def test_math_multiplier_dadda_tree(request, params):
             parameters={'N': params['WIDTH']},
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,
+            waves=False,  # VCD controlled by compile_args, not cocotb-test
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,

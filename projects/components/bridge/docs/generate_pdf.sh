@@ -14,7 +14,7 @@ cd "$(dirname "$0")"
 
 python "$REPO_ROOT/bin/md_to_docx.py" \
     "$SPEC_INDEX" \
-    -o "$OUTPUT_FILE" \
+    "$OUTPUT_FILE" \
     --toc \
     --title-page \
     --pdf

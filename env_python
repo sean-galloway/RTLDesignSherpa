@@ -45,4 +45,29 @@ export SIM=verilator
 # Optional: Print summary (can be toggled off later)
 echo "[env_python] Environment configured for REPO_ROOT=$REPO_ROOT"
 
+# ============================================================================
+# Test Aliases - Convenient shortcuts for running pytest with common options
+# ============================================================================
+
+# ptw - Pytest With Waves (generates VCD waveforms)
+# Usage: ptw test_cam_tag.py
+#        ptw test_counter.py::test_counter
+alias ptw='WAVES=1 REG_LEVEL=GATE python3 -m pytest -v -s'
+
+# ptg - Pytest Gate level (quick smoke tests)
+# Usage: ptg test_*.py
+alias ptg='REG_LEVEL=GATE python3 -m pytest -v'
+
+# ptf - Pytest Func level (default functional tests)
+# Usage: ptf test_*.py -n 48
+alias ptf='REG_LEVEL=FUNC python3 -m pytest -v'
+
+# ptfull - Pytest Full regression
+# Usage: ptfull test_*.py -n 48
+alias ptfull='REG_LEVEL=FULL python3 -m pytest -v'
+
+# ptwg - Pytest With Waves, Gate level (quick waveform debug)
+# Same as ptw (for convenience)
+alias ptwg='ptw'
+
 

@@ -1,3 +1,0 @@
-✓ RTL AMBA lint passed
-
-All 77 files passed lint checks

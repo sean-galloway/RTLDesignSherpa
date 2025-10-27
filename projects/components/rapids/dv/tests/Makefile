@@ -84,6 +84,11 @@ help:
 	@echo "  ALL Tests:"
 	@echo "    make run-all-{gate|func|full}[-parallel]"
 	@echo ""
+	@echo "DEVELOPMENT TARGETS (pytest-watch):"
+	@echo "  make ptw-fub              Auto-rerun FUB tests on file changes"
+	@echo "  make ptw-macro            Auto-rerun macro tests on file changes"
+	@echo "  make ptw-system           Auto-rerun system tests on file changes"
+	@echo ""
 	@echo "COLLECTION TARGETS (verify tests, don't run):"
 	@echo "  make collect-fub          Collect FUB tests (verify imports)"
 	@echo "  make collect-macro        Collect macro tests"
@@ -357,6 +362,34 @@ run-all-full-parallel:
 	@echo "Running ALL RAPIDS Tests - FULL level PARALLEL (48 workers)"
 	@echo "================================================================================"
 	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) $(FUB_TESTS_DIR)/test_*.py $(MACRO_TESTS_DIR)/test_*.py $(SYSTEM_TESTS_DIR)/test_*.py
+
+# ==============================================================================
+# Development Targets (pytest-watch)
+# ==============================================================================
+
+.PHONY: ptw-fub
+ptw-fub:
+	@echo "================================================================================"
+	@echo "Starting pytest-watch for RAPIDS FUB tests"
+	@echo "Tests will auto-rerun when files change. Press Ctrl+C to stop."
+	@echo "================================================================================"
+	@cd $(FUB_TESTS_DIR) && $(MAKE) ptw
+
+.PHONY: ptw-macro
+ptw-macro:
+	@echo "================================================================================"
+	@echo "Starting pytest-watch for RAPIDS macro tests"
+	@echo "Tests will auto-rerun when files change. Press Ctrl+C to stop."
+	@echo "================================================================================"
+	@cd $(MACRO_TESTS_DIR) && $(MAKE) ptw
+
+.PHONY: ptw-system
+ptw-system:
+	@echo "================================================================================"
+	@echo "Starting pytest-watch for RAPIDS system tests"
+	@echo "Tests will auto-rerun when files change. Press Ctrl+C to stop."
+	@echo "================================================================================"
+	@cd $(SYSTEM_TESTS_DIR) && $(MAKE) ptw
 
 # ==============================================================================
 # Collection Targets (verify tests without running)

@@ -468,7 +468,7 @@ def test_bin2gray(request, width, test_level):
 
     # Environment variables
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'TRACE_FILE': f"{sim_build}/dump.vcd",
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'LOG_PATH': log_path,
@@ -481,14 +481,16 @@ def test_bin2gray(request, width, test_level):
         'COCOTB_TEST_TIMEOUT': str(timeout_ms)
     }
 
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
         "--trace",
         "--trace-structs",
         "--trace-depth", "99",
     ]
-
     sim_args = [
-        "--trace",
+        "--trace",  # VCD waveform format
         "--trace-structs",
         "--trace-depth", "99",
     ]
@@ -504,6 +506,11 @@ def test_bin2gray(request, width, test_level):
     print(f"Log: {log_path}")
     print(f"{'='*60}")
 
+
+    # Conditionally set COCOTB_TRACE_FILE for VCD generation
+    if bool(int(os.environ.get('WAVES', '0'))):
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
+
     try:
         run(
             python_search=[tests_dir],
@@ -514,7 +521,7 @@ def test_bin2gray(request, width, test_level):
             parameters=parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,
+            waves=False,  # VCD controlled by compile_args, not cocotb-test
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,

@@ -1,0 +1,201 @@
+@startuml axi_read_engine_pipeline
+!theme plain
+title AXI Read Engine - Streaming Pipeline Architecture (NO FSM!)
+
+skinparam activity {
+  BackgroundColor LightYellow
+  BorderColor DarkOrange
+  ArrowColor DarkOrange
+  ArrowFontColor Black
+  ArrowFontSize 10
+  DiamondBackgroundColor LightGray
+  DiamondBorderColor DarkOrange
+}
+
+start
+
+note right
+<b>Key Design Philosophy:</b>
+<b>FSMs are HORRIBLE for performance!</b>
+
+This design uses:
+• Arbiter-granted streaming pipeline
+• Flag-based control (no state machine)
+• Continuous data flow when granted
+• Zero-bubble operation
+
+<b>Control Flags (not FSM states):</b>
+r_ar_inflight  - Transaction in flight
+r_ar_valid     - AR channel has data
+datard_ready   - Can accept new request
+
+<b>Performance:</b>
+• Single outstanding transaction (v1)
+• Immediate pipeline advancement
+• No state transition delays
+• Backpressure only from SRAM
+end note
+
+:Arbiter grants channel access;
+note right
+Scheduler requests read via:
+• datard_valid = 1
+• datard_beats_remaining = total
+• datard_addr = source address
+
+Arbiter grants when:
+• Engine not busy (!r_ar_inflight)
+• No pending AR (!r_ar_valid)
+end note
+
+if (datard_valid && datard_ready?) then (yes)
+  :Latch Request;
+  note right
+    r_ar_addr <= datard_addr
+    r_ar_len <= calculate_burst_len()
+    r_ar_channel_id <= datard_channel_id
+    r_ar_valid <= 1
+    r_ar_inflight <= 1
+  end note
+
+  :Calculate Burst Length;
+  note right
+    <b>Autonomous Burst Decision:</b>
+    burst_len = min(
+      datard_burst_len,      // Requested
+      MAX_BURST_LEN,         // Limit (16)
+      datard_beats_remaining // Remaining
+    )
+
+    Engine decides, NOT scheduler!
+  end note
+else (no)
+  stop
+endif
+
+partition "AR Channel Streaming" {
+  :Wait for m_axi_arready;
+  note right
+    AR transaction with:
+    • m_axi_arid = {4'h0, channel_id[3:0]}
+    • m_axi_arlen = burst_len - 1
+    • m_axi_arsize = $clog2(DATA_WIDTH/8)
+    • m_axi_arburst = INCR (2'b01)
+  end note
+
+  :m_axi_arvalid && m_axi_arready;
+  :Clear r_ar_valid;
+  note right: AR handshake complete
+}
+
+partition "R Channel Streaming (CONTINUOUS)" {
+  repeat
+    :m_axi_rvalid && m_axi_rready;
+    note right
+      <b>Streaming Data Flow:</b>
+      • m_axi_rready = sram_wr_ready (direct!)
+      • sram_wr_en = m_axi_rvalid && m_axi_rready
+      • sram_wr_data = m_axi_rdata (passthrough!)
+      • sram_wr_addr = r_sram_wr_ptr++
+
+      <b>NO state machine delays!</b>
+      Data flows continuously when ready.
+    end note
+
+    if (m_axi_rresp != OKAY?) then (error)
+      :Set datard_error;
+      note right
+        r_error_detected <= 1
+        r_error_resp <= m_axi_rresp
+      end note
+    endif
+
+    :Increment beat counter;
+    note right: r_beats_received++
+
+  repeat while (m_axi_rlast == 0?)
+}
+
+:Assert datard_done_strobe;
+note right
+<b>Completion Reporting:</b>
+• datard_done_strobe = 1 (single cycle)
+• datard_beats_done = r_expected_beats
+• Clear r_ar_inflight
+• Ready for next request!
+
+<b>No state transition overhead!</b>
+Can accept new request IMMEDIATELY.
+end note
+
+:Generate MonBus packet;
+note right
+  Monitor packet with:
+  • Event: READ_COMPLETE
+  • Channel ID from ARID
+  • Beats transferred
+  • Timestamp
+end note
+
+if (datard_beats_remaining > 0?) then (yes)
+  :Continue transfer;
+  note right
+    Scheduler decrements beats_remaining
+    and re-issues datard_valid.
+    Engine immediately accepts!
+  end note
+  detach
+else (no)
+  :Transfer complete;
+  stop
+endif
+
+note bottom
+<b>Pipeline Flow Diagram - NOT FSM!</b>
+
+<b>Key Differences from FSM Approach:</b>
+
+<b>FSM (OLD - NOT USED):</b>
+IDLE → ISSUE_AR → WAIT_R → COMPLETE → IDLE
+• State transitions add latency
+• Bubbles between transactions
+• Complex state tracking
+
+<b>Streaming Pipeline (ACTUAL RTL):</b>
+Request → AR Stream → R Stream → Complete
+• Flag-based control (r_ar_inflight, r_ar_valid)
+• Zero bubbles (continuous flow)
+• Immediate ready after completion
+
+<b>Performance Advantage:</b>
+Streaming pipeline achieves near-100% bus utilization
+by eliminating state machine transition overhead.
+
+<b>Backpressure Handling:</b>
+• SRAM full: m_axi_rready = 0 (AXI flow control)
+• Engine pauses data acceptance automatically
+• NO state machine needed!
+
+<b>Actual RTL Flags (axi_read_engine.sv lines 161-189):</b>
+
+assign datard_ready = !r_ar_inflight && !r_ar_valid;
+
+// Accept new request when ready
+if (datard_valid && datard_ready) begin
+    r_ar_addr <= datard_addr;
+    r_ar_len <= w_capped_burst_len;
+    r_ar_channel_id <= datard_channel_id;
+    r_ar_valid <= 1'b1;
+    r_ar_inflight <= 1'b1;
+end
+
+// AXI AR handshake
+if (r_ar_valid && m_axi_arready) begin
+    r_ar_valid <= 1'b0;
+end
+
+// Clear inflight when last beat received
+if (m_axi_rvalid && m_axi_rready && m_axi_rlast) begin
+    r_ar_inflight <= 1'b0;
+end
+@enduml

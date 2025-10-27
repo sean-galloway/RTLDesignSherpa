@@ -562,7 +562,7 @@ def test_gaxi_buffer_async_wavedrom(request, data_width, depth, wr_clk_period, r
 
     # Environment variables - ENABLE WAVEDROM!
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'TRACE_FILE': f"{sim_build}/dump.vcd",
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'LOG_PATH': log_path,
@@ -580,6 +580,9 @@ def test_gaxi_buffer_async_wavedrom(request, data_width, depth, wr_clk_period, r
         'TEST_KIND': 'async',
     }
 
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
         "-Wno-TIMESCALEMOD",
     ]
@@ -764,7 +767,7 @@ def test_gaxi_buffer_async(request, data_width, depth, wr_clk_period, rd_clk_per
 
     # Environment variables
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'TRACE_FILE': f"{sim_build}/dump.vcd",
         'VERILATOR_TRACE': '1',  # Enable tracing
         'DUT': dut_name,
         'LOG_PATH': log_path,
@@ -783,6 +786,9 @@ def test_gaxi_buffer_async(request, data_width, depth, wr_clk_period, rd_clk_per
     extra_env['TEST_MODE'] = mode
     extra_env['TEST_KIND'] = 'async'  # Important: tells TB this is async
 
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
         "--trace",
         
@@ -796,7 +802,7 @@ def test_gaxi_buffer_async(request, data_width, depth, wr_clk_period, rd_clk_per
     ]
 
     plusargs = [
-        "+trace",
+        "--trace",
     ]
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
@@ -819,7 +825,7 @@ def test_gaxi_buffer_async(request, data_width, depth, wr_clk_period, rd_clk_per
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,
+            waves=False,  # VCD controlled by compile_args, not cocotb-test
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,

@@ -362,6 +362,9 @@ def test_axi4_slave_rd_mon(id_width, addr_width, data_width, user_width, max_tra
         'TEST_CLK_PERIOD': '10',
     }
 
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
         "-Wall", "-Wno-SYNCASYNCNET", "-Wno-UNUSED", "-Wno-DECLFILENAME", "-Wno-PINMISSING",
         "-Wno-UNDRIVEN", "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC",
@@ -383,7 +386,7 @@ def test_axi4_slave_rd_mon(id_width, addr_width, data_width, user_width, max_tra
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,
+            waves=False,  # VCD controlled by compile_args, not cocotb-test
             keep_files=True,
             compile_args=compile_args,
         )

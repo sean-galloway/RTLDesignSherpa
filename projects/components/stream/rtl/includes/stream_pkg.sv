@@ -88,43 +88,25 @@ package stream_pkg;
     } channel_state_t;
 
     //=========================================================================
-    // Scheduler State Enumeration (Simplified from RAPIDS)
+    // REMOVED: Unused FSM Enumerations
     //=========================================================================
-    typedef enum logic [7:0] {
-        SCHED_IDLE              = 8'b00000001,  // Idle, waiting for channel activation
-        SCHED_FETCH_DESCRIPTOR  = 8'b00000010,  // Fetch descriptor via AXI master
-        SCHED_PARSE_DESCRIPTOR  = 8'b00000100,  // Parse descriptor fields
-        SCHED_READ_PHASE        = 8'b00001000,  // Coordinate read engine
-        SCHED_WRITE_PHASE       = 8'b00010000,  // Coordinate write engine
-        SCHED_CHAIN_CHECK       = 8'b00100000,  // Check for next descriptor
-        SCHED_COMPLETE          = 8'b01000000,  // Transfer complete, report status
-        SCHED_ERROR             = 8'b10000000   // Error state
-    } scheduler_state_t;
-
-    //=========================================================================
-    // AXI Read Engine State (Simplified)
-    //=========================================================================
-    typedef enum logic [2:0] {
-        RD_IDLE       = 3'b000,  // Idle, waiting for request
-        RD_ISSUE_ADDR = 3'b001,  // Issue read address on AR channel
-        RD_WAIT_DATA  = 3'b010,  // Wait for data on R channel
-        RD_WRITE_SRAM = 3'b011,  // Write data to SRAM buffer
-        RD_COMPLETE   = 3'b100,  // Read complete
-        RD_ERROR      = 3'b111   // Error state
-    } read_engine_state_t;
-
-    //=========================================================================
-    // AXI Write Engine State (Simplified)
-    //=========================================================================
-    typedef enum logic [2:0] {
-        WR_IDLE       = 3'b000,  // Idle, waiting for request
-        WR_READ_SRAM  = 3'b001,  // Read data from SRAM buffer
-        WR_ISSUE_ADDR = 3'b010,  // Issue write address on AW channel
-        WR_ISSUE_DATA = 3'b011,  // Issue write data on W channel
-        WR_WAIT_RESP  = 3'b100,  // Wait for response on B channel
-        WR_COMPLETE   = 3'b101,  // Write complete
-        WR_ERROR      = 3'b111   // Error state
-    } write_engine_state_t;
+    // The following FSM enums were removed because the RTL uses streaming
+    // pipeline architecture instead of FSMs:
+    //
+    // - scheduler_state_t:      REMOVED (scheduler uses channel_state_t above)
+    // - read_engine_state_t:    REMOVED (read engine uses flag-based control)
+    // - write_engine_state_t:   REMOVED (write engine uses flag-based control)
+    //
+    // See ARCHITECTURAL_NOTES.md: "No FSMs in data path engines - use streaming pipelines"
+    //
+    // Actual RTL Control Mechanisms:
+    // - Scheduler: Uses channel_state_t FSM (control path, not data path)
+    // - AXI Read Engine: Flag-based (r_ar_inflight, r_ar_valid) - NO FSM
+    // - AXI Write Engine: Flag-based (r_aw_inflight, r_w_active, r_b_pending) - NO FSM
+    //
+    // Documentation:
+    // - See puml/axi_read_engine_pipeline.puml for streaming pipeline flow
+    // - See puml/axi_write_engine_pipeline.puml for streaming pipeline flow
 
     //=========================================================================
     // Channel Status Structure

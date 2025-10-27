@@ -919,7 +919,7 @@ def test_counter_freq_invariant_enhanced(request, counter_width):
 
     # Environment variables
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'TRACE_FILE': f"{sim_build}/dump.vcd",
         'VERILATOR_TRACE': '1',  # Enable tracing
         'TEST_COUNTER_WIDTH': str(counter_width),
         'DUT': dut_name,
@@ -929,23 +929,29 @@ def test_counter_freq_invariant_enhanced(request, counter_width):
         'SEED': str(random.randint(0, 100000))
     }
 
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
-            "--trace",
-            "--trace-structs",
-            "--trace-depth", "99",
+        "--trace",
+        "--trace-structs",
+        "--trace-depth", "99",
     ]
-
     sim_args = [
-            "--trace",  # Tell Verilator to use FST
-            "--trace-structs",
-            "--trace-depth", "99",
+        "--trace",  # VCD waveform format
+        "--trace-structs",
+        "--trace-depth", "99",
     ]
 
     plusargs = [
-            "+trace",
+        "--trace",
     ]
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
+
+    # Conditionally set COCOTB_TRACE_FILE for VCD generation
+    if bool(int(os.environ.get('WAVES', '0'))):
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
 
     try:
         run(
@@ -957,7 +963,7 @@ def test_counter_freq_invariant_enhanced(request, counter_width):
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,
+            waves=False,  # VCD controlled by compile_args, not cocotb-test
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,

@@ -266,7 +266,7 @@ def test_cdc_handshake(request, params):
 
     # Environment variables
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'TRACE_FILE': f"{sim_build}/dump.vcd",
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'LOG_PATH': log_path,
@@ -284,6 +284,9 @@ def test_cdc_handshake(request, params):
         'CDC_TYPE': 'fast_to_slow' if ratio > 1 else 'slow_to_fast' if ratio < 1 else 'same_freq',
     }
 
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
         "--trace",
         
@@ -303,7 +306,7 @@ def test_cdc_handshake(request, params):
     ]
 
     plusargs = [
-        "+trace",
+        "--trace",
         f"+cdc_src_period={src_period}",
         f"+cdc_dst_period={dst_period}",
         f"+test_level={test_level}",
@@ -329,7 +332,7 @@ def test_cdc_handshake(request, params):
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,
+            waves=False,  # VCD controlled by compile_args, not cocotb-test
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,

@@ -225,7 +225,7 @@ def test_gaxi_drop_fifo_sync(request, data_width, depth, registered, test_id):
 
     # Environment variables
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'TRACE_FILE': f"{sim_build}/dump.vcd",
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'LOG_PATH': log_path,
@@ -234,6 +234,9 @@ def test_gaxi_drop_fifo_sync(request, data_width, depth, registered, test_id):
         'SEED': str(random.randint(0, 100000)),
     }
 
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
         "--trace",
         "--trace-structs",
@@ -247,7 +250,7 @@ def test_gaxi_drop_fifo_sync(request, data_width, depth, registered, test_id):
         "--trace-depth", "99",
     ]
 
-    plusargs = ["+trace"]
+    plusargs = ["--trace"]
 
     # Enable waveform dumping
     extra_env['WAVES'] = '1'
@@ -269,7 +272,7 @@ def test_gaxi_drop_fifo_sync(request, data_width, depth, registered, test_id):
             parameters=parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,
+            waves=False,  # VCD controlled by compile_args, not cocotb-test
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,

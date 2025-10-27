@@ -708,9 +708,9 @@ for masters, slaves, base_addr in variants:
 **Solution:**
 ```bash
 # Verify generator exists
-ls -la ../../../bin/rtl_generators/amba/apb_xbar_generator.py
+ls -la bin/apb_xbar_generator.py
 
-# Run from correct directory
+# Run from bin directory
 cd projects/components/apb_xbar/bin/
 python generate_xbars.py
 ```

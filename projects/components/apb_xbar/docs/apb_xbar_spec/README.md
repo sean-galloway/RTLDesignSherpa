@@ -167,9 +167,9 @@ slave_index = offset[19:16]  // Divide by 64KB
 
 ### 4. RTL Generation
 
-**Two-Level Structure:**
-- **Convenience Wrapper:** `bin/generate_xbars.py` (project-specific)
-- **Core Generator:** `bin/rtl_generators/amba/apb_xbar_generator.py` (library)
+**All Generator Code in Component Area:**
+- **Convenience Wrapper:** `bin/generate_xbars.py` (top-level script)
+- **Core Generator:** `bin/apb_xbar_generator.py` (library implementation)
 
 **Usage:**
 ```bash

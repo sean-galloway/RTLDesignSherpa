@@ -153,7 +153,7 @@ def test_axil4_slave_rd_mon(test_level):
         parameters=rtl_parameters,
         sim_build=sim_build,
         extra_env=extra_env,
-        waves=False,
+        waves=False,  # VCD controlled by compile_args, not cocotb-test
         timescale='1ns/1ps',
         verilator_trace=False,
         compile_args=[

@@ -113,7 +113,7 @@ def test_reset_sync(n, test_mode):
     ]
 
     # Force VCD format (not FST) - cocotb will use this
-    extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
+    extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
 
     print(f"\n{'='*80}")
     print(f"Reset Sync Test: {test_mode} (N={n})")
@@ -133,12 +133,12 @@ def test_reset_sync(n, test_mode):
             compile_args=compile_args,
         )
         print(f"✓ PASSED: {test_name}")
-        print(f"Waveform: {sim_build}/dump.vcd")
+        print(f"Waveform: {sim_build}/dump.fst")
     except Exception as e:
         print(f"✗ FAILED: {test_name}")
         print(f"Error: {str(e)}")
         print(f"Log: {log_path}")
-        print(f"Waveform: {sim_build}/dump.vcd")
+        print(f"Waveform: {sim_build}/dump.fst")
         raise
 
 

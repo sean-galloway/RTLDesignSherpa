@@ -178,6 +178,9 @@ def test_gaxi_drop_fifo_capacity(request, data_width, depth, registered):
         'WAVES': '1',
     }
 
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
         "--trace",
         "--trace-structs",
@@ -260,6 +263,9 @@ if __name__ == "__main__":
         'WAVES': '1',
     }
 
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
         "--trace",
         "--trace-structs",

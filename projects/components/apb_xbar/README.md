@@ -175,7 +175,7 @@ if M < 1 or M > 16:  # Change 16 to desired max
 ## References
 
 - APB Specification: ARM IHI 0024C (AMBA APB Protocol v2.0)
-- Generator: `bin/rtl_generators/amba/apb_xbar_generator.py`
+- Generator: `projects/components/apb_xbar/bin/apb_xbar_generator.py`
 - Base modules: `rtl/amba/apb/apb_slave.sv`, `rtl/amba/apb/apb_master.sv`
 - Tests: `val/integ_amba/test_apb_xbar_*.py`
 

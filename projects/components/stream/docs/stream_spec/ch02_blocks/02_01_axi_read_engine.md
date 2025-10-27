@@ -250,55 +250,72 @@ end
 
 ## Architecture by Performance Mode
 
-### Low Performance Implementation
+**IMPORTANT:** This engine uses **STREAMING PIPELINE architecture**, NOT FSM!
+
+See `puml/axi_read_engine_pipeline.puml` for detailed pipeline flow diagram.
+
+### Low Performance Implementation (v1 - ACTUAL RTL)
+
+**Flag-Based Control (NO state machine):**
 
 ```systemverilog
-// Simple state machine for transaction control
-typedef enum logic [1:0] {
-    IDLE   = 2'b00,
-    ISSUE  = 2'b01,
-    WAIT   = 2'b10
-} state_t;
+// Control flags (NOT FSM states!)
+logic r_ar_inflight;     // Transaction in flight
+logic r_ar_valid;        // AR channel has valid data
+logic [7:0] r_beats_received;
+logic [7:0] r_expected_beats;
 
-state_t r_state;
+// Ready signal - can accept new request when:
+assign datard_ready = !r_ar_inflight && !r_ar_valid;
 
-always_ff @(posedge aclk or negedge aresetn) begin
-    if (!aresetn) begin
-        r_state <= IDLE;
-    end else begin
-        case (r_state)
-            IDLE: begin
-                if (datard_valid && sram_wr_space >= cfg_burst_len)
-                    r_state <= ISSUE;
-            end
+// Streaming pipeline operation:
+// 1. Accept request → set r_ar_inflight
+// 2. Issue AR → clear r_ar_valid when handshake
+// 3. Stream R data → sram_wr_en = m_axi_rvalid && m_axi_rready
+// 4. On rlast → clear r_ar_inflight, assert done_strobe
+// 5. Immediately ready for next request (ZERO bubbles!)
 
-            ISSUE: begin
-                if (m_axi_arvalid && m_axi_arready)
-                    r_state <= WAIT;
-            end
+// Actual implementation (axi_read_engine.sv:161-189):
+if (datard_valid && datard_ready) begin
+    r_ar_addr <= datard_addr;
+    r_ar_len <= w_capped_burst_len;
+    r_ar_channel_id <= datard_channel_id;
+    r_ar_valid <= 1'b1;
+    r_ar_inflight <= 1'b1;  // Mark transaction active
+end
 
-            WAIT: begin
-                if (m_axi_rvalid && m_axi_rlast)
-                    r_state <= (datard_beats_remaining > 0) ? ISSUE : IDLE;
-            end
-        endcase
-    end
+// AXI AR handshake
+if (r_ar_valid && m_axi_arready) begin
+    r_ar_valid <= 1'b0;
+end
+
+// Clear inflight when last beat received
+if (m_axi_rvalid && m_axi_rready && m_axi_rlast) begin
+    r_ar_inflight <= 1'b0;
 end
 ```
 
-### Medium Performance Implementation
+**Streaming Data Path:**
+- `assign m_axi_rready = sram_wr_ready;` (direct passthrough!)
+- `assign sram_wr_en = m_axi_rvalid && m_axi_rready;` (no FSM overhead!)
+- `assign sram_wr_data = m_axi_rdata;` (continuous streaming!)
 
-- Outstanding transaction counter
+**Performance Advantage:** Zero-bubble operation by eliminating state machine transitions.
+
+### Medium Performance Implementation (Future)
+
+- Outstanding transaction counter (track multiple AR/R pairs)
 - Basic AR/R channel decoupling
 - Adaptive burst sizing based on SRAM fullness
+- Still NO FSM - uses enhanced flag-based control
 
-### High Performance Implementation
+### High Performance Implementation (Future)
 
 - Full AR/R channel pipelining
-- Transaction ID tracking
-- Out-of-order completion handling
+- Transaction ID tracking (out-of-order completion)
 - Dynamic burst optimization
 - Prefetch lookahead
+- Still NO FSM - uses credit-based streaming control
 
 ---
 

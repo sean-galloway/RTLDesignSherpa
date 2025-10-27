@@ -1090,7 +1090,7 @@ def test_apb_master(request, addr_width, data_width, cmd_depth, rsp_depth):
 
     # Environment variables
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'TRACE_FILE': f"{sim_build}/dump.vcd",
         'VERILATOR_TRACE': '1',  # Enable tracing
         'DUT': dut_name,
         'LOG_PATH': log_path,
@@ -1105,6 +1105,9 @@ def test_apb_master(request, addr_width, data_width, cmd_depth, rsp_depth):
     extra_env['TEST_CMD_DEPTH'] = str(cmd_depth)
     extra_env['TEST_RSP_DEPTH'] = str(rsp_depth)
 
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
             "--trace",
             
@@ -1112,13 +1115,13 @@ def test_apb_master(request, addr_width, data_width, cmd_depth, rsp_depth):
     ]
 
     sim_args = [
-            "--trace",  # Tell Verilator to use FST
+            "--trace",  # Tell Verilator to use VCD
             
             "--trace-depth", "99",
     ]
 
     plusargs = [
-            "+trace",
+            "--trace",
     ]
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
@@ -1133,7 +1136,7 @@ def test_apb_master(request, addr_width, data_width, cmd_depth, rsp_depth):
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,
+            waves=False,  # VCD controlled by compile_args, not cocotb-test
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
@@ -1199,7 +1202,7 @@ def test_apb_master_wavedrom(request, addr_width, data_width, cmd_depth, rsp_dep
             rtl_parameters[param_name.upper()] = str(locals()[param_name])
 
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'TRACE_FILE': f"{sim_build}/dump.vcd",
         'VERILATOR_TRACE': '1',
         'DUT': 'apb_master',
         'LOG_PATH': log_path,
@@ -1213,6 +1216,9 @@ def test_apb_master_wavedrom(request, addr_width, data_width, cmd_depth, rsp_dep
         'TEST_RSP_DEPTH': str(rsp_depth),
     }
 
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
         "-Wno-TIMESCALEMOD",
     ]

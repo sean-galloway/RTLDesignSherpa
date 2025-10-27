@@ -1,0 +1,108 @@
+// Graphviz Block Diagram: axi_data_dnsize (Single Buffer)
+// Purpose: Wide-to-Narrow Data Width Converter (Splitter) - Single Buffer Mode
+// Module: axi_data_dnsize.sv (DUAL_BUFFER=0)
+
+digraph axi_data_dnsize_single {
+    rankdir=LR;
+    newrank=true;
+    splines=ortho;
+    nodesep=0.8;
+    ranksep=1.2;
+
+    // Graph attributes
+    graph [fontname="Arial", fontsize=10, label="axi_data_dnsize - Wide→Narrow Splitter (Single Buffer)\n512→128 Example (4:1 ratio)", labelloc=t];
+    node [fontname="Arial", fontsize=9, shape=box, style=filled];
+    edge [fontname="Arial", fontsize=8];
+
+    // Module parameters
+    subgraph cluster_params {
+        label="Parameters";
+        style=filled;
+        fillcolor=lightyellow;
+
+        params [shape=note, fillcolor=lightyellow, label=<
+<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+<TR><TD COLSPAN="2"><B>Configuration</B></TD></TR>
+<TR><TD ALIGN="LEFT">WIDE_WIDTH</TD><TD ALIGN="RIGHT">512</TD></TR>
+<TR><TD ALIGN="LEFT">NARROW_WIDTH</TD><TD ALIGN="RIGHT">128</TD></TR>
+<TR><TD ALIGN="LEFT">RATIO</TD><TD ALIGN="RIGHT">4:1</TD></TR>
+<TR><TD ALIGN="LEFT">WIDE_SB_WIDTH</TD><TD ALIGN="RIGHT">64</TD></TR>
+<TR><TD ALIGN="LEFT">NARROW_SB_WIDTH</TD><TD ALIGN="RIGHT">16</TD></TR>
+<TR><TD ALIGN="LEFT">SB_BROADCAST</TD><TD ALIGN="RIGHT">0 (slice)</TD></TR>
+<TR><TD ALIGN="LEFT">DUAL_BUFFER</TD><TD ALIGN="RIGHT">0</TD></TR>
+<TR><TD COLSPAN="2" BGCOLOR="orange"><B>Throughput: 80%</B></TD></TR>
+</TABLE>>];
+    }
+
+    // Input interface
+    subgraph cluster_input {
+        label="Wide Input Interface\n(512-bit beats)";
+        style=filled;
+        fillcolor=lightblue;
+
+        input [shape=record, fillcolor=lightblue, label="{Wide Input|{valid|ready}|{data [511:0]}|{sideband [63:0]}|{last}}"];
+    }
+
+    // Single buffer logic
+    subgraph cluster_buffer {
+        label="Single Buffer Logic";
+        style=filled;
+        fillcolor=lightgray;
+
+        buffer [shape=cylinder, fillcolor=white, label="Single Data Buffer\n512-bit Register"];
+        sb_buffer [shape=cylinder, fillcolor=white, label="Sideband Buffer\n64-bit Register"];
+        counter [shape=box, fillcolor=white, label="Output Counter\n(0→3)"];
+        mux [shape=trapezium, fillcolor=white, label="4:1 Mux\n128-bit slices"];
+        sb_mux [shape=trapezium, fillcolor=white, label="4:1 Mux\n16-bit slices"];
+        control [shape=diamond, fillcolor=white, label="Done?\n(count==3)"];
+
+        buffer -> mux [label="  [127:0]\n  [255:128]\n  [383:256]\n  [511:384]"];
+        sb_buffer -> sb_mux [style=dashed, color=blue, label="  [15:0]\n  [31:16]\n  [47:32]\n  [63:48]"];
+        counter -> mux [label="select"];
+        counter -> sb_mux [label="select", style=dashed];
+        counter -> control;
+    }
+
+    // Output interface
+    subgraph cluster_output {
+        label="Narrow Output Interface\n(128-bit beats)";
+        style=filled;
+        fillcolor=lightcoral;
+
+        output [shape=record, fillcolor=lightcoral, label="{Narrow Output|{valid|ready}|{data [127:0]}|{sideband [15:0]}|{last}}"];
+    }
+
+    // Data flow
+    input -> buffer [label="  wide_valid\n  wide_ready"];
+    mux -> output [label="  narrow_valid\n  narrow_ready"];
+    sb_mux -> output [style=dashed, color=blue];
+
+    // Timing diagram note
+    timing [shape=note, fillcolor=lightyellow, label=<
+<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2">
+<TR><TD COLSPAN="10" ALIGN="LEFT"><B>Timing (1-cycle gap):</B></TD></TR>
+<TR><TD>Cycle:</TD><TD>1</TD><TD>2</TD><TD>3</TD><TD>4</TD><TD>5</TD><TD>6</TD><TD>7</TD><TD>8</TD><TD>9</TD></TR>
+<TR><TD>Wide:</TD><TD COLSPAN="4" BGCOLOR="lightblue">BEAT_0</TD><TD BGCOLOR="orange">WAIT</TD><TD COLSPAN="4" BGCOLOR="lightblue">BEAT_1</TD></TR>
+<TR><TD>Narrow:</TD><TD BGCOLOR="lightcoral">n0</TD><TD BGCOLOR="lightcoral">n1</TD><TD BGCOLOR="lightcoral">n2</TD><TD BGCOLOR="lightcoral">n3</TD><TD BGCOLOR="orange">IDLE</TD><TD BGCOLOR="lightcoral">n0</TD><TD BGCOLOR="lightcoral">n1</TD><TD BGCOLOR="lightcoral">n2</TD><TD BGCOLOR="lightcoral">n3</TD></TR>
+<TR><TD COLSPAN="10" ALIGN="LEFT">80% efficiency: 8 beats / 10 cycles</TD></TR>
+</TABLE>>];
+
+    // Annotations
+    note1 [shape=note, fillcolor=lightyellow, label="Splits 1 wide beat\ninto 4 narrow beats"];
+    note2 [shape=note, fillcolor=orange, label="80% throughput:\n1-cycle gap between\nwide beats"];
+    note3 [shape=note, fillcolor=lightcyan, label="SB_BROADCAST=0: Slice\nSB_BROADCAST=1: Broadcast"];
+
+    // Legend
+    subgraph cluster_legend {
+        label="Signal Types";
+        style=filled;
+        fillcolor=white;
+
+        legend [shape=plaintext, label=<
+<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="2">
+<TR><TD>━━━</TD><TD ALIGN="LEFT">Data path</TD></TR>
+<TR><TD>┄┄┄</TD><TD ALIGN="LEFT">Sideband (WSTRB/RRESP)</TD></TR>
+<TR><TD BGCOLOR="orange">█</TD><TD ALIGN="LEFT">Idle/Wait cycle</TD></TR>
+</TABLE>>];
+    }
+}

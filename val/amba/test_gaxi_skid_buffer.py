@@ -491,7 +491,7 @@ def test_gaxi_skid_buffer(request, data_width, depth, clk_period, test_level):
 
     # Environment variables
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'TRACE_FILE': f"{sim_build}/dump.vcd",
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'LOG_PATH': log_path,
@@ -508,6 +508,9 @@ def test_gaxi_skid_buffer(request, data_width, depth, clk_period, test_level):
         'TEST_KIND': 'sync'
     }
 
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
         "--trace",
         "--trace-depth", "99",
@@ -519,7 +522,7 @@ def test_gaxi_skid_buffer(request, data_width, depth, clk_period, test_level):
     ]
 
     plusargs = [
-        "+trace",
+        "--trace",
     ]
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
@@ -541,7 +544,7 @@ def test_gaxi_skid_buffer(request, data_width, depth, clk_period, test_level):
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,
+            waves=False,  # VCD controlled by compile_args, not cocotb-test
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
@@ -585,7 +588,7 @@ def test_gaxi_skid_buffer_wavedrom(request, data_width, depth, clk_period):
     }
 
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'TRACE_FILE': f"{sim_build}/dump.vcd",
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'LOG_PATH': log_path,
@@ -611,7 +614,7 @@ def test_gaxi_skid_buffer_wavedrom(request, data_width, depth, clk_period):
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,
+            waves=False,  # VCD controlled by compile_args, not cocotb-test
             testcase="gaxi_skid_buffer_wavedrom_test",
         )
         print("✓ WaveDrom test PASSED: gaxi_skid_buffer - 3 scenarios generated")

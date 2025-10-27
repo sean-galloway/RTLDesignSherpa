@@ -487,7 +487,7 @@ apb_xbar_2to4 #(
 
 - `rtl/amba/apb/apb_slave.sv` - Master-side building block
 - `rtl/amba/apb/apb_master.sv` - Slave-side building block
-- `bin/rtl_generators/amba/apb_xbar_generator.py` - Main generator
+- `projects/components/apb_xbar/bin/apb_xbar_generator.py` - Main generator
 
 ---
 

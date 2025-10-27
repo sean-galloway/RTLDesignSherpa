@@ -93,6 +93,9 @@ help:
 	@echo "COLLECTION TARGETS (verify tests, don't run):"
 	@echo "  make collect-all          Collect all tests"
 	@echo ""
+	@echo "DEVELOPMENT TARGETS (pytest-watch):"
+	@echo "  make ptw                  Auto-rerun tests on file changes"
+	@echo ""
 	@echo "CLEAN TARGETS:"
 	@echo "  make clean-all            Remove all test artifacts"
 	@echo "  make clean-logs           Remove all log files"
@@ -259,6 +262,22 @@ run-all-parallel:
 collect-all:
 	@echo "Collecting ALL AXI4 converter tests..."
 	$(PYTEST) --collect-only test_*.py
+
+# ==============================================================================
+# Development Targets (pytest-watch)
+# ==============================================================================
+
+# Pytest-watch options
+PTW = ptw
+PTW_FLAGS = --runner "pytest --maxfail=1"
+
+.PHONY: ptw
+ptw:
+	@echo "================================================================================"
+	@echo "Starting pytest-watch for Converters tests"
+	@echo "Tests will auto-rerun when files change. Press Ctrl+C to stop."
+	@echo "================================================================================"
+	$(PTW) $(PTW_FLAGS) -- test_*.py $(PYTEST_VERBOSE)
 
 # ==============================================================================
 # Clean Targets

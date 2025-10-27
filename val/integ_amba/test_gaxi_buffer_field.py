@@ -142,7 +142,6 @@ def test_gaxi_buffer_field(request, addr_width, ctrl_width, data_width, depth, m
         verilog_sources = [os.path.join(rtl_dict['rtl_gaxi'], f"{dut_name}.sv")]
     else:
         verilog_sources = [
-            os.path.join(rtl_dict['rtl_amba_includes'], "fifo_imports.svh"),
             os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
             os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
             os.path.join(rtl_dict['rtl_gaxi'], f"{dut_name}.sv"),
@@ -165,7 +164,7 @@ def test_gaxi_buffer_field(request, addr_width, ctrl_width, data_width, depth, m
 
     # Environment variables - FIELD-ONLY MODE (explicitly no struct variables)
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'TRACE_FILE': f"{sim_build}/dump.vcd",
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'LOG_PATH': log_path,
@@ -193,9 +192,12 @@ def test_gaxi_buffer_field(request, addr_width, ctrl_width, data_width, depth, m
 
     # Simulation settings
     includes=[sim_build, rtl_dict['rtl_amba_includes']]
-    compile_args = ["--trace", "--trace-structs", "--trace-depth", "99", "-Wall", "-Wno-UNUSED", "-Wno-DECLFILENAME"]
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
+    compile_args = ["--trace", "--trace-structs", "--trace-depth", "99", "-Wall", "-Wno-UNUSED", "-Wno-DECLFILENAME", "-Wno-SYNCASYNCNET"]
     sim_args = ["--trace", "--trace-structs", "--trace-depth", "99"]
-    plusargs = ["+trace"]
+    plusargs = ["--trace"]
 
     cmd_filename = create_view_cmd(os.path.dirname(log_path), log_path, sim_build, module, test_name_plus_params)
 
@@ -216,7 +218,7 @@ def test_gaxi_buffer_field(request, addr_width, ctrl_width, data_width, depth, m
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,
+            waves=False,  # VCD controlled by compile_args, not cocotb-test
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,

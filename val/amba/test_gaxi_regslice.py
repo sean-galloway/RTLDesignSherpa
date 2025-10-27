@@ -280,6 +280,9 @@ def test_gaxi_regslice(request, data_width, clk_period, test_level):
     }
 
     # Compile arguments
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
         '-Wall',
         '-Wno-SYNCASYNCNET',
@@ -306,7 +309,7 @@ def test_gaxi_regslice(request, data_width, clk_period, test_level):
         sim_build=sim_build,
         compile_args=compile_args,
         extra_env=extra_env,
-        waves=False,
+        waves=False,  # VCD controlled by compile_args, not cocotb-test
     )
 
     # Generate waveform viewing command

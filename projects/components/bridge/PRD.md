@@ -20,6 +20,51 @@
 
 ---
 
+## ⚠️ CRITICAL: RTL Regeneration Requirements
+
+**ALL generated RTL files MUST be deleted and regenerated together whenever ANY generator code changes.**
+
+**Why This Matters:**
+- Generated RTL files may have interdependencies (bridges, wrappers, integrators)
+- Generator code changes can create version mismatches between files
+- Partial regeneration creates subtle incompatibilities that cause test failures
+- Even "small innocuous" generator changes can have cascading effects
+
+**The Rule:**
+```bash
+# ❌ WRONG - Partial regeneration
+./bridge_generator.py --masters 5 --slaves 3 --output ../rtl/
+# Only regenerates bridge_axi4_flat_5x3.sv
+# Other files (wrappers, integrators) now mismatched!
+
+# ✅ CORRECT - Full regeneration
+rm ../rtl/bridge_*.sv                    # Delete ALL generated bridges
+rm ../rtl/bridge_wrapper_*.sv            # Delete ALL generated wrappers
+./regenerate_all_bridges.sh              # Regenerate everything together
+```
+
+**Generator Files That Trigger Full Regeneration:**
+- `bridge_generator.py` - Main bridge generator
+- `bridge_csv_generator.py` - CSV-based generator
+- `bridge_address_arbiter.py` - Address decode logic
+- `bridge_channel_router.py` - Channel routing logic
+- `bridge_response_router.py` - Response routing logic
+- `bridge_amba_integrator.py` - AMBA component integration
+- `bridge_wrapper_generator.py` - Wrapper generation
+- **Any** Python file in `projects/components/bridge/bin/`
+
+**Symptoms of Version Mismatch:**
+- Tests that previously passed now fail
+- Simulation errors about missing signals
+- Mismatched port widths or counts
+- Address decode routing to wrong slaves
+
+**Think of Generated RTL Like Compiled Code:**
+When you update a compiler, you don't selectively recompile - you rebuild everything.
+When you update a generator, you don't selectively regenerate - you regenerate everything.
+
+---
+
 ## 1. Product Overview
 
 ### 1.1 Purpose

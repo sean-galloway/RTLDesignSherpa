@@ -583,11 +583,14 @@ def test_apb_monitor():
         'TEST_UNIT_ID': str(unit_id),
         'TEST_AGENT_ID': str(agent_id),
         'TEST_MAX_TRANSACTIONS': str(max_transactions),
-        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'TRACE_FILE': f"{sim_build}/dump.vcd",
         'LOG_PATH': log_path
     }
 
     # Compile settings
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
         "--trace", "--trace-depth", "99",
         "-Wall", "-Wno-SYNCASYNCNET", "-Wno-UNUSED", "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC",
@@ -610,7 +613,7 @@ def test_apb_monitor():
             parameters=parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,
+            waves=False,  # VCD controlled by compile_args, not cocotb-test
             compile_args=compile_args,
         )
         print("✅ APB Monitor Test PASSED")

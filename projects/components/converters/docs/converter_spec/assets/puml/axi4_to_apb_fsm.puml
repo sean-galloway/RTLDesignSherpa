@@ -1,0 +1,59 @@
+@startuml axi4_to_apb_fsm
+title AXI4-to-APB Converter - APB State Machine
+
+[*] --> IDLE : Reset
+
+state IDLE {
+  IDLE : Wait for AXI4 transaction
+  IDLE : Check AR and AW channels
+}
+
+state READ {
+  READ : Entry: Issue APB read
+  READ : PSEL = 1
+  READ : PENABLE = 0→1
+  READ : PWRITE = 0
+  READ : Processing AR→APB conversion
+}
+
+state WRITE {
+  WRITE : Entry: Issue APB write
+  WRITE : PSEL = 1
+  WRITE : PENABLE = 0→1
+  WRITE : PWRITE = 1
+  WRITE : Processing AW+W→APB conversion
+}
+
+IDLE --> READ : s_axi_arvalid && s_axi_arready\n(Read request)
+IDLE --> WRITE : s_axi_awvalid && s_axi_awready\n(Write request)
+
+READ --> IDLE : m_apb_pready && all_beats_done\n(Read complete)
+WRITE --> IDLE : m_apb_pready && all_beats_done\n(Write complete)
+
+READ --> READ : m_apb_pready && !all_beats_done\n(Continue burst)
+WRITE --> WRITE : m_apb_pready && !all_beats_done\n(Continue burst)
+
+note right of IDLE
+  Priority: Read has priority
+  over write if both pending
+end note
+
+note right of READ
+  **APB READ Sequence:**
+  1. Setup: PSEL=1, PENABLE=0
+  2. Access: PENABLE=1
+  3. Wait: PREADY=1
+  4. Capture: PRDATA, PSLVERR
+  5. Repeat for burst
+end note
+
+note right of WRITE
+  **APB WRITE Sequence:**
+  1. Setup: PSEL=1, PENABLE=0
+  2. Access: PENABLE=1, PWDATA valid
+  3. Wait: PREADY=1
+  4. Check: PSLVERR
+  5. Repeat for burst
+end note
+
+@enduml

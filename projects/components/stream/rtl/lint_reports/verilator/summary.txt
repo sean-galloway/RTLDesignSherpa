@@ -1,3 +1,0 @@
-✗ STREAM RTL lint failed
-
-Summary: 0 passed, 1 failed

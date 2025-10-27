@@ -414,7 +414,7 @@ def test_axil4_slave_write(request, addr_width, data_width, aw_depth, w_depth, b
 
     # Environment variables
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'TRACE_FILE': f"{sim_build}/dump.vcd",
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'LOG_PATH': log_path,
@@ -439,6 +439,9 @@ def test_axil4_slave_write(request, addr_width, data_width, aw_depth, w_depth, b
 
     # Simulation settings
     includes = [rtl_dict['rtl_amba_includes']]
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
         "--trace",
         
@@ -449,7 +452,7 @@ def test_axil4_slave_write(request, addr_width, data_width, aw_depth, w_depth, b
         "-Wno-PINMISSING",  # Allow unconnected pins
     ]
     sim_args = ["--trace", "--trace-depth", "99"]
-    plusargs = ["+trace"]
+    plusargs = ["--trace"]
 
     # Create command file for viewing results
     cmd_filename = create_view_cmd(os.path.dirname(log_path), log_path, sim_build,
@@ -472,7 +475,7 @@ def test_axil4_slave_write(request, addr_width, data_width, aw_depth, w_depth, b
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,
+            waves=False,  # VCD controlled by compile_args, not cocotb-test
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
@@ -548,7 +551,7 @@ if __name__ == "__main__":
 
     # Environment variables
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'TRACE_FILE': f"{sim_build}/dump.vcd",
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'LOG_PATH': log_path,
@@ -573,6 +576,9 @@ if __name__ == "__main__":
 
     # Simulation settings
     includes = [rtl_dict['rtl_amba_includes']]
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
         "--trace",
         
@@ -583,7 +589,7 @@ if __name__ == "__main__":
         "-Wno-PINMISSING",  # Allow unconnected pins
     ]
     sim_args = ["--trace", "--trace-depth", "99"]
-    plusargs = ["+trace"]
+    plusargs = ["--trace"]
 
     # Create command file for viewing results
     cmd_filename = create_view_cmd(os.path.dirname(log_path), log_path, sim_build,
@@ -606,7 +612,7 @@ if __name__ == "__main__":
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,
+            waves=False,  # VCD controlled by compile_args, not cocotb-test
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,

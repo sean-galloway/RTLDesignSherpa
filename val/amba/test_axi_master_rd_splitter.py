@@ -167,7 +167,7 @@ def test_axi_read_splitter(request, iw, aw, dw, uw, fifo_depth, alignment_mask, 
 
     # Environment variables
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'TRACE_FILE': f"{sim_build}/dump.vcd",
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'LOG_PATH': log_path,
@@ -190,6 +190,9 @@ def test_axi_read_splitter(request, iw, aw, dw, uw, fifo_depth, alignment_mask, 
 
     # Simulation settings
     includes = [rtl_dict['rtl_amba_includes']]
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
         "--trace",
         
@@ -204,7 +207,7 @@ def test_axi_read_splitter(request, iw, aw, dw, uw, fifo_depth, alignment_mask, 
         
         "--trace-depth", "99"
     ]
-    plusargs = ["+trace"]
+    plusargs = ["--trace"]
 
     cmd_filename = create_view_cmd(os.path.dirname(log_path), log_path, sim_build, module, test_name_plus_params)
 
@@ -225,7 +228,7 @@ def test_axi_read_splitter(request, iw, aw, dw, uw, fifo_depth, alignment_mask, 
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,
+            waves=False,  # VCD controlled by compile_args, not cocotb-test
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
@@ -313,7 +316,7 @@ def test_axi_read_splitter(request, iw, aw, dw, uw, fifo_depth, alignment_mask, 
 
     # Environment variables
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'TRACE_FILE': f"{sim_build}/dump.vcd",
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'LOG_PATH': log_path,
@@ -336,6 +339,9 @@ def test_axi_read_splitter(request, iw, aw, dw, uw, fifo_depth, alignment_mask, 
 
     # Simulation settings
     includes = [rtl_dict['rtl_amba_includes']]
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
         "--trace",
         
@@ -350,7 +356,7 @@ def test_axi_read_splitter(request, iw, aw, dw, uw, fifo_depth, alignment_mask, 
         
         "--trace-depth", "99"
     ]
-    plusargs = ["+trace"]
+    plusargs = ["--trace"]
 
     cmd_filename = create_view_cmd(os.path.dirname(log_path), log_path, sim_build, module, test_name_plus_params)
 
@@ -371,7 +377,7 @@ def test_axi_read_splitter(request, iw, aw, dw, uw, fifo_depth, alignment_mask, 
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,
+            waves=False,  # VCD controlled by compile_args, not cocotb-test
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,

@@ -183,9 +183,20 @@ def run_scheduler_test(test_name, channel_id, num_channels, addr_width, data_wid
             extra_env=extra_env,
             waves=False,
             keep_files=True,
-            compile_args=["-Wno-TIMESCALEMOD"],
-            sim_args=[],
-            plusargs=[],
+            compile_args=[
+                "--trace",
+                "--trace-structs",
+                "--trace-depth", "99",
+                "-Wno-TIMESCALEMOD",
+            ],
+            sim_args=[
+                "--trace",
+                "--trace-structs",
+                "--trace-depth", "99",
+            ],
+            plusargs=[
+                "--trace",
+            ]
         )
         print(f"✓ Test completed! Logs: {log_path}")
     except Exception as e:
