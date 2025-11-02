@@ -1,0 +1,39 @@
+bindkey -k down history-search-forward
+bindkey -k up   history-search-backward
+
+alias home      'cd $HOME'
+alias h         'history'
+alias s         'source'
+alias ls        'ls -F'
+alias rm        'rm -i'
+alias gi        'grep -i'
+alias m         'more '
+alias s         'source '
+alias pie       'perl -pi -e '
+alias cdrr      'cd $REPO_ROOT'
+alias ls        'ls -F'
+alias rm        'rm -i'
+alias gi        'grep -i'
+alias ll        'ls -ltr '
+
+##############################################################################
+## this is a sequence of directory stack commands, kind of like pushd/popd ## only a little easier to use ###############################################################################
+# clear out dir info
+set pdl=
+# add directory to a stack
+alias pd        'chdir \!:1; set pdl=($pdl $cwd); pwd'
+# list dirs
+alias ld        'echo $pdl | perl -pe "s/ /\n/g"'
+# change dirs, interactive... enter the index number
+alias cdi       'echo $pdl | perl -pe "s/ /\n/g"; echo -n index:; set pdi=$<; chdir $pdl[$pdi]; pwd'
+#remove dir from list, interactive... enter the index
+alias ud        'echo $pdl | perl -pe "s/ /\n/g"; echo -n index:; set pdi=$<; set pdii=$pdi; ' \
+                '@ pdii=$pdii + 1; @ pdi = $pdi - 1; ' \
+                'set pdl = ($pdl[-$pdi] $pdl[$pdii-]);' \
+                'echo $pdl | perl -pe "s/ /\n/g"; unset pdi pdii'
+# remove all dirs from list
+alias pdreset   'set pdl='
+
+# make a terminal window
+alias yakko     'xterm -ls -name yakko -bg black -fg green'
+alias wakko     'xterm -ls -name wakko -bg black -fg yellow'

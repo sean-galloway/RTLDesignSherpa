@@ -1,0 +1,10 @@
+@startuml MultiplierMixin
+
+class MultiplierMixin {
+  + partial_products(N: int): Dict[int, List[str]]
+  + partial_products_booth_radix_4(N: int): Dict[int, List[str]]
+  + generate_final_addition(bit_groups: Dict[int, List[str]], N: int)
+  + generate_final_assignments(N: int)
+}
+
+@enduml

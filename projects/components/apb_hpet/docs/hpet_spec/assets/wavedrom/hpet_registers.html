@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HPET Register Layouts</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/wavedrom/3.1.0/skins/default.js" type="text/javascript"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/wavedrom/3.1.0/wavedrom.min.js" type="text/javascript"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 40px;
+            border-left: 4px solid #3498db;
+            padding-left: 10px;
+        }
+        .register-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .register-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .register-name {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .register-info {
+            display: flex;
+            gap: 20px;
+            font-size: 0.9em;
+            color: #7f8c8d;
+        }
+        .register-info span {
+            background: #ecf0f1;
+            padding: 4px 12px;
+            border-radius: 4px;
+        }
+        .register-description {
+            color: #555;
+            margin: 10px 0;
+            font-style: italic;
+        }
+        .wavedrom-container {
+            margin: 20px 0;
+            padding: 15px;
+            background: #fafafa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .toc {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .toc ul {
+            list-style: none;
+            padding-left: 20px;
+        }
+        .toc li {
+            margin: 8px 0;
+        }
+        .toc a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        .note {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .note strong {
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <h1>HPET Register Layouts</h1>
+    <p><strong>APB High Precision Event Timer (HPET)</strong> - Register Bit Field Diagrams</p>
+
+    <div class="toc">
+        <h3>Table of Contents</h3>
+        <ul>
+            <li><strong>Global Registers</strong>
+                <ul>
+                    <li><a href="#hpet_config">HPET_CONFIG (0x000)</a></li>
+                    <li><a href="#hpet_status">HPET_STATUS (0x004)</a></li>
+                    <li><a href="#hpet_counter_lo">HPET_COUNTER_LO (0x008)</a></li>
+                    <li><a href="#hpet_counter_hi">HPET_COUNTER_HI (0x00C)</a></li>
+                    <li><a href="#hpet_capabilities">HPET_CAPABILITIES (0x010)</a></li>
+                </ul>
+            </li>
+            <li><strong>Per-Timer Registers</strong>
+                <ul>
+                    <li><a href="#timer_config">TIMER_CONFIG (0x100 + i*0x20)</a></li>
+                    <li><a href="#timer_comparator_lo">TIMER_COMPARATOR_LO (0x104 + i*0x20)</a></li>
+                    <li><a href="#timer_comparator_hi">TIMER_COMPARATOR_HI (0x108 + i*0x20)</a></li>
+                </ul>
+            </li>
+        </ul>
+    </div>
+
+    <h2>Global Registers</h2>
+
+    <!-- HPET_CONFIG -->
+    <div class="register-section" id="hpet_config">
+        <div class="register-header">
+            <div class="register-name">HPET_CONFIG</div>
+            <div class="register-info">
+                <span>Offset: 0x000</span>
+                <span>Access: RW</span>
+            </div>
+        </div>
+        <div class="register-description">Global configuration register - Controls HPET enable and legacy routing</div>
+        <div class="wavedrom-container">
+            <script type="WaveDrom">
+{
+  "reg": [
+    {"bits": 1, "name": "enable", "attr": "Enable HPET"},
+    {"bits": 1, "name": "legacy", "attr": "Legacy routing"},
+    {"bits": 30, "name": "reserved", "attr": "Reserved", "type": 1}
+  ],
+  "config": {"hspace": 800, "bits": 32, "lanes": 1}
+}
+            </script>
+        </div>
+    </div>
+
+    <!-- HPET_STATUS -->
+    <div class="register-section" id="hpet_status">
+        <div class="register-header">
+            <div class="register-name">HPET_STATUS</div>
+            <div class="register-info">
+                <span>Offset: 0x004</span>
+                <span>Access: RW (W1C)</span>
+            </div>
+        </div>
+        <div class="register-description">Timer interrupt status - Write 1 to clear interrupt flags</div>
+        <div class="wavedrom-container">
+            <script type="WaveDrom">
+{
+  "reg": [
+    {"bits": 1, "name": "T0", "attr": "Timer 0 IRQ"},
+    {"bits": 1, "name": "T1", "attr": "Timer 1 IRQ"},
+    {"bits": 1, "name": "T2", "attr": "Timer 2 IRQ"},
+    {"bits": 1, "name": "T3", "attr": "Timer 3 IRQ"},
+    {"bits": 1, "name": "T4", "attr": "Timer 4 IRQ"},
+    {"bits": 1, "name": "T5", "attr": "Timer 5 IRQ"},
+    {"bits": 1, "name": "T6", "attr": "Timer 6 IRQ"},
+    {"bits": 1, "name": "T7", "attr": "Timer 7 IRQ"},
+    {"bits": 24, "name": "reserved", "attr": "Reserved", "type": 1}
+  ],
+  "config": {"hspace": 800, "bits": 32, "lanes": 1}
+}
+            </script>
+        </div>
+        <div class="note">
+            <strong>Note:</strong> This is a Write-1-to-Clear (W1C) register. Writing 1 to a bit clears the interrupt flag. Writing 0 has no effect.
+        </div>
+    </div>
+
+    <!-- HPET_COUNTER_LO -->
+    <div class="register-section" id="hpet_counter_lo">
+        <div class="register-header">
+            <div class="register-name">HPET_COUNTER_LO</div>
+            <div class="register-info">
+                <span>Offset: 0x008</span>
+                <span>Access: RW</span>
+            </div>
+        </div>
+        <div class="register-description">Main counter lower 32 bits - Free-running counter [31:0]</div>
+        <div class="wavedrom-container">
+            <script type="WaveDrom">
+{
+  "reg": [
+    {"bits": 32, "name": "counter[31:0]", "attr": "Counter lower 32 bits"}
+  ],
+  "config": {"hspace": 800, "bits": 32, "lanes": 1}
+}
+            </script>
+        </div>
+    </div>
+
+    <!-- HPET_COUNTER_HI -->
+    <div class="register-section" id="hpet_counter_hi">
+        <div class="register-header">
+            <div class="register-name">HPET_COUNTER_HI</div>
+            <div class="register-info">
+                <span>Offset: 0x00C</span>
+                <span>Access: RW</span>
+            </div>
+        </div>
+        <div class="register-description">Main counter upper 32 bits - Free-running counter [63:32]</div>
+        <div class="wavedrom-container">
+            <script type="WaveDrom">
+{
+  "reg": [
+    {"bits": 32, "name": "counter[63:32]", "attr": "Counter upper 32 bits"}
+  ],
+  "config": {"hspace": 800, "bits": 32, "lanes": 1}
+}
+            </script>
+        </div>
+        <div class="note">
+            <strong>Note:</strong> The 64-bit counter is formed by combining COUNTER_HI and COUNTER_LO. Software can read or write both halves independently.
+        </div>
+    </div>
+
+    <!-- HPET_CAPABILITIES -->
+    <div class="register-section" id="hpet_capabilities">
+        <div class="register-header">
+            <div class="register-name">HPET_CAPABILITIES</div>
+            <div class="register-info">
+                <span>Offset: 0x010</span>
+                <span>Access: RO</span>
+            </div>
+        </div>
+        <div class="register-description">Hardware capabilities - Number of timers, vendor ID, revision (read-only)</div>
+        <div class="wavedrom-container">
+            <script type="WaveDrom">
+{
+  "reg": [
+    {"bits": 8, "name": "num_timers", "attr": "Number of timers"},
+    {"bits": 8, "name": "revision_id", "attr": "Revision ID"},
+    {"bits": 16, "name": "vendor_id", "attr": "Vendor ID"}
+  ],
+  "config": {"hspace": 800, "bits": 32, "lanes": 1}
+}
+            </script>
+        </div>
+        <div class="note">
+            <strong>Typical Values:</strong>
+            <ul>
+                <li><strong>num_timers:</strong> 2, 3, or 8 (number of independent timers)</li>
+                <li><strong>vendor_id:</strong> 0x8086 (Intel), 0x1022 (AMD), or custom</li>
+                <li><strong>revision_id:</strong> Hardware revision number</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2>Per-Timer Registers</h2>
+    <div class="note">
+        <strong>Register Addressing:</strong> Each timer has 4 registers with a stride of 0x20 bytes (32 bytes).<br>
+        <strong>Base Address Formula:</strong> Timer[i] Base = 0x100 + (i × 0x20)<br>
+        <strong>Examples:</strong>
+        <ul>
+            <li>Timer 0: 0x100</li>
+            <li>Timer 1: 0x120</li>
+            <li>Timer 2: 0x140</li>
+            <li>Timer 7: 0x1E0</li>
+        </ul>
+    </div>
+
+    <!-- TIMER_CONFIG -->
+    <div class="register-section" id="timer_config">
+        <div class="register-header">
+            <div class="register-name">TIMER_CONFIG</div>
+            <div class="register-info">
+                <span>Offset: 0x100 + i*0x20</span>
+                <span>Access: RW</span>
+            </div>
+        </div>
+        <div class="register-description">Per-timer configuration - Enable, interrupt, mode (one-shot vs periodic)</div>
+        <div class="wavedrom-container">
+            <script type="WaveDrom">
+{
+  "reg": [
+    {"bits": 1, "name": "enable", "attr": "Timer enable"},
+    {"bits": 1, "name": "int_en", "attr": "Interrupt enable"},
+    {"bits": 1, "name": "type", "attr": "0=One-shot, 1=Periodic"},
+    {"bits": 1, "name": "size", "attr": "Size (reserved)"},
+    {"bits": 28, "name": "reserved", "attr": "Reserved", "type": 1}
+  ],
+  "config": {"hspace": 800, "bits": 32, "lanes": 1}
+}
+            </script>
+        </div>
+        <div class="note">
+            <strong>Timer Modes:</strong>
+            <ul>
+                <li><strong>One-shot (type=0):</strong> Timer fires once when counter ≥ comparator, then stays idle</li>
+                <li><strong>Periodic (type=1):</strong> Timer fires repeatedly, auto-increments comparator each time</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- TIMER_COMPARATOR_LO -->
+    <div class="register-section" id="timer_comparator_lo">
+        <div class="register-header">
+            <div class="register-name">TIMER_COMPARATOR_LO</div>
+            <div class="register-info">
+                <span>Offset: 0x104 + i*0x20</span>
+                <span>Access: RW</span>
+            </div>
+        </div>
+        <div class="register-description">Per-timer comparator lower 32 bits - Comparator [31:0]</div>
+        <div class="wavedrom-container">
+            <script type="WaveDrom">
+{
+  "reg": [
+    {"bits": 32, "name": "comparator[31:0]", "attr": "Comparator lower 32 bits"}
+  ],
+  "config": {"hspace": 800, "bits": 32, "lanes": 1}
+}
+            </script>
+        </div>
+    </div>
+
+    <!-- TIMER_COMPARATOR_HI -->
+    <div class="register-section" id="timer_comparator_hi">
+        <div class="register-header">
+            <div class="register-name">TIMER_COMPARATOR_HI</div>
+            <div class="register-info">
+                <span>Offset: 0x108 + i*0x20</span>
+                <span>Access: RW</span>
+            </div>
+        </div>
+        <div class="register-description">Per-timer comparator upper 32 bits - Comparator [63:32]</div>
+        <div class="wavedrom-container">
+            <script type="WaveDrom">
+{
+  "reg": [
+    {"bits": 32, "name": "comparator[63:32]", "attr": "Comparator upper 32 bits"}
+  ],
+  "config": {"hspace": 800, "bits": 32, "lanes": 1}
+}
+            </script>
+        </div>
+        <div class="note">
+            <strong>Timer Operation:</strong> When the 64-bit main counter value becomes greater than or equal to the 64-bit comparator value, the timer fires (generates interrupt if enabled). In periodic mode, the comparator is automatically incremented by the period value.
+        </div>
+    </div>
+
+    <hr style="margin: 40px 0;">
+    <footer style="text-align: center; color: #7f8c8d; padding: 20px;">
+        <p><strong>HPET Register Layouts</strong> - Generated with WaveDrom</p>
+        <p>Project: RTL Design Sherpa - APB HPET Component</p>
+        <p><a href="https://wavedrom.com" target="_blank">WaveDrom Documentation</a></p>
+    </footer>
+
+    <script type="text/javascript">
+        WaveDrom.ProcessAll();
+    </script>
+</body>
+</html>

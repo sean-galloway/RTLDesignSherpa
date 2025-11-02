@@ -1,0 +1,61 @@
+{
+  "signal": [
+    {
+      "name": "counter_clk",
+      "wave": "p..............."
+    },
+    {
+      "name": "counter_rst_n",
+      "wave": "1..............."
+    },
+    {
+      "name": "counter_enable",
+      "wave": "0..1.........0..",
+      "node": "...a............"
+    },
+    {
+      "name": "Counter bin curr",
+      "wave": "0..23456789===..",
+      "data": [
+        "0x1",
+        "0x2",
+        "0x3",
+        "0x4",
+        "0x5",
+        "0x6",
+        "0x7",
+        "0x8",
+        "0x9",
+        "0xA",
+        "0xB"
+      ]
+    },
+    {
+      "name": "Counter bin next",
+      "wave": "0..23456789==...",
+      "data": [
+        "0x2",
+        "0x3",
+        "0x4",
+        "0x5",
+        "0x6",
+        "0x7",
+        "0x8",
+        "0x9",
+        "0xA",
+        "0xB"
+      ]
+    }
+  ],
+  "head": {
+    "text": "COUNTER Counter Bin Capture Sequence",
+    "tick": 0,
+    "every": 2
+  },
+  "foot": {
+    "text": "Modular: 1 events, sequence, 1 cycles | CP-SAT Solved | Trimmed: 16 cycles"
+  },
+  "config": {
+    "hscale": 2
+  }
+}

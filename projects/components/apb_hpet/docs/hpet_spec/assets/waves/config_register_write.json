@@ -1,0 +1,71 @@
+{
+  "signal": [
+    {
+      "name": "pclk",
+      "wave": "p..................",
+      "period": 1
+    },
+    {},
+    {
+      "name": "psel",
+      "wave": "0.1...0.1...0.1...0",
+      "node": "..A.....B.....C"
+    },
+    {
+      "name": "penable",
+      "wave": "0..1..0..1..0..1..0",
+      "node": "...D.....E.....F"
+    },
+    {
+      "name": "pwrite",
+      "wave": "x.1...x.1...x.1...x"
+    },
+    {
+      "name": "paddr",
+      "wave": "x.2...x.3...x.4...x",
+      "data": ["0x000", "0x100", "0x104"]
+    },
+    {
+      "name": "pwdata",
+      "wave": "x.2...x.3...x.4...x",
+      "data": ["0x1", "0x7", "1000"]
+    },
+    {},
+    {
+      "name": "Config Written",
+      "wave": "x...2.x...3.x...4.x",
+      "data": ["HPET_EN", "T0_EN+INT", "T0_CMP"]
+    },
+    {},
+    {
+      "name": "hpet_config.enable",
+      "wave": "0...1.............."
+    },
+    {
+      "name": "timer0_config[2:0]",
+      "wave": "x.........2........",
+      "data": ["0x7"]
+    },
+    {
+      "name": "timer0_comparator",
+      "wave": "x.............2....",
+      "data": ["1000"]
+    }
+  ],
+  "edge": [
+    "A~>D APB Write Phase",
+    "B~>E APB Write Phase",
+    "C~>F APB Write Phase"
+  ],
+  "config": {
+    "hscale": 2
+  },
+  "head": {
+    "text": "HPET Configuration Register Writes (APB)",
+    "tick": 0
+  },
+  "foot": {
+    "text": "APB Write Sequence: HPET_CONFIG → TIMER0_CONFIG → TIMER0_COMPARATOR",
+    "tock": 0
+  }
+}

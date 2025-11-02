@@ -1,0 +1,44 @@
+{
+  "signal": [
+    {"name": "clk", "wave": "p.................", "period": 1},
+    {},
+    {"name": "M0 Request", "wave": "0.1...0.1.......0.", "data": ["REQ0", "REQ2"]},
+    {"name": "M0_PADDR", "wave": "x.3...x.3.......x.", "data": ["0x00", "0x10"]},
+    {"name": "M0_PSEL", "wave": "0.1...0.1.......0."},
+    {"name": "M0_PENABLE", "wave": "0..1.0.1......0..."},
+    {},
+    {"name": "M1 Request", "wave": "0...1...0.1.....0.", "data": ["REQ1", "REQ3"]},
+    {"name": "M1_PADDR", "wave": "x...3...x.3.....x.", "data": ["0x00", "0x00"]},
+    {"name": "M1_PSEL", "wave": "0...1...0.1.....0."},
+    {"name": "M1_PENABLE", "wave": "0....1.0..1....0.."},
+    {},
+    ["Arbiter[0] (Slave 0)",
+      {"name": "arb_grant[0]", "wave": "0.1...0.........1.", "data": ["M0", "M1"]},
+      {"name": "arb_grant[1]", "wave": "0.....0...1...0...", "data": ["M1"]},
+      {"name": "priority", "wave": "2.....2.........2.", "data": ["M0", "M1", "M0"]}
+    ],
+    {},
+    ["Slave 0 Interface",
+      {"name": "S0_PSEL", "wave": "0.1.......1.....0."},
+      {"name": "S0_PENABLE", "wave": "0..1.0....1....0.."},
+      {"name": "S0_PADDR", "wave": "x.3...x...3.....x.", "data": ["0x00", "0x00"]},
+      {"name": "S0_PREADY", "wave": "0...1.0....1...0.."},
+      {"name": "S0_PRDATA", "wave": "x...4.x....4...x..", "data": ["D0", "D1"]}
+    ],
+    {},
+    ["Transaction Phases",
+      {"name": "phase", "wave": "2.2...2.2.2.....2.", "data": ["IDLE", "M0_T0", "IDLE", "M1_T1", "M0_T2", "IDLE"]}
+    ]
+  ],
+  "config": {
+    "hscale": 2
+  },
+  "head": {
+    "text": "APB Crossbar Round-Robin Arbitration",
+    "tick": 0
+  },
+  "foot": {
+    "text": "Shows 2 masters (M0, M1) competing for Slave 0 with round-robin arbitration",
+    "tock": 0
+  }
+}

@@ -1,0 +1,110 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Thu Jul 31 01:56:18 2025
+[*]
+[dumpfile] "(null)"
+[savefile] "/home/seang/github/RTLDesignSherpa/val/common/GTKW/arbiter_round_robin_c04.gtkw"
+[timestart] 0
+[size] 3617 1213
+[pos] -1 -1
+*-22.145727 29960000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .arbiter_round_robin.
+[sst_width] 401
+[signals_width] 303
+[sst_expanded] 1
+[sst_vpaned_height] 417
+@22
+arbiter_round_robin.CLIENTS
+arbiter_round_robin.WAIT_GNT_ACK
+arbiter_round_robin.clk
+arbiter_round_robin.rst_n
+arbiter_round_robin.block_arb
+@200
+-inputs
+@800022
+arbiter_round_robin.request[3:0]
+@28
+(0)arbiter_round_robin.request[3:0]
+(1)arbiter_round_robin.request[3:0]
+(2)arbiter_round_robin.request[3:0]
+(3)arbiter_round_robin.request[3:0]
+@1001200
+-group_end
+@22
+arbiter_round_robin.grant_ack[3:0]
+@200
+-outputs
+@22
+arbiter_round_robin.grant_valid
+arbiter_round_robin.grant_id[1:0]
+@c00023
+arbiter_round_robin.grant[3:0]
+@29
+(0)arbiter_round_robin.grant[3:0]
+(1)arbiter_round_robin.grant[3:0]
+(2)arbiter_round_robin.grant[3:0]
+(3)arbiter_round_robin.grant[3:0]
+@1401201
+-group_end
+@22
+arbiter_round_robin.last_grant[3:0]
+@200
+-flops
+@28
+arbiter_round_robin.r_last_valid
+arbiter_round_robin.r_last_grant_id[1:0]
+arbiter_round_robin.r_pending_ack
+@24
+arbiter_round_robin.r_pending_client[1:0]
+@200
+-wires
+@28
+arbiter_round_robin.w_winner_valid
+arbiter_round_robin.w_ack_received
+arbiter_round_robin.w_any_masked_requests
+arbiter_round_robin.w_any_requests
+arbiter_round_robin.w_can_grant
+@22
+arbiter_round_robin.w_mask_decode[0][3:0]
+arbiter_round_robin.w_mask_decode[1][3:0]
+arbiter_round_robin.w_mask_decode[2][3:0]
+arbiter_round_robin.w_mask_decode[3][3:0]
+arbiter_round_robin.w_next_grant[3:0]
+@24
+arbiter_round_robin.w_next_grant_id[1:0]
+@28
+arbiter_round_robin.w_next_grant_valid
+@22
+arbiter_round_robin.w_requests_gated[3:0]
+arbiter_round_robin.w_requests_masked[3:0]
+arbiter_round_robin.w_requests_unmasked[3:0]
+@28
+arbiter_round_robin.w_should_grant
+@22
+arbiter_round_robin.w_win_mask_decode[0][3:0]
+arbiter_round_robin.w_win_mask_decode[1][3:0]
+arbiter_round_robin.w_win_mask_decode[2][3:0]
+arbiter_round_robin.w_win_mask_decode[3][3:0]
+@24
+arbiter_round_robin.w_winner[1:0]
+@28
+arbiter_round_robin.w_winner_valid
+@200
+-debug arb
+@28
+arbiter_round_robin.w_can_grant
+@c00022
+arbiter_round_robin.w_curr_mask_decode[3:0]
+@28
+(0)arbiter_round_robin.w_curr_mask_decode[3:0]
+(1)arbiter_round_robin.w_curr_mask_decode[3:0]
+(2)arbiter_round_robin.w_curr_mask_decode[3:0]
+(3)arbiter_round_robin.w_curr_mask_decode[3:0]
+@1401200
+-group_end
+@22
+arbiter_round_robin.w_requests_masked[3:0]
+arbiter_round_robin.w_requests_unmasked[3:0]
+[pattern_trace] 1
+[pattern_trace] 0

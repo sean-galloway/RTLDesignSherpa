@@ -1,0 +1,63 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Tue Oct 14 00:05:57 2025
+[*]
+[dumpfile] "/mnt/data/github/rtldesignsherpa/val/integ_amba/local_sim_build/test_apb_xbar_2to4_aw032_dw032_base10000000/dump.vcd"
+[dumpfile_mtime] "Mon Oct 13 23:55:32 2025"
+[dumpfile_size] 35717
+[savefile] "/mnt/data/github/rtldesignsherpa/val/integ_amba/GTKW/apb_xbar_2_to_4.gtkw"
+[timestart] 0
+[size] 1674 1004
+[pos] -1 -1
+*-18.802437 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] apb_xbar_2to4_wrap.
+[sst_width] 278
+[signals_width] 182
+[sst_expanded] 1
+[sst_vpaned_height] 125
+@28
+apb_xbar_2to4_wrap.u_xbar.pclk
+apb_xbar_2to4_wrap.u_xbar.presetn
+@200
+-m0
+@28
+apb_xbar_2to4_wrap.u_xbar.m0_apb_PSEL
+apb_xbar_2to4_wrap.u_xbar.m0_apb_PENABLE
+apb_xbar_2to4_wrap.u_xbar.m0_apb_PREADY
+apb_xbar_2to4_wrap.u_xbar.m0_apb_PWRITE
+@22
+apb_xbar_2to4_wrap.u_xbar.m0_apb_PADDR[31:0]
+apb_xbar_2to4_wrap.u_xbar.m0_apb_PWDATA[31:0]
+apb_xbar_2to4_wrap.u_xbar.m0_apb_PRDATA[31:0]
+@28
+apb_xbar_2to4_wrap.u_xbar.m0_apb_PSLVERR
+@200
+-m1
+@28
+apb_xbar_2to4_wrap.u_xbar.m1_apb_PSEL
+apb_xbar_2to4_wrap.u_xbar.m1_apb_PENABLE
+apb_xbar_2to4_wrap.u_xbar.m1_apb_PREADY
+apb_xbar_2to4_wrap.u_xbar.m1_apb_PWRITE
+@22
+apb_xbar_2to4_wrap.u_xbar.m1_apb_PADDR[31:0]
+apb_xbar_2to4_wrap.u_xbar.m1_apb_PWDATA[31:0]
+apb_xbar_2to4_wrap.u_xbar.m1_apb_PRDATA[31:0]
+@28
+apb_xbar_2to4_wrap.u_xbar.m1_apb_PSLVERR
+@200
+-s0
+@28
+apb_xbar_2to4_wrap.u_xbar.s0_apb_PSEL
+apb_xbar_2to4_wrap.u_xbar.s0_apb_PENABLE
+apb_xbar_2to4_wrap.u_xbar.s0_apb_PREADY
+apb_xbar_2to4_wrap.u_xbar.s0_apb_PWRITE
+@22
+apb_xbar_2to4_wrap.u_xbar.s0_apb_PADDR[31:0]
+apb_xbar_2to4_wrap.u_xbar.s0_apb_PWDATA[31:0]
+apb_xbar_2to4_wrap.u_xbar.s0_apb_PRDATA[31:0]
+@28
+apb_xbar_2to4_wrap.u_xbar.s0_apb_PSLVERR
+@201
+-internals
+[pattern_trace] 1
+[pattern_trace] 0

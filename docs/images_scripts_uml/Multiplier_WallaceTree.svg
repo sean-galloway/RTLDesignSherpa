@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentStyleType="text/css" height="642px" preserveAspectRatio="none" style="width:919px;height:642px;background:#FFFFFF;" version="1.1" viewBox="0 0 919 642" width="919px" zoomAndPan="magnify"><defs/><g><!--MD5=[2b7409a316d9d2e410653e6983353aed]
+class Module--><g id="elem_Module"><rect codeLine="2" fill="#F1F1F1" height="390.2344" id="Module" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="436" x="7" y="245"/><ellipse cx="195.25" cy="261" fill="#ADD1B2" rx="11" ry="11" style="stroke:#181818;stroke-width:1.0;"/><path d="M198.2188,266.6406 Q197.6406,266.9375 197,267.0781 Q196.3594,267.2344 195.6563,267.2344 Q193.1563,267.2344 191.8281,265.5938 Q190.5156,263.9375 190.5156,260.8125 Q190.5156,257.6875 191.8281,256.0313 Q193.1563,254.375 195.6563,254.375 Q196.3594,254.375 197,254.5313 Q197.6563,254.6875 198.2188,254.9844 L198.2188,257.7031 Q197.5938,257.125 197,256.8594 Q196.4063,256.5781 195.7813,256.5781 Q194.4375,256.5781 193.75,257.6563 Q193.0625,258.7188 193.0625,260.8125 Q193.0625,262.9063 193.75,263.9844 Q194.4375,265.0469 195.7813,265.0469 Q196.4063,265.0469 197,264.7813 Q197.5938,264.5 198.2188,263.9219 L198.2188,266.6406 Z " fill="#000000"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="51" x="215.75" y="265.8467">Module</text><line style="stroke:#181818;stroke-width:0.5;" x1="8" x2="442" y1="277" y2="277"/><rect fill="none" height="6" style="stroke:#C82930;stroke-width:1.0;" width="6" x="15" y="287.6484"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="147" x="27" y="293.9951">start_instructions: list</text><rect fill="none" height="6" style="stroke:#C82930;stroke-width:1.0;" width="6" x="15" y="303.9453"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="109" x="27" y="310.292">instructions: list</text><rect fill="none" height="6" style="stroke:#C82930;stroke-width:1.0;" width="6" x="15" y="320.2422"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="143" x="27" y="326.5889">end_instructions: list</text><rect fill="none" height="6" style="stroke:#C82930;stroke-width:1.0;" width="6" x="15" y="336.5391"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="125" x="27" y="342.8857">module_name: str</text><rect fill="none" height="6" style="stroke:#C82930;stroke-width:1.0;" width="6" x="15" y="352.8359"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="132" x="27" y="359.1826">instance_name: str</text><rect fill="none" height="6" style="stroke:#C82930;stroke-width:1.0;" width="6" x="15" y="369.1328"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="103" x="27" y="375.4795">params: Param</text><rect fill="none" height="6" style="stroke:#C82930;stroke-width:1.0;" width="6" x="15" y="385.4297"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="86" x="27" y="391.7764">ports: Signal</text><rect fill="none" height="6" style="stroke:#C82930;stroke-width:1.0;" width="6" x="15" y="401.7266"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="64" x="27" y="408.0732">wires: list</text><line style="stroke:#181818;stroke-width:0.5;" x1="8" x2="442" y1="415.375" y2="415.375"/><ellipse cx="18" cy="429.0234" fill="#84BE84" rx="3" ry="3" style="stroke:#038048;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="375" x="27" y="432.3701">__init__(module_name: str = '', instance_name: str = '')</text><ellipse cx="18" cy="445.3203" fill="#84BE84" rx="3" ry="3" style="stroke:#038048;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="217" x="27" y="448.667">add_port_string(ports: str): void</text><ellipse cx="18" cy="461.6172" fill="#84BE84" rx="3" ry="3" style="stroke:#038048;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="213" x="27" y="464.9639">wire(name: str, _type: str): void</text><ellipse cx="18" cy="477.9141" fill="#84BE84" rx="3" ry="3" style="stroke:#038048;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="78" x="27" y="481.2607">start(): void</text><ellipse cx="18" cy="494.2109" fill="#84BE84" rx="3" ry="3" style="stroke:#038048;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="74" x="27" y="497.5576">end(): void</text><ellipse cx="18" cy="510.5078" fill="#84BE84" rx="3" ry="3" style="stroke:#038048;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="234" x="27" y="513.8545">stmt_assign(lhs: str, rhs: str): void</text><ellipse cx="18" cy="526.8047" fill="#84BE84" rx="3" ry="3" style="stroke:#038048;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="220" x="27" y="530.1514">instruction(instruction: str): void</text><ellipse cx="18" cy="543.1016" fill="#84BE84" rx="3" ry="3" style="stroke:#038048;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="148" x="27" y="546.4482">comment(c: str): void</text><ellipse cx="18" cy="559.3984" fill="#84BE84" rx="3" ry="3" style="stroke:#038048;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="257" x="27" y="562.7451">write(file_path: str, filename: str): void</text><ellipse cx="18" cy="575.6953" fill="#84BE84" rx="3" ry="3" style="stroke:#038048;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="410" x="27" y="579.042">instantiate(instance_name: str, inputs: list, outputs: list): str</text><ellipse cx="18" cy="591.9922" fill="#84BE84" rx="3" ry="3" style="stroke:#038048;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="83" x="27" y="595.3389">__str__(): str</text><ellipse cx="18" cy="608.2891" fill="#84BE84" rx="3" ry="3" style="stroke:#038048;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="295" x="27" y="611.6357">in_connector(port: str, connector: str): dict</text><ellipse cx="18" cy="624.5859" fill="#84BE84" rx="3" ry="3" style="stroke:#038048;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="306" x="27" y="627.9326">out_connector(port: str, connector: str): dict</text></g><!--MD5=[6aeeca00952b491a8048154aec86509b]
+class MultiplierMixin--><g id="elem_MultiplierMixin"><rect codeLine="2" fill="#F1F1F1" height="113.1875" id="MultiplierMixin" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="434" x="478" y="383.5"/><ellipse cx="643.25" cy="399.5" fill="#ADD1B2" rx="11" ry="11" style="stroke:#181818;stroke-width:1.0;"/><path d="M646.2188,405.1406 Q645.6406,405.4375 645,405.5781 Q644.3594,405.7344 643.6563,405.7344 Q641.1563,405.7344 639.8281,404.0938 Q638.5156,402.4375 638.5156,399.3125 Q638.5156,396.1875 639.8281,394.5313 Q641.1563,392.875 643.6563,392.875 Q644.3594,392.875 645,393.0313 Q645.6563,393.1875 646.2188,393.4844 L646.2188,396.2031 Q645.5938,395.625 645,395.3594 Q644.4063,395.0781 643.7813,395.0781 Q642.4375,395.0781 641.75,396.1563 Q641.0625,397.2188 641.0625,399.3125 Q641.0625,401.4063 641.75,402.4844 Q642.4375,403.5469 643.7813,403.5469 Q644.4063,403.5469 645,403.2813 Q645.5938,403 646.2188,402.4219 L646.2188,405.1406 Z " fill="#000000"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="95" x="663.75" y="404.3467">MultiplierMixin</text><line style="stroke:#181818;stroke-width:0.5;" x1="479" x2="911" y1="415.5" y2="415.5"/><line style="stroke:#181818;stroke-width:0.5;" x1="479" x2="911" y1="423.5" y2="423.5"/><ellipse cx="489" cy="437.1484" fill="#84BE84" rx="3" ry="3" style="stroke:#038048;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="278" x="498" y="440.4951">partial_products(N: int): Dict[int, List[str]]</text><ellipse cx="489" cy="453.4453" fill="#84BE84" rx="3" ry="3" style="stroke:#038048;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="381" x="498" y="456.792">partial_products_booth_radix_4(N: int): Dict[int, List[str]]</text><ellipse cx="489" cy="469.7422" fill="#84BE84" rx="3" ry="3" style="stroke:#038048;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="408" x="498" y="473.0889">generate_final_addition(bit_groups: Dict[int, List[str]], N: int)</text><ellipse cx="489" cy="486.0391" fill="#84BE84" rx="3" ry="3" style="stroke:#038048;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="239" x="498" y="489.3857">generate_final_assignments(N: int)</text></g><!--MD5=[677a6e6697d2edef83d0b541871847e7]
+class WallaceTree--><g id="elem_WallaceTree"><rect codeLine="4" fill="#F1F1F1" height="178.375" id="WallaceTree" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="589" x="165.5" y="7"/><ellipse cx="413.75" cy="23" fill="#ADD1B2" rx="11" ry="11" style="stroke:#181818;stroke-width:1.0;"/><path d="M416.7188,28.6406 Q416.1406,28.9375 415.5,29.0781 Q414.8594,29.2344 414.1563,29.2344 Q411.6563,29.2344 410.3281,27.5938 Q409.0156,25.9375 409.0156,22.8125 Q409.0156,19.6875 410.3281,18.0313 Q411.6563,16.375 414.1563,16.375 Q414.8594,16.375 415.5,16.5313 Q416.1563,16.6875 416.7188,16.9844 L416.7188,19.7031 Q416.0938,19.125 415.5,18.8594 Q414.9063,18.5781 414.2813,18.5781 Q412.9375,18.5781 412.25,19.6563 Q411.5625,20.7188 411.5625,22.8125 Q411.5625,24.9063 412.25,25.9844 Q412.9375,27.0469 414.2813,27.0469 Q414.9063,27.0469 415.5,26.7813 Q416.0938,26.5 416.7188,25.9219 L416.7188,28.6406 Z " fill="#000000"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="84" x="434.25" y="27.8467">WallaceTree</text><line style="stroke:#181818;stroke-width:0.5;" x1="166.5" x2="753.5" y1="39" y2="39"/><rect fill="none" height="6" style="stroke:#C82930;stroke-width:1.0;" width="6" x="173.5" y="49.6484"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="104" x="185.5" y="55.9951">module_str: str</text><rect fill="none" height="6" style="stroke:#C82930;stroke-width:1.0;" width="6" x="173.5" y="65.9453"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="95" x="185.5" y="72.292">param_str: str</text><rect fill="none" height="6" style="stroke:#C82930;stroke-width:1.0;" width="6" x="173.5" y="82.2422"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="80" x="185.5" y="88.5889">port_str: str</text><rect fill="none" height="6" style="stroke:#C82930;stroke-width:1.0;" width="6" x="173.5" y="98.5391"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="89" x="185.5" y="104.8857">buswidth: int</text><rect fill="none" height="6" style="stroke:#C82930;stroke-width:1.0;" width="6" x="173.5" y="114.8359"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="57" x="185.5" y="121.1826">type: str</text><line style="stroke:#181818;stroke-width:0.5;" x1="166.5" x2="753.5" y1="128.4844" y2="128.4844"/><ellipse cx="176.5" cy="142.1328" fill="#84BE84" rx="3" ry="3" style="stroke:#038048;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="212" x="185.5" y="145.4795">__init__(type: str, buswidth: int)</text><ellipse cx="176.5" cy="158.4297" fill="#84BE84" rx="3" ry="3" style="stroke:#038048;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="563" x="185.5" y="161.7764">wallace_reduction(bit_groups: Dict[int, List[str]], type: str, N: int) : Dict[int, List[str]]</text><ellipse cx="176.5" cy="174.7266" fill="#84BE84" rx="3" ry="3" style="stroke:#038048;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="139" x="185.5" y="178.0732">verilog(file_path: str)</text></g><!--MD5=[646f52ed39ff6a7ddc836ea3844a54e2]
+link WallaceTree to Module--><g id="link_WallaceTree_Module"><path codeLine="15" d="M399.48,185.07 C390.19,198.59 380.28,213.02 370.07,227.88 " fill="none" id="WallaceTree-to-Module" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="none" points="375.53,232.29,358.44,244.81,363.99,224.36,375.53,232.29" style="stroke:#181818;stroke-width:1.0;"/></g><!--MD5=[ab22c148e9c465e8ae53a2619afae600]
+link WallaceTree to MultiplierMixin--><g id="link_WallaceTree_MultiplierMixin"><path codeLine="16" d="M520.52,185.07 C559.3,241.51 609,313.84 645.43,366.86 " fill="none" id="WallaceTree-to-MultiplierMixin" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="none" points="651.2,362.9,656.76,383.35,639.67,370.83,651.2,362.9" style="stroke:#181818;stroke-width:1.0;"/></g><!--MD5=[b2b4840f117d2f67645cb4bb67067a9c]
+@startuml Multiplier_WallaceTree
+!include verilog_Module_UML.puml
+!include Multiplier_Mixin_UML.puml
+
+class WallaceTree {
+  - module_str: str
+  - param_str: str
+  - port_str: str
+  - buswidth: int
+  - type: str
+  + __init__(type: str, buswidth: int)
+  + wallace_reduction(bit_groups: Dict[int, List[str]], type: str, N: int) : Dict[int, List[str]]
+  + verilog(file_path: str)
+}
+
+WallaceTree - -|> Module
+WallaceTree - -|> MultiplierMixin
+
+@enduml
+
+@startuml Multiplier_WallaceTree
+
+class Module {
+  - start_instructions: list
+  - instructions: list
+  - end_instructions: list
+  - module_name: str
+  - instance_name: str
+  - params: Param
+  - ports: Signal
+  - wires: list
+
+  + __init__(module_name: str = '', instance_name: str = '')
+  + add_port_string(ports: str): void
+  + wire(name: str, _type: str): void
+  + start(): void
+  + end(): void
+  + stmt_assign(lhs: str, rhs: str): void
+  + instruction(instruction: str): void
+  + comment(c: str): void
+  + write(file_path: str, filename: str): void
+  + instantiate(instance_name: str, inputs: list, outputs: list): str
+  + __str__(): str
+  + in_connector(port: str, connector: str): dict
+  + out_connector(port: str, connector: str): dict
+}
+
+
+class MultiplierMixin {
+  + partial_products(N: int): Dict[int, List[str]]
+  + partial_products_booth_radix_4(N: int): Dict[int, List[str]]
+  + generate_final_addition(bit_groups: Dict[int, List[str]], N: int)
+  + generate_final_assignments(N: int)
+}
+
+
+class WallaceTree {
+  - module_str: str
+  - param_str: str
+  - port_str: str
+  - buswidth: int
+  - type: str
+  + __init__(type: str, buswidth: int)
+  + wallace_reduction(bit_groups: Dict[int, List[str]], type: str, N: int) : Dict[int, List[str]]
+  + verilog(file_path: str)
+}
+
+WallaceTree - -|> Module
+WallaceTree - -|> MultiplierMixin
+
+@enduml
+
+PlantUML version 1.2022.7(Mon Aug 22 10:01:30 PDT 2022)
+(GPL source distribution)
+Java Runtime: OpenJDK Runtime Environment
+JVM: OpenJDK 64-Bit Server VM
+Default Encoding: UTF-8
+Language: en
+Country: US
+--></g></svg>

@@ -1,0 +1,110 @@
+// Graphviz Block Diagram: axi4_dwidth_converter_rd
+// Purpose: Full AXI4 Read Path Data Width Converter (AR + R channels)
+// Module: axi4_dwidth_converter_rd.sv
+
+digraph axi4_dwidth_converter_rd {
+    rankdir=TB;
+    newrank=true;
+    splines=ortho;
+    nodesep=0.6;
+    ranksep=0.8;
+
+    // Graph attributes
+    graph [fontname="Arial", fontsize=10, label="axi4_dwidth_converter_rd - Full Read Path Converter\n512→64 Width Conversion (8:1 ratio)", labelloc=t];
+    node [fontname="Arial", fontsize=9, shape=box, style=filled];
+    edge [fontname="Arial", fontsize=8];
+
+    // Slave interface (wide)
+    subgraph cluster_slave {
+        label="Slave Interface (Wide - 512-bit)";
+        style=filled;
+        fillcolor=lightblue;
+        rank=source;
+
+        s_ar [shape=record, fillcolor=lightblue, label="{AR Channel|araddr\|arlen\|arsize\|arburst\|arid\|arvalid\|arready}"];
+        s_r [shape=record, fillcolor=lightblue, label="{R Channel|rdata[511:0]\|rresp\|rid\|rlast\|rvalid\|rready}"];
+    }
+
+    // Address phase handling
+    subgraph cluster_addr {
+        label="Address Phase Management";
+        style=filled;
+        fillcolor=lightyellow;
+
+        ar_skid [shape=box, fillcolor=white, label="AR Skid Buffer\n(gaxi_skid_buffer)"];
+        addr_calc [shape=box, fillcolor=white, label="Address Calculator\nAlign to narrow width"];
+        len_adj [shape=box, fillcolor=white, label="Burst Length Adjuster\n(wide → narrow beats)"];
+        burst_track [shape=box, fillcolor=white, label="Burst Tracker\nFor RLAST generation"];
+
+        ar_skid -> addr_calc;
+        addr_calc -> len_adj;
+        len_adj -> burst_track;
+    }
+
+    // Read data path
+    subgraph cluster_rdata {
+        label="Read Data Path Downsize (512→64 bits)";
+        style=filled;
+        fillcolor=lightgray;
+
+        r_skid [shape=box, fillcolor=white, label="R Skid Buffer\n(gaxi_skid_buffer)"];
+        dnsize [shape=box, fillcolor=white, label="axi_data_dnsize\n512→64\n8:1 ratio\nDUAL_BUFFER=1"];
+        dnsize_note [shape=note, fillcolor=lightyellow, label="Splits 1 wide\nR beat into 8 narrow\nR beats\n\nRRESP: broadcast\nRLAST: burst tracking\n100% throughput"];
+
+        r_skid -> dnsize;
+    }
+
+    // Master interface (narrow)
+    subgraph cluster_master {
+        label="Master Interface (Narrow - 64-bit)";
+        style=filled;
+        fillcolor=lightcoral;
+        rank=sink;
+
+        m_ar [shape=record, fillcolor=lightcoral, label="{AR Channel|araddr\|arlen\|arsize\|arburst\|arid\|arvalid\|arready}"];
+        m_r [shape=record, fillcolor=lightcoral, label="{R Channel|rdata[63:0]\|rresp\|rid\|rlast\|rvalid\|rready}"];
+    }
+
+    // Data flow connections
+    s_ar -> ar_skid [label="wide AR"];
+    burst_track -> m_ar [label="narrow AR\n(adjusted)"];
+
+    s_r -> r_skid [label="wide R"];
+    dnsize -> m_r [label="narrow R\n(split)"];
+
+    // Burst tracking connection
+    burst_track -> dnsize [style=dashed, label="burst_len\nburst_start"];
+
+    // Example transaction
+    example [shape=note, fillcolor=lightcyan, label=<
+<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+<TR><TD COLSPAN="2" BGCOLOR="lightblue"><B>Example Transaction</B></TD></TR>
+<TR><TD ALIGN="LEFT">Slave AR:</TD><TD ALIGN="LEFT">len=0 (1 beat × 512-bit)</TD></TR>
+<TR><TD ALIGN="LEFT">Slave R:</TD><TD ALIGN="LEFT">1 beat, 512-bit</TD></TR>
+<TR><TD ALIGN="LEFT">Master AR:</TD><TD ALIGN="LEFT">len=7 (8 beats × 64-bit)</TD></TR>
+<TR><TD ALIGN="LEFT">Master R:</TD><TD ALIGN="LEFT">8 beats, 64-bit each</TD></TR>
+<TR><TD ALIGN="LEFT">RLAST:</TD><TD ALIGN="LEFT">Asserted on beat 7</TD></TR>
+</TABLE>>];
+
+    // Key features
+    features [shape=note, fillcolor=lightgreen, label=<
+<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2">
+<TR><TD ALIGN="LEFT"><B>Key Features:</B></TD></TR>
+<TR><TD ALIGN="LEFT">✓ 100% throughput (dual buffer)</TD></TR>
+<TR><TD ALIGN="LEFT">✓ Burst length adjustment</TD></TR>
+<TR><TD ALIGN="LEFT">✓ Address alignment</TD></TR>
+<TR><TD ALIGN="LEFT">✓ RRESP broadcast</TD></TR>
+<TR><TD ALIGN="LEFT">✓ Burst-aware RLAST generation</TD></TR>
+<TR><TD ALIGN="LEFT">✓ Skid buffers for flow control</TD></TR>
+</TABLE>>];
+
+    // Timing note
+    timing [shape=note, fillcolor=lightyellow, label=<
+<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2">
+<TR><TD COLSPAN="9" ALIGN="LEFT"><B>Continuous Streaming:</B></TD></TR>
+<TR><TD>Cycle:</TD><TD>1</TD><TD>2</TD><TD>3</TD><TD>4</TD><TD>5</TD><TD>6</TD><TD>7</TD><TD>8</TD></TR>
+<TR><TD>Wide R:</TD><TD COLSPAN="8" BGCOLOR="lightblue">1 beat (512-bit)</TD></TR>
+<TR><TD>Narrow R:</TD><TD BGCOLOR="lightcoral">b0</TD><TD BGCOLOR="lightcoral">b1</TD><TD BGCOLOR="lightcoral">b2</TD><TD BGCOLOR="lightcoral">b3</TD><TD BGCOLOR="lightcoral">b4</TD><TD BGCOLOR="lightcoral">b5</TD><TD BGCOLOR="lightcoral">b6</TD><TD BGCOLOR="lightcoral">b7</TD></TR>
+<TR><TD>RLAST:</TD><TD>-</TD><TD>-</TD><TD>-</TD><TD>-</TD><TD>-</TD><TD>-</TD><TD>-</TD><TD BGCOLOR="lightgreen">✓</TD></TR>
+</TABLE>>];
+}

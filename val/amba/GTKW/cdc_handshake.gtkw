@@ -1,0 +1,41 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Jun 16 05:38:17 2025
+[*]
+[dumpfile] "/home/seang/github/RTLDesignSherpa/val/amba/local_sim_build/test_cdc_handshake_clk_src15_clk_dst10_cdc_handshake_full/dump.fst"
+[dumpfile_mtime] "Mon Jun 16 05:34:25 2025"
+[dumpfile_size] 897
+[savefile] "/home/seang/github/RTLDesignSherpa/val/amba/GTKW/cdc_handshake.gtkw"
+[timestart] 0
+[size] 2416 718
+[pos] -1 -1
+*-17.719852 915200 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[sst_width] 318
+[signals_width] 381
+[sst_expanded] 1
+[sst_vpaned_height] 414
+@200
+-src interface
+@28
+cdc_handshake.clk_src
+cdc_handshake.rst_src_n
+cdc_handshake.src_valid
+cdc_handshake.src_ready
+@23
+cdc_handshake.src_data[71:0]
+@100000028
+cdc_handshake.r_src_state[1:0]
+@200
+-dst interface
+@28
+cdc_handshake.clk_dst
+cdc_handshake.rst_dst_n
+cdc_handshake.dst_valid
+cdc_handshake.dst_ready
+@22
+cdc_handshake.dst_data[71:0]
+@100000028
+cdc_handshake.r_dst_state[1:0]
+[pattern_trace] 1
+[pattern_trace] 0

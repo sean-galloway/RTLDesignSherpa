@@ -1,0 +1,285 @@
+/**
+ * SystemRDL Definition for HPET Configuration Registers
+ *
+ * This file defines the register map for the High Precision Event Timer (HPET)
+ * supporting 2-8 timers with a fixed 12-bit address space (4KB).
+ *
+ * Address Layout:
+ *   0x000-0x0FF: Global registers
+ *   0x100-0x1FF: Timer registers (32 bytes per timer)
+ *   0x200-0xFFF: Reserved for future expansion
+ */
+
+addrmap hpet_regs #(
+    longint VENDOR_ID = 1,      // Vendor ID parameter
+    longint REVISION_ID = 1,    // Revision ID parameter
+    longint NUM_TIMERS = 2      // Number of timers (2-8)
+) {
+    name = "HPET Configuration Registers";
+    desc = "High Precision Event Timer configuration and status registers";
+
+    // Default properties for all registers
+    default regwidth = 32;
+    default accesswidth = 32;
+    default addressing = compact;
+
+    //========================================================================
+    // Global Registers (0x000-0x0FF)
+    //========================================================================
+
+    reg {
+        name = "HPET Identification Register";
+        desc = "Contains vendor ID, revision, and capability information";
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved_low[4:0] = 5'h0;
+
+        field {
+            name = "Legacy Replacement Capable";
+            desc = "Indicates HPET can replace legacy timer";
+            sw = r;
+            hw = na;
+        } leg_rt_cap[5:5] = 1'b1;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bit";
+            sw = r;
+            hw = na;
+        } reserved_mid[6:6] = 1'b0;
+
+        field {
+            name = "Counter Size";
+            desc = "1 = 64-bit counter capable";
+            sw = r;
+            hw = na;
+        } count_size_cap[7:7] = 1'b1;
+
+        field {
+            name = "Number of Timers";
+            desc = "Number of timers minus 1 (N-1)";
+            sw = r;
+            hw = na;
+            reset = NUM_TIMERS - 1;
+        } num_tim_cap[12:8];
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved_upper[15:13] = 3'h0;
+
+        field {
+            name = "Revision ID";
+            desc = "Implementation revision identifier";
+            sw = r;
+            hw = na;
+            reset = REVISION_ID;
+        } rev_id[23:16];
+
+        field {
+            name = "Vendor ID";
+            desc = "Vendor identifier";
+            sw = r;
+            hw = na;
+            reset = VENDOR_ID;
+        } vendor_id[31:24];
+
+    } HPET_ID @ 0x000;
+
+    reg {
+        name = "HPET Configuration Register";
+        desc = "Global configuration and control";
+
+        field {
+            name = "Enable";
+            desc = "Enable main counter";
+            sw = rw;
+            hw = r;
+        } enable[0:0] = 1'b0;
+
+        field {
+            name = "Legacy Replacement Route";
+            desc = "Enable legacy replacement mode";
+            sw = rw;
+            hw = r;
+        } leg_rt_cnf[1:1] = 1'b0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:2] = 30'h0;
+
+    } HPET_CONFIG @ 0x004;
+
+    reg {
+        name = "HPET Interrupt Status Register";
+        desc = "Interrupt status for all timers";
+
+        field {
+            name = "Timer Interrupt Status";
+            desc = "Interrupt status bits for each timer (write 1 to clear)";
+            sw = rw;
+            onwrite = woclr;
+            hw = w;
+        } timer_int_sts[NUM_TIMERS-1:0];
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits for unused timers";
+            sw = r;
+            hw = na;
+        } reserved[31:NUM_TIMERS] = 32'h0;
+
+    } HPET_STATUS @ 0x008;
+
+    // Reserved space
+    reg {
+        name = "Reserved";
+        desc = "Reserved register";
+        field {
+            sw = r;
+            hw = na;
+        } reserved[31:0] = 32'h0;
+    } RESERVED_0C @ 0x00C;
+
+    reg {
+        name = "Main Counter Low";
+        desc = "Main counter value - low 32 bits";
+
+        field {
+            name = "Counter Low";
+            desc = "Lower 32 bits of 64-bit main counter";
+            sw = rw;
+            hw = r;
+        } counter_lo[31:0] = 32'h0;
+
+    } HPET_COUNTER_LO @ 0x010;
+
+    reg {
+        name = "Main Counter High";
+        desc = "Main counter value - high 32 bits";
+
+        field {
+            name = "Counter High";
+            desc = "Upper 32 bits of 64-bit main counter";
+            sw = rw;
+            hw = r;
+        } counter_hi[31:0] = 32'h0;
+
+    } HPET_COUNTER_HI @ 0x014;
+
+    //========================================================================
+    // Timer Registers (0x100-0x1FF)
+    // Each timer occupies 32 bytes (0x20)
+    //========================================================================
+
+    // Define a timer register block
+    regfile timer_regfile {
+        name = "HPET Timer Registers";
+        desc = "Configuration and comparator registers for one timer";
+
+        reg {
+            name = "Timer Configuration Register";
+            desc = "Configuration and control for this timer";
+
+            field {
+                name = "Reserved";
+                desc = "Reserved bits";
+                sw = r;
+                hw = na;
+            } reserved_low[1:0] = 2'b0;
+
+            field {
+                name = "Timer Enable";
+                desc = "Enable this timer";
+                sw = rw;
+                hw = r;
+            } tn_int_enb_cnf[2:2] = 1'b0;
+
+            field {
+                name = "Timer Interrupt Enable";
+                desc = "Enable interrupt generation";
+                sw = rw;
+                hw = r;
+            } tn_int_type_cnf[3:3] = 1'b0;
+
+            field {
+                name = "Timer Type";
+                desc = "0=one-shot, 1=periodic";
+                sw = rw;
+                hw = r;
+            } tn_type_cnf[4:4] = 1'b0;
+
+            field {
+                name = "Timer Size";
+                desc = "0=32-bit, 1=64-bit";
+                sw = rw;
+                hw = r;
+            } tn_size_cap[5:5] = 1'b0;
+
+            field {
+                name = "Timer Value Set";
+                desc = "Write 1 to set timer value";
+                sw = rw;
+                hw = r;
+            } tn_val_set_cnf[6:6] = 1'b0;
+
+            field {
+                name = "Reserved";
+                desc = "Reserved bits";
+                sw = r;
+                hw = na;
+            } reserved_high[31:7] = 25'h0;
+
+        } TIMER_CONFIG @ 0x00;
+
+        reg {
+            name = "Timer Comparator Low";
+            desc = "Timer comparator value - low 32 bits";
+
+            field {
+                name = "Comparator Low";
+                desc = "Lower 32 bits of 64-bit comparator";
+                sw = rw;
+                hw = r;
+            } comparator_lo[31:0] = 32'h0;
+
+        } TIMER_COMPARATOR_LO @ 0x04;
+
+        reg {
+            name = "Timer Comparator High";
+            desc = "Timer comparator value - high 32 bits";
+
+            field {
+                name = "Comparator High";
+                desc = "Upper 32 bits of 64-bit comparator";
+                sw = rw;
+                hw = r;
+            } comparator_hi[31:0] = 32'h0;
+
+        } TIMER_COMPARATOR_HI @ 0x08;
+
+        reg {
+            name = "Reserved";
+            desc = "Reserved register";
+            field {
+                sw = r;
+                hw = na;
+            } reserved[31:0] = 32'h0;
+        } RESERVED @ 0x0C;
+
+    }; // timer_regfile
+
+    // Instantiate timer register blocks for each timer
+    // Using external array to support parameterizable number of timers
+    external timer_regfile TIMER[NUM_TIMERS] @ 0x100 += 0x20;
+
+}; // hpet_regs

@@ -1,0 +1,20 @@
+@startuml Multiplier_DaddaTree
+!include verilog_Module_UML.puml
+!include Multiplier_Mixin_UML.puml
+
+class DaddaTree {
+  - module_str: str
+  - param_str: str
+  - port_str: str
+  - buswidth: int
+  + __init__(buswidth: int)
+  + generate_dadda_numbers(n: int) : List[int]
+  + next_smaller_dadda_number(dadda_numbers: List[int], n: int) : int
+  + dadda_reduction(bit_groups: Dict[int, List[str]], N: int) : Dict[int, List[str]]
+  + verilog(file_path: str)
+}
+
+DaddaTree --|> Module
+DaddaTree --|> MultiplierMixin
+
+@enduml

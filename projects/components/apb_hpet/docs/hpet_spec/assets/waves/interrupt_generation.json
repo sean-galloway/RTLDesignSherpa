@@ -1,0 +1,68 @@
+{
+  "signal": [
+    {
+      "name": "hpet_clk",
+      "wave": "p..................",
+      "period": 1
+    },
+    {},
+    {
+      "name": "counter[31:0]",
+      "wave": "2.3.4.5.6.7.8......",
+      "data": ["495", "496", "497", "498", "499", "500", "501"]
+    },
+    {
+      "name": "timer1_comparator",
+      "wave": "2..................",
+      "data": ["500"]
+    },
+    {
+      "name": "timer1_config.int_enable",
+      "wave": "1..................",
+      "node": ".................A"
+    },
+    {},
+    {
+      "name": "timer1_irq",
+      "wave": "0..........1.......",
+      "node": "...........B"
+    },
+    {
+      "name": "STATUS[1]",
+      "wave": "0..........1....0..",
+      "node": "...........C....D"
+    },
+    {},
+    {
+      "name": "APB Read STATUS",
+      "wave": "x............2.....",
+      "data": ["0x02"]
+    },
+    {
+      "name": "APB Write STATUS",
+      "wave": "x..............2...",
+      "data": ["W1C=0x02"]
+    },
+    {},
+    {
+      "name": "Event",
+      "wave": "x..........2...x...",
+      "data": ["IRQ!"]
+    }
+  ],
+  "edge": [
+    "A~>B Counter >= Comparator",
+    "C~>D W1C Clear"
+  ],
+  "config": {
+    "hscale": 2
+  },
+  "head": {
+    "text": "HPET Interrupt Generation and Acknowledgment",
+    "tick": 0
+  },
+  "foot": {
+    "text": "Timer fires → IRQ asserts → STATUS bit set → SW reads → W1C clears",
+    "tock": 0
+  }
+}

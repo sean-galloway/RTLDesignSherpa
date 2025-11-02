@@ -1,0 +1,166 @@
+{
+  "description": "HPET Register Map - WaveDrom Definitions",
+  "registers": [
+    {
+      "name": "HPET_CONFIG",
+      "offset": "0x000",
+      "access": "RW",
+      "description": "Global configuration register",
+      "diagram": {
+        "reg": [
+          {"bits": 1, "name": "enable", "attr": "Enable HPET"},
+          {"bits": 1, "name": "legacy", "attr": "Legacy routing"},
+          {"bits": 30, "name": "reserved", "attr": "Reserved", "type": 1}
+        ],
+        "config": {"hspace": 800, "bits": 32, "lanes": 1}
+      }
+    },
+    {
+      "name": "HPET_STATUS",
+      "offset": "0x004",
+      "access": "RW (W1C)",
+      "description": "Timer interrupt status (write 1 to clear)",
+      "diagram": {
+        "reg": [
+          {"bits": 1, "name": "T0", "attr": "Timer 0 IRQ"},
+          {"bits": 1, "name": "T1", "attr": "Timer 1 IRQ"},
+          {"bits": 1, "name": "T2", "attr": "Timer 2 IRQ"},
+          {"bits": 1, "name": "T3", "attr": "Timer 3 IRQ"},
+          {"bits": 1, "name": "T4", "attr": "Timer 4 IRQ"},
+          {"bits": 1, "name": "T5", "attr": "Timer 5 IRQ"},
+          {"bits": 1, "name": "T6", "attr": "Timer 6 IRQ"},
+          {"bits": 1, "name": "T7", "attr": "Timer 7 IRQ"},
+          {"bits": 24, "name": "reserved", "attr": "Reserved", "type": 1}
+        ],
+        "config": {"hspace": 800, "bits": 32, "lanes": 1}
+      }
+    },
+    {
+      "name": "HPET_COUNTER_LO",
+      "offset": "0x008",
+      "access": "RW",
+      "description": "Main counter bits [31:0]",
+      "diagram": {
+        "reg": [
+          {"bits": 32, "name": "counter[31:0]", "attr": "Counter lower 32 bits"}
+        ],
+        "config": {"hspace": 800, "bits": 32, "lanes": 1}
+      }
+    },
+    {
+      "name": "HPET_COUNTER_HI",
+      "offset": "0x00C",
+      "access": "RW",
+      "description": "Main counter bits [63:32]",
+      "diagram": {
+        "reg": [
+          {"bits": 32, "name": "counter[63:32]", "attr": "Counter upper 32 bits"}
+        ],
+        "config": {"hspace": 800, "bits": 32, "lanes": 1}
+      }
+    },
+    {
+      "name": "HPET_CAPABILITIES",
+      "offset": "0x010",
+      "access": "RO",
+      "description": "Hardware capabilities (read-only)",
+      "diagram": {
+        "reg": [
+          {"bits": 5, "name": "num_timers", "attr": "Number of timers"},
+          {"bits": 11, "name": "reserved", "attr": "Reserved", "type": 1},
+          {"bits": 16, "name": "vendor_id", "attr": "Vendor ID"}
+        ],
+        "config": {"hspace": 800, "bits": 32, "lanes": 1}
+      }
+    },
+    {
+      "name": "HPET_CAPABILITIES_FULL",
+      "offset": "0x010",
+      "access": "RO",
+      "description": "Hardware capabilities with revision (alternate view)",
+      "diagram": {
+        "reg": [
+          {"bits": 8, "name": "num_timers[7:0]", "attr": "Number of timers"},
+          {"bits": 8, "name": "revision_id[7:0]", "attr": "Revision ID"},
+          {"bits": 16, "name": "vendor_id[15:0]", "attr": "Vendor ID"}
+        ],
+        "config": {"hspace": 800, "bits": 32, "lanes": 1}
+      }
+    },
+    {
+      "name": "TIMER_CONFIG",
+      "offset": "0x100 + i*0x20",
+      "access": "RW",
+      "description": "Per-timer configuration (i = timer index)",
+      "diagram": {
+        "reg": [
+          {"bits": 1, "name": "enable", "attr": "Timer enable"},
+          {"bits": 1, "name": "int_en", "attr": "Interrupt enable"},
+          {"bits": 1, "name": "type", "attr": "0=One-shot, 1=Periodic"},
+          {"bits": 1, "name": "size", "attr": "Size (reserved)"},
+          {"bits": 28, "name": "reserved", "attr": "Reserved", "type": 1}
+        ],
+        "config": {"hspace": 800, "bits": 32, "lanes": 1}
+      }
+    },
+    {
+      "name": "TIMER_COMPARATOR_LO",
+      "offset": "0x104 + i*0x20",
+      "access": "RW",
+      "description": "Per-timer comparator bits [31:0]",
+      "diagram": {
+        "reg": [
+          {"bits": 32, "name": "comparator[31:0]", "attr": "Comparator lower 32 bits"}
+        ],
+        "config": {"hspace": 800, "bits": 32, "lanes": 1}
+      }
+    },
+    {
+      "name": "TIMER_COMPARATOR_HI",
+      "offset": "0x108 + i*0x20",
+      "access": "RW",
+      "description": "Per-timer comparator bits [63:32]",
+      "diagram": {
+        "reg": [
+          {"bits": 32, "name": "comparator[63:32]", "attr": "Comparator upper 32 bits"}
+        ],
+        "config": {"hspace": 800, "bits": 32, "lanes": 1}
+      }
+    }
+  ],
+  "register_map_summary": {
+    "global_registers": [
+      {"offset": "0x000", "name": "HPET_CONFIG", "description": "Global enable and legacy routing"},
+      {"offset": "0x004", "name": "HPET_STATUS", "description": "Timer interrupt status (W1C)"},
+      {"offset": "0x008", "name": "HPET_COUNTER_LO", "description": "Main counter [31:0]"},
+      {"offset": "0x00C", "name": "HPET_COUNTER_HI", "description": "Main counter [63:32]"},
+      {"offset": "0x010", "name": "HPET_CAPABILITIES", "description": "Hardware capabilities (RO)"}
+    ],
+    "per_timer_registers": [
+      {"offset": "0x100 + i*0x20", "name": "TIMER_CONFIG", "description": "Timer enable, interrupt, mode"},
+      {"offset": "0x104 + i*0x20", "name": "TIMER_COMPARATOR_LO", "description": "Comparator [31:0]"},
+      {"offset": "0x108 + i*0x20", "name": "TIMER_COMPARATOR_HI", "description": "Comparator [63:32]"},
+      {"offset": "0x10C + i*0x20", "name": "Reserved", "description": "Reserved for future use"}
+    ],
+    "timer_stride": "0x20 bytes (32 bytes) per timer",
+    "examples": {
+      "timer0_base": "0x100",
+      "timer1_base": "0x120",
+      "timer2_base": "0x140",
+      "timer7_base": "0x1E0"
+    }
+  },
+  "usage_notes": {
+    "rendering": [
+      "Use WaveDrom editor or CLI to render these diagrams",
+      "Online editor: https://wavedrom.com/editor.html",
+      "Each 'diagram' object can be rendered independently"
+    ],
+    "markdown_integration": [
+      "In markdown: ```wavedrom",
+      "Paste the 'diagram' JSON object",
+      "Close with ```"
+    ],
+    "example_markdown": "```wavedrom\n{\n  \"reg\": [\n    {\"bits\": 1, \"name\": \"enable\", \"attr\": \"Enable HPET\"},\n    {\"bits\": 1, \"name\": \"legacy\", \"attr\": \"Legacy routing\"},\n    {\"bits\": 30, \"name\": \"reserved\", \"attr\": \"Reserved\", \"type\": 1}\n  ],\n  \"config\": {\"hspace\": 800, \"bits\": 32, \"lanes\": 1}\n}\n```"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "signal": [
+    {
+      "name": "johnson_clk",
+      "wave": "p......................"
+    },
+    {
+      "name": "johnson_rst_n",
+      "wave": "01.......0.1.....01...."
+    },
+    {
+      "name": "johnson_enable",
+      "wave": "0...1..................",
+      "node": "....a.................."
+    },
+    {
+      "name": "johnson_counter_gray",
+      "wave": "0....11110..111110.1111"
+    }
+  ],
+  "head": {
+    "text": "JOHNSON Johnson Counter Capture Sequence",
+    "tick": 0,
+    "every": 2
+  },
+  "foot": {
+    "text": "Modular: 1 events, sequence, 1 cycles | CP-SAT Solved | Trimmed: 25 cycles"
+  },
+  "config": {
+    "hscale": 2
+  }
+}

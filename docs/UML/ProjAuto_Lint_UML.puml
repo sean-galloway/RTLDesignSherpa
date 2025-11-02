@@ -1,0 +1,19 @@
+@startuml ProjAuto_LintClass
+!include ProjAuto_REMatcher_UML.puml
+
+class Lint {
+  - original_directory: str
+  - repo_root: str
+  - env: dict
+  - config_dct: dict
+  + __init__()
+  + run_verible_format()
+  + run_lint()
+  - _run_verible_single(dut: str, path_in: str, path_rpt: str, rpt: str)
+  - _run_lint_single(dut: str, path_in: str, path_rpt: str, rpt: str)
+  + _delete_files_in_directory(directory_path: str)
+}
+
+Lint --> REMatcher: uses
+
+@enduml

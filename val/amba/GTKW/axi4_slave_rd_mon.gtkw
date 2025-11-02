@@ -1,0 +1,55 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Sep 29 19:43:25 2025
+[*]
+[dumpfile] "/mnt/data/github/rtldesignsherpa/val/amba/local_sim_build/test_axi4_slave_rd_mon_simple_basic/dump.fst"
+[dumpfile_mtime] "Mon Sep 29 19:37:10 2025"
+[dumpfile_size] 14929
+[savefile] "/mnt/data/github/rtldesignsherpa/val/amba/GTKW/axi4_slave_rd_mon.gtkw"
+[timestart] 0
+[size] 2368 1473
+[pos] -2452 124
+*-15.115662 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .axi4_slave_rd_mon.
+[sst_width] 411
+[signals_width] 241
+[sst_expanded] 1
+[sst_vpaned_height] 461
+@420
+axi4_slave_rd_mon.AGENT_ID
+axi4_slave_rd_mon.UNIT_ID
+@28
+axi4_slave_rd_mon.aclk
+axi4_slave_rd_mon.aresetn
+@200
+-fub_axi_ar
+@28
+axi4_slave_rd_mon.fub_axi_arvalid
+axi4_slave_rd_mon.fub_axi_arready
+@22
+axi4_slave_rd_mon.fub_axi_araddr[31:0]
+@28
+axi4_slave_rd_mon.fub_axi_arburst[1:0]
+@22
+axi4_slave_rd_mon.fub_axi_arlen[7:0]
+axi4_slave_rd_mon.fub_axi_arid[7:0]
+@200
+-fub_axi_r
+@28
+axi4_slave_rd_mon.fub_axi_rvalid
+axi4_slave_rd_mon.fub_axi_rready
+@22
+axi4_slave_rd_mon.fub_axi_rdata[31:0]
+axi4_slave_rd_mon.fub_axi_rid[7:0]
+@28
+axi4_slave_rd_mon.fub_axi_rlast
+@200
+-monitor
+@28
+axi4_slave_rd_mon.monbus_valid
+axi4_slave_rd_mon.monbus_ready
+@23
+axi4_slave_rd_mon.monbus_packet[63:0]
+[pattern_trace] 1
+[pattern_trace] 0

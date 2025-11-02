@@ -1,0 +1,539 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
+//
+// STREAM Register Definition - PeakRDL Format
+//
+// Address Space Layout:
+//   0x000 - 0x01C: Channel kick-off registers (handled by apbtodescr.sv)
+//   0x100 - 0xFFF: Control and status registers (this file)
+//
+// Notes:
+//   - Channel kick-off registers (CHx_CTRL) are NOT defined here
+//   - Those are routed directly to descriptor engines via apbtodescr.sv
+//   - This file defines all other configuration and status registers
+//
+// Author: sean galloway
+// Created: 2025-10-20
+
+addrmap stream_regs {
+    name = "STREAM DMA Engine Registers";
+    desc = "Configuration and status registers for 8-channel STREAM DMA engine";
+
+    default regwidth = 32;
+    default accesswidth = 32;
+    default alignment = 4;
+
+    //=========================================================================
+    // Global Control and Status (0x100 - 0x11F)
+    //=========================================================================
+
+    reg {
+        name = "Global Control Register";
+        desc = "Master enable and global configuration";
+
+        field {
+            desc = "Global enable - master switch for entire STREAM engine";
+            sw = rw;
+            hw = r;
+        } GLOBAL_EN = 1'b0;
+
+        field {
+            desc = "Global reset - resets all channels and state machines";
+            sw = rw;
+            hw = r;
+            swmod;  // Self-clearing
+        } GLOBAL_RST = 1'b0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[29:2] = 28'h0;
+
+    } GLOBAL_CTRL @ 0x100;
+
+    reg {
+        name = "Global Status Register";
+        desc = "Overall system status and error flags";
+
+        field {
+            desc = "System idle - all channels idle";
+            sw = r;
+            hw = w;
+        } SYSTEM_IDLE;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[30:1] = 30'h0;
+
+    } GLOBAL_STATUS @ 0x104;
+
+    reg {
+        name = "Version Register";
+        desc = "STREAM version and configuration information";
+
+        field {
+            desc = "Minor version";
+            sw = r;
+            hw = na;
+        } MINOR[7:0] = 8'h00;
+
+        field {
+            desc = "Major version";
+            sw = r;
+            hw = na;
+        } MAJOR[15:8] = 8'h01;
+
+        field {
+            desc = "Number of channels";
+            sw = r;
+            hw = na;
+        } NUM_CHANNELS[23:16] = 8'h08;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:24] = 8'h0;
+
+    } VERSION @ 0x108;
+
+    //=========================================================================
+    // Per-Channel Control (0x120 - 0x13F)
+    //=========================================================================
+
+    reg {
+        name = "Channel Enable Register";
+        desc = "Per-channel enable bits (one bit per channel)";
+
+        field {
+            desc = "Channel enable bits [7:0] - 1=enabled, 0=disabled";
+            sw = rw;
+            hw = r;
+        } CH_EN[7:0] = 8'h00;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:8] = 24'h0;
+
+    } CHANNEL_ENABLE @ 0x120;
+
+    reg {
+        name = "Channel Reset Register";
+        desc = "Per-channel reset bits (one bit per channel, self-clearing)";
+
+        field {
+            desc = "Channel reset bits [7:0] - write 1 to reset channel";
+            sw = rw;
+            hw = r;
+            swmod;  // Self-clearing
+        } CH_RST[7:0] = 8'h00;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:8] = 24'h0;
+
+    } CHANNEL_RESET @ 0x124;
+
+    //=========================================================================
+    // Per-Channel Status (0x140 - 0x17F)
+    //=========================================================================
+
+    reg {
+        name = "Channel Idle Status";
+        desc = "Per-channel idle status (one bit per channel)";
+
+        field {
+            desc = "Channel idle bits [7:0] - 1=idle, 0=active";
+            sw = r;
+            hw = w;
+        } CH_IDLE[7:0];
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:8] = 24'h0;
+
+    } CHANNEL_IDLE @ 0x140;
+
+    reg {
+        name = "Descriptor Engine Idle Status";
+        desc = "Per-channel descriptor engine idle status";
+
+        field {
+            desc = "Descriptor engine idle bits [7:0] - 1=idle, 0=active";
+            sw = r;
+            hw = w;
+        } DESC_IDLE[7:0];
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:8] = 24'h0;
+
+    } DESC_ENGINE_IDLE @ 0x144;
+
+    reg {
+        name = "Scheduler Idle Status";
+        desc = "Per-channel scheduler idle status";
+
+        field {
+            desc = "Scheduler idle bits [7:0] - 1=idle, 0=active";
+            sw = r;
+            hw = w;
+        } SCHED_IDLE[7:0];
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:8] = 24'h0;
+
+    } SCHEDULER_IDLE @ 0x148;
+
+    // Per-channel state registers (CH0-CH7)
+    regfile {
+        name = "Per-Channel State Registers";
+        desc = "Detailed state for individual channel";
+
+        reg {
+            name = "Channel State";
+            desc = "Current FSM state of scheduler";
+
+            field {
+                desc = "Scheduler state [3:0]";
+                sw = r;
+                hw = w;
+            } STATE[3:0];
+
+            field {
+                desc = "Reserved";
+                sw = r;
+                hw = na;
+            } RSVD[31:4] = 28'h0;
+
+        } STATE @ 0x0;
+
+    } CH_STATE[8] @ 0x150 += 0x4;
+
+    //=========================================================================
+    // Scheduler Configuration (0x200 - 0x21F)
+    //=========================================================================
+
+    reg {
+        name = "Scheduler Timeout Cycles";
+        desc = "Timeout threshold in clock cycles (global for all channels)";
+
+        field {
+            desc = "Timeout cycles [15:0] - number of cycles before timeout";
+            sw = rw;
+            hw = r;
+        } TIMEOUT_CYCLES[15:0] = 16'd1000;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:16] = 16'h0;
+
+    } SCHED_TIMEOUT_CYCLES @ 0x200;
+
+    reg {
+        name = "Scheduler Configuration";
+        desc = "Scheduler feature enables (global for all channels)";
+
+        field {
+            desc = "Scheduler enable - master scheduler enable";
+            sw = rw;
+            hw = r;
+        } SCHED_EN = 1'b1;
+
+        field {
+            desc = "Timeout enable - enable timeout detection";
+            sw = rw;
+            hw = r;
+        } TIMEOUT_EN = 1'b1;
+
+        field {
+            desc = "Error enable - enable error reporting";
+            sw = rw;
+            hw = r;
+        } ERR_EN = 1'b1;
+
+        field {
+            desc = "Completion enable - enable completion reporting";
+            sw = rw;
+            hw = r;
+        } COMPL_EN = 1'b1;
+
+        field {
+            desc = "Performance enable - enable performance monitoring";
+            sw = rw;
+            hw = r;
+        } PERF_EN = 1'b0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:5] = 27'h0;
+
+    } SCHED_CONFIG @ 0x204;
+
+    //=========================================================================
+    // Descriptor Engine Configuration (0x220 - 0x23F)
+    //=========================================================================
+
+    reg {
+        name = "Descriptor Engine Configuration";
+        desc = "Descriptor engine feature enables (global for all channels)";
+
+        field {
+            desc = "Descriptor engine enable - master enable";
+            sw = rw;
+            hw = r;
+        } DESCENG_EN = 1'b1;
+
+        field {
+            desc = "Prefetch enable - enable descriptor prefetch";
+            sw = rw;
+            hw = r;
+        } PREFETCH_EN = 1'b0;
+
+        field {
+            desc = "FIFO threshold [5:2] - prefetch threshold (4 bits)";
+            sw = rw;
+            hw = r;
+        } FIFO_THRESH[5:2] = 4'h8;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:6] = 26'h0;
+
+    } DESCENG_CONFIG @ 0x220;
+
+    reg {
+        name = "Descriptor Address Range 0 Base";
+        desc = "Base address for descriptor address range 0 (lower 32 bits)";
+
+        field {
+            desc = "Address range 0 base [31:0]";
+            sw = rw;
+            hw = r;
+        } ADDR0_BASE[31:0] = 32'h0000_0000;
+
+    } DESCENG_ADDR0_BASE @ 0x224;
+
+    reg {
+        name = "Descriptor Address Range 0 Limit";
+        desc = "Limit address for descriptor address range 0 (lower 32 bits)";
+
+        field {
+            desc = "Address range 0 limit [31:0]";
+            sw = rw;
+            hw = r;
+        } ADDR0_LIMIT[31:0] = 32'hFFFF_FFFF;
+
+    } DESCENG_ADDR0_LIMIT @ 0x228;
+
+    reg {
+        name = "Descriptor Address Range 1 Base";
+        desc = "Base address for descriptor address range 1 (lower 32 bits)";
+
+        field {
+            desc = "Address range 1 base [31:0]";
+            sw = rw;
+            hw = r;
+        } ADDR1_BASE[31:0] = 32'h0000_0000;
+
+    } DESCENG_ADDR1_BASE @ 0x22C;
+
+    reg {
+        name = "Descriptor Address Range 1 Limit";
+        desc = "Limit address for descriptor address range 1 (lower 32 bits)";
+
+        field {
+            desc = "Address range 1 limit [31:0]";
+            sw = rw;
+            hw = r;
+        } ADDR1_LIMIT[31:0] = 32'hFFFF_FFFF;
+
+    } DESCENG_ADDR1_LIMIT @ 0x230;
+
+    //=========================================================================
+    // Monitor Configuration (0x240 - 0x27F)
+    //=========================================================================
+
+    reg {
+        name = "Descriptor AXI Monitor Configuration";
+        desc = "Descriptor AXI master monitor configuration";
+
+        field {
+            desc = "Error enable - enable error detection";
+            sw = rw;
+            hw = r;
+        } ERR_EN = 1'b1;
+
+        field {
+            desc = "Completion enable - enable completion packets";
+            sw = rw;
+            hw = r;
+        } COMPL_EN = 1'b0;
+
+        field {
+            desc = "Timeout enable - enable timeout detection";
+            sw = rw;
+            hw = r;
+        } TIMEOUT_EN = 1'b1;
+
+        field {
+            desc = "Performance enable - enable performance packets";
+            sw = rw;
+            hw = r;
+        } PERF_EN = 1'b0;
+
+        field {
+            desc = "Debug enable - enable debug packets";
+            sw = rw;
+            hw = r;
+        } DEBUG_EN = 1'b0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:5] = 27'h0;
+
+    } DAXMON_CONFIG @ 0x240;
+
+    reg {
+        name = "Data Read Monitor Configuration";
+        desc = "Data read AXI master monitor configuration";
+
+        field {
+            desc = "Error enable - enable error detection";
+            sw = rw;
+            hw = r;
+        } ERR_EN = 1'b1;
+
+        field {
+            desc = "Completion enable - enable completion packets";
+            sw = rw;
+            hw = r;
+        } COMPL_EN = 1'b0;
+
+        field {
+            desc = "Timeout enable - enable timeout detection";
+            sw = rw;
+            hw = r;
+        } TIMEOUT_EN = 1'b1;
+
+        field {
+            desc = "Performance enable - enable performance packets";
+            sw = rw;
+            hw = r;
+        } PERF_EN = 1'b0;
+
+        field {
+            desc = "Debug enable - enable debug packets";
+            sw = rw;
+            hw = r;
+        } DEBUG_EN = 1'b0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:5] = 27'h0;
+
+    } RDMON_CONFIG @ 0x244;
+
+    reg {
+        name = "Data Read Monitor Timeout";
+        desc = "Data read monitor timeout threshold";
+
+        field {
+            desc = "Timeout cycles [15:0]";
+            sw = rw;
+            hw = r;
+        } TIMEOUT_CYCLES[15:0] = 16'd5000;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:16] = 16'h0;
+
+    } RDMON_TIMEOUT @ 0x248;
+
+    reg {
+        name = "Data Write Monitor Configuration";
+        desc = "Data write AXI master monitor configuration";
+
+        field {
+            desc = "Error enable - enable error detection";
+            sw = rw;
+            hw = r;
+        } ERR_EN = 1'b1;
+
+        field {
+            desc = "Completion enable - enable completion packets";
+            sw = rw;
+            hw = r;
+        } COMPL_EN = 1'b0;
+
+        field {
+            desc = "Timeout enable - enable timeout detection";
+            sw = rw;
+            hw = r;
+        } TIMEOUT_EN = 1'b1;
+
+        field {
+            desc = "Performance enable - enable performance packets";
+            sw = rw;
+            hw = r;
+        } PERF_EN = 1'b0;
+
+        field {
+            desc = "Debug enable - enable debug packets";
+            sw = rw;
+            hw = r;
+        } DEBUG_EN = 1'b0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:5] = 27'h0;
+
+    } WRMON_CONFIG @ 0x24C;
+
+    reg {
+        name = "Data Write Monitor Timeout";
+        desc = "Data write monitor timeout threshold";
+
+        field {
+            desc = "Timeout cycles [15:0]";
+            sw = rw;
+            hw = r;
+        } TIMEOUT_CYCLES[15:0] = 16'd5000;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:16] = 16'h0;
+
+    } WRMON_TIMEOUT @ 0x250;
+
+};

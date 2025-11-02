@@ -1,0 +1,58 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Generated: Wed Oct 15 03:46:34 2025
+[*]
+[dumpfile] "(null)"
+[savefile] "/mnt/data/github/rtldesignsherpa/val/common/GTKW/dataint_crc.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] -1 -1
+*-20.0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .dataint_crc.
+[sst_width] 401
+[signals_width] 250
+[sst_expanded] 1
+[sst_vpaned_height] 400
+@420
+dataint_crc.DATA_WIDTH
+dataint_crc.CHUNKS
+dataint_crc.CRC_WIDTH
+dataint_crc.REFIN
+dataint_crc.REFOUT
+dataint_crc.CW
+dataint_crc.DW
+dataint_crc.CH
+@200
+-Clock and Reset
+@28
+dataint_crc.clk
+dataint_crc.rst_n
+@200
+-Inputs
+@28
+dataint_crc.POLY
+dataint_crc.POLY_INIT
+dataint_crc.XOROUT
+dataint_crc.load_crc_start
+dataint_crc.load_from_cascade
+dataint_crc.cascade_sel
+dataint_crc.data
+@200
+-Outputs
+@28
+dataint_crc.crc
+@200
+-Internal Registers
+@28
+dataint_crc.r_crc_value
+@200
+-Internal Wires
+@28
+dataint_crc.w_block_data
+dataint_crc.w_cascade
+dataint_crc.w_poly
+dataint_crc.w_result
+dataint_crc.w_result_xor
+[pattern_trace] 1
+[pattern_trace] 0

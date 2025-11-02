@@ -1,0 +1,70 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Thu Jul  3 06:31:04 2025
+[*]
+[dumpfile] "/home/seang/github/RTLDesignSherpa/val/amba/local_sim_build/test_apb_master_aw032_dw032_cd006_rd006/dump.fst"
+[dumpfile_mtime] "Thu Jul  3 06:25:51 2025"
+[dumpfile_size] 5625
+[savefile] "/home/seang/github/RTLDesignSherpa/val/amba/GTKW/apb_master.gtkw"
+[timestart] 0
+[size] 2270 1500
+[pos] -1 -1
+*-21.101408 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[sst_width] 278
+[signals_width] 245
+[sst_expanded] 1
+[sst_vpaned_height] 470
+@420
+apb_master.AW
+apb_master.DW
+apb_master.PW
+apb_master.SW
+@28
+apb_master.pclk
+apb_master.presetn
+@200
+-cmd interface
+@28
+apb_master.cmd_valid
+apb_master.cmd_ready
+apb_master.cmd_pwrite
+@22
+apb_master.cmd_paddr[31:0]
+apb_master.cmd_pwdata[31:0]
+apb_master.cmd_pstrb[3:0]
+@28
+apb_master.cmd_pprot[2:0]
+@200
+-apb interface
+@28
+apb_master.m_apb_PSEL
+apb_master.m_apb_PENABLE
+apb_master.m_apb_PREADY
+apb_master.m_apb_PWRITE
+@22
+apb_master.m_apb_PADDR[31:0]
+apb_master.m_apb_PWDATA[31:0]
+apb_master.m_apb_PSTRB[3:0]
+apb_master.m_apb_PRDATA[31:0]
+@28
+apb_master.m_apb_PSLVERR
+@200
+-rsp interface
+@28
+apb_master.rsp_valid
+apb_master.rsp_ready
+@22
+apb_master.rsp_prdata[31:0]
+@28
+apb_master.rsp_pslverr
+@200
+-internals
+@100000028
+apb_master.r_apb_state[2:0]
+@22
+apb_master.r_cmd_data_in[71:0]
+@23
+apb_master.r_cmd_data_out[71:0]
+[pattern_trace] 1
+[pattern_trace] 0

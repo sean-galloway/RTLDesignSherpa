@@ -1,0 +1,126 @@
+@startuml descriptor_engine_fsm
+!theme plain
+title Descriptor Engine FSM (descriptor_engine.sv)
+
+skinparam state {
+  BackgroundColor LightCyan
+  BorderColor DarkCyan
+  ArrowColor DarkCyan
+  ArrowFontColor Black
+  ArrowFontSize 10
+}
+
+[*] --> DESC_IDLE
+
+state DESC_IDLE {
+  DESC_IDLE : Idle state - waiting for descriptor request
+  DESC_IDLE : • No pending operations
+  DESC_IDLE : • FIFO not full
+  DESC_IDLE : • Ready to accept new request
+}
+state DESC_ISSUE_ADDR {
+  DESC_ISSUE_ADDR : Issue AXI read transaction
+  DESC_ISSUE_ADDR : Address validation performed
+  DESC_ISSUE_ADDR : Channel ID encoded in ARID
+}
+state DESC_WAIT_DATA {
+  DESC_WAIT_DATA : Waiting for AXI read completion
+  DESC_WAIT_DATA : Monitor RID for channel matching
+  DESC_WAIT_DATA : Timeout detection active
+}
+state DESC_PARSE {
+  DESC_PARSE : Parse descriptor fields
+  DESC_PARSE : Extract src_addr, dst_addr, length
+  DESC_PARSE : Extract control flags (valid, interrupt, last)
+  DESC_PARSE : Validate descriptor format
+}
+state DESC_COMPLETE {
+  DESC_COMPLETE : Load descriptor into output FIFO
+  DESC_COMPLETE : Generate MonBus fetch event
+  DESC_COMPLETE : Update descriptor counter
+}
+state DESC_ERROR {
+  DESC_ERROR : Error recovery state
+  DESC_ERROR : AXI error or timeout
+  DESC_ERROR : Invalid descriptor format
+}
+
+DESC_IDLE -down-> DESC_ISSUE_ADDR : desc_req_valid & desc_req_ready & !fifo_full
+DESC_IDLE -down-> DESC_ERROR : desc_req_valid & (address_invalid | channel_error)
+DESC_ISSUE_ADDR -down-> DESC_WAIT_DATA : ar_valid & ar_ready
+DESC_ISSUE_ADDR -down-> DESC_ERROR : ar_timeout | axi_error
+DESC_WAIT_DATA -right-> DESC_PARSE : r_valid & r_ready & (rid == expected_id) & (rresp == OKAY)
+DESC_WAIT_DATA -down-> DESC_ERROR : r_valid & (rresp != OKAY) | r_timeout
+DESC_PARSE -down-> DESC_COMPLETE : descriptor_valid & format_ok
+DESC_PARSE -down-> DESC_ERROR : !descriptor_valid | format_error
+DESC_COMPLETE -up-> DESC_IDLE : fifo_wr_ready
+DESC_ERROR -up-> DESC_IDLE : error_acknowledged
+
+note bottom
+<b>Signal Definitions (descriptor_engine.sv):</b>
+
+desc_req_valid = descriptor request from scheduler (via arbiter)
+desc_req_channel_id = requesting channel ID (from arbiter)
+desc_req_addr = descriptor memory address
+
+ar_valid = AXI AR channel valid
+ar_ready = AXI AR channel ready
+m_axi_arid = {transaction_counter, desc_req_channel_id[3:0]}
+
+r_valid = AXI R channel valid
+r_ready = AXI R channel ready
+m_axi_rid = transaction ID from AXI response
+expected_id = transaction ID we sent on AR channel
+
+fifo_full = descriptor output FIFO full
+fifo_wr_ready = FIFO ready to accept descriptor
+
+<b>Descriptor Format (256-bit):</b>
+[63:0] src_addr - Source address (aligned)
+[127:64] dst_addr - Destination address (aligned)
+[159:128] length - Transfer length in BEATS
+[191:160] next_descriptor_ptr - Next descriptor address
+[192] valid - Valid descriptor flag
+[193] interrupt - Interrupt enable
+[194] last - Last descriptor in chain
+[199:196] channel_id - Channel ID
+[207:200] priority - Transfer priority
+
+<b>State Functions:</b>
+
+DESC_IDLE:
+- Wait for descriptor fetch request from scheduler
+- Arbitration ensures one channel wins access
+- Check FIFO space before accepting
+
+DESC_ISSUE_ADDR:
+- AXI AR transaction with channel ID in ARID
+- Address validation and error checking
+- Encode channel ID in lower bits of ARID
+
+DESC_WAIT_DATA:
+- Monitor AXI R channel for response
+- Match RID to verify correct transaction
+- Timeout detection for hung transactions
+
+DESC_PARSE:
+- Extract 256-bit descriptor into fields
+- Validate descriptor format (valid flag, aligned addresses)
+- Prepare for FIFO insertion
+
+DESC_COMPLETE:
+- Write parsed descriptor to output FIFO
+- Generate MonBus event (descriptor fetch)
+- Update internal counters
+
+DESC_ERROR:
+- Handle AXI errors (RRESP != OKAY)
+- Handle timeouts and format errors
+- Generate MonBus error packet
+
+<b>Key Differences from RAPIDS:</b>
+- Simpler: No RDA packet path (APB-only descriptor source)
+- Smaller descriptor: 256-bit vs 512-bit
+- Length in beats: Not chunks
+- Aligned addresses: No alignment fixup metadata
+@enduml

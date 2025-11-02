@@ -1,0 +1,54 @@
+{
+  "signal": [
+    {
+      "name": "pclk",
+      "wave": "p.........|......|.....",
+      "period": 1
+    },
+    {
+      "name": "presetn",
+      "wave": "0.1.......|......|....."
+    },
+    {},
+    {
+      "name": "APB Write",
+      "wave": "x..2...3..|4.....|.....",
+      "data": ["CONFIG=0", "COUNTER=0", "TMR0_CFG=3"]
+    },
+    {},
+    {
+      "name": "hpet_config.enable",
+      "wave": "0.......1.|......|....."
+    },
+    {
+      "name": "counter[31:0]",
+      "wave": "x.........|2.3.4.|5.6..",
+      "data": ["0", "1", "2", "3", "4"]
+    },
+    {
+      "name": "timer0_config.enable",
+      "wave": "0.........|....1.|....."
+    },
+    {
+      "name": "timer0_comparator",
+      "wave": "x.........|....2.|....."  ,
+      "data": ["1000"]
+    },
+    {},
+    {
+      "name": "timer0_irq",
+      "wave": "0.........|......|....."
+    }
+  ],
+  "config": {
+    "hscale": 2
+  },
+  "head": {
+    "text": "HPET Timer Initialization Sequence",
+    "tick": 0
+  },
+  "foot": {
+    "text": "Reset → Config HPET → Set Counter → Configure Timer → Enable",
+    "tock": 0
+  }
+}

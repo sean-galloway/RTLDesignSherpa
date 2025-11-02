@@ -1,0 +1,36 @@
+{
+  "signal": [
+    {
+      "name": "aclk",
+      "wave": "p............................"
+    },
+    {
+      "name": "aresetn",
+      "wave": "1............................"
+    },
+    {},
+    [
+      "MonBus",
+      {
+        "name": "monbus_valid",
+        "wave": "0...........1....0...........",
+        "node": "................a............"
+      },
+      {
+        "name": "monbus_ready",
+        "wave": "0...............10..........."
+      }
+    ]
+  ],
+  "head": {
+    "text": "Protocol Monbus Packet Sequence",
+    "tick": 0,
+    "every": 2
+  },
+  "foot": {
+    "text": "Modular: 1 events, sequence, 1 cycles | CP-SAT Solved"
+  },
+  "config": {
+    "hscale": 2
+  }
+}

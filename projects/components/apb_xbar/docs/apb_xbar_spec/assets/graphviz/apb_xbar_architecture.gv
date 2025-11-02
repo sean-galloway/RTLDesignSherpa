@@ -1,0 +1,114 @@
+// APB Crossbar Top-Level Architecture (2x4 Example)
+// Module: apb_xbar_2to4
+// Purpose: MxN crossbar interconnect with arbitration and routing
+
+digraph apb_xbar_architecture {
+    rankdir=TB;
+    node [shape=box, style="rounded,filled", fillcolor=lightblue];
+    edge [fontsize=10];
+
+    // External Master Interfaces
+    master0 [label="APB Master 0\n(CPU)\n\nPCLK domain", shape=doubleoctagon, fillcolor=lightgreen];
+    master1 [label="APB Master 1\n(DMA)\n\nPCLK domain", shape=doubleoctagon, fillcolor=lightgreen];
+
+    // Master-Side APB Slaves
+    subgraph cluster_master_side {
+        label="Master-Side Protocol Conversion";
+        style=filled;
+        fillcolor=lightyellow;
+
+        apb_slave0 [label="apb_slave[0]\n\nProtocol → cmd/rsp", fillcolor=lightcyan];
+        apb_slave1 [label="apb_slave[1]\n\nProtocol → cmd/rsp", fillcolor=lightcyan];
+    }
+
+    // Internal Crossbar Logic
+    subgraph cluster_crossbar {
+        label="Crossbar Core Logic";
+        style=filled;
+        fillcolor=lightgoldenrod;
+
+        addr_decode [label="Address Decode\n\nParallel decode\n(BASE_ADDR + offset)", shape=diamond, fillcolor=lightyellow];
+
+        subgraph cluster_arbiters {
+            label="Per-Slave Arbiters";
+            style=dashed;
+            fillcolor=white;
+
+            arb0 [label="Arbiter[0]\n\nRound-robin\n2 masters", shape=hexagon, fillcolor=lightcoral];
+            arb1 [label="Arbiter[1]\n\nRound-robin\n2 masters", shape=hexagon, fillcolor=lightcoral];
+            arb2 [label="Arbiter[2]\n\nRound-robin\n2 masters", shape=hexagon, fillcolor=lightcoral];
+            arb3 [label="Arbiter[3]\n\nRound-robin\n2 masters", shape=hexagon, fillcolor=lightcoral];
+        }
+
+        rsp_route [label="Response Routing\n\nRegistered paths\nback to masters", fillcolor=lightyellow];
+    }
+
+    // Slave-Side APB Masters
+    subgraph cluster_slave_side {
+        label="Slave-Side Protocol Conversion";
+        style=filled;
+        fillcolor=lightpink;
+
+        apb_master0 [label="apb_master[0]\n\ncmd/rsp → Protocol", fillcolor=lightcyan];
+        apb_master1 [label="apb_master[1]\n\ncmd/rsp → Protocol", fillcolor=lightcyan];
+        apb_master2 [label="apb_master[2]\n\ncmd/rsp → Protocol", fillcolor=lightcyan];
+        apb_master3 [label="apb_master[3]\n\ncmd/rsp → Protocol", fillcolor=lightcyan];
+    }
+
+    // External Slave Interfaces
+    slave0 [label="APB Slave 0\n(UART)\n@ BASE+0x0000", shape=doubleoctagon, fillcolor=pink];
+    slave1 [label="APB Slave 1\n(GPIO)\n@ BASE+0x10000", shape=doubleoctagon, fillcolor=pink];
+    slave2 [label="APB Slave 2\n(Timer)\n@ BASE+0x20000", shape=doubleoctagon, fillcolor=pink];
+    slave3 [label="APB Slave 3\n(SPI)\n@ BASE+0x30000", shape=doubleoctagon, fillcolor=pink];
+
+    // Master → Master-Side Connections
+    master0 -> apb_slave0 [label="APB\nprotocol", style=bold];
+    master1 -> apb_slave1 [label="APB\nprotocol", style=bold];
+
+    // Master-Side → Address Decode
+    apb_slave0 -> addr_decode [label="cmd/rsp bus 0\n(paddr, pwrite, pwdata)", color=blue];
+    apb_slave1 -> addr_decode [label="cmd/rsp bus 1\n(paddr, pwrite, pwdata)", color=blue];
+
+    // Address Decode → Arbiters
+    addr_decode -> arb0 [label="Slave 0 requests", style=dashed];
+    addr_decode -> arb1 [label="Slave 1 requests", style=dashed];
+    addr_decode -> arb2 [label="Slave 2 requests", style=dashed];
+    addr_decode -> arb3 [label="Slave 3 requests", style=dashed];
+
+    // Arbiters → Slave-Side
+    arb0 -> apb_master0 [label="Grant + cmd", color=green];
+    arb1 -> apb_master1 [label="Grant + cmd", color=green];
+    arb2 -> apb_master2 [label="Grant + cmd", color=green];
+    arb3 -> apb_master3 [label="Grant + cmd", color=green];
+
+    // Slave-Side → Response Routing
+    apb_master0 -> rsp_route [label="rsp bus 0", color=red];
+    apb_master1 -> rsp_route [label="rsp bus 1", color=red];
+    apb_master2 -> rsp_route [label="rsp bus 2", color=red];
+    apb_master3 -> rsp_route [label="rsp bus 3", color=red];
+
+    // Response Routing → Master-Side
+    rsp_route -> apb_slave0 [label="Response\nto M0", color=red, style=dashed];
+    rsp_route -> apb_slave1 [label="Response\nto M1", color=red, style=dashed];
+
+    // Slave-Side → External Slaves
+    apb_master0 -> slave0 [label="APB\nprotocol", style=bold];
+    apb_master1 -> slave1 [label="APB\nprotocol", style=bold];
+    apb_master2 -> slave2 [label="APB\nprotocol", style=bold];
+    apb_master3 -> slave3 [label="APB\nprotocol", style=bold];
+
+    // Parameters
+    params [label="Parameters\n\nNUM_MASTERS = 2\nNUM_SLAVES = 4\nADDR_WIDTH = 32\nDATA_WIDTH = 32\nBASE_ADDR = 0x10000000", shape=note, fillcolor=lightgray];
+    params -> addr_decode [style=dashed, label="Config"];
+
+    // Legend
+    subgraph cluster_legend {
+        label="Legend";
+        style=filled;
+        fillcolor=white;
+
+        leg_cmd [label="Command Path", style=solid, color=blue];
+        leg_rsp [label="Response Path", style=dashed, color=red];
+        leg_grant [label="Grant/Arbitration", style=solid, color=green];
+    }
+}

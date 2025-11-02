@@ -1,0 +1,47 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Sun Jul  6 02:02:22 2025
+[*]
+[dumpfile] "(null)"
+[savefile] "/home/seang/github/RTLDesignSherpa/val/integ_amba/GTKW/gaxi_fifo_multi.gtkw"
+[timestart] 99200
+[size] 2892 1112
+[pos] -1 -1
+*-15.313031 335000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .gaxi_fifo_sync_multi.
+[sst_width] 292
+[signals_width] 179
+[sst_expanded] 1
+[sst_vpaned_height] 335
+@420
+gaxi_fifo_sync_multi.AW
+gaxi_fifo_sync_multi.CW
+gaxi_fifo_sync_multi.DW
+gaxi_fifo_sync_multi.DEPTH
+@28
+gaxi_fifo_sync_multi.i_axi_aclk
+gaxi_fifo_sync_multi.i_axi_aresetn
+@200
+-wr interface
+@28
+gaxi_fifo_sync_multi.i_wr_valid
+gaxi_fifo_sync_multi.o_wr_ready
+@23
+gaxi_fifo_sync_multi.i_wr_addr[7:0]
+@22
+gaxi_fifo_sync_multi.i_wr_ctrl[4:0]
+gaxi_fifo_sync_multi.i_wr_data0[7:0]
+gaxi_fifo_sync_multi.i_wr_data1[7:0]
+@200
+-read interface
+@28
+gaxi_fifo_sync_multi.o_rd_valid
+gaxi_fifo_sync_multi.i_rd_ready
+@22
+gaxi_fifo_sync_multi.o_rd_addr[7:0]
+gaxi_fifo_sync_multi.o_rd_ctrl[4:0]
+gaxi_fifo_sync_multi.o_rd_data0[7:0]
+gaxi_fifo_sync_multi.o_rd_data1[7:0]
+[pattern_trace] 1
+[pattern_trace] 0

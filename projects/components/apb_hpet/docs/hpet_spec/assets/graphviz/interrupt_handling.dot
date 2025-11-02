@@ -1,0 +1,65 @@
+// HPET Interrupt Handling Flow
+// Render with: dot -Tpng interrupt_handling.dot -o interrupt_handling.png
+
+digraph interrupt_handling {
+    rankdir=TB;
+    node [shape=box, style="rounded,filled", fillcolor=lightblue, fontname="Arial"];
+    edge [fontname="Arial"];
+
+    start [label="Interrupt Occurs", shape=ellipse, fillcolor=red, fontcolor=white];
+    end [label="Interrupt Cleared\nReturn from ISR", shape=ellipse, fillcolor=lightgreen];
+
+    start -> isr_entry;
+
+    isr_entry [label="Enter ISR\n(Interrupt Service Routine)", fillcolor=lightyellow];
+    isr_entry -> read_status;
+
+    read_status [label="Read Status Register\nstatus = READ(HPET_STATUS)"];
+    read_status -> check_timers;
+
+    check_timers [label="Which timer(s) fired?", shape=diamond, fillcolor=lightyellow];
+    check_timers -> timer0_check [label="Check bit 0"];
+
+    timer0_check [label="Timer 0 fired?\n(status & 0x1)", shape=diamond, fillcolor=lightyellow];
+    timer0_check -> handle_timer0 [label="Yes"];
+    timer0_check -> timer1_check [label="No"];
+
+    handle_timer0 [label="Handle Timer 0\n• Execute callback\n• Update state\n• Log event", fillcolor=lightcyan];
+    handle_timer0 -> clear_timer0;
+
+    clear_timer0 [label="Clear Timer 0 IRQ\nWRITE(HPET_STATUS, 0x1)\n(W1C)", fillcolor=lightgreen];
+    clear_timer0 -> timer1_check;
+
+    timer1_check [label="Timer 1 fired?\n(status & 0x2)", shape=diamond, fillcolor=lightyellow];
+    timer1_check -> handle_timer1 [label="Yes"];
+    timer1_check -> timer2_check [label="No"];
+
+    handle_timer1 [label="Handle Timer 1\n• Execute callback\n• Update state", fillcolor=lightcyan];
+    handle_timer1 -> clear_timer1;
+
+    clear_timer1 [label="Clear Timer 1 IRQ\nWRITE(HPET_STATUS, 0x2)", fillcolor=lightgreen];
+    clear_timer1 -> timer2_check;
+
+    timer2_check [label="More timers\nto check?", shape=diamond, fillcolor=lightyellow];
+    timer2_check -> handle_timerN [label="Yes"];
+    timer2_check -> verify_clear [label="No"];
+
+    handle_timerN [label="Handle Timer N\nRepeat for remaining\ntimers", fillcolor=lightcyan];
+    handle_timerN -> timer2_check;
+
+    verify_clear [label="Verify All Cleared\nstatus = READ(HPET_STATUS)"];
+    verify_clear -> all_clear;
+
+    all_clear [label="All interrupts\ncleared?", shape=diamond, fillcolor=lightyellow];
+    all_clear -> end [label="Yes (status == 0)"];
+    all_clear -> read_status [label="No (retry)"];
+
+    // Notes
+    note1 [label="Note: Multiple timers\ncan fire simultaneously", shape=note, fillcolor=yellow, style=filled];
+    note2 [label="Note: W1C register\nwrite 1 to clear bit", shape=note, fillcolor=lightyellow, style=filled];
+    note3 [label="Critical: Must clear ALL\nfired interrupts", shape=note, fillcolor=lightcoral, style=filled];
+
+    {rank=same; check_timers; note1;}
+    {rank=same; clear_timer0; note2;}
+    {rank=same; verify_clear; note3;}
+}

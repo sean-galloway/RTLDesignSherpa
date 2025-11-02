@@ -1,0 +1,49 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Sun Jun  8 06:05:05 2025
+[*]
+[dumpfile] "/home/seang/github/RTLDesignSherpa/val/common/local_sim_build/test_fifo_async_w008_d004_wcl010_rcl008_fifo_mux_basic/dump.fst"
+[dumpfile_mtime] "Sun Jun  8 05:59:59 2025"
+[dumpfile_size] 7008
+[savefile] "/home/seang/github/RTLDesignSherpa/val/common/GTKW/fifo_buffer_async.gtkw"
+[timestart] 1622000
+[size] 2914 1296
+[pos] 52 101
+*-17.837173 2970200 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .fifo_async.
+[sst_width] 325
+[signals_width] 213
+[sst_expanded] 1
+[sst_vpaned_height] 399
+@421
+fifo_async.REGISTERED
+@200
+-write interface
+@28
+fifo_async.i_wr_clk
+fifo_async.i_wr_rst_n
+fifo_async.i_write
+@22
+fifo_async.i_wr_data[7:0]
+@28
+fifo_async.o_wr_full
+fifo_async.o_wr_almost_full
+@200
+-read interface
+@28
+fifo_async.i_rd_clk
+fifo_async.i_rd_rst_n
+fifo_async.i_read
+@22
+fifo_async.o_rd_data[7:0]
+@28
+fifo_async.o_rd_empty
+fifo_async.o_rd_almost_empty
+@200
+-internals
+@28
+fifo_async.r_wr_ptr_bin[2:0]
+fifo_async.r_rd_ptr_bin[2:0]
+[pattern_trace] 1
+[pattern_trace] 0

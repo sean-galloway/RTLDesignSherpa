@@ -1,0 +1,93 @@
+{
+  "signal": [
+    {
+      "name": "pclk",
+      "wave": "p........................",
+      "period": 1.0
+    },
+    {},
+    {
+      "name": "presetn",
+      "wave": "1........................"
+    },
+    {},
+    [
+      "APB Read COUNTER_LO (0x008)",
+      {
+        "name": "psel",
+        "wave": "01..............0........"
+      },
+      {
+        "name": "penable",
+        "wave": "0.1.............0........"
+      },
+      {
+        "name": "pready",
+        "wave": "0..1............0........"
+      },
+      {
+        "name": "pwrite",
+        "wave": "0........................"
+      },
+      {
+        "name": "paddr",
+        "wave": "x2..............x3......x",
+        "data": [
+          "0x008",
+          "0x00C"
+        ]
+      },
+      {
+        "name": "prdata",
+        "wave": "x...2...........x...3...x",
+        "data": [
+          "0x000002BC",
+          "0x00000000"
+        ],
+        "node": "....a...............b"
+      }
+    ],
+    {},
+    [
+      "APB Read COUNTER_HI (0x00C)",
+      {
+        "name": "psel",
+        "wave": "0................1......0"
+      },
+      {
+        "name": "penable",
+        "wave": "0.................1.....0"
+      },
+      {
+        "name": "pready",
+        "wave": "0..................1....0"
+      }
+    ],
+    {},
+    [
+      "HPET Core",
+      {
+        "name": "main_counter[63:0]",
+        "wave": "2...............2........",
+        "data": [
+          "0x00000000000002BC",
+          "0x00000000000002CD"
+        ]
+      }
+    ]
+  ],
+  "head": {
+    "text": "APB Read 64-bit Counter (Two 32-bit Reads)",
+    "tick": 0,
+    "every": 1
+  },
+  "foot": {
+    "text": "Counter = 0x00000000000002BC = 700 (decimal)"
+  },
+  "config": {
+    "hscale": 2
+  },
+  "edge": [
+    "a-~>b Read LO then HI"
+  ]
+}

@@ -1,0 +1,75 @@
+// APB Crossbar Address Decode Flow
+// Module: Address decode logic
+// Purpose: Show how addresses map to slaves
+
+digraph address_decode_flow {
+    rankdir=TB;
+    node [shape=box, style="rounded,filled", fillcolor=lightblue];
+    edge [fontsize=10];
+
+    // Incoming Transaction
+    incoming [label="Incoming Transaction\n\nPADDR = 0x10023456\nBASE_ADDR = 0x10000000", shape=ellipse, fillcolor=lightgreen];
+
+    // Calculate Offset
+    calc_offset [label="Calculate Offset\n\noffset = PADDR - BASE_ADDR\n= 0x10023456 - 0x10000000\n= 0x00023456", fillcolor=lightyellow];
+
+    // Extract Slave Index
+    extract_idx [label="Extract Slave Index\n\nslave_idx = offset[19:16]\n= 0x00023456 >> 16\n= 0x2", fillcolor=lightcyan];
+
+    // Slave Selection
+    subgraph cluster_slaves {
+        label="Slave Selection (Parallel Decode)";
+        style=filled;
+        fillcolor=lightgoldenrod;
+
+        decode [label="Decode Logic\n(Combinational)", shape=diamond];
+
+        s0 [label="Slave 0\n\nMatch: idx == 0\nRange: BASE+0x00000..0x0FFFF\nResult: NO MATCH", fillcolor=white];
+        s1 [label="Slave 1\n\nMatch: idx == 1\nRange: BASE+0x10000..0x1FFFF\nResult: NO MATCH", fillcolor=white];
+        s2 [label="Slave 2\n\nMatch: idx == 2\nRange: BASE+0x20000..0x2FFFF\nResult: MATCH ✓", fillcolor=lightgreen];
+        s3 [label="Slave 3\n\nMatch: idx == 3\nRange: BASE+0x30000..0x3FFFF\nResult: NO MATCH", fillcolor=white];
+    }
+
+    // Route to Arbiter
+    route_arb [label="Route to Arbiter[2]\n\nRequest forwarded\nto Slave 2's arbiter", shape=hexagon, fillcolor=lightcoral];
+
+    // Arbitration Decision
+    arb_decision [label="Arbitration Decision\n\nGrant to requesting master\n(if no conflict)", fillcolor=lightcyan];
+
+    // Route to Slave
+    route_slave [label="Route to Slave 2\n\nvia apb_master[2]\n\nPSEL[2] = 1\nPADDR = 0x10023456", shape=doubleoctagon, fillcolor=pink];
+
+    // Data Flow
+    incoming -> calc_offset [label="1. Receive", style=bold];
+    calc_offset -> extract_idx [label="2. Calculate", style=bold];
+    extract_idx -> decode [label="3. Extract", style=bold];
+
+    decode -> s0 [label="Compare", style=dashed];
+    decode -> s1 [label="Compare", style=dashed];
+    decode -> s2 [label="Compare", style=dashed, color=green];
+    decode -> s3 [label="Compare", style=dashed];
+
+    s2 -> route_arb [label="4. Route", style=bold, color=green];
+    route_arb -> arb_decision [label="5. Arbitrate"];
+    arb_decision -> route_slave [label="6. Forward", style=bold, color=blue];
+
+    // Address Map Reference
+    addr_map [label="Address Map (4 Slaves)\n\nSlave 0: 0x10000000 - 0x1000FFFF (64KB)\nSlave 1: 0x10010000 - 0x1001FFFF (64KB)\nSlave 2: 0x10020000 - 0x1002FFFF (64KB)\nSlave 3: 0x10030000 - 0x1003FFFF (64KB)\n\nTotal: 256KB (4 × 64KB)", shape=note, fillcolor=lightyellow];
+
+    // Key Formulas
+    formulas [label="Key Formulas\n\noffset = PADDR - BASE_ADDR\nslave_idx = offset[19:16]\n= offset >> 16\n\nEach slave: 64KB = 0x10000 bytes\nMax slaves: 16 (idx 0x0..0xF)", shape=note, fillcolor=lightgray];
+
+    addr_map -> calc_offset [style=dotted];
+    formulas -> extract_idx [style=dotted];
+
+    // Legend
+    subgraph cluster_legend {
+        label="Legend";
+        style=filled;
+        fillcolor=white;
+
+        leg_data [label="Data Path", style=bold];
+        leg_match [label="Match Path", style=bold, color=green];
+        leg_compare [label="Compare Paths", style=dashed];
+    }
+}

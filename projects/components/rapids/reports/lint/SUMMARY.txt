@@ -1,0 +1,31 @@
+RAPIDS RTL Lint Summary
+=======================
+Date: Sat Oct 18 07:13:32 PM PDT 2025
+Total modules: 12
+
+Results:
+--------
+Verilator - Modules with errors: 0
+Verible   - Modules with style issues: (see individual reports)
+Yosys     - Modules with syntax errors: 0
+
+Reports Location:
+----------------
+Verilator: /mnt/data/github/rtldesignsherpa/projects/components/rapids/reports/lint/verilator/
+Verible:   /mnt/data/github/rtldesignsherpa/projects/components/rapids/reports/lint/verible/
+Yosys:     /mnt/data/github/rtldesignsherpa/projects/components/rapids/reports/lint/yosys/
+
+Module List:
+-----------
+  - ctrlrd_engine.sv
+  - ctrlwr_engine.sv
+  - descriptor_engine.sv
+  - scheduler.sv
+  - simple_sram.sv
+  - sink_axi_write_engine.sv
+  - sink_sram_control.sv
+  - source_axi_read_engine.sv
+  - source_sram_control.sv
+  - monbus_axil_group.sv
+  - scheduler_group_array.sv
+  - scheduler_group.sv

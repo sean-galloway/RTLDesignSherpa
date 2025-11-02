@@ -1,0 +1,30 @@
+# CocoTB Simulation Build Artifacts
+sim_build/
+obj_dir/
+*.vcd
+*.fst
+*.ghw
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Test results
+results.xml
+.coverage
+htmlcov/
+
+# Logs (keep directory structure, ignore contents)
+logs/*.log
+logs/**/*.log
+
+# Waveform databases
+*.vcd.hier
+*.fst.hier
+
+# Temporary files
+*.swp
+*.swo
+*~

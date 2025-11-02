@@ -1,0 +1,67 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Thu Jul  3 15:22:03 2025
+[*]
+[dumpfile] "/home/seang/github/RTLDesignSherpa/val/amba/local_sim_build/test_apb_slave_aw032_dw032_d002/dump.fst"
+[dumpfile_mtime] "Thu Jul  3 15:17:10 2025"
+[dumpfile_size] 1996
+[savefile] "/home/seang/github/RTLDesignSherpa/val/amba/GTKW/apb_slave.gtkw"
+[timestart] 0
+[size] 2086 1299
+[pos] 871 303
+*-23.748228 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .apb_slave.
+[sst_width] 278
+[signals_width] 329
+[sst_expanded] 1
+[sst_vpaned_height] 400
+@420
+apb_slave.AW
+apb_slave.DW
+apb_slave.PW
+apb_slave.SW
+@28
+apb_slave.pclk
+apb_slave.presetn
+@200
+-apb interface
+@28
+apb_slave.s_apb_PSEL
+apb_slave.s_apb_PENABLE
+apb_slave.s_apb_PREADY
+apb_slave.s_apb_PWRITE
+@22
+apb_slave.s_apb_PADDR[31:0]
+apb_slave.s_apb_PWDATA[31:0]
+apb_slave.s_apb_PSTRB[3:0]
+apb_slave.s_apb_PRDATA[31:0]
+@28
+apb_slave.s_apb_PSLVERR
+@200
+-cmd interface
+@28
+apb_slave.cmd_valid
+apb_slave.cmd_ready
+apb_slave.cmd_pwrite
+@22
+apb_slave.cmd_paddr[31:0]
+apb_slave.cmd_pwdata[31:0]
+apb_slave.cmd_pstrb[3:0]
+@28
+apb_slave.cmd_pprot[2:0]
+@200
+-rsp interface
+@28
+apb_slave.rsp_valid
+apb_slave.rsp_ready
+@22
+apb_slave.rsp_prdata[31:0]
+@28
+apb_slave.rsp_pslverr
+@200
+-Internals
+@100000029
+apb_slave.r_apb_state[2:0]
+[pattern_trace] 1
+[pattern_trace] 0

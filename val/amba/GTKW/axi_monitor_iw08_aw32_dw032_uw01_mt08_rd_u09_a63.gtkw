@@ -1,0 +1,93 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Jul 14 23:05:51 2025
+[*]
+[dumpfile] "/home/seang/github/RTLDesignSherpa/val/amba/local_sim_build/test_apb_monitor_aw32_dw032_uid04_aid008_mt04_basic/dump.fst"
+[dumpfile_mtime] "Mon Jul 14 23:04:49 2025"
+[dumpfile_size] 9025
+[savefile] "/home/seang/github/RTLDesignSherpa/val/amba/GTKW/axi_monitor_iw08_aw32_dw032_uw01_mt08_rd_u09_a63.gtkw"
+[timestart] 0
+[size] 3222 1156
+[pos] -1 -1
+*-17.251474 190000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .apb_monitor.
+[sst_width] 445
+[signals_width] 460
+[sst_expanded] 1
+[sst_vpaned_height] 762
+@420
+apb_monitor.UNIT_ID
+apb_monitor.AGENT_ID
+apb_monitor.AW
+apb_monitor.DW
+apb_monitor.SW
+apb_monitor.MONITOR_FIFO_DEPTH
+apb_monitor.MAX_TRANSACTIONS
+@28
+apb_monitor.aclk
+apb_monitor.aresetn
+@200
+-configs
+@22
+apb_monitor.cfg_cmd_timeout_cnt[15:0]
+@28
+apb_monitor.cfg_debug_enable
+@22
+apb_monitor.cfg_debug_level[3:0]
+@28
+apb_monitor.cfg_error_enable
+apb_monitor.cfg_latency_enable
+@22
+apb_monitor.cfg_latency_threshold[31:0]
+@28
+apb_monitor.cfg_perf_enable
+apb_monitor.cfg_protocol_enable
+@22
+apb_monitor.cfg_rsp_timeout_cnt[15:0]
+@28
+apb_monitor.cfg_slverr_enable
+apb_monitor.cfg_throughput_enable
+@22
+apb_monitor.cfg_throughput_threshold[15:0]
+@28
+apb_monitor.cfg_timeout_enable
+apb_monitor.cfg_trans_debug_enable
+@200
+-cmd interface
+@28
+apb_monitor.cmd_valid
+apb_monitor.cmd_ready
+apb_monitor.cmd_pwrite
+@22
+apb_monitor.cmd_paddr[31:0]
+apb_monitor.cmd_pwdata[31:0]
+apb_monitor.cmd_pstrb[3:0]
+@28
+apb_monitor.cmd_pprot[2:0]
+@200
+-rsp interface
+@28
+apb_monitor.rsp_valid
+apb_monitor.rsp_ready
+@22
+apb_monitor.rsp_prdata[31:0]
+@28
+apb_monitor.rsp_pslverr
+@200
+-monbus interface
+@28
+apb_monitor.monbus_valid
+apb_monitor.monbus_ready
+@22
+apb_monitor.monbus_packet[63:0]
+@200
+-fifo_rd_data
+@22
+apb_monitor.w_fifo_rd_data.packet_type[3:0]
+apb_monitor.w_fifo_rd_data.event_code[3:0]
+apb_monitor.w_fifo_rd_data.event_data[31:0]
+@23
+apb_monitor.w_fifo_rd_data.aux_data[7:0]
+[pattern_trace] 1
+[pattern_trace] 0

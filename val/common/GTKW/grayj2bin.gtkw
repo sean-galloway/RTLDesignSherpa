@@ -1,0 +1,43 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Generated: Wed Oct 15 03:46:34 2025
+[*]
+[dumpfile] "(null)"
+[savefile] "/mnt/data/github/rtldesignsherpa/val/common/GTKW/grayj2bin.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] -1 -1
+*-20.0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .grayj2bin.
+[sst_width] 401
+[signals_width] 250
+[sst_expanded] 1
+[sst_vpaned_height] 400
+@420
+grayj2bin.JCW
+grayj2bin.WIDTH
+@200
+-Clock and Reset
+@28
+grayj2bin.clk
+grayj2bin.rst_n
+@200
+-Inputs
+@28
+grayj2bin.gray
+@200
+-Outputs
+@28
+grayj2bin.binary
+@200
+-Internal Wires
+@28
+grayj2bin.w_all_ones
+grayj2bin.w_all_zeroes
+grayj2bin.w_binary
+grayj2bin.w_leading_one
+grayj2bin.w_trailing_one
+grayj2bin.w_valid
+[pattern_trace] 1
+[pattern_trace] 0

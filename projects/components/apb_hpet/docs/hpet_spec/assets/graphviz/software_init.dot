@@ -1,0 +1,52 @@
+// HPET Software Initialization Flow
+// Render with: dot -Tpng software_init.dot -o software_init.png
+// Or: dot -Tsvg software_init.dot -o software_init.svg
+
+digraph hpet_software_init {
+    // Graph attributes
+    rankdir=TB;
+    node [shape=box, style="rounded,filled", fillcolor=lightblue, fontname="Arial"];
+    edge [fontname="Arial"];
+
+    // Start/End nodes
+    start [label="Start", shape=ellipse, fillcolor=lightgreen];
+    end [label="End\n(HPET Running)", shape=ellipse, fillcolor=lightgreen];
+
+    // Main flow
+    start -> disable_hpet;
+
+    disable_hpet [label="Disable HPET\nWRITE(HPET_CONFIG, 0x0)"];
+    disable_hpet -> reset_counter;
+
+    reset_counter [label="Reset Counter to 0\nWRITE(HPET_COUNTER_LO, 0x0)\nWRITE(HPET_COUNTER_HI, 0x0)"];
+    reset_counter -> check_caps;
+
+    check_caps [label="Read Capabilities\nREAD(HPET_CAPABILITIES)\nGet num_timers, vendor_id", fillcolor=lightyellow];
+    check_caps -> config_timer0;
+
+    config_timer0 [label="Configure Timer 0\n1. Set comparator value\n2. Set mode (one-shot/periodic)\n3. Enable interrupt", fillcolor=lightcyan];
+    config_timer0 -> set_comp0;
+
+    set_comp0 [label="Set Comparator\nWRITE(TIMER0_COMPARATOR_LO, value)\nWRITE(TIMER0_COMPARATOR_HI, 0)"];
+    set_comp0 -> set_config0;
+
+    set_config0 [label="Enable Timer 0\nWRITE(TIMER0_CONFIG, 0x3)\n(enable | int_enable)"];
+    set_config0 -> more_timers;
+
+    more_timers [label="More timers\nto configure?", shape=diamond, fillcolor=lightyellow];
+    more_timers -> config_timerN [label="Yes"];
+    more_timers -> enable_hpet [label="No"];
+
+    config_timerN [label="Configure Timer N\nRepeat steps for\nadditional timers", fillcolor=lightcyan];
+    config_timerN -> more_timers;
+
+    enable_hpet [label="Enable HPET Globally\nWRITE(HPET_CONFIG, 0x1)"];
+    enable_hpet -> end;
+
+    // Notes
+    note1 [label="Note: Always disable HPET\nbefore configuration", shape=note, fillcolor=lightyellow, style=filled];
+    note2 [label="Note: Comparator values\nare in HPET clock cycles", shape=note, fillcolor=lightyellow, style=filled];
+
+    {rank=same; disable_hpet; note1;}
+    {rank=same; set_comp0; note2;}
+}

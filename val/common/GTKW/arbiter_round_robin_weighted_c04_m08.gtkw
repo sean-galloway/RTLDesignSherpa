@@ -1,0 +1,95 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Thu Jul 24 23:06:48 2025
+[*]
+[dumpfile] "/home/seang/github/RTLDesignSherpa/val/common/local_sim_build/test_arbiter_round_robin_weighted_c04_m08_w0/dump.fst"
+[dumpfile_mtime] "Thu Jul 24 18:23:59 2025"
+[dumpfile_size] 6711
+[savefile] "/home/seang/github/RTLDesignSherpa/val/common/GTKW/arbiter_round_robin_weighted_c04_m08.gtkw"
+[timestart] 0
+[size] 3280 1442
+[pos] -1 -1
+*-19.036877 14530000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .arbiter_round_robin_weighted.
+[sst_width] 479
+[signals_width] 389
+[sst_expanded] 1
+[sst_vpaned_height] 450
+@420
+arbiter_round_robin_weighted.CLIENTS
+arbiter_round_robin_weighted.MAX_LEVELS
+arbiter_round_robin_weighted.N
+arbiter_round_robin_weighted.WAIT_GNT_ACK
+@28
+arbiter_round_robin_weighted.clk
+arbiter_round_robin_weighted.rst_n
+arbiter_round_robin_weighted.block_arb
+@22
+arbiter_round_robin_weighted.max_thresh[11:0]
+@100000028
+arbiter_round_robin_weighted.r_weight_state[2:0]
+@22
+arbiter_round_robin_weighted.r_safe_max_thresh[11:0]
+arbiter_round_robin_weighted.r_weight_timer[3:0]
+@200
+-inputs
+@800022
+arbiter_round_robin_weighted.request[3:0]
+@28
+(0)arbiter_round_robin_weighted.request[3:0]
+(1)arbiter_round_robin_weighted.request[3:0]
+(2)arbiter_round_robin_weighted.request[3:0]
+(3)arbiter_round_robin_weighted.request[3:0]
+@1001200
+-group_end
+@22
+arbiter_round_robin_weighted.grant_ack[3:0]
+@200
+-outputs
+@28
+arbiter_round_robin_weighted.grant_valid
+@24
+arbiter_round_robin_weighted.grant_id[1:0]
+@22
+arbiter_round_robin_weighted.grant[3:0]
+@200
+-flops
+@22
+arbiter_round_robin_weighted.r_actual_last_grant[3:0]
+@24
+arbiter_round_robin_weighted.r_credit_counter[0][2:0]
+arbiter_round_robin_weighted.r_credit_counter[1][2:0]
+arbiter_round_robin_weighted.r_credit_counter[2][2:0]
+arbiter_round_robin_weighted.r_credit_counter[3][2:0]
+@22
+arbiter_round_robin_weighted.r_last_grant[3:0]
+@200
+-wires
+@22
+arbiter_round_robin_weighted.w_clients_with_credits_count[3:0]
+@28
+arbiter_round_robin_weighted.w_global_replenish
+@22
+arbiter_round_robin_weighted.w_has_crd[3:0]
+arbiter_round_robin_weighted.w_mask_req[3:0]
+@28
+arbiter_round_robin_weighted.w_multiple_eligible
+arbiter_round_robin_weighted.w_pending_grants
+@22
+arbiter_round_robin_weighted.w_req_post[3:0]
+arbiter_round_robin_weighted.w_requesting_eligible[3:0]
+arbiter_round_robin_weighted.w_requesting_with_credits[3:0]
+@28
+arbiter_round_robin_weighted.w_sub_block_arb
+arbiter_round_robin_weighted.w_weight_change_active
+arbiter_round_robin_weighted.w_weight_change_req
+@200
+-weights
+@25
+arbiter_round_robin_weighted.client_weight[0][2:0]
+arbiter_round_robin_weighted.client_weight[1][2:0]
+arbiter_round_robin_weighted.client_weight[2][2:0]
+arbiter_round_robin_weighted.client_weight[3][2:0]
+[pattern_trace] 1
+[pattern_trace] 0

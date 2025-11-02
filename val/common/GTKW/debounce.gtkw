@@ -1,0 +1,43 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Generated: Wed Oct 15 03:46:34 2025
+[*]
+[dumpfile] "(null)"
+[savefile] "/mnt/data/github/rtldesignsherpa/val/common/GTKW/debounce.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] -1 -1
+*-20.0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .debounce.
+[sst_width] 401
+[signals_width] 250
+[sst_expanded] 1
+[sst_vpaned_height] 400
+@420
+debounce.N
+debounce.DEBOUNCE_DELAY
+@200
+-Clock and Reset
+@28
+debounce.clk
+debounce.rst_n
+@200
+-Inputs
+@28
+debounce.long_tick
+debounce.button_in
+@200
+-Outputs
+@28
+debounce.button_out
+@200
+-Internal Registers
+@28
+debounce.r_shift_regs
+@200
+-Internal Wires
+@28
+debounce.w_debounced_signals
+[pattern_trace] 1
+[pattern_trace] 0

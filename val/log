@@ -1,0 +1,86 @@
+[INFO] Scanning: /mnt/data/github/rtldesignsherpa/val/common (recursive=True)
+[INFO] Modules in list: 30
+[INFO] Match mode: dut/toplevel + content (literal, case-insensitive) | regex=False | case_sensitive=False
+[INFO] DRY RUN (no files modified; no originals copied)
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_arbiter_priority_encoder.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_arbiter_round_robin.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_arbiter_round_robin_simple.py  REASON: no-match
+[SCAN] /mnt/data/github/rtldesignsherpa/val/common/test_arbiter_round_robin_weighted.py  get_paths:+1  includes:+1  run_kw:+0  REASON: content-literal-ci; patched-get_paths, create-includes-var
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_bin2gray.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_bin_to_bcd.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_cam_tag.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_clock_divider.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_clock_gate_ctrl.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_clock_pulse.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_count_leading_zeros.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_counter.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_counter_bin.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_counter_bin_load.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_counter_bin_wavedrom.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_counter_bingray.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_counter_bingray_wavedrom.py  REASON: no-match
+[SCAN] /mnt/data/github/rtldesignsherpa/val/common/test_counter_freq_invariant.py  get_paths:+1  includes:+1  run_kw:+0  REASON: content-literal-ci; patched-get_paths, create-includes-var
+[SCAN] /mnt/data/github/rtldesignsherpa/val/common/test_counter_freq_invariant_wavedrom.py  get_paths:+1  includes:+1  run_kw:+1  REASON: content-literal-ci; patched-get_paths, create-includes-var, add-run-includes-kw, append-subscript-into-run-literal
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_counter_johnson.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_counter_johnson_wavedrom.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_counter_load_clear.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_counter_load_clear_wavedrom.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_counter_ring.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_dataint_checksum.py  REASON: no-match
+[SCAN] /mnt/data/github/rtldesignsherpa/val/common/test_dataint_crc.py  get_paths:+1  includes:+1  run_kw:+0  REASON: content-literal-ci; patched-get_paths, create-includes-var
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_dataint_ecc.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_dataint_ecc_hamming_secded.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_dataint_parity.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_debounce.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_decoder.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_encoder.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_encoder_priority_enable.py  REASON: no-match
+[SCAN] /mnt/data/github/rtldesignsherpa/val/common/test_fifo_async_div2_wavedrom.py  get_paths:+0  includes:+1  run_kw:+0  REASON: content-literal-ci; create-includes-var
+[SCAN] /mnt/data/github/rtldesignsherpa/val/common/test_fifo_async_wavedrom.py  get_paths:+0  includes:+1  run_kw:+1  REASON: content-literal-ci; create-includes-var, add-run-includes-kw
+[SCAN] /mnt/data/github/rtldesignsherpa/val/common/test_fifo_buffer.py  get_paths:+0  includes:+1  run_kw:+0  REASON: content-literal-ci; create-includes-var
+[SCAN] /mnt/data/github/rtldesignsherpa/val/common/test_fifo_buffer_async.py  get_paths:+0  includes:+1  run_kw:+0  REASON: content-literal-ci; create-includes-var
+[SCAN] /mnt/data/github/rtldesignsherpa/val/common/test_fifo_buffer_async_div2.py  get_paths:+0  includes:+1  run_kw:+0  REASON: content-literal-ci; create-includes-var
+[SCAN] /mnt/data/github/rtldesignsherpa/val/common/test_fifo_sync_wavedrom.py  get_paths:+0  includes:+1  run_kw:+0  REASON: content-literal-ci; create-includes-var
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_find_first_set.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_find_last_set.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_glitch_free_n_dff_arn.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_gray2bin.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_grayj2bin.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_hex_to_7seg.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_leading_one_trailing_one.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_math_adder_brent_kung.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_math_adder_carry_lookahead.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_math_adder_carry_save.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_math_adder_carry_save_nbit.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_math_adder_full.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_math_adder_full_nbit.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_math_adder_half.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_math_adder_kogge_stone_nbit.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_math_adder_ripple_carry.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_math_addsub_full_nbit.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_math_multiplier_carry_save.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_math_multiplier_dadda.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_math_multiplier_wallace.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_math_multiplier_wallace_csa.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_math_subtractor_carry_lookahead.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_math_subtractor_full_nbit.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_math_subtractor_half.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_math_subtractor_ripple_carry.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_pwm.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_reset_sync.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_reverse_vector.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_shifter_barrel.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_shifter_lfsr.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_shifter_lfsr_fibonacci.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_shifter_lfsr_galois.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_shifter_lfsr_galois_sequence.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_shifter_universal.py  REASON: no-match
+[SKIP] /mnt/data/github/rtldesignsherpa/val/common/test_sort.py  REASON: no-match
+
+[SUMMARY]
+  test files scanned:   74
+  files modified:       10
+  get_paths() edits:    4
+  includes edits:       10
+  run(...includes=...)  2
+  Done.

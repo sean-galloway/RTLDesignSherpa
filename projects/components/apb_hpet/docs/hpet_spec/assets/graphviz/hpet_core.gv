@@ -1,0 +1,68 @@
+// HPET Core Block Diagram
+// Module: hpet_core
+// Purpose: Timer logic with main counter and comparators
+
+digraph hpet_core {
+    rankdir=LR;
+    node [shape=box, style="rounded,filled", fillcolor=lightblue];
+    edge [fontsize=10];
+
+    // Input signals
+    hpet_enable [label="hpet_enable", shape=ellipse, fillcolor=lightgreen];
+    counter_write [label="counter_write\ncounter_wdata[63:0]", shape=ellipse, fillcolor=lightgreen];
+    timer_cfg [label="timer_enable[N-1:0]\ntimer_type[N-1:0]\ntimer_size[N-1:0]", shape=ellipse, fillcolor=lightgreen];
+    timer_comp_write [label="timer_comp_write[N-1:0]\ntimer_comp_wdata[N][63:0]", shape=ellipse, fillcolor=lightgreen];
+    timer_int_clear [label="timer_int_clear[N-1:0]", shape=ellipse, fillcolor=lightgreen];
+
+    // Main counter block
+    main_counter [label="Main Counter\n64-bit\nr_main_counter", fillcolor=lightyellow];
+
+    // Timer comparator blocks (generate loop)
+    subgraph cluster_timers {
+        label="Timer Comparators (NUM_TIMERS instances)";
+        style=dashed;
+
+        timer_comp [label="Timer[i] Comparator\n64-bit\nr_timer_comparator[i]\nr_timer_period[i]", fillcolor=lightcyan];
+        timer_match [label="Match Detection\nw_timer_match[i]\nEdge Detection", fillcolor=lightcyan, shape=diamond];
+        timer_mode [label="Mode Logic\n(One-shot/Periodic)\nComparator Update", fillcolor=lightcyan];
+        timer_int [label="Interrupt\nGeneration\nr_timer_int_status[i]", fillcolor=lightcyan, shape=hexagon];
+    }
+
+    // Output signals
+    counter_rdata [label="counter_rdata[63:0]", shape=ellipse, fillcolor=pink];
+    timer_comp_rdata [label="timer_comp_rdata[N][63:0]", shape=ellipse, fillcolor=pink];
+    timer_int_status [label="timer_int_status[N-1:0]", shape=ellipse, fillcolor=pink];
+    timer_irq [label="timer_irq[N-1:0]", shape=ellipse, fillcolor=pink];
+
+    // Main counter dataflow
+    hpet_enable -> main_counter [label="enable"];
+    counter_write -> main_counter [label="write"];
+    main_counter -> counter_rdata [label="read"];
+    main_counter -> timer_match [label="counter[63:0]\ncompare", style=bold];
+
+    // Timer comparator dataflow
+    timer_cfg -> timer_comp [label="config"];
+    timer_comp_write -> timer_comp [label="write"];
+    timer_comp -> timer_comp_rdata [label="read"];
+    timer_comp -> timer_match [label="comparator[i][63:0]"];
+
+    // Match and interrupt logic
+    timer_match -> timer_mode [label="match event"];
+    timer_mode -> timer_comp [label="auto-increment\n(periodic mode)", style=dashed];
+    timer_match -> timer_int [label="fire"];
+    timer_int_clear -> timer_int [label="clear"];
+    timer_int -> timer_int_status [label="status"];
+    timer_int -> timer_irq [label="IRQ output"];
+
+    // Legend
+    subgraph cluster_legend {
+        label="Legend";
+        style=filled;
+        fillcolor=white;
+        rankdir=TB;
+
+        leg_data [label="Data Path", shape=box, fillcolor=lightblue];
+        leg_control [label="Control Logic", shape=diamond, fillcolor=lightcyan];
+        leg_output [label="Interrupt Output", shape=hexagon, fillcolor=lightcyan];
+    }
+}

@@ -1,0 +1,146 @@
+@startuml source_sram_control_fsm
+!theme plain
+title Source SRAM Control - Resource Management (source_sram_control.sv)
+
+skinparam state {
+  BackgroundColor LightGreen
+  BorderColor DarkGreen
+  ArrowColor DarkGreen
+  ArrowFontColor Black
+  ArrowFontSize 10
+}
+
+[*] --> MONITOR
+
+state MONITOR {
+  MONITOR : Channel availability monitoring
+  MONITOR : Preallocation tracking per channel
+  MONITOR : Credit management coordination
+}
+state WRITE_VALIDATE {
+  WRITE_VALIDATE : Validate write requests from AXI engines
+  WRITE_VALIDATE : Check channel space availability
+  WRITE_VALIDATE : Verify preallocation credits
+}
+state WRITE_EXECUTE {
+  WRITE_EXECUTE : Execute SRAM write operations
+  WRITE_EXECUTE : Update write pointers and counters
+  WRITE_EXECUTE : Handle EOS boundary markers
+}
+state READ_SERVE {
+  READ_SERVE : Service read requests from MNOC Master
+  READ_SERVE : Extract data and metadata
+  READ_SERVE : Update read pointers
+}
+state CONSUMPTION_UPDATE {
+  CONSUMPTION_UPDATE : Process consumption notifications
+  CONSUMPTION_UPDATE : Update available space counters
+  CONSUMPTION_UPDATE : Release preallocation credits
+}
+state PREALLOC_MANAGE {
+  PREALLOC_MANAGE : Preallocation credit allocation
+  PREALLOC_MANAGE : Threshold monitoring
+  PREALLOC_MANAGE : Deadlock prevention
+}
+state ERROR_HANDLE {
+  ERROR_HANDLE : Handle overflow conditions
+  ERROR_HANDLE : Manage threshold violations
+  ERROR_HANDLE : Monitor bus error reporting
+}
+
+MONITOR -down-> WRITE_VALIDATE : wr_valid[ch] (from AXI Engine)
+MONITOR -right-> READ_SERVE : rd_valid[ch] (from MNOC Master)
+MONITOR -left-> PREALLOC_MANAGE : prealloc_request
+WRITE_VALIDATE -down-> WRITE_EXECUTE : space_available & prealloc_ok
+WRITE_VALIDATE -right-> ERROR_HANDLE : space_unavailable | prealloc_exceeded
+WRITE_EXECUTE -up-> MONITOR : write_complete
+WRITE_EXECUTE -right-> PREALLOC_MANAGE : prealloc_update_needed
+READ_SERVE -up-> MONITOR : read_complete
+READ_SERVE -down-> CONSUMPTION_UPDATE : data_consumed
+CONSUMPTION_UPDATE -up-> MONITOR : counters_updated
+CONSUMPTION_UPDATE -left-> PREALLOC_MANAGE : credits_released
+PREALLOC_MANAGE -up-> MONITOR : prealloc_updated
+PREALLOC_MANAGE -right-> ERROR_HANDLE : threshold_exceeded
+ERROR_HANDLE -up-> MONITOR : error_recovery
+
+note bottom
+<b>Resource Management Architecture:</b>
+
+<b>Multi-Channel Write Interface (from AXI Engines):</b>
+```systemverilog
+input  logic [CHANNELS-1:0]         wr_valid,
+output logic [CHANNELS-1:0]         wr_ready,
+input  logic [DATA_WIDTH-1:0]       wr_data [CHANNELS],
+input  logic                        wr_eos [CHANNELS],
+input  logic [NUM_CHUNKS-1:0]       wr_chunk_en [CHANNELS],
+```
+
+<b>SRAM Storage Format (531 bits total - EOS only):</b>
+```systemverilog
+// SRAM entry format: {EOS, CHUNK_VALID[15:0], DATA[511:0]} = 531 bits
+localparam int SRAM_WIDTH = 1 + NUM_CHUNKS + DATA_WIDTH;
+
+// Write data composition
+assign w_sram_wr_data[ch] = {
+    wr_eos[ch],                      // Bit 530: EOS flag only
+    wr_chunk_en[ch],                 // Bits 529:514: Chunk enables
+    wr_data[ch]                      // Bits 513:0: Data payload
+};
+```
+
+<b>Channel Availability Interface:</b>
+```systemverilog
+output logic [CHANNELS-1:0]         available_lines_valid,
+output logic [COUNT_BITS-1:0]       available_lines [CHANNELS],
+output logic [CHANNELS-1:0]         loaded_lines,
+output logic [COUNT_BITS-1:0]       prealloc_beats [CHANNELS],
+```
+
+<b>Control Functions:</b>
+
+MONITOR:
+- Track space availability per channel
+- Monitor preallocation credit usage
+- Coordinate multi-channel operations
+- Generate loaded_lines for MNOC Master
+
+WRITE_VALIDATE:
+- Verify space availability before write
+- Check preallocation credit limits
+- Validate EOS boundary consistency
+
+WRITE_EXECUTE:
+- Execute SRAM write with 531-bit format
+- Update write pointers and used counters
+- Handle EOS stream boundary processing
+
+READ_SERVE:
+- Extract complete data and metadata
+- Forward to MNOC Master with chunk enables
+- Update read pointers per channel
+
+CONSUMPTION_UPDATE:
+- Process consumption notifications from MNOC
+- Release preallocation credits
+- Update available space calculations
+
+PREALLOC_MANAGE:
+- Allocate preallocation credits
+- Prevent deadlock with margin management
+- Monitor threshold violations
+
+<b>Data Flow:</b>
+```
+AXI Engines → Source SRAM Control → MNOC Master → Network
+     ↓              ↓                    ↓
+Multi-Channel   531-bit Storage    Chunk-Based Read
+Write Interface  + EOS Boundaries   + Credit Return
+```
+
+<b>Performance Characteristics:</b>
+- Write Throughput: Up to CHANNELS writes/cycle
+- Read Throughput: 1 read/cycle with channel arbitration
+- Metadata Overhead: 3.3% (17 metadata bits / 531 total bits)
+- Preallocation Efficiency: 95%+ with deadlock prevention
+- Resource Utilization: Dynamic channel availability tracking
+@enduml

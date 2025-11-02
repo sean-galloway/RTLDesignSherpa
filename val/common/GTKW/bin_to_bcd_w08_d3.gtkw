@@ -1,0 +1,52 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Sat Jul 12 16:15:27 2025
+[*]
+[dumpfile] "/home/seang/github/RTLDesignSherpa/val/common/local_sim_build/test_bin_to_bcd_w08_d3_full/dump.fst"
+[dumpfile_mtime] "Sat Jul 12 16:15:20 2025"
+[dumpfile_size] 16716
+[savefile] "/home/seang/github/RTLDesignSherpa/val/common/GTKW/bin_to_bcd_w08_d3.gtkw"
+[timestart] 0
+[size] 2259 1337
+[pos] -1 -1
+*-19.444653 980000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[sst_width] 453
+[signals_width] 302
+[sst_expanded] 1
+[sst_vpaned_height] 414
+@420
+bin_to_bcd.DIGITS
+bin_to_bcd.DIGIT_INDEX_WIDTH
+bin_to_bcd.LOOP_COUNT_WIDTH
+bin_to_bcd.WIDTH
+@28
+bin_to_bcd.clk
+bin_to_bcd.rst_n
+@200
+-inputs
+@28
+bin_to_bcd.start
+@22
+bin_to_bcd.binary[7:0]
+@200
+-outputs
+@28
+bin_to_bcd.done
+@22
+bin_to_bcd.bcd[11:0]
+@200
+-internals
+@100000028
+bin_to_bcd.r_fsm_main[5:0]
+@22
+bin_to_bcd.r_loop_count[3:0]
+@28
+bin_to_bcd.r_digit_index[1:0]
+@22
+bin_to_bcd.r_binary[7:0]
+bin_to_bcd.r_bcd[11:0]
+@23
+bin_to_bcd.w_bcd_digit[3:0]
+[pattern_trace] 1
+[pattern_trace] 0

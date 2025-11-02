@@ -1,0 +1,46 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Generated: Wed Oct 15 03:46:34 2025
+[*]
+[dumpfile] "(null)"
+[savefile] "/mnt/data/github/rtldesignsherpa/val/common/GTKW/arbiter_round_robin_simple.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] -1 -1
+*-20.0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .arbiter_round_robin_simple.
+[sst_width] 401
+[signals_width] 250
+[sst_expanded] 1
+[sst_vpaned_height] 400
+@200
+-Clock and Reset
+@28
+arbiter_round_robin_simple.clk
+arbiter_round_robin_simple.rst_n
+@200
+-Inputs
+@28
+arbiter_round_robin_simple.request
+@200
+-Outputs
+@28
+arbiter_round_robin_simple.grant_valid
+arbiter_round_robin_simple.grant
+arbiter_round_robin_simple.grant_id
+@200
+-Internal Registers
+@28
+arbiter_round_robin_simple.r_last_grant
+@200
+-Internal Wires
+@28
+arbiter_round_robin_simple.w_grant_id
+arbiter_round_robin_simple.w_grant_valid
+arbiter_round_robin_simple.w_nxt_grant
+arbiter_round_robin_simple.w_rot_req
+arbiter_round_robin_simple.w_rot_sel
+arbiter_round_robin_simple.w_shift_amount
+[pattern_trace] 1
+[pattern_trace] 0

@@ -1,0 +1,39 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Generated: Wed Oct 15 03:46:34 2025
+[*]
+[dumpfile] "(null)"
+[savefile] "/mnt/data/github/rtldesignsherpa/val/common/GTKW/math_subtractor_carry_lookahead.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] -1 -1
+*-20.0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .math_subtractor_carry_lookahead.
+[sst_width] 401
+[signals_width] 250
+[sst_expanded] 1
+[sst_vpaned_height] 400
+@420
+math_subtractor_carry_lookahead.N
+@200
+-Inputs
+@28
+math_subtractor_carry_lookahead.i_a
+math_subtractor_carry_lookahead.i_b
+math_subtractor_carry_lookahead.i_borrow_in
+@200
+-Outputs
+@28
+math_subtractor_carry_lookahead.ow_difference
+math_subtractor_carry_lookahead.ow_d
+math_subtractor_carry_lookahead.ow_borrow_out
+math_subtractor_carry_lookahead.ow_b
+@200
+-Internal Wires
+@28
+math_subtractor_carry_lookahead.w_g
+math_subtractor_carry_lookahead.w_lookahead_borrow
+math_subtractor_carry_lookahead.w_p
+[pattern_trace] 1
+[pattern_trace] 0

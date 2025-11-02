@@ -1,0 +1,9 @@
+[MASTER]
+load-plugins=tools.linting.field_config_checker
+
+[MESSAGES CONTROL]
+enable=field-config-usage
+
+[field-config-usage]
+# Enable all field config related checks
+field-config-checks=all

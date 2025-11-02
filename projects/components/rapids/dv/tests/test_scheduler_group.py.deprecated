@@ -1,0 +1,750 @@
+"""
+MIOP Scheduler Group Macro Block Integration Test
+
+Comprehensive integration test for the MIOP scheduler group, which combines:
+- Scheduler (dual FSM with main + address alignment)
+- Descriptor Engine (APB + RDA packet interfaces)
+- Program Engine (post-processing operations)
+
+Key Integration Features Tested:
+- Complete descriptor-to-data flow through all three engines
+- Enhanced alignment bus interface with MIOP package types
+- Monitor bus aggregation from all three components
+- Credit management across integrated components
+- EOS completion interface coordination
+- Program sequencing after data completion
+- Error propagation and recovery across engines
+- Channel reset coordination
+"""
+
+import os
+import random
+import asyncio
+import pytest
+import cocotb
+from cocotb.triggers import RisingEdge, Timer, FallingEdge, ClockCycles
+from cocotb.utils import get_sim_time
+from cocotb_test.simulator import run
+
+from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
+
+
+class MIOPSchedulerGroupTB(TBBase):
+    """Testbench for MIOP Scheduler Group Integration"""
+
+    def __init__(self, dut):
+        super().__init__(dut)
+
+        # Get parameters from environment or use defaults
+        self.CHANNEL_ID = int(os.environ.get('MIOP_CHANNEL_ID', '0'))
+        self.NUM_CHANNELS = int(os.environ.get('MIOP_NUM_CHANNELS', '8'))
+        self.CHAN_WIDTH = int(os.environ.get('MIOP_CHAN_WIDTH', '3'))
+        self.ADDR_WIDTH = int(os.environ.get('MIOP_ADDR_WIDTH', '64'))
+        self.DATA_WIDTH = int(os.environ.get('MIOP_DATA_WIDTH', '512'))
+        self.AXI_ID_WIDTH = int(os.environ.get('MIOP_AXI_ID_WIDTH', '8'))
+
+        self.log.info(f"MIOP Scheduler Group TB: Channel {self.CHANNEL_ID}/{self.NUM_CHANNELS}")
+        self.log.info(f"Data Width: {self.DATA_WIDTH}, Addr Width: {self.ADDR_WIDTH}")
+
+        # Test state tracking
+        self.descriptors_processed = 0
+        self.data_transfers_completed = 0
+        self.program_operations_completed = 0
+        self.alignment_calculations = 0
+        self.monitor_packets_received = []
+        self.eos_completions_received = 0
+        self.rda_completions_sent = 0
+
+        # Memory models
+        self.descriptor_memory = {}
+        self.program_memory = {}
+        self.pending_axi_desc_reads = []
+        self.pending_axi_prog_writes = []
+
+        # State tracking
+        self.scheduler_state = 0
+        self.descriptor_engine_idle = True
+        self.program_engine_idle = True
+
+    async def setup_clocks_and_reset(self):
+        """Setup clock and reset the DUT"""
+        await self.start_clock('clk', 0.4, 'ns')  # 2.5 GHz
+
+        # Reset sequence
+        self.dut.rst_n.value = 0
+        await ClockCycles(self.dut.clk, 10)
+        self.dut.rst_n.value = 1
+        await ClockCycles(self.dut.clk, 5)
+
+        await self.initialize_inputs()
+
+    async def initialize_inputs(self):
+        """Initialize all DUT inputs to safe values"""
+        # APB programming interface
+        self.dut.apb_valid.value = 0
+        self.dut.apb_addr.value = 0
+
+        # RDA packet interface
+        self.dut.rda_valid.value = 0
+        self.dut.rda_packet.value = 0
+        self.dut.rda_channel.value = 0
+
+        # EOS completion interface
+        self.dut.eos_completion_valid.value = 0
+        self.dut.eos_completion_channel.value = 0
+
+        # Configuration interface
+        self.dut.cfg_idle_mode.value = 0
+        self.dut.cfg_channel_wait.value = 0
+        self.dut.cfg_channel_enable.value = 1
+        self.dut.cfg_use_credit.value = 1
+        self.dut.cfg_initial_credit.value = 8
+        self.dut.credit_increment.value = 0
+        self.dut.cfg_prefetch_enable.value = 1
+        self.dut.cfg_fifo_threshold.value = 2
+        self.dut.cfg_addr0_base.value = 0x10000000
+        self.dut.cfg_addr0_limit.value = 0x1FFFFFFF
+        self.dut.cfg_addr1_base.value = 0x20000000
+        self.dut.cfg_addr1_limit.value = 0x2FFFFFFF
+        self.dut.cfg_channel_reset.value = 0
+
+        # Data engine interface
+        self.dut.data_ready.value = 1
+        self.dut.data_transfer_length.value = 0
+        self.dut.data_error.value = 0
+        self.dut.data_done_strobe.value = 0
+
+        # Enhanced alignment bus interface
+        self.dut.data_alignment_ready.value = 1
+        self.dut.data_alignment_next.value = 0
+        self.dut.data_sequence_complete.value = 0
+
+        # Descriptor engine AXI interface
+        self.dut.desc_ar_ready.value = 1
+        self.dut.desc_r_valid.value = 0
+        self.dut.desc_r_data.value = 0
+        self.dut.desc_r_resp.value = 0
+        self.dut.desc_r_last.value = 0
+        self.dut.desc_r_id.value = 0
+
+        # Program engine AXI interface
+        self.dut.prog_aw_ready.value = 1
+        self.dut.prog_w_ready.value = 1
+        self.dut.prog_b_valid.value = 0
+        self.dut.prog_b_id.value = 0
+        self.dut.prog_b_resp.value = 0
+
+        # RDA completion interface
+        self.dut.rda_complete_ready.value = 1
+
+        # Monitor bus interface
+        self.dut.mon_ready.value = 1
+
+    def create_integrated_descriptor(self, data_addr=0x1000, data_length=0x1000,
+                                   next_desc_addr=0x0,
+                                   prog0_addr=0x2000, prog0_data=0xDEADBEEF,
+                                   prog1_addr=0x3000, prog1_data=0xCAFEBABE,
+                                   has_eos=False, has_eol=False, has_eod=False):
+        """Create a descriptor that exercises the full scheduler group"""
+        descriptor = 0
+
+        # Data address and length (for scheduler)
+        descriptor |= (data_addr & 0xFFFFFFFFFFFFFFFF) << 32
+        descriptor |= (data_length & 0xFFFFFFFF)
+
+        # Next descriptor address (for descriptor engine chaining)
+        descriptor |= (next_desc_addr & 0xFFFFFFFFFFFFFFFF) << 96
+
+        # Stream boundary fields
+        if has_eos:
+            descriptor |= (1 << 164)
+        if has_eol:
+            descriptor |= (1 << 163)
+        if has_eod:
+            descriptor |= (1 << 162)
+
+        # Packet type
+        descriptor |= (random.randint(0, 3) << 160)
+
+        # Program addresses and data (for program engine)
+        descriptor |= (prog0_addr & 0xFFFFFFFFFFFFFFFF) << 224
+        descriptor |= (prog0_data & 0xFFFFFFFF) << 192
+        descriptor |= (prog1_addr & 0xFFFFFFFFFFFFFFFF) << 288
+        descriptor |= (prog1_data & 0xFFFFFFFF) << 320
+
+        return descriptor
+
+    def store_descriptor_in_memory(self, addr, descriptor):
+        """Store descriptor in memory model for descriptor engine"""
+        base_addr = addr & ~0x3F
+        for i in range(8):  # 512 bits = 64 bytes
+            chunk_addr = base_addr + (i * 8)
+            chunk_data = (descriptor >> (i * 64)) & 0xFFFFFFFFFFFFFFFF
+            self.descriptor_memory[chunk_addr] = chunk_data
+
+    async def simulate_descriptor_axi_interface(self):
+        """Simulate AXI interface for descriptor engine"""
+        while True:
+            await RisingEdge(self.dut.clk)
+
+            # Handle descriptor read requests
+            if self.dut.desc_ar_valid.value == 1 and self.dut.desc_ar_ready.value == 1:
+                addr = int(self.dut.desc_ar_addr.value)
+                length = int(self.dut.desc_ar_len.value) + 1
+                axi_id = int(self.dut.desc_ar_id.value)
+
+                self.pending_axi_desc_reads.append({
+                    'addr': addr,
+                    'length': length,
+                    'id': axi_id,
+                    'remaining': length
+                })
+
+            # Process pending descriptor reads
+            if self.pending_axi_desc_reads and self.dut.desc_r_valid.value == 0:
+                read_req = self.pending_axi_desc_reads[0]
+                beat_offset = (read_req['length'] - read_req['remaining']) * 8
+                current_addr = read_req['addr'] + beat_offset
+
+                if current_addr in self.descriptor_memory:
+                    data = self.descriptor_memory[current_addr]
+                else:
+                    data = 0xDEADBEEFCAFEBABE
+
+                self.dut.desc_r_valid.value = 1
+                self.dut.desc_r_data.value = data
+                self.dut.desc_r_resp.value = 0
+                self.dut.desc_r_id.value = read_req['id']
+                self.dut.desc_r_last.value = 1 if read_req['remaining'] == 1 else 0
+
+                read_req['remaining'] -= 1
+
+                await RisingEdge(self.dut.clk)
+                while self.dut.desc_r_ready.value == 0:
+                    await RisingEdge(self.dut.clk)
+
+                self.dut.desc_r_valid.value = 0
+
+                if read_req['remaining'] == 0:
+                    self.pending_axi_desc_reads.pop(0)
+
+    async def simulate_program_axi_interface(self):
+        """Simulate AXI interface for program engine"""
+        while True:
+            await RisingEdge(self.dut.clk)
+
+            # Handle program write requests
+            if self.dut.prog_aw_valid.value == 1 and self.dut.prog_aw_ready.value == 1:
+                addr = int(self.dut.prog_aw_addr.value)
+                axi_id = int(self.dut.prog_aw_id.value)
+
+                # Store write info
+                self.pending_axi_prog_writes.append({
+                    'addr': addr,
+                    'id': axi_id,
+                    'aw_received': True,
+                    'w_received': False
+                })
+
+            # Handle write data
+            if self.dut.prog_w_valid.value == 1 and self.dut.prog_w_ready.value == 1:
+                data = int(self.dut.prog_w_data.value)
+
+                # Find pending write
+                for write_req in self.pending_axi_prog_writes:
+                    if not write_req['w_received']:
+                        write_req['w_received'] = True
+                        write_req['data'] = data
+                        self.program_memory[write_req['addr']] = data
+                        self.log.info(f"Program write: addr=0x{write_req['addr']:08x}, data=0x{data:08x}")
+                        break
+
+            # Generate write responses
+            for i, write_req in enumerate(self.pending_axi_prog_writes):
+                if write_req['aw_received'] and write_req['w_received']:
+                    # Send response after a delay
+                    await ClockCycles(self.dut.clk, random.randint(1, 5))
+
+                    self.dut.prog_b_valid.value = 1
+                    self.dut.prog_b_id.value = write_req['id']
+                    self.dut.prog_b_resp.value = 0  # OKAY
+
+                    await RisingEdge(self.dut.clk)
+                    while self.dut.prog_b_ready.value == 0:
+                        await RisingEdge(self.dut.clk)
+
+                    self.dut.prog_b_valid.value = 0
+                    self.pending_axi_prog_writes.pop(i)
+                    self.program_operations_completed += 1
+                    break
+
+    async def simulate_data_engine_interface(self):
+        """Simulate data engine responses"""
+        while True:
+            await RisingEdge(self.dut.clk)
+
+            if self.dut.data_valid.value == 1 and self.dut.data_ready.value == 1:
+                # Extract data information
+                data_addr = int(self.dut.data_address.value)
+                data_length = int(self.dut.data_length.value)
+                data_type = int(self.dut.data_type.value)
+                data_eos = int(self.dut.data_eos.value)
+
+                self.log.info(f"Data transfer started: addr=0x{data_addr:08x}, len={data_length}, eos={data_eos}")
+
+                # Simulate data transfer delay
+                transfer_cycles = random.randint(20, 100)
+                transfer_length = min(data_length, random.randint(64, 1024))
+
+                for _ in range(transfer_cycles):
+                    await RisingEdge(self.dut.clk)
+
+                # Signal completion
+                self.dut.data_transfer_length.value = transfer_length
+                self.dut.data_done_strobe.value = 1
+                await RisingEdge(self.dut.clk)
+                self.dut.data_done_strobe.value = 0
+
+                self.data_transfers_completed += 1
+                self.log.info(f"Data transfer completed: {transfer_length} bytes")
+
+    async def simulate_alignment_bus_interface(self):
+        """Simulate enhanced alignment bus responses"""
+        while True:
+            await RisingEdge(self.dut.clk)
+
+            if self.dut.data_alignment_valid.value == 1:
+                self.alignment_calculations += 1
+                phase = int(self.dut.data_transfer_phase.value)
+
+                self.log.info(f"Alignment calculation #{self.alignment_calculations}, phase={phase}")
+
+                # Simulate alignment processing delay
+                delay = random.randint(2, 5)
+                for _ in range(delay):
+                    await RisingEdge(self.dut.clk)
+
+                # Signal alignment ready
+                self.dut.data_alignment_next.value = 1
+                await RisingEdge(self.dut.clk)
+                self.dut.data_alignment_next.value = 0
+
+                # After some processing, signal sequence complete
+                if random.random() < 0.3:  # 30% chance
+                    await ClockCycles(self.dut.clk, random.randint(5, 15))
+                    self.dut.data_sequence_complete.value = 1
+                    await RisingEdge(self.dut.clk)
+                    self.dut.data_sequence_complete.value = 0
+
+    async def monitor_status_signals(self):
+        """Monitor integrated status signals"""
+        while True:
+            await RisingEdge(self.dut.clk)
+
+            # Track engine idle states
+            desc_idle = int(self.dut.descriptor_engine_idle.value)
+            prog_idle = int(self.dut.program_engine_idle.value)
+            sched_idle = int(self.dut.scheduler_idle.value)
+
+            if desc_idle != self.descriptor_engine_idle:
+                self.descriptor_engine_idle = desc_idle
+                self.log.info(f"Descriptor engine idle: {desc_idle}")
+
+            if prog_idle != self.program_engine_idle:
+                self.program_engine_idle = prog_idle
+                self.log.info(f"Program engine idle: {prog_idle}")
+
+            # Track scheduler state
+            current_state = int(self.dut.fsm_state.value)
+            if current_state != self.scheduler_state:
+                state_names = {0: "IDLE", 1: "WAIT", 2: "ACTIVE", 3: "PROG0", 4: "PROG1", 5: "ERROR"}
+                state_name = state_names.get(current_state, f"UNKNOWN_{current_state}")
+                self.log.info(f"Scheduler state: {self.scheduler_state} -> {current_state} ({state_name})")
+                self.scheduler_state = current_state
+
+    async def monitor_monitor_bus(self):
+        """Monitor aggregated monitor bus"""
+        while True:
+            await RisingEdge(self.dut.clk)
+
+            if self.dut.mon_valid.value == 1 and self.dut.mon_ready.value == 1:
+                packet = int(self.dut.mon_packet.value)
+                self.monitor_packets_received.append(packet)
+
+                # Decode basic packet info
+                agent_id = (packet >> 56) & 0xFF
+                event_code = (packet >> 52) & 0xF
+
+                self.log.info(f"Monitor packet: agent=0x{agent_id:02x}, event={event_code}, data=0x{packet:016x}")
+
+    async def send_eos_completion(self, channel):
+        """Send EOS completion signal"""
+        self.dut.eos_completion_valid.value = 1
+        self.dut.eos_completion_channel.value = channel
+
+        await RisingEdge(self.dut.clk)
+        while self.dut.eos_completion_ready.value != 1:
+            await RisingEdge(self.dut.clk)
+
+        self.dut.eos_completion_valid.value = 0
+        self.dut.eos_completion_channel.value = 0
+
+        self.eos_completions_received += 1
+        self.log.info(f"EOS completion sent for channel {channel}")
+
+    async def send_apb_descriptor_request(self, desc_addr):
+        """Send APB descriptor request"""
+        while self.dut.apb_ready.value != 1:
+            await RisingEdge(self.dut.clk)
+
+        self.dut.apb_valid.value = 1
+        self.dut.apb_addr.value = desc_addr
+
+        await RisingEdge(self.dut.clk)
+        while self.dut.apb_ready.value != 1:
+            await RisingEdge(self.dut.clk)
+
+        self.dut.apb_valid.value = 0
+        self.dut.apb_addr.value = 0
+
+        self.log.info(f"APB descriptor request sent: addr=0x{desc_addr:08x}")
+
+    async def send_rda_packet(self, packet_data, channel):
+        """Send RDA packet"""
+        while self.dut.rda_ready.value != 1:
+            await RisingEdge(self.dut.clk)
+
+        self.dut.rda_valid.value = 1
+        self.dut.rda_packet.value = packet_data
+        self.dut.rda_channel.value = channel
+
+        await RisingEdge(self.dut.clk)
+        while self.dut.rda_ready.value != 1:
+            await RisingEdge(self.dut.clk)
+
+        self.dut.rda_valid.value = 0
+        self.dut.rda_packet.value = 0
+        self.dut.rda_channel.value = 0
+
+        self.log.info(f"RDA packet sent: channel={channel}")
+
+    async def wait_for_all_engines_idle(self, timeout_cycles=500):
+        """Wait for all engines to return to idle"""
+        for _ in range(timeout_cycles):
+            await RisingEdge(self.dut.clk)
+            if (self.dut.descriptor_engine_idle.value == 1 and
+                self.dut.program_engine_idle.value == 1 and
+                self.dut.scheduler_idle.value == 1):
+                return True
+        return False
+
+    async def test_basic_integrated_flow(self):
+        """Test basic integrated flow through all three engines"""
+        self.log.info("=== Testing Basic Integrated Flow ===")
+
+        # Create descriptor with data and program operations
+        desc_addr = 0x10001000
+        descriptor = self.create_integrated_descriptor(
+            data_addr=0x50000000,
+            data_length=0x1000,
+            prog0_addr=0x60000000,
+            prog0_data=0x12345678,
+            prog1_addr=0x60000004,
+            prog1_data=0x87654321,
+            has_eos=True
+        )
+        self.store_descriptor_in_memory(desc_addr, descriptor)
+
+        # Send APB request to start the flow
+        await self.send_apb_descriptor_request(desc_addr)
+
+        # Wait for complete processing
+        completed = await self.wait_for_all_engines_idle(1000)
+        assert completed, "Not all engines returned to idle"
+
+        # Verify operations completed
+        assert self.data_transfers_completed > 0, "No data transfers completed"
+        assert self.program_operations_completed >= 2, "Expected 2 program operations"
+        assert self.alignment_calculations > 0, "No alignment calculations performed"
+
+    async def test_rda_packet_integration(self):
+        """Test RDA packet priority and processing"""
+        self.log.info("=== Testing RDA Packet Integration ===")
+
+        # Set up APB descriptor
+        apb_addr = 0x10002000
+        apb_descriptor = self.create_integrated_descriptor(data_addr=0x51000000)
+        self.store_descriptor_in_memory(apb_addr, apb_descriptor)
+
+        # Start APB request
+        await self.send_apb_descriptor_request(apb_addr)
+
+        # Send RDA packet (should have priority)
+        rda_descriptor = self.create_integrated_descriptor(
+            data_addr=0x52000000,
+            has_eol=True
+        )
+        await self.send_rda_packet(rda_descriptor, self.CHANNEL_ID)
+
+        # Check RDA completion output
+        await ClockCycles(self.dut.clk, 200)
+        # RDA completion should be signaled
+        if self.dut.rda_complete_valid.value == 1:
+            self.rda_completions_sent += 1
+
+        await self.wait_for_all_engines_idle(1000)
+
+    async def test_eos_completion_flow(self):
+        """Test EOS completion coordination"""
+        self.log.info("=== Testing EOS Completion Flow ===")
+
+        # Send descriptor with EOS
+        desc_addr = 0x10003000
+        descriptor = self.create_integrated_descriptor(
+            data_addr=0x53000000,
+            has_eos=True,
+            prog0_addr=0x0,  # No program operations
+            prog1_addr=0x0
+        )
+        self.store_descriptor_in_memory(desc_addr, descriptor)
+
+        await self.send_apb_descriptor_request(desc_addr)
+
+        # Wait for data transfer to start
+        await ClockCycles(self.dut.clk, 100)
+
+        # Send EOS completion from external source
+        await self.send_eos_completion(self.CHANNEL_ID)
+
+        await self.wait_for_all_engines_idle(500)
+
+    async def test_monitor_bus_aggregation(self):
+        """Test monitor bus aggregation from all engines"""
+        self.log.info("=== Testing Monitor Bus Aggregation ===")
+
+        initial_packets = len(self.monitor_packets_received)
+
+        # Send multiple descriptors to generate monitor events
+        for i in range(3):
+            desc_addr = 0x10004000 + (i * 0x100)
+            descriptor = self.create_integrated_descriptor(
+                data_addr=0x54000000 + i * 0x10000,
+                prog0_addr=0x60000000 + i * 8
+            )
+            self.store_descriptor_in_memory(desc_addr, descriptor)
+            await self.send_apb_descriptor_request(desc_addr)
+
+        await self.wait_for_all_engines_idle(1500)
+
+        # Should have received monitor packets from all engines
+        packets_received = len(self.monitor_packets_received) - initial_packets
+        assert packets_received > 0, "No monitor packets received during test"
+
+    async def test_credit_management_integration(self):
+        """Test credit management across integrated components"""
+        self.log.info("=== Testing Credit Management Integration ===")
+
+        # Set low credit limit
+        self.dut.cfg_initial_credit.value = 2
+        await ClockCycles(self.dut.clk, 5)
+
+        # Send multiple descriptors
+        for i in range(4):
+            desc_addr = 0x10005000 + (i * 0x100)
+            descriptor = self.create_integrated_descriptor(data_addr=0x55000000 + i * 0x10000)
+            self.store_descriptor_in_memory(desc_addr, descriptor)
+            await self.send_apb_descriptor_request(desc_addr)
+
+            # Should block after credit exhaustion
+            await ClockCycles(self.dut.clk, 50)
+
+        # Increment credits
+        self.dut.credit_increment.value = 1
+        await ClockCycles(self.dut.clk, 5)
+        self.dut.credit_increment.value = 0
+
+        await self.wait_for_all_engines_idle(1000)
+
+    async def test_channel_reset_coordination(self):
+        """Test coordinated channel reset"""
+        self.log.info("=== Testing Channel Reset Coordination ===")
+
+        # Start descriptor processing
+        desc_addr = 0x10006000
+        descriptor = self.create_integrated_descriptor()
+        self.store_descriptor_in_memory(desc_addr, descriptor)
+        await self.send_apb_descriptor_request(desc_addr)
+
+        # Wait for processing to start
+        await ClockCycles(self.dut.clk, 100)
+
+        # Issue channel reset
+        self.dut.cfg_channel_reset.value = 1
+        await ClockCycles(self.dut.clk, 10)
+
+        # Should complete gracefully
+        reset_completed = await self.wait_for_all_engines_idle(500)
+        assert reset_completed, "Channel reset did not complete properly"
+
+        # Clear reset
+        self.dut.cfg_channel_reset.value = 0
+
+    async def test_error_propagation(self):
+        """Test error propagation across engines"""
+        self.log.info("=== Testing Error Propagation ===")
+
+        # Start descriptor processing
+        desc_addr = 0x10007000
+        descriptor = self.create_integrated_descriptor()
+        self.store_descriptor_in_memory(desc_addr, descriptor)
+        await self.send_apb_descriptor_request(desc_addr)
+
+        # Wait for data transfer to start
+        await ClockCycles(self.dut.clk, 100)
+
+        # Inject data error
+        self.dut.data_error.value = 1
+        await ClockCycles(self.dut.clk, 10)
+        self.dut.data_error.value = 0
+
+        # Should propagate error and recover
+        await ClockCycles(self.dut.clk, 200)
+
+        # Should eventually recover
+        recovered = await self.wait_for_all_engines_idle(500)
+        assert recovered, "System did not recover from error"
+
+    async def run_comprehensive_integration_test(self, test_level='basic'):
+        """Run comprehensive integration test suite"""
+        self.log.info(f"=== Starting {test_level.upper()} Scheduler Group Integration Test ===")
+
+        # Start background monitoring tasks
+        monitor_tasks = [
+            cocotb.start_soon(self.simulate_descriptor_axi_interface()),
+            cocotb.start_soon(self.simulate_program_axi_interface()),
+            cocotb.start_soon(self.simulate_data_engine_interface()),
+            cocotb.start_soon(self.simulate_alignment_bus_interface()),
+            cocotb.start_soon(self.monitor_status_signals()),
+            cocotb.start_soon(self.monitor_monitor_bus())
+        ]
+
+        try:
+            # Run integration tests
+            await self.test_basic_integrated_flow()
+            await self.test_monitor_bus_aggregation()
+
+            if test_level in ['medium', 'full']:
+                await self.test_rda_packet_integration()
+                await self.test_eos_completion_flow()
+                await self.test_credit_management_integration()
+
+            if test_level == 'full':
+                await self.test_channel_reset_coordination()
+                await self.test_error_propagation()
+
+        finally:
+            # Cancel monitoring tasks
+            for task in monitor_tasks:
+                task.cancel()
+
+        # Report integration results
+        self.log.info("=== Integration Test Results ===")
+        self.log.info(f"Descriptors processed: {self.descriptors_processed}")
+        self.log.info(f"Data transfers completed: {self.data_transfers_completed}")
+        self.log.info(f"Program operations completed: {self.program_operations_completed}")
+        self.log.info(f"Alignment calculations: {self.alignment_calculations}")
+        self.log.info(f"Monitor packets received: {len(self.monitor_packets_received)}")
+        self.log.info(f"EOS completions: {self.eos_completions_received}")
+        self.log.info(f"RDA completions: {self.rda_completions_sent}")
+
+
+@cocotb.test(timeout_time=200, timeout_unit="ms")
+async def test_miop_scheduler_group(dut):
+    """Main test entry point for MIOP Scheduler Group Integration"""
+
+    tb = MIOPSchedulerGroupTB(dut)
+    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
+
+    await tb.setup_clocks_and_reset()
+    await tb.run_comprehensive_integration_test(test_level)
+
+    tb.log.info("MIOP Scheduler Group integration test completed successfully")
+
+
+# Pytest integration
+@pytest.mark.macro
+@pytest.mark.scheduler
+def test_scheduler_group_basic():
+    """Basic scheduler group integration test"""
+    run_test_with_parameters({'TEST_LEVEL': 'basic'})
+
+@pytest.mark.macro
+@pytest.mark.scheduler
+def test_scheduler_group_medium():
+    """Medium scheduler group integration test"""
+    run_test_with_parameters({'TEST_LEVEL': 'medium'})
+
+@pytest.mark.macro
+@pytest.mark.scheduler
+@pytest.mark.integration
+def test_scheduler_group_full():
+    """Full scheduler group integration test"""
+    run_test_with_parameters({'TEST_LEVEL': 'full'})
+
+
+def run_test_with_parameters(env_params=None):
+    """Run the test with specified parameters"""
+    if env_params:
+        for key, value in env_params.items():
+            os.environ[key] = str(value)
+
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_miop_fub': 'rtl/miop/miop_fub',
+        'rtl_miop_includes': 'rtl/miop/includes',
+        'rtl_amba_includes': 'rtl/amba/includes',
+        'rtl_common_includes': 'rtl/common/includes'
+    })
+
+    parameters = {
+        'CHANNEL_ID': int(os.environ.get('MIOP_CHANNEL_ID', '0')),
+        'NUM_CHANNELS': int(os.environ.get('MIOP_NUM_CHANNELS', '8')),
+        'CHAN_WIDTH': int(os.environ.get('MIOP_CHAN_WIDTH', '3')),
+        'ADDR_WIDTH': int(os.environ.get('MIOP_ADDR_WIDTH', '64')),
+        'DATA_WIDTH': int(os.environ.get('MIOP_DATA_WIDTH', '512')),
+        'AXI_ID_WIDTH': int(os.environ.get('MIOP_AXI_ID_WIDTH', '8')),
+        'CREDIT_WIDTH': int(os.environ.get('MIOP_CREDIT_WIDTH', '8')),
+        'TIMEOUT_CYCLES': int(os.environ.get('MIOP_TIMEOUT_CYCLES', '1000')),
+        'EARLY_WARNING_THRESHOLD': int(os.environ.get('MIOP_EARLY_WARNING_THRESHOLD', '4')),
+    }
+
+    verilog_sources = [
+        os.path.join(rtl_dict['rtl_miop_fub'], '../miop_macro/scheduler_group.sv'),
+        # Will need to include all FUB dependencies
+        os.path.join(rtl_dict['rtl_miop_fub'], 'scheduler.sv'),
+        os.path.join(rtl_dict['rtl_miop_fub'], 'descriptor_engine.sv'),
+        os.path.join(rtl_dict['rtl_miop_fub'], 'program_engine.sv'),
+        os.path.join(rtl_dict['rtl_miop_fub'], 'monbus_arbiter.sv'),
+    ]
+
+    include_dirs = [
+        rtl_dict['rtl_common_includes'],
+        rtl_dict['rtl_miop_includes'],
+        rtl_dict['rtl_amba_includes'],
+    ]
+
+    run(
+        verilog_sources=verilog_sources,
+        toplevel="scheduler_group",
+        module="test_scheduler_group",
+        testcase="test_miop_scheduler_group",
+        parameters=parameters,
+        includes=include_dirs,
+        simulator="verilator",
+        waves=os.environ.get('ENABLE_WAVEDUMP', '1') == '1',
+        extra_env=env_params or {}
+    )
+
+
+if __name__ == "__main__":
+    run_test_with_parameters()

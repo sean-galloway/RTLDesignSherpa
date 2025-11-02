@@ -1,0 +1,67 @@
+// APB HPET Top Level Block Diagram
+// Module: apb_hpet
+// Purpose: Top-level integration with optional CDC
+
+digraph apb_hpet {
+    rankdir=TB;
+    node [shape=box, style="rounded,filled", fillcolor=lightblue];
+    edge [fontsize=10];
+
+    // External Interfaces
+    apb_master [label="APB Master\n(CPU/DMA)\n\nPCLK domain", shape=doubleoctagon, fillcolor=lightgreen];
+    interrupts [label="Interrupt Outputs\n\ntimer_irq[NUM_TIMERS-1:0]", shape=ellipse, fillcolor=pink];
+
+    // Clock Domains
+    subgraph cluster_pclk {
+        label="PCLK Domain (APB Clock)";
+        style=filled;
+        fillcolor=lightyellow;
+
+        apb_slave [label="APB Slave\n(apb_slave or\napb_slave_cdc)\n\nCDC_ENABLE\nselects variant", fillcolor=lightcyan];
+        config_regs [label="hpet_config_regs\n\nRegister Interface\nEdge Detection\nPer-Timer Buses", fillcolor=lightblue];
+    }
+
+    subgraph cluster_hpet_clk {
+        label="HPET_CLK Domain (Timer Clock)";
+        style=filled;
+        fillcolor=lightgreen;
+
+        hpet_core [label="hpet_core\n\n64-bit Main Counter\nTimer Comparators[N]\nMatch Detection\nInterrupt Generation", fillcolor=lightyellow];
+    }
+
+    // CDC Logic (conditional)
+    cdc_note [label="If CDC_ENABLE=1:\napb_slave_cdc provides\nhandshake synchronization\nbetween clock domains", shape=note, fillcolor=lightyellow];
+
+    // Dataflow
+    apb_master -> apb_slave [label="APB transactions\n(PCLK)", style=bold];
+    apb_slave -> config_regs [label="APB signals"];
+
+    config_regs -> hpet_core [label="Control/Data\n(cross domain if CDC)\n\nhpet_enable\ncounter_write\ntimer config", style=bold, color=blue];
+    hpet_core -> config_regs [label="Status/Data\n(cross domain if CDC)\n\ncounter_rdata\ntimer status", style=bold, color=blue];
+
+    hpet_core -> interrupts [label="timer_irq[N-1:0]\n(HPET_CLK domain)", style=bold, color=red];
+
+    cdc_note -> apb_slave [style=dashed, label="CDC option"];
+
+    // Parameter Configuration
+    params [label="Parameters\n\nNUM_TIMERS (1-32)\nVENDOR_ID\nREVISION_ID\nCDC_ENABLE (0/1)", shape=note, fillcolor=lightgray];
+    params -> config_regs [style=dashed];
+    params -> hpet_core [style=dashed];
+
+    // Clock/Reset
+    clocks [label="Clocks & Reset\n\npclk, presetn\nhpet_clk, hpet_rst_n", shape=ellipse, fillcolor=lightgoldenrod];
+    clocks -> apb_slave [label="pclk domain"];
+    clocks -> hpet_core [label="hpet_clk domain"];
+
+    // Legend
+    subgraph cluster_legend {
+        label="Legend";
+        style=filled;
+        fillcolor=white;
+
+        leg_apb [label="APB Domain", style=filled, fillcolor=lightyellow];
+        leg_hpet [label="HPET Domain", style=filled, fillcolor=lightgreen];
+        leg_cdc [label="Cross-Domain Signals", style=bold, color=blue];
+        leg_irq [label="Interrupt Outputs", style=bold, color=red];
+    }
+}

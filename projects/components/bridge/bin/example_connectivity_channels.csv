@@ -1,0 +1,21 @@
+# Bridge Connectivity Matrix for Channel-Specific Configuration
+# Defines which masters can access which slaves
+#
+# Format:
+#   - First row: slave port names (must match port_name in ports.csv)
+#   - First column: master port names (must match port_name in ports.csv)
+#   - Values: 1 = connected, 0 = not connected
+#
+# Notes:
+#   - rapids_descr_wr: Write-only master for descriptor writes
+#   - rapids_sink_wr: Write-only master for incoming data writes
+#   - rapids_src_rd: Read-only master for outgoing data reads
+#   - stream_master: Full read/write master
+#   - cpu_master: Full read/write master for configuration
+
+master\slave,apb_periph0,ddr_controller,sram_buffer
+rapids_descr_wr,0,1,1
+rapids_sink_wr,0,1,1
+rapids_src_rd,0,1,1
+stream_master,0,1,1
+cpu_master,1,1,0

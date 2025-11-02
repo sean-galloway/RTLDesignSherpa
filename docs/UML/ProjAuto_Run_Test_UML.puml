@@ -1,0 +1,29 @@
+@startuml ProjAuto_RunTestClass
+!include ProjAuto_REMatcher_UML.puml
+
+class RunTest {
+  - original_directory: str
+  - repo_root: str
+  - env: dict
+  - config_dct: dict
+  - test_list: str
+  - tag: str
+  - test: str
+  - seed: str
+  - params: dict
+  - regression_dir: str
+  + __init__()
+  + _ready_run_area(): None
+  + _parse_makefile(makefile_path: str): tuple
+  + run_test(): None
+  + run_test_list(): None
+  + report_regression(test_count: int, fail_count: int, fail_list: list): None
+  + get_unique_dir_name(base_name: str): str
+  + process_results(output_file: str): bool
+  + update_makefile(makefile_path: str, seed: str, params: dict): None
+  + run_make(repo_root: str, test: str, base_test_path: str, path_out: str, env, seed: str, params: dict): bool
+}
+
+RunTest --> REMatcher: uses
+
+@enduml

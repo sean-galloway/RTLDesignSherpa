@@ -1,0 +1,101 @@
+{
+  "signal": [
+    {
+      "name": "aclk",
+      "wave": "p........................"
+    },
+    {
+      "name": "aresetn",
+      "wave": "1........................"
+    },
+    {},
+    [
+      "AW Channel (Slave Perspective)",
+      {
+        "name": "s_axil_awvalid",
+        "wave": "0.....1..0...............",
+        "node": "......a.................."
+      },
+      {
+        "name": "s_axil_awready",
+        "wave": "0.......10..............."
+      },
+      {
+        "name": "s_axil_awaddr",
+        "wave": "0.....2..0...............",
+        "data": [
+          "0xBAD00000"
+        ]
+      }
+    ],
+    {},
+    [
+      "W Channel (Slave Perspective)",
+      {
+        "name": "s_axil_wvalid",
+        "wave": "0.....1..0...............",
+        "node": "......w.................."
+      },
+      {
+        "name": "s_axil_wready",
+        "wave": "0.......10..............."
+      },
+      {
+        "name": "s_axil_wdata",
+        "wave": "0.....2..0...............",
+        "data": [
+          "0xDEADBEEF"
+        ]
+      }
+    ],
+    {},
+    [
+      "B Channel (Slave Perspective)",
+      {
+        "name": "s_axil_bvalid",
+        "wave": "0..........10............"
+      },
+      {
+        "name": "s_axil_bready",
+        "wave": "1........................"
+      },
+      {
+        "name": "s_axil_bresp",
+        "wave": "0..........40............",
+        "data": [
+          "DECERR"
+        ]
+      }
+    ],
+    {},
+    [
+      "Monitor Bus",
+      {
+        "name": "monbus_valid",
+        "wave": "0.............1.0........"
+      },
+      {
+        "name": "monbus_ready",
+        "wave": "1........................"
+      },
+      {
+        "name": "monbus_data",
+        "wave": "0.............3.0........",
+        "data": [
+          "ERROR"
+        ]
+      }
+    ]
+  ],
+  "head": {
+    "text": "AXIL4 Slave Write with DECERR",
+    "tick": 0,
+    "every": 2
+  },
+  "foot": {
+    "text": "Invalid address: BRESP=DECERR → Monitor error packet"
+  },
+  "config": {
+    "hscale": 2
+  }
+}

@@ -1,0 +1,40 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Sat Jun 14 21:37:56 2025
+[*]
+[dumpfile] "(null)"
+[savefile] "/home/seang/github/RTLDesignSherpa/val/amba/GTKW/gaxi_fifo_async.gtkw"
+[timestart] 0
+[size] 2641 1616
+[pos] -1 -1
+*-19.436430 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[sst_width] 278
+[signals_width] 344
+[sst_expanded] 1
+[sst_vpaned_height] 510
+@420
+gaxi_skid_buffer_async.DEPTH
+gaxi_skid_buffer_async.DATA_WIDTH
+gaxi_skid_buffer_async.N_FLOP_CROSS
+gaxi_skid_buffer_async.REGISTERED
+@200
+-write interface
+@28
+gaxi_skid_buffer_async.i_axi_wr_aclk
+gaxi_skid_buffer_async.i_axi_wr_aresetn
+gaxi_skid_buffer_async.i_wr_valid
+gaxi_skid_buffer_async.o_wr_ready
+@22
+gaxi_skid_buffer_async.i_wr_data[7:0]
+@200
+-read interface
+@28
+gaxi_skid_buffer_async.i_axi_rd_aclk
+gaxi_skid_buffer_async.i_axi_rd_aresetn
+gaxi_skid_buffer_async.o_rd_valid
+gaxi_skid_buffer_async.i_rd_ready
+@23
+gaxi_skid_buffer_async.o_rd_data[7:0]
+[pattern_trace] 1
+[pattern_trace] 0

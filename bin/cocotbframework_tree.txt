@@ -1,0 +1,201 @@
+CocoTBFramework
+├── __init__.py
+├── components
+│   ├── __init__.py
+│   ├── apb
+│   │   ├── __init__.py
+│   │   ├── apb_components.py
+│   │   ├── apb_factories.py
+│   │   ├── apb_packet.py
+│   │   └── apb_sequence.py
+│   ├── axi4
+│   │   ├── __init__.py
+│   │   ├── axi4_compliance_checker.py
+│   │   ├── axi4_factories.py
+│   │   ├── axi4_field_configs.py
+│   │   ├── axi4_interfaces.py
+│   │   ├── axi4_packet.py
+│   │   ├── axi4_packet_utils.py
+│   │   ├── axi4_randomization_config.py
+│   │   ├── axi4_randomization_manager.py
+│   │   ├── axi4_timing_config.py
+│   │   └── axi4_transaction.py
+│   ├── axil4
+│   │   ├── __init__.py
+│   │   ├── axil4_compliance_checker.py
+│   │   ├── axil4_factories.py
+│   │   ├── axil4_field_configs.py
+│   │   ├── axil4_interfaces.py
+│   │   ├── axil4_packet.py
+│   │   └── axil4_packet_utils.py
+│   ├── fifo
+│   │   ├── __init__.py
+│   │   ├── fifo_command_handler.py
+│   │   ├── fifo_component_base.py
+│   │   ├── fifo_factories.py
+│   │   ├── fifo_master.py
+│   │   ├── fifo_monitor.py
+│   │   ├── fifo_monitor_base.py
+│   │   ├── fifo_packet.py
+│   │   ├── fifo_sequence.py
+│   │   └── fifo_slave.py
+│   ├── gaxi
+│   │   ├── __init__.py
+│   │   ├── gaxi_command_handler.py
+│   │   ├── gaxi_component_base.py
+│   │   ├── gaxi_factories.py
+│   │   ├── gaxi_master.py
+│   │   ├── gaxi_master.py.NEW
+│   │   ├── gaxi_monitor.py
+│   │   ├── gaxi_monitor_base.py
+│   │   ├── gaxi_monitor_base.py.NEW
+│   │   ├── gaxi_packet.py
+│   │   ├── gaxi_sequence.py
+│   │   └── gaxi_slave.py
+│   ├── network
+│   │   ├── __init__.py
+│   │   ├── network_compliance_checker.py
+│   │   ├── network_example_test.py
+│   │   ├── network_factories.py
+│   │   ├── network_field_configs.py
+│   │   ├── network_interfaces.py
+│   │   └── network_packet.py
+│   ├── shared
+│   │   ├── __init__.py
+│   │   ├── arbiter_compliance.py
+│   │   ├── arbiter_master.py
+│   │   ├── arbiter_monitor.py
+│   │   ├── data_strategies.py
+│   │   ├── debug_object.py
+│   │   ├── field_config.py
+│   │   ├── flex_config_gen.py
+│   │   ├── flex_randomizer.py
+│   │   ├── master_statistics.py
+│   │   ├── memory_model.py
+│   │   ├── monitor_statistics.py
+│   │   ├── packet.py
+│   │   ├── packet_factory.py
+│   │   ├── protocol_error_handler.py
+│   │   ├── randomization_config.py
+│   │   └── signal_mapping_helper.py
+│   └── wavedrom
+│       ├── __init__.py
+│       ├── constraint_solver.py
+│       ├── utility.py
+│       └── wavejson_gen.py
+├── scoreboards
+│   ├── __init__.py
+│   ├── apb_gaxi_scoreboard.py
+│   ├── apb_gaxi_transformer.py
+│   ├── apb_scoreboard.py
+│   ├── axi4_scoreboard.py
+│   ├── base_scoreboard.py
+│   ├── fifo_scoreboard.py
+│   └── gaxi_scoreboard.py
+└── tbclasses
+    ├── __init__.py
+    ├── amba
+    │   ├── __init__.py
+    │   ├── amba_cg_ctrl.py
+    │   ├── amba_random_configs.py
+    │   ├── cdc_handshake.py
+    │   ├── apb_hpet
+    │   │   ├── hpet_tb.py
+    │   │   ├── hpet_tests_basic.py
+    │   │   ├── hpet_tests_full.py
+    │   │   └── hpet_tests_medium.py
+    │   └── arbiter_monbus
+    │       ├── arbiter_monbus_common_tb.py
+    │       ├── basic_tests.py
+    │       ├── corner_case_tests.py
+    │       ├── error_tests.py
+    │       ├── monitor_config.py
+    │       ├── performance_tests.py
+    │       ├── stress_tests.py
+    │       ├── test_framework.py
+    │       └── threshold_tests.py
+    ├── apb
+    │   ├── apb_command_handler.py
+    │   ├── apbgaxiconfig.py
+    │   └── register_map.py
+    ├── apb_monitor
+    │   ├── apb_completion_test.py
+    │   ├── apb_debug_test.py
+    │   ├── apb_error_test.py
+    │   ├── apb_monitor_core_tb.py
+    │   ├── apb_monitor_packets.py
+    │   ├── apb_monitor_readme.md
+    │   ├── apb_monitor_scoreboard.py
+    │   ├── apb_performance_test.py
+    │   └── apb_timeout_test.py
+    ├── axi4
+    │   ├── __init__.py
+    │   ├── axi4_master_read_tb.py
+    │   ├── axi4_master_write_tb.py
+    │   ├── axi4_slave_read_tb.py
+    │   └── axi4_slave_write_tb.py
+    ├── axi_monitor
+    │   ├── __init__.py
+    │   ├── axi_monitor_base_test.py
+    │   ├── axi_monitor_error_tests.py
+    │   ├── axi_monitor_packets.py
+    │   ├── axi_monitor_scoreboard.py
+    │   ├── axi_monitor_tb.py
+    │   └── ready_controller.py
+    ├── axi_splitter
+    │   ├── __init__.py
+    │   ├── axi_read_splitter_packets.py
+    │   ├── axi_read_splitter_scoreboard.py
+    │   ├── axi_read_splitter_tb.py
+    │   ├── axi_write_splitter_packets.py
+    │   ├── axi_write_splitter_scoreboard.py
+    │   └── axi_write_splitter_tb.py
+    ├── axil4
+    │   ├── __init__.py
+    │   ├── axil4_master_read_tb.py
+    │   ├── axil4_master_write_tb.py
+    │   ├── axil4_slave_read_tb.py
+    │   └── axil4_slave_write_tb.py
+    ├── common
+    │   ├── __init__.py
+    │   ├── adder_testing.py
+    │   ├── arbiter_round_robin_tb.py
+    │   ├── arbiter_round_robin_weighted_tb.py
+    │   ├── cam_testing.py
+    │   ├── crc_testing.py
+    │   ├── divider_testing.py
+    │   ├── multiplier_testing.py
+    │   └── subtractor_testing.py
+    ├── fifo
+    │   ├── __init__.py
+    │   ├── fifo_buffer.py
+    │   ├── fifo_buffer_configs.py
+    │   ├── fifo_buffer_field.py
+    │   ├── fifo_buffer_multi.py
+    │   └── fifo_buffer_multi_sigmap.py
+    ├── gaxi
+    │   ├── __init__.py
+    │   ├── gaxi_buffer.py
+    │   ├── gaxi_buffer_configs.py
+    │   ├── gaxi_buffer_field.py
+    │   ├── gaxi_buffer_multi.py
+    │   ├── gaxi_buffer_multi_sigmap.py
+    │   └── gaxi_buffer_seq.py
+    ├── miop
+    │   ├── __init__.py
+    │   ├── snk_datapath_tb.py
+    │   └── src_datapath_tb.py
+    ├── monbus
+    │   ├── __init__.py
+    │   ├── monbus_event_factories.py
+    │   ├── monbus_packet.py
+    │   ├── monbus_slave.py
+    │   ├── monbus_types.py
+    │   └── monbus_validators.py
+    ├── shared
+    │   ├── advanced_monitoring.py
+    │   ├── tbbase.py
+    │   └── utilities.py
+    └── wavedrom_user
+        ├── __init__.py
+        └── apb.py

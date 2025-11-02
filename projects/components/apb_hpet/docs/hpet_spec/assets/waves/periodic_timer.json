@@ -1,0 +1,57 @@
+{
+  "signal": [
+    {
+      "name": "hpet_clk",
+      "wave": "p..................",
+      "period": 1
+    },
+    {},
+    {
+      "name": "counter[31:0]",
+      "wave": "2.3.4.5.6.7.8.9....",
+      "data": ["95", "96", "97", "98", "99", "100", "101", "102"]
+    },
+    {
+      "name": "timer0_comparator",
+      "wave": "2........5.........",
+      "data": ["100", "200"]
+    },
+    {
+      "name": "timer0_config.type",
+      "wave": "1..................",
+      "node": ".................A"
+    },
+    {},
+    {
+      "name": "timer0_irq",
+      "wave": "0........1.0.......",
+      "node": ".........B"
+    },
+    {},
+    {
+      "name": "APB Write STATUS",
+      "wave": "x..........2.......",
+      "data": ["W1C=0x1"]
+    },
+    {},
+    {
+      "name": "Event",
+      "wave": "x........2.x.3.....",
+      "data": ["Fire!", "Auto +100"]
+    }
+  ],
+  "edge": [
+    "A~>B Counter >= Comparator"
+  ],
+  "config": {
+    "hscale": 2
+  },
+  "head": {
+    "text": "HPET Periodic Timer Operation",
+    "tick": 0
+  },
+  "foot": {
+    "text": "Periodic Mode: Timer fires at counter=100, auto-increments comparator to 200",
+    "tock": 0
+  }
+}

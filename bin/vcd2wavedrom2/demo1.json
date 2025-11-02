@@ -1,0 +1,20 @@
+{
+    "signal": [
+        { "name": "clk", "wave": "p........." },
+        { "name": "master_state", "wave": "=.=.=.=.=.", "data": ["0", "1", "2", "3", "4"] },
+        { "name": "slave_state", "wave": "=..=.=.=.=", "data": ["0", "1", "2", "3", "4"] },
+        { "name": "req", "wave": "0.1....0.." },
+        { "name": "grant", "wave": "0...1..0.." },
+        { "name": "data_valid", "wave": "0....1.0.." },
+        { "name": "data", "wave": "x....=.x..", "data": ["DATA"] },
+        { "name": "ack", "wave": "0.......1." },
+        { "name": "timeout", "wave": "0.....1.0." },
+        { "name": "error", "wave": "0......1.0" },
+        { "name": "phase_a", "wave": "0..1.0...." },
+        { "name": "phase_b", "wave": "0....1.0.." },
+        { "name": "phase_c", "wave": "0......1.0" }
+    ],
+    "config": {
+        "hscale": 2
+    }
+}

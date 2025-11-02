@@ -1,0 +1,46 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Generated: Wed Oct 15 03:46:34 2025
+[*]
+[dumpfile] "(null)"
+[savefile] "/mnt/data/github/rtldesignsherpa/val/common/GTKW/cam_tag.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] -1 -1
+*-20.0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .cam_tag.
+[sst_width] 401
+[signals_width] 250
+[sst_expanded] 1
+[sst_vpaned_height] 400
+@420
+cam_tag.ENABLE
+cam_tag.N
+cam_tag.DEPTH
+@200
+-Clock and Reset
+@28
+cam_tag.clk
+cam_tag.rst_n
+@200
+-Inputs
+@28
+cam_tag.tag_in_status
+cam_tag.mark_valid
+cam_tag.tag_in_valid
+cam_tag.mark_invalid
+cam_tag.tag_in_invalid
+@200
+-Outputs
+@28
+cam_tag.tags_empty
+cam_tag.tags_full
+cam_tag.tag_status
+@200
+-Internal Registers
+@28
+cam_tag.r_tag_array
+cam_tag.r_valid
+[pattern_trace] 1
+[pattern_trace] 0

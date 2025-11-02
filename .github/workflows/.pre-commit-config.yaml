@@ -1,0 +1,21 @@
+repos:
+  - repo: local
+    hooks:
+      - id: field-config-linting
+        name: Field Config Usage Linting
+        entry: python tools/linting/field_config_checker.py
+        language: python
+        files: '.*\.(py)$'
+        args: ['--field-config-check']
+        
+  - repo: https://github.com/PyCQA/pylint
+    rev: v2.17.4
+    hooks:
+      - id: pylint
+        args: [
+          '--load-plugins=tools.linting.field_config_checker',
+          '--disable=all',
+          '--enable=field-config-usage'
+        ]
+        files: '.*test.*\.py$|.*tb\.py$'  # Only check test and testbench files
+

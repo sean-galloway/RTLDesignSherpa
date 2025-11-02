@@ -1,0 +1,58 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Generated: Wed Oct 15 03:46:34 2025
+[*]
+[dumpfile] "(null)"
+[savefile] "/mnt/data/github/rtldesignsherpa/val/common/GTKW/arbiter_round_robin_weighted.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] -1 -1
+*-20.0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .arbiter_round_robin_weighted.
+[sst_width] 401
+[signals_width] 250
+[sst_expanded] 1
+[sst_vpaned_height] 400
+@420
+arbiter_round_robin_weighted.MAX_LEVELS
+arbiter_round_robin_weighted.CLIENTS
+arbiter_round_robin_weighted.WAIT_GNT_ACK
+arbiter_round_robin_weighted.MAX_LEVELS_WIDTH
+arbiter_round_robin_weighted.N
+arbiter_round_robin_weighted.C
+arbiter_round_robin_weighted.MTW
+arbiter_round_robin_weighted.CXMTW
+@200
+-Internal Registers
+@28
+arbiter_round_robin_weighted.r_credit_counter
+arbiter_round_robin_weighted.r_last_grant
+arbiter_round_robin_weighted.r_safe_max_thresh
+arbiter_round_robin_weighted.r_weight_timer
+@200
+-Internal Wires
+@28
+arbiter_round_robin_weighted.w_clients_with_credits_count
+arbiter_round_robin_weighted.w_credit_counter
+arbiter_round_robin_weighted.w_global_replenish
+arbiter_round_robin_weighted.w_grant_completed
+arbiter_round_robin_weighted.w_has_any_credits
+arbiter_round_robin_weighted.w_has_crd
+arbiter_round_robin_weighted.w_has_one_credit
+arbiter_round_robin_weighted.w_invalid_clients
+arbiter_round_robin_weighted.w_last_credit
+arbiter_round_robin_weighted.w_mask_last_client
+arbiter_round_robin_weighted.w_mask_multi_req
+arbiter_round_robin_weighted.w_mask_req
+arbiter_round_robin_weighted.w_multiple_eligible
+arbiter_round_robin_weighted.w_normal_operation
+arbiter_round_robin_weighted.w_pending_grants
+arbiter_round_robin_weighted.w_req_post
+arbiter_round_robin_weighted.w_requesting_clients_with_credits
+arbiter_round_robin_weighted.w_requesting_eligible
+arbiter_round_robin_weighted.w_sub_block_arb
+arbiter_round_robin_weighted.w_valid_clients
+arbiter_round_robin_weighted.w_weight_change_req
+[pattern_trace] 1
+[pattern_trace] 0

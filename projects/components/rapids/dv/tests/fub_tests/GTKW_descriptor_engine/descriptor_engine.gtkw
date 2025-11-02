@@ -1,0 +1,72 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Thu Oct  2 07:18:44 2025
+[*]
+[dumpfile] "(null)"
+[savefile] "/mnt/data/github/rtldesignsherpa/val/miop/fub_tests/descriptor_engine/GTKW/descriptor_engine.gtkw"
+[timestart] 0
+[size] 1914 1170
+[pos] -1 -1
+*-20.036804 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .descriptor_engine.
+[sst_width] 297
+[signals_width] 298
+[sst_expanded] 1
+[sst_vpaned_height] 274
+@28
+clk
+rst_n
+@200
+-rda
+@28
+descriptor_engine.rda_valid
+descriptor_engine.rda_ready
+@22
+descriptor_engine.rda_packet[511:0]
+@23
+descriptor_engine.rda_channel[4:0]
+@200
+-apb
+@28
+apb_valid
+apb_ready
+@22
+apb_addr[63:0]
+@200
+-axi-ar
+@28
+descriptor_engine.ar_valid
+descriptor_engine.ar_ready
+@22
+descriptor_engine.ar_addr[63:0]
+descriptor_engine.ar_id[7:0]
+@200
+-axi-r
+@28
+descriptor_engine.r_valid
+descriptor_engine.r_ready
+@22
+descriptor_engine.r_data[511:0]
+descriptor_engine.r_id[7:0]
+@28
+descriptor_engine.r_last
+descriptor_engine.r_resp[1:0]
+@200
+-descriptor
+@28
+descriptor_engine.descriptor_valid
+descriptor_engine.descriptor_ready
+@22
+descriptor_engine.descriptor_rda_channel[4:0]
+descriptor_engine.descriptor_packet[511:0]
+@28
+descriptor_engine.descriptor_is_rda
+descriptor_engine.descriptor_error
+descriptor_engine.descriptor_eos
+descriptor_engine.descriptor_eol
+descriptor_engine.descriptor_eod
+descriptor_engine.descriptor_engine_idle
+descriptor_engine.descriptor_type[1:0]
+[pattern_trace] 1
+[pattern_trace] 0

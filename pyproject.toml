@@ -1,0 +1,50 @@
+[project]
+name = "RTLDesignSherpa"
+version = "0.1.0"
+description = "A comprehensive sight for CocoTB and RTL components"
+authors = [
+    { name="sean", email="sean.galloway@outlook.com" }
+]
+license = { text = "MIT" }
+dependencies = [
+    "pyrefly>=0.1.0",  # Pin version as needed
+    # other dependencies
+]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.pylint]
+max-line-length = 160
+disable = [
+    "C0114",  # Missing module docstring
+    "C0115",  # Missing class docstring
+    "C0116",  # Missing function docstring
+    "C0302",  # Too many lines in module
+    "E1101",  # Instance of 'XXX' has no 'x' member
+    "E1120",  # Suppress cocotb decorator issue
+    "R0902",  # Too many public methods
+    "R0903",  # Too few public methods
+    "R0912",  # Too many branches
+    "R0913",  # Too many arguments
+    "R0914",  # Too many local variables
+    "R0915",  # Too many statements
+    "R0917",  # Too many positional arguments
+    "W0718",  # Catching too general exception Exception
+]
+
+[tool.black]
+line-length = 160
+target-version = ['py39']  # Change based on your Python version
+
+[tool.mypy]
+python_version = "3.12.3"
+warn_unused_configs = true
+ignore_missing_imports = true
+strict = false
+
+[tool.isort]
+profile = "black"
+line_length = 160
+

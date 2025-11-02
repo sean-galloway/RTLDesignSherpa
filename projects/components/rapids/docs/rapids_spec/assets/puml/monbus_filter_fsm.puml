@@ -1,0 +1,113 @@
+@startuml monbus_filter_fsm
+!theme plain
+title Monitor Bus Filter - Master Write FSM (monbus_axil_group.sv)
+
+skinparam state {
+  BackgroundColor LightBlue
+  BorderColor Navy
+  ArrowColor Navy
+  ArrowFontColor Black
+  ArrowFontSize 10
+}
+
+[*] --> WRITE_IDLE
+
+state WRITE_IDLE {
+  WRITE_IDLE : Monitor for write FIFO packets
+  WRITE_IDLE : Initialize address counter
+  WRITE_IDLE : Ready for new transactions
+}
+state WRITE_ADDR {
+  WRITE_ADDR : Issue AXI-Lite write address
+  WRITE_ADDR : Drive address and protection attributes
+}
+state WRITE_DATA_LOW {
+  WRITE_DATA_LOW : Issue write data transaction
+  WRITE_DATA_LOW : Lower 32 bits for 32-bit bus
+  WRITE_DATA_LOW : Full 64 bits for 64-bit bus
+}
+state WRITE_DATA_HIGH {
+  WRITE_DATA_HIGH : Issue upper 32 bits
+  WRITE_DATA_HIGH : Only for 32-bit DATA_WIDTH
+}
+state WRITE_RESP {
+  WRITE_RESP : Wait for write response
+  WRITE_RESP : Update address counter
+  WRITE_RESP : Check for upper word needed
+}
+
+WRITE_IDLE -down-> WRITE_ADDR : write_fifo_rd_valid
+WRITE_ADDR -down-> WRITE_DATA_LOW : fub_wr_awvalid & fub_wr_awready
+WRITE_DATA_LOW -down-> WRITE_RESP : fub_wr_wvalid & fub_wr_wready
+WRITE_RESP -right-> WRITE_ADDR : fub_wr_bvalid & fub_wr_bready & upper_word_pending & (DATA_WIDTH == 32)
+WRITE_RESP -up-> WRITE_IDLE : fub_wr_bvalid & fub_wr_bready & (!upper_word_pending | (DATA_WIDTH == 64))
+
+note bottom
+<b>Signal Definitions (monbus_axil_group.sv):</b>
+
+write_fifo_rd_valid = write FIFO contains monitor packets
+fub_wr_awvalid = (write_state == WRITE_ADDR)
+fub_wr_wvalid = (write_state == WRITE_DATA_LOW)
+fub_wr_bready = (write_state == WRITE_RESP)
+
+upper_word_pending = flag indicating second transaction needed for 32-bit bus
+current_packet = 64-bit monitor packet from FIFO
+
+<b>State Functions:</b>
+
+WRITE_IDLE:
+- Monitor write_fifo_rd_valid for packets
+- Initialize current_write_addr = cfg_base_addr
+- Set upper_word_pending based on DATA_WIDTH
+
+WRITE_ADDR:
+- Assert fub_wr_awvalid
+- Drive fub_wr_awaddr = current_write_addr
+- Drive fub_wr_awprot = 3'b000
+- Wait for fub_wr_awready handshake
+
+WRITE_DATA_LOW:
+- Assert fub_wr_wvalid
+- Drive fub_wr_wdata based on bus width:
+  * 64-bit bus: full current_packet[63:0]
+  * 32-bit bus: current_packet[31:0] or [63:32] based on upper_word_pending
+- Drive fub_wr_wstrb = all 1's
+- Wait for fub_wr_wready handshake
+
+WRITE_RESP:
+- Assert fub_wr_bready
+- Wait for fub_wr_bvalid
+- Update current_write_addr and upper_word_pending
+- Conditionally dequeue FIFO packet when complete
+
+<b>Address Management:</b>
+
+64-bit Data Bus:
+- Single transaction per 64-bit packet
+- Address increments by 8 bytes per packet
+- FIFO dequeue after write response
+
+32-bit Data Bus:
+- Two transactions per 64-bit packet
+- First: current_packet[31:0] at addr
+- Second: current_packet[63:32] at addr+4
+- Address increments by 4 bytes per transaction
+- FIFO dequeue only after second transaction
+
+<b>FIFO Control:</b>
+write_fifo_rd_ready = (write_state == WRITE_IDLE) & write_fifo_rd_valid
+
+Address counter enable = (write_state == WRITE_RESP) & fub_wr_bvalid & fub_wr_bready &
+                        (!upper_word_pending | (DATA_WIDTH == 64))
+
+<b>Error Handling:</b>
+- AXI errors (SLVERR/DECERR) logged but don't affect FSM progression
+- FIFO empty condition handled gracefully (FSM waits in IDLE)
+- Address bounds checking for memory protection
+
+<b>Performance Characteristics:</b>
+- 64-bit bus: ~3-4 cycles per packet (ADDR + DATA + RESP)
+- 32-bit bus: ~6-8 cycles per packet (2 × (ADDR + DATA + RESP))
+- Throughput limited by AXI-Lite response latency
+- Configurable base address for monitor logging regions
+@enduml

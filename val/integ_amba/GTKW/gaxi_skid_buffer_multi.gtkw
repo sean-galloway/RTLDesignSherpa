@@ -1,0 +1,47 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Sun Jul  6 01:38:27 2025
+[*]
+[dumpfile] "/home/seang/github/RTLDesignSherpa/val/integ_amba/local_sim_build/test_gaxi_skid_buffer_multi_aw004_cw007_dw008_d002/dump.fst"
+[dumpfile_mtime] "Sun Jul  6 01:11:31 2025"
+[dumpfile_size] 7133
+[savefile] "/home/seang/github/RTLDesignSherpa/val/integ_amba/GTKW/gaxi_skid_buffer_multi.gtkw"
+[timestart] 3858000
+[size] 2970 1542
+[pos] -1 -1
+*-16.965834 5260000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[sst_width] 278
+[signals_width] 370
+[sst_expanded] 1
+[sst_vpaned_height] 485
+@420
+gaxi_skid_buffer_multi.AW
+gaxi_skid_buffer_multi.CW
+gaxi_skid_buffer_multi.DW
+@28
+gaxi_skid_buffer_multi.i_axi_aclk
+gaxi_skid_buffer_multi.i_axi_aresetn
+@200
+-write interface
+@28
+gaxi_skid_buffer_multi.i_wr_valid
+gaxi_skid_buffer_multi.o_wr_ready
+@22
+gaxi_skid_buffer_multi.i_wr_addr[3:0]
+gaxi_skid_buffer_multi.i_wr_ctrl[6:0]
+gaxi_skid_buffer_multi.i_wr_data0[7:0]
+gaxi_skid_buffer_multi.i_wr_data1[7:0]
+@200
+-read interface
+@28
+gaxi_skid_buffer_multi.o_rd_valid
+gaxi_skid_buffer_multi.i_rd_ready
+@22
+gaxi_skid_buffer_multi.o_rd_addr[3:0]
+gaxi_skid_buffer_multi.o_rd_ctrl[6:0]
+gaxi_skid_buffer_multi.o_rd_data0[7:0]
+@23
+gaxi_skid_buffer_multi.o_rd_data1[7:0]
+[pattern_trace] 1
+[pattern_trace] 0
