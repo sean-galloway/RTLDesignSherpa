@@ -29,15 +29,34 @@ jobs:
                https://api.github.com/repos/sean-galloway/RTLDesignSherpa/traffic/clones \
                > stats/clones-${TIMESTAMP}.json
           
-          # Append to CSV for easy viewing
+          # Create CSV header if it doesn't exist
           if [ ! -f stats/clones-history.csv ]; then
-            echo "date,count,uniques" > stats/clones-history.csv
+            echo "date,timestamp,count,uniques" > stats/clones-history.csv
           fi
           
-          # Extract and append data
-          cat stats/clones-${TIMESTAMP}.json | \
-            jq -r '.clones[] | "\(.timestamp),\(.count),\(.uniques)"' \
-            >> stats/clones-history.csv
+          # Check if clones data exists and is not null
+          HAS_DATA=$(jq -r 'if .clones != null and (.clones | length) > 0 then "yes" else "no" end' stats/clones-${TIMESTAMP}.json)
+          
+          if [ "$HAS_DATA" = "yes" ]; then
+            # Extract and append data
+            jq -r --arg date "$TIMESTAMP" '.clones[] | "\($date),\(.timestamp),\(.count),\(.uniques)"' \
+              stats/clones-${TIMESTAMP}.json >> stats/clones-history.csv
+            echo "Clone data added for ${TIMESTAMP}"
+          else
+            echo "No clone data available for ${TIMESTAMP}"
+            # Still record that we checked
+            echo "${TIMESTAMP},no-data,0,0" >> stats/clones-history.csv
+          fi
+          
+          # Also save summary stats
+          if [ ! -f stats/summary.csv ]; then
+            echo "date,total_count,total_uniques" > stats/summary.csv
+          fi
+          TOTAL_COUNT=$(jq -r '.count // 0' stats/clones-${TIMESTAMP}.json)
+          TOTAL_UNIQUES=$(jq -r '.uniques // 0' stats/clones-${TIMESTAMP}.json)
+          echo "${TIMESTAMP},${TOTAL_COUNT},${TOTAL_UNIQUES}" >> stats/summary.csv
+          
+          echo "Summary: Total clones=${TOTAL_COUNT}, Unique cloners=${TOTAL_UNIQUES}"
       
       - name: Commit and push if changed
         run: |
