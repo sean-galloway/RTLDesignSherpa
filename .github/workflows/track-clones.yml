@@ -1,0 +1,48 @@
+name: Track Clone Statistics
+
+on:
+  schedule:
+    # Runs every Sunday at midnight UTC
+    - cron: '0 0 * * 0'
+  workflow_dispatch: # Allows manual trigger
+
+jobs:
+  track-clones:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Fetch clone statistics
+        run: |
+          mkdir -p stats
+          TIMESTAMP=$(date +%Y-%m-%d)
+          
+          # Fetch clone data
+          curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+               -H "Accept: application/vnd.github.v3+json" \
+               https://api.github.com/repos/sean-galloway/RTLDesignSherpa/traffic/clones \
+               > stats/clones-${TIMESTAMP}.json
+          
+          # Append to CSV for easy viewing
+          if [ ! -f stats/clones-history.csv ]; then
+            echo "date,count,uniques" > stats/clones-history.csv
+          fi
+          
+          # Extract and append data
+          cat stats/clones-${TIMESTAMP}.json | \
+            jq -r '.clones[] | "\(.timestamp),\(.count),\(.uniques)"' \
+            >> stats/clones-history.csv
+      
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add stats/
+          git diff --quiet && git diff --staged --quiet || \
+            (git commit -m "Update clone statistics - $(date +%Y-%m-%d)" && git push)
