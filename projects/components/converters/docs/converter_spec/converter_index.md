@@ -1,8 +1,8 @@
 # Converters Component Specification
 
-**Version:** 1.2
+**Version:** 1.3
 **Status:** Production Ready
-**Last Updated:** 2025-10-26
+**Last Updated:** 2025-11-06
 
 ---
 
@@ -37,6 +37,8 @@ This specification provides comprehensive documentation for the Converters compo
 - [01_overview.md](ch03_protocol_converters/01_overview.md) - Protocol conversion overview
 - [02_axi4_to_apb.md](ch03_protocol_converters/02_axi4_to_apb.md) - AXI4-to-APB bridge
 - [03_peakrdl_adapter.md](ch03_protocol_converters/03_peakrdl_adapter.md) - PeakRDL adapter
+- [04_axi4_to_axil4.md](ch03_protocol_converters/04_axi4_to_axil4.md) - AXI4→AXIL4 protocol downgrade
+- [05_axil4_to_axi4.md](ch03_protocol_converters/05_axil4_to_axi4.md) - AXIL4→AXI4 protocol upgrade
 
 ### Chapter 4: Usage Examples
 - [01_configuration_guide.md](ch04_usage_examples/01_configuration_guide.md) - Parameter configuration guide
@@ -70,7 +72,15 @@ This specification provides comprehensive documentation for the Converters compo
 
 ### Protocol Converters
 
-**Available Converters:**
+**AXI4 ↔ AXI4-Lite Converters:**
+- **axi4_to_axil4_rd** - AXI4→AXIL4 read converter (burst decomposition)
+- **axi4_to_axil4_wr** - AXI4→AXIL4 write converter (burst decomposition)
+- **axi4_to_axil4** - Full bidirectional converter (wrapper)
+- **axil4_to_axi4_rd** - AXIL4→AXI4 read converter (protocol upgrade)
+- **axil4_to_axi4_wr** - AXIL4→AXI4 write converter (protocol upgrade)
+- **axil4_to_axi4** - Full bidirectional converter (wrapper)
+
+**Other Protocol Converters:**
 - **axi4_to_apb_convert** - Full AXI4-to-APB protocol bridge
 - **axi4_to_apb_shim** - Simplified AXI4-to-APB wrapper
 - **peakrdl_to_cmdrsp** - PeakRDL register to command/response adapter
@@ -99,7 +109,9 @@ This specification provides comprehensive documentation for the Converters compo
 | **axi_data_dnsize** | Dual buffer | 100% | 2× | Wide→Narrow (high-performance) |
 | **axi4_dwidth_converter_wr** | With upsize | 100% | Standard | Full write path |
 | **axi4_dwidth_converter_rd** | With dual dnsize | 100% | +100% | Full read path |
-| **axi4_to_apb** | Protocol FSM | Sequential | Small | Protocol conversion |
+| **axi4_to_axil4** | Burst decomposition | 100% (single) / 50% (burst) | ~450 LUTs + FFs | AXI4 master → AXIL4 slave |
+| **axil4_to_axi4** | Combinational upgrade | 100% | ~110 LUTs | AXIL4 slave → AXI4 fabric |
+| **axi4_to_apb** | Protocol FSM | Sequential | Small | AXI4 → APB peripherals |
 
 ---
 
@@ -113,11 +125,15 @@ This specification provides comprehensive documentation for the Converters compo
 - Generic building blocks for custom converters
 
 ### Protocol Conversion
-- Full AXI4-to-APB protocol translation
-- Address width adaptation (64-bit→32-bit)
-- Data width adaptation (configurable)
-- Error response mapping (PSLVERR→BRESP/RRESP)
-- PeakRDL register interface decoupling
+- **AXI4 ↔ AXI4-Lite:** Bidirectional protocol conversion
+  - Burst decomposition (AXI4→AXIL4) with FSM-based splitting
+  - Zero-overhead upgrade (AXIL4→AXI4) with combinational defaults
+  - Production ready: 42/42 tests passing
+- **AXI4-to-APB:** Full protocol translation
+  - Address width adaptation (64-bit→32-bit)
+  - Data width adaptation (configurable)
+  - Error response mapping (PSLVERR→BRESP/RRESP)
+- **PeakRDL adapter:** Register interface decoupling
 
 ---
 
@@ -161,6 +177,7 @@ See [assets/puml/README.md](assets/puml/README.md) for regeneration instructions
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 1.3 | 2025-11-06 | Added AXI4↔AXIL4 protocol converters (6 modules, 42 tests passing) |
 | 1.2 | 2025-10-26 | Added comprehensive specification with block diagrams |
 | 1.1 | 2025-10-25 | Added dual-buffer mode for axi_data_dnsize |
 | 1.0 | 2025-10-24 | Initial release with generic and full converters |
@@ -185,5 +202,5 @@ See [assets/puml/README.md](assets/puml/README.md) for regeneration instructions
 
 **Author:** RTL Design Sherpa Project
 **Maintained By:** Converters Component Team
-**Last Review:** 2025-10-26
+**Last Review:** 2025-11-06
 

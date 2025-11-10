@@ -1,0 +1,85 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Sat Nov  8 19:56:05 2025
+[*]
+[dumpfile] "/mnt/data/github/rtldesignsherpa/projects/components/retro_legacy_blocks/dv/tests/hpet/local_sim_build/test_hpet_t2_v8086_r01_full_cdc/dump.vcd"
+[dumpfile_mtime] "Sat Nov  8 16:01:17 2025"
+[dumpfile_size] 7720620
+[savefile] "/mnt/data/github/rtldesignsherpa/projects/components/retro_legacy_blocks/dv/tests/hpet/GTKW/hpet_t2_v8086.gtkw"
+[timestart] 0
+[size] 1881 1750
+[pos] 1668 20
+*-20.314381 2640000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] apb_hpet.
+[treeopen] apb_hpet.u_hpet_config_regs.
+[sst_width] 278
+[signals_width] 363
+[sst_expanded] 1
+[sst_vpaned_height] 557
+@22
+apb_hpet.CDC_ENABLE[31:0]
+apb_hpet.NUM_TIMERS[31:0]
+@28
+apb_hpet.hpet_clk
+apb_hpet.hpet_resetn
+apb_hpet.pclk
+apb_hpet.presetn
+@200
+-apb
+@28
+apb_hpet.s_apb_PSEL
+apb_hpet.s_apb_PENABLE
+apb_hpet.s_apb_PREADY
+apb_hpet.s_apb_PWRITE
+@22
+apb_hpet.s_apb_PADDR[11:0]
+apb_hpet.s_apb_PWDATA[31:0]
+apb_hpet.s_apb_PSTRB[3:0]
+apb_hpet.s_apb_PRDATA[31:0]
+@28
+apb_hpet.s_apb_PSEL
+@200
+-configs
+@29
+apb_hpet.u_hpet_config_regs.cmd_valid
+@28
+apb_hpet.u_hpet_config_regs.cmd_ready
+apb_hpet.u_hpet_config_regs.rsp_valid
+apb_hpet.u_hpet_config_regs.rsp_ready
+@22
+apb_hpet.u_hpet_config_regs.regblk_addr[11:0]
+@28
+apb_hpet.u_hpet_config_regs.regblk_rd_ack
+@22
+apb_hpet.u_hpet_config_regs.regblk_rd_data[31:0]
+@28
+apb_hpet.u_hpet_config_regs.regblk_rd_err
+apb_hpet.u_hpet_config_regs.regblk_req
+apb_hpet.u_hpet_config_regs.regblk_req_is_wr
+apb_hpet.u_hpet_config_regs.regblk_req_stall_rd
+apb_hpet.u_hpet_config_regs.regblk_req_stall_wr
+apb_hpet.u_hpet_config_regs.regblk_wr_ack
+@22
+apb_hpet.u_hpet_config_regs.regblk_wr_biten[31:0]
+apb_hpet.u_hpet_config_regs.regblk_wr_data[31:0]
+@28
+apb_hpet.u_hpet_config_regs.regblk_wr_err
+apb_hpet.u_hpet_config_regs.timer_comp_hi_write[1:0]
+@22
+apb_hpet.u_hpet_config_regs.timer_comp_rdata[0][63:0]
+apb_hpet.u_hpet_config_regs.timer_comp_rdata[1][63:0]
+apb_hpet.u_hpet_config_regs.timer_comp_wdata[0][63:0]
+apb_hpet.u_hpet_config_regs.timer_comp_wdata[1][63:0]
+@28
+apb_hpet.u_hpet_config_regs.timer_comp_write[1:0]
+apb_hpet.u_hpet_config_regs.timer_comp_write_high
+apb_hpet.u_hpet_config_regs.timer_enable[1:0]
+apb_hpet.u_hpet_config_regs.timer_int_clear[1:0]
+apb_hpet.u_hpet_config_regs.timer_int_enable[1:0]
+apb_hpet.u_hpet_config_regs.timer_int_rising_edge[1:0]
+apb_hpet.u_hpet_config_regs.timer_int_status[1:0]
+apb_hpet.u_hpet_config_regs.timer_size[1:0]
+apb_hpet.u_hpet_config_regs.timer_type[1:0]
+apb_hpet.u_hpet_config_regs.timer_value_set[1:0]
+[pattern_trace] 1
+[pattern_trace] 0

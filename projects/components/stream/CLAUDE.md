@@ -16,6 +16,22 @@
 
 ---
 
+## 📖 Global Requirements Reference
+
+**IMPORTANT: Review `/GLOBAL_REQUIREMENTS.md` for all mandatory requirements**
+
+All mandatory requirements are consolidated in the global requirements document:
+- **See:** `/GLOBAL_REQUIREMENTS.md` - Repository-wide mandatory requirements
+- **STREAM-Specific:** Attribution format, tutorial focus (intentional simplifications)
+- **Universal:** TB location, three methods, TBBase inheritance, 100% success
+
+This CLAUDE.md provides STREAM-specific guidance. Also review:
+- Root `/CLAUDE.md` - Repository-wide patterns
+- `projects/components/CLAUDE.md` - Project area standards (reset macros, FPGA attributes)
+- `bin/CocoTBFramework/CLAUDE.md` - Framework usage patterns
+
+---
+
 ## Critical Rules for This Subsystem
 
 ### Rule #0: Attribution Format for Git Commits
@@ -49,72 +65,59 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 - ✅ **Correct answer:** "STREAM intentionally keeps addresses aligned for tutorial simplicity. For complex alignment, see RAPIDS."
 - ❌ **Wrong answer:** "Sure, let me add alignment logic..." (defeats tutorial purpose!)
 
-### Rule #0.1: TESTBENCH ARCHITECTURE - MANDATORY SEPARATION
+### Rule #0.1: Testbench Location and Test Structure (MANDATORY)
 
-**⚠️ THIS IS A HARD REQUIREMENT - NO EXCEPTIONS ⚠️**
+**📖 See:** `/GLOBAL_REQUIREMENTS.md` Section 2.1 for complete requirement
 
-**NEVER embed testbench classes inside test runner files!**
-
-Follow the same pattern as RAPIDS and AMBA subsystems:
+**STREAM-Specific Directory Structure:**
 
 ```
 projects/components/stream/dv/
-├── tbclasses/                    # ★ STREAM TB classes HERE (not framework!)
-│   ├── scheduler_tb.py           # ← REUSABLE TB CLASS
-│   ├── descriptor_engine_tb.py   # ← REUSABLE TB CLASS
-│   ├── axi_engine_tb.py          # ← REUSABLE TB CLASS
-│   └── stream_integration_tb.py  # ← REUSABLE TB CLASS
-│
-└── tests/                        # Test runners (import TB classes from project area)
-    ├── fub_tests/
-    │   ├── scheduler/
-    │   │   └── test_scheduler.py     # ← TEST RUNNER ONLY (imports from project area)
-    │   ├── descriptor_engine/
-    │   │   └── test_desc_engine.py   # ← TEST RUNNER ONLY (imports from project area)
-    └── integration_tests/
-        └── test_stream_integration.py # ← TEST RUNNER ONLY (imports from project area)
+├── tbclasses/                    # ★ STREAM TB classes (project area!)
+│   ├── scheduler_tb.py           # Scheduler testbench
+│   ├── descriptor_engine_tb.py   # Descriptor engine testbench
+│   └── axi_engine_tb.py          # AXI engine testbenches
+└── tests/fub_tests/              # Test runners import from tbclasses/
 ```
 
-**✅ CRITICAL: All STREAM TB classes are in the PROJECT AREA, not the framework!**
+**STREAM Import Pattern:**
+```python
+# Import STREAM TB from project area
+from projects.components.stream.dv.tbclasses.scheduler_tb import StreamSchedulerTB
 
-**📖 Complete Pattern:** See `projects/components/rapids/CLAUDE.md` Rule #0 and `/PRD.md` Section 2.3 for organizational standards.
+# Shared utilities from framework
+from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+```
 
-### Rule #0.2: MANDATORY TB INITIALIZATION METHODS
+**📖 Complete Pattern:** `projects/components/rapids/CLAUDE.md` Rule #0.1
 
-**⚠️ EVERY TESTBENCH CLASS MUST IMPLEMENT THESE THREE METHODS ⚠️**
+### Rule #0.2: Three Mandatory TB Methods (MANDATORY)
 
-All testbench classes must provide standardized clock and reset control:
+**📖 See:** `/GLOBAL_REQUIREMENTS.md` Section 2.2 for complete requirement
 
-1. **`async def setup_clocks_and_reset(self)`** - Complete initialization (clocks + reset)
-2. **`async def assert_reset(self)`** - Assert reset signal(s)
-3. **`async def deassert_reset(self)`** - Deassert reset signal(s)
+**STREAM-Specific Context:**
 
-**Example:**
+STREAM has simpler config requirements than RAPIDS - most config can be set after reset.
+
+**Standard STREAM Pattern:**
 ```python
 class StreamSchedulerTB(TBBase):
     async def setup_clocks_and_reset(self):
-        """Complete initialization - clocks and reset"""
+        """Standard STREAM initialization"""
         await self.start_clock('clk', freq=10, units='ns')
-
-        # Set config before reset (if needed)
-        self.dut.cfg_enable.value = 1
-
-        # Reset sequence
         await self.assert_reset()
         await self.wait_clocks('clk', 10)
         await self.deassert_reset()
         await self.wait_clocks('clk', 5)
 
     async def assert_reset(self):
-        """Assert reset signal"""
         self.dut.rst_n.value = 0
 
     async def deassert_reset(self):
-        """Deassert reset signal"""
         self.dut.rst_n.value = 1
 ```
 
-**📖 See:** `projects/components/rapids/CLAUDE.md` Rule #0.5 for complete details.
+**Note:** Unlike RAPIDS, STREAM typically doesn't need config set before reset.
 
 ### Rule #1: REUSE from RAPIDS Where Appropriate
 

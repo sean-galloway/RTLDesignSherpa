@@ -33,7 +33,7 @@ PYTEST_VERBOSE = -v
 PYTEST_QUIET = -q
 PYTEST_XDIST = -n 48  # 48 parallel workers (matching AMBA/STREAM/RAPIDS)
 PYTEST_TBSTYLE = --tb=short
-PYTEST_RERUNS = --reruns 3 --reruns-delay 1  # Retry failed tests up to 3 times
+PYTEST_RERUNS = --reruns 0 --reruns-delay 1  # Retry failed tests up to 3 times
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -107,11 +107,19 @@ help:
 	@echo "  make list-all             List all test modules"
 	@echo "  make status               Show test status and coverage"
 	@echo ""
+	@echo "DIAGNOSTIC TARGETS:"
+	@echo "  make check-env            Verify environment setup"
+	@echo "  make verify               Verify targets exist and work"
+	@echo ""
 	@echo "EXAMPLES:"
 	@echo "  make run-all-parallel          # Default: FUNC level, 48 workers"
 	@echo "  make run-all-gate-parallel     # Quick smoke test, 48 workers"
 	@echo "  make run-all-full-parallel     # Comprehensive test, 48 workers"
 	@echo "  make run-wr-converter-func     # Write converter, FUNC level"
+	@echo ""
+	@echo "TROUBLESHOOTING:"
+	@echo "  If you get 'target not found', run: make verify"
+	@echo "  This will check your environment and show instructions"
 	@echo ""
 	@echo "================================================================================"
 	@echo "Prerequisites: source $(REPO_ROOT)/env_python"
@@ -384,6 +392,57 @@ collect: collect-all
 
 .PHONY: list
 list: list-all
+
+# ==============================================================================
+# Diagnostic Targets
+# ==============================================================================
+
+.PHONY: check-env
+check-env:
+	@echo "================================================================================"
+	@echo "Environment Check"
+	@echo "================================================================================"
+	@echo "REPO_ROOT: $(REPO_ROOT)"
+	@echo "Current directory: $(shell pwd)"
+	@echo "Expected directory: $(REPO_ROOT)projects/components/converters/dv/tests"
+	@echo ""
+	@CLEAN_REPO=$$(echo "$(REPO_ROOT)" | sed 's|/*$$||'); \
+	EXPECTED_DIR="$$CLEAN_REPO/projects/components/converters/dv/tests"; \
+	if [ "$(shell pwd)" != "$$EXPECTED_DIR" ]; then \
+		echo "❌ WARNING: You are not in the correct directory!"; \
+		echo "   Run: cd $$EXPECTED_DIR"; \
+	else \
+		echo "✓ Directory is correct"; \
+	fi
+	@echo ""
+	@if [ -z "$(REPO_ROOT)" ]; then \
+		echo "❌ ERROR: REPO_ROOT not set!"; \
+		echo "   Run: source $(shell pwd | sed 's|/projects/.*||')/env_python"; \
+	else \
+		echo "✓ REPO_ROOT is set"; \
+	fi
+	@echo ""
+	@echo "Available test files:"
+	@ls -1 test_*.py 2>/dev/null || echo "  No test files found"
+	@echo ""
+	@echo "GNU Make version:"
+	@$(MAKE) --version | head -1
+	@echo "================================================================================"
+
+.PHONY: verify
+verify: check-env
+	@echo ""
+	@echo "Verifying run-all-full-parallel target exists..."
+	@$(MAKE) -n run-all-full-parallel > /dev/null 2>&1 && \
+		echo "✓ Target 'run-all-full-parallel' found and working" || \
+		echo "❌ ERROR: Target 'run-all-full-parallel' not found"
+	@echo ""
+	@echo "To run full parallel tests:"
+	@CLEAN_REPO=$$(echo "$(REPO_ROOT)" | sed 's|/*$$||'); \
+	echo "  1. source $$CLEAN_REPO/env_python"; \
+	echo "  2. cd $$CLEAN_REPO/projects/components/converters/dv/tests"; \
+	echo "  3. make run-all-full-parallel"
+	@echo "================================================================================"
 
 # ==============================================================================
 # End of Makefile

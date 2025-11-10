@@ -2,7 +2,7 @@
 # Location: projects/components/stream/rtl/filelists/fub/axi_read_engine.f
 
 # Include directories
-+incdir+$REPO_ROOT/projects/components/stream/rtl/includes
++incdir+$STREAM_ROOT/rtl/includes
 +incdir+$REPO_ROOT/rtl/amba/includes
 
 # Header files with macros (MUST be compiled first)
@@ -11,7 +11,11 @@ $REPO_ROOT/rtl/amba/includes/fifo_defs.svh
 
 # Package files
 $REPO_ROOT/rtl/amba/includes/monitor_pkg.sv
-$REPO_ROOT/projects/components/stream/rtl/includes/stream_pkg.sv
+$STREAM_ROOT/rtl/includes/stream_pkg.sv
+
+# Dependencies - Arbiter
+$REPO_ROOT/rtl/common/arbiter_priority_encoder.sv
+$REPO_ROOT/rtl/common/arbiter_round_robin.sv
 
 # AXI read engine module
-$REPO_ROOT/projects/components/stream/rtl/stream_fub/axi_read_engine.sv
+$STREAM_ROOT/rtl/fub/axi_read_engine.sv

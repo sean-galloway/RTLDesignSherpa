@@ -1,0 +1,270 @@
+DEBUG: exclude_dir = ['__pycache__', 'local_sim_build', 'logs']
+bridge
+├── CLAUDE.md
+├── GENERATOR_ARCHITECTURE.md
+├── PRD.md
+├── TASKS.md
+├── bin
+│   ├── Makefile
+│   ├── bridge_batch.csv
+│   ├── bridge_generator.py
+│   ├── convert_csv_to_yaml.py
+│   ├── regenerate_all.csv
+│   ├── regenerate_all.py
+│   ├── bridge_pkg
+│   │   ├── SIGNAL_NAMING_INTEGRATION.md
+│   │   ├── SIGNAL_NAMING_QUICK_REF.md
+│   │   ├── SLAVE_ADAPTER_ADDITION.md
+│   │   ├── __init__.py
+│   │   ├── config.py
+│   │   ├── config_loader.py
+│   │   ├── config_validator.py
+│   │   ├── csv_parser.py
+│   │   ├── signal_naming.py
+│   │   ├── components
+│   │   │   ├── __init__.py
+│   │   │   ├── address_decode_component.py
+│   │   │   ├── apb_shim_adapter.py
+│   │   │   ├── arbiter_component.py
+│   │   │   ├── bridge_module_generator.py
+│   │   │   ├── channel_mux_component.py
+│   │   │   ├── interface_wrappers.py
+│   │   │   ├── master_width_adapter.py
+│   │   │   └── slave_width_adapter.py
+│   │   ├── generators
+│   │   │   ├── adapter_generator.py
+│   │   │   ├── crossbar_generator.py
+│   │   │   ├── package_generator.py
+│   │   │   └── slave_adapter_generator.py
+│   │   └── jinja_templates
+│   │       ├── bridge_tb_class.py.j2
+│   │       └── bridge_test_file.py.j2
+│   ├── rtl
+│   │   ├── filelists
+│   │   │   ├── bridge_1x1_rw.f
+│   │   │   ├── bridge_1x2_rd.f
+│   │   │   ├── bridge_1x2_wr.f
+│   │   │   ├── bridge_2x2_rw.f
+│   │   │   ├── bridge_3x5_rw.f
+│   │   │   ├── bridge_4x4_rw.f
+│   │   │   └── bridge_5x3_rw.f
+│   │   └── generated
+│   │       ├── bridge_1x1_rw
+│   │       │   ├── bridge_1x1_rw.sv
+│   │       │   ├── bridge_1x1_rw_pkg.sv
+│   │       │   ├── bridge_1x1_rw_xbar.sv
+│   │       │   └── cpu_master_adapter.sv
+│   │       ├── bridge_1x2_rd
+│   │       │   ├── bridge_1x2_rd.sv
+│   │       │   ├── bridge_1x2_rd_pkg.sv
+│   │       │   ├── bridge_1x2_rd_xbar.sv
+│   │       │   └── cpu_master_adapter.sv
+│   │       ├── bridge_1x2_wr
+│   │       │   ├── bridge_1x2_wr.sv
+│   │       │   ├── bridge_1x2_wr_pkg.sv
+│   │       │   ├── bridge_1x2_wr_xbar.sv
+│   │       │   └── cpu_adapter.sv
+│   │       ├── bridge_2x2_rw
+│   │       │   ├── bridge_2x2_rw.sv
+│   │       │   ├── bridge_2x2_rw_pkg.sv
+│   │       │   ├── bridge_2x2_rw_xbar.sv
+│   │       │   ├── cpu_adapter.sv
+│   │       │   └── dma_adapter.sv
+│   │       ├── bridge_3x5_rw
+│   │       │   ├── bridge_3x5_rw.sv
+│   │       │   ├── bridge_3x5_rw_pkg.sv
+│   │       │   ├── bridge_3x5_rw_xbar.sv
+│   │       │   ├── cpu_master_adapter.sv
+│   │       │   ├── rapids_master_adapter.sv
+│   │       │   └── stream_master_adapter.sv
+│   │       ├── bridge_4x4_rw
+│   │       │   ├── bridge_4x4_rw.sv
+│   │       │   ├── bridge_4x4_rw_pkg.sv
+│   │       │   ├── bridge_4x4_rw_xbar.sv
+│   │       │   ├── cpu_master_adapter.sv
+│   │       │   ├── dma0_master_adapter.sv
+│   │       │   ├── dma1_master_adapter.sv
+│   │       │   └── gpu_master_adapter.sv
+│   │       └── bridge_5x3_rw
+│   │           ├── bridge_5x3_rw.sv
+│   │           ├── bridge_5x3_rw_pkg.sv
+│   │           ├── bridge_5x3_rw_xbar.sv
+│   │           ├── cpu_master_adapter.sv
+│   │           ├── descr_wr_master_adapter.sv
+│   │           ├── sink_wr_master_adapter.sv
+│   │           ├── src_rd_master_adapter.sv
+│   │           └── stream_master_adapter.sv
+│   └── test_configs
+│       ├── README.md
+│       ├── bridge_1x2_rd_matched.toml
+│       ├── bridge_1x2_rd_matched_connectivity.csv
+│       ├── bridge_1x2_wr_matched.toml
+│       ├── bridge_1x2_wr_matched_connectivity.csv
+│       ├── bridge_1x3_rd_mixed.toml
+│       ├── bridge_1x3_rd_mixed_connectivity.csv
+│       ├── bridge_1x3_wr_mixed.toml
+│       ├── bridge_1x3_wr_mixed_connectivity.csv
+│       ├── bridge_1x4_rd_apb.toml
+│       ├── bridge_1x4_rd_apb_connectivity.csv
+│       ├── bridge_1x5_rd_axil.toml
+│       ├── bridge_1x5_rd_axil_connectivity.csv
+│       ├── bridge_2x2_rw.toml
+│       ├── bridge_2x2_rw_connectivity.csv
+│       ├── bridge_2x2_simple.toml
+│       ├── bridge_4x4_rw.toml
+│       ├── bridge_4x4_rw_connectivity.csv
+│       ├── bridge_5x3_channels.toml
+│       ├── bridge_5x3_channels_connectivity.csv
+│       ├── bridge_batch.csv
+│       ├── bridge_example.toml
+│       ├── bridge_example_connectivity.csv
+│       ├── test_apb_bridge.toml
+│       ├── test_apb_bridge_connectivity.csv
+│       ├── test_illegal_apb_wr.toml
+│       ├── test_illegal_apb_wr_connectivity.csv
+│       ├── test_illegal_wr_to_rd.toml
+│       └── test_illegal_wr_to_rd_connectivity.csv
+├── docs
+│   ├── BRIDGE_ARCHITECTURE.md
+│   ├── BRIDGE_GENERATOR_SESSION_SUMMARY.md
+│   ├── Bridge_Specification_v1.0.docx
+│   ├── Bridge_Specification_v1.0.pdf
+│   ├── SIGNAL_NAMING_PLAN.md
+│   ├── generate_pdf.sh
+│   └── bridge_spec
+│       ├── bridge_index.md
+│       ├── assets
+│       │   ├── graphviz
+│       │   │   ├── Makefile
+│       │   │   ├── README.md
+│       │   │   ├── bridge_1x4.gv
+│       │   │   ├── bridge_1x4.png
+│       │   │   ├── bridge_2x2.gv
+│       │   │   └── bridge_2x2.png
+│       │   ├── images
+│       │   ├── puml
+│       │   │   ├── ar_arbiter_fsm.png
+│       │   │   ├── ar_arbiter_fsm.puml
+│       │   │   ├── aw_arbiter_fsm.png
+│       │   │   └── aw_arbiter_fsm.puml
+│       │   └── waves
+│       ├── ch01_overview
+│       │   └── 01_introduction.md
+│       ├── ch02_csv_generator
+│       │   └── 04_channel_specific.md
+│       ├── ch03_generated_rtl
+│       │   ├── 01_module_structure.md
+│       │   └── 02_arbiter_fsms.md
+│       └── ch04_usage_examples
+├── dv
+│   ├── __init__.py
+│   ├── components
+│   │   └── __init__.py
+│   ├── scoreboards
+│   │   └── __init__.py
+│   ├── tbclasses
+│   │   ├── __init__.py
+│   │   ├── bridge1x2_rd_tb.py
+│   │   ├── bridge1x2_wr_tb.py
+│   │   ├── bridge1x3_rd_tb.py
+│   │   ├── bridge1x3_wr_tb.py
+│   │   ├── bridge1x4_rd_tb.py
+│   │   ├── bridge_apb_bridge_tb.py
+│   │   └── bridge_test_apb_bridge_tb.py
+│   └── tests
+│       ├── Makefile
+│       ├── conftest.py
+│       ├── test_bridge_1x2_rd.py
+│       ├── test_bridge_1x2_wr.py
+│       ├── test_bridge_1x3_rd.py
+│       ├── test_bridge_1x3_wr.py
+│       ├── test_bridge_1x4_rd.py
+│       └── GTKW
+│           ├── bridge_1x2_rd.gtkw
+│           └── bridge_1x2_wr.gtkw
+├── filelists
+│   └── bridge_1x5_rd.f
+├── models
+│   └── bridge_model
+│       └── bridge_model.py
+└── rtl
+    ├── Makefile
+    ├── bridge_cam.sv
+    ├── bridge_1x5_rd
+    │   ├── apb_periph_adapter.sv
+    │   ├── axil_periph_adapter.sv
+    │   ├── bridge_1x5_rd.sv
+    │   ├── bridge_1x5_rd_axil.toml
+    │   ├── bridge_1x5_rd_axil_connectivity.csv
+    │   ├── bridge_1x5_rd_pkg.sv
+    │   ├── bridge_1x5_rd_xbar.sv
+    │   ├── cpu_rd_adapter.sv
+    │   ├── ddr_rd_adapter.sv
+    │   ├── hbm_rd_adapter.sv
+    │   └── periph_rd_adapter.sv
+    ├── filelists
+    │   ├── apb_bridge.f
+    │   ├── bridge_1x1_rw.f
+    │   ├── bridge_1x2_rd.f
+    │   ├── bridge_1x2_rw.f
+    │   ├── bridge_1x2_wr.f
+    │   ├── bridge_1x3_rd.f
+    │   ├── bridge_1x3_wr.f
+    │   ├── bridge_1x4_rd.f
+    │   ├── bridge_1x5_rd.f
+    │   ├── bridge_2x2_rw.f
+    │   ├── bridge_3x5_rw.f
+    │   ├── bridge_4x4_rw.f
+    │   ├── bridge_5x3_channels.f
+    │   ├── bridge_5x3_rw.f
+    │   └── bridge_example.f
+    └── generated
+        ├── bridge_1x2_rd
+        │   ├── bridge_1x2_rd.sv
+        │   ├── bridge_1x2_rd_matched.toml
+        │   ├── bridge_1x2_rd_matched_connectivity.csv
+        │   ├── bridge_1x2_rd_pkg.sv
+        │   ├── bridge_1x2_rd_xbar.sv
+        │   ├── cpu_rd_adapter.sv
+        │   ├── ddr_rd_adapter.sv
+        │   └── sram_rd_adapter.sv
+        ├── bridge_1x2_wr
+        │   ├── bridge_1x2_wr.sv
+        │   ├── bridge_1x2_wr_matched.toml
+        │   ├── bridge_1x2_wr_matched_connectivity.csv
+        │   ├── bridge_1x2_wr_pkg.sv
+        │   ├── bridge_1x2_wr_xbar.sv
+        │   ├── cpu_wr_adapter.sv
+        │   ├── ddr_wr_adapter.sv
+        │   └── sram_wr_adapter.sv
+        ├── bridge_1x3_rd
+        │   ├── bridge_1x3_rd.sv
+        │   ├── bridge_1x3_rd_mixed.toml
+        │   ├── bridge_1x3_rd_mixed_connectivity.csv
+        │   ├── bridge_1x3_rd_pkg.sv
+        │   ├── bridge_1x3_rd_xbar.sv
+        │   ├── cpu_rd_adapter.sv
+        │   ├── ddr_rd_adapter.sv
+        │   ├── hbm_rd_adapter.sv
+        │   └── periph_rd_adapter.sv
+        ├── bridge_1x3_wr
+        │   ├── bridge_1x3_wr.sv
+        │   ├── bridge_1x3_wr_mixed.toml
+        │   ├── bridge_1x3_wr_mixed_connectivity.csv
+        │   ├── bridge_1x3_wr_pkg.sv
+        │   ├── bridge_1x3_wr_xbar.sv
+        │   ├── cpu_wr_adapter.sv
+        │   ├── ddr_wr_adapter.sv
+        │   ├── hbm_wr_adapter.sv
+        │   └── periph_wr_adapter.sv
+        └── bridge_1x4_rd
+            ├── apb_periph_adapter.sv
+            ├── bridge_1x4_rd.sv
+            ├── bridge_1x4_rd_apb.toml
+            ├── bridge_1x4_rd_apb_connectivity.csv
+            ├── bridge_1x4_rd_pkg.sv
+            ├── bridge_1x4_rd_xbar.sv
+            ├── cpu_rd_adapter.sv
+            ├── ddr_rd_adapter.sv
+            ├── hbm_rd_adapter.sv
+            └── periph_rd_adapter.sv

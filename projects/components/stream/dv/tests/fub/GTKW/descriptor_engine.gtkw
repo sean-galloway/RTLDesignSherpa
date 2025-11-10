@@ -1,0 +1,80 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Sun Nov  9 16:28:54 2025
+[*]
+[dumpfile] "/mnt/data/github/rtldesignsherpa/projects/components/stream/dv/tests/fub/local_sim_build/test_descriptor_engine_apb_basic_cid00_nc08_aw064_aid08_fd08_gw0/dump.vcd"
+[dumpfile_mtime] "Sun Nov  9 16:16:02 2025"
+[dumpfile_size] 86789
+[savefile] "/mnt/data/github/rtldesignsherpa/projects/components/stream/dv/tests/fub/GTKW/descriptor_engine.gtkw"
+[timestart] 120200
+[size] 3268 1344
+[pos] -35 -79
+*-15.655873 380000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] descriptor_engine.
+[sst_width] 357
+[signals_width] 333
+[sst_expanded] 1
+[sst_vpaned_height] 508
+@24
+descriptor_engine.ADDR_WIDTH[31:0]
+descriptor_engine.FIFO_DEPTH[31:0]
+@22
+descriptor_engine.TIMEOUT_CYCLES[31:0]
+descriptor_engine.cfg_addr0_base[63:0]
+descriptor_engine.cfg_addr0_limit[63:0]
+descriptor_engine.cfg_addr1_base[63:0]
+descriptor_engine.cfg_addr1_limit[63:0]
+@28
+descriptor_engine.cfg_channel_reset
+descriptor_engine.cfg_prefetch_enable
+descriptor_engine.clk
+descriptor_engine.rst_n
+@200
+-apb-interface
+@28
+descriptor_engine.apb_valid
+descriptor_engine.apb_ready
+@22
+descriptor_engine.apb_addr[63:0]
+@200
+-axi-desc-ar
+@28
+descriptor_engine.ar_valid
+descriptor_engine.ar_ready
+@22
+descriptor_engine.ar_addr[63:0]
+descriptor_engine.ar_id[7:0]
+descriptor_engine.ar_len[7:0]
+@200
+-axi-desc-r
+@28
+descriptor_engine.r_valid
+descriptor_engine.r_ready
+@22
+descriptor_engine.r_data[255:0]
+@28
+descriptor_engine.r_last
+@200
+-descriptor
+@28
+descriptor_engine.descriptor_valid
+descriptor_engine.descriptor_ready
+@22
+descriptor_engine.descriptor_packet[255:0]
+@28
+descriptor_engine.descriptor_error
+descriptor_engine.descriptor_engine_idle
+@200
+-internals
+@28
+descriptor_engine.channel_idle
+descriptor_engine.r_current_state[2:0]
+descriptor_engine.w_addr_range_valid
+@22
+descriptor_engine.w_next_addr[31:0]
+@28
+descriptor_engine.w_next_addr_valid
+@29
+descriptor_engine.w_should_chain
+[pattern_trace] 1
+[pattern_trace] 0

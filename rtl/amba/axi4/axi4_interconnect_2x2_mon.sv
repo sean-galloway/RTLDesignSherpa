@@ -446,7 +446,7 @@ module axi4_interconnect_2x2_mon
     logic [1:0] arb_grant_reg;
 
     `ALWAYS_FF_RST(aclk, aresetn,
-if (`RST_ASSERTED(aresetn)) begin
+        if (`RST_ASSERTED(aresetn)) begin
             arb_grant_reg <= 2'b00;
         end else if (monbus_valid && monbus_ready) begin
             arb_grant_reg <= arb_grant_reg + 1'b1;

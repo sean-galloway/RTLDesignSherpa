@@ -25,16 +25,11 @@ import cocotb
 from cocotb_test.simulator import run
 
 # Add repo root to path for CocoTBFramework imports
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-if os.path.join(repo_root, 'bin') not in sys.path:
-    sys.path.insert(0, os.path.join(repo_root, 'bin'))
-
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 
 # Import the base AdderTB class
 from CocoTBFramework.tbclasses.common.adder_testing import AdderTB
-
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
 async def adder_test(dut):
@@ -56,7 +51,6 @@ async def adder_test(dut):
 
     # Run the carry save specific test
     await tb.main_loop_carry_save()
-
 
 @pytest.mark.parametrize("", [()])
 def test_math_adder_carry_save(request):

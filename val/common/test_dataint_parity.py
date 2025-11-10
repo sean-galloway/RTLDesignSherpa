@@ -52,14 +52,9 @@ import cocotb
 from cocotb_test.simulator import run
 
 # Add repo root to path for CocoTBFramework imports
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-if os.path.join(repo_root, 'bin') not in sys.path:
-    sys.path.insert(0, os.path.join(repo_root, 'bin'))
-
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
-
 
 class ParityTB(TBBase):
     """Testbench for Generic Parity module"""
@@ -510,7 +505,6 @@ class ParityTB(TBBase):
 
         return all_passed
 
-
 @cocotb.test(timeout_time=10000, timeout_unit="us")
 async def parity_test(dut):
     """Test for Generic Parity module"""
@@ -526,7 +520,6 @@ async def parity_test(dut):
     assert passed, f"Parity test FAILED - {len(tb.test_failures)} failures detected"
 
     return passed
-
 
 def generate_params():
     """
@@ -571,9 +564,7 @@ def generate_params():
                 valid_params.append((width, chunks, parity_type, test_level))
         return valid_params
 
-
 params = generate_params()
-
 
 @pytest.mark.parametrize("data_width, chunks, parity_type, test_level", params)
 def test_dataint_parity(request, data_width, chunks, parity_type, test_level):
@@ -609,7 +600,8 @@ def test_dataint_parity(request, data_width, chunks, parity_type, test_level):
     w_str = TBBase.format_dec(data_width, 2)
     c_str = TBBase.format_dec(chunks, 1)
     p_str = "even" if parity_type else "odd"
-    test_name_plus_params = f"test_parity_w{w_str}_c{c_str}_{p_str}_{test_level}"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name_plus_params = f"test_parity_w{w_str}_c{c_str}_{p_str}_{test_level}_{reg_level}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -677,7 +669,6 @@ def test_dataint_parity(request, data_width, chunks, parity_type, test_level):
     print(f"Expected duration: {timeout_ms/1000:.1f}s")
     print(f"Log: {log_path}")
     print(f"{'='*60}")
-
 
     # Conditionally set COCOTB_TRACE_FILE for VCD generation
     if bool(int(os.environ.get('WAVES', '0'))):

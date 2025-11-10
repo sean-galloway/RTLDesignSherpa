@@ -93,6 +93,17 @@ class SchedulerTB(TBBase):
         super().__init__(dut)
 
         # Get test parameters from environment
+        self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic').lower()
+        self.DEBUG = self.convert_to_int(os.environ.get('TEST_DEBUG', '0'))
+
+        # Validate test level
+        valid_levels = ['basic', 'medium', 'full']
+        if self.TEST_LEVEL not in valid_levels:
+            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'basic'. Valid: {valid_levels}")
+            self.TEST_LEVEL = 'basic'
+
+        # Get test parameters from environment
         self.CHANNEL_ID = self.convert_to_int(os.environ.get('STREAM_CHANNEL_ID', '0'))
         self.NUM_CHANNELS = self.convert_to_int(os.environ.get('STREAM_NUM_CHANNELS', '8'))
         self.ADDR_WIDTH = self.convert_to_int(os.environ.get('STREAM_ADDR_WIDTH', '64'))
@@ -593,6 +604,92 @@ class SchedulerTB(TBBase):
             fsm_state = int(self.dut.scheduler_state.value)
             self.log.error(f"  ❌ Timeout not detected - final state=0x{fsm_state:02x}")
             self.log.error(f"  Note: Scheduler may have completed before timeout threshold")
+            return False
+
+    async def test_irq_generation(self, num_descriptors=3):
+        """Test IRQ generation via MonBus
+
+        Send descriptors with gen_irq flag and verify STREAM_EVENT_IRQ appears on MonBus.
+        """
+        self.log.info("=== Testing IRQ Generation via MonBus ===")
+
+        # STREAM_EVENT_IRQ = 0x7 (from stream_pkg.sv)
+        STREAM_EVENT_IRQ = 0x7
+        STREAM_EVENT_DESC_COMPLETE = 0x1
+
+        # Clear monitor packets
+        self.monitor_packets_received.clear()
+        irq_count = 0
+        non_irq_count = 0
+
+        for i in range(num_descriptors):
+            # Alternate: IRQ on odd descriptors, no IRQ on even
+            gen_irq = (i % 2 == 1)
+
+            descriptor = self.create_descriptor(
+                src_addr=0x10000 + i*0x1000,
+                dst_addr=0x20000 + i*0x1000,
+                length=0x100 + i*0x10,
+                last=True,
+                gen_irq=gen_irq
+            )
+
+            self.log.info(f"Descriptor {i}: gen_irq={gen_irq}, descriptor=0x{descriptor:064X}")
+            await self.send_descriptor(descriptor)
+
+            # Wait for completion
+            await self.wait_for_idle(timeout_cycles=500)
+
+        # Wait for any final monitor packets
+        await self.wait_clocks(self.clk_name, 20)
+
+        # Analyze MonBus packets
+        self.log.info(f"\nAnalyzing {len(self.monitor_packets_received)} MonBus packets:")
+
+        for idx, packet in enumerate(self.monitor_packets_received):
+            # Extract fields from MonBus packet format:
+            # {packet_type[3:0], protocol[2:0], event_code[3:0], channel_id[5:0], unit_id[3:0], agent_id[7:0], event_data[34:0]}
+            # [63:60] packet_type (4 bits)
+            # [59:57] protocol (3 bits) ← NOTE: 3 bits, not 2!
+            # [56:53] event_code (4 bits)
+            # [52:47] channel_id (6 bits)
+            # [46:43] unit_id (4 bits)
+            # [42:35] agent_id (8 bits)
+            # [34:0] event_data (35 bits)
+            packet_type = (packet >> 60) & 0xF
+            protocol = (packet >> 57) & 0x7      # Bits [59:57] - 3 bits!
+            event_code = (packet >> 53) & 0xF    # Bits [56:53]
+            channel_id = (packet >> 47) & 0x3F   # Bits [52:47]
+            unit_id = (packet >> 43) & 0xF       # Bits [46:43]
+            agent_id = (packet >> 35) & 0xFF     # Bits [42:35]
+            event_data = packet & 0x7FFFFFFFF    # Bits [34:0] - 35 bits!
+
+            # Log all packets for debugging
+            self.log.info(f"  Packet {idx}: event_code=0x{event_code:X}, channel={channel_id}, payload=0x{event_data:08X}, full=0x{packet:016X}")
+
+            if event_code == STREAM_EVENT_IRQ:
+                irq_count += 1
+                self.log.info(f"    → IRQ event (0x7) - channel={channel_id}, length={event_data}")
+            elif event_code == STREAM_EVENT_DESC_COMPLETE:
+                non_irq_count += 1
+                self.log.info(f"    → Completion event (0x1) - no IRQ")
+
+        # Verify results
+        # For (i % 2 == 1) pattern: descriptors 1, 3, 5, ... have IRQ
+        expected_irq = sum(1 for i in range(num_descriptors) if i % 2 == 1)
+        expected_non_irq = sum(1 for i in range(num_descriptors) if i % 2 == 0)
+
+        self.log.info(f"\nResults:")
+        self.log.info(f"  IRQ events:        {irq_count} (expected {expected_irq})")
+        self.log.info(f"  Non-IRQ events:    {non_irq_count} (expected {expected_non_irq})")
+
+        if irq_count == expected_irq and non_irq_count == expected_non_irq:
+            self.log.info("  ✅ IRQ generation test PASSED")
+            return True
+        else:
+            self.log.error("  ❌ IRQ generation test FAILED - event count mismatch")
+            self.test_errors.append(f"IRQ events: got {irq_count}, expected {expected_irq}")
+            self.test_errors.append(f"Non-IRQ events: got {non_irq_count}, expected {expected_non_irq}")
             return False
 
     # =========================================================================

@@ -1,0 +1,41 @@
+# Minimal Bridge Configuration: 1x2 Read-Only Bridge
+# Port definitions only - connectivity comes from bridge_1x2_rd_minimal_connectivity.csv
+# For testing with read engine (axi4_master_rd) blocks
+
+[bridge]
+name = "bridge_1x2_rd"
+description = "1 master x 2 slave read-only bridge"
+
+[[bridge.masters]]
+name = "cpu_rd"  # Descriptive identifier (cpu read master)
+prefix = "cpu_rd_axi_"  # External signal prefix
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rd"  # Read-only (AR, R channels)
+# No interface module = direct connection (for testing)
+
+[[bridge.slaves]]
+name = "ddr_rd"  # Descriptive identifier (ddr read slave)
+prefix = "ddr_rd_axi_"  # External signal prefix
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rd"  # Read-only (AR, R channels) - must match master
+base_addr = "0x00000000"
+addr_range = "0x80000000"  # 2GB
+# No interface module = direct connection
+
+[[bridge.slaves]]
+name = "sram_rd"  # Descriptive identifier (sram read slave)
+prefix = "sram_rd_axi_"  # External signal prefix
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rd"  # Read-only (AR, R channels) - must match master
+base_addr = "0x80000000"
+addr_range = "0x80000000"  # 2GB
+# No interface module = direct connection

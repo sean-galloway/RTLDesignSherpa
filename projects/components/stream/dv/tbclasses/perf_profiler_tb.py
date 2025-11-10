@@ -19,6 +19,8 @@ import os
 repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../..'))
 if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
+if os.path.join(repo_root, 'bin') not in sys.path:
+    sys.path.insert(0, os.path.join(repo_root, 'bin'))
 
 from bin.CocoTBFramework.tbclasses.shared.tbbase import TBBase
 
@@ -37,6 +39,17 @@ class PerfProfilerTB(TBBase):
     def __init__(self, dut, **kwargs):
         """Initialize testbench"""
         super().__init__(dut)
+
+        # Get test parameters from environment
+        self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic').lower()
+        self.DEBUG = self.convert_to_int(os.environ.get('TEST_DEBUG', '0'))
+
+        # Validate test level
+        valid_levels = ['basic', 'medium', 'full']
+        if self.TEST_LEVEL not in valid_levels:
+            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'basic'. Valid: {valid_levels}")
+            self.TEST_LEVEL = 'basic'
 
         self.dut = dut
         self.clk = dut.clk

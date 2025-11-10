@@ -88,21 +88,37 @@ package stream_pkg;
     } channel_state_t;
 
     //=========================================================================
+    // Descriptor Engine State Enumeration (Control Path FSM)
+    //=========================================================================
+    // Descriptor engine FSM for fetching descriptors via AXI
+    // This is a CONTROL PATH module (not data path), so FSM is appropriate
+    typedef enum logic [2:0] {
+        RD_IDLE         = 3'b000,  // Waiting for descriptor address
+        RD_ISSUE_ADDR   = 3'b001,  // Issue AXI AR for descriptor fetch
+        RD_WAIT_DATA    = 3'b010,  // Wait for AXI R response
+        RD_COMPLETE     = 3'b011,  // Descriptor fetched successfully
+        RD_ERROR        = 3'b100   // AXI error response
+    } read_engine_state_t;
+
+    //=========================================================================
     // REMOVED: Unused FSM Enumerations
     //=========================================================================
     // The following FSM enums were removed because the RTL uses streaming
     // pipeline architecture instead of FSMs:
     //
     // - scheduler_state_t:      REMOVED (scheduler uses channel_state_t above)
-    // - read_engine_state_t:    REMOVED (read engine uses flag-based control)
-    // - write_engine_state_t:   REMOVED (write engine uses flag-based control)
+    // - write_engine_state_t:   REMOVED (DATA PATH write engine uses flag-based control)
+    //
+    // NOTE: read_engine_state_t is NOT removed - it's for the descriptor engine
+    //       which is a control path module, not a data path engine!
     //
     // See ARCHITECTURAL_NOTES.md: "No FSMs in data path engines - use streaming pipelines"
     //
     // Actual RTL Control Mechanisms:
     // - Scheduler: Uses channel_state_t FSM (control path, not data path)
-    // - AXI Read Engine: Flag-based (r_ar_inflight, r_ar_valid) - NO FSM
-    // - AXI Write Engine: Flag-based (r_aw_inflight, r_w_active, r_b_pending) - NO FSM
+    // - Descriptor Engine: Uses read_engine_state_t FSM (control path for descriptor fetch)
+    // - AXI Read Engine (DATA PATH): Flag-based (r_ar_inflight, r_ar_valid) - NO FSM
+    // - AXI Write Engine (DATA PATH): Flag-based (r_aw_inflight, r_w_active, r_b_pending) - NO FSM
     //
     // Documentation:
     // - See puml/axi_read_engine_pipeline.puml for streaming pipeline flow
@@ -127,14 +143,15 @@ package stream_pkg;
     //=========================================================================
     // Uses standard 64-bit MonBus format from monitor_pkg
     // Event codes for STREAM operations:
-    parameter logic [3:0] STREAM_EVENT_DESC_START    = 4'h0;  // Descriptor started
-    parameter logic [3:0] STREAM_EVENT_DESC_COMPLETE = 4'h1;  // Descriptor completed
-    parameter logic [3:0] STREAM_EVENT_READ_START    = 4'h2;  // Read phase started
-    parameter logic [3:0] STREAM_EVENT_READ_COMPLETE = 4'h3;  // Read phase completed
-    parameter logic [3:0] STREAM_EVENT_WRITE_START   = 4'h4;  // Write phase started
-    parameter logic [3:0] STREAM_EVENT_WRITE_COMPLETE = 4'h5; // Write phase completed
-    parameter logic [3:0] STREAM_EVENT_CHAIN_FETCH   = 4'h6;  // Chained descriptor fetch
-    parameter logic [3:0] STREAM_EVENT_ERROR         = 4'hF;  // Error occurred
+    parameter logic [3:0] STREAM_EVENT_DESC_START     = 4'h0;  // Descriptor started
+    parameter logic [3:0] STREAM_EVENT_DESC_COMPLETE  = 4'h1;  // Descriptor completed
+    parameter logic [3:0] STREAM_EVENT_READ_START     = 4'h2;  // Read phase started
+    parameter logic [3:0] STREAM_EVENT_READ_COMPLETE  = 4'h3;  // Read phase completed
+    parameter logic [3:0] STREAM_EVENT_WRITE_START    = 4'h4;  // Write phase started
+    parameter logic [3:0] STREAM_EVENT_WRITE_COMPLETE = 4'h5;  // Write phase completed
+    parameter logic [3:0] STREAM_EVENT_CHAIN_FETCH    = 4'h6;  // Chained descriptor fetch
+    parameter logic [3:0] STREAM_EVENT_IRQ            = 4'h7;  // Interrupt request generated
+    parameter logic [3:0] STREAM_EVENT_ERROR          = 4'hF;  // Error occurred
 
     //=========================================================================
     // Utility Functions (Simplified from RAPIDS)

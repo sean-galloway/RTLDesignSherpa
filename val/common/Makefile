@@ -34,6 +34,7 @@ PYTEST_VERBOSE = -v
 PYTEST_QUIET = -q
 PYTEST_XDIST = -n 48  # parallel workers (48 with unique test names)
 PYTEST_TBSTYLE = --tb=short
+PYTEST_RERUNS = --reruns 3 --reruns-delay 1
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -279,7 +280,7 @@ run-counters-parallel:
 	@echo "================================================================================"
 	@echo "Running COMMON Counter Tests (Parallel, default FUNC level)"
 	@echo "================================================================================"
-	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_counter*.py
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_counter*.py
 
 # ==============================================================================
 # REG_LEVEL Control for Counter Tests
@@ -325,7 +326,7 @@ run-counters-gate-parallel:
 	@echo "================================================================================"
 	@echo "Running Counter Tests - GATE level PARALLEL (~8 tests, ~2 min)"
 	@echo "================================================================================"
-	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_counter*.py
+	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_counter*.py
 
 .PHONY: run-counters-func-parallel
 run-counters-func-parallel:
@@ -333,7 +334,7 @@ run-counters-func-parallel:
 	@echo "================================================================================"
 	@echo "Running Counter Tests - FUNC level PARALLEL (~31 tests, ~10 min)"
 	@echo "================================================================================"
-	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_counter*.py
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_counter*.py
 
 .PHONY: run-counters-full-parallel
 run-counters-full-parallel:
@@ -341,7 +342,7 @@ run-counters-full-parallel:
 	@echo "================================================================================"
 	@echo "Running Counter Tests - FULL level PARALLEL (~83 tests, ~1 hr)"
 	@echo "================================================================================"
-	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_counter*.py
+	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_counter*.py
 
 # ==============================================================================
 # ARBITER TESTS - REG_LEVEL Support
@@ -377,7 +378,7 @@ run-arbiters-gate-parallel:
 	@echo "================================================================================"
 	@echo "Running Arbiter Tests - GATE level PARALLEL (~4 tests, ~2 min)"
 	@echo "================================================================================"
-	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_arbiter*.py
+	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_arbiter*.py
 
 .PHONY: run-arbiters-func-parallel
 run-arbiters-func-parallel:
@@ -385,7 +386,7 @@ run-arbiters-func-parallel:
 	@echo "================================================================================"
 	@echo "Running Arbiter Tests - FUNC level PARALLEL (~8 tests, ~5 min)"
 	@echo "================================================================================"
-	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_arbiter*.py
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_arbiter*.py
 
 .PHONY: run-arbiters-full-parallel
 run-arbiters-full-parallel:
@@ -393,7 +394,7 @@ run-arbiters-full-parallel:
 	@echo "================================================================================"
 	@echo "Running Arbiter Tests - FULL level PARALLEL (~16 tests, ~15 min)"
 	@echo "================================================================================"
-	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_arbiter*.py
+	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_arbiter*.py
 
 # ==============================================================================
 # CLOCK TESTS - REG_LEVEL Support
@@ -429,7 +430,7 @@ run-clocks-gate-parallel:
 	@echo "================================================================================"
 	@echo "Running Clock Tests - GATE level PARALLEL (~3 tests, ~1 min)"
 	@echo "================================================================================"
-	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_clock*.py
+	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_clock*.py
 
 .PHONY: run-clocks-func-parallel
 run-clocks-func-parallel:
@@ -437,7 +438,7 @@ run-clocks-func-parallel:
 	@echo "================================================================================"
 	@echo "Running Clock Tests - FUNC level PARALLEL (~12 tests, ~3 min)"
 	@echo "================================================================================"
-	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_clock*.py
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_clock*.py
 
 .PHONY: run-clocks-full-parallel
 run-clocks-full-parallel:
@@ -445,7 +446,7 @@ run-clocks-full-parallel:
 	@echo "================================================================================"
 	@echo "Running Clock Tests - FULL level PARALLEL (~50 tests, ~10 min)"
 	@echo "================================================================================"
-	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_clock*.py
+	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_clock*.py
 
 # ==============================================================================
 # DATA INTEGRITY TESTS - REG_LEVEL Support
@@ -481,7 +482,7 @@ run-dataint-gate-parallel:
 	@echo "================================================================================"
 	@echo "Running Data Integrity Tests - GATE level PARALLEL (~10 tests, ~2 min)"
 	@echo "================================================================================"
-	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_dataint*.py
+	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_dataint*.py
 
 .PHONY: run-dataint-func-parallel
 run-dataint-func-parallel:
@@ -489,7 +490,7 @@ run-dataint-func-parallel:
 	@echo "================================================================================"
 	@echo "Running Data Integrity Tests - FUNC level PARALLEL (~30 tests, ~7 min)"
 	@echo "================================================================================"
-	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_dataint*.py
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_dataint*.py
 
 .PHONY: run-dataint-full-parallel
 run-dataint-full-parallel:
@@ -497,7 +498,7 @@ run-dataint-full-parallel:
 	@echo "================================================================================"
 	@echo "Running Data Integrity Tests - FULL level PARALLEL (~60 tests, ~20 min)"
 	@echo "================================================================================"
-	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_dataint*.py
+	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_dataint*.py
 
 # ==============================================================================
 # FIFO TESTS - REG_LEVEL Support
@@ -533,7 +534,7 @@ run-fifos-gate-parallel:
 	@echo "================================================================================"
 	@echo "Running FIFO Tests - GATE level PARALLEL (~6 tests, ~2 min)"
 	@echo "================================================================================"
-	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_fifo_buffer*.py
+	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_fifo_buffer*.py
 
 .PHONY: run-fifos-func-parallel
 run-fifos-func-parallel:
@@ -541,7 +542,7 @@ run-fifos-func-parallel:
 	@echo "================================================================================"
 	@echo "Running FIFO Tests - FUNC level PARALLEL (~24 tests, ~7 min)"
 	@echo "================================================================================"
-	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_fifo_buffer*.py
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_fifo_buffer*.py
 
 .PHONY: run-fifos-full-parallel
 run-fifos-full-parallel:
@@ -549,7 +550,7 @@ run-fifos-full-parallel:
 	@echo "================================================================================"
 	@echo "Running FIFO Tests - FULL level PARALLEL (~112 tests, ~40 min)"
 	@echo "================================================================================"
-	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_fifo_buffer*.py
+	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_fifo_buffer*.py
 
 # ==============================================================================
 # SHIFTER TESTS - REG_LEVEL Support
@@ -585,7 +586,7 @@ run-shifters-gate-parallel:
 	@echo "================================================================================"
 	@echo "Running Shifter Tests - GATE level PARALLEL (~8 tests, ~2 min)"
 	@echo "================================================================================"
-	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_shifter*.py
+	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_shifter*.py
 
 .PHONY: run-shifters-func-parallel
 run-shifters-func-parallel:
@@ -593,7 +594,7 @@ run-shifters-func-parallel:
 	@echo "================================================================================"
 	@echo "Running Shifter Tests - FUNC level PARALLEL (~24 tests, ~7 min)"
 	@echo "================================================================================"
-	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_shifter*.py
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_shifter*.py
 
 .PHONY: run-shifters-full-parallel
 run-shifters-full-parallel:
@@ -601,7 +602,7 @@ run-shifters-full-parallel:
 	@echo "================================================================================"
 	@echo "Running Shifter Tests - FULL level PARALLEL (~47 tests, ~20 min)"
 	@echo "================================================================================"
-	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_shifter*.py
+	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_shifter*.py
 
 # ------------------------------------------------------------------------------
 # Math Tests - REG_LEVEL Targets (Parallel)
@@ -613,7 +614,7 @@ run-math-gate-parallel:
 	@echo "================================================================================"
 	@echo "Running Math Tests - GATE level PARALLEL (~18 tests, ~2 min)"
 	@echo "================================================================================"
-	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_math*.py
+	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_math*.py
 
 .PHONY: run-math-func-parallel
 run-math-func-parallel:
@@ -621,7 +622,7 @@ run-math-func-parallel:
 	@echo "================================================================================"
 	@echo "Running Math Tests - FUNC level PARALLEL (~36 tests, ~5 min)"
 	@echo "================================================================================"
-	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_math*.py
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_math*.py
 
 .PHONY: run-math-full-parallel
 run-math-full-parallel:
@@ -629,7 +630,7 @@ run-math-full-parallel:
 	@echo "================================================================================"
 	@echo "Running Math Tests - FULL level PARALLEL (~54 tests, ~15 min)"
 	@echo "================================================================================"
-	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_math*.py
+	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_math*.py
 
 # ------------------------------------------------------------------------------
 # Encoder/Converter Tests - REG_LEVEL Parallel Targets
@@ -641,7 +642,7 @@ run-encoders-gate-parallel:
 	@echo "================================================================================"
 	@echo "Running Encoder/Converter Tests - GATE level PARALLEL (~8 tests, ~1 min)"
 	@echo "================================================================================"
-	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_encoder*.py test_decoder*.py test_*2*.py
+	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_encoder*.py test_decoder*.py test_*2*.py
 
 .PHONY: run-encoders-func-parallel
 run-encoders-func-parallel:
@@ -649,7 +650,7 @@ run-encoders-func-parallel:
 	@echo "================================================================================"
 	@echo "Running Encoder/Converter Tests - FUNC level PARALLEL (~16 tests, ~2 min)"
 	@echo "================================================================================"
-	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_encoder*.py test_decoder*.py test_*2*.py
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_encoder*.py test_decoder*.py test_*2*.py
 
 .PHONY: run-encoders-full-parallel
 run-encoders-full-parallel:
@@ -657,7 +658,7 @@ run-encoders-full-parallel:
 	@echo "================================================================================"
 	@echo "Running Encoder/Converter Tests - FULL level PARALLEL (~32 tests, ~5 min)"
 	@echo "================================================================================"
-	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_encoder*.py test_decoder*.py test_*2*.py
+	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_encoder*.py test_decoder*.py test_*2*.py
 
 # ------------------------------------------------------------------------------
 # Miscellaneous Tests - REG_LEVEL Parallel Targets
@@ -669,7 +670,7 @@ run-misc-gate-parallel:
 	@echo "================================================================================"
 	@echo "Running Miscellaneous Tests - GATE level PARALLEL (~12 tests, ~1 min)"
 	@echo "================================================================================"
-	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_cam*.py test_debounce*.py test_glitch*.py test_pwm*.py test_reset_sync*.py test_sort*.py test_*leading*.py test_find*.py test_reverse*.py test_hex*.py test_count_leading*.py
+	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_cam*.py test_debounce*.py test_glitch*.py test_pwm*.py test_reset_sync*.py test_sort*.py test_*leading*.py test_find*.py test_reverse*.py test_hex*.py test_count_leading*.py
 
 .PHONY: run-misc-func-parallel
 run-misc-func-parallel:
@@ -677,7 +678,7 @@ run-misc-func-parallel:
 	@echo "================================================================================"
 	@echo "Running Miscellaneous Tests - FUNC level PARALLEL (~24 tests, ~3 min)"
 	@echo "================================================================================"
-	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_cam*.py test_debounce*.py test_glitch*.py test_pwm*.py test_reset_sync*.py test_sort*.py test_*leading*.py test_find*.py test_reverse*.py test_hex*.py test_count_leading*.py
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_cam*.py test_debounce*.py test_glitch*.py test_pwm*.py test_reset_sync*.py test_sort*.py test_*leading*.py test_find*.py test_reverse*.py test_hex*.py test_count_leading*.py
 
 .PHONY: run-misc-full-parallel
 run-misc-full-parallel:
@@ -685,7 +686,7 @@ run-misc-full-parallel:
 	@echo "================================================================================"
 	@echo "Running Miscellaneous Tests - FULL level PARALLEL (~48 tests, ~8 min)"
 	@echo "================================================================================"
-	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_cam*.py test_debounce*.py test_glitch*.py test_pwm*.py test_reset_sync*.py test_sort*.py test_*leading*.py test_find*.py test_reverse*.py test_hex*.py test_count_leading*.py
+	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_cam*.py test_debounce*.py test_glitch*.py test_pwm*.py test_reset_sync*.py test_sort*.py test_*leading*.py test_find*.py test_reverse*.py test_hex*.py test_count_leading*.py
 
 # ==============================================================================
 # Legacy Parallel Targets (no REG_LEVEL)
@@ -697,7 +698,7 @@ run-arbiters-parallel:
 	@echo "================================================================================"
 	@echo "Running COMMON Arbiter Tests (Parallel)"
 	@echo "================================================================================"
-	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_arbiter*.py
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_arbiter*.py
 
 .PHONY: run-fifos-parallel
 run-fifos-parallel:
@@ -705,7 +706,7 @@ run-fifos-parallel:
 	@echo "================================================================================"
 	@echo "Running COMMON FIFO Tests (Parallel)"
 	@echo "================================================================================"
-	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_fifo*.py
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_fifo*.py
 
 .PHONY: run-math-parallel
 run-math-parallel:
@@ -713,7 +714,7 @@ run-math-parallel:
 	@echo "================================================================================"
 	@echo "Running COMMON Math Tests (Parallel)"
 	@echo "================================================================================"
-	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_math*.py
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_math*.py
 
 .PHONY: run-dataint-parallel
 run-dataint-parallel:
@@ -721,7 +722,7 @@ run-dataint-parallel:
 	@echo "================================================================================"
 	@echo "Running COMMON Data Integrity Tests (Parallel)"
 	@echo "================================================================================"
-	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_dataint*.py
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_dataint*.py
 
 .PHONY: run-shifters-parallel
 run-shifters-parallel:
@@ -729,7 +730,7 @@ run-shifters-parallel:
 	@echo "================================================================================"
 	@echo "Running COMMON Shifter Tests (Parallel)"
 	@echo "================================================================================"
-	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_shifter*.py
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_shifter*.py
 
 .PHONY: run-clocks-parallel
 run-clocks-parallel:
@@ -737,7 +738,7 @@ run-clocks-parallel:
 	@echo "================================================================================"
 	@echo "Running COMMON Clock Tests (Parallel)"
 	@echo "================================================================================"
-	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_clock*.py
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_clock*.py
 
 .PHONY: run-encoders-parallel
 run-encoders-parallel:
@@ -745,7 +746,7 @@ run-encoders-parallel:
 	@echo "================================================================================"
 	@echo "Running COMMON Encoder/Decoder Tests (Parallel)"
 	@echo "================================================================================"
-	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_encoder*.py test_decoder*.py test_*2*.py
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_encoder*.py test_decoder*.py test_*2*.py
 
 # ==============================================================================
 # Run All Targets
@@ -765,7 +766,7 @@ run-all-parallel:
 	@echo "================================================================================"
 	@echo "Running ALL COMMON Tests (Parallel - 4 workers)"
 	@echo "================================================================================"
-	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_*.py
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_*.py
 
 # REG_LEVEL Variants - Run all tests with specific regression levels
 .PHONY: run-all-gate
@@ -798,7 +799,7 @@ run-all-gate-parallel:
 	@echo "================================================================================"
 	@echo "Running ALL COMMON Tests - GATE level PARALLEL (~2-3 min)"
 	@echo "================================================================================"
-	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_*.py
+	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_*.py
 
 .PHONY: run-all-func-parallel
 run-all-func-parallel:
@@ -806,7 +807,7 @@ run-all-func-parallel:
 	@echo "================================================================================"
 	@echo "Running ALL COMMON Tests - FUNC level PARALLEL (~10-20 min)"
 	@echo "================================================================================"
-	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_*.py
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_*.py
 
 .PHONY: run-all-full-parallel
 run-all-full-parallel:
@@ -814,7 +815,7 @@ run-all-full-parallel:
 	@echo "================================================================================"
 	@echo "Running ALL COMMON Tests - FULL level PARALLEL (~30-60 min)"
 	@echo "================================================================================"
-	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_*.py
+	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_*.py
 
 # ==============================================================================
 # Collection Targets (verify tests without running)

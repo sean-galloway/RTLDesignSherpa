@@ -27,17 +27,11 @@ from cocotb.utils import get_sim_time
 from cocotb_test.simulator import run
 import pytest
 
-
 # Add repo root to path for CocoTBFramework imports
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-if os.path.join(repo_root, 'bin') not in sys.path:
-    sys.path.insert(0, os.path.join(repo_root, 'bin'))
-
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.common.arbiter_round_robin_weighted_tb import WeightedRoundRobinTB
-
 
 @cocotb.test(timeout_time=20, timeout_unit="ms")  # Increased timeout for weight testing
 async def arbiter_round_robin_weighted_test(dut):
@@ -149,7 +143,6 @@ async def arbiter_round_robin_weighted_test(dut):
         # Wait for any pending operations
         await tb.wait_clocks('clk', 20)
 
-
 def generate_test_params():
     """
     Generate test parameter combinations based on REG_LEVEL.
@@ -188,7 +181,6 @@ def generate_test_params():
         # Comprehensive: all configurations
         return all_configs
 
-
 @pytest.mark.parametrize("clients, max_levels, wait_ack", generate_test_params())
 def test_arbiter_round_robin_weighted(request, clients, max_levels, wait_ack):
     """Run the weighted round robin test with comprehensive coverage"""
@@ -211,7 +203,8 @@ def test_arbiter_round_robin_weighted(request, clients, max_levels, wait_ack):
     c_str = TBBase.format_dec(clients, 2)
     m_str = TBBase.format_dec(max_levels, 2)
     w_str = TBBase.format_dec(wait_ack, 1)
-    test_name_plus_params = f"test_{dut_name}_c{c_str}_m{m_str}_w{w_str}"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name_plus_params = f"test_{dut_name}_c{c_str}_m{m_str}_w{w_str}_{reg_level}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')

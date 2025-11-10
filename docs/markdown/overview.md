@@ -57,7 +57,7 @@ Level 3: Integration Examples
 
 Level 4: Production Components (2+ components)
     ↓
-    Build: APB HPET Timer, RAPIDS DMA Engine
+    Build: Retro Legacy Peripherals (HPET, PIC, PIT, RTC), RAPIDS DMA Engine
 
 Level 5: Complete FPGA Projects
     ↓
@@ -69,9 +69,9 @@ Level 5: Complete FPGA Projects
 ## Quick Navigation
 
 ### 📚 Documentation
-- **[Component Projects](docs/markdown/projects/index.md)** - Production-ready peripherals: HPET, DMA Engines (STREAM, RAPIDS)
+- **[Component Projects](docs/markdown/projects/index.md)** - Production-ready peripherals: DMA Engines (STREAM, RAPIDS), Retro Legacy Blocks
 - **[Component Overview](docs/markdown/projects/overview.md)** - Component ecosystem and patterns
-- **[APB HPET Documentation](docs/markdown/projects/apb_hpet.md)** - High Precision Event Timer details
+- **[Retro Legacy Blocks](projects/components/retro_legacy_blocks/README.md)** - Legacy peripherals collection (HPET, PIC, PIT, RTC, etc.)
 
 ### 🏗️ RTL Source Code
 - **[Common Library](rtl/common/)** (90 modules) - [Documentation](rtl/common/PRD.md) - [AI Guide](rtl/common/CLAUDE.md)
@@ -84,7 +84,7 @@ Level 5: Complete FPGA Projects
 - **[AMBA Integration](rtl/integ_amba/)** - Protocol integration (crossbars, bridges)
 
 ### 🎯 Component Projects
-- **[APB HPET](projects/components/apb_hpet/)** - High Precision Event Timer - [PRD](projects/components/apb_hpet/PRD.md) | [Guide](projects/components/apb_hpet/CLAUDE.md) | [Docs](docs/markdown/projects/apb_hpet.md)
+- **[Retro Legacy Blocks](projects/components/retro_legacy_blocks/)** - Legacy peripheral collection (HPET, PIC, PIT, RTC, etc.) - [PRD](projects/components/retro_legacy_blocks/PRD.md) | [Guide](projects/components/retro_legacy_blocks/CLAUDE.md) | [Overview](projects/components/retro_legacy_blocks/README.md)
 - **[RAPIDS DMA](projects/components/rapids/)** - Memory I/O Processor - [PRD](projects/components/rapids/PRD.md) | [Guide](projects/components/rapids/CLAUDE.md)
 
 ### ✅ Verification
@@ -226,11 +226,22 @@ Clock Domain A (Fast)    Clock Domain B (Slow)
 
 Build complete, production-ready peripherals for FPGA deployment:
 
-#### APB HPET - High Precision Event Timer
+#### Retro Legacy Blocks - Historical Peripheral Collection
 
-**Status:** ✅ Production Ready (5/6 configs 100% passing)
-**Location:** [`projects/components/apb_hpet/`](projects/components/apb_hpet/)
-**Documentation:** [PRD](projects/components/apb_hpet/PRD.md) | [AI Guide](projects/components/apb_hpet/CLAUDE.md) | [Component Docs](docs/markdown/projects/apb_hpet.md)
+**Status:** ✅ Stable (Collection of legacy/retro peripherals)
+**Location:** [`projects/components/retro_legacy_blocks/`](projects/components/retro_legacy_blocks/)
+**Documentation:** [PRD](projects/components/retro_legacy_blocks/PRD.md) | [AI Guide](projects/components/retro_legacy_blocks/CLAUDE.md) | [Collection Overview](projects/components/retro_legacy_blocks/README.md)
+
+**Included Peripherals:**
+- **HPET** - High Precision Event Timer (APB interface)
+- **8259 PIC** - Programmable Interrupt Controller
+- **8254 PIT** - Programmable Interval Timer
+- **RTC** - Real-Time Clock
+- **SMBUS** - System Management Bus controller
+- **PM/ACPI** - Power Management / Advanced Configuration and Power Interface
+- **IOAPIC** - I/O Advanced Programmable Interrupt Controller
+
+#### Featured Block: HPET - High Precision Event Timer
 
 **Features:**
 - **Configurable Timers:** 2, 3, or 8 independent hardware timers
@@ -253,6 +264,7 @@ Build complete, production-ready peripherals for FPGA deployment:
 - Precise event timing
 - Watchdog timers
 - Performance profiling
+- Legacy OS compatibility (e.g., Intel HPET specification)
 
 **Architecture:**
 ```
@@ -262,10 +274,14 @@ APB Interface → Config Regs → HPET Core
                               Per-Timer Interrupts
 ```
 
-**Testing:** 6 configurations × 12 tests = 72 test scenarios
-- Basic (4): Register access, simple operations
-- Medium (5): Periodic mode, multiple timers, 64-bit features
-- Full (3): Stress testing, CDC, edge cases
+**Documentation:** [HPET Specification](projects/components/retro_legacy_blocks/docs/hpet_spec/hpet_index.md)
+
+**Testing:** Comprehensive 3-level test hierarchy
+- Basic: Register access, simple operations
+- Medium: Periodic mode, multiple timers, 64-bit features
+- Full: Stress testing, CDC, edge cases
+
+**Other Legacy Blocks:** See [Retro Legacy Blocks README](projects/components/retro_legacy_blocks/README.md) for documentation on the complete collection
 
 ---
 
@@ -358,8 +374,8 @@ pytest val/amba/ -v -m basic      # Basic tests only
 pytest val/amba/ -v -m medium     # Medium tests only
 pytest val/amba/ -v -m full       # Full tests only
 
-# Run component tests
-pytest projects/components/apb_hpet/dv/tests/ -v
+# Run component tests (example: Retro Legacy Blocks)
+pytest projects/components/retro_legacy_blocks/dv/tests/hpet/ -v
 ```
 
 ---
@@ -437,17 +453,23 @@ rtldesignsherpa/
 │
 ├── projects/                     # Component projects
 │   └── components/              # Production-ready components
-│       ├── apb_hpet/            # High Precision Event Timer
-│       │   ├── rtl/             # RTL source
+│       ├── retro_legacy_blocks/ # Legacy peripheral collection
+│       │   ├── rtl/             # RTL source (organized by peripheral)
+│       │   │   ├── hpet/        # HPET RTL files
+│       │   │   ├── pic_8259/    # 8259 PIC RTL files
+│       │   │   └── ...          # Other legacy peripherals
 │       │   ├── dv/              # Design verification
-│       │   │   ├── tests/       # Test runners (conftest.py + test_*.py)
-│       │   │   ├── tbclasses/   # → in bin/CocoTBFramework/
+│       │   │   ├── tests/       # Test runners (organized by peripheral)
+│       │   │   │   ├── hpet/    # HPET tests
+│       │   │   │   └── ...      # Other peripheral tests
+│       │   │   ├── tbclasses/   # Testbench classes (by peripheral)
 │       │   │   └── scoreboards/ # Verification scoreboards
 │       │   ├── docs/            # Implementation docs
-│       │   ├── known_issues/    # Issue tracking
+│       │   │   ├── hpet_spec/   # HPET specification
+│       │   │   └── ...          # Other specifications
 │       │   ├── PRD.md           # Requirements
 │       │   ├── CLAUDE.md        # AI guide
-│       │   └── TASKS.md         # Work tracking
+│       │   └── README.md        # Collection overview
 │       │
 │       └── rapids/              # RAPIDS DMA Engine (similar structure)
 │
@@ -471,7 +493,7 @@ rtldesignsherpa/
 │   │   └── projects/            # Component documentation
 │   │       ├── index.md         # Component index
 │   │       ├── overview.md      # Ecosystem overview
-│   │       └── apb_hpet.md      # HPET detailed docs
+│   │       └── apb_hpet.md      # HPET redirect to retro_legacy_blocks
 │   │
 │   └── reports/                 # Test reports and analysis
 │
@@ -537,13 +559,13 @@ pytest val/amba/test_apb_slave.py -v -m basic
 pytest val/integ_amba/test_apb_xbar.py -v -k "2to4"
 ```
 
-#### Level 4: Test APB HPET Component
+#### Level 4: Test Retro Legacy Block Component
 ```bash
-# Run all HPET configurations
-pytest projects/components/apb_hpet/dv/tests/ -v
+# Run HPET tests from Retro Legacy Blocks collection
+pytest projects/components/retro_legacy_blocks/dv/tests/hpet/ -v
 
-# Run specific configuration
-pytest "projects/components/apb_hpet/dv/tests/test_apb_hpet.py::test_hpet[2-32902-1-0-full-2-timer Intel-like]" -v
+# Run specific test
+pytest projects/components/retro_legacy_blocks/dv/tests/hpet/test_apb_hpet.py -v
 ```
 
 ---
@@ -569,7 +591,8 @@ pytest "projects/components/apb_hpet/dv/tests/test_apb_hpet.py::test_hpet[2-3290
 **Level 4 - Components:**
 - [Component Index](docs/markdown/projects/index.md) - All components
 - [Component Overview](docs/markdown/projects/overview.md) - Design patterns
-- [APB HPET Docs](docs/markdown/projects/apb_hpet.md) - Complete HPET guide
+- [Retro Legacy Blocks](projects/components/retro_legacy_blocks/README.md) - Legacy peripheral collection
+- [HPET Specification](projects/components/retro_legacy_blocks/docs/hpet_spec/hpet_index.md) - Complete HPET guide
 
 ### External References
 

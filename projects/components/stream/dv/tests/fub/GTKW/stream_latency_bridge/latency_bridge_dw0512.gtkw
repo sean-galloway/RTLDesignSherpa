@@ -1,0 +1,50 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Thu Nov  6 04:11:10 2025
+[*]
+[dumpfile] "/mnt/data/github/rtldesignsherpa/projects/components/stream/dv/tests/fub_tests/local_sim_build/test_latency_bridge_backpressure_dw0512_gw26/dump.vcd"
+[dumpfile_mtime] "Thu Nov  6 01:59:11 2025"
+[dumpfile_size] 17293
+[savefile] "/mnt/data/github/rtldesignsherpa/projects/components/stream/dv/tests/fub_tests/GTKW/stream_latency_bridge/latency_bridge_dw0512.gtkw"
+[timestart] 0
+[size] 2446 1303
+[pos] -1 -1
+*-14.556547 160000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 454
+[signals_width] 501
+[sst_expanded] 1
+[sst_vpaned_height] 260
+@22
+stream_latency_bridge.SKID_DEPTH[31:0]
+stream_latency_bridge.DW[31:0]
+@28
+stream_latency_bridge.clk
+stream_latency_bridge.rst_n
+stream_latency_bridge.occupancy[2:0]
+@200
+-slave
+@28
+stream_latency_bridge.s_valid
+stream_latency_bridge.s_ready
+@22
+stream_latency_bridge.s_data[511:0]
+@200
+-master
+@28
+stream_latency_bridge.m_valid
+stream_latency_bridge.m_ready
+@22
+stream_latency_bridge.m_data[511:0]
+@200
+-internals
+@28
+stream_latency_bridge.skid_wr_valid
+stream_latency_bridge.skid_wr_ready
+@22
+stream_latency_bridge.skid_wr_data[511:0]
+@28
+stream_latency_bridge.r_drain_skid
+@29
+stream_latency_bridge.r_drain_ip
+[pattern_trace] 1
+[pattern_trace] 0

@@ -9,12 +9,10 @@ from cocotb_test.simulator import run
 import os
 import sys
 
-# Add repo root to path
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../..'))
-sys.path.insert(0, repo_root)
-
-# Import testbench class
-from projects.components.converters.dv.tbclasses.axi_data_dnsize_tb import AXIDataDnsizeTB
+# Import testbench class (PYTHONPATH configured in env_python)
+from tbclasses.axi_data_dnsize_tb import AXIDataDnsizeTB
+from CocoTBFramework.tbclasses.shared.utilities import get_paths
+from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 
 
 # Test parameter combinations
@@ -56,8 +54,11 @@ def test_axi_data_dnsize(request, params):
     """
     wide_width, narrow_width, wide_sb_width, narrow_sb_width, sb_broadcast, track_bursts, dual_buffer, description = params
 
-    # RTL module location
-    rtl_dir = os.path.join(repo_root, "projects/components/converters/rtl")
+    # Get directory and module information using repository standard
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_converters': 'projects/components/converters/rtl',
+    })
+
     dut_module = "axi_data_dnsize"
 
     # Generate unique test name
@@ -75,36 +76,67 @@ def test_axi_data_dnsize(request, params):
         "DUAL_BUFFER": dual_buffer
     }
 
-    # Include paths
-    includes = [
-        os.path.join(repo_root, "rtl/amba/includes"),
-        os.path.join(repo_root, "rtl/common")
+
+
+    # Get verilog sources and includes from filelist
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='projects/components/converters/rtl/filelists/axi_data_dnsize.f'
+    )
+
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
+    compile_args = [
+        "--trace",
+        "--trace-structs",
+        "--trace-depth", "99",
+    ]
+    sim_args = [
+        "--trace",  # VCD waveform format
+        "--trace-structs",
+        "--trace-depth", "99",
     ]
 
-    # Verilog sources
-    verilog_sources = [
-        os.path.join(rtl_dir, f"{dut_module}.sv")
+    plusargs = [
+        "--trace",
     ]
+
+    # Simulation build directory
+    sim_build = os.path.join(tests_dir, 'local_sim_build', f'test_axi_data_dnsize_{description}')
+    os.makedirs(sim_build, exist_ok=True)
+
+    # Conditionally set COCOTB_TRACE_FILE for VCD generation
+    extra_env = {}
+    if bool(int(os.environ.get('WAVES', '0'))):
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
 
     # Run simulation
     run(
-        python_search=[os.path.dirname(__file__)],
+        python_search=[tests_dir],
         verilog_sources=verilog_sources,
         toplevel=dut_module,
         module="test_axi_data_dnsize",  # This file contains @cocotb.test() functions
         parameters=parameters,
         includes=includes,
-        waves=False,  # Disable waveforms to avoid FST issues with verilator
-        gui=False
+        sim_build=sim_build,
+        extra_env=extra_env,
+        waves=False,  # VCD controlled by compile_args, not cocotb-test
+        gui=False,
+        keep_files=True,
+        compile_args=compile_args,
+        sim_args=sim_args,
+        plusargs=plusargs,
     )
 
 
 # ==============================================================================
 # CocoTB Tests (called by cocotb_test simulator)
+# Prefix with "cocotb_test_" to prevent pytest collection
 # ==============================================================================
 
 @cocotb.test()
-async def test_basic_splitting(dut):
+async def cocotb_test_basic_splitting(dut):
     """Test basic wide→narrow splitting"""
     tb = AXIDataDnsizeTB(dut)
     await tb.setup_clocks_and_reset()
@@ -112,7 +144,7 @@ async def test_basic_splitting(dut):
 
 
 @cocotb.test()
-async def test_last_propagation(dut):
+async def cocotb_test_last_propagation(dut):
     """Test that wide_last propagates to last narrow beat (simple mode)"""
     tb = AXIDataDnsizeTB(dut)
     await tb.setup_clocks_and_reset()
@@ -120,7 +152,7 @@ async def test_last_propagation(dut):
 
 
 @cocotb.test()
-async def test_burst_tracking(dut):
+async def cocotb_test_burst_tracking(dut):
     """Test burst tracking mode for correct LAST generation"""
     tb = AXIDataDnsizeTB(dut)
     await tb.setup_clocks_and_reset()
@@ -128,7 +160,7 @@ async def test_burst_tracking(dut):
 
 
 @cocotb.test()
-async def test_backpressure(dut):
+async def cocotb_test_backpressure(dut):
     """Test backpressure handling"""
     tb = AXIDataDnsizeTB(dut)
     await tb.setup_clocks_and_reset()
@@ -136,7 +168,7 @@ async def test_backpressure(dut):
 
 
 @cocotb.test()
-async def test_continuous_streaming(dut):
+async def cocotb_test_continuous_streaming(dut):
     """Test continuous streaming without gaps"""
     tb = AXIDataDnsizeTB(dut)
     await tb.setup_clocks_and_reset()

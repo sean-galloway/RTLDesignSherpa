@@ -253,6 +253,7 @@ module axi4_to_apb_shim #(
     // Instantiate the AXI to APB conversion module
     axi4_to_apb_convert #(
         .SIDE_DEPTH         (SIDE_DEPTH),
+        .AXI_ID_WIDTH       (AXI_ID_WIDTH),
         .AXI_ADDR_WIDTH     (AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH     (AXI_DATA_WIDTH),
         .AXI_USER_WIDTH     (AXI_USER_WIDTH),

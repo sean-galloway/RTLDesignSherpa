@@ -91,7 +91,7 @@ module debounce #(
 
     // Debounce logic for each button
     `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
             for (int i = 0; i < N; i++) begin
                 r_shift_regs[i] <= {DEBOUNCE_DELAY{1'b0}};
             end
@@ -117,7 +117,7 @@ if (`RST_ASSERTED(rst_n)) begin
 
     // Update output signals
     `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
             button_out <= {N{1'b0}};
         end else begin
             button_out <= w_debounced_signals;

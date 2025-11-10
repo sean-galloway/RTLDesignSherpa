@@ -57,14 +57,9 @@ from cocotb.triggers import RisingEdge, Timer
 from cocotb_test.simulator import run
 
 # Add repo root to path for CocoTBFramework imports
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-if os.path.join(repo_root, 'bin') not in sys.path:
-    sys.path.insert(0, os.path.join(repo_root, 'bin'))
-
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
-
 
 class CounterBinTB(TBBase):
     """Testbench for Binary Counter module"""
@@ -496,7 +491,6 @@ class CounterBinTB(TBBase):
 
         return all_passed
 
-
 @cocotb.test(timeout_time=30000, timeout_unit="us")
 async def counter_bin_test(dut):
     """Test for Binary Counter module"""
@@ -512,7 +506,6 @@ async def counter_bin_test(dut):
     assert passed, f"Counter bin test FAILED - {len(tb.test_failures)} failures detected{tb.get_time_ns_str()}"
 
     return passed
-
 
 def generate_params():
     """
@@ -565,9 +558,7 @@ def generate_params():
 
     return params
 
-
 params = generate_params()
-
 
 @pytest.mark.parametrize("width, max_val, test_level", params)
 def test_counter_bin(request, width, max_val, test_level):
@@ -594,7 +585,8 @@ def test_counter_bin(request, width, max_val, test_level):
     toplevel = dut_name
 
     # Create human-readable test identifier
-    test_name_plus_params = f"test_counter_bin_w{width}_max{max_val}_{test_level}"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name_plus_params = f"test_counter_bin_w{width}_max{max_val}_{test_level}_{reg_level}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Setup directories
@@ -655,7 +647,6 @@ def test_counter_bin(request, width, max_val, test_level):
     print(f"Expected duration: {timeout_ms/1000:.1f}s")
     print(f"Log: {log_path}")
     print(f"{'='*60}")
-
 
     # Conditionally set COCOTB_TRACE_FILE for VCD generation
     if bool(int(os.environ.get('WAVES', '0'))):

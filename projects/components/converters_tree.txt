@@ -1,0 +1,100 @@
+DEBUG: exclude_dir = ['__pycache__', 'local_sim_build', 'logs']
+converters
+├── ANALYSIS_APB_CONVERTER.md
+├── DUAL_BUFFER_IMPLEMENTATION.md
+├── README.md
+├── __init__.py
+├── docs
+│   ├── Converters_Specification_v0.75.docx
+│   ├── Converters_Specification_v0.75.pdf
+│   ├── generate_pdf.sh
+│   ├── peakrdl_adapter_README.md
+│   └── converter_spec
+│       ├── converter_index.md
+│       ├── assets
+│       │   ├── graphviz
+│       │   │   ├── Makefile
+│       │   │   ├── README.md
+│       │   │   ├── axi4_dwidth_converter_rd.gv
+│       │   │   ├── axi4_dwidth_converter_rd.png
+│       │   │   ├── axi4_dwidth_converter_wr.gv
+│       │   │   ├── axi4_dwidth_converter_wr.png
+│       │   │   ├── axi4_to_apb.gv
+│       │   │   ├── axi4_to_apb.png
+│       │   │   ├── axi_data_dnsize_dual.gv
+│       │   │   ├── axi_data_dnsize_dual.png
+│       │   │   ├── axi_data_dnsize_single.gv
+│       │   │   ├── axi_data_dnsize_single.png
+│       │   │   ├── axi_data_upsize.gv
+│       │   │   ├── axi_data_upsize.png
+│       │   │   ├── peakrdl_adapter.gv
+│       │   │   └── peakrdl_adapter.png
+│       │   ├── png
+│       │   ├── puml
+│       │   │   ├── README.md
+│       │   │   ├── axi4_to_apb_fsm.png
+│       │   │   └── axi4_to_apb_fsm.puml
+│       │   └── wavedrom
+│       ├── ch01_overview
+│       │   └── 01_introduction.md
+│       ├── ch02_data_width_converters
+│       │   └── 01_overview.md
+│       ├── ch03_protocol_converters
+│       │   ├── 01_overview.md
+│       │   ├── 04_axi4_to_axil4.md
+│       │   └── 05_axil4_to_axi4.md
+│       └── ch04_usage_examples
+├── dv
+│   ├── __init__.py
+│   ├── tbclasses
+│   │   ├── __init__.py
+│   │   ├── axi4_to_axil4_rd_tb.py
+│   │   ├── axi4_to_axil4_wr_tb.py
+│   │   ├── axi_data_dnsize_tb.py
+│   │   ├── axi_data_upsize_tb.py
+│   │   ├── axil4_to_axi4_rd_tb.py
+│   │   └── axil4_to_axi4_wr_tb.py
+│   └── tests
+│       ├── Makefile
+│       ├── __init__.py
+│       ├── test_axi2apb_shim.py
+│       ├── test_axi4_dwidth_converter_rd.py
+│       ├── test_axi4_dwidth_converter_wr.py
+│       ├── test_axi4_to_axil4_rd.py
+│       ├── test_axi4_to_axil4_wr.py
+│       ├── test_axi_data_dnsize.py
+│       ├── test_axi_data_upsize.py
+│       ├── test_axil4_to_axi4_rd.py
+│       ├── test_axil4_to_axi4_wr.py
+│       ├── test_dnsize_quick.py
+│       └── test_peakrdl_to_cmdrsp.py
+└── rtl
+    ├── CODE_SHARING_ANALYSIS.md
+    ├── CONVERTER_ARCHITECTURE_ANALYSIS.md
+    ├── GENERIC_MODULES_USAGE_GUIDE.md
+    ├── Makefile
+    ├── README_AXI_CONVERTERS.md
+    ├── axi4_dwidth_converter_rd.sv
+    ├── axi4_dwidth_converter_wr.sv
+    ├── axi4_to_apb_convert.sv
+    ├── axi4_to_apb_shim.sv
+    ├── axi4_to_axil4.sv
+    ├── axi4_to_axil4_rd.sv
+    ├── axi4_to_axil4_wr.sv
+    ├── axi_data_dnsize.sv
+    ├── axi_data_upsize.sv
+    ├── axil4_to_axi4.sv
+    ├── axil4_to_axi4_rd.sv
+    ├── axil4_to_axi4_wr.sv
+    ├── peakrdl_to_cmdrsp.sv
+    └── filelists
+        ├── axi4_dwidth_converter_rd.f
+        ├── axi4_dwidth_converter_wr.f
+        ├── axi4_to_apb_shim.f
+        ├── axi4_to_axil4_rd.f
+        ├── axi4_to_axil4_wr.f
+        ├── axi_data_dnsize.f
+        ├── axi_data_upsize.f
+        ├── axil4_to_axi4_rd.f
+        ├── axil4_to_axi4_wr.f
+        └── peakrdl_to_cmdrsp.f

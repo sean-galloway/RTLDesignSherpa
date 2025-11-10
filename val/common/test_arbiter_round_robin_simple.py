@@ -30,10 +30,6 @@ import pytest
 # Import the testbench and utilities
 
 # Add repo root to path for CocoTBFramework imports
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-if os.path.join(repo_root, 'bin') not in sys.path:
-    sys.path.insert(0, os.path.join(repo_root, 'bin'))
-
 from CocoTBFramework.tbclasses.common.arbiter_round_robin_simple_tb import ArbiterRoundRobinSimpleTB
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
@@ -157,7 +153,6 @@ def generate_test_params():
         # Full coverage: all client counts
         return all_clients
 
-
 @pytest.mark.parametrize("clients", generate_test_params())
 def test_arbiter_round_robin_simple(request, clients):
     """Run the simple round robin test"""
@@ -179,7 +174,8 @@ def test_arbiter_round_robin_simple(request, clients):
 
     # Create a human readable test identifier
     c_str = TBBase.format_dec(clients, 2)
-    test_name_plus_params = f"test_{dut_name}_c{c_str}"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name_plus_params = f"test_{dut_name}_c{c_str}_{reg_level}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')

@@ -1,0 +1,84 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Sat Nov  8 22:28:57 2025
+[*]
+[dumpfile] "/mnt/data/github/rtldesignsherpa/projects/components/retro_legacy_blocks/dv/tests/pit_8254/local_sim_build/test_apb_pit_8254_test_pit_basic_nc3_nocdc_gw0/dump.vcd"
+[dumpfile_mtime] "Sat Nov  8 22:03:20 2025"
+[dumpfile_size] 866163
+[savefile] "/mnt/data/github/rtldesignsherpa/projects/components/retro_legacy_blocks/dv/tests/pit_8254/GTKW/pit_8254.gtkw"
+[timestart] 0
+[size] 2451 1735
+[pos] -1 -1
+*-20.882263 386000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] apb_pit_8254.
+[sst_width] 278
+[signals_width] 285
+[sst_expanded] 1
+[sst_vpaned_height] 560
+@28
+apb_pit_8254.CDC_ENABLE
+@22
+apb_pit_8254.NUM_COUNTERS[31:0]
+@28
+apb_pit_8254.pclk
+apb_pit_8254.presetn
+apb_pit_8254.pit_clk
+apb_pit_8254.pit_resetn
+@800029
+apb_pit_8254.timer_irq[2:0]
+@29
+(0)apb_pit_8254.timer_irq[2:0]
+(1)apb_pit_8254.timer_irq[2:0]
+(2)apb_pit_8254.timer_irq[2:0]
+@1001201
+-group_end
+@200
+-apb
+@28
+apb_pit_8254.s_apb_PSEL
+apb_pit_8254.s_apb_PENABLE
+apb_pit_8254.s_apb_PREADY
+apb_pit_8254.s_apb_PWRITE
+@22
+apb_pit_8254.s_apb_PADDR[11:0]
+apb_pit_8254.s_apb_PWDATA[31:0]
+apb_pit_8254.s_apb_PSTRB[3:0]
+apb_pit_8254.s_apb_PRDATA[31:0]
+@28
+apb_pit_8254.s_apb_PSLVERR
+apb_pit_8254.s_apb_PREADY
+@200
+-pit-core
+@28
+apb_pit_8254.u_pit_core.clk
+apb_pit_8254.u_pit_core.rst
+apb_pit_8254.u_pit_core.cfg_bcd
+apb_pit_8254.u_pit_core.cfg_clock_select
+apb_pit_8254.u_pit_core.cfg_control_wr
+apb_pit_8254.u_pit_core.cfg_counter_select[1:0]
+apb_pit_8254.u_pit_core.cfg_mode[2:0]
+apb_pit_8254.u_pit_core.cfg_pit_enable
+apb_pit_8254.u_pit_core.cfg_rw_mode[1:0]
+@200
+-counters
+@22
+apb_pit_8254.u_pit_core.counter0_reg_in[15:0]
+apb_pit_8254.u_pit_core.counter0_reg_out[15:0]
+@28
+apb_pit_8254.u_pit_core.counter0_reg_wr
+@22
+apb_pit_8254.u_pit_core.counter0_status[7:0]
+apb_pit_8254.u_pit_core.counter1_reg_in[15:0]
+apb_pit_8254.u_pit_core.counter1_reg_out[15:0]
+@28
+apb_pit_8254.u_pit_core.counter1_reg_wr
+@22
+apb_pit_8254.u_pit_core.counter1_status[7:0]
+apb_pit_8254.u_pit_core.counter2_reg_in[15:0]
+apb_pit_8254.u_pit_core.counter2_reg_out[15:0]
+@28
+apb_pit_8254.u_pit_core.counter2_reg_wr
+@22
+apb_pit_8254.u_pit_core.counter2_status[7:0]
+[pattern_trace] 1
+[pattern_trace] 0

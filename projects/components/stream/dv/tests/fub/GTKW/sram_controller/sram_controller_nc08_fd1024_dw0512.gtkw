@@ -1,0 +1,95 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Thu Nov  6 01:04:50 2025
+[*]
+[dumpfile] "/mnt/data/github/rtldesignsherpa/projects/components/stream/dv/tests/fub_tests/local_sim_build/test_sram_controller_multi_nc04_fd0256_dw0064_gw18/dump.vcd"
+[dumpfile_mtime] "Thu Nov  6 01:00:59 2025"
+[dumpfile_size] 889763
+[savefile] "/mnt/data/github/rtldesignsherpa/projects/components/stream/dv/tests/fub_tests/GTKW/sram_controller/sram_controller_nc08_fd1024_dw0256.gtkw"
+[timestart] 1055300
+[size] 5114 1766
+[pos] 1131 31
+*-14.134436 1110100 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] sram_controller.
+[treeopen] sram_controller.gen_channel_units[0].
+[treeopen] sram_controller.gen_channel_units[0].u_channel_unit.
+[sst_width] 454
+[signals_width] 501
+[sst_expanded] 1
+[sst_vpaned_height] 381
+@22
+sram_controller.DW[31:0]
+sram_controller.FIFO_DEPTH[31:0]
+sram_controller.NUM_CHANNELS[31:0]
+@28
+sram_controller.clk
+sram_controller.rst_n
+@200
+-axi-rd-alloc
+@28
+sram_controller.axi_rd_alloc_req
+sram_controller.axi_rd_alloc_id[1:0]
+@22
+sram_controller.axi_rd_alloc_size[7:0]
+@200
+-axi-rd-sram
+@28
+sram_controller.axi_rd_sram_valid
+sram_controller.axi_rd_sram_ready
+sram_controller.axi_rd_sram_id[1:0]
+@22
+sram_controller.axi_rd_sram_data[63:0]
+sram_controller.axi_rd_sram_ready_per_channel[3:0]
+@200
+-axi-wr-sram
+@22
+sram_controller.axi_wr_sram_valid[3:0]
+@28
+sram_controller.axi_wr_sram_drain
+@24
+sram_controller.axi_wr_sram_id[1:0]
+@22
+sram_controller.axi_wr_sram_data[63:0]
+@200
+-unit0
+-latency-bridge
+@22
+sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.SKID_DEPTH[31:0]
+@28
+sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.clk
+sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.rst_n
+sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.s_valid
+sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.s_ready
+@22
+sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.s_data[63:0]
+@28
+sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.m_valid
+sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.m_ready
+@22
+sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.m_data[63:0]
+@28
+sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.skid_count[2:0]
+sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.skid_wr_valid
+sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.skid_wr_ready
+@22
+sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.skid_wr_data[63:0]
+@200
+-fifo
+@22
+sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.DEPTH[31:0]
+@28
+sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.axi_aclk
+sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.axi_aresetn
+sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.wr_valid
+sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.wr_ready
+@22
+sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.wr_data[63:0]
+@28
+sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.rd_valid
+sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.rd_ready
+@22
+sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.rd_data[63:0]
+@23
+sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.count[8:0]
+[pattern_trace] 1
+[pattern_trace] 0

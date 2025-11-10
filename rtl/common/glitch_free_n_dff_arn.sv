@@ -332,7 +332,7 @@ module glitch_free_n_dff_arn #(
     logic [FC-1:0][WIDTH-1:0] r_q_array;
 
     `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
             // Reset all the flip-flops
             r_q_array <= {FC{{DW{1'b0}}}};
         end else begin

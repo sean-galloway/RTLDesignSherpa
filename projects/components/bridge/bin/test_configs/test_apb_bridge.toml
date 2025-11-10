@@ -1,0 +1,28 @@
+# APB Bridge Configuration: 1x1 Bridge with APB Slave
+# Tests AXI4 to APB protocol conversion with width adaptation
+# Converted from YAML to TOML format
+
+[bridge]
+name = "apb_bridge"
+description = "1 AXI4 master x 1 APB slave bridge with width conversion"
+
+[[bridge.masters]]
+name = "cpu_master"
+prefix = "cpu_master_axi_"
+id_width = 4
+addr_width = 32
+data_width = 64  # AXI4 master is 64-bit
+user_width = 1
+channels = "rw"  # Full read/write channels
+
+[[bridge.slaves]]
+name = "apb_periph"
+prefix = "apb_periph_"
+protocol = "apb"  # APB protocol slave
+addr_width = 32
+data_width = 32  # APB is 32-bit (requires downsize converter)
+base_addr = "0x00000000"
+addr_range = "0x00010000"  # 64KB APB peripheral space
+# APB-specific configuration
+apb_cmd_depth = 4  # Command FIFO depth
+apb_rsp_depth = 4  # Response FIFO depth

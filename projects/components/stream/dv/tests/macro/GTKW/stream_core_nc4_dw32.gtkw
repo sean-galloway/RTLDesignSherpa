@@ -1,0 +1,213 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Nov 10 00:52:09 2025
+[*]
+[dumpfile] "/mnt/data/github/rtldesignsherpa/projects/components/stream/dv/tests/macro/local_sim_build/test_stream_core_single_nc4_dw32/dump.vcd"
+[dumpfile_mtime] "Mon Nov 10 00:40:58 2025"
+[dumpfile_size] 891699
+[savefile] "/mnt/data/github/rtldesignsherpa/projects/components/stream/dv/tests/macro/GTKW/stream_core_nc4_dw32.gtkw"
+[timestart] 0
+[size] 3352 1784
+[pos] -1 -1
+*-16.807648 280000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] stream_core.
+[treeopen] stream_core.u_scheduler_group_array.
+[treeopen] stream_core.u_scheduler_group_array.gen_scheduler_groups[0].
+[treeopen] stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.
+[treeopen] stream_core.u_sram_controller.gen_channel_units[0].
+[sst_width] 412
+[signals_width] 630
+[sst_expanded] 1
+[sst_vpaned_height] 789
+@22
+stream_core.NUM_CHANNELS[31:0]
+stream_core.DW[31:0]
+stream_core.MON_UNIT_ID[31:0]
+stream_core.TIMEOUT_CYCLES[31:0]
+stream_core.SCHED_MON_BASE_AGENT_ID[31:0]
+stream_core.cfg_channel_enable[3:0]
+stream_core.cfg_channel_reset[3:0]
+@28
+stream_core.cfg_perf_enable
+stream_core.cfg_perf_clear
+stream_core.cfg_perf_mode
+stream_core.cfg_sched_compl_enable
+stream_core.cfg_sched_enable
+stream_core.cfg_sched_timeout_enable
+stream_core.cfg_sts_data_rd_skid_busy
+stream_core.cfg_sts_data_wr_skid_busy
+@22
+stream_core.cfg_sts_desc_axi_active_txns[7:0]
+@28
+stream_core.cfg_sts_desc_axi_busy
+stream_core.cfg_sts_desc_axi_conflict_error
+@22
+stream_core.cfg_sts_desc_axi_error_count[15:0]
+stream_core.cfg_sts_desc_axi_txn_count[31:0]
+@28
+stream_core.cfg_sts_desc_rd_skid_busy
+stream_core.clk
+stream_core.rst_n
+@200
+-apb-descr
+@28
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.channel_idle
+@22
+stream_core.apb_valid[3:0]
+stream_core.apb_ready[3:0]
+stream_core.apb_addr[255:0]
+@28
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.w_apb_skid_valid_out
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.w_apb_skid_ready_out
+@22
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.w_apb_skid_dout[63:0]
+@28
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.r_apb_ip
+@200
+-axi-descr-rd
+@28
+stream_core.m_axi_desc_arvalid
+stream_core.m_axi_desc_arready
+@22
+stream_core.m_axi_desc_araddr[63:0]
+stream_core.m_axi_desc_arlen[7:0]
+@28
+stream_core.m_axi_desc_rvalid
+stream_core.m_axi_desc_rready
+@22
+stream_core.m_axi_desc_rdata[255:0]
+stream_core.m_axi_desc_arid[7:0]
+@28
+stream_core.m_axi_desc_rlast
+@200
+-descriptor-axi-interface
+@28
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.ar_valid
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.ar_ready
+@22
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.ar_addr[63:0]
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.ar_len[7:0]
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.ar_id[7:0]
+@28
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.r_valid
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.r_ready
+@22
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.r_data[255:0]
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.r_id[7:0]
+@28
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.r_last
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.r_resp[1:0]
+@200
+-scheduler
+@22
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.r_current_state[3:0]
+@28
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.r_descriptor_error
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.descriptor_error
+@200
+-descriptor-scheduler
+@28
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.descriptor_valid
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.descriptor_ready
+@22
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.descriptor_packet[255:0]
+@28
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.r_descriptor_error
+@29
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.descriptor_error
+@200
+-scheduler
+@28
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.w_pkt_valid
+@22
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.w_pkt_src_addr[63:0]
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.w_pkt_dst_addr[63:0]
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.w_pkt_next_descriptor_ptr[31:0]
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.w_pkt_length[31:0]
+@28
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.w_pkt_last
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.r_descriptor_loaded
+@22
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.scheduler_state[3:0]
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.r_src_addr[63:0]
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.r_dst_addr[63:0]
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.r_beats_remaining[31:0]
+@200
+-descriptor-rd-axi-engine
+@28
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.datard_valid
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.datard_ready
+@22
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.datard_addr[63:0]
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.datard_beats_done[31:0]
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.datard_beats_remaining[31:0]
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.datard_channel_id[3:0]
+@28
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.datard_done_strobe
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.datard_error
+@200
+-descriptor-internals
+@22
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.cfg_addr0_base[63:0]
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.cfg_addr0_limit[63:0]
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.cfg_addr1_base[63:0]
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.cfg_addr1_limit[63:0]
+@28
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.w_next_addr_valid
+@22
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.w_next_addr[31:0]
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.w_next_addr_extended[63:0]
+@28
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.descriptor_valid
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.descriptor_ready
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.descriptor_type[1:0]
+@22
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.descriptor_packet[255:0]
+@200
+-descriptor-axi-skid-buffer
+@28
+stream_core.u_scheduler_group_array.u_desc_axi_monitor.fub_axi_arvalid
+stream_core.u_scheduler_group_array.u_desc_axi_monitor.fub_axi_arready
+@22
+stream_core.u_scheduler_group_array.u_desc_axi_monitor.fub_axi_araddr[63:0]
+stream_core.u_scheduler_group_array.u_desc_axi_monitor.fub_axi_arid[7:0]
+@200
+-axi-rd-interface
+@28
+stream_core.u_axi_read_engine.m_axi_arvalid
+@22
+stream_core.u_axi_read_engine.m_axi_arid[7:0]
+stream_core.u_axi_read_engine.m_axi_arlen[7:0]
+@28
+stream_core.u_axi_read_engine.m_axi_rvalid
+@22
+stream_core.u_axi_read_engine.m_axi_rdata[31:0]
+stream_core.u_axi_read_engine.m_axi_rid[7:0]
+@28
+stream_core.u_axi_read_engine.m_axi_rlast
+stream_core.u_axi_read_engine.m_axi_rresp[1:0]
+stream_core.u_axi_read_engine.m_axi_arready
+@22
+stream_core.u_axi_read_engine.m_axi_araddr[63:0]
+@200
+-axi-read-engine
+@22
+stream_core.u_axi_read_engine.sched_rd_valid[3:0]
+stream_core.u_axi_read_engine.w_beats_ok[3:0]
+stream_core.u_axi_read_engine.w_space_ok[3:0]
+stream_core.u_axi_read_engine.w_arb_request[3:0]
+@28
+stream_core.u_axi_read_engine.w_arb_grant_valid
+@200
+-SRAM-controller
+@22
+stream_core.u_sram_controller.FIFO_DEPTH[31:0]
+stream_core.u_sram_controller.NC[31:0]
+stream_core.u_sram_controller.gen_channel_units[0].u_channel_unit.alloc_space_free[9:0]
+@28
+stream_core.u_axi_read_engine.w_arb_grant_id[1:0]
+@22
+stream_core.u_axi_read_engine.w_arb_grant[3:0]
+stream_core.u_axi_read_engine.w_arb_grant_ack[3:0]
+[pattern_trace] 1
+[pattern_trace] 0

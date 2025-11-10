@@ -473,7 +473,7 @@ module monbus_axil_group #(
     end
 
     `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
-if (`RST_ASSERTED(axi_aresetn)) begin
+        if (`RST_ASSERTED(axi_aresetn)) begin
             current_write_addr <= cfg_base_addr;
         end else if (addr_counter_enable) begin
             current_write_addr <= next_write_addr;
@@ -541,7 +541,7 @@ if (`RST_ASSERTED(axi_aresetn)) begin
     logic         upper_word_pending;
 
     `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
-if (`RST_ASSERTED(axi_aresetn)) begin
+        if (`RST_ASSERTED(axi_aresetn)) begin
             write_state <= WRITE_IDLE;
             current_packet <= '0;
             upper_word_pending <= 1'b0;

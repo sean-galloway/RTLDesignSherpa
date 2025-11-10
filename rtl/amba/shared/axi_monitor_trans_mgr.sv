@@ -219,7 +219,7 @@ module axi_monitor_trans_mgr
     // State Change Detection
     // -------------------------------------------------------------------------
     `ALWAYS_FF_RST(aclk, aresetn,
-if (`RST_ASSERTED(aresetn)) begin
+        if (`RST_ASSERTED(aresetn)) begin
             for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
                 r_trans_table_prev[idx] <= '0;
             end
@@ -248,7 +248,7 @@ if (`RST_ASSERTED(aresetn)) begin
     // Address Phase Processor
     // -------------------------------------------------------------------------
     `ALWAYS_FF_RST(aclk, aresetn,
-if (`RST_ASSERTED(aresetn)) begin
+        if (`RST_ASSERTED(aresetn)) begin
             for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
                 r_trans_table[idx].valid <= 1'b0;
             end
@@ -336,7 +336,7 @@ if (`RST_ASSERTED(aresetn)) begin
     // Data Phase Processor
     // -------------------------------------------------------------------------
     `ALWAYS_FF_RST(aclk, aresetn,
-if (`RST_ASSERTED(aresetn)) begin
+        if (`RST_ASSERTED(aresetn)) begin
             // Reset handled by address processor
         end else begin
             // Process data phase transactions
@@ -462,7 +462,7 @@ if (`RST_ASSERTED(aresetn)) begin
     generate
         if (!IS_READ) begin : gen_resp_processor
             `ALWAYS_FF_RST(aclk, aresetn,
-if (`RST_ASSERTED(aresetn)) begin
+        if (`RST_ASSERTED(aresetn)) begin
                     // Reset handled by address processor
                 end else begin
                     // Process response phase

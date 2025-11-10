@@ -32,6 +32,7 @@ import cocotb
 from cocotb_test.simulator import run
 from CocoTBFramework.tbclasses.axi4.axi4_dwidth_converter_wr_tb import AXI4DWidthConverterWriteTB
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
+from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 
 
 @cocotb.test(timeout_time=30, timeout_unit="ms")
@@ -214,7 +215,7 @@ def test_axi4_dwidth_converter_wr(request, params):
     mode = "upsize" if s_data_width < m_data_width else "downsize"
 
     # Create descriptive test name
-    test_name_plus_params = (f"test_axi4_dwidth_converter_"
+    test_name_plus_params = (f"test_axi4_dwidth_converter_wr_"
                             f"{s_data_width}to{m_data_width}_"
                             f"{mode}_{width_ratio}x_{test_level}")
 
@@ -228,13 +229,11 @@ def test_axi4_dwidth_converter_wr(request, params):
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    # Verilog sources - standalone write converter with skid buffers
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba_gaxi'], "gaxi_skid_buffer.sv"),  # Skid buffer for timing
-        os.path.join(rtl_dict['rtl_converters'], f"{dut_name}.sv"),      # Standalone write converter
-    ]
-
-    includes = [rtl_dict['rtl_amba_includes']]
+    # Get verilog sources and includes from filelist
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='projects/components/converters/rtl/filelists/axi4_dwidth_converter_wr.f'
+    )
     # RTL parameters
     # Write converter only - simple direct conversion, no FIFOs
     rtl_parameters = {
@@ -268,29 +267,27 @@ def test_axi4_dwidth_converter_wr(request, params):
         'TEST_CLK_PERIOD': '10',
     }
 
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
         "--trace",
+        "--trace-structs",
         "--trace-depth", "99",
-        "--trace-max-array", "1024",
-        "--trace-underscore",
-        "--trace-threads", "1",
     ]
-
     sim_args = [
-        "--trace",
+        "--trace",  # VCD waveform format
+        "--trace-structs",
         "--trace-depth", "99",
-        "--trace-max-array", "1024",
-        "--trace-underscore",
-        "--trace-threads", "1",
     ]
 
     plusargs = [
-        "+trace",
-        f"+s_width={s_data_width}",
-        f"+m_width={m_data_width}",
-        f"+mode={mode}",
-        f"+test_level={test_level}",
+        "--trace",
     ]
+
+    # Conditionally set COCOTB_TRACE_FILE for VCD generation
+    if bool(int(os.environ.get('WAVES', '0'))):
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
@@ -312,7 +309,7 @@ def test_axi4_dwidth_converter_wr(request, params):
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,  # Disabled - Verilator FST has issues with signal names
+            waves=False,  # VCD controlled by compile_args, not cocotb-test
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,

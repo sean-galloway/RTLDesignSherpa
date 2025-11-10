@@ -407,7 +407,7 @@ module arbiter_round_robin #(
     // Grant outputs and pending ACK state in single always_ff
     // =======================================================================
     `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
             grant            <= '0;
             grant_id         <= '0;
             grant_valid      <= 1'b0;

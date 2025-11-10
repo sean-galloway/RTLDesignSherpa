@@ -64,7 +64,7 @@ module axi_monitor_timeout
 
     // Timeout detection logic
     `ALWAYS_FF_RST(aclk, aresetn,
-if (`RST_ASSERTED(aresetn)) begin
+        if (`RST_ASSERTED(aresetn)) begin
             // Reset local table
             for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
                 r_trans_table_local[idx] <= '0;

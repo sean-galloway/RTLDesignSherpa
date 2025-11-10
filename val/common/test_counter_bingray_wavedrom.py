@@ -42,12 +42,7 @@ from cocotb.triggers import RisingEdge, Timer, ClockCycles
 from cocotb_test.simulator import run
 import pytest
 
-
 # Add repo root to path for CocoTBFramework imports
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-if os.path.join(repo_root, 'bin') not in sys.path:
-    sys.path.insert(0, os.path.join(repo_root, 'bin'))
-
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
@@ -58,7 +53,6 @@ from CocoTBFramework.components.wavedrom.constraint_solver import (
 )
 from CocoTBFramework.components.wavedrom.wavejson_gen import WaveJSONGenerator
 from CocoTBFramework.components.shared.field_config import FieldConfig
-
 
 class CounterBinGrayWaveDromTB(TBBase):
     """Extended testbench for Binary-Gray Counter with WaveDrom visualization support
@@ -459,7 +453,6 @@ class CounterBinGrayWaveDromTB(TBBase):
 
         self.log.info(f"✓ All Binary-Gray Counter WaveDrom scenarios generated{self.get_time_ns_str()}")
 
-
 @cocotb.test(timeout_time=10000, timeout_unit="us")
 async def counter_bingray_wavedrom_test(dut):
     """WaveDrom test for Binary-Gray Counter - generates separate waveforms per scenario"""
@@ -563,7 +556,6 @@ async def counter_bingray_wavedrom_test(dut):
     tb.log.info(f"✓ Binary-Gray Counter WaveDrom test PASSED{tb.get_time_ns_str()}")
     return True
 
-
 def test_counter_bingray_wavedrom(request):
     """
     Pytest entry point for Binary-Gray Counter WaveDrom test
@@ -639,7 +631,6 @@ def test_counter_bingray_wavedrom(request):
     print(f"WIDTH={width}, Max Value={2**width-1}")
     print(f"Output: {sim_build}/bingray_counter_*.json")
     print(f"{'='*60}")
-
 
     # Conditionally set COCOTB_TRACE_FILE for VCD generation
     if bool(int(os.environ.get('WAVES', '0'))):

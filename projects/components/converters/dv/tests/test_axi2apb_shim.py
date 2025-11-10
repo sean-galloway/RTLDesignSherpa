@@ -35,6 +35,7 @@ from CocoTBFramework.components.shared.memory_model import MemoryModel
 
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
+from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 
 
 class Axi2ApbTB(TBBase):
@@ -530,21 +531,11 @@ def test_axi2abp_shim(request, id_width, addr_width, data_width, user_width, apb
     dut_name = "axi4_to_apb_shim"
     toplevel = dut_name
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba'], "shared/cdc_handshake.sv"),
-        os.path.join(rtl_dict['rtl_amba'], "gaxi/gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_amba'], "apb/apb_master.sv"),
-        os.path.join(rtl_dict['rtl_amba'], "apb/apb_master_stub.sv"),
-        os.path.join(rtl_dict['rtl_cmn'],  "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_cmn'],  "fifo_control.sv"),
-        os.path.join(rtl_dict['rtl_amba'], "gaxi/gaxi_fifo_sync.sv"),
-        os.path.join(rtl_dict['rtl_amba'], "shared/axi_gen_addr.sv"),
-        os.path.join(rtl_dict['rtl_converters'], "axi4_to_apb_convert.sv"),
-        os.path.join(rtl_dict['rtl_amba'], "axi4/stubs/axi4_slave_wr_stub.sv"),
-        os.path.join(rtl_dict['rtl_amba'], "axi4/stubs/axi4_slave_rd_stub.sv"),
-        os.path.join(rtl_dict['rtl_amba'], "axi4/stubs/axi4_slave_stub.sv"),
-        os.path.join(rtl_dict['rtl_converters'], f"{dut_name}.sv")
-    ]
+    # Get verilog sources and includes from filelist
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='projects/components/converters/rtl/filelists/axi4_to_apb_shim.f'
+    )
 
     aw_str = TBBase.format_dec(addr_width, 3)
     dw_str = TBBase.format_dec(data_width, 3)
@@ -583,9 +574,24 @@ def test_axi2abp_shim(request, id_width, addr_width, data_width, user_width, apb
     # VCD waveform generation support via WAVES environment variable
     # Trace compilation always enabled (minimal overhead)
     # Set WAVES=1 to enable VCD dumping for debugging
-    compile_args = ["--trace", "--trace-structs", "--trace-depth", "99"]
-    sim_args = ["--trace", "--trace-structs", "--trace-depth", "99"]
-    plusargs = ["--trace"]
+    compile_args = [
+        "--trace",
+        "--trace-structs",
+        "--trace-depth", "99",
+    ]
+    sim_args = [
+        "--trace",  # VCD waveform format
+        "--trace-structs",
+        "--trace-depth", "99",
+    ]
+
+    plusargs = [
+        "--trace",
+    ]
+
+    # Conditionally set COCOTB_TRACE_FILE for VCD generation
+    if bool(int(os.environ.get('WAVES', '0'))):
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
@@ -593,7 +599,7 @@ def test_axi2abp_shim(request, id_width, addr_width, data_width, user_width, apb
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[rtl_dict['rtl_amba_includes']],
+            includes=includes,
             toplevel=toplevel,
             module=module,
             parameters=rtl_parameters,

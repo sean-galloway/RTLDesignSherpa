@@ -343,7 +343,7 @@ module axi4_dwidth_converter_wr #(
             logic [PTR_WIDTH:0]          r_beat_index;  // 0-3: valid, 4: empty (need extra bit)
 
             `ALWAYS_FF_RST(aclk, aresetn,
-if (`RST_ASSERTED(aresetn)) begin
+        if (`RST_ASSERTED(aresetn)) begin
                     r_wdata_buffer <= '0;
                     r_wstrb_buffer <= '0;
                     r_wuser_buffer <= '0;
@@ -370,7 +370,7 @@ if (`RST_ASSERTED(aresetn)) begin
                     end
                     // else: hold
                 end
-            )
+)
 
 
             // Output logic - counter encodes all state
@@ -395,7 +395,7 @@ if (`RST_ASSERTED(aresetn)) begin
             logic                        r_buffer_full;
 
             `ALWAYS_FF_RST(aclk, aresetn,
-if (`RST_ASSERTED(aresetn)) begin
+        if (`RST_ASSERTED(aresetn)) begin
                     r_wdata_buffer <= '0;
                     r_wstrb_buffer <= '0;
                     r_wuser_buffer <= '0;

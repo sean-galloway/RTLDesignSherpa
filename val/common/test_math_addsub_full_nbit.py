@@ -26,14 +26,9 @@ import cocotb
 from cocotb_test.simulator import run
 
 # Add repo root to path for CocoTBFramework imports
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-if os.path.join(repo_root, 'bin') not in sys.path:
-    sys.path.insert(0, os.path.join(repo_root, 'bin'))
-
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
-
 
 class AddSubTB(TBBase):
     """Testbench for adder/subtractor modules."""
@@ -63,13 +58,11 @@ class AddSubTB(TBBase):
         self.dut_type = os.environ.get('DUT', 'unknown')
         self.log.info(f"Testing {self.dut_type} with N={self.N}")
 
-
     def clear_interface(self):
         """Clear the DUT interface by setting all inputs to 0."""
         self.dut.i_a.value = 0
         self.dut.i_b.value = 0
         self.dut.i_c.value = 0
-
 
     def print_settings(self):
         """Print the current testbench settings."""
@@ -81,7 +74,6 @@ class AddSubTB(TBBase):
         self.log.info(f'    Seed:  {self.seed}')
         self.log.info(f'    Level: {self.test_level}')
         self.log.info('-------------------------------------------')
-
 
     async def main_loop(self, count=256):
         """Main test loop for adder/subtractor.
@@ -163,7 +155,6 @@ class AddSubTB(TBBase):
         # Print test summary
         self.log.info(f"Test Summary: {self.pass_count}/{self.test_count} passed, {self.fail_count} failed")
 
-
 @cocotb.test(timeout_time=1, timeout_unit="ms")
 async def addsub_dut_test(dut):
     """Test the adder/subtractor module."""
@@ -185,7 +176,6 @@ async def addsub_dut_test(dut):
     # Run the add/sub test
     await tb.main_loop()
 
-
 def get_width_params():
     """Generate width parameters based on REG_LEVEL."""
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
@@ -196,7 +186,6 @@ def get_width_params():
         return [4, 8]  # FUNC: Small and medium widths
     else:  # FULL
         return [4, 8, 12]  # FULL: All widths
-
 
 @pytest.mark.parametrize("n", get_width_params())
 def test_math_addsub_full_nbit(request, n):

@@ -58,7 +58,7 @@ module axi4_dwidth_converter_rd #(
 
     // Skid buffer packed widths
     localparam int AR_WIDTH = AXI_ID_WIDTH + AXI_ADDR_WIDTH + 8 + 3 + 2 + 1 + 4 + 3 + 4 + 4 + AXI_USER_WIDTH,
-    localparam int R_WIDTH  = M_AXI_DATA_WIDTH + 2 + AXI_USER_WIDTH + 1 + AXI_ID_WIDTH
+    localparam int R_WIDTH  = S_AXI_DATA_WIDTH + 2 + AXI_USER_WIDTH + 1 + AXI_ID_WIDTH
 ) (
     // Clock and Reset
     input  logic                        aclk,
@@ -171,7 +171,7 @@ module axi4_dwidth_converter_rd #(
     logic                        int_r_ready;
 
     logic [AXI_ID_WIDTH-1:0]     int_rid;
-    logic [M_AXI_DATA_WIDTH-1:0] int_rdata;
+    logic [S_AXI_DATA_WIDTH-1:0] int_rdata;
     logic [1:0]                  int_rresp;
     logic                        int_rlast;
     logic [AXI_USER_WIDTH-1:0]   int_ruser;
@@ -299,7 +299,7 @@ module axi4_dwidth_converter_rd #(
             logic [AXI_USER_WIDTH-1:0]   r_ruser_buffered;
 
             `ALWAYS_FF_RST(aclk, aresetn,
-                if (`RST_ASSERTED(aresetn)) begin
+        if (`RST_ASSERTED(aresetn)) begin
                     r_rdata_accumulator <= '0;
                     r_accum_ptr <= '0;
                     r_wide_beat_valid <= 1'b0;
@@ -370,7 +370,7 @@ module axi4_dwidth_converter_rd #(
             logic                        r_burst_active;
 
             `ALWAYS_FF_RST(aclk, aresetn,
-                if (`RST_ASSERTED(aresetn)) begin
+        if (`RST_ASSERTED(aresetn)) begin
                     r_rdata_buffer <= '0;
                     r_rresp_buffer <= '0;
                     r_ruser_buffer <= '0;
@@ -420,7 +420,7 @@ module axi4_dwidth_converter_rd #(
                         end
                     end
                 end
-            )
+)
 
             // Determine last slave beat
             logic w_last_slave_beat;

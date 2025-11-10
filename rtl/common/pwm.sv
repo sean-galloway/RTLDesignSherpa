@@ -238,12 +238,6 @@
 //   - **Applications:** Motor control, LED dimming, servo control, audio DAC
 //
 //------------------------------------------------------------------------------
-// Related Modules:
-//------------------------------------------------------------------------------
-//   - counter_bin.sv - Basic counter (used internally)
-//   - clock_divider.sv - Frequency division (different approach)
-//
-//------------------------------------------------------------------------------
 // Test:
 //------------------------------------------------------------------------------
 //   Location: val/common/test_pwm.py
@@ -309,7 +303,7 @@ module pwm #(
 
             // Edge detection for start signal
             `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
                     r_start_prev <= 1'b0;
                 end else if (!sync_rst_n) begin
                     r_start_prev <= 1'b0;
@@ -329,7 +323,7 @@ if (`RST_ASSERTED(rst_n)) begin
 
             // State machine
             `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
                     r_state <= IDLE;
                 end else if (!sync_rst_n) begin
                     r_state <= IDLE;
@@ -361,7 +355,7 @@ if (`RST_ASSERTED(rst_n)) begin
 
             // Counter logic
             `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
                     r_count <= '0;
                 end else if (!sync_rst_n) begin
                     r_count <= '0;
@@ -393,7 +387,7 @@ if (`RST_ASSERTED(rst_n)) begin
 
             // Repeat counter logic
             `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
                     r_repeat_value <= '0;
                 end else if (!sync_rst_n) begin
                     r_repeat_value <= '0;

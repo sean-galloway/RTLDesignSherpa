@@ -123,7 +123,7 @@ module shifter_lfsr_fibonacci #(
     assign lfsr_out = r_lfsr;
 
     `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
             r_lfsr <= 'b0;  // initialization to all 0's
         end else begin
             if (enable) begin

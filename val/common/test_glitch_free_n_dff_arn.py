@@ -44,15 +44,10 @@ import cocotb
 from cocotb_test.simulator import run
 
 # Add repo root to path for CocoTBFramework imports
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-if os.path.join(repo_root, 'bin') not in sys.path:
-    sys.path.insert(0, os.path.join(repo_root, 'bin'))
-
 from CocoTBFramework.tbclasses.glitch_free_n_dff_arn_tb import GlitchFreeNDffArnTB
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
-
 
 # ===========================================================================
 # COCOTB TEST FUNCTIONS - prefix with "cocotb_" to prevent pytest collection
@@ -65,7 +60,6 @@ async def cocotb_glitch_free_n_dff_test(dut):
     await tb.setup_clocks_and_reset()
     passed = await tb.run_all_tests()
     assert passed, "glitch_free_n_dff_arn test failed"
-
 
 # ===========================================================================
 # PARAMETER GENERATION
@@ -81,7 +75,6 @@ def generate_test_params():
         (3, 16, 'word'),        # Standard sync for word
         (5, 32, 'safe'),        # Extra-safe 5-stage for double-word
     ]
-
 
 # ===========================================================================
 # PYTEST WRAPPER FUNCTIONS

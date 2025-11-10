@@ -86,7 +86,7 @@ module arbiter_round_robin_simple #(
     // State update
     // ------------------------------
     `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
             r_last_grant <= (W)'(N-1); // first pass starts at agent 0
         end else if (w_grant_valid) begin
             r_last_grant <= w_grant_id;

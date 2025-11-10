@@ -49,7 +49,8 @@ Detailed reference documentation (auto-generated and curated):
 - **[projects/components/index.md](../projects/components/index.md)** - Master component index (all components)
 - **[projects/index.md](markdown/projects/index.md)** - Component documentation index
 - **[projects/overview.md](markdown/projects/overview.md)** - Component ecosystem and patterns
-- **[projects/apb_hpet.md](markdown/projects/apb_hpet.md)** - APB HPET Timer detailed documentation
+- **[projects/apb_hpet.md](markdown/projects/apb_hpet.md)** - APB HPET Timer (redirects to Retro Legacy Blocks)
+- **[retro_legacy_blocks/](../projects/components/retro_legacy_blocks/README.md)** - Legacy peripheral collection (HPET, PIC, PIT, RTC, etc.)
 
 #### RTL Modules
 - **[RTLAmba/](markdown/RTLAmba/)** - AMBA protocol modules (AXI4, APB, AXIS)
@@ -85,7 +86,8 @@ Detailed reference documentation (auto-generated and curated):
 | Configure AXI monitors | [guides/AXI_Monitor_Configuration_Guide.md](guides/AXI_Monitor_Configuration_Guide.md) |
 | Understand test methodology | [guides/VERIFICATION_ARCHITECTURE_GUIDE.md](guides/VERIFICATION_ARCHITECTURE_GUIDE.md) |
 | See AXI4 test matrix | [design/AXI4_Complete_Matrix_Phase4.md](design/AXI4_Complete_Matrix_Phase4.md) |
-| Learn about APB HPET | [markdown/projects/apb_hpet.md](markdown/projects/apb_hpet.md) |
+| Learn about Retro Legacy Blocks | [../projects/components/retro_legacy_blocks/README.md](../projects/components/retro_legacy_blocks/README.md) |
+| Learn about HPET Timer | [../projects/components/retro_legacy_blocks/docs/hpet_spec/hpet_index.md](../projects/components/retro_legacy_blocks/docs/hpet_spec/hpet_index.md) |
 | Browse RTL modules | [markdown/RTLAmba/](markdown/RTLAmba/) or [markdown/RTLCommon/](markdown/RTLCommon/) |
 | Use WaveDrom | [guides/Wavedrom_AutoBind_Guide.md](guides/Wavedrom_AutoBind_Guide.md) |
 | Understand CDC optimization failure | [investigations/README.md](investigations/README.md) |
@@ -159,8 +161,9 @@ Deploy: Full SoC designs with verification
 
 **If you're implementing a component:**
 1. Read [markdown/projects/overview.md](markdown/projects/overview.md) for patterns
-2. Check [markdown/projects/apb_hpet.md](markdown/projects/apb_hpet.md) for complete example
-3. See [guides/AXI_Monitor_Configuration_Guide.md](guides/AXI_Monitor_Configuration_Guide.md) for monitoring
+2. Check [../projects/components/retro_legacy_blocks/README.md](../projects/components/retro_legacy_blocks/README.md) for collection example
+3. Review [../projects/components/retro_legacy_blocks/docs/hpet_spec/hpet_index.md](../projects/components/retro_legacy_blocks/docs/hpet_spec/hpet_index.md) for complete peripheral example
+4. See [guides/AXI_Monitor_Configuration_Guide.md](guides/AXI_Monitor_Configuration_Guide.md) for monitoring
 
 **If you're debugging:**
 1. Check [guides/descriptor_engine_waveform_guide.md](guides/descriptor_engine_waveform_guide.md)
@@ -199,8 +202,10 @@ Each subdirectory has its own detailed README:
 - **WaveDrom Candidates**: [design/WAVEDROM_CANDIDATE_SURVEY.md](design/WAVEDROM_CANDIDATE_SURVEY.md)
 
 ### Component Documentation
-- **APB HPET Timer**: [markdown/projects/apb_hpet.md](markdown/projects/apb_hpet.md)
+- **Retro Legacy Blocks Collection**: [../projects/components/retro_legacy_blocks/README.md](../projects/components/retro_legacy_blocks/README.md)
+- **HPET Timer Specification**: [../projects/components/retro_legacy_blocks/docs/hpet_spec/hpet_index.md](../projects/components/retro_legacy_blocks/docs/hpet_spec/hpet_index.md)
 - **Component Overview**: [markdown/projects/overview.md](markdown/projects/overview.md)
+- **Component Index**: [markdown/projects/index.md](markdown/projects/index.md)
 
 ---
 

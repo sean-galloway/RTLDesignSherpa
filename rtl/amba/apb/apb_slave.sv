@@ -133,7 +133,7 @@ module apb_slave #(
     logic r_penable_prev;  // Track previous PENABLE to detect rising edge
 
     `ALWAYS_FF_RST(pclk, presetn,
-if (`RST_ASSERTED(presetn)) begin
+        if (`RST_ASSERTED(presetn)) begin
             r_apb_state   <= IDLE;
             s_apb_PREADY  <= 'b0;
             s_apb_PSLVERR <= 'b0;

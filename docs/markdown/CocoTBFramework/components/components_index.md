@@ -15,6 +15,9 @@ This directory contains the core verification components for the CocoTBFramework
 - [**FIFO Components**](fifo/components_fifo_index.md) - First-In-First-Out protocol components for buffer and queue verification
 - [**GAXI Components**](gaxi/components_gaxi_index.md) - Generic AXI-like protocol components with simplified interface
 
+### Serial Protocols
+- [**UART Components**](uart/uart_components.md) - Universal Asynchronous Receiver/Transmitter (UART) protocol components with 8N1 support
+
 ### Specialized Components
 - [**Misc Components**](misc/components_misc_index.md) - Specialized monitoring and verification components for specific use cases
 

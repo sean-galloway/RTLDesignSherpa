@@ -1,6 +1,6 @@
 # Projects/Components Quick Status
 
-**Last Updated:** 2025-10-25
+**Last Updated:** 2025-10-29
 **Purpose:** High-level status overview of all projects in the components area
 
 ---
@@ -27,6 +27,8 @@
 | **bridge** | Specification Complete | 1 | 1 | Medium |
 | **delta** | Active Development | 1 | 0 | Medium |
 | **hive** | Early Specification | 0 | 0 | Low |
+| **retro_legacy_blocks** | Active Development | 14 (HPET) | 4 | Medium |
+| **bch** | Future Project | 0 | 0 | Low |
 
 ---
 
@@ -310,6 +312,106 @@
 
 ---
 
+### 9. Retro Legacy Blocks - Intel ILB-Compatible Peripherals
+
+**Status:** Active Development (HPET production ready)
+**Version:** 1.0
+**Location:** `projects/components/retro_legacy_blocks/`
+
+**What it does:**
+- Collection of Intel Low-power Block (ILB) compatible legacy peripherals
+- Production-quality implementations of time-tested peripheral designs
+- Modular blocks for embedded systems and FPGA-based platform emulation
+
+**Current Blocks:**
+- **HPET** (High Precision Event Timer) - ✅ Production Ready (0x4000_0000-0x0FFF)
+
+**Planned Blocks (ILB Address Map):**
+- **8259 PIC** - Programmable Interrupt Controller (0x4000_1000-0x1FFF) - High Priority
+- **8254 PIT** - Programmable Interval Timer (0x4000_2000-0x2FFF) - High Priority
+- **RTC** - Real-Time Clock (0x4000_3000-0x3FFF)
+- **SMBus** - System Management Bus Controller (0x4000_4000-0x4FFF)
+- **PM/ACPI** - Power Management Controller (0x4000_5000-0x5FFF)
+- **IOAPIC** - I/O Advanced PIC (0x4000_6000-0x6FFF)
+- GPIO, UART, SPI, I2C, Watchdog, Interconnect (future)
+
+**ILB Wrapper Goal:**
+- Single APB slave entry point at 0x4000_0000
+- 4KB window decode routing to individual blocks
+- Drop-in replacement for legacy Intel ILB
+
+**Documentation:**
+- `PRD.md` - Complete requirements for all blocks
+- `CLAUDE.md` - AI development guidance
+- `BLOCK_STATUS.md` - Master tracking for all 13 blocks
+- `docs/hpet_spec/` - Complete HPET specification (PDF)
+
+**Use Cases:**
+- Legacy platform compatibility
+- FPGA-based system emulation
+- Educational peripheral design
+- Embedded systems requiring ILB peripherals
+
+**Next Steps:**
+- 8259 PIC implementation (Q1 2026)
+- 8254 PIT implementation (Q1 2026)
+- RTC implementation (Q1 2026)
+
+---
+
+### 10. BCH - Error Correction Codes
+
+**Status:** Future Project - Structure Created
+**Version:** 0.1
+**Location:** `projects/components/bch/`
+
+**What it does:**
+- Configurable BCH (Bose-Chaudhuri-Hocquenghem) encoder and decoder
+- Production-quality error correction for storage and communications
+- Suitable for NAND flash, SSDs, optical storage, wireless communications
+
+**Planned Features:**
+- Configurable BCH(n, k, t) parameters
+- Systematic encoder (LFSR-based, low latency)
+- Hard-decision decoder (syndrome, Berlekamp-Massey, Chien search)
+- AXI4-Stream and simple handshake interfaces
+- Support for common configurations: BCH(511,493,2), BCH(1023,1013,2), etc.
+
+**Key Capabilities:**
+- Error correction capability: t = 1, 2, 4, 8, 16+ errors per codeword
+- Code rates: 0.8 to 0.99 (configurable)
+- Galois field arithmetic: GF(2^m) for m = 4 to 12
+- Throughput: 400 Mbps - 6.4 Gbps (depends on parallelism)
+
+**Documentation:**
+- `README.md` - Overview and BCH fundamentals (14 KB)
+- `PRD.md` - Complete product requirements (17 KB)
+- `CLAUDE.md` - AI development guidance and pitfalls (16 KB)
+- `TASKS.md` - Development task tracking (15 KB)
+
+**Use Cases:**
+- NAND flash memory error correction
+- Solid-state drives (SSDs)
+- Optical storage (CD, DVD, Blu-ray)
+- Wireless communications (WiMAX, DVB)
+- Deep space communications
+
+**Development Roadmap:**
+- Phase 1: Foundation - Reference model and tools (4 weeks)
+- Phase 2: Encoder - All configurations (4 weeks)
+- Phase 3: Decoder - Syndrome, BM, Chien, correction (6 weeks)
+- Phase 4: Integration - Codec wrapper, AXI4-Stream (4 weeks)
+- Phase 5: Optimization - Pipeline, performance (4 weeks)
+- Phase 6: Documentation - Complete specification (2 weeks)
+- **Total:** 24 weeks (6 months)
+
+**Next Steps:**
+- Awaiting prioritization and resource allocation
+- Ready for development when needed
+- Reference model and tools will be developed first
+
+---
+
 ## Project Relationships
 
 ### Integration Hierarchy
@@ -369,6 +471,10 @@ Bridge (Memory Interconnect)
 
 **Tier 3 (Early Specification):**
 - hive - Control plane (specification phase)
+- retro_legacy_blocks - ILB-compatible peripherals (HPET complete, 12 blocks planned)
+
+**Tier 4 (Future Projects):**
+- bch - Error correction codes (structure created, awaiting development)
 
 ---
 
@@ -384,6 +490,8 @@ Bridge (Memory Interconnect)
 | **bridge** | TBD | TBD | 0 | Estimate: ~500 LUTs/slave |
 | **delta** | TBD | TBD | 0 | 4x4 mesh estimate: ~15000 LUTs |
 | **hive** | ~9000 | 24 | 0 | HIVE-C + 16 SERV monitors |
+| **retro_legacy_blocks** | ~800 | 0 | 0 | HPET currently, 12 more blocks planned |
+| **bch** | ~5K (enc) / ~30K (dec) | 2-4 | 0 | Encoder + Decoder estimates |
 
 ---
 
@@ -423,5 +531,5 @@ For detailed technical information on each project, see the individual `PRD.md` 
 ---
 
 **Version:** 1.0
-**Last Updated:** 2025-10-25
+**Last Updated:** 2025-10-29
 **Maintained By:** RTL Design Sherpa Project

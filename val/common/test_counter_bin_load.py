@@ -46,17 +46,12 @@ from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, ClockCycles
 
 # Add repo root to path for CocoTBFramework imports
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-if os.path.join(repo_root, 'bin') not in sys.path:
-    sys.path.insert(0, os.path.join(repo_root, 'bin'))
-
 # Import run function for pytest
 from cocotb_test.simulator import run
 
 # Import path utilities
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
-
 
 ##############################################################################
 # CocoTB Test Functions
@@ -92,7 +87,6 @@ async def cocotb_basic_counting(dut):
         assert curr == expected, f"Count mismatch: got {curr}, expected {expected}"
 
     dut._log.info("✅ Basic counting test PASSED")
-
 
 @cocotb.test()
 async def cocotb_fifo_wraparound(dut):
@@ -154,7 +148,6 @@ async def cocotb_fifo_wraparound(dut):
 
     dut._log.info("✅ FIFO wraparound test PASSED")
 
-
 @cocotb.test()
 async def cocotb_load_operation(dut):
     """Test load operation to directly set counter value."""
@@ -190,7 +183,6 @@ async def cocotb_load_operation(dut):
         assert curr == load_val, f"Load failed: got {curr}, expected {load_val}"
 
     dut._log.info("✅ Load operation test PASSED")
-
 
 @cocotb.test()
 async def cocotb_load_priority(dut):
@@ -234,7 +226,6 @@ async def cocotb_load_priority(dut):
 
     dut._log.info("✅ Load priority test PASSED")
 
-
 @cocotb.test()
 async def cocotb_hold_when_disabled(dut):
     """Test that counter holds value when enable=0."""
@@ -270,7 +261,6 @@ async def cocotb_hold_when_disabled(dut):
         assert curr == test_value, f"Counter changed while disabled: got {curr}, expected {test_value}"
 
     dut._log.info("✅ Hold when disabled test PASSED")
-
 
 ##############################################################################
 # Pytest Test Cases
@@ -325,7 +315,6 @@ def generate_test_parameters():
 
     return test_params
 
-
 @pytest.mark.parametrize("width, max_value, test_id",
                          generate_test_parameters())
 def test_counter_bin_load(request, width, max_value, test_id):
@@ -352,7 +341,8 @@ def test_counter_bin_load(request, width, max_value, test_id):
     toplevel = dut_name
 
     # Create human-readable test identifier
-    test_name_plus_params = f"test_counter_bin_load_w{width}_max{max_value}_{test_id}"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name_plus_params = f"test_counter_bin_load_w{width}_max{max_value}_{test_id}_{reg_level}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Setup directories
@@ -401,7 +391,6 @@ def test_counter_bin_load(request, width, max_value, test_id):
     print(f"Log: {log_path}")
     print(f"{'='*60}")
 
-
     # Conditionally set COCOTB_TRACE_FILE for VCD generation
     if bool(int(os.environ.get('WAVES', '0'))):
         extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
@@ -429,7 +418,6 @@ def test_counter_bin_load(request, width, max_value, test_id):
         print(f"To view waveforms run: {cmd_filename}")
         raise
 
-
 ##############################################################################
 # Smoke Test
 ##############################################################################
@@ -449,7 +437,6 @@ def test_counter_bin_load_smoke():
         max_value=8,
         test_id="smoke"
     )
-
 
 if __name__ == "__main__":
     """

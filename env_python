@@ -1,12 +1,23 @@
 #!/bin/bash
 # Load project-specific environment for Python + RTL tools
-source venv/bin/activate 
 
 # Ensure this is sourced: `source env_python` (don't just run it)
 
 # Set the root of the git repo as REPO_ROOT
 # export REPO_ROOT=$(git rev-parse --show-toplevel)
 export REPO_ROOT=/mnt/data/github/rtldesignsherpa/
+
+export APB_XBAR_ROOT=$REPO_ROOT/projects/components/apb_xbar
+export BCH_ROOT=$REPO_ROOT/projects/components/bch
+export BRIDGE_ROOT=$REPO_ROOT/projects/components/bridge
+export CONVERTERS_ROOT=$REPO_ROOT/projects/components/converters
+export DELTA_ROOT=$REPO_ROOT/projects/components/delta
+export RAPIDS_ROOT=$REPO_ROOT/projects/components/rapids
+export RETRO_ROOT=$REPO_ROOT/projects/components/retro_legacy_blocks
+export STREAM_ROOT=$REPO_ROOT/projects/components/stream
+
+# Activate venv (use absolute path from REPO_ROOT)
+source $REPO_ROOT/venv/bin/activate
 
 # Add Verible binaries to PATH
 export PATH="$PATH:/home/seang/github/verible-v0.0-3999-g93adb37c/bin/"
@@ -21,23 +32,22 @@ export PATH="$REPO_ROOT/bin/rtl_generators/axi:$PATH"
 export PATH="$REPO_ROOT/venv/bin/yowasp-yosys:$PATH"  # optional: should this be in $REPO_ROOT/bin?
 
 # Add Python modules to PYTHONPATH
+export PYTHONPATH="$REPO_ROOT:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/bin:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/bin/rtl_generators:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/bin/val_project:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/bin/vcd2wavedrom2:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/bin/rtl_generators/axi:$PYTHONPATH"
 
-# Add STREAM DV directory for self-contained project imports
-export PYTHONPATH="$REPO_ROOT/projects/components/stream/dv:$PYTHONPATH"
-
-# Add RAPIDS DV directory for self-contained project imports
-export PYTHONPATH="$REPO_ROOT/projects/components/rapids/dv:$PYTHONPATH"
-
-# Add DELTA DV directory for self-contained project imports
-export PYTHONPATH="$REPO_ROOT/projects/components/delta/dv:$PYTHONPATH"
-
-# Add BRIDGE DV directory for self-contained project imports
+# Add project DV directories for self-contained project imports
+export PYTHONPATH="$REPO_ROOT/projects/components/apb_xbar/dv:$PYTHONPATH"
+export PYTHONPATH="$REPO_ROOT/projects/components/bch/dv:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/projects/components/bridge/dv:$PYTHONPATH"
+export PYTHONPATH="$REPO_ROOT/projects/components/converters/dv:$PYTHONPATH"
+export PYTHONPATH="$REPO_ROOT/projects/components/delta/dv:$PYTHONPATH"
+export PYTHONPATH="$REPO_ROOT/projects/components/rapids/dv:$PYTHONPATH"
+export PYTHONPATH="$REPO_ROOT/projects/components/retro_legacy_blocks/dv:$PYTHONPATH"
+export PYTHONPATH="$REPO_ROOT/projects/components/stream/dv:$PYTHONPATH"
 
 # Set default simulation tool
 export SIM=verilator
@@ -53,6 +63,11 @@ echo "[env_python] Environment configured for REPO_ROOT=$REPO_ROOT"
 # Usage: ptw test_cam_tag.py
 #        ptw test_counter.py::test_counter
 alias ptw='WAVES=1 REG_LEVEL=GATE python3 -m pytest -v -s'
+
+# ptwp - Pytest With Waves (generates VCD waveforms)
+# Usage: ptwp test_cam_tag.py
+#        ptwp test_counter.py::test_counter
+alias ptwp='WAVES=1 REG_LEVEL=GATE python3 -m pytest -v -s -n logical'
 
 # ptg - Pytest Gate level (quick smoke tests)
 # Usage: ptg test_*.py

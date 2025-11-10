@@ -528,7 +528,8 @@ def test_gaxi_buffer_async_wavedrom(request, data_width, depth, wr_clk_period, r
     clk_ratio = max(wr_clk_period, rd_clk_period) / min(wr_clk_period, rd_clk_period)
     ratio_str = f"r{clk_ratio:.1f}".replace('.', 'p')  # r1p2 for 1.2x ratio
 
-    test_name_plus_params = f"test_{worker_id}_gaxi_async_{mode}_w{w_str}_d{d_str}_wr{wr_str}_rd{rd_str}_{ratio_str}_wd"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name_plus_params = f"test_{worker_id}_gaxi_async_{mode}_w{w_str}_d{d_str}_wr{wr_str}_rd{rd_str}_{ratio_str}_wd_{reg_level}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # use it in the simbuild path

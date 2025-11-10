@@ -416,7 +416,7 @@ Components provide estimated resource usage in PRD.md:
 - **Memory (BRAM):** Block RAM utilization
 - **DSP:** DSP block usage (if applicable)
 
-**Example (APB HPET):**
+**Example (HPET from Retro Legacy Blocks):**
 - 2-timer (no CDC): ~500 LUTs, ~300 FFs
 - 3-timer (no CDC): ~650 LUTs, ~400 FFs
 - 8-timer (CDC): ~1200 LUTs, ~800 FFs
@@ -473,7 +473,7 @@ Components provide estimated resource usage in PRD.md:
 
 ### Internal Documentation
 - [Component Index](index.md) - All components
-- [APB HPET](apb_hpet.md) - High Precision Event Timer
+- [Retro Legacy Blocks](../../../projects/components/retro_legacy_blocks/README.md) - HPET, PIC, PIT, RTC, etc.
 - [Master PRD](../../../PRD.md) - Project requirements
 - [Repository Guide](../../../CLAUDE.md) - Repository overview
 

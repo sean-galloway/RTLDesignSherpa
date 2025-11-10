@@ -383,7 +383,7 @@ module arbiter_monbus_common #(
         if (WAIT_GNT_ACK == 1) begin : gen_ack_monitoring
 
             `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
                     for (int i = 0; i < CLIENTS; i++) begin
                         r_ack_timers[i] <= 16'h0;
                         r_ack_pending[i] <= 1'b0;
@@ -431,7 +431,7 @@ if (`RST_ASSERTED(rst_n)) begin
     // =========================================================================
 
     `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
             r_monitor_state <= MON_IDLE;
         end else begin
             case (r_monitor_state)
@@ -480,7 +480,7 @@ if (`RST_ASSERTED(rst_n)) begin
     // =========================================================================
 
     `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
             r_total_grants <= 16'h0;
             r_total_completed_grants <= 16'h0;
             for (int i = 0; i < CLIENTS; i++) begin
@@ -531,7 +531,7 @@ if (`RST_ASSERTED(rst_n)) begin
     logic [15:0] total_weight;
 
     `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
             r_fairness_timer <= 16'h0;
             r_max_fairness_deviation <= 16'h0;
             for (int i = 0; i < CLIENTS; i++) begin
@@ -614,7 +614,7 @@ if (`RST_ASSERTED(rst_n)) begin
     // =========================================================================
 
     `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
             for (int i = 0; i < CLIENTS; i++) begin
                 r_latency_counters[i] <= 16'h0;
                 r_starvation_counters[i] <= 16'h0;
@@ -649,7 +649,7 @@ if (`RST_ASSERTED(rst_n)) begin
     assign w_sample_event = (r_sample_timer == cfg_mon_sample_period);
 
     `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
             r_sample_timer <= 8'h0;
         end else begin
             if (w_sample_event) begin
@@ -666,7 +666,7 @@ if (`RST_ASSERTED(rst_n)) begin
     // =========================================================================
 
     `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
             r_starvation_event <= 1'b0;
             r_starvation_client <= {N{1'b0}};
             r_latency_threshold_event <= 1'b0;
@@ -905,7 +905,7 @@ if (`RST_ASSERTED(rst_n)) begin
 
     // Packet counter
     `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
             r_debug_packet_count <= 16'h0;
         end else if (w_fifo_write_transfer) begin
             r_debug_packet_count <= r_debug_packet_count + 16'h1;

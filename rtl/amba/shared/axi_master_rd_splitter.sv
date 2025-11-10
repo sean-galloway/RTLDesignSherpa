@@ -285,7 +285,7 @@ module axi_master_rd_splitter
     assign w_is_final_split = (r_split_state == SPLITTING) && !w_split_required;
 
     `ALWAYS_FF_RST(aclk, aresetn,
-if (`RST_ASSERTED(aresetn)) begin
+        if (`RST_ASSERTED(aresetn)) begin
             r_split_state <= IDLE;
             r_current_addr <= '0;
             r_current_len <= '0;

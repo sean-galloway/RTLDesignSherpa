@@ -5,1463 +5,699 @@
 # RTL Design Sherpa - Industry-Standard RTL Design and Verification
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
-# Module: BridgeConfig
-# Purpose: Bridge: AXI4 Full Crossbar Generator (Framework Version)
-#
-# Documentation: projects/components/bridge/PRD.md
-# Subsystem: bridge
+# Module: Bridge Generator (CSV/YAML)
+# Purpose: Generate AXI4 crossbar bridges from CSV configuration
 #
 # Author: sean galloway
-# Created: 2025-10-18
+# Created: 2025-10-31
 
 """
-Bridge: AXI4 Full Crossbar Generator (Framework Version)
-Generates parameterized AXI4 crossbars using the unified verilog framework
+Bridge Generator (CSV/YAML) - Main Entry Point
 
-Bridge connects masters and slaves across the divide, enabling high-performance
-memory-mapped interconnects with out-of-order transaction support.
+Generates AXI4 crossbar bridges from CSV configuration files with:
+- Custom port prefixes per port
+- Channel-specific masters (wr/rd/rw)
+- Intelligent width-aware routing (per-master multi-width paths)
+- Automatic converter insertion (width and protocol)
+- Partial connectivity support
 
-Author: RTL Design Sherpa
-Project: Bridge (AXI4 Full Crossbar Generator)
-Version: 2.0 (Hierarchical architecture with AMBA components)
+Usage:
+    # Single bridge generation
+    python3 bridge_generator.py --ports ports.csv --connectivity connectivity.csv
+
+    # Bulk generation from batch file
+    python3 bridge_generator.py --bulk bridge_batch.csv
+
+See bridge_pkg/ for implementation details.
 """
 
 import argparse
 import sys
 import os
-import math
-from dataclasses import dataclass
-from typing import Tuple, Dict
+import shutil
+import csv
+import re
 from pathlib import Path
+from jinja2 import Environment, FileSystemLoader
 
-# Import the framework
-sys.path.insert(0, str(Path(__file__).resolve().parents[4] / 'bin'))
-from rtl_generators.verilog.module import Module
-
-# Import hierarchical bridge modules
-from bridge_amba_integrator import BridgeAmbaIntegrator
-from bridge_address_arbiter import BridgeAddressArbiter
-from bridge_channel_router import BridgeChannelRouter
-from bridge_response_router import BridgeResponseRouter
+from bridge_pkg import (BridgeConfig, parse_ports_csv, parse_connectivity_csv, load_config,
+                        BridgeModuleGenerator, MasterConfig, SlaveInfo)
 
 
-@dataclass
-class BridgeConfig:
-    """Configuration for AXI4 crossbar generation"""
-    num_masters: int        # Number of master interfaces
-    num_slaves: int         # Number of slave interfaces
-    data_width: int         # Data bus width in bits
-    addr_width: int         # Address bus width in bits
-    id_width: int           # Transaction ID width in bits
-    address_map: Dict[int, Dict]  # Address ranges per slave
-    pipeline_outputs: bool = True  # Register slave outputs
-    enable_counters: bool = True   # Performance counters
-    # AMBA component skid buffer depths
-    skid_depth_aw: int = 2  # Address Write channel skid depth
-    skid_depth_w: int = 4   # Write data channel skid depth (larger for data)
-    skid_depth_b: int = 2   # Write response channel skid depth
-    skid_depth_ar: int = 2  # Address Read channel skid depth
-    skid_depth_r: int = 4   # Read data channel skid depth (larger for data)
+# ==============================================================================
+# Test Generation Helper Functions
+# ==============================================================================
+
+def determine_channel_type(masters):
+    """Determine overall channel type based on masters."""
+    has_write = any(m.has_write_channels() for m in masters)
+    has_read = any(m.has_read_channels() for m in masters)
+
+    if has_write and has_read:
+        return "rw"
+    elif has_write:
+        return "wr"
+    elif has_read:
+        return "rd"
+    else:
+        raise ValueError("No valid channels found in masters")
 
 
-class BridgeFlatCrossbar(Module):
+def build_tb_class_name(name, channel_type):
+    """Build testbench class name from bridge name."""
+    # Remove "bridge_" prefix if present
+    if name.startswith("bridge_"):
+        name = name[7:]
+
+    # Split on underscores and capitalize each part
+    parts = name.split('_')
+    pascal_parts = [p.capitalize() for p in parts]
+
+    # Add "TB" suffix
+    return f"Bridge{''.join(pascal_parts)}TB"
+
+
+def build_tb_module_name(tb_class_name):
+    """Build Python module name from TB class name."""
+    # Convert PascalCase to snake_case
+    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', tb_class_name)
+    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+
+
+def generate_tests(ports_file, connectivity_file, bridge_name, output_tb_dir, output_test_dir, enable_ooo=True):
+    """Generate testbench class and test file from CSV or YAML configuration.
+
+    Args:
+        ports_file: Path to ports.csv or ports.yaml
+        connectivity_file: Path to connectivity.csv (or None for YAML auto-detect)
+        bridge_name: Bridge module name
+        output_tb_dir: Output directory for TB class
+        output_test_dir: Output directory for test file
+        enable_ooo: Enable out-of-order support
+
+    Returns:
+        True if successful, False otherwise
     """
-    AXI4 Full Crossbar Generator using Module framework
+    try:
+        # Detect file format
+        ports_ext = Path(ports_file).suffix.lower()
+        is_config_file = ports_ext in ['.yaml', '.yml', '.toml']
 
-    Key Differences from Delta (AXIS):
-    1. 5 independent channels (AW, W, B, AR, R) vs 1 channel
-    2. Address range decode vs TDEST decode
-    3. ID-based response routing (B, R channels)
-    4. Transaction tracking tables for out-of-order support
-    5. Separate read/write arbitration
+        if is_config_file:
+            # YAML format - use load_config
+            conn_path = connectivity_file if connectivity_file else None
+            config = load_config(ports_file, conn_path)
+        else:
+            # CSV format - use old parsers
+            masters, slaves = parse_ports_csv(ports_file)
+            connectivity = parse_connectivity_csv(connectivity_file, masters, slaves)
+            config = BridgeConfig(
+                masters=masters,
+                slaves=slaves,
+                connectivity=connectivity
+            )
+
+        # Determine channel type
+        channel_type = determine_channel_type(config.masters)
+
+        # Build class names
+        tb_class_name = build_tb_class_name(bridge_name, channel_type)
+        tb_class_module = build_tb_module_name(tb_class_name)
+
+        # Build template context
+        master_names = ', '.join(m.port_name for m in config.masters)
+        slave_names = ', '.join(s.port_name for s in config.slaves)
+
+        data_width = max(
+            max((m.data_width for m in config.masters), default=32),
+            max((s.data_width for s in config.slaves), default=32)
+        )
+
+        # HARD LIMIT: All agents use 64-bit address width
+        # Address width converters are not needed - all masters/slaves use same width
+        addr_width = 64
+
+        # HARD LIMIT: All agents use 8-bit ID width
+        # ID width conversion is not supported - uniform width simplifies routing
+        id_width = 8
+
+        context = {
+            'rtl_module_name': bridge_name,
+            'tb_class_name': tb_class_name,
+            'tb_class_module': tb_class_module,
+            'num_masters': len(config.masters),
+            'num_slaves': len(config.slaves),
+            'channel_type': channel_type,
+            'enable_ooo': enable_ooo,
+            'masters': config.masters,
+            'slaves': config.slaves,
+            'master_names': master_names,
+            'slave_names': slave_names,
+            'connectivity': config.connectivity,
+            'data_width': data_width,
+            'addr_width': addr_width,
+            'id_width': id_width,
+            'rtl_relative_path': '../../../../rtl/bridge',
+            'filelist_path': f'projects/components/bridge/rtl/filelists/{bridge_name}.f'
+        }
+
+        # Setup Jinja2 environment
+        script_dir = Path(__file__).resolve().parent
+        template_dir = script_dir / 'bridge_pkg' / 'jinja_templates'
+        env = Environment(
+            loader=FileSystemLoader(str(template_dir)),
+            trim_blocks=True,
+            lstrip_blocks=True
+        )
+
+        # Render templates
+        tb_template = env.get_template('bridge_tb_class.py.j2')
+        test_template = env.get_template('bridge_test_file.py.j2')
+
+        tb_content = tb_template.render(context)
+        test_content = test_template.render(context)
+
+        # Create output directories
+        output_tb_path = Path(output_tb_dir)
+        output_test_path = Path(output_test_dir)
+        output_tb_path.mkdir(parents=True, exist_ok=True)
+        output_test_path.mkdir(parents=True, exist_ok=True)
+
+        # Write TB class file
+        tb_filename = f"{tb_class_module}.py"
+        tb_file_path = output_tb_path / tb_filename
+        with open(tb_file_path, 'w') as f:
+            f.write(tb_content)
+
+        # Write test file
+        test_filename = f"test_{bridge_name}.py"
+        test_file_path = output_test_path / test_filename
+        with open(test_file_path, 'w') as f:
+            f.write(test_content)
+
+        print(f"  ✓ Generated TB class: {tb_file_path}")
+        print(f"  ✓ Generated test file: {test_file_path}")
+
+        return True
+
+    except Exception as e:
+        print(f"  ✗ Test generation failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+# ==============================================================================
+# RTL Generation Functions
+# ==============================================================================
+
+def generate_bridge(ports_file, connectivity_file, name=None, output_dir="../rtl", expose_arbiter=False):
+    """Generate a single bridge from configuration files.
+
+    Args:
+        ports_file: Path to ports.csv or ports.yaml
+        connectivity_file: Path to connectivity.csv (optional for YAML, auto-detected)
+        name: Optional output module name (auto-generated if None)
+        output_dir: Output directory for generated RTL
+        expose_arbiter: Whether to expose arbiter grant signals (currently ignored in V2)
+
+    Returns:
+        tuple: (success: bool, bridge_name: str or None)
     """
+    try:
+        # Validate ports file exists
+        if not os.path.exists(ports_file):
+            print(f"  ERROR: Ports file not found: {ports_file}")
+            return (False, None)
 
-    def __init__(self, config: BridgeConfig):
-        self.cfg = config
-        self.module_str = f'bridge_axi4_flat_{config.num_masters}x{config.num_slaves}'
+        # Detect format: YAML or CSV
+        ports_ext = Path(ports_file).suffix.lower()
+        is_config_file = ports_ext in ['.yaml', '.yml', '.toml']
 
-        # Initialize Module base class
-        Module.__init__(self, module_name=self.module_str)
-
-        # Define parameters
-        param_str = f'''
-            parameter int NUM_MASTERS = {config.num_masters},
-            parameter int NUM_SLAVES  = {config.num_slaves},
-            parameter int DATA_WIDTH  = {config.data_width},
-            parameter int ADDR_WIDTH  = {config.addr_width},
-            parameter int ID_WIDTH    = {config.id_width},
-            parameter int STRB_WIDTH  = {config.data_width // 8}
-        '''
-        self.params.add_param_string(param_str)
-
-        # Instantiate hierarchical modules (pass self as module instance)
-        self.amba_integrator = BridgeAmbaIntegrator(self, config)
-        self.address_arbiter = BridgeAddressArbiter(self, config)
-        self.channel_router = BridgeChannelRouter(self, config)
-        self.response_router = BridgeResponseRouter(self, config)
-
-        # Define ports (all 5 AXI4 channels for M masters and S slaves)
-        port_str = f'''
-            input  logic aclk,
-            input  logic aresetn,
-
-            // Master Interfaces - Write Address Channel (AW)
-            input  logic [ADDR_WIDTH-1:0]   s_axi_awaddr  [NUM_MASTERS],
-            input  logic [ID_WIDTH-1:0]     s_axi_awid    [NUM_MASTERS],
-            input  logic [7:0]              s_axi_awlen   [NUM_MASTERS],
-            input  logic [2:0]              s_axi_awsize  [NUM_MASTERS],
-            input  logic [1:0]              s_axi_awburst [NUM_MASTERS],
-            input  logic                    s_axi_awlock  [NUM_MASTERS],
-            input  logic [3:0]              s_axi_awcache [NUM_MASTERS],
-            input  logic [2:0]              s_axi_awprot  [NUM_MASTERS],
-            input  logic                    s_axi_awvalid [NUM_MASTERS],
-            output logic                    s_axi_awready [NUM_MASTERS],
-
-            // Master Interfaces - Write Data Channel (W)
-            input  logic [DATA_WIDTH-1:0]   s_axi_wdata  [NUM_MASTERS],
-            input  logic [STRB_WIDTH-1:0]   s_axi_wstrb  [NUM_MASTERS],
-            input  logic                    s_axi_wlast  [NUM_MASTERS],
-            input  logic                    s_axi_wvalid [NUM_MASTERS],
-            output logic                    s_axi_wready [NUM_MASTERS],
-
-            // Master Interfaces - Write Response Channel (B)
-            output logic [ID_WIDTH-1:0]     s_axi_bid    [NUM_MASTERS],
-            output logic [1:0]              s_axi_bresp  [NUM_MASTERS],
-            output logic                    s_axi_bvalid [NUM_MASTERS],
-            input  logic                    s_axi_bready [NUM_MASTERS],
-
-            // Master Interfaces - Read Address Channel (AR)
-            input  logic [ADDR_WIDTH-1:0]   s_axi_araddr  [NUM_MASTERS],
-            input  logic [ID_WIDTH-1:0]     s_axi_arid    [NUM_MASTERS],
-            input  logic [7:0]              s_axi_arlen   [NUM_MASTERS],
-            input  logic [2:0]              s_axi_arsize  [NUM_MASTERS],
-            input  logic [1:0]              s_axi_arburst [NUM_MASTERS],
-            input  logic                    s_axi_arlock  [NUM_MASTERS],
-            input  logic [3:0]              s_axi_arcache [NUM_MASTERS],
-            input  logic [2:0]              s_axi_arprot  [NUM_MASTERS],
-            input  logic                    s_axi_arvalid [NUM_MASTERS],
-            output logic                    s_axi_arready [NUM_MASTERS],
-
-            // Master Interfaces - Read Data Channel (R)
-            output logic [DATA_WIDTH-1:0]   s_axi_rdata  [NUM_MASTERS],
-            output logic [ID_WIDTH-1:0]     s_axi_rid    [NUM_MASTERS],
-            output logic [1:0]              s_axi_rresp  [NUM_MASTERS],
-            output logic                    s_axi_rlast  [NUM_MASTERS],
-            output logic                    s_axi_rvalid [NUM_MASTERS],
-            input  logic                    s_axi_rready [NUM_MASTERS],
-
-            // Slave Interfaces - Write Address Channel (AW)
-            output logic [ADDR_WIDTH-1:0]   m_axi_awaddr  [NUM_SLAVES],
-            output logic [ID_WIDTH-1:0]     m_axi_awid    [NUM_SLAVES],
-            output logic [7:0]              m_axi_awlen   [NUM_SLAVES],
-            output logic [2:0]              m_axi_awsize  [NUM_SLAVES],
-            output logic [1:0]              m_axi_awburst [NUM_SLAVES],
-            output logic                    m_axi_awlock  [NUM_SLAVES],
-            output logic [3:0]              m_axi_awcache [NUM_SLAVES],
-            output logic [2:0]              m_axi_awprot  [NUM_SLAVES],
-            output logic                    m_axi_awvalid [NUM_SLAVES],
-            input  logic                    m_axi_awready [NUM_SLAVES],
-
-            // Slave Interfaces - Write Data Channel (W)
-            output logic [DATA_WIDTH-1:0]   m_axi_wdata  [NUM_SLAVES],
-            output logic [STRB_WIDTH-1:0]   m_axi_wstrb  [NUM_SLAVES],
-            output logic                    m_axi_wlast  [NUM_SLAVES],
-            output logic                    m_axi_wvalid [NUM_SLAVES],
-            input  logic                    m_axi_wready [NUM_SLAVES],
-
-            // Slave Interfaces - Write Response Channel (B)
-            input  logic [ID_WIDTH-1:0]     m_axi_bid    [NUM_SLAVES],
-            input  logic [1:0]              m_axi_bresp  [NUM_SLAVES],
-            input  logic                    m_axi_bvalid [NUM_SLAVES],
-            output logic                    m_axi_bready [NUM_SLAVES],
-
-            // Slave Interfaces - Read Address Channel (AR)
-            output logic [ADDR_WIDTH-1:0]   m_axi_araddr  [NUM_SLAVES],
-            output logic [ID_WIDTH-1:0]     m_axi_arid    [NUM_SLAVES],
-            output logic [7:0]              m_axi_arlen   [NUM_SLAVES],
-            output logic [2:0]              m_axi_arsize  [NUM_SLAVES],
-            output logic [1:0]              m_axi_arburst [NUM_SLAVES],
-            output logic                    m_axi_arlock  [NUM_SLAVES],
-            output logic [3:0]              m_axi_arcache [NUM_SLAVES],
-            output logic [2:0]              m_axi_arprot  [NUM_SLAVES],
-            output logic                    m_axi_arvalid [NUM_SLAVES],
-            input  logic                    m_axi_arready [NUM_SLAVES],
-
-            // Slave Interfaces - Read Data Channel (R)
-            input  logic [DATA_WIDTH-1:0]   m_axi_rdata  [NUM_SLAVES],
-            input  logic [ID_WIDTH-1:0]     m_axi_rid    [NUM_SLAVES],
-            input  logic [1:0]              m_axi_rresp  [NUM_SLAVES],
-            input  logic                    m_axi_rlast  [NUM_SLAVES],
-            input  logic                    m_axi_rvalid [NUM_SLAVES],
-            output logic                    m_axi_rready [NUM_SLAVES]
-        '''
-        self.ports.add_port_string(port_str)
-
-    def generate_header_comment(self):
-        """Generate Bridge-specific header comment"""
-        self.comment("==============================================================================")
-        self.comment(f"Module: {self.module_str}")
-        self.comment("Project: Bridge - AXI4 Full Crossbar Generator")
-        self.comment("==============================================================================")
-        self.comment(f"Description: AXI4 {self.cfg.num_masters}×{self.cfg.num_slaves} Full Crossbar")
-        self.comment("")
-        self.comment("Bridge: Connecting masters and slaves across the divide")
-        self.comment("")
-        self.comment("Generated by: bridge_generator.py (framework version)")
-        self.comment("Configuration:")
-        self.comment(f"  - Masters: {self.cfg.num_masters}")
-        self.comment(f"  - Slaves: {self.cfg.num_slaves}")
-        self.comment(f"  - Data Width: {self.cfg.data_width} bits")
-        self.comment(f"  - Address Width: {self.cfg.addr_width} bits")
-        self.comment(f"  - ID Width: {self.cfg.id_width} bits")
-        self.comment("")
-        self.comment("Architecture:")
-        self.comment("  - AMBA axi4_slave_wr/rd components on master-side interfaces")
-        self.comment("  - Internal crossbar routing with standard arbitration")
-        self.comment("  - AMBA axi4_master_wr/rd components on slave-side interfaces")
-        self.comment("")
-        self.comment("Features:")
-        self.comment("  - Full 5-channel AXI4 protocol (AW, W, B, AR, R)")
-        self.comment("  - Out-of-order transaction support (ID-based routing)")
-        self.comment("  - Separate read/write arbitration (no head-of-line blocking)")
-        self.comment("  - Burst transfer optimization (grant locking until xlast)")
-        self.comment(f"  - Configurable skid buffers (AW={self.cfg.skid_depth_aw}, W={self.cfg.skid_depth_w}, "
-                     f"B={self.cfg.skid_depth_b}, AR={self.cfg.skid_depth_ar}, R={self.cfg.skid_depth_r})")
-        self.comment("")
-        self.comment("==============================================================================")
-        self.instruction("")
-
-    def generate_internal_signals(self):
-        """
-        Generate internal crossbar signal declarations
-
-        Signal flow:
-        s_axi_* (external) → [axi4_slave_wr/rd] → xbar_s_axi_* → [crossbar routing]
-                          → xbar_m_axi_* → [axi4_master_wr/rd] → m_axi_* (external)
-        """
-        self.comment("==========================================================================")
-        self.comment("Internal Crossbar Signals")
-        self.comment("==========================================================================")
-        self.comment("Master-side AMBA components (axi4_slave_wr/rd) output to xbar_s_axi_*")
-        self.comment("Crossbar routes xbar_s_axi_* to xbar_m_axi_*")
-        self.comment("Slave-side AMBA components (axi4_master_wr/rd) input from xbar_m_axi_*")
-        self.comment("==========================================================================")
-        self.instruction("")
-
-        # Master-side signals (from axi4_slave components to crossbar)
-        self.comment("Signals from axi4_slave_wr/rd to crossbar (NUM_MASTERS sets)")
-        self.instruction("// Write address channel")
-        self.instruction("logic [ADDR_WIDTH-1:0]   xbar_s_axi_awaddr  [NUM_MASTERS];")
-        self.instruction("logic [ID_WIDTH-1:0]     xbar_s_axi_awid    [NUM_MASTERS];")
-        self.instruction("logic [7:0]              xbar_s_axi_awlen   [NUM_MASTERS];")
-        self.instruction("logic [2:0]              xbar_s_axi_awsize  [NUM_MASTERS];")
-        self.instruction("logic [1:0]              xbar_s_axi_awburst [NUM_MASTERS];")
-        self.instruction("logic                    xbar_s_axi_awlock  [NUM_MASTERS];")
-        self.instruction("logic [3:0]              xbar_s_axi_awcache [NUM_MASTERS];")
-        self.instruction("logic [2:0]              xbar_s_axi_awprot  [NUM_MASTERS];")
-        self.instruction("logic [3:0]              xbar_s_axi_awqos   [NUM_MASTERS];")
-        self.instruction("logic [3:0]              xbar_s_axi_awregion [NUM_MASTERS];")
-        self.instruction("logic                    xbar_s_axi_awvalid [NUM_MASTERS];")
-        self.instruction("logic                    xbar_s_axi_awready [NUM_MASTERS];")
-        self.instruction("")
-        self.instruction("// Write data channel")
-        self.instruction("logic [DATA_WIDTH-1:0]   xbar_s_axi_wdata  [NUM_MASTERS];")
-        self.instruction("logic [STRB_WIDTH-1:0]   xbar_s_axi_wstrb  [NUM_MASTERS];")
-        self.instruction("logic                    xbar_s_axi_wlast  [NUM_MASTERS];")
-        self.instruction("logic                    xbar_s_axi_wvalid [NUM_MASTERS];")
-        self.instruction("logic                    xbar_s_axi_wready [NUM_MASTERS];")
-        self.instruction("")
-        self.instruction("// Write response channel")
-        self.instruction("logic [ID_WIDTH-1:0]     xbar_s_axi_bid    [NUM_MASTERS];")
-        self.instruction("logic [1:0]              xbar_s_axi_bresp  [NUM_MASTERS];")
-        self.instruction("logic                    xbar_s_axi_bvalid [NUM_MASTERS];")
-        self.instruction("logic                    xbar_s_axi_bready [NUM_MASTERS];")
-        self.instruction("")
-        self.instruction("// Read address channel")
-        self.instruction("logic [ADDR_WIDTH-1:0]   xbar_s_axi_araddr  [NUM_MASTERS];")
-        self.instruction("logic [ID_WIDTH-1:0]     xbar_s_axi_arid    [NUM_MASTERS];")
-        self.instruction("logic [7:0]              xbar_s_axi_arlen   [NUM_MASTERS];")
-        self.instruction("logic [2:0]              xbar_s_axi_arsize  [NUM_MASTERS];")
-        self.instruction("logic [1:0]              xbar_s_axi_arburst [NUM_MASTERS];")
-        self.instruction("logic                    xbar_s_axi_arlock  [NUM_MASTERS];")
-        self.instruction("logic [3:0]              xbar_s_axi_arcache [NUM_MASTERS];")
-        self.instruction("logic [2:0]              xbar_s_axi_arprot  [NUM_MASTERS];")
-        self.instruction("logic [3:0]              xbar_s_axi_arqos   [NUM_MASTERS];")
-        self.instruction("logic [3:0]              xbar_s_axi_arregion [NUM_MASTERS];")
-        self.instruction("logic                    xbar_s_axi_arvalid [NUM_MASTERS];")
-        self.instruction("logic                    xbar_s_axi_arready [NUM_MASTERS];")
-        self.instruction("")
-        self.instruction("// Read data channel")
-        self.instruction("logic [DATA_WIDTH-1:0]   xbar_s_axi_rdata  [NUM_MASTERS];")
-        self.instruction("logic [ID_WIDTH-1:0]     xbar_s_axi_rid    [NUM_MASTERS];")
-        self.instruction("logic [1:0]              xbar_s_axi_rresp  [NUM_MASTERS];")
-        self.instruction("logic                    xbar_s_axi_rlast  [NUM_MASTERS];")
-        self.instruction("logic                    xbar_s_axi_rvalid [NUM_MASTERS];")
-        self.instruction("logic                    xbar_s_axi_rready [NUM_MASTERS];")
-        self.instruction("")
-
-        # Slave-side signals (from crossbar to axi4_master components)
-        self.comment("Signals from crossbar to axi4_master_wr/rd (NUM_SLAVES sets)")
-        self.instruction("// Write address channel")
-        self.instruction("logic [ADDR_WIDTH-1:0]   xbar_m_axi_awaddr  [NUM_SLAVES];")
-        self.instruction("logic [ID_WIDTH-1:0]     xbar_m_axi_awid    [NUM_SLAVES];")
-        self.instruction("logic [7:0]              xbar_m_axi_awlen   [NUM_SLAVES];")
-        self.instruction("logic [2:0]              xbar_m_axi_awsize  [NUM_SLAVES];")
-        self.instruction("logic [1:0]              xbar_m_axi_awburst [NUM_SLAVES];")
-        self.instruction("logic                    xbar_m_axi_awlock  [NUM_SLAVES];")
-        self.instruction("logic [3:0]              xbar_m_axi_awcache [NUM_SLAVES];")
-        self.instruction("logic [2:0]              xbar_m_axi_awprot  [NUM_SLAVES];")
-        self.instruction("logic [3:0]              xbar_m_axi_awqos   [NUM_SLAVES];")
-        self.instruction("logic [3:0]              xbar_m_axi_awregion [NUM_SLAVES];")
-        self.instruction("logic                    xbar_m_axi_awvalid [NUM_SLAVES];")
-        self.instruction("logic                    xbar_m_axi_awready [NUM_SLAVES];")
-        self.instruction("")
-        self.instruction("// Write data channel")
-        self.instruction("logic [DATA_WIDTH-1:0]   xbar_m_axi_wdata  [NUM_SLAVES];")
-        self.instruction("logic [STRB_WIDTH-1:0]   xbar_m_axi_wstrb  [NUM_SLAVES];")
-        self.instruction("logic                    xbar_m_axi_wlast  [NUM_SLAVES];")
-        self.instruction("logic                    xbar_m_axi_wvalid [NUM_SLAVES];")
-        self.instruction("logic                    xbar_m_axi_wready [NUM_SLAVES];")
-        self.instruction("")
-        self.instruction("// Write response channel")
-        self.instruction("logic [ID_WIDTH-1:0]     xbar_m_axi_bid    [NUM_SLAVES];")
-        self.instruction("logic [1:0]              xbar_m_axi_bresp  [NUM_SLAVES];")
-        self.instruction("logic                    xbar_m_axi_bvalid [NUM_SLAVES];")
-        self.instruction("logic                    xbar_m_axi_bready [NUM_SLAVES];")
-        self.instruction("")
-        self.instruction("// Read address channel")
-        self.instruction("logic [ADDR_WIDTH-1:0]   xbar_m_axi_araddr  [NUM_SLAVES];")
-        self.instruction("logic [ID_WIDTH-1:0]     xbar_m_axi_arid    [NUM_SLAVES];")
-        self.instruction("logic [7:0]              xbar_m_axi_arlen   [NUM_SLAVES];")
-        self.instruction("logic [2:0]              xbar_m_axi_arsize  [NUM_SLAVES];")
-        self.instruction("logic [1:0]              xbar_m_axi_arburst [NUM_SLAVES];")
-        self.instruction("logic                    xbar_m_axi_arlock  [NUM_SLAVES];")
-        self.instruction("logic [3:0]              xbar_m_axi_arcache [NUM_SLAVES];")
-        self.instruction("logic [2:0]              xbar_m_axi_arprot  [NUM_SLAVES];")
-        self.instruction("logic [3:0]              xbar_m_axi_arqos   [NUM_SLAVES];")
-        self.instruction("logic [3:0]              xbar_m_axi_arregion [NUM_SLAVES];")
-        self.instruction("logic                    xbar_m_axi_arvalid [NUM_SLAVES];")
-        self.instruction("logic                    xbar_m_axi_arready [NUM_SLAVES];")
-        self.instruction("")
-        self.instruction("// Read data channel")
-        self.instruction("logic [DATA_WIDTH-1:0]   xbar_m_axi_rdata  [NUM_SLAVES];")
-        self.instruction("logic [ID_WIDTH-1:0]     xbar_m_axi_rid    [NUM_SLAVES];")
-        self.instruction("logic [1:0]              xbar_m_axi_rresp  [NUM_SLAVES];")
-        self.instruction("logic                    xbar_m_axi_rlast  [NUM_SLAVES];")
-        self.instruction("logic                    xbar_m_axi_rvalid [NUM_SLAVES];")
-        self.instruction("logic                    xbar_m_axi_rready [NUM_SLAVES];")
-        self.instruction("")
-
-    def generate_address_decode(self):
-        """
-        Generate address range decode logic
-
-        KEY DIFFERENCE from Delta:
-        - Delta: Direct TDEST decode (tdest is slave ID)
-        - Bridge: Address range checking (like APB but for 2 channels: AW, AR)
-
-        Uses xbar_s_axi_* signals from axi4_slave components
-        """
-        self.comment("==========================================================================")
-        self.comment("Write Address Decode (AW channel)")
-        self.comment("==========================================================================")
-        self.comment("Check each master's AWADDR against all slave address ranges")
-        self.comment("Operates on xbar_s_axi_* signals from axi4_slave_wr components")
-        self.comment("Similar to APB crossbar but separate decode for write address channel")
-        self.comment("==========================================================================")
-        self.instruction("")
-
-        self.instruction("logic [NUM_MASTERS-1:0] aw_request_matrix [NUM_SLAVES];")
-        self.instruction("")
-
-        self.instruction("always_comb begin")
-        self.instruction("    // Initialize all write address requests to zero")
-        self.instruction("    for (int s = 0; s < NUM_SLAVES; s++) begin")
-        self.instruction("        aw_request_matrix[s] = '0;")
-        self.instruction("    end")
-        self.instruction("")
-        self.instruction("    // Decode AWADDR to slave for each master")
-        self.instruction("    for (int m = 0; m < NUM_MASTERS; m++) begin")
-        self.instruction("        if (xbar_s_axi_awvalid[m]) begin")
-
-        # Generate address range checks for each slave
-        for slave_idx, slave_info in self.cfg.address_map.items():
-            base = slave_info['base']
-            size = slave_info['size']
-            name = slave_info.get('name', f'Slave{slave_idx}')
-            end = base + size
-
-            self.instruction(f"            // Slave {slave_idx}: {name} (0x{base:08X} - 0x{end-1:08X})")
-            # Skip redundant >= 0 check for unsigned addresses
-            if base == 0:
-                self.instruction(f"            if (xbar_s_axi_awaddr[m] < {self.cfg.addr_width}'h{end:X})")
-            else:
-                self.instruction(f"            if (xbar_s_axi_awaddr[m] >= {self.cfg.addr_width}'h{base:X} &&")
-                self.instruction(f"                xbar_s_axi_awaddr[m] < {self.cfg.addr_width}'h{end:X})")
-            self.instruction(f"                aw_request_matrix[{slave_idx}][m] = 1'b1;")
-            self.instruction("")
-
-        self.instruction("        end")
-        self.instruction("    end")
-        self.instruction("end")
-        self.instruction("")
-
-        # Similar decode for AR channel
-        self.comment("==========================================================================")
-        self.comment("Read Address Decode (AR channel)")
-        self.comment("==========================================================================")
-        self.comment("Separate decode for read address channel (independent from writes)")
-        self.comment("Operates on xbar_s_axi_* signals from axi4_slave_rd components")
-        self.comment("==========================================================================")
-        self.instruction("")
-
-        self.instruction("logic [NUM_MASTERS-1:0] ar_request_matrix [NUM_SLAVES];")
-        self.instruction("")
-
-        self.instruction("always_comb begin")
-        self.instruction("    // Initialize all read address requests to zero")
-        self.instruction("    for (int s = 0; s < NUM_SLAVES; s++) begin")
-        self.instruction("        ar_request_matrix[s] = '0;")
-        self.instruction("    end")
-        self.instruction("")
-        self.instruction("    // Decode ARADDR to slave for each master")
-        self.instruction("    for (int m = 0; m < NUM_MASTERS; m++) begin")
-        self.instruction("        if (xbar_s_axi_arvalid[m]) begin")
-
-        for slave_idx, slave_info in self.cfg.address_map.items():
-            base = slave_info['base']
-            size = slave_info['size']
-            name = slave_info.get('name', f'Slave{slave_idx}')
-            end = base + size
-
-            self.instruction(f"            // Slave {slave_idx}: {name} (0x{base:08X} - 0x{end-1:08X})")
-            # Skip redundant >= 0 check for unsigned addresses
-            if base == 0:
-                self.instruction(f"            if (xbar_s_axi_araddr[m] < {self.cfg.addr_width}'h{end:X})")
-            else:
-                self.instruction(f"            if (xbar_s_axi_araddr[m] >= {self.cfg.addr_width}'h{base:X} &&")
-                self.instruction(f"                xbar_s_axi_araddr[m] < {self.cfg.addr_width}'h{end:X})")
-            self.instruction(f"                ar_request_matrix[{slave_idx}][m] = 1'b1;")
-            self.instruction("")
-
-        self.instruction("        end")
-        self.instruction("    end")
-        self.instruction("end")
-        self.instruction("")
-
-    def generate_aw_arbiter(self):
-        """
-        Generate AW (Write Address) channel arbiter logic using standard components
-
-        Uses arbiter_round_robin from rtl/common/ with WAIT_GNT_ACK=1:
-        - Round-robin arbitration among requesting masters
-        - Grant held until AW handshake completes (AWVALID && AWREADY)
-        - Proven component (95% test coverage)
-        - Easy QoS migration path (use arbiter_round_robin_weighted)
-        """
-        self.comment("==========================================================================")
-        self.comment("AW Channel Arbitration (Write Address) - Using Standard Components")
-        self.comment("==========================================================================")
-        self.comment("Uses arbiter_round_robin.sv from rtl/common/ with WAIT_GNT_ACK=1")
-        self.comment("Grant persistence: Held until AWVALID && AWREADY handshake completes")
-        self.comment("Benefits: Proven component, QoS upgrade path, consistent with repo standards")
-        self.comment("==========================================================================")
-        self.instruction("")
-
-        self.instruction("logic [NUM_MASTERS-1:0] aw_grant_matrix [NUM_SLAVES];")
-        self.instruction("logic aw_grant_active [NUM_SLAVES];  // Grant valid signal")
-        self.instruction("logic [NUM_MASTERS-1:0] aw_grant_ack [NUM_SLAVES];  // Grant acknowledgment")
-        self.instruction("")
-
-        self.comment("Generate grant_ack signals: Handshake completion triggers ACK")
-        self.instruction("generate")
-        self.instruction("    for (genvar s = 0; s < NUM_SLAVES; s++) begin : gen_aw_grant_ack")
-        self.instruction("        always_comb begin")
-        self.instruction("            aw_grant_ack[s] = '0;")
-        self.instruction("            for (int m = 0; m < NUM_MASTERS; m++) begin")
-        self.instruction("                if (aw_grant_matrix[s][m] && xbar_m_axi_awvalid[s] && xbar_m_axi_awready[s]) begin")
-        self.instruction("                    aw_grant_ack[s][m] = 1'b1;")
-        self.instruction("                end")
-        self.instruction("            end")
-        self.instruction("        end")
-        self.instruction("    end")
-        self.instruction("endgenerate")
-        self.instruction("")
-
-        self.comment("AW Arbiter instances (one per slave)")
-        self.instruction("generate")
-        self.instruction("    for (genvar s = 0; s < NUM_SLAVES; s++) begin : gen_aw_arbiter")
-        self.instruction("")
-        self.instruction("        arbiter_round_robin #(")
-        self.instruction("            .CLIENTS(NUM_MASTERS),")
-        self.instruction("            .WAIT_GNT_ACK(1)  // Hold grant until acknowledgment")
-        self.instruction("        ) u_aw_arbiter (")
-        self.instruction("            .clk         (aclk),")
-        self.instruction("            .rst_n       (aresetn),")
-        self.instruction("            .block_arb   (1'b0),  // Future: can connect to flow control")
-        self.instruction("            .request     (aw_request_matrix[s]),")
-        self.instruction("            .grant_ack   (aw_grant_ack[s]),")
-        self.instruction("            .grant_valid (aw_grant_active[s]),")
-        self.instruction("            .grant       (aw_grant_matrix[s]),")
-        self.instruction("            .grant_id    (),  // Optional: can use for debug")
-        self.instruction("            .last_grant  ()   // Optional: debug visibility")
-        self.instruction("        );")
-        self.instruction("")
-        self.instruction("    end")
-        self.instruction("endgenerate")
-        self.instruction("")
-
-    def generate_ar_arbiter(self):
-        """
-        Generate AR (Read Address) channel arbiter logic using standard components
-
-        Uses arbiter_round_robin from rtl/common/ with WAIT_GNT_ACK=1:
-        - Independent from write path (separate read/write arbitration)
-        - Round-robin arbitration among requesting masters
-        - Grant held until AR handshake completes (ARVALID && ARREADY)
-        - Same proven component as AW arbiter
-        """
-        self.comment("==========================================================================")
-        self.comment("AR Channel Arbitration (Read Address) - Using Standard Components")
-        self.comment("==========================================================================")
-        self.comment("Uses arbiter_round_robin.sv from rtl/common/ with WAIT_GNT_ACK=1")
-        self.comment("Independent from write path - no head-of-line blocking")
-        self.comment("Grant persistence: Held until ARVALID && ARREADY handshake completes")
-        self.comment("==========================================================================")
-        self.instruction("")
-
-        self.instruction("logic [NUM_MASTERS-1:0] ar_grant_matrix [NUM_SLAVES];")
-        self.instruction("logic ar_grant_active [NUM_SLAVES];  // Grant valid signal")
-        self.instruction("logic [NUM_MASTERS-1:0] ar_grant_ack [NUM_SLAVES];  // Grant acknowledgment")
-        self.instruction("")
-
-        self.comment("Generate grant_ack signals: Handshake completion triggers ACK")
-        self.instruction("generate")
-        self.instruction("    for (genvar s = 0; s < NUM_SLAVES; s++) begin : gen_ar_grant_ack")
-        self.instruction("        always_comb begin")
-        self.instruction("            ar_grant_ack[s] = '0;")
-        self.instruction("            for (int m = 0; m < NUM_MASTERS; m++) begin")
-        self.instruction("                if (ar_grant_matrix[s][m] && xbar_m_axi_arvalid[s] && xbar_m_axi_arready[s]) begin")
-        self.instruction("                    ar_grant_ack[s][m] = 1'b1;")
-        self.instruction("                end")
-        self.instruction("            end")
-        self.instruction("        end")
-        self.instruction("    end")
-        self.instruction("endgenerate")
-        self.instruction("")
-
-        self.comment("AR Arbiter instances (one per slave)")
-        self.instruction("generate")
-        self.instruction("    for (genvar s = 0; s < NUM_SLAVES; s++) begin : gen_ar_arbiter")
-        self.instruction("")
-        self.instruction("        arbiter_round_robin #(")
-        self.instruction("            .CLIENTS(NUM_MASTERS),")
-        self.instruction("            .WAIT_GNT_ACK(1)  // Hold grant until acknowledgment")
-        self.instruction("        ) u_ar_arbiter (")
-        self.instruction("            .clk         (aclk),")
-        self.instruction("            .rst_n       (aresetn),")
-        self.instruction("            .block_arb   (1'b0),  // Future: can connect to flow control")
-        self.instruction("            .request     (ar_request_matrix[s]),")
-        self.instruction("            .grant_ack   (ar_grant_ack[s]),")
-        self.instruction("            .grant_valid (ar_grant_active[s]),")
-        self.instruction("            .grant       (ar_grant_matrix[s]),")
-        self.instruction("            .grant_id    (),  // Optional: can use for debug")
-        self.instruction("            .last_grant  ()   // Optional: debug visibility")
-        self.instruction("        );")
-        self.instruction("")
-        self.instruction("    end")
-        self.instruction("endgenerate")
-        self.instruction("")
-
-    def generate_aw_channel_mux(self):
-        """
-        Generate AW channel multiplexer
-        Routes granted master's AW signals to slave
-        """
-        self.comment("==========================================================================")
-        self.comment("AW Channel Multiplexing")
-        self.comment("==========================================================================")
-        self.comment("Mux granted master's write address signals to slave")
-        self.comment("Operates on xbar_* internal crossbar signals")
-        self.comment("==========================================================================")
-        self.instruction("")
-
-        self.instruction("generate")
-        self.instruction("    for (genvar s = 0; s < NUM_SLAVES; s++) begin : gen_aw_mux")
-        self.instruction("        always_comb begin")
-        self.instruction("            // Default: all zeros")
-        self.instruction("            xbar_m_axi_awaddr[s]  = '0;")
-        self.instruction("            xbar_m_axi_awid[s]    = '0;")
-        self.instruction("            xbar_m_axi_awlen[s]   = '0;")
-        self.instruction("            xbar_m_axi_awsize[s]  = '0;")
-        self.instruction("            xbar_m_axi_awburst[s] = '0;")
-        self.instruction("            xbar_m_axi_awlock[s]  = '0;")
-        self.instruction("            xbar_m_axi_awcache[s] = '0;")
-        self.instruction("            xbar_m_axi_awprot[s]  = '0;")
-        self.instruction("            xbar_m_axi_awqos[s]   = '0;")
-        self.instruction("            xbar_m_axi_awregion[s] = '0;")
-        self.instruction("            xbar_m_axi_awvalid[s] = 1'b0;")
-        self.instruction("")
-        self.instruction("            // Multiplex granted master to this slave")
-        self.instruction("            for (int m = 0; m < NUM_MASTERS; m++) begin")
-        self.instruction("                if (aw_grant_matrix[s][m]) begin")
-        self.instruction("                    xbar_m_axi_awaddr[s]  = xbar_s_axi_awaddr[m];")
-        self.instruction("                    xbar_m_axi_awid[s]    = xbar_s_axi_awid[m];")
-        self.instruction("                    xbar_m_axi_awlen[s]   = xbar_s_axi_awlen[m];")
-        self.instruction("                    xbar_m_axi_awsize[s]  = xbar_s_axi_awsize[m];")
-        self.instruction("                    xbar_m_axi_awburst[s] = xbar_s_axi_awburst[m];")
-        self.instruction("                    xbar_m_axi_awlock[s]  = xbar_s_axi_awlock[m];")
-        self.instruction("                    xbar_m_axi_awcache[s] = xbar_s_axi_awcache[m];")
-        self.instruction("                    xbar_m_axi_awprot[s]  = xbar_s_axi_awprot[m];")
-        self.instruction("                    xbar_m_axi_awqos[s]   = xbar_s_axi_awqos[m];")
-        self.instruction("                    xbar_m_axi_awregion[s] = xbar_s_axi_awregion[m];")
-        self.instruction("                    xbar_m_axi_awvalid[s] = xbar_s_axi_awvalid[m];")
-        self.instruction("                end")
-        self.instruction("            end")
-        self.instruction("        end")
-        self.instruction("    end")
-        self.instruction("endgenerate")
-        self.instruction("")
-
-        self.comment("AWREADY backpressure routing")
-        self.instruction("generate")
-        self.instruction("    for (genvar m = 0; m < NUM_MASTERS; m++) begin : gen_awready")
-        self.instruction("        always_comb begin")
-        self.instruction("            xbar_s_axi_awready[m] = 1'b0;")
-        self.instruction("            for (int s = 0; s < NUM_SLAVES; s++) begin")
-        self.instruction("                if (aw_grant_matrix[s][m]) begin")
-        self.instruction("                    xbar_s_axi_awready[m] = xbar_m_axi_awready[s];")
-        self.instruction("                end")
-        self.instruction("            end")
-        self.instruction("        end")
-        self.instruction("    end")
-        self.instruction("endgenerate")
-        self.instruction("")
-
-    def generate_w_channel_mux(self):
-        """
-        Generate W channel multiplexer
-
-        W channel follows AW grant:
-        - When AW handshake completes, W grant locks to that master
-        - W grant held until WLAST && WVALID && WREADY
-        - No independent arbitration (depends on AW)
-        """
-        self.comment("==========================================================================")
-        self.comment("W Channel Multiplexing (Write Data)")
-        self.comment("==========================================================================")
-        self.comment("W channel follows AW grant (no independent arbitration)")
-        self.comment("Grant locked to master until WLAST completes")
-        self.comment("Operates on xbar_* internal crossbar signals")
-        self.comment("==========================================================================")
-        self.instruction("")
-
-        self.instruction("logic [NUM_MASTERS-1:0] w_grant_matrix [NUM_SLAVES];")
-        self.instruction("logic w_burst_active [NUM_SLAVES];  // W burst in progress")
-        self.instruction("")
-
-        self.comment("W grant tracking - lock to master that won AW arbitration")
-        self.instruction("generate")
-        self.instruction("    for (genvar s = 0; s < NUM_SLAVES; s++) begin : gen_w_grant")
-        self.instruction("        always_ff @(posedge aclk or negedge aresetn) begin")
-        self.instruction("            if (!aresetn) begin")
-        self.instruction("                w_grant_matrix[s] <= '0;")
-        self.instruction("                w_burst_active[s] <= 1'b0;")
-        self.instruction("            end else begin")
-        self.instruction("                if (w_burst_active[s]) begin")
-        self.instruction("                    // Hold W grant until WLAST completes")
-        self.instruction("                    if (xbar_m_axi_wvalid[s] && xbar_m_axi_wready[s] && xbar_m_axi_wlast[s]) begin")
-        self.instruction("                        w_burst_active[s] <= 1'b0;")
-        self.instruction("                        w_grant_matrix[s] <= '0;")
-        self.instruction("                    end")
-        self.instruction("                end else if (aw_grant_active[s] && xbar_m_axi_awvalid[s] && xbar_m_axi_awready[s]) begin")
-        self.instruction("                    // AW completed - lock W to the same master")
-        self.instruction("                    w_grant_matrix[s] <= aw_grant_matrix[s];")
-        self.instruction("                    w_burst_active[s] <= 1'b1;")
-        self.instruction("                end")
-        self.instruction("            end")
-        self.instruction("        end")
-        self.instruction("    end")
-        self.instruction("endgenerate")
-        self.instruction("")
-
-        self.comment("W data multiplexing")
-        self.instruction("generate")
-        self.instruction("    for (genvar s = 0; s < NUM_SLAVES; s++) begin : gen_w_mux")
-        self.instruction("        always_comb begin")
-        self.instruction("            // Default: all zeros")
-        self.instruction("            xbar_m_axi_wdata[s]  = '0;")
-        self.instruction("            xbar_m_axi_wstrb[s]  = '0;")
-        self.instruction("            xbar_m_axi_wlast[s]  = 1'b0;")
-        self.instruction("            xbar_m_axi_wvalid[s] = 1'b0;")
-        self.instruction("")
-        self.instruction("            // Multiplex W signals from locked master")
-        self.instruction("            for (int m = 0; m < NUM_MASTERS; m++) begin")
-        self.instruction("                if (w_grant_matrix[s][m]) begin")
-        self.instruction("                    xbar_m_axi_wdata[s]  = xbar_s_axi_wdata[m];")
-        self.instruction("                    xbar_m_axi_wstrb[s]  = xbar_s_axi_wstrb[m];")
-        self.instruction("                    xbar_m_axi_wlast[s]  = xbar_s_axi_wlast[m];")
-        self.instruction("                    xbar_m_axi_wvalid[s] = xbar_s_axi_wvalid[m];")
-        self.instruction("                end")
-        self.instruction("            end")
-        self.instruction("        end")
-        self.instruction("    end")
-        self.instruction("endgenerate")
-        self.instruction("")
-
-        self.comment("WREADY backpressure routing")
-        self.instruction("generate")
-        self.instruction("    for (genvar m = 0; m < NUM_MASTERS; m++) begin : gen_wready")
-        self.instruction("        always_comb begin")
-        self.instruction("            xbar_s_axi_wready[m] = 1'b0;")
-        self.instruction("            for (int s = 0; s < NUM_SLAVES; s++) begin")
-        self.instruction("                if (w_grant_matrix[s][m]) begin")
-        self.instruction("                    xbar_s_axi_wready[m] = xbar_m_axi_wready[s];")
-        self.instruction("                end")
-        self.instruction("            end")
-        self.instruction("        end")
-        self.instruction("    end")
-        self.instruction("endgenerate")
-        self.instruction("")
-
-    def generate_id_tables(self):
-        """
-        Generate transaction ID tracking tables (Phase 2)
-
-        Purpose: Map {slave_index, transaction_id} → master_index for response routing
-
-        Implementation: Distributed RAM (simple, suitable for small ID_WIDTH)
-        - write_id_table: Maps AW transactions to master for B response routing
-        - read_id_table: Maps AR transactions to master for R response routing
-
-        Table updates:
-        - Written on AW/AR handshake completion
-        - Read on B/R response arrival
-        - Cleared implicitly on overwrite (ID reuse)
-
-        Complexity: 2 slaves × 2 tables × 16 entries × 1 bit = 64 flip-flops (2x2, ID_WIDTH=4)
-        """
-        self.comment("==========================================================================")
-        self.comment("Transaction ID Tracking Tables (Phase 2)")
-        self.comment("==========================================================================")
-        self.comment("Purpose: Enable ID-based response routing (out-of-order support)")
-        self.comment("")
-        self.comment("Structure: Distributed RAM")
-        self.comment(f"  - {self.cfg.num_slaves} slaves × 2 tables (write, read)")
-        self.comment(f"  - 2^{self.cfg.id_width} = {2**self.cfg.id_width} entries per table")
-        self.comment(f"  - Each entry: $clog2({self.cfg.num_masters}) = {math.ceil(math.log2(self.cfg.num_masters))} bits (master index)")
-        self.comment("")
-        self.comment("Write ID Table: Stores master index for AW transactions → B routing")
-        self.comment("Read ID Table:  Stores master index for AR transactions → R routing")
-        self.comment("==========================================================================")
-        self.instruction("")
-
-        # Declare ID tables
-        master_bits = f"$clog2(NUM_MASTERS)" if self.cfg.num_masters > 1 else "0"
-        self.instruction(f"// Transaction ID tables: [slave][transaction_id] → master_index")
-        self.instruction(f"logic [{master_bits}:0] write_id_table [NUM_SLAVES][2**ID_WIDTH];")
-        self.instruction(f"logic [{master_bits}:0] read_id_table [NUM_SLAVES][2**ID_WIDTH];")
-        self.instruction("")
-
-        # Generate table write logic
-        self.comment("ID Table Write Logic")
-        self.comment("Store master index when AW/AR handshakes complete")
-        self.instruction("generate")
-        self.instruction("    for (genvar s = 0; s < NUM_SLAVES; s++) begin : gen_id_table_write")
-        self.instruction("        always_ff @(posedge aclk or negedge aresetn) begin")
-        self.instruction("            if (!aresetn) begin")
-        self.instruction("                // Tables don't need explicit reset (overwritten on use)")
-        self.instruction("            end else begin")
-        self.instruction("                // Write ID table: Record master for completed AW transactions")
-        self.instruction("                if (xbar_m_axi_awvalid[s] && xbar_m_axi_awready[s]) begin")
-        self.instruction("                    for (int m = 0; m < NUM_MASTERS; m++) begin")
-        self.instruction("                        if (aw_grant_matrix[s][m]) begin")
-        if self.cfg.num_masters > 1:
-            self.instruction(f"                            write_id_table[s][xbar_m_axi_awid[s]] <= m[{master_bits}:0];")
+        if is_config_file:
+            # YAML format: Load ports and connectivity together
+            print(f"\n  Using YAML configuration: {ports_file}")
+            # For YAML, connectivity_file can be None or empty string (auto-detect)
+            conn_path = connectivity_file if connectivity_file else None
+            config = load_config(ports_file, conn_path)
+            masters = config.masters
+            slaves = config.slaves
+            connectivity = config.connectivity
+            # Auto-detect connectivity file path for copying (if not provided)
+            if not connectivity_file:
+                from bridge_pkg.config_loader import find_connectivity_csv
+                connectivity_file = find_connectivity_csv(ports_file)
         else:
-            self.instruction("                            write_id_table[s][xbar_m_axi_awid[s]] <= 1'b0;  // Only 1 master")
-        self.instruction("                        end")
-        self.instruction("                    end")
-        self.instruction("                end")
-        self.instruction("")
-        self.instruction("                // Read ID table: Record master for completed AR transactions")
-        self.instruction("                if (xbar_m_axi_arvalid[s] && xbar_m_axi_arready[s]) begin")
-        self.instruction("                    for (int m = 0; m < NUM_MASTERS; m++) begin")
-        self.instruction("                        if (ar_grant_matrix[s][m]) begin")
-        if self.cfg.num_masters > 1:
-            self.instruction(f"                            read_id_table[s][xbar_m_axi_arid[s]] <= m[{master_bits}:0];")
+            # CSV format: Load ports and connectivity separately
+            print(f"\n  Using CSV configuration: {ports_file}")
+            if not os.path.exists(connectivity_file):
+                print(f"  ERROR: Connectivity file not found: {connectivity_file}")
+                return (False, None)
+
+            # Parse CSV files
+            masters, slaves = parse_ports_csv(ports_file)
+            connectivity = parse_connectivity_csv(connectivity_file, masters, slaves)
+
+            # Create bridge configuration
+            config = BridgeConfig(
+                masters=masters,
+                slaves=slaves,
+                connectivity=connectivity
+            )
+
+        # Generate output module name
+        if name:
+            output_name = name
         else:
-            self.instruction("                            read_id_table[s][xbar_m_axi_arid[s]] <= 1'b0;  // Only 1 master")
-        self.instruction("                        end")
-        self.instruction("                    end")
-        self.instruction("                end")
-        self.instruction("            end")
-        self.instruction("        end")
-        self.instruction("    end")
-        self.instruction("endgenerate")
-        self.instruction("")
+            # Auto-generate name from topology: bridge_<M>x<S>_<channels>
+            channel_types = set(m.channels for m in masters)
+            if len(channel_types) == 1:
+                channel_suffix = list(channel_types)[0]  # 'rd', 'wr', or 'rw'
+            elif 'rw' in channel_types:
+                channel_suffix = 'rw'
+            elif 'wr' in channel_types and 'rd' in channel_types:
+                channel_suffix = 'rw'
+            else:
+                channel_suffix = 'rw'
+            output_name = f"bridge_{len(masters)}x{len(slaves)}_{channel_suffix}"
 
-    def generate_b_channel_demux(self):
-        """
-        Generate B channel demux (Phase 3 - Write Response)
+        # Create bridge-specific subdirectory (clean first if exists)
+        bridge_dir = os.path.join(output_dir, output_name)
 
-        KEY CHALLENGE: ID-based routing, not grant-based
-        - Lookup master ID from write_id_table using {slave, BID}
-        - Route B response to correct master
-        - Handle multiple simultaneous responses from different slaves
+        # CRITICAL: Remove existing bridge directory to ensure clean regeneration
+        if os.path.exists(bridge_dir):
+            print(f"  Removing existing bridge directory: {bridge_dir}")
+            shutil.rmtree(bridge_dir)
 
-        Complexity: Each slave can send B responses to any master (out-of-order)
-        """
-        self.comment("==========================================================================")
-        self.comment("B Channel Demux (Write Response) - Phase 3")
-        self.comment("==========================================================================")
-        self.comment("ID-based routing: Lookup master from write_id_table[slave][bid]")
-        self.comment("KEY DIFFERENCE from grant-based: Responses can be out-of-order")
-        self.comment("Multiple slaves can respond simultaneously to different masters")
-        self.comment("==========================================================================")
-        self.instruction("")
+        os.makedirs(bridge_dir, exist_ok=True)
 
-        # B channel signals to masters (combinational routing)
-        self.instruction("// B channel response routing to masters")
-        self.instruction("logic [ID_WIDTH-1:0]     b_routed_id    [NUM_MASTERS];")
-        self.instruction("logic [1:0]              b_routed_resp  [NUM_MASTERS];")
-        self.instruction("logic                    b_routed_valid [NUM_MASTERS];")
-        self.instruction("")
+        # Convert PortSpec to MasterConfig/SlaveInfo format
+        master_configs = []
+        slave_infos = []
 
-        self.instruction("always_comb begin")
-        self.instruction("    // Initialize all master B channels to idle")
-        self.instruction("    for (int m = 0; m < NUM_MASTERS; m++) begin")
-        self.instruction("        b_routed_id[m]    = '0;")
-        self.instruction("        b_routed_resp[m]  = 2'b00;")
-        self.instruction("        b_routed_valid[m] = 1'b0;")
-        self.instruction("    end")
-        self.instruction("")
-        self.instruction("    // Route B responses from each slave to target master")
-        self.instruction("    for (int s = 0; s < NUM_SLAVES; s++) begin")
-        master_bits_expr = "$clog2(NUM_MASTERS)-1" if self.cfg.num_masters > 1 else "0"
-        self.instruction(f"        int target_master;  // Master index for this B response")
-        self.instruction("        if (xbar_m_axi_bvalid[s]) begin")
-        self.instruction("            // Lookup which master this transaction belongs to")
-        self.instruction(f"            target_master = int'(write_id_table[s][xbar_m_axi_bid[s]]);")
-        self.instruction("")
-        self.instruction("            // Route to target master (ID-based, not grant-based)")
-        self.instruction("            b_routed_id[target_master]    = xbar_m_axi_bid[s];")
-        self.instruction("            b_routed_resp[target_master]  = xbar_m_axi_bresp[s];")
-        self.instruction("            b_routed_valid[target_master] = 1'b1;")
-        self.instruction("        end else begin")
-        self.instruction("            target_master = 0;  // Default when no valid")
-        self.instruction("        end")
-        self.instruction("    end")
-        self.instruction("end")
-        self.instruction("")
+        for master_spec in masters:
+            # Build slave connection list (indices of slaves this master connects to)
+            slave_connections = []
+            # Get list of slaves this master connects to
+            connected_slave_names = connectivity.get(master_spec.port_name, [])
+            for slave_idx, slave_spec in enumerate(slaves):
+                # Check if this slave is in the master's connection list
+                if slave_spec.port_name in connected_slave_names:
+                    slave_connections.append(slave_idx)
 
-        # Assign to output ports
-        self.instruction("// Assign routed B signals to crossbar output")
-        self.instruction("generate")
-        self.instruction("    for (genvar m = 0; m < NUM_MASTERS; m++) begin : gen_b_output")
-        self.instruction("        assign xbar_s_axi_bid[m]    = b_routed_id[m];")
-        self.instruction("        assign xbar_s_axi_bresp[m]  = b_routed_resp[m];")
-        self.instruction("        assign xbar_s_axi_bvalid[m] = b_routed_valid[m];")
-        self.instruction("    end")
-        self.instruction("endgenerate")
-        self.instruction("")
+            master_config = MasterConfig(
+                name=master_spec.port_name,
+                prefix=master_spec.prefix,
+                data_width=master_spec.data_width,
+                addr_width=master_spec.addr_width,
+                id_width=master_spec.id_width,
+                channels=master_spec.channels,
+                slave_connections=slave_connections
+            )
+            master_configs.append(master_config)
 
-        # B channel backpressure routing (BREADY)
-        self.comment("B channel backpressure: Route master's BREADY to slave")
-        self.instruction("generate")
-        self.instruction("    for (genvar s = 0; s < NUM_SLAVES; s++) begin : gen_b_ready")
-        self.instruction("        always_comb begin")
-        self.instruction("            int target_master;")
-        self.instruction("            xbar_m_axi_bready[s] = 1'b0;")
-        self.instruction("            if (xbar_m_axi_bvalid[s]) begin")
-        self.instruction("                // Find which master this B response goes to")
-        self.instruction(f"                target_master = int'(write_id_table[s][xbar_m_axi_bid[s]]);")
-        self.instruction("                xbar_m_axi_bready[s] = xbar_s_axi_bready[target_master];")
-        self.instruction("            end else begin")
-        self.instruction("                target_master = 0;  // Default when no valid")
-        self.instruction("            end")
-        self.instruction("        end")
-        self.instruction("    end")
-        self.instruction("endgenerate")
-        self.instruction("")
+        for slave_spec in slaves:
+            slave_info = SlaveInfo(
+                name=slave_spec.port_name,
+                prefix=slave_spec.prefix,  # Pass slave prefix from config
+                base_addr=slave_spec.base_addr,
+                addr_range=slave_spec.addr_range,
+                data_width=slave_spec.data_width,
+                addr_width=slave_spec.addr_width,
+                protocol=slave_spec.protocol
+            )
+            slave_infos.append(slave_info)
 
-    def generate_r_channel_demux(self):
-        """
-        Generate R channel demux (Phase 3 - Read Data/Response)
+        # Create BridgeModuleGenerator with new adapter architecture
+        gen = BridgeModuleGenerator(bridge_name=output_name, enable_monitoring=False)
 
-        Similar to B channel but with burst handling:
-        - Lookup master ID from read_id_table using {slave, RID}
-        - Route R data/response to correct master
-        - Handle RLAST (last beat of read burst)
-        - Multiple R beats per transaction, all routed to same master
+        for master in master_configs:
+            gen.add_master(master)
+        for slave in slave_infos:
+            gen.add_slave(slave)
 
-        Complexity: Burst transactions mean multiple R beats with same RID
-        """
-        self.comment("==========================================================================")
-        self.comment("R Channel Demux (Read Data/Response) - Phase 3")
-        self.comment("==========================================================================")
-        self.comment("ID-based routing: Lookup master from read_id_table[slave][rid]")
-        self.comment("Burst support: Multiple R beats (RLAST indicates last beat)")
-        self.comment("Similar to B channel but with DATA_WIDTH data payload")
-        self.comment("==========================================================================")
-        self.instruction("")
+        # Generate all files (package + adapters + bridge)
+        generated_files = gen.generate_all(bridge_dir)
 
-        # R channel signals to masters (combinational routing)
-        self.instruction("// R channel response routing to masters")
-        self.instruction("logic [DATA_WIDTH-1:0]   r_routed_data  [NUM_MASTERS];")
-        self.instruction("logic [ID_WIDTH-1:0]     r_routed_id    [NUM_MASTERS];")
-        self.instruction("logic [1:0]              r_routed_resp  [NUM_MASTERS];")
-        self.instruction("logic                    r_routed_last  [NUM_MASTERS];")
-        self.instruction("logic                    r_routed_valid [NUM_MASTERS];")
-        self.instruction("")
+        print(f"  ✓ Generated bridge package: {generated_files['package']}")
+        for master in master_configs:
+            adapter_key = f"adapter_{master.name}"
+            if adapter_key in generated_files:
+                print(f"  ✓ Generated adapter: {generated_files[adapter_key]}")
+        print(f"  ✓ Generated bridge: {generated_files['bridge']}")
 
-        self.instruction("always_comb begin")
-        self.instruction("    // Initialize all master R channels to idle")
-        self.instruction("    for (int m = 0; m < NUM_MASTERS; m++) begin")
-        self.instruction("        r_routed_data[m]  = '0;")
-        self.instruction("        r_routed_id[m]    = '0;")
-        self.instruction("        r_routed_resp[m]  = 2'b00;")
-        self.instruction("        r_routed_last[m]  = 1'b0;")
-        self.instruction("        r_routed_valid[m] = 1'b0;")
-        self.instruction("    end")
-        self.instruction("")
-        self.instruction("    // Route R responses from each slave to target master")
-        self.instruction("    for (int s = 0; s < NUM_SLAVES; s++) begin")
-        self.instruction(f"        int target_master;  // Master index for this R response")
-        self.instruction("        if (xbar_m_axi_rvalid[s]) begin")
-        self.instruction("            // Lookup which master this transaction belongs to")
-        self.instruction(f"            target_master = int'(read_id_table[s][xbar_m_axi_rid[s]]);")
-        self.instruction("")
-        self.instruction("            // Route to target master (ID-based, burst-aware)")
-        self.instruction("            r_routed_data[target_master]  = xbar_m_axi_rdata[s];")
-        self.instruction("            r_routed_id[target_master]    = xbar_m_axi_rid[s];")
-        self.instruction("            r_routed_resp[target_master]  = xbar_m_axi_rresp[s];")
-        self.instruction("            r_routed_last[target_master]  = xbar_m_axi_rlast[s];")
-        self.instruction("            r_routed_valid[target_master] = 1'b1;")
-        self.instruction("        end else begin")
-        self.instruction("            target_master = 0;  // Default when no valid")
-        self.instruction("        end")
-        self.instruction("    end")
-        self.instruction("end")
-        self.instruction("")
+        # Copy configuration files to bridge directory for reference
+        if ports_file:
+            config_copy = os.path.join(bridge_dir, os.path.basename(ports_file))
+            shutil.copy2(ports_file, config_copy)
+            print(f"  ✓ Copied config: {config_copy}")
 
-        # Assign to output ports
-        self.instruction("// Assign routed R signals to master output ports")
-        self.instruction("generate")
-        self.instruction("    for (genvar m = 0; m < NUM_MASTERS; m++) begin : gen_r_output")
-        self.instruction("        assign xbar_s_axi_rdata[m]  = r_routed_data[m];")
-        self.instruction("        assign xbar_s_axi_rid[m]    = r_routed_id[m];")
-        self.instruction("        assign xbar_s_axi_rresp[m]  = r_routed_resp[m];")
-        self.instruction("        assign xbar_s_axi_rlast[m]  = r_routed_last[m];")
-        self.instruction("        assign xbar_s_axi_rvalid[m] = r_routed_valid[m];")
-        self.instruction("    end")
-        self.instruction("endgenerate")
-        self.instruction("")
+        if connectivity_file:
+            conn_copy = os.path.join(bridge_dir, os.path.basename(connectivity_file))
+            shutil.copy2(connectivity_file, conn_copy)
+            print(f"  ✓ Copied connectivity: {conn_copy}")
 
-        # R channel backpressure routing (RREADY)
-        self.comment("R channel backpressure: Route master's RREADY to slave")
-        self.instruction("generate")
-        self.instruction("    for (genvar s = 0; s < NUM_SLAVES; s++) begin : gen_r_ready")
-        self.instruction("        always_comb begin")
-        self.instruction("            int target_master;")
-        self.instruction("            xbar_m_axi_rready[s] = 1'b0;")
-        self.instruction("            if (xbar_m_axi_rvalid[s]) begin")
-        self.instruction("                // Find which master this R response goes to")
-        self.instruction(f"                target_master = int'(read_id_table[s][xbar_m_axi_rid[s]]);")
-        self.instruction("                xbar_m_axi_rready[s] = xbar_s_axi_rready[target_master];")
-        self.instruction("            end else begin")
-        self.instruction("                target_master = 0;  // Default when no valid")
-        self.instruction("            end")
-        self.instruction("        end")
-        self.instruction("    end")
-        self.instruction("endgenerate")
-        self.instruction("")
+        # Generate filelist with dependencies
+        #
+        # Directory structure:
+        #   rtl/
+        #     generated/
+        #       bridge_1x2_wr/  <- bridge_dir
+        #         bridge_1x2_wr_pkg.sv
+        #         cpu_adapter.sv
+        #         bridge_1x2_wr.sv
+        #     filelists/  <- filelist_dir (two levels up from bridge_dir, then into filelists/)
+        #       bridge_1x2_wr.f
+        #
+        # Filelist paths use $REPO_ROOT environment variable for robustness
+        # Set in env_python before running tools
+        #
+        filelist_lines = []
 
-    def generate_ar_channel_mux(self):
-        """
-        Generate AR channel multiplexer
-        Routes granted master's AR signals to slave
-        """
-        self.comment("==========================================================================")
-        self.comment("AR Channel Multiplexing")
-        self.comment("==========================================================================")
-        self.comment("Mux granted master's read address signals to slave")
-        self.comment("Independent from AW channel (separate read/write paths)")
-        self.comment("==========================================================================")
-        self.instruction("")
+        # Add include directory first
+        filelist_lines.append("# Include directories")
+        filelist_lines.append("+incdir+$REPO_ROOT/rtl/amba/includes")
+        filelist_lines.append("")
 
-        self.instruction("generate")
-        self.instruction("    for (genvar s = 0; s < NUM_SLAVES; s++) begin : gen_ar_mux")
-        self.instruction("        always_comb begin")
-        self.instruction("            // Default: all zeros")
-        self.instruction("            xbar_m_axi_araddr[s]  = '0;")
-        self.instruction("            xbar_m_axi_arid[s]    = '0;")
-        self.instruction("            xbar_m_axi_arlen[s]   = '0;")
-        self.instruction("            xbar_m_axi_arsize[s]  = '0;")
-        self.instruction("            xbar_m_axi_arburst[s] = '0;")
-        self.instruction("            xbar_m_axi_arlock[s]  = '0;")
-        self.instruction("            xbar_m_axi_arcache[s] = '0;")
-        self.instruction("            xbar_m_axi_arprot[s]  = '0;")
-        self.instruction("            xbar_m_axi_arvalid[s] = 1'b0;")
-        self.instruction("")
-        self.instruction("            // Multiplex granted master to this slave")
-        self.instruction("            for (int m = 0; m < NUM_MASTERS; m++) begin")
-        self.instruction("                if (ar_grant_matrix[s][m]) begin")
-        self.instruction("                    xbar_m_axi_araddr[s]  = xbar_s_axi_araddr[m];")
-        self.instruction("                    xbar_m_axi_arid[s]    = xbar_s_axi_arid[m];")
-        self.instruction("                    xbar_m_axi_arlen[s]   = xbar_s_axi_arlen[m];")
-        self.instruction("                    xbar_m_axi_arsize[s]  = xbar_s_axi_arsize[m];")
-        self.instruction("                    xbar_m_axi_arburst[s] = xbar_s_axi_arburst[m];")
-        self.instruction("                    xbar_m_axi_arlock[s]  = xbar_s_axi_arlock[m];")
-        self.instruction("                    xbar_m_axi_arcache[s] = xbar_s_axi_arcache[m];")
-        self.instruction("                    xbar_m_axi_arprot[s]  = xbar_s_axi_arprot[m];")
-        self.instruction("                    xbar_m_axi_arvalid[s] = xbar_s_axi_arvalid[m];")
-        self.instruction("                end")
-        self.instruction("            end")
-        self.instruction("        end")
-        self.instruction("    end")
-        self.instruction("endgenerate")
-        self.instruction("")
+        filelist_lines.append("# Bridge RTL files (generated)")
 
-        self.comment("ARREADY backpressure routing")
-        self.instruction("generate")
-        self.instruction("    for (genvar m = 0; m < NUM_MASTERS; m++) begin : gen_arready")
-        self.instruction("        always_comb begin")
-        self.instruction("            xbar_s_axi_arready[m] = 1'b0;")
-        self.instruction("            for (int s = 0; s < NUM_SLAVES; s++) begin")
-        self.instruction("                if (ar_grant_matrix[s][m]) begin")
-        self.instruction("                    xbar_s_axi_arready[m] = xbar_m_axi_arready[s];")
-        self.instruction("                end")
-        self.instruction("            end")
-        self.instruction("        end")
-        self.instruction("    end")
-        self.instruction("endgenerate")
-        self.instruction("")
+        # Compute filelist directory: two levels up from bridge_dir, then into filelists/
+        # bridge_dir = rtl/generated/bridge_1x2_wr
+        # parent of bridge_dir = rtl/generated
+        # parent of parent = rtl
+        # filelist_dir = rtl/filelists
+        rtl_dir = os.path.dirname(os.path.dirname(bridge_dir))  # Go up 2 levels to rtl/
+        filelist_dir = os.path.join(rtl_dir, "filelists")
 
-    def generate_master_side_components(self):
-        """
-        Generate AMBA axi4_slave_wr and axi4_slave_rd instances for master-side interfaces
+        # Package must be first for compile order
+        if 'package' in generated_files:
+            filepath = generated_files['package']
+            rel_path = os.path.relpath(filepath, rtl_dir)  # Relative to rtl/
+            filelist_lines.append(rel_path)
 
-        One pair (wr + rd) per external master
-        - External s_axi_* connects to axi4_slave components
-        - axi4_slave outputs to xbar_s_axi_* (crossbar input)
-        """
-        self.comment("==========================================================================")
-        self.comment("Master-Side AMBA Components (axi4_slave_wr and axi4_slave_rd)")
-        self.comment("==========================================================================")
-        self.comment("Accept connections from external masters with skid buffers and flow control")
-        self.comment(f"Configuration: SKID_DEPTH_AW={self.cfg.skid_depth_aw}, W={self.cfg.skid_depth_w}, "
-                     f"B={self.cfg.skid_depth_b}, AR={self.cfg.skid_depth_ar}, R={self.cfg.skid_depth_r}")
-        self.comment("==========================================================================")
-        self.instruction("")
+        # Then other files (adapters, bridge)
+        for file_key in sorted(generated_files.keys()):
+            if file_key != 'package':  # Skip package (already added)
+                filepath = generated_files[file_key]
+                rel_path = os.path.relpath(filepath, rtl_dir)  # Relative to rtl/
+                filelist_lines.append(rel_path)
 
-        # Generate instances for each master
-        self.instruction("generate")
-        self.instruction("    for (genvar m = 0; m < NUM_MASTERS; m++) begin : gen_master_side_amba")
-        self.instruction("")
+        filelist_lines.append("")
+        filelist_lines.append("# AXI4 Wrapper modules (timing isolation)")
+        filelist_lines.append("# Master adapters use axi4_slave_* (act as AXI slave to external master)")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_slave_wr.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_slave_rd.sv")
+        filelist_lines.append("# Slave adapters use axi4_master_* (act as AXI master to external slave)")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_master_wr.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_master_rd.sv")
 
-        # Write path component (axi4_slave_wr)
-        self.comment("Write path: AW, W, B channels")
-        self.instruction("        axi4_slave_wr #(")
-        self.instruction(f"            .SKID_DEPTH_AW({self.cfg.skid_depth_aw}),")
-        self.instruction(f"            .SKID_DEPTH_W({self.cfg.skid_depth_w}),")
-        self.instruction(f"            .SKID_DEPTH_B({self.cfg.skid_depth_b}),")
-        self.instruction("            .AXI_ID_WIDTH(ID_WIDTH),")
-        self.instruction("            .AXI_ADDR_WIDTH(ADDR_WIDTH),")
-        self.instruction("            .AXI_DATA_WIDTH(DATA_WIDTH)")
-        self.instruction("        ) u_master_wr (")
-        self.instruction("            .aclk           (aclk),")
-        self.instruction("            .aresetn        (aresetn),")
-        self.instruction("            // External slave interface (from external master)")
-        self.instruction("            .s_axi_awid     (s_axi_awid[m]),")
-        self.instruction("            .s_axi_awaddr   (s_axi_awaddr[m]),")
-        self.instruction("            .s_axi_awlen    (s_axi_awlen[m]),")
-        self.instruction("            .s_axi_awsize   (s_axi_awsize[m]),")
-        self.instruction("            .s_axi_awburst  (s_axi_awburst[m]),")
-        self.instruction("            .s_axi_awlock   (s_axi_awlock[m]),")
-        self.instruction("            .s_axi_awcache  (s_axi_awcache[m]),")
-        self.instruction("            .s_axi_awprot   (s_axi_awprot[m]),")
-        self.instruction("            .s_axi_awqos    (4'h0),  // Not used")
-        self.instruction("            .s_axi_awregion (4'h0),  // Not used")
-        self.instruction("            .s_axi_awuser   (1'b0),  // Not used")
-        self.instruction("            .s_axi_awvalid  (s_axi_awvalid[m]),")
-        self.instruction("            .s_axi_awready  (s_axi_awready[m]),")
-        self.instruction("            .s_axi_wdata    (s_axi_wdata[m]),")
-        self.instruction("            .s_axi_wstrb    (s_axi_wstrb[m]),")
-        self.instruction("            .s_axi_wlast    (s_axi_wlast[m]),")
-        self.instruction("            .s_axi_wuser    (1'b0),  // Not used")
-        self.instruction("            .s_axi_wvalid   (s_axi_wvalid[m]),")
-        self.instruction("            .s_axi_wready   (s_axi_wready[m]),")
-        self.instruction("            .s_axi_bid      (s_axi_bid[m]),")
-        self.instruction("            .s_axi_bresp    (s_axi_bresp[m]),")
-        self.instruction("            .s_axi_buser    (),  // Not used")
-        self.instruction("            .s_axi_bvalid   (s_axi_bvalid[m]),")
-        self.instruction("            .s_axi_bready   (s_axi_bready[m]),")
-        self.instruction("            // Crossbar interface (to crossbar routing)")
-        self.instruction("            .fub_axi_awid     (xbar_s_axi_awid[m]),")
-        self.instruction("            .fub_axi_awaddr   (xbar_s_axi_awaddr[m]),")
-        self.instruction("            .fub_axi_awlen    (xbar_s_axi_awlen[m]),")
-        self.instruction("            .fub_axi_awsize   (xbar_s_axi_awsize[m]),")
-        self.instruction("            .fub_axi_awburst  (xbar_s_axi_awburst[m]),")
-        self.instruction("            .fub_axi_awlock   (xbar_s_axi_awlock[m]),")
-        self.instruction("            .fub_axi_awcache  (xbar_s_axi_awcache[m]),")
-        self.instruction("            .fub_axi_awprot   (xbar_s_axi_awprot[m]),")
-        self.instruction("            .fub_axi_awqos    (xbar_s_axi_awqos[m]),")
-        self.instruction("            .fub_axi_awregion (xbar_s_axi_awregion[m]),")
-        self.instruction("            .fub_axi_awuser   (),  // Not used")
-        self.instruction("            .fub_axi_awvalid  (xbar_s_axi_awvalid[m]),")
-        self.instruction("            .fub_axi_awready  (xbar_s_axi_awready[m]),")
-        self.instruction("            .fub_axi_wdata    (xbar_s_axi_wdata[m]),")
-        self.instruction("            .fub_axi_wstrb    (xbar_s_axi_wstrb[m]),")
-        self.instruction("            .fub_axi_wlast    (xbar_s_axi_wlast[m]),")
-        self.instruction("            .fub_axi_wuser    (),  // Not used")
-        self.instruction("            .fub_axi_wvalid   (xbar_s_axi_wvalid[m]),")
-        self.instruction("            .fub_axi_wready   (xbar_s_axi_wready[m]),")
-        self.instruction("            .fub_axi_bid      (xbar_s_axi_bid[m]),")
-        self.instruction("            .fub_axi_bresp    (xbar_s_axi_bresp[m]),")
-        self.instruction("            .fub_axi_buser    (1'b0),  // Not used")
-        self.instruction("            .fub_axi_bvalid   (xbar_s_axi_bvalid[m]),")
-        self.instruction("            .fub_axi_bready   (xbar_s_axi_bready[m]),")
-        self.instruction("            .busy             ()  // Optional monitoring")
-        self.instruction("        );")
-        self.instruction("")
+        filelist_lines.append("")
+        filelist_lines.append("# GAXI skid buffers (used by wrappers and converters)")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv")
 
-        # Read path component (axi4_slave_rd)
-        self.comment("Read path: AR, R channels")
-        self.instruction("        axi4_slave_rd #(")
-        self.instruction(f"            .SKID_DEPTH_AR({self.cfg.skid_depth_ar}),")
-        self.instruction(f"            .SKID_DEPTH_R({self.cfg.skid_depth_r}),")
-        self.instruction("            .AXI_ID_WIDTH(ID_WIDTH),")
-        self.instruction("            .AXI_ADDR_WIDTH(ADDR_WIDTH),")
-        self.instruction("            .AXI_DATA_WIDTH(DATA_WIDTH)")
-        self.instruction("        ) u_master_rd (")
-        self.instruction("            .aclk           (aclk),")
-        self.instruction("            .aresetn        (aresetn),")
-        self.instruction("            // External slave interface (from external master)")
-        self.instruction("            .s_axi_arid     (s_axi_arid[m]),")
-        self.instruction("            .s_axi_araddr   (s_axi_araddr[m]),")
-        self.instruction("            .s_axi_arlen    (s_axi_arlen[m]),")
-        self.instruction("            .s_axi_arsize   (s_axi_arsize[m]),")
-        self.instruction("            .s_axi_arburst  (s_axi_arburst[m]),")
-        self.instruction("            .s_axi_arlock   (s_axi_arlock[m]),")
-        self.instruction("            .s_axi_arcache  (s_axi_arcache[m]),")
-        self.instruction("            .s_axi_arprot   (s_axi_arprot[m]),")
-        self.instruction("            .s_axi_arqos    (4'h0),  // Not used")
-        self.instruction("            .s_axi_arregion (4'h0),  // Not used")
-        self.instruction("            .s_axi_aruser   (1'b0),  // Not used")
-        self.instruction("            .s_axi_arvalid  (s_axi_arvalid[m]),")
-        self.instruction("            .s_axi_arready  (s_axi_arready[m]),")
-        self.instruction("            .s_axi_rid      (s_axi_rid[m]),")
-        self.instruction("            .s_axi_rdata    (s_axi_rdata[m]),")
-        self.instruction("            .s_axi_rresp    (s_axi_rresp[m]),")
-        self.instruction("            .s_axi_rlast    (s_axi_rlast[m]),")
-        self.instruction("            .s_axi_ruser    (),  // Not used")
-        self.instruction("            .s_axi_rvalid   (s_axi_rvalid[m]),")
-        self.instruction("            .s_axi_rready   (s_axi_rready[m]),")
-        self.instruction("            // Crossbar interface (to crossbar routing)")
-        self.instruction("            .fub_axi_arid     (xbar_s_axi_arid[m]),")
-        self.instruction("            .fub_axi_araddr   (xbar_s_axi_araddr[m]),")
-        self.instruction("            .fub_axi_arlen    (xbar_s_axi_arlen[m]),")
-        self.instruction("            .fub_axi_arsize   (xbar_s_axi_arsize[m]),")
-        self.instruction("            .fub_axi_arburst  (xbar_s_axi_arburst[m]),")
-        self.instruction("            .fub_axi_arlock   (xbar_s_axi_arlock[m]),")
-        self.instruction("            .fub_axi_arcache  (xbar_s_axi_arcache[m]),")
-        self.instruction("            .fub_axi_arprot   (xbar_s_axi_arprot[m]),")
-        self.instruction("            .fub_axi_arqos    (xbar_s_axi_arqos[m]),")
-        self.instruction("            .fub_axi_arregion (xbar_s_axi_arregion[m]),")
-        self.instruction("            .fub_axi_aruser   (),  // Not used")
-        self.instruction("            .fub_axi_arvalid  (xbar_s_axi_arvalid[m]),")
-        self.instruction("            .fub_axi_arready  (xbar_s_axi_arready[m]),")
-        self.instruction("            .fub_axi_rid      (xbar_s_axi_rid[m]),")
-        self.instruction("            .fub_axi_rdata    (xbar_s_axi_rdata[m]),")
-        self.instruction("            .fub_axi_rresp    (xbar_s_axi_rresp[m]),")
-        self.instruction("            .fub_axi_rlast    (xbar_s_axi_rlast[m]),")
-        self.instruction("            .fub_axi_ruser    (1'b0),  // Not used")
-        self.instruction("            .fub_axi_rvalid   (xbar_s_axi_rvalid[m]),")
-        self.instruction("            .fub_axi_rready   (xbar_s_axi_rready[m]),")
-        self.instruction("            .busy             ()  // Optional monitoring")
-        self.instruction("        );")
-        self.instruction("")
-        self.instruction("    end")
-        self.instruction("endgenerate")
-        self.instruction("")
+        filelist_lines.append("")
+        filelist_lines.append("# Width converters (for data width adaptation)")
+        filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi4_dwidth_converter_rd.sv")
+        filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi4_dwidth_converter_wr.sv")
 
-    def generate_slave_side_components(self):
-        """
-        Generate AMBA axi4_master_wr and axi4_master_rd instances for slave-side interfaces
+        # Check if any slaves use APB protocol
+        has_apb = any(slave.protocol.lower() == 'apb' for slave in config.slaves)
+        if has_apb:
+            filelist_lines.append("")
+            filelist_lines.append("# APB protocol converter dependencies (in dependency order)")
+            filelist_lines.append("# Common dependencies first")
+            filelist_lines.append("$REPO_ROOT/rtl/common/counter_bin.sv")
+            filelist_lines.append("$REPO_ROOT/rtl/common/fifo_control.sv")
+            filelist_lines.append("")
+            filelist_lines.append("# AMBA shared modules")
+            filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_gen_addr.sv")
+            filelist_lines.append("$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv")
+            filelist_lines.append("")
+            filelist_lines.append("# AXI4 stubs")
+            filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/stubs/axi4_slave_wr_stub.sv")
+            filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/stubs/axi4_slave_rd_stub.sv")
+            filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/stubs/axi4_slave_stub.sv")
+            filelist_lines.append("")
+            filelist_lines.append("# APB modules")
+            filelist_lines.append("$REPO_ROOT/rtl/amba/apb/apb_master.sv")
+            filelist_lines.append("$REPO_ROOT/rtl/amba/shared/cdc_handshake.sv")
+            filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi4_to_apb_convert.sv")
+            filelist_lines.append("$REPO_ROOT/rtl/amba/apb/apb_master_stub.sv")
+            filelist_lines.append("")
+            filelist_lines.append("# APB protocol converter (AXI4 to APB)")
+            filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi4_to_apb_shim.sv")
 
-        One pair (wr + rd) per external slave
-        - Crossbar xbar_m_axi_* connects to axi4_master input
-        - axi4_master outputs to external m_axi_*
-        """
-        self.comment("==========================================================================")
-        self.comment("Slave-Side AMBA Components (axi4_master_wr and axi4_master_rd)")
-        self.comment("==========================================================================")
-        self.comment("Connect to external slaves with skid buffers and flow control")
-        self.comment(f"Configuration: SKID_DEPTH_AW={self.cfg.skid_depth_aw}, W={self.cfg.skid_depth_w}, "
-                     f"B={self.cfg.skid_depth_b}, AR={self.cfg.skid_depth_ar}, R={self.cfg.skid_depth_r}")
-        self.comment("==========================================================================")
-        self.instruction("")
+        # Check if any slaves use AXI4-Lite protocol
+        has_axil = any(slave.protocol.lower() == 'axil' for slave in config.slaves)
+        if has_axil:
+            filelist_lines.append("")
+            filelist_lines.append("# AXI4-Lite protocol converter dependencies")
+            filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi4_to_axil4_rd.sv")
+            filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi4_to_axil4_wr.sv")
 
-        # Generate instances for each slave
-        self.instruction("generate")
-        self.instruction("    for (genvar s = 0; s < NUM_SLAVES; s++) begin : gen_slave_side_amba")
-        self.instruction("")
+        # Note: Width converters are included even if not used in this specific bridge
+        # because they're needed when master/slave data widths differ.
+        # The synthesizer will optimize away unused instances.
 
-        # Write path component (axi4_master_wr)
-        self.comment("Write path: AW, W, B channels")
-        self.instruction("        axi4_master_wr #(")
-        self.instruction(f"            .SKID_DEPTH_AW({self.cfg.skid_depth_aw}),")
-        self.instruction(f"            .SKID_DEPTH_W({self.cfg.skid_depth_w}),")
-        self.instruction(f"            .SKID_DEPTH_B({self.cfg.skid_depth_b}),")
-        self.instruction("            .AXI_ID_WIDTH(ID_WIDTH),")
-        self.instruction("            .AXI_ADDR_WIDTH(ADDR_WIDTH),")
-        self.instruction("            .AXI_DATA_WIDTH(DATA_WIDTH)")
-        self.instruction("        ) u_slave_wr (")
-        self.instruction("            .aclk           (aclk),")
-        self.instruction("            .aresetn        (aresetn),")
-        self.instruction("            // Crossbar interface (from crossbar routing)")
-        self.instruction("            .fub_axi_awid     (xbar_m_axi_awid[s]),")
-        self.instruction("            .fub_axi_awaddr   (xbar_m_axi_awaddr[s]),")
-        self.instruction("            .fub_axi_awlen    (xbar_m_axi_awlen[s]),")
-        self.instruction("            .fub_axi_awsize   (xbar_m_axi_awsize[s]),")
-        self.instruction("            .fub_axi_awburst  (xbar_m_axi_awburst[s]),")
-        self.instruction("            .fub_axi_awlock   (xbar_m_axi_awlock[s]),")
-        self.instruction("            .fub_axi_awcache  (xbar_m_axi_awcache[s]),")
-        self.instruction("            .fub_axi_awprot   (xbar_m_axi_awprot[s]),")
-        self.instruction("            .fub_axi_awqos    (xbar_m_axi_awqos[s]),")
-        self.instruction("            .fub_axi_awregion (xbar_m_axi_awregion[s]),")
-        self.instruction("            .fub_axi_awuser   (1'b0),  // Not used")
-        self.instruction("            .fub_axi_awvalid  (xbar_m_axi_awvalid[s]),")
-        self.instruction("            .fub_axi_awready  (xbar_m_axi_awready[s]),")
-        self.instruction("            .fub_axi_wdata    (xbar_m_axi_wdata[s]),")
-        self.instruction("            .fub_axi_wstrb    (xbar_m_axi_wstrb[s]),")
-        self.instruction("            .fub_axi_wlast    (xbar_m_axi_wlast[s]),")
-        self.instruction("            .fub_axi_wuser    (1'b0),  // Not used")
-        self.instruction("            .fub_axi_wvalid   (xbar_m_axi_wvalid[s]),")
-        self.instruction("            .fub_axi_wready   (xbar_m_axi_wready[s]),")
-        self.instruction("            .fub_axi_bid      (xbar_m_axi_bid[s]),")
-        self.instruction("            .fub_axi_bresp    (xbar_m_axi_bresp[s]),")
-        self.instruction("            .fub_axi_buser    (),  // Not used")
-        self.instruction("            .fub_axi_bvalid   (xbar_m_axi_bvalid[s]),")
-        self.instruction("            .fub_axi_bready   (xbar_m_axi_bready[s]),")
-        self.instruction("            // External master interface (to external slave)")
-        self.instruction("            .m_axi_awid     (m_axi_awid[s]),")
-        self.instruction("            .m_axi_awaddr   (m_axi_awaddr[s]),")
-        self.instruction("            .m_axi_awlen    (m_axi_awlen[s]),")
-        self.instruction("            .m_axi_awsize   (m_axi_awsize[s]),")
-        self.instruction("            .m_axi_awburst  (m_axi_awburst[s]),")
-        self.instruction("            .m_axi_awlock   (m_axi_awlock[s]),")
-        self.instruction("            .m_axi_awcache  (m_axi_awcache[s]),")
-        self.instruction("            .m_axi_awprot   (m_axi_awprot[s]),")
-        self.instruction("            .m_axi_awqos    (),  // Not used")
-        self.instruction("            .m_axi_awregion (),  // Not used")
-        self.instruction("            .m_axi_awuser   (),  // Not used")
-        self.instruction("            .m_axi_awvalid  (m_axi_awvalid[s]),")
-        self.instruction("            .m_axi_awready  (m_axi_awready[s]),")
-        self.instruction("            .m_axi_wdata    (m_axi_wdata[s]),")
-        self.instruction("            .m_axi_wstrb    (m_axi_wstrb[s]),")
-        self.instruction("            .m_axi_wlast    (m_axi_wlast[s]),")
-        self.instruction("            .m_axi_wuser    (),  // Not used")
-        self.instruction("            .m_axi_wvalid   (m_axi_wvalid[s]),")
-        self.instruction("            .m_axi_wready   (m_axi_wready[s]),")
-        self.instruction("            .m_axi_bid      (m_axi_bid[s]),")
-        self.instruction("            .m_axi_bresp    (m_axi_bresp[s]),")
-        self.instruction("            .m_axi_buser    (1'b0),  // Not used")
-        self.instruction("            .m_axi_bvalid   (m_axi_bvalid[s]),")
-        self.instruction("            .m_axi_bready   (m_axi_bready[s]),")
-        self.instruction("            .busy           ()  // Optional monitoring")
-        self.instruction("        );")
-        self.instruction("")
+        filelist_content = '\n'.join(filelist_lines)
+        os.makedirs(filelist_dir, exist_ok=True)
 
-        # Read path component (axi4_master_rd)
-        self.comment("Read path: AR, R channels")
-        self.instruction("        axi4_master_rd #(")
-        self.instruction(f"            .SKID_DEPTH_AR({self.cfg.skid_depth_ar}),")
-        self.instruction(f"            .SKID_DEPTH_R({self.cfg.skid_depth_r}),")
-        self.instruction("            .AXI_ID_WIDTH(ID_WIDTH),")
-        self.instruction("            .AXI_ADDR_WIDTH(ADDR_WIDTH),")
-        self.instruction("            .AXI_DATA_WIDTH(DATA_WIDTH)")
-        self.instruction("        ) u_slave_rd (")
-        self.instruction("            .aclk           (aclk),")
-        self.instruction("            .aresetn        (aresetn),")
-        self.instruction("            // Crossbar interface (from crossbar routing)")
-        self.instruction("            .fub_axi_arid     (xbar_m_axi_arid[s]),")
-        self.instruction("            .fub_axi_araddr   (xbar_m_axi_araddr[s]),")
-        self.instruction("            .fub_axi_arlen    (xbar_m_axi_arlen[s]),")
-        self.instruction("            .fub_axi_arsize   (xbar_m_axi_arsize[s]),")
-        self.instruction("            .fub_axi_arburst  (xbar_m_axi_arburst[s]),")
-        self.instruction("            .fub_axi_arlock   (xbar_m_axi_arlock[s]),")
-        self.instruction("            .fub_axi_arcache  (xbar_m_axi_arcache[s]),")
-        self.instruction("            .fub_axi_arprot   (xbar_m_axi_arprot[s]),")
-        self.instruction("            .fub_axi_arqos    (xbar_m_axi_arqos[s]),")
-        self.instruction("            .fub_axi_arregion (xbar_m_axi_arregion[s]),")
-        self.instruction("            .fub_axi_aruser   (1'b0),  // Not used")
-        self.instruction("            .fub_axi_arvalid  (xbar_m_axi_arvalid[s]),")
-        self.instruction("            .fub_axi_arready  (xbar_m_axi_arready[s]),")
-        self.instruction("            .fub_axi_rid      (xbar_m_axi_rid[s]),")
-        self.instruction("            .fub_axi_rdata    (xbar_m_axi_rdata[s]),")
-        self.instruction("            .fub_axi_rresp    (xbar_m_axi_rresp[s]),")
-        self.instruction("            .fub_axi_rlast    (xbar_m_axi_rlast[s]),")
-        self.instruction("            .fub_axi_ruser    (),  // Not used")
-        self.instruction("            .fub_axi_rvalid   (xbar_m_axi_rvalid[s]),")
-        self.instruction("            .fub_axi_rready   (xbar_m_axi_rready[s]),")
-        self.instruction("            // External master interface (to external slave)")
-        self.instruction("            .m_axi_arid     (m_axi_arid[s]),")
-        self.instruction("            .m_axi_araddr   (m_axi_araddr[s]),")
-        self.instruction("            .m_axi_arlen    (m_axi_arlen[s]),")
-        self.instruction("            .m_axi_arsize   (m_axi_arsize[s]),")
-        self.instruction("            .m_axi_arburst  (m_axi_arburst[s]),")
-        self.instruction("            .m_axi_arlock   (m_axi_arlock[s]),")
-        self.instruction("            .m_axi_arcache  (m_axi_arcache[s]),")
-        self.instruction("            .m_axi_arprot   (m_axi_arprot[s]),")
-        self.instruction("            .m_axi_arqos    (),  // Not used")
-        self.instruction("            .m_axi_arregion (),  // Not used")
-        self.instruction("            .m_axi_aruser   (),  // Not used")
-        self.instruction("            .m_axi_arvalid  (m_axi_arvalid[s]),")
-        self.instruction("            .m_axi_arready  (m_axi_arready[s]),")
-        self.instruction("            .m_axi_rid      (m_axi_rid[s]),")
-        self.instruction("            .m_axi_rdata    (m_axi_rdata[s]),")
-        self.instruction("            .m_axi_rresp    (m_axi_rresp[s]),")
-        self.instruction("            .m_axi_rlast    (m_axi_rlast[s]),")
-        self.instruction("            .m_axi_ruser    (1'b0),  // Not used")
-        self.instruction("            .m_axi_rvalid   (m_axi_rvalid[s]),")
-        self.instruction("            .m_axi_rready   (m_axi_rready[s]),")
-        self.instruction("            .busy           ()  // Optional monitoring")
-        self.instruction("        );")
-        self.instruction("")
-        self.instruction("    end")
-        self.instruction("endgenerate")
-        self.instruction("")
+        filelist_path = os.path.join(filelist_dir, f"{output_name}.f")
+        with open(filelist_path, 'w') as f:
+            f.write(filelist_content)
 
-    def verilog(self, file_path):
-        """
-        Generate complete RTL (main entry point)
+        print(f"  ✓ Generated filelist: {filelist_path}")
 
-        Uses hierarchical modules for clean organization:
-        - BridgeAmbaIntegrator: AMBA component instantiation
-        - BridgeAddressArbiter: Address decode and arbitration
-        - BridgeChannelRouter: Channel muxing (AW, W, AR)
-        - BridgeResponseRouter: ID tracking and response routing (B, R)
-        """
-        # Generate header comment
-        self.generate_header_comment()
+        return (True, output_name)
 
-        # Generate internal crossbar signals (xbar_s_axi_* and xbar_m_axi_*)
-        self.generate_internal_signals()
+    except Exception as e:
+        print(f"  ✗ Bridge generation failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return (False, None)
 
-        # ===================================================================
-        # Master-Side AMBA Components
-        # ===================================================================
-        # axi4_slave_wr/rd instances: External s_axi_* → xbar_s_axi_*
-        self.amba_integrator.generate_master_side_components()
 
-        # ===================================================================
-        # Address Decode and Arbitration
-        # ===================================================================
-        # Decode addresses and arbitrate between masters for each slave
-        self.address_arbiter.generate_address_decode()
-        self.address_arbiter.generate_aw_arbiter()
-        self.address_arbiter.generate_ar_arbiter()
+def parse_bulk_csv(bulk_file):
+    """Parse bulk generation CSV file.
 
-        # ===================================================================
-        # Channel Routing (AW, W, AR)
-        # ===================================================================
-        # Mux granted master's signals to slaves
-        self.channel_router.generate_aw_channel_mux()
-        self.channel_router.generate_w_channel_mux()
-        self.channel_router.generate_ar_channel_mux()
+    Unified CSV format (supports RTL + optional test generation):
+        name,ports,connectivity,output_dir,output_tb,output_test,expose_arbiter_signals
+        # Lines starting with # are comments
+        bridge_name,path/to/ports.csv,path/to/conn.csv,../rtl,../dv/tbclasses,../dv/tests,false
 
-        # ===================================================================
-        # Response Routing (ID Tables, B, R)
-        # ===================================================================
-        # Track transactions and route responses back to masters
-        self.response_router.generate_id_tables()
-        self.response_router.generate_b_channel_demux()
-        self.response_router.generate_r_channel_demux()
+    Args:
+        bulk_file: Path to bulk CSV file
 
-        # ===================================================================
-        # Slave-Side AMBA Components
-        # ===================================================================
-        # axi4_master_wr/rd instances: xbar_m_axi_* → External m_axi_*
-        self.amba_integrator.generate_slave_side_components()
+    Returns:
+        List of dicts with generation parameters
+    """
+    configs = []
 
-        # Module framework handles module header/footer
-        self.start()  # Auto-generates module header with ports/params
-        self.end()    # Auto-generates endmodule
+    with open(bulk_file, 'r') as f:
+        reader = csv.DictReader(f)
+        for line_num, row in enumerate(reader, start=2):  # Start at 2 (after header)
+            # Skip comment lines (check first field)
+            first_field = list(row.values())[0] if row else ""
+            if first_field.strip().startswith('#'):
+                continue
 
-        # Write to file
-        self.write(file_path, f'{self.module_name}.sv')
+            # Parse row
+            config = {
+                'name': row.get('name', '').strip() or None,
+                'ports': row.get('ports', '').strip(),
+                'connectivity': row.get('connectivity', '').strip(),
+                'output_dir': row.get('output_dir', '').strip() or '../rtl',
+                'output_tb': row.get('output_tb', '').strip() or '../dv/tbclasses',
+                'output_test': row.get('output_test', '').strip() or '../dv/tests',
+                'expose_arbiter': row.get('expose_arbiter_signals', 'false').strip().lower() in ('true', '1', 'yes')
+            }
+
+            # Validate required fields
+            if not config['ports']:
+                print(f"WARNING: Line {line_num}: Missing 'ports' field, skipping")
+                continue
+
+            # Connectivity is optional for YAML files (auto-detected)
+            ports_ext = Path(config['ports']).suffix.lower()
+            is_config_file = ports_ext in ['.yaml', '.yml', '.toml']
+            if not is_config_file and not config['connectivity']:
+                print(f"WARNING: Line {line_num}: Missing 'connectivity' field for CSV ports file, skipping")
+                continue
+
+            configs.append(config)
+
+    return configs
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Bridge: AXI4 Full Crossbar Generator (Framework Version)",
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        description="CSV-Based Bridge Generator with Protocol and Width Converters",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Single bridge generation
+  python bridge_generator.py --ports example_ports.csv --connectivity example_connectivity.csv --output ../rtl/
+
+  # Bulk generation from batch file
+  python bridge_generator.py --bulk bridge_batch.csv
+
+Configuration Files:
+  ports.csv        - Defines each master/slave port (protocol, widths, address ranges, prefixes)
+  connectivity.csv - Defines which masters connect to which slaves (partial connectivity)
+
+Bulk Generation CSV Format:
+  name,ports,connectivity,output_dir,expose_arbiter_signals
+  # Lines starting with # are comments
+  bridge_2x2_rw,test_configs/bridge_2x2_rw.yaml,,../rtl/generated,false
+  bridge_4x4_rw,test_configs/bridge_4x4_rw.yaml,,../rtl/generated,true
+        """
     )
 
-    parser.add_argument("--masters", type=int, required=True, help="Number of master interfaces")
-    parser.add_argument("--slaves", type=int, required=True, help="Number of slave interfaces")
-    parser.add_argument("--data-width", type=int, default=512, help="Data bus width in bits")
-    parser.add_argument("--addr-width", type=int, default=64, help="Address bus width in bits")
-    parser.add_argument("--id-width", type=int, default=4, help="Transaction ID width in bits")
-    parser.add_argument("--output-dir", type=str, default="../rtl", help="Output directory")
-    parser.add_argument("--no-pipeline", action="store_true", help="Disable output registers")
-    parser.add_argument("--no-counters", action="store_true", help="Disable performance counters")
+    # Create mutually exclusive group for single vs bulk mode
+    mode_group = parser.add_mutually_exclusive_group(required=True)
+    mode_group.add_argument("--bulk", type=str, metavar="BULK_CSV",
+                           help="Path to bulk generation CSV file (see format above)")
+    mode_group.add_argument("--ports", type=str,
+                           help="Path to ports.csv configuration file (single mode)")
+
+    # Single mode arguments (only used when --ports specified)
+    parser.add_argument("--connectivity", type=str,
+                       help="Path to connectivity.csv configuration file (required with --ports)")
+    parser.add_argument("--name", type=str, default=None,
+                       help="Output module name (default: auto-generated)")
+    parser.add_argument("--output-dir", type=str, default="../rtl",
+                       help="Output directory for generated RTL")
+    parser.add_argument("--expose-arbiter-signals", action="store_true",
+                       help="Expose arbiter grant signals as outputs for testing/debugging")
+
+    # Test generation arguments
+    parser.add_argument("--generate-tests", action="store_true",
+                       help="Also generate testbench classes and test files")
+    parser.add_argument("--output-tb", type=str, default="../dv/tbclasses",
+                       help="Output directory for testbench classes (default: ../dv/tbclasses)")
+    parser.add_argument("--output-test", type=str, default="../dv/tests",
+                       help="Output directory for test files (default: ../dv/tests)")
 
     args = parser.parse_args()
 
-    # Address map - use topology-specific defaults or sequential fallback
-    address_map = {}
+    print("="*70)
+    print("Bridge Generator (CSV/YAML)")
+    print("="*70)
 
-    if args.masters == 5 and args.slaves == 3:
-        # OOO Bridge topology (bridge_ooo_with_arbiter.sv)
-        # Non-overlapping address ranges with proper decode
-        address_map = {
-            0: {'base': 0x80000000, 'size': 0x80000000, 'name': 'DDR'},      # 2GB
-            1: {'base': 0x40000000, 'size': 0x10000000, 'name': 'SRAM'},     # 256MB
-            2: {'base': 0x00000000, 'size': 0x00010000, 'name': 'APB'},      # 64KB
-        }
+    if args.bulk:
+        # Bulk generation mode
+        if not os.path.exists(args.bulk):
+            print(f"ERROR: Bulk file not found: {args.bulk}")
+            sys.exit(1)
+
+        print(f"Bulk generation mode: {args.bulk}")
+        print("")
+
+        configs = parse_bulk_csv(args.bulk)
+
+        if not configs:
+            print("ERROR: No valid configurations found in bulk file")
+            sys.exit(1)
+
+        print(f"Found {len(configs)} bridge configuration(s) to generate")
+        print("")
+
+        success_count = 0
+        fail_count = 0
+
+        for i, config in enumerate(configs, start=1):
+            print(f"[{i}/{len(configs)}] Generating bridge: {config.get('name', 'auto-named')}")
+            print(f"  Ports: {config['ports']}")
+            print(f"  Connectivity: {config['connectivity']}")
+
+            # Generate RTL
+            success, bridge_name = generate_bridge(
+                ports_file=config['ports'],
+                connectivity_file=config['connectivity'],
+                name=config['name'],
+                output_dir=config['output_dir'],
+                expose_arbiter=config['expose_arbiter']
+            )
+
+            if success:
+                success_count += 1
+
+                # Generate tests if requested
+                if args.generate_tests and bridge_name:
+                    print(f"  Generating tests for {bridge_name}...")
+                    test_success = generate_tests(
+                        ports_file=config['ports'],
+                        connectivity_file=config['connectivity'],
+                        bridge_name=bridge_name,
+                        output_tb_dir=config['output_tb'],
+                        output_test_dir=config['output_test'],
+                        enable_ooo=True
+                    )
+                    if not test_success:
+                        print(f"  ⚠ Test generation failed for {bridge_name}")
+            else:
+                fail_count += 1
+
+            print("")
+
+        print("="*70)
+        print(f"Bulk generation complete: {success_count} succeeded, {fail_count} failed")
+        print("="*70)
+
+        if fail_count > 0:
+            sys.exit(1)
+
     else:
-        # Default: sequential address map
-        base_addr = 0x00000000
-        size_per_slave = 0x10000000  # 256MB per slave
+        # Single generation mode
+        # Check if connectivity is required (only for CSV ports files)
+        ports_ext = Path(args.ports).suffix.lower()
+        is_config_file = ports_ext in ['.yaml', '.yml', '.toml']
 
-        for s in range(args.slaves):
-            address_map[s] = {
-                'base': base_addr,
-                'size': size_per_slave,
-                'name': f'Slave{s}'
-            }
-            base_addr += size_per_slave
+        if not is_config_file and not args.connectivity:
+            print("ERROR: --connectivity required when using CSV ports file (single mode)")
+            parser.print_help()
+            sys.exit(1)
 
-    config = BridgeConfig(
-        num_masters=args.masters,
-        num_slaves=args.slaves,
-        data_width=args.data_width,
-        addr_width=args.addr_width,
-        id_width=args.id_width,
-        address_map=address_map,
-        pipeline_outputs=not args.no_pipeline,
-        enable_counters=not args.no_counters
-    )
+        print("Single generation mode")
+        print("")
 
-    os.makedirs(args.output_dir, exist_ok=True)
+        # Generate RTL
+        success, bridge_name = generate_bridge(
+            ports_file=args.ports,
+            connectivity_file=args.connectivity,  # Can be None for YAML
+            name=args.name,
+            output_dir=args.output_dir,
+            expose_arbiter=args.expose_arbiter_signals
+        )
 
-    generator = BridgeFlatCrossbar(config)
-    generator.verilog(args.output_dir)
-    print(f"✓ Generated skeleton: {args.output_dir}/bridge_axi4_flat_{args.masters}x{args.slaves}.sv")
-    print(f"")
-    print(f"⚠ NOTE: This is a SKELETON implementation demonstrating framework usage.")
-    print(f"  Full implementation requires:")
-    print(f"  - 5 arbiters per slave (AW, W, B, AR, R)")
-    print(f"  - ID tracking tables for out-of-order support")
-    print(f"  - Response demux logic (B, R channels)")
-    print(f"  - Burst handling with grant locking")
-    print(f"")
-    print(f"{'='*70}")
-    print(f"✓ Bridge skeleton generation complete (framework version)!")
-    print(f"{'='*70}")
+        if not success:
+            print("")
+            print("="*70)
+            print("✗ Bridge generation failed!")
+            print("="*70)
+            sys.exit(1)
+
+        # Generate tests if requested
+        if args.generate_tests and bridge_name:
+            print("")
+            print(f"Generating tests for {bridge_name}...")
+            test_success = generate_tests(
+                ports_file=args.ports,
+                connectivity_file=args.connectivity,
+                bridge_name=bridge_name,
+                output_tb_dir=args.output_tb,
+                output_test_dir=args.output_test,
+                enable_ooo=True
+            )
+            if not test_success:
+                print("  ⚠ Test generation failed")
+
+        print("")
+        print("="*70)
+        print("✓ Bridge generation complete!")
+        if args.generate_tests:
+            print("✓ Test generation complete!")
+        print("="*70)
 
 
 if __name__ == "__main__":

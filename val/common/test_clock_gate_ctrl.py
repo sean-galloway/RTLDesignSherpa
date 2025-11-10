@@ -21,17 +21,11 @@ import cocotb
 from cocotb.utils import get_sim_time
 from cocotb_test.simulator import run
 
-
 # Add repo root to path for CocoTBFramework imports
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-if os.path.join(repo_root, 'bin') not in sys.path:
-    sys.path.insert(0, os.path.join(repo_root, 'bin'))
-
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
-
 
 class ClockGateCtrlConfig:
     """Configuration class for clock gate controller tests"""
@@ -45,7 +39,6 @@ class ClockGateCtrlConfig:
         """
         self.name = name
         self.counter_width = counter_width
-
 
 class ClockGateCtrlTB(TBBase):
     """
@@ -629,7 +622,6 @@ class ClockGateCtrlTB(TBBase):
         time_ns = get_sim_time('ns')
         self.log.info(f"All test sequences completed successfully @ {time_ns}ns")
 
-
 @cocotb.test(timeout_time=2, timeout_unit="ms")  # Increased timeout for randomized tests
 async def clock_gate_ctrl_test(dut):
     """Test the clock gate control block with FlexRandomizer"""
@@ -663,7 +655,6 @@ async def clock_gate_ctrl_test(dut):
         # Wait for any pending tasks
         await tb.wait_clocks('clk_in', 10)
 
-
 def generate_test_params():
     """
     Generate test parameter combinations based on REG_LEVEL.
@@ -681,7 +672,6 @@ def generate_test_params():
         return [4]
     else:  # FUNC or FULL (same for this test)
         return [4, 8]
-
 
 @pytest.mark.parametrize("counter_width", generate_test_params())
 def test_clock_gate_ctrl(request, counter_width):
@@ -703,7 +693,8 @@ def test_clock_gate_ctrl(request, counter_width):
 
     # Create a human readable test identifier
     n_str = TBBase.format_dec(counter_width, 2)
-    test_name_plus_params = f"test_{dut_name}_n{n_str}"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name_plus_params = f"test_{dut_name}_n{n_str}_{reg_level}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')

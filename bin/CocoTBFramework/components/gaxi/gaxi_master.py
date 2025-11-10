@@ -124,7 +124,18 @@ class GAXIMaster(GAXIComponentBase, BusDriver):
         # CLEAN APPROACH: Explicitly pass empty prefix to cocotb
         # Our signal lists already contain full signal names
         BusDriver.__init__(self, dut, '', clock, **kwargs)
-        self.log = log or self._log
+
+        # Validate log parameter - MUST be provided from TBBase
+        if log is None:
+            raise ValueError(
+                f"GAXIMaster '{title}': log parameter is required!\n"
+                "  You must pass a logger from TBBase:\n"
+                "    tb = MyTestbench(dut)  # Inherits from TBBase\n"
+                "    master = create_axi4_master_wr(dut, ..., log=tb.log)\n"
+                "  Do NOT rely on self._log - it doesn't exist in this context."
+            )
+
+        self.log = log
 
         # Complete base class initialization now that bus is available
         self.complete_base_initialization(self.bus)
@@ -384,7 +395,7 @@ class GAXIMaster(GAXIComponentBase, BusDriver):
     async def _xmit_phase3(self, transaction):
         """
         Phase 3: Complete transfer with enhanced logging and statistics.
-        Maintains exact original timing and logic.
+        PERFORMANCE: Keep valid asserted if more beats are queued (zero-bubble operation).
         """
         phase_start = get_sim_time('ns')
         self.phase_statistics['phase3_count'] += 1
@@ -402,11 +413,20 @@ class GAXIMaster(GAXIComponentBase, BusDriver):
 
         self.sent_queue.append(transaction)
 
-        # Deassert valid
-        self._assign_valid_value(0)
+        # PERFORMANCE: Only deassert valid if queue is empty (zero-bubble operation)
+        # If more beats are queued, keep valid=1 for back-to-back transmission
+        if not len(self.transmit_queue):
+            # Deassert valid
+            self._assign_valid_value(0)
 
-        # Clear the data bus
-        self._clear_data_bus()
+            # Clear the data bus
+            self._clear_data_bus()
+
+            if self.pipeline_debug:
+                self.log.debug(f"Master({self.title}) Phase3: queue empty, deasserting valid")
+        else:
+            if self.pipeline_debug:
+                self.log.debug(f"Master({self.title}) Phase3: queue has {len(self.transmit_queue)} beats, keeping valid asserted")
 
         if self.pipeline_debug:
             phase_duration = get_sim_time('ns') - phase_start

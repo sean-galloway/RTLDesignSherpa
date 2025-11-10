@@ -1,0 +1,45 @@
+# Verible Style Waivers for RTL Design Sherpa
+# ==============================================
+# This file documents style rule waivers for Verible lint (REFERENCE ONLY).
+# Verilator (functional lint) must still pass - these are STYLE-ONLY waivers.
+#
+# Purpose: Document repository style conventions that differ from Verible defaults
+#
+# Implementation: Rules are disabled directly in Makefiles with --rules flag:
+#   VERIBLE_FLAGS = --rules_config_search --rules=-parameter-name-style
+#
+# Documentation: https://github.com/chipsalliance/verible/tree/master/verilog/tools/lint
+
+# ==============================================
+# Parameter Naming Convention Waivers
+# ==============================================
+# Repository convention:
+#   - parameter    → UPPER_CASE (matches Verible default)
+#   - localparam   → snake_case or descriptive (not TitleCase)
+#
+# Verible default wants:
+#   - parameter    → UPPER_CASE ✓
+#   - localparam   → TitleCase  ✗ (we use snake_case)
+#
+# Rationale: Many localparams are derived/calculated values that read better
+#            in lowercase (e.g., addr_width_c, fifo_depth_log2)
+#
+# Waived rule: parameter-name-style (covers both parameters and localparams)
+
+# ==============================================
+# Additional Style Waivers (if needed)
+# ==============================================
+# Uncomment below if you encounter other style-only issues:
+
+# Line length (if you have long signal names)
+# -line-length
+
+# Always-comb procedural blocks (if you prefer always @*)
+# -always-comb
+
+# Explicit parameter storage type
+# -explicit-parameter-storage-type
+
+# ==============================================
+# End of Waivers
+# ==============================================

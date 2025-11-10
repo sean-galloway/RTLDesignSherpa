@@ -1,21 +1,118 @@
 # Claude Code Guide: Bridge Subsystem
 
-**Version:** 1.0
-**Last Updated:** 2025-10-18
+**Version:** 2.1
+**Last Updated:** 2025-11-03
 **Purpose:** AI-specific guidance for working with Bridge subsystem
+
+---
+
+## 🚨 CRITICAL: Read Architecture Document First
+
+**Before making ANY changes to bridge generator or understanding signal flow:**
+
+📖 **READ:** `projects/components/bridge/docs/BRIDGE_ARCHITECTURE.md`
+
+This document contains the **definitive bridge architecture** including:
+- Correct signal flow (wrappers → decoder → converters → crossbar → slaves)
+- Component purposes and placement
+- Common misconceptions that previous agents made
+- Why there's NO fixed crossbar width
+
+**If you skip this document, you WILL make incorrect assumptions.**
 
 ---
 
 ## Quick Context
 
-**What:** Bridge - CSV-based AXI4 Crossbar Generator - Generates parameterized SystemVerilog crossbars from CSV configuration
-**Status:** 🟢 Phase 2 Complete - CSV generator with channel-specific masters
+**What:** Bridge - Two complementary AXI4 Crossbar Generators (framework-based and CSV-based)
+**Status:** 🟢 Phase 2 Complete - CSV generator with channel-specific masters (wr/rd/rw)
 **Your Role:** Help users configure CSV files, generate bridges, understand architecture, and create tests
 
-**📖 Complete Specification:**
-- `projects/components/bridge/PRD.md` ← Overall product requirements
-- `projects/components/bridge/docs/bridge_spec/bridge_index.md` ← Detailed specification
-- `projects/components/bridge/CSV_BRIDGE_STATUS.md` ← Implementation status and features
+**📖 Complete Documentation (Read in This Order):**
+1. `projects/components/bridge/docs/BRIDGE_ARCHITECTURE.md` ← **START HERE** (architecture reference)
+2. `projects/components/bridge/PRD.md` ← Product requirements
+3. `projects/components/bridge/BRIDGE_CURRENT_STATE.md` ← Current implementation review
+4. `projects/components/bridge/docs/BRIDGE_ARCHITECTURE_DIAGRAMS.md` ← Visual architecture diagrams
+5. `projects/components/bridge/CSV_BRIDGE_STATUS.md` ← CSV generator status (Phase 1 & 2)
+6. `projects/components/bridge/docs/bridge_spec/bridge_index.md` ← Detailed specification
+
+---
+
+## Target Architecture: Intelligent Width-Aware Routing
+
+**Core Principle:** Direct connections where possible, converters only where needed, no fixed crossbar width.
+
+### Efficient Multi-Width Design
+
+```
+Master_A (64b)
+  ├─ Direct → Slave_0 (64b)           [0 conversions, minimal latency]
+  ├─ Conv(64→128) → Slave_1 (128b)    [1 conversion]
+  └─ Conv(64→512) → Slave_2 (512b)    [1 conversion]
+
+Master_B (512b)
+  ├─ Conv(512→64) → Slave_0 (64b)     [1 conversion]
+  ├─ Conv(512→128) → Slave_1 (128b)   [1 conversion]
+  └─ Direct → Slave_2 (512b)          [0 conversions, full bandwidth]
+```
+
+**Router Logic:** Address decoder determines target slave, selects correctly-sized path for that master-slave pair.
+
+### Why This Architecture
+
+**❌ Naive Fixed-Width Approach (Don't Do This):**
+```
+Master (64b) → Upsize(64→256) → Fixed 256b Crossbar → Downsize(256→64) → Slave (64b)
+```
+- TWO conversions for same-width connections (wasteful!)
+- Reduced bandwidth on narrow paths
+- Unnecessary logic and area
+- Higher latency
+
+**✅ Intelligent Routing (Target):**
+```
+Master (64b) → Router → Direct Connection → Slave (64b)
+```
+- ZERO conversions for matching widths
+- Full native bandwidth
+- Minimal logic
+- Lowest latency
+
+### Per-Master Output Paths
+
+Each master has N output paths (one per unique slave width it connects to):
+
+```systemverilog
+// Master_A connects to slaves at 64b, 128b, 512b
+// Generate 3 output paths:
+
+logic [63:0]  master_a_64b_wdata;   // For 64b slaves (direct)
+logic [127:0] master_a_128b_wdata;  // For 128b slaves (via converter)
+logic [511:0] master_a_512b_wdata;  // For 512b slaves (via converter)
+
+// Router selects based on address decode:
+always_comb begin
+    case (decoded_slave_id)
+        SLAVE_0: select master_a_64b_wdata;   // Slave_0 is 64b
+        SLAVE_1: select master_a_128b_wdata;  // Slave_1 is 128b
+        SLAVE_2: select master_a_512b_wdata;  // Slave_2 is 512b
+    endcase
+end
+```
+
+### Benefits
+
+1. **Resource Efficient** - Only instantiate converters actually needed
+2. **Maximum Performance** - Direct paths have zero conversion overhead
+3. **Optimal Bandwidth** - No artificial width bottlenecks
+4. **Lower Latency** - Minimal logic in critical path for matching widths
+5. **Scalable** - Works for any combination of master/slave widths
+
+### Implementation Status
+
+**Current State:** Fixed-width crossbar with master-side upsizing (Phase 1 architecture)
+**Target State:** Intelligent per-master multi-width routing (your vision)
+**Migration:** Requires generator architecture rework (see TASKS.md)
 
 ---
 
@@ -421,73 +518,91 @@ memory_model = MemoryModel()  # Unnecessary complexity
 
 ---
 
-## CSV-Based Bridge Generator (Phase 2 Complete)
+## TOML/CSV-Based Bridge Generator (Phase 2 Complete)
 
 ### Overview
 
-The Bridge CSV generator creates parameterized SystemVerilog crossbars from simple CSV configuration files, eliminating manual RTL editing for complex interconnects.
+The Bridge generator creates parameterized SystemVerilog crossbars from TOML configuration files with CSV connectivity matrices, eliminating manual RTL editing for complex interconnects.
 
 **Key Benefits:**
-- **Human-readable configuration** - CSV files instead of code
+- **Human-readable configuration** - TOML for ports, CSV for connectivity
 - **Custom signal prefixes** - Each port has unique prefix (rapids_m_axi_, apb0_, etc.)
 - **Channel-specific masters** - Write-only (wr), read-only (rd), or full (rw)
+- **Interface modules** - Timing isolation via axi4_master/slave wrappers with configurable skid depths
 - **Automatic converters** - Width and protocol conversion inserted automatically
 - **Resource efficient** - Only generates needed channels and converters
 
 ### Quick Start
 
-**1. Create ports.csv:**
-```csv
-port_name,direction,protocol,channels,prefix,data_width,addr_width,id_width,base_addr,addr_range
-rapids_descr_wr,master,axi4,wr,rapids_descr_m_axi_,512,64,8,N/A,N/A
-rapids_sink_wr,master,axi4,wr,rapids_sink_m_axi_,512,64,8,N/A,N/A
-rapids_src_rd,master,axi4,rd,rapids_src_m_axi_,512,64,8,N/A,N/A
-cpu_master,master,axi4,rw,cpu_m_axi_,64,32,4,N/A,N/A
-ddr_controller,slave,axi4,rw,ddr_s_axi_,512,64,8,0x80000000,0x80000000
-apb_periph0,slave,apb,rw,apb0_,32,32,N/A,0x00000000,0x00010000
+**1. Create bridge_mybridge.toml:**
+```toml
+[bridge]
+  name = "bridge_mybridge"
+  description = "Custom bridge example"
+
+  # Default skid buffer depths (can be overridden per port)
+  defaults.skid_depths = {ar = 2, r = 4, aw = 2, w = 4, b = 2}
+
+  masters = [
+    {name = "cpu", prefix = "cpu_m_axi", id_width = 4, addr_width = 32, data_width = 64, user_width = 1,
+     interface = {type = "axi4_master"}},
+    {name = "dma", prefix = "dma_m_axi", id_width = 4, addr_width = 32, data_width = 512, user_width = 1,
+     interface = {type = "axi4_master", skid_depths = {ar = 4, r = 8, aw = 4, w = 8, b = 4}}}
+  ]
+
+  slaves = [
+    {name = "ddr", prefix = "ddr_s_axi", id_width = 4, addr_width = 32, data_width = 512, user_width = 1,
+     base_addr = 0x00000000, addr_range = 0x80000000, interface = {type = "axi4_slave"}},
+    {name = "sram", prefix = "sram_s_axi", id_width = 4, addr_width = 32, data_width = 256, user_width = 1,
+     base_addr = 0x80000000, addr_range = 0x80000000, interface = {type = "axi4_slave"}}
+  ]
 ```
 
-**2. Create connectivity.csv:**
+**2. Create bridge_mybridge_connectivity.csv:**
 ```csv
-master\slave,ddr_controller,apb_periph0
-rapids_descr_wr,1,0
-rapids_sink_wr,1,0
-rapids_src_rd,1,0
-cpu_master,1,1
+master\slave,ddr,sram
+cpu,1,1
+dma,1,1
 ```
 
 **3. Generate bridge:**
 ```bash
 cd projects/components/bridge/bin
-python3 bridge_csv_generator.py \
-    --ports my_ports.csv \
-    --connectivity my_connectivity.csv \
-    --name my_bridge \
-    --output ../rtl/
+python3 bridge_generator.py --ports test_configs/bridge_mybridge.toml
+# Auto-finds bridge_mybridge_connectivity.csv
+
+# Or use bulk generation
+python3 bridge_generator.py --bulk bridge_batch.csv
 ```
 
 **Result:** Complete SystemVerilog module with:
 - Custom port prefixes per port
+- Timing isolation via interface wrappers
 - Only needed AXI4 channels (wr/rd/rw optimized)
 - Width converters for data mismatches
 - Internal crossbar instantiation
-- APB converter integration points
+- APB/AXI4-Lite converter integration points
 
-### CSV Format Details
+### Configuration Format Details
 
-**ports.csv Columns:**
-- `port_name` - Unique identifier (rapids_descr_wr, cpu_master, etc.)
-- `direction` - master or slave
-- `protocol` - axi4 or apb
-- `channels` - **rw** (all 5 channels), **wr** (write-only: AW,W,B), **rd** (read-only: AR,R)
-- `prefix` - Signal prefix (rapids_descr_m_axi_, apb0_, etc.)
-- `data_width` - Data width in bits (32, 64, 512, etc.)
+**TOML Port Configuration:**
+
+The primary format is now **TOML** (preferred over CSV for better structure and interface configuration):
+
+**Port Specifications:**
+- `name` - Unique identifier (cpu, dma, ddr, etc.)
+- `prefix` - Signal prefix (cpu_m_axi_, ddr_s_axi_, etc.)
+- `id_width` - AXI4 ID width in bits
 - `addr_width` - Address width in bits
-- `id_width` - AXI4 ID width (N/A for APB)
-- `base_addr` - Slave base address (N/A for masters)
-- `addr_range` - Slave address range (N/A for masters)
+- `data_width` - Data width in bits (32, 64, 128, 256, 512)
+- `user_width` - AXI4 user signal width
+- `base_addr` - Slave base address (slaves only)
+- `addr_range` - Slave address range (slaves only)
+- `interface` - Interface wrapper configuration (optional)
+  - `type` - "axi4_master", "axi4_slave", "axi4_master_mon", "axi4_slave_mon", or omit for direct connection
+  - `skid_depths` - Per-channel buffer depths: {ar, r, aw, w, b} (valid: 2, 4, 6, 8)
 
-**connectivity.csv Format:**
+**CSV Connectivity Matrix:**
 ```csv
 master\slave,slave0,slave1,slave2
 master0,1,0,1
@@ -495,6 +610,13 @@ master1,0,1,1
 ```
 - `1` = connected, `0` = not connected
 - Partial connectivity supported (not all masters to all slaves)
+- Auto-detected based on TOML filename: `bridge_name.toml` → `bridge_name_connectivity.csv`
+
+**Legacy CSV Format:**
+
+For backwards compatibility, the generator still supports CSV port files:
+- See `test_configs/README.md` for migration guide from CSV to TOML
+- TOML is now preferred for new bridges (better structure, interface config support)
 
 ### Channel-Specific Masters (Phase 2 Feature)
 
@@ -539,16 +661,46 @@ output logic [7:0]   rapids_descr_m_axi_bid,
 - Source read master (rd) - Reads outgoing packets from memory
 - CPU master (rw) - Full access for configuration
 
-**CSV Configuration:**
+**TOML Configuration (bridge_rapids.toml):**
+```toml
+[bridge]
+  name = "bridge_rapids"
+  description = "RAPIDS accelerator bridge"
+  defaults.skid_depths = {ar = 2, r = 4, aw = 2, w = 4, b = 2}
+
+  masters = [
+    {name = "rapids_descr_wr", prefix = "rapids_descr_m_axi", channels = "wr",
+     id_width = 8, addr_width = 64, data_width = 512, user_width = 1,
+     interface = {type = "axi4_master"}},
+    {name = "rapids_sink_wr", prefix = "rapids_sink_m_axi", channels = "wr",
+     id_width = 8, addr_width = 64, data_width = 512, user_width = 1,
+     interface = {type = "axi4_master"}},
+    {name = "rapids_src_rd", prefix = "rapids_src_m_axi", channels = "rd",
+     id_width = 8, addr_width = 64, data_width = 512, user_width = 1,
+     interface = {type = "axi4_master"}},
+    {name = "cpu", prefix = "cpu_m_axi", channels = "rw",
+     id_width = 4, addr_width = 32, data_width = 64, user_width = 1,
+     interface = {type = "axi4_master"}}
+  ]
+
+  slaves = [
+    {name = "ddr", prefix = "ddr_s_axi", protocol = "axi4",
+     id_width = 8, addr_width = 64, data_width = 512, user_width = 1,
+     base_addr = 0x80000000, addr_range = 0x80000000,
+     interface = {type = "axi4_slave"}},
+    {name = "apb_periph", prefix = "apb0_", protocol = "apb",
+     addr_width = 32, data_width = 32,
+     base_addr = 0x00000000, addr_range = 0x00010000}
+  ]
+```
+
+**Connectivity CSV (bridge_rapids_connectivity.csv):**
 ```csv
-port_name,direction,protocol,channels,prefix,data_width,addr_width,id_width,base_addr,addr_range
-rapids_descr_wr,master,axi4,wr,rapids_descr_m_axi_,512,64,8,N/A,N/A
-rapids_sink_wr,master,axi4,wr,rapids_sink_m_axi_,512,64,8,N/A,N/A
-rapids_src_rd,master,axi4,rd,rapids_src_m_axi_,512,64,8,N/A,N/A
-stream_master,master,axi4,rw,stream_m_axi_,512,64,8,N/A,N/A
-cpu_master,master,axi4,rw,cpu_m_axi_,64,32,4,N/A,N/A
-ddr_controller,slave,axi4,rw,ddr_s_axi_,512,64,8,0x80000000,0x80000000
-apb_periph0,slave,apb,rw,apb0_,32,32,N/A,0x00000000,0x00010000
+master\slave,ddr,apb_periph
+rapids_descr_wr,1,0
+rapids_sink_wr,1,0
+rapids_src_rd,1,0
+cpu,1,1
 ```
 
 **Generated RTL Features:**
@@ -565,16 +717,20 @@ apb_periph0,slave,apb,rw,apb0_,32,32,N/A,0x00000000,0x00010000
 
 **A: Three steps:**
 
-1. Create two CSV files (ports.csv and connectivity.csv)
-2. Run bridge_csv_generator.py
-3. Use generated SystemVerilog module
+1. Create TOML port configuration file
+2. Create CSV connectivity matrix
+3. Run bridge_generator.py
 
 ```bash
-python3 bridge_csv_generator.py \
-    --ports my_ports.csv \
-    --connectivity my_connectivity.csv \
-    --name my_bridge \
-    --output ../rtl/
+# Create bridge_mybridge.toml (port configuration)
+# Create bridge_mybridge_connectivity.csv (connectivity matrix)
+
+cd projects/components/bridge/bin
+python3 bridge_generator.py --ports test_configs/bridge_mybridge.toml
+# Auto-finds bridge_mybridge_connectivity.csv
+
+# Or use bulk generation for multiple bridges
+python3 bridge_generator.py --bulk bridge_batch.csv
 ```
 
 **Q: "What's the difference between wr/rd/rw channels?"**
@@ -587,13 +743,33 @@ python3 bridge_csv_generator.py \
 
 **Benefits:** 40-60% fewer ports for dedicated masters, less logic, faster synthesis
 
+**Q: "Can I add timing isolation to ports?"**
+
+**A: Yes, use interface configuration:**
+
+```toml
+masters = [
+  {name = "cpu", prefix = "cpu_m_axi", ...,
+   interface = {type = "axi4_master", skid_depths = {ar = 2, r = 4, aw = 2, w = 4, b = 2}}}
+]
+```
+
+Available interface types:
+- `"axi4_master"` - Timing isolation on master port
+- `"axi4_slave"` - Timing isolation on slave port
+- `"axi4_master_mon"` - Timing + monitoring
+- `"axi4_slave_mon"` - Timing + monitoring
+- Omit `interface` field for direct connection
+
 **Q: "Can I mix AXI4 and APB slaves?"**
 
-**A: Yes, use protocol field:**
+**A: Yes, use protocol field in TOML:**
 
-```csv
-ddr_controller,slave,axi4,rw,ddr_s_axi_,512,64,8,0x80000000,0x80000000
-apb_periph0,slave,apb,rw,apb0_,32,32,N/A,0x00000000,0x00010000
+```toml
+slaves = [
+  {name = "ddr", prefix = "ddr_s_axi", protocol = "axi4", ...},
+  {name = "apb0", prefix = "apb0_", protocol = "apb", ...}
+]
 ```
 
 Generator inserts AXI2APB converters automatically (Phase 3 for full implementation).
@@ -602,20 +778,24 @@ Generator inserts AXI2APB converters automatically (Phase 3 for full implementat
 
 **A: Generator inserts width converters automatically:**
 
-```csv
-cpu_master,master,axi4,rw,cpu_m_axi_,64,32,4,N/A,N/A  # 64b master
-# Crossbar uses 512b internal width
-# Generator creates axi4_dwidth_converter_wr and axi4_dwidth_converter_rd
+```toml
+masters = [
+  {name = "cpu", data_width = 64, ...},  # 64b master
+]
+slaves = [
+  {name = "ddr", data_width = 512, ...}  # 512b slave
+]
+# Generator creates width converter: 64b → 512b
 ```
 
 **Q: "Do all masters need to connect to all slaves?"**
 
-**A: No, use partial connectivity:**
+**A: No, use partial connectivity in CSV:**
 
 ```csv
 master\slave,ddr,sram,apb
 rapids_descr,1,1,0     # Connects to ddr and sram only
-cpu_master,1,1,1       # Connects to all three
+cpu,1,1,1              # Connects to all three
 ```
 
 ### Generator Output Structure

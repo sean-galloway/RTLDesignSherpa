@@ -286,7 +286,7 @@ module axi_monitor_filtered
             logic [63:0] pipe_packet_reg;
 
             `ALWAYS_FF_RST(aclk, aresetn,
-if (`RST_ASSERTED(aresetn)) begin
+        if (`RST_ASSERTED(aresetn)) begin
                     pipe_valid_reg <= 1'b0;
                     pipe_packet_reg <= '0;
                 end else begin

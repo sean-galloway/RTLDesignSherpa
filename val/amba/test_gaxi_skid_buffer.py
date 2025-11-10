@@ -466,7 +466,8 @@ def test_gaxi_skid_buffer(request, data_width, depth, clk_period, test_level):
     w_str = TBBase.format_dec(data_width, 3)
     d_str = TBBase.format_dec(depth, 3)
     cl_str = TBBase.format_dec(clk_period, 3)
-    test_name_plus_params = f"test_{worker_id}_gaxi_skid_buffer_w{w_str}_d{d_str}_cl{cl_str}_{test_level}"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name_plus_params = f"test_{worker_id}_gaxi_skid_buffer_w{w_str}_d{d_str}_cl{cl_str}_{test_level}_{reg_level}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)

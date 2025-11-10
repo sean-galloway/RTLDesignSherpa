@@ -21,17 +21,11 @@ import cocotb
 from cocotb.utils import get_sim_time
 from cocotb_test.simulator import run
 
-
 # Add repo root to path for CocoTBFramework imports
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-if os.path.join(repo_root, 'bin') not in sys.path:
-    sys.path.insert(0, os.path.join(repo_root, 'bin'))
-
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.common.cam_testing import CamTB
-
 
 class CamTagConfig:
     """Configuration class for CAM tag tests"""
@@ -47,7 +41,6 @@ class CamTagConfig:
         self.name = name
         self.n = n
         self.depth = depth
-
 
 class CamTagTB(CamTB):
     """
@@ -269,7 +262,6 @@ class CamTagTB(CamTB):
 
         return tag
 
-
 @cocotb.test(timeout_time=1, timeout_unit="ms")
 async def cam_tag_test(dut):
     """Test the CAM tag functionality"""
@@ -325,7 +317,6 @@ async def cam_tag_test(dut):
         tb.done = True
         await tb.wait_clocks('clk', 10)
 
-
 def get_cam_params():
     """Generate CAM test parameters based on REG_LEVEL."""
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
@@ -336,7 +327,6 @@ def get_cam_params():
         return [(8, 16), (4, 8)]  # FUNC: Small and medium
     else:  # FULL
         return [(8, 16), (4, 8), (8, 32), (8, 64)]  # FULL: All configurations
-
 
 @pytest.mark.parametrize("n, depth", get_cam_params())
 def test_cam_tag(request, n, depth):
@@ -397,7 +387,6 @@ def test_cam_tag(request, n, depth):
     # Add parameter values to environment variables
     for k, v in parameters.items():
         extra_env[f'PARAM_{k}'] = str(v)
-
 
     # VCD waveform generation support via WAVES environment variable
     # Trace compilation always enabled (minimal overhead)

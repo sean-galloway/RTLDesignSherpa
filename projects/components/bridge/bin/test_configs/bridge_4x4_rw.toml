@@ -1,0 +1,93 @@
+# Bridge Configuration: bridge_4x4_rw
+# TOML format - more readable and type-safe than YAML
+
+[bridge]
+name = "bridge_4x4_rw"
+description = "4x4 bridge configuration"
+
+[bridge.defaults.skid_depths]
+ar = 2
+r = 4
+aw = 2
+w = 4
+b = 2
+
+[[bridge.masters]]
+name = "cpu_master"
+prefix = "cpu_axi_"
+id_width = 4
+addr_width = 32
+data_width = 64
+user_width = 1
+channels = "rw"
+
+[[bridge.masters]]
+name = "dma0_master"
+prefix = "dma0_axi_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+
+[[bridge.masters]]
+name = "dma1_master"
+prefix = "dma1_axi_"
+id_width = 4
+addr_width = 32
+data_width = 128
+user_width = 1
+channels = "rw"
+
+[[bridge.masters]]
+name = "gpu_master"
+prefix = "gpu_axi_"
+id_width = 4
+addr_width = 32
+data_width = 256
+user_width = 1
+channels = "rw"
+
+[[bridge.slaves]]
+name = "periph_slave"
+prefix = "periph_slave_axi_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+base_addr = "0x00000000"
+addr_range = "0x40000000"
+
+[[bridge.slaves]]
+name = "ddr0_slave"
+prefix = "ddr0_slave_axi_"
+id_width = 4
+addr_width = 32
+data_width = 64
+user_width = 1
+channels = "rw"
+base_addr = "0x40000000"
+addr_range = "0x40000000"
+
+[[bridge.slaves]]
+name = "sram_slave"
+prefix = "sram_slave_axi_"
+id_width = 4
+addr_width = 32
+data_width = 128
+user_width = 1
+channels = "rw"
+base_addr = "0x80000000"
+addr_range = "0x40000000"
+
+[[bridge.slaves]]
+name = "gpu_mem_slave"
+prefix = "gpu_mem_slave_axi_"
+id_width = 4
+addr_width = 32
+data_width = 256
+user_width = 1
+channels = "rw"
+base_addr = "0xC0000000"
+addr_range = "0x40000000"

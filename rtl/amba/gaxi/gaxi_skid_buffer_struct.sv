@@ -62,7 +62,7 @@ module gaxi_skid_buffer_struct #(
 
     // Data shift register logic
     `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
-if (`RST_ASSERTED(axi_aresetn)) begin
+        if (`RST_ASSERTED(axi_aresetn)) begin
             for (int i = 0; i < DEPTH; i++) begin
                 r_data[i] <= '0;
             end
@@ -94,7 +94,7 @@ if (`RST_ASSERTED(axi_aresetn)) begin
 
     // Ready and valid signal generation
     `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
-if (`RST_ASSERTED(axi_aresetn)) begin
+        if (`RST_ASSERTED(axi_aresetn)) begin
             wr_ready <= 1'b0;
             rd_valid <= 1'b0;
         end else begin

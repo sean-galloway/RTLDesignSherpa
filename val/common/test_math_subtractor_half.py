@@ -25,16 +25,11 @@ import cocotb
 from cocotb_test.simulator import run
 
 # Add repo root to path for CocoTBFramework imports
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-if os.path.join(repo_root, 'bin') not in sys.path:
-    sys.path.insert(0, os.path.join(repo_root, 'bin'))
-
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 
 # Import the base SubtractorTB class
 from CocoTBFramework.tbclasses.common.subtractor_testing import SubtractorTB
-
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
 async def subtractor_test(dut):
@@ -56,7 +51,6 @@ async def subtractor_test(dut):
 
     # Run the specific half subtractor test
     await tb.half_subtractor_test()
-
 
 def test_math_subtractor_half(request):
     """PyTest function to run the cocotb test."""

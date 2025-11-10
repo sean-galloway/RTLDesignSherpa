@@ -255,7 +255,7 @@ module clock_gate_ctrl #(
 
     // Counter logic
     `ALWAYS_FF_RST(clk_in, aresetn,
-if (`RST_ASSERTED(aresetn)) begin
+        if (`RST_ASSERTED(aresetn)) begin
             r_idle_counter <= cfg_cg_idle_count;
         end else begin
             if (wakeup || !cfg_cg_enable) begin

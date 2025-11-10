@@ -46,12 +46,7 @@ from cocotb.utils import get_sim_time
 from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
 
-
 # Add repo root to path for CocoTBFramework imports
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-if os.path.join(repo_root, 'bin') not in sys.path:
-    sys.path.insert(0, os.path.join(repo_root, 'bin'))
-
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
@@ -180,7 +175,6 @@ class CounterFreqConfig:
     def _get_division_factor(self, freq_sel):
         """Get the expected division factor for a given frequency selection"""
         return FACTOR_MAP.get(freq_sel, 1000)  # Default to 1GHz if invalid
-
 
 class CounterFreqInvariantTB(TBBase):
     """
@@ -796,7 +790,6 @@ class CounterFreqInvariantTB(TBBase):
 
         return test_passed
 
-
 @cocotb.test(timeout_time=100, timeout_unit="ms")
 async def counter_freq_invariant_enhanced_test(dut):
     """Test enhanced frequency invariant counter with microsecond timing"""
@@ -843,7 +836,6 @@ async def counter_freq_invariant_enhanced_test(dut):
         # Wait for any pending tasks
         await tb.wait_clocks('clk', 10)
 
-
 def generate_test_parameters():
     """
     Generate test parameter combinations based on REG_LEVEL.
@@ -878,7 +870,6 @@ def generate_test_parameters():
 
     return widths
 
-
 @pytest.mark.parametrize("counter_width", generate_test_parameters())
 def test_counter_freq_invariant_enhanced(request, counter_width):
     """Run the enhanced test with pytest"""
@@ -899,7 +890,8 @@ def test_counter_freq_invariant_enhanced(request, counter_width):
 
     # Create a human readable test identifier
     cw_str = TBBase.format_dec(counter_width, 3)
-    test_name_plus_params = f"test_{dut_name}_enhanced_cw{cw_str}"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name_plus_params = f"test_{dut_name}_enhanced_cw{cw_str}_{reg_level}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Use it in the simbuild path

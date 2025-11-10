@@ -21,16 +21,10 @@ import pytest
 import cocotb
 from cocotb_test.simulator import run
 
-
 # Add repo root to path for CocoTBFramework imports
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-if os.path.join(repo_root, 'bin') not in sys.path:
-    sys.path.insert(0, os.path.join(repo_root, 'bin'))
-
 from CocoTBFramework.tbclasses.common.crc_testing import CRCTB, crc_parameters
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
-
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
 async def crc_basic_test(dut):
@@ -50,8 +44,6 @@ async def crc_basic_test(dut):
     tb.deassert_reset()
     await tb.wait_clocks('clk', 10)
     await tb.main_loop()
-
-
 
 # @pytest.mark.parametrize("params", [
 #     # Only use the first entry from crc_parameters list
@@ -104,7 +96,6 @@ def generate_test_params():
         } for entry in selected
     ]
 
-
 @pytest.mark.parametrize("params", generate_test_params())
 def test_dataint_crc(request, params):
     """Run the test with pytest and configurable parameters"""
@@ -130,7 +121,8 @@ def test_dataint_crc(request, params):
     refout = params['refout']
     t_name = params['test_level']
 
-    test_name_plus_params = f"test_{dut_name}_{algorithm}_DW{data_w}_CW{crc_w}_RI{refin}_RO{refout}_{t_name}"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name_plus_params = f"test_{dut_name}_{algorithm}_DW{data_w}_CW{crc_w}_RI{refin}_RO{refout}_{t_name}_{reg_level}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -180,7 +172,6 @@ def test_dataint_crc(request, params):
     # Calculate timeout based on test complexity
     timeout_factor = 50
     extra_env['COCOTB_TIMEOUT_MULTIPLIER'] = str(timeout_factor)
-
 
     # VCD waveform generation support via WAVES environment variable
     # Trace compilation always enabled (minimal overhead)

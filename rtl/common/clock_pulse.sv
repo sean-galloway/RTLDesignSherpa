@@ -32,7 +32,7 @@ module clock_pulse #(
     assign w_width_minus_one = WIDTH[WIDTH-1:0] - 1'b1;
 
     `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
             r_counter <= 'b0;
             pulse     <= 'b0;
         end else begin

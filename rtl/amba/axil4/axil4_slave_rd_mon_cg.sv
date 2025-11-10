@@ -205,7 +205,7 @@ module axil4_slave_rd_mon_cg
     logic [31:0] idle_cycles;
 
     `ALWAYS_FF_RST(aclk, aresetn,
-if (`RST_ASSERTED(aresetn)) begin
+        if (`RST_ASSERTED(aresetn)) begin
             idle_cycles <= '0;
         end else if (cfg_cg_enable && !busy) begin
             idle_cycles <= idle_cycles + 1'b1;

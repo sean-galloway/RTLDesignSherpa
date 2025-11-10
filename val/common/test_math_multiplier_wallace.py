@@ -25,15 +25,10 @@ import cocotb
 from cocotb_test.simulator import run
 
 # Add repo root to path for CocoTBFramework imports
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-if os.path.join(repo_root, 'bin') not in sys.path:
-    sys.path.insert(0, os.path.join(repo_root, 'bin'))
-
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
 # Import the base MultiplierTB class
 from CocoTBFramework.tbclasses.common.multiplier_testing import MultiplierTB
-
 
 def get_multiplier_params():
     """Generate multiplier test parameters based on REG_LEVEL."""
@@ -63,7 +58,6 @@ def get_multiplier_params():
             {'WIDTH': 16, 'test_level': 'full'},
         ]
 
-
 @cocotb.test(timeout_time=1, timeout_unit="ms")
 async def multiplier_test(dut):
     """Test the Wallace tree multiplier"""
@@ -84,7 +78,6 @@ async def multiplier_test(dut):
 
     # Run the comprehensive test suite
     await tb.run_comprehensive_tests()
-
 
 @pytest.mark.parametrize("params", get_multiplier_params())
 def test_math_multiplier_wallace_tree(request, params):

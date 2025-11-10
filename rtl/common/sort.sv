@@ -145,7 +145,7 @@ module sort #(
 
             // Flop the results (r_ registers)
             `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
                     r_stage_data[stage] <= '0;
                     r_stage_valid[stage] <= 1'b0;
                 end else begin

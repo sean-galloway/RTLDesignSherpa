@@ -346,7 +346,7 @@ module counter_freq_invariant
 
     // Detect frequency selection changes and sync reset
     `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
             r_prev_freq_sel <= 7'b0;
             r_clear_pulse <= 1'b1;  // Start in reset state
         end
@@ -380,7 +380,7 @@ if (`RST_ASSERTED(rst_n)) begin
 
     // Generate microsecond tick signal and maintain output counter
     `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
             o_counter <= 'b0;
             tick <= 1'b0;
         end

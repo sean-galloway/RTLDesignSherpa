@@ -253,7 +253,7 @@ module axi4_to_apb_convert #(
 
 
     `ALWAYS_FF_RST(aclk, aresetn,
-if (`RST_ASSERTED(aresetn)) begin
+        if (`RST_ASSERTED(aresetn)) begin
             r_apb_state            <= IDLE;
             r_apb_last_state       <= IDLE;
             r_rsp_state            <= RSP_IDLE;

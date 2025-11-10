@@ -1,0 +1,27 @@
+# Illegal Bridge Configuration: APB slave with write-only channels
+# APB must support both read and write
+# Converted from YAML to TOML format
+
+[bridge]
+name = "illegal_apb_wr"
+description = "ILLEGAL: APB slave must have channels='rw'"
+
+[[bridge.masters]]
+name = "cpu_master"
+prefix = "cpu_axi_"
+id_width = 4
+addr_width = 32
+data_width = 64
+user_width = 1
+channels = "rw"
+
+[[bridge.slaves]]
+name = "apb_periph"
+prefix = "apb_periph_"
+protocol = "apb"
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "wr"  # ❌ ILLEGAL! APB must be 'rw'
+base_addr = "0x00000000"
+addr_range = "0x00010000"

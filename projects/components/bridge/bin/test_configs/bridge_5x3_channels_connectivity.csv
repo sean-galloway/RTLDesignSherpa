@@ -1,0 +1,6 @@
+master\slave,ddr_controller,sram_buffer,apb_periph
+descr_wr_master,1,1,0
+sink_wr_master,1,1,0
+src_rd_master,1,1,0
+stream_master,1,1,0
+cpu_master,1,1,1

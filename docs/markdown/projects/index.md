@@ -18,28 +18,6 @@ This index provides links to component project documentation within the RTL Desi
 
 ## Available Components
 
-### Timing and Control
-
-#### APB HPET - High Precision Event Timer
-**Status:** ✅ Production Ready (5/6 configurations passing at 100%)
-**Location:** [`projects/components/apb_hpet/`](../../../projects/components/apb_hpet/)
-
-Multi-timer peripheral with 64-bit counter, one-shot/periodic modes, and optional clock domain crossing.
-
-**Key Features:**
-- Configurable 2, 3, or 8 independent timers
-- 64-bit main counter and comparators
-- APB4 interface with optional CDC
-- PeakRDL-based register generation
-
-**Documentation:**
-- 📖 [Complete Specification](../../../projects/components/apb_hpet/docs/hpet_spec/hpet_index.md)
-- 📋 [Product Requirements](../../../projects/components/apb_hpet/PRD.md)
-- 🤖 [AI Guide](../../../projects/components/apb_hpet/CLAUDE.md)
-- ✅ [Implementation Status](../../../projects/components/apb_hpet/docs/IMPLEMENTATION_STATUS.md)
-
----
-
 ### DMA and Data Transfer
 
 #### STREAM - Scatter-gather Transfer Rapid Engine for AXI Memory
@@ -116,6 +94,51 @@ Protocol bridge components for bus conversion.
 
 ---
 
+#### Protocol Converters
+**Status:** ✅ Production Ready (UART to AXI4-Lite)
+**Location:** [`projects/components/converters/`](../../../projects/components/converters/)
+
+Protocol conversion bridges for interfacing different communication standards.
+
+**Key Features:**
+- UART to AXI4-Lite master bridge
+- ASCII command parsing (W/R commands)
+- Configurable data width (32/64-bit)
+- Configurable baud rate
+- Timing isolation via skid buffers
+
+**Documentation:**
+- 📖 [Component Guide](converters.md) - Complete specification and usage
+- 📋 [Implementation README](../../../projects/components/converters/rtl/uart_to_axil4/README.md)
+
+---
+
+### Retro Legacy Blocks
+
+#### Retro Legacy Peripheral Collection
+**Status:** ✅ Stable (Collection of legacy/retro peripherals)
+**Location:** [`projects/components/retro_legacy_blocks/`](../../../projects/components/retro_legacy_blocks/)
+
+Collection of legacy and retro-computing peripherals for historical SoC designs.
+
+**Included Blocks:**
+- **HPET** - High Precision Event Timer (APB interface)
+- **8259 PIC** - Programmable Interrupt Controller
+- **8254 PIT** - Programmable Interval Timer
+- **RTC** - Real-Time Clock
+- **SMBUS** - System Management Bus controller
+- **PM/ACPI** - Power Management / Advanced Configuration and Power Interface
+- **IOAPIC** - I/O Advanced Programmable Interrupt Controller
+
+**Documentation:**
+- 📋 [Collection Overview](../../../projects/components/retro_legacy_blocks/README.md)
+- 📖 [HPET Specification](../../../projects/components/retro_legacy_blocks/docs/hpet_spec/hpet_index.md)
+- 📋 [Requirements](../../../projects/components/retro_legacy_blocks/PRD.md)
+- 🤖 [AI Guide](../../../projects/components/retro_legacy_blocks/CLAUDE.md)
+- 📊 [Block Status](../../../projects/components/retro_legacy_blocks/BLOCK_STATUS.md)
+
+---
+
 ### Other Components
 
 #### Delta
@@ -163,8 +186,8 @@ Protocol bridge components for bus conversion.
 
 1. **Start with STREAM** - Simplified DMA for tutorial/learning
 2. **Progress to RAPIDS** - Full-featured DMA with alignment and network
-3. **Integrate APB HPET** - Production-ready timer peripheral
-4. **Build with Crossbar** - Multi-master interconnect
+3. **Integrate APB Crossbar** - Production-ready multi-master interconnect
+4. **Explore Retro Blocks** - Legacy peripherals (HPET, PIC, PIT, etc.)
 
 ---
 

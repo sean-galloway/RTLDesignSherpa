@@ -55,7 +55,7 @@ module gaxi_skid_buffer #(
     assign w_rd_xfer = rd_valid & rd_ready;
 
     `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
-if (`RST_ASSERTED(axi_aresetn)) begin
+        if (`RST_ASSERTED(axi_aresetn)) begin
             r_data <= 'b0;
             r_data_count <= 'b0;
         end else begin
@@ -81,7 +81,7 @@ if (`RST_ASSERTED(axi_aresetn)) begin
 
 
     `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
-if (`RST_ASSERTED(axi_aresetn)) begin
+        if (`RST_ASSERTED(axi_aresetn)) begin
             wr_ready <= 1'b0;
             rd_valid <= 1'b0;
         end else begin

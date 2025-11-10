@@ -30,10 +30,6 @@ import pytest
 # Import the adapted testbench and utilities
 
 # Add repo root to path for CocoTBFramework imports
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-if os.path.join(repo_root, 'bin') not in sys.path:
-    sys.path.insert(0, os.path.join(repo_root, 'bin'))
-
 from CocoTBFramework.tbclasses.common.arbiter_round_robin_tb import ArbiterRoundRobinTB
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
@@ -169,7 +165,6 @@ def generate_test_params():
             params.append((clients, 1))  # wait for ACK
         return params
 
-
 @pytest.mark.parametrize("clients, wait_ack", generate_test_params())
 def test_arbiter_round_robin(request, clients, wait_ack):
     """Run the round robin test with new clean ArbiterMaster"""
@@ -191,7 +186,8 @@ def test_arbiter_round_robin(request, clients, wait_ack):
     # Create a human readable test identifier
     c_str = TBBase.format_dec(clients, 2)
     w_str = TBBase.format_dec(wait_ack, 1)
-    test_name_plus_params = f"test_{dut_name}_c{c_str}_w{w_str}"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name_plus_params = f"test_{dut_name}_c{c_str}_w{w_str}_{reg_level}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')

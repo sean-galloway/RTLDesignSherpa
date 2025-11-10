@@ -85,6 +85,15 @@ def get_sources_from_filelist(repo_root, filelist_path):
     # Set REPO_ROOT environment variable for substitution
     os.environ['REPO_ROOT'] = repo_root
 
+    # Set component root environment variables (from env_python)
+    # These are used in filelists for referencing cross-component dependencies
+    components_root = os.path.join(repo_root, 'projects', 'components')
+    os.environ['APB_XBAR_ROOT'] = os.path.join(components_root, 'apb_xbar')
+    os.environ['BRIDGE_ROOT'] = os.path.join(components_root, 'bridge')
+    os.environ['CONVERTERS_ROOT'] = os.path.join(components_root, 'converters')
+    os.environ['RETRO_ROOT'] = os.path.join(components_root, 'retro_legacy_blocks')
+    os.environ['STREAM_ROOT'] = os.path.join(components_root, 'stream')
+
     # Construct absolute path to file list
     filelist_abs = os.path.join(repo_root, filelist_path)
 
@@ -98,17 +107,43 @@ def get_sources_from_filelist(repo_root, filelist_path):
     # Process file list
     processor = FileListProcessor([filelist_abs], debug=False)
 
-    # Get resolved lists
-    verilog_sources = processor.get_file_list()
+    # Get resolved lists (may contain relative paths)
+    verilog_sources_raw = processor.get_file_list()
     includes_raw = processor.get_include_list()
 
-    # Expand environment variables in includes (FileListProcessor doesn't do this for +incdir+)
+    # Get filelist directory for resolving relative paths
+    filelist_dir = os.path.dirname(filelist_abs)
+
+    # Bridge convention: paths in filelist are relative to parent of filelist directory
+    # Example: filelist at rtl/filelists/bridge_1x2_wr.f, paths relative to rtl/
+    base_dir = os.path.dirname(filelist_dir)
+
+    # Resolve verilog_sources relative to base directory (parent of filelist dir)
+    verilog_sources = []
+    for source in verilog_sources_raw:
+        if os.path.isabs(source):
+            # Already absolute
+            verilog_sources.append(source)
+        else:
+            # Relative to base directory (parent of filelist directory)
+            abs_path = os.path.normpath(os.path.join(base_dir, source))
+            verilog_sources.append(abs_path)
+
+    # Resolve include directories relative to base directory (same as verilog_sources)
     includes = []
     for inc in includes_raw:
-        # Replace $VARNAME with environment variable value
+        # First expand environment variables
         import re
         expanded = re.sub(r'\$(\w+)', lambda m: os.getenv(m.group(1), m.group(0)), inc)
-        includes.append(expanded)
+
+        # Then resolve relative paths
+        if os.path.isabs(expanded):
+            # Already absolute
+            includes.append(expanded)
+        else:
+            # Relative to base directory (parent of filelist directory)
+            abs_path = os.path.normpath(os.path.join(base_dir, expanded))
+            includes.append(abs_path)
 
     return verilog_sources, includes
 

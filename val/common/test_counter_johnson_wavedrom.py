@@ -43,12 +43,7 @@ from cocotb.triggers import RisingEdge, Timer, ClockCycles
 from cocotb_test.simulator import run
 import pytest
 
-
 # Add repo root to path for CocoTBFramework imports
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-if os.path.join(repo_root, 'bin') not in sys.path:
-    sys.path.insert(0, os.path.join(repo_root, 'bin'))
-
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
@@ -59,7 +54,6 @@ from CocoTBFramework.components.wavedrom.constraint_solver import (
 )
 from CocoTBFramework.components.wavedrom.wavejson_gen import WaveJSONGenerator
 from CocoTBFramework.components.shared.field_config import FieldConfig
-
 
 class CounterJohnsonWaveDromTB(TBBase):
     """Extended testbench for Johnson Counter with WaveDrom visualization support
@@ -417,7 +411,6 @@ class CounterJohnsonWaveDromTB(TBBase):
 
         self.log.info(f"✓ All Johnson Counter WaveDrom scenarios generated{self.get_time_ns_str()}")
 
-
 @cocotb.test(timeout_time=10000, timeout_unit="us")
 async def counter_johnson_wavedrom_test(dut):
     """WaveDrom test for Johnson Counter - generates separate waveforms per scenario"""
@@ -521,7 +514,6 @@ async def counter_johnson_wavedrom_test(dut):
     tb.log.info(f"✓ Johnson Counter WaveDrom test PASSED{tb.get_time_ns_str()}")
     return True
 
-
 def test_counter_johnson_wavedrom(request):
     """
     Pytest entry point for Johnson Counter WaveDrom test
@@ -597,7 +589,6 @@ def test_counter_johnson_wavedrom(request):
     print(f"WIDTH={width}, Sequence Length={2*width}")
     print(f"Output: {sim_build}/johnson_counter_*.json")
     print(f"{'='*60}")
-
 
     # Conditionally set COCOTB_TRACE_FILE for VCD generation
     if bool(int(os.environ.get('WAVES', '0'))):

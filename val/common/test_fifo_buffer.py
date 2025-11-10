@@ -44,15 +44,10 @@ import cocotb
 from cocotb_test.simulator import run
 
 # Add repo root to path for CocoTBFramework imports
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-if os.path.join(repo_root, 'bin') not in sys.path:
-    sys.path.insert(0, os.path.join(repo_root, 'bin'))
-
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 from CocoTBFramework.tbclasses.fifo.fifo_buffer import FifoBufferTB
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
-
 
 @cocotb.test(timeout_time=3, timeout_unit="ms")  # Increased timeout for comprehensive testing
 async def fifo_test(dut):
@@ -170,7 +165,6 @@ async def fifo_test(dut):
 
     tb.log.info(f"✓ ALL {test_level.upper()} TESTS PASSED!")
 
-
 def generate_params():
     """
     Generate test parameters based on REG_LEVEL.
@@ -246,7 +240,8 @@ def test_fifo_buffer(request, data_width, depth, wr_clk_period, rd_clk_period, r
     wcl_str = TBBase.format_dec(wr_clk_period, 3)
     rcl_str = TBBase.format_dec(rd_clk_period, 3)
     # Updated test name format: includes test level in the main name
-    test_name_plus_params = f"test_fifo_w{w_str}_d{d_str}_wcl{wcl_str}_rcl{rcl_str}_{mode}_{test_level}"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name_plus_params = f"test_fifo_w{w_str}_d{d_str}_wcl{wcl_str}_rcl{rcl_str}_{mode}_{test_level}_{reg_level}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')

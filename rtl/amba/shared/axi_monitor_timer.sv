@@ -47,7 +47,7 @@ module axi_monitor_timer (
 
     // Timestamp counter generation
     `ALWAYS_FF_RST(aclk, aresetn,
-if (`RST_ASSERTED(aresetn)) begin
+        if (`RST_ASSERTED(aresetn)) begin
             r_timestamp <= '0;
         end else begin
             // Increment timestamp counter every clock cycle

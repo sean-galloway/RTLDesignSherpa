@@ -60,7 +60,7 @@ module gaxi_regslice #(
     // Sequential: load/hold/clear
     // ------------------------------------------------------------------------
     `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
-if (`RST_ASSERTED(axi_aresetn)) begin
+        if (`RST_ASSERTED(axi_aresetn)) begin
             r_valid <= 1'b0;
             r_data  <= '0;
         end else begin

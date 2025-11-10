@@ -14,37 +14,35 @@
 
 ---
 
+## 📖 Global Requirements Reference
+
+**IMPORTANT: Review `/GLOBAL_REQUIREMENTS.md` for mandatory RTL standards**
+
+All mandatory requirements are consolidated in the global requirements document:
+- **See:** `/GLOBAL_REQUIREMENTS.md` - Repository-wide mandatory requirements
+- **RTL Focus:** Reset convention, array syntax, search-before-create
+- **Already Compliant:** rtl/common/ already uses proper reset patterns
+
+This CLAUDE.md provides common RTL library guidance. Also review:
+- Root `/CLAUDE.md` - Repository-wide patterns
+- `projects/components/CLAUDE.md` - Project area standards (if creating new components)
+
+---
+
 ## Critical Rules for This Subsystem
 
-### Rule #0: VERIFICATION ARCHITECTURE - MANDATORY COMPLIANCE
+### Rule #0: Verification Architecture (MANDATORY)
 
-**⚠️ HIGH PRIORITY: All Common testbenches MUST follow the standardized verification architecture ⚠️**
+**📖 See:** `/GLOBAL_REQUIREMENTS.md` Sections 2.1, 2.3, 2.4 for complete requirements
 
-**Complete Guide:** `docs/VERIFICATION_ARCHITECTURE_GUIDE.md` ← **READ THIS FIRST**
+**Common RTL Three-Layer Pattern:**
+1. **TB:** `bin/CocoTBFramework/tbclasses/common/{module}_tb.py`
+2. **Scoreboard:** `bin/CocoTBFramework/scoreboards/common/{module}_scoreboard.py`
+3. **Test:** `val/common/test_{module}.py`
 
-**Three-Layer Pattern (MANDATORY):**
-1. **Testbench (TB)**: `bin/CocoTBFramework/tbclasses/common/{module}_tb.py` - Infrastructure only
-2. **Scoreboard**: `bin/CocoTBFramework/scoreboards/common/{module}_scoreboard.py` - Verification logic
-3. **Test**: `val/common/test_{module}.py` - Test intelligence (imports TB)
+**Common RTL typically uses queue access** - counters, arbiters, and math blocks are simple control paths.
 
-**Verification Method Selection:**
-- ✅ **Use Queue Access** for: Control paths, single-master, in-order, no overlap
-- ✅ **Use Memory Models** for: Data paths, multi-master, out-of-order, state tracking
-
-**Quick Check:**
-```bash
-# Verify compliance
-ls bin/CocoTBFramework/tbclasses/common/  # TB classes here
-ls bin/CocoTBFramework/scoreboards/common/  # Scoreboards here
-ls val/common/  # Test runners only
-```
-
-**📖 Complete Documentation:**
-- `docs/VERIFICATION_ARCHITECTURE_GUIDE.md` - Full guide with examples
-- `PRD.md` Section 4.4 - Architecture overview
-- `bin/CocoTBFramework/CLAUDE.md` - Framework patterns
-
-**Action Required:** When creating or modifying tests, follow the three-layer pattern. See guide for migration instructions.
+**📖 Complete Guide:** `docs/VERIFICATION_ARCHITECTURE_GUIDE.md`
 
 ---
 
@@ -95,20 +93,11 @@ grep -r "counter_bin\|arbiter_round_robin" rtl/amba/ rtl/rapids/
 cat val/common/test_counter_bin.py
 ```
 
-### Rule #3: Use Correct Reset Convention
+### Rule #3: Reset Convention (MANDATORY)
 
-**ALWAYS:** `i_rst_n` or `aresetn` (active-low asynchronous)
-**NEVER:** `rst`, `reset`, or positive reset
+**📖 See:** `/GLOBAL_REQUIREMENTS.md` Section 1.1 for complete requirement
 
-```systemverilog
-✅ CORRECT:
-always_ff @(posedge i_clk or negedge i_rst_n) begin
-    if (!i_rst_n) ...
-
-❌ WRONG:
-always_ff @(posedge i_clk or posedge rst) begin
-    if (rst) ...
-```
+**Common RTL Status:** ✅ Already compliant - all modules use `i_rst_n` or `aresetn` (active-low)
 
 ---
 

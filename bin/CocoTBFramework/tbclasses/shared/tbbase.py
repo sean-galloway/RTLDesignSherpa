@@ -663,7 +663,7 @@ class TBBase:
             if log_dir := os.path.dirname(self.log_path):
                 os.makedirs(log_dir, exist_ok=True)
 
-            fh = logging.FileHandler(self.log_path, mode='a')
+            fh = logging.FileHandler(self.log_path, mode='w')
 
             fh.setLevel(logging.DEBUG)
 

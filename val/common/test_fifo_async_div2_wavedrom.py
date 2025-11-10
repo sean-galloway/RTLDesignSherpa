@@ -48,12 +48,7 @@ import cocotb
 from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
 
-
 # Add repo root to path for CocoTBFramework imports
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-if os.path.join(repo_root, 'bin') not in sys.path:
-    sys.path.insert(0, os.path.join(repo_root, 'bin'))
-
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.fifo.fifo_buffer import FifoBufferTB
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
@@ -65,7 +60,6 @@ from CocoTBFramework.components.wavedrom.constraint_solver import (
 )
 from CocoTBFramework.components.wavedrom.wavejson_gen import WaveJSONGenerator
 from CocoTBFramework.components.shared.field_config import FieldConfig
-
 
 class FifoAsyncDiv2WaveDromTB(FifoBufferTB):
     """
@@ -397,7 +391,6 @@ class FifoAsyncDiv2WaveDromTB(FifoBufferTB):
 
         self.log.info("✓ All FIFO Async Div2 WaveDrom scenarios generated")
 
-
 @cocotb.test(timeout_time=500, timeout_unit="us")
 async def fifo_async_div2_wavedrom_test(dut):
     """
@@ -460,7 +453,6 @@ async def fifo_async_div2_wavedrom_test(dut):
         if tb.wave_solver:
             await tb.wave_solver.stop_sampling()
         await tb.wait_clocks('wr_clk', 10)
-
 
 @pytest.mark.parametrize("data_width, depth, wr_clk_period, rd_clk_period", [
     (8, 6, 10, 8),   # Small FIFO, slightly different clocks

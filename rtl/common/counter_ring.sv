@@ -30,7 +30,7 @@ module counter_ring #(
     // On reset, initialize the ring counter to have the first bit set and all others clear.
     // When enabled, rotate the bits to the right in each clock cycle.
     `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
             ring_out <= 'b1;  // This should set the LSB, which is '1'
         end else if (enable) begin
             // Right rotate operation

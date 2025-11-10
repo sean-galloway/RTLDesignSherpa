@@ -301,7 +301,8 @@ def test_axi4_slave_rd_mon(id_width, addr_width, data_width, user_width, max_tra
      'rtl_amba_includes': 'rtl/amba/includes'})
 
     dut_name = "axi4_slave_rd_mon"
-    test_name = f"test_{worker_id}_{worker_id}_{dut_name}_iw{id_width}_aw{addr_width}_dw{data_width}_mt{max_trans}_sk{skid_ar}x{skid_r}_{test_level}"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name = f"test_{worker_id}_{worker_id}_{dut_name}_iw{id_width}_aw{addr_width}_dw{data_width}_mt{max_trans}_sk{skid_ar}x{skid_r}_{test_level}_{reg_level}"
 
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)

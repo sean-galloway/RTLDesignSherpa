@@ -404,6 +404,8 @@ axi4_to_apb_convert #(
 
 ```systemverilog
 // High Precision Event Timer with APB interface
+// Note: HPET is now part of the Retro Legacy Blocks collection
+// See: projects/components/retro_legacy_blocks/docs/hpet_spec/
 apb_hpet #(
     .NUM_TIMERS(8),
     .TIMER_WIDTH(64),

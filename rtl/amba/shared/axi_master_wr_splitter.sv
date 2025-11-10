@@ -336,7 +336,7 @@ module axi_master_wr_splitter
     assign w_split_boundary_reached = (r_beat_counter + 1 >= r_expected_beats);
 
     `ALWAYS_FF_RST(aclk, aresetn,
-if (`RST_ASSERTED(aresetn)) begin
+        if (`RST_ASSERTED(aresetn)) begin
             r_split_state <= IDLE;
             r_current_addr <= '0;
             r_current_len <= '0;

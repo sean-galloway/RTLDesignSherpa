@@ -77,7 +77,7 @@ module cdc_handshake #(
     // Synchronize the destination ack signal (r_ack_dst) into the source clock domain (clk_src).
     // This uses a 3-stage shift register to safely transfer the asynchronous r_ack_dst signal.
     `ALWAYS_FF_RST(clk_src, rst_src_n,
-if (`RST_ASSERTED(rst_src_n)) begin
+        if (`RST_ASSERTED(rst_src_n)) begin
             r_ack_sync <= 3'b000;
         end else begin
             r_ack_sync <= {r_ack_sync[1:0], r_ack_dst};
@@ -92,7 +92,7 @@ if (`RST_ASSERTED(rst_src_n)) begin
     //-------------------------------------------------------------------------
     // Handles incoming src_valid/src_data, drives request and generates src_ready after handshake completes.
     `ALWAYS_FF_RST(clk_src, rst_src_n,
-if (`RST_ASSERTED(rst_src_n)) begin
+        if (`RST_ASSERTED(rst_src_n)) begin
             // Asynchronous reset (active low)
             r_src_state   <= S_IDLE;
             r_req_src     <= 1'b0;
@@ -154,7 +154,7 @@ if (`RST_ASSERTED(rst_src_n)) begin
     // Synchronize the source request signal (r_req_src) into the destination clock domain (clk_dst).
     // Also using a 3-stage shift register for metastability protection.
     `ALWAYS_FF_RST(clk_dst, rst_dst_n,
-if (`RST_ASSERTED(rst_dst_n)) begin
+        if (`RST_ASSERTED(rst_dst_n)) begin
             r_req_sync <= 3'b000;
         end else begin
             r_req_sync <= {r_req_sync[1:0], r_req_src};
@@ -170,7 +170,7 @@ if (`RST_ASSERTED(rst_dst_n)) begin
     // Waits for synchronized request, then, if the local receiver is ready, latches data and asserts dst_valid and ack.
     // Holds dst_valid high until dst_ready is asserted by the receiver, and waits for source to drop request (acknowledged back).
     `ALWAYS_FF_RST(clk_dst, rst_dst_n,
-if (`RST_ASSERTED(rst_dst_n)) begin
+        if (`RST_ASSERTED(rst_dst_n)) begin
             // Asynchronous reset (active low)
             r_dst_state <= D_IDLE;
             r_ack_dst   <= 1'b0;

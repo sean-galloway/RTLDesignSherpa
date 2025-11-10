@@ -28,7 +28,7 @@ module counter #(
     logic [$clog2(MAX+1)-1:0] r_count;
 
     `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
             r_count <= '0;
         end else begin
             if (r_count == MAX[$clog2(MAX+1)-1:0]) begin

@@ -130,7 +130,7 @@ module shifter_lfsr_galois #(
 
     // Update LFSR state
     `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
             // Reset LFSR to a non-zero value
             r_lfsr <= {WIDTH{1'b1}};  // initialization to all 1's
         end else if (enable) begin

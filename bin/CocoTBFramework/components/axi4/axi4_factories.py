@@ -86,18 +86,30 @@ def create_axi4_master_wr(dut, clock, prefix="", log=None, **kwargs) -> Dict[str
 
 def create_axi4_slave_rd(dut, clock, prefix="", log=None, **kwargs) -> Dict[str, Any]:
     """
-    Create AXI4 Slave Read interface with automatic compliance checking.
+    Create AXI4 Slave Read interface with automatic compliance checking and optional OOO support.
 
     Args:
         dut: Device under test
         clock: Clock signal
         prefix: Signal prefix ("m_axi_", "s_axi_", etc.)
-        **kwargs: Additional configuration
+        log: Logger instance
+        **kwargs: Additional configuration including:
+            - data_width, id_width, addr_width, user_width
+            - memory_model: Memory model for data generation
+            - enable_ooo: Enable out-of-order responses (default: False)
+            - ooo_config: OOO configuration dict:
+                {
+                    'mode': 'random' or 'deterministic',
+                    'reorder_probability': 0.3,
+                    'min_delay_cycles': 1,
+                    'max_delay_cycles': 50,
+                    'pattern': [id_order] for deterministic mode
+                }
 
     Returns:
         Dictionary containing AXI4 read slave components
 
-    ENHANCEMENT: Now includes compliance checking automatically when enabled
+    ENHANCEMENT: Now includes compliance checking and OOO support automatically when enabled
     """
     # Create the slave read interface (compliance checking included automatically)
     slave_read = AXI4SlaveRead(dut, clock, prefix, log=log, **kwargs)
@@ -113,18 +125,30 @@ def create_axi4_slave_rd(dut, clock, prefix="", log=None, **kwargs) -> Dict[str,
 
 def create_axi4_slave_wr(dut, clock, prefix="", log=None, **kwargs) -> Dict[str, Any]:
     """
-    Create AXI4 Slave Write interface with automatic compliance checking.
+    Create AXI4 Slave Write interface with automatic compliance checking and optional OOO support.
 
     Args:
         dut: Device under test
         clock: Clock signal
-        prefix: Signal prefix ("m_axi_", "s_axi_", etc.)
-        **kwargs: Additional configuration
+        prefix: Signal prefix ("m_axi_", "s_axi_", etc.")
+        log: Logger instance
+        **kwargs: Additional configuration including:
+            - data_width, id_width, addr_width, user_width
+            - memory_model: Memory model for write storage
+            - enable_ooo: Enable out-of-order responses (default: False)
+            - ooo_config: OOO configuration dict:
+                {
+                    'mode': 'random' or 'deterministic',
+                    'reorder_probability': 0.3,
+                    'min_delay_cycles': 1,
+                    'max_delay_cycles': 50,
+                    'pattern': [id_order] for deterministic mode
+                }
 
     Returns:
         Dictionary containing AXI4 write slave components
 
-    ENHANCEMENT: Now includes compliance checking automatically when enabled
+    ENHANCEMENT: Now includes compliance checking and OOO support automatically when enabled
     """
     # Create the slave write interface (compliance checking included automatically)
     slave_write = AXI4SlaveWrite(dut, clock, prefix, log=log, **kwargs)

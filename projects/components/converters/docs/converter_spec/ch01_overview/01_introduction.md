@@ -34,6 +34,15 @@ Modern SoC designs frequently encounter two integration challenges:
 
 ### Protocol Converters
 
+**AXI4 ↔ AXI4-Lite:**
+- `axi4_to_axil4_rd` - AXI4→AXIL4 read converter (burst decomposition)
+- `axi4_to_axil4_wr` - AXI4→AXIL4 write converter (burst decomposition)
+- `axi4_to_axil4` - Full bidirectional converter
+- `axil4_to_axi4_rd` - AXIL4→AXI4 read converter (protocol upgrade)
+- `axil4_to_axi4_wr` - AXIL4→AXI4 write converter (protocol upgrade)
+- `axil4_to_axi4` - Full bidirectional converter
+
+**Other Protocol Converters:**
 - `axi4_to_apb_convert` - Full AXI4-to-APB bridge
 - `peakrdl_to_cmdrsp` - Register interface adapter
 

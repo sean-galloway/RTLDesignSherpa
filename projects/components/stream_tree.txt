@@ -1,0 +1,205 @@
+DEBUG: exclude_dir = ['__pycache__', 'local_sim_build', 'logs']
+stream
+├── CLAUDE.md
+├── PRD.md
+├── README.md
+├── TASKS.md
+├── bin
+│   ├── dma_model.py
+│   ├── update_performance_reports.py
+│   └── dma_model
+│       ├── ENHANCEMENTS.md
+│       ├── README.md
+│       ├── assets
+│       │   ├── high_comparison.png
+│       │   ├── high_read.png
+│       │   ├── high_write.png
+│       │   ├── low_comparison.png
+│       │   ├── low_read.png
+│       │   ├── low_write.png
+│       │   ├── medium_comparison.png
+│       │   ├── medium_read.png
+│       │   ├── medium_write.png
+│       │   └── mode_comparison.png
+│       ├── bin
+│       │   ├── comprehensive_analysis.py
+│       │   └── pyperf
+│       │       ├── __init__.py
+│       │       ├── performance.py
+│       │       ├── reporting.py
+│       │       └── visualization.py
+│       └── csv
+├── docs
+│   ├── ARCHITECTURAL_NOTES.md
+│   ├── AXI_ENGINE_V2_DESIGN.md
+│   ├── SRAM_POINTER_ANALYSIS.md
+│   ├── V2_IMPLEMENTATION_PLAN.md
+│   ├── generate_pdf.sh
+│   └── stream_spec
+│       ├── STREAM_Specification_v0.26.docx
+│       ├── STREAM_Specification_v0.26.pdf
+│       ├── stream_index.md
+│       ├── assets
+│       │   ├── draw.io
+│       │   │   ├── .xdp-.$stream_blocks.drawio.bkp-uMdI9E
+│       │   │   └── stream_blocks.drawio
+│       │   ├── images
+│       │   ├── puml
+│       │   └── waves
+│       ├── ch01_overview
+│       │   └── 03_clocks_and_reset.md
+│       ├── ch02_blocks
+│       │   ├── 00_stream_top.md
+│       │   ├── 01_scheduler_group.md
+│       │   ├── 02_apbtodescr.md
+│       │   ├── 03_descriptor_engine.md
+│       │   ├── 04_scheduler.md
+│       │   ├── 05_perf_profiler.md
+│       │   ├── 06_stream_latency_bridge.md
+│       │   ├── 07_datapath.md
+│       │   ├── 08_axi_read_engine.md
+│       │   ├── 09_sram_controller.md
+│       │   ├── 10_axi_write_engine.md
+│       │   ├── 99_apb_config.md
+│       │   ├── 99_monbus_axil_group.md
+│       │   └── puml
+│       │       ├── axi_read_engine_fsm.puml
+│       │       ├── axi_read_engine_pipeline.puml
+│       │       ├── axi_write_engine_fsm.puml
+│       │       ├── axi_write_engine_pipeline.puml
+│       │       ├── descriptor_engine_fsm.puml
+│       │       └── scheduler_fsm.puml
+│       ├── ch03_interfaces
+│       ├── ch03_registers
+│       │   └── register_map.md
+│       ├── ch04_programming_models
+│       └── ch05_registers
+├── dv
+│   ├── __init__.py
+│   ├── components
+│   │   ├── __init__.py
+│   │   ├── scheduler_bfm.py
+│   │   └── scheduler_channel_bfm.py
+│   ├── scoreboards
+│   │   └── __init__.py
+│   ├── tbclasses
+│   │   ├── __init__.py
+│   │   ├── apbtodescr_tb.py
+│   │   ├── datapath_rd_test_tb.py
+│   │   ├── datapath_rd_test_tb.py.backup
+│   │   ├── datapath_tb.py
+│   │   ├── datapath_wr_test_tb.py
+│   │   ├── descriptor_engine_tb.py
+│   │   ├── descriptor_packet_builder.py
+│   │   ├── monbus_axil_group_tb.py
+│   │   ├── perf_profiler_tb.py
+│   │   ├── scheduler_tb.py
+│   │   ├── simple_sram_tb.py
+│   │   ├── sram_controller_tb.py
+│   │   ├── stream_core_tb.py
+│   │   └── stream_latency_bridge_tb.py
+│   └── tests
+│       ├── Makefile
+│       ├── __init__.py
+│       ├── fub
+│       │   ├── Makefile
+│       │   ├── conftest.py
+│       │   ├── run.log
+│       │   ├── test_apbtodescr.py
+│       │   ├── test_descriptor_engine.py
+│       │   ├── test_perf_profiler.py
+│       │   ├── test_scheduler.py
+│       │   ├── test_sram_controller.py
+│       │   ├── test_sram_controller_alloc.py
+│       │   ├── test_stream_latency_bridge.py
+│       │   └── GTKW
+│       │       ├── descriptor_engine.gtkw
+│       │       ├── sram_controller
+│       │       │   ├── sram_controller_nc08_fd1024_dw0256.gtkw
+│       │       │   └── sram_controller_nc08_fd1024_dw0512.gtkw
+│       │       └── stream_latency_bridge
+│       │           └── latency_bridge_dw0512.gtkw
+│       ├── macro
+│       │   ├── Makefile
+│       │   ├── conftest.py
+│       │   ├── junk
+│       │   ├── test_datapath_rd_test.py
+│       │   ├── test_datapath_wr_test.py
+│       │   ├── test_monbus_axil_group.py
+│       │   ├── test_stream_core.py
+│       │   └── GTKW
+│       │       ├── datapath_rd_dw512.gtkw
+│       │       ├── datapath_wr_dw512.gtkw
+│       │       ├── stream_core_nc4_dw512.gtkw
+│       │       ├── datapath_rd_test
+│       │       │   ├── datapath_rd_test_dw128.gtkw
+│       │       │   ├── datapath_rd_test_dw256.gtkw
+│       │       │   └── datapath_rd_test_dw512.gtkw
+│       │       └── datapath_wr_test
+│       │           └── datapath_wr_test_dw128.gtkw
+│       └── performance_tests
+│           ├── Makefile
+│           ├── test_v1_baseline_read.py
+│           ├── test_v1_baseline_write.py
+│           └── performance_results
+│               ├── v1_read_perf_dw128_bs256_SRAM_lat3.json
+│               ├── v1_read_perf_dw256_bs1024_DDR3_STRESS_lat60.json
+│               ├── v1_read_perf_dw256_bs1024_DDR4_STRESS_lat100.json
+│               └── v1_read_perf_dw256_bs1024_SRAM_STRESS_lat3.json
+├── known_issues
+├── regs
+│   └── README.md
+├── reports
+│   ├── BASELINE_WORKFLOW.md
+│   ├── README.md
+│   ├── v1_read_performance.md
+│   ├── v1_write_performance.md
+│   ├── v2_read_performance.md
+│   ├── v2_write_performance.md
+│   ├── v3_read_performance.md
+│   └── v3_write_performance.md
+└── rtl
+    ├── Makefile
+    ├── filelists
+    │   ├── stream_all.f
+    │   ├── fub
+    │   │   ├── apbtodescr.f
+    │   │   ├── axi_read_engine.f
+    │   │   ├── axi_write_engine.f
+    │   │   ├── descriptor_engine.f
+    │   │   ├── perf_profiler.f
+    │   │   ├── scheduler.f
+    │   │   ├── simple_sram.f
+    │   │   ├── sram_controller.f
+    │   │   └── stream_latency_bridge.f
+    │   └── macro
+    │       ├── datapath_rd_test.f
+    │       ├── datapath_wr_test.f
+    │       ├── monbus_axil_group.f
+    │       ├── scheduler_group.f
+    │       ├── scheduler_group_array.f
+    │       └── stream_core.f
+    ├── fub
+    │   ├── apbtodescr.sv
+    │   ├── axi_read_engine.sv
+    │   ├── axi_write_engine.sv
+    │   ├── descriptor_engine.sv
+    │   ├── perf_profiler.sv
+    │   ├── scheduler.sv
+    │   ├── sram_controller.sv
+    │   ├── sram_controller_unit.sv
+    │   ├── stream_alloc_ctrl.sv
+    │   └── stream_latency_bridge.sv
+    ├── includes
+    │   ├── stream_imports.svh
+    │   └── stream_pkg.sv
+    ├── macro
+    │   ├── datapath_rd_test.sv
+    │   ├── datapath_wr_test.sv
+    │   ├── monbus_axil_group.sv
+    │   ├── scheduler_group.sv
+    │   ├── scheduler_group_array.sv
+    │   ├── stream_core.sv
+    │   └── stream_regs.rdl
+    └── tools
+        └── lint

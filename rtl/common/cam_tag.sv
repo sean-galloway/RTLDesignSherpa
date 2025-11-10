@@ -126,7 +126,7 @@ module cam_tag #(
     ///////////////////////////////////////////////////////////////////////////
     // Flop the valid and the tag
     `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
             r_valid <= 'b0;
             for (int i = 0; i < DEPTH; i++) begin
                 r_tag_array[i] <= 'b0;

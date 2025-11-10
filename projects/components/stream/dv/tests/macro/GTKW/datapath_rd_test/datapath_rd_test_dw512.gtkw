@@ -1,0 +1,213 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Sun Nov  2 10:31:56 2025
+[*]
+[dumpfile] "/mnt/data/github/rtldesignsherpa/projects/components/stream/dv/tests/fub_tests/local_sim_build/test_datapath_rd_nostress_nc4_dw512_sd512_basic_pipe_xb4/dump.vcd"
+[dumpfile_mtime] "Sun Nov  2 08:21:24 2025"
+[dumpfile_size] 65765701
+[savefile] "/mnt/data/github/rtldesignsherpa/projects/components/stream/dv/tests/fub_tests/GTKW/datapath_rd_test/datapath_rd_test_dw512.gtkw"
+[timestart] 119300
+[size] 3539 1756
+[pos] 21 -66
+*-15.080517 200200 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] datapath_rd_test.
+[treeopen] datapath_rd_test.u_sram_controller.
+[treeopen] datapath_rd_test.u_sram_controller.gen_channel_units[0].
+[treeopen] datapath_rd_test.u_sram_controller.gen_channel_units[1].
+[treeopen] datapath_rd_test.u_sram_controller.gen_channel_units[2].
+[treeopen] datapath_rd_test.u_sram_controller.gen_channel_units[3].
+[treeopen] datapath_rd_test.u_sram_controller.gen_channel_units[3].u_channel_unit.
+[sst_width] 399
+[signals_width] 363
+[sst_expanded] 1
+[sst_vpaned_height] 792
+@22
+datapath_rd_test.SRAM_DEPTH[31:0]
+datapath_rd_test.MAX_BURST_LEN[31:0]
+datapath_rd_test.NUM_CHANNELS[31:0]
+@28
+datapath_rd_test.clk
+datapath_rd_test.rst_n
+@23
+datapath_rd_test.u_axi_read_engine.cfg_axi_rd_xfer_beats[7:0]
+@200
+-scheduler
+@22
+datapath_rd_test.sched_rd_valid[3:0]
+datapath_rd_test.sched_rd_ready[3:0]
+datapath_rd_test.sched_rd_addr[255:0]
+datapath_rd_test.sched_rd_beats[127:0]
+datapath_rd_test.sched_rd_channel_id[15:0]
+datapath_rd_test.sched_rd_done_strobe[3:0]
+datapath_rd_test.sched_rd_beats_done[127:0]
+@200
+-axi-ar
+@28
+datapath_rd_test.m_axi_arvalid
+datapath_rd_test.m_axi_arready
+@22
+datapath_rd_test.m_axi_araddr[63:0]
+datapath_rd_test.m_axi_arid[7:0]
+datapath_rd_test.m_axi_arlen[7:0]
+@200
+-axi-r
+@28
+datapath_rd_test.m_axi_rvalid
+datapath_rd_test.m_axi_rready
+@22
+datapath_rd_test.m_axi_rid[7:0]
+datapath_rd_test.m_axi_rdata[511:0]
+@28
+datapath_rd_test.u_axi_read_engine.m_axi_rlast
+@200
+-axi-rd-sram
+@28
+(1)datapath_rd_test.u_sram_controller.axi_rd_sram_ready_per_channel[3:0]
+@800022
+datapath_rd_test.u_sram_controller.axi_rd_sram_ready_per_channel[3:0]
+@28
+(0)datapath_rd_test.u_sram_controller.axi_rd_sram_ready_per_channel[3:0]
+(2)datapath_rd_test.u_sram_controller.axi_rd_sram_ready_per_channel[3:0]
+(3)datapath_rd_test.u_sram_controller.axi_rd_sram_ready_per_channel[3:0]
+@1001200
+-group_end
+@28
+datapath_rd_test.axi_rd_sram_valid
+datapath_rd_test.axi_rd_sram_ready
+datapath_rd_test.axi_rd_sram_channel_id[1:0]
+@22
+datapath_rd_test.axi_rd_sram_data[511:0]
+@c00022
+datapath_rd_test.rd_space_free[31:0]
+@28
+(0)datapath_rd_test.rd_space_free[31:0]
+(1)datapath_rd_test.rd_space_free[31:0]
+(2)datapath_rd_test.rd_space_free[31:0]
+(3)datapath_rd_test.rd_space_free[31:0]
+(4)datapath_rd_test.rd_space_free[31:0]
+(5)datapath_rd_test.rd_space_free[31:0]
+(6)datapath_rd_test.rd_space_free[31:0]
+(7)datapath_rd_test.rd_space_free[31:0]
+(8)datapath_rd_test.rd_space_free[31:0]
+(9)datapath_rd_test.rd_space_free[31:0]
+(10)datapath_rd_test.rd_space_free[31:0]
+(11)datapath_rd_test.rd_space_free[31:0]
+(12)datapath_rd_test.rd_space_free[31:0]
+(13)datapath_rd_test.rd_space_free[31:0]
+(14)datapath_rd_test.rd_space_free[31:0]
+(15)datapath_rd_test.rd_space_free[31:0]
+(16)datapath_rd_test.rd_space_free[31:0]
+(17)datapath_rd_test.rd_space_free[31:0]
+(18)datapath_rd_test.rd_space_free[31:0]
+(19)datapath_rd_test.rd_space_free[31:0]
+(20)datapath_rd_test.rd_space_free[31:0]
+(21)datapath_rd_test.rd_space_free[31:0]
+(22)datapath_rd_test.rd_space_free[31:0]
+(23)datapath_rd_test.rd_space_free[31:0]
+(24)datapath_rd_test.rd_space_free[31:0]
+(25)datapath_rd_test.rd_space_free[31:0]
+(26)datapath_rd_test.rd_space_free[31:0]
+(27)datapath_rd_test.rd_space_free[31:0]
+(28)datapath_rd_test.rd_space_free[31:0]
+(29)datapath_rd_test.rd_space_free[31:0]
+(30)datapath_rd_test.rd_space_free[31:0]
+(31)datapath_rd_test.rd_space_free[31:0]
+@1401200
+-group_end
+@800022
+datapath_rd_test.u_axi_read_engine.w_space_ok[3:0]
+@28
+(0)datapath_rd_test.u_axi_read_engine.w_space_ok[3:0]
+(1)datapath_rd_test.u_axi_read_engine.w_space_ok[3:0]
+(2)datapath_rd_test.u_axi_read_engine.w_space_ok[3:0]
+(3)datapath_rd_test.u_axi_read_engine.w_space_ok[3:0]
+@200
+-alloc
+@28
+datapath_rd_test.u_axi_read_engine.rd_alloc_req
+@22
+datapath_rd_test.u_axi_read_engine.rd_alloc_id[7:0]
+datapath_rd_test.u_axi_read_engine.rd_alloc_size[7:0]
+@1001200
+-group_end
+@200
+-internals
+@22
+datapath_rd_test.u_axi_read_engine.w_arb_request[3:0]
+datapath_rd_test.u_axi_read_engine.w_no_outstanding[3:0]
+datapath_rd_test.u_axi_read_engine.r_outstanding[3:0]
+@28
+datapath_rd_test.u_axi_read_engine.w_arb_grant_valid
+@200
+-sram-drain
+@c00022
+datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]
+@28
+(0)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]
+(1)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]
+(2)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]
+(3)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]
+(4)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]
+(5)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]
+(6)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]
+(7)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]
+(8)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]
+(9)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]
+(10)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]
+(11)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]
+(12)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]
+(13)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]
+(14)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]
+(15)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]
+(16)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]
+(17)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]
+(18)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]
+(19)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]
+(20)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]
+(21)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]
+(22)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]
+(23)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]
+(24)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]
+(25)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]
+(26)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]
+(27)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]
+(28)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]
+(29)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]
+(30)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]
+(31)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]
+@1401200
+-group_end
+@28
+datapath_rd_test.u_sram_controller.axi_wr_sram_drain
+datapath_rd_test.u_sram_controller.axi_wr_sram_id[1:0]
+datapath_rd_test.sram_wr_drain_channel_id[1:0]
+@200
+-Counts
+@22
+datapath_rd_test.u_sram_controller.gen_channel_units[3].u_channel_unit.u_channel_fifo.DEPTH[31:0]
+@200
+-segment0
+@22
+datapath_rd_test.u_sram_controller.gen_channel_units[0].u_channel_unit.fifo_count[7:0]
+datapath_rd_test.u_sram_controller.gen_channel_units[0].u_channel_unit.alloc_space_free[7:0]
+datapath_rd_test.u_sram_controller.gen_channel_units[0].u_channel_unit.rd_space_free[7:0]
+@200
+-segment1
+@22
+datapath_rd_test.u_sram_controller.gen_channel_units[1].u_channel_unit.fifo_count[7:0]
+datapath_rd_test.u_sram_controller.gen_channel_units[1].u_channel_unit.alloc_space_free[7:0]
+datapath_rd_test.u_sram_controller.gen_channel_units[1].u_channel_unit.rd_space_free[7:0]
+@200
+-segment2
+@22
+datapath_rd_test.u_sram_controller.gen_channel_units[2].u_channel_unit.fifo_count[7:0]
+datapath_rd_test.u_sram_controller.gen_channel_units[2].u_channel_unit.rd_space_free[7:0]
+datapath_rd_test.u_sram_controller.gen_channel_units[2].u_channel_unit.rd_space_free[7:0]
+@200
+-segment3
+@22
+datapath_rd_test.u_sram_controller.gen_channel_units[3].u_channel_unit.fifo_count[7:0]
+datapath_rd_test.u_sram_controller.gen_channel_units[3].u_channel_unit.alloc_space_free[7:0]
+datapath_rd_test.u_sram_controller.gen_channel_units[3].u_channel_unit.rd_space_free[7:0]
+[pattern_trace] 1
+[pattern_trace] 0

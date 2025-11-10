@@ -178,7 +178,7 @@ module shifter_lfsr #(
     assign lfsr_done = (lfsr_out == seed_data) ? 1'b1 : 1'b0;
 
     `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
             r_lfsr <= 'b0;
         end else begin
             if (enable) begin

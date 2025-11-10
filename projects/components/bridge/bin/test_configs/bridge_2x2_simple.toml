@@ -1,0 +1,54 @@
+# Simple 2x2 RW Bridge for Testing
+# 2 masters x 2 slaves, full read/write channels
+
+[bridge]
+name = "bridge_2x2_simple"
+description = "2 master x 2 slave full read/write bridge"
+
+[[bridge.masters]]
+name = "m0"
+prefix = "m0_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"  # Full read/write channels
+
+[[bridge.masters]]
+name = "m1"
+prefix = "m1_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"  # Full read/write channels
+
+[[bridge.slaves]]
+name = "s0"
+prefix = "s0_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"  # Full read/write channels
+base_addr = "0x00000000"
+addr_range = "0x10000000"  # 256MB
+
+[[bridge.slaves]]
+name = "s1"
+prefix = "s1_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"  # Full read/write channels
+base_addr = "0x10000000"
+addr_range = "0x10000000"  # 256MB
+
+# Connectivity: full mesh (all masters to all slaves)
+# No connectivity section = full connectivity assumed by default
+
+# Connectivity: full mesh (all masters to all slaves)
+[connectivity]
+m0 = ["s0", "s1"]  # Master 0 connects to both slaves
+m1 = ["s0", "s1"]  # Master 1 connects to both slaves

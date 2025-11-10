@@ -120,7 +120,7 @@ This directory contains documentation for the AMBA (Advanced Microcontroller Bus
 ## Quick Reference
 
 ### Module Count by Protocol
-- **APB Components**: 7 modules (moved: apb_xbar, apb_xbar_thin, apb_hpet to projects/components)
+- **APB Components**: 7 modules (moved: apb_xbar, apb_xbar_thin to projects/components)
 - **AXI4 Components**: 8 modules + 6 stubs
 - **AXI4-Lite Components**: 8 modules
 - **AXI4-Stream Components**: 4 modules
@@ -129,7 +129,7 @@ This directory contains documentation for the AMBA (Advanced Microcontroller Bus
 - **Protocol Bridges**: 2 modules
 - **Package Definitions**: 4 modules
 
-**Note:** APB HPET and APB Crossbar have moved to production components. See [Component Projects](../projects/index.md) for complete documentation.
+**Note:** APB Crossbar has moved to production components. APB HPET is now part of the Retro Legacy Blocks collection. See [Component Projects](../projects/index.md) for complete documentation.
 
 ### Performance Characteristics
 

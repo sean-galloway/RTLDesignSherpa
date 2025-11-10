@@ -1,22 +1,107 @@
 # Bridge: AXI4 Full Crossbar Generator - Product Requirements Document
 
 **Project:** Bridge
-**Version:** 1.0
-**Status:** 🟢 Specification Complete - Ready for Implementation
+**Version:** 2.1
+**Status:** 🟢 Phase 2 Complete - Simplified Architecture with Hard Limits
 **Created:** 2025-10-18
-**Last Updated:** 2025-10-18
+**Last Updated:** 2025-11-02
 
 ---
 
 ## Executive Summary
 
-**Bridge** is a Python-based AXI4 full crossbar generator that produces parameterized SystemVerilog RTL for connecting multiple AXI4 masters to multiple AXI4 slaves. The name follows the infrastructure theme - bridges connect different regions, enabling communication across divides, just like crossbars connect masters and slaves.
+**Bridge** is a Python-based AXI4 crossbar generator that produces simple, performant SystemVerilog RTL for connecting multiple AXI4 masters to multiple AXI4 slaves. The name follows the infrastructure theme - bridges connect different regions, enabling communication across divides, just like crossbars connect masters and slaves.
+
+**Design Philosophy:** A simple AMBA fabric that is performant, but makes no attempt to support all features. We enforce hard limits (8-bit ID width, 64-bit address width) to eliminate unnecessary complexity, focusing only on what real hardware needs.
 
 **Key Differentiator from Delta:**
 - **Delta:** AXI-Stream crossbar (streaming data, single channel, simple routing)
 - **Bridge:** AXI4 full crossbar (memory-mapped, 5 channels, burst support, ID-based routing)
 
-**Target Use Case:** High-performance memory-mapped interconnects for multi-core processors, accelerators, and memory controllers.
+**Key Differentiator from Commercial IP:**
+- **Commercial AXI4 Crossbars:** Feature-complete, support every AXI4 edge case, complex configurability
+- **Bridge:** Simple and performant, supports common use cases, hard limits for simplicity
+
+**Target Use Case:** High-performance memory-mapped interconnects for multi-core processors, accelerators, and memory controllers where simplicity and performance matter more than spec compliance.
+
+---
+
+## Design Philosophy
+
+**Vision:** A simple AMBA fabric that is performant, but makes no attempt to support all features.
+
+### Core Principles
+
+**1. Simplicity Over Completeness**
+- Focus on common use cases, not edge cases
+- Implement what's needed for real hardware, not AXI4 spec compliance theater
+- Prefer straightforward implementations over complex feature sets
+
+**2. Performance First**
+- Direct connections where possible (matching widths = zero overhead)
+- Minimal conversion logic in critical paths
+- Optimize for throughput and latency, not feature count
+
+**3. Hard Limits for Simplicity**
+
+We enforce uniform widths on certain parameters to eliminate complexity:
+
+| Parameter | Hard Limit | Rationale |
+|-----------|-----------|-----------|
+| **ID Width** | 8 bits (fixed) | Eliminates ID width conversion logic. 256 unique IDs is sufficient for all realistic use cases. |
+| **Address Width** | 64 bits (fixed) | Eliminates address width conversion. 64-bit addressing covers all memory-mapped systems. |
+| **Data Width** | Variable (32b-512b) | Width converters ONLY for data. Commonly needed for bandwidth optimization. |
+
+**Why This Works:**
+- ID width conversion adds complexity with minimal benefit (nobody needs >256 outstanding transactions per master)
+- Address width conversion is rarely needed (peripheral addresses fit in 32-bit, but using 64-bit everywhere is simpler)
+- Data width conversion is the ONLY width conversion that provides real value (bandwidth matching)
+
+**4. What We DON'T Support (By Design)**
+
+Features intentionally excluded for simplicity:
+- ❌ Variable ID width per port
+- ❌ Variable address width per port
+- ❌ AXI4-Lite protocol variant (use standard AXI4 with len=0)
+- ❌ ACE protocol extensions (cache coherency)
+- ❌ AXI5 features
+- ❌ Complete AXI4 sideband signal support (QoS, Region, User signals declared but not routed)
+
+**5. What We DO Support**
+
+Core AXI4 features that matter:
+- ✅ Full 5-channel AXI4 protocol (AW, W, B, AR, R)
+- ✅ Burst transactions (INCR, WRAP, FIXED)
+- ✅ Out-of-order completion via transaction IDs
+- ✅ Multiple outstanding transactions per master
+- ✅ Channel-specific masters (write-only, read-only, read-write)
+- ✅ Data width conversion (32b ↔ 64b ↔ 128b ↔ 256b ↔ 512b)
+- ✅ Configurable M×N topology (1-32 masters, 1-256 slaves)
+- ✅ Fair round-robin arbitration per slave
+
+### Architecture Philosophy
+
+**Target:** Intelligent width-aware routing, not fixed-width crossbar
+
+**OLD Approach (What We're Moving Away From):**
+```
+Master (64b) → Upsize(64→256) → Fixed 256b Crossbar → Downsize(256→64) → Slave (64b)
+```
+- Two conversions for same-width connections (wasteful!)
+- Artificial bandwidth bottleneck
+- Unnecessary logic and latency
+
+**NEW Approach (Target Architecture):**
+```
+Master (64b) → Direct Connection → Slave (64b)    [0 conversions!]
+Master (512b) → Conv(512→64) → Slave (64b)         [1 conversion]
+```
+- Per-master paths to each unique slave width it connects to
+- Direct paths where widths match (zero overhead)
+- Converters only where actually needed
+- Router selects appropriate path based on address decode
+
+**Result:** Minimal conversion logic, maximum performance, pragmatic simplicity.
 
 ---
 
@@ -93,22 +178,80 @@ Bridge provides automated generation of AXI4 crossbar infrastructure with:
 ### 1.3 Success Criteria
 
 **Functional:**
-- [ ] Generates working AXI4 crossbar RTL
-- [ ] Passes Verilator lint
-- [ ] Supports 1-32 masters, 1-256 slaves
-- [ ] Handles out-of-order completion via IDs
-- [ ] Supports burst lengths 1-256 beats
+- [x] Generates working AXI4 crossbar RTL (bridge_generator.py)
+- [x] Generates CSV-configured bridges (bridge_csv_generator.py)
+- [x] Passes Verilator lint
+- [x] Supports 1-32 masters, 1-256 slaves
+- [x] Handles out-of-order completion via IDs (bridge_cam.sv)
+- [x] Supports burst lengths 1-256 beats
+- [x] Channel-specific masters (wr/rd/rw) for resource optimization (Phase 2)
+- [ ] APB converter integration (Phase 3 pending)
 
 **Performance:**
-- [ ] Latency ≤ 3 cycles for single-beat transactions
-- [ ] Throughput: All M×N paths can transfer concurrently
-- [ ] Fmax ≥ 300 MHz on UltraScale+ FPGAs
+- [x] Latency ≤ 3 cycles for single-beat transactions
+- [x] Throughput: All M×N paths can transfer concurrently
+- [x] Performance models implemented (bridge_model.py - V1 Flat)
+- [ ] Fmax ≥ 300 MHz on UltraScale+ FPGAs (pending synthesis validation)
 
 **Quality:**
-- [ ] Complete specifications (PRD) before code
-- [ ] Performance models validate requirements
-- [ ] All generated RTL Verilator verified
-- [ ] Integration examples provided
+- [x] Complete specifications (PRD) before code
+- [x] Performance models validate requirements (bridge_model.py)
+- [x] All generated RTL Verilator verified
+- [x] Integration examples provided (CSV examples)
+- [x] Comprehensive documentation (BRIDGE_CURRENT_STATE.md, BRIDGE_ARCHITECTURE_DIAGRAMS.md)
+
+### 1.4 Implementation Status and Phases
+
+**Unified Generator (bridge_generator.py):**
+
+The bridge generator now supports both TOML/CSV configuration and legacy array-indexed modes:
+
+**Configuration Modes:**
+1. **TOML/CSV Mode (Preferred)**
+   - TOML port configuration (`bridge_name.toml`)
+   - CSV connectivity matrix (`bridge_name_connectivity.csv`)
+   - Custom port prefixes (`rapids_m_axi_`, `cpu_m_axi_`, etc.)
+   - Interface wrapper integration (timing isolation)
+   - Mixed protocols (AXI4 + APB + AXI4-Lite slaves)
+   - Channel-specific masters (wr/rd/rw)
+   - Status: ✅ Phase 2 complete, Phase 3 pending
+
+2. **Legacy CSV Mode (Backwards Compatible)**
+   - Separate `ports.csv` and `connectivity.csv` files
+   - Migration path to TOML format
+   - See `test_configs/README.md` for conversion guide
+
+**Phase Status:**
+
+**Phase 1: CSV Configuration ✅ COMPLETE**
+- CSV parser (ports.csv, connectivity.csv)
+- Port generation with custom prefixes
+- Converter identification logic
+- Basic crossbar instantiation
+
+**Phase 2: Channel-Specific Masters ✅ COMPLETE (2025-10-26)**
+- Added `channels` field to PortSpec (rw/wr/rd)
+- Conditional port generation based on channels
+- **Resource Optimization:**
+  - wr (write-only): AW, W, B channels only → 39% port reduction
+  - rd (read-only): AR, R channels only → 61% port reduction
+  - rw (full): All 5 channels
+- Width converter awareness (only generate needed converters)
+- Example: 4-master bridge saves 35% signals with optimized channels
+
+**Phase 3: APB Converter Integration ⏳ PENDING**
+- AXI2APB converter module (create or integrate existing)
+- APB signal packing/unpacking
+- APB converter instantiation in generated bridges
+- Width converter + APB converter chaining
+- End-to-end testing with APB slaves
+- Status: Placeholders in generated code with detailed TODO comments
+
+**Additional Resources:**
+- `bridge_model.py` - Performance modeling (V1 Flat implemented)
+- `bridge_cam.sv` - Transaction ID tracking for OOO support
+- See `BRIDGE_CURRENT_STATE.md` for detailed review
+- See `docs/BRIDGE_ARCHITECTURE_DIAGRAMS.md` for visual architecture
 
 ---
 

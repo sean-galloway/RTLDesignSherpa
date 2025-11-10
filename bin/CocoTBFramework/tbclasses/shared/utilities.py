@@ -22,6 +22,13 @@ import tempfile
 from typing import Dict, Tuple, Optional, List
 
 
+def get_repo_root():
+    # Get repo root
+    repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
+
+    return repo_root
+
+
 def get_paths(dir_dict):
     """
     Returns module, repo_root, test_dir (relative to the calling file), log_dir, and a dictionary of additional paths.

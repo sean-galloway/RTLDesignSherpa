@@ -59,6 +59,11 @@ class APBMonitor(BusMonitor):
 
         self.count = 0
         self.bus_width = bus_width
+
+        # Normalize prefix: remove trailing underscore if present
+        # BusMonitor adds underscore separator automatically
+        prefix = prefix.rstrip('_')
+
         BusMonitor.__init__(self, entity, prefix, clock, **kwargs)
         self.clock = clock
         self.title = title
@@ -161,11 +166,16 @@ class APBSlave(BusMonitor):
             self._optional_signals = apb_optional_signals
         if randomizer is None:
             self.randomizer = FlexRandomizer({
-                'ready': ([[0, 1], [2, 5], [6, 10]], [5, 2, 1]),
-                'error': ([[0, 0], [1, 1]], [10, 0]),
+                'ready': ([(0, 1), (2, 5), (6, 10)], [5, 2, 1]),
+                'error': ([(0, 0), (1, 1)], [10, 0]),
             })
         else:
             self.randomizer = randomizer
+
+        # Normalize prefix: remove trailing underscore if present
+        # BusMonitor adds underscore separator automatically
+        prefix = prefix.rstrip('_')
+
         BusMonitor.__init__(self, entity, prefix, clock, **kwargs)
         self.clock          = clock
         self.title          = title
@@ -292,6 +302,11 @@ class APBMaster(BusDriver):
             })
         else:
             self.randomizer = randomizer
+
+        # Normalize prefix: remove trailing underscore if present
+        # BusDriver adds underscore separator automatically
+        prefix = prefix.rstrip('_')
+
         BusDriver.__init__(self, entity, prefix, clock, **kwargs)
         self.title = title
         self.prefix = prefix

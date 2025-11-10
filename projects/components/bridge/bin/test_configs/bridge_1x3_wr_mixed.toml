@@ -1,0 +1,53 @@
+# Bridge Configuration: 1x3 Write-Only Bridge with Mixed Data Widths
+# Port definitions only - connectivity comes from bridge_1x3_wr_mixed_connectivity.csv
+# Demonstrates width conversion: 64b master -> 32b, 64b, 128b slaves
+
+[bridge]
+name = "bridge_1x3_wr"
+description = "1 master x 3 slave write-only bridge with mixed data widths"
+
+[[bridge.masters]]
+name = "cpu_wr"  # Descriptive identifier (cpu write master)
+prefix = "cpu_wr_axi_"  # External signal prefix
+id_width = 4
+addr_width = 32
+data_width = 64  # 64-bit master
+user_width = 1
+channels = "wr"  # Write-only (AW, W, B channels)
+# No interface module = direct connection (for testing)
+
+[[bridge.slaves]]
+name = "periph_wr"  # Descriptive identifier (peripheral write slave - 32b)
+prefix = "periph_wr_axi_"  # External signal prefix
+id_width = 4
+addr_width = 32
+data_width = 32  # 32-bit slave (requires downsize converter)
+user_width = 1
+channels = "wr"  # Write-only (AW, W, B channels) - must match master
+base_addr = "0x00000000"
+addr_range = "0x10000000"  # 256MB
+# No interface module = direct connection
+
+[[bridge.slaves]]
+name = "ddr_wr"  # Descriptive identifier (ddr write slave - 64b)
+prefix = "ddr_wr_axi_"  # External signal prefix
+id_width = 4
+addr_width = 32
+data_width = 64  # 64-bit slave (direct connection, no converter)
+user_width = 1
+channels = "wr"  # Write-only (AW, W, B channels) - must match master
+base_addr = "0x10000000"
+addr_range = "0x40000000"  # 1GB
+# No interface module = direct connection
+
+[[bridge.slaves]]
+name = "hbm_wr"  # Descriptive identifier (high bandwidth memory write slave - 128b)
+prefix = "hbm_wr_axi_"  # External signal prefix
+id_width = 4
+addr_width = 32
+data_width = 128  # 128-bit slave (requires upsize converter)
+user_width = 1
+channels = "wr"  # Write-only (AW, W, B channels) - must match master
+base_addr = "0x50000000"
+addr_range = "0x30000000"  # 768MB
+# No interface module = direct connection

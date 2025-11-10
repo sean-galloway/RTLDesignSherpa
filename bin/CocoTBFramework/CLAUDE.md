@@ -14,6 +14,22 @@
 
 ---
 
+## 📖 Global Requirements Reference
+
+**IMPORTANT: Review `/GLOBAL_REQUIREMENTS.md` for mandatory testbench standards**
+
+This file focuses on CocoTB framework usage. For all mandatory requirements:
+- **See:** `/GLOBAL_REQUIREMENTS.md` - Consolidated mandatory requirements
+- **Key Sections:** Testbench Architecture, Test Standards, Framework Usage
+- **Compliance:** TB location, three methods, TBBase inheritance, three-layer architecture all MANDATORY
+
+This CLAUDE.md provides framework-specific patterns. Also review:
+- Root `/CLAUDE.md` - Repository-wide guidance
+- `projects/components/CLAUDE.md` - Project area standards
+- `projects/components/{name}/CLAUDE.md` - Component-specific TB requirements
+
+---
+
 ## Framework Architecture
 
 ```
@@ -43,193 +59,116 @@ bin/CocoTBFramework/
 
 ## Critical Rules for This Framework
 
-### Rule #1: Always Search Before Creating
+### Rule #1: Search Before Creating (MANDATORY)
 
-**The framework is extensive - components likely already exist!**
+**📖 See:** `/GLOBAL_REQUIREMENTS.md` Section 4.1 for complete requirement
+
+**Framework-Specific Search Commands:**
 
 ```bash
-# Search for existing components
+# Search for existing protocol components
 find bin/CocoTBFramework/components/ -name "*.py" | xargs grep -l "class.*BFM"
-find bin/CocoTBFramework/components/ -name "*.py" | xargs grep -l "class.*Driver"
-find bin/CocoTBFramework/components/ -name "*.py" | xargs grep -l "class.*Monitor"
+find bin/CocoTBFramework/components/ -name "*.py" | xargs grep -l "class.*Master"
+find bin/CocoTBFramework/components/ -name "*.py" | xargs grep -l "class.*Slave"
 
-# Search for existing testbench classes
+# Search for existing testbench base classes
 find bin/CocoTBFramework/tbclasses/ -name "*_tb.py"
 
-# Search for usage examples
-grep -r "from CocoTBFramework.components" val/
+# Find usage examples
+grep -r "from CocoTBFramework.components.axi4" val/
 ```
 
-**Decision Tree: Use Existing vs Create New?**
+**Framework BFM Extraction Criteria:**
 
-```
-Need protocol component (BFM, driver, monitor)?
-├─ Is it a standard protocol (AXI4, APB, AXIS)?
-│  └─ YES → Use components/axi4/, components/apb/, etc.
-│           ✅ DO NOT create duplicate implementation
-│
-├─ Is it subsystem-specific (RAPIDS, custom)?
-│  ├─ >100 lines AND reusable across tests?
-│  │  └─ YES → Create in components/[subsystem]/
-│  └─ <50 lines OR test-specific?
-│     └─ YES → Keep embedded in testbench class
-│
-└─ Is it generic utility (not protocol-specific)?
-   └─ Add to tbclasses/shared/utilities.py
-```
+| Factor | Extract to Framework | Keep in Project Area |
+|--------|---------------------|---------------------|
+| Lines of code | >100 lines | <50 lines |
+| Protocol | Standard (AXI4, APB, AXIS) | Project-specific |
+| Reusability | Used across 3+ projects | Single project only |
 
-### Rule #2: All Testbenches Inherit from TBBase
+---
 
-**Every testbench class MUST inherit from TBBase:**
+### Rule #2: TBBase Inheritance (MANDATORY)
+
+**📖 See:** `/GLOBAL_REQUIREMENTS.md` Section 2.3 for complete requirement
+
+**Framework-Specific:** TBBase location and capabilities
 
 ```python
-# Location: bin/CocoTBFramework/tbclasses/shared/tbbase.py
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 
 class MyModuleTB(TBBase):
-    """Testbench for MyModule - inherits base functionality"""
-
+    """Inherits: clock mgmt, reset, logging, utilities"""
     def __init__(self, dut):
         super().__init__(dut)
-        # Testbench-specific initialization
 ```
 
-**TBBase Provides:**
-- Clock management (`start_clock`, `wait_clocks`)
-- Reset utilities (`assert_reset`, `deassert_reset`)
-- Logging (`self.log`)
-- Progress tracking (`mark_progress`)
-- Safety monitoring (timeouts, memory limits)
-- Common utilities (`convert_to_int`, `format_dec`)
+**TBBase API:** See `bin/CocoTBFramework/tbclasses/shared/tbbase.py`
 
-**📖 See:** `bin/CocoTBFramework/tbclasses/shared/tbbase.py` for complete API
+---
 
-### Rule #3: Mandatory Testbench Methods
+### Rule #3: Three Mandatory Methods (MANDATORY)
 
-**Every testbench class MUST implement these three methods:**
+**📖 See:** `/GLOBAL_REQUIREMENTS.md` Section 2.2 for complete requirement
 
+**Framework Pattern:**
 ```python
 async def setup_clocks_and_reset(self):
-    """Complete initialization - starts clocks and performs reset"""
     await self.start_clock('clk', freq=10, units='ns')
-
-    # Set config signals before reset (if needed)
-    self.dut.cfg_param.value = initial_value
-
-    # Reset sequence
     await self.assert_reset()
     await self.wait_clocks('clk', 10)
     await self.deassert_reset()
-    await self.wait_clocks('clk', 5)
 
 async def assert_reset(self):
-    """Assert reset signal"""
-    self.dut.rst_n.value = 0  # Active-low
+    self.dut.rst_n.value = 0
 
 async def deassert_reset(self):
-    """Deassert reset signal"""
     self.dut.rst_n.value = 1
 ```
 
-**Why Required:**
-- Consistency across all testbenches
-- Reusability for mid-test resets
-- Clear test structure and intent
+---
 
-### Rule #4: Testbench Architecture - Three Layer Pattern
+### Rule #4: Three-Layer Architecture (MANDATORY)
 
-**⚠️ MANDATORY: TB, Test, and Scoreboard must be separate**
+**📖 See:** `/GLOBAL_REQUIREMENTS.md` Section 2.4 for complete requirement
 
-All verification follows a strict separation:
+**Framework-Specific Locations:**
+- **Layer 1 (TB):** `bin/CocoTBFramework/tbclasses/{protocol}/` OR `projects/components/{name}/dv/tbclasses/`
+- **Layer 2 (Test):** `val/{subsystem}/test_{module}.py` OR `projects/components/{name}/dv/tests/`
+- **Layer 3 (Scoreboard):** `bin/CocoTBFramework/scoreboards/{protocol}/`
 
-#### Layer 1: Testbench Class (TB)
-**Location:** `bin/CocoTBFramework/tbclasses/{subsystem}/{module}_tb.py`
+**Key:** Project-specific TBs go in project area, shared TBs go in framework.
 
-**Purpose:** Reusable infrastructure
+---
 
-**Contains:**
-- BFM instantiation and management
-- Clock and reset control
-- Base test methods
-- Protocol-specific utilities
+### Rule #5: Queue-Based Verification (PREFERRED)
 
-#### Layer 2: Test Runner
-**Location:** `val/{subsystem}/test_{module}.py`
+**📖 See:** `/GLOBAL_REQUIREMENTS.md` Section 2.5 for complete requirement
 
-**Purpose:** Test intelligence
-
-**Contains:**
-- CocoTB test functions
-- Pytest wrappers
-- Scenario logic
-- **Imports** TB class (does NOT define it)
-
-#### Layer 3: Scoreboard
-**Location:** `bin/CocoTBFramework/scoreboards/{protocol}/`
-
-**Purpose:** Transaction verification
-
-**Contains:**
-- Queue-based verification using `monitor._recvQ.popleft()`
-- Expected vs actual comparison
-- Coverage collection
-- **No memory models** for simple tests
-
-### Rule #5: Queue-Based Verification (No Memory Models for Simple Tests)
-
-**⚠️ CRITICAL: Direct queue access preferred over memory models**
-
-For simple in-order verification, use direct monitor queue access:
+**Framework Scoreboard Example:**
 
 ```python
-# ✅ CORRECT: Direct queue access
-aw_pkt = self.aw_monitor._recvQ.popleft()
-w_pkt = self.w_monitor._recvQ.popleft()
+class SimpleScorebor:
+    """Framework scoreboard pattern"""
+    def __init__(self, monitor):
+        self.monitor = monitor
 
-# Verify
-assert aw_pkt.addr == expected_addr
-assert w_pkt.data == expected_data
-
-# ❌ WRONG: Memory model for simple test
-memory_model = MemoryModel()
-written_data = memory_model.read(addr, 4)  # Unnecessary complexity
-```
-
-**Scoreboard Pattern:**
-```python
-# bin/CocoTBFramework/scoreboards/rapids/program_engine_scoreboard.py
-class ProgramEngineScoreboard:
-    """Simple queue-based scoreboard"""
-
-    def __init__(self, aw_monitor, w_monitor):
-        self.aw_monitor = aw_monitor
-        self.w_monitor = w_monitor
-
-    def check_write_transaction(self, expected_addr, expected_data):
-        """Verify write using direct queue access"""
-        if self.aw_monitor._recvQ:
-            aw_pkt = self.aw_monitor._recvQ.popleft()
-            w_pkt = self.w_monitor._recvQ.popleft()
-
-            assert aw_pkt.addr == expected_addr
-            assert w_pkt.data == expected_data
+    def check_transaction(self, expected_data):
+        """Direct queue access"""
+        if self.monitor._recvQ:
+            pkt = self.monitor._recvQ.popleft()
+            assert pkt.data == expected_data
             return True
         return False
 
     def clear_queues(self):
-        """Clear queues after verification section"""
-        self.aw_monitor._recvQ.clear()
-        self.w_monitor._recvQ.clear()
+        """Clear after verification section"""
+        self.monitor._recvQ.clear()
 ```
 
-**When to Use Memory Models:**
-- ❌ Simple in-order tests → Use queue access
-- ❌ Single-master systems → Use queue access
-- ✅ Complex out-of-order scenarios → Memory model may help
-- ✅ Multi-master with address overlap → Memory model tracks state
-- ✅ Data paths (DMA, streaming) → Memory model tracks state
+**When to Use Memory Models:** Complex OOO, multi-master overlap, or data paths tracking state.
 
-**📖 Complete Guide:** See `docs/VERIFICATION_ARCHITECTURE_GUIDE.md` for detailed decision tree and examples
+**See:** `docs/VERIFICATION_ARCHITECTURE_GUIDE.md` for decision tree
 
 ---
 

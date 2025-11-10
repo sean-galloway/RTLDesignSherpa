@@ -188,7 +188,7 @@ module apb_monitor
     // Timestamp Counter
     // -------------------------------------------------------------------------
     `ALWAYS_FF_RST(aclk, aresetn,
-if (`RST_ASSERTED(aresetn)) begin
+        if (`RST_ASSERTED(aresetn)) begin
             r_timestamp <= '0;
         end else begin
             r_timestamp <= r_timestamp + 1'b1;
@@ -228,7 +228,7 @@ if (`RST_ASSERTED(aresetn)) begin
     assign w_state_change = (w_next_trans_state != r_trans_state);
 
     `ALWAYS_FF_RST(aclk, aresetn,
-if (`RST_ASSERTED(aresetn)) begin
+        if (`RST_ASSERTED(aresetn)) begin
             r_trans_state <= CMD_RSP_IDLE;
         end else begin
             r_trans_state <= w_next_trans_state;
@@ -291,7 +291,7 @@ if (`RST_ASSERTED(aresetn)) begin
     // Transaction Lifecycle Management
     // -------------------------------------------------------------------------
     `ALWAYS_FF_RST(aclk, aresetn,
-if (`RST_ASSERTED(aresetn)) begin
+        if (`RST_ASSERTED(aresetn)) begin
             for (int i = 0; i < MAX_TRANSACTIONS; i++) begin
                 r_trans_table[i] <= '0;
             end
@@ -360,7 +360,7 @@ if (`RST_ASSERTED(aresetn)) begin
     // Timeout Detection
     // -------------------------------------------------------------------------
     `ALWAYS_FF_RST(aclk, aresetn,
-if (`RST_ASSERTED(aresetn)) begin
+        if (`RST_ASSERTED(aresetn)) begin
             r_cmd_timeout_timer <= '0;
             r_rsp_timeout_timer <= '0;
         end else begin
@@ -425,7 +425,7 @@ if (`RST_ASSERTED(aresetn)) begin
 
     // Throughput tracking
     `ALWAYS_FF_RST(aclk, aresetn,
-if (`RST_ASSERTED(aresetn)) begin
+        if (`RST_ASSERTED(aresetn)) begin
             r_throughput_counter <= '0;
             r_throughput_timer <= '0;
         end else begin
@@ -559,7 +559,7 @@ if (`RST_ASSERTED(aresetn)) begin
 
     // Mark events as reported when they're written to FIFO
     `ALWAYS_FF_RST(aclk, aresetn,
-if (`RST_ASSERTED(aresetn)) begin
+        if (`RST_ASSERTED(aresetn)) begin
             // Reset handled in transaction management
         end else begin
             // Mark events as reported when packets are generated

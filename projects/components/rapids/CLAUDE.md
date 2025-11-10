@@ -16,6 +16,22 @@
 
 ---
 
+## 📖 Global Requirements Reference
+
+**IMPORTANT: Check `/GLOBAL_REQUIREMENTS.md` before starting RAPIDS work**
+
+All mandatory requirements are consolidated in the global requirements document:
+- **See:** `/GLOBAL_REQUIREMENTS.md` - Repository-wide mandatory requirements
+- **RAPIDS-Specific:** Attribution format, BFM usage requirements
+- **Universal:** TB location, three methods, TBBase inheritance, 100% success
+
+This CLAUDE.md provides RAPIDS-specific guidance. Also review:
+- Root `/CLAUDE.md` - Repository-wide patterns
+- `projects/components/CLAUDE.md` - Project area standards (reset macros, FPGA attributes)
+- `bin/CocoTBFramework/CLAUDE.md` - Framework usage patterns
+
+---
+
 ## Critical Rules for This Subsystem
 
 ### Rule #0: Attribution Format for Git Commits
@@ -34,493 +50,144 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 **Rationale:** RAPIDS receives AI assistance for structure and clarity, while design concepts and architectural decisions remain human-authored.
 
-### Rule #0.1: TESTBENCH ARCHITECTURE - MANDATORY SEPARATION
+### Rule #0.1: Testbench Location and Test Structure (MANDATORY)
 
-**⚠️ THIS IS A HARD REQUIREMENT - NO EXCEPTIONS ⚠️**
+**📖 See:** `/GLOBAL_REQUIREMENTS.md` Section 2.1 for complete requirement
 
-**NEVER embed testbench classes inside test runner files!**
-
-The same testbench logic will be reused across multiple test scenarios. Having testbench code only in test files makes it COMPLETELY WORTHLESS for reuse.
-
-**MANDATORY Structure:**
+**RAPIDS-Specific Directory Structure:**
 
 ```
 projects/components/rapids/dv/
-├── tbclasses/                    # ★ RAPIDS TB classes HERE (not framework!)
-│   ├── scheduler_tb.py           # ← REUSABLE TB CLASS
-│   ├── descriptor_engine_tb.py   # ← REUSABLE TB CLASS
-│   ├── rapids_integration_tb.py  # ← REUSABLE TB CLASS
-│   └── [component]_tb.py         # ← REUSABLE TB CLASS
-│
-└── tests/                        # Test runners (import TB classes from project area)
-    ├── fub_tests/
-    │   ├── scheduler/
-    │   │   └── test_scheduler.py     # ← TEST RUNNER ONLY (imports TB from project area)
-    │   ├── descriptor_engine/
-    │   │   └── test_desc_engine.py   # ← TEST RUNNER ONLY (imports TB from project area)
-    └── integration_tests/
-        └── test_miop_integration.py  # ← TEST RUNNER ONLY (imports TB from project area)
+├── tbclasses/                    # ★ RAPIDS TB classes (project area!)
+│   ├── scheduler_tb.py           # Scheduler testbench
+│   ├── descriptor_engine_tb.py   # Descriptor engine testbench
+│   └── rapids_integration_tb.py  # Integration testbench
+└── tests/                        # Test runners
+    ├── fub_tests/scheduler/test_scheduler.py
+    ├── fub_tests/descriptor_engine/test_desc_engine.py
+    └── integration_tests/test_miop_integration.py
 ```
 
-**✅ CRITICAL: All RAPIDS TB classes are in the PROJECT AREA, not the framework!**
-
-**Test Runner Pattern (CORRECT):**
+**RAPIDS Import Pattern:**
 ```python
-# projects/components/rapids/dv/tests/fub_tests/scheduler/test_scheduler.py
-
-# Add repo root to Python path
+# Add repo root to path
 import os, sys
 repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
 sys.path.insert(0, repo_root)
 
-# Import from PROJECT AREA (not framework!)
+# Import RAPIDS TB from project area
 from projects.components.rapids.dv.tbclasses.scheduler_tb import SchedulerTB
 
-@cocotb.test()
-async def scheduler_test(dut):
-    """Test runner - imports TB, runs test"""
-    tb = SchedulerTB(dut)  # ← TB imported from tbclasses/
-    await tb.setup_clocks_and_reset()
-    await tb.run_basic_test()
-
-@pytest.mark.parametrize("credit_mode, ...", generate_test_params())
-def test_scheduler(request, credit_mode, ...):
-    """Pytest runner - only handles parameters and run()"""
-    # ... RTL sources, parameters, etc ...
-    run(verilog_sources=..., module=module, ...)
+# Shared utilities from framework
+from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 ```
 
-**Testbench Class Pattern (CORRECT):**
+**RAPIDS Test File Organization:**
 ```python
-# projects/components/rapids/dv/tbclasses/scheduler_tb.py ✅ CORRECT LOCATION!
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
-
-class SchedulerTB(TBBase):
-    """Reusable testbench for RAPIDS Scheduler validation"""
-
-    def __init__(self, dut, **kwargs):
-        super().__init__(dut)
-        # TB initialization
-
-    async def setup_clocks_and_reset(self):
-        """Complete initialization - MANDATORY METHOD"""
-        # Clock startup + reset sequence
-
-    async def assert_reset(self):
-        """Assert reset - MANDATORY METHOD"""
-        # Put DUT in reset
-
-    async def deassert_reset(self):
-        """Deassert reset - MANDATORY METHOD"""
-        # Release DUT from reset
-
-    async def run_basic_test(self):
-        # Test logic
-```
-
-**Complete Test File Structure (MANDATORY PATTERN):**
-
-RAPIDS tests MUST follow the same pattern as AMBA tests for consistency:
-
-```python
-# projects/components/rapids/dv/tests/fub_tests/scheduler/test_scheduler.py
-
-import os
-import pytest
-import cocotb
-from cocotb_test.simulator import run
-
-# Add repo root to Python path
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
-import sys
-sys.path.insert(0, repo_root)
-
-# Import REUSABLE testbench class from PROJECT AREA (NOT framework!)
-from projects.components.rapids.dv.tbclasses.scheduler_tb import SchedulerTB
-
-# Shared framework utilities
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
-
-# ===========================================================================
-# COCOTB TEST FUNCTIONS - prefix with "cocotb_" to prevent pytest collection
-# ===========================================================================
-
+# 1. CocoTB functions at top (prefix "cocotb_test_*")
 @cocotb.test(timeout_time=100, timeout_unit="ms")
 async def cocotb_test_basic_flow(dut):
-    """Test basic descriptor flow."""
     tb = SchedulerTB(dut)
-    await tb.setup_clocks_and_reset()  # Mandatory init
-    await tb.initialize_test()
-    result = await tb.test_basic_descriptor_flow()
-    assert result, "Basic descriptor flow test failed"
+    await tb.setup_clocks_and_reset()
+    # ... test logic
 
-# Additional cocotb test functions...
-
-# ===========================================================================
-# PARAMETER GENERATION - at bottom of file
-# ===========================================================================
-
+# 2. Parameter generation near bottom
 def generate_scheduler_test_params():
-    """Generate test parameters for scheduler tests."""
-    return [
-        # (channel_id, num_channels, data_width, credit_width)
-        (0, 8, 512, 8),  # Standard configuration
-    ]
+    return [(0, 8, 512, 8)]  # (channel_id, num_channels, data_width, credit_width)
 
 scheduler_params = generate_scheduler_test_params()
 
-# ===========================================================================
-# PYTEST WRAPPER FUNCTIONS - at bottom of file
-# ===========================================================================
-
-@pytest.mark.parametrize("channel_id, num_channels, data_width, credit_width", scheduler_params)
-def test_basic_flow(request, channel_id, num_channels, data_width, credit_width):
-    """Scheduler basic flow test."""
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
-        'rtl_rapids_fub': '../../rtl/rapids_fub'
-    })
-
-    dut_name = "scheduler"
-    verilog_sources = [
-        os.path.join(repo_root, 'rtl', 'amba', 'includes', 'monitor_pkg.sv'),
-        os.path.join(repo_root, 'rtl', 'rapids', 'includes', 'rapids_pkg.sv'),
-        os.path.join(rtl_dict['rtl_rapids_fub'], f'{dut_name}.sv'),
-    ]
-
-    # Format parameters for unique test name (with TBBase.format_dec())
-    cid_str = TBBase.format_dec(channel_id, 2)
-    nc_str = TBBase.format_dec(num_channels, 2)
-    dw_str = TBBase.format_dec(data_width, 4)
-    cw_str = TBBase.format_dec(credit_width, 2)
-    test_name_plus_params = f"test_{dut_name}_cid{cid_str}_nc{nc_str}_dw{dw_str}_cw{cw_str}"
-
-    # Handle pytest-xdist parallel execution
-    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
-    if worker_id:
-        test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
-
-    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
-    os.makedirs(sim_build, exist_ok=True)
-    os.makedirs(log_dir, exist_ok=True)
-
-    rtl_parameters = {
-        'CHANNEL_ID': channel_id,
-        'NUM_CHANNELS': num_channels,
-        'DATA_WIDTH': data_width,
-        'CREDIT_WIDTH': credit_width,
-    }
-
-    extra_env = {
-        'LOG_PATH': log_path,
-        'TEST_CHANNEL_ID': str(channel_id),
-    }
-
-    cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
-
-    try:
-        run(
-            python_search=[tests_dir],
-            verilog_sources=verilog_sources,
-            includes=[
-                os.path.join(repo_root, 'rtl', 'rapids', 'includes'),
-                os.path.join(repo_root, 'rtl', 'amba', 'includes'),
-            ],
-            toplevel=dut_name,
-            module=module,
-            testcase="cocotb_test_basic_flow",  # ← cocotb function name
-            parameters=rtl_parameters,
-            sim_build=sim_build,
-            extra_env=extra_env,
-            waves=False,
-            keep_files=True,
-            compile_args=["-Wno-TIMESCALEMOD"],
-            sim_args=[],
-            plusargs=[],
-        )
-        print(f"✓ Test completed! Logs: {log_path}")
-    except Exception as e:
-        print(f"❌ Test failed: {str(e)}")
-        print(f"Logs: {log_path}")
-        raise
+# 3. Pytest wrappers at bottom
+@pytest.mark.parametrize("channel_id, ...", scheduler_params)
+def test_basic_flow(request, channel_id, ...):
+    run(..., testcase="cocotb_test_basic_flow", ...)
 ```
 
-**File Structure Requirements:**
+**Why RAPIDS Tests Use Project Area:**
+1. **Reusability:** Same TB in FUB tests, integration tests, system tests
+2. **Composition:** Scheduler TB + Descriptor TB → Integration TB
+3. **Discovery:** All RAPIDS code under `projects/components/rapids/`
 
-1. **✅ Testbench location:** `projects/components/rapids/dv/tbclasses/{module}_tb.py` (PROJECT AREA!)
-2. **Test location:** `projects/components/rapids/dv/tests/fub_tests/{module}/test_{module}.py`
-3. **CocoTB functions:** At top, prefixed with `cocotb_` to avoid pytest collection
-4. **Parameter generation:** Near bottom, function + variable
-5. **Pytest wrappers:** At bottom, use `@pytest.mark.parametrize()`
-6. **Unique test names:** Use `TBBase.format_dec()` for formatting
-7. **Parallel execution:** Handle `PYTEST_XDIST_WORKER` environment variable
+**📖 Complete Pattern:** `val/amba/test_apb_slave.py` lines 1251-1346 (reference example)
 
-**📖 Complete Documentation:** See `projects/components/rapids/PRD.md` Section 2.4 for organizational standards
+**📖 Queue-Based Verification Pattern:** See `/GLOBAL_REQUIREMENTS.md` Section 2.4
 
-**📖 See:**
-- `val/amba/test_apb_slave.py` - Reference AMBA example (lines 1251-1346)
-- `projects/components/rapids/PRD.md` Section 12.3 - Complete pattern documentation
+**RAPIDS-Specific Usage:**
 
-**Why This Matters:**
+RAPIDS uses queue-based verification for in-order verification of program engine, descriptor engine, and AXI transactions.
 
-1. **Reusability**: Same TB class used in:
-   - Unit tests (`projects/components/rapids/dv/tests/fub_tests/`)
-   - Integration tests (`projects/components/rapids/dv/tests/integration_tests/`)
-   - System-level tests (`projects/components/rapids/dv/tests/system_tests/`)
-   - User projects (external imports)
-
-2. **Maintainability**: Fix bug once in TB class, all tests benefit
-
-3. **Composition**: TB classes can inherit/compose for complex scenarios
-
-#### Scoreboard Pattern: Queue-Based Verification
-
-**⚠️ CRITICAL: No Memory Models for Simple Tests**
-
-For simple verification scenarios, use **direct queue access** from BFM monitors instead of memory models.
-
-**Pattern:**
+**Example - Program Engine Verification:**
 ```python
-# bin/CocoTBFramework/scoreboards/rapids/program_engine_scoreboard.py
-class ProgramEngineScoreboard:
-    """Scoreboard for program engine verification"""
-
-    def __init__(self, aw_monitor, w_monitor):
-        self.aw_monitor = aw_monitor
-        self.w_monitor = w_monitor
-
-    def check_write_transaction(self, expected_addr, expected_data):
-        """Verify write transaction by checking monitor queues"""
-        # Access monitor queues directly - NO memory model needed
-        if self.aw_monitor._recvQ:
-            aw_pkt = self.aw_monitor._recvQ.popleft()
-            w_pkt = self.w_monitor._recvQ.popleft()
-
-            # Verify transaction
-            assert aw_pkt.addr == expected_addr, f"Address mismatch: expected 0x{expected_addr:X}, got 0x{aw_pkt.addr:X}"
-            assert w_pkt.data == expected_data, f"Data mismatch: expected 0x{expected_data:X}, got 0x{w_pkt.data:X}"
-            return True
-        return False
-
-    def clear_queues(self):
-        """Clear monitor queues after verification section"""
-        self.aw_monitor._recvQ.clear()
-        self.w_monitor._recvQ.clear()
-```
-
-**Usage in Testbench:**
-```python
-# bin/CocoTBFramework/tbclasses/rapids/program_engine_tb.py
+# Direct queue access for in-order RAPIDS operations
 class ProgramEngineTB(TBBase):
-    def __init__(self, dut):
-        super().__init__(dut)
-        # Create AXI monitors
-        self.aw_monitor = AXI4AWMonitor(dut, ...)
-        self.w_monitor = AXI4WMonitor(dut, ...)
-
-        # Create scoreboard
-        self.scoreboard = ProgramEngineScoreboard(self.aw_monitor, self.w_monitor)
-
     async def verify_write_operation(self, expected_addr, expected_data):
-        """TB method: Verify write operation using scoreboard"""
-        # Wait for transaction
+        """RAPIDS program engine: In-order writes, simple queue verification"""
+        # Wait for AXI transaction
         await self.wait_for_transaction(self.aw_monitor)
 
-        # Use scoreboard to verify
-        result = self.scoreboard.check_write_transaction(expected_addr, expected_data)
+        # Get from queue - program engine writes are always in-order
+        aw_pkt = self.aw_monitor._recvQ.popleft()
+        w_pkt = self.w_monitor._recvQ.popleft()
 
-        # Clear queues for next test section
-        self.scoreboard.clear_queues()
-
-        return result
+        # Verify
+        assert aw_pkt.addr == expected_addr
+        assert w_pkt.data == expected_data
 ```
 
-**Key Principles:**
+**When RAPIDS Uses Memory Models:**
+- ❌ Descriptor engine (in-order) - Use queue access
+- ❌ Program engine (in-order) - Use queue access
+- ✅ Integration tests with multiple masters - Memory model tracks state
 
-1. **Direct Queue Access:**
-   - Use `monitor._recvQ.popleft()` to get transactions
-   - No intermediate memory model needed
-   - Simple and direct verification
-
-2. **Scoreboard Runs on Sections:**
-   - Verify transactions as they complete
-   - Clear queues after each verification section
-   - Prevents queue buildup and memory issues
-
-3. **No Out-of-Order Complexity:**
-   - For simple in-order tests, queue order matches transaction order
-   - Memory models only needed for complex OOO scenarios
-   - Example: Program engine writes are always in-order
-
-4. **Example Queue Access:**
-```python
-# Getting items from monitor queue
-wr_pkt = self.aw_monitor._recvQ.popleft()  # ✅ Simple and direct
-
-# DON'T use memory models for simple tests
-memory_model = MemoryModel()  # ❌ Unnecessary complexity
-data = memory_model.read(addr)  # ❌ Extra layer of indirection
-```
-
-**When to Use Memory Models:**
-- ❌ **Simple in-order tests** - Use queue access
-- ❌ **Single-master systems** - Use queue access
-- ✅ **Complex out-of-order scenarios** - Memory model may help
-- ✅ **Multi-master with address overlap** - Memory model tracks state
-
-**Benefits of Queue-Based Verification:**
-- **Simplicity:** Direct verification without intermediate models
-- **Performance:** No memory model overhead
-- **Clarity:** Clear transaction-by-transaction verification
-- **Debugging:** Easy to inspect queue contents
-
-**📖 See:**
-- **`docs/VERIFICATION_ARCHITECTURE_GUIDE.md`** - Complete guide with examples and decision trees
-- `PRD.md` Section 4.4 - Complete testbench architecture pattern
-- `bin/CocoTBFramework/CLAUDE.md` - Framework verification patterns
+**📖 Complete Patterns:** `docs/VERIFICATION_ARCHITECTURE_GUIDE.md`
 
 ---
 
-### Rule #0.5: MANDATORY TB INITIALIZATION METHODS
+### Rule #0.5: Three Mandatory TB Methods (MANDATORY)
 
-**⚠️ EVERY TESTBENCH CLASS MUST IMPLEMENT THESE THREE METHODS ⚠️**
+**📖 See:** `/GLOBAL_REQUIREMENTS.md` Section 2.2 for complete requirement
 
-All testbench classes must provide standardized clock and reset control:
+**RAPIDS-Specific Context:**
 
-#### 1. `async def setup_clocks_and_reset(self)`
-**Purpose:** Complete initialization - starts clocks AND performs reset sequence
+Many RAPIDS modules (especially scheduler and credit management) require configuration signals set BEFORE reset is released. This is because some counters/state are initialized during reset based on these config values.
 
-**Implementation Pattern:**
+**Critical Example - Exponential Credit Encoding:**
 ```python
 async def setup_clocks_and_reset(self):
-    """Setup clocks and perform complete reset sequence"""
-    # Start all required clocks
-    await self.start_clock('clk', freq=10, units='ns')  # From TBBase
+    """RAPIDS-specific: Config signals MUST be set before reset"""
+    # Start clock
+    await self.start_clock('clk', freq=10, units='ns')
 
-    # CRITICAL: Set any config signals that must be valid BEFORE reset
-    # Example: Exponential credit encoding must be set before reset
-    self.dut.cfg_initial_credit.value = 4  # Set before reset!
+    # ⚠️ CRITICAL: Set exponential credit config BEFORE reset
+    # Scheduler's credit counter initializes during reset based on this value
+    self.dut.cfg_initial_credit.value = 4  # 4 = 16 credits (2^4)
     self.dut.cfg_use_credit.value = 1
 
-    # Perform reset
+    # Now perform reset sequence
     await self.assert_reset()
-    await self.wait_clocks(self.clk_name, 10)  # Hold reset for 10 cycles
-    await self.deassert_reset()
-    await self.wait_clocks(self.clk_name, 5)   # Stabilization time
-```
-
-#### 2. `async def assert_reset(self)`
-**Purpose:** Assert reset signal(s) - puts DUT into reset state
-
-**Implementation Pattern:**
-```python
-async def assert_reset(self):
-    """Assert reset signal (active-low)"""
-    self.dut.rst_n.value = 0  # Active-low reset
-    # OR for active-high: self.dut.rst.value = 1
-```
-
-#### 3. `async def deassert_reset(self)`
-**Purpose:** Deassert reset signal(s) - releases DUT from reset
-
-**Implementation Pattern:**
-```python
-async def deassert_reset(self):
-    """Deassert reset signal (active-low)"""
-    self.dut.rst_n.value = 1  # Release active-low reset
-    # OR for active-high: self.dut.rst.value = 0
-```
-
-#### Complete Example:
-```python
-class MyModuleTB(TBBase):
-    def __init__(self, dut):
-        super().__init__(dut)
-        self.clk = dut.clk
-        self.clk_name = 'clk'
-        self.rst_n = dut.rst_n
-
-    async def setup_clocks_and_reset(self):
-        """Complete initialization"""
-        # Start clock
-        await self.start_clock(self.clk_name, freq=10, units='ns')
-
-        # Set config before reset (if needed)
-        self.dut.cfg_param.value = 5
-
-        # Reset sequence
-        await self.assert_reset()
-        await self.wait_clocks(self.clk_name, 10)
-        await self.deassert_reset()
-        await self.wait_clocks(self.clk_name, 5)
-
-    async def assert_reset(self):
-        """Assert reset"""
-        self.rst_n.value = 0
-
-    async def deassert_reset(self):
-        """Deassert reset"""
-        self.rst_n.value = 1
-```
-
-#### Why This Pattern?
-
-1. **Consistency**: All tests use the same initialization sequence
-2. **Reusability**: Tests can selectively call just `assert_reset()` or `deassert_reset()` for mid-test resets
-3. **Clarity**: Explicit methods make test intent clear
-4. **Configuration Control**: Some RTL requires specific signals set BEFORE reset (e.g., exponential encoding)
-5. **Debugging**: Easy to add instrumentation/logging in one place
-
-#### Common Mistake to Avoid:
-
-```python
-❌ WRONG: Inline reset without methods
-async def some_test(self):
-    self.dut.rst_n.value = 0  # Hard to maintain, not reusable
     await self.wait_clocks('clk', 10)
-    self.dut.rst_n.value = 1
-
-✅ CORRECT: Use standardized methods
-async def some_test(self):
-    await self.assert_reset()
-    await self.wait_clocks(self.clk_name, 10)
     await self.deassert_reset()
+    await self.wait_clocks('clk', 5)
+
+async def assert_reset(self):
+    """Assert active-low reset"""
+    self.dut.rst_n.value = 0
+
+async def deassert_reset(self):
+    """Release active-low reset"""
+    self.dut.rst_n.value = 1
 ```
 
-#### Test Usage Pattern:
+**Why Config-Before-Reset Matters for RAPIDS:**
+- Scheduler credit counter: Initialized to `(1 << cfg_initial_credit)` during reset
+- Descriptor engine depth: Configuration read during reset sequence
+- SRAM parameters: Must be stable before memory controllers come out of reset
 
-```python
-@cocotb.test()
-async def test_basic_function(dut):
-    """Test runner"""
-    tb = MyModuleTB(dut)
-
-    # Full initialization
-    await tb.setup_clocks_and_reset()
-
-    # Run test
-    result = await tb.test_basic_operation()
-    assert result, "Test failed"
-
-@cocotb.test()
-async def test_reset_recovery(dut):
-    """Test reset during operation"""
-    tb = MyModuleTB(dut)
-    await tb.setup_clocks_and_reset()
-
-    # Start operation
-    await tb.start_operation()
-
-    # Mid-test reset
-    await tb.assert_reset()
-    await tb.wait_clocks(tb.clk_name, 10)
-    await tb.deassert_reset()
-
-    # Verify recovery
-    result = await tb.verify_recovery()
-    assert result, "Recovery failed"
-```
+**Common RAPIDS Configs to Set Before Reset:**
+- `cfg_initial_credit` - Exponential credit encoding (0→1, 1→2, 2→4, etc.)
+- `cfg_use_credit` - Enable/disable credit-based flow control
+- `cfg_timeout_threshold` - Watchdog timer configuration
+- `cfg_sram_depth` - SRAM buffer size parameters
 
 ---
 

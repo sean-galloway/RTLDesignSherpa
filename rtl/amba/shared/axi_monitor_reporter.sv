@@ -432,7 +432,7 @@ module axi_monitor_reporter
 
     // Event reporting logic - sequential logic only
     `ALWAYS_FF_RST(aclk, aresetn,
-if (`RST_ASSERTED(aresetn)) begin
+        if (`RST_ASSERTED(aresetn)) begin
             // Reset local table and reporting state
             r_trans_table_local <= '{default: '0};
             monbus_valid <= 1'b0;

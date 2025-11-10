@@ -49,6 +49,9 @@ from CocoTBFramework.components.axi4.axi4_factories import create_axi4_slave_rd
 from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master
 from CocoTBFramework.components.shared.field_config import FieldConfig, FieldDefinition
 
+# STREAM-specific imports
+from projects.components.stream.dv.tbclasses.descriptor_packet_builder import DescriptorPacketBuilder
+
 
 class DelayProfile(Enum):
     """Delay profiles for timing randomization"""
@@ -75,6 +78,17 @@ class DescriptorEngineTB(TBBase):
 
     def __init__(self, dut, clk=None, rst_n=None):
         super().__init__(dut)
+
+        # Get test parameters from environment
+        self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic').lower()
+        self.DEBUG = self.convert_to_int(os.environ.get('TEST_DEBUG', '0'))
+
+        # Validate test level
+        valid_levels = ['basic', 'medium', 'full']
+        if self.TEST_LEVEL not in valid_levels:
+            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'basic'. Valid: {valid_levels}")
+            self.TEST_LEVEL = 'basic'
 
         # Test parameters
         self.TEST_NUM_CHANNELS = int(os.environ.get('STREAM_NUM_CHANNELS', '8'))
@@ -182,22 +196,23 @@ class DescriptorEngineTB(TBBase):
         self.log.info("=== Initializing Descriptor Engine Test ===")
 
         try:
-            # Create memory model (64 bytes per line for 512-bit AXI data)
-            # Note: Descriptors are 256-bit, but AXI interface is 512-bit
+            # Create memory model (32 bytes per line for 256-bit descriptor AXI data)
+            # Note: descriptor_engine.sv now uses FIXED 256-bit AXI interface
+            # Size: 16384 lines * 32 bytes = 512KB (covers 0x00000 - 0x7FFFF)
             self.memory_model = MemoryModel(
-                num_lines=5120,    # 320KB total
-                bytes_per_line=64, # 512-bit AXI data width
+                num_lines=16384,   # 512KB total (16384 * 32 bytes)
+                bytes_per_line=32, # 256-bit AXI data width (FIXED in descriptor_engine.sv)
                 log=self.log
             )
 
-            # Create AXI4 slave read responder (512-bit AXI data)
-            # Note: RTL uses 512-bit AXI interface even though descriptors are 256-bit
+            # Create AXI4 slave read responder (256-bit AXI data)
+            # Note: RTL was changed to use FIXED 256-bit descriptors (not parameterized)
             self.axi_slave = create_axi4_slave_rd(
                 dut=self.dut,
                 clock=self.clk,
                 prefix="",  # No prefix - connects to top-level signals
                 log=self.log,
-                data_width=512,  # AXI interface is 512-bit (not descriptor width!)
+                data_width=256,  # FIXED 256-bit descriptor width
                 id_width=self.TEST_AXI_ID_WIDTH,
                 addr_width=self.TEST_ADDR_WIDTH,
                 user_width=1,
@@ -206,12 +221,13 @@ class DescriptorEngineTB(TBBase):
             )
 
             self.r_slave = self.axi_slave['R']
-            self.log.info("✓ AXI4 slave read responder initialized (512-bit)")
+            self.log.info("✓ AXI4 slave read responder initialized (256-bit)")
 
             # Create GAXI Master for APB interface
+            # Note: GAXI master uses 'addr' field name, not 'apb_addr'
             apb_field_config = FieldConfig()
             apb_field_config.add_field(FieldDefinition(
-                name='apb_addr',
+                name='addr',  # GAXI standard field name
                 bits=self.TEST_ADDR_WIDTH,
                 format='hex',
                 description='APB address'
@@ -220,7 +236,7 @@ class DescriptorEngineTB(TBBase):
             self.apb_master = create_gaxi_master(
                 dut=self.dut,
                 title="APBMaster",
-                prefix="apb",
+                prefix="apb",  # Connects to apb_valid, apb_ready, apb_addr
                 clock=self.clk,
                 field_config=apb_field_config,
                 log=self.log,
@@ -260,8 +276,8 @@ class DescriptorEngineTB(TBBase):
     # ========================================================================
 
     def write_memory(self, addr, data):
-        """Write data to memory model (512-bit AXI interface)"""
-        data_bytes = bytearray(data.to_bytes(64, byteorder='little'))  # 64 bytes for 512 bits
+        """Write data to memory model (256-bit AXI interface)"""
+        data_bytes = bytearray(data.to_bytes(32, byteorder='little'))  # 32 bytes for 256 bits
         self.memory_model.write(addr, data_bytes)
 
     # ========================================================================
@@ -269,59 +285,88 @@ class DescriptorEngineTB(TBBase):
     # ========================================================================
 
     async def run_apb_basic_test(self, num_requests=5):
-        """Test APB→AXI→Descriptor flow (APB ONLY interface)"""
-        self.log.info(f"=== APB Basic Test: {num_requests} requests ===")
+        """Test APB→AXI→Descriptor flow with chained descriptors"""
+        self.log.info(f"=== APB Basic Test: {num_requests} chained descriptors ===")
 
         descriptors_received = 0
 
+        # Create chain of descriptors
+        # First descriptor starts at 0x10100 (NOT 0x0!)
+        base_addr = 0x10100
+        descriptor_spacing = 0x100  # 256-byte spacing (aligned to 32 bytes)
+
+        # Write all descriptors to memory first
         for i in range(num_requests):
-            # Generate test address (aligned to 64 bytes for 512-bit AXI)
-            test_addr = 0x10000 + (i * 0x200)
+            test_addr = base_addr + (i * descriptor_spacing)
 
-            # Prepare memory with test data (512-bit, but descriptor is 256-bit)
-            # Lower 256 bits = descriptor, upper 256 bits can be 0 or next descriptor
-            test_data = 0x12345678 + (i << 32) + test_addr
-            self.write_memory(test_addr, test_data)
+            # Calculate next descriptor address (0 for last descriptor)
+            if i < num_requests - 1:
+                next_ptr = base_addr + ((i + 1) * descriptor_spacing)
+                is_last = False
+            else:
+                next_ptr = 0  # Last descriptor
+                is_last = True
 
-            self.log.info(f"APB request {i+1}: addr=0x{test_addr:X}")
+            # Create properly-formed descriptor using DescriptorPacketBuilder
+            descriptor = DescriptorPacketBuilder.build_descriptor_packet(
+                src_addr=0x80000000 + (i * 0x1000),  # Source address
+                dst_addr=0x90000000 + (i * 0x1000),  # Destination address
+                length=64,                            # 64 beats transfer
+                next_ptr=next_ptr,                    # Chain to next descriptor
+                valid=True,                           # ← CRITICAL: valid bit set!
+                gen_irq=False,
+                last=is_last,                         # Only last descriptor has last=1
+                error=False,
+                channel_id=0,
+                priority=0
+            )
 
-            # Send APB request
-            packet = self.apb_master.create_packet(apb_addr=test_addr)
-            try:
-                await self.apb_master.send(packet)
-                self.apb_requests_sent += 1
-            except Exception as e:
-                self.log.error(f"Failed to send APB request: {e}")
-                continue
+            # Write 256-bit descriptor to memory
+            self.write_memory(test_addr, descriptor)
+            self.log.info(f"  Wrote descriptor {i+1} at addr=0x{test_addr:X}, next_ptr=0x{next_ptr:X}, last={is_last}")
 
-            # Monitor for descriptor output
-            timeout = 0
-            while timeout < 100:
-                await self.wait_clocks(self.clk_name, 1)
-                if int(self.dut.descriptor_valid.value) == 1:
-                    desc_data = int(self.dut.descriptor_packet.value)
-                    descriptors_received += 1
-                    self.descriptors_received += 1
-                    self.received_descriptors.append({
-                        'data': desc_data,
-                        'expected': test_data,
-                        'addr': test_addr
-                    })
-                    self.log.info(f"  🎯 Descriptor {descriptors_received}: data=0x{desc_data:X}")
-                    break
-                timeout += 1
+        # Send single APB request to kick off the chain (only write FIRST descriptor address)
+        first_addr = base_addr
+        self.log.info(f"APB kick-off: addr=0x{first_addr:X} (start of chain)")
 
-            if timeout >= 100:
-                self.test_errors.append(f"APB request {i+1} timeout")
+        # Send APB request for first descriptor
+        packet = self.apb_master.create_packet(addr=first_addr)
+        try:
+            await self.apb_master.send(packet)
+            self.apb_requests_sent += 1
+        except Exception as e:
+            self.log.error(f"Failed to send APB request: {e}")
+            self.test_errors.append("APB request failed")
+            return False
 
-            await self.wait_clocks(self.clk_name, 5)
+        # Monitor for ALL descriptors in the chain
+        # Descriptor engine should autonomously fetch all chained descriptors
+        max_timeout = 500  # Total timeout for entire chain
+        timeout = 0
+        while descriptors_received < num_requests and timeout < max_timeout:
+            await self.wait_clocks(self.clk_name, 1)
+            if int(self.dut.descriptor_valid.value) == 1:
+                desc_data = int(self.dut.descriptor_packet.value)
+                descriptors_received += 1
+                self.descriptors_received += 1
+                self.log.info(f"  ✅ Descriptor {descriptors_received} received")
+
+                # Store received descriptor
+                self.received_descriptors.append({
+                    'data': desc_data,
+                    'sequence': descriptors_received
+                })
+            timeout += 1
+
+        if descriptors_received < num_requests:
+            self.test_errors.append(f"Timeout: received {descriptors_received}/{num_requests} descriptors")
 
         self.log.info(f"APB Basic Test: {descriptors_received}/{num_requests} descriptors received")
         return descriptors_received == num_requests
 
     async def run_test_with_profile(self, num_packets: int, profile: DelayProfile):
-        """Run test with specific delay profile"""
-        self.log.info(f"Testing with {profile.value} delay profile: {num_packets} packets")
+        """Run test with specific delay profile - tests autonomous chaining"""
+        self.log.info(f"Testing with {profile.value} delay profile: {num_packets} chained packets")
 
         params = self.delay_params[profile]
         descriptors_collected = []
@@ -334,28 +379,52 @@ class DescriptorEngineTB(TBBase):
                 if int(self.dut.descriptor_valid.value) == 1:
                     desc_data = int(self.dut.descriptor_packet.value)
                     descriptors_collected.append(desc_data)
+                    self.log.info(f"  ✅ Descriptor {len(descriptors_collected)} received")
 
         monitor_task = cocotb.start_soon(descriptor_monitor())
 
-        # Send APB requests with profile-specific timing
+        # Create chained descriptors (autonomous chaining test)
+        base_addr = 0x30000
+        descriptor_spacing = 0x100
+
+        # Write all descriptors to memory first
         for i in range(num_packets):
-            test_addr = 0x30000 + (i * 0x200)
-            test_data = 0xABCDEF00 + (i << 32) + test_addr
-            self.write_memory(test_addr, test_data)
+            test_addr = base_addr + (i * descriptor_spacing)
 
-            # Apply delay profile
-            producer_delay = self.get_delay_value(params['producer_delay'])
-            await self.wait_clocks(self.clk_name, producer_delay)
+            # Calculate next descriptor address (0 for last descriptor)
+            if i < num_packets - 1:
+                next_ptr = base_addr + ((i + 1) * descriptor_spacing)
+                is_last = False
+            else:
+                next_ptr = 0  # Last descriptor
+                is_last = True
 
-            # Backpressure simulation
-            if random.random() < params.get('backpressure_freq', 0.1):
-                backpressure_cycles = random.randint(5, 15)
-                await self.wait_clocks(self.clk_name, backpressure_cycles)
+            # Create properly-formed descriptor
+            descriptor = DescriptorPacketBuilder.build_descriptor_packet(
+                src_addr=0xA0000000 + (i * 0x1000),
+                dst_addr=0xB0000000 + (i * 0x1000),
+                length=32,
+                next_ptr=next_ptr,  # Chain to next descriptor
+                valid=True,
+                last=is_last,
+                channel_id=0,
+                priority=i % 8
+            )
+            self.write_memory(test_addr, descriptor)
 
-            # Send APB request
-            packet = self.apb_master.create_packet(apb_addr=test_addr)
-            await self.apb_master.send(packet)
-            self.apb_requests_sent += 1
+        # Send SINGLE APB request to kick off the chain
+        # Descriptor engine should autonomously fetch all chained descriptors
+        first_addr = base_addr
+        self.log.info(f"APB kick-off: addr=0x{first_addr:X} (chain of {num_packets} descriptors)")
+
+        # Apply delay profile before APB request
+        producer_delay = self.get_delay_value(params['producer_delay'])
+        await self.wait_clocks(self.clk_name, producer_delay)
+
+        # Send APB request
+        packet = self.apb_master.create_packet(addr=first_addr)
+        await self.apb_master.send(packet)
+        self.apb_requests_sent += 1
 
         # Wait for all descriptors
         await self.wait_clocks(self.clk_name, 500)

@@ -29,12 +29,12 @@ from cocotb.regression import TestFactory
 import pytest
 import random
 import os
-
-# Add CocoTB framework to path
 import sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../bin'))
 
+# Import utilities (PYTHONPATH configured in env_python)
+from CocoTBFramework.tbclasses.shared.utilities import get_paths
 from cocotb_test.simulator import run
+from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 
 
 class PeakRDLAdapterTB:
@@ -329,17 +329,20 @@ async def peakrdl_adapter_stress(dut):
 def test_peakrdl_to_cmdrsp():
     """Pytest entry point for PeakRDL adapter test"""
 
-    # Get directories
-    tests_dir = os.path.dirname(__file__)
-    # RTL is in projects/components/converters/rtl/ (two levels up from dv/tests/)
-    rtl_dir = os.path.join(tests_dir, '../../rtl')
+    # Get directory and module information using repository standard
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_converters': 'projects/components/converters/rtl',
+    })
+
     sim_build = os.path.join(tests_dir, 'local_sim_build', 'test_peakrdl_to_cmdrsp')
 
     os.makedirs(sim_build, exist_ok=True)
 
-    verilog_sources = [
-        os.path.join(rtl_dir, 'peakrdl_to_cmdrsp.sv'),
-    ]
+    # Get verilog sources and includes from filelist
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='projects/components/converters/rtl/filelists/peakrdl_to_cmdrsp.f'
+    )
 
     # Parameters
     parameters = {
@@ -347,12 +350,28 @@ def test_peakrdl_to_cmdrsp():
         'DATA_WIDTH': 32
     }
 
-    # Compile args
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
-        '-Wno-WIDTHEXPAND',
-        '-Wno-WIDTHTRUNC',
-        '-Wno-UNUSED'
+        "--trace",
+        "--trace-structs",
+        "--trace-depth", "99",
     ]
+    sim_args = [
+        "--trace",  # VCD waveform format
+        "--trace-structs",
+        "--trace-depth", "99",
+    ]
+
+    plusargs = [
+        "--trace",
+    ]
+
+    # Conditionally set COCOTB_TRACE_FILE for VCD generation
+    extra_env = {}
+    if bool(int(os.environ.get('WAVES', '0'))):
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
 
     # Run test
     run(
@@ -361,11 +380,14 @@ def test_peakrdl_to_cmdrsp():
         toplevel='peakrdl_to_cmdrsp',
         module='test_peakrdl_to_cmdrsp',
         parameters=parameters,
+        includes=includes,
         sim_build=sim_build,
-        simulator='verilator',
-        waves=False,
+        extra_env=extra_env,
+        waves=False,  # VCD controlled by compile_args, not cocotb-test
+        keep_files=True,
         compile_args=compile_args,
-        includes=[os.path.join(rtl_dir, 'amba/includes')]
+        sim_args=sim_args,
+        plusargs=plusargs,
     )
 
 

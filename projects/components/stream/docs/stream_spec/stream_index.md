@@ -57,25 +57,80 @@
 
 ## Performance Modes (AXI Engines)
 
-STREAM AXI engines support three performance modes via compile-time parameters:
+STREAM AXI engines support three performance modes via compile-time parameters, offering area/performance trade-offs from tutorial simplicity to datacenter throughput.
 
-### Low Performance Mode
-- **Target:** Area-optimized, low throughput
-- **Features:** Minimal logic, single outstanding transaction
-- **Use Case:** Tutorial examples, area-constrained designs
-- **Area:** ~250 LUTs per engine
+### Holistic Overview: V1/V2/V3 Working Together
 
-### Medium Performance Mode
-- **Target:** Balanced area/performance
-- **Features:** Basic pipelining, 2-4 outstanding transactions
-- **Use Case:** Typical FPGA implementations
-- **Area:** ~400 LUTs per engine
+**Design Philosophy:**
+- **V1 (Low):** Tutorial-focused, simple architecture, minimal area
+- **V2 (Medium):** Command pipelining hides memory latency, 6.7x throughput improvement
+- **V3 (High):** Out-of-order completion maximizes memory controller efficiency, 7.0x throughput
 
-### High Performance Mode
-- **Target:** Maximum throughput
-- **Features:** Full pipelining, 8+ outstanding transactions
-- **Use Case:** High-bandwidth ASIC implementations
-- **Area:** ~600 LUTs per engine
+**Key Insight:** The benefit scales with memory latency. For low-latency SRAM (2-3 cycles), V1 achieves 40% throughput. For high-latency DDR4 (70-100 cycles), V1 drops to 14% but V2/V3 maintain 94-98% throughput.
+
+**Parameterization Strategy:**
+- `ENABLE_CMD_PIPELINE = 0`: V1 (default, tutorial mode)
+- `ENABLE_CMD_PIPELINE = 1`: V2 (command pipelined, best area efficiency)
+- `ENABLE_CMD_PIPELINE = 1, ENABLE_OOO_DRAIN = 1` (write) or `ENABLE_OOO_READ = 1` (read): V3 (out-of-order, maximum throughput)
+
+### V1 - Low Performance (Single Outstanding Transaction)
+
+**Architecture:** Single-burst-per-request, blocking on completion
+- **Area:** ~1,250 LUTs per engine
+- **Throughput:** 0.14 beats/cycle (DDR4), 0.40 beats/cycle (SRAM)
+- **Outstanding Txns:** 1
+- **Use Case:** Tutorial examples, embedded systems, low-latency SRAM
+- **Key Feature:** Zero-bubble streaming pipeline (NO FSM!)
+
+**Blocking Behavior:**
+- Write: Blocks on B response before accepting next request
+- Read: Blocks on R last before accepting next request
+- Simple control: 3 flags (`r_ar_inflight`, `r_ar_valid`, completion tracking)
+
+### V2 - Medium Performance (Command Pipelined)
+
+**Architecture:** Command queue decouples command acceptance from data completion
+- **Area:** ~2,000 LUTs per engine (1.6x increase)
+- **Throughput:** 0.94 beats/cycle (DDR4), 0.85 beats/cycle (SRAM)
+- **Outstanding Txns:** 4-8 (command queue depth)
+- **Use Case:** General-purpose FPGA, DDR3/DDR4, balanced area/performance
+- **Key Feature:** Hides memory latency via pipelining (6.7x improvement)
+
+**Command Pipelining:**
+- Write: AW queue + W drain FSM + B scoreboard (async response tracking)
+- Read: AR queue + R in-order reception (simpler than write, no B channel)
+- Per-command SRAM pointers enable multiple bursts from same channel
+
+**Best Area Efficiency:** 4.19x throughput per unit area (6.7x throughput / 1.6x area)
+
+### V3 - High Performance (Out-of-Order Completion)
+
+**Architecture:** OOO command selection maximizes memory controller efficiency
+- **Area:** ~3,500-4,000 LUTs per engine (2.8-3.2x increase)
+- **Throughput:** 0.98 beats/cycle (DDR4), 0.92 beats/cycle (SRAM)
+- **Outstanding Txns:** 8-16 (larger command queue)
+- **Use Case:** Datacenter, ASIC, HBM2, high-performance memory controllers
+- **Key Feature:** Flexible drain order based on SRAM data availability (7.0x improvement)
+
+**Out-of-Order Mechanisms:**
+- Write: OOO W drain (select command with SRAM data ready), AXI ID matching for B responses
+- Read: OOO R reception (match m_axi_rid to queue entry), independent SRAM write per command
+- Transaction ID structure: `{counter, channel_id}` preserves channel routing for MonBus
+
+**Why OOO is Naturally Supported:**
+1. Per-channel SRAM partitioning (no cross-channel hazards)
+2. Per-command pointer tracking (no pointer collision)
+3. Transaction ID matching (channel ID in lower bits for routing)
+
+### Performance Comparison Summary
+
+| Configuration | Area | DDR4 Throughput | SRAM Throughput | Area Efficiency | Use Case |
+|---------------|------|-----------------|-----------------|-----------------|----------|
+| **V1** | 1.0x | 0.14 beats/cycle (1.0x) | 0.40 beats/cycle (1.0x) | 1.00 | Tutorial, embedded |
+| **V2** | 1.6x | 0.94 beats/cycle (6.7x) | 0.85 beats/cycle (2.1x) | 4.19 | General FPGA |
+| **V3** | 2.8x | 0.98 beats/cycle (7.0x) | 0.92 beats/cycle (2.3x) | 2.50 | Datacenter, ASIC |
+
+**Key Takeaway:** V2 offers best area efficiency (4.19x) for typical FPGA use cases. V3 provides marginal throughput improvement (7.0x vs 6.7x) at higher area cost, justified only for high-performance memory controllers that support out-of-order responses.
 
 ---
 

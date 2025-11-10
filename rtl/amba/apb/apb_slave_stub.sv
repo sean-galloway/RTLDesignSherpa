@@ -121,7 +121,7 @@ module apb_slave_stub #(
     apb_state_t r_apb_state, w_apb_next_state;
 
     `ALWAYS_FF_RST(pclk, presetn,
-if (`RST_ASSERTED(presetn)) begin
+        if (`RST_ASSERTED(presetn)) begin
             r_apb_state <= IDLE;
         end else begin
             r_apb_state <= w_apb_next_state;

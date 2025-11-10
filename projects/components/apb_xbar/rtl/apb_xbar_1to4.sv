@@ -169,7 +169,7 @@ module apb_xbar_1to4 #(
 
     // Register slave selection for each master when command accepted
     `ALWAYS_FF_RST(pclk, presetn,
-if (`RST_ASSERTED(presetn)) begin
+        if (`RST_ASSERTED(presetn)) begin
             r_m0_slave_sel <= 2'd0;
         end else begin
             if (m0_cmd_valid && m0_cmd_ready) begin

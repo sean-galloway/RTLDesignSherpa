@@ -25,16 +25,10 @@ import pytest
 import cocotb
 from cocotb_test.simulator import run
 
-
 # Add repo root to path for CocoTBFramework imports
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-if os.path.join(repo_root, 'bin') not in sys.path:
-    sys.path.insert(0, os.path.join(repo_root, 'bin'))
-
 from CocoTBFramework.tbclasses.reset_sync_tb import ResetSyncTB
 from CocoTBFramework.tbclasses.shared.utilities import get_paths
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
-
 
 @cocotb.test(timeout_time=100, timeout_unit="us")
 async def reset_sync_test(dut):
@@ -47,7 +41,6 @@ async def reset_sync_test(dut):
 
     assert passed, "reset_sync test failed"
 
-
 def generate_test_params():
     """Generate test parameter combinations"""
     # Test with different synchronization depths
@@ -57,7 +50,6 @@ def generate_test_params():
         (4, 'safe'),     # Conservative depth
         (5, 'max'),      # Maximum tested depth
     ]
-
 
 @pytest.mark.parametrize("n, test_mode", generate_test_params())
 def test_reset_sync(n, test_mode):
@@ -140,7 +132,6 @@ def test_reset_sync(n, test_mode):
         print(f"Log: {log_path}")
         print(f"Waveform: {sim_build}/dump.fst")
         raise
-
 
 if __name__ == "__main__":
     # Run with pytest

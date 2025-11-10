@@ -224,7 +224,7 @@ module axi4_slave_rd_mon_cg
 
     // Activity counters
     `ALWAYS_FF_RST(aclk, aresetn,
-if (`RST_ASSERTED(aresetn)) begin
+        if (`RST_ASSERTED(aresetn)) begin
             monitor_idle_count <= '0;
             reporter_idle_count <= '0;
             timer_idle_count <= '0;
@@ -255,7 +255,7 @@ if (`RST_ASSERTED(aresetn)) begin
 
     // Power savings tracking
     `ALWAYS_FF_RST(aclk, aresetn,
-if (`RST_ASSERTED(aresetn)) begin
+        if (`RST_ASSERTED(aresetn)) begin
             total_cycles <= '0;
             gated_cycles <= '0;
         end else begin

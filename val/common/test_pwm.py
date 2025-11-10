@@ -51,14 +51,9 @@ from cocotb.triggers import RisingEdge, Timer
 from cocotb_test.simulator import run
 
 # Add repo root to path for CocoTBFramework imports
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-if os.path.join(repo_root, 'bin') not in sys.path:
-    sys.path.insert(0, os.path.join(repo_root, 'bin'))
-
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
-
 
 class PWMTB(TBBase):
     """Testbench for PWM module"""
@@ -819,7 +814,6 @@ class PWMTB(TBBase):
 
         return all_passed
 
-
 @cocotb.test(timeout_time=15000, timeout_unit="us")
 async def pwm_test(dut):
     """Test for PWM module"""
@@ -835,7 +829,6 @@ async def pwm_test(dut):
     assert passed, f"PWM test FAILED - {len(tb.test_failures)} failures detected"
 
     return passed
-
 
 def generate_params():
     """
@@ -855,9 +848,7 @@ def generate_params():
 
     return valid_params
 
-
 params = generate_params()
-
 
 @pytest.mark.parametrize("width, channels, test_level", params)
 def test_pwm(request, width, channels, test_level):
@@ -947,7 +938,6 @@ def test_pwm(request, width, channels, test_level):
     print(f"Expected duration: {timeout_ms/1000:.1f}s")
     print(f"Log: {log_path}")
     print(f"{'='*60}")
-
 
     # Conditionally set COCOTB_TRACE_FILE for VCD generation
     if bool(int(os.environ.get('WAVES', '0'))):

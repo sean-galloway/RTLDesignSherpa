@@ -21,14 +21,9 @@ import cocotb
 from cocotb_test.simulator import run
 
 # Add repo root to path for CocoTBFramework imports
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-if os.path.join(repo_root, 'bin') not in sys.path:
-    sys.path.insert(0, os.path.join(repo_root, 'bin'))
-
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
-
 
 # Prime lookup table for different bit widths
 prime_lookup = {
@@ -45,7 +40,6 @@ prime_lookup = {
     512: 13407807929942597099574024998205846127479365820592393377723561443721764030073546976801874298166903427690031858186486050853753882811946569946433649006084095  # Large prime < 2^512
 }
 
-
 def find_prime_for_width(width):
     """Get a prime number for the given bit width from lookup table"""
     if width in prime_lookup:
@@ -56,7 +50,6 @@ def find_prime_for_width(width):
             if w < width:
                 return prime_lookup[w]
         return 251  # Ultimate fallback
-
 
 # LFSR parameters from the PDF table - using 4-tap configurations
 lfsr_params = {
@@ -73,7 +66,6 @@ lfsr_params = {
     256: {'taps': [256, 254, 251, 246], 'seed': find_prime_for_width(256)},
     512: {'taps': [512, 510, 507, 504], 'seed': find_prime_for_width(512)},
 }
-
 
 class SimpleLFSRTB(TBBase):
     """Simplified testbench for LFSR value generation"""
@@ -178,7 +170,6 @@ class SimpleLFSRTB(TBBase):
         self.log.info(f"Generated {len(values)} values and saved to output.txt")
         return values
 
-
 @cocotb.test(timeout_time=10000, timeout_unit="us")
 async def simple_generate_test(dut):
     """Simple test to generate LFSR values"""
@@ -193,7 +184,6 @@ async def simple_generate_test(dut):
     # Simple assertion to ensure we got the right count
     expected_count = tb.COUNT
     assert len(values) == expected_count, f"Expected {expected_count} values, got {len(values)}"
-
 
 def generate_test_params():
     """
@@ -232,7 +222,6 @@ def generate_test_params():
             {'WIDTH': 512, 'COUNT': 10},
         ]
 
-
 @pytest.mark.parametrize("params", generate_test_params())
 def test_simple_lfsr_generate(request, params):
     """Parameterized test for different LFSR widths"""
@@ -249,7 +238,8 @@ def test_simple_lfsr_generate(request, params):
     )
     
     # Test name
-    test_name = f"simple_lfsr_W{params['WIDTH']}_C{params['COUNT']}"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name = f"simple_lfsr_W{params['WIDTH']}_C{params['COUNT']}_{reg_level}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')

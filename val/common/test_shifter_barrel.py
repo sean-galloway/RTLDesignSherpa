@@ -24,16 +24,10 @@ from cocotb.utils import get_sim_time
 from cocotb.triggers import RisingEdge, Timer
 from cocotb_test.simulator import run
 
-
 # Add repo root to path for CocoTBFramework imports
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-if os.path.join(repo_root, 'bin') not in sys.path:
-    sys.path.insert(0, os.path.join(repo_root, 'bin'))
-
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
-
 
 class ShifterBarrelConfig:
     """Configuration class for Barrel Shifter tests"""
@@ -49,7 +43,6 @@ class ShifterBarrelConfig:
         self.name = name
         self.test_vectors = test_vectors
         self.width = width
-
 
 class ShifterBarrelTB(TBBase):
     """
@@ -591,7 +584,6 @@ class ShifterBarrelTB(TBBase):
                     self.log.info(f"  Inputs: data=0x{result['data']:x}, ctrl={result['ctrl']}, shift={result['shift_amount']}")
                     self.log.info(f"  Expected=0x{result['expected']:x}, Actual=0x{result['actual']:x}")
 
-
 @cocotb.test(timeout_time=5000, timeout_unit="us")
 async def comprehensive_test(dut):
     """Run a comprehensive test suite according to the specified test level."""
@@ -603,7 +595,6 @@ async def comprehensive_test(dut):
 
     # Verify test result
     assert passed, f"Comprehensive test failed at level {tb.TEST_LEVEL}"
-
 
 def generate_test_params():
     """
@@ -640,7 +631,6 @@ def generate_test_params():
             {'WIDTH': 32, 'test_level': 'medium'},
         ]
 
-
 @pytest.mark.parametrize("params", generate_test_params())
 def test_shifter_barrel(request, params):
     """Run the test with pytest and configurable parameters"""
@@ -661,7 +651,8 @@ def test_shifter_barrel(request, params):
     # Create a human-readable test identifier
     t_width = params['WIDTH']
     t_name = params['test_level']
-    test_name_plus_params = f"test_{dut_name}_W{t_width}_{t_name}"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name_plus_params = f"test_{dut_name}_W{t_width}_{t_name}_{reg_level}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -710,7 +701,6 @@ def test_shifter_barrel(request, params):
         complexity_factor = 5.0
     timeout_factor = complexity_factor * 50
     extra_env['COCOTB_TIMEOUT_MULTIPLIER'] = str(timeout_factor)
-
 
     # VCD waveform generation support via WAVES environment variable
     # Trace compilation always enabled (minimal overhead)

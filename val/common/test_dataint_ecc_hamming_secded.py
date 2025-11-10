@@ -42,14 +42,9 @@ import cocotb
 from cocotb_test.simulator import run
 
 # Add repo root to path for CocoTBFramework imports
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-if os.path.join(repo_root, 'bin') not in sys.path:
-    sys.path.insert(0, os.path.join(repo_root, 'bin'))
-
 from CocoTBFramework.tbclasses.dataint_ecc_hamming_secded_tb import DataintEccHammingSecDedTB
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
-
 
 # ===========================================================================
 # COCOTB TEST FUNCTIONS - prefix with "cocotb_" to prevent pytest collection
@@ -62,7 +57,6 @@ async def cocotb_ecc_secded_test(dut):
     await tb.setup_clocks_and_reset()
     passed = await tb.run_all_tests()
     assert passed, "ECC SECDED test failed"
-
 
 # ===========================================================================
 # PARAMETER GENERATION
@@ -93,7 +87,6 @@ def generate_test_params():
         return [all_configs[0], all_configs[1]]  # 4, 8-bit
     else:  # FUNC or FULL (same for this test)
         return all_configs
-
 
 # ===========================================================================
 # PYTEST WRAPPER FUNCTIONS
@@ -128,7 +121,8 @@ def test_dataint_ecc_hamming_secded(request, width, test_mode):
 
     # Format parameters for unique test name
     w_str = TBBase.format_dec(width, 2)
-    test_name_plus_params = f"test_ecc_secded_w{w_str}_{test_mode}"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name_plus_params = f"test_ecc_secded_w{w_str}_{test_mode}_{reg_level}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')

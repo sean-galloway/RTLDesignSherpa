@@ -1,0 +1,13 @@
+name,ports,connectivity,output_dir,output_tb,output_test,expose_arbiter_signals
+bridge_1x2_rd,test_configs/bridge_1x2_rd_matched.toml,test_configs/bridge_1x2_rd_matched_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
+bridge_1x2_wr,test_configs/bridge_1x2_wr_matched.toml,test_configs/bridge_1x2_wr_matched_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
+bridge_1x3_rd,test_configs/bridge_1x3_rd_mixed.toml,test_configs/bridge_1x3_rd_mixed_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
+bridge_1x3_wr,test_configs/bridge_1x3_wr_mixed.toml,test_configs/bridge_1x3_wr_mixed_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
+bridge_1x4_rd,test_configs/bridge_1x4_rd_apb.toml,test_configs/bridge_1x4_rd_apb_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
+bridge_1x4_wr,test_configs/bridge_1x4_wr_apb.toml,test_configs/bridge_1x4_wr_apb_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
+bridge_1x5_rd,test_configs/bridge_1x5_rd_axil.toml,test_configs/bridge_1x5_rd_axil_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
+bridge_1x5_wr,test_configs/bridge_1x5_wr_axil.toml,test_configs/bridge_1x5_wr_axil_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
+#bridge_2x2_rw,test_configs/bridge_2x2_rw.toml,test_configs/bridge_2x2_rw_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
+#bridge_4x4_rw,test_configs/bridge_4x4_rw.toml,test_configs/bridge_4x4_rw_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
+#bridge_5x3_channels,test_configs/bridge_5x3_channels.toml,test_configs/bridge_5x3_channels_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
+#bridge_example,test_configs/bridge_example.toml,test_configs/bridge_example_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false

@@ -109,12 +109,12 @@ module peakrdl_to_cmdrsp #(
     // Command State Machine (Sequential)
     // =========================================================================
     `ALWAYS_FF_RST(aclk, aresetn,
-if (`RST_ASSERTED(aresetn)) begin
+        if (`RST_ASSERTED(aresetn)) begin
             cmd_state <= CMD_IDLE;
         end else begin
             cmd_state <= cmd_state_next;
         end
-    )
+)
 
 
     // =========================================================================
@@ -170,7 +170,7 @@ if (`RST_ASSERTED(aresetn)) begin
     // Register command when accepted
     // =========================================================================
     `ALWAYS_FF_RST(aclk, aresetn,
-if (`RST_ASSERTED(aresetn)) begin
+        if (`RST_ASSERTED(aresetn)) begin
             r_cmd_pwrite   <= '0;
             r_cmd_paddr    <= '0;
             r_cmd_pwdata   <= '0;
@@ -181,7 +181,7 @@ if (`RST_ASSERTED(aresetn)) begin
             r_cmd_pwdata   <= cmd_pwdata;
             r_cmd_wr_biten <= strb_to_biten(cmd_pstrb);
         end
-    )
+)
 
 
     // =========================================================================
@@ -202,12 +202,12 @@ if (`RST_ASSERTED(aresetn)) begin
     // Response State Machine (Sequential)
     // =========================================================================
     `ALWAYS_FF_RST(aclk, aresetn,
-if (`RST_ASSERTED(aresetn)) begin
+        if (`RST_ASSERTED(aresetn)) begin
             rsp_state <= RSP_IDLE;
         end else begin
             rsp_state <= rsp_state_next;
         end
-    )
+)
 
 
     // =========================================================================
@@ -239,7 +239,7 @@ if (`RST_ASSERTED(aresetn)) begin
     // Capture response data from register block
     // =========================================================================
     `ALWAYS_FF_RST(aclk, aresetn,
-if (`RST_ASSERTED(aresetn)) begin
+        if (`RST_ASSERTED(aresetn)) begin
             r_rsp_prdata  <= '0;
             r_rsp_pslverr <= '0;
         end else if (rsp_state == RSP_IDLE) begin

@@ -162,7 +162,7 @@ module ctrlrd_engine #(
 
     // Channel reset active tracking
     `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
             r_channel_reset_active <= 1'b0;
         end else begin
             r_channel_reset_active <= cfg_channel_reset;
@@ -249,7 +249,7 @@ if (`RST_ASSERTED(rst_n)) begin
 
     // State register
     `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
             r_current_state <= READ_IDLE;
         end else begin
             r_current_state <= w_next_state;
@@ -330,7 +330,7 @@ if (`RST_ASSERTED(rst_n)) begin
     //=========================================================================
 
     `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
             r_ctrlrd_addr <= 64'h0;
             r_expected_data <= 32'h0;
             r_mask <= 32'h0;
@@ -442,7 +442,7 @@ if (`RST_ASSERTED(rst_n)) begin
     //=========================================================================
 
     `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
             r_mon_valid <= 1'b0;
             r_mon_packet <= 64'h0;
         end else begin

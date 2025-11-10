@@ -42,12 +42,7 @@ from cocotb.triggers import RisingEdge, Timer, ClockCycles
 from cocotb_test.simulator import run
 import pytest
 
-
 # Add repo root to path for CocoTBFramework imports
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-if os.path.join(repo_root, 'bin') not in sys.path:
-    sys.path.insert(0, os.path.join(repo_root, 'bin'))
-
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
@@ -58,7 +53,6 @@ from CocoTBFramework.components.wavedrom.constraint_solver import (
 )
 from CocoTBFramework.components.wavedrom.wavejson_gen import WaveJSONGenerator
 from CocoTBFramework.components.shared.field_config import FieldConfig
-
 
 class CounterBinWaveDromTB(TBBase):
     """Extended testbench for Binary Counter with WaveDrom visualization support
@@ -329,7 +323,6 @@ class CounterBinWaveDromTB(TBBase):
 
         self.log.info("✓ Scenario 4 complete")
 
-
 @cocotb.test(timeout_time=500, timeout_unit="us")
 async def counter_bin_wavedrom_test(dut):
     """Generate WaveDrom waveforms for counter_bin showcasing FIFO-optimized behavior - per scenario."""
@@ -425,7 +418,6 @@ async def counter_bin_wavedrom_test(dut):
         if tb.wave_solver:
             await tb.wave_solver.stop_sampling()
         await tb.wait_clocks('clk', 10)
-
 
 @pytest.mark.parametrize("width, max_val", [
     (4, 8),   # 4-bit counter, wrap at 8

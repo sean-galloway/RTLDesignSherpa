@@ -203,7 +203,8 @@ def test_gaxi_drop_fifo_sync(request, data_width, depth, registered, test_id):
     toplevel = dut_name
 
     # Create human-readable test identifier
-    test_name_plus_params = f"test_{worker_id}_gaxi_drop_fifo_sync_dw{data_width}_d{depth}_r{registered}_{test_id}"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name_plus_params = f"test_{worker_id}_gaxi_drop_fifo_sync_dw{data_width}_d{depth}_r{registered}_{test_id}_{reg_level}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Setup directories

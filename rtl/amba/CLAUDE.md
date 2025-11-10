@@ -16,150 +16,65 @@
 
 ---
 
+## 📖 Global Requirements Reference
+
+**IMPORTANT: Check `/GLOBAL_REQUIREMENTS.md` for mandatory verification standards**
+
+All mandatory requirements are consolidated in the global requirements document:
+- **See:** `/GLOBAL_REQUIREMENTS.md` - Repository-wide mandatory requirements
+- **AMBA Focus:** Three-layer architecture, queue-based verification, 100% success
+- **Universal:** TB location, TBBase inheritance, test naming conventions
+
+This CLAUDE.md provides AMBA-specific guidance. Also review:
+- Root `/CLAUDE.md` - Repository-wide patterns
+- `bin/CocoTBFramework/CLAUDE.md` - Framework usage patterns
+- `docs/VERIFICATION_ARCHITECTURE_GUIDE.md` - Complete verification patterns
+
+---
+
 ## Critical Rules for This Subsystem
 
-### Rule #0: VERIFICATION ARCHITECTURE - MANDATORY COMPLIANCE
+### Rule #0: Verification Architecture (MANDATORY)
 
-**⚠️ HIGH PRIORITY: All AMBA testbenches MUST follow the standardized verification architecture ⚠️**
+**📖 See:** `/GLOBAL_REQUIREMENTS.md` Sections 2.1, 2.3, 2.4 for complete requirements
 
-**Complete Guide:** `docs/VERIFICATION_ARCHITECTURE_GUIDE.md` ← **READ THIS FIRST**
-
-**NEVER embed testbench classes inside test runner files!** The testbench code will be instantiated in DOZENS of places across the project. Having testbench logic only in test files makes it COMPLETELY WORTHLESS for reuse.
-
-**MANDATORY Structure:**
+**AMBA-Specific Structure:**
 
 ```
-bin/CocoTBFramework/tbclasses/
+bin/CocoTBFramework/tbclasses/amba/
 ├── axi4/
-│   ├── axi4_master_read_tb.py      ← REUSABLE TB CLASS
-│   ├── axi4_master_write_tb.py     ← REUSABLE TB CLASS
-│   └── monitor/
-│       └── axi_monitor_config_tb.py ← REUSABLE TB CLASS
+│   ├── axi4_master_read_tb.py      # AXI4 master read TB
+│   └── monitor/axi_monitor_tb.py   # AXI monitor TB
 ├── apb_monitor/
-│   ├── apb_monitor_core_tb.py      ← REUSABLE TB CLASS
-│   ├── apb_monitor_scoreboard.py   ← REUSABLE COMPONENTS
-│   └── apb_monitor_packets.py      ← REUSABLE COMPONENTS
-└── [protocol]/
-    └── [module]_tb.py               ← REUSABLE TB CLASS
+│   └── apb_monitor_core_tb.py      # APB monitor TB
+└── [protocol]/[module]_tb.py
 
 val/amba/
-├── test_axi4_master_rd.py          ← TEST RUNNER ONLY (imports TB)
-├── test_apb_monitor.py             ← TEST RUNNER ONLY (imports TB)
-└── test_*.py                        ← TEST RUNNER ONLY (imports TB)
+└── test_*.py                        # Test runners (import TBs from framework)
 ```
 
-**Test Runner Pattern (CORRECT):**
+**AMBA Import Pattern:**
 ```python
 # val/amba/test_axi4_master_rd.py
-from CocoTBFramework.tbclasses.axi4.axi4_master_read_tb import AXI4MasterReadTB
+from CocoTBFramework.tbclasses.amba.axi4.axi4_master_read_tb import AXI4MasterReadTB
 
 @cocotb.test()
-async def axi4_master_read_test(dut):
-    """Test runner - imports TB, runs test"""
-    tb = AXI4MasterReadTB(dut)  # ← TB imported from tbclasses/
+async def axi4_test(dut):
+    tb = AXI4MasterReadTB(dut)
     await tb.setup_clocks_and_reset()
-    await tb.run_basic_test()
-
-@pytest.mark.parametrize("aw, dw, ...", generate_test_params())
-def test_axi4_master_read(request, aw, dw, ...):
-    """Pytest runner - only handles parameters and run()"""
-    # ... RTL sources, parameters, etc ...
-    run(verilog_sources=..., module=module, ...)
+    # ... test logic
 ```
 
-**Testbench Class Pattern (CORRECT):**
-```python
-# bin/CocoTBFramework/tbclasses/axi4/axi4_master_read_tb.py
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+**AMBA Three-Layer Pattern:**
+1. **TB Class:** `bin/CocoTBFramework/tbclasses/amba/` - Infrastructure + BFMs
+2. **Scoreboard:** `bin/CocoTBFramework/scoreboards/amba/` - Verification logic
+3. **Test Runner:** `val/amba/` - Test intelligence
 
-class AXI4MasterReadTB(TBBase):
-    """Reusable testbench for AXI4 master read validation"""
+**Verification Method Selection for AMBA:**
+- ✅ **Queue Access:** APB monitors, simple control paths, in-order transactions
+- ✅ **Memory Models:** Multi-master AXI, out-of-order scenarios, data integrity
 
-    def __init__(self, dut, **kwargs):
-        super().__init__(dut)
-        # TB initialization
-
-    async def setup_clocks_and_reset(self):
-        # Clock/reset logic
-
-    async def run_basic_test(self):
-        # Test logic
-```
-
-**Why This Matters:**
-
-1. **Reusability**: Same TB class used in:
-   - Unit tests (`val/amba/test_*.py`)
-   - Integration tests (`val/system/test_*.py`)
-   - System-level tests (`val/soc/test_*.py`)
-   - User projects (external imports)
-
-2. **Maintainability**: Fix bug once in TB class, all tests benefit
-
-3. **Composition**: TB classes can inherit/compose:
-   ```python
-   class AXI4MasterReadCGTB(AXI4MasterReadTB):
-       """Extends base TB with clock gating support"""
-   ```
-
-4. **Discoverability**: Users can find and import TB classes
-
-**❌ WRONG - Testbench Embedded in Test File:**
-```python
-# val/amba/test_axi4_monitor.py - WRONG!
-class AXI4MonitorTB(TBBase):  # ← TB class in test file!
-    # 500 lines of TB logic...
-
-@cocotb.test()
-async def axi4_monitor_test(dut):
-    tb = AXI4MonitorTB(dut)  # ← Can't be imported by other tests!
-```
-
-**✅ CORRECT - Separate TB Class:**
-```python
-# bin/CocoTBFramework/tbclasses/axi4/monitor/axi_monitor_tb.py
-class AXIMonitorTB(TBBase):
-    # 500 lines of REUSABLE TB logic...
-
-# val/amba/test_axi4_monitor.py
-from CocoTBFramework.tbclasses.axi4.monitor.axi_monitor_tb import AXIMonitorTB
-
-@cocotb.test()
-async def axi4_monitor_test(dut):
-    tb = AXIMonitorTB(dut)  # ← Imported, reusable!
-```
-
-**Three-Layer Pattern (MANDATORY):**
-1. **Testbench (TB)**: `bin/CocoTBFramework/tbclasses/amba/{module}_tb.py` - Infrastructure + BFMs
-2. **Scoreboard**: `bin/CocoTBFramework/scoreboards/amba/{module}_scoreboard.py` - Verification logic
-3. **Test**: `val/amba/test_{module}.py` - Test intelligence (imports TB)
-
-**Verification Method Selection:**
-- ✅ **Use Queue Access** for: APB monitors, simple control paths, in-order transactions
-- ✅ **Use Memory Models** for: Multi-master AXI, out-of-order scenarios, data integrity checks
-
-**When Creating New Tests:**
-
-1. ✅ **FIRST**: Create TB class in `bin/CocoTBFramework/tbclasses/[protocol]/`
-2. ✅ **SECOND**: Create scoreboard in `bin/CocoTBFramework/scoreboards/[protocol]/`
-3. ✅ **THIRD**: Create test runner in `val/amba/` that imports TB
-4. ❌ **NEVER**: Put TB class or verification logic directly in test file
-
-**Verification Checklist:**
-- [ ] TB class exists in `bin/CocoTBFramework/tbclasses/`
-- [ ] Scoreboard exists in `bin/CocoTBFramework/scoreboards/`
-- [ ] Test runner imports TB class (not defines it)
-- [ ] TB class contains only infrastructure (no verification logic)
-- [ ] Scoreboard contains all verification logic
-- [ ] Appropriate verification method used (queue access vs memory model)
-- [ ] Test runner only handles pytest params and `run()` call
-
-**📖 Complete Documentation:**
-- **`docs/VERIFICATION_ARCHITECTURE_GUIDE.md`** - Full guide with AMBA examples
-- `PRD.md` Section 4.4 - Architecture overview with decision tree
-- `bin/CocoTBFramework/CLAUDE.md` - Framework verification patterns
-
-**Action Required:** All new tests must follow this pattern. Existing tests should be migrated (see migration guide in VERIFICATION_ARCHITECTURE_GUIDE.md).
+**📖 Complete Guide:** `docs/VERIFICATION_ARCHITECTURE_GUIDE.md` with AMBA examples
 
 ---
 

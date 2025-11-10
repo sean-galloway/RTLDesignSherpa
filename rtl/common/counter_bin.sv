@@ -201,3 +201,4 @@ module counter_bin #(
 
 
 endmodule : counter_bin
+

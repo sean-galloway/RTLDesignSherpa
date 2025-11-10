@@ -1,0 +1,92 @@
+# Bridge Configuration: bridge_5x3_channels
+# TOML format - more readable and type-safe than YAML
+
+[bridge]
+name = "bridge_5x3_channels"
+description = "5x3 bridge configuration"
+
+[bridge.defaults.skid_depths]
+ar = 2
+r = 4
+aw = 2
+w = 4
+b = 2
+
+[[bridge.masters]]
+name = "descr_wr_master"
+prefix = "descr_axi_"
+id_width = 8
+addr_width = 32
+data_width = 256
+user_width = 1
+channels = "wr"
+
+[[bridge.masters]]
+name = "sink_wr_master"
+prefix = "sink_axi_"
+id_width = 8
+addr_width = 32
+data_width = 256
+user_width = 1
+channels = "wr"
+
+[[bridge.masters]]
+name = "src_rd_master"
+prefix = "src_axi_"
+id_width = 8
+addr_width = 32
+data_width = 256
+user_width = 1
+channels = "rd"
+
+[[bridge.masters]]
+name = "stream_master"
+prefix = "stream_axi_"
+id_width = 8
+addr_width = 32
+data_width = 256
+user_width = 1
+channels = "rw"
+
+[[bridge.masters]]
+name = "cpu_master"
+prefix = "cpu_axi_"
+id_width = 8
+addr_width = 32
+data_width = 64
+user_width = 1
+channels = "rw"
+
+[[bridge.slaves]]
+name = "sram_buffer"
+prefix = "sram_buffer_axi_"
+id_width = 8
+addr_width = 32
+data_width = 256
+user_width = 1
+channels = "rw"
+base_addr = "0x00000000"
+addr_range = "0x40000000"  # 0x00000000 - 0x3FFFFFFF (1GB)
+
+[[bridge.slaves]]
+name = "ddr_controller"
+prefix = "ddr_controller_axi_"
+id_width = 8
+addr_width = 32
+data_width = 256
+user_width = 1
+channels = "rw"
+base_addr = "0x40000000"
+addr_range = "0x80000000"  # 0x40000000 - 0xBFFFFFFF (2GB)
+
+[[bridge.slaves]]
+name = "apb_periph"
+prefix = "apb_periph_"
+id_width = 0
+addr_width = 32
+data_width = 32
+user_width = 1
+protocol = "apb"
+channels = "rw"
+base_addr = "0xC0000000"
+addr_range = "0x10000000"  # 0xC0000000 - 0xCFFFFFFF (256MB)

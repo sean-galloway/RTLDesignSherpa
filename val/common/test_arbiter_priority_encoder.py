@@ -41,17 +41,11 @@ import pytest
 import cocotb
 from cocotb_test.simulator import run
 
-
 # Add repo root to path for CocoTBFramework imports
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-if os.path.join(repo_root, 'bin') not in sys.path:
-    sys.path.insert(0, os.path.join(repo_root, 'bin'))
-
 from CocoTBFramework.tbclasses.arbiter_priority_encoder_tb import ArbiterPriorityEncoderTB
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
-
 
 # ===========================================================================
 # COCOTB TEST FUNCTIONS - prefix with "cocotb_" to prevent pytest collection
@@ -64,7 +58,6 @@ async def cocotb_arbiter_priority_encoder_test(dut):
     await tb.setup_clocks_and_reset()
     passed = await tb.run_all_tests()
     assert passed, "arbiter_priority_encoder test failed"
-
 
 # ===========================================================================
 # PARAMETER GENERATION
@@ -102,7 +95,6 @@ def generate_test_params():
         # Full coverage: all configurations
         return all_configs
 
-
 # ===========================================================================
 # PYTEST WRAPPER FUNCTIONS
 # ===========================================================================
@@ -131,7 +123,8 @@ def test_arbiter_priority_encoder(request, clients, test_mode):
 
     # Format parameters for unique test name
     cl_str = TBBase.format_dec(clients, 2)
-    test_name_plus_params = f"test_{dut_name}_cl{cl_str}_{test_mode}"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name_plus_params = f"test_{dut_name}_cl{cl_str}_{test_mode}_{reg_level}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')

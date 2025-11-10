@@ -154,7 +154,7 @@ module sync_pulse #(
 
     // Toggle register on each input pulse
     `ALWAYS_FF_RST(i_src_clk, i_src_rst_n,
-if (`RST_ASSERTED(i_src_rst_n)) begin
+        if (`RST_ASSERTED(i_src_rst_n)) begin
             r_src_toggle <= 1'b0;
         end else if (i_pulse) begin
             r_src_toggle <= ~r_src_toggle;  // Toggle state
@@ -170,7 +170,7 @@ if (`RST_ASSERTED(i_src_rst_n)) begin
 
     // Multi-stage synchronizer
     `ALWAYS_FF_RST(i_dst_clk, i_dst_rst_n,
-if (`RST_ASSERTED(i_dst_rst_n)) begin
+        if (`RST_ASSERTED(i_dst_rst_n)) begin
             r_sync <= '0;
         end else begin
             r_sync <= {r_sync[SYNC_STAGES-2:0], r_src_toggle};
@@ -186,7 +186,7 @@ if (`RST_ASSERTED(i_dst_rst_n)) begin
 
     // Delay synchronized toggle by one cycle
     `ALWAYS_FF_RST(i_dst_clk, i_dst_rst_n,
-if (`RST_ASSERTED(i_dst_rst_n)) begin
+        if (`RST_ASSERTED(i_dst_rst_n)) begin
             r_sync_prev <= 1'b0;
         end else begin
             r_sync_prev <= r_sync[SYNC_STAGES-1];

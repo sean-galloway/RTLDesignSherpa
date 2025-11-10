@@ -1,0 +1,5 @@
+master\slave,periph_slave,ddr0_slave,sram_slave,gpu_mem_slave
+cpu_master,1,1,1,1
+dma0_master,1,1,1,0
+dma1_master,0,1,1,1
+gpu_master,1,1,0,1

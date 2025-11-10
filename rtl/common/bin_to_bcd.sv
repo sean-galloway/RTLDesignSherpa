@@ -109,7 +109,7 @@ module bin_to_bcd #(
 
     // flop all of the registers
     `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
             r_fsm_main    <= IDLE;
             r_bcd         <= '0;
             r_binary      <= '0;

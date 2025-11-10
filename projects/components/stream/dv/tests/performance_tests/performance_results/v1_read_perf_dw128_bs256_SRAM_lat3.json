@@ -1,0 +1,20 @@
+{
+  "config": {
+    "version": "v1",
+    "engine": "read",
+    "data_width_bits": 128,
+    "burst_size_bytes": 256,
+    "beats_per_burst": 16,
+    "memory_type": "SRAM",
+    "memory_latency_cycles": 3,
+    "num_commands": 100
+  },
+  "metrics": {
+    "total_cycles": 5301,
+    "total_beats": 1600,
+    "bandwidth_beats_per_cycle": 0.30182984342576874,
+    "bandwidth_gbps": 0.9658554989624599,
+    "efficiency_percent": 30.182984342576873,
+    "clock_freq_mhz": 200
+  }
+}

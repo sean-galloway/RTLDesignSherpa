@@ -1,0 +1,228 @@
+/**
+ * SystemRDL Definition for 8254 PIT Configuration Registers
+ *
+ * This specification defines the register interface for the APB 8254 PIT,
+ * providing a clean APB-based interface to the classic Intel 8254
+ * Programmable Interval Timer functionality.
+ *
+ * Key differences from original 8254 I/O ports:
+ * - APB register interface (32-bit aligned) vs I/O ports
+ * - Full 16-bit counter values in single register vs LSB/MSB byte access
+ * - Separate status register vs read-back command overloading
+ * - Clean register decode vs cramped I/O port space
+ *
+ * Address Layout:
+ *   0x000: PIT_CONFIG     - Global configuration
+ *   0x004: PIT_CONTROL    - Counter control word (8254-compatible)
+ *   0x008: PIT_STATUS     - Read-back status (enhanced from 8254)
+ *   0x00C: RESERVED
+ *   0x010: COUNTER0_DATA  - Counter 0 value (16-bit)
+ *   0x014: COUNTER1_DATA  - Counter 1 value (16-bit)
+ *   0x018: COUNTER2_DATA  - Counter 2 value (16-bit)
+ *   0x01C-0xFFF: Reserved for future expansion
+ */
+
+addrmap pit_regs {
+    name = "PIT 8254 Configuration Registers";
+    desc = "Programmable Interval Timer register file with 3 independent counters";
+
+    // Default properties for all registers
+    default regwidth = 32;
+    default accesswidth = 32;
+    default addressing = compact;
+
+    //========================================================================
+    // Global Configuration Register (0x000)
+    //========================================================================
+
+    reg {
+        name = "PIT Configuration Register";
+        desc = "Global PIT configuration and control";
+
+        field {
+            name = "PIT Enable";
+            desc = "Master enable for all counters (0=all disabled, 1=individually controlled)";
+            sw = rw;
+            hw = r;
+        } pit_enable[0:0] = 1'b0;
+
+        field {
+            name = "Clock Select";
+            desc = "Clock source select (0=external clock inputs, 1=APB clock for all)";
+            sw = rw;
+            hw = r;
+        } clock_select[1:1] = 1'b0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:2] = 30'h0;
+
+    } PIT_CONFIG @ 0x000;
+
+    //========================================================================
+    // Control Word Register (0x004)
+    //========================================================================
+
+    reg {
+        name = "PIT Control Word";
+        desc = "8254-compatible control word register (write-only, captures value on each write)";
+
+        field {
+            name = "BCD Mode";
+            desc = "0=binary counting (16-bit), 1=BCD counting (4 decades)";
+            sw = w;
+            hw = r;
+        } bcd[0:0] = 1'b0;
+
+        field {
+            name = "Counter Mode";
+            desc = "Counter operating mode: 0=interrupt on terminal count, 1=hw retriggerable one-shot, 2=rate generator, 3=square wave, 4=sw triggered strobe, 5=hw triggered strobe";
+            sw = w;
+            hw = r;
+        } mode[3:1] = 3'h0;
+
+        field {
+            name = "Read/Load Mode";
+            desc = "0=counter latch, 1=LSB only, 2=MSB only, 3=LSB then MSB";
+            sw = w;
+            hw = r;
+        } rw_mode[5:4] = 2'h0;
+
+        field {
+            name = "Counter Select";
+            desc = "0=counter 0, 1=counter 1, 2=counter 2, 3=read-back command";
+            sw = w;
+            hw = r;
+        } counter_select[7:6] = 2'h0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:8] = 24'h0;
+
+    } PIT_CONTROL @ 0x004;
+
+    //========================================================================
+    // Status Register (0x008)
+    //========================================================================
+
+    reg {
+        name = "PIT Status Register";
+        desc = "Counter status from read-back command (enhanced 8254 read-back)";
+
+        field {
+            name = "Counter 0 Status";
+            desc = "Status byte for counter 0: [7]=OUT, [6]=NULL_COUNT, [5:4]=RW_MODE, [3:1]=MODE, [0]=BCD";
+            sw = r;
+            hw = w;
+        } counter0_status[7:0];
+
+        field {
+            name = "Counter 1 Status";
+            desc = "Status byte for counter 1: [7]=OUT, [6]=NULL_COUNT, [5:4]=RW_MODE, [3:1]=MODE, [0]=BCD";
+            sw = r;
+            hw = w;
+        } counter1_status[15:8];
+
+        field {
+            name = "Counter 2 Status";
+            desc = "Status byte for counter 2: [7]=OUT, [6]=NULL_COUNT, [5:4]=RW_MODE, [3:1]=MODE, [0]=BCD";
+            sw = r;
+            hw = w;
+        } counter2_status[23:16];
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:24] = 8'h0;
+
+    } PIT_STATUS @ 0x008;
+
+    //========================================================================
+    // Reserved Register (0x00C)
+    //========================================================================
+
+    reg {
+        name = "Reserved";
+        desc = "Reserved register";
+
+        field {
+            name = "Reserved";
+            sw = r;
+            hw = na;
+        } reserved[31:0] = 32'h0;
+
+    } RESERVED_0C @ 0x00C;
+
+    //========================================================================
+    // Counter Data Registers (0x010, 0x014, 0x018)
+    //========================================================================
+
+    reg {
+        name = "Counter 0 Data Register";
+        desc = "Counter 0 count value (16-bit binary or BCD)";
+
+        field {
+            name = "Counter 0 Value";
+            desc = "16-bit counter value (read for current count, write to load)";
+            sw = rw;
+            hw = rw;
+        } counter0_data[15:0] = 16'h0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:16] = 16'h0;
+
+    } COUNTER0_DATA @ 0x010;
+
+    reg {
+        name = "Counter 1 Data Register";
+        desc = "Counter 1 count value (16-bit binary or BCD)";
+
+        field {
+            name = "Counter 1 Value";
+            desc = "16-bit counter value (read for current count, write to load)";
+            sw = rw;
+            hw = rw;
+        } counter1_data[15:0] = 16'h0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:16] = 16'h0;
+
+    } COUNTER1_DATA @ 0x014;
+
+    reg {
+        name = "Counter 2 Data Register";
+        desc = "Counter 2 count value (16-bit binary or BCD)";
+
+        field {
+            name = "Counter 2 Value";
+            desc = "16-bit counter value (read for current count, write to load)";
+            sw = rw;
+            hw = rw;
+        } counter2_data[15:0] = 16'h0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:16] = 16'h0;
+
+    } COUNTER2_DATA @ 0x018;
+
+};

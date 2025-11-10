@@ -1,0 +1,49 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Thu Oct 30 09:27:38 2025
+[*]
+[dumpfile] "/mnt/data/github/rtldesignsherpa/projects/components/bridge/dv/tests/local_sim_build/test_bridge_1x2_wr_basic/dump.vcd"
+[dumpfile_mtime] "Thu Oct 30 09:27:04 2025"
+[dumpfile_size] 315243
+[savefile] "/mnt/data/github/rtldesignsherpa/projects/components/bridge/dv/tests/GTKW/bridge_1x2_wr.gtkw"
+[timestart] 0
+[size] 2557 1910
+[pos] -1 -1
+*-19.568102 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 278
+[signals_width] 206
+[sst_expanded] 1
+[sst_vpaned_height] 613
+@28
+bridge_1x2_wr.aclk
+bridge_1x2_wr.aresetn
+@200
+-cpu-aw
+@28
+bridge_1x2_wr.cpu_m_axi_awvalid
+bridge_1x2_wr.cpu_m_axi_awready
+@22
+bridge_1x2_wr.cpu_m_axi_awaddr[31:0]
+bridge_1x2_wr.cpu_m_axi_awlen[7:0]
+bridge_1x2_wr.cpu_m_axi_awid[3:0]
+@200
+-cpu-w
+@28
+bridge_1x2_wr.cpu_m_axi_wvalid
+bridge_1x2_wr.cpu_m_axi_wready
+@22
+bridge_1x2_wr.cpu_m_axi_wdata[63:0]
+bridge_1x2_wr.cpu_m_axi_wstrb[7:0]
+@28
+bridge_1x2_wr.cpu_m_axi_wlast
+@200
+-cpu-b
+@28
+bridge_1x2_wr.cpu_m_axi_bvalid
+bridge_1x2_wr.cpu_m_axi_bready
+@22
+bridge_1x2_wr.cpu_m_axi_bid[3:0]
+@29
+bridge_1x2_wr.cpu_m_axi_bresp[1:0]
+[pattern_trace] 1
+[pattern_trace] 0

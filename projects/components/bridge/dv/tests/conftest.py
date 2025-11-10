@@ -6,8 +6,14 @@ following the established repository patterns.
 """
 
 import os
+import sys
 import logging
 import pytest
+
+# Add repository paths before any test imports
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../..'))
+sys.path.insert(0, repo_root)
+sys.path.insert(0, os.path.join(repo_root, 'bin'))
 
 
 def pytest_configure(config):

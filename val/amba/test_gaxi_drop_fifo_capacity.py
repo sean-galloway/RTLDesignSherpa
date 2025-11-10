@@ -154,7 +154,8 @@ def test_gaxi_drop_fifo_capacity(request, data_width, depth, registered):
     ]
 
     mode_str = 'mux' if registered == 0 else 'flop'
-    test_name = f"test_{worker_id}_capacity_dw{data_width}_d{depth}_{mode_str}"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name = f"test_{worker_id}_capacity_dw{data_width}_d{depth}_{mode_str}_{reg_level}"
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
     os.makedirs(sim_build, exist_ok=True)

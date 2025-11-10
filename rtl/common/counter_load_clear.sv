@@ -208,7 +208,7 @@ module counter_load_clear #(
 
     // Main counter register and match value update
     `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
             count <= 'b0;
             r_match_val <= 'b0;
         end else begin

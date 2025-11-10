@@ -1,0 +1,9 @@
+# Bulk bridge regeneration
+# name,ports,connectivity,output_dir,expose_arbiter_signals
+bridge_1x2_wr,test_configs/bridge_1x2_wr_minimal.yaml,,../rtl/generated,false
+bridge_1x2_rd,test_configs/bridge_1x2_rd_minimal.yaml,,../rtl/generated,false
+bridge_2x2_rw,test_configs/bridge_2x2_rw.yaml,,../rtl/generated,false
+bridge_4x4_rw,test_configs/bridge_4x4_rw.yaml,,../rtl/generated,false
+bridge_5x3_channels,test_configs/bridge_5x3_channels.yaml,,../rtl/generated,false
+bridge_example,test_configs/bridge_example.yaml,,../rtl/generated,false
+apb_bridge,test_configs/test_apb_bridge.yaml,,../rtl/generated,false

@@ -1,0 +1,98 @@
+# Bridge Configuration: bridge_example
+# TOML format - more readable and type-safe than YAML
+
+[bridge]
+name = "bridge_example"
+description = "3x5 bridge configuration"
+
+[bridge.defaults.skid_depths]
+ar = 2
+r = 4
+aw = 2
+w = 4
+b = 2
+
+[[bridge.masters]]
+name = "rapids_master"
+prefix = "rapids_axi_"
+id_width = 8
+addr_width = 32
+data_width = 256
+user_width = 1
+channels = "rw"
+
+[[bridge.masters]]
+name = "stream_master"
+prefix = "stream_axi_"
+id_width = 8
+addr_width = 32
+data_width = 256
+user_width = 1
+channels = "rw"
+
+[[bridge.masters]]
+name = "cpu_master"
+prefix = "cpu_axi_"
+id_width = 8
+addr_width = 32
+data_width = 64
+user_width = 1
+channels = "rw"
+
+[[bridge.slaves]]
+name = "apb_periph0"
+prefix = "apb_periph0_"
+id_width = 0
+addr_width = 32
+data_width = 32
+user_width = 1
+protocol = "apb"
+channels = "rw"
+base_addr = "0x00000000"
+addr_range = "0x00010000"
+
+[[bridge.slaves]]
+name = "apb_periph1"
+prefix = "apb_periph1_"
+id_width = 0
+addr_width = 32
+data_width = 32
+user_width = 1
+protocol = "apb"
+channels = "rw"
+base_addr = "0x00010000"
+addr_range = "0x00010000"
+
+[[bridge.slaves]]
+name = "apb_periph2"
+prefix = "apb_periph2_"
+id_width = 0
+addr_width = 32
+data_width = 32
+user_width = 1
+protocol = "apb"
+channels = "rw"
+base_addr = "0x00020000"
+addr_range = "0x00010000"
+
+[[bridge.slaves]]
+name = "ddr_controller"
+prefix = "ddr_controller_axi_"
+id_width = 8
+addr_width = 32
+data_width = 256
+user_width = 1
+channels = "rw"
+base_addr = "0x80000000"
+addr_range = "0x80000000"
+
+[[bridge.slaves]]
+name = "sram_buffer"
+prefix = "sram_buffer_axi_"
+id_width = 8
+addr_width = 32
+data_width = 256
+user_width = 1
+channels = "rw"
+base_addr = "0x40000000"
+addr_range = "0x10000000"

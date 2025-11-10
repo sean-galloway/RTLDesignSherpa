@@ -47,14 +47,9 @@ from cocotb.triggers import RisingEdge, Timer, FallingEdge
 from cocotb_test.simulator import run
 
 # Add repo root to path for CocoTBFramework imports
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-if os.path.join(repo_root, 'bin') not in sys.path:
-    sys.path.insert(0, os.path.join(repo_root, 'bin'))
-
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
-
 
 class ClockPulseTB(TBBase):
     """Testbench for Clock Pulse module"""
@@ -487,7 +482,6 @@ class ClockPulseTB(TBBase):
 
         return all_passed
 
-
 @cocotb.test(timeout_time=15000, timeout_unit="us")
 async def clock_pulse_test(dut):
     """Test for Clock Pulse module"""
@@ -509,7 +503,6 @@ async def clock_pulse_test(dut):
     assert passed, f"Clock Pulse test FAILED - {len(tb.test_failures)} failures detected"
 
     return passed
-
 
 def generate_params():
     """
@@ -539,9 +532,7 @@ def generate_params():
         # Comprehensive: all combinations
         return [(w, level) for w, level in product(width_values, test_levels)]
 
-
 params = generate_params()
-
 
 @pytest.mark.parametrize("width, test_level", params)
 def test_clock_pulse(request, width, test_level):
@@ -565,7 +556,8 @@ def test_clock_pulse(request, width, test_level):
 
     # Create human-readable test identifier
     w_str = TBBase.format_dec(width, 2)
-    test_name_plus_params = f"test_clock_pulse_w{w_str}_{test_level}"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name_plus_params = f"test_clock_pulse_w{w_str}_{test_level}_{reg_level}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -629,7 +621,6 @@ def test_clock_pulse(request, width, test_level):
     print(f"Expected duration: {timeout_ms/1000:.1f}s")
     print(f"Log: {log_path}")
     print(f"{'='*60}")
-
 
     # Conditionally set COCOTB_TRACE_FILE for VCD generation
     if bool(int(os.environ.get('WAVES', '0'))):

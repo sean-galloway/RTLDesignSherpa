@@ -171,7 +171,7 @@ module fifo_control #(
             logic [ADDR_WIDTH:0] r_rdom_wr_ptr_bin_delayed;
 
             `ALWAYS_FF_RST(rd_clk, rd_rst_n,
-if (`RST_ASSERTED(rd_rst_n)) begin
+        if (`RST_ASSERTED(rd_rst_n)) begin
                     r_rdom_wr_ptr_bin_delayed <= '0;
                 end else begin
                     r_rdom_wr_ptr_bin_delayed <= rdom_wr_ptr_bin;
@@ -206,17 +206,23 @@ if (`RST_ASSERTED(rd_rst_n)) begin
 
     // Fixed: Cast D to (AW+1)-bit width to prevent truncation (count is [AW:0])
     // For depth=16, AW=4: AW'(16) = 4'b0000 (wrong!), (AW+1)'(16) = 5'b10000 (correct!)
-    assign count = (w_rdom_ptr_xor) ?
+    logic [ADDR_WIDTH:0]     w_count, r_count;
+
+    assign w_count = (w_rdom_ptr_xor) ?
                 (rdom_wr_ptr_bin[AW-1:0] - rd_ptr_bin[AW-1:0] + (AW+1)'(D)) :
                 (rdom_wr_ptr_bin[AW-1:0] - rd_ptr_bin[AW-1:0]);
+
+    assign count = (REGISTERED == 1) ? r_count : w_count;
 
     always_ff @(posedge rd_clk, negedge rd_rst_n) begin
         if (!rd_rst_n) begin
             rd_empty <= 'b1;
             rd_almost_empty <= 'b0;
+            r_count <= 'b0;
         end else begin
             rd_empty <= w_rd_empty_d;
             rd_almost_empty <= w_rd_almost_empty_d;
+            r_count <= w_count;
         end
     end
 

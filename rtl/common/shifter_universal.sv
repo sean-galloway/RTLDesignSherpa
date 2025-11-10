@@ -81,7 +81,7 @@ module shifter_universal #(
 
     // Sequential logic - update outputs on clock edge
     `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
             o_pdata    <= '0;
             o_sdata_lt <= 1'b0;
             o_sdata_rt <= 1'b0;

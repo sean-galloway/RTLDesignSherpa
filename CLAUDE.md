@@ -20,6 +20,23 @@ RTL Design Sherpa demonstrates industry-standard RTL design and verification flo
 
 ---
 
+## 📖 Global Requirements Reference
+
+**IMPORTANT: All mandatory requirements are consolidated in `/GLOBAL_REQUIREMENTS.md`**
+
+Before working in this repository, review the global requirements document:
+- **Location:** `/GLOBAL_REQUIREMENTS.md`
+- **Contents:** All MANDATORY requirements extracted from all CLAUDE.md files
+- **Organization:** Categorized by RTL standards, testbench architecture, test standards, framework usage, and documentation
+
+This CLAUDE.md provides repository-wide guidance and examples. For subsystem-specific details, see:
+- `projects/components/CLAUDE.md` - Project area standards
+- `bin/CocoTBFramework/CLAUDE.md` - Framework patterns
+- `projects/components/{name}/CLAUDE.md` - Component-specific guidance
+- `rtl/{subsystem}/CLAUDE.md` - Subsystem-specific guidance
+
+---
+
 ## Repository Structure
 
 ```
@@ -45,126 +62,159 @@ rtldesignsherpa/
 
 ---
 
-## 🚨 CRITICAL: Organizational Requirements 🚨
+## 🚨 CRITICAL RULE #0: Generated File Regeneration Requirements 🚨
 
-**⚠️ READ THIS BEFORE WRITING ANY TESTBENCH CODE ⚠️**
+**⚠️ READ THIS FIRST - FAILURE TO FOLLOW CAUSES SILENT TEST FAILURES ⚠️**
 
-### Framework vs Project Area - MANDATORY Separation
+### The Absolute Rule for Generated Code
 
-This repository enforces a **strict organizational pattern** that you MUST follow:
+**When ANY generator code changes, you MUST delete ALL generated files and regenerate everything from scratch.**
 
-**📖 Complete Documentation:** See `/PRD.md` Section 2.3 "Organizational Standards" for full details.
+This applies to:
+- **RTL generators** (bridge_generator.py, bridge_csv_generator.py, etc.)
+- **Test generators** (bridge_test_generator.py, etc.)
+- **Testbench generators** (any code that generates .py or .sv files)
 
-### The Golden Rule
+### Why This Is Non-Negotiable
 
-**"All project-specific code MUST be in the project area for easy discovery."**
+Generated files have interdependencies:
+- Wrapper RTL may instantiate core RTL
+- Tests may import testbench classes
+- Signal names, port widths, interfaces must match across all files
+- **Partial regeneration creates version mismatches causing silent failures**
 
-```
-✅ CORRECT:                                  ❌ WRONG:
-projects/components/{name}/dv/tbclasses/    bin/CocoTBFramework/tbclasses/{name}/
-projects/components/{name}/dv/components/   bin/CocoTBFramework/components/{name}/
-projects/components/{name}/dv/scoreboards/  bin/CocoTBFramework/scoreboards/{name}/
-```
+### The Workflow - ALWAYS Follow This Pattern
 
-### Quick Location Guide
+```bash
+# ❌ WRONG - Partial regeneration
+vim bridge_csv_generator.py  # Make changes
+python3 bridge_csv_generator.py --config 4x4  # Regenerate ONE file
+# Result: Version mismatch, tests mysteriously fail!
 
-| What Are You Creating? | Where Does It Go? |
-|------------------------|-------------------|
-| **RAPIDS scheduler TB** | `projects/components/rapids/dv/tbclasses/scheduler_tb.py` ✅ |
-| **STREAM descriptor TB** | `projects/components/stream/dv/tbclasses/descriptor_engine_tb.py` ✅ |
-| **Bridge config TB** | `projects/components/bridge/dv/tbclasses/config_tb.py` ✅ |
-| **AXI4 protocol driver** | `bin/CocoTBFramework/components/axi4/` ✅ (shared across all) |
-| **APB protocol driver** | `bin/CocoTBFramework/components/apb/` ✅ (shared across all) |
-| **TBBase utility** | `bin/CocoTBFramework/tbclasses/shared/` ✅ (shared across all) |
+# ✅ CORRECT - Full regeneration
+vim bridge_csv_generator.py  # Make changes
 
-### Import Pattern - How to Use Project TB Classes
+# Step 1: DELETE ALL generated files
+cd projects/components/bridge/rtl
+rm bridge_*.sv  # Or be more selective, but delete EVERYTHING generated
+cd ../dv/tests
+rm test_bridge_*_generated.py  # If test generator changed
+cd ../tbclasses
+rm *_generated*.py  # If TB generator changed
 
-**✅ CORRECT Import from Project Area:**
-```python
-# Add repo root to Python path
-import os, sys
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
-sys.path.insert(0, repo_root)
+# Step 2: Regenerate EVERYTHING
+cd ../../bin
+./regenerate_all_bridges.sh  # Or manually regenerate each config
 
-# Import project-specific TB classes from PROJECT AREA
-from projects.components.rapids.dv.tbclasses.scheduler_tb import SchedulerTB
-from projects.components.stream.dv.tbclasses.descriptor_engine_tb import DescriptorEngineTB
-
-# Shared infrastructure still comes from framework
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
-from CocoTBFramework.components.axi4.axi4_master import AXI4Master
-```
-
-**❌ WRONG - Don't Import from Framework:**
-```python
-# DON'T DO THIS!
-from CocoTBFramework.tbclasses.rapids.scheduler_tb import SchedulerTB  # ❌ WRONG!
+# Step 3: Verify ALL tests
+cd ../dv/tests
+pytest -v  # Run ALL tests, not just the one you think changed
 ```
 
-### Decision Tree - Where Should My Code Go?
+### What Counts as "Generator Code"?
 
-```
-Is this code specific to ONE project (RAPIDS/STREAM/Bridge)?
-├─ YES → projects/components/{name}/dv/
-│  Examples:
-│  - RAPIDS scheduler testbench
-│  - STREAM descriptor engine testbench
-│  - Bridge APB configuration testbench
-│
-└─ NO → Is it reusable across MULTIPLE projects?
-   ├─ YES → bin/CocoTBFramework/
-   │  Examples:
-   │  - AXI4 protocol drivers (used by all)
-   │  - APB protocol monitors (used by all)
-   │  - TBBase class (inherited by all)
-   │  - Memory models (generic utilities)
-   │
-   └─ UNSURE? → Default to project area
-      You can always promote to framework later if reuse emerges
+**Any Python file that creates .sv or .py files:**
+- ✅ `bridge_generator.py` - Triggers full bridge regeneration
+- ✅ `bridge_csv_generator.py` - Triggers full bridge regeneration
+- ✅ `bridge_test_generator.py` - Triggers full test regeneration
+- ✅ `bridge_address_arbiter.py` - Triggers full regeneration (imported by generators)
+- ✅ **ANY** module imported by a generator
+
+**When in doubt:** Delete and regenerate everything.
+
+### Symptoms of Partial Regeneration
+
+If you see these, you probably did partial regeneration:
+- ❌ Tests that previously passed now fail
+- ❌ "Signal not found" errors in simulation
+- ❌ Port width mismatches
+- ❌ Unexpected routing behavior
+- ❌ Missing debug signals
+- ❌ Tests marked as xfail still failing after fix implemented
+
+### Think Like a Compiler Developer
+
+Generated code is like compiled object files. When you update a compiler, you run `make clean && make all`, not selective recompilation.
+
+When you update a generator, you **delete all generated outputs and regenerate all**.
+
+**This is not a suggestion. This is a HARD REQUIREMENT that will be enforced.**
+
+---
+
+## 🚨 CRITICAL RULE #0.1: Generated File Directory Organization 🚨
+
+**⚠️ ALL GENERATED FILES MUST BE IN NAMED SUBDIRECTORIES ⚠️**
+
+### The Absolute Rule
+
+**Generated code MUST ALWAYS be in its associated named directory. NEVER at the top level.**
+
+```bash
+# ✅ CORRECT - Generated files in subdirectories
+projects/components/bridge/rtl/bridge_4x4_rw/bridge_4x4_rw.sv
+projects/components/bridge/rtl/bridge_4x4_rw/bridge_axi4_flat_4x4.sv
+
+# ❌ WRONG - Generated files at top level
+projects/components/bridge/rtl/bridge_4x4_rw.sv          # WRONG!
+projects/components/bridge/rtl/bridge_axi4_flat_4x4.sv   # WRONG!
 ```
 
 ### Why This Matters
 
-1. **Easy Discovery** - Find ALL code for a project in ONE place: `projects/components/{name}/`
-2. **Clear Ownership** - Each project team owns their `dv/` area
-3. **No Confusion** - Never wonder "where does this TB class live?"
-4. **Maintainability** - Changes isolated to project area don't affect others
-5. **Framework Stays Clean** - Only truly shared code in framework
+1. **Easy cleanup** - Delete entire subdirectory to remove all generated files
+2. **No confusion** - Hand-written files stay at top level, generated files in subdirs
+3. **Version control** - Clear .gitignore patterns
+4. **Parallel work** - Different configs don't conflict
 
-### Current Projects
+### Hand-Written vs Generated
 
-| Project | Location | TB Classes | Status |
-|---------|----------|------------|--------|
-| **RAPIDS** | `projects/components/rapids/` | `rapids/dv/tbclasses/` | ✅ Compliant |
-| **STREAM** | `projects/components/stream/` | `stream/dv/tbclasses/` | ✅ Compliant |
-| **Bridge** | `projects/components/bridge/` | `bridge/dv/tbclasses/` | ✅ Compliant |
-
-### Anti-Pattern Examples
-
-**❌ DON'T Create Project TB Classes in Framework:**
-```python
-# File: bin/CocoTBFramework/tbclasses/rapids/scheduler_tb.py  ❌ WRONG LOCATION!
-class SchedulerTB:
-    """This makes the TB hard to find and violates the organizational standard!"""
+**Hand-written files (top level):**
+```bash
+projects/components/bridge/rtl/bridge_cam.sv          # Hand-written CAM module
+projects/components/bridge/rtl/Makefile               # Build script
 ```
 
-**✅ DO Create in Project Area:**
-```python
-# File: projects/components/rapids/dv/tbclasses/scheduler_tb.py  ✅ CORRECT!
-class SchedulerTB:
-    """Easy to discover - all RAPIDS code is under projects/components/rapids/"""
+**Generated files (subdirectories):**
+```bash
+projects/components/bridge/rtl/bridge_4x4_rw/         # All 4x4 generated files
+projects/components/bridge/rtl/bridge_5x3_channels/   # All 5x3 generated files
 ```
 
-**❌ DON'T Mix Locations:**
+### Enforcement
+
+If you find generated files at the top level:
+1. **STOP** - This is an error
+2. **DELETE** stale top-level generated files
+3. **REGENERATE** properly into subdirectories
+4. **UPDATE** clean targets to catch this
+
+**This is a HARD REQUIREMENT - NO EXCEPTIONS.**
+
+---
+
+## 📖 Organizational Requirements - See Global Requirements
+
+**⚠️ READ THIS BEFORE WRITING ANY TESTBENCH CODE ⚠️**
+
+**📖 See:** `/GLOBAL_REQUIREMENTS.md` Section 2.1 for complete TB location requirements
+
+**Quick Summary - Project-Specific TB Classes:**
+- **RAPIDS:** `projects/components/rapids/dv/tbclasses/` ✅
+- **STREAM:** `projects/components/stream/dv/tbclasses/` ✅
+- **Bridge:** `projects/components/bridge/dv/tbclasses/` ✅
+- **Framework (shared only):** `bin/CocoTBFramework/` ✅
+
+**Import Pattern:**
 ```python
-# Some tests import from framework (WRONG):
-from CocoTBFramework.tbclasses.rapids.scheduler_tb import SchedulerTB  ❌
+# Project-specific TBs
+from projects.components.rapids.dv.tbclasses.scheduler_tb import SchedulerTB
 
-# Other tests import from project (correct):
-from projects.components.rapids.dv.tbclasses.scheduler_tb import SchedulerTB  ✅
-
-# This confusion should NEVER happen - always use project area!
+# Shared infrastructure
+from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 ```
+
+**Complete details:** Decision trees, anti-patterns, and rationale in `/GLOBAL_REQUIREMENTS.md`
 
 ---
 
@@ -347,6 +397,128 @@ pytest val/{subsystem}/ --cov=rtl/{subsystem}/
 - `val/common/test_{module}.py` for rtl/common/
 - `val/amba/test_{module}.py` for rtl/amba/
 - `val/rapids/test_{module}.py` for rtl/rapids/
+- `projects/components/{name}/dv/tests/` for project-specific tests
+
+**🚨 CRITICAL: Test Structure Pattern 🚨**
+
+The repository uses TWO different test patterns depending on the location:
+
+**Pattern A: Direct CocoTB (val/common/, val/amba/ areas)**
+```python
+import cocotb
+from cocotb_test.simulator import run
+
+# CocoTB test function - direct @cocotb.test() decorator
+@cocotb.test(timeout_time=3, timeout_unit="ms")
+async def fifo_test(dut):
+    tb = FifoBufferTB(dut, dut.clk, dut.rst_n)
+    await tb.start_clock('clk', 10, 'ns')
+    # ... test logic
+
+# Pytest wrapper function
+@pytest.mark.parametrize("data_width, depth", params)
+def test_fifo_buffer(request, data_width, depth):
+    # ... setup paths, filelist, parameters
+    run(
+        python_search=[tests_dir],
+        verilog_sources=verilog_sources,
+        toplevel=dut_name,
+        module=module,  # Python module containing cocotb tests
+        # ... compilation args
+    )
+```
+
+**Pattern B: CocoTB + Pytest Wrappers (projects/components/ areas)**
+
+**⚠️ HARD REQUIREMENT for projects/components/: MUST use Pattern B ⚠️**
+
+```python
+import cocotb
+from cocotb_test.simulator import run
+
+# 1. CocoTB test functions - prefix with "cocotb_test_*" to prevent pytest collection
+@cocotb.test(timeout_time=100, timeout_unit="ms")
+async def cocotb_test_basic(dut):  # ← "cocotb_test_*" prefix!
+    """CocoTB test function - NOT collected by pytest"""
+    tb = SimpleSRAMTB(dut)
+    await tb.setup_clocks_and_reset()
+    # ... test logic
+
+@cocotb.test(timeout_time=100, timeout_unit="ms")
+async def cocotb_test_stress(dut):  # ← "cocotb_test_*" prefix!
+    """Another CocoTB test function"""
+    tb = SimpleSRAMTB(dut)
+    await tb.setup_clocks_and_reset()
+    # ... stress test logic
+
+# 2. Pytest wrapper functions - call specific cocotb_test_* functions
+@pytest.mark.parametrize("addr_width, data_width", params)
+def test_basic(request, addr_width, data_width):
+    """Pytest wrapper - calls cocotb_test_basic"""
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_stream_fub': '../../../../rtl/stream_fub',
+    })
+
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='projects/components/stream/rtl/filelists/fub/simple_sram.f'
+    )
+
+    run(
+        python_search=[tests_dir],
+        verilog_sources=verilog_sources,
+        includes=includes,
+        toplevel=dut_name,
+        module=module,
+        testcase="cocotb_test_basic",  # ← Explicitly specify which cocotb function to run
+        parameters=rtl_parameters,
+        # ... compilation args
+    )
+
+@pytest.mark.parametrize("addr_width, data_width", params)
+def test_stress(request, addr_width, data_width):
+    """Pytest wrapper - calls cocotb_test_stress"""
+    # ... same setup as above
+    run(
+        # ... same args except:
+        testcase="cocotb_test_stress",  # ← Different cocotb function
+        # ...
+    )
+```
+
+**Why Two Patterns?**
+
+| Aspect | Pattern A (val/) | Pattern B (projects/) |
+|--------|------------------|----------------------|
+| **CocoTB prefix** | No prefix needed | `cocotb_test_*` prefix REQUIRED |
+| **Pytest collection** | Collects module | Collects only wrappers |
+| **Test selection** | Runs all cocotb tests | Runs specific test via `testcase=` |
+| **Use case** | Simple modules | Complex parameterized tests |
+| **Example** | Counter, FIFO | SRAM, engines, integration |
+
+**Critical Rules for Pattern B (projects/components/):**
+
+1. **All CocoTB functions MUST be prefixed with `cocotb_test_*`**
+   - Prevents pytest from collecting them as test functions
+   - Only pytest wrappers (test_*) are collected
+
+2. **Each pytest wrapper calls ONE specific CocoTB function**
+   - Use `testcase="cocotb_test_name"` in run() call
+   - Allows parameter sweeps at pytest level
+
+3. **Testbench classes MUST be in project area**
+   - `projects/components/{name}/dv/tbclasses/` (NOT framework!)
+   - See "Organizational Requirements" section
+
+**When to Use Which Pattern:**
+
+- ✅ Use Pattern A: Simple modules in val/common, val/amba
+- ✅ Use Pattern B: ALL tests in projects/components/
+- ❌ Never mix patterns in the same file
+
+**Complete Working Example (Pattern B):**
+
+See `projects/components/stream/dv/tests/fub_tests/simple_sram/test_simple_sram.py` for reference implementation.
 
 **🚨 MANDATORY: Pytest Function Naming Convention 🚨**
 
@@ -387,76 +559,30 @@ def test_converter(request, params):  # ← Too generic!
 
 **Testbench Class Requirements:**
 
-⚠️ **MANDATORY: Every testbench class MUST implement these three methods:**
+**📖 See:** `/GLOBAL_REQUIREMENTS.md` Section 2.2 for complete three methods requirement
 
-1. **`async def setup_clocks_and_reset(self)`** - Complete initialization (clocks + reset)
-2. **`async def assert_reset(self)`** - Assert reset signal(s)
-3. **`async def deassert_reset(self)`** - Deassert reset signal(s)
+⚠️ **MANDATORY: Every TB class MUST implement:**
+1. `async def setup_clocks_and_reset(self)` - Full initialization
+2. `async def assert_reset(self)` - Assert reset signal
+3. `async def deassert_reset(self)` - Release reset signal
 
-**Example Implementation:**
+**Quick Example:**
 ```python
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
-
 class MyModuleTB(TBBase):
-    def __init__(self, dut):
-        super().__init__(dut)
-        self.clk = dut.clk
-        self.clk_name = 'clk'
-        self.rst_n = dut.rst_n
-
     async def setup_clocks_and_reset(self):
-        """Complete initialization - clocks and reset"""
-        # Start clock(s)
-        await self.start_clock(self.clk_name, freq=10, units='ns')
-
-        # Set any signals that must be valid BEFORE reset
-        self.dut.cfg_param.value = 5
-
-        # Perform reset sequence
+        await self.start_clock('clk', freq=10, units='ns')
         await self.assert_reset()
-        await self.wait_clocks(self.clk_name, 10)  # Hold reset
+        await self.wait_clocks('clk', 10)
         await self.deassert_reset()
-        await self.wait_clocks(self.clk_name, 5)   # Stabilize
 
     async def assert_reset(self):
-        """Assert reset signal"""
-        self.rst_n.value = 0  # Active-low
+        self.dut.rst_n.value = 0
 
     async def deassert_reset(self):
-        """Deassert reset signal"""
-        self.rst_n.value = 1  # Release active-low
+        self.dut.rst_n.value = 1
 ```
 
-**Why These Methods Matter:**
-- **Consistency**: Same initialization across all tests
-- **Reusability**: Can call `assert_reset()` / `deassert_reset()` mid-test
-- **Clarity**: Explicit intent in test code
-- **Configuration**: Some RTL needs signals set BEFORE reset (e.g., credit encoding)
-- **Debugging**: Single place for instrumentation
-
-**Test Usage:**
-```python
-@cocotb.test()
-async def test_basic(dut):
-    tb = MyModuleTB(dut)
-    await tb.setup_clocks_and_reset()  # Full init
-    result = await tb.test_operation()
-    assert result
-
-@cocotb.test()
-async def test_reset_recovery(dut):
-    tb = MyModuleTB(dut)
-    await tb.setup_clocks_and_reset()
-    await tb.start_operation()
-    # Mid-test reset
-    await tb.assert_reset()
-    await tb.wait_clocks(tb.clk_name, 10)
-    await tb.deassert_reset()
-    result = await tb.verify_recovery()
-    assert result
-```
-
-**See also:** `rtl/rapids/CLAUDE.md` Rule #0.5 for detailed testbench architecture requirements.
+**Complete details:** Examples, rationale, and subsystem-specific patterns in `/GLOBAL_REQUIREMENTS.md`
 
 ### Test Naming and Organization
 

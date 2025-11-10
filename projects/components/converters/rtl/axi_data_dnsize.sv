@@ -142,7 +142,7 @@ module axi_data_dnsize #(
         if (DUAL_BUFFER == 0) begin : gen_single_buffer_sm
             // SINGLE-BUFFER MODE: Original implementation
             `ALWAYS_FF_RST(aclk, aresetn,
-                if (`RST_ASSERTED(aresetn)) begin
+        if (`RST_ASSERTED(aresetn)) begin
                     gen_single_buffer.r_data_buffer <= '0;
                     r_beat_ptr <= '0;
                     gen_single_buffer.r_wide_buffered <= 1'b0;
@@ -201,7 +201,7 @@ module axi_data_dnsize #(
         end else begin : gen_dual_buffer_sm
             // DUAL-BUFFER MODE: Enhanced throughput implementation
             `ALWAYS_FF_RST(aclk, aresetn,
-                if (`RST_ASSERTED(aresetn)) begin
+        if (`RST_ASSERTED(aresetn)) begin
                     gen_dual_buffer.r_buffer_0 <= '0;
                     gen_dual_buffer.r_buffer_1 <= '0;
                     gen_dual_buffer.r_last_buffer_0 <= 1'b0;

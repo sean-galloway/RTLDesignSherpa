@@ -22,226 +22,141 @@
 
 ---
 
+## 📖 Global Requirements Reference
+
+**IMPORTANT: Check `/GLOBAL_REQUIREMENTS.md` for all mandatory requirements**
+
+This file contains project-area-specific standards. For the complete list of mandatory requirements across the entire repository:
+- **See:** `/GLOBAL_REQUIREMENTS.md` - Consolidated mandatory requirements
+- **Priorities:** P0 (critical), P1 (high), P2 (standard), P3 (project-specific)
+- **Compliance:** All P0 requirements are enforced - PRs will be rejected if violated
+
+This CLAUDE.md focuses on projects/components/ specifics. Also review:
+- Root `/CLAUDE.md` - Repository-wide guidance
+- `bin/CocoTBFramework/CLAUDE.md` - Framework patterns
+- `projects/components/{name}/CLAUDE.md` - Component-specific guidance
+
+---
+
 ## Critical Standards for This Area
 
-### Rule #0: Reset Handling Standards
+### Rule #0: Reset Handling Standards (MANDATORY)
 
-**MANDATORY: All new RTL MUST use standardized reset macros from `rtl/amba/includes/reset_defs.svh`**
+**📖 See:** `/GLOBAL_REQUIREMENTS.md` Section 1.1 for complete requirement
 
-**Why This Matters:**
-- Consistent reset handling across all modules
-- FPGA-friendly asynchronous reset with synchronous release
-- Easy modification of reset polarity via single macro
-- Better synthesis and timing closure
+**Projects/Components-Specific Context:**
 
-**Include in All New RTL Files:**
+This area is the PRIMARY enforcement zone for reset macro usage. Unlike rtl/common/ and rtl/amba/ (already compliant), projects/components/ is actively converting to reset macros.
+
+**Quick Reference:**
 ```systemverilog
 `include "reset_defs.svh"
-```
 
-**Standard Pattern - Use `ALWAYS_FF_RST` Macro:**
-```systemverilog
-// OLD PATTERN (DO NOT USE):
-always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-        r_state <= IDLE;
-        r_counter <= '0;
-    end else begin
-        r_state <= w_next_state;
-        r_counter <= r_counter + 1'b1;
-    end
-end
-
-// NEW PATTERN (REQUIRED):
 `ALWAYS_FF_RST(clk, rst_n,
     if (`RST_ASSERTED(rst_n)) begin
         r_state <= IDLE;
-        r_counter <= '0;
     end else begin
         r_state <= w_next_state;
-        r_counter <= r_counter + 1'b1;
     end
 )
 ```
 
-**Macro Definitions:**
-- `ALWAYS_FF_RST(clk, rst, ...)` - Always block with async reset
-- `RST_ASSERTED(rst)` - Test if reset is asserted (handles polarity)
-- `RST_RELEASED(rst)` - Test if reset is released
-
-**Reset Signal Naming Conventions:**
-- `rst_n` - Active-low reset (most common in projects/components)
-- `aresetn` - Active-low asynchronous reset (AMBA protocol standard)
-- Use actual signal name in macro, NOT a sync_ prefix
-
-**Conversion Tool:**
+**Conversion Tool for Bulk Updates:**
 ```bash
-# Convert existing always_ff blocks to reset macros
+# Convert existing files (writes to UPDATED/ directory)
 python3 bin/update_resets.py projects/components/{component}/rtl/
 
-# Files written to UPDATED/ directory, review before copying back
+# Review differences
+diff -u original.sv UPDATED/original.sv
+
+# Copy back after review
+cp UPDATED/*.sv projects/components/{component}/rtl/
 ```
 
-**⚠️ THIS IS A HARD REQUIREMENT - NO EXCEPTIONS ⚠️**
-
-This is NOT a suggestion or guideline - it is a MANDATORY requirement for ALL RTL in projects/components/:
-
-1. **ALL new RTL files** MUST use reset macros from the day they are created
-2. **ALL existing RTL files** MUST be converted to use reset macros before any new features are added
-3. **PRs will be REJECTED** if they contain manual `always_ff @(posedge clk or negedge rst_n)` patterns
-4. **Use the conversion tool** - It is tested, reliable, and maintains functional equivalence
-
-**Why This is Non-Negotiable:**
-- Enables FPGA inference of proper reset resources (critical for timing closure)
-- Ensures consistent synthesis across Xilinx, Intel, and ASIC flows
-- Allows single-point reset polarity changes for IP reuse
-- Prevents subtle reset-related bugs (metastability, incomplete resets)
-
 **Historical Context:**
-- APB HPET was developed before reset macro standardization (now converted)
-- All rtl/common/ and rtl/amba/ modules use reset macros (100% compliance)
-- projects/components/ must match repository standards
+- APB HPET: Converted after initial development
+- STREAM/RAPIDS: Converting as features are added
+- New components: MUST use macros from day one
 
-**See also:** `rtl/amba/includes/reset_defs.svh` for complete macro definitions
+**Macro Definitions:** See `rtl/amba/includes/reset_defs.svh`
 
 ---
 
-### Rule #1: FPGA Synthesis Attributes
+### Rule #1: FPGA Synthesis Attributes (MANDATORY)
 
-**MANDATORY: Add FPGA synthesis hints for all memory arrays**
+**📖 See:** `/GLOBAL_REQUIREMENTS.md` Section 1.2 for complete requirement
 
-**Why This Matters:**
-- FPGA tools infer better memory architectures (block RAM vs distributed RAM)
-- Prevents logic explosion for large memories
-- Enables vendor-specific optimizations
-- Cross-vendor compatibility (Xilinx, Intel/Altera)
+**Projects/Components-Specific Examples:**
 
-**Standard Pattern for Memory Arrays:**
 ```systemverilog
-// CORRECT: FPGA-friendly memory with synthesis hints
+// Standard pattern for SRAM buffers (common in datapaths)
 `ifdef XILINX
-    (* ram_style = "auto" *)  // Let Xilinx decide block vs distributed
+    (* ram_style = "auto" *)
 `elsif INTEL
-    /* synthesis ramstyle = "AUTO" */  // Let Intel Quartus decide
+    /* synthesis ramstyle = "AUTO" */
 `endif
-logic [DATA_WIDTH-1:0] mem [DEPTH];  // Use [DEPTH], not [0:DEPTH-1]
+logic [DATA_WIDTH-1:0] sram_buffer [DEPTH];
 
-// For small memories that MUST be distributed RAM:
+// Small FIFOs - prefer distributed RAM
 `ifdef XILINX
     (* ram_style = "distributed" *)
 `elsif INTEL
     /* synthesis ramstyle = "MLAB" */
 `endif
-logic [DATA_WIDTH-1:0] small_mem [16];
+logic [31:0] small_fifo [16];
 
-// For large memories that MUST be block RAM:
+// DSP inference for datapath multipliers
 `ifdef XILINX
-    (* ram_style = "block" *)
-`elsif INTEL
-    /* synthesis ramstyle = "M20K" */
+    (* use_dsp = "yes" *)
 `endif
-logic [DATA_WIDTH-1:0] large_mem [4096];
+logic [31:0] scaled_data = coefficient * input_data;
 ```
 
-**Available Xilinx Attributes:**
-- `ram_style = "auto"` - Let tool decide (recommended default)
-- `ram_style = "block"` - Force block RAM (BRAM/URAM)
-- `ram_style = "distributed"` - Force distributed RAM (LUT RAM)
-- `ram_style = "ultra"` - Force UltraRAM (Ultrascale+ only)
-
-**Available Intel Attributes:**
-- `ramstyle = "AUTO"` - Let tool decide (recommended default)
-- `ramstyle = "M20K"` - Force M20K block RAM
-- `ramstyle = "MLAB"` - Force MLAB distributed RAM
-- `ramstyle = "logic"` - Force logic (registers)
-
-**Other Useful FPGA Attributes:**
-```systemverilog
-// DSP inference control
-`ifdef XILINX
-    (* use_dsp = "yes" *)  // Force DSP48 usage for multiply
-`endif
-logic [31:0] product = a * b;
-
-// Shift register inference
-`ifdef XILINX
-    (* shreg_extract = "no" *)  // Prevent SRL inference
-`endif
-logic [7:0] pipe_stage;
-```
-
-**See also:**
-- `rtl/common/fifo_sync.sv` - Example with FPGA attributes
-- `projects/components/stream/rtl/stream_fub/simple_sram.sv` - Memory with attributes
+**See Examples In:**
+- `projects/components/stream/rtl/stream_fub/simple_sram.sv` - SRAM with attributes
+- `projects/components/rapids/rtl/rapids_fub/descriptor_engine.sv` - FIFO with attributes
 
 ---
 
-### Rule #2: Array Syntax Standards
+### Rule #2: Array Syntax Standards (MANDATORY)
 
-**MANDATORY: Use unpacked array syntax `[DEPTH]` instead of `[0:DEPTH-1]`**
+**📖 See:** `/GLOBAL_REQUIREMENTS.md` Section 1.3 for complete requirement
 
-**Why This Matters:**
-- Iverilog compatibility (some versions require this syntax)
-- Cleaner, more readable code
-- Consistent with SystemVerilog best practices
-- Avoids off-by-one errors in indexing
+**Quick Reference:** Use `[DEPTH]` not `[0:DEPTH-1]`
 
-**Standard Pattern:**
 ```systemverilog
-// WRONG (old style):
-logic [DATA_WIDTH-1:0] mem [0:DEPTH-1];
-
-// CORRECT (use this):
+// ✅ CORRECT
 logic [DATA_WIDTH-1:0] mem [DEPTH];
-```
 
-**Memory Initialization:**
-```systemverilog
-// Initialize all elements to zero
-logic [DATA_WIDTH-1:0] mem [DEPTH] = '{default:0};
-
-// Initialize with specific values
-logic [7:0] lut [16] = '{
-    8'h00, 8'h01, 8'h02, 8'h03,
-    8'h04, 8'h05, 8'h06, 8'h07,
-    8'h08, 8'h09, 8'h0A, 8'h0B,
-    8'h0C, 8'h0D, 8'h0E, 8'h0F
-};
+// ❌ WRONG
+logic [DATA_WIDTH-1:0] mem [0:DEPTH-1];
 ```
 
 ---
 
-### Rule #3: SRAM and Memory Module Standards
+### Rule #3: SRAM Module Standards (MANDATORY)
 
-**SRAM Modules DO NOT Have Reset Ports**
+**📖 See:** `/GLOBAL_REQUIREMENTS.md` Section 1.4 for complete requirement
 
-**Why This Matters:**
-- Real SRAM chips don't have reset pins
-- FPGA block RAM doesn't reset contents
-- Resetting large memories wastes silicon area and power
-- Initialize via writes during system initialization
+**Projects/Components-Specific Pattern:**
 
-**Correct SRAM Module Interface:**
+STREAM and RAPIDS use large SRAM buffers extensively. Here's the standard pattern:
+
 ```systemverilog
+// SRAM module - NO reset port
 module simple_sram #(
-    parameter int DATA_WIDTH = 32,
-    parameter int DEPTH = 1024
+    parameter int DATA_WIDTH = 512,  // Datapath width
+    parameter int DEPTH = 4096       // Buffer depth
 ) (
-    input  logic                        clk,
+    input  logic clk,
     // NO rst_n port!
-
-    // Write port
-    input  logic                        wr_en,
-    input  logic [$clog2(DEPTH)-1:0]    wr_addr,
-    input  logic [DATA_WIDTH-1:0]       wr_data,
-
-    // Read port
-    input  logic                        rd_en,
-    input  logic [$clog2(DEPTH)-1:0]    rd_addr,
-    output logic [DATA_WIDTH-1:0]       rd_data
+    input  logic wr_en,
+    input  logic [$clog2(DEPTH)-1:0] wr_addr,
+    input  logic [DATA_WIDTH-1:0] wr_data,
+    input  logic rd_en,
+    input  logic [$clog2(DEPTH)-1:0] rd_addr,
+    output logic [DATA_WIDTH-1:0] rd_data
 );
-
-    // Memory array with FPGA hints
     `ifdef XILINX
         (* ram_style = "auto" *)
     `elsif INTEL
@@ -249,124 +164,38 @@ module simple_sram #(
     `endif
     logic [DATA_WIDTH-1:0] mem [DEPTH] = '{default:0};
 
-    // Write logic (no reset)
-    always_ff @(posedge clk) begin
-        if (wr_en) begin
-            mem[wr_addr] <= wr_data;
-        end
-    end
-
-    // Read logic (no reset, optional output register)
-    always_ff @(posedge clk) begin
-        if (rd_en) begin
-            rd_data <= mem[rd_addr];
-        end
-    end
-
-endmodule : simple_sram
+    always_ff @(posedge clk) if (wr_en) mem[wr_addr] <= wr_data;
+    always_ff @(posedge clk) if (rd_en) rd_data <= mem[rd_addr];
+endmodule
 ```
 
-**SRAM Controller Initialization Pattern:**
-```systemverilog
-// SRAM controller with reset, but SRAM itself has no reset
-module sram_controller #(
-    parameter int SRAM_DEPTH = 4096
-) (
-    input  logic        clk,
-    input  logic        rst_n,  // Controller has reset
-    // ... other ports
-);
-
-    // Controller state machine with reset
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
-            r_state <= IDLE;
-            r_wr_ptr <= '0;
-            r_rd_ptr <= '0;
-        end else begin
-            // State machine logic
-        end
-    )
-
-    // SRAM instance - NO reset port
-    simple_sram #(
-        .DATA_WIDTH(512),
-        .DEPTH(SRAM_DEPTH)
-    ) u_sram (
-        .clk      (clk),
-        // No .rst_n connection!
-        .wr_en    (sram_wr_en),
-        .wr_addr  (r_wr_ptr),
-        .wr_data  (sram_wr_data),
-        .rd_en    (sram_rd_en),
-        .rd_addr  (r_rd_ptr),
-        .rd_data  (sram_rd_data)
-    );
-
-endmodule : sram_controller
-```
-
-**See also:**
-- `projects/components/stream/rtl/stream_fub/simple_sram.sv` - Example SRAM
-- `projects/components/stream/rtl/stream_fub/sram_controller.sv` - Example controller
+**See:** `projects/components/stream/rtl/stream_fub/simple_sram.sv`
 
 ---
 
-### Rule #4: Testbench Architecture - Project-Specific TB Classes
+### Rule #4: TB Location (MANDATORY)
 
-**MANDATORY: Project-specific testbench classes MUST be in project dv/ area**
+**📖 See:** `/GLOBAL_REQUIREMENTS.md` Section 2.1 for complete requirement
 
-**Why This Matters:**
-- Easy discovery - All project code in one place
-- Clear ownership - Each project owns their dv/ area
-- No confusion - Never wonder where TB classes live
-- Framework stays clean - Only truly shared code in framework
+**Projects/Components-Specific Import Pattern:**
 
-**Directory Structure:**
-```
-projects/components/{project}/
-├── rtl/                    # RTL source
-├── dv/                     # Design Verification
-│   ├── tbclasses/          # PROJECT-SPECIFIC TB classes HERE
-│   │   ├── {module}_tb.py
-│   │   └── {feature}_tb.py
-│   ├── components/         # PROJECT-SPECIFIC BFM extensions (if needed)
-│   └── tests/              # Test runners
-│       ├── conftest.py
-│       └── test_*.py
-└── docs/                   # Documentation
-```
-
-**Correct Import Pattern:**
 ```python
-# Add repo root to Python path
+# Standard path setup for project tests
 import os, sys
 repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
 sys.path.insert(0, repo_root)
 
-# Import PROJECT-SPECIFIC TB classes from project area
+# Import from PROJECT AREA (not framework!)
 from projects.components.stream.dv.tbclasses.scheduler_tb import SchedulerTB
-from projects.components.rapids.dv.tbclasses.descriptor_engine_tb import DescriptorEngineTB
 
-# Shared framework utilities still come from framework
+# Shared utilities from framework
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.components.axi4.axi4_master import AXI4Master
 ```
 
-**Decision Tree:**
-```
-Is this testbench code specific to ONE project?
-├─ YES → projects/components/{project}/dv/tbclasses/
-│
-└─ NO → Is it reusable across MULTIPLE projects?
-   ├─ YES → bin/CocoTBFramework/
-   └─ UNSURE → Default to project area
-```
-
-**See also:**
-- Root `/CLAUDE.md` Section "Organizational Requirements" for complete details
-- `projects/components/rapids/dv/tbclasses/` - RAPIDS examples
-- `projects/components/stream/dv/tbclasses/` - STREAM examples
+**Examples:**
+- `projects/components/rapids/dv/tbclasses/` - RAPIDS TBs
+- `projects/components/stream/dv/tbclasses/` - STREAM TBs
 
 ---
 

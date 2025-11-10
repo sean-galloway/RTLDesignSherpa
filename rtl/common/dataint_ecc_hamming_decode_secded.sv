@@ -340,7 +340,7 @@ module dataint_ecc_hamming_decode_secded #(
     ////////////////////////////////////////////////////////////////////////////
     // Correct the data if there is a single-bit error
     `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
                    r_data_with_parity      <= 'b0;
                    error_detected        <= 'b0;
                    double_error_detected <= 'b0;

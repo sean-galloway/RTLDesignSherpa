@@ -103,7 +103,18 @@ class GAXIMonitorBase(GAXIComponentBase, BusMonitor):
         # CLEAN APPROACH: Explicitly pass empty prefix to cocotb
         # Our signal lists already contain full signal names
         BusMonitor.__init__(self, dut, '', clock, callback=None, event=None, **kwargs)
-        self.log = log or self._log
+
+        # Validate log parameter - MUST be provided from TBBase
+        if log is None:
+            raise ValueError(
+                f"GAXIMonitorBase '{title}': log parameter is required!\n"
+                "  You must pass a logger from TBBase:\n"
+                "    tb = MyTestbench(dut)  # Inherits from TBBase\n"
+                "    slave = create_axi4_slave_wr(dut, ..., log=tb.log)\n"
+                "  Do NOT rely on self._log - it doesn't exist in this context."
+            )
+
+        self.log = log
 
         # Complete base class initialization now that bus is available
         self.complete_base_initialization(self.bus)

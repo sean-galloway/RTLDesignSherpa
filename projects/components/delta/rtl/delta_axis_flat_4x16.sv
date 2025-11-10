@@ -112,7 +112,7 @@ logic packet_active [NUM_SLAVES];  // NEW vs APB: Track packet in progress
 generate
     for (genvar s = 0; s < NUM_SLAVES; s++) begin : gen_arbiter
         `ALWAYS_FF_RST(aclk, aresetn,
-if (`RST_ASSERTED(aresetn)) begin
+        if (`RST_ASSERTED(aresetn)) begin
                 grant_matrix[s] <= '0;
                 last_grant[s] <= '0;
                 packet_active[s] <= 1'b0;

@@ -1,0 +1,27 @@
+# Illegal Bridge Configuration: Write-only master to read-only slave
+# This should be REJECTED by validator
+# Converted from YAML to TOML format
+
+[bridge]
+name = "illegal_wr_to_rd"
+description = "ILLEGAL: Write-only master cannot connect to read-only slave"
+
+[[bridge.masters]]
+name = "wr_only_master"
+prefix = "wr_master_axi_"
+id_width = 4
+addr_width = 32
+data_width = 64
+user_width = 1
+channels = "wr"  # Write-only (AW, W, B channels only)
+
+[[bridge.slaves]]
+name = "rd_only_slave"
+prefix = "rd_slave_axi_"
+id_width = 4
+addr_width = 32
+data_width = 64
+user_width = 1
+channels = "rd"  # Read-only (AR, R channels only)
+base_addr = "0x00000000"
+addr_range = "0x10000000"

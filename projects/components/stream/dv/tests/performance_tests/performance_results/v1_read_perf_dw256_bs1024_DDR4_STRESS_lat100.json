@@ -1,0 +1,20 @@
+{
+  "config": {
+    "version": "v1",
+    "engine": "read",
+    "data_width_bits": 256,
+    "burst_size_bytes": 1024,
+    "beats_per_burst": 32,
+    "memory_type": "DDR4_STRESS",
+    "memory_latency_cycles": 100,
+    "num_commands": 100
+  },
+  "metrics": {
+    "total_cycles": 5260,
+    "total_beats": 3200,
+    "bandwidth_beats_per_cycle": 0.6083650190114068,
+    "bandwidth_gbps": 3.893536121673004,
+    "efficiency_percent": 60.836501901140686,
+    "clock_freq_mhz": 200
+  }
+}

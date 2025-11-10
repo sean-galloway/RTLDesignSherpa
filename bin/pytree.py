@@ -29,17 +29,17 @@ def print_tree(directory, prefix="", exclude_dirs=None, exclude_files=None):
     # Separate files and directories and sort them independently
     files = sorted([item for item in all_items if item.is_file()])
     directories = sorted([item for item in all_items if item.is_dir()])
-    
+
     # Display files first
     for index, item in enumerate(files):
         connector = "├── " if index < len(files) - 1 or directories else "└── "
         print(prefix + connector + item.name)
-    
+
     # Then display directories
     for index, item in enumerate(directories):
         connector = "└── " if index == len(directories) - 1 else "├── "
         print(prefix + connector + item.name)
-        
+
         # Recursively display subdirectory contents
         extension = "    " if index == len(directories) - 1 else "│   "
         print_tree(item, prefix + extension, exclude_dirs, exclude_files)
@@ -49,9 +49,11 @@ def main():
     parser.add_argument("--path", type=str, required=True, help="Root directory to display")
     parser.add_argument("--exclude-dir", type=str, nargs="*", default=[], help="Directories to exclude")
     parser.add_argument("--exclude-file", type=str, nargs="*", default=[], help="Files to exclude")
-   
+
     args = parser.parse_args()
     root_dir = Path(args.path)
+    # DEBUG: Add this line to see what's being captured
+    print(f"DEBUG: exclude_dir = {args.exclude_dir}")
 
     if not root_dir.exists() or not root_dir.is_dir():
         print(f"Error: '{args.path}' is not a valid directory.")

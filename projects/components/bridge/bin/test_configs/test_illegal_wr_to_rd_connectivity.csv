@@ -1,0 +1,2 @@
+master\slave,rd_only_slave
+wr_only_master,1

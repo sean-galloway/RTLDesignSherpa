@@ -349,7 +349,7 @@ module arbiter_round_robin_weighted #(
 
     // Weight change FSM with local parameters
     `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
             r_weight_state <= WEIGHT_IDLE;
             r_safe_max_thresh <= {CXMTW{1'b1}};  // Default to weight=1 for all clients
             r_weight_timer <= 4'h0;
@@ -516,7 +516,7 @@ if (`RST_ASSERTED(rst_n)) begin
 
             // Simple register - just assigns the combinational value
             `ALWAYS_FF_RST(clk, rst_n,
-if (`RST_ASSERTED(rst_n)) begin
+        if (`RST_ASSERTED(rst_n)) begin
                     r_credit_counter[i] <= MTW'(1);  // Start with 1 credit (will be corrected on first replenish)
                 end else begin
                     r_credit_counter[i] <= w_credit_counter[i];  // Simple assignment from combo logic
