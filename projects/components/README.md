@@ -23,51 +23,20 @@ The `projects/components/` directory contains demonstration components showcasin
 
 | Component | Type | Status | Purpose | Complexity |
 |-----------|------|--------|---------|------------|
-| **[apb_hpet](#apb_hpet)** | Peripheral | ✅ Complete | Multi-timer with 64-bit counter | Medium |
 | **[apb_xbar](#apb_xbar)** | Generator | ✅ Complete | APB crossbar interconnect | Medium |
+| **[bch](#bch)** | Error Correction | 📋 Planned | BCH encoder/decoder for storage | High |
 | **[bridge](#bridge)** | Generator | 🟢 95% Complete | AXI4 full crossbar generator | High |
 | **[converters](#converters)** | Converters | ✅ Complete | AXI4 data width converters | Medium |
 | **[delta](#delta)** | Generator | 🔧 In Progress | AXI-Stream crossbar generator | Medium |
+| **[hive](#hive)** | Control Plane | 🟡 Early Spec | Distributed control subsystem | Very High |
 | **[rapids](#rapids)** | Accelerator | 🔧 In Progress | DMA with network integration | Very High |
+| **[retro_legacy_blocks](#retro_legacy_blocks)** | Peripherals | 🟢 Active Dev | Intel ILB-compatible legacy peripherals | Medium |
 | **[shims](#shims)** | Adapter | ✅ Complete | Protocol conversion adapters | Low-Medium |
 | **[stream](#stream)** | DMA Engine | 🟢 95% Complete | Tutorial-focused scatter-gather DMA | Medium-High |
 
 ---
 
 ## Component Details
-
-### apb_hpet
-
-**APB High Precision Event Timer**
-
-**Status:** ✅ Complete (5/6 configurations 100% passing)
-
-**Description:**
-Configurable multi-timer peripheral with up to 8 independent hardware timers. Features 64-bit main counter, 64-bit comparators, one-shot and periodic modes, and optional clock domain crossing support.
-
-**Key Features:**
-- Configurable timer count: 2, 3, or 8 independent timers
-- 64-bit main counter for high-resolution timestamps
-- One-shot and periodic operating modes
-- Optional CDC for timer/APB clock independence
-- APB interface with PeakRDL-generated register map
-- Production-ready with comprehensive test coverage
-
-**Applications:**
-- System tick generation
-- Real-time OS scheduling
-- Precise event timing
-- Performance profiling
-- Watchdog timers
-
-**Resources:**
-- RTL: `rtl/apb_hpet.sv`, `rtl/hpet_core.sv`
-- Tests: `dv/tests/test_apb_hpet.py`
-- Documentation: `PRD.md`, `CLAUDE.md`
-
-**📖 See:** [`apb_hpet/PRD.md`](apb_hpet/PRD.md) for complete specification
-
----
 
 ### apb_xbar
 
@@ -359,18 +328,162 @@ Simplified DMA engine designed as a beginner-friendly tutorial demonstrating des
 
 ---
 
+### retro_legacy_blocks
+
+**Retro Legacy Blocks - Intel ILB-Compatible Peripherals**
+
+**Status:** 🟢 Active Development (2/13 blocks complete)
+
+**Description:**
+Collection of Intel Low-power Block (ILB) compatible legacy peripherals. Production-quality implementations of time-tested peripheral designs packaged as a unified subsystem with single APB entry point. Goal is drop-in replacement for legacy Intel ILB with modern RTL practices.
+
+**Architecture:**
+Unified RLB Wrapper provides single APB slave interface at `0x4000_0000` with 4KB window decode routing to individual peripheral blocks. Each block occupies 4KB address space for clean power-of-2 decoding.
+
+**Completed Blocks (2/13):**
+
+| Block | Status | Address Range | Description |
+|-------|--------|---------------|-------------|
+| **HPET** | ✅ Production | 0x4000_0000-0x0FFF | High Precision Event Timer with 64-bit counter |
+| **8254 PIT** | ✅ Complete | 0x4000_2000-0x2FFF | Programmable Interval Timer (3× 16-bit counters) |
+
+**HPET Features:**
+- Configurable timer count: 2, 3, or 8 independent timers
+- 64-bit main counter with 64-bit comparators
+- One-shot and periodic operating modes
+- Optional clock domain crossing support
+- PeakRDL-generated APB register interface
+- 5/6 configurations passing 100% tests
+
+**8254 PIT Features:**
+- 3 independent 16-bit counters
+- 6 counting modes: terminal count, one-shot, rate generator, square wave, strobe, retriggerable
+- BCD and binary counting modes
+- Standard Intel 8254 register-compatible interface
+- RTL complete with comprehensive test coverage
+
+**Planned Blocks (11 remaining):**
+
+| Priority | Block | Address Range | Description |
+|----------|-------|---------------|-------------|
+| High | **8259 PIC** | 0x4000_1000-0x1FFF | Programmable Interrupt Controller |
+| Medium | **RTC** | 0x4000_3000-0x3FFF | Real-Time Clock with CMOS RAM |
+| Medium | **SMBus** | 0x4000_4000-0x4FFF | System Management Bus Controller |
+| Medium | **PM/ACPI** | 0x4000_5000-0x5FFF | Power Management Controller |
+| Medium | **IOAPIC** | 0x4000_6000-0x6FFF | I/O Advanced Programmable Interrupt Controller |
+| Medium | GPIO | TBD | General Purpose I/O |
+| Medium | UART | TBD | Universal Asynchronous Receiver/Transmitter |
+| Low | SPI | TBD | Serial Peripheral Interface |
+| Low | I2C | TBD | Inter-Integrated Circuit |
+| Low | Watchdog | TBD | System Watchdog Timer |
+| Low | **Interconnect** | 0x4000_F000-0xFFFF | ID/Version Registers |
+
+**RLB Wrapper Goal:**
+Single APB slave at `0x4000_0000` with internal 4KB window decode routing to all blocks. Drop-in compatible with legacy Intel ILB implementations but using modern synthesizable RTL.
+
+**Applications:**
+- Legacy platform compatibility
+- FPGA-based system emulation
+- Embedded systems requiring ILB peripherals
+- Educational peripheral design reference
+- PC architecture compatibility layers
+
+**Resources:**
+- RTL: `rtl/hpet/`, `rtl/pit_8254/` (completed), `rtl/{block}/` (planned)
+- Tests: `dv/tests/hpet/`, `dv/tests/pit_8254/` (completed), `dv/tests/{block}/` (planned)
+- Documentation: `PRD.md`, `CLAUDE.md`, `docs/hpet_spec/` (complete)
+- Status Tracking: `BLOCK_STATUS.md` - Master tracking for all 13 blocks
+
+**📖 See:**
+- [`retro_legacy_blocks/PRD.md`](retro_legacy_blocks/PRD.md) - Complete requirements for all blocks
+- [`retro_legacy_blocks/BLOCK_STATUS.md`](retro_legacy_blocks/BLOCK_STATUS.md) - Development status tracking
+- [`retro_legacy_blocks/docs/hpet_spec/hpet_index.md`](retro_legacy_blocks/docs/hpet_spec/hpet_index.md) - HPET complete specification
+
+---
+
+### bch
+
+**BCH Error Correction Codes**
+
+**Status:** 📋 Placeholder - Structure Created
+
+**Description:**
+Configurable BCH (Bose-Chaudhuri-Hocquenghem) encoder and decoder for error correction in storage and communication systems. Production-quality implementation suitable for NAND flash, SSDs, optical storage, and wireless communications.
+
+**Planned Features:**
+- Configurable BCH(n, k, t) parameters
+- Systematic encoder (LFSR-based, low latency)
+- Hard-decision decoder (syndrome, Berlekamp-Massey, Chien search)
+- AXI4-Stream and simple handshake interfaces
+- Support for common configurations: BCH(511,493,2), BCH(1023,1013,2), etc.
+
+**Applications:**
+- NAND flash memory error correction
+- Solid-state drives (SSDs)
+- Optical storage (CD, DVD, Blu-ray)
+- Wireless communications
+- Data integrity in high-reliability systems
+
+**Resources:**
+- Documentation: `README.md`, `PRD.md`, `CLAUDE.md`, `TASKS.md`
+- Future: `rtl/`, `dv/tests/`, `docs/bch_spec/`
+
+**📖 See:** [`bch/PRD.md`](bch/PRD.md) for complete requirements (when ready)
+
+---
+
+### hive
+
+**HIVE - Hierarchical Intelligent Vector Environment**
+
+**Status:** 🟡 Early Specification Phase
+
+**Description:**
+Distributed control and monitoring subsystem for RAPIDS/Delta Network. Demonstrates hierarchical RISC-V processor architecture with 1 master controller (HIVE-C) and 16 lightweight monitors (SERV cores). Enables dynamic network reconfiguration and distributed monitoring.
+
+**Planned Architecture:**
+- **HIVE-C Master:** VexRiscv RV32IM core for global control
+- **16× SERV Monitors:** Bit-serial RV32I cores, one per Delta Network tile
+- **Control Network:** Star topology for HIVE-C ↔ SERV communication
+- **Configuration Manager:** 4 virtual routing contexts with atomic switching
+- **Descriptor Delivery:** Inband CDA packets to RAPIDS accelerators
+- **Monitoring:** Per-tile traffic monitoring and congestion detection
+
+**Integration with Other Components:**
+- Controls RAPIDS DMA via CDA descriptor injection
+- Monitors Delta Network traffic and congestion
+- Reconfigures Delta routing modes dynamically
+- Aggregates performance data from 16 tiles
+
+**Applications:**
+- Distributed control system architecture
+- Network reconfiguration coordination
+- Performance monitoring aggregation
+- Educational RISC-V integration reference
+- Hierarchical processor organization
+
+**Resources:**
+- Documentation: `PRD.md`, `CLAUDE.md`, `docs/hive_spec/`
+- Future: `rtl/`, `dv/tests/`
+
+**📖 See:** [`hive/PRD.md`](hive/PRD.md) for complete specification
+
+---
+
 ## Comparison Matrix
 
 ### Protocol and Interface Support
 
 | Component | APB | AXI4 | AXI4-Lite | AXI-Stream | Network | MonBus | Other |
 |-----------|-----|------|-----------|------------|---------|--------|-------|
-| **apb_hpet** | ✅ Slave | - | - | - | - | - | - |
 | **apb_xbar** | ✅ Crossbar | - | - | - | - | - | - |
+| **bch** | - | - | - | ✅ M/S | - | - | ✅ Simple HS |
 | **bridge** | - | ✅ Crossbar | - | - | - | - | - |
 | **converters** | - | ✅ Converter | - | - | - | - | - |
 | **delta** | - | - | - | ✅ Crossbar | - | - | - |
+| **hive** | - | - | - | - | ✅ Control | ✅ Master | ✅ RISC-V |
 | **rapids** | - | ✅ Master | ✅ Slave | - | ✅ M/S | ✅ Master | - |
+| **retro_legacy_blocks** | ✅ Slave | - | - | - | - | - | ✅ Interrupts |
 | **shims** | ✅ Adapter | - | - | - | - | - | ✅ CmdRsp |
 | **stream** | ✅ Slave | ✅ Master | - | - | - | ✅ Master | - |
 
@@ -378,27 +491,31 @@ Simplified DMA engine designed as a beginner-friendly tutorial demonstrating des
 
 | Component | RTL Modules | Test Coverage | Primary Focus | Educational Value |
 |-----------|-------------|---------------|---------------|-------------------|
-| **apb_hpet** | 4 | 92-100% | Production peripheral | Medium |
 | **apb_xbar** | 5 pre-gen + generator | 100% | Crossbar interconnect | High |
+| **bch** | TBD | N/A | Error correction | High |
 | **bridge** | Generated | TBD | Code generation | High |
 | **converters** | 2 | 100% | Data width adaptation | Medium |
 | **delta** | Generated | TBD | Topology comparison | High |
+| **hive** | TBD | N/A | Distributed control | Very High |
 | **rapids** | 17 | ~85% | Complex accelerator | Very High |
+| **retro_legacy_blocks** | 16 (2 complete) | 95-100% (HPET/PIT) | Legacy peripherals | Medium-High |
 | **shims** | 1 | 100% | Protocol conversion | Low-Medium |
-| **stream** | 8-10 (est.) | TBD | Tutorial DMA | High |
+| **stream** | 10+ | 95%+ | Tutorial DMA | High |
 
 ### Resource Utilization (Estimates)
 
 | Component | LUTs | FFs | BRAM | Notes |
 |-----------|------|-----|------|-------|
-| **apb_hpet** | ~500-1200 | ~300-800 | 0 | Depends on timer count |
 | **apb_xbar** | ~150-600 | ~200-500 | 0 | Depends on M×N size |
+| **bch** | ~35K | TBD | 2-4 | Encoder + Decoder estimates |
 | **bridge** | ~2,500 | ~3,000 | 0 | 4×4 @ 512-bit |
 | **converters** | ~200-400 | ~150-300 | 0 | Per converter, depends on width ratio |
 | **delta** | ~1,600-1,920 | ~1,200 | 0 | 4×16 @ 64-bit |
+| **hive** | ~9K | TBD | 24 | HIVE-C + 16× SERV monitors |
 | **rapids** | ~10K | ~8K | 0 | Plus SRAM (dominant) |
+| **retro_legacy_blocks** | ~1,500 | ~1,000 | 0 | HPET + PIT currently, more planned |
 | **shims** | ~50-100 | ~50-100 | 0 | Minimal glue logic |
-| **stream** | ~5K (est.) | ~4K (est.) | 0 | Plus SRAM |
+| **stream** | ~5K | ~4K | 0 | Plus SRAM |
 
 ---
 
@@ -406,51 +523,88 @@ Simplified DMA engine designed as a beginner-friendly tutorial demonstrating des
 
 ```
 projects/components/
-├── apb_hpet/                    # APB High Precision Event Timer
-│   ├── rtl/                     # SystemVerilog RTL
+├── apb_xbar/                    # APB Crossbar Generator
+│   ├── rtl/                     # Pre-generated RTL
+│   ├── bin/                     # Python generator
 │   ├── dv/tests/                # CocoTB verification
-│   ├── docs/                    # Specifications and reports
-│   ├── PRD.md                   # Product requirements
-│   ├── CLAUDE.md                # AI guidance
+│   ├── PRD.md, CLAUDE.md        # Documentation
 │   └── README.md                # Quick start
 │
+├── bch/                         # BCH Error Correction (Planned)
+│   ├── PRD.md, CLAUDE.md, TASKS.md
+│   └── README.md
+│
 ├── bridge/                      # AXI4 Crossbar Generator
-│   ├── bin/                     # Python generator (planned)
-│   ├── docs/                    # Specifications
-│   ├── PRD.md                   # Product requirements
-│   └── README.md                # Quick start (planned)
+│   ├── bin/                     # Python generator
+│   ├── rtl/                     # Generated RTL
+│   ├── dv/tests/                # CocoTB verification
+│   ├── docs/bridge_spec/        # Specifications
+│   ├── PRD.md, CLAUDE.md        # Documentation
+│   └── README.md
+│
+├── converters/                  # AXI4 Data Width Converters
+│   ├── rtl/                     # SystemVerilog RTL
+│   ├── dv/tests/                # CocoTB verification
+│   └── README.md
 │
 ├── delta/                       # AXI-Stream Crossbar Generator
 │   ├── bin/                     # Python generator (planned)
-│   ├── docs/                    # Specifications
-│   ├── PRD.md                   # Product requirements
-│   └── README.md                # Quick start (planned)
+│   ├── docs/delta_spec/         # Specifications
+│   ├── PRD.md, CLAUDE.md        # Documentation
+│   └── README.md
+│
+├── hive/                        # Hierarchical Intelligent Vector Environment
+│   ├── docs/hive_spec/          # Specifications
+│   ├── PRD.md, CLAUDE.md        # Documentation
+│   └── README.md
 │
 ├── rapids/                      # Rapid AXI Programmable In-band Descriptor System
 │   ├── rtl/
 │   │   ├── rapids_fub/          # Functional unit blocks
 │   │   └── rapids_macro/        # Integration blocks
-│   ├── dv/tests/
-│   │   ├── fub_tests/           # Unit tests
-│   │   ├── integration_tests/   # Multi-block tests
-│   │   └── system_tests/        # Full system tests
-│   ├── docs/
-│   │   └── rapids_spec/         # Complete specification (5 chapters)
+│   ├── dv/
+│   │   ├── tbclasses/           # Testbench classes
+│   │   └── tests/               # Unit, integration, and system tests
+│   ├── docs/rapids_spec/        # Complete specification (5 chapters)
 │   ├── known_issues/            # Bug tracking
-│   ├── PRD.md                   # Requirements overview
-│   ├── CLAUDE.md                # AI guidance
+│   ├── PRD.md, CLAUDE.md        # Documentation
 │   └── README.md                # Quick start
+│
+├── retro_legacy_blocks/         # Intel ILB-Compatible Peripherals
+│   ├── rtl/
+│   │   ├── hpet/                # ✅ High Precision Event Timer (Complete)
+│   │   ├── pit_8254/            # ✅ Programmable Interval Timer (Complete)
+│   │   ├── pic_8259/            # 📋 Programmable Interrupt Controller (Planned)
+│   │   ├── rtc/                 # 📋 Real-Time Clock (Planned)
+│   │   ├── smbus/               # 📋 SMBus Controller (Planned)
+│   │   ├── pm_acpi/             # 📋 Power Management (Planned)
+│   │   └── ioapic/              # 📋 I/O APIC (Planned)
+│   ├── dv/
+│   │   ├── tbclasses/           # Block-specific testbench classes
+│   │   └── tests/               # Per-block test suites
+│   ├── docs/
+│   │   ├── hpet_spec/           # ✅ HPET complete specification
+│   │   └── {block}_spec/        # 📋 Other block specs (planned)
+│   ├── BLOCK_STATUS.md          # Master status tracking (13 blocks)
+│   ├── PRD.md, CLAUDE.md        # Documentation
+│   └── README.md                # Quick start
+│
+├── shims/                       # Protocol Conversion Adapters
+│   ├── rtl/                     # SystemVerilog RTL
+│   ├── dv/tests/                # CocoTB verification
+│   └── README.md
 │
 └── stream/                      # Scatter-gather Transfer Rapid Engine for AXI Memory
     ├── rtl/
-    │   ├── stream_fub/          # Functional unit blocks (planned)
-    │   └── stream_macro/        # Integration blocks (planned)
-    ├── dv/tests/                # CocoTB verification (planned)
+    │   ├── fub/                 # Functional unit blocks (complete)
+    │   └── macro/               # Integration blocks (complete)
+    ├── dv/
+    │   ├── tbclasses/           # Testbench classes
+    │   └── tests/               # FUB and macro tests
     ├── bin/dma_model/           # Performance models (analytical + SimPy)
-    ├── docs/                    # Specifications
-    ├── PRD.md                   # Product requirements
-    ├── CLAUDE.md                # AI guidance
-    └── README.md                # Quick start (planned)
+    ├── docs/stream_spec/        # Complete microarchitecture specification
+    ├── PRD.md, CLAUDE.md        # Documentation
+    └── README.md                # Quick start
 ```
 
 ---
@@ -498,24 +652,32 @@ make help
 - **FUNC**: Functional coverage (DEFAULT) - Standard test suite
 - **FULL**: Comprehensive validation - Stress tests and edge cases
 
-#### Running APB HPET Tests
+#### Running Retro Legacy Blocks Tests
 
 ```bash
 # Using make targets (RECOMMENDED)
-cd projects/components/apb_hpet/dv/tests/
+cd projects/components/retro_legacy_blocks/dv/tests/
+
+# Run all HPET tests
+cd hpet/
 make run-all-func-parallel        # FUNC level, 48 workers
 make run-hpet-gate                # Quick smoke test
 make run-hpet-full                # Comprehensive test
 
-# Direct pytest invocation
-pytest projects/components/apb_hpet/dv/tests/ -v
+# Run all 8254 PIT tests
+cd ../pit_8254/
+pytest test_apb_pit_8254.py -v
 
-# Run specific configuration
-pytest "projects/components/apb_hpet/dv/tests/test_apb_hpet.py::test_hpet[2-32902-1-0-basic-2-timer Intel-like]" -v
+# Direct pytest invocation (from retro_legacy_blocks/dv/tests/)
+pytest hpet/ -v                   # All HPET tests
+pytest pit_8254/ -v               # All PIT tests
+
+# Run specific HPET configuration
+pytest "hpet/test_apb_hpet.py::test_hpet[2-32902-1-0-basic-2-timer Intel-like]" -v
 
 # Run with waveforms
-pytest projects/components/apb_hpet/dv/tests/ -v --vcd=hpet_debug.vcd
-gtkwave hpet_debug.vcd
+WAVES=1 pytest hpet/ -v
+gtkwave hpet/logs/{test_name}.vcd
 ```
 
 #### Running RAPIDS Tests
@@ -556,11 +718,12 @@ python3 generate_optimization_plots.py
 
 ### When to Use Each Component
 
-**APB HPET:**
-- ✅ Need precise timing in embedded systems
-- ✅ Require multiple independent timers
-- ✅ Want production-ready peripheral with full verification
-- ✅ Educational example of PeakRDL integration
+**Retro Legacy Blocks:**
+- ✅ Need Intel ILB-compatible peripherals
+- ✅ Legacy platform compatibility (PC architecture)
+- ✅ FPGA-based system emulation
+- ✅ Educational peripheral design examples
+- ✅ Production-ready timers (HPET, 8254 PIT)
 
 **Bridge (AXI4 Crossbar):**
 - ✅ Building multi-core processor interconnects
@@ -625,27 +788,33 @@ All components follow the same workflow:
 ### Learning Path
 
 **Beginner:**
-1. **apb_hpet** - Simple peripheral with standard APB interface
+1. **retro_legacy_blocks (HPET/PIT)** - Simple peripherals with standard APB interface
 2. **stream** - Tutorial DMA with aligned addresses
-3. **delta (flat)** - Basic crossbar concepts
+3. **apb_xbar** - Crossbar interconnect concepts
+4. **delta (flat)** - AXI-Stream crossbar basics
 
 **Intermediate:**
-1. **delta (tree)** - Topology comparisons
-2. **bridge** - AXI4 full protocol
-3. **stream (extended)** - Add alignment fixup
+1. **converters** - Data width adaptation patterns
+2. **delta (tree)** - Topology comparisons
+3. **bridge** - AXI4 full protocol
+4. **stream (extended)** - Add alignment fixup
+5. **retro_legacy_blocks (8259 PIC)** - Interrupt controller complexity
 
 **Advanced:**
 1. **rapids** - Complete accelerator with FSM coordination
-2. **Custom components** - Apply learned patterns
+2. **hive** - Distributed control with RISC-V processors
+3. **bch** - Error correction algorithms
+4. **Custom components** - Apply learned patterns
 
 ### Key Concepts Taught
 
 **Interfaces and Protocols:**
-- APB (apb_hpet, stream)
-- AXI4 (bridge, rapids, stream)
+- APB (retro_legacy_blocks, apb_xbar, stream)
+- AXI4 (bridge, rapids, stream, converters)
 - AXI4-Lite (rapids)
-- AXI-Stream (delta)
-- Custom protocols (rapids Network)
+- AXI-Stream (delta, bch)
+- Custom protocols (rapids Network, shims CmdRsp)
+- RISC-V (hive)
 
 **Design Patterns:**
 - Descriptor-based engines (rapids, stream)
@@ -779,15 +948,18 @@ make help                        # Show all available targets
 
 ---
 
-**Version:** 1.1
-**Last Updated:** 2025-10-24
+**Version:** 2.0
+**Last Updated:** 2025-11-11
 **Maintained By:** RTL Design Sherpa Project
 
 **Recent Updates:**
-- Added apb_xbar, converters, and shims components
+- **Retro Legacy Blocks:** Reorganized apb_hpet as mega-block with 13 total peripherals (2 complete: HPET, 8254 PIT)
+- **STREAM:** Nearly complete at 95%, all core blocks passing tests
+- **Bridge:** 95% complete with comprehensive test infrastructure
+- **BCH and HIVE:** Added as planned components with documentation structure
+- Updated directory structure to reflect all 10 component areas
 - Comprehensive Makefile infrastructure with REG_LEVEL support across all components
 - Increased parallel test execution (48 workers)
-- Automatic retry mechanism for intermittent failures
 - Unified testing methodology matching val/common and val/amba patterns
 
 ---
