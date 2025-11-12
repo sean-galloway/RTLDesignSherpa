@@ -31,12 +31,18 @@
 `include "reset_defs.svh"
 
 module sram_controller #(
+    // Primary parameters (long names for external configuration)
     parameter int NUM_CHANNELS = 8,
     parameter int DATA_WIDTH = 512,
-    parameter int FIFO_DEPTH = 512,  // Depth per channel
+    parameter int SRAM_DEPTH = 512,                  // Depth per channel SRAM
+    parameter int SEG_COUNT_WIDTH = $clog2(SRAM_DEPTH) + 1,  // Width of count signals
+
+    // Short aliases (for internal use)
     parameter int NC = NUM_CHANNELS,
     parameter int DW = DATA_WIDTH,
-    parameter int IW = (NC > 1) ? $clog2(NC) : 1    // ID width (min 1 bit)
+    parameter int SD = SRAM_DEPTH,
+    parameter int SCW = SEG_COUNT_WIDTH,             // Segment count width
+    parameter int CIW = (NC > 1) ? $clog2(NC) : 1    // Channel ID width (min 1 bit)
 ) (
     input  logic                    clk,
     input  logic                    rst_n,
@@ -46,7 +52,7 @@ module sram_controller #(
     // Transaction ID-based: single valid + ID selects channel
     //=========================================================================
     input  logic                    axi_rd_sram_valid,      // Single valid
-    input  logic [IW-1:0]           axi_rd_sram_id,         // Channel ID select
+    input  logic [CIW-1:0]           axi_rd_sram_id,         // Channel ID select
     output logic                    axi_rd_sram_ready,      // Ready (muxed from selected channel)
     input  logic [DW-1:0]           axi_rd_sram_data,       // common data bus
 
@@ -56,16 +62,22 @@ module sram_controller #(
     //=========================================================================
     input  logic                                axi_rd_alloc_req,       // Allocation request
     input  logic [7:0]                          axi_rd_alloc_size,      // Number of beats to allocate
-    input  logic [IW-1:0]                       axi_rd_alloc_id,        // Channel ID for allocation
-    output logic [NC-1:0][$clog2(FIFO_DEPTH):0] axi_rd_space_free,      // Free space in each FIFO
+    input  logic [CIW-1:0]                       axi_rd_alloc_id,        // Channel ID for allocation
+    output logic [NC-1:0][SCW-1:0]              axi_rd_space_free,      // Free space in each FIFO
+
+    //=========================================================================
+    // Drain Interface (Write Engine Flow Control)
+    //=========================================================================
+    input  logic [NC-1:0]                       axi_wr_drain_req,       // Per-channel drain request
+    input  logic [NC-1:0][7:0]                  axi_wr_drain_size,      // Per-channel drain size
+    output logic [NC-1:0][SCW-1:0]              axi_wr_drain_data_avail,  // Available data after reservations
 
     //=========================================================================
     // Read Interface (FIFO → AXI Write Engine)
     //=========================================================================
-    output logic [NC-1:0][$clog2(FIFO_DEPTH):0] axi_wr_data_available,  // Data count in each FIFO
     output logic [NC-1:0]           axi_wr_sram_valid,      // Per-channel valid (data available)
     input  logic                    axi_wr_sram_drain,      // Ready (consumer requests data)
-    input  logic [IW-1:0]           axi_wr_sram_id,         // Channel ID select
+    input  logic [CIW-1:0]           axi_wr_sram_id,         // Channel ID select
     output logic [DW-1:0]           axi_wr_sram_data,       // Data from selected channel
 
     //=========================================================================
@@ -150,7 +162,8 @@ module sram_controller #(
         for (genvar i = 0; i < NC; i++) begin : gen_channel_units
             sram_controller_unit #(
                 .DATA_WIDTH(DW),
-                .FIFO_DEPTH(FIFO_DEPTH)
+                .SRAM_DEPTH(SRAM_DEPTH),
+                .SEG_COUNT_WIDTH(SEG_COUNT_WIDTH)
             ) u_channel_unit (
                 .clk                (clk),
                 .rst_n              (rst_n),
@@ -173,8 +186,10 @@ module sram_controller #(
                 .rd_alloc_size      (axi_rd_alloc_size),         // SHARED - all see same size
                 .rd_space_free      (axi_rd_space_free[i]),
 
-                // Data available (for Write Engine visibility)
-                .wr_data_available  (axi_wr_data_available[i]),
+                // Drain interface (Write Engine Flow Control)
+                .wr_drain_req       (axi_wr_drain_req[i]),
+                .wr_drain_size      (axi_wr_drain_size[i]),
+                .wr_drain_data_avail(axi_wr_drain_data_avail[i]),
 
                 // Debug
                 .dbg_bridge_pending     (dbg_bridge_pending[i]),

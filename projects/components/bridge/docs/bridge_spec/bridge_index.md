@@ -1,9 +1,9 @@
 # Bridge: CSV-Based AXI4 Crossbar Generator - Specification
 
 **Component:** Bridge - CSV-Based AXI4 Crossbar Generator
-**Version:** 1.1
-**Last Updated:** 2025-10-26
-**Status:** Phase 2 Complete - Channel-Specific Masters Implemented
+**Version:** 1.2
+**Last Updated:** 2025-11-10
+**Status:** Phase 2+ Complete - Bridge ID Tracking Fully Implemented
 
 ---
 
@@ -39,6 +39,7 @@ This specification documents the Bridge CSV-based AXI4 crossbar generator, which
 - [04_width_converters.md](ch03_generated_rtl/04_width_converters.md) - Data width conversion logic
 - [05_apb_converters.md](ch03_generated_rtl/05_apb_converters.md) - AXI4-to-APB protocol conversion
 - [06_signal_routing.md](ch03_generated_rtl/06_signal_routing.md) - Internal signal connections
+- [07_bridge_id_tracking.md](ch03_generated_rtl/07_bridge_id_tracking.md) - Bridge ID tracking for multi-master response routing
 
 **PlantUML Diagrams:** `assets/puml/`
 - [aw_arbiter_fsm.puml](assets/puml/aw_arbiter_fsm.puml) - AW channel arbiter FSM
@@ -100,6 +101,15 @@ This specification documents the Bridge CSV-based AXI4 crossbar generator, which
 - Channel-aware direct connections
 - Resource optimization for dedicated masters
 
+### Phase 2+ Features (Complete - 2025-11-10)
+- **Bridge ID Tracking** - Multi-master response routing with bridge_id
+- Per-master unique BRIDGE_ID parameter
+- Slave adapter CAM/FIFO transaction tracking
+- Configurable out-of-order support per slave (enable_ooo)
+- Crossbar bridge_id-based response routing
+- Zero-latency FIFO mode for in-order slaves
+- 1-cycle CAM mode for out-of-order slaves
+
 ### Future Enhancements (Planned)
 - APB converter placeholder implementation
 - Slave-side width converter downsize
@@ -137,6 +147,7 @@ This specification documents the Bridge CSV-based AXI4 crossbar generator, which
 |---------|------|---------|
 | 1.0 | 2025-10-19 | Initial specification with Phase 1 features |
 | 1.1 | 2025-10-26 | Added channel-specific master support (Phase 2) |
+| 1.2 | 2025-11-10 | Added bridge ID tracking for multi-master routing (Phase 2+) |
 
 ---
 

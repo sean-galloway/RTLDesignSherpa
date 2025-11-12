@@ -258,7 +258,7 @@ async def run_nostress_test(tb, xfer_beats, num_channels, sram_depth):
 
         # Check if all channels are drained
         try:
-            data_avail_bv = tb.dut.axi_wr_data_available.value
+            data_avail_bv = tb.dut.axi_wr_drain_data_avail.value
             total_data_available = 0
 
             for ch_id in range(num_channels):
@@ -487,7 +487,7 @@ async def run_per_channel_sequential_test(tb, xfer_beats, num_channels, sram_dep
 
         # Check data_available signal
         try:
-            data_available_signal = getattr(tb.dut, 'axi_wr_data_available')
+            data_available_signal = getattr(tb.dut, 'axi_wr_drain_data_avail')
             data_available = data_available_signal.value
 
             # Extract this channel's data_available (variable width packed array)
@@ -503,7 +503,7 @@ async def run_per_channel_sequential_test(tb, xfer_beats, num_channels, sram_dep
                 # Single channel: simple value
                 ch_data_avail = int(data_available)
 
-            tb.log.info(f"Channel {channel_id}: axi_wr_data_available = {ch_data_avail} (expected ~{beats_per_channel})")
+            tb.log.info(f"Channel {channel_id}: axi_wr_drain_data_avail = {ch_data_avail} (expected ~{beats_per_channel})")
         except Exception as e:
             tb.log.warning(f"Channel {channel_id}: Could not read data_available: {e}")
 
@@ -560,7 +560,7 @@ async def run_per_channel_sequential_test(tb, xfer_beats, num_channels, sram_dep
 
         # Step 5: Verify channel is completely drained
         try:
-            data_available_signal = getattr(tb.dut, 'axi_wr_data_available')
+            data_available_signal = getattr(tb.dut, 'axi_wr_drain_data_avail')
             data_available = data_available_signal.value
 
             if num_channels > 1:
@@ -571,7 +571,7 @@ async def run_per_channel_sequential_test(tb, xfer_beats, num_channels, sram_dep
             else:
                 ch_data_avail = int(data_available)
 
-            tb.log.info(f"Channel {channel_id}: After drain, axi_wr_data_available = {ch_data_avail} (expected 0)")
+            tb.log.info(f"Channel {channel_id}: After drain, axi_wr_drain_data_avail = {ch_data_avail} (expected 0)")
             if ch_data_avail != 0:
                 tb.log.error(f"✗ Channel {channel_id}: Still has {ch_data_avail} beats available after drain!")
                 tb.log.error(f"  This beat is likely stuck in the latency bridge - need to wait/flush")
@@ -613,7 +613,7 @@ async def run_per_channel_sequential_test(tb, xfer_beats, num_channels, sram_dep
                 else:
                     ch_data_avail = int(data_available)
 
-                tb.log.info(f"Channel {channel_id}: After wait, axi_wr_data_available = {ch_data_avail}")
+                tb.log.info(f"Channel {channel_id}: After wait, axi_wr_drain_data_avail = {ch_data_avail}")
 
                 if ch_data_avail != 0:
                     # Try one final drain
@@ -810,7 +810,8 @@ def test_datapath_rd(request, test_type, data_width, num_channels, sram_depth, t
         'DATA_WIDTH': str(data_width),
         'NUM_CHANNELS': str(num_channels),
         'SRAM_DEPTH': str(sram_depth),
-        'PIPELINE': str(enable_pipeline)
+        'PIPELINE': str(enable_pipeline),
+        'AR_MAX_OUTSTANDING': '8'  # Default value
     }
     extra_env = {
         'TRACE_FILE': f"{sim_build}/dump.vcd",

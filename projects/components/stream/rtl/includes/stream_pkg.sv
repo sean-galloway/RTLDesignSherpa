@@ -75,16 +75,16 @@ package stream_pkg;
     parameter int STREAM_DESCRIPTOR_WIDTH = 256;
 
     //=========================================================================
-    // Channel State Enumeration
+    // Channel State Enumeration (ONE-HOT ENCODED)
     //=========================================================================
-    typedef enum logic [3:0] {
-        CH_IDLE         = 4'h0,  // Channel idle, waiting for descriptor
-        CH_FETCH_DESC   = 4'h1,  // Fetching descriptor from memory
-        CH_READ_DATA    = 4'h2,  // Reading source data
-        CH_WRITE_DATA   = 4'h3,  // Writing destination data
-        CH_COMPLETE     = 4'h4,  // Transfer complete
-        CH_NEXT_DESC    = 4'h5,  // Fetching next chained descriptor
-        CH_ERROR        = 4'hF   // Error state
+    typedef enum logic [6:0] {
+        CH_IDLE         = 7'b0000001,  // [0] Channel idle, waiting for descriptor
+        CH_FETCH_DESC   = 7'b0000010,  // [1] Fetching descriptor from memory
+        CH_READ_DATA    = 7'b0000100,  // [2] Reading source data
+        CH_WRITE_DATA   = 7'b0001000,  // [3] Writing destination data
+        CH_COMPLETE     = 7'b0010000,  // [4] Transfer complete
+        CH_NEXT_DESC    = 7'b0100000,  // [5] Fetching next chained descriptor
+        CH_ERROR        = 7'b1000000   // [6] Error state
     } channel_state_t;
 
     //=========================================================================

@@ -1,9 +1,23 @@
 # Bridge Architecture Documentation
 
-**Version:** 2.0
-**Date:** 2025-11-04
+**Version:** 2.1
+**Date:** 2025-11-10 (Bridge ID Tracking Complete)
 **Purpose:** Definitive architecture reference for bridge RTL generator
 **Audience:** Future AI agents, developers working on bridge generator
+
+---
+
+## 📖 See Bridge Specification for Complete Details
+
+**This document is being consolidated into the Bridge Specification.**
+
+For the most complete and up-to-date architecture information:
+- **Index:** `bridge_spec/bridge_index.md`
+- **Bridge ID Tracking:** `bridge_spec/ch03_generated_rtl/07_bridge_id_tracking.md` (NEW - Complete multi-master routing)
+- **Module Structure:** `bridge_spec/ch03_generated_rtl/01_module_structure.md`
+- **Signal Routing:** `bridge_spec/ch03_generated_rtl/06_signal_routing.md`
+
+This document remains as a quick architectural overview.
 
 ---
 

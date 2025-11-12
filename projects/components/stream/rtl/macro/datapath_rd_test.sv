@@ -34,9 +34,9 @@ module datapath_rd_test #(
     parameter int ADDR_WIDTH = 64,
     parameter int DATA_WIDTH = 512,
     parameter int ID_WIDTH = 8,
-    parameter int MAX_BURST_LEN = 16,
     parameter int SRAM_DEPTH = 4096,
     parameter int PIPELINE = 0,
+    parameter int AR_MAX_OUTSTANDING = 8,
 
     // Short aliases
     parameter int NC = NUM_CHANNELS,
@@ -140,7 +140,7 @@ module datapath_rd_test #(
     input  logic                                axi_wr_sram_drain,   // TB drives ready (drain request)
     input  logic [IW-1:0]                       axi_wr_sram_id,      // TB selects channel
     output logic [DW-1:0]                       axi_wr_sram_data,    // Data from selected channel
-    output logic [NC-1:0][SEG_COUNT_WIDTH-1:0]  axi_wr_data_available,
+    output logic [NC-1:0][SEG_COUNT_WIDTH-1:0]  axi_wr_drain_data_avail,  // Renamed from axi_wr_data_available
 
     //=========================================================================
     // Debug Interface
@@ -184,11 +184,12 @@ module datapath_rd_test #(
 
     // Scheduler status
     logic [NC-1:0]                  sched_idle;
-    logic [NC-1:0][3:0]             sched_state;
+    logic [NC-1:0][6:0]             sched_state;  // One-hot encoded (7 states)
 
     // Scheduler completion strobes (from read engine)
     logic [NC-1:0]                  sched_rd_done_strobe;
     logic [NC-1:0][31:0]            sched_rd_beats_done;
+    logic [NC-1:0]                  axi_rd_all_complete;
 
     // Read engine → SRAM controller
     logic           axi_rd_sram_valid;
@@ -204,6 +205,10 @@ module datapath_rd_test #(
     logic [CW-1:0]  rd_alloc_channel_id;
     logic [NC-1:0][SEG_COUNT_WIDTH-1:0] rd_space_free;
 
+    // Drain controller interface (READ test - tie off since no write engine)
+    logic [NC-1:0]       axi_wr_drain_req_internal;
+    logic [NC-1:0][7:0]  axi_wr_drain_size_internal;
+
     // SRAM controller interface
     logic [CW-1:0] sram_wr_drain_channel_id;
 
@@ -211,6 +216,10 @@ module datapath_rd_test #(
     assign axi_rd_sram_channel_id = axi_rd_sram_id[CW-1:0];
     assign rd_alloc_channel_id = rd_alloc_id[CW-1:0];
     assign sram_wr_drain_channel_id = axi_wr_sram_id[CW-1:0];
+
+    // Tie off drain controller (READ test has no write engine)
+    assign axi_wr_drain_req_internal = '0;
+    assign axi_wr_drain_size_internal = '0;
 
     //=========================================================================
     // Map Individual Port Signals to Internal Arrays
@@ -362,9 +371,9 @@ module datapath_rd_test #(
         .ADDR_WIDTH(AW),
         .DATA_WIDTH(DW),
         .ID_WIDTH(IW),
-        .MAX_BURST_LEN(MAX_BURST_LEN),
-        .COUNT_WIDTH(SEG_COUNT_WIDTH),
-        .PIPELINE(PIPELINE)
+        .SEG_COUNT_WIDTH(SEG_COUNT_WIDTH),
+        .PIPELINE(PIPELINE),
+        .AR_MAX_OUTSTANDING(AR_MAX_OUTSTANDING)  // Maximum outstanding AR requests per channel
     ) u_axi_read_engine (
         .clk                    (clk),
         .rst_n                  (rst_n),
@@ -382,6 +391,7 @@ module datapath_rd_test #(
         // Completion interface (to schedulers)
         .sched_rd_done_strobe   (sched_rd_done_strobe),
         .sched_rd_beats_done    (sched_rd_beats_done),
+        .axi_rd_all_complete    (axi_rd_all_complete),
 
         // SRAM allocation interface
         .rd_alloc_req           (rd_alloc_req),
@@ -424,7 +434,7 @@ module datapath_rd_test #(
     sram_controller #(
         .NUM_CHANNELS(NC),
         .DATA_WIDTH(DW),
-        .FIFO_DEPTH(SRAM_DEPTH / NC)  // sram_controller uses per-channel FIFOs
+        .SRAM_DEPTH(SRAM_DEPTH / NC)  // sram_controller uses per-channel FIFOs
     ) u_sram_controller (
         .clk                    (clk),
         .rst_n                  (rst_n),
@@ -441,14 +451,16 @@ module datapath_rd_test #(
         .axi_rd_sram_id         (axi_rd_sram_channel_id),  // Channel ID only
         .axi_rd_sram_data       (axi_rd_sram_data),
 
+        // Drain controller interface (READ test - tied off)
+        .axi_wr_drain_req       (axi_wr_drain_req_internal),
+        .axi_wr_drain_size      (axi_wr_drain_size_internal),
+        .axi_wr_drain_data_avail(axi_wr_drain_data_avail),
+
         // Read interface (to testbench for verification)
         .axi_wr_sram_valid      (axi_wr_sram_valid),         // Per-channel valid
         .axi_wr_sram_drain      (axi_wr_sram_drain),
         .axi_wr_sram_id         (sram_wr_drain_channel_id),  // Channel ID only
         .axi_wr_sram_data       (axi_wr_sram_data),
-
-        // Status
-        .axi_wr_data_available  (axi_wr_data_available),
 
         // Debug
         .dbg_bridge_pending     (dbg_bridge_pending),

@@ -48,11 +48,12 @@ class AXI4MasterRead:
     ENHANCEMENT: Automatically includes compliance checking when enabled via environment.
     """
 
-    def __init__(self, dut, clock, prefix="", log=None, **kwargs):
+    def __init__(self, dut, clock, prefix="", log=None, ifc_name="", **kwargs):
         """Initialize AXI4 Master Read interface with optional compliance checking."""
         self.super_debug = True
         self.clock = clock
         self.log = log
+        self.ifc_name = f"_{ifc_name}" if ifc_name else ""
 
         # Extract configuration parameters
         self.data_width = kwargs.get('data_width', 32)
@@ -64,7 +65,7 @@ class AXI4MasterRead:
         # AR Channel (Address Read) - Master drives
         self.ar_channel = GAXIMaster(
             dut=dut,
-            title="AR_Master",
+            title=f"AR_Master{self.ifc_name}",
             prefix=prefix,
             clock=clock,
             field_config=AXI4FieldConfigHelper.create_ar_field_config(
@@ -80,7 +81,7 @@ class AXI4MasterRead:
         # R Channel needs to drive rready - use GAXISlave
         self.r_channel = GAXISlave(
             dut=dut,
-            title="R_Slave",  # Slave role - drives rready, receives R data
+            title=f"R_Slave{self.ifc_name}",  # Slave role - drives rready, receives R data
             prefix=prefix,
             clock=clock,
             field_config=AXI4FieldConfigHelper.create_r_field_config(
@@ -205,10 +206,11 @@ class AXI4MasterWrite:
     ENHANCEMENT: Automatically includes compliance checking when enabled via environment.
     """
 
-    def __init__(self, dut, clock, prefix="", log=None, **kwargs):
+    def __init__(self, dut, clock, prefix="", log=None, ifc_name="", **kwargs):
         """Initialize AXI4 Master Write interface with optional compliance checking."""
         self.clock = clock
         self.log = log
+        self.ifc_name = f"_{ifc_name}" if ifc_name else ""
 
         # Extract configuration parameters
         self.data_width = kwargs.get('data_width', 32)
@@ -220,7 +222,7 @@ class AXI4MasterWrite:
         # AW Channel (Address Write) - Master drives
         self.aw_channel = GAXIMaster(
             dut=dut,
-            title="AW_Master",
+            title=f"AW_Master{self.ifc_name}",
             prefix=prefix,
             clock=clock,
             field_config=AXI4FieldConfigHelper.create_aw_field_config(
@@ -235,7 +237,7 @@ class AXI4MasterWrite:
         # W Channel (Write Data) - Master drives
         self.w_channel = GAXIMaster(
             dut=dut,
-            title="W_Master",
+            title=f"W_Master{self.ifc_name}",
             prefix=prefix,
             clock=clock,
             field_config=AXI4FieldConfigHelper.create_w_field_config(
@@ -250,7 +252,7 @@ class AXI4MasterWrite:
         # B Channel (Write Response) - Slave receives responses
         self.b_channel = GAXISlave(
             dut=dut,
-            title="B_Slave",
+            title=f"B_Slave{self.ifc_name}",
             prefix=prefix,
             clock=clock,
             field_config=AXI4FieldConfigHelper.create_b_field_config(
@@ -412,10 +414,11 @@ class AXI4SlaveRead:
     ENHANCEMENT: Automatically includes compliance checking when enabled via environment.
     """
 
-    def __init__(self, dut, clock, prefix="", log=None, **kwargs):
+    def __init__(self, dut, clock, prefix="", log=None, ifc_name="", **kwargs):
         """Initialize AXI4 Slave Read interface with proper architecture and compliance checking."""
         self.clock = clock
         self.log = log
+        self.ifc_name = f"_{ifc_name}" if ifc_name else ""
 
         # Extract configuration parameters
         self.data_width = kwargs.get('data_width', 32)
@@ -457,7 +460,7 @@ class AXI4SlaveRead:
         # AR Channel (Address Read) - GAXISlave drives arready and receives AR requests
         self.ar_channel = GAXISlave(
             dut=dut,
-            title="AR_Slave",
+            title=f"AR_Slave{self.ifc_name}",
             prefix=prefix,
             clock=clock,
             field_config=AXI4FieldConfigHelper.create_ar_field_config(
@@ -472,7 +475,7 @@ class AXI4SlaveRead:
         # R Channel (Read Data + Response) - GAXIMaster drives R responses
         self.r_channel = GAXIMaster(
             dut=dut,
-            title="R_Master",
+            title=f"R_Master{self.ifc_name}",
             prefix=prefix,
             clock=clock,
             field_config=AXI4FieldConfigHelper.create_r_field_config(
@@ -808,10 +811,11 @@ class AXI4SlaveWrite:
     ENHANCEMENT: Automatically includes compliance checking when enabled via environment.
     """
 
-    def __init__(self, dut, clock, prefix="", log=None, **kwargs):
+    def __init__(self, dut, clock, prefix="", log=None, ifc_name="", **kwargs):
         """Initialize AXI4 Slave Write interface with compliance checking."""
         self.clock = clock
         self.log = log
+        self.ifc_name = f"_{ifc_name}" if ifc_name else ""
 
         # Extract configuration parameters
         self.data_width = kwargs.get('data_width', 32)
@@ -849,7 +853,7 @@ class AXI4SlaveWrite:
         # AW Channel - GAXISlave drives awready and receives AW requests
         self.aw_channel = GAXISlave(
             dut=dut,
-            title="AW_Slave",
+            title=f"AW_Slave{self.ifc_name}",
             prefix=prefix,
             clock=clock,
             field_config=AXI4FieldConfigHelper.create_aw_field_config(
@@ -864,7 +868,7 @@ class AXI4SlaveWrite:
         # W Channel - GAXISlave drives wready and receives W data
         self.w_channel = GAXISlave(
             dut=dut,
-            title="W_Slave",
+            title=f"W_Slave{self.ifc_name}",
             prefix=prefix,
             clock=clock,
             field_config=AXI4FieldConfigHelper.create_w_field_config(
@@ -879,7 +883,7 @@ class AXI4SlaveWrite:
         # B Channel - GAXIMaster drives B responses
         self.b_channel = GAXIMaster(
             dut=dut,
-            title="B_Master",
+            title=f"B_Master{self.ifc_name}",
             prefix=prefix,
             clock=clock,
             field_config=AXI4FieldConfigHelper.create_b_field_config(

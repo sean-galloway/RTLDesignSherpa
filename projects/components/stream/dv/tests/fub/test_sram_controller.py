@@ -158,7 +158,7 @@ def test_sram_controller(request, test_type, num_channels, fifo_depth, data_widt
 
     rtl_parameters = {
         'NUM_CHANNELS': num_channels,
-        'FIFO_DEPTH': fifo_depth,
+        'SRAM_DEPTH': fifo_depth,  # Parameter renamed from FIFO_DEPTH to SRAM_DEPTH
         'DATA_WIDTH': data_width,
     }
 

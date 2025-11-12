@@ -23,7 +23,7 @@ endif
 
 # Directories
 BIN_DIR := $(CURDIR)
-RTL_DIR := $(REPO_ROOT)/projects/components/bridge/rtl
+RTL_DIR := $(REPO_ROOT)/projects/components/bridge/rtl/generated
 CSV_DIR := $(REPO_ROOT)/projects/components/bridge/dv/bridge_csv
 
 # Generator script
@@ -94,6 +94,7 @@ help:
 	@echo "================================================================================"
 	@echo ""
 	@echo "GENERATION TARGETS:"
+	@echo "  make rtl              Generate all bridges (same as 'make all')"
 	@echo "  make all              Generate all bridges from bridge_batch.csv"
 	@echo "  make single           Generate single bridge (see variables below)"
 	@echo "  make batch            Create/update bridge_batch.csv with defaults"
@@ -137,6 +138,9 @@ all: $(BATCH_FILE)
 	@cd $(BIN_DIR) && python3 $(GENERATOR) --bulk $(BATCH_FILE)
 	@echo ""
 	@echo "✓ All bridges generated successfully!"
+
+.PHONY: rtl
+rtl: all
 
 .PHONY: single
 single:

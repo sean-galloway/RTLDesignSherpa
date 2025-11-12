@@ -114,7 +114,7 @@ module peakrdl_to_cmdrsp #(
         end else begin
             cmd_state <= cmd_state_next;
         end
-)
+    )
 
 
     // =========================================================================
@@ -183,7 +183,6 @@ module peakrdl_to_cmdrsp #(
         end
 )
 
-
     // =========================================================================
     // Generate request to register block
     // =========================================================================
@@ -195,8 +194,8 @@ module peakrdl_to_cmdrsp #(
     assign regblk_addr      = (cmd_state == CMD_IDLE) ? cmd_paddr : r_cmd_paddr;
     assign regblk_wr_data   = (cmd_state == CMD_IDLE) ? cmd_pwdata : r_cmd_pwdata;
     assign regblk_wr_biten  = (cmd_state == CMD_IDLE) ?
-                              strb_to_biten(cmd_pstrb) :
-                              r_cmd_wr_biten;
+                                strb_to_biten(cmd_pstrb) :
+                                r_cmd_wr_biten;
 
     // =========================================================================
     // Response State Machine (Sequential)
@@ -207,8 +206,7 @@ module peakrdl_to_cmdrsp #(
         end else begin
             rsp_state <= rsp_state_next;
         end
-)
-
+    )
 
     // =========================================================================
     // Response State Machine (Combinational)

@@ -384,7 +384,8 @@ def test_datapath_wr(request, test_type, data_width, num_channels, sram_depth, t
         'DATA_WIDTH': str(data_width),
         'NUM_CHANNELS': str(num_channels),
         'SRAM_DEPTH': str(sram_depth),
-        'PIPELINE': str(enable_pipeline)
+        'PIPELINE': str(enable_pipeline),
+        'AW_MAX_OUTSTANDING': '8'  # Default value
     }
     extra_env = {
         'TRACE_FILE': f"{sim_build}/dump.vcd",

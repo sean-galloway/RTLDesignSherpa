@@ -222,27 +222,77 @@ assign m_axi_bready  = s_axil_bready;
 
 ### Module Structure
 
+**Design Philosophy:**
+The full converter follows a **composition pattern** - it instantiates both read and write converters rather than duplicating their logic. This provides:
+- **Single source of truth** - Conversion logic exists only in `_rd` and `_wr` modules
+- **Modularity** - Read/write converters can be used standalone
+- **Maintainability** - Bug fixes and enhancements made in one place
+- **Code reuse** - No duplication of protocol upgrade logic
+
+**Implementation:**
+
 ```systemverilog
 module axil4_to_axi4 #(
     parameter int AXI_ID_WIDTH      = 8,
     parameter int AXI_ADDR_WIDTH    = 32,
     parameter int AXI_DATA_WIDTH    = 32,
     parameter int AXI_USER_WIDTH    = 1,
-    parameter int DEFAULT_ARID      = 0,
-    parameter int DEFAULT_AWID      = 0
+    parameter int DEFAULT_ID        = 0,
+    parameter int DEFAULT_REGION    = 0,
+    parameter int DEFAULT_QOS       = 0,
+    parameter int SKID_DEPTH_AR     = 2,
+    parameter int SKID_DEPTH_AW     = 2,
+    parameter int SKID_DEPTH_W      = 4,
+    parameter int SKID_DEPTH_R      = 4,
+    parameter int SKID_DEPTH_B      = 4
 ) (
-    // Full AXI4-Lite slave interface
-    // Full AXI4 master interface
+    // Full AXI4-Lite slave interface (all 5 channels)
+    // Full AXI4 master interface (all 5 channels)
 );
 
-    // Instantiate read converter
-    axil4_to_axi4_rd #(...) u_rd_converter (...);
+    //==========================================================================
+    // Read Path: Instantiate axil4_to_axi4_rd
+    //==========================================================================
 
-    // Instantiate write converter
-    axil4_to_axi4_wr #(...) u_wr_converter (...);
+    axil4_to_axi4_rd #(
+        .AXI_ID_WIDTH    (AXI_ID_WIDTH),
+        .AXI_ADDR_WIDTH  (AXI_ADDR_WIDTH),
+        .AXI_DATA_WIDTH  (AXI_DATA_WIDTH),
+        .AXI_USER_WIDTH  (AXI_USER_WIDTH),
+        .DEFAULT_ID      (DEFAULT_ID),
+        .DEFAULT_REGION  (DEFAULT_REGION),
+        .DEFAULT_QOS     (DEFAULT_QOS),
+        .SKID_DEPTH_AR   (SKID_DEPTH_AR),
+        .SKID_DEPTH_R    (SKID_DEPTH_R)
+    ) u_rd_converter (
+        // Connect AR and R channels
+        ...
+    );
+
+    //==========================================================================
+    // Write Path: Instantiate axil4_to_axi4_wr
+    //==========================================================================
+
+    axil4_to_axi4_wr #(
+        .AXI_ID_WIDTH    (AXI_ID_WIDTH),
+        .AXI_ADDR_WIDTH  (AXI_ADDR_WIDTH),
+        .AXI_DATA_WIDTH  (AXI_DATA_WIDTH),
+        .AXI_USER_WIDTH  (AXI_USER_WIDTH),
+        .DEFAULT_ID      (DEFAULT_ID),
+        .DEFAULT_REGION  (DEFAULT_REGION),
+        .DEFAULT_QOS     (DEFAULT_QOS),
+        .SKID_DEPTH_AW   (SKID_DEPTH_AW),
+        .SKID_DEPTH_W    (SKID_DEPTH_W),
+        .SKID_DEPTH_B    (SKID_DEPTH_B)
+    ) u_wr_converter (
+        // Connect AW, W, and B channels
+        ...
+    );
 
 endmodule
 ```
+
+**Note:** The wrapper module contains **no conversion logic** - it purely instantiates and connects the read and write converters. All protocol upgrade logic (adding default AXI4 fields) resides in the `_rd` and `_wr` modules.
 
 ---
 

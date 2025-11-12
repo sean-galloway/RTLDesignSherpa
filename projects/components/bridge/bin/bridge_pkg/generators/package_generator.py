@@ -22,7 +22,7 @@ class PackageGenerator:
     - Write response channel (B) - width-independent
     """
 
-    def __init__(self, bridge_name: str, id_width: int = 4, addr_width: int = 32):
+    def __init__(self, bridge_name: str, id_width: int = 4, addr_width: int = 32, num_masters: int = 1):
         """
         Initialize package generator.
 
@@ -30,10 +30,12 @@ class PackageGenerator:
             bridge_name: Name of bridge (e.g., "bridge_1x2_wr")
             id_width: Default ID width for masters (can vary per master)
             addr_width: Address width for all masters/slaves (must be uniform)
+            num_masters: Number of masters in the bridge (for BRIDGE_ID_WIDTH calculation)
         """
         self.bridge_name = bridge_name
         self.id_width = id_width
         self.addr_width = addr_width  # Configurable address width
+        self.num_masters = num_masters  # Number of masters
         self.data_widths: Set[int] = set()  # Collect unique data widths
 
     def add_data_width(self, width: int):
@@ -54,6 +56,10 @@ class PackageGenerator:
 
         # Package declaration
         lines.append(f"package {self.bridge_name}_pkg;")
+        lines.append("")
+
+        # Bridge configuration parameters
+        lines.extend(self._generate_parameters())
         lines.append("")
 
         # Address channel structs (width-independent)
@@ -91,6 +97,18 @@ class PackageGenerator:
             "",
             "`timescale 1ns / 1ps",
             ""
+        ]
+
+    def _generate_parameters(self) -> List[str]:
+        """Generate bridge configuration parameters."""
+        # Calculate BRIDGE_ID_WIDTH using $clog2(NUM_MASTERS)
+        # For 1 master: 0 bits, for 2+ masters: clog2(NUM_MASTERS)
+        bridge_id_width = max(1, (self.num_masters - 1).bit_length()) if self.num_masters > 0 else 1
+
+        return [
+            "    // Bridge Configuration Parameters",
+            f"    localparam int NUM_MASTERS = {self.num_masters};",
+            f"    localparam int BRIDGE_ID_WIDTH = {bridge_id_width};  // $clog2(NUM_MASTERS)"
         ]
 
     def _generate_aw_struct(self) -> List[str]:

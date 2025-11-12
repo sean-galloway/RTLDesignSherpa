@@ -28,7 +28,7 @@ from contextlib import redirect_stdout
 from .axi4_interfaces import AXI4MasterRead, AXI4MasterWrite, AXI4SlaveRead, AXI4SlaveWrite
 
 
-def create_axi4_master_rd(dut, clock, prefix="", log=None, **kwargs) -> Dict[str, Any]:
+def create_axi4_master_rd(dut, clock, prefix="", log=None, ifc_name="", **kwargs) -> Dict[str, Any]:
     """
     Create AXI4 Master Read interface with automatic compliance checking.
 
@@ -37,6 +37,7 @@ def create_axi4_master_rd(dut, clock, prefix="", log=None, **kwargs) -> Dict[str
         clock: Clock signal
         prefix: Signal prefix ("fub_axi_", "m_axi_", etc.)
         log: log file from the TB
+        ifc_name: Interface name for debug (e.g., "rdeng", "descr")
         **kwargs: Additional configuration (data_width, id_width, etc.)
 
     Returns:
@@ -45,7 +46,7 @@ def create_axi4_master_rd(dut, clock, prefix="", log=None, **kwargs) -> Dict[str
     ENHANCEMENT: Now includes compliance checking automatically when enabled
     """
     # Create the master read interface (compliance checking included automatically)
-    master_read = AXI4MasterRead(dut, clock, prefix, log=log, **kwargs)
+    master_read = AXI4MasterRead(dut, clock, prefix, log=log, ifc_name=ifc_name, **kwargs)
 
     # Return components in format expected by legacy testbench
     return {
@@ -56,7 +57,7 @@ def create_axi4_master_rd(dut, clock, prefix="", log=None, **kwargs) -> Dict[str
     }
 
 
-def create_axi4_master_wr(dut, clock, prefix="", log=None, **kwargs) -> Dict[str, Any]:
+def create_axi4_master_wr(dut, clock, prefix="", log=None, ifc_name="", **kwargs) -> Dict[str, Any]:
     """
     Create AXI4 Master Write interface with automatic compliance checking.
 
@@ -72,7 +73,7 @@ def create_axi4_master_wr(dut, clock, prefix="", log=None, **kwargs) -> Dict[str
     ENHANCEMENT: Now includes compliance checking automatically when enabled
     """
     # Create the master write interface (compliance checking included automatically)
-    master_write = AXI4MasterWrite(dut, clock, prefix, log=log, **kwargs)
+    master_write = AXI4MasterWrite(dut, clock, prefix, log=log, ifc_name=ifc_name, **kwargs)
 
     # Return components in format expected by testbench
     return {
@@ -84,7 +85,7 @@ def create_axi4_master_wr(dut, clock, prefix="", log=None, **kwargs) -> Dict[str
     }
 
 
-def create_axi4_slave_rd(dut, clock, prefix="", log=None, **kwargs) -> Dict[str, Any]:
+def create_axi4_slave_rd(dut, clock, prefix="", log=None, ifc_name="", **kwargs) -> Dict[str, Any]:
     """
     Create AXI4 Slave Read interface with automatic compliance checking and optional OOO support.
 
@@ -112,7 +113,7 @@ def create_axi4_slave_rd(dut, clock, prefix="", log=None, **kwargs) -> Dict[str,
     ENHANCEMENT: Now includes compliance checking and OOO support automatically when enabled
     """
     # Create the slave read interface (compliance checking included automatically)
-    slave_read = AXI4SlaveRead(dut, clock, prefix, log=log, **kwargs)
+    slave_read = AXI4SlaveRead(dut, clock, prefix, log=log, ifc_name=ifc_name, **kwargs)
 
     # Return components in format expected by testbench
     return {
@@ -123,7 +124,7 @@ def create_axi4_slave_rd(dut, clock, prefix="", log=None, **kwargs) -> Dict[str,
     }
 
 
-def create_axi4_slave_wr(dut, clock, prefix="", log=None, **kwargs) -> Dict[str, Any]:
+def create_axi4_slave_wr(dut, clock, prefix="", log=None, ifc_name="", **kwargs) -> Dict[str, Any]:
     """
     Create AXI4 Slave Write interface with automatic compliance checking and optional OOO support.
 
@@ -151,7 +152,7 @@ def create_axi4_slave_wr(dut, clock, prefix="", log=None, **kwargs) -> Dict[str,
     ENHANCEMENT: Now includes compliance checking and OOO support automatically when enabled
     """
     # Create the slave write interface (compliance checking included automatically)
-    slave_write = AXI4SlaveWrite(dut, clock, prefix, log=log, **kwargs)
+    slave_write = AXI4SlaveWrite(dut, clock, prefix, log=log, ifc_name=ifc_name, **kwargs)
 
     # Return components in format expected by testbench
     return {

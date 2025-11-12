@@ -254,7 +254,14 @@ Note: AXI4 B response waits until all AXIL4 B responses collected.
 
 ### Module Structure
 
-The full converter is a wrapper that instantiates both read and write converters:
+**Design Philosophy:**
+The full converter follows a **composition pattern** - it instantiates both read and write converters rather than duplicating their logic. This provides:
+- **Single source of truth** - Conversion logic exists only in `_rd` and `_wr` modules
+- **Modularity** - Read/write converters can be used standalone
+- **Maintainability** - Bug fixes and enhancements made in one place
+- **Code reuse** - No duplication of burst decomposition FSMs
+
+**Implementation:**
 
 ```systemverilog
 module axi4_to_axil4 #(
@@ -273,14 +280,43 @@ module axi4_to_axil4 #(
     // Full AXI4-Lite master interface (all 5 channels)
 );
 
-    // Instantiate read converter
-    axi4_to_axil4_rd #(...) u_rd_converter (...);
+    //==========================================================================
+    // Read Path: Instantiate axi4_to_axil4_rd
+    //==========================================================================
 
-    // Instantiate write converter
-    axi4_to_axil4_wr #(...) u_wr_converter (...);
+    axi4_to_axil4_rd #(
+        .AXI_ID_WIDTH    (AXI_ID_WIDTH),
+        .AXI_ADDR_WIDTH  (AXI_ADDR_WIDTH),
+        .AXI_DATA_WIDTH  (AXI_DATA_WIDTH),
+        .AXI_USER_WIDTH  (AXI_USER_WIDTH),
+        .SKID_DEPTH_AR   (SKID_DEPTH_AR),
+        .SKID_DEPTH_R    (SKID_DEPTH_R)
+    ) u_rd_converter (
+        // Connect AR and R channels
+        ...
+    );
+
+    //==========================================================================
+    // Write Path: Instantiate axi4_to_axil4_wr
+    //==========================================================================
+
+    axi4_to_axil4_wr #(
+        .AXI_ID_WIDTH    (AXI_ID_WIDTH),
+        .AXI_ADDR_WIDTH  (AXI_ADDR_WIDTH),
+        .AXI_DATA_WIDTH  (AXI_DATA_WIDTH),
+        .AXI_USER_WIDTH  (AXI_USER_WIDTH),
+        .SKID_DEPTH_AW   (SKID_DEPTH_AW),
+        .SKID_DEPTH_W    (SKID_DEPTH_W),
+        .SKID_DEPTH_B    (SKID_DEPTH_B)
+    ) u_wr_converter (
+        // Connect AW, W, and B channels
+        ...
+    );
 
 endmodule
 ```
+
+**Note:** The wrapper module contains **no conversion logic** - it purely instantiates and connects the read and write converters. All burst decomposition, response aggregation, and protocol conversion logic resides in the `_rd` and `_wr` modules.
 
 ---
 

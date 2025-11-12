@@ -78,7 +78,7 @@ module scheduler #(
 
     // Status Interface
     output logic                        scheduler_idle,         // Scheduler idle
-    output logic [3:0]                  scheduler_state,        // Current state (for debug)
+    output logic [6:0]                  scheduler_state,        // Current state (for debug) - ONE-HOT
 
     // Descriptor Engine Interface
     input  logic                        descriptor_valid,
@@ -169,10 +169,19 @@ module scheduler #(
     // Internal Signals
     //=========================================================================
 
-    // Scheduler FSM (using STREAM package enum)
+    // Scheduler FSM (using STREAM package enum - ONE-HOT ENCODED)
     // States: CH_IDLE → CH_FETCH_DESC → CH_READ_DATA → CH_WRITE_DATA →
     //         CH_COMPLETE → CH_NEXT_DESC (if chained) or back to CH_IDLE
     channel_state_t r_current_state, w_next_state;
+
+    // State decode wires (for debug/monitoring)
+    wire w_state_idle        = (r_current_state == CH_IDLE);
+    wire w_state_fetch_desc  = (r_current_state == CH_FETCH_DESC);
+    wire w_state_read_data   = (r_current_state == CH_READ_DATA);
+    wire w_state_write_data  = (r_current_state == CH_WRITE_DATA);
+    wire w_state_complete    = (r_current_state == CH_COMPLETE);
+    wire w_state_next_desc   = (r_current_state == CH_NEXT_DESC);
+    wire w_state_error       = (r_current_state == CH_ERROR);
 
     // Channel reset management
     // Registered to cleanly handle cfg_channel_reset assertion

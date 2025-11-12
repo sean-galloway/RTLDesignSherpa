@@ -44,7 +44,7 @@ from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cm
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 
 
-@cocotb.test(timeout_time=200, timeout_unit="ms")
+@cocotb.test(timeout_time=500, timeout_unit="ms")
 async def uart_axil_bridge_test(dut):
     """
     UART to AXI4-Lite Bridge test.
@@ -56,6 +56,11 @@ async def uart_axil_bridge_test(dut):
     - Response formatting (OK for writes, hex data for reads)
 
     Test intelligence resides here, infrastructure in TB class.
+
+    Timeout: 500ms simulation time (UART is slow!)
+    - basic: ~50ms sim time (4 operations)
+    - medium: ~125ms sim time (10 operations)
+    - full: ~375ms sim time (30 operations)
     """
     tb = UARTAXILBridgeTB(dut)
 

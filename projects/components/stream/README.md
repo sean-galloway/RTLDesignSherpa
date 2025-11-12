@@ -1,6 +1,6 @@
 # STREAM - Scatter-gather Transfer Rapid Engine for AXI Memory
 
-**Status:** 🟡 Initial Design - Under Review
+**Status:** 🟢 Nearly Complete - 95% Done
 **Version:** 1.0
 
 ---

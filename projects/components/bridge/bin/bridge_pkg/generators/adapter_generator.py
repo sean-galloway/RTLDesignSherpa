@@ -28,6 +28,7 @@ class SlaveInfo:
     data_width: int
     addr_width: int  # Address width in bits
     protocol: str = 'axi4'  # Protocol type: 'axi4' or 'apb'
+    enable_ooo: bool = False  # Slave supports out-of-order responses (use CAM vs FIFO)
 
 
 @dataclass
@@ -53,7 +54,7 @@ class AdapterGenerator:
     - Struct-based outputs for clean interface
     """
 
-    def __init__(self, bridge_name: str, num_slaves: int, master_config: MasterConfig, slaves: List[SlaveInfo], all_masters: List[MasterConfig] = None, enable_monitoring: bool = False):
+    def __init__(self, bridge_name: str, num_slaves: int, master_config: MasterConfig, slaves: List[SlaveInfo], all_masters: List[MasterConfig] = None, enable_monitoring: bool = False, master_index: int = 0):
         """
         Initialize adapter generator.
 
@@ -64,6 +65,7 @@ class AdapterGenerator:
             slaves: List of all slave configurations
             all_masters: List of ALL masters in bridge (for LCD calculation)
             enable_monitoring: Use *_mon wrapper versions (default: False)
+            master_index: Index of this master in bridge (0, 1, 2, ...) for BRIDGE_ID
         """
         self.bridge_name = bridge_name
         self.num_slaves = num_slaves
@@ -71,6 +73,7 @@ class AdapterGenerator:
         self.slaves = slaves
         self.all_masters = all_masters if all_masters is not None else [master_config]
         self.enable_monitoring = enable_monitoring
+        self.master_index = master_index
 
         # Skid buffer depths (configurable)
         self.skid_depth_aw = 2
@@ -138,6 +141,12 @@ class AdapterGenerator:
         lines.append(f"module {module_name} #(")
         lines.append(f"    parameter NUM_SLAVES = {self.num_slaves},")
 
+        # Calculate BRIDGE_ID_WIDTH
+        num_masters = len(self.all_masters)
+        bridge_id_width = max(1, (num_masters - 1).bit_length())  # $clog2(NUM_MASTERS)
+        lines.append(f"    parameter BRIDGE_ID = {self.master_index},  // Unique ID for this master")
+        lines.append(f"    parameter BRIDGE_ID_WIDTH = {bridge_id_width},")
+
         if self.master.channels in ["wr", "rw"]:
             lines.append(f"    parameter SKID_DEPTH_AW = {self.skid_depth_aw},")
             lines.append(f"    parameter SKID_DEPTH_W = {self.skid_depth_w},")
@@ -162,8 +171,10 @@ class AdapterGenerator:
         lines.append("    // Address decode outputs (full width one-hot)")
         if self.master.channels in ["wr", "rw"]:
             lines.append("    output logic [NUM_SLAVES-1:0] slave_select_aw,")
+            lines.append("    output logic [BRIDGE_ID_WIDTH-1:0] bridge_id_aw,")
         if self.master.channels in ["rd", "rw"]:
             lines.append("    output logic [NUM_SLAVES-1:0] slave_select_ar,")
+            lines.append("    output logic [BRIDGE_ID_WIDTH-1:0] bridge_id_ar,")
 
         # Width-specific outputs via structs
         lines.append("")
@@ -562,6 +573,9 @@ class AdapterGenerator:
             lines.extend(self._generate_decode_logic("fub_axi_awaddr", "slave_select_aw"))
             lines.append("    end")
             lines.append("")
+            lines.append("    // Bridge ID for write channel (constant - tied to BRIDGE_ID parameter)")
+            lines.append(f"    assign bridge_id_aw = BRIDGE_ID_WIDTH'(BRIDGE_ID);")
+            lines.append("")
 
         # Read address decode
         if self.master.channels in ["rd", "rw"]:
@@ -573,6 +587,9 @@ class AdapterGenerator:
             lines.append("        slave_select_ar = '0;")
             lines.extend(self._generate_decode_logic("fub_axi_araddr", "slave_select_ar"))
             lines.append("    end")
+            lines.append("")
+            lines.append("    // Bridge ID for read channel (constant - tied to BRIDGE_ID parameter)")
+            lines.append(f"    assign bridge_id_ar = BRIDGE_ID_WIDTH'(BRIDGE_ID);")
             lines.append("")
 
         return lines

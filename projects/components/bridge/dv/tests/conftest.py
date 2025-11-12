@@ -30,6 +30,9 @@ def pytest_configure(config):
     config.option.log_cli = True
     config.option.log_cli_level = "INFO"
 
+    # Parallel execution is OK - all test names are unique
+    # Memory limit of 32GB in TBs handles Verilator memory usage
+
     # Register Bridge-specific pytest markers
     config.addinivalue_line("markers", "bridge: Bridge crossbar tests")
     config.addinivalue_line("markers", "basic: Basic functionality tests")

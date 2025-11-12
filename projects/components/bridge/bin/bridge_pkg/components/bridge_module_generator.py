@@ -83,8 +83,8 @@ class BridgeModuleGenerator:
         generated_files['package'] = pkg_path
 
         # 2. Generate master adapter modules
-        for master in self.masters:
-            adapter_src = self._generate_adapter(master)
+        for master_idx, master in enumerate(self.masters):
+            adapter_src = self._generate_adapter(master, master_idx)
             adapter_path = os.path.join(output_dir, f"{master.name}_adapter.sv")
             with open(adapter_path, 'w') as f:
                 f.write(adapter_src)
@@ -131,19 +131,21 @@ class BridgeModuleGenerator:
         for slave in self.slaves:
             data_widths.add(slave.data_width)
 
-        # Generate package with address width
-        pkg_gen = PackageGenerator(self.bridge_name, id_width=id_width, addr_width=addr_width)
+        # Generate package with address width and num_masters
+        num_masters = len(self.masters)
+        pkg_gen = PackageGenerator(self.bridge_name, id_width=id_width, addr_width=addr_width, num_masters=num_masters)
         for width in data_widths:
             pkg_gen.add_data_width(width)
 
         return pkg_gen.generate()
 
-    def _generate_adapter(self, master: MasterConfig) -> str:
+    def _generate_adapter(self, master: MasterConfig, master_idx: int) -> str:
         """
         Generate adapter module for a master port.
 
         Args:
             master: Master configuration
+            master_idx: Index of this master (for BRIDGE_ID)
 
         Returns:
             SystemVerilog adapter module source
@@ -154,7 +156,8 @@ class BridgeModuleGenerator:
             master,
             self.slaves,
             all_masters=self.masters,  # Pass full master list for LCD calculation
-            enable_monitoring=self.enable_monitoring
+            enable_monitoring=self.enable_monitoring,
+            master_index=master_idx  # Pass master index for BRIDGE_ID
         )
         return adapter_gen.generate()
 
@@ -458,8 +461,10 @@ class BridgeModuleGenerator:
             # Address decode signals (one set per master)
             if master.channels in ["wr", "rw"]:
                 lines.append(f"    logic [NUM_SLAVES-1:0] {master.name}_slave_select_aw;")
+                lines.append(f"    logic [BRIDGE_ID_WIDTH-1:0] {master.name}_bridge_id_aw;")
             if master.channels in ["rd", "rw"]:
                 lines.append(f"    logic [NUM_SLAVES-1:0] {master.name}_slave_select_ar;")
+                lines.append(f"    logic [BRIDGE_ID_WIDTH-1:0] {master.name}_bridge_id_ar;")
 
             # Width-specific signals for each unique width
             for width in slave_widths:
@@ -558,6 +563,18 @@ class BridgeModuleGenerator:
                 lines.append(f"    logic                      {prefix}ruser;")
                 lines.append(f"    logic                      {prefix}rvalid;")
                 lines.append(f"    logic                      {prefix}rready;")
+
+            # Bridge ID tracking signals (for slave adapters)
+            # All slave adapters have bridge_id tracking (AXI4 interface on crossbar side)
+            if True:  # All slaves with adapters need bridge_id signals
+                if has_write:
+                    lines.append(f"    logic [BRIDGE_ID_WIDTH-1:0] {slave.name}_axi_bridge_id_aw;")
+                    lines.append(f"    logic [BRIDGE_ID_WIDTH-1:0] {slave.name}_axi_bid_bridge_id;")
+                    lines.append(f"    logic                       {slave.name}_axi_bid_valid;")
+                if has_read:
+                    lines.append(f"    logic [BRIDGE_ID_WIDTH-1:0] {slave.name}_axi_bridge_id_ar;")
+                    lines.append(f"    logic [BRIDGE_ID_WIDTH-1:0] {slave.name}_axi_rid_bridge_id;")
+                    lines.append(f"    logic                       {slave.name}_axi_rid_valid;")
 
             lines.append("")
 
@@ -702,8 +719,10 @@ class BridgeModuleGenerator:
             lines.append("        // Decode outputs")
             if master.channels in ["wr", "rw"]:
                 lines.append(f"        .slave_select_aw({master.name}_slave_select_aw),")
+                lines.append(f"        .bridge_id_aw({master.name}_bridge_id_aw),")
             if master.channels in ["rd", "rw"]:
                 lines.append(f"        .slave_select_ar({master.name}_slave_select_ar),")
+                lines.append(f"        .bridge_id_ar({master.name}_bridge_id_ar),")
 
             # Connect ALL width paths
             slave_widths = self._get_connected_slave_widths(master)
@@ -773,8 +792,10 @@ class BridgeModuleGenerator:
             # Address decode signals
             if master.channels in ["wr", "rw"]:
                 lines.append(f"        .{master.name}_slave_select_aw({master.name}_slave_select_aw),")
+                lines.append(f"        .{master.name}_bridge_id_aw({master.name}_bridge_id_aw),")
             if master.channels in ["rd", "rw"]:
                 lines.append(f"        .{master.name}_slave_select_ar({master.name}_slave_select_ar),")
+                lines.append(f"        .{master.name}_bridge_id_ar({master.name}_bridge_id_ar),")
 
             # Determine if this is the last master (for comma handling)
             is_last_master = (master_idx == len(self.masters) - 1)
@@ -861,10 +882,35 @@ class BridgeModuleGenerator:
 
                 # Generate connections with proper comma handling
                 for idx, (sig_name, sig_info) in enumerate(signal_list):
-                    is_last_signal = (idx == len(signal_list) - 1) and is_last_slave
-                    comma = "" if is_last_signal else ","
+                    is_last_regular_signal = (idx == len(signal_list) - 1)
+                    # All slaves have bridge_id signals, so always add comma on last regular signal
+                    # Only omit comma if this is NOT the last regular signal AND this is the last slave
+                    needs_comma = True  # Always comma because bridge_id signals always follow
+                    comma = "," if needs_comma else ""
                     # Use signal name for both port name and connection (signals already declared)
                     lines.append(f"        .{sig_name.replace('xbar_', '')}({sig_name}){comma}")
+
+                # Bridge ID tracking signals (connect crossbar outputs to slave adapter inputs)
+                # All slave adapters have bridge_id tracking (AXI4 interface on crossbar side)
+                if True:  # All slaves with adapters need bridge_id
+                    if has_write:
+                        lines.append(f"        .{slave.name}_axi_bridge_id_aw({slave.name}_axi_bridge_id_aw),")
+                        lines.append(f"        .{slave.name}_axi_bid_bridge_id({slave.name}_axi_bid_bridge_id),")
+                        if has_read:
+                            # More read signals coming
+                            lines.append(f"        .{slave.name}_axi_bid_valid({slave.name}_axi_bid_valid),")
+                        else:
+                            # Last write signal - check if this is last slave
+                            comma = "" if is_last_slave else ","
+                            lines.append(f"        .{slave.name}_axi_bid_valid({slave.name}_axi_bid_valid){comma}")
+                    if has_read:
+                        if has_write:
+                            lines.append("")
+                        lines.append(f"        .{slave.name}_axi_bridge_id_ar({slave.name}_axi_bridge_id_ar),")
+                        lines.append(f"        .{slave.name}_axi_rid_bridge_id({slave.name}_axi_rid_bridge_id),")
+                        # Last signal - check if this is last slave
+                        comma = "" if is_last_slave else ","
+                        lines.append(f"        .{slave.name}_axi_rid_valid({slave.name}_axi_rid_valid){comma}")
 
                 if not is_last_slave:
                     lines.append("")
@@ -937,9 +983,22 @@ class BridgeModuleGenerator:
 
             # Generate connections with proper comma handling
             for idx, sig_name in enumerate(signal_list):
-                is_last = (idx == len(signal_list) - 1)
-                comma = "" if is_last else ","
-                lines.append(f"        .{ext_prefix}{sig_name.replace(ext_prefix, '')}({sig_name}){comma}")
+                # Not the last anymore - bridge_id signals come after
+                lines.append(f"        .{ext_prefix}{sig_name.replace(ext_prefix, '')}({sig_name}),")
+
+            # Bridge ID tracking signals (always present for slave adapters)
+            lines.append("")
+            lines.append("        // Bridge ID tracking")
+            if has_write:
+                lines.append(f"        .xbar_bridge_id_aw({slave.name}_axi_bridge_id_aw),")
+                lines.append(f"        .bid_bridge_id({slave.name}_axi_bid_bridge_id),")
+                lines.append(f"        .bid_valid({slave.name}_axi_bid_valid){'' if not has_read else ','}")
+            if has_read:
+                if has_write:
+                    lines.append("")
+                lines.append(f"        .xbar_bridge_id_ar({slave.name}_axi_bridge_id_ar),")
+                lines.append(f"        .rid_bridge_id({slave.name}_axi_rid_bridge_id),")
+                lines.append(f"        .rid_valid({slave.name}_axi_rid_valid)")
 
             lines.append("    );")
             lines.append("")

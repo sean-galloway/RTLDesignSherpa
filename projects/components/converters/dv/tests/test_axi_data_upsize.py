@@ -9,8 +9,8 @@ from cocotb_test.simulator import run
 import os
 import sys
 
-# Import testbench class (PYTHONPATH configured in env_python)
-from tbclasses.axi_data_upsize_tb import AXIDataUpsizeTB
+# Import testbench class from project area
+from projects.components.converters.dv.tbclasses.axi_data_upsize_tb import AXIDataUpsizeTB
 from CocoTBFramework.tbclasses.shared.utilities import get_paths
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 

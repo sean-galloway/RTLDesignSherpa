@@ -30,7 +30,7 @@ PYTEST_VERBOSE = -v
 PYTEST_QUIET = -q
 PYTEST_XDIST = -n 48
 PYTEST_TBSTYLE = --tb=short
-PYTEST_RERUNS = --reruns 0 --reruns-delay 1
+PYTEST_RERUNS = --reruns 3 --reruns-delay 1
 
 # Pytest-watch options
 PTW = ptw

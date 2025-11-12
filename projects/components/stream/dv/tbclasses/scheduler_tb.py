@@ -53,17 +53,17 @@ from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 
 
 class SchedulerState(Enum):
-    """STREAM Scheduler FSM states (from stream_pkg.sv)
+    """STREAM Scheduler FSM states (from stream_pkg.sv) - ONE-HOT ENCODED
 
     SIMPLIFIED: No credit management, no control sequencing
     """
-    CH_IDLE = 0x0
-    CH_FETCH_DESC = 0x1
-    CH_READ_DATA = 0x2
-    CH_WRITE_DATA = 0x3
-    CH_COMPLETE = 0x4
-    CH_NEXT_DESC = 0x5
-    CH_ERROR = 0xF
+    CH_IDLE = 0x01        # 7'b0000001 [0]
+    CH_FETCH_DESC = 0x02  # 7'b0000010 [1]
+    CH_READ_DATA = 0x04   # 7'b0000100 [2]
+    CH_WRITE_DATA = 0x08  # 7'b0001000 [3]
+    CH_COMPLETE = 0x10    # 7'b0010000 [4]
+    CH_NEXT_DESC = 0x20   # 7'b0100000 [5]
+    CH_ERROR = 0x40       # 7'b1000000 [6]
 
 
 class TestMode(Enum):

@@ -131,15 +131,21 @@ module uart_axil_bridge #(
 
     cmd_state_t r_cmd_state, w_cmd_state_next;
 
-    // Command buffer
+    // Calculate maximum hex digits needed for address and data
+    localparam int ADDR_HEX_DIGITS = (AXIL_ADDR_WIDTH + 3) / 4;  // Round up to nibbles
+    localparam int DATA_HEX_DIGITS = (AXIL_DATA_WIDTH + 3) / 4;  // Round up to nibbles
+    localparam int MAX_RESPONSE_LEN = 2 + DATA_HEX_DIGITS + 1;   // "0x" + hex digits + "\n"
+    localparam int RESPONSE_INDEX_WIDTH = $clog2(MAX_RESPONSE_LEN + 1);  // Width for index
+
+    // Command buffer (parameterized for data width)
     logic [7:0]  r_cmd_type;
-    logic [31:0] r_cmd_addr;
-    logic [31:0] r_cmd_data;
-    logic [31:0] r_resp_data;
-    logic [3:0]  r_nibble_count;
-    logic [7:0]  r_response_buffer [11:0];  // "0xDEADBEEF\n"
-    logic [3:0]  r_response_index;
-    logic [3:0]  r_response_length;
+    logic [31:0] r_cmd_addr;  // Address stays 32-bit (adequate for most systems)
+    logic [AXIL_DATA_WIDTH-1:0] r_cmd_data;  // Data width parameterized
+    logic [AXIL_DATA_WIDTH-1:0] r_resp_data; // Response data parameterized
+    logic [4:0]  r_nibble_count;  // Increased to handle 64-bit (16 nibbles)
+    logic [7:0]  r_response_buffer [MAX_RESPONSE_LEN-1:0];  // Dynamic response size
+    logic [RESPONSE_INDEX_WIDTH-1:0]  r_response_index;  // Parameterized index width
+    logic [RESPONSE_INDEX_WIDTH-1:0]  r_response_length; // Parameterized length width
 
     // Helper function to convert hex char to value
     function automatic logic [3:0] hex_to_val(input logic [7:0] c);
@@ -174,8 +180,8 @@ module uart_axil_bridge #(
             r_cmd_state <= CMD_IDLE;
             r_cmd_type <= '0;
             r_cmd_addr <= '0;
-            r_cmd_data <= '0;
-            r_resp_data <= '0;
+            r_cmd_data <= AXIL_DATA_WIDTH'('0);  // Explicitly sized for parameterization
+            r_resp_data <= AXIL_DATA_WIDTH'('0); // Explicitly sized for parameterization
             r_nibble_count <= '0;
             r_response_index <= '0;
             r_response_length <= '0;
@@ -188,14 +194,14 @@ module uart_axil_bridge #(
                         r_cmd_type <= w_rx_data;
                         r_nibble_count <= '0;
                         r_cmd_addr <= '0;
-                        r_cmd_data <= '0;
+                        r_cmd_data <= AXIL_DATA_WIDTH'('0);  // Explicitly sized
                     end
                 end
 
                 CMD_READ_ADDR: begin
                     if (w_rx_valid && w_rx_ready) begin
                         if (w_rx_data != " " && w_rx_data != "\n" && w_rx_data != "\r") begin
-                            r_cmd_addr <= {r_cmd_addr[27:0], hex_to_val(w_rx_data)};
+                            r_cmd_addr <= {r_cmd_addr[AXIL_ADDR_WIDTH-5:0], hex_to_val(w_rx_data)};
                             r_nibble_count <= r_nibble_count + 1'b1;
                         end
                     end
@@ -204,7 +210,7 @@ module uart_axil_bridge #(
                 CMD_READ_DATA: begin
                     if (w_rx_valid && w_rx_ready) begin
                         if (w_rx_data != " " && w_rx_data != "\n" && w_rx_data != "\r") begin
-                            r_cmd_data <= {r_cmd_data[27:0], hex_to_val(w_rx_data)};
+                            r_cmd_data <= {r_cmd_data[AXIL_DATA_WIDTH-5:0], hex_to_val(w_rx_data)};
                             r_nibble_count <= r_nibble_count + 1'b1;
                         end
                     end
@@ -213,20 +219,19 @@ module uart_axil_bridge #(
                 CMD_AXIL_READ_DATA: begin
                     if (w_fub_rvalid && w_fub_rready) begin
                         r_resp_data <= w_fub_rdata;
-                        // Prepare response: "0xDEADBEEF\n"
-                        r_response_buffer[0]  <= "0";
-                        r_response_buffer[1]  <= "x";
-                        r_response_buffer[2]  <= val_to_hex(w_fub_rdata[31:28]);
-                        r_response_buffer[3]  <= val_to_hex(w_fub_rdata[27:24]);
-                        r_response_buffer[4]  <= val_to_hex(w_fub_rdata[23:20]);
-                        r_response_buffer[5]  <= val_to_hex(w_fub_rdata[19:16]);
-                        r_response_buffer[6]  <= val_to_hex(w_fub_rdata[15:12]);
-                        r_response_buffer[7]  <= val_to_hex(w_fub_rdata[11:8]);
-                        r_response_buffer[8]  <= val_to_hex(w_fub_rdata[7:4]);
-                        r_response_buffer[9]  <= val_to_hex(w_fub_rdata[3:0]);
-                        r_response_buffer[10] <= "\n";
+                        // Prepare response: "0x<DATA_HEX_DIGITS>\n"
+                        // Dynamic formatting based on AXIL_DATA_WIDTH
+                        r_response_buffer[0] <= "0";
+                        r_response_buffer[1] <= "x";
+                        // Generate hex digits from MSB to LSB
+                        for (int i = 0; i < DATA_HEX_DIGITS; i++) begin
+                            r_response_buffer[2 + i] <= val_to_hex(
+                                w_fub_rdata[(AXIL_DATA_WIDTH - 1) - (i * 4) -: 4]
+                            );
+                        end
+                        r_response_buffer[2 + DATA_HEX_DIGITS] <= "\n";
                         r_response_index <= '0;
-                        r_response_length <= 4'd11;
+                        r_response_length <= RESPONSE_INDEX_WIDTH'(2 + DATA_HEX_DIGITS + 1);  // "0x" + digits + "\n"
                     end
                 end
 
@@ -237,7 +242,7 @@ module uart_axil_bridge #(
                         r_response_buffer[1] <= "K";
                         r_response_buffer[2] <= "\n";
                         r_response_index <= '0;
-                        r_response_length <= 4'd3;
+                        r_response_length <= RESPONSE_INDEX_WIDTH'(3);  // "OK\n"
                     end
                 end
 

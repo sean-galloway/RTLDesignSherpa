@@ -86,7 +86,7 @@ module scheduler_group_array #(
     // Status Interface (per channel)
     output logic [NUM_CHANNELS-1:0]              descriptor_engine_idle,
     output logic [NUM_CHANNELS-1:0]              scheduler_idle,
-    output logic [NUM_CHANNELS-1:0][3:0]         scheduler_state,
+    output logic [NUM_CHANNELS-1:0][6:0]         scheduler_state,  // ONE-HOT encoding (7 bits)
 
     // Descriptor AXI Monitor Status
     output logic                                 desc_axi_mon_busy,

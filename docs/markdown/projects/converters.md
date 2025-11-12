@@ -3,7 +3,7 @@
 # Protocol Converters - UART to AXI4-Lite Bridge
 
 **Component:** `projects/components/converters/`
-**Last Updated:** 2025-11-09
+**Last Updated:** 2025-11-10
 
 ---
 
@@ -201,23 +201,37 @@ output logic                          m_axil_rready
 **Test Coverage:** >95%
 
 **Test Levels:**
-1. **GATE (basic):** Register access, simple operations (~30s)
-2. **FUNC (medium):** Multiple configurations, timing profiles (~90s)
-3. **FULL:** All configurations, stress testing (~180s)
+1. **GATE (basic):** Register access, simple operations (~10 min, 4 operations)
+2. **FUNC (medium):** Multiple configurations, timing profiles (~10 min, 10 operations)
+3. **FULL:** All configurations, stress testing (~50 min, 30 operations with edge cases)
 
 **Verified Configurations:**
-- Data widths: 32-bit, 64-bit
+- Data widths: 32-bit, 64-bit (fully parameterized)
 - Baud rates: 115200, 230400 (50 MHz and 100 MHz clocks)
 - Address widths: 32-bit
+- Test configurations: 6 total (all passing)
 
-**Test Results (Basic Level):**
+**Latest Test Results (2025-11-10):**
 ```
-Commands sent:       4
-Writes completed:    2
-Reads completed:     2
-Total errors:        0
-Status:              ✅ PASSED
+Test Suite: FULL (REG_LEVEL=FULL)
+Configurations tested: 6
+- params0: 32-bit data, basic level        ✅ PASSED
+- params1: 64-bit data, basic level        ✅ PASSED
+- params2: 32-bit data, different baud     ✅ PASSED
+- params3: 32-bit data, medium level       ✅ PASSED
+- params4: 32-bit data, full level         ✅ PASSED
+- params5: 64-bit data, full level         ✅ PASSED
+
+Total: 6 passed, 0 failed
+Execution time: 49 minutes 36 seconds
+Status: ✅ ALL TESTS PASSED
 ```
+
+**Recent Fixes (2025-11-10):**
+- Added full 64-bit data width support (dynamic buffer sizing)
+- Fixed memory bounds validation in full test suite
+- Increased CocoTB simulation timeout for comprehensive testing
+- All Verilator width warnings resolved
 
 ### Usage Examples
 

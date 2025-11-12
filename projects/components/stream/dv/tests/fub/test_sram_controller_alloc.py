@@ -5,13 +5,13 @@ Tests allocation controller functionality (stream_alloc_ctrl):
 - Pre-allocation before data arrival (like AXI read engine)
 - Space tracking with reserved vs. committed beats
 - Filling FIFO via allocation
-- Timing verification (wr_data_available should have 1-2 clock delay)
+- Timing verification (wr_drain_data_avail should have 1-2 clock delay)
 
 Test Types:
 - 'basic': Basic allocation test (pre-allocate then write data)
 - 'full': Fill FIFO completely via allocation
 - 'multi_channel': Multi-channel allocation test
-- 'timing': Verify wr_data_available timing (1-2 cycle delay)
+- 'timing': Verify wr_drain_data_avail timing (1-2 cycle delay)
 
 STRUCTURE FOLLOWS REPOSITORY STANDARD:
   - Single CocoTB test function (dispatches based on TEST_TYPE)
@@ -117,14 +117,14 @@ async def run_multi_channel_allocation_test(tb):
 
 async def run_timing_allocation_test(tb):
     """
-    Verify wr_data_available timing - should NOT be combinatorial with writes
+    Verify wr_drain_data_avail timing - should NOT be combinatorial with writes
 
     Expected: 1-2 clock cycles delay through FIFO + latency bridge
     """
     channel = 0
     num_beats = 8
 
-    tb.log.info(f"=== Allocation Timing Test: Verify wr_data_available delay ===")
+    tb.log.info(f"=== Allocation Timing Test: Verify wr_drain_data_avail delay ===")
 
     # Pre-allocate
     success = await tb.allocate_space(channel, num_beats)
@@ -147,29 +147,29 @@ async def run_timing_allocation_test(tb):
     # Check data_available IMMEDIATELY after write (same cycle)
     # Should still be 0 - data not yet visible due to FIFO + latency bridge pipeline
     data_count_cycle0 = await tb.get_data_available(channel)
-    tb.log.info(f"Cycle 0 (write cycle): wr_data_available={data_count_cycle0}")
+    tb.log.info(f"Cycle 0 (write cycle): wr_drain_data_avail={data_count_cycle0}")
 
     # Wait one more cycle
     await RisingEdge(tb.clk)
     data_count_cycle1 = await tb.get_data_available(channel)
-    tb.log.info(f"Cycle 1 (after write): wr_data_available={data_count_cycle1}")
+    tb.log.info(f"Cycle 1 (after write): wr_drain_data_avail={data_count_cycle1}")
 
     # Wait one more cycle
     await RisingEdge(tb.clk)
     data_count_cycle2 = await tb.get_data_available(channel)
-    tb.log.info(f"Cycle 2 (after write): wr_data_available={data_count_cycle2}")
+    tb.log.info(f"Cycle 2 (after write): wr_drain_data_avail={data_count_cycle2}")
 
     # Data should appear after 1-2 cycles (FIFO registered + latency bridge)
     # Expected: cycle 0 = 0, cycle 1 or 2 = 1
     if data_count_cycle0 > 0:
-        tb.log.error(f"✗ TIMING VIOLATION: wr_data_available went active combinatorially!")
-        assert False, "wr_data_available should not be combinatorial with write"
+        tb.log.error(f"✗ TIMING VIOLATION: wr_drain_data_avail went active combinatorially!")
+        assert False, "wr_drain_data_avail should not be combinatorial with write"
 
     if data_count_cycle2 < 1:
         tb.log.error(f"✗ Data should be available after 2 cycles, got {data_count_cycle2}")
         assert False, "Data should appear after pipeline delay"
 
-    tb.log.info(f"✓ Timing verified: wr_data_available has proper 1-2 cycle delay")
+    tb.log.info(f"✓ Timing verified: wr_drain_data_avail has proper 1-2 cycle delay")
 
 
 #==============================================================================
@@ -184,7 +184,7 @@ async def cocotb_test_sram_controller_alloc(dut):
     - 'basic': Basic allocation test (pre-allocate then write data)
     - 'full': Fill FIFO completely via allocation
     - 'multi_channel': Multi-channel allocation test (concurrent operation)
-    - 'timing': Timing verification (wr_data_available delay)
+    - 'timing': Timing verification (wr_drain_data_avail delay)
     """
     test_type = os.environ.get('TEST_TYPE', 'basic')
     tb = SRAMControllerTB(dut)
@@ -279,7 +279,7 @@ def test_sram_controller_alloc(request, test_type, num_channels, fifo_depth, dat
 
     rtl_parameters = {
         'NUM_CHANNELS': num_channels,
-        'FIFO_DEPTH': fifo_depth,
+        'SRAM_DEPTH': fifo_depth,  # Parameter renamed from FIFO_DEPTH to SRAM_DEPTH
         'DATA_WIDTH': data_width,
     }
 

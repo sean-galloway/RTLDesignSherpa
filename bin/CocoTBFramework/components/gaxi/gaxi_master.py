@@ -379,7 +379,7 @@ class GAXIMaster(GAXIComponentBase, BusDriver):
                     self.log.debug(f"Master({self.title}) Phase2: no ready signal, single cycle transfer")
                 return True
 
-        # Timeout occurred
+        # Timeout occurred - this is a test failure
         self.log.error(f"Master({self.title}) Phase2: TIMEOUT waiting for ready after {self.timeout_cycles} cycles")
         self.phase_statistics['timeout_count'] += 1
 
@@ -390,7 +390,11 @@ class GAXIMaster(GAXIComponentBase, BusDriver):
         # Update stats
         self.stats.record_timeout()
 
-        return False
+        # Raise exception for clean test exit with VCD
+        raise cocotb.result.TestFailure(
+            f"Master({self.title}) TIMEOUT: No ready signal after {self.timeout_cycles} cycles. "
+            "Check RTL for backpressure issues or increase timeout_cycles if legitimate delay."
+        )
 
     async def _xmit_phase3(self, transaction):
         """

@@ -242,23 +242,27 @@ class UARTAXILBridgeTB(TBBase):
 
         # Wait for AXIL4 read transaction and response
         # Calculate: cmd length + response length = worst case
-        # Worst case: "R FFFFFFFF\n" = 11 chars in, "0xDEADBEEF\n" = 11 chars out
+        # Response format: "0x" + (data_width/4) hex digits + "\n"
+        hex_digits = self.axil_data_width // 4
+        response_len = 2 + hex_digits + 1  # "0x" + digits + "\n"
+
+        # Worst case: "R FFFFFFFF\n" = 11 chars in
         # UART timing: clks_per_bit * 10 bits/char * chars
         # Add margin for AXI transaction latency
-        wait_clocks = (11 + 11) * 10 * self.clks_per_bit + 10000
+        wait_clocks = (11 + response_len) * 10 * self.clks_per_bit + 10000
         await self.wait_clocks(self.clk_name, wait_clocks)
 
-        # Check for "0xDEADBEEF\n" response format
-        if len(self.uart_rx_monitor._recvQ) >= 11:
+        # Check for "0x<hex>\n" response format (length depends on data width)
+        if len(self.uart_rx_monitor._recvQ) >= response_len:
             response_chars = []
-            for _ in range(11):
+            for _ in range(response_len):
                 pkt = self.uart_rx_monitor._recvQ.popleft()
                 response_chars.append(chr(pkt.data))
 
             response = ''.join(response_chars)
             self.log.debug(f"Received response: '{response.strip()}'")
 
-            # Parse hex response: "0xDEADBEEF\n"
+            # Parse hex response: "0x<hex>\n"
             if response.startswith("0x") and response.endswith("\n"):
                 try:
                     data_hex = response[2:-1]  # Strip "0x" and "\n"
@@ -275,7 +279,7 @@ class UARTAXILBridgeTB(TBBase):
                 self.stats['errors'] += 1
                 return False, None
         else:
-            self.log.error(f"❌ No response received (expected '0x<hex>\\n')")
+            self.log.error(f"❌ No response received (expected '0x<hex>\\n', length={response_len})")
             self.stats['errors'] += 1
             return False, None
 
@@ -365,14 +369,18 @@ class UARTAXILBridgeTB(TBBase):
         success = True
         num_operations = 30
 
+        # Calculate memory bounds (memory model is 1M lines)
+        bytes_per_line = self.axil_data_width // 8
+        max_addr = (1024 * 1024 * bytes_per_line) - bytes_per_line  # Last valid address
+
         # Test various addresses and data patterns
         for i in range(num_operations):
-            # Use various address patterns
+            # Use various address patterns (constrained to memory model bounds)
             addr = random.choice([
                 0x00000000,  # Address 0
-                0xFFFFFFFC,  # High address (aligned)
+                max_addr,    # High address (aligned) - within memory bounds
                 0x1000 + (i * 4),  # Sequential
-                random.randint(0, 0xFFFF) << 2  # Random aligned
+                random.randint(0, min(0xFFFF, max_addr >> 2)) << 2  # Random aligned within bounds
             ])
 
             # Use various data patterns

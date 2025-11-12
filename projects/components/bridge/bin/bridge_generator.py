@@ -211,14 +211,14 @@ def generate_tests(ports_file, connectivity_file, bridge_name, output_tb_dir, ou
 # RTL Generation Functions
 # ==============================================================================
 
-def generate_bridge(ports_file, connectivity_file, name=None, output_dir="../rtl", expose_arbiter=False):
+def generate_bridge(ports_file, connectivity_file, name=None, output_dir="../rtl/generated", expose_arbiter=False):
     """Generate a single bridge from configuration files.
 
     Args:
         ports_file: Path to ports.csv or ports.yaml
         connectivity_file: Path to connectivity.csv (optional for YAML, auto-detected)
         name: Optional output module name (auto-generated if None)
-        output_dir: Output directory for generated RTL
+        output_dir: Output directory for generated RTL (default: ../rtl/generated)
         expose_arbiter: Whether to expose arbiter grant signals (currently ignored in V2)
 
     Returns:
@@ -506,7 +506,7 @@ def parse_bulk_csv(bulk_file):
                 'name': row.get('name', '').strip() or None,
                 'ports': row.get('ports', '').strip(),
                 'connectivity': row.get('connectivity', '').strip(),
-                'output_dir': row.get('output_dir', '').strip() or '../rtl',
+                'output_dir': row.get('output_dir', '').strip() or '../rtl/generated',
                 'output_tb': row.get('output_tb', '').strip() or '../dv/tbclasses',
                 'output_test': row.get('output_test', '').strip() or '../dv/tests',
                 'expose_arbiter': row.get('expose_arbiter_signals', 'false').strip().lower() in ('true', '1', 'yes')
@@ -565,8 +565,8 @@ Bulk Generation CSV Format:
                        help="Path to connectivity.csv configuration file (required with --ports)")
     parser.add_argument("--name", type=str, default=None,
                        help="Output module name (default: auto-generated)")
-    parser.add_argument("--output-dir", type=str, default="../rtl",
-                       help="Output directory for generated RTL")
+    parser.add_argument("--output-dir", type=str, default="../rtl/generated",
+                       help="Output directory for generated RTL (default: ../rtl/generated)")
     parser.add_argument("--expose-arbiter-signals", action="store_true",
                        help="Expose arbiter grant signals as outputs for testing/debugging")
 

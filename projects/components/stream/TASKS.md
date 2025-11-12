@@ -1,398 +1,136 @@
 # STREAM Component - Task List
 
-**Component:** STREAM (Simplified Tutorial REference Accelerator Module)
-**Last Updated:** 2025-10-19
+**Component:** STREAM (Scatter-gather Transfer Rapid Engine for AXI Memory)
+**Last Updated:** 2025-11-11
 **Version:** 1.0
+**Status:** 95% Complete
 
 ---
 
-## Task Status Legend
+## Current Status
 
-- 🔴 **Blocked** - Cannot proceed due to dependencies or issues
-- 🟠 **In Progress** - Currently being worked on
-- 🟡 **Planned** - Scheduled for upcoming work
-- 🟢 **Complete** - Finished and verified
+### ✅ Completed (95%)
 
-## Priority Levels
+**Core Blocks:**
+- ✅ descriptor_engine.sv - Descriptor fetch and parsing
+- ✅ scheduler.sv - Channel scheduling and coordination
+- ✅ axi_read_engine.sv - AXI read master with pipelining
+- ✅ axi_write_engine.sv - AXI write master with bubble-free pipeline
+- ✅ sram_controller.sv - Multi-channel FIFO buffering
+- ✅ stream_alloc_ctrl.sv - SRAM allocation control
+- ✅ stream_drain_ctrl.sv - SRAM drain control
+- ✅ stream_latency_bridge.sv - Request/response latency bridging
+- ✅ perf_profiler.sv - Performance monitoring
 
-- **P0** - Critical path, blocks other work
-- **P1** - High priority, needed for v1.0
-- **P2** - Medium priority, nice to have
-- **P3** - Low priority, future enhancement
+**Integration:**
+- ✅ scheduler_group.sv - Scheduler + descriptor engine integration
+- ✅ scheduler_group_array.sv - 8-channel scheduler array
+- ✅ stream_core.sv - Complete datapath integration
+- ✅ datapath_rd_test.sv - Read path test harness
+- ✅ datapath_wr_test.sv - Write path test harness
+
+**Verification:**
+- ✅ FUB tests - All functional unit blocks tested
+- ✅ Macro tests - Integration tests passing
+- ✅ Stream core tests - Full system verification
+
+**Documentation:**
+- ✅ PRD.md - Product requirements complete
+- ✅ README.md - Quick start guide
+- ✅ CLAUDE.md - AI assistance guide
+- ✅ docs/stream_spec/ - Complete architecture documentation
 
 ---
 
-## Active Tasks
+## Remaining Work (5%)
 
-### TASK-001: Enhance Inline Code Comments
+### TASK-001: APB Configuration Interface
 **Status:** 🟡 Planned
-**Priority:** P1
-**Effort:** 2 days
-**Owner:** Unassigned
+**Priority:** P0 (Critical Path)
+**Effort:** 1-2 days
 
 **Description:**
-Improve inline comments in STREAM RTL to better explain design choices and educational concepts.
+Create APB slave interface using PeakRDL for configuration registers.
 
 **Acceptance Criteria:**
-- [ ] Add detailed comments to descriptor format definition
-- [ ] Explain simplified vs RAPIDS design choices
-- [ ] Document credit mechanism in detail
-- [ ] Add timing diagrams as ASCII art in comments
-- [ ] Include example descriptor sequences in comments
+- [ ] Generate APB slave from RDL definition
+- [ ] 8 channel kick-off registers
+- [ ] Global configuration registers
+- [ ] Status/completion registers
+- [ ] Integrate into stream_core.sv
 
-**Dependencies:**
-- None (RTL already complete)
-
-**Related Files:**
-- `rtl/stream/*.sv`
+**Files:**
+- `regs/stream_regs.rdl` (to be created)
+- `rtl/macro/apb_config.sv` (generated)
 
 ---
 
-### TASK-002: Create Tutorial Documentation
+### TASK-002: Top-Level Wrapper
 **Status:** 🟡 Planned
-**Priority:** P1
-**Effort:** 3 days
-**Owner:** Unassigned
-
-**Description:**
-Create comprehensive tutorial guide comparing STREAM (simplified) with RAPIDS (full-featured).
-
-**Acceptance Criteria:**
-- [ ] Create tutorial comparing STREAM vs RAPIDS architecture
-- [ ] Document simplified descriptor format
-- [ ] Explain single data path vs dual data path
-- [ ] Create side-by-side comparison table
-- [ ] Add learning objectives for each section
-
-**Dependencies:**
-- None
-
-**Related Files:**
-- `docs/stream_spec/tutorial/stream_vs_rapids.md` (to be created)
-
----
-
-### TASK-003: Add Example Usage Scenarios
-**Status:** 🟡 Planned
-**Priority:** P2
-**Effort:** 2 days
-**Owner:** Unassigned
-
-**Description:**
-Document common usage scenarios for STREAM with code examples.
-
-**Acceptance Criteria:**
-- [ ] Create simple memory copy example
-- [ ] Create basic scatter-gather example
-- [ ] Document descriptor chaining pattern
-- [ ] Add AXI transaction timing examples
-- [ ] Include CocoTB test snippets
-
-**Dependencies:**
-- None
-
-**Related Files:**
-- `docs/stream_spec/examples/` (to be created)
-
----
-
-### TASK-004: Comparison Matrix with RAPIDS
-**Status:** 🟡 Planned
-**Priority:** P2
+**Priority:** P0 (Critical Path)
 **Effort:** 1 day
-**Owner:** Unassigned
 
 **Description:**
-Create detailed comparison matrix highlighting differences between STREAM and RAPIDS.
+Create top-level stream_top.sv wrapper with all interfaces.
 
 **Acceptance Criteria:**
-- [ ] Create feature comparison table (descriptor format, data paths, FSMs, monitoring, etc.)
-- [ ] Document complexity metrics (LOC, FSM states, signal count)
-- [ ] Compare resource usage (FPGA/ASIC estimates)
-- [ ] Highlight learning progression path
-- [ ] Add "when to use STREAM vs RAPIDS" decision guide
+- [ ] Instantiate stream_core
+- [ ] Instantiate APB config
+- [ ] Connect all AXI masters
+- [ ] Connect MonBus output
+- [ ] Add parameter validation
 
-**Dependencies:**
-- None
-
-**Related Files:**
-- `docs/stream_vs_rapids_comparison.md` (to be created)
+**Files:**
+- `rtl/macro/stream_top.sv` (to be created)
 
 ---
 
-### TASK-005: Enhance Test Documentation
+### TASK-003: Final Integration Test
 **Status:** 🟡 Planned
-**Priority:** P2
-**Effort:** 2 days
-**Owner:** Unassigned
-
-**Description:**
-Improve test documentation to explain verification methodology for educational purposes.
-
-**Acceptance Criteria:**
-- [ ] Add detailed test plan documentation
-- [ ] Document test scenarios and coverage goals
-- [ ] Explain testbench architecture
-- [ ] Add annotations to existing tests for learning
-- [ ] Create test writing guide for beginners
-
-**Dependencies:**
-- None
-
-**Related Files:**
-- `val/stream/test_*.py`
-- `docs/stream_spec/verification_guide.md` (to be created)
-
----
-
-### TASK-006: Wavedrom Timing Diagrams
-**Status:** 🟡 Planned
-**Priority:** P2
+**Priority:** P0 (Critical Path)
 **Effort:** 1 day
-**Owner:** Unassigned
 
 **Description:**
-Create wavedrom JSON files illustrating key STREAM operations.
+Create comprehensive top-level test using stream_top.sv.
 
 **Acceptance Criteria:**
-- [ ] Create descriptor_fetch.json (APB read of descriptor)
-- [ ] Create axi_read_operation.json (simplified read)
-- [ ] Create axi_write_operation.json (simplified write)
-- [ ] Create credit_update.json (credit flow control)
-- [ ] Generate SVG/PNG from all JSON files
-- [ ] Place in docs/stream_spec/assets/waves/
+- [ ] Test all 8 channels
+- [ ] Test APB configuration
+- [ ] Test descriptor chaining
+- [ ] Test error handling
+- [ ] Verify MonBus outputs
 
-**Dependencies:**
-- None
-
-**Related Files:**
-- `docs/stream_spec/assets/waves/*.json`
+**Files:**
+- `dv/tests/macro/test_stream_top.py` (to be created)
 
 ---
 
-### TASK-007: PlantUML FSM Diagrams
-**Status:** 🟡 Planned
-**Priority:** P2
-**Effort:** 1 day
-**Owner:** Unassigned
+## Future Enhancements (Post v1.0)
 
-**Description:**
-Create PlantUML state machine diagrams for STREAM FSMs (simplified vs RAPIDS comparison).
-
-**Acceptance Criteria:**
-- [ ] Create stream_descriptor_engine_fsm.puml
-- [ ] Create stream_axi_read_fsm.puml
-- [ ] Create stream_axi_write_fsm.puml
-- [ ] Add annotations comparing with RAPIDS FSMs
-- [ ] Generate PNG/SVG from all PUML files
-- [ ] Place in docs/stream_spec/assets/puml/
-
-**Dependencies:**
-- None
-
-**Related Files:**
-- `docs/stream_spec/assets/puml/*.puml`
+### Enhancement Ideas
+- Add alignment fixup logic (STREAM Extended)
+- Add circular buffer support
+- Add interrupt generation
+- Performance optimization for specific use cases
+- Additional MonBus event types
 
 ---
 
-### TASK-008: Block Diagrams and Architecture Images
-**Status:** 🟡 Planned
-**Priority:** P2
-**Effort:** 1 day
-**Owner:** Unassigned
+## Completed Major Milestones
 
-**Description:**
-Create block diagrams and architecture illustrations for STREAM documentation.
-
-**Acceptance Criteria:**
-- [ ] Create stream_architecture.svg (top-level block diagram)
-- [ ] Create simplified_descriptor_format.svg
-- [ ] Create stream_vs_rapids_architecture_comparison.svg
-- [ ] Create data_flow_diagram.svg
-- [ ] Place in docs/stream_spec/assets/images/
-
-**Dependencies:**
-- None
-
-**Related Files:**
-- `docs/stream_spec/assets/images/*.svg`
+- ✅ **2025-10-19:** Initial RTL structure created
+- ✅ **2025-10-28:** AXI engine V2 design complete
+- ✅ **2025-11-10:** Parameter unification complete
+- ✅ **2025-11-11:** Write engine bubble-free pipeline enhancement
+- ✅ **2025-11-11:** AXI transaction completion tracking added
+- ✅ **2025-11-11:** All datapath and core tests passing
 
 ---
 
-### TASK-009: Create Learning Path Guide
-**Status:** 🟡 Planned
-**Priority:** P2
-**Effort:** 2 days
-**Owner:** Unassigned
+## Notes
 
-**Description:**
-Create step-by-step learning guide for studying STREAM before moving to RAPIDS.
+**Architecture Stability:** All core blocks are complete and tested. Only configuration interface and top-level wrapper remain.
 
-**Acceptance Criteria:**
-- [ ] Define learning objectives for each chapter
-- [ ] Create progression: STREAM → RAPIDS migration path
-- [ ] Add hands-on exercises (modify STREAM, observe behavior)
-- [ ] Include quiz questions for self-assessment
-- [ ] Document common pitfalls and debugging tips
+**Documentation:** Complete microarchitecture documentation available in `docs/stream_spec/`.
 
-**Dependencies:**
-- TASK-002 (Tutorial documentation)
-
-**Related Files:**
-- `docs/stream_spec/learning_guide.md` (to be created)
-
----
-
-### TASK-010: Performance Characterization Documentation
-**Status:** 🟡 Planned
-**Priority:** P3
-**Effort:** 2 days
-**Owner:** Unassigned
-
-**Description:**
-Document STREAM performance characteristics (latency, throughput) for educational reference.
-
-**Acceptance Criteria:**
-- [ ] Measure descriptor fetch latency
-- [ ] Measure AXI read/write transaction timing
-- [ ] Compare with RAPIDS performance metrics
-- [ ] Create performance comparison graphs
-- [ ] Document performance trade-offs of simplified design
-
-**Dependencies:**
-- None
-
-**Related Files:**
-- `docs/stream_spec/performance_analysis.md` (to be created)
-
----
-
-## Recently Completed Tasks
-
-### ✅ TASK-000: Core STREAM Implementation (Complete - 2025-10-10)
-- Implemented simplified descriptor engine
-- Implemented unified data path (read/write)
-- Created basic AXI master interfaces
-- Added minimal credit management
-- Implemented basic monitoring
-- Created comprehensive CocoTB testbenches
-- Verified functional operation
-
-### ✅ TASK-001-PREV: Initial Documentation (Complete - 2025-10-12)
-- Created PRD.md with design goals
-- Created CLAUDE.md with guidance
-- Documented simplified architecture
-- Added quick reference sections
-
----
-
-## Future Enhancements (Backlog)
-
-### TASK-011: Interactive Tutorial
-**Priority:** P3
-**Description:** Create web-based interactive tutorial with embedded waveform viewer and code editor.
-
-### TASK-012: Video Tutorial Series
-**Priority:** P3
-**Description:** Record video walkthrough of STREAM architecture and comparison with RAPIDS.
-
-### TASK-013: Jupyter Notebook Examples
-**Priority:** P3
-**Description:** Create Jupyter notebooks demonstrating STREAM simulation with CocoTB and analysis.
-
-### TASK-014: FPGA Synthesis Tutorial
-**Priority:** P3
-**Description:** Create step-by-step guide for synthesizing STREAM on FPGA and running on hardware.
-
-### TASK-015: Advanced Exercises
-**Priority:** P3
-**Description:** Create advanced exercises for extending STREAM (e.g., add scatter-gather, add interrupts).
-
----
-
-## Task Dependencies
-
-```
-TASK-001 (Enhance Comments) - Independent
-TASK-002 (Tutorial Docs)
-    └─> TASK-009 (Learning Path Guide)
-
-TASK-003 (Usage Scenarios) - Independent
-TASK-004 (Comparison Matrix) - Independent
-TASK-005 (Test Docs) - Independent
-TASK-006 (Wavedrom) - Independent
-TASK-007 (PlantUML) - Independent
-TASK-008 (Block Diagrams) - Independent
-TASK-010 (Performance Docs) - Independent
-```
-
----
-
-## Quick Commands
-
-### Run Specification to PDF (when spec exists)
-```bash
-python bin/md_to_docx.py \
-    projects/components/stream/docs/stream_spec/stream_index.md \
-    -o projects/components/stream/docs/STREAM_Specification_v1.0.docx \
-    --toc --title-page --pdf
-```
-
-### Run STREAM Tests
-```bash
-# Run all STREAM tests
-pytest val/stream/ -v
-
-# Run specific test
-pytest val/stream/test_stream_basic.py -v
-```
-
-### Lint STREAM RTL
-```bash
-verilator --lint-only rtl/stream/stream_top.sv
-```
-
-### Generate Wavedrom SVG
-```bash
-wavedrom-cli -i docs/stream_spec/assets/waves/descriptor_fetch.json \
-             -s docs/stream_spec/assets/waves/descriptor_fetch.svg
-```
-
-### Generate PlantUML PNG
-```bash
-plantuml docs/stream_spec/assets/puml/stream_descriptor_engine_fsm.puml
-```
-
-### Compare with RAPIDS
-```bash
-# Line count comparison
-wc -l rtl/stream/*.sv rtl/rapids/*.sv
-
-# Signal count comparison
-grep -h "input\|output\|inout" rtl/stream/*.sv | wc -l
-grep -h "input\|output\|inout" rtl/rapids/*.sv | wc -l
-```
-
----
-
-## Learning Objectives
-
-STREAM is designed as an educational stepping stone to RAPIDS. Key learning objectives:
-
-1. **Understand DMA Basics** - Learn descriptor-based DMA concepts
-2. **Grasp AXI Protocol** - Understand AXI read/write transaction flow
-3. **Learn FSM Design** - Study simplified state machines
-4. **Appreciate Simplification Trade-offs** - Understand what was simplified and why
-5. **Prepare for RAPIDS** - Build foundation for full-featured design
-
-**Progression Path:**
-1. Study STREAM architecture and implementation
-2. Run STREAM tests and observe waveforms
-3. Modify STREAM (exercises)
-4. Compare STREAM vs RAPIDS side-by-side
-5. Study RAPIDS architecture (building on STREAM knowledge)
-
----
-
-**Last Review:** 2025-10-19
-**Next Review:** Quarterly or when adding new tutorial content
+**Verification:** Comprehensive test suite with FUB-level and integration tests passing.

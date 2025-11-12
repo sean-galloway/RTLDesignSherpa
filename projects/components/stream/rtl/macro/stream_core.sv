@@ -43,6 +43,8 @@ module stream_core #(
     parameter int AXI_ID_WIDTH = 8,
     parameter int FIFO_DEPTH = 512,
     parameter int TIMEOUT_CYCLES = 1000,
+    parameter int AR_MAX_OUTSTANDING = 8,
+    parameter int AW_MAX_OUTSTANDING = 8,
 
     // AXI skid buffer depths
     parameter int SKID_DEPTH_AR = 2,
@@ -120,7 +122,9 @@ module stream_core #(
     //=========================================================================
     output logic [NC-1:0]                       descriptor_engine_idle,
     output logic [NC-1:0]                       scheduler_idle,
-    output logic [NC-1:0][3:0]                  scheduler_state,
+    output logic [NC-1:0][6:0]                  scheduler_state,  // ONE-HOT encoding (7 bits)
+    output logic [NC-1:0]                       axi_rd_all_complete,  // All AXI read txns complete
+    output logic [NC-1:0]                       axi_wr_all_complete,  // All AXI write txns complete
 
     // Performance profiler status
     output logic                                perf_fifo_empty,
@@ -338,11 +342,11 @@ module stream_core #(
     logic [IW-1:0]               axi_rd_sram_id;
     logic [DW-1:0]               axi_rd_sram_data;
 
-    // Write engine → SRAM (allocation and read)
+    // Write engine → SRAM (drain and read)
     // Direct connection - both use ID-based interface
-    logic [NC-1:0]               wr_alloc_req;
-    logic [NC-1:0][7:0]          wr_alloc_size;
-    logic [NC-1:0][$clog2(FIFO_DEPTH):0] wr_data_available;  // SRAM → write engine
+    logic [NC-1:0]               wr_drain_req;
+    logic [NC-1:0][7:0]          wr_drain_size;
+    logic [NC-1:0][$clog2(FIFO_DEPTH):0] wr_drain_data_avail;  // SRAM → write engine
 
     logic [NC-1:0]               axi_wr_sram_valid;           // Per-channel valid from SRAM
     logic                        axi_wr_sram_drain;           // Drain signal from write engine
@@ -465,9 +469,9 @@ module stream_core #(
         .ADDR_WIDTH             (AW),
         .DATA_WIDTH             (DW),
         .ID_WIDTH               (IW),
-        .MAX_BURST_LEN          (16),
-        .COUNT_WIDTH            ($clog2(FIFO_DEPTH)+1),  // Match SRAM controller width
+        .SEG_COUNT_WIDTH        ($clog2(FIFO_DEPTH)+1),  // Match SRAM controller width
         .PIPELINE               (1),
+        .AR_MAX_OUTSTANDING     (AR_MAX_OUTSTANDING),
         .STROBE_EVERY_BEAT      (0)
     ) u_axi_read_engine (
         .clk                    (clk),
@@ -515,6 +519,7 @@ module stream_core #(
         // Completion interface
         .sched_rd_done_strobe   (sched_rd_done_strobe),
         .sched_rd_beats_done    (sched_rd_beats_done),
+        .axi_rd_all_complete    (axi_rd_all_complete),
 
         // Debug
         .dbg_r_beats_rcvd       (),
@@ -533,9 +538,9 @@ module stream_core #(
         .ADDR_WIDTH             (AW),
         .DATA_WIDTH             (DW),
         .ID_WIDTH               (IW),
-        .MAX_BURST_LEN          (16),
-        .COUNT_WIDTH            ($clog2(FIFO_DEPTH)+1),  // Match SRAM controller width
-        .PIPELINE               (1)
+        .SEG_COUNT_WIDTH        ($clog2(FIFO_DEPTH)+1),  // Match SRAM controller width
+        .PIPELINE               (1),
+        .AW_MAX_OUTSTANDING     (AW_MAX_OUTSTANDING)
     ) u_axi_write_engine (
         .clk                    (clk),
         .rst_n                  (rst_n),
@@ -550,10 +555,10 @@ module stream_core #(
         .sched_wr_beats         (sched_wr_beats),
         .sched_wr_burst_len     (sched_wr_burst_len),
 
-        // SRAM allocation interface
-        .wr_alloc_req           (wr_alloc_req),
-        .wr_alloc_size          (wr_alloc_size),
-        .wr_data_available      (wr_data_available),
+        // SRAM drain interface
+        .wr_drain_req           (wr_drain_req),
+        .wr_drain_size          (wr_drain_size),
+        .wr_drain_data_avail    (wr_drain_data_avail),
 
         // AXI AW channel (pre-skid)
         .m_axi_awid             (fub_wr_axi_awid),
@@ -586,6 +591,7 @@ module stream_core #(
         // Completion interface
         .sched_wr_done_strobe   (sched_wr_done_strobe),
         .sched_wr_beats_done    (sched_wr_beats_done),
+        .axi_wr_all_complete    (axi_wr_all_complete),
 
         // Debug
         .dbg_aw_transactions    (),
@@ -598,25 +604,29 @@ module stream_core #(
     sram_controller #(
         .NUM_CHANNELS           (NC),
         .DATA_WIDTH             (DW),
-        .FIFO_DEPTH             (FIFO_DEPTH)
+        .SRAM_DEPTH             (FIFO_DEPTH)
     ) u_sram_controller (
         .clk                    (clk),
         .rst_n                  (rst_n),
 
         // Write interface (from read engine)
         .axi_rd_sram_valid      (axi_rd_sram_valid),
-        .axi_rd_sram_id         (axi_rd_sram_id),
+        .axi_rd_sram_id         (axi_rd_sram_id[CHAN_WIDTH-1:0]),  // Extract channel ID from AXI ID
         .axi_rd_sram_ready      (axi_rd_sram_ready),
         .axi_rd_sram_data       (axi_rd_sram_data),
 
         // Allocation interface (for read engine)
         .axi_rd_alloc_req       (rd_alloc_req),
         .axi_rd_alloc_size      (rd_alloc_size),
-        .axi_rd_alloc_id        (rd_alloc_id),
+        .axi_rd_alloc_id        (rd_alloc_id[CHAN_WIDTH-1:0]),     // Extract channel ID from AXI ID
         .axi_rd_space_free      (rd_space_free),
 
+        // Drain interface (for write engine flow control)
+        .axi_wr_drain_req       (wr_drain_req),
+        .axi_wr_drain_size      (wr_drain_size),
+        .axi_wr_drain_data_avail(wr_drain_data_avail),
+
         // Read interface (to write engine - direct connection)
-        .axi_wr_data_available  (wr_data_available),
         .axi_wr_sram_valid      (axi_wr_sram_valid),          // Per-channel valids from SRAM
         .axi_wr_sram_drain      (axi_wr_sram_drain),          // Drain signal from write engine
         .axi_wr_sram_id         (axi_wr_sram_id),             // Channel ID from write engine

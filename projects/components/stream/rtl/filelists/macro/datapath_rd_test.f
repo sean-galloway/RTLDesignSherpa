@@ -33,6 +33,7 @@ $STREAM_ROOT/rtl/fub/scheduler.sv
 
 # Component modules - AXI Read Engine and supporting logic
 $STREAM_ROOT/rtl/fub/stream_alloc_ctrl.sv
+$STREAM_ROOT/rtl/fub/stream_drain_ctrl.sv
 $STREAM_ROOT/rtl/fub/stream_latency_bridge.sv
 $STREAM_ROOT/rtl/fub/axi_read_engine.sv
 $STREAM_ROOT/rtl/fub/sram_controller_unit.sv

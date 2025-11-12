@@ -133,11 +133,13 @@ class CrossbarGenerator:
         # Get unique slave widths this master connects to
         slave_widths = self._get_connected_slave_widths(master)
 
-        # Address decode signals
+        # Address decode signals (for request routing)
         if master.channels in ["wr", "rw"]:
             lines.append(f"    input  logic [NUM_SLAVES-1:0] {master.name}_slave_select_aw,")
+            lines.append(f"    input  logic [BRIDGE_ID_WIDTH-1:0] {master.name}_bridge_id_aw,")
         if master.channels in ["rd", "rw"]:
             lines.append(f"    input  logic [NUM_SLAVES-1:0] {master.name}_slave_select_ar,")
+            lines.append(f"    input  logic [BRIDGE_ID_WIDTH-1:0] {master.name}_bridge_id_ar,")
 
         # Width-specific signals for each unique width
         for width_idx, width in enumerate(slave_widths):
@@ -267,6 +269,21 @@ class CrossbarGenerator:
 
         # Get channels needed by THIS SLAVE (based on connecting masters' channel types)
         channels = self._determine_slave_channels(slave)
+        has_write = any(c in [AXI4Channel.AW, AXI4Channel.W, AXI4Channel.B] for c in channels)
+        has_read = any(c in [AXI4Channel.AR, AXI4Channel.R] for c in channels)
+
+        # Add bridge_id signals (from slave adapter, for response routing)
+        if has_write:
+            lines.append(f"    output logic [BRIDGE_ID_WIDTH-1:0] {slave.name}_axi_bridge_id_aw,")
+            lines.append(f"    input  logic [BRIDGE_ID_WIDTH-1:0] {slave.name}_axi_bid_bridge_id,")
+            lines.append(f"    input  logic                       {slave.name}_axi_bid_valid,")
+        if has_read:
+            if has_write:
+                lines.append("")
+            lines.append(f"    output logic [BRIDGE_ID_WIDTH-1:0] {slave.name}_axi_bridge_id_ar,")
+            lines.append(f"    input  logic [BRIDGE_ID_WIDTH-1:0] {slave.name}_axi_rid_bridge_id,")
+            lines.append(f"    input  logic                       {slave.name}_axi_rid_valid,")
+        lines.append("")
 
         # Get signal info from SignalNaming (crossbar is master to slave)
         signal_db = AXI4_MASTER_SIGNALS  # Crossbar acts as MASTER to slaves (outputs request, inputs response)
@@ -448,6 +465,11 @@ class CrossbarGenerator:
         lines.append(f"    assign {prefix}bready = {master.name}_slave_select_aw[{slave_idx}] ? {master.name}_{suffix}_bready : '0;")
         lines.append("")
 
+        # Bridge ID routing (master → slave) - passes master index for response routing
+        lines.append("    // Bridge ID (master → slave)")
+        lines.append(f"    assign {prefix}bridge_id_aw = {master.name}_slave_select_aw[{slave_idx}] ? {master.name}_bridge_id_aw : '0;")
+        lines.append("")
+
         return lines
 
     def _generate_read_channel_routing(self, slave_idx: int, slave: SlaveInfo,
@@ -473,6 +495,11 @@ class CrossbarGenerator:
         # Ready/R channel routing is handled in response MUX (no individual assigns to avoid multi-driver)
         lines.append("    // Rready (master → slave)")
         lines.append(f"    assign {prefix}rready = {master.name}_slave_select_ar[{slave_idx}] ? {master.name}_{suffix}_rready : '0;")
+        lines.append("")
+
+        # Bridge ID routing (master → slave) - passes master index for response routing
+        lines.append("    // Bridge ID (master → slave)")
+        lines.append(f"    assign {prefix}bridge_id_ar = {master.name}_slave_select_ar[{slave_idx}] ? {master.name}_bridge_id_ar : '0;")
         lines.append("")
 
         return lines
@@ -535,7 +562,10 @@ class CrossbarGenerator:
         if not connected_slaves:
             return lines
 
-        # Generate awready MUX
+        # Get master index for bridge_id matching
+        master_idx = self.masters.index(master)
+
+        # Generate awready MUX (uses slave_select_aw - request path)
         lines.append(f"    assign {master.name}_{suffix}_awready = ")
         mux_terms = []
         for slave_idx, slave in connected_slaves:
@@ -544,7 +574,7 @@ class CrossbarGenerator:
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 
-        # Generate wready MUX
+        # Generate wready MUX (uses slave_select_aw - request path)
         lines.append(f"    assign {master.name}_{suffix}_wready = ")
         mux_terms = []
         for slave_idx, slave in connected_slaves:
@@ -553,12 +583,12 @@ class CrossbarGenerator:
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 
-        # Generate B channel MUXes (bid, bresp, bvalid)
+        # Generate B channel MUXes (bid, bresp, bvalid) - uses bridge_id for response routing
         lines.append(f"    assign {master.name}_{suffix}_b.id = ")
         mux_terms = []
         for slave_idx, slave in connected_slaves:
             prefix = get_slave_prefix(slave)
-            mux_terms.append(f"        ({master.name}_slave_select_aw[{slave_idx}] ? {prefix}bid : '0)")
+            mux_terms.append(f"        (({prefix}bid_bridge_id == {master_idx}) && {prefix}bid_valid ? {prefix}bid : '0)")
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 
@@ -566,7 +596,7 @@ class CrossbarGenerator:
         mux_terms = []
         for slave_idx, slave in connected_slaves:
             prefix = get_slave_prefix(slave)
-            mux_terms.append(f"        ({master.name}_slave_select_aw[{slave_idx}] ? {prefix}bresp : '0)")
+            mux_terms.append(f"        (({prefix}bid_bridge_id == {master_idx}) && {prefix}bid_valid ? {prefix}bresp : '0)")
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 
@@ -574,7 +604,7 @@ class CrossbarGenerator:
         mux_terms = []
         for slave_idx, slave in connected_slaves:
             prefix = get_slave_prefix(slave)
-            mux_terms.append(f"        ({master.name}_slave_select_aw[{slave_idx}] ? {prefix}bvalid : '0)")
+            mux_terms.append(f"        (({prefix}bid_bridge_id == {master_idx}) && {prefix}bid_valid ? {prefix}bvalid : '0)")
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 
@@ -598,7 +628,10 @@ class CrossbarGenerator:
         if not connected_slaves:
             return lines
 
-        # Generate arready MUX
+        # Get master index for bridge_id matching
+        master_idx = self.masters.index(master)
+
+        # Generate arready MUX (uses slave_select_ar - request path)
         lines.append(f"    assign {master.name}_{suffix}_arready = ")
         mux_terms = []
         for slave_idx, slave in connected_slaves:
@@ -607,12 +640,12 @@ class CrossbarGenerator:
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 
-        # Generate R channel MUXes (rid, rdata, rresp, rlast, rvalid)
+        # Generate R channel MUXes (rid, rdata, rresp, rlast, rvalid) - uses bridge_id for response routing
         lines.append(f"    assign {master.name}_{suffix}_r.id = ")
         mux_terms = []
         for slave_idx, slave in connected_slaves:
             prefix = get_slave_prefix(slave)
-            mux_terms.append(f"        ({master.name}_slave_select_ar[{slave_idx}] ? {prefix}rid : '0)")
+            mux_terms.append(f"        (({prefix}rid_bridge_id == {master_idx}) && {prefix}rid_valid ? {prefix}rid : '0)")
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 
@@ -621,7 +654,7 @@ class CrossbarGenerator:
         for slave_idx, slave in connected_slaves:
             prefix = get_slave_prefix(slave)
             # Explicitly size the default value to match the slave's data width
-            mux_terms.append(f"        ({master.name}_slave_select_ar[{slave_idx}] ? {prefix}rdata : {width}'b0)")
+            mux_terms.append(f"        (({prefix}rid_bridge_id == {master_idx}) && {prefix}rid_valid ? {prefix}rdata : {width}'b0)")
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 
@@ -629,7 +662,7 @@ class CrossbarGenerator:
         mux_terms = []
         for slave_idx, slave in connected_slaves:
             prefix = get_slave_prefix(slave)
-            mux_terms.append(f"        ({master.name}_slave_select_ar[{slave_idx}] ? {prefix}rresp : '0)")
+            mux_terms.append(f"        (({prefix}rid_bridge_id == {master_idx}) && {prefix}rid_valid ? {prefix}rresp : '0)")
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 
@@ -637,7 +670,7 @@ class CrossbarGenerator:
         mux_terms = []
         for slave_idx, slave in connected_slaves:
             prefix = get_slave_prefix(slave)
-            mux_terms.append(f"        ({master.name}_slave_select_ar[{slave_idx}] ? {prefix}rlast : '0)")
+            mux_terms.append(f"        (({prefix}rid_bridge_id == {master_idx}) && {prefix}rid_valid ? {prefix}rlast : '0)")
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 
@@ -645,7 +678,7 @@ class CrossbarGenerator:
         mux_terms = []
         for slave_idx, slave in connected_slaves:
             prefix = get_slave_prefix(slave)
-            mux_terms.append(f"        ({master.name}_slave_select_ar[{slave_idx}] ? {prefix}rvalid : '0)")
+            mux_terms.append(f"        (({prefix}rid_bridge_id == {master_idx}) && {prefix}rid_valid ? {prefix}rvalid : '0)")
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 

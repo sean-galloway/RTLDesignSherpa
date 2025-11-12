@@ -10,10 +10,17 @@ generated/bridge_5x3_channels/src_rd_master_adapter.sv
 generated/bridge_5x3_channels/stream_master_adapter.sv
 generated/bridge_5x3_channels/bridge_5x3_channels.sv
 generated/bridge_5x3_channels/bridge_5x3_channels_xbar.sv
+generated/bridge_5x3_channels/apb_periph_adapter.sv
+generated/bridge_5x3_channels/ddr_controller_adapter.sv
+generated/bridge_5x3_channels/sram_buffer_adapter.sv
 
 # AXI4 Wrapper modules (timing isolation)
+# Master adapters use axi4_slave_* (act as AXI slave to external master)
 $REPO_ROOT/rtl/amba/axi4/axi4_slave_wr.sv
 $REPO_ROOT/rtl/amba/axi4/axi4_slave_rd.sv
+# Slave adapters use axi4_master_* (act as AXI master to external slave)
+$REPO_ROOT/rtl/amba/axi4/axi4_master_wr.sv
+$REPO_ROOT/rtl/amba/axi4/axi4_master_rd.sv
 
 # GAXI skid buffers (used by wrappers and converters)
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv

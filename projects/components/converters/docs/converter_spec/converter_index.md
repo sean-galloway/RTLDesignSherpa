@@ -1,8 +1,8 @@
 # Converters Component Specification
 
-**Version:** 1.3
+**Version:** 1.4
 **Status:** Production Ready
-**Last Updated:** 2025-11-06
+**Last Updated:** 2025-11-10
 
 ---
 
@@ -84,6 +84,7 @@ This specification provides comprehensive documentation for the Converters compo
 - **axi4_to_apb_convert** - Full AXI4-to-APB protocol bridge
 - **axi4_to_apb_shim** - Simplified AXI4-to-APB wrapper
 - **peakrdl_to_cmdrsp** - PeakRDL register to command/response adapter
+- **uart_axil_bridge** - UART ASCII command to AXI4-Lite bridge (see `rtl/uart_to_axil4/README.md`)
 
 **Block Diagrams:**
 
@@ -177,6 +178,7 @@ See [assets/puml/README.md](assets/puml/README.md) for regeneration instructions
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 1.4 | 2025-11-10 | Refactored AXI4↔AXIL4 wrappers to composition pattern (instantiation vs duplication) |
 | 1.3 | 2025-11-06 | Added AXI4↔AXIL4 protocol converters (6 modules, 42 tests passing) |
 | 1.2 | 2025-10-26 | Added comprehensive specification with block diagrams |
 | 1.1 | 2025-10-25 | Added dual-buffer mode for axi_data_dnsize |
@@ -202,5 +204,5 @@ See [assets/puml/README.md](assets/puml/README.md) for regeneration instructions
 
 **Author:** RTL Design Sherpa Project
 **Maintained By:** Converters Component Team
-**Last Review:** 2025-11-06
+**Last Review:** 2025-11-10
 

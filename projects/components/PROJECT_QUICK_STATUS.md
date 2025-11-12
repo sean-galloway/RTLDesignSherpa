@@ -1,6 +1,6 @@
 # Projects/Components Quick Status
 
-**Last Updated:** 2025-10-29
+**Last Updated:** 2025-11-11
 **Purpose:** High-level status overview of all projects in the components area
 
 ---
@@ -17,18 +17,17 @@
 
 ## Component Summary
 
-| Project | Status | RTL Files | Test Files | Priority |
-|---------|--------|-----------|------------|----------|
-| **converters** | Production Ready | 7 | 7 | High |
-| **apb_hpet** | Production Ready | 14 | 1 | High |
-| **apb_xbar** | Production Ready | 12 | 4 | High |
-| **stream** | Active Development | 13 | 9 | High |
-| **rapids** | Active Development | 14 | 23 | High |
-| **bridge** | Specification Complete | 1 | 1 | Medium |
-| **delta** | Active Development | 1 | 0 | Medium |
-| **hive** | Early Specification | 0 | 0 | Low |
-| **retro_legacy_blocks** | Active Development | 14 (HPET) | 4 | Medium |
-| **bch** | Future Project | 0 | 0 | Low |
+| Project | Status | RTL Files | Test Files | Priority | Completion |
+|---------|--------|-----------|------------|----------|------------|
+| **converters** | Production Ready | 7 | 7 | High | 100% |
+| **apb_xbar** | Production Ready | 12 | 4 | High | 100% |
+| **stream** | Active Development | 22 | 15+ | High | 95% |
+| **bridge** | Active Development | 20+ | 10+ | High | 95% |
+| **rapids** | Active Development | 14 | 23 | High | 80% |
+| **retro_legacy_blocks** | Active Development | 16 | 5 | High | 15% (2/13 blocks) |
+| **delta** | Active Development | 1 | 0 | Medium | 10% |
+| **hive** | Early Specification | 0 | 0 | Low | 5% |
+| **bch** | Placeholder | 0 | 0 | Low | 0% |
 
 ---
 
@@ -36,7 +35,7 @@
 
 ### 1. Converters - Data Width and Protocol Conversion
 
-**Status:** Production Ready
+**Status:** ✅ Production Ready
 **Version:** 1.2
 **Location:** `projects/components/converters/`
 
@@ -65,40 +64,9 @@
 
 ---
 
-### 2. APB HPET - High Precision Event Timer
+### 2. APB Crossbar (apb_xbar) - APB Interconnect
 
-**Status:** Production Ready (5/6 configurations passing)
-**Version:** 1.0
-**Location:** `projects/components/apb_hpet/`
-
-**What it does:**
-- Multi-timer peripheral with 64-bit main counter and comparators
-- Provides high-precision event timing and periodic interrupt generation
-- APB peripheral interface for CPU control
-
-**Key Features:**
-- 64-bit main counter with configurable period (femtoseconds resolution)
-- Multiple comparators with periodic/one-shot modes
-- Interrupt generation on comparator match
-- Legacy replacement timer support
-- APB register interface for configuration and status
-
-**Documentation:**
-- `PRD.md` - Complete product requirements
-- `CLAUDE.md` - AI-specific integration guidance
-- `docs/HPET_Specification_v0.25.pdf` - Formal specification
-
-**Use Cases:**
-- System timers for embedded processors
-- High-precision event scheduling
-- Periodic interrupt generation
-- Legacy timer replacement
-
----
-
-### 3. APB Crossbar (apb_xbar) - APB Interconnect
-
-**Status:** Production Ready (all tests passing)
+**Status:** ✅ Production Ready (all tests passing)
 **Version:** 1.0
 **Location:** `projects/components/apb_xbar/`
 
@@ -127,9 +95,9 @@
 
 ---
 
-### 4. STREAM - Scatter-Gather Transfer Rapid Engine for AXI Memory
+### 3. STREAM - Scatter-Gather Transfer Rapid Engine for AXI Memory
 
-**Status:** Active Development (~80% complete)
+**Status:** 🟢 Active Development (95% complete)
 **Version:** 1.0
 **Location:** `projects/components/stream/`
 
@@ -143,28 +111,81 @@
 - Separate AXI read and write engines (NO FSM - streaming pipelines)
 - SRAM buffering with flow control
 - Performance profiler for bandwidth monitoring
-- APB register interface for descriptor submission
+- Bubble-free write engine pipeline
+- Transaction completion tracking
+
+**Core Blocks Complete:**
+- ✅ descriptor_engine.sv
+- ✅ scheduler.sv
+- ✅ axi_read_engine.sv (with pipelining)
+- ✅ axi_write_engine.sv (bubble-free pipeline)
+- ✅ sram_controller.sv
+- ✅ stream_alloc_ctrl.sv
+- ✅ stream_drain_ctrl.sv
+- ✅ stream_latency_bridge.sv
+- ✅ perf_profiler.sv
+- ✅ stream_core.sv (complete integration)
+
+**Remaining (5%):**
+- APB configuration interface (PeakRDL generation)
+- Top-level stream_top wrapper
+- Final integration test
 
 **Documentation:**
 - `PRD.md` - Product requirements and architecture
 - `CLAUDE.md` - Implementation guidance
-- `docs/stream_spec/` - Complete specification with block diagrams
+- `README.md` - Quick start guide
+- `docs/stream_spec/` - Complete microarchitecture specification
 
 **Use Cases:**
 - Memory-to-memory DMA transfers
 - Scatter-gather I/O operations
 - Educational DMA engine reference
 
-**Current Focus:**
-- Performance profiler validation
-- APB descriptor interface implementation
-- Comprehensive testing and documentation
+---
+
+### 4. Bridge - AXI4 Full Crossbar Generator
+
+**Status:** 🟢 Active Development (95% complete)
+**Version:** 1.0
+**Location:** `projects/components/bridge/`
+
+**What it does:**
+- Python-based generator for parameterized AXI4 full crossbars
+- Connects multiple AXI4 masters to multiple AXI4 slaves with complete 5-channel routing
+- Enables high-performance memory-mapped interconnects
+
+**Key Features:**
+- Python code generation for custom MxN topologies
+- Complete AXI4 implementation (AW, W, B, AR, R channels)
+- ID-based response routing with distributed RAM tracking
+- Per-slave round-robin arbitration with burst-aware grant locking
+- CSV-based configuration for easy customization
+- Automatic RTL and testbench generation
+
+**Current Status:**
+- ✅ Python generator infrastructure complete
+- ✅ RTL generation for all channel types
+- ✅ Adapter modules (APB, AXIL to native AXI4)
+- ✅ Crossbar routing logic
+- ✅ Test infrastructure and auto-generation
+- 🔧 Final integration and validation
+
+**Documentation:**
+- `PRD.md` - Complete specification
+- `CLAUDE.md` - Implementation guidance and testbench architecture
+- `docs/bridge_spec/` - Detailed architecture documentation
+
+**Use Cases:**
+- Multi-core processor interconnects
+- Accelerator to memory fabric
+- High-performance SoC interconnect
 
 ---
 
 ### 5. RAPIDS - Rapid AXI Programmable In-band Descriptor System
 
-**Status:** Active Development (~80% test coverage)
+**Status:** 🟡 Active Development (~80% test coverage)
 **Version:** 1.0
 **Location:** `projects/components/rapids/`
 
@@ -198,44 +219,59 @@
 
 ---
 
-### 6. Bridge - AXI4 Full Crossbar Generator
+### 6. Retro Legacy Blocks - Intel ILB-Compatible Peripherals
 
-**Status:** Specification Complete - Ready for Implementation
+**Status:** 🟡 Active Development (2/13 blocks complete)
 **Version:** 1.0
-**Location:** `projects/components/bridge/`
+**Location:** `projects/components/retro_legacy_blocks/`
 
 **What it does:**
-- Python-based generator for parameterized AXI4 full crossbars
-- Connects multiple AXI4 masters to multiple AXI4 slaves with complete 5-channel routing
-- Enables high-performance memory-mapped interconnects
+- Collection of Intel Low-power Block (ILB) compatible legacy peripherals
+- Production-quality implementations of time-tested peripheral designs
+- Modular blocks for embedded systems and FPGA-based platform emulation
 
-**Key Features:**
-- Python code generation for custom MxN topologies
-- Complete AXI4 implementation (AW, W, B, AR, R channels)
-- ID-based response routing with distributed RAM tracking
-- Per-slave round-robin arbitration with burst-aware grant locking
-- Performance modeling (analytical + simulation)
-- Flat crossbar topology
+**Completed Blocks (2/13):**
+- ✅ **HPET** (High Precision Event Timer) - Production Ready (0x4000_0000-0x0FFF)
+  * 5/6 configurations passing 100%
+  * 64-bit counter, multiple comparators, periodic/one-shot modes
+  * Complete documentation and test coverage
+
+- ✅ **8254 PIT** (Programmable Interval Timer) - Complete (0x4000_2000-0x2FFF)
+  * 3 independent 16-bit counters
+  * 6 counting modes (terminal count, one-shot, rate generator, square wave, etc.)
+  * BCD and binary counting modes
+  * RTL complete, testing in progress
+
+**Planned Blocks (11 remaining):**
+- **8259 PIC** - Programmable Interrupt Controller (0x4000_1000-0x1FFF) - High Priority
+- **RTC** - Real-Time Clock (0x4000_3000-0x3FFF)
+- **SMBus** - System Management Bus Controller (0x4000_4000-0x4FFF)
+- **PM/ACPI** - Power Management Controller (0x4000_5000-0x5FFF)
+- **IOAPIC** - I/O Advanced PIC (0x4000_6000-0x6FFF)
+- GPIO, UART, SPI, I2C, Watchdog, Interconnect (future)
+
+**RLB Wrapper Goal:**
+- Single APB slave entry point at 0x4000_0000
+- 4KB window decode routing to individual blocks
+- Drop-in replacement for legacy Intel ILB
 
 **Documentation:**
-- `PRD.md` - Complete specification
-- `CLAUDE.md` - Implementation guidance and testbench architecture
+- `PRD.md` - Complete requirements for all blocks
+- `CLAUDE.md` - AI development guidance
+- `BLOCK_STATUS.md` - Master tracking for all 13 blocks
+- `docs/hpet_spec/` - Complete HPET specification
 
 **Use Cases:**
-- Multi-core processor interconnects
-- Accelerator to memory fabric
-- High-performance SoC interconnect
-
-**Next Steps:**
-- RTL generator implementation
-- Initial 2x2 crossbar validation
-- Comprehensive testing infrastructure
+- Legacy platform compatibility
+- FPGA-based system emulation
+- Educational peripheral design
+- Embedded systems requiring ILB peripherals
 
 ---
 
 ### 7. Delta - AXI-Stream Crossbar Generator / Network-on-Chip
 
-**Status:** Active Development (v0.3 - Early PoC)
+**Status:** 🟡 Active Development (v0.3 - Early PoC)
 **Version:** 1.0
 **Location:** `projects/components/delta/`
 
@@ -251,11 +287,6 @@
 - Virtual tiles for external entities (RAPIDS=16, HIVE-C=17)
 - Integration with RAPIDS DMA and HIVE control plane
 
-**Key Features (AXIS Crossbar - older):**
-- Python RTL generation
-- Flat and tree topologies
-- Performance modeling
-
 **Documentation:**
 - `README.md` - Quick start (AXIS crossbar)
 - `PRD.md` - Requirements (AXIS crossbar)
@@ -265,18 +296,12 @@
 - Network-on-Chip for multi-tile systems
 - Distributed computing interconnect
 - Educational NoC reference
-- Simple AXI-Stream routing (AXIS crossbar)
-
-**Current Focus:**
-- Router architecture implementation
-- Packet routing validation
-- Integration with RAPIDS/HIVE ecosystem
 
 ---
 
 ### 8. HIVE - Hierarchical Intelligent Vector Environment
 
-**Status:** Early Specification Phase
+**Status:** 🟡 Early Specification Phase
 **Version:** 0.1
 **Location:** `projects/components/hive/`
 
@@ -304,64 +329,11 @@
 - Performance monitoring aggregation
 - Educational RISC-V integration reference
 
-**Next Steps:**
-- HIVE-C controller RTL implementation
-- SERV monitor integration
-- Control network design
-- Configuration manager implementation
-
 ---
 
-### 9. Retro Legacy Blocks - Intel ILB-Compatible Peripherals
+### 9. BCH - Error Correction Codes
 
-**Status:** Active Development (HPET production ready)
-**Version:** 1.0
-**Location:** `projects/components/retro_legacy_blocks/`
-
-**What it does:**
-- Collection of Intel Low-power Block (ILB) compatible legacy peripherals
-- Production-quality implementations of time-tested peripheral designs
-- Modular blocks for embedded systems and FPGA-based platform emulation
-
-**Current Blocks:**
-- **HPET** (High Precision Event Timer) - ✅ Production Ready (0x4000_0000-0x0FFF)
-
-**Planned Blocks (ILB Address Map):**
-- **8259 PIC** - Programmable Interrupt Controller (0x4000_1000-0x1FFF) - High Priority
-- **8254 PIT** - Programmable Interval Timer (0x4000_2000-0x2FFF) - High Priority
-- **RTC** - Real-Time Clock (0x4000_3000-0x3FFF)
-- **SMBus** - System Management Bus Controller (0x4000_4000-0x4FFF)
-- **PM/ACPI** - Power Management Controller (0x4000_5000-0x5FFF)
-- **IOAPIC** - I/O Advanced PIC (0x4000_6000-0x6FFF)
-- GPIO, UART, SPI, I2C, Watchdog, Interconnect (future)
-
-**ILB Wrapper Goal:**
-- Single APB slave entry point at 0x4000_0000
-- 4KB window decode routing to individual blocks
-- Drop-in replacement for legacy Intel ILB
-
-**Documentation:**
-- `PRD.md` - Complete requirements for all blocks
-- `CLAUDE.md` - AI development guidance
-- `BLOCK_STATUS.md` - Master tracking for all 13 blocks
-- `docs/hpet_spec/` - Complete HPET specification (PDF)
-
-**Use Cases:**
-- Legacy platform compatibility
-- FPGA-based system emulation
-- Educational peripheral design
-- Embedded systems requiring ILB peripherals
-
-**Next Steps:**
-- 8259 PIC implementation (Q1 2026)
-- 8254 PIT implementation (Q1 2026)
-- RTC implementation (Q1 2026)
-
----
-
-### 10. BCH - Error Correction Codes
-
-**Status:** Future Project - Structure Created
+**Status:** 📋 Placeholder - Structure Created
 **Version:** 0.1
 **Location:** `projects/components/bch/`
 
@@ -377,38 +349,17 @@
 - AXI4-Stream and simple handshake interfaces
 - Support for common configurations: BCH(511,493,2), BCH(1023,1013,2), etc.
 
-**Key Capabilities:**
-- Error correction capability: t = 1, 2, 4, 8, 16+ errors per codeword
-- Code rates: 0.8 to 0.99 (configurable)
-- Galois field arithmetic: GF(2^m) for m = 4 to 12
-- Throughput: 400 Mbps - 6.4 Gbps (depends on parallelism)
-
 **Documentation:**
-- `README.md` - Overview and BCH fundamentals (14 KB)
-- `PRD.md` - Complete product requirements (17 KB)
-- `CLAUDE.md` - AI development guidance and pitfalls (16 KB)
-- `TASKS.md` - Development task tracking (15 KB)
+- `README.md` - Overview and BCH fundamentals
+- `PRD.md` - Complete product requirements
+- `CLAUDE.md` - AI development guidance
+- `TASKS.md` - Development task tracking
 
 **Use Cases:**
 - NAND flash memory error correction
 - Solid-state drives (SSDs)
 - Optical storage (CD, DVD, Blu-ray)
-- Wireless communications (WiMAX, DVB)
-- Deep space communications
-
-**Development Roadmap:**
-- Phase 1: Foundation - Reference model and tools (4 weeks)
-- Phase 2: Encoder - All configurations (4 weeks)
-- Phase 3: Decoder - Syndrome, BM, Chien, correction (6 weeks)
-- Phase 4: Integration - Codec wrapper, AXI4-Stream (4 weeks)
-- Phase 5: Optimization - Pipeline, performance (4 weeks)
-- Phase 6: Documentation - Complete specification (2 weeks)
-- **Total:** 24 weeks (6 months)
-
-**Next Steps:**
-- Awaiting prioritization and resource allocation
-- Ready for development when needed
-- Reference model and tools will be developed first
+- Wireless communications
 
 ---
 
@@ -443,10 +394,11 @@ Converters (Infrastructure)
 
 APB Crossbar (Peripheral Interconnect)
   ├─ Used by: Any project with APB peripherals
-  └─ Example: HPET connects via APB crossbar
+  └─ Example: Retro blocks connect via APB crossbar
 
-APB HPET (Peripheral)
-  ├─ Example APB peripheral
+Retro Legacy Blocks (Peripherals)
+  ├─ HPET, 8254 PIT, 8259 PIC, etc.
+  ├─ Unified RLB wrapper with single APB interface
   └─ Can be controlled by any APB master
 
 Bridge (Memory Interconnect)
@@ -458,23 +410,26 @@ Bridge (Memory Interconnect)
 
 ## Development Priority
 
-**Tier 1 (Production Ready / Active):**
-- converters - Production infrastructure (DONE)
-- apb_hpet - Production peripheral (DONE)
-- apb_xbar - Production interconnect (DONE)
-- stream - Tutorial DMA (80% complete)
-- rapids - Production accelerator (80% complete)
+**Tier 1 (Production Ready):**
+- ✅ converters - Production infrastructure
+- ✅ apb_xbar - Production interconnect
 
-**Tier 2 (Implementation Phase):**
-- bridge - Crossbar generator (specification complete)
-- delta - NoC infrastructure (early PoC)
+**Tier 2 (Active Development - Nearing Completion):**
+- 🟢 stream - Tutorial DMA (95% complete) - APB config + wrapper remaining
+- 🟢 bridge - Crossbar generator (95% complete) - Final integration remaining
 
-**Tier 3 (Early Specification):**
-- hive - Control plane (specification phase)
-- retro_legacy_blocks - ILB-compatible peripherals (HPET complete, 12 blocks planned)
+**Tier 3 (Active Development):**
+- 🟡 rapids - Production accelerator (80% complete)
+- 🟡 retro_legacy_blocks - ILB peripherals (15% complete - HPET + 8254 done, 11 blocks remaining)
 
-**Tier 4 (Future Projects):**
-- bch - Error correction codes (structure created, awaiting development)
+**Tier 4 (Early Implementation):**
+- 🟡 delta - NoC infrastructure (10% complete)
+
+**Tier 5 (Early Specification):**
+- 🟡 hive - Control plane (5% complete)
+
+**Tier 6 (Future Projects):**
+- 📋 bch - Error correction codes (0% - structure created, awaiting development)
 
 ---
 
@@ -483,15 +438,14 @@ Bridge (Memory Interconnect)
 | Project | LUTs | BRAMs | DSPs | Notes |
 |---------|------|-------|------|-------|
 | **converters** | ~200 | 0 | 0 | Per converter instance |
-| **apb_hpet** | ~800 | 0 | 0 | Full timer with 3 comparators |
 | **apb_xbar** | ~100/slave | 0 | 0 | 2x4 crossbar ~400 LUTs |
 | **stream** | ~3000 | 8 | 0 | Full DMA engine |
+| **bridge** | ~500/slave | TBD | 0 | Estimate for full crossbar |
 | **rapids** | ~5000 | 16 | 0 | Full accelerator |
-| **bridge** | TBD | TBD | 0 | Estimate: ~500 LUTs/slave |
-| **delta** | TBD | TBD | 0 | 4x4 mesh estimate: ~15000 LUTs |
+| **retro_legacy_blocks** | ~1500 | 0 | 0 | HPET + 8254 PIT currently, 11 more blocks planned |
+| **delta** | ~15000 | TBD | 0 | 4x4 mesh estimate |
 | **hive** | ~9000 | 24 | 0 | HIVE-C + 16 SERV monitors |
-| **retro_legacy_blocks** | ~800 | 0 | 0 | HPET currently, 12 more blocks planned |
-| **bch** | ~5K (enc) / ~30K (dec) | 2-4 | 0 | Encoder + Decoder estimates |
+| **bch** | ~35K | 2-4 | 0 | Encoder + Decoder estimates |
 
 ---
 
@@ -530,6 +484,6 @@ For detailed technical information on each project, see the individual `PRD.md` 
 
 ---
 
-**Version:** 1.0
-**Last Updated:** 2025-10-29
+**Version:** 2.0
+**Last Updated:** 2025-11-11
 **Maintained By:** RTL Design Sherpa Project

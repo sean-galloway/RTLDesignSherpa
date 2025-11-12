@@ -30,7 +30,7 @@ RTL_DIR = rtl
 PROJECTS_DIR = projects/components
 
 # Project list
-PROJECTS = stream rapids bridge delta apb_hpet apb_xbar converters shims
+PROJECTS = stream rapids bridge delta apb_xbar converters shims retro_legacy_blocks bch hive
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -46,15 +46,17 @@ help:
 	@echo "================================================================================"
 	@echo ""
 	@echo "TEST TARGETS (run validation tests):"
-	@echo "  make test-all             Run ALL tests (validation + projects)"
-	@echo "  make test-val             Run validation tests (val/amba, val/common, etc.)"
-	@echo "  make test-projects        Run all project tests"
-	@echo "  make test-stream          Run STREAM project tests"
-	@echo "  make test-rapids          Run RAPIDS project tests"
-	@echo "  make test-bridge          Run Bridge project tests"
-	@echo "  make test-delta           Run Delta project tests"
-	@echo "  make test-apb_hpet        Run APB HPET project tests"
-	@echo "  make test-apb_xbar        Run APB Crossbar project tests"
+	@echo "  make test-all                Run ALL tests (validation + projects)"
+	@echo "  make test-val                Run validation tests (val/amba, val/common, etc.)"
+	@echo "  make test-projects           Run all project tests"
+	@echo "  make test-stream             Run STREAM project tests"
+	@echo "  make test-rapids             Run RAPIDS project tests"
+	@echo "  make test-bridge             Run Bridge project tests"
+	@echo "  make test-delta              Run Delta project tests"
+	@echo "  make test-apb_xbar           Run APB Crossbar project tests"
+	@echo "  make test-retro_legacy_blocks Run Retro Legacy Blocks project tests"
+	@echo "  make test-bch                Run BCH project tests"
+	@echo "  make test-hive               Run HIVE project tests"
 	@echo ""
 	@echo "REG_LEVEL TARGETS (configurable test depth - PARALLEL execution):"
 	@echo "  GATE = Quick smoke tests (~5 min), FUNC = Default (~20-40 min), FULL = Comprehensive (~1-2 hours)"
@@ -67,17 +69,19 @@ help:
 	@echo "    make run-rtl-all-{gate|func|full}-parallel"
 	@echo ""
 	@echo "LINT TARGETS (run RTL linting):"
-	@echo "  make lint-all             Run ALL lint (RTL + projects)"
-	@echo "  make lint-rtl             Run RTL lint (rtl/common + rtl/amba)"
-	@echo "  make lint-projects        Run all project RTL lint"
-	@echo "  make lint-stream          Run STREAM RTL lint"
-	@echo "  make lint-rapids          Run RAPIDS RTL lint"
-	@echo "  make lint-bridge          Run Bridge RTL lint"
-	@echo "  make lint-delta           Run Delta RTL lint"
-	@echo "  make lint-apb_hpet        Run APB HPET RTL lint"
-	@echo "  make lint-apb_xbar        Run APB Crossbar RTL lint"
-	@echo "  make lint-converters      Run Converters RTL lint"
-	@echo "  make lint-shims           Run Shims RTL lint"
+	@echo "  make lint-all                Run ALL lint (RTL + projects)"
+	@echo "  make lint-rtl                Run RTL lint (rtl/common + rtl/amba)"
+	@echo "  make lint-projects           Run all project RTL lint"
+	@echo "  make lint-stream             Run STREAM RTL lint"
+	@echo "  make lint-rapids             Run RAPIDS RTL lint"
+	@echo "  make lint-bridge             Run Bridge RTL lint"
+	@echo "  make lint-delta              Run Delta RTL lint"
+	@echo "  make lint-apb_xbar           Run APB Crossbar RTL lint"
+	@echo "  make lint-converters         Run Converters RTL lint"
+	@echo "  make lint-shims              Run Shims RTL lint"
+	@echo "  make lint-retro_legacy_blocks Run Retro Legacy Blocks RTL lint"
+	@echo "  make lint-bch                Run BCH RTL lint"
+	@echo "  make lint-hive               Run HIVE RTL lint"
 	@echo ""
 	@echo "COMBINED TARGETS:"
 	@echo "  make all                  Run tests AND lint on everything"
@@ -150,15 +154,6 @@ test-delta:
 		echo "⚠ Delta test Makefile not found (may not have tests yet)"; \
 	fi
 
-.PHONY: test-apb_hpet
-test-apb_hpet:
-	@echo "=== APB HPET Project Tests ==="
-	@if [ -f $(PROJECTS_DIR)/apb_hpet/dv/tests/Makefile ]; then \
-		$(MAKE) -C $(PROJECTS_DIR)/apb_hpet/dv/tests run-all || true; \
-	else \
-		echo "⚠ APB HPET test Makefile not found"; \
-	fi
-
 .PHONY: test-apb_xbar
 test-apb_xbar:
 	@echo "=== APB Crossbar Project Tests ==="
@@ -168,8 +163,35 @@ test-apb_xbar:
 		echo "⚠ APB Crossbar test Makefile not found"; \
 	fi
 
+.PHONY: test-retro_legacy_blocks
+test-retro_legacy_blocks:
+	@echo "=== Retro Legacy Blocks Project Tests ==="
+	@if [ -f $(PROJECTS_DIR)/retro_legacy_blocks/dv/tests/Makefile ]; then \
+		$(MAKE) -C $(PROJECTS_DIR)/retro_legacy_blocks/dv/tests run-all || true; \
+	else \
+		echo "⚠ Retro Legacy Blocks test Makefile not found"; \
+	fi
+
+.PHONY: test-bch
+test-bch:
+	@echo "=== BCH Project Tests ==="
+	@if [ -f $(PROJECTS_DIR)/bch/dv/tests/Makefile ]; then \
+		$(MAKE) -C $(PROJECTS_DIR)/bch/dv/tests run-all || true; \
+	else \
+		echo "⚠ BCH test Makefile not found (may not have tests yet)"; \
+	fi
+
+.PHONY: test-hive
+test-hive:
+	@echo "=== HIVE Project Tests ==="
+	@if [ -f $(PROJECTS_DIR)/hive/dv/tests/Makefile ]; then \
+		$(MAKE) -C $(PROJECTS_DIR)/hive/dv/tests run-all || true; \
+	else \
+		echo "⚠ HIVE test Makefile not found (may not have tests yet)"; \
+	fi
+
 .PHONY: test-projects
-test-projects: test-stream test-rapids test-bridge test-delta test-apb_hpet test-apb_xbar
+test-projects: test-stream test-rapids test-bridge test-delta test-apb_xbar test-retro_legacy_blocks test-bch test-hive
 	@echo "================================================================================"
 	@echo "✓ All project tests completed"
 	@echo "================================================================================"
@@ -314,15 +336,6 @@ lint-delta:
 		echo "⚠ Delta RTL Makefile not found"; \
 	fi
 
-.PHONY: lint-apb_hpet
-lint-apb_hpet:
-	@echo "=== APB HPET RTL Lint ==="
-	@if [ -f $(PROJECTS_DIR)/apb_hpet/rtl/Makefile ]; then \
-		$(MAKE) -C $(PROJECTS_DIR)/apb_hpet/rtl lint-all || true; \
-	else \
-		echo "⚠ APB HPET RTL Makefile not found"; \
-	fi
-
 .PHONY: lint-apb_xbar
 lint-apb_xbar:
 	@echo "=== APB Crossbar RTL Lint ==="
@@ -350,8 +363,35 @@ lint-shims:
 		echo "⚠ Shims RTL Makefile not found"; \
 	fi
 
+.PHONY: lint-retro_legacy_blocks
+lint-retro_legacy_blocks:
+	@echo "=== Retro Legacy Blocks RTL Lint ==="
+	@if [ -f $(PROJECTS_DIR)/retro_legacy_blocks/rtl/Makefile ]; then \
+		$(MAKE) -C $(PROJECTS_DIR)/retro_legacy_blocks/rtl lint-all || true; \
+	else \
+		echo "⚠ Retro Legacy Blocks RTL Makefile not found"; \
+	fi
+
+.PHONY: lint-bch
+lint-bch:
+	@echo "=== BCH RTL Lint ==="
+	@if [ -f $(PROJECTS_DIR)/bch/rtl/Makefile ]; then \
+		$(MAKE) -C $(PROJECTS_DIR)/bch/rtl lint-all || true; \
+	else \
+		echo "⚠ BCH RTL Makefile not found (may not have RTL yet)"; \
+	fi
+
+.PHONY: lint-hive
+lint-hive:
+	@echo "=== HIVE RTL Lint ==="
+	@if [ -f $(PROJECTS_DIR)/hive/rtl/Makefile ]; then \
+		$(MAKE) -C $(PROJECTS_DIR)/hive/rtl lint-all || true; \
+	else \
+		echo "⚠ HIVE RTL Makefile not found (may not have RTL yet)"; \
+	fi
+
 .PHONY: lint-projects
-lint-projects: lint-stream lint-rapids lint-bridge lint-delta lint-apb_hpet lint-apb_xbar lint-converters lint-shims
+lint-projects: lint-stream lint-rapids lint-bridge lint-delta lint-apb_xbar lint-converters lint-shims lint-retro_legacy_blocks lint-bch lint-hive
 	@echo "================================================================================"
 	@echo "✓ All project RTL lint completed"
 	@echo "================================================================================"

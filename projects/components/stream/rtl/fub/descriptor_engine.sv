@@ -563,6 +563,25 @@ module descriptor_engine #(
         end
     )
 
+    logic         w_pkt_error;                 // [195] Error flag
+    logic         w_pkt_last;                  // [194] Last in chain
+    logic         w_pkt_gen_irq;               // [193] Generate interrupt (renamed from 'interrupt' - C++ keyword)
+    logic         w_pkt_valid;                 // [192] Valid descriptor
+    logic [31:0]  w_pkt_next_descriptor_ptr;   // [191:160] Next descriptor address
+    logic [31:0]  w_pkt_length;                // [159:128] Length in BEATS
+    logic [63:0]  w_pkt_dst_addr;              // [127:64] Destination address
+    logic [63:0]  w_pkt_src_addr;              // [63:0] Source address
+
+    always_comb begin
+        w_pkt_error = r_data[195];
+        w_pkt_last = r_data[194];
+        w_pkt_gen_irq = r_data[193];
+        w_pkt_valid = r_data[192];
+        w_pkt_next_descriptor_ptr = r_data[191:160];
+        w_pkt_length = r_data[159:128];
+        w_pkt_dst_addr = r_data[127:64];
+        w_pkt_src_addr = r_data[63:0];
+    end
 
     // Next state logic with channel reset support
     always_comb begin

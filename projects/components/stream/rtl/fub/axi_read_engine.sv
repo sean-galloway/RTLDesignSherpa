@@ -63,10 +63,10 @@ module axi_read_engine #(
     parameter int ADDR_WIDTH = 64,                  // AXI address width
     parameter int DATA_WIDTH = 512,                 // AXI data width
     parameter int ID_WIDTH = 8,                     // AXI ID width
-    parameter int MAX_BURST_LEN = 16,               // Maximum AXI burst length
-    parameter int COUNT_WIDTH = 8,                  // Width of space/count signals (typically $clog2(FIFO_DEPTH)+1)
+    parameter int SEG_COUNT_WIDTH = 8,              // Width of space/count signals (typically $clog2(SRAM_DEPTH)+1)
     parameter int PIPELINE = 0,                     // 1: allow multiple outstanding requests per channel (pipelined)
                                                     // 0: wait for all data before next request per channel (non-pipelined)
+    parameter int AR_MAX_OUTSTANDING = 8,           // Maximum outstanding AR requests per channel (PIPELINE=1 only)
     parameter int STROBE_EVERY_BEAT = 0,            // 0: strobe only on last beat (default)
                                                     // 1: strobe on every beat written to SRAM
 
@@ -74,7 +74,9 @@ module axi_read_engine #(
     parameter int NC = NUM_CHANNELS,
     parameter int AW = ADDR_WIDTH,
     parameter int DW = DATA_WIDTH,
-    parameter int IW = ID_WIDTH
+    parameter int IW = ID_WIDTH,
+    parameter int SCW = SEG_COUNT_WIDTH,            // Segment count width (matches sram_controller naming)
+    parameter int CIW = (NC > 1) ? $clog2(NC) : 1   // Channel ID width (min 1 bit)
 ) (
     // Clock and Reset
     input  logic                        clk,
@@ -122,7 +124,7 @@ module axi_read_engine #(
     output logic                        rd_alloc_req,        // Channel requests space
     output logic [7:0]                  rd_alloc_size,       // Beats to reserve
     output logic [IW-1:0]               rd_alloc_id,         // Transaction ID → channel
-    input  logic [NC-1:0][COUNT_WIDTH-1:0] rd_space_free,   // Free space count (beats available)
+    input  logic [NC-1:0][SCW-1:0]      rd_space_free,       // Free space count (beats available)
 
     //=========================================================================
     // SRAM Write Interface (to SRAM Controller)
@@ -139,6 +141,7 @@ module axi_read_engine #(
     // Notify schedulers when read burst completes
     output logic [NC-1:0]               sched_rd_done_strobe,  // Burst completed (pulsed for 1 cycle)
     output logic [NC-1:0][31:0]         sched_rd_beats_done,   // Number of beats completed in burst
+    output logic [NC-1:0]               axi_rd_all_complete,   // All reads complete (no outstanding txns)
 
     //=========================================================================
     // Debug Interface (for verification/debug only)
@@ -155,14 +158,17 @@ module axi_read_engine #(
     localparam int CW = (NC > 1) ? $clog2(NC) : 1;  // Minimum 1 bit for single channel
     localparam int BYTES_PER_BEAT = DW / 8;
     localparam int AXSIZE = $clog2(BYTES_PER_BEAT);
+    localparam int MOW = $clog2(AR_MAX_OUTSTANDING + 1);  // Max Outstanding Width (bits needed for 0..AR_MAX_OUTSTANDING)
 
     //=========================================================================
-    // Outstanding Transaction Tracking (Non-Pipelined Mode)
+    // Outstanding Transaction Tracking
     //=========================================================================
-    // Track outstanding read transactions per channel to prevent pipelining
-    // when PIPELINE = 0
+    // Track outstanding read transactions per channel
+    // PIPELINE=0: Binary flag (0 or 1 outstanding)
+    // PIPELINE=1: Counter (0 to AR_MAX_OUTSTANDING)
 
-    logic [NC-1:0] r_outstanding;        // 1 = channel has outstanding read transaction
+    logic [NC-1:0] r_outstanding_limit;              // 1 = channel at or exceeds max outstanding
+    logic [NC-1:0][MOW-1:0] r_outstanding_count;   // Outstanding AR count per channel (PIPELINE=1 only)
 
     //=========================================================================
     // Beats Issued Tracking
@@ -175,29 +181,70 @@ module axi_read_engine #(
     generate
         if (PIPELINE == 0) begin : gen_no_pipeline_tracking
             // Per-channel outstanding transaction tracking (non-pipelined mode)
+            // Binary: 0 = no outstanding, 1 = has outstanding
             `ALWAYS_FF_RST(clk, rst_n,
                 if (`RST_ASSERTED(rst_n)) begin
-                    r_outstanding <= '0;
+                    r_outstanding_limit <= '0;
                 end else begin
                     for (int i = 0; i < NC; i++) begin
                         // Set outstanding when AR issues for this channel
                         if (m_axi_arvalid && m_axi_arready && (w_arb_grant_id == i[CW-1:0])) begin
-                            r_outstanding[i] <= 1'b1;
+                            r_outstanding_limit[i] <= 1'b1;
                         end
                         // Clear outstanding when R last arrives for this channel
                         // FIX: Changed from else-if to independent if to handle same-cycle AR/R
                         if (m_axi_rvalid && m_axi_rready && m_axi_rlast &&
                                     (m_axi_rid[CW-1:0] == i[CW-1:0])) begin
-                            r_outstanding[i] <= 1'b0;
+                            r_outstanding_limit[i] <= 1'b0;
                         end
                     end
                 end
             )
-        end else begin : gen_pipeline_allowed
-            // Pipelining allowed - no tracking needed
-            assign r_outstanding = '0;
+            // Counter not used in PIPELINE=0 mode
+            assign r_outstanding_count = '0;
+
+        end else begin : gen_pipeline_tracking
+            // Per-channel counter (0 to AR_MAX_OUTSTANDING)
+            logic [NC-1:0] w_incr, w_decr;  // Increment/decrement signals
+
+            // Determine which channels increment/decrement
+            always_comb begin
+                for (int i = 0; i < NC; i++) begin
+                    w_incr[i] = m_axi_arvalid && m_axi_arready && (w_arb_grant_id == i[CW-1:0]);
+                    w_decr[i] = m_axi_rvalid && m_axi_rready && m_axi_rlast && (m_axi_rid[CW-1:0] == i[CW-1:0]);
+                end
+            end
+
+            // Update counters
+            `ALWAYS_FF_RST(clk, rst_n,
+                if (`RST_ASSERTED(rst_n)) begin
+                    r_outstanding_count <= '0;
+                end else begin
+                    for (int i = 0; i < NC; i++) begin
+                        case ({w_incr[i], w_decr[i]})
+                            2'b10: r_outstanding_count[i] <= r_outstanding_count[i] + 1'b1;  // AR only
+                            2'b01: r_outstanding_count[i] <= r_outstanding_count[i] - 1'b1;  // R last only
+                            default: r_outstanding_count[i] <= r_outstanding_count[i];       // Both or neither
+                        endcase
+                    end
+                end
+            )
+
+            // Boolean flag = at or exceeds limit (prevents new AR when maxed)
+            always_comb begin
+                for (int i = 0; i < NC; i++) begin
+                    r_outstanding_limit[i] = (r_outstanding_count[i] >= $bits(r_outstanding_count[i])'(AR_MAX_OUTSTANDING));
+                end
+            end
         end
     endgenerate
+
+    // Completion signal: asserted when no outstanding transactions for each channel
+    always_comb begin
+        for (int i = 0; i < NC; i++) begin
+            axi_rd_all_complete[i] = (r_outstanding_count[i] == '0);
+        end
+    end
 
     // Track beats issued: increment when AR issues, reset when sched_rd_valid de-asserts
     `ALWAYS_FF_RST(clk, rst_n,
@@ -231,12 +278,12 @@ module axi_read_engine #(
     always_comb begin
         for (int i = 0; i < NC; i++) begin
             // Check if channel has enough space for configured burst size
-            // FIX: Use COUNT_WIDTH for both operands (was hardcoded 8, truncated for depths > 128)
+            // FIX: Use SCW for both operands (was hardcoded 8, truncated for depths > 128)
             // FIX: Require 2x burst size margin to account for in-flight allocation timing
-            w_space_ok[i] = (COUNT_WIDTH'(rd_space_free[i]) >= COUNT_WIDTH'(cfg_axi_rd_xfer_beats << 1));
+            w_space_ok[i] = (SCW'(rd_space_free[i]) >= SCW'(cfg_axi_rd_xfer_beats << 1));
 
             // Check no-pipeline constraint
-            w_no_outstanding[i] = !r_outstanding[i];
+            w_no_outstanding[i] = !r_outstanding_limit[i];
 
             // Check if next burst fits in remaining beats
             // Note: sched_rd_beats is REMAINING beats (decrements as engine completes bursts)

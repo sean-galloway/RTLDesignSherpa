@@ -14,7 +14,8 @@
 //
 // Parameters:
 //   - DATA_WIDTH: Data width in bits (default: 512)
-//   - FIFO_DEPTH: FIFO depth in entries (default: 512)
+//   - SRAM_DEPTH: FIFO depth in entries (default: 512)
+//   - SEG_COUNT_WIDTH (SCW): Width for count signals (default: $clog2(SRAM_DEPTH) + 1)
 //
 // Interfaces:
 //   - Write side: AXI Read Engine → FIFO (valid/ready/data)
@@ -28,10 +29,15 @@
 `include "reset_defs.svh"
 
 module sram_controller_unit #(
+    // Primary parameters (long names for external configuration)
     parameter int DATA_WIDTH = 512,
-    parameter int FIFO_DEPTH = 512,
+    parameter int SRAM_DEPTH = 512,              // Depth per channel FIFO
+    parameter int SEG_COUNT_WIDTH = $clog2(SRAM_DEPTH) + 1,  // Width of count signals
+
+    // Short aliases (for internal use)
     parameter int DW = DATA_WIDTH,
-    parameter int FD = FIFO_DEPTH
+    parameter int SD = SRAM_DEPTH,
+    parameter int SCW = SEG_COUNT_WIDTH          // Segment count width
 ) (
     input  logic          clk,
     input  logic          rst_n,
@@ -49,10 +55,12 @@ module sram_controller_unit #(
     // Allocation interface (Read Engine Flow Control)
     input  logic                  rd_alloc_req,
     input  logic [7:0]            rd_alloc_size,
-    output logic [$clog2(FD):0]   rd_space_free,
+    output logic [SCW-1:0]        rd_space_free,
 
-    // Data available (Write Engine visibility)
-    output logic [$clog2(FD):0]   wr_data_available,
+    // Drain interface (Write Engine Flow Control)
+    input  logic                  wr_drain_req,
+    input  logic [7:0]            wr_drain_size,
+    output logic [SCW-1:0]        wr_drain_data_avail,
 
     // Debug interface (for catching bridge bugs)
     output logic                  dbg_bridge_pending,
@@ -63,11 +71,11 @@ module sram_controller_unit #(
     // Local Parameters
     //==========================================================================
 
-    localparam int ADDR_WIDTH = $clog2(FD);
+    localparam int ADDR_WIDTH = $clog2(SD);
 
     // Debug: Check parameter values
     initial begin
-        $display("sram_controller_unit: FIFO_DEPTH=%0d, ADDR_WIDTH=%0d", FD, ADDR_WIDTH);
+        $display("sram_controller_unit: SRAM_DEPTH=%0d, ADDR_WIDTH=%0d", SD, ADDR_WIDTH);
     end
 
     //==========================================================================
@@ -76,6 +84,9 @@ module sram_controller_unit #(
 
     // Allocation controller outputs
     logic [ADDR_WIDTH:0] alloc_space_free;     // Space from allocation controller
+
+    // Drain controller outputs
+    logic [ADDR_WIDTH:0] drain_data_available;  // Data from drain controller
 
     // FIFO → Latency Bridge (internal connection)
     logic                fifo_rd_valid_internal;
@@ -113,7 +124,7 @@ module sram_controller_unit #(
     //==========================================================================
 
     stream_alloc_ctrl #(
-        .DEPTH(FD),
+        .DEPTH(SD),
         .REGISTERED(1)
     ) u_alloc_ctrl (
         .axi_aclk           (clk),
@@ -142,6 +153,55 @@ module sram_controller_unit #(
     );
 
     //==========================================================================
+    // Drain Controller (Virtual FIFO for drain tracking)
+    //==========================================================================
+    //
+    // CRITICAL: Drain controller perspective (opposite of alloc):
+    //   - "wr" side = DATA WRITTEN to FIFO (increment wr_ptr, increase data available)
+    //   - "rd" side = DRAIN REQUEST from write engine (reserve data, decrement rd_ptr)
+    //
+    // Connection summary:
+    //   - drain_ctrl.wr_valid ← FIFO WRITE handshake (data enters, increment occupancy)
+    //   - drain_ctrl.rd_valid ← drain request (reserve N beats for upcoming write burst)
+    //
+    // When data enters FIFO (axi_rd_sram_valid && ready):
+    //   - Drain wr_ptr advances (data available increases)
+    //
+    // When write engine requests drain (wr_drain_req):
+    //   - Drain rd_ptr advances (data reserved for transmission)
+    //   - data_available DECREASES (reserved data not available to other requests)
+    //
+    //==========================================================================
+
+    stream_drain_ctrl #(
+        .DEPTH(SD),
+        .REGISTERED(1)
+    ) u_drain_ctrl (
+        .axi_aclk           (clk),
+        .axi_aresetn        (rst_n),
+
+        // wr_* = DATA WRITTEN (increment occupancy)
+        // When FIFO receives data → wr_ptr += 1 → data_available += 1
+        .wr_valid           (axi_rd_sram_valid && axi_rd_sram_ready),
+        .wr_ready           (),
+
+        // rd_* = DRAIN REQUEST (reserve data for upcoming write)
+        // Write engine says "I need 16 beats" → rd_ptr += 16 → data_available -= 16
+        .rd_valid           (wr_drain_req),
+        .rd_size            (wr_drain_size),
+        .rd_ready           (),
+
+        // Data tracking
+        .data_available     (drain_data_available),
+
+        // Unused status
+        .wr_full            (),
+        .wr_almost_full     (),
+        .rd_empty           (),
+        .rd_almost_empty    ()
+    );
+
+    //==========================================================================
     // FIFO Buffer (Physical Data Storage)
     //==========================================================================
 
@@ -149,7 +209,7 @@ module sram_controller_unit #(
         .MEM_STYLE(FIFO_AUTO),          // Let tool decide RAM type
         .REGISTERED(1),                 // Registered read (mimics real SRAM behavior)
         .DATA_WIDTH(DW),
-        .DEPTH(FD)
+        .DEPTH(SD)
     ) u_channel_fifo (
         // Clock and reset
         .axi_aclk       (clk),
@@ -215,28 +275,29 @@ module sram_controller_unit #(
     `ifndef SYNTHESIS
     always @(posedge clk) begin
         if (axi_rd_sram_valid && axi_rd_sram_ready) begin
-            $display("CH_UNIT @%t: FIFO WRITE, fifo_count will be %0d -> %0d, bridge_occ=%0d, wr_data_avail=%0d",
-                    $time, fifo_count, fifo_count+1, bridge_occupancy, wr_data_available);
+            $display("CH_UNIT @%t: FIFO WRITE, fifo_count will be %0d -> %0d, bridge_occ=%0d, wr_drain_data_avail=%0d",
+                    $time, fifo_count, fifo_count+1, bridge_occupancy, wr_drain_data_avail);
         end
         if (fifo_rd_valid_internal && fifo_rd_ready_internal) begin
-            $display("CH_UNIT @%t: FIFO DRAIN, fifo_count will be %0d -> %0d, bridge_occ=%0d, wr_data_avail=%0d",
-                    $time, fifo_count, fifo_count-1, bridge_occupancy, wr_data_available);
+            $display("CH_UNIT @%t: FIFO DRAIN, fifo_count will be %0d -> %0d, bridge_occ=%0d, wr_drain_data_avail=%0d",
+                    $time, fifo_count, fifo_count-1, bridge_occupancy, wr_drain_data_avail);
         end
         if (axi_wr_sram_valid && axi_wr_sram_ready) begin
-            $display("CH_UNIT @%t: OUTPUT DRAIN, fifo_count=%0d, bridge_occ=%0d, wr_data_avail=%0d",
-                    $time, fifo_count, bridge_occupancy, wr_data_available);
+            $display("CH_UNIT @%t: OUTPUT DRAIN, fifo_count=%0d, bridge_occ=%0d, wr_drain_data_avail=%0d",
+                    $time, fifo_count, bridge_occupancy, wr_drain_data_avail);
         end
     end
     `endif
 
-    // Total data available = FIFO count + latency bridge occupancy
-    // COMBINATIONAL - updates immediately when FIFO/bridge state changes
-    assign wr_data_available = fifo_count + ($clog2(FD)+1)'(bridge_occupancy);
+    // Total data available = drain controller data + latency bridge occupancy
+    // The drain controller tracks FIFO only; we must add bridge buffered data
+    // COMBINATIONAL - updates immediately when drain/bridge state changes
+    assign wr_drain_data_avail = drain_data_available + SCW'(bridge_occupancy);
 
     // Register rd_space_free to break combinatorial paths to read engine
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
-            rd_space_free <= ($clog2(FD)+1)'(FD);  // Full space on reset (correct width)
+            rd_space_free <= SCW'(SD);  // Full space on reset (correct width)
         end else begin
             rd_space_free <= alloc_space_free;
         end

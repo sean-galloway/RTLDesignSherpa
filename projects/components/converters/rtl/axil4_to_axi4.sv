@@ -5,17 +5,20 @@
 // Purpose: AXI4-Lite to AXI4 Full Protocol Converter
 //
 // Description:
-//   Converts AXI4-Lite protocol to AXI4 full by:
-//   - Adding default values for burst fields (LEN=0, SIZE, BURST=INCR)
-//   - Adding default values for ID, USER, REGION, QOS fields
-//   - Converting simplified handshaking to full AXI4 protocol
-//   - Maintaining single-beat transaction semantics
+//   Converts AXI4-Lite protocol to AXI4 full by instantiating separate
+//   read and write converters:
+//   - axil4_to_axi4_rd: Handles AR and R channels
+//   - axil4_to_axi4_wr: Handles AW, W, and B channels
+//
+//   This top-level wrapper provides a complete bidirectional converter
+//   while maintaining single source of truth for conversion logic.
 //
 //   Key Features:
 //   - Simple passthrough: All transactions remain single-beat
 //   - Protocol upgrade: AXI4-Lite → AXI4 full with safe defaults
 //   - Timing closure: Uses gaxi_skid_buffer on all channels
 //   - Configurable defaults: ID, USER, REGION, QOS values
+//   - Modular design: Instantiates standalone read/write converters
 //
 // Parameters:
 //   AXI_ID_WIDTH: Transaction ID width on AXI4 side (1-16)
@@ -36,6 +39,7 @@
 //
 // Author: RTL Design Sherpa
 // Created: 2025-11-05
+// Modified: 2025-11-10 - Refactored to instantiate separate read/write modules
 
 `timescale 1ns / 1ps
 
@@ -61,8 +65,7 @@ module axil4_to_axi4 #(
     parameter int SKID_DEPTH_B      = 4,
 
     // Calculated Parameters
-    localparam int STRB_WIDTH = AXI_DATA_WIDTH / 8,
-    localparam int SIZE_VAL   = $clog2(STRB_WIDTH)  // ARSIZE/AWSIZE for full width
+    localparam int STRB_WIDTH = AXI_DATA_WIDTH / 8
 ) (
     // Clock and Reset
     input  logic                        aclk,
@@ -161,83 +164,113 @@ module axil4_to_axi4 #(
 );
 
     //==========================================================================
-    // Read Address Channel: Add AXI4 Fields
+    // Read Path: Instantiate axil4_to_axi4_rd
     //==========================================================================
 
-    // Passthrough AXI4-Lite fields
-    assign m_axi_araddr = s_axil_araddr;
-    assign m_axi_arprot = s_axil_arprot;
-    assign m_axi_arvalid = s_axil_arvalid;
-    assign s_axil_arready = m_axi_arready;
+    axil4_to_axi4_rd #(
+        .AXI_ID_WIDTH    (AXI_ID_WIDTH),
+        .AXI_ADDR_WIDTH  (AXI_ADDR_WIDTH),
+        .AXI_DATA_WIDTH  (AXI_DATA_WIDTH),
+        .AXI_USER_WIDTH  (AXI_USER_WIDTH),
+        .DEFAULT_ID      (DEFAULT_ID),
+        .DEFAULT_REGION  (DEFAULT_REGION),
+        .DEFAULT_QOS     (DEFAULT_QOS),
+        .SKID_DEPTH_AR   (SKID_DEPTH_AR),
+        .SKID_DEPTH_R    (SKID_DEPTH_R)
+    ) u_rd_converter (
+        .aclk           (aclk),
+        .aresetn        (aresetn),
 
-    // Add AXI4-only fields with safe defaults
-    assign m_axi_arid     = AXI_ID_WIDTH'(DEFAULT_ID);
-    assign m_axi_arlen    = 8'd0;           // Single beat
-    assign m_axi_arsize   = 3'(SIZE_VAL);   // Full data width
-    assign m_axi_arburst  = 2'b01;          // INCR burst type
-    assign m_axi_arlock   = 1'b0;           // Normal access
-    assign m_axi_arcache  = 4'b0011;        // Bufferable
-    assign m_axi_arqos    = 4'(DEFAULT_QOS);
-    assign m_axi_arregion = 4'(DEFAULT_REGION);
-    assign m_axi_aruser   = '0;             // No user data
+        // Slave AXI4-Lite Read Interface
+        .s_axil_araddr  (s_axil_araddr),
+        .s_axil_arprot  (s_axil_arprot),
+        .s_axil_arvalid (s_axil_arvalid),
+        .s_axil_arready (s_axil_arready),
+        .s_axil_rdata   (s_axil_rdata),
+        .s_axil_rresp   (s_axil_rresp),
+        .s_axil_rvalid  (s_axil_rvalid),
+        .s_axil_rready  (s_axil_rready),
 
-    //==========================================================================
-    // Read Data Channel: Strip AXI4 Fields
-    //==========================================================================
-
-    // Passthrough data and response
-    assign s_axil_rdata = m_axi_rdata;
-    assign s_axil_rresp = m_axi_rresp;
-    assign s_axil_rvalid = m_axi_rvalid;
-    assign m_axi_rready = s_axil_rready;
-
-    // Ignore AXI4-only fields (ID, LAST, USER)
-    // RLAST should always be 1 for single-beat transactions
-
-    //==========================================================================
-    // Write Address Channel: Add AXI4 Fields
-    //==========================================================================
-
-    // Passthrough AXI4-Lite fields
-    assign m_axi_awaddr = s_axil_awaddr;
-    assign m_axi_awprot = s_axil_awprot;
-    assign m_axi_awvalid = s_axil_awvalid;
-    assign s_axil_awready = m_axi_awready;
-
-    // Add AXI4-only fields with safe defaults
-    assign m_axi_awid     = AXI_ID_WIDTH'(DEFAULT_ID);
-    assign m_axi_awlen    = 8'd0;           // Single beat
-    assign m_axi_awsize   = 3'(SIZE_VAL);   // Full data width
-    assign m_axi_awburst  = 2'b01;          // INCR burst type
-    assign m_axi_awlock   = 1'b0;           // Normal access
-    assign m_axi_awcache  = 4'b0011;        // Bufferable
-    assign m_axi_awqos    = 4'(DEFAULT_QOS);
-    assign m_axi_awregion = 4'(DEFAULT_REGION);
-    assign m_axi_awuser   = '0;             // No user data
+        // Master AXI4 Read Interface
+        .m_axi_arid     (m_axi_arid),
+        .m_axi_araddr   (m_axi_araddr),
+        .m_axi_arlen    (m_axi_arlen),
+        .m_axi_arsize   (m_axi_arsize),
+        .m_axi_arburst  (m_axi_arburst),
+        .m_axi_arlock   (m_axi_arlock),
+        .m_axi_arcache  (m_axi_arcache),
+        .m_axi_arprot   (m_axi_arprot),
+        .m_axi_arqos    (m_axi_arqos),
+        .m_axi_arregion (m_axi_arregion),
+        .m_axi_aruser   (m_axi_aruser),
+        .m_axi_arvalid  (m_axi_arvalid),
+        .m_axi_arready  (m_axi_arready),
+        .m_axi_rid      (m_axi_rid),
+        .m_axi_rdata    (m_axi_rdata),
+        .m_axi_rresp    (m_axi_rresp),
+        .m_axi_rlast    (m_axi_rlast),
+        .m_axi_ruser    (m_axi_ruser),
+        .m_axi_rvalid   (m_axi_rvalid),
+        .m_axi_rready   (m_axi_rready)
+    );
 
     //==========================================================================
-    // Write Data Channel: Add AXI4 Fields
+    // Write Path: Instantiate axil4_to_axi4_wr
     //==========================================================================
 
-    // Passthrough AXI4-Lite fields
-    assign m_axi_wdata = s_axil_wdata;
-    assign m_axi_wstrb = s_axil_wstrb;
-    assign m_axi_wvalid = s_axil_wvalid;
-    assign s_axil_wready = m_axi_wready;
+    axil4_to_axi4_wr #(
+        .AXI_ID_WIDTH    (AXI_ID_WIDTH),
+        .AXI_ADDR_WIDTH  (AXI_ADDR_WIDTH),
+        .AXI_DATA_WIDTH  (AXI_DATA_WIDTH),
+        .AXI_USER_WIDTH  (AXI_USER_WIDTH),
+        .DEFAULT_ID      (DEFAULT_ID),
+        .DEFAULT_REGION  (DEFAULT_REGION),
+        .DEFAULT_QOS     (DEFAULT_QOS),
+        .SKID_DEPTH_AW   (SKID_DEPTH_AW),
+        .SKID_DEPTH_W    (SKID_DEPTH_W),
+        .SKID_DEPTH_B    (SKID_DEPTH_B)
+    ) u_wr_converter (
+        .aclk           (aclk),
+        .aresetn        (aresetn),
 
-    // Add AXI4-only fields
-    assign m_axi_wlast = 1'b1;  // Always last (single beat)
-    assign m_axi_wuser = '0;    // No user data
+        // Slave AXI4-Lite Write Interface
+        .s_axil_awaddr  (s_axil_awaddr),
+        .s_axil_awprot  (s_axil_awprot),
+        .s_axil_awvalid (s_axil_awvalid),
+        .s_axil_awready (s_axil_awready),
+        .s_axil_wdata   (s_axil_wdata),
+        .s_axil_wstrb   (s_axil_wstrb),
+        .s_axil_wvalid  (s_axil_wvalid),
+        .s_axil_wready  (s_axil_wready),
+        .s_axil_bresp   (s_axil_bresp),
+        .s_axil_bvalid  (s_axil_bvalid),
+        .s_axil_bready  (s_axil_bready),
 
-    //==========================================================================
-    // Write Response Channel: Strip AXI4 Fields
-    //==========================================================================
-
-    // Passthrough response
-    assign s_axil_bresp = m_axi_bresp;
-    assign s_axil_bvalid = m_axi_bvalid;
-    assign m_axi_bready = s_axil_bready;
-
-    // Ignore AXI4-only fields (ID, USER)
+        // Master AXI4 Write Interface
+        .m_axi_awid     (m_axi_awid),
+        .m_axi_awaddr   (m_axi_awaddr),
+        .m_axi_awlen    (m_axi_awlen),
+        .m_axi_awsize   (m_axi_awsize),
+        .m_axi_awburst  (m_axi_awburst),
+        .m_axi_awlock   (m_axi_awlock),
+        .m_axi_awcache  (m_axi_awcache),
+        .m_axi_awprot   (m_axi_awprot),
+        .m_axi_awqos    (m_axi_awqos),
+        .m_axi_awregion (m_axi_awregion),
+        .m_axi_awuser   (m_axi_awuser),
+        .m_axi_awvalid  (m_axi_awvalid),
+        .m_axi_awready  (m_axi_awready),
+        .m_axi_wdata    (m_axi_wdata),
+        .m_axi_wstrb    (m_axi_wstrb),
+        .m_axi_wlast    (m_axi_wlast),
+        .m_axi_wuser    (m_axi_wuser),
+        .m_axi_wvalid   (m_axi_wvalid),
+        .m_axi_wready   (m_axi_wready),
+        .m_axi_bid      (m_axi_bid),
+        .m_axi_bresp    (m_axi_bresp),
+        .m_axi_buser    (m_axi_buser),
+        .m_axi_bvalid   (m_axi_bvalid),
+        .m_axi_bready   (m_axi_bready)
+    );
 
 endmodule : axil4_to_axi4

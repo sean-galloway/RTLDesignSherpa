@@ -364,7 +364,7 @@ rtl-matching:
 		--output-dir $(RTL_FROM_BIN)
 	@echo "Generating bridge_2x2_rw..."
 	cd $(BIN_DIR) && python3 bridge_generator.py \
-		--ports $(CONFIG_DIR)/bridge_2x2_rw.yaml \
+		--ports $(CONFIG_DIR)/bridge_2x2_rw.toml \
 		--name bridge_2x2_rw \
 		--output-dir $(RTL_FROM_BIN)
 	@echo ""
@@ -378,17 +378,17 @@ rtl-mixed:
 	@echo "================================================================================"
 	@echo "Generating bridge_4x4_rw..."
 	cd $(BIN_DIR) && python3 bridge_generator.py \
-		--ports $(CONFIG_DIR)/bridge_4x4_rw.yaml \
+		--ports $(CONFIG_DIR)/bridge_4x4_rw.toml \
 		--name bridge_4x4_rw \
 		--output-dir $(RTL_FROM_BIN)
 	@echo "Generating bridge_5x3_channels..."
 	cd $(BIN_DIR) && python3 bridge_generator.py \
-		--ports $(CONFIG_DIR)/bridge_5x3_channels.yaml \
+		--ports $(CONFIG_DIR)/bridge_5x3_channels.toml \
 		--name bridge_5x3_channels \
 		--output-dir $(RTL_FROM_BIN)
 	@echo "Generating bridge_example..."
 	cd $(BIN_DIR) && python3 bridge_generator.py \
-		--ports $(CONFIG_DIR)/bridge_example.yaml \
+		--ports $(CONFIG_DIR)/bridge_example.toml \
 		--name bridge_example \
 		--output-dir $(RTL_FROM_BIN)
 	@echo ""
@@ -434,7 +434,7 @@ test-matching:
 		--output-test $(TEST_FROM_BIN)
 	@echo "Generating bridge_2x2_rw tests..."
 	cd $(BIN_DIR) && python3 bridge_generator.py \
-		--ports $(CONFIG_DIR)/bridge_2x2_rw.yaml \
+		--ports $(CONFIG_DIR)/bridge_2x2_rw.toml \
 		--name bridge_2x2_rw \
 		--output-dir $(RTL_FROM_BIN) \
 		--generate-tests \
@@ -451,7 +451,7 @@ test-mixed:
 	@echo "================================================================================"
 	@echo "Generating bridge_4x4_rw tests..."
 	cd $(BIN_DIR) && python3 bridge_generator.py \
-		--ports $(CONFIG_DIR)/bridge_4x4_rw.yaml \
+		--ports $(CONFIG_DIR)/bridge_4x4_rw.toml \
 		--name bridge_4x4_rw \
 		--output-dir $(RTL_FROM_BIN) \
 		--generate-tests \
@@ -459,7 +459,7 @@ test-mixed:
 		--output-test $(TEST_FROM_BIN)
 	@echo "Generating bridge_5x3_channels tests..."
 	cd $(BIN_DIR) && python3 bridge_generator.py \
-		--ports $(CONFIG_DIR)/bridge_5x3_channels.yaml \
+		--ports $(CONFIG_DIR)/bridge_5x3_channels.toml \
 		--name bridge_5x3_channels \
 		--output-dir $(RTL_FROM_BIN) \
 		--generate-tests \
@@ -467,7 +467,7 @@ test-mixed:
 		--output-test $(TEST_FROM_BIN)
 	@echo "Generating bridge_example tests..."
 	cd $(BIN_DIR) && python3 bridge_generator.py \
-		--ports $(CONFIG_DIR)/bridge_example.yaml \
+		--ports $(CONFIG_DIR)/bridge_example.toml \
 		--name bridge_example \
 		--output-dir $(RTL_FROM_BIN) \
 		--generate-tests \

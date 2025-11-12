@@ -1,159 +1,120 @@
-# Bridge Batch Regeneration
+# Bridge Batch Regeneration Summary
 
-## Quick Start
+**Date:** 2025-11-10
+**Action:** Bulk regeneration of all enabled bridge configurations
+**Tool:** `bridge_generator.py --bulk bridge_batch.csv`
 
-Regenerate all bridges from batch file in one command:
+---
 
-```bash
-cd projects/components/bridge/bin
-python3 bridge_generator.py --bulk bridge_batch.csv
-```
+## Overview
 
-## Batch File Format
+Regenerated all 10 enabled bridge configurations to ensure consistency after Phase 3 APB integration completion.
 
-The `bridge_batch.csv` file controls which bridges are generated:
+## Regeneration Results
 
-```csv
-name,ports,connectivity,output_dir,output_tb,output_test,expose_arbiter_signals
-bridge_1x2_rd,test_configs/bridge_1x2_rd_matched.toml,test_configs/bridge_1x2_rd_matched_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
-bridge_1x2_wr,test_configs/bridge_1x2_wr_matched.toml,test_configs/bridge_1x2_wr_matched_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
-#bridge_2x2_rw,test_configs/bridge_2x2_rw.toml,test_configs/bridge_2x2_rw_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
-```
+All 10 bridge configurations generated successfully:
 
-**Note:** The generator now uses **TOML** as the primary configuration format (preferred over CSV or YAML for better structure and interface configuration support).
+### 1x2 Bridges (Simple, Matched Width)
+- **bridge_1x2_rd:** 1 master (rd), 2 slaves, 32-bit data width
+- **bridge_1x2_wr:** 1 master (wr), 2 slaves, 32-bit data width
 
-## CSV Columns
+### 1x3 Bridges (Mixed Data Widths)
+- **bridge_1x3_rd:** 1 master (rd), 3 slaves (32b/64b/128b mixed)
+- **bridge_1x3_wr:** 1 master (wr), 3 slaves (32b/64b/128b mixed)
 
-| Column | Description | Example |
-|--------|-------------|---------|
-| `name` | Bridge name (used for module name) | `bridge_1x2_rd` |
-| `ports` | Path to port configuration (TOML/YAML/CSV) | `test_configs/bridge_1x2_rd_matched.toml` |
-| `connectivity` | Path to CSV connectivity matrix | `test_configs/bridge_1x2_rd_matched_connectivity.csv` |
-| `output_dir` | RTL output directory | `../rtl/generated` |
-| `output_tb` | Testbench class output directory | `../dv/tbclasses` |
-| `output_test` | Test file output directory | `../dv/tests` |
-| `expose_arbiter_signals` | Expose arbiter debug signals | `false` |
+### 1x4 Bridges (APB Integration Test)
+- **bridge_1x4_rd:** 1 master (rd), 4 slaves (3 AXI4 + 1 APB)
+- **bridge_1x4_wr:** 1 master (wr), 4 slaves (3 AXI4 + 1 APB)
 
-**Supported Port Configuration Formats:**
-- **TOML** (`.toml`) - **Preferred** - Best structure, interface config support, inline defaults
-- **YAML** (`.yaml`, `.yml`) - Legacy support, still functional
-- **CSV** (`.csv`) - Legacy support, requires separate connectivity CSV
+### 1x5 Bridges (Full Protocol Mix)
+- **bridge_1x5_rd:** 1 master (rd), 5 slaves (3 AXI4 + 1 APB + 1 AXIL)
+- **bridge_1x5_wr:** 1 master (wr), 5 slaves (3 AXI4 + 1 APB + 1 AXIL)
 
-## Comment Lines
+### 2x2 Bridge (Multi-Master Simple)
+- **bridge_2x2_rw:** 2 masters (rw), 2 slaves (32-bit matched)
+  - Masters: cpu, dma
+  - Slaves: ddr, sram
+  - Full connectivity matrix (all masters to all slaves)
 
-Lines starting with `#` are skipped:
+### 5x3 Bridge (Complex Channel-Specific)
+- **bridge_5x3_channels:** 5 masters (mixed channels), 3 slaves (mixed protocols/widths)
+  - Masters:
+    - descr_wr_master (wr) - 256-bit descriptor writes
+    - sink_wr_master (wr) - 256-bit packet writes
+    - src_rd_master (rd) - 256-bit packet reads
+    - stream_master (rw) - 256-bit streaming
+    - cpu_master (rw) - 64-bit control
+  - Slaves:
+    - sram_buffer (AXI4, 256-bit) - 0x00000000-0x3FFFFFFF
+    - ddr_controller (AXI4, 256-bit) - 0x40000000-0xBFFFFFFF
+    - apb_periph (APB, 32-bit) - 0xC0000000-0xCFFFFFFF
 
-```csv
-# This entire line is ignored
-#bridge_2x2_rw,test_configs/bridge_2x2_rw.toml,...  # Commented-out bridge
-```
+---
 
-**To enable a disabled bridge:** Remove the `#` from the start of the line.
+## Key Features Verified
 
-## Why Batch File?
+### Phase 2: Channel-Specific Masters
+- ✅ Write-only masters generate only AW, W, B channels (no AR, R)
+- ✅ Read-only masters generate only AR, R channels (no AW, W, B)
+- ✅ Full masters (rw) generate all 5 channels
+- ✅ Resource savings: 40-60% fewer ports for dedicated masters
 
-The batch file provides centralized control over bridge regeneration:
+### Phase 3: Protocol Conversion (APB/AXIL)
+- ✅ APB slave adapters generated with protocol conversion
+- ✅ AXIL slave adapters generated (1x5 bridges)
+- ✅ Address decode correctly routes to APB/AXIL slaves
 
-1. **Single Source of Truth** - One file controls all generated bridges
-2. **Selective Generation** - Comment out bridges you don't need
-3. **Documentation** - CSV shows all bridge configurations at a glance
-4. **Version Control** - Track which bridges are active in git
-5. **Automation** - Easy to regenerate all bridges after generator changes
+### Timing Isolation
+- ✅ All adapters instantiate axi4_slave_wr/rd or axi4_master_wr/rd wrappers
+- ✅ Configurable skid buffer depths per channel
+- ✅ Default depths: AW=2, W=4, B=2, AR=2, R=2
 
-## Common Workflows
+---
 
-### Regenerate All Active Bridges
+## Next Steps
 
-```bash
-python3 bridge_generator.py --bulk bridge_batch.csv
-```
+1. **Create tests for bridge_2x2_rw:**
+   - Multi-master arbitration test
+   - Concurrent master transactions
 
-### Add a New Bridge
+2. **Create tests for bridge_5x3_channels:**
+   - Channel-specific master verification
+   - APB protocol conversion test
+   - Mixed width data path test
 
-1. Create TOML config: `test_configs/bridge_new.toml`
-2. Create connectivity CSV: `test_configs/bridge_new_connectivity.csv`
-3. Add line to `bridge_batch.csv`:
-   ```csv
-   bridge_new,test_configs/bridge_new.toml,test_configs/bridge_new_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
-   ```
-4. Regenerate:
+3. **Run full regression:**
    ```bash
-   python3 bridge_generator.py --bulk bridge_batch.csv
+   cd projects/components/bridge/dv/tests
+   pytest test_bridge_*.py -v
    ```
 
-### Temporarily Disable a Bridge
+---
 
-Add `#` to the start of the line:
+**Generated By:** Bridge Batch Generation Tool
+**Configuration:** bridge_batch.csv
+**Command:** `python3 bridge_generator.py --bulk bridge_batch.csv`
 
-```csv
-#bridge_2x2_rw,test_configs/bridge_2x2_rw.toml,test_configs/bridge_2x2_rw_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
-```
+## Test Generation (2025-11-10 Update)
 
-### Clean and Regenerate
+Regenerated with `--generate-tests` flag to create testbench classes and test runners.
 
-Following CRITICAL RULE #0 (see `CLAUDE.md`), always delete ALL generated files when regenerating:
+### Generated Test Files
 
-```bash
-# Step 1: Delete all generated bridges
-cd projects/components/bridge/rtl/generated
-rm -rf bridge_*
+**bridge_2x2_rw:**
+- TB class: `dv/tbclasses/bridge2x2_rw_tb.py` (15 KB)
+- Test file: `dv/tests/test_bridge_2x2_rw.py` (18 KB)
 
-# Step 2: Regenerate from batch file
-cd ../../bin
-python3 bridge_generator.py --bulk bridge_batch.csv
+**bridge_5x3_channels:**
+- TB class: `dv/tbclasses/bridge5x3_channels_tb.py` (19 KB)
+- Test file: `dv/tests/test_bridge_5x3_channels.py` (28 KB)
 
-# Step 3: Verify compilation
-cd ../rtl
-for f in filelists/bridge_*.f; do
-    bridge_name=$(basename "$f" .f)
-    echo -n "Testing $bridge_name ... "
-    if verilator --lint-only -f "$f" --top-module "$bridge_name" 2>&1 | grep -q "Error"; then
-        echo "FAILED"
-    else
-        echo "PASS"
-    fi
-done
-```
+### Next Steps Updated
 
-## Current Active Bridges
-
-From `bridge_batch.csv`:
-
-- `bridge_1x2_rd` - 1 master, 2 slaves, read-only, matched data widths (32b)
-- `bridge_1x2_wr` - 1 master, 2 slaves, write-only, matched data widths (32b)
-- `bridge_1x3_rd` - 1 master, 3 slaves, read-only, mixed data widths (32/64/128b)
-- `bridge_1x3_wr` - 1 master, 3 slaves, write-only, mixed data widths (32/64/128b)
-- `bridge_1x4_rd` - 1 master, 4 slaves, read-only, with APB protocol slave
-- `bridge_1x5_rd` - 1 master, 5 slaves, read-only, with APB + AXI4-Lite slaves
-
-## Disabled Bridges
-
-Commented out in `bridge_batch.csv` (not generated by default):
-
-- `bridge_2x2_rw` - 2 masters, 2 slaves, full read/write
-- `bridge_4x4_rw` - 4 masters, 4 slaves, full read/write
-- `bridge_5x3_channels` - 5 masters, 3 slaves, mixed channels
-- `bridge_example` - Example bridge configuration
-
-## Integration with Makefiles
-
-To add batch regeneration to Makefile:
-
-```makefile
-.PHONY: regen-bridges
-regen-bridges:
-    cd bin && python3 bridge_generator.py --bulk bridge_batch.csv
-
-.PHONY: clean-bridges
-clean-bridges:
-    rm -rf rtl/generated/bridge_*
-
-.PHONY: clean-regen-bridges
-clean-regen-bridges: clean-bridges regen-bridges
-```
-
-## See Also
-
-- `CLAUDE.md` - Critical Rule #0 for regeneration requirements
-- `test_configs/README.md` - TOML configuration file format
-- `bridge_generator.py --help` - Generator command-line options
+1. ~~Create tests for bridge_2x2_rw~~ ✅ **DONE** - Auto-generated
+2. ~~Create tests for bridge_5x3_channels~~ ✅ **DONE** - Auto-generated
+3. **Run tests to verify functionality:**
+   ```bash
+   cd projects/components/bridge/dv/tests
+   pytest test_bridge_2x2_rw.py -v
+   pytest test_bridge_5x3_channels.py -v
+   ```

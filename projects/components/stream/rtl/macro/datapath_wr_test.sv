@@ -34,9 +34,9 @@ module datapath_wr_test #(
     parameter int ADDR_WIDTH = 64,
     parameter int DATA_WIDTH = 512,
     parameter int ID_WIDTH = 8,
-    parameter int MAX_BURST_LEN = 16,
     parameter int SRAM_DEPTH = 4096,
     parameter int PIPELINE = 0,
+    parameter int AW_MAX_OUTSTANDING = 8,
 
     // Short aliases
     parameter int NC = NUM_CHANNELS,
@@ -45,6 +45,7 @@ module datapath_wr_test #(
     parameter int IW = ID_WIDTH,
     parameter int CW = (NC > 1) ? $clog2(NC) : 1,
     parameter int SEG_SIZE = SRAM_DEPTH / NUM_CHANNELS,
+    parameter int FD = SEG_SIZE,
     parameter int SEG_COUNT_WIDTH = $clog2(SEG_SIZE) + 1,
 
     // Descriptor width - 256 bits (STREAM descriptor format)
@@ -187,11 +188,12 @@ module datapath_wr_test #(
 
     // Scheduler status
     logic [NC-1:0]                  sched_idle;
-    logic [NC-1:0][3:0]             sched_state;
+    logic [NC-1:0][6:0]             sched_state;  // One-hot encoded (7 states)
 
     // Scheduler completion strobes (from write engine)
     logic [NC-1:0]                  sched_wr_done_strobe;
     logic [NC-1:0][31:0]            sched_wr_beats_done;
+    logic [NC-1:0]                  axi_wr_all_complete;
 
     // SRAM controller ↔ Write engine (direct connection - ID-based interface)
     logic [NC-1:0]                      axi_wr_sram_valid;           // Per-channel valid from SRAM
@@ -199,12 +201,12 @@ module datapath_wr_test #(
     logic [CW-1:0]                      axi_wr_sram_id;              // Channel ID from write engine
     logic [DW-1:0]                      axi_wr_sram_data;            // Muxed data from SRAM
 
-    // Write engine allocation interface
-    logic [NC-1:0]                      wr_alloc_req;
-    logic [NC-1:0][7:0]                 wr_alloc_size;
+    // Write engine drain interface
+    logic [NC-1:0]                      wr_drain_req;
+    logic [NC-1:0][7:0]                 wr_drain_size;
 
     // Status
-    logic [NC-1:0][SEG_COUNT_WIDTH-1:0] wr_data_available;
+    logic [NC-1:0][SEG_COUNT_WIDTH-1:0] wr_drain_data_avail;
 
     //=========================================================================
     // Map Individual Port Signals to Internal Arrays
@@ -356,9 +358,9 @@ module datapath_wr_test #(
         .ADDR_WIDTH(AW),
         .DATA_WIDTH(DW),
         .ID_WIDTH(IW),
-        .MAX_BURST_LEN(MAX_BURST_LEN),
-        .COUNT_WIDTH(SEG_COUNT_WIDTH),
-        .PIPELINE(PIPELINE)  // Pass through wrapper's PIPELINE parameter
+        .SEG_COUNT_WIDTH(SEG_COUNT_WIDTH),
+        .PIPELINE(PIPELINE),            // Pass through wrapper's PIPELINE parameter
+        .AW_MAX_OUTSTANDING(AW_MAX_OUTSTANDING)  // Maximum outstanding AW requests per channel
     ) u_axi_write_engine (
         .clk                    (clk),
         .rst_n                  (rst_n),
@@ -376,11 +378,12 @@ module datapath_wr_test #(
         // Completion interface (to schedulers)
         .sched_wr_done_strobe   (sched_wr_done_strobe),
         .sched_wr_beats_done    (sched_wr_beats_done),
+        .axi_wr_all_complete    (axi_wr_all_complete),
 
-        // Allocation interface (to SRAM controller)
-        .wr_alloc_req           (wr_alloc_req),
-        .wr_alloc_size          (wr_alloc_size),
-        .wr_data_available      (wr_data_available),
+        // Drain interface (to SRAM controller)
+        .wr_drain_req           (wr_drain_req),
+        .wr_drain_size          (wr_drain_size),
+        .wr_drain_data_avail    (wr_drain_data_avail),
 
         // SRAM read interface (ID-based - direct connection)
         .axi_wr_sram_valid      (axi_wr_sram_valid),
@@ -420,7 +423,7 @@ module datapath_wr_test #(
     sram_controller #(
         .NUM_CHANNELS(NC),
         .DATA_WIDTH(DW),
-        .FIFO_DEPTH(SRAM_DEPTH / NC)  // sram_controller uses per-channel FIFOs
+        .SRAM_DEPTH(SRAM_DEPTH / NC)  // sram_controller uses per-channel FIFOs
     ) u_sram_controller (
         .clk                    (clk),
         .rst_n                  (rst_n),
@@ -437,8 +440,12 @@ module datapath_wr_test #(
         .axi_rd_sram_id         (axi_rd_sram_id[CW-1:0]),  // Truncate top-level IW to CW
         .axi_rd_sram_data       (axi_rd_sram_data),
 
+        // Drain interface (Write Engine Flow Control)
+        .axi_wr_drain_req       (wr_drain_req),
+        .axi_wr_drain_size      (wr_drain_size),
+        .axi_wr_drain_data_avail(wr_drain_data_avail),
+
         // Read interface (to write engine - direct connection)
-        .axi_wr_data_available  (wr_data_available),
         .axi_wr_sram_valid      (axi_wr_sram_valid),         // Per-channel valids
         .axi_wr_sram_drain      (axi_wr_sram_drain),         // Single drain signal
         .axi_wr_sram_id         (axi_wr_sram_id),            // Channel ID select

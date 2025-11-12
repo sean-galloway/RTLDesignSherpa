@@ -5,17 +5,20 @@
 // Purpose: AXI4 Full to AXI4-Lite Protocol Converter
 //
 // Description:
-//   Converts AXI4 full protocol to AXI4-Lite by:
-//   - Decomposing bursts (ARLEN/AWLEN > 0) into multiple single transactions
-//   - Dropping AXI4-specific signals (ID, USER, REGION, QOS)
-//   - Converting full handshaking to simplified AXI4-Lite
-//   - Maintaining data integrity and response propagation
+//   Converts AXI4 full protocol to AXI4-Lite by instantiating separate
+//   read and write converters:
+//   - axi4_to_axil4_rd: Handles AR and R channels with burst decomposition
+//   - axi4_to_axil4_wr: Handles AW, W, and B channels with burst decomposition
+//
+//   This top-level wrapper provides a complete bidirectional converter
+//   while maintaining single source of truth for conversion logic.
 //
 //   Key Features:
 //   - Burst decomposition: Multi-beat bursts → multiple single transactions
 //   - Timing closure: Uses gaxi_skid_buffer on all channels
 //   - Protocol compliant: Full AXI4 slave, AXI4-Lite master
 //   - Response aggregation: Collects responses and returns with original ID
+//   - Modular design: Instantiates standalone read/write converters
 //
 // Parameters:
 //   AXI_ID_WIDTH: Transaction ID width on AXI4 side (1-16)
@@ -33,6 +36,7 @@
 //
 // Author: RTL Design Sherpa
 // Created: 2025-11-05
+// Modified: 2025-11-10 - Refactored to instantiate separate read/write modules
 
 `timescale 1ns / 1ps
 
@@ -152,294 +156,107 @@ module axi4_to_axil4 #(
 );
 
     //==========================================================================
-    // Read Path: Burst Decomposition
+    // Read Path: Instantiate axi4_to_axil4_rd
     //==========================================================================
 
-    // Read burst tracker
-    logic [AXI_ID_WIDTH-1:0]     r_ar_id;
-    logic [AXI_ADDR_WIDTH-1:0]   r_ar_addr;
-    logic [7:0]                  r_ar_len;
-    logic [7:0]                  r_ar_beat_count;
-    logic [2:0]                  r_ar_size;
-    logic [1:0]                  r_ar_burst;
-    logic [2:0]                  r_ar_prot;
-    logic                        r_ar_active;
+    axi4_to_axil4_rd #(
+        .AXI_ID_WIDTH    (AXI_ID_WIDTH),
+        .AXI_ADDR_WIDTH  (AXI_ADDR_WIDTH),
+        .AXI_DATA_WIDTH  (AXI_DATA_WIDTH),
+        .AXI_USER_WIDTH  (AXI_USER_WIDTH),
+        .SKID_DEPTH_AR   (SKID_DEPTH_AR),
+        .SKID_DEPTH_R    (SKID_DEPTH_R)
+    ) u_rd_converter (
+        .aclk           (aclk),
+        .aresetn        (aresetn),
 
-    // Address increment calculation
-    logic [AXI_ADDR_WIDTH-1:0] w_ar_addr_incr;
-    assign w_ar_addr_incr = (1 << r_ar_size);  // Byte increment per beat
+        // Slave AXI4 Read Interface
+        .s_axi_arid     (s_axi_arid),
+        .s_axi_araddr   (s_axi_araddr),
+        .s_axi_arlen    (s_axi_arlen),
+        .s_axi_arsize   (s_axi_arsize),
+        .s_axi_arburst  (s_axi_arburst),
+        .s_axi_arlock   (s_axi_arlock),
+        .s_axi_arcache  (s_axi_arcache),
+        .s_axi_arprot   (s_axi_arprot),
+        .s_axi_arqos    (s_axi_arqos),
+        .s_axi_arregion (s_axi_arregion),
+        .s_axi_aruser   (s_axi_aruser),
+        .s_axi_arvalid  (s_axi_arvalid),
+        .s_axi_arready  (s_axi_arready),
+        .s_axi_rid      (s_axi_rid),
+        .s_axi_rdata    (s_axi_rdata),
+        .s_axi_rresp    (s_axi_rresp),
+        .s_axi_rlast    (s_axi_rlast),
+        .s_axi_ruser    (s_axi_ruser),
+        .s_axi_rvalid   (s_axi_rvalid),
+        .s_axi_rready   (s_axi_rready),
 
-    // Read state machine
-    typedef enum logic [1:0] {
-        RD_IDLE       = 2'b00,
-        RD_BURST      = 2'b01,
-        RD_LAST_BEAT  = 2'b10
-    } rd_state_t;
-
-    rd_state_t r_rd_state, w_rd_next_state;
-
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            r_rd_state <= RD_IDLE;
-        end else begin
-            r_rd_state <= w_rd_next_state;
-        end
-)
-
-    // Read next state logic
-    always_comb begin
-        w_rd_next_state = r_rd_state;
-        case (r_rd_state)
-            RD_IDLE: begin
-                if (s_axi_arvalid && s_axi_arready) begin
-                    if (s_axi_arlen == 0)
-                        w_rd_next_state = RD_IDLE;  // Single beat, stay idle
-                    else
-                        w_rd_next_state = RD_BURST;  // Start burst decomposition
-                end
-            end
-            RD_BURST: begin
-                if (m_axil_arvalid && m_axil_arready) begin
-                    if (r_ar_beat_count == r_ar_len - 1)
-                        w_rd_next_state = RD_LAST_BEAT;
-                end
-            end
-            RD_LAST_BEAT: begin
-                if (m_axil_arvalid && m_axil_arready)
-                    w_rd_next_state = RD_IDLE;
-            end
-        endcase
-    end
-
-    // Read burst tracking registers
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            r_ar_id <= '0;
-            r_ar_addr <= '0;
-            r_ar_len <= '0;
-            r_ar_beat_count <= '0;
-            r_ar_size <= '0;
-            r_ar_burst <= '0;
-            r_ar_prot <= '0;
-            r_ar_active <= 1'b0;
-        end else begin
-            case (r_rd_state)
-                RD_IDLE: begin
-                    if (s_axi_arvalid && s_axi_arready) begin
-                        r_ar_id <= s_axi_arid;
-                        r_ar_addr <= s_axi_araddr;
-                        r_ar_len <= s_axi_arlen;
-                        r_ar_beat_count <= 8'd0;
-                        r_ar_size <= s_axi_arsize;
-                        r_ar_burst <= s_axi_arburst;
-                        r_ar_prot <= s_axi_arprot;
-                        r_ar_active <= (s_axi_arlen > 0);
-                    end
-                end
-                RD_BURST, RD_LAST_BEAT: begin
-                    if (m_axil_arvalid && m_axil_arready) begin
-                        r_ar_beat_count <= r_ar_beat_count + 1'b1;
-                        // Address increment (INCR and WRAP both increment)
-                        if (r_ar_burst != 2'b00)  // Not FIXED
-                            r_ar_addr <= r_ar_addr + w_ar_addr_incr;
-                        if (r_rd_state == RD_LAST_BEAT)
-                            r_ar_active <= 1'b0;
-                    end
-                end
-            endcase
-        end
-)
-
-    // AXI4-Lite AR channel assignment
-    assign m_axil_araddr = r_ar_active ? r_ar_addr : s_axi_araddr;
-    assign m_axil_arprot = r_ar_active ? r_ar_prot : s_axi_arprot;
-    assign m_axil_arvalid = r_ar_active ? (r_rd_state != RD_IDLE) : s_axi_arvalid;
-    assign s_axi_arready = !r_ar_active && m_axil_arready;
-
-    // Read data path - accumulate responses
-    logic [7:0] r_r_beat_count;
-    logic [7:0] r_r_len;
-    logic [AXI_ID_WIDTH-1:0] r_r_id;
-    logic [1:0] r_r_resp_accum;  // Accumulate worst response
-
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            r_r_beat_count <= '0;
-            r_r_len <= '0;
-            r_r_id <= '0;
-            r_r_resp_accum <= 2'b00;  // OKAY
-        end else begin
-            // Capture burst info on first AR acceptance
-            if (s_axi_arvalid && s_axi_arready) begin
-                r_r_len <= s_axi_arlen;
-                r_r_id <= s_axi_arid;
-                r_r_resp_accum <= 2'b00;
-                r_r_beat_count <= 8'd0;
-            end
-            // Track read data beats
-            if (m_axil_rvalid && m_axil_rready) begin
-                r_r_beat_count <= r_r_beat_count + 1'b1;
-                // Accumulate worst response (SLVERR > DECERR > EXOKAY > OKAY)
-                if (m_axil_rresp > r_r_resp_accum)
-                    r_r_resp_accum <= m_axil_rresp;
-            end
-        end
-    )
-
-    // Read data channel passthrough
-    assign s_axi_rid = r_r_id;
-    assign s_axi_rdata = m_axil_rdata;
-    assign s_axi_rresp = (r_r_beat_count == r_r_len) ? r_r_resp_accum : m_axil_rresp;
-    assign s_axi_rlast = (r_r_beat_count == r_r_len);
-    assign s_axi_ruser = '0;  // AXI4-Lite has no USER
-    assign s_axi_rvalid = m_axil_rvalid;
-    assign m_axil_rready = s_axi_rready;
+        // Master AXI4-Lite Read Interface
+        .m_axil_araddr  (m_axil_araddr),
+        .m_axil_arprot  (m_axil_arprot),
+        .m_axil_arvalid (m_axil_arvalid),
+        .m_axil_arready (m_axil_arready),
+        .m_axil_rdata   (m_axil_rdata),
+        .m_axil_rresp   (m_axil_rresp),
+        .m_axil_rvalid  (m_axil_rvalid),
+        .m_axil_rready  (m_axil_rready)
+    );
 
     //==========================================================================
-    // Write Path: Burst Decomposition
+    // Write Path: Instantiate axi4_to_axil4_wr
     //==========================================================================
 
-    // Write burst tracker
-    logic [AXI_ID_WIDTH-1:0]     r_aw_id;
-    logic [AXI_ADDR_WIDTH-1:0]   r_aw_addr;
-    logic [7:0]                  r_aw_len;
-    logic [7:0]                  r_aw_beat_count;
-    logic [2:0]                  r_aw_size;
-    logic [1:0]                  r_aw_burst;
-    logic [2:0]                  r_aw_prot;
-    logic                        r_aw_active;
+    axi4_to_axil4_wr #(
+        .AXI_ID_WIDTH    (AXI_ID_WIDTH),
+        .AXI_ADDR_WIDTH  (AXI_ADDR_WIDTH),
+        .AXI_DATA_WIDTH  (AXI_DATA_WIDTH),
+        .AXI_USER_WIDTH  (AXI_USER_WIDTH),
+        .SKID_DEPTH_AW   (SKID_DEPTH_AW),
+        .SKID_DEPTH_W    (SKID_DEPTH_W),
+        .SKID_DEPTH_B    (SKID_DEPTH_B)
+    ) u_wr_converter (
+        .aclk           (aclk),
+        .aresetn        (aresetn),
 
-    // Address increment calculation
-    logic [AXI_ADDR_WIDTH-1:0] w_aw_addr_incr;
-    assign w_aw_addr_incr = (1 << r_aw_size);
+        // Slave AXI4 Write Interface
+        .s_axi_awid     (s_axi_awid),
+        .s_axi_awaddr   (s_axi_awaddr),
+        .s_axi_awlen    (s_axi_awlen),
+        .s_axi_awsize   (s_axi_awsize),
+        .s_axi_awburst  (s_axi_awburst),
+        .s_axi_awlock   (s_axi_awlock),
+        .s_axi_awcache  (s_axi_awcache),
+        .s_axi_awprot   (s_axi_awprot),
+        .s_axi_awqos    (s_axi_awqos),
+        .s_axi_awregion (s_axi_awregion),
+        .s_axi_awuser   (s_axi_awuser),
+        .s_axi_awvalid  (s_axi_awvalid),
+        .s_axi_awready  (s_axi_awready),
+        .s_axi_wdata    (s_axi_wdata),
+        .s_axi_wstrb    (s_axi_wstrb),
+        .s_axi_wlast    (s_axi_wlast),
+        .s_axi_wuser    (s_axi_wuser),
+        .s_axi_wvalid   (s_axi_wvalid),
+        .s_axi_wready   (s_axi_wready),
+        .s_axi_bid      (s_axi_bid),
+        .s_axi_bresp    (s_axi_bresp),
+        .s_axi_buser    (s_axi_buser),
+        .s_axi_bvalid   (s_axi_bvalid),
+        .s_axi_bready   (s_axi_bready),
 
-    // Write state machine
-    typedef enum logic [1:0] {
-        WR_IDLE       = 2'b00,
-        WR_BURST      = 2'b01,
-        WR_LAST_BEAT  = 2'b10
-    } wr_state_t;
-
-    wr_state_t r_wr_state, w_wr_next_state;
-
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            r_wr_state <= WR_IDLE;
-        end else begin
-            r_wr_state <= w_wr_next_state;
-        end
-)
-
-    // Write next state logic
-    always_comb begin
-        w_wr_next_state = r_wr_state;
-        case (r_wr_state)
-            WR_IDLE: begin
-                if (s_axi_awvalid && s_axi_awready) begin
-                    if (s_axi_awlen == 0)
-                        w_wr_next_state = WR_IDLE;
-                    else
-                        w_wr_next_state = WR_BURST;
-                end
-            end
-            WR_BURST: begin
-                if (m_axil_awvalid && m_axil_awready && m_axil_wvalid && m_axil_wready) begin
-                    if (r_aw_beat_count == r_aw_len - 1)
-                        w_wr_next_state = WR_LAST_BEAT;
-                end
-            end
-            WR_LAST_BEAT: begin
-                if (m_axil_awvalid && m_axil_awready && m_axil_wvalid && m_axil_wready)
-                    w_wr_next_state = WR_IDLE;
-            end
-        endcase
-    end
-
-    // Write burst tracking registers
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            r_aw_id <= '0;
-            r_aw_addr <= '0;
-            r_aw_len <= '0;
-            r_aw_beat_count <= '0;
-            r_aw_size <= '0;
-            r_aw_burst <= '0;
-            r_aw_prot <= '0;
-            r_aw_active <= 1'b0;
-        end else begin
-            case (r_wr_state)
-                WR_IDLE: begin
-                    if (s_axi_awvalid && s_axi_awready) begin
-                        r_aw_id <= s_axi_awid;
-                        r_aw_addr <= s_axi_awaddr;
-                        r_aw_len <= s_axi_awlen;
-                        r_aw_beat_count <= 8'd0;
-                        r_aw_size <= s_axi_awsize;
-                        r_aw_burst <= s_axi_awburst;
-                        r_aw_prot <= s_axi_awprot;
-                        r_aw_active <= (s_axi_awlen > 0);
-                    end
-                end
-                WR_BURST, WR_LAST_BEAT: begin
-                    if (m_axil_awvalid && m_axil_awready && m_axil_wvalid && m_axil_wready) begin
-                        r_aw_beat_count <= r_aw_beat_count + 1'b1;
-                        if (r_aw_burst != 2'b00)  // Not FIXED
-                            r_aw_addr <= r_aw_addr + w_aw_addr_incr;
-                        if (r_wr_state == WR_LAST_BEAT)
-                            r_aw_active <= 1'b0;
-                    end
-                end
-            endcase
-        end
-)
-
-    // AXI4-Lite AW and W channel assignment
-    assign m_axil_awaddr = r_aw_active ? r_aw_addr : s_axi_awaddr;
-    assign m_axil_awprot = r_aw_active ? r_aw_prot : s_axi_awprot;
-    assign m_axil_awvalid = r_aw_active ? (r_wr_state != WR_IDLE) : s_axi_awvalid;
-    assign s_axi_awready = !r_aw_active && m_axil_awready;
-
-    // Write data passthrough
-    assign m_axil_wdata = s_axi_wdata;
-    assign m_axil_wstrb = s_axi_wstrb;
-    assign m_axil_wvalid = s_axi_wvalid;
-    assign s_axi_wready = m_axil_wready;
-
-    // Write response path - accumulate responses
-    logic [7:0] r_b_beat_count;
-    logic [7:0] r_b_len;
-    logic [AXI_ID_WIDTH-1:0] r_b_id;
-    logic [1:0] r_b_resp_accum;
-
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            r_b_beat_count <= '0;
-            r_b_len <= '0;
-            r_b_id <= '0;
-            r_b_resp_accum <= 2'b00;
-        end else begin
-            if (s_axi_awvalid && s_axi_awready) begin
-                r_b_len <= s_axi_awlen;
-                r_b_id <= s_axi_awid;
-                r_b_resp_accum <= 2'b00;
-                r_b_beat_count <= 8'd0;
-            end
-            if (m_axil_bvalid && m_axil_bready) begin
-                r_b_beat_count <= r_b_beat_count + 1'b1;
-                if (m_axil_bresp > r_b_resp_accum)
-                    r_b_resp_accum <= m_axil_bresp;
-            end
-        end
-    )
-
-    // Write response channel - only generate response after all beats complete
-    logic w_b_all_beats_done;
-    assign w_b_all_beats_done = (r_b_beat_count == r_b_len);
-
-    assign s_axi_bid = r_b_id;
-    assign s_axi_bresp = r_b_resp_accum;
-    assign s_axi_buser = '0;
-    assign s_axi_bvalid = m_axil_bvalid && w_b_all_beats_done;
-    assign m_axil_bready = s_axi_bready || !w_b_all_beats_done;
+        // Master AXI4-Lite Write Interface
+        .m_axil_awaddr  (m_axil_awaddr),
+        .m_axil_awprot  (m_axil_awprot),
+        .m_axil_awvalid (m_axil_awvalid),
+        .m_axil_awready (m_axil_awready),
+        .m_axil_wdata   (m_axil_wdata),
+        .m_axil_wstrb   (m_axil_wstrb),
+        .m_axil_wvalid  (m_axil_wvalid),
+        .m_axil_wready  (m_axil_wready),
+        .m_axil_bresp   (m_axil_bresp),
+        .m_axil_bvalid  (m_axil_bvalid),
+        .m_axil_bready  (m_axil_bready)
+    );
 
 endmodule : axi4_to_axil4

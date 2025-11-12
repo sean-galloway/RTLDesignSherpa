@@ -25,12 +25,12 @@ The `projects/components/` directory contains demonstration components showcasin
 |-----------|------|--------|---------|------------|
 | **[apb_hpet](#apb_hpet)** | Peripheral | ✅ Complete | Multi-timer with 64-bit counter | Medium |
 | **[apb_xbar](#apb_xbar)** | Generator | ✅ Complete | APB crossbar interconnect | Medium |
-| **[bridge](#bridge)** | Generator | 🔧 In Progress | AXI4 full crossbar generator | High |
+| **[bridge](#bridge)** | Generator | 🟢 95% Complete | AXI4 full crossbar generator | High |
 | **[converters](#converters)** | Converters | ✅ Complete | AXI4 data width converters | Medium |
 | **[delta](#delta)** | Generator | 🔧 In Progress | AXI-Stream crossbar generator | Medium |
 | **[rapids](#rapids)** | Accelerator | 🔧 In Progress | DMA with network integration | Very High |
 | **[shims](#shims)** | Adapter | ✅ Complete | Protocol conversion adapters | Low-Medium |
-| **[stream](#stream)** | DMA Engine | 🔧 In Progress | Tutorial-focused scatter-gather DMA | Medium-High |
+| **[stream](#stream)** | DMA Engine | 🟢 95% Complete | Tutorial-focused scatter-gather DMA | Medium-High |
 
 ---
 
@@ -124,7 +124,7 @@ python generate_xbars.py --masters 3 --slaves 6 --output ../rtl/apb_xbar_3to6.sv
 
 **AXI4 Full Crossbar Generator**
 
-**Status:** 🔧 In Progress - Specification Complete
+**Status:** 🟢 95% Complete - Final Integration Pending
 
 **Description:**
 Python-based code generator producing parameterized AXI4 full crossbar RTL for connecting multiple masters to multiple slaves. Supports out-of-order transactions, burst optimization, and ID-based routing.
@@ -317,7 +317,7 @@ Collection of protocol conversion adapters and glue logic modules for interfacin
 
 **STREAM - Scatter-gather Transfer Rapid Engine for AXI Memory**
 
-**Status:** 🔧 In Progress - Initial Design
+**Status:** 🟢 95% Complete - APB Config and Top-Level Wrapper Pending
 
 **Description:**
 Simplified DMA engine designed as a beginner-friendly tutorial demonstrating descriptor-based scatter-gather patterns. Intentionally simplified from RAPIDS for educational purposes.
@@ -350,9 +350,9 @@ Simplified DMA engine designed as a beginner-friendly tutorial demonstrating des
 3. **RAPIDS** - Full complexity with network + credits
 
 **Resources:**
-- RTL: `rtl/stream_fub/*.sv` (planned)
-- Tests: `dv/tests/fub_tests/`, `dv/tests/integration_tests/` (planned)
-- Documentation: `PRD.md`, `CLAUDE.md`
+- RTL: `rtl/fub/*.sv` (complete), `rtl/macro/*.sv` (complete)
+- Tests: `dv/tests/fub/` (passing), `dv/tests/macro/` (passing)
+- Documentation: `PRD.md`, `CLAUDE.md`, `docs/stream_spec/` (complete microarchitecture)
 - Performance Model: `bin/dma_model/` (comprehensive analytical + SimPy models)
 
 **📖 See:** [`stream/PRD.md`](stream/PRD.md) for complete specification

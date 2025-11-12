@@ -8,8 +8,8 @@ from cocotb_test.simulator import run
 import os
 import sys
 
-# Import testbench class (PYTHONPATH configured in env_python)
-from tbclasses.axi_data_dnsize_tb import AXIDataDnsizeTB
+# Import testbench class from project area
+from projects.components.converters.dv.tbclasses.axi_data_dnsize_tb import AXIDataDnsizeTB
 from CocoTBFramework.tbclasses.shared.utilities import get_paths
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 

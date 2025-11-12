@@ -1,0 +1,172 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Tue Nov 11 16:06:29 2025
+[*]
+[dumpfile] "/mnt/data/github/rtldesignsherpa/projects/components/stream/dv/tests/macro/local_sim_build/test_datapath_wr_nostress_nc1_dw256_sd256_basic_pipe_xb8_fast/dump.vcd"
+[dumpfile_mtime] "Tue Nov 11 05:37:57 2025"
+[dumpfile_size] 15355663
+[savefile] "/mnt/data/github/rtldesignsherpa/projects/components/stream/dv/tests/macro/GTKW/datapath_wr_test/datapath_wr_test_dw256.gtkw"
+[timestart] 1976900
+[size] 3089 1789
+[pos] 68 45
+*-16.446430 4200000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] datapath_wr_test.
+[treeopen] datapath_wr_test.u_axi_write_engine.
+[treeopen] datapath_wr_test.u_axi_write_engine.gen_pipeline_tracking.
+[treeopen] datapath_wr_test.u_axi_write_engine.gen_w_pipeline.
+[treeopen] datapath_wr_test.u_axi_write_engine.unnamedblk7.
+[treeopen] datapath_wr_test.u_sram_controller.
+[treeopen] datapath_wr_test.u_sram_controller.gen_channel_units[0].
+[treeopen] datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.
+[treeopen] datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.
+[treeopen] datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.u_skid_buffer.
+[sst_width] 503
+[signals_width] 487
+[sst_expanded] 1
+[sst_vpaned_height] 756
+@22
+datapath_wr_test.MAX_BURST_LEN[31:0]
+datapath_wr_test.NUM_CHANNELS[31:0]
+datapath_wr_test.PIPELINE[31:0]
+datapath_wr_test.SEG_SIZE[31:0]
+datapath_wr_test.SRAM_DEPTH[31:0]
+datapath_wr_test.NC[31:0]
+@28
+datapath_wr_test.clk
+datapath_wr_test.rst_n
+@200
+-scheduler
+@28
+datapath_wr_test.sched_wr_valid[0]
+datapath_wr_test.sched_wr_ready[0]
+@22
+datapath_wr_test.sched_wr_addr[63:0]
+datapath_wr_test.sched_wr_beats[31:0]
+datapath_wr_test.u_axi_write_engine.sched_wr_burst_len[7:0]
+@28
+datapath_wr_test.u_axi_write_engine.sched_wr_done_strobe[0]
+@22
+datapath_wr_test.u_axi_write_engine.sched_wr_beats_done[31:0]
+@200
+-axi-wr-internals
+@22
+datapath_wr_test.u_axi_write_engine.unnamedblk9.new_beats_written[31:0]
+@28
+datapath_wr_test.u_axi_write_engine.wr_drain_req[0]
+@22
+datapath_wr_test.u_axi_write_engine.wr_drain_size[7:0]
+@24
+datapath_wr_test.u_axi_write_engine.wr_drain_data_avail[8:0]
+@200
+-m_axi_aw
+@28
+datapath_wr_test.u_axi_write_engine.m_axi_awvalid
+datapath_wr_test.u_axi_write_engine.m_axi_awready
+@22
+datapath_wr_test.u_axi_write_engine.m_axi_awlen[7:0]
+datapath_wr_test.u_axi_write_engine.m_axi_awid[7:0]
+@28
+datapath_wr_test.u_axi_write_engine.m_axi_awsize[2:0]
+@22
+datapath_wr_test.u_axi_write_engine.cfg_axi_wr_xfer_beats[7:0]
+datapath_wr_test.u_axi_write_engine.wr_drain_data_avail[8:0]
+@28
+datapath_wr_test.u_axi_write_engine.w_drain_req[0]
+@22
+datapath_wr_test.u_axi_write_engine.w_drain_size[7:0]
+@24
+datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.fifo_count[8:0]
+@c00024
+datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.bridge_occupancy[2:0]
+@28
+(0)datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.bridge_occupancy[2:0]
+(1)datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.bridge_occupancy[2:0]
+(2)datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.bridge_occupancy[2:0]
+@1401204
+-group_end
+@25
+datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.count[8:0]
+@200
+-m_axi_w
+@28
+datapath_wr_test.u_axi_write_engine.m_axi_wvalid
+datapath_wr_test.u_axi_write_engine.m_axi_wready
+datapath_wr_test.u_axi_write_engine.m_axi_wlast
+@22
+datapath_wr_test.u_axi_write_engine.m_axi_wdata[511:0]
+@28
+datapath_wr_test.u_axi_write_engine.m_axi_wlast
+@24
+datapath_wr_test.u_axi_write_engine.r_w_beats_remaining[7:0]
+@200
+-m_axi_b
+@28
+datapath_wr_test.u_axi_write_engine.m_axi_bvalid
+datapath_wr_test.u_axi_write_engine.m_axi_bready
+@22
+datapath_wr_test.u_axi_write_engine.m_axi_bid[7:0]
+@28
+datapath_wr_test.u_axi_write_engine.m_axi_bresp[1:0]
+@200
+-axi_wr_sram
+@28
+datapath_wr_test.u_axi_write_engine.axi_wr_sram_valid[0]
+@22
+datapath_wr_test.u_axi_write_engine.axi_wr_sram_data[511:0]
+@200
+-sram_ctrl
+@28
+datapath_wr_test.u_sram_controller.axi_rd_sram_valid
+datapath_wr_test.u_sram_controller.axi_rd_sram_ready
+datapath_wr_test.u_sram_controller.axi_rd_sram_id[0]
+@22
+datapath_wr_test.u_sram_controller.axi_rd_sram_data[511:0]
+@28
+datapath_wr_test.u_sram_controller.axi_wr_drain_req[0]
+@22
+datapath_wr_test.u_sram_controller.axi_wr_drain_size[7:0]
+datapath_wr_test.u_sram_controller.axi_wr_drain_data_avail[8:0]
+@200
+-fifo-sram
+@28
+datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.wr_valid
+datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.wr_ready
+@22
+datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.wr_data[511:0]
+@28
+datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.rd_valid
+datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.rd_ready
+@22
+datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.rd_data[511:0]
+@200
+-fifo-latency
+@28
+datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.skid_wr_valid
+datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.skid_wr_ready
+@22
+datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.skid_wr_data[511:0]
+@28
+datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.s_valid
+datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.s_ready
+@22
+datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.s_data[511:0]
+@28
+datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.m_valid
+datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.m_ready
+@22
+datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.m_data[511:0]
+@24
+datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.occupancy[2:0]
+@22
+datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.u_skid_buffer.gen_auto.mem[0][511:0]
+datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.u_skid_buffer.gen_auto.mem[1][511:0]
+datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.u_skid_buffer.gen_auto.mem[2][511:0]
+datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.u_skid_buffer.gen_auto.mem[3][511:0]
+@200
+-arbiter
+@28
+datapath_wr_test.u_axi_write_engine.w_data_ok[0]
+datapath_wr_test.u_axi_write_engine.r_outstanding[0]
+datapath_wr_test.u_axi_write_engine.w_no_outstanding[0]
+[pattern_trace] 1
+[pattern_trace] 0

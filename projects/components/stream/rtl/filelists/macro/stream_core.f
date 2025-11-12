@@ -53,6 +53,7 @@ $REPO_ROOT/rtl/amba/axi4/axi4_master_wr.sv
 $STREAM_ROOT/rtl/fub/descriptor_engine.sv
 $STREAM_ROOT/rtl/fub/scheduler.sv
 $STREAM_ROOT/rtl/fub/stream_alloc_ctrl.sv
+$STREAM_ROOT/rtl/fub/stream_drain_ctrl.sv
 $STREAM_ROOT/rtl/fub/stream_latency_bridge.sv
 $STREAM_ROOT/rtl/fub/axi_read_engine.sv
 $STREAM_ROOT/rtl/fub/axi_write_engine.sv

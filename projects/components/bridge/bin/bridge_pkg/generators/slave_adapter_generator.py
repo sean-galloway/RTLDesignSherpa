@@ -24,6 +24,7 @@ class SlaveInfo:
     data_width: int
     addr_width: int
     protocol: str = 'axi4'  # 'axi4', 'apb', or 'axil'
+    enable_ooo: bool = False  # Slave supports out-of-order responses (use CAM vs FIFO)
 
 
 class SlaveAdapterGenerator:
@@ -84,6 +85,9 @@ class SlaveAdapterGenerator:
         # Internal signals
         lines.extend(self._generate_internal_signals())
 
+        # Bridge ID tracking (CAM or FIFO)
+        lines.extend(self._generate_bridge_id_tracking())
+
         # Timing wrapper or protocol converter
         if self.slave.protocol == 'axi4':
             lines.extend(self._generate_axi4_timing_wrapper())
@@ -114,10 +118,14 @@ class SlaveAdapterGenerator:
         ]
 
     def _generate_module_declaration(self) -> List[str]:
-        """Generate module declaration with all ports."""
+        """Generate module declaration with parameters and all ports."""
         lines = []
 
-        lines.append(f"module {self.slave.name}_adapter (")
+        # Module declaration with parameters
+        lines.append(f"module {self.slave.name}_adapter #(")
+        lines.append(f"    parameter int ID_WIDTH = 4,")
+        lines.append(f"    parameter int BRIDGE_ID_WIDTH = 1")
+        lines.append(f") (")
         lines.append("    input  logic aclk,")
         lines.append("    input  logic aresetn,")
         lines.append("")
@@ -125,6 +133,11 @@ class SlaveAdapterGenerator:
         # Crossbar-facing interface (AXI4 input from crossbar)
         lines.append(f"    // Crossbar interface (AXI4 from crossbar)")
         lines.extend(self._generate_crossbar_interface_ports())
+
+        # Bridge ID tracking signals
+        lines.append("")
+        lines.append(f"    // Bridge ID tracking signals")
+        lines.extend(self._generate_bridge_id_ports())
         lines.append("")
 
         # External slave interface
@@ -195,6 +208,30 @@ class SlaveAdapterGenerator:
                 # Get declaration
                 declaration = inverted_sig.get_declaration(sig_name, width_values)
                 lines.append(f"    {declaration},")
+
+        return lines
+
+    def _generate_bridge_id_ports(self) -> List[str]:
+        """
+        Generate bridge ID tracking ports.
+
+        Inputs: bridge_id_aw, bridge_id_ar (from crossbar, indicating master source)
+        Outputs: bid_bridge_id, rid_bridge_id (to crossbar, for response routing)
+        """
+        lines = []
+
+        # BRIDGE_ID_WIDTH will be defined in package
+        if self.has_write:
+            lines.append("    input  logic [BRIDGE_ID_WIDTH-1:0] xbar_bridge_id_aw,")
+            lines.append("    output logic [BRIDGE_ID_WIDTH-1:0] bid_bridge_id,")
+            lines.append("    output logic                       bid_valid,")
+
+        if self.has_read:
+            if self.has_write:
+                lines.append("")
+            lines.append("    input  logic [BRIDGE_ID_WIDTH-1:0] xbar_bridge_id_ar,")
+            lines.append("    output logic [BRIDGE_ID_WIDTH-1:0] rid_bridge_id,")
+            lines.append("    output logic                       rid_valid,")
 
         return lines
 
@@ -350,10 +387,279 @@ class SlaveAdapterGenerator:
 
     def _generate_internal_signals(self) -> List[str]:
         """Generate internal signal declarations."""
-        return [
-            "    // Internal signals (if needed for protocol conversion)",
+        lines = [
+            "    // ================================================================",
+            "    // Internal Signals",
+            "    // ================================================================",
             ""
         ]
+
+        # Add protocol converter intermediate signals for APB/AXIL
+        # These allow FIFO tracking to monitor converter output instead of crossbar input
+        if self.slave.protocol in ['apb', 'axil']:
+            lines.append("    // Protocol converter intermediate signals")
+            lines.append("    // (FIFO tracking monitors these instead of crossbar signals)")
+            if self.has_write:
+                lines.append("    logic converter_bvalid;")
+                lines.append("    logic converter_bready;")
+                lines.append("")
+            if self.has_read:
+                lines.append("    logic converter_rvalid;")
+                lines.append("    logic converter_rready;")
+                lines.append("    logic converter_rlast;")
+                lines.append("")
+
+        # Add FIFO/CAM internal signals if needed
+        # Handle missing enable_ooo attribute (default to False for in-order)
+        enable_ooo = getattr(self.slave, 'enable_ooo', False)
+
+        if enable_ooo:
+            lines.append("    // CAM tracking signals (out-of-order mode)")
+        else:
+            lines.append("    // FIFO tracking signals (in-order mode)")
+
+        if self.has_write:
+            lines.append("    logic cam_wr_allocate;")
+            lines.append("    logic cam_wr_deallocate;")
+            lines.append("    logic [ID_WIDTH-1:0] cam_wr_allocate_tag;")
+            lines.append("    logic [BRIDGE_ID_WIDTH-1:0] cam_wr_allocate_data;")
+            lines.append("    logic [ID_WIDTH-1:0] cam_wr_deallocate_tag;")
+            lines.append("")
+
+        if self.has_read:
+            lines.append("    logic cam_rd_allocate;")
+            lines.append("    logic cam_rd_deallocate;")
+            lines.append("    logic [ID_WIDTH-1:0] cam_rd_allocate_tag;")
+            lines.append("    logic [BRIDGE_ID_WIDTH-1:0] cam_rd_allocate_data;")
+            lines.append("    logic [ID_WIDTH-1:0] cam_rd_deallocate_tag;")
+            lines.append("")
+
+        return lines
+
+    def _generate_bridge_id_tracking(self) -> List[str]:
+        """
+        Generate bridge ID tracking logic (CAM or FIFO).
+
+        Returns:
+            SystemVerilog for CAM/FIFO instantiation and control logic
+        """
+        lines = []
+        crossbar_prefix = f"xbar_{self.slave.name}_axi_"
+        slave_prefix = self.slave.prefix
+
+        # Handle missing enable_ooo attribute (default to False for in-order)
+        enable_ooo = getattr(self.slave, 'enable_ooo', False)
+        if not hasattr(self.slave, 'enable_ooo'):
+            print(f"  ⚠ Slave '{self.slave.name}' missing enable_ooo field - defaulting to in-order (FIFO mode)")
+
+        lines.append("    // ================================================================")
+        if enable_ooo:
+            lines.append("    // Bridge ID Tracking - CAM Mode (Out-of-Order)")
+        else:
+            lines.append("    // Bridge ID Tracking - FIFO Mode (In-Order)")
+        lines.append("    // ================================================================")
+        lines.append("")
+
+        # Generate write channel tracking
+        if self.has_write:
+            if enable_ooo:
+                lines.extend(self._generate_cam_write_tracking(crossbar_prefix, slave_prefix))
+            else:
+                lines.extend(self._generate_fifo_write_tracking(crossbar_prefix, slave_prefix))
+
+        # Generate read channel tracking
+        if self.has_read:
+            if enable_ooo:
+                lines.extend(self._generate_cam_read_tracking(crossbar_prefix, slave_prefix))
+            else:
+                lines.extend(self._generate_fifo_read_tracking(crossbar_prefix, slave_prefix))
+
+        return lines
+
+    def _generate_cam_write_tracking(self, crossbar_prefix: str, slave_prefix: str) -> List[str]:
+        """Generate CAM-based write tracking."""
+        lines = []
+
+        lines.append("    // Write Channel CAM")
+        lines.append("    bridge_cam #(")
+        lines.append("        .TAG_WIDTH(ID_WIDTH),")
+        lines.append("        .DATA_WIDTH(BRIDGE_ID_WIDTH),")
+        lines.append("        .DEPTH(16),")
+        lines.append("        .ALLOW_DUPLICATES(1),  // Mode 2: OOO support")
+        lines.append("        .PIPELINE_EVICT(0)")
+        lines.append("    ) u_wr_cam (")
+        lines.append("        .clk(aclk),")
+        lines.append("        .rst_n(aresetn),")
+        lines.append("")
+        lines.append("        // Allocate on AW (from crossbar)")
+        lines.append(f"        .allocate({crossbar_prefix}awvalid && {crossbar_prefix}awready),")
+        lines.append(f"        .allocate_tag({crossbar_prefix}awid),")
+        lines.append("        .allocate_data(xbar_bridge_id_aw),")
+        lines.append("")
+        lines.append("        // Deallocate on B (from converter)")
+        lines.append(f"        .deallocate({crossbar_prefix}bvalid && {crossbar_prefix}bready),")
+        lines.append(f"        .deallocate_tag({crossbar_prefix}bid),")
+        lines.append("        .deallocate_valid(bid_valid),")
+        lines.append("        .deallocate_data(bid_bridge_id),")
+        lines.append("")
+        lines.append("        // Status (unconnected)")
+        lines.append("        .cam_hit(),")
+        lines.append("        .tags_empty(),")
+        lines.append("        .tags_full()")
+        lines.append("    );")
+        lines.append("")
+
+        return lines
+
+    def _generate_fifo_write_tracking(self, crossbar_prefix: str, slave_prefix: str) -> List[str]:
+        """Generate FIFO-based write tracking."""
+        lines = []
+
+        # Determine pop monitoring point based on protocol
+        # For APB/AXIL, monitor external slave interface (after converter)
+        # For AXI4, monitor crossbar interface (no converter)
+        if self.slave.protocol in ['apb', 'axil']:
+            # APB/AXIL: Monitor external slave response signals
+            # APB has PREADY, AXIL has bvalid/bready
+            if self.slave.protocol == 'apb':
+                # APB converter generates internal bvalid when PREADY asserts
+                # We need to monitor the converter's AXI4 output, not external APB
+                pop_condition = f"converter_bvalid && converter_bready"
+                lines.append("    // Write Channel FIFO (In-Order) - APB Protocol")
+                lines.append("    // NOTE: Monitors converter output (converter_bvalid), not crossbar input")
+                lines.append("    //       This ensures FIFO pops when converter actually produces response")
+            else:  # axil
+                pop_condition = f"{slave_prefix}bvalid && {slave_prefix}bready"
+                lines.append("    // Write Channel FIFO (In-Order) - AXIL Protocol")
+                lines.append("    // NOTE: Monitors external slave response, not crossbar input")
+        else:  # axi4
+            # AXI4: Direct connection, monitor crossbar interface
+            pop_condition = f"{crossbar_prefix}bvalid && {crossbar_prefix}bready"
+            lines.append("    // Write Channel FIFO (In-Order) - AXI4 Protocol")
+
+        lines.append("    localparam WR_FIFO_DEPTH = 16;")
+        lines.append("    logic [BRIDGE_ID_WIDTH-1:0] wr_fifo [WR_FIFO_DEPTH];")
+        lines.append("    logic [$clog2(WR_FIFO_DEPTH):0] wr_ptr, rd_ptr;")
+        lines.append("")
+        lines.append("    // Push on AW (crossbar → adapter)")
+        lines.append("    always_ff @(posedge aclk or negedge aresetn) begin")
+        lines.append("        if (!aresetn) begin")
+        lines.append("            wr_ptr <= '0;")
+        lines.append(f"        end else if ({crossbar_prefix}awvalid && {crossbar_prefix}awready) begin")
+        lines.append("            wr_fifo[wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0]] <= xbar_bridge_id_aw;")
+        lines.append("            wr_ptr <= wr_ptr + 1'b1;")
+        lines.append("        end")
+        lines.append("    end")
+        lines.append("")
+        lines.append(f"    // Pop on B response ({pop_condition})")
+        lines.append("    always_ff @(posedge aclk or negedge aresetn) begin")
+        lines.append("        if (!aresetn) begin")
+        lines.append("            rd_ptr <= '0;")
+        lines.append("            bid_bridge_id <= '0;")
+        lines.append("            bid_valid <= 1'b0;")
+        lines.append(f"        end else if ({pop_condition}) begin")
+        lines.append("            bid_bridge_id <= wr_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]];")
+        lines.append("            bid_valid <= 1'b1;")
+        lines.append("            rd_ptr <= rd_ptr + 1'b1;")
+        lines.append("        end else begin")
+        lines.append("            bid_valid <= 1'b0;")
+        lines.append("        end")
+        lines.append("    end")
+        lines.append("")
+
+        return lines
+
+    def _generate_cam_read_tracking(self, crossbar_prefix: str, slave_prefix: str) -> List[str]:
+        """Generate CAM-based read tracking."""
+        lines = []
+
+        lines.append("    // Read Channel CAM")
+        lines.append("    bridge_cam #(")
+        lines.append("        .TAG_WIDTH(ID_WIDTH),")
+        lines.append("        .DATA_WIDTH(BRIDGE_ID_WIDTH),")
+        lines.append("        .DEPTH(16),")
+        lines.append("        .ALLOW_DUPLICATES(1),  // Mode 2: OOO support")
+        lines.append("        .PIPELINE_EVICT(0)")
+        lines.append("    ) u_rd_cam (")
+        lines.append("        .clk(aclk),")
+        lines.append("        .rst_n(aresetn),")
+        lines.append("")
+        lines.append("        // Allocate on AR (from crossbar)")
+        lines.append(f"        .allocate({crossbar_prefix}arvalid && {crossbar_prefix}arready),")
+        lines.append(f"        .allocate_tag({crossbar_prefix}arid),")
+        lines.append("        .allocate_data(xbar_bridge_id_ar),")
+        lines.append("")
+        lines.append("        // Deallocate on R (from converter)")
+        lines.append(f"        .deallocate({crossbar_prefix}rvalid && {crossbar_prefix}rready && {crossbar_prefix}rlast),")
+        lines.append(f"        .deallocate_tag({crossbar_prefix}rid),")
+        lines.append("        .deallocate_valid(rid_valid),")
+        lines.append("        .deallocate_data(rid_bridge_id),")
+        lines.append("")
+        lines.append("        // Status (unconnected)")
+        lines.append("        .cam_hit(),")
+        lines.append("        .tags_empty(),")
+        lines.append("        .tags_full()")
+        lines.append("    );")
+        lines.append("")
+
+        return lines
+
+    def _generate_fifo_read_tracking(self, crossbar_prefix: str, slave_prefix: str) -> List[str]:
+        """Generate FIFO-based read tracking."""
+        lines = []
+
+        # Determine pop monitoring point based on protocol
+        # For APB/AXIL, monitor external slave interface (after converter)
+        # For AXI4, monitor crossbar interface (no converter)
+        if self.slave.protocol in ['apb', 'axil']:
+            # APB/AXIL: Monitor external slave response signals
+            if self.slave.protocol == 'apb':
+                # APB converter generates internal rvalid when PREADY asserts
+                # We need to monitor the converter's AXI4 output, not external APB
+                pop_condition = f"converter_rvalid && converter_rready && converter_rlast"
+                lines.append("    // Read Channel FIFO (In-Order) - APB Protocol")
+                lines.append("    // NOTE: Monitors converter output (converter_rvalid), not crossbar input")
+                lines.append("    //       This ensures FIFO pops when converter actually produces response")
+            else:  # axil
+                pop_condition = f"{slave_prefix}rvalid && {slave_prefix}rready"
+                lines.append("    // Read Channel FIFO (In-Order) - AXIL Protocol")
+                lines.append("    // NOTE: Monitors external slave response, not crossbar input")
+        else:  # axi4
+            # AXI4: Direct connection, monitor crossbar interface
+            pop_condition = f"{crossbar_prefix}rvalid && {crossbar_prefix}rready && {crossbar_prefix}rlast"
+            lines.append("    // Read Channel FIFO (In-Order) - AXI4 Protocol")
+
+        lines.append("    localparam RD_FIFO_DEPTH = 16;")
+        lines.append("    logic [BRIDGE_ID_WIDTH-1:0] rd_fifo [RD_FIFO_DEPTH];")
+        lines.append("    logic [$clog2(RD_FIFO_DEPTH):0] ar_ptr, r_ptr;")
+        lines.append("")
+        lines.append("    // Push on AR (crossbar → adapter)")
+        lines.append("    always_ff @(posedge aclk or negedge aresetn) begin")
+        lines.append("        if (!aresetn) begin")
+        lines.append("            ar_ptr <= '0;")
+        lines.append(f"        end else if ({crossbar_prefix}arvalid && {crossbar_prefix}arready) begin")
+        lines.append("            rd_fifo[ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0]] <= xbar_bridge_id_ar;")
+        lines.append("            ar_ptr <= ar_ptr + 1'b1;")
+        lines.append("        end")
+        lines.append("    end")
+        lines.append("")
+        lines.append(f"    // Pop on R response ({pop_condition})")
+        lines.append("    always_ff @(posedge aclk or negedge aresetn) begin")
+        lines.append("        if (!aresetn) begin")
+        lines.append("            r_ptr <= '0;")
+        lines.append("            rid_bridge_id <= '0;")
+        lines.append("            rid_valid <= 1'b0;")
+        lines.append(f"        end else if ({pop_condition}) begin")
+        lines.append("            rid_bridge_id <= rd_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]];")
+        lines.append("            rid_valid <= 1'b1;")
+        lines.append("            r_ptr <= r_ptr + 1'b1;")
+        lines.append("        end else begin")
+        lines.append("            rid_valid <= 1'b0;")
+        lines.append("        end")
+        lines.append("    end")
+        lines.append("")
+
+        return lines
 
     def _generate_axi4_timing_wrapper(self) -> List[str]:
         """Generate axi4_master_wr/rd timing wrapper instantiation."""
@@ -574,12 +880,12 @@ class SlaveAdapterGenerator:
             lines.append(f"        .s_axi_wvalid     ({crossbar_prefix}wvalid),")
             lines.append(f"        .s_axi_wready     ({crossbar_prefix}wready),")
             lines.append("")
-            lines.append("        // AXI4 write response channel")
+            lines.append("        // AXI4 write response channel (to intermediate signals for FIFO tracking)")
             lines.append(f"        .s_axi_bid        ({crossbar_prefix}bid),")
             lines.append(f"        .s_axi_bresp      ({crossbar_prefix}bresp),")
             lines.append(f"        .s_axi_buser      ({crossbar_prefix}buser),")
-            lines.append(f"        .s_axi_bvalid     ({crossbar_prefix}bvalid),")
-            lines.append(f"        .s_axi_bready     ({crossbar_prefix}bready),")
+            lines.append(f"        .s_axi_bvalid     (converter_bvalid),  // ← FIFO tracks this")
+            lines.append(f"        .s_axi_bready     (converter_bready),")
             lines.append("")
         else:
             # Tie off write channels for read-only bridge
@@ -630,14 +936,14 @@ class SlaveAdapterGenerator:
             lines.append(f"        .s_axi_arvalid    ({crossbar_prefix}arvalid),")
             lines.append(f"        .s_axi_arready    ({crossbar_prefix}arready),")
             lines.append("")
-            lines.append("        // AXI4 read data channel")
+            lines.append("        // AXI4 read data channel (to intermediate signals for FIFO tracking)")
             lines.append(f"        .s_axi_rid        ({crossbar_prefix}rid),")
             lines.append(f"        .s_axi_rdata      ({crossbar_prefix}rdata),")
             lines.append(f"        .s_axi_rresp      ({crossbar_prefix}rresp),")
-            lines.append(f"        .s_axi_rlast      ({crossbar_prefix}rlast),")
+            lines.append(f"        .s_axi_rlast      (converter_rlast),  // ← FIFO tracks this")
             lines.append(f"        .s_axi_ruser      ({crossbar_prefix}ruser),")
-            lines.append(f"        .s_axi_rvalid     ({crossbar_prefix}rvalid),")
-            lines.append(f"        .s_axi_rready     ({crossbar_prefix}rready),")
+            lines.append(f"        .s_axi_rvalid     (converter_rvalid),  // ← FIFO tracks this")
+            lines.append(f"        .s_axi_rready     (converter_rready),")
             lines.append("")
         else:
             # Tie off read channels for write-only bridge
@@ -681,6 +987,18 @@ class SlaveAdapterGenerator:
         lines.append(f"        .m_apb_PREADY     ({self.slave.prefix}PREADY)")
         lines.append("    );")
         lines.append("")
+
+        # Wire intermediate signals back to crossbar
+        lines.append("    // Wire converter outputs back to crossbar interface")
+        if self.has_write:
+            lines.append(f"    assign {crossbar_prefix}bvalid = converter_bvalid;")
+            lines.append(f"    assign converter_bready = {crossbar_prefix}bready;")
+        if self.has_read:
+            lines.append(f"    assign {crossbar_prefix}rvalid = converter_rvalid;")
+            lines.append(f"    assign converter_rready = {crossbar_prefix}rready;")
+            lines.append(f"    assign {crossbar_prefix}rlast = converter_rlast;")
+        lines.append("")
+
         return lines
 
     def _generate_axil_converter(self) -> List[str]:

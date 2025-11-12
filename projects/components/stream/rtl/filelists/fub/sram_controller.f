@@ -21,6 +21,7 @@ $REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
 
 # Stream components - allocation controller and latency bridge
 $STREAM_ROOT/rtl/fub/stream_alloc_ctrl.sv
+$STREAM_ROOT/rtl/fub/stream_drain_ctrl.sv
 $STREAM_ROOT/rtl/fub/stream_latency_bridge.sv
 
 # SRAM controller unit (single channel: alloc_ctrl + FIFO + latency bridge)

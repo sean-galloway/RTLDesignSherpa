@@ -45,12 +45,12 @@ class StreamCoreTB(TBBase):
     """
 
     def __init__(self, dut,
-                 num_channels=4,
-                 addr_width=64,
-                 data_width=512,
-                 axi_id_width=8,
-                 fifo_depth=512,
-                 **kwargs):
+                num_channels=4,
+                addr_width=64,
+                data_width=512,
+                axi_id_width=8,
+                fifo_depth=512,
+                **kwargs):
         """Initialize stream_core testbench"""
         super().__init__(dut)
 
@@ -72,9 +72,9 @@ class StreamCoreTB(TBBase):
         self.desc_mem_base = 0x0001_0000  # Start at 64KB (address 0 reserved as invalid)
         self.desc_mem_size = 0x0001_0000  # 64KB
         self.src_mem_base = 0x8000_0000
-        self.src_mem_size = 0x1000_0000   # 256MB
+        self.src_mem_size = 0x0200_0000   # 32MB
         self.dst_mem_base = 0x9000_0000
-        self.dst_mem_size = 0x1000_0000   # 256MB
+        self.dst_mem_size = 0x0200_0000   # 32MB
 
         # Memory models (MemoryModel objects - initialized in setup)
         self.desc_memory_model = None  # Descriptor memory (256-bit read)
@@ -135,10 +135,12 @@ class StreamCoreTB(TBBase):
         cocotb.start_soon(self._monitor_datawr_interface())
         cocotb.start_soon(self._monitor_datard_completions())
         cocotb.start_soon(self._monitor_datawr_completions())
+        cocotb.start_soon(self._monitor_scheduler_state())
+        cocotb.start_soon(self._monitor_descriptor_errors())
 
         self.log.info(f"stream_core TB initialized: {self.num_channels} channels, "
-                     f"{self.data_width}-bit data, {self.fifo_depth}-deep FIFO")
-        self.log.info("Background monitors started for APB, datard, datawr interfaces")
+                    f"{self.data_width}-bit data, {self.fifo_depth}-deep FIFO")
+        self.log.info("Background monitors started for APB, datard, datawr, scheduler state, descriptor errors")
 
     async def assert_reset(self):
         """Assert reset signal"""
@@ -172,9 +174,10 @@ class StreamCoreTB(TBBase):
         self.dut.cfg_desceng_enable.value = 1
         self.dut.cfg_desceng_prefetch.value = 1
         self.dut.cfg_desceng_fifo_thresh.value = 12  # 4-bit signal, max = 15
-        # Note: Address limits not enabled by default
-        self.dut.cfg_desceng_addr0_base.value = 0
-        self.dut.cfg_desceng_addr0_limit.value = 0xFFFFFFFF
+        # NOTE: Base addresses MUST match memory layout!
+        # Descriptor memory starts at 0x0001_0000
+        self.dut.cfg_desceng_addr0_base.value = self.desc_mem_base
+        self.dut.cfg_desceng_addr0_limit.value = self.desc_mem_base + self.desc_mem_size - 1
         self.dut.cfg_desceng_addr1_base.value = 0
         self.dut.cfg_desceng_addr1_limit.value = 0xFFFFFFFF
 
@@ -191,13 +194,13 @@ class StreamCoreTB(TBBase):
         )
 
         self.src_memory_model = MemoryModel(
-            num_lines=262144,  # 16MB (262144 * data_bytes)
+            num_lines=524288,  # 32MB (524288 * data_bytes when data_bytes=64)
             bytes_per_line=self.data_bytes,
             log=self.log
         )
 
         self.dst_memory_model = MemoryModel(
-            num_lines=262144,  # 16MB
+            num_lines=524288,  # 32MB (524288 * data_bytes when data_bytes=64)
             bytes_per_line=self.data_bytes,
             log=self.log
         )
@@ -210,6 +213,7 @@ class StreamCoreTB(TBBase):
             clock=self.clk,
             prefix="m_axi_desc",
             log=self.log,
+            ifc_name="descr",  # Debug name for logs
             data_width=256,
             id_width=self.axi_id_width,
             addr_width=self.addr_width,
@@ -226,6 +230,7 @@ class StreamCoreTB(TBBase):
             clock=self.clk,
             prefix="m_axi_rd",
             log=self.log,
+            ifc_name="rdeng",  # Debug name for logs
             data_width=self.data_width,
             id_width=self.axi_id_width,
             addr_width=self.addr_width,
@@ -242,6 +247,7 @@ class StreamCoreTB(TBBase):
             clock=self.clk,
             prefix="m_axi_wr",
             log=self.log,
+            ifc_name="wreng",  # Debug name for logs
             data_width=self.data_width,
             id_width=self.axi_id_width,
             addr_width=self.addr_width,
@@ -288,7 +294,8 @@ class StreamCoreTB(TBBase):
                         'addr': addr
                     }
                     self.apb_transactions.append(txn)
-                    self.log.info(f"[APB→DESC] CH{ch}: Descriptor @ 0x{addr:08x}")
+                    time_str = self.get_time_ns_str()
+                    self.log.info(f"{time_str} [APB→DESC] CH{ch}: Descriptor @ 0x{addr:08x}")
 
     async def _monitor_datard_interface(self):
         """Monitor Scheduler → Read Engine interface (datard)"""
@@ -320,7 +327,8 @@ class StreamCoreTB(TBBase):
                         'beats': beats
                     }
                     self.datard_requests.append(txn)
-                    self.log.info(f"[DATARD_REQ] CH{ch}: addr=0x{addr:08x}, beats={beats}")
+                    time_str = self.get_time_ns_str()
+                    self.log.info(f"{time_str} [DATARD_REQ] CH{ch}: addr=0x{addr:08x}, beats={beats}")
 
     async def _monitor_datawr_interface(self):
         """Monitor Scheduler → Write Engine interface (datawr)"""
@@ -352,7 +360,8 @@ class StreamCoreTB(TBBase):
                         'beats': beats
                     }
                     self.datawr_requests.append(txn)
-                    self.log.info(f"[DATAWR_REQ] CH{ch}: addr=0x{addr:08x}, beats={beats}")
+                    time_str = self.get_time_ns_str()
+                    self.log.info(f"{time_str} [DATAWR_REQ] CH{ch}: addr=0x{addr:08x}, beats={beats}")
 
     async def _monitor_datard_completions(self):
         """Monitor Read Engine → Scheduler completions"""
@@ -379,7 +388,8 @@ class StreamCoreTB(TBBase):
                         'beats_done': beats_done
                     }
                     self.datard_completions.append(txn)
-                    self.log.info(f"[DATARD_DONE] CH{ch}: beats_done={beats_done}")
+                    time_str = self.get_time_ns_str()
+                    self.log.info(f"{time_str} [DATARD_DONE] CH{ch}: beats_done={beats_done}")
 
     async def _monitor_datawr_completions(self):
         """Monitor Write Engine → Scheduler completions"""
@@ -406,7 +416,63 @@ class StreamCoreTB(TBBase):
                         'beats_done': beats_done
                     }
                     self.datawr_completions.append(txn)
-                    self.log.info(f"[DATAWR_DONE] CH{ch}: beats_done={beats_done}")
+                    time_str = self.get_time_ns_str()
+                    self.log.info(f"{time_str} [DATAWR_DONE] CH{ch}: beats_done={beats_done}")
+
+    async def _monitor_scheduler_state(self):
+        """Monitor scheduler FSM state for debugging (ONE-HOT ENCODED)"""
+        last_state = {}
+
+        # State decode mapping (one-hot encoding)
+        state_names = {
+            0b0000001: "IDLE",
+            0b0000010: "FETCH_DESC",
+            0b0000100: "READ_DATA",
+            0b0001000: "WRITE_DATA",
+            0b0010000: "COMPLETE",
+            0b0100000: "NEXT_DESC",
+            0b1000000: "ERROR"
+        }
+
+        while True:
+            await RisingEdge(self.clk)
+            await ReadOnly()
+
+            if not hasattr(self.dut, 'scheduler_state'):
+                continue
+
+            # scheduler_state is vectored - one 7-bit one-hot state per channel
+            state_vec = int(self.dut.scheduler_state.value)
+
+            for ch in range(self.num_channels):
+                # Extract 7-bit one-hot state for this channel
+                state = (state_vec >> (ch * 7)) & 0x7F
+
+                # Only log on state changes
+                if ch not in last_state or last_state[ch] != state:
+                    last_state[ch] = state
+                    time_str = self.get_time_ns_str()
+                    state_name = state_names.get(state, f"UNKNOWN({state:07b})")
+                    self.log.info(f"{time_str} [SCHED_STATE] CH{ch}: {state_name} (0b{state:07b})")
+
+    async def _monitor_descriptor_errors(self):
+        """Monitor descriptor engine error signals"""
+        while True:
+            await RisingEdge(self.clk)
+            await ReadOnly()
+
+            # Check descriptor AXI error signals
+            if hasattr(self.dut, 'cfg_sts_desc_axi_conflict_error'):
+                conflict_err = int(self.dut.cfg_sts_desc_axi_conflict_error.value)
+                if conflict_err != 0:
+                    time_str = self.get_time_ns_str()
+                    self.log.error(f"{time_str} [DESC_ERROR] AXI conflict error: 0x{conflict_err:X}")
+
+            if hasattr(self.dut, 'cfg_sts_desc_axi_error_count'):
+                err_count = int(self.dut.cfg_sts_desc_axi_error_count.value)
+                if err_count != 0:
+                    time_str = self.get_time_ns_str()
+                    self.log.error(f"{time_str} [DESC_ERROR] AXI error count: {err_count}")
 
     # =========================================================================
     # Descriptor Management
@@ -451,9 +517,9 @@ class StreamCoreTB(TBBase):
         readback_packet = int.from_bytes(bytes(readback), byteorder='little')
 
         self.log.info(f"Wrote descriptor @ abs_addr=0x{addr:08x} (offset=0x{offset:08x}): "
-                     f"src=0x{src_addr:08x}, dst=0x{dst_addr:08x}, "
-                     f"len={length} beats, next=0x{next_ptr:08x}, "
-                     f"last={last}, ch={channel_id}")
+                    f"src=0x{src_addr:08x}, dst=0x{dst_addr:08x}, "
+                    f"len={length} beats, next=0x{next_ptr:08x}, "
+                    f"last={last}, ch={channel_id}")
         self.log.debug(f"  Written packet: 0x{packet:064X}")
         self.log.debug(f"  Readback packet: 0x{readback_packet:064X}")
         if packet != readback_packet:
@@ -522,8 +588,8 @@ class StreamCoreTB(TBBase):
 
             if src_data != dst_data:
                 self.log.error(f"Mismatch at beat {beat}: "
-                              f"src=0x{src_data:0{self.data_bytes*2}x}, "
-                              f"dst=0x{dst_data:0{self.data_bytes*2}x}")
+                            f"src=0x{src_data:0{self.data_bytes*2}x}, "
+                            f"dst=0x{dst_data:0{self.data_bytes*2}x}")
                 errors += 1
 
         if errors == 0:
@@ -594,37 +660,76 @@ class StreamCoreTB(TBBase):
 
     async def wait_for_channel_idle(self, channel, timeout_us=10000):
         """
-        Wait for channel to return to idle state.
+        Wait for channel to return to idle state and all AXI transactions to complete.
+
+        Monitors:
+        - scheduler_idle: Scheduler FSM is idle
+        - axi_rd_all_complete: All read transactions completed
+        - axi_wr_all_complete: All write transactions completed
 
         Args:
             channel: Channel number
             timeout_us: Timeout in microseconds
 
         Returns:
-            bool: True if channel idle, False on timeout
+            bool: True if channel idle and all txns complete, False on timeout
         """
         timeout_ns = timeout_us * 1000
         start_time = cocotb.utils.get_sim_time('ns')
+
+        self.log.info(f"Waiting for channel {channel} to become idle (timeout={timeout_us}us){self.get_time_ns_str()}")
+
+        sched_idle_seen = False
+        rd_complete_seen = False
+        wr_complete_seen = False
 
         while True:
             await RisingEdge(self.clk)
             await ReadOnly()
 
-            # Check channel status register via APB
-            # TODO: Implement APB read when BFM available
-            # For now, check internal signals if available
-
-            # Simple timeout check
             current_time = cocotb.utils.get_sim_time('ns')
-            if (current_time - start_time) > timeout_ns:
-                self.log.error(f"Channel {channel} timeout waiting for idle")
-                return False
+            elapsed_ns = current_time - start_time
 
-            # TODO: Add proper idle detection
-            # For now, just wait fixed time
-            if (current_time - start_time) > 1000:  # 1us minimum
+            # Check all completion conditions
+            scheduler_idle = int(self.dut.scheduler_idle.value)
+            rd_complete = int(self.dut.axi_rd_all_complete.value)
+            wr_complete = int(self.dut.axi_wr_all_complete.value)
+
+            sched_idle_ch = (scheduler_idle >> channel) & 0x1
+            rd_complete_ch = (rd_complete >> channel) & 0x1
+            wr_complete_ch = (wr_complete >> channel) & 0x1
+
+            # Log first time each condition is met
+            if sched_idle_ch and not sched_idle_seen:
+                elapsed_us = elapsed_ns / 1000.0
+                self.log.info(f"  Channel {channel} scheduler idle after {elapsed_us:.1f}us{self.get_time_ns_str()}")
+                sched_idle_seen = True
+
+            if rd_complete_ch and not rd_complete_seen:
+                elapsed_us = elapsed_ns / 1000.0
+                self.log.info(f"  Channel {channel} AXI read complete after {elapsed_us:.1f}us{self.get_time_ns_str()}")
+                rd_complete_seen = True
+
+            if wr_complete_ch and not wr_complete_seen:
+                elapsed_us = elapsed_ns / 1000.0
+                self.log.info(f"  Channel {channel} AXI write complete after {elapsed_us:.1f}us{self.get_time_ns_str()}")
+                wr_complete_seen = True
+
+            # All three conditions must be true
+            if sched_idle_ch and rd_complete_ch and wr_complete_ch:
+                elapsed_us = elapsed_ns / 1000.0
+                self.log.info(f"✓ Channel {channel} FULLY COMPLETE after {elapsed_us:.1f}us{self.get_time_ns_str()}")
                 self.transfer_end_time[channel] = current_time
                 return True
+
+            # Timeout check
+            if elapsed_ns > timeout_ns:
+                elapsed_us = elapsed_ns / 1000.0
+                self.log.error(f"✗ Channel {channel} timeout after {elapsed_us:.1f}us{self.get_time_ns_str()}")
+                self.log.error(f"  scheduler_idle[{channel}]={sched_idle_ch}, "
+                             f"rd_complete[{channel}]={rd_complete_ch}, "
+                             f"wr_complete[{channel}]={wr_complete_ch}")
+                return False
 
     # =========================================================================
     # Test Helpers

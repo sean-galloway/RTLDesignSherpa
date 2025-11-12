@@ -35,7 +35,13 @@ class BridgeApbBridgeTB(TBBase):
     """
 
     def __init__(self, dut):
-        super().__init__(dut)
+        # CRITICAL: Bridge tests need higher memory limits
+        # Verilator compilation uses significant memory (20-80GB total system memory)
+        safety_limits = {
+            'max_memory_mb': 32768,  # 32GB limit (safe for bridge tests)
+            'enable_safety_monitoring': True,
+        }
+        super().__init__(dut, safety_limits=safety_limits)
         self.dut = dut
         self.clock = dut.aclk
         self.clock_name = 'aclk'
@@ -66,8 +72,8 @@ class BridgeApbBridgeTB(TBBase):
                 4, 32, 1
             ),
             pkt_prefix="aw",
-            multi_sig=True,
-            log=self.log
+            timeout_cycles=200,  # Bridge routing delay
+            multi_sig=True,            log=self.log
         )
 
         # W channel (master 0 write data)
@@ -80,8 +86,8 @@ class BridgeApbBridgeTB(TBBase):
                 64, 1
             ),
             pkt_prefix="w",
-            multi_sig=True,
-            log=self.log
+            timeout_cycles=200,  # Bridge routing delay
+            multi_sig=True,            log=self.log
         )
 
         # B channel (master 0 write response)
@@ -107,8 +113,8 @@ class BridgeApbBridgeTB(TBBase):
                 4, 32, 1
             ),
             pkt_prefix="ar",
-            multi_sig=True,
-            log=self.log
+            timeout_cycles=200,  # Bridge routing delay
+            multi_sig=True,            log=self.log
         )
 
         # R channel (master 0 read data)

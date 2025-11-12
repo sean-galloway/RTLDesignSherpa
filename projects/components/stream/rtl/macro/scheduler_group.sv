@@ -71,7 +71,7 @@ module scheduler_group #(
     // Status Interface
     output logic                        descriptor_engine_idle,
     output logic                        scheduler_idle,
-    output logic [3:0]                  scheduler_state,
+    output logic [6:0]                  scheduler_state,  // ONE-HOT encoding (7 bits)
 
     // Descriptor Engine AXI4 Master Read Interface (256-bit descriptor fetch)
     output logic                        desc_ar_valid,
@@ -90,7 +90,7 @@ module scheduler_group #(
     // Descriptor Engine AXI Read Data Channel
     input  logic                        desc_r_valid,
     output logic                        desc_r_ready,
-    input  logic [DATA_WIDTH-1:0]       desc_r_data,
+    input  logic [255:0]                desc_r_data,  // FIXED 256-bit descriptor width
     input  logic [1:0]                  desc_r_resp,
     input  logic                        desc_r_last,
     input  logic [AXI_ID_WIDTH-1:0]     desc_r_id,

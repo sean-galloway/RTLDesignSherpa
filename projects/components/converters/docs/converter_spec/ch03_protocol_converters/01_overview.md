@@ -28,6 +28,12 @@ Protocol converters enable communication between components using different comm
 - **Purpose:** Register interface to command/response protocol
 - **Features:** Protocol decoupling, single-cycle commands, pipelined responses
 
+### 5. UART to AXI4-Lite Bridge
+- **Module:** `uart_axil_bridge.sv` (plus `uart_rx.sv`, `uart_tx.sv`)
+- **Purpose:** ASCII command-line control of AXI4-Lite peripherals via UART
+- **Features:** Human-readable commands, 115200 baud default, timing isolation
+- **Documentation:** See `rtl/uart_to_axil4/README.md`
+
 ---
 
 ## AXI4 ↔ AXI4-Lite Converters

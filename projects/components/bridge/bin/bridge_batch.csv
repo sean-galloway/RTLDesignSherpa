@@ -7,7 +7,7 @@ bridge_1x4_rd,test_configs/bridge_1x4_rd_apb.toml,test_configs/bridge_1x4_rd_apb
 bridge_1x4_wr,test_configs/bridge_1x4_wr_apb.toml,test_configs/bridge_1x4_wr_apb_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
 bridge_1x5_rd,test_configs/bridge_1x5_rd_axil.toml,test_configs/bridge_1x5_rd_axil_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
 bridge_1x5_wr,test_configs/bridge_1x5_wr_axil.toml,test_configs/bridge_1x5_wr_axil_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
-#bridge_2x2_rw,test_configs/bridge_2x2_rw.toml,test_configs/bridge_2x2_rw_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
+bridge_2x2_rw,test_configs/bridge_2x2_rw.toml,test_configs/bridge_2x2_rw_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
 #bridge_4x4_rw,test_configs/bridge_4x4_rw.toml,test_configs/bridge_4x4_rw_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
-#bridge_5x3_channels,test_configs/bridge_5x3_channels.toml,test_configs/bridge_5x3_channels_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
+bridge_5x3_channels,test_configs/bridge_5x3_channels.toml,test_configs/bridge_5x3_channels_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
 #bridge_example,test_configs/bridge_example.toml,test_configs/bridge_example_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false

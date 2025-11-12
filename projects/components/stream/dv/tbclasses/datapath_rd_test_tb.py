@@ -442,7 +442,7 @@ class DatapathRdTestTB(TBBase):
 
         Drains at 1 beat/cycle to match AXI R load rate.
 
-        CRITICAL: Only drains when axi_wr_data_available shows data present
+        CRITICAL: Only drains when axi_wr_drain_data_avail shows data present
         to prevent FIFO underflow.
         """
         # Skip first few cycles after reset
@@ -456,14 +456,14 @@ class DatapathRdTestTB(TBBase):
         while self.auto_drain_active:
             # Read data availability for all channels (current state)
             try:
-                data_avail_bv = self.dut.axi_wr_data_available.value
+                data_avail_bv = self.dut.axi_wr_drain_data_avail.value
             except Exception as e:
                 # Signals not ready, wait and retry
                 await RisingEdge(self.clk)
                 continue
 
             # Convert to list of data available per channel
-            # axi_wr_data_available is [NUM_CHANNELS-1:0][7:0]
+            # axi_wr_drain_data_avail is [NUM_CHANNELS-1:0][7:0]
             channels_with_data = []
             for ch_id in range(self.num_channels):
                 # Extract 8-bit count for this channel
@@ -994,7 +994,7 @@ class DatapathRdTestTB(TBBase):
             return False
 
         # Calculate correct bit extraction for flattened unpacked array
-        # axi_wr_data_available is [NC-1:0][SEG_COUNT_WIDTH-1:0]
+        # axi_wr_drain_data_avail is [NC-1:0][SEG_COUNT_WIDTH-1:0]
         seg_size = self.sram_depth // self.num_channels
         seg_count_width = math.ceil(math.log2(seg_size)) + 1 if seg_size > 1 else 1
         shift = channel_id * seg_count_width
@@ -1005,7 +1005,7 @@ class DatapathRdTestTB(TBBase):
 
             # Read data_available for this channel
             try:
-                data_avail_bv = self.dut.axi_wr_data_available.value
+                data_avail_bv = self.dut.axi_wr_drain_data_avail.value
                 full_value = int(data_avail_bv)
                 data_available = (full_value >> shift) & mask
             except Exception as e:
@@ -1041,14 +1041,14 @@ class DatapathRdTestTB(TBBase):
             return None
 
         # Check if data is available for this channel
-        # axi_wr_data_available is [NC-1:0][$clog2(FIFO_DEPTH):0]
+        # axi_wr_drain_data_avail is [NC-1:0][$clog2(FIFO_DEPTH):0]
         import math
         # Wait for data to become available (with timeout)
         # FIX: With REGISTERED=1 FIFOs/bridge, data_available has pipeline delay
         # Must WAIT for it to update, not check once and give up!
         data_available = 0
 
-        # FIX: axi_wr_data_available is [NC-1:0][SEG_COUNT_WIDTH-1:0] unpacked array
+        # FIX: axi_wr_drain_data_avail is [NC-1:0][SEG_COUNT_WIDTH-1:0] unpacked array
         # CocoTB flattens it to packed, so use correct bit width for extraction
         # SEG_SIZE = SRAM_DEPTH / NUM_CHANNELS, SEG_COUNT_WIDTH = $clog2(SEG_SIZE) + 1
         seg_size = self.sram_depth // self.num_channels
@@ -1058,7 +1058,7 @@ class DatapathRdTestTB(TBBase):
 
         for wait_cycle in range(timeout_cycles):
             try:
-                data_avail_bv = self.dut.axi_wr_data_available.value
+                data_avail_bv = self.dut.axi_wr_drain_data_avail.value
                 full_value = int(data_avail_bv)
                 data_available = (full_value >> shift) & mask
 
