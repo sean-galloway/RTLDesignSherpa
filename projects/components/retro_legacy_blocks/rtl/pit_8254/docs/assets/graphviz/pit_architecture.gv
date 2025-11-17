@@ -1,0 +1,95 @@
+// PIT_8254 Architecture Block Diagram
+// Purpose: Show Intel 8254-compatible PIT module hierarchy with APB interface
+
+digraph pit_architecture {
+    rankdir=LR;
+    node [shape=box, style="rounded,filled", fillcolor=lightblue];
+    edge [fontsize=10];
+
+    // Title with compact info
+    label="PIT 8254 Architecture - Programmable Interval Timer\n\nConfig: 3 counters (16-bit) | Mode 0 implemented | CDC: Optional | PeakRDL registers | Legend: Blue=APB, Green=Control, Red=Interrupts";
+    labelloc="t";
+    fontsize=12;
+
+    // APB Interface (External)
+    subgraph cluster_apb {
+        label="APB Interface";
+        style=filled;
+        fillcolor=lightgreen;
+        
+        apb_in [label="APB\nMaster\n\nPSEL\nPENABLE\nPADDR\nPWDATA", fillcolor=palegreen];
+    }
+
+    // apb_pit_8254 Top Level
+    subgraph cluster_top {
+        label="apb_pit_8254 (Top Level)";
+        style=filled;
+        fillcolor=lightyellow;
+
+        // APB Slave
+        apb_slave [label="APB Slave\n(apb_slave.sv or\napb_slave_cdc.sv)\n\nProtocol conversion\nOptional CDC", fillcolor=lightcyan];
+        
+        // Config Registers
+        config_regs [label="Config Registers\n(pit_config_regs.sv)\n\nPeakRDL wrapper\nControl word decode\nEdge detection", fillcolor=wheat];
+        
+        peakrdl_regs [label="Register Block\n(pit_regs.sv)\n\nPeakRDL-generated\n\nCONTROL (WO)\nSTATUS (RO)\nCOUNTER_DATA (RW)", fillcolor=khaki];
+        
+        // PIT Core
+        pit_core [label="PIT Core\n(pit_core.sv)\n\n3-counter array\nControl decode\nGate handling", fillcolor=lightsteelblue];
+        
+        // Individual Counters
+        counter0 [label="Counter 0\n(pit_counter.sv)\n\n16-bit\nMode 0", fillcolor=lightyellow];
+        counter1 [label="Counter 1\n(pit_counter.sv)\n\n16-bit\nMode 0", fillcolor=lightyellow];
+        counter2 [label="Counter 2\n(pit_counter.sv)\n\n16-bit\nMode 0", fillcolor=lightyellow];
+    }
+
+    // External Inputs
+    subgraph cluster_inputs {
+        label="External Inputs";
+        style=filled;
+        fillcolor=wheat;
+        
+        gates [label="GATE[2:0]\nInputs\n\nHW triggers", fillcolor=khaki];
+    }
+
+    // Outputs
+    subgraph cluster_outputs {
+        label="Outputs";
+        style=filled;
+        fillcolor=lightcoral;
+        
+        interrupts [label="Timer IRQs\n\ntimer_irq[0] (IRQ0)\ntimer_irq[1] (Refresh)\ntimer_irq[2] (Speaker)", fillcolor=lightpink];
+    }
+
+    // APB Data Flow (Blue)
+    apb_in -> apb_slave [label="APB\ntransactions", color=blue, style=bold];
+    apb_slave -> config_regs [label="cmd/rsp", color=blue];
+    config_regs -> peakrdl_regs [label="APB\nR/W", color=blue];
+    
+    // Register to Core (Green)
+    peakrdl_regs -> config_regs [label="hwif", color=green, style=dotted];
+    config_regs -> pit_core [label="Control\nsignals", color=green, style=bold];
+    
+    // Core to Counters
+    pit_core -> counter0 [label="Counter 0\ncontrol", color=green];
+    pit_core -> counter1 [label="Counter 1\ncontrol", color=green];
+    pit_core -> counter2 [label="Counter 2\ncontrol", color=green];
+    
+    // Gates to Counters
+    gates -> counter0 [label="GATE[0]", color=orange, style=dotted];
+    gates -> counter1 [label="GATE[1]", color=orange, style=dotted];
+    gates -> counter2 [label="GATE[2]", color=orange, style=dotted];
+    
+    // Counter Outputs to Interrupts
+    counter0 -> interrupts [label="OUT[0]", color=red, style=bold];
+    counter1 -> interrupts [label="OUT[1]", color=red, style=bold];
+    counter2 -> interrupts [label="OUT[2]", color=red, style=bold];
+    
+    // Clocking
+    clk_apb [label="pclk", shape=ellipse, fillcolor=lightyellow];
+    clk_pit [label="pit_clk", shape=ellipse, fillcolor=orange];
+    
+    clk_apb -> apb_slave [label="APB side", color=blue, style=dashed];
+    clk_pit -> apb_slave [label="PIT side", color=orange, style=dashed];
+    clk_pit -> pit_core [label="Counter\nclock", color=orange, style=dashed];
+}

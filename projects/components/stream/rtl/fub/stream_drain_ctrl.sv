@@ -69,6 +69,7 @@ module stream_drain_ctrl #(
     logic [AW:0]   w_wr_ptr_bin_next, w_rd_ptr_bin_next;
     logic          r_wr_full, r_wr_almost_full, r_rd_empty, r_rd_almost_empty;
     logic [AW:0]   w_count;
+    logic [AW:0]   w_available_data;  // Calculate available data independently
 
     // ---------------------------------------------------------------------
     // Write/Read enables
@@ -111,16 +112,14 @@ module stream_drain_ctrl #(
         end else begin
             if (w_read && !r_rd_empty) begin
                 r_rd_ptr_bin <= r_rd_ptr_bin + (AW+1)'(rd_size);
-                // Debug: Monitor drains
-                /* verilator lint_off WIDTHEXPAND */
-                $display("DRAIN_CTRL @ %t: drained %0d beats, rd_ptr: %0d -> %0d, data_available will be %0d",
-                        $time, rd_size, r_rd_ptr_bin, r_rd_ptr_bin + (AW+1)'(rd_size),
-                        r_wr_ptr_bin - (r_rd_ptr_bin + (AW+1)'(rd_size)));
-                /* verilator lint_on WIDTHEXPAND */
             end
         end
     )
 
+    // Calculate available data (current write pointer - current read pointer)
+    // assign w_available_data = r_wr_ptr_bin - r_rd_ptr_bin;
+
+    // Next read pointer
     assign w_rd_ptr_bin_next = r_rd_ptr_bin + (w_read && !r_rd_empty ? (AW+1)'(rd_size) : '0);
 
     // ---------------------------------------------------------------------
@@ -152,9 +151,9 @@ module stream_drain_ctrl #(
     // Output Assignments
     // ---------------------------------------------------------------------
     assign wr_ready = !r_wr_full;
-    assign rd_ready = !r_rd_empty;
+    assign rd_ready = !r_rd_empty;  // Simple not-empty check (protocol uses polling, not ready handshake)
 
-    // Data available = current occupancy
+    // Data available = current occupancy (use current pointers, not next!)
     assign data_available = w_count;
 
     // Status outputs

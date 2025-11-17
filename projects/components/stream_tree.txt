@@ -1,11 +1,15 @@
 DEBUG: exclude_dir = ['__pycache__', 'local_sim_build', 'logs']
 stream
 ├── CLAUDE.md
+├── FUB_TEST_COVERAGE_ENHANCEMENT.md
 ├── PRD.md
 ├── README.md
 ├── TASKS.md
+├── TEST_ENHANCEMENTS_2025-11-12.md
 ├── bin
 │   ├── dma_model.py
+│   ├── extract_axi_transactions.py
+│   ├── extract_axi_transactions_v2.py
 │   ├── update_performance_reports.py
 │   └── dma_model
 │       ├── ENHANCEMENTS.md
@@ -30,10 +34,6 @@ stream
 │       │       └── visualization.py
 │       └── csv
 ├── docs
-│   ├── ARCHITECTURAL_NOTES.md
-│   ├── AXI_ENGINE_V2_DESIGN.md
-│   ├── SRAM_POINTER_ANALYSIS.md
-│   ├── V2_IMPLEMENTATION_PLAN.md
 │   ├── generate_pdf.sh
 │   └── stream_spec
 │       ├── STREAM_Specification_v0.26.docx
@@ -120,23 +120,28 @@ stream
 │       │       └── stream_latency_bridge
 │       │           └── latency_bridge_dw0512.gtkw
 │       ├── macro
+│       │   ├── .wreng0.log.swp
 │       │   ├── Makefile
+│       │   ├── analyze_logs.sh
 │       │   ├── conftest.py
-│       │   ├── junk
 │       │   ├── test_datapath_rd_test.py
 │       │   ├── test_datapath_wr_test.py
 │       │   ├── test_monbus_axil_group.py
 │       │   ├── test_stream_core.py
 │       │   └── GTKW
-│       │       ├── datapath_rd_dw512.gtkw
-│       │       ├── datapath_wr_dw512.gtkw
-│       │       ├── stream_core_nc4_dw512.gtkw
+│       │       ├── core
+│       │       │   ├── stream_core_nc4_dw128.gtkw
+│       │       │   ├── stream_core_nc4_dw256.gtkw
+│       │       │   ├── stream_core_nc4_dw32.gtkw
+│       │       │   └── stream_core_nc4_dw512.gtkw
 │       │       ├── datapath_rd_test
 │       │       │   ├── datapath_rd_test_dw128.gtkw
 │       │       │   ├── datapath_rd_test_dw256.gtkw
 │       │       │   └── datapath_rd_test_dw512.gtkw
 │       │       └── datapath_wr_test
-│       │           └── datapath_wr_test_dw128.gtkw
+│       │           ├── datapath_wr_test_dw128.gtkw
+│       │           ├── datapath_wr_test_dw256.gtkw
+│       │           └── datapath_wr_test_dw512.gtkw
 │       └── performance_tests
 │           ├── Makefile
 │           ├── test_v1_baseline_read.py
@@ -189,6 +194,7 @@ stream
     │   ├── sram_controller.sv
     │   ├── sram_controller_unit.sv
     │   ├── stream_alloc_ctrl.sv
+    │   ├── stream_drain_ctrl.sv
     │   └── stream_latency_bridge.sv
     ├── includes
     │   ├── stream_imports.svh

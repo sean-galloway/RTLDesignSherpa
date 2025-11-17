@@ -1,533 +1,534 @@
 # AXI Read Engine Specification
 
 **Module:** `axi_read_engine.sv`
-**Location:** `projects/components/stream/rtl/stream_fub/`
+**Location:** `projects/components/stream/rtl/fub/`
 **Status:** Implemented
 
 ---
 
 ## Overview
 
-The AXI Read Engine autonomously executes AXI read transactions to fetch source data from system memory. It accepts requests from the Scheduler, decides burst lengths internally based on configuration and SRAM space, and reports completion back.
+The AXI Read Engine autonomously executes AXI read transactions to fetch source data from system memory. It accepts requests from schedulers through a round-robin arbiter, issues AR transactions, and streams data directly to the SRAM controller.
 
 ### Key Features
 
-- **Autonomous burst decision:** Engine decides burst length based on internal config
-- **Performance modes:** Low, Medium, High (compile-time parameter)
-- **SRAM interface:** Writes fetched data to shared SRAM
-- **Streaming pipeline:** No FSM in data path (arbiter-based control)
-- **Completion feedback:** Reports beats moved via done_strobe
+- **Multi-channel arbitration:** Round-robin arbiter across NUM_CHANNELS
+- **Space-aware request masking:** Only arbitrate channels with sufficient SRAM space
+- **Pipelined operation:** Configurable PIPELINE parameter (0=non-pipelined, 1=pipelined)
+- **Streaming data path:** Direct R channel → SRAM (no buffering)
+- **Completion feedback:** Reports beats issued via done_strobe to schedulers
+- **Outstanding transaction tracking:** Per-channel counters for PIPELINE=1
+
+### Block Diagram
+
+![Diagram](../images/08_axi_read_engine_L024.png)
+
+<!--
+Original Mermaid diagram (for editing):
+
+![Diagram](../images/08_axi_read_engine_L029.png)
+
+<!--
+Original Mermaid diagram (for editing):
+
+```mermaid
+graph TB
+    subgraph "AXI Read Engine"
+        subgraph "AR Channel Management"
+            SCH0[Scheduler CH0<br/>sched_rd_valid/addr/beats] --> ARB_REQ[Arbiter Request Masking]
+            SCH1[Scheduler CH1] --> ARB_REQ
+            SCHN[Scheduler CHN-1] --> ARB_REQ
+
+            SPACE[rd_space_free] --> |Space Check:<br/>>= 2x burst| ARB_REQ
+            OUT_LIM[Outstanding Limit] --> |< MAX| ARB_REQ
+
+            ARB_REQ --> ARB[Round-Robin Arbiter]
+            ARB --> |grant_id| AR_MUX[AR Channel Mux]
+            AR_MUX --> |m_axi_arvalid/araddr/arlen| MEM[Memory]
+
+            AR_MUX --> |AR handshake| ALLOC[SRAM Allocation]
+            ALLOC --> |rd_alloc_req/size/id| SRAM_ALLOC[SRAM Controller]
+            SRAM_ALLOC --> |rd_space_free| SPACE
+        end
+
+        subgraph "R Channel Data Path"
+            MEM --> |m_axi_rvalid/rdata/rid| R_PASS[R Passthrough]
+            R_PASS --> |axi_rd_sram_valid/data/id| SRAM_WR[SRAM Write]
+        end
+
+        subgraph "Completion Tracking"
+            AR_MUX --> |done_strobe| DONE_GEN[Done Strobe Gen]
+            DONE_GEN --> |sched_rd_done_strobe<br/>sched_rd_beats_done| SCH0
+            DONE_GEN --> SCH1
+            DONE_GEN --> SCHN
+
+            MEM --> |m_axi_rlast| OUT_CNT[Outstanding Counter]
+            AR_MUX --> |AR issued| OUT_CNT
+            OUT_CNT --> |outstanding_count| OUT_LIM
+        end
+    end
+
+    style ARB fill:#f9f,stroke:#333,stroke-width:3px
+    style AR_MUX fill:#bbf,stroke:#333,stroke-width:2px
+    style R_PASS fill:#bfb,stroke:#333,stroke-width:2px
+    style SPACE fill:#ffb,stroke:#333,stroke-width:2px
+```
+-->
+-->
 
 ---
 
-## Performance Modes
+## Parameters
 
-### Low Performance Mode (`PERFORMANCE = "LOW"`)
-
-**Target:** Area-optimized, tutorial examples
-
-**Characteristics:**
-- Single outstanding transaction
-- Minimal logic
-- Simple sequential operation
-- ~250 LUTs (estimate)
-
-**Parameters:**
 ```systemverilog
-parameter string PERFORMANCE = "LOW";
-parameter int    MAX_BURST_LEN = 8;       // Fixed 8-beat bursts
-parameter int    MAX_OUTSTANDING = 1;     // Single transaction
-parameter bit    ENABLE_PIPELINE = 0;     // No pipelining
+parameter int NUM_CHANNELS = 8;                 // Number of independent channels
+parameter int ADDR_WIDTH = 64;                  // AXI address width
+parameter int DATA_WIDTH = 512;                 // AXI data width
+parameter int ID_WIDTH = 8;                     // AXI ID width
+parameter int SEG_COUNT_WIDTH = 8;              // Width of space/count signals
+parameter int PIPELINE = 0;                     // 1: allow multiple outstanding per channel
+                                                // 0: wait for R last before next AR
+parameter int AR_MAX_OUTSTANDING = 8;           // Maximum outstanding AR per channel (PIPELINE=1)
+parameter int STROBE_EVERY_BEAT = 0;            // 0: strobe only on AR handshake (default)
+                                                // 1: strobe on every R beat (not implemented)
 ```
 
-### Medium Performance Mode (`PERFORMANCE = "MEDIUM"`)
-
-**Target:** Balanced area/performance for typical FPGA
-
-**Characteristics:**
-- 2-4 outstanding transactions
-- Basic pipelining
-- Adaptive burst sizing
-- ~400 LUTs (estimate)
-
-**Parameters:**
+**Short Aliases (internal use):**
 ```systemverilog
-parameter string PERFORMANCE = "MEDIUM";
-parameter int    MAX_BURST_LEN = 16;      // Up to 16-beat bursts
-parameter int    MAX_OUTSTANDING = 4;     // 4 outstanding
-parameter bit    ENABLE_PIPELINE = 1;     // Basic pipelining
-```
-
-### High Performance Mode (`PERFORMANCE = "HIGH"`)
-
-**Target:** Maximum throughput for ASIC or high-end FPGA
-
-**Characteristics:**
-- 8+ outstanding transactions
-- Full pipelining
-- Dynamic burst optimization
-- ~600 LUTs (estimate)
-
-**Parameters:**
-```systemverilog
-parameter string PERFORMANCE = "HIGH";
-parameter int    MAX_BURST_LEN = 256;     // Up to 256-beat bursts
-parameter int    MAX_OUTSTANDING = 16;    // 16 outstanding
-parameter bit    ENABLE_PIPELINE = 1;     // Full pipelining
+parameter int NC = NUM_CHANNELS;
+parameter int AW = ADDR_WIDTH;
+parameter int DW = DATA_WIDTH;
+parameter int IW = ID_WIDTH;
+parameter int SCW = SEG_COUNT_WIDTH;
+parameter int CIW = (NC > 1) ? $clog2(NC) : 1;  // Channel ID width
 ```
 
 ---
 
 ## Interface
 
-### Parameters
+### Clock and Reset
 
 ```systemverilog
-parameter string PERFORMANCE = "LOW";      // "LOW", "MEDIUM", "HIGH"
-parameter int    ADDR_WIDTH = 64;          // Address bus width
-parameter int    DATA_WIDTH = 512;         // Data bus width
-parameter int    MAX_BURST_LEN = 8;        // Max burst length (perf-dependent)
-parameter int    MAX_OUTSTANDING = 1;      // Max outstanding transactions
-parameter bit    ENABLE_PIPELINE = 0;      // Pipeline enable
-parameter int    SRAM_DEPTH = 1024;        // SRAM depth (for space check)
+input  logic                        clk;
+input  logic                        rst_n;      // Active-low asynchronous reset
 ```
 
-### Ports
+### Configuration Interface
 
-**Clock and Reset:**
 ```systemverilog
-input  logic                    aclk;
-input  logic                    aresetn;
+input  logic [7:0]                  cfg_axi_rd_xfer_beats;  // Transfer size in beats (all channels)
 ```
 
-**Configuration:**
+### Scheduler Interface (Per-Channel Read Requests)
+
+**Request Handshake:**
 ```systemverilog
-input  logic [7:0]              cfg_burst_len;     // Configured burst length
-input  logic                    cfg_enable;        // Engine enable
+input  logic [NC-1:0]               sched_rd_valid;      // Channel requests read
+output logic [NC-1:0]               sched_rd_ready;      // Engine ready for channel
+input  logic [NC-1:0][AW-1:0]       sched_rd_addr;       // Source addresses (static base)
+input  logic [NC-1:0][31:0]         sched_rd_beats;      // Beats remaining to read
 ```
 
-**Scheduler Request Interface:**
+**Completion Feedback:**
 ```systemverilog
-input  logic                    datard_valid;           // Scheduler requests read
-output logic                    datard_ready;           // Engine grants access
-input  logic [ADDR_WIDTH-1:0]   datard_addr;            // Start address
-input  logic [31:0]             datard_beats_remaining; // Total beats to read
-input  logic [3:0]              datard_channel_id;      // Channel ID
-
-// Completion feedback
-output logic                    datard_done_strobe;     // Burst completed
-output logic [31:0]             datard_beats_done;      // Beats actually moved
-output logic                    datard_error;           // Error occurred
+output logic [NC-1:0]               sched_rd_done_strobe;  // AR issued (pulsed 1 cycle)
+output logic [NC-1:0][31:0]         sched_rd_beats_done;   // Beats issued in burst
+output logic [NC-1:0]               axi_rd_all_complete;   // All reads complete (sticky)
 ```
 
-**AXI Master Interface:**
+**Address Management:**
+- Scheduler provides **static base address** in `sched_rd_addr`
+- Engine handles address increment internally: `araddr = base + (beats_issued << AXSIZE)`
+- Scheduler does NOT need to update address after each burst
+
+### AXI4 AR Channel (Read Address)
+
 ```systemverilog
-// AXI AR (Address Read) Channel
-output logic [ADDR_WIDTH-1:0]   m_axi_araddr;
-output logic [7:0]              m_axi_arlen;      // Burst length - 1
-output logic [2:0]              m_axi_arsize;     // Beat size
-output logic [1:0]              m_axi_arburst;    // INCR
-output logic [AXI_ID_WIDTH-1:0] m_axi_arid;       // Transaction ID
-output logic                    m_axi_arvalid;
-input  logic                    m_axi_arready;
-
-// AXI R (Read Data) Channel
-input  logic [AXI_ID_WIDTH-1:0] m_axi_rid;        // Transaction ID
-input  logic [DATA_WIDTH-1:0]   m_axi_rdata;
-input  logic [1:0]              m_axi_rresp;
-input  logic                    m_axi_rlast;
-input  logic                    m_axi_rvalid;
-output logic                    m_axi_rready;
+output logic [IW-1:0]               m_axi_arid;
+output logic [AW-1:0]               m_axi_araddr;
+output logic [7:0]                  m_axi_arlen;         // Burst length - 1
+output logic [2:0]                  m_axi_arsize;        // Burst size (log2(bytes))
+output logic [1:0]                  m_axi_arburst;       // Burst type (INCR)
+output logic                        m_axi_arvalid;
+input  logic                        m_axi_arready;
 ```
 
-**Critical AXI ID Requirement:**
-
-The lower bits of `m_axi_arid` **MUST** contain the channel ID from the arbiter:
-
+**AXI ID Encoding:**
 ```systemverilog
 // Lower bits = channel ID (from arbiter grant)
-// Upper bits = transaction counter (for multiple outstanding)
-assign m_axi_arid = {transaction_counter, datard_channel_id[3:0]};
+assign m_axi_arid = {{(IW-CW){1'b0}}, w_arb_grant_id};
 ```
 
-**Rationale:**
-- Allows responses to be routed back to correct channel
-- Enables MonBus packet generation with channel ID
-- Critical for debugging and transaction tracking
-- Channel ID comes from arbiter (whichever scheduler won arbitration)
+### AXI4 R Channel (Read Data)
 
-**SRAM Write Interface:**
 ```systemverilog
-output logic                    sram_wr_en;
-output logic [ADDR_WIDTH-1:0]   sram_wr_addr;
-output logic [DATA_WIDTH-1:0]   sram_wr_data;
-input  logic [31:0]             sram_wr_space;    // Available space in beats
+input  logic [IW-1:0]               m_axi_rid;
+input  logic [DW-1:0]               m_axi_rdata;
+input  logic [1:0]                  m_axi_rresp;
+input  logic                        m_axi_rlast;
+input  logic                        m_axi_rvalid;
+output logic                        m_axi_rready;
 ```
 
-**MonBus Output:**
+### SRAM Allocation Interface (to SRAM Controller)
+
+**Pre-allocation (before data arrives):**
 ```systemverilog
-output logic                    monbus_valid;
-input  logic                    monbus_ready;
-output logic [63:0]             monbus_packet;
+output logic                        rd_alloc_req;        // Request space reservation
+output logic [7:0]                  rd_alloc_size;       // Beats to reserve
+output logic [IW-1:0]               rd_alloc_id;         // Transaction ID → channel
+input  logic [NC-1:0][SCW-1:0]      rd_space_free;       // Free space count per channel
 ```
+
+**Allocation Timing:**
+- `rd_alloc_req` asserted when AR transaction issues (`arvalid && arready`)
+- `rd_alloc_size` = configured burst size (`cfg_axi_rd_xfer_beats`)
+- `rd_alloc_id` = channel ID (lower bits of ARID)
+
+### SRAM Write Interface (to SRAM Controller)
+
+**Data Stream (R → SRAM):**
+```systemverilog
+output logic                        axi_rd_sram_valid;   // Read data valid
+input  logic                        axi_rd_sram_ready;   // Ready to accept data
+output logic [IW-1:0]               axi_rd_sram_id;      // Transaction ID → channel
+output logic [DW-1:0]               axi_rd_sram_data;    // Read data payload
+```
+
+**Direct Passthrough (no buffering):**
+```systemverilog
+assign axi_rd_sram_valid = m_axi_rvalid;
+assign axi_rd_sram_id = m_axi_rid;
+assign axi_rd_sram_data = m_axi_rdata;
+assign m_axi_rready = axi_rd_sram_ready;
+```
+
+### Debug Interface
+
+```systemverilog
+output logic [31:0]                 dbg_r_beats_rcvd;    // Total R beats from AXI
+output logic [31:0]                 dbg_sram_writes;     // Total writes to SRAM
+output logic [NC-1:0]               dbg_arb_request;     // Arbiter request vector
+```
+
+**Purpose:**
+- `dbg_arb_request` exposed for **bubble vs idle detection**
+- When `arb_request == 0`, system is idle (all channels in WRITE phase, no reads needed)
+- When `arb_request != 0` but `arvalid == 0`, true bubble (arbiter stalled)
 
 ---
 
 ## Operation
 
-### Burst Decision Logic
+### Space-Aware Request Masking
 
-**Critical:** Engine decides burst length autonomously, NOT from scheduler interface.
+**Critical:** Engine only arbitrates channels with sufficient SRAM space.
 
 ```systemverilog
-// Determine burst length based on:
-// 1. Performance mode configuration (MAX_BURST_LEN)
-// 2. Runtime configuration (cfg_burst_len)
-// 3. Remaining beats (datard_beats_remaining)
-// 4. SRAM space available (sram_wr_space)
+// Per-channel checks:
+w_space_ok[i] = (rd_space_free[i] >= (cfg_axi_rd_xfer_beats << 1));  // 2x margin
 
-function automatic logic [7:0] calculate_burst_len();
-    logic [31:0] max_possible;
+w_below_outstanding_limit[i] = !r_outstanding_limit[i];  // Can issue new AR
 
-    // Start with configured burst length
-    max_possible = cfg_burst_len;
+w_beats_ok[i] = ({24'h0, cfg_axi_rd_xfer_beats}) <= sched_rd_beats[i];
 
-    // Limit to MAX_BURST_LEN (performance mode)
-    if (max_possible > MAX_BURST_LEN)
-        max_possible = MAX_BURST_LEN;
-
-    // Limit to remaining beats
-    if (max_possible > datard_beats_remaining)
-        max_possible = datard_beats_remaining;
-
-    // Limit to SRAM space
-    if (max_possible > sram_wr_space)
-        max_possible = sram_wr_space;
-
-    return max_possible[7:0];
-endfunction
+// Final arbitration request
+w_arb_request[i] = sched_rd_valid[i] && w_space_ok[i] &&
+                   w_below_outstanding_limit[i] && w_beats_ok[i];
 ```
 
-### Transaction Flow
+**2x Space Margin:**
+- Requires `2 × burst_size` free space (not just `burst_size`)
+- Accounts for in-flight allocation timing
+- Prevents SRAM overflow during pipelined operation
 
-**Low Performance (Sequential):**
-```
-1. Wait for datard_valid && SRAM space available
-2. Calculate burst length (limited by config, remaining, SRAM)
-3. Issue AXI AR transaction
-4. Wait for all R beats (rlast)
-5. Assert datard_done_strobe with beats_done count
-6. Repeat until datard_beats_remaining == 0
-```
+### Round-Robin Arbitration
 
-**Medium/High Performance (Pipelined):**
-```
-1. Accept datard_valid && track outstanding transactions
-2. Issue multiple AXI AR transactions (up to MAX_OUTSTANDING)
-3. Pipeline R data into SRAM
-4. Assert datard_done_strobe for each completed burst
-5. Dynamically adjust burst sizes based on SRAM space
-```
-
-### SRAM Write
-
-**All Performance Modes:**
+**Multi-Channel (NC > 1):**
 ```systemverilog
-// On AXI R data valid
-always_ff @(posedge aclk) begin
-    if (m_axi_rvalid && m_axi_rready) begin
-        sram_wr_en <= 1'b1;
-        sram_wr_data <= m_axi_rdata;
-        sram_wr_addr <= r_sram_wr_ptr;
-        r_sram_wr_ptr <= r_sram_wr_ptr + 1;
-    end else begin
-        sram_wr_en <= 1'b0;
-    end
+arbiter_round_robin #(
+    .CLIENTS      (NC),
+    .WAIT_GNT_ACK (1)              // Use ACK mode (wait for AR handshake)
+) u_arbiter (
+    .request      (w_arb_request),
+    .grant_ack    (w_arb_grant_ack),
+    .grant_valid  (w_arb_grant_valid),
+    .grant        (w_arb_grant),
+    .grant_id     (w_arb_grant_id)
+);
+
+assign w_arb_grant_ack = w_arb_grant & {NC{(m_axi_arvalid && m_axi_arready)}};
+```
+
+**Single Channel (NC == 1):**
+```systemverilog
+// Direct passthrough (no arbiter overhead)
+assign w_arb_grant_valid = w_arb_request[0];
+assign w_arb_grant = w_arb_request;
+assign w_arb_grant_id = 1'b0;
+```
+
+### AR Channel Management (Combinational)
+
+**Critical:** AR outputs driven **combinationally** from arbiter (not registered).
+
+```systemverilog
+// COMBINATIONAL outputs (no flops!)
+assign m_axi_arvalid = w_arb_grant_valid;
+assign m_axi_arid = {{(IW-CW){1'b0}}, w_arb_grant_id};
+assign m_axi_araddr = sched_rd_addr[w_arb_grant_id] +
+                      (AW'(r_beats_issued[w_arb_grant_id]) << AXSIZE);
+assign m_axi_arlen = cfg_axi_rd_xfer_beats - 8'd1;
+assign m_axi_arsize = 3'(AXSIZE);
+assign m_axi_arburst = 2'b01;  // INCR
+```
+
+**Why Combinational:**
+- When `rd_space_free` goes to 0, `arvalid` must drop **same cycle**
+- No 1-cycle delay (immediate backpressure response)
+
+### Outstanding Transaction Tracking
+
+**PIPELINE=0 (Non-pipelined):**
+```systemverilog
+logic [NC-1:0] r_outstanding_limit;  // Binary: 0 or 1 outstanding
+
+// Set when AR issues
+if (m_axi_arvalid && m_axi_arready && (w_arb_grant_id == i[CW-1:0]))
+    r_outstanding_limit[i] <= 1'b1;
+
+// Clear when R last arrives
+if (m_axi_rvalid && m_axi_rready && m_axi_rlast && (m_axi_rid[CW-1:0] == i[CW-1:0]))
+    r_outstanding_limit[i] <= 1'b0;
+```
+
+**PIPELINE=1 (Pipelined):**
+```systemverilog
+logic [NC-1:0][MOW-1:0] r_outstanding_count;  // 0 to AR_MAX_OUTSTANDING
+
+// Increment on AR issue, decrement on R last
+case ({w_incr[i], w_decr[i]})
+    2'b10: r_outstanding_count[i] <= r_outstanding_count[i] + 1'b1;  // AR only
+    2'b01: r_outstanding_count[i] <= r_outstanding_count[i] - 1'b1;  // R last only
+endcase
+
+// Boolean flag = at or exceeds limit
+r_outstanding_limit[i] = (r_outstanding_count[i] >= AR_MAX_OUTSTANDING);
+```
+
+### Completion Signal Behavior
+
+**Sticky Completion Flag:**
+```systemverilog
+// Set when outstanding transactions reach zero
+if (r_outstanding_count[i] == '0)
+    r_all_complete[i] <= 1'b1;
+
+// Clear on 0-to-nonzero transition (first AR of new descriptor)
+else if (r_all_complete_prev[i] && (r_outstanding_count[i] != '0))
+    r_all_complete[i] <= 1'b0;
+```
+
+**Why Sticky:**
+- Prevents false pulses when count temporarily hits 0 between bursts
+- Scheduler sees stable completion signal
+
+### Completion Strobe Generation
+
+**Critical:** Strobe asserted on **AR handshake**, not R completion.
+
+```systemverilog
+// Pulse when AR transaction accepted (arvalid && arready)
+if (m_axi_arvalid && m_axi_arready) begin
+    r_done_strobe[w_arb_grant_id] <= 1'b1;
+    r_beats_done[w_arb_grant_id] <= {24'd0, cfg_axi_rd_xfer_beats};
 end
+```
+
+**Rationale:**
+- Scheduler needs immediate feedback (doesn't wait for R data)
+- Allows scheduler to decrement beats and issue next request
+- Pipelined operation hides R latency
+
+### SRAM Pre-Allocation
+
+**Allocation Request:**
+```systemverilog
+// Assert allocation when AXI AR command issues
+if (m_axi_arvalid && m_axi_arready) begin
+    r_alloc_req <= 1'b1;
+    r_alloc_size <= cfg_axi_rd_xfer_beats;
+    r_alloc_id <= {{(IW-CW){1'b0}}, w_arb_grant_id};
+end
+```
+
+**Single-Cycle Pulse:**
+- `rd_alloc_req` asserted for 1 cycle
+- SRAM controller reserves space immediately
+- Prevents race condition (R data arriving before allocation)
+
+---
+
+## PIPELINE Modes
+
+### PIPELINE=0 (Non-pipelined)
+
+**Behavior:**
+- Wait for R last before issuing next AR (per channel)
+- Only 1 outstanding transaction per channel
+- Simple tracking (binary flag)
+
+**Performance:**
+- Latency-limited (each burst waits for previous R last)
+- Good for low-latency SRAM (2-3 cycle read latency)
+- ~0.40 beats/cycle (FPGA SRAM)
+
+**Area:**
+- Minimal logic (~1,250 LUTs)
+
+### PIPELINE=1 (Pipelined)
+
+**Behavior:**
+- Issue multiple AR before R last (per channel)
+- Up to AR_MAX_OUTSTANDING transactions per channel
+- Counter tracking (0 to AR_MAX_OUTSTANDING)
+
+**Performance:**
+- Hides memory latency (command pipelining)
+- Good for DDR3/DDR4 (50-100 cycle read latency)
+- ~0.94 beats/cycle (DDR4)
+
+**Area:**
+- Moderate increase (~2,000 LUTs, 1.6x)
+
+---
+
+## Timing Diagrams
+
+### PIPELINE=0 Transaction Flow
+
+```
+Cycle:  0    1    2    3    4   ...  N    N+1  N+2  N+3
+        |    |    |    |    |         |    |    |    |
+AR:     [====VALID====][GRANT]        [====VALID====][GRANT]
+                         |                             |
+R:                       [----R0--][R1][R2][LAST]     [----R0--]
+                                         |
+Outstanding:       [1][1][1][1][1][0]   [1][1]
+
+Notes:
+- AR waits for previous R last before issuing
+- Outstanding flag: 1 = AR issued, 0 = R last received
+```
+
+### PIPELINE=1 Transaction Flow
+
+```
+Cycle:  0    1    2    3    4    5    6    7    8
+        |    |    |    |    |    |    |    |    |
+AR:     [V1][V2][V3][V4]                    [V5]
+         |   |   |   |                       |
+R:                  [R1-0][R1-1][R1-L] [R2-0][R2-1]
+                                  |             |
+Outstanding:  [1][2][3][4][4][4][3][3][3][2]
+
+Notes:
+- AR issues without waiting for R last
+- Outstanding counter: 0-4 (AR_MAX_OUTSTANDING=4)
+- R data arrives asynchronously
 ```
 
 ---
 
-## Architecture by Performance Mode
+## Address Management
 
-**IMPORTANT:** This engine uses **STREAMING PIPELINE architecture**, NOT FSM!
+### Scheduler Provides Static Base
 
-See `puml/axi_read_engine_pipeline.puml` for detailed pipeline flow diagram.
-
-### Low Performance Implementation (v1 - ACTUAL RTL)
-
-**Flag-Based Control (NO state machine):**
-
+**Scheduler behavior:**
 ```systemverilog
-// Control flags (NOT FSM states!)
-logic r_ar_inflight;     // Transaction in flight
-logic r_ar_valid;        // AR channel has valid data
-logic [7:0] r_beats_received;
-logic [7:0] r_expected_beats;
+// Set once at descriptor start
+sched_rd_addr[ch] <= descriptor.src_addr;  // Static base address
 
-// Ready signal - can accept new request when:
-assign datard_ready = !r_ar_inflight && !r_ar_valid;
-
-// Streaming pipeline operation:
-// 1. Accept request → set r_ar_inflight
-// 2. Issue AR → clear r_ar_valid when handshake
-// 3. Stream R data → sram_wr_en = m_axi_rvalid && m_axi_rready
-// 4. On rlast → clear r_ar_inflight, assert done_strobe
-// 5. Immediately ready for next request (ZERO bubbles!)
-
-// Actual implementation (axi_read_engine.sv:161-189):
-if (datard_valid && datard_ready) begin
-    r_ar_addr <= datard_addr;
-    r_ar_len <= w_capped_burst_len;
-    r_ar_channel_id <= datard_channel_id;
-    r_ar_valid <= 1'b1;
-    r_ar_inflight <= 1'b1;  // Mark transaction active
-end
-
-// AXI AR handshake
-if (r_ar_valid && m_axi_arready) begin
-    r_ar_valid <= 1'b0;
-end
-
-// Clear inflight when last beat received
-if (m_axi_rvalid && m_axi_rready && m_axi_rlast) begin
-    r_ar_inflight <= 1'b0;
-end
+// DO NOT update after each burst (engine handles increment)
 ```
 
-**Streaming Data Path:**
-- `assign m_axi_rready = sram_wr_ready;` (direct passthrough!)
-- `assign sram_wr_en = m_axi_rvalid && m_axi_rready;` (no FSM overhead!)
-- `assign sram_wr_data = m_axi_rdata;` (continuous streaming!)
+### Engine Handles Increment
 
-**Performance Advantage:** Zero-bubble operation by eliminating state machine transitions.
-
-### Medium Performance Implementation (V2 - Command Pipelined)
-
-**Target:** 5-8x throughput improvement over V1 with moderate area increase
-
-**Parameter:** `ENABLE_CMD_PIPELINE = 1`
-
-**Architecture:** Command pipelining decouples AR command acceptance from R data completion, allowing multiple outstanding read transactions.
-
-**Key Differences from V1:**
-- **Command Queue:** 4-8 deep FIFO for pending AR requests
-- **Outstanding Transaction Tracking:** Count active reads (no scoreboard needed for reads)
-- **Independent AR/R Channels:** AR can accept new requests while R data streams in
-- **Asynchronous Completion:** R beats arrive independently of new AR requests
-
-**Simplified Structure (Read Engine):**
-
+**Engine behavior:**
 ```systemverilog
-// Command Queue Entry (simpler than write - no W drain state)
-typedef struct packed {
-    logic [3:0]              channel_id;
-    logic [7:0]              burst_len;
-    logic [SRAM_ADDR_WIDTH-1:0] sram_base_addr;     // Partition start
-    logic [SRAM_ADDR_WIDTH-1:0] sram_current_addr;  // Current write position
-    logic [ID_WIDTH-1:0]     arid;
-    logic                    valid;
-} read_cmd_queue_entry_t;
+// Track beats issued per channel
+r_beats_issued[ch] <= r_beats_issued[ch] + cfg_axi_rd_xfer_beats;  // On AR handshake
 
-// Command Queue (4-8 deep for medium performance)
-read_cmd_queue_entry_t cmd_queue [CMD_QUEUE_DEPTH];
-logic [$clog2(CMD_QUEUE_DEPTH)-1:0] cmd_wr_ptr;
-logic [$clog2(CMD_QUEUE_DEPTH)-1:0] cmd_rd_ptr;
-logic [$clog2(CMD_QUEUE_DEPTH):0] cmd_count;
+// Calculate AXI address
+m_axi_araddr = sched_rd_addr[w_arb_grant_id] +    // Base from scheduler
+               (r_beats_issued[w_arb_grant_id] << AXSIZE);  // Offset (beats → bytes)
 
-// Outstanding transaction counter (simpler than write B scoreboard)
-logic [3:0] outstanding_reads;  // Count AR issued but R not complete
+// Reset on new descriptor
+if (!sched_rd_valid[i])
+    r_beats_issued[i] <= 32'h0;
 ```
 
-**AR Channel Logic (Command Acceptance):**
+---
 
+## Debug and Verification
+
+### Bubble vs Idle Detection
+
+**System Idle (NOT a bubble):**
 ```systemverilog
-// Accept new requests when queue has space
-assign datard_ready = (cmd_count < CMD_QUEUE_DEPTH) &&
-                      (outstanding_reads < MAX_OUTSTANDING);
-
-// Push to command queue
-`ALWAYS_FF_RST(clk, rst_n,
-    if (`RST_ASSERTED(rst_n)) begin
-        cmd_wr_ptr <= '0;
-        cmd_count <= '0;
-    end else begin
-        if (datard_valid && datard_ready) begin
-            cmd_queue[cmd_wr_ptr].channel_id <= datard_channel_id;
-            cmd_queue[cmd_wr_ptr].burst_len <= w_capped_burst_len;
-            cmd_queue[cmd_wr_ptr].sram_base_addr <= calc_sram_base(datard_channel_id);
-            cmd_queue[cmd_wr_ptr].sram_current_addr <= calc_sram_base(datard_channel_id);
-            cmd_queue[cmd_wr_ptr].arid <= {transaction_counter, datard_channel_id};
-            cmd_queue[cmd_wr_ptr].valid <= 1'b1;
-
-            cmd_wr_ptr <= cmd_wr_ptr + 1'b1;
-            cmd_count <= cmd_count + 1'b1;
-        end
-
-        // Pop from queue when R completes
-        if (m_axi_rvalid && m_axi_rready && m_axi_rlast) begin
-            cmd_rd_ptr <= cmd_rd_ptr + 1'b1;
-            cmd_count <= cmd_count - 1'b1;
-        end
-    end
-)
+// When all channels in WRITE phase (no READ needed)
+dbg_arb_request == 0  &&  m_axi_arvalid == 0
 ```
 
-**R Channel Logic (Data Reception - Streaming):**
-
+**True Bubble (stalled arbiter):**
 ```systemverilog
-// R channel ready when SRAM can accept data
-assign m_axi_rready = sram_wr_ready;
-
-// SRAM write on R valid (same as V1, but pointer from queue)
-assign sram_wr_en = m_axi_rvalid && m_axi_rready;
-assign sram_wr_addr = cmd_queue[cmd_rd_ptr].sram_current_addr;
-assign sram_wr_data = m_axi_rdata;
-
-// Update SRAM pointer in queue
-`ALWAYS_FF_RST(clk, rst_n,
-    if (`RST_ASSERTED(rst_n)) begin
-        // Reset handled above
-    end else begin
-        if (m_axi_rvalid && m_axi_rready) begin
-            cmd_queue[cmd_rd_ptr].sram_current_addr <=
-                cmd_queue[cmd_rd_ptr].sram_current_addr + 1'b1;
-        end
-    end
-)
+// Channels requesting but arbiter not granting
+dbg_arb_request != 0  &&  m_axi_arvalid == 0
 ```
 
-**Why Read Engine is Simpler Than Write:**
-1. **No W Drain FSM**: Data arrives from slave (can't stall internally)
-2. **No B Scoreboard**: R channel includes last beat indicator (no separate response)
-3. **In-Order Completion**: Most memory systems return R data in order (OOO optional)
+**Example Scenario (4 channels, xb2 bursts):**
+- All 4 channels complete READ phase → start WRITE phase
+- Brief period: all channels writing, none reading
+- `arb_request = 4'b0000` (system idle, not bubble)
+- This is **expected behavior**, not performance bug
 
-**Performance Improvement:**
-- V1: 0.14 beats/cycle (DDR4 latency limited)
-- V2: 0.94 beats/cycle (6.7x improvement, command pipelining hides latency)
-
-**Area Impact:**
-- V1: ~1,250 LUTs
-- V2: ~2,000 LUTs (1.6x increase for 6.7x throughput)
-
-### High Performance Implementation (V3 - Out-of-Order Read)
-
-**Target:** 7-10x throughput improvement over V1 with maximum area usage
-
-**Parameters:** `ENABLE_CMD_PIPELINE = 1`, `ENABLE_OOO_READ = 1`
-
-**Architecture:** Out-of-order read completion allows flexible R data arrival order, maximizing memory controller efficiency.
-
-**Key Differences from V2:**
-- **Transaction ID Matching:** Match m_axi_rid to command queue entries
-- **Flexible Completion Order:** Process R beats from any outstanding transaction
-- **SRAM Write Arbitration:** Multiple active commands can write to SRAM
-- **Larger Command Queue:** 8-16 deep to maximize outstanding transactions
-
-**Transaction ID Structure:**
+### Debug Counters
 
 ```systemverilog
-// AXI ID encoding (must preserve channel_id in lower bits)
-// [ID_WIDTH-1:4] = Transaction counter (for multiple outstanding per channel)
-// [3:0] = Channel ID (from scheduler, for MonBus routing)
-assign m_axi_arid = {transaction_counter[ID_WIDTH-5:0], datard_channel_id[3:0]};
+dbg_r_beats_rcvd    // Total R beats received from AXI
+dbg_sram_writes     // Total writes to SRAM controller
+
+// Should match at end of test
+assert (dbg_r_beats_rcvd == dbg_sram_writes);
 ```
-
-**R Channel OOO Matching:**
-
-```systemverilog
-// Match incoming R beat to command queue entry via ARID
-function automatic int find_matching_cmd(input [ID_WIDTH-1:0] rid);
-    for (int i = 0; i < CMD_QUEUE_DEPTH; i++) begin
-        if (cmd_queue[i].valid && (cmd_queue[i].arid == rid)) begin
-            return i;
-        end
-    end
-    return -1;  // Should never happen (protocol error)
-endfunction
-
-// R beat processing
-logic [$clog2(CMD_QUEUE_DEPTH)-1:0] active_cmd_idx;
-assign active_cmd_idx = find_matching_cmd(m_axi_rid);
-
-// SRAM write uses matched command's pointer
-assign sram_wr_addr = cmd_queue[active_cmd_idx].sram_current_addr;
-
-// Update matched command's pointer
-`ALWAYS_FF_RST(clk, rst_n,
-    if (`RST_ASSERTED(rst_n)) begin
-        // Reset handled in queue logic
-    end else begin
-        if (m_axi_rvalid && m_axi_rready) begin
-            cmd_queue[active_cmd_idx].sram_current_addr <=
-                cmd_queue[active_cmd_idx].sram_current_addr + 1'b1;
-
-            // Mark complete on last beat
-            if (m_axi_rlast) begin
-                cmd_queue[active_cmd_idx].valid <= 1'b0;
-            end
-        end
-    end
-)
-```
-
-**Why V3 OOO is Naturally Supported:**
-
-The architecture is **innately OOO-compatible** due to:
-
-1. **Per-Channel SRAM Partitioning**: Each channel has independent SRAM region
-   - Channel 0: Addresses 0-511
-   - Channel 1: Addresses 512-1023
-   - ... (no cross-channel hazards)
-
-2. **Per-Command Pointer Tracking**: Each queue entry has independent `sram_current_addr`
-   - Enables multiple commands from same channel
-   - No pointer collision (each command writes to different SRAM region)
-
-3. **Transaction ID Matching**: ARID contains channel ID in lower bits
-   - Scheduler uses channel ID for routing
-   - MonBus uses channel ID for transaction tracking
-   - OOO logic uses full ARID for command matching
-
-**V3 Additional Requirements:**
-- Command queue compaction (remove completed entries to free slots)
-- Priority-based AR issue (don't wait for oldest command to complete)
-- Enhanced error handling (match error response to correct channel)
-
-**Performance Improvement:**
-- V1: 0.14 beats/cycle (single outstanding, latency limited)
-- V2: 0.94 beats/cycle (multiple outstanding, in-order)
-- V3: 0.98 beats/cycle (multiple outstanding, OOO, memory controller optimized)
-
-**Area Impact:**
-- V1: ~1,250 LUTs
-- V2: ~2,000 LUTs (1.6x increase)
-- V3: ~3,500 LUTs (2.8x increase for 7.0x throughput)
 
 ---
 
 ## Error Handling
 
-### AXI Errors
+### AXI Response Errors
 
+**Detection:**
 ```systemverilog
-// On RRESP != OKAY
-if (m_axi_rvalid && m_axi_rresp != 2'b00) begin
-    datard_error <= 1'b1;
-    // Generate MonBus error packet
+if (m_axi_rvalid && m_axi_rready && (m_axi_rresp != 2'b00)) begin
+    // Log error (via MonBus or internal register)
+    // Continue operation (depending on error policy)
 end
 ```
 
-### Timeout Detection
+**Current Implementation:**
+- Errors logged but not exposed on interface
+- Future enhancement: error output signals
 
+### Space Overflow Protection
+
+**Prevention:**
 ```systemverilog
-// Timeout if no progress for cfg_timeout cycles
-if (datard_valid && !transaction_progress) begin
-    r_timeout_counter <= r_timeout_counter + 1;
-    if (r_timeout_counter >= cfg_timeout) begin
-        datard_error <= 1'b1;
-    end
-end
+// Only arbitrate channels with sufficient space
+w_space_ok[i] = (rd_space_free[i] >= (cfg_axi_rd_xfer_beats << 1));
+
+// 2x margin prevents overflow during pipelined operation
 ```
 
 ---
@@ -536,73 +537,48 @@ end
 
 **Test Location:** `projects/components/stream/dv/tests/fub_tests/axi_engines/`
 
-**Test Scenarios (per performance mode):**
-1. Single burst read
-2. Multi-burst transfer (beats > MAX_BURST_LEN)
-3. SRAM backpressure handling
-4. Variable burst sizing
-5. AXI error response
-6. Timeout detection
-7. Outstanding transaction limits (Medium/High)
+**Key Test Scenarios:**
+
+1. **Single burst read** - Basic functionality
+2. **Multi-burst transfer** - beats > xfer_beats
+3. **SRAM backpressure** - rd_space_free = 0
+4. **Multi-channel arbitration** - All channels requesting
+5. **PIPELINE=0 mode** - Sequential operation
+6. **PIPELINE=1 mode** - Pipelined operation
+7. **Outstanding limit** - Hit AR_MAX_OUTSTANDING
+8. **Address increment** - Verify correct offset calculation
 
 ---
 
-## Performance Comparison
+## Performance Characteristics
 
-### Configuration Summary
+### PIPELINE=0 Performance
 
-| Metric | Low (V1) | Medium (V2) | High (V3) |
-|--------|----------|-------------|-----------|
-| **Architecture** | Single-burst | Command Pipeline | OOO Read |
-| **Area (LUTs)** | ~1,250 | ~2,000 | ~3,500 |
-| **Max Throughput** | 0.14 beats/cycle | 0.94 beats/cycle | 0.98 beats/cycle |
-| **Throughput vs V1** | 1.0x | 6.7x | 7.0x |
-| **Outstanding Txns** | 1 | 4-8 | 8-16 |
-| **Command Queue** | None | 4-8 deep | 8-16 deep |
-| **Completion Order** | Sequential | In-order | Out-of-order |
-| **Transaction ID** | Simple | Counter | Match + Channel |
-| **SRAM Pointer** | Single | Per-command | Per-command + Match |
-| **Compile-Time Param** | Default | `ENABLE_CMD_PIPELINE=1` | `ENABLE_CMD_PIPELINE=1`<br>`ENABLE_OOO_READ=1` |
+| Memory Type | Latency (cycles) | Throughput (beats/cycle) |
+|-------------|------------------|--------------------------|
+| FPGA SRAM   | 2-3              | 0.40                     |
+| DDR3        | 50-70            | 0.17                     |
+| DDR4        | 70-100           | 0.14                     |
 
-### Throughput Scaling by Memory Latency
+### PIPELINE=1 Performance
 
-Performance benefit increases with memory latency:
+| Memory Type | Latency (cycles) | Throughput (beats/cycle) | Improvement vs PIPELINE=0 |
+|-------------|------------------|--------------------------|---------------------------|
+| FPGA SRAM   | 2-3              | 0.85                     | 2.1x                      |
+| DDR3        | 50-70            | 0.89                     | 5.2x                      |
+| DDR4        | 70-100           | 0.94                     | 6.7x                      |
 
-| Memory Type | Latency (cycles) | V1 Throughput | V2 Throughput | V3 Throughput | V2 vs V1 | V3 vs V1 |
-|-------------|------------------|---------------|---------------|---------------|----------|----------|
-| **SRAM (FPGA)** | 2-3 | 0.40 beats/cycle | 0.85 beats/cycle | 0.92 beats/cycle | 2.1x | 2.3x |
-| **DDR3** | 50-70 | 0.17 beats/cycle | 0.89 beats/cycle | 0.96 beats/cycle | 5.2x | 5.6x |
-| **DDR4** | 70-100 | 0.14 beats/cycle | 0.94 beats/cycle | 0.98 beats/cycle | 6.7x | 7.0x |
-| **HBM2** | 100-150 | 0.12 beats/cycle | 0.96 beats/cycle | 0.99 beats/cycle | 8.0x | 8.3x |
-
-**Key Insights:**
-- V1 throughput degrades with latency (single outstanding blocks pipeline)
-- V2/V3 maintain near-peak throughput regardless of latency (command pipelining hides latency)
-- V3 provides marginal improvement over V2 (mainly for memory controllers that reorder)
-
-### Area/Performance Trade-offs
-
-| Configuration | Area | Throughput | Area Efficiency | Recommended Use Case |
-|---------------|------|------------|-----------------|----------------------|
-| **V1** | 1.0x | 1.0x | 1.00 | Tutorial, embedded, low-latency SRAM |
-| **V2** | 1.6x | 6.7x | 4.19 | General-purpose, DDR3/DDR4, balanced |
-| **V3** | 2.8x | 7.0x | 2.50 | High-performance, HBM2, OOO memory controllers |
-
-**Area Efficiency** = (Throughput Improvement) / (Area Increase)
-
-**Recommendation:**
-- **Embedded systems**: V1 (minimize area)
-- **General FPGA**: V2 (best area efficiency)
-- **Datacenter/ASIC**: V3 (maximum throughput)
+**Key Insight:** Pipelined mode provides greatest benefit with high-latency memory.
 
 ---
 
 ## Related Documentation
 
-- **Scheduler:** `02_scheduler.md` - Interface contract
-- **Architecture:** `docs/ARCHITECTURAL_NOTES.md` - Separation of concerns
-- **AXI4 Protocol:** ARM IHI0022E
+- **AXI Write Engine:** `10_axi_write_engine.md` - Complementary write path
+- **Scheduler:** `02_scheduler.md` - Request interface
+- **SRAM Controller:** `05_sram_controller.md` - Data destination
+- **Stream Core:** `12_stream_core.md` - Top-level integration
 
 ---
 
-**Last Updated:** 2025-10-17
+**Last Updated:** 2025-11-16

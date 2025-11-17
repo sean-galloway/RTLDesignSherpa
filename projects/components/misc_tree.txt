@@ -1,0 +1,17 @@
+DEBUG: exclude_dir = ['__pycache__', 'local_sim_build', 'logs']
+misc
+├── CLAUDE.md
+├── README.md
+├── bin
+│   └── README.md
+├── docs
+│   └── README.md
+├── dv
+│   ├── tbclasses
+│   └── tests
+└── rtl
+    ├── README.md
+    ├── axi4_slave_rd_pattern_gen.sv
+    ├── axi4_slave_rom.sv
+    ├── axi4_slave_wr_crc_check.sv
+    └── rom.sv

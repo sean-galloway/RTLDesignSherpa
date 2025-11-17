@@ -1,0 +1,110 @@
+// Bridge Error Handling Architecture  
+// Purpose: Show error detection, generation, and reporting
+
+digraph error_handling {
+    rankdir=TB;
+    node [shape=box, style="rounded,filled", fillcolor=lightblue];
+    edge [fontsize=10];
+
+    // Title
+    label="Error Handling System\nDetection, Generation, and Reporting";
+    labelloc="t";
+    fontsize=14;
+
+    // Monitor Inputs
+    subgraph cluster_monitors {
+        label="Error Monitors";
+        style=filled;
+        fillcolor=lightgreen;
+        
+        aw_mon [label="AW/AR\nMonitors\n\nAddress decode\nProtocol check", fillcolor=palegreen];
+        w_mon [label="W Monitor\n\nBeat counting\nWLAST check", fillcolor=palegreen];
+        resp_mon [label="B/R\nMonitors\n\nResponse errors\nTimeout detect", fillcolor=palegreen];
+    }
+
+    // Error Detection
+    subgraph cluster_detection {
+        label="Error Detection Logic";
+        style=filled;
+        fillcolor=lightyellow;
+
+        oor_detect [label="Out-of-Range\nDetection\n\nAddress not\nmapped to slave\n\n→ DECERR", fillcolor=lightcoral];
+        protocol_check [label="Protocol\nChecker\n\nAXI4 violations\nInvalid params\n\n→ SLVERR", fillcolor=lightcoral];
+        timeout_detect [label="Timeout\nDetection\n\nWatchdog counters\nPer transaction\n\n→ DECERR", fillcolor=lightcoral];
+        cam_overflow [label="CAM\nOverflow\n\nToo many\noutstanding\n\n→ Backpressure", fillcolor=orange];
+    }
+
+    // Error Response Generation
+    subgraph cluster_generation {
+        label="Error Response Generation";
+        style=filled;
+        fillcolor=wheat;
+
+        oor_resp [label="OOR Response\nGenerator\n\nGenerate R/B\nwith DECERR\n\nSink W data", fillcolor=lightcyan];
+        timeout_resp [label="Timeout Response\nGenerator\n\nForce completion\nwith DECERR\n\nFree CAM entry", fillcolor=lightcyan];
+    }
+
+    // Error Logging
+    subgraph cluster_logging {
+        label="Error Logging & Reporting";
+        style=filled;
+        fillcolor=plum;
+
+        error_log [label="Error\nHistory\nBuffer\n\n16-entry\ncircular buffer", fillcolor=thistle];
+        status_reg [label="Error Status\nRegister\n\nOOR, timeout,\nprotocol, CAM\n\nW1C bits", fillcolor=thistle];
+        error_count [label="Error\nCounters\n\nPer error type\nSaturating", fillcolor=thistle];
+    }
+
+    // Error Output
+    subgraph cluster_output {
+        label="Error Outputs";
+        style=filled;
+        fillcolor=lightcoral;
+        
+        error_resp [label="Error\nResponses\n\nDECERR\nSLVERR\n\nTo masters", fillcolor=lightpink];
+        error_int [label="Error\nInterrupts\n(optional)\n\nConfigurable\nper error type", fillcolor=lightpink];
+    }
+
+    // Data Flow
+    aw_mon -> oor_detect [label="Address\nout of range", color=red, style=bold];
+    aw_mon -> protocol_check [label="Protocol\nviolation", color=red, style=bold];
+    
+    oor_detect -> oor_resp [label="Generate\nDECERR", color=red, style=bold];
+    oor_resp -> error_resp [label="R or B\nresponse", color=red, style=bold];
+    
+    resp_mon -> timeout_detect [label="No response\nreceived", color=orange, style=bold];
+    timeout_detect -> timeout_resp [label="Force\ntimeout", color=orange, style=bold];
+    timeout_resp -> error_resp [label="R or B\nDECERR", color=orange, style=bold];
+    
+    w_mon -> cam_overflow [label="CAM full", color=orange, style=dotted];
+    cam_overflow -> aw_mon [label="Backpressure\nAWREADY=0", color=orange, style=dotted, dir=back];
+    
+    // Logging
+    oor_detect -> error_log [label="Log OOR\nerror", color=purple, style=dotted];
+    protocol_check -> error_log [label="Log protocol\nviolation", color=purple, style=dotted];
+    timeout_detect -> error_log [label="Log timeout", color=purple, style=dotted];
+    
+    error_log -> status_reg [label="Update\nstatus", color=purple];
+    error_log -> error_count [label="Increment\ncounter", color=purple];
+    
+    status_reg -> error_int [label="Generate\ninterrupt", color=red, style=dotted];
+
+    // Error Types
+    error_types [label="Error Categories\n\nTransaction Errors:\n• Out-of-Range addresses → DECERR\n• Protocol violations → SLVERR/log\n• Slave errors → Forward unchanged\n\nSystem Errors:\n• Timeout conditions → DECERR\n• CAM overflow → Backpressure\n• Configuration errors → Gen-time fail\n\nRecovery:\n• OOR: Auto-generate response\n• Timeout: Force completion\n• CAM full: Wait for free entries", shape=note, fillcolor=lightyellow];
+
+    // Configuration
+    config [label="Configuration\n\nOOR Handling:\n• enable_oor_errors = true\n• oor_response_type = \"decerr\"\n• oor_read_pattern = 0xDEADCAFE\n\nTimeout:\n• enable_timeout = true\n• timeout_cycles = 10000\n\nLogging:\n• enable_error_log = true\n• error_log_depth = 16", shape=note, fillcolor=lightgray];
+
+    // Legend
+    subgraph cluster_legend {
+        label="Legend";
+        style=filled;
+        fillcolor=white;
+
+        leg_detect [label="Error Detection", fillcolor=lightcoral, style=filled];
+        leg_gen [label="Response Generation", fillcolor=lightcyan, style=filled];
+        leg_log [label="Logging & Status", fillcolor=thistle, style=filled];
+        leg_error [label="Error Path", style=bold, color=red];
+        leg_timeout [label="Timeout Path", style=bold, color=orange];
+    }
+}

@@ -120,11 +120,12 @@ module case_mux // verilog_lint: waive module-filename
         case (sel)
             2'b00:  out = a;
             2'b01:  out = b;
-            2'b10:  begin // an example of multi-lines in a case
-                        out[2] = c[2];
-                        out[1] = c[1];
-                        out[0] = c[0];
-                    end
+            2'b10:
+                begin // an example of multi-lines in a case
+                    out[2] = c[2];
+                    out[1] = c[1];
+                    out[0] = c[0];
+                end
             default: out = 0;
         endcase
     end
@@ -296,54 +297,63 @@ end
 endmodule
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Simple FIFO
-// more than simple, childishly simple (since there is minimal read adn write pointer handling), but instructive
-module SyncFIFO_8Deep ( // verilog_lint: waive module-filename
-    input  logic       clk,        // Clock input
-    input  logic       reset_n,    // Reset input
-    input  logic       write_en,   // Write enable input
-    input  logic       read_en,    // Read enable input
-    input  logic [7:0] data_in,    // Data input (8 bits)
-    output logic [7:0] data_out,   // Data output (8 bits)
-    output logic       empty,      // Empty flag (FIFO is empty)
-    output logic       full        // Full flag (FIFO is full)
+// Simple Parameterized FIFO
+// Childishly simple, but now with configurable depth
+module SyncFIFO #(
+    parameter int DEPTH = 8,           // Depth of the FIFO (must be power of 2)
+    parameter int DATA_WIDTH = 8       // Data width
+) (
+    input  logic                  clk,        // Clock input
+    input  logic                  reset_n,    // Reset input
+    input  logic                  write_en,   // Write enable input
+    input  logic [DATA_WIDTH-1:0] data_in,    // Data input
+    input  logic                  read_en,    // Read enable input
+    output logic [DATA_WIDTH-1:0] data_out,   // Data output
+    output logic                  empty,      // Empty flag (FIFO is empty)
+    output logic                  full        // Full flag (FIFO is full)
 );
 
-parameter int DEPTH = 8; // Depth of the FIFO
+    // Calculate pointer widths based on DEPTH
+    localparam int PTR_WIDTH = $clog2(DEPTH) + 1;  // +1 bit for full/empty detection
+    localparam int ADDR_WIDTH = $clog2(DEPTH);      // Address bits for memory indexing
 
-logic [7:0] memory [0:DEPTH-1]; // verilog_lint: waive unpacked-dimensions-range-ordering
-logic [3:0] write_ptr, read_ptr;
-logic [3:0] next_write_ptr, next_read_ptr;
-logic       fifo_empty, fifo_full;
+    // Memory array
+    logic [DATA_WIDTH-1:0] memory [DEPTH];
 
-// Synchronous FIFO logic
-assign fifo_empty = (write_ptr == read_ptr);
-assign fifo_full  = (write_ptr[3] ^ read_ptr[3]) && (write_ptr[2:0] == read_ptr[2:0]);
+    // Pointers
+    logic [PTR_WIDTH-1:0] write_ptr, read_ptr;
 
-always_ff @(posedge clk or negedge reset) begin
-    if (!reset_n) begin
-        write_ptr <= 4'b0000;
-        read_ptr  <= 4'b0000;
-    end else begin
-        write_ptr <= next_write_ptr;
-        read_ptr  <= next_read_ptr;
+    // Status flags
+    logic fifo_empty, fifo_full;
+
+    // Empty: All bits of pointers match
+    assign fifo_empty = (write_ptr == read_ptr);
+
+    // Full: MSB differs (wrap-around), but lower bits match
+    assign fifo_full = (write_ptr[PTR_WIDTH-1] != read_ptr[PTR_WIDTH-1]) && 
+                        (write_ptr[PTR_WIDTH-2:0] == read_ptr[PTR_WIDTH-2:0]);
+
+    // Pointer update logic
+    always_ff @(posedge clk or negedge reset_n) begin
+        if (!reset_n) begin
+            write_ptr <= '0;
+            read_ptr  <= '0;
+        end else begin
+            write_ptr <= (write_en && !fifo_full)  ? (write_ptr + 1'b1) : write_ptr;
+            read_ptr  <= (read_en  && !fifo_empty) ? (read_ptr  + 1'b1) : read_ptr;
+        end
     end
-end
 
-// Write and Read Pointer Logic
-assign next_write_ptr = (write_en && !fifo_full)  ? (write_ptr + 1) : write_ptr;
-assign next_read_ptr  = (read_en  && !fifo_empty) ? (read_ptr  + 1) : read_ptr;
-
-// Write FIFO Logic
-always_ff @(posedge clk) begin
-    if (write_en && !fifo_full) begin
-        memory[next_write_ptr[2:0]] <= data_in;
+    // Write to FIFO
+    always_ff @(posedge clk) begin
+        if (write_en && !fifo_full) begin
+            memory[write_ptr[ADDR_WIDTH-1:0]] <= data_in;
+        end
     end
-end
 
-assign empty = fifo_empty;
-assign full  = fifo_full;
+    // Output assignments
+    assign empty    = fifo_empty;
+    assign full     = fifo_full;
+    assign data_out = (read_en && !fifo_empty) ? memory[read_ptr[ADDR_WIDTH-1:0]] : '0;
 
-assign data_out = (read_en && !fifo_empty) ? memory[read_ptr[2:0]] : 8'b0;
-
-endmodule : SyncFIFO_8Deep
+endmodule : SyncFIFO

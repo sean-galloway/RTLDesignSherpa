@@ -4,7 +4,7 @@
 
 REPO_ROOT="../../../.."
 SPEC_INDEX="stream_spec/stream_index.md"
-OUTPUT_FILE="STREAM_Specification_v1.0.docx"
+OUTPUT_FILE="STREAM_Specification_v0.90.docx"
 
 echo "Generating STREAM Specification PDF..."
 echo "  Input: $SPEC_INDEX"
@@ -14,7 +14,7 @@ cd "$(dirname "$0")"
 
 python "$REPO_ROOT/bin/md_to_docx.py" \
     "$SPEC_INDEX" \
-    -o "$OUTPUT_FILE" \
+    "$OUTPUT_FILE" \
     --toc \
     --title-page \
     --pdf

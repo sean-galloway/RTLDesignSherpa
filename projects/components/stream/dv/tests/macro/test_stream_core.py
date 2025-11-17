@@ -51,48 +51,94 @@ from projects.components.stream.dv.tbclasses.stream_core_tb import StreamCoreTB
 # ==============================================================================
 
 def generate_test_params():
-    """Generate test parameter sets based on TEST_LEVEL"""
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
+    """Generate test parameter sets based on TEST_LEVEL (gate/func/full)"""
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
 
-    # Test levels control descriptor count and concurrency
+    # Test levels: gate (quick), func (functional), full (comprehensive)
     level_configs = {
-        'basic': {
+        'gate': {
             'desc_count': 2,      # 2 descriptors per channel
             'channels': [0],      # Single channel
-            'transfer_sizes': [64],  # 64 beats (256B @ 32-bit, 4KB @ 512-bit)
+            'transfer_sizes': [64],  # Single transfer size
+            'timing_profile': 'fast',  # Fast/no-stress timing
         },
-        'medium': {
+        'func': {
             'desc_count': 4,      # 4 descriptors per channel
             'channels': [0, 1],   # 2 channels
-            'transfer_sizes': [64, 128, 256],
+            'transfer_sizes': [64, 128],
+            'timing_profile': 'fast',  # Still fast for quicker regression
         },
         'full': {
             'desc_count': 16,     # 16 descriptors per channel
             'channels': [0, 1, 2, 3],  # All channels
             'transfer_sizes': [64, 128, 256, 512],
+            'timing_profile': 'mixed',  # Mix of fast, normal, constrained
         }
     }
 
-    config = level_configs.get(test_level, level_configs['basic'])
+    config = level_configs.get(test_level, level_configs['gate'])
 
     # Generate parameter sets
     params = []
 
-    # Configuration: (num_channels, data_width, fifo_depth, axi_id_width)
-    configs = [
-        (4, 32, 512, 8),   # 4 channels, 32-bit data (for debug), 512-deep FIFO, 8-bit IDs
-    ]
+    # Data width configurations: 128, 256, 512-bit (production widths)
+    data_widths = [128, 256, 512]
 
-    for nc, dw, fd, idw in configs:
-        params.append({
-            'num_channels': nc,
-            'data_width': dw,
-            'fifo_depth': fd,
-            'axi_id_width': idw,
-            'desc_count': config['desc_count'],
-            'test_channels': config['channels'],
-            'transfer_sizes': config['transfer_sizes'],
-        })
+    # For full level, generate multiple scenarios with varied chain lengths
+    if test_level == 'full':
+        for dw in data_widths:
+            # Scenario 1: Short chains (2-3 descriptors) - tests rapid completion
+            params.append({
+                'num_channels': 4,
+                'data_width': dw,
+                'fifo_depth': 512,
+                'axi_id_width': 8,
+                'desc_count': 3,  # Short chains
+                'test_channels': config['channels'],
+                'transfer_sizes': [64, 128],
+                'timing_profile': config['timing_profile'],
+                'scenario': 'short_chains',
+            })
+
+            # Scenario 2: Medium chains (8-10 descriptors) - balanced
+            params.append({
+                'num_channels': 4,
+                'data_width': dw,
+                'fifo_depth': 512,
+                'axi_id_width': 8,
+                'desc_count': 10,  # Medium chains
+                'test_channels': config['channels'],
+                'transfer_sizes': [128, 256],
+                'timing_profile': config['timing_profile'],
+                'scenario': 'medium_chains',
+            })
+
+            # Scenario 3: Long chains (full descriptor count) - endurance
+            params.append({
+                'num_channels': 4,
+                'data_width': dw,
+                'fifo_depth': 512,
+                'axi_id_width': 8,
+                'desc_count': config['desc_count'],  # Full length
+                'test_channels': config['channels'],
+                'transfer_sizes': config['transfer_sizes'],
+                'timing_profile': config['timing_profile'],
+                'scenario': 'long_chains',
+            })
+    else:
+        # For gate/func: single configuration per data width
+        for dw in data_widths:
+            params.append({
+                'num_channels': 4,
+                'data_width': dw,
+                'fifo_depth': 512,
+                'axi_id_width': 8,
+                'desc_count': config['desc_count'],
+                'test_channels': config['channels'],
+                'transfer_sizes': config['transfer_sizes'],
+                'timing_profile': config['timing_profile'],
+                'scenario': 'standard',
+            })
 
     return params
 
@@ -101,7 +147,7 @@ def generate_test_params():
 # CocoTB Test Functions
 # ==============================================================================
 
-@cocotb.test(timeout_time=500, timeout_unit="ms")
+@cocotb.test(timeout_time=200, timeout_unit="us")
 async def cocotb_test_single_channel_transfer(dut):
     """Test basic single-channel DMA transfer following datapath pattern"""
 
@@ -141,9 +187,11 @@ async def cocotb_test_single_channel_transfer(dut):
         dst_addr = tb.dst_mem_base + (desc_idx * transfer_beats * tb.data_bytes)
 
         # Fill source memory with test pattern
+        # Use global beat index so each descriptor has unique data
         for beat in range(transfer_beats):
             beat_addr = src_addr + (beat * tb.data_bytes)
-            data = tb.create_test_pattern(beat, pattern_type='increment')
+            global_beat_idx = (desc_idx * transfer_beats) + beat  # Unique across all descriptors
+            data = tb.create_test_pattern(global_beat_idx, pattern_type='increment')
             tb.write_source_data(beat_addr, data, tb.data_bytes)
 
         # Write descriptor to descriptor memory
@@ -192,7 +240,7 @@ async def cocotb_test_single_channel_transfer(dut):
     tb.log.info("=== Test PASSED ===")
 
 
-@cocotb.test(timeout_time=1000, timeout_unit="ms")
+@cocotb.test(timeout_time=200, timeout_unit="us")
 async def cocotb_test_multi_channel_concurrent(dut):
     """Test concurrent multi-channel DMA transfers"""
 
@@ -236,12 +284,15 @@ async def cocotb_test_multi_channel_concurrent(dut):
             src_addr = tb.src_mem_base + (channel * 0x100000) + (desc_idx * transfer_beats * (data_width // 8))
             dst_addr = tb.dst_mem_base + (channel * 0x100000) + (desc_idx * transfer_beats * (data_width // 8))
 
-            # Create test pattern (channel-specific)
+            # Create test pattern (channel-specific, unique per descriptor)
             for beat in range(transfer_beats):
                 beat_addr = src_addr + (beat * (data_width // 8))
-                # Pattern: channel in upper nibble, beat in lower nibble
-                pattern = ((channel << 4) | (beat & 0xF)) & 0xFF
-                data = pattern * ((data_width // 8))
+                # Pattern: channel + descriptor offset in upper bits, beat in lower bits
+                # Use global beat index to ensure each descriptor has unique data
+                global_beat_idx = (desc_idx * transfer_beats) + beat
+                pattern = ((channel << 4) | (global_beat_idx & 0xFF)) & 0xFF
+                # Use byte replication, not arithmetic multiply
+                data = int.from_bytes(bytes([pattern] * (data_width // 8)), byteorder='little')
                 tb.write_source_data(beat_addr, data, data_width // 8)
 
             # Write descriptor
@@ -284,7 +335,7 @@ async def cocotb_test_multi_channel_concurrent(dut):
     cocotb.log.info("=== Test PASSED ===")
 
 
-@cocotb.test(timeout_time=2000, timeout_unit="ms")
+@cocotb.test(timeout_time=200, timeout_unit="us")
 async def cocotb_test_variable_sizes(dut):
     """Test transfers with variable sizes"""
 
@@ -324,7 +375,8 @@ async def cocotb_test_variable_sizes(dut):
             beat_addr = src_addr + (beat * (data_width // 8))
             # Pattern includes transfer size info
             pattern = ((idx << 4) | (beat & 0xF)) & 0xFF
-            data = pattern * ((data_width // 8))
+            # Use byte replication, not arithmetic multiply
+            data = int.from_bytes(bytes([pattern] * (data_width // 8)), byteorder='little')
             tb.write_source_data(beat_addr, data, data_width // 8)
 
         # Write descriptor
@@ -388,13 +440,15 @@ def test_stream_core_single_channel(request, params):
         'ADDR_WIDTH': 64,
     }
 
-    # Create unique test name
+    # Create unique test name with scenario and timing profile
     dut_name = "stream_core"
     nc_str = f"{params['num_channels']:02d}"
     dw_str = f"{params['data_width']:04d}"
     fd_str = f"{params['fifo_depth']:04d}"
     dc_str = f"{params['desc_count']:02d}"
-    test_name_plus_params = f"test_{dut_name}_single_nc{nc_str}_dw{dw_str}_fd{fd_str}_dc{dc_str}"
+    scenario = params.get('scenario', 'standard')
+    timing = params.get('timing_profile', 'fast')
+    test_name_plus_params = f"test_{dut_name}_single_nc{nc_str}_dw{dw_str}_fd{fd_str}_dc{dc_str}_{scenario}_{timing}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -415,6 +469,8 @@ def test_stream_core_single_channel(request, params):
         'FIFO_DEPTH': str(params['fifo_depth']),
         'AXI_ID_WIDTH': str(params['axi_id_width']),
         'DESC_COUNT': str(params['desc_count']),
+        'TIMING_PROFILE': params.get('timing_profile', 'fast'),
+        'TEST_SCENARIO': params.get('scenario', 'standard'),
         'DUT': dut_name,
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
@@ -496,7 +552,9 @@ def test_stream_core_multi_channel(request, params):
     fd_str = f"{params['fifo_depth']:04d}"
     dc_str = f"{params['desc_count']:02d}"
     nch_str = f"{len(params['test_channels']):02d}"
-    test_name_plus_params = f"test_{dut_name}_multi_nc{nc_str}_dw{dw_str}_fd{fd_str}_dc{dc_str}_nch{nch_str}"
+    scenario = params.get('scenario', 'standard')
+    timing = params.get('timing_profile', 'fast')
+    test_name_plus_params = f"test_{dut_name}_multi_nc{nc_str}_dw{dw_str}_fd{fd_str}_dc{dc_str}_nch{nch_str}_{scenario}_{timing}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -518,6 +576,8 @@ def test_stream_core_multi_channel(request, params):
         'AXI_ID_WIDTH': str(params['axi_id_width']),
         'DESC_COUNT': str(params['desc_count']),
         'TEST_CHANNELS': ','.join(map(str, params['test_channels'])),
+        'TIMING_PROFILE': params.get('timing_profile', 'fast'),
+        'TEST_SCENARIO': params.get('scenario', 'standard'),
         'DUT': dut_name,
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
@@ -593,7 +653,9 @@ def test_stream_core_variable_sizes(request, params):
     dw_str = f"{params['data_width']:04d}"
     fd_str = f"{params['fifo_depth']:04d}"
     sizes_str = '_'.join(map(str, params['transfer_sizes']))
-    test_name_plus_params = f"test_{dut_name}_varsizes_nc{nc_str}_dw{dw_str}_fd{fd_str}_sz{sizes_str}"
+    scenario = params.get('scenario', 'standard')
+    timing = params.get('timing_profile', 'fast')
+    test_name_plus_params = f"test_{dut_name}_varsizes_nc{nc_str}_dw{dw_str}_fd{fd_str}_sz{sizes_str}_{scenario}_{timing}"
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -614,6 +676,8 @@ def test_stream_core_variable_sizes(request, params):
         'FIFO_DEPTH': str(params['fifo_depth']),
         'AXI_ID_WIDTH': str(params['axi_id_width']),
         'TRANSFER_SIZES': ','.join(map(str, params['transfer_sizes'])),
+        'TIMING_PROFILE': params.get('timing_profile', 'fast'),
+        'TEST_SCENARIO': params.get('scenario', 'standard'),
         'DUT': dut_name,
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',

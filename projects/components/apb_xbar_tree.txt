@@ -1,0 +1,72 @@
+DEBUG: exclude_dir = ['__pycache__', 'local_sim_build', 'logs']
+apb_xbar
+├── CLAUDE.md
+├── PRD.md
+├── README.md
+├── bin
+│   ├── apb_xbar_generator.py
+│   └── generate_xbars.py
+├── docs
+│   ├── APB_Crossbar_Specification_v1.0.docx
+│   ├── APB_Crossbar_Specification_v1.0.pdf
+│   ├── generate_pdf.sh
+│   └── apb_xbar_spec
+│       ├── README.md
+│       ├── apb_xbar_index.md
+│       ├── assets
+│       │   ├── graphviz
+│       │   │   ├── address_decode_flow.gv
+│       │   │   └── apb_xbar_architecture.gv
+│       │   ├── png
+│       │   │   ├── address_decode_flow.png
+│       │   │   ├── apb_xbar_architecture.png
+│       │   │   └── arbitration_round_robin.png
+│       │   ├── svg
+│       │   │   ├── address_decode_flow.svg
+│       │   │   └── apb_xbar_architecture.svg
+│       │   └── wavedrom
+│       │       └── arbitration_round_robin.json
+│       └── chapters
+│           ├── 01_architecture.md
+│           ├── 02_address_and_arbitration.md
+│           └── 03_rtl_generator.md
+├── dv
+│   └── tests
+│       ├── Makefile
+│       ├── conftest.py
+│       ├── test_apb_xbar_1to1.py
+│       ├── test_apb_xbar_1to4.py
+│       ├── test_apb_xbar_2to1.py
+│       ├── test_apb_xbar_2to4.py
+│       └── GTKW
+│           ├── ap_xbar.gtkw
+│           └── apb_xbar_2_to_4.gtkw
+├── rtl
+│   ├── Makefile
+│   ├── apb_xbar_1to1.sv
+│   ├── apb_xbar_1to4.sv
+│   ├── apb_xbar_2to1.sv
+│   ├── apb_xbar_2to4.sv
+│   ├── apb_xbar_thin.sv
+│   ├── filelists
+│   │   ├── core
+│   │   │   ├── apb_xbar_1to1.f
+│   │   │   ├── apb_xbar_1to4.f
+│   │   │   ├── apb_xbar_2to1.f
+│   │   │   ├── apb_xbar_2to4.f
+│   │   │   └── apb_xbar_common.f
+│   │   └── wrapper
+│   │       ├── apb_xbar_1to1_wrap.f
+│   │       ├── apb_xbar_1to4_wrap.f
+│   │       ├── apb_xbar_2to1_wrap.f
+│   │       └── apb_xbar_2to4_wrap.f
+│   └── wrappers
+│       ├── apb_xbar_1to1_wrap.sv
+│       ├── apb_xbar_1to4_wrap.sv
+│       ├── apb_xbar_2to1_wrap.sv
+│       ├── apb_xbar_2to4_wrap.sv
+│       ├── apb_xbar_thin_wrap_m10_s10.sv
+│       ├── apb_xbar_wrap.sv
+│       └── apb_xbar_wrap_m10_s10.sv
+└── val
+    └── integ_amba

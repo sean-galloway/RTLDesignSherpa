@@ -1,0 +1,64 @@
+// IOAPIC Indirect Register Access Method
+// Graphviz DOT format  
+// Generate: dot -Tpng indirect_access.gv -o indirect_access.png
+
+digraph indirect_access {
+    rankdir=LR;
+    bgcolor="white";
+    fontname="Arial";
+    
+    // Nodes
+    node [shape=box, style="rounded,filled", fontname="Arial"];
+    
+    cpu [label="CPU/Software", fillcolor="lightblue"];
+    ioregsel [label="IOREGSEL\n(APB 0x00)\n\nOffset Selector\n8-bit value", fillcolor="lightyellow"];
+    iowin [label="IOWIN\n(APB 0x04)\n\nData Window\n32-bit value", fillcolor="lightyellow"];
+    
+    subgraph cluster_internal {
+        label="Internal Registers\n(Not Directly Accessible)";
+        style=filled;
+        fillcolor="lightgray";
+        
+        node [fillcolor="lightgreen"];
+        ioapicid [label="IOAPICID\n(offset 0x00)"];
+        ioapicver [label="IOAPICVER\n(offset 0x01)"];
+        ioapicarb [label="IOAPICARB\n(offset 0x02)"];
+        redtbl0_lo [label="IOREDTBL[0]_LO\n(offset 0x10)"];
+        redtbl0_hi [label="IOREDTBL[0]_HI\n(offset 0x11)"];
+        redtbl_etc [label="...\nIOREDTBL[1-23]"];
+    }
+    
+    // Step 1: Write offset to IOREGSEL
+    cpu -> ioregsel [label="Step 1:\nWrite offset\n(e.g., 0x10)", color="blue", penwidth=2];
+    
+    // Step 2: IOREGSEL selects internal register
+    ioregsel -> redtbl0_lo [label="Selects", style=dashed, color="blue"];
+    
+    // Step 3: Access via IOWIN
+    cpu -> iowin [label="Step 2:\nRead/Write\nIOWIN", color="darkgreen", penwidth=2];
+    iowin -> redtbl0_lo [label="Access\nselected reg", dir=both, color="darkgreen", penwidth=2];
+    
+    // Other possible selections (shown lighter)
+    ioregsel -> ioapicid [style=dotted, color="gray"];
+    ioregsel -> ioapicver [style=dotted, color="gray"];
+    ioregsel -> ioapicarb [style=dotted, color="gray"];
+    ioregsel -> redtbl0_hi [style=dotted, color="gray"];
+    ioregsel -> redtbl_etc [style=dotted, color="gray"];
+    
+    // Legend
+    {
+        rank=sink;
+        legend [shape=none, margin=0, fillcolor="white", label=<
+            <table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+                <tr><td bgcolor="lightyellow"><b>Intel Indirect Access Method</b></td></tr>
+                <tr><td align="left">1. Write offset to IOREGSEL</td></tr>
+                <tr><td align="left">2. Read/Write selected register via IOWIN</td></tr>
+                <tr><td align="left">Benefits: Reduced address space</td></tr>
+            </table>
+        >];
+    }
+    
+    // Title
+    labelloc="t";
+    label="IOAPIC Indirect Register Access Flow";
+}

@@ -1,8 +1,8 @@
 # Converters Component Specification
 
-**Version:** 1.4
+**Version:** 1.5
 **Status:** Production Ready
-**Last Updated:** 2025-11-10
+**Last Updated:** 2025-11-15
 
 ---
 
@@ -39,11 +39,20 @@ This specification provides comprehensive documentation for the Converters compo
 - [03_peakrdl_adapter.md](ch03_protocol_converters/03_peakrdl_adapter.md) - PeakRDL adapter
 - [04_axi4_to_axil4.md](ch03_protocol_converters/04_axi4_to_axil4.md) - AXI4→AXIL4 protocol downgrade
 - [05_axil4_to_axi4.md](ch03_protocol_converters/05_axil4_to_axi4.md) - AXIL4→AXI4 protocol upgrade
+- [06_uart_axil_bridge.md](ch03_protocol_converters/06_uart_axil_bridge.md) - UART-to-AXI4-Lite bridge (planned)
 
 ### Chapter 4: Usage Examples
 - [01_configuration_guide.md](ch04_usage_examples/01_configuration_guide.md) - Parameter configuration guide
 - [02_common_scenarios.md](ch04_usage_examples/02_common_scenarios.md) - Common use case examples
 - [03_integration_patterns.md](ch04_usage_examples/03_integration_patterns.md) - System integration patterns
+
+### Appendices
+- [Appendix A: Design Notes](appendices/appendix_a_design_notes.md) - Design analysis and rationale
+  - [A.1 APB Converter Analysis](appendices/a1_apb_converter_analysis.md)
+  - [A.2 Dual-Buffer Implementation](appendices/a2_dual_buffer_implementation.md)
+- [Appendix B: Change Logs](appendices/appendix_b_change_logs.md) - Refactoring history and updates
+  - [B.1 Refactoring Summary](appendices/b1_refactor_summary_2025-11-10.md)
+  - [B.2 Documentation Update](appendices/b2_documentation_update_2025-11-10.md)
 
 ---
 
@@ -149,6 +158,13 @@ Located in `assets/graphviz/`:
 - axi4_dwidth_converter_rd.gv/.png
 - axi4_to_apb.gv/.png
 - peakrdl_adapter.gv/.png
+- axi4_to_axil4.gv/.png (wrapper)
+- axi4_to_axil4_rd.gv/.png (read path)
+- axi4_to_axil4_wr.gv/.png (write path)
+- axil4_to_axi4.gv/.png (wrapper)
+- axil4_to_axi4_rd.gv/.png (read path)
+- axil4_to_axi4_wr.gv/.png (write path)
+- uart_axil_bridge.gv/.png
 
 See [assets/graphviz/README.md](assets/graphviz/README.md) for regeneration instructions.
 
@@ -178,6 +194,7 @@ See [assets/puml/README.md](assets/puml/README.md) for regeneration instructions
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 1.5 | 2025-11-15 | Added appendices, UART chapter, 6 new diagrams for AXI4↔AXIL4 converters |
 | 1.4 | 2025-11-10 | Refactored AXI4↔AXIL4 wrappers to composition pattern (instantiation vs duplication) |
 | 1.3 | 2025-11-06 | Added AXI4↔AXIL4 protocol converters (6 modules, 42 tests passing) |
 | 1.2 | 2025-10-26 | Added comprehensive specification with block diagrams |
@@ -204,5 +221,4 @@ See [assets/puml/README.md](assets/puml/README.md) for regeneration instructions
 
 **Author:** RTL Design Sherpa Project
 **Maintained By:** Converters Component Team
-**Last Review:** 2025-11-10
-
+**Last Review:** 2025-11-15

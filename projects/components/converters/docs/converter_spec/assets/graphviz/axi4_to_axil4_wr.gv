@@ -1,0 +1,43 @@
+// AXI4 to AXI4-Lite Write Converter Block Diagram
+// Shows burst decomposition logic for write path
+//
+// Render: dot -Tpng axi4_to_axil4_wr.gv -o axi4_to_axil4_wr.png
+
+digraph axi4_to_axil4_wr {
+    rankdir=LR;
+    node [shape=box, style="rounded,filled", fontname="Arial", fontsize=10];
+    edge [fontname="Arial", fontsize=9];
+    
+    // Inputs
+    s_aw [label="AXI4 AW Channel\n\nAWID, AWADDR\nAWLEN (bursts)\nAWSIZE, AWBURST", fillcolor=lightblue];
+    s_w [label="AXI4 W Channel\n\nWDATA, WSTRB\nWLAST", fillcolor=lightblue];
+    s_b_resp [label="AXIL4 B Channel\n(from slave)\n\nBRESP", fillcolor=lightcoral];
+    
+    // Converter logic
+    subgraph cluster_converter {
+        label="axi4_to_axil4_wr";
+        style=filled;
+        fillcolor=lightgray;
+        
+        aw_fsm [label="AW FSM\n\nIDLE → BURST\n\nDecomposes:\nAXI burst\n→ N AXIL singles", fillcolor=khaki];
+        addr_gen [label="Address\nGenerator\n\nIncrement by SIZE\nfor each beat", fillcolor=lightyellow];
+        w_buffer [label="W Channel\nPassthrough\n\nForward WDATA/WSTRB\nper beat", fillcolor=lightyellow];
+        b_buffer [label="Response\nAggregator\n\nBuffer N responses\nReattach ID", fillcolor=lightyellow];
+    }
+    
+    // Outputs
+    m_aw [label="AXIL4 AW Channel\n(to slave)\n\nAWVALID single\nAWREADY\nNo LEN/SIZE", fillcolor=lightcoral];
+    m_w [label="AXIL4 W Channel\n(to slave)\n\nWDATA, WSTRB\nNo WLAST", fillcolor=lightcoral];
+    m_b [label="AXI4 B Channel\n\nBID\nBRESP", fillcolor=lightblue];
+    
+    // Flow
+    s_aw -> aw_fsm [label="1 burst request"];
+    aw_fsm -> addr_gen [label="beat count"];
+    addr_gen -> m_aw [label="N single\naddresses"];
+    
+    s_w -> w_buffer [label="N data beats"];
+    w_buffer -> m_w [label="forward\neach beat"];
+    
+    s_b_resp -> b_buffer [label="N responses"];
+    b_buffer -> m_b [label="aggregate\n+ ID"];
+}

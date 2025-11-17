@@ -27,21 +27,9 @@ The HPET module is a fully parameterized, scalable timer peripheral with APB int
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                          apb_hpet (Top Level)                        │
-│                                                                      │
-│  ┌────────────────┐    ┌──────────────────┐    ┌──────────────┐   │
-│  │  APB Slave     │───▶│ Config Registers │───▶│  HPET Core   │   │
-│  │  (CDC/Non-CDC) │    │  (PeakRDL-based) │    │  (Timers)    │   │
-│  └────────────────┘    └──────────────────┘    └──────────────┘   │
-│         ▲                       ▲                       ▲           │
-│    pclk │                  hpet_clk (conditional)       │           │
-│         │                                               │           │
-│         └───────────────────────────────────────────────┘           │
-│                    (CDC_ENABLE determines clocking)                 │
-└─────────────────────────────────────────────────────────────────────┘
-```
+![HPET Architecture](docs/assets/graphviz/hpet_architecture.png)
+
+*Figure 1: HPET module architecture showing APB interface, PeakRDL-generated registers, and timer core with optional CDC.*
 
 ### Module Hierarchy
 

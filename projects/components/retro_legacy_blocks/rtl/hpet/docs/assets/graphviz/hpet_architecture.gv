@@ -1,0 +1,73 @@
+// HPET Architecture Block Diagram
+// Purpose: Show HPET module hierarchy with APB interface, PeakRDL registers, and timer core
+
+digraph hpet_architecture {
+    rankdir=LR;
+    node [shape=box, style="rounded,filled", fillcolor=lightblue];
+    edge [fontsize=10];
+
+    // Title with compact info
+    label="HPET Architecture - High Precision Event Timer\n\nConfig: 2-8 timers | CDC: Optional | PeakRDL: Auto-generated registers | Legend: Blue=APB Path, Green=Timer Path, Orange=CDC";
+    labelloc="t";
+    fontsize=12;
+
+    // APB Interface (External)
+    subgraph cluster_apb {
+        label="APB Interface";
+        style=filled;
+        fillcolor=lightgreen;
+        
+        apb_in [label="APB\nMaster\n\nPSEL\nPENABLE\nPADDR\nPWDATA", fillcolor=palegreen];
+    }
+
+    // apb_hpet Top Level
+    subgraph cluster_top {
+        label="apb_hpet (Top Level)";
+        style=filled;
+        fillcolor=lightyellow;
+
+        // APB Slave
+        apb_slave [label="APB Slave\n(apb_slave.sv or\napb_slave_cdc.sv)\n\nProtocol conversion\nCDC if enabled", fillcolor=lightcyan];
+        
+        // Config Registers (PeakRDL)
+        config_regs [label="Config Registers\n(hpet_config_regs.sv)\n\nPeakRDL wrapper\nEdge detection\nHWIF mapping", fillcolor=wheat];
+        
+        peakrdl_regs [label="Register Block\n(hpet_regs.sv)\n\nPeakRDL-generated\nAuto from .rdl\n\nRW, RO, W1C fields", fillcolor=khaki];
+        
+        // HPET Core
+        hpet_core [label="HPET Core\n(hpet_core.sv)\n\n64-bit counter\nN timer channels\nComparators\nInterrupt logic", fillcolor=lightsteelblue];
+    }
+
+    // Outputs
+    subgraph cluster_outputs {
+        label="Outputs";
+        style=filled;
+        fillcolor=lightcoral;
+        
+        interrupts [label="Timer\nInterrupts\n\ntimer_irq[N]", fillcolor=lightpink];
+    }
+
+    // APB Data Flow (Blue)
+    apb_in -> apb_slave [label="APB\ntransactions", color=blue, style=bold];
+    apb_slave -> config_regs [label="cmd/rsp\ninterface", color=blue];
+    config_regs -> peakrdl_regs [label="APB\nread/write", color=blue];
+    
+    // Register to Core Interface (Green)
+    peakrdl_regs -> config_regs [label="hw if\nstructs", color=green, style=dotted];
+    config_regs -> hpet_core [label="Control &\nstatus signals", color=green, style=bold];
+    
+    // Core to Interrupts
+    hpet_core -> interrupts [label="Timer\nmatches", color=red, style=bold];
+    
+    // Clocking - APB slave handles domain crossing
+    clk_apb [label="pclk\npresetn", shape=ellipse, fillcolor=lightyellow];
+    clk_hpet [label="hpet_clk\nhpet_resetn", shape=ellipse, fillcolor=orange];
+    
+    // Both clocks to APB slave (front=pclk, back=hpet_clk)
+    clk_apb -> apb_slave [label="APB side\n(front)", color=blue, style=dashed];
+    clk_hpet -> apb_slave [label="Output side\n(back)", color=orange, style=dashed];
+    
+    // Only hpet_clk to downstream blocks
+    clk_hpet -> config_regs [label="HPET\nclock domain", color=orange, style=dashed];
+    clk_hpet -> hpet_core [label="HPET\nclock domain", color=orange, style=dashed];
+}

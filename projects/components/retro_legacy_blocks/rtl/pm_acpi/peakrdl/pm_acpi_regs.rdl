@@ -1,0 +1,831 @@
+/**
+ * SystemRDL Definition for PM_ACPI (Power Management ACPI) Controller Registers
+ *
+ * This specification defines the register interface for ACPI-compatible power
+ * management functionality, providing system-level power control, PM timer,
+ * and general-purpose event handling.
+ *
+ * Key Features:
+ * - ACPI-compatible PM1 control and status registers
+ * - 32-bit PM Timer (3.579545 MHz equivalent via configurable divider)
+ * - General Purpose Event (GPE) registers with 32 event sources
+ * - Clock gating control for up to 32 clock domains
+ * - Power domain sequencing control for up to 8 domains
+ * - Wake event handling and configuration
+ * - Power state management (S0/S1/S3)
+ * - Interrupt aggregation for power events
+ *
+ * Power States:
+ * - S0: Working state (full power, all clocks active)
+ * - S1: Sleep state (clock gating, quick wake, context retained)
+ * - S3: Deep sleep (power domains off, context lost, wake from events)
+ *
+ * Address Layout:
+ *   0x000: ACPI_CONTROL        - Global control and power state
+ *   0x004: ACPI_STATUS         - Global status and power events (W1C)
+ *   0x008: ACPI_INT_ENABLE     - Interrupt enable mask
+ *   0x00C: ACPI_INT_STATUS     - Interrupt status (W1C)
+ *   0x010: PM1_CONTROL         - PM1 control (sleep, power button)
+ *   0x014: PM1_STATUS          - PM1 status flags (W1C)
+ *   0x018: PM1_ENABLE          - PM1 event enable mask
+ *   0x01C: (Reserved)
+ *   0x020: PM_TIMER_VALUE      - PM Timer current value (read-only)
+ *   0x024: PM_TIMER_CONFIG     - PM Timer configuration
+ *   0x028: (Reserved)
+ *   0x02C: (Reserved)
+ *   0x030: GPE0_STATUS_LO      - GPE0 status [15:0] (W1C)
+ *   0x034: GPE0_STATUS_HI      - GPE0 status [31:16] (W1C)
+ *   0x038: GPE0_ENABLE_LO      - GPE0 enable [15:0]
+ *   0x03C: GPE0_ENABLE_HI      - GPE0 enable [31:16]
+ *   0x040-0x04F: (Reserved for additional GPE banks)
+ *   0x050: CLOCK_GATE_CTRL_0   - Clock gate control [31:0]
+ *   0x054: CLOCK_GATE_STATUS   - Clock gate status (read-only)
+ *   0x058: POWER_DOMAIN_CTRL   - Power domain control [7:0]
+ *   0x05C: POWER_DOMAIN_STATUS - Power domain status (read-only)
+ *   0x060: WAKE_STATUS         - Wake event sources (W1C)
+ *   0x064: WAKE_ENABLE         - Wake event enable mask
+ *   0x068: RESET_CTRL          - Reset generation control
+ *   0x06C: RESET_STATUS        - Reset status (read-only)
+ *   0x070-0xFFF: Reserved for future expansion
+ */
+
+addrmap pm_acpi_regs {
+    name = "PM_ACPI Power Management Registers";
+    desc = "ACPI-compatible power management controller with clock gating and GPE support";
+
+    // Default properties for all registers
+    default regwidth = 32;
+    default accesswidth = 32;
+    default addressing = compact;
+
+    //========================================================================
+    // ACPI Control Register (0x000)
+    //========================================================================
+
+    reg {
+        name = "ACPI Control Register";
+        desc = "Global ACPI power management control";
+
+        field {
+            name = "ACPI Enable";
+            desc = "Enable ACPI functionality (0=disabled, 1=enabled)";
+            sw = rw;
+            hw = r;
+        } acpi_enable[0:0] = 1'b0;
+
+        field {
+            name = "PM Timer Enable";
+            desc = "Enable PM Timer (0=stopped, 1=running)";
+            sw = rw;
+            hw = r;
+        } pm_timer_enable[1:1] = 1'b0;
+
+        field {
+            name = "GPE Enable";
+            desc = "Enable GPE event processing";
+            sw = rw;
+            hw = r;
+        } gpe_enable[2:2] = 1'b0;
+
+        field {
+            name = "Current Power State";
+            desc = "Current power state: 0=S0, 1=S1, 3=S3";
+            sw = r;
+            hw = w;
+        } current_state[5:4];
+
+        field {
+            name = "Low Power Mode";
+            desc = "Request low power mode entry";
+            sw = rw;
+            hw = rw;
+        } low_power_req[6:6] = 1'b0;
+
+        field {
+            name = "Soft Reset";
+            desc = "Soft reset PM controller (write 1, auto-clears)";
+            sw = rw;
+            hw = rw;
+        } soft_reset[7:7] = 1'b0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:8] = 24'h0;
+
+    } ACPI_CONTROL @ 0x000;
+
+    //========================================================================
+    // ACPI Status Register (0x004)
+    //========================================================================
+
+    reg {
+        name = "ACPI Status Register";
+        desc = "Global ACPI status and events (write 1 to clear)";
+
+        field {
+            name = "PME Status";
+            desc = "Power Management Event occurred (W1C)";
+            sw = rw;
+            hw = w;
+            onwrite = woclr;
+        } pme_status[0:0] = 1'b0;
+
+        field {
+            name = "Wake Status";
+            desc = "System woke from low power state (W1C)";
+            sw = rw;
+            hw = w;
+            onwrite = woclr;
+        } wake_status[1:1] = 1'b0;
+
+        field {
+            name = "Timer Overflow";
+            desc = "PM Timer overflow occurred (W1C)";
+            sw = rw;
+            hw = w;
+            onwrite = woclr;
+        } timer_overflow[2:2] = 1'b0;
+
+        field {
+            name = "Power State Transition";
+            desc = "Power state transition complete (W1C)";
+            sw = rw;
+            hw = w;
+            onwrite = woclr;
+        } state_transition[3:3] = 1'b0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:4] = 28'h0;
+
+    } ACPI_STATUS @ 0x004;
+
+    //========================================================================
+    // ACPI Interrupt Enable Register (0x008)
+    //========================================================================
+
+    reg {
+        name = "ACPI Interrupt Enable Register";
+        desc = "Interrupt enable mask for ACPI events";
+
+        field {
+            name = "PME Enable";
+            desc = "Enable interrupt on PME event";
+            sw = rw;
+            hw = r;
+        } pme_enable[0:0] = 1'b0;
+
+        field {
+            name = "Wake Enable";
+            desc = "Enable interrupt on wake event";
+            sw = rw;
+            hw = r;
+        } wake_enable[1:1] = 1'b0;
+
+        field {
+            name = "Timer Overflow Enable";
+            desc = "Enable interrupt on PM timer overflow";
+            sw = rw;
+            hw = r;
+        } timer_ovf_enable[2:2] = 1'b0;
+
+        field {
+            name = "State Transition Enable";
+            desc = "Enable interrupt on power state transition";
+            sw = rw;
+            hw = r;
+        } state_trans_enable[3:3] = 1'b0;
+
+        field {
+            name = "PM1 Event Enable";
+            desc = "Enable interrupt on any PM1 event";
+            sw = rw;
+            hw = r;
+        } pm1_enable[4:4] = 1'b0;
+
+        field {
+            name = "GPE Enable";
+            desc = "Enable interrupt on any GPE event";
+            sw = rw;
+            hw = r;
+        } gpe_int_enable[5:5] = 1'b0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:6] = 26'h0;
+
+    } ACPI_INT_ENABLE @ 0x008;
+
+    //========================================================================
+    // ACPI Interrupt Status Register (0x00C)
+    //========================================================================
+
+    reg {
+        name = "ACPI Interrupt Status Register";
+        desc = "Interrupt status for ACPI events (write 1 to clear)";
+
+        field {
+            name = "PME Interrupt";
+            desc = "PME interrupt pending (W1C)";
+            sw = rw;
+            hw = w;
+            onwrite = woclr;
+        } pme_int[0:0] = 1'b0;
+
+        field {
+            name = "Wake Interrupt";
+            desc = "Wake interrupt pending (W1C)";
+            sw = rw;
+            hw = w;
+            onwrite = woclr;
+        } wake_int[1:1] = 1'b0;
+
+        field {
+            name = "Timer Overflow Interrupt";
+            desc = "Timer overflow interrupt pending (W1C)";
+            sw = rw;
+            hw = w;
+            onwrite = woclr;
+        } timer_ovf_int[2:2] = 1'b0;
+
+        field {
+            name = "State Transition Interrupt";
+            desc = "State transition interrupt pending (W1C)";
+            sw = rw;
+            hw = w;
+            onwrite = woclr;
+        } state_trans_int[3:3] = 1'b0;
+
+        field {
+            name = "PM1 Interrupt";
+            desc = "PM1 interrupt pending (W1C)";
+            sw = rw;
+            hw = w;
+            onwrite = woclr;
+        } pm1_int[4:4] = 1'b0;
+
+        field {
+            name = "GPE Interrupt";
+            desc = "GPE interrupt pending (W1C)";
+            sw = rw;
+            hw = w;
+            onwrite = woclr;
+        } gpe_int[5:5] = 1'b0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:6] = 26'h0;
+
+    } ACPI_INT_STATUS @ 0x00C;
+
+    //========================================================================
+    // PM1 Control Register (0x010)
+    //========================================================================
+
+    reg {
+        name = "PM1 Control Register";
+        desc = "ACPI PM1 control register (sleep, power button)";
+
+        field {
+            name = "Sleep Type";
+            desc = "Sleep type: 0=S0, 1=S1, 3=S3";
+            sw = rw;
+            hw = r;
+        } sleep_type[2:0] = 3'h0;
+
+        field {
+            name = "Sleep Enable";
+            desc = "Enable sleep state entry (write 1 to enter sleep)";
+            sw = rw;
+            hw = rw;
+        } sleep_enable[3:3] = 1'b0;
+
+        field {
+            name = "Power Button Override";
+            desc = "Override power button behavior";
+            sw = rw;
+            hw = r;
+        } pwrbtn_ovr[4:4] = 1'b0;
+
+        field {
+            name = "Sleep Button Override";
+            desc = "Override sleep button behavior";
+            sw = rw;
+            hw = r;
+        } slpbtn_ovr[5:5] = 1'b0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:6] = 26'h0;
+
+    } PM1_CONTROL @ 0x010;
+
+    //========================================================================
+    // PM1 Status Register (0x014)
+    //========================================================================
+
+    reg {
+        name = "PM1 Status Register";
+        desc = "ACPI PM1 status flags (write 1 to clear)";
+
+        field {
+            name = "Timer Status";
+            desc = "PM Timer carry/overflow (W1C)";
+            sw = rw;
+            hw = w;
+            onwrite = woclr;
+        } tmr_sts[0:0] = 1'b0;
+
+        field {
+            name = "Power Button Status";
+            desc = "Power button pressed (W1C)";
+            sw = rw;
+            hw = w;
+            onwrite = woclr;
+        } pwrbtn_sts[1:1] = 1'b0;
+
+        field {
+            name = "Sleep Button Status";
+            desc = "Sleep button pressed (W1C)";
+            sw = rw;
+            hw = w;
+            onwrite = woclr;
+        } slpbtn_sts[2:2] = 1'b0;
+
+        field {
+            name = "RTC Alarm Status";
+            desc = "RTC alarm occurred (W1C)";
+            sw = rw;
+            hw = w;
+            onwrite = woclr;
+        } rtc_sts[3:3] = 1'b0;
+
+        field {
+            name = "Wake Status";
+            desc = "System wake event (W1C)";
+            sw = rw;
+            hw = w;
+            onwrite = woclr;
+        } wak_sts[4:4] = 1'b0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:5] = 27'h0;
+
+    } PM1_STATUS @ 0x014;
+
+    //========================================================================
+    // PM1 Enable Register (0x018)
+    //========================================================================
+
+    reg {
+        name = "PM1 Enable Register";
+        desc = "PM1 event enable mask";
+
+        field {
+            name = "Timer Enable";
+            desc = "Enable PM timer events";
+            sw = rw;
+            hw = r;
+        } tmr_en[0:0] = 1'b0;
+
+        field {
+            name = "Power Button Enable";
+            desc = "Enable power button events";
+            sw = rw;
+            hw = r;
+        } pwrbtn_en[1:1] = 1'b0;
+
+        field {
+            name = "Sleep Button Enable";
+            desc = "Enable sleep button events";
+            sw = rw;
+            hw = r;
+        } slpbtn_en[2:2] = 1'b0;
+
+        field {
+            name = "RTC Alarm Enable";
+            desc = "Enable RTC alarm events";
+            sw = rw;
+            hw = r;
+        } rtc_en[3:3] = 1'b0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:4] = 28'h0;
+
+    } PM1_ENABLE @ 0x018;
+
+    //========================================================================
+    // PM Timer Value Register (0x020)
+    //========================================================================
+
+    reg {
+        name = "PM Timer Value Register";
+        desc = "PM Timer current value (read-only, increments at 3.579545 MHz equivalent)";
+
+        field {
+            name = "Timer Value";
+            desc = "Current PM timer count value";
+            sw = r;
+            hw = w;
+        } timer_value[31:0];
+
+    } PM_TIMER_VALUE @ 0x020;
+
+    //========================================================================
+    // PM Timer Configuration Register (0x024)
+    //========================================================================
+
+    reg {
+        name = "PM Timer Configuration Register";
+        desc = "PM Timer divider and control";
+
+        field {
+            name = "Timer Divider";
+            desc = "Clock divider for PM timer: timer_clk = sys_clk / (divider + 1)";
+            sw = rw;
+            hw = r;
+        } timer_div[15:0] = 16'd27;  // Default ~3.58MHz @ 100MHz sysclk
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:16] = 16'h0;
+
+    } PM_TIMER_CONFIG @ 0x024;
+
+    //========================================================================
+    // GPE0 Status Low Register (0x030)
+    //========================================================================
+
+    reg {
+        name = "GPE0 Status Low Register";
+        desc = "GPE0 status bits [15:0] (write 1 to clear)";
+
+        field {
+            name = "GPE Status [15:0]";
+            desc = "General Purpose Event status bits 0-15 (W1C)";
+            sw = rw;
+            hw = w;
+            onwrite = woclr;
+        } gpe_status[15:0] = 16'h0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:16] = 16'h0;
+
+    } GPE0_STATUS_LO @ 0x030;
+
+    //========================================================================
+    // GPE0 Status High Register (0x034)
+    //========================================================================
+
+    reg {
+        name = "GPE0 Status High Register";
+        desc = "GPE0 status bits [31:16] (write 1 to clear)";
+
+        field {
+            name = "GPE Status [31:16]";
+            desc = "General Purpose Event status bits 16-31 (W1C)";
+            sw = rw;
+            hw = w;
+            onwrite = woclr;
+        } gpe_status[15:0] = 16'h0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:16] = 16'h0;
+
+    } GPE0_STATUS_HI @ 0x034;
+
+    //========================================================================
+    // GPE0 Enable Low Register (0x038)
+    //========================================================================
+
+    reg {
+        name = "GPE0 Enable Low Register";
+        desc = "GPE0 enable mask [15:0]";
+
+        field {
+            name = "GPE Enable [15:0]";
+            desc = "General Purpose Event enable bits 0-15";
+            sw = rw;
+            hw = r;
+        } gpe_enable[15:0] = 16'h0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:16] = 16'h0;
+
+    } GPE0_ENABLE_LO @ 0x038;
+
+    //========================================================================
+    // GPE0 Enable High Register (0x03C)
+    //========================================================================
+
+    reg {
+        name = "GPE0 Enable High Register";
+        desc = "GPE0 enable mask [31:16]";
+
+        field {
+            name = "GPE Enable [31:16]";
+            desc = "General Purpose Event enable bits 16-31";
+            sw = rw;
+            hw = r;
+        } gpe_enable[15:0] = 16'h0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:16] = 16'h0;
+
+    } GPE0_ENABLE_HI @ 0x03C;
+
+    //========================================================================
+    // Clock Gate Control Register (0x050)
+    //========================================================================
+
+    reg {
+        name = "Clock Gate Control Register";
+        desc = "Clock gating control for system blocks [31:0]";
+
+        field {
+            name = "Clock Gate Control";
+            desc = "Clock gate enable per block (0=gated/off, 1=enabled/on)";
+            sw = rw;
+            hw = r;
+        } clk_gate_ctrl[31:0] = 32'hFFFFFFFF;  // Default all clocks enabled
+
+    } CLOCK_GATE_CTRL @ 0x050;
+
+    //========================================================================
+    // Clock Gate Status Register (0x054)
+    //========================================================================
+
+    reg {
+        name = "Clock Gate Status Register";
+        desc = "Clock gate status (read-only, reflects actual gate state)";
+
+        field {
+            name = "Clock Gate Status";
+            desc = "Actual clock gate state per block (0=gated, 1=active)";
+            sw = r;
+            hw = w;
+        } clk_gate_status[31:0];
+
+    } CLOCK_GATE_STATUS @ 0x054;
+
+    //========================================================================
+    // Power Domain Control Register (0x058)
+    //========================================================================
+
+    reg {
+        name = "Power Domain Control Register";
+        desc = "Power domain enable control [7:0]";
+
+        field {
+            name = "Power Domain Control";
+            desc = "Power domain enable per domain (0=off, 1=on)";
+            sw = rw;
+            hw = r;
+        } pwr_domain_ctrl[7:0] = 8'hFF;  // Default all domains powered
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:8] = 24'h0;
+
+    } POWER_DOMAIN_CTRL @ 0x058;
+
+    //========================================================================
+    // Power Domain Status Register (0x05C)
+    //========================================================================
+
+    reg {
+        name = "Power Domain Status Register";
+        desc = "Power domain status (read-only)";
+
+        field {
+            name = "Power Domain Status";
+            desc = "Actual power domain state (0=off, 1=on)";
+            sw = r;
+            hw = w;
+        } pwr_domain_status[7:0];
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:8] = 24'h0;
+
+    } POWER_DOMAIN_STATUS @ 0x05C;
+
+    //========================================================================
+    // Wake Status Register (0x060)
+    //========================================================================
+
+    reg {
+        name = "Wake Status Register";
+        desc = "Wake event sources (write 1 to clear)";
+
+        field {
+            name = "GPE Wake";
+            desc = "Woke from GPE event (W1C)";
+            sw = rw;
+            hw = w;
+            onwrite = woclr;
+        } gpe_wake[0:0] = 1'b0;
+
+        field {
+            name = "Power Button Wake";
+            desc = "Woke from power button (W1C)";
+            sw = rw;
+            hw = w;
+            onwrite = woclr;
+        } pwrbtn_wake[1:1] = 1'b0;
+
+        field {
+            name = "RTC Wake";
+            desc = "Woke from RTC alarm (W1C)";
+            sw = rw;
+            hw = w;
+            onwrite = woclr;
+        } rtc_wake[2:2] = 1'b0;
+
+        field {
+            name = "External Wake";
+            desc = "Woke from external signal (W1C)";
+            sw = rw;
+            hw = w;
+            onwrite = woclr;
+        } ext_wake[3:3] = 1'b0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:4] = 28'h0;
+
+    } WAKE_STATUS @ 0x060;
+
+    //========================================================================
+    // Wake Enable Register (0x064)
+    //========================================================================
+
+    reg {
+        name = "Wake Enable Register";
+        desc = "Wake event enable mask";
+
+        field {
+            name = "GPE Wake Enable";
+            desc = "Enable wake from GPE events";
+            sw = rw;
+            hw = r;
+        } gpe_wake_en[0:0] = 1'b0;
+
+        field {
+            name = "Power Button Wake Enable";
+            desc = "Enable wake from power button";
+            sw = rw;
+            hw = r;
+        } pwrbtn_wake_en[1:1] = 1'b0;
+
+        field {
+            name = "RTC Wake Enable";
+            desc = "Enable wake from RTC alarm";
+            sw = rw;
+            hw = r;
+        } rtc_wake_en[2:2] = 1'b0;
+
+        field {
+            name = "External Wake Enable";
+            desc = "Enable wake from external signal";
+            sw = rw;
+            hw = r;
+        } ext_wake_en[3:3] = 1'b0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:4] = 28'h0;
+
+    } WAKE_ENABLE @ 0x064;
+
+    //========================================================================
+    // Reset Control Register (0x068)
+    //========================================================================
+
+    reg {
+        name = "Reset Control Register";
+        desc = "Reset generation and control";
+
+        field {
+            name = "System Reset";
+            desc = "Generate system reset (write 1, auto-clears)";
+            sw = rw;
+            hw = rw;
+        } sys_reset[0:0] = 1'b0;
+
+        field {
+            name = "Peripheral Reset";
+            desc = "Generate peripheral reset (write 1, auto-clears)";
+            sw = rw;
+            hw = rw;
+        } periph_reset[1:1] = 1'b0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:2] = 30'h0;
+
+    } RESET_CTRL @ 0x068;
+
+    //========================================================================
+    // Reset Status Register (0x06C)
+    //========================================================================
+
+    reg {
+        name = "Reset Status Register";
+        desc = "Reset source information (read-only)";
+
+        field {
+            name = "Power-On Reset";
+            desc = "Last reset was power-on reset";
+            sw = r;
+            hw = w;
+        } por_reset[0:0];
+
+        field {
+            name = "Watchdog Reset";
+            desc = "Last reset was watchdog timeout";
+            sw = r;
+            hw = w;
+        } wdt_reset[1:1];
+
+        field {
+            name = "Software Reset";
+            desc = "Last reset was software initiated";
+            sw = r;
+            hw = w;
+        } sw_reset[2:2];
+
+        field {
+            name = "External Reset";
+            desc = "Last reset was external pin";
+            sw = r;
+            hw = w;
+        } ext_reset[3:3];
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:4] = 28'h0;
+
+    } RESET_STATUS @ 0x06C;
+
+};

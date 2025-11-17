@@ -59,11 +59,11 @@ package stream_pkg;
 
     typedef struct packed {
         logic [63:0]  reserved;              // [255:192] Reserved
-        logic [7:0]   desc_priority;         // [207:200] Transfer priority (renamed from 'priority' - reserved keyword)
+        logic [7:0]   desc_priority;         // [207:200] Transfer priority
         logic [3:0]   channel_id;            // [199:196] Channel ID (informational only)
         logic         error;                 // [195] Error flag
         logic         last;                  // [194] Last in chain
-        logic         gen_irq;               // [193] Generate interrupt (renamed from 'interrupt' - C++ keyword)
+        logic         gen_irq;               // [193] Generate interrupt
         logic         valid;                 // [192] Valid descriptor
         logic [31:0]  next_descriptor_ptr;   // [191:160] Next descriptor address
         logic [31:0]  length;                // [159:128] Length in BEATS
@@ -77,14 +77,16 @@ package stream_pkg;
     //=========================================================================
     // Channel State Enumeration (ONE-HOT ENCODED)
     //=========================================================================
+    // CRITICAL: CH_XFER_DATA runs read and write engines CONCURRENTLY
+    //           to prevent deadlock when transfer size > SRAM buffer size
     typedef enum logic [6:0] {
         CH_IDLE         = 7'b0000001,  // [0] Channel idle, waiting for descriptor
         CH_FETCH_DESC   = 7'b0000010,  // [1] Fetching descriptor from memory
-        CH_READ_DATA    = 7'b0000100,  // [2] Reading source data
-        CH_WRITE_DATA   = 7'b0001000,  // [3] Writing destination data
-        CH_COMPLETE     = 7'b0010000,  // [4] Transfer complete
-        CH_NEXT_DESC    = 7'b0100000,  // [5] Fetching next chained descriptor
-        CH_ERROR        = 7'b1000000   // [6] Error state
+        CH_XFER_DATA    = 7'b0000100,  // [2] Concurrent read AND write transfer
+        CH_COMPLETE     = 7'b0001000,  // [3] Transfer complete
+        CH_NEXT_DESC    = 7'b0010000,  // [4] Fetching next chained descriptor
+        CH_ERROR        = 7'b0100000,  // [5] Error state
+        CH_RESERVED     = 7'b1000000   // [6] Reserved for future use
     } channel_state_t;
 
     //=========================================================================
@@ -101,44 +103,6 @@ package stream_pkg;
     } read_engine_state_t;
 
     //=========================================================================
-    // REMOVED: Unused FSM Enumerations
-    //=========================================================================
-    // The following FSM enums were removed because the RTL uses streaming
-    // pipeline architecture instead of FSMs:
-    //
-    // - scheduler_state_t:      REMOVED (scheduler uses channel_state_t above)
-    // - write_engine_state_t:   REMOVED (DATA PATH write engine uses flag-based control)
-    //
-    // NOTE: read_engine_state_t is NOT removed - it's for the descriptor engine
-    //       which is a control path module, not a data path engine!
-    //
-    // See ARCHITECTURAL_NOTES.md: "No FSMs in data path engines - use streaming pipelines"
-    //
-    // Actual RTL Control Mechanisms:
-    // - Scheduler: Uses channel_state_t FSM (control path, not data path)
-    // - Descriptor Engine: Uses read_engine_state_t FSM (control path for descriptor fetch)
-    // - AXI Read Engine (DATA PATH): Flag-based (r_ar_inflight, r_ar_valid) - NO FSM
-    // - AXI Write Engine (DATA PATH): Flag-based (r_aw_inflight, r_w_active, r_b_pending) - NO FSM
-    //
-    // Documentation:
-    // - See puml/axi_read_engine_pipeline.puml for streaming pipeline flow
-    // - See puml/axi_write_engine_pipeline.puml for streaming pipeline flow
-
-    //=========================================================================
-    // Channel Status Structure
-    //=========================================================================
-    typedef struct packed {
-        logic                    active;               // Channel is active
-        logic                    ready;                // Channel ready for transfers
-        logic                    error;                // Channel in error state
-        logic [7:0]              used_count;           // SRAM buffer used count
-        logic [7:0]              available_count;      // SRAM buffer available count
-        logic [31:0]             bytes_transferred;    // Total bytes transferred
-        logic [15:0]             transfers_completed;  // Number of descriptors completed
-        channel_state_t          state;                // Current channel state
-    } channel_status_t;
-
-    //=========================================================================
     // MonBus Event Types (STREAM-specific)
     //=========================================================================
     // Uses standard 64-bit MonBus format from monitor_pkg
@@ -152,39 +116,6 @@ package stream_pkg;
     parameter logic [3:0] STREAM_EVENT_CHAIN_FETCH    = 4'h6;  // Chained descriptor fetch
     parameter logic [3:0] STREAM_EVENT_IRQ            = 4'h7;  // Interrupt request generated
     parameter logic [3:0] STREAM_EVENT_ERROR          = 4'hF;  // Error occurred
-
-    //=========================================================================
-    // Utility Functions (Simplified from RAPIDS)
-    //=========================================================================
-
-    // Calculate number of AXI bursts needed for given beat count
-    function automatic logic [15:0] beats_to_bursts(
-        input logic [31:0] beats,
-        input logic [7:0]  burst_len
-    );
-        if (burst_len == 0) return 16'h0;
-        return 16'((beats + {24'h0, burst_len} - 32'd1) / {24'h0, burst_len});
-    endfunction
-
-    // Calculate bytes for given number of beats
-    function automatic logic [31:0] beats_to_bytes(
-        input logic [31:0] beats,
-        input logic [15:0] data_width_bytes
-    );
-        return beats * {16'h0, data_width_bytes};
-    endfunction
-
-    // Check if address is aligned to data width
-    function automatic logic is_address_aligned(
-        input logic [63:0] address,
-        input logic [5:0]  align_bits
-    );
-        // Use mask-based approach (Verilator-compatible)
-        // Create mask with align_bits lower bits set, check if those bits are zero
-        logic [63:0] mask;
-        mask = (64'h1 << align_bits) - 64'h1;
-        return ((address & mask) == 64'h0);
-    endfunction
 
     //=========================================================================
     // Descriptor Helper Functions

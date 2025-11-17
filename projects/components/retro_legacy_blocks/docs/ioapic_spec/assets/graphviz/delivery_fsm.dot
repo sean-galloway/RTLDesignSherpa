@@ -1,0 +1,50 @@
+// IOAPIC Interrupt Delivery FSM
+// Graphviz DOT format
+// Generate PNG: dot -Tpng delivery_fsm.dot -o delivery_fsm.png
+
+digraph ioapic_delivery_fsm {
+    // Graph attributes
+    rankdir=TB;
+    bgcolor="white";
+    fontname="Arial";
+    fontsize=12;
+    
+    // Node defaults
+    node [shape=box, style="rounded,filled", fillcolor="lightblue", fontname="Arial", fontsize=11];
+    
+    // Edge defaults
+    edge [fontname="Arial", fontsize=10];
+    
+    // States
+    IDLE [label="IDLE\n\n• Arbitrate pending IRQs\n• Select highest priority\n• irq_out_valid = 0", fillcolor="lightgreen"];
+    DELIVER [label="DELIVER\n\n• Assert irq_out_valid\n• Present vector, dest\n• Wait for irq_out_ready", fillcolor="lightyellow"];
+    WAIT_EOI [label="WAIT_EOI\n\n• Remote IRR set\n• Wait for EOI\n• irq_out_valid = 0", fillcolor="lightcoral"];
+    
+    // Transitions
+    IDLE -> IDLE [label="No pending IRQs\n(continue arbitration)", color="blue"];
+    IDLE -> DELIVER [label="Pending IRQ found\n(latch IRQ info)", color="darkgreen", penwidth=2];
+    
+    DELIVER -> DELIVER [label="!irq_out_ready\n(wait for CPU)", color="blue"];
+    DELIVER -> IDLE [label="irq_out_ready &&\nEDGE mode\n(complete)", color="darkgreen", penwidth=2];
+    DELIVER -> WAIT_EOI [label="irq_out_ready &&\nLEVEL mode\n(set Remote IRR)", color="darkorange", penwidth=2];
+    
+    WAIT_EOI -> WAIT_EOI [label="Waiting for EOI\n(or vector mismatch)", color="blue"];
+    WAIT_EOI -> IDLE [label="eoi_in &&\nvector match\n(clear Remote IRR)", color="darkgreen", penwidth=2];
+    
+    // Legend
+    {
+        rank=sink;
+        legend [shape=none, margin=0, label=<
+            <table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+                <tr><td bgcolor="lightblue"><b>Legend</b></td></tr>
+                <tr><td align="left"><font color="blue">■</font> Stay in state</td></tr>
+                <tr><td align="left"><font color="darkgreen">■</font> State transition</td></tr>
+                <tr><td align="left"><font color="darkorange">■</font> Level-triggered path</td></tr>
+            </table>
+        >];
+    }
+    
+    // Title
+    labelloc="t";
+    label="IOAPIC Interrupt Delivery State Machine";
+}

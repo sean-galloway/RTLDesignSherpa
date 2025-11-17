@@ -4,7 +4,7 @@
 
 REPO_ROOT="../../../.."
 SPEC_INDEX="bridge_spec/bridge_index.md"
-OUTPUT_FILE="Bridge_Specification_v1.0.docx"
+OUTPUT_FILE="Bridge_Specification_v0.90.docx"
 
 echo "Generating Bridge Specification PDF..."
 echo "  Input: $SPEC_INDEX"

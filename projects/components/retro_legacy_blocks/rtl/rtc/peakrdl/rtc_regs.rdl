@@ -1,0 +1,401 @@
+/**
+ * SystemRDL Definition for Real-Time Clock (RTC) Configuration Registers
+ *
+ * This specification defines the register interface for the APB RTC,
+ * providing system time-of-day tracking with alarm functionality.
+ *
+ * Key Features:
+ * - 32.768 kHz clock input support (typical RTC crystal frequency)
+ * - Seconds, minutes, hours, day, month, year tracking
+ * - Single programmable alarm
+ * - 24-hour or 12-hour (AM/PM) mode
+ * - Leap year handling (automatic up to 2099)
+ * - BCD or binary time format
+ * - Battery backup support considerations
+ *
+ * Address Layout:
+ *   0x000: RTC_CONFIG      - Global configuration and control
+ *   0x004: RTC_CONTROL     - Control register (alarm, interrupt enables)
+ *   0x008: RTC_STATUS      - Status register (flags, validity)
+ *   0x00C: RTC_SECONDS     - Current seconds (0-59)
+ *   0x010: RTC_MINUTES     - Current minutes (0-59)
+ *   0x014: RTC_HOURS       - Current hours (0-23 or 1-12+AM/PM)
+ *   0x018: RTC_DAY         - Current day of month (1-31)
+ *   0x01C: RTC_MONTH       - Current month (1-12)
+ *   0x020: RTC_YEAR        - Current year (0-99, base 2000)
+ *   0x024: RTC_ALARM_SEC   - Alarm seconds match value
+ *   0x028: RTC_ALARM_MIN   - Alarm minutes match value
+ *   0x02C: RTC_ALARM_HOUR  - Alarm hours match value
+ *   0x030: RTC_ALARM_MASK  - Alarm field match enables
+ *   0x034-0xFFF: Reserved for future expansion
+ */
+
+addrmap rtc_regs {
+    name = "RTC Configuration Registers";
+    desc = "Real-Time Clock with time-of-day tracking and alarm";
+
+    // Default properties for all registers
+    default regwidth = 32;
+    default accesswidth = 32;
+    default addressing = compact;
+
+    //========================================================================
+    // Global Configuration Register (0x000)
+    //========================================================================
+
+    reg {
+        name = "RTC Configuration Register";
+        desc = "Global RTC configuration and control";
+
+        field {
+            name = "RTC Enable";
+            desc = "Master enable for RTC (0=disabled, 1=enabled)";
+            sw = rw;
+            hw = r;
+        } rtc_enable[0:0] = 1'b0;
+
+        field {
+            name = "Hour Mode";
+            desc = "Hour format: 0=24-hour mode, 1=12-hour mode (AM/PM)";
+            sw = rw;
+            hw = r;
+        } hour_mode_12[1:1] = 1'b0;
+
+        field {
+            name = "BCD Mode";
+            desc = "Time format: 0=binary, 1=BCD (Binary Coded Decimal)";
+            sw = rw;
+            hw = r;
+        } bcd_mode[2:2] = 1'b0;
+
+        field {
+            name = "Clock Select";
+            desc = "Clock source: 0=32.768kHz, 1=system clock (for testing)";
+            sw = rw;
+            hw = r;
+        } clock_select[3:3] = 1'b0;
+
+        field {
+            name = "Time Set Mode";
+            desc = "1=Allow time setting (stops counter), 0=normal operation";
+            sw = rw;
+            hw = r;
+        } time_set_mode[4:4] = 1'b0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:5] = 27'h0;
+
+    } RTC_CONFIG @ 0x000;
+
+    //========================================================================
+    // Control Register (0x004)
+    //========================================================================
+
+    reg {
+        name = "RTC Control Register";
+        desc = "Alarm and interrupt control";
+
+        field {
+            name = "Alarm Enable";
+            desc = "Enable alarm comparison (0=disabled, 1=enabled)";
+            sw = rw;
+            hw = r;
+        } alarm_enable[0:0] = 1'b0;
+
+        field {
+            name = "Alarm Interrupt Enable";
+            desc = "Enable interrupt on alarm match (0=disabled, 1=enabled)";
+            sw = rw;
+            hw = r;
+        } alarm_int_enable[1:1] = 1'b0;
+
+        field {
+            name = "Second Interrupt Enable";
+            desc = "Enable interrupt every second (0=disabled, 1=enabled)";
+            sw = rw;
+            hw = r;
+        } second_int_enable[2:2] = 1'b0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:3] = 29'h0;
+
+    } RTC_CONTROL @ 0x004;
+
+    //========================================================================
+    // Status Register (0x008)
+    //========================================================================
+
+    reg {
+        name = "RTC Status Register";
+        desc = "Status flags and indicators";
+
+        field {
+            name = "Alarm Flag";
+            desc = "Alarm triggered (write 1 to clear)";
+            sw = rw;
+            hw = w;
+            onwrite = woclr;
+        } alarm_flag[0:0] = 1'b0;
+
+        field {
+            name = "Second Tick";
+            desc = "Second tick occurred (write 1 to clear)";
+            sw = rw;
+            hw = w;
+            onwrite = woclr;
+        } second_tick[1:1] = 1'b0;
+
+        field {
+            name = "Time Valid";
+            desc = "Time registers contain valid data";
+            sw = r;
+            hw = w;
+        } time_valid[2:2] = 1'b0;
+
+        field {
+            name = "PM Indicator";
+            desc = "In 12-hour mode: 0=AM, 1=PM (binary mode only in status)";
+            sw = r;
+            hw = w;
+        } pm_indicator[3:3] = 1'b0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:4] = 28'h0;
+
+    } RTC_STATUS @ 0x008;
+
+    //========================================================================
+    // Time Registers (0x00C - 0x020)
+    //========================================================================
+
+    reg {
+        name = "RTC Seconds Register";
+        desc = "Current seconds (0-59 in both BCD and binary)";
+
+        field {
+            name = "Seconds";
+            desc = "Seconds value: 0-59 (binary) or 0x00-0x59 (BCD)";
+            sw = rw;
+            hw = rw;
+        } seconds[7:0] = 8'h00;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:8] = 24'h0;
+
+    } RTC_SECONDS @ 0x00C;
+
+    reg {
+        name = "RTC Minutes Register";
+        desc = "Current minutes (0-59 in both BCD and binary)";
+
+        field {
+            name = "Minutes";
+            desc = "Minutes value: 0-59 (binary) or 0x00-0x59 (BCD)";
+            sw = rw;
+            hw = rw;
+        } minutes[7:0] = 8'h00;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:8] = 24'h0;
+
+    } RTC_MINUTES @ 0x010;
+
+    reg {
+        name = "RTC Hours Register";
+        desc = "Current hours (0-23 or 1-12 + bit 7 for AM/PM in 12-hour BCD mode)";
+
+        field {
+            name = "Hours";
+            desc = "Hours value: 0-23 (24h binary), 0x00-0x23 (24h BCD), 0x01-0x12 (12h BCD), bit[7]=PM in 12h BCD mode";
+            sw = rw;
+            hw = rw;
+        } hours[7:0] = 8'h00;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:8] = 24'h0;
+
+    } RTC_HOURS @ 0x014;
+
+    reg {
+        name = "RTC Day Register";
+        desc = "Current day of month (1-31)";
+
+        field {
+            name = "Day";
+            desc = "Day value: 1-31 (binary) or 0x01-0x31 (BCD)";
+            sw = rw;
+            hw = rw;
+        } day[7:0] = 8'h01;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:8] = 24'h0;
+
+    } RTC_DAY @ 0x018;
+
+    reg {
+        name = "RTC Month Register";
+        desc = "Current month (1-12)";
+
+        field {
+            name = "Month";
+            desc = "Month value: 1-12 (binary) or 0x01-0x12 (BCD)";
+            sw = rw;
+            hw = rw;
+        } month[7:0] = 8'h01;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:8] = 24'h0;
+
+    } RTC_MONTH @ 0x01C;
+
+    reg {
+        name = "RTC Year Register";
+        desc = "Current year (0-99, representing 2000-2099)";
+
+        field {
+            name = "Year";
+            desc = "Year value: 0-99 (binary) or 0x00-0x99 (BCD), base year 2000";
+            sw = rw;
+            hw = rw;
+        } year[7:0] = 8'h00;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:8] = 24'h0;
+
+    } RTC_YEAR @ 0x020;
+
+    //========================================================================
+    // Alarm Registers (0x024 - 0x030)
+    //========================================================================
+
+    reg {
+        name = "RTC Alarm Seconds Register";
+        desc = "Alarm seconds match value (0-59)";
+
+        field {
+            name = "Alarm Seconds";
+            desc = "Alarm seconds: 0-59 (binary) or 0x00-0x59 (BCD)";
+            sw = rw;
+            hw = r;
+        } alarm_seconds[7:0] = 8'h00;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:8] = 24'h0;
+
+    } RTC_ALARM_SEC @ 0x024;
+
+    reg {
+        name = "RTC Alarm Minutes Register";
+        desc = "Alarm minutes match value (0-59)";
+
+        field {
+            name = "Alarm Minutes";
+            desc = "Alarm minutes: 0-59 (binary) or 0x00-0x59 (BCD)";
+            sw = rw;
+            hw = r;
+        } alarm_minutes[7:0] = 8'h00;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:8] = 24'h0;
+
+    } RTC_ALARM_MIN @ 0x028;
+
+    reg {
+        name = "RTC Alarm Hours Register";
+        desc = "Alarm hours match value (0-23 or 1-12+AM/PM)";
+
+        field {
+            name = "Alarm Hours";
+            desc = "Alarm hours: 0-23 (24h binary), 0x00-0x23 (24h BCD), 0x01-0x12 (12h BCD)";
+            sw = rw;
+            hw = r;
+        } alarm_hours[7:0] = 8'h00;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:8] = 24'h0;
+
+    } RTC_ALARM_HOUR @ 0x02C;
+
+    reg {
+        name = "RTC Alarm Mask Register";
+        desc = "Enable/disable alarm field matching";
+
+        field {
+            name = "Seconds Match Enable";
+            desc = "1=Compare seconds for alarm, 0=don't care";
+            sw = rw;
+            hw = r;
+        } sec_match_en[0:0] = 1'b0;
+
+        field {
+            name = "Minutes Match Enable";
+            desc = "1=Compare minutes for alarm, 0=don't care";
+            sw = rw;
+            hw = r;
+        } min_match_en[1:1] = 1'b0;
+
+        field {
+            name = "Hours Match Enable";
+            desc = "1=Compare hours for alarm, 0=don't care";
+            sw = rw;
+            hw = r;
+        } hour_match_en[2:2] = 1'b0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:3] = 29'h0;
+
+    } RTC_ALARM_MASK @ 0x030;
+
+};

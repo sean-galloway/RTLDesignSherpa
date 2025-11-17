@@ -41,7 +41,7 @@ from pathlib import Path
 
 
 def generate_apb_xbar(num_masters, num_slaves, base_addr=0x10000000,
-                      addr_width=32, data_width=32, output_file=None):
+                      addr_width=32, data_width=32, output_file=None, slave_size=0x1000):
     """
     Generate an M-to-N APB crossbar module.
 
@@ -52,6 +52,8 @@ def generate_apb_xbar(num_masters, num_slaves, base_addr=0x10000000,
         addr_width: Address bus width (default 32)
         data_width: Data bus width (default 32)
         output_file: Output filename (default apb_xbar_MtoN.sv)
+        slave_size: Address space per slave (default 0x1000 = 4KB)
+                    Common values: 0x1000 (4KB), 0x10000 (64KB)
 
     Returns:
         SystemVerilog code as string
@@ -64,6 +66,10 @@ def generate_apb_xbar(num_masters, num_slaves, base_addr=0x10000000,
         raise ValueError(f"Number of masters must be 1-16, got {M}")
     if N < 1 or N > 16:
         raise ValueError(f"Number of slaves must be 1-16, got {N}")
+
+    # Validate slave_size is power of 2
+    if slave_size & (slave_size - 1) != 0 or slave_size < 0x100:
+        raise ValueError(f"slave_size must be power of 2 and >= 256 bytes, got 0x{slave_size:X}")
 
     # Calculate address bits needed for slave selection
     import math
@@ -87,10 +93,10 @@ def generate_apb_xbar(num_masters, num_slaves, base_addr=0x10000000,
 
     # Document address map
     for s in range(N):
-        addr_offset = s * 0x10000
+        addr_offset = s * slave_size
         addr_start = base_addr + addr_offset
-        addr_end = addr_start + 0xFFFF
-        code += f"//   Slave {s}: [0x{addr_start:08X}, 0x{addr_end:08X}]\n"
+        addr_end = addr_start + (slave_size - 1)
+        code += f"//   Slave {s}: [0x{addr_start:08X}, 0x{addr_end:08X}] ({slave_size//1024}KB)\n"
 
     code += f"""
 module {module_name} #(
@@ -254,10 +260,17 @@ module {module_name} #(
 
         code += "\n    always_comb begin\n"
         for m in range(M):
-            addr_range_size = N * 0x10000
+            addr_range_size = N * slave_size
+            # Calculate bit positions for slave select based on slave_size
+            # For slave_size = 0x1000 (4KB), lower 12 bits are offset, next bits select slave
+            # For slave_size = 0x10000 (64KB), lower 16 bits are offset, next bits select slave
+            import math
+            slave_offset_bits = int(math.log2(slave_size))
+            slave_sel_high = slave_offset_bits + slave_sel_width - 1
+            slave_sel_low = slave_offset_bits
             code += f"        m{m}_addr_in_range = (m{m}_cmd_paddr >= BASE_ADDR) &&\n"
             code += f"                          (m{m}_cmd_paddr < (BASE_ADDR + {addr_width}'h{addr_range_size:08X}));\n"
-            code += f"        m{m}_slave_sel = m{m}_cmd_paddr[{16+slave_sel_width-1}:16];\n\n"
+            code += f"        m{m}_slave_sel = m{m}_cmd_paddr[{slave_sel_high}:{slave_sel_low}];\n\n"
         code += "    end\n\n"
 
         code += "    // Register slave selection for each master when command accepted\n"
@@ -517,6 +530,9 @@ Examples:
     parser.add_argument('--base-addr', '-b', type=lambda x: int(x, 0),
                         default=0x10000000,
                         help='Base address for slave address map (default 0x10000000)')
+    parser.add_argument('--slave-size', type=lambda x: int(x, 0),
+                        default=0x1000,
+                        help='Address space per slave: 0x1000=4KB, 0x10000=64KB (default 0x1000)')
     parser.add_argument('--addr-width', '-a', type=int, default=32,
                         help='Address bus width (default 32)')
     parser.add_argument('--data-width', '-d', type=int, default=32,
@@ -533,7 +549,8 @@ Examples:
             base_addr=args.base_addr,
             addr_width=args.addr_width,
             data_width=args.data_width,
-            output_file=args.output
+            output_file=args.output,
+            slave_size=args.slave_size
         )
 
         output_file = args.output if args.output else f"apb_xbar_{args.masters}to{args.slaves}.sv"
@@ -544,6 +561,7 @@ Examples:
         print(f"✅ Generated {output_file}")
         print(f"   Masters: {args.masters}, Slaves: {args.slaves}")
         print(f"   Base Address: 0x{args.base_addr:08X}")
+        print(f"   Slave Size: 0x{args.slave_size:X} ({args.slave_size//1024}KB per slave)")
 
     except Exception as e:
         print(f"❌ Error: {e}", file=sys.stderr)

@@ -1,19 +1,20 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Wed Nov 12 01:03:30 2025
+[*] Wed Nov 12 17:45:29 2025
 [*]
-[dumpfile] "/mnt/data/github/rtldesignsherpa/projects/components/stream/dv/tests/macro/local_sim_build/test_stream_core_single_nc04_dw0032_fd0512_dc02_gw0/dump.vcd"
-[dumpfile_mtime] "Wed Nov 12 00:31:43 2025"
-[dumpfile_size] 2556808
+[dumpfile] "/mnt/data/github/rtldesignsherpa/projects/components/stream/dv/tests/macro/local_sim_build/test_stream_core_varsizes_nc04_dw0032_fd0512_sz64_gw2/dump.vcd"
+[dumpfile_mtime] "Wed Nov 12 17:41:07 2025"
+[dumpfile_size] 2962512
 [savefile] "/mnt/data/github/rtldesignsherpa/projects/components/stream/dv/tests/macro/GTKW/core/stream_core_nc4_dw32.gtkw"
-[timestart] 0
-[size] 3105 1786
-[pos] 89 38
-*-18.337811 1110000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[timestart] 2630800
+[size] 3463 1609
+[pos] -1 -1
+*-16.325525 3480000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] stream_core.
 [treeopen] stream_core.u_scheduler_group_array.
 [treeopen] stream_core.u_scheduler_group_array.gen_scheduler_groups[0].
 [treeopen] stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.
+[treeopen] stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.
 [treeopen] stream_core.u_sram_controller.gen_channel_units[0].
 [sst_width] 412
 [signals_width] 888
@@ -408,6 +409,27 @@ stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_
 stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.r_src_addr[63:0]
 stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.r_dst_addr[63:0]
 stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.r_beats_remaining[31:0]
+@28
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.datard_valid
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.datard_ready
+@22
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.datard_addr[63:0]
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.datard_beats_remaining[31:0]
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.datard_beats_done[31:0]
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.datard_channel_id[3:0]
+@28
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.datard_done_strobe
+@29
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.datawr_valid
+@28
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.datawr_ready
+@22
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.datawr_addr[63:0]
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.datawr_beats_done[31:0]
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.datawr_beats_remaining[31:0]
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.datawr_channel_id[3:0]
+@28
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.datawr_done_strobe
 @200
 -axi-rd-engine
 @28
@@ -482,9 +504,7 @@ stream_core.u_axi_write_engine.m_axi_awlen[7:0]
 stream_core.u_axi_write_engine.m_axi_awid[7:0]
 @28
 stream_core.u_axi_write_engine.m_axi_wvalid
-@29
 stream_core.u_axi_write_engine.m_axi_wready
-@28
 stream_core.u_axi_write_engine.m_axi_wlast
 @200
 -axi-read-engine
@@ -536,7 +556,14 @@ stream_core.u_sram_controller.axi_rd_sram_data[31:0]
 @200
 -sram-axi-wr
 @22
-stream_core.u_axi_write_engine.cfg_axi_wr_xfer_beats[7:0]
+stream_core.u_axi_write_engine.wr_drain_req[3:0]
+stream_core.u_axi_write_engine.wr_drain_size[0][7:0]
+stream_core.u_axi_write_engine.wr_drain_data_avail[0][9:0]
+@28
+stream_core.u_axi_write_engine.axi_wr_sram_drain
+stream_core.u_axi_write_engine.axi_wr_sram_id[1:0]
+@22
+stream_core.u_axi_write_engine.axi_wr_sram_data[31:0]
 stream_core.u_axi_write_engine.w_data_ok[3:0]
 @c00022
 stream_core.u_sram_controller.axi_wr_sram_valid[3:0]

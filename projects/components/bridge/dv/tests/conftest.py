@@ -30,8 +30,14 @@ def pytest_configure(config):
     config.option.log_cli = True
     config.option.log_cli_level = "INFO"
 
-    # Parallel execution is OK - all test names are unique
-    # Memory limit of 32GB in TBs handles Verilator memory usage
+    # CRITICAL: Force sequential execution to prevent system crashes
+    # Bridge tests compile large Verilator models that use 1GB+ memory each
+    # Parallel execution with -n 48 would require 48GB+ RAM simultaneously
+    if hasattr(config.option, 'numprocesses') and config.option.numprocesses is not None:
+        config.option.numprocesses = None
+        config.option.dist = 'no'
+        logging.warning("Bridge tests: Forcing sequential execution to prevent memory exhaustion")
+        logging.warning("Parallel execution disabled - each test uses ~1GB during compilation")
 
     # Register Bridge-specific pytest markers
     config.addinivalue_line("markers", "bridge: Bridge crossbar tests")

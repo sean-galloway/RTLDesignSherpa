@@ -940,16 +940,16 @@ class AXI4SlaveWrite:
         burst_len = getattr(aw_packet, 'len', 0) + 1
         addr = getattr(aw_packet, 'addr', 0)
 
-        # Assign sequence number if OOO enabled (for AXI4 same-ID ordering)
+        # Assign sequence number for tracking arrival order
+        # In FIFO mode: sequence tracks global AW order across all IDs
+        # In OOO mode: sequence used for same-ID ordering enforcement
+        txn_sequence = self.ooo_transaction_sequence
+        self.ooo_transaction_sequence += 1
         if self.enable_ooo:
-            txn_sequence = self.ooo_transaction_sequence
-            self.ooo_transaction_sequence += 1
             self.ooo_transaction_metadata[txn_sequence] = {
                 'id': transaction_id,
                 'addr': addr
             }
-        else:
-            txn_sequence = None
 
         # AXI4-compliant: Allow multiple transactions with same ID (must complete in-order)
         if transaction_id not in self.pending_transactions:
@@ -1003,8 +1003,23 @@ class AXI4SlaveWrite:
             # OOO mode: Find transaction that needs this W packet
             transaction_id = self._find_matching_transaction_ooo()
         else:
-            # FIFO mode: First transaction ID (backward compatible)
-            transaction_id = list(self.pending_transactions.keys())[0] if self.pending_transactions else None
+            # FIFO mode: Find transaction with lowest sequence number (oldest AW)
+            # W beats must arrive in same order as AW transactions in FIFO mode
+            transaction_id = None
+            min_sequence = None
+            for tid in self.pending_transactions:
+                for txn in self.pending_transactions[tid]:
+                    if not txn['complete']:
+                        txn_seq = txn.get('sequence', float('inf'))
+                        if min_sequence is None or txn_seq < min_sequence:
+                            min_sequence = txn_seq
+                            transaction_id = tid
+                        break  # Only check first incomplete txn per ID
+
+        # Debug: Log when W packet arrives but no transaction available
+        if transaction_id is None and self.log:
+            self.log.warning(f"AXI4SlaveWrite: W packet arrived but no pending transactions! "
+                           f"pending_keys={list(self.pending_transactions.keys())}")
 
         if transaction_id is not None and transaction_id in self.pending_transactions:
             # Find first incomplete transaction in the list for this ID
@@ -1026,8 +1041,9 @@ class AXI4SlaveWrite:
             if self.log:
                 self.log.debug(f"AXI4SlaveWrite: W matched to txn_id={transaction_id}")
 
-            # Check if transaction is complete
-            if len(transaction['w_packets']) >= transaction['expected_beats']:
+            # Check if transaction is complete: MUST check both beat count AND last flag
+            # AXI4 spec: Transaction complete when last=1 received on W channel
+            if is_last or len(transaction['w_packets']) >= transaction['expected_beats']:
                 transaction['complete'] = True
                 if self.log:
                     self.log.debug(f"AXI4SlaveWrite: Transaction {transaction_id} complete")
@@ -1046,7 +1062,8 @@ class AXI4SlaveWrite:
 
     def _match_orphaned_w_packets(self):
         """Match orphaned W packets to newly arrived AW transactions."""
-        if not self.w_transaction_queue:
+        # BUGFIX: Also check for partial orphaned W packets, not just complete bursts
+        if not self.w_transaction_queue and not self.orphaned_w_packets:
             return
 
         # Try to match queued W bursts to pending AW transactions
@@ -1058,6 +1075,7 @@ class AXI4SlaveWrite:
                 if aw_transaction['complete']:
                     continue
 
+                # BUGFIX: First check if we have a complete queued burst
                 if self.w_transaction_queue:
                     # Match the first queued W burst to this AW
                     w_burst = self.w_transaction_queue.pop(0)
@@ -1071,12 +1089,26 @@ class AXI4SlaveWrite:
                     # Complete the transaction
                     cocotb.start_soon(self._complete_write_transaction(aw_id))
                     break
+                # BUGFIX: If no complete burst, but we have partial orphaned W packets,
+                # transfer them to this AW transaction so they can receive the remaining W beats
+                elif self.orphaned_w_packets:
+                    aw_transaction['w_packets'] = self.orphaned_w_packets.copy()
+                    self.orphaned_w_packets.clear()
+                    matched_any = True
+
+                    if self.log:
+                        self.log.debug(f"AXI4SlaveWrite: Matched {len(aw_transaction['w_packets'])} partial orphaned W packets to AW id={aw_id}, "
+                                     f"expecting {aw_transaction['expected_beats']} total beats")
+                    # Don't mark as complete - more W beats will arrive
+                    # Don't call _complete_write_transaction yet
+                    break
 
             if matched_any:
                 break
 
         if matched_any and self.log:
-            self.log.debug(f"AXI4SlaveWrite: W-before-AW matching complete, remaining queued bursts: {len(self.w_transaction_queue)}")
+            self.log.debug(f"AXI4SlaveWrite: W-before-AW matching complete, remaining queued bursts: {len(self.w_transaction_queue)}, "
+                         f"remaining orphaned packets: {len(self.orphaned_w_packets)}")
 
     def _find_matching_transaction_ooo(self):
         """

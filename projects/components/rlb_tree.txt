@@ -1,4 +1,4 @@
-DEBUG: exclude_dir = ['__pycache__', 'local_sim_build', 'logs']
+DEBUG: exclude_dir = ['__pycache__', 'local_sim_build', 'logs', 'ioapic_regs.html', 'hpet_regs.html', 'smbus_regs.html', 'pm_acpi_regs.html']
 retro_legacy_blocks
 ├── BLOCK_STATUS.md
 ├── CLAUDE.md
@@ -21,14 +21,12 @@ retro_legacy_blocks
 │   └── smbus-controller-i2c-devices-paper.pdf
 ├── bin
 ├── docs
-│   ├── APB_HPET_Specification_v0.25.docx
-│   ├── APB_HPET_Specification_v0.25.pdf
-│   ├── HPET_DOCUMENTATION_SYNC_ANALYSIS.md
-│   ├── HPET_Specification_v0.25.docx
-│   ├── HPET_Specification_v0.25.pdf
+│   ├── APB_HPET_Specification_v0.90.docx
+│   ├── APB_HPET_Specification_v0.90.pdf
+│   ├── APB_PIT_8254_Specification_v0.90.docx
+│   ├── APB_PIT_8254_Specification_v0.90.pdf
 │   ├── IMPLEMENTATION_STATUS.md
 │   ├── generate_pdf.sh
-│   ├── PDFs
 │   ├── hpet_spec
 │   │   ├── hpet_index.md
 │   │   ├── assets
@@ -105,7 +103,40 @@ retro_legacy_blocks
 │   │   └── ch05_registers
 │   │       └── 01_register_map.md
 │   ├── ioapic_spec
-│   │   └── README.md
+│   │   ├── README.md
+│   │   ├── ioapic_index.md
+│   │   ├── assets
+│   │   │   ├── draw.io
+│   │   │   ├── graphviz
+│   │   │   │   ├── Makefile
+│   │   │   │   ├── README.md
+│   │   │   │   ├── apb_ioapic.gv
+│   │   │   │   ├── delivery_fsm.dot
+│   │   │   │   └── indirect_access.gv
+│   │   │   ├── png
+│   │   │   │   ├── apb_ioapic.png
+│   │   │   │   ├── delivery_fsm.png
+│   │   │   │   └── indirect_access.png
+│   │   │   ├── puml
+│   │   │   ├── svg
+│   │   │   │   ├── apb_ioapic.svg
+│   │   │   │   ├── delivery_fsm.svg
+│   │   │   │   └── indirect_access.svg
+│   │   │   ├── wavedrom
+│   │   │   └── waves
+│   │   ├── ch01_overview
+│   │   │   ├── 01_overview.md
+│   │   │   ├── 02_architecture.md
+│   │   │   ├── 03_clocks_and_reset.md
+│   │   │   ├── 04_acronyms.md
+│   │   │   └── 05_references.md
+│   │   ├── ch02_blocks
+│   │   │   ├── 00_overview.md
+│   │   │   └── 05_fsm_summary.md
+│   │   ├── ch03_interfaces
+│   │   ├── ch04_programming
+│   │   └── ch05_registers
+│   │       └── 01_register_map.md
 │   ├── pic_8259_spec
 │   │   └── README.md
 │   ├── pit_8254_spec
@@ -113,6 +144,8 @@ retro_legacy_blocks
 │   │   ├── README.md
 │   │   ├── pit_8254_index.md
 │   │   ├── assets
+│   │   │   ├── diagrams
+│   │   │   │   └── apb_pit_8254_blocks.png
 │   │   │   ├── graphviz
 │   │   │   ├── puml
 │   │   │   └── wavedrom
@@ -162,7 +195,10 @@ retro_legacy_blocks
 │   │   ├── pm_acpi
 │   │   │   └── README.md
 │   │   ├── rtc
-│   │   │   └── README.md
+│   │   │   ├── README.md
+│   │   │   ├── __init__.py
+│   │   │   ├── rtc_tb.py
+│   │   │   └── rtc_tests_basic.py
 │   │   └── smbus
 │   │       └── README.md
 │   └── tests
@@ -188,7 +224,9 @@ retro_legacy_blocks
 │       ├── pm_acpi
 │       │   └── README.md
 │       ├── rtc
-│       │   └── README.md
+│       │   ├── README.md
+│       │   ├── __init__.py
+│       │   └── test_apb_rtc.py
 │       └── smbus
 │           └── README.md
 ├── known_issues
@@ -197,15 +235,30 @@ retro_legacy_blocks
 │   └── resolved
 │       └── timer_cleanup_issue.md
 └── rtl
+    ├── RLB_FPGA_IMPLEMENTATION_GUIDE.md
+    ├── RLB_MODULE_AUDIT.md
+    ├── RLB_STATUS_AND_ROADMAP.md
     ├── apb_xbar
+    │   ├── README.md
+    │   ├── apb_xbar_1to8.sv
+    │   ├── apb_xbar_legacy_1to8.f
+    │   └── apb_xbar_legacy_1to8.sv
     ├── hpet
     │   ├── Makefile
     │   ├── README.md
     │   ├── apb_hpet.sv
     │   ├── hpet_config_regs.sv
     │   ├── hpet_core.sv
+    │   ├── hpet_helper.py
+    │   ├── hpet_regmap.py
     │   ├── hpet_regs.sv
     │   ├── hpet_regs_pkg.sv
+    │   ├── docs
+    │   │   └── assets
+    │   │       └── graphviz
+    │   │           ├── Makefile
+    │   │           ├── hpet_architecture.gv
+    │   │           └── hpet_architecture.png
     │   ├── filelists
     │   │   ├── README.md
     │   │   ├── component
@@ -224,90 +277,7 @@ retro_legacy_blocks
     │       │   ├── hpet_regs.sv
     │       │   ├── hpet_regs_pkg.sv
     │       │   ├── docs
-    │       │   │   ├── hpet_regs.md
-    │       │   │   └── hpet_regs.html
-    │       │   │       ├── favicon.png
-    │       │   │       ├── index.html
-    │       │   │       ├── launcher-windows-chrome.bat
-    │       │   │       ├── launcher-windows-edge.bat
-    │       │   │       ├── launcher-windows-firefox.bat
-    │       │   │       ├── .launcher_data
-    │       │   │       │   └── firefox
-    │       │   │       │       └── user.js
-    │       │   │       ├── content
-    │       │   │       │   ├── 19dcef51f166318fb931b3b1fae6592c7c303b92.html
-    │       │   │       │   ├── 29c39cd31896ac30a37039f9c0197113e65f5f54.html
-    │       │   │       │   ├── 32ff58804a77aa5dfb642753a7d398ae27a69837.html
-    │       │   │       │   ├── 334e060924babb5ad3696f72faa614dbdd6123c7.html
-    │       │   │       │   ├── 335d02c0129103610bfb123cb2edba2499c71063.html
-    │       │   │       │   ├── 769dfbbe4a6a8ed011f8cb18c1ed1d9d00763cd7.html
-    │       │   │       │   ├── 781a0a951e4befeeefe3cf9fe457f4951cf5cfad.html
-    │       │   │       │   ├── 85bb2a27998843a1f2e7d0d5912489fb7ba07cb8.html
-    │       │   │       │   ├── cc33ec8fc6c91d596b31e26a7d69958bdf50ae04.html
-    │       │   │       │   ├── d4fed9b280d0bf7eb6a216f18e8650b768bf1f0f.html
-    │       │   │       │   ├── df45c3052b2ceeade4385e29b19ec228f6c77e2a.html
-    │       │   │       │   └── eb1ac54a5046985c4bd71e9141df1749964e197c.html
-    │       │   │       ├── css
-    │       │   │       │   ├── layout.css
-    │       │   │       │   ├── normalize.css
-    │       │   │       │   └── theme.css
-    │       │   │       ├── data
-    │       │   │       │   ├── data_index.js
-    │       │   │       │   └── ral-data-0.json
-    │       │   │       ├── fonts
-    │       │   │       │   ├── FontAwesome
-    │       │   │       │   │   ├── fa-regular-400.eot
-    │       │   │       │   │   ├── fa-regular-400.svg
-    │       │   │       │   │   ├── fa-regular-400.ttf
-    │       │   │       │   │   ├── fa-regular-400.woff
-    │       │   │       │   │   ├── fa-regular-400.woff2
-    │       │   │       │   │   ├── fa-solid-900.eot
-    │       │   │       │   │   ├── fa-solid-900.svg
-    │       │   │       │   │   ├── fa-solid-900.ttf
-    │       │   │       │   │   ├── fa-solid-900.woff
-    │       │   │       │   │   └── fa-solid-900.woff2
-    │       │   │       │   ├── Lato
-    │       │   │       │   │   ├── lato-bold.eot
-    │       │   │       │   │   ├── lato-bold.ttf
-    │       │   │       │   │   ├── lato-bold.woff
-    │       │   │       │   │   ├── lato-bold.woff2
-    │       │   │       │   │   ├── lato-bolditalic.eot
-    │       │   │       │   │   ├── lato-bolditalic.ttf
-    │       │   │       │   │   ├── lato-bolditalic.woff
-    │       │   │       │   │   ├── lato-bolditalic.woff2
-    │       │   │       │   │   ├── lato-italic.eot
-    │       │   │       │   │   ├── lato-italic.ttf
-    │       │   │       │   │   ├── lato-italic.woff
-    │       │   │       │   │   ├── lato-italic.woff2
-    │       │   │       │   │   ├── lato-regular.eot
-    │       │   │       │   │   ├── lato-regular.ttf
-    │       │   │       │   │   ├── lato-regular.woff
-    │       │   │       │   │   └── lato-regular.woff2
-    │       │   │       │   └── RobotoSlab
-    │       │   │       │       ├── roboto-slab-v7-bold.eot
-    │       │   │       │       ├── roboto-slab-v7-bold.ttf
-    │       │   │       │       ├── roboto-slab-v7-bold.woff
-    │       │   │       │       ├── roboto-slab-v7-bold.woff2
-    │       │   │       │       ├── roboto-slab-v7-regular.eot
-    │       │   │       │       ├── roboto-slab-v7-regular.ttf
-    │       │   │       │       ├── roboto-slab-v7-regular.woff
-    │       │   │       │       └── roboto-slab-v7-regular.woff2
-    │       │   │       ├── js
-    │       │   │       │   ├── address_search.js
-    │       │   │       │   ├── content_search.js
-    │       │   │       │   ├── field_testers.js
-    │       │   │       │   ├── index_edit.js
-    │       │   │       │   ├── main.js
-    │       │   │       │   ├── nav.js
-    │       │   │       │   ├── path_search.js
-    │       │   │       │   ├── progressbar.min.js
-    │       │   │       │   ├── ral.js
-    │       │   │       │   ├── search.js
-    │       │   │       │   ├── sha1.js
-    │       │   │       │   └── sidebar.js
-    │       │   │       └── search
-    │       │   │           ├── bkt-0.json
-    │       │   │           └── bkt_index.js
+    │       │   │   └── hpet_regs.md
     │       │   └── rtl
     │       │       └── hpet_regs.sv
     │       │           ├── hpet_regs.sv
@@ -321,12 +291,39 @@ retro_legacy_blocks
     │                   └── hpet_regs_pkg.sv
     ├── ioapic
     │   ├── README.md
+    │   ├── TODO.md
+    │   ├── apb_ioapic.sv
+    │   ├── ioapic_config_regs.sv
+    │   ├── ioapic_core.sv
+    │   ├── ioapic_regs.sv
+    │   ├── ioapic_regs_pkg.sv
     │   ├── filelists
+    │   │   └── apb_ioapic.f
     │   └── peakrdl
+    │       ├── README.md
+    │       ├── ioapic_regs.rdl
+    │       └── generated
+    │           ├── docs
+    │           │   └── ioapic_regs.md
+    │           ├── headers
+    │           └── rtl
+    │               └── ioapic_regs.sv
+    │                   ├── ioapic_regs.sv
+    │                   └── ioapic_regs_pkg.sv
     ├── pic_8259
     │   ├── README.md
+    │   ├── apb_pic_8259.sv
+    │   ├── pic_8259_config_regs.sv
+    │   ├── pic_8259_core.sv
+    │   ├── pic_8259_helper.py
+    │   ├── pic_8259_regmap.py
+    │   ├── pic_8259_regs.sv
+    │   ├── pic_8259_regs_pkg.sv
     │   ├── filelists
+    │   │   └── apb_pic_8259.f
     │   └── peakrdl
+    │       ├── README.md
+    │       └── pic_8259_regs.rdl
     ├── pit_8254
     │   ├── IMPLEMENTATION_SUMMARY.md
     │   ├── README.md
@@ -334,8 +331,16 @@ retro_legacy_blocks
     │   ├── pit_config_regs.sv
     │   ├── pit_core.sv
     │   ├── pit_counter.sv
+    │   ├── pit_helper.py
+    │   ├── pit_regmap.py
     │   ├── pit_regs.sv
     │   ├── pit_regs_pkg.sv
+    │   ├── docs
+    │   │   └── assets
+    │   │       └── graphviz
+    │   │           ├── Makefile
+    │   │           ├── pit_architecture.gv
+    │   │           └── pit_architecture.png
     │   ├── filelists
     │   │   └── apb_pit_8254.f
     │   └── peakrdl
@@ -343,14 +348,60 @@ retro_legacy_blocks
     │       └── pit_regs.rdl
     ├── pm_acpi
     │   ├── README.md
+    │   ├── TODO.md
+    │   ├── apb_pm_acpi.sv
+    │   ├── pm_acpi_config_regs.sv
+    │   ├── pm_acpi_core.sv
+    │   ├── pm_acpi_regs.sv
+    │   ├── pm_acpi_regs_pkg.sv
     │   ├── filelists
+    │   │   └── apb_pm_acpi.f
     │   └── peakrdl
+    │       ├── README.md
+    │       ├── pm_acpi_regs.md
+    │       ├── pm_acpi_regs.rdl
+    │       └── generated
+    │           ├── docs
+    │           │   └── pm_acpi_regs.md
+    │           ├── headers
+    │           └── rtl
+    │               └── pm_acpi_regs.sv
+    │                   ├── pm_acpi_regs.sv
+    │                   └── pm_acpi_regs_pkg.sv
     ├── rlb_top
     ├── rtc
     │   ├── README.md
+    │   ├── apb_rtc.sv
+    │   ├── rtc_config_regs.sv
+    │   ├── rtc_core.sv
+    │   ├── rtc_helper.py
+    │   ├── rtc_regmap.py
     │   ├── filelists
-    │   └── peakrdl
+    │   │   └── apb_rtc.f
+    │   ├── peakrdl
+    │   │   ├── README.md
+    │   │   └── rtc_regs.rdl
+    │   └── rtc_regs.sv
+    │       ├── rtc_regs.sv
+    │       └── rtc_regs_pkg.sv
     └── smbus
+        ├── CDC_DESIGN_RATIONALE.md
+        ├── IMPLEMENTATION_STATUS.md
         ├── README.md
+        ├── TODO.md
+        ├── apb_smbus.sv
+        ├── simple_fifo.sv
+        ├── smbus_config_regs.sv
+        ├── smbus_core.sv
+        ├── smbus_helper.py
+        ├── smbus_pec.sv
+        ├── smbus_regs.sv
+        ├── smbus_regs_pkg.sv
+        ├── docs
+        │   └── smbus_regs.md
         ├── filelists
+        │   └── apb_smbus.f
+        ├── headers
         └── peakrdl
+            ├── README.md
+            └── smbus_regs.rdl

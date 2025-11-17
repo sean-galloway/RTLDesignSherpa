@@ -13,11 +13,20 @@
 //
 //   Transfer Flow:
 //   1. Receives 256-bit descriptors from descriptor_engine
-//   2. Reads data from source memory via AXI read engine
-//   3. Writes data to destination memory via AXI write engine
-//   4. Generates interrupt (if descriptor.gen_irq set)
-//   5. Handles descriptor chaining (next_descriptor_ptr)
-//   6. Monitors timeouts and errors
+//   2. CONCURRENTLY reads data from source AND writes to destination
+//      - Read engine: source memory → SRAM buffer
+//      - Write engine: SRAM buffer → destination memory
+//      - Both engines run simultaneously with natural backpressure
+//   3. Generates interrupt (if descriptor.gen_irq set)
+//   4. Handles descriptor chaining (next_descriptor_ptr)
+//   5. Monitors timeouts and errors
+//
+// CRITICAL DESIGN FEATURE - Concurrent Read/Write:
+//   The scheduler runs read and write engines CONCURRENTLY in CH_XFER_DATA state.
+//   This prevents deadlock when transfer size > SRAM buffer size:
+//     - Read fills SRAM → SRAM full → read pauses
+//     - Write drains SRAM → SRAM has space → read resumes
+//   Without concurrency, 100MB transfer with 2KB SRAM would deadlock!
 //
 // STREAM Simplifications (vs RAPIDS):
 //   ✓ Memory-to-memory only (no network, no producer/consumer)
@@ -28,7 +37,8 @@
 //   ✓ IRQ event reporting via MonBus (descriptor.gen_irq flag)
 //
 // Key Features:
-//   - Simple FSM: IDLE → FETCH_DESC → READ_DATA → WRITE_DATA → COMPLETE
+//   - Simple FSM: IDLE → FETCH_DESC → XFER_DATA → COMPLETE
+//   - Concurrent read/write in XFER_DATA (prevents deadlock)
 //   - Beat-based tracking (length in data width units)
 //   - Aligned addresses only (no fixup logic)
 //   - MonBus event reporting at state transitions
@@ -38,7 +48,7 @@
 //   - Scheduler tells engines "total beats remaining" (not burst length)
 //   - Engines decide burst sizes autonomously
 //   - Engines report back "beats completed" via done strobes
-//   - Scheduler decrements counters until zero
+//   - Scheduler decrements counters until zero (independently for read/write)
 //
 // Documentation: projects/components/stream_fub/PRD.md
 // Subsystem: stream_fub
@@ -170,15 +180,17 @@ module scheduler #(
     //=========================================================================
 
     // Scheduler FSM (using STREAM package enum - ONE-HOT ENCODED)
-    // States: CH_IDLE → CH_FETCH_DESC → CH_READ_DATA → CH_WRITE_DATA →
+    // States: CH_IDLE → CH_FETCH_DESC → CH_XFER_DATA →
     //         CH_COMPLETE → CH_NEXT_DESC (if chained) or back to CH_IDLE
+    //
+    // CRITICAL: CH_XFER_DATA runs read and write engines CONCURRENTLY
+    //           to prevent deadlock when SRAM buffer < transfer size
     channel_state_t r_current_state, w_next_state;
 
     // State decode wires (for debug/monitoring)
     wire w_state_idle        = (r_current_state == CH_IDLE);
     wire w_state_fetch_desc  = (r_current_state == CH_FETCH_DESC);
-    wire w_state_read_data   = (r_current_state == CH_READ_DATA);
-    wire w_state_write_data  = (r_current_state == CH_WRITE_DATA);
+    wire w_state_xfer_data   = (r_current_state == CH_XFER_DATA);
     wire w_state_complete    = (r_current_state == CH_COMPLETE);
     wire w_state_next_desc   = (r_current_state == CH_NEXT_DESC);
     wire w_state_error       = (r_current_state == CH_ERROR);
@@ -252,8 +264,12 @@ module scheduler #(
     )
 
     // Next state logic
-    // FSM Flow: IDLE → FETCH_DESC → READ_DATA → WRITE_DATA → COMPLETE → (chain?) → IDLE
+    // FSM Flow: IDLE → FETCH_DESC → XFER_DATA → COMPLETE → (chain?) → IDLE
     // Error transitions: Any error condition → CH_ERROR → (cleared?) → CH_IDLE
+    //
+    // CRITICAL CHANGE: CH_XFER_DATA replaces separate CH_READ_DATA and CH_WRITE_DATA states
+    //                  Both read and write engines run CONCURRENTLY to prevent deadlock
+    //                  when SRAM buffer size < total transfer size
     always_comb begin
         w_next_state = r_current_state;  // Default: hold current state
 
@@ -285,30 +301,24 @@ module scheduler #(
                         // Descriptor latched from descriptor_packet in one cycle
                         // Validate descriptor.valid bit before proceeding
                         if (r_descriptor.valid) begin
-                            w_next_state = CH_READ_DATA;  // Valid descriptor → start read phase
+                            w_next_state = CH_XFER_DATA;  // Valid descriptor → start concurrent transfer
                         end else begin
                             w_next_state = CH_ERROR;      // Invalid descriptor → error
                         end
                     end
 
-                    CH_READ_DATA: begin
-                        // Read phase: Transfer data from source address to SRAM
-                        // datard_valid asserted, engine reports progress via datard_done_strobe
-                        // Transition when r_read_beats_remaining reaches 0
-                        if (w_read_complete) begin
-                            w_next_state = CH_WRITE_DATA;
-                        end
-                        // Note: Stays in READ_DATA until complete or error
-                    end
-
-                    CH_WRITE_DATA: begin
-                        // Write phase: Transfer data from SRAM to destination address
-                        // datawr_valid asserted, engine reports progress via datawr_done_strobe
-                        // Transition when r_write_beats_remaining reaches 0
-                        if (w_write_complete) begin
+                    CH_XFER_DATA: begin
+                        // Transfer phase: Read and write engines run CONCURRENTLY
+                        // - Read engine: Transfers source → SRAM
+                        // - Write engine: Transfers SRAM → destination
+                        // - Both report progress via done strobes
+                        // - Natural backpressure via SRAM full/empty flags
+                        //
+                        // Exit when BOTH engines complete (both counters == 0)
+                        if (w_transfer_complete) begin
                             w_next_state = CH_COMPLETE;
                         end
-                        // Note: Stays in WRITE_DATA until complete or error
+                        // Note: Stays in XFER_DATA until both complete or error
                     end
 
                     CH_COMPLETE: begin
@@ -365,11 +375,17 @@ module scheduler #(
     // State-dependent register updates for descriptor fields and transfer tracking
     //
     // Key State Actions:
-    //   CH_IDLE:      Latch incoming descriptor from descriptor_packet
+    //   CH_IDLE/CH_NEXT_DESC: Sample descriptor_packet when descriptor_valid
     //   CH_FETCH_DESC: Initialize working registers from latched descriptor
-    //   CH_READ_DATA:  Decrement read counter on datard_done_strobe
-    //   CH_WRITE_DATA: Decrement write counter on datawr_done_strobe
+    //   CH_XFER_DATA:  Decrement BOTH read and write counters independently (concurrent!)
     //   CH_COMPLETE:   Clear descriptor_loaded flag
+    //
+    // CRITICAL: Descriptor packet sampling happens when descriptor_valid && descriptor_ready
+    //           (in CH_IDLE or CH_NEXT_DESC states). This ensures fresh descriptor data
+    //           is captured for both the first descriptor and all chained descriptors.
+    //
+    // CRITICAL: In CH_XFER_DATA, both counters update independently based on their
+    //           respective done strobes. This allows concurrent read/write operation.
 
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
@@ -381,27 +397,27 @@ module scheduler #(
             r_read_beats_remaining <= 32'h0;
             r_write_beats_remaining <= 32'h0;
         end else begin
+            // Descriptor capture: Sample descriptor_packet when handshake occurs
+            // This happens in either CH_IDLE (first descriptor) or CH_NEXT_DESC (chained)
+            if ((r_current_state == CH_IDLE || r_current_state == CH_NEXT_DESC) &&
+                descriptor_valid && descriptor_ready) begin
+                // Extract fields from 256-bit STREAM descriptor
+                // - Addresses are pre-aligned (must match data width alignment)
+                // - Length is in BEATS (data width units)
+                // - No alignment metadata (STREAM simplification)
+                //
+                r_descriptor.src_addr <= descriptor_packet[DESC_SRC_ADDR_HI:DESC_SRC_ADDR_LO];
+                r_descriptor.dst_addr <= descriptor_packet[DESC_DST_ADDR_HI:DESC_DST_ADDR_LO];
+                r_descriptor.length <= descriptor_packet[DESC_LENGTH_HI:DESC_LENGTH_LO];
+                r_descriptor.next_descriptor_ptr <= descriptor_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO];
+                r_descriptor.valid <= descriptor_packet[DESC_VALID_BIT];
+                r_descriptor.gen_irq <= descriptor_packet[DESC_GEN_IRQ];
+                r_descriptor.last <= descriptor_packet[DESC_LAST];
+
+                r_descriptor_loaded <= 1'b1;
+            end
+
             case (r_current_state)
-                CH_IDLE: begin
-                    // Descriptor capture: Sample descriptor_packet when both valid and ready
-                    if (descriptor_valid && descriptor_ready) begin
-                        // Extract fields from 256-bit STREAM descriptor
-                        // - Addresses are pre-aligned (must match data width alignment)
-                        // - Length is in BEATS (data width units)
-                        // - No alignment metadata (STREAM simplification)
-                        //
-                        r_descriptor.src_addr <= descriptor_packet[DESC_SRC_ADDR_HI:DESC_SRC_ADDR_LO];
-                        r_descriptor.dst_addr <= descriptor_packet[DESC_DST_ADDR_HI:DESC_DST_ADDR_LO];
-                        r_descriptor.length <= descriptor_packet[DESC_LENGTH_HI:DESC_LENGTH_LO];
-                        r_descriptor.next_descriptor_ptr <= descriptor_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO];
-                        r_descriptor.valid <= descriptor_packet[DESC_VALID_BIT];
-                        r_descriptor.gen_irq <= descriptor_packet[DESC_GEN_IRQ];
-                        r_descriptor.last <= descriptor_packet[DESC_LAST];
-
-                        r_descriptor_loaded <= 1'b1;
-                    end
-                end
-
                 CH_FETCH_DESC: begin
                     // Transfer initialization: Copy descriptor fields to working registers
                     // These working registers will be updated as transfer progresses
@@ -412,25 +428,31 @@ module scheduler #(
                     r_write_beats_remaining <= r_descriptor.length;
                 end
 
-                CH_READ_DATA: begin
-                    // Read progress tracking: Engine reports beats completed via strobe
-                    // Engine may complete multiple beats per burst (burst length decided by engine)
+                CH_XFER_DATA: begin
+                    // Concurrent transfer progress tracking:
+                    // - Read engine and write engine operate INDEPENDENTLY
+                    // - Each decrements its own counter when reporting completion
+                    // - Both strobes can be active simultaneously
+                    // - Natural backpressure via SRAM full (read) and empty (write)
+                    //
+                    // Read progress: Source → SRAM
                     if (datard_done_strobe) begin
                         // Decrement by number of beats engine completed
                         // Saturate at 0 (safety check, shouldn't underflow)
                         r_read_beats_remaining <= (r_read_beats_remaining >= datard_beats_done) ?
                                                 (r_read_beats_remaining - datard_beats_done) : 32'h0;
+                        // NOTE: Address increment handled by axi_read_engine internally
+                        //       via r_beats_issued offset. Scheduler provides static base address.
                     end
-                end
 
-                CH_WRITE_DATA: begin
-                    // Write progress tracking: Engine reports beats completed via strobe
-                    // Engine may complete multiple beats per burst (burst length decided by engine)
+                    // Write progress: SRAM → Destination (independent from read!)
                     if (datawr_done_strobe) begin
                         // Decrement by number of beats engine completed
                         // Saturate at 0 (safety check, shouldn't underflow)
                         r_write_beats_remaining <= (r_write_beats_remaining >= datawr_beats_done) ?
                                                 (r_write_beats_remaining - datawr_beats_done) : 32'h0;
+                        // NOTE: Address increment handled by axi_write_engine internally
+                        //       via r_beats_issued offset. Scheduler provides static base address.
                     end
                 end
 
@@ -497,8 +519,11 @@ module scheduler #(
     // Scheduler tells engine: "I need this many beats from this address"
     // Engine decides: "I'll do X beats per burst based on my config/design"
     // Engine reports back: "I moved X beats" via datard_done_strobe
+    //
+    // CONCURRENT OPERATION: datard_valid asserted in CH_XFER_DATA (not CH_READ_DATA)
+    //                       Runs simultaneously with write engine
 
-    assign datard_valid = (r_current_state == CH_READ_DATA) &&
+    assign datard_valid = (r_current_state == CH_XFER_DATA) &&
                         !w_read_complete &&
                         !w_datard_completing_this_cycle;
     assign datard_addr = r_src_addr;
@@ -511,8 +536,11 @@ module scheduler #(
     // Scheduler tells engine: "I need this many beats written to this address"
     // Engine decides: "I'll do X beats per burst based on my config/design"
     // Engine reports back: "I moved X beats" via datawr_done_strobe
+    //
+    // CONCURRENT OPERATION: datawr_valid asserted in CH_XFER_DATA (not CH_WRITE_DATA)
+    //                       Runs simultaneously with read engine
 
-    assign datawr_valid = (r_current_state == CH_WRITE_DATA) &&
+    assign datawr_valid = (r_current_state == CH_XFER_DATA) &&
                         !w_write_complete &&
                         !w_datawr_completing_this_cycle;
     assign datawr_addr = r_dst_addr;
@@ -635,43 +663,18 @@ module scheduler #(
                     );
                 end
 
-                CH_READ_DATA: begin
-                    // Event: Read phase complete (generate only when complete)
-                    // Payload: Total beats transferred
-                    if (w_read_complete) begin
-                        r_mon_valid <= 1'b1;
-                        r_mon_packet <= create_monitor_packet(
-                            PktTypeCompletion,
-                            PROTOCOL_CORE,
-                            STREAM_EVENT_READ_COMPLETE,
-                            MON_CHANNEL_ID,
-                            MON_UNIT_ID,
-                            MON_AGENT_ID,
-                            {3'h0, r_descriptor.length}  // Payload: 32-bit length
-                        );
-                    end
-                end
-
-                CH_WRITE_DATA: begin
-                    // Event: Write phase complete (generate only when complete)
-                    // Payload: Total beats transferred
-                    if (w_write_complete) begin
-                        r_mon_valid <= 1'b1;
-                        r_mon_packet <= create_monitor_packet(
-                            PktTypeCompletion,
-                            PROTOCOL_CORE,
-                            STREAM_EVENT_WRITE_COMPLETE,
-                            MON_CHANNEL_ID,
-                            MON_UNIT_ID,
-                            MON_AGENT_ID,
-                            {3'h0, r_descriptor.length}  // Payload: 32-bit length
-                        );
-                    end
+                CH_XFER_DATA: begin
+                    // No intermediate events during concurrent transfer
+                    // Read and write happen simultaneously, only final completion matters
+                    // This keeps MonBus traffic low and focuses on meaningful events
                 end
 
                 CH_COMPLETE: begin
                     // Event: Descriptor complete (ready for next descriptor or idle)
                     // Generate IRQ event if gen_irq flag set, otherwise completion event
+                    //
+                    // Note: With concurrent transfer, we only generate completion event
+                    //       when BOTH read and write are done (cleaner semantics)
                     r_mon_valid <= 1'b1;
                     if (r_descriptor.gen_irq) begin
                         // IRQ event: Descriptor completed with interrupt request
@@ -746,12 +749,13 @@ module scheduler #(
     endproperty
     assert property (descriptor_valid_check);
 
-    // Read before write ordering
-    property read_before_write;
+    // Concurrent transfer completion: Exit CH_XFER_DATA only when BOTH complete
+    property concurrent_transfer_complete;
         @(posedge clk) disable iff (!rst_n)
-        (r_current_state == CH_WRITE_DATA) |-> w_read_complete;
+        (r_current_state == CH_XFER_DATA && w_next_state == CH_COMPLETE) |->
+            (w_read_complete && w_write_complete);
     endproperty
-    assert property (read_before_write);
+    assert property (concurrent_transfer_complete);
 
     // Aligned address requirement
     property address_aligned;

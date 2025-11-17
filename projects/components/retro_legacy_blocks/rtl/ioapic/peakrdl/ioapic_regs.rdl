@@ -1,0 +1,307 @@
+/**
+ * SystemRDL Definition for IOAPIC (I/O Advanced Programmable Interrupt Controller) Registers
+ *
+ * This specification defines the register interface for the I/O APIC, providing
+ * advanced interrupt routing and distribution capabilities beyond the legacy 8259 PIC.
+ *
+ * Key Features:
+ * - 24 interrupt input pins (IRQ0-IRQ23)
+ * - Redirection table with per-IRQ configuration
+ * - Edge and level triggered interrupt support
+ * - Active high/low polarity selection
+ * - Interrupt masking per input
+ * - Destination routing (CPU selection)
+ * - Priority-based arbitration
+ * - Delivery mode support (Fixed, LowestPriority, SMI, NMI, INIT, ExtINT)
+ * - Remote IRR for level-triggered interrupts
+ * - APB register interface (indirect addressing via IOREGSEL/IOWIN)
+ *
+ * IOAPIC Register Access Method:
+ * The IOAPIC uses an indirect register access method:
+ * 1. Write register offset to IOREGSEL (0x00)
+ * 2. Read/write register data via IOWIN (0x04)
+ *
+ * This matches the Intel IOAPIC specification for register access.
+ *
+ * Address Layout:
+ *   0x00: IOREGSEL      - Register select (indirect access)
+ *   0x04: IOWIN         - Register window (data access)
+ *   0x08-0x0F: Reserved
+ *
+ * Internal Register Space (accessed via IOREGSEL/IOWIN):
+ *   0x00: IOAPICID      - IOAPIC ID
+ *   0x01: IOAPICVER     - IOAPIC version and capabilities
+ *   0x02: IOAPICARB     - IOAPIC arbitration ID
+ *   0x10-0x3F: IOREDTBL - Redirection table entries (24 entries × 2 registers)
+ *     0x10: IOREDTBL0_LO   - IRQ0 redirection entry low
+ *     0x11: IOREDTBL0_HI   - IRQ0 redirection entry high
+ *     0x12: IOREDTBL1_LO   - IRQ1 redirection entry low
+ *     0x13: IOREDTBL1_HI   - IRQ1 redirection entry high
+ *     ... (continues for all 24 IRQs)
+ *
+ * Redirection Table Entry Format (64 bits per IRQ):
+ *   Low 32 bits (0x10, 0x12, 0x14, ...):
+ *     [7:0]   - Vector: interrupt vector to deliver
+ *     [10:8]  - Delivery Mode: Fixed, LowestPri, SMI, NMI, INIT, ExtINT
+ *     [11]    - Destination Mode: 0=Physical, 1=Logical
+ *     [12]    - Delivery Status: 0=Idle, 1=Pending (read-only)
+ *     [13]    - Polarity: 0=Active High, 1=Active Low
+ *     [14]    - Remote IRR: level-triggered interrupt state (read-only)
+ *     [15]    - Trigger Mode: 0=Edge, 1=Level
+ *     [16]    - Mask: 0=Not Masked, 1=Masked
+ *     [31:17] - Reserved
+ *
+ *   High 32 bits (0x11, 0x13, 0x15, ...):
+ *     [31:24] - Destination: CPU select (physical or logical)
+ *     [23:0]  - Reserved
+ */
+
+addrmap ioapic_regs {
+    name = "IOAPIC I/O Advanced Programmable Interrupt Controller Registers";
+    desc = "Advanced interrupt routing with 24 IRQ inputs and programmable redirection";
+
+    // Default properties for all registers
+    default regwidth = 32;
+    default accesswidth = 32;
+    default addressing = compact;
+
+    //========================================================================
+    // Direct APB Access Registers
+    //========================================================================
+
+    reg {
+        name = "IOAPIC Register Select";
+        desc = "Indirect register access: write offset here, then access via IOWIN";
+
+        field {
+            name = "Register Offset";
+            desc = "Internal register offset for indirect access (0x00-0x3F)";
+            sw = rw;
+            hw = r;
+        } regsel[7:0] = 8'h00;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:8] = 24'h0;
+
+    } IOREGSEL @ 0x00;
+
+    reg {
+        name = "IOAPIC Register Window";
+        desc = "Data window for accessing internal registers selected by IOREGSEL";
+
+        field {
+            name = "Register Data";
+            desc = "Read/write data for register selected by IOREGSEL";
+            sw = rw;
+            hw = rw;
+        } data[31:0] = 32'h00000000;
+
+    } IOWIN @ 0x04;
+
+    //========================================================================
+    // Internal Registers (accessed via IOREGSEL/IOWIN indirect method)
+    // These are defined for PeakRDL generation but accessed indirectly
+    //========================================================================
+
+    // Note: The following registers are not directly accessible via APB.
+    // They are accessed through the IOREGSEL/IOWIN mechanism.
+    // PeakRDL will generate these for internal use.
+
+    reg {
+        name = "IOAPIC ID Register";
+        desc = "IOAPIC identification (accessed at offset 0x00 via IOWIN)";
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved_lo[23:0] = 24'h0;
+
+        field {
+            name = "IOAPIC ID";
+            desc = "4-bit IOAPIC identifier for multi-IOAPIC systems";
+            sw = rw;
+            hw = r;
+        } apic_id[27:24] = 4'h0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved_hi[31:28] = 4'h0;
+
+    } IOAPICID @ 0x08;  // Internal offset 0x00, accessed indirectly
+
+    reg {
+        name = "IOAPIC Version Register";
+        desc = "Version and maximum redirection entries (accessed at offset 0x01 via IOWIN)";
+
+        field {
+            name = "Version";
+            desc = "IOAPIC version (0x11 for 82093AA compatibility)";
+            sw = r;
+            hw = na;
+        } version[7:0] = 8'h11;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[15:8] = 8'h0;
+
+        field {
+            name = "Maximum Redirection Entry";
+            desc = "Number of IRQs - 1 (23 for 24 IRQs)";
+            sw = r;
+            hw = na;
+        } max_redir[23:16] = 8'h17;  // 0x17 = 23 (24 entries: 0-23)
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved_hi[31:24] = 8'h0;
+
+    } IOAPICVER @ 0x0C;  // Internal offset 0x01, accessed indirectly
+
+    reg {
+        name = "IOAPIC Arbitration ID Register";
+        desc = "Arbitration priority (accessed at offset 0x02 via IOWIN)";
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved_lo[23:0] = 24'h0;
+
+        field {
+            name = "Arbitration ID";
+            desc = "Bus arbitration priority (typically same as APIC ID)";
+            sw = r;
+            hw = w;
+        } arb_id[27:24];
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved_hi[31:28] = 4'h0;
+
+    } IOAPICARB @ 0x10;  // Internal offset 0x02, accessed indirectly
+
+    //========================================================================
+    // Redirection Table Entries (24 IRQs, 2 registers each)
+    // Starting at internal offset 0x10
+    // Each IRQ has 64-bit entry: LO (bits 31:0) and HI (bits 63:32)
+    //========================================================================
+
+    regfile redirection_entry {
+        name = "IOAPIC Redirection Table Entry";
+        desc = "64-bit redirection entry for one IRQ";
+
+        reg {
+            name = "Redirection Entry Low";
+            desc = "Lower 32 bits of redirection entry";
+
+            field {
+                name = "Vector";
+                desc = "Interrupt vector to deliver to CPU (0x00-0xFF)";
+                sw = rw;
+                hw = r;
+            } vector[7:0] = 8'h00;
+
+            field {
+                name = "Delivery Mode";
+                desc = "000=Fixed, 001=LowestPri, 010=SMI, 100=NMI, 101=INIT, 111=ExtINT";
+                sw = rw;
+                hw = r;
+            } deliv_mode[10:8] = 3'h0;
+
+            field {
+                name = "Destination Mode";
+                desc = "0=Physical (use APIC ID), 1=Logical (use logical destination)";
+                sw = rw;
+                hw = r;
+            } dest_mode[11:11] = 1'b0;
+
+            field {
+                name = "Delivery Status";
+                desc = "0=Idle, 1=Send Pending (read-only)";
+                sw = r;
+                hw = w;
+            } deliv_status[12:12];
+
+            field {
+                name = "Interrupt Polarity";
+                desc = "0=Active High, 1=Active Low";
+                sw = rw;
+                hw = r;
+            } polarity[13:13] = 1'b0;
+
+            field {
+                name = "Remote IRR";
+                desc = "Level-triggered: 0=No interrupt, 1=Interrupt accepted (read-only)";
+                sw = r;
+                hw = w;
+            } remote_irr[14:14];
+
+            field {
+                name = "Trigger Mode";
+                desc = "0=Edge, 1=Level";
+                sw = rw;
+                hw = r;
+            } trigger_mode[15:15] = 1'b0;
+
+            field {
+                name = "Mask";
+                desc = "0=Not Masked (enabled), 1=Masked (disabled)";
+                sw = rw;
+                hw = r;
+            } mask[16:16] = 1'b1;  // Default masked
+
+            field {
+                name = "Reserved";
+                desc = "Reserved bits";
+                sw = r;
+                hw = na;
+            } reserved[31:17] = 15'h0;
+
+        } REDIR_LO @ 0x00;
+
+        reg {
+            name = "Redirection Entry High";
+            desc = "Upper 32 bits of redirection entry";
+
+            field {
+                name = "Reserved";
+                desc = "Reserved bits";
+                sw = r;
+                hw = na;
+            } reserved[23:0] = 24'h0;
+
+            field {
+                name = "Destination";
+                desc = "Target CPU: Physical APIC ID or Logical destination";
+                sw = rw;
+                hw = r;
+            } destination[31:24] = 8'h00;
+
+        } REDIR_HI @ 0x04;
+
+    } IOREDTBL[24] @ 0x14;  // 24 entries starting at 0x14 (internal offset 0x10)
+    // Each entry takes 8 bytes (2 × 32-bit registers)
+    // Entry 0: 0x14-0x18 (internal 0x10-0x11)
+    // Entry 1: 0x1C-0x20 (internal 0x12-0x13)
+    // ... continues through entry 23
+
+};

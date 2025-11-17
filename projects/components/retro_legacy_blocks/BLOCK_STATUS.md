@@ -1,6 +1,6 @@
 # Retro Legacy Blocks - Development Status
 
-**Last Updated:** 2025-10-29
+**Last Updated:** 2025-11-16
 
 ---
 
@@ -9,12 +9,12 @@
 | Block | Module Name | Priority | Status | RTL | Tests | Docs | Address |
 |-------|-------------|----------|--------|-----|-------|------|---------|
 | HPET | `apb_hpet` | High | ✅ Complete | ✅ | ✅ 5/6 100% | ✅ | 0x4000_0000-0x0FFF |
-| 8259 PIC | `apb_pic_8259` | High | 📋 Planned | ❌ | ❌ | ❌ | 0x4000_1000-0x1FFF |
-| 8254 PIT | `apb_pit_8254` | High | 📋 Planned | ❌ | ❌ | ❌ | 0x4000_2000-0x2FFF |
-| RTC | `apb_rtc` | Medium | 📋 Planned | ❌ | ❌ | ❌ | 0x4000_3000-0x3FFF |
-| SMBus | `apb_smbus` | Medium | 📋 Planned | ❌ | ❌ | ❌ | 0x4000_4000-0x4FFF |
-| PM/ACPI | `apb_pm_acpi` | Medium | 📋 Planned | ❌ | ❌ | ❌ | 0x4000_5000-0x5FFF |
-| IOAPIC | `apb_ioapic` | Medium | 📋 Planned | ❌ | ❌ | ❌ | 0x4000_6000-0x6FFF |
+| 8259 PIC | `apb_pic_8259` | High | 🔧 In Progress | 🔧 | 🔧 3/6 50% | ❌ | 0x4000_1000-0x1FFF |
+| 8254 PIT | `apb_pit_8254` | High | ✅ Complete | ✅ | ✅ 6/6 100% | ✅ | 0x4000_2000-0x2FFF |
+| RTC | `apb_rtc` | Medium | ✅ Complete | ✅ | ✅ 6/6 100% | ✅ | 0x4000_3000-0x3FFF |
+| SMBus | `apb_smbus` | Medium | 🔧 RTL Done | ✅ | ❌ | ❌ | 0x4000_4000-0x4FFF |
+| PM/ACPI | `apb_pm_acpi` | Medium | 🔧 RTL Done | ✅ | ❌ | ❌ | 0x4000_5000-0x5FFF |
+| IOAPIC | `apb_ioapic` | Medium | 🔧 In Progress | 🔧 | 🔧 3/6 50% | ❌ | 0x4000_6000-0x6FFF |
 | GPIO | `apb_gpio` | Medium | 📋 Future | ❌ | ❌ | ❌ | TBD |
 | UART | `apb_uart` | Medium | 📋 Future | ❌ | ❌ | ❌ | TBD |
 | SPI | `apb_spi` | Low | 📋 Future | ❌ | ❌ | ❌ | TBD |

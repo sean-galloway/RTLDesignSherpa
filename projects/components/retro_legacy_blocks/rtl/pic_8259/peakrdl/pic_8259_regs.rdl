@@ -1,0 +1,400 @@
+/**
+ * SystemRDL Definition for 8259 PIC Configuration Registers
+ *
+ * This specification defines the register interface for the APB 8259 PIC,
+ * providing a clean APB-based interface to the classic Intel 8259A
+ * Programmable Interrupt Controller functionality.
+ *
+ * Key differences from original 8259A I/O address space:
+ * - APB register interface (32-bit aligned) vs cramped I/O ports
+ * - Clean separate registers for ICW+OCW vs address-based selection
+ * - Explicit IRR/ISR/IMR read registers vs read command complexities
+ * - Full 32-bit addressing vs A0 pin-based register select
+ *
+ * 8259A Register Overview:
+ * - ICW1-4: Initialization Command Words (written during init sequence)
+ * - OCW1-3: Operation Command Words (written during normal operation)
+ * - IRR: Interrupt Request Register (shows pending interrupts)
+ * - ISR: In-Service Register (shows interrupts being serviced)
+ * - IMR: Interrupt Mask Register (OCW1 - masks individual IRQs)
+ *
+ * Address Layout:
+ *   0x000: PIC_CONFIG      - Global configuration and control
+ *   0x004: PIC_ICW1        - Initialization Command Word 1
+ *   0x008: PIC_ICW2        - Initialization Command Word 2
+ *   0x00C: PIC_ICW3        - Initialization Command Word 3
+ *   0x010: PIC_ICW4        - Initialization Command Word 4
+ *   0x014: PIC_OCW1        - Operation Command Word 1 (IMR)
+ *   0x018: PIC_OCW2        - Operation Command Word 2 (EOI, priority)
+ *   0x01C: PIC_OCW3        - Operation Command Word 3 (special modes)
+ *   0x020: PIC_IRR         - Interrupt Request Register (read-only)
+ *   0x024: PIC_ISR         - In-Service Register (read-only)
+ *   0x028: PIC_STATUS      - Status register (initialization state)
+ *   0x02C-0xFFF: Reserved for future expansion
+ */
+
+addrmap pic_8259_regs {
+    name = "PIC 8259 Configuration Registers";
+    desc = "Programmable Interrupt Controller register file with 8 IRQ inputs";
+
+    // Default properties for all registers
+    default regwidth = 32;
+    default accesswidth = 32;
+    default addressing = compact;
+
+    //========================================================================
+    // Global Configuration Register (0x000)
+    //========================================================================
+
+    reg {
+        name = "PIC Configuration Register";
+        desc = "Global PIC configuration and control";
+
+        field {
+            name = "PIC Enable";
+            desc = "Master enable for PIC (0=disabled, 1=enabled)";
+            sw = rw;
+            hw = r;
+        } pic_enable[0:0] = 1'b0;
+
+        field {
+            name = "Init Mode";
+            desc = "Initialization mode (0=operational, 1=initialization sequence)";
+            sw = rw;
+            hw = rw;
+        } init_mode[1:1] = 1'b0;
+
+        field {
+            name = "Auto Reset Init";
+            desc = "Automatically clear init_mode after ICW4 written";
+            sw = rw;
+            hw = r;
+        } auto_reset_init[2:2] = 1'b1;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:3] = 29'h0;
+
+    } PIC_CONFIG @ 0x000;
+
+    //========================================================================
+    // Initialization Command Words (ICW1-4)
+    //========================================================================
+
+    reg {
+        name = "Initialization Command Word 1";
+        desc = "ICW1 - Initialization control (edge/level, cascade, ICW4 needed)";
+
+        field {
+            name = "ICW4 Needed";
+            desc = "1=ICW4 needed, 0=ICW4 not needed";
+            sw = w;
+            hw = r;
+        } ic4[0:0] = 1'b0;
+
+        field {
+            name = "Single Mode";
+            desc = "1=single PIC mode, 0=cascade mode";
+            sw = w;
+            hw = r;
+        } sngl[1:1] = 1'b0;
+
+        field {
+            name = "Call Address Interval";
+            desc = "Call address interval (8085 mode): 1=interval of 4, 0=interval of 8";
+            sw = w;
+            hw = r;
+        } adi[2:2] = 1'b0;
+
+        field {
+            name = "Level Triggered Mode";
+            desc = "1=level triggered mode, 0=edge triggered mode";
+            sw = w;
+            hw = r;
+        } ltim[3:3] = 1'b0;
+
+        field {
+            name = "ICW1 Marker";
+            desc = "Always 1 to identify ICW1 (8259A compatibility)";
+            sw = w;
+            hw = r;
+        } icw1_marker[4:4] = 1'b1;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:5] = 27'h0;
+
+    } PIC_ICW1 @ 0x004;
+
+    reg {
+        name = "Initialization Command Word 2";
+        desc = "ICW2 - Interrupt vector base address (upper 5 bits for 8086 mode)";
+
+        field {
+            name = "Vector Base";
+            desc = "Interrupt vector base address (bits [7:3] of interrupt vector)";
+            sw = w;
+            hw = r;
+        } vector_base[7:0] = 8'h00;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:8] = 24'h0;
+
+    } PIC_ICW2 @ 0x008;
+
+    reg {
+        name = "Initialization Command Word 3";
+        desc = "ICW3 - Cascade configuration (master/slave identification)";
+
+        field {
+            name = "Cascade Bits";
+            desc = "Master: bitmap of cascade IRQ inputs. Slave: slave ID (cascade input number 0-7)";
+            sw = w;
+            hw = r;
+        } cascade[7:0] = 8'h00;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:8] = 24'h0;
+
+    } PIC_ICW3 @ 0x00C;
+
+    reg {
+        name = "Initialization Command Word 4";
+        desc = "ICW4 - Special operating modes";
+
+        field {
+            name = "8086/8088 Mode";
+            desc = "1=8086/8088 mode, 0=8080/8085 mode";
+            sw = w;
+            hw = r;
+        } upm[0:0] = 1'b1;
+
+        field {
+            name = "Auto EOI";
+            desc = "1=automatic EOI mode, 0=normal EOI mode";
+            sw = w;
+            hw = r;
+        } aeoi[1:1] = 1'b0;
+
+        field {
+            name = "Buffered Mode Select";
+            desc = "Buffered mode: 00=non-buffered, 01=reserved, 10=buffered slave, 11=buffered master";
+            sw = w;
+            hw = r;
+        } buf_mode[3:2] = 2'b00;
+
+        field {
+            name = "Special Fully Nested Mode";
+            desc = "1=special fully nested mode, 0=not special fully nested";
+            sw = w;
+            hw = r;
+        } sfnm[4:4] = 1'b0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:5] = 27'h0;
+
+    } PIC_ICW4 @ 0x010;
+
+    //========================================================================
+    // Operation Command Words (OCW1-3)
+    //========================================================================
+
+    reg {
+        name = "Operation Command Word 1";
+        desc = "OCW1 - Interrupt Mask Register (IMR): 1=masked, 0=enabled";
+
+        field {
+            name = "Interrupt Mask";
+            desc = "Mask bits for IRQ0-7: 1=masked (disabled), 0=unmasked (enabled)";
+            sw = rw;
+            hw = rw;
+        } imr[7:0] = 8'hFF;  // Default: all masked
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:8] = 24'h0;
+
+    } PIC_OCW1 @ 0x014;
+
+    reg {
+        name = "Operation Command Word 2";
+        desc = "OCW2 - EOI commands and priority rotation";
+
+        field {
+            name = "IRQ Level";
+            desc = "IRQ level select for specific EOI or priority set (0-7)";
+            sw = w;
+            hw = r;
+        } irq_level[2:0] = 3'h0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bit";
+            sw = r;
+            hw = na;
+        } reserved_low[4:3] = 2'b00;
+
+        field {
+            name = "EOI Command";
+            desc = "EOI/rotation command: 000=rotate auto EOI clear, 001=non-specific EOI, 010=reserved, 011=specific EOI, 100=rotate auto EOI set, 101=rotate on non-specific EOI, 110=set priority, 111=rotate on specific EOI";
+            sw = w;
+            hw = r;
+        } eoi_cmd[7:5] = 3'h0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved_high[31:8] = 24'h0;
+
+    } PIC_OCW2 @ 0x018;
+
+    reg {
+        name = "Operation Command Word 3";
+        desc = "OCW3 - Read register command and special modes";
+
+        field {
+            name = "Read Register Command";
+            desc = "Read register select: 00=no action, 01=reserved, 10=read IRR, 11=read ISR";
+            sw = w;
+            hw = r;
+        } read_reg_cmd[1:0] = 2'b00;
+
+        field {
+            name = "Poll Command";
+            desc = "1=poll command, 0=no poll command";
+            sw = w;
+            hw = r;
+        } poll_cmd[2:2] = 1'b0;
+
+        field {
+            name = "OCW3 Marker";
+            desc = "Always 01 to identify OCW3 (bits [4:3])";
+            sw = w;
+            hw = r;
+        } ocw3_marker[4:3] = 2'b01;
+
+        field {
+            name = "Special Mask Mode";
+            desc = "Special mask mode control: 00=no action, 01=reserved, 10=reset special mask, 11=set special mask";
+            sw = w;
+            hw = r;
+        } smm_cmd[6:5] = 2'b00;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:7] = 25'h0;
+
+    } PIC_OCW3 @ 0x01C;
+
+    //========================================================================
+    // Status/Readback Registers
+    //========================================================================
+
+    reg {
+        name = "Interrupt Request Register";
+        desc = "IRR - Shows pending interrupt requests (before masking)";
+
+        field {
+            name = "IRQ Request Bits";
+            desc = "Interrupt request bits for IRQ0-7: 1=request pending, 0=no request";
+            sw = r;
+            hw = w;
+        } irr[7:0];
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:8] = 24'h0;
+
+    } PIC_IRR @ 0x020;
+
+    reg {
+        name = "In-Service Register";
+        desc = "ISR - Shows interrupts currently being serviced";
+
+        field {
+            name = "In-Service Bits";
+            desc = "In-service bits for IRQ0-7: 1=interrupt in service, 0=not in service";
+            sw = r;
+            hw = w;
+        } isr[7:0];
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:8] = 24'h0;
+
+    } PIC_ISR @ 0x024;
+
+    reg {
+        name = "PIC Status Register";
+        desc = "Status and diagnostic information";
+
+        field {
+            name = "Initialization Complete";
+            desc = "1=initialization complete, 0=in initialization sequence";
+            sw = r;
+            hw = w;
+        } init_complete[0:0];
+
+        field {
+            name = "ICW Step";
+            desc = "Current ICW step during initialization (0-4, 0=not initialized, 4=complete)";
+            sw = r;
+            hw = w;
+        } icw_step[3:1];
+
+        field {
+            name = "Interrupt Output";
+            desc = "Current state of INT output pin";
+            sw = r;
+            hw = w;
+        } int_output[4:4];
+
+        field {
+            name = "Highest Priority IRQ";
+            desc = "Currently highest priority IRQ (0-7)";
+            sw = r;
+            hw = w;
+        } highest_priority[7:5];
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:8] = 24'h0;
+
+    } PIC_STATUS @ 0x028;
+
+};

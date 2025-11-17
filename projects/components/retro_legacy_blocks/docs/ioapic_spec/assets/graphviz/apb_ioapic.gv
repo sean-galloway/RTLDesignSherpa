@@ -1,0 +1,81 @@
+// APB IOAPIC Top-Level Block Diagram
+// Graphviz DOT format
+// Generate: dot -Tpng apb_ioapic.gv -o apb_ioapic.png
+// Generate SVG: dot -Tsvg apb_ioapic.gv -o ../svg/apb_ioapic.svg
+
+digraph apb_ioapic {
+    rankdir=TB;
+    bgcolor="white";
+    fontname="Arial";
+    compound=true;
+    
+    // External interfaces
+    node [shape=plaintext];
+    apb_bus [label="APB4 Bus\n(CPU/Interconnect)"];
+    irq_sources [label="IRQ Sources\n[23:0]"];
+    cpu_lapic [label="CPU/LAPIC"];
+    
+    // Main module
+    subgraph cluster_apb_ioapic {
+        label="apb_ioapic";
+        style=filled;
+        fillcolor="aliceblue";
+        fontsize=14;
+        fontname="Arial Bold";
+        
+        // APB Slave (conditional)
+        subgraph cluster_apb_slave {
+            label="apb_slave[_cdc]\n(CDC_ENABLE selects)";
+            style=filled;
+            fillcolor="lightblue";
+            
+            node [shape=box, style="rounded,filled", fillcolor="lightyellow"];
+            apb_if [label="APB Protocol\nHandler"];
+        }
+        
+        // Config Registers
+        subgraph cluster_config {
+            label="ioapic_config_regs";
+            style=filled;
+            fillcolor="lightgreen";
+            
+            node [shape=box, style="rounded,filled", fillcolor="lightyellow"];
+            adapter [label="peakrdl_to_cmdrsp\nAdapter"];
+            regs [label="ioapic_regs\n(PeakRDL Generated)\n\nIOREGSEL/IOWIN\nIOAPICID/VER/ARB\nIOREDTBL[24]"];
+            hwif_map [label="hwif Signal\nMapping"];
+            
+            adapter -> regs [label="Passthrough"];
+            regs -> hwif_map [label="hwif_out"];
+            hwif_map -> regs [label="hwif_in"];
+        }
+        
+        // Core Logic
+        subgraph cluster_core {
+            label="ioapic_core";
+            style=filled;
+            fillcolor="lightcoral";
+            
+            node [shape=box, style="rounded,filled", fillcolor="lightyellow"];
+            sync [label="IRQ Input\nSync (3-stage)"];
+            polarity [label="Polarity\nHandling"];
+            detect [label="Edge/Level\nDetection"];
+            arb [label="Priority\nArbitration"];
+            fsm [label="Delivery\nFSM"];
+            remote_irr [label="Remote IRR\nManagement"];
+            
+            sync -> polarity -> detect -> arb -> fsm;
+            fsm -> remote_irr [dir=both];
+        }
+        
+        // Internal connections
+        apb_if -> adapter [label="CMD/RSP"];
+        hwif_map -> sync [label="cfg_*"];
+        fsm -> hwif_map [label="status_*"];
+    }
+    
+    // External connections
+    apb_bus -> apb_if [label="APB4\nSignals", lhead=cluster_apb_ioapic];
+    irq_sources -> sync [label="irq_in[23:0]"];
+    fsm -> cpu_lapic [label="irq_out_valid\nirq_out_vector\nirq_out_dest"];
+    cpu_lapic -> remote_irr [label="eoi_in\neoi_vector", style=dashed];
+}

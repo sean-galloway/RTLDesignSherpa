@@ -22,29 +22,47 @@ The Stream Latency Bridge provides a simple, efficient interface between a regis
 
 ### 1.2 Block Diagram
 
+![Block Diagram](../images/06_stream_latency_bridge_L030.png)
+
+<!--
+Original Mermaid diagram (for editing):
+
+```mermaid
+graph TB
+    subgraph RegisteredFIFO["Registered FIFO Output"]
+        A1[s_valid]
+        A2[s_ready]
+        A3[s_data]
+    end
+
+    subgraph Bridge["Stream Latency Bridge"]
+        subgraph Glue["Glue Logic (1 flop)"]
+            B1[Tracks drain<br/>in progress]
+        end
+
+        subgraph Skid["Skid Buffer"]
+            C1[gaxi_fifo_sync<br/>DEPTH=4]
+        end
+
+        D1[occupancy 2:0]
+    end
+
+    subgraph Consumer["Consumer"]
+        E1[m_valid]
+        E2[m_ready]
+        E3[m_data]
+    end
+
+    A1 --> Glue
+    A2 -.-> Glue
+    A3 --> Glue
+    Glue --> Skid
+    Skid --> D1
+    Skid --> E1
+    E2 --> Skid
+    Skid --> E3
 ```
-                     ┌──────────────────────────────────────────┐
-   Registered        │       Stream Latency Bridge              │        Consumer
-   FIFO Output       │                                          │
-                     │  ┌─────────────────┐                    │
-   s_valid  ────────>│  │  Glue Logic     │                    │
-   s_ready  <────────│  │  (1 flop)       │                    │
-   s_data   ────────>│  │                 │                    │
-                     │  │  Tracks drain   │                    │
-                     │  │  in progress    │                    │
-                     │  └────────┬────────┘                    │
-                     │           │                              │
-                     │           ↓                              │
-                     │  ┌──────────────────┐                   │
-                     │  │  Skid Buffer     │                   │──> m_valid
-                     │  │  (gaxi_fifo_sync)│                   │<── m_ready
-                     │  │  DEPTH=4         │                   │──> m_data
-                     │  └──────────────────┘                   │
-                     │           │                              │
-                     │           ↓                              │
-                     │     occupancy[2:0]  ──────────────────> │
-                     └──────────────────────────────────────────┘
-```
+-->
 
 ---
 

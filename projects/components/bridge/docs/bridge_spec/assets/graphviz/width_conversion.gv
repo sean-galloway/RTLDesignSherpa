@@ -1,0 +1,95 @@
+// Bridge Width Conversion Architecture
+// Purpose: Show data width upsizing and downsizing logic
+
+digraph width_conversion {
+    rankdir=LR;
+    node [shape=box, style="rounded,filled", fillcolor=lightblue];
+    edge [fontsize=10];
+
+    // Title
+    label="Width Conversion Architecture\nData Width Upsizing and Downsizing";
+    labelloc="t";
+    fontsize=14;
+
+    // Narrow Interface
+    subgraph cluster_narrow {
+        label="Narrow Interface (32-bit example)";
+        style=filled;
+        fillcolor=lightgreen;
+        
+        narrow_aw [label="AW\n32-bit addr\nARSIZE=2 (4B)\nARLEN=3 (4 beats)", fillcolor=palegreen];
+        narrow_w [label="W\n32-bit data\nWSTRB[3:0]\n4 beats", fillcolor=palegreen];
+        narrow_r [label="R\n32-bit data\nRDATA[31:0]\n4 beats", fillcolor=lightgreen];
+    }
+
+    // Upsizing Converter (Narrow → Wide)
+    subgraph cluster_upsize {
+        label="Upsizing Converter (32→64 bits)";
+        style=filled;
+        fillcolor=lightyellow;
+
+        up_addr [label="Address\nAdjustment\n\nARSIZE: 2→3\nARLEN: 3→1\n(4→2 beats)", fillcolor=lightcyan];
+        up_pack [label="Data\nPacking\n\nCollect 2×32b\n→ 1×64b\n\nStrobe merge", fillcolor=lightsteelblue];
+        up_unpack [label="Data\nUnpacking\n\n1×64b\n→ 2×32b\n\nBeat split", fillcolor=khaki];
+    }
+
+    // Downsizing Converter (Wide → Narrow)
+    subgraph cluster_downsize {
+        label="Downsizing Converter (64→32 bits)";
+        style=filled;
+        fillcolor=wheat;
+
+        down_addr [label="Address\nAdjustment\n\nARSIZE: 3→2\nARLEN: 1→3\n(2→4 beats)", fillcolor=lightcyan];
+        down_split [label="Data\nSplitting\n\n1×64b\n→ 2×32b\n\nBeat expansion", fillcolor=lightsteelblue];
+        down_merge [label="Data\nMerging\n\nCollect 2×32b\n→ 1×64b\n\nStrobe combine", fillcolor=khaki];
+    }
+
+    // Wide Interface
+    subgraph cluster_wide {
+        label="Wide Interface (64-bit example)";
+        style=filled;
+        fillcolor=lightcoral;
+        
+        wide_aw [label="AW\n64-bit addr\nARSIZE=3 (8B)\nARLEN=1 (2 beats)", fillcolor=lightpink];
+        wide_w [label="W\n64-bit data\nWSTRB[7:0]\n2 beats", fillcolor=lightpink];
+        wide_r [label="R\n64-bit data\nRDATA[63:0]\n2 beats", fillcolor=lightpink];
+    }
+
+    // Upsizing Data Flow (Narrow → Wide)
+    narrow_aw -> up_addr [label="AW with\nnarrow params", color=blue, style=bold];
+    up_addr -> wide_aw [label="AW with\nwide params", color=blue, style=bold];
+    
+    narrow_w -> up_pack [label="32-bit\nW beats (4)", color=blue, style=bold];
+    up_pack -> wide_w [label="64-bit\nW beats (2)", color=blue, style=bold];
+    
+    wide_r -> up_unpack [label="64-bit\nR beats (2)", color=green, style=bold];
+    up_unpack -> narrow_r [label="32-bit\nR beats (4)", color=green, style=bold];
+
+    // Downsizing Data Flow (Wide → Narrow)
+    wide_aw -> down_addr [label="AW with\nwide params", color=purple, style=bold, dir=back];
+    down_addr -> narrow_aw [label="AW with\nnarrow params", color=purple, style=bold, dir=back];
+    
+    wide_w -> down_split [label="64-bit\nW beats (2)", color=purple, style=bold, dir=back];
+    down_split -> narrow_w [label="32-bit\nW beats (4)", color=purple, style=bold, dir=back];
+    
+    narrow_r -> down_merge [label="32-bit\nR beats (4)", color=orange, style=bold, dir=back];
+    down_merge -> wide_r [label="64-bit\nR beats (2)", color=orange, style=bold, dir=back];
+
+    // Upsizing Example
+    up_example [label="Upsizing Example (32→64)\n\nMaster sends (32-bit):\nBeat 0: 0xAAAA_AAAA\nBeat 1: 0xBBBB_BBBB\nBeat 2: 0xCCCC_CCCC\nBeat 3: 0xDDDD_DDDD\n\n↓ Pack 2:1 ↓\n\nSlave receives (64-bit):\nBeat 0: 0xBBBB_BBBB_AAAA_AAAA\nBeat 1: 0xDDDD_DDDD_CCCC_CCCC", shape=note, fillcolor=lightyellow];
+
+    // Downsizing Example
+    down_example [label="Downsizing Example (64→32)\n\nMaster sends (64-bit):\nBeat 0: 0xBBBB_BBBB_AAAA_AAAA\nBeat 1: 0xDDDD_DDDD_CCCC_CCCC\n\n↓ Split 1:2 ↓\n\nSlave receives (32-bit):\nBeat 0: 0xAAAA_AAAA\nBeat 1: 0xBBBB_BBBB\nBeat 2: 0xCCCC_CCCC\nBeat 3: 0xDDDD_DDDD", shape=note, fillcolor=lightgray];
+
+    // Legend
+    subgraph cluster_legend {
+        label="Legend";
+        style=filled;
+        fillcolor=white;
+
+        leg_up [label="Upsizing (Narrow → Wide)", style=bold, color=blue];
+        leg_down [label="Downsizing (Wide → Narrow)", style=bold, color=purple];
+        leg_addr [label="Address Adjustment", fillcolor=lightcyan, style=filled];
+        leg_data [label="Data Packing/Splitting", fillcolor=lightsteelblue, style=filled];
+    }
+}

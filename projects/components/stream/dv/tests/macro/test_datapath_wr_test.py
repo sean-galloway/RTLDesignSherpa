@@ -130,6 +130,15 @@ async def run_basic_test(tb, xfer_beats, num_channels, sram_depth):
     success, errors = await tb.verify_memory(dst_addr, total_beats_per_channel)
     assert success, f"Memory verification failed with {errors} errors"
 
+    # CRITICAL: Validate completion signal is sticky (catches completion signal bugs)
+    tb.log.info("Validating axi_wr_all_complete signal behavior...")
+    for channel_id in range(num_channels):
+        completion_ok = await tb.validate_completion_signal_sticky(
+            channel_id=channel_id,
+            duration_cycles=500
+        )
+        assert completion_ok, f"Channel {channel_id}: Completion signal pulsing detected!"
+
     tb.log.info("✓ BASIC write test passed")
 
 
@@ -190,6 +199,15 @@ async def run_nostress_test(tb, xfer_beats, num_channels, sram_depth):
     tb.log.info(f"Step 4: Verifying memory")
     success, errors = await tb.verify_memory(dst_addr, total_beats_per_channel)
     assert success, f"Memory verification failed with {errors} errors"
+
+    # CRITICAL: Validate completion signal is sticky (catches completion signal bugs)
+    tb.log.info("Validating axi_wr_all_complete signal behavior...")
+    for channel_id in range(num_channels):
+        completion_ok = await tb.validate_completion_signal_sticky(
+            channel_id=channel_id,
+            duration_cycles=500
+        )
+        assert completion_ok, f"Channel {channel_id}: Completion signal pulsing detected!"
 
     tb.log.info("✓ NOSTRESS write test passed - All data verified with zero BFM delays")
 
@@ -255,6 +273,15 @@ async def run_per_channel_sequential_test(tb, xfer_beats, num_channels, sram_dep
         tb.log.info(f"✓ Channel {channel_id} PASSED independently")
 
     tb.log.info(f"\n{'='*60}")
+    # CRITICAL: Validate completion signal is sticky (catches completion signal bugs)
+    tb.log.info("Validating axi_wr_all_complete signal behavior...")
+    for channel_id in range(num_channels):
+        completion_ok = await tb.validate_completion_signal_sticky(
+            channel_id=channel_id,
+            duration_cycles=500
+        )
+        assert completion_ok, f"Channel {channel_id}: Completion signal pulsing detected!"
+
     tb.log.info(f"✓ PER-CHANNEL SEQUENTIAL test passed - All {num_channels} channels verified independently")
     tb.log.info(f"{'='*60}")
 

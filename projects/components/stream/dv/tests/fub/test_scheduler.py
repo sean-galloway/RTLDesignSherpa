@@ -72,6 +72,8 @@ async def cocotb_test_scheduler(dut):
     - 'descriptor_error': Descriptor error handling
     - 'read_engine_error': Read engine error handling
     - 'timeout_detection': Timeout detection
+    - 'irq_generation': IRQ generation via MonBus
+    - 'concurrent_read_write': Validate concurrent rd/wr (deadlock fix)
     """
     test_type = os.environ.get('TEST_TYPE', 'basic_flow')
     tb = SchedulerTB(dut)
@@ -109,6 +111,11 @@ async def cocotb_test_scheduler(dut):
         tb.generate_test_report()
         assert result, "IRQ generation test failed"
 
+    elif test_type == 'concurrent_read_write':
+        result = await tb.test_concurrent_read_write()
+        tb.generate_test_report()
+        assert result, "Concurrent read/write test failed"
+
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
 
@@ -122,7 +129,15 @@ def generate_scheduler_test_params():
     Returns:
         List of tuples: (test_type, channel_id, num_channels, addr_width, data_width, timeout_cycles)
     """
-    test_types = ['basic_flow', 'descriptor_chaining', 'descriptor_error', 'read_engine_error', 'timeout_detection', 'irq_generation']
+    test_types = [
+        'basic_flow',
+        'descriptor_chaining',
+        'descriptor_error',
+        'read_engine_error',
+        'timeout_detection',
+        'irq_generation',
+        'concurrent_read_write',  # NEW: Validate deadlock fix
+    ]
     base_params = [
         # (channel_id, num_channels, addr_width, data_width, timeout_cycles)
         (0, 8, 64, 512, 1000),  # Standard STREAM configuration

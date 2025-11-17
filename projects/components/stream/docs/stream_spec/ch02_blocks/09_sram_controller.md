@@ -22,32 +22,47 @@ The SRAM Controller manages a monolithic SRAM buffer by partitioning it into **p
 
 ### 1.2 Block Diagram
 
+![Block Diagram](../images/09_sram_controller_L030.png)
+
+<!--
+Original Mermaid diagram (for editing):
+
+```mermaid
+graph TB
+    AXI_RD[AXI Read Data<br/>ID selects segment]
+    AXI_WR[AXI Write Data]
+
+    subgraph Controller["SRAM Controller"]
+        subgraph CH0["Channel 0 Segment"]
+            CH0_WR[Write Ptr from AXI RD data]
+            CH0_RD[Read Ptr to AXI WR data]
+            CH0_V[Valid data available]
+            CH0_SA[Space Available for pre-alloc]
+            CH0_RC[Read Count entries ready to drain]
+        end
+
+        DOTS["⋮<br/>More Channels"]
+
+        subgraph CHN["Channel N-1 Segment"]
+            CHN_WR[Write Ptr]
+            CHN_RD[Read Ptr]
+            CHN_V[Valid]
+            CHN_SA[Space Available]
+            CHN_RC[Read Count]
+        end
+    end
+
+    SRAM_W[Simple SRAM<br/>Write Port]
+    SRAM_R[Simple SRAM<br/>Read Port]
+
+    AXI_RD --> CH0
+    AXI_RD --> CHN
+    CH0 --> AXI_WR
+    CHN --> AXI_WR
+    Controller --> SRAM_W
+    Controller --> SRAM_R
 ```
-                    ┌─────────────────────────────────────────────────┐
-                    │          SRAM Controller                         │
-                    │                                                  │
-  AXI Read Data ───>│  ┌──────────────────────────────────────────┐  │
-  (ID selects seg)  │  │  Channel 0 Segment                       │  │
-                    │  │  - Write Ptr (from AXI RD data)          │  │
-                    │  │  - Read Ptr (to AXI WR data)             │  │
-                    │  │  - Valid (data available)                │  │
-                    │  │  - Space Available (for pre-alloc)       │  │
-                    │  │  - Read Count (entries ready to drain)   │  │
-                    │  └──────────────────────────────────────────┘  │
-                    │                   ⋮                             │
-                    │  ┌──────────────────────────────────────────┐  │
-                    │  │  Channel N-1 Segment                     │  │
-                    │  │  (same structure)                        │  │
-                    │  └──────────────────────────────────────────┘  │
-                    │                                                  │
-  AXI Write Data <──│  (Read from segment based on channel ID)        │
-                    │                                                  │
-                    └─────────────────────────────────────────────────┘
-                              │                    │
-                              ↓                    ↓
-                        Simple SRAM          Simple SRAM
-                        (Write Port)         (Read Port)
-```
+-->
 
 ---
 

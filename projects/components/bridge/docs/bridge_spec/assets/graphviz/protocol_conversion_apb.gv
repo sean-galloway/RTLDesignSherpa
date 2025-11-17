@@ -1,0 +1,94 @@
+// Bridge Protocol Conversion - AXI4 to APB State Machine
+// Purpose: Show APB conversion FSM and burst decomposition
+
+digraph protocol_conversion_apb {
+    rankdir=TB;
+    node [shape=box, style="rounded,filled", fillcolor=lightblue];
+    edge [fontsize=10];
+
+    // Title
+    label="Protocol Conversion: AXI4 → APB\nBurst Decomposition and State Machine";
+    labelloc="t";
+    fontsize=14;
+
+    // AXI4 Input
+    subgraph cluster_axi_in {
+        label="From AXI4 Crossbar";
+        style=filled;
+        fillcolor=lightgreen;
+        
+        axi_in [label="AXI4\nInterface\n\nAR/AW: burst requests\nW: burst data\nR/B: responses", fillcolor=palegreen];
+    }
+
+    // APB Converter FSM
+    subgraph cluster_fsm {
+        label="APB Converter State Machine";
+        style=filled;
+        fillcolor=lightyellow;
+
+        // States
+        idle [label="IDLE\n\nPSEL=0\nPENABLE=0\n\nWait for\nAXI request", fillcolor=lightcyan, shape=ellipse];
+        setup [label="SETUP\n\nPSEL=1\nPENABLE=0\n\nAddress/control\nvalid", fillcolor=lightsteelblue, shape=box];
+        access [label="ACCESS\n\nPSEL=1\nPENABLE=1\n\nWait for\nPREADY", fillcolor=khaki, shape=box];
+        complete [label="COMPLETE\n\nCapture data/error\nIncrement beat\nGenerate AXI resp", fillcolor=lightgreen, shape=box];
+
+        // State Transitions
+        idle -> setup [label="ARVALID or\nAWVALID", color=blue, style=bold];
+        setup -> access [label="After 1 cycle", color=green];
+        access -> access [label="PREADY=0\n(wait)", color=orange, style=dotted];
+        access -> complete [label="PREADY=1", color=green, style=bold];
+        complete -> setup [label="More beats\n(not LAST)", color=blue, style=dotted];
+        complete -> idle [label="LAST beat\ncomplete", color=purple, style=bold];
+    }
+
+    // Burst Decomposition
+    subgraph cluster_burst {
+        label="Burst Decomposition Logic";
+        style=filled;
+        fillcolor=wheat;
+
+        burst_ctrl [label="Burst\nController\n\nAWLEN → N beats\nAddress increment\nBeat counter", fillcolor=lightyellow];
+        addr_gen [label="Address\nGenerator\n\nINCR: addr+size\nWRAP: wrapping\nFIXED: constant", fillcolor=lightcyan];
+    }
+
+    // APB Output
+    subgraph cluster_apb_out {
+        label="To APB Peripheral";
+        style=filled;
+        fillcolor=lightcoral;
+        
+        apb_out [label="APB\nInterface\n\nPSEL, PENABLE\nPADDR, PWRITE\nPWDATA/PRDATA\nPREADY, PSLVERR", fillcolor=lightpink];
+    }
+
+    // Data Flow
+    axi_in -> idle [label="AXI requests", color=blue];
+    idle -> burst_ctrl [label="Capture\nAR/AW info", color=blue, style=dotted];
+    burst_ctrl -> addr_gen [label="Burst params", color=blue, style=dotted];
+    
+    setup -> apb_out [label="PSEL=1\nPADDR, PWRITE", color=green, style=bold];
+    access -> apb_out [label="PENABLE=1\nWait PREADY", color=green, style=bold];
+    complete -> axi_in [label="R or B\nresponse", color=purple, style=bold];
+    
+    addr_gen -> setup [label="Next address", color=blue, style=dotted];
+
+    // Example Transaction
+    example [label="Example: AXI Burst → APB Singles\n\nAXI: AWLEN=3 (4 beats, 16 bytes)\n↓\nAPB Beat 0: PADDR=0x1000, 4 bytes\n  SETUP (1 cycle) → ACCESS (wait PREADY)\nAPB Beat 1: PADDR=0x1004, 4 bytes\n  SETUP (1 cycle) → ACCESS (wait PREADY)\nAPB Beat 2: PADDR=0x1008, 4 bytes\nAPB Beat 3: PADDR=0x100C, 4 bytes\n↓\nAXI: BRESP=OKAY (after all 4 APB transfers)", shape=note, fillcolor=lightyellow];
+
+    // Timing
+    timing [label="Latency per Beat\n\nBest case: 2 cycles (SETUP + ACCESS)\nTypical: 3-5 cycles (PREADY wait)\nWorst: Timeout (configurable)\n\nTotal for 4-beat burst: 8-20 cycles", shape=note, fillcolor=lightgray];
+
+    // Response Mapping
+    resp_map [label="Response Mapping\n\nPREADY=1, PSLVERR=0 → OKAY\nPREADY=1, PSLVERR=1 → SLVERR\nTimeout → DECERR\n\nAll beats use same response", shape=note, fillcolor=lightcoral];
+
+    // Legend
+    subgraph cluster_legend {
+        label="Legend";
+        style=filled;
+        fillcolor=white;
+
+        leg_state [label="FSM States", shape=ellipse, fillcolor=lightcyan, style=filled];
+        leg_axi [label="AXI Path", style=bold, color=blue];
+        leg_apb [label="APB Path", style=bold, color=green];
+        leg_resp [label="Response Path", style=bold, color=purple];
+    }
+}

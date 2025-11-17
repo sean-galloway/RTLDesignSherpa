@@ -1,0 +1,120 @@
+// Bridge Crossbar Core Architecture
+// Purpose: Show complete crossbar switching fabric with all channels
+
+digraph crossbar_core {
+    rankdir=LR;
+    node [shape=box, style="rounded,filled", fillcolor=lightblue];
+    edge [fontsize=10];
+
+    // Title
+    label="Crossbar Core Architecture\nFull 5-Channel AXI4 Switching Fabric";
+    labelloc="t";
+    fontsize=14;
+
+    // Master Side
+    subgraph cluster_masters {
+        label="From Master Adapters (M masters)";
+        style=filled;
+        fillcolor=lightgreen;
+        
+        m_ar [label="AR[M]\nAddress Read\nrequests", fillcolor=palegreen];
+        m_aw [label="AW[M]\nAddress Write\nrequests", fillcolor=palegreen];
+        m_w [label="W[M]\nWrite data", fillcolor=palegreen];
+    }
+
+    // Crossbar Core Components
+    subgraph cluster_crossbar {
+        label="Crossbar Core";
+        style=filled;
+        fillcolor=lightyellow;
+
+        // Address Decode & Arbitration
+        subgraph cluster_decode {
+            label="Address Decode & Arbitration";
+            style=filled;
+            fillcolor=lightcyan;
+            
+            router [label="Slave\nRouter\n\nAddress decode\nper master", fillcolor=lightsteelblue];
+            
+            aw_arb [label="AW Arbiters\n(S instances)\n\nRound-robin\nper slave", fillcolor=khaki];
+            ar_arb [label="AR Arbiters\n(S instances)\n\nRound-robin\nper slave", fillcolor=khaki];
+        }
+
+        // Data Path Multiplexing
+        subgraph cluster_data_mux {
+            label="Data Path Multiplexing";
+            style=filled;
+            fillcolor=wheat;
+            
+            w_mux [label="W Multiplexers\n(S instances)\n\nFollow AW grant", fillcolor=lightsteelblue];
+        }
+
+        // Response Demultiplexing
+        subgraph cluster_resp_demux {
+            label="Response Path Demultiplexing";
+            style=filled;
+            fillcolor=plum;
+            
+            b_demux [label="B Demux\n(M instances)\n\nID-based routing\nto masters", fillcolor=thistle];
+            r_demux [label="R Demux\n(M instances)\n\nID-based routing\nto masters", fillcolor=thistle];
+        }
+
+        // ID Management
+        id_mgmt [label="ID Management\n\nCAM/FIFO tracking\nbridge_id matching\nOut-of-order support", fillcolor=lightyellow];
+    }
+
+    // Slave Side
+    subgraph cluster_slaves {
+        label="To Slave Interfaces (S slaves)";
+        style=filled;
+        fillcolor=lightcoral;
+        
+        s_aw [label="AW[S]\nAddre
+
+ss Write\nto slaves", fillcolor=lightpink];
+        s_w [label="W[S]\nWrite data\nto slaves", fillcolor=lightpink];
+        s_ar [label="AR[S]\nAddress Read\nto slaves", fillcolor=lightpink];
+        s_b [label="B[S]\nWrite response\nfrom slaves", fillcolor=lightpink];
+        s_r [label="R[S]\nRead data\nfrom slaves", fillcolor=lightpink];
+    }
+
+    // Request Path (Blue - Write, Green - Read)
+    m_aw -> router [label="AWADDR\ndecode", color=blue, style=bold];
+    m_ar -> router [label="ARADDR\ndecode", color=green, style=bold];
+    
+    router -> aw_arb [label="Slave\nselection", color=blue];
+    router -> ar_arb [label="Slave\nselection", color=green];
+    
+    aw_arb -> s_aw [label="Granted\nAW", color=blue, style=bold];
+    ar_arb -> s_ar [label="Granted\nAR", color=green, style=bold];
+    
+    m_w -> w_mux [label="WDATA\nfrom all\nmasters", color=blue, style=bold];
+    aw_arb -> w_mux [label="Grant\ncontrol", color=blue, style=dotted];
+    w_mux -> s_w [label="Selected\nW data", color=blue, style=bold];
+
+    // Response Path (Purple)
+    s_b -> id_mgmt [label="BID from\nslaves", color=purple, style=bold];
+    s_r -> id_mgmt [label="RID from\nslaves", color=purple, style=bold];
+    
+    id_mgmt -> b_demux [label="Match\nbridge_id", color=purple, style=dotted];
+    id_mgmt -> r_demux [label="Match\nbridge_id", color=purple, style=dotted];
+    
+    b_demux -> m_aw [label="BRESP to\ncorrect master", color=purple, style=bold, dir=back];
+    r_demux -> m_ar [label="RDATA to\ncorrect master", color=purple, style=bold, dir=back];
+
+    // Configuration
+    config [label="Crossbar Configuration\n\nDimensions: M masters × S slaves\nArbiter per slave: 2 × S (AW + AR)\nData mux per slave: S\nResp demux per master: M\n\nID Extension:\n• bridge_id injected by adapters\n• CAM/FIFO tracks transactions\n• Responses routed by bridge_id match", shape=note, fillcolor=lightgray];
+
+    // Legend
+    subgraph cluster_legend {
+        label="Legend";
+        style=filled;
+        fillcolor=white;
+
+        leg_write [label="Write Path (AW, W, B)", style=bold, color=blue];
+        leg_read [label="Read Path (AR, R)", style=bold, color=green];
+        leg_resp [label="Response Routing", style=bold, color=purple];
+        leg_arb [label="Arbitration Logic", fillcolor=khaki, style=filled];
+        leg_id [label="ID Management", fillcolor=lightyellow, style=filled];
+    }
+}

@@ -161,6 +161,15 @@ async def run_basic_test(tb, xfer_beats, num_channels, sram_depth):
     else:
         tb.log.info(f"✓ FIFO health check: PASS - No pointer bugs detected")
 
+    # CRITICAL: Validate completion signal is sticky (catches completion signal bugs)
+    tb.log.info("Validating axi_rd_all_complete signal behavior...")
+    for channel_id in channels_to_use:
+        completion_ok = await tb.validate_completion_signal_sticky(
+            channel_id=channel_id,
+            duration_cycles=500
+        )
+        assert completion_ok, f"Channel {channel_id}: Completion signal pulsing detected!"
+
     tb.log.info("✓ BASIC test passed - All channels verified")
 
 
@@ -404,6 +413,15 @@ async def run_nostress_test(tb, xfer_beats, num_channels, sram_depth):
         else:
             tb.log.info(f"✓ NOSTRESS bubble check: PERFECT - Zero bubbles detected!")
             tb.log.info(f"  R channel maintained rvalid=1 && rready=1 continuously")
+
+    # CRITICAL: Validate completion signal is sticky (catches completion signal bugs)
+    tb.log.info("Validating axi_rd_all_complete signal behavior...")
+    for channel_id in channels_to_use:
+        completion_ok = await tb.validate_completion_signal_sticky(
+            channel_id=channel_id,
+            duration_cycles=500
+        )
+        assert completion_ok, f"Channel {channel_id}: Completion signal pulsing detected!"
 
     tb.log.info("✓ NOSTRESS test passed - All channels verified with zero BFM delays")
 
@@ -651,6 +669,17 @@ async def run_per_channel_sequential_test(tb, xfer_beats, num_channels, sram_dep
     tb.log.info(f"All {num_channels} channels work correctly in isolation!")
     tb.log.info(f"If multi-channel tests fail but this passes, it's a multi-channel interaction issue.")
     tb.log.info("="*80)
+
+    # CRITICAL: Validate completion signal is sticky (catches completion signal bugs)
+    tb.log.info("Validating axi_rd_all_complete signal behavior...")
+    for channel_id in range(num_channels):
+        completion_ok = await tb.validate_completion_signal_sticky(
+            channel_id=channel_id,
+            duration_cycles=500
+        )
+        assert completion_ok, f"Channel {channel_id}: Completion signal pulsing detected!"
+
+    tb.log.info("✓ Completion signal validation passed for all channels")
 
 
 #=============================================================================

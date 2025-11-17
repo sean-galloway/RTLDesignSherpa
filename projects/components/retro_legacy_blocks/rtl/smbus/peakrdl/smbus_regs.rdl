@@ -1,0 +1,630 @@
+/**
+ * SystemRDL Definition for SMBus 2.0 Controller Configuration Registers
+ *
+ * This specification defines the register interface for the APB SMBus controller,
+ * providing SMBus 2.0 compliant system management bus functionality.
+ *
+ * Key Features:
+ * - SMBus 2.0 protocol compliance
+ * - Master and slave modes
+ * - All standard transaction types (Quick, Byte, Word, Block)
+ * - Packet Error Checking (PEC) with CRC-8
+ * - TX/RX FIFO buffers (32 bytes each)
+ * - Clock stretching support
+ * - Timeout detection (25-35ms)
+ * - Configurable clock speed (10-100 kHz standard, up to 400 kHz fast mode)
+ * - Alert Response Address (ARA) support
+ *
+ * Transaction Types:
+ * - Quick Command (0 bytes)
+ * - Send/Receive Byte (1 byte, no command)
+ * - Write/Read Byte Data (1 command + 1 data byte)
+ * - Write/Read Word Data (1 command + 2 data bytes)
+ * - Block Write/Read (1 command + count + up to 32 data bytes)
+ * - Block Write-Block Read Process Call
+ * - Host Notify Protocol
+ *
+ * Address Layout:
+ *   0x000: SMBUS_CONTROL      - Global control (enable, mode, PEC)
+ *   0x004: SMBUS_STATUS       - Status flags (busy, errors, state)
+ *   0x008: SMBUS_COMMAND      - Transaction command and trigger
+ *   0x00C: SMBUS_SLAVE_ADDR   - Target/own slave address
+ *   0x010: SMBUS_DATA         - Single byte data register
+ *   0x014: SMBUS_TX_FIFO      - Transmit FIFO write port
+ *   0x018: SMBUS_RX_FIFO      - Receive FIFO read port
+ *   0x01C: SMBUS_FIFO_STATUS  - FIFO levels and flags
+ *   0x020: SMBUS_CLK_DIV      - Clock divider configuration
+ *   0x024: SMBUS_TIMEOUT      - Timeout threshold
+ *   0x028: SMBUS_OWN_ADDR     - Own slave address (slave mode)
+ *   0x02C: SMBUS_INT_ENABLE   - Interrupt enable mask
+ *   0x030: SMBUS_INT_STATUS   - Interrupt status (W1C)
+ *   0x034: SMBUS_PEC          - PEC value register
+ *   0x038: SMBUS_BLOCK_COUNT  - Block transfer count
+ *   0x03C-0xFFF: Reserved for future expansion
+ */
+
+addrmap smbus_regs {
+    name = "SMBus 2.0 Controller Registers";
+    desc = "System Management Bus controller with master/slave modes";
+
+    // Default properties for all registers
+    default regwidth = 32;
+    default accesswidth = 32;
+    default addressing = compact;
+
+    //========================================================================
+    // Control Register (0x000)
+    //========================================================================
+
+    reg {
+        name = "SMBus Control Register";
+        desc = "Global SMBus configuration and control";
+
+        field {
+            name = "Master Enable";
+            desc = "Enable master mode (0=disabled, 1=enabled)";
+            sw = rw;
+            hw = r;
+        } master_en[0:0] = 1'b0;
+
+        field {
+            name = "Slave Enable";
+            desc = "Enable slave mode (0=disabled, 1=enabled)";
+            sw = rw;
+            hw = r;
+        } slave_en[1:1] = 1'b0;
+
+        field {
+            name = "PEC Enable";
+            desc = "Enable Packet Error Checking (0=disabled, 1=enabled)";
+            sw = rw;
+            hw = r;
+        } pec_en[2:2] = 1'b0;
+
+        field {
+            name = "Fast Mode";
+            desc = "Clock speed: 0=standard (100kHz), 1=fast (400kHz)";
+            sw = rw;
+            hw = r;
+        } fast_mode[3:3] = 1'b0;
+
+        field {
+            name = "FIFO Reset";
+            desc = "Reset TX/RX FIFOs (write 1, auto-clears)";
+            sw = rw;
+            hw = rw;
+        } fifo_reset[4:4] = 1'b0;
+
+        field {
+            name = "Soft Reset";
+            desc = "Soft reset controller (write 1, auto-clears)";
+            sw = rw;
+            hw = rw;
+        } soft_reset[5:5] = 1'b0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:6] = 26'h0;
+
+    } SMBUS_CONTROL @ 0x000;
+
+    //========================================================================
+    // Status Register (0x004)
+    //========================================================================
+
+    reg {
+        name = "SMBus Status Register";
+        desc = "SMBus controller status flags";
+
+        field {
+            name = "Busy";
+            desc = "Transaction in progress (0=idle, 1=busy)";
+            sw = r;
+            hw = w;
+        } busy[0:0];
+
+        field {
+            name = "Bus Error";
+            desc = "Bus error detected (NAK, arbitration loss, etc.)";
+            sw = r;
+            hw = w;
+        } bus_error[1:1];
+
+        field {
+            name = "Timeout Error";
+            desc = "Transaction timeout (>25ms)";
+            sw = r;
+            hw = w;
+        } timeout_error[2:2];
+
+        field {
+            name = "PEC Error";
+            desc = "PEC mismatch detected";
+            sw = r;
+            hw = w;
+        } pec_error[3:3];
+
+        field {
+            name = "Arbitration Lost";
+            desc = "Multi-master arbitration lost";
+            sw = r;
+            hw = w;
+        } arb_lost[4:4];
+
+        field {
+            name = "NAK Received";
+            desc = "NAK received from slave";
+            sw = r;
+            hw = w;
+        } nak_received[5:5];
+
+        field {
+            name = "Slave Addressed";
+            desc = "This device addressed as slave";
+            sw = r;
+            hw = w;
+        } slave_addressed[6:6];
+
+        field {
+            name = "Transaction Complete";
+            desc = "Transaction completed successfully";
+            sw = r;
+            hw = w;
+        } complete[7:7];
+
+        field {
+            name = "FSM State";
+            desc = "Current state machine state (for debugging)";
+            sw = r;
+            hw = w;
+        } fsm_state[11:8];
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:12] = 20'h0;
+
+    } SMBUS_STATUS @ 0x004;
+
+    //========================================================================
+    // Command Register (0x008)
+    //========================================================================
+
+    reg {
+        name = "SMBus Command Register";
+        desc = "Transaction command and control";
+
+        field {
+            name = "Transaction Type";
+            desc = "Transaction type: 0=Quick, 1=SendByte, 2=RecvByte, 3=WriteByte, 4=ReadByte, 5=WriteWord, 6=ReadWord, 7=BlockWrite, 8=BlockRead, 9=BlockProc";
+            sw = rw;
+            hw = r;
+        } trans_type[3:0] = 4'h0;
+
+        field {
+            name = "Command Code";
+            desc = "SMBus command byte (for transactions that use it)";
+            sw = rw;
+            hw = r;
+        } cmd_code[15:8] = 8'h00;
+
+        field {
+            name = "Start";
+            desc = "Start transaction (write 1, auto-clears)";
+            sw = rw;
+            hw = rw;
+        } start[16:16] = 1'b0;
+
+        field {
+            name = "Stop";
+            desc = "Force stop/abort current transaction (write 1, auto-clears)";
+            sw = rw;
+            hw = rw;
+        } stop[17:17] = 1'b0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:18] = 14'h0;
+
+    } SMBUS_COMMAND @ 0x008;
+
+    //========================================================================
+    // Slave Address Register (0x00C)
+    //========================================================================
+
+    reg {
+        name = "SMBus Slave Address Register";
+        desc = "Target slave address for master transactions";
+
+        field {
+            name = "Slave Address";
+            desc = "7-bit slave address (bits[7:1]), bit[0] is R/W (set by controller)";
+            sw = rw;
+            hw = r;
+        } slave_addr[6:0] = 7'h00;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:7] = 25'h0;
+
+    } SMBUS_SLAVE_ADDR @ 0x00C;
+
+    //========================================================================
+    // Data Register (0x010)
+    //========================================================================
+
+    reg {
+        name = "SMBus Data Register";
+        desc = "Single byte data for simple transactions";
+
+        field {
+            name = "Data Byte";
+            desc = "Data byte for Send/Receive Byte transactions";
+            sw = rw;
+            hw = rw;
+        } data[7:0] = 8'h00;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:8] = 24'h0;
+
+    } SMBUS_DATA @ 0x010;
+
+    //========================================================================
+    // TX FIFO Register (0x014)
+    //========================================================================
+
+    reg {
+        name = "SMBus TX FIFO Register";
+        desc = "Transmit FIFO write port for block transactions";
+
+        field {
+            name = "TX Data";
+            desc = "Write data byte to TX FIFO";
+            sw = w;
+            hw = r;
+        } tx_data[7:0] = 8'h00;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:8] = 24'h0;
+
+    } SMBUS_TX_FIFO @ 0x014;
+
+    //========================================================================
+    // RX FIFO Register (0x018)
+    //========================================================================
+
+    reg {
+        name = "SMBus RX FIFO Register";
+        desc = "Receive FIFO read port for block transactions";
+
+        field {
+            name = "RX Data";
+            desc = "Read data byte from RX FIFO";
+            sw = r;
+            hw = w;
+        } rx_data[7:0];
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:8] = 24'h0;
+
+    } SMBUS_RX_FIFO @ 0x018;
+
+    //========================================================================
+    // FIFO Status Register (0x01C)
+    //========================================================================
+
+    reg {
+        name = "SMBus FIFO Status Register";
+        desc = "TX/RX FIFO levels and status flags";
+
+        field {
+            name = "TX FIFO Level";
+            desc = "Number of bytes in TX FIFO (0-32)";
+            sw = r;
+            hw = w;
+        } tx_level[5:0];
+
+        field {
+            name = "TX FIFO Full";
+            desc = "TX FIFO full flag";
+            sw = r;
+            hw = w;
+        } tx_full[6:6];
+
+        field {
+            name = "TX FIFO Empty";
+            desc = "TX FIFO empty flag";
+            sw = r;
+            hw = w;
+        } tx_empty[7:7];
+
+        field {
+            name = "RX FIFO Level";
+            desc = "Number of bytes in RX FIFO (0-32)";
+            sw = r;
+            hw = w;
+        } rx_level[13:8];
+
+        field {
+            name = "RX FIFO Full";
+            desc = "RX FIFO full flag";
+            sw = r;
+            hw = w;
+        } rx_full[14:14];
+
+        field {
+            name = "RX FIFO Empty";
+            desc = "RX FIFO empty flag";
+            sw = r;
+            hw = w;
+        } rx_empty[15:15];
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:16] = 16'h0;
+
+    } SMBUS_FIFO_STATUS @ 0x01C;
+
+    //========================================================================
+    // Clock Divider Register (0x020)
+    //========================================================================
+
+    reg {
+        name = "SMBus Clock Divider Register";
+        desc = "Clock divider for SCL generation";
+
+        field {
+            name = "Clock Divider";
+            desc = "SCL clock divider: SCL_freq = sys_clk / (4 * (div + 1)), default 100kHz @ 100MHz sys_clk";
+            sw = rw;
+            hw = r;
+        } clk_div[15:0] = 16'd249;  // Default for 100kHz @ 100MHz
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:16] = 16'h0;
+
+    } SMBUS_CLK_DIV @ 0x020;
+
+    //========================================================================
+    // Timeout Register (0x024)
+    //========================================================================
+
+    reg {
+        name = "SMBus Timeout Register";
+        desc = "Timeout threshold configuration";
+
+        field {
+            name = "Timeout Value";
+            desc = "Timeout threshold in clock cycles (default ~25-35ms)";
+            sw = rw;
+            hw = r;
+        } timeout[23:0] = 24'd2500000;  // Default ~25ms @ 100MHz
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:24] = 8'h0;
+
+    } SMBUS_TIMEOUT @ 0x024;
+
+    //========================================================================
+    // Own Address Register (0x028)
+    //========================================================================
+
+    reg {
+        name = "SMBus Own Address Register";
+        desc = "Own slave address (for slave mode operation)";
+
+        field {
+            name = "Own Address";
+            desc = "7-bit own slave address";
+            sw = rw;
+            hw = r;
+        } own_addr[6:0] = 7'h00;
+
+        field {
+            name = "Address Enable";
+            desc = "Enable own address matching (slave mode)";
+            sw = rw;
+            hw = r;
+        } addr_en[7:7] = 1'b0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:8] = 24'h0;
+
+    } SMBUS_OWN_ADDR @ 0x028;
+
+    //========================================================================
+    // Interrupt Enable Register (0x02C)
+    //========================================================================
+
+    reg {
+        name = "SMBus Interrupt Enable Register";
+        desc = "Interrupt enable mask";
+
+        field {
+            name = "Transaction Complete Enable";
+            desc = "Enable interrupt on transaction complete";
+            sw = rw;
+            hw = r;
+        } complete_en[0:0] = 1'b0;
+
+        field {
+            name = "Error Interrupt Enable";
+            desc = "Enable interrupt on bus error";
+            sw = rw;
+            hw = r;
+        } error_en[1:1] = 1'b0;
+
+        field {
+            name = "TX FIFO Threshold Enable";
+            desc = "Enable interrupt when TX FIFO below threshold";
+            sw = rw;
+            hw = r;
+        } tx_thresh_en[2:2] = 1'b0;
+
+        field {
+            name = "RX FIFO Threshold Enable";
+            desc = "Enable interrupt when RX FIFO above threshold";
+            sw = rw;
+            hw = r;
+        } rx_thresh_en[3:3] = 1'b0;
+
+        field {
+            name = "Slave Addressed Enable";
+            desc = "Enable interrupt when addressed as slave";
+            sw = rw;
+            hw = r;
+        } slave_addr_en[4:4] = 1'b0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:5] = 27'h0;
+
+    } SMBUS_INT_ENABLE @ 0x02C;
+
+    //========================================================================
+    // Interrupt Status Register (0x030)
+    //========================================================================
+
+    reg {
+        name = "SMBus Interrupt Status Register";
+        desc = "Interrupt status flags (write 1 to clear)";
+
+        field {
+            name = "Transaction Complete";
+            desc = "Transaction completed (W1C)";
+            sw = rw;
+            hw = w;
+            onwrite = woclr;
+        } complete_int[0:0] = 1'b0;
+
+        field {
+            name = "Error Interrupt";
+            desc = "Bus error occurred (W1C)";
+            sw = rw;
+            hw = w;
+            onwrite = woclr;
+        } error_int[1:1] = 1'b0;
+
+        field {
+            name = "TX FIFO Threshold";
+            desc = "TX FIFO below threshold (W1C)";
+            sw = rw;
+            hw = w;
+            onwrite = woclr;
+        } tx_thresh_int[2:2] = 1'b0;
+
+        field {
+            name = "RX FIFO Threshold";
+            desc = "RX FIFO above threshold (W1C)";
+            sw = rw;
+            hw = w;
+            onwrite = woclr;
+        } rx_thresh_int[3:3] = 1'b0;
+
+        field {
+            name = "Slave Addressed";
+            desc = "Device addressed as slave (W1C)";
+            sw = rw;
+            hw = w;
+            onwrite = woclr;
+        } slave_addr_int[4:4] = 1'b0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:5] = 27'h0;
+
+    } SMBUS_INT_STATUS @ 0x030;
+
+    //========================================================================
+    // PEC Register (0x034)
+    //========================================================================
+
+    reg {
+        name = "SMBus PEC Register";
+        desc = "Packet Error Checking value";
+
+        field {
+            name = "PEC Value";
+            desc = "Current/expected PEC value (CRC-8)";
+            sw = rw;
+            hw = rw;
+        } pec[7:0] = 8'h00;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:8] = 24'h0;
+
+    } SMBUS_PEC @ 0x034;
+
+    //========================================================================
+    // Block Count Register (0x038)
+    //========================================================================
+
+    reg {
+        name = "SMBus Block Count Register";
+        desc = "Block transfer byte count";
+
+        field {
+            name = "Block Count";
+            desc = "Number of bytes for block transfer (1-32)";
+            sw = rw;
+            hw = rw;
+        } block_count[5:0] = 6'h00;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:6] = 26'h0;
+
+    } SMBUS_BLOCK_COUNT @ 0x038;
+
+};

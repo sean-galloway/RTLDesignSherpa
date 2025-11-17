@@ -518,6 +518,65 @@ class DatapathWrTestTB(TBBase):
         self.log.error(f"Channel {channel_id}: Timeout - got {aw_count}/{expected_aw_transactions} AW transactions{self.get_time_ns_str()}")
         return (False, aw_count)
 
+    async def validate_completion_signal_sticky(self, channel_id=0, duration_cycles=1000):
+        """
+        Validate that axi_wr_all_complete signal stays HIGH once asserted.
+
+        CRITICAL: This catches the completion signal pulsing bug that caused
+        all core tests to hang. The signal must be STICKY - once it goes HIGH
+        (indicating all transactions complete), it must STAY HIGH until a new
+        transfer starts.
+
+        Args:
+            channel_id: Channel ID to monitor
+            duration_cycles: How many cycles to monitor
+
+        Returns:
+            bool: True if signal behaves correctly, False if it pulses
+        """
+        completion_changes = []
+        prev_complete = 0
+
+        for cycle in range(duration_cycles):
+            await RisingEdge(self.clk)
+
+            # Read completion signal
+            try:
+                complete_reg = int(self.dut.axi_wr_all_complete.value)
+                complete_ch = (complete_reg >> channel_id) & 0x1
+            except:
+                self.log.warning(f"Could not read axi_wr_all_complete{self.get_time_ns_str()}")
+                continue
+
+            # Detect changes
+            if complete_ch != prev_complete:
+                completion_changes.append({
+                    'cycle': cycle,
+                    'value': complete_ch,
+                    'transition': f"{prev_complete} -> {complete_ch}"
+                })
+                self.log.info(f"Channel {channel_id} axi_wr_all_complete: {prev_complete} -> {complete_ch} @ cycle {cycle}{self.get_time_ns_str()}")
+
+            prev_complete = complete_ch
+
+        # Validate: Once HIGH, must stay HIGH (sticky behavior)
+        went_high = False
+        for change in completion_changes:
+            if change['value'] == 1:
+                went_high = True
+            elif went_high and change['value'] == 0:
+                # BUG! Signal went LOW after going HIGH
+                self.log.error(f"❌ COMPLETION SIGNAL BUG DETECTED: Channel {channel_id} axi_wr_all_complete went LOW after going HIGH!{self.get_time_ns_str()}")
+                self.log.error(f"   Changes: {completion_changes}{self.get_time_ns_str()}")
+                return False
+
+        if went_high:
+            self.log.info(f"✅ Channel {channel_id} axi_wr_all_complete is STICKY (stayed HIGH after going HIGH){self.get_time_ns_str()}")
+        else:
+            self.log.debug(f"Channel {channel_id} axi_wr_all_complete never went HIGH (no transactions?){self.get_time_ns_str()}")
+
+        return True
+
     async def verify_memory(self, start_addr, num_beats):
         """Verify data in memory model matches expected pattern.
 

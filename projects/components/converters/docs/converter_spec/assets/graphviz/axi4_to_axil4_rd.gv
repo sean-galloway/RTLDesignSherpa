@@ -1,0 +1,37 @@
+// AXI4 to AXI4-Lite Read Converter Block Diagram
+// Shows burst decomposition logic for read path
+//
+// Render: dot -Tpng axi4_to_axil4_rd.gv -o axi4_to_axil4_rd.png
+
+digraph axi4_to_axil4_rd {
+    rankdir=LR;
+    node [shape=box, style="rounded,filled", fontname="Arial", fontsize=10];
+    edge [fontname="Arial", fontsize=9];
+    
+    // Inputs
+    s_ar [label="AXI4 AR Channel\n\nARID, ARADDR\nARLEN (bursts)\nARSIZE, ARBURST", fillcolor=lightblue];
+    s_r_resp [label="AXIL4 R  Channel\n(from slave)\n\nRDATA\nRRESP", fillcolor=lightcoral];
+    
+    // Converter logic
+    subgraph cluster_converter {
+        label="axi4_to_axil4_rd";
+        style=filled;
+        fillcolor=lightgray;
+        
+        ar_fsm [label="AR FSM\n\nIDLE → BURST\n\nDecomposes:\nAXI burst\n→ N AXIL singles", fillcolor=khaki];
+        addr_gen [label="Address\nGenerator\n\nIncrement by SIZE\nfor each beat", fillcolor=lightyellow];
+        r_buffer [label="Response\nAggregator\n\nBuffer N responses\nReattach ID, LAST", fillcolor=lightyellow];
+    }
+    
+    // Outputs
+    m_ar [label="AXIL4 AR Channel\n(to slave)\n\nARVALID single\nARREADY\nNo LEN/SIZE", fillcolor=lightcoral];
+    m_r [label="AXI4 R Channel\n\nRID\nRDATA, RRESP\nRLAST", fillcolor=lightblue];
+    
+    // Flow
+    s_ar -> ar_fsm [label="1 burst request"];
+    ar_fsm -> addr_gen [label="beat count"];
+    addr_gen -> m_ar [label="N single\ntransactions"];
+    
+    s_r_resp -> r_buffer [label="N responses"];
+    r_buffer -> m_r [label="aggregate\n+ ID + LAST"];
+}

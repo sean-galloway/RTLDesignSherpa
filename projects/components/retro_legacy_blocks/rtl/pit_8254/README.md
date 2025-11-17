@@ -28,6 +28,12 @@ Follows HPET 3-layer architecture pattern with PeakRDL-generated registers.
 
 ## Architecture
 
+![PIT 8254 Architecture](docs/assets/graphviz/pit_architecture.png)
+
+*Figure 1: PIT 8254 module architecture showing APB interface, PeakRDL-generated registers, and 3 independent counter channels with Mode 0 implementation.*
+
+### Module Hierarchy
+
 ```
 apb_pit_8254.sv         → APB wrapper, CDC support
   ├── pit_config_regs.sv → Register wrapper, edge detection

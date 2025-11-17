@@ -59,11 +59,19 @@ help:
 	@echo "  make run-sram             Run SRAM controller tests"
 	@echo "  make run-sram-waves       Run SRAM controller tests with waveforms"
 	@echo "  make run-sram-alloc       Run SRAM allocation tests"
-	@echo "  make run-scheduler        Run scheduler tests"
+	@echo "  make run-scheduler        Run scheduler tests (default: func level, parallel)"
 	@echo "  make run-descriptor       Run descriptor engine tests"
 	@echo "  make run-latency-bridge   Run stream latency bridge tests"
 	@echo "  make run-perf             Run performance profiler tests"
 	@echo "  make run-apb              Run APB to descriptor tests (has import error)"
+	@echo ""
+	@echo "SCHEDULER TARGETS (gate/func/full - always parallel, waves optional):"
+	@echo "  make run-scheduler-gate        Run scheduler at GATE level (parallel, 7 tests)"
+	@echo "  make run-scheduler-gate-waves  Run scheduler at GATE with waveforms"
+	@echo "  make run-scheduler-func        Run scheduler at FUNC level (parallel, 7 tests)"
+	@echo "  make run-scheduler-func-waves  Run scheduler at FUNC with waveforms"
+	@echo "  make run-scheduler-full        Run scheduler at FULL level (parallel, 7 tests)"
+	@echo "  make run-scheduler-full-waves  Run scheduler at FULL with waveforms"
 	@echo ""
 	@echo "TEST_LEVEL TARGETS (SRAM Controller - gate/func/full):"
 	@echo "  make run-sram-gate        Run SRAM at GATE level (quick, 16 beats)"
@@ -202,10 +210,46 @@ run-sram-alloc:
 	@echo "Running SRAM allocation tests..."
 	$(PYTEST) test_sram_controller_alloc.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
+# ==============================================================================
+# Scheduler Test Targets (gate/func/full with parallel execution)
+# ==============================================================================
+
 .PHONY: run-scheduler
-run-scheduler:
-	@echo "Running scheduler tests..."
-	$(PYTEST) test_scheduler.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+run-scheduler: run-scheduler-func
+	@echo "✓ Scheduler tests completed (default: func level)"
+
+# Gate Level - Quick regression (7 tests, parallel)
+.PHONY: run-scheduler-gate
+run-scheduler-gate:
+	@echo "Running scheduler tests at GATE level (parallel)..."
+	TEST_LEVEL=gate $(PYTEST) test_scheduler.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+.PHONY: run-scheduler-gate-waves
+run-scheduler-gate-waves:
+	@echo "Running scheduler tests at GATE level (parallel + waves)..."
+	WAVES=1 TEST_LEVEL=gate $(PYTEST) test_scheduler.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+# Func Level - Functional validation (7 tests, parallel)
+.PHONY: run-scheduler-func
+run-scheduler-func:
+	@echo "Running scheduler tests at FUNC level (parallel)..."
+	TEST_LEVEL=func $(PYTEST) test_scheduler.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+.PHONY: run-scheduler-func-waves
+run-scheduler-func-waves:
+	@echo "Running scheduler tests at FUNC level (parallel + waves)..."
+	WAVES=1 TEST_LEVEL=func $(PYTEST) test_scheduler.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+# Full Level - Comprehensive coverage (7 tests, parallel)
+.PHONY: run-scheduler-full
+run-scheduler-full:
+	@echo "Running scheduler tests at FULL level (parallel)..."
+	TEST_LEVEL=full $(PYTEST) test_scheduler.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+.PHONY: run-scheduler-full-waves
+run-scheduler-full-waves:
+	@echo "Running scheduler tests at FULL level (parallel + waves)..."
+	WAVES=1 TEST_LEVEL=full $(PYTEST) test_scheduler.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 .PHONY: run-descriptor
 run-descriptor:

@@ -94,7 +94,6 @@ module axi_read_engine #(
     output logic [NC-1:0]               sched_rd_ready,      // Engine ready for channel
     input  logic [NC-1:0][AW-1:0]       sched_rd_addr,       // Source addresses
     input  logic [NC-1:0][31:0]         sched_rd_beats,      // Beats remaining to read
-    input  logic [NC-1:0][7:0]          sched_rd_burst_len,  // Requested burst length
 
     //=========================================================================
     // AXI4 AR Channel (Read Address)
@@ -239,12 +238,32 @@ module axi_read_engine #(
         end
     endgenerate
 
-    // Completion signal: asserted when no outstanding transactions for each channel
-    always_comb begin
-        for (int i = 0; i < NC; i++) begin
-            axi_rd_all_complete[i] = (r_outstanding_count[i] == '0);
+    // Completion signal: sticky - stays high until new transfer starts
+    // This prevents false pulses when outstanding_count temporarily hits 0 between bursts
+    logic [NC-1:0] r_all_complete;
+    logic [NC-1:0] r_all_complete_prev;  // Previous cycle value for edge detection
+
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_all_complete <= '1;  // Start as complete
+            r_all_complete_prev <= '1;
+        end else begin
+            r_all_complete_prev <= r_all_complete;
+
+            for (int i = 0; i < NC; i++) begin
+                // Set complete when outstanding transactions reach zero
+                if (r_outstanding_count[i] == '0) begin
+                    r_all_complete[i] <= 1'b1;
+                // Clear complete when transitioning from complete to having outstanding txns
+                // This happens when first AR of new descriptor issues (count goes from 0 to non-zero)
+                end else if (r_all_complete_prev[i] && (r_outstanding_count[i] != '0)) begin
+                    r_all_complete[i] <= 1'b0;
+                end
+            end
         end
-    end
+    )
+
+    assign axi_rd_all_complete = r_all_complete;
 
     // Track beats issued: increment when AR issues, reset when sched_rd_valid de-asserts
     `ALWAYS_FF_RST(clk, rst_n,
@@ -270,10 +289,10 @@ module axi_read_engine #(
     // and (if PIPELINE=0) no outstanding transactions
     // and haven't issued more beats than requested
 
-    logic [NC-1:0] w_space_ok;           // Channel has enough space for burst
-    logic [NC-1:0] w_no_outstanding;     // Channel has no outstanding transaction (or pipeline allowed)
-    logic [NC-1:0] w_beats_ok;           // Haven't issued more than requested
-    logic [NC-1:0] w_arb_request;        // Masked requests to arbiter
+    logic [NC-1:0] w_space_ok;                  // Channel has enough space for burst
+    logic [NC-1:0] w_below_outstanding_limit;   // Channel below max outstanding limit (can issue new AR)
+    logic [NC-1:0] w_beats_ok;                  // Haven't issued more than requested
+    logic [NC-1:0] w_arb_request;               // Masked requests to arbiter
 
     always_comb begin
         for (int i = 0; i < NC; i++) begin
@@ -282,8 +301,10 @@ module axi_read_engine #(
             // FIX: Require 2x burst size margin to account for in-flight allocation timing
             w_space_ok[i] = (SCW'(rd_space_free[i]) >= SCW'(cfg_axi_rd_xfer_beats << 1));
 
-            // Check no-pipeline constraint
-            w_no_outstanding[i] = !r_outstanding_limit[i];
+            // Check outstanding constraint
+            // PIPELINE=0: !r_outstanding_limit means no outstanding transaction (can issue)
+            // PIPELINE=1: !r_outstanding_limit means below max outstanding (can issue more)
+            w_below_outstanding_limit[i] = !r_outstanding_limit[i];
 
             // Check if next burst fits in remaining beats
             // Note: sched_rd_beats is REMAINING beats (decrements as engine completes bursts)
@@ -293,9 +314,9 @@ module axi_read_engine #(
             // Only request arbitration if:
             // 1. Scheduler is requesting (sched_rd_valid)
             // 2. Sufficient SRAM space available (w_space_ok)
-            // 3. No outstanding transaction (w_no_outstanding) if PIPELINE=0
+            // 3. Below outstanding limit (w_below_outstanding_limit)
             // 4. Haven't issued enough beats yet (w_beats_ok)
-            w_arb_request[i] = sched_rd_valid[i] && w_space_ok[i] && w_no_outstanding[i] && w_beats_ok[i];
+            w_arb_request[i] = sched_rd_valid[i] && w_space_ok[i] && w_below_outstanding_limit[i] && w_beats_ok[i];
         end
     end
 

@@ -1,0 +1,149 @@
+# GTKWave Signal List for 8259 PIC Interrupt Delivery Debug
+# Add these signals in this order to trace the IRQ3 signal chain
+
+# ============================================================================
+# GROUP 1: IRQ Input Path (External → Internal)
+# ============================================================================
+# Check if IRQ reaches the core and edge detection works
+irq_in[3]                           # Should pulse HIGH for 10 cycles
+u_core.r_irq_last[3]                # Should follow irq_in with 1-cycle delay
+u_core.w_irq_trigger[3]             # Should pulse for 1 cycle on rising edge
+u_core.cfg_ltim                     # Should be 0 (edge-triggered mode)
+
+# ============================================================================
+# GROUP 2: IRR (Interrupt Request Register)
+# ============================================================================
+# Check if trigger sets the IRR bit
+u_core.r_irr[3]                     # Should set to 1 when w_irq_trigger[3] pulses
+u_core.r_irr[7:0]                   # Full 8-bit IRR vector (should be 0x08 after trigger)
+
+# ============================================================================
+# GROUP 3: Configuration and Initialization
+# ============================================================================
+# Verify initialization completed and PIC is enabled
+u_core.r_init_state[2:0]            # Should be 4 (INIT_COMPLETE) before IRQ pulse
+u_core.cfg_pic_enable               # Should be 1
+u_core.cfg_aeoi                     # Should be 0 (no auto-EOI)
+
+# ============================================================================
+# GROUP 4: Masking and In-Service
+# ============================================================================
+# Check if IRQ3 is masked or in-service
+u_core.r_imr[3]                     # Should be 0 (unmasked)
+u_core.r_imr[7:0]                   # Full mask register (should be 0xF7 = all masked except IRQ3)
+u_core.r_isr[3]                     # Should be 0 (not in-service yet)
+u_core.r_isr[7:0]                   # Full in-service register (should be 0x00)
+
+# ============================================================================
+# GROUP 5: Pending IRQ Calculation
+# ============================================================================
+# Check the combinational logic that calculates pending interrupts
+u_core.r_special_mask_mode          # Should be 0 (normal mode)
+u_core.w_pending_irqs[7:0]          # Should be 0x08 (bit 3 set) = r_irr & ~r_imr & ~r_isr
+
+# ============================================================================
+# GROUP 6: INT Output Generation
+# ============================================================================
+# The combinational logic that SHOULD assert but doesn't
+u_core.int_output                   # CRITICAL: Should assert but doesn't - THIS IS THE BUG
+int_output                          # Top-level output (should match u_core.int_output)
+
+# ============================================================================
+# GROUP 7: Priority Resolution (Optional - for understanding)
+# ============================================================================
+# These help understand which IRQ would be serviced if INT asserted
+u_core.highest_irq_comb[2:0]        # Should be 3 when only IRQ3 is pending
+u_core.w_irq_priority[7:0]          # Priority-ordered pending IRQs
+
+# ============================================================================
+# TIMELINE ANALYSIS
+# ============================================================================
+# Expected behavior when IRQ3 is pulsed (around timestamp 6000ns):
+#
+# T0: irq_in[3] = 0 → 1 (rising edge)
+# T1: r_irq_last[3] = 1 (delayed copy)
+#     w_irq_trigger[3] = 0 (both high, no edge yet in edge mode)
+# T2-T9: irq_in[3] stays high for 8 more cycles
+# T10: irq_in[3] = 1 → 0 (falling edge, but we only care about rising)
+#
+# CRITICAL: In edge-triggered mode (cfg_ltim=0):
+#   w_irq_trigger = irq_in & ~r_irq_last
+#   Trigger occurs when irq_in=1 and r_irq_last=0
+#   This is the cycle BEFORE r_irq_last updates!
+#
+# So on T0 (before clock edge):
+#   irq_in[3] = 1, r_irq_last[3] = 0 → w_irq_trigger[3] should = 1
+#
+# After T0 clock edge:
+#   r_irq_last[3] updates to 1
+#   r_irr[3] should set to 1 (if init_state = INIT_COMPLETE)
+#
+# Immediately (combinational):
+#   w_pending_irqs should = r_irr & ~r_imr & ~r_isr = 0x08
+#   int_output should = (init_state==4) && (enable==1) && (pending!=0) = 1
+#
+# ============================================================================
+# DEBUGGING CHECKLIST - Answer These Questions
+# ============================================================================
+#
+# Question 1: Does IRQ input reach the core?
+#   → Check: irq_in[3] goes HIGH for 10 cycles?
+#   → If NO: Testbench connection issue
+#
+# Question 2: Does edge detection work?
+#   → Check: w_irq_trigger[3] pulses for 1 cycle on rising edge?
+#   → If NO: Edge detection logic broken OR cfg_ltim wrong
+#
+# Question 3: Does IRR get set?
+#   → Check: r_irr[3] goes to 1 and stays?
+#   → If NO: Init state not complete OR set logic broken
+#
+# Question 4: Is initialization complete?
+#   → Check: r_init_state == 4 (INIT_COMPLETE) before IRQ?
+#   → If NO: Testbench timing issue - IRQ too early
+#
+# Question 5: Is PIC enabled?
+#   → Check: cfg_pic_enable == 1?
+#   → If NO: Configuration not propagated from registers
+#
+# Question 6: Is IRQ3 unmasked?
+#   → Check: r_imr[3] == 0?
+#   → If NO: Testbench mask setup incorrect
+#
+# Question 7: Is IRQ3 not in-service?
+#   → Check: r_isr[3] == 0?
+#   → If NO: Previous interrupt not cleared with EOI
+#
+# Question 8: Does pending calculation work?
+#   → Check: w_pending_irqs[3] == 1?
+#   → If NO: One of the operands (r_irr, r_imr, r_isr) is wrong
+#
+# Question 9: Why doesn't INT assert?
+#   → Check: All three conditions true but int_output == 0?
+#   → If YES: RTL combinational logic bug (should be impossible!)
+#
+# ============================================================================
+# LIKELY HYPOTHESES (in priority order)
+# ============================================================================
+#
+# Hypothesis A: r_irr[3] Never Sets
+#   → Symptom: w_irq_trigger pulses but r_irr stays 0
+#   → Cause: r_init_state != INIT_COMPLETE when trigger occurs
+#   → Fix: Check testbench timing - add delay after init
+#
+# Hypothesis B: w_irq_trigger Never Pulses
+#   → Symptom: irq_in[3] pulses but w_irq_trigger stays 0
+#   → Cause: cfg_ltim wrong OR edge detection broken
+#   → Fix: Check RTL line 182, verify cfg_ltim = 0
+#
+# Hypothesis C: cfg_pic_enable = 0
+#   → Symptom: All signals correct but enable = 0
+#   → Cause: Configuration register not setting enable bit
+#   → Fix: Check config register write in testbench
+#
+# Hypothesis D: w_pending_irqs = 0 Despite r_irr[3] = 1
+#   → Symptom: r_irr set but pending = 0
+#   → Cause: r_imr[3]=1 (masked) OR r_isr[3]=1 (in-service)
+#   → Fix: Check mask and in-service registers
+#
+# ============================================================================

@@ -1,0 +1,112 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Nov 17 03:59:38 2025
+[*]
+[dumpfile] "/mnt/data/github/rtldesignsherpa/projects/components/retro_legacy_blocks/dv/tests/local_sim_build/test_apb_pic_8259_test_pic_8259_basic_gw0/dump.vcd"
+[dumpfile_mtime] "Mon Nov 17 03:20:05 2025"
+[dumpfile_size] 234706
+[savefile] "/mnt/data/github/rtldesignsherpa/projects/components/retro_legacy_blocks/dv/tests/GTKW/pic_8259.gtkw"
+[timestart] 4116900
+[size] 3200 1838
+[pos] 202 122
+*-16.030087 4520100 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] apb_pic_8259.
+[sst_width] 362
+[signals_width] 357
+[sst_expanded] 1
+[sst_vpaned_height] 315
+@28
+apb_pic_8259.pclk
+apb_pic_8259.presetn
+@200
+-apb-interface
+@28
+apb_pic_8259.s_apb_PSEL
+apb_pic_8259.s_apb_PENABLE
+apb_pic_8259.s_apb_PREADY
+apb_pic_8259.s_apb_PWRITE
+@22
+apb_pic_8259.s_apb_PADDR[11:0]
+apb_pic_8259.s_apb_PWDATA[31:0]
+apb_pic_8259.s_apb_PRDATA[31:0]
+@28
+apb_pic_8259.s_apb_PSLVERR
+@200
+-configs
+@28
+apb_pic_8259.u_pic_core.cfg_pic_enable
+apb_pic_8259.u_pic_core.cfg_init_mode
+apb_pic_8259.u_pic_core.cfg_auto_reset_init
+apb_pic_8259.u_pic_core.cfg_ic4
+apb_pic_8259.u_pic_core.cfg_sngl
+apb_pic_8259.u_pic_core.cfg_ltim
+@22
+apb_pic_8259.u_pic_core.cfg_vector_base[7:0]
+apb_pic_8259.u_pic_core.cfg_cascade[7:0]
+@28
+apb_pic_8259.u_pic_core.cfg_aeoi
+apb_pic_8259.u_pic_core.cfg_buf_mode[1:0]
+apb_pic_8259.u_pic_core.cfg_sfnm
+@200
+-pic-8259-core
+-icw-ocw-write-strobes
+@28
+apb_pic_8259.u_pic_core.icw1_wr
+apb_pic_8259.u_pic_core.icw2_wr
+apb_pic_8259.u_pic_core.icw3_wr
+apb_pic_8259.u_pic_core.icw4_wr
+apb_pic_8259.u_pic_core.ocw2_wr
+apb_pic_8259.u_pic_core.ocw3_wr
+@200
+-ocw2-ocw3-commands
+@28
+apb_pic_8259.u_pic_core.ocw2_irq_level[2:0]
+apb_pic_8259.u_pic_core.ocw2_eoi_cmd[2:0]
+apb_pic_8259.u_pic_core.ocw3_read_reg_cmd[1:0]
+apb_pic_8259.u_pic_core.ocw3_poll_cmd
+apb_pic_8259.u_pic_core.ocw3_smm_cmd[1:0]
+@200
+-imr-interface
+@22
+apb_pic_8259.u_pic_core.imr_reg_in[7:0]
+@28
+apb_pic_8259.u_pic_core.imr_reg_wr
+@22
+apb_pic_8259.u_pic_core.imr_reg_out[7:0]
+@200
+-status-registers
+@22
+apb_pic_8259.u_pic_core.irr_out[7:0]
+apb_pic_8259.u_pic_core.isr_out[7:0]
+@28
+apb_pic_8259.u_pic_core.init_complete
+apb_pic_8259.u_pic_core.icw_step[2:0]
+apb_pic_8259.u_pic_core.int_output
+apb_pic_8259.u_pic_core.highest_priority[2:0]
+@200
+-hardware-interface
+@800022
+apb_pic_8259.u_pic_core.irq_in[7:0]
+@28
+(0)apb_pic_8259.u_pic_core.irq_in[7:0]
+(1)apb_pic_8259.u_pic_core.irq_in[7:0]
+(2)apb_pic_8259.u_pic_core.irq_in[7:0]
+(3)apb_pic_8259.u_pic_core.irq_in[7:0]
+(4)apb_pic_8259.u_pic_core.irq_in[7:0]
+(5)apb_pic_8259.u_pic_core.irq_in[7:0]
+(6)apb_pic_8259.u_pic_core.irq_in[7:0]
+(7)apb_pic_8259.u_pic_core.irq_in[7:0]
+@1001200
+-group_end
+@22
+apb_pic_8259.u_pic_core.int_vector[7:0]
+@200
+-internals
+@22
+apb_pic_8259.u_pic_core.r_init_state[2:0]
+apb_pic_8259.u_pic_core.r_irq_last[7:0]
+apb_pic_8259.u_pic_core.w_irq_trigger[7:0]
+@23
+apb_pic_8259.u_pic_core.w_pending_irqs[7:0]
+[pattern_trace] 1
+[pattern_trace] 0

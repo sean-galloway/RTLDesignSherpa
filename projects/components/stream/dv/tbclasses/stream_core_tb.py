@@ -137,6 +137,7 @@ class StreamCoreTB(TBBase):
         cocotb.start_soon(self._monitor_datawr_completions())
         cocotb.start_soon(self._monitor_scheduler_state())
         cocotb.start_soon(self._monitor_descriptor_errors())
+        cocotb.start_soon(self._monitor_wlast_channel_tracking())
 
         self.log.info(f"stream_core TB initialized: {self.num_channels} channels, "
                     f"{self.data_width}-bit data, {self.fifo_depth}-deep FIFO")
@@ -424,14 +425,15 @@ class StreamCoreTB(TBBase):
         last_state = {}
 
         # State decode mapping (one-hot encoding)
+        # Updated to match stream_pkg.sv after concurrent read/write fix
         state_names = {
             0b0000001: "IDLE",
             0b0000010: "FETCH_DESC",
-            0b0000100: "READ_DATA",
-            0b0001000: "WRITE_DATA",
-            0b0010000: "COMPLETE",
-            0b0100000: "NEXT_DESC",
-            0b1000000: "ERROR"
+            0b0000100: "XFER_DATA",    # Concurrent read+write (was READ_DATA/WRITE_DATA)
+            0b0001000: "COMPLETE",
+            0b0010000: "NEXT_DESC",
+            0b0100000: "ERROR",
+            0b1000000: "RESERVED"
         }
 
         while True:
@@ -454,6 +456,52 @@ class StreamCoreTB(TBBase):
                     time_str = self.get_time_ns_str()
                     state_name = state_names.get(state, f"UNKNOWN({state:07b})")
                     self.log.info(f"{time_str} [SCHED_STATE] CH{ch}: {state_name} (0b{state:07b})")
+
+    async def _monitor_wlast_channel_tracking(self):
+        """
+        Monitor wlast rising edges and log which channel the W burst belongs to.
+
+        This helps debug W beat matching in the transaction extraction script.
+        Logs the internal r_w_channel_id from axi_write_engine when wlast asserts.
+        """
+        last_wlast = 0
+        while True:
+            await RisingEdge(self.clk)
+            await ReadOnly()  # Wait for signals to settle
+
+            # Check if m_axi_wr signals exist
+            try:
+                wlast = int(self.dut.m_axi_wr_wlast.value)
+                wvalid = int(self.dut.m_axi_wr_wvalid.value)
+                wready = int(self.dut.m_axi_wr_wready.value)
+            except AttributeError:
+                # Signals don't exist, skip
+                continue
+
+            # Detect wlast rising edge with valid handshake
+            if wlast and wvalid and wready and not last_wlast:
+                # Rising edge on wlast
+                try:
+                    # Try multiple possible signal paths for channel ID
+                    # PIPELINE=1: gen_w_pipeline.r_current_drain_id
+                    # PIPELINE=0: gen_w_state_pipeline0.r_w_channel_id
+                    try:
+                        channel_id = int(self.dut.u_axi_write_engine.gen_w_pipeline.r_current_drain_id.value)
+                    except AttributeError:
+                        try:
+                            channel_id = int(self.dut.u_axi_write_engine.gen_w_state_pipeline0.r_w_channel_id.value)
+                        except AttributeError:
+                            # Last resort: try the combinational wire
+                            channel_id = int(self.dut.u_axi_write_engine.r_w_channel_id.value)
+
+                    time_str = self.get_time_ns_str()
+                    self.log.info(f"{time_str} [WLAST] Channel {channel_id} completed W burst")
+                except (AttributeError, ValueError) as e:
+                    # If we can't access internal signal, just log that wlast occurred
+                    time_str = self.get_time_ns_str()
+                    self.log.info(f"{time_str} [WLAST] W burst completed (channel ID not accessible: {e})")
+
+            last_wlast = wlast if (wvalid and wready) else last_wlast
 
     async def _monitor_descriptor_errors(self):
         """Monitor descriptor engine error signals"""
@@ -683,12 +731,16 @@ class StreamCoreTB(TBBase):
         rd_complete_seen = False
         wr_complete_seen = False
 
+        debug_log_interval = 1000  # Log every 1000 cycles when all not complete
+        cycle_count = 0
+
         while True:
             await RisingEdge(self.clk)
             await ReadOnly()
 
             current_time = cocotb.utils.get_sim_time('ns')
             elapsed_ns = current_time - start_time
+            cycle_count += 1
 
             # Check all completion conditions
             scheduler_idle = int(self.dut.scheduler_idle.value)
@@ -714,6 +766,12 @@ class StreamCoreTB(TBBase):
                 elapsed_us = elapsed_ns / 1000.0
                 self.log.info(f"  Channel {channel} AXI write complete after {elapsed_us:.1f}us{self.get_time_ns_str()}")
                 wr_complete_seen = True
+
+            # Periodic debug logging when scheduler idle but engines not complete
+            if sched_idle_ch and (not rd_complete_ch or not wr_complete_ch) and (cycle_count % debug_log_interval == 0):
+                elapsed_us = elapsed_ns / 1000.0
+                self.log.warning(f"Channel {channel} waiting for AXI complete after {elapsed_us:.1f}us: "
+                               f"sched_idle={sched_idle_ch}, rd_complete={rd_complete_ch}, wr_complete={wr_complete_ch}")
 
             # All three conditions must be true
             if sched_idle_ch and rd_complete_ch and wr_complete_ch:
@@ -749,7 +807,8 @@ class StreamCoreTB(TBBase):
         if pattern_type == 'increment':
             # Each byte is beat_index & 0xFF
             byte_val = beat_index & 0xFF
-            data = byte_val * self.data_bytes
+            # Replicate byte value across all bytes (not arithmetic multiply!)
+            data = int.from_bytes(bytes([byte_val] * self.data_bytes), byteorder='little')
             return data
         elif pattern_type == 'walking_ones':
             # Walking ones pattern

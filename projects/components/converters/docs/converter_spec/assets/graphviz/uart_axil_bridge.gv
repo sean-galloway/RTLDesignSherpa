@@ -1,0 +1,54 @@
+// UART to AXI4-Lite Bridge Block Diagram  
+// Converter Specification - Chapter 3
+//
+// Render: dot -Tpng uart_axil_bridge.gv -o uart_axil_bridge.png
+
+digraph uart_axil_bridge {
+    rankdir=LR;
+    node [shape=box, style="rounded,filled", fontname="Arial", fontsize=10];
+    edge [fontname="Arial", fontsize=9];
+    
+    // UART interface
+    uart_in [label="UART RX\n\nSerial Input\n115200 baud\nASCII commands", fillcolor=lightblue, shape=oval];
+    uart_out [label="UART TX\n\nSerial Output\nASCII responses", fillcolor=lightcoral, shape=oval];
+    
+    // Bridge modules
+    subgraph cluster_bridge {
+        label="uart_axil_bridge (Planned)";
+        style=filled;
+        fillcolor=lightgray;
+        
+        uart_rx [label="UART RX\n\nSerial → Parallel\nBaud clock gen", fillcolor=khaki];
+        cmd_parser [label="Command Parser\n\nASCII Decode\nW/R detection\nHex conversion", fillcolor=lightyellow];
+        axi_wr [label="AXIL4 Master WR\n\nAW + W + B\nTransaction gen", fillcolor=lightgreen];
+        axi_rd [label="AXIL4 Master RD\n\nAR + R\nTransaction gen", fillcolor=lightgreen];
+        resp_fmt [label="Response\nFormatter\n\nHex → ASCII\nError codes", fillcolor=lightyellow];
+        uart_tx [label="UART TX\n\nParallel → Serial\nBaud clock gen", fillcolor=khaki];
+        
+        // Timing isolation
+        skid [label="Skid Buffers\n\nTiming Isolation\nDecouple domains", fillcolor=pink, style="rounded,filled,dashed"];
+    }
+    
+    // AXI4-Lite interface
+    axil_aw [label="AXIL4 AW/W/B\nChannels", fillcolor=lightcoral];
+    axil_ar [label="AXIL4 AR/R\nChannels", fillcolor=lightcoral];
+    
+    // Flow
+    uart_in -> uart_rx [label="serial"];
+    uart_rx -> cmd_parser [label="bytes"];
+    cmd_parser -> axi_wr [label="write cmd\naddr + data"];
+    cmd_parser -> axi_rd [label="read cmd\naddr"];
+    
+    axi_wr -> skid [label="timing\nisolation", style=dashed];
+    axi_rd -> skid [label="timing\nisolation", style=dashed];
+    
+    skid -> axil_aw [label="isolated"];
+    skid -> axil_ar [label="isolated"];
+    
+    axil_aw -> skid [label="responses", dir=back, style=dashed];
+    axil_ar -> skid [label="responses", dir=back,style=dashed];
+    
+    skid -> resp_fmt [label="read data\nerrors", style=dashed];
+    resp_fmt -> uart_tx [label="ASCII"];
+    uart_tx -> uart_out [label="serial"];
+}

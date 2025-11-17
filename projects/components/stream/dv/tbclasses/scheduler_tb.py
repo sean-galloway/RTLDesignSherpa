@@ -56,14 +56,15 @@ class SchedulerState(Enum):
     """STREAM Scheduler FSM states (from stream_pkg.sv) - ONE-HOT ENCODED
 
     SIMPLIFIED: No credit management, no control sequencing
+    Updated: Concurrent read/write in single XFER_DATA state (deadlock fix)
     """
-    CH_IDLE = 0x01        # 7'b0000001 [0]
-    CH_FETCH_DESC = 0x02  # 7'b0000010 [1]
-    CH_READ_DATA = 0x04   # 7'b0000100 [2]
-    CH_WRITE_DATA = 0x08  # 7'b0001000 [3]
-    CH_COMPLETE = 0x10    # 7'b0010000 [4]
-    CH_NEXT_DESC = 0x20   # 7'b0100000 [5]
-    CH_ERROR = 0x40       # 7'b1000000 [6]
+    CH_IDLE = 0x01        # 7'b0000001 [0] Channel idle
+    CH_FETCH_DESC = 0x02  # 7'b0000010 [1] Fetching descriptor
+    CH_XFER_DATA = 0x04   # 7'b0000100 [2] Concurrent read+write transfer
+    CH_COMPLETE = 0x08    # 7'b0001000 [3] Transfer complete
+    CH_NEXT_DESC = 0x10   # 7'b0010000 [4] Fetching next chained descriptor
+    CH_ERROR = 0x20       # 7'b0100000 [5] Error state
+    CH_RESERVED = 0x40    # 7'b1000000 [6] Reserved for future use
 
 
 class TestMode(Enum):
@@ -94,14 +95,14 @@ class SchedulerTB(TBBase):
 
         # Get test parameters from environment
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
-        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic').lower()
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.DEBUG = self.convert_to_int(os.environ.get('TEST_DEBUG', '0'))
 
-        # Validate test level
-        valid_levels = ['basic', 'medium', 'full']
+        # Validate test level (repository standard: gate/func/full)
+        valid_levels = ['gate', 'func', 'full']
         if self.TEST_LEVEL not in valid_levels:
-            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'basic'. Valid: {valid_levels}")
-            self.TEST_LEVEL = 'basic'
+            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'gate'. Valid: {valid_levels}")
+            self.TEST_LEVEL = 'gate'
 
         # Get test parameters from environment
         self.CHANNEL_ID = self.convert_to_int(os.environ.get('STREAM_CHANNEL_ID', '0'))
@@ -690,6 +691,89 @@ class SchedulerTB(TBBase):
             self.log.error("  ❌ IRQ generation test FAILED - event count mismatch")
             self.test_errors.append(f"IRQ events: got {irq_count}, expected {expected_irq}")
             self.test_errors.append(f"Non-IRQ events: got {non_irq_count}, expected {expected_non_irq}")
+            return False
+
+    async def test_concurrent_read_write(self, num_descriptors=5):
+        """Test concurrent read/write operation in XFER_DATA state
+
+        This validates the deadlock fix: scheduler should enter XFER_DATA and
+        both datard_valid and datawr_valid should be high simultaneously.
+
+        Tests that the scheduler doesn't get stuck when transfer size exceeds
+        SRAM buffer capacity (the original deadlock bug scenario).
+        """
+        self.log.info("=== Testing Concurrent Read/Write Operation ===")
+        self.log.info("Validating XFER_DATA state with concurrent datard/datawr activity")
+
+        xfer_state_count = 0
+        concurrent_valid_count = 0
+
+        for i in range(num_descriptors):
+            # Use varying transfer sizes to stress the SRAM buffer
+            length = 64 + (i * 16)  # 64, 80, 96, 112, 128 beats
+
+            descriptor = self.create_descriptor(
+                src_addr=0x10000 + i*0x2000,
+                dst_addr=0x20000 + i*0x2000,
+                length=length,
+                last=True,
+                gen_irq=False
+            )
+
+            self.log.info(f"\nDescriptor {i}: length={length} beats (0x{length:04x})")
+            await self.send_descriptor(descriptor)
+
+            # Monitor for XFER_DATA state and concurrent valid signals
+            timeout = 1000
+            descriptor_completed = False
+
+            for _ in range(timeout):
+                await self.wait_clocks(self.clk_name, 1)
+
+                state = int(self.dut.scheduler_state.value)
+                datard_valid = int(self.dut.datard_valid.value) if hasattr(self.dut, 'datard_valid') else 0
+                datawr_valid = int(self.dut.datawr_valid.value) if hasattr(self.dut, 'datawr_valid') else 0
+
+                # Count XFER_DATA state occurrences
+                if state == SchedulerState.CH_XFER_DATA.value:
+                    xfer_state_count += 1
+
+                    # Check for concurrent valid signals (the key to avoiding deadlock!)
+                    if datard_valid and datawr_valid:
+                        concurrent_valid_count += 1
+                        if concurrent_valid_count == 1:
+                            self.log.info(f"  ✅ Concurrent rd/wr detected @ cycle {_}: datard_valid={datard_valid}, datawr_valid={datawr_valid}")
+
+                # Check for completion
+                if int(self.dut.scheduler_idle.value) == 1:
+                    descriptor_completed = True
+                    break
+
+                # Check for error
+                if state == SchedulerState.CH_ERROR.value:
+                    self.log.error(f"  ❌ Scheduler entered ERROR state during descriptor {i}")
+                    return False
+
+            if not descriptor_completed:
+                self.log.error(f"  ❌ Timeout waiting for descriptor {i} to complete")
+                return False
+
+        # Validate results
+        self.log.info(f"\n📊 Concurrent Read/Write Statistics:")
+        self.log.info(f"  XFER_DATA state cycles:     {xfer_state_count}")
+        self.log.info(f"  Concurrent valid cycles:    {concurrent_valid_count}")
+
+        # We MUST see concurrent activity to prove deadlock fix works
+        if concurrent_valid_count > 0:
+            percentage = (concurrent_valid_count / xfer_state_count * 100) if xfer_state_count > 0 else 0
+            self.log.info(f"  Concurrency rate:           {percentage:.1f}%")
+            self.log.info("  ✅ Concurrent read/write VALIDATED - deadlock fix working!")
+            return True
+        else:
+            self.log.error("  ❌ No concurrent datard_valid + datawr_valid detected!")
+            self.log.error("  This suggests the scheduler is NOT using concurrent operation.")
+            self.log.error("  Deadlock risk remains - FAILED!")
+            self.test_errors.append("No concurrent read/write activity detected in XFER_DATA state")
             return False
 
     # =========================================================================

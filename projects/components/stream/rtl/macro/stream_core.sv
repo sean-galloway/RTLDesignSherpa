@@ -64,7 +64,7 @@ module stream_core #(
     parameter int AW = ADDR_WIDTH,
     parameter int DW = DATA_WIDTH,
     parameter int IW = AXI_ID_WIDTH,
-    parameter int UW = 1  // AXI user width
+    parameter int UW = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1  // AXI user width = channel ID width
 ) (
     // Clock and Reset
     input  logic                        clk,
@@ -313,14 +313,12 @@ module stream_core #(
     logic [NC-1:0]               sched_rd_ready;
     logic [NC-1:0][AW-1:0]       sched_rd_addr;
     logic [NC-1:0][31:0]         sched_rd_beats;
-    logic [NC-1:0][7:0]          sched_rd_burst_len;
 
     // Write requests from schedulers to write engine
     logic [NC-1:0]               sched_wr_valid;
     logic [NC-1:0]               sched_wr_ready;
     logic [NC-1:0][AW-1:0]       sched_wr_addr;
     logic [NC-1:0][31:0]         sched_wr_beats;
-    logic [NC-1:0][7:0]          sched_wr_burst_len;
 
     // Completion strobes from engines to schedulers
     logic [NC-1:0]               sched_rd_done_strobe;
@@ -461,8 +459,6 @@ module stream_core #(
     //=========================================================================
     // Component Instantiation - AXI Read Engine
     //=========================================================================
-    // Compute burst length from sched_rd_beats (simplified - assume aligned)
-    assign sched_rd_burst_len = {NC{cfg_axi_rd_xfer_beats}};
 
     axi_read_engine #(
         .NUM_CHANNELS           (NC),
@@ -485,7 +481,6 @@ module stream_core #(
         .sched_rd_ready         (sched_rd_ready),
         .sched_rd_addr          (sched_rd_addr),
         .sched_rd_beats         (sched_rd_beats),
-        .sched_rd_burst_len     (sched_rd_burst_len),
 
         // AXI AR channel (pre-skid)
         .m_axi_arid             (fub_rd_axi_arid),
@@ -530,14 +525,13 @@ module stream_core #(
     //=========================================================================
     // Component Instantiation - AXI Write Engine
     //=========================================================================
-    // Compute burst length from sched_wr_beats (simplified - assume aligned)
-    assign sched_wr_burst_len = {NC{cfg_axi_wr_xfer_beats}};
 
     axi_write_engine #(
         .NUM_CHANNELS           (NC),
         .ADDR_WIDTH             (AW),
         .DATA_WIDTH             (DW),
         .ID_WIDTH               (IW),
+        .USER_WIDTH             (UW),
         .SEG_COUNT_WIDTH        ($clog2(FIFO_DEPTH)+1),  // Match SRAM controller width
         .PIPELINE               (1),
         .AW_MAX_OUTSTANDING     (AW_MAX_OUTSTANDING)
@@ -553,7 +547,7 @@ module stream_core #(
         .sched_wr_ready         (sched_wr_ready),
         .sched_wr_addr          (sched_wr_addr),
         .sched_wr_beats         (sched_wr_beats),
-        .sched_wr_burst_len     (sched_wr_burst_len),
+        .sched_wr_burst_len     ({NC{cfg_axi_wr_xfer_beats}}),  // All channels use same burst length
 
         // SRAM drain interface
         .wr_drain_req           (wr_drain_req),
@@ -573,6 +567,7 @@ module stream_core #(
         .m_axi_wdata            (fub_wr_axi_wdata),
         .m_axi_wstrb            (fub_wr_axi_wstrb),
         .m_axi_wlast            (fub_wr_axi_wlast),
+        .m_axi_wuser            (fub_wr_axi_wuser),
         .m_axi_wvalid           (fub_wr_axi_wvalid),
         .m_axi_wready           (fub_wr_axi_wready),
 
@@ -754,7 +749,7 @@ module stream_core #(
     assign fub_wr_axi_awqos = 4'h0;
     assign fub_wr_axi_awregion = 4'h0;
     assign fub_wr_axi_awuser = '0;
-    assign fub_wr_axi_wuser = '0;
+    // NOTE: fub_wr_axi_wuser now carries channel ID from write engine (not tied off)
     assign fub_wr_axi_buser = '0;
 
     axi4_master_wr #(

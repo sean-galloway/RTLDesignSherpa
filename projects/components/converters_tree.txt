@@ -1,16 +1,28 @@
 DEBUG: exclude_dir = ['__pycache__', 'local_sim_build', 'logs']
 converters
 ├── ANALYSIS_APB_CONVERTER.md
+├── DOCUMENTATION_UPDATE_2025-11-10.md
 ├── DUAL_BUFFER_IMPLEMENTATION.md
 ├── README.md
+├── REFACTOR_SUMMARY_2025-11-10.md
 ├── __init__.py
+├── bin
+│   ├── test_axi_device.py
+│   └── uart_axi_bridge.py
 ├── docs
-│   ├── Converters_Specification_v0.75.docx
-│   ├── Converters_Specification_v0.75.pdf
+│   ├── Converters_Specification_v0.90.docx
+│   ├── Converters_Specification_v0.90.pdf
 │   ├── generate_pdf.sh
 │   ├── peakrdl_adapter_README.md
 │   └── converter_spec
 │       ├── converter_index.md
+│       ├── appendices
+│       │   ├── a1_apb_converter_analysis.md
+│       │   ├── a2_dual_buffer_implementation.md
+│       │   ├── appendix_a_design_notes.md
+│       │   ├── appendix_b_change_logs.md
+│       │   ├── b1_refactor_summary_2025-11-10.md
+│       │   └── b2_documentation_update_2025-11-10.md
 │       ├── assets
 │       │   ├── graphviz
 │       │   │   ├── Makefile
@@ -21,14 +33,28 @@ converters
 │       │   │   ├── axi4_dwidth_converter_wr.png
 │       │   │   ├── axi4_to_apb.gv
 │       │   │   ├── axi4_to_apb.png
+│       │   │   ├── axi4_to_axil4.gv
+│       │   │   ├── axi4_to_axil4.png
+│       │   │   ├── axi4_to_axil4_rd.gv
+│       │   │   ├── axi4_to_axil4_rd.png
+│       │   │   ├── axi4_to_axil4_wr.gv
+│       │   │   ├── axi4_to_axil4_wr.png
 │       │   │   ├── axi_data_dnsize_dual.gv
 │       │   │   ├── axi_data_dnsize_dual.png
 │       │   │   ├── axi_data_dnsize_single.gv
 │       │   │   ├── axi_data_dnsize_single.png
 │       │   │   ├── axi_data_upsize.gv
 │       │   │   ├── axi_data_upsize.png
+│       │   │   ├── axil4_to_axi4.gv
+│       │   │   ├── axil4_to_axi4.png
+│       │   │   ├── axil4_to_axi4_rd.gv
+│       │   │   ├── axil4_to_axi4_rd.png
+│       │   │   ├── axil4_to_axi4_wr.gv
+│       │   │   ├── axil4_to_axi4_wr.png
 │       │   │   ├── peakrdl_adapter.gv
-│       │   │   └── peakrdl_adapter.png
+│       │   │   ├── peakrdl_adapter.png
+│       │   │   ├── uart_axil_bridge.gv
+│       │   │   └── uart_axil_bridge.png
 │       │   ├── png
 │       │   ├── puml
 │       │   │   ├── README.md
@@ -42,7 +68,8 @@ converters
 │       ├── ch03_protocol_converters
 │       │   ├── 01_overview.md
 │       │   ├── 04_axi4_to_axil4.md
-│       │   └── 05_axil4_to_axi4.md
+│       │   ├── 05_axil4_to_axi4.md
+│       │   └── 06_uart_axil_bridge.md
 │       └── ch04_usage_examples
 ├── dv
 │   ├── __init__.py
@@ -53,7 +80,8 @@ converters
 │   │   ├── axi_data_dnsize_tb.py
 │   │   ├── axi_data_upsize_tb.py
 │   │   ├── axil4_to_axi4_rd_tb.py
-│   │   └── axil4_to_axi4_wr_tb.py
+│   │   ├── axil4_to_axi4_wr_tb.py
+│   │   └── uart_axil_bridge_tb.py
 │   └── tests
 │       ├── Makefile
 │       ├── __init__.py
@@ -67,13 +95,10 @@ converters
 │       ├── test_axil4_to_axi4_rd.py
 │       ├── test_axil4_to_axi4_wr.py
 │       ├── test_dnsize_quick.py
-│       └── test_peakrdl_to_cmdrsp.py
+│       ├── test_peakrdl_to_cmdrsp.py
+│       └── test_uart_axil_bridge.py
 └── rtl
-    ├── CODE_SHARING_ANALYSIS.md
-    ├── CONVERTER_ARCHITECTURE_ANALYSIS.md
-    ├── GENERIC_MODULES_USAGE_GUIDE.md
     ├── Makefile
-    ├── README_AXI_CONVERTERS.md
     ├── axi4_dwidth_converter_rd.sv
     ├── axi4_dwidth_converter_wr.sv
     ├── axi4_to_apb_convert.sv
@@ -87,14 +112,20 @@ converters
     ├── axil4_to_axi4_rd.sv
     ├── axil4_to_axi4_wr.sv
     ├── peakrdl_to_cmdrsp.sv
-    └── filelists
-        ├── axi4_dwidth_converter_rd.f
-        ├── axi4_dwidth_converter_wr.f
-        ├── axi4_to_apb_shim.f
-        ├── axi4_to_axil4_rd.f
-        ├── axi4_to_axil4_wr.f
-        ├── axi_data_dnsize.f
-        ├── axi_data_upsize.f
-        ├── axil4_to_axi4_rd.f
-        ├── axil4_to_axi4_wr.f
-        └── peakrdl_to_cmdrsp.f
+    ├── filelists
+    │   ├── axi4_dwidth_converter_rd.f
+    │   ├── axi4_dwidth_converter_wr.f
+    │   ├── axi4_to_apb_shim.f
+    │   ├── axi4_to_axil4_rd.f
+    │   ├── axi4_to_axil4_wr.f
+    │   ├── axi_data_dnsize.f
+    │   ├── axi_data_upsize.f
+    │   ├── axil4_to_axi4_rd.f
+    │   ├── axil4_to_axi4_wr.f
+    │   ├── peakrdl_to_cmdrsp.f
+    │   └── uart_axil_bridge.f
+    └── uart_to_axil4
+        ├── README.md
+        ├── uart_axil_bridge.sv
+        ├── uart_rx.sv
+        └── uart_tx.sv

@@ -29,6 +29,7 @@ The `projects/components/` directory contains demonstration components showcasin
 | **[converters](#converters)** | Converters | ✅ Complete | AXI4 data width converters | Medium |
 | **[delta](#delta)** | Generator | 🔧 In Progress | AXI-Stream crossbar generator | Medium |
 | **[hive](#hive)** | Control Plane | 🟡 Early Spec | Distributed control subsystem | Very High |
+| **[misc](#misc)** | Utilities | ✅ Active | Reusable utility components (ROM/RAM wrappers) | Low-Medium |
 | **[rapids](#rapids)** | Accelerator | 🔧 In Progress | DMA with network integration | Very High |
 | **[retro_legacy_blocks](#retro_legacy_blocks)** | Peripherals | 🟢 Active Dev | Intel ILB-compatible legacy peripherals | Medium |
 | **[shims](#shims)** | Adapter | ✅ Complete | Protocol conversion adapters | Low-Medium |
@@ -470,6 +471,56 @@ Distributed control and monitoring subsystem for RAPIDS/Delta Network. Demonstra
 
 ---
 
+### misc
+
+**Miscellaneous Utility Components**
+
+**Status:** ✅ Active - Collection of reusable building blocks
+
+**Description:**
+Collection of utility components and adapters that solve common integration problems. These are production-quality, single-purpose modules with standard interfaces (AXI4, APB) that don't fit into larger subsystems but are useful across multiple projects.
+
+**Key Characteristics:**
+- **Single-Purpose:** Each component solves one specific problem
+- **Reusable:** Parameterized, technology-agnostic implementations
+- **Standard Interfaces:** AXI4, APB, or other industry standards
+- **Production Quality:** Fully tested, documented, lint-clean
+
+**Current/Planned Components:**
+
+| Component | Status | Description |
+|-----------|--------|-------------|
+| `axi_rom_wrapper` | 📋 Planned | AXI4 read-only memory (boot ROM, LUTs, config data) |
+| `axi_ram_wrapper` | 📋 Future | AXI4 read/write memory |
+| `apb_rom_wrapper` | 📋 Future | APB read-only memory |
+| `apb_ram_wrapper` | 📋 Future | APB read/write memory |
+| `axi_pattern_gen` | 📋 Future | AXI4 test pattern generator |
+| `async_fifo_wrapper` | 📋 Future | Clock domain crossing FIFO |
+
+**AXI ROM Wrapper (First Component):**
+- AXI4 read-only slave interface
+- Parameterizable data width (32, 64, 128, 256, 512 bits)
+- Parameterizable depth
+- FPGA block RAM inference
+- Optional initialization from hex/mem files
+- Single-cycle read latency
+- Burst support (INCR, WRAP, FIXED)
+
+**Applications:**
+- Boot ROM for embedded processors
+- Configuration data storage
+- Lookup tables for algorithms
+- Test pattern storage
+- Calibration data
+
+**Resources:**
+- Documentation: `README.md`, `CLAUDE.md`
+- Future: `rtl/axi_rom_wrapper.sv`, `dv/tests/test_axi_rom.py`
+
+**📖 See:** [`misc/README.md`](misc/README.md) for complete overview and component guidelines
+
+---
+
 ## Comparison Matrix
 
 ### Protocol and Interface Support
@@ -482,6 +533,7 @@ Distributed control and monitoring subsystem for RAPIDS/Delta Network. Demonstra
 | **converters** | - | ✅ Converter | - | - | - | - | - |
 | **delta** | - | - | - | ✅ Crossbar | - | - | - |
 | **hive** | - | - | - | - | ✅ Control | ✅ Master | ✅ RISC-V |
+| **misc** | ✅ Slave | ✅ Slave | - | - | - | - | - |
 | **rapids** | - | ✅ Master | ✅ Slave | - | ✅ M/S | ✅ Master | - |
 | **retro_legacy_blocks** | ✅ Slave | - | - | - | - | - | ✅ Interrupts |
 | **shims** | ✅ Adapter | - | - | - | - | - | ✅ CmdRsp |
@@ -497,6 +549,7 @@ Distributed control and monitoring subsystem for RAPIDS/Delta Network. Demonstra
 | **converters** | 2 | 100% | Data width adaptation | Medium |
 | **delta** | Generated | TBD | Topology comparison | High |
 | **hive** | TBD | N/A | Distributed control | Very High |
+| **misc** | 1-6 (planned) | TBD | Utility wrappers | Medium |
 | **rapids** | 17 | ~85% | Complex accelerator | Very High |
 | **retro_legacy_blocks** | 16 (2 complete) | 95-100% (HPET/PIT) | Legacy peripherals | Medium-High |
 | **shims** | 1 | 100% | Protocol conversion | Low-Medium |
@@ -512,6 +565,7 @@ Distributed control and monitoring subsystem for RAPIDS/Delta Network. Demonstra
 | **converters** | ~200-400 | ~150-300 | 0 | Per converter, depends on width ratio |
 | **delta** | ~1,600-1,920 | ~1,200 | 0 | 4×16 @ 64-bit |
 | **hive** | ~9K | TBD | 24 | HIVE-C + 16× SERV monitors |
+| **misc** | ~100-500 | ~100-300 | 1-4 | Per component, depends on depth |
 | **rapids** | ~10K | ~8K | 0 | Plus SRAM (dominant) |
 | **retro_legacy_blocks** | ~1,500 | ~1,000 | 0 | HPET + PIT currently, more planned |
 | **shims** | ~50-100 | ~50-100 | 0 | Minimal glue logic |
@@ -557,6 +611,16 @@ projects/components/
 │   ├── docs/hive_spec/          # Specifications
 │   ├── PRD.md, CLAUDE.md        # Documentation
 │   └── README.md
+│
+├── misc/                        # Miscellaneous Utility Components
+│   ├── bin/                     # Utility scripts (ROM init generators)
+│   ├── rtl/                     # Component implementations
+│   ├── dv/
+│   │   ├── tbclasses/           # Testbench classes
+│   │   └── tests/               # Test runners
+│   ├── docs/                    # Component specifications
+│   ├── README.md                # Overview and guidelines
+│   └── CLAUDE.md                # AI assistance guide
 │
 ├── rapids/                      # Rapid AXI Programmable In-band Descriptor System
 │   ├── rtl/
@@ -953,11 +1017,12 @@ make help                        # Show all available targets
 **Maintained By:** RTL Design Sherpa Project
 
 **Recent Updates:**
+- **Miscellaneous (NEW):** Created utility component area for ROM/RAM wrappers and other reusable building blocks
 - **Retro Legacy Blocks:** Reorganized apb_hpet as mega-block with 13 total peripherals (2 complete: HPET, 8254 PIT)
 - **STREAM:** Nearly complete at 95%, all core blocks passing tests
 - **Bridge:** 95% complete with comprehensive test infrastructure
 - **BCH and HIVE:** Added as planned components with documentation structure
-- Updated directory structure to reflect all 10 component areas
+- Updated directory structure to reflect all 11 component areas
 - Comprehensive Makefile infrastructure with REG_LEVEL support across all components
 - Increased parallel test execution (48 workers)
 - Unified testing methodology matching val/common and val/amba patterns

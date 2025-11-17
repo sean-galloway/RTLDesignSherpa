@@ -1,27 +1,9 @@
 # ==============================================================================
 # STREAM RTL - Lint & Synthesis Makefile
 # ==============================================================================
-#
-# PREREQUISITES:
-#   Must be run with sourced environment:
-#     source $REPO_ROOT/env_python
-#     cd $REPO_ROOT/projects/components/stream/rtl
-#     make <target>
-#
-# Quick start:
-#   make help           - Show all available targets
-#   make lint-all       - Run all lint tools
-#   make status         - Show RTL status
-#
-# ==============================================================================
 
-# Force bash shell
-SHELL := /bin/bash
-
-# Check if REPO_ROOT is set (from env_python)
-ifndef REPO_ROOT
-$(error REPO_ROOT is not set. Please run: source $$REPO_ROOT/env_python)
-endif
+# Optional: Use common.mk for color functions and REPO_ROOT check
+-include $(REPO_ROOT)/makefiles/common.mk
 
 # Master filelist for component-level linting
 MASTER_FILELIST = filelists/stream_all.f
@@ -51,73 +33,33 @@ VERIBLE_FLAGS = --rules_config_search --rules=-parameter-name-style,-line-length
 YOSYS = yosys
 YOSYS_FLAGS = -p "read_verilog -sv"
 
-# Default target
-.DEFAULT_GOAL := help
-
 # ==============================================================================
-# Help Target
-# ==============================================================================
-
-.PHONY: help
-help:
-	@echo "================================================================================"
-	@echo "STREAM RTL - Lint & Synthesis Makefile"
-	@echo "================================================================================"
-	@echo ""
-	@echo "LINT TARGETS:"
-	@echo "  make lint-all             Run all lint tools"
-	@echo "  make verilator            Run Verilator lint"
-	@echo "  make verible              Run Verible lint"
-	@echo "  make yosys                Run Yosys synthesis check"
-	@echo ""
-	@echo "REPORT TARGETS:"
-	@echo "  make report               Generate lint summary"
-	@echo "  make status               Show RTL status"
-	@echo ""
-	@echo "CLEAN TARGETS:"
-	@echo "  make clean-all            Remove all lint artifacts"
-	@echo ""
-	@echo "================================================================================"
-	@echo "Prerequisites: source $(REPO_ROOT)/env_python"
-	@echo "Current REPO_ROOT: $(REPO_ROOT)"
-	@echo "SystemVerilog files found: $(SV_COUNT)"
-	@echo "================================================================================"
-
-# ==============================================================================
-# Verilator Targets
+# Targets
 # ==============================================================================
 
 .PHONY: verilator
-verilator:
-	@echo "================================================================================"
-	@echo "Running Verilator Lint on STREAM RTL ($(SV_COUNT) files)"
-	@echo "================================================================================"
+verilator: ## Run Verilator lint on all files
+	$(call print_header,Running Verilator Lint on STREAM RTL ($(SV_COUNT) files))
 	@mkdir -p $(VERILATOR_DIR)
 	@echo "Linting using master filelist: $(MASTER_FILELIST)"
 	@if $(VERILATOR) $(VERILATOR_FLAGS) -f $(MASTER_FILELIST) > $(VERILATOR_DIR)/stream_all.log 2>&1; then \
-		echo "✓ STREAM RTL lint passed" | tee $(VERILATOR_DIR)/summary.txt; \
+		echo "$(GREEN)✓ STREAM RTL lint passed$(RESET)" | tee $(VERILATOR_DIR)/summary.txt; \
 		echo "" >> $(VERILATOR_DIR)/summary.txt; \
-		echo "Summary: 1 passed, 0 failed" >> $(VERILATOR_DIR)/summary.txt; \
+		echo "All $(SV_COUNT) files passed lint checks" >> $(VERILATOR_DIR)/summary.txt; \
 	else \
-		echo "✗ STREAM RTL lint failed" | tee $(VERILATOR_DIR)/summary.txt; \
+		echo "$(RED)✗ STREAM RTL lint failed$(RESET)" | tee $(VERILATOR_DIR)/summary.txt; \
 		echo "" >> $(VERILATOR_DIR)/summary.txt; \
-		echo "Summary: 0 passed, 1 failed" >> $(VERILATOR_DIR)/summary.txt; \
+		echo "Errors found. See $(VERILATOR_DIR)/stream_all.log for details" >> $(VERILATOR_DIR)/summary.txt; \
 		echo ""; \
-		echo "Error log:"; \
-		cat $(VERILATOR_DIR)/stream_all.log; \
+		echo "Last 30 lines of error log:"; \
+		tail -30 $(VERILATOR_DIR)/stream_all.log; \
 		exit 1; \
 	fi
-	@echo "✓ Verilator lint complete. Reports: $(VERILATOR_DIR)/"
-
-# ==============================================================================
-# Verible Targets
-# ==============================================================================
+	$(call print_success,Verilator lint complete. Reports: $(VERILATOR_DIR)/)
 
 .PHONY: verible
-verible:
-	@echo "================================================================================"
-	@echo "Running Verible Lint on STREAM RTL ($(SV_COUNT) files)"
-	@echo "================================================================================"
+verible: ## Run Verible lint on all files
+	$(call print_header,Running Verible Lint on STREAM RTL ($(SV_COUNT) files))
 	@mkdir -p $(VERIBLE_DIR)
 	@if command -v $(VERIBLE) &> /dev/null; then \
 		echo "Lint results:" > $(VERIBLE_DIR)/summary.txt; \
@@ -135,20 +77,15 @@ verible:
 		echo "" >> $(VERIBLE_DIR)/summary.txt; \
 		echo "Summary: $$pass_count passed, $$fail_count failed" >> $(VERIBLE_DIR)/summary.txt; \
 		cat $(VERIBLE_DIR)/summary.txt; \
-		echo "✓ Verible lint complete. Reports: $(VERIBLE_DIR)/"; \
+		$(call print_success,Verible lint complete. Reports: $(VERIBLE_DIR)/); \
 	else \
-		echo "⚠ Verible not found. Skipping."; \
+		$(call print_warning,Verible not found. Install: https://github.com/chipsalliance/verible); \
+		echo "Skipping Verible lint."; \
 	fi
 
-# ==============================================================================
-# Yosys Targets
-# ==============================================================================
-
 .PHONY: yosys
-yosys:
-	@echo "================================================================================"
-	@echo "Running Yosys Synthesis Check on STREAM RTL ($(SV_COUNT) files)"
-	@echo "================================================================================"
+yosys: ## Run Yosys synthesis check on all files
+	$(call print_header,Running Yosys Synthesis Check on STREAM RTL ($(SV_COUNT) files))
 	@mkdir -p $(YOSYS_DIR)
 	@if command -v $(YOSYS) &> /dev/null; then \
 		echo "Synthesis check results:" > $(YOSYS_DIR)/summary.txt; \
@@ -166,30 +103,23 @@ yosys:
 		echo "" >> $(YOSYS_DIR)/summary.txt; \
 		echo "Summary: $$pass_count passed, $$fail_count failed" >> $(YOSYS_DIR)/summary.txt; \
 		cat $(YOSYS_DIR)/summary.txt; \
-		echo "✓ Yosys synthesis check complete. Reports: $(YOSYS_DIR)/"; \
+		$(call print_success,Yosys synthesis check complete. Reports: $(YOSYS_DIR)/); \
 	else \
-		echo "⚠ Yosys not found. Skipping."; \
+		$(call print_warning,Yosys not found. Install: http://www.clifford.at/yosys/); \
+		echo "Skipping Yosys synthesis check."; \
 	fi
 
-# ==============================================================================
-# Combined Targets
-# ==============================================================================
-
 .PHONY: lint-all
-lint-all: verilator verible
-	@echo "================================================================================"
-	@echo "✓ All lint tools completed"
-	@echo "================================================================================"
+lint-all: verilator verible ## Run all lint tools on all files
+	$(call print_success,All lint tools completed)
 
-# ==============================================================================
-# Report Targets
-# ==============================================================================
+.PHONY: synth-all
+synth-all: yosys ## Run synthesis checks
+	$(call print_success,Synthesis checks completed)
 
 .PHONY: report
-report:
-	@echo "================================================================================"
-	@echo "STREAM RTL Lint Summary Report"
-	@echo "================================================================================"
+report: ## Generate lint summary report
+	$(call print_header,STREAM RTL Lint Summary Report)
 	@echo ""
 	@echo "Files found: $(SV_COUNT)"
 	@echo ""
@@ -208,19 +138,13 @@ report:
 		cat $(YOSYS_DIR)/summary.txt; \
 		echo ""; \
 	fi
-	@echo "================================================================================"
 
 .PHONY: status
-status:
-	@echo "================================================================================"
-	@echo "STREAM RTL Status"
-	@echo "================================================================================"
+status: ## Show file counts and lint status
+	$(call print_header,STREAM RTL Status)
 	@echo "Location: $(REPO_ROOT)/projects/components/stream/rtl/"
 	@echo ""
 	@echo "SystemVerilog files: $(SV_COUNT)"
-	@echo ""
-	@echo "Modules:"
-	@ls -1 *.sv 2>/dev/null | head -10
 	@echo ""
 	@echo "Lint reports:"
 	@echo "  Verilator: $$(find $(VERILATOR_DIR) -name '*.log' 2>/dev/null | wc -l) reports"
@@ -229,28 +153,68 @@ status:
 	@echo ""
 	@echo "Environment:"
 	@echo "  REPO_ROOT: $(REPO_ROOT)"
-	@echo "================================================================================"
 
-# ==============================================================================
-# Clean Targets
-# ==============================================================================
+.PHONY: clean-verilator
+clean-verilator: ## Remove Verilator reports
+	$(call print_info,Cleaning Verilator reports...)
+	@rm -rf $(VERILATOR_DIR)
+	$(call print_success,Verilator reports cleaned)
+
+.PHONY: clean-verible
+clean-verible: ## Remove Verible reports
+	$(call print_info,Cleaning Verible reports...)
+	@rm -rf $(VERIBLE_DIR)
+	$(call print_success,Verible reports cleaned)
+
+.PHONY: clean-yosys
+clean-yosys: ## Remove Yosys reports
+	$(call print_info,Cleaning Yosys reports...)
+	@rm -rf $(YOSYS_DIR)
+	$(call print_success,Yosys reports cleaned)
 
 .PHONY: clean-all
-clean-all:
-	@echo "Cleaning all lint artifacts..."
+clean-all: clean-verilator clean-verible clean-yosys ## Remove all lint artifacts
+	$(call print_info,Cleaning all lint artifacts...)
 	@rm -rf $(LINT_DIR)
-	@echo "✓ All lint artifacts cleaned"
+	$(call print_success,All lint artifacts cleaned)
 
-# ==============================================================================
-# Quick Aliases
-# ==============================================================================
-
+# Quick aliases
 .PHONY: lint
 lint: lint-all
+
+.PHONY: synth
+synth: synth-all
 
 .PHONY: clean
 clean: clean-all
 
 # ==============================================================================
-# End of Makefile
+# Help
 # ==============================================================================
+
+.PHONY: help
+help: ## Show this help message
+	@echo "$(BOLD)$(CYAN)╔════════════════════════════════════════╗$(RESET)"
+	@echo "$(BOLD)$(CYAN)║   STREAM RTL - Lint & Synthesis        ║$(RESET)"
+	@echo "$(BOLD)$(CYAN)╚════════════════════════════════════════╝$(RESET)"
+	@echo ""
+	@echo "$(GREEN)Targets:$(RESET)"
+	@/bin/sh -c "grep -h -E '^[a-zA-Z_-]+:.*?## .*\$$' $(MAKEFILE_LIST) | sed -E 's/^([a-zA-Z_-]+):.*## (.*)\$$/\1@@@\2/' | awk -F'@@@' '{printf \"  %-30s %s\\n\", \$$1, \$$2}'"
+	@echo ""
+	@echo "$(GREEN)Environment:$(RESET)"
+	@echo "  REPO_ROOT: $(REPO_ROOT)"
+	@echo "  SystemVerilog files: $(SV_COUNT)"
+	@echo ""
+
+.PHONY: help-vars
+help-vars: ## Show Makefile variables
+	@echo "$(BOLD)Makefile Variables:$(RESET)"
+	@echo "  SV_FILES = $(SV_FILES)"
+	@echo "  SV_COUNT = $(SV_COUNT)"
+	@echo "  MASTER_FILELIST = $(MASTER_FILELIST)"
+	@echo "  LINT_DIR = $(LINT_DIR)"
+
+.PHONY: all
+all: lint-all synth-all
+
+.DEFAULT_GOAL := help

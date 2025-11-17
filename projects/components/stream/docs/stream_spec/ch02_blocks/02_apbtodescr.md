@@ -12,20 +12,22 @@ The `apbtodescr` module is a lightweight address-decode router that connects the
 
 ## Block Diagram
 
+![Block Diagram](../images/02_apbtodescr_L020.png)
+
+<!--
+Original Mermaid diagram (for editing):
+
+```mermaid
+graph LR
+    A[Software APB Write<br/>Write 0x1000_0000<br/>to BASE+0x00<br/>blocks until ready]
+    B[apbtodescr Router<br/>Address Decode<br/>relative_addr<br/>bits 4:2 = ch_id<br/>FSM: IDLE→ROUTE→RESPOND]
+    C[Descriptor Engines<br/>desc_apb_valid<br/>desc_apb_ready<br/>desc_apb_addr<br/>CH0: 0x1000_0000<br/>CH1: ready<br/>...<br/>CH7: ready]
+
+    A -->|CMD| B
+    B -->|RSP| A
+    B --> C
 ```
-Software APB Write          apbtodescr Router               Descriptor Engines
-┌────────────────┐         ┌──────────────────┐           ┌──────────────────┐
-│                │         │                  │           │                  │
-│  Write         │  CMD    │  Address Decode  │           │  desc_apb_valid  │
-│  0x1000_0000   │────────▶│  relative_addr   │──────────▶│  desc_apb_ready  │
-│  to BASE+0x00  │         │  [4:2] = ch_id   │           │  desc_apb_addr   │
-│                │         │                  │           │                  │
-│                │  RSP    │  FSM:            │           │  CH0: 0x1000_0000│
-│  (blocks until │◀────────│  IDLE→ROUTE→     │           │  CH1: <ready>    │
-│   ready)       │         │  RESPOND         │           │  ...             │
-│                │         │                  │           │  CH7: <ready>    │
-└────────────────┘         └──────────────────┘           └──────────────────┘
-```
+-->
 
 ## Address Map
 
@@ -110,41 +112,35 @@ Duration: 3 + N cycles (N = back-pressure cycles)
 
 ### State Diagram
 
+![FSM State Diagram](../images/02_apbtodescr_L115.png)
+
+<!--
+Original Mermaid diagram (for editing):
+
+```mermaid
+stateDiagram-v2
+    [*] --> IDLE
+    IDLE --> ROUTE: apb_cmd_valid && apb_cmd_write
+    ROUTE --> RESPOND: desc_apb_ready or r_error
+    RESPOND --> IDLE: apb_rsp_ready
+
+    note right of IDLE
+        apb_cmd_ready = 1
+        Waiting for command
+        Latch: channel_id, wdata, error
+    end note
+
+    note right of ROUTE
+        desc_apb_valid[ch] = 1
+        Waiting for descriptor engine
+    end note
+
+    note right of RESPOND
+        apb_rsp_valid = 1
+        apb_rsp_error = r_error
+    end note
 ```
-        ┌─────────────────────────────────────────────┐
-        │                                             │
-        │                 IDLE                        │
-        │  • apb_cmd_ready = 1                        │
-        │  • Waiting for command                      │
-        │                                             │
-        └──────────────┬──────────────────────────────┘
-                       │
-                       │ apb_cmd_valid && apb_cmd_write
-                       │ (latch: channel_id, wdata, error)
-                       ▼
-        ┌─────────────────────────────────────────────┐
-        │                                             │
-        │                ROUTE                        │
-        │  • desc_apb_valid[ch] = 1                   │
-        │  • Waiting for descriptor engine            │
-        │                                             │
-        └──────────────┬──────────────────────────────┘
-                       │
-                       │ desc_apb_ready[ch] || r_error
-                       │
-                       ▼
-        ┌─────────────────────────────────────────────┐
-        │                                             │
-        │               RESPOND                       │
-        │  • apb_rsp_valid = 1                        │
-        │  • apb_rsp_error = r_error                  │
-        │                                             │
-        └──────────────┬──────────────────────────────┘
-                       │
-                       │ apb_rsp_ready
-                       │
-                       └──────────────▶ (back to IDLE)
-```
+-->
 
 ### State Descriptions
 

@@ -1,5 +1,10 @@
-# Makefile for Converters Graphviz Diagrams
-# Generates PNG images from .gv source files
+# ==============================================================================
+# Graphviz Diagram Makefile - Converter Specification
+# ==============================================================================
+
+# Optional: Use common.mk for helper functions (print_*, etc.)
+# But graphviz Makefiles are self-contained and don't need pytest/clean infrastructure
+-include $(REPO_ROOT)/makefiles/common.mk
 
 # Graphviz dot command
 DOT = dot
@@ -11,54 +16,57 @@ SOURCES = axi_data_upsize.gv \
           axi4_dwidth_converter_wr.gv \
           axi4_dwidth_converter_rd.gv \
           axi4_to_apb.gv \
-          peakrdl_adapter.gv
+          peakrdl_adapter.gv \
+          axi4_to_axil4.gv \
+          axi4_to_axil4_rd.gv \
+          axi4_to_axil4_wr.gv \
+          axil4_to_axi4.gv \
+          axil4_to_axi4_rd.gv \
+          axil4_to_axi4_wr.gv \
+          uart_axil_bridge.gv
 
-# Generated PNG files
+# Generated files
 PNGS = $(SOURCES:.gv=.png)
-
-# Generated SVG files
 SVGS = $(SOURCES:.gv=.svg)
 
-# Default target: generate all PNGs
-all: $(PNGS)
+# ==============================================================================
+# Targets
+# ==============================================================================
 
-# Generate PNG from .gv source
+all: $(PNGS) ## Generate all PNG diagrams (default)
+
 %.png: %.gv
-	@echo "Generating $@ from $<..."
+	@echo "$(BLUE)Generating $@ from $<...$(RESET)"
 	$(DOT) -Tpng $< -o $@
 
-# Generate SVG from .gv source
 %.svg: %.gv
-	@echo "Generating $@ from $<..."
+	@echo "$(BLUE)Generating $@ from $<...$(RESET)"
 	$(DOT) -Tsvg $< -o $@
 
-# Generate all SVGs
-svg: $(SVGS)
+svg: $(SVGS) ## Generate all SVG diagrams
 
-# Generate all formats
-full: all svg
+full: all svg ## Generate all PNG and SVG diagrams
 
-# Clean generated files
-clean:
-	@echo "Cleaning generated PNG and SVG files..."
+clean: ## Remove all generated files
+	@echo "$(YELLOW)Cleaning generated PNG and SVG files...$(RESET)"
 	rm -f $(PNGS) $(SVGS)
 
-# Regenerate everything
-rebuild: clean all
+rebuild: clean all ## Clean and regenerate all diagrams
 
-# Help target
-help:
-	@echo "Converters Graphviz Diagram Makefile"
+.PHONY: all svg full clean rebuild
+
+# ==============================================================================
+# Help (minimal - graphviz-specific)
+# ==============================================================================
+
+help: ## Show this help message
+	@echo "$(BOLD)Converter Graphviz Diagram Makefile$(RESET)"
 	@echo ""
-	@echo "Targets:"
-	@echo "  all     - Generate all PNG diagrams (default)"
-	@echo "  svg     - Generate all SVG diagrams"
-	@echo "  full    - Generate all PNG and SVG diagrams"
-	@echo "  clean   - Remove all generated files"
-	@echo "  rebuild - Clean and regenerate all diagrams"
-	@echo "  help    - Show this help message"
+	@echo "$(GREEN)Targets:$(RESET)"
+	@/bin/sh -c "grep -h -E '^[a-zA-Z_-]+:.*?## .*\$$' $(MAKEFILE_LIST) | sed -E 's/^([a-zA-Z_-]+):.*## (.*)\$$/\1@@@\2/' | awk -F'@@@' '{printf \"  %-12s %s\\n\", \$$1, \$$2}'"
 	@echo ""
-	@echo "Source files:"
+	@echo "$(GREEN)Source files:$(RESET)"
 	@for file in $(SOURCES); do echo "  - $$file"; done
+	@echo ""
 
-.PHONY: all svg full clean rebuild help
+.PHONY: help
